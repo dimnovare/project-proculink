@@ -1,7 +1,28 @@
-import type { AutomationStatus, PurchaseOrder, PurchaseOrderSummary, UploadResult } from "@/types/procurement";
+import type { 
+  AutomationStatus, 
+  PurchaseOrder, 
+  PurchaseOrderSummary, 
+  UploadResult,
+  ResolvePayload,
+  ResolveResult,
+  SupplierMapping
+} from "@/types/procurement";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5223";
-const USE_MOCK = import.meta.env.VITE_USE_MOCK === "true"; // Set VITE_USE_MOCK=true to use mock data
+// Default to mock mode unless explicitly set to false (handles missing env vars and Lovable preview)
+const USE_MOCK = import.meta.env.VITE_USE_MOCK !== "false";
+
+// Mock mappings store
+const mockMappings: Record<string, SupplierMapping[]> = {
+  "ElectroSupply Co": [
+    { buyerItemCode: "TB-CAP-100", supplierItemCode: "ES-CAP-100UF" },
+    { buyerItemCode: "TB-LED-RED", supplierItemCode: "ES-LED-R5MM" },
+  ],
+  "FastParts Inc": [
+    { buyerItemCode: "ACM-BOLT-001", supplierItemCode: "FP-B001" },
+    { buyerItemCode: "ACM-NUT-001", supplierItemCode: "FP-N001" },
+  ],
+};
 
 // Backend returns AutomationStatus as numeric enum (0 = Automatable, 1 = NeedsClarification)
 // Frontend uses string literals - this function converts between them
@@ -198,11 +219,140 @@ async function realGetOrderById(id: string): Promise<PurchaseOrder | null> {
   return transformOrder(order);
 }
 
+// Mock resolve function
+async function mockResolvePurchaseOrder(id: string, payload: import("@/types/procurement").ResolvePayload): Promise<import("@/types/procurement").ResolveResult> {
+  await new Promise(resolve => setTimeout(resolve, 800));
+
+  const orderIndex = mockOrders.findIndex(o => o.id === id);
+  if (orderIndex === -1) {
+    throw new Error("Order not found");
+  }
+
+  const order = { ...mockOrders[orderIndex] };
+  
+  // Apply resolutions to lines
+  order.lines = order.lines.map(line => {
+    const resolution = payload.lineResolutions.find(r => r.lineNumber === line.lineNumber);
+    if (resolution) {
+      return { ...line, supplierItemCode: resolution.supplierItemCode };
+    }
+    return line;
+  });
+
+  // Save mappings if requested
+  if (payload.saveMappings) {
+    const supplierMappings = mockMappings[order.supplierName] || [];
+    payload.lineResolutions.forEach(resolution => {
+      const line = order.lines.find(l => l.lineNumber === resolution.lineNumber);
+      if (line) {
+        const existingIndex = supplierMappings.findIndex(m => m.buyerItemCode === line.buyerItemCode);
+        const newMapping = { buyerItemCode: line.buyerItemCode, supplierItemCode: resolution.supplierItemCode };
+        if (existingIndex >= 0) {
+          supplierMappings[existingIndex] = newMapping;
+        } else {
+          supplierMappings.push(newMapping);
+        }
+      }
+    });
+    mockMappings[order.supplierName] = supplierMappings;
+  }
+
+  // Check if all lines now have supplier item codes
+  const missingCodes = order.lines.filter(l => !l.supplierItemCode);
+  if (missingCodes.length === 0) {
+    order.automationStatus = "Automatable";
+    order.automationReason = null;
+  } else {
+    order.automationStatus = "NeedsClarification";
+    order.automationReason = `Still missing supplier item codes for ${missingCodes.length} line(s): lines ${missingCodes.map(l => l.lineNumber).join(', ')}.`;
+  }
+
+  mockOrders[orderIndex] = order;
+
+  return {
+    order,
+    validationMessages: order.automationStatus === "Automatable" 
+      ? ["All validation checks passed"] 
+      : [`${missingCodes.length} line(s) still require supplier item codes`],
+  };
+}
+
+// Real resolve function
+async function realResolvePurchaseOrder(id: string, payload: import("@/types/procurement").ResolvePayload): Promise<import("@/types/procurement").ResolveResult> {
+  const response = await fetch(`${API_BASE_URL}/api/purchase-orders/${id}/resolve`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Resolution failed: ${errorText || response.statusText}`);
+  }
+
+  const result = await response.json();
+  return {
+    order: transformOrder(result.order),
+    validationMessages: result.validationMessages,
+  };
+}
+
+// Mock get supplier mappings
+async function mockGetSupplierMappings(supplierName: string): Promise<import("@/types/procurement").SupplierMapping[]> {
+  await new Promise(resolve => setTimeout(resolve, 300));
+  return mockMappings[supplierName] || [];
+}
+
+// Real get supplier mappings
+async function realGetSupplierMappings(supplierName: string): Promise<import("@/types/procurement").SupplierMapping[]> {
+  const response = await fetch(`${API_BASE_URL}/api/suppliers/${encodeURIComponent(supplierName)}/mappings`);
+  
+  if (!response.ok) {
+    throw new Error(`Failed to fetch mappings: ${response.statusText}`);
+  }
+
+  return response.json();
+}
+
+// Mock upsert supplier mapping
+async function mockUpsertSupplierMapping(supplierName: string, buyerItemCode: string, supplierItemCode: string): Promise<void> {
+  await new Promise(resolve => setTimeout(resolve, 200));
+  
+  const mappings = mockMappings[supplierName] || [];
+  const existingIndex = mappings.findIndex(m => m.buyerItemCode === buyerItemCode);
+  const newMapping = { buyerItemCode, supplierItemCode };
+  
+  if (existingIndex >= 0) {
+    mappings[existingIndex] = newMapping;
+  } else {
+    mappings.push(newMapping);
+  }
+  
+  mockMappings[supplierName] = mappings;
+}
+
+// Real upsert supplier mapping
+async function realUpsertSupplierMapping(supplierName: string, buyerItemCode: string, supplierItemCode: string): Promise<void> {
+  const response = await fetch(`${API_BASE_URL}/api/suppliers/${encodeURIComponent(supplierName)}/mappings`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ buyerItemCode, supplierItemCode }),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Failed to save mapping: ${errorText || response.statusText}`);
+  }
+}
+
 // Exported API client
 export const apiClient = {
   uploadPurchaseOrder: USE_MOCK ? mockUploadPurchaseOrder : realUploadPurchaseOrder,
   getOrders: USE_MOCK ? mockGetOrders : realGetOrders,
   getOrderById: USE_MOCK ? mockGetOrderById : realGetOrderById,
+  resolvePurchaseOrder: USE_MOCK ? mockResolvePurchaseOrder : realResolvePurchaseOrder,
+  getSupplierMappings: USE_MOCK ? mockGetSupplierMappings : realGetSupplierMappings,
+  upsertSupplierMapping: USE_MOCK ? mockUpsertSupplierMapping : realUpsertSupplierMapping,
   getSuppliers: async () => {
     if (USE_MOCK) {
       return MOCK_SUPPLIERS.map(s => s.name);
