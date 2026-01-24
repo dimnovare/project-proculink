@@ -36,10 +36,11 @@ export interface PurchaseOrderSummary {
 }
 
 export interface SupplierProfile {
-  name: string;
-  requiredFields: string[];
+  supplierName: string;
   requiresSupplierItemCode: boolean;
+  requiredFields: string[];
   supportsPartialAutomation: boolean;
+  acceptedFormats: string[];
 }
 
 export interface UploadResult {

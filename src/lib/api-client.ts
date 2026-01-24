@@ -345,6 +345,121 @@ async function realUpsertSupplierMapping(supplierName: string, buyerItemCode: st
   }
 }
 
+// Mock supplier profiles store
+let mockSupplierProfiles: import("@/types/procurement").SupplierProfile[] = [
+  {
+    supplierName: "FastParts Inc",
+    requiresSupplierItemCode: true,
+    requiredFields: ["quantity", "unitPrice"],
+    supportsPartialAutomation: false,
+    acceptedFormats: ["XML", "CSV"],
+  },
+  {
+    supplierName: "ElectroSupply Co",
+    requiresSupplierItemCode: true,
+    requiredFields: ["quantity", "unitPrice", "description"],
+    supportsPartialAutomation: true,
+    acceptedFormats: ["XML"],
+  },
+  {
+    supplierName: "GlobalComponents",
+    requiresSupplierItemCode: false,
+    requiredFields: ["quantity"],
+    supportsPartialAutomation: true,
+    acceptedFormats: ["CSV", "JSON"],
+  },
+];
+
+// Mock supplier profile CRUD
+async function mockGetSupplierProfiles(): Promise<import("@/types/procurement").SupplierProfile[]> {
+  await new Promise(resolve => setTimeout(resolve, 300));
+  return [...mockSupplierProfiles];
+}
+
+async function mockGetSupplierProfile(supplierName: string): Promise<import("@/types/procurement").SupplierProfile | null> {
+  await new Promise(resolve => setTimeout(resolve, 200));
+  return mockSupplierProfiles.find(p => p.supplierName === supplierName) || null;
+}
+
+async function mockCreateSupplierProfile(profile: import("@/types/procurement").SupplierProfile): Promise<import("@/types/procurement").SupplierProfile> {
+  await new Promise(resolve => setTimeout(resolve, 400));
+  if (mockSupplierProfiles.find(p => p.supplierName === profile.supplierName)) {
+    throw new Error("Supplier profile already exists");
+  }
+  mockSupplierProfiles.push(profile);
+  return profile;
+}
+
+async function mockUpdateSupplierProfile(supplierName: string, data: Omit<import("@/types/procurement").SupplierProfile, "supplierName">): Promise<import("@/types/procurement").SupplierProfile> {
+  await new Promise(resolve => setTimeout(resolve, 400));
+  const index = mockSupplierProfiles.findIndex(p => p.supplierName === supplierName);
+  if (index === -1) {
+    throw new Error("Supplier profile not found");
+  }
+  const updated = { ...data, supplierName };
+  mockSupplierProfiles[index] = updated;
+  return updated;
+}
+
+async function mockDeleteSupplierProfile(supplierName: string): Promise<void> {
+  await new Promise(resolve => setTimeout(resolve, 300));
+  const index = mockSupplierProfiles.findIndex(p => p.supplierName === supplierName);
+  if (index === -1) {
+    throw new Error("Supplier profile not found");
+  }
+  mockSupplierProfiles.splice(index, 1);
+}
+
+// Real supplier profile CRUD
+async function realGetSupplierProfiles(): Promise<import("@/types/procurement").SupplierProfile[]> {
+  const response = await fetch(`${API_BASE_URL}/api/supplier-profiles`);
+  if (!response.ok) throw new Error(`Failed to fetch profiles: ${response.statusText}`);
+  return response.json();
+}
+
+async function realGetSupplierProfile(supplierName: string): Promise<import("@/types/procurement").SupplierProfile | null> {
+  const response = await fetch(`${API_BASE_URL}/api/supplier-profiles/${encodeURIComponent(supplierName)}`);
+  if (response.status === 404) return null;
+  if (!response.ok) throw new Error(`Failed to fetch profile: ${response.statusText}`);
+  return response.json();
+}
+
+async function realCreateSupplierProfile(profile: import("@/types/procurement").SupplierProfile): Promise<import("@/types/procurement").SupplierProfile> {
+  const response = await fetch(`${API_BASE_URL}/api/supplier-profiles`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(profile),
+  });
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Failed to create profile: ${errorText || response.statusText}`);
+  }
+  return response.json();
+}
+
+async function realUpdateSupplierProfile(supplierName: string, data: Omit<import("@/types/procurement").SupplierProfile, "supplierName">): Promise<import("@/types/procurement").SupplierProfile> {
+  const response = await fetch(`${API_BASE_URL}/api/supplier-profiles/${encodeURIComponent(supplierName)}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Failed to update profile: ${errorText || response.statusText}`);
+  }
+  return response.json();
+}
+
+async function realDeleteSupplierProfile(supplierName: string): Promise<void> {
+  const response = await fetch(`${API_BASE_URL}/api/supplier-profiles/${encodeURIComponent(supplierName)}`, {
+    method: "DELETE",
+  });
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Failed to delete profile: ${errorText || response.statusText}`);
+  }
+}
+
 // Exported API client
 export const apiClient = {
   uploadPurchaseOrder: USE_MOCK ? mockUploadPurchaseOrder : realUploadPurchaseOrder,
@@ -353,6 +468,11 @@ export const apiClient = {
   resolvePurchaseOrder: USE_MOCK ? mockResolvePurchaseOrder : realResolvePurchaseOrder,
   getSupplierMappings: USE_MOCK ? mockGetSupplierMappings : realGetSupplierMappings,
   upsertSupplierMapping: USE_MOCK ? mockUpsertSupplierMapping : realUpsertSupplierMapping,
+  getSupplierProfiles: USE_MOCK ? mockGetSupplierProfiles : realGetSupplierProfiles,
+  getSupplierProfile: USE_MOCK ? mockGetSupplierProfile : realGetSupplierProfile,
+  createSupplierProfile: USE_MOCK ? mockCreateSupplierProfile : realCreateSupplierProfile,
+  updateSupplierProfile: USE_MOCK ? mockUpdateSupplierProfile : realUpdateSupplierProfile,
+  deleteSupplierProfile: USE_MOCK ? mockDeleteSupplierProfile : realDeleteSupplierProfile,
   getSuppliers: async () => {
     if (USE_MOCK) {
       return MOCK_SUPPLIERS.map(s => s.name);

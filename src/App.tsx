@@ -8,6 +8,7 @@ import Dashboard from "@/pages/Dashboard";
 import UploadPage from "@/pages/UploadPage";
 import OrdersPage from "@/pages/OrdersPage";
 import OrderDetailPage from "@/pages/OrderDetailPage";
+import SupplierProfilesPage from "@/pages/SupplierProfilesPage";
 import NotFound from "@/pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -24,6 +25,7 @@ const App = () => (
             <Route path="/upload" element={<UploadPage />} />
             <Route path="/orders" element={<OrdersPage />} />
             <Route path="/orders/:id" element={<OrderDetailPage />} />
+            <Route path="/admin/suppliers" element={<SupplierProfilesPage />} />
           </Route>
           <Route path="*" element={<NotFound />} />
         </Routes>
