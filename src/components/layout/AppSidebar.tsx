@@ -1,4 +1,4 @@
-import { Upload, FileText, LayoutDashboard } from "lucide-react";
+import { Upload, FileText, LayoutDashboard, Settings } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
 
@@ -19,6 +19,10 @@ const navItems = [
   { title: "Dashboard", url: "/", icon: LayoutDashboard },
   { title: "Upload Order", url: "/upload", icon: Upload },
   { title: "Orders", url: "/orders", icon: FileText },
+];
+
+const adminItems = [
+  { title: "Supplier Profiles", url: "/admin/suppliers", icon: Settings },
 ];
 
 export function AppSidebar() {
@@ -63,6 +67,39 @@ export function AppSidebar() {
                       <NavLink
                         to={item.url}
                         end={item.url === "/"}
+                        className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sidebar-foreground transition-colors hover:bg-sidebar-accent"
+                        activeClassName="bg-sidebar-accent text-sidebar-accent-foreground"
+                      >
+                        <item.icon className="h-5 w-5 shrink-0" />
+                        {!collapsed && <span className="font-medium">{item.title}</span>}
+                      </NavLink>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                );
+              })}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        <SidebarGroup>
+          <SidebarGroupLabel className="text-sidebar-foreground/50 text-xs uppercase tracking-wider mb-2">
+            {!collapsed && "Admin"}
+          </SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {adminItems.map((item) => {
+                const isActive = location.pathname === item.url ||
+                  location.pathname.startsWith(item.url);
+
+                return (
+                  <SidebarMenuItem key={item.title}>
+                    <SidebarMenuButton
+                      asChild
+                      isActive={isActive}
+                      tooltip={collapsed ? item.title : undefined}
+                    >
+                      <NavLink
+                        to={item.url}
                         className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sidebar-foreground transition-colors hover:bg-sidebar-accent"
                         activeClassName="bg-sidebar-accent text-sidebar-accent-foreground"
                       >
