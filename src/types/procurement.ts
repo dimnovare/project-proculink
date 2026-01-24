@@ -46,3 +46,23 @@ export interface UploadResult {
   order: PurchaseOrder;
   validationMessages: string[];
 }
+
+export interface LineResolution {
+  lineNumber: number;
+  supplierItemCode: string;
+}
+
+export interface ResolvePayload {
+  saveMappings: boolean;
+  lineResolutions: LineResolution[];
+}
+
+export interface ResolveResult {
+  order: PurchaseOrder;
+  validationMessages: string[];
+}
+
+export interface SupplierMapping {
+  buyerItemCode: string;
+  supplierItemCode: string;
+}

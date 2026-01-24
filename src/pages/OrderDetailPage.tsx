@@ -1,19 +1,29 @@
 import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
-import { ArrowLeft, Download, AlertCircle, Calendar, Building2, FileText } from "lucide-react";
+import { ArrowLeft, Download, Calendar, Building2, FileText } from "lucide-react";
 import { apiClient } from "@/lib/api-client";
 import type { PurchaseOrder } from "@/types/procurement";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { OrderLineTable } from "@/components/orders/OrderLineTable";
+import { ResolveSection } from "@/components/orders/ResolveSection";
+import { SupplierMappings } from "@/components/orders/SupplierMappings";
+import { OrderActions } from "@/components/orders/OrderActions";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 export default function OrderDetailPage() {
   const { id } = useParams<{ id: string }>();
   const [order, setOrder] = useState<PurchaseOrder | null>(null);
+  const [validationMessages, setValidationMessages] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
+
+  const handleOrderUpdated = (updatedOrder: PurchaseOrder, messages: string[]) => {
+    setOrder(updatedOrder);
+    setValidationMessages(messages);
+  };
 
   useEffect(() => {
     if (!id) return;
@@ -132,23 +142,22 @@ export default function OrderDetailPage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Main Content */}
         <div className="lg:col-span-2 space-y-6">
-          {/* Automation Status Alert */}
-          {order.automationReason && (
-            <Card className="border-warning/30 bg-warning-muted/30">
-              <CardContent className="flex gap-4 py-4">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-warning/10">
-                  <AlertCircle className="h-5 w-5 text-warning" />
-                </div>
-                <div>
-                  <h3 className="font-medium text-warning-foreground mb-1">
-                    Clarification Required
-                  </h3>
-                  <p className="text-sm text-warning-foreground/80">
-                    {order.automationReason}
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
+          {/* Resolve Section - only show if NeedsClarification */}
+          {order.automationStatus === "NeedsClarification" && (
+            <ResolveSection order={order} onOrderUpdated={handleOrderUpdated} />
+          )}
+
+          {/* Validation Messages */}
+          {validationMessages.length > 0 && (
+            <Alert>
+              <AlertDescription>
+                <ul className="list-disc list-inside space-y-1">
+                  {validationMessages.map((msg, idx) => (
+                    <li key={idx} className="text-sm">{msg}</li>
+                  ))}
+                </ul>
+              </AlertDescription>
+            </Alert>
           )}
 
           {/* Line Items */}
@@ -185,6 +194,11 @@ export default function OrderDetailPage() {
 
         {/* Sidebar */}
         <div className="space-y-6">
+          {/* Order Actions - show when Automatable */}
+          {order.automationStatus === "Automatable" && (
+            <OrderActions poNumber={order.poNumber} />
+          )}
+
           <Card>
             <CardHeader>
               <CardTitle className="text-base">Order Details</CardTitle>
@@ -258,6 +272,9 @@ export default function OrderDetailPage() {
               </div>
             </CardContent>
           </Card>
+
+          {/* Supplier Mappings */}
+          <SupplierMappings supplierName={order.supplierName} />
         </div>
       </div>
     </div>
