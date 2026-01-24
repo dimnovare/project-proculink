@@ -1,7 +1,29 @@
-import type { PurchaseOrder, PurchaseOrderSummary, UploadResult } from "@/types/procurement";
+import type { AutomationStatus, PurchaseOrder, PurchaseOrderSummary, UploadResult } from "@/types/procurement";
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
-const USE_MOCK = import.meta.env.VITE_USE_MOCK === "true" || true; // Default to mock for MVP
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5223";
+const USE_MOCK = import.meta.env.VITE_USE_MOCK === "true"; // Set VITE_USE_MOCK=true to use mock data
+
+// Backend returns AutomationStatus as numeric enum (0 = Automatable, 1 = NeedsClarification)
+// Frontend uses string literals - this function converts between them
+function mapAutomationStatus(status: number | string): AutomationStatus {
+  if (typeof status === "string") return status as AutomationStatus;
+  return status === 0 ? "Automatable" : "NeedsClarification";
+}
+
+// Transform backend response to match frontend types
+function transformOrder(order: any): PurchaseOrder {
+  return {
+    ...order,
+    automationStatus: mapAutomationStatus(order.automationStatus),
+  };
+}
+
+function transformOrderSummary(summary: any): PurchaseOrderSummary {
+  return {
+    ...summary,
+    automationStatus: mapAutomationStatus(summary.automationStatus),
+  };
+}
 
 // Mock data store
 let mockOrders: PurchaseOrder[] = [
@@ -127,7 +149,7 @@ async function mockGetOrderById(id: string): Promise<PurchaseOrder | null> {
   return mockOrders.find(o => o.id === id) || null;
 }
 
-// Real API implementations (for when backend is ready)
+// Real API implementations
 async function realUploadPurchaseOrder(file: File, supplierName: string): Promise<UploadResult> {
   const formData = new FormData();
   formData.append("file", file);
@@ -139,10 +161,15 @@ async function realUploadPurchaseOrder(file: File, supplierName: string): Promis
   });
 
   if (!response.ok) {
-    throw new Error(`Upload failed: ${response.statusText}`);
+    const errorText = await response.text();
+    throw new Error(`Upload failed: ${errorText || response.statusText}`);
   }
 
-  return response.json();
+  const result = await response.json();
+  return {
+    order: transformOrder(result.order),
+    validationMessages: result.validationMessages,
+  };
 }
 
 async function realGetOrders(): Promise<PurchaseOrderSummary[]> {
@@ -152,7 +179,8 @@ async function realGetOrders(): Promise<PurchaseOrderSummary[]> {
     throw new Error(`Failed to fetch orders: ${response.statusText}`);
   }
 
-  return response.json();
+  const orders = await response.json();
+  return orders.map(transformOrderSummary);
 }
 
 async function realGetOrderById(id: string): Promise<PurchaseOrder | null> {
@@ -166,7 +194,8 @@ async function realGetOrderById(id: string): Promise<PurchaseOrder | null> {
     throw new Error(`Failed to fetch order: ${response.statusText}`);
   }
 
-  return response.json();
+  const order = await response.json();
+  return transformOrder(order);
 }
 
 // Exported API client
