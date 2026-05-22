@@ -12,6 +12,17 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5223
 // Default to mock mode unless explicitly set to false (handles missing env vars and Lovable preview)
 const USE_MOCK = import.meta.env.VITE_USE_MOCK !== "false";
 
+/**
+ * Returns an Authorization header with the current Clerk session JWT.
+ * Uses window.Clerk (set by ClerkProvider) so this works outside React components.
+ * Returns an empty object when the session is not yet available (e.g. during sign-in redirect).
+ */
+async function authHeader(): Promise<Record<string, string>> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const token = await (window as any).Clerk?.session?.getToken();
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
 // Mock mappings store
 const mockMappings: Record<string, SupplierMapping[]> = {
   "ElectroSupply Co": [
@@ -178,6 +189,7 @@ async function realUploadPurchaseOrder(file: File, supplierName: string): Promis
 
   const response = await fetch(`${API_BASE_URL}/api/purchase-orders/upload`, {
     method: "POST",
+    headers: await authHeader(),
     body: formData,
   });
 
@@ -194,7 +206,9 @@ async function realUploadPurchaseOrder(file: File, supplierName: string): Promis
 }
 
 async function realGetOrders(): Promise<PurchaseOrderSummary[]> {
-  const response = await fetch(`${API_BASE_URL}/api/purchase-orders`);
+  const response = await fetch(`${API_BASE_URL}/api/purchase-orders`, {
+    headers: await authHeader(),
+  });
 
   if (!response.ok) {
     throw new Error(`Failed to fetch orders: ${response.statusText}`);
@@ -205,7 +219,9 @@ async function realGetOrders(): Promise<PurchaseOrderSummary[]> {
 }
 
 async function realGetOrderById(id: string): Promise<PurchaseOrder | null> {
-  const response = await fetch(`${API_BASE_URL}/api/purchase-orders/${id}`);
+  const response = await fetch(`${API_BASE_URL}/api/purchase-orders/${id}`, {
+    headers: await authHeader(),
+  });
 
   if (response.status === 404) {
     return null;
@@ -281,7 +297,7 @@ async function mockResolvePurchaseOrder(id: string, payload: import("@/types/pro
 async function realResolvePurchaseOrder(id: string, payload: import("@/types/procurement").ResolvePayload): Promise<import("@/types/procurement").ResolveResult> {
   const response = await fetch(`${API_BASE_URL}/api/purchase-orders/${id}/resolve`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...await authHeader() },
     body: JSON.stringify(payload),
   });
 
@@ -305,7 +321,9 @@ async function mockGetSupplierMappings(supplierName: string): Promise<import("@/
 
 // Real get supplier mappings
 async function realGetSupplierMappings(supplierName: string): Promise<import("@/types/procurement").SupplierMapping[]> {
-  const response = await fetch(`${API_BASE_URL}/api/suppliers/${encodeURIComponent(supplierName)}/mappings`);
+  const response = await fetch(`${API_BASE_URL}/api/suppliers/${encodeURIComponent(supplierName)}/mappings`, {
+    headers: await authHeader(),
+  });
   
   if (!response.ok) {
     throw new Error(`Failed to fetch mappings: ${response.statusText}`);
@@ -335,7 +353,7 @@ async function mockUpsertSupplierMapping(supplierName: string, buyerItemCode: st
 async function realUpsertSupplierMapping(supplierName: string, buyerItemCode: string, supplierItemCode: string): Promise<void> {
   const response = await fetch(`${API_BASE_URL}/api/suppliers/${encodeURIComponent(supplierName)}/mappings`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...await authHeader() },
     body: JSON.stringify({ buyerItemCode, supplierItemCode }),
   });
 
@@ -412,13 +430,17 @@ async function mockDeleteSupplierProfile(supplierName: string): Promise<void> {
 
 // Real supplier profile CRUD
 async function realGetSupplierProfiles(): Promise<import("@/types/procurement").SupplierProfile[]> {
-  const response = await fetch(`${API_BASE_URL}/api/supplier-profiles`);
+  const response = await fetch(`${API_BASE_URL}/api/supplier-profiles`, {
+    headers: await authHeader(),
+  });
   if (!response.ok) throw new Error(`Failed to fetch profiles: ${response.statusText}`);
   return response.json();
 }
 
 async function realGetSupplierProfile(supplierName: string): Promise<import("@/types/procurement").SupplierProfile | null> {
-  const response = await fetch(`${API_BASE_URL}/api/supplier-profiles/${encodeURIComponent(supplierName)}`);
+  const response = await fetch(`${API_BASE_URL}/api/supplier-profiles/${encodeURIComponent(supplierName)}`, {
+    headers: await authHeader(),
+  });
   if (response.status === 404) return null;
   if (!response.ok) throw new Error(`Failed to fetch profile: ${response.statusText}`);
   return response.json();
@@ -427,7 +449,7 @@ async function realGetSupplierProfile(supplierName: string): Promise<import("@/t
 async function realCreateSupplierProfile(profile: import("@/types/procurement").SupplierProfile): Promise<import("@/types/procurement").SupplierProfile> {
   const response = await fetch(`${API_BASE_URL}/api/supplier-profiles`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...await authHeader() },
     body: JSON.stringify(profile),
   });
   if (!response.ok) {
@@ -440,7 +462,7 @@ async function realCreateSupplierProfile(profile: import("@/types/procurement").
 async function realUpdateSupplierProfile(supplierName: string, data: Omit<import("@/types/procurement").SupplierProfile, "supplierName">): Promise<import("@/types/procurement").SupplierProfile> {
   const response = await fetch(`${API_BASE_URL}/api/supplier-profiles/${encodeURIComponent(supplierName)}`, {
     method: "PUT",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...await authHeader() },
     body: JSON.stringify(data),
   });
   if (!response.ok) {
@@ -453,6 +475,7 @@ async function realUpdateSupplierProfile(supplierName: string, data: Omit<import
 async function realDeleteSupplierProfile(supplierName: string): Promise<void> {
   const response = await fetch(`${API_BASE_URL}/api/supplier-profiles/${encodeURIComponent(supplierName)}`, {
     method: "DELETE",
+    headers: await authHeader(),
   });
   if (!response.ok) {
     const errorText = await response.text();
@@ -477,7 +500,9 @@ export const apiClient = {
     if (USE_MOCK) {
       return MOCK_SUPPLIERS.map(s => s.name);
     }
-    const response = await fetch(`${API_BASE_URL}/api/suppliers`);
+    const response = await fetch(`${API_BASE_URL}/api/suppliers`, {
+      headers: await authHeader(),
+    });
     return response.json();
   },
 };
