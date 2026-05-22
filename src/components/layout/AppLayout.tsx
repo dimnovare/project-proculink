@@ -1,3 +1,4 @@
+import { OrganizationSwitcher, UserButton } from "@clerk/clerk-react";
 import { SidebarProvider, SidebarTrigger, SidebarInset } from "@/components/ui/sidebar";
 import { AppSidebar } from "./AppSidebar";
 import { Outlet } from "react-router-dom";
@@ -14,8 +15,20 @@ export function AppLayout() {
               <Menu className="h-5 w-5" />
               <span className="sr-only">Toggle sidebar</span>
             </SidebarTrigger>
+
             <div className="flex-1" />
+
+            <div className="flex items-center gap-3">
+              <OrganizationSwitcher
+                hidePersonal
+                afterCreateOrganizationUrl="/"
+                afterLeaveOrganizationUrl="/"
+                afterSelectOrganizationUrl="/"
+              />
+              <UserButton afterSignOutUrl="/" />
+            </div>
           </header>
+
           <main className="flex-1 overflow-auto">
             <Outlet />
           </main>
