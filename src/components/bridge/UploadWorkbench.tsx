@@ -3,8 +3,13 @@
 // Upload Workbench — XCard dropzone + pipeline picker + recent uploads.
 // Translated from Bridge_Upload in v2-prototype.jsx.
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
+import { useRouter } from "next/navigation";
 import { FileChip } from "./FileChip";
+
+// Pipeline stages for the upload animation
+const PIPELINE_STAGES = ["Parse", "Normalize", "Validate", "Transform"] as const;
+const STAGE_MS = 600;
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -82,11 +87,34 @@ function XCard({
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export function UploadWorkbench() {
-  const [dragging, setDragging] = useState(false);
-  const [buyer, setBuyer]       = useState(BUYERS[0]);
-  const [supplier, setSupplier] = useState(SUPPLIERS[0]);
-  const [template, setTemplate] = useState(TEMPLATES[0]);
-  const [mode, setMode]         = useState<ModeKey>("auto");
+  const [dragging, setDragging]     = useState(false);
+  const [buyer, setBuyer]           = useState(BUYERS[0]);
+  const [supplier, setSupplier]     = useState(SUPPLIERS[0]);
+  const [template, setTemplate]     = useState(TEMPLATES[0]);
+  const [mode, setMode]             = useState<ModeKey>("auto");
+  const [uploading, setUploading]   = useState(false);
+  const [pipelineStage, setPipelineStage] = useState(-1);
+  const timerRefs = useRef<ReturnType<typeof setTimeout>[]>([]);
+  const router = useRouter();
+
+  function handleUpload() {
+    if (uploading) return;
+    setUploading(true);
+    setPipelineStage(0);
+    // Advance through each pipeline stage
+    PIPELINE_STAGES.forEach((_, i) => {
+      const t = setTimeout(() => setPipelineStage(i), i * STAGE_MS);
+      timerRefs.current.push(t);
+    });
+    // Navigate after all stages complete
+    const total = setTimeout(() => {
+      router.push("/inbox/008412");
+    }, PIPELINE_STAGES.length * STAGE_MS + 200);
+    timerRefs.current.push(total);
+  }
+
+  // Cleanup timers on unmount
+  useEffect(() => () => { timerRefs.current.forEach(clearTimeout); }, []);
 
   return (
     <div
@@ -509,18 +537,75 @@ export function UploadWorkbench() {
                   </div>
                 )}
 
+                {/* Pipeline progress (shown while uploading) */}
+                {uploading && (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                    <div style={{ display: "flex", gap: 4, alignItems: "center", justifyContent: "space-between" }}>
+                      {PIPELINE_STAGES.map((stage, i) => {
+                        const done    = i < pipelineStage;
+                        const active  = i === pipelineStage;
+                        const pending = i > pipelineStage;
+                        return (
+                          <div key={stage} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
+                            <div style={{
+                              height: 3,
+                              borderRadius: 99,
+                              width: "100%",
+                              background: done    ? "#2E8E3A"
+                                        : active  ? "#1E66C9"
+                                        : "#E2E6EE",
+                              transition: "background 0.3s",
+                              position: "relative",
+                              overflow: "hidden",
+                            }}>
+                              {active && (
+                                <div style={{
+                                  position: "absolute",
+                                  inset: 0,
+                                  background: "linear-gradient(90deg, transparent, rgba(255,255,255,0.6), transparent)",
+                                  animation: "pipeline-shimmer 0.8s linear infinite",
+                                }} />
+                              )}
+                            </div>
+                            <span style={{
+                              fontSize: 9.5,
+                              fontWeight: 600,
+                              letterSpacing: "0.04em",
+                              color: done ? "#2E8E3A" : active ? "#1E66C9" : "#C6CDDA",
+                              transition: "color 0.2s",
+                            }}>
+                              {done ? "✓ " : ""}{stage}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    <style>{`@keyframes pipeline-shimmer { 0%{transform:translateX(-100%)} 100%{transform:translateX(200%)} }`}</style>
+                  </div>
+                )}
+
                 {/* Bridge button */}
                 <button
+                  onClick={handleUpload}
+                  disabled={uploading}
                   className="w-full rounded-[6px] py-2.5 text-[13px] font-semibold transition-all"
                   style={{
-                    background:
-                      "linear-gradient(90deg, #1E66C9 0%, #2E8E3A 100%)",
-                    color: "#FFFFFF",
+                    background: uploading
+                      ? "#E2E6EE"
+                      : "linear-gradient(90deg, #1E66C9 0%, #2E8E3A 100%)",
+                    color: uploading ? "#8A93A5" : "#FFFFFF",
                     border: "none",
-                    boxShadow: "0 2px 8px rgba(30,102,201,0.25)",
+                    boxShadow: uploading ? "none" : "0 2px 8px rgba(30,102,201,0.25)",
+                    cursor: uploading ? "not-allowed" : "pointer",
                   }}
                 >
-                  ↑ Upload & bridge
+                  {uploading ? (
+                    <span style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+                      <span style={{ display: "inline-block", width: 12, height: 12, border: "2px solid #C6CDDA", borderTopColor: "#1E66C9", borderRadius: "50%", animation: "spin 0.7s linear infinite" }} />
+                      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+                      Bridging…
+                    </span>
+                  ) : "↑ Upload & bridge"}
                 </button>
               </div>
             </XCard>

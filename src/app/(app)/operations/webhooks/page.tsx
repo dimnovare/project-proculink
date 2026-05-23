@@ -22,6 +22,14 @@ export default function WebhooksPage() {
         <button className="ml-auto rounded-[6px] px-3 text-[12.5px] font-medium" style={{ height: 32, background: "#0B1A2F", color: "#FFFFFF", border: 0 }}>+ Add webhook</button>
       </div>
       <div className="flex-1 overflow-auto p-5">
+        {WEBHOOKS.length === 0 ? (
+          <EmptyState
+            icon="⚡"
+            title="No webhooks configured"
+            sub="Register a webhook endpoint to receive real-time notifications for crossing events."
+            action={{ label: "+ Add webhook", onClick: () => {} }}
+          />
+        ) : (
         <div className="flex flex-col gap-3">
           {WEBHOOKS.map((w) => (
             <div key={w.id} className="rounded-[8px]" style={{ background: "#FFFFFF", border: "1px solid #E2E6EE", boxShadow: "0 1px 3px rgba(11,26,47,0.04)", borderLeft: `3px solid ${STATUS_COLOR[w.status]}` }}>
@@ -41,6 +49,7 @@ export default function WebhooksPage() {
             </div>
           ))}
         </div>
+        )}
       </div>
     </div>
   );

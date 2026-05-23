@@ -1,4 +1,5 @@
 "use client";
+import { EmptyState } from "@/components/bridge/EmptyState";
 const TEMPLATES = [
   { id: "t1", name: "Standard cXML PO",      fmt: "cXML",  suppliers: 3, lastUsed: "2m",  version: "v3.2"  },
   { id: "t2", name: "SAP IDoc ORDERS05",      fmt: "EDI",   suppliers: 2, lastUsed: "1h",  version: "v2.0"  },
@@ -20,6 +21,14 @@ export default function TemplatesPage() {
         <button className="ml-auto rounded-[6px] px-3 text-[12.5px] font-medium" style={{ height: 32, background: "#0B1A2F", color: "#FFFFFF", border: 0 }}>+ New template</button>
       </div>
       <div className="flex-1 overflow-auto p-5">
+        {TEMPLATES.length === 0 ? (
+          <EmptyState
+            icon="⊟"
+            title="No output templates"
+            sub="Create a template to define how purchase orders are formatted for each supplier dock."
+            action={{ label: "+ New template", onClick: () => {} }}
+          />
+        ) : (
         <div className="grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(320px,1fr))" }}>
           {TEMPLATES.map((t) => (
             <div key={t.id} className="rounded-[8px] cursor-pointer" style={{ background: "#FFFFFF", border: "1px solid #E2E6EE", boxShadow: "0 1px 3px rgba(11,26,47,0.04)", borderTop: `3px solid ${FMT_COLOR[t.fmt] ?? "#56627A"}` }}>
@@ -38,6 +47,7 @@ export default function TemplatesPage() {
             </div>
           ))}
         </div>
+        )}
       </div>
     </div>
   );

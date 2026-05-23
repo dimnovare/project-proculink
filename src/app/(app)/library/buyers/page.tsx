@@ -1,5 +1,6 @@
 "use client";
 import { useRouter } from "next/navigation";
+import { EmptyState } from "@/components/bridge/EmptyState";
 
 const BUYERS = [
   { id: "b1", name: "Heinrich Industries GmbH", code: "HEI", volume: "412/wk", formats: ["PDF","XLSX"],  orders: 1820, lastCrossing: "2m"  },
@@ -22,6 +23,14 @@ export default function BuyersPage() {
         <button className="ml-auto flex items-center gap-1.5 rounded-[6px] px-3 text-[12.5px] font-medium" style={{ height: 32, background: "#0B1A2F", color: "#FFFFFF", border: 0 }}>+ Add buyer dock</button>
       </div>
       <div className="flex-1 overflow-auto p-5">
+        {BUYERS.length === 0 ? (
+          <EmptyState
+            icon="◎"
+            title="No buyer docks yet"
+            sub="Add your first buyer dock to start receiving and bridging purchase orders."
+            action={{ label: "+ Add buyer dock", onClick: () => {} }}
+          />
+        ) : (
         <div className="flex flex-col gap-3">
           {BUYERS.map((b) => (
             <div key={b.id} onClick={() => router.push(`/inbox?buyer=${b.code}`)} className="group cursor-pointer rounded-[8px]" style={{ background: "#FFFFFF", border: "1px solid #E2E6EE", boxShadow: "0 1px 3px rgba(11,26,47,0.04)", borderLeft: "3px solid #1E66C9" }}>
@@ -48,6 +57,7 @@ export default function BuyersPage() {
             </div>
           ))}
         </div>
+        )}
       </div>
     </div>
   );

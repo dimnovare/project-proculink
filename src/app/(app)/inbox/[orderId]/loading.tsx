@@ -1,2 +1,2 @@
-import { SpineReviewSkeleton } from "@/components/bridge/Skeletons";
-export default function SpineReviewLoading() { return <SpineReviewSkeleton />; }
+import { BridgePageLoader } from "@/components/bridge/BridgeLoader";
+export default function Loading() { return <BridgePageLoader />; }

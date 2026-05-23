@@ -4,6 +4,7 @@
 // Shows lane overview: buyer + supplier, health, recent crossings on this wire.
 
 import { useEffect } from "react";
+import { useRouter } from "next/navigation";
 
 export type Lane = {
   buyerName: string;
@@ -29,11 +30,11 @@ const HEALTH_LABEL: Record<string, string> = {
 
 // Mock recent crossings for the selected lane
 const MOCK_CROSSINGS = [
-  { po: "PO-2026-008412", age: "2m",  status: "review",     lines: 14, value: "€24,180" },
-  { po: "PO-2026-008411", age: "1h",  status: "sent",       lines: 11, value: "€5,612"  },
-  { po: "PO-2026-008399", age: "3h",  status: "sent",       lines: 8,  value: "€9,140"  },
-  { po: "PO-2026-008381", age: "1d",  status: "failed",     lines: 22, value: "€31,800" },
-  { po: "PO-2026-008360", age: "2d",  status: "sent",       lines: 6,  value: "€3,402"  },
+  { po: "PO-2026-008412", orderId: "008412", age: "2m",  status: "review",     lines: 14, value: "€24,180" },
+  { po: "PO-2026-008411", orderId: "008411", age: "1h",  status: "sent",       lines: 11, value: "€5,612"  },
+  { po: "PO-2026-008399", orderId: "008399", age: "3h",  status: "sent",       lines: 8,  value: "€9,140"  },
+  { po: "PO-2026-008381", orderId: "008381", age: "1d",  status: "failed",     lines: 22, value: "€31,800" },
+  { po: "PO-2026-008360", orderId: "008360", age: "2d",  status: "sent",       lines: 6,  value: "€3,402"  },
 ];
 
 const STATUS_DOT: Record<string, string> = {
@@ -49,7 +50,8 @@ interface LaneDrawerProps {
 }
 
 export function LaneDrawer({ lane, onClose }: LaneDrawerProps) {
-  const hc = HEALTH_COLOR[lane.health];
+  const hc     = HEALTH_COLOR[lane.health];
+  const router = useRouter();
 
   // esc closes
   useEffect(() => {
@@ -314,6 +316,8 @@ export function LaneDrawer({ lane, onClose }: LaneDrawerProps) {
           {MOCK_CROSSINGS.map((c, i) => (
             <div
               key={i}
+              role="button"
+              tabIndex={0}
               style={{
                 display: "flex",
                 alignItems: "center",
@@ -322,6 +326,8 @@ export function LaneDrawer({ lane, onClose }: LaneDrawerProps) {
                 borderBottom: "1px solid #F0F2F6",
                 cursor: "pointer",
               }}
+              onClick={() => { onClose(); router.push(`/inbox/${c.orderId}`); }}
+              onKeyDown={(e) => { if (e.key === "Enter") { onClose(); router.push(`/inbox/${c.orderId}`); }}}
               onMouseEnter={(e) =>
                 ((e.currentTarget as HTMLElement).style.background = "#F6F7FA")
               }
@@ -375,6 +381,7 @@ export function LaneDrawer({ lane, onClose }: LaneDrawerProps) {
           }}
         >
           <button
+            onClick={() => { onClose(); router.push("/inbox"); }}
             style={{
               flex: 1,
               borderRadius: 7,

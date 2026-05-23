@@ -3,7 +3,7 @@
 // CommandPalette — cmd+K fuzzy search across orders, suppliers, SKUs, actions.
 // Built on cmdk (already installed). Wired into BridgeTopbar.
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 
 // ─── Mock index ───────────────────────────────────────────────────────────────
@@ -54,28 +54,15 @@ function buildIndex(router: ReturnType<typeof useRouter>): CmdItem[] {
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function CommandPalette({ onClose }: { onClose: () => void }) {
-  const [q, setQ] = useState("");
-  const router    = useRouter();
-
-  // esc closes
-  useEffect(() => {
-    function down(e: KeyboardEvent) {
-      if (e.key === "Escape") onClose();
-    }
-    document.addEventListener("keydown", down);
-    return () => document.removeEventListener("keydown", down);
-  }, [onClose]);
+  const [q, setQ]               = useState("");
+  const [activeIndex, setActive] = useState(0);
+  const router                   = useRouter();
+  const listRef                  = useRef<HTMLDivElement>(null);
+  const activeRef                = useRef<HTMLButtonElement>(null);
 
   const items = buildIndex(router);
 
-  function run(item: CmdItem) {
-    onClose();
-    setQ("");
-    if (item.action) { item.action(); return; }
-    if (item.href)   router.push(item.href);
-  }
-
-  // Group items
+  // Build filtered groups + flat list for keyboard nav
   const groups: Record<string, CmdItem[]> = {};
   for (const item of items) {
     const label = item.label.toLowerCase();
@@ -84,7 +71,52 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
     if (!groups[item.group]) groups[item.group] = [];
     groups[item.group].push(item);
   }
-  const hasResults = Object.values(groups).some((g) => g.length > 0);
+  const flatItems = Object.values(groups).flat();
+  const hasResults = flatItems.length > 0;
+
+  function run(item: CmdItem) {
+    onClose();
+    setQ("");
+    if (item.action) { item.action(); return; }
+    if (item.href)   router.push(item.href);
+  }
+
+  // Reset active index when query changes
+  useEffect(() => { setActive(0); }, [q]);
+
+  // Scroll active item into view when index changes
+  useEffect(() => {
+    activeRef.current?.scrollIntoView({ block: "nearest" });
+  }, [activeIndex]);
+
+  // Keyboard navigation
+  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setActive((i) => Math.min(i + 1, flatItems.length - 1));
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setActive((i) => Math.max(i - 1, 0));
+    } else if (e.key === "Enter" && flatItems[activeIndex]) {
+      e.preventDefault();
+      run(flatItems[activeIndex]);
+    } else if (e.key === "Escape") {
+      onClose();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [flatItems, activeIndex, onClose]);
+
+  // Global Escape still closes even if focus isn't on input
+  useEffect(() => {
+    function down(e: KeyboardEvent) {
+      if (e.key === "Escape") onClose();
+    }
+    document.addEventListener("keydown", down);
+    return () => document.removeEventListener("keydown", down);
+  }, [onClose]);
+
+  // Track flat index across groups for active highlighting
+  let flatIdx = 0;
 
   return (
     <>
@@ -132,6 +164,7 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
             autoFocus
             value={q}
             onChange={(e) => setQ(e.target.value)}
+            onKeyDown={handleKeyDown}
             placeholder="Search orders, suppliers, SKUs, actions…"
             style={{
               flex: 1,
@@ -158,7 +191,7 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
         </div>
 
         {/* Results */}
-        <div style={{ maxHeight: 420, overflowY: "auto" }}>
+        <div ref={listRef} style={{ maxHeight: 420, overflowY: "auto" }}>
           {!hasResults ? (
             <div
               style={{
@@ -185,10 +218,15 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
                 >
                   {group}
                 </div>
-                {groupItems.map((item) => (
+                {groupItems.map((item) => {
+                  const isActive = flatIdx === activeIndex;
+                  const currentIdx = flatIdx++;
+                  return (
                   <button
                     key={item.id}
+                    ref={isActive ? activeRef : undefined}
                     onClick={() => run(item)}
+                    onMouseEnter={() => setActive(currentIdx)}
                     style={{
                       width: "100%",
                       display: "flex",
@@ -196,16 +234,13 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
                       gap: 10,
                       padding: "9px 16px",
                       border: "none",
-                      background: "transparent",
+                      background: isActive ? "#F0F4FB" : "transparent",
                       cursor: "pointer",
                       textAlign: "left",
+                      outline: "none",
+                      borderLeft: isActive ? "2px solid #1E66C9" : "2px solid transparent",
+                      transition: "background 0.1s",
                     }}
-                    onMouseEnter={(e) =>
-                      ((e.currentTarget as HTMLElement).style.background = "#F6F7FA")
-                    }
-                    onMouseLeave={(e) =>
-                      ((e.currentTarget as HTMLElement).style.background = "transparent")
-                    }
                   >
                     {/* Icon */}
                     <span
@@ -257,7 +292,8 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
                     {/* Arrow */}
                     <span style={{ fontSize: 11, color: "#C6CDDA" }}>↵</span>
                   </button>
-                ))}
+                  );
+                })}
               </div>
             ))
           )}

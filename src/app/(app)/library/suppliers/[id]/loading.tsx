@@ -1,2 +1,2 @@
-import { SupplierProfileSkeleton } from "@/components/bridge/Skeletons";
-export default function SupplierProfileLoading() { return <SupplierProfileSkeleton />; }
+import { BridgePageLoader } from "@/components/bridge/BridgeLoader";
+export default function Loading() { return <BridgePageLoader />; }

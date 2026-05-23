@@ -1,6 +1,7 @@
 "use client";
 
 // §5.9 Connectors — wire-topology overview for connectors (email inboxes, SFTP, API, cXML PunchOut, webhooks)
+import { EmptyState } from "@/components/bridge/EmptyState";
 
 const CONNECTORS = [
   { id: "c1", type: "cXML PunchOut", name: "Acme Components",     status: "ok",   lastPoll: "30s",  errors24h: 0,  direction: "out" },
@@ -49,6 +50,14 @@ export default function ConnectorsPage() {
         </div>
 
         {/* Connector list */}
+        {CONNECTORS.length === 0 ? (
+          <EmptyState
+            icon="⇄"
+            title="No connectors configured"
+            sub="Add a connector to start receiving orders from email inboxes, SFTP drops, APIs, or cXML PunchOut."
+            action={{ label: "+ Add connector", onClick: () => {} }}
+          />
+        ) : (
         <div style={{ background: "#FFFFFF", border: "1px solid #E2E6EE", borderRadius: 8, overflow: "hidden" }}>
           <table className="w-full border-collapse" style={{ fontSize: 12.5 }}>
             <thead>
@@ -84,6 +93,7 @@ export default function ConnectorsPage() {
             </tbody>
           </table>
         </div>
+        )}
       </div>
     </div>
   );

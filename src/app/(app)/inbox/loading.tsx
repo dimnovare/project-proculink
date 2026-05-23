@@ -1,2 +1,2 @@
-import { InboxSkeleton } from "@/components/bridge/Skeletons";
-export default function InboxLoading() { return <InboxSkeleton />; }
+import { BridgePageLoader } from "@/components/bridge/BridgeLoader";
+export default function Loading() { return <BridgePageLoader />; }

@@ -1,2 +1,2 @@
-import { DashboardSkeleton } from "@/components/bridge/Skeletons";
-export default function BridgeLoading() { return <DashboardSkeleton />; }
+import { BridgePageLoader } from "@/components/bridge/BridgeLoader";
+export default function Loading() { return <BridgePageLoader />; }
