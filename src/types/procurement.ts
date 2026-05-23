@@ -1,43 +1,3 @@
-// ── Legacy Phase 1 types ─────────────────────────────────────────────────
-// Kept for OrdersPage / OrderDetailPage until Groups J–L replace them.
-
-export type AutomationStatus = "Automatable" | "NeedsClarification";
-
-export interface PurchaseOrderLine {
-  lineNumber: number;
-  buyerItemCode: string;
-  supplierItemCode?: string | null;
-  description: string;
-  quantity: number;
-  unitPrice: number;
-}
-
-export interface PurchaseOrder {
-  id: string;
-  buyerName: string;
-  supplierName: string;
-  poNumber: string;
-  orderDate: string; // ISO
-  currency: string;
-  automationStatus: AutomationStatus;
-  automationReason?: string | null;
-  lines: PurchaseOrderLine[];
-  createdAt: string; // ISO
-}
-
-export interface PurchaseOrderSummary {
-  id: string;
-  poNumber: string;
-  supplierName: string;
-  buyerName: string;
-  orderDate: string;
-  automationStatus: AutomationStatus;
-  createdAt: string;
-  lineCount: number;
-  totalValue: number;
-  currency: string;
-}
-
 export interface SupplierProfile {
   supplierName: string;
   requiresSupplierItemCode: boolean;
@@ -46,7 +6,7 @@ export interface SupplierProfile {
   acceptedFormats: string[];
 }
 
-// ── Phase 2 types ─────────────────────────────────────────────────────────
+// ── Core types ────────────────────────────────────────────────────────────
 
 export interface Supplier {
   id: string;

@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Trash2, Database, Loader2 } from "lucide-react";
 import { apiClient } from "@/lib/api-client";
 import type { Supplier, SupplierMapping } from "@/types/procurement";
@@ -22,46 +23,46 @@ import {
 import { useToast } from "@/hooks/use-toast";
 
 export default function MappingsPage() {
-  const [suppliers, setSuppliers]         = useState<Supplier[]>([]);
-  const [selectedId, setSelectedId]       = useState<string>("");
-  const [mappings, setMappings]           = useState<SupplierMapping[]>([]);
-  const [loadingSuppliers, setLoadingSuppliers] = useState(true);
-  const [loadingMappings, setLoadingMappings]   = useState(false);
-  const [deletingId, setDeletingId]       = useState<string | null>(null);
-  const { toast } = useToast();
+  const [selectedId, setSelectedId] = useState<string>("");
+  const queryClient = useQueryClient();
+  const { toast }   = useToast();
 
-  // Load supplier list once on mount
-  useEffect(() => {
-    apiClient.getSuppliers()
-      .then(setSuppliers)
-      .catch(() => toast({ title: "Could not load suppliers", variant: "destructive" }))
-      .finally(() => setLoadingSuppliers(false));
-  }, [toast]);
+  // ── Suppliers ──────────────────────────────────────────────────────────────
+  const {
+    data: suppliers = [] as Supplier[],
+    isLoading: loadingSuppliers,
+  } = useQuery({
+    queryKey: ["suppliers"],
+    queryFn:  apiClient.getSuppliers,
+    staleTime: 5 * 60 * 1000,
+  });
 
-  // Load mappings whenever selected supplier changes
-  useEffect(() => {
-    if (!selectedId) { setMappings([]); return; }
+  // ── Mappings for selected supplier ────────────────────────────────────────
+  const {
+    data: mappings = [] as SupplierMapping[],
+    isLoading: loadingMappings,
+  } = useQuery({
+    queryKey: ["mappings", selectedId],
+    queryFn:  () => apiClient.getSupplierMappings(selectedId),
+    enabled:  !!selectedId,
+  });
 
-    setLoadingMappings(true);
-    apiClient.getSupplierMappings(selectedId)
-      .then(setMappings)
-      .catch(() => toast({ title: "Could not load mappings", variant: "destructive" }))
-      .finally(() => setLoadingMappings(false));
-  }, [selectedId, toast]);
-
-  const handleDelete = async (mappingId: string) => {
-    if (!selectedId) return;
-    setDeletingId(mappingId);
-    try {
-      await apiClient.deleteSupplierMapping(selectedId, mappingId);
-      setMappings(prev => prev.filter(m => m.id !== mappingId));
+  // ── Delete mutation ────────────────────────────────────────────────────────
+  const deleteMutation = useMutation({
+    mutationFn: (mappingId: string) =>
+      apiClient.deleteSupplierMapping(selectedId, mappingId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["mappings", selectedId] });
       toast({ title: "Mapping deleted" });
-    } catch (err) {
-      toast({ title: "Delete failed", description: err instanceof Error ? err.message : "Unknown error", variant: "destructive" });
-    } finally {
-      setDeletingId(null);
-    }
-  };
+    },
+    onError: (err) => {
+      toast({
+        title: "Delete failed",
+        description: err instanceof Error ? err.message : "Unknown error",
+        variant: "destructive",
+      });
+    },
+  });
 
   const selectedSupplier = suppliers.find(s => s.id === selectedId);
 
@@ -79,7 +80,9 @@ export default function MappingsPage() {
         <Card>
           <CardHeader>
             <CardTitle>Select Supplier</CardTitle>
-            <CardDescription>Choose a supplier to view its saved item code mappings.</CardDescription>
+            <CardDescription>
+              Choose a supplier to view its saved item code mappings.
+            </CardDescription>
           </CardHeader>
           <CardContent>
             {loadingSuppliers ? (
@@ -126,7 +129,8 @@ export default function MappingsPage() {
                 <div className="text-center py-12">
                   <Database className="h-12 w-12 mx-auto mb-3 text-muted-foreground/40" />
                   <p className="text-sm text-muted-foreground">
-                    No mappings yet. They appear here after you resolve an order with "Save as mappings" checked.
+                    No mappings yet. They appear here after you resolve an order with
+                    "Save as mappings" checked.
                   </p>
                 </div>
               ) : (
@@ -149,10 +153,10 @@ export default function MappingsPage() {
                               variant="ghost"
                               size="icon"
                               className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                              disabled={deletingId === m.id}
-                              onClick={() => handleDelete(m.id)}
+                              disabled={deleteMutation.isPending && deleteMutation.variables === m.id}
+                              onClick={() => deleteMutation.mutate(m.id)}
                             >
-                              {deletingId === m.id
+                              {deleteMutation.isPending && deleteMutation.variables === m.id
                                 ? <Loader2 className="h-4 w-4 animate-spin" />
                                 : <Trash2 className="h-4 w-4" />}
                               <span className="sr-only">Delete mapping</span>

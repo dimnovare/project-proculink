@@ -2,7 +2,6 @@ import { cn } from "@/lib/utils";
 import { CheckCircle2, AlertTriangle, Loader2, PackageCheck } from "lucide-react";
 import type { ComponentType } from "react";
 
-/** Accepts Phase 2 OrderStatus values AND legacy Phase 1 AutomationStatus strings. */
 interface StatusBadgeProps {
   status: string;
   showIcon?: boolean;
@@ -20,14 +19,10 @@ interface StatusConfig {
 }
 
 const STATUS_MAP: Record<string, StatusConfig> = {
-  // Phase 2
   ready:          { label: "Ready",          Icon: CheckCircle2,  variant: "success" },
   pending_review: { label: "Pending Review", Icon: AlertTriangle,  variant: "warning" },
   transforming:   { label: "Transforming",   Icon: Loader2,        variant: "info", spin: true },
   delivered:      { label: "Delivered",      Icon: PackageCheck,   variant: "success" },
-  // Legacy Phase 1
-  Automatable:         { label: "Automatable",       Icon: CheckCircle2, variant: "success" },
-  NeedsClarification:  { label: "Needs Clarification", Icon: AlertTriangle, variant: "warning" },
 };
 
 const VARIANT_CLASSES: Record<Variant, string> = {

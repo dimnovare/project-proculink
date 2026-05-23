@@ -1,6 +1,7 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useParams, Link } from "react-router-dom";
-import { ArrowLeft, AlertTriangle, Calendar, Building2, FileText, Hash, Download, ExternalLink } from "lucide-react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { ArrowLeft, AlertTriangle, Calendar, Building2, FileText, Hash, Download, ExternalLink, Loader2 } from "lucide-react";
 import { apiClient } from "@/lib/api-client";
 import type { Order } from "@/types/procurement";
 import { StatusBadge } from "@/components/ui/status-badge";
@@ -15,33 +16,44 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
 
 export default function OrderDetailPage() {
-  const { id }                   = useParams<{ id: string }>();
-  const [order, setOrder]        = useState<Order | null>(null);
-  const [loading, setLoading]    = useState(true);
-  const [notFound, setNotFound]  = useState(false);
+  const { id }          = useParams<{ id: string }>();
+  const queryClient     = useQueryClient();
+  const { toast }       = useToast();
   const [isTransforming, setIsTransforming] = useState(false);
-  const { toast } = useToast();
 
-  const handleOrderUpdated = (updatedOrder: Order) => setOrder(updatedOrder);
+  const {
+    data: order,
+    isLoading,
+    isError,
+  } = useQuery<Order | null>({
+    queryKey: ["order", id],
+    queryFn:  () => apiClient.getOrderById(id!),
+    enabled:  !!id,
+    staleTime: 30_000,
+  });
 
-  useEffect(() => {
-    if (!id) return;
-    apiClient.getOrderById(id)
-      .then(result => { if (result) setOrder(result); else setNotFound(true); })
-      .finally(() => setLoading(false));
-  }, [id]);
+  // Called by ResolveSection after a successful resolve — invalidate so query re-fetches.
+  const handleOrderUpdated = (_updatedOrder: Order) => {
+    queryClient.invalidateQueries({ queryKey: ["order", id] });
+  };
 
   const handleTransform = async (format: "xml" | "csv") => {
     if (!order) return;
     setIsTransforming(true);
     try {
       await apiClient.transformOrder(order.id, format);
-      // Reload order so we get updated status + new artifact
-      const refreshed = await apiClient.getOrderById(order.id);
-      if (refreshed) setOrder(refreshed);
-      toast({ title: "Order transformed", description: `${format.toUpperCase()} artifact is ready to download.` });
+      // Invalidate: the query will re-fetch with the new status + artifact.
+      await queryClient.invalidateQueries({ queryKey: ["order", id] });
+      toast({
+        title: "Order transformed",
+        description: `${format.toUpperCase()} artifact is ready to download.`,
+      });
     } catch (err) {
-      toast({ title: "Transform failed", description: err instanceof Error ? err.message : "Unknown error", variant: "destructive" });
+      toast({
+        title: "Transform failed",
+        description: err instanceof Error ? err.message : "Unknown error",
+        variant: "destructive",
+      });
     } finally {
       setIsTransforming(false);
     }
@@ -53,18 +65,27 @@ export default function OrderDetailPage() {
       const { url } = await apiClient.getDownloadUrl(order.id, artifactId);
       window.open(url, "_blank", "noopener,noreferrer");
     } catch (err) {
-      toast({ title: "Download failed", description: err instanceof Error ? err.message : "Unknown error", variant: "destructive" });
+      toast({
+        title: "Download failed",
+        description: err instanceof Error ? err.message : "Unknown error",
+        variant: "destructive",
+      });
     }
   };
 
   const formatDate = (iso: string) =>
-    new Date(iso).toLocaleDateString("en-US", { weekday: "long", year: "numeric", month: "long", day: "numeric" });
+    new Date(iso).toLocaleDateString("en-US", {
+      weekday: "long", year: "numeric", month: "long", day: "numeric",
+    });
 
   const formatDateTime = (iso: string) =>
-    new Date(iso).toLocaleString("en-US", { year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
+    new Date(iso).toLocaleString("en-US", {
+      year: "numeric", month: "short", day: "numeric",
+      hour: "2-digit", minute: "2-digit",
+    });
 
   // ── Loading ───────────────────────────────────────────────────────────────
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="page-container">
         <div className="flex items-center gap-4 mb-8">
@@ -85,16 +106,21 @@ export default function OrderDetailPage() {
     );
   }
 
-  // ── Not found ─────────────────────────────────────────────────────────────
-  if (notFound || !order) {
+  // ── Not found / error ─────────────────────────────────────────────────────
+  if (isError || !order) {
     return (
       <div className="page-container">
         <div className="text-center py-16">
           <FileText className="h-16 w-16 mx-auto mb-4 text-muted-foreground/50" />
           <h2 className="text-xl font-semibold text-foreground mb-2">Order Not Found</h2>
-          <p className="text-muted-foreground mb-6">This purchase order doesn't exist or was removed.</p>
+          <p className="text-muted-foreground mb-6">
+            This purchase order doesn't exist or was removed.
+          </p>
           <Link to="/orders">
-            <Button><ArrowLeft className="mr-2 h-4 w-4" />Back to Orders</Button>
+            <Button>
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              Back to Orders
+            </Button>
           </Link>
         </div>
       </div>
@@ -120,10 +146,20 @@ export default function OrderDetailPage() {
             </div>
             <p className="text-muted-foreground text-sm">
               Created {formatDateTime(order.createdAt)}
-              {order.updatedAt !== order.createdAt && <> · Updated {formatDateTime(order.updatedAt)}</>}
+              {order.updatedAt !== order.createdAt && (
+                <> · Updated {formatDateTime(order.updatedAt)}</>
+              )}
             </p>
           </div>
         </div>
+
+        {/* Inline transform spinner visible while the query re-fetches */}
+        {isTransforming && (
+          <div className="flex items-center gap-2 text-muted-foreground text-sm">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            Transforming…
+          </div>
+        )}
       </div>
 
       {/* Unresolved banner */}
@@ -131,7 +167,10 @@ export default function OrderDetailPage() {
         <Alert className="mb-6 border-warning/30 bg-warning-muted/20">
           <AlertTriangle className="h-4 w-4 text-warning" />
           <AlertDescription className="text-warning-foreground">
-            <strong>{unresolvedCount} line{unresolvedCount !== 1 ? "s" : ""}</strong> still need supplier item codes before this order can be transformed.
+            <strong>
+              {unresolvedCount} line{unresolvedCount !== 1 ? "s" : ""}
+            </strong>{" "}
+            still need supplier item codes before this order can be transformed.
           </AlertDescription>
         </Alert>
       )}
@@ -150,7 +189,9 @@ export default function OrderDetailPage() {
                 <span>Line Items</span>
                 <span className="text-sm font-normal text-muted-foreground">
                   {order.lines.length} item{order.lines.length !== 1 ? "s" : ""}
-                  {unresolvedCount > 0 && <span className="ml-2 text-warning">· {unresolvedCount} unresolved</span>}
+                  {unresolvedCount > 0 && (
+                    <span className="ml-2 text-warning">· {unresolvedCount} unresolved</span>
+                  )}
                 </span>
               </CardTitle>
             </CardHeader>
@@ -167,12 +208,19 @@ export default function OrderDetailPage() {
               </CardHeader>
               <CardContent className="space-y-2">
                 {order.artifacts.map((artifact) => (
-                  <div key={artifact.id} className="flex items-center justify-between p-3 rounded-lg border bg-muted/30">
+                  <div
+                    key={artifact.id}
+                    className="flex items-center justify-between p-3 rounded-lg border bg-muted/30"
+                  >
                     <div className="flex items-center gap-3">
                       <FileText className="h-4 w-4 text-muted-foreground" />
                       <div>
-                        <p className="text-sm font-medium">{artifact.format.toUpperCase()} Export</p>
-                        <p className="text-xs text-muted-foreground">{formatDateTime(artifact.createdAt)}</p>
+                        <p className="text-sm font-medium">
+                          {artifact.format.toUpperCase()} Export
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {formatDateTime(artifact.createdAt)}
+                        </p>
                       </div>
                     </div>
                     <Button
@@ -199,7 +247,9 @@ export default function OrderDetailPage() {
 
           {/* Order Details */}
           <Card>
-            <CardHeader><CardTitle className="text-base">Order Details</CardTitle></CardHeader>
+            <CardHeader>
+              <CardTitle className="text-base">Order Details</CardTitle>
+            </CardHeader>
             <CardContent className="space-y-4">
               <div className="flex items-start gap-3">
                 <Hash className="h-5 w-5 text-muted-foreground mt-0.5" />
@@ -227,7 +277,9 @@ export default function OrderDetailPage() {
 
           {/* Supplier */}
           <Card>
-            <CardHeader><CardTitle className="text-base">Supplier</CardTitle></CardHeader>
+            <CardHeader>
+              <CardTitle className="text-base">Supplier</CardTitle>
+            </CardHeader>
             <CardContent>
               <p className="font-medium">{order.supplierName}</p>
             </CardContent>
@@ -235,7 +287,9 @@ export default function OrderDetailPage() {
 
           {/* Summary */}
           <Card>
-            <CardHeader><CardTitle className="text-base">Summary</CardTitle></CardHeader>
+            <CardHeader>
+              <CardTitle className="text-base">Summary</CardTitle>
+            </CardHeader>
             <CardContent>
               <div className="space-y-3">
                 <div className="flex justify-between text-sm">
@@ -244,20 +298,27 @@ export default function OrderDetailPage() {
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Total Qty</span>
-                  <span className="font-medium">{order.lines.reduce((s, l) => s + l.quantity, 0).toLocaleString()}</span>
+                  <span className="font-medium">
+                    {order.lines.reduce((s, l) => s + l.quantity, 0).toLocaleString()}
+                  </span>
                 </div>
                 <div className="flex justify-between text-sm pt-2 border-t">
                   <span className="font-medium">Total Value</span>
                   <span className="font-bold text-foreground">
-                    {new Intl.NumberFormat("en-US", { style: "currency", currency: order.currency })
-                      .format(order.lines.reduce((s, l) => s + l.quantity * l.unitPrice, 0))}
+                    {new Intl.NumberFormat("en-US", {
+                      style: "currency",
+                      currency: order.currency,
+                    }).format(order.lines.reduce((s, l) => s + l.quantity * l.unitPrice, 0))}
                   </span>
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          <SupplierMappings supplierId={order.supplierId} supplierName={order.supplierName} />
+          <SupplierMappings
+            supplierId={order.supplierId}
+            supplierName={order.supplierName}
+          />
         </div>
       </div>
     </div>
