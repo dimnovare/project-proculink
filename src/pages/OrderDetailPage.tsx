@@ -11,6 +11,7 @@ import { OrderLineTable } from "@/components/orders/OrderLineTable";
 import { ResolveSection } from "@/components/orders/ResolveSection";
 import { SupplierMappings } from "@/components/orders/SupplierMappings";
 import { OrderActions } from "@/components/orders/OrderActions";
+import { AuditTimeline } from "@/components/orders/AuditTimeline";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -334,6 +335,9 @@ export default function OrderDetailPage() {
               supplierName={order.supplierName}
             />
           )}
+
+          {/* E3: Audit timeline */}
+          <AuditTimeline orderId={order.id} />
         </div>
       </div>
     </div>

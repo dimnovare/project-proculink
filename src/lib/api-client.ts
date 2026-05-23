@@ -9,6 +9,9 @@ import type {
   DownloadUrl,
   CreateSupplierPayload,
   RenameSupplierPayload,
+  AuditEvent,
+  OnboardingStatus,
+  DashboardStats,
 } from "@/types/procurement";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5223";
@@ -415,6 +418,74 @@ async function realCreateSupplierProfile(p: import("@/types/procurement").Suppli
 async function realUpdateSupplierProfile(n: string, d: Omit<import("@/types/procurement").SupplierProfile, "supplierName">) { const r = await fetch(`${API_BASE_URL}/api/supplier-profiles/${encodeURIComponent(n)}`, { method: "PUT", headers: { "Content-Type": "application/json", ...await authHeader() }, body: JSON.stringify(d) }); if (!r.ok) { const t = await r.text(); throw new Error(t || r.statusText); } return r.json(); }
 async function realDeleteSupplierProfile(n: string) { const r = await fetch(`${API_BASE_URL}/api/supplier-profiles/${encodeURIComponent(n)}`, { method: "DELETE", headers: await authHeader() }); if (!r.ok) { const t = await r.text(); throw new Error(t || r.statusText); } }
 
+// ── Audit trail ───────────────────────────────────────────────────────────
+
+async function mockGetOrderAudit(orderId: string): Promise<AuditEvent[]> {
+  await delay(200);
+  const order = mockOrders.find(o => o.id === orderId);
+  if (!order) return [];
+  const now = new Date().toISOString();
+  // Synthesise a plausible mock audit trail
+  const events: AuditEvent[] = [
+    { action: "Created", payload: { poNumber: order.poNumber }, createdAt: order.createdAt },
+  ];
+  if (order.status !== "parsing") {
+    events.unshift({ action: "Parsed", payload: { lineCount: order.lines.length }, createdAt: order.updatedAt });
+  }
+  if (order.status === "delivered") {
+    events.unshift({ action: "Delivered", payload: { format: order.artifacts[0]?.format ?? "xml" }, createdAt: now });
+  }
+  return events;
+}
+
+async function realGetOrderAudit(orderId: string): Promise<AuditEvent[]> {
+  const res = await fetch(`${API_BASE_URL}/api/orders/${orderId}/audit`, {
+    headers: await authHeader(),
+  });
+  if (!res.ok) throw new Error(`Failed to fetch audit: ${res.statusText}`);
+  return res.json() as Promise<AuditEvent[]>;
+}
+
+// ── Onboarding ────────────────────────────────────────────────────────────
+
+async function mockGetOnboardingStatus(): Promise<OnboardingStatus> {
+  await delay(150);
+  const hasSupplier  = mockSupplierList.length > 0;
+  const hasUpload    = mockOrders.length > 0;
+  const hasDelivery  = mockOrders.some(o => o.status === "delivered");
+  return { hasSupplier, hasUpload, hasDelivery };
+}
+
+async function realGetOnboardingStatus(): Promise<OnboardingStatus> {
+  const res = await fetch(`${API_BASE_URL}/api/onboarding/status`, {
+    headers: await authHeader(),
+  });
+  if (!res.ok) throw new Error(`Failed to fetch onboarding status: ${res.statusText}`);
+  return res.json() as Promise<OnboardingStatus>;
+}
+
+// ── Dashboard stats ───────────────────────────────────────────────────────
+
+async function mockGetDashboardStats(): Promise<DashboardStats> {
+  await delay(150);
+  const monthStart = new Date();
+  monthStart.setDate(1); monthStart.setHours(0, 0, 0, 0);
+  return {
+    totalOrdersThisMonth: mockOrders.filter(o => new Date(o.createdAt) >= monthStart).length,
+    pendingReview:         mockOrders.filter(o => o.status === "pending_review").length,
+    delivered:             mockOrders.filter(o => o.status === "delivered").length,
+    totalOrders:           mockOrders.length,
+  };
+}
+
+async function realGetDashboardStats(): Promise<DashboardStats> {
+  const res = await fetch(`${API_BASE_URL}/api/dashboard/stats`, {
+    headers: await authHeader(),
+  });
+  if (!res.ok) throw new Error(`Failed to fetch dashboard stats: ${res.statusText}`);
+  return res.json() as Promise<DashboardStats>;
+}
+
 // ── Exported API client ───────────────────────────────────────────────────
 
 export const apiClient = {
@@ -442,4 +513,11 @@ export const apiClient = {
   createSupplierProfile:  USE_MOCK ? mockCreateSupplierProfile : realCreateSupplierProfile,
   updateSupplierProfile:  USE_MOCK ? mockUpdateSupplierProfile : realUpdateSupplierProfile,
   deleteSupplierProfile:  USE_MOCK ? mockDeleteSupplierProfile : realDeleteSupplierProfile,
+
+  // Audit trail
+  getOrderAudit:          USE_MOCK ? mockGetOrderAudit         : realGetOrderAudit,
+
+  // Onboarding + dashboard
+  getOnboardingStatus:    USE_MOCK ? mockGetOnboardingStatus   : realGetOnboardingStatus,
+  getDashboardStats:      USE_MOCK ? mockGetDashboardStats     : realGetDashboardStats,
 };

@@ -120,3 +120,28 @@ export interface SupplierMapping {
   buyerItemCode: string;
   supplierItemCode: string;
 }
+
+// ── Audit trail ───────────────────────────────────────────────────────────
+
+export interface AuditEvent {
+  action: string;
+  payload: Record<string, unknown> | null;
+  createdAt: string;
+}
+
+// ── Onboarding ────────────────────────────────────────────────────────────
+
+export interface OnboardingStatus {
+  hasSupplier: boolean;
+  hasUpload: boolean;
+  hasDelivery: boolean;
+}
+
+// ── Dashboard ─────────────────────────────────────────────────────────────
+
+export interface DashboardStats {
+  totalOrdersThisMonth: number;
+  pendingReview: number;
+  delivered: number;
+  totalOrders: number;
+}

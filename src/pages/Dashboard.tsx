@@ -1,33 +1,56 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Link } from "react-router-dom";
-import { FileText, Upload, CheckCircle2, AlertTriangle, ArrowUpRight } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import {
+  FileText, Upload, CheckCircle2, AlertTriangle, ArrowUpRight,
+  TrendingUp, Package,
+} from "lucide-react";
 import { apiClient } from "@/lib/api-client";
-import type { PurchaseOrderSummary } from "@/types/procurement";
+import type { DashboardStats, OnboardingStatus, OrderSummary } from "@/types/procurement";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
+import { OnboardingWizard } from "@/components/onboarding/OnboardingWizard";
 
 export default function Dashboard() {
-  const [orders, setOrders] = useState<PurchaseOrderSummary[]>([]);
-  const [loading, setLoading] = useState(true);
+  // F3: track wizard dismissal for this session
+  const [wizardDismissed, setWizardDismissed] = useState(false);
 
-  useEffect(() => {
-    apiClient.getOrders()
-      .then(setOrders)
-      .finally(() => setLoading(false));
-  }, []);
+  // F4: real stats from backend
+  const { data: stats, isLoading: statsLoading } = useQuery<DashboardStats>({
+    queryKey: ["dashboard-stats"],
+    queryFn:  () => apiClient.getDashboardStats(),
+    staleTime: 60_000,
+  });
 
-  const stats = {
-    total: orders.length,
-    automatable: orders.filter(o => o.automationStatus === "Automatable").length,
-    needsClarification: orders.filter(o => o.automationStatus === "NeedsClarification").length,
-    totalValue: orders.reduce((sum, o) => sum + o.totalValue, 0),
-  };
+  // Recent orders list
+  const { data: orders, isLoading: ordersLoading } = useQuery<OrderSummary[]>({
+    queryKey: ["orders"],
+    queryFn:  () => apiClient.getOrders(),
+    staleTime: 30_000,
+  });
 
-  const recentOrders = orders.slice(0, 5);
+  // F3: fetch onboarding status; show wizard if !hasSupplier
+  const { data: onboarding } = useQuery<OnboardingStatus>({
+    queryKey: ["onboarding-status"],
+    queryFn:  () => apiClient.getOnboardingStatus(),
+    staleTime: 60_000,
+  });
+
+  const recentOrders = orders?.slice(0, 5) ?? [];
+  const showWizard   = !wizardDismissed && onboarding != null && !onboarding.hasSupplier;
 
   return (
     <div className="page-container animate-fade-in">
+      {/* F2/F3: Onboarding wizard — shown until dismissed or hasSupplier */}
+      {showWizard && (
+        <OnboardingWizard
+          status={onboarding!}
+          onDismiss={() => setWizardDismissed(true)}
+        />
+      )}
+
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-foreground mb-1">Dashboard</h1>
         <p className="text-muted-foreground">
@@ -35,58 +58,43 @@ export default function Dashboard() {
         </p>
       </div>
 
-      {/* Stats Grid */}
+      {/* Stats Grid — F4 */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Total Orders</CardTitle>
-            <FileText className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.total}</div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Automatable</CardTitle>
-            <CheckCircle2 className="h-4 w-4 text-success" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-success">{stats.automatable}</div>
-            <p className="text-xs text-muted-foreground mt-1">
-              {stats.total > 0 ? Math.round((stats.automatable / stats.total) * 100) : 0}% success rate
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Needs Clarification</CardTitle>
-            <AlertTriangle className="h-4 w-4 text-warning" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-warning">{stats.needsClarification}</div>
-            <p className="text-xs text-muted-foreground mt-1">
-              Requires manual review
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Total Value</CardTitle>
-            <span className="text-xs font-medium text-muted-foreground">USD</span>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              ${stats.totalValue.toLocaleString('en-US', { minimumFractionDigits: 2 })}
-            </div>
-          </CardContent>
-        </Card>
+        <StatCard
+          title="This Month"
+          icon={<TrendingUp className="h-4 w-4 text-muted-foreground" />}
+          value={stats?.totalOrdersThisMonth}
+          loading={statsLoading}
+        />
+        <StatCard
+          title="Pending Review"
+          icon={<AlertTriangle className="h-4 w-4 text-warning" />}
+          value={stats?.pendingReview}
+          loading={statsLoading}
+          valueClass="text-warning"
+          sub="Awaiting item code resolution"
+        />
+        <StatCard
+          title="Delivered"
+          icon={<CheckCircle2 className="h-4 w-4 text-green-500" />}
+          value={stats?.delivered}
+          loading={statsLoading}
+          valueClass="text-green-600 dark:text-green-400"
+          sub={
+            stats && stats.totalOrders > 0
+              ? `${Math.round((stats.delivered / stats.totalOrders) * 100)}% delivery rate`
+              : undefined
+          }
+        />
+        <StatCard
+          title="Total Orders"
+          icon={<Package className="h-4 w-4 text-muted-foreground" />}
+          value={stats?.totalOrders}
+          loading={statsLoading}
+        />
       </div>
 
-      {/* Quick Actions */}
+      {/* Recent Orders + Quick Actions */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
         <Card className="lg:col-span-2">
           <CardHeader className="flex flex-row items-center justify-between">
@@ -99,23 +107,21 @@ export default function Dashboard() {
             </Link>
           </CardHeader>
           <CardContent>
-            {loading ? (
+            {ordersLoading ? (
               <div className="space-y-3">
-                {[...Array(3)].map((_, i) => (
-                  <div key={i} className="h-16 bg-muted rounded-lg animate-pulse" />
-                ))}
+                {[0, 1, 2].map(i => <Skeleton key={i} className="h-16 rounded-lg" />)}
               </div>
             ) : recentOrders.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">
                 <FileText className="h-10 w-10 mx-auto mb-3 opacity-50" />
                 <p>No orders yet</p>
-                <Link to="/upload" className="text-accent hover:underline text-sm">
+                <Link to="/upload" className="text-primary hover:underline text-sm">
                   Upload your first order
                 </Link>
               </div>
             ) : (
               <div className="space-y-3">
-                {recentOrders.map((order) => (
+                {recentOrders.map(order => (
                   <Link
                     key={order.id}
                     to={`/orders/${order.id}`}
@@ -124,10 +130,13 @@ export default function Dashboard() {
                     <div className="flex-1 min-w-0">
                       <p className="font-medium text-sm truncate">{order.poNumber}</p>
                       <p className="text-xs text-muted-foreground truncate">
-                        {order.supplierName} • {order.lineCount} items
+                        {order.supplierName} · {order.lineCount} item{order.lineCount !== 1 ? "s" : ""}
+                        {order.unresolvedCount > 0 && (
+                          <span className="text-warning"> · {order.unresolvedCount} unresolved</span>
+                        )}
                       </p>
                     </div>
-                    <StatusBadge status={order.automationStatus} size="sm" />
+                    <StatusBadge status={order.status} size="sm" />
                   </Link>
                 ))}
               </div>
@@ -141,7 +150,7 @@ export default function Dashboard() {
           </CardHeader>
           <CardContent className="space-y-3">
             <Link to="/upload" className="block">
-              <Button className="w-full justify-start gap-3" variant="default">
+              <Button className="w-full justify-start gap-3">
                 <Upload className="h-4 w-4" />
                 Upload Purchase Order
               </Button>
@@ -152,26 +161,49 @@ export default function Dashboard() {
                 View All Orders
               </Button>
             </Link>
+            {onboarding && !onboarding.hasSupplier && (
+              <Link to="/suppliers" className="block">
+                <Button className="w-full justify-start gap-3" variant="outline">
+                  <CheckCircle2 className="h-4 w-4" />
+                  Add First Supplier
+                </Button>
+              </Link>
+            )}
           </CardContent>
         </Card>
       </div>
-
-      {/* Info Banner */}
-      <Card className="bg-primary/5 border-primary/10">
-        <CardContent className="flex items-start gap-4 py-4">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10">
-            <CheckCircle2 className="h-5 w-5 text-primary" />
-          </div>
-          <div>
-            <h3 className="font-medium text-foreground mb-1">MVP Demo Mode</h3>
-            <p className="text-sm text-muted-foreground">
-              This frontend is running with mock data. Connect to your .NET backend by setting{" "}
-              <code className="px-1 py-0.5 rounded bg-muted text-xs font-mono">VITE_USE_MOCK=false</code>{" "}
-              and <code className="px-1 py-0.5 rounded bg-muted text-xs font-mono">VITE_API_BASE_URL</code>.
-            </p>
-          </div>
-        </CardContent>
-      </Card>
     </div>
+  );
+}
+
+// ── Stat card helper ────────────────────────────────────────────────────────
+
+interface StatCardProps {
+  title:       string;
+  icon:        React.ReactNode;
+  value:       number | undefined;
+  loading:     boolean;
+  valueClass?: string;
+  sub?:        string;
+}
+
+function StatCard({ title, icon, value, loading, valueClass = "", sub }: StatCardProps) {
+  return (
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+        <CardTitle className="text-sm font-medium text-muted-foreground">{title}</CardTitle>
+        {icon}
+      </CardHeader>
+      <CardContent>
+        {loading ? (
+          <Skeleton className="h-8 w-16" />
+        ) : (
+          <div className={`text-2xl font-bold ${valueClass}`}>{value ?? 0}</div>
+        )}
+        {sub && !loading && (
+          <p className="text-xs text-muted-foreground mt-1">{sub}</p>
+        )}
+      </CardContent>
+    </Card>
   );
 }
