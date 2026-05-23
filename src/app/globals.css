@@ -1,4 +1,5 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+/* Bridge Layer fonts */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&family=Bricolage+Grotesque:wght@500;600;700;800&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -6,200 +7,172 @@
 
 @layer base {
   :root {
-    /* ProcuLink B2B SaaS Design System */
-    --background: 210 20% 98%;
-    --foreground: 220 25% 10%;
+    /* ── shadcn/ui CSS variable tokens (primitives layer) ── */
+    /* Mapped to Bridge Layer palette */
+    --background:          214 29% 97%;   /* #F6F7FA */
+    --foreground:          220 50% 11%;   /* #0B1A2F */
 
-    --card: 0 0% 100%;
-    --card-foreground: 220 25% 10%;
+    --card:                0 0% 100%;
+    --card-foreground:     220 50% 11%;
 
-    --popover: 0 0% 100%;
-    --popover-foreground: 220 25% 10%;
+    --popover:             0 0% 100%;
+    --popover-foreground:  220 50% 11%;
 
-    /* Primary - Deep Navy Blue */
-    --primary: 220 65% 18%;
-    --primary-foreground: 0 0% 100%;
+    --primary:             215 74% 45%;   /* #1E66C9 brand.blue */
+    --primary-foreground:  0 0% 100%;
 
-    /* Secondary - Soft Gray Blue */
-    --secondary: 215 25% 94%;
-    --secondary-foreground: 220 25% 20%;
+    --secondary:           214 29% 93%;
+    --secondary-foreground:220 50% 20%;
 
-    /* Muted */
-    --muted: 215 20% 93%;
-    --muted-foreground: 215 15% 45%;
+    --muted:               214 20% 93%;
+    --muted-foreground:    215 20% 47%;   /* ink.muted approx */
 
-    /* Accent - Teal/Cyan for actions */
-    --accent: 185 60% 45%;
-    --accent-foreground: 0 0% 100%;
+    --accent:              215 74% 45%;
+    --accent-foreground:   0 0% 100%;
 
-    /* Status Colors */
-    --success: 152 60% 42%;
-    --success-foreground: 0 0% 100%;
-    --success-muted: 152 45% 92%;
-
-    --warning: 38 92% 50%;
-    --warning-foreground: 38 92% 15%;
-    --warning-muted: 38 70% 92%;
-
-    --destructive: 0 72% 51%;
+    --destructive:         0 58% 50%;     /* danger */
     --destructive-foreground: 0 0% 100%;
 
-    --border: 215 25% 88%;
-    --input: 215 25% 88%;
-    --ring: 220 65% 18%;
+    --border:              216 24% 90%;   /* #E2E6EE */
+    --input:               216 24% 90%;
+    --ring:                215 74% 45%;
 
     --radius: 0.5rem;
 
-    /* Sidebar - Professional Navy */
-    --sidebar-background: 220 45% 12%;
-    --sidebar-foreground: 215 20% 85%;
-    --sidebar-primary: 185 60% 50%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 220 35% 18%;
-    --sidebar-accent-foreground: 215 20% 95%;
-    --sidebar-border: 220 35% 20%;
-    --sidebar-ring: 185 60% 50%;
-
-    /* Custom gradients */
-    --gradient-header: linear-gradient(135deg, hsl(220 65% 18%) 0%, hsl(220 55% 28%) 100%);
-    --gradient-accent: linear-gradient(135deg, hsl(185 60% 45%) 0%, hsl(195 65% 50%) 100%);
-
-    /* Shadows */
-    --shadow-sm: 0 1px 2px 0 hsl(220 25% 10% / 0.05);
-    --shadow-md: 0 4px 6px -1px hsl(220 25% 10% / 0.08), 0 2px 4px -2px hsl(220 25% 10% / 0.05);
-    --shadow-lg: 0 10px 15px -3px hsl(220 25% 10% / 0.08), 0 4px 6px -4px hsl(220 25% 10% / 0.05);
-    --shadow-card: 0 1px 3px 0 hsl(220 25% 10% / 0.06), 0 1px 2px -1px hsl(220 25% 10% / 0.06);
-  }
-
-  .dark {
-    --background: 220 25% 8%;
-    --foreground: 210 20% 95%;
-
-    --card: 220 25% 12%;
-    --card-foreground: 210 20% 95%;
-
-    --popover: 220 25% 12%;
-    --popover-foreground: 210 20% 95%;
-
-    --primary: 185 60% 50%;
-    --primary-foreground: 220 25% 8%;
-
-    --secondary: 220 25% 18%;
-    --secondary-foreground: 210 20% 90%;
-
-    --muted: 220 25% 18%;
-    --muted-foreground: 215 15% 60%;
-
-    --accent: 185 60% 45%;
-    --accent-foreground: 0 0% 100%;
-
-    --success: 152 55% 48%;
-    --success-foreground: 0 0% 100%;
-    --success-muted: 152 30% 18%;
-
-    --warning: 38 85% 55%;
-    --warning-foreground: 38 92% 10%;
-    --warning-muted: 38 40% 18%;
-
-    --destructive: 0 65% 55%;
-    --destructive-foreground: 0 0% 100%;
-
-    --border: 220 25% 22%;
-    --input: 220 25% 22%;
-    --ring: 185 60% 50%;
-
-    --sidebar-background: 220 30% 6%;
-    --sidebar-foreground: 215 20% 80%;
-    --sidebar-primary: 185 60% 50%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 220 25% 14%;
-    --sidebar-accent-foreground: 215 20% 95%;
-    --sidebar-border: 220 25% 16%;
-    --sidebar-ring: 185 60% 50%;
+    /* Sidebar vars (shadcn sidebar primitive) */
+    --sidebar-background:          220 52% 12%;  /* navy #0B1A2F approx */
+    --sidebar-foreground:          214 28% 81%;  /* navy.text */
+    --sidebar-primary:             215 74% 45%;
+    --sidebar-primary-foreground:  0 0% 100%;
+    --sidebar-accent:              219 59% 15%;  /* navy.surface */
+    --sidebar-accent-foreground:   214 28% 91%;
+    --sidebar-border:              219 46% 19%;  /* navy.border */
+    --sidebar-ring:                215 74% 45%;
   }
 }
 
 @layer base {
   * {
     @apply border-border;
+    box-sizing: border-box;
   }
 
   html {
     font-family: 'Inter', system-ui, sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    font-variant-numeric: tabular-nums;
   }
 
   body {
-    @apply bg-background text-foreground;
+    @apply bg-bg text-ink;
+    min-height: 100dvh;
   }
+
+  /* Scrollbars */
+  ::-webkit-scrollbar       { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-thumb { background: rgba(11,26,47,0.18); border-radius: 3px; }
+  ::-webkit-scrollbar-track { background: transparent; }
 }
 
 @layer components {
-  .page-container {
-    @apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6;
+  /* ── Bridge shell ──────────────────────────────────────────────── */
+  .bridge-app {
+    @apply flex h-screen overflow-hidden;
+    background: #F6F7FA;
   }
 
-  .card-elevated {
-    @apply bg-card rounded-lg border border-border;
-    box-shadow: var(--shadow-card);
+  /* ── XCard cross-section edge strip ─────────────────────────── */
+  .x-card-buyer    { border-left: 3px solid #1E66C9; }
+  .x-card-supplier { border-left: 3px solid #2E8E3A; }
+  .x-card-bridge   { border-left: 3px solid transparent;
+                      border-image: linear-gradient(180deg, #1E66C9, #2E8E3A) 1; }
+  .x-card-top      { border-top: 3px solid transparent;
+                      border-image: linear-gradient(90deg, #1E66C9, #2E8E3A) 1; }
+
+  /* ── Sidebar nav item states ─────────────────────────────────── */
+  .nav-item {
+    @apply flex items-center gap-2.5 rounded-[6px] px-3 py-1.5
+           text-[13px] font-medium text-navy-text cursor-pointer
+           transition-colors duration-100;
+  }
+  .nav-item:hover {
+    background: rgba(255,255,255,0.06);
+    @apply text-white;
+  }
+  .nav-item.active {
+    background: rgba(255,255,255,0.09);
+    @apply text-white;
+    box-shadow: inset 2px 0 0 0 transparent;
+    background-image: linear-gradient(90deg, #1E66C9 0%, #1E66C9 35%, #2E8E3A 65%, #2E8E3A 100%);
+    background-size: 2px 100%;
+    background-repeat: no-repeat;
+    background-position: left center;
+    padding-left: 14px;
   }
 
-  .section-title {
-    @apply text-lg font-semibold text-foreground tracking-tight;
+  /* ── MonumentNumber display text ─────────────────────────────── */
+  .monument {
+    font-family: 'Bricolage Grotesque', Inter, system-ui, sans-serif;
+    font-weight: 600;
+    letter-spacing: -0.035em;
+    line-height: 1;
   }
 
-  .section-subtitle {
-    @apply text-sm text-muted-foreground;
+  /* ── Mono reference text ─────────────────────────────────────── */
+  .mono-ref {
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 11.5px;
+    font-weight: 500;
   }
 
-  .status-automatable {
-    @apply bg-success-muted text-success border-success/20;
-  }
+  /* ── Confidence chip ─────────────────────────────────────────── */
+  .conf-high   { @apply bg-brand-greenSoft text-brand-greenDeep; }
+  .conf-mid    { @apply bg-amberSoft text-amber; }
+  .conf-low    { @apply bg-dangerSoft text-danger; }
 
-  .status-needs-clarification {
-    @apply bg-warning-muted text-warning border-warning/30;
+  /* ── Table density (inbox) ───────────────────────────────────── */
+  .inbox-table thead th {
+    @apply sticky top-0 z-10 bg-surface text-[11px] font-medium
+           uppercase tracking-[0.04em] text-ink-faint
+           px-3 py-2 border-b border-border;
+    white-space: nowrap;
   }
-
-  .data-table {
-    @apply w-full text-sm;
+  .inbox-table tbody tr {
+    @apply border-b border-border hover:bg-brand-blueSoft/40
+           cursor-pointer transition-colors duration-75;
+    height: 38px;
   }
-
-  .data-table th {
-    @apply text-left font-medium text-muted-foreground px-4 py-3 bg-muted/50 border-b;
-  }
-
-  .data-table td {
-    @apply px-4 py-3 border-b border-border/50;
-  }
-
-  .data-table tbody tr:hover {
-    @apply bg-muted/30 cursor-pointer transition-colors;
+  .inbox-table tbody td {
+    @apply px-3 text-[12.5px] text-ink align-middle;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 200px;
   }
 }
 
 @layer utilities {
-  .animate-fade-in {
-    animation: fadeIn 0.3s ease-out forwards;
+  /* Wire-topology traveller — must be overridden with offset-path inline */
+  .wire-pulse {
+    offset-distance: 0%;
+    animation: wire-travel 6s linear infinite;
   }
 
-  .animate-slide-up {
-    animation: slideUp 0.3s ease-out forwards;
+  /* Link-spine animated fill (for topbar on stage advance) */
+  .spine-animate {
+    background: linear-gradient(90deg, #1E66C9 0%, #1E66C9 35%, #2E8E3A 65%, #2E8E3A 100%);
+    background-size: 0% 100%;
+    background-repeat: no-repeat;
+    animation: spine-fill 1.2s ease-out forwards;
   }
 
-  @keyframes fadeIn {
-    from { opacity: 0; }
-    to { opacity: 1; }
-  }
-
-  @keyframes slideUp {
-    from {
-      opacity: 0;
-      transform: translateY(8px);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0);
+  /* Suppress all motion for accessibility */
+  @media (prefers-reduced-motion: reduce) {
+    .wire-pulse,
+    .spine-animate,
+    [class*="animate-"] {
+      animation: none !important;
     }
   }
 }
