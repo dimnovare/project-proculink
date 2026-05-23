@@ -1,3 +1,5 @@
-"use client";
-import UploadPage from "@/views/UploadPage";
-export default UploadPage;
+import { UploadWorkbench } from "@/components/bridge/UploadWorkbench";
+
+export default function UploadPage() {
+  return <UploadWorkbench />;
+}
