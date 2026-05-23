@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Wand2, Loader2 } from "lucide-react";
+import { Wand2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -12,12 +12,13 @@ import {
 import { Label } from "@/components/ui/label";
 
 interface OrderActionsProps {
-  /** Called with the chosen format when the user confirms transform. */
+  /** Called with the chosen format when the user clicks Transform. */
   onTransform?: (format: "xml" | "csv") => void;
+  /** @deprecated – transform is now async; spinner comes from polling. Kept for compat. */
   isTransforming?: boolean;
 }
 
-export function OrderActions({ onTransform, isTransforming = false }: OrderActionsProps) {
+export function OrderActions({ onTransform }: OrderActionsProps) {
   const [format, setFormat] = useState<"xml" | "csv">("xml");
 
   return (
@@ -38,7 +39,6 @@ export function OrderActions({ onTransform, isTransforming = false }: OrderActio
           <Select
             value={format}
             onValueChange={(v) => setFormat(v as "xml" | "csv")}
-            disabled={isTransforming}
           >
             <SelectTrigger id="transform-format">
               <SelectValue />
@@ -52,20 +52,11 @@ export function OrderActions({ onTransform, isTransforming = false }: OrderActio
 
         <Button
           onClick={() => onTransform?.(format)}
-          disabled={!onTransform || isTransforming}
+          disabled={!onTransform}
           className="w-full"
         >
-          {isTransforming ? (
-            <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Transforming…
-            </>
-          ) : (
-            <>
-              <Wand2 className="mr-2 h-4 w-4" />
-              Transform to {format.toUpperCase()}
-            </>
-          )}
+          <Wand2 className="mr-2 h-4 w-4" />
+          Transform to {format.toUpperCase()}
         </Button>
       </CardContent>
     </Card>

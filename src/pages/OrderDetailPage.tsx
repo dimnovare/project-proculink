@@ -1,9 +1,11 @@
-import { useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, AlertTriangle, Calendar, Building2, FileText, Hash, Download, ExternalLink, Loader2 } from "lucide-react";
+import {
+  ArrowLeft, AlertTriangle, Calendar, Building2, FileText, Hash,
+  Download, ExternalLink, Loader2,
+} from "lucide-react";
 import { apiClient } from "@/lib/api-client";
-import type { Order } from "@/types/procurement";
+import type { Order, OrderStatus } from "@/types/procurement";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { OrderLineTable } from "@/components/orders/OrderLineTable";
 import { ResolveSection } from "@/components/orders/ResolveSection";
@@ -15,11 +17,13 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
 
+/** Statuses where the backend is still working — poll until they change. */
+const POLLING_STATUSES: OrderStatus[] = ["parsing", "transforming"];
+
 export default function OrderDetailPage() {
-  const { id }          = useParams<{ id: string }>();
-  const queryClient     = useQueryClient();
-  const { toast }       = useToast();
-  const [isTransforming, setIsTransforming] = useState(false);
+  const { id }      = useParams<{ id: string }>();
+  const queryClient = useQueryClient();
+  const { toast }   = useToast();
 
   const {
     data: order,
@@ -29,33 +33,33 @@ export default function OrderDetailPage() {
     queryKey: ["order", id],
     queryFn:  () => apiClient.getOrderById(id!),
     enabled:  !!id,
-    staleTime: 30_000,
+    staleTime: 15_000,
+    // D1: poll every 2 s while status is in-progress
+    refetchInterval: (query) => {
+      const status = query.state.data?.status as OrderStatus | undefined;
+      return status && POLLING_STATUSES.includes(status) ? 2_000 : false;
+    },
   });
 
-  // Called by ResolveSection after a successful resolve — invalidate so query re-fetches.
-  const handleOrderUpdated = (_updatedOrder: Order) => {
+  // Called by ResolveSection after a successful resolve
+  const handleOrderUpdated = (_updated: Order) => {
     queryClient.invalidateQueries({ queryKey: ["order", id] });
   };
 
+  // D4: transform now enqueues an async job — just navigate back to detail (already here)
+  // and let polling show the "transforming" spinner
   const handleTransform = async (format: "xml" | "csv") => {
     if (!order) return;
-    setIsTransforming(true);
     try {
       await apiClient.transformOrder(order.id, format);
-      // Invalidate: the query will re-fetch with the new status + artifact.
-      await queryClient.invalidateQueries({ queryKey: ["order", id] });
-      toast({
-        title: "Order transformed",
-        description: `${format.toUpperCase()} artifact is ready to download.`,
-      });
+      // Invalidate immediately — query will re-fetch and see "transforming" status
+      queryClient.invalidateQueries({ queryKey: ["order", id] });
     } catch (err) {
       toast({
         title: "Transform failed",
         description: err instanceof Error ? err.message : "Unknown error",
         variant: "destructive",
       });
-    } finally {
-      setIsTransforming(false);
     }
   };
 
@@ -84,7 +88,7 @@ export default function OrderDetailPage() {
       hour: "2-digit", minute: "2-digit",
     });
 
-  // ── Loading ───────────────────────────────────────────────────────────────
+  // ── Loading skeleton ──────────────────────────────────────────────────────
   if (isLoading) {
     return (
       <div className="page-container">
@@ -127,6 +131,7 @@ export default function OrderDetailPage() {
     );
   }
 
+  const isProcessing    = (POLLING_STATUSES as string[]).includes(order.status);
   const unresolvedCount = order.lines.filter(l => l.needsReview).length;
 
   return (
@@ -152,18 +157,22 @@ export default function OrderDetailPage() {
             </p>
           </div>
         </div>
-
-        {/* Inline transform spinner visible while the query re-fetches */}
-        {isTransforming && (
-          <div className="flex items-center gap-2 text-muted-foreground text-sm">
-            <Loader2 className="h-4 w-4 animate-spin" />
-            Transforming…
-          </div>
-        )}
       </div>
 
+      {/* D1: In-progress banner while parsing or transforming */}
+      {isProcessing && (
+        <Alert className="mb-6 border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-950/30">
+          <Loader2 className="h-4 w-4 animate-spin text-blue-600 dark:text-blue-400" />
+          <AlertDescription className="text-blue-700 dark:text-blue-300">
+            {order.status === "parsing"
+              ? "Parsing file… this usually takes a few seconds."
+              : "Transforming order… generating output file."}
+          </AlertDescription>
+        </Alert>
+      )}
+
       {/* Unresolved banner */}
-      {unresolvedCount > 0 && (
+      {!isProcessing && unresolvedCount > 0 && (
         <Alert className="mb-6 border-warning/30 bg-warning-muted/20">
           <AlertTriangle className="h-4 w-4 text-warning" />
           <AlertDescription className="text-warning-foreground">
@@ -182,23 +191,25 @@ export default function OrderDetailPage() {
             <ResolveSection order={order} onOrderUpdated={handleOrderUpdated} />
           )}
 
-          {/* Line Items */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center justify-between">
-                <span>Line Items</span>
-                <span className="text-sm font-normal text-muted-foreground">
-                  {order.lines.length} item{order.lines.length !== 1 ? "s" : ""}
-                  {unresolvedCount > 0 && (
-                    <span className="ml-2 text-warning">· {unresolvedCount} unresolved</span>
-                  )}
-                </span>
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <OrderLineTable lines={order.lines} currency={order.currency} />
-            </CardContent>
-          </Card>
+          {/* Line Items — hidden while parsing (no lines yet) */}
+          {!isProcessing && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center justify-between">
+                  <span>Line Items</span>
+                  <span className="text-sm font-normal text-muted-foreground">
+                    {order.lines.length} item{order.lines.length !== 1 ? "s" : ""}
+                    {unresolvedCount > 0 && (
+                      <span className="ml-2 text-warning">· {unresolvedCount} unresolved</span>
+                    )}
+                  </span>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <OrderLineTable lines={order.lines} currency={order.currency} />
+              </CardContent>
+            </Card>
+          )}
 
           {/* Artifacts */}
           {order.artifacts.length > 0 && (
@@ -242,7 +253,7 @@ export default function OrderDetailPage() {
         {/* Sidebar */}
         <div className="space-y-6">
           {order.status === "ready" && (
-            <OrderActions onTransform={handleTransform} isTransforming={isTransforming} />
+            <OrderActions onTransform={handleTransform} />
           )}
 
           {/* Order Details */}
@@ -281,44 +292,48 @@ export default function OrderDetailPage() {
               <CardTitle className="text-base">Supplier</CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="font-medium">{order.supplierName}</p>
+              <p className="font-medium">{order.supplierName || "—"}</p>
             </CardContent>
           </Card>
 
           {/* Summary */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Summary</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Line Items</span>
-                  <span className="font-medium">{order.lines.length}</span>
+          {!isProcessing && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Summary</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Line Items</span>
+                    <span className="font-medium">{order.lines.length}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Total Qty</span>
+                    <span className="font-medium">
+                      {order.lines.reduce((s, l) => s + l.quantity, 0).toLocaleString()}
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-sm pt-2 border-t">
+                    <span className="font-medium">Total Value</span>
+                    <span className="font-bold text-foreground">
+                      {new Intl.NumberFormat("en-US", {
+                        style: "currency",
+                        currency: order.currency,
+                      }).format(order.lines.reduce((s, l) => s + l.quantity * l.unitPrice, 0))}
+                    </span>
+                  </div>
                 </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Total Qty</span>
-                  <span className="font-medium">
-                    {order.lines.reduce((s, l) => s + l.quantity, 0).toLocaleString()}
-                  </span>
-                </div>
-                <div className="flex justify-between text-sm pt-2 border-t">
-                  <span className="font-medium">Total Value</span>
-                  <span className="font-bold text-foreground">
-                    {new Intl.NumberFormat("en-US", {
-                      style: "currency",
-                      currency: order.currency,
-                    }).format(order.lines.reduce((s, l) => s + l.quantity * l.unitPrice, 0))}
-                  </span>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          )}
 
-          <SupplierMappings
-            supplierId={order.supplierId}
-            supplierName={order.supplierName}
-          />
+          {order.supplierId && (
+            <SupplierMappings
+              supplierId={order.supplierId}
+              supplierName={order.supplierName}
+            />
+          )}
         </div>
       </div>
     </div>

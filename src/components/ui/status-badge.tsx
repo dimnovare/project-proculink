@@ -19,10 +19,19 @@ interface StatusConfig {
 }
 
 const STATUS_MAP: Record<string, StatusConfig> = {
-  ready:          { label: "Ready",          Icon: CheckCircle2,  variant: "success" },
-  pending_review: { label: "Pending Review", Icon: AlertTriangle,  variant: "warning" },
-  transforming:   { label: "Transforming",   Icon: Loader2,        variant: "info", spin: true },
-  delivered:      { label: "Delivered",      Icon: PackageCheck,   variant: "success" },
+  // Stable / positive
+  ready:            { label: "Ready",            Icon: CheckCircle2,  variant: "success" },
+  delivered:        { label: "Delivered",        Icon: PackageCheck,   variant: "success" },
+  ready_to_deliver: { label: "Ready to Deliver", Icon: PackageCheck,   variant: "info"    },
+  // In-progress (spinner)
+  parsing:          { label: "Parsing",          Icon: Loader2,        variant: "info",    spin: true },
+  transforming:     { label: "Transforming",     Icon: Loader2,        variant: "info",    spin: true },
+  // Needs attention
+  pending_review:   { label: "Pending Review",   Icon: AlertTriangle,  variant: "warning" },
+  // Failures
+  failed:           { label: "Failed",           Icon: AlertTriangle,  variant: "warning" },
+  transform_failed: { label: "Transform Failed", Icon: AlertTriangle,  variant: "warning" },
+  delivery_failed:  { label: "Delivery Failed",  Icon: AlertTriangle,  variant: "warning" },
 };
 
 const VARIANT_CLASSES: Record<Variant, string> = {

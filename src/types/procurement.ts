@@ -28,7 +28,16 @@ export interface UpsertSupplierProfilePayload {
   acceptedFormats?: string[];
 }
 
-export type OrderStatus = "pending_review" | "ready" | "transforming" | "delivered";
+export type OrderStatus =
+  | "parsing"
+  | "pending_review"
+  | "ready"
+  | "transforming"
+  | "ready_to_deliver"
+  | "delivered"
+  | "failed"
+  | "transform_failed"
+  | "delivery_failed";
 
 export interface OrderLine {
   id: string;

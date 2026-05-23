@@ -250,17 +250,25 @@ async function realResolvePurchaseOrder(
 // ── Transform ─────────────────────────────────────────────────────────────
 
 async function mockTransformOrder(orderId: string, format: "xml" | "csv"): Promise<TransformResult> {
-  await delay(1200);
+  await delay(300); // simulate fast enqueue
   const idx = mockOrders.findIndex(o => o.id === orderId);
   if (idx === -1) throw new Error("Order not found");
   if (mockOrders[idx].lines.some(l => l.needsReview)) throw new Error("Resolve all lines before transforming.");
 
-  const artifactId = crypto.randomUUID();
-  const now        = new Date().toISOString();
-  const artifact   = { id: artifactId, format, fileKey: `mock/${orderId}/artifacts/${artifactId}.${format}`, createdAt: now };
+  // Set status to "transforming" immediately; simulate job completing after 3 s
+  const now = new Date().toISOString();
+  mockOrders[idx] = { ...mockOrders[idx], status: "transforming", updatedAt: now };
 
-  mockOrders[idx] = { ...mockOrders[idx], status: "delivered", updatedAt: now, artifacts: [artifact, ...mockOrders[idx].artifacts] };
-  return { artifactId, format, createdAt: now };
+  setTimeout(() => {
+    const i = mockOrders.findIndex(o => o.id === orderId);
+    if (i === -1) return;
+    const artifactId = crypto.randomUUID();
+    const at = new Date().toISOString();
+    const artifact = { id: artifactId, format, fileKey: `mock/${orderId}/artifacts/${artifactId}.${format}`, createdAt: at };
+    mockOrders[i] = { ...mockOrders[i], status: "delivered", updatedAt: at, artifacts: [artifact, ...mockOrders[i].artifacts] };
+  }, 3_000);
+
+  return { artifactId: "", format, createdAt: now };
 }
 
 async function realTransformOrder(orderId: string, format: "xml" | "csv"): Promise<TransformResult> {
@@ -271,7 +279,9 @@ async function realTransformOrder(orderId: string, format: "xml" | "csv"): Promi
   });
   if (res.status === 422) { const t = await res.text(); throw new Error(`Unresolved lines: ${t}`); }
   if (!res.ok) { const t = await res.text(); throw new Error(`Transform failed: ${t || res.statusText}`); }
-  return res.json() as Promise<TransformResult>;
+  // 202 Accepted — job enqueued; return a placeholder result
+  const body = await res.json() as Record<string, unknown>;
+  return { artifactId: "", format, createdAt: new Date().toISOString(), ...body } as TransformResult;
 }
 
 // ── Download ──────────────────────────────────────────────────────────────
