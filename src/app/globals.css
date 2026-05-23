@@ -152,6 +152,51 @@
   }
 }
 
+/* ── Motion keyframes ────────────────────────────────────────────────────── */
+
+/* Link-spine: left-to-right clip-path reveal */
+@keyframes spine-fill {
+  from { clip-path: inset(0 100% 0 0); }
+  to   { clip-path: inset(0 0% 0 0);   }
+}
+
+/* Wire traveller along offset-path */
+@keyframes wire-travel {
+  from { offset-distance: 0%;   }
+  to   { offset-distance: 100%; }
+}
+
+/* Status node active pulse ring */
+@keyframes node-pulse {
+  0%   { transform: scale(1);   opacity: 0.7; }
+  60%  { transform: scale(2.4); opacity: 0;   }
+  100% { transform: scale(2.4); opacity: 0;   }
+}
+
+/* Connector draw — stroke-dashoffset 1 → 0 (apply via inline style) */
+@keyframes connector-draw {
+  from { stroke-dashoffset: 1; }
+  to   { stroke-dashoffset: 0; }
+}
+
+/* Spine node reveal: scale up from center */
+@keyframes spine-reveal {
+  from { transform: scale(0.6); opacity: 0; }
+  to   { transform: scale(1);   opacity: 1; }
+}
+
+/* Page load: fade + slide up */
+@keyframes fade-up {
+  from { transform: translateY(12px); opacity: 0; }
+  to   { transform: translateY(0);    opacity: 1; }
+}
+
+/* Validate-to-deliver flush: sequential green wash */
+@keyframes stage-flush {
+  0%   { background: #1E66C9; }
+  100% { background: #2E8E3A; }
+}
+
 @layer utilities {
   /* Wire-topology traveller — must be overridden with offset-path inline */
   .wire-pulse {
@@ -159,18 +204,57 @@
     animation: wire-travel 6s linear infinite;
   }
 
-  /* Link-spine animated fill (for topbar on stage advance) */
+  /* Link-spine animated fill (left-to-right clip reveal) */
   .spine-animate {
-    background: linear-gradient(90deg, #1E66C9 0%, #1E66C9 35%, #2E8E3A 65%, #2E8E3A 100%);
-    background-size: 0% 100%;
-    background-repeat: no-repeat;
-    animation: spine-fill 1.2s ease-out forwards;
+    animation: spine-fill 1.2s ease-out both;
   }
+
+  /* Active status node pulse ring */
+  .node-pulse::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    background: currentColor;
+    animation: node-pulse 2s ease-out infinite;
+    pointer-events: none;
+  }
+
+  /* Connector path draw */
+  .connector-draw {
+    stroke-dasharray: 1;
+    stroke-dashoffset: 1;
+    pathLength: 1;
+    animation: connector-draw 0.6s ease-out forwards;
+  }
+
+  /* Spine node reveal stagger */
+  .spine-reveal {
+    animation: spine-reveal 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  }
+
+  /* Page entry fade-up */
+  .fade-up {
+    animation: fade-up 0.4s ease-out both;
+  }
+
+  /* Stagger helpers */
+  .delay-100 { animation-delay: 100ms; }
+  .delay-150 { animation-delay: 150ms; }
+  .delay-200 { animation-delay: 200ms; }
+  .delay-250 { animation-delay: 250ms; }
+  .delay-300 { animation-delay: 300ms; }
+  .delay-400 { animation-delay: 400ms; }
+  .delay-500 { animation-delay: 500ms; }
 
   /* Suppress all motion for accessibility */
   @media (prefers-reduced-motion: reduce) {
     .wire-pulse,
     .spine-animate,
+    .node-pulse::after,
+    .connector-draw,
+    .spine-reveal,
+    .fade-up,
     [class*="animate-"] {
       animation: none !important;
     }

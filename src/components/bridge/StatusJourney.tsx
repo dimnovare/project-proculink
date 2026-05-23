@@ -50,11 +50,11 @@ export function StatusJourney({ stage, compact = false }: StatusJourneyProps) {
     <div className="flex items-center gap-0 relative">
       {/* Connecting line behind dots */}
       <div
-        className="absolute top-[9px] left-[9px] right-[9px] h-[2px] rounded"
+        className="absolute top-[9px] left-[9px] right-[9px] h-[2px] rounded spine-animate"
         style={{
           background:
             "linear-gradient(90deg, #1E66C9 0%, #1E66C9 35%, #2E8E3A 65%, #2E8E3A 100%)",
-          opacity: 0.3,
+          opacity: 0.35,
         }}
       />
       {STAGES.map((label, i) => {
@@ -64,7 +64,7 @@ export function StatusJourney({ stage, compact = false }: StatusJourneyProps) {
         return (
           <div key={i} className="flex flex-col items-center flex-1 relative z-10">
             <div
-              className="rounded-full flex items-center justify-center"
+              className={`rounded-full flex items-center justify-center${active ? " spine-reveal" : ""}`}
               style={{
                 width: 18,
                 height: 18,
@@ -85,8 +85,21 @@ export function StatusJourney({ stage, compact = false }: StatusJourneyProps) {
                     : "#C6CDDA"
                 }`,
                 boxShadow: active ? "0 0 0 3px rgba(30,102,201,0.2)" : undefined,
+                position: "relative",
               }}
             >
+              {active && (
+                <span
+                  style={{
+                    position: "absolute",
+                    inset: -3,
+                    borderRadius: "50%",
+                    border: "2px solid #1E66C9",
+                    animation: "node-pulse 2s ease-out infinite",
+                    pointerEvents: "none",
+                  }}
+                />
+              )}
               {done && (
                 <svg width="8" height="8" viewBox="0 0 8 8" fill="none">
                   <path
