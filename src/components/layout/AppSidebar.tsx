@@ -1,4 +1,4 @@
-import { Upload, FileText, LayoutDashboard, Settings, ArrowRightLeft } from "lucide-react";
+import { Upload, FileText, LayoutDashboard, Settings, ArrowRightLeft, Building2 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
 
@@ -23,7 +23,8 @@ const navItems = [
 ];
 
 const adminItems = [
-  { title: "Supplier Profiles", url: "/admin/suppliers", icon: Settings },
+  { title: "Suppliers",         url: "/suppliers",        icon: Building2 },
+  { title: "Supplier Profiles", url: "/admin/suppliers",  icon: Settings  },
 ];
 
 export function AppSidebar() {

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { Loader2, ArrowRight } from "lucide-react";
 import { apiClient } from "@/lib/api-client";
@@ -93,6 +93,14 @@ export default function UploadPage() {
                 <Loader2 className="h-4 w-4 animate-spin" />
                 Loading suppliers…
               </div>
+            ) : suppliers.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                No suppliers configured yet.{" "}
+                <Link to="/suppliers" className="text-primary underline underline-offset-2">
+                  Add a supplier
+                </Link>{" "}
+                before uploading an order.
+              </p>
             ) : (
               <Select value={supplierId} onValueChange={setSupplierId} disabled={uploading}>
                 <SelectTrigger className="w-full">

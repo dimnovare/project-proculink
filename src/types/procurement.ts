@@ -13,6 +13,21 @@ export interface Supplier {
   name: string;
 }
 
+export interface CreateSupplierPayload {
+  name: string;
+}
+
+export interface RenameSupplierPayload {
+  name: string;
+}
+
+export interface UpsertSupplierProfilePayload {
+  outputFormat: string;
+  destinationType: string;
+  destinationConfig?: string | null;
+  acceptedFormats?: string[];
+}
+
 export type OrderStatus = "pending_review" | "ready" | "transforming" | "delivered";
 
 export interface OrderLine {

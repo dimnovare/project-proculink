@@ -7,6 +7,8 @@ import type {
   SupplierMapping,
   TransformResult,
   DownloadUrl,
+  CreateSupplierPayload,
+  RenameSupplierPayload,
 } from "@/types/procurement";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5223";
@@ -108,9 +110,12 @@ let mockOrders: Order[] = [
 
 // ── Suppliers ─────────────────────────────────────────────────────────────
 
+/** Mutable copy of MOCK_SUPPLIERS — mutated by create/rename/delete mocks. */
+let mockSupplierList = [...MOCK_SUPPLIERS];
+
 async function mockGetSuppliersFn(): Promise<Supplier[]> {
   await delay(200);
-  return MOCK_SUPPLIERS;
+  return [...mockSupplierList];
 }
 
 async function realGetSuppliersFn(): Promise<Supplier[]> {
@@ -313,6 +318,59 @@ async function realDeleteSupplierMapping(supplierId: string, mappingId: string):
   if (!res.ok) { const t = await res.text(); throw new Error(`Delete failed: ${t || res.statusText}`); }
 }
 
+// ── Supplier CRUD ─────────────────────────────────────────────────────────
+
+async function mockCreateSupplier(payload: CreateSupplierPayload): Promise<Supplier> {
+  await delay(400);
+  const trimmed = payload.name.trim();
+  if (mockSupplierList.some(s => s.name.toLowerCase() === trimmed.toLowerCase()))
+    throw new Error(`A supplier named '${trimmed}' already exists.`);
+  const s: Supplier = { id: crypto.randomUUID(), name: trimmed };
+  mockSupplierList.push(s);
+  return s;
+}
+
+async function realCreateSupplier(payload: CreateSupplierPayload): Promise<Supplier> {
+  const res = await fetch(`${API_BASE_URL}/api/suppliers`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...await authHeader() },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) { const t = await res.text(); throw new Error(t || res.statusText); }
+  return res.json() as Promise<Supplier>;
+}
+
+async function mockRenameSupplier(id: string, payload: RenameSupplierPayload): Promise<Supplier> {
+  await delay(300);
+  const i = mockSupplierList.findIndex(s => s.id === id);
+  if (i === -1) throw new Error("Supplier not found");
+  mockSupplierList[i] = { ...mockSupplierList[i], name: payload.name.trim() };
+  return mockSupplierList[i];
+}
+
+async function realRenameSupplier(id: string, payload: RenameSupplierPayload): Promise<Supplier> {
+  const res = await fetch(`${API_BASE_URL}/api/suppliers/${id}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json", ...await authHeader() },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) { const t = await res.text(); throw new Error(t || res.statusText); }
+  return res.json() as Promise<Supplier>;
+}
+
+async function mockDeleteSupplier(id: string): Promise<void> {
+  await delay(300);
+  mockSupplierList = mockSupplierList.filter(s => s.id !== id);
+}
+
+async function realDeleteSupplier(id: string): Promise<void> {
+  const res = await fetch(`${API_BASE_URL}/api/suppliers/${id}`, {
+    method: "DELETE",
+    headers: await authHeader(),
+  });
+  if (!res.ok) { const t = await res.text(); throw new Error(t || res.statusText); }
+}
+
 // ── Supplier profiles ─────────────────────────────────────────────────────
 
 let mockSupplierProfiles: import("@/types/procurement").SupplierProfile[] = [
@@ -350,8 +408,11 @@ async function realDeleteSupplierProfile(n: string) { const r = await fetch(`${A
 // ── Exported API client ───────────────────────────────────────────────────
 
 export const apiClient = {
-  // Suppliers
+  // Suppliers — list + CRUD
   getSuppliers:           USE_MOCK ? mockGetSuppliersFn        : realGetSuppliersFn,
+  createSupplier:         USE_MOCK ? mockCreateSupplier        : realCreateSupplier,
+  renameSupplier:         USE_MOCK ? mockRenameSupplier        : realRenameSupplier,
+  deleteSupplier:         USE_MOCK ? mockDeleteSupplier        : realDeleteSupplier,
 
   // Orders
   uploadPurchaseOrder:    USE_MOCK ? mockUploadPurchaseOrder   : realUploadPurchaseOrder,

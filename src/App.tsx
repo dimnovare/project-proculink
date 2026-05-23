@@ -10,6 +10,7 @@ import MappingsPage from "@/pages/MappingsPage";
 import NotFound from "@/pages/NotFound";
 import OrderDetailPage from "@/pages/OrderDetailPage";
 import OrdersPage from "@/pages/OrdersPage";
+import SuppliersPage from "@/pages/SuppliersPage";
 import SupplierProfilesPage from "@/pages/SupplierProfilesPage";
 import UploadPage from "@/pages/UploadPage";
 
@@ -36,6 +37,7 @@ const App = () => (
               <Route path="/orders" element={<OrdersPage />} />
               <Route path="/orders/:id" element={<OrderDetailPage />} />
               <Route path="/mappings" element={<MappingsPage />} />
+              <Route path="/suppliers" element={<SuppliersPage />} />
               <Route path="/admin/suppliers" element={<SupplierProfilesPage />} />
             </Route>
             <Route path="*" element={<NotFound />} />
