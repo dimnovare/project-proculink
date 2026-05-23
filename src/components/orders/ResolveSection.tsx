@@ -15,66 +15,58 @@ import {
 } from "@/components/ui/table";
 import { toast } from "@/hooks/use-toast";
 import { apiClient } from "@/lib/api-client";
-import type { PurchaseOrder, PurchaseOrderLine } from "@/types/procurement";
+import type { Order } from "@/types/procurement";
 
 interface ResolveSectionProps {
-  order: PurchaseOrder;
-  onOrderUpdated: (order: PurchaseOrder, messages: string[]) => void;
+  order: Order;
+  onOrderUpdated: (order: Order, messages: string[]) => void;
 }
 
 export function ResolveSection({ order, onOrderUpdated }: ResolveSectionProps) {
-  const missingLines = order.lines.filter(
-    (line) => !line.supplierItemCode || line.supplierItemCode.trim() === ""
-  );
+  const unresolvedLines = order.lines.filter((line) => line.needsReview);
 
   const [resolutions, setResolutions] = useState<Record<number, string>>(() => {
     const initial: Record<number, string> = {};
-    missingLines.forEach((line) => {
-      initial[line.lineNumber] = "";
-    });
+    unresolvedLines.forEach((line) => { initial[line.lineNumber] = ""; });
     return initial;
   });
   const [saveMappings, setSaveMappings] = useState(true);
   const [isResolving, setIsResolving] = useState(false);
 
-  const allFilled = missingLines.every(
-    (line) => resolutions[line.lineNumber]?.trim()
+  const allFilled = unresolvedLines.every(
+    (line) => resolutions[line.lineNumber]?.trim(),
   );
 
   const handleInputChange = (lineNumber: number, value: string) => {
-    setResolutions((prev) => ({
-      ...prev,
-      [lineNumber]: value,
-    }));
+    setResolutions((prev) => ({ ...prev, [lineNumber]: value }));
   };
 
   const handleResolve = async () => {
     if (!allFilled) return;
-
     setIsResolving(true);
     try {
       const result = await apiClient.resolvePurchaseOrder(order.id, {
         saveMappings,
-        lineResolutions: missingLines.map((line) => ({
+        lineResolutions: unresolvedLines.map((line) => ({
           lineNumber: line.lineNumber,
           supplierItemCode: resolutions[line.lineNumber].trim(),
         })),
       });
 
       toast({
-        title: "Order Resolved",
-        description:
-          result.order.automationStatus === "Automatable"
-            ? "All issues resolved. Order is now ready for automation."
-            : "Some issues remain. Please review the validation messages.",
+        title: result.order.status === "ready"
+          ? "All lines resolved"
+          : "Partially resolved",
+        description: result.order.status === "ready"
+          ? "Order is ready for transformation."
+          : "Some lines still need supplier item codes.",
       });
 
       onOrderUpdated(result.order, result.validationMessages);
     } catch (error) {
       toast({
-        title: "Resolution Failed",
-        description:
-          error instanceof Error ? error.message : "An error occurred",
+        title: "Resolution failed",
+        description: error instanceof Error ? error.message : "An error occurred",
         variant: "destructive",
       });
     } finally {
@@ -82,30 +74,22 @@ export function ResolveSection({ order, onOrderUpdated }: ResolveSectionProps) {
     }
   };
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: order.currency,
-    }).format(amount);
-  };
+  const fmt = (amount: number) =>
+    new Intl.NumberFormat("en-US", { style: "currency", currency: order.currency }).format(amount);
 
-  if (missingLines.length === 0) {
-    return null;
-  }
+  if (unresolvedLines.length === 0) return null;
 
   return (
     <Card className="border-warning/30 bg-warning-muted/30">
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-warning-foreground">
           <AlertCircle className="h-5 w-5" />
-          Resolve Missing Supplier Item Codes
+          Resolve Missing Supplier Item Codes ({unresolvedLines.length})
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
         <p className="text-sm text-warning-foreground/80">
-          The following {missingLines.length} line
-          {missingLines.length !== 1 ? "s" : ""} require supplier item codes
-          before this order can be automated.
+          Enter the supplier item code for each unresolved line before transforming.
         </p>
 
         <div className="rounded-md border bg-background">
@@ -121,30 +105,20 @@ export function ResolveSection({ order, onOrderUpdated }: ResolveSectionProps) {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {missingLines.map((line) => (
-                <TableRow key={line.lineNumber}>
-                  <TableCell className="font-mono text-sm">
-                    {line.lineNumber}
-                  </TableCell>
-                  <TableCell className="font-mono text-sm">
-                    {line.buyerItemCode}
-                  </TableCell>
+              {unresolvedLines.map((line) => (
+                <TableRow key={line.id}>
+                  <TableCell className="font-mono text-sm">{line.lineNumber}</TableCell>
+                  <TableCell className="font-mono text-sm">{line.buyerItemCode}</TableCell>
                   <TableCell className="hidden sm:table-cell text-muted-foreground">
-                    {line.description}
+                    {line.description ?? "—"}
                   </TableCell>
-                  <TableCell className="text-right">
-                    {line.quantity.toLocaleString()}
-                  </TableCell>
-                  <TableCell className="text-right hidden sm:table-cell">
-                    {formatCurrency(line.unitPrice)}
-                  </TableCell>
+                  <TableCell className="text-right">{line.quantity.toLocaleString()}</TableCell>
+                  <TableCell className="text-right hidden sm:table-cell">{fmt(line.unitPrice)}</TableCell>
                   <TableCell>
                     <Input
-                      placeholder="Enter code..."
+                      placeholder="Enter code…"
                       value={resolutions[line.lineNumber] || ""}
-                      onChange={(e) =>
-                        handleInputChange(line.lineNumber, e.target.value)
-                      }
+                      onChange={(e) => handleInputChange(line.lineNumber, e.target.value)}
                       className="h-8 font-mono"
                     />
                   </TableCell>
@@ -177,12 +151,12 @@ export function ResolveSection({ order, onOrderUpdated }: ResolveSectionProps) {
             {isResolving ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Resolving...
+                Resolving…
               </>
             ) : (
               <>
                 <CheckCircle2 className="mr-2 h-4 w-4" />
-                Resolve & Revalidate
+                Resolve & Continue
               </>
             )}
           </Button>

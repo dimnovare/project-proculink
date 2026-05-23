@@ -1,46 +1,76 @@
 import { cn } from "@/lib/utils";
-import type { AutomationStatus } from "@/types/procurement";
-import { CheckCircle2, AlertTriangle } from "lucide-react";
+import { CheckCircle2, AlertTriangle, Loader2, PackageCheck } from "lucide-react";
+import type { ComponentType } from "react";
 
+/** Accepts Phase 2 OrderStatus values AND legacy Phase 1 AutomationStatus strings. */
 interface StatusBadgeProps {
-  status: AutomationStatus;
+  status: string;
   showIcon?: boolean;
   size?: "sm" | "md" | "lg";
   className?: string;
 }
 
+type Variant = "success" | "warning" | "info" | "muted";
+
+interface StatusConfig {
+  label: string;
+  Icon: ComponentType<{ className?: string }>;
+  variant: Variant;
+  spin?: boolean;
+}
+
+const STATUS_MAP: Record<string, StatusConfig> = {
+  // Phase 2
+  ready:          { label: "Ready",          Icon: CheckCircle2,  variant: "success" },
+  pending_review: { label: "Pending Review", Icon: AlertTriangle,  variant: "warning" },
+  transforming:   { label: "Transforming",   Icon: Loader2,        variant: "info", spin: true },
+  delivered:      { label: "Delivered",      Icon: PackageCheck,   variant: "success" },
+  // Legacy Phase 1
+  Automatable:         { label: "Automatable",       Icon: CheckCircle2, variant: "success" },
+  NeedsClarification:  { label: "Needs Clarification", Icon: AlertTriangle, variant: "warning" },
+};
+
+const VARIANT_CLASSES: Record<Variant, string> = {
+  success: "bg-success-muted text-success border-success/20",
+  warning: "bg-warning-muted text-warning border-warning/30",
+  info:    "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950 dark:text-blue-300 dark:border-blue-800",
+  muted:   "bg-muted text-muted-foreground border-border",
+};
+
+const SIZE_CLASSES = {
+  sm: "text-xs px-2 py-0.5",
+  md: "text-sm px-2.5 py-1",
+  lg: "text-sm px-3 py-1.5",
+};
+
+const ICON_SIZES = {
+  sm: "h-3 w-3",
+  md: "h-3.5 w-3.5",
+  lg: "h-4 w-4",
+};
+
 export function StatusBadge({ status, showIcon = true, size = "md", className }: StatusBadgeProps) {
-  const isAutomatable = status === "Automatable";
-
-  const sizeClasses = {
-    sm: "text-xs px-2 py-0.5",
-    md: "text-sm px-2.5 py-1",
-    lg: "text-sm px-3 py-1.5",
-  };
-
-  const iconSizes = {
-    sm: "h-3 w-3",
-    md: "h-3.5 w-3.5",
-    lg: "h-4 w-4",
+  const config = STATUS_MAP[status] ?? {
+    label: status,
+    Icon: AlertTriangle,
+    variant: "muted" as Variant,
   };
 
   return (
     <span
       className={cn(
         "inline-flex items-center gap-1.5 rounded-full font-medium border",
-        sizeClasses[size],
-        isAutomatable
-          ? "bg-success-muted text-success border-success/20"
-          : "bg-warning-muted text-warning border-warning/30",
-        className
+        SIZE_CLASSES[size],
+        VARIANT_CLASSES[config.variant],
+        className,
       )}
     >
       {showIcon && (
-        isAutomatable
-          ? <CheckCircle2 className={iconSizes[size]} />
-          : <AlertTriangle className={iconSizes[size]} />
+        <config.Icon
+          className={cn(ICON_SIZES[size], config.spin && "animate-spin")}
+        />
       )}
-      {isAutomatable ? "Automatable" : "Needs Clarification"}
+      {config.label}
     </span>
   );
 }

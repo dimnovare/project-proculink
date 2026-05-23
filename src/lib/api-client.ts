@@ -1,11 +1,12 @@
-import type { 
-  AutomationStatus, 
-  PurchaseOrder, 
-  PurchaseOrderSummary, 
+import type {
+  Order,
+  OrderSummary,
+  Supplier,
   UploadResult,
   ResolvePayload,
-  ResolveResult,
-  SupplierMapping
+  SupplierMapping,
+  TransformResult,
+  DownloadUrl,
 } from "@/types/procurement";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5223";
@@ -15,7 +16,6 @@ const USE_MOCK = import.meta.env.VITE_USE_MOCK !== "false";
 /**
  * Returns an Authorization header with the current Clerk session JWT.
  * Uses window.Clerk (set by ClerkProvider) so this works outside React components.
- * Returns an empty object when the session is not yet available (e.g. during sign-in redirect).
  */
 async function authHeader(): Promise<Record<string, string>> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -23,486 +23,352 @@ async function authHeader(): Promise<Record<string, string>> {
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
-// Mock mappings store
+const delay = (ms: number) => new Promise<void>(resolve => setTimeout(resolve, ms));
+
+// ── Mock data ─────────────────────────────────────────────────────────────
+
+const MOCK_SUPPLIERS: Supplier[] = [
+  { id: "11111111-1111-1111-1111-111111111111", name: "FastParts Inc" },
+  { id: "22222222-2222-2222-2222-222222222222", name: "ElectroSupply Co" },
+  { id: "33333333-3333-3333-3333-333333333333", name: "GlobalComponents" },
+  { id: "44444444-4444-4444-4444-444444444444", name: "PrecisionMfg" },
+];
+
+/** Mock mappings — keyed by supplierId, each entry has an id for delete. */
 const mockMappings: Record<string, SupplierMapping[]> = {
-  "ElectroSupply Co": [
-    { buyerItemCode: "TB-CAP-100", supplierItemCode: "ES-CAP-100UF" },
-    { buyerItemCode: "TB-LED-RED", supplierItemCode: "ES-LED-R5MM" },
+  "22222222-2222-2222-2222-222222222222": [
+    { id: "m-001", buyerItemCode: "TB-CAP-100", supplierItemCode: "ES-CAP-100UF" },
+    { id: "m-002", buyerItemCode: "TB-LED-RED", supplierItemCode: "ES-LED-R5MM" },
   ],
-  "FastParts Inc": [
-    { buyerItemCode: "ACM-BOLT-001", supplierItemCode: "FP-B001" },
-    { buyerItemCode: "ACM-NUT-001", supplierItemCode: "FP-N001" },
+  "11111111-1111-1111-1111-111111111111": [
+    { id: "m-003", buyerItemCode: "ACM-BOLT-001", supplierItemCode: "FP-B001" },
+    { id: "m-004", buyerItemCode: "ACM-NUT-001",  supplierItemCode: "FP-N001" },
   ],
 };
 
-// Backend returns AutomationStatus as numeric enum (0 = Automatable, 1 = NeedsClarification)
-// Frontend uses string literals - this function converts between them
-function mapAutomationStatus(status: number | string): AutomationStatus {
-  if (typeof status === "string") return status as AutomationStatus;
-  return status === 0 ? "Automatable" : "NeedsClarification";
-}
-
-// Transform backend response to match frontend types
-function transformOrder(order: any): PurchaseOrder {
-  return {
-    ...order,
-    automationStatus: mapAutomationStatus(order.automationStatus),
-  };
-}
-
-function transformOrderSummary(summary: any): PurchaseOrderSummary {
-  return {
-    ...summary,
-    automationStatus: mapAutomationStatus(summary.automationStatus),
-  };
-}
-
-// Mock data store
-let mockOrders: PurchaseOrder[] = [
+/** Central mock order store — Phase 2 Order shape throughout. */
+let mockOrders: Order[] = [
   {
     id: "ord-001",
-    buyerName: "Acme Corp",
-    supplierName: "FastParts Inc",
     poNumber: "PO-2024-001234",
-    orderDate: "2024-01-10T00:00:00Z",
+    supplierId: "11111111-1111-1111-1111-111111111111",
+    supplierName: "FastParts Inc",
+    orderDate: "2024-01-10",
     currency: "USD",
-    automationStatus: "Automatable",
-    automationReason: null,
-    lines: [
-      { lineNumber: 1, buyerItemCode: "ACM-BOLT-001", supplierItemCode: "FP-B001", description: "Steel Bolt M10x50", quantity: 500, unitPrice: 0.45 },
-      { lineNumber: 2, buyerItemCode: "ACM-NUT-001", supplierItemCode: "FP-N001", description: "Steel Nut M10", quantity: 500, unitPrice: 0.25 },
-      { lineNumber: 3, buyerItemCode: "ACM-WASHER-001", supplierItemCode: "FP-W001", description: "Steel Washer M10", quantity: 1000, unitPrice: 0.10 },
-    ],
+    status: "ready",
+    sourceFileKey: null,
     createdAt: "2024-01-10T14:30:00Z",
+    updatedAt: "2024-01-10T14:30:00Z",
+    lines: [
+      { id: "l-001-1", lineNumber: 1, buyerItemCode: "ACM-BOLT-001",   supplierItemCode: "FP-B001",   description: "Steel Bolt M10x50",   quantity: 500,  unit: "PCS", unitPrice: 0.45, confidence: 1.0, needsReview: false },
+      { id: "l-001-2", lineNumber: 2, buyerItemCode: "ACM-NUT-001",    supplierItemCode: "FP-N001",   description: "Steel Nut M10",       quantity: 500,  unit: "PCS", unitPrice: 0.25, confidence: 1.0, needsReview: false },
+      { id: "l-001-3", lineNumber: 3, buyerItemCode: "ACM-WASHER-001", supplierItemCode: "FP-W001",   description: "Steel Washer M10",    quantity: 1000, unit: "PCS", unitPrice: 0.10, confidence: 1.0, needsReview: false },
+    ],
+    artifacts: [],
   },
   {
     id: "ord-002",
-    buyerName: "TechBuild Ltd",
-    supplierName: "ElectroSupply Co",
     poNumber: "PO-2024-005678",
-    orderDate: "2024-01-12T00:00:00Z",
+    supplierId: "22222222-2222-2222-2222-222222222222",
+    supplierName: "ElectroSupply Co",
+    orderDate: "2024-01-12",
     currency: "EUR",
-    automationStatus: "NeedsClarification",
-    automationReason: "Missing supplier item codes for 2 line items: lines 2 and 4. Supplier requires all item codes for automated processing.",
-    lines: [
-      { lineNumber: 1, buyerItemCode: "TB-CAP-100", supplierItemCode: "ES-CAP-100UF", description: "Capacitor 100µF", quantity: 200, unitPrice: 0.35 },
-      { lineNumber: 2, buyerItemCode: "TB-RES-220", supplierItemCode: null, description: "Resistor 220Ω", quantity: 500, unitPrice: 0.02 },
-      { lineNumber: 3, buyerItemCode: "TB-LED-RED", supplierItemCode: "ES-LED-R5MM", description: "LED Red 5mm", quantity: 100, unitPrice: 0.15 },
-      { lineNumber: 4, buyerItemCode: "TB-WIRE-22", supplierItemCode: null, description: "Wire 22AWG Black 100m", quantity: 5, unitPrice: 12.50 },
-    ],
+    status: "pending_review",
+    sourceFileKey: null,
     createdAt: "2024-01-12T09:15:00Z",
+    updatedAt: "2024-01-12T09:15:00Z",
+    lines: [
+      { id: "l-002-1", lineNumber: 1, buyerItemCode: "TB-CAP-100", supplierItemCode: "ES-CAP-100UF", description: "Capacitor 100µF",     quantity: 200, unit: "PCS", unitPrice: 0.35,  confidence: 1.0, needsReview: false },
+      { id: "l-002-2", lineNumber: 2, buyerItemCode: "TB-RES-220", supplierItemCode: null,            description: "Resistor 220Ω",       quantity: 500, unit: "PCS", unitPrice: 0.02,  confidence: 0.0, needsReview: true  },
+      { id: "l-002-3", lineNumber: 3, buyerItemCode: "TB-LED-RED", supplierItemCode: "ES-LED-R5MM",   description: "LED Red 5mm",         quantity: 100, unit: "PCS", unitPrice: 0.15,  confidence: 1.0, needsReview: false },
+      { id: "l-002-4", lineNumber: 4, buyerItemCode: "TB-WIRE-22", supplierItemCode: null,            description: "Wire 22AWG Black 100m", quantity: 5, unit: "M",   unitPrice: 12.50, confidence: 0.0, needsReview: true  },
+    ],
+    artifacts: [],
   },
   {
     id: "ord-003",
-    buyerName: "MegaMfg Industries",
-    supplierName: "FastParts Inc",
     poNumber: "PO-2024-009012",
-    orderDate: "2024-01-14T00:00:00Z",
+    supplierId: "11111111-1111-1111-1111-111111111111",
+    supplierName: "FastParts Inc",
+    orderDate: "2024-01-14",
     currency: "USD",
-    automationStatus: "Automatable",
-    automationReason: null,
-    lines: [
-      { lineNumber: 1, buyerItemCode: "MM-SHAFT-A1", supplierItemCode: "FP-SH-A1", description: "Drive Shaft Type A", quantity: 25, unitPrice: 145.00 },
-      { lineNumber: 2, buyerItemCode: "MM-BEARING-6205", supplierItemCode: "FP-BR-6205", description: "Ball Bearing 6205-2RS", quantity: 50, unitPrice: 8.75 },
-    ],
+    status: "delivered",
+    sourceFileKey: null,
     createdAt: "2024-01-14T11:45:00Z",
+    updatedAt: "2024-01-14T12:30:00Z",
+    lines: [
+      { id: "l-003-1", lineNumber: 1, buyerItemCode: "MM-SHAFT-A1",     supplierItemCode: "FP-SH-A1",   description: "Drive Shaft Type A",    quantity: 25, unit: "PCS", unitPrice: 145.00, confidence: 1.0, needsReview: false },
+      { id: "l-003-2", lineNumber: 2, buyerItemCode: "MM-BEARING-6205", supplierItemCode: "FP-BR-6205", description: "Ball Bearing 6205-2RS", quantity: 50, unit: "PCS", unitPrice: 8.75,   confidence: 1.0, needsReview: false },
+    ],
+    artifacts: [
+      { id: "a-003-1", format: "xml", fileKey: "mock/ord-003/artifacts/a-003-1.xml", createdAt: "2024-01-14T12:30:00Z" },
+    ],
   },
 ];
 
-const MOCK_SUPPLIERS = [
-  { name: "FastParts Inc", requiresSupplierItemCode: true },
-  { name: "ElectroSupply Co", requiresSupplierItemCode: true },
-  { name: "GlobalComponents", requiresSupplierItemCode: false },
-  { name: "PrecisionMfg", requiresSupplierItemCode: true },
-];
+// ── Suppliers ─────────────────────────────────────────────────────────────
 
-// Mock API implementations
-async function mockUploadPurchaseOrder(file: File, supplierName: string): Promise<UploadResult> {
-  // Simulate network delay
-  await new Promise(resolve => setTimeout(resolve, 1500));
-
-  const supplier = MOCK_SUPPLIERS.find(s => s.name === supplierName);
-  const requiresItemCode = supplier?.requiresSupplierItemCode ?? true;
-
-  // Generate mock order from "parsed" file
-  const lines = [
-    { lineNumber: 1, buyerItemCode: "ITEM-001", supplierItemCode: requiresItemCode ? null : "SUP-001", description: "Sample Part A", quantity: 100, unitPrice: 25.00 },
-    { lineNumber: 2, buyerItemCode: "ITEM-002", supplierItemCode: "SUP-002", description: "Sample Part B", quantity: 50, unitPrice: 15.50 },
-    { lineNumber: 3, buyerItemCode: "ITEM-003", supplierItemCode: requiresItemCode ? null : "SUP-003", description: "Sample Part C", quantity: 200, unitPrice: 8.25 },
-  ];
-
-  const missingCodes = lines.filter(l => !l.supplierItemCode && requiresItemCode);
-  const needsClarification = missingCodes.length > 0;
-
-  const newOrder: PurchaseOrder = {
-    id: `ord-${Date.now()}`,
-    buyerName: "Your Company",
-    supplierName,
-    poNumber: `PO-${new Date().getFullYear()}-${String(Math.floor(Math.random() * 100000)).padStart(6, '0')}`,
-    orderDate: new Date().toISOString(),
-    currency: "USD",
-    automationStatus: needsClarification ? "NeedsClarification" : "Automatable",
-    automationReason: needsClarification
-      ? `Missing supplier item codes for ${missingCodes.length} line item(s): lines ${missingCodes.map(l => l.lineNumber).join(', ')}. Supplier "${supplierName}" requires all item codes for automated processing.`
-      : null,
-    lines,
-    createdAt: new Date().toISOString(),
-  };
-
-  mockOrders.unshift(newOrder);
-
-  return {
-    order: newOrder,
-    validationMessages: needsClarification
-      ? [`${missingCodes.length} line(s) require supplier item codes`]
-      : ["All validation checks passed"],
-  };
+async function mockGetSuppliersFn(): Promise<Supplier[]> {
+  await delay(200);
+  return MOCK_SUPPLIERS;
 }
 
-async function mockGetOrders(): Promise<PurchaseOrderSummary[]> {
-  await new Promise(resolve => setTimeout(resolve, 300));
+async function realGetSuppliersFn(): Promise<Supplier[]> {
+  const res = await fetch(`${API_BASE_URL}/api/suppliers`, { headers: await authHeader() });
+  if (!res.ok) throw new Error(`Failed to fetch suppliers: ${res.statusText}`);
+  return res.json() as Promise<Supplier[]>;
+}
 
-  return mockOrders.map(order => ({
-    id: order.id,
-    poNumber: order.poNumber,
-    supplierName: order.supplierName,
-    buyerName: order.buyerName,
-    orderDate: order.orderDate,
-    automationStatus: order.automationStatus,
-    createdAt: order.createdAt,
-    lineCount: order.lines.length,
-    totalValue: order.lines.reduce((sum, line) => sum + (line.quantity * line.unitPrice), 0),
-    currency: order.currency,
+// ── Upload ────────────────────────────────────────────────────────────────
+
+async function mockUploadPurchaseOrder(file: File, supplierId: string): Promise<UploadResult> {
+  await delay(1500);
+  const supplier    = MOCK_SUPPLIERS.find(s => s.id === supplierId);
+  const supplierName = supplier?.name ?? "Unknown Supplier";
+  const orderId     = `ord-${Date.now()}`;
+  const now         = new Date().toISOString();
+  const poNumber    = `PO-${new Date().getFullYear()}-${String(Math.floor(Math.random() * 100000)).padStart(6, "0")}`;
+
+  const lines: Order["lines"] = [
+    { id: crypto.randomUUID(), lineNumber: 1, buyerItemCode: "ITEM-001", supplierItemCode: null,      description: "Sample Part A", quantity: 100, unit: "PCS", unitPrice: 25.00, confidence: 0.0, needsReview: true  },
+    { id: crypto.randomUUID(), lineNumber: 2, buyerItemCode: "ITEM-002", supplierItemCode: "SUP-002", description: "Sample Part B", quantity: 50,  unit: "PCS", unitPrice: 15.50, confidence: 1.0, needsReview: false },
+    { id: crypto.randomUUID(), lineNumber: 3, buyerItemCode: "ITEM-003", supplierItemCode: null,      description: "Sample Part C", quantity: 200, unit: "PCS", unitPrice: 8.25,  confidence: 0.0, needsReview: true  },
+  ];
+  const unresolvedCount = lines.filter(l => l.needsReview).length;
+
+  const order: Order = {
+    id: orderId, poNumber, supplierId, supplierName,
+    orderDate: now.substring(0, 10), currency: "USD",
+    status: unresolvedCount > 0 ? "pending_review" : "ready",
+    sourceFileKey: null, createdAt: now, updatedAt: now,
+    lines, artifacts: [],
+  };
+
+  mockOrders.unshift(order);
+  return { order, validationMessages: unresolvedCount > 0 ? [`${unresolvedCount} line(s) require supplier item codes`] : [] };
+}
+
+async function realUploadPurchaseOrder(file: File, supplierId: string): Promise<UploadResult> {
+  const formData = new FormData();
+  formData.append("file", file);
+  formData.append("supplierId", supplierId);
+
+  const res = await fetch(`${API_BASE_URL}/api/orders/upload`, {
+    method: "POST", headers: await authHeader(), body: formData,
+  });
+  if (!res.ok) { const t = await res.text(); throw new Error(`Upload failed: ${t || res.statusText}`); }
+  return res.json() as Promise<UploadResult>;
+}
+
+// ── Order list / detail ───────────────────────────────────────────────────
+
+async function mockGetOrders(): Promise<OrderSummary[]> {
+  await delay(300);
+  return mockOrders.map(o => ({
+    id: o.id, poNumber: o.poNumber, supplierName: o.supplierName,
+    orderDate: o.orderDate, status: o.status,
+    lineCount: o.lines.length,
+    unresolvedCount: o.lines.filter(l => l.needsReview).length,
+    createdAt: o.createdAt,
   }));
 }
 
-async function mockGetOrderById(id: string): Promise<PurchaseOrder | null> {
-  await new Promise(resolve => setTimeout(resolve, 200));
-  return mockOrders.find(o => o.id === id) || null;
+async function realGetOrders(): Promise<OrderSummary[]> {
+  const res = await fetch(`${API_BASE_URL}/api/orders`, { headers: await authHeader() });
+  if (!res.ok) throw new Error(`Failed to fetch orders: ${res.statusText}`);
+  return res.json() as Promise<OrderSummary[]>;
 }
 
-// Real API implementations
-async function realUploadPurchaseOrder(file: File, supplierName: string): Promise<UploadResult> {
-  const formData = new FormData();
-  formData.append("file", file);
-  formData.append("supplierName", supplierName);
-
-  const response = await fetch(`${API_BASE_URL}/api/purchase-orders/upload`, {
-    method: "POST",
-    headers: await authHeader(),
-    body: formData,
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`Upload failed: ${errorText || response.statusText}`);
-  }
-
-  const result = await response.json();
-  return {
-    order: transformOrder(result.order),
-    validationMessages: result.validationMessages,
-  };
+async function mockGetOrderById(id: string): Promise<Order | null> {
+  await delay(200);
+  return mockOrders.find(o => o.id === id) ?? null;
 }
 
-async function realGetOrders(): Promise<PurchaseOrderSummary[]> {
-  const response = await fetch(`${API_BASE_URL}/api/purchase-orders`, {
-    headers: await authHeader(),
-  });
-
-  if (!response.ok) {
-    throw new Error(`Failed to fetch orders: ${response.statusText}`);
-  }
-
-  const orders = await response.json();
-  return orders.map(transformOrderSummary);
+async function realGetOrderById(id: string): Promise<Order | null> {
+  const res = await fetch(`${API_BASE_URL}/api/orders/${id}`, { headers: await authHeader() });
+  if (res.status === 404) return null;
+  if (!res.ok) throw new Error(`Failed to fetch order: ${res.statusText}`);
+  return res.json() as Promise<Order>;
 }
 
-async function realGetOrderById(id: string): Promise<PurchaseOrder | null> {
-  const response = await fetch(`${API_BASE_URL}/api/purchase-orders/${id}`, {
-    headers: await authHeader(),
-  });
+// ── Resolve ───────────────────────────────────────────────────────────────
 
-  if (response.status === 404) {
-    return null;
+async function mockResolvePurchaseOrder(
+  id: string, payload: ResolvePayload,
+): Promise<{ order: Order; validationMessages: string[] }> {
+  await delay(800);
+  const idx = mockOrders.findIndex(o => o.id === id);
+  if (idx === -1) throw new Error("Order not found");
+
+  const order: Order = { ...mockOrders[idx], lines: mockOrders[idx].lines.map(l => ({ ...l })) };
+
+  for (const res of payload.lineResolutions) {
+    const li = order.lines.findIndex(l => l.lineNumber === res.lineNumber);
+    if (li !== -1) order.lines[li] = { ...order.lines[li], supplierItemCode: res.supplierItemCode, needsReview: false, confidence: 1.0 };
   }
 
-  if (!response.ok) {
-    throw new Error(`Failed to fetch order: ${response.statusText}`);
-  }
-
-  const order = await response.json();
-  return transformOrder(order);
-}
-
-// Mock resolve function
-async function mockResolvePurchaseOrder(id: string, payload: import("@/types/procurement").ResolvePayload): Promise<import("@/types/procurement").ResolveResult> {
-  await new Promise(resolve => setTimeout(resolve, 800));
-
-  const orderIndex = mockOrders.findIndex(o => o.id === id);
-  if (orderIndex === -1) {
-    throw new Error("Order not found");
-  }
-
-  const order = { ...mockOrders[orderIndex] };
-  
-  // Apply resolutions to lines
-  order.lines = order.lines.map(line => {
-    const resolution = payload.lineResolutions.find(r => r.lineNumber === line.lineNumber);
-    if (resolution) {
-      return { ...line, supplierItemCode: resolution.supplierItemCode };
-    }
-    return line;
-  });
-
-  // Save mappings if requested
   if (payload.saveMappings) {
-    const supplierMappings = mockMappings[order.supplierName] || [];
-    payload.lineResolutions.forEach(resolution => {
-      const line = order.lines.find(l => l.lineNumber === resolution.lineNumber);
-      if (line) {
-        const existingIndex = supplierMappings.findIndex(m => m.buyerItemCode === line.buyerItemCode);
-        const newMapping = { buyerItemCode: line.buyerItemCode, supplierItemCode: resolution.supplierItemCode };
-        if (existingIndex >= 0) {
-          supplierMappings[existingIndex] = newMapping;
-        } else {
-          supplierMappings.push(newMapping);
-        }
+    const mappings = mockMappings[order.supplierId] ?? [];
+    for (const res of payload.lineResolutions) {
+      const line = order.lines.find(l => l.lineNumber === res.lineNumber);
+      if (line?.buyerItemCode) {
+        const mi = mappings.findIndex(m => m.buyerItemCode === line.buyerItemCode);
+        const m: SupplierMapping = { id: `m-${Date.now()}`, buyerItemCode: line.buyerItemCode, supplierItemCode: res.supplierItemCode };
+        if (mi >= 0) mappings[mi] = m; else mappings.push(m);
       }
-    });
-    mockMappings[order.supplierName] = supplierMappings;
+    }
+    mockMappings[order.supplierId] = mappings;
   }
 
-  // Check if all lines now have supplier item codes
-  const missingCodes = order.lines.filter(l => !l.supplierItemCode);
-  if (missingCodes.length === 0) {
-    order.automationStatus = "Automatable";
-    order.automationReason = null;
-  } else {
-    order.automationStatus = "NeedsClarification";
-    order.automationReason = `Still missing supplier item codes for ${missingCodes.length} line(s): lines ${missingCodes.map(l => l.lineNumber).join(', ')}.`;
-  }
+  const unresolvedCount = order.lines.filter(l => l.needsReview).length;
+  order.status    = unresolvedCount > 0 ? "pending_review" : "ready";
+  order.updatedAt = new Date().toISOString();
+  mockOrders[idx] = order;
 
-  mockOrders[orderIndex] = order;
-
-  return {
-    order,
-    validationMessages: order.automationStatus === "Automatable" 
-      ? ["All validation checks passed"] 
-      : [`${missingCodes.length} line(s) still require supplier item codes`],
-  };
+  return { order, validationMessages: unresolvedCount > 0 ? [`${unresolvedCount} line(s) still require supplier item codes`] : [] };
 }
 
-// Real resolve function
-async function realResolvePurchaseOrder(id: string, payload: import("@/types/procurement").ResolvePayload): Promise<import("@/types/procurement").ResolveResult> {
-  const response = await fetch(`${API_BASE_URL}/api/purchase-orders/${id}/resolve`, {
+async function realResolvePurchaseOrder(
+  id: string, payload: ResolvePayload,
+): Promise<{ order: Order; validationMessages: string[] }> {
+  const res = await fetch(`${API_BASE_URL}/api/orders/${id}/resolve`, {
     method: "POST",
     headers: { "Content-Type": "application/json", ...await authHeader() },
     body: JSON.stringify(payload),
   });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`Resolution failed: ${errorText || response.statusText}`);
-  }
-
-  const result = await response.json();
-  return {
-    order: transformOrder(result.order),
-    validationMessages: result.validationMessages,
-  };
+  if (!res.ok) { const t = await res.text(); throw new Error(`Resolution failed: ${t || res.statusText}`); }
+  // Backend returns OrderDto directly (not wrapped)
+  const order = await res.json() as Order;
+  return { order, validationMessages: [] };
 }
 
-// Mock get supplier mappings
-async function mockGetSupplierMappings(supplierName: string): Promise<import("@/types/procurement").SupplierMapping[]> {
-  await new Promise(resolve => setTimeout(resolve, 300));
-  return mockMappings[supplierName] || [];
+// ── Transform ─────────────────────────────────────────────────────────────
+
+async function mockTransformOrder(orderId: string, format: "xml" | "csv"): Promise<TransformResult> {
+  await delay(1200);
+  const idx = mockOrders.findIndex(o => o.id === orderId);
+  if (idx === -1) throw new Error("Order not found");
+  if (mockOrders[idx].lines.some(l => l.needsReview)) throw new Error("Resolve all lines before transforming.");
+
+  const artifactId = crypto.randomUUID();
+  const now        = new Date().toISOString();
+  const artifact   = { id: artifactId, format, fileKey: `mock/${orderId}/artifacts/${artifactId}.${format}`, createdAt: now };
+
+  mockOrders[idx] = { ...mockOrders[idx], status: "delivered", updatedAt: now, artifacts: [artifact, ...mockOrders[idx].artifacts] };
+  return { artifactId, format, createdAt: now };
 }
 
-// Real get supplier mappings
-async function realGetSupplierMappings(supplierName: string): Promise<import("@/types/procurement").SupplierMapping[]> {
-  const response = await fetch(`${API_BASE_URL}/api/suppliers/${encodeURIComponent(supplierName)}/mappings`, {
-    headers: await authHeader(),
-  });
-  
-  if (!response.ok) {
-    throw new Error(`Failed to fetch mappings: ${response.statusText}`);
-  }
-
-  return response.json();
-}
-
-// Mock upsert supplier mapping
-async function mockUpsertSupplierMapping(supplierName: string, buyerItemCode: string, supplierItemCode: string): Promise<void> {
-  await new Promise(resolve => setTimeout(resolve, 200));
-  
-  const mappings = mockMappings[supplierName] || [];
-  const existingIndex = mappings.findIndex(m => m.buyerItemCode === buyerItemCode);
-  const newMapping = { buyerItemCode, supplierItemCode };
-  
-  if (existingIndex >= 0) {
-    mappings[existingIndex] = newMapping;
-  } else {
-    mappings.push(newMapping);
-  }
-  
-  mockMappings[supplierName] = mappings;
-}
-
-// Real upsert supplier mapping
-async function realUpsertSupplierMapping(supplierName: string, buyerItemCode: string, supplierItemCode: string): Promise<void> {
-  const response = await fetch(`${API_BASE_URL}/api/suppliers/${encodeURIComponent(supplierName)}/mappings`, {
+async function realTransformOrder(orderId: string, format: "xml" | "csv"): Promise<TransformResult> {
+  const res = await fetch(`${API_BASE_URL}/api/orders/${orderId}/transform`, {
     method: "POST",
     headers: { "Content-Type": "application/json", ...await authHeader() },
-    body: JSON.stringify({ buyerItemCode, supplierItemCode }),
+    body: JSON.stringify({ format }),
   });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`Failed to save mapping: ${errorText || response.statusText}`);
-  }
+  if (res.status === 422) { const t = await res.text(); throw new Error(`Unresolved lines: ${t}`); }
+  if (!res.ok) { const t = await res.text(); throw new Error(`Transform failed: ${t || res.statusText}`); }
+  return res.json() as Promise<TransformResult>;
 }
 
-// Mock supplier profiles store
+// ── Download ──────────────────────────────────────────────────────────────
+
+async function mockGetDownloadUrl(orderId: string, artifactId: string): Promise<DownloadUrl> {
+  await delay(200);
+  const expiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString();
+  return { url: `https://example.com/mock-download/${orderId}/${artifactId}`, expiresAt };
+}
+
+async function realGetDownloadUrl(orderId: string, artifactId: string): Promise<DownloadUrl> {
+  const res = await fetch(`${API_BASE_URL}/api/orders/${orderId}/artifacts/${artifactId}/download`, {
+    headers: await authHeader(),
+  });
+  if (!res.ok) { const t = await res.text(); throw new Error(`Download URL failed: ${t || res.statusText}`); }
+  return res.json() as Promise<DownloadUrl>;
+}
+
+// ── Supplier mappings ─────────────────────────────────────────────────────
+
+async function mockGetSupplierMappings(supplierId: string): Promise<SupplierMapping[]> {
+  await delay(300);
+  return mockMappings[supplierId] ?? [];
+}
+
+async function realGetSupplierMappings(supplierId: string): Promise<SupplierMapping[]> {
+  const res = await fetch(`${API_BASE_URL}/api/suppliers/${supplierId}/mappings`, {
+    headers: await authHeader(),
+  });
+  if (!res.ok) throw new Error(`Failed to fetch mappings: ${res.statusText}`);
+  return res.json() as Promise<SupplierMapping[]>;
+}
+
+async function mockDeleteSupplierMapping(supplierId: string, mappingId: string): Promise<void> {
+  await delay(300);
+  const list = mockMappings[supplierId];
+  if (list) mockMappings[supplierId] = list.filter(m => m.id !== mappingId);
+}
+
+async function realDeleteSupplierMapping(supplierId: string, mappingId: string): Promise<void> {
+  const res = await fetch(`${API_BASE_URL}/api/suppliers/${supplierId}/mappings/${mappingId}`, {
+    method: "DELETE", headers: await authHeader(),
+  });
+  if (!res.ok) { const t = await res.text(); throw new Error(`Delete failed: ${t || res.statusText}`); }
+}
+
+// ── Supplier profiles ─────────────────────────────────────────────────────
+
 let mockSupplierProfiles: import("@/types/procurement").SupplierProfile[] = [
-  {
-    supplierName: "FastParts Inc",
-    requiresSupplierItemCode: true,
-    requiredFields: ["quantity", "unitPrice"],
-    supportsPartialAutomation: false,
-    acceptedFormats: ["XML", "CSV"],
-  },
-  {
-    supplierName: "ElectroSupply Co",
-    requiresSupplierItemCode: true,
-    requiredFields: ["quantity", "unitPrice", "description"],
-    supportsPartialAutomation: true,
-    acceptedFormats: ["XML"],
-  },
-  {
-    supplierName: "GlobalComponents",
-    requiresSupplierItemCode: false,
-    requiredFields: ["quantity"],
-    supportsPartialAutomation: true,
-    acceptedFormats: ["CSV", "JSON"],
-  },
+  { supplierName: "FastParts Inc",  requiresSupplierItemCode: true,  requiredFields: ["quantity", "unitPrice"],                  supportsPartialAutomation: false, acceptedFormats: ["XML", "CSV"] },
+  { supplierName: "ElectroSupply Co", requiresSupplierItemCode: true, requiredFields: ["quantity", "unitPrice", "description"], supportsPartialAutomation: true,  acceptedFormats: ["XML"] },
+  { supplierName: "GlobalComponents", requiresSupplierItemCode: false, requiredFields: ["quantity"],                             supportsPartialAutomation: true,  acceptedFormats: ["CSV", "JSON"] },
 ];
 
-// Mock supplier profile CRUD
-async function mockGetSupplierProfiles(): Promise<import("@/types/procurement").SupplierProfile[]> {
-  await new Promise(resolve => setTimeout(resolve, 300));
-  return [...mockSupplierProfiles];
+async function mockGetSupplierProfiles() { await delay(300); return [...mockSupplierProfiles]; }
+async function mockGetSupplierProfile(n: string) { await delay(200); return mockSupplierProfiles.find(p => p.supplierName === n) ?? null; }
+async function mockCreateSupplierProfile(p: import("@/types/procurement").SupplierProfile) {
+  await delay(400);
+  if (mockSupplierProfiles.find(x => x.supplierName === p.supplierName)) throw new Error("Supplier profile already exists");
+  mockSupplierProfiles.push(p); return p;
+}
+async function mockUpdateSupplierProfile(name: string, data: Omit<import("@/types/procurement").SupplierProfile, "supplierName">) {
+  await delay(400);
+  const i = mockSupplierProfiles.findIndex(p => p.supplierName === name);
+  if (i === -1) throw new Error("Not found");
+  const u = { ...data, supplierName: name }; mockSupplierProfiles[i] = u; return u;
+}
+async function mockDeleteSupplierProfile(name: string) {
+  await delay(300);
+  const i = mockSupplierProfiles.findIndex(p => p.supplierName === name);
+  if (i === -1) throw new Error("Not found");
+  mockSupplierProfiles.splice(i, 1);
 }
 
-async function mockGetSupplierProfile(supplierName: string): Promise<import("@/types/procurement").SupplierProfile | null> {
-  await new Promise(resolve => setTimeout(resolve, 200));
-  return mockSupplierProfiles.find(p => p.supplierName === supplierName) || null;
-}
+async function realGetSupplierProfiles() { const r = await fetch(`${API_BASE_URL}/api/supplier-profiles`, { headers: await authHeader() }); if (!r.ok) throw new Error(r.statusText); return r.json(); }
+async function realGetSupplierProfile(n: string) { const r = await fetch(`${API_BASE_URL}/api/supplier-profiles/${encodeURIComponent(n)}`, { headers: await authHeader() }); if (r.status === 404) return null; if (!r.ok) throw new Error(r.statusText); return r.json(); }
+async function realCreateSupplierProfile(p: import("@/types/procurement").SupplierProfile) { const r = await fetch(`${API_BASE_URL}/api/supplier-profiles`, { method: "POST", headers: { "Content-Type": "application/json", ...await authHeader() }, body: JSON.stringify(p) }); if (!r.ok) { const t = await r.text(); throw new Error(t || r.statusText); } return r.json(); }
+async function realUpdateSupplierProfile(n: string, d: Omit<import("@/types/procurement").SupplierProfile, "supplierName">) { const r = await fetch(`${API_BASE_URL}/api/supplier-profiles/${encodeURIComponent(n)}`, { method: "PUT", headers: { "Content-Type": "application/json", ...await authHeader() }, body: JSON.stringify(d) }); if (!r.ok) { const t = await r.text(); throw new Error(t || r.statusText); } return r.json(); }
+async function realDeleteSupplierProfile(n: string) { const r = await fetch(`${API_BASE_URL}/api/supplier-profiles/${encodeURIComponent(n)}`, { method: "DELETE", headers: await authHeader() }); if (!r.ok) { const t = await r.text(); throw new Error(t || r.statusText); } }
 
-async function mockCreateSupplierProfile(profile: import("@/types/procurement").SupplierProfile): Promise<import("@/types/procurement").SupplierProfile> {
-  await new Promise(resolve => setTimeout(resolve, 400));
-  if (mockSupplierProfiles.find(p => p.supplierName === profile.supplierName)) {
-    throw new Error("Supplier profile already exists");
-  }
-  mockSupplierProfiles.push(profile);
-  return profile;
-}
+// ── Exported API client ───────────────────────────────────────────────────
 
-async function mockUpdateSupplierProfile(supplierName: string, data: Omit<import("@/types/procurement").SupplierProfile, "supplierName">): Promise<import("@/types/procurement").SupplierProfile> {
-  await new Promise(resolve => setTimeout(resolve, 400));
-  const index = mockSupplierProfiles.findIndex(p => p.supplierName === supplierName);
-  if (index === -1) {
-    throw new Error("Supplier profile not found");
-  }
-  const updated = { ...data, supplierName };
-  mockSupplierProfiles[index] = updated;
-  return updated;
-}
-
-async function mockDeleteSupplierProfile(supplierName: string): Promise<void> {
-  await new Promise(resolve => setTimeout(resolve, 300));
-  const index = mockSupplierProfiles.findIndex(p => p.supplierName === supplierName);
-  if (index === -1) {
-    throw new Error("Supplier profile not found");
-  }
-  mockSupplierProfiles.splice(index, 1);
-}
-
-// Real supplier profile CRUD
-async function realGetSupplierProfiles(): Promise<import("@/types/procurement").SupplierProfile[]> {
-  const response = await fetch(`${API_BASE_URL}/api/supplier-profiles`, {
-    headers: await authHeader(),
-  });
-  if (!response.ok) throw new Error(`Failed to fetch profiles: ${response.statusText}`);
-  return response.json();
-}
-
-async function realGetSupplierProfile(supplierName: string): Promise<import("@/types/procurement").SupplierProfile | null> {
-  const response = await fetch(`${API_BASE_URL}/api/supplier-profiles/${encodeURIComponent(supplierName)}`, {
-    headers: await authHeader(),
-  });
-  if (response.status === 404) return null;
-  if (!response.ok) throw new Error(`Failed to fetch profile: ${response.statusText}`);
-  return response.json();
-}
-
-async function realCreateSupplierProfile(profile: import("@/types/procurement").SupplierProfile): Promise<import("@/types/procurement").SupplierProfile> {
-  const response = await fetch(`${API_BASE_URL}/api/supplier-profiles`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", ...await authHeader() },
-    body: JSON.stringify(profile),
-  });
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`Failed to create profile: ${errorText || response.statusText}`);
-  }
-  return response.json();
-}
-
-async function realUpdateSupplierProfile(supplierName: string, data: Omit<import("@/types/procurement").SupplierProfile, "supplierName">): Promise<import("@/types/procurement").SupplierProfile> {
-  const response = await fetch(`${API_BASE_URL}/api/supplier-profiles/${encodeURIComponent(supplierName)}`, {
-    method: "PUT",
-    headers: { "Content-Type": "application/json", ...await authHeader() },
-    body: JSON.stringify(data),
-  });
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`Failed to update profile: ${errorText || response.statusText}`);
-  }
-  return response.json();
-}
-
-async function realDeleteSupplierProfile(supplierName: string): Promise<void> {
-  const response = await fetch(`${API_BASE_URL}/api/supplier-profiles/${encodeURIComponent(supplierName)}`, {
-    method: "DELETE",
-    headers: await authHeader(),
-  });
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`Failed to delete profile: ${errorText || response.statusText}`);
-  }
-}
-
-// Exported API client
 export const apiClient = {
-  uploadPurchaseOrder: USE_MOCK ? mockUploadPurchaseOrder : realUploadPurchaseOrder,
-  getOrders: USE_MOCK ? mockGetOrders : realGetOrders,
-  getOrderById: USE_MOCK ? mockGetOrderById : realGetOrderById,
-  resolvePurchaseOrder: USE_MOCK ? mockResolvePurchaseOrder : realResolvePurchaseOrder,
-  getSupplierMappings: USE_MOCK ? mockGetSupplierMappings : realGetSupplierMappings,
-  upsertSupplierMapping: USE_MOCK ? mockUpsertSupplierMapping : realUpsertSupplierMapping,
-  getSupplierProfiles: USE_MOCK ? mockGetSupplierProfiles : realGetSupplierProfiles,
-  getSupplierProfile: USE_MOCK ? mockGetSupplierProfile : realGetSupplierProfile,
-  createSupplierProfile: USE_MOCK ? mockCreateSupplierProfile : realCreateSupplierProfile,
-  updateSupplierProfile: USE_MOCK ? mockUpdateSupplierProfile : realUpdateSupplierProfile,
-  deleteSupplierProfile: USE_MOCK ? mockDeleteSupplierProfile : realDeleteSupplierProfile,
-  getSuppliers: async () => {
-    if (USE_MOCK) {
-      return MOCK_SUPPLIERS.map(s => s.name);
-    }
-    const response = await fetch(`${API_BASE_URL}/api/suppliers`, {
-      headers: await authHeader(),
-    });
-    return response.json();
-  },
+  // Suppliers
+  getSuppliers:           USE_MOCK ? mockGetSuppliersFn        : realGetSuppliersFn,
+
+  // Orders
+  uploadPurchaseOrder:    USE_MOCK ? mockUploadPurchaseOrder   : realUploadPurchaseOrder,
+  getOrders:              USE_MOCK ? mockGetOrders             : realGetOrders,
+  getOrderById:           USE_MOCK ? mockGetOrderById          : realGetOrderById,
+  resolvePurchaseOrder:   USE_MOCK ? mockResolvePurchaseOrder  : realResolvePurchaseOrder,
+  transformOrder:         USE_MOCK ? mockTransformOrder        : realTransformOrder,
+  getDownloadUrl:         USE_MOCK ? mockGetDownloadUrl        : realGetDownloadUrl,
+
+  // Supplier mappings
+  getSupplierMappings:    USE_MOCK ? mockGetSupplierMappings   : realGetSupplierMappings,
+  deleteSupplierMapping:  USE_MOCK ? mockDeleteSupplierMapping : realDeleteSupplierMapping,
+
+  // Supplier profiles (legacy admin)
+  getSupplierProfiles:    USE_MOCK ? mockGetSupplierProfiles   : realGetSupplierProfiles,
+  getSupplierProfile:     USE_MOCK ? mockGetSupplierProfile    : realGetSupplierProfile,
+  createSupplierProfile:  USE_MOCK ? mockCreateSupplierProfile : realCreateSupplierProfile,
+  updateSupplierProfile:  USE_MOCK ? mockUpdateSupplierProfile : realUpdateSupplierProfile,
+  deleteSupplierProfile:  USE_MOCK ? mockDeleteSupplierProfile : realDeleteSupplierProfile,
 };

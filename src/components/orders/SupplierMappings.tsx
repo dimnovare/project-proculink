@@ -19,32 +19,28 @@ import { apiClient } from "@/lib/api-client";
 import type { SupplierMapping } from "@/types/procurement";
 
 interface SupplierMappingsProps {
+  supplierId: string;
   supplierName: string;
 }
 
-export function SupplierMappings({ supplierName }: SupplierMappingsProps) {
-  const [isOpen, setIsOpen] = useState(false);
-  const [mappings, setMappings] = useState<SupplierMapping[]>([]);
+export function SupplierMappings({ supplierId, supplierName }: SupplierMappingsProps) {
+  const [isOpen, setIsOpen]       = useState(false);
+  const [mappings, setMappings]   = useState<SupplierMapping[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [hasFetched, setHasFetched] = useState(false);
+  const [error, setError]         = useState<string | null>(null);
 
   useEffect(() => {
     if (isOpen && !hasFetched) {
       setIsLoading(true);
+      setError(null);
       apiClient
-        .getSupplierMappings(supplierName)
-        .then((data) => {
-          setMappings(data);
-          setHasFetched(true);
-        })
-        .catch((err) => {
-          console.error("Failed to fetch mappings:", err);
-        })
-        .finally(() => {
-          setIsLoading(false);
-        });
+        .getSupplierMappings(supplierId)
+        .then((data) => { setMappings(data); setHasFetched(true); })
+        .catch(() => setError("Could not load mappings."))
+        .finally(() => setIsLoading(false));
     }
-  }, [isOpen, hasFetched, supplierName]);
+  }, [isOpen, hasFetched, supplierId]);
 
   return (
     <Card>
@@ -54,14 +50,10 @@ export function SupplierMappings({ supplierName }: SupplierMappingsProps) {
             <CardTitle className="flex items-center justify-between text-base">
               <span className="flex items-center gap-2">
                 <Database className="h-4 w-4 text-muted-foreground" />
-                Saved Mappings for {supplierName}
+                Saved Mappings
               </span>
               <Button variant="ghost" size="icon" className="h-6 w-6">
-                {isOpen ? (
-                  <ChevronDown className="h-4 w-4" />
-                ) : (
-                  <ChevronRight className="h-4 w-4" />
-                )}
+                {isOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
               </Button>
             </CardTitle>
           </CardHeader>
@@ -71,11 +63,13 @@ export function SupplierMappings({ supplierName }: SupplierMappingsProps) {
             {isLoading ? (
               <div className="flex items-center justify-center py-8 text-muted-foreground">
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Loading mappings...
+                Loading mappings…
               </div>
+            ) : error ? (
+              <p className="text-sm text-destructive text-center py-6">{error}</p>
             ) : mappings.length === 0 ? (
               <p className="text-sm text-muted-foreground text-center py-6">
-                No saved mappings for this supplier yet.
+                No saved mappings for {supplierName} yet.
               </p>
             ) : (
               <div className="rounded-md border">
@@ -87,14 +81,10 @@ export function SupplierMappings({ supplierName }: SupplierMappingsProps) {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {mappings.map((mapping, idx) => (
-                      <TableRow key={idx}>
-                        <TableCell className="font-mono text-sm">
-                          {mapping.buyerItemCode}
-                        </TableCell>
-                        <TableCell className="font-mono text-sm">
-                          {mapping.supplierItemCode}
-                        </TableCell>
+                    {mappings.map((m) => (
+                      <TableRow key={m.id}>
+                        <TableCell className="font-mono text-sm">{m.buyerItemCode}</TableCell>
+                        <TableCell className="font-mono text-sm">{m.supplierItemCode}</TableCell>
                       </TableRow>
                     ))}
                   </TableBody>

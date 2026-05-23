@@ -1,4 +1,4 @@
-import { Upload, FileText, LayoutDashboard, Settings } from "lucide-react";
+import { Upload, FileText, LayoutDashboard, Settings, ArrowRightLeft } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
 
@@ -16,9 +16,10 @@ import {
 } from "@/components/ui/sidebar";
 
 const navItems = [
-  { title: "Dashboard", url: "/", icon: LayoutDashboard },
-  { title: "Upload Order", url: "/upload", icon: Upload },
-  { title: "Orders", url: "/orders", icon: FileText },
+  { title: "Dashboard",    url: "/",         icon: LayoutDashboard },
+  { title: "Upload Order", url: "/upload",   icon: Upload },
+  { title: "Orders",       url: "/orders",   icon: FileText },
+  { title: "Mappings",     url: "/mappings", icon: ArrowRightLeft },
 ];
 
 const adminItems = [

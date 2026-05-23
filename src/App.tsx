@@ -6,6 +6,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import Dashboard from "@/pages/Dashboard";
+import MappingsPage from "@/pages/MappingsPage";
 import NotFound from "@/pages/NotFound";
 import OrderDetailPage from "@/pages/OrderDetailPage";
 import OrdersPage from "@/pages/OrdersPage";
@@ -34,6 +35,7 @@ const App = () => (
               <Route path="/upload" element={<UploadPage />} />
               <Route path="/orders" element={<OrdersPage />} />
               <Route path="/orders/:id" element={<OrderDetailPage />} />
+              <Route path="/mappings" element={<MappingsPage />} />
               <Route path="/admin/suppliers" element={<SupplierProfilesPage />} />
             </Route>
             <Route path="*" element={<NotFound />} />
