@@ -1,6 +1,9 @@
 // System Identity mark — the brand's shape language in three sizes.
-// The mark: an ellipse (arc) with a blue circle on the left end and a green on the right.
-// Same geometry is used for rail markers, spine nodes, and loading states.
+// ProcuLinkMark is the canonical DS implementation (Direction 3 — link-node arc).
+// MarkSystem kept for legacy usage; RailPort used by EdgeRails.
+
+// Re-export canonical DS mark so consumers can use either name.
+export { ProcuLinkMark } from "@/components/bridge/DSPrimitives";
 
 interface MarkSystemProps {
   size?: 16 | 24 | 64 | number;

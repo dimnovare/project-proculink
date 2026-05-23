@@ -5,6 +5,45 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ── Design System CSS custom properties (tokens.css) ───────────────────── */
+:root {
+  --brand-blue:        #1E66C9;
+  --brand-blue-deep:   #0F4FA8;
+  --brand-blue-soft:   #E3EDFB;
+  --brand-green:       #2E8E3A;
+  --brand-green-deep:  #1E6D29;
+  --brand-green-soft:  #E2F1E2;
+  --navy:              #0B1A2F;
+  --navy-surface:      #10243E;
+  --navy-border:       #1C2F49;
+  --navy-text:         #C5D2E4;
+  --navy-muted:        #7C8DA6;
+  --bg:                #F6F7FA;
+  --bg-warm:           #F8F6F1;
+  --surface:           #FFFFFF;
+  --surface-2:         #EFF2F7;
+  --border:            #E2E6EE;
+  --border-strong:     #C6CDDA;
+  --ink:               #0B1A2F;
+  --ink-muted:         #56627A;
+  --ink-faint:         #8A93A5;
+  --amber:             #C97A14;
+  --amber-soft:        #FAEFD6;
+  --danger:            #C53A3A;
+  --danger-soft:       #FBE3E3;
+  --ai:                #6F4FCE;
+  --ai-soft:           #EEE7FB;
+  --gradient-link-spine:    linear-gradient(90deg, var(--brand-blue) 0%, var(--brand-blue) 35%, var(--brand-green) 65%, var(--brand-green) 100%);
+  --gradient-bridge-deck:   linear-gradient(90deg, var(--brand-blue), var(--brand-green));
+  --ease-out:    cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --shadow-card: 0 1px 2px rgba(11, 26, 47, 0.04);
+  --shadow-pop:  0 8px 24px rgba(11, 26, 47, 0.10);
+}
+
+/* ── Selection ───────────────────────────────────────────────────────────── */
+::selection { background: var(--brand-blue-soft); }
+
 @layer base {
   :root {
     /* ── shadcn/ui CSS variable tokens (primitives layer) ── */
@@ -127,9 +166,9 @@
   }
 
   /* ── Confidence chip ─────────────────────────────────────────── */
-  .conf-high   { @apply bg-brand-greenSoft text-brand-greenDeep; }
-  .conf-mid    { @apply bg-amberSoft text-amber; }
-  .conf-low    { @apply bg-dangerSoft text-danger; }
+  .conf-high   { @apply bg-brand-green-soft text-brand-green-deep; }
+  .conf-mid    { @apply bg-amber-soft text-amber; }
+  .conf-low    { @apply bg-danger-soft text-danger; }
 
   /* ── Table density (inbox) ───────────────────────────────────── */
   .inbox-table thead th {
@@ -139,7 +178,7 @@
     white-space: nowrap;
   }
   .inbox-table tbody tr {
-    @apply border-b border-border hover:bg-brand-blueSoft/40
+    @apply border-b border-border hover:bg-brand-blue-soft/40
            cursor-pointer transition-colors duration-75;
     height: 38px;
   }

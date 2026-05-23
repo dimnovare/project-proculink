@@ -2,7 +2,9 @@
 
 import { UserButton } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 import type { ReactNode } from "react";
+import { CommandPalette } from "./CommandPalette";
 
 interface BridgeTopbarProps {
   crumb?: ReactNode;
@@ -10,6 +12,19 @@ interface BridgeTopbarProps {
 
 export function BridgeTopbar({ crumb }: BridgeTopbarProps) {
   const router = useRouter();
+  const [paletteOpen, setPaletteOpen] = useState(false);
+
+  // Global cmd+K listener
+  useEffect(() => {
+    function down(e: KeyboardEvent) {
+      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
+        e.preventDefault();
+        setPaletteOpen((v) => !v);
+      }
+    }
+    document.addEventListener("keydown", down);
+    return () => document.removeEventListener("keydown", down);
+  }, []);
 
   return (
     <header
@@ -30,7 +45,7 @@ export function BridgeTopbar({ crumb }: BridgeTopbarProps) {
 
         {/* cmd-K search trigger */}
         <button
-          onClick={() => {/* TODO: open CommandPalette */}}
+          onClick={() => setPaletteOpen(true)}
           className="flex items-center gap-2 rounded-[6px] px-3 transition-colors"
           style={{
             height: 30,
@@ -108,6 +123,9 @@ export function BridgeTopbar({ crumb }: BridgeTopbarProps) {
           />
         </div>
       </div>
+
+      {/* Command Palette */}
+      {paletteOpen && <CommandPalette onClose={() => setPaletteOpen(false)} />}
 
       {/* Link-spine — 2px gradient line at bottom edge */}
       <div

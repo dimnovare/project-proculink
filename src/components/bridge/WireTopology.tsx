@@ -34,6 +34,7 @@ interface WireTopologyProps {
   suppliers: WireSupplier[];
   wires: Wire[];
   height?: number;
+  onWireClick?: (wire: Wire, buyer: WireBuyer, supplier: WireSupplier) => void;
 }
 
 const STROKE_W: Record<number, number> = { 1: 1.5, 2: 3, 3: 5, 4: 8 };
@@ -49,6 +50,7 @@ export function WireTopology({
   suppliers,
   wires,
   height = 560,
+  onWireClick,
 }: WireTopologyProps) {
   const svgRef = useRef<SVGSVGElement>(null);
 
@@ -118,7 +120,20 @@ export function WireTopology({
           const mid   = { x: mx, y: (y1 + y2) / 2 };
 
           return (
-            <g key={wi}>
+            <g
+              key={wi}
+              style={{ cursor: onWireClick ? "pointer" : undefined }}
+              onClick={() => onWireClick?.(w, buyers[bi], suppliers[si])}
+            >
+              {/* Invisible hit target (wider than the wire) */}
+              {onWireClick && (
+                <path
+                  d={pathD}
+                  fill="none"
+                  stroke="transparent"
+                  strokeWidth={Math.max(sw + 12, 18)}
+                />
+              )}
               {/* Wire path */}
               <path
                 d={pathD}

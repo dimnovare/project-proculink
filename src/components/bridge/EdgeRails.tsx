@@ -1,45 +1,79 @@
-// EdgeRails — framing component for every order-handling screen.
-// Draws a 4px blue buyer rail on the left and a 4px green supplier rail on the right,
-// each capped by a port marker. The children are the actual page content.
+"use client";
+import * as React from "react";
 
-import { RailPort } from "./MarkSystem";
+/**
+ * <EdgeRails>
+ *
+ * The 4px blue + green vertical rails that frame any order-handling work area.
+ * Place at the screen body level (NOT around individual cards).
+ *
+ * Tailwind classes assume the design-system theme is wired up. See
+ * design-system/tokens/tailwind.config.ts.
+ */
 
-interface EdgeRailsProps {
+type EdgeRailsProps = {
   children: React.ReactNode;
+  /** 0..1 — for subtler variants; default 1. */
+  intensity?: number;
+  /** Show port markers and vertical labels at the top of each rail. Default true. */
+  showLabels?: boolean;
   className?: string;
-}
+};
 
-export function EdgeRails({ children, className }: EdgeRailsProps) {
+export function EdgeRails({
+  children,
+  intensity = 1,
+  showLabels = true,
+  className,
+}: EdgeRailsProps) {
   return (
-    <div className={`relative flex-1 overflow-hidden ${className ?? ""}`}>
-      {/* Left — buyer / blue rail */}
-      <div className="pointer-events-none absolute inset-y-0 left-0 z-10 flex w-[26px] flex-col items-center">
-        <RailPort color="buyer" />
-        <div
-          className="flex-1 w-[4px] mt-1"
-          style={{
-            background:
-              "linear-gradient(180deg, #1E66C9 0%, rgba(30,102,201,0.15) 100%)",
-          }}
-        />
-      </div>
+    <div className={["relative w-full h-full", className].filter(Boolean).join(" ")}>
+      {/* Buyer rail (left) */}
+      <div
+        aria-hidden
+        className="absolute left-0 top-0 bottom-0 w-rail z-rails bg-rail-buyer"
+        style={{ opacity: intensity }}
+      />
+      {showLabels && (
+        <>
+          {/* Port marker — left */}
+          <div
+            aria-hidden
+            className="absolute left-0 top-8 h-9 w-[14px] bg-brand-blue rounded-r-sm z-rails"
+          />
+          <div
+            aria-hidden
+            className="absolute left-[18px] top-9 text-[9px] font-bold text-brand-blue uppercase tracking-[0.12em] z-rails"
+            style={{ writingMode: "vertical-rl" }}
+          >
+            Buyer · In
+          </div>
+        </>
+      )}
 
-      {/* Right — supplier / green rail */}
-      <div className="pointer-events-none absolute inset-y-0 right-0 z-10 flex w-[26px] flex-col items-center">
-        <RailPort color="supplier" />
-        <div
-          className="flex-1 w-[4px] mt-1"
-          style={{
-            background:
-              "linear-gradient(180deg, #2E8E3A 0%, rgba(46,142,58,0.15) 100%)",
-          }}
-        />
-      </div>
+      {/* Supplier rail (right) */}
+      <div
+        aria-hidden
+        className="absolute right-0 top-0 bottom-0 w-rail z-rails bg-rail-supplier"
+        style={{ opacity: intensity }}
+      />
+      {showLabels && (
+        <>
+          <div
+            aria-hidden
+            className="absolute right-0 top-8 h-9 w-[14px] bg-brand-green rounded-l-sm z-rails"
+          />
+          <div
+            aria-hidden
+            className="absolute right-[18px] top-9 text-[9px] font-bold text-brand-green uppercase tracking-[0.12em] z-rails"
+            style={{ writingMode: "vertical-rl", transform: "rotate(180deg)" }}
+          >
+            Supplier · Out
+          </div>
+        </>
+      )}
 
-      {/* Content — offset by rail width so nothing clips behind the rails */}
-      <div className="absolute inset-0 overflow-auto" style={{ left: 26, right: 26 }}>
-        {children}
-      </div>
+      {children}
     </div>
   );
 }

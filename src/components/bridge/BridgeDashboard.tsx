@@ -3,9 +3,12 @@
 // Bridge Dashboard — the signature Wire Topology screen.
 // "Order topology" — not "Dashboard".
 
+import { useState } from "react";
 import { WireTopology } from "./WireTopology";
 import type { WireBuyer, WireSupplier, Wire } from "./WireTopology";
 import { FileChip } from "./FileChip";
+import { LaneDrawer } from "./LaneDrawer";
+import type { Lane } from "./LaneDrawer";
 
 // ─── Mock data (MSW will replace these) ─────────────────────────────────────
 
@@ -67,6 +70,20 @@ const STAGE_COLOR: Record<string, string> = {
 // ─── Component ───────────────────────────────────────────────────────────────
 
 export function BridgeDashboard() {
+  const [activeLane, setActiveLane] = useState<Lane | null>(null);
+
+  function handleWireClick(wire: Wire, buyer: WireBuyer, supplier: WireSupplier) {
+    setActiveLane({
+      buyerName:    buyer.name,
+      buyerCode:    buyer.code,
+      supplierName: supplier.name,
+      supplierCode: supplier.code,
+      health:       wire.health,
+      volume:       buyer.volume,
+      alert:        wire.alert,
+    });
+  }
+
   return (
     <div className="flex flex-col h-full min-h-0 overflow-auto" style={{ background: "#F6F7FA" }}>
       {/* Page header */}
@@ -119,7 +136,15 @@ export function BridgeDashboard() {
           suppliers={SUPPLIERS}
           wires={WIRES}
           height={480}
+          onWireClick={handleWireClick}
         />
+
+        {activeLane && (
+          <LaneDrawer
+            lane={activeLane}
+            onClose={() => setActiveLane(null)}
+          />
+        )}
 
         {/* KPI strip */}
         <div className="grid grid-cols-5 gap-3">

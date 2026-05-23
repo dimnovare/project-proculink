@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { MarkSystem } from "./MarkSystem";
+import { ProcuLinkMark } from "./DSPrimitives";
 
 // ─── Nav structure ────────────────────────────────────────────────────────────
 
@@ -80,7 +80,7 @@ export function BridgeSidebar() {
         className="flex items-center gap-2.5 px-4"
         style={{ height: 52, borderBottom: "1px solid #1C2F49", flexShrink: 0 }}
       >
-        <MarkSystem size={22} white />
+        <ProcuLinkMark size={22} mono />
         <span
           style={{
             fontFamily: "'Bricolage Grotesque', Inter, system-ui, sans-serif",
