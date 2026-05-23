@@ -14,9 +14,9 @@ import type {
   DashboardStats,
 } from "@/types/procurement";
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5223";
-// Default to mock mode unless explicitly set to false (handles missing env vars and Lovable preview)
-const USE_MOCK = import.meta.env.VITE_USE_MOCK !== "false";
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:5223";
+// Default to mock mode unless explicitly set to false
+const USE_MOCK = process.env.NEXT_PUBLIC_USE_MOCK !== "false";
 
 /**
  * Returns an Authorization header with the current Clerk session JWT.
@@ -52,7 +52,7 @@ const mockMappings: Record<string, SupplierMapping[]> = {
 };
 
 /** Central mock order store — Phase 2 Order shape throughout. */
-let mockOrders: Order[] = [
+const mockOrders: Order[] = [
   {
     id: "ord-001",
     poNumber: "PO-2024-001234",
@@ -386,7 +386,7 @@ async function realDeleteSupplier(id: string): Promise<void> {
 
 // ── Supplier profiles ─────────────────────────────────────────────────────
 
-let mockSupplierProfiles: import("@/types/procurement").SupplierProfile[] = [
+const mockSupplierProfiles: import("@/types/procurement").SupplierProfile[] = [
   { supplierName: "FastParts Inc",  requiresSupplierItemCode: true,  requiredFields: ["quantity", "unitPrice"],                  supportsPartialAutomation: false, acceptedFormats: ["XML", "CSV"] },
   { supplierName: "ElectroSupply Co", requiresSupplierItemCode: true, requiredFields: ["quantity", "unitPrice", "description"], supportsPartialAutomation: true,  acceptedFormats: ["XML"] },
   { supplierName: "GlobalComponents", requiresSupplierItemCode: false, requiredFields: ["quantity"],                             supportsPartialAutomation: true,  acceptedFormats: ["CSV", "JSON"] },

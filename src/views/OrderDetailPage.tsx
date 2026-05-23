@@ -1,4 +1,5 @@
-import { useParams, Link } from "react-router-dom";
+import { useParams } from "next/navigation";
+import Link from "next/link";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowLeft, AlertTriangle, Calendar, Building2, FileText, Hash,
@@ -22,7 +23,8 @@ import { useToast } from "@/hooks/use-toast";
 const POLLING_STATUSES: OrderStatus[] = ["parsing", "transforming"];
 
 export default function OrderDetailPage() {
-  const { id }      = useParams<{ id: string }>();
+  const params = useParams();
+  const id = params?.id as string | undefined;
   const queryClient = useQueryClient();
   const { toast }   = useToast();
 
@@ -121,7 +123,7 @@ export default function OrderDetailPage() {
           <p className="text-muted-foreground mb-6">
             This purchase order doesn't exist or was removed.
           </p>
-          <Link to="/orders">
+          <Link href="/orders">
             <Button>
               <ArrowLeft className="mr-2 h-4 w-4" />
               Back to Orders
@@ -140,7 +142,7 @@ export default function OrderDetailPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
         <div className="flex items-center gap-4">
-          <Link to="/orders">
+          <Link href="/orders">
             <Button variant="ghost" size="icon" className="h-10 w-10">
               <ArrowLeft className="h-5 w-5" />
             </Button>

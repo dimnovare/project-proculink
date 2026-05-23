@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { Loader2, ArrowRight } from "lucide-react";
 import { apiClient } from "@/lib/api-client";
@@ -19,7 +20,7 @@ export default function UploadPage() {
   const [file, setFile]           = useState<File | null>(null);
   const [supplierId, setSupplierId] = useState<string>("");
   const [uploading, setUploading]  = useState(false);
-  const navigate = useNavigate();
+  const router = useRouter();
   const { toast } = useToast();
 
   const { data: suppliers = [], isLoading: loadingSuppliers } = useQuery({
@@ -42,7 +43,7 @@ export default function UploadPage() {
         });
       }
 
-      navigate(`/orders/${result.order.id}`);
+      router.push(`/orders/${result.order.id}`);
     } catch (error) {
       toast({
         title: "Upload failed",
@@ -96,7 +97,7 @@ export default function UploadPage() {
             ) : suppliers.length === 0 ? (
               <p className="text-sm text-muted-foreground">
                 No suppliers configured yet.{" "}
-                <Link to="/suppliers" className="text-primary underline underline-offset-2">
+                <Link href="/suppliers" className="text-primary underline underline-offset-2">
                   Add a supplier
                 </Link>{" "}
                 before uploading an order.

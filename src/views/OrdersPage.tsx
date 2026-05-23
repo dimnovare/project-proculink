@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import Link from "next/link";
 import { Search, FileText, ArrowUpDown } from "lucide-react";
 import { apiClient } from "@/lib/api-client";
 import type { OrderSummary, OrderStatus } from "@/types/procurement";
@@ -115,7 +115,7 @@ export default function OrdersPage() {
                 : "Upload your first purchase order to get started"}
             </p>
             {!search && statusFilter === "all" && (
-              <Link to="/upload">
+              <Link href="/upload">
                 <Button>Upload Order</Button>
               </Link>
             )}
@@ -155,7 +155,7 @@ export default function OrdersPage() {
                   <tr key={order.id}>
                     <td>
                       <Link
-                        to={`/orders/${order.id}`}
+                        href={`/orders/${order.id}`}
                         className="font-medium text-accent hover:underline"
                       >
                         {order.poNumber}

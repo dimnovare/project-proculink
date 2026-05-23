@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import Link from "next/link";
 import { Building2, Upload, CheckCircle2, ArrowRight, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -115,7 +115,7 @@ export function OnboardingWizard({ status, onDismiss }: Props) {
                   <p className="text-xs text-muted-foreground mt-0.5">{step.description}</p>
 
                   {active && (
-                    <Link to={step.href} onClick={handleClose}>
+                    <Link href={step.href} onClick={handleClose}>
                       <Button size="sm" className="mt-3 gap-1.5">
                         {step.cta}
                         <ArrowRight className="h-3.5 w-3.5" />

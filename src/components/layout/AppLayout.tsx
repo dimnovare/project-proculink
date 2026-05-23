@@ -1,10 +1,11 @@
-import { OrganizationSwitcher, UserButton } from "@clerk/clerk-react";
+"use client";
+
+import { OrganizationSwitcher, UserButton } from "@clerk/nextjs";
 import { SidebarProvider, SidebarTrigger, SidebarInset } from "@/components/ui/sidebar";
 import { AppSidebar } from "./AppSidebar";
-import { Outlet } from "react-router-dom";
 import { Menu } from "lucide-react";
 
-export function AppLayout() {
+export function AppLayout({ children }: { children: React.ReactNode }) {
   return (
     <SidebarProvider defaultOpen>
       <div className="flex min-h-screen w-full">
@@ -21,16 +22,16 @@ export function AppLayout() {
             <div className="flex items-center gap-3">
               <OrganizationSwitcher
                 hidePersonal
-                afterCreateOrganizationUrl="/"
-                afterLeaveOrganizationUrl="/"
-                afterSelectOrganizationUrl="/"
+                afterCreateOrganizationUrl="/dashboard"
+                afterLeaveOrganizationUrl="/dashboard"
+                afterSelectOrganizationUrl="/dashboard"
               />
-              <UserButton afterSignOutUrl="/" />
+              <UserButton />
             </div>
           </header>
 
           <main className="flex-1 overflow-auto">
-            <Outlet />
+            {children}
           </main>
         </SidebarInset>
       </div>

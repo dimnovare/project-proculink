@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import {
   FileText, Upload, CheckCircle2, AlertTriangle, ArrowUpRight,
@@ -99,7 +99,7 @@ export default function Dashboard() {
         <Card className="lg:col-span-2">
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle className="text-lg">Recent Orders</CardTitle>
-            <Link to="/orders">
+            <Link href="/orders">
               <Button variant="ghost" size="sm" className="gap-1">
                 View all
                 <ArrowUpRight className="h-4 w-4" />
@@ -115,7 +115,7 @@ export default function Dashboard() {
               <div className="text-center py-8 text-muted-foreground">
                 <FileText className="h-10 w-10 mx-auto mb-3 opacity-50" />
                 <p>No orders yet</p>
-                <Link to="/upload" className="text-primary hover:underline text-sm">
+                <Link href="/upload" className="text-primary hover:underline text-sm">
                   Upload your first order
                 </Link>
               </div>
@@ -124,7 +124,7 @@ export default function Dashboard() {
                 {recentOrders.map(order => (
                   <Link
                     key={order.id}
-                    to={`/orders/${order.id}`}
+                    href={`/orders/${order.id}`}
                     className="flex items-center justify-between p-3 rounded-lg border border-border hover:bg-muted/50 transition-colors"
                   >
                     <div className="flex-1 min-w-0">
@@ -149,20 +149,20 @@ export default function Dashboard() {
             <CardTitle className="text-lg">Quick Actions</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-            <Link to="/upload" className="block">
+            <Link href="/upload" className="block">
               <Button className="w-full justify-start gap-3">
                 <Upload className="h-4 w-4" />
                 Upload Purchase Order
               </Button>
             </Link>
-            <Link to="/orders" className="block">
+            <Link href="/orders" className="block">
               <Button className="w-full justify-start gap-3" variant="outline">
                 <FileText className="h-4 w-4" />
                 View All Orders
               </Button>
             </Link>
             {onboarding && !onboarding.hasSupplier && (
-              <Link to="/suppliers" className="block">
+              <Link href="/suppliers" className="block">
                 <Button className="w-full justify-start gap-3" variant="outline">
                   <CheckCircle2 className="h-4 w-4" />
                   Add First Supplier

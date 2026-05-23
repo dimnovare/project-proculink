@@ -1,5 +1,4 @@
-# Environment variables
-.env
+# Environment variables — .env is committed (public defaults), .env.local is secret
 .env.local
 .env.*.local
 
@@ -15,6 +14,8 @@ lerna-debug.log*
 node_modules
 dist
 dist-ssr
+.next
+out
 *.local
 
 # Editor directories and files

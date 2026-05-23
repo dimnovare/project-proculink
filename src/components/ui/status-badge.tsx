@@ -54,10 +54,11 @@ const ICON_SIZES = {
 };
 
 export function StatusBadge({ status, showIcon = true, size = "md", className }: StatusBadgeProps) {
-  const config = STATUS_MAP[status] ?? {
+  const config: StatusConfig = STATUS_MAP[status] ?? {
     label: status,
     Icon: AlertTriangle,
     variant: "muted" as Variant,
+    spin: false,
   };
 
   return (

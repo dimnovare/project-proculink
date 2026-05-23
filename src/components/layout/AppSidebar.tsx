@@ -1,6 +1,8 @@
+"use client";
+
 import { Upload, FileText, LayoutDashboard, Settings, ArrowRightLeft, Building2 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
-import { useLocation } from "react-router-dom";
+import { usePathname } from "next/navigation";
 
 import {
   Sidebar,
@@ -16,21 +18,21 @@ import {
 } from "@/components/ui/sidebar";
 
 const navItems = [
-  { title: "Dashboard",    url: "/",         icon: LayoutDashboard },
-  { title: "Upload Order", url: "/upload",   icon: Upload },
-  { title: "Orders",       url: "/orders",   icon: FileText },
-  { title: "Mappings",     url: "/mappings", icon: ArrowRightLeft },
+  { title: "Dashboard",    url: "/dashboard", icon: LayoutDashboard },
+  { title: "Upload Order", url: "/upload",    icon: Upload },
+  { title: "Orders",       url: "/orders",    icon: FileText },
+  { title: "Mappings",     url: "/mappings",  icon: ArrowRightLeft },
 ];
 
 const adminItems = [
-  { title: "Suppliers",         url: "/suppliers",        icon: Building2 },
-  { title: "Supplier Profiles", url: "/admin/suppliers",  icon: Settings  },
+  { title: "Suppliers",         url: "/suppliers",       icon: Building2 },
+  { title: "Supplier Profiles", url: "/admin/suppliers", icon: Settings  },
 ];
 
 export function AppSidebar() {
   const { state } = useSidebar();
   const collapsed = state === "collapsed";
-  const location = useLocation();
+  const pathname = usePathname();
 
   return (
     <Sidebar collapsible="icon" className="border-r-0">
@@ -56,8 +58,7 @@ export function AppSidebar() {
           <SidebarGroupContent>
             <SidebarMenu>
               {navItems.map((item) => {
-                const isActive = location.pathname === item.url ||
-                  (item.url !== "/" && location.pathname.startsWith(item.url));
+                const isActive = pathname === item.url || pathname.startsWith(item.url + "/");
 
                 return (
                   <SidebarMenuItem key={item.title}>
@@ -67,8 +68,7 @@ export function AppSidebar() {
                       tooltip={collapsed ? item.title : undefined}
                     >
                       <NavLink
-                        to={item.url}
-                        end={item.url === "/"}
+                        href={item.url}
                         className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sidebar-foreground transition-colors hover:bg-sidebar-accent"
                         activeClassName="bg-sidebar-accent text-sidebar-accent-foreground"
                       >
@@ -90,8 +90,7 @@ export function AppSidebar() {
           <SidebarGroupContent>
             <SidebarMenu>
               {adminItems.map((item) => {
-                const isActive = location.pathname === item.url ||
-                  location.pathname.startsWith(item.url);
+                const isActive = pathname === item.url || pathname.startsWith(item.url + "/");
 
                 return (
                   <SidebarMenuItem key={item.title}>
@@ -101,7 +100,7 @@ export function AppSidebar() {
                       tooltip={collapsed ? item.title : undefined}
                     >
                       <NavLink
-                        to={item.url}
+                        href={item.url}
                         className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sidebar-foreground transition-colors hover:bg-sidebar-accent"
                         activeClassName="bg-sidebar-accent text-sidebar-accent-foreground"
                       >
