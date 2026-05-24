@@ -145,3 +145,24 @@ export interface DashboardStats {
   delivered: number;
   totalOrders: number;
 }
+
+// ── Billing ────────────────────────────────────────────────────────────────
+
+export type BillingPlan =
+  | "pilot"
+  | "growth"
+  | "operations"
+  | "integration"
+  | "enterprise";
+
+export interface BillingStatus {
+  plan:               BillingPlan;
+  ordersUsed:         number;
+  orderLimit:         number;
+  suppliersActive:    number;
+  supplierLimit:      number;
+  pilotEndsAt:        string | null;   // ISO datetime string; null for paid plans
+  pilotExpired:       boolean;
+  extensionRequested: boolean;
+  features:           string[];        // lowercase BillingFeature names
+}

@@ -12,6 +12,7 @@ import type {
   AuditEvent,
   OnboardingStatus,
   DashboardStats,
+  BillingStatus,
 } from "@/types/procurement";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:5223";
@@ -521,3 +522,57 @@ export const apiClient = {
   getOnboardingStatus:    USE_MOCK ? mockGetOnboardingStatus   : realGetOnboardingStatus,
   getDashboardStats:      USE_MOCK ? mockGetDashboardStats     : realGetDashboardStats,
 };
+
+// ── Billing ────────────────────────────────────────────────────────────────
+
+export async function getBillingStatus(): Promise<BillingStatus> {
+  if (USE_MOCK) {
+    return {
+      plan:               "pilot",
+      ordersUsed:         5,
+      orderLimit:         20,
+      suppliersActive:    1,
+      supplierLimit:      1,
+      pilotEndsAt:        new Date(Date.now() + 9 * 24 * 60 * 60 * 1000).toISOString(),
+      pilotExpired:       false,
+      extensionRequested: false,
+      features:           [],
+    };
+  }
+  const headers = await authHeader();
+  const res = await fetch(`${API_BASE_URL}/api/billing/status`, { headers });
+  if (!res.ok) throw new Error(`billing/status: ${res.status}`);
+  return res.json();
+}
+
+export async function createCheckoutSession(plan: string): Promise<string> {
+  const headers = await authHeader();
+  const res = await fetch(`${API_BASE_URL}/api/billing/checkout`, {
+    method: "POST",
+    headers: { ...headers, "Content-Type": "application/json" },
+    body: JSON.stringify({ plan }),
+  });
+  if (!res.ok) throw new Error(`billing/checkout: ${res.status}`);
+  const data = await res.json();
+  return data.url as string;
+}
+
+export async function createPortalSession(): Promise<string> {
+  const headers = await authHeader();
+  const res = await fetch(`${API_BASE_URL}/api/billing/portal`, {
+    method: "POST",
+    headers,
+  });
+  if (!res.ok) throw new Error(`billing/portal: ${res.status}`);
+  const data = await res.json();
+  return data.url as string;
+}
+
+export async function requestPilotExtension(): Promise<void> {
+  const headers = await authHeader();
+  const res = await fetch(`${API_BASE_URL}/api/billing/pilot/request-extension`, {
+    method: "POST",
+    headers,
+  });
+  if (!res.ok) throw new Error(`pilot/request-extension: ${res.status}`);
+}
