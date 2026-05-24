@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import { BillingSection } from "@/components/bridge/BillingSection";
 
 type SettingsTab = "workspace" | "billing" | "email" | "team" | "api";
 
@@ -50,17 +51,10 @@ export default function SettingsPage() {
           )}
 
           {tab === "billing" && (
-            <div style={{ maxWidth: 520 }}>
-              <h2 style={{ fontSize: 16, fontWeight: 600, color: "#0B1A2F", marginBottom: 20 }}>Billing</h2>
-              <div style={{ background: "#FFFFFF", border: "1px solid #E2E6EE", borderRadius: 8, padding: 20, marginBottom: 16, borderLeft: "3px solid #1E66C9" }}>
-                <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.07em", textTransform: "uppercase", color: "#1E66C9", marginBottom: 4 }}>Current plan</div>
-                <div style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 24, fontWeight: 700, color: "#0B1A2F", marginBottom: 4 }}>Starter · Free</div>
-                <p style={{ fontSize: 13, color: "#56627A" }}>72 crossings used this month · 100 limit</p>
-                <div style={{ height: 5, background: "#E2E6EE", borderRadius: 99, overflow: "hidden", marginTop: 12 }}>
-                  <div style={{ width: "72%", height: "100%", background: "#1E66C9", borderRadius: 99 }} />
-                </div>
-              </div>
-              <button style={{ borderRadius: 7, padding: "10px 24px", fontSize: 13, fontWeight: 600, background: "linear-gradient(90deg,#1E66C9,#2E8E3A)", color: "#FFFFFF", border: "none", cursor: "pointer" }}>Upgrade to Growth — €49/mo</button>
+            <div>
+              <h2 className="text-[17px] font-semibold mb-1" style={{ color: "#0B1A2F" }}>Plan & billing</h2>
+              <p className="text-[12.5px] mb-6" style={{ color: "#56627A" }}>Manage your ProcuLink plan and payment method.</p>
+              <BillingSection />
             </div>
           )}
 
