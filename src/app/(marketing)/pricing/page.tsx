@@ -111,40 +111,33 @@ const FAQ = [
 export default function PricingPage() {
   return (
     <div style={{ background: "#FFFFFF" }}>
-      {/* Hero */}
-      <section
-        style={{
-          padding: "72px 32px 48px",
-          textAlign: "center",
-          borderBottom: "1px solid #E2E6EE",
-          background: "#F6F7FA",
-        }}
-      >
+      {/* Hero + Tiers — single continuous section, no big gap */}
+      <section style={{ background: "#F6F7FA", padding: "64px 32px 0", textAlign: "center" }}>
         <h1
           style={{
             fontFamily: "'Bricolage Grotesque', Inter, sans-serif",
-            fontSize: "clamp(32px, 5vw, 52px)",
+            fontSize: "clamp(28px, 4vw, 48px)",
             fontWeight: 700,
             letterSpacing: "-0.03em",
             color: "#0B1A2F",
-            marginBottom: 14,
+            marginBottom: 12,
           }}
         >
           Simple, honest pricing
         </h1>
-        <p style={{ fontSize: 16, color: "#56627A", maxWidth: 440, margin: "0 auto" }}>
-          Start free. Scale when you need to. No per-seat nonsense.
+        <p style={{ fontSize: 15.5, color: "#56627A", maxWidth: 360, margin: "0 auto 48px", lineHeight: 1.55 }}>
+          Start free. Scale when you need to.<br />No per-seat nonsense.
         </p>
       </section>
 
       {/* Tiers */}
-      <section style={{ padding: "64px 32px", maxWidth: 1080, margin: "0 auto" }}>
+      <section style={{ padding: "0 32px 64px", maxWidth: 1080, margin: "0 auto" }}>
         <div
           style={{
             display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))",
+            gridTemplateColumns: "repeat(3, 1fr)",
             gap: 20,
-            alignItems: "stretch",
+            alignItems: "start",
           }}
         >
           {TIERS.map((tier) => (

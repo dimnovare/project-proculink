@@ -144,12 +144,20 @@ export function WireTopology({
                 opacity={0.82}
               />
 
-              {/* Travelling pulse — no begin delay so it never sits at SVG origin */}
-              <circle r={5} fill="white" stroke="#2E8E3A" strokeWidth={1.5}>
+              {/* Travelling pulse — fades in/out near endpoints so it never "floats" */}
+              <circle r={4} fill="white" stroke="#2E8E3A" strokeWidth={1.5} opacity={0}>
                 <animateMotion
                   dur={`${5 + wi * 1.4}s`}
                   repeatCount="indefinite"
                   path={pathD}
+                />
+                {/* Fade: invisible at start/end, visible through the middle 80% */}
+                <animate
+                  attributeName="opacity"
+                  values="0;0;1;1;0;0"
+                  keyTimes="0;0.08;0.18;0.82;0.92;1"
+                  dur={`${5 + wi * 1.4}s`}
+                  repeatCount="indefinite"
                 />
               </circle>
 

@@ -23,15 +23,15 @@ export function MarketingNav() {
       }}
     >
       {/* Logo */}
-      <Link href="/" className="flex items-center gap-2.5">
-        <ProcuLinkMark size={22} />
+      <Link href="/" className="flex items-center gap-3">
+        <ProcuLinkMark size={30} />
         <span
           style={{
             fontFamily: "'Bricolage Grotesque', Inter, sans-serif",
-            fontSize: 15,
+            fontSize: 18,
             fontWeight: 700,
             color: "#0B1A2F",
-            letterSpacing: "-0.01em",
+            letterSpacing: "-0.02em",
           }}
         >
           ProcuLink

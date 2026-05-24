@@ -29,7 +29,7 @@ export function BridgeTopbar({ crumb }: BridgeTopbarProps) {
   return (
     <header
       className="flex-shrink-0 relative"
-      style={{ height: 52, background: "#0B1A2F" }}
+      style={{ height: 56, background: "#0B1A2F" }}
     >
       {/* Content row */}
       <div className="flex h-full items-center px-5 gap-4">

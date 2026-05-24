@@ -77,17 +77,17 @@ export function BridgeSidebar() {
     >
       {/* ── Logo ──────────────────────────────────────────────────── */}
       <div
-        className="flex items-center gap-2.5 px-4"
-        style={{ height: 52, borderBottom: "1px solid #1C2F49", flexShrink: 0, color: "#FFFFFF" }}
+        className="flex items-center gap-3 px-4"
+        style={{ height: 56, borderBottom: "1px solid #1C2F49", flexShrink: 0, color: "#FFFFFF" }}
       >
-        <ProcuLinkMark size={22} mono />
+        <ProcuLinkMark size={28} mono />
         <span
           style={{
             fontFamily: "'Bricolage Grotesque', Inter, system-ui, sans-serif",
-            fontSize: 15,
+            fontSize: 17,
             fontWeight: 700,
             color: "#FFFFFF",
-            letterSpacing: "-0.01em",
+            letterSpacing: "-0.02em",
           }}
         >
           ProcuLink
