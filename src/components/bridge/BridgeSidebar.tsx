@@ -78,7 +78,7 @@ export function BridgeSidebar() {
       {/* ── Logo ──────────────────────────────────────────────────── */}
       <div
         className="flex items-center gap-2.5 px-4"
-        style={{ height: 52, borderBottom: "1px solid #1C2F49", flexShrink: 0 }}
+        style={{ height: 52, borderBottom: "1px solid #1C2F49", flexShrink: 0, color: "#FFFFFF" }}
       >
         <ProcuLinkMark size={22} mono />
         <span

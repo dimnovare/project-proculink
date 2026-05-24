@@ -267,18 +267,18 @@ function SpineNodeCard({
 
 function DocumentAnatomy({ highlightZone }: { highlightZone?: string }) {
   return (
-    <div style={{ borderRadius: 8, padding: 10, background: "#F6F7FA", border: "1px solid #E2E6EE" }}>
-      <div style={{ position: "relative", borderRadius: 6, background: "#FFFFFF", padding: "14px 16px", fontFamily: "'Times New Roman',serif", fontSize: 9.5, color: "#1a1a1a", boxShadow: "0 1px 4px rgba(0,0,0,0.08)", minHeight: 440 }}>
+    <div style={{ borderRadius: 8, padding: 10, background: "#F6F7FA", border: "1px solid #E2E6EE", overflow: "hidden" }}>
+      <div style={{ position: "relative", borderRadius: 6, background: "#FFFFFF", padding: "14px 16px 14px 88px", fontFamily: "'Times New Roman',serif", fontSize: 9.5, color: "#1a1a1a", boxShadow: "0 1px 4px rgba(0,0,0,0.08)", minHeight: 440 }}>
         {ANATOMY_ZONES.map((z, i) => {
           const c = z.ok ? "#2E8E3A" : "#C97A14";
           const active = highlightZone === z.label;
           return (
             <div key={i}>
               <div style={{ position: "absolute", left: -2, right: -2, top: z.top, height: z.h, border: `${active ? 2 : 1.5}px solid ${c}`, borderRadius: 4, background: active ? `${c}18` : `${c}0A`, pointerEvents: "none", transition: "all 150ms" }} />
-              <div style={{ position: "absolute", right: 4, top: z.top - 10, padding: "2px 6px", background: "#FFFFFF", border: `1px solid ${c}`, borderRadius: 3, boxShadow: "0 1px 2px rgba(11,26,47,0.06)", display: "flex", alignItems: "center", gap: 4, zIndex: 2 }}>
-                <span style={{ fontSize: 9, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em", color: "#0B1A2F" }}>{z.label}</span>
-                <span style={{ fontSize: 8.5, color: "#8A93A5" }}>· {z.fields}</span>
-                <span style={{ fontSize: 9, fontWeight: 700, fontFamily: "'JetBrains Mono',monospace", color: c }}>{z.conf}%</span>
+              {/* Label on the LEFT — avoids bleeding into center column */}
+              <div style={{ position: "absolute", left: 2, top: z.top + 4, padding: "2px 5px", background: "#FFFFFF", border: `1px solid ${c}`, borderRadius: 3, boxShadow: "0 1px 2px rgba(11,26,47,0.06)", display: "flex", alignItems: "center", gap: 3, zIndex: 2, maxWidth: 82 }}>
+                <span style={{ fontSize: 8, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.03em", color: "#0B1A2F", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{z.label}</span>
+                <span style={{ fontSize: 8, fontWeight: 700, fontFamily: "'JetBrains Mono',monospace", color: c, flexShrink: 0 }}>{z.conf}%</span>
               </div>
             </div>
           );
@@ -599,49 +599,56 @@ export function SpineReview({ orderId }: { orderId: string }) {
     <div className="flex flex-col h-full min-h-0 overflow-hidden" style={{ background: "#F6F7FA" }}>
 
       {/* Order header */}
-      <div className="flex items-center gap-4 px-6 py-3 flex-shrink-0" style={{ background: "#FFFFFF", borderBottom: "1px solid #E2E6EE" }}>
-        <button onClick={() => router.push("/inbox")} style={{ width: 30, height: 30, border: "1px solid #E2E6EE", borderRadius: 6, background: "#FFFFFF", color: "#56627A", cursor: "pointer", fontSize: 14, flexShrink: 0 }}>←</button>
+      <div className="flex-shrink-0" style={{ background: "#FFFFFF", borderBottom: "1px solid #E2E6EE" }}>
+        {/* Top row: back + FROM/TO endpoints + actions */}
+        <div className="flex items-center gap-3 px-5 pt-3 pb-2">
+          <button onClick={() => router.push("/inbox")} style={{ width: 28, height: 28, border: "1px solid #E2E6EE", borderRadius: 6, background: "#FFFFFF", color: "#56627A", cursor: "pointer", fontSize: 13, flexShrink: 0 }}>←</button>
 
-        {/* Buyer */}
-        <div style={{ flexShrink: 0 }}>
-          <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.07em", textTransform: "uppercase", color: "#1E66C9" }}>From</div>
-          <div style={{ fontSize: 15, fontWeight: 600, color: "#0B1A2F", marginTop: 2 }}>Heinrich Industries</div>
-          <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 2 }}>
-            <FileChip type="PDF" />
-            <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11, color: "#56627A" }}>PO-2026-008412.pdf</span>
+          {/* Buyer */}
+          <div style={{ flexShrink: 0, minWidth: 0 }}>
+            <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.07em", textTransform: "uppercase", color: "#1E66C9" }}>From</div>
+            <div style={{ fontSize: 14, fontWeight: 600, color: "#0B1A2F", marginTop: 1, whiteSpace: "nowrap" }}>Heinrich Industries</div>
+            <div style={{ display: "flex", alignItems: "center", gap: 5, marginTop: 2 }}>
+              <FileChip type="PDF" />
+              <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10.5, color: "#56627A" }}>PO-2026-008412.pdf</span>
+            </div>
+          </div>
+
+          <div style={{ flex: 1 }} />
+
+          {/* Supplier */}
+          <div style={{ textAlign: "right", flexShrink: 0, minWidth: 0 }}>
+            <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.07em", textTransform: "uppercase", color: "#1E6D29" }}>To</div>
+            <div style={{ fontSize: 14, fontWeight: 600, color: "#0B1A2F", marginTop: 1, whiteSpace: "nowrap" }}>Acme Components Ltd.</div>
+            <div style={{ display: "flex", alignItems: "center", gap: 5, marginTop: 2, justifyContent: "flex-end" }}>
+              <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10.5, color: "#56627A" }}>acme-1.2.cxml</span>
+              <FileChip type="cXML" />
+            </div>
+          </div>
+
+          <div style={{ width: 1, height: 36, background: "#E2E6EE", flexShrink: 0 }} />
+
+          {/* Actions */}
+          <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
+            <button style={{ height: 32, padding: "0 14px", borderRadius: 6, fontSize: 12.5, fontWeight: 500, background: "#FFFFFF", border: "1px solid #E2E6EE", color: "#0B1A2F", cursor: "pointer" }}>
+              Save draft
+            </button>
+            <button
+              onClick={() => !crossed && setShowConfirm(true)}
+              style={{ height: 32, padding: "0 16px", borderRadius: 6, fontSize: 12.5, fontWeight: 600, background: crossed ? "#2E8E3A" : "#0B1A2F", color: "#FFFFFF", border: "none", cursor: crossed ? "default" : "pointer", display: "flex", alignItems: "center", gap: 8, transition: "background 200ms" }}
+            >
+              {crossed ? "✓ Crossed" : "Cross the bridge"}
+              {!crossed && <span style={{ width: 10, height: 10, borderRadius: 2, background: "linear-gradient(90deg,#1E66C9,#2E8E3A)", display: "inline-block" }} />}
+            </button>
           </div>
         </div>
 
-        {/* Stage bridge */}
-        <div style={{ flex: 1, textAlign: "center" }}>
-          <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: "#8A93A5", marginBottom: 4 }}>
+        {/* Stage track — full width, visually separate */}
+        <div style={{ padding: "8px 40px 10px", borderTop: "1px solid #F0F2F7" }}>
+          <div style={{ fontSize: 9.5, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: "#8A93A5", marginBottom: 6, textAlign: "center" }}>
             {crossed ? "Stage 5 of 5 · Delivered" : "Stage 3 of 5 · Validating"}
           </div>
           <StatusJourney stage={crossed ? 4 : 2} />
-        </div>
-
-        {/* Supplier */}
-        <div style={{ textAlign: "right", flexShrink: 0 }}>
-          <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.07em", textTransform: "uppercase", color: "#1E6D29" }}>To</div>
-          <div style={{ fontSize: 15, fontWeight: 600, color: "#0B1A2F", marginTop: 2 }}>Acme Components Ltd.</div>
-          <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 2, justifyContent: "flex-end" }}>
-            <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11, color: "#56627A" }}>acme-1.2.cxml</span>
-            <FileChip type="cXML" />
-          </div>
-        </div>
-
-        {/* Actions */}
-        <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
-          <button style={{ height: 32, padding: "0 14px", borderRadius: 6, fontSize: 12.5, fontWeight: 500, background: "#FFFFFF", border: "1px solid #E2E6EE", color: "#0B1A2F", cursor: "pointer" }}>
-            Save draft
-          </button>
-          <button
-            onClick={() => !crossed && setShowConfirm(true)}
-            style={{ height: 32, padding: "0 16px", borderRadius: 6, fontSize: 12.5, fontWeight: 600, background: crossed ? "#2E8E3A" : "#0B1A2F", color: "#FFFFFF", border: "none", cursor: crossed ? "default" : "pointer", display: "flex", alignItems: "center", gap: 8, transition: "background 200ms" }}
-          >
-            {crossed ? "✓ Crossed" : "Cross the bridge"}
-            {!crossed && <span style={{ width: 10, height: 10, borderRadius: 2, background: "linear-gradient(90deg,#1E66C9,#2E8E3A)", display: "inline-block" }} />}
-          </button>
         </div>
       </div>
 

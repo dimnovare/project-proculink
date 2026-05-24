@@ -144,18 +144,14 @@ export function WireTopology({
                 opacity={0.82}
               />
 
-              {/* Travelling pulse */}
+              {/* Travelling pulse — no begin delay so it never sits at SVG origin */}
               <circle r={5} fill="white" stroke="#2E8E3A" strokeWidth={1.5}>
                 <animateMotion
-                  dur={`${6 + wi * 0.7}s`}
+                  dur={`${5 + wi * 1.4}s`}
                   repeatCount="indefinite"
-                  begin={`${wi * 0.9}s`}
-                >
-                  <mpath href={`#wp-${wi}`} />
-                </animateMotion>
+                  path={pathD}
+                />
               </circle>
-              {/* Hidden path for animateMotion mpath reference */}
-              <path id={`wp-${wi}`} d={pathD} fill="none" stroke="none" />
 
               {/* Alert badge */}
               {w.alert && w.alert > 0 && (

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { MarkSystem } from "@/components/bridge/MarkSystem";
+import { ProcuLinkMark } from "@/components/bridge/DSPrimitives";
 
 const LINKS = [
   { label: "How it works", href: "/how-it-works" },
@@ -24,7 +24,7 @@ export function MarketingNav() {
     >
       {/* Logo */}
       <Link href="/" className="flex items-center gap-2.5">
-        <MarkSystem size={20} />
+        <ProcuLinkMark size={22} />
         <span
           style={{
             fontFamily: "'Bricolage Grotesque', Inter, sans-serif",
