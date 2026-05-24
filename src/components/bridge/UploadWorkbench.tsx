@@ -94,19 +94,52 @@ export function UploadWorkbench() {
   const [mode, setMode]             = useState<ModeKey>("auto");
   const [uploading, setUploading]   = useState(false);
   const [pipelineStage, setPipelineStage] = useState(-1);
+  const [uploadError, setUploadError] = useState<{ code: string; message: string } | null>(null);
   const timerRefs = useRef<ReturnType<typeof setTimeout>[]>([]);
   const router = useRouter();
 
-  function handleUpload() {
+  async function getAuthHeader(): Promise<Record<string, string>> {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const token = await (window as any).Clerk?.session?.getToken();
+    return token ? { Authorization: `Bearer ${token}` } : {};
+  }
+
+  async function handleUpload() {
     if (uploading) return;
+    setUploadError(null);
     setUploading(true);
     setPipelineStage(0);
-    // Advance through each pipeline stage
+
+    try {
+      const headers = await getAuthHeader();
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:5223"}/api/orders/upload`,
+        { method: "POST", headers }
+      ).catch(() => null);
+
+      if (res?.status === 429) {
+        const body = await res.json().catch(() => ({}));
+        const code = (body as Record<string, string>).error ?? "order_limit_reached";
+        setUploadError({
+          code,
+          message:
+            code === "pilot_expired"
+              ? "Your Pilot has ended."
+              : `You've reached your ${(body as Record<string, unknown>).limit ?? ""}-order monthly limit.`,
+        });
+        setUploading(false);
+        setPipelineStage(-1);
+        return;
+      }
+    } catch {
+      // Network error — fall through to animation (demo mode)
+    }
+
+    // Animate pipeline stages
     PIPELINE_STAGES.forEach((_, i) => {
       const t = setTimeout(() => setPipelineStage(i), i * STAGE_MS);
       timerRefs.current.push(t);
     });
-    // Navigate after all stages complete
     const total = setTimeout(() => {
       router.push("/inbox/008412");
     }, PIPELINE_STAGES.length * STAGE_MS + 200);
@@ -534,6 +567,32 @@ export function UploadWorkbench() {
                       Auto-process will cross the bridge without human review.
                       Enable only for trusted routes.
                     </p>
+                  </div>
+                )}
+
+                {/* 429 billing error banner */}
+                {uploadError && (
+                  <div style={{
+                    borderRadius: 7,
+                    padding: "10px 14px",
+                    background: "#FAEFD6",
+                    border: "1px solid #C97A14",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    gap: 12,
+                    fontSize: 12.5,
+                    color: "#7A4A0A",
+                  }}>
+                    <span>{uploadError.message}</span>
+                    <a
+                      href="/settings"
+                      style={{ fontWeight: 600, color: "#C97A14", textDecoration: "none", whiteSpace: "nowrap" }}
+                    >
+                      {uploadError.code === "pilot_expired"
+                        ? "Upgrade to continue →"
+                        : "Upgrade your plan →"}
+                    </a>
                   </div>
                 )}
 
