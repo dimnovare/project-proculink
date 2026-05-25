@@ -6,7 +6,7 @@ This file is the single source of truth for every Claude Code session on this re
 
 ## 1. What ProcuLink is
 
-An AI-assisted **order transformation bridge** between buyers, suppliers, ERPs, and procurement systems. Ingests messy POs (PDF, Excel, CSV, XML, cXML, EDI, JSON, email), normalizes into a canonical PO model, validates against supplier-specific rules, lets a human review only exceptions, emits clean supplier-ready output.
+An AI-assisted **outbound procurement bridge** between buyer/procurement teams, suppliers, ERPs, and procurement systems. Ingests buyer-side PO sources (manual upload first, later email/API/SFTP/FTP), normalizes into a canonical PO model, validates against supplier-specific rules, lets a human review only exceptions, and emits clean supplier-ready output.
 
 **Tagline:** *"Connecting Procurement — the missing link between buyers and suppliers."*
 
@@ -15,13 +15,28 @@ An AI-assisted **order transformation bridge** between buyers, suppliers, ERPs, 
 
 **Core workflow:** `Parse → Normalize → Validate → Review → Transform → Deliver → Learn`
 
-**Primary users:** order-processing operators and integration specialists at distributors, wholesalers, IT resellers, industrial/medical/building suppliers. Power users — know SKUs, EDI segments, cXML payloads.
+**First ICP / next-6-week wedge:** buyer/procurement teams sending purchase orders out to many suppliers. They care about supplier acceptance, item-code correctness, delivery channel reliability, audit trail, and reducing manual reformatting.
+
+**Primary users:** procurement operators, purchasing coordinators, and integration specialists who manage supplier-specific PO formats, mappings, and delivery errors. Power users know supplier SKUs, cXML/EDI/API quirks, and approval workflows.
 
 ---
 
 ## 2. Visual direction — "The Bridge Layer" (LOCKED)
 
 Direction 4 from the v2 design exploration. **Do not deviate.** This is not styling; it is the architecture of every screen.
+
+**Design workflow:** do not use Lovable for ProcuLink. All UI/UX and design
+decisions run through the local design system, `/frontend-design`, and Claude
+Design/reference images. The canonical design files live in
+`C:\Users\Dmitri.MARKIT\source\repos\ProcuLink\docs\design-system`.
+
+For token-efficient sessions, read
+`C:\Users\Dmitri.MARKIT\source\repos\ProcuLink\docs\design-system\00-agent-quick-brief.md`
+first, then load only the specific design docs/components required for the
+current page or component.
+
+`/frontend-design` is a quality and execution lens. It must sharpen this locked
+Bridge Layer direction, not invent a new aesthetic.
 
 ### Five spatial signatures (non-negotiable)
 
@@ -125,7 +140,8 @@ aiSoft         #EEE7FB
 | Inbox | New | `/inbox?status=new` |
 | Inbox | Needs review | `/inbox?status=review` |
 | Inbox | Failed | `/inbox?status=failed` |
-| Inbox | Sent | `/inbox?status=sent` |
+| Inbox | Ready to deliver | `/inbox?status=ready_to_deliver` |
+| Inbox | Sent | `/inbox?status=delivered` |
 | Workbench | Upload | `/upload` |
 | Workbench | Drafts | `/drafts` |
 | Library | Supplier docks | `/library/suppliers` |
@@ -133,7 +149,7 @@ aiSoft         #EEE7FB
 | Library | Mappings | `/library/mappings` |
 | Library | Rules | `/library/rules` |
 | Library | Output templates | `/library/templates` |
-| Operations | Crossings log | `/operations/log` |
+| Operations | Delivery log | `/operations/log` |
 | Operations | Connectors | `/operations/connectors` |
 | Operations | Webhooks | `/operations/webhooks` |
 | — | Settings | `/settings` |
@@ -286,6 +302,50 @@ All motion: respect `prefers-reduced-motion: reduce`. Disable wire-topology anim
 - ❌ Filesystem storage for new code — R2 or LocalFileStorageService only
 - ❌ `npm install` — use bun
 - ❌ Clerk secret keys in `.env` — only in `.env.local` (gitignored)
+- ❌ Lovable-generated code or Vite patterns — design and implementation stay in Claude Code/Codex
+
+---
+
+## 11.5 Billing model (locked)
+
+Source of truth:
+`C:\Users\Dmitri.MARKIT\source\repos\ProcuLink\docs\superpowers\specs\2026-05-24-stripe-billing-design.md`
+
+Plan ladder:
+
+| Plan | Price | Orders | Suppliers |
+|---|---:|---:|---:|
+| Pilot | Free for 14 days | 20 total during trial | 1 |
+| Growth | €149/mo | 150/month | 5 |
+| Operations | €399/mo | 500/month | 10 |
+| Integration | €999/mo | 1,000/month | 20 |
+| Enterprise | Custom, from €2,500/mo | Custom | Custom |
+
+Frontend must reflect:
+
+- Pilot is not free forever. It becomes read-only after 14 days or 20 orders.
+- Read-only Pilot users can view previous orders/mappings/outputs and billing,
+  but cannot upload, transform, deliver, or add suppliers.
+- Stripe Checkout is only for Growth, Operations, and Integration.
+- Enterprise is contact sales/manual.
+- Pricing, settings billing UI, upload 429 banners, and supplier-limit errors
+  must use this model and copy.
+
+Required billing copy:
+
+- Pilot active badge: `Pilot · 14-day trial`
+- Pilot expired badge: `Pilot ended · Processing paused`
+- Pilot expired banner: `Your Pilot has ended. You can still view previous orders, but new processing is paused. Upgrade to Growth to continue.`
+- Order limit banner: `You've reached your plan's order limit. Upgrade to continue processing new orders this month.`
+- Supplier limit banner: `Your plan includes 1 supplier. Upgrade to Growth to add more supplier flows.`
+
+Pricing cards:
+
+- Pilot: `Free for 14 days` — 20 orders, 1 supplier, CSV/XLSX/PDF/XML upload where supported, manual review, supplier-ready export. CTA: `Start Pilot`.
+- Growth: `€149/month` — 150 orders/month, 5 suppliers, mapping library, validation, output preview, basic audit log. CTA: `Upgrade to Growth`.
+- Operations: `€399/month` — 500 orders/month, 10 suppliers, bulk mapping import/export, cXML support, advanced audit trail, priority support. CTA: `Upgrade to Operations`.
+- Integration: `€999/month` — 1,000 orders/month, 20 suppliers, webhook/API delivery, email ingestion, custom output templates, assisted onboarding. CTA: `Upgrade to Integration`.
+- Enterprise: `Custom` — custom volume/suppliers, ERP connectors, dedicated onboarding, SLA, custom transformation rules. CTA: `Contact sales`.
 
 ---
 
@@ -301,20 +361,21 @@ All motion: respect `prefers-reduced-motion: reduce`. Disable wire-topology anim
 - The directional-field background gradient on every screen — only marketing hero areas
 - Per-screen color themes — one token system across the entire product
 - Hand-rolled icons that don't share the System Identity construction language
+- Lovable/Vite component imports, previews, routing, or generated UI fragments
 
 ---
 
 ## 13. Environment
 
 ```
-NEXT_PUBLIC_API_BASE_URL   = http://localhost:5096 (dev) / Railway URL (prod)
+NEXT_PUBLIC_API_BASE_URL   = http://localhost:5223 (dev) / Railway URL (prod)
 NEXT_PUBLIC_USE_MOCK       = false
 NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY  → .env
 CLERK_SECRET_KEY           → .env.local only (gitignored)
 NEXT_PUBLIC_SENTRY_DSN     → .env
 ```
 
-Frontend port: **8081** (Next.js dev). API port: **5096** (ASP.NET).
+Frontend port: **8082** unless another local port is chosen. API port: **5223** (ASP.NET HTTP profile).
 
 ---
 
@@ -336,6 +397,12 @@ These JSX files use inline styles (they're vanilla React prototype). Translate t
 - Routes exist: `/dashboard`, `/orders`, `/orders/[id]`, `/upload`, `/suppliers`, `/mappings`
 - These routes will be **replaced** by Bridge Layer routes: `/bridge`, `/inbox`, `/inbox/[orderId]`, `/upload`, `/library/mappings`, `/library/suppliers`
 - Old `AppLayout` / `AppSidebar` components will be replaced by `BridgeSidebar` + `BridgeTopbar`
+- Phase 4 Group C billing ✅ complete.
+- Phase 4 Group C2 final billing reconciliation ✅ complete. Pricing, settings billing UI, upload 429 copy, and plan limits use Pilot/Growth/Operations/Integration/Enterprise.
+- Phase 4 Group D PO field mapping engine ✅ complete.
+- Phase 4 Group D2 HTTP-first supplier delivery config ✅ complete. Delivery tab exposes protocol, endpoint/path, credentials, file naming, auto/manual delivery, test-fire result, and recent attempts without making procurement users edit raw JSON.
+- Phase 4 Group E AI mapping suggestions is next.
+- Delivery UI must not imply an order is sent just because a transform artifact exists. Use explicit states such as `ready_to_deliver`, `delivering`, `delivered`, and `delivery_failed`.
 
 ### shadcn/ui
 

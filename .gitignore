@@ -29,3 +29,8 @@ out
 *.sln
 *.sw?
 obj/
+/.vs/
+tsconfig.tsbuildinfo
+
+# clerk configuration (can include secrets)
+/.clerk/
