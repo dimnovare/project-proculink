@@ -85,9 +85,43 @@ const mockOrders: Order[] = [
     updatedAt: "2024-01-12T09:15:00Z",
     lines: [
       { id: "l-002-1", lineNumber: 1, buyerItemCode: "TB-CAP-100", supplierItemCode: "ES-CAP-100UF", description: "Capacitor 100µF",     quantity: 200, unit: "PCS", unitPrice: 0.35,  confidence: 1.0, needsReview: false },
-      { id: "l-002-2", lineNumber: 2, buyerItemCode: "TB-RES-220", supplierItemCode: null,            description: "Resistor 220Ω",       quantity: 500, unit: "PCS", unitPrice: 0.02,  confidence: 0.0, needsReview: true  },
+      {
+        id: "l-002-2",
+        lineNumber: 2,
+        buyerItemCode: "TB-RES-220",
+        supplierItemCode: null,
+        description: "Resistor 220Ω",
+        quantity: 500,
+        unit: "PCS",
+        unitPrice: 0.02,
+        confidence: 0.0,
+        needsReview: true,
+        aiSuggestion: {
+          supplierItemCode: "ES-RES-220R",
+          confidence: 0.84,
+          reason: "Buyer code and description match ElectroSupply resistor naming.",
+          provenance: "Buyer code/description evidence plus nearby supplier mapping pattern",
+        },
+      },
       { id: "l-002-3", lineNumber: 3, buyerItemCode: "TB-LED-RED", supplierItemCode: "ES-LED-R5MM",   description: "LED Red 5mm",         quantity: 100, unit: "PCS", unitPrice: 0.15,  confidence: 1.0, needsReview: false },
-      { id: "l-002-4", lineNumber: 4, buyerItemCode: "TB-WIRE-22", supplierItemCode: null,            description: "Wire 22AWG Black 100m", quantity: 5, unit: "M",   unitPrice: 12.50, confidence: 0.0, needsReview: true  },
+      {
+        id: "l-002-4",
+        lineNumber: 4,
+        buyerItemCode: "TB-WIRE-22",
+        supplierItemCode: null,
+        description: "Wire 22AWG Black 100m",
+        quantity: 5,
+        unit: "M",
+        unitPrice: 12.50,
+        confidence: 0.0,
+        needsReview: true,
+        aiSuggestion: {
+          supplierItemCode: "ES-WIRE-22BK-100",
+          confidence: 0.72,
+          reason: "Description indicates 22AWG black wire in a 100m length.",
+          provenance: "Buyer description evidence; no confirmed saved mapping",
+        },
+      },
     ],
     artifacts: [],
   },
@@ -139,9 +173,43 @@ async function mockUploadPurchaseOrder(file: File, supplierId: string): Promise<
   const poNumber    = `PO-${new Date().getFullYear()}-${String(Math.floor(Math.random() * 100000)).padStart(6, "0")}`;
 
   const lines: Order["lines"] = [
-    { id: crypto.randomUUID(), lineNumber: 1, buyerItemCode: "ITEM-001", supplierItemCode: null,      description: "Sample Part A", quantity: 100, unit: "PCS", unitPrice: 25.00, confidence: 0.0, needsReview: true  },
+    {
+      id: crypto.randomUUID(),
+      lineNumber: 1,
+      buyerItemCode: "ITEM-001",
+      supplierItemCode: null,
+      description: "Sample Part A",
+      quantity: 100,
+      unit: "PCS",
+      unitPrice: 25.00,
+      confidence: 0.0,
+      needsReview: true,
+      aiSuggestion: {
+        supplierItemCode: "SUP-001",
+        confidence: 0.79,
+        reason: "Buyer code sequence matches existing supplier-code pattern.",
+        provenance: "Buyer code evidence and sibling order line pattern",
+      },
+    },
     { id: crypto.randomUUID(), lineNumber: 2, buyerItemCode: "ITEM-002", supplierItemCode: "SUP-002", description: "Sample Part B", quantity: 50,  unit: "PCS", unitPrice: 15.50, confidence: 1.0, needsReview: false },
-    { id: crypto.randomUUID(), lineNumber: 3, buyerItemCode: "ITEM-003", supplierItemCode: null,      description: "Sample Part C", quantity: 200, unit: "PCS", unitPrice: 8.25,  confidence: 0.0, needsReview: true  },
+    {
+      id: crypto.randomUUID(),
+      lineNumber: 3,
+      buyerItemCode: "ITEM-003",
+      supplierItemCode: null,
+      description: "Sample Part C",
+      quantity: 200,
+      unit: "PCS",
+      unitPrice: 8.25,
+      confidence: 0.0,
+      needsReview: true,
+      aiSuggestion: {
+        supplierItemCode: "SUP-003",
+        confidence: 0.68,
+        reason: "Supplier-code pattern appears sequential but still needs review.",
+        provenance: "Buyer code evidence and sibling order line pattern",
+      },
+    },
   ];
   const unresolvedCount = lines.filter(l => l.needsReview).length;
 
@@ -213,7 +281,15 @@ async function mockResolvePurchaseOrder(
 
   for (const res of payload.lineResolutions) {
     const li = order.lines.findIndex(l => l.lineNumber === res.lineNumber);
-    if (li !== -1) order.lines[li] = { ...order.lines[li], supplierItemCode: res.supplierItemCode, needsReview: false, confidence: 1.0 };
+    if (li !== -1) {
+      order.lines[li] = {
+        ...order.lines[li],
+        supplierItemCode: res.supplierItemCode,
+        needsReview: false,
+        confidence: 1.0,
+        aiSuggestion: null,
+      };
+    }
   }
 
   if (payload.saveMappings) {

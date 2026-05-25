@@ -50,6 +50,14 @@ export interface OrderLine {
   unitPrice: number;
   confidence: number;
   needsReview: boolean;
+  aiSuggestion?: AiMappingSuggestion | null;
+}
+
+export interface AiMappingSuggestion {
+  supplierItemCode: string;
+  confidence: number;
+  reason: string;
+  provenance: string;
 }
 
 export interface Artifact {
