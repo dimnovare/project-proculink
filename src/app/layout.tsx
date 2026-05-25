@@ -5,6 +5,13 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "ProcuLink — Procurement Hub",
   description: "Upload buyer orders, resolve mappings, transform and deliver to suppliers.",
+  icons: {
+    icon: [
+      { url: "/favicon.svg", type: "image/svg+xml" },
+      { url: "/favicon.ico", sizes: "32x32" },
+    ],
+    shortcut: "/favicon.ico",
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
