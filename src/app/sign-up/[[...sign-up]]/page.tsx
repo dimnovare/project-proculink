@@ -14,6 +14,19 @@ export default function SignUpPage() {
     );
   }
 
+  if (!process.env.CLERK_SECRET_KEY) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background px-6 text-center">
+        <div>
+          <h1 className="text-xl font-semibold text-foreground">Server auth is not configured</h1>
+          <p className="mt-2 max-w-md text-sm text-muted-foreground">
+            Add CLERK_SECRET_KEY in Vercel for Production and Preview, then redeploy.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-background">
       <SignUp

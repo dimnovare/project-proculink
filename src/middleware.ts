@@ -22,7 +22,9 @@ const isClerkConfigured =
 
 function fallbackMiddleware(req: NextRequest) {
   if (isProtectedRoute(req)) {
-    return NextResponse.redirect(new URL("/", req.url));
+    const url = new URL("/sign-in", req.url);
+    url.searchParams.set("configuration", "server-env-missing");
+    return NextResponse.redirect(url);
   }
 
   return NextResponse.next();
