@@ -40,3 +40,31 @@ export interface TestPoMappingRequest {
   lineRows: Record<string, string>[];
   config: PoMappingConfig;
 }
+
+// Supplier delivery configuration
+
+export type DeliveryProtocol = "http" | "sftp" | "ftp";
+
+export interface DeliveryConfig {
+  supplierId: string;
+  protocol: DeliveryProtocol;
+  autoDeliver: boolean;
+  configJson: string;
+  hasCredentials: boolean;
+  credentialsDisplay?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface UpsertDeliveryConfigRequest {
+  protocol: DeliveryProtocol;
+  autoDeliver: boolean;
+  configJson: string;
+  credentialsJson?: string | null;
+}
+
+export interface DeliveryTestResult {
+  success: boolean;
+  errorMessage?: string | null;
+  responseCode?: number | null;
+}
