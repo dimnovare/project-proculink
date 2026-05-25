@@ -43,7 +43,7 @@ export interface TestPoMappingRequest {
 
 // Supplier delivery configuration
 
-export type DeliveryProtocol = "http" | "sftp" | "ftp";
+export type DeliveryProtocol = "http" | "sftp" | "ftp" | "erp_erply" | "erp_directo";
 
 export interface DeliveryConfig {
   supplierId: string;

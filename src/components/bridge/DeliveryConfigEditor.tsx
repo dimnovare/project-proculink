@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import type { ReactNode } from "react";
 import { KeyRound, Save, Send, Trash2 } from "lucide-react";
 import {
@@ -19,6 +19,8 @@ interface DeliveryConfigEditorProps {
 
 const PROTOCOLS: Array<{ id: DeliveryProtocol; label: string; enabled: boolean }> = [
   { id: "http", label: "HTTP", enabled: true },
+  { id: "erp_erply", label: "Erply ERP", enabled: true },
+  { id: "erp_directo", label: "Directo ERP", enabled: true },
   { id: "sftp", label: "SFTP", enabled: false },
   { id: "ftp", label: "FTP", enabled: false },
 ];
@@ -33,6 +35,9 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
   const [url, setUrl] = useState("");
   const [method, setMethod] = useState("POST");
   const [timeoutSeconds, setTimeoutSeconds] = useState(30);
+  const [erplyClientCode, setErplyClientCode] = useState("");
+  const [directoDatabase, setDirectoDatabase] = useState("");
+  const [directoKey, setDirectoKey] = useState("");
   const [authType, setAuthType] = useState<AuthType>("none");
   const [apiKeyHeader, setApiKeyHeader] = useState("X-Api-Key");
   const [apiKeyValue, setApiKeyValue] = useState("");
@@ -55,7 +60,8 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
         if (config) {
           setProtocol(config.protocol);
           setAutoDeliver(config.autoDeliver);
-          hydrateHttpConfig(config.configJson);
+          if (config.protocol === "erp_directo") setAuthType("basic");
+          hydrateConfig(config.protocol, config.configJson);
         }
       } catch (err) {
         if (!cancelled) setError(err instanceof Error ? err.message : "Could not load delivery config.");
@@ -72,34 +78,29 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
 
   const hasSavedCredentials = savedConfig?.hasCredentials ?? false;
 
-  const configPreview = useMemo(
-    () =>
-      JSON.stringify(
-        {
-          url,
-          method,
-          timeoutSeconds,
-        },
-        null,
-        2
-      ),
-    [method, timeoutSeconds, url]
-  );
+  const configPreview = JSON.stringify(buildConfigObject(), null, 2);
+  const canSave = Boolean(url) && (protocol !== "erp_directo" || Boolean(directoDatabase));
 
-  function hydrateHttpConfig(configJson: string) {
+  function hydrateConfig(nextProtocol: DeliveryProtocol, configJson: string) {
     try {
       const parsed = JSON.parse(configJson) as {
         url?: string;
         method?: string;
         timeoutSeconds?: number;
+        clientCode?: string;
+        database?: string;
       };
       setUrl(parsed.url ?? "");
       setMethod(parsed.method ?? "POST");
       setTimeoutSeconds(parsed.timeoutSeconds ?? 30);
+      setErplyClientCode(nextProtocol === "erp_erply" ? parsed.clientCode ?? "" : "");
+      setDirectoDatabase(nextProtocol === "erp_directo" ? parsed.database ?? "" : "");
     } catch {
       setUrl("");
       setMethod("POST");
       setTimeoutSeconds(30);
+      setErplyClientCode("");
+      setDirectoDatabase("");
     }
   }
 
@@ -108,8 +109,41 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
     setError(null);
   }
 
+  function buildConfigObject() {
+    if (protocol === "erp_erply") {
+      return {
+        url,
+        clientCode: erplyClientCode,
+        timeoutSeconds,
+      };
+    }
+
+    if (protocol === "erp_directo") {
+      return {
+        url,
+        database: directoDatabase,
+        timeoutSeconds,
+      };
+    }
+
+    return {
+      url,
+      method,
+      timeoutSeconds,
+    };
+  }
+
   function buildCredentialsJson(): string | null {
-    if (authType === "none") return "{\"type\":\"none\"}";
+    if (protocol === "erp_directo") {
+      if (!basicPassword && !directoKey && hasSavedCredentials) return null;
+      return JSON.stringify({
+        user: basicUsername,
+        password: basicPassword,
+        key: directoKey,
+      });
+    }
+
+    if (authType === "none") return hasSavedCredentials ? null : "{\"type\":\"none\"}";
     if (authType === "apikey") {
       if (!apiKeyValue && hasSavedCredentials) return null;
       return JSON.stringify({ type: "apikey", header: apiKeyHeader, value: apiKeyValue });
@@ -129,13 +163,14 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
       const saved = await upsertDeliveryConfig(supplierId, {
         protocol,
         autoDeliver,
-        configJson: JSON.stringify({ url, method, timeoutSeconds }),
+        configJson: JSON.stringify(buildConfigObject()),
         credentialsJson: buildCredentialsJson(),
       });
       setSavedConfig(saved);
       setApiKeyValue("");
       setBearerToken("");
       setBasicPassword("");
+      setDirectoKey("");
       setTestResult(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not save delivery config.");
@@ -152,6 +187,9 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
       setSavedConfig(null);
       setAutoDeliver(false);
       setUrl("");
+      setErplyClientCode("");
+      setDirectoDatabase("");
+      setDirectoKey("");
       setAuthType("none");
       setTestResult(null);
     } catch (err) {
@@ -209,6 +247,8 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
                 disabled={!item.enabled}
                 onClick={() => {
                   setProtocol(item.id);
+                  if (item.id === "erp_erply" && authType === "basic") setAuthType("bearer");
+                  if (item.id === "erp_directo") setAuthType("basic");
                   markEdited();
                 }}
                 className="flex h-9 items-center justify-between rounded-[6px] px-3 text-[12px] font-semibold"
@@ -238,7 +278,7 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
             <p className="text-[13px]" style={{ color: "#56627A" }}>Loading delivery config...</p>
           ) : (
             <div className="grid gap-4">
-              <div className="grid gap-3" style={{ gridTemplateColumns: "1fr 120px 120px" }}>
+              <div className="grid gap-3" style={{ gridTemplateColumns: "1fr 150px 120px" }}>
                 <Field label="Endpoint URL">
                   <input
                     value={url}
@@ -246,25 +286,55 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
                       setUrl(e.target.value);
                       markEdited();
                     }}
-                    placeholder="https://supplier.example/orders"
+                    placeholder={protocol === "erp_directo" ? "https://login.directo.ee/xmlcore" : "https://supplier.example/orders"}
                     className="h-9 w-full rounded-[5px] px-2.5 text-[12px]"
                     style={{ border: "1px solid #D5DAEA", color: "#0B1A2F" }}
                   />
                 </Field>
-                <Field label="Method">
-                  <select
-                    value={method}
-                    onChange={(e) => {
-                      setMethod(e.target.value);
-                      markEdited();
-                    }}
-                    className="h-9 w-full rounded-[5px] px-2 text-[12px]"
-                    style={{ border: "1px solid #D5DAEA", background: "#FFF", color: "#0B1A2F" }}
-                  >
-                    <option>POST</option>
-                    <option>PUT</option>
-                  </select>
-                </Field>
+                {protocol === "http" && (
+                  <Field label="Method">
+                    <select
+                      value={method}
+                      onChange={(e) => {
+                        setMethod(e.target.value);
+                        markEdited();
+                      }}
+                      className="h-9 w-full rounded-[5px] px-2 text-[12px]"
+                      style={{ border: "1px solid #D5DAEA", background: "#FFF", color: "#0B1A2F" }}
+                    >
+                      <option>POST</option>
+                      <option>PUT</option>
+                    </select>
+                  </Field>
+                )}
+                {protocol === "erp_erply" && (
+                  <Field label="Client code">
+                    <input
+                      value={erplyClientCode}
+                      onChange={(e) => {
+                        setErplyClientCode(e.target.value);
+                        markEdited();
+                      }}
+                      placeholder="ACME"
+                      className="h-9 w-full rounded-[5px] px-2.5 text-[12px]"
+                      style={{ border: "1px solid #D5DAEA", color: "#0B1A2F" }}
+                    />
+                  </Field>
+                )}
+                {protocol === "erp_directo" && (
+                  <Field label="Database">
+                    <input
+                      value={directoDatabase}
+                      onChange={(e) => {
+                        setDirectoDatabase(e.target.value);
+                        markEdited();
+                      }}
+                      placeholder="company_db"
+                      className="h-9 w-full rounded-[5px] px-2.5 text-[12px]"
+                      style={{ border: "1px solid #D5DAEA", color: "#0B1A2F" }}
+                    />
+                  </Field>
+                )}
                 <Field label="Timeout">
                   <input
                     type="number"
@@ -299,10 +369,16 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
                       className="h-9 w-full rounded-[5px] px-2 text-[12px]"
                       style={{ border: "1px solid #D5DAEA", background: "#FFF", color: "#0B1A2F" }}
                     >
-                      <option value="none">None</option>
-                      <option value="apikey">API key</option>
-                      <option value="bearer">Bearer token</option>
-                      <option value="basic">Basic auth</option>
+                      {protocol === "erp_directo" ? (
+                        <option value="basic">Directo credentials</option>
+                      ) : (
+                        <>
+                          <option value="none">None</option>
+                          <option value="apikey">API key</option>
+                          <option value="bearer">Bearer token</option>
+                          <option value="basic">Basic auth</option>
+                        </>
+                      )}
                     </select>
                   </Field>
 
@@ -324,13 +400,18 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
                   )}
 
                   {authType === "basic" && (
-                    <div className="grid gap-3" style={{ gridTemplateColumns: "1fr 1fr" }}>
+                    <div className="grid gap-3" style={{ gridTemplateColumns: protocol === "erp_directo" ? "1fr 1fr 1fr" : "1fr 1fr" }}>
                       <Field label="Username">
                         <input value={basicUsername} onChange={(e) => setBasicUsername(e.target.value)} className="h-9 w-full rounded-[5px] px-2.5 text-[12px]" style={{ border: "1px solid #D5DAEA", color: "#0B1A2F" }} />
                       </Field>
                       <Field label="Password">
                         <input value={basicPassword} onChange={(e) => setBasicPassword(e.target.value)} placeholder={hasSavedCredentials ? "********" : "Password"} className="h-9 w-full rounded-[5px] px-2.5 text-[12px]" style={{ border: "1px solid #D5DAEA", color: "#0B1A2F" }} />
                       </Field>
+                      {protocol === "erp_directo" && (
+                        <Field label="API key">
+                          <input value={directoKey} onChange={(e) => setDirectoKey(e.target.value)} placeholder={hasSavedCredentials ? "********" : "Optional key"} className="h-9 w-full rounded-[5px] px-2.5 text-[12px]" style={{ border: "1px solid #D5DAEA", color: "#0B1A2F" }} />
+                        </Field>
+                      )}
                     </div>
                   )}
                 </div>
@@ -373,7 +454,7 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
         <button onClick={testFire} disabled={!savedConfig || testing} className="inline-flex h-8 items-center gap-1.5 rounded-[6px] px-3 text-[12px] font-semibold" style={{ border: "1px solid #D5DAEA", color: "#0B1A2F", background: "#FFF", opacity: !savedConfig ? 0.55 : 1 }}>
           <Send size={13} /> {testing ? "Testing..." : "Test-fire"}
         </button>
-        <button onClick={save} disabled={saving || !url} className="inline-flex h-8 items-center gap-1.5 rounded-[6px] px-3 text-[12px] font-semibold" style={{ border: "none", color: "#FFF", background: saving || !url ? "#8A93A5" : "#0B1A2F" }}>
+        <button onClick={save} disabled={saving || !canSave} className="inline-flex h-8 items-center gap-1.5 rounded-[6px] px-3 text-[12px] font-semibold" style={{ border: "none", color: "#FFF", background: saving || !canSave ? "#8A93A5" : "#0B1A2F" }}>
           <Save size={13} /> {saving ? "Saving..." : "Save delivery"}
         </button>
       </div>
