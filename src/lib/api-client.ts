@@ -528,15 +528,21 @@ export const apiClient = {
 export async function getBillingStatus(): Promise<BillingStatus> {
   if (USE_MOCK) {
     return {
-      plan:               "pilot",
-      ordersUsed:         5,
-      orderLimit:         20,
-      suppliersActive:    1,
-      supplierLimit:      1,
-      pilotEndsAt:        new Date(Date.now() + 9 * 24 * 60 * 60 * 1000).toISOString(),
-      pilotExpired:       false,
-      extensionRequested: false,
-      features:           [],
+      plan:                   "pilot",
+      accountStatus:          "trialing",
+      ordersThisMonth:        5,
+      orderLimit:             20,
+      suppliersUsed:          1,
+      supplierLimit:          1,
+      trialStartedAt:         new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
+      trialEndsAt:            new Date(Date.now() + 9 * 24 * 60 * 60 * 1000).toISOString(),
+      isTrialExpired:         false,
+      isOrderLimitReached:    false,
+      isSupplierLimitReached: true,
+      canProcessOrders:       true,
+      canAddSupplier:         false,
+      stripeCustomerId:       null,
+      stripeSubscriptionId:   null,
     };
   }
   const headers = await authHeader();
@@ -566,13 +572,4 @@ export async function createPortalSession(): Promise<string> {
   if (!res.ok) throw new Error(`billing/portal: ${res.status}`);
   const data = await res.json();
   return data.url as string;
-}
-
-export async function requestPilotExtension(): Promise<void> {
-  const headers = await authHeader();
-  const res = await fetch(`${API_BASE_URL}/api/billing/pilot/request-extension`, {
-    method: "POST",
-    headers,
-  });
-  if (!res.ok) throw new Error(`pilot/request-extension: ${res.status}`);
 }

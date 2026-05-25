@@ -1,55 +1,53 @@
 "use client";
 
-// BillingSection — renders inside the Settings > Billing tab.
-// Handles 5 plan states: Pilot active, Pilot expired, Stripe trial, paid, Enterprise.
-
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import {
-  getBillingStatus,
   createCheckoutSession,
   createPortalSession,
-  requestPilotExtension,
+  getBillingStatus,
 } from "@/lib/api-client";
-import type { BillingStatus, BillingPlan } from "@/types/procurement";
+import type { BillingPlan, BillingStatus } from "@/types/procurement";
 
-const PLAN_LABELS: Record<BillingPlan, string> = {
-  pilot:       "Pilot",
-  growth:      "Growth · €149/mo",
-  operations:  "Operations · €399/mo",
-  integration: "Integration · €999/mo",
-  enterprise:  "Enterprise · Custom",
+const PLAN_META: Record<BillingPlan, {
+  label: string;
+  color: string;
+  next?: BillingPlan;
+}> = {
+  pilot:       { label: "Pilot · 14-day trial", color: "#C97A14", next: "growth" },
+  growth:      { label: "Growth · €149/mo", color: "#1E66C9", next: "operations" },
+  operations:  { label: "Operations · €399/mo", color: "#2E8E3A", next: "integration" },
+  integration: { label: "Integration · €999/mo", color: "#6F4FCE" },
+  enterprise:  { label: "Enterprise · Custom", color: "#0B1A2F" },
 };
 
-const PLAN_COLORS: Record<BillingPlan, string> = {
-  pilot:       "#C97A14",
-  growth:      "#1E66C9",
-  operations:  "#2E8E3A",
-  integration: "#6F4FCE",
-  enterprise:  "#0B1A2F",
-};
+const CHECKOUT_PLANS: BillingPlan[] = ["growth", "operations", "integration"];
 
 function UsageBar({ used, limit, label }: { used: number; limit: number; label: string }) {
-  const pct      = limit === 0 ? 0 : Math.min(100, (used / limit) * 100);
-  const isAmber  = pct >= 80 && pct < 100;
-  const isDanger = pct >= 100;
-  const barColor = isDanger ? "#C53A3A" : isAmber ? "#C97A14" : "#1E66C9";
+  const unlimited = limit >= 2_000_000_000;
+  const pct = unlimited || limit === 0 ? 0 : Math.min(100, (used / limit) * 100);
+  const barColor = pct >= 100 ? "#C53A3A" : pct >= 80 ? "#C97A14" : "#1E66C9";
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-      <div style={{ display: "flex", justifyContent: "space-between" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", gap: 16 }}>
         <span style={{ fontSize: 12, color: "#56627A" }}>{label}</span>
-        <span style={{ fontSize: 12, fontWeight: 600, color: isDanger ? "#C53A3A" : "#0B1A2F" }}>
-          {used} / {limit >= 2_000_000_000 ? "∞" : limit}
+        <span style={{ fontSize: 12, fontWeight: 700, color: pct >= 100 ? "#C53A3A" : "#0B1A2F" }}>
+          {used} / {unlimited ? "Custom" : limit}
         </span>
       </div>
       <div style={{ height: 6, borderRadius: 99, background: "#E2E6EE", overflow: "hidden" }}>
-        <div style={{ width: `${pct}%`, height: "100%", background: barColor, borderRadius: 99, transition: "width 0.4s" }} />
+        <div style={{ width: unlimited ? "100%" : `${pct}%`, height: "100%", background: unlimited ? "#2E8E3A" : barColor, borderRadius: 99 }} />
       </div>
     </div>
   );
 }
 
-function PlanBadge({ plan, expired }: { plan: BillingPlan; expired: boolean }) {
+function PlanBadge({ status }: { status: BillingStatus }) {
+  const meta = PLAN_META[status.plan];
+  const label = status.plan === "pilot" && status.isTrialExpired
+    ? "Pilot ended · Processing paused"
+    : meta.label;
+
   return (
     <span style={{
       display: "inline-flex",
@@ -59,46 +57,82 @@ function PlanBadge({ plan, expired }: { plan: BillingPlan; expired: boolean }) {
       padding: "3px 10px",
       fontSize: 12,
       fontWeight: 700,
-      background: `${PLAN_COLORS[plan]}18`,
-      color: PLAN_COLORS[plan],
+      background: `${meta.color}18`,
+      color: meta.color,
     }}>
-      <span style={{ width: 6, height: 6, borderRadius: "50%", background: PLAN_COLORS[plan], display: "inline-block" }} />
-      {expired ? "Pilot · Expired" : PLAN_LABELS[plan]}
+      <span style={{ width: 6, height: 6, borderRadius: "50%", background: meta.color }} />
+      {label}
     </span>
   );
 }
 
-function PilotCountdown({ endsAt }: { endsAt: string }) {
+function TrialCountdown({ endsAt }: { endsAt: string }) {
   const days = Math.max(0, Math.ceil((new Date(endsAt).getTime() - Date.now()) / 86_400_000));
   return (
     <span style={{ fontSize: 11.5, color: days <= 3 ? "#C97A14" : "#56627A" }}>
-      {days} day{days !== 1 ? "s" : ""} remaining
+      Trial: {days} day{days === 1 ? "" : "s"} left
     </span>
   );
 }
 
-export function BillingSection() {
-  const qc = useQueryClient();
+function LimitBanner({ status }: { status: BillingStatus }) {
+  if (status.plan === "pilot" && status.isTrialExpired) {
+    return (
+      <div style={bannerStyle}>
+        <strong>Your Pilot has ended.</strong>
+        <span>You can still view previous orders and mappings, but new order processing is paused.</span>
+      </div>
+    );
+  }
 
+  if (status.plan === "pilot" && status.isOrderLimitReached) {
+    return (
+      <div style={bannerStyle}>
+        <strong>You&apos;ve used all 20 Pilot orders.</strong>
+        <span>Upgrade to Growth to continue processing new orders.</span>
+      </div>
+    );
+  }
+
+  if (status.isOrderLimitReached) {
+    return (
+      <div style={bannerStyle}>
+        <strong>You&apos;ve reached your plan&apos;s order limit.</strong>
+        <span>Upgrade to continue processing new buyer orders this month.</span>
+      </div>
+    );
+  }
+
+  return null;
+}
+
+const bannerStyle: React.CSSProperties = {
+  borderRadius: 8,
+  padding: "12px 16px",
+  background: "#FAEFD6",
+  border: "1px solid #C97A14",
+  display: "flex",
+  flexDirection: "column",
+  gap: 4,
+  fontSize: 13,
+  color: "#7A4A0A",
+};
+
+export function BillingSection() {
   const { data: status, isLoading, error } = useQuery<BillingStatus>({
     queryKey: ["billing-status"],
-    queryFn:  getBillingStatus,
+    queryFn: getBillingStatus,
     staleTime: 60_000,
   });
 
   const checkoutMutation = useMutation({
-    mutationFn: (plan: string) => createCheckoutSession(plan),
-    onSuccess:  (url) => { window.location.href = url; },
+    mutationFn: (plan: BillingPlan) => createCheckoutSession(plan),
+    onSuccess: (url) => { window.location.href = url; },
   });
 
   const portalMutation = useMutation({
     mutationFn: createPortalSession,
-    onSuccess:  (url) => { window.location.href = url; },
-  });
-
-  const extensionMutation = useMutation({
-    mutationFn: requestPilotExtension,
-    onSuccess:  () => qc.invalidateQueries({ queryKey: ["billing-status"] }),
+    onSuccess: (url) => { window.location.href = url; },
   });
 
   if (isLoading) {
@@ -117,132 +151,121 @@ export function BillingSection() {
     );
   }
 
-  const isPilot        = status.plan === "pilot";
-  const isEnterprise   = status.plan === "enterprise";
-  const isPaid         = !isPilot && !isEnterprise;
-  const isPilotExpired = isPilot && status.pilotExpired;
+  const isPilot = status.plan === "pilot";
+  const isEnterprise = status.plan === "enterprise";
+  const isPaid = CHECKOUT_PLANS.includes(status.plan);
+  const nextPlan = PLAN_META[status.plan].next;
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 20, maxWidth: 560 }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: 20, maxWidth: 620 }}>
+      <LimitBanner status={status} />
 
-      {/* Expired banner */}
-      {isPilotExpired && (
-        <div style={{ borderRadius: 8, padding: "12px 16px", background: "#FAEFD6", border: "1px solid #C97A14", fontSize: 13, color: "#7A4A0A" }}>
-          Your Pilot has ended. Upgrade to continue using ProcuLink.
-        </div>
-      )}
-
-      {/* Plan row */}
       <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-        <PlanBadge plan={status.plan} expired={isPilotExpired} />
-        {isPilot && !isPilotExpired && status.pilotEndsAt && (
-          <PilotCountdown endsAt={status.pilotEndsAt} />
+        <PlanBadge status={status} />
+        <span style={{ fontSize: 11.5, color: "#8A93A5" }}>
+          Status: {status.accountStatus.replaceAll("_", " ")}
+        </span>
+        {isPilot && !status.isTrialExpired && status.trialEndsAt && (
+          <TrialCountdown endsAt={status.trialEndsAt} />
         )}
       </div>
 
-      {/* Usage bars */}
-      {!isEnterprise && (
-        <div style={{ display: "flex", flexDirection: "column", gap: 10, opacity: isPilotExpired ? 0.4 : 1 }}>
-          <UsageBar
-            used={status.ordersUsed}
-            limit={status.orderLimit}
-            label={isPilot ? "Orders (Pilot total)" : "Orders this month"}
-          />
-          <UsageBar
-            used={status.suppliersActive}
-            limit={status.supplierLimit}
-            label="Active suppliers"
-          />
-        </div>
-      )}
+      <div style={{ display: "flex", flexDirection: "column", gap: 10, opacity: status.canProcessOrders || isEnterprise ? 1 : 0.58 }}>
+        <UsageBar
+          used={status.ordersThisMonth}
+          limit={status.orderLimit}
+          label={isPilot ? "Orders (Pilot total)" : "Orders this month"}
+        />
+        <UsageBar
+          used={status.suppliersUsed}
+          limit={status.supplierLimit}
+          label="Supplier flows"
+        />
+      </div>
 
-      {/* CTAs — Pilot */}
       {isPilot && (
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          <button
+            onClick={() => checkoutMutation.mutate("growth")}
+            disabled={checkoutMutation.isPending}
+            style={primaryButton("#1E66C9", checkoutMutation.isPending)}
+          >
+            {status.isTrialExpired || status.isOrderLimitReached ? "Upgrade to continue" : "Upgrade to Growth"}
+          </button>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-            {(["growth", "operations", "integration"] as const).map((plan) => (
+            {(["operations", "integration"] as const).map((plan) => (
               <button
                 key={plan}
                 onClick={() => checkoutMutation.mutate(plan)}
                 disabled={checkoutMutation.isPending}
-                style={{
-                  padding: "8px 16px",
-                  borderRadius: 7,
-                  fontSize: 12.5,
-                  fontWeight: 600,
-                  background: PLAN_COLORS[plan],
-                  color: "#FFFFFF",
-                  border: "none",
-                  cursor: checkoutMutation.isPending ? "not-allowed" : "pointer",
-                  opacity: checkoutMutation.isPending ? 0.6 : 1,
-                }}
+                style={secondaryButton(PLAN_META[plan].color, checkoutMutation.isPending)}
               >
-                Upgrade to {plan.charAt(0).toUpperCase() + plan.slice(1)} →
+                {PLAN_META[plan].label}
               </button>
             ))}
           </div>
-
-          {/* Extension request */}
-          {!status.extensionRequested ? (
-            <button
-              onClick={() => extensionMutation.mutate()}
-              disabled={extensionMutation.isPending}
-              style={{ alignSelf: "flex-start", background: "none", border: "none", padding: 0, fontSize: 12, color: "#1E66C9", cursor: "pointer", textDecoration: "underline" }}
-            >
-              {extensionMutation.isPending ? "Sending…" : "Need more time? Request a Pilot extension →"}
-            </button>
-          ) : (
-            <span style={{ fontSize: 12, color: "#2E8E3A" }}>
-              ✓ Extension request sent — our team will be in touch.
-            </span>
-          )}
-
           <a href="mailto:sales@proculink.com" style={{ fontSize: 12, color: "#8A93A5" }}>
-            Need Enterprise? Contact us →
+            Need Enterprise? Contact sales
           </a>
         </div>
       )}
 
-      {/* CTAs — Paid */}
       {isPaid && (
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
           <button
             onClick={() => portalMutation.mutate()}
             disabled={portalMutation.isPending}
-            style={{
-              alignSelf: "flex-start",
-              padding: "8px 16px",
-              borderRadius: 7,
-              fontSize: 12.5,
-              fontWeight: 600,
-              background: "#0B1A2F",
-              color: "#FFFFFF",
-              border: "none",
-              cursor: portalMutation.isPending ? "not-allowed" : "pointer",
-            }}
+            style={primaryButton("#0B1A2F", portalMutation.isPending)}
           >
-            {portalMutation.isPending ? "Opening…" : "Manage billing →"}
+            {portalMutation.isPending ? "Opening..." : "Manage billing"}
           </button>
-          {status.plan !== "integration" && (
+          {nextPlan && (
             <button
-              onClick={() => {
-                const next = status.plan === "growth" ? "operations" : "integration";
-                checkoutMutation.mutate(next);
-              }}
-              style={{ alignSelf: "flex-start", background: "none", border: "none", padding: 0, fontSize: 12, color: "#1E66C9", cursor: "pointer", textDecoration: "underline" }}
+              onClick={() => checkoutMutation.mutate(nextPlan)}
+              disabled={checkoutMutation.isPending}
+              style={secondaryButton(PLAN_META[nextPlan].color, checkoutMutation.isPending)}
             >
-              Upgrade to {status.plan === "growth" ? "Operations" : "Integration"} →
+              Need more volume? Upgrade to {nextPlan.charAt(0).toUpperCase() + nextPlan.slice(1)}.
             </button>
           )}
         </div>
       )}
 
-      {/* Enterprise */}
       {isEnterprise && (
         <p style={{ fontSize: 13, color: "#56627A", margin: 0 }}>
-          Contact your account manager to adjust your plan.
+          Enterprise plans use a manual agreement. Contact support to adjust volume, suppliers, SLA, or connector scope.
         </p>
       )}
     </div>
   );
+}
+
+function primaryButton(background: string, disabled: boolean): React.CSSProperties {
+  return {
+    alignSelf: "flex-start",
+    padding: "8px 16px",
+    borderRadius: 7,
+    fontSize: 12.5,
+    fontWeight: 700,
+    background,
+    color: "#FFFFFF",
+    border: "none",
+    cursor: disabled ? "not-allowed" : "pointer",
+    opacity: disabled ? 0.6 : 1,
+  };
+}
+
+function secondaryButton(color: string, disabled: boolean): React.CSSProperties {
+  return {
+    alignSelf: "flex-start",
+    background: `${color}12`,
+    border: `1px solid ${color}35`,
+    borderRadius: 7,
+    padding: "7px 12px",
+    fontSize: 12,
+    fontWeight: 700,
+    color,
+    cursor: disabled ? "not-allowed" : "pointer",
+    opacity: disabled ? 0.6 : 1,
+  };
 }

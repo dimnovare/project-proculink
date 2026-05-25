@@ -94,7 +94,7 @@ export function UploadWorkbench() {
   const [mode, setMode]             = useState<ModeKey>("auto");
   const [uploading, setUploading]   = useState(false);
   const [pipelineStage, setPipelineStage] = useState(-1);
-  const [uploadError, setUploadError] = useState<{ code: string; message: string } | null>(null);
+  const [uploadError, setUploadError] = useState<{ code: string; title: string; message: string; cta: string } | null>(null);
   const timerRefs = useRef<ReturnType<typeof setTimeout>[]>([]);
   const router = useRouter();
 
@@ -119,14 +119,13 @@ export function UploadWorkbench() {
 
       if (res?.status === 429) {
         const body = await res.json().catch(() => ({}));
-        const code = (body as Record<string, string>).error ?? "order_limit_reached";
-        setUploadError({
-          code,
-          message:
-            code === "pilot_expired"
-              ? "Your Pilot has ended."
-              : `You've reached your ${(body as Record<string, unknown>).limit ?? ""}-order monthly limit.`,
-        });
+        const rawError = String((body as Record<string, unknown>).error ?? "order_limit_reached").toLowerCase();
+        const code = rawError.includes("pilot") && rawError.includes("expired")
+          ? "pilot_expired"
+          : rawError.includes("supplier")
+          ? "supplier_limit_reached"
+          : "order_limit_reached";
+        setUploadError(getLimitMessage(code));
         setUploading(false);
         setPipelineStage(-1);
         return;
@@ -584,14 +583,15 @@ export function UploadWorkbench() {
                     fontSize: 12.5,
                     color: "#7A4A0A",
                   }}>
-                    <span>{uploadError.message}</span>
+                    <span>
+                      <strong style={{ display: "block", color: "#7A4A0A" }}>{uploadError.title}</strong>
+                      <span>{uploadError.message}</span>
+                    </span>
                     <a
                       href="/settings"
                       style={{ fontWeight: 600, color: "#C97A14", textDecoration: "none", whiteSpace: "nowrap" }}
                     >
-                      {uploadError.code === "pilot_expired"
-                        ? "Upgrade to continue →"
-                        : "Upgrade your plan →"}
+                      {uploadError.cta} →
                     </a>
                   </div>
                 )}
@@ -689,4 +689,31 @@ export function UploadWorkbench() {
       </div>
     </div>
   );
+}
+
+function getLimitMessage(code: string): { code: string; title: string; message: string; cta: string } {
+  if (code === "pilot_expired") {
+    return {
+      code,
+      title: "Your Pilot has ended.",
+      message: "You can still view previous orders, but new processing is paused.",
+      cta: "Upgrade to Growth",
+    };
+  }
+
+  if (code === "supplier_limit_reached") {
+    return {
+      code,
+      title: "Your plan includes 1 supplier.",
+      message: "Upgrade to Growth to add more supplier flows.",
+      cta: "Upgrade plan",
+    };
+  }
+
+  return {
+    code,
+    title: "You've reached your plan's order limit.",
+    message: "Upgrade to continue processing new orders this month.",
+    cta: "Upgrade plan",
+  };
 }

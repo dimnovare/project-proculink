@@ -168,9 +168,10 @@ export const handlers = [
     name: "Nordic Distribution",
     id: "nd-4f91a2",
     currency: "EUR",
-    plan: "starter",
-    crossingsUsed: 72,
-    crossingsLimit: 100,
+    plan: "pilot",
+    accountStatus: "trialing",
+    crossingsUsed: 12,
+    crossingsLimit: 20,
   })),
 
   http.patch(`${BASE}/workspace`, async ({ request }) => {

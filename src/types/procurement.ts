@@ -156,13 +156,19 @@ export type BillingPlan =
   | "enterprise";
 
 export interface BillingStatus {
-  plan:               BillingPlan;
-  ordersUsed:         number;
-  orderLimit:         number;
-  suppliersActive:    number;
-  supplierLimit:      number;
-  pilotEndsAt:        string | null;   // ISO datetime string; null for paid plans
-  pilotExpired:       boolean;
-  extensionRequested: boolean;
-  features:           string[];        // lowercase BillingFeature names
+  plan:                   BillingPlan;
+  accountStatus:          string;
+  ordersThisMonth:        number;
+  orderLimit:             number;
+  suppliersUsed:          number;
+  supplierLimit:          number;
+  trialStartedAt:         string | null;
+  trialEndsAt:            string | null;
+  isTrialExpired:         boolean;
+  isOrderLimitReached:    boolean;
+  isSupplierLimitReached: boolean;
+  canProcessOrders:       boolean;
+  canAddSupplier:         boolean;
+  stripeCustomerId:       string | null;
+  stripeSubscriptionId:   string | null;
 }
