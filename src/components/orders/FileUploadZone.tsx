@@ -1,5 +1,5 @@
 import { useCallback, useState } from "react";
-import { Upload, FileSpreadsheet, X } from "lucide-react";
+import { Upload, FileSpreadsheet, FileText, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface FileUploadZoneProps {
@@ -43,14 +43,18 @@ export function FileUploadZone({ onFileSelect, selectedFile, onClear, disabled }
   const isValidFileType = (file: File) => {
     const validTypes = [
       'text/csv',
+      'application/pdf',
       'application/vnd.ms-excel',
       'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
     ];
     return validTypes.includes(file.type) ||
            file.name.endsWith('.csv') ||
+           file.name.endsWith('.pdf') ||
            file.name.endsWith('.xlsx') ||
            file.name.endsWith('.xls');
   };
+
+  const isPdf = selectedFile?.name.toLowerCase().endsWith(".pdf") || selectedFile?.type === "application/pdf";
 
   const formatFileSize = (bytes: number) => {
     if (bytes < 1024) return `${bytes} B`;
@@ -63,7 +67,11 @@ export function FileUploadZone({ onFileSelect, selectedFile, onClear, disabled }
       <div className="relative rounded-lg border-2 border-dashed border-accent bg-accent/5 p-6">
         <div className="flex items-center gap-4">
           <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-accent/10">
-            <FileSpreadsheet className="h-6 w-6 text-accent" />
+            {isPdf ? (
+              <FileText className="h-6 w-6 text-accent" />
+            ) : (
+              <FileSpreadsheet className="h-6 w-6 text-accent" />
+            )}
           </div>
           <div className="flex-1 min-w-0">
             <p className="font-medium text-foreground truncate">{selectedFile.name}</p>
@@ -100,7 +108,7 @@ export function FileUploadZone({ onFileSelect, selectedFile, onClear, disabled }
     >
       <input
         type="file"
-        accept=".csv,.xlsx,.xls"
+        accept=".csv,.xlsx,.xls,.pdf,application/pdf"
         onChange={handleFileInput}
         disabled={disabled}
         className="absolute inset-0 w-full h-full opacity-0 cursor-pointer disabled:cursor-not-allowed"
@@ -116,7 +124,7 @@ export function FileUploadZone({ onFileSelect, selectedFile, onClear, disabled }
           or click to browse
         </p>
         <p className="text-xs text-muted-foreground">
-          Supports CSV, XLS, XLSX
+          Supports PDF, CSV, XLS, XLSX
         </p>
       </div>
     </div>
