@@ -10,6 +10,35 @@ interface BridgeTopbarProps {
   crumb?: ReactNode;
 }
 
+function AccountMenu() {
+  if (!process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY) {
+    return (
+      <div
+        className="flex items-center justify-center rounded-full text-[11px] font-bold"
+        style={{
+          width: 28,
+          height: 28,
+          background: "#E2F1E2",
+          color: "#1E6D29",
+        }}
+        title="Clerk is not configured"
+      >
+        D
+      </div>
+    );
+  }
+
+  return (
+    <UserButton
+      appearance={{
+        elements: {
+          userButtonAvatarBox: "w-7 h-7",
+        },
+      }}
+    />
+  );
+}
+
 export function BridgeTopbar({ crumb }: BridgeTopbarProps) {
   const router = useRouter();
   const [paletteOpen, setPaletteOpen] = useState(false);
@@ -114,13 +143,7 @@ export function BridgeTopbar({ crumb }: BridgeTopbarProps) {
 
         {/* Avatar / Clerk */}
         <div className="flex-shrink-0">
-          <UserButton
-            appearance={{
-              elements: {
-                userButtonAvatarBox: "w-7 h-7",
-              },
-            }}
-          />
+          <AccountMenu />
         </div>
       </div>
 
