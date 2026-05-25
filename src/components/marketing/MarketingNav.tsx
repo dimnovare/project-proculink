@@ -1,5 +1,6 @@
 "use client";
 
+import { UserButton, useUser } from "@clerk/nextjs";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ProcuLinkMark } from "@/components/bridge/DSPrimitives";
@@ -11,6 +12,7 @@ const LINKS = [
 
 export function MarketingNav() {
   const pathname = usePathname();
+  const clerkEnabled = Boolean(process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY);
 
   return (
     <nav
@@ -60,7 +62,35 @@ export function MarketingNav() {
 
       <div className="flex-1" />
 
-      {/* CTA */}
+      {clerkEnabled ? <MarketingClerkLinks /> : <MarketingAuthLinks />}
+    </nav>
+  );
+}
+
+function MarketingClerkLinks() {
+  const { isLoaded, isSignedIn } = useUser();
+
+  if (!isLoaded || !isSignedIn) {
+    return <MarketingAuthLinks />;
+  }
+
+  return (
+    <>
+      <Link
+        href="/bridge"
+        className="text-[13px] font-semibold transition-colors"
+        style={{ color: "#0B1A2F" }}
+      >
+        Open bridge
+      </Link>
+      <UserButton />
+    </>
+  );
+}
+
+function MarketingAuthLinks() {
+  return (
+    <>
       <Link
         href="/sign-in"
         className="text-[13px] font-medium transition-colors"
@@ -81,6 +111,6 @@ export function MarketingNav() {
       >
         Get started free →
       </Link>
-    </nav>
+    </>
   );
 }
