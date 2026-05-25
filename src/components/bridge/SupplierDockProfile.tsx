@@ -6,10 +6,11 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { PoMappingEditor } from "./PoMappingEditor";
+import { DeliveryConfigEditor } from "./DeliveryConfigEditor";
 import { upsertPoMapping, deletePoMapping } from "@/lib/api/mapping";
 import type { PoMappingConfig } from "@/lib/api/types";
 
-type Tab = "overview" | "mappings" | "po-mapping" | "rules" | "templates" | "connectors" | "history";
+type Tab = "overview" | "mappings" | "po-mapping" | "delivery" | "rules" | "templates" | "connectors" | "history";
 
 // Mock data for supplier with id param
 const MOCK = {
@@ -32,6 +33,7 @@ const TABS: Array<{ id: Tab; label: string }> = [
   { id: "overview",    label: "Overview"          },
   { id: "mappings",    label: "Mappings"          },
   { id: "po-mapping",  label: "PO Mapping"        },
+  { id: "delivery",    label: "Delivery"          },
   { id: "rules",       label: "Rules"             },
   { id: "templates",   label: "Output templates"  },
   { id: "connectors",  label: "Connectors"        },
@@ -43,6 +45,7 @@ export function SupplierDockProfile({ id }: { id: string }) {
   const [tab, setTab] = useState<Tab>("overview");
   const [poMappingConfig, setPoMappingConfig] = useState<PoMappingConfig | null>(null);
   const [savingMapping, setSavingMapping] = useState(false);
+  const supplierId = id || MOCK.id;
   const s = MOCK; // In real app: fetch by id
   const hc = "#2E8E3A";
 
@@ -197,13 +200,13 @@ export function SupplierDockProfile({ id }: { id: string }) {
 
         {tab === "po-mapping" && (
           <PoMappingEditor
-            supplierId={s.id}
+            supplierId={supplierId}
             initialConfig={poMappingConfig}
             saving={savingMapping}
             onSave={async (config) => {
               setSavingMapping(true);
               try {
-                const saved = await upsertPoMapping(s.id, config);
+                const saved = await upsertPoMapping(supplierId, config);
                 setPoMappingConfig(saved);
               } finally {
                 setSavingMapping(false);
@@ -212,13 +215,15 @@ export function SupplierDockProfile({ id }: { id: string }) {
             onDelete={
               poMappingConfig
                 ? async () => {
-                    await deletePoMapping(s.id);
+                    await deletePoMapping(supplierId);
                     setPoMappingConfig(null);
                   }
                 : undefined
             }
           />
         )}
+
+        {tab === "delivery" && <DeliveryConfigEditor supplierId={supplierId} />}
 
         {(tab === "rules" || tab === "templates" || tab === "connectors" || tab === "history") && (
           <div
