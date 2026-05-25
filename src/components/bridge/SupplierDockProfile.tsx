@@ -5,8 +5,11 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { PoMappingEditor } from "./PoMappingEditor";
+import { upsertPoMapping, deletePoMapping } from "@/lib/api/mapping";
+import type { PoMappingConfig } from "@/lib/api/types";
 
-type Tab = "overview" | "mappings" | "rules" | "templates" | "connectors" | "history";
+type Tab = "overview" | "mappings" | "po-mapping" | "rules" | "templates" | "connectors" | "history";
 
 // Mock data for supplier with id param
 const MOCK = {
@@ -28,6 +31,7 @@ const MOCK = {
 const TABS: Array<{ id: Tab; label: string }> = [
   { id: "overview",    label: "Overview"          },
   { id: "mappings",    label: "Mappings"          },
+  { id: "po-mapping",  label: "PO Mapping"        },
   { id: "rules",       label: "Rules"             },
   { id: "templates",   label: "Output templates"  },
   { id: "connectors",  label: "Connectors"        },
@@ -37,6 +41,8 @@ const TABS: Array<{ id: Tab; label: string }> = [
 export function SupplierDockProfile({ id }: { id: string }) {
   const router = useRouter();
   const [tab, setTab] = useState<Tab>("overview");
+  const [poMappingConfig, setPoMappingConfig] = useState<PoMappingConfig | null>(null);
+  const [savingMapping, setSavingMapping] = useState(false);
   const s = MOCK; // In real app: fetch by id
   const hc = "#2E8E3A";
 
@@ -187,6 +193,31 @@ export function SupplierDockProfile({ id }: { id: string }) {
               for all supplier pairs.
             </p>
           </div>
+        )}
+
+        {tab === "po-mapping" && (
+          <PoMappingEditor
+            supplierId={s.id}
+            initialConfig={poMappingConfig}
+            saving={savingMapping}
+            onSave={async (config) => {
+              setSavingMapping(true);
+              try {
+                const saved = await upsertPoMapping(s.id, config);
+                setPoMappingConfig(saved);
+              } finally {
+                setSavingMapping(false);
+              }
+            }}
+            onDelete={
+              poMappingConfig
+                ? async () => {
+                    await deletePoMapping(s.id);
+                    setPoMappingConfig(null);
+                  }
+                : undefined
+            }
+          />
         )}
 
         {(tab === "rules" || tab === "templates" || tab === "connectors" || tab === "history") && (
