@@ -1,5 +1,3 @@
-import { redirect } from "next/navigation";
-import { auth } from "@clerk/nextjs/server";
 import Link from "next/link";
 import { BridgeIllustration } from "@/components/marketing/BridgeIllustration";
 import { MarketingNav } from "@/components/marketing/MarketingNav";
@@ -54,9 +52,6 @@ const STATS = [
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default async function RootPage() {
-  const { userId } = await auth();
-  if (userId) redirect("/bridge");
-
   return (
     <div
       style={{
