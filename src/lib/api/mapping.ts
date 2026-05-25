@@ -1,13 +1,20 @@
 import type { PoMappingConfig, MappedOrder, TestPoMappingRequest } from "./types";
 
-const BASE = "/api";
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:5223";
+
+async function authHeader(): Promise<Record<string, string>> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const token = await (window as any).Clerk?.session?.getToken();
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
 
 async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(`${BASE}${path}`, {
-    headers: { "Content-Type": "application/json", ...init?.headers },
+  const auth = await authHeader();
+  const res = await fetch(`${API_BASE_URL}/api${path}`, {
     ...init,
+    headers: { "Content-Type": "application/json", ...auth, ...init?.headers },
   });
-  if (res.status === 204) return undefined as T;
+  if (res.status === 204) return null as T;
   if (!res.ok) throw new Error(`API error ${res.status}: ${await res.text()}`);
   return res.json() as Promise<T>;
 }
