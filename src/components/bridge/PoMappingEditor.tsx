@@ -54,7 +54,7 @@ export function PoMappingEditor({
     <div className="rounded-[8px] overflow-hidden" style={{ border: "1px solid #E2E6EE" }}>
       {/* Toolbar */}
       <div
-        className="flex items-center gap-3 px-4 py-3"
+        className="flex flex-col items-stretch gap-3 px-4 py-3 md:flex-row md:items-center"
         style={{ borderBottom: "1px solid #E2E6EE", background: "#F6F7FA" }}
       >
         <div className="flex items-center gap-2">
@@ -81,14 +81,14 @@ export function PoMappingEditor({
           Has header row
         </label>
 
-        <div className="flex-1" />
+        <div className="hidden flex-1 md:block" />
 
         <div className="flex rounded-[6px] overflow-hidden" style={{ border: "1px solid #D5DAEA" }}>
           {(["header", "lines"] as const).map((s) => (
             <button
               key={s}
               onClick={() => setActiveSection(s)}
-              className="px-3 py-1 text-[12px] font-medium transition-colors"
+              className="flex-1 px-3 py-1 text-[12px] font-medium transition-colors md:flex-none"
               style={{
                 background: activeSection === s ? "#0B1A2F" : "#FFF",
                 color: activeSection === s ? "#FFF" : "#56627A",
@@ -102,8 +102,8 @@ export function PoMappingEditor({
 
       {/* Column headers */}
       <div
-        className="grid px-4 py-2 text-[11px] font-semibold uppercase tracking-wide"
-        style={{ gridTemplateColumns: "160px 1fr 1fr", color: "#8A93A5" }}
+        className="hidden px-4 py-2 text-[11px] font-semibold uppercase tracking-wide md:grid md:grid-cols-[160px_minmax(0,1fr)_minmax(0,1fr)]"
+        style={{ color: "#8A93A5" }}
       >
         <span>Canonical field</span>
         <span>Source column</span>
@@ -117,8 +117,7 @@ export function PoMappingEditor({
           return (
             <div
               key={field}
-              className="grid items-center px-4 py-2.5"
-              style={{ gridTemplateColumns: "160px 1fr 1fr" }}
+              className="grid gap-2 px-4 py-3 md:grid-cols-[160px_minmax(0,1fr)_minmax(0,1fr)] md:items-center md:py-2.5"
             >
               <span
                 className="text-[12.5px] font-medium"
@@ -133,7 +132,7 @@ export function PoMappingEditor({
                 onChange={(e) =>
                   updateEntry(activeSection, field, { externalField: e.target.value || undefined })
                 }
-                className="mr-4 rounded-[5px] px-2.5 py-1 text-[12px]"
+                className="rounded-[5px] px-2.5 py-1 text-[12px] md:mr-4"
                 style={{ border: "1px solid #D5DAEA", color: "#0B1A2F" }}
               />
               <input
@@ -153,7 +152,7 @@ export function PoMappingEditor({
 
       {/* Footer */}
       <div
-        className="flex items-center gap-3 px-4 py-3"
+        className="flex flex-col items-stretch gap-3 px-4 py-3 sm:flex-row sm:items-center"
         style={{ borderTop: "1px solid #E2E6EE", background: "#F6F7FA" }}
       >
         {onDelete && (
@@ -165,11 +164,11 @@ export function PoMappingEditor({
             Delete mapping
           </button>
         )}
-        <div className="flex-1" />
+        <div className="hidden flex-1 sm:block" />
         <button
           onClick={() => onSave(config)}
           disabled={saving}
-          className="flex items-center rounded-[6px] px-4 text-[13px] font-semibold"
+          className="flex items-center justify-center rounded-[6px] px-4 text-[13px] font-semibold"
           style={{ height: 32, background: saving ? "#8A93A5" : "#0B1A2F", color: "#FFF", border: "none" }}
         >
           {saving ? "Saving..." : "Save mapping"}

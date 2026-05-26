@@ -53,7 +53,7 @@ export function SupplierDockProfile({ id }: { id: string }) {
     <div className="flex flex-col h-full min-h-0 overflow-hidden" style={{ background: "#F6F7FA" }}>
       {/* Header */}
       <div
-        className="flex items-start gap-4 px-6 py-4 flex-shrink-0"
+        className="flex flex-col items-start gap-3 px-4 py-4 sm:px-6 lg:flex-row lg:gap-4 flex-shrink-0"
         style={{ borderBottom: "1px solid #E2E6EE", background: "#FFFFFF" }}
       >
         <button
@@ -64,50 +64,52 @@ export function SupplierDockProfile({ id }: { id: string }) {
           ← Supplier docks
         </button>
 
-        <div
-          style={{
-            width: 48,
-            height: 48,
-            borderRadius: 11,
-            background: `${hc}18`,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            fontFamily: "'JetBrains Mono', monospace",
-            fontSize: 12,
-            fontWeight: 800,
-            color: hc,
-            flexShrink: 0,
-          }}
-        >
-          {s.code}
-        </div>
-
-        <div className="flex-1 min-w-0">
-          <h1
-            className="text-[22px] font-semibold tracking-[-0.02em]"
-            style={{ fontFamily: "'Bricolage Grotesque', Inter, sans-serif", color: "#0B1A2F" }}
+        <div className="flex min-w-0 items-center gap-3">
+          <div
+            style={{
+              width: 48,
+              height: 48,
+              borderRadius: 11,
+              background: `${hc}18`,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontFamily: "'JetBrains Mono', monospace",
+              fontSize: 12,
+              fontWeight: 800,
+              color: hc,
+              flexShrink: 0,
+            }}
           >
-            {s.name}
-          </h1>
-          <div className="flex items-center gap-3 mt-1">
-            {s.formats.map((f) => (
-              <span key={f} className="text-[10.5px] font-semibold rounded px-1.5 py-0.5" style={{ background: "#EFF2F7", color: "#56627A" }}>
-                {f}
-              </span>
-            ))}
+            {s.code}
+          </div>
+
+          <div className="min-w-0">
+            <h1
+              className="text-[22px] font-semibold tracking-[-0.02em]"
+              style={{ fontFamily: "'Bricolage Grotesque', Inter, sans-serif", color: "#0B1A2F" }}
+            >
+              {s.name}
+            </h1>
+            <div className="flex flex-wrap items-center gap-2 mt-1">
+              {s.formats.map((f) => (
+                <span key={f} className="text-[10.5px] font-semibold rounded px-1.5 py-0.5" style={{ background: "#EFF2F7", color: "#56627A" }}>
+                  {f}
+                </span>
+              ))}
+            </div>
           </div>
         </div>
 
         {/* KPIs */}
-        <div className="flex items-center gap-6 ml-auto flex-shrink-0">
+        <div className="grid w-full grid-cols-2 gap-3 lg:ml-auto lg:w-auto lg:flex lg:items-center lg:gap-6 lg:flex-shrink-0">
           {[
             { label: "Total orders",    value: s.totalOrders.toLocaleString() },
             { label: "Avg cycle",       value: s.avgCycle                     },
             { label: "Exception rate",  value: s.exceptionRate                },
             { label: "Health",          value: `${s.health}%`, color: hc      },
           ].map(({ label, value, color }) => (
-            <div key={label} className="text-right">
+            <div key={label} className="rounded-[7px] bg-[#F6F7FA] px-3 py-2 text-left lg:bg-transparent lg:p-0 lg:text-right">
               <div
                 style={{
                   fontFamily: "'Bricolage Grotesque', Inter, sans-serif",
@@ -128,14 +130,14 @@ export function SupplierDockProfile({ id }: { id: string }) {
 
       {/* Tabs */}
       <div
-        className="flex items-center gap-0 px-6 flex-shrink-0"
+        className="flex items-center gap-0 overflow-x-auto px-4 sm:px-6 flex-shrink-0"
         style={{ borderBottom: "1px solid #E2E6EE", background: "#FFFFFF", height: 40 }}
       >
         {TABS.map((t) => (
           <button
             key={t.id}
             onClick={() => setTab(t.id)}
-            className="px-4 h-full text-[12.5px] font-medium transition-colors relative"
+            className="h-full shrink-0 px-4 text-[12.5px] font-medium transition-colors relative"
             style={{
               color: tab === t.id ? "#0B1A2F" : "#56627A",
               background: "transparent",
@@ -150,9 +152,9 @@ export function SupplierDockProfile({ id }: { id: string }) {
       </div>
 
       {/* Tab body */}
-      <div className="flex-1 overflow-auto p-5">
+      <div className="flex-1 overflow-auto p-4 sm:p-5">
         {tab === "overview" && (
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid gap-4 lg:grid-cols-2">
             {/* Connectors summary */}
             <div style={{ background: "#FFFFFF", border: "1px solid #E2E6EE", borderRadius: 8, padding: 20, borderLeft: "3px solid #2E8E3A" }}>
               <h3 className="text-[13px] font-semibold mb-3" style={{ color: "#0B1A2F" }}>Active connectors</h3>

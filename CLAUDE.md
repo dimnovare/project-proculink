@@ -438,7 +438,8 @@ These JSX files use inline styles (they're vanilla React prototype). Translate t
 - Wire Topology rules are now explicit: same-lane wires may be straight, but every wire must use the same visible gradient stroke; shared ports fan out; alert counters are tethered to their route; the legend must not overlap supplier/buyer pills.
 - Group I pass 3 is complete: `/upload` and `/settings` were screenshot-tested on desktop/mobile. Upload stacks on mobile and uses recent-order route cards instead of forcing a desktop table; settings uses horizontal mobile tabs and responsive email-polling grids.
 - Group I pass 4 is complete: `/inbox`, `/library/suppliers`, `/library/buyers`, `/operations/log`, and `/operations/webhooks` were screenshot-tested and fixed for mobile. Inbox now renders visible mobile cards plus a desktop table; `@tanstack/react-virtual` was removed because the virtualized table was rendering an empty body.
-- Continue Group I QA before starting Group J: supplier detail, mappings import/export, rules/templates edit states, connector/webhook forms, plan-gated/empty/loading/error states, and dense order-review edits still need the same desktop/tablet/mobile pass.
+- Group I pass 5 is complete: supplier detail, mapping editor, supplier PO Mapping tab, and supplier Delivery tab were screenshot-tested and fixed for mobile. Supplier KPIs no longer collide with the title, mapping rows use mobile route cards, and PO/delivery form controls now stack safely.
+- Continue Group I QA before starting Group J: mappings import/export dialogs, rules/templates edit states, connector/webhook forms, settings billing/email tabs, plan-gated/empty/loading/error states, and dense order-review edits still need the same desktop/tablet/mobile pass.
 
 ### shadcn/ui
 

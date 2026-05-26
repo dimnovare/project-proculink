@@ -128,7 +128,7 @@ export function MappingEditor() {
     >
       {/* Page header */}
       <div
-        className="flex items-end gap-4 px-6 py-4 flex-shrink-0"
+        className="flex flex-col items-start gap-3 px-4 py-4 sm:px-6 lg:flex-row lg:items-end lg:gap-4 flex-shrink-0"
         style={{ borderBottom: "1px solid #E2E6EE", background: "#FFFFFF" }}
       >
         <div>
@@ -145,9 +145,9 @@ export function MappingEditor() {
             {MAPPINGS.length} code translations · buyer → supplier
           </p>
         </div>
-        <div className="ml-auto flex gap-2">
+        <div className="grid w-full grid-cols-3 gap-2 lg:ml-auto lg:flex lg:w-auto">
           <button
-            className="flex items-center gap-1.5 rounded-[6px] px-3 text-[12.5px] font-medium"
+            className="flex items-center justify-center gap-1.5 rounded-[6px] px-3 text-[12.5px] font-medium"
             style={{
               height: 32,
               border: "1px solid #E2E6EE",
@@ -158,7 +158,7 @@ export function MappingEditor() {
             ↓ Export CSV
           </button>
           <button
-            className="flex items-center gap-1.5 rounded-[6px] px-3 text-[12.5px] font-medium"
+            className="flex items-center justify-center gap-1.5 rounded-[6px] px-3 text-[12.5px] font-medium"
             style={{
               height: 32,
               border: "1px solid #E2E6EE",
@@ -169,7 +169,7 @@ export function MappingEditor() {
             ↑ Import CSV
           </button>
           <button
-            className="flex items-center gap-1.5 rounded-[6px] px-3 text-[12.5px] font-medium"
+            className="flex items-center justify-center gap-1.5 rounded-[6px] px-3 text-[12.5px] font-medium"
             style={{
               height: 32,
               background: "#0B1A2F",
@@ -184,15 +184,14 @@ export function MappingEditor() {
 
       {/* Filter bar */}
       <div
-        className="flex items-center gap-3 px-5 flex-shrink-0"
+        className="flex flex-col items-stretch gap-2 px-4 py-2 sm:px-5 lg:flex-row lg:items-center lg:gap-3 flex-shrink-0"
         style={{
-          height: 50,
           borderBottom: "1px solid #E2E6EE",
           background: "#FFFFFF",
         }}
       >
         {/* Search */}
-        <div className="relative" style={{ width: 280 }}>
+        <div className="relative w-full lg:w-[280px]">
           <span
             className="absolute left-3 top-1/2 -translate-y-1/2 text-[13px]"
             style={{ color: "#8A93A5" }}
@@ -219,7 +218,7 @@ export function MappingEditor() {
         <select
           value={route}
           onChange={(e) => setRoute(e.target.value)}
-          className="rounded-[6px] px-3 text-[12.5px] appearance-none"
+          className="w-full rounded-[6px] px-3 text-[12.5px] appearance-none lg:w-auto"
           style={{
             height: 32,
             border: "1px solid #E2E6EE",
@@ -233,10 +232,10 @@ export function MappingEditor() {
           ))}
         </select>
 
-        <div className="flex-1" />
+        <div className="hidden flex-1 lg:block" />
 
         {/* Source filter chips */}
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-1.5 overflow-x-auto">
           {(["All", "AI", "Manual", "Imported"] as const).map((s) => {
             const active = srcFilter === s;
             return (
@@ -260,7 +259,36 @@ export function MappingEditor() {
 
       {/* Table */}
       <div className="flex-1 overflow-auto" style={{ background: "#FFFFFF" }}>
-        <table className="w-full border-collapse" style={{ fontSize: 12.5 }}>
+        <div className="divide-y divide-[#F0F2F6] md:hidden">
+          {filtered.map((row) => (
+            <button
+              key={row.id}
+              className="block w-full px-4 py-3 text-left"
+              style={{ background: "#FFFFFF", border: "none" }}
+            >
+              <div className="mb-2 grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2">
+                <span className="truncate font-mono text-[12px] font-semibold" style={{ color: "#0F4FA8" }}>
+                  {row.buyerCode}
+                </span>
+                <span className="h-px w-5" style={{ background: "linear-gradient(90deg, #1E66C9, #2E8E3A)" }} />
+                <span className="truncate text-right font-mono text-[12px] font-semibold" style={{ color: "#1E6D29" }}>
+                  {row.supplierCode}
+                </span>
+              </div>
+              <p className="mb-2 text-[12.5px]" style={{ color: "#56627A" }}>{row.description}</p>
+              <div className="flex flex-wrap items-center gap-3">
+                <ConfBar pct={row.confidence} />
+                <SourceTag src={row.source} />
+                <span className="text-[11.5px]" style={{ color: "#8A93A5" }}>
+                  {row.orders} orders · last seen {row.lastSeen}
+                </span>
+              </div>
+            </button>
+          ))}
+        </div>
+
+        <div className="hidden overflow-x-auto md:block">
+        <table className="w-full min-w-[1120px] border-collapse" style={{ fontSize: 12.5 }}>
           <thead
             style={{
               position: "sticky",
@@ -390,6 +418,7 @@ export function MappingEditor() {
             ))}
           </tbody>
         </table>
+        </div>
 
         {filtered.length === 0 && (
           <div

@@ -214,7 +214,7 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
   return (
     <div className="overflow-hidden rounded-[8px]" style={{ border: "1px solid #E2E6EE", background: "#FFFFFF" }}>
       <div
-        className="flex items-center gap-3 px-4 py-3"
+        className="flex flex-col items-start gap-3 px-4 py-3 sm:flex-row sm:items-center"
         style={{ borderBottom: "1px solid #E2E6EE", background: "#F6F7FA" }}
       >
         <span className="h-2.5 w-2.5 rounded-full" style={{ background: autoDeliver ? "#2E8E3A" : "#8A93A5" }} />
@@ -237,7 +237,7 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
         </label>
       </div>
 
-      <div className="grid gap-0" style={{ gridTemplateColumns: "220px minmax(0, 1fr)" }}>
+      <div className="grid gap-0 lg:grid-cols-[220px_minmax(0,1fr)]">
         <div className="p-4" style={{ borderRight: "1px solid #E2E6EE", background: "#FBFCFE" }}>
           <p className="mb-2 text-[11px] font-semibold uppercase" style={{ color: "#8A93A5" }}>Protocol</p>
           <div className="grid gap-2">
@@ -278,7 +278,7 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
             <p className="text-[13px]" style={{ color: "#56627A" }}>Loading delivery config...</p>
           ) : (
             <div className="grid gap-4">
-              <div className="grid gap-3" style={{ gridTemplateColumns: "1fr 150px 120px" }}>
+              <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_150px_120px]">
                 <Field label="Endpoint URL">
                   <input
                     value={url}
@@ -358,7 +358,7 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
                     <span className="ml-auto text-[11px]" style={{ color: "#2E8E3A" }}>saved credential masked</span>
                   )}
                 </div>
-                <div className="grid gap-3 p-3" style={{ gridTemplateColumns: "160px minmax(0, 1fr)" }}>
+                <div className="grid gap-3 p-3 lg:grid-cols-[160px_minmax(0,1fr)]">
                   <Field label="Auth type">
                     <select
                       value={authType}
@@ -383,7 +383,7 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
                   </Field>
 
                   {authType === "apikey" && (
-                    <div className="grid gap-3" style={{ gridTemplateColumns: "180px 1fr" }}>
+                    <div className="grid gap-3 lg:grid-cols-[180px_minmax(0,1fr)]">
                       <Field label="Header">
                         <input value={apiKeyHeader} onChange={(e) => setApiKeyHeader(e.target.value)} className="h-9 w-full rounded-[5px] px-2.5 text-[12px]" style={{ border: "1px solid #D5DAEA", color: "#0B1A2F" }} />
                       </Field>
@@ -400,7 +400,7 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
                   )}
 
                   {authType === "basic" && (
-                    <div className="grid gap-3" style={{ gridTemplateColumns: protocol === "erp_directo" ? "1fr 1fr 1fr" : "1fr 1fr" }}>
+                    <div className={protocol === "erp_directo" ? "grid gap-3 lg:grid-cols-3" : "grid gap-3 lg:grid-cols-2"}>
                       <Field label="Username">
                         <input value={basicUsername} onChange={(e) => setBasicUsername(e.target.value)} className="h-9 w-full rounded-[5px] px-2.5 text-[12px]" style={{ border: "1px solid #D5DAEA", color: "#0B1A2F" }} />
                       </Field>
@@ -444,17 +444,17 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
         </div>
       </div>
 
-      <div className="flex items-center gap-2 px-4 py-3" style={{ borderTop: "1px solid #E2E6EE", background: "#F6F7FA" }}>
+      <div className="flex flex-col items-stretch gap-2 px-4 py-3 sm:flex-row sm:items-center" style={{ borderTop: "1px solid #E2E6EE", background: "#F6F7FA" }}>
         {savedConfig && (
-          <button onClick={remove} disabled={saving} className="inline-flex h-8 items-center gap-1.5 rounded-[6px] px-3 text-[12px] font-semibold" style={{ border: "1px solid #E9B8B8", color: "#A52E2E", background: "#FFF" }}>
+          <button onClick={remove} disabled={saving} className="inline-flex h-8 items-center justify-center gap-1.5 rounded-[6px] px-3 text-[12px] font-semibold" style={{ border: "1px solid #E9B8B8", color: "#A52E2E", background: "#FFF" }}>
             <Trash2 size={13} /> Delete
           </button>
         )}
-        <div className="flex-1" />
-        <button onClick={testFire} disabled={!savedConfig || testing} className="inline-flex h-8 items-center gap-1.5 rounded-[6px] px-3 text-[12px] font-semibold" style={{ border: "1px solid #D5DAEA", color: "#0B1A2F", background: "#FFF", opacity: !savedConfig ? 0.55 : 1 }}>
+        <div className="hidden flex-1 sm:block" />
+        <button onClick={testFire} disabled={!savedConfig || testing} className="inline-flex h-8 items-center justify-center gap-1.5 rounded-[6px] px-3 text-[12px] font-semibold" style={{ border: "1px solid #D5DAEA", color: "#0B1A2F", background: "#FFF", opacity: !savedConfig ? 0.55 : 1 }}>
           <Send size={13} /> {testing ? "Testing..." : "Test-fire"}
         </button>
-        <button onClick={save} disabled={saving || !canSave} className="inline-flex h-8 items-center gap-1.5 rounded-[6px] px-3 text-[12px] font-semibold" style={{ border: "none", color: "#FFF", background: saving || !canSave ? "#8A93A5" : "#0B1A2F" }}>
+        <button onClick={save} disabled={saving || !canSave} className="inline-flex h-8 items-center justify-center gap-1.5 rounded-[6px] px-3 text-[12px] font-semibold" style={{ border: "none", color: "#FFF", background: saving || !canSave ? "#8A93A5" : "#0B1A2F" }}>
           <Save size={13} /> {saving ? "Saving..." : "Save delivery"}
         </button>
       </div>
