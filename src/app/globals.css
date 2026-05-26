@@ -289,6 +289,7 @@
   /* Suppress all motion for accessibility */
   @media (prefers-reduced-motion: reduce) {
     .wire-pulse,
+    .wire-pulse-dot,
     .wire-traveller,
     .wire-traveller *,
     .spine-animate,
@@ -300,6 +301,7 @@
       animation: none !important;
     }
 
+    .wire-pulse-dot,
     .wire-traveller {
       display: none !important;
     }

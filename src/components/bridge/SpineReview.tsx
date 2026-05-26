@@ -601,11 +601,11 @@ export function SpineReview({ orderId }: { orderId: string }) {
       {/* Order header */}
       <div className="flex-shrink-0" style={{ background: "#FFFFFF", borderBottom: "1px solid #E2E6EE" }}>
         {/* Top row: back + FROM/TO endpoints + actions */}
-        <div className="flex items-center gap-3 px-5 pt-3 pb-2">
+        <div className="flex flex-wrap items-start gap-3 px-4 pt-3 pb-2 sm:items-center sm:px-5">
           <button onClick={() => router.push("/inbox")} style={{ width: 28, height: 28, border: "1px solid #E2E6EE", borderRadius: 6, background: "#FFFFFF", color: "#56627A", cursor: "pointer", fontSize: 13, flexShrink: 0 }}>←</button>
 
           {/* Buyer */}
-          <div style={{ flexShrink: 0, minWidth: 0 }}>
+          <div className="min-w-[220px] flex-1" style={{ flexShrink: 0 }}>
             <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.07em", textTransform: "uppercase", color: "#1E66C9" }}>From</div>
             <div style={{ fontSize: 14, fontWeight: 600, color: "#0B1A2F", marginTop: 1, whiteSpace: "nowrap" }}>Heinrich Industries</div>
             <div style={{ display: "flex", alignItems: "center", gap: 5, marginTop: 2 }}>
@@ -614,10 +614,10 @@ export function SpineReview({ orderId }: { orderId: string }) {
             </div>
           </div>
 
-          <div style={{ flex: 1 }} />
+          <div className="hidden sm:block" style={{ flex: 1 }} />
 
           {/* Supplier */}
-          <div style={{ textAlign: "right", flexShrink: 0, minWidth: 0 }}>
+          <div className="min-w-[220px] flex-1 text-left sm:text-right" style={{ flexShrink: 0 }}>
             <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.07em", textTransform: "uppercase", color: "#1E6D29" }}>To</div>
             <div style={{ fontSize: 14, fontWeight: 600, color: "#0B1A2F", marginTop: 1, whiteSpace: "nowrap" }}>Acme Components Ltd.</div>
             <div style={{ display: "flex", alignItems: "center", gap: 5, marginTop: 2, justifyContent: "flex-end" }}>
@@ -626,10 +626,10 @@ export function SpineReview({ orderId }: { orderId: string }) {
             </div>
           </div>
 
-          <div style={{ width: 1, height: 36, background: "#E2E6EE", flexShrink: 0 }} />
+          <div className="hidden sm:block" style={{ width: 1, height: 36, background: "#E2E6EE", flexShrink: 0 }} />
 
           {/* Actions */}
-          <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
+          <div style={{ display: "flex", gap: 8, flexShrink: 0, flexWrap: "wrap" }}>
             <button style={{ height: 32, padding: "0 14px", borderRadius: 6, fontSize: 12.5, fontWeight: 500, background: "#FFFFFF", border: "1px solid #E2E6EE", color: "#0B1A2F", cursor: "pointer" }}>
               Save draft
             </button>
@@ -644,7 +644,7 @@ export function SpineReview({ orderId }: { orderId: string }) {
         </div>
 
         {/* Stage track — full width, visually separate */}
-        <div style={{ padding: "8px 40px 10px", borderTop: "1px solid #F0F2F7" }}>
+        <div style={{ padding: "8px 16px 10px", borderTop: "1px solid #F0F2F7" }}>
           <div style={{ fontSize: 9.5, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: "#8A93A5", marginBottom: 6, textAlign: "center" }}>
             {crossed ? "Stage 5 of 5 · Delivered" : "Stage 3 of 5 · Validating"}
           </div>
@@ -653,8 +653,8 @@ export function SpineReview({ orderId }: { orderId: string }) {
       </div>
 
       {/* Body */}
-      <div style={{ flex: 1, position: "relative", overflow: "hidden" }}>
-        <EdgeRails>
+      <div style={{ flex: 1, position: "relative", overflow: "auto" }}>
+        <EdgeRails className="min-w-[1120px]">
           <div style={{ height: "100%", overflowY: "auto" }}>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 360px 1fr", alignItems: "start", padding: "20px 0" }}>
 
@@ -707,7 +707,7 @@ export function SpineReview({ orderId }: { orderId: string }) {
       </div>
 
       {/* Sticky action bar */}
-      <div style={{ display: "flex", alignItems: "center", gap: 16, padding: "12px 24px", background: "#FFFFFF", borderTop: "1px solid #E2E6EE", flexShrink: 0 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 16, padding: "12px 24px", background: "#FFFFFF", borderTop: "1px solid #E2E6EE", flexShrink: 0, overflowX: "auto" }}>
         <div>
           <div style={{ fontSize: 10.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "#8A93A5", marginBottom: 2 }}>Grand total</div>
           <div style={{ fontFamily: "'Bricolage Grotesque',Inter,sans-serif", fontSize: 22, fontWeight: 600, color: "#0B1A2F", letterSpacing: "-0.02em" }}>€ 4,436.73</div>

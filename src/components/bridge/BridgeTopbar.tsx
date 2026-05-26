@@ -1,6 +1,7 @@
 "use client";
 
 import { UserButton } from "@clerk/nextjs";
+import { Menu } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import type { ReactNode } from "react";
@@ -8,6 +9,7 @@ import { CommandPalette } from "./CommandPalette";
 
 interface BridgeTopbarProps {
   crumb?: ReactNode;
+  onMenuClick?: () => void;
 }
 
 function AccountMenu() {
@@ -39,7 +41,7 @@ function AccountMenu() {
   );
 }
 
-export function BridgeTopbar({ crumb }: BridgeTopbarProps) {
+export function BridgeTopbar({ crumb, onMenuClick }: BridgeTopbarProps) {
   const router = useRouter();
   const [paletteOpen, setPaletteOpen] = useState(false);
 
@@ -61,10 +63,24 @@ export function BridgeTopbar({ crumb }: BridgeTopbarProps) {
       style={{ height: 56, background: "#0B1A2F" }}
     >
       {/* Content row */}
-      <div className="flex h-full items-center px-5 gap-4">
+      <div className="flex h-full items-center gap-3 px-3 sm:px-5">
+        <button
+          type="button"
+          onClick={onMenuClick}
+          className="flex h-9 w-9 items-center justify-center rounded-[7px] md:hidden"
+          style={{
+            background: "#10243E",
+            border: "1px solid #1C2F49",
+            color: "#C5D2E4",
+          }}
+          aria-label="Open navigation"
+        >
+          <Menu size={18} strokeWidth={2.2} />
+        </button>
+
         {/* Breadcrumbs */}
         <div
-          className="flex items-center gap-1.5 flex-1 min-w-0 text-[13px]"
+          className="flex min-w-0 flex-1 items-center gap-1.5 text-[13px]"
           style={{ color: "#C5D2E4" }}
         >
           {crumb ?? (
@@ -75,7 +91,7 @@ export function BridgeTopbar({ crumb }: BridgeTopbarProps) {
         {/* cmd-K search trigger */}
         <button
           onClick={() => setPaletteOpen(true)}
-          className="flex items-center gap-2 rounded-[6px] px-3 transition-colors"
+          className="hidden items-center gap-2 rounded-[6px] px-3 transition-colors sm:flex"
           style={{
             height: 30,
             background: "#10243E",

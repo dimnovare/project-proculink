@@ -2,7 +2,7 @@
 
 // BridgeIllustration — SVG marketing graphic.
 // Left: buyer docks (blue). Right: supplier docks (green).
-// Center: animated Bezier wire curves with travelling pulses.
+// Center: animated Bezier wire curves with travelling dots.
 
 const BUYERS = [
   { label: "Heinrich Industries",  code: "HEI" },
@@ -64,7 +64,7 @@ export function BridgeIllustration({ className }: { className?: string }) {
     <svg
       viewBox={`0 0 ${W} ${H}`}
       className={className}
-      style={{ overflow: "visible" }}
+      style={{ overflow: "hidden" }}
       aria-hidden
     >
       <defs>
@@ -110,7 +110,13 @@ export function BridgeIllustration({ className }: { className?: string }) {
           />
           {/* Travelling pulse */}
           {w.color !== "down" && (
-            <circle r={3.5} fill={WIRE_COLOR[w.color]} fillOpacity={0.9}>
+            <circle
+              className="wire-pulse-dot"
+              r={3.5}
+              fill={WIRE_COLOR[w.color]}
+              fillOpacity={0.9}
+              opacity={0}
+            >
               <animateMotion
                 dur={`${w.dur}s`}
                 repeatCount="indefinite"
@@ -118,6 +124,14 @@ export function BridgeIllustration({ className }: { className?: string }) {
               >
                 <mpath href={`#wpath-${i}`} />
               </animateMotion>
+              <animate
+                attributeName="opacity"
+                values="0;0;1;1;0;0"
+                keyTimes="0;0.08;0.18;0.82;0.92;1"
+                dur={`${w.dur}s`}
+                begin={`${i * 0.7}s`}
+                repeatCount="indefinite"
+              />
             </circle>
           )}
         </g>

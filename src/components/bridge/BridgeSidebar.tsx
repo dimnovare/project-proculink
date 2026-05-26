@@ -55,7 +55,11 @@ const NAV: Array<{
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export function BridgeSidebar() {
+interface BridgeSidebarProps {
+  onNavigate?: () => void;
+}
+
+export function BridgeSidebar({ onNavigate }: BridgeSidebarProps) {
   const pathname = usePathname();
 
   function isActive(href: string) {
@@ -68,9 +72,8 @@ export function BridgeSidebar() {
 
   return (
     <aside
-      className="flex h-full flex-col overflow-hidden flex-shrink-0"
+      className="flex h-full w-[220px] flex-shrink-0 flex-col overflow-hidden"
       style={{
-        width: 220,
         background: "#0B1A2F",
         borderRight: "1px solid #1C2F49",
       }}
@@ -134,6 +137,7 @@ export function BridgeSidebar() {
                 <Link
                   key={item.href}
                   href={item.href}
+                  onClick={onNavigate}
                   className="flex items-center gap-2 rounded-[6px] px-3 py-[5px] text-[13px] font-medium transition-colors duration-75 relative"
                   style={{
                     color: active ? "#FFFFFF" : "#C5D2E4",

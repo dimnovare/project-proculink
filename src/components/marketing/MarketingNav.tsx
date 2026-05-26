@@ -16,7 +16,7 @@ export function MarketingNav() {
 
   return (
     <nav
-      className="sticky top-0 z-40 w-full flex items-center gap-6 px-8"
+      className="sticky top-0 z-40 flex w-full items-center gap-3 px-4 sm:gap-6 sm:px-8"
       style={{
         height: 58,
         background: "rgba(255,255,255,0.88)",
@@ -25,7 +25,7 @@ export function MarketingNav() {
       }}
     >
       {/* Logo */}
-      <Link href="/" className="flex items-center gap-3">
+      <Link href="/" className="flex min-w-0 items-center gap-3">
         <ProcuLinkMark size={30} />
         <span
           style={{
@@ -41,7 +41,7 @@ export function MarketingNav() {
       </Link>
 
       {/* Nav links */}
-      <div className="flex items-center gap-1 ml-4">
+      <div className="ml-2 hidden items-center gap-1 sm:ml-4 sm:flex">
         {LINKS.map(({ label, href }) => {
           const active = pathname === href;
           return (
@@ -60,7 +60,7 @@ export function MarketingNav() {
         })}
       </div>
 
-      <div className="flex-1" />
+      <div className="min-w-2 flex-1" />
 
       {clerkEnabled ? <MarketingClerkLinks /> : <MarketingAuthLinks />}
     </nav>
@@ -75,32 +75,33 @@ function MarketingClerkLinks() {
   }
 
   return (
-    <>
+    <div className="flex shrink-0 items-center gap-3">
       <Link
         href="/bridge"
         className="text-[13px] font-semibold transition-colors"
         style={{ color: "#0B1A2F" }}
       >
-        Open bridge
+        <span className="hidden sm:inline">Open bridge</span>
+        <span className="sm:hidden">Bridge</span>
       </Link>
       <UserButton />
-    </>
+    </div>
   );
 }
 
 function MarketingAuthLinks() {
   return (
-    <>
+    <div className="flex shrink-0 items-center gap-3">
       <Link
         href="/sign-in"
-        className="text-[13px] font-medium transition-colors"
+        className="hidden text-[13px] font-medium transition-colors sm:inline"
         style={{ color: "#56627A" }}
       >
         Sign in
       </Link>
       <Link
         href="/sign-up"
-        className="flex items-center rounded-[6px] px-4 text-[13px] font-semibold transition-all"
+        className="flex items-center rounded-[6px] px-3 text-[12px] font-semibold transition-all sm:px-4 sm:text-[13px]"
         style={{
           height: 34,
           background: "#0B1A2F",
@@ -109,8 +110,9 @@ function MarketingAuthLinks() {
           boxShadow: "0 1px 3px rgba(11,26,47,0.18)",
         }}
       >
-        Get started free →
+        <span className="hidden sm:inline">Get started free →</span>
+        <span className="sm:hidden">Start →</span>
       </Link>
-    </>
+    </div>
   );
 }

@@ -32,5 +32,8 @@ obj/
 /.vs/
 tsconfig.tsbuildinfo
 
+# Local UI QA screenshots
+.qa-screenshots/
+
 # clerk configuration (can include secrets)
 /.clerk/

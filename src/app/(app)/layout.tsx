@@ -15,6 +15,7 @@ export default function AppShellLayout({
 }: {
   children: React.ReactNode;
 }) {
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [queryClient] = useState(
     () =>
       new QueryClient({
@@ -34,11 +35,27 @@ export default function AppShellLayout({
         {/* Bridge shell — full viewport, no scroll on the wrapper */}
         <div className="flex h-screen overflow-hidden" style={{ background: "#F6F7FA" }}>
           {/* Left: 220px navy sidebar */}
-          <BridgeSidebar />
+          <div className="hidden md:block">
+            <BridgeSidebar />
+          </div>
+
+          {sidebarOpen && (
+            <div className="fixed inset-0 z-50 md:hidden" role="dialog" aria-modal="true">
+              <button
+                type="button"
+                className="absolute inset-0 bg-[#0B1A2F]/55"
+                aria-label="Close navigation"
+                onClick={() => setSidebarOpen(false)}
+              />
+              <div className="absolute inset-y-0 left-0 shadow-2xl">
+                <BridgeSidebar onNavigate={() => setSidebarOpen(false)} />
+              </div>
+            </div>
+          )}
 
           {/* Right: topbar + scrollable main content */}
           <div className="flex flex-1 flex-col min-w-0 overflow-hidden">
-            <BridgeTopbar />
+            <BridgeTopbar onMenuClick={() => setSidebarOpen(true)} />
             <main className="flex-1 overflow-auto">
               <ErrorBoundary context="App">
                 {children}

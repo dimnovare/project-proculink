@@ -20,6 +20,10 @@ const isClerkConfigured =
   Boolean(process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY)
   && Boolean(process.env.CLERK_SECRET_KEY);
 
+const isQaAuthBypass =
+  process.env.PROCULINK_QA_BYPASS_AUTH === "true"
+  && process.env.NODE_ENV !== "production";
+
 function fallbackMiddleware(req: NextRequest) {
   if (isProtectedRoute(req)) {
     const url = new URL("/sign-in", req.url);
@@ -30,9 +34,13 @@ function fallbackMiddleware(req: NextRequest) {
   return NextResponse.next();
 }
 
-const middleware = isClerkConfigured ? clerkMiddleware(async (auth, req) => {
-  if (isProtectedRoute(req)) await auth.protect();
-}) : fallbackMiddleware;
+const middleware = isQaAuthBypass
+  ? () => NextResponse.next()
+  : isClerkConfigured
+    ? clerkMiddleware(async (auth, req) => {
+        if (isProtectedRoute(req)) await auth.protect();
+      })
+    : fallbackMiddleware;
 
 export default middleware;
 

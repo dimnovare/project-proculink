@@ -34,14 +34,14 @@ Frontend-relevant groups:
 
 | Group | Workstream | Status |
 |---|---|---|
-| **I** | UI/UX production polish + responsive QA | **Next** |
+| **I** | UI/UX production polish + responsive QA | **In progress — topology/mobile pass verified** |
 | **J** | Live end-to-end QA + deployment hardening | Planned after I |
 | **K** | Standards + engine hardening surfaces | Planned after I/J scoping |
 | **L** | Trust, onboarding + commercial readiness | Planned; can overlap after I starts |
 
-Group I must happen first unless the user explicitly reprioritizes:
+Group I must continue unless the user explicitly reprioritizes:
 - QA desktop, tablet, and mobile.
-- Fix visible Bridge Layer defects, including the Wire Topology detached traveller/pulse dot issue.
+- Keep fixing visible Bridge Layer defects with Playwright screenshots before moving to broad engine work.
 - Make core flows feel complete: sign-in, first upload, inbox/review, mapping, transform, delivery, settings/billing/email, and error states.
 - Only after that, add broader engine surfaces for more standards and output templates.
 
@@ -68,7 +68,7 @@ Bridge Layer direction, not invent a new aesthetic.
 
 1. **Edge rails.** 4px blue rail on the left edge + 4px green rail on the right of the work area. Port markers at the top of each rail. Blue = buyer / incoming. Green = supplier / outgoing. Renders on every order-handling screen.
 
-2. **Wire Topology dashboard.** Home screen is a network diagram. Buyer ports down the left, supplier ports down the right, **wires arcing between them**. Stroke width = volume. Stroke color = health (blue→green normal, blue→amber at-risk). Travelling white pulses animate along wires (CSS `offset-path`, 6s loop).
+2. **Wire Topology dashboard.** Home screen is a network diagram. Buyer ports down the left, supplier ports down the right, with wires between them. Same-lane wires may be straight; cross-lane wires arc. Stroke width = volume. Stroke color = health (blue→green normal, blue→amber at-risk). Shared buyer/supplier ports must fan out so no connection hides another. Gradients must use SVG `userSpaceOnUse` coordinates so perfectly horizontal wires render reliably. Travelling dots animate on the exact same SVG path as the rendered wire and start hidden until their animation begins.
 
 3. **Canonical Spine review.** Order detail is a 3-column ETL view:
    - Left: source document with anatomy zone overlays + per-zone confidence chips
@@ -432,8 +432,10 @@ These JSX files use inline styles (they're vanilla React prototype). Translate t
   - G Erply/Directo ERP delivery adapters.
   - H IMAP email polling settings UI.
 - Delivery UI must not imply an order is sent just because a transform artifact exists. Use explicit states such as `ready_to_deliver`, `delivering`, `delivered`, and `delivery_failed`.
-- Next implementation group is **Group I — UI/UX production polish + responsive QA**.
-- Known visual issue to fix early: Wire Topology traveller/pulse dots must never appear detached from a visible wire path.
+- Current implementation group is **Group I — UI/UX production polish + responsive QA**.
+- Playwright is installed for UI QA. Local screenshots go in `.qa-screenshots/` (gitignored).
+- For local protected-route QA only, start dev with `PROCULINK_QA_BYPASS_AUTH=true bun run dev -- --hostname 127.0.0.1 --port 8082`. The middleware bypass is disabled in production by `NODE_ENV`.
+- Wire Topology rules are now explicit: same-lane wires may be straight, but every wire must use the same visible gradient stroke; shared ports fan out; alert counters are tethered to their route; the legend must not overlap supplier/buyer pills.
 
 ### shadcn/ui
 
