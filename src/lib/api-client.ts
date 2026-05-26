@@ -13,6 +13,8 @@ import type {
   OnboardingStatus,
   DashboardStats,
   BillingStatus,
+  EmailSettings,
+  UpdateEmailSettingsPayload,
 } from "@/types/procurement";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:5223";
@@ -648,4 +650,45 @@ export async function createPortalSession(): Promise<string> {
   if (!res.ok) throw new Error(`billing/portal: ${res.status}`);
   const data = await res.json();
   return data.url as string;
+}
+
+// ── Email polling settings ────────────────────────────────────────────────
+
+export async function getEmailSettings(): Promise<EmailSettings> {
+  if (USE_MOCK) {
+    return {
+      enabled: false,
+      host: "",
+      port: 993,
+      useSsl: true,
+      username: "",
+      folder: "INBOX",
+      defaultSupplierId: null,
+      hasPassword: false,
+      passwordDisplay: null,
+      lastPolledAt: null,
+      updatedAt: null,
+    };
+  }
+
+  const headers = await authHeader();
+  const res = await fetch(`${API_BASE_URL}/api/settings/email`, { headers });
+  if (!res.ok) throw new Error(`settings/email: ${res.status}`);
+  return res.json();
+}
+
+export async function updateEmailSettings(payload: UpdateEmailSettingsPayload): Promise<EmailSettings> {
+  const headers = await authHeader();
+  const res = await fetch(`${API_BASE_URL}/api/settings/email`, {
+    method: "PUT",
+    headers: { ...headers, "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+
+  if (!res.ok) {
+    const body = await res.json().catch(() => null);
+    throw new Error(body?.error ?? `settings/email: ${res.status}`);
+  }
+
+  return res.json();
 }
