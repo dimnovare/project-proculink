@@ -3,7 +3,7 @@
 // Mapping Editor — buyer↔supplier code translation table.
 // Translated from Bridge_Mappings in v2-prototype.jsx.
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -109,6 +109,7 @@ export function MappingEditor() {
   const [search, setSearch]   = useState("");
   const [route, setRoute]     = useState(SUPPLIERS[0]);
   const [srcFilter, setSrc]   = useState<Source | "All">("All");
+  const [panel, setPanel] = useState<{ kind: "import" | "export" | "add" | "edit"; row?: MappingRow } | null>(null);
 
   const filtered = MAPPINGS.filter((m) => {
     const q = search.toLowerCase();
@@ -147,6 +148,7 @@ export function MappingEditor() {
         </div>
         <div className="grid w-full grid-cols-3 gap-2 lg:ml-auto lg:flex lg:w-auto">
           <button
+            onClick={() => setPanel({ kind: "export" })}
             className="flex items-center justify-center gap-1.5 rounded-[6px] px-3 text-[12.5px] font-medium"
             style={{
               height: 32,
@@ -158,6 +160,7 @@ export function MappingEditor() {
             ↓ Export CSV
           </button>
           <button
+            onClick={() => setPanel({ kind: "import" })}
             className="flex items-center justify-center gap-1.5 rounded-[6px] px-3 text-[12.5px] font-medium"
             style={{
               height: 32,
@@ -169,6 +172,7 @@ export function MappingEditor() {
             ↑ Import CSV
           </button>
           <button
+            onClick={() => setPanel({ kind: "add" })}
             className="flex items-center justify-center gap-1.5 rounded-[6px] px-3 text-[12.5px] font-medium"
             style={{
               height: 32,
@@ -177,7 +181,8 @@ export function MappingEditor() {
               border: 0,
             }}
           >
-            + Add mapping
+            <span className="hidden sm:inline">+ Add mapping</span>
+            <span className="sm:hidden">+ Add</span>
           </button>
         </div>
       </div>
@@ -263,6 +268,7 @@ export function MappingEditor() {
           {filtered.map((row) => (
             <button
               key={row.id}
+              onClick={() => setPanel({ kind: "edit", row })}
               className="block w-full px-4 py-3 text-left"
               style={{ background: "#FFFFFF", border: "none" }}
             >
@@ -404,6 +410,10 @@ export function MappingEditor() {
                 {/* Actions */}
                 <td className="px-4 py-3">
                   <button
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      setPanel({ kind: "edit", row });
+                    }}
                     className="opacity-0 group-hover:opacity-100 transition-opacity rounded px-2 py-1 text-[11.5px] font-medium"
                     style={{
                       border: "1px solid #E2E6EE",
@@ -430,6 +440,117 @@ export function MappingEditor() {
           </div>
         )}
       </div>
+      {panel && <MappingPanel panel={panel} route={route} onClose={() => setPanel(null)} />}
     </div>
+  );
+}
+
+function MappingPanel({
+  panel,
+  route,
+  onClose,
+}: {
+  panel: { kind: "import" | "export" | "add" | "edit"; row?: MappingRow };
+  route: string;
+  onClose: () => void;
+}) {
+  const title =
+    panel.kind === "import" ? "Import mappings" :
+    panel.kind === "export" ? "Export mappings" :
+    panel.kind === "add" ? "Add mapping" :
+    "Edit mapping";
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end bg-[#0B1A2F66] p-0 sm:items-center sm:justify-center sm:p-6">
+      <div className="max-h-[92vh] w-full overflow-auto rounded-t-[10px] bg-white shadow-2xl sm:max-w-[620px] sm:rounded-[10px]" style={{ border: "1px solid #E2E6EE" }}>
+        <div className="flex items-start justify-between gap-4 border-b border-[#E2E6EE] px-5 py-4">
+          <div>
+            <p className="text-[10px] font-bold uppercase tracking-[0.08em]" style={{ color: "#1E66C9" }}>Buyer to supplier mapping</p>
+            <h2 className="mt-1 text-[18px] font-semibold" style={{ color: "#0B1A2F" }}>{title}</h2>
+            <p className="mt-1 text-[12px]" style={{ color: "#56627A" }}>{route}</p>
+          </div>
+          <button onClick={onClose} className="h-8 w-8 rounded-[6px] text-[16px]" style={{ border: "1px solid #E2E6EE", background: "#FFFFFF", color: "#56627A" }}>×</button>
+        </div>
+
+        {panel.kind === "import" && (
+          <div className="grid gap-4 p-5">
+            <div className="rounded-[8px] border border-dashed border-[#B8CFF5] bg-[#F7FAFF] p-5 text-center">
+              <div className="text-[13px] font-semibold" style={{ color: "#0B1A2F" }}>Drop CSV here</div>
+              <p className="mx-auto mt-1 max-w-[420px] text-[12px] leading-5" style={{ color: "#56627A" }}>
+                Expected columns: buyer_code, supplier_code, description. Existing buyer codes are updated, new rows are added.
+              </p>
+              <button className="mt-4 h-8 rounded-[6px] px-3 text-[12px] font-semibold" style={{ border: "1px solid #E2E6EE", background: "#FFFFFF", color: "#0B1A2F" }}>Choose file</button>
+            </div>
+            <div className="rounded-[7px] border border-[#E2E6EE] bg-[#F6F7FA] p-3 text-[12px] leading-5" style={{ color: "#56627A" }}>
+              Import execution is handled by the backend import endpoint. This panel keeps the operator flow visible for QA without silently pretending a file was imported.
+            </div>
+          </div>
+        )}
+
+        {panel.kind === "export" && (
+          <div className="grid gap-4 p-5">
+            <div className="grid gap-3 rounded-[8px] border border-[#E2E6EE] bg-[#FFFFFF] p-4">
+              <Field label="Export scope">
+                <select defaultValue="filtered" className="h-9 w-full rounded-[5px] border border-[#D5DAEA] px-2 text-[12px] text-[#0B1A2F]">
+                  <option value="filtered">Current filters</option>
+                  <option value="route">Selected route</option>
+                  <option value="all">All mappings</option>
+                </select>
+              </Field>
+              <Field label="Format">
+                <select defaultValue="csv" className="h-9 w-full rounded-[5px] border border-[#D5DAEA] px-2 text-[12px] text-[#0B1A2F]">
+                  <option value="csv">CSV</option>
+                  <option value="xlsx">XLSX</option>
+                </select>
+              </Field>
+            </div>
+          </div>
+        )}
+
+        {(panel.kind === "add" || panel.kind === "edit") && (
+          <div className="grid gap-4 p-5">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field label="Buyer code">
+                <input defaultValue={panel.row?.buyerCode ?? ""} className="h-9 w-full rounded-[5px] border border-[#D5DAEA] px-2 font-mono text-[12px] text-[#0B1A2F]" />
+              </Field>
+              <Field label="Supplier code">
+                <input defaultValue={panel.row?.supplierCode ?? ""} className="h-9 w-full rounded-[5px] border border-[#D5DAEA] px-2 font-mono text-[12px] text-[#0B1A2F]" />
+              </Field>
+            </div>
+            <Field label="Description">
+              <input defaultValue={panel.row?.description ?? ""} className="h-9 w-full rounded-[5px] border border-[#D5DAEA] px-2 text-[12px] text-[#0B1A2F]" />
+            </Field>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field label="Source">
+                <select defaultValue={panel.row?.source ?? "Manual"} className="h-9 w-full rounded-[5px] border border-[#D5DAEA] px-2 text-[12px] text-[#0B1A2F]">
+                  <option>Manual</option>
+                  <option>Imported</option>
+                  <option>AI</option>
+                </select>
+              </Field>
+              <Field label="Confidence">
+                <input defaultValue={panel.row?.confidence ?? 100} type="number" min={0} max={100} className="h-9 w-full rounded-[5px] border border-[#D5DAEA] px-2 text-[12px] text-[#0B1A2F]" />
+              </Field>
+            </div>
+          </div>
+        )}
+
+        <div className="flex flex-col gap-2 border-t border-[#E2E6EE] bg-[#F6F7FA] px-5 py-4 sm:flex-row sm:justify-end">
+          <button onClick={onClose} className="h-9 rounded-[6px] px-4 text-[12px] font-semibold" style={{ border: "1px solid #E2E6EE", background: "#FFFFFF", color: "#56627A" }}>Cancel</button>
+          <button onClick={onClose} className="h-9 rounded-[6px] px-4 text-[12px] font-semibold" style={{ border: 0, background: "#0B1A2F", color: "#FFFFFF" }}>
+            {panel.kind === "export" ? "Prepare export" : panel.kind === "import" ? "Validate import" : "Save draft"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Field({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <label className="grid gap-1">
+      <span className="text-[11px] font-semibold uppercase" style={{ color: "#8A93A5" }}>{label}</span>
+      {children}
+    </label>
   );
 }
