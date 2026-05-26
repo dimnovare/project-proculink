@@ -75,6 +75,7 @@ function XCard({
         borderRadius: 8,
         boxShadow: "0 1px 3px rgba(11,26,47,0.05)",
         overflow: "hidden",
+        minWidth: 0,
         ...borderStyle,
         ...style,
       }}
@@ -155,7 +156,7 @@ export function UploadWorkbench() {
     >
       {/* Page header */}
       <div
-        className="flex items-end gap-4 px-6 py-4 flex-shrink-0"
+        className="flex flex-col items-start gap-1 px-4 py-4 sm:px-6 sm:items-end sm:flex-row sm:gap-4 flex-shrink-0"
         style={{ borderBottom: "1px solid #E2E6EE", background: "#FFFFFF" }}
       >
         <div>
@@ -175,10 +176,10 @@ export function UploadWorkbench() {
       </div>
 
       {/* Body */}
-      <div className="flex-1 overflow-auto p-5">
-        <div className="grid gap-4" style={{ gridTemplateColumns: "1fr 320px" }}>
+      <div className="flex-1 overflow-auto p-4 sm:p-5">
+        <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_320px]">
           {/* Left column: dropzone + recent */}
-          <div className="flex flex-col gap-4">
+          <div className="flex min-w-0 flex-col gap-4">
             {/* Drop zone — XCard edge="top" with link-spine gradient */}
             <XCard
               edge="top"
@@ -217,7 +218,7 @@ export function UploadWorkbench() {
                   marginTop: 18,
                   border: `2px dashed ${dragging ? "#1E66C9" : "#C6CDDA"}`,
                   borderRadius: 6,
-                  padding: "40px 24px",
+                  padding: "32px 16px",
                   display: "flex",
                   flexDirection: "column",
                   alignItems: "center",
@@ -225,6 +226,7 @@ export function UploadWorkbench() {
                   background: dragging ? "#E3EDFB40" : "#F6F7FA",
                   transition: "all 0.15s",
                   cursor: "pointer",
+                  maxWidth: "100%",
                 }}
               >
                 {/* Upload icon */}
@@ -307,103 +309,148 @@ export function UploadWorkbench() {
                 </button>
               </div>
 
-              <table
-                className="w-full border-collapse"
-                style={{ fontSize: 12.5 }}
-              >
-                <thead>
-                  <tr style={{ borderBottom: "1px solid #E2E6EE" }}>
-                    {["File", "Format", "Route", "Size", "Age", "Status"].map(
-                      (h) => (
-                        <th
-                          key={h}
-                          className="text-left px-4 py-2 text-[10.5px] font-semibold uppercase tracking-[0.06em]"
-                          style={{ color: "#8A93A5" }}
+              <div className="divide-y divide-[#F0F2F6] sm:hidden">
+                {RECENT.map((row, i) => {
+                  const pill = STATUS_PILL[row.status];
+                  return (
+                    <button
+                      key={i}
+                      className="block w-full px-4 py-3 text-left transition-colors"
+                      style={{ background: "transparent", border: "none" }}
+                    >
+                      <div className="mb-2 flex items-start justify-between gap-3">
+                        <span
+                          className="min-w-0 truncate font-mono text-[11.5px]"
+                          style={{ color: "#0B1A2F" }}
                         >
-                          {h}
-                        </th>
-                      )
-                    )}
-                  </tr>
-                </thead>
-                <tbody>
-                  {RECENT.map((row, i) => {
-                    const pill = STATUS_PILL[row.status];
-                    return (
-                      <tr
-                        key={i}
-                        className="transition-colors cursor-pointer"
-                        style={{ borderBottom: "1px solid #F0F2F6" }}
-                        onMouseEnter={(e) =>
-                          ((e.currentTarget as HTMLElement).style.background =
-                            "#F6F7FA")
-                        }
-                        onMouseLeave={(e) =>
-                          ((e.currentTarget as HTMLElement).style.background =
-                            "transparent")
-                        }
-                      >
-                        <td className="px-4 py-2.5">
-                          <span
-                            className="font-mono text-[11.5px]"
-                            style={{ color: "#0B1A2F" }}
-                          >
-                            {row.name}
-                          </span>
-                        </td>
-                        <td className="px-4 py-2.5">
-                          <FileChip type={row.fmt} />
-                        </td>
-                        <td className="px-4 py-2.5">
-                          <span
-                            className="text-[12px]"
-                            style={{ color: "#1E66C9" }}
-                          >
-                            {row.buyer}
-                          </span>
-                          <span
-                            className="mx-1 text-[11px]"
-                            style={{ color: "#C6CDDA" }}
-                          >
-                            →
-                          </span>
-                          <span
-                            className="text-[12px]"
-                            style={{ color: "#2E8E3A" }}
-                          >
-                            {row.supplier}
-                          </span>
-                        </td>
-                        <td
-                          className="px-4 py-2.5 text-[12px]"
-                          style={{ color: "#56627A" }}
+                          {row.name}
+                        </span>
+                        <span
+                          className="inline-flex shrink-0 items-center gap-1 rounded px-2 py-0.5 text-[11px] font-medium"
+                          style={{ background: pill.bg, color: pill.color }}
                         >
-                          {row.size}
-                        </td>
-                        <td
-                          className="px-4 py-2.5 text-[12px]"
-                          style={{ color: "#8A93A5" }}
-                        >
-                          {row.age}
-                        </td>
-                        <td className="px-4 py-2.5">
-                          <span
-                            className="inline-flex items-center gap-1 rounded px-2 py-0.5 text-[11px] font-medium"
-                            style={{ background: pill.bg, color: pill.color }}
+                          {pill.label}
+                        </span>
+                      </div>
+                      <div className="mb-2 flex items-center gap-2">
+                        <FileChip type={row.fmt} />
+                        <span className="text-[11.5px]" style={{ color: "#8A93A5" }}>
+                          {row.size} · {row.age}
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 text-[12px]">
+                        <span className="truncate" style={{ color: "#1E66C9" }}>
+                          {row.buyer}
+                        </span>
+                        <span className="h-px w-5" style={{ background: "linear-gradient(90deg, #1E66C9, #2E8E3A)" }} />
+                        <span className="truncate text-right" style={{ color: "#2E8E3A" }}>
+                          {row.supplier}
+                        </span>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+
+              <div className="hidden overflow-x-auto sm:block">
+                <table
+                  className="w-full min-w-[760px] border-collapse"
+                  style={{ fontSize: 12.5 }}
+                >
+                  <thead>
+                    <tr style={{ borderBottom: "1px solid #E2E6EE" }}>
+                      {["File", "Format", "Route", "Size", "Age", "Status"].map(
+                        (h) => (
+                          <th
+                            key={h}
+                            className="text-left px-4 py-2 text-[10.5px] font-semibold uppercase tracking-[0.06em]"
+                            style={{ color: "#8A93A5" }}
                           >
-                            {pill.label}
-                          </span>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+                            {h}
+                          </th>
+                        )
+                      )}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {RECENT.map((row, i) => {
+                      const pill = STATUS_PILL[row.status];
+                      return (
+                        <tr
+                          key={i}
+                          className="transition-colors cursor-pointer"
+                          style={{ borderBottom: "1px solid #F0F2F6" }}
+                          onMouseEnter={(e) =>
+                            ((e.currentTarget as HTMLElement).style.background =
+                              "#F6F7FA")
+                          }
+                          onMouseLeave={(e) =>
+                            ((e.currentTarget as HTMLElement).style.background =
+                              "transparent")
+                          }
+                        >
+                          <td className="px-4 py-2.5">
+                            <span
+                              className="font-mono text-[11.5px]"
+                              style={{ color: "#0B1A2F" }}
+                            >
+                              {row.name}
+                            </span>
+                          </td>
+                          <td className="px-4 py-2.5">
+                            <FileChip type={row.fmt} />
+                          </td>
+                          <td className="px-4 py-2.5 min-w-[250px]">
+                            <span
+                              className="text-[12px]"
+                              style={{ color: "#1E66C9" }}
+                            >
+                              {row.buyer}
+                            </span>
+                            <span
+                              className="mx-1 text-[11px]"
+                              style={{ color: "#C6CDDA" }}
+                            >
+                              →
+                            </span>
+                            <span
+                              className="text-[12px]"
+                              style={{ color: "#2E8E3A" }}
+                            >
+                              {row.supplier}
+                            </span>
+                          </td>
+                          <td
+                            className="px-4 py-2.5 text-[12px]"
+                            style={{ color: "#56627A" }}
+                          >
+                            {row.size}
+                          </td>
+                          <td
+                            className="px-4 py-2.5 text-[12px]"
+                            style={{ color: "#8A93A5" }}
+                          >
+                            {row.age}
+                          </td>
+                          <td className="px-4 py-2.5">
+                            <span
+                              className="inline-flex items-center gap-1 rounded px-2 py-0.5 text-[11px] font-medium"
+                              style={{ background: pill.bg, color: pill.color }}
+                            >
+                              {pill.label}
+                            </span>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
             </XCard>
           </div>
 
           {/* Right column: pipeline picker */}
-          <div className="flex flex-col gap-4">
+          <div className="flex min-w-0 flex-col gap-4">
             <XCard edge="left" edgeColor="#1E66C9">
               <div
                 className="px-4 py-3"

@@ -436,6 +436,8 @@ These JSX files use inline styles (they're vanilla React prototype). Translate t
 - Playwright is installed for UI QA. Local screenshots go in `.qa-screenshots/` (gitignored).
 - For local protected-route QA only, start dev with `PROCULINK_QA_BYPASS_AUTH=true bun run dev -- --hostname 127.0.0.1 --port 8082`. The middleware bypass is disabled in production by `NODE_ENV`.
 - Wire Topology rules are now explicit: same-lane wires may be straight, but every wire must use the same visible gradient stroke; shared ports fan out; alert counters are tethered to their route; the legend must not overlap supplier/buyer pills.
+- Group I pass 3 is complete: `/upload` and `/settings` were screenshot-tested on desktop/mobile. Upload stacks on mobile and uses recent-order route cards instead of forcing a desktop table; settings uses horizontal mobile tabs and responsive email-polling grids.
+- Continue Group I route QA before starting Group J: inbox queue, supplier/buyer libraries, mappings, rules/templates, operations pages, and dense review/edit/error states still need the same desktop/tablet/mobile pass.
 
 ### shadcn/ui
 

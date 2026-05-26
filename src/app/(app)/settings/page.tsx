@@ -26,22 +26,35 @@ export default function SettingsPage() {
 
   return (
     <div className="flex flex-col h-full min-h-0 overflow-hidden" style={{ background: "#F6F7FA" }}>
-      <div className="px-6 py-4 flex-shrink-0" style={{ borderBottom: "1px solid #E2E6EE", background: "#FFFFFF" }}>
+      <div className="px-4 py-4 sm:px-6 flex-shrink-0" style={{ borderBottom: "1px solid #E2E6EE", background: "#FFFFFF" }}>
         <h1 className="text-[26px] font-semibold tracking-[-0.02em]" style={{ fontFamily: "'Bricolage Grotesque', Inter, sans-serif", color: "#0B1A2F" }}>Settings</h1>
       </div>
 
-      <div className="flex flex-1 min-h-0">
+      <div className="flex flex-1 min-h-0 flex-col md:flex-row">
         {/* Sidebar */}
-        <nav className="flex-shrink-0 py-4" style={{ width: 200, background: "#FFFFFF", borderRight: "1px solid #E2E6EE" }}>
+        <nav
+          className="flex w-full flex-shrink-0 gap-1 overflow-x-auto border-b border-[#E2E6EE] bg-white px-3 py-2 md:w-[200px] md:flex-col md:gap-0 md:overflow-visible md:border-b-0 md:border-r md:px-0 md:py-4"
+        >
           {TABS.map((t) => (
-            <button key={t.id} onClick={() => setTab(t.id)} className="w-full flex items-center px-4 py-2 text-[13px] font-medium text-left transition-colors" style={{ color: tab === t.id ? "#0B1A2F" : "#56627A", background: tab === t.id ? "#F0F2F7" : "transparent", borderLeft: `2px solid ${tab === t.id ? "#1E66C9" : "transparent"}`, border: "none", cursor: "pointer" }}>
+            <button
+              key={t.id}
+              onClick={() => setTab(t.id)}
+              className="flex shrink-0 items-center rounded-[6px] px-3 py-2 text-left text-[13px] font-medium transition-colors md:w-full md:rounded-none md:px-4"
+              style={{
+                color: tab === t.id ? "#0B1A2F" : "#56627A",
+                background: tab === t.id ? "#F0F2F7" : "transparent",
+                border: "none",
+                borderLeft: `2px solid ${tab === t.id ? "#1E66C9" : "transparent"}`,
+                cursor: "pointer",
+              }}
+            >
               {t.label}
             </button>
           ))}
         </nav>
 
         {/* Content */}
-        <div className="flex-1 overflow-auto p-6">
+        <div className="flex-1 overflow-auto p-4 sm:p-6">
           {tab === "workspace" && (
             <div style={{ maxWidth: 520 }}>
               <h2 style={{ fontSize: 16, fontWeight: 600, color: "#0B1A2F", marginBottom: 20 }}>Workspace settings</h2>
@@ -154,7 +167,7 @@ function EmailSettingsSection() {
 
   return (
     <div style={{ maxWidth: 860 }}>
-      <div className="mb-5 flex items-start justify-between gap-4">
+      <div className="mb-5 flex flex-col items-start justify-between gap-4 sm:flex-row">
         <div>
           <h2 className="text-[17px] font-semibold mb-1" style={{ color: "#0B1A2F" }}>Email polling</h2>
           <p className="text-[12.5px]" style={{ color: "#56627A" }}>
@@ -193,7 +206,7 @@ function EmailSettingsSection() {
           </label>
         </div>
 
-        <div className="grid gap-4 p-4" style={{ gridTemplateColumns: "1fr 120px 120px" }}>
+        <div className="grid gap-4 p-4 md:grid-cols-[minmax(0,1fr)_120px_120px]">
           <Field label="IMAP host">
             <input value={form.host} onChange={(event) => update("host", event.target.value)} placeholder="imap.company.com" style={inputStyle} />
           </Field>
@@ -208,12 +221,12 @@ function EmailSettingsSection() {
           </Field>
         </div>
 
-        <div className="grid gap-4 px-4 pb-4" style={{ gridTemplateColumns: "1fr 1fr" }}>
+        <div className="grid gap-4 px-4 pb-4 md:grid-cols-2">
           <Field label="Username">
             <input value={form.username} onChange={(event) => update("username", event.target.value)} placeholder="orders@company.com" style={inputStyle} />
           </Field>
           <Field label="Password">
-            <div className="flex gap-2">
+            <div className="flex flex-col gap-2 sm:flex-row">
               <input
                 value={password}
                 onChange={(event) => {
@@ -241,7 +254,7 @@ function EmailSettingsSection() {
           </Field>
         </div>
 
-        <div className="grid gap-4 px-4 pb-4" style={{ gridTemplateColumns: "1fr 1fr" }}>
+        <div className="grid gap-4 px-4 pb-4 md:grid-cols-2">
           <Field label="Folder">
             <input value={form.folder} onChange={(event) => update("folder", event.target.value)} placeholder="INBOX" style={inputStyle} />
           </Field>
@@ -259,7 +272,7 @@ function EmailSettingsSection() {
           </Field>
         </div>
 
-        <div className="flex items-center gap-3 px-4 py-3" style={{ borderTop: "1px solid #E2E6EE", background: "#F6F7FA" }}>
+        <div className="flex flex-col items-start gap-3 px-4 py-3 sm:flex-row sm:items-center" style={{ borderTop: "1px solid #E2E6EE", background: "#F6F7FA" }}>
           <ShieldCheck size={15} color="#2E8E3A" />
           <p className="flex-1 text-[11.5px]" style={{ color: "#56627A" }}>
             Passwords are stored encrypted. Last poll: {form.lastPolledAt ? new Date(form.lastPolledAt).toLocaleString() : "not run yet"}.
@@ -270,7 +283,7 @@ function EmailSettingsSection() {
           <button
             onClick={save}
             disabled={mutation.isPending}
-            className="inline-flex h-8 items-center gap-1.5 rounded-[6px] px-3 text-[12px] font-semibold"
+            className="inline-flex h-8 w-full items-center justify-center gap-1.5 rounded-[6px] px-3 text-[12px] font-semibold sm:w-auto"
             style={{ border: "none", color: "#FFF", background: mutation.isPending ? "#8A93A5" : "#0B1A2F" }}
           >
             <Save size={13} /> {mutation.isPending ? "Saving..." : "Save email"}
