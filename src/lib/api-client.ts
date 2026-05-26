@@ -33,6 +33,16 @@ async function authHeader(): Promise<Record<string, string>> {
 
 const delay = (ms: number) => new Promise<void>(resolve => setTimeout(resolve, ms));
 
+async function fetchWithTimeout(input: RequestInfo | URL, init?: RequestInit, timeoutMs = 8000) {
+  const controller = new AbortController();
+  const timeout = globalThis.setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(input, { ...init, signal: controller.signal });
+  } finally {
+    globalThis.clearTimeout(timeout);
+  }
+}
+
 // ── Mock data ─────────────────────────────────────────────────────────────
 
 const MOCK_SUPPLIERS: Supplier[] = [
@@ -624,7 +634,7 @@ export async function getBillingStatus(): Promise<BillingStatus> {
     };
   }
   const headers = await authHeader();
-  const res = await fetch(`${API_BASE_URL}/api/billing/status`, { headers });
+  const res = await fetchWithTimeout(`${API_BASE_URL}/api/billing/status`, { headers });
   if (!res.ok) throw new Error(`billing/status: ${res.status}`);
   return res.json();
 }
@@ -672,7 +682,7 @@ export async function getEmailSettings(): Promise<EmailSettings> {
   }
 
   const headers = await authHeader();
-  const res = await fetch(`${API_BASE_URL}/api/settings/email`, { headers });
+  const res = await fetchWithTimeout(`${API_BASE_URL}/api/settings/email`, { headers });
   if (!res.ok) throw new Error(`settings/email: ${res.status}`);
   return res.json();
 }

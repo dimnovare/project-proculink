@@ -97,17 +97,20 @@ export default function SettingsPage() {
 
 function EmailSettingsSection() {
   const queryClient = useQueryClient();
-  const { data: settings, isLoading } = useQuery({
+  const { data: settings, isLoading, isError, refetch, isFetching } = useQuery({
     queryKey: ["email-settings"],
     queryFn: getEmailSettings,
+    retry: false,
   });
   const { data: billing } = useQuery({
     queryKey: ["billing-status"],
     queryFn: getBillingStatus,
+    retry: false,
   });
   const { data: suppliers = [] } = useQuery({
     queryKey: ["suppliers"],
     queryFn: apiClient.getSuppliers,
+    retry: false,
   });
 
   const [form, setForm] = useState<EmailSettings>({
@@ -162,7 +165,35 @@ function EmailSettingsSection() {
   }
 
   if (isLoading) {
-    return <div className="text-[13px]" style={{ color: "#56627A" }}>Loading email settings...</div>;
+    return (
+      <div className="max-w-[860px] rounded-[8px] bg-white p-4" style={{ border: "1px solid #E2E6EE" }}>
+        <div className="mb-4 h-4 w-40 rounded bg-[#E2E6EE]" />
+        <div className="grid gap-3 md:grid-cols-3">
+          <div className="h-9 rounded bg-[#EFF2F7]" />
+          <div className="h-9 rounded bg-[#EFF2F7]" />
+          <div className="h-9 rounded bg-[#EFF2F7]" />
+        </div>
+      </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <div className="max-w-[860px] rounded-[8px] bg-white p-4 sm:p-5" style={{ border: "1px solid #F0D2D2", borderLeft: "3px solid #C53A3A" }}>
+        <h2 className="mb-1 text-[17px] font-semibold" style={{ color: "#0B1A2F" }}>Email settings are unavailable</h2>
+        <p className="m-0 max-w-[560px] text-[12.5px] leading-6" style={{ color: "#56627A" }}>
+          The UI is working, but the API did not answer the email settings request. This prevents saving or loading IMAP polling configuration.
+        </p>
+        <button
+          onClick={() => refetch()}
+          disabled={isFetching}
+          className="mt-4 h-8 rounded-[6px] px-3 text-[12px] font-semibold"
+          style={{ border: "1px solid #E2E6EE", background: "#FFFFFF", color: "#0B1A2F", cursor: isFetching ? "not-allowed" : "pointer" }}
+        >
+          {isFetching ? "Checking..." : "Retry connection"}
+        </button>
+      </div>
+    );
   }
 
   return (

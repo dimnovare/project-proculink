@@ -119,10 +119,11 @@ const bannerStyle: React.CSSProperties = {
 };
 
 export function BillingSection() {
-  const { data: status, isLoading, error } = useQuery<BillingStatus>({
+  const { data: status, isLoading, error, refetch, isFetching } = useQuery<BillingStatus>({
     queryKey: ["billing-status"],
     queryFn: getBillingStatus,
     staleTime: 60_000,
+    retry: false,
   });
 
   const checkoutMutation = useMutation({
@@ -137,16 +138,30 @@ export function BillingSection() {
 
   if (isLoading) {
     return (
-      <div style={{ padding: "32px 0" }}>
-        <div style={{ height: 20, width: 160, background: "#E2E6EE", borderRadius: 4 }} />
+      <div style={{ maxWidth: 620, border: "1px solid #E2E6EE", borderRadius: 8, background: "#FFFFFF", padding: 18 }}>
+        <div style={{ height: 18, width: 190, background: "#E2E6EE", borderRadius: 4, marginBottom: 18 }} />
+        <div style={{ display: "grid", gap: 10 }}>
+          <div style={{ height: 10, width: "100%", background: "#EFF2F7", borderRadius: 99 }} />
+          <div style={{ height: 10, width: "72%", background: "#EFF2F7", borderRadius: 99 }} />
+        </div>
       </div>
     );
   }
 
   if (error || !status) {
     return (
-      <div style={{ padding: "32px 0", color: "#C53A3A", fontSize: 13 }}>
-        Failed to load billing information.
+      <div style={{ maxWidth: 620, border: "1px solid #F0D2D2", borderLeft: "3px solid #C53A3A", borderRadius: 8, background: "#FFFFFF", padding: 18 }}>
+        <div style={{ fontSize: 13, fontWeight: 700, color: "#0B1A2F", marginBottom: 4 }}>Billing is temporarily unavailable</div>
+        <p style={{ margin: 0, fontSize: 12.5, lineHeight: 1.55, color: "#56627A" }}>
+          We could not reach the billing service. Your workspace data is still available; plan changes and usage limits need the API connection.
+        </p>
+        <button
+          onClick={() => refetch()}
+          disabled={isFetching}
+          style={{ marginTop: 14, borderRadius: 6, border: "1px solid #E2E6EE", background: "#FFFFFF", color: "#0B1A2F", height: 32, padding: "0 12px", fontSize: 12, fontWeight: 700, cursor: isFetching ? "not-allowed" : "pointer" }}
+        >
+          {isFetching ? "Checking..." : "Retry"}
+        </button>
       </div>
     );
   }

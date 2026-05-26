@@ -439,7 +439,8 @@ These JSX files use inline styles (they're vanilla React prototype). Translate t
 - Group I pass 3 is complete: `/upload` and `/settings` were screenshot-tested on desktop/mobile. Upload stacks on mobile and uses recent-order route cards instead of forcing a desktop table; settings uses horizontal mobile tabs and responsive email-polling grids.
 - Group I pass 4 is complete: `/inbox`, `/library/suppliers`, `/library/buyers`, `/operations/log`, and `/operations/webhooks` were screenshot-tested and fixed for mobile. Inbox now renders visible mobile cards plus a desktop table; `@tanstack/react-virtual` was removed because the virtualized table was rendering an empty body.
 - Group I pass 5 is complete: supplier detail, mapping editor, supplier PO Mapping tab, and supplier Delivery tab were screenshot-tested and fixed for mobile. Supplier KPIs no longer collide with the title, mapping rows use mobile route cards, and PO/delivery form controls now stack safely.
-- Continue Group I QA before starting Group J: mappings import/export dialogs, rules/templates edit states, connector/webhook forms, settings billing/email tabs, plan-gated/empty/loading/error states, and dense order-review edits still need the same desktop/tablet/mobile pass.
+- Group I pass 6 is complete: settings billing/email tabs now have explicit loading/error states with retry actions and bounded billing/email API fetch timeouts; `/operations/connectors` uses mobile cards instead of a squeezed table; connector and webhook add/edit buttons open lightweight configuration panels so the UI path is visible before live save/test-fire QA.
+- Continue Group I QA before starting Group J: mappings import/export dialogs, rules/templates edit states, plan-gated/empty/loading/error states beyond settings, dense order-review edits, and live connector/webhook save/test-fire behavior still need the same desktop/tablet/mobile pass.
 
 ### shadcn/ui
 
