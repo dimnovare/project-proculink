@@ -88,10 +88,10 @@ export function BridgeDashboard() {
     <div className="flex flex-col h-full min-h-0 overflow-auto" style={{ background: "#F6F7FA" }}>
       {/* Page header */}
       <div
-        className="flex items-center gap-4 px-6 py-4 flex-shrink-0"
+        className="flex flex-shrink-0 flex-col gap-3 px-4 py-4 sm:flex-row sm:items-center sm:px-6"
         style={{ borderBottom: "1px solid #E2E6EE", background: "#FFFFFF" }}
       >
-        <div className="flex-1">
+        <div className="min-w-0 flex-1">
           <h1
             className="text-[22px] font-semibold tracking-[-0.02em]"
             style={{ fontFamily: "'Bricolage Grotesque', Inter, sans-serif", color: "#0B1A2F" }}
@@ -102,34 +102,36 @@ export function BridgeDashboard() {
             Live wire view · last update 14s ago
           </p>
         </div>
-        {/* Period selector */}
-        <div
-          className="flex items-center rounded-[6px] overflow-hidden text-[12.5px]"
-          style={{ border: "1px solid #E2E6EE" }}
-        >
-          {["Today", "7d", "30d", "Quarter"].map((p, i) => (
-            <button
-              key={p}
-              className="px-3 py-1.5 font-medium transition-colors"
-              style={{
-                background: i === 0 ? "#0B1A2F" : "#FFFFFF",
-                color: i === 0 ? "#FFFFFF" : "#56627A",
-                borderRight: i < 3 ? "1px solid #E2E6EE" : undefined,
-              }}
-            >
-              {p}
-            </button>
-          ))}
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Period selector */}
+          <div
+            className="flex min-w-0 items-center overflow-hidden rounded-[6px] text-[12.5px]"
+            style={{ border: "1px solid #E2E6EE" }}
+          >
+            {["Today", "7d", "30d", "Quarter"].map((p, i) => (
+              <button
+                key={p}
+                className="min-w-0 px-3 py-1.5 font-medium transition-colors"
+                style={{
+                  background: i === 0 ? "#0B1A2F" : "#FFFFFF",
+                  color: i === 0 ? "#FFFFFF" : "#56627A",
+                  borderRight: i < 3 ? "1px solid #E2E6EE" : undefined,
+                }}
+              >
+                {p}
+              </button>
+            ))}
+          </div>
+          <button
+            className="flex items-center gap-2 rounded-[6px] px-3 py-1.5 text-[12.5px] font-medium"
+            style={{ border: "1px solid #E2E6EE", background: "#FFFFFF", color: "#56627A" }}
+          >
+            ↓ Export report
+          </button>
         </div>
-        <button
-          className="flex items-center gap-2 rounded-[6px] px-3 py-1.5 text-[12.5px] font-medium"
-          style={{ border: "1px solid #E2E6EE", background: "#FFFFFF", color: "#56627A" }}
-        >
-          ↓ Export report
-        </button>
       </div>
 
-      <div className="p-5 flex flex-col gap-5 flex-1">
+      <div className="flex flex-1 flex-col gap-4 p-3 sm:gap-5 sm:p-5">
         {/* Wire topology canvas */}
         <WireTopology
           buyers={BUYERS}
@@ -147,7 +149,7 @@ export function BridgeDashboard() {
         )}
 
         {/* KPI strip */}
-        <div className="grid grid-cols-5 gap-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5">
           {KPIS.map((kpi, i) => (
             <div
               key={i}
@@ -170,7 +172,7 @@ export function BridgeDashboard() {
               <div
                 className="monument"
                 style={{
-                  fontSize: 36,
+                  fontSize: "clamp(28px, 4vw, 36px)",
                   color: "#0B1A2F",
                 }}
               >
@@ -197,7 +199,7 @@ export function BridgeDashboard() {
         </div>
 
         {/* Bottom row: In transit + Dock health */}
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
           {/* In transit */}
           <div
             className="rounded-card overflow-hidden"
@@ -222,15 +224,15 @@ export function BridgeDashboard() {
               {IN_TRANSIT.map((row, i) => (
                 <div
                   key={i}
-                  className="flex items-center gap-3 px-4 py-2.5 hover:bg-[#F6F7FA] cursor-pointer transition-colors"
+                  className="flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-2.5 hover:bg-[#F6F7FA] cursor-pointer transition-colors"
                 >
                   <span
-                    className="font-mono text-[11.5px] font-medium flex-1 truncate"
+                    className="min-w-[150px] flex-1 truncate font-mono text-[11.5px] font-medium"
                     style={{ color: "#0F4FA8" }}
                   >
                     {row.po}
                   </span>
-                  <span className="text-[12px] text-[#56627A] truncate" style={{ maxWidth: 80 }}>
+                  <span className="max-w-[90px] truncate text-[12px] text-[#56627A]">
                     {row.buyer}
                   </span>
                   <FileChip type={row.fmt} />
@@ -282,7 +284,7 @@ export function BridgeDashboard() {
                 return (
                   <div key={s.id} className="px-4 py-3">
                     <div className="flex items-center justify-between mb-1.5">
-                      <span className="text-[12.5px] font-medium" style={{ color: "#0B1A2F" }}>
+                      <span className="min-w-0 truncate pr-3 text-[12.5px] font-medium" style={{ color: "#0B1A2F" }}>
                         {s.name}
                       </span>
                       <span

@@ -289,6 +289,8 @@
   /* Suppress all motion for accessibility */
   @media (prefers-reduced-motion: reduce) {
     .wire-pulse,
+    .wire-traveller,
+    .wire-traveller *,
     .spine-animate,
     .node-pulse::after,
     .connector-draw,
@@ -296,6 +298,10 @@
     .fade-up,
     [class*="animate-"] {
       animation: none !important;
+    }
+
+    .wire-traveller {
+      display: none !important;
     }
   }
 }

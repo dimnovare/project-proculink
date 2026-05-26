@@ -2,9 +2,7 @@
 
 // WireTopology — the signature dashboard canvas.
 // Buyer ports down the left, supplier ports down the right,
-// Bezier wires arcing between them with animated travelling pulses.
-
-import { useEffect, useRef } from "react";
+// Bezier wires arcing between them with animated travelling segments.
 
 export interface WireBuyer {
   id: string;
@@ -52,8 +50,6 @@ export function WireTopology({
   height = 560,
   onWireClick,
 }: WireTopologyProps) {
-  const svgRef = useRef<SVGSVGElement>(null);
-
   // Derive port positions
   const W = 900; // internal SVG width
   const H = height;
@@ -72,7 +68,7 @@ export function WireTopology({
 
   return (
     <div
-      className="relative w-full rounded-card overflow-hidden"
+      className="relative w-full overflow-x-auto overflow-y-hidden rounded-card"
       style={{
         background: "#FFFFFF",
         border: "1px solid #E2E6EE",
@@ -80,10 +76,9 @@ export function WireTopology({
       }}
     >
       <svg
-        ref={svgRef}
         viewBox={`0 0 ${W} ${H}`}
         preserveAspectRatio="xMidYMid meet"
-        className="w-full"
+        className="min-w-[760px] w-full"
         style={{ height }}
         aria-label="Order wire topology"
       >
@@ -118,6 +113,9 @@ export function WireTopology({
           const pathD = `M ${x1},${y1} C ${mx},${y1} ${mx},${y2} ${x2},${y2}`;
           const sw    = STROKE_W[w.weight] ?? 2;
           const mid   = { x: mx, y: (y1 + y2) / 2 };
+          const pulseDur = `${5 + wi * 1.4}s`;
+          const travellerGlowWidth = Math.max(sw + 4, 7);
+          const travellerCoreWidth = Math.max(2.25, Math.min(sw + 0.75, 4.5));
 
           return (
             <g
@@ -144,22 +142,53 @@ export function WireTopology({
                 opacity={0.82}
               />
 
-              {/* Travelling pulse — fades in/out near endpoints so it never "floats" */}
-              <circle r={4} fill="white" stroke="#2E8E3A" strokeWidth={1.5} opacity={0}>
-                <animateMotion
-                  dur={`${5 + wi * 1.4}s`}
-                  repeatCount="indefinite"
-                  path={pathD}
-                />
+              {/* Travelling segment: same path as the wire, so motion can never detach. */}
+              <g className="wire-traveller" aria-hidden="true">
+                <path
+                  d={pathD}
+                  fill="none"
+                  stroke={`url(#wg-${wi})`}
+                  strokeWidth={travellerGlowWidth}
+                  strokeLinecap="round"
+                  opacity={0.22}
+                  pathLength={1}
+                  strokeDasharray="0.045 1"
+                  strokeDashoffset="1"
+                >
+                  <animate
+                    attributeName="stroke-dashoffset"
+                    values="1;0"
+                    dur={pulseDur}
+                    repeatCount="indefinite"
+                  />
+                </path>
+                <path
+                  d={pathD}
+                  fill="none"
+                  stroke="#FFFFFF"
+                  strokeWidth={travellerCoreWidth}
+                  strokeLinecap="round"
+                  opacity={0.94}
+                  pathLength={1}
+                  strokeDasharray="0.028 1"
+                  strokeDashoffset="1"
+                >
+                  <animate
+                    attributeName="stroke-dashoffset"
+                    values="1;0"
+                    dur={pulseDur}
+                    repeatCount="indefinite"
+                  />
+                </path>
                 {/* Fade: invisible at start/end, visible through the middle 80% */}
                 <animate
                   attributeName="opacity"
                   values="0;0;1;1;0;0"
                   keyTimes="0;0.08;0.18;0.82;0.92;1"
-                  dur={`${5 + wi * 1.4}s`}
+                  dur={pulseDur}
                   repeatCount="indefinite"
                 />
-              </circle>
+              </g>
 
               {/* Alert badge */}
               {w.alert && w.alert > 0 && (
