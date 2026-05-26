@@ -21,6 +21,24 @@ An AI-assisted **outbound procurement bridge** between buyer/procurement teams, 
 
 ---
 
+## 1.5 Current direction — production hardening
+
+Deep-research review on May 26 2026 confirmed: ProcuLink should now be treated
+as a real working product, not a throwaway MVP. Do not add broad engine features
+on top of visibly rough UI.
+
+Next frontend work should prioritize:
+
+1. UI/UX production polish and responsive QA across desktop, tablet, and mobile.
+2. Fixing visible Bridge Layer defects, including the Wire Topology detached
+   traveller/pulse dot issue.
+3. Making core flows feel complete: sign-in, first upload, inbox/review, mapping,
+   transform, delivery, settings/billing, and error states.
+4. Only after that, adding broader engine surfaces for more standards and output
+   templates.
+
+---
+
 ## 2. Visual direction — "The Bridge Layer" (LOCKED)
 
 Direction 4 from the v2 design exploration. **Do not deviate.** This is not styling; it is the architecture of every screen.
@@ -296,7 +314,7 @@ All motion: respect `prefers-reduced-motion: reduce`. Disable wire-topology anim
 
 - ❌ EF queries without `org_id` scope — ever
 - ❌ `useEffect` for data fetching — TanStack Query only
-- ❌ AI/LLM calls — Phase 4 only
+- ❌ Direct browser AI/LLM calls — AI provider calls go through the backend only
 - ❌ Raw SQL — EF Core only
 - ❌ Hangfire jobs that are not idempotent
 - ❌ Filesystem storage for new code — R2 or LocalFileStorageService only
@@ -394,15 +412,20 @@ These JSX files use inline styles (they're vanilla React prototype). Translate t
 ### Current implementation state
 
 - Next.js 15 App Router migration ✅ complete
-- Routes exist: `/dashboard`, `/orders`, `/orders/[id]`, `/upload`, `/suppliers`, `/mappings`
-- These routes will be **replaced** by Bridge Layer routes: `/bridge`, `/inbox`, `/inbox/[orderId]`, `/upload`, `/library/mappings`, `/library/suppliers`
-- Old `AppLayout` / `AppSidebar` components will be replaced by `BridgeSidebar` + `BridgeTopbar`
-- Phase 4 Group C billing ✅ complete.
-- Phase 4 Group C2 final billing reconciliation ✅ complete. Pricing, settings billing UI, upload 429 copy, and plan limits use Pilot/Growth/Operations/Integration/Enterprise.
-- Phase 4 Group D PO field mapping engine ✅ complete.
-- Phase 4 Group D2 HTTP-first supplier delivery config ✅ complete. Delivery tab exposes protocol, endpoint/path, credentials, file naming, auto/manual delivery, test-fire result, and recent attempts without making procurement users edit raw JSON.
-- Phase 4 Group E AI mapping suggestions is next.
+- Bridge Layer app shell exists with `BridgeSidebar` + `BridgeTopbar`.
+- Canonical Bridge routes are `/bridge`, `/inbox`, `/inbox/[orderId]`, `/upload`, `/library/mappings`, `/library/suppliers`, `/operations/*`, and `/settings`.
+- Legacy compatibility routes such as `/dashboard`, `/orders`, `/orders/[id]`, `/suppliers`, and `/mappings` may still exist; do not use them as the product direction unless deliberately preserving redirects/compatibility.
+- Phase 4 Groups C-H ✅ implemented:
+  - C/C2 billing and final Pilot/Growth/Operations/Integration/Enterprise plan ladder.
+  - D PO field mapping engine.
+  - D2 HTTP-first supplier delivery config.
+  - E AI mapping suggestions.
+  - F text-based PDF ingestion.
+  - G Erply/Directo ERP delivery adapters.
+  - H IMAP email polling settings UI.
 - Delivery UI must not imply an order is sent just because a transform artifact exists. Use explicit states such as `ready_to_deliver`, `delivering`, `delivered`, and `delivery_failed`.
+- Next recommended workstream is UI/UX production polish and mobile responsiveness, then live end-to-end QA, then engine hardening.
+- Known visual issue to fix early: Wire Topology traveller/pulse dots must never appear detached from a visible wire path.
 
 ### shadcn/ui
 
