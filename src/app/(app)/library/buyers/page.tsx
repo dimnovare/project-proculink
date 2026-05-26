@@ -15,14 +15,14 @@ export default function BuyersPage() {
   const router = useRouter();
   return (
     <div className="flex flex-col h-full min-h-0 overflow-hidden" style={{ background: "#F6F7FA" }}>
-      <div className="flex items-end gap-4 px-6 py-4 flex-shrink-0" style={{ borderBottom: "1px solid #E2E6EE", background: "#FFFFFF" }}>
+      <div className="flex flex-col items-start gap-3 px-4 py-4 sm:px-6 sm:flex-row sm:items-end sm:gap-4 flex-shrink-0" style={{ borderBottom: "1px solid #E2E6EE", background: "#FFFFFF" }}>
         <div>
           <h1 className="text-[26px] font-semibold tracking-[-0.02em]" style={{ fontFamily: "'Bricolage Grotesque', Inter, sans-serif", color: "#0B1A2F" }}>Buyer docks</h1>
           <p className="text-[13px] mt-1" style={{ color: "#56627A" }}>{BUYERS.length} active buyers</p>
         </div>
-        <button className="ml-auto flex items-center gap-1.5 rounded-[6px] px-3 text-[12.5px] font-medium" style={{ height: 32, background: "#0B1A2F", color: "#FFFFFF", border: 0 }}>+ Add buyer dock</button>
+        <button className="flex w-full items-center justify-center gap-1.5 rounded-[6px] px-3 text-[12.5px] font-medium sm:ml-auto sm:w-auto" style={{ height: 32, background: "#0B1A2F", color: "#FFFFFF", border: 0 }}>+ Add buyer dock</button>
       </div>
-      <div className="flex-1 overflow-auto p-5">
+      <div className="flex-1 overflow-auto p-4 sm:p-5">
         {BUYERS.length === 0 ? (
           <EmptyState
             icon="◎"
@@ -34,25 +34,25 @@ export default function BuyersPage() {
         <div className="flex flex-col gap-3">
           {BUYERS.map((b) => (
             <div key={b.id} onClick={() => router.push(`/inbox?buyer=${b.code}`)} className="group cursor-pointer rounded-[8px]" style={{ background: "#FFFFFF", border: "1px solid #E2E6EE", boxShadow: "0 1px 3px rgba(11,26,47,0.04)", borderLeft: "3px solid #1E66C9" }}>
-              <div className="flex items-center gap-4 px-4 py-4">
+              <div className="grid gap-3 px-4 py-4 sm:grid-cols-[44px_minmax(0,1fr)_80px_90px_80px_auto] sm:items-center sm:gap-4">
                 <div style={{ width: 44, height: 44, borderRadius: 10, background: "#E3EDFB", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'JetBrains Mono', monospace", fontSize: 11, fontWeight: 800, color: "#1E66C9", flexShrink: 0 }}>{b.code}</div>
-                <div className="flex-1 min-w-0">
+                <div className="min-w-0">
                   <p className="text-[14px] font-semibold" style={{ color: "#0B1A2F" }}>{b.name}</p>
-                  <div className="flex items-center gap-1.5 mt-1">{b.formats.map((f) => <span key={f} className="text-[10.5px] font-semibold rounded px-1.5 py-0.5" style={{ background: "#EFF2F7", color: "#56627A" }}>{f}</span>)}</div>
+                  <div className="flex flex-wrap items-center gap-1.5 mt-1">{b.formats.map((f) => <span key={f} className="text-[10.5px] font-semibold rounded px-1.5 py-0.5" style={{ background: "#EFF2F7", color: "#56627A" }}>{f}</span>)}</div>
                 </div>
-                <div className="text-right flex-shrink-0">
+                <div className="text-left sm:text-right">
                   <p style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 20, fontWeight: 700, color: "#0B1A2F", lineHeight: 1 }}>{b.volume}</p>
                   <p style={{ fontSize: 11, color: "#8A93A5", marginTop: 2 }}>volume</p>
                 </div>
-                <div className="text-right flex-shrink-0">
+                <div className="text-left sm:text-right">
                   <p style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 20, fontWeight: 700, color: "#0B1A2F", lineHeight: 1 }}>{b.orders.toLocaleString()}</p>
                   <p style={{ fontSize: 11, color: "#8A93A5", marginTop: 2 }}>total crossings</p>
                 </div>
-                <div className="text-right flex-shrink-0" style={{ minWidth: 70 }}>
+                <div className="text-left sm:text-right" style={{ minWidth: 70 }}>
                   <p style={{ fontSize: 11, color: "#8A93A5" }}>last crossing</p>
                   <p style={{ fontSize: 12, fontWeight: 500, color: "#56627A" }}>{b.lastCrossing} ago</p>
                 </div>
-                <span className="opacity-0 group-hover:opacity-100 transition-opacity text-[14px]" style={{ color: "#C6CDDA" }}>→</span>
+                <span className="hidden opacity-0 group-hover:opacity-100 transition-opacity text-[14px] sm:inline" style={{ color: "#C6CDDA" }}>→</span>
               </div>
             </div>
           ))}

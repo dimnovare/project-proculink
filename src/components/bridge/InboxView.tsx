@@ -1,11 +1,11 @@
 "use client";
 
-// Inbox — virtualized TanStack Table order queue (AC3: 1000 rows @ 60fps)
+// Inbox — TanStack Table order queue
 // Sort on every column header · filter chips by status · bulk-select rows
 // Click a row → /inbox/[orderId] (Canonical Spine Review)
 
 import { useRouter } from "next/navigation";
-import { useState, useRef, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback } from "react";
 import {
   useReactTable,
   getCoreRowModel,
@@ -17,7 +17,6 @@ import {
   type ColumnFiltersState,
   type RowSelectionState,
 } from "@tanstack/react-table";
-import { useVirtualizer } from "@tanstack/react-virtual";
 import { FileChip } from "./FileChip";
 import { StatusCell, type CrossingStatus } from "./StatusJourney";
 
@@ -235,16 +234,12 @@ function SortIcon({ state }: { state: "asc" | "desc" | false }) {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-const ROW_HEIGHT = 38;
-
 export function InboxView() {
   const router = useRouter();
   const [sorting, setSorting]           = useState<SortingState>([{ id: "ageMin", desc: false }]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
   const [activeChip, setActiveChip]     = useState(0); // index into FILTER_CHIPS
-
-  const scrollRef = useRef<HTMLDivElement>(null);
 
   // Status filter: when a chip is selected, filter by status column
   const handleChip = useCallback((idx: number) => {
@@ -273,18 +268,6 @@ export function InboxView() {
 
   const { rows } = table.getRowModel();
 
-  const virtualizer = useVirtualizer({
-    count: rows.length,
-    getScrollElement: () => scrollRef.current,
-    estimateSize: () => ROW_HEIGHT,
-    overscan: 20,
-  });
-
-  const virtualItems = virtualizer.getVirtualItems();
-  const totalHeight  = virtualizer.getTotalSize();
-  const paddingTop   = virtualItems.length > 0 ? virtualItems[0].start : 0;
-  const paddingBottom = totalHeight - (virtualItems.length > 0 ? virtualItems[virtualItems.length - 1].end : 0);
-
   const selectedCount = Object.keys(rowSelection).length;
 
   // Chip counts against full dataset (before status filter)
@@ -300,7 +283,7 @@ export function InboxView() {
 
       {/* Page header */}
       <div
-        className="flex items-end gap-4 px-6 py-4 flex-shrink-0"
+        className="flex flex-col items-start gap-3 px-4 py-4 sm:px-6 lg:flex-row lg:items-end lg:gap-4 flex-shrink-0"
         style={{ borderBottom: "1px solid #E2E6EE", background: "#FFFFFF" }}
       >
         <div>
@@ -334,7 +317,7 @@ export function InboxView() {
           </div>
         )}
 
-        <div className="ml-auto flex gap-2">
+        <div className="flex w-full flex-wrap gap-2 lg:ml-auto lg:w-auto">
           <button
             className="flex items-center gap-1.5 rounded-[6px] px-3 text-[12.5px] font-medium transition-colors"
             style={{ height: 32, border: "1px solid #E2E6EE", background: "#FFFFFF", color: "#0B1A2F" }}
@@ -359,8 +342,8 @@ export function InboxView() {
 
       {/* Filter chips + view toggle */}
       <div
-        className="flex items-center gap-1.5 px-5 flex-shrink-0"
-        style={{ height: 44, borderBottom: "1px solid #E2E6EE", background: "#FFFFFF" }}
+        className="flex items-center gap-1.5 overflow-x-auto px-4 py-2 sm:px-5 flex-shrink-0"
+        style={{ borderBottom: "1px solid #E2E6EE", background: "#FFFFFF" }}
       >
         {FILTER_CHIPS.map(({ label }, i) => {
           const active = i === activeChip;
@@ -388,11 +371,11 @@ export function InboxView() {
           );
         })}
 
-        <div className="flex-1" />
+        <div className="hidden flex-1 lg:block" />
 
         {/* View toggle */}
         <div
-          className="flex rounded-[6px] overflow-hidden text-[12px]"
+          className="hidden rounded-[6px] overflow-hidden text-[12px] lg:flex"
           style={{ border: "1px solid #E2E6EE" }}
         >
           <button
@@ -413,7 +396,7 @@ export function InboxView() {
 
       {/* Time-strip ribbon */}
       <div
-        className="flex items-center gap-3 px-6 flex-shrink-0"
+        className="flex items-center gap-3 px-4 sm:px-6 flex-shrink-0"
         style={{ height: 52, borderBottom: "1px solid #E2E6EE", background: "#FFFFFF" }}
       >
         <span
@@ -446,15 +429,49 @@ export function InboxView() {
         </span>
       </div>
 
-      {/* ── Virtualized table ─────────────────────────────────────────────────── */}
-      <div
-        ref={scrollRef}
-        className="flex-1 overflow-auto"
-        style={{ background: "#FFFFFF" }}
-      >
+      {/* ── Queue table / mobile route cards ──────────────────────────────────── */}
+      <div className="flex-1 overflow-auto" style={{ background: "#FFFFFF" }}>
+        <div className="divide-y divide-[#F0F2F6] md:hidden">
+          {rows.map((row) => (
+            <button
+              key={row.id}
+              className="block w-full px-4 py-3 text-left"
+              style={{ background: "#FFFFFF", border: "none" }}
+              onClick={() => router.push(`/inbox/${row.original.id}`)}
+            >
+              <div className="mb-2 flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="truncate font-mono text-[12px] font-semibold" style={{ color: "#0F4FA8" }}>
+                    {row.original.po}
+                  </p>
+                  <p className="mt-0.5 text-[11.5px]" style={{ color: "#8A93A5" }}>
+                    {row.original.age} ago · {row.original.lines} lines · {row.original.valueLabel}
+                  </p>
+                </div>
+                <StatusCell status={row.original.status} />
+              </div>
+              <div className="mb-2 flex items-center gap-2">
+                <FileChip type={row.original.fmt} />
+                {row.original.issues > 0 && (
+                  <span className="rounded px-1.5 py-0.5 text-[10.5px] font-semibold" style={{ background: "#FBE3E3", color: "#C53A3A" }}>
+                    {row.original.issues} issues
+                  </span>
+                )}
+              </div>
+              <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 text-[12px]">
+                <span className="truncate" style={{ color: "#1E66C9" }}>{row.original.buyer}</span>
+                <span className="h-px w-5" style={{ background: "linear-gradient(90deg, #1E66C9, #2E8E3A)" }} />
+                <span className="truncate text-right" style={{ color: "#2E8E3A" }}>{row.original.supplier}</span>
+              </div>
+            </button>
+          ))}
+        </div>
+
+        <div className="hidden overflow-x-auto md:block">
         <table
           style={{
             width: "100%",
+            minWidth: 1180,
             borderCollapse: "collapse",
             fontSize: 12.5,
             tableLayout: "fixed",
@@ -502,23 +519,14 @@ export function InboxView() {
           </thead>
 
           <tbody>
-            {/* Top padding spacer */}
-            {paddingTop > 0 && (
-              <tr><td colSpan={columns.length} style={{ height: paddingTop, padding: 0 }} /></tr>
-            )}
-
-            {/* Visible virtual rows */}
-            {virtualItems.map((vItem) => {
-              const row = rows[vItem.index];
+            {rows.map((row) => {
               const isSelected = row.getIsSelected();
               return (
                 <tr
                   key={row.id}
-                  data-index={vItem.index}
-                  ref={virtualizer.measureElement}
                   onClick={() => router.push(`/inbox/${row.original.id}`)}
                   style={{
-                    height: ROW_HEIGHT,
+                    height: 38,
                     borderBottom: "1px solid #F0F2F6",
                     cursor: "pointer",
                     background: isSelected
@@ -559,11 +567,6 @@ export function InboxView() {
               );
             })}
 
-            {/* Bottom padding spacer */}
-            {paddingBottom > 0 && (
-              <tr><td colSpan={columns.length} style={{ height: paddingBottom, padding: 0 }} /></tr>
-            )}
-
             {/* Empty state */}
             {rows.length === 0 && (
               <tr>
@@ -576,6 +579,7 @@ export function InboxView() {
             )}
           </tbody>
         </table>
+        </div>
       </div>
 
       {/* Footer row count */}

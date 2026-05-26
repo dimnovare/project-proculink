@@ -238,7 +238,7 @@ export function CrossingsLog() {
     >
       {/* Page header */}
       <div
-        className="flex items-end gap-4 px-6 py-4 flex-shrink-0"
+        className="flex flex-col items-start gap-3 px-4 py-4 sm:px-6 sm:flex-row sm:items-end sm:gap-4 flex-shrink-0"
         style={{ borderBottom: "1px solid #E2E6EE", background: "#FFFFFF" }}
       >
         <div>
@@ -255,9 +255,9 @@ export function CrossingsLog() {
             Append-only audit trail · {LOG.length} events today
           </p>
         </div>
-        <div className="ml-auto">
+        <div className="w-full sm:ml-auto sm:w-auto">
           <button
-            className="flex items-center gap-1.5 rounded-[6px] px-3 text-[12.5px] font-medium"
+            className="flex w-full items-center justify-center gap-1.5 rounded-[6px] px-3 text-[12.5px] font-medium sm:w-auto"
             style={{
               height: 32,
               border: "1px solid #E2E6EE",
@@ -272,15 +272,14 @@ export function CrossingsLog() {
 
       {/* Filter bar */}
       <div
-        className="flex items-center gap-2 px-5 flex-shrink-0"
+        className="flex flex-col items-stretch gap-2 px-4 py-2 sm:px-5 md:flex-row md:items-center flex-shrink-0"
         style={{
-          height: 50,
           borderBottom: "1px solid #E2E6EE",
           background: "#FFFFFF",
         }}
       >
         {/* Search */}
-        <div className="relative" style={{ width: 280 }}>
+        <div className="relative w-full md:w-[280px]">
           <span
             className="absolute left-3 top-1/2 -translate-y-1/2 text-[13px]"
             style={{ color: "#8A93A5" }}
@@ -303,10 +302,10 @@ export function CrossingsLog() {
           />
         </div>
 
-        <div className="flex-1" />
+        <div className="hidden flex-1 md:block" />
 
         {/* Event type chips */}
-        <div className="flex items-center gap-1.5 flex-wrap">
+        <div className="flex items-center gap-1.5 overflow-x-auto md:flex-wrap">
           {(["All", "uploaded", "extracted", "mapped", "validated", "flagged", "crossed", "failed"] as const).map(
             (ev) => {
               const active = evFilter === ev;
@@ -333,7 +332,7 @@ export function CrossingsLog() {
       </div>
 
       {/* Timeline */}
-      <div className="flex-1 overflow-auto px-6 py-4">
+      <div className="flex-1 overflow-auto px-4 py-4 sm:px-6">
         {/* Date group header */}
         <div className="flex items-center gap-3 mb-4">
           <span
@@ -366,7 +365,7 @@ export function CrossingsLog() {
             const hasDetail = !!entry.detail;
 
             return (
-              <div key={entry.id} className="flex gap-4 relative" style={{ paddingBottom: 20 }}>
+              <div key={entry.id} className="flex gap-3 sm:gap-4 relative" style={{ paddingBottom: 20 }}>
                 {/* Timeline dot */}
                 <div
                   style={{
@@ -394,7 +393,7 @@ export function CrossingsLog() {
                 >
                   {/* Main row */}
                   <div
-                    className="flex items-center gap-3 px-4 py-3"
+                    className="grid gap-2 px-4 py-3 lg:flex lg:items-center lg:gap-3"
                     style={{
                       cursor: hasDetail || hasDiff ? "pointer" : undefined,
                     }}
@@ -434,25 +433,27 @@ export function CrossingsLog() {
                     <FileChip type={entry.fmt} />
 
                     {/* Buyer → Supplier */}
-                    <span
-                      className="text-[12px] flex-shrink-0"
-                      style={{ color: "#1E66C9" }}
-                    >
-                      {entry.buyer}
-                    </span>
-                    <span style={{ color: "#C6CDDA", fontSize: 11 }}>→</span>
-                    <span
-                      className="text-[12px] flex-shrink-0"
-                      style={{ color: "#2E8E3A" }}
-                    >
-                      {entry.supplier}
-                    </span>
+                    <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 lg:contents">
+                      <span
+                        className="truncate text-[12px] lg:flex-shrink-0"
+                        style={{ color: "#1E66C9" }}
+                      >
+                        {entry.buyer}
+                      </span>
+                      <span style={{ color: "#C6CDDA", fontSize: 11 }}>→</span>
+                      <span
+                        className="truncate text-right text-[12px] lg:text-left lg:flex-shrink-0"
+                        style={{ color: "#2E8E3A" }}
+                      >
+                        {entry.supplier}
+                      </span>
+                    </div>
 
-                    <div className="flex-1" />
+                    <div className="hidden flex-1 lg:block" />
 
                     {/* Message */}
                     <span
-                      className="text-[12px] text-right truncate"
+                      className="text-[12px] lg:text-right lg:truncate"
                       style={{ color: "#56627A", maxWidth: 240 }}
                     >
                       {entry.message}
@@ -460,7 +461,7 @@ export function CrossingsLog() {
 
                     {/* Actor badge */}
                     <div
-                      className="flex items-center justify-center rounded-full text-[10px] font-bold text-white flex-shrink-0"
+                      className="hidden items-center justify-center rounded-full text-[10px] font-bold text-white flex-shrink-0 lg:flex"
                       style={{
                         width: 26,
                         height: 26,

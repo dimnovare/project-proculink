@@ -20,7 +20,7 @@ export function SupplierDockList() {
     <div className="flex flex-col h-full min-h-0 overflow-hidden" style={{ background: "#F6F7FA" }}>
       {/* Header */}
       <div
-        className="flex items-end gap-4 px-6 py-4 flex-shrink-0"
+        className="flex flex-col items-start gap-3 px-4 py-4 sm:px-6 sm:flex-row sm:items-end sm:gap-4 flex-shrink-0"
         style={{ borderBottom: "1px solid #E2E6EE", background: "#FFFFFF" }}
       >
         <div>
@@ -34,9 +34,9 @@ export function SupplierDockList() {
             {SUPPLIERS.length} active docks · all connected
           </p>
         </div>
-        <div className="ml-auto">
+        <div className="w-full sm:ml-auto sm:w-auto">
           <button
-            className="flex items-center gap-1.5 rounded-[6px] px-3 text-[12.5px] font-medium"
+            className="flex w-full items-center justify-center gap-1.5 rounded-[6px] px-3 text-[12.5px] font-medium sm:w-auto"
             style={{ height: 32, background: "#0B1A2F", color: "#FFFFFF", border: 0 }}
           >
             + Add supplier dock
@@ -44,7 +44,7 @@ export function SupplierDockList() {
         </div>
       </div>
 
-      <div className="flex-1 overflow-auto p-5">
+      <div className="flex-1 overflow-auto p-4 sm:p-5">
         <div className="flex flex-col gap-3">
           {SUPPLIERS.map((s) => {
             const hc = s.health >= 95 ? "#2E8E3A" : s.health >= 85 ? "#C97A14" : "#C53A3A";
@@ -61,7 +61,7 @@ export function SupplierDockList() {
                   borderLeft: `3px solid ${hc}`,
                 }}
               >
-                <div className="flex items-center gap-4 px-4 py-4">
+                <div className="grid gap-3 px-4 py-4 sm:grid-cols-[44px_minmax(0,1fr)_64px_120px_70px_auto] sm:items-center sm:gap-4">
                   {/* Code badge */}
                   <div
                     style={{
@@ -83,11 +83,11 @@ export function SupplierDockList() {
                   </div>
 
                   {/* Name + formats */}
-                  <div className="flex-1 min-w-0">
+                  <div className="min-w-0">
                     <p className="text-[14px] font-semibold" style={{ color: "#0B1A2F" }}>
                       {s.name}
                     </p>
-                    <div className="flex items-center gap-1.5 mt-1">
+                    <div className="flex flex-wrap items-center gap-1.5 mt-1">
                       {s.formats.map((f) => (
                         <span
                           key={f}
@@ -101,7 +101,7 @@ export function SupplierDockList() {
                   </div>
 
                   {/* Volume */}
-                  <div className="text-right flex-shrink-0" style={{ minWidth: 64 }}>
+                  <div className="text-left sm:text-right" style={{ minWidth: 64 }}>
                     <p className="text-[14px] font-semibold" style={{ color: "#0B1A2F", fontFamily: "'Bricolage Grotesque', sans-serif" }}>
                       {s.volume}
                     </p>
@@ -109,7 +109,7 @@ export function SupplierDockList() {
                   </div>
 
                   {/* Health bar */}
-                  <div className="flex-shrink-0" style={{ width: 120 }}>
+                  <div className="w-full sm:w-[120px]">
                     <div className="flex justify-between mb-1">
                       <span className="text-[10.5px]" style={{ color: "#8A93A5" }}>Health</span>
                       <span className="text-[11.5px] font-bold" style={{ color: hc, fontFamily: "'JetBrains Mono', monospace" }}>
@@ -122,14 +122,14 @@ export function SupplierDockList() {
                   </div>
 
                   {/* Last crossing */}
-                  <div className="text-right flex-shrink-0" style={{ minWidth: 60 }}>
+                  <div className="text-left sm:text-right" style={{ minWidth: 60 }}>
                     <p className="text-[11px]" style={{ color: "#8A93A5" }}>last crossing</p>
                     <p className="text-[12px] font-medium" style={{ color: "#56627A" }}>{s.lastCrossing} ago</p>
                   </div>
 
                   {/* Arrow */}
                   <span
-                    className="opacity-0 group-hover:opacity-100 transition-opacity text-[14px]"
+                    className="hidden opacity-0 group-hover:opacity-100 transition-opacity text-[14px] sm:inline"
                     style={{ color: "#C6CDDA" }}
                   >
                     →
