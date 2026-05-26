@@ -27,15 +27,23 @@ Deep-research review on May 26 2026 confirmed: ProcuLink should now be treated
 as a real working product, not a throwaway MVP. Do not add broad engine features
 on top of visibly rough UI.
 
-Next frontend work should prioritize:
+Next work is grouped in the backend repo roadmap:
+`C:\Users\Dmitri.MARKIT\source\repos\ProcuLink\docs\superpowers\plans\2026-05-26-production-hardening-roadmap.md`.
 
-1. UI/UX production polish and responsive QA across desktop, tablet, and mobile.
-2. Fixing visible Bridge Layer defects, including the Wire Topology detached
-   traveller/pulse dot issue.
-3. Making core flows feel complete: sign-in, first upload, inbox/review, mapping,
-   transform, delivery, settings/billing, and error states.
-4. Only after that, adding broader engine surfaces for more standards and output
-   templates.
+Frontend-relevant groups:
+
+| Group | Workstream | Status |
+|---|---|---|
+| **I** | UI/UX production polish + responsive QA | **Next** |
+| **J** | Live end-to-end QA + deployment hardening | Planned after I |
+| **K** | Standards + engine hardening surfaces | Planned after I/J scoping |
+| **L** | Trust, onboarding + commercial readiness | Planned; can overlap after I starts |
+
+Group I must happen first unless the user explicitly reprioritizes:
+- QA desktop, tablet, and mobile.
+- Fix visible Bridge Layer defects, including the Wire Topology detached traveller/pulse dot issue.
+- Make core flows feel complete: sign-in, first upload, inbox/review, mapping, transform, delivery, settings/billing/email, and error states.
+- Only after that, add broader engine surfaces for more standards and output templates.
 
 ---
 
@@ -424,7 +432,7 @@ These JSX files use inline styles (they're vanilla React prototype). Translate t
   - G Erply/Directo ERP delivery adapters.
   - H IMAP email polling settings UI.
 - Delivery UI must not imply an order is sent just because a transform artifact exists. Use explicit states such as `ready_to_deliver`, `delivering`, `delivered`, and `delivery_failed`.
-- Next recommended workstream is UI/UX production polish and mobile responsiveness, then live end-to-end QA, then engine hardening.
+- Next implementation group is **Group I — UI/UX production polish + responsive QA**.
 - Known visual issue to fix early: Wire Topology traveller/pulse dots must never appear detached from a visible wire path.
 
 ### shadcn/ui
