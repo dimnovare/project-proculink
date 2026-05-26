@@ -35,7 +35,7 @@ interface WireTopologyProps {
   onWireClick?: (wire: Wire, buyer: WireBuyer, supplier: WireSupplier) => void;
 }
 
-const STROKE_W: Record<number, number> = { 1: 1.5, 2: 3, 3: 5, 4: 8 };
+const STROKE_W: Record<number, number> = { 1: 1.25, 2: 2, 3: 3, 4: 4 };
 
 const HEALTH_COLORS: Record<Wire["health"], [string, string]> = {
   ok:   ["#1E66C9", "#2E8E3A"],
