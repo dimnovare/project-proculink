@@ -5,7 +5,9 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
+import { useQuery } from "@tanstack/react-query";
 import { FileChip } from "./FileChip";
+import { ApiHttpError, apiClient, getBillingStatus } from "@/lib/api-client";
 
 // Pipeline stages for the upload animation
 const PIPELINE_STAGES = ["Parse", "Normalize", "Validate", "Transform"] as const;
@@ -37,7 +39,13 @@ const RECENT: Array<{
 const FORMATS: FormatKey[] = ["PDF", "XLSX", "CSV", "cXML", "EDI", "JSON", "EMAIL"];
 
 const BUYERS  = ["Heinrich Industries", "Nordmark Logistics", "Steelhouse Const.", "Centralis Pharma", "Westmark Tools", "Atlas Reseller AG"];
-const SUPPLIERS = ["Acme Components", "BoltWorks BV", "VanDerBerg Metaal", "Nordix Distribution", "MedicaSupply OY"];
+const SUPPLIERS = [
+  { id: "11111111-1111-1111-1111-111111111111", name: "Acme Components" },
+  { id: "22222222-2222-2222-2222-222222222222", name: "BoltWorks BV" },
+  { id: "33333333-3333-3333-3333-333333333333", name: "VanDerBerg Metaal" },
+  { id: "44444444-4444-4444-4444-444444444444", name: "Nordix Distribution" },
+  { id: "55555555-5555-5555-5555-555555555555", name: "MedicaSupply OY" },
+];
 const TEMPLATES = ["Standard cXML PO", "SAP IDoc ORDERS05", "ERP Generic v2", "Custom Nordmark"];
 
 const STATUS_PILL: Record<string, { bg: string; color: string; label: string }> = {
@@ -90,49 +98,57 @@ function XCard({
 export function UploadWorkbench() {
   const [dragging, setDragging]     = useState(false);
   const [buyer, setBuyer]           = useState(BUYERS[0]);
-  const [supplier, setSupplier]     = useState(SUPPLIERS[0]);
+  const [supplierId, setSupplierId] = useState(SUPPLIERS[0].id);
   const [template, setTemplate]     = useState(TEMPLATES[0]);
   const [mode, setMode]             = useState<ModeKey>("auto");
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [uploading, setUploading]   = useState(false);
   const [pipelineStage, setPipelineStage] = useState(-1);
   const [uploadError, setUploadError] = useState<{ code: string; title: string; message: string; cta: string } | null>(null);
   const timerRefs = useRef<ReturnType<typeof setTimeout>[]>([]);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
   const router = useRouter();
 
-  async function getAuthHeader(): Promise<Record<string, string>> {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const token = await (window as any).Clerk?.session?.getToken();
-    return token ? { Authorization: `Bearer ${token}` } : {};
-  }
+  const { data: billing, isLoading: billingLoading, isError: billingError } = useQuery({
+    queryKey: ["billing-status"],
+    queryFn: getBillingStatus,
+    retry: false,
+  });
+
+  const selectedSupplier = SUPPLIERS.find((s) => s.id === supplierId) ?? SUPPLIERS[0];
+  const isReadOnly = billing ? !billing.canProcessOrders : false;
+  const isUploadDisabled = uploading || isReadOnly;
 
   async function handleUpload() {
     if (uploading) return;
+    if (isReadOnly) {
+      setUploadError(getLimitMessage(billing?.isTrialExpired ? "pilot_expired" : "order_limit_reached"));
+      return;
+    }
+    if (!selectedFile) {
+      fileInputRef.current?.click();
+      return;
+    }
     setUploadError(null);
     setUploading(true);
     setPipelineStage(0);
 
     try {
-      const headers = await getAuthHeader();
-      const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:5223"}/api/orders/upload`,
-        { method: "POST", headers }
-      ).catch(() => null);
-
-      if (res?.status === 429) {
-        const body = await res.json().catch(() => ({}));
-        const rawError = String((body as Record<string, unknown>).error ?? "order_limit_reached").toLowerCase();
-        const code = rawError.includes("pilot") && rawError.includes("expired")
-          ? "pilot_expired"
-          : rawError.includes("supplier")
-          ? "supplier_limit_reached"
-          : "order_limit_reached";
-        setUploadError(getLimitMessage(code));
-        setUploading(false);
-        setPipelineStage(-1);
-        return;
+      await apiClient.uploadPurchaseOrder(selectedFile, selectedSupplier.id);
+    } catch (error) {
+      if (error instanceof ApiHttpError && error.status === 429) {
+        setUploadError(getLimitMessage(getLimitCode(error.body)));
+      } else {
+        setUploadError({
+          code: "upload_failed",
+          title: "Upload could not start.",
+          message: error instanceof Error ? error.message : "Check the API connection and try again.",
+          cta: "Review settings",
+        });
       }
-    } catch {
-      // Network error — fall through to animation (demo mode)
+      setUploading(false);
+      setPipelineStage(-1);
+      return;
     }
 
     // Animate pipeline stages
@@ -212,7 +228,16 @@ export function UploadWorkbench() {
               <div
                 onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
                 onDragLeave={() => setDragging(false)}
-                onDrop={(e) => { e.preventDefault(); setDragging(false); }}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  setDragging(false);
+                  const file = e.dataTransfer.files.item(0);
+                  if (file) {
+                    setSelectedFile(file);
+                    setUploadError(null);
+                  }
+                }}
+                onClick={() => fileInputRef.current?.click()}
                 style={{
                   margin: 16,
                   marginTop: 18,
@@ -224,11 +249,24 @@ export function UploadWorkbench() {
                   alignItems: "center",
                   gap: 12,
                   background: dragging ? "#E3EDFB40" : "#F6F7FA",
+                  opacity: isReadOnly ? 0.62 : 1,
                   transition: "all 0.15s",
-                  cursor: "pointer",
+                  cursor: isReadOnly ? "not-allowed" : "pointer",
                   maxWidth: "100%",
                 }}
               >
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".csv,.xlsx,.xls,.xml,.pdf,.json,.edi,.txt"
+                  className="hidden"
+                  disabled={isReadOnly || uploading}
+                  onChange={(event) => {
+                    const file = event.target.files?.[0] ?? null;
+                    setSelectedFile(file);
+                    setUploadError(null);
+                  }}
+                />
                 {/* Upload icon */}
                 <div
                   style={{
@@ -263,15 +301,23 @@ export function UploadWorkbench() {
                     className="text-[14px] font-semibold"
                     style={{ color: "#0B1A2F" }}
                   >
-                    Drop your source document here
+                    {selectedFile ? selectedFile.name : "Drop your source document here"}
                   </p>
                   <p className="text-[12.5px] mt-1" style={{ color: "#56627A" }}>
-                    or{" "}
+                    {selectedFile
+                      ? `${Math.max(1, Math.round(selectedFile.size / 1024))} KB ready to bridge · `
+                      : "or "}
                     <button
                       className="font-medium underline underline-offset-2"
                       style={{ color: "#1E66C9" }}
+                      type="button"
+                      disabled={isReadOnly || uploading}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        fileInputRef.current?.click();
+                      }}
                     >
-                      browse files
+                      {selectedFile ? "change file" : "browse files"}
                     </button>
                   </p>
                 </div>
@@ -465,6 +511,49 @@ export function UploadWorkbench() {
               </div>
 
               <div className="px-4 py-4 flex flex-col gap-4">
+                {billing && (
+                  <div
+                    className="rounded-[7px] px-3 py-3"
+                    style={{
+                      background: isReadOnly ? "#FFF8EA" : "#F6F7FA",
+                      border: `1px solid ${isReadOnly ? "#F0D39A" : "#E2E6EE"}`,
+                    }}
+                  >
+                    <div className="mb-2 flex items-center justify-between gap-3">
+                      <span className="text-[11px] font-semibold uppercase tracking-[0.06em]" style={{ color: "#56627A" }}>
+                        {billing.plan} plan
+                      </span>
+                      <span className="rounded px-2 py-0.5 text-[10.5px] font-semibold" style={{ background: isReadOnly ? "#FAEFD6" : "#E3EDFB", color: isReadOnly ? "#9A5F0A" : "#1E66C9" }}>
+                        {isReadOnly ? "Processing paused" : "Ready"}
+                      </span>
+                    </div>
+                    <UsageLine label="Orders" used={billing.ordersThisMonth} limit={billing.orderLimit} />
+                    <UsageLine label="Suppliers" used={billing.suppliersUsed} limit={billing.supplierLimit} />
+                    {billing.trialEndsAt && billing.plan === "pilot" && (
+                      <p className="mt-2 text-[11.5px]" style={{ color: "#56627A" }}>
+                        Pilot ends {new Date(billing.trialEndsAt).toLocaleDateString()}.
+                      </p>
+                    )}
+                    {isReadOnly && (
+                      <p className="mt-2 text-[11.5px] leading-5" style={{ color: "#7A4D0B" }}>
+                        You can still view previous crossings, but new order processing is paused until the plan is upgraded.
+                      </p>
+                    )}
+                  </div>
+                )}
+
+                {billingLoading && (
+                  <div className="rounded-[7px] px-3 py-3 text-[12px]" style={{ border: "1px solid #E2E6EE", background: "#F6F7FA", color: "#56627A" }}>
+                    Checking plan limits...
+                  </div>
+                )}
+
+                {billingError && (
+                  <div className="rounded-[7px] px-3 py-3 text-[12px]" style={{ border: "1px solid #F0D39A", background: "#FFF8EA", color: "#7A4D0B" }}>
+                    Plan status is unavailable. Uploads may fail if the API cannot be reached.
+                  </div>
+                )}
+
                 {/* Buyer */}
                 <div>
                   <label
@@ -525,8 +614,8 @@ export function UploadWorkbench() {
                     Supplier dock
                   </label>
                   <select
-                    value={supplier}
-                    onChange={(e) => setSupplier(e.target.value)}
+                    value={supplierId}
+                    onChange={(e) => setSupplierId(e.target.value)}
                     className="w-full rounded-[6px] px-3 py-2 text-[13px] appearance-none"
                     style={{
                       border: "1px solid #E2E6EE",
@@ -536,7 +625,7 @@ export function UploadWorkbench() {
                     }}
                   >
                     {SUPPLIERS.map((s) => (
-                      <option key={s}>{s}</option>
+                      <option key={s.id} value={s.id}>{s.name}</option>
                     ))}
                   </select>
                 </div>
@@ -693,16 +782,16 @@ export function UploadWorkbench() {
                 {/* Bridge button */}
                 <button
                   onClick={handleUpload}
-                  disabled={uploading}
+                  disabled={isUploadDisabled}
                   className="w-full rounded-[6px] py-2.5 text-[13px] font-semibold transition-all"
                   style={{
-                    background: uploading
+                    background: isUploadDisabled
                       ? "#E2E6EE"
                       : "linear-gradient(90deg, #1E66C9 0%, #2E8E3A 100%)",
-                    color: uploading ? "#8A93A5" : "#FFFFFF",
+                    color: isUploadDisabled ? "#8A93A5" : "#FFFFFF",
                     border: "none",
-                    boxShadow: uploading ? "none" : "0 2px 8px rgba(30,102,201,0.25)",
-                    cursor: uploading ? "not-allowed" : "pointer",
+                    boxShadow: isUploadDisabled ? "none" : "0 2px 8px rgba(30,102,201,0.25)",
+                    cursor: isUploadDisabled ? "not-allowed" : "pointer",
                   }}
                 >
                   {uploading ? (
@@ -711,7 +800,7 @@ export function UploadWorkbench() {
                       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
                       Bridging…
                     </span>
-                  ) : "↑ Upload & bridge"}
+                  ) : isReadOnly ? "Processing paused" : selectedFile ? "↑ Upload & bridge" : "Choose a file to bridge"}
                 </button>
               </div>
             </XCard>
@@ -736,6 +825,37 @@ export function UploadWorkbench() {
       </div>
     </div>
   );
+}
+
+function UsageLine({ label, used, limit }: { label: string; used: number; limit: number }) {
+  const unlimited = limit >= 2_000_000_000;
+  const pct = unlimited || limit === 0 ? 100 : Math.min(100, Math.round((used / limit) * 100));
+  const color = unlimited || pct < 75 ? "#2E8E3A" : pct < 95 ? "#C97A14" : "#C53A3A";
+
+  return (
+    <div className="mt-2">
+      <div className="mb-1 flex items-center justify-between text-[11.5px]">
+        <span style={{ color: "#56627A" }}>{label}</span>
+        <span style={{ color: "#0B1A2F", fontFamily: "'JetBrains Mono', monospace", fontWeight: 700 }}>
+          {used} / {unlimited ? "Custom" : limit}
+        </span>
+      </div>
+      <div className="h-1.5 overflow-hidden rounded-full" style={{ background: "#E2E6EE" }}>
+        <div className="h-full rounded-full" style={{ width: `${unlimited ? 100 : pct}%`, background: color }} />
+      </div>
+    </div>
+  );
+}
+
+function getLimitCode(body: unknown): string {
+  const rawError =
+    body && typeof body === "object" && "error" in body
+      ? String((body as { error?: unknown }).error).toLowerCase()
+      : "order_limit_reached";
+
+  if (rawError.includes("pilot") && rawError.includes("expired")) return "pilot_expired";
+  if (rawError.includes("supplier")) return "supplier_limit_reached";
+  return "order_limit_reached";
 }
 
 function getLimitMessage(code: string): { code: string; title: string; message: string; cta: string } {

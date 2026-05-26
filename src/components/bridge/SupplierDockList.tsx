@@ -4,6 +4,9 @@
 // List of all supplier dock configurations with health bars + quick actions.
 
 import { useRouter } from "next/navigation";
+import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { getBillingStatus } from "@/lib/api-client";
 
 const SUPPLIERS = [
   { id: "s1", name: "Acme Components",    code: "ACM", health: 97, volume: "610/wk", formats: ["cXML", "EDI"],   contacts: 2, lastCrossing: "2m"  },
@@ -15,6 +18,19 @@ const SUPPLIERS = [
 
 export function SupplierDockList() {
   const router = useRouter();
+  const [showAddPanel, setShowAddPanel] = useState(false);
+  const { data: billing, isError: billingError } = useQuery({
+    queryKey: ["billing-status"],
+    queryFn: getBillingStatus,
+    retry: false,
+  });
+
+  const canAddSupplier = billing?.canAddSupplier ?? false;
+  const addButtonLabel = billingError
+    ? "Plan check unavailable"
+    : canAddSupplier
+      ? "+ Add supplier dock"
+      : "Supplier limit reached";
 
   return (
     <div className="flex flex-col h-full min-h-0 overflow-hidden" style={{ background: "#F6F7FA" }}>
@@ -36,15 +52,104 @@ export function SupplierDockList() {
         </div>
         <div className="w-full sm:ml-auto sm:w-auto">
           <button
+            disabled={!canAddSupplier}
+            onClick={() => setShowAddPanel(true)}
             className="flex w-full items-center justify-center gap-1.5 rounded-[6px] px-3 text-[12.5px] font-medium sm:w-auto"
-            style={{ height: 32, background: "#0B1A2F", color: "#FFFFFF", border: 0 }}
+            style={{
+              height: 32,
+              background: canAddSupplier ? "#0B1A2F" : "#E2E6EE",
+              color: canAddSupplier ? "#FFFFFF" : "#8A93A5",
+              border: 0,
+              cursor: canAddSupplier ? "pointer" : "not-allowed",
+            }}
           >
-            + Add supplier dock
+            {addButtonLabel}
           </button>
         </div>
       </div>
 
       <div className="flex-1 overflow-auto p-4 sm:p-5">
+        {billing && !billing.canAddSupplier && (
+          <div
+            className="mb-4 rounded-[8px] px-4 py-3"
+            style={{ border: "1px solid #F0D39A", borderLeft: "3px solid #C97A14", background: "#FFF8EA" }}
+          >
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="text-[13px] font-semibold" style={{ color: "#0B1A2F" }}>
+                  Your {billing.plan} plan includes {billing.supplierLimit} supplier dock{billing.supplierLimit === 1 ? "" : "s"}.
+                </p>
+                <p className="mt-1 text-[12px] leading-5" style={{ color: "#7A4D0B" }}>
+                  Existing supplier flows remain viewable. Upgrade when you are ready to add another supplier route.
+                </p>
+              </div>
+              <button
+                onClick={() => router.push("/settings")}
+                className="h-8 rounded-[6px] px-3 text-[12px] font-semibold"
+                style={{ border: "1px solid #C97A14", background: "#FFFFFF", color: "#9A5F0A" }}
+              >
+                View billing
+              </button>
+            </div>
+          </div>
+        )}
+
+        {billingError && (
+          <div
+            className="mb-4 rounded-[8px] px-4 py-3 text-[12.5px]"
+            style={{ border: "1px solid #F0D39A", background: "#FFF8EA", color: "#7A4D0B" }}
+          >
+            Supplier limits could not be checked because the billing API is unavailable.
+          </div>
+        )}
+
+        {showAddPanel && canAddSupplier && (
+          <div
+            className="mb-4 overflow-hidden rounded-[8px]"
+            style={{ border: "1px solid #D5DAEA", background: "#FFFFFF", boxShadow: "0 1px 3px rgba(11,26,47,0.04)" }}
+          >
+            <div className="flex items-start justify-between gap-3 px-4 py-3" style={{ borderBottom: "1px solid #E2E6EE", background: "#F6F7FA" }}>
+              <div>
+                <p className="text-[13px] font-semibold" style={{ color: "#0B1A2F" }}>New supplier dock</p>
+                <p className="mt-1 text-[12px]" style={{ color: "#56627A" }}>Name the supplier and choose the first delivery format. You can finish mappings later.</p>
+              </div>
+              <button
+                onClick={() => setShowAddPanel(false)}
+                className="rounded px-2 py-1 text-[12px]"
+                style={{ border: "1px solid #E2E6EE", background: "#FFFFFF", color: "#56627A" }}
+              >
+                Close
+              </button>
+            </div>
+            <div className="grid gap-3 p-4 sm:grid-cols-[minmax(0,1fr)_150px_auto]">
+              <input
+                aria-label="Supplier name"
+                placeholder="Supplier name"
+                className="h-9 rounded-[6px] px-3 text-[13px]"
+                style={{ border: "1px solid #D5DAEA", color: "#0B1A2F", outline: "none" }}
+              />
+              <select
+                aria-label="First output format"
+                className="h-9 rounded-[6px] px-3 text-[13px]"
+                style={{ border: "1px solid #D5DAEA", color: "#0B1A2F", background: "#FFFFFF", outline: "none" }}
+              >
+                <option>cXML</option>
+                <option>CSV</option>
+                <option>XML</option>
+                <option>JSON</option>
+                <option>EDI</option>
+              </select>
+              <button
+                onClick={() => setShowAddPanel(false)}
+                className="h-9 rounded-[6px] px-3 text-[12.5px] font-semibold"
+                style={{ border: "none", background: "#0B1A2F", color: "#FFFFFF" }}
+              >
+                Save draft
+              </button>
+            </div>
+          </div>
+        )}
+
         <div className="flex flex-col gap-3">
           {SUPPLIERS.map((s) => {
             const hc = s.health >= 95 ? "#2E8E3A" : s.health >= 85 ? "#C97A14" : "#C53A3A";

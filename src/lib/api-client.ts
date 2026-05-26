@@ -33,6 +33,18 @@ async function authHeader(): Promise<Record<string, string>> {
 
 const delay = (ms: number) => new Promise<void>(resolve => setTimeout(resolve, ms));
 
+export class ApiHttpError extends Error {
+  status: number;
+  body: unknown;
+
+  constructor(message: string, status: number, body: unknown = null) {
+    super(message);
+    this.name = "ApiHttpError";
+    this.status = status;
+    this.body = body;
+  }
+}
+
 async function fetchWithTimeout(input: RequestInfo | URL, init?: RequestInit, timeoutMs = 8000) {
   const controller = new AbortController();
   const timeout = globalThis.setTimeout(() => controller.abort(), timeoutMs);
@@ -245,7 +257,19 @@ async function realUploadPurchaseOrder(file: File, supplierId: string): Promise<
   const res = await fetch(`${API_BASE_URL}/api/orders/upload`, {
     method: "POST", headers: await authHeader(), body: formData,
   });
-  if (!res.ok) { const t = await res.text(); throw new Error(`Upload failed: ${t || res.statusText}`); }
+  if (!res.ok) {
+    const contentType = res.headers.get("content-type") ?? "";
+    const body = contentType.includes("application/json")
+      ? await res.json().catch(() => null)
+      : await res.text().catch(() => "");
+    const message =
+      typeof body === "string"
+        ? body
+        : body && typeof body === "object" && "error" in body
+          ? String((body as { error?: unknown }).error)
+          : res.statusText;
+    throw new ApiHttpError(`Upload failed: ${message || res.statusText}`, res.status, body);
+  }
   return res.json() as Promise<UploadResult>;
 }
 

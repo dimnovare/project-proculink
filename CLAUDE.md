@@ -34,7 +34,7 @@ Frontend-relevant groups:
 
 | Group | Workstream | Status |
 |---|---|---|
-| **I** | UI/UX production polish + responsive QA | **In progress — topology/mobile pass verified** |
+| **I** | UI/UX production polish + responsive QA | **In progress — pass 8 complete** |
 | **J** | Live end-to-end QA + deployment hardening | Planned after I |
 | **K** | Standards + engine hardening surfaces | Planned after I/J scoping |
 | **L** | Trust, onboarding + commercial readiness | Planned; can overlap after I starts |
@@ -441,7 +441,8 @@ These JSX files use inline styles (they're vanilla React prototype). Translate t
 - Group I pass 5 is complete: supplier detail, mapping editor, supplier PO Mapping tab, and supplier Delivery tab were screenshot-tested and fixed for mobile. Supplier KPIs no longer collide with the title, mapping rows use mobile route cards, and PO/delivery form controls now stack safely.
 - Group I pass 6 is complete: settings billing/email tabs now have explicit loading/error states with retry actions and bounded billing/email API fetch timeouts; `/operations/connectors` uses mobile cards instead of a squeezed table; connector and webhook add/edit buttons open lightweight configuration panels so the UI path is visible before live save/test-fire QA.
 - Group I pass 7 is complete: `/library/mappings` import/export/add/edit, `/library/rules` new/edit/list, and `/library/templates` new/edit now have visible panels; rules list view uses mobile cards instead of a clipped desktop table; dense order-review inline edit and confirm states were rechecked.
-- Continue Group I QA before starting Group J: plan-gated/empty/loading/error states beyond settings, live save/test-fire behavior for connector/webhook/mapping/rule/template forms, and full first-upload-to-delivery happy/error paths still need the same desktop/tablet/mobile pass.
+- Group I pass 8 is complete: `/upload` now has selected-file browse/drop state, plan usage/read-only context, and structured 429 handling through `ApiHttpError`; `/library/suppliers` now separates supplier-limit state from billing-unavailable state and opens a lightweight supplier setup panel when adding is allowed.
+- Continue Group I QA before starting Group J: live save/test-fire behavior for connector/webhook/mapping/rule/template forms and full first-upload-to-delivery happy/error paths against a running API still need the same desktop/tablet/mobile pass.
 
 ### shadcn/ui
 
