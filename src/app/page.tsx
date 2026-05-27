@@ -64,9 +64,11 @@ export default async function RootPage() {
 
       {/* ── Hero ──────────────────────────────────────────────────── */}
       <section
+        className="px-4 sm:px-8"
         style={{
           background: "#0B1A2F",
-          padding: "80px 32px 60px",
+          paddingTop: "60px",
+          paddingBottom: "48px",
           textAlign: "center",
           position: "relative",
           overflow: "hidden",
@@ -240,30 +242,20 @@ export default async function RootPage() {
 
       {/* ── Stats strip ────────────────────────────────────────────── */}
       <section
+        className="px-4 sm:px-8"
         style={{
           background: "#F6F7FA",
           borderBottom: "1px solid #E2E6EE",
-          padding: "0 32px",
           display: "flex",
           justifyContent: "center",
         }}
       >
         <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(4, 1fr)",
-            width: "100%",
-            maxWidth: 900,
-            textAlign: "center",
-          }}
+          className="grid w-full grid-cols-2 divide-x divide-y divide-[#E2E6EE] sm:grid-cols-4 sm:divide-y-0"
+          style={{ maxWidth: 900, textAlign: "center" }}
         >
           {STATS.map((s, i) => (
-            <div
-              key={i}
-              style={{
-                padding: "28px 16px",
-                borderRight: i < 3 ? "1px solid #E2E6EE" : undefined,
-              }}
+            <div key={i} style={{ padding: "28px 16px" }}
             >
               <div
                 style={{
@@ -286,7 +278,7 @@ export default async function RootPage() {
       </section>
 
       {/* ── Features ───────────────────────────────────────────────── */}
-      <section style={{ padding: "80px 32px", maxWidth: 1100, margin: "0 auto" }}>
+      <section className="px-4 sm:px-8" style={{ paddingTop: "64px", paddingBottom: "64px", maxWidth: 1100, margin: "0 auto" }}>
         <div style={{ textAlign: "center", marginBottom: 56 }}>
           <h2
             style={{
@@ -362,9 +354,11 @@ export default async function RootPage() {
 
       {/* ── CTA band ───────────────────────────────────────────────── */}
       <section
+        className="px-4 sm:px-8"
         style={{
           background: "#0B1A2F",
-          padding: "72px 32px",
+          paddingTop: "64px",
+          paddingBottom: "64px",
           textAlign: "center",
         }}
       >
@@ -423,10 +417,12 @@ export default async function RootPage() {
 
       {/* Footer */}
       <footer
+        className="px-4 sm:px-8"
         style={{
           borderTop: "1px solid #E2E6EE",
           background: "#F6F7FA",
-          padding: "36px 32px",
+          paddingTop: "36px",
+          paddingBottom: "36px",
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
