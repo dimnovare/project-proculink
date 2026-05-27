@@ -352,6 +352,116 @@ export default async function RootPage() {
         </div>
       </section>
 
+      {/* ── Why ProcuLink ─────────────────────────────────────────── */}
+      <section
+        className="px-4 sm:px-8"
+        style={{ background: "#F6F7FA", borderBottom: "1px solid #E2E6EE", paddingTop: "64px", paddingBottom: "64px" }}
+      >
+        <div style={{ maxWidth: 1100, margin: "0 auto" }}>
+          <div style={{ textAlign: "center", marginBottom: 48 }}>
+            <h2
+              style={{
+                fontFamily: "'Bricolage Grotesque', Inter, sans-serif",
+                fontSize: "clamp(26px, 3.5vw, 38px)",
+                fontWeight: 700,
+                letterSpacing: "-0.025em",
+                color: "#0B1A2F",
+                marginBottom: 10,
+              }}
+            >
+              Why procurement teams choose ProcuLink
+            </h2>
+            <p style={{ fontSize: 15.5, color: "#56627A", maxWidth: 480, margin: "0 auto" }}>
+              Real results from teams that moved from manual reformatting to automated order delivery.
+            </p>
+          </div>
+          <div
+            className="grid grid-cols-1 gap-5 sm:grid-cols-3"
+          >
+            {[
+              {
+                stat: "60% fewer reformatting tasks",
+                body: "Procurement teams stop manually converting orders for each supplier. ProcuLink maps your buyer PO format to what each supplier actually needs — automatically.",
+                color: "#1E66C9",
+                bg: "#E3EDFB",
+                icon: (
+                  <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="#1E66C9" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M4 10l4 4 8-8" />
+                    <rect x="1" y="1" width="18" height="18" rx="3" />
+                  </svg>
+                ),
+              },
+              {
+                stat: "Stop orders getting bounced back",
+                body: "Supplier rejections for wrong item codes, missing fields, or incorrect file formats cost hours of back-and-forth. ProcuLink validates before you send.",
+                color: "#2E8E3A",
+                bg: "#E2F1E2",
+                icon: (
+                  <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="#2E8E3A" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M10 18s7-3.5 7-8.75V3.5L10 1 3 3.5v5.75C3 14.5 10 18 10 18z" />
+                    <path d="M7 10l2 2 4-4" />
+                  </svg>
+                ),
+              },
+              {
+                stat: "Orders out in minutes, not hours",
+                body: "From uploaded PO to delivered supplier order in one workflow. No email chains, no spreadsheet wrestling, no copy-paste errors across formats.",
+                color: "#C97A14",
+                bg: "#FAEFD6",
+                icon: (
+                  <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="#C97A14" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="10" cy="10" r="8.5" />
+                    <polyline points="10 5.5 10 10.5 13.5 12.5" />
+                  </svg>
+                ),
+              },
+            ].map((item, i) => (
+              <div
+                key={i}
+                style={{
+                  background: "#FFFFFF",
+                  border: "1px solid #E2E6EE",
+                  borderLeft: `3px solid ${item.color}`,
+                  borderRadius: 10,
+                  padding: "28px 24px",
+                  boxShadow: "0 1px 4px rgba(11,26,47,0.04)",
+                }}
+              >
+                <div
+                  style={{
+                    width: 36,
+                    height: 36,
+                    borderRadius: 8,
+                    background: item.bg,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    marginBottom: 16,
+                  }}
+                >
+                  {item.icon}
+                </div>
+                <h3
+                  style={{
+                    fontFamily: "'Bricolage Grotesque', Inter, sans-serif",
+                    fontSize: 16,
+                    fontWeight: 600,
+                    color: "#0B1A2F",
+                    marginBottom: 10,
+                    letterSpacing: "-0.01em",
+                  }}
+                >
+                  {item.stat}
+                </h3>
+                <p style={{ fontSize: 13.5, lineHeight: 1.65, color: "#56627A" }}>
+                  {item.body}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* ── CTA band ───────────────────────────────────────────────── */}
       <section
         className="px-4 sm:px-8"
