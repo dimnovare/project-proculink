@@ -6,9 +6,13 @@
 import type React from "react";
 import { useRouter } from "next/navigation";
 import { useState, useRef, useEffect, useCallback, type KeyboardEvent } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { apiClient } from "@/lib/api-client";
+import type { Order } from "@/types/procurement";
 import { EdgeRails } from "./EdgeRails";
 import { FileChip } from "./FileChip";
 import { StatusJourney } from "./StatusJourney";
+import { SpineReviewSkeleton } from "./Skeletons";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -65,6 +69,45 @@ const ANATOMY_ZONES = [
   { top: 200, h: 170, label: "Lines zone",   conf: 92, fields: "14 line items",      ok: true  },
   { top: 386, h: 36,  label: "Totals zone",  conf: 100,fields: "Grand total",        ok: true  },
 ];
+
+// ─── Map live order → SpineNodeData ──────────────────────────────────────────
+
+function buildNodesFromOrder(order: Order): SpineNodeData[] {
+  const lineCount = order.lines.length;
+  const total = order.lines.reduce((sum, l) => sum + Number(l.unitPrice) * Number(l.quantity), 0);
+  const formatted = `${order.currency === "EUR" ? "€" : order.currency} ${total.toLocaleString("en-IE", { minimumFractionDigits: 2 })}`;
+
+  // Avg line confidence (0-1 → 0-100)
+  const lineConf = lineCount > 0
+    ? Math.round(order.lines.reduce((s, l) => s + l.confidence, 0) / lineCount * 100)
+    : 90;
+
+  const subnodes: SpineNodeData["subnodes"] = order.lines.slice(0, 10).map((l) => ({
+    id: l.id,
+    sku: l.supplierItemCode ?? l.buyerItemCode,
+    qty: l.quantity,
+    ai: !!l.aiSuggestion && !l.supplierItemCode,
+    pct: Math.round(l.confidence * 100),
+    err: l.needsReview && !l.supplierItemCode,
+    hint: l.aiSuggestion
+      ? `AI mapped from ${l.buyerItemCode} (${Math.round(l.aiSuggestion.confidence * 100)}%)`
+      : l.needsReview ? "Needs review" : undefined,
+  }));
+
+  return [
+    { id: "po",       label: "PO number",   value: order.poNumber,            pct: 99, mono: true,  editable: false, srcRef: "header",  outRef: "Order/@orderID"    },
+    { id: "date",     label: "Order date",  value: order.orderDate,            pct: 95, mono: true,  editable: true,  srcRef: "header",  outRef: "Order/orderDate"   },
+    { id: "buyer",    label: "Buyer",       value: order.buyerName ?? "(parsing…)", pct: order.buyerName ? 98 : 50, tone: "buyer",    editable: true,  srcRef: "parties", outRef: "BillTo/Contact"    },
+    { id: "supplier", label: "Supplier",    value: order.supplierName,         pct: 97, tone: "supplier", editable: false, srcRef: "parties", outRef: "ShipFrom/Contact"  },
+    { id: "currency", label: "Currency",    value: order.currency,             pct: 99, mono: true,  editable: true,  srcRef: "terms",   outRef: "Total/@currency"   },
+    {
+      id: "lines", label: "Lines", value: `${lineCount} item${lineCount !== 1 ? "s" : ""}`,
+      pct: lineConf, editable: false, srcRef: "lines", outRef: "ItemOut[]",
+      subnodes,
+    },
+    { id: "totals", label: "Grand total", value: formatted, pct: 100, mono: true, big: true, editable: false, srcRef: "totals", outRef: "Total/@amount" },
+  ];
+}
 
 // ─── ConfChip ────────────────────────────────────────────────────────────────
 
@@ -610,6 +653,17 @@ function MobileSpineAccordion({
 export function SpineReview({ orderId }: { orderId: string }) {
   const router = useRouter();
 
+  // ── Live order data ────────────────────────────────────────────────────────
+  const { data: order, isLoading, isError } = useQuery({
+    queryKey: ["order", orderId],
+    queryFn: () => apiClient.getOrderById(orderId),
+    retry: 1,
+    staleTime: 30_000,
+  });
+
+  // Derive nodes from live order or fall back to INITIAL_NODES for mock
+  const nodes = order ? buildNodesFromOrder(order) : INITIAL_NODES;
+
   // ── State ──────────────────────────────────────────────────────────────────
   const [fieldValues, setFieldValues]             = useState<Record<string, string>>({});
   const [editingId, setEditingId]                 = useState<string | null>(null);
@@ -623,26 +677,28 @@ export function SpineReview({ orderId }: { orderId: string }) {
 
   const inputRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
-  // Count remaining unresolved exceptions
+  // Count remaining unresolved exceptions (from live order lines)
   const exceptionCount = (() => {
+    if (order) {
+      return order.lines.filter(l => l.needsReview && !fieldValues[l.id]).length;
+    }
+    // fallback for mock
     let n = 0;
-    // incoterm hint (AI suggestion)
-    if (!fieldValues["incoterm"] || fieldValues["incoterm"] === "DDP") n++; // still at AI-suggested state
-    // billTo low confidence
+    if (!fieldValues["incoterm"] || fieldValues["incoterm"] === "DDP") n++;
     if (!fieldValues["billTo"]) n++;
-    // sn3 error line always an exception
     n++;
     return Math.max(0, n - acceptedSubnodes.size);
   })();
 
   // ── Edit handlers ──────────────────────────────────────────────────────────
   const handleStartEdit = useCallback((id: string) => {
-    const node = INITIAL_NODES.find(n => n.id === id);
+    const node = nodes.find(n => n.id === id);
     if (!node) return;
     setFieldValues(prev => ({ ...prev, [id]: prev[id] ?? node.value }));
     setEditingId(id);
     setTimeout(() => inputRefs.current[id]?.focus(), 0);
-  }, []);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [nodes]);
 
   const handleChangeValue = useCallback((id: string, val: string) => {
     setFieldValues(prev => ({ ...prev, [id]: val }));
@@ -658,7 +714,7 @@ export function SpineReview({ orderId }: { orderId: string }) {
       handleCommitEdit(id);
       // Tab to next editable field
       if (e.key === "Tab") {
-        const editables = INITIAL_NODES.filter(n => n.editable);
+        const editables = nodes.filter(n => n.editable);
         const idx = editables.findIndex(n => n.id === id);
         const next = editables[idx + 1];
         if (next) setTimeout(() => handleStartEdit(next.id), 0);
@@ -667,7 +723,7 @@ export function SpineReview({ orderId }: { orderId: string }) {
     if (e.key === "Escape") {
       setEditingId(null);
       // Restore original value
-      const node = INITIAL_NODES.find(n => n.id === id);
+      const node = nodes.find(n => n.id === id);
       if (node) setFieldValues(prev => ({ ...prev, [id]: node.value }));
     }
   }, [handleCommitEdit, handleStartEdit]);
@@ -698,6 +754,30 @@ export function SpineReview({ orderId }: { orderId: string }) {
   const handleSaveDraft = useCallback(() => {
     setFlowNotice(`Draft saved locally for crossing ${orderId}. Live draft persistence is verified in Group J.`);
   }, [orderId]);
+
+  // ── Loading / error gates (must be after all hooks) ────────────────────────
+  if (isLoading) return <SpineReviewSkeleton />;
+  if (isError || order === null) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full gap-4" style={{ background: "#F6F7FA" }}>
+        <div style={{ fontSize: 28, color: "#C6CDDA" }}>⊘</div>
+        <p className="text-[14px] font-semibold" style={{ color: "#0B1A2F" }}>
+          {order === null ? "Order not found" : "Failed to load order"}
+        </p>
+        <p className="text-[13px]" style={{ color: "#56627A" }}>
+          {order === null ? `No order found with ID ${orderId}.` : "Check your connection and try again."}
+        </p>
+        <button
+          type="button"
+          onClick={() => router.push("/inbox")}
+          className="rounded-[6px] px-4 text-[12.5px] font-semibold"
+          style={{ height: 34, background: "#0B1A2F", color: "#FFFFFF", border: 0 }}
+        >
+          ← Back to inbox
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col h-full min-h-0 overflow-hidden" style={{ background: "#F6F7FA" }}>
@@ -788,7 +868,7 @@ export function SpineReview({ orderId }: { orderId: string }) {
                 {/* Spine line */}
                 <div style={{ position: "absolute", top: 36, bottom: 0, left: 22, width: 3, background: "linear-gradient(180deg,#1E66C9,#2E8E3A)", borderRadius: 2 }} />
                 <div style={{ position: "relative", paddingTop: 4 }}>
-                  {INITIAL_NODES.map((node, i) => (
+                  {nodes.map((node, i) => (
                     <SpineNodeCard
                       key={node.id}
                       node={node}
@@ -824,7 +904,7 @@ export function SpineReview({ orderId }: { orderId: string }) {
 
             {/* Mobile accordion */}
             <MobileSpineAccordion
-              nodes={INITIAL_NODES}
+              nodes={nodes}
               editingId={editingId}
               fieldValues={fieldValues}
               acceptedSubnodes={acceptedSubnodes}

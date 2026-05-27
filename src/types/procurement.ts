@@ -72,6 +72,8 @@ export interface Order {
   poNumber: string;
   supplierId: string;
   supplierName: string;
+  /** Buyer name extracted from canonical JSON after parsing; null while parsing. */
+  buyerName?: string | null;
   orderDate: string; // "yyyy-MM-dd"
   currency: string;
   status: OrderStatus;
