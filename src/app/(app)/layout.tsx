@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useOrganization, useOrganizationList } from "@clerk/nextjs";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClient, QueryClientProvider, useQueryClient } from "@tanstack/react-query";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
@@ -16,20 +16,28 @@ import { MSWProvider } from "@/mocks/MSWProvider";
  * none is currently active. Without an active org the JWT lacks the org_id
  * claim, which causes TenantResolutionMiddleware to leave the tenant unresolved
  * and every API call to fail with "Organisation not resolved".
+ *
+ * Must render inside QueryClientProvider so it can invalidate queries after
+ * setActive resolves and the session token refreshes with the org_id claim.
  */
 function AutoActivateOrg() {
   const { organization: activeOrg } = useOrganization();
   const { userMemberships, setActive } = useOrganizationList({
     userMemberships: { infinite: true },
   });
+  const queryClient = useQueryClient();
 
   useEffect(() => {
     if (activeOrg) return; // already active — nothing to do
     const first = userMemberships.data?.[0]?.organization;
-    if (first && setActive) {
-      void setActive({ organization: first.id });
-    }
-  }, [activeOrg, userMemberships.data, setActive]);
+    if (!first || !setActive) return;
+
+    void setActive({ organization: first.id }).then(() => {
+      // Session token now contains org_id. Invalidate all cached queries so
+      // any requests that fired before the token refreshed will retry correctly.
+      void queryClient.invalidateQueries();
+    });
+  }, [activeOrg, userMemberships.data, setActive, queryClient]);
 
   return null;
 }
@@ -54,8 +62,8 @@ export default function AppShellLayout({
 
   return (
     <MSWProvider>
-    <AutoActivateOrg />
     <QueryClientProvider client={queryClient}>
+      <AutoActivateOrg />
       <TooltipProvider>
         {/* Bridge shell — full viewport, no scroll on the wrapper */}
         <div className="flex h-screen overflow-hidden" style={{ background: "#F6F7FA" }}>
