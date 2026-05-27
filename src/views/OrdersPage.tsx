@@ -434,6 +434,7 @@ export default function OrdersPage() {
           <button
             onClick={() => refetch()}
             title="Refresh"
+            className="btn-icon"
             style={{
               width: 32, height: 32, borderRadius: 6,
               background: "transparent", border: `1px solid ${T.border}`,
@@ -445,6 +446,7 @@ export default function OrdersPage() {
           </button>
           <Link
             href="/upload"
+            className="btn-primary"
             style={{
               height: 32, padding: "0 14px", borderRadius: 6,
               background: T.navy, color: "#fff",
@@ -521,6 +523,7 @@ export default function OrdersPage() {
             </p>
             <button
               onClick={() => refetch()}
+              className="btn-ghost"
               style={{
                 height: 32, padding: "0 16px", borderRadius: 6,
                 border: `1px solid ${T.border}`, background: T.surface,
@@ -554,6 +557,7 @@ export default function OrdersPage() {
             {!query && statusFilter === "all" && (
               <Link
                 href="/upload"
+                className="btn-primary"
                 style={{
                   marginTop: 8, height: 34, padding: "0 18px", borderRadius: 7,
                   background: T.navy, color: "#fff",
@@ -604,6 +608,7 @@ export default function OrdersPage() {
                   {filtered.map((order: OrderSummary) => (
                     <tr
                       key={order.id}
+                      className="table-row-tr"
                       style={{ borderTop: `1px solid ${T.borderFaint}` }}
                       onMouseEnter={e => (e.currentTarget.style.background = T.surface2)}
                       onMouseLeave={e => (e.currentTarget.style.background = T.surface)}
@@ -617,6 +622,7 @@ export default function OrdersPage() {
                             style={{
                               fontFamily: T.mono, fontSize: 12.5, fontWeight: 500,
                               color: T.ink, textDecoration: "none",
+                              transition: "color 0.1s ease",
                             }}
                             onMouseEnter={e => ((e.target as HTMLElement).style.color = T.blue)}
                             onMouseLeave={e => ((e.target as HTMLElement).style.color = T.ink)}

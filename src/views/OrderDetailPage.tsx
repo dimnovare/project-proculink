@@ -260,6 +260,7 @@ function LineItemsPanel({ order }: { order: Order }) {
             {order.lines.map(line => (
               <tr
                 key={line.id}
+                className="table-row-tr"
                 style={{ borderTop: `1px solid ${T.borderFaint}` }}
                 onMouseEnter={e => (e.currentTarget.style.background = T.surface2)}
                 onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
@@ -371,6 +372,7 @@ function GeneratedFilesPanel({
             </div>
             <button
               onClick={() => onDownload(artifact.id)}
+              className="btn-ghost"
               style={{
                 display: "inline-flex", alignItems: "center", gap: 5,
                 padding: "5px 10px", borderRadius: 6,
@@ -602,7 +604,7 @@ export default function OrderDetailPage() {
 
       {/* ── Scrollable body ────────────────────────────────────────────────── */}
       <div style={{ flex: 1, overflow: "auto" }}>
-        <div style={{ padding: "0 32px 48px", maxWidth: 1100 }}>
+        <div style={{ padding: "0 32px 48px", maxWidth: 1240 }}>
 
           {/* ── Order header ───────────────────────────────────────────────── */}
           <div style={{ paddingTop: 28, paddingBottom: 22 }}>
@@ -610,6 +612,7 @@ export default function OrderDetailPage() {
             {/* Back link */}
             <Link
               href="/orders"
+              className="back-link"
               style={{
                 display: "inline-flex", alignItems: "center", gap: 7,
                 background: "transparent", padding: "0 0 18px",
@@ -662,6 +665,7 @@ export default function OrderDetailPage() {
                 {order.sourceFileKey && (
                   <button
                     onClick={() => handleDownload(order.artifacts[0]?.id ?? "")}
+                    className="btn-ghost"
                     style={{
                       height: 34, padding: "0 14px", borderRadius: 7,
                       background: "transparent", border: `1px solid ${T.border}`,
@@ -678,12 +682,14 @@ export default function OrderDetailPage() {
                   </button>
                 )}
                 <button
+                  className="btn-ghost"
                   style={{
                     height: 34, padding: "0 14px", borderRadius: 7,
                     background: "transparent", border: `1px solid ${T.border}`,
                     display: "inline-flex", alignItems: "center", gap: 6,
                     fontSize: 12.5, fontWeight: 500, color: T.inkMuted,
-                    cursor: "pointer", fontFamily: T.ui,
+                    cursor: "not-allowed", fontFamily: T.ui,
+                    opacity: 0.5,
                   }}
                   disabled
                 >
@@ -692,6 +698,7 @@ export default function OrderDetailPage() {
                 <button
                   onClick={() => order.status === "ready" ? handleTransform("xml") : undefined}
                   disabled={order.status !== "ready" || isProcessing}
+                  className="btn-primary"
                   style={{
                     height: 34, padding: "0 16px", borderRadius: 7,
                     background: T.navy,
@@ -755,7 +762,7 @@ export default function OrderDetailPage() {
           {!isProcessing && <MetaStrip order={order} />}
 
           {/* ── Content grid ────────────────────────────────────────────────── */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 300px", gap: 16, alignItems: "start" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 360px", gap: 18, alignItems: "start" }}>
 
             {/* Main column */}
             <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>

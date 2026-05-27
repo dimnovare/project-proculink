@@ -321,3 +321,69 @@ header :focus-visible {
     }
   }
 }
+
+/* ── Interactive element states ──────────────────────────────────────────────
+   Uses !important so CSS hover/active rules override inline style="" props.
+   Transition is set on the base element; the browser animates the change.
+   ──────────────────────────────────────────────────────────────────────────── */
+
+/* Ghost button — transparent/surface bg, bordered, muted text */
+.btn-ghost {
+  transition: background 0.12s ease, border-color 0.12s ease, color 0.12s ease !important;
+}
+.btn-ghost:hover:not(:disabled) {
+  background: #F1F3F7 !important;
+  border-color: #CBD0DA !important;
+  color: #0B1A2F !important;
+}
+.btn-ghost:active:not(:disabled) {
+  background: #E5E8EF !important;
+  transform: scale(0.987);
+}
+
+/* Primary button — navy CTA */
+.btn-primary {
+  transition: background 0.12s ease, box-shadow 0.12s ease !important;
+}
+.btn-primary:hover:not(:disabled) {
+  background: #162B44 !important;
+  box-shadow: 0 2px 10px rgba(11,26,47,0.22) !important;
+}
+.btn-primary:active:not(:disabled) {
+  background: #0a1626 !important;
+  transform: scale(0.987);
+}
+
+/* Small square icon button (e.g. refresh) */
+.btn-icon {
+  transition: background 0.12s ease !important;
+}
+.btn-icon:hover {
+  background: #F1F3F7 !important;
+}
+.btn-icon:active {
+  background: #E5E8EF !important;
+  transform: scale(0.92);
+}
+
+/* Back/breadcrumb nav link */
+.back-link {
+  transition: color 0.12s ease, opacity 0.12s ease !important;
+}
+.back-link:hover {
+  color: #0B1A2F !important;
+  opacity: 1 !important;
+}
+
+/* Table row smooth bg transition (works with onMouseEnter/Leave) */
+.table-row-tr {
+  transition: background 0.08s ease !important;
+}
+
+/* Inline link inside table row (e.g. PO number) */
+.tbl-link {
+  transition: color 0.1s ease !important;
+}
+.tbl-link:hover {
+  color: #1E66C9 !important;
+}
