@@ -45,11 +45,17 @@ export default function MarketingLayout({
             gap: 24,
             fontSize: 12.5,
             color: "#8A93A5",
+            flexWrap: "wrap",
           }}
         >
           <a href="/pricing" style={{ color: "inherit" }}>Pricing</a>
           <a href="/how-it-works" style={{ color: "inherit" }}>How it works</a>
           <a href="/sign-in" style={{ color: "inherit" }}>Sign in</a>
+          <span style={{ color: "#D0D5DE" }}>·</span>
+          <a href="/privacy" style={{ color: "inherit" }}>Privacy</a>
+          <a href="/terms" style={{ color: "inherit" }}>Terms</a>
+          <a href="/security" style={{ color: "inherit" }}>Security</a>
+          <a href="/support" style={{ color: "inherit" }}>Support</a>
         </div>
         <span style={{ fontSize: 12, color: "#8A93A5" }}>
           © 2026 Estoria Capital Group OÜ

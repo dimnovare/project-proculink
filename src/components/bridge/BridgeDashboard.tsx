@@ -4,11 +4,14 @@
 // "Order topology" — not "Dashboard".
 
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { WireTopology } from "./WireTopology";
 import type { WireBuyer, WireSupplier, Wire } from "./WireTopology";
 import { FileChip } from "./FileChip";
 import { LaneDrawer } from "./LaneDrawer";
 import type { Lane } from "./LaneDrawer";
+import { OnboardingChecklist } from "./OnboardingChecklist";
+import { apiClient } from "@/lib/api-client";
 
 // ─── Mock data (MSW will replace these) ─────────────────────────────────────
 
@@ -72,6 +75,26 @@ const STAGE_COLOR: Record<string, string> = {
 export function BridgeDashboard() {
   const [activeLane, setActiveLane] = useState<Lane | null>(null);
 
+  const { data: onboardingStatus } = useQuery({
+    queryKey: ["onboarding-status"],
+    queryFn: () => apiClient.getOnboardingStatus(),
+    staleTime: 60_000,
+  });
+  const { data: suppliers } = useQuery({
+    queryKey: ["suppliers"],
+    queryFn: () => apiClient.getSuppliers(),
+    staleTime: 60_000,
+  });
+  const { data: orders } = useQuery({
+    queryKey: ["orders"],
+    queryFn: () => apiClient.getOrders(),
+    staleTime: 60_000,
+  });
+
+  const showChecklist =
+    onboardingStatus != null &&
+    !(onboardingStatus.hasSupplier && onboardingStatus.hasUpload && onboardingStatus.hasDelivery);
+
   function handleWireClick(wire: Wire, buyer: WireBuyer, supplier: WireSupplier) {
     setActiveLane({
       buyerName:    buyer.name,
@@ -132,6 +155,15 @@ export function BridgeDashboard() {
       </div>
 
       <div className="flex flex-1 flex-col gap-4 p-3 sm:gap-5 sm:p-5">
+        {/* Onboarding checklist — shown until all steps are complete */}
+        {showChecklist && (
+          <OnboardingChecklist
+            status={onboardingStatus!}
+            supplierCount={suppliers?.length ?? 0}
+            orderCount={orders?.length ?? 0}
+          />
+        )}
+
         {/* Wire topology canvas */}
         <WireTopology
           buyers={BUYERS}
