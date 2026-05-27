@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useOrganization, useOrganizationList } from "@clerk/nextjs";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Toaster } from "@/components/ui/toaster";
@@ -9,6 +10,29 @@ import { BridgeSidebar } from "@/components/bridge/BridgeSidebar";
 import { BridgeTopbar } from "@/components/bridge/BridgeTopbar";
 import { ErrorBoundary } from "@/components/bridge/ErrorBoundary";
 import { MSWProvider } from "@/mocks/MSWProvider";
+
+/**
+ * Auto-activates the user's first Clerk organization when they have one but
+ * none is currently active. Without an active org the JWT lacks the org_id
+ * claim, which causes TenantResolutionMiddleware to leave the tenant unresolved
+ * and every API call to fail with "Organisation not resolved".
+ */
+function AutoActivateOrg() {
+  const { organization: activeOrg } = useOrganization();
+  const { userMemberships, setActive } = useOrganizationList({
+    userMemberships: { infinite: true },
+  });
+
+  useEffect(() => {
+    if (activeOrg) return; // already active — nothing to do
+    const first = userMemberships.data?.[0]?.organization;
+    if (first && setActive) {
+      void setActive({ organization: first.id });
+    }
+  }, [activeOrg, userMemberships.data, setActive]);
+
+  return null;
+}
 
 export default function AppShellLayout({
   children,
@@ -30,6 +54,7 @@ export default function AppShellLayout({
 
   return (
     <MSWProvider>
+    <AutoActivateOrg />
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         {/* Bridge shell — full viewport, no scroll on the wrapper */}
