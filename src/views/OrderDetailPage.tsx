@@ -604,7 +604,7 @@ export default function OrderDetailPage() {
 
       {/* ── Scrollable body ────────────────────────────────────────────────── */}
       <div style={{ flex: 1, overflow: "auto" }}>
-        <div style={{ padding: "0 32px 48px", maxWidth: 1240 }}>
+        <div style={{ padding: "0 32px 48px" }}>
 
           {/* ── Order header ───────────────────────────────────────────────── */}
           <div style={{ paddingTop: 28, paddingBottom: 22 }}>

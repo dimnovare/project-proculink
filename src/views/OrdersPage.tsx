@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api-client";
 import type { OrderSummary, OrderStatus } from "@/types/procurement";
@@ -241,7 +242,7 @@ function ColHead({
 }) {
   const active = sortKey && currentSort?.key === sortKey;
   return (
-    <th style={{ padding: "10px 0", textAlign: align, fontWeight: "normal" }}>
+    <th style={{ padding: "10px 16px 10px 0", textAlign: align, fontWeight: "normal" }}>
       {sortKey ? (
         <button
           style={{
@@ -343,6 +344,7 @@ function LoadingSkeleton() {
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function OrdersPage() {
+  const router = useRouter();
   const [query, setQuery]               = useState("");
   const [statusFilter, setStatusFilter] = useState<OrderStatus | "all">("all");
   const [sort, setSort]                 = useState<{ key: string; dir: "asc" | "desc" }>({ key: "createdAt", dir: "desc" });
@@ -609,7 +611,8 @@ export default function OrdersPage() {
                     <tr
                       key={order.id}
                       className="table-row-tr"
-                      style={{ borderTop: `1px solid ${T.borderFaint}` }}
+                      style={{ borderTop: `1px solid ${T.borderFaint}`, cursor: "pointer" }}
+                      onClick={() => router.push(`/orders/${order.id}`)}
                       onMouseEnter={e => (e.currentTarget.style.background = T.surface2)}
                       onMouseLeave={e => (e.currentTarget.style.background = T.surface)}
                     >
