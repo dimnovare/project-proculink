@@ -306,11 +306,12 @@ function DocumentAnatomy({ highlightZone }: { highlightZone?: string }) {
 
 // ─── Output Preview ───────────────────────────────────────────────────────────
 
-function OutputPreview({ acceptedSubnodes, rejectedSubnodes, crossed, fieldValues }: {
+function OutputPreview({ acceptedSubnodes, rejectedSubnodes, crossed, fieldValues, onOutputAction }: {
   acceptedSubnodes: Set<string>;
   rejectedSubnodes: Set<string>;
   crossed: boolean;
   fieldValues: Record<string, string>;
+  onOutputAction: (message: string) => void;
 }) {
   const incoterm = fieldValues["incoterm"] ?? "DDP";
   const billTo = fieldValues["billTo"] ?? "Postfach 1042 · 70001 Stuttgart, DE";
@@ -325,8 +326,18 @@ function OutputPreview({ acceptedSubnodes, rejectedSubnodes, crossed, fieldValue
         <span style={{ fontSize: 10.5, color: "#8A93A5", padding: "3px 8px", border: "1px solid #E2E6EE", borderRadius: 4 }}>CSV</span>
         <span style={{ fontSize: 10.5, color: "#8A93A5", padding: "3px 8px", border: "1px solid #E2E6EE", borderRadius: 4 }}>JSON</span>
         <div style={{ flex: 1 }} />
-        <button style={{ fontSize: 10.5, padding: "3px 8px", border: "1px solid #E2E6EE", borderRadius: 4, background: "#FFFFFF", cursor: "pointer", color: "#56627A" }}>Copy</button>
-        <button style={{ fontSize: 10.5, padding: "3px 8px", border: "1px solid #E2E6EE", borderRadius: 4, background: "#FFFFFF", cursor: "pointer", color: "#56627A" }}>↓ Download</button>
+        <button
+          onClick={() => onOutputAction("Output preview copied locally for QA. Live template rendering is verified in Group J.")}
+          style={{ fontSize: 10.5, padding: "3px 8px", border: "1px solid #E2E6EE", borderRadius: 4, background: "#FFFFFF", cursor: "pointer", color: "#56627A" }}
+        >
+          Copy
+        </button>
+        <button
+          onClick={() => onOutputAction("Download request prepared locally for QA. Signed artifact URLs are verified in Group J.")}
+          style={{ fontSize: 10.5, padding: "3px 8px", border: "1px solid #E2E6EE", borderRadius: 4, background: "#FFFFFF", cursor: "pointer", color: "#56627A" }}
+        >
+          ↓ Download
+        </button>
       </div>
 
       <div style={{ position: "relative", borderRadius: 6, fontFamily: "'JetBrains Mono',monospace", fontSize: 10.5, lineHeight: 1.6, background: "#0B1A2F", color: "#C5D2E4", padding: "14px 16px", minHeight: 400 }}>
@@ -521,6 +532,7 @@ export function SpineReview({ orderId }: { orderId: string }) {
   const [crossed, setCrossed]                     = useState(false);
   const [showToast, setShowToast]                 = useState(false);
   const [highlightZone, setHighlightZone]         = useState<string | undefined>();
+  const [flowNotice, setFlowNotice]               = useState<string | null>(null);
 
   const inputRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
@@ -593,7 +605,12 @@ export function SpineReview({ orderId }: { orderId: string }) {
     setShowConfirm(false);
     setCrossed(true);
     setShowToast(true);
+    setFlowNotice("Delivered locally for QA. Group J verifies the real supplier delivery acknowledgement, retries, and audit event.");
   }, []);
+
+  const handleSaveDraft = useCallback(() => {
+    setFlowNotice(`Draft saved locally for crossing ${orderId}. Live draft persistence is verified in Group J.`);
+  }, [orderId]);
 
   return (
     <div className="flex flex-col h-full min-h-0 overflow-hidden" style={{ background: "#F6F7FA" }}>
@@ -630,7 +647,10 @@ export function SpineReview({ orderId }: { orderId: string }) {
 
           {/* Actions */}
           <div style={{ display: "flex", gap: 8, flexShrink: 0, flexWrap: "wrap" }}>
-            <button style={{ height: 32, padding: "0 14px", borderRadius: 6, fontSize: 12.5, fontWeight: 500, background: "#FFFFFF", border: "1px solid #E2E6EE", color: "#0B1A2F", cursor: "pointer" }}>
+            <button
+              onClick={handleSaveDraft}
+              style={{ height: 32, padding: "0 14px", borderRadius: 6, fontSize: 12.5, fontWeight: 500, background: "#FFFFFF", border: "1px solid #E2E6EE", color: "#0B1A2F", cursor: "pointer" }}
+            >
               Save draft
             </button>
             <button
@@ -650,6 +670,14 @@ export function SpineReview({ orderId }: { orderId: string }) {
           </div>
           <StatusJourney stage={crossed ? 4 : 2} />
         </div>
+
+        {flowNotice && (
+          <div className="px-4 pb-3 sm:px-5">
+            <div className="rounded-[7px] px-3 py-2 text-[12px] leading-relaxed" style={{ border: "1px solid #BDE0C1", background: "#F0F7F1", color: "#1E6D29" }}>
+              {flowNotice}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Body */}
@@ -699,6 +727,7 @@ export function SpineReview({ orderId }: { orderId: string }) {
                   rejectedSubnodes={rejectedSubnodes}
                   crossed={crossed}
                   fieldValues={fieldValues}
+                  onOutputAction={setFlowNotice}
                 />
               </div>
             </div>
@@ -707,32 +736,49 @@ export function SpineReview({ orderId }: { orderId: string }) {
       </div>
 
       {/* Sticky action bar */}
-      <div style={{ display: "flex", alignItems: "center", gap: 16, padding: "12px 24px", background: "#FFFFFF", borderTop: "1px solid #E2E6EE", flexShrink: 0, overflowX: "auto" }}>
-        <div>
-          <div style={{ fontSize: 10.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "#8A93A5", marginBottom: 2 }}>Grand total</div>
-          <div style={{ fontFamily: "'Bricolage Grotesque',Inter,sans-serif", fontSize: 22, fontWeight: 600, color: "#0B1A2F", letterSpacing: "-0.02em" }}>€ 4,436.73</div>
+      <div className="flex-shrink-0 bg-white px-4 py-3 sm:px-6" style={{ borderTop: "1px solid #E2E6EE" }}>
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-[auto_auto_1fr] sm:items-center lg:flex lg:items-center lg:gap-5">
+            <div className="min-w-0">
+              <div style={{ fontSize: 10.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "#8A93A5", marginBottom: 2 }}>Grand total</div>
+              <div className="whitespace-nowrap" style={{ fontFamily: "'Bricolage Grotesque',Inter,sans-serif", fontSize: 22, fontWeight: 600, color: "#0B1A2F", letterSpacing: "-0.02em" }}>€ 4,436.73</div>
+            </div>
+            <div className="hidden h-9 w-px sm:block" style={{ background: "#E2E6EE" }} />
+            <div className="min-w-0">
+              <div style={{ fontSize: 10.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "#8A93A5", marginBottom: 2 }}>Output template</div>
+              <div className="truncate" style={{ fontSize: 13, fontWeight: 500, color: "#0B1A2F" }}>Acme cXML v1.2</div>
+            </div>
+            <div className="col-span-2 sm:col-span-1">
+              {!crossed && exceptionCount > 0 && (
+                <span className="inline-flex rounded-[6px] px-2.5 py-1.5 text-[12px] font-semibold" style={{ background: "#FFF8EA", border: "1px solid #F0D39A", color: "#9A5F0A" }}>
+                  ⚠ {exceptionCount} exception{exceptionCount !== 1 ? "s" : ""} need review
+                </span>
+              )}
+              {crossed && (
+                <span className="inline-flex rounded-[6px] px-2.5 py-1.5 text-[12px] font-semibold" style={{ background: "#F0F7F1", border: "1px solid #BDE0C1", color: "#1E6D29" }}>
+                  ✓ Delivered · 1m 42s
+                </span>
+              )}
+            </div>
+          </div>
+
+          <div className="flex gap-2 lg:ml-auto">
+            <button
+              onClick={handleSaveDraft}
+              className="flex-1 lg:flex-none"
+              style={{ height: 36, padding: "0 14px", borderRadius: 6, fontSize: 12.5, fontWeight: 500, background: "#FFFFFF", border: "1px solid #E2E6EE", color: "#0B1A2F", cursor: "pointer", whiteSpace: "nowrap" }}
+            >
+              Save draft
+            </button>
+            <button
+              onClick={() => !crossed && setShowConfirm(true)}
+              className="flex-[1.4] lg:flex-none"
+              style={{ height: 36, padding: "0 18px", borderRadius: 6, fontSize: 13, fontWeight: 600, background: crossed ? "#2E8E3A" : "#0B1A2F", color: "#FFFFFF", border: "none", cursor: crossed ? "default" : "pointer", transition: "background 200ms", whiteSpace: "nowrap" }}
+            >
+              {crossed ? "✓ Crossed" : "Cross the bridge →"}
+            </button>
+          </div>
         </div>
-        <div style={{ width: 1, height: 36, background: "#E2E6EE" }} />
-        <div>
-          <div style={{ fontSize: 10.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "#8A93A5", marginBottom: 2 }}>Output template</div>
-          <div style={{ fontSize: 13, fontWeight: 500, color: "#0B1A2F" }}>Acme cXML v1.2</div>
-        </div>
-        <div style={{ flex: 1 }} />
-        {!crossed && exceptionCount > 0 && (
-          <span style={{ fontSize: 12, color: "#C97A14", fontWeight: 500 }}>⚠ {exceptionCount} exception{exceptionCount !== 1 ? "s" : ""} need review</span>
-        )}
-        {crossed && <span style={{ fontSize: 12, color: "#2E8E3A", fontWeight: 600 }}>✓ Delivered · 1m 42s</span>}
-        <button
-          style={{ height: 34, padding: "0 14px", borderRadius: 6, fontSize: 12.5, fontWeight: 500, background: "#FFFFFF", border: "1px solid #E2E6EE", color: "#0B1A2F", cursor: "pointer" }}
-        >
-          Save draft
-        </button>
-        <button
-          onClick={() => !crossed && setShowConfirm(true)}
-          style={{ height: 34, padding: "0 18px", borderRadius: 6, fontSize: 13, fontWeight: 600, background: crossed ? "#2E8E3A" : "#0B1A2F", color: "#FFFFFF", border: "none", cursor: crossed ? "default" : "pointer", transition: "background 200ms" }}
-        >
-          {crossed ? "✓ Crossed" : "Cross the bridge →"}
-        </button>
       </div>
 
       {/* Modals */}

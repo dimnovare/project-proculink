@@ -133,8 +133,10 @@ export function UploadWorkbench() {
     setUploading(true);
     setPipelineStage(0);
 
+    let uploadedOrderId: string;
     try {
-      await apiClient.uploadPurchaseOrder(selectedFile, selectedSupplier.id);
+      const result = await apiClient.uploadPurchaseOrder(selectedFile, selectedSupplier.id);
+      uploadedOrderId = result.order.id;
     } catch (error) {
       if (error instanceof ApiHttpError && error.status === 429) {
         setUploadError(getLimitMessage(getLimitCode(error.body)));
@@ -157,7 +159,7 @@ export function UploadWorkbench() {
       timerRefs.current.push(t);
     });
     const total = setTimeout(() => {
-      router.push("/inbox/008412");
+      router.push(`/inbox/${encodeURIComponent(uploadedOrderId)}`);
     }, PIPELINE_STAGES.length * STAGE_MS + 200);
     timerRefs.current.push(total);
   }
