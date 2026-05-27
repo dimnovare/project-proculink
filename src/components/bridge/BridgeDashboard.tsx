@@ -148,8 +148,8 @@ export function BridgeDashboard() {
           />
         )}
 
-        {/* KPI strip */}
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5">
+        {/* KPI strip — 2×2 on mobile, 5-col on xl */}
+        <div className="grid grid-cols-2 gap-3 xl:grid-cols-5">
           {KPIS.map((kpi, i) => (
             <div
               key={i}

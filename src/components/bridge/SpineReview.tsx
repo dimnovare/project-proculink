@@ -3,6 +3,7 @@
 // Canonical Spine Review — fully interactive ETL review screen.
 // AC2: AI accept/reject, inline field editing, confirm dialog, keyboard nav.
 
+import type React from "react";
 import { useRouter } from "next/navigation";
 import { useState, useRef, useEffect, useCallback, type KeyboardEvent } from "react";
 import { EdgeRails } from "./EdgeRails";
@@ -118,13 +119,6 @@ function SpineNodeCard({
         className="absolute rounded-full bg-white z-10"
         style={{ left: 17, top: 14, width: 13, height: 13, border: `2.5px solid ${idx < 4 ? "#1E66C9" : "#2E8E3A"}` }}
       />
-      {/* Connector stubs */}
-      <svg width={14} height={34} viewBox="0 0 14 34" className="absolute" style={{ left: -14, top: 8, pointerEvents: "none" }} aria-hidden>
-        <path d="M 0 17 Q 7 17 14 17" stroke="#1E66C9" strokeWidth={1} fill="none" strokeDasharray="2 2" />
-      </svg>
-      <svg width={14} height={34} viewBox="0 0 14 34" className="absolute" style={{ right: -14, top: 8, pointerEvents: "none" }} aria-hidden>
-        <path d="M 0 17 Q 7 17 14 17" stroke="#2E8E3A" strokeWidth={1} fill="none" strokeDasharray="2 2" />
-      </svg>
 
       <div
         className="rounded-[6px] px-2.5 py-2"
@@ -518,6 +512,99 @@ function CrossedToast({ onDismiss }: { onDismiss: () => void }) {
   );
 }
 
+// ─── Mobile accordion ─────────────────────────────────────────────────────────
+
+interface MobileSpineAccordionProps {
+  nodes: SpineNodeData[];
+  editingId: string | null;
+  fieldValues: Record<string, string>;
+  acceptedSubnodes: Set<string>;
+  rejectedSubnodes: Set<string>;
+  crossed: boolean;
+  highlightZone?: string;
+  onStartEdit: (id: string) => void;
+  onChangeValue: (id: string, val: string) => void;
+  onCommitEdit: (id: string) => void;
+  onAcceptSubnode: (id: string) => void;
+  onRejectSubnode: (id: string) => void;
+  onKeyDown: (e: KeyboardEvent<HTMLInputElement>, id: string) => void;
+  inputRef: (el: HTMLInputElement | null, id: string) => void;
+  onOutputAction: (msg: string) => void;
+}
+
+function AccordionPanel({ label, accent, defaultOpen, children }: {
+  label: string;
+  accent: string;
+  defaultOpen?: boolean;
+  children: React.ReactNode;
+}) {
+  const [open, setOpen] = useState(defaultOpen ?? false);
+  return (
+    <div className="rounded-[10px] overflow-hidden" style={{ border: "1px solid #E2E6EE", background: "#FFFFFF" }}>
+      <button
+        className="w-full flex items-center gap-3 px-4 py-3 text-left"
+        style={{ borderBottom: open ? "1px solid #E2E6EE" : "none", background: open ? "rgba(30,102,201,0.02)" : "#FFFFFF" }}
+        onClick={() => setOpen(o => !o)}
+      >
+        <span style={{ width: 3, height: 22, borderRadius: 2, background: accent, flexShrink: 0 }} />
+        <span style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "#56627A", flex: 1 }}>{label}</span>
+        <span style={{ fontSize: 14, color: "#8A93A5", transform: open ? "rotate(90deg)" : "none", transition: "transform 150ms" }}>›</span>
+      </button>
+      {open && <div className="p-3">{children}</div>}
+    </div>
+  );
+}
+
+function MobileSpineAccordion({
+  nodes, editingId, fieldValues, acceptedSubnodes, rejectedSubnodes,
+  crossed, highlightZone, onStartEdit, onChangeValue, onCommitEdit,
+  onAcceptSubnode, onRejectSubnode, onKeyDown, inputRef, onOutputAction,
+}: MobileSpineAccordionProps) {
+  return (
+    <div className="md:hidden flex flex-col gap-3 px-4 py-4 pb-[80px]">
+      <AccordionPanel label="Source · What we received" accent="#1E66C9">
+        <DocumentAnatomy highlightZone={highlightZone} />
+      </AccordionPanel>
+
+      <AccordionPanel label="Canonical model · the bridge" accent="linear-gradient(180deg,#1E66C9,#2E8E3A)" defaultOpen>
+        <div style={{ position: "relative" }}>
+          <div style={{ position: "absolute", top: 4, bottom: 0, left: 22, width: 3, background: "linear-gradient(180deg,#1E66C9,#2E8E3A)", borderRadius: 2 }} />
+          <div style={{ position: "relative", paddingTop: 4 }}>
+            {nodes.map((node, i) => (
+              <SpineNodeCard
+                key={node.id}
+                node={node}
+                idx={i}
+                editingId={editingId}
+                fieldValues={fieldValues}
+                acceptedSubnodes={acceptedSubnodes}
+                rejectedSubnodes={rejectedSubnodes}
+                onStartEdit={onStartEdit}
+                onChangeValue={onChangeValue}
+                onCommitEdit={onCommitEdit}
+                onAcceptSubnode={onAcceptSubnode}
+                onRejectSubnode={onRejectSubnode}
+                onKeyDown={onKeyDown}
+                inputRef={inputRef}
+              />
+            ))}
+          </div>
+        </div>
+      </AccordionPanel>
+
+      <AccordionPanel label="Output · What we send" accent="#2E8E3A">
+        <OutputPreview
+          acceptedSubnodes={acceptedSubnodes}
+          rejectedSubnodes={rejectedSubnodes}
+          crossed={crossed}
+          fieldValues={fieldValues}
+          onOutputAction={onOutputAction}
+        />
+      </AccordionPanel>
+    </div>
+  );
+}
+
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export function SpineReview({ orderId }: { orderId: string }) {
@@ -664,11 +751,11 @@ export function SpineReview({ orderId }: { orderId: string }) {
         </div>
 
         {/* Stage track — full width, visually separate */}
-        <div style={{ padding: "8px 16px 10px", borderTop: "1px solid #F0F2F7" }}>
-          <div style={{ fontSize: 9.5, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: "#8A93A5", marginBottom: 6, textAlign: "center" }}>
-            {crossed ? "Stage 5 of 5 · Delivered" : "Stage 3 of 5 · Validating"}
-          </div>
-          <StatusJourney stage={crossed ? 4 : 2} />
+        <div style={{ padding: "8px 16px 14px", borderTop: "1px solid #F0F2F7" }}>
+          <StatusJourney
+            stage={crossed ? 4 : 2}
+            crossingRef={crossed ? `Delivered · ${orderId}` : `Validating · ${orderId}`}
+          />
         </div>
 
         {flowNotice && (
@@ -683,20 +770,23 @@ export function SpineReview({ orderId }: { orderId: string }) {
       {/* Body */}
       <div style={{ flex: 1, position: "relative", overflow: "auto" }}>
         <EdgeRails className="min-w-[1120px]">
-          <div style={{ height: "100%", overflowY: "auto" }}>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 360px 1fr", alignItems: "start", padding: "20px 0" }}>
-
+          <div className="h-full overflow-y-auto">
+            {/* Desktop 3-column grid */}
+            <div
+              className="hidden md:grid gap-[22px] px-6 py-[18px]"
+              style={{ gridTemplateColumns: "1fr 1.05fr 1.15fr", alignItems: "start" }}
+            >
               {/* Left — Document Anatomy */}
-              <div style={{ padding: "0 12px" }}>
+              <div>
                 <div style={{ fontSize: 10.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em", color: "#8A93A5", marginBottom: 10 }}>📄 Source · What we received</div>
                 <DocumentAnatomy highlightZone={highlightZone} />
               </div>
 
               {/* Center — Canonical Spine */}
-              <div style={{ padding: "0 12px", position: "relative" }}>
+              <div style={{ position: "relative" }}>
                 <div style={{ fontSize: 10.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em", color: "#0B1A2F", marginBottom: 10, textAlign: "center" }}>Canonical model · the bridge</div>
                 {/* Spine line */}
-                <div style={{ position: "absolute", top: 36, bottom: 0, left: "calc(12px + 22px)", width: 3, background: "linear-gradient(180deg,#1E66C9,#2E8E3A)", borderRadius: 2 }} />
+                <div style={{ position: "absolute", top: 36, bottom: 0, left: 22, width: 3, background: "linear-gradient(180deg,#1E66C9,#2E8E3A)", borderRadius: 2 }} />
                 <div style={{ position: "relative", paddingTop: 4 }}>
                   {INITIAL_NODES.map((node, i) => (
                     <SpineNodeCard
@@ -720,7 +810,7 @@ export function SpineReview({ orderId }: { orderId: string }) {
               </div>
 
               {/* Right — Output Preview */}
-              <div style={{ padding: "0 12px" }}>
+              <div>
                 <div style={{ fontSize: 10.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em", color: "#8A93A5", marginBottom: 10, textAlign: "right" }}>⤴ Output · What we send</div>
                 <OutputPreview
                   acceptedSubnodes={acceptedSubnodes}
@@ -731,54 +821,72 @@ export function SpineReview({ orderId }: { orderId: string }) {
                 />
               </div>
             </div>
+
+            {/* Mobile accordion */}
+            <MobileSpineAccordion
+              nodes={INITIAL_NODES}
+              editingId={editingId}
+              fieldValues={fieldValues}
+              acceptedSubnodes={acceptedSubnodes}
+              rejectedSubnodes={rejectedSubnodes}
+              crossed={crossed}
+              highlightZone={highlightZone}
+              onStartEdit={handleStartEdit}
+              onChangeValue={handleChangeValue}
+              onCommitEdit={handleCommitEdit}
+              onAcceptSubnode={handleAcceptSubnode}
+              onRejectSubnode={handleRejectSubnode}
+              onKeyDown={handleKeyDown}
+              inputRef={inputRefCallback}
+              onOutputAction={setFlowNotice}
+            />
           </div>
         </EdgeRails>
       </div>
 
-      {/* Sticky action bar */}
-      <div className="flex-shrink-0 bg-white px-4 py-3 sm:px-6" style={{ borderTop: "1px solid #E2E6EE" }}>
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-[auto_auto_1fr] sm:items-center lg:flex lg:items-center lg:gap-5">
-            <div className="min-w-0">
-              <div style={{ fontSize: 10.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "#8A93A5", marginBottom: 2 }}>Grand total</div>
-              <div className="whitespace-nowrap" style={{ fontFamily: "'Bricolage Grotesque',Inter,sans-serif", fontSize: 22, fontWeight: 600, color: "#0B1A2F", letterSpacing: "-0.02em" }}>€ 4,436.73</div>
-            </div>
-            <div className="hidden h-9 w-px sm:block" style={{ background: "#E2E6EE" }} />
-            <div className="min-w-0">
-              <div style={{ fontSize: 10.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "#8A93A5", marginBottom: 2 }}>Output template</div>
-              <div className="truncate" style={{ fontSize: 13, fontWeight: 500, color: "#0B1A2F" }}>Acme cXML v1.2</div>
-            </div>
-            <div className="col-span-2 sm:col-span-1">
-              {!crossed && exceptionCount > 0 && (
-                <span className="inline-flex rounded-[6px] px-2.5 py-1.5 text-[12px] font-semibold" style={{ background: "#FFF8EA", border: "1px solid #F0D39A", color: "#9A5F0A" }}>
-                  ⚠ {exceptionCount} exception{exceptionCount !== 1 ? "s" : ""} need review
-                </span>
-              )}
-              {crossed && (
-                <span className="inline-flex rounded-[6px] px-2.5 py-1.5 text-[12px] font-semibold" style={{ background: "#F0F7F1", border: "1px solid #BDE0C1", color: "#1E6D29" }}>
-                  ✓ Delivered · 1m 42s
-                </span>
-              )}
-            </div>
-          </div>
-
-          <div className="flex gap-2 lg:ml-auto">
-            <button
-              onClick={handleSaveDraft}
-              className="flex-1 lg:flex-none"
-              style={{ height: 36, padding: "0 14px", borderRadius: 6, fontSize: 12.5, fontWeight: 500, background: "#FFFFFF", border: "1px solid #E2E6EE", color: "#0B1A2F", cursor: "pointer", whiteSpace: "nowrap" }}
-            >
-              Save draft
-            </button>
-            <button
-              onClick={() => !crossed && setShowConfirm(true)}
-              className="flex-[1.4] lg:flex-none"
-              style={{ height: 36, padding: "0 18px", borderRadius: 6, fontSize: 13, fontWeight: 600, background: crossed ? "#2E8E3A" : "#0B1A2F", color: "#FFFFFF", border: "none", cursor: crossed ? "default" : "pointer", transition: "background 200ms", whiteSpace: "nowrap" }}
-            >
-              {crossed ? "✓ Crossed" : "Cross the bridge →"}
-            </button>
-          </div>
+      {/* Sticky info bar — desktop only (mobile has its own sticky CTA) */}
+      <div className="hidden md:flex flex-shrink-0 bg-white px-6 py-3 items-center gap-5" style={{ borderTop: "1px solid #E2E6EE" }}>
+        <div className="min-w-0">
+          <div style={{ fontSize: 10.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "#8A93A5", marginBottom: 2 }}>Grand total</div>
+          <div style={{ fontFamily: "'Bricolage Grotesque',Inter,sans-serif", fontSize: 22, fontWeight: 600, color: "#0B1A2F", letterSpacing: "-0.02em", whiteSpace: "nowrap" }}>€ 4,436.73</div>
         </div>
+        <div style={{ width: 1, height: 36, background: "#E2E6EE", flexShrink: 0 }} />
+        <div className="min-w-0">
+          <div style={{ fontSize: 10.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "#8A93A5", marginBottom: 2 }}>Output template</div>
+          <div style={{ fontSize: 13, fontWeight: 500, color: "#0B1A2F", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>Acme cXML v1.2</div>
+        </div>
+        <div className="ml-auto">
+          {!crossed && exceptionCount > 0 && (
+            <span className="inline-flex rounded-[6px] px-2.5 py-1.5 text-[12px] font-semibold" style={{ background: "#FFF8EA", border: "1px solid #F0D39A", color: "#9A5F0A" }}>
+              ⚠ {exceptionCount} exception{exceptionCount !== 1 ? "s" : ""} need review
+            </span>
+          )}
+          {crossed && (
+            <span className="inline-flex rounded-[6px] px-2.5 py-1.5 text-[12px] font-semibold" style={{ background: "#F0F7F1", border: "1px solid #BDE0C1", color: "#1E6D29" }}>
+              ✓ Delivered · 1m 42s
+            </span>
+          )}
+        </div>
+      </div>
+
+      {/* Mobile sticky CTA */}
+      <div
+        className="md:hidden flex-shrink-0 flex gap-2 px-4 py-3"
+        style={{ background: "#FFFFFF", borderTop: "1px solid #E2E6EE", boxShadow: "0 -4px 12px rgba(11,26,47,0.08)" }}
+      >
+        <button
+          onClick={handleSaveDraft}
+          style={{ flex: 1, height: 44, borderRadius: 8, fontSize: 13.5, fontWeight: 500, background: "#FFFFFF", border: "1px solid #E2E6EE", color: "#0B1A2F", cursor: "pointer" }}
+        >
+          Save draft
+        </button>
+        <button
+          onClick={() => !crossed && setShowConfirm(true)}
+          style={{ flex: 1.5, height: 44, borderRadius: 8, fontSize: 13.5, fontWeight: 600, background: crossed ? "#2E8E3A" : "#0B1A2F", color: "#FFFFFF", border: "none", cursor: crossed ? "default" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, transition: "background 200ms" }}
+        >
+          {crossed ? "✓ Crossed" : "Cross the bridge"}
+          {!crossed && <span style={{ width: 10, height: 10, borderRadius: 2, background: "linear-gradient(90deg,#1E66C9,#2E8E3A)", display: "inline-block" }} />}
+        </button>
       </div>
 
       {/* Modals */}

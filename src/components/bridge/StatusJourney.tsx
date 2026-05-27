@@ -1,6 +1,8 @@
 // StatusJourney — 5-node mini-track showing the order pipeline.
 // Stage 0 = Parse, 1 = Normalize, 2 = Validate, 3 = Transform, 4 = Deliver
-// compact = small dots only (inbox row); full = dots + labels
+// compact    = small dots only (inbox row)
+// full       = 28px nodes + labels, ≤720px centred (SpineReview header)
+// crossingRef (optional) — adds "Stage N of 5 · {ref}" sub-label above full variant
 
 export type OrderStage = 0 | 1 | 2 | 3 | 4 | "failed";
 
@@ -9,9 +11,11 @@ const STAGES = ["Parse", "Normalize", "Validate", "Transform", "Deliver"] as con
 interface StatusJourneyProps {
   stage: OrderStage;
   compact?: boolean;
+  /** Optional crossing reference — shows "Stage N of 5 · {crossingRef}" above the full stepper */
+  crossingRef?: string;
 }
 
-export function StatusJourney({ stage, compact = false }: StatusJourneyProps) {
+export function StatusJourney({ stage, compact = false, crossingRef }: StatusJourneyProps) {
   const failed = stage === "failed";
 
   if (compact) {
@@ -45,85 +49,98 @@ export function StatusJourney({ stage, compact = false }: StatusJourneyProps) {
     );
   }
 
-  // Full — dots + labels (page header bridge graphic)
+  // Full — 28px nodes + labels, ≤720px centred (SpineReview header)
+  const stageNum = failed ? 2 : (stage as number) + 1; // 1-indexed for display
   return (
-    <div className="flex items-center gap-0 relative">
-      {/* Connecting line behind dots */}
-      <div
-        className="absolute top-[9px] left-[9px] right-[9px] h-[2px] rounded spine-animate"
-        style={{
-          background:
-            "linear-gradient(90deg, #1E66C9 0%, #1E66C9 35%, #2E8E3A 65%, #2E8E3A 100%)",
-          opacity: 0.35,
-        }}
-      />
-      {STAGES.map((label, i) => {
-        const done   = !failed && (stage as number) > i;
-        const active = !failed && (stage as number) === i;
-        const err    = failed && i === 2;
-        return (
-          <div key={i} className="flex flex-col items-center flex-1 relative z-10">
-            <div
-              className={`rounded-full flex items-center justify-center${active ? " spine-reveal" : ""}`}
-              style={{
-                width: 18,
-                height: 18,
-                background: err
-                  ? "#C53A3A"
-                  : done
-                  ? "#2E8E3A"
-                  : active
-                  ? "#1E66C9"
-                  : "#FFFFFF",
-                border: `2px solid ${
-                  err
+    <div className="w-full max-w-[720px] mx-auto">
+      {/* Optional sub-label */}
+      {crossingRef && (
+        <p className="text-center text-[11px] font-medium text-[#56627A] mb-3 tracking-wide">
+          Stage {stageNum} of 5
+          <span className="mx-1.5 text-[#C6CDDA]">·</span>
+          {crossingRef}
+        </p>
+      )}
+      <div className="flex items-center gap-0 relative">
+        {/* Gradient connector — 3px, behind nodes */}
+        <div
+          className="absolute left-[14px] right-[14px] rounded spine-animate"
+          style={{
+            top: 14,
+            height: 3,
+            background:
+              "linear-gradient(90deg, #1E66C9 0%, #1E66C9 35%, #2E8E3A 65%, #2E8E3A 100%)",
+            opacity: 0.35,
+          }}
+        />
+        {STAGES.map((label, i) => {
+          const done   = !failed && (stage as number) > i;
+          const active = !failed && (stage as number) === i;
+          const err    = failed && i === 2;
+          return (
+            <div key={i} className="flex flex-col items-center flex-1 relative z-10">
+              <div
+                className={`rounded-full flex items-center justify-center${active ? " spine-reveal" : ""}`}
+                style={{
+                  width: 28,
+                  height: 28,
+                  background: err
                     ? "#C53A3A"
                     : done
                     ? "#2E8E3A"
                     : active
                     ? "#1E66C9"
-                    : "#C6CDDA"
-                }`,
-                boxShadow: active ? "0 0 0 3px rgba(30,102,201,0.2)" : undefined,
-                position: "relative",
-              }}
-            >
-              {active && (
-                <span
-                  style={{
-                    position: "absolute",
-                    inset: -3,
-                    borderRadius: "50%",
-                    border: "2px solid #1E66C9",
-                    animation: "node-pulse 2s ease-out infinite",
-                    pointerEvents: "none",
-                  }}
-                />
-              )}
-              {done && (
-                <svg width="8" height="8" viewBox="0 0 8 8" fill="none">
-                  <path
-                    d="M1.5 4L3.5 6L6.5 2"
-                    stroke="white"
-                    strokeWidth={1.5}
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
+                    : "#FFFFFF",
+                  border: `2px solid ${
+                    err
+                      ? "#C53A3A"
+                      : done
+                      ? "#2E8E3A"
+                      : active
+                      ? "#1E66C9"
+                      : "#C6CDDA"
+                  }`,
+                  boxShadow: active ? "0 0 0 4px rgba(30,102,201,0.18)" : undefined,
+                  position: "relative",
+                }}
+              >
+                {active && (
+                  <span
+                    style={{
+                      position: "absolute",
+                      inset: -4,
+                      borderRadius: "50%",
+                      border: "2px solid #1E66C9",
+                      animation: "node-pulse 2s ease-out infinite",
+                      pointerEvents: "none",
+                    }}
                   />
-                </svg>
-              )}
+                )}
+                {done && (
+                  <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                    <path
+                      d="M2 6L5 9L10 3"
+                      stroke="white"
+                      strokeWidth={2}
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                )}
+              </div>
+              <span
+                className="mt-1.5 text-[10px] text-center leading-tight"
+                style={{
+                  color: active ? "#0B1A2F" : done ? "#2E8E3A" : "#8A93A5",
+                  fontWeight: active ? 700 : 400,
+                }}
+              >
+                {label}
+              </span>
             </div>
-            <span
-              className="mt-1 text-[10px] font-medium text-center leading-tight"
-              style={{
-                color: active ? "#0B1A2F" : done ? "#2E8E3A" : "#8A93A5",
-                fontWeight: active ? 600 : 400,
-              }}
-            >
-              {label}
-            </span>
-          </div>
-        );
-      })}
+          );
+        })}
+      </div>
     </div>
   );
 }

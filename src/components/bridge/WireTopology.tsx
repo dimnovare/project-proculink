@@ -3,6 +3,9 @@
 // WireTopology — the signature dashboard canvas.
 // Buyer ports down the left, supplier ports down the right,
 // Bezier wires arcing between them with animated travelling dots.
+//
+// Below md: renders WireTopologyLaneList (lane rows, no SVG canvas).
+// Above md: renders WireTopologyCanvas (full SVG).
 
 export interface WireBuyer {
   id: string;
@@ -22,7 +25,7 @@ export interface WireSupplier {
 export interface Wire {
   buyerId: string;
   supplierId: string;
-  weight: 1 | 2 | 3 | 4; // stroke-width bucket
+  weight: 1 | 2 | 3 | 4 | 5 | 6; // stroke-width bucket
   health: "ok" | "risk" | "down";
   alert?: number; // exception count
 }
@@ -35,7 +38,10 @@ interface WireTopologyProps {
   onWireClick?: (wire: Wire, buyer: WireBuyer, supplier: WireSupplier) => void;
 }
 
-const STROKE_W: Record<number, number> = { 1: 1.25, 2: 2, 3: 3, 4: 4 };
+/** Non-linear compressed stroke width: weight 1..6 → ~1.4..4.9 px */
+export function strokeFromWeight(weight: 1 | 2 | 3 | 4 | 5 | 6): number {
+  return +(1.2 + Math.log2(weight) * 1.55).toFixed(2);
+}
 
 const HEALTH_COLORS: Record<Wire["health"], [string, string]> = {
   ok:   ["#1E66C9", "#2E8E3A"],
@@ -44,7 +50,7 @@ const HEALTH_COLORS: Record<Wire["health"], [string, string]> = {
 };
 
 const PULSE_COLOR: Record<Wire["health"], string> = {
-  ok: "#2E8E3A",
+  ok:   "#2E8E3A",
   risk: "#C97A14",
   down: "#C53A3A",
 };
@@ -63,53 +69,131 @@ function cubicPoint(
   };
 }
 
-function cubicTangent(
-  t: number,
-  p0: { x: number; y: number },
-  p1: { x: number; y: number },
-  p2: { x: number; y: number },
-  p3: { x: number; y: number }
-) {
-  const mt = 1 - t;
-  return {
-    x:
-      3 * mt ** 2 * (p1.x - p0.x) +
-      6 * mt * t * (p2.x - p1.x) +
-      3 * t ** 2 * (p3.x - p2.x),
-    y:
-      3 * mt ** 2 * (p1.y - p0.y) +
-      6 * mt * t * (p2.y - p1.y) +
-      3 * t ** 2 * (p3.y - p2.y),
-  };
+// ─── Mobile lane list ──────────────────────────────────────────────────────
+
+function WireTopologyLaneList({ buyers, suppliers, wires, onWireClick }: WireTopologyProps) {
+  return (
+    <div className="flex flex-col gap-2 p-2 bg-[#F6F7FA] rounded-card">
+      {wires.map((wire, i) => {
+        const buyer = buyers.find((b) => b.id === wire.buyerId);
+        const supplier = suppliers.find((s) => s.id === wire.supplierId);
+        if (!buyer || !supplier) return null;
+
+        const sw = strokeFromWeight(wire.weight);
+        const isWarn = wire.health === "risk" || wire.health === "down";
+        const supplierColor =
+          supplier.health >= 95 ? "#2E8E3A" : supplier.health >= 85 ? "#C97A14" : "#C53A3A";
+        const gradId = `m-wire-${i}`;
+
+        return (
+          <div
+            key={i}
+            className="bg-white border border-[#E2E6EE] rounded-[10px] flex items-center gap-[10px] p-[10px_12px]"
+            style={{ cursor: onWireClick ? "pointer" : undefined }}
+            onClick={() => onWireClick?.(wire, buyer, supplier)}
+          >
+            {/* Buyer */}
+            <div className="flex-[0_1_32%] min-w-0">
+              <div className="text-[9px] font-bold tracking-[0.08em] text-[#1E66C9] font-mono">
+                {buyer.code}
+              </div>
+              <div className="text-[11.5px] font-semibold text-[#0B1A2F] truncate">
+                {buyer.name}
+              </div>
+              <div className="text-[9.5px] text-[#8A93A5]">{buyer.volume}</div>
+            </div>
+
+            {/* Mini arc */}
+            <div className="flex-[0_0_76px] relative">
+              <svg width={76} height={38} viewBox="0 0 76 38" aria-hidden>
+                <defs>
+                  <linearGradient id={gradId} x1="0" x2="1" y1="0" y2="0">
+                    <stop offset="0%" stopColor="#1E66C9" />
+                    {isWarn ? (
+                      <>
+                        <stop offset="60%" stopColor="#C97A14" />
+                        <stop offset="100%" stopColor="#C97A14" />
+                      </>
+                    ) : (
+                      <stop offset="100%" stopColor="#2E8E3A" />
+                    )}
+                  </linearGradient>
+                </defs>
+                <circle cx={3} cy={19} r={3} fill="#1E66C9" />
+                <path
+                  d="M 4 19 C 26 19, 50 19, 72 19"
+                  stroke={`url(#${gradId})`}
+                  strokeWidth={sw}
+                  strokeLinecap="round"
+                  fill="none"
+                />
+                <circle
+                  cx={73}
+                  cy={19}
+                  r={3}
+                  fill="#FFFFFF"
+                  stroke={isWarn ? "#C97A14" : "#2E8E3A"}
+                  strokeWidth={1.5}
+                />
+              </svg>
+              {wire.alert && wire.alert > 0 && (
+                <div
+                  className="absolute top-[3px] left-1/2 -translate-x-1/2 w-4 h-4 rounded-full bg-white flex items-center justify-center text-[9px] font-bold"
+                  style={{ border: "1.5px solid #C97A14", color: "#C97A14" }}
+                >
+                  {wire.alert}
+                </div>
+              )}
+            </div>
+
+            {/* Supplier */}
+            <div className="flex-[1_1_38%] min-w-0 text-right">
+              <div
+                className="text-[9px] font-bold tracking-[0.08em] font-mono"
+                style={{ color: isWarn ? "#C97A14" : "#1E6D29" }}
+              >
+                {supplier.code}
+              </div>
+              <div className="text-[11.5px] font-semibold text-[#0B1A2F] truncate">
+                {supplier.name}
+              </div>
+              <div className="text-[9.5px]" style={{ color: supplierColor }}>
+                {supplier.health}% acc
+              </div>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
 }
 
-function bundleOffset(index: number, total: number) {
-  if (total <= 1) return 0;
-  return (index - (total - 1) / 2) * 9;
-}
+// ─── Desktop SVG canvas ────────────────────────────────────────────────────
 
-export function WireTopology({
+function WireTopologyCanvas({
   buyers,
   suppliers,
   wires,
   height = 560,
   onWireClick,
 }: WireTopologyProps) {
-  // Derive port positions
-  const W = 900; // internal SVG width
+  const W = 900;
   const H = height;
   const PORT_W = 140;
-  const LEFT_X  = PORT_W;
-  const RIGHT_X = W - PORT_W;
-  const PAD_V = 64;
+  const LEFT_X  = PORT_W;       // 140 — buyer port right edge / wire start
+  const RIGHT_X = W - PORT_W;   // 760 — supplier port left edge / wire end
+  const PAD_V   = 64;
 
   function portY(index: number, total: number) {
     const usable = H - PAD_V * 2;
     return PAD_V + (usable / (total - 1 || 1)) * index;
   }
 
-  const buyerY  = (i: number) => portY(i, buyers.length);
+  const buyerY    = (i: number) => portY(i, buyers.length);
   const supplierY = (i: number) => portY(i, suppliers.length);
+
+  // Count arrivals per supplier port to stagger control points (prevents wire bunching)
+  const sCount: Record<string, number> = {};
 
   return (
     <div
@@ -147,53 +231,49 @@ export function WireTopology({
           })}
         </defs>
 
-        {/* ── Wires ─────────────────────────────────────────────── */}
+        {/* ── Wires — drawn before ports so ports stack on top ──── */}
         {wires.map((w, wi) => {
           const bi = buyers.findIndex((b) => b.id === w.buyerId);
           const si = suppliers.findIndex((s) => s.id === w.supplierId);
           if (bi === -1 || si === -1) return null;
 
-          const buyerWireIndex = wires.slice(0, wi).filter((wire) => wire.buyerId === w.buyerId).length;
-          const buyerWireCount = wires.filter((wire) => wire.buyerId === w.buyerId).length;
-          const supplierWireIndex = wires.slice(0, wi).filter((wire) => wire.supplierId === w.supplierId).length;
-          const supplierWireCount = wires.filter((wire) => wire.supplierId === w.supplierId).length;
+          // ix = how many wires have already arrived at this supplier (for CP stagger)
+          const ix = (sCount[w.supplierId] = (sCount[w.supplierId] || 0) + 1) - 1;
 
           const x1 = LEFT_X;
-          const y1 = buyerY(bi) + bundleOffset(buyerWireIndex, buyerWireCount);
+          const y1 = buyerY(bi);
           const x2 = RIGHT_X;
-          const y2 = supplierY(si) + bundleOffset(supplierWireIndex, supplierWireCount);
-          const mx = (x1 + x2) / 2;
-          const p0 = { x: x1, y: y1 };
-          const p1 = { x: mx, y: y1 };
-          const p2 = { x: mx, y: y2 };
-          const p3 = { x: x2, y: y2 };
+          const y2 = supplierY(si);
+
+          // Staggered Bezier control points — spreads co-landing wires visually
+          const cx1x = 370 + (wi % 3) * 20;  // 370 / 390 / 410
+          const cx2x = 530 + (ix % 3) * 18;  // 530 / 548 / 566
+          const p0 = { x: x1,   y: y1 };
+          const p1 = { x: cx1x, y: y1 };
+          const p2 = { x: cx2x, y: y2 };
+          const p3 = { x: x2,   y: y2 };
 
           const pathD = `M ${p0.x},${p0.y} C ${p1.x},${p1.y} ${p2.x},${p2.y} ${p3.x},${p3.y}`;
-          const sw    = STROKE_W[w.weight] ?? 2;
-          const pulseDur = `${5 + wi * 1.4}s`;
-          const pulseBegin = `${(wi % 5) * 0.5}s`;
-          const pulseRadius = Math.min(5, Math.max(3.5, sw * 0.78));
-          const alertT = w.alert && w.alert > 0 ? Math.min(0.72, Math.max(0.5, 0.58 + (wi % 3 - 1) * 0.05)) : 0.5;
-          const alertAnchor = cubicPoint(alertT, p0, p1, p2, p3);
-          const alertTangent = cubicTangent(alertT, p0, p1, p2, p3);
-          const tangentLength = Math.hypot(alertTangent.x, alertTangent.y) || 1;
-          const normal = {
-            x: -alertTangent.y / tangentLength,
-            y: alertTangent.x / tangentLength,
-          };
-          const preferBelow = bi === 0 || normal.y < 0 ? 1 : -1;
-          const alertBadgePoint = {
-            x: alertAnchor.x + normal.x * 18 * preferBelow,
-            y: alertAnchor.y + normal.y * 18 * preferBelow,
-          };
+          const sw = strokeFromWeight(w.weight);
+          const opacity = w.health === "risk" ? 0.92 : 0.78;
+
+          const pulseDur   = `${6 + (wi % 3) * 0.6}s`;
+          const pulseBegin = `-${wi * 0.55}s`;
+
+          // Alert badge at 58% along the curve
+          const alertAnchor =
+            w.alert && w.alert > 0
+              ? cubicPoint(0.58, p0, p1, p2, p3)
+              : null;
 
           return (
             <g
               key={wi}
+              opacity={opacity}
               style={{ cursor: onWireClick ? "pointer" : undefined }}
               onClick={() => onWireClick?.(w, buyers[bi], suppliers[si])}
             >
-              {/* Invisible hit target (wider than the wire) */}
+              {/* Invisible hit target */}
               {onWireClick && (
                 <path
                   d={pathD}
@@ -202,6 +282,7 @@ export function WireTopology({
                   strokeWidth={Math.max(sw + 12, 18)}
                 />
               )}
+
               {/* Wire path */}
               <path
                 d={pathD}
@@ -209,17 +290,14 @@ export function WireTopology({
                 stroke={`url(#wg-${wi})`}
                 strokeWidth={sw}
                 strokeLinecap="round"
-                opacity={0.96}
               />
 
-              {/* Travelling dot: starts hidden, then moves on the exact rendered wire path. */}
+              {/* Travelling pulse — r=2.2, no opacity fade */}
               <circle
-                className="wire-pulse-dot"
-                r={pulseRadius}
+                r={2.2}
                 fill="#FFFFFF"
                 stroke={PULSE_COLOR[w.health]}
-                strokeWidth={1.6}
-                opacity={0}
+                strokeWidth={1.2}
                 aria-hidden="true"
               >
                 <animateMotion
@@ -228,42 +306,25 @@ export function WireTopology({
                   repeatCount="indefinite"
                   path={pathD}
                 />
-                <animate
-                  attributeName="opacity"
-                  values="0;0;1;1;0;0"
-                  keyTimes="0;0.08;0.18;0.82;0.92;1"
-                  begin={pulseBegin}
-                  dur={pulseDur}
-                  repeatCount="indefinite"
-                />
               </circle>
 
-              {/* Alert badge */}
-              {w.alert && w.alert > 0 && (
-                <g aria-label={`${w.alert} exceptions on this wire`}>
-                  <line
-                    x1={alertAnchor.x}
-                    y1={alertAnchor.y}
-                    x2={alertBadgePoint.x}
-                    y2={alertBadgePoint.y}
-                    stroke="#C53A3A"
-                    strokeWidth={1.5}
-                    strokeLinecap="round"
-                    opacity={0.9}
-                  />
-                  <g transform={`translate(${alertBadgePoint.x}, ${alertBadgePoint.y})`}>
-                    <circle r={10} fill="#C53A3A" stroke="#FFFFFF" strokeWidth={2} />
-                    <text
-                      textAnchor="middle"
-                      dy="0.35em"
-                      fill="white"
-                      fontSize={9}
-                      fontWeight={700}
-                      fontFamily="Inter, sans-serif"
-                    >
-                      {w.alert}
-                    </text>
-                  </g>
+              {/* Alert badge — white fill, amber stroke, amber numeral, no stem */}
+              {alertAnchor && w.alert && (
+                <g
+                  transform={`translate(${alertAnchor.x}, ${alertAnchor.y - 14})`}
+                  aria-label={`${w.alert} exceptions on this wire`}
+                >
+                  <circle r={9} fill="#FFFFFF" stroke="#C97A14" strokeWidth={1.5} />
+                  <text
+                    textAnchor="middle"
+                    y={3}
+                    fill="#C97A14"
+                    fontSize={10}
+                    fontWeight={700}
+                    fontFamily="Inter, sans-serif"
+                  >
+                    {w.alert}
+                  </text>
                 </g>
               )}
             </g>
@@ -283,30 +344,33 @@ export function WireTopology({
                 rx={6}
                 fill="#E3EDFB"
                 stroke="#1E66C9"
-                strokeWidth={1.5}
+                strokeWidth={1.25}
               />
-              {/* Port dot */}
-              <circle cx={LEFT_X} cy={0} r={5} fill="#1E66C9" />
+              {/* Accent stripe */}
+              <rect x={4} y={-18} width={3} height={36} fill="#1E66C9" />
               {/* Labels */}
               <text
-                x={8}
+                x={12}
                 y={-5}
-                fill="#0F4FA8"
+                fill="#0B1A2F"
                 fontSize={11}
-                fontWeight={700}
+                fontWeight={600}
                 fontFamily="Inter, sans-serif"
               >
                 {b.name.length > 14 ? b.name.slice(0, 13) + "…" : b.name}
               </text>
               <text
-                x={8}
+                x={12}
                 y={9}
                 fill="#56627A"
                 fontSize={9.5}
                 fontFamily="JetBrains Mono, monospace"
               >
-                {b.volume}
+                {b.code} · {b.volume}
               </text>
+              {/* Connector dot — blue filled + white core */}
+              <circle cx={LEFT_X} cy={0} r={4} fill="#1E66C9" />
+              <circle cx={LEFT_X} cy={0} r={2} fill="#FFFFFF" />
             </g>
           );
         })}
@@ -314,12 +378,11 @@ export function WireTopology({
         {/* ── Supplier ports (right) ───────────────────────────── */}
         {suppliers.map((s, i) => {
           const y = supplierY(i);
+          const isHealthy = s.health >= 85;
+          const borderColor = isHealthy ? "#2E8E3A" : "#C97A14";
+          const bgColor     = isHealthy ? "#E2F1E2"  : "#FAEFD6";
           const healthColor =
-            s.health >= 95
-              ? "#2E8E3A"
-              : s.health >= 85
-              ? "#C97A14"
-              : "#C53A3A";
+            s.health >= 95 ? "#1E6D29" : s.health >= 85 ? "#C97A14" : "#C53A3A";
           return (
             <g key={s.id} transform={`translate(0, ${y})`}>
               <rect
@@ -328,56 +391,73 @@ export function WireTopology({
                 width={W - RIGHT_X - 8}
                 height={36}
                 rx={6}
-                fill="#E2F1E2"
-                stroke="#2E8E3A"
-                strokeWidth={1.5}
+                fill={bgColor}
+                stroke={borderColor}
+                strokeWidth={1.25}
               />
-              {/* Port dot */}
-              <circle cx={RIGHT_X} cy={0} r={5} fill="#2E8E3A" />
+              {/* Accent stripe (right side) */}
+              <rect x={W - 7} y={-18} width={3} height={36} fill={borderColor} />
               {/* Labels */}
               <text
-                x={RIGHT_X + 10}
+                x={RIGHT_X + 14}
                 y={-5}
-                fill="#1E6D29"
+                fill="#0B1A2F"
                 fontSize={11}
-                fontWeight={700}
+                fontWeight={600}
                 fontFamily="Inter, sans-serif"
               >
                 {s.name.length > 13 ? s.name.slice(0, 12) + "…" : s.name}
               </text>
               <text
-                x={RIGHT_X + 10}
+                x={RIGHT_X + 14}
                 y={9}
-                fill={healthColor}
+                fill="#56627A"
                 fontSize={9.5}
-                fontWeight={600}
                 fontFamily="JetBrains Mono, monospace"
               >
-                {s.health}% accepted
+                {s.code} ·{" "}
+                <tspan fill={healthColor}>{s.health}% acc</tspan>
               </text>
+              {/* Connector dot — hollow with colored stroke */}
+              <circle cx={RIGHT_X} cy={0} r={4} fill="#FFFFFF" stroke={borderColor} strokeWidth={2} />
             </g>
           );
         })}
 
         {/* ── Legend (top-right) ───────────────────────────────── */}
-        <g transform={`translate(${W - 220}, 8)`}>
-          <rect x={0} y={0} width={180} height={22} rx={4} fill="#F6F7FA" stroke="#E2E6EE" />
-          {[1, 2, 3, 4].map((w, i) => (
-            <g key={w} transform={`translate(${6 + i * 44}, 11)`}>
+        <g transform={`translate(${W - 232}, 8)`}>
+          <rect x={0} y={0} width={192} height={22} rx={4} fill="#F6F7FA" stroke="#E2E6EE" />
+          {([1, 2, 4, 6] as const).map((w, i) => (
+            <g key={w} transform={`translate(${6 + i * 46}, 11)`}>
               <line
-                x1={0} y1={0} x2={16} y2={0}
-                stroke="#1E66C9"
-                strokeWidth={STROKE_W[w]}
+                x1={0} y1={0} x2={18} y2={0}
+                stroke="#0B1A2F"
+                strokeWidth={strokeFromWeight(w)}
                 strokeLinecap="round"
                 opacity={0.7}
               />
-              <text x={20} y={4} fill="#8A93A5" fontSize={8} fontFamily="Inter, sans-serif">
-                {["Low", "Med", "High", "Max"][i]}
+              <text x={22} y={4} fill="#8A93A5" fontSize={8} fontFamily="Inter, sans-serif">
+                {["low", "med", "high", "max"][i]}
               </text>
             </g>
           ))}
         </g>
       </svg>
     </div>
+  );
+}
+
+// ─── Responsive wrapper ────────────────────────────────────────────────────
+
+export function WireTopology(props: WireTopologyProps) {
+  return (
+    <>
+      <div className="hidden md:block">
+        <WireTopologyCanvas {...props} />
+      </div>
+      <div className="md:hidden">
+        <WireTopologyLaneList {...props} />
+      </div>
+    </>
   );
 }
