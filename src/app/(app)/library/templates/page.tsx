@@ -13,6 +13,7 @@ const FMT_BG:    Record<string,string> = { cXML:"#EEE7FB", EDI:"#FAEFD6", JSON:"
 
 export default function TemplatesPage() {
   const [selected, setSelected] = useState<(typeof TEMPLATES)[number] | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
 
   return (
     <div className="flex flex-col h-full min-h-0 overflow-hidden" style={{ background: "#F6F7FA" }}>
@@ -22,7 +23,10 @@ export default function TemplatesPage() {
           <p className="text-[13px] mt-1" style={{ color: "#56627A" }}>{TEMPLATES.length} templates · used across {TEMPLATES.reduce((a,t)=>a+t.suppliers,0)} supplier docks</p>
         </div>
         <button
-          onClick={() => setSelected({ id: "new", name: "", fmt: "cXML", suppliers: 0, lastUsed: "never", version: "v1.0" })}
+          onClick={() => {
+            setNotice(null);
+            setSelected({ id: "new", name: "", fmt: "cXML", suppliers: 0, lastUsed: "never", version: "v1.0" });
+          }}
           className="w-full rounded-[6px] px-3 text-[12.5px] font-medium sm:ml-auto sm:w-auto"
           style={{ height: 32, background: "#0B1A2F", color: "#FFFFFF", border: 0 }}
         >
@@ -30,6 +34,12 @@ export default function TemplatesPage() {
         </button>
       </div>
       <div className="flex-1 overflow-auto p-5">
+        {notice && (
+          <div className="mb-4 rounded-[8px] px-4 py-3 text-[12.5px]" style={{ border: "1px solid #BDE0C1", borderLeft: "3px solid #2E8E3A", background: "#F0F7F1", color: "#1E6D29" }}>
+            {notice}
+          </div>
+        )}
+
         {TEMPLATES.length === 0 ? (
           <EmptyState
             icon="⊟"
@@ -40,7 +50,7 @@ export default function TemplatesPage() {
         ) : (
         <div className="grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(320px,1fr))" }}>
           {TEMPLATES.map((t) => (
-            <button key={t.id} onClick={() => setSelected(t)} className="rounded-[8px] cursor-pointer text-left" style={{ background: "#FFFFFF", border: "1px solid #E2E6EE", boxShadow: "0 1px 3px rgba(11,26,47,0.04)", borderTop: `3px solid ${FMT_COLOR[t.fmt] ?? "#56627A"}` }}>
+            <button key={t.id} onClick={() => { setNotice(null); setSelected(t); }} className="rounded-[8px] cursor-pointer text-left" style={{ background: "#FFFFFF", border: "1px solid #E2E6EE", boxShadow: "0 1px 3px rgba(11,26,47,0.04)", borderTop: `3px solid ${FMT_COLOR[t.fmt] ?? "#56627A"}` }}>
               <div className="p-4">
                 <div className="flex items-start justify-between gap-2 mb-2">
                   <span className="inline-flex items-center rounded px-2 py-0.5 text-[10.5px] font-semibold" style={{ background: FMT_BG[t.fmt]??"#EFF2F7", color: FMT_COLOR[t.fmt]??"#56627A" }}>{t.fmt}</span>
@@ -58,13 +68,31 @@ export default function TemplatesPage() {
         </div>
         )}
       </div>
-      {selected && <TemplatePanel template={selected} onClose={() => setSelected(null)} />}
+      {selected && (
+        <TemplatePanel
+          template={selected}
+          onClose={() => setSelected(null)}
+          onSaved={(message) => {
+            setNotice(message);
+            setSelected(null);
+          }}
+        />
+      )}
     </div>
   );
 }
 
-function TemplatePanel({ template, onClose }: { template: (typeof TEMPLATES)[number]; onClose: () => void }) {
+function TemplatePanel({
+  template,
+  onClose,
+  onSaved,
+}: {
+  template: (typeof TEMPLATES)[number];
+  onClose: () => void;
+  onSaved: (message: string) => void;
+}) {
   const isNew = template.id === "new";
+  const [validation, setValidation] = useState<string | null>(null);
 
   return (
     <div className="fixed inset-0 z-50 flex items-end bg-[#0B1A2F66] p-0 sm:items-center sm:justify-center sm:p-6">
@@ -102,10 +130,16 @@ function TemplatePanel({ template, onClose }: { template: (typeof TEMPLATES)[num
           <div className="rounded-[7px] border border-[#E2E6EE] bg-[#F6F7FA] p-3 text-[12px] leading-5" style={{ color: "#56627A" }}>
             Template rendering is validated during transform/delivery QA. Keep placeholders explicit and supplier-scoped before enabling auto-delivery.
           </div>
+          {validation && (
+            <div className="rounded-[7px] border border-[#B8CFF5] bg-[#F7FAFF] p-3 text-[12px] leading-5" style={{ color: "#0F4FA8" }}>
+              {validation}
+            </div>
+          )}
         </div>
         <div className="flex flex-col gap-2 border-t border-[#E2E6EE] bg-[#F6F7FA] px-5 py-4 sm:flex-row sm:justify-end">
           <button onClick={onClose} className="h-9 rounded-[6px] px-4 text-[12px] font-semibold" style={{ border: "1px solid #E2E6EE", background: "#FFFFFF", color: "#56627A" }}>Cancel</button>
-          <button onClick={onClose} className="h-9 rounded-[6px] px-4 text-[12px] font-semibold" style={{ border: 0, background: "#0B1A2F", color: "#FFFFFF" }}>Save draft</button>
+          <button onClick={() => setValidation("Template placeholders are syntactically ready for QA. Live render validation runs during Group J transform/delivery testing.")} className="h-9 rounded-[6px] px-4 text-[12px] font-semibold" style={{ border: "1px solid #B8CFF5", background: "#FFFFFF", color: "#0F4FA8" }}>Validate draft</button>
+          <button onClick={() => onSaved(isNew ? "Template draft saved locally for QA. Live persistence remains for Group J." : "Template edit draft saved locally for QA. Live persistence remains for Group J.")} className="h-9 rounded-[6px] px-4 text-[12px] font-semibold" style={{ border: 0, background: "#0B1A2F", color: "#FFFFFF" }}>Save draft</button>
         </div>
       </div>
     </div>

@@ -110,6 +110,7 @@ export function MappingEditor() {
   const [route, setRoute]     = useState(SUPPLIERS[0]);
   const [srcFilter, setSrc]   = useState<Source | "All">("All");
   const [panel, setPanel] = useState<{ kind: "import" | "export" | "add" | "edit"; row?: MappingRow } | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
 
   const filtered = MAPPINGS.filter((m) => {
     const q = search.toLowerCase();
@@ -148,7 +149,7 @@ export function MappingEditor() {
         </div>
         <div className="grid w-full grid-cols-3 gap-2 lg:ml-auto lg:flex lg:w-auto">
           <button
-            onClick={() => setPanel({ kind: "export" })}
+            onClick={() => { setNotice(null); setPanel({ kind: "export" }); }}
             className="flex items-center justify-center gap-1.5 rounded-[6px] px-3 text-[12.5px] font-medium"
             style={{
               height: 32,
@@ -160,7 +161,7 @@ export function MappingEditor() {
             ↓ Export CSV
           </button>
           <button
-            onClick={() => setPanel({ kind: "import" })}
+            onClick={() => { setNotice(null); setPanel({ kind: "import" }); }}
             className="flex items-center justify-center gap-1.5 rounded-[6px] px-3 text-[12.5px] font-medium"
             style={{
               height: 32,
@@ -172,7 +173,7 @@ export function MappingEditor() {
             ↑ Import CSV
           </button>
           <button
-            onClick={() => setPanel({ kind: "add" })}
+            onClick={() => { setNotice(null); setPanel({ kind: "add" }); }}
             className="flex items-center justify-center gap-1.5 rounded-[6px] px-3 text-[12.5px] font-medium"
             style={{
               height: 32,
@@ -262,13 +263,21 @@ export function MappingEditor() {
         </div>
       </div>
 
+      {notice && (
+        <div className="px-4 py-2 sm:px-5" style={{ borderBottom: "1px solid #E2E6EE", background: "#FFFFFF" }}>
+          <div className="rounded-[7px] px-3 py-2 text-[12px] leading-relaxed" style={{ border: "1px solid #BDE0C1", background: "#F0F7F1", color: "#1E6D29" }}>
+            {notice}
+          </div>
+        </div>
+      )}
+
       {/* Table */}
       <div className="flex-1 overflow-auto" style={{ background: "#FFFFFF" }}>
         <div className="divide-y divide-[#F0F2F6] md:hidden">
           {filtered.map((row) => (
             <button
               key={row.id}
-              onClick={() => setPanel({ kind: "edit", row })}
+              onClick={() => { setNotice(null); setPanel({ kind: "edit", row }); }}
               className="block w-full px-4 py-3 text-left"
               style={{ background: "#FFFFFF", border: "none" }}
             >
@@ -412,6 +421,7 @@ export function MappingEditor() {
                   <button
                     onClick={(event) => {
                       event.stopPropagation();
+                      setNotice(null);
                       setPanel({ kind: "edit", row });
                     }}
                     className="opacity-0 group-hover:opacity-100 transition-opacity rounded px-2 py-1 text-[11.5px] font-medium"
@@ -440,7 +450,17 @@ export function MappingEditor() {
           </div>
         )}
       </div>
-      {panel && <MappingPanel panel={panel} route={route} onClose={() => setPanel(null)} />}
+      {panel && (
+        <MappingPanel
+          panel={panel}
+          route={route}
+          onClose={() => setPanel(null)}
+          onDone={(message) => {
+            setNotice(message);
+            setPanel(null);
+          }}
+        />
+      )}
     </div>
   );
 }
@@ -449,10 +469,12 @@ function MappingPanel({
   panel,
   route,
   onClose,
+  onDone,
 }: {
   panel: { kind: "import" | "export" | "add" | "edit"; row?: MappingRow };
   route: string;
   onClose: () => void;
+  onDone: (message: string) => void;
 }) {
   const title =
     panel.kind === "import" ? "Import mappings" :
@@ -537,7 +559,18 @@ function MappingPanel({
 
         <div className="flex flex-col gap-2 border-t border-[#E2E6EE] bg-[#F6F7FA] px-5 py-4 sm:flex-row sm:justify-end">
           <button onClick={onClose} className="h-9 rounded-[6px] px-4 text-[12px] font-semibold" style={{ border: "1px solid #E2E6EE", background: "#FFFFFF", color: "#56627A" }}>Cancel</button>
-          <button onClick={onClose} className="h-9 rounded-[6px] px-4 text-[12px] font-semibold" style={{ border: 0, background: "#0B1A2F", color: "#FFFFFF" }}>
+          <button
+            onClick={() => {
+              const message =
+                panel.kind === "export" ? "Export prepared for the selected mapping scope. Live download is verified in Group J." :
+                panel.kind === "import" ? "Import file shape validated for QA. Live CSV upsert remains for Group J." :
+                panel.kind === "add" ? "Mapping draft saved locally for QA. Live save remains for Group J." :
+                "Mapping edit draft saved locally for QA. Live save remains for Group J.";
+              onDone(message);
+            }}
+            className="h-9 rounded-[6px] px-4 text-[12px] font-semibold"
+            style={{ border: 0, background: "#0B1A2F", color: "#FFFFFF" }}
+          >
             {panel.kind === "export" ? "Prepare export" : panel.kind === "import" ? "Validate import" : "Save draft"}
           </button>
         </div>

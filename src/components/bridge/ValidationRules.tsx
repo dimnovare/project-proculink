@@ -219,6 +219,7 @@ export function ValidationRules() {
   const [entityFilter, setEntity] = useState<Entity | "All">("All");
   const [view, setView]   = useState<"grid" | "list">("grid");
   const [selected, setSelected] = useState<Rule | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
 
   const filtered = rules.filter((r) => {
     const ms = sevFilter === "All" || r.severity === sevFilter;
@@ -230,6 +231,7 @@ export function ValidationRules() {
     setRules((prev) =>
       prev.map((r) => (r.id === id ? { ...r, enabled: !r.enabled } : r))
     );
+    setNotice("Rule toggle updated locally for QA. Backend persistence remains for Group J.");
   }
 
   const counts = {
@@ -292,7 +294,9 @@ export function ValidationRules() {
             </button>
           </div>
           <button
-            onClick={() => setSelected({
+            onClick={() => {
+              setNotice(null);
+              setSelected({
               id: "new",
               name: "",
               description: "",
@@ -302,7 +306,8 @@ export function ValidationRules() {
               enabled: true,
               autoBlock: false,
               lastTriggered: "—",
-            })}
+            });
+            }}
             className="flex items-center gap-1.5 rounded-[6px] px-3 text-[12.5px] font-medium"
             style={{
               height: 32,
@@ -367,6 +372,14 @@ export function ValidationRules() {
           ))}
         </select>
       </div>
+
+      {notice && (
+        <div className="px-4 py-2 sm:px-5" style={{ borderBottom: "1px solid #E2E6EE", background: "#FFFFFF" }}>
+          <div className="rounded-[7px] px-3 py-2 text-[12px] leading-relaxed" style={{ border: "1px solid #BDE0C1", background: "#F0F7F1", color: "#1E6D29" }}>
+            {notice}
+          </div>
+        </div>
+      )}
 
       {/* Content */}
       <div className="flex-1 overflow-auto p-5">
@@ -440,7 +453,7 @@ export function ValidationRules() {
                       )}
                       <span className="flex-1" />
                       <button
-                        onClick={() => setSelected(rule)}
+                        onClick={() => { setNotice(null); setSelected(rule); }}
                         className="rounded px-2 py-1 text-[11.5px] font-medium"
                         style={{ border: "1px solid #E2E6EE", background: "#FFFFFF", color: "#56627A" }}
                       >
@@ -471,7 +484,7 @@ export function ValidationRules() {
               return (
                 <button
                   key={rule.id}
-                  onClick={() => setSelected(rule)}
+                  onClick={() => { setNotice(null); setSelected(rule); }}
                   className="rounded-[8px] bg-white p-4 text-left"
                   style={{ border: "1px solid #E2E6EE", borderLeft: `3px solid ${sev.color}`, opacity: rule.enabled ? 1 : 0.6 }}
                 >
@@ -589,7 +602,7 @@ export function ValidationRules() {
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-2">
                           <Toggle on={rule.enabled} onChange={() => toggleRule(rule.id)} />
-                          <button onClick={() => setSelected(rule)} className="rounded px-2 py-1 text-[11.5px] font-medium" style={{ border: "1px solid #E2E6EE", background: "#FFFFFF", color: "#56627A" }}>Edit</button>
+                          <button onClick={() => { setNotice(null); setSelected(rule); }} className="rounded px-2 py-1 text-[11.5px] font-medium" style={{ border: "1px solid #E2E6EE", background: "#FFFFFF", color: "#56627A" }}>Edit</button>
                         </div>
                       </td>
                     </tr>
@@ -601,12 +614,29 @@ export function ValidationRules() {
           </>
         )}
       </div>
-      {selected && <RulePanel rule={selected} onClose={() => setSelected(null)} />}
+      {selected && (
+        <RulePanel
+          rule={selected}
+          onClose={() => setSelected(null)}
+          onSaved={(message) => {
+            setNotice(message);
+            setSelected(null);
+          }}
+        />
+      )}
     </div>
   );
 }
 
-function RulePanel({ rule, onClose }: { rule: Rule; onClose: () => void }) {
+function RulePanel({
+  rule,
+  onClose,
+  onSaved,
+}: {
+  rule: Rule;
+  onClose: () => void;
+  onSaved: (message: string) => void;
+}) {
   const isNew = rule.id === "new";
 
   return (
@@ -652,7 +682,7 @@ function RulePanel({ rule, onClose }: { rule: Rule; onClose: () => void }) {
         </div>
         <div className="flex flex-col gap-2 border-t border-[#E2E6EE] bg-[#F6F7FA] px-5 py-4 sm:flex-row sm:justify-end">
           <button onClick={onClose} className="h-9 rounded-[6px] px-4 text-[12px] font-semibold" style={{ border: "1px solid #E2E6EE", background: "#FFFFFF", color: "#56627A" }}>Cancel</button>
-          <button onClick={onClose} className="h-9 rounded-[6px] px-4 text-[12px] font-semibold" style={{ border: 0, background: "#0B1A2F", color: "#FFFFFF" }}>Save draft</button>
+          <button onClick={() => onSaved(isNew ? "Rule draft saved locally for QA. Live validation-engine persistence remains for Group J." : "Rule edit draft saved locally for QA. Live validation-engine persistence remains for Group J.")} className="h-9 rounded-[6px] px-4 text-[12px] font-semibold" style={{ border: 0, background: "#0B1A2F", color: "#FFFFFF" }}>Save draft</button>
         </div>
       </div>
     </div>

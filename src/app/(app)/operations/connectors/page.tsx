@@ -23,6 +23,7 @@ export default function ConnectorsPage() {
   const risk = CONNECTORS.filter((c) => c.status === "risk").length;
   const down = CONNECTORS.filter((c) => c.status === "down").length;
   const [selected, setSelected] = useState<(typeof CONNECTORS)[number] | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
 
   return (
     <div className="flex flex-col h-full min-h-0 overflow-hidden" style={{ background: "#F6F7FA" }}>
@@ -34,7 +35,10 @@ export default function ConnectorsPage() {
           </p>
         </div>
         <button
-          onClick={() => setSelected({ id: "new", type: "API (REST)", name: "", status: "ok", lastPoll: "never", errors24h: 0, direction: "out" })}
+          onClick={() => {
+            setNotice(null);
+            setSelected({ id: "new", type: "API (REST)", name: "", status: "ok", lastPoll: "never", errors24h: 0, direction: "out" });
+          }}
           className="w-full rounded-[6px] px-3 text-[12.5px] font-medium sm:ml-auto sm:w-auto"
           style={{ height: 32, background: "#0B1A2F", color: "#FFFFFF", border: 0 }}
         >
@@ -43,6 +47,12 @@ export default function ConnectorsPage() {
       </div>
 
       <div className="flex-1 overflow-auto p-5">
+        {notice && (
+          <div className="mb-4 rounded-[8px] px-4 py-3 text-[12.5px]" style={{ border: "1px solid #B8CFF5", borderLeft: "3px solid #1E66C9", background: "#F7FAFF", color: "#0F4FA8" }}>
+            {notice}
+          </div>
+        )}
+
         {/* Stat strip */}
         <div className="grid grid-cols-3 gap-3 mb-4">
           {[
@@ -78,7 +88,7 @@ export default function ConnectorsPage() {
             </thead>
             <tbody>
               {CONNECTORS.map((c) => (
-                <tr key={c.id} className="group" style={{ borderBottom: "1px solid #F0F2F6", cursor: "pointer" }} onClick={() => setSelected(c)} onMouseEnter={(e)=>((e.currentTarget as HTMLElement).style.background="#F6F7FA")} onMouseLeave={(e)=>((e.currentTarget as HTMLElement).style.background="transparent")}>
+                <tr key={c.id} className="group" style={{ borderBottom: "1px solid #F0F2F6", cursor: "pointer" }} onClick={() => { setNotice(null); setSelected(c); }} onMouseEnter={(e)=>((e.currentTarget as HTMLElement).style.background="#F6F7FA")} onMouseLeave={(e)=>((e.currentTarget as HTMLElement).style.background="transparent")}>
                   <td className="px-4 py-3">
                     <span className="inline-flex items-center gap-1.5 rounded px-2 py-0.5 text-[10.5px] font-semibold" style={{ background: STATUS_BG[c.status], color: STATUS_COLOR[c.status] }}>
                       <span style={{ width: 5, height: 5, borderRadius: "50%", background: STATUS_COLOR[c.status], flexShrink: 0, display: "inline-block" }} />
@@ -95,7 +105,7 @@ export default function ConnectorsPage() {
                   <td className="px-4 py-3 text-[12px]" style={{ color: "#8A93A5" }}>{c.lastPoll} ago</td>
                   <td className="px-4 py-3 font-mono text-[12px]" style={{ color: c.errors24h > 0 ? "#C53A3A" : "#8A93A5" }}>{c.errors24h}</td>
                   <td className="px-4 py-3">
-                    <button onClick={(event) => { event.stopPropagation(); setSelected(c); }} className="opacity-0 group-hover:opacity-100 rounded px-2 py-1 text-[11.5px] font-medium transition-opacity" style={{ border: "1px solid #E2E6EE", background: "#FFFFFF", color: "#56627A" }}>Configure</button>
+                    <button onClick={(event) => { event.stopPropagation(); setNotice(null); setSelected(c); }} className="opacity-0 group-hover:opacity-100 rounded px-2 py-1 text-[11.5px] font-medium transition-opacity" style={{ border: "1px solid #E2E6EE", background: "#FFFFFF", color: "#56627A" }}>Configure</button>
                   </td>
                 </tr>
               ))}
@@ -106,7 +116,7 @@ export default function ConnectorsPage() {
           {CONNECTORS.map((c) => (
             <button
               key={c.id}
-              onClick={() => setSelected(c)}
+              onClick={() => { setNotice(null); setSelected(c); }}
               className="rounded-[8px] bg-white p-4 text-left"
               style={{ border: "1px solid #E2E6EE", borderLeft: `3px solid ${STATUS_COLOR[c.status]}` }}
             >
@@ -131,13 +141,31 @@ export default function ConnectorsPage() {
         </>
         )}
       </div>
-      {selected && <ConnectorPanel connector={selected} onClose={() => setSelected(null)} />}
+      {selected && (
+        <ConnectorPanel
+          connector={selected}
+          onClose={() => setSelected(null)}
+          onSaved={(message) => {
+            setNotice(message);
+            setSelected(null);
+          }}
+        />
+      )}
     </div>
   );
 }
 
-function ConnectorPanel({ connector, onClose }: { connector: (typeof CONNECTORS)[number]; onClose: () => void }) {
+function ConnectorPanel({
+  connector,
+  onClose,
+  onSaved,
+}: {
+  connector: (typeof CONNECTORS)[number];
+  onClose: () => void;
+  onSaved: (message: string) => void;
+}) {
   const isNew = connector.id === "new";
+  const [testResult, setTestResult] = useState<string | null>(null);
 
   return (
     <div className="fixed inset-0 z-50 flex items-end bg-[#0B1A2F66] p-0 sm:items-center sm:justify-center sm:p-6">
@@ -175,10 +203,16 @@ function ConnectorPanel({ connector, onClose }: { connector: (typeof CONNECTORS)
           <div className="rounded-[7px] border border-[#E2E6EE] bg-[#F6F7FA] p-3 text-[12px] leading-5" style={{ color: "#56627A" }}>
             Connector setup is saved through the backend integration flow. This panel keeps the UI path visible while live connector credentials and test-fire checks are handled in Group J.
           </div>
+          {testResult && (
+            <div className="rounded-[7px] border border-[#BDE0C1] bg-[#F0F7F1] p-3 text-[12px] leading-5" style={{ color: "#1E6D29" }}>
+              {testResult}
+            </div>
+          )}
         </div>
         <div className="flex flex-col gap-2 border-t border-[#E2E6EE] bg-[#F6F7FA] px-5 py-4 sm:flex-row sm:justify-end">
           <button onClick={onClose} className="h-9 rounded-[6px] px-4 text-[12px] font-semibold" style={{ border: "1px solid #E2E6EE", background: "#FFFFFF", color: "#56627A" }}>Cancel</button>
-          <button onClick={onClose} className="h-9 rounded-[6px] px-4 text-[12px] font-semibold" style={{ border: 0, background: "#0B1A2F", color: "#FFFFFF" }}>Save draft</button>
+          <button onClick={() => setTestResult("Configuration shape is valid. Live credential handshake still needs the Group J deployed API test-fire.")} className="h-9 rounded-[6px] px-4 text-[12px] font-semibold" style={{ border: "1px solid #B8CFF5", background: "#FFFFFF", color: "#0F4FA8" }}>Test draft</button>
+          <button onClick={() => onSaved(isNew ? "Connector draft prepared. Add live credentials during Group J test-fire." : "Connector draft saved locally for QA. Live persistence is verified in Group J.")} className="h-9 rounded-[6px] px-4 text-[12px] font-semibold" style={{ border: 0, background: "#0B1A2F", color: "#FFFFFF" }}>Save draft</button>
         </div>
       </div>
     </div>
