@@ -7,8 +7,6 @@ import { apiClient } from "@/lib/api-client";
 import type { Artifact, Order, OrderStatus } from "@/types/procurement";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { ResolveSection } from "@/components/orders/ResolveSection";
-import { SupplierMappings } from "@/components/orders/SupplierMappings";
-import { OrderActions } from "@/components/orders/OrderActions";
 import { AuditTimeline } from "@/components/orders/AuditTimeline";
 import { SpineReviewSkeleton } from "@/components/bridge/Skeletons";
 import { BridgeLoader } from "@/components/bridge/BridgeLoader";
@@ -696,14 +694,14 @@ export default function OrderDetailPage() {
                   disabled={order.status !== "ready" || isProcessing}
                   style={{
                     height: 34, padding: "0 16px", borderRadius: 7,
-                    background: order.status === "ready" ? T.navy : T.surface2,
-                    border: `1px solid ${order.status === "ready" ? T.navy : T.border}`,
+                    background: T.navy,
+                    border: `1px solid ${T.navy}`,
                     display: "inline-flex", alignItems: "center", gap: 6,
                     fontSize: 12.5, fontWeight: 600,
-                    color: order.status === "ready" ? "#fff" : T.inkFaint,
+                    color: "#fff",
                     cursor: order.status === "ready" ? "pointer" : "not-allowed",
                     fontFamily: T.ui,
-                    opacity: order.status === "ready" ? 1 : 0.7,
+                    opacity: order.status === "ready" ? 1 : 0.45,
                   }}
                 >
                   Cross the bridge
@@ -772,22 +770,10 @@ export default function OrderDetailPage() {
               )}
             </div>
 
-            {/* Sidebar */}
+            {/* Sidebar — three cards max */}
             <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-              {order.status === "ready" && (
-                <OrderActions onTransform={handleTransform} />
-              )}
-
               <CounterpartiesPanel order={order} />
               <DetailsPanel order={order} />
-
-              {order.supplierId && (
-                <SupplierMappings
-                  supplierId={order.supplierId}
-                  supplierName={order.supplierName}
-                />
-              )}
-
               <AuditTimeline orderId={order.id} />
             </div>
 

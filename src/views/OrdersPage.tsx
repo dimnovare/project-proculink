@@ -572,7 +572,7 @@ export default function OrdersPage() {
             overflow: "hidden",
           }}>
             <div style={{ overflowX: "auto" }}>
-              <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 860 }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 1040 }}>
                 <thead>
                   <tr style={{ borderBottom: `1px solid ${T.border}` }}>
                     {/* PO NUMBER */}
