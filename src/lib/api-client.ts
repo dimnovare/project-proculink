@@ -86,10 +86,11 @@ const mockOrders: Order[] = [
     poNumber: "PO-2024-001234",
     supplierId: "11111111-1111-1111-1111-111111111111",
     supplierName: "FastParts Inc",
+    buyerName: "Acme Manufacturing",
     orderDate: "2024-01-10",
     currency: "USD",
     status: "ready",
-    sourceFileKey: null,
+    sourceFileKey: "orgs/demo/orders/po-001234.xlsx",
     createdAt: "2024-01-10T14:30:00Z",
     updatedAt: "2024-01-10T14:30:00Z",
     lines: [
@@ -104,10 +105,11 @@ const mockOrders: Order[] = [
     poNumber: "PO-2024-005678",
     supplierId: "22222222-2222-2222-2222-222222222222",
     supplierName: "ElectroSupply Co",
+    buyerName: "Nordic Electronics",
     orderDate: "2024-01-12",
     currency: "EUR",
     status: "pending_review",
-    sourceFileKey: null,
+    sourceFileKey: "orgs/demo/orders/po-005678.pdf",
     createdAt: "2024-01-12T09:15:00Z",
     updatedAt: "2024-01-12T09:15:00Z",
     lines: [
@@ -157,10 +159,11 @@ const mockOrders: Order[] = [
     poNumber: "PO-2024-009012",
     supplierId: "11111111-1111-1111-1111-111111111111",
     supplierName: "FastParts Inc",
+    buyerName: "Acme Manufacturing",
     orderDate: "2024-01-14",
     currency: "USD",
     status: "delivered",
-    sourceFileKey: null,
+    sourceFileKey: "orgs/demo/orders/po-009012.csv",
     createdAt: "2024-01-14T11:45:00Z",
     updatedAt: "2024-01-14T12:30:00Z",
     lines: [
@@ -280,13 +283,31 @@ async function realUploadPurchaseOrder(file: File, supplierId: string): Promise<
 
 async function mockGetOrders(): Promise<OrderSummary[]> {
   await delay(300);
-  return mockOrders.map(o => ({
-    id: o.id, poNumber: o.poNumber, supplierName: o.supplierName,
-    orderDate: o.orderDate, status: o.status,
-    lineCount: o.lines.length,
-    unresolvedCount: o.lines.filter(l => l.needsReview).length,
-    createdAt: o.createdAt,
-  }));
+  return mockOrders.map(o => {
+    const ext = o.sourceFileKey
+      ? o.sourceFileKey.split(".").pop()?.toLowerCase() ?? null
+      : null;
+    const sourceFormat = ext === "pdf"  ? "pdf"
+                       : ext === "csv"  ? "csv"
+                       : ext === "xlsx" || ext === "xls" ? "xlsx"
+                       : ext === "xml"  || ext === "cxml" ? "cxml"
+                       : ext === "edi"  || ext === "x12"  ? "edi"
+                       : null;
+    return {
+      id: o.id,
+      poNumber: o.poNumber,
+      supplierName: o.supplierName,
+      buyerName: o.buyerName ?? null,
+      orderDate: o.orderDate,
+      status: o.status,
+      lineCount: o.lines.length,
+      unresolvedCount: o.lines.filter(l => l.needsReview).length,
+      totalValue: o.lines.reduce((s, l) => s + l.quantity * l.unitPrice, 0),
+      currency: o.currency,
+      sourceFormat,
+      createdAt: o.createdAt,
+    };
+  });
 }
 
 async function realGetOrders(): Promise<OrderSummary[]> {

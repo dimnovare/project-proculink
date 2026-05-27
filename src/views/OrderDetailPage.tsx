@@ -40,6 +40,62 @@ const T = {
   ui:          '"Inter", system-ui, sans-serif',
 };
 
+// ─── Status stage map ─────────────────────────────────────────────────────────
+
+const STATUS_STAGE: Record<string, { label: string; stage: number }> = {
+  parsing:          { label: "Parsing",          stage: 2 },
+  pending_review:   { label: "Validating",        stage: 3 },
+  ready:            { label: "Ready",             stage: 4 },
+  transforming:     { label: "Transforming",      stage: 4 },
+  ready_to_deliver: { label: "Ready to deliver",  stage: 4 },
+  delivered:        { label: "Delivered",         stage: 5 },
+  failed:           { label: "Failed",            stage: 0 },
+  transform_failed: { label: "Transform failed",  stage: 0 },
+  delivery_failed:  { label: "Delivery failed",   stage: 0 },
+};
+
+// ─── Source format chip (same palette as OrdersPage) ─────────────────────────
+
+const SRC_META: Record<string, { bg: string; color: string; label: string }> = {
+  pdf:   { bg: "#FEE2E2", color: "#B91C1C", label: "PDF"   },
+  csv:   { bg: "#DBEAFE", color: "#1D4ED8", label: "CSV"   },
+  xlsx:  { bg: "#DCFCE7", color: "#15803D", label: "XLSX"  },
+  cxml:  { bg: "#CCFBF1", color: "#0F766E", label: "cXML"  },
+  edi:   { bg: "#FEF3C7", color: "#B45309", label: "EDI"   },
+  email: { bg: "#EDE9FE", color: "#7C3AED", label: "EMAIL" },
+};
+
+function SrcChip({ format }: { format: string | null | undefined }) {
+  if (!format) return null;
+  const meta = SRC_META[format.toLowerCase()] ?? { bg: T.surface2, color: T.inkFaint, label: format.toUpperCase() };
+  return (
+    <span style={{
+      display: "inline-flex", alignItems: "center", justifyContent: "center",
+      height: 18, padding: "0 6px", borderRadius: 4,
+      fontSize: 10, fontWeight: 700, letterSpacing: "0.04em",
+      background: meta.bg, color: meta.color, flexShrink: 0,
+    }}>
+      {meta.label}
+    </span>
+  );
+}
+
+function deriveSourceFormat(fileKey: string | null | undefined): string | null {
+  if (!fileKey) return null;
+  const ext = fileKey.split(".").pop()?.toLowerCase() ?? "";
+  if (ext === "pdf")  return "pdf";
+  if (ext === "csv")  return "csv";
+  if (ext === "xlsx" || ext === "xls") return "xlsx";
+  if (ext === "xml"  || ext === "cxml") return "cxml";
+  if (ext === "edi"  || ext === "x12") return "edi";
+  return null;
+}
+
+function deriveSourceFilename(fileKey: string | null | undefined): string {
+  if (!fileKey) return "—";
+  return fileKey.split("/").pop() ?? fileKey;
+}
+
 // ─── Small components ─────────────────────────────────────────────────────────
 
 function Panel({
@@ -77,17 +133,24 @@ function MetaStrip({ order }: { order: Order }) {
   const fmtCurrency = (v: number) =>
     new Intl.NumberFormat("en-US", { style: "currency", currency: order.currency }).format(v);
 
-  const sourceLabel = order.sourceFileKey
-    ? (order.sourceFileKey.split("/").pop() ?? order.sourceFileKey).slice(0, 32)
-    : "—";
+  const sourceFmt  = deriveSourceFormat(order.sourceFileKey);
+  const sourceFile = deriveSourceFilename(order.sourceFileKey);
+
+  const stageInfo = STATUS_STAGE[order.status] ?? { label: order.status, stage: 0 };
+  const stageText = stageInfo.stage > 0
+    ? `${stageInfo.label} · ${stageInfo.stage} of 5`
+    : stageInfo.label;
 
   const cells = [
     {
       label: "Source",
       value: (
-        <span style={{ fontFamily: T.mono, fontSize: 12, color: T.ink, wordBreak: "break-all" }}>
-          {sourceLabel}
-        </span>
+        <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+          <SrcChip format={sourceFmt} />
+          <span style={{ fontFamily: T.mono, fontSize: 11.5, color: T.ink, wordBreak: "break-all" }}>
+            {sourceFile}
+          </span>
+        </div>
       ),
     },
     {
@@ -116,7 +179,11 @@ function MetaStrip({ order }: { order: Order }) {
     },
     {
       label: "Status",
-      value: <StatusBadge status={order.status} size="sm" />,
+      value: (
+        <span style={{ fontSize: 12.5, color: T.inkMuted, fontFamily: T.ui }}>
+          {stageText}
+        </span>
+      ),
     },
   ];
 
@@ -590,6 +657,57 @@ export default function OrderDetailPage() {
                     </>
                   )}
                 </div>
+              </div>
+
+              {/* Action buttons */}
+              <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+                {order.sourceFileKey && (
+                  <button
+                    onClick={() => handleDownload(order.artifacts[0]?.id ?? "")}
+                    style={{
+                      height: 34, padding: "0 14px", borderRadius: 7,
+                      background: "transparent", border: `1px solid ${T.border}`,
+                      display: "inline-flex", alignItems: "center", gap: 6,
+                      fontSize: 12.5, fontWeight: 500, color: T.inkMuted,
+                      cursor: "pointer", fontFamily: T.ui,
+                    }}
+                  >
+                    <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
+                      <path d="M9 2H5a2 2 0 00-2 2v8a2 2 0 002 2h6a2 2 0 002-2V7l-4-5z" stroke={T.inkFaint} strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
+                      <path d="M9 2v4h4" stroke={T.inkFaint} strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                    View source
+                  </button>
+                )}
+                <button
+                  style={{
+                    height: 34, padding: "0 14px", borderRadius: 7,
+                    background: "transparent", border: `1px solid ${T.border}`,
+                    display: "inline-flex", alignItems: "center", gap: 6,
+                    fontSize: 12.5, fontWeight: 500, color: T.inkMuted,
+                    cursor: "pointer", fontFamily: T.ui,
+                  }}
+                  disabled
+                >
+                  Save draft
+                </button>
+                <button
+                  onClick={() => order.status === "ready" ? handleTransform("xml") : undefined}
+                  disabled={order.status !== "ready" || isProcessing}
+                  style={{
+                    height: 34, padding: "0 16px", borderRadius: 7,
+                    background: order.status === "ready" ? T.navy : T.surface2,
+                    border: `1px solid ${order.status === "ready" ? T.navy : T.border}`,
+                    display: "inline-flex", alignItems: "center", gap: 6,
+                    fontSize: 12.5, fontWeight: 600,
+                    color: order.status === "ready" ? "#fff" : T.inkFaint,
+                    cursor: order.status === "ready" ? "pointer" : "not-allowed",
+                    fontFamily: T.ui,
+                    opacity: order.status === "ready" ? 1 : 0.7,
+                  }}
+                >
+                  Cross the bridge
+                </button>
               </div>
             </div>
           </div>

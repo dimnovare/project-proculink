@@ -88,10 +88,14 @@ export interface OrderSummary {
   id: string;
   poNumber: string;
   supplierName: string;
+  buyerName?: string | null;
   orderDate: string;
   status: OrderStatus;
   lineCount: number;
   unresolvedCount: number;
+  totalValue?: number;
+  currency?: string;
+  sourceFormat?: string | null;
   createdAt: string;
 }
 
