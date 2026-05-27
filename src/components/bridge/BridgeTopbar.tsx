@@ -143,6 +143,8 @@ export function BridgeTopbar({ crumb, onMenuClick }: BridgeTopbarProps) {
 
         {/* cmd-K search trigger */}
         <button
+          type="button"
+          aria-label="Search (⌘K)"
           onClick={() => setPaletteOpen(true)}
           className="hidden items-center gap-2 rounded-[6px] px-3 transition-colors sm:flex"
           style={{
@@ -172,6 +174,8 @@ export function BridgeTopbar({ crumb, onMenuClick }: BridgeTopbarProps) {
 
         {/* Notifications */}
         <button
+          type="button"
+          aria-label="Notifications"
           className="flex items-center justify-center rounded-[6px] relative"
           style={{
             width: 30,
@@ -197,6 +201,8 @@ export function BridgeTopbar({ crumb, onMenuClick }: BridgeTopbarProps) {
 
         {/* Help */}
         <button
+          type="button"
+          aria-label="Help"
           className="flex items-center justify-center rounded-full text-[11px] font-bold"
           style={{
             width: 24,

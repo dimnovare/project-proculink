@@ -98,9 +98,11 @@ export function BridgeSidebar({ onNavigate }: BridgeSidebarProps) {
       </div>
 
       {/* ── Workspace switcher ────────────────────────────────────── */}
-      <div
-        className="mx-3 mt-3 mb-2 flex items-center gap-2.5 rounded-[8px] px-3 py-2 cursor-pointer"
-        style={{ background: "#10243E", border: "1px solid #1C2F49" }}
+      <button
+        type="button"
+        className="mx-3 mt-3 mb-2 flex w-[calc(100%-24px)] items-center gap-2.5 rounded-[8px] px-3 py-2 text-left"
+        style={{ background: "#10243E", border: "1px solid #1C2F49", cursor: "pointer" }}
+        aria-label="Switch workspace"
       >
         <div
           className="flex items-center justify-center rounded-[5px] text-[10px] font-bold text-white flex-shrink-0"
@@ -117,7 +119,7 @@ export function BridgeSidebar({ onNavigate }: BridgeSidebarProps) {
           </div>
         </div>
         <span style={{ color: "#7C8DA6", fontSize: 11 }}>⌄</span>
-      </div>
+      </button>
 
       {/* ── Navigation ───────────────────────────────────────────── */}
       <nav className="flex-1 overflow-y-auto px-2 py-1" style={{ scrollbarWidth: "none" }}>

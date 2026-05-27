@@ -44,6 +44,20 @@
 /* ── Selection ───────────────────────────────────────────────────────────── */
 ::selection { background: var(--brand-blue-soft); }
 
+/* ── Focus visible — applies to all interactive elements ─────────────────── */
+:focus-visible {
+  outline: 2px solid var(--brand-blue);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* On dark navy chrome (topbar, sidebar) use a white ring so it's always visible */
+aside :focus-visible,
+header :focus-visible {
+  outline-color: #FFFFFF;
+  outline-offset: 2px;
+}
+
 @layer base {
   :root {
     /* ── shadcn/ui CSS variable tokens (primitives layer) ── */
