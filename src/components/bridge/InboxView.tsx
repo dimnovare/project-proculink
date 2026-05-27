@@ -432,6 +432,13 @@ export function InboxView() {
       {/* ── Queue table / mobile route cards ──────────────────────────────────── */}
       <div className="flex-1 overflow-auto" style={{ background: "#FFFFFF" }}>
         <div className="divide-y divide-[#F0F2F6] md:hidden">
+          {rows.length === 0 && (
+            <div className="flex flex-col items-center justify-center py-16 px-6 text-center gap-3">
+              <div style={{ fontSize: 28, color: "#C6CDDA" }}>⊘</div>
+              <p className="text-[14px] font-semibold" style={{ color: "#0B1A2F" }}>No crossings match this filter</p>
+              <p className="text-[13px]" style={{ color: "#56627A" }}>Try a different status filter above.</p>
+            </div>
+          )}
           {rows.map((row) => (
             <button
               key={row.id}
