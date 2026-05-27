@@ -63,31 +63,36 @@ function SrcChip({ format }: { format: string | null | undefined }) {
   );
 }
 
-// ─── Status dot (table-row variant, lighter than StatusBadge pill) ────────────
+// ─── Status pill (table-row variant) ─────────────────────────────────────────
 
-const STATUS_DOT: Record<string, { color: string; label: string; spin?: boolean }> = {
-  parsing:          { color: T.blue,   label: "Parsing",       spin: true  },
-  pending_review:   { color: T.amber,  label: "Needs review"               },
-  ready:            { color: T.green,  label: "Ready"                      },
-  transforming:     { color: T.blue,   label: "Transforming",  spin: true  },
-  ready_to_deliver: { color: T.blue,   label: "Ready"                      },
-  delivered:        { color: T.green,  label: "Delivered"                  },
-  failed:           { color: T.danger, label: "Failed"                     },
-  transform_failed: { color: T.danger, label: "Failed"                     },
-  delivery_failed:  { color: T.danger, label: "Failed"                     },
+const STATUS_PILL: Record<string, { color: string; bg: string; border: string; label: string }> = {
+  parsing:          { color: T.blue,   bg: "#EBF3FF", border: "#BEDAFF", label: "Parsing"       },
+  pending_review:   { color: "#92540A", bg: "#FEF3C7", border: "#FCD34D", label: "Needs review"  },
+  ready:            { color: "#166534", bg: "#DCFCE7", border: "#86EFAC", label: "Ready"          },
+  transforming:     { color: T.blue,   bg: "#EBF3FF", border: "#BEDAFF", label: "Transforming"   },
+  ready_to_deliver: { color: "#5B21B6", bg: "#EDE9FE", border: "#C4B5FD", label: "Ready"          },
+  delivered:        { color: "#166534", bg: "#DCFCE7", border: "#86EFAC", label: "Delivered"      },
+  failed:           { color: "#991B1B", bg: "#FEE2E2", border: "#FCA5A5", label: "Failed"         },
+  transform_failed: { color: "#991B1B", bg: "#FEE2E2", border: "#FCA5A5", label: "Failed"         },
+  delivery_failed:  { color: "#991B1B", bg: "#FEE2E2", border: "#FCA5A5", label: "Failed"         },
 };
 
 function StatusDot({ status }: { status: string }) {
-  const meta = STATUS_DOT[status] ?? { color: T.inkFaint, label: status };
+  const meta = STATUS_PILL[status] ?? { color: T.inkFaint, bg: T.surface2, border: T.border, label: status };
   return (
-    <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+    <span style={{
+      display: "inline-flex", alignItems: "center", gap: 5,
+      height: 22, padding: "0 9px", borderRadius: 20,
+      fontSize: 11.5, fontWeight: 600, letterSpacing: "0.01em",
+      background: meta.bg, color: meta.color,
+      border: `1px solid ${meta.border}`,
+      whiteSpace: "nowrap", flexShrink: 0,
+    }}>
       <span style={{
-        width: 7, height: 7, borderRadius: "50%",
+        width: 5, height: 5, borderRadius: "50%",
         background: meta.color, flexShrink: 0,
       }} />
-      <span style={{ fontSize: 12.5, color: T.ink, fontWeight: 500 }}>
-        {meta.label}
-      </span>
+      {meta.label}
     </span>
   );
 }
@@ -216,7 +221,7 @@ function StatusDropdown({
                 {o.value !== "all" && (
                   <span style={{
                     width: 6, height: 6, borderRadius: "50%", flexShrink: 0,
-                    background: (STATUS_DOT[o.value]?.color ?? T.inkFaint),
+                    background: (STATUS_PILL[o.value]?.color ?? T.inkFaint),
                   }} />
                 )}
                 {o.label}
