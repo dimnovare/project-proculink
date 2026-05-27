@@ -21,6 +21,9 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:5
 // Default to mock mode unless explicitly set to false
 const USE_MOCK = process.env.NEXT_PUBLIC_USE_MOCK !== "false";
 
+/** True when the frontend uses in-memory mocks instead of the ASP.NET API. */
+export const isApiMockMode = USE_MOCK;
+
 /**
  * Returns an Authorization header with the current Clerk session JWT.
  * Uses window.Clerk (set by ClerkProvider) so this works outside React components.

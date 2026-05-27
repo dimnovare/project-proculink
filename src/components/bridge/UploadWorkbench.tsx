@@ -4,10 +4,11 @@
 // Translated from Bridge_Upload in v2-prototype.jsx.
 
 import { useState, useEffect, useRef } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { FileChip } from "./FileChip";
-import { ApiHttpError, apiClient, getBillingStatus } from "@/lib/api-client";
+import { ApiHttpError, apiClient, getBillingStatus, isApiMockMode } from "@/lib/api-client";
 
 // Pipeline stages for the upload animation
 const PIPELINE_STAGES = ["Parse", "Normalize", "Validate", "Transform"] as const;
@@ -39,13 +40,6 @@ const RECENT: Array<{
 const FORMATS: FormatKey[] = ["PDF", "XLSX", "CSV", "cXML", "EDI", "JSON", "EMAIL"];
 
 const BUYERS  = ["Heinrich Industries", "Nordmark Logistics", "Steelhouse Const.", "Centralis Pharma", "Westmark Tools", "Atlas Reseller AG"];
-const SUPPLIERS = [
-  { id: "11111111-1111-1111-1111-111111111111", name: "Acme Components" },
-  { id: "22222222-2222-2222-2222-222222222222", name: "BoltWorks BV" },
-  { id: "33333333-3333-3333-3333-333333333333", name: "VanDerBerg Metaal" },
-  { id: "44444444-4444-4444-4444-444444444444", name: "Nordix Distribution" },
-  { id: "55555555-5555-5555-5555-555555555555", name: "MedicaSupply OY" },
-];
 const TEMPLATES = ["Standard cXML PO", "SAP IDoc ORDERS05", "ERP Generic v2", "Custom Nordmark"];
 
 const STATUS_PILL: Record<string, { bg: string; color: string; label: string }> = {
@@ -98,7 +92,7 @@ function XCard({
 export function UploadWorkbench() {
   const [dragging, setDragging]     = useState(false);
   const [buyer, setBuyer]           = useState(BUYERS[0]);
-  const [supplierId, setSupplierId] = useState(SUPPLIERS[0].id);
+  const [supplierId, setSupplierId] = useState("");
   const [template, setTemplate]     = useState(TEMPLATES[0]);
   const [mode, setMode]             = useState<ModeKey>("auto");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -115,9 +109,32 @@ export function UploadWorkbench() {
     retry: false,
   });
 
-  const selectedSupplier = SUPPLIERS.find((s) => s.id === supplierId) ?? SUPPLIERS[0];
+  const {
+    data: suppliers = [],
+    isLoading: suppliersLoading,
+    isError: suppliersError,
+  } = useQuery({
+    queryKey: ["suppliers"],
+    queryFn: apiClient.getSuppliers,
+    staleTime: 5 * 60 * 1000,
+    retry: false,
+  });
+
+  useEffect(() => {
+    if (suppliers.length === 0) {
+      if (supplierId) setSupplierId("");
+      return;
+    }
+    const stillValid = suppliers.some((s) => s.id === supplierId);
+    if (!supplierId || !stillValid) {
+      setSupplierId(suppliers[0].id);
+    }
+  }, [suppliers, supplierId]);
+
+  const selectedSupplier = suppliers.find((s) => s.id === supplierId) ?? null;
   const isReadOnly = billing ? !billing.canProcessOrders : false;
-  const isUploadDisabled = uploading || isReadOnly;
+  const hasSupplier = Boolean(selectedSupplier?.id);
+  const isUploadDisabled = uploading || isReadOnly || !hasSupplier || suppliersLoading;
 
   async function handleUpload() {
     if (uploading) return;
@@ -127,6 +144,15 @@ export function UploadWorkbench() {
     }
     if (!selectedFile) {
       fileInputRef.current?.click();
+      return;
+    }
+    if (!selectedSupplier?.id) {
+      setUploadError({
+        code: "supplier_required",
+        title: "Choose a supplier dock first.",
+        message: "Add a supplier in the library before uploading a purchase order.",
+        cta: "Open supplier docks",
+      });
       return;
     }
     setUploadError(null);
@@ -158,8 +184,11 @@ export function UploadWorkbench() {
       const t = setTimeout(() => setPipelineStage(i), i * STAGE_MS);
       timerRefs.current.push(t);
     });
+    const reviewPath = isApiMockMode
+      ? `/inbox/${encodeURIComponent(uploadedOrderId)}`
+      : `/orders/${encodeURIComponent(uploadedOrderId)}`;
     const total = setTimeout(() => {
-      router.push(`/inbox/${encodeURIComponent(uploadedOrderId)}`);
+      router.push(reviewPath);
     }, PIPELINE_STAGES.length * STAGE_MS + 200);
     timerRefs.current.push(total);
   }
@@ -615,21 +644,51 @@ export function UploadWorkbench() {
                   >
                     Supplier dock
                   </label>
-                  <select
-                    value={supplierId}
-                    onChange={(e) => setSupplierId(e.target.value)}
-                    className="w-full rounded-[6px] px-3 py-2 text-[13px] appearance-none"
-                    style={{
-                      border: "1px solid #E2E6EE",
-                      background: "#FFFFFF",
-                      color: "#0B1A2F",
-                      outline: "none",
-                    }}
-                  >
-                    {SUPPLIERS.map((s) => (
-                      <option key={s.id} value={s.id}>{s.name}</option>
-                    ))}
-                  </select>
+                  {suppliersLoading && (
+                    <div
+                      className="rounded-[6px] px-3 py-2 text-[12px]"
+                      style={{ border: "1px solid #E2E6EE", background: "#F6F7FA", color: "#56627A" }}
+                    >
+                      Loading supplier docks...
+                    </div>
+                  )}
+                  {suppliersError && !suppliersLoading && (
+                    <div
+                      className="rounded-[6px] px-3 py-2 text-[12px]"
+                      style={{ border: "1px solid #F0D39A", background: "#FFF8EA", color: "#7A4D0B" }}
+                    >
+                      Could not load suppliers. Check the API connection and try again.
+                    </div>
+                  )}
+                  {!suppliersLoading && !suppliersError && suppliers.length === 0 && (
+                    <div
+                      className="rounded-[6px] px-3 py-2.5 text-[12px] leading-5"
+                      style={{ border: "1px solid #E2E6EE", background: "#F6F7FA", color: "#56627A" }}
+                    >
+                      No supplier docks yet.{" "}
+                      <Link href="/library/suppliers" className="font-medium underline" style={{ color: "#1E66C9" }}>
+                        Add a supplier
+                      </Link>{" "}
+                      before uploading.
+                    </div>
+                  )}
+                  {!suppliersLoading && suppliers.length > 0 && (
+                    <select
+                      value={supplierId}
+                      onChange={(e) => setSupplierId(e.target.value)}
+                      className="w-full rounded-[6px] px-3 py-2 text-[13px] appearance-none"
+                      style={{
+                        border: "1px solid #E2E6EE",
+                        background: "#FFFFFF",
+                        color: "#0B1A2F",
+                        outline: "none",
+                      }}
+                    >
+                      {suppliers.map((s) => (
+                        <option key={s.id} value={s.id}>{s.name}</option>
+                      ))}
+                    </select>
+                  )}
                 </div>
 
                 <div
