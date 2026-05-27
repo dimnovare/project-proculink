@@ -2,7 +2,7 @@
 
 import { UserButton } from "@clerk/nextjs";
 import { Menu } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import type { ReactNode } from "react";
 import { CommandPalette } from "./CommandPalette";
@@ -41,8 +41,63 @@ function AccountMenu() {
   );
 }
 
+/** Derive a 1–2-segment breadcrumb from the current pathname. */
+function useAutoCrumb(): ReactNode {
+  const pathname = usePathname();
+  const seg = pathname.split("/").filter(Boolean);
+
+  const LABELS: Record<string, string> = {
+    bridge:    "Bridge",
+    inbox:     "Inbox",
+    upload:    "Upload",
+    drafts:    "Drafts",
+    orders:    "Orders",
+    settings:  "Settings",
+    library:   "Library",
+    suppliers: "Supplier docks",
+    buyers:    "Buyer docks",
+    mappings:  "Mappings",
+    rules:     "Rules",
+    templates: "Output templates",
+    operations: "Operations",
+    log:       "Crossings log",
+    connectors: "Connectors",
+    webhooks:  "Webhooks",
+  };
+
+  if (seg.length === 0) return null;
+
+  const root = LABELS[seg[0]] ?? seg[0];
+
+  // Two-segment paths like /library/suppliers or /operations/log
+  if (seg.length >= 2 && LABELS[seg[1]]) {
+    return (
+      <>
+        <span style={{ color: "#7C8DA6" }}>{root}</span>
+        <span style={{ color: "#3A547A", margin: "0 3px" }}>/</span>
+        <span style={{ color: "#C5D2E4", fontWeight: 500 }}>{LABELS[seg[1]]}</span>
+      </>
+    );
+  }
+
+  // Detail pages like /inbox/[id] or /library/suppliers/[id] or /orders/[id]
+  if (seg.length >= 2 && !LABELS[seg[1]]) {
+    const slug = seg[1].length > 16 ? seg[1].slice(0, 15) + "…" : seg[1];
+    return (
+      <>
+        <span style={{ color: "#7C8DA6" }}>{root}</span>
+        <span style={{ color: "#3A547A", margin: "0 3px" }}>/</span>
+        <span style={{ color: "#C5D2E4", fontWeight: 500 }}>{slug}</span>
+      </>
+    );
+  }
+
+  return <span style={{ color: "#C5D2E4", fontWeight: 500 }}>{root}</span>;
+}
+
 export function BridgeTopbar({ crumb, onMenuClick }: BridgeTopbarProps) {
   const router = useRouter();
+  const autoCrumb = useAutoCrumb();
   const [paletteOpen, setPaletteOpen] = useState(false);
 
   // Global cmd+K listener
@@ -83,9 +138,7 @@ export function BridgeTopbar({ crumb, onMenuClick }: BridgeTopbarProps) {
           className="flex min-w-0 flex-1 items-center gap-1.5 text-[13px]"
           style={{ color: "#C5D2E4" }}
         >
-          {crumb ?? (
-            <span style={{ color: "#7C8DA6" }}>ProcuLink</span>
-          )}
+          {crumb ?? autoCrumb}
         </div>
 
         {/* cmd-K search trigger */}
