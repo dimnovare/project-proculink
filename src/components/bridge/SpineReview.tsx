@@ -11,7 +11,7 @@ import { apiClient } from "@/lib/api-client";
 import type { Order } from "@/types/procurement";
 import { EdgeRails } from "./EdgeRails";
 import { FileChip } from "./FileChip";
-import { StatusJourney } from "./StatusJourney";
+import { StatusJourney, type OrderStage } from "./StatusJourney";
 import { SpineReviewSkeleton } from "./Skeletons";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -107,6 +107,56 @@ function buildNodesFromOrder(order: Order): SpineNodeData[] {
     },
     { id: "totals", label: "Grand total", value: formatted, pct: 100, mono: true, big: true, editable: false, srcRef: "totals", outRef: "Total/@amount" },
   ];
+}
+
+// ─── Header helpers ──────────────────────────────────────────────────────────
+
+/** Map backend OrderStatus → StatusJourney stage index. */
+function orderStatusToStage(status: string): OrderStage {
+  switch (status) {
+    case "parsing":           return 0;
+    case "pending_review":    return 2;
+    case "ready":             return 2;
+    case "transforming":      return 3;
+    case "ready_to_deliver":  return 3;
+    case "delivered":         return 4;
+    case "failed":
+    case "transform_failed":
+    case "delivery_failed":   return "failed";
+    default:                  return 1;
+  }
+}
+
+/** Extract a human-readable filename from a storage key (last path segment). */
+function sourceFileLabel(fileKey: string | null | undefined): string {
+  if (!fileKey) return "uploaded file";
+  const parts = fileKey.split("/");
+  return parts[parts.length - 1] ?? "uploaded file";
+}
+
+/** Derive FileChip format from source file key extension. */
+function sourceFileType(fileKey: string | null | undefined): string {
+  if (!fileKey) return "PDF";
+  const ext = fileKey.split(".").pop()?.toLowerCase();
+  if (ext === "xlsx") return "XLSX";
+  if (ext === "csv")  return "CSV";
+  return "PDF";
+}
+
+/** Generate a display label for the supplier output file. */
+function outputArtifactLabel(artifacts: Order["artifacts"], supplierName: string): string {
+  const fmt = artifacts[0]?.format;
+  const slug = supplierName.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
+  return fmt ? `${slug}.${fmt}` : `${slug}.xml`;
+}
+
+/** Derive FileChip format from the latest outbound artifact. */
+function outputArtifactType(artifacts: Order["artifacts"]): string {
+  const fmt = artifacts[0]?.format?.toLowerCase();
+  if (!fmt)           return "XML";
+  if (fmt === "cxml") return "cXML";
+  if (fmt === "csv")  return "CSV";
+  return fmt.toUpperCase();
 }
 
 // ─── ConfChip ────────────────────────────────────────────────────────────────
@@ -448,10 +498,14 @@ function OutputPreview({ acceptedSubnodes, rejectedSubnodes, crossed, fieldValue
 
 // ─── Confirm Dialog ───────────────────────────────────────────────────────────
 
-function ConfirmDialog({ exceptionCount, onConfirm, onCancel }: {
+function ConfirmDialog({ exceptionCount, onConfirm, onCancel, supplierName, outputFormat, grandTotal, lineCount }: {
   exceptionCount: number;
   onConfirm: () => void;
   onCancel: () => void;
+  supplierName: string;
+  outputFormat: string;
+  grandTotal: string;
+  lineCount: number;
 }) {
   const [checked, setChecked] = useState(false);
   const checkRef = useRef<HTMLInputElement>(null);
@@ -475,7 +529,7 @@ function ConfirmDialog({ exceptionCount, onConfirm, onCancel }: {
         <div style={{ padding: "20px 24px 0" }}>
           <div style={{ fontFamily: "'Bricolage Grotesque',Inter,sans-serif", fontSize: 18, fontWeight: 700, color: "#0B1A2F", marginBottom: 6 }}>Cross the bridge?</div>
           <p style={{ fontSize: 13, color: "#56627A", lineHeight: 1.55, margin: 0 }}>
-            This will deliver the transformed cXML order to <strong style={{ color: "#0B1A2F" }}>Acme Components Ltd.</strong>
+            This will deliver the transformed {outputFormat.toUpperCase()} order to <strong style={{ color: "#0B1A2F" }}>{supplierName}</strong>
           </p>
         </div>
 
@@ -483,10 +537,10 @@ function ConfirmDialog({ exceptionCount, onConfirm, onCancel }: {
         <div style={{ margin: "16px 24px", padding: "12px 14px", background: "#F6F7FA", borderRadius: 8, border: "1px solid #E2E6EE" }}>
           <div style={{ display: "flex", gap: 20 }}>
             {[
-              { label: "Grand total",    value: "€ 4,436.73" },
-              { label: "Lines",          value: "14 items" },
+              { label: "Grand total",    value: grandTotal },
+              { label: "Lines",          value: `${lineCount} item${lineCount !== 1 ? "s" : ""}` },
               { label: "Exceptions",     value: `${exceptionCount}`, color: exceptionCount > 0 ? "#C97A14" : "#2E8E3A" },
-              { label: "Template",       value: "Acme cXML v1.2" },
+              { label: "Format",         value: outputFormat.toUpperCase() },
             ].map(({ label, value, color }) => (
               <div key={label} style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "#8A93A5", marginBottom: 2 }}>{label}</div>
@@ -507,7 +561,7 @@ function ConfirmDialog({ exceptionCount, onConfirm, onCancel }: {
             style={{ marginTop: 2, width: 15, height: 15, accentColor: "#1E66C9", cursor: "pointer", flexShrink: 0 }}
           />
           <label htmlFor="confirm-check" style={{ fontSize: 13, color: "#0B1A2F", lineHeight: 1.5, cursor: "pointer" }}>
-            I've reviewed the {exceptionCount} exception{exceptionCount !== 1 ? "s" : ""}. Send to Acme.
+            I've reviewed the {exceptionCount} exception{exceptionCount !== 1 ? "s" : ""}. Send to {supplierName}.
           </label>
         </div>
 
@@ -537,7 +591,12 @@ function ConfirmDialog({ exceptionCount, onConfirm, onCancel }: {
 
 // ─── Success toast ────────────────────────────────────────────────────────────
 
-function CrossedToast({ onDismiss }: { onDismiss: () => void }) {
+function CrossedToast({ onDismiss, supplierName, poNumber, lineCount }: {
+  onDismiss: () => void;
+  supplierName: string;
+  poNumber: string;
+  lineCount: number;
+}) {
   useEffect(() => {
     const t = setTimeout(onDismiss, 5000);
     return () => clearTimeout(t);
@@ -547,8 +606,8 @@ function CrossedToast({ onDismiss }: { onDismiss: () => void }) {
     <div style={{ position: "fixed", bottom: 24, right: 24, display: "flex", alignItems: "center", gap: 12, padding: "14px 18px", background: "#0B1A2F", borderRadius: 10, boxShadow: "0 8px 24px rgba(11,26,47,0.25)", zIndex: 9992, animation: "fade-up 0.3s ease-out both" }}>
       <div style={{ width: 28, height: 28, borderRadius: 7, background: "#E2F1E2", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14 }}>✓</div>
       <div>
-        <div style={{ fontSize: 13, fontWeight: 600, color: "#FFFFFF" }}>Crossed to Acme · accepted</div>
-        <div style={{ fontSize: 11.5, color: "#7C8DA6", marginTop: 2 }}>1m 42s · PO-2026-008412 · 14 lines</div>
+        <div style={{ fontSize: 13, fontWeight: 600, color: "#FFFFFF" }}>Crossed to {supplierName} · accepted</div>
+        <div style={{ fontSize: 11.5, color: "#7C8DA6", marginTop: 2 }}>{poNumber} · {lineCount} line{lineCount !== 1 ? "s" : ""}</div>
       </div>
       <button onClick={onDismiss} style={{ marginLeft: 8, background: "none", border: "none", color: "#7C8DA6", fontSize: 16, cursor: "pointer", padding: "0 2px" }}>✕</button>
     </div>
@@ -690,6 +749,17 @@ export function SpineReview({ orderId }: { orderId: string }) {
     return Math.max(0, n - acceptedSubnodes.size);
   })();
 
+  // ── Dialog / toast context derived from live order ────────────────────────
+  const dialogSupplierName = order?.supplierName ?? "supplier";
+  const dialogOutputFormat = order ? outputArtifactType(order.artifacts) : "XML";
+  const dialogGrandTotal   = order
+    ? (() => {
+        const total = order.lines.reduce((s, l) => s + Number(l.unitPrice) * Number(l.quantity), 0);
+        return `${order.currency === "EUR" ? "€" : order.currency} ${total.toLocaleString("en-IE", { minimumFractionDigits: 2 })}`;
+      })()
+    : "—";
+  const dialogLineCount    = order?.lines.length ?? 0;
+
   // ── Edit handlers ──────────────────────────────────────────────────────────
   const handleStartEdit = useCallback((id: string) => {
     const node = nodes.find(n => n.id === id);
@@ -697,7 +767,6 @@ export function SpineReview({ orderId }: { orderId: string }) {
     setFieldValues(prev => ({ ...prev, [id]: prev[id] ?? node.value }));
     setEditingId(id);
     setTimeout(() => inputRefs.current[id]?.focus(), 0);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [nodes]);
 
   const handleChangeValue = useCallback((id: string, val: string) => {
@@ -726,7 +795,7 @@ export function SpineReview({ orderId }: { orderId: string }) {
       const node = nodes.find(n => n.id === id);
       if (node) setFieldValues(prev => ({ ...prev, [id]: node.value }));
     }
-  }, [handleCommitEdit, handleStartEdit]);
+  }, [handleCommitEdit, handleStartEdit, nodes]);
 
   const inputRefCallback = useCallback((el: HTMLInputElement | null, id: string) => {
     inputRefs.current[id] = el;
@@ -791,10 +860,10 @@ export function SpineReview({ orderId }: { orderId: string }) {
           {/* Buyer */}
           <div className="min-w-[220px] flex-1" style={{ flexShrink: 0 }}>
             <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.07em", textTransform: "uppercase", color: "#1E66C9" }}>From</div>
-            <div style={{ fontSize: 14, fontWeight: 600, color: "#0B1A2F", marginTop: 1, whiteSpace: "nowrap" }}>Heinrich Industries</div>
+            <div style={{ fontSize: 14, fontWeight: 600, color: "#0B1A2F", marginTop: 1, whiteSpace: "nowrap" }}>{order.buyerName ?? "(parsing…)"}</div>
             <div style={{ display: "flex", alignItems: "center", gap: 5, marginTop: 2 }}>
-              <FileChip type="PDF" />
-              <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10.5, color: "#56627A" }}>PO-2026-008412.pdf</span>
+              <FileChip type={sourceFileType(order.sourceFileKey)} />
+              <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10.5, color: "#56627A" }}>{sourceFileLabel(order.sourceFileKey)}</span>
             </div>
           </div>
 
@@ -803,10 +872,10 @@ export function SpineReview({ orderId }: { orderId: string }) {
           {/* Supplier */}
           <div className="min-w-[220px] flex-1 text-left sm:text-right" style={{ flexShrink: 0 }}>
             <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.07em", textTransform: "uppercase", color: "#1E6D29" }}>To</div>
-            <div style={{ fontSize: 14, fontWeight: 600, color: "#0B1A2F", marginTop: 1, whiteSpace: "nowrap" }}>Acme Components Ltd.</div>
+            <div style={{ fontSize: 14, fontWeight: 600, color: "#0B1A2F", marginTop: 1, whiteSpace: "nowrap" }}>{order.supplierName}</div>
             <div style={{ display: "flex", alignItems: "center", gap: 5, marginTop: 2, justifyContent: "flex-end" }}>
-              <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10.5, color: "#56627A" }}>acme-1.2.cxml</span>
-              <FileChip type="cXML" />
+              <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10.5, color: "#56627A" }}>{outputArtifactLabel(order.artifacts, order.supplierName)}</span>
+              <FileChip type={outputArtifactType(order.artifacts)} />
             </div>
           </div>
 
@@ -833,8 +902,8 @@ export function SpineReview({ orderId }: { orderId: string }) {
         {/* Stage track — full width, visually separate */}
         <div style={{ padding: "8px 16px 14px", borderTop: "1px solid #F0F2F7" }}>
           <StatusJourney
-            stage={crossed ? 4 : 2}
-            crossingRef={crossed ? `Delivered · ${orderId}` : `Validating · ${orderId}`}
+            stage={crossed || order.status === "delivered" ? 4 : orderStatusToStage(order.status)}
+            crossingRef={crossed || order.status === "delivered" ? `Delivered · ${order.poNumber}` : `Validating · ${order.poNumber}`}
           />
         </div>
 
@@ -975,9 +1044,20 @@ export function SpineReview({ orderId }: { orderId: string }) {
           exceptionCount={exceptionCount}
           onConfirm={handleConfirm}
           onCancel={() => setShowConfirm(false)}
+          supplierName={dialogSupplierName}
+          outputFormat={dialogOutputFormat}
+          grandTotal={dialogGrandTotal}
+          lineCount={dialogLineCount}
         />
       )}
-      {showToast && <CrossedToast onDismiss={() => setShowToast(false)} />}
+      {showToast && (
+        <CrossedToast
+          onDismiss={() => setShowToast(false)}
+          supplierName={dialogSupplierName}
+          poNumber={order?.poNumber ?? orderId}
+          lineCount={dialogLineCount}
+        />
+      )}
     </div>
   );
 }
