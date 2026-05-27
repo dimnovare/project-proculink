@@ -1,6 +1,7 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
-import { Search, FileText, ArrowUpDown } from "lucide-react";
+import { Search, FileText, ArrowUpDown, RefreshCw } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api-client";
 import type { OrderSummary, OrderStatus } from "@/types/procurement";
 import { StatusBadge } from "@/components/ui/status-badge";
@@ -15,18 +16,27 @@ import {
 } from "@/components/ui/select";
 
 export default function OrdersPage() {
-  const [orders, setOrders] = useState<OrderSummary[]>([]);
-  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<OrderStatus | "all">("all");
   const [sortField, setSortField] = useState<"createdAt" | "poNumber">("createdAt");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
 
-  useEffect(() => {
-    apiClient.getOrders()
-      .then(setOrders)
-      .finally(() => setLoading(false));
-  }, []);
+  const {
+    data: orders = [],
+    isLoading: loading,
+    isError,
+    error,
+    refetch,
+  } = useQuery({
+    queryKey: ["orders"],
+    queryFn: () => apiClient.getOrders(),
+    retry: 2,
+    refetchInterval: (query) =>
+      // Auto-refresh every 8 s while any order is still parsing/delivering
+      query.state.data?.some(o =>
+        o.status === "parsing" || o.status === "transforming"
+      ) ? 8000 : false,
+  });
 
   const filteredOrders = orders
     .filter((order) => {
@@ -88,10 +98,12 @@ export default function OrdersPage() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Statuses</SelectItem>
+              <SelectItem value="parsing">Parsing</SelectItem>
               <SelectItem value="pending_review">Pending Review</SelectItem>
               <SelectItem value="ready">Ready</SelectItem>
               <SelectItem value="transforming">Transforming</SelectItem>
               <SelectItem value="delivered">Delivered</SelectItem>
+              <SelectItem value="failed">Failed</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -104,6 +116,16 @@ export default function OrdersPage() {
             {[...Array(5)].map((_, i) => (
               <div key={i} className="h-16 bg-muted rounded animate-pulse" />
             ))}
+          </div>
+        ) : isError ? (
+          <div className="text-center py-16">
+            <p className="text-sm text-destructive mb-4">
+              Failed to load orders: {error instanceof Error ? error.message : "Unknown error"}
+            </p>
+            <Button variant="outline" size="sm" onClick={() => refetch()}>
+              <RefreshCw className="h-3.5 w-3.5 mr-2" />
+              Retry
+            </Button>
           </div>
         ) : filteredOrders.length === 0 ? (
           <div className="text-center py-16">
