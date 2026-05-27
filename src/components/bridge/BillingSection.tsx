@@ -234,6 +234,14 @@ export function BillingSection() {
           >
             {portalMutation.isPending ? "Opening..." : "Manage billing"}
           </button>
+          {portalMutation.isError && (
+            <p style={{ margin: 0, fontSize: 12, color: "#C53A3A", lineHeight: 1.5 }}>
+              {portalMutation.error instanceof Error &&
+              portalMutation.error.message.toLowerCase().includes("customer")
+                ? "No billing customer on file. Contact support to link your account."
+                : "Could not open billing portal. Please try again or contact support."}
+            </p>
+          )}
           {nextPlan && (
             <button
               onClick={() => checkoutMutation.mutate(nextPlan)}

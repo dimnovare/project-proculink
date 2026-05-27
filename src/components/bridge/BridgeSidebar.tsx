@@ -27,6 +27,7 @@ const NAV: Array<{
     group: "Workbench",
     items: [
       { label: "Upload",  href: "/upload" },
+      { label: "Orders",  href: "/orders" },
       { label: "Drafts",  href: "/drafts" },
     ],
   },

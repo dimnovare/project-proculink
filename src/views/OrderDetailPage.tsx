@@ -1,10 +1,9 @@
+"use client";
+
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import {
-  ArrowLeft, AlertTriangle, Calendar, Building2, FileText, Hash,
-  Download, ExternalLink, Loader2,
-} from "lucide-react";
+import { ArrowLeft, Download, ExternalLink } from "lucide-react";
 import { apiClient } from "@/lib/api-client";
 import type { Order, OrderStatus } from "@/types/procurement";
 import { StatusBadge } from "@/components/ui/status-badge";
@@ -13,20 +12,73 @@ import { ResolveSection } from "@/components/orders/ResolveSection";
 import { SupplierMappings } from "@/components/orders/SupplierMappings";
 import { OrderActions } from "@/components/orders/OrderActions";
 import { AuditTimeline } from "@/components/orders/AuditTimeline";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { SpineReviewSkeleton } from "@/components/bridge/Skeletons";
+import { BridgeLoader } from "@/components/bridge/BridgeLoader";
 import { useToast } from "@/hooks/use-toast";
 
 /** Statuses where the backend is still working — poll until they change. */
 const POLLING_STATUSES: OrderStatus[] = ["parsing", "transforming"];
 
+// ─── Layout helpers ───────────────────────────────────────────────────────────
+
+function Panel({
+  title,
+  meta,
+  children,
+  noPad = false,
+}: {
+  title?: string;
+  meta?: string;
+  children: React.ReactNode;
+  noPad?: boolean;
+}) {
+  return (
+    <div style={{ background: "#FFFFFF", border: "1px solid #E2E6EE", borderRadius: 8, overflow: "hidden" }}>
+      {title && (
+        <div style={{
+          padding: "10px 16px",
+          borderBottom: "1px solid #E2E6EE",
+          display: "flex", alignItems: "center", justifyContent: "space-between",
+        }}>
+          <span style={{ fontSize: 12.5, fontWeight: 700, color: "#0B1A2F" }}>{title}</span>
+          {meta && <span style={{ fontSize: 12, color: "#8A93A5" }}>{meta}</span>}
+        </div>
+      )}
+      <div style={noPad ? undefined : { padding: 16 }}>{children}</div>
+    </div>
+  );
+}
+
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <span style={{
+        display: "block", fontSize: 10.5, fontWeight: 600, color: "#8A93A5",
+        textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 3,
+      }}>
+        {label}
+      </span>
+      <span style={{ fontSize: 13, color: "#0B1A2F" }}>{children}</span>
+    </div>
+  );
+}
+
+function SummaryRow({ label, value, bold }: { label: string; value: string; bold?: boolean }) {
+  return (
+    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+      <span style={{ fontSize: 12.5, color: "#56627A" }}>{label}</span>
+      <span style={{ fontSize: 12.5, fontWeight: bold ? 700 : 500, color: "#0B1A2F" }}>{value}</span>
+    </div>
+  );
+}
+
+// ─── Page ─────────────────────────────────────────────────────────────────────
+
 export default function OrderDetailPage() {
   const params = useParams();
   const id = params?.id as string | undefined;
   const queryClient = useQueryClient();
-  const { toast }   = useToast();
+  const { toast } = useToast();
 
   const {
     data: order,
@@ -37,25 +89,20 @@ export default function OrderDetailPage() {
     queryFn:  () => apiClient.getOrderById(id!),
     enabled:  !!id,
     staleTime: 15_000,
-    // D1: poll every 2 s while status is in-progress
     refetchInterval: (query) => {
       const status = query.state.data?.status as OrderStatus | undefined;
       return status && POLLING_STATUSES.includes(status) ? 2_000 : false;
     },
   });
 
-  // Called by ResolveSection after a successful resolve
   const handleOrderUpdated = (_updated: Order) => {
     queryClient.invalidateQueries({ queryKey: ["order", id] });
   };
 
-  // D4: transform now enqueues an async job — just navigate back to detail (already here)
-  // and let polling show the "transforming" spinner
   const handleTransform = async (format: "xml" | "csv") => {
     if (!order) return;
     try {
       await apiClient.transformOrder(order.id, format);
-      // Invalidate immediately — query will re-fetch and see "transforming" status
       queryClient.invalidateQueries({ queryKey: ["order", id] });
     } catch (err) {
       toast({
@@ -80,266 +127,265 @@ export default function OrderDetailPage() {
     }
   };
 
-  const formatDate = (iso: string) =>
+  const fmtDate = (iso: string) =>
     new Date(iso).toLocaleDateString("en-US", {
       weekday: "long", year: "numeric", month: "long", day: "numeric",
     });
 
-  const formatDateTime = (iso: string) =>
+  const fmtDt = (iso: string) =>
     new Date(iso).toLocaleString("en-US", {
       year: "numeric", month: "short", day: "numeric",
       hour: "2-digit", minute: "2-digit",
     });
 
-  // ── Loading skeleton ──────────────────────────────────────────────────────
-  if (isLoading) {
-    return (
-      <div className="page-container">
-        <div className="flex items-center gap-4 mb-8">
-          <Skeleton className="h-10 w-10 rounded-md" />
-          <div className="space-y-2">
-            <Skeleton className="h-6 w-48" />
-            <Skeleton className="h-4 w-32" />
-          </div>
-        </div>
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2 space-y-6">
-            <Skeleton className="h-48" />
-            <Skeleton className="h-64" />
-          </div>
-          <Skeleton className="h-48" />
-        </div>
-      </div>
-    );
-  }
+  // ── Loading ────────────────────────────────────────────────────────────────
+  if (isLoading) return <SpineReviewSkeleton />;
 
-  // ── Not found / error ─────────────────────────────────────────────────────
+  // ── Not found / error ──────────────────────────────────────────────────────
   if (isError || !order) {
     return (
-      <div className="page-container">
-        <div className="text-center py-16">
-          <FileText className="h-16 w-16 mx-auto mb-4 text-muted-foreground/50" />
-          <h2 className="text-xl font-semibold text-foreground mb-2">Order Not Found</h2>
-          <p className="text-muted-foreground mb-6">
-            This purchase order doesn't exist or was removed.
-          </p>
-          <Link href="/orders">
-            <Button>
-              <ArrowLeft className="mr-2 h-4 w-4" />
-              Back to Orders
-            </Button>
-          </Link>
+      <div style={{
+        display: "flex", flexDirection: "column", alignItems: "center",
+        justifyContent: "center", height: "100%", gap: 10, background: "#F6F7FA",
+      }}>
+        <div style={{
+          width: 44, height: 44, borderRadius: 11, background: "#EDF0F5",
+          display: "flex", alignItems: "center", justifyContent: "center",
+        }}>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#8A93A5" strokeWidth="1.5">
+            <path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+          </svg>
         </div>
+        <span style={{ fontSize: 14, fontWeight: 600, color: "#0B1A2F" }}>Order Not Found</span>
+        <span style={{ fontSize: 12.5, color: "#8A93A5" }}>
+          This purchase order doesn&apos;t exist or was removed.
+        </span>
+        <Link
+          href="/orders"
+          style={{
+            marginTop: 8, padding: "7px 14px", borderRadius: 7,
+            background: "#0B1A2F", color: "#FFFFFF",
+            fontSize: 12.5, fontWeight: 700, textDecoration: "none",
+            display: "inline-flex", alignItems: "center", gap: 6,
+          }}
+        >
+          <ArrowLeft style={{ width: 13, height: 13 }} />
+          Back to Orders
+        </Link>
       </div>
     );
   }
 
   const isProcessing    = (POLLING_STATUSES as string[]).includes(order.status);
   const unresolvedCount = order.lines.filter(l => l.needsReview).length;
+  const totalValue      = order.lines.reduce((s, l) => s + l.quantity * l.unitPrice, 0);
 
   return (
-    <div className="page-container animate-fade-in">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
-        <div className="flex items-center gap-4">
-          <Link href="/orders">
-            <Button variant="ghost" size="icon" className="h-10 w-10">
-              <ArrowLeft className="h-5 w-5" />
-            </Button>
-          </Link>
-          <div>
-            <div className="flex items-center gap-3 mb-1">
-              <h1 className="text-2xl font-bold text-foreground">{order.poNumber}</h1>
-              <StatusBadge status={order.status} />
-            </div>
-            <p className="text-muted-foreground text-sm">
-              Created {formatDateTime(order.createdAt)}
-              {order.updatedAt !== order.createdAt && (
-                <> · Updated {formatDateTime(order.updatedAt)}</>
-              )}
-            </p>
+    <div style={{ display: "flex", flexDirection: "column", height: "100%", background: "#F6F7FA" }}>
+
+      {/* ── Header ─────────────────────────────────────────────────────────── */}
+      <div style={{
+        padding: "13px 24px",
+        background: "#FFFFFF",
+        borderBottom: "1px solid #E2E6EE",
+        flexShrink: 0,
+        display: "flex",
+        alignItems: "center",
+        gap: 14,
+      }}>
+        <Link
+          href="/orders"
+          style={{
+            display: "inline-flex", alignItems: "center", justifyContent: "center",
+            width: 32, height: 32, borderRadius: 6,
+            border: "1px solid #E2E6EE", background: "#FFFFFF",
+            color: "#56627A", textDecoration: "none", flexShrink: 0,
+          }}
+        >
+          <ArrowLeft style={{ width: 14, height: 14 }} />
+        </Link>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+            <h1 style={{ fontSize: 17, fontWeight: 700, color: "#0B1A2F", margin: 0 }}>
+              {order.poNumber}
+            </h1>
+            <StatusBadge status={order.status} />
           </div>
+          <p style={{ fontSize: 11.5, color: "#8A93A5", margin: "2px 0 0" }}>
+            Created {fmtDt(order.createdAt)}
+            {order.updatedAt !== order.createdAt && (
+              <> · Updated {fmtDt(order.updatedAt)}</>
+            )}
+          </p>
         </div>
       </div>
 
-      {/* D1: In-progress banner while parsing or transforming */}
+      {/* ── In-progress banner ─────────────────────────────────────────────── */}
       {isProcessing && (
-        <Alert className="mb-6 border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-950/30">
-          <Loader2 className="h-4 w-4 animate-spin text-blue-600 dark:text-blue-400" />
-          <AlertDescription className="text-blue-700 dark:text-blue-300">
+        <div style={{
+          margin: "12px 24px 0",
+          padding: "10px 14px",
+          borderRadius: 8,
+          background: "#EEF5FF",
+          border: "1px solid #C3D9FF",
+          display: "flex", alignItems: "center", gap: 10,
+          flexShrink: 0,
+        }}>
+          <BridgeLoader size={20} fullScreen={false} />
+          <span style={{ fontSize: 13, color: "#1E4FA8" }}>
             {order.status === "parsing"
               ? "Parsing file… this usually takes a few seconds."
               : "Transforming order… generating output file."}
-          </AlertDescription>
-        </Alert>
-      )}
-
-      {/* Unresolved banner */}
-      {!isProcessing && unresolvedCount > 0 && (
-        <Alert className="mb-6 border-warning/30 bg-warning-muted/20">
-          <AlertTriangle className="h-4 w-4 text-warning" />
-          <AlertDescription className="text-warning-foreground">
-            <strong>
-              {unresolvedCount} line{unresolvedCount !== 1 ? "s" : ""}
-            </strong>{" "}
-            still need supplier item codes before this order can be transformed.
-          </AlertDescription>
-        </Alert>
-      )}
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Main content */}
-        <div className="lg:col-span-2 space-y-6">
-          {order.status === "pending_review" && (
-            <ResolveSection order={order} onOrderUpdated={handleOrderUpdated} />
-          )}
-
-          {/* Line Items — hidden while parsing (no lines yet) */}
-          {!isProcessing && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center justify-between">
-                  <span>Line Items</span>
-                  <span className="text-sm font-normal text-muted-foreground">
-                    {order.lines.length} item{order.lines.length !== 1 ? "s" : ""}
-                    {unresolvedCount > 0 && (
-                      <span className="ml-2 text-warning">· {unresolvedCount} unresolved</span>
-                    )}
-                  </span>
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <OrderLineTable lines={order.lines} currency={order.currency} />
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Artifacts */}
-          {order.artifacts.length > 0 && (
-            <Card>
-              <CardHeader>
-                <CardTitle>Generated Files</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                {order.artifacts.map((artifact) => (
-                  <div
-                    key={artifact.id}
-                    className="flex items-center justify-between p-3 rounded-lg border bg-muted/30"
-                  >
-                    <div className="flex items-center gap-3">
-                      <FileText className="h-4 w-4 text-muted-foreground" />
-                      <div>
-                        <p className="text-sm font-medium">
-                          {artifact.format.toUpperCase()} Export
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          {formatDateTime(artifact.createdAt)}
-                        </p>
-                      </div>
-                    </div>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => handleDownload(artifact.id)}
-                    >
-                      <Download className="mr-1.5 h-3.5 w-3.5" />
-                      Download
-                      <ExternalLink className="ml-1.5 h-3 w-3 opacity-60" />
-                    </Button>
-                  </div>
-                ))}
-              </CardContent>
-            </Card>
-          )}
+          </span>
         </div>
+      )}
 
-        {/* Sidebar */}
-        <div className="space-y-6">
-          {order.status === "ready" && (
-            <OrderActions onTransform={handleTransform} />
-          )}
+      {/* ── Unresolved banner ──────────────────────────────────────────────── */}
+      {!isProcessing && unresolvedCount > 0 && (
+        <div style={{
+          margin: "12px 24px 0",
+          padding: "10px 14px",
+          borderRadius: 8,
+          background: "#FAEFD6",
+          border: "1px solid #C97A14",
+          display: "flex", alignItems: "center", gap: 10,
+          flexShrink: 0,
+        }}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+            <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" stroke="#C97A14" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+            <line x1="12" y1="9" x2="12" y2="13" stroke="#C97A14" strokeWidth="2" strokeLinecap="round" />
+            <line x1="12" y1="17" x2="12.01" y2="17" stroke="#C97A14" strokeWidth="2" strokeLinecap="round" />
+          </svg>
+          <span style={{ fontSize: 13, color: "#7A4A0A" }}>
+            <strong>{unresolvedCount} line{unresolvedCount !== 1 ? "s" : ""}</strong>{" "}
+            still need supplier item codes before this order can be transformed.
+          </span>
+        </div>
+      )}
 
-          {/* Order Details */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Order Details</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-start gap-3">
-                <Hash className="h-5 w-5 text-muted-foreground mt-0.5" />
-                <div>
-                  <p className="text-sm text-muted-foreground">Order ID</p>
-                  <p className="font-mono text-sm font-medium break-all">{order.id}</p>
+      {/* ── Content grid ───────────────────────────────────────────────────── */}
+      <div style={{ flex: 1, overflow: "auto", padding: "16px 24px" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 300px", gap: 16, alignItems: "start" }}>
+
+          {/* Main column */}
+          <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+            {order.status === "pending_review" && (
+              <ResolveSection order={order} onOrderUpdated={handleOrderUpdated} />
+            )}
+
+            {!isProcessing && (
+              <Panel
+                title="Line Items"
+                meta={`${order.lines.length} item${order.lines.length !== 1 ? "s" : ""}${unresolvedCount > 0 ? ` · ${unresolvedCount} unresolved` : ""}`}
+                noPad
+              >
+                <OrderLineTable lines={order.lines} currency={order.currency} />
+              </Panel>
+            )}
+
+            {order.artifacts.length > 0 && (
+              <Panel title="Generated Files">
+                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                  {order.artifacts.map(artifact => (
+                    <div
+                      key={artifact.id}
+                      style={{
+                        display: "flex", alignItems: "center", justifyContent: "space-between",
+                        padding: "10px 12px", borderRadius: 7,
+                        border: "1px solid #E2E6EE", background: "#F6F7FA",
+                      }}
+                    >
+                      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#8A93A5" strokeWidth="1.5">
+                          <path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                        <div>
+                          <p style={{ fontSize: 12.5, fontWeight: 600, color: "#0B1A2F", margin: 0 }}>
+                            {artifact.format.toUpperCase()} Export
+                          </p>
+                          <p style={{ fontSize: 11.5, color: "#8A93A5", margin: 0 }}>
+                            {fmtDt(artifact.createdAt)}
+                          </p>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => handleDownload(artifact.id)}
+                        style={{
+                          display: "inline-flex", alignItems: "center", gap: 5,
+                          padding: "5px 10px", borderRadius: 6,
+                          border: "1px solid #E2E6EE", background: "#FFFFFF",
+                          fontSize: 12, fontWeight: 600, color: "#0B1A2F", cursor: "pointer",
+                        }}
+                      >
+                        <Download style={{ width: 12, height: 12 }} />
+                        Download
+                        <ExternalLink style={{ width: 10, height: 10, opacity: 0.5 }} />
+                      </button>
+                    </div>
+                  ))}
                 </div>
-              </div>
-              <div className="flex items-start gap-3">
-                <Calendar className="h-5 w-5 text-muted-foreground mt-0.5" />
-                <div>
-                  <p className="text-sm text-muted-foreground">Order Date</p>
-                  <p className="font-medium text-sm">{formatDate(order.orderDate)}</p>
-                </div>
-              </div>
-              <div className="flex items-start gap-3">
-                <Building2 className="h-5 w-5 text-muted-foreground mt-0.5" />
-                <div>
-                  <p className="text-sm text-muted-foreground">Currency</p>
-                  <p className="font-medium text-sm">{order.currency}</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+              </Panel>
+            )}
+          </div>
 
-          {/* Supplier */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Supplier</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="font-medium">{order.supplierName || "—"}</p>
-            </CardContent>
-          </Card>
+          {/* Sidebar */}
+          <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+            {order.status === "ready" && (
+              <OrderActions onTransform={handleTransform} />
+            )}
 
-          {/* Summary */}
-          {!isProcessing && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base">Summary</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Line Items</span>
-                    <span className="font-medium">{order.lines.length}</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Total Qty</span>
-                    <span className="font-medium">
-                      {order.lines.reduce((s, l) => s + l.quantity, 0).toLocaleString()}
-                    </span>
-                  </div>
-                  <div className="flex justify-between text-sm pt-2 border-t">
-                    <span className="font-medium">Total Value</span>
-                    <span className="font-bold text-foreground">
-                      {new Intl.NumberFormat("en-US", {
+            <Panel title="Order Details">
+              <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+                <Field label="Order ID">
+                  <code style={{
+                    fontSize: 11, background: "#F0F2F6",
+                    padding: "2px 5px", borderRadius: 3, wordBreak: "break-all",
+                  }}>
+                    {order.id}
+                  </code>
+                </Field>
+                <Field label="Order Date">{fmtDate(order.orderDate)}</Field>
+                <Field label="Currency">{order.currency}</Field>
+              </div>
+            </Panel>
+
+            <Panel title="Supplier">
+              <span style={{ fontSize: 13.5, fontWeight: 600, color: "#0B1A2F" }}>
+                {order.supplierName || "—"}
+              </span>
+            </Panel>
+
+            {!isProcessing && (
+              <Panel title="Summary">
+                <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                  <SummaryRow label="Line Items" value={String(order.lines.length)} />
+                  <SummaryRow
+                    label="Total Qty"
+                    value={order.lines.reduce((s, l) => s + l.quantity, 0).toLocaleString()}
+                  />
+                  <div style={{ borderTop: "1px solid #E2E6EE", paddingTop: 10 }}>
+                    <SummaryRow
+                      label="Total Value"
+                      value={new Intl.NumberFormat("en-US", {
                         style: "currency",
                         currency: order.currency,
-                      }).format(order.lines.reduce((s, l) => s + l.quantity * l.unitPrice, 0))}
-                    </span>
+                      }).format(totalValue)}
+                      bold
+                    />
                   </div>
                 </div>
-              </CardContent>
-            </Card>
-          )}
+              </Panel>
+            )}
 
-          {order.supplierId && (
-            <SupplierMappings
-              supplierId={order.supplierId}
-              supplierName={order.supplierName}
-            />
-          )}
+            {order.supplierId && (
+              <SupplierMappings
+                supplierId={order.supplierId}
+                supplierName={order.supplierName}
+              />
+            )}
 
-          {/* E3: Audit timeline */}
-          <AuditTimeline orderId={order.id} />
+            <AuditTimeline orderId={order.id} />
+          </div>
         </div>
       </div>
     </div>
