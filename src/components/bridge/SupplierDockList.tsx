@@ -1,36 +1,81 @@
 "use client";
 
 // Supplier Docks — /library/suppliers
-// List of all supplier dock configurations with health bars + quick actions.
+// List of all supplier dock configurations. Fetches live data from GET /api/suppliers.
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { getBillingStatus } from "@/lib/api-client";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { getBillingStatus, apiClient } from "@/lib/api-client";
 
-const SUPPLIERS = [
-  { id: "s1", name: "Acme Components",    code: "ACM", health: 97, volume: "610/wk", formats: ["cXML", "EDI"],   contacts: 2, lastCrossing: "2m"  },
-  { id: "s2", name: "BoltWorks BV",       code: "BWK", health: 91, volume: "382/wk", formats: ["EDI", "CSV"],    contacts: 1, lastCrossing: "14m" },
-  { id: "s3", name: "VanDerBerg Metaal",  code: "VDB", health: 88, volume: "245/wk", formats: ["XLSX", "CSV"],   contacts: 3, lastCrossing: "1h"  },
-  { id: "s4", name: "Nordix Distribution",code: "NDX", health: 73, volume: "178/wk", formats: ["API", "JSON"],   contacts: 1, lastCrossing: "3h"  },
-  { id: "s5", name: "MedicaSupply OY",    code: "MDS", health: 96, volume: "99/wk",  formats: ["cXML", "PDF"],   contacts: 2, lastCrossing: "4m"  },
-];
+function codeFromName(name: string): string {
+  return name
+    .replace(/[^A-Za-z0-9 ]/g, "")
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 3)
+    .map((w) => w[0].toUpperCase())
+    .join("")
+    .padEnd(2, "X")
+    .slice(0, 4);
+}
 
 export function SupplierDockList() {
   const router = useRouter();
+  const qc = useQueryClient();
   const [showAddPanel, setShowAddPanel] = useState(false);
+  const [newName, setNewName] = useState("");
+  const [addError, setAddError] = useState<string | null>(null);
+
+  // ── Billing check ──────────────────────────────────────────────────────────
   const { data: billing, isError: billingError } = useQuery({
     queryKey: ["billing-status"],
     queryFn: getBillingStatus,
     retry: false,
   });
 
-  const canAddSupplier = billing?.canAddSupplier ?? false;
-  const addButtonLabel = billingError
-    ? "Plan check unavailable"
-    : canAddSupplier
-      ? "+ Add supplier dock"
-      : "Supplier limit reached";
+  // When billing API is unavailable, optimistically allow adding (backend enforces the limit).
+  const canAddSupplier = billingError ? true : (billing?.canAddSupplier ?? true);
+
+  // ── Live supplier list ─────────────────────────────────────────────────────
+  const {
+    data: suppliers = [],
+    isLoading,
+    isError: suppliersError,
+  } = useQuery({
+    queryKey: ["suppliers"],
+    queryFn: () => apiClient.getSuppliers(),
+  });
+
+  // ── Create supplier ────────────────────────────────────────────────────────
+  const createMutation = useMutation({
+    mutationFn: (name: string) => apiClient.createSupplier({ name }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["suppliers"] });
+      setShowAddPanel(false);
+      setNewName("");
+      setAddError(null);
+    },
+    onError: (err: Error) => {
+      try {
+        const parsed = JSON.parse(err.message);
+        setAddError(parsed.error ?? err.message);
+      } catch {
+        setAddError(err.message);
+      }
+    },
+  });
+
+  function handleSave() {
+    const trimmed = newName.trim();
+    if (!trimmed) { setAddError("Supplier name is required."); return; }
+    setAddError(null);
+    createMutation.mutate(trimmed);
+  }
+
+  const addButtonLabel = !billingError && billing && !billing.canAddSupplier
+    ? "Supplier limit reached"
+    : "+ Add supplier dock";
 
   return (
     <div className="flex flex-col h-full min-h-0 overflow-hidden" style={{ background: "#F6F7FA" }}>
@@ -47,13 +92,13 @@ export function SupplierDockList() {
             Supplier docks
           </h1>
           <p className="text-[13px] mt-1" style={{ color: "#56627A" }}>
-            {SUPPLIERS.length} active docks · all connected
+            {isLoading ? "Loading…" : `${suppliers.length} active dock${suppliers.length === 1 ? "" : "s"}`}
           </p>
         </div>
         <div className="w-full sm:ml-auto sm:w-auto">
           <button
-            disabled={!canAddSupplier}
-            onClick={() => setShowAddPanel(true)}
+            disabled={!canAddSupplier || createMutation.isPending}
+            onClick={() => { setShowAddPanel(true); setAddError(null); }}
             className="flex w-full items-center justify-center gap-1.5 rounded-[6px] px-3 text-[12.5px] font-medium sm:w-auto"
             style={{
               height: 32,
@@ -69,6 +114,7 @@ export function SupplierDockList() {
       </div>
 
       <div className="flex-1 overflow-auto p-4 sm:p-5">
+        {/* Billing limit banner */}
         {billing && !billing.canAddSupplier && (
           <div
             className="mb-4 rounded-[8px] px-4 py-3"
@@ -94,6 +140,7 @@ export function SupplierDockList() {
           </div>
         )}
 
+        {/* Billing API unavailable notice */}
         {billingError && (
           <div
             className="mb-4 rounded-[8px] px-4 py-3 text-[12.5px]"
@@ -103,6 +150,7 @@ export function SupplierDockList() {
           </div>
         )}
 
+        {/* Add supplier panel */}
         {showAddPanel && canAddSupplier && (
           <div
             className="mb-4 overflow-hidden rounded-[8px]"
@@ -111,139 +159,157 @@ export function SupplierDockList() {
             <div className="flex items-start justify-between gap-3 px-4 py-3" style={{ borderBottom: "1px solid #E2E6EE", background: "#F6F7FA" }}>
               <div>
                 <p className="text-[13px] font-semibold" style={{ color: "#0B1A2F" }}>New supplier dock</p>
-                <p className="mt-1 text-[12px]" style={{ color: "#56627A" }}>Name the supplier and choose the first delivery format. You can finish mappings later.</p>
+                <p className="mt-1 text-[12px]" style={{ color: "#56627A" }}>Name the supplier. You can configure mappings and delivery after.</p>
               </div>
               <button
-                onClick={() => setShowAddPanel(false)}
+                onClick={() => { setShowAddPanel(false); setNewName(""); setAddError(null); }}
                 className="rounded px-2 py-1 text-[12px]"
                 style={{ border: "1px solid #E2E6EE", background: "#FFFFFF", color: "#56627A" }}
               >
                 Close
               </button>
             </div>
-            <div className="grid gap-3 p-4 sm:grid-cols-[minmax(0,1fr)_150px_auto]">
-              <input
-                aria-label="Supplier name"
-                placeholder="Supplier name"
-                className="h-9 rounded-[6px] px-3 text-[13px]"
-                style={{ border: "1px solid #D5DAEA", color: "#0B1A2F", outline: "none" }}
-              />
-              <select
-                aria-label="First output format"
-                className="h-9 rounded-[6px] px-3 text-[13px]"
-                style={{ border: "1px solid #D5DAEA", color: "#0B1A2F", background: "#FFFFFF", outline: "none" }}
-              >
-                <option>cXML</option>
-                <option>CSV</option>
-                <option>XML</option>
-                <option>JSON</option>
-                <option>EDI</option>
-              </select>
-              <button
-                onClick={() => setShowAddPanel(false)}
-                className="h-9 rounded-[6px] px-3 text-[12.5px] font-semibold"
-                style={{ border: "none", background: "#0B1A2F", color: "#FFFFFF" }}
-              >
-                Save draft
-              </button>
+            <div className="flex flex-col gap-2 p-4">
+              <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto]">
+                <input
+                  aria-label="Supplier name"
+                  placeholder="e.g. Acme Components"
+                  value={newName}
+                  onChange={(e) => setNewName(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter") handleSave(); }}
+                  className="h-9 rounded-[6px] px-3 text-[13px]"
+                  style={{ border: "1px solid #D5DAEA", color: "#0B1A2F", outline: "none" }}
+                  autoFocus
+                />
+                <button
+                  onClick={handleSave}
+                  disabled={createMutation.isPending}
+                  className="h-9 rounded-[6px] px-4 text-[12.5px] font-semibold"
+                  style={{
+                    border: "none",
+                    background: createMutation.isPending ? "#D5DAEA" : "#0B1A2F",
+                    color: createMutation.isPending ? "#8A93A5" : "#FFFFFF",
+                    cursor: createMutation.isPending ? "not-allowed" : "pointer",
+                  }}
+                >
+                  {createMutation.isPending ? "Saving…" : "Save"}
+                </button>
+              </div>
+              {addError && (
+                <p className="text-[12px]" style={{ color: "#C53A3A" }}>{addError}</p>
+              )}
             </div>
           </div>
         )}
 
-        <div className="flex flex-col gap-3">
-          {SUPPLIERS.map((s) => {
-            const hc = s.health >= 95 ? "#2E8E3A" : s.health >= 85 ? "#C97A14" : "#C53A3A";
-            const hb = s.health >= 95 ? "#E2F1E2" : s.health >= 85 ? "#FAEFD6" : "#FBE3E3";
-            return (
+        {/* Loading state */}
+        {isLoading && (
+          <div className="flex flex-col gap-3">
+            {[1, 2, 3].map((i) => (
               <div
-                key={s.id}
-                onClick={() => router.push(`/library/suppliers/${s.id}`)}
-                className="group cursor-pointer rounded-[8px] overflow-hidden"
-                style={{
-                  background: "#FFFFFF",
-                  border: "1px solid #E2E6EE",
-                  boxShadow: "0 1px 3px rgba(11,26,47,0.04)",
-                  borderLeft: `3px solid ${hc}`,
-                }}
+                key={i}
+                className="h-[70px] rounded-[8px] animate-pulse"
+                style={{ background: "#E2E6EE" }}
+              />
+            ))}
+          </div>
+        )}
+
+        {/* Fetch error */}
+        {suppliersError && !isLoading && (
+          <div
+            className="rounded-[8px] px-4 py-3 text-[13px]"
+            style={{ border: "1px solid #F1C9C9", background: "#FEF2F2", color: "#C53A3A" }}
+          >
+            Could not load suppliers. Check your connection and try refreshing.
+          </div>
+        )}
+
+        {/* Empty state */}
+        {!isLoading && !suppliersError && suppliers.length === 0 && (
+          <div
+            className="rounded-[8px] px-6 py-10 text-center"
+            style={{ border: "1px dashed #D5DAEA", background: "#FFFFFF" }}
+          >
+            <p className="text-[14px] font-semibold" style={{ color: "#0B1A2F" }}>No supplier docks yet</p>
+            <p className="mt-1 text-[12.5px]" style={{ color: "#56627A" }}>
+              Add your first supplier dock to start routing purchase orders.
+            </p>
+            {canAddSupplier && (
+              <button
+                onClick={() => { setShowAddPanel(true); setAddError(null); }}
+                className="mt-4 h-9 rounded-[6px] px-4 text-[12.5px] font-semibold"
+                style={{ border: "none", background: "#0B1A2F", color: "#FFFFFF" }}
               >
-                <div className="grid gap-3 px-4 py-4 sm:grid-cols-[44px_minmax(0,1fr)_64px_120px_70px_auto] sm:items-center sm:gap-4">
-                  {/* Code badge */}
-                  <div
-                    style={{
-                      width: 44,
-                      height: 44,
-                      borderRadius: 10,
-                      background: `${hc}18`,
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      fontFamily: "'JetBrains Mono', monospace",
-                      fontSize: 11,
-                      fontWeight: 800,
-                      color: hc,
-                      flexShrink: 0,
-                    }}
-                  >
-                    {s.code}
-                  </div>
+                + Add supplier dock
+              </button>
+            )}
+          </div>
+        )}
 
-                  {/* Name + formats */}
-                  <div className="min-w-0">
-                    <p className="text-[14px] font-semibold" style={{ color: "#0B1A2F" }}>
-                      {s.name}
-                    </p>
-                    <div className="flex flex-wrap items-center gap-1.5 mt-1">
-                      {s.formats.map((f) => (
-                        <span
-                          key={f}
-                          className="text-[10.5px] font-semibold rounded px-1.5 py-0.5"
-                          style={{ background: "#EFF2F7", color: "#56627A" }}
-                        >
-                          {f}
-                        </span>
-                      ))}
+        {/* Supplier list */}
+        {!isLoading && !suppliersError && suppliers.length > 0 && (
+          <div className="flex flex-col gap-3">
+            {suppliers.map((s) => {
+              const code = codeFromName(s.name);
+              const hc = "#2E8E3A";
+              const hb = "#E2F1E2";
+              return (
+                <div
+                  key={s.id}
+                  onClick={() => router.push(`/library/suppliers/${s.id}`)}
+                  className="group cursor-pointer rounded-[8px] overflow-hidden"
+                  style={{
+                    background: "#FFFFFF",
+                    border: "1px solid #E2E6EE",
+                    boxShadow: "0 1px 3px rgba(11,26,47,0.04)",
+                    borderLeft: `3px solid ${hc}`,
+                  }}
+                >
+                  <div className="grid gap-3 px-4 py-4 sm:grid-cols-[44px_minmax(0,1fr)_auto] sm:items-center sm:gap-4">
+                    {/* Code badge */}
+                    <div
+                      style={{
+                        width: 44,
+                        height: 44,
+                        borderRadius: 10,
+                        background: `${hc}18`,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        fontFamily: "'JetBrains Mono', monospace",
+                        fontSize: 11,
+                        fontWeight: 800,
+                        color: hc,
+                        flexShrink: 0,
+                      }}
+                    >
+                      {code}
                     </div>
-                  </div>
 
-                  {/* Volume */}
-                  <div className="text-left sm:text-right" style={{ minWidth: 64 }}>
-                    <p className="text-[14px] font-semibold" style={{ color: "#0B1A2F", fontFamily: "'Bricolage Grotesque', sans-serif" }}>
-                      {s.volume}
-                    </p>
-                    <p className="text-[11px]" style={{ color: "#8A93A5" }}>volume</p>
-                  </div>
-
-                  {/* Health bar */}
-                  <div className="w-full sm:w-[120px]">
-                    <div className="flex justify-between mb-1">
-                      <span className="text-[10.5px]" style={{ color: "#8A93A5" }}>Health</span>
-                      <span className="text-[11.5px] font-bold" style={{ color: hc, fontFamily: "'JetBrains Mono', monospace" }}>
-                        {s.health}%
-                      </span>
+                    {/* Name */}
+                    <div className="min-w-0">
+                      <p className="text-[14px] font-semibold" style={{ color: "#0B1A2F" }}>
+                        {s.name}
+                      </p>
+                      <p className="mt-0.5 text-[11.5px]" style={{ color: "#8A93A5" }}>
+                        Supplier dock · {s.id.slice(0, 8)}
+                      </p>
                     </div>
-                    <div style={{ height: 4, background: hb, borderRadius: 99, overflow: "hidden" }}>
-                      <div style={{ width: `${s.health}%`, height: "100%", background: hc, borderRadius: 99 }} />
-                    </div>
-                  </div>
 
-                  {/* Last crossing */}
-                  <div className="text-left sm:text-right" style={{ minWidth: 60 }}>
-                    <p className="text-[11px]" style={{ color: "#8A93A5" }}>last crossing</p>
-                    <p className="text-[12px] font-medium" style={{ color: "#56627A" }}>{s.lastCrossing} ago</p>
+                    {/* Arrow */}
+                    <span
+                      className="opacity-0 group-hover:opacity-100 transition-opacity text-[14px]"
+                      style={{ color: "#C6CDDA" }}
+                    >
+                      →
+                    </span>
                   </div>
-
-                  {/* Arrow */}
-                  <span
-                    className="hidden opacity-0 group-hover:opacity-100 transition-opacity text-[14px] sm:inline"
-                    style={{ color: "#C6CDDA" }}
-                  >
-                    →
-                  </span>
                 </div>
-              </div>
-            );
-          })}
-        </div>
+              );
+            })}
+          </div>
+        )}
       </div>
     </div>
   );
