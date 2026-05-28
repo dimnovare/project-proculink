@@ -6,6 +6,7 @@ import { useRouter, usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import type { ReactNode } from "react";
 import { CommandPalette } from "./CommandPalette";
+import { HelpSlideover } from "./HelpSlideover";
 
 interface BridgeTopbarProps {
   crumb?: ReactNode;
@@ -99,6 +100,7 @@ export function BridgeTopbar({ crumb, onMenuClick }: BridgeTopbarProps) {
   const router = useRouter();
   const autoCrumb = useAutoCrumb();
   const [paletteOpen, setPaletteOpen] = useState(false);
+  const [helpOpen, setHelpOpen] = useState(false);
 
   // Global cmd+K listener
   useEffect(() => {
@@ -236,6 +238,7 @@ export function BridgeTopbar({ crumb, onMenuClick }: BridgeTopbarProps) {
         <button
           type="button"
           aria-label="Help"
+          onClick={() => setHelpOpen(true)}
           className="flex items-center justify-center rounded-full text-[11px] font-bold"
           style={{
             width: 24,
@@ -243,6 +246,7 @@ export function BridgeTopbar({ crumb, onMenuClick }: BridgeTopbarProps) {
             background: "#10243E",
             border: "1px solid #1C2F49",
             color: "#7C8DA6",
+            cursor: "pointer",
           }}
           title="Help"
         >
@@ -257,6 +261,9 @@ export function BridgeTopbar({ crumb, onMenuClick }: BridgeTopbarProps) {
 
       {/* Command Palette */}
       {paletteOpen && <CommandPalette onClose={() => setPaletteOpen(false)} />}
+
+      {/* Help slide-over */}
+      <HelpSlideover open={helpOpen} onClose={() => setHelpOpen(false)} />
 
       {/* Link-spine — 2px gradient line at bottom edge */}
       <div
