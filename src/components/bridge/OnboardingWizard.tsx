@@ -117,10 +117,24 @@ function Step1AddSupplier({ onSuccess }: Step1Props) {
       const supplier = await apiClient.createSupplier({ name: trimmed });
       onSuccess(supplier);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to create supplier. Please try again.");
+      setError(humaniseSupplierError(err));
     } finally {
       setLoading(false);
     }
+  }
+
+  function humaniseSupplierError(err: unknown): string {
+    const raw = err instanceof Error ? err.message : String(err);
+    // Browser fetch network errors ("Failed to fetch", "Load failed", "NetworkError")
+    // happen BEFORE any HTTP response — usually CORS preflight blocked, backend
+    // unreachable, or self-signed cert untrusted. Give the user something to act on.
+    if (/failed to fetch|load failed|networkerror/i.test(raw)) {
+      const apiUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? "(NEXT_PUBLIC_API_BASE_URL not set)";
+      return `Couldn't reach the ProcuLink API at ${apiUrl}. ` +
+        `If you're on production, set the Railway 'Frontend:Url' env var so the API CORS allow-list includes this site. ` +
+        `If you're running locally, run 'dotnet dev-certs https --trust' and confirm the API is up.`;
+    }
+    return raw || "Failed to create supplier. Please try again.";
   }
 
   return (

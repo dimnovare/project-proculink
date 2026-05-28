@@ -279,48 +279,57 @@ export function BridgeDashboard() {
       )}
 
       <div className="flex flex-1 flex-col gap-4 p-3 sm:gap-5 sm:p-5">
-        {/* Onboarding checklist — shown until all steps are complete */}
-        {showChecklist && (
-          <div style={{ display: "flex", alignItems: "flex-start", gap: 12, flexWrap: "wrap" }}>
-            <OnboardingChecklist
-              status={onboardingStatus!}
-              supplierCount={suppliers?.length ?? 0}
-              orderCount={orders?.length ?? 0}
+        {/* Onboarding checklist + WireTopology — when the checklist is visible,
+            render them side-by-side on lg+ screens so the topology fills the
+            otherwise-empty space to the right of the checklist. When the
+            checklist is hidden (all milestones done), topology spans full width. */}
+        {showChecklist ? (
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,420px)_minmax(0,1fr)]">
+            <div className="flex flex-col items-start gap-3">
+              <OnboardingChecklist
+                status={onboardingStatus!}
+                supplierCount={suppliers?.length ?? 0}
+                orderCount={orders?.length ?? 0}
+              />
+              {/* "Get started" shortcut — only visible when no supplier yet and wizard was dismissed */}
+              {wizardDismissed && !onboardingStatus!.hasSupplier && (
+                <button
+                  onClick={() => setWizardDismissed(false)}
+                  style={{
+                    height: 36,
+                    padding: "0 16px",
+                    background: "#0B1A2F",
+                    color: "#fff",
+                    border: "none",
+                    borderRadius: 6,
+                    fontSize: 13,
+                    fontWeight: 600,
+                    cursor: "pointer",
+                    letterSpacing: "0.01em",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  Get started →
+                </button>
+              )}
+            </div>
+            <WireTopology
+              buyers={BUYERS}
+              suppliers={SUPPLIERS}
+              wires={WIRES}
+              height={360}
+              onWireClick={handleWireClick}
             />
-            {/* "Get started" shortcut — only visible when no supplier yet and wizard was dismissed */}
-            {wizardDismissed && !onboardingStatus!.hasSupplier && (
-              <button
-                onClick={() => setWizardDismissed(false)}
-                style={{
-                  alignSelf: "flex-start",
-                  height: 36,
-                  padding: "0 16px",
-                  background: "#0B1A2F",
-                  color: "#fff",
-                  border: "none",
-                  borderRadius: 6,
-                  fontSize: 13,
-                  fontWeight: 600,
-                  cursor: "pointer",
-                  letterSpacing: "0.01em",
-                  whiteSpace: "nowrap",
-                  marginTop: 2,
-                }}
-              >
-                Get started →
-              </button>
-            )}
           </div>
+        ) : (
+          <WireTopology
+            buyers={BUYERS}
+            suppliers={SUPPLIERS}
+            wires={WIRES}
+            height={480}
+            onWireClick={handleWireClick}
+          />
         )}
-
-        {/* Wire topology canvas */}
-        <WireTopology
-          buyers={BUYERS}
-          suppliers={SUPPLIERS}
-          wires={WIRES}
-          height={480}
-          onWireClick={handleWireClick}
-        />
 
         {activeLane && (
           <LaneDrawer
