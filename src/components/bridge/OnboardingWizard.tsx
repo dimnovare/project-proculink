@@ -1,8 +1,10 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
+import { useQuery } from "@tanstack/react-query";
 import { apiClient, isApiMockMode } from "@/lib/api-client";
+import { capture } from "@/lib/analytics";
 import type { Supplier } from "@/types/procurement";
 
 // ─── Design tokens ────────────────────────────────────────────────────────────
@@ -39,7 +41,6 @@ function StepIndicator({ current, total }: { current: number; total: number }) {
 
         return (
           <div key={stepNum} style={{ display: "flex", alignItems: "center" }}>
-            {/* Circle */}
             <div
               style={{
                 width: 28,
@@ -78,11 +79,10 @@ function StepIndicator({ current, total }: { current: number; total: number }) {
               )}
             </div>
 
-            {/* Connector line between steps */}
             {i < total - 1 && (
               <div
                 style={{
-                  width: 48,
+                  width: 36,
                   height: 2,
                   background: isDone ? T.green : T.border,
                   transition: "background 0.3s",
@@ -205,33 +205,27 @@ function Step1AddSupplier({ onSuccess }: Step1Props) {
   );
 }
 
-// ─── Step 2 — Upload test PO ──────────────────────────────────────────────────
+// ─── Step 2 — Upload first purchase order ────────────────────────────────────
 
 interface Step2Props {
-  supplier: Supplier;
-  onSuccess: (orderId: string, poNumber: string) => void;
+  defaultSupplier: Supplier;
+  onSuccess: (orderId: string) => void;
 }
 
-function Step2UploadPO({ supplier, onSuccess }: Step2Props) {
+function Step2UploadOrder({ defaultSupplier, onSuccess }: Step2Props) {
   const [file, setFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [dragging, setDragging] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  function handleFileChange(selected: File | null) {
-    if (!selected) return;
-    setFile(selected);
-    setError(null);
-  }
-
-  async function handleUpload() {
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
     if (!file) return;
     setLoading(true);
     setError(null);
     try {
-      const result = await apiClient.uploadPurchaseOrder(file, supplier.id);
-      onSuccess(result.order.id, result.order.poNumber);
+      const result = await apiClient.uploadPurchaseOrder(file, defaultSupplier.id);
+      onSuccess(result.order.id);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Upload failed. Please try again.");
     } finally {
@@ -240,7 +234,7 @@ function Step2UploadPO({ supplier, onSuccess }: Step2Props) {
   }
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+    <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
       <div>
         <h2
           style={{
@@ -252,97 +246,28 @@ function Step2UploadPO({ supplier, onSuccess }: Step2Props) {
             fontFamily: "'Bricolage Grotesque', Inter, sans-serif",
           }}
         >
-          Upload a test purchase order
+          Upload your first purchase order
         </h2>
         <p style={{ fontSize: 13, color: T.muted, margin: 0, lineHeight: 1.55 }}>
-          Uploading for{" "}
-          <span style={{ fontWeight: 600, color: T.text }}>{supplier.name}</span>.
-          Drop a CSV, XLSX, or PDF purchase order to verify the pipeline.
+          Upload a CSV, XLSX, or PDF purchase order for{" "}
+          <strong style={{ color: T.text }}>{defaultSupplier.name}</strong>. ProcuLink will parse the lines.
         </p>
       </div>
 
-      {/* Drop zone */}
-      <div
-        onClick={() => !loading && inputRef.current?.click()}
-        onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
-        onDragLeave={() => setDragging(false)}
-        onDrop={(e) => {
-          e.preventDefault();
-          setDragging(false);
-          if (!loading) handleFileChange(e.dataTransfer.files[0] ?? null);
-        }}
-        style={{
-          border: `2px dashed ${dragging ? T.blue : file ? T.green : T.border}`,
-          borderRadius: 8,
-          padding: "24px 16px",
-          textAlign: "center",
-          cursor: loading ? "default" : "pointer",
-          background: dragging ? `${T.blue}08` : file ? `${T.green}08` : T.bg,
-          transition: "border-color 0.15s, background 0.15s",
-        }}
-      >
-        <input
-          ref={inputRef}
-          type="file"
-          accept=".csv,.xlsx,.pdf"
-          style={{ display: "none" }}
-          onChange={(e) => handleFileChange(e.target.files?.[0] ?? null)}
-          disabled={loading}
-        />
-        {file ? (
-          <>
-            <div style={{ fontSize: 20, marginBottom: 6 }}>
-              {file.name.endsWith(".pdf") ? "📄" : file.name.endsWith(".pdf") ? "📑" : "📊"}
-            </div>
-            <p style={{ fontSize: 13.5, fontWeight: 600, color: T.text, margin: "0 0 3px" }}>
-              {file.name}
-            </p>
-            <p style={{ fontSize: 12, color: T.muted, margin: 0 }}>
-              {(file.size / 1024).toFixed(1)} KB · click to change
-            </p>
-          </>
-        ) : (
-          <>
-            <div
-              style={{
-                width: 36,
-                height: 36,
-                borderRadius: "50%",
-                background: T.border,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                margin: "0 auto 10px",
-              }}
-            >
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                <path
-                  d="M8 2v9M4 6l4-4 4 4M2 13h12"
-                  stroke={T.muted}
-                  strokeWidth="1.6"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-            </div>
-            <p style={{ fontSize: 13, fontWeight: 600, color: T.text, margin: "0 0 3px" }}>
-              Drop a file or click to browse
-            </p>
-            <p style={{ fontSize: 12, color: T.muted, margin: 0 }}>
-              CSV, XLSX, or PDF · max 10 MB
-            </p>
-          </>
-        )}
-      </div>
+      <input
+        ref={inputRef}
+        type="file"
+        accept=".csv,.xlsx,application/pdf"
+        onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+        disabled={loading}
+        style={{ fontSize: 13 }}
+      />
 
-      {error && (
-        <p style={{ fontSize: 12, color: T.red, margin: 0 }}>{error}</p>
-      )}
+      {error && <p style={{ fontSize: 12, color: T.red, margin: 0 }}>{error}</p>}
 
       <button
-        type="button"
+        type="submit"
         disabled={loading || !file}
-        onClick={handleUpload}
         style={{
           height: 40,
           background: loading || !file ? "#C6CDDA" : T.navy,
@@ -352,25 +277,22 @@ function Step2UploadPO({ supplier, onSuccess }: Step2Props) {
           fontSize: 13.5,
           fontWeight: 600,
           cursor: loading || !file ? "not-allowed" : "pointer",
-          transition: "background 0.15s",
-          letterSpacing: "0.01em",
         }}
       >
-        {loading ? "Uploading…" : "Upload PO →"}
+        {loading ? "Uploading…" : "Upload and parse"}
       </button>
-    </div>
+    </form>
   );
 }
 
-// ─── Step 3 — Review ──────────────────────────────────────────────────────────
+// ─── Step 3 — Resolve mapping ────────────────────────────────────────────────
 
 interface Step3Props {
-  orderId: string;
-  poNumber: string;
-  supplierName: string;
+  orderId: string | null;
+  onSuccess: () => void;
 }
 
-function Step3Review({ orderId, poNumber, supplierName }: Step3Props) {
+function Step3ResolveMapping({ orderId, onSuccess }: Step3Props) {
   const router = useRouter();
 
   return (
@@ -386,59 +308,19 @@ function Step3Review({ orderId, poNumber, supplierName }: Step3Props) {
             fontFamily: "'Bricolage Grotesque', Inter, sans-serif",
           }}
         >
-          Order uploaded successfully
+          Review and resolve
         </h2>
         <p style={{ fontSize: 13, color: T.muted, margin: 0, lineHeight: 1.55 }}>
-          Your first purchase order is in the bridge pipeline. Review it, resolve
-          any item code mappings, and trigger delivery from the inbox.
+          We&apos;ll take you to the order review screen. Confirm field mappings and any line items that need supplier codes, then click &quot;Resolve all&quot;.
         </p>
-      </div>
-
-      {/* Summary card */}
-      <div
-        style={{
-          background: T.bg,
-          border: `1px solid ${T.border}`,
-          borderLeft: `3px solid ${T.green}`,
-          borderRadius: 6,
-          padding: "14px 16px",
-          display: "flex",
-          flexDirection: "column",
-          gap: 8,
-        }}
-      >
-        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-            <circle cx="7" cy="7" r="6.5" stroke={T.green} strokeWidth="1.4" />
-            <path
-              d="M4 7l2.2 2.5L10 4.5"
-              stroke={T.green}
-              strokeWidth="1.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
-          <span style={{ fontSize: 12.5, fontWeight: 600, color: T.green }}>
-            Uploaded
-          </span>
-        </div>
-        <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-          <div style={{ display: "flex", gap: 8 }}>
-            <span style={{ fontSize: 12, color: T.muted, minWidth: 90 }}>PO number</span>
-            <span style={{ fontSize: 12, fontWeight: 600, color: T.text, fontFamily: "'JetBrains Mono', monospace" }}>
-              {poNumber}
-            </span>
-          </div>
-          <div style={{ display: "flex", gap: 8 }}>
-            <span style={{ fontSize: 12, color: T.muted, minWidth: 90 }}>Supplier</span>
-            <span style={{ fontSize: 12, fontWeight: 600, color: T.text }}>{supplierName}</span>
-          </div>
-        </div>
       </div>
 
       <button
         type="button"
-        onClick={() => router.push(`/inbox/${orderId}`)}
+        onClick={() => {
+          onSuccess();
+          router.push(orderId ? `/inbox/${orderId}` : "/inbox");
+        }}
         style={{
           height: 40,
           background: T.navy,
@@ -448,10 +330,62 @@ function Step3Review({ orderId, poNumber, supplierName }: Step3Props) {
           fontSize: 13.5,
           fontWeight: 600,
           cursor: "pointer",
-          letterSpacing: "0.01em",
         }}
       >
-        Review in inbox →
+        Open order review
+      </button>
+    </div>
+  );
+}
+
+// ─── Step 4 — Configure delivery ─────────────────────────────────────────────
+
+interface Step4Props {
+  supplier: Supplier | null;
+  onSuccess: () => void;
+}
+
+function Step4ConfigureDelivery({ supplier, onSuccess }: Step4Props) {
+  const router = useRouter();
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+      <div>
+        <h2
+          style={{
+            fontSize: 18,
+            fontWeight: 700,
+            color: T.text,
+            margin: "0 0 6px",
+            letterSpacing: "-0.02em",
+            fontFamily: "'Bricolage Grotesque', Inter, sans-serif",
+          }}
+        >
+          Configure delivery
+        </h2>
+        <p style={{ fontSize: 13, color: T.muted, margin: 0, lineHeight: 1.55 }}>
+          Tell ProcuLink how to deliver finished orders{supplier ? <> to <strong style={{ color: T.text }}>{supplier.name}</strong></> : null}. HTTP webhook is the simplest option for first delivery.
+        </p>
+      </div>
+
+      <button
+        type="button"
+        onClick={() => {
+          onSuccess();
+          router.push(supplier ? `/library/suppliers/${supplier.id}?tab=delivery` : "/library/suppliers");
+        }}
+        style={{
+          height: 40,
+          background: T.navy,
+          color: "#fff",
+          border: "none",
+          borderRadius: 6,
+          fontSize: 13.5,
+          fontWeight: 600,
+          cursor: "pointer",
+        }}
+      >
+        Open delivery config
       </button>
     </div>
   );
@@ -463,25 +397,73 @@ interface OnboardingWizardProps {
   onDismiss: () => void;
 }
 
+type WizardStep = 1 | 2 | 3 | 4;
+
 export function OnboardingWizard({ onDismiss }: OnboardingWizardProps) {
-  const [step, setStep] = useState<1 | 2 | 3>(1);
-  const [supplier, setSupplier] = useState<Supplier | null>(null);
-  const [orderId, setOrderId] = useState<string | null>(null);
-  const [poNumber, setPoNumber] = useState<string>("");
+  const { data: status } = useQuery({
+    queryKey: ["onboarding-status"],
+    queryFn: () => apiClient.getOnboardingStatus(),
+    retry: false,
+    staleTime: 30 * 1000,
+  });
+
+  const entryStep: WizardStep = useMemo(() => {
+    if (!status) return 1;
+    if (!status.hasSupplier) return 1;
+    if (!status.hasUpload) return 2;
+    if (!status.hasResolvedMapping) return 3;
+    if (!status.hasDelivery) return 4;
+    return 4;
+  }, [status]);
+
+  const [step, setStep] = useState<WizardStep>(1);
+  const [firstSupplier, setFirstSupplier] = useState<Supplier | null>(null);
+  const [firstOrderId, setFirstOrderId] = useState<string | null>(null);
+  const initialisedRef = useRef(false);
+
+  // Initialise step from server status on first successful query and emit wizard_opened.
+  useEffect(() => {
+    if (initialisedRef.current) return;
+    if (!status) return;
+    initialisedRef.current = true;
+    setStep(entryStep);
+    capture("wizard_opened", { step: entryStep });
+  }, [status, entryStep]);
+
+  function handleDismiss() {
+    capture("wizard_dismissed", { at_step: step });
+    onDismiss();
+  }
 
   function handleStep1Success(s: Supplier) {
-    setSupplier(s);
+    setFirstSupplier(s);
+    capture("wizard_step_completed", { step: 1, step_name: "add_supplier" });
     setStep(2);
   }
 
-  function handleStep2Success(id: string, po: string) {
-    setOrderId(id);
-    setPoNumber(po);
+  function handleStep2Success(orderId: string) {
+    setFirstOrderId(orderId);
+    capture("wizard_step_completed", { step: 2, step_name: "upload_order" });
     setStep(3);
   }
 
+  function handleStep3Success() {
+    capture("wizard_step_completed", { step: 3, step_name: "resolve_mapping_started" });
+    setStep(4);
+  }
+
+  function handleStep4Success() {
+    capture("wizard_step_completed", { step: 4, step_name: "delivery_config_opened" });
+    onDismiss();
+  }
+
+  // For Step 2, we need a supplier. If user resumes at step 2+ without local
+  // firstSupplier, we fall back to a placeholder — the actual supplier was set
+  // earlier in a previous session.
+  const step2Supplier: Supplier | null =
+    firstSupplier ?? (status?.hasSupplier ? { id: "", name: "your supplier" } : null);
+
   return (
-    // Backdrop
     <div
       style={{
         position: "fixed",
@@ -496,11 +478,9 @@ export function OnboardingWizard({ onDismiss }: OnboardingWizardProps) {
         WebkitBackdropFilter: "blur(4px)",
       }}
       onClick={(e) => {
-        // Dismiss when clicking the backdrop itself (not the card)
-        if (e.target === e.currentTarget) onDismiss();
+        if (e.target === e.currentTarget) handleDismiss();
       }}
     >
-      {/* Card */}
       <div
         role="dialog"
         aria-modal="true"
@@ -519,9 +499,8 @@ export function OnboardingWizard({ onDismiss }: OnboardingWizardProps) {
         }}
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Dismiss button */}
         <button
-          onClick={onDismiss}
+          onClick={handleDismiss}
           aria-label="Dismiss wizard"
           style={{
             position: "absolute",
@@ -549,38 +528,30 @@ export function OnboardingWizard({ onDismiss }: OnboardingWizardProps) {
           </svg>
         </button>
 
-        {/* Step indicator */}
-        <StepIndicator current={step} total={3} />
+        <StepIndicator current={step} total={4} />
 
-        {/* Step content */}
-        {step === 1 && (
-          <Step1AddSupplier onSuccess={handleStep1Success} />
+        {step === 1 && <Step1AddSupplier onSuccess={handleStep1Success} />}
+        {step === 2 && step2Supplier && (
+          <Step2UploadOrder defaultSupplier={step2Supplier} onSuccess={handleStep2Success} />
         )}
-        {step === 2 && supplier && (
-          <Step2UploadPO supplier={supplier} onSuccess={handleStep2Success} />
+        {step === 3 && (
+          <Step3ResolveMapping orderId={firstOrderId} onSuccess={handleStep3Success} />
         )}
-        {step === 3 && supplier && orderId && (
-          <Step3Review
-            orderId={orderId}
-            poNumber={poNumber}
-            supplierName={supplier.name}
-          />
+        {step === 4 && (
+          <Step4ConfigureDelivery supplier={firstSupplier} onSuccess={handleStep4Success} />
         )}
 
-        {/* Footer hint */}
-        {step < 3 && (
-          <p
-            style={{
-              fontSize: 11.5,
-              color: T.muted,
-              margin: "16px 0 0",
-              textAlign: "center",
-              lineHeight: 1.5,
-            }}
-          >
-            Step {step} of 3 · You can dismiss this and come back any time
-          </p>
-        )}
+        <p
+          style={{
+            fontSize: 11.5,
+            color: T.muted,
+            margin: "16px 0 0",
+            textAlign: "center",
+            lineHeight: 1.5,
+          }}
+        >
+          Step {step} of 4 · You can dismiss this and come back any time
+        </p>
       </div>
     </div>
   );
