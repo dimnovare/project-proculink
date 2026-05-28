@@ -133,6 +133,39 @@ export function BridgeTopbar({ crumb, onMenuClick }: BridgeTopbarProps) {
           <Menu size={18} strokeWidth={2.2} />
         </button>
 
+        {/* Demo-mode badge — visible only when NEXT_PUBLIC_USE_MOCK=true */}
+        {process.env.NEXT_PUBLIC_USE_MOCK === "true" && (
+          <span
+            className="hidden sm:inline-flex items-center"
+            style={{
+              gap: 6,
+              height: 22,
+              padding: "0 10px",
+              borderRadius: 99,
+              background: "#FAEFD6",
+              border: "1px solid #F0D39A",
+              color: "#7A4D0B",
+              fontSize: 11,
+              fontWeight: 600,
+              letterSpacing: "0.05em",
+              textTransform: "uppercase",
+              flexShrink: 0,
+            }}
+            title="You are viewing mock data. Set NEXT_PUBLIC_USE_MOCK=false to see your organisation's real orders."
+          >
+            <span
+              style={{
+                width: 6,
+                height: 6,
+                borderRadius: "50%",
+                background: "#C97A14",
+                display: "inline-block",
+              }}
+            />
+            Demo data
+          </span>
+        )}
+
         {/* Breadcrumbs */}
         <div
           className="flex min-w-0 flex-1 items-center gap-1.5 text-[13px]"
