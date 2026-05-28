@@ -231,9 +231,9 @@ export function SupplierDockList() {
             className="rounded-[8px] px-6 py-10 text-center"
             style={{ border: "1px dashed #D5DAEA", background: "#FFFFFF" }}
           >
-            <p className="text-[14px] font-semibold" style={{ color: "#0B1A2F" }}>No suppliers yet</p>
+            <p className="text-[14px] font-semibold" style={{ color: "#0B1A2F" }}>No suppliers configured</p>
             <p className="mt-1 text-[12.5px]" style={{ color: "#56627A" }}>
-              Add your first supplier to start routing purchase orders.
+              Add a supplier to start processing purchase orders.
             </p>
             {canAddSupplier && (
               <button
@@ -258,6 +258,7 @@ export function SupplierDockList() {
                 <div
                   key={s.id}
                   onClick={() => router.push(`/library/suppliers/${s.id}`)}
+                  title="View this supplier's delivery configuration and mappings"
                   className="group cursor-pointer rounded-[8px] overflow-hidden"
                   style={{
                     background: "#FFFFFF",

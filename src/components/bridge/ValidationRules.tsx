@@ -537,6 +537,7 @@ export function ValidationRules() {
                     <div className="flex items-start gap-2 mb-2">
                       <span
                         className="inline-flex items-center justify-center rounded-full text-[11px] font-bold flex-shrink-0"
+                        title="error = blocks the order; warning = flags for review"
                         style={{
                           width: 22,
                           height: 22,
@@ -574,6 +575,7 @@ export function ValidationRules() {
                       {rule.autoBlock && (
                         <span
                           className="inline-flex items-center rounded px-1.5 py-0.5 text-[10.5px] font-semibold"
+                          title="Automatically block orders that trigger this rule"
                           style={{ background: "#FBE3E3", color: "#C53A3A" }}
                         >
                           Auto-block
@@ -845,7 +847,7 @@ function RulePanel({
               </select>
             </Field>
             <Field label="Auto-block">
-              <label className="flex h-9 items-center gap-2 rounded-[5px] border border-[#D5DAEA] px-2 text-[12px]" style={{ color: "#0B1A2F" }}>
+              <label className="flex h-9 items-center gap-2 rounded-[5px] border border-[#D5DAEA] px-2 text-[12px]" title="Automatically block orders that trigger this rule" style={{ color: "#0B1A2F" }}>
                 <input ref={autoBlockRef} type="checkbox" defaultChecked={rule.autoBlock} />
                 Block crossing
               </label>

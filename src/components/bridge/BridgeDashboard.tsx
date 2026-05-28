@@ -11,6 +11,7 @@ import { FileChip } from "./FileChip";
 import { LaneDrawer } from "./LaneDrawer";
 import type { Lane } from "./LaneDrawer";
 import { OnboardingChecklist } from "./OnboardingChecklist";
+import { OnboardingWizard } from "./OnboardingWizard";
 import { apiClient, isApiMockMode } from "@/lib/api-client";
 
 // ─── Mock data (MSW will replace these) ─────────────────────────────────────
@@ -47,26 +48,58 @@ const WIRES: Wire[] = [
 ];
 
 
-const IN_TRANSIT = [
-  { po: "PO-2026-008412", buyer: "Heinrich", supplier: "Acme",        fmt: "PDF",  stage: "Validate" },
-  { po: "PO-NRD-9981",    buyer: "Nordmark", supplier: "BoltWorks",   fmt: "cXML", stage: "Parse"    },
-  { po: "SH-PO-44120",    buyer: "Steel.",   supplier: "VanDerBerg",  fmt: "XLSX", stage: "Extract"  },
-  { po: "850-99201",      buyer: "Centralis",supplier: "MedicaSupply",fmt: "EDI",  stage: "Failed"   },
-  { po: "WMT-2026-0341",  buyer: "Westmark", supplier: "Acme",        fmt: "EMAIL",stage: "Ready"    },
+const IN_TRANSIT_MOCK_FALLBACK = [
+  { po: "PO-2026-008412", buyer: "Heinrich", fmt: "PDF",  stage: "Validate" },
+  { po: "PO-NRD-9981",    buyer: "Nordmark", fmt: "cXML", stage: "Parse"    },
+  { po: "SH-PO-44120",    buyer: "Steel.",   fmt: "XLSX", stage: "Extract"  },
+  { po: "850-99201",      buyer: "Centralis",fmt: "EDI",  stage: "Failed"   },
+  { po: "WMT-2026-0341",  buyer: "Westmark", fmt: "EMAIL",stage: "Ready"    },
 ];
 
+/** Statuses that represent orders actively moving through the bridge pipeline. */
+const ACTIVE_STATUSES = new Set([
+  "parsing",
+  "pending_parse",
+  "pending_review",
+  "transforming",
+  "delivering",
+  "delivery_failed",
+]);
+
+/** Maps a raw API status to a short human label for the stage badge. */
+function stageLabel(status: string): string {
+  switch (status) {
+    case "parsing":        return "Parse";
+    case "pending_parse":  return "Parse";
+    case "pending_review": return "Validate";
+    case "transforming":   return "Extract";
+    case "delivering":     return "Ready";
+    case "delivery_failed":return "Failed";
+    default:               return status;
+  }
+}
+
 const STAGE_COLOR: Record<string, string> = {
+  // Human labels (used by the mock fallback rows)
   Parse:    "#1E66C9",
   Extract:  "#6F4FCE",
   Validate: "#C97A14",
   Ready:    "#2E8E3A",
   Failed:   "#C53A3A",
+  // Raw API status values (used by live rows)
+  parsing:         "#1E66C9",
+  pending_parse:   "#1E66C9",
+  pending_review:  "#C97A14",
+  transforming:    "#6F4FCE",
+  delivering:      "#2E8E3A",
+  delivery_failed: "#C53A3A",
 };
 
 // ─── Component ───────────────────────────────────────────────────────────────
 
 export function BridgeDashboard() {
   const [activeLane, setActiveLane] = useState<Lane | null>(null);
+  const [wizardDismissed, setWizardDismissed] = useState(false);
 
   const { data: onboardingStatus } = useQuery({
     queryKey: ["onboarding-status"],
@@ -151,9 +184,35 @@ export function BridgeDashboard() {
     ];
   })();
 
+  // ── In-transit rows derived from live orders ──────────────────────────────
+  const inTransitRows = (() => {
+    const liveRows = (orders ?? [])
+      .filter(o => ACTIVE_STATUSES.has(o.status))
+      .map(o => ({
+        po:    o.poNumber,
+        buyer: o.buyerName ?? "Unknown",
+        fmt:   o.sourceFormat ?? "csv",
+        stage: stageLabel(o.status),
+      }));
+
+    // In mock mode: fall back to the hardcoded demo rows when no active-status
+    // orders exist, so the topology screen still looks populated during demos.
+    if (isApiMockMode && liveRows.length === 0) {
+      return IN_TRANSIT_MOCK_FALLBACK;
+    }
+
+    return liveRows;
+  })();
+
   const showChecklist =
     onboardingStatus != null &&
     !(onboardingStatus.hasSupplier && onboardingStatus.hasUpload && onboardingStatus.hasDelivery);
+
+  // Show the guided wizard overlay for brand-new users (no supplier yet) unless dismissed
+  const showWizard =
+    !wizardDismissed &&
+    onboardingStatus != null &&
+    !onboardingStatus.hasSupplier;
 
   function handleWireClick(wire: Wire, buyer: WireBuyer, supplier: WireSupplier) {
     setActiveLane({
@@ -214,14 +273,44 @@ export function BridgeDashboard() {
         </div>
       </div>
 
+      {/* Onboarding wizard — full-screen overlay for new users without a supplier */}
+      {showWizard && (
+        <OnboardingWizard onDismiss={() => setWizardDismissed(true)} />
+      )}
+
       <div className="flex flex-1 flex-col gap-4 p-3 sm:gap-5 sm:p-5">
         {/* Onboarding checklist — shown until all steps are complete */}
         {showChecklist && (
-          <OnboardingChecklist
-            status={onboardingStatus!}
-            supplierCount={suppliers?.length ?? 0}
-            orderCount={orders?.length ?? 0}
-          />
+          <div style={{ display: "flex", alignItems: "flex-start", gap: 12, flexWrap: "wrap" }}>
+            <OnboardingChecklist
+              status={onboardingStatus!}
+              supplierCount={suppliers?.length ?? 0}
+              orderCount={orders?.length ?? 0}
+            />
+            {/* "Get started" shortcut — only visible when no supplier yet and wizard was dismissed */}
+            {wizardDismissed && !onboardingStatus!.hasSupplier && (
+              <button
+                onClick={() => setWizardDismissed(false)}
+                style={{
+                  alignSelf: "flex-start",
+                  height: 36,
+                  padding: "0 16px",
+                  background: "#0B1A2F",
+                  color: "#fff",
+                  border: "none",
+                  borderRadius: 6,
+                  fontSize: 13,
+                  fontWeight: 600,
+                  cursor: "pointer",
+                  letterSpacing: "0.01em",
+                  whiteSpace: "nowrap",
+                  marginTop: 2,
+                }}
+              >
+                Get started →
+              </button>
+            )}
+          </div>
         )}
 
         {/* Wire topology canvas */}
@@ -313,32 +402,48 @@ export function BridgeDashboard() {
               </span>
             </div>
             <div className="divide-y" style={{ borderColor: "#E2E6EE" }}>
-              {IN_TRANSIT.map((row, i) => (
-                <div
-                  key={i}
-                  className="flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-2.5 hover:bg-[#F6F7FA] cursor-pointer transition-colors"
-                >
-                  <span
-                    className="min-w-[150px] flex-1 truncate font-mono text-[11.5px] font-medium"
-                    style={{ color: "#0F4FA8" }}
-                  >
-                    {row.po}
-                  </span>
-                  <span className="max-w-[90px] truncate text-[12px] text-[#56627A]">
-                    {row.buyer}
-                  </span>
-                  <FileChip type={row.fmt} />
-                  <span
-                    className="text-[11px] font-semibold rounded px-1.5 py-0.5"
-                    style={{
-                      color: STAGE_COLOR[row.stage] ?? "#56627A",
-                      background: `${STAGE_COLOR[row.stage] ?? "#56627A"}18`,
-                    }}
-                  >
-                    {row.stage}
-                  </span>
+              {ordersLoading ? (
+                // Skeleton rows while orders are loading
+                [0, 1, 2].map(i => (
+                  <div key={i} className="flex items-center gap-3 px-4 py-2.5">
+                    <div className="h-3 flex-1 animate-pulse rounded" style={{ background: "#E2E6EE" }} />
+                    <div className="h-3 w-16 animate-pulse rounded" style={{ background: "#E2E6EE" }} />
+                    <div className="h-5 w-12 animate-pulse rounded" style={{ background: "#E2E6EE" }} />
+                  </div>
+                ))
+              ) : inTransitRows.length === 0 ? (
+                // Empty state — no active orders
+                <div className="px-4 py-6 text-center text-[12.5px]" style={{ color: "#8A93A5" }}>
+                  No orders in flight right now.
                 </div>
-              ))}
+              ) : (
+                inTransitRows.map((row, i) => (
+                  <div
+                    key={i}
+                    className="flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-2.5 hover:bg-[#F6F7FA] cursor-pointer transition-colors"
+                  >
+                    <span
+                      className="min-w-[150px] flex-1 truncate font-mono text-[11.5px] font-medium"
+                      style={{ color: "#0F4FA8" }}
+                    >
+                      {row.po}
+                    </span>
+                    <span className="max-w-[90px] truncate text-[12px] text-[#56627A]">
+                      {row.buyer}
+                    </span>
+                    <FileChip type={row.fmt} />
+                    <span
+                      className="text-[11px] font-semibold rounded px-1.5 py-0.5"
+                      style={{
+                        color: STAGE_COLOR[row.stage] ?? "#56627A",
+                        background: `${STAGE_COLOR[row.stage] ?? "#56627A"}18`,
+                      }}
+                    >
+                      {row.stage}
+                    </span>
+                  </div>
+                ))
+              )}
             </div>
           </div>
 

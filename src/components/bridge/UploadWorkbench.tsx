@@ -359,6 +359,9 @@ export function UploadWorkbench() {
                     <FileChip key={f} type={f} />
                   ))}
                 </div>
+                <p className="text-[11.5px]" style={{ color: "#8A93A5" }}>
+                  Supports CSV, XLSX, and PDF purchase orders. Max 25MB.
+                </p>
               </div>
             </XCard>
 

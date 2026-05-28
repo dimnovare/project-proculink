@@ -1187,11 +1187,139 @@ export async function deleteIntegration(id: string): Promise<void> {
   if (!res.ok && res.status !== 204) throw new Error(`integrations DELETE: ${res.status}`);
 }
 
-// AGENT-A2-CONNECTORS-SECTION — replaced by connectors agent
-// Placeholder for getSupplierDeliveryConfig and testFireDeliveryConfig functions
+// ── Standalone suppliers export (for components that prefer named imports) ────
+export const getSuppliers = USE_MOCK ? mockGetSuppliersFn : realGetSuppliersFn;
 
-// AGENT-D3-INVOICES-SECTION — replaced by invoices agent
-// Placeholder for InvoiceDto, getInvoices, uploadInvoice, approveInvoice, downloadInvoice functions
+// ── Connectors / delivery config ─────────────────────────────────────────────
 
-// AGENT-D3-ASN-SECTION — replaced by ASN agent
-// Placeholder for AsnDto, getAsns, uploadAsn functions
+export interface DeliveryConfigSummary {
+  protocol: string | null;
+  endpointUrl: string | null;
+  isActive: boolean;
+  lastTestedAt: string | null;
+}
+
+export async function getSupplierDeliveryConfig(supplierId: string): Promise<DeliveryConfigSummary | null> {
+  if (USE_MOCK) return null;
+  const headers = await authHeader();
+  const res = await fetchWithTimeout(`${API_BASE_URL}/api/suppliers/${supplierId}/delivery-config`, { headers });
+  if (res.status === 404) return null;
+  if (!res.ok) throw new Error(`delivery-config GET: ${res.status}`);
+  return res.json();
+}
+
+export async function testFireDeliveryConfig(supplierId: string): Promise<{ success: boolean; message: string }> {
+  if (USE_MOCK) {
+    await delay(800);
+    return { success: true, message: "Test delivery sent (mock mode)" };
+  }
+  const headers = await authHeader();
+  const res = await fetch(`${API_BASE_URL}/api/suppliers/${supplierId}/delivery-config/test-fire`, {
+    method: "POST",
+    headers,
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => null);
+    throw new Error(body?.message ?? `test-fire: ${res.status}`);
+  }
+  return res.json();
+}
+
+// ── Inbound: Invoices ─────────────────────────────────────────────────────────
+
+export interface InvoiceDto {
+  id: string;
+  supplierId: string | null;
+  supplierName: string | null;
+  invoiceNumber: string | null;
+  invoiceDate: string | null;
+  totalAmount: number | null;
+  currency: string | null;
+  status: string;
+  lineCount: number;
+  createdAt: string;
+}
+
+const _mockInvoices: InvoiceDto[] = [
+  { id: "inv-001", supplierId: null, supplierName: "FastParts Inc",    invoiceNumber: "INV-2026-001", invoiceDate: "2026-05-01", totalAmount: 2450.00, currency: "EUR", status: "pending",  lineCount: 3, createdAt: new Date().toISOString() },
+  { id: "inv-002", supplierId: null, supplierName: "ElectroSupply Co", invoiceNumber: "INV-2026-002", invoiceDate: "2026-05-10", totalAmount:  890.50, currency: "EUR", status: "approved", lineCount: 1, createdAt: new Date().toISOString() },
+];
+
+export async function getInvoices(): Promise<InvoiceDto[]> {
+  if (USE_MOCK) { await delay(400); return [..._mockInvoices]; }
+  const headers = await authHeader();
+  const res = await fetchWithTimeout(`${API_BASE_URL}/api/invoices`, { headers });
+  if (!res.ok) throw new Error(`invoices: ${res.status}`);
+  return res.json();
+}
+
+export async function uploadInvoice(file: File, supplierId?: string): Promise<InvoiceDto> {
+  const headers = await authHeader();
+  const form = new FormData();
+  form.append("file", file);
+  const url = supplierId
+    ? `${API_BASE_URL}/api/invoices/upload?supplierId=${supplierId}`
+    : `${API_BASE_URL}/api/invoices/upload`;
+  const res = await fetch(url, { method: "POST", headers, body: form });
+  if (!res.ok) { const b = await res.json().catch(() => null); throw new Error(b?.error ?? `invoices upload: ${res.status}`); }
+  return res.json();
+}
+
+export async function approveInvoice(id: string): Promise<InvoiceDto> {
+  if (USE_MOCK) {
+    await delay(300);
+    const inv = _mockInvoices.find(i => i.id === id);
+    if (inv) inv.status = "approved";
+    return inv ?? _mockInvoices[0];
+  }
+  const headers = await authHeader();
+  const res = await fetch(`${API_BASE_URL}/api/invoices/${id}/approve`, { method: "POST", headers });
+  if (!res.ok) throw new Error(`invoices approve: ${res.status}`);
+  return res.json();
+}
+
+export async function downloadInvoice(id: string, format = "csv"): Promise<{ url: string }> {
+  if (USE_MOCK) { return { url: `#mock-invoice-download/${id}` }; }
+  const headers = await authHeader();
+  const res = await fetchWithTimeout(`${API_BASE_URL}/api/invoices/${id}/download?format=${format}`, { headers });
+  if (!res.ok) throw new Error(`invoices download: ${res.status}`);
+  return res.json();
+}
+
+// ── Inbound: ASNs (Advance Shipping Notices) ──────────────────────────────────
+
+export interface AsnDto {
+  id: string;
+  supplierId: string | null;
+  supplierName: string | null;
+  asnNumber: string | null;
+  shipDate: string | null;
+  packageCount: number;
+  status: string;
+  createdAt: string;
+}
+
+const _mockAsns: AsnDto[] = [
+  { id: "asn-001", supplierId: null, supplierName: "FastParts Inc",    asnNumber: "ASN-2026-001", shipDate: "2026-05-15", packageCount: 3, status: "received", createdAt: new Date().toISOString() },
+  { id: "asn-002", supplierId: null, supplierName: "GlobalComponents", asnNumber: "ASN-2026-002", shipDate: "2026-05-20", packageCount: 1, status: "pending",  createdAt: new Date().toISOString() },
+];
+
+export async function getAsns(): Promise<AsnDto[]> {
+  if (USE_MOCK) { await delay(400); return [..._mockAsns]; }
+  const headers = await authHeader();
+  const res = await fetchWithTimeout(`${API_BASE_URL}/api/asns`, { headers });
+  if (!res.ok) throw new Error(`asns: ${res.status}`);
+  return res.json();
+}
+
+export async function uploadAsn(file: File, supplierId?: string): Promise<AsnDto> {
+  const headers = await authHeader();
+  const form = new FormData();
+  form.append("file", file);
+  const url = supplierId
+    ? `${API_BASE_URL}/api/asns/upload?supplierId=${supplierId}`
+    : `${API_BASE_URL}/api/asns/upload`;
+  const res = await fetch(url, { method: "POST", headers, body: form });
+  if (!res.ok) { const b = await res.json().catch(() => null); throw new Error(b?.error ?? `asns upload: ${res.status}`); }
+  return res.json();
+}

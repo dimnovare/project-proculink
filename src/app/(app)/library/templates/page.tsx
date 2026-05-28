@@ -131,7 +131,7 @@ export default function TemplatesPage() {
             <EmptyState
               icon="⊟"
               title="No output templates"
-              sub="Create a template to define how purchase orders are formatted for each supplier."
+              sub="Templates define how purchase orders are formatted when delivered to each supplier."
               action={{ label: "+ New template", onClick: () => {
                 setNotice(null);
                 setSelected({ id: "new", name: "", fmt: "cXML", suppliers: 0, lastUsed: "never", version: "v1.0" });

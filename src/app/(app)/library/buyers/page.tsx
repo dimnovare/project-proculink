@@ -182,7 +182,7 @@ export default function BuyersPage() {
           <EmptyState
             icon="◎"
             title="No buyers yet"
-            sub="Add your first buyer to start receiving and routing purchase orders."
+            sub="Buyers are the internal teams or customers whose purchase orders you process."
             action={{ label: "+ Add buyer", onClick: () => setAddOpen(true) }}
           />
         )}
@@ -194,6 +194,7 @@ export default function BuyersPage() {
               <div
                 key={b.id}
                 onClick={() => router.push(`/inbox?buyer=${b.code}`)}
+                title="Filter inbox to orders from this buyer"
                 className="group cursor-pointer rounded-[8px]"
                 style={{
                   background: "#FFFFFF",

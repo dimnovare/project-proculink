@@ -202,6 +202,7 @@ export function MappingEditor() {
           <button
             onClick={() => { setNotice(null); setPanel({ kind: "add" }); }}
             className="flex items-center justify-center gap-1.5 rounded-[6px] px-3 text-[12.5px] font-medium"
+            title="Map a buyer item code to a supplier item code"
             style={{
               height: 32,
               background: "#0B1A2F",
@@ -488,7 +489,19 @@ export function MappingEditor() {
             </table>
             </div>
 
-            {filtered.length === 0 && (
+            {filtered.length === 0 && allRows.length === 0 && (
+              <div
+                className="flex flex-col items-center justify-center py-16"
+                style={{ color: "#8A93A5" }}
+              >
+                <span style={{ fontSize: 32, marginBottom: 8 }}>⊘</span>
+                <p className="text-[13px] font-semibold" style={{ color: "#0B1A2F", marginBottom: 4 }}>No item mappings yet</p>
+                <p className="text-[12.5px] text-center" style={{ maxWidth: 400 }}>
+                  Add mappings to automatically translate your buyer item codes to supplier item codes.
+                </p>
+              </div>
+            )}
+            {filtered.length === 0 && allRows.length > 0 && (
               <div
                 className="flex flex-col items-center justify-center py-16"
                 style={{ color: "#8A93A5" }}

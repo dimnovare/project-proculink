@@ -42,6 +42,13 @@ const NAV: Array<{
     ],
   },
   {
+    group: "Inbound",
+    items: [
+      { label: "Invoices",  href: "/inbound/invoices" },
+      { label: "ASNs",      href: "/inbound/asns" },
+    ],
+  },
+  {
     group: "Operations",
     items: [
       { label: "Delivery log",  href: "/operations/log" },

@@ -253,6 +253,7 @@ function EmailSettingsSection() {
         <div className="grid gap-4 p-4 md:grid-cols-[minmax(0,1fr)_120px_120px]">
           <Field label="IMAP host">
             <input value={form.host} onChange={(event) => update("host", event.target.value)} placeholder="imap.company.com" style={inputStyle} />
+            <span className="text-[11.5px]" style={{ color: "#8A93A5" }}>Use your mail provider&apos;s IMAP hostname, e.g. imap.gmail.com for Gmail.</span>
           </Field>
           <Field label="Port">
             <input type="number" value={form.port} onChange={(event) => update("port", Number(event.target.value))} style={inputStyle} />

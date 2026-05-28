@@ -393,17 +393,58 @@ function DocumentAnatomy({ highlightZone }: { highlightZone?: string }) {
 
 // ─── Output Preview ───────────────────────────────────────────────────────────
 
-function OutputPreview({ acceptedSubnodes, rejectedSubnodes, crossed, fieldValues, onOutputAction }: {
+function OutputPreview({ acceptedSubnodes, rejectedSubnodes, crossed, fieldValues, onOutputAction, orderId, artifacts }: {
   acceptedSubnodes: Set<string>;
   rejectedSubnodes: Set<string>;
   crossed: boolean;
   fieldValues: Record<string, string>;
   onOutputAction: (message: string) => void;
+  orderId: string;
+  artifacts: Order["artifacts"];
 }) {
+  const [downloadLoading, setDownloadLoading] = useState(false);
+  const [copyLoading, setCopyLoading] = useState(false);
+
   const incoterm = fieldValues["incoterm"] ?? "DDP";
   const billTo = fieldValues["billTo"] ?? "Postfach 1042 · 70001 Stuttgart, DE";
   const sn2accepted = acceptedSubnodes.has("sn2");
   const sn2rejected = rejectedSubnodes.has("sn2");
+
+  async function handleDownload() {
+    const artifact = artifacts?.[0];
+    if (!artifact) {
+      onOutputAction("No artifact available yet — transform the order first.");
+      return;
+    }
+    onOutputAction("Downloading artifact...");
+    setDownloadLoading(true);
+    try {
+      const data = await apiClient.getDownloadUrl(orderId, artifact.id);
+      window.open(data.url, "_blank");
+    } catch {
+      onOutputAction("Download failed — check your connection and try again.");
+    } finally {
+      setDownloadLoading(false);
+    }
+  }
+
+  async function handleCopy() {
+    const artifact = artifacts?.[0];
+    if (!artifact) {
+      onOutputAction("No artifact available yet.");
+      return;
+    }
+    setCopyLoading(true);
+    try {
+      const data = await apiClient.getDownloadUrl(orderId, artifact.id);
+      await navigator.clipboard.writeText(data.url);
+      onOutputAction("Output URL copied to clipboard.");
+    } catch {
+      onOutputAction("Copy failed.");
+    } finally {
+      setCopyLoading(false);
+    }
+  }
 
   return (
     <div style={{ borderRadius: 8, padding: 10, background: "#F6F7FA", border: "1px solid #E2E6EE" }}>
@@ -414,16 +455,18 @@ function OutputPreview({ acceptedSubnodes, rejectedSubnodes, crossed, fieldValue
         <span style={{ fontSize: 10.5, color: "#8A93A5", padding: "3px 8px", border: "1px solid #E2E6EE", borderRadius: 4 }}>JSON</span>
         <div style={{ flex: 1 }} />
         <button
-          onClick={() => onOutputAction("Output preview copied locally for QA. Live template rendering is verified in Group J.")}
-          style={{ fontSize: 10.5, padding: "3px 8px", border: "1px solid #E2E6EE", borderRadius: 4, background: "#FFFFFF", cursor: "pointer", color: "#56627A" }}
+          onClick={handleCopy}
+          disabled={copyLoading}
+          style={{ fontSize: 10.5, padding: "3px 8px", border: "1px solid #E2E6EE", borderRadius: 4, background: "#FFFFFF", cursor: copyLoading ? "default" : "pointer", color: "#56627A", opacity: copyLoading ? 0.6 : 1 }}
         >
-          Copy
+          {copyLoading ? "Copying..." : "Copy"}
         </button>
         <button
-          onClick={() => onOutputAction("Download request prepared locally for QA. Signed artifact URLs are verified in Group J.")}
-          style={{ fontSize: 10.5, padding: "3px 8px", border: "1px solid #E2E6EE", borderRadius: 4, background: "#FFFFFF", cursor: "pointer", color: "#56627A" }}
+          onClick={handleDownload}
+          disabled={downloadLoading}
+          style={{ fontSize: 10.5, padding: "3px 8px", border: "1px solid #E2E6EE", borderRadius: 4, background: "#FFFFFF", cursor: downloadLoading ? "default" : "pointer", color: "#56627A", opacity: downloadLoading ? 0.6 : 1 }}
         >
-          ↓ Download
+          {downloadLoading ? "↓ Downloading..." : "↓ Download"}
         </button>
       </div>
 
@@ -632,6 +675,8 @@ interface MobileSpineAccordionProps {
   onKeyDown: (e: KeyboardEvent<HTMLInputElement>, id: string) => void;
   inputRef: (el: HTMLInputElement | null, id: string) => void;
   onOutputAction: (msg: string) => void;
+  orderId: string;
+  artifacts: Order["artifacts"];
 }
 
 function AccordionPanel({ label, accent, defaultOpen, children }: {
@@ -661,6 +706,7 @@ function MobileSpineAccordion({
   nodes, editingId, fieldValues, acceptedSubnodes, rejectedSubnodes,
   crossed, highlightZone, onStartEdit, onChangeValue, onCommitEdit,
   onAcceptSubnode, onRejectSubnode, onKeyDown, inputRef, onOutputAction,
+  orderId, artifacts,
 }: MobileSpineAccordionProps) {
   return (
     <div className="md:hidden flex flex-col gap-3 px-4 py-4 pb-[80px]">
@@ -701,6 +747,8 @@ function MobileSpineAccordion({
           crossed={crossed}
           fieldValues={fieldValues}
           onOutputAction={onOutputAction}
+          orderId={orderId}
+          artifacts={artifacts}
         />
       </AccordionPanel>
     </div>
@@ -967,6 +1015,8 @@ export function SpineReview({ orderId }: { orderId: string }) {
                   crossed={crossed}
                   fieldValues={fieldValues}
                   onOutputAction={setFlowNotice}
+                  orderId={orderId}
+                  artifacts={order.artifacts}
                 />
               </div>
             </div>
@@ -988,6 +1038,8 @@ export function SpineReview({ orderId }: { orderId: string }) {
               onKeyDown={handleKeyDown}
               inputRef={inputRefCallback}
               onOutputAction={setFlowNotice}
+              orderId={orderId}
+              artifacts={order.artifacts}
             />
           </div>
         </EdgeRails>
