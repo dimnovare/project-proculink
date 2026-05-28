@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { ContactForm } from "@/components/marketing/ContactForm";
 
 export const metadata: Metadata = {
   title: "Support — ProcuLink",
@@ -108,6 +109,8 @@ export default function SupportPage() {
         For enterprise pricing, custom integrations, or partnership enquiries, email{" "}
         <a href="mailto:hello@proculink.com" style={{ color: "#1E66C9" }}>hello@proculink.com</a>.
       </p>
+
+      <ContactForm />
     </div>
   );
 }
