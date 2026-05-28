@@ -37,7 +37,7 @@ Frontend-relevant groups:
 | **I** | UI/UX production polish + responsive QA | **In progress — pass 10 complete** |
 | **J** | Live end-to-end QA + deployment hardening | Planned after I |
 | **K** | Standards + engine hardening surfaces | Planned after I/J scoping |
-| **L** | Trust, onboarding + commercial readiness | Planned; can overlap after I starts |
+| **L** | Trust, onboarding + commercial readiness | **In progress — Wave 1 (Ph 1, 2, 4.1, 4.2, 8, 10.1, 10.2) on main; Wave 2 (Ph 3, 4.4–5.2) on feature branches** |
 
 Group I must continue unless the user explicitly reprioritizes:
 - QA desktop, tablet, and mobile.
@@ -445,6 +445,13 @@ These JSX files use inline styles (they're vanilla React prototype). Translate t
 - Group I pass 9 is complete: connector/webhook draft test and save actions, mapping import/export/add/edit saves, validation-rule toggle/edit saves, and output-template validate/save actions now show visible local QA feedback instead of closing silently. Mapping and rules notices use wrapped rows so they do not squeeze filters or clip on mobile.
 - Group I pass 10 is complete: `/upload` now redirects to the returned order id instead of hardcoded `/inbox/008412`; `/inbox/[orderId]` Save draft, output Copy/Download, and delivered states show visible local feedback; the mobile review action bar no longer squeezes total/template/exception/actions.
 - Continue Group I QA before starting Group J: live API/deployment first-upload-to-delivery happy/error paths still need the same desktop/tablet/mobile pass. Group J should convert the local connector/webhook/mapping/rule/template QA affordances into real persistence/test-fire verification.
+- Group L Wave 2 (Phases 3 + 4.4) is complete on `feat/group-l-phase-3-and-4.4` (pushed, not yet merged to main): `useCookieConsent` hook (`src/lib/cookie-consent.ts`, localStorage + cross-tab event), `CookieConsentBanner` (fixed-position, functional-only / analytics-allowed), `posthog-js@1.376.3` (`src/lib/analytics.ts` consent-gated, no-op when `NEXT_PUBLIC_POSTHOG_KEY` empty), `AnalyticsBoot` (Clerk identify + org group + path-only `$pageview`, mounted inside ClerkProvider branch only to guard against prerender crash). Commits: `3705964` `560cf8c` `384745d`.
+- Group L Wave 2 phases 4.5 + 5.1 + 5.2 are complete on branches (not yet merged to main):
+  - **Phase 5.1 backend** (`feat/group-l-phase-5.1-onboarding-has-resolved-mapping`): `GET /api/onboarding/status` now returns `hasResolvedMapping` (fourth field between `hasUpload` and `hasDelivery`). Query: `_db.PurchaseOrderLines.AnyAsync(l => l.Order.OrgId == orgId && l.SupplierItemCode != null, ct)`. 195/195 tests pass.
+  - **Phase 5.1 frontend** (`feat/group-l-phase-4.5-5.1-5.2-onboarding-wizard`): `OnboardingStatus` interface in `src/types/procurement.ts` has `hasResolvedMapping: boolean` between `hasUpload` and `hasDelivery`. `mockGetOnboardingStatus` in `src/lib/api-client.ts` derives it from order lines.
+  - **Phase 5.2 frontend**: `OnboardingWizard.tsx` rewritten as a 4-step wizard (add supplier → upload PO → resolve mapping → configure delivery) driven by `useQuery(["onboarding-status"])`. Entry step is server-derived. `StepIndicator` shows `current/4`. Uses `apiClient.uploadPurchaseOrder(file, supplierId)`; routes to `/inbox/{orderId}` after upload and `/library/suppliers/{id}?tab=delivery` after mapping.
+  - **Phase 4.5 frontend**: `capture()` calls from `@/lib/analytics` added to `OnboardingWizard.tsx` (`wizard_opened` on mount, `wizard_step_completed` on each step success, `wizard_dismissed` on close) and `UploadWorkbench.tsx` (`first_upload_started` with `file_kind` only when `!onboardingStatus.hasUpload`).
+  - Frontend branch is based on `feat/group-l-phase-3-and-4.4` (cookie consent + PostHog SDK), not main — must be merged in the correct order.
 
 ### shadcn/ui
 
