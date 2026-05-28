@@ -54,11 +54,17 @@ export default function MarketingLayout({
           <span style={{ color: "#D0D5DE" }}>·</span>
           <a href="/privacy" style={{ color: "inherit" }}>Privacy</a>
           <a href="/terms" style={{ color: "inherit" }}>Terms</a>
+          <a href="/aup" style={{ color: "inherit" }}>AUP</a>
+          <a href="/dpa" style={{ color: "inherit" }}>DPA</a>
+          <a href="/subprocessors" style={{ color: "inherit" }}>Subprocessors</a>
           <a href="/security" style={{ color: "inherit" }}>Security</a>
           <a href="/support" style={{ color: "inherit" }}>Support</a>
+          {process.env.NEXT_PUBLIC_STATUS_URL ? (
+            <a href={process.env.NEXT_PUBLIC_STATUS_URL} target="_blank" rel="noopener noreferrer" style={{ color: "inherit" }}>Status</a>
+          ) : null}
         </div>
         <span style={{ fontSize: 12, color: "#8A93A5" }}>
-          © 2026 Estoria Capital Group OÜ
+          © 2026 ProcuLink OÜ
         </span>
       </footer>
     </div>

@@ -26,7 +26,7 @@ export default function PrivacyPage() {
 
       <h2 style={S.h2}>Who we are</h2>
       <p style={S.p}>
-        ESTORIA CAPITAL GROUP OÜ (&quot;ProcuLink&quot;, &quot;we&quot;, &quot;us&quot;, &quot;our&quot;) operates the ProcuLink procurement
+        ProcuLink OÜ (&quot;ProcuLink&quot;, &quot;we&quot;, &quot;us&quot;, &quot;our&quot;) operates the ProcuLink procurement
         automation platform at proculink.com. Company registration: 17477775. Registered
         address: Katusepapi 6, Tallinn, Estonia.
       </p>
@@ -91,6 +91,11 @@ export default function PrivacyPage() {
       </p>
 
       <h2 style={S.h2}>Subprocessors</h2>
+      <p style={S.p}>
+        The authoritative list of subprocessors is maintained at{" "}
+        <Link href="/subprocessors" style={{ color: "#1E66C9" }}>/subprocessors</Link>{" "}
+        with a 30-day change-notification commitment. The current snapshot:
+      </p>
       <table style={S.table}>
         <thead>
           <tr>
@@ -124,7 +129,7 @@ export default function PrivacyPage() {
         <br />
         General support: <a href="mailto:support@proculink.com" style={{ color: "#1E66C9" }}>support@proculink.com</a>
         <br />
-        Registered address: ESTORIA CAPITAL GROUP OÜ, Katusepapi 6, Tallinn, Estonia
+        Registered address: ProcuLink OÜ, Katusepapi 6, Tallinn, Estonia
       </p>
 
       <p style={{ ...S.p, marginTop: 40, paddingTop: 24, borderTop: "1px solid #E2E6EE" }}>
