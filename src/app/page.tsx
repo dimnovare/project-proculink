@@ -1,52 +1,53 @@
 import Link from "next/link";
 import { BridgeIllustration } from "@/components/marketing/BridgeIllustration";
 import { MarketingNav } from "@/components/marketing/MarketingNav";
+import { ROICalculator } from "@/components/marketing/ROICalculator";
 
 // ─── Static data ──────────────────────────────────────────────────────────────
 
 const FEATURES = [
   {
     icon: "⇄",
-    title: "Wire topology",
-    desc: "See every buyer-to-supplier wire at a glance. Health, volume, and alerts mapped onto one live canvas.",
+    title: "Universal ingestion",
+    desc: "CSV, XLSX, PDF, cXML, JSON, IMAP attachments — drop any purchase order format and ProcuLink parses it into a canonical structure.",
     color: "#1E66C9",
     bg: "#E3EDFB",
   },
   {
     icon: "✦",
-    title: "AI extraction",
-    desc: "PDFs, emails, EDI, XLSX — our engine pulls structured data from any format with per-field confidence scores.",
+    title: "AI-assisted mapping",
+    desc: "When a buyer item code doesn&apos;t match your catalog, an LLM proposes the supplier code with confidence, reasoning, and source — your team confirms or rejects.",
     color: "#6F4FCE",
     bg: "#EEE7FB",
   },
   {
     icon: "⊞",
-    title: "Spine review",
-    desc: "Three-column anatomy: document on the left, spine nodes in the middle, output preview on the right.",
+    title: "Order review workbench",
+    desc: "Side-by-side: source document, canonical view, and exact outbound payload. Resolve exceptions before anything leaves your system.",
     color: "#C97A14",
     bg: "#FAEFD6",
   },
   {
     icon: "✓",
-    title: "Validation rules",
-    desc: "Configurable rule engine with error/warning/info severity, entity scoping, and auto-block for critical violations.",
+    title: "Per-supplier validation",
+    desc: "Block bad orders before they reach the supplier. Configurable rules per supplier — missing fields, wrong currency, item codes that won&apos;t resolve.",
     color: "#2E8E3A",
     bg: "#E2F1E2",
   },
   {
     icon: "⇉",
-    title: "One-click crossing",
-    desc: "When everything checks out, bridge the order with one click. cXML, EDI, or API — delivered to the supplier dock.",
+    title: "One-click delivery",
+    desc: "HTTP webhook, Erply, Directo — or download the artifact. Encrypted credentials, AES-GCM at rest, full audit trail per attempt.",
     color: "#0F4FA8",
     bg: "#E3EDFB",
   },
 ];
 
 const STATS = [
-  { value: "84%",    label: "Auto-processed"     },
-  { value: "1m 42s", label: "Avg crossing time"  },
-  { value: "€4.20",  label: "Cost per crossing"  },
-  { value: "99.7%",  label: "Uptime SLA"         },
+  { value: "4+",     label: "Inbound formats"    },
+  { value: "4+",     label: "Outbound formats"   },
+  { value: "3",      label: "Delivery channels"  },
+  { value: "EU",     label: "Data residency"     },
 ];
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
@@ -290,10 +291,10 @@ export default async function RootPage() {
               marginBottom: 12,
             }}
           >
-            Everything in one bridge
+            Everything you need to receive, transform, and deliver
           </h2>
           <p style={{ fontSize: 16, color: "#56627A", maxWidth: 480, margin: "0 auto" }}>
-            Five spatial signatures, one coherent system.
+            One workflow from inbound purchase order to delivered supplier document — built for procurement teams that don&apos;t want an integration project.
           </p>
         </div>
 
@@ -462,6 +463,9 @@ export default async function RootPage() {
         </div>
       </section>
 
+      {/* ── ROI calculator ──────────────────────────────────────────── */}
+      <ROICalculator />
+
       {/* ── CTA band ───────────────────────────────────────────────── */}
       <section
         className="px-4 sm:px-8"
@@ -482,7 +486,7 @@ export default async function RootPage() {
             marginBottom: 16,
           }}
         >
-          Ready to bridge your orders?
+          Ready to put your orders on autopilot?
         </h2>
         <p style={{ fontSize: 16, color: "#C5D2E4", marginBottom: 36 }}>
           Start free. No credit card required.

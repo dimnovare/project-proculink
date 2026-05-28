@@ -64,8 +64,8 @@ const STEPS = [
   },
   {
     n: "05",
-    title: "Cross the bridge",
-    desc: "One click. The structured order is delivered to the supplier dock in their preferred format — cXML, EDI, or API call — with a full audit entry in the Crossings Log.",
+    title: "Deliver to supplier",
+    desc: "One click. The structured order is delivered to the supplier endpoint in their preferred format — cXML, EDI, JSON, or HTTP webhook — with a full audit entry in the Delivery Log.",
     detail: [
       "cXML PunchOut delivery",
       "EDI X12 860 response",
