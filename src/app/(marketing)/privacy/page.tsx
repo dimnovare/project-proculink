@@ -91,6 +91,11 @@ export default function PrivacyPage() {
       </p>
 
       <h2 style={S.h2}>Subprocessors</h2>
+      <p style={S.p}>
+        The authoritative list of subprocessors is maintained at{" "}
+        <Link href="/subprocessors" style={{ color: "#1E66C9" }}>/subprocessors</Link>{" "}
+        with a 30-day change-notification commitment. The current snapshot:
+      </p>
       <table style={S.table}>
         <thead>
           <tr>
