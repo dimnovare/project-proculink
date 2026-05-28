@@ -263,6 +263,45 @@ export function UploadWorkbench() {
         <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_320px]">
           {/* Left column: dropzone + recent */}
           <div className="flex min-w-0 flex-col gap-4">
+            {/* Phase 10.3 — Pilot Book-a-demo CTA */}
+            {billing?.plan === "pilot" && process.env.NEXT_PUBLIC_BOOK_DEMO_URL && (
+              <div
+                style={{
+                  background: "#F6F7FA",
+                  border: "1px solid #E2E6EE",
+                  borderLeft: "3px solid #1E66C9",
+                  borderRadius: 8,
+                  padding: "12px 16px",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: 12,
+                  flexWrap: "wrap",
+                }}
+              >
+                <p style={{ margin: 0, fontSize: 13.5, color: "#3D4A5C" }}>
+                  On Pilot? Get a guided 15-minute walkthrough with the team.
+                </p>
+                <a
+                  href={process.env.NEXT_PUBLIC_BOOK_DEMO_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={() => capture("book_demo_clicked", { from_route: "/upload", plan: "pilot" })}
+                  style={{
+                    background: "#0B1A2F",
+                    color: "#FFFFFF",
+                    padding: "8px 14px",
+                    borderRadius: 6,
+                    fontSize: 13,
+                    fontWeight: 600,
+                    textDecoration: "none",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  Book a 15-min demo →
+                </a>
+              </div>
+            )}
             {/* Drop zone — XCard edge="top" with link-spine gradient */}
             <XCard
               edge="top"
