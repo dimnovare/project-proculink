@@ -1021,3 +1021,177 @@ export async function updateEmailSettings(payload: UpdateEmailSettingsPayload): 
 
   return res.json();
 }
+
+// ── Wave 4: API Keys ──────────────────────────────────────────────────────
+
+export interface ApiKey {
+  id: string;
+  label: string;
+  keyPrefix: string;
+  isActive: boolean;
+  createdAt: string;
+  lastUsedAt: string | null;
+  expiresAt: string | null;
+}
+
+export interface CreateApiKeyResponse extends ApiKey {
+  /** Raw key shown ONCE. Never stored on the server. */
+  rawKey: string;
+}
+
+const _mockApiKeys: ApiKey[] = [];
+
+export async function getApiKeys(): Promise<ApiKey[]> {
+  if (USE_MOCK) {
+    await delay(300);
+    return [..._mockApiKeys];
+  }
+  const headers = await authHeader();
+  const res = await fetchWithTimeout(`${API_BASE_URL}/api/api-keys`, { headers });
+  if (!res.ok) throw new Error(`api-keys: ${res.status}`);
+  return res.json();
+}
+
+export async function createApiKey(label: string): Promise<CreateApiKeyResponse> {
+  if (USE_MOCK) {
+    await delay(500);
+    const rawKey = "plk_" + Math.random().toString(36).slice(2).padEnd(40, "0");
+    const key: ApiKey = {
+      id: crypto.randomUUID(),
+      label,
+      keyPrefix: rawKey.slice(0, 8),
+      isActive: true,
+      createdAt: new Date().toISOString(),
+      lastUsedAt: null,
+      expiresAt: null,
+    };
+    _mockApiKeys.unshift(key);
+    return { ...key, rawKey };
+  }
+  const headers = await authHeader();
+  const res = await fetch(`${API_BASE_URL}/api/api-keys`, {
+    method: "POST",
+    headers: { ...headers, "Content-Type": "application/json" },
+    body: JSON.stringify({ label }),
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => null);
+    throw new Error(body?.error ?? `api-keys POST: ${res.status}`);
+  }
+  return res.json();
+}
+
+export async function revokeApiKey(id: string): Promise<void> {
+  if (USE_MOCK) {
+    await delay(300);
+    const key = _mockApiKeys.find(k => k.id === id);
+    if (key) key.isActive = false;
+    return;
+  }
+  const headers = await authHeader();
+  const res = await fetch(`${API_BASE_URL}/api/api-keys/${id}`, {
+    method: "DELETE",
+    headers,
+  });
+  if (!res.ok && res.status !== 204) throw new Error(`api-keys DELETE: ${res.status}`);
+}
+
+// ── Wave 4: Integration Subscriptions ────────────────────────────────────
+
+export interface IntegrationSubscription {
+  id: string;
+  platform: string;
+  eventType: string;
+  targetUrl: string;
+  isActive: boolean;
+  failureCount: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+const _mockIntegrations: IntegrationSubscription[] = [];
+
+export async function getIntegrations(): Promise<IntegrationSubscription[]> {
+  if (USE_MOCK) {
+    await delay(300);
+    return [..._mockIntegrations];
+  }
+  const headers = await authHeader();
+  const res = await fetchWithTimeout(`${API_BASE_URL}/api/integrations`, { headers });
+  if (!res.ok) throw new Error(`integrations: ${res.status}`);
+  return res.json();
+}
+
+export async function createIntegration(payload: {
+  platform: string;
+  eventType: string;
+  targetUrl: string;
+  secret?: string;
+}): Promise<IntegrationSubscription> {
+  if (USE_MOCK) {
+    await delay(500);
+    const sub: IntegrationSubscription = {
+      id: crypto.randomUUID(),
+      platform: payload.platform,
+      eventType: payload.eventType,
+      targetUrl: payload.targetUrl,
+      isActive: true,
+      failureCount: 0,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+    _mockIntegrations.unshift(sub);
+    return sub;
+  }
+  const headers = await authHeader();
+  const res = await fetch(`${API_BASE_URL}/api/integrations`, {
+    method: "POST",
+    headers: { ...headers, "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => null);
+    throw new Error(body?.error ?? `integrations POST: ${res.status}`);
+  }
+  return res.json();
+}
+
+export async function toggleIntegration(id: string): Promise<{ id: string; isActive: boolean }> {
+  if (USE_MOCK) {
+    await delay(300);
+    const sub = _mockIntegrations.find(s => s.id === id);
+    if (sub) sub.isActive = !sub.isActive;
+    return { id, isActive: sub?.isActive ?? false };
+  }
+  const headers = await authHeader();
+  const res = await fetch(`${API_BASE_URL}/api/integrations/${id}/toggle`, {
+    method: "PATCH",
+    headers,
+  });
+  if (!res.ok) throw new Error(`integrations PATCH toggle: ${res.status}`);
+  return res.json();
+}
+
+export async function deleteIntegration(id: string): Promise<void> {
+  if (USE_MOCK) {
+    await delay(300);
+    const i = _mockIntegrations.findIndex(s => s.id === id);
+    if (i !== -1) _mockIntegrations.splice(i, 1);
+    return;
+  }
+  const headers = await authHeader();
+  const res = await fetch(`${API_BASE_URL}/api/integrations/${id}`, {
+    method: "DELETE",
+    headers,
+  });
+  if (!res.ok && res.status !== 204) throw new Error(`integrations DELETE: ${res.status}`);
+}
+
+// AGENT-A2-CONNECTORS-SECTION — replaced by connectors agent
+// Placeholder for getSupplierDeliveryConfig and testFireDeliveryConfig functions
+
+// AGENT-D3-INVOICES-SECTION — replaced by invoices agent
+// Placeholder for InvoiceDto, getInvoices, uploadInvoice, approveInvoice, downloadInvoice functions
+
+// AGENT-D3-ASN-SECTION — replaced by ASN agent
+// Placeholder for AsnDto, getAsns, uploadAsn functions
