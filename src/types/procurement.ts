@@ -159,6 +159,7 @@ export interface AuditEvent {
 export interface OnboardingStatus {
   hasSupplier: boolean;
   hasUpload: boolean;
+  hasResolvedMapping: boolean;
   hasDelivery: boolean;
 }
 

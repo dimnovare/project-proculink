@@ -9,6 +9,7 @@ import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { FileChip } from "./FileChip";
 import { ApiHttpError, apiClient, getBillingStatus, isApiMockMode } from "@/lib/api-client";
+import { capture } from "@/lib/analytics";
 
 // Pipeline stages for the upload animation
 const PIPELINE_STAGES = ["Parse", "Normalize", "Validate", "Transform"] as const;
@@ -120,6 +121,13 @@ export function UploadWorkbench() {
     retry: false,
   });
 
+  const { data: onboardingStatus } = useQuery({
+    queryKey: ["onboarding-status"],
+    queryFn: () => apiClient.getOnboardingStatus(),
+    retry: false,
+    staleTime: 60 * 1000,
+  });
+
   useEffect(() => {
     if (suppliers.length === 0) {
       if (supplierId) setSupplierId("");
@@ -161,6 +169,15 @@ export function UploadWorkbench() {
 
     let uploadedOrderId: string;
     try {
+      if (onboardingStatus && !onboardingStatus.hasUpload) {
+        const name = selectedFile.name.toLowerCase();
+        const fileKind = name.endsWith(".pdf")
+          ? "pdf"
+          : name.endsWith(".xlsx") || name.endsWith(".xls")
+          ? "xlsx"
+          : "csv";
+        capture("first_upload_started", { file_kind: fileKind });
+      }
       const result = await apiClient.uploadPurchaseOrder(selectedFile, selectedSupplier.id);
       uploadedOrderId = result.order.id;
     } catch (error) {
