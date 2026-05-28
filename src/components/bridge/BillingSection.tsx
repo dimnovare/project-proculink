@@ -7,6 +7,7 @@ import {
   getBillingStatus,
 } from "@/lib/api-client";
 import type { BillingPlan, BillingStatus } from "@/types/procurement";
+import { capture } from "@/lib/analytics";
 
 const PLAN_META: Record<BillingPlan, {
   label: string;
@@ -222,6 +223,30 @@ export function BillingSection() {
           <a href="mailto:sales@proculink.com" style={{ fontSize: 12, color: "#8A93A5" }}>
             Need Enterprise? Contact sales
           </a>
+          {process.env.NEXT_PUBLIC_BOOK_DEMO_URL && (
+            <a
+              href={process.env.NEXT_PUBLIC_BOOK_DEMO_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={() => capture("book_demo_clicked", { from_route: "/settings", plan: "pilot" })}
+              style={{
+                marginTop: 4,
+                alignSelf: "flex-start",
+                background: "#FFFFFF",
+                color: "#0B1A2F",
+                border: "1px solid #C6CDDA",
+                borderLeft: "3px solid #1E66C9",
+                borderRadius: 7,
+                padding: "8px 14px",
+                fontSize: 12.5,
+                fontWeight: 600,
+                textDecoration: "none",
+                display: "inline-block",
+              }}
+            >
+              Book a 15-min demo →
+            </a>
+          )}
         </div>
       )}
 

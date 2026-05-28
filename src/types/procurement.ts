@@ -91,6 +91,8 @@ export interface Order {
   updatedAt: string;
   lines: OrderLine[];
   artifacts: Artifact[];
+  /** True when this order was created by the onboarding sample-order endpoint. */
+  isSample?: boolean;
 }
 
 export interface OrderSummary {

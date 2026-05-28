@@ -699,6 +699,48 @@ async function realGetDashboardStats(): Promise<DashboardStats> {
   return res.json() as Promise<DashboardStats>;
 }
 
+// ── Onboarding sample order ──────────────────────────────────────────────
+
+async function mockRunSampleOrder(): Promise<{ orderId: string; isSample: true }> {
+  await delay(800);
+  const orderId = `ord-sample-${Date.now()}`;
+  const now = new Date().toISOString();
+  const order: Order = {
+    id: orderId,
+    poNumber: `SAMPLE-${new Date().getFullYear()}-${String(Math.floor(Math.random() * 100000)).padStart(6, "0")}`,
+    supplierId: "00000000-0000-0000-0000-000000000000",
+    supplierName: "__sample__",
+    buyerName: "Sample Buyer",
+    orderDate: now.substring(0, 10),
+    currency: "EUR",
+    status: "ready",
+    sourceFileKey: "orgs/demo/orders/sample.csv",
+    createdAt: now,
+    updatedAt: now,
+    lines: [
+      { id: crypto.randomUUID(), lineNumber: 1, buyerItemCode: "SAMPLE-A1", supplierItemCode: "SUP-SAMPLE-A1", description: "Sample item A", quantity: 10, unit: "PCS", unitPrice: 9.99, confidence: 1.0, needsReview: false },
+      { id: crypto.randomUUID(), lineNumber: 2, buyerItemCode: "SAMPLE-B2", supplierItemCode: "SUP-SAMPLE-B2", description: "Sample item B", quantity: 4,  unit: "PCS", unitPrice: 24.50, confidence: 1.0, needsReview: false },
+    ],
+    artifacts: [],
+    isSample: true,
+  };
+  mockOrders.unshift(order);
+  return { orderId, isSample: true };
+}
+
+async function realRunSampleOrder(): Promise<{ orderId: string; isSample: true }> {
+  const res = await fetch(`${API_BASE_URL}/api/onboarding/sample-order`, {
+    method: "POST",
+    headers: await authHeader(),
+  });
+  if (!res.ok) {
+    const t = await res.text().catch(() => "");
+    throw new Error(t || `sample-order: ${res.status}`);
+  }
+  const data = await res.json() as { orderId: string; isSample?: boolean };
+  return { orderId: data.orderId, isSample: true };
+}
+
 // ── Exported API client ───────────────────────────────────────────────────
 
 export const apiClient = {
@@ -736,6 +778,9 @@ export const apiClient = {
   // Onboarding + dashboard
   getOnboardingStatus:    USE_MOCK ? mockGetOnboardingStatus   : realGetOnboardingStatus,
   getDashboardStats:      USE_MOCK ? mockGetDashboardStats     : realGetDashboardStats,
+
+  // ─── Onboarding sample order ───
+  runSampleOrder:         USE_MOCK ? mockRunSampleOrder        : realRunSampleOrder,
 };
 
 // ── Buyers ─────────────────────────────────────────────────────────────────

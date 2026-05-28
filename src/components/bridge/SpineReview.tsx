@@ -4,7 +4,7 @@
 // AC2: AI accept/reject, inline field editing, confirm dialog, keyboard nav.
 
 import type React from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useState, useRef, useEffect, useCallback, type KeyboardEvent } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api-client";
@@ -771,6 +771,10 @@ export function SpineReview({ orderId }: { orderId: string }) {
   // Derive nodes from live order or fall back to INITIAL_NODES for mock
   const nodes = order ? buildNodesFromOrder(order) : INITIAL_NODES;
 
+  // Sample order banner: query param OR order.isSample
+  const searchParams = useSearchParams();
+  const isSample = searchParams.get("sample") === "1" || order?.isSample === true;
+
   // ── State ──────────────────────────────────────────────────────────────────
   const [fieldValues, setFieldValues]             = useState<Record<string, string>>({});
   const [editingId, setEditingId]                 = useState<string | null>(null);
@@ -966,6 +970,23 @@ export function SpineReview({ orderId }: { orderId: string }) {
 
       {/* Body */}
       <div style={{ flex: 1, position: "relative", overflow: "auto" }}>
+          {isSample && (
+            <div
+              role="note"
+              aria-label="Sample order"
+              style={{
+                background: "#FFF8E1",
+                border: "1px solid #F6D88E",
+                color: "#7A5A0A",
+                padding: "10px 14px",
+                borderRadius: 8,
+                fontSize: 13,
+                margin: "16px 16px 0",
+              }}
+            >
+              This is a sample order. It uses an example CSV and doesn&apos;t count toward your monthly quota.
+            </div>
+          )}
         <EdgeRails className="min-w-[1120px]">
           <div className="h-full overflow-y-auto">
             {/* Desktop 3-column grid */}

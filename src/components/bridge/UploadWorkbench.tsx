@@ -103,6 +103,8 @@ export function UploadWorkbench() {
   const timerRefs = useRef<ReturnType<typeof setTimeout>[]>([]);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const router = useRouter();
+  const [sampleLoading, setSampleLoading] = useState(false);
+  const [sampleError, setSampleError] = useState<string | null>(null);
 
   const { data: billing, isLoading: billingLoading, isError: billingError } = useQuery({
     queryKey: ["billing-status"],
@@ -210,6 +212,23 @@ export function UploadWorkbench() {
     timerRefs.current.push(total);
   }
 
+  async function handleSample() {
+    if (sampleLoading || uploading) return;
+    capture("sample_order_started", { from_route: "/upload" });
+    setSampleError(null);
+    setSampleLoading(true);
+    try {
+      const { orderId } = await apiClient.runSampleOrder();
+      const target = isApiMockMode
+        ? `/inbox/${encodeURIComponent(orderId)}?sample=1`
+        : `/orders/${encodeURIComponent(orderId)}?sample=1`;
+      router.push(target);
+    } catch (err) {
+      setSampleError(err instanceof Error ? err.message : "Could not start sample run.");
+      setSampleLoading(false);
+    }
+  }
+
   // Cleanup timers on unmount
   useEffect(() => () => { timerRefs.current.forEach(clearTimeout); }, []);
 
@@ -244,6 +263,45 @@ export function UploadWorkbench() {
         <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_320px]">
           {/* Left column: dropzone + recent */}
           <div className="flex min-w-0 flex-col gap-4">
+            {/* Phase 10.3 — Pilot Book-a-demo CTA */}
+            {billing?.plan === "pilot" && process.env.NEXT_PUBLIC_BOOK_DEMO_URL && (
+              <div
+                style={{
+                  background: "#F6F7FA",
+                  border: "1px solid #E2E6EE",
+                  borderLeft: "3px solid #1E66C9",
+                  borderRadius: 8,
+                  padding: "12px 16px",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: 12,
+                  flexWrap: "wrap",
+                }}
+              >
+                <p style={{ margin: 0, fontSize: 13.5, color: "#3D4A5C" }}>
+                  On Pilot? Get a guided 15-minute walkthrough with the team.
+                </p>
+                <a
+                  href={process.env.NEXT_PUBLIC_BOOK_DEMO_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={() => capture("book_demo_clicked", { from_route: "/upload", plan: "pilot" })}
+                  style={{
+                    background: "#0B1A2F",
+                    color: "#FFFFFF",
+                    padding: "8px 14px",
+                    borderRadius: 6,
+                    fontSize: 13,
+                    fontWeight: 600,
+                    textDecoration: "none",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  Book a 15-min demo →
+                </a>
+              </div>
+            )}
             {/* Drop zone — XCard edge="top" with link-spine gradient */}
             <XCard
               edge="top"
@@ -379,6 +437,42 @@ export function UploadWorkbench() {
                 <p className="text-[11.5px]" style={{ color: "#8A93A5" }}>
                   Supports CSV, XLSX, and PDF purchase orders. Max 25MB.
                 </p>
+              </div>
+            </XCard>
+
+            {/* Phase 6.3 — Try with sample order */}
+            <XCard edge="left" edgeColor="#6F4FCE">
+              <div
+                className="flex flex-wrap items-center justify-between gap-3 px-4 py-3"
+              >
+                <div style={{ minWidth: 0, flex: "1 1 260px" }}>
+                  <p className="text-[13px] font-semibold" style={{ color: "#0B1A2F" }}>
+                    Don&apos;t have a purchase order handy?
+                  </p>
+                  <p className="text-[12px] mt-1" style={{ color: "#56627A" }}>
+                    Run a sample order with an example CSV. It won&apos;t count toward your monthly quota.
+                  </p>
+                  {sampleError && (
+                    <p className="mt-2 text-[12px]" style={{ color: "#C53A3A" }}>
+                      {sampleError}
+                    </p>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  onClick={handleSample}
+                  disabled={sampleLoading || uploading}
+                  className="rounded-[6px] px-3 py-2 text-[12.5px] font-semibold transition-all"
+                  style={{
+                    background: sampleLoading || uploading ? "#EFF2F7" : "#FFFFFF",
+                    color: sampleLoading || uploading ? "#8A93A5" : "#6F4FCE",
+                    border: "1px solid #C7B5F0",
+                    cursor: sampleLoading || uploading ? "not-allowed" : "pointer",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {sampleLoading ? "Starting sample…" : "Try with sample order →"}
+                </button>
               </div>
             </XCard>
 
