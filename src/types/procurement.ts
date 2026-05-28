@@ -8,6 +8,15 @@ export interface SupplierProfile {
 
 // ── Core types ────────────────────────────────────────────────────────────
 
+export interface BuyerDto {
+  id: string;
+  name: string;
+  code: string;
+  orderCount: number;
+  lastOrderAge: string | null;
+  formats: string[];
+}
+
 export interface Supplier {
   id: string;
   name: string;

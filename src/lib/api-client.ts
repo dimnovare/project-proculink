@@ -737,6 +737,199 @@ export const apiClient = {
   getDashboardStats:      USE_MOCK ? mockGetDashboardStats     : realGetDashboardStats,
 };
 
+// ── Buyers ─────────────────────────────────────────────────────────────────
+
+export async function getBuyers(): Promise<import("@/types/procurement").BuyerDto[]> {
+  if (USE_MOCK) {
+    return [
+      { id: "b1", name: "Heinrich Industries GmbH", code: "HEI", orderCount: 1820, lastOrderAge: "2m",  formats: ["PDF", "XLSX"] },
+      { id: "b2", name: "Nordmark Logistics A/S",   code: "NRD", orderCount: 1104, lastOrderAge: "14m", formats: ["cXML", "EDI"] },
+      { id: "b3", name: "Steelhouse Construction",  code: "SHC", orderCount: 812,  lastOrderAge: "1h",  formats: ["XLSX", "CSV"] },
+    ];
+  }
+  const headers = await authHeader();
+  const res = await fetch(`${API_BASE_URL}/api/buyers`, { headers });
+  if (!res.ok) throw new Error(`buyers: ${res.status}`);
+  return res.json();
+}
+
+export async function createBuyer(name: string, code: string): Promise<import("@/types/procurement").BuyerDto> {
+  const headers = await authHeader();
+  const res = await fetch(`${API_BASE_URL}/api/buyers`, {
+    method: "POST",
+    headers: { ...headers, "Content-Type": "application/json" },
+    body: JSON.stringify({ name, code }),
+  });
+  if (!res.ok) throw new Error(`buyers/create: ${res.status}`);
+  return res.json();
+}
+
+export async function updateBuyer(id: string, name: string, code: string): Promise<import("@/types/procurement").BuyerDto> {
+  const headers = await authHeader();
+  const res = await fetch(`${API_BASE_URL}/api/buyers/${id}`, {
+    method: "PUT",
+    headers: { ...headers, "Content-Type": "application/json" },
+    body: JSON.stringify({ name, code }),
+  });
+  if (!res.ok) throw new Error(`buyers/update: ${res.status}`);
+  return res.json();
+}
+
+export async function deleteBuyer(id: string): Promise<void> {
+  const headers = await authHeader();
+  const res = await fetch(`${API_BASE_URL}/api/buyers/${id}`, { method: "DELETE", headers });
+  if (!res.ok) throw new Error(`buyers/delete: ${res.status}`);
+}
+
+// ── Audit log ──────────────────────────────────────────────────────────────
+
+export interface AuditLogEntry {
+  id: string;
+  ts: string;
+  orderId: string | null;
+  poNumber: string | null;
+  buyerName: string | null;
+  supplierName: string | null;
+  format: string | null;
+  action: string;
+  actorType: "user" | "system" | "ai";
+  actorName: string;
+  actorInitials: string;
+  message: string;
+  payload: unknown;
+}
+
+export interface AuditLogPage {
+  events: AuditLogEntry[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
+export async function getAuditLog(page = 1, pageSize = 50): Promise<AuditLogPage> {
+  if (USE_MOCK) {
+    return {
+      events: [
+        { id: "e1", ts: new Date(Date.now() - 2*60000).toISOString(), orderId: "008412", poNumber: "PO-2026-008412", buyerName: "Heinrich Industries", supplierName: "Acme Components", format: "PDF", action: "flagged", actorType: "ai", actorName: "Extraction engine", actorInitials: "AI", message: "3 validation errors flagged", payload: null },
+        { id: "e2", ts: new Date(Date.now() - 14*60000).toISOString(), orderId: "nrd9981", poNumber: "PO-NRD-9981", buyerName: "Nordmark Logistics", supplierName: "BoltWorks BV", format: "cXML", action: "created", actorType: "system", actorName: "System", actorInitials: "SY", message: "Order created from upload", payload: null },
+      ],
+      total: 2,
+      page: 1,
+      pageSize: 50,
+    };
+  }
+  const headers = await authHeader();
+  const res = await fetch(`${API_BASE_URL}/api/audit?page=${page}&pageSize=${pageSize}`, { headers });
+  if (!res.ok) throw new Error(`audit: ${res.status}`);
+  return res.json();
+}
+
+// ── Validation rules ───────────────────────────────────────────────────────
+
+export interface RuleDto {
+  id: string;
+  name: string;
+  description: string;
+  severity: "error" | "warning" | "info";
+  entity: string;
+  enabled: boolean;
+  autoBlock: boolean;
+  triggerCount: number;
+  lastTriggered: string | null;
+  createdAt: string;
+}
+
+export async function getRules(): Promise<RuleDto[]> {
+  if (USE_MOCK) return []; // ValidationRules.tsx keeps its own RULES mock array
+  const headers = await authHeader();
+  const res = await fetch(`${API_BASE_URL}/api/rules`, { headers });
+  if (!res.ok) throw new Error(`rules: ${res.status}`);
+  return res.json();
+}
+
+export async function createRule(payload: Omit<RuleDto, "id"|"triggerCount"|"lastTriggered"|"createdAt"> & { enabled: boolean; autoBlock: boolean }): Promise<RuleDto> {
+  const headers = await authHeader();
+  const res = await fetch(`${API_BASE_URL}/api/rules`, {
+    method: "POST",
+    headers: { ...headers, "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) throw new Error(`rules/create: ${res.status}`);
+  return res.json();
+}
+
+export async function updateRule(id: string, payload: Omit<RuleDto, "id"|"triggerCount"|"lastTriggered"|"createdAt">): Promise<RuleDto> {
+  const headers = await authHeader();
+  const res = await fetch(`${API_BASE_URL}/api/rules/${id}`, {
+    method: "PUT",
+    headers: { ...headers, "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) throw new Error(`rules/update: ${res.status}`);
+  return res.json();
+}
+
+export async function toggleRule(id: string): Promise<RuleDto> {
+  const headers = await authHeader();
+  const res = await fetch(`${API_BASE_URL}/api/rules/${id}/toggle`, { method: "PATCH", headers });
+  if (!res.ok) throw new Error(`rules/toggle: ${res.status}`);
+  return res.json();
+}
+
+export async function deleteRule(id: string): Promise<void> {
+  const headers = await authHeader();
+  const res = await fetch(`${API_BASE_URL}/api/rules/${id}`, { method: "DELETE", headers });
+  if (!res.ok) throw new Error(`rules/delete: ${res.status}`);
+}
+
+// ── Output templates ───────────────────────────────────────────────────────
+
+export interface TemplateDto {
+  id: string;
+  name: string;
+  format: string;
+  version: string;
+  suppliersCount: number;
+  lastUsed: string;
+  config: unknown;
+}
+
+export async function getTemplates(): Promise<TemplateDto[]> {
+  if (USE_MOCK) return []; // templates page keeps its own mock array for demo mode
+  const headers = await authHeader();
+  const res = await fetch(`${API_BASE_URL}/api/templates`, { headers });
+  if (!res.ok) throw new Error(`templates: ${res.status}`);
+  return res.json();
+}
+
+export async function createTemplate(payload: Pick<TemplateDto, "name"|"format"|"version"> & { config?: unknown }): Promise<TemplateDto> {
+  const headers = await authHeader();
+  const res = await fetch(`${API_BASE_URL}/api/templates`, {
+    method: "POST",
+    headers: { ...headers, "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) throw new Error(`templates/create: ${res.status}`);
+  return res.json();
+}
+
+export async function updateTemplate(id: string, payload: Pick<TemplateDto, "name"|"format"|"version"> & { config?: unknown }): Promise<TemplateDto> {
+  const headers = await authHeader();
+  const res = await fetch(`${API_BASE_URL}/api/templates/${id}`, {
+    method: "PUT",
+    headers: { ...headers, "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) throw new Error(`templates/update: ${res.status}`);
+  return res.json();
+}
+
+export async function deleteTemplate(id: string): Promise<void> {
+  const headers = await authHeader();
+  const res = await fetch(`${API_BASE_URL}/api/templates/${id}`, { method: "DELETE", headers });
+  if (!res.ok) throw new Error(`templates/delete: ${res.status}`);
+}
+
 // ── Billing ────────────────────────────────────────────────────────────────
 
 export async function getBillingStatus(): Promise<BillingStatus> {
