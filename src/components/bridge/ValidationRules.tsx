@@ -82,8 +82,8 @@ const RULES: Rule[] = [
   },
   {
     id: "r6",
-    name: "Supplier dock inactive",
-    description: "The assigned supplier dock has been deactivated. Route will be blocked.",
+    name: "Supplier inactive",
+    description: "The assigned supplier has been deactivated. Route will be blocked.",
     severity: "error",
     entity: "Supplier",
     triggers: 3,
@@ -138,7 +138,7 @@ const RULES: Rule[] = [
   {
     id: "r11",
     name: "Buyer not recognised",
-    description: "Buyer identifier not present in any buyer dock configuration.",
+    description: "Buyer identifier not present in any buyer configuration.",
     severity: "error",
     entity: "Buyer",
     triggers: 1,

@@ -47,11 +47,11 @@ const WIRES: Wire[] = [
 ];
 
 const KPIS = [
-  { value: "1,209",  label: "Crossings today",      sub: "+18% vs prev",   accent: "up" },
-  { value: "1m 42s", label: "Avg crossing time",    sub: "−22% vs prev",   accent: "up" },
+  { value: "1,209",  label: "Orders today",         sub: "+18% vs prev",     accent: "up"   },
+  { value: "1m 42s", label: "Avg processing time",  sub: "−22% vs prev",     accent: "up"   },
   { value: "3",      label: "Urgent exceptions",    sub: "4 urgent 24h ago", accent: "warn" },
-  { value: "84%",    label: "Auto-processed",       sub: "+6% this quarter", accent: "up" },
-  { value: "€4.20",  label: "Cost per crossing",    sub: "vs €6.80 prev",   accent: "up" },
+  { value: "84%",    label: "Auto-processed",       sub: "+6% this quarter", accent: "up"   },
+  { value: "€4.20",  label: "Cost per order",       sub: "vs €6.80 prev",    accent: "up"   },
 ];
 
 const IN_TRANSIT = [

@@ -17,18 +17,18 @@ export default function BuyersPage() {
     <div className="flex flex-col h-full min-h-0 overflow-hidden" style={{ background: "#F6F7FA" }}>
       <div className="flex flex-col items-start gap-3 px-4 py-4 sm:px-6 sm:flex-row sm:items-end sm:gap-4 flex-shrink-0" style={{ borderBottom: "1px solid #E2E6EE", background: "#FFFFFF" }}>
         <div>
-          <h1 className="text-[26px] font-semibold tracking-[-0.02em]" style={{ fontFamily: "'Bricolage Grotesque', Inter, sans-serif", color: "#0B1A2F" }}>Buyer docks</h1>
+          <h1 className="text-[26px] font-semibold tracking-[-0.02em]" style={{ fontFamily: "'Bricolage Grotesque', Inter, sans-serif", color: "#0B1A2F" }}>Buyers</h1>
           <p className="text-[13px] mt-1" style={{ color: "#56627A" }}>{BUYERS.length} active buyers</p>
         </div>
-        <button className="flex w-full items-center justify-center gap-1.5 rounded-[6px] px-3 text-[12.5px] font-medium sm:ml-auto sm:w-auto" style={{ height: 32, background: "#0B1A2F", color: "#FFFFFF", border: 0 }}>+ Add buyer dock</button>
+        <button className="flex w-full items-center justify-center gap-1.5 rounded-[6px] px-3 text-[12.5px] font-medium sm:ml-auto sm:w-auto" style={{ height: 32, background: "#0B1A2F", color: "#FFFFFF", border: 0 }}>+ Add buyer</button>
       </div>
       <div className="flex-1 overflow-auto p-4 sm:p-5">
         {BUYERS.length === 0 ? (
           <EmptyState
             icon="◎"
-            title="No buyer docks yet"
-            sub="Add your first buyer dock to start receiving and bridging purchase orders."
-            action={{ label: "+ Add buyer dock", onClick: () => {} }}
+            title="No buyers yet"
+            sub="Add your first buyer to start receiving and routing purchase orders."
+            action={{ label: "+ Add buyer", onClick: () => {} }}
           />
         ) : (
         <div className="flex flex-col gap-3">
@@ -46,10 +46,10 @@ export default function BuyersPage() {
                 </div>
                 <div className="text-left sm:text-right">
                   <p style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 20, fontWeight: 700, color: "#0B1A2F", lineHeight: 1 }}>{b.orders.toLocaleString()}</p>
-                  <p style={{ fontSize: 11, color: "#8A93A5", marginTop: 2 }}>total crossings</p>
+                  <p style={{ fontSize: 11, color: "#8A93A5", marginTop: 2 }}>total orders</p>
                 </div>
                 <div className="text-left sm:text-right" style={{ minWidth: 70 }}>
-                  <p style={{ fontSize: 11, color: "#8A93A5" }}>last crossing</p>
+                  <p style={{ fontSize: 11, color: "#8A93A5" }}>last order</p>
                   <p style={{ fontSize: 12, fontWeight: 500, color: "#56627A" }}>{b.lastCrossing} ago</p>
                 </div>
                 <span className="hidden opacity-0 group-hover:opacity-100 transition-opacity text-[14px] sm:inline" style={{ color: "#C6CDDA" }}>→</span>

@@ -61,7 +61,7 @@ export function SupplierDockProfile({ id }: { id: string }) {
           className="text-[12.5px] font-medium mt-1 flex-shrink-0"
           style={{ color: "#56627A", background: "none", border: "none", cursor: "pointer" }}
         >
-          ← Supplier docks
+          ← Suppliers
         </button>
 
         <div className="flex min-w-0 items-center gap-3">

@@ -47,20 +47,20 @@ function useAutoCrumb(): ReactNode {
   const seg = pathname.split("/").filter(Boolean);
 
   const LABELS: Record<string, string> = {
-    bridge:    "Bridge",
+    bridge:    "Dashboard",
     inbox:     "Inbox",
     upload:    "Upload",
     drafts:    "Drafts",
     orders:    "Orders",
     settings:  "Settings",
     library:   "Library",
-    suppliers: "Supplier docks",
-    buyers:    "Buyer docks",
+    suppliers: "Suppliers",
+    buyers:    "Buyers",
     mappings:  "Mappings",
     rules:     "Rules",
     templates: "Output templates",
     operations: "Operations",
-    log:       "Crossings log",
+    log:       "Delivery log",
     connectors: "Connectors",
     webhooks:  "Webhooks",
   };

@@ -19,7 +19,7 @@ export default function DraftsPage() {
       </div>
       <div className="flex-1 overflow-auto p-5">
         {DRAFTS.length === 0 ? (
-          <EmptyState title="No drafts yet" sub="Save a crossing in progress to pick it up later." action={{ label: "Go to Inbox", onClick: () => router.push("/inbox") }} icon="⊘" />
+          <EmptyState title="No drafts yet" sub="Save an order in progress to pick it up later." action={{ label: "Go to Inbox", onClick: () => router.push("/inbox") }} icon="⊘" />
         ) : (
           <div className="flex flex-col gap-3">
             {DRAFTS.map((d) => (

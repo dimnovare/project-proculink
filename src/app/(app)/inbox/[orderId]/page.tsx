@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { SpineReview } from "@/components/bridge/SpineReview";
 
 export const metadata: Metadata = {
-  title: "Canonical Spine Review — ProcuLink",
+  title: "Order Review — ProcuLink",
 };
 
 interface Props {

@@ -294,7 +294,7 @@ export function InboxView() {
             Inbox
           </h1>
           <p className="text-[13px] mt-1" style={{ color: "#56627A" }}>
-            {rows.length.toLocaleString()} of {ALL_ORDERS.length.toLocaleString()} crossings
+            {rows.length.toLocaleString()} of {ALL_ORDERS.length.toLocaleString()} orders
             {selectedCount > 0 && <span style={{ color: "#1E66C9", marginLeft: 8 }}>· {selectedCount} selected</span>}
             <span style={{ color: "#C6CDDA", margin: "0 6px" }}>·</span>last sync 14s ago
           </p>
@@ -335,7 +335,7 @@ export function InboxView() {
             className="flex items-center gap-1.5 rounded-[6px] px-3 text-[12.5px] font-medium"
             style={{ height: 32, background: "#0B1A2F", color: "#FFFFFF", border: 0 }}
           >
-            + New crossing
+            + New order
           </button>
         </div>
       </div>
@@ -425,7 +425,7 @@ export function InboxView() {
           className="text-[11px] font-mono flex-shrink-0 text-right"
           style={{ color: "#56627A", width: 130 }}
         >
-          last 2h · {rows.length > 100 ? "100+" : rows.length} crossings
+          last 2h · {rows.length > 100 ? "100+" : rows.length} orders
         </span>
       </div>
 
@@ -435,7 +435,7 @@ export function InboxView() {
           {rows.length === 0 && (
             <div className="flex flex-col items-center justify-center py-16 px-6 text-center gap-3">
               <div style={{ fontSize: 28, color: "#C6CDDA" }}>⊘</div>
-              <p className="text-[14px] font-semibold" style={{ color: "#0B1A2F" }}>No crossings match this filter</p>
+              <p className="text-[14px] font-semibold" style={{ color: "#0B1A2F" }}>No orders match this filter</p>
               <p className="text-[13px]" style={{ color: "#56627A" }}>Try a different status filter above.</p>
             </div>
           )}
@@ -579,7 +579,7 @@ export function InboxView() {
               <tr>
                 <td colSpan={columns.length} style={{ textAlign: "center", padding: "64px 0", color: "#8A93A5" }}>
                   <div style={{ fontSize: 28, marginBottom: 8 }}>⊘</div>
-                  <p style={{ fontSize: 14, fontWeight: 600, color: "#0B1A2F" }}>No crossings match this filter</p>
+                  <p style={{ fontSize: 14, fontWeight: 600, color: "#0B1A2F" }}>No orders match this filter</p>
                   <p style={{ fontSize: 13, marginTop: 4 }}>Try a different status filter above.</p>
                 </td>
               </tr>

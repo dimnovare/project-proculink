@@ -105,7 +105,7 @@ const LOG: LogEntry[] = [
     fmt: "EMAIL",
     event: "reviewed",
     actor: { initials: "MK", name: "Marius Klein", type: "user" },
-    message: "Approved for crossing after manual review",
+    message: "Approved for delivery after manual review",
   },
   {
     id: "e6",
@@ -249,7 +249,7 @@ export function CrossingsLog() {
               color: "#0B1A2F",
             }}
           >
-            Crossings Log
+            Delivery Log
           </h1>
           <p className="text-[13px] mt-1" style={{ color: "#56627A" }}>
             Append-only audit trail · {LOG.length} events today

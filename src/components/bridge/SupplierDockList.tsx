@@ -75,7 +75,7 @@ export function SupplierDockList() {
 
   const addButtonLabel = !billingError && billing && !billing.canAddSupplier
     ? "Supplier limit reached"
-    : "+ Add supplier dock";
+    : "+ Add supplier";
 
   return (
     <div className="flex flex-col h-full min-h-0 overflow-hidden" style={{ background: "#F6F7FA" }}>
@@ -89,10 +89,10 @@ export function SupplierDockList() {
             className="text-[26px] font-semibold tracking-[-0.02em]"
             style={{ fontFamily: "'Bricolage Grotesque', Inter, sans-serif", color: "#0B1A2F" }}
           >
-            Supplier docks
+            Suppliers
           </h1>
           <p className="text-[13px] mt-1" style={{ color: "#56627A" }}>
-            {isLoading ? "Loading…" : `${suppliers.length} active dock${suppliers.length === 1 ? "" : "s"}`}
+            {isLoading ? "Loading…" : `${suppliers.length} active supplier${suppliers.length === 1 ? "" : "s"}`}
           </p>
         </div>
         <div className="w-full sm:ml-auto sm:w-auto">
@@ -123,7 +123,7 @@ export function SupplierDockList() {
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <p className="text-[13px] font-semibold" style={{ color: "#0B1A2F" }}>
-                  Your {billing.plan} plan includes {billing.supplierLimit} supplier dock{billing.supplierLimit === 1 ? "" : "s"}.
+                  Your {billing.plan} plan includes {billing.supplierLimit} supplier{billing.supplierLimit === 1 ? "" : "s"}.
                 </p>
                 <p className="mt-1 text-[12px] leading-5" style={{ color: "#7A4D0B" }}>
                   Existing supplier flows remain viewable. Upgrade when you are ready to add another supplier route.
@@ -158,7 +158,7 @@ export function SupplierDockList() {
           >
             <div className="flex items-start justify-between gap-3 px-4 py-3" style={{ borderBottom: "1px solid #E2E6EE", background: "#F6F7FA" }}>
               <div>
-                <p className="text-[13px] font-semibold" style={{ color: "#0B1A2F" }}>New supplier dock</p>
+                <p className="text-[13px] font-semibold" style={{ color: "#0B1A2F" }}>New supplier</p>
                 <p className="mt-1 text-[12px]" style={{ color: "#56627A" }}>Name the supplier. You can configure mappings and delivery after.</p>
               </div>
               <button
@@ -231,9 +231,9 @@ export function SupplierDockList() {
             className="rounded-[8px] px-6 py-10 text-center"
             style={{ border: "1px dashed #D5DAEA", background: "#FFFFFF" }}
           >
-            <p className="text-[14px] font-semibold" style={{ color: "#0B1A2F" }}>No supplier docks yet</p>
+            <p className="text-[14px] font-semibold" style={{ color: "#0B1A2F" }}>No suppliers yet</p>
             <p className="mt-1 text-[12.5px]" style={{ color: "#56627A" }}>
-              Add your first supplier dock to start routing purchase orders.
+              Add your first supplier to start routing purchase orders.
             </p>
             {canAddSupplier && (
               <button
@@ -241,7 +241,7 @@ export function SupplierDockList() {
                 className="mt-4 h-9 rounded-[6px] px-4 text-[12.5px] font-semibold"
                 style={{ border: "none", background: "#0B1A2F", color: "#FFFFFF" }}
               >
-                + Add supplier dock
+                + Add supplier
               </button>
             )}
           </div>

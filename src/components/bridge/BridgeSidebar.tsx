@@ -11,12 +11,12 @@ const NAV: Array<{
   items: Array<{ label: string; href: string; badge?: number }>;
 }> = [
   {
-    items: [{ label: "Bridge", href: "/bridge" }],
+    items: [{ label: "Dashboard", href: "/bridge" }],
   },
   {
     group: "Inbox",
     items: [
-      { label: "All crossings",   href: "/inbox" },
+      { label: "All orders",      href: "/inbox" },
       { label: "New",             href: "/inbox?status=new" },
       { label: "Needs review",    href: "/inbox?status=review", badge: 3 },
       { label: "Failed",          href: "/inbox?status=failed", badge: 2 },
@@ -34,8 +34,8 @@ const NAV: Array<{
   {
     group: "Library",
     items: [
-      { label: "Supplier docks",     href: "/library/suppliers" },
-      { label: "Buyer docks",        href: "/library/buyers" },
+      { label: "Suppliers",          href: "/library/suppliers" },
+      { label: "Buyers",             href: "/library/buyers" },
       { label: "Mappings",           href: "/library/mappings" },
       { label: "Rules",              href: "/library/rules" },
       { label: "Output templates",   href: "/library/templates" },
@@ -44,7 +44,7 @@ const NAV: Array<{
   {
     group: "Operations",
     items: [
-      { label: "Crossings log", href: "/operations/log" },
+      { label: "Delivery log",  href: "/operations/log" },
       { label: "Connectors",    href: "/operations/connectors" },
       { label: "Webhooks",      href: "/operations/webhooks" },
     ],
@@ -186,7 +186,7 @@ export function BridgeSidebar({ onNavigate }: BridgeSidebarProps) {
         ))}
       </nav>
 
-      {/* ── Footer — bridge health ────────────────────────────────── */}
+      {/* ── Footer — system health ────────────────────────────────── */}
       <div
         className="flex items-center gap-2 px-4 py-3"
         style={{ borderTop: "1px solid #1C2F49", flexShrink: 0 }}
@@ -196,7 +196,7 @@ export function BridgeSidebar({ onNavigate }: BridgeSidebarProps) {
           style={{ width: 7, height: 7, background: "#2E8E3A" }}
         />
         <span className="text-[11.5px]" style={{ color: "#7C8DA6" }}>
-          Bridge healthy · 12/min
+          System healthy · 12/min
         </span>
       </div>
     </aside>

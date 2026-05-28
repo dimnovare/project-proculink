@@ -1,2 +1,2 @@
 import { BridgePageLoader } from "@/components/bridge/BridgeLoader";
-export default function Loading() { return <BridgePageLoader label="Loading buyer docks…" />; }
+export default function Loading() { return <BridgePageLoader label="Loading buyers…" />; }

@@ -149,9 +149,9 @@ export function UploadWorkbench() {
     if (!selectedSupplier?.id) {
       setUploadError({
         code: "supplier_required",
-        title: "Choose a supplier dock first.",
+        title: "Choose a supplier first.",
         message: "Add a supplier in the library before uploading a purchase order.",
-        cta: "Open supplier docks",
+        cta: "Open suppliers",
       });
       return;
     }
@@ -649,7 +649,7 @@ export function UploadWorkbench() {
                       className="rounded-[6px] px-3 py-2 text-[12px]"
                       style={{ border: "1px solid #E2E6EE", background: "#F6F7FA", color: "#56627A" }}
                     >
-                      Loading supplier docks...
+                      Loading suppliers...
                     </div>
                   )}
                   {suppliersError && !suppliersLoading && (
@@ -665,7 +665,7 @@ export function UploadWorkbench() {
                       className="rounded-[6px] px-3 py-2.5 text-[12px] leading-5"
                       style={{ border: "1px solid #E2E6EE", background: "#F6F7FA", color: "#56627A" }}
                     >
-                      No supplier docks yet.{" "}
+                      No suppliers yet.{" "}
                       <Link href="/library/suppliers" className="font-medium underline" style={{ color: "#1E66C9" }}>
                         Add a supplier
                       </Link>{" "}
@@ -877,7 +877,7 @@ export function UploadWorkbench() {
                 </p>
                 <p className="text-[11.5px] leading-relaxed" style={{ color: "#56627A" }}>
                   Unstructured PDFs and emails are parsed by our extraction engine.
-                  Field confidence is shown per-zone in the Spine Review.
+                  Field confidence is shown per-zone in the Order Review.
                 </p>
               </div>
             </XCard>

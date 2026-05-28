@@ -34,7 +34,7 @@ const STEPS: Step[] = [
   {
     id: "supplier",
     label: "Add your first supplier",
-    description: "Create a supplier dock to hold delivery config and item mappings",
+    description: "Create a supplier to hold delivery config and item mappings",
     href: "/library/suppliers",
     isDone: (_s, sc) => sc > 0,
   },

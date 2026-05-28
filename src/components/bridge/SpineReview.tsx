@@ -527,7 +527,7 @@ function ConfirmDialog({ exceptionCount, onConfirm, onCancel, supplierName, outp
       <div style={{ position: "fixed", top: "50%", left: "50%", transform: "translate(-50%,-50%)", width: 440, background: "#FFFFFF", borderRadius: 12, boxShadow: "0 24px 64px rgba(11,26,47,0.22)", border: "1px solid #E2E6EE", zIndex: 9991, overflow: "hidden" }}>
         {/* Header */}
         <div style={{ padding: "20px 24px 0" }}>
-          <div style={{ fontFamily: "'Bricolage Grotesque',Inter,sans-serif", fontSize: 18, fontWeight: 700, color: "#0B1A2F", marginBottom: 6 }}>Cross the bridge?</div>
+          <div style={{ fontFamily: "'Bricolage Grotesque',Inter,sans-serif", fontSize: 18, fontWeight: 700, color: "#0B1A2F", marginBottom: 6 }}>Send order to supplier?</div>
           <p style={{ fontSize: 13, color: "#56627A", lineHeight: 1.55, margin: 0 }}>
             This will deliver the transformed {outputFormat.toUpperCase()} order to <strong style={{ color: "#0B1A2F" }}>{supplierName}</strong>
           </p>
@@ -580,7 +580,7 @@ function ConfirmDialog({ exceptionCount, onConfirm, onCancel, supplierName, outp
             disabled={!checked}
             style={{ padding: "9px 24px", borderRadius: 7, fontSize: 13, fontWeight: 600, background: checked ? "#0B1A2F" : "#C6CDDA", color: "#FFFFFF", border: "none", cursor: checked ? "pointer" : "not-allowed", display: "flex", alignItems: "center", gap: 8, transition: "background 150ms" }}
           >
-            Cross the bridge →
+            Send to supplier →
             <span style={{ width: 10, height: 10, borderRadius: 2, background: "linear-gradient(90deg,#1E66C9,#2E8E3A)", display: "inline-block" }} />
           </button>
         </div>
@@ -821,7 +821,7 @@ export function SpineReview({ orderId }: { orderId: string }) {
   }, []);
 
   const handleSaveDraft = useCallback(() => {
-    setFlowNotice(`Draft saved locally for crossing ${orderId}. Live draft persistence is verified in Group J.`);
+    setFlowNotice(`Draft saved locally for order ${orderId}. Live draft persistence is verified in Group J.`);
   }, [orderId]);
 
   // ── Loading / error gates (must be after all hooks) ────────────────────────
@@ -893,7 +893,7 @@ export function SpineReview({ orderId }: { orderId: string }) {
               onClick={() => !crossed && setShowConfirm(true)}
               style={{ height: 32, padding: "0 16px", borderRadius: 6, fontSize: 12.5, fontWeight: 600, background: crossed ? "#2E8E3A" : "#0B1A2F", color: "#FFFFFF", border: "none", cursor: crossed ? "default" : "pointer", display: "flex", alignItems: "center", gap: 8, transition: "background 200ms" }}
             >
-              {crossed ? "✓ Crossed" : "Cross the bridge"}
+              {crossed ? "✓ Sent" : "Send to supplier"}
               {!crossed && <span style={{ width: 10, height: 10, borderRadius: 2, background: "linear-gradient(90deg,#1E66C9,#2E8E3A)", display: "inline-block" }} />}
             </button>
           </div>

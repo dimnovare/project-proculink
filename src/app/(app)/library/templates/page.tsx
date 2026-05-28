@@ -20,7 +20,7 @@ export default function TemplatesPage() {
       <div className="flex flex-col items-start gap-3 px-4 py-4 sm:px-6 sm:flex-row sm:items-end sm:gap-4 flex-shrink-0" style={{ borderBottom: "1px solid #E2E6EE", background: "#FFFFFF" }}>
         <div>
           <h1 className="text-[26px] font-semibold tracking-[-0.02em]" style={{ fontFamily: "'Bricolage Grotesque', Inter, sans-serif", color: "#0B1A2F" }}>Output templates</h1>
-          <p className="text-[13px] mt-1" style={{ color: "#56627A" }}>{TEMPLATES.length} templates · used across {TEMPLATES.reduce((a,t)=>a+t.suppliers,0)} supplier docks</p>
+          <p className="text-[13px] mt-1" style={{ color: "#56627A" }}>{TEMPLATES.length} templates · used across {TEMPLATES.reduce((a,t)=>a+t.suppliers,0)} suppliers</p>
         </div>
         <button
           onClick={() => {
@@ -44,7 +44,7 @@ export default function TemplatesPage() {
           <EmptyState
             icon="⊟"
             title="No output templates"
-            sub="Create a template to define how purchase orders are formatted for each supplier dock."
+            sub="Create a template to define how purchase orders are formatted for each supplier."
             action={{ label: "+ New template", onClick: () => {} }}
           />
         ) : (
