@@ -1,0 +1,39 @@
+export const metadata = {
+  title: "PO field mapping basics — ProcuLink Help",
+  description: "Map your CSV columns to the canonical purchase-order fields ProcuLink expects.",
+};
+
+# PO field mapping basics
+
+A mapping tells ProcuLink which column in your source file corresponds to each canonical purchase-order field. You build one mapping per buyer file shape.
+
+## Required fields
+
+Every order must resolve these five canonical fields:
+
+- `po_number` — the unique order identifier from the buyer.
+- `line_no` — the line index within the order, starting at 1.
+- `item_code` — the SKU the supplier recognises.
+- `quantity` — number of units, as an integer or decimal.
+- `unit_price` — price per unit, before tax.
+
+Optional fields like delivery date and currency are accepted but never required.
+
+## Manipulators
+
+When a source column doesn't match the canonical shape directly, attach a manipulator:
+
+- `Replace` — substitute a string. Useful for stripping a supplier prefix, e.g. removing `SUP-` from item codes.
+- `Trim` — drop leading or trailing whitespace introduced by Excel exports.
+- `DateFormat` — convert a source date to ISO 8601, e.g. turn `15/03/2026` into `2026-03-15`.
+- `Concat` — join two source columns into one canonical field, e.g. combine `prefix` and `code` into a single `item_code`.
+
+Manipulators chain left to right and stop on the first failure.
+
+## Testing a mapping
+
+After saving, upload a real PO file through `/upload`. Any line that fails to resolve appears in the Review screen as `unresolved`, with the source row visible so you can adjust the mapping and retry.
+
+---
+
+Need help? Email [support@proculink.com](mailto:support@proculink.com) or see [Troubleshooting common parse errors](/help/troubleshooting).

@@ -1,0 +1,32 @@
+export const metadata = {
+  title: "Billing and plans FAQ — ProcuLink Help",
+  description: "Pilot, Growth, Operations, Integration, Enterprise — what's included and what happens at quota.",
+};
+
+# Billing and plans FAQ
+
+## Plan ladder
+
+ProcuLink offers five plans sized to your supplier flow volume:
+
+- `Pilot` — free for 14 days; 20 orders total during trial; 1 supplier.
+- `Growth` — €149/month; 150 orders/month; 5 suppliers.
+- `Operations` — €399/month; 500 orders/month; 10 suppliers.
+- `Integration` — €999/month; 1,000 orders/month; 20 suppliers.
+- `Enterprise` — custom pricing from €2,500/month; contact sales for custom volume, ERP connectors, and SLA.
+
+## What happens at quota
+
+When you reach the monthly order limit on a paid plan, new uploads return a `429` response and the dashboard shows an upgrade banner. Orders that were already uploaded continue to parse, validate, transform, and deliver normally — only new uploads are paused. Your quota resets automatically on your billing anniversary.
+
+## When Pilot ends
+
+After 14 days or 20 orders (whichever comes first), the `Pilot` workspace becomes read-only. You can still view previous orders, mappings, outputs, and billing history, but you cannot upload new files, transform documents, deliver to suppliers, or add suppliers until you upgrade to `Growth` or higher. Upgrading restores full access immediately — no data is lost.
+
+## How to cancel
+
+Open `Settings → Billing → Manage subscription` to launch the Stripe Customer Portal. From there you can cancel your subscription, switch between `Growth`, `Operations`, and `Integration`, update your card details, or download past invoices. `Enterprise` changes are handled directly through your account manager.
+
+---
+
+Need help? Email [billing@proculink.com](mailto:billing@proculink.com) or see [pricing](/pricing).
