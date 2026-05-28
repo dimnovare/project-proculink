@@ -40,14 +40,14 @@ export default function TermsPage() {
       </p>
 
       <h2 style={S.h2}>3. Acceptable use</h2>
-      <p style={S.p}>You may use ProcuLink only for lawful business procurement purposes. You must not:</p>
-      <ul style={{ paddingLeft: 20, marginBottom: 14 }}>
-        <li style={S.li}>Upload malicious files or attempt to compromise the security or integrity of the service</li>
-        <li style={S.li}>Use the service to process orders for prohibited or illegal goods or services</li>
-        <li style={S.li}>Share account credentials with unauthorised individuals</li>
-        <li style={S.li}>Attempt to reverse-engineer, decompile, or extract proprietary algorithms or code</li>
-        <li style={S.li}>Use the service in a way that could harm other users or impair service availability</li>
-      </ul>
+      <p style={S.p}>
+        Your use of ProcuLink is subject to the{" "}
+        <Link href="/aup" style={{ color: "#1E66C9" }}>Acceptable Use Policy</Link>, which is
+        incorporated into these Terms by reference. The Acceptable Use Policy describes the
+        permitted and prohibited categories of use, including the prohibition of malicious
+        uploads, illegal goods, credential sharing, reverse engineering, and abuse of Service
+        availability.
+      </p>
 
       <h2 style={S.h2}>4. Data ownership</h2>
       <p style={S.p}>
