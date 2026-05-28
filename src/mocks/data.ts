@@ -66,7 +66,7 @@ function fmtAge(min: number) {
 export function generateOrders(count = 50): (Order & { buyerName: string; supplierName: string; age: string; valueLabel: string })[] {
   // Seed hand-crafted orders first
   const SEED: Omit<Order, "createdAt">[] = [
-    { id: "008412", status: "review",     fmt: "PDF",   buyerId: "B01", supplierId: "S01", po: "PO-2026-008412",  lines: 14, value: 24180.50, issues: 3, assigned: "MK", ageMin: 2   },
+    { id: "demo-001", status: "review",     fmt: "PDF",   buyerId: "B01", supplierId: "S01", po: "PO-DEMO-001",  lines: 14, value: 24180.50, issues: 3, assigned: "MK", ageMin: 2   },
     { id: "nrd9981",status: "new",        fmt: "cXML",  buyerId: "B02", supplierId: "S02", po: "PO-NRD-9981",     lines:  7, value:  8420.00, issues: 0, assigned: "—",  ageMin: 4   },
     { id: "sh44120",status: "extracting", fmt: "XLSX",  buyerId: "B03", supplierId: "S03", po: "SH-PO-44120",     lines: 32, value: 71205.18, issues: 0, assigned: "—",  ageMin: 6   },
     { id: "850201", status: "failed",     fmt: "EDI",   buyerId: "B04", supplierId: "S04", po: "850-99201",       lines: 18, value: 12408.00, issues: 6, assigned: "JT", ageMin: 14  },

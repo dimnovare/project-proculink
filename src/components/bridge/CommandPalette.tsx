@@ -5,8 +5,16 @@
 
 import { useEffect, useState, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import { useQuery } from "@tanstack/react-query";
+import { apiClient, getBuyers } from "@/lib/api-client";
+import type {
+  OrderSummary,
+  OrderStatus,
+  Supplier,
+  BuyerDto,
+} from "@/types/procurement";
 
-// ─── Mock index ───────────────────────────────────────────────────────────────
+// ─── Index ────────────────────────────────────────────────────────────────────
 
 type CmdItem = {
   id: string;
@@ -19,29 +27,64 @@ type CmdItem = {
   color?: string;
 };
 
-function buildIndex(router: ReturnType<typeof useRouter>): CmdItem[] {
+function humanStatus(status: OrderStatus): string {
+  switch (status) {
+    case "pending_review":  return "Needs review";
+    case "delivered":       return "Delivered";
+    case "ready_to_deliver": return "Ready";
+    case "delivery_failed": return "Failed";
+    case "parsing":         return "Parsing";
+    case "transforming":    return "Transforming";
+    default:                return status;
+  }
+}
+
+function orderColor(status: OrderStatus): string {
+  if (status === "pending_review" || status === "delivery_failed") return "#C97A14";
+  if (status === "delivered") return "#2E8E3A";
+  return "#1E66C9";
+}
+
+function buildIndex(
+  router: ReturnType<typeof useRouter>,
+  orders: OrderSummary[],
+  suppliers: Supplier[],
+  buyers: BuyerDto[],
+): CmdItem[] {
+  const orderItems: CmdItem[] = orders.slice(0, 6).map((order) => ({
+    id: `o-${order.id}`,
+    group: "Orders",
+    icon: "↗",
+    label: order.poNumber,
+    sub: `${order.buyerName ?? "Unknown buyer"} → ${order.supplierName ?? "Unknown supplier"} · ${humanStatus(order.status)}`,
+    href: `/inbox/${order.id}`,
+    color: orderColor(order.status),
+  }));
+
+  const supplierItems: CmdItem[] = suppliers.map((s) => ({
+    id: `s-${s.id}`,
+    group: "Suppliers",
+    icon: "⊞",
+    label: s.name,
+    sub: "Supplier dock",
+    href: `/library/suppliers/${s.id}`,
+    color: "#2E8E3A",
+  }));
+
+  const buyerItems: CmdItem[] = buyers.map((b) => ({
+    id: `b-${b.id}`,
+    group: "Buyers",
+    icon: "◎",
+    label: b.name,
+    sub: "Buyer dock",
+    href: "/library/buyers",
+    color: "#1E66C9",
+  }));
+
   return [
-    // ── Orders ─────────────────────────────────────────
-    { id: "o1",  group: "Orders", icon: "↗", label: "PO-2026-008412",    sub: "Heinrich Industries → Acme · Needs review",  href: "/inbox/008412",  color: "#C97A14" },
-    { id: "o2",  group: "Orders", icon: "↗", label: "PO-NRD-9981",       sub: "Nordmark → BoltWorks · New",                 href: "/inbox/nrd9981", color: "#1E66C9" },
-    { id: "o3",  group: "Orders", icon: "↗", label: "SH-PO-44120",       sub: "Steelhouse → VanDerBerg · Extracting",       href: "/inbox/sh44120", color: "#6F4FCE" },
-    { id: "o4",  group: "Orders", icon: "↗", label: "850-99201",         sub: "Centralis Pharma → MedicaSupply · Failed",   href: "/inbox/850201",  color: "#C53A3A" },
-    { id: "o5",  group: "Orders", icon: "↗", label: "WMT-2026-0341",     sub: "Westmark → Acme · Ready",                   href: "/inbox/wmt341",  color: "#2E8E3A" },
-    { id: "o6",  group: "Orders", icon: "↗", label: "AR-2026-1107",      sub: "Atlas Reseller → Nordix · Needs review",     href: "/inbox/ar1107",  color: "#C97A14" },
-    // ── Suppliers ──────────────────────────────────────
-    { id: "s1",  group: "Suppliers", icon: "⊞", label: "Acme Components",    sub: "ACM · Health 97%", href: "/library/suppliers/s1", color: "#2E8E3A" },
-    { id: "s2",  group: "Suppliers", icon: "⊞", label: "BoltWorks BV",       sub: "BWK · Health 91%", href: "/library/suppliers/s2", color: "#2E8E3A" },
-    { id: "s3",  group: "Suppliers", icon: "⊞", label: "VanDerBerg Metaal",  sub: "VDB · Health 88%", href: "/library/suppliers/s3", color: "#C97A14" },
-    { id: "s4",  group: "Suppliers", icon: "⊞", label: "Nordix Distribution",sub: "NDX · Health 73%", href: "/library/suppliers/s4", color: "#C97A14" },
-    { id: "s5",  group: "Suppliers", icon: "⊞", label: "MedicaSupply OY",    sub: "MDS · Health 96%", href: "/library/suppliers/s5", color: "#2E8E3A" },
-    // ── Buyers ─────────────────────────────────────────
-    { id: "b1",  group: "Buyers", icon: "◎", label: "Heinrich Industries",   sub: "HEI · 412/wk", href: "/library/buyers", color: "#1E66C9" },
-    { id: "b2",  group: "Buyers", icon: "◎", label: "Nordmark Logistics",    sub: "NRD · 287/wk", href: "/library/buyers", color: "#1E66C9" },
-    { id: "b3",  group: "Buyers", icon: "◎", label: "Centralis Pharma",      sub: "CPH · 94/wk",  href: "/library/buyers", color: "#1E66C9" },
-    // ── SKUs ───────────────────────────────────────────
-    { id: "k1",  group: "SKUs", icon: "⇄", label: "ACM-BOLT-M8",         sub: "→ BWK-M8-HEX-ZN · 98% confidence", href: "/library/mappings", color: "#6F4FCE" },
-    { id: "k2",  group: "SKUs", icon: "⇄", label: "MDS-SYRG-10ML",       sub: "→ MDS-SY-10-STERILE · 96%",        href: "/library/mappings", color: "#6F4FCE" },
-    { id: "k3",  group: "SKUs", icon: "⇄", label: "ACM-SCREW-M4x10",     sub: "→ BWK-CS-M4-10-ZN · 99%",          href: "/library/mappings", color: "#6F4FCE" },
+    ...orderItems,
+    ...supplierItems,
+    ...buyerItems,
     // ── Actions ────────────────────────────────────────
     { id: "a1",  group: "Actions", icon: "↑", label: "Upload document",      sub: "Open upload workbench",  action: () => router.push("/upload"),           color: "#0F4FA8" },
     { id: "a2",  group: "Actions", icon: "⊞", label: "View all crossings",   sub: "Go to inbox",            action: () => router.push("/inbox"),            color: "#0F4FA8" },
@@ -60,7 +103,23 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
   const listRef                  = useRef<HTMLDivElement>(null);
   const activeRef                = useRef<HTMLButtonElement>(null);
 
-  const items = buildIndex(router);
+  const { data: orders } = useQuery({
+    queryKey: ["orders"],
+    queryFn: () => apiClient.getOrders(),
+    staleTime: 60_000,
+  });
+  const { data: suppliers } = useQuery({
+    queryKey: ["suppliers"],
+    queryFn: () => apiClient.getSuppliers(),
+    staleTime: 60_000,
+  });
+  const { data: buyers } = useQuery({
+    queryKey: ["buyers"],
+    queryFn: () => getBuyers(),
+    staleTime: 60_000,
+  });
+
+  const items = buildIndex(router, orders ?? [], suppliers ?? [], buyers ?? []);
 
   // Build filtered groups + flat list for keyboard nav
   const groups: Record<string, CmdItem[]> = {};

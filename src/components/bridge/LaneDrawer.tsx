@@ -30,7 +30,7 @@ const HEALTH_LABEL: Record<string, string> = {
 
 // Mock recent crossings for the selected lane
 const MOCK_CROSSINGS = [
-  { po: "PO-2026-008412", orderId: "008412", age: "2m",  status: "review",     lines: 14, value: "€24,180" },
+  { po: "PO-DEMO-001", orderId: "demo-001", age: "2m",  status: "review",     lines: 14, value: "€24,180" },
   { po: "PO-2026-008411", orderId: "008411", age: "1h",  status: "sent",       lines: 11, value: "€5,612"  },
   { po: "PO-2026-008399", orderId: "008399", age: "3h",  status: "sent",       lines: 8,  value: "€9,140"  },
   { po: "PO-2026-008381", orderId: "008381", age: "1d",  status: "failed",     lines: 22, value: "€31,800" },

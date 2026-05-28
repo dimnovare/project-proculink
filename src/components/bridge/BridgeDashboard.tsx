@@ -3,6 +3,7 @@
 // Bridge Dashboard — the signature Wire Topology screen.
 // "Order topology" — not "Dashboard".
 
+import Link from "next/link";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { WireTopology } from "./WireTopology";
@@ -14,42 +15,11 @@ import { OnboardingChecklist } from "./OnboardingChecklist";
 import { OnboardingWizard } from "./OnboardingWizard";
 import { apiClient, isApiMockMode } from "@/lib/api-client";
 
-// ─── Mock data (MSW will replace these) ─────────────────────────────────────
-
-const BUYERS: WireBuyer[] = [
-  { id: "b1", name: "Heinrich Industries",   code: "HEI", volume: "412/wk" },
-  { id: "b2", name: "Nordmark Logistics",    code: "NRD", volume: "287/wk" },
-  { id: "b3", name: "Steelhouse Const.",     code: "SHC", volume: "198/wk" },
-  { id: "b4", name: "Centralis Pharma",      code: "CPH", volume: "94/wk"  },
-  { id: "b5", name: "Westmark Tools",        code: "WMT", volume: "76/wk"  },
-  { id: "b6", name: "Atlas Reseller AG",     code: "ARA", volume: "142/wk" },
-];
-
-const SUPPLIERS: WireSupplier[] = [
-  { id: "s1", name: "Acme Components",    code: "ACM", volume: "610/wk", health: 97 },
-  { id: "s2", name: "BoltWorks BV",       code: "BWK", volume: "382/wk", health: 91 },
-  { id: "s3", name: "VanDerBerg Metaal",  code: "VDB", volume: "245/wk", health: 88 },
-  { id: "s4", name: "Nordix Distribution",code: "NDX", volume: "178/wk", health: 73 },
-  { id: "s5", name: "MedicaSupply OY",    code: "MDS", volume: "99/wk",  health: 96 },
-];
-
-const WIRES: Wire[] = [
-  { buyerId: "b1", supplierId: "s1", weight: 4, health: "ok",   alert: 3 },
-  { buyerId: "b1", supplierId: "s2", weight: 2, health: "ok" },
-  { buyerId: "b2", supplierId: "s3", weight: 3, health: "risk", alert: 1 },
-  { buyerId: "b2", supplierId: "s2", weight: 2, health: "ok" },
-  { buyerId: "b3", supplierId: "s3", weight: 2, health: "ok" },
-  { buyerId: "b3", supplierId: "s2", weight: 3, health: "ok" },
-  { buyerId: "b4", supplierId: "s5", weight: 1, health: "ok" },
-  { buyerId: "b4", supplierId: "s4", weight: 1, health: "down", alert: 6 },
-  { buyerId: "b5", supplierId: "s1", weight: 1, health: "ok" },
-  { buyerId: "b6", supplierId: "s4", weight: 2, health: "risk", alert: 1 },
-  { buyerId: "b6", supplierId: "s1", weight: 2, health: "ok" },
-];
-
+// Mock topology data has moved into api-client.ts (mockGetDashboardTopology).
+// In production this query resolves to empty arrays; we render an empty state.
 
 const IN_TRANSIT_MOCK_FALLBACK = [
-  { po: "PO-2026-008412", buyer: "Heinrich", fmt: "PDF",  stage: "Validate" },
+  { po: "PO-DEMO-001",    buyer: "Heinrich", fmt: "PDF",  stage: "Validate" },
   { po: "PO-NRD-9981",    buyer: "Nordmark", fmt: "cXML", stage: "Parse"    },
   { po: "SH-PO-44120",    buyer: "Steel.",   fmt: "XLSX", stage: "Extract"  },
   { po: "850-99201",      buyer: "Centralis",fmt: "EDI",  stage: "Failed"   },
@@ -116,6 +86,19 @@ export function BridgeDashboard() {
     queryFn: () => apiClient.getOrders(),
     staleTime: 60_000,
   });
+  const { data: topology, isLoading: topologyLoading } = useQuery({
+    queryKey: ["dashboard-topology"],
+    queryFn: () => apiClient.getDashboardTopology(),
+    staleTime: 60_000,
+  });
+
+  const topologyBuyers = (topology?.buyers ?? []) as WireBuyer[];
+  const topologySuppliers = (topology?.suppliers ?? []) as WireSupplier[];
+  const topologyWires = (topology?.wires ?? []) as Wire[];
+  const topologyIsEmpty =
+    !topologyLoading &&
+    topologyBuyers.length === 0 &&
+    topologySuppliers.length === 0;
 
   // KPI computation — safe with undefined/empty orders
   const kpis = (() => {
@@ -139,12 +122,12 @@ export function BridgeDashboard() {
         : null;
 
     if (isApiMockMode && !orders) {
-      // Static mock KPIs for demo mode
+      // Static mock KPIs for demo mode — honest placeholders, never fabricated numbers
       return [
-        { value: "1,209",  label: "Orders today",         sub: "Today, UTC",                      accent: "up"   as const },
+        { value: "—",      label: "Orders today",         sub: "Today, UTC",                      accent: "none" as const },
         { value: "—",      label: "Avg processing time",  sub: "Coming with usage metering",       accent: "none" as const },
         { value: "3",      label: "Urgent exceptions",    sub: "Today, UTC",                       accent: "warn" as const },
-        { value: "84%",    label: "Auto-processed",       sub: "This period",                      accent: "up"   as const },
+        { value: "—",      label: "Auto-processed",       sub: "This period",                      accent: "none" as const },
         { value: "—",      label: "Cost per order",       sub: "Coming with usage metering",       accent: "none" as const },
       ];
     }
@@ -224,6 +207,72 @@ export function BridgeDashboard() {
       volume:       buyer.volume,
       alert:        wire.alert,
     });
+  }
+
+  /** Renders the topology area: skeleton while loading, empty-state when no
+   *  buyers/suppliers yet, otherwise the live WireTopology canvas. */
+  function renderTopologyArea(height: number) {
+    if (topologyLoading) {
+      return (
+        <div
+          className="animate-pulse rounded-card"
+          style={{
+            height,
+            background: "#EFF2F7",
+            border: "1px solid #E2E6EE",
+            boxShadow: "0 1px 2px rgba(11,26,47,0.04)",
+          }}
+        />
+      );
+    }
+    if (topologyIsEmpty) {
+      return (
+        <div
+          className="flex flex-col items-center justify-center text-center rounded-card"
+          style={{
+            height,
+            background: "#FFFFFF",
+            border: "1px solid #E2E6EE",
+            boxShadow: "0 1px 2px rgba(11,26,47,0.04)",
+            padding: 24,
+            fontFamily: "Inter, sans-serif",
+          }}
+        >
+          <div
+            className="text-[16px] font-semibold"
+            style={{ color: "#0B1A2F" }}
+          >
+            No supplier wires yet
+          </div>
+          <div
+            className="text-[13px] mt-1 max-w-[420px]"
+            style={{ color: "#56627A" }}
+          >
+            Add a supplier and upload your first PO to see your topology come alive.
+          </div>
+          <Link
+            href="/library/suppliers"
+            className="mt-4 inline-flex items-center gap-1 rounded-[6px] px-3 py-1.5 text-[12.5px] font-medium transition-colors hover:bg-[#F6F7FA]"
+            style={{
+              border: "1px solid #E2E6EE",
+              background: "#FFFFFF",
+              color: "#0B1A2F",
+            }}
+          >
+            Add a supplier →
+          </Link>
+        </div>
+      );
+    }
+    return (
+      <WireTopology
+        buyers={topologyBuyers}
+        suppliers={topologySuppliers}
+        wires={topologyWires}
+        height={height}
+        onWireClick={handleWireClick}
+      />
+    );
   }
 
   return (
@@ -313,22 +362,10 @@ export function BridgeDashboard() {
                 </button>
               )}
             </div>
-            <WireTopology
-              buyers={BUYERS}
-              suppliers={SUPPLIERS}
-              wires={WIRES}
-              height={360}
-              onWireClick={handleWireClick}
-            />
+            {renderTopologyArea(360)}
           </div>
         ) : (
-          <WireTopology
-            buyers={BUYERS}
-            suppliers={SUPPLIERS}
-            wires={WIRES}
-            height={480}
-            onWireClick={handleWireClick}
-          />
+          renderTopologyArea(480)
         )}
 
         {activeLane && (
@@ -474,44 +511,53 @@ export function BridgeDashboard() {
               </span>
             </div>
             <div className="divide-y" style={{ borderColor: "#E2E6EE" }}>
-              {SUPPLIERS.map((s) => {
-                const color =
-                  s.health >= 95
-                    ? "#2E8E3A"
-                    : s.health >= 85
-                    ? "#C97A14"
-                    : "#C53A3A";
-                const barBg =
-                  s.health >= 95
-                    ? "#E2F1E2"
-                    : s.health >= 85
-                    ? "#FAEFD6"
-                    : "#FBE3E3";
-                return (
-                  <div key={s.id} className="px-4 py-3">
-                    <div className="flex items-center justify-between mb-1.5">
-                      <span className="min-w-0 truncate pr-3 text-[12.5px] font-medium" style={{ color: "#0B1A2F" }}>
-                        {s.name}
-                      </span>
-                      <span
-                        className="text-[12px] font-bold"
-                        style={{ color, fontFamily: "'JetBrains Mono', monospace" }}
-                      >
-                        {s.health}%
-                      </span>
-                    </div>
-                    <div
-                      className="rounded-full overflow-hidden"
-                      style={{ height: 5, background: barBg }}
-                    >
+              {topologySuppliers.length === 0 ? (
+                <div
+                  className="text-center"
+                  style={{ color: "#8A93A5", padding: "16px", fontSize: 12.5 }}
+                >
+                  No supplier dock data yet.
+                </div>
+              ) : (
+                topologySuppliers.map((s) => {
+                  const color =
+                    s.health >= 95
+                      ? "#2E8E3A"
+                      : s.health >= 85
+                      ? "#C97A14"
+                      : "#C53A3A";
+                  const barBg =
+                    s.health >= 95
+                      ? "#E2F1E2"
+                      : s.health >= 85
+                      ? "#FAEFD6"
+                      : "#FBE3E3";
+                  return (
+                    <div key={s.id} className="px-4 py-3">
+                      <div className="flex items-center justify-between mb-1.5">
+                        <span className="min-w-0 truncate pr-3 text-[12.5px] font-medium" style={{ color: "#0B1A2F" }}>
+                          {s.name}
+                        </span>
+                        <span
+                          className="text-[12px] font-bold"
+                          style={{ color, fontFamily: "'JetBrains Mono', monospace" }}
+                        >
+                          {s.health}%
+                        </span>
+                      </div>
                       <div
-                        className="h-full rounded-full transition-all"
-                        style={{ width: `${s.health}%`, background: color }}
-                      />
+                        className="rounded-full overflow-hidden"
+                        style={{ height: 5, background: barBg }}
+                      >
+                        <div
+                          className="h-full rounded-full transition-all"
+                          style={{ width: `${s.health}%`, background: color }}
+                        />
+                      </div>
                     </div>
-                  </div>
-                );
-              })}
+                  );
+                })
+              )}
             </div>
           </div>
         </div>

@@ -35,5 +35,9 @@ tsconfig.tsbuildinfo
 # Local UI QA screenshots
 .qa-screenshots/
 
+# Playwright test artifacts
+test-results/
+playwright-report/
+
 # clerk configuration (can include secrets)
 /.clerk/

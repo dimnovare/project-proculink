@@ -12,14 +12,20 @@ import type {
   AuditEvent,
   OnboardingStatus,
   DashboardStats,
+  DashboardTopology,
   BillingStatus,
   EmailSettings,
   UpdateEmailSettingsPayload,
 } from "@/types/procurement";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:5223";
-// Default to mock mode unless explicitly set to false
-const USE_MOCK = process.env.NEXT_PUBLIC_USE_MOCK !== "false";
+// Mock mode is opt-in AND dev-only. Production builds NEVER render mock data
+// regardless of env var, so prospects/customers never see staged content.
+// (J2) Previously defaulted to true when env was absent, which leaked demo
+// state into Vercel deploys without `NEXT_PUBLIC_USE_MOCK=false` set.
+const USE_MOCK =
+  process.env.NEXT_PUBLIC_USE_MOCK === "true" &&
+  process.env.NODE_ENV !== "production";
 
 // ─── Support contact ───
 // Placed near the top of api-client.ts so the support form chip doesn't
@@ -734,6 +740,49 @@ async function realGetDashboardStats(): Promise<DashboardStats> {
   return res.json() as Promise<DashboardStats>;
 }
 
+// ── Dashboard topology (Wire Topology canvas) ─────────────────────────────
+
+async function mockGetDashboardTopology(): Promise<DashboardTopology> {
+  await delay(120);
+  return {
+    buyers: [
+      { id: "b1", name: "Heinrich Industries",   code: "HEI", volume: "412/wk" },
+      { id: "b2", name: "Nordmark Logistics",    code: "NRD", volume: "287/wk" },
+      { id: "b3", name: "Steelhouse Const.",     code: "SHC", volume: "198/wk" },
+      { id: "b4", name: "Centralis Pharma",      code: "CPH", volume: "94/wk"  },
+      { id: "b5", name: "Westmark Tools",        code: "WMT", volume: "76/wk"  },
+      { id: "b6", name: "Atlas Reseller AG",     code: "ARA", volume: "142/wk" },
+    ],
+    suppliers: [
+      { id: "s1", name: "Acme Components",    code: "ACM", volume: "610/wk", health: 97 },
+      { id: "s2", name: "BoltWorks BV",       code: "BWK", volume: "382/wk", health: 91 },
+      { id: "s3", name: "VanDerBerg Metaal",  code: "VDB", volume: "245/wk", health: 88 },
+      { id: "s4", name: "Nordix Distribution",code: "NDX", volume: "178/wk", health: 73 },
+      { id: "s5", name: "MedicaSupply OY",    code: "MDS", volume: "99/wk",  health: 96 },
+    ],
+    wires: [
+      { buyerId: "b1", supplierId: "s1", weight: 4, health: "ok",   alert: 3 },
+      { buyerId: "b1", supplierId: "s2", weight: 2, health: "ok" },
+      { buyerId: "b2", supplierId: "s3", weight: 3, health: "risk", alert: 1 },
+      { buyerId: "b2", supplierId: "s2", weight: 2, health: "ok" },
+      { buyerId: "b3", supplierId: "s3", weight: 2, health: "ok" },
+      { buyerId: "b3", supplierId: "s2", weight: 3, health: "ok" },
+      { buyerId: "b4", supplierId: "s5", weight: 1, health: "ok" },
+      { buyerId: "b4", supplierId: "s4", weight: 1, health: "down", alert: 6 },
+      { buyerId: "b5", supplierId: "s1", weight: 1, health: "ok" },
+      { buyerId: "b6", supplierId: "s4", weight: 2, health: "risk", alert: 1 },
+      { buyerId: "b6", supplierId: "s1", weight: 2, health: "ok" },
+    ],
+  };
+}
+
+async function realGetDashboardTopology(): Promise<DashboardTopology> {
+  // TODO(J): backend endpoint /api/dashboard/topology not yet implemented.
+  // Returns empty so the frontend renders an explicit empty state instead of
+  // staged demo content. Wire to real aggregation once the backend chip lands.
+  return { buyers: [], suppliers: [], wires: [] };
+}
+
 // ── Onboarding sample order ──────────────────────────────────────────────
 
 async function mockRunSampleOrder(): Promise<{ orderId: string; isSample: true }> {
@@ -818,6 +867,7 @@ export const apiClient = {
   // Onboarding + dashboard
   getOnboardingStatus:    USE_MOCK ? mockGetOnboardingStatus   : realGetOnboardingStatus,
   getDashboardStats:      USE_MOCK ? mockGetDashboardStats     : realGetDashboardStats,
+  getDashboardTopology:   USE_MOCK ? mockGetDashboardTopology  : realGetDashboardTopology,
 
   // ─── Onboarding sample order ───
   runSampleOrder:         USE_MOCK ? mockRunSampleOrder        : realRunSampleOrder,
@@ -896,7 +946,7 @@ export async function getAuditLog(page = 1, pageSize = 50): Promise<AuditLogPage
   if (USE_MOCK) {
     return {
       events: [
-        { id: "e1", ts: new Date(Date.now() - 2*60000).toISOString(), orderId: "008412", poNumber: "PO-2026-008412", buyerName: "Heinrich Industries", supplierName: "Acme Components", format: "PDF", action: "flagged", actorType: "ai", actorName: "Extraction engine", actorInitials: "AI", message: "3 validation errors flagged", payload: null },
+        { id: "e1", ts: new Date(Date.now() - 2*60000).toISOString(), orderId: "demo-001", poNumber: "PO-DEMO-001", buyerName: "Heinrich Industries", supplierName: "Acme Components", format: "PDF", action: "flagged", actorType: "ai", actorName: "Extraction engine", actorInitials: "AI", message: "3 validation errors flagged", payload: null },
         { id: "e2", ts: new Date(Date.now() - 14*60000).toISOString(), orderId: "nrd9981", poNumber: "PO-NRD-9981", buyerName: "Nordmark Logistics", supplierName: "BoltWorks BV", format: "cXML", action: "created", actorType: "system", actorName: "System", actorInitials: "SY", message: "Order created from upload", payload: null },
       ],
       total: 2,

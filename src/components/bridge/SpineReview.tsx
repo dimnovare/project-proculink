@@ -44,7 +44,7 @@ interface SpineNodeData {
 // ─── Initial data ─────────────────────────────────────────────────────────────
 
 const INITIAL_NODES: SpineNodeData[] = [
-  { id: "po",       label: "PO number",    value: "PO-2026-008412",              pct: 99, mono: true,  editable: false, srcRef: "header",    outRef: "Order/@orderID"    },
+  { id: "po",       label: "PO number",    value: "PO-DEMO-001",              pct: 99, mono: true,  editable: false, srcRef: "header",    outRef: "Order/@orderID"    },
   { id: "date",     label: "Order date",   value: "2026-01-12",                  pct: 95, mono: true,  editable: true,  srcRef: "header",    outRef: "Order/orderDate"   },
   { id: "buyer",    label: "Buyer",        value: "Heinrich Industries GmbH",    pct: 98, tone: "buyer",    editable: true, srcRef: "parties",   outRef: "BillTo/Contact"    },
   { id: "supplier", label: "Supplier",     value: "Acme Components Ltd.",        pct: 97, tone: "supplier", editable: false, srcRef: "parties",  outRef: "ShipFrom/Contact"  },
@@ -373,7 +373,7 @@ function DocumentAnatomy({ highlightZone }: { highlightZone?: string }) {
         {/* Simulated PDF */}
         <div style={{ display: "flex", justifyContent: "space-between", paddingBottom: 6, borderBottom: "2px solid #333" }}>
           <div style={{ fontFamily: "Inter,sans-serif", fontSize: 14, fontWeight: 800, letterSpacing: "0.08em" }}>HEINRICH</div>
-          <div style={{ textAlign: "right" }}><div style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase" }}>Purchase Order</div><div style={{ fontSize: 9 }}>PO-2026-008412 · 12.01.2026</div></div>
+          <div style={{ textAlign: "right" }}><div style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase" }}>Purchase Order</div><div style={{ fontSize: 9 }}>PO-DEMO-001 · 12.01.2026</div></div>
         </div>
         <div style={{ marginTop: 10, fontSize: 9 }}>Ship to: Wilhelmstrasse 412, 70173 Stuttgart, DE<br/>Bill to: Postfach 1042, 70001 Stuttgart, DE</div>
         <div style={{ marginTop: 8, fontSize: 9 }}>Currency: EUR · Incoterm: DDP · Payment: Net 30</div>
@@ -486,7 +486,7 @@ function OutputPreview({ acceptedSubnodes, rejectedSubnodes, crossed, fieldValue
         <div style={{ paddingLeft: 24 }}>
           <span style={{ color: "#7FB37B" }}>{"<OrderRequest "}</span>
           <span style={{ color: "#8ABAEF" }}>orderID</span>{"="}
-          <span style={{ color: "#E0A23A" }}>{'"PO-2026-008412"'}</span>
+          <span style={{ color: "#E0A23A" }}>{'"PO-DEMO-001"'}</span>
         </div>
         <div style={{ paddingLeft: 60 }}>
           <span style={{ color: "#8ABAEF" }}>orderDate</span>{"="}
