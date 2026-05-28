@@ -24,7 +24,7 @@ export default function TermsPage() {
       <h2 style={S.h2}>1. Agreement</h2>
       <p style={S.p}>
         By accessing or using ProcuLink you agree to be bound by these Terms of Service.
-        &quot;ProcuLink&quot; is operated by ESTORIA CAPITAL GROUP OÜ (registration 17477775,
+        &quot;ProcuLink&quot; is operated by ProcuLink OÜ (registration 17477775,
         Katusepapi 6, Tallinn, Estonia). &quot;You&quot; means the organisation or individual
         accessing the service. If you are accepting on behalf of an organisation, you
         represent that you have authority to bind that organisation.
@@ -74,8 +74,7 @@ export default function TermsPage() {
 
       <h2 style={S.h2}>6. Intellectual property</h2>
       <p style={S.p}>
-        The ProcuLink software, design, documentation, and brand are owned by ESTORIA
-        CAPITAL GROUP OÜ. You may not copy, modify, distribute, sell, or sublicence any
+        The ProcuLink software, design, documentation, and brand are owned by ProcuLink OÜ. You may not copy, modify, distribute, sell, or sublicence any
         part of the software or platform. Your feedback may be used by us to improve the
         service without obligation to you.
       </p>

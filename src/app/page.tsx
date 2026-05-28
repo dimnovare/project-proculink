@@ -560,7 +560,7 @@ export default async function RootPage() {
           <a href="/sign-in" style={{ color: "inherit" }}>Sign in</a>
         </div>
         <span style={{ fontSize: 12, color: "#8A93A5" }}>
-          © 2026 Estoria Capital Group OÜ
+          © 2026 ProcuLink OÜ
         </span>
       </footer>
     </div>

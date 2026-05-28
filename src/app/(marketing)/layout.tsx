@@ -58,7 +58,7 @@ export default function MarketingLayout({
           <a href="/support" style={{ color: "inherit" }}>Support</a>
         </div>
         <span style={{ fontSize: 12, color: "#8A93A5" }}>
-          © 2026 Estoria Capital Group OÜ
+          © 2026 ProcuLink OÜ
         </span>
       </footer>
     </div>
