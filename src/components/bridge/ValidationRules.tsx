@@ -3,7 +3,17 @@
 // Validation Rules — card-grid/list of active crossing rules.
 // Severity: error | warning | info. Each card shows trigger count + toggle.
 
-import { useState, type ReactNode } from "react";
+import { useState, useRef, type ReactNode } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import {
+  getRules,
+  toggleRule as toggleRuleApi,
+  createRule,
+  updateRule,
+  deleteRule,
+  isApiMockMode,
+  type RuleDto,
+} from "@/lib/api-client";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -159,6 +169,22 @@ const RULES: Rule[] = [
   },
 ];
 
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+
+function dtoToRule(dto: RuleDto): Rule {
+  return {
+    id:           dto.id,
+    name:         dto.name,
+    description:  dto.description,
+    severity:     dto.severity as Severity,
+    entity:       dto.entity as Entity,
+    triggers:     dto.triggerCount,
+    enabled:      dto.enabled,
+    autoBlock:    dto.autoBlock,
+    lastTriggered: dto.lastTriggered ?? "—",
+  };
+}
+
 // ─── Visual maps ─────────────────────────────────────────────────────────────
 
 const SEV: Record<Severity, { bg: string; color: string; border: string; label: string; icon: string }> = {
@@ -211,15 +237,75 @@ function Toggle({ on, onChange }: { on: boolean; onChange: (v: boolean) => void 
   );
 }
 
+// ─── Skeleton ─────────────────────────────────────────────────────────────────
+
+function SkeletonCard() {
+  return (
+    <div
+      className="rounded-[8px] overflow-hidden animate-pulse"
+      style={{ background: "#FFFFFF", border: "1px solid #E2E6EE", height: 104 }}
+    >
+      <div className="p-4">
+        <div className="flex items-start gap-2 mb-3">
+          <div style={{ width: 22, height: 22, borderRadius: "50%", background: "#E2E6EE" }} />
+          <div className="flex-1">
+            <div style={{ height: 13, width: "55%", borderRadius: 4, background: "#E2E6EE", marginBottom: 6 }} />
+            <div style={{ height: 11, width: "85%", borderRadius: 4, background: "#F0F2F6" }} />
+          </div>
+        </div>
+        <div className="flex gap-2">
+          <div style={{ height: 18, width: 60, borderRadius: 4, background: "#E2E6EE" }} />
+          <div style={{ height: 18, width: 44, borderRadius: 4, background: "#F0F2F6" }} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export function ValidationRules() {
-  const [rules, setRules] = useState(RULES);
-  const [sevFilter, setSev] = useState<Severity | "All">("All");
+  // ── Mock-mode local state (unchanged) ───────────────────────────────────
+  const [mockRules, setMockRules] = useState(RULES);
+
+  // ── Live-mode TanStack Query ─────────────────────────────────────────────
+  const queryClient = useQueryClient();
+
+  const { data: liveData, isLoading, isError, refetch } = useQuery({
+    queryKey: ["rules"],
+    queryFn:  getRules,
+    enabled:  !isApiMockMode,
+  });
+
+  const toggleMutation = useMutation({
+    mutationFn: (id: string) => toggleRuleApi(id),
+    onSuccess:  () => queryClient.invalidateQueries({ queryKey: ["rules"] }),
+  });
+
+  const saveMutation = useMutation({
+    mutationFn: (args: { id: string | null; payload: Omit<RuleDto, "id"|"triggerCount"|"lastTriggered"|"createdAt"> }) =>
+      args.id
+        ? updateRule(args.id, args.payload)
+        : createRule({ ...args.payload, enabled: args.payload.enabled, autoBlock: args.payload.autoBlock }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["rules"] }),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => deleteRule(id),
+    onSuccess:  () => queryClient.invalidateQueries({ queryKey: ["rules"] }),
+  });
+
+  // ── Derive rule list ─────────────────────────────────────────────────────
+  const rules: Rule[] = isApiMockMode
+    ? mockRules
+    : (liveData ?? []).map(dtoToRule);
+
+  // ── UI state ─────────────────────────────────────────────────────────────
+  const [sevFilter, setSev]       = useState<Severity | "All">("All");
   const [entityFilter, setEntity] = useState<Entity | "All">("All");
-  const [view, setView]   = useState<"grid" | "list">("grid");
-  const [selected, setSelected] = useState<Rule | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
+  const [view, setView]           = useState<"grid" | "list">("grid");
+  const [selected, setSelected]   = useState<Rule | null>(null);
+  const [notice, setNotice]       = useState<string | null>(null);
 
   const filtered = rules.filter((r) => {
     const ms = sevFilter === "All" || r.severity === sevFilter;
@@ -227,11 +313,15 @@ export function ValidationRules() {
     return ms && me;
   });
 
-  function toggleRule(id: string) {
-    setRules((prev) =>
-      prev.map((r) => (r.id === id ? { ...r, enabled: !r.enabled } : r))
-    );
-    setNotice("Rule toggle updated locally for QA. Backend persistence remains for Group J.");
+  function handleToggle(id: string) {
+    if (isApiMockMode) {
+      setMockRules((prev) =>
+        prev.map((r) => (r.id === id ? { ...r, enabled: !r.enabled } : r))
+      );
+      setNotice("Rule toggle updated locally for QA. Backend persistence remains for Group J.");
+    } else {
+      toggleMutation.mutate(id);
+    }
   }
 
   const counts = {
@@ -239,6 +329,44 @@ export function ValidationRules() {
     warning: rules.filter((r) => r.severity === "warning").length,
     info:    rules.filter((r) => r.severity === "info").length,
   };
+
+  // ── Loading skeleton ─────────────────────────────────────────────────────
+  if (!isApiMockMode && isLoading) {
+    return (
+      <div className="flex flex-col h-full min-h-0 overflow-hidden" style={{ background: "#F6F7FA" }}>
+        <div className="flex flex-col items-start gap-3 px-4 py-4 sm:px-6 flex-shrink-0" style={{ borderBottom: "1px solid #E2E6EE", background: "#FFFFFF" }}>
+          <div>
+            <div style={{ height: 26, width: 180, borderRadius: 5, background: "#E2E6EE" }} className="animate-pulse" />
+            <div style={{ height: 13, width: 240, borderRadius: 4, background: "#F0F2F6", marginTop: 6 }} className="animate-pulse" />
+          </div>
+        </div>
+        <div className="flex-1 overflow-auto p-5">
+          <div className="grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(340px, 1fr))" }}>
+            {Array.from({ length: 6 }).map((_, i) => <SkeletonCard key={i} />)}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Error state ──────────────────────────────────────────────────────────
+  if (!isApiMockMode && isError) {
+    return (
+      <div className="flex flex-col h-full min-h-0 overflow-hidden items-center justify-center" style={{ background: "#F6F7FA" }}>
+        <div className="rounded-[10px] p-8 text-center max-w-sm" style={{ background: "#FFFFFF", border: "1px solid #E2E6EE" }}>
+          <p className="text-[14px] font-semibold mb-1" style={{ color: "#C53A3A" }}>Could not load validation rules</p>
+          <p className="text-[12px] mb-4" style={{ color: "#56627A" }}>Check your connection and try again.</p>
+          <button
+            onClick={() => refetch()}
+            className="rounded-[6px] px-4 py-2 text-[12px] font-semibold"
+            style={{ background: "#0B1A2F", color: "#FFFFFF", border: 0 }}
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div
@@ -432,7 +560,7 @@ export function ValidationRules() {
                           {rule.description}
                         </p>
                       </div>
-                      <Toggle on={rule.enabled} onChange={() => toggleRule(rule.id)} />
+                      <Toggle on={rule.enabled} onChange={() => handleToggle(rule.id)} />
                     </div>
 
                     {/* Meta row */}
@@ -601,7 +729,7 @@ export function ValidationRules() {
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-2">
-                          <Toggle on={rule.enabled} onChange={() => toggleRule(rule.id)} />
+                          <Toggle on={rule.enabled} onChange={() => handleToggle(rule.id)} />
                           <button onClick={() => { setNotice(null); setSelected(rule); }} className="rounded px-2 py-1 text-[11.5px] font-medium" style={{ border: "1px solid #E2E6EE", background: "#FFFFFF", color: "#56627A" }}>Edit</button>
                         </div>
                       </td>
@@ -622,6 +750,13 @@ export function ValidationRules() {
             setNotice(message);
             setSelected(null);
           }}
+          onLiveSave={isApiMockMode ? undefined : (id, payload) => {
+            saveMutation.mutate({ id: id === "new" ? null : id, payload });
+          }}
+          onLiveDelete={isApiMockMode ? undefined : (id) => {
+            deleteMutation.mutate(id);
+          }}
+          isSaving={saveMutation.isPending}
         />
       )}
     </div>
@@ -632,12 +767,52 @@ function RulePanel({
   rule,
   onClose,
   onSaved,
+  onLiveSave,
+  onLiveDelete,
+  isSaving,
 }: {
   rule: Rule;
   onClose: () => void;
   onSaved: (message: string) => void;
+  onLiveSave?: (id: string, payload: Omit<RuleDto, "id"|"triggerCount"|"lastTriggered"|"createdAt">) => void;
+  onLiveDelete?: (id: string) => void;
+  isSaving?: boolean;
 }) {
   const isNew = rule.id === "new";
+
+  const nameRef        = useRef<HTMLInputElement>(null);
+  const descRef        = useRef<HTMLTextAreaElement>(null);
+  const severityRef    = useRef<HTMLSelectElement>(null);
+  const entityRef      = useRef<HTMLSelectElement>(null);
+  const autoBlockRef   = useRef<HTMLInputElement>(null);
+  const enabledRef     = useRef<HTMLInputElement>(null);
+
+  function handleSave() {
+    if (onLiveSave) {
+      const payload = {
+        name:        nameRef.current?.value ?? rule.name,
+        description: descRef.current?.value ?? rule.description,
+        severity:    (severityRef.current?.value ?? rule.severity) as "error" | "warning" | "info",
+        entity:      entityRef.current?.value ?? rule.entity,
+        enabled:     enabledRef.current?.checked ?? rule.enabled,
+        autoBlock:   autoBlockRef.current?.checked ?? rule.autoBlock,
+      };
+      onLiveSave(rule.id, payload);
+      onSaved(isNew ? "Rule created." : "Rule saved.");
+    } else {
+      onSaved(isNew
+        ? "Rule draft saved locally for QA. Live validation-engine persistence remains for Group J."
+        : "Rule edit draft saved locally for QA. Live validation-engine persistence remains for Group J."
+      );
+    }
+  }
+
+  function handleDelete() {
+    if (onLiveDelete && !isNew) {
+      onLiveDelete(rule.id);
+      onSaved("Rule deleted.");
+    }
+  }
 
   return (
     <div className="fixed inset-0 z-50 flex items-end bg-[#0B1A2F66] p-0 sm:items-center sm:justify-center sm:p-6">
@@ -651,38 +826,62 @@ function RulePanel({
         </div>
         <div className="grid gap-4 p-5">
           <Field label="Rule name">
-            <input defaultValue={rule.name} placeholder="Missing supplier item code" className="h-9 w-full rounded-[5px] border border-[#D5DAEA] px-2 text-[12px] text-[#0B1A2F]" />
+            <input ref={nameRef} defaultValue={rule.name} placeholder="Missing supplier item code" className="h-9 w-full rounded-[5px] border border-[#D5DAEA] px-2 text-[12px] text-[#0B1A2F]" />
           </Field>
           <Field label="Description">
-            <textarea defaultValue={rule.description} placeholder="Explain when this rule should trigger" className="min-h-[88px] w-full rounded-[5px] border border-[#D5DAEA] px-2 py-2 text-[12px] text-[#0B1A2F]" />
+            <textarea ref={descRef} defaultValue={rule.description} placeholder="Explain when this rule should trigger" className="min-h-[88px] w-full rounded-[5px] border border-[#D5DAEA] px-2 py-2 text-[12px] text-[#0B1A2F]" />
           </Field>
           <div className="grid gap-4 sm:grid-cols-3">
             <Field label="Severity">
-              <select defaultValue={rule.severity} className="h-9 w-full rounded-[5px] border border-[#D5DAEA] px-2 text-[12px] text-[#0B1A2F]">
+              <select ref={severityRef} defaultValue={rule.severity} className="h-9 w-full rounded-[5px] border border-[#D5DAEA] px-2 text-[12px] text-[#0B1A2F]">
                 <option value="error">Error</option>
                 <option value="warning">Warning</option>
                 <option value="info">Info</option>
               </select>
             </Field>
             <Field label="Entity">
-              <select defaultValue={rule.entity} className="h-9 w-full rounded-[5px] border border-[#D5DAEA] px-2 text-[12px] text-[#0B1A2F]">
+              <select ref={entityRef} defaultValue={rule.entity} className="h-9 w-full rounded-[5px] border border-[#D5DAEA] px-2 text-[12px] text-[#0B1A2F]">
                 {(["Line item", "Header", "Supplier", "Buyer", "Amount"] as Entity[]).map((entity) => <option key={entity}>{entity}</option>)}
               </select>
             </Field>
             <Field label="Auto-block">
               <label className="flex h-9 items-center gap-2 rounded-[5px] border border-[#D5DAEA] px-2 text-[12px]" style={{ color: "#0B1A2F" }}>
-                <input type="checkbox" defaultChecked={rule.autoBlock} />
+                <input ref={autoBlockRef} type="checkbox" defaultChecked={rule.autoBlock} />
                 Block crossing
               </label>
             </Field>
           </div>
+          {onLiveSave && (
+            <Field label="Enabled">
+              <label className="flex h-9 items-center gap-2 rounded-[5px] border border-[#D5DAEA] px-2 text-[12px]" style={{ color: "#0B1A2F" }}>
+                <input ref={enabledRef} type="checkbox" defaultChecked={rule.enabled} />
+                Active
+              </label>
+            </Field>
+          )}
           <div className="rounded-[7px] border border-[#E2E6EE] bg-[#F6F7FA] p-3 text-[12px] leading-5" style={{ color: "#56627A" }}>
             Rule execution belongs to the backend validation engine. This panel is for editing operator intent and keeping the UI flow testable.
           </div>
         </div>
         <div className="flex flex-col gap-2 border-t border-[#E2E6EE] bg-[#F6F7FA] px-5 py-4 sm:flex-row sm:justify-end">
+          {onLiveDelete && !isNew && (
+            <button
+              onClick={handleDelete}
+              className="h-9 rounded-[6px] px-4 text-[12px] font-semibold sm:mr-auto"
+              style={{ border: "1px solid #F5C0C0", background: "#FBE3E3", color: "#C53A3A" }}
+            >
+              Delete
+            </button>
+          )}
           <button onClick={onClose} className="h-9 rounded-[6px] px-4 text-[12px] font-semibold" style={{ border: "1px solid #E2E6EE", background: "#FFFFFF", color: "#56627A" }}>Cancel</button>
-          <button onClick={() => onSaved(isNew ? "Rule draft saved locally for QA. Live validation-engine persistence remains for Group J." : "Rule edit draft saved locally for QA. Live validation-engine persistence remains for Group J.")} className="h-9 rounded-[6px] px-4 text-[12px] font-semibold" style={{ border: 0, background: "#0B1A2F", color: "#FFFFFF" }}>Save draft</button>
+          <button
+            onClick={handleSave}
+            disabled={isSaving}
+            className="h-9 rounded-[6px] px-4 text-[12px] font-semibold"
+            style={{ border: 0, background: "#0B1A2F", color: "#FFFFFF", opacity: isSaving ? 0.6 : 1 }}
+          >
+            {isSaving ? "Saving…" : (onLiveSave ? "Save" : "Save draft")}
+          </button>
         </div>
       </div>
     </div>
