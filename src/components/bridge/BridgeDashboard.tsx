@@ -11,7 +11,7 @@ import { FileChip } from "./FileChip";
 import { LaneDrawer } from "./LaneDrawer";
 import type { Lane } from "./LaneDrawer";
 import { OnboardingChecklist } from "./OnboardingChecklist";
-import { apiClient } from "@/lib/api-client";
+import { apiClient, isApiMockMode } from "@/lib/api-client";
 
 // ─── Mock data (MSW will replace these) ─────────────────────────────────────
 
@@ -46,13 +46,6 @@ const WIRES: Wire[] = [
   { buyerId: "b6", supplierId: "s1", weight: 2, health: "ok" },
 ];
 
-const KPIS = [
-  { value: "1,209",  label: "Orders today",         sub: "+18% vs prev",     accent: "up"   },
-  { value: "1m 42s", label: "Avg processing time",  sub: "−22% vs prev",     accent: "up"   },
-  { value: "3",      label: "Urgent exceptions",    sub: "4 urgent 24h ago", accent: "warn" },
-  { value: "84%",    label: "Auto-processed",       sub: "+6% this quarter", accent: "up"   },
-  { value: "€4.20",  label: "Cost per order",       sub: "vs €6.80 prev",    accent: "up"   },
-];
 
 const IN_TRANSIT = [
   { po: "PO-2026-008412", buyer: "Heinrich", supplier: "Acme",        fmt: "PDF",  stage: "Validate" },
@@ -85,11 +78,78 @@ export function BridgeDashboard() {
     queryFn: () => apiClient.getSuppliers(),
     staleTime: 60_000,
   });
-  const { data: orders } = useQuery({
+  const { data: orders, isLoading: ordersLoading, isError: ordersError } = useQuery({
     queryKey: ["orders"],
     queryFn: () => apiClient.getOrders(),
     staleTime: 60_000,
   });
+
+  // KPI computation — safe with undefined/empty orders
+  const kpis = (() => {
+    const todayStart = new Date();
+    todayStart.setUTCHours(0, 0, 0, 0);
+
+    const ordersToday = (orders ?? []).filter(
+      o => new Date(o.createdAt) >= todayStart
+    ).length;
+
+    const urgentExceptions = (orders ?? []).filter(
+      o => o.status === "pending_review" || o.status === "delivery_failed"
+    ).length;
+
+    const eligible = (orders ?? []).filter(o =>
+      ["ready", "ready_to_deliver", "delivered"].includes(o.status)
+    );
+    const autoProcessed =
+      eligible.length >= 3
+        ? Math.round((eligible.filter(o => o.unresolvedCount === 0).length / eligible.length) * 100)
+        : null;
+
+    if (isApiMockMode && !orders) {
+      // Static mock KPIs for demo mode
+      return [
+        { value: "1,209",  label: "Orders today",         sub: "Today, UTC",                      accent: "up"   as const },
+        { value: "—",      label: "Avg processing time",  sub: "Coming with usage metering",       accent: "none" as const },
+        { value: "3",      label: "Urgent exceptions",    sub: "Today, UTC",                       accent: "warn" as const },
+        { value: "84%",    label: "Auto-processed",       sub: "This period",                      accent: "up"   as const },
+        { value: "—",      label: "Cost per order",       sub: "Coming with usage metering",       accent: "none" as const },
+      ];
+    }
+
+    return [
+      {
+        value: ordersLoading ? "…" : ordersToday.toLocaleString(),
+        label: "Orders today",
+        sub: "Today, UTC",
+        accent: "up" as const,
+      },
+      {
+        value: "—",
+        label: "Avg processing time",
+        // TODO: wire to /api/dashboard/kpis when available (needs updatedAt on OrderSummary)
+        sub: "Coming with usage metering",
+        accent: "none" as const,
+      },
+      {
+        value: ordersLoading ? "…" : ordersError ? "—" : urgentExceptions.toLocaleString(),
+        label: "Urgent exceptions",
+        sub: "Today, UTC",
+        accent: urgentExceptions > 0 ? "warn" as const : "up" as const,
+      },
+      {
+        value: ordersLoading ? "…" : ordersError || autoProcessed === null ? "—" : `${autoProcessed}%`,
+        label: "Auto-processed",
+        sub: ordersError ? "Live KPIs unavailable" : "This period",
+        accent: "up" as const,
+      },
+      {
+        value: "—",
+        label: "Cost per order",
+        sub: "Coming with usage metering",
+        accent: "none" as const,
+      },
+    ];
+  })();
 
   const showChecklist =
     onboardingStatus != null &&
@@ -182,7 +242,7 @@ export function BridgeDashboard() {
 
         {/* KPI strip — 2×2 on mobile, 5-col on xl */}
         <div className="grid grid-cols-2 gap-3 xl:grid-cols-5">
-          {KPIS.map((kpi, i) => (
+          {kpis.map((kpi, i) => (
             <div
               key={i}
               className="rounded-card p-4"
@@ -202,7 +262,7 @@ export function BridgeDashboard() {
               }}
             >
               <div
-                className="monument"
+                className={`monument${!isApiMockMode && ordersLoading ? " animate-pulse text-[#C6CDDA]" : ""}`}
                 style={{
                   fontSize: "clamp(28px, 4vw, 36px)",
                   color: "#0B1A2F",

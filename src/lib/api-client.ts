@@ -468,6 +468,81 @@ async function realDeleteSupplierMapping(supplierId: string, mappingId: string):
   if (!res.ok) { const t = await res.text(); throw new Error(`Delete failed: ${t || res.statusText}`); }
 }
 
+async function mockCreateSupplierMapping(
+  supplierId: string,
+  payload: { buyerItemCode: string; supplierItemCode: string }
+): Promise<SupplierMapping> {
+  await delay(300);
+  const m: SupplierMapping = { id: `m-${Date.now()}`, ...payload, confidence: 1.0, source: "manual" };
+  const list = mockMappings[supplierId] ?? [];
+  list.push(m);
+  mockMappings[supplierId] = list;
+  return m;
+}
+
+async function mockUpdateSupplierMapping(
+  supplierId: string,
+  mappingId: string,
+  payload: { buyerItemCode: string; supplierItemCode: string }
+): Promise<SupplierMapping> {
+  await delay(300);
+  const list = mockMappings[supplierId] ?? [];
+  const i = list.findIndex(m => m.id === mappingId);
+  if (i !== -1) list[i] = { ...list[i], ...payload };
+  return list[i] ?? { id: mappingId, ...payload };
+}
+
+async function mockImportSupplierMappings(
+  supplierId: string,
+  _file: File
+): Promise<{ created: number; updated: number }> {
+  await delay(600);
+  void supplierId;
+  return { created: 3, updated: 1 };
+}
+
+async function realCreateSupplierMapping(
+  supplierId: string,
+  payload: { buyerItemCode: string; supplierItemCode: string }
+): Promise<SupplierMapping> {
+  const res = await fetch(`${API_BASE_URL}/api/suppliers/${supplierId}/mappings`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...await authHeader() },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) { const t = await res.text(); throw new Error(t || res.statusText); }
+  return res.json() as Promise<SupplierMapping>;
+}
+
+async function realUpdateSupplierMapping(
+  supplierId: string,
+  mappingId: string,
+  payload: { buyerItemCode: string; supplierItemCode: string }
+): Promise<SupplierMapping> {
+  const res = await fetch(`${API_BASE_URL}/api/suppliers/${supplierId}/mappings/${mappingId}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json", ...await authHeader() },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) { const t = await res.text(); throw new Error(t || res.statusText); }
+  return res.json() as Promise<SupplierMapping>;
+}
+
+async function realImportSupplierMappings(
+  supplierId: string,
+  file: File
+): Promise<{ created: number; updated: number }> {
+  const fd = new FormData();
+  fd.append("file", file);
+  const res = await fetch(`${API_BASE_URL}/api/suppliers/${supplierId}/mappings/import`, {
+    method: "POST",
+    headers: await authHeader(),
+    body: fd,
+  });
+  if (!res.ok) { const t = await res.text(); throw new Error(t || res.statusText); }
+  return res.json();
+}
+
 // ── Supplier CRUD ─────────────────────────────────────────────────────────
 
 async function mockCreateSupplier(payload: CreateSupplierPayload): Promise<Supplier> {
@@ -643,6 +718,9 @@ export const apiClient = {
   // Supplier mappings
   getSupplierMappings:    USE_MOCK ? mockGetSupplierMappings   : realGetSupplierMappings,
   deleteSupplierMapping:  USE_MOCK ? mockDeleteSupplierMapping : realDeleteSupplierMapping,
+  createSupplierMapping:  USE_MOCK ? mockCreateSupplierMapping  : realCreateSupplierMapping,
+  updateSupplierMapping:  USE_MOCK ? mockUpdateSupplierMapping  : realUpdateSupplierMapping,
+  importSupplierMappings: USE_MOCK ? mockImportSupplierMappings : realImportSupplierMappings,
 
   // Supplier profiles (legacy admin)
   getSupplierProfiles:    USE_MOCK ? mockGetSupplierProfiles   : realGetSupplierProfiles,

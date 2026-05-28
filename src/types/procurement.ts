@@ -133,6 +133,8 @@ export interface SupplierMapping {
   id: string;
   buyerItemCode: string;
   supplierItemCode: string;
+  confidence?: number;
+  source?: string;
 }
 
 // ── Audit trail ───────────────────────────────────────────────────────────
