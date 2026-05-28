@@ -32,7 +32,7 @@ const RECENT: Array<{
   age: string;
   status: "processing" | "done" | "failed" | "draft";
 }> = [
-  { name: "PO-2026-008412.pdf",   fmt: "PDF",   buyer: "Heinrich Industries",  supplier: "Acme Components",    size: "214 KB", age: "2m",  status: "processing" },
+  { name: "PO-DEMO-001.pdf",   fmt: "PDF",   buyer: "Heinrich Industries",  supplier: "Acme Components",    size: "214 KB", age: "2m",  status: "processing" },
   { name: "NRD_orders_may.xlsx",  fmt: "XLSX",  buyer: "Nordmark Logistics",   supplier: "VanDerBerg Metaal",  size: "88 KB",  age: "18m", status: "done"       },
   { name: "850-99201.edi",        fmt: "EDI",   buyer: "Centralis Pharma",     supplier: "MedicaSupply OY",    size: "12 KB",  age: "1h",  status: "failed"     },
   { name: "westmark_q2.csv",      fmt: "CSV",   buyer: "Westmark Tools",       supplier: "Acme Components",    size: "44 KB",  age: "3h",  status: "done"       },
