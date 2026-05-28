@@ -6,6 +6,9 @@
 
 import { useRouter } from "next/navigation";
 import { useState, useMemo, useCallback } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { apiClient, isApiMockMode } from "@/lib/api-client";
+import type { OrderSummary } from "@/types/procurement";
 import {
   useReactTable,
   getCoreRowModel,
@@ -114,7 +117,45 @@ function generateOrders(count: number): OrderRow[] {
   return rows;
 }
 
-const ALL_ORDERS = generateOrders(1000);
+// ─── API status mapping ───────────────────────────────────────────────────────
+
+function mapStatus(s: string): CrossingStatus {
+  if (s === "pending_review") return "review";
+  if (s === "parsing" || s === "transforming") return "extracting";
+  if (s === "ready" || s === "ready_to_deliver") return "ready";
+  if (s === "delivered") return "sent";
+  if (s === "delivery_failed" || s === "failed" || s === "transform_failed") return "failed";
+  return "new";
+}
+
+function summaryToRow(o: OrderSummary): OrderRow {
+  const ageMin = Math.max(0, Math.round((Date.now() - new Date(o.createdAt).getTime()) / 60000));
+  const fmt =
+    o.sourceFormat === "pdf" ? "PDF" :
+    o.sourceFormat === "csv" ? "CSV" :
+    o.sourceFormat === "xlsx" || o.sourceFormat === "xls" ? "XLSX" :
+    o.sourceFormat === "cxml" ? "cXML" :
+    o.sourceFormat === "edi" ? "EDI" :
+    "API";
+  const value = o.totalValue ?? 0;
+  const currency = o.currency ?? "EUR";
+  const valueLabel = `${currency} ${value.toLocaleString("en-IE", { minimumFractionDigits: 2 })}`;
+  return {
+    id: o.id,
+    status: mapStatus(o.status),
+    fmt,
+    buyer: o.buyerName ?? "—",
+    supplier: o.supplierName,
+    po: o.poNumber,
+    lines: o.lineCount,
+    value,
+    valueLabel,
+    issues: o.unresolvedCount,
+    assigned: "—",
+    age: fmtAge(ageMin),
+    ageMin,
+  };
+}
 
 // ─── Filter chips ─────────────────────────────────────────────────────────────
 
@@ -234,12 +275,27 @@ function SortIcon({ state }: { state: "asc" | "desc" | false }) {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
+// Mock mode: use a static generated set (50 rows)
+const MOCK_ORDERS = isApiMockMode ? generateOrders(50) : [];
+
 export function InboxView() {
   const router = useRouter();
   const [sorting, setSorting]           = useState<SortingState>([{ id: "ageMin", desc: false }]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
   const [activeChip, setActiveChip]     = useState(0); // index into FILTER_CHIPS
+
+  const queryClient = useQueryClient();
+  const { data: rawOrders, isLoading, isError, refetch } = useQuery({
+    queryKey: ["orders"],
+    queryFn: () => apiClient.getOrders(),
+    staleTime: 30_000,
+    enabled: !isApiMockMode,
+  });
+
+  const ALL_ORDERS: OrderRow[] = isApiMockMode
+    ? MOCK_ORDERS
+    : (rawOrders ?? []).map(summaryToRow);
 
   // Status filter: when a chip is selected, filter by status column
   const handleChip = useCallback((idx: number) => {
@@ -275,8 +331,41 @@ export function InboxView() {
     () => FILTER_CHIPS.map(({ status }) =>
       status ? ALL_ORDERS.filter((o) => o.status === status).length : ALL_ORDERS.length
     ),
-    []
+    [ALL_ORDERS]
   );
+
+  // Loading state
+  if (!isApiMockMode && isLoading) {
+    return (
+      <div className="flex flex-col h-full min-h-0 overflow-hidden" style={{ background: "#F6F7FA" }}>
+        <div className="flex-1 flex flex-col gap-0 bg-white">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <div key={i} className="flex items-center gap-3 px-5 py-3 border-b border-[#F0F2F6]">
+              <div className="h-5 w-20 rounded bg-[#E2E6EE] animate-pulse" />
+              <div className="h-5 flex-1 rounded bg-[#E2E6EE] animate-pulse" />
+              <div className="h-5 w-24 rounded bg-[#E2E6EE] animate-pulse" />
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  // Error state
+  if (!isApiMockMode && isError) {
+    return (
+      <div className="flex flex-col h-full min-h-0 overflow-hidden items-center justify-center gap-3 bg-white">
+        <p className="text-[14px] font-semibold" style={{ color: "#0B1A2F" }}>Could not load orders</p>
+        <button
+          onClick={() => refetch()}
+          className="rounded-[6px] px-4 text-[12.5px] font-medium"
+          style={{ height: 32, border: "1px solid #E2E6EE", background: "#FFFFFF", color: "#0B1A2F" }}
+        >
+          Retry
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col h-full min-h-0 overflow-hidden" style={{ background: "#F6F7FA" }}>
@@ -308,10 +397,32 @@ export function InboxView() {
           >
             <span className="font-semibold">{selectedCount} selected</span>
             <span style={{ color: "#BDD0EE" }}>·</span>
-            <button style={{ color: "#0F4FA8", background: "none", border: 0, cursor: "pointer", fontWeight: 600 }}>
+            <button
+              style={{ color: "#0F4FA8", background: "none", border: 0, cursor: "pointer", fontWeight: 600 }}
+              onClick={async () => {
+                const ids = Object.keys(rowSelection).map(k => rows[Number(k)]?.original.id).filter(Boolean);
+                if (!ids.length) return;
+                try {
+                  await Promise.all(
+                    ids.map(id =>
+                      fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:5223"}/api/orders/${id}/redeliver`, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                      }).catch(() => null)
+                    )
+                  );
+                  queryClient.invalidateQueries({ queryKey: ["orders"] });
+                  setRowSelection({});
+                } catch { /* ignore */ }
+              }}
+            >
               Re-process
             </button>
-            <button style={{ color: "#C53A3A", background: "none", border: 0, cursor: "pointer", fontWeight: 600 }}>
+            <button
+              disabled
+              title="Discard requires the soft-delete endpoint (Group L)"
+              style={{ color: "#8A93A5", background: "none", border: 0, cursor: "not-allowed", fontWeight: 600 }}
+            >
               Discard
             </button>
           </div>
@@ -321,6 +432,7 @@ export function InboxView() {
           <button
             className="flex items-center gap-1.5 rounded-[6px] px-3 text-[12.5px] font-medium transition-colors"
             style={{ height: 32, border: "1px solid #E2E6EE", background: "#FFFFFF", color: "#0B1A2F" }}
+            onClick={() => queryClient.invalidateQueries({ queryKey: ["orders"] })}
           >
             ↻ Sync
           </button>
@@ -334,6 +446,7 @@ export function InboxView() {
           <button
             className="flex items-center gap-1.5 rounded-[6px] px-3 text-[12.5px] font-medium"
             style={{ height: 32, background: "#0B1A2F", color: "#FFFFFF", border: 0 }}
+            onClick={() => router.push("/upload")}
           >
             + New order
           </button>
