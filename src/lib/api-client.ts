@@ -21,6 +21,17 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:5
 // Default to mock mode unless explicitly set to false
 const USE_MOCK = process.env.NEXT_PUBLIC_USE_MOCK !== "false";
 
+// ─── Support contact ───
+// Placed near the top of api-client.ts so the support form chip doesn't
+// merge-conflict with the concurrent runSampleOrder chip landing at the bottom.
+export interface SupportContactPayload {
+  category: "general" | "bug" | "billing" | "security";
+  subject?: string;
+  message: string;
+  userEmail?: string;
+  route?: string;
+}
+
 /** True when the frontend uses in-memory mocks instead of the ASP.NET API. */
 export const isApiMockMode = USE_MOCK;
 
@@ -190,6 +201,30 @@ async function realGetSuppliersFn(): Promise<Supplier[]> {
   const res = await fetch(`${API_BASE_URL}/api/suppliers`, { headers: await authHeader() });
   if (!res.ok) throw new Error(`Failed to fetch suppliers: ${res.statusText}`);
   return res.json() as Promise<Supplier[]>;
+}
+
+// ─── Support contact ───
+
+async function mockSubmitSupportRequest(payload: SupportContactPayload): Promise<{ ok: true }> {
+  await delay(400);
+  console.info("[mock] submitSupportRequest", payload);
+  return { ok: true };
+}
+
+async function realSubmitSupportRequest(payload: SupportContactPayload): Promise<{ ok: true }> {
+  const res = await fetch(`${API_BASE_URL}/api/support/contact`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...(await authHeader().catch(() => ({} as Record<string, string>))),
+    },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new Error(text || `submitSupportRequest failed: ${res.status}`);
+  }
+  return res.json() as Promise<{ ok: true }>;
 }
 
 // ── Upload ────────────────────────────────────────────────────────────────
@@ -744,6 +779,11 @@ async function realRunSampleOrder(): Promise<{ orderId: string; isSample: true }
 // ── Exported API client ───────────────────────────────────────────────────
 
 export const apiClient = {
+  // ─── Support contact ───
+  // Kept at the very top of the methods section so the concurrent runSampleOrder
+  // chip (added near the bottom) does not merge-conflict with this entry.
+  submitSupportRequest:   USE_MOCK ? mockSubmitSupportRequest  : realSubmitSupportRequest,
+
   // Suppliers — list + CRUD
   getSuppliers:           USE_MOCK ? mockGetSuppliersFn        : realGetSuppliersFn,
   createSupplier:         USE_MOCK ? mockCreateSupplier        : realCreateSupplier,
