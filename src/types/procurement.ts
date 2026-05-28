@@ -174,6 +174,35 @@ export interface DashboardStats {
   totalOrders: number;
 }
 
+export interface TopologyBuyer {
+  id: string;
+  name: string;
+  code: string;
+  volume: string;
+}
+
+export interface TopologySupplier {
+  id: string;
+  name: string;
+  code: string;
+  volume: string;
+  health: number;
+}
+
+export interface TopologyWire {
+  buyerId: string;
+  supplierId: string;
+  weight: number;
+  health: "ok" | "risk" | "down";
+  alert?: number;
+}
+
+export interface DashboardTopology {
+  buyers: TopologyBuyer[];
+  suppliers: TopologySupplier[];
+  wires: TopologyWire[];
+}
+
 // ── Billing ────────────────────────────────────────────────────────────────
 
 export type BillingPlan =
