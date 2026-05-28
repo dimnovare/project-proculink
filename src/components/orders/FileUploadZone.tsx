@@ -46,12 +46,22 @@ export function FileUploadZone({ onFileSelect, selectedFile, onClear, disabled }
       'application/pdf',
       'application/vnd.ms-excel',
       'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'application/xml',
+      'text/xml',
+      'application/edifact',
+      'application/edi-x12',
+      'text/plain',
     ];
+    const name = file.name.toLowerCase();
     return validTypes.includes(file.type) ||
-           file.name.endsWith('.csv') ||
-           file.name.endsWith('.pdf') ||
-           file.name.endsWith('.xlsx') ||
-           file.name.endsWith('.xls');
+           name.endsWith('.csv') ||
+           name.endsWith('.pdf') ||
+           name.endsWith('.xlsx') ||
+           name.endsWith('.xls') ||
+           name.endsWith('.xml') ||
+           name.endsWith('.cxml') ||
+           name.endsWith('.edi') ||
+           name.endsWith('.txt');
   };
 
   const isPdf = selectedFile?.name.toLowerCase().endsWith(".pdf") || selectedFile?.type === "application/pdf";
@@ -108,7 +118,7 @@ export function FileUploadZone({ onFileSelect, selectedFile, onClear, disabled }
     >
       <input
         type="file"
-        accept=".csv,.xlsx,.xls,.pdf,application/pdf"
+        accept=".csv,.xlsx,.xls,.pdf,.xml,.cxml,.edi,.txt,application/pdf,application/xml,text/xml"
         onChange={handleFileInput}
         disabled={disabled}
         className="absolute inset-0 w-full h-full opacity-0 cursor-pointer disabled:cursor-not-allowed"
