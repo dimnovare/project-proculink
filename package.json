@@ -9,7 +9,10 @@
     "start": "next start -p 8082",
     "lint": "next lint",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "test:e2e": "playwright test",
+    "test:e2e:live": "cross-env PLAYWRIGHT_LIVE=1 playwright test",
+    "test:e2e:ui": "playwright test --ui"
   },
   "dependencies": {
     "@clerk/nextjs": "^7.4.1",
@@ -81,6 +84,7 @@
     "@types/react-dom": "^18.3.7",
     "@vitejs/plugin-react-swc": "^3.11.0",
     "autoprefixer": "^10.4.21",
+    "cross-env": "^10.1.0",
     "eslint": "^9.32.0",
     "eslint-plugin-react-hooks": "^5.2.0",
     "eslint-plugin-react-refresh": "^0.4.20",

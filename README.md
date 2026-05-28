@@ -17,41 +17,77 @@ This project is **not** Vite and does not use React Router.
 
 ## Local Setup
 
+### 1. Install + start the frontend
+
 ```bash
 bun install
 bun run dev
 ```
 
-The local frontend usually runs on:
+Frontend listens on `http://localhost:8082` (configured in `package.json`).
 
-```text
-http://localhost:8082
-```
+### 2. Start the backend
 
-The backend API usually runs on:
+The backend lives in the sibling [`ProcuLink`](https://github.com/dimnovare/ProcuLink) repository. Follow `ProcuLink/README.md` to:
 
-```text
-http://localhost:5223
-```
+- `dotnet dev-certs https --trust` (one-time)
+- `docker compose up -d postgres`
+- `dotnet ef database update --project ProcuLink.Infrastructure --startup-project ProcuLink.Api`
+- `dotnet run --project ProcuLink.Api --launch-profile https`
+- `dotnet run --project ProcuLink.Worker` (Hangfire)
+
+### 3. Verify the wiring
+
+1. `https://localhost:7230/health` returns `Healthy`.
+2. `http://localhost:8082` loads the marketing landing page.
+3. Sign up → onboarding wizard → add a supplier — should succeed without `Failed to fetch`.
 
 ## Environment
 
-Committed `.env` values should only contain client-safe public variables:
+The frontend reads vars from three files, in priority order: `.env.local` > `.env.development` > `.env`.
+
+### `.env` (committed, client-safe defaults)
 
 ```text
 NEXT_PUBLIC_API_BASE_URL=http://localhost:5223
 NEXT_PUBLIC_USE_MOCK=false
 NEXT_PUBLIC_SENTRY_DSN=
+NEXT_PUBLIC_POSTHOG_KEY=
+NEXT_PUBLIC_POSTHOG_HOST=https://eu.posthog.com
+NEXT_PUBLIC_STATUS_URL=
+NEXT_PUBLIC_WALKTHROUGH_LOOM_URL=
+NEXT_PUBLIC_BOOK_DEMO_URL=
 ```
 
-Local secrets belong in `.env.local` and must not be committed:
+### `.env.local` (gitignored — your secrets + overrides)
 
 ```text
+NEXT_PUBLIC_API_BASE_URL=https://localhost:7230
 NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_...
 CLERK_SECRET_KEY=sk_test_...
 ```
 
+### HTTP vs HTTPS in dev — pick one
+
+The backend supports both. Match the frontend env to whichever profile you run:
+
+| Backend profile | Backend URL | Frontend `NEXT_PUBLIC_API_BASE_URL` |
+|---|---|---|
+| `dotnet run --launch-profile https` | `https://localhost:7230` (preferred) | `https://localhost:7230` |
+| `dotnet run --launch-profile http` | `http://localhost:5223` | `http://localhost:5223` |
+
+If you mix them — frontend pointing at `https://` while the backend only opens `http://` — every API call fails with `Failed to fetch` because TLS connection is refused. The same error happens if you target HTTPS without first running `dotnet dev-certs https --trust`.
+
 Do not use `VITE_*` variables.
+
+## Troubleshooting
+
+| Symptom | Likely cause | Fix |
+|---|---|---|
+| `Failed to fetch` on the onboarding wizard | Backend not reachable, dev cert not trusted, OR HTTP/HTTPS mismatch between `.env.local` and the launch profile | See "HTTP vs HTTPS in dev" above. The wizard itself now prints a more actionable message in `OnboardingWizard.tsx`. |
+| `useOrganization can only be used within ClerkProvider` during build | Missing Clerk env vars during `bun run build` | Set `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` + `CLERK_SECRET_KEY` in `.env.local`, or pass them inline to the build command |
+| Onboarding banner says "billing service unavailable" | Backend not running OR Pilot quota not yet wired | Confirm backend Terminal 1 is up and `/api/billing/status` returns 200 |
+| `posthog` events never fire | `NEXT_PUBLIC_POSTHOG_KEY` empty + user has not accepted analytics cookies | Both required — see `docs/group-l-go-live-playbook.md` Action 1 |
 
 ## Design Direction
 
