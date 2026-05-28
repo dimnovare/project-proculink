@@ -59,6 +59,7 @@ export default {
         border: {
           DEFAULT: "#E2E6EE",
           strong:  "#C6CDDA",
+          faint:   "#EEF0F4",
         },
 
         // Ink (text)

@@ -7,13 +7,28 @@ import { apiClient } from "@/lib/api-client";
 import type { Artifact, Order, OrderStatus } from "@/types/procurement";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { ResolveSection } from "@/components/orders/ResolveSection";
-import { AuditTimeline } from "@/components/orders/AuditTimeline";
+import { PipelineStrip } from "@/components/orders/PipelineStrip";
+import type { StageActivity } from "@/components/orders/PipelineStrip";
 import { SpineReviewSkeleton } from "@/components/bridge/Skeletons";
 import { BridgeLoader } from "@/components/bridge/BridgeLoader";
 import { useToast } from "@/hooks/use-toast";
 
 /** Statuses where the backend is still working — poll until they change. */
 const POLLING_STATUSES: OrderStatus[] = ["parsing", "transforming"];
+
+// ─── Pipeline stage mapping ───────────────────────────────────────────────────
+
+const STATUS_TO_STAGE: Record<OrderStatus, 0 | 1 | 2 | 3 | 4> = {
+  parsing:          0,
+  pending_review:   2,
+  ready:            2,
+  transforming:     3,
+  ready_to_deliver: 3,
+  delivered:        4,
+  failed:           0,
+  transform_failed: 3,
+  delivery_failed:  4,
+};
 
 // ─── Design tokens ────────────────────────────────────────────────────────────
 const T = {
@@ -717,6 +732,19 @@ export default function OrderDetailPage() {
             </div>
           </div>
 
+          {/* ── Pipeline Strip ─────────────────────────────────────────────── */}
+          {(() => {
+            const currentStage = STATUS_TO_STAGE[order.status] ?? 0;
+            // activityByStage left empty — will be wired in a follow-up
+            const activityByStage: Partial<Record<0 | 1 | 2 | 3 | 4, StageActivity>> = {};
+            return (
+              <PipelineStrip
+                currentStage={currentStage}
+                activityByStage={activityByStage}
+              />
+            );
+          })()}
+
           {/* ── Processing banner ───────────────────────────────────────────── */}
           {isProcessing && (
             <div style={{
@@ -777,11 +805,10 @@ export default function OrderDetailPage() {
               )}
             </div>
 
-            {/* Sidebar — three cards max */}
+            {/* Sidebar — two cards */}
             <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
               <CounterpartiesPanel order={order} />
               <DetailsPanel order={order} />
-              <AuditTimeline orderId={order.id} />
             </div>
 
           </div>
