@@ -1,0 +1,32 @@
+export const metadata = {
+  title: "How AI mapping suggestions work — ProcuLink Help",
+  description: "When OpenAI runs, what confidence means, and how to confirm or clear suggestions.",
+};
+
+# How AI mapping suggestions work
+
+ProcuLink uses OpenAI to help close the last mile of mapping — only the lines that deterministic rules could not resolve on their own.
+
+## When AI runs
+
+Every incoming order is first put through your deterministic mappings and validation rules. AI suggestions only run for lines that the deterministic pass left unresolved. AI never overrides a successful deterministic match.
+
+## Anatomy of a suggestion
+
+Each AI suggestion carries three pieces of metadata:
+
+- `confidence` — a percentage between 0 and 100 representing the model's self-reported certainty.
+- `reason` — a short, human-readable explanation, e.g. "matched on description plus unit size".
+- `provenance` — the source data the model was given, so you can audit what it actually saw.
+
+## Accept or reject
+
+Nothing is written to the order automatically. Suggestions appear on the Review screen with `Accept` and `Reject` actions. Accepting writes the value into the canonical line and marks the line resolved. Rejecting clears the suggestion; the line stays unresolved until you map it manually.
+
+## Plan availability
+
+AI suggestions run for all paying plans when OpenAI is configured on the workspace. Pilot trials also receive suggestions for the duration of the 14-day trial so new customers can see the feature in action.
+
+---
+
+Need help? Email [support@proculink.com](mailto:support@proculink.com) or see [PO field mapping basics](/help/mapping-basics).

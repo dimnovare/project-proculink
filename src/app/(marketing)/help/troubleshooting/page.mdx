@@ -1,0 +1,32 @@
+export const metadata = {
+  title: "Troubleshooting common parse errors — ProcuLink Help",
+  description: "Date format mismatches, missing columns, encoding issues — what to fix.",
+};
+
+# Troubleshooting common parse errors
+
+Five issues account for most parse failures. Each one is fixable in your mapping or the source file.
+
+## Missing required column
+
+The file is missing one of the five required canonical fields (`po_number`, `line_no`, `item_code`, `quantity`, `unit_price`). Fix by renaming the source column in your mapping, or by adding a `Concat` manipulator to build the canonical field from two source columns.
+
+## Ambiguous date format
+
+A date column contains values like `03/04/2026` that could be either March 4th or April 3rd. ProcuLink will not guess. Attach a `DateFormat` manipulator that pins the input format explicitly, e.g. `dd/MM/yyyy`.
+
+## UTF-8 BOM and encoding
+
+CSV files exported from Excel sometimes include a UTF-8 byte-order mark, which makes the first header look like `ï»¿po_number`. Re-export from Excel as `CSV UTF-8 (Comma delimited) (.csv)`, or open the file in a text editor and remove the leading bytes.
+
+## Scanned PDFs
+
+ProcuLink extracts text from text-based PDFs. Image-only scans (phone photos, photocopier output) are not yet supported. Run OCR before uploading, or ask the buyer for a text PDF.
+
+## Supplier item code mismatch
+
+A line parses but its `item_code` does not match any SKU in the supplier mapping. Either add the SKU to the supplier mapping, or accept an AI suggestion on the Review screen when one is offered.
+
+---
+
+Need help? Email [support@proculink.com](mailto:support@proculink.com) or see [PO field mapping basics](/help/mapping-basics).

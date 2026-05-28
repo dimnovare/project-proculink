@@ -1,0 +1,41 @@
+export const metadata = {
+  title: "Email polling (IMAP) setup — ProcuLink Help",
+  description: "Receive POs as email attachments — only on Integration and above.",
+};
+
+# Email polling (IMAP) setup
+
+ProcuLink can ingest purchase orders straight from a shared mailbox by polling it over IMAP and picking up attachments.
+
+## Plan availability
+
+Email polling is available on `Integration` (€999/month) and `Enterprise`. Lower plans (`Pilot`, `Growth`, `Operations`) must upload through the Bridge UI or the HTTP API instead.
+
+## Connecting your mailbox
+
+Open `Settings → Email polling` and provide:
+
+- Host, e.g. `imap.gmail.com`
+- Port, usually `993`
+- `SSL/TLS` enabled (recommended)
+- Folder, default `INBOX`
+- Username
+- Password, or an app-specific password for Gmail or Microsoft accounts
+
+Credentials are encrypted at rest. Use a dedicated routing folder so unrelated mail doesn't get scanned.
+
+## Polling cadence
+
+ProcuLink polls every 5 minutes. There is no faster option in this release.
+
+## What gets ingested
+
+Only attachments with the extensions `.csv`, `.xlsx`, and `.pdf` are picked up. The email body itself is not parsed yet. Each attachment becomes a separate order. A successfully picked-up message is marked as `Seen` in the mailbox so it isn't re-ingested.
+
+## When things fail
+
+Bad credentials or unreachable hosts produce an alert on `Settings → Email polling` and polling pauses until you fix the configuration. No silent failures.
+
+---
+
+Need help? Email [support@proculink.com](mailto:support@proculink.com) or see [Your first purchase order upload](/help/first-upload).
