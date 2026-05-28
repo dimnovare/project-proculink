@@ -103,6 +103,8 @@ export function UploadWorkbench() {
   const timerRefs = useRef<ReturnType<typeof setTimeout>[]>([]);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const router = useRouter();
+  const [sampleLoading, setSampleLoading] = useState(false);
+  const [sampleError, setSampleError] = useState<string | null>(null);
 
   const { data: billing, isLoading: billingLoading, isError: billingError } = useQuery({
     queryKey: ["billing-status"],
@@ -208,6 +210,23 @@ export function UploadWorkbench() {
       router.push(reviewPath);
     }, PIPELINE_STAGES.length * STAGE_MS + 200);
     timerRefs.current.push(total);
+  }
+
+  async function handleSample() {
+    if (sampleLoading || uploading) return;
+    capture("sample_order_started", { from_route: "/upload" });
+    setSampleError(null);
+    setSampleLoading(true);
+    try {
+      const { orderId } = await apiClient.runSampleOrder();
+      const target = isApiMockMode
+        ? `/inbox/${encodeURIComponent(orderId)}?sample=1`
+        : `/orders/${encodeURIComponent(orderId)}?sample=1`;
+      router.push(target);
+    } catch (err) {
+      setSampleError(err instanceof Error ? err.message : "Could not start sample run.");
+      setSampleLoading(false);
+    }
   }
 
   // Cleanup timers on unmount
@@ -379,6 +398,42 @@ export function UploadWorkbench() {
                 <p className="text-[11.5px]" style={{ color: "#8A93A5" }}>
                   Supports CSV, XLSX, and PDF purchase orders. Max 25MB.
                 </p>
+              </div>
+            </XCard>
+
+            {/* Phase 6.3 — Try with sample order */}
+            <XCard edge="left" edgeColor="#6F4FCE">
+              <div
+                className="flex flex-wrap items-center justify-between gap-3 px-4 py-3"
+              >
+                <div style={{ minWidth: 0, flex: "1 1 260px" }}>
+                  <p className="text-[13px] font-semibold" style={{ color: "#0B1A2F" }}>
+                    Don&apos;t have a purchase order handy?
+                  </p>
+                  <p className="text-[12px] mt-1" style={{ color: "#56627A" }}>
+                    Run a sample order with an example CSV. It won&apos;t count toward your monthly quota.
+                  </p>
+                  {sampleError && (
+                    <p className="mt-2 text-[12px]" style={{ color: "#C53A3A" }}>
+                      {sampleError}
+                    </p>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  onClick={handleSample}
+                  disabled={sampleLoading || uploading}
+                  className="rounded-[6px] px-3 py-2 text-[12.5px] font-semibold transition-all"
+                  style={{
+                    background: sampleLoading || uploading ? "#EFF2F7" : "#FFFFFF",
+                    color: sampleLoading || uploading ? "#8A93A5" : "#6F4FCE",
+                    border: "1px solid #C7B5F0",
+                    cursor: sampleLoading || uploading ? "not-allowed" : "pointer",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {sampleLoading ? "Starting sample…" : "Try with sample order →"}
+                </button>
               </div>
             </XCard>
 
