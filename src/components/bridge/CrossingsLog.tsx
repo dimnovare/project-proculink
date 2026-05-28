@@ -4,6 +4,8 @@
 // and expandable payload diffs. /operations/log
 
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { getAuditLog, isApiMockMode, type AuditLogEntry } from "@/lib/api-client";
 import { FileChip } from "./FileChip";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -38,7 +40,7 @@ type LogEntry = {
 
 // ─── Mock data ─────────────────────────────────────────────────────────────────
 
-const LOG: LogEntry[] = [
+const MOCK_LOG: LogEntry[] = [
   {
     id: "e1",
     ts: "14:22:08",
@@ -186,6 +188,50 @@ const LOG: LogEntry[] = [
   },
 ];
 
+// ─── Map AuditLogEntry → LogEntry ─────────────────────────────────────────────
+
+function mapApiEntryToLogEntry(e: AuditLogEntry): LogEntry {
+  const EVENT_MAP: Record<string, EventType> = {
+    created:          "uploaded",
+    parsed:           "extracted",
+    status_changed:   "reviewed",
+    resolved:         "reviewed",
+    transform_queued: "mapped",
+    delivered:        "crossed",
+    delivery_failed:  "failed",
+    flagged:          "flagged",
+    validated:        "validated",
+    uploaded:         "uploaded",
+    extracted:        "extracted",
+    mapped:           "mapped",
+    retried:          "retried",
+  };
+
+  const eventKey = e.action.toLowerCase();
+  const event: EventType = EVENT_MAP[eventKey] ?? "crossed";
+
+  const ts = new Date(e.ts).toLocaleTimeString("en-GB", {
+    hour: "2-digit", minute: "2-digit", second: "2-digit",
+  });
+
+  return {
+    id:         e.id,
+    ts,
+    crossingId: e.orderId ?? e.id,
+    po:         e.poNumber ?? e.orderId ?? "—",
+    buyer:      e.buyerName ?? "—",
+    supplier:   e.supplierName ?? "—",
+    fmt:        e.format ?? "—",
+    event,
+    actor: {
+      initials: e.actorInitials,
+      name:     e.actorName,
+      type:     e.actorType,
+    },
+    message: e.message,
+  };
+}
+
 // ─── Event visual config ──────────────────────────────────────────────────────
 
 const EV: Record<EventType, { dot: string; label: string; icon: string }> = {
@@ -206,12 +252,42 @@ const ACTOR_BG: Record<"user" | "system" | "ai", string> = {
   ai:     "#6F4FCE",
 };
 
+// ─── Skeleton row ─────────────────────────────────────────────────────────────
+
+function SkeletonRow() {
+  return (
+    <div className="flex gap-3 sm:gap-4 relative" style={{ paddingBottom: 20 }}>
+      <div
+        style={{
+          width: 10, height: 10, borderRadius: "50%",
+          background: "#E2E6EE", flexShrink: 0, marginTop: 5,
+          position: "relative", zIndex: 1,
+        }}
+      />
+      <div
+        className="flex-1 min-w-0 rounded-[8px] overflow-hidden animate-pulse"
+        style={{ background: "#FFFFFF", border: "1px solid #E2E6EE", height: 48 }}
+      />
+    </div>
+  );
+}
+
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export function CrossingsLog() {
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [evFilter, setEvFilter] = useState<EventType | "All">("All");
   const [search, setSearch]     = useState("");
+
+  const { data, isLoading, isError, refetch } = useQuery({
+    queryKey: ["audit"],
+    queryFn:  () => getAuditLog(),
+    enabled:  !isApiMockMode,
+  });
+
+  const LOG: LogEntry[] = isApiMockMode
+    ? MOCK_LOG
+    : (data?.events ?? []).map(mapApiEntryToLogEntry);
 
   function toggle(id: string) {
     setExpanded((prev) => {
@@ -333,233 +409,281 @@ export function CrossingsLog() {
 
       {/* Timeline */}
       <div className="flex-1 overflow-auto px-4 py-4 sm:px-6">
-        {/* Date group header */}
-        <div className="flex items-center gap-3 mb-4">
-          <span
-            className="text-[11px] font-bold uppercase tracking-[0.06em]"
-            style={{ color: "#8A93A5" }}
-          >
-            {date}
-          </span>
-          <div style={{ flex: 1, height: 1, background: "#E2E6EE" }} />
-        </div>
 
-        <div className="flex flex-col gap-0 relative">
-          {/* Vertical timeline spine */}
-          <div
-            style={{
-              position: "absolute",
-              left: 19,
-              top: 8,
-              bottom: 8,
-              width: 1,
-              background: "#E2E6EE",
-              zIndex: 0,
-            }}
-          />
+        {/* Loading state */}
+        {isLoading && !isApiMockMode && (
+          <div className="flex flex-col gap-0 relative">
+            <div
+              style={{
+                position: "absolute", left: 19, top: 8, bottom: 8,
+                width: 1, background: "#E2E6EE", zIndex: 0,
+              }}
+            />
+            <SkeletonRow />
+            <SkeletonRow />
+            <SkeletonRow />
+          </div>
+        )}
 
-          {filtered.map((entry) => {
-            const ev   = EV[entry.event];
-            const open = expanded.has(entry.id);
-            const hasDiff = !!entry.diff?.length;
-            const hasDetail = !!entry.detail;
+        {/* Error state */}
+        {isError && !isApiMockMode && (
+          <div className="flex flex-col items-center justify-center py-16">
+            <div
+              className="rounded-[10px] px-6 py-5 flex flex-col items-center gap-3"
+              style={{ background: "#FFFFFF", border: "1px solid #E2E6EE", maxWidth: 320 }}
+            >
+              <span style={{ fontSize: 28, color: "#C53A3A" }}>⚠</span>
+              <p className="text-[13px] text-center" style={{ color: "#56627A" }}>
+                Could not load the audit log. Check your connection and try again.
+              </p>
+              <button
+                onClick={() => refetch()}
+                className="rounded-[6px] px-4 text-[12.5px] font-medium"
+                style={{
+                  height: 32,
+                  border: "1px solid #E2E6EE",
+                  background: "#FFFFFF",
+                  color: "#0B1A2F",
+                }}
+              >
+                Retry
+              </button>
+            </div>
+          </div>
+        )}
 
-            return (
-              <div key={entry.id} className="flex gap-3 sm:gap-4 relative" style={{ paddingBottom: 20 }}>
-                {/* Timeline dot */}
-                <div
-                  style={{
-                    width: 10,
-                    height: 10,
-                    borderRadius: "50%",
-                    background: ev.dot,
-                    border: `2px solid ${ev.dot}`,
-                    flexShrink: 0,
-                    marginTop: 5,
-                    position: "relative",
-                    zIndex: 1,
-                    boxShadow: `0 0 0 3px ${ev.dot}22`,
-                  }}
-                />
+        {/* Timeline content */}
+        {(!isLoading || isApiMockMode) && !isError && (
+          <>
+            {/* Date group header */}
+            <div className="flex items-center gap-3 mb-4">
+              <span
+                className="text-[11px] font-bold uppercase tracking-[0.06em]"
+                style={{ color: "#8A93A5" }}
+              >
+                {date}
+              </span>
+              <div style={{ flex: 1, height: 1, background: "#E2E6EE" }} />
+            </div>
 
-                {/* Card */}
-                <div
-                  className="flex-1 min-w-0 rounded-[8px] overflow-hidden"
-                  style={{
-                    background: "#FFFFFF",
-                    border: "1px solid #E2E6EE",
-                    boxShadow: "0 1px 3px rgba(11,26,47,0.04)",
-                  }}
-                >
-                  {/* Main row */}
-                  <div
-                    className="grid gap-2 px-4 py-3 lg:flex lg:items-center lg:gap-3"
-                    style={{
-                      cursor: hasDetail || hasDiff ? "pointer" : undefined,
-                    }}
-                    onClick={() => (hasDetail || hasDiff) && toggle(entry.id)}
-                  >
-                    {/* Timestamp */}
-                    <span
-                      className="font-mono text-[11px] flex-shrink-0"
-                      style={{ color: "#8A93A5", width: 64 }}
-                    >
-                      {entry.ts}
-                    </span>
+            <div className="flex flex-col gap-0 relative">
+              {/* Vertical timeline spine */}
+              <div
+                style={{
+                  position: "absolute",
+                  left: 19,
+                  top: 8,
+                  bottom: 8,
+                  width: 1,
+                  background: "#E2E6EE",
+                  zIndex: 0,
+                }}
+              />
 
-                    {/* Event badge */}
-                    <span
-                      className="inline-flex items-center gap-1 rounded px-2 py-0.5 text-[10.5px] font-semibold flex-shrink-0"
-                      style={{
-                        background: `${ev.dot}18`,
-                        color: ev.dot,
-                        minWidth: 78,
-                        justifyContent: "center",
-                      }}
-                    >
-                      <span>{ev.icon}</span>
-                      {ev.label}
-                    </span>
+              {filtered.map((entry) => {
+                const ev   = EV[entry.event];
+                const open = expanded.has(entry.id);
+                const hasDiff = !!entry.diff?.length;
+                const hasDetail = !!entry.detail;
 
-                    {/* PO link */}
-                    <span
-                      className="font-mono text-[11.5px] font-medium flex-shrink-0"
-                      style={{ color: "#0F4FA8" }}
-                    >
-                      {entry.po}
-                    </span>
-
-                    {/* Format chip */}
-                    <FileChip type={entry.fmt} />
-
-                    {/* Buyer → Supplier */}
-                    <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 lg:contents">
-                      <span
-                        className="truncate text-[12px] lg:flex-shrink-0"
-                        style={{ color: "#1E66C9" }}
-                      >
-                        {entry.buyer}
-                      </span>
-                      <span style={{ color: "#C6CDDA", fontSize: 11 }}>→</span>
-                      <span
-                        className="truncate text-right text-[12px] lg:text-left lg:flex-shrink-0"
-                        style={{ color: "#2E8E3A" }}
-                      >
-                        {entry.supplier}
-                      </span>
-                    </div>
-
-                    <div className="hidden flex-1 lg:block" />
-
-                    {/* Message */}
-                    <span
-                      className="text-[12px] lg:text-right lg:truncate"
-                      style={{ color: "#56627A", maxWidth: 240 }}
-                    >
-                      {entry.message}
-                    </span>
-
-                    {/* Actor badge */}
+                return (
+                  <div key={entry.id} className="flex gap-3 sm:gap-4 relative" style={{ paddingBottom: 20 }}>
+                    {/* Timeline dot */}
                     <div
-                      className="hidden items-center justify-center rounded-full text-[10px] font-bold text-white flex-shrink-0 lg:flex"
                       style={{
-                        width: 26,
-                        height: 26,
-                        background: ACTOR_BG[entry.actor.type],
+                        width: 10,
+                        height: 10,
+                        borderRadius: "50%",
+                        background: ev.dot,
+                        border: `2px solid ${ev.dot}`,
+                        flexShrink: 0,
+                        marginTop: 5,
+                        position: "relative",
+                        zIndex: 1,
+                        boxShadow: `0 0 0 3px ${ev.dot}22`,
                       }}
-                      title={entry.actor.name}
-                    >
-                      {entry.actor.initials}
-                    </div>
+                    />
 
-                    {/* Expand chevron */}
-                    {(hasDetail || hasDiff) && (
-                      <span
+                    {/* Card */}
+                    <div
+                      className="flex-1 min-w-0 rounded-[8px] overflow-hidden"
+                      style={{
+                        background: "#FFFFFF",
+                        border: "1px solid #E2E6EE",
+                        boxShadow: "0 1px 3px rgba(11,26,47,0.04)",
+                      }}
+                    >
+                      {/* Main row */}
+                      <div
+                        className="grid gap-2 px-4 py-3 lg:flex lg:items-center lg:gap-3"
                         style={{
-                          color: "#C6CDDA",
-                          fontSize: 11,
-                          transform: open ? "rotate(180deg)" : undefined,
-                          transition: "transform 0.15s",
-                          flexShrink: 0,
+                          cursor: hasDetail || hasDiff ? "pointer" : undefined,
                         }}
+                        onClick={() => (hasDetail || hasDiff) && toggle(entry.id)}
                       >
-                        ⌄
-                      </span>
-                    )}
-                  </div>
-
-                  {/* Expanded panel */}
-                  {open && (
-                    <div
-                      style={{
-                        borderTop: "1px solid #E2E6EE",
-                        padding: "12px 16px",
-                        background: "#F6F7FA",
-                      }}
-                    >
-                      {entry.detail && (
-                        <p
-                          className="text-[12px] mb-3 leading-relaxed"
-                          style={{ color: "#56627A" }}
+                        {/* Timestamp */}
+                        <span
+                          className="font-mono text-[11px] flex-shrink-0"
+                          style={{ color: "#8A93A5", width: 64 }}
                         >
-                          {entry.detail}
-                        </p>
-                      )}
+                          {entry.ts}
+                        </span>
 
-                      {hasDiff && (
-                        <div>
-                          <p
-                            className="text-[10.5px] font-semibold uppercase tracking-[0.06em] mb-2"
-                            style={{ color: "#8A93A5" }}
+                        {/* Event badge */}
+                        <span
+                          className="inline-flex items-center gap-1 rounded px-2 py-0.5 text-[10.5px] font-semibold flex-shrink-0"
+                          style={{
+                            background: `${ev.dot}18`,
+                            color: ev.dot,
+                            minWidth: 78,
+                            justifyContent: "center",
+                          }}
+                        >
+                          <span>{ev.icon}</span>
+                          {ev.label}
+                        </span>
+
+                        {/* PO link */}
+                        <span
+                          className="font-mono text-[11.5px] font-medium flex-shrink-0"
+                          style={{ color: "#0F4FA8" }}
+                        >
+                          {entry.po}
+                        </span>
+
+                        {/* Format chip */}
+                        <FileChip type={entry.fmt} />
+
+                        {/* Buyer → Supplier */}
+                        <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 lg:contents">
+                          <span
+                            className="truncate text-[12px] lg:flex-shrink-0"
+                            style={{ color: "#1E66C9" }}
                           >
-                            Field changes
-                          </p>
-                          <div
-                            className="rounded-[6px] overflow-hidden font-mono text-[11.5px]"
-                            style={{ border: "1px solid #E2E6EE" }}
+                            {entry.buyer}
+                          </span>
+                          <span style={{ color: "#C6CDDA", fontSize: 11 }}>→</span>
+                          <span
+                            className="truncate text-right text-[12px] lg:text-left lg:flex-shrink-0"
+                            style={{ color: "#2E8E3A" }}
                           >
-                            {entry.diff!.map((d, i) => (
-                              <div
-                                key={i}
-                                className="flex items-center gap-3 px-3 py-2"
-                                style={{
-                                  background: i % 2 === 0 ? "#FFFFFF" : "#F6F7FA",
-                                  borderBottom:
-                                    i < entry.diff!.length - 1
-                                      ? "1px solid #F0F2F6"
-                                      : undefined,
-                                }}
+                            {entry.supplier}
+                          </span>
+                        </div>
+
+                        <div className="hidden flex-1 lg:block" />
+
+                        {/* Message */}
+                        <span
+                          className="text-[12px] lg:text-right lg:truncate"
+                          style={{ color: "#56627A", maxWidth: 240 }}
+                        >
+                          {entry.message}
+                        </span>
+
+                        {/* Actor badge */}
+                        <div
+                          className="hidden items-center justify-center rounded-full text-[10px] font-bold text-white flex-shrink-0 lg:flex"
+                          style={{
+                            width: 26,
+                            height: 26,
+                            background: ACTOR_BG[entry.actor.type],
+                          }}
+                          title={entry.actor.name}
+                        >
+                          {entry.actor.initials}
+                        </div>
+
+                        {/* Expand chevron */}
+                        {(hasDetail || hasDiff) && (
+                          <span
+                            style={{
+                              color: "#C6CDDA",
+                              fontSize: 11,
+                              transform: open ? "rotate(180deg)" : undefined,
+                              transition: "transform 0.15s",
+                              flexShrink: 0,
+                            }}
+                          >
+                            ⌄
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Expanded panel */}
+                      {open && (
+                        <div
+                          style={{
+                            borderTop: "1px solid #E2E6EE",
+                            padding: "12px 16px",
+                            background: "#F6F7FA",
+                          }}
+                        >
+                          {entry.detail && (
+                            <p
+                              className="text-[12px] mb-3 leading-relaxed"
+                              style={{ color: "#56627A" }}
+                            >
+                              {entry.detail}
+                            </p>
+                          )}
+
+                          {hasDiff && (
+                            <div>
+                              <p
+                                className="text-[10.5px] font-semibold uppercase tracking-[0.06em] mb-2"
+                                style={{ color: "#8A93A5" }}
                               >
-                                <span
-                                  style={{ color: "#0F4FA8", minWidth: 200 }}
-                                >
-                                  {d.field}
-                                </span>
-                                <span style={{ color: "#C53A3A" }}>{d.from}</span>
-                                <span style={{ color: "#C6CDDA" }}>→</span>
-                                <span style={{ color: "#2E8E3A" }}>{d.to}</span>
+                                Field changes
+                              </p>
+                              <div
+                                className="rounded-[6px] overflow-hidden font-mono text-[11.5px]"
+                                style={{ border: "1px solid #E2E6EE" }}
+                              >
+                                {entry.diff!.map((d, i) => (
+                                  <div
+                                    key={i}
+                                    className="flex items-center gap-3 px-3 py-2"
+                                    style={{
+                                      background: i % 2 === 0 ? "#FFFFFF" : "#F6F7FA",
+                                      borderBottom:
+                                        i < entry.diff!.length - 1
+                                          ? "1px solid #F0F2F6"
+                                          : undefined,
+                                    }}
+                                  >
+                                    <span
+                                      style={{ color: "#0F4FA8", minWidth: 200 }}
+                                    >
+                                      {d.field}
+                                    </span>
+                                    <span style={{ color: "#C53A3A" }}>{d.from}</span>
+                                    <span style={{ color: "#C6CDDA" }}>→</span>
+                                    <span style={{ color: "#2E8E3A" }}>{d.to}</span>
+                                  </div>
+                                ))}
                               </div>
-                            ))}
-                          </div>
+                            </div>
+                          )}
                         </div>
                       )}
                     </div>
-                  )}
-                </div>
-              </div>
-            );
-          })}
+                  </div>
+                );
+              })}
 
-          {filtered.length === 0 && (
-            <div
-              className="flex flex-col items-center justify-center py-16"
-              style={{ color: "#8A93A5" }}
-            >
-              <span style={{ fontSize: 32, marginBottom: 8 }}>⊘</span>
-              <p className="text-[13px]">No log entries match your filter</p>
+              {filtered.length === 0 && (
+                <div
+                  className="flex flex-col items-center justify-center py-16"
+                  style={{ color: "#8A93A5" }}
+                >
+                  <span style={{ fontSize: 32, marginBottom: 8 }}>⊘</span>
+                  <p className="text-[13px]">No log entries match your filter</p>
+                </div>
+              )}
             </div>
-          )}
-        </div>
+          </>
+        )}
       </div>
     </div>
   );
