@@ -4,11 +4,11 @@ import { useParams } from "next/navigation";
 import Link from "next/link";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api-client";
-import type { Artifact, Order, OrderStatus } from "@/types/procurement";
+import type { Artifact, AuditEvent, Order, OrderStatus } from "@/types/procurement";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { ResolveSection } from "@/components/orders/ResolveSection";
 import { PipelineStrip } from "@/components/orders/PipelineStrip";
-import type { StageActivity } from "@/components/orders/PipelineStrip";
+import type { StageActivity, StageActivityState } from "@/components/orders/PipelineStrip";
 import { SpineReviewSkeleton } from "@/components/bridge/Skeletons";
 import { BridgeLoader } from "@/components/bridge/BridgeLoader";
 import { useToast } from "@/hooks/use-toast";
@@ -29,6 +29,94 @@ const STATUS_TO_STAGE: Record<OrderStatus, 0 | 1 | 2 | 3 | 4> = {
   transform_failed: 3,
   delivery_failed:  4,
 };
+
+// ─── Audit event → StageActivity mapping ──────────────────────────────────────
+// Backend emits PascalCase actions ("Created", "Parsed", "ParseFailed",
+// "Resolved", "Transformed", "Delivered", "DeliveryFailed", …). We normalize
+// to lowercase + strip underscores so both backend casing and any future
+// snake_case actions land in the same bucket.
+
+function normAction(action: string): string {
+  return action.toLowerCase().replace(/_/g, "");
+}
+
+function auditStage(action: string): 0 | 1 | 2 | 3 | 4 | null {
+  const n = normAction(action);
+  if (n === "created" || n === "parsed" || n === "parsefailed")               return 0;
+  if (n === "mapped" || n === "aimapped" || n === "mapping")                  return 1;
+  if (n === "validated" || n === "resolved" || n === "pendingreview")         return 2;
+  if (n === "transformed" || n === "transformfailed")                         return 3;
+  if (
+    n === "delivered" || n === "deliveryfailed" ||
+    n === "deliveryattempt" || n === "deliverycompleted" ||
+    n === "readytodeliver"
+  )                                                                            return 4;
+  return null;
+}
+
+function auditState(action: string): StageActivityState {
+  const a = action.toLowerCase();
+  if (/fail|paused|unresolved/.test(a)) return "warn";
+  if (/ai|mapped/.test(a))              return "ai";
+  return "ok";
+}
+
+const ACTION_LABEL: Record<string, string> = {
+  created:           "Order created",
+  parsed:            "File parsed",
+  parsefailed:       "Parsing failed",
+  mapped:            "Lines mapped",
+  aimapped:          "AI mapped lines",
+  mapping:           "Mapping in progress",
+  validated:         "Validated",
+  resolved:          "Lines resolved",
+  pendingreview:     "Pending review",
+  transformed:       "Output generated",
+  transformfailed:   "Transform failed",
+  readytodeliver:    "Ready to deliver",
+  deliveryattempt:   "Delivery attempted",
+  deliverycompleted: "Delivered",
+  delivered:         "Delivered",
+  deliveryfailed:    "Delivery failed",
+};
+
+function auditPrimary(action: string): string {
+  return ACTION_LABEL[normAction(action)] ?? action;
+}
+
+// Re-used from the previous AuditTimeline component (commit daba921^).
+function relTime(iso: string): string {
+  const diff = Date.now() - new Date(iso).getTime();
+  const s    = Math.floor(diff / 1_000);
+  if (s < 60)  return "just now";
+  const m = Math.floor(s / 60);
+  if (m < 60)  return `${m}m ago`;
+  const h = Math.floor(m / 60);
+  if (h < 24)  return `${h}h ago`;
+  return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+}
+
+function buildActivityByStage(
+  events: AuditEvent[] | undefined,
+): Partial<Record<0 | 1 | 2 | 3 | 4, StageActivity>> {
+  if (!events || events.length === 0) return {};
+  const out: Partial<Record<0 | 1 | 2 | 3 | 4, StageActivity>> = {};
+  // Newest first so the first hit per stage is the most recent.
+  const sorted = [...events].sort(
+    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+  );
+  for (const ev of sorted) {
+    const stage = auditStage(ev.action);
+    if (stage === null) continue;
+    if (out[stage]) continue;
+    out[stage] = {
+      state:   auditState(ev.action),
+      primary: auditPrimary(ev.action),
+      when:    relTime(ev.createdAt),
+    };
+  }
+  return out;
+}
 
 // ─── Design tokens ────────────────────────────────────────────────────────────
 const T = {
@@ -535,6 +623,14 @@ export default function OrderDetailPage() {
     },
   });
 
+  // Audit trail powers the PipelineStrip activity rows.
+  const { data: auditEvents } = useQuery<AuditEvent[]>({
+    queryKey:  ["order-audit", id],
+    queryFn:   () => apiClient.getOrderAudit(id!),
+    enabled:   !!id,
+    staleTime: 15_000,
+  });
+
   const handleOrderUpdated = (_updated: Order) => {
     queryClient.invalidateQueries({ queryKey: ["order", id] });
   };
@@ -734,9 +830,8 @@ export default function OrderDetailPage() {
 
           {/* ── Pipeline Strip ─────────────────────────────────────────────── */}
           {(() => {
-            const currentStage = STATUS_TO_STAGE[order.status] ?? 0;
-            // activityByStage left empty — will be wired in a follow-up
-            const activityByStage: Partial<Record<0 | 1 | 2 | 3 | 4, StageActivity>> = {};
+            const currentStage    = STATUS_TO_STAGE[order.status] ?? 0;
+            const activityByStage = buildActivityByStage(auditEvents);
             return (
               <PipelineStrip
                 currentStage={currentStage}
