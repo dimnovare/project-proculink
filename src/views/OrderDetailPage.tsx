@@ -612,16 +612,31 @@ export default function OrderDetailPage() {
     data: order,
     isLoading,
     isError,
+    error,
+    refetch,
+    isFetching,
   } = useQuery<Order | null>({
     queryKey: ["order", id],
     queryFn:  () => apiClient.getOrderById(id!),
     enabled:  !!id,
     staleTime: 15_000,
+    // Retry network-shaped errors a few times; don't retry on real 404 (which
+    // returns null, not an error — see realGetOrderById in api-client.ts).
+    retry: 2,
+    retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 8000),
     refetchInterval: (query) => {
       const status = query.state.data?.status as OrderStatus | undefined;
       return status && POLLING_STATUSES.includes(status) ? 2_000 : false;
     },
   });
+
+  // Distinguish a real 404 (data === null, no error) from a network/CORS/server
+  // failure (isError === true) so we can show actionable copy + a retry button
+  // instead of the misleading "Order Not Found" for both cases.
+  const isNetworkError = isError && /failed to fetch|load failed|networkerror/i.test(
+    error instanceof Error ? error.message : String(error ?? ""),
+  );
+  const isNotFound = !isError && order === null;
 
   // Audit trail powers the PipelineStrip activity rows.
   const { data: auditEvents } = useQuery<AuditEvent[]>({
@@ -673,7 +688,14 @@ export default function OrderDetailPage() {
   if (isLoading) return <SpineReviewSkeleton />;
 
   // ── Not found / error ──────────────────────────────────────────────────────
-  if (isError || !order) {
+  // Two distinct failure modes — show different copy + actions for each:
+  //   isNetworkError → API unreachable (CORS, dev cert untrusted, backend down);
+  //                    show "Couldn't reach API" + Retry button.
+  //   isNotFound     → backend returned 404; show "doesn't exist" + Back link.
+  //   Anything else  → fall through to the render below (handles `order === undefined`
+  //                    by treating it as still-loading; SpineReviewSkeleton would
+  //                    have rendered earlier if `isLoading`).
+  if (isError || isNotFound) {
     return (
       <div style={{
         display: "flex", flexDirection: "column", alignItems: "center",
@@ -685,27 +707,62 @@ export default function OrderDetailPage() {
           display: "flex", alignItems: "center", justifyContent: "center",
         }}>
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={T.inkFaint} strokeWidth="1.5">
-            <path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            {isNetworkError ? (
+              // Wifi-off icon for network errors.
+              <path d="M2 8.82a15 15 0 0 1 20 0M5 12.86a10 10 0 0 1 14 0M8.5 16.43a5 5 0 0 1 7 0M12 20h.01M2 2l20 20" />
+            ) : (
+              // Document icon for not-found.
+              <path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            )}
           </svg>
         </div>
-        <span style={{ fontSize: 14, fontWeight: 600, color: T.ink }}>Order Not Found</span>
-        <span style={{ fontSize: 12.5, color: T.inkFaint }}>
-          This purchase order doesn&apos;t exist or was removed.
+        <span style={{ fontSize: 14, fontWeight: 600, color: T.ink }}>
+          {isNetworkError ? "Couldn't reach the API" : "Order Not Found"}
         </span>
-        <Link
-          href="/orders"
-          style={{
-            marginTop: 8, padding: "7px 14px", borderRadius: 7,
-            background: T.navy, color: "#FFFFFF",
-            fontSize: 12.5, fontWeight: 700, textDecoration: "none",
-            display: "inline-flex", alignItems: "center", gap: 6,
-          }}
-        >
-          Back to Orders
-        </Link>
+        <span style={{ fontSize: 12.5, color: T.inkFaint, maxWidth: 360, textAlign: "center", lineHeight: 1.5 }}>
+          {isNetworkError
+            ? "The browser couldn't connect to ProcuLink's API. Check that the backend is running and that NEXT_PUBLIC_API_BASE_URL matches the launch profile (HTTP or HTTPS)."
+            : "This purchase order doesn't exist or was removed."}
+        </span>
+        <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+          {isNetworkError && (
+            <button
+              type="button"
+              onClick={() => { void refetch(); }}
+              disabled={isFetching}
+              style={{
+                padding: "7px 14px", borderRadius: 7,
+                background: T.navy, color: "#FFFFFF",
+                fontSize: 12.5, fontWeight: 700, border: "none",
+                cursor: isFetching ? "not-allowed" : "pointer",
+                opacity: isFetching ? 0.6 : 1,
+              }}
+            >
+              {isFetching ? "Retrying…" : "Retry"}
+            </button>
+          )}
+          <Link
+            href="/orders"
+            style={{
+              padding: "7px 14px", borderRadius: 7,
+              background: isNetworkError ? T.surface2 : T.navy,
+              color: isNetworkError ? T.ink : "#FFFFFF",
+              fontSize: 12.5, fontWeight: 700, textDecoration: "none",
+              display: "inline-flex", alignItems: "center", gap: 6,
+              border: isNetworkError ? `1px solid ${T.border}` : "none",
+            }}
+          >
+            Back to Orders
+          </Link>
+        </div>
       </div>
     );
   }
+
+  // If we get here without an order, fall through — TanStack Query still
+  // running. This shouldn't be hit because isLoading caught it above, but it's
+  // a safe guard against undefined access in the render block.
+  if (!order) return <SpineReviewSkeleton />;
 
   const isProcessing    = (POLLING_STATUSES as string[]).includes(order.status);
   const unresolvedCount = order.lines.filter(l => l.needsReview).length;
