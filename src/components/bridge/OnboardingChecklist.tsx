@@ -80,7 +80,29 @@ export function OnboardingChecklist({ status, supplierCount, orderCount }: Onboa
   const totalDone = doneSet.size;
   const progress = (totalDone / STEPS.length) * 100;
 
-  if (totalDone >= STEPS.length) return null;
+  // Celebration state: rendered once every step is done, replaces the checklist
+  // with a positive end-state and a pointer to the next thing to do.
+  if (totalDone >= STEPS.length) {
+    return (
+      <div
+        style={{
+          background: T.surface,
+          border: `1px solid ${T.border}`,
+          borderLeft: `3px solid ${T.green}`,
+          borderRadius: 8,
+          padding: "20px 24px",
+          maxWidth: 500,
+        }}
+      >
+        <h3 style={{ fontSize: 14, fontWeight: 600, color: T.text, margin: 0, letterSpacing: "-0.01em" }}>
+          ✓ You&apos;re live
+        </h3>
+        <p style={{ fontSize: 12.5, color: T.muted, margin: "6px 0 14px", lineHeight: 1.55 }}>
+          Setup complete. New orders will flow through automatically — drop files in <Link href="/upload" style={{ color: T.blue, textDecoration: "none", fontWeight: 600 }}>Upload</Link>, monitor in <Link href="/inbox" style={{ color: T.blue, textDecoration: "none", fontWeight: 600 }}>Inbox</Link>, audit in <Link href="/operations/log" style={{ color: T.blue, textDecoration: "none", fontWeight: 600 }}>Delivery log</Link>.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div
@@ -96,12 +118,47 @@ export function OnboardingChecklist({ status, supplierCount, orderCount }: Onboa
       {/* Header */}
       <div style={{ marginBottom: 14 }}>
         <h3 style={{ fontSize: 14, fontWeight: 600, color: T.text, margin: 0, letterSpacing: "-0.01em" }}>
-          Getting started
+          Get your first order automated
         </h3>
         <p style={{ fontSize: 12.5, color: T.muted, margin: "3px 0 0" }}>
-          {totalDone} of {STEPS.length} steps complete
+          {totalDone} of {STEPS.length} steps complete · ~5 minutes
         </p>
       </div>
+
+      {/* Try-it-with-sample shortcut — visible only until the first upload */}
+      {!doneSet.has("upload") && (
+        <div
+          style={{
+            background: T.surface2,
+            border: `1px dashed ${T.border}`,
+            borderRadius: 6,
+            padding: "10px 14px",
+            marginBottom: 16,
+            display: "flex",
+            alignItems: "center",
+            gap: 10,
+            flexWrap: "wrap",
+          }}
+        >
+          <span style={{ fontSize: 12, color: T.muted, lineHeight: 1.5, flex: 1, minWidth: 200 }}>
+            Just exploring? Try a 5-line sample PO first.
+          </span>
+          <a
+            href="/demo-purchase-order.csv"
+            download
+            style={{
+              fontSize: 11.5,
+              color: T.blue,
+              textDecoration: "none",
+              fontWeight: 600,
+              whiteSpace: "nowrap",
+              letterSpacing: "0.01em",
+            }}
+          >
+            Download sample CSV ↓
+          </a>
+        </div>
+      )}
 
       {/* Progress bar */}
       <div style={{ height: 3, background: T.surface2, borderRadius: 2, marginBottom: 16, overflow: "hidden" }}>

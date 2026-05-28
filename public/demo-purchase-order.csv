@@ -1,0 +1,6 @@
+PoNumber,OrderDate,Currency,BuyerName,SupplierName,BuyerItemCode,Description,Quantity,Unit,UnitPrice
+PO-DEMO-001,2026-05-28,EUR,Acme Procurement,Demo Supplier,WGT-001,Stainless steel widget M8,10,EA,25.00
+PO-DEMO-001,2026-05-28,EUR,Acme Procurement,Demo Supplier,WGT-002,Stainless steel widget M10,5,EA,32.50
+PO-DEMO-001,2026-05-28,EUR,Acme Procurement,Demo Supplier,GZM-100,Brass gizmo 18mm,3,EA,75.00
+PO-DEMO-001,2026-05-28,EUR,Acme Procurement,Demo Supplier,FST-220,M6 hex bolt 30mm pack of 100,2,PKG,18.40
+PO-DEMO-001,2026-05-28,EUR,Acme Procurement,Demo Supplier,LBR-050,Industrial lubricant 5L,1,EA,42.00
