@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { apiClient, isApiMockMode } from "@/lib/api-client";
 import { capture } from "@/lib/analytics";
+import { captureException } from "@/lib/sentry-context";
 import type { Supplier } from "@/types/procurement";
 
 // ─── Design tokens ────────────────────────────────────────────────────────────
@@ -117,6 +118,18 @@ function Step1AddSupplier({ onSuccess }: Step1Props) {
       const supplier = await apiClient.createSupplier({ name: trimmed });
       onSuccess(supplier);
     } catch (err) {
+      // Report to Sentry with explicit context so future "Failed to fetch"
+      // reports include the user's intent + the API URL we were targeting.
+      captureException(err, {
+        tags: {
+          ui_surface: "onboarding_wizard",
+          wizard_step: "1_add_supplier",
+        },
+        extra: {
+          api_base_url: process.env.NEXT_PUBLIC_API_BASE_URL ?? "(unset)",
+          supplier_name_length: trimmed.length,
+        },
+      });
       setError(humaniseSupplierError(err));
     } finally {
       setLoading(false);

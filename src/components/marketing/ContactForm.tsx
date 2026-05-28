@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { usePathname } from "next/navigation";
 import { apiClient } from "@/lib/api-client";
+import { captureException } from "@/lib/sentry-context";
 
 type Category = "general" | "bug" | "billing" | "security";
 
@@ -57,6 +58,10 @@ export function ContactForm() {
       setSubject("");
       setMessage("");
     } catch (err) {
+      captureException(err, {
+        tags: { ui_surface: "contact_form", category },
+        extra: { route: pathname, has_email: Boolean(email.trim()) },
+      });
       const msg = err instanceof Error ? err.message : "Something went wrong. Please email support@proculink.com instead.";
       setState({ status: "error", message: msg });
     }

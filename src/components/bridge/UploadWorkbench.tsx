@@ -10,6 +10,7 @@ import { useQuery } from "@tanstack/react-query";
 import { FileChip } from "./FileChip";
 import { ApiHttpError, apiClient, getBillingStatus, isApiMockMode } from "@/lib/api-client";
 import { capture } from "@/lib/analytics";
+import { captureException } from "@/lib/sentry-context";
 
 // Pipeline stages for the upload animation
 const PIPELINE_STAGES = ["Parse", "Normalize", "Validate", "Transform"] as const;
@@ -224,6 +225,13 @@ export function UploadWorkbench() {
         : `/orders/${encodeURIComponent(orderId)}?sample=1`;
       router.push(target);
     } catch (err) {
+      captureException(err, {
+        tags: { ui_surface: "upload_sample_cta" },
+        extra: {
+          api_base_url: process.env.NEXT_PUBLIC_API_BASE_URL ?? "(unset)",
+          is_mock_mode: isApiMockMode,
+        },
+      });
       setSampleError(err instanceof Error ? err.message : "Could not start sample run.");
       setSampleLoading(false);
     }
