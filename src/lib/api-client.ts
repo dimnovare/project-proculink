@@ -662,10 +662,11 @@ async function realGetOrderAudit(orderId: string): Promise<AuditEvent[]> {
 
 async function mockGetOnboardingStatus(): Promise<OnboardingStatus> {
   await delay(150);
-  const hasSupplier  = mockSupplierList.length > 0;
-  const hasUpload    = mockOrders.length > 0;
-  const hasDelivery  = mockOrders.some(o => o.status === "delivered");
-  return { hasSupplier, hasUpload, hasDelivery };
+  const hasSupplier        = mockSupplierList.length > 0;
+  const hasUpload          = mockOrders.length > 0;
+  const hasResolvedMapping = mockOrders.some(o => o.lines.some(l => l.supplierItemCode != null));
+  const hasDelivery        = mockOrders.some(o => o.status === "delivered");
+  return { hasSupplier, hasUpload, hasResolvedMapping, hasDelivery };
 }
 
 async function realGetOnboardingStatus(): Promise<OnboardingStatus> {
