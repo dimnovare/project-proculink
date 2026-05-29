@@ -1009,6 +1009,46 @@ async function realGetMappingPreview(orderId: string): Promise<MappingPreview> {
   return res.json() as Promise<MappingPreview>;
 }
 
+// ── Accept all high-confidence AI suggestions ─────────────────────────────
+
+async function mockAcceptAiSuggestions(
+  orderId: string,
+  minConfidence: number,
+): Promise<{ accepted: number }> {
+  await delay(400);
+  const idx = mockOrders.findIndex(o => o.id === orderId);
+  if (idx === -1) return { accepted: 0 };
+  let accepted = 0;
+  const order: Order = { ...mockOrders[idx], lines: mockOrders[idx].lines.map(l => ({ ...l })) };
+  for (const line of order.lines) {
+    if (line.needsReview && line.aiSuggestion != null && line.aiSuggestion.confidence >= minConfidence) {
+      line.supplierItemCode = line.aiSuggestion.supplierItemCode;
+      line.confidence = line.aiSuggestion.confidence;
+      line.needsReview = false;
+      accepted++;
+    }
+  }
+  order.status = order.lines.some(l => l.needsReview) ? "pending_review" : "ready";
+  order.updatedAt = new Date().toISOString();
+  mockOrders[idx] = order;
+  return { accepted };
+}
+
+async function realAcceptAiSuggestions(
+  orderId: string,
+  minConfidence: number,
+): Promise<{ accepted: number }> {
+  const res = await fetchWithTimeout(
+    `${API_BASE_URL}/api/orders/${orderId}/accept-ai-suggestions?minConfidence=${minConfidence}`,
+    { method: "POST", headers: await authHeader() },
+  );
+  if (!res.ok) {
+    const t = await res.text().catch(() => "");
+    throw new ApiHttpError(`accept-ai-suggestions failed: ${t || res.statusText}`, res.status);
+  }
+  return res.json() as Promise<{ accepted: number }>;
+}
+
 // ── Exported API client ───────────────────────────────────────────────────
 
 export const apiClient = {
@@ -1063,6 +1103,7 @@ export const apiClient = {
 
   // ─── Magic Mapping Preview ───
   getMappingPreview:      USE_MOCK ? mockGetMappingPreview     : realGetMappingPreview,
+  acceptAiSuggestions:    USE_MOCK ? mockAcceptAiSuggestions   : realAcceptAiSuggestions,
 
   /**
    * Commit resolved supplier-item codes for an order.

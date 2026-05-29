@@ -239,8 +239,9 @@ export function FailedPanel({
     setIsRetrying(true);
     setRetryError(null);
     try {
-      await apiClient.redeliverOrder(order.id);
+      await apiClient.retryDelivery(order.id);
       void queryClient.invalidateQueries({ queryKey: ["order", order.id] });
+      void queryClient.invalidateQueries({ queryKey: ["orders"] });
     } catch (err) {
       setRetryError(err instanceof Error ? err.message : "Retry failed. Check the delivery config.");
     } finally {

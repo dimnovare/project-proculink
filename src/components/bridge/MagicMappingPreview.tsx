@@ -214,6 +214,24 @@ export function MagicMappingPreview({ orderId, onCommitted }: Props) {
     },
   });
 
+  // ── Server-side bulk-accept of high-confidence suggestions ────────────────
+  const [bulkNotice, setBulkNotice] = useState<string | null>(null);
+  const { mutate: bulkAccept, isPending: isBulkAccepting } = useMutation({
+    mutationFn: () => apiClient.acceptAiSuggestions(orderId, 0.85),
+    onSuccess: (result) => {
+      setBulkNotice(
+        `${result.accepted} high-confidence suggestion${result.accepted === 1 ? "" : "s"} accepted.`,
+      );
+      queryClient.invalidateQueries({ queryKey: ["mapping-preview", orderId] });
+      queryClient.invalidateQueries({ queryKey: ["order", orderId] });
+      queryClient.invalidateQueries({ queryKey: ["orders"] });
+    },
+    onError: (err: Error) => setBulkNotice(`Accept failed: ${err.message}`),
+  });
+  const highConf = preview
+    ? preview.lines.filter(l => l.status !== "resolved" && (l.confidence ?? 0) >= 0.85).length
+    : 0;
+
   // ── Accept-all handler ────────────────────────────────────────────────────
   const acceptAll = useCallback(() => {
     if (!preview) return;
@@ -475,6 +493,38 @@ export function MagicMappingPreview({ orderId, onCommitted }: Props) {
                 {suggestable}
               </span>
             </button>
+          )}
+
+          {highConf > 0 && (
+            <button
+              onClick={() => bulkAccept()}
+              disabled={isBulkAccepting}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 6,
+                padding: "5px 12px",
+                borderRadius: 6,
+                border: "1px solid #BBE0C0",
+                background: "#EAF6EC",
+                color: "#1E6D29",
+                fontSize: 12,
+                fontWeight: 600,
+                cursor: isBulkAccepting ? "wait" : "pointer",
+                opacity: isBulkAccepting ? 0.6 : 1,
+              }}
+            >
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden>
+                <path d="M2 6.5L5 9.5L10 3" stroke="#1E6D29" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+              {isBulkAccepting ? "Accepting…" : "Accept all high-confidence"}
+              <span style={{ background: "#1E6D29", color: "#FFFFFF", borderRadius: 8, padding: "0 5px", fontSize: 10, fontWeight: 700 }}>
+                {highConf}
+              </span>
+            </button>
+          )}
+          {bulkNotice && (
+            <span style={{ fontSize: 12, color: "#1E6D29", fontWeight: 500 }}>{bulkNotice}</span>
           )}
 
           <span style={{ fontSize: 12, color: "#8A93A5" }}>
