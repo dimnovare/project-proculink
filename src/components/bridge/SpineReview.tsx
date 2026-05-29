@@ -11,6 +11,7 @@ import { apiClient } from "@/lib/api-client";
 import type { Order } from "@/types/procurement";
 import { EdgeRails } from "./EdgeRails";
 import { FileChip } from "./FileChip";
+import { FailedPanel, ParseFailedPanel } from "./FailedPanels";
 import { StatusJourney, type OrderStage } from "./StatusJourney";
 import { SpineReviewSkeleton } from "./Skeletons";
 import { StandardsFieldPopover } from "./StandardsFieldPopover";
@@ -42,41 +43,24 @@ interface SpineNodeData {
   subnodes?: SubNode[];
 }
 
-// ─── Initial data ─────────────────────────────────────────────────────────────
+// ─── Money helpers ───────────────────────────────────────────────────────────
 
-const INITIAL_NODES: SpineNodeData[] = [
-  { id: "po",       label: "PO number",    value: "PO-DEMO-001",              pct: 99, mono: true,  editable: false, srcRef: "header",    outRef: "Order/@orderID"    },
-  { id: "date",     label: "Order date",   value: "2026-01-12",                  pct: 95, mono: true,  editable: true,  srcRef: "header",    outRef: "Order/orderDate"   },
-  { id: "buyer",    label: "Buyer",        value: "Heinrich Industries GmbH",    pct: 98, tone: "buyer",    editable: true, srcRef: "parties",   outRef: "BillTo/Contact"    },
-  { id: "supplier", label: "Supplier",     value: "Acme Components Ltd.",        pct: 97, tone: "supplier", editable: false, srcRef: "parties",  outRef: "ShipFrom/Contact"  },
-  { id: "currency", label: "Currency",     value: "EUR",                         pct: 99, mono: true,  editable: true,  srcRef: "terms",     outRef: "Total/@currency"   },
-  { id: "incoterm", label: "Incoterm",     value: "DDP",                         pct: 88, mono: true,  editable: true,  srcRef: "terms",     outRef: "Shipping/@terms",   hint: "AI suggests DAP (76%)" },
-  { id: "billTo",   label: "Bill to",      value: "Postfach 1042 · 70001 Stuttgart, DE", pct: 72, editable: true, srcRef: "parties", outRef: "BillTo/Address", hint: "Format differs from prior orders" },
-  {
-    id: "lines", label: "Lines", value: "14 items", pct: 92, editable: false, srcRef: "lines", outRef: "ItemOut[]",
-    subnodes: [
-      { id: "sn1", sku: "ACM-BLT-M8x40",     qty: 500 },
-      { id: "sn2", sku: "ACM-PLT-200×200×4", qty: 24,  ai: true, pct: 84, hint: "AI mapped from HEI-PLT-09" },
-      { id: "sn3", sku: "— unmapped —",       qty: -3,  err: true, hint: "Qty < 0 and SKU unmapped" },
-    ],
-  },
-  { id: "totals", label: "Grand total", value: "€ 4,436.73", pct: 100, mono: true, big: true, editable: false, srcRef: "totals", outRef: "Total/@amount" },
-];
+/** Sum of unitPrice × quantity across all order lines. */
+function orderTotal(order: Order): number {
+  return order.lines.reduce((sum, l) => sum + Number(l.unitPrice) * Number(l.quantity), 0);
+}
 
-const ANATOMY_ZONES = [
-  { top: 14,  h: 38,  label: "Header zone",  conf: 99, fields: "PO # · Date",       ok: true  },
-  { top: 70,  h: 58,  label: "Parties zone", conf: 84, fields: "Ship to · Bill to", ok: false },
-  { top: 144, h: 38,  label: "Terms zone",   conf: 88, fields: "Currency · Incoterm",ok: false },
-  { top: 200, h: 170, label: "Lines zone",   conf: 92, fields: "14 line items",      ok: true  },
-  { top: 386, h: 36,  label: "Totals zone",  conf: 100,fields: "Grand total",        ok: true  },
-];
+/** Format an amount with a currency symbol/code, e.g. "€ 4,436.73" or "USD 120.00". */
+function formatMoney(currency: string, amount: number): string {
+  const prefix = currency === "EUR" ? "€" : currency === "USD" ? "$" : currency === "GBP" ? "£" : currency;
+  return `${prefix} ${amount.toLocaleString("en-IE", { minimumFractionDigits: 2 })}`;
+}
 
 // ─── Map live order → SpineNodeData ──────────────────────────────────────────
 
 function buildNodesFromOrder(order: Order): SpineNodeData[] {
   const lineCount = order.lines.length;
-  const total = order.lines.reduce((sum, l) => sum + Number(l.unitPrice) * Number(l.quantity), 0);
-  const formatted = `${order.currency === "EUR" ? "€" : order.currency} ${total.toLocaleString("en-IE", { minimumFractionDigits: 2 })}`;
+  const formatted = formatMoney(order.currency, orderTotal(order));
 
   // Avg line confidence (0-1 → 0-100)
   const lineConf = lineCount > 0
@@ -123,7 +107,8 @@ function orderStatusToStage(status: string): OrderStage {
     case "delivered":         return 4;
     case "failed":
     case "transform_failed":
-    case "delivery_failed":   return "failed";
+    case "delivery_failed":
+    case "delivery_dead_letter": return "failed";
     default:                  return 1;
   }
 }
@@ -365,41 +350,63 @@ function SpineNodeCard({
 }
 
 // ─── Document Anatomy ─────────────────────────────────────────────────────────
+// Renders a document-styled view reconstructed from the order's parsed fields.
+// Driven entirely by live order data — no staged company/PO content.
 
-function DocumentAnatomy({ highlightZone }: { highlightZone?: string }) {
+function DocumentAnatomy({ order }: { order: Order }) {
+  const lineCount = order.lines.length;
+  const avgConf = lineCount > 0
+    ? Math.round((order.lines.reduce((s, l) => s + l.confidence, 0) / lineCount) * 100)
+    : null;
+  const dateLabel = order.orderDate || "—";
+  const previewLines = order.lines.slice(0, 12);
+
   return (
     <div style={{ borderRadius: 8, padding: 10, background: "#F6F7FA", border: "1px solid #E2E6EE", overflow: "hidden" }}>
-      <div style={{ position: "relative", borderRadius: 6, background: "#FFFFFF", padding: "14px 16px 14px 88px", fontFamily: "'Times New Roman',serif", fontSize: 9.5, color: "#1a1a1a", boxShadow: "0 1px 4px rgba(0,0,0,0.08)", minHeight: 440 }}>
-        {ANATOMY_ZONES.map((z, i) => {
-          const c = z.ok ? "#2E8E3A" : "#C97A14";
-          const active = highlightZone === z.label;
-          return (
-            <div key={i}>
-              <div style={{ position: "absolute", left: -2, right: -2, top: z.top, height: z.h, border: `${active ? 2 : 1.5}px solid ${c}`, borderRadius: 4, background: active ? `${c}18` : `${c}0A`, pointerEvents: "none", transition: "all 150ms" }} />
-              {/* Label on the LEFT — avoids bleeding into center column */}
-              <div style={{ position: "absolute", left: 2, top: z.top + 4, padding: "2px 5px", background: "#FFFFFF", border: `1px solid ${c}`, borderRadius: 3, boxShadow: "0 1px 2px rgba(11,26,47,0.06)", display: "flex", alignItems: "center", gap: 3, zIndex: 2, maxWidth: 82 }}>
-                <span style={{ fontSize: 8, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.03em", color: "#0B1A2F", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{z.label}</span>
-                <span style={{ fontSize: 8, fontWeight: 700, fontFamily: "'JetBrains Mono',monospace", color: c, flexShrink: 0 }}>{z.conf}%</span>
-              </div>
-            </div>
-          );
-        })}
-        {/* Simulated PDF */}
-        <div style={{ display: "flex", justifyContent: "space-between", paddingBottom: 6, borderBottom: "2px solid #333" }}>
-          <div style={{ fontFamily: "Inter,sans-serif", fontSize: 14, fontWeight: 800, letterSpacing: "0.08em" }}>HEINRICH</div>
-          <div style={{ textAlign: "right" }}><div style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase" }}>Purchase Order</div><div style={{ fontSize: 9 }}>PO-DEMO-001 · 12.01.2026</div></div>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginBottom: 8 }}>
+        <span style={{ fontSize: 9.5, color: "#8A93A5" }}>Reconstructed from parsed fields</span>
+        {avgConf !== null && (
+          <span style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 9, fontWeight: 700, color: "#56627A" }}>
+            Avg field confidence <ConfChip pct={avgConf} />
+          </span>
+        )}
+      </div>
+      <div style={{ borderRadius: 6, background: "#FFFFFF", padding: "14px 16px", fontFamily: "'Times New Roman',serif", fontSize: 9.5, color: "#1a1a1a", boxShadow: "0 1px 4px rgba(0,0,0,0.08)", minHeight: 360 }}>
+        {/* Letterhead — real buyer + PO */}
+        <div style={{ display: "flex", justifyContent: "space-between", gap: 12, paddingBottom: 6, borderBottom: "2px solid #333" }}>
+          <div style={{ fontFamily: "Inter,sans-serif", fontSize: 13, fontWeight: 800, letterSpacing: "0.04em", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "60%" }}>
+            {order.buyerName ?? "Buyer (parsing…)"}
+          </div>
+          <div style={{ textAlign: "right", flexShrink: 0 }}>
+            <div style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase" }}>Purchase Order</div>
+            <div style={{ fontSize: 9, fontFamily: "'JetBrains Mono',monospace" }}>{order.poNumber} · {dateLabel}</div>
+          </div>
         </div>
-        <div style={{ marginTop: 10, fontSize: 9 }}>Ship to: Wilhelmstrasse 412, 70173 Stuttgart, DE<br/>Bill to: Postfach 1042, 70001 Stuttgart, DE</div>
-        <div style={{ marginTop: 8, fontSize: 9 }}>Currency: EUR · Incoterm: DDP · Payment: Net 30</div>
-        <table style={{ width: "100%", borderCollapse: "collapse", marginTop: 10, fontSize: 8.5 }}>
-          <thead><tr style={{ background: "#EEE" }}><th style={{ textAlign: "left", padding: "3px 4px" }}>#</th><th style={{ textAlign: "left" }}>Item</th><th style={{ textAlign: "left" }}>Desc.</th><th style={{ textAlign: "right" }}>Qty</th></tr></thead>
-          <tbody>
-            {[[1,"HEI-44-A12","Hex bolt M8×40",500],[2,"HEI-44-A18","Hex bolt M10×50",300],[3,"HEI-PLT-09","Steel plate",24],[4,"HEI-44-A99","Specialty fastener",-3]].map((r) => (
-              <tr key={r[0] as number}><td style={{ padding: "2px 4px", borderBottom: "1px dotted #BBB" }}>{r[0]}</td><td style={{ fontFamily: "monospace" }}>{r[1]}</td><td>{r[2]}</td><td style={{ textAlign: "right" }}>{(r[3] as number) < 0 ? <span style={{ background: "#FBDADA", padding: "0 2px" }}>{r[3]}</span> : r[3]}</td></tr>
-            ))}
-          </tbody>
-        </table>
-        <div style={{ marginTop: 10, textAlign: "right", fontSize: 9, fontWeight: 700 }}>Grand total: € 4,436.73</div>
+        <div style={{ marginTop: 10, fontSize: 9 }}>
+          Buyer: {order.buyerName ?? "—"}<br/>Supplier: {order.supplierName}
+        </div>
+        <div style={{ marginTop: 8, fontSize: 9 }}>Currency: {order.currency} · {lineCount} line{lineCount !== 1 ? "s" : ""}</div>
+        {lineCount > 0 ? (
+          <table style={{ width: "100%", borderCollapse: "collapse", marginTop: 10, fontSize: 8.5 }}>
+            <thead><tr style={{ background: "#EEE" }}><th style={{ textAlign: "left", padding: "3px 4px" }}>#</th><th style={{ textAlign: "left" }}>Item</th><th style={{ textAlign: "left" }}>Desc.</th><th style={{ textAlign: "right" }}>Qty</th></tr></thead>
+            <tbody>
+              {previewLines.map((l) => (
+                <tr key={l.id}>
+                  <td style={{ padding: "2px 4px", borderBottom: "1px dotted #BBB" }}>{l.lineNumber}</td>
+                  <td style={{ fontFamily: "monospace" }}>{l.buyerItemCode}</td>
+                  <td>{l.description ?? "—"}</td>
+                  <td style={{ textAlign: "right" }}>{l.quantity < 0 ? <span style={{ background: "#FBDADA", padding: "0 2px" }}>{l.quantity}</span> : l.quantity}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        ) : (
+          <div style={{ marginTop: 12, fontSize: 9, color: "#888", fontStyle: "italic" }}>No line items parsed yet.</div>
+        )}
+        {lineCount > previewLines.length && (
+          <div style={{ marginTop: 4, fontSize: 8.5, color: "#888" }}>+ {lineCount - previewLines.length} more line{lineCount - previewLines.length !== 1 ? "s" : ""}</div>
+        )}
+        <div style={{ marginTop: 10, textAlign: "right", fontSize: 9, fontWeight: 700 }}>Grand total: {formatMoney(order.currency, orderTotal(order))}</div>
       </div>
     </div>
   );
@@ -407,7 +414,8 @@ function DocumentAnatomy({ highlightZone }: { highlightZone?: string }) {
 
 // ─── Output Preview ───────────────────────────────────────────────────────────
 
-function OutputPreview({ acceptedSubnodes, rejectedSubnodes, crossed, fieldValues, onOutputAction, orderId, artifacts }: {
+function OutputPreview({ order, acceptedSubnodes, rejectedSubnodes, crossed, fieldValues, onOutputAction, orderId, artifacts }: {
+  order: Order;
   acceptedSubnodes: Set<string>;
   rejectedSubnodes: Set<string>;
   crossed: boolean;
@@ -419,10 +427,13 @@ function OutputPreview({ acceptedSubnodes, rejectedSubnodes, crossed, fieldValue
   const [downloadLoading, setDownloadLoading] = useState(false);
   const [copyLoading, setCopyLoading] = useState(false);
 
-  const incoterm = fieldValues["incoterm"] ?? "DDP";
-  const billTo = fieldValues["billTo"] ?? "Postfach 1042 · 70001 Stuttgart, DE";
-  const sn2accepted = acceptedSubnodes.has("sn2");
-  const sn2rejected = rejectedSubnodes.has("sn2");
+  // Output reflects the live order, with any inline edits applied.
+  const outPo       = fieldValues["po"]       ?? order.poNumber;
+  const outDate     = fieldValues["date"]     ?? order.orderDate;
+  const outCurrency = fieldValues["currency"] ?? order.currency;
+  const outBuyer    = fieldValues["buyer"]    ?? order.buyerName ?? "—";
+  const outTotal    = formatMoney(outCurrency, orderTotal(order));
+  const previewLines = order.lines.slice(0, 12);
 
   async function handleDownload() {
     const artifact = artifacts?.[0];
@@ -500,51 +511,50 @@ function OutputPreview({ acceptedSubnodes, rejectedSubnodes, crossed, fieldValue
         <div style={{ paddingLeft: 24 }}>
           <span style={{ color: "#7FB37B" }}>{"<OrderRequest "}</span>
           <span style={{ color: "#8ABAEF" }}>orderID</span>{"="}
-          <span style={{ color: "#E0A23A" }}>{'"PO-DEMO-001"'}</span>
+          <span style={{ color: "#E0A23A" }}>&quot;{outPo}&quot;</span>
+          {fieldValues["po"] && fieldValues["po"] !== order.poNumber && <span style={{ marginLeft: 8, fontSize: 9, color: "#E0A23A" }}>← edited</span>}
         </div>
         <div style={{ paddingLeft: 60 }}>
           <span style={{ color: "#8ABAEF" }}>orderDate</span>{"="}
-          <span style={{ color: "#E0A23A" }}>{'"2026-01-12"'}</span>
+          <span style={{ color: "#E0A23A" }}>&quot;{outDate}&quot;</span>
           <span style={{ color: "#7FB37B" }}>{">"}</span>
         </div>
         <div style={{ paddingLeft: 32, marginTop: 4, background: "rgba(46,142,58,0.10)", borderLeft: "2px solid #2E8E3A", paddingTop: 2, paddingBottom: 2 }}>
-          <span style={{ color: "#7FB37B" }}>{'<Total currency="EUR">€ 4,436.73</Total>'}</span>
+          <span style={{ color: "#7FB37B" }}>{`<Total currency="${outCurrency}">`}{outTotal}{"</Total>"}</span>
         </div>
         <div style={{ paddingLeft: 32, marginTop: 4 }}>
-          <span style={{ color: "#7FB37B" }}>{"<ShipFrom>"}</span>Acme Components Ltd.<span style={{ color: "#7FB37B" }}>{"</ShipFrom>"}</span>
+          <span style={{ color: "#7FB37B" }}>{"<ShipFrom>"}</span>{order.supplierName}<span style={{ color: "#7FB37B" }}>{"</ShipFrom>"}</span>
         </div>
         <div style={{ paddingLeft: 32 }}>
           <span style={{ color: "#7FB37B" }}>{"<BillTo>"}</span>
-          <span style={{ background: "rgba(232,175,35,0.15)", color: "#E0A23A", padding: "0 2px" }}>{billTo.split("·")[0].trim()}</span>
+          <span style={{ background: fieldValues["buyer"] ? "rgba(232,175,35,0.15)" : "transparent", color: fieldValues["buyer"] ? "#E0A23A" : "#C5D2E4", padding: "0 2px" }}>{outBuyer}</span>
           <span style={{ color: "#7FB37B" }}>{"</BillTo>"}</span>
         </div>
-        <div style={{ paddingLeft: 32 }}>
-          <span style={{ color: "#7FB37B" }}>{`<Shipping terms="${incoterm}"/>`}</span>
-          {incoterm !== "DDP" && <span style={{ marginLeft: 8, fontSize: 9, color: "#E0A23A" }}>← edited</span>}
-        </div>
         <div style={{ paddingLeft: 32, marginTop: 6, color: "#7C8DA6" }}>{"<!-- ItemOut entries -->"}</div>
-        {[
-          { sku: "ACM-BLT-M8x40",     qty: 500, ai: false, err: false, id: "sn1" },
-          { sku: "ACM-PLT-200×200×4", qty: 24,  ai: true,  err: false, id: "sn2" },
-          { sku: "—",                 qty: -3,  ai: false, err: true,  id: "sn3" },
-        ].map((item) => {
-          const isRejected = item.id === "sn2" && sn2rejected;
-          const isAccepted = item.id === "sn2" && sn2accepted;
-          if (isRejected) return null;
+        {previewLines.map((line) => {
+          const accepted = acceptedSubnodes.has(line.id);
+          const rejected = rejectedSubnodes.has(line.id);
+          if (rejected) return null;
+          const sku = line.supplierItemCode ?? line.aiSuggestion?.supplierItemCode ?? line.buyerItemCode;
+          const isAi  = !line.supplierItemCode && !!line.aiSuggestion && !accepted;
+          const isErr = line.needsReview && !line.supplierItemCode && !line.aiSuggestion;
           return (
-            <div key={item.id} style={{ paddingLeft: 32, paddingTop: 2, paddingBottom: 2, background: item.err ? "rgba(197,58,58,0.15)" : isAccepted ? "rgba(46,142,58,0.12)" : item.ai ? "rgba(111,79,206,0.10)" : "transparent", borderLeft: item.err ? "2px solid #C53A3A" : isAccepted ? "2px solid #2E8E3A" : item.ai ? "2px solid #6F4FCE" : "none", transition: "all 200ms" }}>
+            <div key={line.id} style={{ paddingLeft: 32, paddingTop: 2, paddingBottom: 2, background: isErr ? "rgba(197,58,58,0.15)" : accepted ? "rgba(46,142,58,0.12)" : isAi ? "rgba(111,79,206,0.10)" : "transparent", borderLeft: isErr ? "2px solid #C53A3A" : accepted ? "2px solid #2E8E3A" : isAi ? "2px solid #6F4FCE" : "none", transition: "all 200ms" }}>
               <span style={{ color: "#7FB37B" }}>{"<ItemOut "}</span>
               <span style={{ color: "#8ABAEF" }}>sku</span>{"="}
-              <span style={{ color: item.err ? "#F0A0A0" : isAccepted ? "#7FB37B" : item.ai ? "#C4ABF0" : "#E0A23A" }}>"{item.sku}"</span>
+              <span style={{ color: isErr ? "#F0A0A0" : accepted ? "#7FB37B" : isAi ? "#C4ABF0" : "#E0A23A" }}>&quot;{sku}&quot;</span>
               <span style={{ color: "#8ABAEF" }}> qty</span>{"="}
-              <span style={{ color: item.err ? "#F0A0A0" : "#E0A23A" }}>"{item.qty}"</span>
+              <span style={{ color: isErr ? "#F0A0A0" : "#E0A23A" }}>&quot;{line.quantity}&quot;</span>
               <span style={{ color: "#7FB37B" }}>{"/>"}</span>
-              {item.ai && !isAccepted && <span style={{ marginLeft: 8, fontSize: 9, fontWeight: 700, color: "#C4ABF0" }}>← AI mapped 84%</span>}
-              {isAccepted && <span style={{ marginLeft: 8, fontSize: 9, fontWeight: 700, color: "#7FB37B" }}>← accepted ✓</span>}
-              {item.err && <span style={{ marginLeft: 8, fontSize: 9, fontWeight: 700, color: "#F0A0A0" }}>← will be rejected</span>}
+              {isAi && line.aiSuggestion && <span style={{ marginLeft: 8, fontSize: 9, fontWeight: 700, color: "#C4ABF0" }}>← AI mapped {Math.round(line.aiSuggestion.confidence * 100)}%</span>}
+              {accepted && <span style={{ marginLeft: 8, fontSize: 9, fontWeight: 700, color: "#7FB37B" }}>← accepted ✓</span>}
+              {isErr && <span style={{ marginLeft: 8, fontSize: 9, fontWeight: 700, color: "#F0A0A0" }}>← needs review</span>}
             </div>
           );
         })}
+        {order.lines.length > previewLines.length && (
+          <div style={{ paddingLeft: 32, color: "#7C8DA6" }}>{`<!-- + ${order.lines.length - previewLines.length} more -->`}</div>
+        )}
         <div style={{ paddingLeft: 24, marginTop: 4 }}><span style={{ color: "#7FB37B" }}>{"</OrderRequest>"}</span></div>
         <div style={{ paddingLeft: 12 }}><span style={{ color: "#7FB37B" }}>{"</Request>"}</span></div>
         <div><span style={{ color: "#7FB37B" }}>{"</cXML>"}</span></div>
@@ -674,13 +684,13 @@ function CrossedToast({ onDismiss, supplierName, poNumber, lineCount }: {
 // ─── Mobile accordion ─────────────────────────────────────────────────────────
 
 interface MobileSpineAccordionProps {
+  order: Order;
   nodes: SpineNodeData[];
   editingId: string | null;
   fieldValues: Record<string, string>;
   acceptedSubnodes: Set<string>;
   rejectedSubnodes: Set<string>;
   crossed: boolean;
-  highlightZone?: string;
   onStartEdit: (id: string) => void;
   onChangeValue: (id: string, val: string) => void;
   onCommitEdit: (id: string) => void;
@@ -717,15 +727,15 @@ function AccordionPanel({ label, accent, defaultOpen, children }: {
 }
 
 function MobileSpineAccordion({
-  nodes, editingId, fieldValues, acceptedSubnodes, rejectedSubnodes,
-  crossed, highlightZone, onStartEdit, onChangeValue, onCommitEdit,
+  order, nodes, editingId, fieldValues, acceptedSubnodes, rejectedSubnodes,
+  crossed, onStartEdit, onChangeValue, onCommitEdit,
   onAcceptSubnode, onRejectSubnode, onKeyDown, inputRef, onOutputAction,
   orderId, artifacts,
 }: MobileSpineAccordionProps) {
   return (
     <div className="md:hidden flex flex-col gap-3 px-4 py-4 pb-[80px]">
       <AccordionPanel label="Source · What we received" accent="#1E66C9">
-        <DocumentAnatomy highlightZone={highlightZone} />
+        <DocumentAnatomy order={order} />
       </AccordionPanel>
 
       <AccordionPanel label="Canonical model · the bridge" accent="linear-gradient(180deg,#1E66C9,#2E8E3A)" defaultOpen>
@@ -756,6 +766,7 @@ function MobileSpineAccordion({
 
       <AccordionPanel label="Output · What we send" accent="#2E8E3A">
         <OutputPreview
+          order={order}
           acceptedSubnodes={acceptedSubnodes}
           rejectedSubnodes={rejectedSubnodes}
           crossed={crossed}
@@ -782,8 +793,18 @@ export function SpineReview({ orderId }: { orderId: string }) {
     staleTime: 30_000,
   });
 
-  // Derive nodes from live order or fall back to INITIAL_NODES for mock
-  const nodes = order ? buildNodesFromOrder(order) : INITIAL_NODES;
+  const { data: auditEvents = [] } = useQuery({
+    queryKey: ["order-audit", orderId],
+    queryFn: () => apiClient.getOrderAudit(orderId),
+    enabled: order?.status === "failed",
+    retry: 1,
+    staleTime: 60_000,
+  });
+
+  // Derive nodes from the live order. Empty until the order resolves (the
+  // loading/error gates below render before this is used). No demo fallback —
+  // real users must never see staged PO-DEMO-001 content.
+  const nodes = order ? buildNodesFromOrder(order) : [];
 
   // Sample order banner: query param OR order.isSample
   const searchParams = useSearchParams();
@@ -797,7 +818,6 @@ export function SpineReview({ orderId }: { orderId: string }) {
   const [showConfirm, setShowConfirm]             = useState(false);
   const [crossed, setCrossed]                     = useState(false);
   const [showToast, setShowToast]                 = useState(false);
-  const [highlightZone, setHighlightZone]         = useState<string | undefined>();
   const [flowNotice, setFlowNotice]               = useState<string | null>(null);
 
   const inputRefs = useRef<Record<string, HTMLInputElement | null>>({});
@@ -883,12 +903,12 @@ export function SpineReview({ orderId }: { orderId: string }) {
     setShowConfirm(false);
     setCrossed(true);
     setShowToast(true);
-    setFlowNotice("Delivered locally for QA. Group J verifies the real supplier delivery acknowledgement, retries, and audit event.");
+    setFlowNotice("Marked as sent in this view. Delivery confirmation and retries appear in the Delivery Log once the order is dispatched.");
   }, []);
 
   const handleSaveDraft = useCallback(() => {
-    setFlowNotice(`Draft saved locally for order ${orderId}. Live draft persistence is verified in Group J.`);
-  }, [orderId]);
+    setFlowNotice("Your review changes stay on this screen. Saved drafts aren't kept after you leave yet — use “Send to supplier” when the order is ready.");
+  }, []);
 
   // ── Loading / error gates (must be after all hooks) ────────────────────────
   if (isLoading) return <SpineReviewSkeleton />;
@@ -912,6 +932,17 @@ export function SpineReview({ orderId }: { orderId: string }) {
         </button>
       </div>
     );
+  }
+
+  // ── Failure gates — render before the full page so we don't need all fields ──
+  if (order.status === "failed") {
+    return <ParseFailedPanel order={order} auditEvents={auditEvents} />;
+  }
+  if (order.status === "transform_failed") {
+    return <FailedPanel order={order} stage="transform" />;
+  }
+  if (order.status === "delivery_failed") {
+    return <FailedPanel order={order} stage="delivery" />;
   }
 
   return (
@@ -949,6 +980,13 @@ export function SpineReview({ orderId }: { orderId: string }) {
 
           {/* Actions */}
           <div style={{ display: "flex", gap: 8, flexShrink: 0, flexWrap: "wrap" }}>
+            {order.status === "delivery_dead_letter" && (
+              <span
+                style={{ height: 32, display: "inline-flex", alignItems: "center", padding: "0 12px", borderRadius: 6, fontSize: 12, fontWeight: 600, background: "#FBE3E3", color: "#C53A3A", border: "1px solid #F0D2D2" }}
+              >
+                ⚠ Dead-lettered · retries exhausted
+              </span>
+            )}
             <button
               onClick={handleSaveDraft}
               style={{ height: 32, padding: "0 14px", borderRadius: 6, fontSize: 12.5, fontWeight: 500, background: "#FFFFFF", border: "1px solid #E2E6EE", color: "#0B1A2F", cursor: "pointer" }}
@@ -1011,7 +1049,7 @@ export function SpineReview({ orderId }: { orderId: string }) {
               {/* Left — Document Anatomy */}
               <div>
                 <div style={{ fontSize: 10.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em", color: "#8A93A5", marginBottom: 10 }}>📄 Source · What we received</div>
-                <DocumentAnatomy highlightZone={highlightZone} />
+                <DocumentAnatomy order={order} />
               </div>
 
               {/* Center — Canonical Spine */}
@@ -1045,6 +1083,7 @@ export function SpineReview({ orderId }: { orderId: string }) {
               <div>
                 <div style={{ fontSize: 10.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em", color: "#8A93A5", marginBottom: 10, textAlign: "right" }}>⤴ Output · What we send</div>
                 <OutputPreview
+                  order={order}
                   acceptedSubnodes={acceptedSubnodes}
                   rejectedSubnodes={rejectedSubnodes}
                   crossed={crossed}
@@ -1058,13 +1097,13 @@ export function SpineReview({ orderId }: { orderId: string }) {
 
             {/* Mobile accordion */}
             <MobileSpineAccordion
+              order={order}
               nodes={nodes}
               editingId={editingId}
               fieldValues={fieldValues}
               acceptedSubnodes={acceptedSubnodes}
               rejectedSubnodes={rejectedSubnodes}
               crossed={crossed}
-              highlightZone={highlightZone}
               onStartEdit={handleStartEdit}
               onChangeValue={handleChangeValue}
               onCommitEdit={handleCommitEdit}
@@ -1084,12 +1123,12 @@ export function SpineReview({ orderId }: { orderId: string }) {
       <div className="hidden md:flex flex-shrink-0 bg-white px-6 py-3 items-center gap-5" style={{ borderTop: "1px solid #E2E6EE" }}>
         <div className="min-w-0">
           <div style={{ fontSize: 10.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "#8A93A5", marginBottom: 2 }}>Grand total</div>
-          <div style={{ fontFamily: "'Bricolage Grotesque',Inter,sans-serif", fontSize: 22, fontWeight: 600, color: "#0B1A2F", letterSpacing: "-0.02em", whiteSpace: "nowrap" }}>€ 4,436.73</div>
+          <div style={{ fontFamily: "'Bricolage Grotesque',Inter,sans-serif", fontSize: 22, fontWeight: 600, color: "#0B1A2F", letterSpacing: "-0.02em", whiteSpace: "nowrap" }}>{dialogGrandTotal}</div>
         </div>
         <div style={{ width: 1, height: 36, background: "#E2E6EE", flexShrink: 0 }} />
         <div className="min-w-0">
-          <div style={{ fontSize: 10.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "#8A93A5", marginBottom: 2 }}>Output template</div>
-          <div style={{ fontSize: 13, fontWeight: 500, color: "#0B1A2F", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>Acme cXML v1.2</div>
+          <div style={{ fontSize: 10.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "#8A93A5", marginBottom: 2 }}>Output</div>
+          <div style={{ fontSize: 13, fontWeight: 500, color: "#0B1A2F", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{order.supplierName} · {dialogOutputFormat}</div>
         </div>
         <div className="ml-auto">
           {!crossed && exceptionCount > 0 && (
@@ -1099,7 +1138,7 @@ export function SpineReview({ orderId }: { orderId: string }) {
           )}
           {crossed && (
             <span className="inline-flex rounded-[6px] px-2.5 py-1.5 text-[12px] font-semibold" style={{ background: "#F0F7F1", border: "1px solid #BDE0C1", color: "#1E6D29" }}>
-              ✓ Delivered · 1m 42s
+              ✓ Sent to supplier
             </span>
           )}
         </div>
