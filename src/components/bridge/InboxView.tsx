@@ -293,9 +293,19 @@ export function InboxView() {
     enabled: !isApiMockMode,
   });
 
-  const ALL_ORDERS: OrderRow[] = isApiMockMode
-    ? MOCK_ORDERS
-    : (rawOrders ?? []).map(summaryToRow);
+  // Memoize so react-table receives a STABLE `data` reference across renders.
+  // Previously this was `(rawOrders ?? []).map(summaryToRow)` — a brand-new array
+  // on EVERY render. In the live (non-mock) path the inbox is also subscribed to
+  // TanStack Query, so it re-renders on query activity; each render handed
+  // react-table a fresh `data` identity, which forced it to rebuild its row models
+  // and produce new derived references, scheduling yet another render. Applying a
+  // status filter tipped this into an unbounded re-render cascade that locked the
+  // main thread (the reported hard freeze). Keying the memo on `rawOrders` keeps
+  // the reference stable until the underlying query data actually changes.
+  const ALL_ORDERS: OrderRow[] = useMemo(
+    () => (isApiMockMode ? MOCK_ORDERS : (rawOrders ?? []).map(summaryToRow)),
+    [rawOrders],
+  );
 
   // Status filter: when a chip is selected, filter by status column
   const handleChip = useCallback((idx: number) => {
