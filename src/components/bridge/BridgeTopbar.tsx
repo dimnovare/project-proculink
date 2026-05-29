@@ -80,7 +80,7 @@ function useAutoCrumb(): ReactNode {
     );
   }
 
-  // Detail pages like /inbox/[id] or /library/suppliers/[id] or /orders/[id]
+  // Detail pages like /inbox/[id] or /library/suppliers/[id]
   if (seg.length >= 2 && !LABELS[seg[1]]) {
     const slug = seg[1].length > 16 ? seg[1].slice(0, 15) + "…" : seg[1];
     return (
