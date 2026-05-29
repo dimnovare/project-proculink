@@ -5,7 +5,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { FileChip } from "./FileChip";
 import { ApiHttpError, apiClient, getBillingStatus, isApiMockMode, type DetectFormatResult } from "@/lib/api-client";
@@ -46,8 +46,7 @@ const DEMO_RECENT: RecentRow[] = [
 
 const FORMATS: FormatKey[] = ["PDF", "XLSX", "CSV", "cXML", "EDI", "JSON", "EMAIL"];
 
-const BUYERS  = ["Heinrich Industries", "Nordmark Logistics", "Steelhouse Const.", "Centralis Pharma", "Westmark Tools", "Atlas Reseller AG"];
-const TEMPLATES = ["Standard cXML PO", "SAP IDoc ORDERS05", "ERP Generic v2", "Custom Nordmark"];
+const TEMPLATES = ["Standard cXML PO", "SAP IDoc ORDERS05", "ERP Generic v2", "Custom template"];
 
 const STATUS_PILL: Record<RecentStatus, { bg: string; color: string; label: string }> = {
   processing: { bg: "#EEE7FB", color: "#6F4FCE", label: "Processing" },
@@ -145,7 +144,6 @@ function XCard({
 
 export function UploadWorkbench() {
   const [dragging, setDragging]     = useState(false);
-  const [buyer, setBuyer]           = useState(BUYERS[0]);
   const [supplierId, setSupplierId] = useState("");
   const [template, setTemplate]     = useState(TEMPLATES[0]);
   const [mode, setMode]             = useState<ModeKey>("auto");
@@ -156,6 +154,7 @@ export function UploadWorkbench() {
   const timerRefs = useRef<ReturnType<typeof setTimeout>[]>([]);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [sampleLoading, setSampleLoading] = useState(false);
   const [sampleError, setSampleError] = useState<string | null>(null);
   const [detection, setDetection] = useState<DetectFormatResult | null>(null);
@@ -223,9 +222,14 @@ export function UploadWorkbench() {
     }
     const stillValid = suppliers.some((s) => s.id === supplierId);
     if (!supplierId || !stillValid) {
-      setSupplierId(suppliers[0].id);
+      const paramId = searchParams?.get("supplierId");
+      if (paramId && suppliers.some((s) => s.id === paramId)) {
+        setSupplierId(paramId);
+      } else {
+        setSupplierId(suppliers[0].id);
+      }
     }
-  }, [suppliers, supplierId]);
+  }, [suppliers, supplierId, searchParams]);
 
   const selectedSupplier = suppliers.find((s) => s.id === supplierId) ?? null;
   const isReadOnly = billing ? !billing.canProcessOrders : false;
@@ -268,6 +272,14 @@ export function UploadWorkbench() {
       }
       const result = await apiClient.uploadPurchaseOrder(selectedFile, selectedSupplier.id);
       uploadedOrderId = result.order.id;
+      // Cache the format-detection result so ParseFailedPanel can show it if parsing fails.
+      if (detection) {
+        try {
+          sessionStorage.setItem(`detectResult:${uploadedOrderId}`, JSON.stringify(detection));
+        } catch {
+          // sessionStorage unavailable — silently skip
+        }
+      }
     } catch (error) {
       if (error instanceof ApiHttpError && error.status === 429) {
         setUploadError(getLimitMessage(getLimitCode(error.body)));
@@ -646,6 +658,37 @@ export function UploadWorkbench() {
                             PO {detection.detectedPoNumber} · {detection.estimatedLineCount ?? 0} lines
                           </span>
                         )}
+                        {/* Schema fingerprint recognition — org-scoped "we've seen this before" */}
+                        {detection.seenCount != null && detection.seenCount > 0 && (
+                          <span
+                            title="We recognise this column layout from your previous uploads, so we're more confident in the detected format."
+                            style={{
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: 5,
+                              fontSize: 11.5,
+                              padding: "4px 9px",
+                              borderRadius: 99,
+                              background: "#EAF6EC",
+                              border: "1px solid #BBE0C0",
+                              color: "#2E7D36",
+                              fontWeight: 600,
+                              userSelect: "none",
+                            }}
+                          >
+                            <svg width="11" height="11" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+                              <path
+                                d="M2.5 6.2l2.2 2.2 4.8-5"
+                                stroke="#2E7D36"
+                                strokeWidth="1.6"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                              />
+                            </svg>
+                            We&apos;ve seen this layout {detection.seenCount}{" "}
+                            {detection.seenCount === 1 ? "time" : "times"} before
+                          </span>
+                        )}
                       </>
                     ) : null}
                   </div>
@@ -924,7 +967,7 @@ export function UploadWorkbench() {
                   </div>
                 )}
 
-                {/* Buyer */}
+                {/* Buyer — auto-detected from the document during parsing (not a manual choice). */}
                 <div>
                   <label
                     className="block text-[11px] font-semibold uppercase tracking-[0.06em] mb-1.5"
@@ -932,21 +975,12 @@ export function UploadWorkbench() {
                   >
                     Buyer dock
                   </label>
-                  <select
-                    value={buyer}
-                    onChange={(e) => setBuyer(e.target.value)}
-                    className="w-full rounded-[6px] px-3 py-2 text-[13px] appearance-none"
-                    style={{
-                      border: "1px solid #E2E6EE",
-                      background: "#FFFFFF",
-                      color: "#0B1A2F",
-                      outline: "none",
-                    }}
+                  <div
+                    className="w-full rounded-[6px] px-3 py-2 text-[13px]"
+                    style={{ border: "1px solid #E2E6EE", background: "#F6F7FA", color: "#56627A" }}
                   >
-                    {BUYERS.map((b) => (
-                      <option key={b}>{b}</option>
-                    ))}
-                  </select>
+                    Detected from the uploaded document
+                  </div>
                 </div>
 
                 {/* Route arrow */}
