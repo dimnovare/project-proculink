@@ -91,10 +91,11 @@ Do not use `VITE_*` variables.
 
 ## Design Direction
 
-The visual source of truth is in the backend repository:
+The visual source of truth lives in the sibling backend repository (checked out
+alongside this one):
 
 ```text
-C:\Users\Dmitri.MARKIT\source\repos\ProcuLink\docs\design-system
+../ProcuLink/docs/design-system
 ```
 
 Read `00-agent-quick-brief.md` first for any UI work.
@@ -108,24 +109,40 @@ Locked direction:
 ## Commands
 
 ```bash
-bun run build
+bun run build          # production build
+bun run lint           # next lint
+bun run test           # vitest unit tests
+bun run test:e2e       # Playwright (mock mode)
+bun run test:e2e:live  # Playwright against a running backend (PLAYWRIGHT_LIVE=1)
 ```
+
+Current Playwright baseline: **43 tests across 8 spec files**, 0 failures.
+
+## UX Direction
+
+ProcuLink ships **one great experience** — smart defaults, progressive
+disclosure, and a Command Palette (Cmd+K) for power features. The earlier
+"default vs expert mode" toggle (`useViewMode` / `ViewModeToggle`) was removed
+before adoption. Power-user affordances — standards mappings, raw views,
+hotkeys, density — surface via the Command Palette, info popovers, and
+per-table column selectors, never behind a user-mode flag.
+
+Standards visibility is a product invariant: any transform/mapping field can
+surface its UBL / EDIFACT / X12 / cXML reference on demand via
+`StandardsFieldPopover` or the `/library/standards` comparison screen.
 
 ## Current Product Focus
 
-Groups C-H are implemented. Phase 5 is now grouped in the backend roadmap:
+The backend exposes the full outbound bridge — multi-format input/output
+(CSV/XLSX, PDF, cXML, UBL, EDIFACT, X12), multi-channel delivery (HTTP, SFTP,
+FTPS, SMTP, ERP), billing, AI mapping, and magic mapping preview. The frontend
+is in production-polish and live-QA mode.
+
+Forward plan (Phase 6 — International Standard) lives in the sibling backend repo:
 
 ```text
-C:\Users\Dmitri.MARKIT\source\repos\ProcuLink\docs\superpowers\plans\2026-05-26-production-hardening-roadmap.md
+../ProcuLink/docs/superpowers/plans/2026-05-28-phase-6-international-standard-roadmap.md
 ```
 
-Next frontend implementation group:
-
-```text
-Group I — UI/UX production polish + responsive QA
-```
-
-Fix visible Bridge Layer defects first, especially the Wire Topology
-traveller/pulse dot that can appear detached from its wire. Then polish mobile,
-core flows, empty/error/loading states, and plan-gated/read-only states before
-adding broader engine surfaces.
+Read `STATUS.md` in the backend repo before starting new work — it is the
+shared handoff source of truth across both repositories.
