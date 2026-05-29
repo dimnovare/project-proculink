@@ -877,6 +877,86 @@ async function realRunSampleOrder(): Promise<{ orderId: string; isSample: true }
   return { orderId: data.orderId, isSample: true };
 }
 
+// ── Magic Mapping Preview ─────────────────────────────────────────────────
+
+export interface MappingPreviewLine {
+  lineNumber: number;
+  sourceFields: Record<string, string | null>;
+  canonicalField: string;
+  buyerItemCode: string | null;
+  /** Supplier code already confirmed on this line (status === "resolved"). */
+  resolvedSupplierCode: string | null;
+  aiSuggestedSupplierCode: string | null;
+  confidence: number | null;
+  provenance: string | null;
+  reason: string | null;
+  status: "suggested" | "resolved" | "unresolved";
+}
+
+export interface MappingPreview {
+  orderId: string;
+  sourceFormat: string | null;
+  detectedConfidence: number | null;
+  lines: MappingPreviewLine[];
+}
+
+async function mockGetMappingPreview(orderId: string): Promise<MappingPreview> {
+  const order = await mockGetOrderById(orderId);
+  if (!order) throw new ApiHttpError(`Order ${orderId} not found`, 404);
+
+  const ext = order.sourceFileKey
+    ? order.sourceFileKey.split(".").pop()?.toLowerCase() ?? null
+    : null;
+  const sourceFormat = ext === "pdf"  ? "pdf"
+                     : ext === "csv"  ? "csv"
+                     : ext === "xlsx" || ext === "xls" ? "xlsx"
+                     : ext === "xml"  || ext === "cxml" ? "cxml"
+                     : ext === "edi"  || ext === "x12"  ? "edi"
+                     : null;
+
+  const lines: MappingPreviewLine[] = order.lines.map(l => {
+    const status: MappingPreviewLine["status"] =
+      l.supplierItemCode != null
+        ? "resolved"
+        : l.aiSuggestion
+        ? "suggested"
+        : "unresolved";
+    return {
+      lineNumber: l.lineNumber,
+      sourceFields: {
+        buyerItemCode: l.buyerItemCode ?? null,
+        description: l.description ?? null,
+        quantity: String(l.quantity),
+        unit: l.unit ?? null,
+        unitPrice: String(l.unitPrice),
+      },
+      canonicalField: "supplierItemCode",
+      buyerItemCode: l.buyerItemCode ?? null,
+      resolvedSupplierCode: l.supplierItemCode ?? null,
+      aiSuggestedSupplierCode: l.aiSuggestion?.supplierItemCode ?? null,
+      confidence: l.aiSuggestion?.confidence ?? null,
+      provenance: l.aiSuggestion?.provenance ?? null,
+      reason: l.aiSuggestion?.reason ?? null,
+      status,
+    };
+  });
+
+  return { orderId, sourceFormat, detectedConfidence: null, lines };
+}
+
+async function realGetMappingPreview(orderId: string): Promise<MappingPreview> {
+  const res = await fetchWithTimeout(
+    `${API_BASE_URL}/api/orders/${orderId}/mapping-preview`,
+    { headers: await authHeader() },
+  );
+  if (res.status === 404) throw new ApiHttpError(`Order ${orderId} not found`, 404);
+  if (!res.ok) {
+    const t = await res.text().catch(() => "");
+    throw new ApiHttpError(`mapping-preview failed: ${t || res.statusText}`, res.status);
+  }
+  return res.json() as Promise<MappingPreview>;
+}
+
 // ── Exported API client ───────────────────────────────────────────────────
 
 export const apiClient = {
@@ -926,6 +1006,23 @@ export const apiClient = {
 
   // ─── Format detection ───
   detectFormat:           USE_MOCK ? mockDetectFormat          : realDetectFormat,
+
+  // ─── Magic Mapping Preview ───
+  getMappingPreview:      USE_MOCK ? mockGetMappingPreview     : realGetMappingPreview,
+
+  /**
+   * Commit resolved supplier-item codes for an order.
+   * Thin wrapper around resolvePurchaseOrder with saveMappings: true.
+   */
+  commitMappings(
+    orderId: string,
+    resolutions: { lineNumber: number; supplierItemCode: string }[],
+  ) {
+    return (USE_MOCK ? mockResolvePurchaseOrder : realResolvePurchaseOrder)(orderId, {
+      lineResolutions: resolutions,
+      saveMappings: true,
+    });
+  },
 };
 
 // ── Buyers ─────────────────────────────────────────────────────────────────
