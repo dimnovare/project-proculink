@@ -207,11 +207,9 @@ export function UploadWorkbench() {
       const t = setTimeout(() => setPipelineStage(i), i * STAGE_MS);
       timerRefs.current.push(t);
     });
-    const reviewPath = isApiMockMode
-      ? `/inbox/${encodeURIComponent(uploadedOrderId)}`
-      : `/orders/${encodeURIComponent(uploadedOrderId)}`;
+    const previewPath = `/upload/preview/${encodeURIComponent(uploadedOrderId)}`;
     const total = setTimeout(() => {
-      router.push(reviewPath);
+      router.push(previewPath);
     }, PIPELINE_STAGES.length * STAGE_MS + 200);
     timerRefs.current.push(total);
   }
