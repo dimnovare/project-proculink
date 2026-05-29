@@ -5,6 +5,8 @@
 
 import { Component, type ReactNode, type ErrorInfo } from "react";
 
+import { captureException } from "@/lib/sentry-context";
+
 interface Props {
   children: ReactNode;
   /** Optional custom fallback UI. Receives the error and a reset fn. */
@@ -28,8 +30,11 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, info: ErrorInfo) {
-    // In production this is where we'd call Sentry.captureException
     console.error(`[ErrorBoundary:${this.props.context ?? "unknown"}]`, error, info.componentStack);
+    captureException(error, {
+      tags: { boundary: this.props.context ?? "unknown" },
+      extra: { componentStack: info.componentStack ?? "" },
+    });
   }
 
   reset = () => this.setState({ error: null });

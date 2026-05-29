@@ -67,9 +67,21 @@ export class ApiHttpError extends Error {
 
 async function fetchWithTimeout(input: RequestInfo | URL, init?: RequestInit, timeoutMs = 8000) {
   const controller = new AbortController();
-  const timeout = globalThis.setTimeout(() => controller.abort(), timeoutMs);
+  let didTimeout = false;
+  const timeout = globalThis.setTimeout(() => {
+    didTimeout = true;
+    controller.abort();
+  }, timeoutMs);
   try {
     return await fetch(input, { ...init, signal: controller.signal });
+  } catch (err) {
+    // Re-throw AbortError as a clearer timeout error so callers (and the user)
+    // can distinguish "backend didn't respond in time" from a generic network
+    // failure. Preserves the original error chain via `cause`.
+    if (didTimeout || (err instanceof DOMException && err.name === "AbortError")) {
+      throw new Error(`Request timed out after ${timeoutMs}ms`, { cause: err });
+    }
+    throw err;
   } finally {
     globalThis.clearTimeout(timeout);
   }
@@ -204,7 +216,7 @@ async function mockGetSuppliersFn(): Promise<Supplier[]> {
 }
 
 async function realGetSuppliersFn(): Promise<Supplier[]> {
-  const res = await fetch(`${API_BASE_URL}/api/suppliers`, { headers: await authHeader() });
+  const res = await fetchWithTimeout(`${API_BASE_URL}/api/suppliers`, { headers: await authHeader() });
   if (!res.ok) throw new Error(`Failed to fetch suppliers: ${res.statusText}`);
   return res.json() as Promise<Supplier[]>;
 }
@@ -218,14 +230,14 @@ async function mockSubmitSupportRequest(payload: SupportContactPayload): Promise
 }
 
 async function realSubmitSupportRequest(payload: SupportContactPayload): Promise<{ ok: true }> {
-  const res = await fetch(`${API_BASE_URL}/api/support/contact`, {
+  const res = await fetchWithTimeout(`${API_BASE_URL}/api/support/contact`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       ...(await authHeader().catch(() => ({} as Record<string, string>))),
     },
     body: JSON.stringify(payload),
-  });
+  }, 30000);
   if (!res.ok) {
     const text = await res.text().catch(() => "");
     throw new Error(text || `submitSupportRequest failed: ${res.status}`);
@@ -301,9 +313,9 @@ async function realUploadPurchaseOrder(file: File, supplierId: string): Promise<
   formData.append("file", file);
   formData.append("supplierId", supplierId);
 
-  const res = await fetch(`${API_BASE_URL}/api/orders/upload`, {
+  const res = await fetchWithTimeout(`${API_BASE_URL}/api/orders/upload`, {
     method: "POST", headers: await authHeader(), body: formData,
-  });
+  }, 60000);
   if (!res.ok) {
     const contentType = res.headers.get("content-type") ?? "";
     const body = contentType.includes("application/json")
@@ -352,7 +364,7 @@ async function mockGetOrders(): Promise<OrderSummary[]> {
 }
 
 async function realGetOrders(): Promise<OrderSummary[]> {
-  const res = await fetch(`${API_BASE_URL}/api/orders`, { headers: await authHeader() });
+  const res = await fetchWithTimeout(`${API_BASE_URL}/api/orders`, { headers: await authHeader() });
   if (!res.ok) throw new Error(`Failed to fetch orders: ${res.statusText}`);
   return res.json() as Promise<OrderSummary[]>;
 }
@@ -363,7 +375,7 @@ async function mockGetOrderById(id: string): Promise<Order | null> {
 }
 
 async function realGetOrderById(id: string): Promise<Order | null> {
-  const res = await fetch(`${API_BASE_URL}/api/orders/${id}`, { headers: await authHeader() });
+  const res = await fetchWithTimeout(`${API_BASE_URL}/api/orders/${id}`, { headers: await authHeader() });
   if (res.status === 404) return null;
   if (!res.ok) throw new Error(`Failed to fetch order: ${res.statusText}`);
   return res.json() as Promise<Order>;
@@ -417,11 +429,11 @@ async function mockResolvePurchaseOrder(
 async function realResolvePurchaseOrder(
   id: string, payload: ResolvePayload,
 ): Promise<{ order: Order; validationMessages: string[] }> {
-  const res = await fetch(`${API_BASE_URL}/api/orders/${id}/resolve`, {
+  const res = await fetchWithTimeout(`${API_BASE_URL}/api/orders/${id}/resolve`, {
     method: "POST",
     headers: { "Content-Type": "application/json", ...await authHeader() },
     body: JSON.stringify(payload),
-  });
+  }, 30000);
   if (!res.ok) { const t = await res.text(); throw new Error(`Resolution failed: ${t || res.statusText}`); }
   // Backend returns OrderDto directly (not wrapped)
   const order = await res.json() as Order;
@@ -453,11 +465,11 @@ async function mockTransformOrder(orderId: string, format: "xml" | "csv"): Promi
 }
 
 async function realTransformOrder(orderId: string, format: "xml" | "csv"): Promise<TransformResult> {
-  const res = await fetch(`${API_BASE_URL}/api/orders/${orderId}/transform`, {
+  const res = await fetchWithTimeout(`${API_BASE_URL}/api/orders/${orderId}/transform`, {
     method: "POST",
     headers: { "Content-Type": "application/json", ...await authHeader() },
     body: JSON.stringify({ format }),
-  });
+  }, 30000);
   if (res.status === 422) { const t = await res.text(); throw new Error(`Unresolved lines: ${t}`); }
   if (!res.ok) { const t = await res.text(); throw new Error(`Transform failed: ${t || res.statusText}`); }
   // 202 Accepted — job enqueued; return a placeholder result
@@ -474,7 +486,7 @@ async function mockGetDownloadUrl(orderId: string, artifactId: string): Promise<
 }
 
 async function realGetDownloadUrl(orderId: string, artifactId: string): Promise<DownloadUrl> {
-  const res = await fetch(`${API_BASE_URL}/api/orders/${orderId}/artifacts/${artifactId}/download`, {
+  const res = await fetchWithTimeout(`${API_BASE_URL}/api/orders/${orderId}/artifacts/${artifactId}/download`, {
     headers: await authHeader(),
   });
   if (!res.ok) { const t = await res.text(); throw new Error(`Download URL failed: ${t || res.statusText}`); }
@@ -489,7 +501,7 @@ async function mockGetSupplierMappings(supplierId: string): Promise<SupplierMapp
 }
 
 async function realGetSupplierMappings(supplierId: string): Promise<SupplierMapping[]> {
-  const res = await fetch(`${API_BASE_URL}/api/suppliers/${supplierId}/mappings`, {
+  const res = await fetchWithTimeout(`${API_BASE_URL}/api/suppliers/${supplierId}/mappings`, {
     headers: await authHeader(),
   });
   if (!res.ok) throw new Error(`Failed to fetch mappings: ${res.statusText}`);
@@ -503,9 +515,9 @@ async function mockDeleteSupplierMapping(supplierId: string, mappingId: string):
 }
 
 async function realDeleteSupplierMapping(supplierId: string, mappingId: string): Promise<void> {
-  const res = await fetch(`${API_BASE_URL}/api/suppliers/${supplierId}/mappings/${mappingId}`, {
+  const res = await fetchWithTimeout(`${API_BASE_URL}/api/suppliers/${supplierId}/mappings/${mappingId}`, {
     method: "DELETE", headers: await authHeader(),
-  });
+  }, 30000);
   if (!res.ok) { const t = await res.text(); throw new Error(`Delete failed: ${t || res.statusText}`); }
 }
 
@@ -546,11 +558,11 @@ async function realCreateSupplierMapping(
   supplierId: string,
   payload: { buyerItemCode: string; supplierItemCode: string }
 ): Promise<SupplierMapping> {
-  const res = await fetch(`${API_BASE_URL}/api/suppliers/${supplierId}/mappings`, {
+  const res = await fetchWithTimeout(`${API_BASE_URL}/api/suppliers/${supplierId}/mappings`, {
     method: "POST",
     headers: { "Content-Type": "application/json", ...await authHeader() },
     body: JSON.stringify(payload),
-  });
+  }, 30000);
   if (!res.ok) { const t = await res.text(); throw new Error(t || res.statusText); }
   return res.json() as Promise<SupplierMapping>;
 }
@@ -560,11 +572,11 @@ async function realUpdateSupplierMapping(
   mappingId: string,
   payload: { buyerItemCode: string; supplierItemCode: string }
 ): Promise<SupplierMapping> {
-  const res = await fetch(`${API_BASE_URL}/api/suppliers/${supplierId}/mappings/${mappingId}`, {
+  const res = await fetchWithTimeout(`${API_BASE_URL}/api/suppliers/${supplierId}/mappings/${mappingId}`, {
     method: "PUT",
     headers: { "Content-Type": "application/json", ...await authHeader() },
     body: JSON.stringify(payload),
-  });
+  }, 30000);
   if (!res.ok) { const t = await res.text(); throw new Error(t || res.statusText); }
   return res.json() as Promise<SupplierMapping>;
 }
@@ -575,11 +587,11 @@ async function realImportSupplierMappings(
 ): Promise<{ created: number; updated: number }> {
   const fd = new FormData();
   fd.append("file", file);
-  const res = await fetch(`${API_BASE_URL}/api/suppliers/${supplierId}/mappings/import`, {
+  const res = await fetchWithTimeout(`${API_BASE_URL}/api/suppliers/${supplierId}/mappings/import`, {
     method: "POST",
     headers: await authHeader(),
     body: fd,
-  });
+  }, 60000);
   if (!res.ok) { const t = await res.text(); throw new Error(t || res.statusText); }
   return res.json();
 }
@@ -597,11 +609,11 @@ async function mockCreateSupplier(payload: CreateSupplierPayload): Promise<Suppl
 }
 
 async function realCreateSupplier(payload: CreateSupplierPayload): Promise<Supplier> {
-  const res = await fetch(`${API_BASE_URL}/api/suppliers`, {
+  const res = await fetchWithTimeout(`${API_BASE_URL}/api/suppliers`, {
     method: "POST",
     headers: { "Content-Type": "application/json", ...await authHeader() },
     body: JSON.stringify(payload),
-  });
+  }, 30000);
   if (!res.ok) { const t = await res.text(); throw new Error(t || res.statusText); }
   return res.json() as Promise<Supplier>;
 }
@@ -615,11 +627,11 @@ async function mockRenameSupplier(id: string, payload: RenameSupplierPayload): P
 }
 
 async function realRenameSupplier(id: string, payload: RenameSupplierPayload): Promise<Supplier> {
-  const res = await fetch(`${API_BASE_URL}/api/suppliers/${id}`, {
+  const res = await fetchWithTimeout(`${API_BASE_URL}/api/suppliers/${id}`, {
     method: "PUT",
     headers: { "Content-Type": "application/json", ...await authHeader() },
     body: JSON.stringify(payload),
-  });
+  }, 30000);
   if (!res.ok) { const t = await res.text(); throw new Error(t || res.statusText); }
   return res.json() as Promise<Supplier>;
 }
@@ -630,10 +642,10 @@ async function mockDeleteSupplier(id: string): Promise<void> {
 }
 
 async function realDeleteSupplier(id: string): Promise<void> {
-  const res = await fetch(`${API_BASE_URL}/api/suppliers/${id}`, {
+  const res = await fetchWithTimeout(`${API_BASE_URL}/api/suppliers/${id}`, {
     method: "DELETE",
     headers: await authHeader(),
-  });
+  }, 30000);
   if (!res.ok) { const t = await res.text(); throw new Error(t || res.statusText); }
 }
 

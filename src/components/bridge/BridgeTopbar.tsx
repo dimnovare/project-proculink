@@ -7,7 +7,6 @@ import { useEffect, useState } from "react";
 import type { ReactNode } from "react";
 import { CommandPalette } from "./CommandPalette";
 import { HelpSlideover } from "./HelpSlideover";
-import { ViewModeToggle } from "./ViewModeToggle";
 
 interface BridgeTopbarProps {
   crumb?: ReactNode;
@@ -253,9 +252,6 @@ export function BridgeTopbar({ crumb, onMenuClick }: BridgeTopbarProps) {
         >
           ?
         </button>
-
-        {/* Dual-persona view mode toggle (Phase 6) */}
-        <ViewModeToggle />
 
         {/* Avatar / Clerk */}
         <div className="flex-shrink-0">
