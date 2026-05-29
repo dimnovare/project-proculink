@@ -39,6 +39,7 @@ const NAV: Array<{
       { label: "Mappings",           href: "/library/mappings" },
       { label: "Rules",              href: "/library/rules" },
       { label: "Output templates",   href: "/library/templates" },
+      { label: "Standards",          href: "/library/standards" },
     ],
   },
   {
