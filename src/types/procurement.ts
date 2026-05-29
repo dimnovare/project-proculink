@@ -46,7 +46,8 @@ export type OrderStatus =
   | "delivered"
   | "failed"
   | "transform_failed"
-  | "delivery_failed";
+  | "delivery_failed"
+  | "delivery_dead_letter";
 
 export interface OrderLine {
   id: string;
@@ -93,6 +94,8 @@ export interface Order {
   artifacts: Artifact[];
   /** True when this order was created by the onboarding sample-order endpoint. */
   isSample?: boolean;
+  /** Human-readable error from the newest *Failed audit event; null for non-failed orders. */
+  errorMessage?: string | null;
 }
 
 export interface OrderSummary {

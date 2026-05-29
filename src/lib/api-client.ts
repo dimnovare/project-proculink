@@ -477,6 +477,37 @@ async function realTransformOrder(orderId: string, format: "xml" | "csv"): Promi
   return { artifactId: "", format, createdAt: new Date().toISOString(), ...body } as TransformResult;
 }
 
+// ── Retry delivery (operator replay + dead-letter) ────────────────────────
+
+async function mockRetryDelivery(orderId: string): Promise<{ status: string }> {
+  await delay(400);
+  const idx = mockOrders.findIndex(o => o.id === orderId);
+  if (idx !== -1) {
+    // Simulate the retry succeeding shortly after enqueue.
+    setTimeout(() => {
+      const i = mockOrders.findIndex(o => o.id === orderId);
+      if (i !== -1) mockOrders[i] = { ...mockOrders[i], status: "delivered", updatedAt: new Date().toISOString() };
+    }, 2_500);
+  }
+  return { status: "delivering" };
+}
+
+async function realRetryDelivery(orderId: string): Promise<{ status: string }> {
+  const res = await fetchWithTimeout(`${API_BASE_URL}/api/orders/${orderId}/retry-delivery`, {
+    method: "POST",
+    headers: await authHeader(),
+  }, 30000);
+  if (!res.ok) {
+    const body = await res.json().catch(() => null);
+    const message =
+      body && typeof body === "object" && "error" in body
+        ? String((body as { error?: unknown }).error)
+        : res.statusText;
+    throw new ApiHttpError(`retry-delivery failed: ${message || res.status}`, res.status, body);
+  }
+  return res.json() as Promise<{ status: string }>;
+}
+
 // ── Download ──────────────────────────────────────────────────────────────
 
 async function mockGetDownloadUrl(orderId: string, artifactId: string): Promise<DownloadUrl> {
@@ -685,6 +716,11 @@ async function realDeleteSupplierProfile(n: string) { const r = await fetchWithT
 
 // ── Audit trail ───────────────────────────────────────────────────────────
 
+async function mockRedeliverOrder(_orderId: string): Promise<void> {
+  await delay(800);
+  // Mock always succeeds — live wiring verified by manual QA
+}
+
 async function mockGetOrderAudit(orderId: string): Promise<AuditEvent[]> {
   await delay(200);
   const order = mockOrders.find(o => o.id === orderId);
@@ -701,6 +737,19 @@ async function mockGetOrderAudit(orderId: string): Promise<AuditEvent[]> {
     events.unshift({ action: "Delivered", payload: { format: order.artifacts[0]?.format ?? "xml" }, createdAt: now });
   }
   return events;
+}
+
+async function realRedeliverOrder(orderId: string): Promise<void> {
+  const res = await fetchWithTimeout(
+    `${API_BASE_URL}/api/orders/${orderId}/redeliver`,
+    { method: "POST", headers: await authHeader() },
+  );
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}) as Record<string, unknown>);
+    throw new Error(
+      (body as { error?: string }).error ?? `Redeliver failed: ${res.statusText}`,
+    );
+  }
 }
 
 async function realGetOrderAudit(orderId: string): Promise<AuditEvent[]> {
@@ -805,6 +854,8 @@ export interface DetectFormatResult {
   detectedSupplier: string | null;
   estimatedLineCount: number | null;
   reasoning: string[];
+  /** Org-scoped schema fingerprint: how many times we've parsed this exact column layout before. Null when new/unknown. */
+  seenCount: number | null;
 }
 
 async function mockDetectFormat(_file: File): Promise<DetectFormatResult> {
@@ -817,6 +868,7 @@ async function mockDetectFormat(_file: File): Promise<DetectFormatResult> {
     detectedSupplier: null,
     estimatedLineCount: 12,
     reasoning: ["CSV header detected", "Comma-separated values", "12 data rows"],
+    seenCount: 3,
   };
 }
 
@@ -977,6 +1029,7 @@ export const apiClient = {
   getOrderById:           USE_MOCK ? mockGetOrderById          : realGetOrderById,
   resolvePurchaseOrder:   USE_MOCK ? mockResolvePurchaseOrder  : realResolvePurchaseOrder,
   transformOrder:         USE_MOCK ? mockTransformOrder        : realTransformOrder,
+  retryDelivery:          USE_MOCK ? mockRetryDelivery         : realRetryDelivery,
   getDownloadUrl:         USE_MOCK ? mockGetDownloadUrl        : realGetDownloadUrl,
 
   // Supplier mappings
@@ -995,6 +1048,7 @@ export const apiClient = {
 
   // Audit trail
   getOrderAudit:          USE_MOCK ? mockGetOrderAudit         : realGetOrderAudit,
+  redeliverOrder:         USE_MOCK ? mockRedeliverOrder        : realRedeliverOrder,
 
   // Onboarding + dashboard
   getOnboardingStatus:    USE_MOCK ? mockGetOnboardingStatus   : realGetOnboardingStatus,
@@ -1024,6 +1078,18 @@ export const apiClient = {
     });
   },
 };
+
+// ── Delivery reliability: dead-letter count (ops view) ──────────────────────
+
+/** Number of orders currently in the terminal delivery_dead_letter state. */
+export async function getDeadLetterCount(): Promise<number> {
+  if (USE_MOCK) { await delay(120); return 0; }
+  const headers = await authHeader();
+  const res = await fetchWithTimeout(`${API_BASE_URL}/api/orders/dead-letter-count`, { headers });
+  if (!res.ok) throw new Error(`dead-letter-count: ${res.status}`);
+  const data = await res.json() as { count: number };
+  return data.count;
+}
 
 // ── Buyers ─────────────────────────────────────────────────────────────────
 
