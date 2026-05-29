@@ -8,7 +8,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { FileChip } from "./FileChip";
-import { ApiHttpError, apiClient, getBillingStatus, isApiMockMode } from "@/lib/api-client";
+import { ApiHttpError, apiClient, getBillingStatus, isApiMockMode, type DetectFormatResult } from "@/lib/api-client";
 import { capture } from "@/lib/analytics";
 import { captureException } from "@/lib/sentry-context";
 
@@ -106,6 +106,9 @@ export function UploadWorkbench() {
   const router = useRouter();
   const [sampleLoading, setSampleLoading] = useState(false);
   const [sampleError, setSampleError] = useState<string | null>(null);
+  const [detection, setDetection] = useState<DetectFormatResult | null>(null);
+  const [detectionLoading, setDetectionLoading] = useState(false);
+  const detectAbortRef = useRef<AbortController | null>(null);
 
   const { data: billing, isLoading: billingLoading, isError: billingError } = useQuery({
     queryKey: ["billing-status"],
@@ -237,6 +240,37 @@ export function UploadWorkbench() {
     }
   }
 
+  function triggerDetection(file: File) {
+    // Abort any in-flight detection for a previously selected file.
+    detectAbortRef.current?.abort();
+    const controller = new AbortController();
+    detectAbortRef.current = controller;
+
+    setDetection(null);
+    setDetectionLoading(true);
+
+    apiClient.detectFormat(file).then((result) => {
+      if (controller.signal.aborted) return;
+      setDetection(result);
+      setDetectionLoading(false);
+    }).catch(() => {
+      if (controller.signal.aborted) return;
+      // Silently swallow — detection is a hint only.
+      setDetection(null);
+      setDetectionLoading(false);
+    });
+  }
+
+  // Default output template when cxml is detected.
+  useEffect(() => {
+    if (!detection) return;
+    if (detection.format === "cxml") {
+      const match = TEMPLATES.find((t) => t.includes("cXML"));
+      if (match) setTemplate(match);
+    }
+    // ubl has no matching template in TEMPLATES; leave the current selection.
+  }, [detection]);
+
   // Cleanup timers on unmount
   useEffect(() => () => { timerRefs.current.forEach(clearTimeout); }, []);
 
@@ -349,6 +383,7 @@ export function UploadWorkbench() {
                   if (file) {
                     setSelectedFile(file);
                     setUploadError(null);
+                    triggerDetection(file);
                   }
                 }}
                 onClick={() => fileInputRef.current?.click()}
@@ -379,6 +414,7 @@ export function UploadWorkbench() {
                     const file = event.target.files?.[0] ?? null;
                     setSelectedFile(file);
                     setUploadError(null);
+                    if (file) triggerDetection(file);
                   }}
                 />
                 {/* Upload icon */}
@@ -435,6 +471,108 @@ export function UploadWorkbench() {
                     </button>
                   </p>
                 </div>
+
+                {/* Format detection pill — shown once a file is selected */}
+                {selectedFile && (detectionLoading || detection) && (
+                  <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
+                    {detectionLoading && !detection ? (
+                      <span
+                        style={{
+                          fontSize: 11.5,
+                          padding: "6px 10px",
+                          borderRadius: 99,
+                          background: "#FFFFFF",
+                          border: "1px solid #E2E6EE",
+                          color: "#8A93A5",
+                          userSelect: "none",
+                        }}
+                      >
+                        Detecting format…
+                      </span>
+                    ) : detection ? (
+                      <>
+                        <span
+                          title={detection.reasoning.join(" · ")}
+                          style={{
+                            fontSize: 11.5,
+                            padding: "6px 10px",
+                            borderRadius: 99,
+                            background: "#FFFFFF",
+                            border: "1px solid #E2E6EE",
+                            color: "#0B1A2F",
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: 5,
+                            cursor: "default",
+                            userSelect: "none",
+                          }}
+                        >
+                          <span
+                            style={{
+                              width: 7,
+                              height: 7,
+                              borderRadius: "50%",
+                              flexShrink: 0,
+                              background:
+                                detection.confidence >= 0.8
+                                  ? "#2E8E3A"
+                                  : detection.confidence >= 0.5
+                                  ? "#C97A14"
+                                  : "#8A93A5",
+                            }}
+                          />
+                          Detected:{" "}
+                          {detection.format === "csv"
+                            ? "CSV"
+                            : detection.format === "xlsx"
+                            ? "Excel"
+                            : detection.format === "pdf"
+                            ? "PDF"
+                            : detection.format === "cxml"
+                            ? "cXML PO"
+                            : detection.format === "ubl"
+                            ? "UBL Order"
+                            : detection.format === "edifact"
+                            ? "EDIFACT"
+                            : detection.format === "x12"
+                            ? "X12"
+                            : "Unknown format"}
+                          {" · "}
+                          {Math.round(detection.confidence * 100)}%
+                          <span
+                            style={{
+                              display: "inline-flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              width: 14,
+                              height: 14,
+                              borderRadius: "50%",
+                              border: "1px solid #C6CDDA",
+                              fontSize: 9,
+                              color: "#8A93A5",
+                              fontWeight: 700,
+                              lineHeight: 1,
+                              flexShrink: 0,
+                            }}
+                          >
+                            i
+                          </span>
+                        </span>
+                        {detection.detectedPoNumber !== null && (
+                          <span
+                            style={{
+                              fontFamily: "'JetBrains Mono', monospace",
+                              fontSize: 11,
+                              color: "#56627A",
+                            }}
+                          >
+                            PO {detection.detectedPoNumber} · {detection.estimatedLineCount ?? 0} lines
+                          </span>
+                        )}
+                      </>
+                    ) : null}
+                  </div>
+                )}
 
                 {/* Format chips */}
                 <div className="flex items-center gap-1.5 flex-wrap justify-center">
