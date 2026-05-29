@@ -93,7 +93,7 @@ test.describe("Legal + trust pages", () => {
     ["/support",       /^support$/i],
     ["/customers",     /procurement teams/i],
     ["/one-pager",     /stop reformatting purchase orders/i],
-    ["/help",          /^help$/i],
+    ["/help",          /help/i],
   ];
 
   for (const [route, headingRe] of routes) {

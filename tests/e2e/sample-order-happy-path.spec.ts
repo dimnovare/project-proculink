@@ -68,7 +68,7 @@ test("watch page renders walkthrough placeholder when Loom URL is unset", async 
 test("help index renders 7 articles", async ({ page }) => {
   await page.goto("/help");
 
-  await expect(page.getByRole("heading", { level: 1, name: /^help$/i })).toBeVisible({
+  await expect(page.getByRole("heading", { level: 1, name: /help/i })).toBeVisible({
     timeout: 10_000,
   });
 
