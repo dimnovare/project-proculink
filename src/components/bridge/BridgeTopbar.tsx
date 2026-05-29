@@ -52,7 +52,6 @@ function useAutoCrumb(): ReactNode {
     inbox:     "Inbox",
     upload:    "Upload",
     drafts:    "Drafts",
-    orders:    "Orders",
     settings:  "Settings",
     library:   "Library",
     suppliers: "Suppliers",

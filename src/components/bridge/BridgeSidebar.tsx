@@ -28,7 +28,6 @@ const NAV: Array<{
     // Drafts hidden until the drafts API ships in Group L.
     items: [
       { label: "Upload",  href: "/upload" },
-      { label: "Orders",  href: "/orders" },
     ],
   },
   {

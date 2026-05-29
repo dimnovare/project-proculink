@@ -9,11 +9,6 @@ const isProtectedRoute = createRouteMatcher([
   "/library(.*)",
   "/operations(.*)",
   "/settings(.*)",
-  // Legacy routes still protected during transition
-  "/dashboard(.*)",
-  "/orders(.*)",
-  "/suppliers(.*)",
-  "/mappings(.*)",
 ]);
 
 const isClerkConfigured =
