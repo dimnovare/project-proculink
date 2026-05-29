@@ -32,6 +32,7 @@ const STATUS_MAP: Record<string, StatusConfig> = {
   failed:           { label: "Failed",           Icon: AlertTriangle,  variant: "warning" },
   transform_failed: { label: "Transform Failed", Icon: AlertTriangle,  variant: "warning" },
   delivery_failed:  { label: "Delivery Failed",  Icon: AlertTriangle,  variant: "warning" },
+  delivery_dead_letter: { label: "Dead-lettered", Icon: AlertTriangle, variant: "warning" },
 };
 
 const VARIANT_CLASSES: Record<Variant, string> = {

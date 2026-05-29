@@ -5,6 +5,7 @@
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { isApiMockMode } from "@/lib/api-client";
 
 export type Lane = {
   buyerName: string;
@@ -313,7 +314,13 @@ export function LaneDrawer({ lane, onClose }: LaneDrawerProps) {
             Recent crossings
           </div>
 
-          {MOCK_CROSSINGS.map((c, i) => (
+          {!isApiMockMode && (
+            <div style={{ padding: "32px 20px", textAlign: "center", fontSize: 13, color: "#8A93A5" }}>
+              No recent crossings on this lane.
+            </div>
+          )}
+
+          {isApiMockMode && MOCK_CROSSINGS.map((c, i) => (
             <div
               key={i}
               role="button"

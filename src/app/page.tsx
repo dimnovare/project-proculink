@@ -373,7 +373,7 @@ export default async function RootPage() {
               Why procurement teams choose ProcuLink
             </h2>
             <p style={{ fontSize: 15.5, color: "#56627A", maxWidth: 480, margin: "0 auto" }}>
-              Real results from teams that moved from manual reformatting to automated order delivery.
+              What ProcuLink changes for teams moving from manual reformatting to automated order delivery.
             </p>
           </div>
           <div
@@ -381,7 +381,7 @@ export default async function RootPage() {
           >
             {[
               {
-                stat: "60% fewer reformatting tasks",
+                stat: "Skip the manual reformatting",
                 body: "Procurement teams stop manually converting orders for each supplier. ProcuLink maps your buyer PO format to what each supplier actually needs — automatically.",
                 color: "#1E66C9",
                 bg: "#E3EDFB",

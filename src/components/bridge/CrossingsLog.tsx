@@ -232,6 +232,15 @@ function mapApiEntryToLogEntry(e: AuditLogEntry): LogEntry {
   };
 }
 
+/** Format an ISO timestamp as a timeline group header, e.g. "Today · 29 May 2026". */
+function formatGroupDate(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "Recent activity";
+  const longDate = d.toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" });
+  const isToday = d.toDateString() === new Date().toDateString();
+  return isToday ? `Today · ${longDate}` : longDate;
+}
+
 // ─── Event visual config ──────────────────────────────────────────────────────
 
 const EV: Record<EventType, { dot: string; label: string; icon: string }> = {
@@ -304,8 +313,19 @@ export function CrossingsLog() {
     return mev && ms;
   });
 
-  // Group by date (mock: all today)
-  const date = "Today · 24 May 2026";
+  // Group label = the date of the most recent real event. Never a hardcoded
+  // date — prospects/customers must not see a staged "Today · 24 May 2026".
+  const latestTs = !isApiMockMode
+    ? (data?.events ?? []).reduce<string | null>(
+        (max, e) => (!max || e.ts > max ? e.ts : max),
+        null,
+      )
+    : null;
+  const date = latestTs
+    ? formatGroupDate(latestTs)
+    : isApiMockMode
+    ? "Recent activity"
+    : null;
 
   return (
     <div
@@ -328,7 +348,7 @@ export function CrossingsLog() {
             Delivery Log
           </h1>
           <p className="text-[13px] mt-1" style={{ color: "#56627A" }}>
-            Append-only audit trail · {LOG.length} events today
+            Append-only audit trail · {LOG.length} {LOG.length === 1 ? "event" : "events"}
           </p>
         </div>
         <div className="w-full sm:ml-auto sm:w-auto">
@@ -455,16 +475,18 @@ export function CrossingsLog() {
         {/* Timeline content */}
         {(!isLoading || isApiMockMode) && !isError && (
           <>
-            {/* Date group header */}
-            <div className="flex items-center gap-3 mb-4">
-              <span
-                className="text-[11px] font-bold uppercase tracking-[0.06em]"
-                style={{ color: "#8A93A5" }}
-              >
-                {date}
-              </span>
-              <div style={{ flex: 1, height: 1, background: "#E2E6EE" }} />
-            </div>
+            {/* Date group header — only when there is a real latest-event date */}
+            {date && (
+              <div className="flex items-center gap-3 mb-4">
+                <span
+                  className="text-[11px] font-bold uppercase tracking-[0.06em]"
+                  style={{ color: "#8A93A5" }}
+                >
+                  {date}
+                </span>
+                <div style={{ flex: 1, height: 1, background: "#E2E6EE" }} />
+              </div>
+            )}
 
             <div className="flex flex-col gap-0 relative">
               {/* Vertical timeline spine */}

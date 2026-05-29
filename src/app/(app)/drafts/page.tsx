@@ -1,11 +1,17 @@
 "use client";
 import { useRouter } from "next/navigation";
 import { EmptyState } from "@/components/bridge/EmptyState";
+import { isApiMockMode } from "@/lib/api-client";
 
-const DRAFTS = [
+// Demo drafts are dev-only. There is no draft-persistence endpoint yet, so real
+// users (NEXT_PUBLIC_USE_MOCK=false) see an honest empty state instead of
+// fabricated rows that would 404 against the live API.
+const DEMO_DRAFTS = [
   { id: "d1", po: "PO-2026-008422", buyer: "Heinrich Industries", supplier: "Acme Components", savedAt: "3m", stage: "Validate", issues: 2 },
   { id: "d2", po: "AR-2026-1110",   buyer: "Atlas Reseller AG",   supplier: "Nordix Distribution", savedAt: "2h",  stage: "Normalize", issues: 0 },
 ];
+
+const DRAFTS = isApiMockMode ? DEMO_DRAFTS : [];
 
 export default function DraftsPage() {
   const router = useRouter();
