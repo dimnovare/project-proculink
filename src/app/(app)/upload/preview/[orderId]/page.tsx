@@ -10,7 +10,6 @@
 
 import { useParams, useRouter } from "next/navigation";
 import { MagicMappingPreview } from "@/components/bridge/MagicMappingPreview";
-import { isApiMockMode } from "@/lib/api-client";
 import Link from "next/link";
 
 export default function MappingPreviewPage() {
@@ -18,10 +17,7 @@ export default function MappingPreviewPage() {
   const router = useRouter();
 
   function handleCommitted(id: string) {
-    const dest = isApiMockMode
-      ? `/inbox/${encodeURIComponent(id)}`
-      : `/orders/${encodeURIComponent(id)}`;
-    router.push(dest);
+    router.push(`/inbox/${encodeURIComponent(id)}`);
   }
 
   return (

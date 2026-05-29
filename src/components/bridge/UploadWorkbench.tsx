@@ -21,22 +21,27 @@ const STAGE_MS = 600;
 type FormatKey = "PDF" | "XLSX" | "CSV" | "cXML" | "EDI" | "JSON" | "EMAIL";
 type ModeKey   = "auto" | "manual";
 
-// ─── Mock recent uploads ──────────────────────────────────────────────────────
+// ─── Recent uploads ─────────────────────────────────────────────────────────
 
-const RECENT: Array<{
+type RecentStatus = "processing" | "done" | "failed" | "review" | "ready" | "draft";
+
+interface RecentRow {
+  id: string;
   name: string;
   fmt: FormatKey;
   buyer: string;
   supplier: string;
   size: string;
   age: string;
-  status: "processing" | "done" | "failed" | "draft";
-}> = [
-  { name: "PO-DEMO-001.pdf",   fmt: "PDF",   buyer: "Heinrich Industries",  supplier: "Acme Components",    size: "214 KB", age: "2m",  status: "processing" },
-  { name: "NRD_orders_may.xlsx",  fmt: "XLSX",  buyer: "Nordmark Logistics",   supplier: "VanDerBerg Metaal",  size: "88 KB",  age: "18m", status: "done"       },
-  { name: "850-99201.edi",        fmt: "EDI",   buyer: "Centralis Pharma",     supplier: "MedicaSupply OY",    size: "12 KB",  age: "1h",  status: "failed"     },
-  { name: "westmark_q2.csv",      fmt: "CSV",   buyer: "Westmark Tools",       supplier: "Acme Components",    size: "44 KB",  age: "3h",  status: "done"       },
-  { name: "AR-2026-1107.xlsx",    fmt: "XLSX",  buyer: "Atlas Reseller AG",    supplier: "Nordix Distribution",size: "132 KB", age: "3h",  status: "draft"      },
+  status: RecentStatus;
+}
+
+// Demo rows are dev-only (mock mode). Real users see their own orders from the
+// live API, or nothing when there are no recent uploads — never staged data.
+const DEMO_RECENT: RecentRow[] = [
+  { id: "ord-001", name: "PO-DEMO-001.pdf",   fmt: "PDF",   buyer: "Heinrich Industries",  supplier: "Acme Components",    size: "214 KB", age: "2m",  status: "processing" },
+  { id: "ord-002", name: "NRD_orders_may.xlsx",  fmt: "XLSX",  buyer: "Nordmark Logistics",   supplier: "VanDerBerg Metaal",  size: "88 KB",  age: "18m", status: "done"       },
+  { id: "ord-003", name: "westmark_q2.csv",      fmt: "CSV",   buyer: "Westmark Tools",       supplier: "Acme Components",    size: "44 KB",  age: "3h",  status: "done"       },
 ];
 
 const FORMATS: FormatKey[] = ["PDF", "XLSX", "CSV", "cXML", "EDI", "JSON", "EMAIL"];
@@ -44,12 +49,59 @@ const FORMATS: FormatKey[] = ["PDF", "XLSX", "CSV", "cXML", "EDI", "JSON", "EMAI
 const BUYERS  = ["Heinrich Industries", "Nordmark Logistics", "Steelhouse Const.", "Centralis Pharma", "Westmark Tools", "Atlas Reseller AG"];
 const TEMPLATES = ["Standard cXML PO", "SAP IDoc ORDERS05", "ERP Generic v2", "Custom Nordmark"];
 
-const STATUS_PILL: Record<string, { bg: string; color: string; label: string }> = {
+const STATUS_PILL: Record<RecentStatus, { bg: string; color: string; label: string }> = {
   processing: { bg: "#EEE7FB", color: "#6F4FCE", label: "Processing" },
-  done:       { bg: "#E2F1E2", color: "#1E6D29", label: "Done"       },
+  done:       { bg: "#E2F1E2", color: "#1E6D29", label: "Delivered"  },
   failed:     { bg: "#FBE3E3", color: "#C53A3A", label: "Failed"     },
+  review:     { bg: "#FAEFD6", color: "#9A5F0A", label: "Needs review" },
+  ready:      { bg: "#E3EDFB", color: "#1E66C9", label: "Ready"      },
   draft:      { bg: "#EFF2F7", color: "#56627A", label: "Draft"      },
 };
+
+/** Map source format string from the orders API → a FileChip format key. */
+function formatKeyFromSource(src: string | null | undefined): FormatKey {
+  switch ((src ?? "").toLowerCase()) {
+    case "pdf":  return "PDF";
+    case "xlsx":
+    case "xls":  return "XLSX";
+    case "cxml":
+    case "xml":  return "cXML";
+    case "edi":
+    case "x12":  return "EDI";
+    case "json": return "JSON";
+    default:     return "CSV";
+  }
+}
+
+/** Map an order status → a recent-upload status pill. */
+function recentStatusFromOrder(status: string): RecentStatus {
+  switch (status) {
+    case "delivered":                                  return "done";
+    case "failed":
+    case "transform_failed":
+    case "delivery_failed":                            return "failed";
+    case "parsing":
+    case "transforming":
+    case "delivering":                                 return "processing";
+    case "pending_review":                             return "review";
+    case "ready":
+    case "ready_to_deliver":                           return "ready";
+    default:                                           return "draft";
+  }
+}
+
+/** Compact relative age, e.g. "2m", "3h", "5d". */
+function relativeAge(iso: string): string {
+  const then = new Date(iso).getTime();
+  if (Number.isNaN(then)) return "";
+  const secs = Math.max(0, Math.round((Date.now() - then) / 1000));
+  if (secs < 60)    return `${secs}s`;
+  const mins = Math.round(secs / 60);
+  if (mins < 60)    return `${mins}m`;
+  const hrs = Math.round(mins / 60);
+  if (hrs < 24)     return `${hrs}h`;
+  return `${Math.round(hrs / 24)}d`;
+}
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
@@ -133,6 +185,36 @@ export function UploadWorkbench() {
     retry: false,
     staleTime: 60 * 1000,
   });
+
+  // Recent uploads come from the live orders API. In mock mode we show demo
+  // rows for local dev; otherwise the list reflects the user's real orders and
+  // the whole card is hidden when there are none.
+  const { data: recentOrders = [] } = useQuery({
+    queryKey: ["orders"],
+    queryFn: apiClient.getOrders,
+    staleTime: 60 * 1000,
+    retry: false,
+    enabled: !isApiMockMode,
+  });
+
+  const recentRows: RecentRow[] = isApiMockMode
+    ? DEMO_RECENT
+    : [...recentOrders]
+        .sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1))
+        .slice(0, 6)
+        .map((o) => ({
+          id: o.id,
+          name: o.poNumber,
+          fmt: formatKeyFromSource(o.sourceFormat),
+          buyer: o.buyerName ?? "—",
+          supplier: o.supplierName,
+          size: "—",
+          age: relativeAge(o.createdAt),
+          status: recentStatusFromOrder(o.status),
+        }));
+
+  const openOrder = (id: string) =>
+    router.push(`/inbox/${id}`);
 
   useEffect(() => {
     if (suppliers.length === 0) {
@@ -221,10 +303,7 @@ export function UploadWorkbench() {
     setSampleLoading(true);
     try {
       const { orderId } = await apiClient.runSampleOrder();
-      const target = isApiMockMode
-        ? `/inbox/${encodeURIComponent(orderId)}?sample=1`
-        : `/orders/${encodeURIComponent(orderId)}?sample=1`;
-      router.push(target);
+      router.push(`/inbox/${encodeURIComponent(orderId)}?sample=1`);
     } catch (err) {
       captureException(err, {
         tags: { ui_surface: "upload_sample_cta" },
@@ -620,7 +699,8 @@ export function UploadWorkbench() {
               </div>
             </XCard>
 
-            {/* Recent uploads */}
+            {/* Recent uploads — hidden entirely when there is nothing recent */}
+            {recentRows.length > 0 && (
             <XCard edge="left" edgeColor="#E2E6EE">
               <div
                 className="flex items-center px-4 py-3"
@@ -632,24 +712,23 @@ export function UploadWorkbench() {
                 >
                   Recent uploads
                 </span>
-                <span className="ml-2 text-[11.5px]" style={{ color: "#8A93A5" }}>
-                  · last 24 hours
-                </span>
                 <div className="flex-1" />
-                <button
+                <Link
+                  href="/inbox"
                   className="text-[12px] font-medium"
                   style={{ color: "#1E66C9" }}
                 >
                   View all ↗
-                </button>
+                </Link>
               </div>
 
               <div className="divide-y divide-[#F0F2F6] sm:hidden">
-                {RECENT.map((row, i) => {
+                {recentRows.map((row) => {
                   const pill = STATUS_PILL[row.status];
                   return (
                     <button
-                      key={i}
+                      key={row.id}
+                      onClick={() => openOrder(row.id)}
                       className="block w-full px-4 py-3 text-left transition-colors"
                       style={{ background: "transparent", border: "none" }}
                     >
@@ -670,7 +749,7 @@ export function UploadWorkbench() {
                       <div className="mb-2 flex items-center gap-2">
                         <FileChip type={row.fmt} />
                         <span className="text-[11.5px]" style={{ color: "#8A93A5" }}>
-                          {row.size} · {row.age}
+                          {row.size === "—" ? row.age : `${row.size} · ${row.age}`}
                         </span>
                       </div>
                       <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 text-[12px]">
@@ -708,11 +787,12 @@ export function UploadWorkbench() {
                     </tr>
                   </thead>
                   <tbody>
-                    {RECENT.map((row, i) => {
+                    {recentRows.map((row) => {
                       const pill = STATUS_PILL[row.status];
                       return (
                         <tr
-                          key={i}
+                          key={row.id}
+                          onClick={() => openOrder(row.id)}
                           className="transition-colors cursor-pointer"
                           style={{ borderBottom: "1px solid #F0F2F6" }}
                           onMouseEnter={(e) =>
@@ -782,6 +862,7 @@ export function UploadWorkbench() {
                 </table>
               </div>
             </XCard>
+            )}
           </div>
 
           {/* Right column: pipeline picker */}
