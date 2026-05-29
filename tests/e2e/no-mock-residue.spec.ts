@@ -39,7 +39,6 @@ const ROUTES = [
   "/bridge",
   "/upload",
   "/inbox",
-  "/orders",
   "/library/suppliers",
   "/library/mappings",
   "/operations/log",

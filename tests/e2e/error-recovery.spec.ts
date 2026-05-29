@@ -1,31 +1,31 @@
 import { test, expect } from "@playwright/test";
 
 /**
- * Error-recovery smoke tests.
+ * Error-recovery smoke tests for the order-detail route.
+ *
+ * NOTE: /orders/:id now permanently redirects to /inbox/:id (next.config.ts),
+ * so these tests land on SpineReview (the canonical detail view), not the legacy
+ * OrderDetailPage. SpineReview's error/load gate (SpineReview.tsx) shows:
+ *   - order === null  → "Order not found"
+ *   - network error   → "Failed to load order"
+ * and a single "← Back to inbox" button in both cases (no Retry button).
  *
  * Mock mode: drives the in-memory api-client mock, so these run without a
- * backend. The OrderDetailPage network/404 distinction is exercised by:
- *  - Visiting a non-existent order id → 404 path (no Retry button).
- *  - Stubbing the underlying fetch to throw → network-error path (with Retry).
+ * backend.
  */
 
-test.describe("OrderDetailPage error handling", () => {
-  test("real 404 shows 'Order Not Found' with Back to Orders only (no Retry)", async ({ page }) => {
-    // The mock returns null for unknown ids, which surfaces the 404 path.
-    await page.goto("/orders/does-not-exist-1234");
+test.describe("SpineReview error handling", () => {
+  test("real 404 shows 'Order not found' with Back to inbox only (no Retry)", async ({ page }) => {
+    // The mock returns null for unknown ids, surfacing the 404 path.
+    await page.goto("/inbox/does-not-exist-1234");
 
     await expect(page.getByText(/order not found/i)).toBeVisible({ timeout: 10_000 });
-    await expect(page.getByRole("link", { name: /back to orders/i })).toBeVisible();
-    // Network-error-only Retry button must NOT be present on a true 404.
+    await expect(page.getByRole("button", { name: /back to inbox/i })).toBeVisible();
+    // No Retry button on a true 404.
     await expect(page.getByRole("button", { name: /^retry$/i })).toHaveCount(0);
   });
 
-  test("network failure shows 'Couldn't reach the API' with Retry button", async ({ page }) => {
-    // This test uses page.route() to intercept and abort the /api/orders/:id
-    // fetch. In mock mode (NEXT_PUBLIC_USE_MOCK=true) the api-client never
-    // issues a real network request — the mock resolves in-memory — so the
-    // interceptor has no effect and the network-error UI never renders.
-    // Skip unless running against a live backend (PLAYWRIGHT_LIVE=1).
+  test("network failure shows 'Failed to load order' with Back to inbox", async ({ page }) => {
     if (!process.env.PLAYWRIGHT_LIVE) {
       test.skip(true, "network-interception test requires PLAYWRIGHT_LIVE=1 (mock api-client bypasses fetch)");
       return;
@@ -36,14 +36,14 @@ test.describe("OrderDetailPage error handling", () => {
       await route.abort("failed");
     });
 
-    await page.goto("/orders/some-id-that-would-otherwise-resolve");
+    await page.goto("/inbox/some-id-that-would-otherwise-resolve");
 
-    await expect(page.getByText(/couldn't reach the api/i)).toBeVisible({ timeout: 15_000 });
-    await expect(page.getByText(/check that the backend is running/i)).toBeVisible();
+    await expect(page.getByText(/failed to load order/i)).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText(/check your connection and try again/i)).toBeVisible();
 
-    const retry = page.getByRole("button", { name: /^retry$/i });
-    await expect(retry).toBeVisible();
-    await expect(retry).toBeEnabled();
+    const back = page.getByRole("button", { name: /back to inbox/i });
+    await expect(back).toBeVisible();
+    await expect(back).toBeEnabled();
   });
 });
 

@@ -6,7 +6,7 @@ import { test, expect } from "@playwright/test";
  * Exercises Phase 6.3 (Try-with-sample-order button) end-to-end:
  *   1. Visit /upload
  *   2. Click "Try with sample order"
- *   3. Navigate to /inbox/{id}?sample=1 (mock) or /orders/{id}?sample=1 (live)
+ *   3. Navigate to /inbox/{id}?sample=1
  *   4. Sample-mode banner is visible
  *
  * Runs against either MOCK or LIVE mode per playwright.config.ts.
@@ -35,9 +35,9 @@ test("clicking Try with sample order routes to a sample order page with banner",
   const sampleCta = page.getByRole("button", { name: /try with sample order/i });
   await expect(sampleCta).toBeVisible({ timeout: 10_000 });
 
-  // Click + wait for navigation to either /inbox/<id>?sample=1 or /orders/<id>?sample=1.
+  // Click + wait for navigation to /inbox/<id>?sample=1.
   await Promise.all([
-    page.waitForURL(/\/(inbox|orders)\/[^/?]+\?.*sample=1/i, { timeout: 15_000 }),
+    page.waitForURL(/\/inbox\/[^/?]+\?.*sample=1/i, { timeout: 15_000 }),
     sampleCta.click(),
   ]);
 
