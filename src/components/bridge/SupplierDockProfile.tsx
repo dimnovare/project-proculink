@@ -1,7 +1,7 @@
 "use client";
 
 // Supplier Dock Profile — /library/suppliers/[id]
-// §5.8 — Header + tabs: Overview · Mappings · Rules · Output templates · Connectors · History
+// §5.8 — Header + tabs: Overview · Mappings · PO Mapping · Delivery
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
@@ -12,7 +12,7 @@ import { upsertPoMapping, deletePoMapping } from "@/lib/api/mapping";
 import { apiClient, isApiMockMode } from "@/lib/api-client";
 import type { PoMappingConfig } from "@/lib/api/types";
 
-type Tab = "overview" | "mappings" | "po-mapping" | "delivery" | "rules" | "templates" | "connectors" | "history";
+type Tab = "overview" | "mappings" | "po-mapping" | "delivery";
 
 // Demo data — only rendered when isApiMockMode is true (dev, never production)
 const DEMO_MOCK = {
@@ -41,10 +41,6 @@ const TABS: Array<{ id: Tab; label: string }> = [
   { id: "mappings",    label: "Mappings"          },
   { id: "po-mapping",  label: "PO Mapping"        },
   { id: "delivery",    label: "Delivery"          },
-  { id: "rules",       label: "Rules"             },
-  { id: "templates",   label: "Output templates"  },
-  { id: "connectors",  label: "Connectors"        },
-  { id: "history",     label: "History"           },
 ];
 
 export function SupplierDockProfile({ id }: { id: string }) {
@@ -312,28 +308,9 @@ export function SupplierDockProfile({ id }: { id: string }) {
 
         {tab === "delivery" && <DeliveryConfigEditor supplierId={id} />}
 
-        {(tab === "rules" || tab === "templates" || tab === "connectors" || tab === "history") && (
-          <div
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              justifyContent: "center",
-              padding: "64px 32px",
-              textAlign: "center",
-              color: "#8A93A5",
-              background: "#FFFFFF",
-              border: "1px solid #E2E6EE",
-              borderRadius: 8,
-            }}
-          >
-            <span style={{ fontSize: 32, marginBottom: 12 }}>⊘</span>
-            <p style={{ fontSize: 14, fontWeight: 600, color: "#0B1A2F", marginBottom: 4 }}>
-              {tab.charAt(0).toUpperCase() + tab.slice(1)} for {name}
-            </p>
-            <p style={{ fontSize: 13 }}>Coming soon in Phase 4 Group C.</p>
-          </div>
-        )}
+        {/* Rules / Output templates / Connectors / History are managed globally (Library +
+            Operations); supplier-scoped versions aren't built yet, so we don't surface empty
+            placeholder tabs here. Re-add a tab once its supplier-scoped feature ships. */}
       </div>
     </div>
   );

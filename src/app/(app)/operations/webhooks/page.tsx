@@ -25,9 +25,9 @@ type WebhookRow = {
 // ── Mock fallback data ────────────────────────────────────────────────────────
 
 const MOCK_WEBHOOKS: WebhookRow[] = [
-  { id: "w1", url: "https://erp.company.com/hooks/proculink", events: ["crossing.sent","crossing.failed"], status: "ok",   deliveries24h: 142, lastDelivery: "1m"  },
-  { id: "w2", url: "https://slack.example.com/T012/proculink", events: ["crossing.failed"],               status: "ok",   deliveries24h:  8,  lastDelivery: "3h"  },
-  { id: "w3", url: "https://legacy.example.com/hook",          events: ["crossing.sent"],                 status: "down", deliveries24h:  0,  lastDelivery: "2d"  },
+  { id: "w1", url: "https://erp.company.com/hooks/proculink", events: ["order.created","order.delivered"], status: "ok",   deliveries24h: 142, lastDelivery: "1m"  },
+  { id: "w2", url: "https://slack.example.com/T012/proculink", events: ["order.failed"],                    status: "ok",   deliveries24h:  8,  lastDelivery: "3h"  },
+  { id: "w3", url: "https://legacy.example.com/hook",          events: ["order.created"],                   status: "down", deliveries24h:  0,  lastDelivery: "2d"  },
 ];
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -56,6 +56,15 @@ function toRow(sub: IntegrationSubscription): WebhookRow {
 
 const STATUS_COLOR: Record<string, string> = { ok: "#2E8E3A", down: "#C53A3A" };
 const STATUS_BG:    Record<string, string> = { ok: "#E2F1E2", down: "#FBE3E3" };
+
+// Backend-accepted webhook event types — MUST match IntegrationSubscription
+// validation (order.created / order.delivered / order.failed). Keeping this list
+// in sync with the API is what prevents the "EventType must be one of…" rejection.
+const WEBHOOK_EVENT_TYPES: ReadonlyArray<{ value: string; label: string }> = [
+  { value: "order.created",   label: "Order created — a new PO was ingested" },
+  { value: "order.delivered", label: "Order delivered — crossed to the supplier" },
+  { value: "order.failed",    label: "Order failed — delivery or processing error" },
+];
 
 // ── Skeleton ──────────────────────────────────────────────────────────────────
 
@@ -234,7 +243,7 @@ function WebhookPanel({
 }) {
   const isNew = !initial || initial.id === "new";
   const [url, setUrl] = useState(initial?.url ?? "");
-  const [eventType, setEventType] = useState(initial?.events[0] ?? "crossing.sent");
+  const [eventType, setEventType] = useState(initial?.events[0] ?? WEBHOOK_EVENT_TYPES[0].value);
 
   return (
     <div className="fixed inset-0 z-50 flex items-end bg-[#0B1A2F66] p-0 sm:items-center sm:justify-center sm:p-6">
@@ -263,10 +272,9 @@ function WebhookPanel({
               onChange={(e) => setEventType(e.target.value)}
               className="h-9 w-full rounded-[5px] border border-[#D5DAEA] px-2 text-[12px] text-[#0B1A2F]"
             >
-              <option value="crossing.sent">crossing.sent</option>
-              <option value="crossing.failed">crossing.failed</option>
-              <option value="order.uploaded">order.uploaded</option>
-              <option value="order.review_required">order.review_required</option>
+              {WEBHOOK_EVENT_TYPES.map((evt) => (
+                <option key={evt.value} value={evt.value}>{evt.label}</option>
+              ))}
             </select>
           </label>
         </div>
@@ -325,7 +333,7 @@ function MockWebhooksPage() {
         rows={rows}
         notice={notice}
         onNotice={setNotice}
-        onAdd={() => { setNotice(null); setPanel({ id: "new", url: "", events: ["crossing.sent"], status: "ok", deliveries24h: 0, lastDelivery: "never" }); }}
+        onAdd={() => { setNotice(null); setPanel({ id: "new", url: "", events: [WEBHOOK_EVENT_TYPES[0].value], status: "ok", deliveries24h: 0, lastDelivery: "never" }); }}
         onEdit={(w) => { setNotice(null); setPanel(w); }}
         onToggle={handleToggle}
         onDelete={handleDelete}
@@ -414,7 +422,7 @@ function LiveWebhooksPage() {
         rows={rows}
         notice={notice}
         onNotice={setNotice}
-        onAdd={() => { setNotice(null); setPanel({ id: "new", url: "", events: ["crossing.sent"], status: "ok", deliveries24h: 0, lastDelivery: "never" }); }}
+        onAdd={() => { setNotice(null); setPanel({ id: "new", url: "", events: [WEBHOOK_EVENT_TYPES[0].value], status: "ok", deliveries24h: 0, lastDelivery: "never" }); }}
         onEdit={(w) => { setNotice(null); setPanel(w); }}
         onToggle={(id) => toggleMutation.mutate(id)}
         onDelete={(id) => deleteMutation.mutate(id)}

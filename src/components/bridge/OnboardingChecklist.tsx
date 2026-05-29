@@ -1,262 +1,328 @@
 "use client";
 
+// OnboardingChecklist — the first-run "Get your first order automated" card.
+//
+// A confident, self-contained card that reads as the primary next step while
+// onboarding is incomplete and graduates away (renders nothing) once every
+// milestone is done. Four milestones, each backed by a real OnboardingStatus
+// flag — never a fabricated "done" state:
+//   supplier → upload → resolve mapping → deliver first order
+//
+// Used by BridgeDashboard in two slots (same component, different placement):
+//   • as the hero, centered, when the org has no data yet (empty topology)
+//   • as a full-width band below the live topology while setup finishes
+
 import React from "react";
 import Link from "next/link";
 import type { OnboardingStatus } from "@/types/procurement";
+
+// Locked Bridge Layer tokens (see CLAUDE.md §3). Do not substitute slate values.
+const T = {
+  navy:      "#0B1A2F",
+  blue:      "#1E66C9",
+  blueDeep:  "#0F4FA8",
+  blueSoft:  "#E3EDFB",
+  green:     "#2E8E3A",
+  greenDeep: "#1E6D29",
+  surface:   "#FFFFFF",
+  surface2:  "#EFF2F7",
+  border:    "#E2E6EE",
+  ink:       "#0B1A2F",
+  muted:     "#56627A",
+  faint:     "#8A93A5",
+};
 
 interface OnboardingChecklistProps {
   status: OnboardingStatus;
   supplierCount: number;
   orderCount: number;
+  /** Count of orders that actually reached `delivered`. Drives the final step. */
+  deliveredCount?: number;
+  /** Re-opens the guided setup wizard. Only surfaced before the first supplier. */
+  onResumeSetup?: () => void;
 }
-
-const T = {
-  navy:    "#0B1A2F",
-  blue:    "#1E66C9",
-  green:   "#2E8E3A",
-  surface: "#FFFFFF",
-  surface2:"#F1F5F9",
-  border:  "#E2E8F0",
-  text:    "#0F172A",
-  muted:   "#64748B",
-};
 
 interface Step {
   id: string;
   label: string;
   description: string;
   href: string;
-  requires?: string[];
-  isDone: (s: OnboardingStatus, supplierCount: number, orderCount: number) => boolean;
+  /** Imperative label for the primary CTA when this is the active step. */
+  cta: string;
+  /** Steps that must be done before this one unlocks. */
+  requires: string[];
 }
 
 const STEPS: Step[] = [
   {
     id: "supplier",
     label: "Add your first supplier",
-    description: "Create a supplier to hold delivery config and item mappings",
+    description: "Create a supplier dock to hold its delivery config and item mappings.",
     href: "/library/suppliers",
-    isDone: (_s, sc) => sc > 0,
+    cta: "Add a supplier",
+    requires: [],
   },
   {
     id: "upload",
-    label: "Upload a sample order",
-    description: "Drop a CSV, XLSX, PDF, or cXML purchase order to start",
+    label: "Upload a purchase order",
+    description: "Drop a CSV, XLSX, PDF, or cXML order to start its crossing.",
     href: "/upload",
-    isDone: (s) => s.hasUpload,
+    cta: "Upload an order",
     requires: ["supplier"],
   },
   {
     id: "map",
-    label: "Map supplier item codes",
-    description: "Resolve any unmatched buyer → supplier item codes",
+    label: "Resolve item mapping",
+    description: "Connect buyer item codes to each supplier's own SKUs.",
     href: "/library/mappings",
-    isDone: (_s, _sc, oc) => oc > 0,
+    cta: "Resolve mapping",
     requires: ["supplier", "upload"],
   },
   {
-    id: "delivery",
-    label: "Configure order delivery",
-    description: "Set up how ProcuLink sends orders to each supplier",
-    href: "/library/suppliers",
-    isDone: (s) => s.hasDelivery,
-    requires: ["supplier"],
-  },
-  {
-    id: "send",
-    label: "Send your first order",
-    description: "Transform and deliver an order through the bridge",
+    id: "deliver",
+    label: "Deliver your first order",
+    description: "Set up delivery, then cross the bridge to your supplier.",
     href: "/inbox",
-    isDone: (s) => s.hasDelivery,
-    requires: ["supplier", "upload", "map", "delivery"],
+    cta: "Deliver an order",
+    requires: ["supplier", "upload", "map"],
   },
 ];
 
-export function OnboardingChecklist({ status, supplierCount, orderCount }: OnboardingChecklistProps) {
-  const doneSet = new Set(
-    STEPS.filter(step => step.isDone(status, supplierCount, orderCount)).map(s => s.id)
-  );
+// ─── Status markers ─────────────────────────────────────────────────────────
 
-  const totalDone = doneSet.size;
-  const progress = (totalDone / STEPS.length) * 100;
-
-  // Celebration state: rendered once every step is done, replaces the checklist
-  // with a positive end-state and a pointer to the next thing to do.
-  if (totalDone >= STEPS.length) {
-    return (
-      <div
-        style={{
-          background: T.surface,
-          border: `1px solid ${T.border}`,
-          borderLeft: `3px solid ${T.green}`,
-          borderRadius: 8,
-          padding: "20px 24px",
-          maxWidth: 500,
-        }}
-      >
-        <h3 style={{ fontSize: 14, fontWeight: 600, color: T.text, margin: 0, letterSpacing: "-0.01em" }}>
-          ✓ You&apos;re live
-        </h3>
-        <p style={{ fontSize: 12.5, color: T.muted, margin: "6px 0 14px", lineHeight: 1.55 }}>
-          Setup complete. New orders will flow through automatically — drop files in <Link href="/upload" style={{ color: T.blue, textDecoration: "none", fontWeight: 600 }}>Upload</Link>, monitor in <Link href="/inbox" style={{ color: T.blue, textDecoration: "none", fontWeight: 600 }}>Inbox</Link>, audit in <Link href="/operations/log" style={{ color: T.blue, textDecoration: "none", fontWeight: 600 }}>Delivery log</Link>.
-        </p>
-      </div>
-    );
-  }
-
+function DoneMark() {
   return (
-    <div
+    <span
       style={{
-        background: T.surface,
-        border: `1px solid ${T.border}`,
-        borderLeft: `3px solid ${T.blue}`,
-        borderRadius: 8,
-        padding: "20px 24px",
-        maxWidth: 500,
+        width: 20, height: 20, borderRadius: "50%", background: T.green,
+        flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center",
       }}
     >
-      {/* Header */}
-      <div style={{ marginBottom: 14 }}>
-        <h3 style={{ fontSize: 14, fontWeight: 600, color: T.text, margin: 0, letterSpacing: "-0.01em" }}>
-          Get your first order automated
-        </h3>
-        <p style={{ fontSize: 12.5, color: T.muted, margin: "3px 0 0" }}>
-          {totalDone} of {STEPS.length} steps complete · ~5 minutes
-        </p>
-      </div>
+      <svg width="10" height="8" viewBox="0 0 9 7" fill="none" aria-hidden>
+        <path d="M1 3.5L3.5 6L8 1" stroke="#fff" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    </span>
+  );
+}
 
-      {/* Try-it-with-sample shortcut — visible only until the first upload */}
-      {!doneSet.has("upload") && (
-        <div
-          style={{
-            background: T.surface2,
-            border: `1px dashed ${T.border}`,
-            borderRadius: 6,
-            padding: "10px 14px",
-            marginBottom: 16,
-            display: "flex",
-            alignItems: "center",
-            gap: 10,
-            flexWrap: "wrap",
-          }}
-        >
-          <span style={{ fontSize: 12, color: T.muted, lineHeight: 1.5, flex: 1, minWidth: 200 }}>
-            Just exploring? Try a 5-line sample PO first.
-          </span>
-          <a
-            href="/demo-purchase-order.csv"
-            download
+function NumberMark({ n, active }: { n: number; active: boolean }) {
+  return (
+    <span
+      style={{
+        width: 20, height: 20, borderRadius: "50%",
+        border: `1.8px solid ${active ? T.blue : T.border}`,
+        background: active ? T.blueSoft : "transparent",
+        color: active ? T.blueDeep : T.faint,
+        flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center",
+        fontSize: 11, fontWeight: 700,
+        fontFamily: "'JetBrains Mono', monospace",
+      }}
+    >
+      {n}
+    </span>
+  );
+}
+
+function LockMark() {
+  return (
+    <span
+      style={{
+        width: 20, height: 20, borderRadius: "50%", border: `1.8px solid ${T.border}`,
+        flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center",
+      }}
+    >
+      <svg width="9" height="10" viewBox="0 0 8 9" fill="none" aria-hidden>
+        <rect x="0.9" y="3.8" width="6.2" height="4.5" rx="1" stroke={T.faint} strokeWidth="1.3" />
+        <path d="M2.2 3.8V3a1.8 1.8 0 0 1 3.6 0v.8" stroke={T.faint} strokeWidth="1.3" strokeLinecap="round" />
+      </svg>
+    </span>
+  );
+}
+
+// ─── Component ────────────────────────────────────────────────────────────────
+
+export function OnboardingChecklist({
+  status,
+  supplierCount,
+  orderCount,
+  deliveredCount,
+  onResumeSetup,
+}: OnboardingChecklistProps) {
+  // Each step's done-ness maps to a real signal — no fabricated completion.
+  const doneById: Record<string, boolean> = {
+    supplier: status.hasSupplier || supplierCount > 0,
+    upload:   status.hasUpload   || orderCount > 0,
+    map:      status.hasResolvedMapping,
+    deliver:  deliveredCount != null ? deliveredCount > 0 : status.hasDelivery,
+  };
+
+  const totalDone = STEPS.filter((s) => doneById[s.id]).length;
+
+  // Graduate away cleanly once everything is done — the dashboard reclaims the space.
+  if (totalDone >= STEPS.length) return null;
+
+  const progress = (totalDone / STEPS.length) * 100;
+  const remaining = STEPS.length - totalDone;
+
+  // Active step = first not-done step whose prerequisites are all met.
+  const isLocked = (s: Step) => s.requires.some((r) => !doneById[r]);
+  const activeStep =
+    STEPS.find((s) => !doneById[s.id] && !isLocked(s)) ??
+    STEPS.find((s) => !doneById[s.id]) ??
+    null;
+
+  const showSample = !doneById.upload; // sample PO shortcut helps before the first upload
+  const showGuided = !doneById.supplier && typeof onResumeSetup === "function";
+
+  return (
+    <section
+      aria-label="Onboarding progress"
+      style={{
+        position: "relative",
+        background: T.surface,
+        border: `1px solid ${T.border}`,
+        borderRadius: 8,
+        overflow: "hidden",
+        boxShadow: "0 1px 2px rgba(11,26,47,0.04)",
+        width: "100%",
+      }}
+    >
+      {/* Cross-section edge — the bridge seen end-on: blue (buyer) → green (supplier). */}
+      <div
+        aria-hidden
+        style={{
+          position: "absolute", left: 0, top: 0, bottom: 0, width: 3,
+          background: "linear-gradient(180deg, #1E66C9 0%, #2E8E3A 100%)",
+        }}
+      />
+
+      <div className="grid gap-x-8 gap-y-5 p-5 sm:p-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
+        {/* ── Intro · progress · primary action ───────────────────────── */}
+        <div className="min-w-0">
+          <div
+            className="text-[10.5px] font-bold uppercase"
+            style={{ color: T.blueDeep, letterSpacing: "0.09em" }}
+          >
+            First crossing
+          </div>
+          <h2
+            className="mt-1 text-[19px] leading-tight"
             style={{
-              fontSize: 11.5,
-              color: T.blue,
-              textDecoration: "none",
+              fontFamily: "'Bricolage Grotesque', Inter, sans-serif",
               fontWeight: 600,
-              whiteSpace: "nowrap",
-              letterSpacing: "0.01em",
+              letterSpacing: "-0.02em",
+              color: T.ink,
             }}
           >
-            Download sample CSV ↓
-          </a>
-        </div>
-      )}
+            Get your first order automated
+          </h2>
+          <p className="mt-1 text-[12.5px]" style={{ color: T.muted }}>
+            {totalDone === 0
+              ? "Four quick steps · about 5 minutes"
+              : `${remaining} step${remaining === 1 ? "" : "s"} left · almost there`}
+          </p>
 
-      {/* Progress bar */}
-      <div style={{ height: 3, background: T.surface2, borderRadius: 2, marginBottom: 16, overflow: "hidden" }}>
-        <div
-          style={{
-            height: "100%",
-            width: `${progress}%`,
-            background: `linear-gradient(90deg, ${T.blue}, ${T.green})`,
-            borderRadius: 2,
-            transition: "width 0.4s ease",
-          }}
-        />
-      </div>
-
-      {/* Steps */}
-      <ol style={{ listStyle: "none", margin: 0, padding: 0, display: "flex", flexDirection: "column", gap: 10 }}>
-        {STEPS.map((step) => {
-          const done = doneSet.has(step.id);
-          const locked = (step.requires ?? []).some(req => !doneSet.has(req));
-
-          return (
-            <li
-              key={step.id}
-              style={{
-                display: "flex",
-                alignItems: "flex-start",
-                gap: 10,
-                opacity: locked ? 0.4 : 1,
-              }}
+          {/* Progress meter — blue→green, the link-spine in miniature */}
+          <div className="mt-4 flex items-center gap-2.5">
+            <div
+              className="flex-1 overflow-hidden"
+              style={{ height: 6, background: T.surface2, borderRadius: 3 }}
+              role="progressbar"
+              aria-valuenow={totalDone}
+              aria-valuemin={0}
+              aria-valuemax={STEPS.length}
             >
-              {/* Status circle */}
-              <span
+              <div
                 style={{
-                  width: 18,
-                  height: 18,
-                  borderRadius: "50%",
-                  border: done ? "none" : `1.8px solid ${locked ? T.border : T.blue}`,
-                  background: done ? T.green : "transparent",
-                  flexShrink: 0,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  marginTop: 1,
+                  height: "100%",
+                  width: `${progress}%`,
+                  background: "linear-gradient(90deg, #1E66C9, #2E8E3A)",
+                  borderRadius: 3,
+                  transition: "width 0.4s ease",
                 }}
-              >
-                {done && (
-                  <svg width="9" height="7" viewBox="0 0 9 7" fill="none">
-                    <path d="M1 3.5L3.5 6L8 1" stroke="#fff" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
-                )}
-                {locked && !done && (
-                  <svg width="8" height="9" viewBox="0 0 8 9" fill="none">
-                    <rect x="0.9" y="3.8" width="6.2" height="4.5" rx="1" stroke={T.border} strokeWidth="1.3" />
-                    <path d="M2.2 3.8V3a1.8 1.8 0 0 1 3.6 0v.8" stroke={T.border} strokeWidth="1.3" strokeLinecap="round" />
-                  </svg>
-                )}
-              </span>
+              />
+            </div>
+            <span
+              className="text-[11px] font-bold tabular-nums"
+              style={{ color: T.muted, fontFamily: "'JetBrains Mono', monospace" }}
+            >
+              {totalDone}/{STEPS.length}
+            </span>
+          </div>
 
-              {/* Content */}
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                  <span
+          {/* Primary next step */}
+          {activeStep && (
+            <Link
+              href={activeStep.href}
+              className="mt-5 inline-flex h-9 items-center gap-1.5 rounded-[6px] px-4 text-[13px] font-semibold transition-colors"
+              style={{ background: T.navy, color: "#fff", letterSpacing: "0.01em" }}
+            >
+              {activeStep.cta}
+              <span aria-hidden>→</span>
+            </Link>
+          )}
+
+          {/* Secondary affordances */}
+          <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1.5">
+            {showGuided && (
+              <button
+                type="button"
+                onClick={onResumeSetup}
+                className="text-[12px] font-semibold transition-colors"
+                style={{ color: T.blueDeep, background: "none", border: "none", padding: 0, cursor: "pointer" }}
+              >
+                Use guided setup
+              </button>
+            )}
+            {showSample && (
+              <a
+                href="/demo-purchase-order.csv"
+                download
+                className="text-[12px] font-medium"
+                style={{ color: T.muted }}
+              >
+                Download sample CSV ↓
+              </a>
+            )}
+          </div>
+        </div>
+
+        {/* ── Step list ───────────────────────────────────────────────── */}
+        <ol
+          className="flex flex-col gap-3 lg:border-l lg:pl-7"
+          style={{ listStyle: "none", margin: 0, padding: 0, borderColor: T.border }}
+        >
+          {STEPS.map((step, i) => {
+            const done = doneById[step.id];
+            const locked = !done && isLocked(step);
+            const active = !done && !locked && activeStep?.id === step.id;
+
+            return (
+              <li key={step.id} className="flex items-start gap-3">
+                {done ? <DoneMark /> : locked ? <LockMark /> : <NumberMark n={i + 1} active={active} />}
+                <div className="min-w-0 flex-1" style={{ marginTop: 1 }}>
+                  <div
+                    className="text-[13px]"
                     style={{
-                      fontSize: 13,
-                      fontWeight: 500,
-                      color: done ? T.muted : T.text,
+                      color: done ? T.muted : locked ? T.faint : T.ink,
+                      fontWeight: active ? 600 : 500,
                       textDecoration: done ? "line-through" : "none",
                       letterSpacing: "-0.005em",
                     }}
                   >
                     {step.label}
-                  </span>
-                  {!done && !locked && (
-                    <Link
-                      href={step.href}
-                      style={{
-                        fontSize: 11,
-                        color: T.blue,
-                        textDecoration: "none",
-                        fontWeight: 600,
-                        whiteSpace: "nowrap",
-                        letterSpacing: "0.01em",
-                      }}
-                    >
-                      Go →
-                    </Link>
+                  </div>
+                  {active && (
+                    <p className="mt-0.5 text-[11.5px] leading-snug" style={{ color: T.muted }}>
+                      {step.description}
+                    </p>
                   )}
                 </div>
-                {!done && (
-                  <p style={{ fontSize: 11.5, color: T.muted, margin: "2px 0 0", lineHeight: 1.5 }}>
-                    {step.description}
-                  </p>
-                )}
-              </div>
-            </li>
-          );
-        })}
-      </ol>
-    </div>
+              </li>
+            );
+          })}
+        </ol>
+      </div>
+    </section>
   );
 }

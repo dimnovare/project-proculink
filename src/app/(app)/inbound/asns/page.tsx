@@ -103,15 +103,19 @@ export default function AsnsPage() {
             onChange={(e) => { const f = e.target.files?.[0]; if (f) { setNotice(null); uploadMut.mutate(f); } }}
             disabled={uploadMut.isPending}
           />
-          <button
-            onClick={() => fileInputRef.current?.click()}
-            disabled={uploadMut.isPending}
-            className="w-full sm:w-auto rounded-[6px] px-3 text-[12.5px] font-medium"
-            style={{ height: 32, background: "#0B1A2F", color: "#FFFFFF", border: 0, opacity: uploadMut.isPending ? 0.7 : 1 }}
-            title="Upload an ASN file (EDI DESADV, XML, or CSV)"
-          >
-            Upload ASN
-          </button>
+          {/* Single Upload action: the header button shows only when notices exist;
+              the empty state below carries the sole CTA when the list is empty. */}
+          {asns.length > 0 && (
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploadMut.isPending}
+              className="w-full sm:w-auto rounded-[6px] px-3 text-[12.5px] font-medium"
+              style={{ height: 32, background: "#0B1A2F", color: "#FFFFFF", border: 0, opacity: uploadMut.isPending ? 0.7 : 1 }}
+              title="Upload an ASN file (EDI DESADV, XML, or CSV)"
+            >
+              Upload ASN
+            </button>
+          )}
         </div>
       </div>
 

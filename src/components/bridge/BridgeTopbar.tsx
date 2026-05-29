@@ -206,32 +206,8 @@ export function BridgeTopbar({ crumb, onMenuClick }: BridgeTopbarProps) {
           </kbd>
         </button>
 
-        {/* Notifications */}
-        <button
-          type="button"
-          aria-label="Notifications"
-          className="flex items-center justify-center rounded-[6px] relative"
-          style={{
-            width: 30,
-            height: 30,
-            color: "#7C8DA6",
-            fontSize: 16,
-          }}
-          title="Notifications"
-        >
-          <span>🔔</span>
-          {/* Unread dot */}
-          <span
-            className="absolute rounded-full"
-            style={{
-              width: 6,
-              height: 6,
-              background: "#C53A3A",
-              top: 6,
-              right: 6,
-            }}
-          />
-        </button>
+        {/* Notifications bell removed: there is no notification system yet, and the button
+            did nothing while showing a fake unread dot. The Help (?) action covers support. */}
 
         {/* Help */}
         <button
