@@ -21,6 +21,16 @@ test.describe("OrderDetailPage error handling", () => {
   });
 
   test("network failure shows 'Couldn't reach the API' with Retry button", async ({ page }) => {
+    // This test uses page.route() to intercept and abort the /api/orders/:id
+    // fetch. In mock mode (NEXT_PUBLIC_USE_MOCK=true) the api-client never
+    // issues a real network request — the mock resolves in-memory — so the
+    // interceptor has no effect and the network-error UI never renders.
+    // Skip unless running against a live backend (PLAYWRIGHT_LIVE=1).
+    if (!process.env.PLAYWRIGHT_LIVE) {
+      test.skip(true, "network-interception test requires PLAYWRIGHT_LIVE=1 (mock api-client bypasses fetch)");
+      return;
+    }
+
     // Force /api/orders/:id to fail with a network-shaped error.
     await page.route(/\/api\/orders\/[^/]+$/i, async (route) => {
       await route.abort("failed");
