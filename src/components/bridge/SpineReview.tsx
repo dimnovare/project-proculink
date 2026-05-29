@@ -910,6 +910,27 @@ export function SpineReview({ orderId }: { orderId: string }) {
     setFlowNotice("Your review changes stay on this screen. Saved drafts aren't kept after you leave yet — use “Send to supplier” when the order is ready.");
   }, []);
 
+  // ── Keyboard shortcuts (Bridge Layer reference) ────────────────────────────
+  // A = accept the next unresolved AI line suggestion · C = open the send/confirm
+  // when there are no blocking exceptions. Ignored while typing in a field.
+  useEffect(() => {
+    const handler = (e: globalThis.KeyboardEvent) => {
+      const tag = (e.target as HTMLElement | null)?.tagName?.toLowerCase();
+      if (tag === "input" || tag === "textarea" || e.metaKey || e.ctrlKey || editingId) return;
+      const k = e.key.toLowerCase();
+      if (k === "a") {
+        for (const n of nodes) {
+          const sn = n.subnodes?.find(s => s.ai && !acceptedSubnodes.has(s.id) && !rejectedSubnodes.has(s.id));
+          if (sn) { e.preventDefault(); handleAcceptSubnode(sn.id); return; }
+        }
+      } else if (k === "c") {
+        if (!crossed && exceptionCount === 0) { e.preventDefault(); setShowConfirm(true); }
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [nodes, acceptedSubnodes, rejectedSubnodes, handleAcceptSubnode, crossed, exceptionCount, editingId]);
+
   // ── Loading / error gates (must be after all hooks) ────────────────────────
   if (isLoading) return <SpineReviewSkeleton />;
   if (isError || order === null) {
