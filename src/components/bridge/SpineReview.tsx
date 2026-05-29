@@ -13,6 +13,7 @@ import { EdgeRails } from "./EdgeRails";
 import { FileChip } from "./FileChip";
 import { StatusJourney, type OrderStage } from "./StatusJourney";
 import { SpineReviewSkeleton } from "./Skeletons";
+import { StandardsFieldPopover } from "./StandardsFieldPopover";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -159,6 +160,16 @@ function outputArtifactType(artifacts: Order["artifacts"]): string {
   return fmt.toUpperCase();
 }
 
+// ─── Node → canonical field mapping (used for StandardsFieldPopover) ─────────
+
+const NODE_TO_FIELD: Record<string, string> = {
+  po:       "PoNumber",
+  date:     "OrderDate",
+  buyer:    "BuyerName",
+  currency: "Currency",
+  lines:    "Lines",
+};
+
 // ─── ConfChip ────────────────────────────────────────────────────────────────
 
 function ConfChip({ pct }: { pct: number }) {
@@ -221,8 +232,11 @@ function SpineNodeCard({
         <div className="flex items-center gap-1.5 mb-1">
           {node.tone === "buyer"    && <div style={{ width: 5, height: 5, borderRadius: 1, background: "#1E66C9", flexShrink: 0 }} />}
           {node.tone === "supplier" && <div style={{ width: 5, height: 5, borderRadius: 1, background: "#2E8E3A", flexShrink: 0 }} />}
-          <span style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", color: "#8A93A5", flex: 1 }}>
+          <span style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", color: "#8A93A5", flex: 1, display: "inline-flex", alignItems: "center", gap: 4 }}>
             {node.label}
+            {NODE_TO_FIELD[node.id] && (
+              <StandardsFieldPopover canonicalField={NODE_TO_FIELD[node.id]} label={node.label} />
+            )}
           </span>
           <ConfChip pct={node.pct} />
         </div>
