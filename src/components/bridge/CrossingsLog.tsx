@@ -250,7 +250,7 @@ const EV: Record<EventType, { dot: string; label: string; icon: string }> = {
   validated: { dot: "#2E8E3A", label: "Validated", icon: "✓" },
   flagged:   { dot: "#C97A14", label: "Flagged",   icon: "⚠" },
   reviewed:  { dot: "#0F4FA8", label: "Reviewed",  icon: "◎" },
-  crossed:   { dot: "#2E8E3A", label: "Crossed",   icon: "⇉" },
+  crossed:   { dot: "#2E8E3A", label: "Crossed",   icon: "→" },
   failed:    { dot: "#C53A3A", label: "Failed",    icon: "✕" },
   retried:   { dot: "#C97A14", label: "Retried",   icon: "↺" },
 };
@@ -313,6 +313,25 @@ export function CrossingsLog() {
     return mev && ms;
   });
 
+  // Export the currently-filtered audit trail as a CSV download (client-side — no backend needed).
+  function handleExport() {
+    const esc = (v: unknown) => `"${String(v ?? "").replace(/"/g, '""')}"`;
+    const header = ["Timestamp", "Event", "PO", "Buyer", "Supplier", "Format", "Actor", "Message"];
+    const body = filtered.map((e) =>
+      [e.ts, EV[e.event].label, e.po, e.buyer, e.supplier, e.fmt, e.actor.name, e.message].map(esc).join(","),
+    );
+    const csv = [header.map(esc).join(","), ...body].join("\r\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `delivery-log-${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
   // Group label = the date of the most recent real event. Never a hardcoded
   // date — prospects/customers must not see a staged "Today · 24 May 2026".
   const latestTs = !isApiMockMode
@@ -353,12 +372,16 @@ export function CrossingsLog() {
         </div>
         <div className="w-full sm:ml-auto sm:w-auto">
           <button
+            onClick={handleExport}
+            disabled={filtered.length === 0}
+            title={filtered.length === 0 ? "Nothing to export" : "Download the current log as CSV"}
             className="flex w-full items-center justify-center gap-1.5 rounded-[6px] px-3 text-[12.5px] font-medium sm:w-auto"
             style={{
               height: 32,
               border: "1px solid #E2E6EE",
               background: "#FFFFFF",
-              color: "#0B1A2F",
+              color: filtered.length === 0 ? "#8A93A5" : "#0B1A2F",
+              cursor: filtered.length === 0 ? "not-allowed" : "pointer",
             }}
           >
             ↓ Export log

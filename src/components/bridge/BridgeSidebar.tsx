@@ -15,12 +15,10 @@ const NAV: Array<{
   },
   {
     group: "Inbox",
+    // Status filtering lives on the inbox's own filter chips (top of the table),
+    // so the sidebar only deep-links to the full queue — no duplicated/stale filters here.
     items: [
       { label: "All orders",      href: "/inbox" },
-      { label: "New",             href: "/inbox?status=new" },
-      { label: "Needs review",    href: "/inbox?status=review", badge: 3 },
-      { label: "Failed",          href: "/inbox?status=failed", badge: 2 },
-      { label: "Sent",            href: "/inbox?status=sent" },
     ],
   },
   {
