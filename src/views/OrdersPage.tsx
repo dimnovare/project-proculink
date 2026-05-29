@@ -363,7 +363,7 @@ export default function OrdersPage() {
   } = useQuery({
     queryKey: ["orders"],
     queryFn:  () => apiClient.getOrders(),
-    retry: 2,
+    retry: 1,
     refetchInterval: (query) =>
       query.state.data?.some((o: OrderSummary) =>
         o.status === "parsing" || o.status === "transforming",

@@ -622,8 +622,8 @@ export default function OrderDetailPage() {
     staleTime: 15_000,
     // Retry network-shaped errors a few times; don't retry on real 404 (which
     // returns null, not an error — see realGetOrderById in api-client.ts).
-    retry: 2,
-    retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 8000),
+    retry: 1,
+    retryDelay: 1000,
     refetchInterval: (query) => {
       const status = query.state.data?.status as OrderStatus | undefined;
       return status && POLLING_STATUSES.includes(status) ? 2_000 : false;

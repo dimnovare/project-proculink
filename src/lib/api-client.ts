@@ -677,11 +677,11 @@ async function mockDeleteSupplierProfile(name: string) {
   mockSupplierProfiles.splice(i, 1);
 }
 
-async function realGetSupplierProfiles() { const r = await fetch(`${API_BASE_URL}/api/supplier-profiles`, { headers: await authHeader() }); if (!r.ok) throw new Error(r.statusText); return r.json(); }
-async function realGetSupplierProfile(n: string) { const r = await fetch(`${API_BASE_URL}/api/supplier-profiles/${encodeURIComponent(n)}`, { headers: await authHeader() }); if (r.status === 404) return null; if (!r.ok) throw new Error(r.statusText); return r.json(); }
-async function realCreateSupplierProfile(p: import("@/types/procurement").SupplierProfile) { const r = await fetch(`${API_BASE_URL}/api/supplier-profiles`, { method: "POST", headers: { "Content-Type": "application/json", ...await authHeader() }, body: JSON.stringify(p) }); if (!r.ok) { const t = await r.text(); throw new Error(t || r.statusText); } return r.json(); }
-async function realUpdateSupplierProfile(n: string, d: Omit<import("@/types/procurement").SupplierProfile, "supplierName">) { const r = await fetch(`${API_BASE_URL}/api/supplier-profiles/${encodeURIComponent(n)}`, { method: "PUT", headers: { "Content-Type": "application/json", ...await authHeader() }, body: JSON.stringify(d) }); if (!r.ok) { const t = await r.text(); throw new Error(t || r.statusText); } return r.json(); }
-async function realDeleteSupplierProfile(n: string) { const r = await fetch(`${API_BASE_URL}/api/supplier-profiles/${encodeURIComponent(n)}`, { method: "DELETE", headers: await authHeader() }); if (!r.ok) { const t = await r.text(); throw new Error(t || r.statusText); } }
+async function realGetSupplierProfiles() { const r = await fetchWithTimeout(`${API_BASE_URL}/api/supplier-profiles`, { headers: await authHeader() }); if (!r.ok) throw new Error(r.statusText); return r.json(); }
+async function realGetSupplierProfile(n: string) { const r = await fetchWithTimeout(`${API_BASE_URL}/api/supplier-profiles/${encodeURIComponent(n)}`, { headers: await authHeader() }); if (r.status === 404) return null; if (!r.ok) throw new Error(r.statusText); return r.json(); }
+async function realCreateSupplierProfile(p: import("@/types/procurement").SupplierProfile) { const r = await fetchWithTimeout(`${API_BASE_URL}/api/supplier-profiles`, { method: "POST", headers: { "Content-Type": "application/json", ...await authHeader() }, body: JSON.stringify(p) }, 30000); if (!r.ok) { const t = await r.text(); throw new Error(t || r.statusText); } return r.json(); }
+async function realUpdateSupplierProfile(n: string, d: Omit<import("@/types/procurement").SupplierProfile, "supplierName">) { const r = await fetchWithTimeout(`${API_BASE_URL}/api/supplier-profiles/${encodeURIComponent(n)}`, { method: "PUT", headers: { "Content-Type": "application/json", ...await authHeader() }, body: JSON.stringify(d) }, 30000); if (!r.ok) { const t = await r.text(); throw new Error(t || r.statusText); } return r.json(); }
+async function realDeleteSupplierProfile(n: string) { const r = await fetchWithTimeout(`${API_BASE_URL}/api/supplier-profiles/${encodeURIComponent(n)}`, { method: "DELETE", headers: await authHeader() }, 30000); if (!r.ok) { const t = await r.text(); throw new Error(t || r.statusText); } }
 
 // ── Audit trail ───────────────────────────────────────────────────────────
 
@@ -704,7 +704,7 @@ async function mockGetOrderAudit(orderId: string): Promise<AuditEvent[]> {
 }
 
 async function realGetOrderAudit(orderId: string): Promise<AuditEvent[]> {
-  const res = await fetch(`${API_BASE_URL}/api/orders/${orderId}/audit`, {
+  const res = await fetchWithTimeout(`${API_BASE_URL}/api/orders/${orderId}/audit`, {
     headers: await authHeader(),
   });
   if (!res.ok) throw new Error(`Failed to fetch audit: ${res.statusText}`);
@@ -723,7 +723,7 @@ async function mockGetOnboardingStatus(): Promise<OnboardingStatus> {
 }
 
 async function realGetOnboardingStatus(): Promise<OnboardingStatus> {
-  const res = await fetch(`${API_BASE_URL}/api/onboarding/status`, {
+  const res = await fetchWithTimeout(`${API_BASE_URL}/api/onboarding/status`, {
     headers: await authHeader(),
   });
   if (!res.ok) throw new Error(`Failed to fetch onboarding status: ${res.statusText}`);
@@ -745,7 +745,7 @@ async function mockGetDashboardStats(): Promise<DashboardStats> {
 }
 
 async function realGetDashboardStats(): Promise<DashboardStats> {
-  const res = await fetch(`${API_BASE_URL}/api/dashboard/stats`, {
+  const res = await fetchWithTimeout(`${API_BASE_URL}/api/dashboard/stats`, {
     headers: await authHeader(),
   });
   if (!res.ok) throw new Error(`Failed to fetch dashboard stats: ${res.statusText}`);
@@ -795,6 +795,46 @@ async function realGetDashboardTopology(): Promise<DashboardTopology> {
   return { buyers: [], suppliers: [], wires: [] };
 }
 
+// ── Format detection ─────────────────────────────────────────────────────
+
+export interface DetectFormatResult {
+  format: "csv" | "xlsx" | "pdf" | "cxml" | "ubl" | "edifact" | "x12" | "unknown";
+  confidence: number;
+  suggestedParser: string | null;
+  detectedPoNumber: string | null;
+  detectedSupplier: string | null;
+  estimatedLineCount: number | null;
+  reasoning: string[];
+}
+
+async function mockDetectFormat(_file: File): Promise<DetectFormatResult> {
+  await delay(400);
+  return {
+    format: "csv",
+    confidence: 0.92,
+    suggestedParser: "csv-tabular",
+    detectedPoNumber: "PO-DETECT-DEMO",
+    detectedSupplier: null,
+    estimatedLineCount: 12,
+    reasoning: ["CSV header detected", "Comma-separated values", "12 data rows"],
+  };
+}
+
+async function realDetectFormat(file: File): Promise<DetectFormatResult> {
+  const formData = new FormData();
+  formData.append("file", file);
+  const res = await fetchWithTimeout(
+    `${API_BASE_URL}/api/upload/detect-format`,
+    { method: "POST", headers: await authHeader(), body: formData },
+    3000,
+  );
+  if (!res.ok) {
+    const t = await res.text().catch(() => "");
+    throw new Error(`detect-format failed: ${t || res.statusText}`);
+  }
+  return res.json() as Promise<DetectFormatResult>;
+}
+
 // ── Onboarding sample order ──────────────────────────────────────────────
 
 async function mockRunSampleOrder(): Promise<{ orderId: string; isSample: true }> {
@@ -825,10 +865,10 @@ async function mockRunSampleOrder(): Promise<{ orderId: string; isSample: true }
 }
 
 async function realRunSampleOrder(): Promise<{ orderId: string; isSample: true }> {
-  const res = await fetch(`${API_BASE_URL}/api/onboarding/sample-order`, {
+  const res = await fetchWithTimeout(`${API_BASE_URL}/api/onboarding/sample-order`, {
     method: "POST",
     headers: await authHeader(),
-  });
+  }, 30000);
   if (!res.ok) {
     const t = await res.text().catch(() => "");
     throw new Error(t || `sample-order: ${res.status}`);
@@ -883,6 +923,9 @@ export const apiClient = {
 
   // ─── Onboarding sample order ───
   runSampleOrder:         USE_MOCK ? mockRunSampleOrder        : realRunSampleOrder,
+
+  // ─── Format detection ───
+  detectFormat:           USE_MOCK ? mockDetectFormat          : realDetectFormat,
 };
 
 // ── Buyers ─────────────────────────────────────────────────────────────────
@@ -896,36 +939,36 @@ export async function getBuyers(): Promise<import("@/types/procurement").BuyerDt
     ];
   }
   const headers = await authHeader();
-  const res = await fetch(`${API_BASE_URL}/api/buyers`, { headers });
+  const res = await fetchWithTimeout(`${API_BASE_URL}/api/buyers`, { headers });
   if (!res.ok) throw new Error(`buyers: ${res.status}`);
   return res.json();
 }
 
 export async function createBuyer(name: string, code: string): Promise<import("@/types/procurement").BuyerDto> {
   const headers = await authHeader();
-  const res = await fetch(`${API_BASE_URL}/api/buyers`, {
+  const res = await fetchWithTimeout(`${API_BASE_URL}/api/buyers`, {
     method: "POST",
     headers: { ...headers, "Content-Type": "application/json" },
     body: JSON.stringify({ name, code }),
-  });
+  }, 30000);
   if (!res.ok) throw new Error(`buyers/create: ${res.status}`);
   return res.json();
 }
 
 export async function updateBuyer(id: string, name: string, code: string): Promise<import("@/types/procurement").BuyerDto> {
   const headers = await authHeader();
-  const res = await fetch(`${API_BASE_URL}/api/buyers/${id}`, {
+  const res = await fetchWithTimeout(`${API_BASE_URL}/api/buyers/${id}`, {
     method: "PUT",
     headers: { ...headers, "Content-Type": "application/json" },
     body: JSON.stringify({ name, code }),
-  });
+  }, 30000);
   if (!res.ok) throw new Error(`buyers/update: ${res.status}`);
   return res.json();
 }
 
 export async function deleteBuyer(id: string): Promise<void> {
   const headers = await authHeader();
-  const res = await fetch(`${API_BASE_URL}/api/buyers/${id}`, { method: "DELETE", headers });
+  const res = await fetchWithTimeout(`${API_BASE_URL}/api/buyers/${id}`, { method: "DELETE", headers }, 30000);
   if (!res.ok) throw new Error(`buyers/delete: ${res.status}`);
 }
 
@@ -967,7 +1010,7 @@ export async function getAuditLog(page = 1, pageSize = 50): Promise<AuditLogPage
     };
   }
   const headers = await authHeader();
-  const res = await fetch(`${API_BASE_URL}/api/audit?page=${page}&pageSize=${pageSize}`, { headers });
+  const res = await fetchWithTimeout(`${API_BASE_URL}/api/audit?page=${page}&pageSize=${pageSize}`, { headers });
   if (!res.ok) throw new Error(`audit: ${res.status}`);
   return res.json();
 }
@@ -990,43 +1033,43 @@ export interface RuleDto {
 export async function getRules(): Promise<RuleDto[]> {
   if (USE_MOCK) return []; // ValidationRules.tsx keeps its own RULES mock array
   const headers = await authHeader();
-  const res = await fetch(`${API_BASE_URL}/api/rules`, { headers });
+  const res = await fetchWithTimeout(`${API_BASE_URL}/api/rules`, { headers });
   if (!res.ok) throw new Error(`rules: ${res.status}`);
   return res.json();
 }
 
 export async function createRule(payload: Omit<RuleDto, "id"|"triggerCount"|"lastTriggered"|"createdAt"> & { enabled: boolean; autoBlock: boolean }): Promise<RuleDto> {
   const headers = await authHeader();
-  const res = await fetch(`${API_BASE_URL}/api/rules`, {
+  const res = await fetchWithTimeout(`${API_BASE_URL}/api/rules`, {
     method: "POST",
     headers: { ...headers, "Content-Type": "application/json" },
     body: JSON.stringify(payload),
-  });
+  }, 30000);
   if (!res.ok) throw new Error(`rules/create: ${res.status}`);
   return res.json();
 }
 
 export async function updateRule(id: string, payload: Omit<RuleDto, "id"|"triggerCount"|"lastTriggered"|"createdAt">): Promise<RuleDto> {
   const headers = await authHeader();
-  const res = await fetch(`${API_BASE_URL}/api/rules/${id}`, {
+  const res = await fetchWithTimeout(`${API_BASE_URL}/api/rules/${id}`, {
     method: "PUT",
     headers: { ...headers, "Content-Type": "application/json" },
     body: JSON.stringify(payload),
-  });
+  }, 30000);
   if (!res.ok) throw new Error(`rules/update: ${res.status}`);
   return res.json();
 }
 
 export async function toggleRule(id: string): Promise<RuleDto> {
   const headers = await authHeader();
-  const res = await fetch(`${API_BASE_URL}/api/rules/${id}/toggle`, { method: "PATCH", headers });
+  const res = await fetchWithTimeout(`${API_BASE_URL}/api/rules/${id}/toggle`, { method: "PATCH", headers }, 30000);
   if (!res.ok) throw new Error(`rules/toggle: ${res.status}`);
   return res.json();
 }
 
 export async function deleteRule(id: string): Promise<void> {
   const headers = await authHeader();
-  const res = await fetch(`${API_BASE_URL}/api/rules/${id}`, { method: "DELETE", headers });
+  const res = await fetchWithTimeout(`${API_BASE_URL}/api/rules/${id}`, { method: "DELETE", headers }, 30000);
   if (!res.ok) throw new Error(`rules/delete: ${res.status}`);
 }
 
@@ -1045,36 +1088,36 @@ export interface TemplateDto {
 export async function getTemplates(): Promise<TemplateDto[]> {
   if (USE_MOCK) return []; // templates page keeps its own mock array for demo mode
   const headers = await authHeader();
-  const res = await fetch(`${API_BASE_URL}/api/templates`, { headers });
+  const res = await fetchWithTimeout(`${API_BASE_URL}/api/templates`, { headers });
   if (!res.ok) throw new Error(`templates: ${res.status}`);
   return res.json();
 }
 
 export async function createTemplate(payload: Pick<TemplateDto, "name"|"format"|"version"> & { config?: unknown }): Promise<TemplateDto> {
   const headers = await authHeader();
-  const res = await fetch(`${API_BASE_URL}/api/templates`, {
+  const res = await fetchWithTimeout(`${API_BASE_URL}/api/templates`, {
     method: "POST",
     headers: { ...headers, "Content-Type": "application/json" },
     body: JSON.stringify(payload),
-  });
+  }, 30000);
   if (!res.ok) throw new Error(`templates/create: ${res.status}`);
   return res.json();
 }
 
 export async function updateTemplate(id: string, payload: Pick<TemplateDto, "name"|"format"|"version"> & { config?: unknown }): Promise<TemplateDto> {
   const headers = await authHeader();
-  const res = await fetch(`${API_BASE_URL}/api/templates/${id}`, {
+  const res = await fetchWithTimeout(`${API_BASE_URL}/api/templates/${id}`, {
     method: "PUT",
     headers: { ...headers, "Content-Type": "application/json" },
     body: JSON.stringify(payload),
-  });
+  }, 30000);
   if (!res.ok) throw new Error(`templates/update: ${res.status}`);
   return res.json();
 }
 
 export async function deleteTemplate(id: string): Promise<void> {
   const headers = await authHeader();
-  const res = await fetch(`${API_BASE_URL}/api/templates/${id}`, { method: "DELETE", headers });
+  const res = await fetchWithTimeout(`${API_BASE_URL}/api/templates/${id}`, { method: "DELETE", headers }, 30000);
   if (!res.ok) throw new Error(`templates/delete: ${res.status}`);
 }
 
@@ -1108,11 +1151,11 @@ export async function getBillingStatus(): Promise<BillingStatus> {
 
 export async function createCheckoutSession(plan: string): Promise<string> {
   const headers = await authHeader();
-  const res = await fetch(`${API_BASE_URL}/api/billing/checkout`, {
+  const res = await fetchWithTimeout(`${API_BASE_URL}/api/billing/checkout`, {
     method: "POST",
     headers: { ...headers, "Content-Type": "application/json" },
     body: JSON.stringify({ plan }),
-  });
+  }, 30000);
   if (!res.ok) throw new Error(`billing/checkout: ${res.status}`);
   const data = await res.json();
   return data.url as string;
@@ -1120,10 +1163,10 @@ export async function createCheckoutSession(plan: string): Promise<string> {
 
 export async function createPortalSession(): Promise<string> {
   const headers = await authHeader();
-  const res = await fetch(`${API_BASE_URL}/api/billing/portal`, {
+  const res = await fetchWithTimeout(`${API_BASE_URL}/api/billing/portal`, {
     method: "POST",
     headers,
-  });
+  }, 30000);
   if (!res.ok) throw new Error(`billing/portal: ${res.status}`);
   const data = await res.json();
   return data.url as string;
@@ -1156,11 +1199,11 @@ export async function getEmailSettings(): Promise<EmailSettings> {
 
 export async function updateEmailSettings(payload: UpdateEmailSettingsPayload): Promise<EmailSettings> {
   const headers = await authHeader();
-  const res = await fetch(`${API_BASE_URL}/api/settings/email`, {
+  const res = await fetchWithTimeout(`${API_BASE_URL}/api/settings/email`, {
     method: "PUT",
     headers: { ...headers, "Content-Type": "application/json" },
     body: JSON.stringify(payload),
-  });
+  }, 30000);
 
   if (!res.ok) {
     const body = await res.json().catch(() => null);
@@ -1217,11 +1260,11 @@ export async function createApiKey(label: string): Promise<CreateApiKeyResponse>
     return { ...key, rawKey };
   }
   const headers = await authHeader();
-  const res = await fetch(`${API_BASE_URL}/api/api-keys`, {
+  const res = await fetchWithTimeout(`${API_BASE_URL}/api/api-keys`, {
     method: "POST",
     headers: { ...headers, "Content-Type": "application/json" },
     body: JSON.stringify({ label }),
-  });
+  }, 30000);
   if (!res.ok) {
     const body = await res.json().catch(() => null);
     throw new Error(body?.error ?? `api-keys POST: ${res.status}`);
@@ -1237,10 +1280,10 @@ export async function revokeApiKey(id: string): Promise<void> {
     return;
   }
   const headers = await authHeader();
-  const res = await fetch(`${API_BASE_URL}/api/api-keys/${id}`, {
+  const res = await fetchWithTimeout(`${API_BASE_URL}/api/api-keys/${id}`, {
     method: "DELETE",
     headers,
-  });
+  }, 30000);
   if (!res.ok && res.status !== 204) throw new Error(`api-keys DELETE: ${res.status}`);
 }
 
@@ -1292,11 +1335,11 @@ export async function createIntegration(payload: {
     return sub;
   }
   const headers = await authHeader();
-  const res = await fetch(`${API_BASE_URL}/api/integrations`, {
+  const res = await fetchWithTimeout(`${API_BASE_URL}/api/integrations`, {
     method: "POST",
     headers: { ...headers, "Content-Type": "application/json" },
     body: JSON.stringify(payload),
-  });
+  }, 30000);
   if (!res.ok) {
     const body = await res.json().catch(() => null);
     throw new Error(body?.error ?? `integrations POST: ${res.status}`);
@@ -1312,10 +1355,10 @@ export async function toggleIntegration(id: string): Promise<{ id: string; isAct
     return { id, isActive: sub?.isActive ?? false };
   }
   const headers = await authHeader();
-  const res = await fetch(`${API_BASE_URL}/api/integrations/${id}/toggle`, {
+  const res = await fetchWithTimeout(`${API_BASE_URL}/api/integrations/${id}/toggle`, {
     method: "PATCH",
     headers,
-  });
+  }, 30000);
   if (!res.ok) throw new Error(`integrations PATCH toggle: ${res.status}`);
   return res.json();
 }
@@ -1328,10 +1371,10 @@ export async function deleteIntegration(id: string): Promise<void> {
     return;
   }
   const headers = await authHeader();
-  const res = await fetch(`${API_BASE_URL}/api/integrations/${id}`, {
+  const res = await fetchWithTimeout(`${API_BASE_URL}/api/integrations/${id}`, {
     method: "DELETE",
     headers,
-  });
+  }, 30000);
   if (!res.ok && res.status !== 204) throw new Error(`integrations DELETE: ${res.status}`);
 }
 
@@ -1362,10 +1405,10 @@ export async function testFireDeliveryConfig(supplierId: string): Promise<{ succ
     return { success: true, message: "Test delivery sent (mock mode)" };
   }
   const headers = await authHeader();
-  const res = await fetch(`${API_BASE_URL}/api/suppliers/${supplierId}/delivery-config/test-fire`, {
+  const res = await fetchWithTimeout(`${API_BASE_URL}/api/suppliers/${supplierId}/delivery-config/test-fire`, {
     method: "POST",
     headers,
-  });
+  }, 30000);
   if (!res.ok) {
     const body = await res.json().catch(() => null);
     throw new Error(body?.message ?? `test-fire: ${res.status}`);
@@ -1408,7 +1451,7 @@ export async function uploadInvoice(file: File, supplierId?: string): Promise<In
   const url = supplierId
     ? `${API_BASE_URL}/api/invoices/upload?supplierId=${supplierId}`
     : `${API_BASE_URL}/api/invoices/upload`;
-  const res = await fetch(url, { method: "POST", headers, body: form });
+  const res = await fetchWithTimeout(url, { method: "POST", headers, body: form }, 60000);
   if (!res.ok) { const b = await res.json().catch(() => null); throw new Error(b?.error ?? `invoices upload: ${res.status}`); }
   return res.json();
 }
@@ -1421,7 +1464,7 @@ export async function approveInvoice(id: string): Promise<InvoiceDto> {
     return inv ?? _mockInvoices[0];
   }
   const headers = await authHeader();
-  const res = await fetch(`${API_BASE_URL}/api/invoices/${id}/approve`, { method: "POST", headers });
+  const res = await fetchWithTimeout(`${API_BASE_URL}/api/invoices/${id}/approve`, { method: "POST", headers }, 30000);
   if (!res.ok) throw new Error(`invoices approve: ${res.status}`);
   return res.json();
 }
@@ -1467,7 +1510,7 @@ export async function uploadAsn(file: File, supplierId?: string): Promise<AsnDto
   const url = supplierId
     ? `${API_BASE_URL}/api/asns/upload?supplierId=${supplierId}`
     : `${API_BASE_URL}/api/asns/upload`;
-  const res = await fetch(url, { method: "POST", headers, body: form });
+  const res = await fetchWithTimeout(url, { method: "POST", headers, body: form }, 60000);
   if (!res.ok) { const b = await res.json().catch(() => null); throw new Error(b?.error ?? `asns upload: ${res.status}`); }
   return res.json();
 }
