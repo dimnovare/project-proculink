@@ -213,6 +213,7 @@ export type BillingPlan =
   | "growth"
   | "operations"
   | "integration"
+  | "distributor"
   | "enterprise";
 
 export interface BillingStatus {

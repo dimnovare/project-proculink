@@ -68,6 +68,17 @@ function recommendPlan(orders: number): Plan {
       highlight: T.violet,
     };
   }
+  if (orders <= 2500) {
+    return {
+      name: "Distributor",
+      price: 1499,
+      setup: 0,
+      orderLimit: 2500,
+      blurb: "For distributors and resellers: up to 2,500 orders/month across 30 suppliers.",
+      cta: { label: "Start 14-day Pilot →", href: "/sign-up" },
+      highlight: "#0E7490",
+    };
+  }
   return {
     name: "Enterprise",
     price: 0,

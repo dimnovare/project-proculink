@@ -19,11 +19,12 @@ const PLAN_META: Record<BillingPlan, {
   pilot:       { label: "Pilot",       price: "Free trial",  sub: "Up to 20 orders · 1 supplier dock · 14 days",             color: "#C97A14", next: "growth"      },
   growth:      { label: "Growth",      price: "€149/mo",     sub: "Up to 150 orders / month · 5 supplier docks",              color: "#1E66C9", next: "operations"  },
   operations:  { label: "Operations",  price: "€399/mo",     sub: "Up to 500 orders / month · 10 supplier docks · all channels", color: "#2E8E3A", next: "integration" },
-  integration: { label: "Integration", price: "€999/mo",     sub: "Up to 1,000 orders / month · 20 supplier docks · all channels", color: "#6F4FCE"                  },
+  integration: { label: "Integration", price: "€999/mo",     sub: "Up to 1,000 orders / month · 20 supplier docks · all channels", color: "#6F4FCE", next: "distributor"                  },
+  distributor: { label: "Distributor", price: "€1,499/mo",   sub: "Up to 2,500 orders / month · 30 supplier docks · all channels", color: "#0E7490" },
   enterprise:  { label: "Enterprise",  price: "Custom",      sub: "Volume, SLA, and connector scope by agreement",            color: "#0B1A2F"                       },
 };
 
-const CHECKOUT_PLANS: BillingPlan[] = ["growth", "operations", "integration"];
+const CHECKOUT_PLANS: BillingPlan[] = ["growth", "operations", "integration", "distributor"];
 
 // Gradient usage bar matching canonical: var(--gradient-link-spine)
 function UsageBar({ used, limit, label }: { used: number; limit: number; label: string }) {

@@ -73,9 +73,27 @@ const TIERS = [
     href: "/sign-up",
   },
   {
+    name: "Distributor",
+    price: "€1,499",
+    sub: "per month",
+    desc: "For distributors and resellers routing high order volume across many suppliers.",
+    color: "#0E7490",
+    highlight: false,
+    features: [
+      "2,500 orders/month",
+      "30 suppliers",
+      "Webhook/API + SFTP delivery",
+      "Bulk mapping + email ingestion",
+      "Priority onboarding",
+      "Founder-led supplier setup",
+    ],
+    cta: "Upgrade to Distributor",
+    href: "/sign-up",
+  },
+  {
     name: "Enterprise",
     price: "Custom",
-    sub: "contact sales",
+    sub: "from €2,500/mo",
     desc: "For complex supplier networks, ERP integrations, and high-volume order flows.",
     color: "#0B1A2F",
     highlight: false,
@@ -217,6 +235,10 @@ export default function PricingPage() {
             </article>
           ))}
         </div>
+        <p style={{ maxWidth: 820, margin: "26px auto 0", textAlign: "center", fontSize: 12.5, color: "#8A93A5", lineHeight: 1.6 }}>
+          Operations, Integration, and Distributor include founder-led supplier onboarding —
+          €500 per supplier for your first 3 suppliers, then €150 each. Waived for early design partners.
+        </p>
       </section>
 
       <section style={{ padding: "56px 32px", maxWidth: 760, margin: "0 auto", borderTop: "1px solid #E2E6EE" }}>
