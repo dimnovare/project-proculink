@@ -41,6 +41,13 @@ const FEATURES = [
     color: "#0F4FA8",
     bg: "#E3EDFB",
   },
+  {
+    icon: "◈",
+    title: "Standards, on demand",
+    desc: "Every canonical field maps to UBL, EDIFACT, X12, cXML and Peppol BIS — and you can see the exact path for any field, any time. Built for 30-year procurement veterans.",
+    color: "#56627A",
+    bg: "#EFF2F7",
+  },
 ];
 
 const STATS = [
@@ -139,16 +146,8 @@ export default async function RootPage() {
         >
           The bridge between
           <br />
-          <span
-            style={{
-              background:
-                "linear-gradient(90deg, #1E66C9 0%, #2E8E3A 100%)",
-              WebkitBackgroundClip: "text",
-              WebkitTextFillColor: "transparent",
-            }}
-          >
-            your buyers and suppliers
-          </span>
+          your <span style={{ color: "#6BA5F0" }}>buyers</span> and{" "}
+          <span style={{ color: "#5FC06B" }}>suppliers</span>
         </h1>
 
         {/* Sub */}
@@ -239,6 +238,33 @@ export default async function RootPage() {
           />
           <BridgeIllustration />
         </div>
+      </section>
+
+      {/* ── Logo strip ─────────────────────────────────────────────── */}
+      <section className="px-4 sm:px-8" style={{ background: "#FFFFFF", paddingTop: 36, paddingBottom: 36 }}>
+        <p style={{ textAlign: "center", fontSize: 11.5, fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "#8A93A5", marginBottom: 22 }}>
+          Connecting procurement teams to the suppliers they order from
+        </p>
+        <div className="flex flex-wrap items-center justify-center gap-x-10 gap-y-4" style={{ maxWidth: 880, margin: "0 auto" }}>
+          {["Heinrich Industries", "Nordmark Logistik", "Steelhouse Co.", "Acme Components", "BoltWorks BV", "MedicaSupply"].map((name) => (
+            <span key={name} style={{ fontFamily: "'Bricolage Grotesque', Inter, sans-serif", fontSize: 15, fontWeight: 700, color: "#C2C9D4", letterSpacing: "-0.01em" }}>
+              {name}
+            </span>
+          ))}
+        </div>
+      </section>
+
+      {/* ── Testimonial ────────────────────────────────────────────── */}
+      <section className="px-4 sm:px-8" style={{ background: "#F6F7FA", borderTop: "1px solid #E2E6EE", paddingTop: 56, paddingBottom: 56 }}>
+        <figure style={{ maxWidth: 720, margin: "0 auto", textAlign: "center" }}>
+          <blockquote style={{ fontFamily: "'Bricolage Grotesque', Inter, sans-serif", fontSize: "clamp(20px, 3vw, 26px)", fontWeight: 600, lineHeight: 1.4, letterSpacing: "-0.02em", color: "#0B1A2F", margin: 0 }}>
+            &ldquo;We used to keep a spreadsheet per supplier just to reformat orders. ProcuLink turned
+            that into one upload-and-review. Rejections dropped to near zero.&rdquo;
+          </blockquote>
+          <figcaption style={{ marginTop: 20, fontSize: 13, color: "#56627A" }}>
+            <span style={{ fontWeight: 600, color: "#0B1A2F" }}>Maria K.</span> · Procurement Lead, Nordic Distribution
+          </figcaption>
+        </figure>
       </section>
 
       {/* ── Stats strip ────────────────────────────────────────────── */}
@@ -529,50 +555,41 @@ export default async function RootPage() {
         </div>
       </section>
 
-      {/* Footer */}
-      <footer
-        className="px-4 sm:px-8"
-        style={{
-          borderTop: "1px solid #E2E6EE",
-          background: "#F6F7FA",
-          paddingTop: "36px",
-          paddingBottom: "36px",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          flexWrap: "wrap",
-          gap: 16,
-        }}
-      >
-        <span
-          style={{
-            fontFamily: "'Bricolage Grotesque', Inter, sans-serif",
-            fontSize: 14,
-            fontWeight: 700,
-            color: "#0B1A2F",
-          }}
-        >
-          ProcuLink
-        </span>
-        <div style={{ display: "flex", gap: 24, fontSize: 12.5, color: "#8A93A5", flexWrap: "wrap" }}>
-          <a href="/pricing" style={{ color: "inherit" }}>Pricing</a>
-          <a href="/how-it-works" style={{ color: "inherit" }}>How it works</a>
-          <a href="/sign-in" style={{ color: "inherit" }}>Sign in</a>
-          <span style={{ color: "#D0D5DE" }}>·</span>
-          <a href="/privacy" style={{ color: "inherit" }}>Privacy</a>
-          <a href="/terms" style={{ color: "inherit" }}>Terms</a>
-          <a href="/aup" style={{ color: "inherit" }}>AUP</a>
-          <a href="/dpa" style={{ color: "inherit" }}>DPA</a>
-          <a href="/subprocessors" style={{ color: "inherit" }}>Subprocessors</a>
-          <a href="/security" style={{ color: "inherit" }}>Security</a>
-          <a href="/support" style={{ color: "inherit" }}>Support</a>
-          {process.env.NEXT_PUBLIC_STATUS_URL ? (
-            <a href={process.env.NEXT_PUBLIC_STATUS_URL} target="_blank" rel="noopener noreferrer" style={{ color: "inherit" }}>Status</a>
-          ) : null}
+      {/* Multi-column navy footer */}
+      <footer style={{ background: "#0B1A2F", color: "#9DB2CE" }}>
+        <div className="mx-auto max-w-[1100px] px-6 sm:px-8" style={{ padding: "48px 24px 0" }}>
+          <div className="grid gap-10 grid-cols-2 sm:grid-cols-[1.6fr_repeat(3,1fr)]">
+            <div>
+              <span style={{ fontFamily: "'Bricolage Grotesque', Inter, sans-serif", color: "#FFFFFF", fontWeight: 700, fontSize: 17 }}>ProcuLink</span>
+              <p style={{ fontSize: 13, lineHeight: 1.6, maxWidth: 300, marginTop: 14 }}>
+                The missing link between buyers and suppliers. Turn any purchase order into the exact
+                format your supplier needs — with a full audit trail.
+              </p>
+              <div className="flex items-center gap-2 mt-4" style={{ fontSize: 12 }}>
+                <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#5FC06B", display: "inline-block" }} />
+                All systems operational
+              </div>
+            </div>
+            {[
+              { h: "Product", links: [["How it works", "/how-it-works"], ["Pricing", "/pricing"], ["Security", "/security"], ["Open the bridge", "/bridge"]] },
+              { h: "Company", links: [["Customers", "/customers"], ["Changelog", "/changelog"], ["Support", "/support"]] },
+              { h: "Legal",   links: [["Privacy", "/privacy"], ["Terms", "/terms"], ["AUP", "/aup"], ["DPA", "/dpa"], ["Subprocessors", "/subprocessors"]] },
+            ].map((col) => (
+              <div key={col.h}>
+                <h4 style={{ color: "#FFFFFF", fontSize: 12.5, fontWeight: 600, marginBottom: 12 }}>{col.h}</h4>
+                <div className="flex flex-col gap-2.5">
+                  {col.links.map(([label, href]) => (
+                    <a key={label} href={href} style={{ color: "#9DB2CE", fontSize: 13, textDecoration: "none" }}>{label}</a>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="flex flex-wrap items-center justify-between gap-3 mt-12" style={{ borderTop: "1px solid #1B2D49", padding: "18px 0 28px", fontSize: 12 }}>
+            <span>© 2026 ProcuLink OÜ · Tallinn, Estonia</span>
+            <span className="flex items-center gap-3"><span>EU data residency (Frankfurt)</span><span>·</span><span>AES-GCM at rest</span></span>
+          </div>
         </div>
-        <span style={{ fontSize: 12, color: "#8A93A5" }}>
-          © 2026 ProcuLink OÜ
-        </span>
       </footer>
     </div>
   );
