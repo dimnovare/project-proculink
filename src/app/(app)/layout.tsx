@@ -69,7 +69,7 @@ export default function AppShellLayout({
         <div className="flex h-screen overflow-hidden" style={{ background: "#F6F7FA" }}>
           {/* Left: 220px navy sidebar */}
           <div className="hidden md:block">
-            <BridgeSidebar />
+            <BridgeSidebar collapsible />
           </div>
 
           {sidebarOpen && (
