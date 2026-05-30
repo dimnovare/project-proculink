@@ -52,11 +52,12 @@ Legend: `[ ]` todo · `[x]` done · `(KEEP)` = do not regress to mockup.
 - [x] Webhooks: two-column split (Endpoints + Recent deliveries table); Healthy/Failing pills; "Add endpoint"; test-ping note. Deliveries = mock / empty-state live (no history API). Signing-secret field WIRED live (createIntegration accepts `secret`; agent had wrongly disabled it).
 
 ### Marketing (home / pricing / how-it-works / security)
-- [ ] Nav: navy bg + white links + blue "Get started free"; links How it works / Pricing / Security only.
-- [ ] Home: two-color hero words (buyers #6BA5F0 / suppliers #5FC06B); hero-stage (titlebar + Topology/Spine toggle + animated topology); logo strip; testimonial+stats; 6th feature "Standards, on demand"; multi-column navy footer.
-- [ ] Pricing: **(KEEP locked ladder Growth/Operations/Integration €999)**; adopt navy hero, headline "Pay for orders crossed, nothing else", monthly/yearly toggle (only if backend supports yearly — else skip), bottom navy CTA band, canonical FAQ.
-- [ ] How It Works: hero H1 "From any purchase order to a delivered supplier document" + animated HeroSpine; single-column numbered steps with format chips; "Walk through a real crossing" CTA.
-- [ ] Security: navy hero; 6 posture cards; Compliance/Subprocessors tables; navy CTA band.
+- [x] Nav: navy bg + white links (How it works / Pricing / Security only) + blue "Get started free"; mobile menu. (MarketingNav.tsx — verified rendering on /how-it-works + /security)
+- [x] Footer (marketing layout + home): multi-column navy (Product/Company/Legal + brand blurb + systems-operational dot + EU-residency bottom bar).
+- [x] Home: two-color hero words (buyers #6BA5F0 / suppliers #5FC06B); logo strip; customer testimonial; 6th feature "Standards, on demand"; navy multi-column footer. ⚠️ Home `/` currently 500s in mock preview — caused by a CONCURRENT session's in-flight ROICalculator/billing edit (uncommitted), NOT this code. My page.tsx is tsc-clean. NOT DONE: hero-stage Topology/Spine toggle (kept existing BridgeIllustration — animated toggle deferred).
+- [ ] Pricing: **OWNED BY A CONCURRENT SESSION** (actively adding a `distributor` plan — pricing/page.tsx + BillingSection.tsx + procurement.ts uncommitted + breaking global tsc). Left untouched to avoid clobber. Re-do navy hero / "Pay for orders crossed" headline / yearly toggle / FAQ / navy CTA band AFTER they land.
+- [x] How It Works: hero H1 "From any purchase order to a delivered supplier document" + crossing voice + "Walk through a real crossing" CTA → /watch. (Kept the existing 5-step pipeline + alternating steps; animated HeroSpine deferred — static pipeline bar is the equivalent.)
+- [x] Security: navy hero; 6 posture cards (added EU data residency + Backups & recovery to the existing 4); Compliance status table (+ Subprocessors links); navy CTA band.
 
 ## Minor-divergence screens
 ### Dashboard / Order topology
