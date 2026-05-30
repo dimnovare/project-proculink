@@ -2,7 +2,7 @@
 
 import { UserButton } from "@clerk/nextjs";
 import { useQuery } from "@tanstack/react-query";
-import { Bell, Menu } from "lucide-react";
+import { Bell, Menu, Search } from "lucide-react";
 import { useRouter, usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
@@ -302,20 +302,20 @@ export function BridgeTopbar({ crumb, onMenuClick }: BridgeTopbarProps) {
 
         {/* Breadcrumbs */}
         <div
-          className="flex min-w-0 flex-1 items-center gap-1.5 text-[13px]"
+          className="flex min-w-0 items-center gap-1.5 text-[13px] flex-shrink-0"
           style={{ color: "#C5D2E4" }}
         >
           {crumb ?? autoCrumb}
         </div>
 
-        {/* cmd-K search trigger */}
+        {/* cmd-K search field — wide, opens the command palette */}
         <button
           type="button"
           aria-label="Search (⌘K)"
           onClick={() => setPaletteOpen(true)}
-          className="hidden items-center gap-2 rounded-[6px] px-3 transition-colors sm:flex"
+          className="hidden flex-1 max-w-[480px] items-center gap-2 rounded-[7px] px-3 transition-colors sm:flex sm:mx-auto"
           style={{
-            height: 30,
+            height: 34,
             background: "#10243E",
             border: "1px solid #1C2F49",
             color: "#7C8DA6",
@@ -330,7 +330,8 @@ export function BridgeTopbar({ crumb, onMenuClick }: BridgeTopbarProps) {
             (e.currentTarget as HTMLElement).style.color = "#7C8DA6";
           }}
         >
-          <span>Search orders, suppliers, SKUs…</span>
+          <Search size={14} style={{ flexShrink: 0 }} />
+          <span className="flex-1 text-left">Search orders, suppliers, SKUs…</span>
           <kbd
             className="flex items-center gap-0.5 rounded text-[10px] font-medium px-1"
             style={{ background: "#0B1A2F", color: "#7C8DA6" }}
