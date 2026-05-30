@@ -1,12 +1,20 @@
 "use client";
 
-// PO Mapping Editor — "auto-map" connect view.
-// Detects the supplier's source columns, suggests canonical-field mappings, and
-// lets the operator confirm/override each one. Persists through the unchanged
-// upsertPoMapping contract (PoMappingConfig). See src/lib/api/mapping.ts.
+// PO Mapping Editor — "magic auto-map" connect view.
+// Left panel: detected source columns from the supplier's sample file.
+// Right panel: canonical ProcuLink order fields.
+// SVG overlay: measured bezier wire connectors, confidence-colored.
+// Accept / Edit / Reject per field. Persists via upsertPoMapping.
 
-import { useEffect, useMemo, useRef, useState } from "react";
-import type { ReactNode, KeyboardEvent as ReactKeyboardEvent } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import type { KeyboardEvent as ReactKeyboardEvent } from "react";
 import { useQuery } from "@tanstack/react-query";
 import type { PoMappingConfig, FieldMappingEntry } from "@/lib/api/types";
 import {
@@ -15,76 +23,64 @@ import {
   type FieldSuggestion,
 } from "@/lib/api/mapping";
 
-// ─── Palette (Bridge Layer tokens) ──────────────────────────────────────────
-const NAVY = "#0B1A2F";
-const BLUE = "#1E66C9";
-const BLUE_DEEP = "#0F4FA8";
-const BLUE_SOFT = "#E3EDFB";
-const GREEN = "#2E8E3A";
+// ─── Design tokens ────────────────────────────────────────────────────────────
+const NAVY       = "#0B1A2F";
+const BLUE       = "#1E66C9";
+const BLUE_DEEP  = "#0F4FA8";
+const BLUE_SOFT  = "#E3EDFB";
+const GREEN      = "#2E8E3A";
 const GREEN_DEEP = "#1E6D29";
 const GREEN_SOFT = "#E2F1E2";
-const BORDER = "#E2E6EE";
-const INPUT_BORDER = "#D5DAEA";
-const MUTED = "#56627A";
-const FAINT = "#8A93A5";
-const BG = "#F6F7FA";
-const SURFACE = "#FFFFFF";
-const SURFACE2 = "#EFF2F7";
-const AMBER = "#C97A14";
+const BORDER     = "#E2E6EE";
+const INPUT_BDR  = "#D5DAEA";
+const MUTED      = "#56627A";
+const FAINT      = "#8A93A5";
+const BG         = "#F6F7FA";
+const SURFACE    = "#FFFFFF";
+const SURFACE2   = "#EFF2F7";
+const AMBER      = "#C97A14";
 const AMBER_SOFT = "#FAEFD6";
-const AI = "#6F4FCE";
-const AI_SOFT = "#EEE7FB";
-const DANGER = "#C53A3A";
+const AI         = "#6F4FCE";
+const AI_SOFT    = "#EEE7FB";
+const DANGER     = "#C53A3A";
 
-const ADOPT_THRESHOLD = 0.5; // confidence at/above which a suggestion is pre-filled
+const AUTO_ACCEPT_THRESHOLD = 0.85; // auto-accept on load when no saved config
+const ADOPT_THRESHOLD       = 0.50; // minimum confidence to surface as a pending suggestion
 
-// ─── Canonical model ─────────────────────────────────────────────────────────
-const CANONICAL_HEADER_FIELDS = ["PoNumber", "OrderDate", "BuyerName", "Currency"] as const;
-const CANONICAL_LINE_FIELDS = [
-  "LineNumber", "BuyerItemCode", "Description", "Quantity", "Unit", "UnitPrice",
-] as const;
-
+// ─── Canonical field model ────────────────────────────────────────────────────
 type Section = "header" | "lines";
 
-const FIELD_HINT: Record<string, string> = {
-  PoNumber: "Purchase order number",
-  OrderDate: "Order / document date",
-  BuyerName: "Ordering buyer or company",
-  Currency: "ISO currency code",
-  LineNumber: "Line position",
-  BuyerItemCode: "Buyer's item / SKU code",
-  Description: "Item description",
-  Quantity: "Quantity ordered",
-  Unit: "Unit of measure",
-  UnitPrice: "Price per unit",
-};
+interface CanonicalField {
+  canonical: string;
+  label: string;
+  hint: string;
+  required: boolean;
+  section: Section;
+  standard: string;
+}
 
-// Common cross-standard mapping per canonical field (shown on the std chip).
-const FIELD_STANDARDS: Record<string, { ubl: string; x12: string; edifact: string; cxml: string }> = {
-  PoNumber:      { ubl: "cbc:ID", x12: "BEG02", edifact: "BGM+220", cxml: "OrderRequestHeader/@orderID" },
-  OrderDate:     { ubl: "cbc:IssueDate", x12: "BEG05", edifact: "DTM+137", cxml: "@orderDate" },
-  BuyerName:     { ubl: "cac:BuyerCustomerParty", x12: "N1*BY", edifact: "NAD+BY", cxml: "Contact role=buyer" },
-  Currency:      { ubl: "cbc:DocumentCurrencyCode", x12: "CUR01", edifact: "CUX", cxml: "Money/@currency" },
-  LineNumber:    { ubl: "cac:LineItem/cbc:ID", x12: "PO101", edifact: "LIN", cxml: "ItemOut/@lineNumber" },
-  BuyerItemCode: { ubl: "cac:BuyersItemIdentification/cbc:ID", x12: "PO1 (IN)", edifact: "PIA+1", cxml: "SupplierPartAuxiliaryID" },
-  Description:   { ubl: "cac:Item/cbc:Description", x12: "PID05", edifact: "IMD+F", cxml: "ItemDetail/Description" },
-  Quantity:      { ubl: "cbc:Quantity", x12: "PO102", edifact: "QTY+21", cxml: "ItemOut/@quantity" },
-  Unit:          { ubl: "cbc:Quantity/@unitCode", x12: "PO103", edifact: "QTY (UoM)", cxml: "UnitOfMeasure" },
-  UnitPrice:     { ubl: "cac:Price/cbc:PriceAmount", x12: "PO104", edifact: "PRI+AAA", cxml: "ItemDetail/UnitPrice/Money" },
-};
+const ALL_CANONICAL: CanonicalField[] = [
+  { canonical: "PoNumber",      label: "PO Number",       hint: "Purchase order number",     required: true,  section: "header", standard: "UBL cbc:ID · X12 BEG02 · EDIFACT BGM+220 · cXML orderID" },
+  { canonical: "OrderDate",     label: "Order Date",      hint: "Order / document date",     required: true,  section: "header", standard: "UBL cbc:IssueDate · X12 BEG05 · EDIFACT DTM+137 · cXML @orderDate" },
+  { canonical: "BuyerName",     label: "Buyer Name",      hint: "Ordering buyer or company", required: false, section: "header", standard: "UBL BuyerCustomerParty · X12 N1*BY · EDIFACT NAD+BY" },
+  { canonical: "Currency",      label: "Currency",        hint: "ISO currency code",         required: false, section: "header", standard: "UBL DocumentCurrencyCode · X12 CUR01 · EDIFACT CUX · cXML @currency" },
+  { canonical: "LineNumber",    label: "Line #",          hint: "Line position",             required: false, section: "lines",  standard: "UBL LineItem/cbc:ID · X12 PO101 · EDIFACT LIN · cXML @lineNumber" },
+  { canonical: "BuyerItemCode", label: "Buyer Item Code", hint: "Buyer's item / SKU code",   required: true,  section: "lines",  standard: "UBL BuyersItemIdentification · X12 PO1(IN) · EDIFACT PIA+1 · cXML SupplierPartAuxID" },
+  { canonical: "Description",   label: "Description",     hint: "Item description",          required: false, section: "lines",  standard: "UBL Item/cbc:Description · X12 PID05 · EDIFACT IMD+F · cXML Description" },
+  { canonical: "Quantity",      label: "Quantity",        hint: "Quantity ordered",          required: true,  section: "lines",  standard: "UBL cbc:Quantity · X12 PO102 · EDIFACT QTY+21 · cXML @quantity" },
+  { canonical: "Unit",          label: "Unit of Measure", hint: "Unit of measure",           required: false, section: "lines",  standard: "UBL Quantity/@unitCode · X12 PO103 · EDIFACT QTY(UoM) · cXML UnitOfMeasure" },
+  { canonical: "UnitPrice",     label: "Unit Price",      hint: "Price per unit",            required: false, section: "lines",  standard: "UBL Price/cbc:PriceAmount · X12 PO104 · EDIFACT PRI+AAA · cXML UnitPrice/Money" },
+];
 
-const fieldsFor = (s: Section) =>
-  s === "header" ? CANONICAL_HEADER_FIELDS : CANONICAL_LINE_FIELDS;
-const fk = (s: Section, field: string) => `${s}.${field}`;
+const REQUIRED_FIELDS = ALL_CANONICAL.filter((f) => f.required).map((f) => f.canonical);
 
-type Origin = "manual" | "suggested" | "empty";
-interface Effective {
-  externalField?: string;
-  fixedValue?: string;
-  fieldManipulators?: FieldMappingEntry["fieldManipulators"];
-  origin: Origin;
-  confidence?: number;
-  reason?: string;
+// ─── Types ────────────────────────────────────────────────────────────────────
+interface WirePos {
+  canonical: string;
+  conf: number;      // 0–100
+  accepted: boolean;
+  x1: number; y1: number;
+  x2: number; y2: number;
 }
 
 interface PoMappingEditorProps {
@@ -95,6 +91,20 @@ interface PoMappingEditorProps {
   saving?: boolean;
 }
 
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+function initAccepted(config: PoMappingConfig | null): Map<string, string> {
+  const acc = new Map<string, string>();
+  if (!config) return acc;
+  for (const [field, entry] of Object.entries(config.header ?? {})) {
+    if (entry?.externalField) acc.set(field, entry.externalField);
+  }
+  for (const [field, entry] of Object.entries(config.lines ?? {})) {
+    if (entry?.externalField) acc.set(field, entry.externalField);
+  }
+  return acc;
+}
+
+// ─── Main component ───────────────────────────────────────────────────────────
 export function PoMappingEditor({
   supplierId,
   initialConfig,
@@ -102,27 +112,7 @@ export function PoMappingEditor({
   onDelete,
   saving = false,
 }: PoMappingEditorProps) {
-  const [activeSection, setActiveSection] = useState<Section>("header");
-  const [sourceOpts, setSourceOpts] = useState(() => ({
-    hasHeaderRecord: initialConfig?.hasHeaderRecord ?? true,
-    separator: initialConfig?.separator ?? ",",
-  }));
-
-  // User's explicit choices, keyed by `${section}.${field}`. Presence === touched.
-  const [overrides, setOverrides] = useState<Record<string, FieldMappingEntry>>(() =>
-    seedFromConfig(initialConfig).overrides
-  );
-  const [fieldMode, setFieldMode] = useState<Record<string, "column" | "fixed">>(() =>
-    seedFromConfig(initialConfig).modes
-  );
-
-  const [saveState, setSaveState] = useState<
-    { status: "idle" | "saving" | "saved" | "error"; message?: string }
-  >({ status: "idle" });
-  const [autoNote, setAutoNote] = useState<string | null>(null);
-  const autoNoteTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  // ── Detected source columns ──
+  // ── API queries ────────────────────────────────────────────────────────────
   const sourceQuery = useQuery({
     queryKey: ["po-mapping-source-columns", supplierId],
     queryFn: () => getMappingSourceColumns(supplierId),
@@ -130,32 +120,41 @@ export function PoMappingEditor({
   });
   const detectedColumns = useMemo(() => sourceQuery.data?.columns ?? [], [sourceQuery.data]);
   const sample = sourceQuery.data?.sample;
+  const fmt = sourceQuery.data?.format ?? "";
+  const sourceOrderId = sourceQuery.data?.sourceOrderId ?? null;
 
-  // ── Suggestions (real endpoint → falls back to client heuristic) ──
   const suggestQuery = useQuery({
     queryKey: ["po-mapping-suggest", supplierId, detectedColumns],
     queryFn: () => suggestMappingFields(supplierId, detectedColumns),
     enabled: detectedColumns.length > 0,
     staleTime: 60_000,
   });
-  const suggestionByField = useMemo(() => {
+
+  const suggestionByField = useMemo<Record<string, FieldSuggestion>>(() => {
     const map: Record<string, FieldSuggestion> = {};
     for (const s of suggestQuery.data ?? []) map[s.canonicalField] = s;
     return map;
   }, [suggestQuery.data]);
 
-  // All columns offered by the dropdown: detected + anything the user has typed.
-  const allColumns = useMemo(() => {
-    const set = new Set<string>(detectedColumns);
-    for (const entry of Object.values(overrides)) {
-      if (entry.externalField) set.add(entry.externalField);
-    }
-    return Array.from(set);
-  }, [detectedColumns, overrides]);
+  // ── UI state ───────────────────────────────────────────────────────────────
+  const [accepted,      setAccepted]    = useState<Map<string, string>>(() => initAccepted(initialConfig));
+  const [rejected,      setRejected]    = useState<Set<string>>(() => new Set());
+  const [editing,       setEditing]     = useState<string | null>(null);
+  const [editDraft,     setEditDraft]   = useState("");
+  const [justDrawn,     setJustDrawn]   = useState<string | null>(null);
+  const [showStandards, setShowStd]     = useState(false);
+  const [sourceOpts,    setSourceOpts]  = useState({
+    hasHeaderRecord: initialConfig?.hasHeaderRecord ?? true,
+    separator: initialConfig?.separator ?? ",",
+  });
+  const [saveState, setSaveState] = useState<{
+    status: "idle" | "saving" | "saved" | "error";
+    message?: string;
+  }>({ status: "idle" });
+  const [autoNote,    setAutoNote]   = useState<string | null>(null);
+  const [autoSeeded,  setAutoSeeded] = useState(!!initialConfig);
 
-  useEffect(() => () => {
-    if (autoNoteTimer.current) clearTimeout(autoNoteTimer.current);
-  }, []);
+  const autoNoteTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   function flashNote(msg: string) {
     setAutoNote(msg);
@@ -163,162 +162,188 @@ export function PoMappingEditor({
     autoNoteTimer.current = setTimeout(() => setAutoNote(null), 4000);
   }
 
-  // ── Effective value model: override → suggestion → empty ──
-  function effective(s: Section, field: string): Effective {
-    const key = fk(s, field);
-    const ov = overrides[key];
-    if (ov !== undefined) {
-      const mode = fieldMode[key] ?? (ov.fixedValue && !ov.externalField ? "fixed" : "column");
-      if (mode === "fixed") {
-        return {
-          fixedValue: ov.fixedValue ?? "",
-          fieldManipulators: ov.fieldManipulators,
-          origin: ov.fixedValue ? "manual" : "empty",
-        };
-      }
-      return {
-        externalField: ov.externalField ?? "",
-        fieldManipulators: ov.fieldManipulators,
-        origin: ov.externalField ? "manual" : "empty",
-      };
-    }
-    const sug = suggestionByField[field];
-    if (sug?.suggestedColumn && sug.confidence >= ADOPT_THRESHOLD) {
-      return {
-        externalField: sug.suggestedColumn,
-        origin: "suggested",
-        confidence: sug.confidence,
-        reason: sug.reason,
-      };
-    }
-    return { origin: "empty" };
-  }
+  useEffect(() => () => {
+    if (autoNoteTimer.current) clearTimeout(autoNoteTimer.current);
+  }, []);
 
-  function setOverride(s: Section, field: string, entry: FieldMappingEntry | null) {
-    const key = fk(s, field);
-    setOverrides((prev) => {
-      const next = { ...prev };
-      if (entry === null) delete next[key];
-      else next[key] = entry;
-      return next;
-    });
-    setSaveState({ status: "idle" });
-  }
-
-  function setMode(s: Section, field: string, mode: "column" | "fixed") {
-    const key = fk(s, field);
-    setFieldMode((prev) => ({ ...prev, [key]: mode }));
-    if (mode === "fixed") {
-      const eff = effective(s, field);
-      setOverride(s, field, { fixedValue: eff.fixedValue ?? "" });
-    } else {
-      // Drop the override so the field re-adopts its suggestion.
-      setOverride(s, field, null);
-    }
-  }
-
-  function autoMapAll() {
-    const next = { ...overrides };
-    const modes = { ...fieldMode };
-    let filled = 0;
-    for (const s of ["header", "lines"] as Section[]) {
-      for (const field of fieldsFor(s)) {
-        const sug = suggestionByField[field];
-        if (sug?.suggestedColumn && sug.confidence >= ADOPT_THRESHOLD) {
-          next[fk(s, field)] = { externalField: sug.suggestedColumn };
-          modes[fk(s, field)] = "column";
-          filled++;
-        }
+  // ── Auto-accept high-confidence suggestions on first load ──────────────────
+  useEffect(() => {
+    if (autoSeeded || !suggestQuery.data || suggestQuery.data.length === 0) return;
+    const next = new Map<string, string>();
+    for (const sug of suggestQuery.data) {
+      if (sug.confidence >= AUTO_ACCEPT_THRESHOLD && sug.suggestedColumn) {
+        next.set(sug.canonicalField, sug.suggestedColumn);
       }
     }
-    setOverrides(next);
-    setFieldMode(modes);
+    if (next.size > 0) setAccepted(next);
+    setAutoSeeded(true);
+  }, [suggestQuery.data, autoSeeded]);
+
+  // ── SVG connector measurement ──────────────────────────────────────────────
+  const wrapRef   = useRef<HTMLDivElement>(null);
+  const leftRefs  = useRef<Record<string, HTMLElement | null>>({});
+  const rightRefs = useRef<Record<string, HTMLElement | null>>({});
+  const [positions, setPositions] = useState<WirePos[]>([]);
+
+  const measure = useCallback(() => {
+    if (!wrapRef.current) return;
+    const wrap = wrapRef.current.getBoundingClientRect();
+    if (wrap.width < 80) { setPositions([]); return; }
+
+    const lines: WirePos[] = [];
+    for (const f of ALL_CANONICAL) {
+      const accColumn = accepted.get(f.canonical);
+      const sug = suggestionByField[f.canonical];
+      const pendColumn =
+        !accColumn && !rejected.has(f.canonical) && sug?.suggestedColumn && sug.confidence >= ADOPT_THRESHOLD
+          ? sug.suggestedColumn
+          : null;
+      const colName = accColumn ?? pendColumn;
+      if (!colName) continue;
+
+      const le = leftRefs.current[colName];
+      const re = rightRefs.current[f.canonical];
+      if (!le || !re) continue;
+
+      const lr = le.getBoundingClientRect();
+      const rr = re.getBoundingClientRect();
+      lines.push({
+        canonical: f.canonical,
+        conf: accColumn ? 100 : Math.round((sug?.confidence ?? 0) * 100),
+        accepted: !!accColumn,
+        x1: lr.right  - wrap.left,
+        y1: lr.top    + lr.height / 2 - wrap.top,
+        x2: rr.left   - wrap.left,
+        y2: rr.top    + rr.height / 2 - wrap.top,
+      });
+    }
+    setPositions(lines);
+  }, [accepted, rejected, suggestionByField]);
+
+  useLayoutEffect(() => { measure(); }, [measure]);
+
+  // Re-measure when new query data arrives (new refs) or showStandards changes row heights.
+  useEffect(() => {
+    const t = setTimeout(measure, 60);
+    return () => clearTimeout(t);
+  }, [sourceQuery.data, suggestQuery.data, showStandards, editing, measure]);
+
+  useEffect(() => {
+    window.addEventListener("resize", measure);
+    return () => window.removeEventListener("resize", measure);
+  }, [measure]);
+
+  // ── Handlers ───────────────────────────────────────────────────────────────
+  function handleAccept(canonical: string, column: string) {
+    setAccepted((prev) => new Map(prev).set(canonical, column));
+    setRejected((prev) => { const n = new Set(prev); n.delete(canonical); return n; });
+    setEditing(null);
     setSaveState({ status: "idle" });
-    flashNote(filled ? `Auto-mapped ${filled} field${filled === 1 ? "" : "s"}.` : "No confident matches to auto-map.");
+    setJustDrawn(canonical);
+    setTimeout(() => setJustDrawn(null), 900);
   }
 
-  function resetToSuggestions() {
-    setOverrides({});
-    setFieldMode({});
+  function handleReject(canonical: string) {
+    setRejected((prev) => new Set(prev).add(canonical));
+    setAccepted((prev) => { const n = new Map(prev); n.delete(canonical); return n; });
     setSaveState({ status: "idle" });
-    flashNote("Reset to detected suggestions.");
   }
 
+  function handleAcceptAll() {
+    const next = new Map(accepted);
+    let count = 0;
+    for (const sug of suggestQuery.data ?? []) {
+      if (
+        sug.suggestedColumn &&
+        sug.confidence >= ADOPT_THRESHOLD &&
+        !rejected.has(sug.canonicalField)
+      ) {
+        if (!next.has(sug.canonicalField)) count++;
+        next.set(sug.canonicalField, sug.suggestedColumn);
+      }
+    }
+    setAccepted(next);
+    setSaveState({ status: "idle" });
+    flashNote(count ? `Accepted ${count} suggestion${count !== 1 ? "s" : ""}.` : "Nothing new to accept.");
+  }
+
+  function handleEditStart(canonical: string) {
+    setEditing(canonical);
+    setEditDraft(accepted.get(canonical) ?? "");
+  }
+
+  function handleEditConfirm() {
+    if (editing && editDraft.trim()) handleAccept(editing, editDraft.trim());
+    else setEditing(null);
+  }
+
+  // ── Build PoMappingConfig from accepted map ─────────────────────────────────
   function buildConfig(): PoMappingConfig {
-    const build = (s: Section) => {
-      const out: Record<string, FieldMappingEntry> = {};
-      for (const field of fieldsFor(s)) {
-        const eff = effective(s, field);
-        if (eff.origin === "empty") continue;
-        const entry: FieldMappingEntry = {};
-        if (eff.fixedValue) entry.fixedValue = eff.fixedValue;
-        else if (eff.externalField) entry.externalField = eff.externalField;
-        else continue;
-        if (eff.fieldManipulators?.length) entry.fieldManipulators = eff.fieldManipulators;
-        out[field] = entry;
-      }
-      return out;
-    };
-    return {
-      hasHeaderRecord: sourceOpts.hasHeaderRecord,
-      separator: sourceOpts.separator,
-      header: build("header"),
-      lines: build("lines"),
-    };
+    const header: Record<string, FieldMappingEntry> = {};
+    const lines:  Record<string, FieldMappingEntry> = {};
+    for (const [canonical, column] of accepted) {
+      if (!column) continue;
+      const f = ALL_CANONICAL.find((c) => c.canonical === canonical);
+      if (!f) continue;
+      const entry: FieldMappingEntry = { externalField: column };
+      if (f.section === "header") header[canonical] = entry;
+      else lines[canonical] = entry;
+    }
+    return { hasHeaderRecord: sourceOpts.hasHeaderRecord, separator: sourceOpts.separator, header, lines };
   }
 
   async function handleSave() {
-    const built = buildConfig();
     setSaveState({ status: "saving" });
     try {
-      await onSave(built);
-      // Fold the saved mapping into overrides so confirmed fields read as
-      // "Manual" (grey) rather than lingering as AI suggestions.
-      const nextOv: Record<string, FieldMappingEntry> = {};
-      const nextModes: Record<string, "column" | "fixed"> = {};
-      for (const s of ["header", "lines"] as Section[]) {
-        for (const [field, entry] of Object.entries(built[s])) {
-          nextOv[fk(s, field)] = entry;
-          if (entry.fixedValue && !entry.externalField) nextModes[fk(s, field)] = "fixed";
-        }
-      }
-      setOverrides(nextOv);
-      setFieldMode(nextModes);
+      await onSave(buildConfig());
       setSaveState({ status: "saved" });
     } catch (e) {
       setSaveState({ status: "error", message: e instanceof Error ? e.message : "Save failed" });
     }
   }
 
-  const isSaving = saving || saveState.status === "saving";
-  const mappedCount = useMemo(() => {
-    let n = 0;
-    for (const s of ["header", "lines"] as Section[])
-      for (const field of fieldsFor(s)) if (effective(s, field).origin !== "empty") n++;
-    return n;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [overrides, fieldMode, suggestionByField]);
-  const totalFields = CANONICAL_HEADER_FIELDS.length + CANONICAL_LINE_FIELDS.length;
+  // ── Derived values ─────────────────────────────────────────────────────────
+  const isSaving      = saving || saveState.status === "saving";
+  const reqMapped     = REQUIRED_FIELDS.every((f) => accepted.has(f));
+  const hasSuggestions = (suggestQuery.data ?? []).some(
+    (s) => s.suggestedColumn && s.confidence >= ADOPT_THRESHOLD && !rejected.has(s.canonicalField),
+  );
 
-  const fmt = sourceQuery.data?.format || "";
-  const hint = sourceQuery.data?.hint;
-  const manualMode = !sourceQuery.isLoading && detectedColumns.length === 0;
+  // Left panel: detected columns enriched with usage info
+  const leftColumns = useMemo(() => {
+    const accValues = new Set(accepted.values());
+    const sugColumns = new Set(
+      (suggestQuery.data ?? [])
+        .filter((s) => s.suggestedColumn && s.confidence >= ADOPT_THRESHOLD)
+        .map((s) => s.suggestedColumn as string),
+    );
+    return detectedColumns.map((name) => ({
+      name,
+      sample:      sample?.[name] ?? "",
+      used:        accValues.has(name),
+      hasSuggest:  sugColumns.has(name),
+    }));
+  }, [detectedColumns, sample, accepted, suggestQuery.data]);
 
+  // Unique gradient ID for accepted connectors (horizontal, object bbox)
+  const gradId = "pme-wire-grad";
+
+  // ── Render ─────────────────────────────────────────────────────────────────
   return (
     <div
       className="rounded-[8px] overflow-hidden"
       style={{ border: `1px solid ${BORDER}`, background: SURFACE, boxShadow: "0 1px 2px rgba(11,26,47,0.04)" }}
     >
-      {/* Cross-section bridge edge */}
+      {/* Bridge cross-section edge */}
       <div style={{ height: 3, background: `linear-gradient(90deg, ${BLUE}, ${GREEN})` }} />
 
-      {/* Title + source detection */}
+      {/* ── Header ─────────────────────────────────────────────────────────── */}
       <div className="px-4 py-3.5 sm:px-5" style={{ borderBottom: `1px solid ${BORDER}` }}>
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div className="min-w-0">
             <h3
-              className="text-[15px] font-semibold"
-              style={{ color: NAVY, fontFamily: "Bricolage Grotesque, sans-serif", letterSpacing: "-0.01em" }}
+              className="text-[15px] font-semibold tracking-[-0.01em]"
+              style={{ color: NAVY, fontFamily: "Bricolage Grotesque, sans-serif" }}
             >
               PO field mapping
             </h3>
@@ -330,176 +355,574 @@ export function PoMappingEditor({
             loading={sourceQuery.isLoading}
             format={fmt}
             columnCount={detectedColumns.length}
-            sourceOrderId={sourceQuery.data?.sourceOrderId ?? null}
-            hint={manualMode ? hint : undefined}
+            sourceOrderId={sourceOrderId}
+            hint={detectedColumns.length === 0 ? sourceQuery.data?.hint : undefined}
             onRedetect={() => sourceQuery.refetch()}
           />
         </div>
+      </div>
 
-        {/* Auto-map controls */}
-        <div className="mt-3 flex flex-wrap items-center gap-2">
+      {/* ── AI banner ──────────────────────────────────────────────────────── */}
+      {suggestQuery.data && suggestQuery.data.length > 0 && (
+        <div
+          className="px-4 py-3 sm:px-5"
+          style={{ background: AI_SOFT, borderBottom: "1px solid #D9CEF6" }}
+        >
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex min-w-0 items-start gap-3">
+              {/* zap icon */}
+              <div
+                style={{
+                  width: 32, height: 32, borderRadius: 7,
+                  background: SURFACE, border: "1px solid #E0D5F8",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  flexShrink: 0,
+                }}
+              >
+                <svg width="15" height="15" viewBox="0 0 16 16" fill="none" aria-hidden>
+                  <path d="M9 2L4 9h5l-1.5 5L14 8H9l1-6z" fill={AI} />
+                </svg>
+              </div>
+              <div className="min-w-0">
+                <div style={{ fontSize: 13, fontWeight: 600, color: NAVY }}>
+                  We detected <strong>{detectedColumns.length}</strong> column{detectedColumns.length !== 1 ? "s" : ""}
+                  {" "}and matched <strong>{accepted.size}</strong> automatically.
+                </div>
+                <div style={{ fontSize: 11.5, color: MUTED, marginTop: 2 }}>
+                  {fmt && (
+                    <span
+                      className="mr-1.5 rounded px-1.5 py-0.5 text-[10.5px] font-semibold uppercase"
+                      style={{ background: BLUE_SOFT, color: BLUE_DEEP, fontFamily: "'JetBrains Mono', monospace" }}
+                    >
+                      {fmt.toUpperCase()}
+                    </span>
+                  )}
+                  {sourceOrderId ? `From order ${sourceOrderId} · ` : ""}
+                  Review and accept before saving.
+                </div>
+                {autoNote && (
+                  <span
+                    className="mt-1 inline-block rounded px-2 py-0.5 text-[11px] font-medium"
+                    style={{ background: BLUE_SOFT, color: BLUE_DEEP }}
+                  >
+                    {autoNote}
+                  </span>
+                )}
+              </div>
+            </div>
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <button
+                type="button"
+                onClick={() => sourceQuery.refetch()}
+                className="inline-flex items-center gap-1.5 rounded-[6px] px-3 py-1.5 text-[12px] font-medium"
+                style={{ background: SURFACE, color: MUTED, border: `1px solid ${BORDER}`, cursor: "pointer" }}
+              >
+                <svg width="12" height="12" viewBox="0 0 16 16" fill="none" aria-hidden>
+                  <path d="M13.5 8A5.5 5.5 0 1 1 8 2.5" stroke={MUTED} strokeWidth="1.6" strokeLinecap="round" />
+                  <path d="M8 1v4l2.5-2" stroke={MUTED} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+                Re-detect
+              </button>
+              {hasSuggestions && (
+                <button
+                  type="button"
+                  onClick={handleAcceptAll}
+                  className="inline-flex items-center gap-1.5 rounded-[6px] px-3 py-1.5 text-[12px] font-semibold"
+                  style={{ background: AI, color: "#FFF", border: "none", cursor: "pointer" }}
+                >
+                  <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden>
+                    <path d="M2 6.5L5 9.5L10 3" stroke="#FFF" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                  Accept all
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Column label + standards toggle ───────────────────────────────── */}
+      <div
+        className="flex items-center justify-between px-4 py-2 sm:px-5"
+        style={{ background: BG, borderBottom: `1px solid ${BORDER}` }}
+      >
+        <span className="text-[10.5px] font-semibold uppercase tracking-wide" style={{ color: MUTED }}>
+          Connect columns → ProcuLink fields
+        </span>
+        <button
+          type="button"
+          onClick={() => setShowStd((v) => !v)}
+          className="inline-flex items-center gap-1.5 text-[11.5px] font-semibold"
+          style={{ background: "none", border: "none", color: BLUE_DEEP, cursor: "pointer" }}
+        >
+          <svg width="12" height="12" viewBox="0 0 14 14" fill="none" aria-hidden>
+            <rect x="1" y="3" width="12" height="8" rx="1.5" stroke={BLUE_DEEP} strokeWidth="1.4" />
+            <path d="M4 7h6M4 9.5h3.5" stroke={BLUE_DEEP} strokeWidth="1.4" strokeLinecap="round" />
+          </svg>
+          {showStandards ? "Hide standards" : "Show standards"}
+        </button>
+      </div>
+
+      {/* ── Connect view ───────────────────────────────────────────────────── */}
+      {sourceQuery.isLoading ? (
+        <div className="flex justify-center px-4 py-10">
+          <span style={{ fontSize: 12.5, color: FAINT }}>Detecting columns…</span>
+        </div>
+      ) : detectedColumns.length === 0 ? (
+        <div className="px-4 py-8 text-center sm:px-5">
+          <p style={{ fontSize: 13, color: MUTED }}>
+            {sourceQuery.data?.hint ?? "No source columns detected. Upload a PO to this supplier to enable auto-mapping."}
+          </p>
           <button
             type="button"
-            onClick={autoMapAll}
-            disabled={detectedColumns.length === 0 || suggestQuery.isFetching}
-            className="inline-flex items-center gap-1.5 rounded-[6px] px-3 py-1.5 text-[12px] font-semibold transition-colors"
+            onClick={() => sourceQuery.refetch()}
+            className="mt-3 inline-flex items-center gap-1.5 rounded-[6px] px-3 py-1.5 text-[12px] font-medium"
+            style={{ background: SURFACE, color: BLUE, border: `1px solid ${BORDER}`, cursor: "pointer" }}
+          >
+            Re-detect columns
+          </button>
+        </div>
+      ) : (
+        /* The measured container — SVG overlay spans the full div */
+        <div ref={wrapRef} style={{ position: "relative", display: "flex", overflow: "visible" }}>
+
+          {/* SVG connector overlay */}
+          <svg
+            aria-hidden
             style={{
-              background: detectedColumns.length === 0 ? SURFACE2 : AI_SOFT,
-              color: detectedColumns.length === 0 ? FAINT : AI,
-              border: `1px solid ${detectedColumns.length === 0 ? BORDER : "#D9CEF6"}`,
-              cursor: detectedColumns.length === 0 ? "not-allowed" : "pointer",
+              position: "absolute", inset: 0,
+              width: "100%", height: "100%",
+              pointerEvents: "none", zIndex: 1,
+              overflow: "visible",
             }}
           >
-            <ConnectGlyph color={detectedColumns.length === 0 ? FAINT : AI} />
-            {suggestQuery.isFetching ? "Matching…" : "Auto-map all"}
-          </button>
-          <button
-            type="button"
-            onClick={resetToSuggestions}
-            className="rounded-[6px] px-2.5 py-1.5 text-[12px] font-medium transition-colors"
-            style={{ background: "transparent", color: MUTED, border: `1px solid ${BORDER}` }}
-          >
-            Reset
-          </button>
-          <span className="text-[12px]" style={{ color: FAINT }}>
-            {mappedCount}/{totalFields} fields mapped
-          </span>
-          {autoNote && (
-            <span
-              className="rounded-[5px] px-2 py-0.5 text-[11.5px] font-medium"
-              style={{ background: BLUE_SOFT, color: BLUE_DEEP }}
-            >
-              {autoNote}
-            </span>
-          )}
-        </div>
+            <defs>
+              {/* Horizontal gradient shared by all accepted wires */}
+              <linearGradient id={gradId} x1="0" y1="0" x2="1" y2="0">
+                <stop offset="0%"   stopColor={BLUE}  />
+                <stop offset="100%" stopColor={GREEN} />
+              </linearGradient>
+              <style>{`
+                @keyframes pme-draw {
+                  from { stroke-dashoffset: 400; stroke-dasharray: 400; }
+                  to   { stroke-dashoffset: 0;   stroke-dasharray: 400; }
+                }
+              `}</style>
+            </defs>
 
-        {manualMode && hint && (
-          <div
-            className="mt-3 rounded-[6px] px-3 py-2 text-[12px]"
-            style={{ background: AMBER_SOFT, color: "#8A5A12", border: "1px solid #EAD9B0" }}
-          >
-            {hint}
-          </div>
-        )}
-      </div>
-
-      {/* Section toggle + source options */}
-      <div
-        className="flex flex-col items-stretch gap-3 px-4 py-2.5 sm:px-5 md:flex-row md:items-center md:justify-between"
-        style={{ borderBottom: `1px solid ${BORDER}`, background: BG }}
-      >
-        <div className="flex rounded-[6px] overflow-hidden" style={{ border: `1px solid ${INPUT_BORDER}` }}>
-          {(["header", "lines"] as const).map((s) => (
-            <button
-              key={s}
-              type="button"
-              onClick={() => setActiveSection(s)}
-              className="flex-1 px-3.5 py-1.5 text-[12px] font-medium transition-colors md:flex-none"
-              style={{
-                background: activeSection === s ? NAVY : SURFACE,
-                color: activeSection === s ? "#FFF" : MUTED,
-              }}
-            >
-              {s === "header" ? "Order header" : "Order lines"}
-            </button>
-          ))}
-        </div>
-
-        <div className="flex flex-wrap items-center gap-3">
-          <label className="flex items-center gap-1.5 text-[12px]" style={{ color: MUTED }}>
-            <span>Separator</span>
-            <select
-              value={sourceOpts.separator}
-              onChange={(e) => {
-                setSourceOpts((p) => ({ ...p, separator: e.target.value }));
-                setSaveState({ status: "idle" });
-              }}
-              className="rounded-[5px] px-2 py-1 text-[12px]"
-              style={{ border: `1px solid ${INPUT_BORDER}`, background: SURFACE, color: NAVY }}
-            >
-              <option value=",">, (comma)</option>
-              <option value=";">; (semicolon)</option>
-              <option value={"\t"}>tab</option>
-              <option value="|">| (pipe)</option>
-            </select>
-          </label>
-          <label className="flex items-center gap-1.5 text-[12px]" style={{ color: MUTED }}>
-            <input
-              type="checkbox"
-              checked={sourceOpts.hasHeaderRecord}
-              onChange={(e) => {
-                setSourceOpts((p) => ({ ...p, hasHeaderRecord: e.target.checked }));
-                setSaveState({ status: "idle" });
-              }}
-            />
-            Has header row
-          </label>
-        </div>
-      </div>
-
-      {/* Connect view + live preview */}
-      <div className="grid gap-0 lg:grid-cols-[minmax(0,1fr)_320px]">
-        {/* Mapping rows */}
-        <div className="px-4 py-3 sm:px-5" style={{ borderRight: `1px solid ${BORDER}` }}>
-          <div
-            className="hidden px-1 pb-2 text-[10.5px] font-semibold uppercase tracking-wide md:grid md:grid-cols-[180px_minmax(0,1fr)]"
-            style={{ color: FAINT }}
-          >
-            <span>Canonical field</span>
-            <span>Source column</span>
-          </div>
-          <div className="flex flex-col">
-            {fieldsFor(activeSection).map((field) => {
-              const eff = effective(activeSection, field);
-              const mode =
-                fieldMode[fk(activeSection, field)] ??
-                (eff.fixedValue && !eff.externalField ? "fixed" : "column");
+            {positions.map((p) => {
+              const cx  = p.x1 + (p.x2 - p.x1) * 0.5;
+              const d   = `M ${p.x1} ${p.y1} C ${cx} ${p.y1} ${cx} ${p.y2} ${p.x2} ${p.y2}`;
+              const isDrawing = justDrawn === p.canonical;
+              const stroke =
+                p.accepted
+                  ? `url(#${gradId})`
+                  : p.conf >= 75
+                  ? AMBER
+                  : DANGER;
               return (
-                <FieldRow
-                  key={field}
-                  field={field}
-                  eff={eff}
-                  mode={mode}
-                  columns={allColumns}
-                  weakSuggestion={suggestionByField[field]}
-                  onColumnChange={(col) => setOverride(activeSection, field, { externalField: col })}
-                  onFixedChange={(val) => setOverride(activeSection, field, { fixedValue: val })}
-                  onSetMode={(m) => setMode(activeSection, field, m)}
-                  onClear={() => setOverride(activeSection, field, { externalField: "" })}
-                />
+                <g key={p.canonical}>
+                  <path
+                    d={d}
+                    fill="none"
+                    stroke={stroke}
+                    strokeWidth={p.accepted ? 2 : 1.5}
+                    strokeDasharray={
+                      isDrawing   ? 400 :
+                      !p.accepted ? "5 4" :
+                      undefined
+                    }
+                    style={isDrawing ? { animation: "pme-draw 800ms ease-out forwards" } : {}}
+                  />
+                  {/* Source endpoint (blue) */}
+                  <circle cx={p.x1} cy={p.y1} r="3.5" fill={BLUE} />
+                  {/* Destination endpoint (green) */}
+                  <circle cx={p.x2} cy={p.y2} r="3.5" fill={GREEN} />
+                </g>
+              );
+            })}
+          </svg>
+
+          {/* ── Left: detected source columns ──────────────────────────────── */}
+          <div
+            style={{
+              flex: "0 0 calc(50% - 60px)",
+              padding: "12px 14px",
+              borderRight: `1px solid ${BORDER}`,
+              minWidth: 0,
+            }}
+          >
+            <div
+              className="mb-2 text-[10.5px] font-semibold uppercase tracking-wide"
+              style={{ color: FAINT }}
+            >
+              Detected columns
+              {fmt && (
+                <span className="ml-1.5 normal-case font-normal tracking-normal">
+                  · {fmt.toUpperCase()}
+                </span>
+              )}
+            </div>
+            {leftColumns.map((col) => (
+              <div
+                key={col.name}
+                ref={(el) => { leftRefs.current[col.name] = el; }}
+                style={{
+                  minHeight: 52,
+                  marginBottom: 8,
+                  padding: "0 12px",
+                  borderRadius: 6,
+                  border: `1px solid ${col.used ? "#CBE5CB" : BORDER}`,
+                  background: col.used ? GREEN_SOFT : SURFACE,
+                  display: "flex",
+                  flexDirection: "column",
+                  justifyContent: "center",
+                  transition: "background 200ms ease, border-color 200ms ease",
+                }}
+              >
+                <div
+                  style={{
+                    fontFamily: "'JetBrains Mono', monospace",
+                    fontSize: 12.5,
+                    fontWeight: 600,
+                    color: col.used ? GREEN_DEEP : NAVY,
+                  }}
+                >
+                  {col.name}
+                </div>
+                {col.sample ? (
+                  <div
+                    style={{
+                      fontFamily: "'JetBrains Mono', monospace",
+                      fontSize: 10.5,
+                      color: FAINT,
+                      marginTop: 1,
+                    }}
+                  >
+                    e.g. {col.sample}
+                  </div>
+                ) : !col.hasSuggest ? (
+                  <div style={{ fontSize: 10, color: FAINT, marginTop: 1 }}>
+                    No confident match · will be ignored
+                  </div>
+                ) : null}
+              </div>
+            ))}
+          </div>
+
+          {/* Center spacer — connectors travel through here */}
+          <div style={{ flex: "0 0 120px", flexShrink: 0 }} />
+
+          {/* ── Right: canonical ProcuLink fields ──────────────────────────── */}
+          <div
+            style={{
+              flex: "0 0 calc(50% - 60px)",
+              padding: "12px 14px",
+              borderLeft: `1px solid ${BORDER}`,
+              minWidth: 0,
+            }}
+          >
+            <div
+              className="mb-2 text-[10.5px] font-semibold uppercase tracking-wide"
+              style={{ color: FAINT }}
+            >
+              ProcuLink fields
+            </div>
+            {ALL_CANONICAL.map((f) => {
+              const accColumn  = accepted.get(f.canonical);
+              const sug        = suggestionByField[f.canonical];
+              const pendColumn =
+                !accColumn && !rejected.has(f.canonical) && sug?.suggestedColumn && sug.confidence >= ADOPT_THRESHOLD
+                  ? sug.suggestedColumn
+                  : null;
+              const isAcc     = !!accColumn;
+              const isPend    = !!pendColumn;
+              const isEditing = editing === f.canonical;
+              const conf      = isAcc ? 100 : pendColumn ? Math.round((sug?.confidence ?? 0) * 100) : 0;
+              const bg        = isAcc ? GREEN_SOFT : isPend ? AMBER_SOFT : SURFACE;
+              const bdColor   = isAcc ? "#CBE5CB"  : isPend ? "#E8CFA0"  : BORDER;
+
+              return (
+                <div
+                  key={f.canonical}
+                  ref={(el) => { rightRefs.current[f.canonical] = el; }}
+                  style={{
+                    minHeight: 52,
+                    marginBottom: 8,
+                    padding: "8px 12px",
+                    borderRadius: 6,
+                    border: `1px solid ${bdColor}`,
+                    background: bg,
+                    display: "flex",
+                    flexDirection: "column",
+                    justifyContent: "center",
+                    transition: "background 200ms ease, border-color 200ms ease",
+                  }}
+                >
+                  {/* Field header row */}
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+                    <div>
+                      <span style={{ fontSize: 12.5, fontWeight: 600, color: isAcc ? GREEN_DEEP : NAVY }}>
+                        {f.label}
+                        {f.required && <span style={{ color: DANGER, marginLeft: 2 }}>*</span>}
+                      </span>
+                      <div
+                        style={{
+                          fontFamily: "'JetBrains Mono', monospace",
+                          fontSize: 10,
+                          color: FAINT,
+                          marginTop: 1,
+                        }}
+                      >
+                        {f.canonical}
+                      </div>
+                    </div>
+                    {(isAcc || isPend) ? (
+                      <ConfidenceChip conf={conf} />
+                    ) : (
+                      <span style={{ fontSize: 10.5, color: FAINT, flexShrink: 0 }}>unmapped</span>
+                    )}
+                  </div>
+
+                  {/* Accepted: show source column + change / remove */}
+                  {isAcc && !isEditing && (
+                    <div
+                      style={{
+                        marginTop: 6,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                      }}
+                    >
+                      <span
+                        style={{
+                          fontFamily: "'JetBrains Mono', monospace",
+                          fontSize: 10.5,
+                          color: GREEN_DEEP,
+                        }}
+                      >
+                        ← {accColumn}
+                      </span>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <button
+                          type="button"
+                          onClick={() => handleEditStart(f.canonical)}
+                          style={{ background: "none", border: "none", fontSize: 10.5, color: FAINT, cursor: "pointer", padding: 0 }}
+                        >
+                          change
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleReject(f.canonical)}
+                          style={{ background: "none", border: "none", fontSize: 11, color: FAINT, cursor: "pointer", padding: 0, lineHeight: 1 }}
+                          aria-label="Remove mapping"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Pending suggestion: Accept / Edit / Reject */}
+                  {isPend && !isEditing && (
+                    <div style={{ marginTop: 6 }}>
+                      <div
+                        style={{
+                          fontFamily: "'JetBrains Mono', monospace",
+                          fontSize: 10.5,
+                          color: AMBER,
+                          marginBottom: 5,
+                        }}
+                      >
+                        ← {pendColumn}
+                      </div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                        <button
+                          type="button"
+                          onClick={() => handleAccept(f.canonical, pendColumn)}
+                          style={{
+                            padding: "2px 9px", borderRadius: 4,
+                            border: `1px solid ${GREEN}`, background: GREEN_SOFT,
+                            color: GREEN_DEEP, fontSize: 11, fontWeight: 600, cursor: "pointer",
+                          }}
+                        >
+                          Accept
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleEditStart(f.canonical)}
+                          style={{
+                            padding: "2px 9px", borderRadius: 4,
+                            border: `1px solid ${BORDER}`, background: SURFACE,
+                            color: MUTED, fontSize: 11, fontWeight: 600, cursor: "pointer",
+                          }}
+                        >
+                          Edit
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleReject(f.canonical)}
+                          style={{
+                            padding: "2px 9px", borderRadius: 4,
+                            border: "none", background: "none",
+                            color: FAINT, fontSize: 11, cursor: "pointer",
+                          }}
+                        >
+                          Reject
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Editing: column combobox + confirm / cancel */}
+                  {isEditing && (
+                    <div style={{ marginTop: 6 }}>
+                      <ColumnCombobox
+                        value={editDraft}
+                        options={detectedColumns}
+                        placeholder="Pick or type a column"
+                        onChange={(v) => setEditDraft(v)}
+                      />
+                      <div style={{ marginTop: 6, display: "flex", alignItems: "center", gap: 6 }}>
+                        <button
+                          type="button"
+                          onClick={handleEditConfirm}
+                          disabled={!editDraft.trim()}
+                          style={{
+                            padding: "2px 9px", borderRadius: 4,
+                            border: `1px solid ${editDraft.trim() ? GREEN : INPUT_BDR}`,
+                            background: editDraft.trim() ? GREEN_SOFT : SURFACE2,
+                            color: editDraft.trim() ? GREEN_DEEP : FAINT,
+                            fontSize: 11, fontWeight: 600,
+                            cursor: editDraft.trim() ? "pointer" : "default",
+                          }}
+                        >
+                          Confirm
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setEditing(null)}
+                          style={{
+                            padding: "2px 9px", borderRadius: 4,
+                            border: `1px solid ${BORDER}`, background: "none",
+                            color: FAINT, fontSize: 11, cursor: "pointer",
+                          }}
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Standards strip */}
+                  {showStandards && (
+                    <div
+                      style={{
+                        marginTop: 6, paddingTop: 6,
+                        borderTop: "1px dashed #D5DAEA",
+                        fontSize: 10, color: MUTED,
+                        fontFamily: "'JetBrains Mono', monospace",
+                        lineHeight: 1.55,
+                      }}
+                    >
+                      {f.standard}
+                    </div>
+                  )}
+                </div>
               );
             })}
           </div>
         </div>
+      )}
 
-        {/* Live preview */}
-        <LivePreview effective={effective} sample={sample} hasSample={!!sample} />
+      {/* ── Source options ─────────────────────────────────────────────────── */}
+      <div
+        className="flex flex-wrap items-center gap-4 px-4 py-2.5 sm:px-5"
+        style={{ borderTop: `1px solid ${BORDER}`, background: BG }}
+      >
+        <label className="flex items-center gap-1.5 text-[12px]" style={{ color: MUTED }}>
+          Separator
+          <select
+            value={sourceOpts.separator}
+            onChange={(e) => {
+              setSourceOpts((p) => ({ ...p, separator: e.target.value }));
+              setSaveState({ status: "idle" });
+            }}
+            className="rounded-[5px] px-2 py-1 text-[12px]"
+            style={{ border: `1px solid ${INPUT_BDR}`, background: SURFACE, color: NAVY }}
+          >
+            <option value=",">, (comma)</option>
+            <option value=";">; (semicolon)</option>
+            <option value={"\t"}>tab</option>
+            <option value="|">| (pipe)</option>
+          </select>
+        </label>
+        <label className="flex items-center gap-1.5 text-[12px]" style={{ color: MUTED }}>
+          <input
+            type="checkbox"
+            checked={sourceOpts.hasHeaderRecord}
+            onChange={(e) => {
+              setSourceOpts((p) => ({ ...p, hasHeaderRecord: e.target.checked }));
+              setSaveState({ status: "idle" });
+            }}
+          />
+          Has header row
+        </label>
       </div>
 
-      {/* Footer */}
+      {/* ── Footer ─────────────────────────────────────────────────────────── */}
       <div
-        className="flex flex-col items-stretch gap-3 px-4 py-3 sm:px-5 sm:flex-row sm:items-center"
-        style={{ borderTop: `1px solid ${BORDER}`, background: BG }}
+        className="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:px-5"
+        style={{ borderTop: `1px solid ${BORDER}`, background: SURFACE }}
       >
         {onDelete && (
           <button
             type="button"
             onClick={onDelete}
-            className="text-[12px] font-medium text-left"
+            className="text-left text-[12px] font-medium"
             style={{ color: DANGER, background: "none", border: "none", cursor: "pointer" }}
           >
             Delete mapping
           </button>
         )}
         <div className="hidden flex-1 sm:block" />
+
+        {/* Required fields status */}
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          {reqMapped ? (
+            <span
+              style={{
+                display: "inline-flex", alignItems: "center", gap: 5,
+                fontSize: 12, fontWeight: 600, color: GREEN_DEEP,
+              }}
+            >
+              <svg width="13" height="13" viewBox="0 0 16 16" fill="none" aria-hidden>
+                <path d="M3 8.5l3.2 3.2L13 5" stroke={GREEN} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+              All required fields mapped
+            </span>
+          ) : (
+            <span style={{ fontSize: 12, fontWeight: 500, color: AMBER }}>
+              Map required (*) fields to continue
+            </span>
+          )}
+        </div>
+
         <SaveFeedback state={saveState} />
+
         <button
           type="button"
           onClick={handleSave}
           disabled={isSaving}
           className="inline-flex items-center justify-center rounded-[6px] px-4 text-[13px] font-semibold transition-colors"
-          style={{ height: 34, background: isSaving ? FAINT : NAVY, color: "#FFF", border: "none", cursor: isSaving ? "default" : "pointer" }}
+          style={{
+            height: 34,
+            background: isSaving ? FAINT : NAVY,
+            color: "#FFF",
+            border: "none",
+            cursor: isSaving ? "default" : "pointer",
+            opacity: !reqMapped && !isSaving ? 0.6 : 1,
+          }}
         >
           {isSaving ? "Saving…" : "Save mapping"}
         </button>
@@ -508,14 +931,29 @@ export function PoMappingEditor({
   );
 }
 
-// ─── Source detection status ─────────────────────────────────────────────────
+// ─── ConfidenceChip ───────────────────────────────────────────────────────────
+function ConfidenceChip({ conf }: { conf: number }) {
+  const [bg, color] =
+    conf >= 85 ? [GREEN_SOFT, GREEN_DEEP] :
+    conf >= 60 ? [AMBER_SOFT, AMBER] :
+    ["#FBE3E3", DANGER];
+  return (
+    <span
+      style={{
+        display: "inline-flex", alignItems: "center", gap: 3,
+        padding: "1px 6px", borderRadius: 10,
+        fontSize: 10.5, fontWeight: 600, flexShrink: 0,
+        background: bg, color,
+      }}
+    >
+      {conf}%
+    </span>
+  );
+}
+
+// ─── SourceStatus ─────────────────────────────────────────────────────────────
 function SourceStatus({
-  loading,
-  format,
-  columnCount,
-  sourceOrderId,
-  hint,
-  onRedetect,
+  loading, format, columnCount, sourceOrderId, hint, onRedetect,
 }: {
   loading: boolean;
   format: string;
@@ -527,30 +965,42 @@ function SourceStatus({
   return (
     <div className="flex items-center gap-2 flex-shrink-0">
       {loading ? (
-        <span className="text-[12px]" style={{ color: FAINT }}>Detecting columns…</span>
+        <span style={{ fontSize: 12, color: FAINT }}>Detecting columns…</span>
       ) : columnCount > 0 ? (
-        <div className="flex items-center gap-2">
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
           {format && (
             <span
-              className="rounded-[4px] px-1.5 py-0.5 text-[10.5px] font-semibold uppercase tracking-wide font-mono"
-              style={{ background: BLUE_SOFT, color: BLUE_DEEP }}
+              style={{
+                borderRadius: 4, padding: "1px 6px",
+                fontSize: 10.5, fontWeight: 700,
+                background: BLUE_SOFT, color: BLUE_DEEP,
+                textTransform: "uppercase",
+                fontFamily: "'JetBrains Mono', monospace",
+              }}
             >
               {format}
             </span>
           )}
-          <span className="text-[12px]" style={{ color: MUTED }}>
-            {columnCount} columns
-            {sourceOrderId ? <span style={{ color: FAINT }}> · from {sourceOrderId}</span> : null}
+          <span style={{ fontSize: 12, color: MUTED }}>
+            {columnCount} column{columnCount !== 1 ? "s" : ""}
+            {sourceOrderId && (
+              <span style={{ color: FAINT }}> · from {sourceOrderId}</span>
+            )}
           </span>
         </div>
       ) : (
-        <span className="text-[12px]" style={{ color: AMBER }} title={hint}>No sample detected</span>
+        <span style={{ fontSize: 12, color: AMBER }} title={hint ?? ""}>
+          No sample detected
+        </span>
       )}
       <button
         type="button"
         onClick={onRedetect}
         className="rounded-[5px] px-2 py-1 text-[11.5px] font-medium"
-        style={{ background: SURFACE, color: BLUE, border: `1px solid ${BORDER}` }}
+        style={{
+          background: SURFACE, color: BLUE,
+          border: `1px solid ${BORDER}`, cursor: "pointer",
+        }}
       >
         Re-detect
       </button>
@@ -558,262 +1008,18 @@ function SourceStatus({
   );
 }
 
-// ─── A single canonical-field row ─────────────────────────────────────────────
-function FieldRow({
-  field,
-  eff,
-  mode,
-  columns,
-  weakSuggestion,
-  onColumnChange,
-  onFixedChange,
-  onSetMode,
-  onClear,
-}: {
-  field: string;
-  eff: Effective;
-  mode: "column" | "fixed";
-  columns: string[];
-  weakSuggestion?: FieldSuggestion;
-  onColumnChange: (col: string) => void;
-  onFixedChange: (val: string) => void;
-  onSetMode: (m: "column" | "fixed") => void;
-  onClear: () => void;
-}) {
-  const std = FIELD_STANDARDS[field];
-  const stdTitle = std
-    ? `Common standard mapping for ${field}\nUBL  ${std.ubl}\nX12  ${std.x12}\nEDIFACT  ${std.edifact}\ncXML  ${std.cxml}`
-    : undefined;
-
-  // A below-threshold suggestion the user could still apply.
-  const showWeak =
-    eff.origin === "empty" &&
-    mode === "column" &&
-    weakSuggestion?.suggestedColumn != null &&
-    weakSuggestion.confidence > 0 &&
-    weakSuggestion.confidence < ADOPT_THRESHOLD;
-
-  return (
-    <div
-      className="grid gap-2 py-2.5 md:grid-cols-[180px_minmax(0,1fr)] md:items-start md:gap-3"
-      style={{ borderTop: `1px solid #F0F2F7` }}
-    >
-      {/* Canonical field */}
-      <div className="flex items-center gap-2 md:pt-1.5">
-        <span className="text-[12.5px] font-medium font-mono" style={{ color: NAVY }}>{field}</span>
-        {std && (
-          <span
-            title={stdTitle}
-            className="cursor-help rounded-[3px] px-1 text-[9px] font-semibold uppercase tracking-wide"
-            style={{ background: SURFACE2, color: FAINT, borderBottom: `1px dotted ${FAINT}` }}
-          >
-            std
-          </span>
-        )}
-        <span className="hidden text-[11px] lg:inline" style={{ color: FAINT }}>{FIELD_HINT[field]}</span>
-      </div>
-
-      {/* Value control */}
-      <div className="min-w-0">
-        <div className="flex items-center gap-2">
-          <div className="min-w-0 flex-1">
-            {mode === "fixed" ? (
-              <input
-                type="text"
-                value={eff.fixedValue ?? ""}
-                placeholder="Fixed value"
-                onChange={(e) => onFixedChange(e.target.value)}
-                className="w-full rounded-[5px] px-2.5 py-1.5 text-[12px]"
-                style={{ border: `1px solid ${INPUT_BORDER}`, color: NAVY, background: SURFACE }}
-              />
-            ) : (
-              <ColumnCombobox
-                value={eff.externalField ?? ""}
-                options={columns}
-                suggested={eff.origin === "suggested"}
-                placeholder={columns.length ? "Pick or type a column" : "Type a column name"}
-                onChange={onColumnChange}
-              />
-            )}
-          </div>
-          <Badge eff={eff} mode={mode} />
-        </div>
-
-        {/* Sub-row: mode switch · reason · weak suggestion */}
-        <div className="mt-1 flex items-center justify-between gap-2">
-          <button
-            type="button"
-            onClick={() => onSetMode(mode === "fixed" ? "column" : "fixed")}
-            className="text-[11px] font-medium"
-            style={{ color: BLUE, background: "none", border: "none", cursor: "pointer", padding: 0 }}
-          >
-            {mode === "fixed" ? "Use source column" : "Use fixed value"}
-          </button>
-          {eff.origin === "suggested" && eff.reason && (
-            <span className="truncate text-[11px]" style={{ color: AI }} title={eff.reason}>
-              {eff.reason}
-            </span>
-          )}
-          {eff.origin === "manual" && mode === "column" && eff.externalField && (
-            <button
-              type="button"
-              onClick={onClear}
-              className="text-[11px]"
-              style={{ color: FAINT, background: "none", border: "none", cursor: "pointer", padding: 0 }}
-            >
-              Clear
-            </button>
-          )}
-        </div>
-
-        {showWeak && weakSuggestion?.suggestedColumn && (
-          <button
-            type="button"
-            onClick={() => onColumnChange(weakSuggestion.suggestedColumn as string)}
-            className="mt-1 inline-flex items-center gap-1 text-[11px]"
-            style={{ color: AI, background: "none", border: "none", cursor: "pointer", padding: 0 }}
-            title={weakSuggestion.reason}
-          >
-            <span className="font-semibold">AI</span>
-            <span style={{ color: MUTED }}>
-              try “{weakSuggestion.suggestedColumn}” ({Math.round(weakSuggestion.confidence * 100)}%)
-            </span>
-          </button>
-        )}
-      </div>
-    </div>
-  );
-}
-
-// ─── Confidence / origin badge ────────────────────────────────────────────────
-function Badge({ eff, mode }: { eff: Effective; mode: "column" | "fixed" }) {
-  if (mode === "fixed") {
-    return (
-      <span
-        className="flex-shrink-0 rounded-[4px] px-1.5 py-0.5 text-[10.5px] font-semibold"
-        style={{ background: SURFACE2, color: MUTED }}
-      >
-        Fixed
-      </span>
-    );
-  }
-  if (eff.origin === "suggested" && eff.confidence != null) {
-    const pct = Math.round(eff.confidence * 100);
-    const strong = eff.confidence >= 0.8;
-    return (
-      <span className="flex flex-shrink-0 items-center gap-1">
-        <span className="text-[9.5px] font-bold" style={{ color: AI }}>AI</span>
-        <span
-          className="rounded-[4px] px-1.5 py-0.5 text-[10.5px] font-semibold"
-          style={{
-            background: strong ? GREEN_SOFT : AMBER_SOFT,
-            color: strong ? GREEN_DEEP : AMBER,
-          }}
-        >
-          {pct}%
-        </span>
-      </span>
-    );
-  }
-  if (eff.origin === "manual") {
-    return (
-      <span
-        className="flex-shrink-0 rounded-[4px] px-1.5 py-0.5 text-[10.5px] font-semibold"
-        style={{ background: SURFACE2, color: MUTED }}
-      >
-        Manual
-      </span>
-    );
-  }
-  return (
-    <span className="flex-shrink-0 text-[10.5px] font-medium" style={{ color: FAINT }}>
-      Unmapped
-    </span>
-  );
-}
-
-// ─── Live preview of a sample crossing ────────────────────────────────────────
-function LivePreview({
-  effective,
-  sample,
-  hasSample,
-}: {
-  effective: (s: Section, field: string) => Effective;
-  sample?: Record<string, string>;
-  hasSample: boolean;
-}) {
-  function resolve(s: Section, field: string): { node: ReactNode; muted: boolean } {
-    const eff = effective(s, field);
-    if (eff.fixedValue) return { node: eff.fixedValue, muted: false };
-    if (eff.externalField) {
-      const val = sample?.[eff.externalField];
-      if (val != null) return { node: val, muted: false };
-      return { node: <span style={{ color: BLUE }}>‹{eff.externalField}›</span>, muted: true };
-    }
-    return { node: "—", muted: true };
-  }
-
-  return (
-    <div className="px-4 py-3 sm:px-5" style={{ background: BG }}>
-      <div className="flex items-center gap-1.5">
-        <Dot />
-        <span className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: MUTED }}>
-          Live preview
-        </span>
-      </div>
-      <p className="mt-1 text-[11px]" style={{ color: FAINT }}>
-        {hasSample ? "Sample crossing mapped to canonical values." : "Connect a sample to preview values — showing mapped columns."}
-      </p>
-
-      <div
-        className="mt-2.5 rounded-[6px] p-3"
-        style={{ background: SURFACE, border: `1px solid ${BORDER}` }}
-      >
-        <div className="text-[9.5px] font-semibold uppercase tracking-wide" style={{ color: BLUE_DEEP }}>
-          Header
-        </div>
-        <dl className="mt-1.5 flex flex-col gap-1">
-          {CANONICAL_HEADER_FIELDS.map((field) => {
-            const r = resolve("header", field);
-            return (
-              <div key={field} className="flex items-baseline justify-between gap-3">
-                <dt className="text-[11px] font-mono" style={{ color: MUTED }}>{field}</dt>
-                <dd className="truncate text-[11.5px] font-mono text-right" style={{ color: r.muted ? FAINT : NAVY }} title={typeof r.node === "string" ? r.node : undefined}>
-                  {r.node}
-                </dd>
-              </div>
-            );
-          })}
-        </dl>
-
-        <div className="mt-3 text-[9.5px] font-semibold uppercase tracking-wide" style={{ color: GREEN_DEEP }}>
-          Line 1
-        </div>
-        <dl className="mt-1.5 flex flex-col gap-1">
-          {CANONICAL_LINE_FIELDS.map((field) => {
-            const r = resolve("lines", field);
-            return (
-              <div key={field} className="flex items-baseline justify-between gap-3">
-                <dt className="text-[11px] font-mono" style={{ color: MUTED }}>{field}</dt>
-                <dd className="truncate text-[11.5px] font-mono text-right" style={{ color: r.muted ? FAINT : NAVY }} title={typeof r.node === "string" ? r.node : undefined}>
-                  {r.node}
-                </dd>
-              </div>
-            );
-          })}
-        </dl>
-      </div>
-    </div>
-  );
-}
-
-// ─── Save feedback ─────────────────────────────────────────────────────────────
+// ─── SaveFeedback ─────────────────────────────────────────────────────────────
 function SaveFeedback({ state }: { state: { status: string; message?: string } }) {
   if (state.status === "saved") {
     return (
-      <span className="flex items-center gap-1.5 text-[12px] font-medium" style={{ color: GREEN_DEEP }}>
+      <span
+        style={{
+          display: "inline-flex", alignItems: "center", gap: 5,
+          fontSize: 12, fontWeight: 500, color: GREEN_DEEP,
+        }}
+      >
         <svg width="13" height="13" viewBox="0 0 16 16" fill="none" aria-hidden>
-          <path d="M3 8.5l3.2 3.2L13 5" stroke={GREEN} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+          <path d="M3 8.5l3.2 3.2L13 5" stroke={GREEN} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
         Mapping saved
       </span>
@@ -821,40 +1027,35 @@ function SaveFeedback({ state }: { state: { status: string; message?: string } }
   }
   if (state.status === "error") {
     return (
-      <span className="text-[12px] font-medium" style={{ color: DANGER }} title={state.message}>
-        Couldn&apos;t save — {state.message || "try again"}
+      <span style={{ fontSize: 12, fontWeight: 500, color: DANGER }} title={state.message}>
+        Couldn&apos;t save — {state.message ?? "try again"}
       </span>
     );
   }
   return null;
 }
 
-// ─── Editable searchable column dropdown ──────────────────────────────────────
+// ─── ColumnCombobox ───────────────────────────────────────────────────────────
 function ColumnCombobox({
-  value,
-  options,
-  suggested,
-  placeholder,
-  onChange,
+  value, options, placeholder, onChange,
 }: {
   value: string;
   options: string[];
-  suggested?: boolean;
   placeholder?: string;
   onChange: (v: string) => void;
 }) {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen]       = useState(false);
   const [showAll, setShowAll] = useState(false);
-  const [active, setActive] = useState(0);
+  const [active, setActive]   = useState(0);
   const wrapRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!open) return;
-    function onDocPointer(e: PointerEvent) {
+    function onDoc(e: PointerEvent) {
       if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) setOpen(false);
     }
-    document.addEventListener("pointerdown", onDocPointer);
-    return () => document.removeEventListener("pointerdown", onDocPointer);
+    document.addEventListener("pointerdown", onDoc);
+    return () => document.removeEventListener("pointerdown", onDoc);
   }, [open]);
 
   const filtered = useMemo(() => {
@@ -863,11 +1064,7 @@ function ColumnCombobox({
     return options.filter((o) => o.toLowerCase().includes(q));
   }, [options, value, showAll]);
 
-  function commit(v: string) {
-    onChange(v);
-    setOpen(false);
-    setShowAll(false);
-  }
+  function commit(v: string) { onChange(v); setOpen(false); setShowAll(false); }
 
   function onKeyDown(e: ReactKeyboardEvent) {
     if (e.key === "ArrowDown") {
@@ -885,44 +1082,50 @@ function ColumnCombobox({
   }
 
   return (
-    <div ref={wrapRef} className="relative">
-      <div className="relative">
+    <div ref={wrapRef} style={{ position: "relative" }}>
+      <div style={{ position: "relative" }}>
         <input
           type="text"
           role="combobox"
           aria-expanded={open}
-          aria-autocomplete="list"
           value={value}
           placeholder={placeholder}
+          autoFocus
           onChange={(e) => { onChange(e.target.value); setOpen(true); setShowAll(false); setActive(0); }}
           onFocus={() => setOpen(true)}
           onKeyDown={onKeyDown}
-          className="w-full rounded-[5px] py-1.5 pl-2.5 pr-7 text-[12px]"
           style={{
-            border: `1px solid ${suggested ? "#CBB8F2" : INPUT_BORDER}`,
-            color: NAVY,
-            background: suggested ? "#FBFAFE" : SURFACE,
+            width: "100%", borderRadius: 5,
+            padding: "5px 26px 5px 10px",
+            fontSize: 12, border: `1px solid #CBB8F2`,
+            color: NAVY, background: "#FBFAFE", outline: "none",
+            fontFamily: "'JetBrains Mono', monospace",
           }}
         />
         <button
           type="button"
           tabIndex={-1}
-          aria-label="Toggle column list"
           onClick={() => { setOpen((o) => !o); setShowAll(true); setActive(0); }}
-          className="absolute right-1 top-1/2 -translate-y-1/2 px-1"
-          style={{ background: "none", border: "none", cursor: "pointer", color: FAINT }}
+          style={{
+            position: "absolute", right: 4, top: "50%", transform: "translateY(-50%)",
+            background: "none", border: "none", cursor: "pointer", color: FAINT, padding: "0 2px",
+          }}
         >
           <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden>
             <path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
         </button>
       </div>
-
       {open && filtered.length > 0 && (
         <ul
           role="listbox"
-          className="absolute z-20 mt-1 max-h-52 w-full overflow-auto rounded-[6px] py-1"
-          style={{ background: SURFACE, border: `1px solid ${INPUT_BORDER}`, boxShadow: "0 6px 20px rgba(11,26,47,0.12)" }}
+          style={{
+            position: "absolute", zIndex: 20, marginTop: 2,
+            maxHeight: 160, width: "100%", overflowY: "auto",
+            background: SURFACE, border: `1px solid ${INPUT_BDR}`,
+            borderRadius: 6, padding: "3px 0",
+            boxShadow: "0 6px 20px rgba(11,26,47,0.12)",
+          }}
         >
           {filtered.map((opt, i) => (
             <li
@@ -931,8 +1134,10 @@ function ColumnCombobox({
               aria-selected={opt === value}
               onMouseEnter={() => setActive(i)}
               onPointerDown={(e) => { e.preventDefault(); commit(opt); }}
-              className="cursor-pointer px-2.5 py-1.5 text-[12px] font-mono"
               style={{
+                padding: "5px 10px", cursor: "pointer",
+                fontSize: 12,
+                fontFamily: "'JetBrains Mono', monospace",
                 background: i === active ? BLUE_SOFT : opt === value ? "#F4F7FD" : "transparent",
                 color: NAVY,
               }}
@@ -944,45 +1149,4 @@ function ColumnCombobox({
       )}
     </div>
   );
-}
-
-// ─── Small glyphs ──────────────────────────────────────────────────────────────
-function ConnectGlyph({ color }: { color: string }) {
-  return (
-    <svg width="13" height="13" viewBox="0 0 16 16" fill="none" aria-hidden>
-      <circle cx="3.5" cy="8" r="2.2" stroke={color} strokeWidth="1.5" />
-      <circle cx="12.5" cy="8" r="2.2" stroke={color} strokeWidth="1.5" />
-      <path d="M5.7 8h4.6" stroke={color} strokeWidth="1.5" strokeLinecap="round" />
-    </svg>
-  );
-}
-
-function Dot() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden>
-      <circle cx="3.5" cy="8" r="2" fill={BLUE} />
-      <circle cx="12.5" cy="8" r="2" fill={GREEN} />
-      <path d="M5.5 8h5" stroke="#9AA7BC" strokeWidth="1.4" strokeLinecap="round" />
-    </svg>
-  );
-}
-
-// ─── Seed local state from a saved config ──────────────────────────────────────
-function seedFromConfig(config: PoMappingConfig | null): {
-  overrides: Record<string, FieldMappingEntry>;
-  modes: Record<string, "column" | "fixed">;
-} {
-  const overrides: Record<string, FieldMappingEntry> = {};
-  const modes: Record<string, "column" | "fixed"> = {};
-  if (config) {
-    for (const s of ["header", "lines"] as Section[]) {
-      for (const [field, entry] of Object.entries(config[s] ?? {})) {
-        if (entry && (entry.externalField || entry.fixedValue)) {
-          overrides[`${s}.${field}`] = entry;
-          if (entry.fixedValue && !entry.externalField) modes[`${s}.${field}`] = "fixed";
-        }
-      }
-    }
-  }
-  return { overrides, modes };
 }
