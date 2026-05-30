@@ -66,7 +66,7 @@ function buildIndex(
     group: "Suppliers",
     icon: "⊞",
     label: s.name,
-    sub: "Supplier dock",
+    sub: "Supplier",
     href: `/library/suppliers/${s.id}`,
     color: "#2E8E3A",
   }));
@@ -76,7 +76,7 @@ function buildIndex(
     group: "Buyers",
     icon: "◎",
     label: b.name,
-    sub: "Buyer dock",
+    sub: "Buyer",
     href: "/library/buyers",
     color: "#1E66C9",
   }));
@@ -87,7 +87,7 @@ function buildIndex(
     ...buyerItems,
     // ── Actions ────────────────────────────────────────
     { id: "a1",  group: "Actions", icon: "↑", label: "Upload document",      sub: "Open upload workbench",  action: () => router.push("/upload"),           color: "#0F4FA8" },
-    { id: "a2",  group: "Actions", icon: "⊞", label: "View all crossings",   sub: "Go to inbox",            action: () => router.push("/inbox"),            color: "#0F4FA8" },
+    { id: "a2",  group: "Actions", icon: "⊞", label: "View all deliveries",   sub: "Go to inbox",            action: () => router.push("/inbox"),            color: "#0F4FA8" },
     { id: "a3",  group: "Actions", icon: "⇄", label: "Manage mappings",      sub: "Open mapping editor",    action: () => router.push("/library/mappings"), color: "#0F4FA8" },
     { id: "a4",  group: "Actions", icon: "✓", label: "Validation rules",     sub: "Open rule library",      action: () => router.push("/library/rules"),    color: "#0F4FA8" },
     { id: "a5",  group: "Actions", icon: "⚙", label: "Settings",             sub: "Workspace settings",     action: () => router.push("/settings"),         color: "#0F4FA8" },

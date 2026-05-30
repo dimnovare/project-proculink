@@ -64,7 +64,7 @@ function useAutoCrumb(): ReactNode {
     templates: "Output templates",
     standards: "Standards",
     operations: "Operations",
-    log:       "Crossings log",
+    log:       "Delivery log",
     connectors: "Connectors",
     webhooks:  "Webhooks",
   };

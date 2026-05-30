@@ -307,7 +307,7 @@ export function BridgeDashboard() {
     },
     {
       value: fmt(deliveredInWindow),
-      label: "Orders crossed",
+      label: "Orders delivered",
       sub: windowSub,
       subColor: "#1E6D29",
       edge: "#2E8E3A",
@@ -448,7 +448,7 @@ export function BridgeDashboard() {
           className="flex flex-col items-center justify-center rounded-card text-center"
           style={{ height, background: "#FFFFFF", border: "1px solid #E2E6EE", boxShadow: "0 1px 2px rgba(11,26,47,0.04)", padding: 24 }}
         >
-          <div className="text-[16px] font-semibold" style={{ color: "#0B1A2F" }}>No crossings yet</div>
+          <div className="text-[16px] font-semibold" style={{ color: "#0B1A2F" }}>No deliveries yet</div>
           <div className="mt-1 max-w-[420px] text-[13px]" style={{ color: "#56627A" }}>
             Add a supplier and upload your first PO — your buyer → supplier lanes appear here.
           </div>
@@ -549,7 +549,7 @@ export function BridgeDashboard() {
         <div className="flex flex-1 justify-center p-4 sm:p-6">
           <div className="w-full max-w-[760px]">
             <p className="mb-3 text-[13px]" style={{ color: "#56627A" }}>
-              Your bridge is ready. Connect its first lane to start routing orders to suppliers.
+              Your pipeline is ready. Connect its first lane to start routing orders to suppliers.
             </p>
             <OnboardingChecklist
               status={onboardingStatus!}
@@ -577,7 +577,7 @@ export function BridgeDashboard() {
               <span style={{ color: "#C6CDDA" }}>·</span>
               <span className="flex items-center gap-1.5 font-medium" style={{ color: "#0B1A2F" }}>
                 <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#2E8E3A", display: "inline-block" }} />
-                {effective.suppliers.length} supplier dock{effective.suppliers.length === 1 ? "" : "s"}
+                {effective.suppliers.length} supplier{effective.suppliers.length === 1 ? "" : "s"}
               </span>
               {openExceptionsAll > 0 && (
                 <span
@@ -639,7 +639,7 @@ export function BridgeDashboard() {
             <div className="overflow-hidden rounded-card" style={{ background: "#FFFFFF", border: "1px solid #E2E6EE", boxShadow: "0 1px 2px rgba(11,26,47,0.04)" }}>
               <div className="flex items-center px-4 py-3" style={{ borderBottom: "1px solid #E2E6EE" }}>
                 <span className="text-[13px] font-semibold" style={{ color: "#0B1A2F" }}>In transit</span>
-                <span className="ml-2 text-[11.5px]" style={{ color: "#8A93A5" }}>· moving through the bridge now</span>
+                <span className="ml-2 text-[11.5px]" style={{ color: "#8A93A5" }}>· moving through the pipeline now</span>
               </div>
               <div className="divide-y" style={{ borderColor: "#E2E6EE" }}>
                 {ordersLoading ? (
@@ -692,15 +692,15 @@ export function BridgeDashboard() {
             {/* Supplier dock health */}
             <div className="overflow-hidden rounded-card" style={{ background: "#FFFFFF", border: "1px solid #E2E6EE", boxShadow: "0 1px 2px rgba(11,26,47,0.04)" }}>
               <div className="flex items-center justify-between px-4 py-3" style={{ borderBottom: "1px solid #E2E6EE" }}>
-                <span className="text-[13px] font-semibold" style={{ color: "#0B1A2F" }}>Supplier dock health</span>
+                <span className="text-[13px] font-semibold" style={{ color: "#0B1A2F" }}>Supplier health</span>
                 <Link href="/library/suppliers" className="inline-flex items-center gap-1 text-[11.5px] font-medium transition-colors hover:opacity-80" style={{ color: "#0F4FA8" }}>
-                  All docks <ArrowRight size={12} />
+                  All suppliers <ArrowRight size={12} />
                 </Link>
               </div>
               <div className="divide-y" style={{ borderColor: "#E2E6EE" }}>
                 {effective.suppliers.length === 0 ? (
                   <div className="text-center" style={{ color: "#8A93A5", padding: 16, fontSize: 12.5 }}>
-                    No supplier docks yet.
+                    No suppliers yet.
                   </div>
                 ) : (
                   effective.suppliers.map((s) => {

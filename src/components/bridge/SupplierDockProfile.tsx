@@ -247,7 +247,7 @@ export function SupplierDockProfile({ id }: { id: string }) {
 
             {/* Volume chart */}
             <div style={{ background: "#FFFFFF", border: "1px solid #E2E6EE", borderRadius: 8, padding: 20 }}>
-              <h3 className="text-[13px] font-semibold mb-3" style={{ color: "#0B1A2F" }}>Crossing volume · last 7 days</h3>
+              <h3 className="text-[13px] font-semibold mb-3" style={{ color: "#0B1A2F" }}>Delivery volume · last 7 days</h3>
               {isApiMockMode ? (
                 <>
                   <div style={{ display: "flex", alignItems: "flex-end", gap: 6, height: 80 }}>

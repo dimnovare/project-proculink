@@ -83,7 +83,7 @@ export default function BuyersPage() {
 
   const countLabel = isLoading && !isApiMockMode
     ? "Loading…"
-    : `${buyers.length} buyer${buyers.length !== 1 ? "s" : ""} · the left side of every bridge`;
+    : `${buyers.length} buyer${buyers.length !== 1 ? "s" : ""} · where every order starts`;
 
   return (
     <div style={{ padding: "26px 34px 64px", maxWidth: 1480, margin: "0 auto" }}>
@@ -111,7 +111,7 @@ export default function BuyersPage() {
               whiteSpace: "nowrap",
             }}
           >
-            Buyer docks
+            Buyers
           </h1>
           <div style={{ color: "#56627A", fontSize: 13, marginTop: 5 }}>
             {countLabel}
@@ -144,7 +144,7 @@ export default function BuyersPage() {
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
             <path d="M5 12h14M12 5v14" />
           </svg>
-          {addOpen ? "Cancel" : "New dock"}
+          {addOpen ? "Cancel" : "New buyer"}
         </button>
       </div>
 
@@ -170,10 +170,10 @@ export default function BuyersPage() {
                 color: "#0B1A2F",
               }}
             >
-              New buyer dock
+              New buyer
             </div>
             <div style={{ color: "#56627A", fontSize: 12.5 }}>
-              The left side of a new bridge
+              A buyer that sends you purchase orders
             </div>
           </div>
 
@@ -271,7 +271,7 @@ export default function BuyersPage() {
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M20 6 9 17l-5-5" />
               </svg>
-              {createMut.isPending ? "Creating…" : "Create dock"}
+              {createMut.isPending ? "Creating…" : "Create buyer"}
             </button>
           </div>
 
@@ -520,9 +520,9 @@ export default function BuyersPage() {
         {/* Empty state */}
         {(!isLoading || isApiMockMode) && !isError && buyers.length === 0 && (
           <EmptyState
-            title="No buyer docks yet"
-            sub="A buyer dock receives purchase orders from one buyer, in whatever format they send."
-            action={{ label: "New dock", onClick: () => setAddOpen(true) }}
+            title="No buyers yet"
+            sub="A buyer is an organization that sends you purchase orders, in whatever format they use."
+            action={{ label: "New buyer", onClick: () => setAddOpen(true) }}
           />
         )}
       </div>

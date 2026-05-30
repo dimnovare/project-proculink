@@ -381,10 +381,10 @@ export function UploadWorkbench() {
               color: "#0B1A2F",
             }}
           >
-            Cross a new order
+            Upload an order
           </h1>
           <p className="text-[13px] mt-1" style={{ color: "#56627A" }}>
-            Drop a buyer&rsquo;s purchase order, pick the supplier dock, and send it across the bridge.
+            Drop a buyer&rsquo;s purchase order, pick the supplier, and send it.
           </p>
         </div>
       </div>
@@ -544,7 +544,7 @@ export function UploadWorkbench() {
                   </p>
                   <p className="text-[12.5px] mt-1" style={{ color: "#56627A" }}>
                     {selectedFile
-                      ? `${Math.max(1, Math.round(selectedFile.size / 1024))} KB ready to bridge · `
+                      ? `${Math.max(1, Math.round(selectedFile.size / 1024))} KB ready to send · `
                       : "or "}
                     <button
                       className="font-medium underline underline-offset-2"
@@ -706,17 +706,15 @@ export function UploadWorkbench() {
               </div>
             </XCard>
 
-            {/* Phase 6.3 — Try with sample order */}
+            {/* Phase 6.3 — Try with sample order: the zero-friction primary first action */}
             <XCard edge="left" edgeColor="#6F4FCE">
-              <div
-                className="flex flex-wrap items-center justify-between gap-3 px-4 py-3"
-              >
-                <div style={{ minWidth: 0, flex: "1 1 260px" }}>
+              <div className="flex flex-col gap-3 px-4 py-4">
+                <div style={{ minWidth: 0 }}>
                   <p className="text-[13px] font-semibold" style={{ color: "#0B1A2F" }}>
-                    Don&apos;t have a purchase order handy?
+                    New here? Start with a sample order
                   </p>
                   <p className="text-[12px] mt-1" style={{ color: "#56627A" }}>
-                    Run a sample order with an example CSV. It won&apos;t count toward your monthly quota.
+                    No purchase order handy? Run one with an example CSV in seconds — it won&apos;t count toward your monthly quota.
                   </p>
                   {sampleError && (
                     <p className="mt-2 text-[12px]" style={{ color: "#C53A3A" }}>
@@ -728,16 +726,16 @@ export function UploadWorkbench() {
                   type="button"
                   onClick={handleSample}
                   disabled={sampleLoading || uploading}
-                  className="rounded-[6px] px-3 py-2 text-[12.5px] font-semibold transition-all"
+                  className="w-full rounded-[6px] py-2.5 text-[13px] font-semibold transition-all"
                   style={{
-                    background: sampleLoading || uploading ? "#EFF2F7" : "#FFFFFF",
-                    color: sampleLoading || uploading ? "#8A93A5" : "#6F4FCE",
-                    border: "1px solid #C7B5F0",
+                    background: sampleLoading || uploading ? "#E2E6EE" : "#0B1A2F",
+                    color: sampleLoading || uploading ? "#8A93A5" : "#FFFFFF",
+                    border: "none",
+                    boxShadow: sampleLoading || uploading ? "none" : "0 2px 8px rgba(11,26,47,0.18)",
                     cursor: sampleLoading || uploading ? "not-allowed" : "pointer",
-                    whiteSpace: "nowrap",
                   }}
                 >
-                  {sampleLoading ? "Starting sample…" : "Try with sample order →"}
+                  {sampleLoading ? "Starting sample…" : "Try with a sample order →"}
                 </button>
               </div>
             </XCard>
@@ -949,7 +947,7 @@ export function UploadWorkbench() {
                     )}
                     {isReadOnly && (
                       <p className="mt-2 text-[11.5px] leading-5" style={{ color: "#7A4D0B" }}>
-                        You can still view previous crossings, but new order processing is paused until the plan is upgraded.
+                        You can still view previous orders, but new order processing is paused until the plan is upgraded.
                       </p>
                     )}
                   </div>
@@ -973,7 +971,7 @@ export function UploadWorkbench() {
                     className="block text-[11px] font-semibold uppercase tracking-[0.06em] mb-1.5"
                     style={{ color: "#1E66C9" }}
                   >
-                    Buyer dock
+                    Buyer
                   </label>
                   <div
                     className="w-full rounded-[6px] px-3 py-2 text-[13px]"
@@ -1015,7 +1013,7 @@ export function UploadWorkbench() {
                     className="block text-[11px] font-semibold uppercase tracking-[0.06em] mb-1.5"
                     style={{ color: "#2E8E3A" }}
                   >
-                    Supplier dock
+                    Supplier
                   </label>
                   {suppliersLoading && (
                     <div
@@ -1133,7 +1131,7 @@ export function UploadWorkbench() {
                       ⚠
                     </span>
                     <p className="text-[11.5px]" style={{ color: "#7A5000" }}>
-                      Auto-process will cross the bridge without human review.
+                      Auto-process will send to the supplier without human review.
                       Enable only for trusted routes.
                     </p>
                   </div>
@@ -1232,9 +1230,9 @@ export function UploadWorkbench() {
                     <span style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
                       <span style={{ display: "inline-block", width: 12, height: 12, border: "2px solid #C6CDDA", borderTopColor: "#1E66C9", borderRadius: "50%", animation: "spin 0.7s linear infinite" }} />
                       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-                      Bridging…
+                      Sending…
                     </span>
-                  ) : isReadOnly ? "Processing paused" : selectedFile ? "↑ Upload & bridge" : "Choose a file to bridge"}
+                  ) : isReadOnly ? "Processing paused" : selectedFile ? "↑ Upload & send" : "Choose a file to send"}
                 </button>
               </div>
             </XCard>

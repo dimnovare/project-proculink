@@ -261,7 +261,7 @@ export function BridgeIllustration({ className }: { className?: string }) {
           fill="#FFFFFF"
           letterSpacing="0.06em"
         >
-          BRIDGE
+          PROCULINK
         </text>
       </g>
     </svg>

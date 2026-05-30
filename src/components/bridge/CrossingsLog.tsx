@@ -99,7 +99,7 @@ const MOCK_LOG: LogEntry[] = [
     buyer: "Westmark Tools", supplier: "Acme Components", fmt: "EMAIL",
     event: "crossed", canonicalEvent: "delivered",
     actor: { initials: "MK", name: "Marius Klein", type: "user" },
-    message: "Crossed successfully — cXML delivered to Acme ERP endpoint",
+    message: "Delivered successfully — cXML delivered to Acme ERP endpoint",
     detail: "HTTP 200. Transmission time 1.2s. ACK received.",
   },
   {
@@ -117,7 +117,7 @@ const MOCK_LOG: LogEntry[] = [
     crossingId: "850201", po: "850-99201",
     buyer: "Centralis Pharma", supplier: "MedicaSupply OY", fmt: "EDI",
     event: "failed", canonicalEvent: "failed",
-    actor: { initials: "SY", name: "Bridge system", type: "system" },
+    actor: { initials: "SY", name: "ProcuLink system", type: "system" },
     message: "Delivery attempt failed — endpoint timeout (30s)",
     detail: "MedicaSupply OY cXML endpoint returned HTTP 504. Will retry in 15 min.",
   },
@@ -305,7 +305,7 @@ export function CrossingsLog() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `crossings-log-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.download = `delivery-log-${new Date().toISOString().slice(0, 10)}.csv`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -357,7 +357,7 @@ export function CrossingsLog() {
               color: "#0B1A2F",
             }}
           >
-            Crossings log
+            Delivery log
           </h1>
           <div
             style={{
@@ -519,7 +519,7 @@ export function CrossingsLog() {
         >
           <div style={{ fontSize: 28, color: "#C53A3A", marginBottom: 10 }}>⚠</div>
           <p style={{ fontSize: 13, color: "#56627A", marginBottom: 16 }}>
-            Could not load the crossings log. Check your connection and try again.
+            Could not load the delivery log. Check your connection and try again.
           </p>
           <button
             onClick={() => refetch()}
@@ -885,7 +885,7 @@ export function CrossingsLog() {
                                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
                                       <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8M21 3v5h-5M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16M8 16H3v5" />
                                     </svg>
-                                    Retry crossing
+                                    Retry delivery
                                   </button>
                                 )}
 
@@ -899,7 +899,7 @@ export function CrossingsLog() {
                                     const url = URL.createObjectURL(blob);
                                     const a = document.createElement("a");
                                     a.href = url;
-                                    a.download = `crossing-${c.po}-${c.ts.replace(/:/g, "-")}.csv`;
+                                    a.download = `delivery-${c.po}-${c.ts.replace(/:/g, "-")}.csv`;
                                     document.body.appendChild(a); a.click(); document.body.removeChild(a);
                                     URL.revokeObjectURL(url);
                                   }}

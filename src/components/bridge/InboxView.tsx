@@ -554,7 +554,7 @@ export function InboxView() {
                 } catch { /* ignore */ }
               }}
             >
-              Cross selected
+              Send selected
             </button>
             <button
               style={{

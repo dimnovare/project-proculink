@@ -571,7 +571,7 @@ export default async function RootPage() {
               </div>
             </div>
             {[
-              { h: "Product", links: [["How it works", "/how-it-works"], ["Pricing", "/pricing"], ["Security", "/security"], ["Open the bridge", "/bridge"]] },
+              { h: "Product", links: [["How it works", "/how-it-works"], ["Pricing", "/pricing"], ["Security", "/security"], ["Open the dashboard", "/bridge"]] },
               { h: "Company", links: [["Changelog", "/changelog"], ["Support", "/support"]] },
               { h: "Legal",   links: [["Privacy", "/privacy"], ["Terms", "/terms"], ["AUP", "/aup"], ["DPA", "/dpa"], ["Subprocessors", "/subprocessors"]] },
             ].map((col) => (

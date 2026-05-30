@@ -149,7 +149,7 @@ export default function PricingPage() {
               lineHeight: 1.02,
             }}
           >
-            Pricing for buyer-order bridges.
+            Pricing for outbound purchase orders.
           </h1>
           <p style={{ fontSize: 15.5, color: "#56627A", maxWidth: 520, margin: "0 auto", lineHeight: 1.6 }}>
             Start with a proof-of-value Pilot. Move into recurring order processing when the supplier flow is proven.

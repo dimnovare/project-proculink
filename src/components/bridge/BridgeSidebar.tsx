@@ -20,7 +20,7 @@ import { ProcuLinkMark } from "./DSPrimitives";
 type NavItem = { label: string; href: string; icon: LucideIcon; badgeKey?: "review" };
 
 const NAV: Array<{ group?: string; items: NavItem[] }> = [
-  { items: [{ label: "Bridge", href: "/bridge", icon: Layers }] },
+  { items: [{ label: "Dashboard", href: "/bridge", icon: Layers }] },
   {
     group: "Workbench",
     items: [
@@ -32,8 +32,8 @@ const NAV: Array<{ group?: string; items: NavItem[] }> = [
   {
     group: "Library",
     items: [
-      { label: "Supplier docks", href: "/library/suppliers", icon: Truck },
-      { label: "Buyer docks",    href: "/library/buyers",    icon: Building2 },
+      { label: "Suppliers", href: "/library/suppliers", icon: Truck },
+      { label: "Buyers",    href: "/library/buyers",    icon: Building2 },
       { label: "Mappings",       href: "/library/mappings",  icon: GitBranch },
       { label: "Rules",          href: "/library/rules",     icon: ShieldCheck },
       { label: "Output templates", href: "/library/templates", icon: FileCode },
@@ -43,7 +43,7 @@ const NAV: Array<{ group?: string; items: NavItem[] }> = [
   {
     group: "Operations",
     items: [
-      { label: "Crossings log", href: "/operations/log",        icon: ScrollText },
+      { label: "Delivery log", href: "/operations/log",        icon: ScrollText },
       { label: "Connectors",    href: "/operations/connectors", icon: Plug },
       { label: "Webhooks",      href: "/operations/webhooks",   icon: Webhook },
     ],
@@ -202,12 +202,12 @@ export function BridgeSidebar({ onNavigate, collapsible = false }: BridgeSidebar
       <div
         className={`flex items-center px-4 py-3 ${isCollapsed ? "justify-center" : "gap-2"}`}
         style={{ borderTop: "1px solid #1C2F49", flexShrink: 0 }}
-        title={isCollapsed ? "Bridge healthy · 12/min" : undefined}
+        title={isCollapsed ? "Pipeline healthy · 12/min" : undefined}
       >
         <div className="rounded-full flex-shrink-0" style={{ width: 7, height: 7, background: "#2E8E3A" }} />
         {!isCollapsed && (
           <>
-            <span className="text-[11.5px] flex-1" style={{ color: "#7C8DA6" }}>Bridge healthy · 12/min</span>
+            <span className="text-[11.5px] flex-1" style={{ color: "#7C8DA6" }}>Pipeline healthy · 12/min</span>
             <Link href="/" title="Back to site" aria-label="Back to site" style={{ color: "#7C8DA6", display: "inline-flex" }}>
               <ExternalLink size={13} />
             </Link>

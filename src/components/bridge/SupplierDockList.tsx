@@ -294,7 +294,7 @@ export function SupplierDockList() {
                         {s.name}
                       </p>
                       <p className="mt-0.5 text-[11.5px]" style={{ color: "#8A93A5" }}>
-                        Supplier dock · {s.id.slice(0, 8)}
+                        Supplier · {s.id.slice(0, 8)}
                       </p>
                     </div>
 

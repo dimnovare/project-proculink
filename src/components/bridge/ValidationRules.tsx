@@ -37,15 +37,15 @@ type Rule = {
 // ─── Mock data ────────────────────────────────────────────────────────────────
 
 const RULES: Rule[] = [
-  { id: "r1",  name: "Payment terms must match dock",        description: "Order payment terms must equal the supplier dock's agreed terms before crossing.", severity: "error",   entity: "Header",    triggers: 3,  enabled: true,  autoBlock: true,  lastTriggered: "2m" },
+  { id: "r1",  name: "Payment terms must match supplier",    description: "Order payment terms must equal the supplier's agreed terms before delivery.", severity: "error",   entity: "Header",    triggers: 3,  enabled: true,  autoBlock: true,  lastTriggered: "2m" },
   { id: "r2",  name: "Currency must be EUR",                 description: "Block any order whose currency is not EUR.", severity: "error",   entity: "Header",    triggers: 0,  enabled: true,  autoBlock: true,  lastTriggered: "—" },
   { id: "r3",  name: "All line items need supplier codes",   description: "Every line must carry a resolved supplier item code. Hold for review and suggest via AI.", severity: "error",   entity: "Line item", triggers: 12, enabled: true,  autoBlock: true,  lastTriggered: "6m" },
   { id: "r4",  name: "Quantity must be positive",            description: "Reject any line where the ordered quantity is zero or negative.", severity: "error",   entity: "Line item", triggers: 2,  enabled: true,  autoBlock: true,  lastTriggered: "2d" },
-  { id: "r5",  name: "Warn on orders over €50k",             description: "Flag high-value orders for manual approval before they cross.", severity: "warning", entity: "Amount",    triggers: 5,  enabled: true,  autoBlock: false, lastTriggered: "3h" },
+  { id: "r5",  name: "Warn on orders over €50k",             description: "Flag high-value orders for manual approval before they're sent.", severity: "warning", entity: "Amount",    triggers: 5,  enabled: true,  autoBlock: false, lastTriggered: "3h" },
   { id: "r6",  name: "Ship-to postal code required",         description: "Warn when the ship-to address has no postal code; AI completes from history.", severity: "warning", entity: "Buyer",     triggers: 0,  enabled: false, autoBlock: false, lastTriggered: "—" },
   { id: "r7",  name: "Order total mismatch",                 description: "Sum of line amounts must match the header total within ±€0.01.", severity: "error",   entity: "Amount",    triggers: 7,  enabled: true,  autoBlock: true,  lastTriggered: "1h" },
   { id: "r8",  name: "Low confidence extraction",            description: "AI extraction confidence below 70% on any field requires manual sign-off.", severity: "warning", entity: "Line item", triggers: 41, enabled: true,  autoBlock: false, lastTriggered: "2m" },
-  { id: "r9",  name: "Duplicate PO number",                  description: "A crossing with this PO number was already processed in the last 30 days.", severity: "error",   entity: "Header",    triggers: 2,  enabled: true,  autoBlock: true,  lastTriggered: "2d" },
+  { id: "r9",  name: "Duplicate PO number",                  description: "An order with this PO number was already processed in the last 30 days.", severity: "error",   entity: "Header",    triggers: 2,  enabled: true,  autoBlock: true,  lastTriggered: "2d" },
   { id: "r10", name: "Missing GTIN",                         description: "Line item has no GTIN/EAN barcode. Informational only, for reporting.", severity: "info",    entity: "Line item", triggers: 88, enabled: false, autoBlock: false, lastTriggered: "—" },
 ];
 
@@ -358,7 +358,7 @@ function RuleEditor({
         </div>
         <label className="flex items-center gap-2 rounded-[5px] border border-[#D5DAEA] px-2.5 h-9 text-[12px]" style={{ color: "#0B1A2F" }} title="Automatically block orders that trigger this rule">
           <input ref={autoBlockRef} type="checkbox" defaultChecked={rule.autoBlock} />
-          Auto-block crossing on trigger
+          Auto-block delivery on trigger
         </label>
         <label className="flex items-center gap-2 rounded-[5px] border border-[#D5DAEA] px-2.5 h-9 text-[12px]" style={{ color: "#0B1A2F" }}>
           <input ref={enabledRef} type="checkbox" defaultChecked={rule.enabled} />

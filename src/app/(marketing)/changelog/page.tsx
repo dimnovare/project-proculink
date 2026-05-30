@@ -41,7 +41,7 @@ const ENTRIES = [
     items: [
       "Supplier delivery configuration — HTTP delivery with test-fire, encrypted credentials, retry logic",
       "PO field mapping engine — custom per-supplier CSV column mapping with visual editor",
-      "Webhooks — register HTTP endpoints to receive real-time crossing events",
+      "Webhooks — register HTTP endpoints to receive real-time delivery events",
     ],
   },
   {
@@ -50,7 +50,7 @@ const ENTRIES = [
     latest: false,
     items: [
       "Stripe billing — Growth, Operations, and Integration plans with self-serve Checkout and Portal",
-      "Audit log — full event history for every order crossing",
+      "Audit log — full event history for every order",
       "Connectors page — overview of all active delivery channels",
     ],
   },
@@ -218,7 +218,7 @@ export default function ChangelogPage() {
           }}
         >
           <p style={{ fontSize: 14, color: "#8A93A5", marginBottom: 20 }}>
-            Ready to start bridging purchase orders?
+            Ready to automate your purchase orders?
           </p>
           <Link
             href="/sign-up"

@@ -311,12 +311,12 @@ export function LaneDrawer({ lane, onClose }: LaneDrawerProps) {
               color: "#8A93A5",
             }}
           >
-            Recent crossings
+            Recent deliveries
           </div>
 
           {!isApiMockMode && (
             <div style={{ padding: "32px 20px", textAlign: "center", fontSize: 13, color: "#8A93A5" }}>
-              No recent crossings on this lane.
+              No recent deliveries on this lane.
             </div>
           )}
 
@@ -401,7 +401,7 @@ export function LaneDrawer({ lane, onClose }: LaneDrawerProps) {
               cursor: "pointer",
             }}
           >
-            View all crossings →
+            View all deliveries →
           </button>
           <button
             style={{

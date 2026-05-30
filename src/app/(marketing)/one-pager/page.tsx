@@ -30,7 +30,7 @@ export default function OnePagerPage() {
 
       <h1 style={S.h1}>Stop reformatting purchase orders. Start delivering them.</h1>
       <p style={S.lead}>
-        ProcuLink is a B2B outbound procurement bridge for buyer teams. We import the
+        ProcuLink is B2B outbound procurement automation for buyer teams. We import the
         POs you send, validate them, map fields and item codes per supplier, transform
         to the format each supplier requires, and deliver them automatically over HTTP,
         ERP, or email.

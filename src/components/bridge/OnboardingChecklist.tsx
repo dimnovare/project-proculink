@@ -57,7 +57,7 @@ const STEPS: Step[] = [
   {
     id: "supplier",
     label: "Add your first supplier",
-    description: "Create a supplier dock to hold its delivery config and item mappings.",
+    description: "Create a supplier to hold its delivery config and item mappings.",
     href: "/library/suppliers",
     cta: "Add a supplier",
     requires: [],
@@ -65,7 +65,7 @@ const STEPS: Step[] = [
   {
     id: "upload",
     label: "Upload a purchase order",
-    description: "Drop a CSV, XLSX, PDF, or cXML order to start its crossing.",
+    description: "Drop a CSV, XLSX, PDF, or cXML order to get started.",
     href: "/upload",
     cta: "Upload an order",
     requires: ["supplier"],
@@ -81,7 +81,7 @@ const STEPS: Step[] = [
   {
     id: "deliver",
     label: "Deliver your first order",
-    description: "Set up delivery, then cross the bridge to your supplier.",
+    description: "Set up delivery, then send to your supplier.",
     href: "/inbox",
     cta: "Deliver an order",
     requires: ["supplier", "upload", "map"],
@@ -203,7 +203,7 @@ export function OnboardingChecklist({
             className="text-[10.5px] font-bold uppercase"
             style={{ color: T.blueDeep, letterSpacing: "0.09em" }}
           >
-            First crossing
+            First delivery
           </div>
           <h2
             className="mt-1 text-[19px] leading-tight"

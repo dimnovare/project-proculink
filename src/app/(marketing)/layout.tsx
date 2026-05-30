@@ -2,7 +2,7 @@ import { MarketingNav } from "@/components/marketing/MarketingNav";
 import { ProcuLinkMark } from "@/components/bridge/DSPrimitives";
 
 const FOOTER_COLS: { h: string; links: [string, string][] }[] = [
-  { h: "Product", links: [["How it works", "/how-it-works"], ["Pricing", "/pricing"], ["Security", "/security"], ["Open the bridge", "/bridge"]] },
+  { h: "Product", links: [["How it works", "/how-it-works"], ["Pricing", "/pricing"], ["Security", "/security"], ["Open the dashboard", "/bridge"]] },
   { h: "Company", links: [["Customers", "/customers"], ["Changelog", "/changelog"], ["Support", "/support"]] },
   { h: "Legal",   links: [["Privacy", "/privacy"], ["Terms", "/terms"], ["AUP", "/aup"], ["DPA", "/dpa"], ["Subprocessors", "/subprocessors"]] },
 ];

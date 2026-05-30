@@ -179,7 +179,7 @@ function ConnectorCard({
         }}
       >
         <span style={{ fontSize: 11.5, color: "var(--ink-faint,#8A93A5)" }}>
-          {connector.docks > 0 ? `${connector.docks} dock${connector.docks > 1 ? "s" : ""}` : "Not in use"}
+          {connector.docks > 0 ? `${connector.docks} supplier${connector.docks > 1 ? "s" : ""}` : "Not in use"}
         </span>
         <div style={{ display: "flex", gap: 6 }}>
           {connected && connector.id !== "new" && (

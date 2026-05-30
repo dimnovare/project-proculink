@@ -109,12 +109,12 @@ export default function HowItWorksPage() {
           From any purchase order to a delivered supplier document
         </h1>
         <p style={{ fontSize: 16, color: "#56627A", maxWidth: 520, margin: "0 auto 32px" }}>
-          Five stages, one bridge — watch an order cross from raw buyer document to a
+          Five stages — watch an order go from raw buyer document to a
           delivered supplier order, fully audited.
         </p>
         <div style={{ display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap", marginBottom: 48 }}>
           <Link href="/watch" style={{ display: "inline-flex", alignItems: "center", borderRadius: 8, padding: "11px 24px", fontSize: 13.5, fontWeight: 600, background: "#1E66C9", color: "#FFFFFF", textDecoration: "none" }}>
-            Walk through a real crossing →
+            Walk through a real delivery →
           </Link>
           <Link href="/sign-up" style={{ display: "inline-flex", alignItems: "center", borderRadius: 8, padding: "11px 24px", fontSize: 13.5, fontWeight: 600, background: "#FFFFFF", color: "#0B1A2F", textDecoration: "none", border: "1px solid #E2E6EE" }}>
             Start free
@@ -398,7 +398,7 @@ export default function HowItWorksPage() {
             boxShadow: "0 4px 20px rgba(30,102,201,0.35)",
           }}
         >
-          Start bridging free →
+          Start free →
         </Link>
       </section>
     </div>

@@ -188,7 +188,7 @@ export default function TemplatesPage() {
             <EmptyState
               icon="⊟"
               title="No output templates"
-              sub="Templates define the envelope each supplier receives when an order crosses the bridge."
+              sub="Templates define the envelope each supplier receives when an order is sent to them."
               action={{ label: "+ New template", onClick: newTemplate }}
             />
           ) : (
@@ -221,8 +221,8 @@ export default function TemplatesPage() {
                       <div className="text-[11.5px] mt-0.5" style={{ color: "#56627A" }}>{FMT_DESC[t.fmt] ?? `${t.fmt} output envelope.`}</div>
                       <div className="mt-2 text-[11px]" style={{ color: "#8A93A5" }}>
                         {t.suppliers > 0
-                          ? `${t.suppliers} dock${t.suppliers !== 1 ? "s" : ""} assigned`
-                          : <span style={{ fontStyle: "italic" }}>Not assigned to a dock</span>}
+                          ? `${t.suppliers} supplier${t.suppliers !== 1 ? "s" : ""} assigned`
+                          : <span style={{ fontStyle: "italic" }}>Not assigned to a supplier</span>}
                       </div>
                     </button>
                   );
@@ -256,7 +256,7 @@ export default function TemplatesPage() {
                   </pre>
                   <div className="flex items-center justify-between gap-2 px-4 py-3" style={{ borderTop: "1px solid #E2E6EE" }}>
                     <span className="text-[11px]" style={{ color: "#8A93A5" }}>
-                      <span style={{ color: "#6F4FCE", fontWeight: 600 }}>{"{tokens}"}</span> are filled from the canonical spine at crossing time.
+                      <span style={{ color: "#6F4FCE", fontWeight: 600 }}>{"{tokens}"}</span> are filled from the canonical spine at delivery time.
                     </span>
                     <button
                       onClick={() => { setNotice(null); setEditing(selected); }}
@@ -377,7 +377,7 @@ function TemplatePanel({
             />
           </Field>
           <div className="rounded-[7px] border border-[#E2E6EE] bg-[#F6F7FA] p-3 text-[12px] leading-5" style={{ color: "#56627A" }}>
-            Canonical {"{tokens}"} are filled from the spine at crossing time. Keep placeholders explicit and supplier-scoped before assigning a dock.
+            Canonical {"{tokens}"} are filled from the spine at delivery time. Keep placeholders explicit and supplier-scoped before assigning a supplier.
           </div>
           {validation && (
             <div className="rounded-[7px] border border-[#B8CFF5] bg-[#F7FAFF] p-3 text-[12px] leading-5" style={{ color: "#0F4FA8" }}>

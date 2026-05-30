@@ -90,8 +90,8 @@ function MarketingClerkLinks() {
   return (
     <div className="flex shrink-0 items-center gap-3">
       <Link href="/bridge" className="text-[13px] font-semibold" style={{ color: "#6BA5F0" }}>
-        <span className="hidden sm:inline">Open the bridge →</span>
-        <span className="sm:hidden">Bridge</span>
+        <span className="hidden sm:inline">Open the dashboard →</span>
+        <span className="sm:hidden">Dashboard</span>
       </Link>
       <UserButton />
     </div>

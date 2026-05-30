@@ -164,7 +164,7 @@ export function BridgePageLoader({ label = "Loading…" }: { label?: string }) {
           {label}
         </span>
         <span style={{ fontSize: 12, color: "#8A93A5" }}>
-          Connecting the bridge…
+          Loading…
         </span>
       </div>
     </div>

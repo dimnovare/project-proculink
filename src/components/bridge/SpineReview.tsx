@@ -682,7 +682,7 @@ function CrossedToast({ onDismiss, supplierName, poNumber, lineCount }: {
     <div style={{ position: "fixed", bottom: 24, right: 24, display: "flex", alignItems: "center", gap: 12, padding: "14px 18px", background: "#0B1A2F", borderRadius: 10, boxShadow: "0 8px 24px rgba(11,26,47,0.25)", zIndex: 9992, animation: "fade-up 0.3s ease-out both" }}>
       <div style={{ width: 28, height: 28, borderRadius: 7, background: "#E2F1E2", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14 }}>✓</div>
       <div>
-        <div style={{ fontSize: 13, fontWeight: 600, color: "#FFFFFF" }}>Crossed to {supplierName} · accepted</div>
+        <div style={{ fontSize: 13, fontWeight: 600, color: "#FFFFFF" }}>Sent to {supplierName} · accepted</div>
         <div style={{ fontSize: 11.5, color: "#7C8DA6", marginTop: 2 }}>{poNumber} · {lineCount} line{lineCount !== 1 ? "s" : ""}</div>
       </div>
       <button onClick={onDismiss} style={{ marginLeft: 8, background: "none", border: "none", color: "#7C8DA6", fontSize: 16, cursor: "pointer", padding: "0 2px" }}>✕</button>
@@ -747,7 +747,7 @@ function MobileSpineAccordion({
         <DocumentAnatomy order={order} />
       </AccordionPanel>
 
-      <AccordionPanel label="Canonical model · the bridge" accent="linear-gradient(180deg,#1E66C9,#2E8E3A)" defaultOpen>
+      <AccordionPanel label="Canonical model" accent="linear-gradient(180deg,#1E66C9,#2E8E3A)" defaultOpen>
         <div style={{ position: "relative" }}>
           <div style={{ position: "absolute", top: 4, bottom: 0, left: 22, width: 3, background: "linear-gradient(180deg,#1E66C9,#2E8E3A)", borderRadius: 2 }} />
           <div style={{ position: "relative", paddingTop: 4 }}>
@@ -1107,7 +1107,7 @@ export function SpineReview({ orderId }: { orderId: string }) {
 
               {/* Center — Canonical Spine */}
               <div style={{ position: "relative" }}>
-                <div style={{ fontSize: 10.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em", color: "#0B1A2F", marginBottom: 10, textAlign: "center" }}>Canonical model · the bridge</div>
+                <div style={{ fontSize: 10.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em", color: "#0B1A2F", marginBottom: 10, textAlign: "center" }}>Canonical model</div>
                 {/* Spine line */}
                 <div style={{ position: "absolute", top: 36, bottom: 0, left: 22, width: 3, background: "linear-gradient(180deg,#1E66C9,#2E8E3A)", borderRadius: 2 }} />
                 <div style={{ position: "relative", paddingTop: 4 }}>
@@ -1215,7 +1215,7 @@ export function SpineReview({ orderId }: { orderId: string }) {
           onClick={() => !crossed && setShowConfirm(true)}
           style={{ flex: 1.5, height: 44, borderRadius: 8, fontSize: 13.5, fontWeight: 600, background: crossed ? "#2E8E3A" : "#0B1A2F", color: "#FFFFFF", border: "none", cursor: crossed ? "default" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, transition: "background 200ms" }}
         >
-          {crossed ? "✓ Crossed" : "Cross the bridge"}
+          {crossed ? "✓ Sent" : "Send to supplier"}
           {!crossed && <span style={{ width: 10, height: 10, borderRadius: 2, background: "linear-gradient(90deg,#1E66C9,#2E8E3A)", display: "inline-block" }} />}
         </button>
       </div>
