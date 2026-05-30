@@ -5,7 +5,7 @@
 
 import type React from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useState, useRef, useEffect, useCallback, type KeyboardEvent } from "react";
+import { useState, useRef, useEffect, useCallback, useMemo, type KeyboardEvent } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api-client";
 import type { Order } from "@/types/procurement";
@@ -15,6 +15,7 @@ import { FailedPanel, ParseFailedPanel } from "./FailedPanels";
 import { StatusJourney, type OrderStage } from "./StatusJourney";
 import { SpineReviewSkeleton } from "./Skeletons";
 import { StandardsFieldPopover } from "./StandardsFieldPopover";
+import { SpineConnectors } from "./SpineConnectors";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -185,6 +186,8 @@ interface SpineNodeCardProps {
   onRejectSubnode: (id: string) => void;
   onKeyDown: (e: KeyboardEvent<HTMLInputElement>, id: string) => void;
   inputRef: (el: HTMLInputElement | null, id: string) => void;
+  cardRef?: (el: HTMLDivElement | null) => void;
+  onHover?: (id: string | null) => void;
 }
 
 function SpineNodeCard({
@@ -193,7 +196,7 @@ function SpineNodeCard({
   acceptedSubnodes, rejectedSubnodes,
   onStartEdit, onChangeValue, onCommitEdit,
   onAcceptSubnode, onRejectSubnode,
-  onKeyDown, inputRef,
+  onKeyDown, inputRef, cardRef, onHover,
 }: SpineNodeCardProps) {
   const isEditing = editingId === node.id;
   const displayVal = fieldValues[node.id] ?? node.value;
@@ -202,7 +205,12 @@ function SpineNodeCard({
   const fieldBg = err ? "#FBE3E3" : issue ? "#FAEFD6" : "#FFFFFF";
 
   return (
-    <div className="relative mb-2.5 pl-9">
+    <div
+      className="relative mb-2.5 pl-9"
+      ref={cardRef}
+      onMouseEnter={() => onHover?.(node.id)}
+      onMouseLeave={() => onHover?.(null)}
+    >
       {/* Spine dot */}
       <div
         className="absolute rounded-full bg-white z-10"
@@ -804,7 +812,8 @@ export function SpineReview({ orderId }: { orderId: string }) {
   // Derive nodes from the live order. Empty until the order resolves (the
   // loading/error gates below render before this is used). No demo fallback —
   // real users must never see staged PO-DEMO-001 content.
-  const nodes = order ? buildNodesFromOrder(order) : [];
+  const nodes = useMemo(() => (order ? buildNodesFromOrder(order) : []), [order]);
+  const connectorNodes = useMemo(() => nodes.map((n) => ({ id: n.id, pct: n.pct })), [nodes]);
 
   // Sample order banner: query param OR order.isSample
   const searchParams = useSearchParams();
@@ -821,6 +830,11 @@ export function SpineReview({ orderId }: { orderId: string }) {
   const [flowNotice, setFlowNotice]               = useState<string | null>(null);
 
   const inputRefs = useRef<Record<string, HTMLInputElement | null>>({});
+  const gridRef = useRef<HTMLDivElement>(null);
+  const sourceColRef = useRef<HTMLDivElement>(null);
+  const outputColRef = useRef<HTMLDivElement>(null);
+  const nodeEls = useRef<Record<string, HTMLDivElement | null>>({});
+  const [hoveredId, setHoveredId] = useState<string | null>(null);
 
   // Count remaining unresolved exceptions (from live order lines)
   const exceptionCount = (() => {
@@ -1064,11 +1078,24 @@ export function SpineReview({ orderId }: { orderId: string }) {
           <div className="h-full overflow-y-auto">
             {/* Desktop 3-column grid */}
             <div
-              className="hidden md:grid gap-[22px] px-6 py-[18px]"
-              style={{ gridTemplateColumns: "1fr 1.05fr 1.15fr", alignItems: "start" }}
+              ref={gridRef}
+              className="hidden md:grid gap-[40px] px-6 py-[18px]"
+              style={{ gridTemplateColumns: "1fr 1.05fr 1.15fr", alignItems: "start", position: "relative" }}
             >
+              {/* Bridge connectors — Source → Spine → Output, drawn as live wires */}
+              <SpineConnectors
+                gridRef={gridRef}
+                sourceColRef={sourceColRef}
+                outputColRef={outputColRef}
+                nodeEls={nodeEls}
+                nodes={connectorNodes}
+                hoveredId={hoveredId}
+                crossed={crossed}
+                signature={`${nodes.length}|${editingId ?? ""}|${[...acceptedSubnodes].sort().join(",")}|${[...rejectedSubnodes].sort().join(",")}|${hoveredId ?? ""}|${crossed ? 1 : 0}|${Object.entries(fieldValues).map(([k, v]) => k + v).join(",")}`}
+              />
+
               {/* Left — Document Anatomy */}
-              <div>
+              <div ref={sourceColRef}>
                 <div style={{ fontSize: 10.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em", color: "#8A93A5", marginBottom: 10 }}>📄 Source · What we received</div>
                 <DocumentAnatomy order={order} />
               </div>
@@ -1095,13 +1122,15 @@ export function SpineReview({ orderId }: { orderId: string }) {
                       onRejectSubnode={handleRejectSubnode}
                       onKeyDown={handleKeyDown}
                       inputRef={inputRefCallback}
+                      cardRef={(el) => { nodeEls.current[node.id] = el; }}
+                      onHover={setHoveredId}
                     />
                   ))}
                 </div>
               </div>
 
               {/* Right — Output Preview */}
-              <div>
+              <div ref={outputColRef}>
                 <div style={{ fontSize: 10.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em", color: "#8A93A5", marginBottom: 10, textAlign: "right" }}>⤴ Output · What we send</div>
                 <OutputPreview
                   order={order}
