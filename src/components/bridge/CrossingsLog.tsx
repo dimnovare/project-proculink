@@ -7,6 +7,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { getAuditLog, isApiMockMode, type AuditLogEntry } from "@/lib/api-client";
 import { FileChip } from "./FileChip";
+import { Lock } from "lucide-react";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -364,10 +365,11 @@ export function CrossingsLog() {
               color: "#0B1A2F",
             }}
           >
-            Delivery Log
+            Crossings log
           </h1>
-          <p className="text-[13px] mt-1" style={{ color: "#56627A" }}>
-            Append-only audit trail · {LOG.length} {LOG.length === 1 ? "event" : "events"}
+          <p className="text-[13px] mt-1 inline-flex items-center gap-1.5" style={{ color: "#56627A" }}>
+            <Lock size={12} style={{ color: "#8A93A5" }} />
+            Append-only · immutable · {LOG.length} {LOG.length === 1 ? "event" : "events"}
           </p>
         </div>
         <div className="w-full sm:ml-auto sm:w-auto">
