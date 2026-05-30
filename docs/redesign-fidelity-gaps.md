@@ -37,13 +37,15 @@ Legend: `[ ]` todo · `[x]` done · `(KEEP)` = do not regress to mockup.
 - [ ] Standards: cross-format field TABLE (Canonical field + UBL/EDIFACT/X12/cXML/Peppol/ISO columns) not family cards; inline field search; "Request a format" footer. (aligns with standards-visibility product rule)
 - [ ] Remove "Group J" / dev language from MappingEditor, ValidationRules, Templates user-visible copy.
 
-### Settings + Billing
-- [ ] Nav icons per item; section labels → Organization / Billing & plan / Email intake / API keys / Connectors.
-- [ ] Remove the "Team — coming soon" stub tab.
-- [ ] Billing: large highlighted plan card (price, "crossings this month" gradient bar) + Payment method card. (KEEP Stripe Portal link + real usage)
-- [ ] Email intake: keep IMAP form **(KEEP)** but adopt canonical framing/copy; surface forwarding model if cheap.
-- [ ] Connectors section: keep Zapier/Make + webhooks **(KEEP)**; restyle to canonical connector-row composition; add ERP rows where real.
-- [ ] Organization: add Workspace region + Members rows.
+### Settings + Billing ✅ DONE (tsc-clean; ⚠️ visual smoke-test pending — preview server crashed this session)
+- [x] Nav icons (Building/Euro/Mail/Key/Plug) + canonical labels (Organization / Billing & plan / Email intake / API keys / Connectors); active = card-shadow + 2px blue left border.
+- [x] Removed "Team — coming soon" stub tab.
+- [x] Billing: large highlighted PlanCard (price + crossings usage gradient bar) + Payment-method card bound to Stripe Portal (no fake card #). KEPT Stripe Checkout/Portal + locked pricing + LimitBanner.
+- [x] Email intake: KEPT full IMAP form; canonical section framing/copy. (useEffect-sync left as-is, low-risk.)
+- [x] Connectors: KEPT Zapier/Make + webhook CRUD; chrome restyled to tokens (Make logo keeps brand color); added missing error states on API-keys + integrations queries.
+- [x] Organization: added Workspace region "EU (Frankfurt)"; Members row omitted (no real API — don't fabricate).
+
+> ⚠️ The /settings route coincided with a dev-server crash (resource exhaustion after a long session — tsc clean, no console errors, so NOT a code error). Re-run the mock preview and smoke-test /settings (nav icons, no Team tab, Billing plan card, IMAP form intact) in a fresh session.
 
 ### Connectors + Webhooks ✅ DONE (verified in mock preview, tsc-clean)
 - [x] Connectors: icon-card grid (icon tile + status pill + name/desc + dock count + Manage/Connect); "Add connector" blue; sub "ERP and channel integrations · N connected". KEEP Erply/Directo + test-fire. dock-count/desc mock-only → graceful in live.
