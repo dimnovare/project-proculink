@@ -22,6 +22,7 @@ import { OnboardingChecklist } from "./OnboardingChecklist";
 import { OnboardingWizard } from "./OnboardingWizard";
 import { apiClient, isApiMockMode } from "@/lib/api-client";
 import type { OrderSummary, Supplier } from "@/types/procurement";
+import { Inbox, CheckCircle2, Zap, AlertTriangle, ArrowRight } from "lucide-react";
 
 // ─── Status sets ──────────────────────────────────────────────────────────
 
@@ -299,14 +300,20 @@ export function BridgeDashboard() {
       sub: windowSub,
       subColor: "#56627A",
       edge: "#1E66C9",
+      icon: Inbox,
+      iconBg: "#E3EDFB",
+      iconColor: "#1E66C9",
       loading: ordersLoading,
     },
     {
       value: fmt(deliveredInWindow),
-      label: "Delivered",
+      label: "Orders crossed",
       sub: windowSub,
       subColor: "#1E6D29",
       edge: "#2E8E3A",
+      icon: CheckCircle2,
+      iconBg: "#E2F1E2",
+      iconColor: "#1E6D29",
       loading: ordersLoading,
     },
     {
@@ -319,14 +326,20 @@ export function BridgeDashboard() {
         : "Needs 3+ completed orders",
       subColor: "#56627A",
       edge: "linear-gradient(90deg, #1E66C9, #2E8E3A)",
+      icon: Zap,
+      iconBg: "#EEE7FB",
+      iconColor: "#6F4FCE",
       loading: ordersLoading,
     },
     {
       value: fmt(openExceptionsAll),
-      label: "Open exceptions",
+      label: "Urgent exceptions",
       sub: ordersError ? "Live data unavailable" : openExceptionsAll > 0 ? "Needs review now" : "All clear",
       subColor: openExceptionsAll > 0 ? "#C97A14" : "#1E6D29",
       edge: openExceptionsAll > 0 ? "#C97A14" : "#2E8E3A",
+      icon: AlertTriangle,
+      iconBg: openExceptionsAll > 0 ? "#FAEFD6" : "#E2F1E2",
+      iconColor: openExceptionsAll > 0 ? "#C97A14" : "#1E6D29",
       loading: ordersLoading,
     },
   ];
@@ -593,23 +606,31 @@ export function BridgeDashboard() {
 
           {/* ── KPI strip ────────────────────────────────────────────────── */}
           <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
-            {kpis.map((kpi, i) => (
-              <div
-                key={i}
-                className="relative overflow-hidden rounded-card p-4"
-                style={{ background: "#FFFFFF", border: "1px solid #E2E6EE", boxShadow: "0 1px 2px rgba(11,26,47,0.04)" }}
-              >
-                <div aria-hidden style={{ position: "absolute", top: 0, left: 0, right: 0, height: 3, background: kpi.edge }} />
+            {kpis.map((kpi, i) => {
+              const Icon = kpi.icon;
+              return (
                 <div
-                  className={`monument${kpi.loading ? " animate-pulse text-[#C6CDDA]" : ""}`}
-                  style={{ fontSize: "clamp(28px, 4vw, 36px)", color: "#0B1A2F" }}
+                  key={i}
+                  className="relative overflow-hidden rounded-card p-4"
+                  style={{ background: "#FFFFFF", border: "1px solid #E2E6EE", boxShadow: "0 1px 2px rgba(11,26,47,0.04)" }}
                 >
-                  {kpi.value}
+                  <div aria-hidden style={{ position: "absolute", top: 0, left: 0, right: 0, height: 3, background: kpi.edge }} />
+                  <div className="flex items-start justify-between gap-2">
+                    <div
+                      className={`monument${kpi.loading ? " animate-pulse text-[#C6CDDA]" : ""}`}
+                      style={{ fontSize: "clamp(28px, 4vw, 36px)", color: "#0B1A2F" }}
+                    >
+                      {kpi.value}
+                    </div>
+                    <div className="flex flex-shrink-0 items-center justify-center rounded-[7px]" style={{ width: 28, height: 28, background: kpi.iconBg }}>
+                      <Icon size={15} style={{ color: kpi.iconColor }} />
+                    </div>
+                  </div>
+                  <div className="mt-1 text-[12px] font-medium" style={{ color: "#56627A" }}>{kpi.label}</div>
+                  <div className="mt-0.5 text-[11.5px] font-medium" style={{ color: kpi.subColor }}>{kpi.sub}</div>
                 </div>
-                <div className="mt-1 text-[12px] font-medium" style={{ color: "#56627A" }}>{kpi.label}</div>
-                <div className="mt-0.5 text-[11.5px] font-medium" style={{ color: kpi.subColor }}>{kpi.sub}</div>
-              </div>
-            ))}
+              );
+            })}
           </div>
 
           {/* ── Bottom row: In transit + Dock health ─────────────────────── */}
@@ -670,8 +691,11 @@ export function BridgeDashboard() {
 
             {/* Supplier dock health */}
             <div className="overflow-hidden rounded-card" style={{ background: "#FFFFFF", border: "1px solid #E2E6EE", boxShadow: "0 1px 2px rgba(11,26,47,0.04)" }}>
-              <div className="flex items-center px-4 py-3" style={{ borderBottom: "1px solid #E2E6EE" }}>
+              <div className="flex items-center justify-between px-4 py-3" style={{ borderBottom: "1px solid #E2E6EE" }}>
                 <span className="text-[13px] font-semibold" style={{ color: "#0B1A2F" }}>Supplier dock health</span>
+                <Link href="/library/suppliers" className="inline-flex items-center gap-1 text-[11.5px] font-medium transition-colors hover:opacity-80" style={{ color: "#0F4FA8" }}>
+                  All docks <ArrowRight size={12} />
+                </Link>
               </div>
               <div className="divide-y" style={{ borderColor: "#E2E6EE" }}>
                 {effective.suppliers.length === 0 ? (
@@ -683,7 +707,7 @@ export function BridgeDashboard() {
                     const color = s.health >= 95 ? "#2E8E3A" : s.health >= 85 ? "#C97A14" : "#C53A3A";
                     const barBg = s.health >= 95 ? "#E2F1E2" : s.health >= 85 ? "#FAEFD6" : "#FBE3E3";
                     return (
-                      <div key={s.id} className="px-4 py-3">
+                      <Link key={s.id} href={`/library/suppliers/${s.id}`} className="block px-4 py-3 transition-colors hover:bg-[#F6F7FA]">
                         <div className="mb-1.5 flex items-center justify-between">
                           <span className="min-w-0 truncate pr-3 text-[12.5px] font-medium" style={{ color: "#0B1A2F" }}>
                             {s.name}
@@ -695,7 +719,7 @@ export function BridgeDashboard() {
                         <div className="overflow-hidden rounded-full" style={{ height: 5, background: barBg }}>
                           <div className="h-full rounded-full transition-all" style={{ width: `${s.health}%`, background: color }} />
                         </div>
-                      </div>
+                      </Link>
                     );
                   })
                 )}
