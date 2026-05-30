@@ -188,13 +188,14 @@ export function UploadWorkbench() {
   // Recent uploads come from the live orders API. In mock mode we show demo
   // rows for local dev; otherwise the list reflects the user's real orders and
   // the whole card is hidden when there are none.
-  const { data: recentOrders = [] } = useQuery({
+  const { data: ordersPage } = useQuery({
     queryKey: ["orders"],
-    queryFn: apiClient.getOrders,
+    queryFn: () => apiClient.getOrders({ pageSize: 100 }),
     staleTime: 60 * 1000,
     retry: false,
     enabled: !isApiMockMode,
   });
+  const recentOrders = ordersPage?.items ?? [];
 
   const recentRows: RecentRow[] = isApiMockMode
     ? DEMO_RECENT

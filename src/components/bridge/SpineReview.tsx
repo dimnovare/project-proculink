@@ -16,6 +16,8 @@ import { StatusJourney, type OrderStage } from "./StatusJourney";
 import { SpineReviewSkeleton } from "./Skeletons";
 import { StandardsFieldPopover } from "./StandardsFieldPopover";
 import { SpineConnectors } from "./SpineConnectors";
+import { OrderPassport } from "./OrderPassport";
+import { SupplierResponsePanel } from "./SupplierResponsePanel";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -829,6 +831,7 @@ export function SpineReview({ orderId }: { orderId: string }) {
   const [crossed, setCrossed]                     = useState(false);
   const [showToast, setShowToast]                 = useState(false);
   const [flowNotice, setFlowNotice]               = useState<string | null>(null);
+  const [tab, setTab]                             = useState<"review" | "passport" | "response">("review");
 
   const inputRefs = useRef<Record<string, HTMLInputElement | null>>({});
   const gridRef = useRef<HTMLDivElement>(null);
@@ -1058,6 +1061,33 @@ export function SpineReview({ orderId }: { orderId: string }) {
         )}
       </div>
 
+      {/* Tabs: Review · Passport · Supplier response */}
+      <div className="flex-shrink-0 flex items-center gap-1 px-4 sm:px-5" style={{ background: "#FFFFFF", borderBottom: "1px solid #E2E6EE" }}>
+        {([
+          { id: "review",   label: "Review" },
+          { id: "passport", label: "Passport" },
+          { id: "response", label: "Supplier response" },
+        ] as const).map((t) => {
+          const active = tab === t.id;
+          return (
+            <button
+              key={t.id}
+              type="button"
+              onClick={() => setTab(t.id)}
+              style={{
+                position: "relative", height: 38, padding: "0 12px", background: "none", border: "none",
+                fontSize: 12.5, fontWeight: active ? 700 : 500, color: active ? "#0B1A2F" : "#56627A", cursor: "pointer",
+              }}
+            >
+              {t.label}
+              {active && <span style={{ position: "absolute", left: 8, right: 8, bottom: 0, height: 2, borderRadius: 2, background: "linear-gradient(90deg,#1E66C9,#2E8E3A)" }} />}
+            </button>
+          );
+        })}
+      </div>
+
+      {tab === "review" && (
+      <>
       {/* Body */}
       <div style={{ flex: 1, position: "relative", overflow: "auto" }}>
           {isSample && (
@@ -1219,6 +1249,31 @@ export function SpineReview({ orderId }: { orderId: string }) {
           {!crossed && <span style={{ width: 10, height: 10, borderRadius: 2, background: "linear-gradient(90deg,#1E66C9,#2E8E3A)", display: "inline-block" }} />}
         </button>
       </div>
+
+      </>
+      )}
+
+      {/* Passport tab */}
+      {tab === "passport" && (
+        <div className="flex-1 overflow-auto" style={{ background: "#F6F7FA" }}>
+          <OrderPassport orderId={orderId} />
+        </div>
+      )}
+
+      {/* Supplier response tab */}
+      {tab === "response" && (
+        <div className="flex-1 overflow-auto px-4 py-5 sm:px-6" style={{ background: "#F6F7FA" }}>
+          <div className="mx-auto w-full max-w-[900px]">
+            <h2 style={{ fontFamily: "'Bricolage Grotesque', Inter, sans-serif", fontSize: 20, fontWeight: 700, letterSpacing: "-0.02em", color: "#0B1A2F", marginBottom: 4 }}>
+              Supplier response
+            </h2>
+            <p className="text-[12.5px]" style={{ color: "#56627A", marginBottom: 16 }}>
+              What {order.supplierName} confirmed back for <span className="font-mono" style={{ color: "#0F4FA8" }}>{order.poNumber}</span>.
+            </p>
+            <SupplierResponsePanel orderId={orderId} currency={order.currency} />
+          </div>
+        </div>
+      )}
 
       {/* Modals */}
       {showConfirm && (

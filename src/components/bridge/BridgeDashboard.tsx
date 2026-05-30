@@ -234,9 +234,9 @@ export function BridgeDashboard() {
     queryFn: () => apiClient.getSuppliers(),
     staleTime: 60_000,
   });
-  const { data: orders, isLoading: ordersLoading, isError: ordersError } = useQuery({
+  const { data: ordersPage, isLoading: ordersLoading, isError: ordersError } = useQuery({
     queryKey: ["orders"],
-    queryFn: () => apiClient.getOrders(),
+    queryFn: () => apiClient.getOrders({ pageSize: 100 }),
     staleTime: 60_000,
   });
   const { data: topology, isLoading: topologyLoading } = useQuery({
@@ -245,7 +245,7 @@ export function BridgeDashboard() {
     staleTime: 60_000,
   });
 
-  const allOrders = useMemo(() => orders ?? [], [orders]);
+  const allOrders = useMemo(() => ordersPage?.items ?? [], [ordersPage]);
 
   // Orders inside the selected time window — drives windowed KPIs + export.
   const windowedOrders = useMemo(() => {

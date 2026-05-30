@@ -59,6 +59,7 @@ export default function OnePagerPage() {
           <tr><td style={S.td}>Growth</td><td style={S.td}>€149/mo</td><td style={S.td}>150</td><td style={S.td}>5</td></tr>
           <tr><td style={S.td}>Operations</td><td style={S.td}>€399/mo</td><td style={S.td}>500</td><td style={S.td}>10</td></tr>
           <tr><td style={S.td}>Integration</td><td style={S.td}>€999/mo</td><td style={S.td}>1,000</td><td style={S.td}>20</td></tr>
+          <tr><td style={S.td}>Distributor</td><td style={S.td}>€1,499/mo</td><td style={S.td}>2,500</td><td style={S.td}>30</td></tr>
           <tr><td style={S.td}>Enterprise</td><td style={S.td}>From €2,500/mo</td><td style={S.td}>Custom</td><td style={S.td}>Custom</td></tr>
         </tbody>
       </table>

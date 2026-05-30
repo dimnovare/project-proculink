@@ -1,6 +1,8 @@
 import type {
   Order,
   OrderSummary,
+  OrdersPage,
+  GetOrdersParams,
   Supplier,
   UploadResult,
   ResolvePayload,
@@ -16,6 +18,8 @@ import type {
   BillingStatus,
   EmailSettings,
   UpdateEmailSettingsPayload,
+  PassportDto,
+  SupplierConfirmation,
 } from "@/types/procurement";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:5223";
@@ -334,39 +338,70 @@ async function realUploadPurchaseOrder(file: File, supplierId: string): Promise<
 
 // ── Order list / detail ───────────────────────────────────────────────────
 
-async function mockGetOrders(): Promise<OrderSummary[]> {
-  await delay(300);
-  return mockOrders.map(o => {
-    const ext = o.sourceFileKey
-      ? o.sourceFileKey.split(".").pop()?.toLowerCase() ?? null
-      : null;
-    const sourceFormat = ext === "pdf"  ? "pdf"
-                       : ext === "csv"  ? "csv"
-                       : ext === "xlsx" || ext === "xls" ? "xlsx"
-                       : ext === "xml"  || ext === "cxml" ? "cxml"
-                       : ext === "edi"  || ext === "x12"  ? "edi"
-                       : null;
-    return {
-      id: o.id,
-      poNumber: o.poNumber,
-      supplierName: o.supplierName,
-      buyerName: o.buyerName ?? null,
-      orderDate: o.orderDate,
-      status: o.status,
-      lineCount: o.lines.length,
-      unresolvedCount: o.lines.filter(l => l.needsReview).length,
-      totalValue: o.lines.reduce((s, l) => s + l.quantity * l.unitPrice, 0),
-      currency: o.currency,
-      sourceFormat,
-      createdAt: o.createdAt,
-    };
-  });
+/** Project an Order onto the lighter OrderSummary used by list views. */
+function orderToSummary(o: Order): OrderSummary {
+  const ext = o.sourceFileKey
+    ? o.sourceFileKey.split(".").pop()?.toLowerCase() ?? null
+    : null;
+  const sourceFormat = ext === "pdf"  ? "pdf"
+                     : ext === "csv"  ? "csv"
+                     : ext === "xlsx" || ext === "xls" ? "xlsx"
+                     : ext === "xml"  || ext === "cxml" ? "cxml"
+                     : ext === "edi"  || ext === "x12"  ? "edi"
+                     : null;
+  return {
+    id: o.id,
+    poNumber: o.poNumber,
+    supplierName: o.supplierName,
+    buyerName: o.buyerName ?? null,
+    orderDate: o.orderDate,
+    status: o.status,
+    lineCount: o.lines.length,
+    unresolvedCount: o.lines.filter(l => l.needsReview).length,
+    totalValue: o.lines.reduce((s, l) => s + l.quantity * l.unitPrice, 0),
+    currency: o.currency,
+    sourceFormat,
+    createdAt: o.createdAt,
+  };
 }
 
-async function realGetOrders(): Promise<OrderSummary[]> {
-  const res = await fetchWithTimeout(`${API_BASE_URL}/api/orders`, { headers: await authHeader() });
+async function mockGetOrders(params: GetOrdersParams = {}): Promise<OrdersPage> {
+  await delay(300);
+  const page = Math.max(1, params.page ?? 1);
+  const pageSize = Math.max(1, params.pageSize ?? 25);
+
+  let source = mockOrders;
+  if (params.supplierId) source = source.filter(o => o.supplierId === params.supplierId);
+
+  let items = source.map(orderToSummary);
+  if (params.status) items = items.filter(o => o.status === params.status);
+  if (params.search) {
+    const q = params.search.toLowerCase();
+    items = items.filter(o =>
+      o.poNumber.toLowerCase().includes(q) ||
+      o.supplierName.toLowerCase().includes(q) ||
+      (o.buyerName ?? "").toLowerCase().includes(q),
+    );
+  }
+
+  const totalCount = items.length;
+  const start = (page - 1) * pageSize;
+  return { items: items.slice(start, start + pageSize), totalCount, page, pageSize };
+}
+
+async function realGetOrders(params: GetOrdersParams = {}): Promise<OrdersPage> {
+  const qs = new URLSearchParams();
+  qs.set("page", String(params.page ?? 1));
+  qs.set("pageSize", String(params.pageSize ?? 25));
+  if (params.status)     qs.set("status", params.status);
+  if (params.supplierId) qs.set("supplierId", params.supplierId);
+  if (params.search)     qs.set("search", params.search);
+  if (params.dateFrom)   qs.set("dateFrom", params.dateFrom);
+  if (params.dateTo)     qs.set("dateTo", params.dateTo);
+
+  const res = await fetchWithTimeout(`${API_BASE_URL}/api/orders?${qs.toString()}`, { headers: await authHeader() });
   if (!res.ok) throw new Error(`Failed to fetch orders: ${res.statusText}`);
-  return res.json() as Promise<OrderSummary[]>;
+  return res.json() as Promise<OrdersPage>;
 }
 
 async function mockGetOrderById(id: string): Promise<Order | null> {
@@ -379,6 +414,120 @@ async function realGetOrderById(id: string): Promise<Order | null> {
   if (res.status === 404) return null;
   if (!res.ok) throw new Error(`Failed to fetch order: ${res.statusText}`);
   return res.json() as Promise<Order>;
+}
+
+// ── PO Passport ─────────────────────────────────────────────────────────────
+
+async function mockGetOrderPassport(orderId: string): Promise<PassportDto> {
+  await delay(200);
+  const o = mockOrders.find(x => x.id === orderId);
+  if (!o) throw new ApiHttpError(`Order ${orderId} not found`, 404);
+
+  const ext = o.sourceFileKey ? o.sourceFileKey.split(".").pop()?.toLowerCase() ?? null : null;
+  const totalValue = o.lines.reduce((s, l) => s + l.quantity * l.unitPrice, 0);
+  const totalQuantity = o.lines.reduce((s, l) => s + l.quantity, 0);
+  const profile = mockSupplierProfiles.find(p => p.supplierName === o.supplierName);
+  const artifact = o.artifacts[0] ?? null;
+  const isDelivered = o.status === "delivered";
+
+  const timeline: PassportDto["timeline"] = [
+    { action: "Uploaded", at: o.createdAt, payload: { source: o.sourceFileKey } },
+  ];
+  if (o.status !== "parsing") timeline.push({ action: "Parsed", at: o.updatedAt, payload: { lineCount: o.lines.length } });
+  if (!o.lines.some(l => l.needsReview)) {
+    timeline.push({ action: "Validated", at: o.updatedAt, payload: null });
+    timeline.push({ action: "Mapped", at: o.updatedAt, payload: null });
+  }
+  if (artifact) timeline.push({ action: "Transformed", at: artifact.createdAt, payload: { format: artifact.format } });
+  if (isDelivered) timeline.push({ action: "Delivered", at: o.updatedAt, payload: { format: artifact?.format ?? "xml" } });
+
+  return {
+    order: {
+      id: o.id, poNumber: o.poNumber, status: o.status,
+      supplierId: o.supplierId, supplierName: o.supplierName, buyerName: o.buyerName ?? null,
+      currency: o.currency, orderDate: o.orderDate, createdAt: o.createdAt, updatedAt: o.updatedAt,
+      isSample: o.isSample ?? false,
+    },
+    sourceArtifact: { storageKey: o.sourceFileKey ?? null, detectedFormat: ext },
+    canonical: { lineCount: o.lines.length, currency: o.currency, totalValue, totalQuantity },
+    supplierProfile: profile
+      ? { protocol: "https", outputFormat: profile.acceptedFormats[0] ?? "xml", acceptedFormats: profile.acceptedFormats, version: "1.0", lastUpdatedAt: o.updatedAt }
+      : null,
+    validationResults: [],
+    mappingDecisions: o.lines.map(l => ({
+      lineNumber: l.lineNumber,
+      buyerCode: l.buyerItemCode,
+      supplierCode: l.supplierItemCode ?? l.aiSuggestion?.supplierItemCode ?? null,
+      source: l.supplierItemCode ? "deterministic" : l.aiSuggestion ? "ai" : "unresolved",
+      confidence: l.supplierItemCode ? 1 : l.aiSuggestion?.confidence ?? null,
+    })),
+    manualCorrections: [],
+    aiSuggestions: o.lines
+      .filter(l => l.aiSuggestion)
+      .map(l => ({
+        lineNumber: l.lineNumber,
+        code: l.aiSuggestion!.supplierItemCode,
+        confidence: l.aiSuggestion!.confidence,
+        reason: l.aiSuggestion!.reason,
+        provenance: l.aiSuggestion!.provenance,
+        status: l.supplierItemCode ? "accepted" : "suggested",
+      })),
+    outputArtifact: artifact
+      ? { id: artifact.id, format: artifact.format, fileKey: artifact.fileKey, createdAt: artifact.createdAt }
+      : null,
+    deliveryAttempts: isDelivered
+      ? [{ attemptNumber: 1, status: "delivered", channel: "https", destination: `https://${o.supplierName.toLowerCase().replace(/\s+/g, "")}.example.com/po`, attemptedAt: o.updatedAt, responseCode: 200, acknowledgedAt: o.updatedAt, rejectionReason: null, errorMessage: null }]
+      : [],
+    supplierResponse: isDelivered
+      ? { outcome: "acknowledged", acknowledgedAt: o.updatedAt, rejectionReason: null, responseCode: 200, responseBody: null }
+      : null,
+    finalStatus: o.status,
+    timeline,
+    notes: [],
+  };
+}
+
+async function realGetOrderPassport(orderId: string): Promise<PassportDto> {
+  const res = await fetchWithTimeout(`${API_BASE_URL}/api/orders/${orderId}/passport`, { headers: await authHeader() });
+  if (res.status === 404) throw new ApiHttpError(`Order ${orderId} not found`, 404);
+  if (!res.ok) throw new Error(`Failed to fetch passport: ${res.statusText}`);
+  return res.json() as Promise<PassportDto>;
+}
+
+// ── Supplier response / order confirmation ───────────────────────────────────
+
+async function mockGetOrderConfirmation(orderId: string): Promise<SupplierConfirmation[]> {
+  await delay(200);
+  const o = mockOrders.find(x => x.id === orderId);
+  if (!o || o.status !== "delivered") return [];
+  return [
+    {
+      id: `conf-${o.id}`,
+      status: "accepted_with_changes",
+      supplierReference: `ACK-${o.poNumber}`,
+      receivedAt: o.updatedAt,
+      notes: "One line short-shipped; revised delivery date proposed.",
+      lines: o.lines.map((l, i) => ({
+        lineNumber: l.lineNumber,
+        buyerItemCode: l.buyerItemCode,
+        supplierItemCode: l.supplierItemCode ?? null,
+        orderedQuantity: l.quantity,
+        confirmedQuantity: i === 0 ? Math.max(0, l.quantity - 5) : l.quantity,
+        orderedUnitPrice: l.unitPrice,
+        confirmedUnitPrice: l.unitPrice,
+        orderedDeliveryDate: o.orderDate,
+        confirmedDeliveryDate: i === 0 ? o.orderDate : o.orderDate,
+        state: i === 0 ? "changed" : "confirmed",
+      })),
+    },
+  ];
+}
+
+async function realGetOrderConfirmation(orderId: string): Promise<SupplierConfirmation[]> {
+  const res = await fetchWithTimeout(`${API_BASE_URL}/api/orders/${orderId}/confirmation`, { headers: await authHeader() });
+  if (res.status === 404) return [];
+  if (!res.ok) throw new Error(`Failed to fetch supplier response: ${res.statusText}`);
+  return res.json() as Promise<SupplierConfirmation[]>;
 }
 
 // ── Resolve ───────────────────────────────────────────────────────────────
@@ -1067,6 +1216,8 @@ export const apiClient = {
   uploadPurchaseOrder:    USE_MOCK ? mockUploadPurchaseOrder   : realUploadPurchaseOrder,
   getOrders:              USE_MOCK ? mockGetOrders             : realGetOrders,
   getOrderById:           USE_MOCK ? mockGetOrderById          : realGetOrderById,
+  getOrderPassport:       USE_MOCK ? mockGetOrderPassport      : realGetOrderPassport,
+  getOrderConfirmation:   USE_MOCK ? mockGetOrderConfirmation  : realGetOrderConfirmation,
   resolvePurchaseOrder:   USE_MOCK ? mockResolvePurchaseOrder  : realResolvePurchaseOrder,
   transformOrder:         USE_MOCK ? mockTransformOrder        : realTransformOrder,
   retryDelivery:          USE_MOCK ? mockRetryDelivery         : realRetryDelivery,

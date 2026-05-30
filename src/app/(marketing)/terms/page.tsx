@@ -64,6 +64,7 @@ export default function TermsPage() {
         <li style={S.li}><strong>Growth</strong>: €149/month — up to 150 orders/month, 5 suppliers.</li>
         <li style={S.li}><strong>Operations</strong>: €399/month — up to 500 orders/month, 10 suppliers.</li>
         <li style={S.li}><strong>Integration</strong>: €999/month — up to 1,000 orders/month, 20 suppliers.</li>
+        <li style={S.li}><strong>Distributor</strong>: €1,499/month — up to 2,500 orders/month, 30 suppliers.</li>
         <li style={S.li}><strong>Enterprise</strong>: Custom pricing. Contact us.</li>
       </ul>
       <p style={S.p}>

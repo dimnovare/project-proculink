@@ -1,114 +1,19 @@
 import Link from "next/link";
+import { PLANS, SETUP_FEE_NOTE } from "@/lib/plans";
 
-const TIERS = [
-  {
-    name: "Pilot",
-    price: "Free",
-    sub: "14 days",
-    desc: "Test ProcuLink with real buyer orders and one supplier flow.",
-    color: "#C97A14",
-    highlight: false,
-    features: [
-      "20 orders total",
-      "1 supplier",
-      "CSV/XLSX/PDF/XML upload",
-      "Manual review",
-      "Supplier-ready export",
-    ],
-    cta: "Start Pilot",
-    href: "/sign-up",
-  },
-  {
-    name: "Growth",
-    price: "€149",
-    sub: "per month",
-    desc: "For teams ready to process recurring buyer orders.",
-    color: "#1E66C9",
-    highlight: true,
-    features: [
-      "150 orders/month",
-      "5 suppliers",
-      "Mapping library",
-      "Validation",
-      "Output preview",
-      "Basic audit log",
-    ],
-    cta: "Upgrade to Growth",
-    href: "/sign-up",
-  },
-  {
-    name: "Operations",
-    price: "€399",
-    sub: "per month",
-    desc: "For order teams that need reliable daily processing.",
-    color: "#2E8E3A",
-    highlight: false,
-    features: [
-      "500 orders/month",
-      "10 suppliers",
-      "Bulk mapping import/export",
-      "cXML support",
-      "Advanced audit trail",
-      "Priority support",
-    ],
-    cta: "Upgrade to Operations",
-    href: "/sign-up",
-  },
-  {
-    name: "Integration",
-    price: "€999",
-    sub: "per month",
-    desc: "For companies connecting ProcuLink into their order workflow.",
-    color: "#6F4FCE",
-    highlight: false,
-    features: [
-      "1,000 orders/month",
-      "20 suppliers",
-      "Webhook/API delivery",
-      "Email ingestion",
-      "Custom output templates",
-      "Assisted onboarding",
-    ],
-    cta: "Upgrade to Integration",
-    href: "/sign-up",
-  },
-  {
-    name: "Distributor",
-    price: "€1,499",
-    sub: "per month",
-    desc: "For distributors and resellers routing high order volume across many suppliers.",
-    color: "#0E7490",
-    highlight: false,
-    features: [
-      "2,500 orders/month",
-      "30 suppliers",
-      "Webhook/API + SFTP delivery",
-      "Bulk mapping + email ingestion",
-      "Priority onboarding",
-      "Founder-led supplier setup",
-    ],
-    cta: "Upgrade to Distributor",
-    href: "/sign-up",
-  },
-  {
-    name: "Enterprise",
-    price: "Custom",
-    sub: "from €2,500/mo",
-    desc: "For complex supplier networks, ERP integrations, and high-volume order flows.",
-    color: "#0B1A2F",
-    highlight: false,
-    features: [
-      "Custom volume",
-      "Custom suppliers",
-      "ERP connectors",
-      "Dedicated onboarding",
-      "SLA",
-      "Custom transformation rules",
-    ],
-    cta: "Contact sales",
-    href: "mailto:sales@proculink.com",
-  },
-];
+// Pricing cards are derived from the shared plan ladder (src/lib/plans.ts) so
+// prices, order limits, and feature lists can never drift from billing/ROI.
+const TIERS = PLANS.map((p) => ({
+  name: p.name,
+  price: p.priceLabel,
+  sub: p.priceCadence,
+  desc: p.blurb,
+  color: p.color,
+  highlight: p.highlight,
+  features: p.features,
+  cta: p.cta.label,
+  href: p.cta.href,
+}));
 
 const FAQ = [
   {
@@ -121,7 +26,7 @@ const FAQ = [
   },
   {
     q: "Which plans use Stripe Checkout?",
-    a: "Growth, Operations, and Integration are self-service Stripe subscriptions. Enterprise is handled manually.",
+    a: "Growth, Operations, Integration, and Distributor are self-service Stripe subscriptions. Enterprise is handled manually.",
   },
   {
     q: "Can suppliers and order volume be customized?",
@@ -236,8 +141,7 @@ export default function PricingPage() {
           ))}
         </div>
         <p style={{ maxWidth: 820, margin: "26px auto 0", textAlign: "center", fontSize: 12.5, color: "#8A93A5", lineHeight: 1.6 }}>
-          Operations, Integration, and Distributor include founder-led supplier onboarding —
-          €500 per supplier for your first 3 suppliers, then €150 each. Waived for early design partners.
+          {SETUP_FEE_NOTE}
         </p>
       </section>
 

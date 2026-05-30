@@ -77,13 +77,14 @@ export function BridgeSidebar({ onNavigate, collapsible = false }: BridgeSidebar
   const [collapsed, setCollapsed] = useState(false);
 
   // Live "needs review" count → Inbox badge (deduped with the inbox/notifications query).
-  const { data: orders = [] } = useQuery({
+  const { data: ordersPage } = useQuery({
     queryKey: ["orders"],
-    queryFn: () => apiClient.getOrders(),
+    queryFn: () => apiClient.getOrders({ pageSize: 100 }),
     enabled: !isApiMockMode,
     staleTime: 30_000,
   });
-  const reviewCount = (orders as OrderSummary[]).filter(
+  const orders: OrderSummary[] = ordersPage?.items ?? [];
+  const reviewCount = orders.filter(
     (o) => o.status === "pending_review" || (o.unresolvedCount ?? 0) > 0,
   ).length;
   const badgeFor = (key?: "review") => (key === "review" && reviewCount > 0 ? reviewCount : undefined);

@@ -260,3 +260,174 @@ export interface UpdateEmailSettingsPayload {
   folder: string;
   defaultSupplierId?: string | null;
 }
+
+// ── Order list pagination ───────────────────────────────────────────────────
+// GET /api/orders now returns a paginated envelope instead of a bare array.
+
+export interface OrdersPage {
+  items: OrderSummary[];
+  totalCount: number;
+  page: number;
+  pageSize: number;
+}
+
+export interface GetOrdersParams {
+  page?: number;
+  pageSize?: number;
+  status?: string;
+  supplierId?: string;
+  search?: string;
+  dateFrom?: string;
+  dateTo?: string;
+}
+
+// ── PO Passport (GET /api/orders/{id}/passport) ─────────────────────────────
+// A full provenance/acceptance record for one order: every stage, every
+// decision, every delivery attempt, and the supplier's response.
+
+export interface PassportOrder {
+  id: string;
+  poNumber: string;
+  status: string;
+  supplierId: string | null;
+  supplierName: string | null;
+  buyerName: string | null;
+  currency: string | null;
+  orderDate: string | null;
+  createdAt: string | null;
+  updatedAt: string | null;
+  isSample: boolean;
+}
+
+export interface PassportSourceArtifact {
+  storageKey: string | null;
+  detectedFormat: string | null;
+}
+
+export interface PassportCanonical {
+  lineCount: number;
+  currency: string | null;
+  totalValue: number | null;
+  totalQuantity: number | null;
+}
+
+export interface PassportSupplierProfile {
+  protocol: string | null;
+  outputFormat: string | null;
+  acceptedFormats: string[] | null;
+  version: string | null;
+  lastUpdatedAt: string | null;
+}
+
+export interface PassportValidationResult {
+  ruleName?: string | null;
+  severity?: string | null;
+  message?: string | null;
+  field?: string | null;
+  passed?: boolean | null;
+}
+
+export interface PassportMappingDecision {
+  lineNumber: number;
+  buyerCode: string | null;
+  supplierCode: string | null;
+  source: "deterministic" | "ai" | "unresolved" | string;
+  confidence: number | null;
+}
+
+/** Timeline/correction entries share the shape { action, at, payload }. */
+export interface PassportEvent {
+  action: string;
+  at: string | null;
+  payload?: Record<string, unknown> | null;
+}
+
+export interface PassportAiSuggestion {
+  lineNumber: number;
+  code: string | null;
+  confidence: number | null;
+  reason: string | null;
+  provenance: string | null;
+  status: string | null;
+}
+
+export interface PassportOutputArtifact {
+  id: string;
+  format: string | null;
+  fileKey: string | null;
+  createdAt: string | null;
+}
+
+export interface PassportDeliveryAttempt {
+  attemptNumber: number;
+  status: string | null;
+  channel: string | null;
+  destination: string | null;
+  attemptedAt: string | null;
+  responseCode: number | string | null;
+  acknowledgedAt: string | null;
+  rejectionReason: string | null;
+  errorMessage: string | null;
+}
+
+export interface PassportSupplierResponse {
+  outcome: "acknowledged" | "rejected" | "unknown" | string;
+  acknowledgedAt: string | null;
+  rejectionReason: string | null;
+  responseCode: number | string | null;
+  responseBody: string | null;
+}
+
+/** A free-text note; some backends return objects, so accept both. */
+export type PassportNote = string | { text?: string | null; author?: string | null; at?: string | null };
+
+export interface PassportDto {
+  order: PassportOrder;
+  sourceArtifact: PassportSourceArtifact | null;
+  canonical: PassportCanonical | null;
+  supplierProfile: PassportSupplierProfile | null;
+  validationResults: PassportValidationResult[];
+  mappingDecisions: PassportMappingDecision[];
+  manualCorrections: PassportEvent[];
+  aiSuggestions: PassportAiSuggestion[];
+  outputArtifact: PassportOutputArtifact | null;
+  deliveryAttempts: PassportDeliveryAttempt[];
+  supplierResponse: PassportSupplierResponse | null;
+  finalStatus: string | null;
+  timeline: PassportEvent[];
+  notes: PassportNote[];
+}
+
+// ── Supplier response / order confirmation (GET /api/orders/{id}/confirmation) ─
+
+export type ConfirmationStatus =
+  | "sent"
+  | "accepted"
+  | "accepted_with_changes"
+  | "needs_review"
+  | "rejected"
+  | "no_response";
+
+export type ConfirmationLineState = "confirmed" | "changed" | "rejected";
+
+export interface SupplierConfirmationLine {
+  lineNumber: number;
+  buyerItemCode: string | null;
+  supplierItemCode: string | null;
+  orderedQuantity: number | null;
+  confirmedQuantity: number | null;
+  orderedUnitPrice: number | null;
+  confirmedUnitPrice: number | null;
+  orderedDeliveryDate: string | null;
+  confirmedDeliveryDate: string | null;
+  state: ConfirmationLineState | string;
+}
+
+export interface SupplierConfirmation {
+  id: string;
+  status: ConfirmationStatus | string;
+  supplierReference: string | null;
+  receivedAt: string | null;
+  notes: string | null;
+  lines: SupplierConfirmationLine[];
+}

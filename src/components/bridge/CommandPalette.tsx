@@ -104,9 +104,9 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
   const listRef                  = useRef<HTMLDivElement>(null);
   const activeRef                = useRef<HTMLButtonElement>(null);
 
-  const { data: orders } = useQuery({
+  const { data: ordersPage } = useQuery({
     queryKey: ["orders"],
-    queryFn: () => apiClient.getOrders(),
+    queryFn: () => apiClient.getOrders({ pageSize: 100 }),
     staleTime: 60_000,
   });
   const { data: suppliers } = useQuery({
@@ -120,7 +120,7 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
     staleTime: 60_000,
   });
 
-  const items = buildIndex(router, orders ?? [], suppliers ?? [], buyers ?? []);
+  const items = buildIndex(router, ordersPage?.items ?? [], suppliers ?? [], buyers ?? []);
 
   // Build filtered groups + flat list for keyboard nav
   const groups: Record<string, CmdItem[]> = {};

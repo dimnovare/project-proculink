@@ -125,14 +125,14 @@ function NotificationsBell() {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
-  const { data: orders = [] } = useQuery({
+  const { data: ordersPage } = useQuery({
     queryKey: ["orders"],
-    queryFn: () => apiClient.getOrders(),
+    queryFn: () => apiClient.getOrders({ pageSize: 100 }),
     enabled: !isApiMockMode,
     staleTime: 30_000,
   });
 
-  const items = (orders as OrderSummary[])
+  const items = (ordersPage?.items ?? [])
     .map((o) => {
       let kind: "review" | "failed" | "delivered" | null = null;
       if (o.status === "failed" || o.status === "delivery_failed" || o.status === "transform_failed") kind = "failed";

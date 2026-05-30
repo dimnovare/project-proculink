@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
+import { recommendPlanByOrders } from "@/lib/plans";
 
 // ─── Design tokens (match marketing landing) ─────────────────────────────────
 const T = {
@@ -23,73 +24,8 @@ const T = {
 } as const;
 
 // ─── Plan recommendation ─────────────────────────────────────────────────────
-type Plan = {
-  name: string;
-  price: number;          // €/month
-  setup: number;          // one-time €
-  orderLimit: number;
-  blurb: string;
-  cta: { label: string; href: string };
-  highlight: string;
-  isCustom?: boolean;
-};
-
-function recommendPlan(orders: number): Plan {
-  if (orders <= 150) {
-    return {
-      name: "Growth",
-      price: 149,
-      setup: 0,
-      orderLimit: 150,
-      blurb: "Self-serve. Best for a single team replacing up to 150 monthly orders across 5 suppliers.",
-      cta: { label: "Start 14-day Pilot →", href: "/sign-up" },
-      highlight: T.accent,
-    };
-  }
-  if (orders <= 500) {
-    return {
-      name: "Operations",
-      price: 399,
-      setup: 0,
-      orderLimit: 500,
-      blurb: "Reliable daily processing for 150–500 monthly orders across up to 10 suppliers.",
-      cta: { label: "Start 14-day Pilot →", href: "/sign-up" },
-      highlight: T.green,
-    };
-  }
-  if (orders <= 1000) {
-    return {
-      name: "Integration",
-      price: 999,
-      setup: 0,
-      orderLimit: 1000,
-      blurb: "Webhook/API delivery and email ingestion for up to 1,000 orders and 20 suppliers.",
-      cta: { label: "Start 14-day Pilot →", href: "/sign-up" },
-      highlight: T.violet,
-    };
-  }
-  if (orders <= 2500) {
-    return {
-      name: "Distributor",
-      price: 1499,
-      setup: 0,
-      orderLimit: 2500,
-      blurb: "For distributors and resellers: up to 2,500 orders/month across 30 suppliers.",
-      cta: { label: "Start 14-day Pilot →", href: "/sign-up" },
-      highlight: "#0E7490",
-    };
-  }
-  return {
-    name: "Enterprise",
-    price: 0,
-    setup: 0,
-    isCustom: true,
-    orderLimit: 99999,
-    blurb: "Custom volume above 1,000 orders/month, named onboarding, DPA, and a tailored security review.",
-    cta: { label: "Contact sales →", href: "mailto:sales@proculink.com" },
-    highlight: T.amber,
-  };
-}
+// The recommended plan + its price/limits come from the shared plan ladder
+// (src/lib/plans.ts) via recommendPlanByOrders — no plan numbers live here.
 
 // ─── Field primitive (slider + value) ────────────────────────────────────────
 function Field({
@@ -250,14 +186,19 @@ export function ROICalculator() {
     const errorCost = orders * (errorPct / 100) * reworkCost;
     const totalPain = manualCost + errorCost;
 
-    const plan = recommendPlan(orders);
-    const planPrice = plan.isCustom ? 0 : plan.price;
+    const plan = recommendPlanByOrders(orders);
+    const planPrice = plan.isCustom ? 0 : (plan.priceMonthly ?? 0);
+    // Onboarding fees are arranged manually (not auto-charged), so the ROI math
+    // treats setup as €0 — see the fine print below.
+    const setup = 0;
+    const cta = plan.isCustom
+      ? { label: "Contact sales →", href: plan.cta.href }
+      : { label: "Start 14-day Pilot →", href: "/sign-up" };
 
     // Conservative assumption: ProcuLink automates 70% of the painful flow.
     const monthlySavings = totalPain * 0.7;
     const netMonthly = Math.max(monthlySavings - planPrice, 0);
     const annualSavings = monthlySavings * 12;
-    const setup = plan.setup;
     const paybackMonths =
       plan.isCustom || netMonthly <= 0 ? Infinity : (setup + planPrice) / netMonthly;
     // 3-year ROI: (savings over 36 months - cost over 36 months) / cost × 100
@@ -270,6 +211,9 @@ export function ROICalculator() {
       errorCost,
       totalPain,
       plan,
+      planPrice,
+      setup,
+      cta,
       monthlySavings,
       netMonthly,
       annualSavings,
@@ -520,12 +464,12 @@ export function ROICalculator() {
                     ) : (
                       <>
                         <span style={{ fontSize: 18, fontWeight: 700, color: "#FFFFFF" }}>
-                          {eur(calc.plan.price)}
+                          {eur(calc.planPrice)}
                         </span>
                         /month
-                        {calc.plan.setup > 0 && (
+                        {calc.setup > 0 && (
                           <span style={{ marginLeft: 8 }}>
-                            · {eur(calc.plan.setup)} setup
+                            · {eur(calc.setup)} setup
                           </span>
                         )}
                       </>
@@ -540,10 +484,10 @@ export function ROICalculator() {
                     marginBottom: 16,
                   }}
                 >
-                  {calc.plan.blurb}
+                  {calc.plan.recommendationBlurb}
                 </p>
                 <Link
-                  href={calc.plan.cta.href}
+                  href={calc.cta.href}
                   style={{
                     display: "inline-flex",
                     alignItems: "center",
@@ -557,7 +501,7 @@ export function ROICalculator() {
                     boxShadow: "0 4px 16px rgba(30,102,201,0.4)",
                   }}
                 >
-                  {calc.plan.cta.label}
+                  {calc.cta.label}
                 </Link>
               </div>
             </div>
@@ -580,8 +524,9 @@ export function ROICalculator() {
           Savings model assumes ProcuLink automates 70% of the manual reformatting and validation
           flow — a conservative figure based on pilot customer measurements. Your number will be
           higher if your current process involves multiple retypes or supplier-specific formats.
-          Plans are billed monthly; setup fees are one-time. The Pilot tier is free for 14 days
-          (20 orders) and does not require a card.
+          Plans are billed monthly. Supplier onboarding is arranged manually and is not auto-charged
+          (waived for early design partners). The Pilot tier is free for 14 days (20 orders) and does
+          not require a card.
         </p>
       </div>
     </section>

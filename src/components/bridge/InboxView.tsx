@@ -5,10 +5,10 @@
 // Click a row → /inbox/[orderId] (Canonical Spine Review)
 
 import { useRouter } from "next/navigation";
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiClient, isApiMockMode } from "@/lib/api-client";
-import type { OrderSummary } from "@/types/procurement";
+import type { OrderSummary, OrderStatus } from "@/types/procurement";
 import {
   useReactTable,
   getCoreRowModel,
@@ -159,13 +159,15 @@ function summaryToRow(o: OrderSummary): OrderRow {
 
 // ─── Filter chips ─────────────────────────────────────────────────────────────
 
-const FILTER_CHIPS: Array<{ label: string; status?: CrossingStatus }> = [
+// `status` drives mock-mode client-side column filtering (CrossingStatus);
+// `api` is the backend OrderStatus passed to the live ?status= query param.
+const FILTER_CHIPS: Array<{ label: string; status?: CrossingStatus; api?: OrderStatus }> = [
   { label: "All orders" },
-  { label: "Needs review", status: "review"     },
-  { label: "Ready",        status: "ready"      },
-  { label: "Delivering",   status: "delivering" },
-  { label: "Delivered",    status: "sent"       },
-  { label: "Failed",       status: "failed"     },
+  { label: "Needs review", status: "review",     api: "pending_review"   },
+  { label: "Ready",        status: "ready",      api: "ready"            },
+  { label: "Delivering",   status: "delivering", api: "ready_to_deliver" },
+  { label: "Delivered",    status: "sent",       api: "delivered"        },
+  { label: "Failed",       status: "failed",     api: "failed"           },
 ];
 
 // ─── Column helper ────────────────────────────────────────────────────────────
@@ -336,46 +338,71 @@ function SortIcon({ state }: { state: "asc" | "desc" | false }) {
 // Mock mode: use a static generated set (50 rows)
 const MOCK_ORDERS = isApiMockMode ? generateOrders(50) : [];
 
+const PAGE_SIZE = 25;
+
 export function InboxView() {
   const router = useRouter();
   const [sorting, setSorting]           = useState<SortingState>([{ id: "ageMin", desc: false }]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
   const [activeChip, setActiveChip]     = useState(0); // index into FILTER_CHIPS
-  const [searchQuery, setSearchQuery]   = useState(""); // for PO#, buyer, supplier search
+  const [searchInput, setSearchInput]   = useState(""); // controlled search-box value
+  const [search, setSearch]             = useState(""); // committed (debounced) server search
+  const [statusFilter, setStatusFilter] = useState<OrderStatus | undefined>(undefined); // live ?status=
+  const [page, setPage]                 = useState(1);  // 1-based page index
+  const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const queryClient = useQueryClient();
-  const { data: rawOrders, isLoading, isError, refetch } = useQuery({
-    queryKey: ["orders"],
-    queryFn: () => apiClient.getOrders(),
+  // Live (non-mock) path: the backend returns a paginated envelope and applies
+  // status + search filters server-side. A distinct query key keeps this apart
+  // from the lightweight ["orders"] working-set used by sidebar/topbar/dashboard.
+  const { data: ordersPage, isLoading, isError, refetch } = useQuery({
+    queryKey: ["orders", "inbox", page, statusFilter ?? "", search],
+    queryFn: () => apiClient.getOrders({
+      page,
+      pageSize: PAGE_SIZE,
+      status: statusFilter,
+      search: search || undefined,
+    }),
     staleTime: 30_000,
     enabled: !isApiMockMode,
+    placeholderData: (prev) => prev, // keep the current page visible while the next loads
   });
 
   // Memoize so react-table receives a STABLE `data` reference across renders.
-  // Previously this was `(rawOrders ?? []).map(summaryToRow)` — a brand-new array
-  // on EVERY render. In the live (non-mock) path the inbox is also subscribed to
-  // TanStack Query, so it re-renders on query activity; each render handed
-  // react-table a fresh `data` identity, which forced it to rebuild its row models
-  // and produce new derived references, scheduling yet another render. Applying a
-  // status filter tipped this into an unbounded re-render cascade that locked the
-  // main thread (the reported hard freeze). Keying the memo on `rawOrders` keeps
-  // the reference stable until the underlying query data actually changes.
+  // A bare `.map(summaryToRow)` would build a brand-new array on EVERY render. In
+  // the live (non-mock) path the inbox is also subscribed to TanStack Query, so it
+  // re-renders on query activity; each render handed react-table a fresh `data`
+  // identity, which forced it to rebuild its row models and produce new derived
+  // references, scheduling yet another render. Applying a status filter tipped this
+  // into an unbounded re-render cascade that locked the main thread (the reported
+  // hard freeze). Keying the memo on `ordersPage` keeps the reference stable until
+  // the underlying query data actually changes.
   const ALL_ORDERS: OrderRow[] = useMemo(
-    () => (isApiMockMode ? MOCK_ORDERS : (rawOrders ?? []).map(summaryToRow)),
-    [rawOrders],
+    () => (isApiMockMode ? MOCK_ORDERS : (ordersPage?.items ?? []).map(summaryToRow)),
+    [ordersPage],
   );
 
-  // Status filter: when a chip is selected, filter by status column
+  // Status chip → mock filters the column client-side; live sets the server filter.
   const handleChip = useCallback((idx: number) => {
     setActiveChip(idx);
-    const chip = FILTER_CHIPS[idx];
-    if (chip.status) {
-      setColumnFilters([{ id: "status", value: chip.status }]);
-    } else {
-      setColumnFilters([]);
-    }
+    setPage(1);
     setRowSelection({});
+    const chip = FILTER_CHIPS[idx];
+    if (isApiMockMode) {
+      setColumnFilters(chip.status ? [{ id: "status", value: chip.status }] : []);
+    } else {
+      setStatusFilter(chip.api);
+    }
+  }, []);
+
+  // Search box: mock filters instantly client-side; live debounces into a server query.
+  const handleSearch = useCallback((value: string) => {
+    setSearchInput(value);
+    setPage(1);
+    if (isApiMockMode) return;
+    if (searchTimer.current) clearTimeout(searchTimer.current);
+    searchTimer.current = setTimeout(() => setSearch(value), 350);
   }, []);
 
   const table = useReactTable({
@@ -393,27 +420,38 @@ export function InboxView() {
 
   const { rows } = table.getRowModel();
 
-  // Global search filter function
+  // Client-side text search only in mock mode (live mode searches server-side).
   const filteredRows = useMemo(() => {
-    return rows.filter((row) => {
-      if (!searchQuery) return true;
-      const q = searchQuery.toLowerCase();
-      return (
-        row.original.po.toLowerCase().includes(q) ||
-        row.original.buyer.toLowerCase().includes(q) ||
-        row.original.supplier.toLowerCase().includes(q)
-      );
-    });
-  }, [rows, searchQuery]);
+    if (!isApiMockMode || !searchInput) return rows;
+    const q = searchInput.toLowerCase();
+    return rows.filter((row) =>
+      row.original.po.toLowerCase().includes(q) ||
+      row.original.buyer.toLowerCase().includes(q) ||
+      row.original.supplier.toLowerCase().includes(q),
+    );
+  }, [rows, searchInput]);
+
+  // Pagination: mock paginates the filtered set client-side; live already holds
+  // exactly one server page in `filteredRows`.
+  const totalCount = isApiMockMode ? filteredRows.length : (ordersPage?.totalCount ?? 0);
+  const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
+  const currentPage = Math.min(page, totalPages);
+  const pagedRows = isApiMockMode
+    ? filteredRows.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE)
+    : filteredRows;
 
   const selectedCount = Object.keys(rowSelection).length;
+  const reviewCount = useMemo(() => ALL_ORDERS.filter((o) => o.status === "review").length, [ALL_ORDERS]);
+  const failedCount = useMemo(() => ALL_ORDERS.filter((o) => o.status === "failed").length, [ALL_ORDERS]);
 
-  // Chip counts against full dataset (before status filter)
+  // Chip counts are only meaningful against the full mock set; live mode would
+  // need extra count queries, so labels show without counts there.
   const chipCounts = useMemo(
-    () => FILTER_CHIPS.map(({ status }) =>
-      status ? ALL_ORDERS.filter((o) => o.status === status).length : ALL_ORDERS.length
-    ),
-    [ALL_ORDERS]
+    () => isApiMockMode
+      ? FILTER_CHIPS.map(({ status }) =>
+          status ? ALL_ORDERS.filter((o) => o.status === status).length : ALL_ORDERS.length)
+      : [],
+    [ALL_ORDERS],
   );
 
   // Loading state
@@ -486,9 +524,8 @@ export function InboxView() {
             Inbox
           </h1>
           <p className="text-[13px] mt-1" style={{ color: "#56627A" }}>
-            {ALL_ORDERS.length.toLocaleString()} order{ALL_ORDERS.length !== 1 ? "s" : ""}
-            {" · "}{ALL_ORDERS.filter((o) => o.status === "review").length} need review
-            {" · "}{ALL_ORDERS.filter((o) => o.status === "failed").length} failed
+            {totalCount.toLocaleString()} order{totalCount !== 1 ? "s" : ""}
+            {isApiMockMode && <>{" · "}{reviewCount} need review{" · "}{failedCount} failed</>}
             {selectedCount > 0 && <span style={{ color: "#1E66C9", marginLeft: 8 }}>· {selectedCount} selected</span>}
           </p>
         </div>
@@ -596,12 +633,14 @@ export function InboxView() {
                 }}
               >
                 {label}
-                <span
-                  className="text-[11px] font-mono"
-                  style={{ color: active ? "#0F4FA8" : "#8A93A5" }}
-                >
-                  {chipCounts[i].toLocaleString()}
-                </span>
+                {isApiMockMode && (
+                  <span
+                    className="text-[11px] font-mono"
+                    style={{ color: active ? "#0F4FA8" : "#8A93A5" }}
+                  >
+                    {chipCounts[i]?.toLocaleString() ?? 0}
+                  </span>
+                )}
               </button>
             );
           })}
@@ -615,9 +654,9 @@ export function InboxView() {
           <span style={{ fontSize: "14px", color: "#8A93A5", flexShrink: 0 }}>🔍</span>
           <input
             type="text"
-            placeholder="Filter…"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search PO, buyer, supplier…"
+            value={searchInput}
+            onChange={(e) => handleSearch(e.target.value)}
             style={{
               border: "none",
               outline: "none",
@@ -635,7 +674,7 @@ export function InboxView() {
       {/* ── Queue table / mobile route cards ──────────────────────────────────── */}
       <div className="flex-1 overflow-auto" style={{ background: "#FFFFFF" }}>
         <div className="divide-y divide-[#F0F2F6] md:hidden">
-          {filteredRows.length === 0 && (
+          {pagedRows.length === 0 && (
             <div className="flex flex-col items-center justify-center py-16 px-6 text-center gap-3">
               <div style={{ fontSize: 28, color: "#C6CDDA" }}>⊘</div>
               <p className="text-[14px] font-semibold" style={{ color: "#0B1A2F" }}>Your inbox is clear</p>
@@ -659,7 +698,7 @@ export function InboxView() {
               </button>
             </div>
           )}
-          {filteredRows.map((row) => (
+          {pagedRows.map((row) => (
             <button
               key={row.id}
               className="block w-full px-4 py-3 text-left"
@@ -792,7 +831,7 @@ export function InboxView() {
           </thead>
 
           <tbody>
-            {filteredRows.map((row) => {
+            {pagedRows.map((row) => {
               const isSelected = row.getIsSelected();
               return (
                 <tr
@@ -841,7 +880,7 @@ export function InboxView() {
             })}
 
             {/* Empty state */}
-            {filteredRows.length === 0 && (
+            {pagedRows.length === 0 && (
               <tr>
                 <td colSpan={columns.length} style={{ textAlign: "center", padding: "64px 0" }}>
                   <div style={{ fontSize: 32, marginBottom: 16, color: "#C6CDDA" }}>⊘</div>
@@ -884,15 +923,38 @@ export function InboxView() {
         </div>
       </div>
 
-      {/* Footer row count */}
+      {/* Footer: total + pagination controls */}
       <div
-        className="flex-shrink-0 flex items-center px-5"
-        style={{ height: 32, borderTop: "1px solid #E2E6EE", background: "#FFFFFF" }}
+        className="flex-shrink-0 flex flex-wrap items-center gap-3 px-5 py-2"
+        style={{ borderTop: "1px solid #E2E6EE", background: "#FFFFFF" }}
       >
         <span className="text-[11px]" style={{ color: "#8A93A5" }}>
-          Showing {filteredRows.length.toLocaleString()} rows · {ALL_ORDERS.length.toLocaleString()} total
+          {totalCount.toLocaleString()} order{totalCount !== 1 ? "s" : ""}
           {selectedCount > 0 && <span style={{ color: "#1E66C9" }}> · {selectedCount} selected</span>}
         </span>
+        <div className="ml-auto flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setPage(Math.max(1, currentPage - 1))}
+            disabled={currentPage <= 1}
+            className="rounded-[6px] px-2.5 text-[12px] font-medium"
+            style={{ height: 28, border: "1px solid #E2E6EE", background: "#FFFFFF", color: currentPage <= 1 ? "#C6CDDA" : "#0B1A2F", cursor: currentPage <= 1 ? "default" : "pointer" }}
+          >
+            ← Prev
+          </button>
+          <span className="text-[11px] font-mono" style={{ color: "#56627A", minWidth: 92, textAlign: "center" }}>
+            Page {currentPage} of {totalPages}
+          </span>
+          <button
+            type="button"
+            onClick={() => setPage(currentPage + 1)}
+            disabled={currentPage >= totalPages}
+            className="rounded-[6px] px-2.5 text-[12px] font-medium"
+            style={{ height: 28, border: "1px solid #E2E6EE", background: "#FFFFFF", color: currentPage >= totalPages ? "#C6CDDA" : "#0B1A2F", cursor: currentPage >= totalPages ? "default" : "pointer" }}
+          >
+            Next →
+          </button>
+        </div>
       </div>
     </div>
   );
