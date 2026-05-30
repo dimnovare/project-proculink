@@ -144,10 +144,10 @@ export default async function RootPage() {
             position: "relative",
           }}
         >
-          The bridge between
+          Stop reformatting
           <br />
-          your <span style={{ color: "#6BA5F0" }}>buyers</span> and{" "}
-          <span style={{ color: "#5FC06B" }}>suppliers</span>
+          <span style={{ color: "#6BA5F0" }}>purchase orders</span>. Start{" "}
+          <span style={{ color: "#5FC06B" }}>delivering</span> them.
         </h1>
 
         {/* Sub */}
@@ -572,7 +572,7 @@ export default async function RootPage() {
             </div>
             {[
               { h: "Product", links: [["How it works", "/how-it-works"], ["Pricing", "/pricing"], ["Security", "/security"], ["Open the bridge", "/bridge"]] },
-              { h: "Company", links: [["Customers", "/customers"], ["Changelog", "/changelog"], ["Support", "/support"]] },
+              { h: "Company", links: [["Changelog", "/changelog"], ["Support", "/support"]] },
               { h: "Legal",   links: [["Privacy", "/privacy"], ["Terms", "/terms"], ["AUP", "/aup"], ["DPA", "/dpa"], ["Subprocessors", "/subprocessors"]] },
             ].map((col) => (
               <div key={col.h}>
