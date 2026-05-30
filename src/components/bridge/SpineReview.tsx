@@ -361,7 +361,7 @@ function SpineNodeCard({
 // Renders a document-styled view reconstructed from the order's parsed fields.
 // Driven entirely by live order data — no staged company/PO content.
 
-function DocumentAnatomy({ order }: { order: Order }) {
+function DocumentAnatomy({ order, onSection }: { order: Order; onSection?: (id: string, el: HTMLElement | null) => void }) {
   const lineCount = order.lines.length;
   const avgConf = lineCount > 0
     ? Math.round((order.lines.reduce((s, l) => s + l.confidence, 0) / lineCount) * 100)
@@ -381,7 +381,7 @@ function DocumentAnatomy({ order }: { order: Order }) {
       </div>
       <div style={{ borderRadius: 6, background: "#FFFFFF", padding: "14px 16px", fontFamily: "'Times New Roman',serif", fontSize: 9.5, color: "#1a1a1a", boxShadow: "0 1px 4px rgba(0,0,0,0.08)", minHeight: 360 }}>
         {/* Letterhead — real buyer + PO */}
-        <div style={{ display: "flex", justifyContent: "space-between", gap: 12, paddingBottom: 6, borderBottom: "2px solid #333" }}>
+        <div ref={(el) => onSection?.("header", el)} style={{ display: "flex", justifyContent: "space-between", gap: 12, paddingBottom: 6, borderBottom: "2px solid #333" }}>
           <div style={{ fontFamily: "Inter,sans-serif", fontSize: 13, fontWeight: 800, letterSpacing: "0.04em", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "60%" }}>
             {order.buyerName ?? "Buyer (parsing…)"}
           </div>
@@ -390,12 +390,12 @@ function DocumentAnatomy({ order }: { order: Order }) {
             <div style={{ fontSize: 9, fontFamily: "'JetBrains Mono',monospace" }}>{order.poNumber} · {dateLabel}</div>
           </div>
         </div>
-        <div style={{ marginTop: 10, fontSize: 9 }}>
+        <div ref={(el) => onSection?.("parties", el)} style={{ marginTop: 10, fontSize: 9 }}>
           Buyer: {order.buyerName ?? "—"}<br/>Supplier: {order.supplierName}
         </div>
-        <div style={{ marginTop: 8, fontSize: 9 }}>Currency: {order.currency} · {lineCount} line{lineCount !== 1 ? "s" : ""}</div>
+        <div ref={(el) => onSection?.("terms", el)} style={{ marginTop: 8, fontSize: 9 }}>Currency: {order.currency} · {lineCount} line{lineCount !== 1 ? "s" : ""}</div>
         {lineCount > 0 ? (
-          <table style={{ width: "100%", borderCollapse: "collapse", marginTop: 10, fontSize: 8.5 }}>
+          <table ref={(el) => onSection?.("lines", el)} style={{ width: "100%", borderCollapse: "collapse", marginTop: 10, fontSize: 8.5 }}>
             <thead><tr style={{ background: "#EEE" }}><th style={{ textAlign: "left", padding: "3px 4px" }}>#</th><th style={{ textAlign: "left" }}>Item</th><th style={{ textAlign: "left" }}>Desc.</th><th style={{ textAlign: "right" }}>Qty</th></tr></thead>
             <tbody>
               {previewLines.map((l) => (
@@ -409,12 +409,12 @@ function DocumentAnatomy({ order }: { order: Order }) {
             </tbody>
           </table>
         ) : (
-          <div style={{ marginTop: 12, fontSize: 9, color: "#888", fontStyle: "italic" }}>No line items parsed yet.</div>
+          <div ref={(el) => onSection?.("lines", el)} style={{ marginTop: 12, fontSize: 9, color: "#888", fontStyle: "italic" }}>No line items parsed yet.</div>
         )}
         {lineCount > previewLines.length && (
           <div style={{ marginTop: 4, fontSize: 8.5, color: "#888" }}>+ {lineCount - previewLines.length} more line{lineCount - previewLines.length !== 1 ? "s" : ""}</div>
         )}
-        <div style={{ marginTop: 10, textAlign: "right", fontSize: 9, fontWeight: 700 }}>Grand total: {formatMoney(order.currency, orderTotal(order))}</div>
+        <div ref={(el) => onSection?.("totals", el)} style={{ marginTop: 10, textAlign: "right", fontSize: 9, fontWeight: 700 }}>Grand total: {formatMoney(order.currency, orderTotal(order))}</div>
       </div>
     </div>
   );
@@ -422,7 +422,7 @@ function DocumentAnatomy({ order }: { order: Order }) {
 
 // ─── Output Preview ───────────────────────────────────────────────────────────
 
-function OutputPreview({ order, acceptedSubnodes, rejectedSubnodes, crossed, fieldValues, onOutputAction, orderId, artifacts }: {
+function OutputPreview({ order, acceptedSubnodes, rejectedSubnodes, crossed, fieldValues, onOutputAction, orderId, artifacts, onLine }: {
   order: Order;
   acceptedSubnodes: Set<string>;
   rejectedSubnodes: Set<string>;
@@ -431,6 +431,7 @@ function OutputPreview({ order, acceptedSubnodes, rejectedSubnodes, crossed, fie
   onOutputAction: (message: string) => void;
   orderId: string;
   artifacts: Order["artifacts"];
+  onLine?: (id: string, el: HTMLElement | null) => void;
 }) {
   const [downloadLoading, setDownloadLoading] = useState(false);
   const [copyLoading, setCopyLoading] = useState(false);
@@ -516,29 +517,29 @@ function OutputPreview({ order, acceptedSubnodes, rejectedSubnodes, crossed, fie
         <div style={{ color: "#7C8DA6" }}>{'<?xml version="1.0" ?>'}</div>
         <div><span style={{ color: "#7FB37B" }}>{"<cXML>"}</span></div>
         <div style={{ paddingLeft: 12 }}><span style={{ color: "#7FB37B" }}>{"<Request>"}</span></div>
-        <div style={{ paddingLeft: 24 }}>
+        <div ref={(el) => onLine?.("po", el)} style={{ paddingLeft: 24 }}>
           <span style={{ color: "#7FB37B" }}>{"<OrderRequest "}</span>
           <span style={{ color: "#8ABAEF" }}>orderID</span>{"="}
           <span style={{ color: "#E0A23A" }}>&quot;{outPo}&quot;</span>
           {fieldValues["po"] && fieldValues["po"] !== order.poNumber && <span style={{ marginLeft: 8, fontSize: 9, color: "#E0A23A" }}>← edited</span>}
         </div>
-        <div style={{ paddingLeft: 60 }}>
+        <div ref={(el) => onLine?.("date", el)} style={{ paddingLeft: 60 }}>
           <span style={{ color: "#8ABAEF" }}>orderDate</span>{"="}
           <span style={{ color: "#E0A23A" }}>&quot;{outDate}&quot;</span>
           <span style={{ color: "#7FB37B" }}>{">"}</span>
         </div>
-        <div style={{ paddingLeft: 32, marginTop: 4, background: "rgba(46,142,58,0.10)", borderLeft: "2px solid #2E8E3A", paddingTop: 2, paddingBottom: 2 }}>
+        <div ref={(el) => { onLine?.("currency", el); onLine?.("totals", el); }} style={{ paddingLeft: 32, marginTop: 4, background: "rgba(46,142,58,0.10)", borderLeft: "2px solid #2E8E3A", paddingTop: 2, paddingBottom: 2 }}>
           <span style={{ color: "#7FB37B" }}>{`<Total currency="${outCurrency}">`}{outTotal}{"</Total>"}</span>
         </div>
-        <div style={{ paddingLeft: 32, marginTop: 4 }}>
+        <div ref={(el) => onLine?.("supplier", el)} style={{ paddingLeft: 32, marginTop: 4 }}>
           <span style={{ color: "#7FB37B" }}>{"<ShipFrom>"}</span>{order.supplierName}<span style={{ color: "#7FB37B" }}>{"</ShipFrom>"}</span>
         </div>
-        <div style={{ paddingLeft: 32 }}>
+        <div ref={(el) => onLine?.("buyer", el)} style={{ paddingLeft: 32 }}>
           <span style={{ color: "#7FB37B" }}>{"<BillTo>"}</span>
           <span style={{ background: fieldValues["buyer"] ? "rgba(232,175,35,0.15)" : "transparent", color: fieldValues["buyer"] ? "#E0A23A" : "#C5D2E4", padding: "0 2px" }}>{outBuyer}</span>
           <span style={{ color: "#7FB37B" }}>{"</BillTo>"}</span>
         </div>
-        <div style={{ paddingLeft: 32, marginTop: 6, color: "#7C8DA6" }}>{"<!-- ItemOut entries -->"}</div>
+        <div ref={(el) => onLine?.("lines", el)} style={{ paddingLeft: 32, marginTop: 6, color: "#7C8DA6" }}>{"<!-- ItemOut entries -->"}</div>
         {previewLines.map((line) => {
           const accepted = acceptedSubnodes.has(line.id);
           const rejected = rejectedSubnodes.has(line.id);
@@ -813,7 +814,7 @@ export function SpineReview({ orderId }: { orderId: string }) {
   // loading/error gates below render before this is used). No demo fallback —
   // real users must never see staged PO-DEMO-001 content.
   const nodes = useMemo(() => (order ? buildNodesFromOrder(order) : []), [order]);
-  const connectorNodes = useMemo(() => nodes.map((n) => ({ id: n.id, pct: n.pct })), [nodes]);
+  const connectorNodes = useMemo(() => nodes.map((n) => ({ id: n.id, pct: n.pct, srcRef: n.srcRef })), [nodes]);
 
   // Sample order banner: query param OR order.isSample
   const searchParams = useSearchParams();
@@ -834,6 +835,8 @@ export function SpineReview({ orderId }: { orderId: string }) {
   const sourceColRef = useRef<HTMLDivElement>(null);
   const outputColRef = useRef<HTMLDivElement>(null);
   const nodeEls = useRef<Record<string, HTMLDivElement | null>>({});
+  const srcSectionEls = useRef<Record<string, HTMLElement | null>>({});
+  const outLineEls = useRef<Record<string, HTMLElement | null>>({});
   const [hoveredId, setHoveredId] = useState<string | null>(null);
 
   // Count remaining unresolved exceptions (from live order lines)
@@ -1088,6 +1091,8 @@ export function SpineReview({ orderId }: { orderId: string }) {
                 sourceColRef={sourceColRef}
                 outputColRef={outputColRef}
                 nodeEls={nodeEls}
+                srcSectionEls={srcSectionEls}
+                outLineEls={outLineEls}
                 nodes={connectorNodes}
                 hoveredId={hoveredId}
                 crossed={crossed}
@@ -1097,7 +1102,7 @@ export function SpineReview({ orderId }: { orderId: string }) {
               {/* Left — Document Anatomy */}
               <div ref={sourceColRef}>
                 <div style={{ fontSize: 10.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em", color: "#8A93A5", marginBottom: 10 }}>📄 Source · What we received</div>
-                <DocumentAnatomy order={order} />
+                <DocumentAnatomy order={order} onSection={(id, el) => { srcSectionEls.current[id] = el; }} />
               </div>
 
               {/* Center — Canonical Spine */}
@@ -1141,6 +1146,7 @@ export function SpineReview({ orderId }: { orderId: string }) {
                   onOutputAction={setFlowNotice}
                   orderId={orderId}
                   artifacts={order.artifacts}
+                  onLine={(id, el) => { outLineEls.current[id] = el; }}
                 />
               </div>
             </div>

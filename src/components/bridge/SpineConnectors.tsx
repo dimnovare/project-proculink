@@ -1,18 +1,20 @@
 "use client";
 
 import type React from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 
 // SpineConnectors — the "bridge made visible".
-// Draws two sets of SVG bezier wires over the Review grid, exactly like the
-// supplier-dock auto-map: Source Document → Canonical Spine (buyer-blue) and
-// Canonical Spine → Supplier output (supplier-green). Confidence-colored,
-// hover-aware, and flushing solid green when the order crosses.
-
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+// Draws two bezier wire-sets over the Review grid, anchored to the REAL DOM:
+//   Source-document section  →  Canonical-spine node  →  Supplier-output line.
+// Each wire is painted with one continuous buyer-blue → supplier-green gradient
+// spanning its full journey (userSpaceOnUse), so the spine sits at the teal
+// midpoint. Exceptions break the gradient: amber (75–89) / red (<75) dashed.
+// Everything flushes solid green once the order crosses.
 
 export interface ConnectorNode {
   id: string;
   pct: number;
+  srcRef: string;
 }
 
 interface SpineConnectorsProps {
@@ -20,33 +22,38 @@ interface SpineConnectorsProps {
   sourceColRef: React.RefObject<HTMLElement | null>;
   outputColRef: React.RefObject<HTMLElement | null>;
   nodeEls: React.MutableRefObject<Record<string, HTMLElement | null>>;
+  /** Real source-document section elements, keyed by node.srcRef (header/parties/terms/lines/totals). */
+  srcSectionEls: React.MutableRefObject<Record<string, HTMLElement | null>>;
+  /** Real supplier-output line elements, keyed by node.id. */
+  outLineEls: React.MutableRefObject<Record<string, HTMLElement | null>>;
   nodes: ConnectorNode[];
   hoveredId: string | null;
   crossed: boolean;
-  /** Any change to this string forces a re-measure (heights shift on edit/accept). */
+  /** Any change forces a re-measure (heights shift on edit/accept/reject). */
   signature: string;
 }
 
-// Anchor heights as a % of the source/output column height, per node id.
-// Source document flows: letterhead → parties → currency → line table → total.
-const SRC_Y: Record<string, number> = { po: 7, date: 11, buyer: 20, supplier: 23, currency: 28, lines: 56, totals: 88 };
-// cXML output flows: orderID → orderDate → Total → ShipFrom → BillTo → ItemOut[].
-const OUT_Y: Record<string, number> = { po: 15, date: 20, currency: 26, supplier: 31, buyer: 36, lines: 62, totals: 26 };
+// Fallback anchor heights (% of the source/output column) used only when a real
+// element ref hasn't mounted yet.
+const SRC_Y_FALLBACK: Record<string, number> = { header: 9, parties: 22, terms: 28, lines: 56, totals: 88 };
+const OUT_Y_FALLBACK: Record<string, number> = { po: 15, date: 20, currency: 26, supplier: 31, buyer: 36, lines: 62, totals: 26 };
 
 interface Wire {
   id: string;
   pct: number;
-  left: { x1: number; y1: number; x2: number; y2: number };
-  right: { x1: number; y1: number; x2: number; y2: number };
+  sx: number; sy: number;   // source anchor (right edge of the section)
+  nlx: number; nrx: number; ny: number; // node left-x, right-x, attach-y
+  ox: number; oy: number;   // output anchor (left edge of the line)
 }
 
-function bez(a: { x1: number; y1: number; x2: number; y2: number }): string {
-  const cx = a.x1 + (a.x2 - a.x1) * 0.5;
-  return `M ${a.x1} ${a.y1} C ${cx} ${a.y1} ${cx} ${a.y2} ${a.x2} ${a.y2}`;
+function curve(x1: number, y1: number, x2: number, y2: number): string {
+  const cx = x1 + (x2 - x1) * 0.5;
+  return `M ${x1} ${y1} C ${cx} ${y1} ${cx} ${y2} ${x2} ${y2}`;
 }
 
 export function SpineConnectors({
-  gridRef, sourceColRef, outputColRef, nodeEls, nodes, hoveredId, crossed, signature,
+  gridRef, sourceColRef, outputColRef, nodeEls, srcSectionEls, outLineEls,
+  nodes, hoveredId, crossed, signature,
 }: SpineConnectorsProps) {
   const [wires, setWires] = useState<Wire[]>([]);
   const [shown, setShown] = useState(false);
@@ -69,40 +76,48 @@ export function SpineConnectors({
       const el = nodeEls.current[node.id];
       if (!el) return;
       const r = el.getBoundingClientRect();
-      const nodeLeftX = r.left - g.left;
-      const nodeRightX = r.right - g.left;
-      const nodeY = r.top - g.top + 18; // attach near the node dot / label row
+      const ny = r.top - g.top + 18; // attach near the node dot / label row
 
-      const sx = s.right - g.left;
-      const syPct = SRC_Y[node.id] ?? ((i + 0.5) / nodes.length) * 100;
-      const sy = s.top - g.top + (s.height * syPct) / 100;
+      // Source anchor — real section element if mounted, else a sensible %.
+      const secEl = srcSectionEls.current[node.srcRef];
+      let sx: number, sy: number;
+      if (secEl) {
+        const sr = secEl.getBoundingClientRect();
+        sx = sr.right - g.left;
+        sy = sr.top - g.top + sr.height / 2;
+      } else {
+        sx = s.right - g.left;
+        sy = s.top - g.top + (s.height * (SRC_Y_FALLBACK[node.srcRef] ?? ((i + 0.5) / nodes.length) * 100)) / 100;
+      }
 
-      const ox = o.left - g.left;
-      const oyPct = OUT_Y[node.id] ?? ((i + 0.5) / nodes.length) * 100;
-      const oy = o.top - g.top + (o.height * oyPct) / 100;
+      // Output anchor — real output line if mounted, else a sensible %.
+      const lineEl = outLineEls.current[node.id];
+      let ox: number, oy: number;
+      if (lineEl) {
+        const lr = lineEl.getBoundingClientRect();
+        ox = lr.left - g.left;
+        oy = lr.top - g.top + lr.height / 2;
+      } else {
+        ox = o.left - g.left;
+        oy = o.top - g.top + (o.height * (OUT_Y_FALLBACK[node.id] ?? ((i + 0.5) / nodes.length) * 100)) / 100;
+      }
 
-      next.push({
-        id: node.id,
-        pct: node.pct,
-        left: { x1: sx, y1: sy, x2: nodeLeftX, y2: nodeY },
-        right: { x1: nodeRightX, y1: nodeY, x2: ox, y2: oy },
-      });
+      next.push({ id: node.id, pct: node.pct, sx, sy, nlx: r.left - g.left, nrx: r.right - g.left, ny, ox, oy });
     });
 
     setWires(next);
-  }, [gridRef, sourceColRef, outputColRef, nodeEls, nodes]);
+  }, [gridRef, sourceColRef, outputColRef, nodeEls, srcSectionEls, outLineEls, nodes]);
 
-  // Re-measure after layout + whenever content shifts.
   useLayoutEffect(() => { measure(); }, [measure, signature]);
 
-  // Re-measure on resize + after fonts/layout settle (rAF), and reveal once.
   useEffect(() => {
     const onResize = () => {
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
       rafRef.current = requestAnimationFrame(measure);
     };
     window.addEventListener("resize", onResize);
-    const t = setTimeout(() => { measure(); setShown(true); }, 60);
+    // Re-measure once after fonts/layout settle, then reveal.
+    const t = setTimeout(() => { measure(); setShown(true); }, 70);
     return () => {
       window.removeEventListener("resize", onResize);
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
@@ -110,43 +125,53 @@ export function SpineConnectors({
     };
   }, [measure]);
 
-  const wireStyle = (pct: number, side: "left" | "right") => {
-    const dim = hoveredId != null;
-    const base = crossed ? "#2E8E3A" : pct >= 90 ? (side === "left" ? "#1E66C9" : "#2E8E3A") : pct >= 75 ? "#C97A14" : "#C53A3A";
-    const dashed = !crossed && pct < 90;
-    return { stroke: base, dashed };
-  };
-
   return (
     <svg
       aria-hidden
       style={{
         position: "absolute", inset: 0, width: "100%", height: "100%",
         pointerEvents: "none", zIndex: 2, opacity: shown ? 1 : 0,
-        transition: "opacity 300ms ease-out",
+        transition: "opacity 320ms ease-out",
       }}
     >
+      <defs>
+        {wires.map((w) => (
+          <linearGradient key={w.id} id={`scg-${w.id}`} gradientUnits="userSpaceOnUse" x1={w.sx} y1={w.sy} x2={w.ox} y2={w.oy}>
+            <stop offset="0%" stopColor="#1E66C9" />
+            <stop offset="100%" stopColor="#2E8E3A" />
+          </linearGradient>
+        ))}
+      </defs>
       {wires.map((w) => {
         const emphasized = hoveredId === w.id;
         const dim = hoveredId != null && !emphasized;
-        const opacity = dim ? 0.18 : 1;
-        const sw = emphasized ? 2.6 : 1.7;
-        const L = wireStyle(w.pct, "left");
-        const R = wireStyle(w.pct, "right");
-        const common = {
+        const opacity = dim ? 0.16 : 1;
+        const sw = emphasized ? 2.8 : 1.8;
+
+        const confident = !crossed && w.pct >= 90;
+        const amber = !crossed && w.pct >= 75 && w.pct < 90;
+        const red = !crossed && w.pct < 75;
+        const stroke = crossed ? "#2E8E3A" : confident ? `url(#scg-${w.id})` : amber ? "#C97A14" : "#C53A3A";
+        const dashed = amber || red;
+        const srcDot = crossed ? "#2E8E3A" : confident ? "#1E66C9" : amber ? "#C97A14" : "#C53A3A";
+        const outDot = crossed || confident ? "#2E8E3A" : amber ? "#C97A14" : "#C53A3A";
+
+        const common: React.SVGProps<SVGPathElement> = {
           fill: "none",
+          stroke,
           strokeWidth: sw,
           opacity,
-          style: { transition: "stroke 250ms, stroke-width 140ms, opacity 200ms" } as React.CSSProperties,
+          strokeDasharray: dashed ? "5 4" : undefined,
+          style: { transition: "stroke-width 140ms ease, opacity 200ms ease" },
         };
+
         return (
           <g key={w.id}>
-            <path d={bez(w.left)} stroke={L.stroke} strokeDasharray={L.dashed ? "5 4" : undefined} {...common} />
-            <path d={bez(w.right)} stroke={R.stroke} strokeDasharray={R.dashed ? "5 4" : undefined} {...common} />
-            {/* endpoint dots */}
-            <circle cx={w.left.x1} cy={w.left.y1} r={emphasized ? 3.4 : 2.6} fill={L.stroke} opacity={opacity} />
-            <circle cx={w.right.x2} cy={w.right.y2} r={emphasized ? 3.4 : 2.6} fill={R.stroke} opacity={opacity} />
-            <circle cx={w.left.x2} cy={w.left.y2} r={2.4} fill="#FFFFFF" stroke={L.stroke} strokeWidth={1.4} opacity={opacity} />
+            <path d={curve(w.sx, w.sy, w.nlx, w.ny)} {...common} />
+            <path d={curve(w.nrx, w.ny, w.ox, w.oy)} {...common} />
+            <circle cx={w.sx} cy={w.sy} r={emphasized ? 3.6 : 2.7} fill={srcDot} opacity={opacity} />
+            <circle cx={w.ox} cy={w.oy} r={emphasized ? 3.6 : 2.7} fill={outDot} opacity={opacity} />
+            <circle cx={w.nlx} cy={w.ny} r={2.4} fill="#FFFFFF" stroke={confident ? "#1E66C9" : srcDot} strokeWidth={1.4} opacity={opacity} />
           </g>
         );
       })}
