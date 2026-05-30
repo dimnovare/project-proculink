@@ -160,12 +160,11 @@ function summaryToRow(o: OrderSummary): OrderRow {
 // ─── Filter chips ─────────────────────────────────────────────────────────────
 
 const FILTER_CHIPS: Array<{ label: string; status?: CrossingStatus }> = [
-  { label: "All" },
-  { label: "New",          status: "new"        },
-  { label: "Extracting",   status: "extracting" },
+  { label: "All orders" },
   { label: "Needs review", status: "review"     },
   { label: "Ready",        status: "ready"      },
-  { label: "Sent",         status: "sent"       },
+  { label: "Delivering",   status: "delivering" },
+  { label: "Delivered",    status: "sent"       },
   { label: "Failed",       status: "failed"     },
 ];
 
@@ -487,7 +486,9 @@ export function InboxView() {
             Inbox
           </h1>
           <p className="text-[13px] mt-1" style={{ color: "#56627A" }}>
-            {rows.length.toLocaleString()} of {ALL_ORDERS.length.toLocaleString()} orders
+            {ALL_ORDERS.length.toLocaleString()} order{ALL_ORDERS.length !== 1 ? "s" : ""}
+            {" · "}{ALL_ORDERS.filter((o) => o.status === "review").length} need review
+            {" · "}{ALL_ORDERS.filter((o) => o.status === "failed").length} failed
             {selectedCount > 0 && <span style={{ color: "#1E66C9", marginLeft: 8 }}>· {selectedCount} selected</span>}
           </p>
         </div>

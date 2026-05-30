@@ -45,7 +45,7 @@ Legend: `[ ]` todo · `[x]` done · `(KEEP)` = do not regress to mockup.
 - [x] Connectors: KEPT Zapier/Make + webhook CRUD; chrome restyled to tokens (Make logo keeps brand color); added missing error states on API-keys + integrations queries.
 - [x] Organization: added Workspace region "EU (Frankfurt)"; Members row omitted (no real API — don't fabricate).
 
-> ⚠️ The /settings route coincided with a dev-server crash (resource exhaustion after a long session — tsc clean, no console errors, so NOT a code error). Re-run the mock preview and smoke-test /settings (nav icons, no Team tab, Billing plan card, IMAP form intact) in a fresh session.
+> ✅ /settings smoke-test PASSED (mock preview, 2026-05-30 fresh session): renders 200; canonical tabs Organization / Billing & plan / Email intake / API keys / Connectors with icons; **no Team tab**; Organization shows Workspace + "EU (Frankfurt)"; Email intake tab shows the full IMAP form (host/port/password) intact; Billing & plan tab renders plan card + portal CTA with no runtime error. (Preview QA note: the harness spawns a 2nd Next dev server on :3000 that races the existing :8082 on a shared `.next`, corrupting the route manifest — verify via the single :8082 server or stop the competitor; screenshots hang under contention, DOM evals + HTTP are reliable.)
 
 ### Connectors + Webhooks ✅ DONE (verified in mock preview, tsc-clean)
 - [x] Connectors: icon-card grid (icon tile + status pill + name/desc + dock count + Manage/Connect); "Add connector" blue; sub "ERP and channel integrations · N connected". KEEP Erply/Directo + test-fire. dock-count/desc mock-only → graceful in live.
@@ -60,23 +60,25 @@ Legend: `[ ]` todo · `[x]` done · `(KEEP)` = do not regress to mockup.
 - [x] Security: navy hero; 6 posture cards (added EU data residency + Backups & recovery to the existing 4); Compliance status table (+ Subprocessors links); navy CTA band.
 
 ## Minor-divergence screens
-### Dashboard / Order topology
+### Dashboard / Order topology — ⏳ NOT DONE (deferred — larger; needs BridgeDashboard + KPI data work)
 - [ ] KPIs → Orders crossed / Avg crossing time / Urgent exceptions / Auto-processed (fix "Orders received" label, add crossing-time if data exists, fix order); topology in a card with 2px gradient top bar; StatusJourney strips on in-transit rows; collapsible bottom panels; dynamic subtitle "Live wire view · N lanes · N suppliers · updated…".
 - [ ] WireTopology: buyer port fill white; 3-square legend (Buyer/Supplier/At-risk); wider viewBox proportions.
 
-### Inbox
-- [ ] Filter chips → All orders/Needs review/Ready/Delivering/Delivered/Failed; subtitle "N orders · M need review · K failed"; AI chip gated on real ai flag (not assigned≠—).
+### Inbox ✅ DONE (verified on :8082 mock)
+- [x] Filter chips → All orders / Needs review / Ready / Delivering / Delivered / Failed (dropped New + Extracting chips, renamed Sent→Delivered, added Delivering); subtitle "N orders · M need review · K failed". (AI-chip gating left as-is — lower priority.)
 
-### Canonical Spine review
+### Canonical Spine review — ⏳ NOT DONE (deferred — larger; CanonicalSpine/SpineReview header rework)
 - [ ] Header: large mono PO + StatusPill + buyer→supplier + inline journey + "Cross the bridge" CTA (consistent desktop+mobile); amber exception banner; edge rails with port dots + labels; output panel cXML/JSON segmented toggle + delivery footer; AI card with Accept/**Edit**/Reject; bottom keyboard-hints bar. (KEEP real send wiring; make CTA actually deliver)
 
-### Supplier dock
+### Supplier dock — ⏳ NOT DONE (deferred — larger; SupplierDockProfile overview/tabs rework)
 - [ ] Overview: KPI monument cards (Total orders/Avg cycle/Exception rate/Acceptance) + Dock summary + Recent crossings; Mappings tab → real table (not stub); Delivery: keep protocols **(KEEP Erply/Directo/SFTP/FTP)** + add Auto-process card with amber warning; truck icon; Dock settings button; channel + Auto-process header pill; plain-language delivery copy (no `ready_to_deliver`).
 
-### App shell
-- [ ] Add Drafts + Help nav items; sidebar 236px; link-spine re-animates per route; crumb /bridge → "Order topology"; unread dot amber; notif rows 28px icon circles; "View all in crossings log"; cmdk "Go to" group + named icons + brand footer. (KEEP Inbound group — real Wave 3)
+### App shell ✅ PARTIAL (verified on :8082 mock)
+- [x] Added Drafts (Workbench group) + Help (bottom, near Settings) nav items; crumb labels aligned to canonical/shipped names (bridge → "Order topology", log → "Crossings log", rules → "Validation rules", + Standards). KEEP Inbound group.
+- [ ] Remaining (deferred): sidebar 236px width; link-spine re-animates per route; unread dot amber; notif rows 28px icon circles; "View all in crossings log"; cmdk "Go to" group + named icons + brand footer.
 
-### Upload + Onboarding
-- [ ] Title "Cross a new order" + canonical subtitle; railed layout; 5-stage pipeline (add Deliver); dropzone copy + full format list + taller padding.
+### Upload + Onboarding ✅ PARTIAL (verified on :8082 mock)
+- [x] Title "Cross a new order" + canonical crossing subtitle.
+- [ ] Remaining (deferred): railed layout; 5-stage pipeline (add Deliver); dropzone copy + full format list + taller padding.
 
 ### Design primitives — see Foundations above.

@@ -381,10 +381,10 @@ export function UploadWorkbench() {
               color: "#0B1A2F",
             }}
           >
-            Upload Workbench
+            Cross a new order
           </h1>
           <p className="text-[13px] mt-1" style={{ color: "#56627A" }}>
-            Drop a source document, set the route, and bridge it across.
+            Drop a buyer&rsquo;s purchase order, pick the supplier dock, and send it across the bridge.
           </p>
         </div>
       </div>

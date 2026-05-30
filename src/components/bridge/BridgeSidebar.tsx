@@ -8,6 +8,7 @@ import {
   Layers, Upload, Inbox, Truck, Building2, GitBranch,
   ShieldCheck, FileCode, BookOpen, FileText, Package, ScrollText,
   Plug, Webhook, Settings, ChevronsLeft, ChevronsRight, ExternalLink,
+  Files, HelpCircle,
   type LucideIcon,
 } from "lucide-react";
 import { apiClient, isApiMockMode } from "@/lib/api-client";
@@ -25,6 +26,7 @@ const NAV: Array<{ group?: string; items: NavItem[] }> = [
     items: [
       { label: "Upload", href: "/upload", icon: Upload },
       { label: "Inbox",  href: "/inbox",  icon: Inbox, badgeKey: "review" },
+      { label: "Drafts", href: "/drafts", icon: Files },
     ],
   },
   {
@@ -54,7 +56,12 @@ const NAV: Array<{ group?: string; items: NavItem[] }> = [
       { label: "ASNs",     href: "/inbound/asns",     icon: Package },
     ],
   },
-  { items: [{ label: "Settings", href: "/settings", icon: Settings }] },
+  {
+    items: [
+      { label: "Help", href: "/help", icon: HelpCircle },
+      { label: "Settings", href: "/settings", icon: Settings },
+    ],
+  },
 ];
 
 // ─── Component ────────────────────────────────────────────────────────────────
