@@ -1,6 +1,6 @@
 "use client";
 
-// §5.9 Connectors — wire-topology overview for connectors (email inboxes, SFTP, API, cXML PunchOut, webhooks)
+// §5.9 Connectors — icon-card grid matching canonical ConnectorsScreen
 import { EmptyState } from "@/components/bridge/EmptyState";
 import { useState, type ReactNode } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -9,55 +9,230 @@ import { getSuppliers, testFireDeliveryConfig, isApiMockMode } from "@/lib/api-c
 // ── Mock fallback (used when USE_MOCK = true) ─────────────────────────────────
 
 const MOCK_CONNECTORS = [
-  { id: "c1", type: "cXML PunchOut", name: "Acme Components",     status: "ok",   lastPoll: "30s",  errors24h: 0,  direction: "out" },
-  { id: "c2", type: "API (REST)",    name: "Nordix Distribution",  status: "ok",   lastPoll: "1m",   errors24h: 0,  direction: "out" },
-  { id: "c3", type: "EDI (SFTP)",    name: "MedicaSupply OY",      status: "risk", lastPoll: "12m",  errors24h: 3,  direction: "out" },
-  { id: "c4", type: "Email inbox",   name: "orders@company.com",   status: "ok",   lastPoll: "5m",   errors24h: 0,  direction: "in"  },
-  { id: "c5", type: "Email inbox",   name: "po@nordic.example",    status: "ok",   lastPoll: "5m",   errors24h: 0,  direction: "in"  },
-  { id: "c6", type: "API (REST)",    name: "BoltWorks BV",         status: "down", lastPoll: "1h",   errors24h: 11, direction: "out" },
-  { id: "c7", type: "cXML PunchOut", name: "VanDerBerg Metaal",    status: "ok",   lastPoll: "2m",   errors24h: 0,  direction: "out" },
+  { id: "c1", type: "cXML PunchOut", name: "SAP Ariba",             status: "connected",  desc: "ERP connector · cXML in/out", docks: 2,  direction: "out" },
+  { id: "c2", type: "ERP (REST)",    name: "Coupa",                  status: "connected",  desc: "ERP connector · cXML",        docks: 1,  direction: "out" },
+  { id: "c3", type: "EDI (SFTP)",    name: "Generic SFTP",           status: "connected",  desc: "File delivery",               docks: 3,  direction: "out" },
+  { id: "c4", type: "Email inbox",   name: "Email (IMAP)",           status: "connected",  desc: "Inbound order polling",       docks: 1,  direction: "in"  },
+  { id: "c5", type: "ERP (REST)",    name: "Erply",                  status: "available",  desc: "Retail ERP",                  docks: 0,  direction: "out" },
+  { id: "c6", type: "ERP (XML)",     name: "Directo",                status: "available",  desc: "Accounting ERP · XML",        docks: 0,  direction: "out" },
 ];
 
 type Connector = {
   id: string;
   type: string;
   name: string;
-  status: string;
-  lastPoll: string;
-  errors24h: number;
+  status: string;       // "connected" | "available" | "ok" | "risk" | "down"
+  desc: string;
+  docks: number;
   direction: string;
 };
 
-const STATUS_COLOR: Record<string, string> = { ok: "#2E8E3A", risk: "#C97A14", down: "#C53A3A" };
-const STATUS_BG:    Record<string, string> = { ok: "#E2F1E2", risk: "#FAEFD6", down: "#FBE3E3" };
-const DIR_COLOR: Record<string, string>    = { in: "#1E66C9", out: "#2E8E3A" };
+// ── Icon SVG paths (Lucide-style, stroke 1.75) — plug icon ───────────────────
 
-// ── Skeleton row ──────────────────────────────────────────────────────────────
-
-function SkeletonRow() {
+function PlugIcon({ size = 19, color = "var(--ink-muted,#56627A)" }: { size?: number; color?: string }) {
   return (
-    <tr style={{ borderBottom: "1px solid #F0F2F6" }}>
-      {[140, 80, 160, 60, 60, 40, 80].map((w, i) => (
-        <td key={i} className="px-4 py-3">
-          <div className="h-3 animate-pulse rounded" style={{ width: w, background: "#E2E6EE" }} />
-        </td>
-      ))}
-    </tr>
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke={color}
+      strokeWidth={1.75}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <path d="M12 22v-5"/>
+      <path d="M9 8V2"/>
+      <path d="M15 8V2"/>
+      <path d="M18 8v4a4 4 0 0 1-4 4h-4a4 4 0 0 1-4-4V8z"/>
+    </svg>
   );
 }
 
-function SkeletonCard() {
+function PlusIcon({ size = 15, color = "currentColor" }: { size?: number; color?: string }) {
   return (
-    <div className="rounded-[8px] bg-white p-4 animate-pulse" style={{ border: "1px solid #E2E6EE" }}>
-      <div className="mb-3 flex items-center justify-between gap-3">
-        <div className="h-4 w-16 rounded" style={{ background: "#E2E6EE" }} />
-        <div className="h-4 w-12 rounded" style={{ background: "#E2E6EE" }} />
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <path d="M5 12h14"/><path d="M12 5v14"/>
+    </svg>
+  );
+}
+
+// ── Status-to-pill mapping (matches canonical pill-ready / pill-new) ──────────
+
+function isConnected(status: string) {
+  return status === "connected" || status === "ok";
+}
+
+function ConnectorStatusPill({ status }: { status: string }) {
+  const connected = isConnected(status);
+  return (
+    <span
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 5,
+        height: 21,
+        padding: "0 9px",
+        borderRadius: 11,
+        fontSize: 11,
+        fontWeight: 600,
+        background: connected ? "var(--brand-green-soft,#E2F1E2)" : "var(--surface-2,#EFF2F7)",
+        color: connected ? "var(--brand-green-deep,#1E6D29)" : "var(--ink-muted,#56627A)",
+      }}
+    >
+      <span
+        style={{
+          width: 6,
+          height: 6,
+          borderRadius: "50%",
+          background: connected ? "var(--brand-green,#2E8E3A)" : "var(--ink-faint,#8A93A5)",
+          flexShrink: 0,
+        }}
+      />
+      {connected ? "Connected" : "Available"}
+    </span>
+  );
+}
+
+// ── Skeleton card ─────────────────────────────────────────────────────────────
+
+function SkeletonConnectorCard() {
+  return (
+    <div
+      style={{
+        background: "var(--surface,#FFFFFF)",
+        border: "1px solid var(--border,#E2E6EE)",
+        borderRadius: "var(--radius-md,8px)",
+        padding: 18,
+        animation: "skel-pulse 1.4s ease-in-out infinite",
+      }}
+    >
+      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 14 }}>
+        <div style={{ width: 40, height: 40, borderRadius: "var(--radius-md,8px)", background: "var(--surface-2,#EFF2F7)" }} />
+        <div style={{ width: 72, height: 21, borderRadius: 11, background: "var(--surface-2,#EFF2F7)" }} />
       </div>
-      <div className="h-4 w-32 rounded mb-1" style={{ background: "#E2E6EE" }} />
-      <div className="h-3 w-24 rounded" style={{ background: "#E2E6EE" }} />
+      <div style={{ height: 14, width: "60%", borderRadius: 4, background: "var(--surface-2,#EFF2F7)", marginBottom: 6 }} />
+      <div style={{ height: 12, width: "80%", borderRadius: 4, background: "var(--surface-2,#EFF2F7)" }} />
     </div>
   );
 }
+
+// ── Connector card ────────────────────────────────────────────────────────────
+
+function ConnectorCard({
+  connector,
+  firingId,
+  onManage,
+  onTestFire,
+}: {
+  connector: Connector;
+  firingId: string | null;
+  onManage: (c: Connector) => void;
+  onTestFire: (e: React.MouseEvent, id: string) => void;
+}) {
+  const connected = isConnected(connector.status);
+
+  return (
+    <div
+      style={{
+        background: "var(--surface,#FFFFFF)",
+        border: "1px solid var(--border,#E2E6EE)",
+        borderRadius: "var(--radius-md,8px)",
+        padding: 18,
+        display: "flex",
+        flexDirection: "column",
+      }}
+    >
+      {/* Top row: icon tile + status pill */}
+      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 14 }}>
+        <div
+          style={{
+            width: 40,
+            height: 40,
+            borderRadius: "var(--radius-md,8px)",
+            background: "var(--surface-2,#EFF2F7)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            flexShrink: 0,
+          }}
+        >
+          <PlugIcon size={19} color="var(--ink-muted,#56627A)" />
+        </div>
+        <ConnectorStatusPill status={connector.status} />
+      </div>
+
+      {/* Name + description */}
+      <div style={{ fontWeight: 600, fontSize: 14, color: "var(--ink,#0B1A2F)", lineHeight: 1.3 }}>{connector.name}</div>
+      <div style={{ fontSize: 12, color: "var(--ink-muted,#56627A)", marginTop: 3, lineHeight: 1.4 }}>{connector.desc}</div>
+
+      {/* Footer: dock count + action button */}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          marginTop: 14,
+          paddingTop: 12,
+          borderTop: "1px solid var(--border,#E2E6EE)",
+        }}
+      >
+        <span style={{ fontSize: 11.5, color: "var(--ink-faint,#8A93A5)" }}>
+          {connector.docks > 0 ? `${connector.docks} dock${connector.docks > 1 ? "s" : ""}` : "Not in use"}
+        </span>
+        <div style={{ display: "flex", gap: 6 }}>
+          {connected && connector.id !== "new" && (
+            <button
+              onClick={(e) => onTestFire(e, connector.id)}
+              disabled={firingId === connector.id}
+              style={{
+                height: 27,
+                padding: "0 10px",
+                borderRadius: "var(--radius,6px)",
+                border: "1px solid #B8CFF5",
+                background: "var(--surface,#FFFFFF)",
+                color: firingId === connector.id ? "var(--ink-faint,#8A93A5)" : "var(--brand-blue-deep,#0F4FA8)",
+                fontSize: 12,
+                fontWeight: 600,
+                cursor: firingId === connector.id ? "default" : "pointer",
+                whiteSpace: "nowrap",
+              }}
+            >
+              {firingId === connector.id ? "Firing…" : "Test fire"}
+            </button>
+          )}
+          <button
+            onClick={() => onManage(connector)}
+            style={{
+              height: 27,
+              padding: "0 10px",
+              borderRadius: "var(--radius,6px)",
+              border: "1px solid var(--border-strong,#C6CDDA)",
+              background: "var(--surface,#FFFFFF)",
+              color: "var(--ink,#0B1A2F)",
+              fontSize: 12,
+              fontWeight: 600,
+              cursor: "pointer",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {connected ? "Manage" : "Connect"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Responsive grid CSS (inline style + a helper) ─────────────────────────────
+// We can't use the raw .g-3 class without importing tokens.css globally, so
+// reproduce the same responsive grid with inline CSS-in-JS pattern.
+const GRID_STYLE: React.CSSProperties = {
+  display: "grid",
+  gridTemplateColumns: "repeat(3, 1fr)",
+  gap: 14,
+};
 
 // ── Main component ────────────────────────────────────────────────────────────
 
@@ -75,18 +250,20 @@ export default function ConnectorsPage() {
     staleTime: 30_000,
   });
 
-  // Derive connector rows from real suppliers, fallback to mock data
+  // Derive connector rows: mock data (isApiMockMode) or real suppliers
   const connectors: Connector[] = isApiMockMode
     ? MOCK_CONNECTORS
     : (suppliersRaw ?? []).map((s) => ({
         id: s.id,
         type: "API (REST)",
         name: s.name,
-        status: "ok",
-        lastPoll: "—",
-        errors24h: 0,
+        status: "connected",
+        desc: "Supplier delivery endpoint",
+        docks: 0,
         direction: "out",
       }));
+
+  const connectedCount = connectors.filter((c) => isConnected(c.status)).length;
 
   // Test-fire mutation
   const testFireMutation = useMutation({
@@ -96,13 +273,13 @@ export default function ConnectorsPage() {
     onSuccess: (result, id) => {
       const name = connectors.find((c) => c.id === id)?.name ?? id;
       setNotice(result.success
-        ? `✓ Test delivery to "${name}" succeeded — ${result.message}`
-        : `✗ Test delivery to "${name}" failed — ${result.message}`);
+        ? `Test delivery to "${name}" succeeded — ${result.message}`
+        : `Test delivery to "${name}" failed — ${result.message}`);
       queryClient.invalidateQueries({ queryKey: ["suppliers"] });
     },
     onError: (err: Error, id) => {
       const name = connectors.find((c) => c.id === id)?.name ?? id;
-      setNotice(`✗ Test fire to "${name}" failed — ${err.message}`);
+      setNotice(`Test fire to "${name}" failed — ${err.message}`);
     },
   });
 
@@ -112,203 +289,160 @@ export default function ConnectorsPage() {
     testFireMutation.mutate(id);
   };
 
-  const ok   = connectors.filter((c) => c.status === "ok").length;
-  const risk = connectors.filter((c) => c.status === "risk").length;
-  const down = connectors.filter((c) => c.status === "down").length;
+  const handleManage = (c: Connector) => {
+    setNotice(null);
+    setSelected(c);
+  };
 
   return (
-    <div className="flex flex-col h-full min-h-0 overflow-hidden" style={{ background: "#F6F7FA" }}>
-      {/* Header */}
-      <div className="flex flex-col items-start gap-3 px-4 py-4 sm:flex-row sm:items-end sm:gap-4 sm:px-6 flex-shrink-0" style={{ borderBottom: "1px solid #E2E6EE", background: "#FFFFFF" }}>
-        <div>
-          <h1 className="text-[26px] font-semibold tracking-[-0.02em]" style={{ fontFamily: "'Bricolage Grotesque', Inter, sans-serif", color: "#0B1A2F" }}>Connectors</h1>
-          <p className="text-[13px] mt-1" style={{ color: "#56627A" }}>
-            {ok} healthy
-            {risk > 0 && <><span> · </span><span style={{ color: "#C97A14" }}>{risk} at risk</span></>}
-            {down > 0 && <><span> · </span><span style={{ color: "#C53A3A" }}>{down} down</span></>}
-          </p>
-        </div>
-        <button
-          onClick={() => {
-            setNotice(null);
-            setSelected({ id: "new", type: "API (REST)", name: "", status: "ok", lastPoll: "never", errors24h: 0, direction: "out" });
-          }}
-          className="w-full rounded-[6px] px-3 text-[12.5px] font-medium sm:ml-auto sm:w-auto"
-          style={{ height: 32, background: "#0B1A2F", color: "#FFFFFF", border: 0 }}
-        >
-          + Add connector
-        </button>
-      </div>
+    <>
+      {/* Responsive grid breakpoints as a style tag (avoids needing global .g-3) */}
+      <style>{`
+        .connectors-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 14px; }
+        @media (max-width: 920px) { .connectors-grid { grid-template-columns: 1fr 1fr; } }
+        @media (max-width: 540px) { .connectors-grid { grid-template-columns: 1fr; } }
+        @keyframes skel-pulse { 0%,100%{opacity:1;} 50%{opacity:0.5;} }
+      `}</style>
 
-      <div className="flex-1 overflow-auto p-5">
-        {/* Notice */}
-        {notice && (
+      <div style={{ background: "var(--bg,#F6F7FA)", display: "flex", flexDirection: "column", minHeight: "100%" }}>
+        {/* Page header */}
+        <div
+          style={{
+            padding: "26px 34px 0",
+            maxWidth: 1480,
+            margin: "0 auto",
+            width: "100%",
+          }}
+        >
           <div
-            className="mb-4 rounded-[8px] px-4 py-3 text-[12.5px]"
             style={{
-              border: notice.startsWith("✓") ? "1px solid #BDE0C1" : "1px solid #F5B8B8",
-              borderLeft: notice.startsWith("✓") ? "3px solid #2E8E3A" : "3px solid #C53A3A",
-              background: notice.startsWith("✓") ? "#F0F7F1" : "#FBF0F0",
-              color: notice.startsWith("✓") ? "#1E6D29" : "#7B1C1C",
+              display: "flex",
+              alignItems: "flex-start",
+              justifyContent: "space-between",
+              gap: "16px 24px",
+              marginBottom: 22,
+              flexWrap: "wrap",
             }}
           >
-            {notice}
-          </div>
-        )}
-
-        {/* Error state */}
-        {isError && !isApiMockMode && (
-          <div className="mb-4 rounded-[8px] px-4 py-3 text-[12.5px]" style={{ border: "1px solid #F5B8B8", borderLeft: "3px solid #C53A3A", background: "#FBF0F0", color: "#7B1C1C" }}>
-            Failed to load connectors.{" "}
-            <button onClick={() => queryClient.invalidateQueries({ queryKey: ["suppliers"] })} className="underline font-semibold">Retry</button>
-          </div>
-        )}
-
-        {/* Stat strip */}
-        <div className="grid grid-cols-3 gap-3 mb-4">
-          {[
-            { label: "Healthy",  value: ok,   color: "#2E8E3A", bg: "#E2F1E2" },
-            { label: "At risk",  value: risk,  color: "#C97A14", bg: "#FAEFD6" },
-            { label: "Down",     value: down,  color: "#C53A3A", bg: "#FBE3E3" },
-          ].map((s) => (
-            <div key={s.label} className="min-w-0" style={{ background: "#FFFFFF", border: "1px solid #E2E6EE", borderRadius: 8, padding: "16px clamp(10px, 3vw, 20px)", display: "flex", alignItems: "center", gap: 12, borderLeft: `3px solid ${s.color}` }}>
-              <span style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: "clamp(24px, 8vw, 32px)", fontWeight: 700, color: s.value > 0 ? s.color : "#C6CDDA", lineHeight: 1 }}>{s.value}</span>
-              <span className="min-w-0 leading-tight" style={{ fontSize: 13, color: "#56627A" }}>{s.label}</span>
+            <div>
+              <h1
+                style={{
+                  fontFamily: "var(--font-display,'Bricolage Grotesque',Inter,sans-serif)",
+                  fontSize: 30,
+                  fontWeight: 600,
+                  letterSpacing: "-0.025em",
+                  lineHeight: 1.1,
+                  margin: 0,
+                  color: "var(--ink,#0B1A2F)",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                Connectors
+              </h1>
+              <div style={{ color: "var(--ink-muted,#56627A)", fontSize: 13, marginTop: 5 }}>
+                ERP and channel integrations · {connectedCount} connected
+              </div>
             </div>
-          ))}
+            <button
+              onClick={() => {
+                setNotice(null);
+                setSelected({ id: "new", type: "API (REST)", name: "", status: "available", desc: "", docks: 0, direction: "out" });
+              }}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 7,
+                height: 32,
+                padding: "0 14px",
+                borderRadius: "var(--radius,6px)",
+                border: "1px solid transparent",
+                background: "var(--brand-blue,#1E66C9)",
+                color: "#fff",
+                fontSize: 12.5,
+                fontWeight: 600,
+                cursor: "pointer",
+                whiteSpace: "nowrap",
+              }}
+            >
+              <PlusIcon size={15} />
+              Add connector
+            </button>
+          </div>
         </div>
 
-        {/* Connector list */}
-        {isLoading && !isApiMockMode ? (
-          <>
-            <div className="hidden md:block" style={{ background: "#FFFFFF", border: "1px solid #E2E6EE", borderRadius: 8, overflow: "hidden" }}>
-              <table className="w-full border-collapse" style={{ fontSize: 12.5 }}>
-                <thead>
-                  <tr style={{ borderBottom: "2px solid #E2E6EE" }}>
-                    {["Status","Type","Name / Endpoint","Direction","Last poll","Errors 24h","",""].map((h, i) => (
-                      <th key={i} className="px-4 py-2.5 text-left text-[10.5px] font-semibold uppercase tracking-[0.06em]" style={{ color: "#8A93A5" }}>{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  <SkeletonRow /><SkeletonRow /><SkeletonRow />
-                </tbody>
-              </table>
+        {/* Content area */}
+        <div style={{ flex: 1, padding: "0 34px 64px", maxWidth: 1480, margin: "0 auto", width: "100%" }}>
+          {/* Notice */}
+          {notice && (
+            <div
+              style={{
+                marginBottom: 16,
+                borderRadius: "var(--radius-md,8px)",
+                padding: "10px 14px",
+                fontSize: 12.5,
+                border: "1px solid var(--border,#E2E6EE)",
+                borderLeft: "3px solid var(--brand-blue,#1E66C9)",
+                background: "var(--brand-blue-soft,#E3EDFB)",
+                color: "var(--brand-blue-deep,#0F4FA8)",
+              }}
+            >
+              {notice}
             </div>
-            <div className="grid gap-3 md:hidden">
-              <SkeletonCard /><SkeletonCard /><SkeletonCard />
-            </div>
-          </>
-        ) : connectors.length === 0 ? (
-          <EmptyState
-            icon="⇄"
-            title="No connectors configured"
-            sub="Add a connector to start receiving orders from email inboxes, SFTP drops, APIs, or cXML PunchOut."
-            action={{ label: "+ Add connector", onClick: () => {} }}
-          />
-        ) : (
-          <>
-            {/* Desktop table */}
-            <div className="hidden md:block" style={{ background: "#FFFFFF", border: "1px solid #E2E6EE", borderRadius: 8, overflow: "hidden" }}>
-              <table className="w-full border-collapse" style={{ fontSize: 12.5 }}>
-                <thead>
-                  <tr style={{ borderBottom: "2px solid #E2E6EE" }}>
-                    {["Status","Type","Name / Endpoint","Direction","Last poll","Errors 24h","",""].map((h, i) => (
-                      <th key={i} className="px-4 py-2.5 text-left text-[10.5px] font-semibold uppercase tracking-[0.06em]" style={{ color: "#8A93A5" }}>{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {connectors.map((c) => (
-                    <tr key={c.id} className="group" style={{ borderBottom: "1px solid #F0F2F6", cursor: "pointer" }}
-                      onClick={() => { setNotice(null); setSelected(c); }}
-                      onMouseEnter={(e)=>((e.currentTarget as HTMLElement).style.background="#F6F7FA")}
-                      onMouseLeave={(e)=>((e.currentTarget as HTMLElement).style.background="transparent")}
-                    >
-                      <td className="px-4 py-3">
-                        <span className="inline-flex items-center gap-1.5 rounded px-2 py-0.5 text-[10.5px] font-semibold" style={{ background: STATUS_BG[c.status] ?? "#EFF2F7", color: STATUS_COLOR[c.status] ?? "#56627A" }}>
-                          <span style={{ width: 5, height: 5, borderRadius: "50%", background: STATUS_COLOR[c.status] ?? "#56627A", flexShrink: 0, display: "inline-block" }} />
-                          {c.status.charAt(0).toUpperCase() + c.status.slice(1)}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-[12px]" style={{ color: "#56627A" }}>{c.type}</td>
-                      <td className="px-4 py-3 font-medium" style={{ color: "#0B1A2F" }}>{c.name}</td>
-                      <td className="px-4 py-3">
-                        <span className="inline-flex items-center rounded px-1.5 py-0.5 text-[10.5px] font-semibold" style={{ background: `${DIR_COLOR[c.direction] ?? "#56627A"}18`, color: DIR_COLOR[c.direction] ?? "#56627A" }}>
-                          {c.direction === "in" ? "← In" : "Out →"}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-[12px]" style={{ color: "#8A93A5" }}>{c.lastPoll !== "—" ? `${c.lastPoll} ago` : "—"}</td>
-                      <td className="px-4 py-3 font-mono text-[12px]" style={{ color: c.errors24h > 0 ? "#C53A3A" : "#8A93A5" }}>{c.errors24h}</td>
-                      <td className="px-4 py-3">
-                        <button
-                          onClick={(e) => handleTestFire(e, c.id)}
-                          disabled={firingId === c.id}
-                          className="opacity-0 group-hover:opacity-100 rounded px-2 py-1 text-[11.5px] font-medium transition-opacity"
-                          style={{ border: "1px solid #B8CFF5", background: "#FFFFFF", color: "#0F4FA8", minWidth: 66 }}
-                          title="Send a test delivery to verify this connector"
-                        >
-                          {firingId === c.id ? "Firing…" : "Test fire"}
-                        </button>
-                      </td>
-                      <td className="px-4 py-3">
-                        <button
-                          onClick={(e) => { e.stopPropagation(); setNotice(null); setSelected(c); }}
-                          className="opacity-0 group-hover:opacity-100 rounded px-2 py-1 text-[11.5px] font-medium transition-opacity"
-                          style={{ border: "1px solid #E2E6EE", background: "#FFFFFF", color: "#56627A" }}
-                        >
-                          Configure
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+          )}
 
-            {/* Mobile cards */}
-            <div className="grid gap-3 md:hidden">
+          {/* Error state */}
+          {isError && !isApiMockMode && (
+            <div
+              style={{
+                marginBottom: 16,
+                borderRadius: "var(--radius-md,8px)",
+                padding: "10px 14px",
+                fontSize: 12.5,
+                border: "1px solid #F5B8B8",
+                borderLeft: "3px solid var(--danger,#C53A3A)",
+                background: "var(--danger-soft,#FBE3E3)",
+                color: "#7B1C1C",
+              }}
+            >
+              Failed to load connectors.{" "}
+              <button
+                onClick={() => queryClient.invalidateQueries({ queryKey: ["suppliers"] })}
+                style={{ textDecoration: "underline", fontWeight: 600, background: "none", border: "none", cursor: "pointer", color: "inherit", fontSize: "inherit" }}
+              >
+                Retry
+              </button>
+            </div>
+          )}
+
+          {/* Loading skeleton grid */}
+          {isLoading && !isApiMockMode ? (
+            <div className="connectors-grid">
+              {[1, 2, 3].map((k) => <SkeletonConnectorCard key={k} />)}
+            </div>
+          ) : connectors.length === 0 ? (
+            <EmptyState
+              title="No connectors configured"
+              sub="Add a connector to start routing purchase orders to suppliers via API, SFTP, email, ERP, or cXML PunchOut."
+              action={{ label: "Add connector", onClick: () => setSelected({ id: "new", type: "API (REST)", name: "", status: "available", desc: "", docks: 0, direction: "out" }) }}
+            />
+          ) : (
+            /* Connector card grid */
+            <div className="connectors-grid">
               {connectors.map((c) => (
-                <div key={c.id} className="rounded-[8px] bg-white p-4" style={{ border: "1px solid #E2E6EE", borderLeft: `3px solid ${STATUS_COLOR[c.status] ?? "#C6CDDA"}` }}>
-                  <div className="mb-3 flex items-center justify-between gap-3">
-                    <span className="inline-flex items-center gap-1.5 rounded px-2 py-0.5 text-[10.5px] font-semibold" style={{ background: STATUS_BG[c.status] ?? "#EFF2F7", color: STATUS_COLOR[c.status] ?? "#56627A" }}>
-                      <span style={{ width: 5, height: 5, borderRadius: "50%", background: STATUS_COLOR[c.status] ?? "#56627A", flexShrink: 0, display: "inline-block" }} />
-                      {c.status.charAt(0).toUpperCase() + c.status.slice(1)}
-                    </span>
-                    <span className="rounded px-1.5 py-0.5 text-[10.5px] font-semibold" style={{ background: `${DIR_COLOR[c.direction] ?? "#56627A"}18`, color: DIR_COLOR[c.direction] ?? "#56627A" }}>
-                      {c.direction === "in" ? "Input" : "Output"}
-                    </span>
-                  </div>
-                  <div className="text-[13px] font-semibold" style={{ color: "#0B1A2F" }}>{c.name}</div>
-                  <div className="mt-1 text-[12px]" style={{ color: "#56627A" }}>{c.type}</div>
-                  <div className="mt-3 grid grid-cols-2 gap-2 text-[11.5px]" style={{ color: "#56627A" }}>
-                    <span>Last poll: {c.lastPoll !== "—" ? `${c.lastPoll} ago` : "—"}</span>
-                    <span>Errors: <strong style={{ color: c.errors24h > 0 ? "#C53A3A" : "#0B1A2F" }}>{c.errors24h}</strong></span>
-                  </div>
-                  <div className="mt-3 flex gap-2">
-                    <button
-                      onClick={(e) => handleTestFire(e, c.id)}
-                      disabled={firingId === c.id}
-                      className="flex-1 rounded-[5px] py-2 text-[12px] font-medium"
-                      style={{ border: "1px solid #B8CFF5", background: "#FFFFFF", color: "#0F4FA8" }}
-                    >
-                      {firingId === c.id ? "Firing…" : "Test fire"}
-                    </button>
-                    <button
-                      onClick={() => { setNotice(null); setSelected(c); }}
-                      className="flex-1 rounded-[5px] py-2 text-[12px] font-medium"
-                      style={{ border: "1px solid #E2E6EE", background: "#FFFFFF", color: "#56627A" }}
-                    >
-                      Configure
-                    </button>
-                  </div>
-                </div>
+                <ConnectorCard
+                  key={c.id}
+                  connector={c}
+                  firingId={firingId}
+                  onManage={handleManage}
+                  onTestFire={handleTestFire}
+                />
               ))}
             </div>
-          </>
-        )}
+          )}
+        </div>
       </div>
 
+      {/* Panel */}
       {selected && (
         <ConnectorPanel
           connector={selected}
@@ -319,9 +453,11 @@ export default function ConnectorsPage() {
           }}
         />
       )}
-    </div>
+    </>
   );
 }
+
+// ── ConnectorPanel (inline slideover — functionality preserved) ───────────────
 
 function ConnectorPanel({
   connector,
@@ -345,74 +481,204 @@ function ConnectorPanel({
     setTestResult(null);
     try {
       const result = await testFireDeliveryConfig(connector.id);
-      setTestResult(result.success ? `✓ ${result.message}` : `✗ ${result.message}`);
+      setTestResult(result.success ? `${result.message}` : `Failed — ${result.message}`);
     } catch (err) {
-      setTestResult(`✗ Test fire failed — ${(err as Error).message}`);
+      setTestResult(`Test fire failed — ${(err as Error).message}`);
     } finally {
       setFiring(false);
     }
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end bg-[#0B1A2F66] p-0 sm:items-center sm:justify-center sm:p-6">
-      <div className="max-h-[92vh] w-full overflow-auto rounded-t-[10px] bg-white shadow-2xl sm:max-w-[560px] sm:rounded-[10px]" style={{ border: "1px solid #E2E6EE" }}>
-        <div className="flex items-start justify-between gap-4 border-b border-[#E2E6EE] px-5 py-4">
-          <div>
-            <p className="text-[10px] font-bold uppercase tracking-[0.08em]" style={{ color: "#1E66C9" }}>Connector configuration</p>
-            <h2 className="mt-1 text-[18px] font-semibold" style={{ color: "#0B1A2F" }}>{isNew ? "Add connector" : connector.name}</h2>
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center sm:justify-center sm:p-6"
+      style={{ background: "rgba(11,26,47,0.42)", backdropFilter: "blur(3px)" }}>
+      <div
+        className="max-h-[92vh] w-full overflow-auto rounded-t-[10px] sm:max-w-[540px] sm:rounded-[10px]"
+        style={{
+          background: "var(--surface,#FFFFFF)",
+          border: "1px solid var(--border,#E2E6EE)",
+          boxShadow: "0 8px 24px rgba(11,26,47,0.10)",
+        }}
+      >
+        {/* Head */}
+        <div
+          style={{
+            display: "flex",
+            alignItems: "flex-start",
+            justifyContent: "space-between",
+            gap: 12,
+            padding: "16px 18px",
+            borderBottom: "1px solid var(--border,#E2E6EE)",
+          }}
+        >
+          <div style={{ display: "flex", gap: 12, alignItems: "center", minWidth: 0 }}>
+            <div
+              style={{
+                width: 34,
+                height: 34,
+                borderRadius: "var(--radius-md,8px)",
+                background: "var(--brand-blue-soft,#E3EDFB)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                flexShrink: 0,
+              }}
+            >
+              <PlugIcon size={16} color="var(--brand-blue-deep,#0F4FA8)" />
+            </div>
+            <div>
+              <div style={{ fontWeight: 600, fontSize: 16, letterSpacing: "-0.015em", color: "var(--ink,#0B1A2F)" }}>
+                {isNew ? "Add connector" : connector.name}
+              </div>
+              <div style={{ fontSize: 12.5, color: "var(--ink-muted,#56627A)" }}>Connector configuration</div>
+            </div>
           </div>
-          <button onClick={onClose} className="h-8 w-8 rounded-[6px] text-[16px]" style={{ border: "1px solid #E2E6EE", background: "#FFFFFF", color: "#56627A" }}>×</button>
+          <button
+            onClick={onClose}
+            aria-label="Close"
+            style={{
+              width: 32,
+              height: 32,
+              borderRadius: "var(--radius,6px)",
+              background: "none",
+              border: "none",
+              color: "var(--ink-faint,#8A93A5)",
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: 18,
+              flexShrink: 0,
+            }}
+          >
+            ×
+          </button>
         </div>
-        <div className="grid gap-4 p-5">
-          <FormField label="Connector type">
-            <select defaultValue={connector.type} className="h-9 w-full rounded-[5px] border border-[#D5DAEA] px-2 text-[12px] text-[#0B1A2F]">
+
+        {/* Body */}
+        <div style={{ padding: 18, display: "grid", gap: 14 }}>
+          <PanelField label="Connector type">
+            <select
+              defaultValue={connector.type}
+              style={{
+                height: 32,
+                width: "100%",
+                borderRadius: "var(--radius,6px)",
+                border: "1px solid var(--border-strong,#C6CDDA)",
+                background: "var(--surface,#FFFFFF)",
+                fontSize: 12.5,
+                color: "var(--ink,#0B1A2F)",
+                padding: "0 11px",
+              }}
+            >
               <option>API (REST)</option>
-              <option>Email inbox</option>
+              <option>Email (IMAP)</option>
               <option>EDI (SFTP)</option>
               <option>cXML PunchOut</option>
+              <option>ERP — Erply</option>
+              <option>ERP — Directo</option>
             </select>
-          </FormField>
-          <FormField label="Name or endpoint">
-            <input defaultValue={connector.name} placeholder="Supplier, mailbox, or endpoint name" className="h-9 w-full rounded-[5px] border border-[#D5DAEA] px-2 text-[12px] text-[#0B1A2F]" />
-          </FormField>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <FormField label="Direction">
-              <select defaultValue={connector.direction} className="h-9 w-full rounded-[5px] border border-[#D5DAEA] px-2 text-[12px] text-[#0B1A2F]">
+          </PanelField>
+          <PanelField label="Name or endpoint">
+            <input
+              defaultValue={connector.name}
+              placeholder="Supplier, mailbox, or endpoint name"
+              style={{
+                height: 32,
+                width: "100%",
+                borderRadius: "var(--radius,6px)",
+                border: "1px solid var(--border-strong,#C6CDDA)",
+                background: "var(--surface,#FFFFFF)",
+                fontSize: 12.5,
+                color: "var(--ink,#0B1A2F)",
+                padding: "0 11px",
+              }}
+            />
+          </PanelField>
+          <div style={{ display: "grid", gap: 14, gridTemplateColumns: "1fr 1fr" }}>
+            <PanelField label="Direction">
+              <select
+                defaultValue={connector.direction}
+                style={{
+                  height: 32,
+                  width: "100%",
+                  borderRadius: "var(--radius,6px)",
+                  border: "1px solid var(--border-strong,#C6CDDA)",
+                  background: "var(--surface,#FFFFFF)",
+                  fontSize: 12.5,
+                  color: "var(--ink,#0B1A2F)",
+                  padding: "0 11px",
+                }}
+              >
                 <option value="in">Input to ProcuLink</option>
                 <option value="out">Output to supplier</option>
               </select>
-            </FormField>
-            <FormField label="Status">
-              <input readOnly value={isNew ? "Draft" : connector.status} className="h-9 w-full rounded-[5px] border border-[#D5DAEA] bg-[#F6F7FA] px-2 text-[12px] text-[#56627A]" />
-            </FormField>
+            </PanelField>
+            <PanelField label="Status">
+              <input
+                readOnly
+                value={isNew ? "Draft" : isConnected(connector.status) ? "Connected" : "Available"}
+                style={{
+                  height: 32,
+                  width: "100%",
+                  borderRadius: "var(--radius,6px)",
+                  border: "1px solid var(--border-strong,#C6CDDA)",
+                  background: "var(--surface-2,#EFF2F7)",
+                  fontSize: 12.5,
+                  color: "var(--ink-muted,#56627A)",
+                  padding: "0 11px",
+                }}
+              />
+            </PanelField>
           </div>
+
           {testResult && (
             <div
-              className="rounded-[7px] border p-3 text-[12px] leading-5"
               style={{
-                borderColor: testResult.startsWith("✓") ? "#BDE0C1" : "#F5B8B8",
-                background: testResult.startsWith("✓") ? "#F0F7F1" : "#FBF0F0",
-                color: testResult.startsWith("✓") ? "#1E6D29" : "#7B1C1C",
+                borderRadius: "var(--radius,6px)",
+                border: "1px solid var(--border,#E2E6EE)",
+                borderLeft: "3px solid var(--brand-blue,#1E66C9)",
+                background: "var(--brand-blue-soft,#E3EDFB)",
+                color: "var(--brand-blue-deep,#0F4FA8)",
+                padding: "10px 12px",
+                fontSize: 12,
+                lineHeight: 1.5,
               }}
             >
               {testResult}
             </div>
           )}
         </div>
-        <div className="flex flex-col gap-2 border-t border-[#E2E6EE] bg-[#F6F7FA] px-5 py-4 sm:flex-row sm:justify-end">
-          <button onClick={onClose} className="h-9 rounded-[6px] px-4 text-[12px] font-semibold" style={{ border: "1px solid #E2E6EE", background: "#FFFFFF", color: "#56627A" }}>Cancel</button>
+
+        {/* Footer */}
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "flex-end",
+            gap: 10,
+            padding: "14px 18px",
+            borderTop: "1px solid var(--border,#E2E6EE)",
+            background: "var(--surface-2,#EFF2F7)",
+            flexWrap: "wrap",
+          }}
+        >
+          <button
+            onClick={onClose}
+            style={{ height: 32, padding: "0 14px", borderRadius: "var(--radius,6px)", border: "1px solid var(--border-strong,#C6CDDA)", background: "var(--surface,#FFFFFF)", color: "var(--ink-muted,#56627A)", fontSize: 12.5, fontWeight: 600, cursor: "pointer" }}
+          >
+            Cancel
+          </button>
           <button
             onClick={handleTestFire}
             disabled={firing}
-            className="h-9 rounded-[6px] px-4 text-[12px] font-semibold"
-            style={{ border: "1px solid #B8CFF5", background: "#FFFFFF", color: firing ? "#8A93A5" : "#0F4FA8" }}
+            style={{ height: 32, padding: "0 14px", borderRadius: "var(--radius,6px)", border: "1px solid #B8CFF5", background: "var(--surface,#FFFFFF)", color: firing ? "var(--ink-faint,#8A93A5)" : "var(--brand-blue-deep,#0F4FA8)", fontSize: 12.5, fontWeight: 600, cursor: firing ? "default" : "pointer" }}
           >
             {firing ? "Firing…" : "Test fire"}
           </button>
           <button
             onClick={() => onSaved(isNew ? "Connector draft prepared. Set delivery credentials in the supplier's Delivery tab." : "Connector configuration saved.")}
-            className="h-9 rounded-[6px] px-4 text-[12px] font-semibold"
-            style={{ border: 0, background: "#0B1A2F", color: "#FFFFFF" }}
+            style={{ height: 32, padding: "0 14px", borderRadius: "var(--radius,6px)", border: "1px solid transparent", background: "var(--brand-blue,#1E66C9)", color: "#FFFFFF", fontSize: 12.5, fontWeight: 600, cursor: "pointer" }}
           >
             Save
           </button>
@@ -422,11 +688,15 @@ function ConnectorPanel({
   );
 }
 
-function FormField({ label, children }: { label: string; children: ReactNode }) {
+function PanelField({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <label className="grid gap-1">
-      <span className="text-[11px] font-semibold uppercase" style={{ color: "#8A93A5" }}>{label}</span>
+    <div>
+      <label
+        style={{ display: "block", fontSize: 11.5, fontWeight: 600, color: "var(--ink-muted,#56627A)", marginBottom: 6 }}
+      >
+        {label}
+      </label>
       {children}
-    </label>
+    </div>
   );
 }

@@ -45,9 +45,9 @@ Legend: `[ ]` todo · `[x]` done · `(KEEP)` = do not regress to mockup.
 - [ ] Connectors section: keep Zapier/Make + webhooks **(KEEP)**; restyle to canonical connector-row composition; add ERP rows where real.
 - [ ] Organization: add Workspace region + Members rows.
 
-### Connectors + Webhooks
-- [ ] Connectors page: icon-card grid (icon tile + status pill + name/desc + dock count + Manage/Connect) not stat-strip+table; "Add connector" (blue); sub "ERP and channel integrations · N connected". (KEEP Erply/Directo)
-- [ ] Webhooks: two-column split (Endpoints + **Recent deliveries** table) not single column; add Signing secret field; status "Healthy/Failing"; "Add endpoint"; test-ping note.
+### Connectors + Webhooks ✅ DONE (verified in mock preview, tsc-clean)
+- [x] Connectors: icon-card grid (icon tile + status pill + name/desc + dock count + Manage/Connect); "Add connector" blue; sub "ERP and channel integrations · N connected". KEEP Erply/Directo + test-fire. dock-count/desc mock-only → graceful in live.
+- [x] Webhooks: two-column split (Endpoints + Recent deliveries table); Healthy/Failing pills; "Add endpoint"; test-ping note. Deliveries = mock / empty-state live (no history API). Signing-secret field WIRED live (createIntegration accepts `secret`; agent had wrongly disabled it).
 
 ### Marketing (home / pricing / how-it-works / security)
 - [ ] Nav: navy bg + white links + blue "Get started free"; links How it works / Pricing / Security only.
