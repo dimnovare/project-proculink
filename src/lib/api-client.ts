@@ -1582,6 +1582,78 @@ export async function deleteIntegration(id: string): Promise<void> {
   if (!res.ok && res.status !== 204) throw new Error(`integrations DELETE: ${res.status}`);
 }
 
+// ── PO Mapping starter templates ──────────────────────────────────────────────
+
+/** A pre-built PO mapping template returned by GET /api/po-mapping-templates. */
+export interface StarterTemplate {
+  id: string;
+  erp: string;
+  name: string;
+  description: string;
+  config: import("@/lib/api/types").PoMappingConfig;
+}
+
+/** Returns all available PO mapping starter templates (Erply, Directo, …). */
+export async function getPoMappingTemplates(): Promise<StarterTemplate[]> {
+  if (USE_MOCK) {
+    await delay(200);
+    // Two mock templates matching the embedded fixture contents — checked against
+    // the real JSON in ProcuLink.Api/Fixtures/po-templates/.
+    return [
+      {
+        id: "erply",
+        erp: "Erply",
+        name: "Erply PO starter",
+        description: "Maps Erply getPurchaseDocuments CSV export columns to ProcuLink canonical fields. Verify column names against your actual export before saving.",
+        config: {
+          hasHeaderRecord: true,
+          separator: ",",
+          header: {
+            PoNumber:  { externalField: "number" },
+            OrderDate: { externalField: "date", fieldManipulators: [{ type: "DateFormat", params: ["yyyy-MM-dd", "yyyy-MM-dd"] }] },
+            BuyerName: { externalField: "clientName" },
+            Currency:  { externalField: "currencyCode" },
+          },
+          lines: {
+            BuyerItemCode: { externalField: "code" },
+            Description:   { externalField: "itemName" },
+            Quantity:      { externalField: "amount" },
+            Unit:          { externalField: "unitName" },
+            UnitPrice:     { externalField: "price" },
+          },
+        },
+      },
+      {
+        id: "directo",
+        erp: "Directo",
+        name: "Directo PO starter",
+        description: "Maps Directo REST API CSV export columns to ProcuLink canonical fields. Verify column names against your actual export before saving.",
+        config: {
+          hasHeaderRecord: true,
+          separator: ",",
+          header: {
+            PoNumber:  { externalField: "number" },
+            OrderDate: { externalField: "date", fieldManipulators: [{ type: "DateFormat", params: ["yyyy-MM-dd", "yyyy-MM-dd"] }] },
+            BuyerName: { externalField: "customer_name" },
+            Currency:  { externalField: "currency" },
+          },
+          lines: {
+            BuyerItemCode: { externalField: "row_item" },
+            Description:   { externalField: "row_description" },
+            Quantity:      { externalField: "row_quantity" },
+            Unit:          { externalField: "unit" },
+            UnitPrice:     { externalField: "row_price" },
+          },
+        },
+      },
+    ];
+  }
+  const headers = await authHeader();
+  const res = await fetchWithTimeout(`${API_BASE_URL}/api/po-mapping-templates`, { headers });
+  if (!res.ok) throw new Error(`po-mapping-templates: ${res.status}`);
+  return res.json() as Promise<StarterTemplate[]>;
+}
+
 // ── Standalone suppliers export (for components that prefer named imports) ────
 export const getSuppliers = USE_MOCK ? mockGetSuppliersFn : realGetSuppliersFn;
 

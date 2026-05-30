@@ -22,6 +22,7 @@ import {
   suggestMappingFields,
   type FieldSuggestion,
 } from "@/lib/api/mapping";
+import { getPoMappingTemplates, type StarterTemplate } from "@/lib/api-client";
 
 // ─── Design tokens ────────────────────────────────────────────────────────────
 const NAVY       = "#0B1A2F";
@@ -128,6 +129,12 @@ export function PoMappingEditor({
     queryFn: () => suggestMappingFields(supplierId, detectedColumns),
     enabled: detectedColumns.length > 0,
     staleTime: 60_000,
+  });
+
+  const templatesQuery = useQuery({
+    queryKey: ["po-mapping-templates"],
+    queryFn: getPoMappingTemplates,
+    staleTime: Infinity, // static data — never re-fetch
   });
 
   const suggestionByField = useMemo<Record<string, FieldSuggestion>>(() => {
@@ -302,6 +309,25 @@ export function PoMappingEditor({
     }
   }
 
+  function handleLoadTemplate(tpl: StarterTemplate) {
+    // Build accepted map from the template config's ExternalField values
+    const next = new Map<string, string>();
+    for (const [canonical, entry] of Object.entries(tpl.config.header ?? {})) {
+      if (entry?.externalField) next.set(canonical, entry.externalField);
+    }
+    for (const [canonical, entry] of Object.entries(tpl.config.lines ?? {})) {
+      if (entry?.externalField) next.set(canonical, entry.externalField);
+    }
+    setAccepted(next);
+    setRejected(new Set());
+    setSourceOpts({
+      hasHeaderRecord: tpl.config.hasHeaderRecord,
+      separator: tpl.config.separator,
+    });
+    setSaveState({ status: "idle" });
+    flashNote(`Loaded the ${tpl.name} starter — check the column names against your export, then Save.`);
+  }
+
   // ── Derived values ─────────────────────────────────────────────────────────
   const isSaving      = saving || saveState.status === "saving";
   const reqMapped     = REQUIRED_FIELDS.every((f) => accepted.has(f));
@@ -351,14 +377,23 @@ export function PoMappingEditor({
               Connect this supplier&apos;s source columns to the canonical order.
             </p>
           </div>
-          <SourceStatus
-            loading={sourceQuery.isLoading}
-            format={fmt}
-            columnCount={detectedColumns.length}
-            sourceOrderId={sourceOrderId}
-            hint={detectedColumns.length === 0 ? sourceQuery.data?.hint : undefined}
-            onRedetect={() => sourceQuery.refetch()}
-          />
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3 flex-shrink-0">
+            {/* Start from template ▾ */}
+            {templatesQuery.data && templatesQuery.data.length > 0 && (
+              <TemplatePicker
+                templates={templatesQuery.data}
+                onSelect={handleLoadTemplate}
+              />
+            )}
+            <SourceStatus
+              loading={sourceQuery.isLoading}
+              format={fmt}
+              columnCount={detectedColumns.length}
+              sourceOrderId={sourceOrderId}
+              hint={detectedColumns.length === 0 ? sourceQuery.data?.hint : undefined}
+              onRedetect={() => sourceQuery.refetch()}
+            />
+          </div>
         </div>
       </div>
 
@@ -1033,6 +1068,96 @@ function SaveFeedback({ state }: { state: { status: string; message?: string } }
     );
   }
   return null;
+}
+
+// ─── TemplatePicker ───────────────────────────────────────────────────────────
+function TemplatePicker({
+  templates,
+  onSelect,
+}: {
+  templates: StarterTemplate[];
+  onSelect: (tpl: StarterTemplate) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const wrapRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    function onDoc(e: PointerEvent) {
+      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener("pointerdown", onDoc);
+    return () => document.removeEventListener("pointerdown", onDoc);
+  }, [open]);
+
+  return (
+    <div ref={wrapRef} style={{ position: "relative" }}>
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className="inline-flex items-center gap-1.5 rounded-[6px] px-3 py-1.5 text-[12px] font-semibold"
+        style={{
+          background: SURFACE,
+          color: BLUE_DEEP,
+          border: `1px solid ${BORDER}`,
+          cursor: "pointer",
+          whiteSpace: "nowrap",
+        }}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+      >
+        <svg width="13" height="13" viewBox="0 0 14 14" fill="none" aria-hidden>
+          <rect x="1" y="2" width="12" height="3" rx="1" fill={BLUE_DEEP} opacity="0.25" />
+          <rect x="1" y="6.5" width="8" height="3" rx="1" fill={BLUE_DEEP} opacity="0.5" />
+          <rect x="1" y="11" width="5" height="3" rx="1" fill={BLUE_DEEP} />
+        </svg>
+        Start from template
+        <svg width="10" height="10" viewBox="0 0 10 10" fill="none" aria-hidden>
+          <path d="M2 3.5L5 6.5L8 3.5" stroke={BLUE_DEEP} strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      </button>
+      {open && (
+        <ul
+          role="listbox"
+          aria-label="Starter templates"
+          style={{
+            position: "absolute",
+            zIndex: 30,
+            right: 0,
+            marginTop: 4,
+            minWidth: 260,
+            background: SURFACE,
+            border: `1px solid ${INPUT_BDR}`,
+            borderRadius: 8,
+            padding: "4px 0",
+            boxShadow: "0 8px 24px rgba(11,26,47,0.14)",
+          }}
+        >
+          {templates.map((tpl) => (
+            <li
+              key={tpl.id}
+              role="option"
+              aria-selected={false}
+              onPointerDown={(e) => {
+                e.preventDefault();
+                onSelect(tpl);
+                setOpen(false);
+              }}
+              style={{
+                padding: "8px 14px",
+                cursor: "pointer",
+              }}
+              onMouseEnter={(e) => { (e.currentTarget as HTMLLIElement).style.background = BLUE_SOFT; }}
+              onMouseLeave={(e) => { (e.currentTarget as HTMLLIElement).style.background = "transparent"; }}
+            >
+              <div style={{ fontSize: 12.5, fontWeight: 600, color: NAVY }}>{tpl.name}</div>
+              <div style={{ fontSize: 11, color: MUTED, marginTop: 1 }}>{tpl.description}</div>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
 }
 
 // ─── ColumnCombobox ───────────────────────────────────────────────────────────
