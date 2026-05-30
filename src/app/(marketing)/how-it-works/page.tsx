@@ -100,13 +100,26 @@ export default function HowItWorksPage() {
             letterSpacing: "-0.03em",
             color: "#0B1A2F",
             marginBottom: 14,
+            maxWidth: 720,
+            marginLeft: "auto",
+            marginRight: "auto",
+            lineHeight: 1.1,
           }}
         >
-          How ProcuLink works
+          From any purchase order to a delivered supplier document
         </h1>
-        <p style={{ fontSize: 16, color: "#56627A", maxWidth: 500, margin: "0 auto 48px" }}>
-          Five stages, one bridge. From raw buyer document to delivered supplier order.
+        <p style={{ fontSize: 16, color: "#56627A", maxWidth: 520, margin: "0 auto 32px" }}>
+          Five stages, one bridge — watch an order cross from raw buyer document to a
+          delivered supplier order, fully audited.
         </p>
+        <div style={{ display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap", marginBottom: 48 }}>
+          <Link href="/watch" style={{ display: "inline-flex", alignItems: "center", borderRadius: 8, padding: "11px 24px", fontSize: 13.5, fontWeight: 600, background: "#1E66C9", color: "#FFFFFF", textDecoration: "none" }}>
+            Walk through a real crossing →
+          </Link>
+          <Link href="/sign-up" style={{ display: "inline-flex", alignItems: "center", borderRadius: 8, padding: "11px 24px", fontSize: 13.5, fontWeight: 600, background: "#FFFFFF", color: "#0B1A2F", textDecoration: "none", border: "1px solid #E2E6EE" }}>
+            Start free
+          </Link>
+        </div>
 
         {/* Pipeline bar */}
         <div

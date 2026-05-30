@@ -75,18 +75,59 @@ const PROPERTIES = [
       </svg>
     ),
   },
+  {
+    label: "EU data residency",
+    color: "#0F4FA8",
+    bg: "#E3EDFB",
+    detail: "All data is stored and processed in the EU (Frankfurt). Files live in an EU-region Cloudflare R2 bucket; the database and API run in the EU region.",
+    icon: (
+      <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="#0F4FA8" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="9" cy="9" r="7" />
+        <path d="M2 9h14M9 2c2.5 2.5 2.5 11.5 0 14M9 2c-2.5 2.5-2.5 11.5 0 14" />
+      </svg>
+    ),
+  },
+  {
+    label: "Backups & recovery",
+    color: "#2E8E3A",
+    bg: "#E2F1E2",
+    detail: "PostgreSQL automated daily backups with point-in-time recovery. No delivery credentials, IMAP passwords, or API keys are ever stored in plaintext.",
+    icon: (
+      <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="#2E8E3A" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+        <ellipse cx="9" cy="4.5" rx="6" ry="2.5" />
+        <path d="M3 4.5v9c0 1.4 2.7 2.5 6 2.5s6-1.1 6-2.5v-9M3 9c0 1.4 2.7 2.5 6 2.5s6-1.1 6-2.5" />
+      </svg>
+    ),
+  },
+];
+
+const COMPLIANCE_ROWS: [string, string, string][] = [
+  ["GDPR", "Compliant", "EU personal-data processing; DPA available"],
+  ["EU data residency", "Active", "Frankfurt region for storage + compute"],
+  ["AES-256-GCM at rest", "Active", "Delivery credentials, IMAP passwords, API keys"],
+  ["SOC 2 Type II", "In progress", "Controls being formalised"],
 ];
 
 export default function SecurityPage() {
   return (
-    <div style={S.page}>
-      <h1 style={S.h1}>Security</h1>
-      <p style={S.intro}>
-        ProcuLink is designed for B2B procurement teams handling commercially sensitive
-        purchase orders. Here&apos;s how we&apos;re built to protect your data.
-      </p>
+    <div>
+      {/* Navy hero */}
+      <section className="px-4 sm:px-8" style={{ background: "#0B1A2F", padding: "64px 32px 56px", textAlign: "center" }}>
+        <span style={{ display: "inline-block", fontSize: 11.5, fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "#7FB3F5", marginBottom: 14 }}>
+          Security & trust
+        </span>
+        <h1 style={{ fontFamily: "'Bricolage Grotesque', Inter, sans-serif", fontSize: "clamp(30px, 4.5vw, 46px)", fontWeight: 700, letterSpacing: "-0.03em", color: "#FFFFFF", marginBottom: 14, lineHeight: 1.1 }}>
+          Built to protect commercially<br />sensitive purchase orders
+        </h1>
+        <p style={{ fontSize: 16, lineHeight: 1.6, color: "#C5D2E4", maxWidth: 540, margin: "0 auto" }}>
+          ProcuLink handles the orders your business runs on. Here&apos;s how the platform is
+          built to keep that data isolated, encrypted, and auditable.
+        </p>
+      </section>
 
-      {/* Property cards 2×2 */}
+      <div style={S.page}>
+
+      {/* Property cards — 6 posture cards */}
       <div
         style={{
           display: "grid",
@@ -153,15 +194,57 @@ export default function SecurityPage() {
       <p style={S.p}>
         ProcuLink processes personal data in accordance with the EU General Data Protection
         Regulation (GDPR). See our{" "}
-        <Link href="/privacy" style={{ color: "#1E66C9" }}>Privacy Policy</Link> for full
-        details on data processing, subprocessors, retention, and your rights as a data subject.
+        <Link href="/privacy" style={{ color: "#1E66C9" }}>Privacy Policy</Link> and{" "}
+        <Link href="/subprocessors" style={{ color: "#1E66C9" }}>Subprocessors</Link> for full
+        details on data processing, retention, and your rights as a data subject.
       </p>
+
+      <div style={{ ...S.card, padding: 0, overflow: "hidden", marginTop: 8 }}>
+        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13.5 }}>
+          <thead>
+            <tr style={{ borderBottom: "2px solid #E2E6EE" }}>
+              {["Framework", "Status", "Notes"].map((h) => (
+                <th key={h} style={{ textAlign: "left", padding: "10px 16px", fontSize: 10.5, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em", color: "#8A93A5" }}>{h}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {COMPLIANCE_ROWS.map(([fw, status, note]) => {
+              const inProgress = status === "In progress";
+              return (
+                <tr key={fw} style={{ borderBottom: "1px solid #F0F2F6" }}>
+                  <td style={{ padding: "11px 16px", fontWeight: 600, color: "#0B1A2F" }}>{fw}</td>
+                  <td style={{ padding: "11px 16px" }}>
+                    <span style={{ display: "inline-flex", alignItems: "center", borderRadius: 99, padding: "2px 9px", fontSize: 11.5, fontWeight: 600, background: inProgress ? "#FAEFD6" : "#E2F1E2", color: inProgress ? "#C97A14" : "#1E6D29" }}>{status}</span>
+                  </td>
+                  <td style={{ padding: "11px 16px", color: "#56627A" }}>{note}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
 
       <p style={{ ...S.p, marginTop: 40, paddingTop: 24, borderTop: "1px solid #E2E6EE" }}>
         <Link href="/privacy" style={{ color: "#1E66C9", marginRight: 16 }}>Privacy Policy</Link>
         <Link href="/terms" style={{ color: "#1E66C9", marginRight: 16 }}>Terms of Service</Link>
+        <Link href="/subprocessors" style={{ color: "#1E66C9", marginRight: 16 }}>Subprocessors</Link>
         <Link href="/support" style={{ color: "#1E66C9" }}>Support</Link>
       </p>
+      </div>
+
+      {/* Navy CTA band */}
+      <section className="px-4 sm:px-8" style={{ background: "#0B1A2F", padding: "56px 32px", textAlign: "center" }}>
+        <h2 style={{ fontFamily: "'Bricolage Grotesque', Inter, sans-serif", fontSize: "clamp(24px, 3.5vw, 34px)", fontWeight: 700, letterSpacing: "-0.025em", color: "#FFFFFF", marginBottom: 12 }}>
+          Questions about security or compliance?
+        </h2>
+        <p style={{ fontSize: 15, color: "#C5D2E4", marginBottom: 28 }}>
+          Reach our team at <a href="mailto:security@proculink.com" style={{ color: "#6BA5F0" }}>security@proculink.com</a>.
+        </p>
+        <Link href="/sign-up" style={{ display: "inline-flex", alignItems: "center", borderRadius: 8, padding: "12px 30px", fontSize: 14, fontWeight: 600, background: "#1E66C9", color: "#FFFFFF", textDecoration: "none" }}>
+          Get started free →
+        </Link>
+      </section>
     </div>
   );
 }
