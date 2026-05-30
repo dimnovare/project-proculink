@@ -6,6 +6,18 @@
       "runtimeExecutable": "bun",
       "runtimeArgs": ["run", "dev"],
       "port": 8082
+    },
+    {
+      "name": "proculink-mock-qa",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["cross-env", "NEXT_PUBLIC_USE_MOCK=true", "PROCULINK_QA_BYPASS_AUTH=true", "next", "dev", "-p", "8082"],
+      "port": 8082
+    },
+    {
+      "name": "proculink-nonmock-qa",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["cross-env", "NEXT_PUBLIC_USE_MOCK=false", "PROCULINK_QA_BYPASS_AUTH=true", "next", "dev", "-p", "8082"],
+      "port": 8082
     }
   ]
 }
