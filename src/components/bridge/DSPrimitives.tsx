@@ -8,7 +8,7 @@ import { confidenceTier } from "@/lib/ds-tokens";
    ===================================================================== */
 
 /* -------- Button -------- */
-type ButtonVariant = "primary" | "secondary" | "ghost" | "danger" | "ai";
+type ButtonVariant = "primary" | "secondary" | "ghost" | "danger" | "ai" | "blue" | "green";
 type ButtonSize = "sm" | "md" | "lg";
 
 type ButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement> & {
@@ -26,12 +26,16 @@ const BUTTON_VARIANT: Record<ButtonVariant, string> = {
   ghost:     "bg-transparent text-ink-muted border-transparent hover:bg-surface-2 hover:text-ink",
   danger:    "bg-danger text-white border-transparent hover:opacity-90",
   ai:        "bg-ai text-white border-transparent hover:opacity-90",
+  // tokens.css .btn-blue / .btn-green
+  blue:      "[background:#1E66C9] text-white border-transparent hover:[background:#0F4FA8]",
+  green:     "[background:#2E8E3A] text-white border-transparent hover:[background:#1E6D29]",
 };
 
 const BUTTON_SIZE: Record<ButtonSize, string> = {
-  sm: "h-[26px] px-2.5 text-[12px]",
-  md: "h-[30px] px-3   text-[12.5px]",
-  lg: "h-[36px] px-4   text-[14px]",
+  // tokens.css .btn.sm / .btn (default) / .btn.lg
+  sm: "h-[27px] px-2.5 text-[12px]",
+  md: "h-[32px] px-3   text-[12.5px]",
+  lg: "h-[38px] px-4   text-[13.5px]",
 };
 
 export function Button({
@@ -69,25 +73,27 @@ export function ConfidenceChip({ value }: { value: number }) {
 }
 
 /* -------- SrcChip — file-type chip -------- */
-type SrcType = "PDF" | "XLSX" | "CSV" | "XML" | "cXML" | "EDI" | "EMAIL" | "API" | "JSON";
+// Keep in sync with FileChip.tsx CHIP_COLORS (same canonical palette from tokens.css .src-*)
+type SrcType = "PDF" | "XLSX" | "CSV" | "XML" | "cXML" | "EDI" | "EMAIL" | "API" | "JSON" | "UBL";
 
 const SRC_PALETTE: Record<SrcType, { bg: string; fg: string }> = {
   PDF:   { bg: "#FBEEEE", fg: "#B53F3F" },
-  XLSX:  { bg: "#E2F1E2", fg: "#1E6D29" },
+  XLSX:  { bg: "#E2F1E2", fg: "#1E6D29" },   // brand-green-soft / brand-green-deep
   CSV:   { bg: "#EEF3F8", fg: "#345470" },
-  XML:   { bg: "#EEE7FB", fg: "#5E3DB0" },
+  XML:   { bg: "#EEE7FB", fg: "#5E3DB0" },   // ai-soft / #5E3DB0
   cXML:  { bg: "#EEE7FB", fg: "#5E3DB0" },
-  EDI:   { bg: "#FAEFD6", fg: "#C97A14" },
+  EDI:   { bg: "#FAEFD6", fg: "#C97A14" },   // amber-soft / amber
   EMAIL: { bg: "#E9EDF3", fg: "#4A5568" },
-  API:   { bg: "#E3F0E3", fg: "#1E6D29" },
+  API:   { bg: "#E3F0E3", fg: "#1E6D29" },   // tokens uses #E3F0E3 for API
   JSON:  { bg: "#FFF4D6", fg: "#846100" },
+  UBL:   { bg: "#EEF3F8", fg: "#345470" },   // same as CSV per tokens.css .src-UBL
 };
 
-export function SrcChip({ type }: { type: SrcType }) {
-  const p = SRC_PALETTE[type];
+export function SrcChip({ type }: { type: SrcType | string }) {
+  const p = SRC_PALETTE[type as SrcType] ?? { bg: "#EEF3F8", fg: "#345470" };
   return (
     <span
-      className="font-mono text-[10px] font-bold px-1.5 py-px rounded-sm"
+      className="font-mono text-[10.5px] font-semibold px-1.5 py-px rounded-sm uppercase"
       style={{ background: p.bg, color: p.fg, letterSpacing: "0.02em" }}
     >
       {type}
@@ -96,22 +102,33 @@ export function SrcChip({ type }: { type: SrcType }) {
 }
 
 /* -------- StatusPill -------- */
-type Status = "new" | "extracting" | "review" | "ready" | "sent" | "failed";
+type Status = "new" | "extracting" | "review" | "ready" | "sent" | "delivering" | "failed";
 
-const STATUS_MAP: Record<Status, { bg: string; fg: string; dot: string; label: string }> = {
-  new:        { bg: "bg-brand-blue-soft", fg: "text-brand-blue-deep", dot: "bg-brand-blue",  label: "New" },
-  extracting: { bg: "bg-ai-soft",         fg: "text-ai",              dot: "bg-ai",          label: "Extracting" },
-  review:     { bg: "bg-amber-soft",      fg: "text-amber",           dot: "bg-amber",       label: "Needs review" },
-  ready:      { bg: "bg-brand-green-soft",fg: "text-brand-green-deep",dot: "bg-brand-green", label: "Ready" },
-  sent:       { bg: "bg-surface-2",       fg: "text-ink-muted",       dot: "bg-ink-faint",   label: "Delivered" },
-  failed:     { bg: "bg-danger-soft",     fg: "text-danger",          dot: "bg-danger",      label: "Failed" },
+// Colors match tokens.css .pill-* exactly
+const STATUS_MAP: Record<Status, { bg: string; fg: string; dot: string; pulse?: boolean; label: string }> = {
+  // tokens.css .pill-new → surface-2 / ink-muted / ink-faint
+  new:        { bg: "#EFF2F7", fg: "#56627A", dot: "#8A93A5",  label: "New" },
+  // tokens.css .pill-extracting → brand-blue-soft / brand-blue-deep / brand-blue
+  extracting: { bg: "#E3EDFB", fg: "#0F4FA8", dot: "#1E66C9",  label: "Extracting" },
+  review:     { bg: "#FAEFD6", fg: "#C97A14", dot: "#C97A14",  label: "Needs review" },
+  ready:      { bg: "#E2F1E2", fg: "#1E6D29", dot: "#2E8E3A",  label: "Ready" },
+  sent:       { bg: "#E2F1E2", fg: "#1E6D29", dot: "#2E8E3A",  label: "Delivered" },
+  // tokens.css .pill-delivering → brand-blue-soft / brand-blue-deep / brand-blue (pulse-dot)
+  delivering: { bg: "#E3EDFB", fg: "#0F4FA8", dot: "#1E66C9", pulse: true, label: "Delivering" },
+  failed:     { bg: "#FBE3E3", fg: "#C53A3A", dot: "#C53A3A",  label: "Failed" },
 };
 
 export function StatusPill({ status }: { status: Status }) {
   const s = STATUS_MAP[status];
   return (
-    <span className={["inline-flex items-center gap-1.5 h-5 px-1.5 rounded-sm text-[11px] font-medium", s.bg, s.fg].join(" ")}>
-      <span className={["w-[5px] h-[5px] rounded-full", s.dot].join(" ")}/>
+    <span
+      className="inline-flex items-center gap-1.5 h-5 px-2 rounded-full text-[11px] font-semibold"
+      style={{ background: s.bg, color: s.fg }}
+    >
+      <span
+        className={["w-[6px] h-[6px] rounded-full flex-shrink-0", s.pulse ? "animate-[pulse-dot_1.4s_ease-in-out_infinite]" : ""].join(" ").trim()}
+        style={{ background: s.dot }}
+      />
       {s.label}
     </span>
   );
@@ -121,21 +138,65 @@ export function StatusPill({ status }: { status: Status }) {
 type AiSuggestionProps = {
   confidence: number;
   title: string;
-  description: string;
-  children?: React.ReactNode;   // action slot
+  /** Short body / description text (muted, below title) */
+  description?: string;
+  /** Source provenance label shown faint top-right (e.g. "from existing mappings") */
+  provenance?: string;
+  /** Action buttons row (Accept / Edit / Reject) */
+  actions?: React.ReactNode;
+  children?: React.ReactNode;   // legacy action slot – kept for back-compat
 };
 
-export function AiSuggestion({ confidence, title, description, children }: AiSuggestionProps) {
+export function AiSuggestion({ confidence, title, description, provenance, actions, children }: AiSuggestionProps) {
+  // Normalise: `actions` preferred; fall back to `children` for backward compat
+  const actionRow = actions ?? children;
   return (
-    <div className="border border-border border-l-[3px] border-l-ai rounded-md p-2.5 bg-surface">
-      <div className="flex items-center gap-2">
-        <span className="text-[13px] font-semibold flex-1">{title}</span>
-        <span className="text-[9.5px] font-bold uppercase tracking-[0.04em] px-1.5 py-px rounded-sm bg-ai-soft text-ai">
+    <div
+      className="relative rounded-md overflow-hidden"
+      style={{
+        background: "#EEE7FB",
+        border: "1px solid #ddd0f5",
+        padding: "13px 14px 13px 16px",
+      }}
+    >
+      {/* Left violet accent strip — tokens.css .ai-card::before */}
+      <div
+        aria-hidden
+        style={{
+          position: "absolute",
+          left: 0, top: 0, bottom: 0,
+          width: 3,
+          background: "#6F4FCE",
+        }}
+      />
+      {/* Top row: AI tag + provenance */}
+      <div className="flex items-start justify-between gap-2" style={{ marginBottom: 7 }}>
+        {/* tokens.css .ai-tag — mono, violet */}
+        <span
+          className="inline-flex items-center gap-1"
+          style={{
+            fontFamily: "var(--font-mono, 'JetBrains Mono', monospace)",
+            fontSize: 10.5,
+            fontWeight: 700,
+            color: "#6F4FCE",
+          }}
+        >
           AI · {confidence}%
         </span>
+        {provenance && (
+          <span style={{ fontSize: 10.5, color: "#8A93A5" }}>{provenance}</span>
+        )}
       </div>
-      <div className="text-[11.5px] text-ink-muted mt-1 leading-relaxed">{description}</div>
-      {children && <div className="flex gap-1.5 mt-2">{children}</div>}
+      {/* Suggestion title */}
+      <div style={{ fontSize: 13, fontWeight: 600, color: "#0B1A2F" }}>{title}</div>
+      {/* Optional description */}
+      {description && (
+        <div style={{ fontSize: 12, color: "#56627A", marginTop: 3 }}>{description}</div>
+      )}
+      {/* Actions row */}
+      {actionRow && (
+        <div className="flex items-center gap-2" style={{ marginTop: 11 }}>{actionRow}</div>
+      )}
     </div>
   );
 }

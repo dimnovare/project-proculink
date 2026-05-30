@@ -36,6 +36,12 @@ const COLOR_BG: Record<XColor, string> = {
   none:     "bg-transparent",
 };
 
+// Padding constants matching canonical dense cards.
+// Default card padding (inherit from children via card class).
+// Dense: tighter padding applied to a wrapper div so consumers don't have to.
+const DENSE_STYLE: React.CSSProperties = { padding: "10px 12px" };
+const DEFAULT_STYLE: React.CSSProperties = { padding: "16px" };
+
 export function XCard({
   children,
   edge = "left",
@@ -53,9 +59,9 @@ export function XCard({
     <div
       className={[
         "relative bg-surface border border-border rounded-md overflow-hidden",
-        dense ? "" : "",
         className,
       ].filter(Boolean).join(" ")}
+      style={dense ? DENSE_STYLE : DEFAULT_STYLE}
     >
       {color !== "none" && (
         <div aria-hidden className={["absolute", stripPos, COLOR_BG[color]].join(" ")} />

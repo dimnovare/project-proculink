@@ -1,7 +1,7 @@
 // StatusJourney — 5-node mini-track showing the order pipeline.
 // Stage 0 = Parse, 1 = Normalize, 2 = Validate, 3 = Transform, 4 = Deliver
-// compact    = small dots only (inbox row)
-// full       = 28px nodes + labels, ≤720px centred (SpineReview header)
+// compact    = 11px nodes (tokens.css .journey.compact .jn)
+// full       = 18px nodes + labels (tokens.css .journey.full .jn)
 // crossingRef (optional) — adds "Stage N of 5 · {ref}" sub-label above full variant
 
 export type OrderStage = 0 | 1 | 2 | 3 | 4 | "failed";
@@ -19,37 +19,50 @@ export function StatusJourney({ stage, compact = false, crossingRef }: StatusJou
   const failed = stage === "failed";
 
   if (compact) {
-    // Inbox row — 5 small dots
+    // tokens.css .journey.compact .jn { width:11px; height:11px }
     return (
-      <div className="flex items-center gap-[3px]">
+      <div className="flex items-center">
         {STAGES.map((_, i) => {
           const done   = !failed && (stage as number) > i;
           const active = !failed && (stage as number) === i;
-          const errDot = failed && i === 2; // show error at validate stage
+          const errDot = failed && i === 2;
           return (
-            <div
-              key={i}
-              className="rounded-full"
-              style={{
-                width: 6,
-                height: 6,
-                background: errDot
-                  ? "#C53A3A"
-                  : done
-                  ? "#2E8E3A"
-                  : active
-                  ? "#1E66C9"
-                  : "#E2E6EE",
-                boxShadow: active ? "0 0 0 2px rgba(30,102,201,0.25)" : undefined,
-              }}
-            />
+            <div key={i} className="flex items-center">
+              {i > 0 && (
+                <div
+                  style={{
+                    height: 1.5,
+                    minWidth: 12,
+                    flex: 1,
+                    background: i <= (stage as number) && !failed ? "#2E8E3A" : "#C6CDDA",
+                  }}
+                />
+              )}
+              <div
+                className="rounded-full flex-shrink-0"
+                style={{
+                  width: 11,
+                  height: 11,
+                  background: errDot
+                    ? "#C53A3A"
+                    : done
+                    ? "#2E8E3A"
+                    : active
+                    ? "#1E66C9"
+                    : "#FFFFFF",
+                  border: `1.5px solid ${
+                    errDot ? "#C53A3A" : done ? "#2E8E3A" : active ? "#1E66C9" : "#C6CDDA"
+                  }`,
+                }}
+              />
+            </div>
           );
         })}
       </div>
     );
   }
 
-  // Full — 28px nodes + labels, ≤720px centred (SpineReview header)
+  // Full — tokens.css .journey.full .jn { width:18px; height:18px }
   const stageNum = failed ? 2 : (stage as number) + 1; // 1-indexed for display
   return (
     <div className="w-full max-w-[720px] mx-auto">
@@ -61,82 +74,63 @@ export function StatusJourney({ stage, compact = false, crossingRef }: StatusJou
           {crossingRef}
         </p>
       )}
-      <div className="flex items-center gap-0 relative">
-        {/* Gradient connector — 3px, behind nodes */}
-        <div
-          className="absolute left-[14px] right-[14px] rounded spine-animate"
-          style={{
-            top: 14,
-            height: 3,
-            background:
-              "linear-gradient(90deg, #1E66C9 0%, #1E66C9 35%, #2E8E3A 65%, #2E8E3A 100%)",
-            opacity: 0.35,
-          }}
-        />
+      <div className="flex items-center">
         {STAGES.map((label, i) => {
           const done   = !failed && (stage as number) > i;
           const active = !failed && (stage as number) === i;
           const err    = failed && i === 2;
           return (
-            <div key={i} className="flex flex-col items-center flex-1 relative z-10">
-              <div
-                className={`rounded-full flex items-center justify-center${active ? " spine-reveal" : ""}`}
-                style={{
-                  width: 28,
-                  height: 28,
-                  background: err
-                    ? "#C53A3A"
-                    : done
-                    ? "#2E8E3A"
-                    : active
-                    ? "#1E66C9"
-                    : "#FFFFFF",
-                  border: `2px solid ${
-                    err
+            <div key={i} className="flex items-center flex-1 last:flex-none">
+              {i > 0 && (
+                <div
+                  style={{
+                    flex: 1,
+                    height: 1.5,
+                    minWidth: 26,
+                    background: i <= (stage as number) && !failed ? "#2E8E3A" : "#C6CDDA",
+                  }}
+                />
+              )}
+              <div className="flex flex-col items-center relative z-10">
+                <div
+                  className="rounded-full flex items-center justify-center flex-shrink-0"
+                  style={{
+                    width: 18,
+                    height: 18,
+                    background: err
                       ? "#C53A3A"
                       : done
                       ? "#2E8E3A"
                       : active
                       ? "#1E66C9"
-                      : "#C6CDDA"
-                  }`,
-                  boxShadow: active ? "0 0 0 4px rgba(30,102,201,0.18)" : undefined,
-                  position: "relative",
-                }}
-              >
-                {active && (
-                  <span
-                    style={{
-                      position: "absolute",
-                      inset: -4,
-                      borderRadius: "50%",
-                      border: "2px solid #1E66C9",
-                      animation: "node-pulse 2s ease-out infinite",
-                      pointerEvents: "none",
-                    }}
-                  />
-                )}
-                {done && (
-                  <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-                    <path
-                      d="M2 6L5 9L10 3"
-                      stroke="white"
-                      strokeWidth={2}
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                  </svg>
-                )}
+                      : "#FFFFFF",
+                    border: `1.5px solid ${
+                      err ? "#C53A3A" : done ? "#2E8E3A" : active ? "#1E66C9" : "#C6CDDA"
+                    }`,
+                  }}
+                  data-pulse={active ? "true" : "false"}
+                >
+                  {done && (
+                    <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+                      <path d="M2 5L4 7.5L8.5 2.5" stroke="white" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  )}
+                  {err && (
+                    <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+                      <path d="M2 2L8 8M8 2L2 8" stroke="white" strokeWidth={1.8} strokeLinecap="round" />
+                    </svg>
+                  )}
+                </div>
+                <span
+                  className="mt-1.5 text-[10px] text-center leading-tight"
+                  style={{
+                    color: active ? "#0B1A2F" : done ? "#2E8E3A" : "#8A93A5",
+                    fontWeight: active ? 700 : 400,
+                  }}
+                >
+                  {label}
+                </span>
               </div>
-              <span
-                className="mt-1.5 text-[10px] text-center leading-tight"
-                style={{
-                  color: active ? "#0B1A2F" : done ? "#2E8E3A" : "#8A93A5",
-                  fontWeight: active ? 700 : 400,
-                }}
-              >
-                {label}
-              </span>
             </div>
           );
         })}
@@ -145,15 +139,21 @@ export function StatusJourney({ stage, compact = false, crossingRef }: StatusJou
   );
 }
 
-// Status pill — semantic colors, used sparingly (prefer StatusJourney)
-export type CrossingStatus = "new" | "extracting" | "review" | "ready" | "sent" | "failed";
+// Status pill — semantic colors matching tokens.css .pill-* exactly.
+// Used sparingly (prefer StatusJourney for progress display).
+export type CrossingStatus = "new" | "extracting" | "review" | "ready" | "sent" | "delivering" | "failed";
 
-const STATUS_PILL: Record<CrossingStatus, { bg: string; color: string; dot: string; label: string }> = {
-  new:        { bg: "#E3EDFB", color: "#0F4FA8", dot: "#1E66C9",  label: "New" },
-  extracting: { bg: "#EEE7FB", color: "#6F4FCE", dot: "#6F4FCE",  label: "Extracting" },
+const STATUS_PILL: Record<CrossingStatus, { bg: string; color: string; dot: string; pulse?: boolean; label: string }> = {
+  // tokens.css .pill-new → surface-2 (#EFF2F7) / ink-muted (#56627A) / ink-faint (#8A93A5)
+  new:        { bg: "#EFF2F7", color: "#56627A", dot: "#8A93A5",  label: "New" },
+  // tokens.css .pill-extracting → brand-blue-soft / brand-blue-deep / brand-blue (NOT violet)
+  extracting: { bg: "#E3EDFB", color: "#0F4FA8", dot: "#1E66C9",  label: "Extracting" },
   review:     { bg: "#FAEFD6", color: "#C97A14", dot: "#C97A14",  label: "Needs review" },
   ready:      { bg: "#E2F1E2", color: "#1E6D29", dot: "#2E8E3A",  label: "Ready" },
-  sent:       { bg: "#EFF2F7", color: "#56627A", dot: "#8A93A5",  label: "Delivered" },
+  // tokens.css .pill-sent → brand-green-soft / brand-green-deep / brand-green
+  sent:       { bg: "#E2F1E2", color: "#1E6D29", dot: "#2E8E3A",  label: "Delivered" },
+  // tokens.css .pill-delivering → brand-blue-soft / brand-blue-deep / brand-blue + pulse-dot
+  delivering: { bg: "#E3EDFB", color: "#0F4FA8", dot: "#1E66C9", pulse: true, label: "Delivering" },
   failed:     { bg: "#FBE3E3", color: "#C53A3A", dot: "#C53A3A",  label: "Failed" },
 };
 
@@ -163,6 +163,7 @@ const STATUS_STAGE: Record<CrossingStatus, OrderStage> = {
   review:     2,
   ready:      3,
   sent:       4,
+  delivering: 4,
   failed:     "failed",
 };
 
@@ -176,12 +177,12 @@ export function StatusCell({ status }: StatusCellProps) {
   return (
     <div className="flex items-center gap-2">
       <span
-        className="inline-flex items-center gap-1.5 rounded px-[6px] py-[2px] text-[11px] font-medium"
+        className="inline-flex items-center gap-1.5 rounded-full px-[9px] py-[2px] text-[11px] font-semibold"
         style={{ background: pill.bg, color: pill.color }}
       >
         <span
-          className="rounded-full"
-          style={{ width: 5, height: 5, background: pill.dot, flexShrink: 0 }}
+          className={["rounded-full flex-shrink-0", pill.pulse ? "animate-[pulse-dot_1.4s_ease-in-out_infinite]" : ""].join(" ").trim()}
+          style={{ width: 6, height: 6, background: pill.dot }}
         />
         {pill.label}
       </span>

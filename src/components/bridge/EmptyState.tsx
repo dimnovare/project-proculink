@@ -1,18 +1,25 @@
 "use client";
 
 // EmptyState — shared empty state component following Bridge Layer vocabulary.
-// Illustration-free: mark animation + headline + sub + CTA.
+// Canonical shape: bare Mark (no box), hover opacity 0.7→1, Bricolage title, muted sub.
+// Matches primitives.jsx EmptyState exactly.
 
+import React from "react";
 import { MarkSystem } from "./MarkSystem";
 
 interface EmptyStateProps {
   title: string;
   sub?: string;
   action?: { label: string; onClick: () => void };
+  /** Deprecated: icon prop is accepted but ignored — Mark is always shown */
   icon?: string;
+  compact?: boolean;
 }
 
-export function EmptyState({ title, sub, action, icon }: EmptyStateProps) {
+export function EmptyState({ title, sub, action, compact = false }: EmptyStateProps) {
+  const [hover, setHover] = React.useState(false);
+  const markSize = compact ? 40 : 52;
+
   return (
     <div
       style={{
@@ -20,76 +27,72 @@ export function EmptyState({ title, sub, action, icon }: EmptyStateProps) {
         flexDirection: "column",
         alignItems: "center",
         justifyContent: "center",
-        padding: "64px 32px",
         textAlign: "center",
-        gap: 12,
+        padding: compact ? "32px 20px" : "56px 24px",
       }}
+      onMouseEnter={() => setHover(true)}
+      onMouseLeave={() => setHover(false)}
     >
-      {/* Mark / icon */}
+      {/* Bare mark — no grey box; hover opacity 0.7→1 per primitives.jsx */}
       <div
         style={{
-          width: 56,
-          height: 56,
-          borderRadius: 14,
-          background: "#F0F2F7",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          marginBottom: 4,
+          marginBottom: 16,
+          opacity: hover ? 1 : 0.7,
+          transition: "opacity 400ms",
         }}
       >
-        {icon ? (
-          <span style={{ fontSize: 26, color: "#8A93A5" }}>{icon}</span>
-        ) : (
-          <MarkSystem size={28} />
-        )}
+        <MarkSystem size={markSize} />
       </div>
 
-      <h3
+      {/* Title — Bricolage Grotesque, same as primitives.jsx */}
+      <div
         style={{
-          fontFamily: "'Bricolage Grotesque', Inter, sans-serif",
-          fontSize: 16,
+          fontFamily: "var(--font-display, 'Bricolage Grotesque', Inter, sans-serif)",
           fontWeight: 600,
-          color: "#0B1A2F",
-          margin: 0,
+          fontSize: compact ? 16 : 19,
+          letterSpacing: "-0.02em",
+          color: "var(--ink, #0B1A2F)",
         }}
       >
         {title}
-      </h3>
+      </div>
 
       {sub && (
-        <p
+        <div
           style={{
             fontSize: 13,
-            color: "#56627A",
-            maxWidth: 320,
+            color: "var(--ink-muted, #56627A)",
+            maxWidth: 360,
             lineHeight: 1.6,
-            margin: 0,
+            marginTop: 6,
           }}
         >
           {sub}
-        </p>
+        </div>
       )}
 
       {action && (
-        <button
-          onClick={action.onClick}
-          style={{
-            marginTop: 8,
-            display: "inline-flex",
-            alignItems: "center",
-            borderRadius: 7,
-            padding: "9px 20px",
-            fontSize: 13,
-            fontWeight: 600,
-            background: "#0B1A2F",
-            color: "#FFFFFF",
-            border: "none",
-            cursor: "pointer",
-          }}
-        >
-          {action.label}
-        </button>
+        <div style={{ marginTop: 18 }}>
+          <button
+            onClick={action.onClick}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              borderRadius: 6,
+              height: 32,
+              padding: "0 14px",
+              fontSize: 12.5,
+              fontWeight: 600,
+              background: "var(--navy, #0B1A2F)",
+              color: "#FFFFFF",
+              border: "none",
+              cursor: "pointer",
+              transition: "background 150ms",
+            }}
+          >
+            {action.label}
+          </button>
+        </div>
       )}
     </div>
   );
