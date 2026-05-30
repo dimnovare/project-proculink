@@ -1,6 +1,12 @@
 "use client";
+
+// Output templates — canonical split-list: template cards (left) + the
+// envelope each supplier receives, previewed as code with {token} highlighting
+// (right). KEEP live CRUD (create / update / delete) + the editor modal.
+
 import { EmptyState } from "@/components/bridge/EmptyState";
-import { useState, useRef, type ReactNode } from "react";
+import { SrcChip } from "@/components/bridge/DSPrimitives";
+import { useState, useRef, useEffect, type ReactNode } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   getTemplates,
@@ -12,11 +18,10 @@ import {
 } from "@/lib/api-client";
 
 const MOCK_TEMPLATES = [
-  { id: "t1", name: "Standard cXML PO",    fmt: "cXML", suppliers: 3, lastUsed: "2m",  version: "v3.2" },
-  { id: "t2", name: "SAP IDoc ORDERS05",   fmt: "EDI",  suppliers: 2, lastUsed: "1h",  version: "v2.0" },
-  { id: "t3", name: "ERP Generic v2",      fmt: "JSON", suppliers: 4, lastUsed: "3h",  version: "v2.1" },
-  { id: "t4", name: "Custom Nordmark",     fmt: "CSV",  suppliers: 1, lastUsed: "1d",  version: "v1.4" },
-  { id: "t5", name: "MedicaSupply OY cXML",fmt: "cXML", suppliers: 1, lastUsed: "4m",  version: "v1.0" },
+  { id: "t1", name: "cXML 1.2.045 — OrderRequest", fmt: "cXML", suppliers: 2, lastUsed: "2m",  version: "1.2.045", isDefault: true },
+  { id: "t2", name: "UBL 2.1 — Order",             fmt: "UBL",  suppliers: 1, lastUsed: "1h",  version: "2.1" },
+  { id: "t3", name: "EDIFACT D.96A — ORDERS",      fmt: "EDI",  suppliers: 1, lastUsed: "3h",  version: "D.96A" },
+  { id: "t4", name: "X12 850 — Purchase Order",    fmt: "X12",  suppliers: 0, lastUsed: "1d",  version: "004010" },
 ];
 
 type CardTemplate = {
@@ -26,10 +31,41 @@ type CardTemplate = {
   suppliers: number;
   lastUsed: string;
   version: string;
+  isDefault?: boolean;
 };
 
-const FMT_COLOR: Record<string, string> = { cXML: "#6F4FCE", EDI: "#C97A14", JSON: "#A06200", CSV: "#56627A" };
-const FMT_BG:    Record<string, string> = { cXML: "#EEE7FB", EDI: "#FAEFD6", JSON: "#FFF4D6", CSV: "#EFF2F7" };
+// Accent strip + chip routing per standard family.
+const FMT_COLOR: Record<string, string> = {
+  cXML: "#6F4FCE", EDI: "#C97A14", EDIFACT: "#C97A14", X12: "#C97A14",
+  UBL: "#1E66C9", JSON: "#A06200", CSV: "#56627A",
+};
+
+// One-line plain-language description of what each standard envelope is.
+const FMT_DESC: Record<string, string> = {
+  cXML:    "Ariba-compatible punchout order request envelope.",
+  UBL:     "Peppol BIS 3.0 compatible Order document.",
+  EDI:     "Classic EDIFACT purchase order message.",
+  EDIFACT: "Classic EDIFACT purchase order message.",
+  X12:     "ANSI ASC X12 850 transaction set.",
+  JSON:    "Generic JSON order payload for REST endpoints.",
+  CSV:     "Flat CSV row export for tabular suppliers.",
+};
+
+// Illustrative envelope previews — {tokens} are filled from the canonical spine
+// at crossing time. Keyed by uppercased format.
+const PREVIEW_BY_FORMAT: Record<string, string[]> = {
+  CXML: ['<cXML payloadID="..." xml:lang="en-US">', "  <Request>", "    <OrderRequest>", '      <OrderRequestHeader orderID="{po}"', '          orderDate="{date}" type="new">', '        <Total><Money currency="{cur}">{total}</Money></Total>', "      </OrderRequestHeader>", '      <ItemOut quantity="{qty}">…</ItemOut>', "    </OrderRequest>", "  </Request>", "</cXML>"],
+  UBL:  ['<Order xmlns="urn:oasis:...:Order-2">', "  <cbc:ID>{po}</cbc:ID>", "  <cbc:IssueDate>{date}</cbc:IssueDate>", "  <cac:OrderLine>", "    <cac:LineItem>", '      <cbc:Quantity unitCode="{uom}">{qty}</cbc:Quantity>', '      <cbc:LineExtensionAmount currencyID="{cur}">{amt}</cbc:LineExtensionAmount>', "    </cac:LineItem>", "  </cac:OrderLine>", "</Order>"],
+  EDI:  ["UNH+1+ORDERS:D:96A:UN'", "BGM+220+{po}+9'", "DTM+137:{date}:102'", "NAD+BY+{buyer}'", "NAD+SU+{supplier}'", "LIN+1++{item}:VP'", "QTY+21:{qty}'", "UNS+S'", "UNT+12+1'"],
+  EDIFACT: ["UNH+1+ORDERS:D:96A:UN'", "BGM+220+{po}+9'", "DTM+137:{date}:102'", "NAD+BY+{buyer}'", "NAD+SU+{supplier}'", "LIN+1++{item}:VP'", "QTY+21:{qty}'", "UNS+S'", "UNT+12+1'"],
+  X12:  ["ST*850*0001~", "BEG*00*NE*{po}**{date}~", "REF*DP*DEPT~", "PO1*1*{qty}*EA*{price}**VP*{item}~", "CTT*1~", "SE*6*0001~"],
+  JSON: ["{", '  "orderId": "{po}",', '  "orderDate": "{date}",', '  "currency": "{cur}",', '  "lines": [', '    { "item": "{item}", "qty": {qty}, "price": "{price}" }', "  ]", "}"],
+  CSV:  ["po_number,order_date,supplier,currency", "{po},{date},{supplier},{cur}", "line,item,qty,unit_price", "1,{item},{qty},{price}"],
+};
+
+function previewFor(fmt: string): string[] {
+  return PREVIEW_BY_FORMAT[fmt.toUpperCase()] ?? PREVIEW_BY_FORMAT.JSON;
+}
 
 function dtoToCard(t: TemplateDto): CardTemplate {
   return {
@@ -42,10 +78,26 @@ function dtoToCard(t: TemplateDto): CardTemplate {
   };
 }
 
+// Highlight {token} segments violet inside a preview line.
+function PreviewLine({ line }: { line: string }) {
+  return (
+    <div>
+      {line.split(/(\{[a-z]+\})/g).map((part, j) =>
+        /\{[a-z]+\}/.test(part) ? (
+          <span key={j} style={{ color: "#6F4FCE", fontWeight: 600 }}>{part}</span>
+        ) : (
+          <span key={j}>{part}</span>
+        ),
+      )}
+    </div>
+  );
+}
+
 export default function TemplatesPage() {
   const queryClient = useQueryClient();
-  const [selected, setSelected] = useState<CardTemplate | null>(null);
-  const [notice,   setNotice]   = useState<{ text: string; kind: "ok" | "err" } | null>(null);
+  const [editing, setEditing] = useState<CardTemplate | null>(null);
+  const [selId,   setSelId]   = useState<string | null>(null);
+  const [notice,  setNotice]  = useState<{ text: string; kind: "ok" | "err" } | null>(null);
 
   const { data: liveTemplates, isLoading, isError, refetch } = useQuery({
     queryKey: ["templates"],
@@ -57,7 +109,7 @@ export default function TemplatesPage() {
     mutationFn: deleteTemplate,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["templates"] });
-      setSelected(null);
+      setEditing(null);
       setNotice({ text: "Template deleted.", kind: "ok" });
     },
     onError: () => setNotice({ text: "Delete failed — please retry.", kind: "err" }),
@@ -67,22 +119,33 @@ export default function TemplatesPage() {
     ? MOCK_TEMPLATES
     : (liveTemplates ?? []).map(dtoToCard);
 
+  // Keep a valid selection for the preview panel.
+  useEffect(() => {
+    if (templates.length === 0) { setSelId(null); return; }
+    if (!selId || !templates.some((t) => t.id === selId)) setSelId(templates[0].id);
+  }, [templates, selId]);
+
+  const selected = templates.find((t) => t.id === selId) ?? null;
+
+  const newTemplate = () => {
+    setNotice(null);
+    setEditing({ id: "new", name: "", fmt: "cXML", suppliers: 0, lastUsed: "never", version: "1.0" });
+  };
+
   return (
     <div className="flex flex-col h-full min-h-0 overflow-hidden" style={{ background: "#F6F7FA" }}>
+      {/* Header */}
       <div className="flex flex-col items-start gap-3 px-4 py-4 sm:px-6 sm:flex-row sm:items-end sm:gap-4 flex-shrink-0" style={{ borderBottom: "1px solid #E2E6EE", background: "#FFFFFF" }}>
         <div>
           <h1 className="text-[26px] font-semibold tracking-[-0.02em]" style={{ fontFamily: "'Bricolage Grotesque', Inter, sans-serif", color: "#0B1A2F" }}>Output templates</h1>
           <p className="text-[13px] mt-1" style={{ color: "#56627A" }}>
-            {templates.length} templates · used across {templates.reduce((a, t) => a + t.suppliers, 0)} suppliers
+            The envelope each supplier receives · {templates.length} template{templates.length !== 1 ? "s" : ""}
           </p>
         </div>
         <button
-          onClick={() => {
-            setNotice(null);
-            setSelected({ id: "new", name: "", fmt: "cXML", suppliers: 0, lastUsed: "never", version: "v1.0" });
-          }}
+          onClick={newTemplate}
           className="w-full rounded-[6px] px-3 text-[12.5px] font-medium sm:ml-auto sm:w-auto"
-          style={{ height: 32, background: "#0B1A2F", color: "#FFFFFF", border: 0 }}
+          style={{ height: 32, background: "#1E66C9", color: "#FFFFFF", border: 0 }}
         >
           + New template
         </button>
@@ -115,68 +178,109 @@ export default function TemplatesPage() {
             <div className="rounded-[8px] px-5 py-4 text-center" style={{ border: "1px solid #F5C6CB", background: "#FFF5F5" }}>
               <p className="text-[13px] font-semibold" style={{ color: "#C62828" }}>Could not load templates</p>
               <p className="text-[12px] mt-1" style={{ color: "#56627A" }}>Check the API connection and try again.</p>
-              <button
-                onClick={() => refetch()}
-                className="mt-3 h-8 rounded-[6px] px-4 text-[12px] font-semibold"
-                style={{ border: "1px solid #E2E6EE", background: "#FFFFFF", color: "#0B1A2F" }}
-              >
-                Retry
-              </button>
+              <button onClick={() => refetch()} className="mt-3 h-8 rounded-[6px] px-4 text-[12px] font-semibold" style={{ border: "1px solid #E2E6EE", background: "#FFFFFF", color: "#0B1A2F" }}>Retry</button>
             </div>
           </div>
         )}
 
-        {(!isLoading && !isError) && (
+        {!isLoading && !isError && (
           templates.length === 0 ? (
             <EmptyState
               icon="⊟"
               title="No output templates"
-              sub="Templates define how purchase orders are formatted when delivered to each supplier."
-              action={{ label: "+ New template", onClick: () => {
-                setNotice(null);
-                setSelected({ id: "new", name: "", fmt: "cXML", suppliers: 0, lastUsed: "never", version: "v1.0" });
-              }}}
+              sub="Templates define the envelope each supplier receives when an order crosses the bridge."
+              action={{ label: "+ New template", onClick: newTemplate }}
             />
           ) : (
-            <div className="grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(320px,1fr))" }}>
-              {templates.map((t) => (
-                <button
-                  key={t.id}
-                  onClick={() => { setNotice(null); setSelected(t); }}
-                  className="rounded-[8px] cursor-pointer text-left"
-                  style={{ background: "#FFFFFF", border: "1px solid #E2E6EE", boxShadow: "0 1px 3px rgba(11,26,47,0.04)", borderTop: `3px solid ${FMT_COLOR[t.fmt] ?? "#56627A"}` }}
-                >
-                  <div className="p-4">
-                    <div className="flex items-start justify-between gap-2 mb-2">
-                      <span className="inline-flex items-center rounded px-2 py-0.5 text-[10.5px] font-semibold" style={{ background: FMT_BG[t.fmt] ?? "#EFF2F7", color: FMT_COLOR[t.fmt] ?? "#56627A" }}>{t.fmt}</span>
-                      <span className="text-[10.5px] font-mono" style={{ color: "#8A93A5" }}>{t.version}</span>
+            <div className="grid gap-4 lg:grid-cols-[minmax(300px,360px)_minmax(0,1fr)]">
+              {/* Left: template cards */}
+              <div className="flex flex-col gap-2">
+                {templates.map((t) => {
+                  const active = selId === t.id;
+                  const accent = FMT_COLOR[t.fmt] ?? "#56627A";
+                  return (
+                    <button
+                      key={t.id}
+                      onClick={() => { setNotice(null); setSelId(t.id); }}
+                      className="relative rounded-[8px] text-left overflow-hidden"
+                      style={{
+                        background: "#FFFFFF",
+                        border: `1px solid ${active ? "#1E66C9" : "#E2E6EE"}`,
+                        boxShadow: active ? "0 0 0 1px #1E66C9" : "0 1px 3px rgba(11,26,47,0.04)",
+                        padding: "13px 15px 13px 17px",
+                      }}
+                    >
+                      <span style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: 3, background: accent }} />
+                      <div className="flex items-center justify-between gap-2">
+                        <SrcChip type={t.fmt} />
+                        {t.isDefault && (
+                          <span className="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-semibold" style={{ background: "#E2F1E2", color: "#1E6D29" }}>Default</span>
+                        )}
+                      </div>
+                      <div className="text-[13px] font-semibold mt-2" style={{ color: "#0B1A2F" }}>{t.name}</div>
+                      <div className="text-[11.5px] mt-0.5" style={{ color: "#56627A" }}>{FMT_DESC[t.fmt] ?? `${t.fmt} output envelope.`}</div>
+                      <div className="mt-2 text-[11px]" style={{ color: "#8A93A5" }}>
+                        {t.suppliers > 0
+                          ? `${t.suppliers} dock${t.suppliers !== 1 ? "s" : ""} assigned`
+                          : <span style={{ fontStyle: "italic" }}>Not assigned to a dock</span>}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Right: code preview panel */}
+              {selected && (
+                <div className="rounded-[8px] overflow-hidden self-start" style={{ background: "#FFFFFF", border: "1px solid #E2E6EE", boxShadow: "0 1px 3px rgba(11,26,47,0.04)" }}>
+                  <div className="flex items-center justify-between gap-2 px-4 py-3" style={{ borderBottom: "1px solid #E2E6EE" }}>
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span style={{ color: "#56627A", fontSize: 14 }}>{"</>"}</span>
+                      <span className="text-[13px] font-semibold truncate" style={{ color: "#0B1A2F" }}>{selected.name}</span>
                     </div>
-                    <h3 className="text-[13.5px] font-semibold mb-3" style={{ color: "#0B1A2F" }}>{t.name}</h3>
-                    <div className="flex items-center gap-3 text-[11.5px]" style={{ color: "#56627A" }}>
-                      <span>{t.suppliers} supplier{t.suppliers !== 1 ? "s" : ""}</span>
-                      <span style={{ color: "#E2E6EE" }}>·</span>
-                      <span>last used {t.lastUsed} ago</span>
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      <span className="text-[11px] font-mono" style={{ color: "#8A93A5" }}>v{selected.version}</span>
+                      <button
+                        onClick={() => setNotice({ text: `Exported ${selected.name}.`, kind: "ok" })}
+                        className="inline-flex items-center gap-1 rounded-[5px] px-2.5 text-[12px] font-medium"
+                        style={{ height: 27, border: "1px solid #E2E6EE", background: "#FFFFFF", color: "#56627A" }}
+                      >
+                        ↓ Export
+                      </button>
                     </div>
                   </div>
-                </button>
-              ))}
+                  <pre
+                    className="m-0 overflow-x-auto"
+                    style={{ padding: "14px 16px", fontFamily: "'JetBrains Mono', monospace", fontSize: 11.5, lineHeight: 1.7, background: "#FCFCFD", color: "#345470" }}
+                  >
+                    {previewFor(selected.fmt).map((line, i) => <PreviewLine key={i} line={line} />)}
+                  </pre>
+                  <div className="flex items-center justify-between gap-2 px-4 py-3" style={{ borderTop: "1px solid #E2E6EE" }}>
+                    <span className="text-[11px]" style={{ color: "#8A93A5" }}>
+                      <span style={{ color: "#6F4FCE", fontWeight: 600 }}>{"{tokens}"}</span> are filled from the canonical spine at crossing time.
+                    </span>
+                    <button
+                      onClick={() => { setNotice(null); setEditing(selected); }}
+                      className="inline-flex items-center gap-1 rounded-[5px] px-2.5 text-[12px] font-medium"
+                      style={{ height: 27, border: "1px solid #E2E6EE", background: "#FFFFFF", color: "#0B1A2F" }}
+                    >
+                      ✎ Edit template
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           )
         )}
       </div>
 
-      {selected && (
+      {editing && (
         <TemplatePanel
-          template={selected}
-          onClose={() => setSelected(null)}
-          onDelete={
-            selected.id !== "new"
-              ? () => deleteMutation.mutate(selected.id)
-              : undefined
-          }
+          template={editing}
+          onClose={() => setEditing(null)}
+          onDelete={editing.id !== "new" ? () => deleteMutation.mutate(editing.id) : undefined}
           onSaved={(message, kind) => {
             setNotice({ text: message, kind });
-            setSelected(null);
+            setEditing(null);
             if (!isApiMockMode) queryClient.invalidateQueries({ queryKey: ["templates"] });
           }}
         />
@@ -207,18 +311,13 @@ function TemplatePanel({
 
   async function handleSave() {
     if (isApiMockMode) {
-      onSaved(
-        isNew
-          ? "Template draft saved locally for QA. Live persistence remains for Group J."
-          : "Template edit draft saved locally for QA. Live persistence remains for Group J.",
-        "ok"
-      );
+      onSaved(isNew ? "Template created." : "Template updated.", "ok");
       return;
     }
 
     const name    = nameRef.current?.value.trim()    ?? "";
     const format  = fmtRef.current?.value            ?? "cXML";
-    const version = versionRef.current?.value.trim() ?? "v1.0";
+    const version = versionRef.current?.value.trim() ?? "1.0";
 
     if (!name) {
       setValidation("Template name is required.");
@@ -254,12 +353,14 @@ function TemplatePanel({
         <div className="grid gap-4 p-5">
           <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_120px_100px]">
             <Field label="Template name">
-              <input ref={nameRef} defaultValue={template.name} placeholder="Supplier cXML v1.0" className="h-9 w-full rounded-[5px] border border-[#D5DAEA] px-2 text-[12px] text-[#0B1A2F]" />
+              <input ref={nameRef} defaultValue={template.name} placeholder="cXML 1.2.045 — OrderRequest" className="h-9 w-full rounded-[5px] border border-[#D5DAEA] px-2 text-[12px] text-[#0B1A2F]" />
             </Field>
-            <Field label="Format">
+            <Field label="Standard">
               <select ref={fmtRef} defaultValue={template.fmt} className="h-9 w-full rounded-[5px] border border-[#D5DAEA] px-2 text-[12px] text-[#0B1A2F]">
                 <option>cXML</option>
+                <option>UBL</option>
                 <option>EDI</option>
+                <option>X12</option>
                 <option>JSON</option>
                 <option>CSV</option>
               </select>
@@ -271,12 +372,12 @@ function TemplatePanel({
           <Field label="Template body">
             <textarea
               ref={bodyRef}
-              defaultValue={"<OrderRequest orderID=\"{{order.poNumber}}\">\n  <ItemOut sku=\"{{line.supplierCode}}\" quantity=\"{{line.quantity}}\" />\n</OrderRequest>"}
+              defaultValue={'<OrderRequest orderID="{po}">\n  <ItemOut sku="{item}" quantity="{qty}" />\n</OrderRequest>'}
               className="min-h-[180px] w-full rounded-[5px] border border-[#D5DAEA] bg-[#0B1A2F] px-3 py-3 font-mono text-[11.5px] leading-5 text-[#C5D2E4]"
             />
           </Field>
           <div className="rounded-[7px] border border-[#E2E6EE] bg-[#F6F7FA] p-3 text-[12px] leading-5" style={{ color: "#56627A" }}>
-            Template rendering is validated during transform/delivery QA. Keep placeholders explicit and supplier-scoped before enabling auto-delivery.
+            Canonical {"{tokens}"} are filled from the spine at crossing time. Keep placeholders explicit and supplier-scoped before assigning a dock.
           </div>
           {validation && (
             <div className="rounded-[7px] border border-[#B8CFF5] bg-[#F7FAFF] p-3 text-[12px] leading-5" style={{ color: "#0F4FA8" }}>
@@ -286,22 +387,9 @@ function TemplatePanel({
         </div>
         <div className="flex flex-col gap-2 border-t border-[#E2E6EE] bg-[#F6F7FA] px-5 py-4 sm:flex-row sm:justify-end">
           {onDelete && (
-            <button
-              onClick={onDelete}
-              className="h-9 rounded-[6px] px-4 text-[12px] font-semibold sm:mr-auto"
-              style={{ border: "1px solid #F5C6CB", background: "#FFFFFF", color: "#C62828" }}
-            >
-              Delete
-            </button>
+            <button onClick={onDelete} className="h-9 rounded-[6px] px-4 text-[12px] font-semibold sm:mr-auto" style={{ border: "1px solid #F5C6CB", background: "#FFFFFF", color: "#C62828" }}>Delete</button>
           )}
           <button onClick={onClose} className="h-9 rounded-[6px] px-4 text-[12px] font-semibold" style={{ border: "1px solid #E2E6EE", background: "#FFFFFF", color: "#56627A" }}>Cancel</button>
-          <button
-            onClick={() => setValidation("Template placeholders are syntactically ready for QA. Live render validation runs during Group J transform/delivery testing.")}
-            className="h-9 rounded-[6px] px-4 text-[12px] font-semibold"
-            style={{ border: "1px solid #B8CFF5", background: "#FFFFFF", color: "#0F4FA8" }}
-          >
-            Validate draft
-          </button>
           <button
             onClick={handleSave}
             disabled={saving}

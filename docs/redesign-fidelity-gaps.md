@@ -31,11 +31,11 @@ Legend: `[ ]` todo · `[x]` done · `(KEEP)` = do not regress to mockup.
 - [x] Buyers: "Buyer docks" + sub; table (Buyer / Formats / Volume / Last order). Inbound-channel→Formats, Suppliers-reached omitted, This-week dropped (no BuyerDto fields). Kept /inbox filter (no buyer-detail route) + name/code create (real API).
 - [x] Crossings: date-grouped table rows (time | event | PO | format | buyer→supplier | actor); canonical filter vocab; expanded actions View order + Export entry + Retry(failed). Multi-day grouping. Route bug fixed: /orders→/inbox.
 
-### Rules + Templates + Standards + Mappings
-- [ ] Rules: "Validation rules" (lowercase r); split-detail (table + sticky inline editor) not grid+modal; columns Rule/Scope/Supplier/Severity/Triggered 30d/Active; sub "Block bad orders before they reach a supplier · N active".
-- [ ] Templates: split-list (cards left + code-preview panel right with `{token}` violet highlighting, Export/Edit) not grid+modal; card shows description + dock assignment.
-- [ ] Standards: cross-format field TABLE (Canonical field + UBL/EDIFACT/X12/cXML/Peppol/ISO columns) not family cards; inline field search; "Request a format" footer. (aligns with standards-visibility product rule)
-- [ ] Remove "Group J" / dev language from MappingEditor, ValidationRules, Templates user-visible copy.
+### Rules + Templates + Standards + Mappings ✅ DONE (tsc-clean; HTTP 200 + hydrated-DOM verified on :8082 mock)
+- [x] Rules: "Validation rules"; split-detail (table + sticky inline editor) not grid+modal; columns Rule/Scope/Severity/Triggered 30d/Active; sub "Block bad orders before they reach a supplier · N active". Scope = real `entity` field; Supplier column omitted (no per-rule supplier binding in RuleDto — don't fabricate). KEEP live list/toggle/save/delete wiring.
+- [x] Templates: split-list (cards left + code-preview panel right with `{token}` violet highlighting, Export/Edit) not grid+modal; card shows per-standard description + dock assignment. Preview is illustrative per-format (TemplateDto has no body). KEEP live create/update/delete + editor modal. (Preview panel + Edit button are client-rendered on selection — absent from SSR HTML by design.)
+- [x] Standards: cross-format field TABLE reusing real `FIELD_STANDARDS` + `STANDARD_REF_COLUMNS` (Canonical field + UBL/Peppol BIS/EDIFACT/X12/cXML — no ISO column; ISO 20022 is reference-only in the catalog, don't fabricate paths); inline field search; "Request a format" footer → /support. (aligns with standards-visibility product rule)
+- [x] Removed "Group J" / dev language from MappingEditor, ValidationRules, Templates user-visible copy.
 
 ### Settings + Billing ✅ DONE (tsc-clean; ⚠️ visual smoke-test pending — preview server crashed this session)
 - [x] Nav icons (Building/Euro/Mail/Key/Plug) + canonical labels (Organization / Billing & plan / Email intake / API keys / Connectors); active = card-shadow + 2px blue left border.

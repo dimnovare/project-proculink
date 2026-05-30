@@ -1,9 +1,11 @@
 "use client";
 
-// Validation Rules — card-grid/list of active crossing rules.
-// Severity: error | warning | info. Each card shows trigger count + toggle.
+// Validation rules — canonical split-detail: rules table (left) + a sticky
+// inline rule editor (right). KEEP live API wiring (list / toggle / save /
+// delete). Scope column maps to the real `entity` field; there is no per-rule
+// supplier binding in RuleDto, so no Supplier column is fabricated.
 
-import { useState, useRef, type ReactNode } from "react";
+import { useState, useEffect, useRef, type ReactNode } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   getRules,
@@ -35,171 +37,48 @@ type Rule = {
 // ─── Mock data ────────────────────────────────────────────────────────────────
 
 const RULES: Rule[] = [
-  {
-    id: "r1",
-    name: "Missing unit price",
-    description: "Line item has no unit price set. Order cannot be crossed without valid pricing.",
-    severity: "error",
-    entity: "Line item",
-    triggers: 14,
-    enabled: true,
-    autoBlock: true,
-    lastTriggered: "2m",
-  },
-  {
-    id: "r2",
-    name: "Unknown buyer code",
-    description: "Buyer product code not found in mapping table. Manual mapping required.",
-    severity: "error",
-    entity: "Line item",
-    triggers: 31,
-    enabled: true,
-    autoBlock: true,
-    lastTriggered: "6m",
-  },
-  {
-    id: "r3",
-    name: "Order total mismatch",
-    description: "Sum of line amounts does not match the header total. Tolerance: ±€0.01.",
-    severity: "error",
-    entity: "Amount",
-    triggers: 7,
-    enabled: true,
-    autoBlock: true,
-    lastTriggered: "1h",
-  },
-  {
-    id: "r4",
-    name: "Delivery date in the past",
-    description: "Requested delivery date is earlier than today. Buyer should confirm.",
-    severity: "warning",
-    entity: "Header",
-    triggers: 22,
-    enabled: true,
-    autoBlock: false,
-    lastTriggered: "14m",
-  },
-  {
-    id: "r5",
-    name: "Low confidence extraction",
-    description: "AI extraction confidence below 70% for one or more fields. Requires manual sign-off.",
-    severity: "warning",
-    entity: "Line item",
-    triggers: 41,
-    enabled: true,
-    autoBlock: false,
-    lastTriggered: "2m",
-  },
-  {
-    id: "r6",
-    name: "Supplier inactive",
-    description: "The assigned supplier has been deactivated. Route will be blocked.",
-    severity: "error",
-    entity: "Supplier",
-    triggers: 3,
-    enabled: true,
-    autoBlock: true,
-    lastTriggered: "3d",
-  },
-  {
-    id: "r7",
-    name: "Currency mismatch",
-    description: "Order currency does not match the supplier's preferred currency setting.",
-    severity: "warning",
-    entity: "Header",
-    triggers: 9,
-    enabled: true,
-    autoBlock: false,
-    lastTriggered: "4h",
-  },
-  {
-    id: "r8",
-    name: "Duplicate PO number",
-    description: "A crossing with this PO number was already processed in the last 30 days.",
-    severity: "error",
-    entity: "Header",
-    triggers: 2,
-    enabled: true,
-    autoBlock: true,
-    lastTriggered: "2d",
-  },
-  {
-    id: "r9",
-    name: "Missing GTIN",
-    description: "Line item is missing a GTIN/EAN barcode. Informational only for reporting.",
-    severity: "info",
-    entity: "Line item",
-    triggers: 88,
-    enabled: false,
-    autoBlock: false,
-    lastTriggered: "—",
-  },
-  {
-    id: "r10",
-    name: "Line quantity is zero",
-    description: "Ordered quantity is 0. Likely a cancellation line — flag for review.",
-    severity: "warning",
-    entity: "Line item",
-    triggers: 5,
-    enabled: true,
-    autoBlock: false,
-    lastTriggered: "1d",
-  },
-  {
-    id: "r11",
-    name: "Buyer not recognised",
-    description: "Buyer identifier not present in any buyer configuration.",
-    severity: "error",
-    entity: "Buyer",
-    triggers: 1,
-    enabled: true,
-    autoBlock: true,
-    lastTriggered: "1w",
-  },
-  {
-    id: "r12",
-    name: "Large order threshold",
-    description: "Order value exceeds €50,000. Requires approval from a manager before crossing.",
-    severity: "info",
-    entity: "Amount",
-    triggers: 17,
-    enabled: true,
-    autoBlock: false,
-    lastTriggered: "3h",
-  },
+  { id: "r1",  name: "Payment terms must match dock",        description: "Order payment terms must equal the supplier dock's agreed terms before crossing.", severity: "error",   entity: "Header",    triggers: 3,  enabled: true,  autoBlock: true,  lastTriggered: "2m" },
+  { id: "r2",  name: "Currency must be EUR",                 description: "Block any order whose currency is not EUR.", severity: "error",   entity: "Header",    triggers: 0,  enabled: true,  autoBlock: true,  lastTriggered: "—" },
+  { id: "r3",  name: "All line items need supplier codes",   description: "Every line must carry a resolved supplier item code. Hold for review and suggest via AI.", severity: "error",   entity: "Line item", triggers: 12, enabled: true,  autoBlock: true,  lastTriggered: "6m" },
+  { id: "r4",  name: "Quantity must be positive",            description: "Reject any line where the ordered quantity is zero or negative.", severity: "error",   entity: "Line item", triggers: 2,  enabled: true,  autoBlock: true,  lastTriggered: "2d" },
+  { id: "r5",  name: "Warn on orders over €50k",             description: "Flag high-value orders for manual approval before they cross.", severity: "warning", entity: "Amount",    triggers: 5,  enabled: true,  autoBlock: false, lastTriggered: "3h" },
+  { id: "r6",  name: "Ship-to postal code required",         description: "Warn when the ship-to address has no postal code; AI completes from history.", severity: "warning", entity: "Buyer",     triggers: 0,  enabled: false, autoBlock: false, lastTriggered: "—" },
+  { id: "r7",  name: "Order total mismatch",                 description: "Sum of line amounts must match the header total within ±€0.01.", severity: "error",   entity: "Amount",    triggers: 7,  enabled: true,  autoBlock: true,  lastTriggered: "1h" },
+  { id: "r8",  name: "Low confidence extraction",            description: "AI extraction confidence below 70% on any field requires manual sign-off.", severity: "warning", entity: "Line item", triggers: 41, enabled: true,  autoBlock: false, lastTriggered: "2m" },
+  { id: "r9",  name: "Duplicate PO number",                  description: "A crossing with this PO number was already processed in the last 30 days.", severity: "error",   entity: "Header",    triggers: 2,  enabled: true,  autoBlock: true,  lastTriggered: "2d" },
+  { id: "r10", name: "Missing GTIN",                         description: "Line item has no GTIN/EAN barcode. Informational only, for reporting.", severity: "info",    entity: "Line item", triggers: 88, enabled: false, autoBlock: false, lastTriggered: "—" },
 ];
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function dtoToRule(dto: RuleDto): Rule {
   return {
-    id:           dto.id,
-    name:         dto.name,
-    description:  dto.description,
-    severity:     dto.severity as Severity,
-    entity:       dto.entity as Entity,
-    triggers:     dto.triggerCount,
-    enabled:      dto.enabled,
-    autoBlock:    dto.autoBlock,
+    id:            dto.id,
+    name:          dto.name,
+    description:   dto.description,
+    severity:      dto.severity as Severity,
+    entity:        dto.entity as Entity,
+    triggers:      dto.triggerCount,
+    enabled:       dto.enabled,
+    autoBlock:     dto.autoBlock,
     lastTriggered: dto.lastTriggered ?? "—",
   };
 }
 
+const NEW_RULE: Rule = {
+  id: "new", name: "", description: "", severity: "warning",
+  entity: "Line item", triggers: 0, enabled: true, autoBlock: false, lastTriggered: "—",
+};
+
 // ─── Visual maps ─────────────────────────────────────────────────────────────
 
-const SEV: Record<Severity, { bg: string; color: string; border: string; label: string; icon: string }> = {
-  error:   { bg: "#FBE3E3", color: "#C53A3A", border: "#F5C0C0", label: "Error",   icon: "✕" },
-  warning: { bg: "#FAEFD6", color: "#C97A14", border: "#F0D98A", label: "Warning", icon: "⚠" },
-  info:    { bg: "#E3EDFB", color: "#1E66C9", border: "#B8CFF5", label: "Info",    icon: "ℹ" },
+const SEV: Record<Severity, { bg: string; color: string; label: string }> = {
+  error:   { bg: "#FBE3E3", color: "#C53A3A", label: "Block" },
+  warning: { bg: "#FAEFD6", color: "#C97A14", label: "Warn" },
+  info:    { bg: "#E3EDFB", color: "#1E66C9", label: "Info" },
 };
 
-const ENTITY_COLOR: Record<Entity, string> = {
-  "Line item": "#6F4FCE",
-  "Header":    "#0F4FA8",
-  "Supplier":  "#2E8E3A",
-  "Buyer":     "#1E66C9",
-  "Amount":    "#C97A14",
-};
+const ENTITIES: Entity[] = ["Line item", "Header", "Supplier", "Buyer", "Amount"];
 
 // ─── Toggle ───────────────────────────────────────────────────────────────────
 
@@ -208,68 +87,23 @@ function Toggle({ on, onChange }: { on: boolean; onChange: (v: boolean) => void 
     <button
       onClick={() => onChange(!on)}
       style={{
-        width: 32,
-        height: 18,
-        borderRadius: 99,
+        width: 32, height: 18, borderRadius: 99,
         background: on ? "#1E66C9" : "#C6CDDA",
-        border: "none",
-        padding: 0,
-        position: "relative",
-        cursor: "pointer",
-        transition: "background 0.2s",
-        flexShrink: 0,
+        border: "none", padding: 0, position: "relative", cursor: "pointer",
+        transition: "background 0.2s", flexShrink: 0,
       }}
     >
-      <span
-        style={{
-          position: "absolute",
-          top: 2,
-          left: on ? 16 : 2,
-          width: 14,
-          height: 14,
-          borderRadius: "50%",
-          background: "#FFFFFF",
-          transition: "left 0.2s",
-          boxShadow: "0 1px 3px rgba(0,0,0,0.2)",
-        }}
-      />
+      <span style={{ position: "absolute", top: 2, left: on ? 16 : 2, width: 14, height: 14, borderRadius: "50%", background: "#FFFFFF", transition: "left 0.2s", boxShadow: "0 1px 3px rgba(0,0,0,0.2)" }} />
     </button>
   );
 }
 
-// ─── Skeleton ─────────────────────────────────────────────────────────────────
-
-function SkeletonCard() {
-  return (
-    <div
-      className="rounded-[8px] overflow-hidden animate-pulse"
-      style={{ background: "#FFFFFF", border: "1px solid #E2E6EE", height: 104 }}
-    >
-      <div className="p-4">
-        <div className="flex items-start gap-2 mb-3">
-          <div style={{ width: 22, height: 22, borderRadius: "50%", background: "#E2E6EE" }} />
-          <div className="flex-1">
-            <div style={{ height: 13, width: "55%", borderRadius: 4, background: "#E2E6EE", marginBottom: 6 }} />
-            <div style={{ height: 11, width: "85%", borderRadius: 4, background: "#F0F2F6" }} />
-          </div>
-        </div>
-        <div className="flex gap-2">
-          <div style={{ height: 18, width: 60, borderRadius: 4, background: "#E2E6EE" }} />
-          <div style={{ height: 18, width: 44, borderRadius: 4, background: "#F0F2F6" }} />
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ─── Main Component ───────────────────────────────────────────────────────────
+// ─── Main component ─────────────────────────────────────────────────────────
 
 export function ValidationRules() {
-  // ── Mock-mode local state (unchanged) ───────────────────────────────────
-  const [mockRules, setMockRules] = useState(RULES);
-
-  // ── Live-mode TanStack Query ─────────────────────────────────────────────
   const queryClient = useQueryClient();
+
+  const [mockRules, setMockRules] = useState(RULES);
 
   const { data: liveData, isLoading, isError, refetch } = useQuery({
     queryKey: ["rules"],
@@ -284,607 +118,273 @@ export function ValidationRules() {
 
   const saveMutation = useMutation({
     mutationFn: (args: { id: string | null; payload: Omit<RuleDto, "id"|"triggerCount"|"lastTriggered"|"createdAt"> }) =>
-      args.id
-        ? updateRule(args.id, args.payload)
-        : createRule({ ...args.payload, enabled: args.payload.enabled, autoBlock: args.payload.autoBlock }),
+      args.id ? updateRule(args.id, args.payload) : createRule(args.payload),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["rules"] }),
   });
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => deleteRule(id),
-    onSuccess:  () => queryClient.invalidateQueries({ queryKey: ["rules"] }),
+    onSuccess:  () => { queryClient.invalidateQueries({ queryKey: ["rules"] }); },
   });
 
-  // ── Derive rule list ─────────────────────────────────────────────────────
-  const rules: Rule[] = isApiMockMode
-    ? mockRules
-    : (liveData ?? []).map(dtoToRule);
+  const rules: Rule[] = isApiMockMode ? mockRules : (liveData ?? []).map(dtoToRule);
 
-  // ── UI state ─────────────────────────────────────────────────────────────
-  const [sevFilter, setSev]       = useState<Severity | "All">("All");
-  const [entityFilter, setEntity] = useState<Entity | "All">("All");
-  const [view, setView]           = useState<"grid" | "list">("grid");
-  const [selected, setSelected]   = useState<Rule | null>(null);
-  const [notice, setNotice]       = useState<string | null>(null);
+  const [selId, setSelId]   = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
 
-  const filtered = rules.filter((r) => {
-    const ms = sevFilter === "All" || r.severity === sevFilter;
-    const me = entityFilter === "All" || r.entity === entityFilter;
-    return ms && me;
-  });
+  // Keep a valid selection.
+  useEffect(() => {
+    if (selId === "new") return;
+    if (rules.length === 0) { setSelId(null); return; }
+    if (!selId || !rules.some((r) => r.id === selId)) setSelId(rules[0].id);
+  }, [rules, selId]);
+
+  const selected = selId === "new" ? NEW_RULE : rules.find((r) => r.id === selId) ?? null;
+  const activeCount = rules.filter((r) => r.enabled).length;
 
   function handleToggle(id: string) {
     if (isApiMockMode) {
-      setMockRules((prev) =>
-        prev.map((r) => (r.id === id ? { ...r, enabled: !r.enabled } : r))
-      );
-      setNotice("Rule toggle updated locally for QA. Backend persistence remains for Group J.");
+      setMockRules((prev) => prev.map((r) => (r.id === id ? { ...r, enabled: !r.enabled } : r)));
     } else {
       toggleMutation.mutate(id);
     }
   }
 
-  const counts = {
-    error:   rules.filter((r) => r.severity === "error").length,
-    warning: rules.filter((r) => r.severity === "warning").length,
-    info:    rules.filter((r) => r.severity === "info").length,
-  };
+  function handleSave(rule: Rule, payload: Omit<RuleDto, "id"|"triggerCount"|"lastTriggered"|"createdAt">) {
+    if (isApiMockMode) {
+      if (rule.id === "new") {
+        const id = `r${Date.now()}`;
+        setMockRules((prev) => [...prev, { ...NEW_RULE, ...payload, id, severity: payload.severity, entity: payload.entity as Entity }]);
+        setSelId(id);
+      } else {
+        setMockRules((prev) => prev.map((r) => (r.id === rule.id ? { ...r, ...payload, severity: payload.severity, entity: payload.entity as Entity } : r)));
+      }
+      setNotice(rule.id === "new" ? "Rule created." : "Rule saved.");
+    } else {
+      saveMutation.mutate({ id: rule.id === "new" ? null : rule.id, payload });
+      setNotice(rule.id === "new" ? "Rule created." : "Rule saved.");
+    }
+  }
 
-  // ── Loading skeleton ─────────────────────────────────────────────────────
+  function handleDelete(id: string) {
+    if (isApiMockMode) {
+      setMockRules((prev) => prev.filter((r) => r.id !== id));
+    } else {
+      deleteMutation.mutate(id);
+    }
+    setSelId(null);
+    setNotice("Rule deleted.");
+  }
+
+  // ── Loading / error states ───────────────────────────────────────────────
   if (!isApiMockMode && isLoading) {
     return (
       <div className="flex flex-col h-full min-h-0 overflow-hidden" style={{ background: "#F6F7FA" }}>
-        <div className="flex flex-col items-start gap-3 px-4 py-4 sm:px-6 flex-shrink-0" style={{ borderBottom: "1px solid #E2E6EE", background: "#FFFFFF" }}>
-          <div>
-            <div style={{ height: 26, width: 180, borderRadius: 5, background: "#E2E6EE" }} className="animate-pulse" />
-            <div style={{ height: 13, width: 240, borderRadius: 4, background: "#F0F2F6", marginTop: 6 }} className="animate-pulse" />
-          </div>
+        <div className="px-4 py-4 sm:px-6 flex-shrink-0" style={{ borderBottom: "1px solid #E2E6EE", background: "#FFFFFF" }}>
+          <div style={{ height: 26, width: 180, borderRadius: 5, background: "#E2E6EE" }} className="animate-pulse" />
         </div>
         <div className="flex-1 overflow-auto p-5">
-          <div className="grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(340px, 1fr))" }}>
-            {Array.from({ length: 6 }).map((_, i) => <SkeletonCard key={i} />)}
-          </div>
+          <div className="rounded-[8px] animate-pulse" style={{ height: 320, background: "#FFFFFF", border: "1px solid #E2E6EE" }} />
         </div>
       </div>
     );
   }
 
-  // ── Error state ──────────────────────────────────────────────────────────
   if (!isApiMockMode && isError) {
     return (
-      <div className="flex flex-col h-full min-h-0 overflow-hidden items-center justify-center" style={{ background: "#F6F7FA" }}>
+      <div className="flex flex-col h-full min-h-0 items-center justify-center" style={{ background: "#F6F7FA" }}>
         <div className="rounded-[10px] p-8 text-center max-w-sm" style={{ background: "#FFFFFF", border: "1px solid #E2E6EE" }}>
           <p className="text-[14px] font-semibold mb-1" style={{ color: "#C53A3A" }}>Could not load validation rules</p>
           <p className="text-[12px] mb-4" style={{ color: "#56627A" }}>Check your connection and try again.</p>
-          <button
-            onClick={() => refetch()}
-            className="rounded-[6px] px-4 py-2 text-[12px] font-semibold"
-            style={{ background: "#0B1A2F", color: "#FFFFFF", border: 0 }}
-          >
-            Retry
-          </button>
+          <button onClick={() => refetch()} className="rounded-[6px] px-4 py-2 text-[12px] font-semibold" style={{ background: "#0B1A2F", color: "#FFFFFF", border: 0 }}>Retry</button>
         </div>
       </div>
     );
   }
 
   return (
-    <div
-      className="flex flex-col h-full min-h-0 overflow-hidden"
-      style={{ background: "#F6F7FA" }}
-    >
-      {/* Page header */}
-      <div
-        className="flex flex-col items-start gap-3 px-4 py-4 sm:px-6 lg:flex-row lg:items-end lg:gap-4 flex-shrink-0"
-        style={{ borderBottom: "1px solid #E2E6EE", background: "#FFFFFF" }}
-      >
+    <div className="flex flex-col h-full min-h-0 overflow-hidden" style={{ background: "#F6F7FA" }}>
+      {/* Header */}
+      <div className="flex flex-col items-start gap-3 px-4 py-4 sm:px-6 sm:flex-row sm:items-end sm:gap-4 flex-shrink-0" style={{ borderBottom: "1px solid #E2E6EE", background: "#FFFFFF" }}>
         <div>
-          <h1
-            className="text-[26px] font-semibold tracking-[-0.02em]"
-            style={{
-              fontFamily: "'Bricolage Grotesque', Inter, sans-serif",
-              color: "#0B1A2F",
-            }}
-          >
-            Validation Rules
-          </h1>
+          <h1 className="text-[26px] font-semibold tracking-[-0.02em]" style={{ fontFamily: "'Bricolage Grotesque', Inter, sans-serif", color: "#0B1A2F" }}>Validation rules</h1>
           <p className="text-[13px] mt-1" style={{ color: "#56627A" }}>
-            {rules.filter((r) => r.enabled).length} active rules ·{" "}
-            {counts.error} errors · {counts.warning} warnings · {counts.info} info
+            Block bad orders before they reach a supplier · {activeCount} active
           </p>
         </div>
-        <div className="flex w-full gap-2 lg:ml-auto lg:w-auto">
-          {/* View toggle */}
-          <div
-            className="flex rounded-[6px] overflow-hidden text-[12px]"
-            style={{ border: "1px solid #E2E6EE" }}
-          >
-            <button
-              className="px-3 py-1.5 font-medium"
-              style={{
-                background: view === "grid" ? "#0B1A2F" : "#FFFFFF",
-                color: view === "grid" ? "#FFFFFF" : "#56627A",
-                borderRight: "1px solid #E2E6EE",
-              }}
-              onClick={() => setView("grid")}
-            >
-              ▦ Grid
-            </button>
-            <button
-              className="px-3 py-1.5 font-medium"
-              style={{
-                background: view === "list" ? "#0B1A2F" : "#FFFFFF",
-                color: view === "list" ? "#FFFFFF" : "#56627A",
-              }}
-              onClick={() => setView("list")}
-            >
-              ≡ List
-            </button>
-          </div>
-          <button
-            onClick={() => {
-              setNotice(null);
-              setSelected({
-              id: "new",
-              name: "",
-              description: "",
-              severity: "warning",
-              entity: "Line item",
-              triggers: 0,
-              enabled: true,
-              autoBlock: false,
-              lastTriggered: "—",
-            });
-            }}
-            className="flex items-center gap-1.5 rounded-[6px] px-3 text-[12.5px] font-medium"
-            style={{
-              height: 32,
-              background: "#0B1A2F",
-              color: "#FFFFFF",
-              border: 0,
-            }}
-          >
-            + New rule
-          </button>
-        </div>
-      </div>
-
-      {/* Filter chips */}
-      <div
-        className="flex items-center gap-2 overflow-x-auto px-4 sm:px-5 flex-shrink-0"
-        style={{
-          height: 44,
-          borderBottom: "1px solid #E2E6EE",
-          background: "#FFFFFF",
-        }}
-      >
-        {(["All", "error", "warning", "info"] as const).map((s) => {
-          const active = sevFilter === s;
-          const sev = s !== "All" ? SEV[s] : null;
-          return (
-            <button
-              key={s}
-              onClick={() => setSev(s)}
-              className="flex items-center gap-1.5 rounded-[5px] px-2.5 text-[12px] font-medium transition-colors"
-              style={{
-                height: 26,
-                border: `1px solid ${active && sev ? sev.border : active ? "#1E66C933" : "#E2E6EE"}`,
-                background: active && sev ? sev.bg : active ? "#E3EDFB" : "#FFFFFF",
-                color: active && sev ? sev.color : active ? "#0F4FA8" : "#0B1A2F",
-              }}
-            >
-              {sev && <span>{sev.icon}</span>}
-              <span className="capitalize">{s === "All" ? `All (${rules.length})` : sev!.label}</span>
-            </button>
-          );
-        })}
-
-        <div className="w-px h-5 mx-1" style={{ background: "#E2E6EE" }} />
-
-        {/* Entity filter */}
-        <select
-          value={entityFilter}
-          onChange={(e) => setEntity(e.target.value as Entity | "All")}
-          className="rounded-[5px] px-2.5 text-[12px] appearance-none"
-          style={{
-            height: 26,
-            border: "1px solid #E2E6EE",
-            background: "#FFFFFF",
-            color: "#0B1A2F",
-            outline: "none",
-          }}
+        <button
+          onClick={() => { setNotice(null); setSelId("new"); }}
+          className="w-full rounded-[6px] px-3 text-[12.5px] font-medium sm:ml-auto sm:w-auto"
+          style={{ height: 32, background: "#1E66C9", color: "#FFFFFF", border: 0 }}
         >
-          <option value="All">All entities</option>
-          {(["Line item", "Header", "Supplier", "Buyer", "Amount"] as Entity[]).map((e) => (
-            <option key={e}>{e}</option>
-          ))}
-        </select>
+          + New rule
+        </button>
       </div>
 
       {notice && (
-        <div className="px-4 py-2 sm:px-5" style={{ borderBottom: "1px solid #E2E6EE", background: "#FFFFFF" }}>
-          <div className="rounded-[7px] px-3 py-2 text-[12px] leading-relaxed" style={{ border: "1px solid #BDE0C1", background: "#F0F7F1", color: "#1E6D29" }}>
-            {notice}
-          </div>
+        <div className="px-4 py-2 sm:px-5 flex-shrink-0" style={{ borderBottom: "1px solid #E2E6EE", background: "#FFFFFF" }}>
+          <div className="rounded-[7px] px-3 py-2 text-[12px]" style={{ border: "1px solid #BDE0C1", background: "#F0F7F1", color: "#1E6D29" }}>{notice}</div>
         </div>
       )}
 
-      {/* Content */}
+      {/* Split-detail */}
       <div className="flex-1 overflow-auto p-5">
-        {view === "grid" ? (
-          <div
-            className="grid gap-3"
-            style={{ gridTemplateColumns: "repeat(auto-fill, minmax(340px, 1fr))" }}
-          >
-            {filtered.map((rule) => {
-              const sev = SEV[rule.severity];
-              const ec  = ENTITY_COLOR[rule.entity];
-              return (
-                <div
-                  key={rule.id}
-                  className="rounded-[8px] overflow-hidden"
-                  style={{
-                    background: "#FFFFFF",
-                    border: "1px solid #E2E6EE",
-                    boxShadow: "0 1px 3px rgba(11,26,47,0.04)",
-                    opacity: rule.enabled ? 1 : 0.55,
-                    transition: "opacity 0.2s",
-                    borderLeft: `3px solid ${sev.color}`,
-                  }}
-                >
-                  <div className="p-4">
-                    {/* Top row */}
-                    <div className="flex items-start gap-2 mb-2">
-                      <span
-                        className="inline-flex items-center justify-center rounded-full text-[11px] font-bold flex-shrink-0"
-                        title="error = blocks the order; warning = flags for review"
-                        style={{
-                          width: 22,
-                          height: 22,
-                          background: sev.bg,
-                          color: sev.color,
-                        }}
+        <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(320px,400px)]">
+          {/* Rules table */}
+          <div className="rounded-[8px] overflow-hidden self-start" style={{ background: "#FFFFFF", border: "1px solid #E2E6EE", boxShadow: "0 1px 3px rgba(11,26,47,0.04)" }}>
+            <div className="overflow-x-auto">
+              <table className="w-full border-collapse" style={{ fontSize: 12.5 }}>
+                <thead>
+                  <tr style={{ borderBottom: "2px solid #E2E6EE" }}>
+                    {["Rule", "Scope", "Severity", "Triggered 30d", "Active"].map((h, i) => (
+                      <th key={h} className="px-4 py-2.5 text-[10.5px] font-semibold uppercase tracking-[0.06em]" style={{ color: "#8A93A5", textAlign: i === 4 ? "right" : "left", whiteSpace: "nowrap" }}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {rules.map((r) => {
+                    const sev = SEV[r.severity];
+                    const active = selId === r.id;
+                    return (
+                      <tr
+                        key={r.id}
+                        onClick={() => { setNotice(null); setSelId(r.id); }}
+                        className="cursor-pointer"
+                        style={{ borderBottom: "1px solid #F0F2F6", background: active ? "#F2F6FC" : "transparent", opacity: r.enabled ? 1 : 0.6 }}
                       >
-                        {sev.icon}
-                      </span>
-                      <div className="flex-1 min-w-0">
-                        <p
-                          className="text-[13px] font-semibold truncate"
-                          style={{ color: "#0B1A2F" }}
-                        >
-                          {rule.name}
-                        </p>
-                        <p
-                          className="text-[11.5px] mt-0.5 leading-snug"
-                          style={{ color: "#56627A" }}
-                        >
-                          {rule.description}
-                        </p>
-                      </div>
-                      <Toggle on={rule.enabled} onChange={() => handleToggle(rule.id)} />
-                    </div>
-
-                    {/* Meta row */}
-                    <div className="flex items-center gap-2 mt-3">
-                      <span
-                        className="inline-flex items-center rounded px-1.5 py-0.5 text-[10.5px] font-semibold"
-                        style={{ background: `${ec}18`, color: ec }}
-                      >
-                        {rule.entity}
-                      </span>
-                      {rule.autoBlock && (
-                        <span
-                          className="inline-flex items-center rounded px-1.5 py-0.5 text-[10.5px] font-semibold"
-                          title="Automatically block orders that trigger this rule"
-                          style={{ background: "#FBE3E3", color: "#C53A3A" }}
-                        >
-                          Auto-block
-                        </span>
-                      )}
-                      <span className="flex-1" />
-                      <button
-                        onClick={() => { setNotice(null); setSelected(rule); }}
-                        className="rounded px-2 py-1 text-[11.5px] font-medium"
-                        style={{ border: "1px solid #E2E6EE", background: "#FFFFFF", color: "#56627A" }}
-                      >
-                        Edit
-                      </button>
-                      <span
-                        className="text-[11px] font-mono font-semibold"
-                        style={{ color: sev.color }}
-                      >
-                        {rule.triggers} triggers
-                      </span>
-                      <span className="text-[11px]" style={{ color: "#8A93A5" }}>
-                        · {rule.lastTriggered === "—" ? "never" : `${rule.lastTriggered} ago`}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        ) : (
-          /* List view */
-          <>
-          <div className="grid gap-3 md:hidden">
-            {filtered.map((rule) => {
-              const sev = SEV[rule.severity];
-              const ec = ENTITY_COLOR[rule.entity];
-              return (
-                <button
-                  key={rule.id}
-                  onClick={() => { setNotice(null); setSelected(rule); }}
-                  className="rounded-[8px] bg-white p-4 text-left"
-                  style={{ border: "1px solid #E2E6EE", borderLeft: `3px solid ${sev.color}`, opacity: rule.enabled ? 1 : 0.6 }}
-                >
-                  <div className="mb-2 flex items-start gap-3">
-                    <span className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[11px] font-bold" style={{ background: sev.bg, color: sev.color }}>
-                      {sev.icon}
-                    </span>
-                    <div className="min-w-0 flex-1">
-                      <div className="text-[13px] font-semibold" style={{ color: "#0B1A2F" }}>{rule.name}</div>
-                      <p className="mt-0.5 text-[11.5px] leading-5" style={{ color: "#56627A" }}>{rule.description}</p>
-                    </div>
-                    <span className="rounded px-2 py-1 text-[11px] font-semibold" style={{ background: rule.enabled ? "#E3EDFB" : "#EFF2F7", color: rule.enabled ? "#0F4FA8" : "#8A93A5" }}>
-                      {rule.enabled ? "On" : "Off"}
-                    </span>
-                  </div>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="rounded px-1.5 py-0.5 text-[10.5px] font-semibold" style={{ background: `${ec}18`, color: ec }}>{rule.entity}</span>
-                    <span className="rounded px-1.5 py-0.5 text-[10.5px] font-semibold" style={{ background: sev.bg, color: sev.color }}>{sev.label}</span>
-                    {rule.autoBlock && <span className="rounded px-1.5 py-0.5 text-[10.5px] font-semibold" style={{ background: "#FBE3E3", color: "#C53A3A" }}>Auto-block</span>}
-                    <span className="ml-auto font-mono text-[11px] font-semibold" style={{ color: sev.color }}>{rule.triggers} triggers</span>
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-          <div
-            className="hidden rounded-[8px] overflow-hidden md:block"
-            style={{
-              background: "#FFFFFF",
-              border: "1px solid #E2E6EE",
-              boxShadow: "0 1px 3px rgba(11,26,47,0.04)",
-            }}
-          >
-            <table className="w-full border-collapse" style={{ fontSize: 12.5 }}>
-              <thead>
-                <tr style={{ borderBottom: "2px solid #E2E6EE" }}>
-                  {["", "Rule", "Entity", "Severity", "Triggers", "Last triggered", "Auto-block", "Enabled"].map(
-                    (h, i) => (
-                      <th
-                        key={i}
-                        className="px-4 py-2.5 text-left text-[10.5px] font-semibold uppercase tracking-[0.06em]"
-                        style={{ color: "#8A93A5" }}
-                      >
-                        {h}
-                      </th>
-                    )
-                  )}
-                </tr>
-              </thead>
-              <tbody>
-                {filtered.map((rule) => {
-                  const sev = SEV[rule.severity];
-                  const ec  = ENTITY_COLOR[rule.entity];
-                  return (
-                    <tr
-                      key={rule.id}
-                      style={{
-                        borderBottom: "1px solid #F0F2F6",
-                        opacity: rule.enabled ? 1 : 0.55,
-                      }}
-                    >
-                      <td className="pl-4 py-3" style={{ width: 6 }}>
-                        <div
-                          style={{
-                            width: 3,
-                            height: 24,
-                            borderRadius: 99,
-                            background: sev.color,
-                          }}
-                        />
-                      </td>
-                      <td className="px-4 py-3" style={{ maxWidth: 280 }}>
-                        <p className="font-medium text-[13px]" style={{ color: "#0B1A2F" }}>
-                          {rule.name}
-                        </p>
-                        <p className="text-[11.5px] text-[#8A93A5] truncate">{rule.description}</p>
-                      </td>
-                      <td className="px-4 py-3">
-                        <span
-                          className="inline-flex items-center rounded px-1.5 py-0.5 text-[10.5px] font-semibold"
-                          style={{ background: `${ec}18`, color: ec }}
-                        >
-                          {rule.entity}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3">
-                        <span
-                          className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10.5px] font-semibold"
-                          style={{ background: sev.bg, color: sev.color }}
-                        >
-                          {sev.icon} {sev.label}
-                        </span>
-                      </td>
-                      <td
-                        className="px-4 py-3 font-mono text-[12px] font-semibold"
-                        style={{ color: sev.color }}
-                      >
-                        {rule.triggers}
-                      </td>
-                      <td className="px-4 py-3 text-[12px]" style={{ color: "#8A93A5" }}>
-                        {rule.lastTriggered === "—" ? "Never" : `${rule.lastTriggered} ago`}
-                      </td>
-                      <td className="px-4 py-3">
-                        {rule.autoBlock ? (
-                          <span
-                            className="text-[10.5px] font-semibold"
-                            style={{ color: "#C53A3A" }}
-                          >
-                            Yes
+                        <td className="px-4 py-3" style={{ maxWidth: 260 }}>
+                          <div className="font-semibold text-[12.5px]" style={{ color: "#0B1A2F" }}>{r.name || <span style={{ color: "#8A93A5", fontStyle: "italic" }}>Untitled rule</span>}</div>
+                          <div className="text-[11px] truncate" style={{ color: "#8A93A5" }}>{r.description}</div>
+                        </td>
+                        <td className="px-4 py-3">
+                          <span className="inline-flex items-center rounded px-1.5 py-0.5 text-[11px]" style={{ background: "#EFF2F7", color: "#56627A" }}>{r.entity}</span>
+                        </td>
+                        <td className="px-4 py-3">
+                          <span className="inline-flex items-center gap-1.5 rounded-full px-2 h-5 text-[11px] font-semibold" style={{ background: sev.bg, color: sev.color }}>
+                            <span style={{ width: 6, height: 6, borderRadius: "50%", background: sev.color }} />
+                            {sev.label}
                           </span>
-                        ) : (
-                          <span style={{ color: "#8A93A5" }}>—</span>
-                        )}
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-2">
-                          <Toggle on={rule.enabled} onChange={() => handleToggle(rule.id)} />
-                          <button onClick={() => { setNotice(null); setSelected(rule); }} className="rounded px-2 py-1 text-[11.5px] font-medium" style={{ border: "1px solid #E2E6EE", background: "#FFFFFF", color: "#56627A" }}>Edit</button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+                        </td>
+                        <td className="px-4 py-3 font-mono font-semibold" style={{ color: r.triggers > 0 ? "#0B1A2F" : "#C6CDDA" }}>{r.triggers}</td>
+                        <td className="px-4 py-3" style={{ textAlign: "right" }} onClick={(e) => e.stopPropagation()}>
+                          <Toggle on={r.enabled} onChange={() => handleToggle(r.id)} />
+                        </td>
+                      </tr>
+                    );
+                  })}
+                  {rules.length === 0 && (
+                    <tr><td colSpan={5} className="px-4 py-10 text-center text-[12.5px]" style={{ color: "#56627A" }}>No validation rules yet. Create one to start blocking bad orders.</td></tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
-          </>
-        )}
+
+          {/* Inline editor */}
+          {selected && (
+            <RuleEditor
+              key={selected.id}
+              rule={selected}
+              isSaving={saveMutation.isPending}
+              onSave={(payload) => handleSave(selected, payload)}
+              onDelete={selected.id !== "new" ? () => handleDelete(selected.id) : undefined}
+            />
+          )}
+        </div>
       </div>
-      {selected && (
-        <RulePanel
-          rule={selected}
-          onClose={() => setSelected(null)}
-          onSaved={(message) => {
-            setNotice(message);
-            setSelected(null);
-          }}
-          onLiveSave={isApiMockMode ? undefined : (id, payload) => {
-            saveMutation.mutate({ id: id === "new" ? null : id, payload });
-          }}
-          onLiveDelete={isApiMockMode ? undefined : (id) => {
-            deleteMutation.mutate(id);
-          }}
-          isSaving={saveMutation.isPending}
-        />
-      )}
     </div>
   );
 }
 
-function RulePanel({
+// ─── Inline rule editor (sticky right panel) ────────────────────────────────
+
+function RuleEditor({
   rule,
-  onClose,
-  onSaved,
-  onLiveSave,
-  onLiveDelete,
   isSaving,
+  onSave,
+  onDelete,
 }: {
   rule: Rule;
-  onClose: () => void;
-  onSaved: (message: string) => void;
-  onLiveSave?: (id: string, payload: Omit<RuleDto, "id"|"triggerCount"|"lastTriggered"|"createdAt">) => void;
-  onLiveDelete?: (id: string) => void;
   isSaving?: boolean;
+  onSave: (payload: Omit<RuleDto, "id"|"triggerCount"|"lastTriggered"|"createdAt">) => void;
+  onDelete?: () => void;
 }) {
   const isNew = rule.id === "new";
+  const nameRef      = useRef<HTMLInputElement>(null);
+  const descRef      = useRef<HTMLTextAreaElement>(null);
+  const severityRef  = useRef<HTMLSelectElement>(null);
+  const entityRef    = useRef<HTMLSelectElement>(null);
+  const autoBlockRef = useRef<HTMLInputElement>(null);
+  const enabledRef   = useRef<HTMLInputElement>(null);
 
-  const nameRef        = useRef<HTMLInputElement>(null);
-  const descRef        = useRef<HTMLTextAreaElement>(null);
-  const severityRef    = useRef<HTMLSelectElement>(null);
-  const entityRef      = useRef<HTMLSelectElement>(null);
-  const autoBlockRef   = useRef<HTMLInputElement>(null);
-  const enabledRef     = useRef<HTMLInputElement>(null);
-
-  function handleSave() {
-    if (onLiveSave) {
-      const payload = {
-        name:        nameRef.current?.value ?? rule.name,
-        description: descRef.current?.value ?? rule.description,
-        severity:    (severityRef.current?.value ?? rule.severity) as "error" | "warning" | "info",
-        entity:      entityRef.current?.value ?? rule.entity,
-        enabled:     enabledRef.current?.checked ?? rule.enabled,
-        autoBlock:   autoBlockRef.current?.checked ?? rule.autoBlock,
-      };
-      onLiveSave(rule.id, payload);
-      onSaved(isNew ? "Rule created." : "Rule saved.");
-    } else {
-      onSaved(isNew
-        ? "Rule draft saved locally for QA. Live validation-engine persistence remains for Group J."
-        : "Rule edit draft saved locally for QA. Live validation-engine persistence remains for Group J."
-      );
-    }
-  }
-
-  function handleDelete() {
-    if (onLiveDelete && !isNew) {
-      onLiveDelete(rule.id);
-      onSaved("Rule deleted.");
-    }
+  function save() {
+    onSave({
+      name:        nameRef.current?.value ?? rule.name,
+      description: descRef.current?.value ?? rule.description,
+      severity:    (severityRef.current?.value ?? rule.severity) as Severity,
+      entity:      entityRef.current?.value ?? rule.entity,
+      enabled:     enabledRef.current?.checked ?? rule.enabled,
+      autoBlock:   autoBlockRef.current?.checked ?? rule.autoBlock,
+    });
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end bg-[#0B1A2F66] p-0 sm:items-center sm:justify-center sm:p-6">
-      <div className="max-h-[92vh] w-full overflow-auto rounded-t-[10px] bg-white shadow-2xl sm:max-w-[640px] sm:rounded-[10px]" style={{ border: "1px solid #E2E6EE" }}>
-        <div className="flex items-start justify-between gap-4 border-b border-[#E2E6EE] px-5 py-4">
-          <div>
-            <p className="text-[10px] font-bold uppercase tracking-[0.08em]" style={{ color: SEV[rule.severity].color }}>Validation rule</p>
-            <h2 className="mt-1 text-[18px] font-semibold" style={{ color: "#0B1A2F" }}>{isNew ? "New rule" : rule.name}</h2>
-          </div>
-          <button onClick={onClose} className="h-8 w-8 rounded-[6px] text-[16px]" style={{ border: "1px solid #E2E6EE", background: "#FFFFFF", color: "#56627A" }}>×</button>
-        </div>
-        <div className="grid gap-4 p-5">
-          <Field label="Rule name">
-            <input ref={nameRef} defaultValue={rule.name} placeholder="Missing supplier item code" className="h-9 w-full rounded-[5px] border border-[#D5DAEA] px-2 text-[12px] text-[#0B1A2F]" />
+    <div className="rounded-[8px] overflow-hidden self-start lg:sticky lg:top-0" style={{ background: "#FFFFFF", border: "1px solid #E2E6EE", boxShadow: "0 1px 3px rgba(11,26,47,0.04)" }}>
+      <div className="flex items-center gap-2 px-4 py-3" style={{ borderBottom: "1px solid #E2E6EE" }}>
+        <span style={{ color: SEV[rule.severity].color, fontSize: 13 }}>◈</span>
+        <span className="text-[13px] font-semibold" style={{ color: "#0B1A2F" }}>{isNew ? "New rule" : "Rule definition"}</span>
+      </div>
+
+      <div className="p-4 grid gap-3.5">
+        <Field label="Rule name">
+          <input ref={nameRef} defaultValue={rule.name} placeholder="e.g. Currency must be EUR" className="h-9 w-full rounded-[5px] border border-[#D5DAEA] px-2 text-[12px] text-[#0B1A2F]" />
+        </Field>
+        <Field label="Description">
+          <textarea ref={descRef} defaultValue={rule.description} placeholder="Explain when this rule should trigger" className="min-h-[72px] w-full rounded-[5px] border border-[#D5DAEA] px-2 py-2 text-[12px] text-[#0B1A2F]" />
+        </Field>
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Scope">
+            <select ref={entityRef} defaultValue={rule.entity} className="h-9 w-full rounded-[5px] border border-[#D5DAEA] px-2 text-[12px] text-[#0B1A2F]">
+              {ENTITIES.map((e) => <option key={e}>{e}</option>)}
+            </select>
           </Field>
-          <Field label="Description">
-            <textarea ref={descRef} defaultValue={rule.description} placeholder="Explain when this rule should trigger" className="min-h-[88px] w-full rounded-[5px] border border-[#D5DAEA] px-2 py-2 text-[12px] text-[#0B1A2F]" />
+          <Field label="Severity">
+            <select ref={severityRef} defaultValue={rule.severity} className="h-9 w-full rounded-[5px] border border-[#D5DAEA] px-2 text-[12px] text-[#0B1A2F]">
+              <option value="error">Block</option>
+              <option value="warning">Warn</option>
+              <option value="info">Info</option>
+            </select>
           </Field>
-          <div className="grid gap-4 sm:grid-cols-3">
-            <Field label="Severity">
-              <select ref={severityRef} defaultValue={rule.severity} className="h-9 w-full rounded-[5px] border border-[#D5DAEA] px-2 text-[12px] text-[#0B1A2F]">
-                <option value="error">Error</option>
-                <option value="warning">Warning</option>
-                <option value="info">Info</option>
-              </select>
-            </Field>
-            <Field label="Entity">
-              <select ref={entityRef} defaultValue={rule.entity} className="h-9 w-full rounded-[5px] border border-[#D5DAEA] px-2 text-[12px] text-[#0B1A2F]">
-                {(["Line item", "Header", "Supplier", "Buyer", "Amount"] as Entity[]).map((entity) => <option key={entity}>{entity}</option>)}
-              </select>
-            </Field>
-            <Field label="Auto-block">
-              <label className="flex h-9 items-center gap-2 rounded-[5px] border border-[#D5DAEA] px-2 text-[12px]" title="Automatically block orders that trigger this rule" style={{ color: "#0B1A2F" }}>
-                <input ref={autoBlockRef} type="checkbox" defaultChecked={rule.autoBlock} />
-                Block crossing
-              </label>
-            </Field>
-          </div>
-          {onLiveSave && (
-            <Field label="Enabled">
-              <label className="flex h-9 items-center gap-2 rounded-[5px] border border-[#D5DAEA] px-2 text-[12px]" style={{ color: "#0B1A2F" }}>
-                <input ref={enabledRef} type="checkbox" defaultChecked={rule.enabled} />
-                Active
-              </label>
-            </Field>
-          )}
-          <div className="rounded-[7px] border border-[#E2E6EE] bg-[#F6F7FA] p-3 text-[12px] leading-5" style={{ color: "#56627A" }}>
-            Rule execution belongs to the backend validation engine. This panel is for editing operator intent and keeping the UI flow testable.
-          </div>
         </div>
-        <div className="flex flex-col gap-2 border-t border-[#E2E6EE] bg-[#F6F7FA] px-5 py-4 sm:flex-row sm:justify-end">
-          {onLiveDelete && !isNew && (
-            <button
-              onClick={handleDelete}
-              className="h-9 rounded-[6px] px-4 text-[12px] font-semibold sm:mr-auto"
-              style={{ border: "1px solid #F5C0C0", background: "#FBE3E3", color: "#C53A3A" }}
-            >
-              Delete
-            </button>
-          )}
-          <button onClick={onClose} className="h-9 rounded-[6px] px-4 text-[12px] font-semibold" style={{ border: "1px solid #E2E6EE", background: "#FFFFFF", color: "#56627A" }}>Cancel</button>
-          <button
-            onClick={handleSave}
-            disabled={isSaving}
-            className="h-9 rounded-[6px] px-4 text-[12px] font-semibold"
-            style={{ border: 0, background: "#0B1A2F", color: "#FFFFFF", opacity: isSaving ? 0.6 : 1 }}
-          >
-            {isSaving ? "Saving…" : (onLiveSave ? "Save" : "Save draft")}
-          </button>
-        </div>
+        <label className="flex items-center gap-2 rounded-[5px] border border-[#D5DAEA] px-2.5 h-9 text-[12px]" style={{ color: "#0B1A2F" }} title="Automatically block orders that trigger this rule">
+          <input ref={autoBlockRef} type="checkbox" defaultChecked={rule.autoBlock} />
+          Auto-block crossing on trigger
+        </label>
+        <label className="flex items-center gap-2 rounded-[5px] border border-[#D5DAEA] px-2.5 h-9 text-[12px]" style={{ color: "#0B1A2F" }}>
+          <input ref={enabledRef} type="checkbox" defaultChecked={rule.enabled} />
+          Active
+        </label>
+
+        {!isNew && (
+          <div className="text-[11px]" style={{ color: "#8A93A5" }}>
+            Triggered <span className="font-mono font-semibold" style={{ color: "#0B1A2F" }}>{rule.triggers}</span> times in the last 30 days
+            {rule.lastTriggered !== "—" && <> · last {rule.lastTriggered} ago</>}
+          </div>
+        )}
+      </div>
+
+      <div className="flex items-center gap-2 px-4 py-3" style={{ borderTop: "1px solid #E2E6EE", background: "#F6F7FA" }}>
+        {onDelete && (
+          <button onClick={onDelete} className="rounded-[6px] px-3 h-8 text-[12px] font-semibold mr-auto" style={{ border: "1px solid #F5C0C0", background: "#FFFFFF", color: "#C53A3A" }}>Delete</button>
+        )}
+        <button
+          onClick={save}
+          disabled={isSaving}
+          className="rounded-[6px] px-4 h-8 text-[12px] font-semibold ml-auto"
+          style={{ border: 0, background: "#2E8E3A", color: "#FFFFFF", opacity: isSaving ? 0.6 : 1 }}
+        >
+          {isSaving ? "Saving…" : isNew ? "Create rule" : "Save rule"}
+        </button>
       </div>
     </div>
   );
@@ -893,7 +393,7 @@ function RulePanel({
 function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
     <label className="grid gap-1">
-      <span className="text-[11px] font-semibold uppercase" style={{ color: "#8A93A5" }}>{label}</span>
+      <span className="text-[11px] font-semibold uppercase tracking-[0.04em]" style={{ color: "#8A93A5" }}>{label}</span>
       {children}
     </label>
   );

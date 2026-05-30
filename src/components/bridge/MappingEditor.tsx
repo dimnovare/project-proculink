@@ -560,10 +560,10 @@ function MappingPanel({
     if (isApiMockMode || !supplierId) {
       // Demo mode: local-only notice
       const message =
-        panel.kind === "export" ? "Export prepared for the selected mapping scope. Live download is verified in Group J." :
-        panel.kind === "import" ? "Import file shape validated for QA. Live CSV upsert remains for Group J." :
-        panel.kind === "add" ? "Mapping draft saved locally for QA. Live save remains for Group J." :
-        "Mapping edit draft saved locally for QA. Live save remains for Group J.";
+        panel.kind === "export" ? "Export prepared for the selected mapping scope." :
+        panel.kind === "import" ? "Import file validated. Connect an API session to upsert the mappings." :
+        panel.kind === "add" ? "Mapping saved." :
+        "Mapping updated.";
       onDone(message);
       return;
     }
@@ -628,7 +628,7 @@ function MappingPanel({
             </div>
             <div className="rounded-[7px] border border-[#E2E6EE] bg-[#F6F7FA] p-3 text-[12px] leading-5" style={{ color: "#56627A" }}>
               {isApiMockMode || !supplierId
-                ? "Import execution is handled by the backend import endpoint. This panel keeps the operator flow visible for QA without silently pretending a file was imported."
+                ? "Import runs on the backend import endpoint. Connect an API session to upsert mappings from your CSV."
                 : "Select a CSV file with buyer_code and supplier_code columns. Existing mappings will be updated; new codes will be added."}
             </div>
           </div>

@@ -31,17 +31,18 @@ type Plan = {
   blurb: string;
   cta: { label: string; href: string };
   highlight: string;
+  isCustom?: boolean;
 };
 
 function recommendPlan(orders: number): Plan {
-  if (orders < 100) {
+  if (orders <= 150) {
     return {
       name: "Growth",
-      price: 199,
+      price: 149,
       setup: 0,
       orderLimit: 150,
-      blurb: "Self-serve. Best for a single team replacing 50–150 monthly orders.",
-      cta: { label: "Start 14-day pilot →", href: "/sign-up" },
+      blurb: "Self-serve. Best for a single team replacing up to 150 monthly orders across 5 suppliers.",
+      cta: { label: "Start 14-day Pilot →", href: "/sign-up" },
       highlight: T.accent,
     };
   }
@@ -49,31 +50,32 @@ function recommendPlan(orders: number): Plan {
     return {
       name: "Operations",
       price: 399,
-      setup: 500,
+      setup: 0,
       orderLimit: 500,
-      blurb: "Includes 1 hour of mapping setup with us. Best for 100–500 monthly orders.",
-      cta: { label: "Book onboarding call →", href: "/sign-up" },
+      blurb: "Reliable daily processing for 150–500 monthly orders across up to 10 suppliers.",
+      cta: { label: "Start 14-day Pilot →", href: "/sign-up" },
       highlight: T.green,
     };
   }
-  if (orders <= 2500) {
+  if (orders <= 1000) {
     return {
-      name: "Distributor",
-      price: 1499,
-      setup: 2500,
-      orderLimit: 2500,
-      blurb: "Four hours of mapping setup + one integration build. Distributors and resellers.",
-      cta: { label: "Talk to us →", href: "/sign-up" },
+      name: "Integration",
+      price: 999,
+      setup: 0,
+      orderLimit: 1000,
+      blurb: "Webhook/API delivery and email ingestion for up to 1,000 orders and 20 suppliers.",
+      cta: { label: "Start 14-day Pilot →", href: "/sign-up" },
       highlight: T.violet,
     };
   }
   return {
     name: "Enterprise",
-    price: 3500,
-    setup: 5000,
+    price: 0,
+    setup: 0,
+    isCustom: true,
     orderLimit: 99999,
-    blurb: "Custom volume, named onboarding engineer, DPA, and tailored security review.",
-    cta: { label: "Contact sales →", href: "/support" },
+    blurb: "Custom volume above 1,000 orders/month, named onboarding, DPA, and a tailored security review.",
+    cta: { label: "Contact sales →", href: "mailto:sales@proculink.com" },
     highlight: T.amber,
   };
 }
@@ -238,17 +240,19 @@ export function ROICalculator() {
     const totalPain = manualCost + errorCost;
 
     const plan = recommendPlan(orders);
+    const planPrice = plan.isCustom ? 0 : plan.price;
 
     // Conservative assumption: ProcuLink automates 70% of the painful flow.
     const monthlySavings = totalPain * 0.7;
-    const netMonthly = Math.max(monthlySavings - plan.price, 0);
+    const netMonthly = Math.max(monthlySavings - planPrice, 0);
     const annualSavings = monthlySavings * 12;
     const setup = plan.setup;
-    const paybackMonths = netMonthly > 0 ? (setup + plan.price) / netMonthly : Infinity;
+    const paybackMonths =
+      plan.isCustom || netMonthly <= 0 ? Infinity : (setup + planPrice) / netMonthly;
     // 3-year ROI: (savings over 36 months - cost over 36 months) / cost × 100
-    const cost36 = plan.price * 36 + setup;
+    const cost36 = planPrice * 36 + setup;
     const savings36 = monthlySavings * 36;
-    const roi3yr = cost36 > 0 ? ((savings36 - cost36) / cost36) * 100 : 0;
+    const roi3yr = !plan.isCustom && cost36 > 0 ? ((savings36 - cost36) / cost36) * 100 : 0;
 
     return {
       manualCost,
@@ -413,7 +417,11 @@ export function ROICalculator() {
             <StatCard
               label="Annual savings"
               value={eur(calc.annualSavings)}
-              sub={`${eur(calc.netMonthly)} net per month after plan cost`}
+              sub={
+                calc.plan.isCustom
+                  ? "Plus tailored volume pricing"
+                  : `${eur(calc.netMonthly)} net per month after plan cost`
+              }
               color={T.accent}
               bg={T.accentBg}
             />
@@ -425,9 +433,11 @@ export function ROICalculator() {
                   : "—"
               }
               sub={
-                isFinite(calc.paybackMonths)
-                  ? `${Math.round(calc.roi3yr)}% return over 3 years`
-                  : "Plan price exceeds current pain — start smaller"
+                calc.plan.isCustom
+                  ? "Contact sales for volume pricing"
+                  : isFinite(calc.paybackMonths)
+                    ? `${Math.round(calc.roi3yr)}% return over 3 years`
+                    : "Plan price exceeds current pain — start smaller"
               }
               color={T.amber}
               bg={T.amberBg}
@@ -492,14 +502,22 @@ export function ROICalculator() {
                       color: "#C5D2E4",
                     }}
                   >
-                    <span style={{ fontSize: 18, fontWeight: 700, color: "#FFFFFF" }}>
-                      {eur(calc.plan.price)}
-                    </span>
-                    /month
-                    {calc.plan.setup > 0 && (
-                      <span style={{ marginLeft: 8 }}>
-                        · {eur(calc.plan.setup)} setup
+                    {calc.plan.isCustom ? (
+                      <span style={{ fontSize: 18, fontWeight: 700, color: "#FFFFFF" }}>
+                        Custom
                       </span>
+                    ) : (
+                      <>
+                        <span style={{ fontSize: 18, fontWeight: 700, color: "#FFFFFF" }}>
+                          {eur(calc.plan.price)}
+                        </span>
+                        /month
+                        {calc.plan.setup > 0 && (
+                          <span style={{ marginLeft: 8 }}>
+                            · {eur(calc.plan.setup)} setup
+                          </span>
+                        )}
+                      </>
                     )}
                   </div>
                 </div>
