@@ -27,9 +27,9 @@ Legend: `[ ]` todo · `[x]` done · `(KEEP)` = do not regress to mockup.
 > (e.g. InboxView). Foundations ripple only to consumers; the rest are fixed at the screen level.
 
 ## Major-divergence screens
-### Buyers + Crossings
-- [ ] Buyers: title "Buyer docks" + sub "N buyers · the left side of every bridge"; table layout (Buyer / Inbound channel / Volume / Suppliers reached / This week) not cards; row → buyer detail (not /inbox filter); New dock modal w/ inbound-channel field.
-- [ ] Crossings: table-row layout (time | icon | event | PO | buyer→supplier | actor | chevron) not timeline; filter vocab → all/delivered/failed/edited/validated/parsed/created; expanded row actions (View order / Retry crossing / Export entry); multi-day date grouping.
+### Buyers + Crossings ✅ DONE (verified in mock preview, tsc-clean)
+- [x] Buyers: "Buyer docks" + sub; table (Buyer / Formats / Volume / Last order). Inbound-channel→Formats, Suppliers-reached omitted, This-week dropped (no BuyerDto fields). Kept /inbox filter (no buyer-detail route) + name/code create (real API).
+- [x] Crossings: date-grouped table rows (time | event | PO | format | buyer→supplier | actor); canonical filter vocab; expanded actions View order + Export entry + Retry(failed). Multi-day grouping. Route bug fixed: /orders→/inbox.
 
 ### Rules + Templates + Standards + Mappings
 - [ ] Rules: "Validation rules" (lowercase r); split-detail (table + sticky inline editor) not grid+modal; columns Rule/Scope/Supplier/Severity/Triggered 30d/Active; sub "Block bad orders before they reach a supplier · N active".

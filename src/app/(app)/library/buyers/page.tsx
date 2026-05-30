@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { EmptyState } from "@/components/bridge/EmptyState";
+import { FileChip } from "@/components/bridge/FileChip";
 import { getBuyers, createBuyer, deleteBuyer, isApiMockMode } from "@/lib/api-client";
 import type { BuyerDto } from "@/types/procurement";
 
@@ -13,17 +14,18 @@ const MOCK_BUYERS: BuyerDto[] = [
   { id: "b3", name: "Steelhouse Construction",  code: "SHC", orderCount: 812,  lastOrderAge: "1h",  formats: ["XLSX", "CSV"] },
 ];
 
-function SkeletonCard() {
+function SkeletonTrow() {
   return (
-    <div
-      className="rounded-[8px] animate-pulse"
-      style={{
-        background: "#FFFFFF",
-        border: "1px solid #E2E6EE",
-        borderLeft: "3px solid #C6CDDA",
-        height: 72,
-      }}
-    />
+    <tr>
+      {[1, 2, 3, 4, 5, 6].map((i) => (
+        <td key={i} style={{ padding: "11px 12px", borderBottom: "1px solid #E2E6EE" }}>
+          <div
+            className="animate-pulse rounded"
+            style={{ background: "#EFF2F7", height: 14, width: i === 1 ? 180 : i === 2 ? 90 : 60 }}
+          />
+        </td>
+      ))}
+    </tr>
   );
 }
 
@@ -79,208 +81,449 @@ export default function BuyersPage() {
     deleteMut.mutate(buyer.id);
   }
 
+  const countLabel = isLoading && !isApiMockMode
+    ? "Loading…"
+    : `${buyers.length} buyer${buyers.length !== 1 ? "s" : ""} · the left side of every bridge`;
+
   return (
-    <div className="flex flex-col h-full min-h-0 overflow-hidden" style={{ background: "#F6F7FA" }}>
-      {/* Header */}
+    <div style={{ padding: "26px 34px 64px", maxWidth: 1480, margin: "0 auto" }}>
+      {/* Page header */}
       <div
-        className="flex flex-col items-start gap-3 px-4 py-4 sm:px-6 sm:flex-row sm:items-end sm:gap-4 flex-shrink-0"
-        style={{ borderBottom: "1px solid #E2E6EE", background: "#FFFFFF" }}
+        style={{
+          display: "flex",
+          alignItems: "flex-start",
+          justifyContent: "space-between",
+          gap: "16px 24px",
+          marginBottom: 22,
+          flexWrap: "wrap",
+        }}
       >
         <div>
           <h1
-            className="text-[26px] font-semibold tracking-[-0.02em]"
-            style={{ fontFamily: "'Bricolage Grotesque', Inter, sans-serif", color: "#0B1A2F" }}
+            style={{
+              fontFamily: "'Bricolage Grotesque', Inter, sans-serif",
+              fontSize: 30,
+              fontWeight: 600,
+              letterSpacing: "-0.025em",
+              lineHeight: 1.1,
+              margin: 0,
+              color: "#0B1A2F",
+              whiteSpace: "nowrap",
+            }}
           >
-            Buyers
+            Buyer docks
           </h1>
-          <p className="text-[13px] mt-1" style={{ color: "#56627A" }}>
-            {isLoading ? "Loading…" : `${buyers.length} active buyer${buyers.length !== 1 ? "s" : ""}`}
-          </p>
+          <div style={{ color: "#56627A", fontSize: 13, marginTop: 5 }}>
+            {countLabel}
+          </div>
         </div>
+
+        {/* New dock button — canonical: blue */}
         <button
-          onClick={() => { setAddOpen(v => !v); setAddError(null); }}
-          className="flex w-full items-center justify-center gap-1.5 rounded-[6px] px-3 text-[12.5px] font-medium sm:ml-auto sm:w-auto"
-          style={{ height: 32, background: "#0B1A2F", color: "#FFFFFF", border: 0 }}
+          onClick={() => { setAddOpen((v) => !v); setAddError(null); }}
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 7,
+            height: 32,
+            padding: "0 14px",
+            borderRadius: 6,
+            fontSize: 12.5,
+            fontWeight: 600,
+            letterSpacing: "-0.005em",
+            background: addOpen ? "#0F4FA8" : "#1E66C9",
+            color: "#FFFFFF",
+            border: "none",
+            cursor: "pointer",
+            transition: "background 150ms",
+            whiteSpace: "nowrap",
+          }}
         >
-          {addOpen ? "Cancel" : "+ Add buyer"}
+          {/* plus icon */}
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M5 12h14M12 5v14" />
+          </svg>
+          {addOpen ? "Cancel" : "New dock"}
         </button>
       </div>
 
-      <div className="flex-1 overflow-auto p-4 sm:p-5">
-        {/* Add buyer panel */}
-        {addOpen && (
-          <div
-            className="mb-4 rounded-[8px] p-4"
-            style={{ background: "#FFFFFF", border: "1px solid #E2E6EE", boxShadow: "0 1px 3px rgba(11,26,47,0.06)" }}
-          >
-            <p className="text-[13px] font-semibold mb-3" style={{ color: "#0B1A2F" }}>New buyer</p>
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
-              <div className="flex-1">
-                <label className="block text-[11px] font-medium mb-1" style={{ color: "#56627A" }}>Name</label>
-                <input
-                  className="w-full rounded-[6px] px-3 text-[13px] outline-none"
-                  style={{ height: 34, border: "1px solid #C6CDDA", color: "#0B1A2F", background: "#FAFBFC" }}
-                  placeholder="e.g. Heinrich Industries GmbH"
-                  value={addName}
-                  onChange={e => setAddName(e.target.value)}
-                />
-              </div>
-              <div style={{ width: 120 }}>
-                <label className="block text-[11px] font-medium mb-1" style={{ color: "#56627A" }}>Code</label>
-                <input
-                  className="w-full rounded-[6px] px-3 text-[13px] outline-none"
-                  style={{ height: 34, border: "1px solid #C6CDDA", color: "#0B1A2F", background: "#FAFBFC", fontFamily: "'JetBrains Mono', monospace" }}
-                  placeholder="HEI"
-                  value={addCode}
-                  onChange={e => setAddCode(e.target.value.toUpperCase())}
-                  maxLength={10}
-                />
-              </div>
-              <button
-                onClick={handleSaveAdd}
-                disabled={createMut.isPending}
-                className="rounded-[6px] px-4 text-[12.5px] font-medium"
-                style={{ height: 34, background: "#1E66C9", color: "#FFFFFF", border: 0, opacity: createMut.isPending ? 0.6 : 1, cursor: createMut.isPending ? "not-allowed" : "pointer" }}
-              >
-                {createMut.isPending ? "Saving…" : "Save"}
-              </button>
-            </div>
-            {addError && (
-              <p className="mt-2 text-[12px]" style={{ color: "#C0392B" }}>{addError}</p>
-            )}
-          </div>
-        )}
-
-        {/* Loading skeletons */}
-        {isLoading && !isApiMockMode && (
-          <div className="flex flex-col gap-3">
-            <SkeletonCard />
-            <SkeletonCard />
-            <SkeletonCard />
-          </div>
-        )}
-
-        {/* Error state */}
-        {isError && !isApiMockMode && (
-          <div
-            className="flex flex-col items-center justify-center gap-3 rounded-[8px] p-8"
-            style={{ background: "#FFFFFF", border: "1px solid #E2E6EE" }}
-          >
-            <p className="text-[14px] font-medium" style={{ color: "#0B1A2F" }}>Failed to load buyers</p>
-            <button
-              onClick={() => refetch()}
-              className="rounded-[6px] px-4 text-[12.5px] font-medium"
-              style={{ height: 32, background: "#0B1A2F", color: "#FFFFFF", border: 0 }}
+      {/* Create dock panel */}
+      {addOpen && (
+        <div
+          style={{
+            background: "#FFFFFF",
+            border: "1px solid #E2E6EE",
+            borderRadius: 10,
+            padding: 18,
+            marginBottom: 18,
+            boxShadow: "0 1px 2px rgba(11,26,47,0.04)",
+          }}
+        >
+          {/* Panel header */}
+          <div style={{ marginBottom: 14 }}>
+            <div
+              style={{
+                fontWeight: 600,
+                fontSize: 15,
+                letterSpacing: "-0.01em",
+                color: "#0B1A2F",
+              }}
             >
-              Retry
+              New buyer dock
+            </div>
+            <div style={{ color: "#56627A", fontSize: 12.5 }}>
+              The left side of a new bridge
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+            {/* Buyer name */}
+            <div style={{ flex: 1 }}>
+              <label
+                style={{
+                  display: "block",
+                  fontSize: 11.5,
+                  fontWeight: 600,
+                  color: "#56627A",
+                  marginBottom: 6,
+                }}
+              >
+                Buyer name <span style={{ color: "#C53A3A", marginLeft: 3 }}>*</span>
+              </label>
+              <input
+                style={{
+                  height: 32,
+                  width: "100%",
+                  padding: "0 11px",
+                  borderRadius: 6,
+                  border: "1px solid #C6CDDA",
+                  background: "#FFFFFF",
+                  fontSize: 12.5,
+                  color: "#0B1A2F",
+                  outline: "none",
+                  transition: "border-color 150ms, box-shadow 150ms",
+                }}
+                placeholder="e.g. Heinrich Industries"
+                value={addName}
+                onChange={(e) => setAddName(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter") handleSaveAdd(); }}
+              />
+            </div>
+
+            {/* Short code */}
+            <div style={{ width: 120 }}>
+              <label
+                style={{
+                  display: "block",
+                  fontSize: 11.5,
+                  fontWeight: 600,
+                  color: "#56627A",
+                  marginBottom: 6,
+                }}
+              >
+                Short code <span style={{ color: "#C53A3A", marginLeft: 3 }}>*</span>
+              </label>
+              <input
+                style={{
+                  height: 32,
+                  width: "100%",
+                  padding: "0 11px",
+                  borderRadius: 6,
+                  border: "1px solid #C6CDDA",
+                  background: "#FFFFFF",
+                  fontSize: 12.5,
+                  fontFamily: "'JetBrains Mono', ui-monospace, monospace",
+                  color: "#0B1A2F",
+                  outline: "none",
+                  transition: "border-color 150ms, box-shadow 150ms",
+                }}
+                placeholder="HEIN"
+                value={addCode}
+                onChange={(e) => setAddCode(e.target.value.toUpperCase())}
+                maxLength={10}
+                onKeyDown={(e) => { if (e.key === "Enter") handleSaveAdd(); }}
+              />
+            </div>
+
+            <button
+              onClick={handleSaveAdd}
+              disabled={createMut.isPending}
+              style={{
+                height: 32,
+                padding: "0 14px",
+                borderRadius: 6,
+                fontSize: 12.5,
+                fontWeight: 600,
+                background: "#2E8E3A",
+                color: "#FFFFFF",
+                border: "none",
+                cursor: createMut.isPending ? "not-allowed" : "pointer",
+                opacity: createMut.isPending ? 0.6 : 1,
+                transition: "background 150ms",
+                whiteSpace: "nowrap",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 6,
+              }}
+            >
+              {/* check icon */}
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M20 6 9 17l-5-5" />
+              </svg>
+              {createMut.isPending ? "Creating…" : "Create dock"}
             </button>
           </div>
-        )}
 
-        {/* Empty state */}
-        {!isLoading && !isError && buyers.length === 0 && (
-          <EmptyState
-            icon="◎"
-            title="No buyers yet"
-            sub="Buyers are the internal teams or customers whose purchase orders you process."
-            action={{ label: "+ Add buyer", onClick: () => setAddOpen(true) }}
-          />
-        )}
+          {/* Intro note */}
+          <div
+            style={{
+              marginTop: 14,
+              display: "flex",
+              alignItems: "flex-start",
+              gap: 8,
+              background: "#E3EDFB",
+              color: "#0F4FA8",
+              borderRadius: 6,
+              padding: "10px 12px",
+              fontSize: 12,
+              lineHeight: 1.5,
+            }}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" style={{ marginTop: 1, flexShrink: 0 }}>
+              <circle cx="12" cy="12" r="10" /><path d="M12 16v-4M12 8h.01" />
+            </svg>
+            After creating, upload a sample PO and ProcuLink learns the buyer&apos;s layout automatically.
+          </div>
 
-        {/* Buyer cards */}
-        {!isLoading && !isError && buyers.length > 0 && (
-          <div className="flex flex-col gap-3">
-            {buyers.map((b) => (
-              <div
+          {addError && (
+            <p style={{ marginTop: 8, fontSize: 12, color: "#C53A3A" }}>{addError}</p>
+          )}
+        </div>
+      )}
+
+      {/* Table card */}
+      <div
+        style={{
+          background: "#FFFFFF",
+          border: "1px solid #E2E6EE",
+          borderRadius: 8,
+          overflow: "hidden",
+        }}
+      >
+        <table style={{ width: "100%", borderCollapse: "collapse" }}>
+          <thead>
+            <tr>
+              {(["Buyer", "Formats", "Volume", "Last order", ""] as const).map((col, i) => (
+                <th
+                  key={col}
+                  style={{
+                    textAlign: i >= 4 ? "right" : "left",
+                    fontSize: 10.5,
+                    fontWeight: 600,
+                    letterSpacing: "0.05em",
+                    textTransform: "uppercase",
+                    color: "#8A93A5",
+                    padding: "9px 12px",
+                    borderBottom: "1px solid #E2E6EE",
+                    whiteSpace: "nowrap",
+                    width: i === 5 ? 30 : undefined,
+                  }}
+                >
+                  {col}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {/* Skeleton rows while loading */}
+            {isLoading && !isApiMockMode && (
+              <>
+                <SkeletonTrow />
+                <SkeletonTrow />
+                <SkeletonTrow />
+              </>
+            )}
+
+            {/* Error state in table */}
+            {isError && !isApiMockMode && (
+              <tr>
+                <td
+                  colSpan={6}
+                  style={{ padding: "32px 16px", textAlign: "center" }}
+                >
+                  <span style={{ fontSize: 13, color: "#56627A" }}>
+                    Failed to load buyers.{" "}
+                    <button
+                      onClick={() => refetch()}
+                      style={{
+                        color: "#1E66C9",
+                        background: "none",
+                        border: "none",
+                        cursor: "pointer",
+                        fontWeight: 600,
+                        fontSize: 13,
+                        padding: 0,
+                      }}
+                    >
+                      Retry
+                    </button>
+                  </span>
+                </td>
+              </tr>
+            )}
+
+            {/* Buyer rows */}
+            {(!isLoading || isApiMockMode) && !isError && buyers.map((b, idx) => (
+              <tr
                 key={b.id}
                 onClick={() => router.push(`/inbox?buyer=${b.code}`)}
                 title="Filter inbox to orders from this buyer"
-                className="group cursor-pointer rounded-[8px]"
                 style={{
-                  background: "#FFFFFF",
-                  border: "1px solid #E2E6EE",
-                  boxShadow: "0 1px 3px rgba(11,26,47,0.04)",
-                  borderLeft: "3px solid #1E66C9",
+                  cursor: "pointer",
+                  transition: "background 150ms",
+                  background: "transparent",
                 }}
+                onMouseEnter={(e) => { (e.currentTarget as HTMLTableRowElement).style.background = "#E3EDFB"; }}
+                onMouseLeave={(e) => { (e.currentTarget as HTMLTableRowElement).style.background = "transparent"; }}
               >
-                <div className="grid gap-3 px-4 py-4 sm:grid-cols-[44px_minmax(0,1fr)_80px_80px_auto_auto] sm:items-center sm:gap-4">
-                  {/* Code badge */}
-                  <div
-                    style={{
-                      width: 44, height: 44, borderRadius: 10,
-                      background: "#E3EDFB",
-                      display: "flex", alignItems: "center", justifyContent: "center",
-                      fontFamily: "'JetBrains Mono', monospace",
-                      fontSize: 11, fontWeight: 800, color: "#1E66C9",
-                      flexShrink: 0,
-                    }}
-                  >
-                    {b.code}
-                  </div>
-
-                  {/* Name + format chips */}
-                  <div className="min-w-0">
-                    <p className="text-[14px] font-semibold" style={{ color: "#0B1A2F" }}>{b.name}</p>
-                    <div className="flex flex-wrap items-center gap-1.5 mt-1">
-                      {b.formats.map((f) => (
-                        <span
-                          key={f}
-                          className="text-[10.5px] font-semibold rounded px-1.5 py-0.5"
-                          style={{ background: "#EFF2F7", color: "#56627A" }}
-                        >
-                          {f}
-                        </span>
-                      ))}
+                {/* Buyer: code badge + name */}
+                <td
+                  style={{
+                    padding: "11px 12px",
+                    borderBottom: idx < buyers.length - 1 ? "1px solid #E2E6EE" : "none",
+                    fontSize: 12.5,
+                    verticalAlign: "middle",
+                  }}
+                >
+                  <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                    <div
+                      style={{
+                        width: 30,
+                        height: 30,
+                        borderRadius: 6,
+                        background: "#E3EDFB",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        flexShrink: 0,
+                      }}
+                    >
+                      {/* building icon */}
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#0F4FA8" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+                        <rect x="4" y="2" width="16" height="20" rx="1" />
+                        <path d="M9 22v-4h6v4M8 6h.01M16 6h.01M8 10h.01M16 10h.01M8 14h.01M16 14h.01" />
+                      </svg>
+                    </div>
+                    <div>
+                      <div style={{ fontWeight: 600, fontSize: 13 }}>{b.name}</div>
+                      <div
+                        style={{
+                          fontSize: 10.5,
+                          fontFamily: "'JetBrains Mono', ui-monospace, monospace",
+                          color: "#8A93A5",
+                        }}
+                      >
+                        {b.code}
+                      </div>
                     </div>
                   </div>
+                </td>
 
-                  {/* Order count */}
-                  <div className="text-left sm:text-right">
-                    <p style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 20, fontWeight: 700, color: "#0B1A2F", lineHeight: 1 }}>
-                      {b.orderCount.toLocaleString()}
-                    </p>
-                    <p style={{ fontSize: 11, color: "#8A93A5", marginTop: 2 }}>total orders</p>
+                {/* Inbound formats (canonical: "Inbound channel") */}
+                <td
+                  style={{
+                    padding: "11px 12px",
+                    borderBottom: idx < buyers.length - 1 ? "1px solid #E2E6EE" : "none",
+                    verticalAlign: "middle",
+                  }}
+                >
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+                    {b.formats.map((f) => (
+                      <FileChip key={f} type={f} />
+                    ))}
                   </div>
+                </td>
 
-                  {/* Last order age */}
-                  <div className="text-left sm:text-right" style={{ minWidth: 70 }}>
-                    <p style={{ fontSize: 11, color: "#8A93A5" }}>last order</p>
-                    <p style={{ fontSize: 12, fontWeight: 500, color: "#56627A" }}>
-                      {b.lastOrderAge ? `${b.lastOrderAge} ago` : "—"}
-                    </p>
-                  </div>
+                {/* Volume */}
+                <td
+                  style={{
+                    padding: "11px 12px",
+                    borderBottom: idx < buyers.length - 1 ? "1px solid #E2E6EE" : "none",
+                    fontFamily: "'JetBrains Mono', ui-monospace, monospace",
+                    fontWeight: 600,
+                    fontSize: 12.5,
+                    verticalAlign: "middle",
+                  }}
+                >
+                  {b.orderCount.toLocaleString()}
+                </td>
 
-                  {/* Arrow hint */}
-                  <span
-                    className="hidden opacity-0 group-hover:opacity-100 transition-opacity text-[14px] sm:inline"
-                    style={{ color: "#C6CDDA" }}
-                  >
-                    →
-                  </span>
+                {/* Last order age — mapped from lastOrderAge; no dedicated column in BuyerDto for supplier count */}
+                <td
+                  style={{
+                    padding: "11px 12px",
+                    borderBottom: idx < buyers.length - 1 ? "1px solid #E2E6EE" : "none",
+                    fontSize: 12.5,
+                    color: "#56627A",
+                    verticalAlign: "middle",
+                  }}
+                >
+                  {b.lastOrderAge ? `${b.lastOrderAge} ago` : "—"}
+                </td>
 
-                  {/* Delete button */}
-                  <button
-                    onClick={(e) => handleDelete(e, b)}
-                    disabled={deleteMut.isPending}
-                    className="flex items-center justify-center rounded-[4px] transition-colors"
-                    style={{
-                      width: 28, height: 28,
-                      border: "1px solid #E2E6EE",
-                      background: "#FAFBFC",
-                      color: "#8A93A5",
-                      cursor: deleteMut.isPending ? "not-allowed" : "pointer",
-                      flexShrink: 0,
-                    }}
-                    title="Delete buyer"
-                  >
-                    <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-                      <path d="M2 10L10 2M2 2l8 8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                {/* Chevron + delete */}
+                <td
+                  style={{
+                    padding: "11px 12px",
+                    borderBottom: idx < buyers.length - 1 ? "1px solid #E2E6EE" : "none",
+                    width: 52,
+                    verticalAlign: "middle",
+                  }}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                    {/* Delete button */}
+                    <button
+                      onClick={(e) => handleDelete(e, b)}
+                      disabled={deleteMut.isPending}
+                      title="Delete buyer"
+                      style={{
+                        width: 24,
+                        height: 24,
+                        borderRadius: 4,
+                        border: "1px solid #E2E6EE",
+                        background: "#FAFBFC",
+                        color: "#8A93A5",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        cursor: deleteMut.isPending ? "not-allowed" : "pointer",
+                        flexShrink: 0,
+                      }}
+                    >
+                      <svg width="11" height="11" viewBox="0 0 12 12" fill="none">
+                        <path d="M2 10L10 2M2 2l8 8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                      </svg>
+                    </button>
+                    {/* Chevron */}
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#8A93A5" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="m9 18 6-6-6-6" />
                     </svg>
-                  </button>
-                </div>
-              </div>
+                  </div>
+                </td>
+              </tr>
             ))}
-          </div>
+          </tbody>
+        </table>
+
+        {/* Empty state */}
+        {(!isLoading || isApiMockMode) && !isError && buyers.length === 0 && (
+          <EmptyState
+            title="No buyer docks yet"
+            sub="A buyer dock receives purchase orders from one buyer, in whatever format they send."
+            action={{ label: "New dock", onClick: () => setAddOpen(true) }}
+          />
         )}
       </div>
     </div>
