@@ -198,68 +198,127 @@ const columns = [
     ),
     size: 36,
   }),
-  columnHelper.accessor("status", {
-    header: "Status",
-    cell: (info) => <StatusCell status={info.getValue()} />,
-    size: 120,
+  // Order column: PO# + lines/exceptions
+  columnHelper.accessor("po", {
+    header: "Order",
+    cell: (info) => (
+      <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          <span className="font-mono text-[12px] font-semibold" style={{ color: "#0F4FA8" }}>
+            {info.getValue()}
+          </span>
+          {info.row.original.assigned !== "—" && (
+            <span
+              className="font-mono text-[9.5px]"
+              style={{
+                background: "#EEE7FB",
+                color: "#6F4FCE",
+                padding: "0 5px",
+                height: 17,
+                display: "flex",
+                alignItems: "center",
+                borderRadius: 3,
+              }}
+            >
+              AI
+            </span>
+          )}
+        </div>
+        <div
+          className="text-[11px]"
+          style={{ color: "#56627A" }}
+        >
+          {info.row.original.lines} lines{info.row.original.issues > 0 ? ` · ${info.row.original.issues} exceptions` : ""}
+        </div>
+      </div>
+    ),
+    size: 180,
   }),
-  columnHelper.accessor("ageMin", {
-    header: "Received",
-    cell: (info) => <span style={{ color: "#56627A" }}>{info.row.original.age}</span>,
-    size: 72,
+  // Buyer → Supplier
+  columnHelper.display({
+    id: "lane",
+    header: "Buyer → Supplier",
+    cell: ({ row }) => (
+      <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: "12.5px" }}>
+        <span style={{ color: "#1E66C9", fontWeight: 500, flex: 1, minWidth: 0, textOverflow: "ellipsis", whiteSpace: "nowrap", overflow: "hidden" }}>
+          {row.original.buyer}
+        </span>
+        <span style={{ color: "#8A93A5", flexShrink: 0 }}>→</span>
+        <span style={{ color: "#2E8E3A", fontWeight: 500, flex: 1, minWidth: 0, textOverflow: "ellipsis", whiteSpace: "nowrap", overflow: "hidden" }}>
+          {row.original.supplier}
+        </span>
+      </div>
+    ),
+    size: 320,
   }),
   columnHelper.accessor("fmt", {
     header: "Source",
     cell: (info) => <FileChip type={info.getValue()} />,
     size: 72,
   }),
-  columnHelper.accessor("buyer", {
-    header: "Buyer",
-    cell: (info) => <span style={{ color: "#0B1A2F" }}>{info.getValue()}</span>,
-    size: 200,
-  }),
-  columnHelper.accessor("supplier", {
-    header: "Supplier",
-    cell: (info) => <span style={{ color: "#0B1A2F" }}>{info.getValue()}</span>,
-    size: 180,
-  }),
-  columnHelper.accessor("po", {
-    header: "PO #",
-    cell: (info) => (
-      <span className="font-mono text-[11.5px]" style={{ color: "#0F4FA8" }}>{info.getValue()}</span>
-    ),
-    size: 150,
-  }),
-  columnHelper.accessor("lines", {
-    header: "Lines",
-    cell: (info) => <span style={{ color: "#56627A" }}>{info.getValue()}</span>,
-    meta: { numeric: true },
-    size: 56,
-  }),
   columnHelper.accessor("value", {
     header: "Value",
     cell: (info) => (
-      <span className="font-mono text-[11.5px]" style={{ color: "#0B1A2F" }}>
+      <span className="font-mono text-[12.5px] font-semibold" style={{ color: "#0B1A2F" }}>
         {info.row.original.valueLabel}
       </span>
     ),
     meta: { numeric: true },
     size: 110,
   }),
-  columnHelper.accessor("issues", {
-    header: "Issues",
-    cell: (info) =>
-      info.getValue() > 0 ? (
-        <span className="font-semibold" style={{ color: "#C53A3A" }}>⚠ {info.getValue()}</span>
-      ) : (
-        <span style={{ color: "#8A93A5" }}>—</span>
-      ),
-    size: 64,
+  // Pipeline (StatusJourney compact)
+  columnHelper.accessor("status", {
+    header: "Pipeline",
+    cell: (info) => <StatusCell status={info.getValue()} />,
+    size: 120,
   }),
-  columnHelper.accessor("assigned", {
-    header: "Assigned",
-    cell: (info) => <span style={{ color: "#56627A" }}>{info.getValue()}</span>,
+  // Status pill
+  columnHelper.display({
+    id: "statusPill",
+    header: "Status",
+    cell: ({ row }) => (
+      <span
+        style={{
+          display: "inline-block",
+          padding: "3px 8px",
+          borderRadius: 4,
+          fontSize: "11px",
+          fontWeight: 600,
+          textTransform: "capitalize",
+          background:
+            row.original.status === "review"
+              ? "#FAEFD6"
+              : row.original.status === "failed"
+              ? "#FBE3E3"
+              : row.original.status === "sent"
+              ? "#E2F1E2"
+              : "#E3EDFB",
+          color:
+            row.original.status === "review"
+              ? "#C97A14"
+              : row.original.status === "failed"
+              ? "#C53A3A"
+              : row.original.status === "sent"
+              ? "#2E8E3A"
+              : "#1E66C9",
+        }}
+      >
+        {row.original.status === "sent" ? "Delivered" : row.original.status}
+      </span>
+    ),
+    size: 88,
+  }),
+  columnHelper.accessor("ageMin", {
+    header: "Updated",
+    cell: (info) => <span style={{ color: "#56627A", fontSize: "12px" }}>{info.row.original.age} ago</span>,
     size: 72,
+  }),
+  // Chevron
+  columnHelper.display({
+    id: "chevron",
+    header: "",
+    cell: () => <span style={{ color: "#8A93A5", fontSize: "15px" }}>›</span>,
+    size: 30,
   }),
 ];
 
@@ -284,6 +343,7 @@ export function InboxView() {
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
   const [activeChip, setActiveChip]     = useState(0); // index into FILTER_CHIPS
+  const [searchQuery, setSearchQuery]   = useState(""); // for PO#, buyer, supplier search
 
   const queryClient = useQueryClient();
   const { data: rawOrders, isLoading, isError, refetch } = useQuery({
@@ -334,6 +394,19 @@ export function InboxView() {
 
   const { rows } = table.getRowModel();
 
+  // Global search filter function
+  const filteredRows = useMemo(() => {
+    return rows.filter((row) => {
+      if (!searchQuery) return true;
+      const q = searchQuery.toLowerCase();
+      return (
+        row.original.po.toLowerCase().includes(q) ||
+        row.original.buyer.toLowerCase().includes(q) ||
+        row.original.supplier.toLowerCase().includes(q)
+      );
+    });
+  }, [rows, searchQuery]);
+
   const selectedCount = Object.keys(rowSelection).length;
 
   // Chip counts against full dataset (before status filter)
@@ -364,15 +437,36 @@ export function InboxView() {
   // Error state
   if (!isApiMockMode && isError) {
     return (
-      <div className="flex flex-col h-full min-h-0 overflow-hidden items-center justify-center gap-3 bg-white">
-        <p className="text-[14px] font-semibold" style={{ color: "#0B1A2F" }}>Could not load orders</p>
-        <button
-          onClick={() => refetch()}
-          className="rounded-[6px] px-4 text-[12.5px] font-medium"
-          style={{ height: 32, border: "1px solid #E2E6EE", background: "#FFFFFF", color: "#0B1A2F" }}
-        >
-          Retry
-        </button>
+      <div className="flex flex-col h-full min-h-0 overflow-hidden items-center justify-center" style={{ background: "#F6F7FA" }}>
+        <div style={{ textAlign: "center" }}>
+          <div
+            style={{
+              width: 46,
+              height: 46,
+              borderRadius: "50%",
+              background: "#FBE3E3",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              margin: "0 auto 14px",
+            }}
+          >
+            <span style={{ fontSize: "22px", color: "#C53A3A" }}>⚠</span>
+          </div>
+          <div style={{ fontWeight: 600, fontSize: "16px", color: "#0B1A2F" }}>
+            Couldn't load the queue
+          </div>
+          <div className="muted" style={{ fontSize: "13px", maxWidth: 380, margin: "6px auto 14px", color: "#56627A" }}>
+            The order service returned <span className="font-mono" style={{ fontSize: "12px" }}>503</span> — your orders are safe and nothing was lost. This is usually transient.
+          </div>
+          <button
+            onClick={() => refetch()}
+            className="rounded-[6px] px-4 text-[12.5px] font-medium"
+            style={{ height: 32, border: "1px solid #E2E6EE", background: "#FFFFFF", color: "#0B1A2F" }}
+          >
+            ↻ Retry
+          </button>
+        </div>
       </div>
     );
   }
@@ -382,10 +476,10 @@ export function InboxView() {
 
       {/* Page header */}
       <div
-        className="flex flex-col items-start gap-3 px-4 py-4 sm:px-6 lg:flex-row lg:items-end lg:gap-4 flex-shrink-0"
+        className="flex flex-col items-start gap-3 px-4 py-4 sm:px-6 lg:flex-row lg:items-center lg:gap-4 flex-shrink-0"
         style={{ borderBottom: "1px solid #E2E6EE", background: "#FFFFFF" }}
       >
-        <div>
+        <div className="flex-1">
           <h1
             className="text-[26px] font-semibold tracking-[-0.02em]"
             style={{ fontFamily: "'Bricolage Grotesque', Inter, sans-serif", color: "#0B1A2F" }}
@@ -395,20 +489,53 @@ export function InboxView() {
           <p className="text-[13px] mt-1" style={{ color: "#56627A" }}>
             {rows.length.toLocaleString()} of {ALL_ORDERS.length.toLocaleString()} orders
             {selectedCount > 0 && <span style={{ color: "#1E66C9", marginLeft: 8 }}>· {selectedCount} selected</span>}
-            <span style={{ color: "#C6CDDA", margin: "0 6px" }}>·</span>last sync 14s ago
           </p>
         </div>
 
-        {/* Bulk action bar */}
-        {selectedCount > 0 && (
-          <div
-            className="flex items-center gap-2 px-3 py-1.5 rounded-[6px] text-[12px]"
-            style={{ background: "#E3EDFB", border: "1px solid #1E66C933", color: "#0F4FA8" }}
+        <div className="flex w-full flex-wrap gap-2 lg:ml-auto lg:w-auto">
+          <button
+            className="flex items-center gap-1.5 rounded-[6px] px-3 text-[12.5px] font-medium transition-colors"
+            style={{ height: 32, border: "1px solid #E2E6EE", background: "#FFFFFF", color: "#0B1A2F" }}
+            onClick={() => queryClient.invalidateQueries({ queryKey: ["orders"] })}
           >
-            <span className="font-semibold">{selectedCount} selected</span>
-            <span style={{ color: "#BDD0EE" }}>·</span>
+            ↻ Sync
+          </button>
+          <button
+            className="flex items-center gap-1.5 rounded-[6px] px-3 text-[12.5px] font-medium"
+            style={{ height: 32, background: "#0B1A2F", color: "#FFFFFF", border: 0 }}
+            onClick={() => router.push("/upload")}
+          >
+            ↑ Upload order
+          </button>
+        </div>
+      </div>
+
+      {/* Bulk action bar (shown full-width when selecting) */}
+      {selectedCount > 0 && (
+        <div
+          className="flex items-center justify-between px-4 py-2 sm:px-6 flex-shrink-0"
+          style={{ background: "#0B1A2F", color: "#FFFFFF" }}
+        >
+          <div className="flex items-center gap-3">
+            <span style={{ fontSize: "12.5px", fontWeight: 600 }}>{selectedCount} selected</span>
             <button
-              style={{ color: "#0F4FA8", background: "none", border: 0, cursor: "pointer", fontWeight: 600 }}
+              onClick={() => setRowSelection({})}
+              style={{ background: "none", border: "none", color: "#8A93A5", fontSize: "12px", cursor: "pointer" }}
+            >
+              Clear
+            </button>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              style={{
+                background: "none",
+                border: "none",
+                color: "#FFFFFF",
+                fontSize: "12.5px",
+                fontWeight: 600,
+                cursor: "pointer",
+                padding: 0,
+              }}
               onClick={async () => {
                 const ids = Object.keys(rowSelection).map(k => rows[Number(k)]?.original.id).filter(Boolean);
                 if (!ids.length) return;
@@ -426,143 +553,112 @@ export function InboxView() {
                 } catch { /* ignore */ }
               }}
             >
-              Re-process
+              Cross selected
             </button>
             <button
-              disabled
-              title="Discard requires the soft-delete endpoint (Group L)"
-              style={{ color: "#8A93A5", background: "none", border: 0, cursor: "not-allowed", fontWeight: 600 }}
+              style={{
+                background: "none",
+                border: "none",
+                color: "#FFFFFF",
+                fontSize: "12.5px",
+                fontWeight: 600,
+                cursor: "pointer",
+                padding: 0,
+              }}
+              onClick={() => {}}
             >
-              Discard
+              Export
             </button>
           </div>
-        )}
-
-        <div className="flex w-full flex-wrap gap-2 lg:ml-auto lg:w-auto">
-          <button
-            className="flex items-center gap-1.5 rounded-[6px] px-3 text-[12.5px] font-medium transition-colors"
-            style={{ height: 32, border: "1px solid #E2E6EE", background: "#FFFFFF", color: "#0B1A2F" }}
-            onClick={() => queryClient.invalidateQueries({ queryKey: ["orders"] })}
-          >
-            ↻ Sync
-          </button>
-          <button
-            className="flex items-center gap-1.5 rounded-[6px] px-3 text-[12.5px] font-medium"
-            style={{ height: 32, border: "1px solid #E2E6EE", background: "#FFFFFF", color: "#0B1A2F" }}
-            onClick={() => router.push("/upload")}
-          >
-            ↑ Upload
-          </button>
-          <button
-            className="flex items-center gap-1.5 rounded-[6px] px-3 text-[12.5px] font-medium"
-            style={{ height: 32, background: "#0B1A2F", color: "#FFFFFF", border: 0 }}
-            onClick={() => router.push("/upload")}
-          >
-            + New order
-          </button>
         </div>
-      </div>
+      )}
 
-      {/* Filter chips + view toggle */}
+      {/* Filter chips + search input */}
       <div
-        className="flex items-center gap-1.5 overflow-x-auto px-4 py-2 sm:px-5 flex-shrink-0"
+        className="flex flex-wrap items-center gap-2 px-4 py-2 sm:px-6 flex-shrink-0"
         style={{ borderBottom: "1px solid #E2E6EE", background: "#FFFFFF" }}
       >
-        {FILTER_CHIPS.map(({ label }, i) => {
-          const active = i === activeChip;
-          return (
-            <button
-              key={label}
-              onClick={() => handleChip(i)}
-              className="flex items-center gap-1.5 rounded-[5px] px-2.5 text-[12px] font-medium transition-colors"
-              style={{
-                height: 26,
-                border: `1px solid ${active ? "#1E66C933" : "#E2E6EE"}`,
-                background: active ? "#E3EDFB" : "#FFFFFF",
-                color: active ? "#0F4FA8" : "#0B1A2F",
-                cursor: "pointer",
-              }}
-            >
-              {label}
-              <span
-                className="text-[11px] font-mono"
-                style={{ color: active ? "#0F4FA8" : "#8A93A5" }}
-              >
-                {chipCounts[i].toLocaleString()}
-              </span>
-            </button>
-          );
-        })}
-
-        <div className="hidden flex-1 lg:block" />
-
-        {/* View toggle */}
-        <div
-          className="hidden rounded-[6px] overflow-hidden text-[12px] lg:flex"
-          style={{ border: "1px solid #E2E6EE" }}
-        >
-          <button
-            className="px-3 py-1"
-            style={{ background: "#FFFFFF", color: "#56627A", borderRight: "1px solid #E2E6EE", cursor: "pointer" }}
-            onClick={() => router.push("/bridge")}
-          >
-            Bridge view
-          </button>
-          <button
-            className="px-3 py-1 font-medium"
-            style={{ background: "#0B1A2F", color: "#FFFFFF", cursor: "pointer" }}
-          >
-            List view
-          </button>
-        </div>
-      </div>
-
-      {/* Time-strip ribbon */}
-      <div
-        className="flex items-center gap-3 px-4 sm:px-6 flex-shrink-0"
-        style={{ height: 52, borderBottom: "1px solid #E2E6EE", background: "#FFFFFF" }}
-      >
-        <span
-          className="text-[10.5px] font-bold uppercase tracking-[0.06em] flex-shrink-0 w-[80px]"
-          style={{ color: "#8A93A5" }}
-        >
-          Last 24h
-        </span>
-        <svg className="flex-1" height={32} viewBox="0 0 816 32" preserveAspectRatio="none">
-          <defs>
-            <linearGradient id="inb-rib" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#1E66C9" stopOpacity={0.65} />
-              <stop offset="100%" stopColor="#1E66C9" stopOpacity={0.06} />
-            </linearGradient>
-          </defs>
-          {Array.from({ length: 48 }).map((_, i) => {
-            const h = 6 + (Math.sin(i * 0.3) + 1.4) * 8 + (i > 38 ? 6 : 0);
+        <div className="flex items-center gap-1.5 overflow-x-auto flex-1 min-w-0">
+          {FILTER_CHIPS.map(({ label }, i) => {
+            const active = i === activeChip;
             return (
-              <rect key={i} x={i * 17} y={32 - h} width={13} height={h} fill="url(#inb-rib)" rx={1.5} />
+              <button
+                key={label}
+                onClick={() => handleChip(i)}
+                className="flex items-center gap-1.5 rounded-[5px] px-2.5 text-[12px] font-medium transition-colors flex-shrink-0"
+                style={{
+                  height: 26,
+                  border: `1px solid ${active ? "#1E66C933" : "#E2E6EE"}`,
+                  background: active ? "#E3EDFB" : "#FFFFFF",
+                  color: active ? "#0F4FA8" : "#0B1A2F",
+                  cursor: "pointer",
+                }}
+              >
+                {label}
+                <span
+                  className="text-[11px] font-mono"
+                  style={{ color: active ? "#0F4FA8" : "#8A93A5" }}
+                >
+                  {chipCounts[i].toLocaleString()}
+                </span>
+              </button>
             );
           })}
-          <rect x={640} y={0} width={176} height={32} fill="#1E66C9" fillOpacity={0.08}
-                stroke="#1E66C9" strokeWidth={1.5} rx={2} />
-        </svg>
-        <span
-          className="text-[11px] font-mono flex-shrink-0 text-right"
-          style={{ color: "#56627A", width: 130 }}
+        </div>
+
+        {/* Search input */}
+        <div
+          className="flex items-center gap-1.5 rounded-[6px] px-3 flex-shrink-0"
+          style={{ background: "#FFFFFF", border: "1px solid #E2E6EE", height: 32, minWidth: 160, maxWidth: 240 }}
         >
-          last 2h · {rows.length > 100 ? "100+" : rows.length} orders
-        </span>
+          <span style={{ fontSize: "14px", color: "#8A93A5", flexShrink: 0 }}>🔍</span>
+          <input
+            type="text"
+            placeholder="Filter…"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            style={{
+              border: "none",
+              outline: "none",
+              background: "none",
+              fontSize: "12.5px",
+              color: "#0B1A2F",
+              flex: 1,
+              minWidth: 0,
+              padding: 0,
+            }}
+          />
+        </div>
       </div>
 
       {/* ── Queue table / mobile route cards ──────────────────────────────────── */}
       <div className="flex-1 overflow-auto" style={{ background: "#FFFFFF" }}>
         <div className="divide-y divide-[#F0F2F6] md:hidden">
-          {rows.length === 0 && (
+          {filteredRows.length === 0 && (
             <div className="flex flex-col items-center justify-center py-16 px-6 text-center gap-3">
               <div style={{ fontSize: 28, color: "#C6CDDA" }}>⊘</div>
-              <p className="text-[14px] font-semibold" style={{ color: "#0B1A2F" }}>No orders match this filter</p>
-              <p className="text-[13px]" style={{ color: "#56627A" }}>Try a different status filter above.</p>
+              <p className="text-[14px] font-semibold" style={{ color: "#0B1A2F" }}>Your inbox is clear</p>
+              <p className="text-[13px]" style={{ color: "#56627A" }}>No orders match this filter. New orders land here automatically as buyers send them, or upload one yourself.</p>
+              <button
+                onClick={() => router.push("/upload")}
+                style={{
+                  marginTop: 8,
+                  height: 32,
+                  padding: "0 16px",
+                  borderRadius: 6,
+                  background: "#1E66C9",
+                  color: "#FFFFFF",
+                  border: "none",
+                  fontSize: "12.5px",
+                  fontWeight: 600,
+                  cursor: "pointer",
+                }}
+              >
+                ↑ Upload an order
+              </button>
             </div>
           )}
-          {rows.map((row) => (
+          {filteredRows.map((row) => (
             <button
               key={row.id}
               className="block w-full px-4 py-3 text-left"
@@ -570,21 +666,67 @@ export function InboxView() {
               onClick={() => router.push(`/inbox/${row.original.id}`)}
             >
               <div className="mb-2 flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <p className="truncate font-mono text-[12px] font-semibold" style={{ color: "#0F4FA8" }}>
-                    {row.original.po}
-                  </p>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2 mb-1">
+                    <p className="truncate font-mono text-[12px] font-semibold" style={{ color: "#0F4FA8" }}>
+                      {row.original.po}
+                    </p>
+                    {row.original.assigned !== "—" && (
+                      <span
+                        className="font-mono text-[9px] flex-shrink-0"
+                        style={{
+                          background: "#EEE7FB",
+                          color: "#6F4FCE",
+                          padding: "0 5px",
+                          height: 16,
+                          display: "flex",
+                          alignItems: "center",
+                          borderRadius: 3,
+                        }}
+                      >
+                        AI
+                      </span>
+                    )}
+                  </div>
                   <p className="mt-0.5 text-[11.5px]" style={{ color: "#8A93A5" }}>
                     {row.original.age} ago · {row.original.lines} lines · {row.original.valueLabel}
                   </p>
                 </div>
-                <StatusCell status={row.original.status} />
+                <span
+                  style={{
+                    display: "inline-flex",
+                    padding: "3px 8px",
+                    borderRadius: 4,
+                    fontSize: "11px",
+                    fontWeight: 600,
+                    background:
+                      row.original.status === "review"
+                        ? "#FAEFD6"
+                        : row.original.status === "failed"
+                        ? "#FBE3E3"
+                        : row.original.status === "sent"
+                        ? "#E2F1E2"
+                        : "#E3EDFB",
+                    color:
+                      row.original.status === "review"
+                        ? "#C97A14"
+                        : row.original.status === "failed"
+                        ? "#C53A3A"
+                        : row.original.status === "sent"
+                        ? "#2E8E3A"
+                        : "#1E66C9",
+                    flexShrink: 0,
+                    marginLeft: 8,
+                  }}
+                >
+                  {row.original.status === "sent" ? "Delivered" : row.original.status}
+                </span>
               </div>
               <div className="mb-2 flex items-center gap-2">
                 <FileChip type={row.original.fmt} />
                 {row.original.issues > 0 && (
                   <span className="rounded px-1.5 py-0.5 text-[10.5px] font-semibold" style={{ background: "#FBE3E3", color: "#C53A3A" }}>
-                    {row.original.issues} issues
+                    {row.original.issues} exceptions
                   </span>
                 )}
               </div>
@@ -649,7 +791,7 @@ export function InboxView() {
           </thead>
 
           <tbody>
-            {rows.map((row) => {
+            {filteredRows.map((row) => {
               const isSelected = row.getIsSelected();
               return (
                 <tr
@@ -698,12 +840,41 @@ export function InboxView() {
             })}
 
             {/* Empty state */}
-            {rows.length === 0 && (
+            {filteredRows.length === 0 && (
               <tr>
-                <td colSpan={columns.length} style={{ textAlign: "center", padding: "64px 0", color: "#8A93A5" }}>
-                  <div style={{ fontSize: 28, marginBottom: 8 }}>⊘</div>
-                  <p style={{ fontSize: 14, fontWeight: 600, color: "#0B1A2F" }}>No orders match this filter</p>
-                  <p style={{ fontSize: 13, marginTop: 4 }}>Try a different status filter above.</p>
+                <td colSpan={columns.length} style={{ textAlign: "center", padding: "64px 0" }}>
+                  <div style={{ fontSize: 32, marginBottom: 16, color: "#C6CDDA" }}>⊘</div>
+                  <p
+                    style={{
+                      fontSize: 20,
+                      fontWeight: 600,
+                      color: "#0B1A2F",
+                      fontFamily: "'Bricolage Grotesque', Inter, sans-serif",
+                      marginBottom: 8,
+                    }}
+                  >
+                    Your inbox is clear
+                  </p>
+                  <p style={{ fontSize: 13, marginTop: 4, color: "#56627A", maxWidth: 380, margin: "8px auto 0" }}>
+                    No orders match this filter. New orders land here automatically as buyers send them, or upload one yourself.
+                  </p>
+                  <button
+                    onClick={() => router.push("/upload")}
+                    style={{
+                      marginTop: 16,
+                      height: 32,
+                      padding: "0 16px",
+                      borderRadius: 6,
+                      background: "#1E66C9",
+                      color: "#FFFFFF",
+                      border: "none",
+                      fontSize: "12.5px",
+                      fontWeight: 600,
+                      cursor: "pointer",
+                    }}
+                  >
+                    ↑ Upload an order
+                  </button>
                 </td>
               </tr>
             )}
@@ -718,7 +889,7 @@ export function InboxView() {
         style={{ height: 32, borderTop: "1px solid #E2E6EE", background: "#FFFFFF" }}
       >
         <span className="text-[11px]" style={{ color: "#8A93A5" }}>
-          Showing {rows.length.toLocaleString()} rows · {ALL_ORDERS.length.toLocaleString()} total
+          Showing {filteredRows.length.toLocaleString()} rows · {ALL_ORDERS.length.toLocaleString()} total
           {selectedCount > 0 && <span style={{ color: "#1E66C9" }}> · {selectedCount} selected</span>}
         </span>
       </div>
