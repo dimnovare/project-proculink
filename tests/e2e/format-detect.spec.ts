@@ -65,9 +65,9 @@ test("upload button stays enabled while detection is in-flight", async ({ page }
   });
 
   // Immediately after file selection (before the mock 400 ms delay completes),
-  // the "Upload & bridge" / "Cross the bridge" button must NOT be disabled.
+  // the "Upload & send" button must NOT be disabled.
   // Detection must never block submission.
-  const bridgeBtn = page.getByRole("button", { name: /upload.*bridge|bridge|cross/i });
+  const bridgeBtn = page.getByRole("button", { name: /upload.*send|choose a file/i });
   // Give the page a short tick to process the file event — still before 400 ms.
   await page.waitForTimeout(50);
   await expect(bridgeBtn).not.toBeDisabled();

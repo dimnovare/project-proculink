@@ -24,7 +24,7 @@ test("upload page renders with the Try-with-sample-order button", async ({ page 
   });
 
   // The sample-order CTA from Phase 6.3 should be rendered.
-  const sampleCta = page.getByRole("button", { name: /try with sample order/i });
+  const sampleCta = page.getByRole("button", { name: /try with.*sample order/i });
   await expect(sampleCta).toBeVisible();
   await expect(sampleCta).toBeEnabled();
 });
@@ -32,7 +32,7 @@ test("upload page renders with the Try-with-sample-order button", async ({ page 
 test("clicking Try with sample order routes to a sample order page with banner", async ({ page }) => {
   await page.goto("/upload");
 
-  const sampleCta = page.getByRole("button", { name: /try with sample order/i });
+  const sampleCta = page.getByRole("button", { name: /try with.*sample order/i });
   await expect(sampleCta).toBeVisible({ timeout: 10_000 });
 
   // Click + wait for navigation to /inbox/<id>?sample=1.

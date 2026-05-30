@@ -150,7 +150,7 @@ test.describe("UploadWorkbench — post-upload routes to preview", () => {
     });
 
     // Click the upload button (supplier is pre-selected from mock store)
-    const uploadBtn = page.getByRole("button", { name: /upload.*bridge/i });
+    const uploadBtn = page.getByRole("button", { name: /upload.*send/i });
     await expect(uploadBtn).toBeVisible({ timeout: 5_000 });
     await expect(uploadBtn).toBeEnabled();
     await uploadBtn.click();
