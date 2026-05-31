@@ -247,7 +247,7 @@ export function BridgeDashboard() {
   const { data: ordersSummary } = useQuery({
     queryKey: ["orders-summary"],
     queryFn: () => apiClient.getOrdersSummary(),
-    staleTime: 60_000,
+    staleTime: 30_000,
   });
 
   const allOrders = useMemo(() => ordersPage?.items ?? [], [ordersPage]);
