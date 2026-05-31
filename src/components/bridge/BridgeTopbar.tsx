@@ -132,6 +132,12 @@ function NotificationsBell() {
     staleTime: 30_000,
   });
 
+  const { data: ordersSummary } = useQuery({
+    queryKey: ["orders-summary"],
+    queryFn: () => apiClient.getOrdersSummary(),
+    staleTime: 30_000,
+  });
+
   const items = (ordersPage?.items ?? [])
     .map((o) => {
       let kind: "review" | "failed" | "delivered" | null = null;
@@ -145,7 +151,13 @@ function NotificationsBell() {
   const rank = (k: string) => (k === "failed" ? 0 : k === "review" ? 1 : 2);
   items.sort((a, b) => rank(a.kind) - rank(b.kind) || new Date(b.o.createdAt).getTime() - new Date(a.o.createdAt).getTime());
   const top = items.slice(0, 7);
-  const unread = items.filter((i) => i.kind === "failed" || i.kind === "review").length;
+  const unread = !isApiMockMode
+    ? ((ordersSummary?.byStatus?.["pending_review"] ?? 0) +
+       (ordersSummary?.byStatus?.["failed"] ?? 0) +
+       (ordersSummary?.byStatus?.["delivery_failed"] ?? 0) +
+       (ordersSummary?.byStatus?.["transform_failed"] ?? 0) +
+       (ordersSummary?.byStatus?.["delivery_dead_letter"] ?? 0))
+    : items.filter((i) => i.kind === "failed" || i.kind === "review").length;
 
   useEffect(() => {
     if (!open) return;
