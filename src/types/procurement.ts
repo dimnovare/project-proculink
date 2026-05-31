@@ -281,6 +281,11 @@ export interface GetOrdersParams {
   dateTo?: string;
 }
 
+export interface OrdersSummary {
+  byStatus: Partial<Record<string, number>>;
+  total: number;
+}
+
 // ── PO Passport (GET /api/orders/{id}/passport) ─────────────────────────────
 // A full provenance/acceptance record for one order: every stage, every
 // decision, every delivery attempt, and the supplier's response.

@@ -20,6 +20,7 @@ import type {
   UpdateEmailSettingsPayload,
   PassportDto,
   SupplierConfirmation,
+  OrdersSummary,
 } from "@/types/procurement";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:5223";
@@ -402,6 +403,21 @@ async function realGetOrders(params: GetOrdersParams = {}): Promise<OrdersPage> 
   const res = await fetchWithTimeout(`${API_BASE_URL}/api/orders?${qs.toString()}`, { headers: await authHeader() });
   if (!res.ok) throw new Error(`Failed to fetch orders: ${res.statusText}`);
   return res.json() as Promise<OrdersPage>;
+}
+
+async function mockGetOrdersSummary(): Promise<OrdersSummary> {
+  await delay(100);
+  const byStatus: Partial<Record<string, number>> = {};
+  for (const o of mockOrders) {
+    byStatus[o.status] = (byStatus[o.status] ?? 0) + 1;
+  }
+  return { byStatus, total: mockOrders.length };
+}
+
+async function realGetOrdersSummary(): Promise<OrdersSummary> {
+  const res = await fetchWithTimeout(`${API_BASE_URL}/api/orders/summary`, { headers: await authHeader() });
+  if (!res.ok) throw new Error(`orders/summary: ${res.status}`);
+  return res.json() as Promise<OrdersSummary>;
 }
 
 async function mockGetOrderById(id: string): Promise<Order | null> {
@@ -987,10 +1003,9 @@ async function mockGetDashboardTopology(): Promise<DashboardTopology> {
 }
 
 async function realGetDashboardTopology(): Promise<DashboardTopology> {
-  // TODO(J): backend endpoint /api/dashboard/topology not yet implemented.
-  // Returns empty so the frontend renders an explicit empty state instead of
-  // staged demo content. Wire to real aggregation once the backend chip lands.
-  return { buyers: [], suppliers: [], wires: [] };
+  const res = await fetchWithTimeout(`${API_BASE_URL}/api/dashboard/topology`, { headers: await authHeader() });
+  if (!res.ok) throw new Error(`dashboard/topology: ${res.status}`);
+  return res.json() as Promise<DashboardTopology>;
 }
 
 // ── Format detection ─────────────────────────────────────────────────────
@@ -1215,6 +1230,7 @@ export const apiClient = {
   // Orders
   uploadPurchaseOrder:    USE_MOCK ? mockUploadPurchaseOrder   : realUploadPurchaseOrder,
   getOrders:              USE_MOCK ? mockGetOrders             : realGetOrders,
+  getOrdersSummary:       USE_MOCK ? mockGetOrdersSummary     : realGetOrdersSummary,
   getOrderById:           USE_MOCK ? mockGetOrderById          : realGetOrderById,
   getOrderPassport:       USE_MOCK ? mockGetOrderPassport      : realGetOrderPassport,
   getOrderConfirmation:   USE_MOCK ? mockGetOrderConfirmation  : realGetOrderConfirmation,
