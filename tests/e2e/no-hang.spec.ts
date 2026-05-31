@@ -51,10 +51,10 @@ test.describe("no-hang regression — Bridge dashboard", () => {
     await page.goto("/bridge", { waitUntil: "domcontentloaded" });
 
     // ── Assertion 1: chrome is rendered + interactive ─────────────────────
-    // The sidebar nav link "All orders" lives in BridgeSidebar.tsx and is
+    // The sidebar nav link "Inbox" lives in BridgeSidebar.tsx and is
     // server-rendered regardless of API state. If the page is frozen white,
     // this assertion will fail because the React tree never mounted.
-    const inboxNav = page.getByRole("link", { name: /all orders/i }).first();
+    const inboxNav = page.getByRole("link", { name: /^inbox$/i }).first();
     await expect(inboxNav).toBeVisible({ timeout: 12_000 });
     expect(
       Date.now() - start,

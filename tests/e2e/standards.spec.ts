@@ -1,60 +1,71 @@
 import { test, expect } from "@playwright/test";
 
 /**
- * Standards matrix screen smoke tests.
+ * Standards reference screen smoke tests.
  *
- * The /library/standards page renders each standard with the following
- * data-testid contract (agreed between agents):
- *   - Outer container per standard: data-testid="standard-<id>"
- *   - Parse badge:     data-testid="parse-badge"     + data-level ∈ {supported,partial,planned,none}
- *   - Transform badge: data-testid="transform-badge" + data-level ∈ {supported,partial,planned,none}
+ * The /library/standards page renders the canonical-PO-field → standards
+ * cross-reference TABLE (FIELD_STANDARDS × STANDARD_REF_COLUMNS from
+ * src/lib/standards/catalog.ts): one row per canonical field, one column per
+ * standard (UBL / Peppol BIS / EDIFACT / X12 / cXML), each cell showing the
+ * element path that field maps to in that standard.
+ *
+ * Note: the earlier per-standard capability-card matrix (data-testid="standard-*"
+ * with parse/transform "honesty" badges) was replaced by this field-reference
+ * table in the redesign. The support-level data still lives in catalog.ts
+ * `STANDARDS` and powers the StandardsFieldPopover, but is no longer rendered on
+ * this route, so these specs validate the table contract instead.
  *
  * Mock mode (NEXT_PUBLIC_USE_MOCK=true) and QA auth bypass
  * (PROCULINK_QA_BYPASS_AUTH=true) are set by the webServer config in
  * playwright.config.ts — not repeated here.
  */
 
-test.describe("Standards matrix", () => {
-  test("matrix renders all standards", async ({ page }) => {
+test.describe("Standards reference", () => {
+  test("renders the heading, every standard column, and all canonical fields", async ({ page }) => {
     await page.goto("/library/standards");
 
     // Page heading must be visible — allow cold-start time.
     await expect(
-      page.getByRole("heading", { level: 1, name: /standards/i }),
+      page.getByRole("heading", { level: 1, name: /standards reference/i }),
     ).toBeVisible({ timeout: 10_000 });
 
-    // There are exactly 10 standards in the catalog.
-    await expect(
-      page.locator('[data-testid^="standard-"]'),
-    ).toHaveCount(10);
+    // All five standards are columns in the matrix (always-on visibility).
+    for (const col of ["UBL", "Peppol BIS", "EDIFACT", "X12", "cXML"]) {
+      await expect(page.getByRole("columnheader", { name: col, exact: true })).toBeVisible();
+    }
+
+    // One row per canonical field — 11 fields in the catalog (5 header + 6 line).
+    await expect(page.locator("tbody tr")).toHaveCount(11);
+
+    // Spot-check a header field and a line field render by label.
+    await expect(page.getByText("PO number", { exact: true })).toBeVisible();
+    await expect(page.getByText("Unit price", { exact: true })).toBeVisible();
   });
 
-  test("UBL 2.1 shows supported transform", async ({ page }) => {
+  test("canonical field rows show their UBL and X12 reference paths", async ({ page }) => {
     await page.goto("/library/standards");
 
-    const ublCard = page.locator('[data-testid="standard-ubl-2-1-order"]');
+    // PO number → UBL cbc:ID, X12 BEG03 (honest, transcribed from the matrix).
+    const poRow = page.locator("tbody tr", { hasText: "PO number" });
+    await expect(poRow).toBeVisible({ timeout: 10_000 });
+    await expect(poRow).toContainText("cbc:ID");
+    await expect(poRow).toContainText("BEG03");
 
-    await expect(ublCard).toBeVisible({ timeout: 10_000 });
-
-    // Card must display the standard name and version.
-    await expect(ublCard).toContainText(/UBL Order/i);
-    await expect(ublCard).toContainText(/2\.1/);
-
-    // Transform badge must reflect the honest supported status.
-    const transformBadge = ublCard.locator('[data-testid="transform-badge"]');
-    await expect(transformBadge).toHaveAttribute("data-level", "supported");
+    // Unit price → UBL cac:Price/cbc:PriceAmount, X12 PO104.
+    const priceRow = page.locator("tbody tr", { hasText: "Unit price" });
+    await expect(priceRow).toContainText("cac:Price/cbc:PriceAmount");
+    await expect(priceRow).toContainText("PO104");
   });
 
-  test("X12 850 is honestly marked planned", async ({ page }) => {
+  test("field search narrows the table", async ({ page }) => {
     await page.goto("/library/standards");
 
-    const x12Card = page.locator('[data-testid="standard-x12-850"]');
+    await expect(page.getByText("PO number", { exact: true })).toBeVisible({ timeout: 10_000 });
 
-    await expect(x12Card).toBeVisible({ timeout: 10_000 });
+    // Filtering to "unit price" keeps the Unit price row and drops PO number.
+    await page.getByPlaceholder(/search fields/i).fill("unit price");
 
-    // Transform badge must be "planned" — guards against over-claiming
-    // in-progress work while the Group M parser is still in development.
-    const transformBadge = x12Card.locator('[data-testid="transform-badge"]');
-    await expect(transformBadge).toHaveAttribute("data-level", "planned");
+    await expect(page.getByText("Unit price", { exact: true })).toBeVisible();
+    await expect(page.getByText("PO number", { exact: true })).toHaveCount(0);
   });
 });
