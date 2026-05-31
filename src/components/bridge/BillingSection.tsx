@@ -29,22 +29,22 @@ function UsageBar({ used, limit, label }: { used: number; limit: number; label: 
   const warning  = !unlimited && pct >= 80 && pct < 100;
 
   const barStyle: React.CSSProperties = unlimited
-    ? { background: "#2E8E3A" }
+    ? { background: "var(--brand-green, #28C55E)" }
     : atLimit
     ? { background: "#C53A3A" }
     : warning
-    ? { background: "linear-gradient(90deg,#1E66C9,#C97A14)" }
-    : { background: "linear-gradient(90deg,#1E66C9 0%,#1E66C9 35%,#2E8E3A 65%,#2E8E3A 100%)" };
+    ? { background: "linear-gradient(90deg, var(--brand-green, #28C55E), #C97A14)" }
+    : { background: "var(--brand-green, #28C55E)" };
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
       <div style={{ display: "flex", justifyContent: "space-between", gap: 16 }}>
         <span style={{ fontSize: 12.5, color: "#56627A" }}>{label}</span>
         <span style={{ fontSize: 12.5, fontWeight: 700, fontFamily: "'JetBrains Mono', monospace", color: atLimit ? "#C53A3A" : "#0B1A2F" }}>
           {used.toLocaleString()} / {unlimited ? "Custom" : limit.toLocaleString()}
         </span>
       </div>
-      <div style={{ height: 7, borderRadius: 4, background: "#EFF2F7", overflow: "hidden" }}>
+      <div style={{ height: 8, borderRadius: 4, background: "#EFF2F7", overflow: "hidden" }}>
         <div style={{ width: unlimited ? "100%" : `${pct}%`, height: "100%", borderRadius: 4, ...barStyle }} />
       </div>
     </div>
@@ -92,53 +92,58 @@ function LimitBanner({ status }: { status: BillingStatus }) {
 }
 
 const bannerStyle: React.CSSProperties = {
-  borderRadius: 8,
-  padding: "12px 16px",
+  borderRadius: 10,
+  padding: "14px 18px",
   background: "#FAEFD6",
   border: "1px solid #C97A14",
   display: "flex",
   flexDirection: "column",
   gap: 4,
   fontSize: 13,
+  lineHeight: 1.5,
   color: "#7A4A0A",
 };
 
-// Canonical large highlighted plan card
-function PlanCard({ status }: { status: BillingStatus }) {
+// Large highlighted plan block — green-tinted to match the brand accent
+function PlanCard({ status, action }: { status: BillingStatus; action?: React.ReactNode }) {
   const meta = PLAN_META[status.plan];
   const isExpired = status.plan === "pilot" && status.isTrialExpired;
   const displayLabel = isExpired ? "Pilot ended · Processing paused" : meta.label;
-  const softBg = `${meta.color}12`;
+  // Expired pilot uses amber tint; otherwise the brand green soft tint.
+  const accent = isExpired ? "#C97A14" : "var(--brand-green, #28C55E)";
+  const softBg = isExpired ? "#FBF3E3" : "var(--brand-green-soft, #DCFCE7)";
+  const borderCol = isExpired ? "#F0D8A8" : "rgba(40,197,94,0.30)";
 
   return (
     <div style={{
-      borderRadius: 8,
+      borderRadius: 10,
       background: softBg,
-      border: `1px solid ${meta.color}30`,
-      padding: "14px 16px",
+      border: `1px solid ${borderCol}`,
+      padding: "16px 18px",
       display: "flex",
       alignItems: "flex-start",
       justifyContent: "space-between",
-      gap: 12,
+      gap: 16,
       flexWrap: "wrap",
     }}>
       <div>
-        <div style={{ fontFamily: "'Bricolage Grotesque', Inter, sans-serif", fontSize: 18, fontWeight: 600, letterSpacing: "-0.02em", color: "#0B1A2F" }}>
+        <div style={{ fontFamily: "'Bricolage Grotesque', Inter, sans-serif", fontSize: 19, fontWeight: 600, letterSpacing: "-0.02em", color: "#0B1A2F" }}>
           {displayLabel}
         </div>
-        <div style={{ fontSize: 12, color: "#56627A", marginTop: 3 }}>{meta.sub}</div>
+        <div style={{ fontSize: 12.5, color: "#56627A", marginTop: 4 }}>{meta.sub}</div>
       </div>
-      <div style={{ textAlign: "right", flexShrink: 0 }}>
-        <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 22, fontWeight: 700, color: meta.color, lineHeight: 1 }}>
+      <div style={{ textAlign: "right", flexShrink: 0, display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 8 }}>
+        <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 24, fontWeight: 700, color: accent, lineHeight: 1 }}>
           {meta.price}
         </div>
+        {action}
         {status.plan === "pilot" && !isExpired && status.trialEndsAt && (
-          <div style={{ marginTop: 4 }}>
+          <div>
             <TrialCountdown endsAt={status.trialEndsAt} />
           </div>
         )}
         {!isExpired && (
-          <div style={{ marginTop: 3, fontSize: 11, color: "#8A93A5" }}>
+          <div style={{ fontSize: 11, color: "#8A93A5" }}>
             {status.accountStatus.replaceAll("_", " ")}
           </div>
         )}
@@ -167,7 +172,7 @@ export function BillingSection() {
 
   if (isLoading) {
     return (
-      <div style={{ maxWidth: 620, border: "1px solid #E2E6EE", borderRadius: 8, background: "#FFFFFF", padding: 18 }}>
+      <div style={{ border: "1px solid #E2E6EE", borderRadius: 12, background: "#FFFFFF", padding: 22, boxShadow: "0 1px 2px rgba(11,26,47,0.04)" }}>
         <div style={{ height: 18, width: 190, background: "#E2E6EE", borderRadius: 4, marginBottom: 18 }} />
         <div style={{ display: "grid", gap: 10 }}>
           <div style={{ height: 10, width: "100%", background: "#EFF2F7", borderRadius: 99 }} />
@@ -179,7 +184,7 @@ export function BillingSection() {
 
   if (error || !status) {
     return (
-      <div style={{ maxWidth: 620, border: "1px solid #F0D2D2", borderLeft: "3px solid #C53A3A", borderRadius: 8, background: "#FFFFFF", padding: 18 }}>
+      <div style={{ border: "1px solid #F0D2D2", borderLeft: "3px solid #C53A3A", borderRadius: 12, background: "#FFFFFF", padding: 22, boxShadow: "0 1px 2px rgba(11,26,47,0.04)" }}>
         <div style={{ fontSize: 13, fontWeight: 700, color: "#0B1A2F", marginBottom: 4 }}>Billing is temporarily unavailable</div>
         <p style={{ margin: 0, fontSize: 12.5, lineHeight: 1.55, color: "#56627A" }}>
           We could not reach the billing service. Your workspace data is still available; plan changes and usage limits need the API connection.
@@ -201,17 +206,34 @@ export function BillingSection() {
   const nextPlan     = PLAN_META[status.plan].next;
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 16, maxWidth: 620 }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
       <LimitBanner status={status} />
 
-      {/* ── Current plan card (canonical large highlighted block) ── */}
-      <div style={{ border: "1px solid #E2E6EE", borderRadius: 8, background: "#FFFFFF", padding: 0, overflow: "hidden" }}>
+      {/* ── Current plan card (large highlighted block) ── */}
+      <div style={{ border: "1px solid #E2E6EE", borderRadius: 12, background: "#FFFFFF", padding: 0, overflow: "hidden", boxShadow: "0 1px 2px rgba(11,26,47,0.04)" }}>
         {/* Card header */}
-        <div style={{ padding: "12px 16px", borderBottom: "1px solid #E2E6EE" }}>
-          <div style={{ fontWeight: 600, fontSize: 14 }}>Current plan</div>
+        <div style={{ padding: "18px 22px", borderBottom: "1px solid #EDF0F5" }}>
+          <div style={{ fontWeight: 600, fontSize: 16, letterSpacing: "-0.01em", color: "#0B1A2F" }}>Current plan</div>
         </div>
-        <div style={{ padding: "14px 16px", display: "flex", flexDirection: "column", gap: 14 }}>
-          <PlanCard status={status} />
+        <div style={{ padding: "20px 22px", display: "flex", flexDirection: "column", gap: 16 }}>
+          <PlanCard
+            status={status}
+            action={(isPaid || isEnterprise) ? (
+              <button
+                onClick={() => portalMutation.mutate()}
+                disabled={portalMutation.isPending}
+                style={{
+                  height: 32, padding: "0 14px", border: "1px solid #D5DAE5",
+                  borderRadius: 8, background: "#FFFFFF", color: "#0B1A2F",
+                  fontSize: 12.5, fontWeight: 600,
+                  cursor: portalMutation.isPending ? "not-allowed" : "pointer",
+                  opacity: portalMutation.isPending ? 0.6 : 1, whiteSpace: "nowrap",
+                }}
+              >
+                {portalMutation.isPending ? "Opening..." : "Change plan"}
+              </button>
+            ) : undefined}
+          />
 
           {/* Usage bars */}
           <div style={{ display: "flex", flexDirection: "column", gap: 10, opacity: status.canProcessOrders || isEnterprise ? 1 : 0.58 }}>
@@ -235,7 +257,7 @@ export function BillingSection() {
           <button
             onClick={() => checkoutMutation.mutate("growth")}
             disabled={checkoutMutation.isPending}
-            style={primaryButton("#1E66C9", checkoutMutation.isPending)}
+            style={primaryButton("var(--brand-green, #28C55E)", checkoutMutation.isPending)}
           >
             {status.isTrialExpired || status.isOrderLimitReached ? "Upgrade to continue" : "Upgrade to Growth"}
           </button>
@@ -266,9 +288,9 @@ export function BillingSection() {
                 background: "#FFFFFF",
                 color: "#0B1A2F",
                 border: "1px solid #C6CDDA",
-                borderLeft: "3px solid #1E66C9",
-                borderRadius: 7,
-                padding: "8px 14px",
+                borderLeft: "3px solid var(--brand-green, #28C55E)",
+                borderRadius: 8,
+                padding: "9px 14px",
                 fontSize: 12.5,
                 fontWeight: 600,
                 textDecoration: "none",
@@ -308,34 +330,34 @@ export function BillingSection() {
 
       {/* ── Payment method — managed in Stripe (canonical structure, real binding) ── */}
       {(isPaid || isEnterprise) && (
-        <div style={{ border: "1px solid #E2E6EE", borderRadius: 8, background: "#FFFFFF", padding: 0, overflow: "hidden" }}>
-          <div style={{ padding: "12px 16px", borderBottom: "1px solid #E2E6EE" }}>
-            <div style={{ fontWeight: 600, fontSize: 14 }}>Payment method</div>
+        <div style={{ border: "1px solid #E2E6EE", borderRadius: 12, background: "#FFFFFF", padding: 0, overflow: "hidden", boxShadow: "0 1px 2px rgba(11,26,47,0.04)" }}>
+          <div style={{ padding: "18px 22px", borderBottom: "1px solid #EDF0F5" }}>
+            <div style={{ fontWeight: 600, fontSize: 16, letterSpacing: "-0.01em", color: "#0B1A2F" }}>Payment method</div>
           </div>
-          <div style={{ padding: "0 16px" }}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "11px 0", borderBottom: "1px solid #E2E6EE" }}>
+          <div style={{ padding: "0 22px" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, padding: "15px 0", borderBottom: "1px solid #EDF0F5" }}>
               <div>
-                <div style={{ fontSize: 13, fontWeight: 500 }}>Card &amp; billing details</div>
-                <div style={{ fontSize: 11.5, color: "#8A93A5", marginTop: 1 }}>Managed in Stripe</div>
+                <div style={{ fontSize: 13.5, fontWeight: 600, color: "#0B1A2F" }}>Card &amp; billing details</div>
+                <div style={{ fontSize: 12.5, color: "#8A93A5", marginTop: 2 }}>Managed in Stripe</div>
               </div>
               <button
                 onClick={() => portalMutation.mutate()}
                 disabled={portalMutation.isPending}
                 style={{
-                  height: 27, padding: "0 10px", border: "1px solid #C6CDDA",
-                  borderRadius: 6, background: "#FFFFFF", color: "#0B1A2F",
-                  fontSize: 12, fontWeight: 600, cursor: portalMutation.isPending ? "not-allowed" : "pointer",
-                  opacity: portalMutation.isPending ? 0.6 : 1,
+                  height: 34, padding: "0 14px", border: "1px solid #D5DAE5",
+                  borderRadius: 8, background: "#FFFFFF", color: "#0B1A2F",
+                  fontSize: 12.5, fontWeight: 600, cursor: portalMutation.isPending ? "not-allowed" : "pointer",
+                  opacity: portalMutation.isPending ? 0.6 : 1, flexShrink: 0,
                 }}
               >
                 {portalMutation.isPending ? "Opening..." : "Manage in Stripe"}
               </button>
             </div>
             {/* Billing email row */}
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "11px 0" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, padding: "15px 0" }}>
               <div>
-                <div style={{ fontSize: 13, fontWeight: 500 }}>Billing email</div>
-                <div style={{ fontSize: 11.5, color: "#8A93A5", marginTop: 1 }}>Update via the Stripe portal</div>
+                <div style={{ fontSize: 13.5, fontWeight: 600, color: "#0B1A2F" }}>Billing email</div>
+                <div style={{ fontSize: 12.5, color: "#8A93A5", marginTop: 2 }}>Update via the Stripe portal</div>
               </div>
               <button
                 onClick={() => portalMutation.mutate()}
@@ -372,15 +394,16 @@ export function BillingSection() {
 function primaryButton(background: string, disabled: boolean): React.CSSProperties {
   return {
     alignSelf: "flex-start",
-    padding: "8px 16px",
-    borderRadius: 7,
-    fontSize: 12.5,
-    fontWeight: 700,
+    padding: "10px 18px",
+    borderRadius: 8,
+    fontSize: 13,
+    fontWeight: 600,
     background,
     color: "#FFFFFF",
     border: "none",
     cursor: disabled ? "not-allowed" : "pointer",
     opacity: disabled ? 0.6 : 1,
+    boxShadow: "0 1px 2px rgba(11,26,47,0.06)",
   };
 }
 

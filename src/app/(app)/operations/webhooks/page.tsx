@@ -121,6 +121,14 @@ function WebhookIcon({ size = 16, color = "var(--ink-muted,#56627A)" }: { size?:
   );
 }
 
+function CheckIcon({ size = 14 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.25} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <path d="M20 6 9 17l-5-5"/>
+    </svg>
+  );
+}
+
 function SendIcon({ size = 16, color = "var(--ink-muted,#56627A)" }: { size?: number; color?: string }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
@@ -186,8 +194,8 @@ function EndpointPill({ status }: { status: "healthy" | "failing" }) {
         borderRadius: 11,
         fontSize: 11,
         fontWeight: 600,
-        background: healthy ? "var(--brand-green-soft,#E2F1E2)" : "var(--danger-soft,#FBE3E3)",
-        color: healthy ? "var(--brand-green-deep,#1E6D29)" : "var(--danger,#C53A3A)",
+        background: healthy ? "var(--brand-green-soft,#DCFCE7)" : "var(--danger-soft,#FBE3E3)",
+        color: healthy ? "var(--brand-green-deep,#1DAF50)" : "var(--danger,#C53A3A)",
         flexShrink: 0,
       }}
     >
@@ -196,7 +204,7 @@ function EndpointPill({ status }: { status: "healthy" | "failing" }) {
           width: 6,
           height: 6,
           borderRadius: "50%",
-          background: healthy ? "var(--brand-green,#2E8E3A)" : "var(--danger,#C53A3A)",
+          background: healthy ? "var(--brand-green,#28C55E)" : "var(--danger,#C53A3A)",
           flexShrink: 0,
         }}
       />
@@ -246,9 +254,11 @@ function EndpointsCard({
         rows.map((w, i) => (
           <div
             key={w.id}
+            className="wh-row"
             style={{
               padding: "13px 16px",
               borderBottom: i < rows.length - 1 ? "1px solid var(--border,#E2E6EE)" : "none",
+              transition: "background 120ms ease",
             }}
           >
             {/* URL + status pill */}
@@ -294,10 +304,10 @@ function EndpointsCard({
               ))}
             </div>
 
-            {/* Last delivery + actions */}
+            {/* Last delivery + actions (actions reveal on row hover/focus to match the clean design) */}
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 7 }}>
               <div style={{ fontSize: 11, color: "var(--ink-faint,#8A93A5)" }}>Last delivery: {w.lastDelivery}</div>
-              <div style={{ display: "flex", gap: 6 }}>
+              <div className="wh-actions" style={{ display: "flex", gap: 6 }}>
                 <button
                   onClick={() => onEdit(w)}
                   style={{
@@ -321,9 +331,9 @@ function EndpointsCard({
                     height: 27,
                     padding: "0 10px",
                     borderRadius: "var(--radius,6px)",
-                    border: "1px solid #B8CFF5",
+                    border: "1px solid var(--brand-green,#28C55E)",
                     background: "var(--surface,#FFFFFF)",
-                    color: togglingId === w.id ? "var(--ink-faint,#8A93A5)" : "var(--brand-blue-deep,#0F4FA8)",
+                    color: togglingId === w.id ? "var(--ink-faint,#8A93A5)" : "var(--brand-green-deep,#1DAF50)",
                     fontSize: 12,
                     fontWeight: 600,
                     cursor: togglingId === w.id ? "default" : "pointer",
@@ -444,7 +454,7 @@ function DeliveriesCard({ deliveries }: { deliveries: DeliveryRow[] | null }) {
                     borderBottom: i < deliveries.length - 1 ? "1px solid var(--border,#E2E6EE)" : "none",
                     fontFamily: "var(--font-mono,'JetBrains Mono',monospace)",
                     fontSize: 11.5,
-                    color: "var(--brand-blue-deep,#0F4FA8)",
+                    color: "var(--brand-green-deep,#1DAF50)",
                     whiteSpace: "nowrap",
                   }}
                 >
@@ -464,8 +474,8 @@ function DeliveriesCard({ deliveries }: { deliveries: DeliveryRow[] | null }) {
                       fontWeight: 700,
                       padding: "1px 6px",
                       borderRadius: "var(--radius-sm,4px)",
-                      background: d.fail ? "var(--danger-soft,#FBE3E3)" : "var(--brand-green-soft,#E2F1E2)",
-                      color: d.fail ? "var(--danger,#C53A3A)" : "var(--brand-green-deep,#1E6D29)",
+                      background: d.fail ? "var(--danger-soft,#FBE3E3)" : "var(--brand-green-soft,#DCFCE7)",
+                      color: d.fail ? "var(--danger,#C53A3A)" : "var(--brand-green-deep,#1DAF50)",
                       display: "inline-flex",
                       alignItems: "center",
                       whiteSpace: "nowrap",
@@ -557,14 +567,14 @@ function WebhookPanel({
                 width: 34,
                 height: 34,
                 borderRadius: "var(--radius-md,8px)",
-                background: "var(--brand-blue-soft,#E3EDFB)",
+                background: "var(--brand-green-soft,#DCFCE7)",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
                 flexShrink: 0,
               }}
             >
-              <WebhookIcon size={18} color="var(--brand-blue-deep,#0F4FA8)" />
+              <WebhookIcon size={18} color="var(--brand-green-deep,#1DAF50)" />
             </div>
             <div>
               <div style={{ fontWeight: 600, fontSize: 16, letterSpacing: "-0.015em", color: "var(--ink,#0B1A2F)" }}>
@@ -631,7 +641,7 @@ function WebhookPanel({
           {/* Signing secret — optional; backend stores it AES-GCM encrypted and signs each payload (Wave 4). */}
           <div>
             <label style={{ display: "block", fontSize: 11.5, fontWeight: 600, color: "var(--ink-muted,#56627A)", marginBottom: 6 }}>
-              Signing secret <span style={{ color: "var(--ink-faint,#8A93A5)", fontWeight: 500 }}>· optional</span>
+              Signing secret
             </label>
             <input
               value={secret}
@@ -643,7 +653,7 @@ function WebhookPanel({
               }}
             />
             <div style={{ fontSize: 11, color: "var(--ink-faint,#8A93A5)", marginTop: 4 }}>
-              We sign every payload with HMAC-SHA256 using this secret. Stored encrypted at rest.
+              We sign every payload with HMAC-SHA256 using this secret.
             </div>
           </div>
 
@@ -653,8 +663,8 @@ function WebhookPanel({
               display: "flex",
               gap: 8,
               alignItems: "flex-start",
-              background: "var(--brand-blue-soft,#E3EDFB)",
-              color: "var(--brand-blue-deep,#0F4FA8)",
+              background: "var(--brand-green-soft,#DCFCE7)",
+              color: "var(--brand-green-deep,#1DAF50)",
               borderRadius: "var(--radius,6px)",
               padding: "10px 12px",
               fontSize: 12,
@@ -690,18 +700,24 @@ function WebhookPanel({
           <button
             onClick={() => onSave(url, eventType, secret.trim() || undefined)}
             disabled={saving || !url.trim()}
+            onMouseEnter={(e) => { if (!saving && url.trim()) (e.currentTarget as HTMLElement).style.background = "var(--brand-green-deep,#1DAF50)"; }}
+            onMouseLeave={(e) => { if (!saving && url.trim()) (e.currentTarget as HTMLElement).style.background = "var(--brand-green,#28C55E)"; }}
             style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 7,
               height: 32,
               padding: "0 14px",
               borderRadius: "var(--radius,6px)",
               border: "1px solid transparent",
-              background: saving || !url.trim() ? "var(--ink-faint,#8A93A5)" : "var(--brand-blue,#1E66C9)",
+              background: saving || !url.trim() ? "var(--ink-faint,#8A93A5)" : "var(--brand-green,#28C55E)",
               color: "#FFFFFF",
               fontSize: 12.5,
               fontWeight: 600,
               cursor: saving || !url.trim() ? "default" : "pointer",
             }}
           >
+            {!saving && <CheckIcon size={14} />}
             {saving ? "Saving…" : isNew ? "Add endpoint" : "Save changes"}
           </button>
         </div>
@@ -746,6 +762,12 @@ function WebhooksLayout({
         @keyframes modal-pop { from { opacity:0; transform:translateY(10px) scale(0.99); } to { opacity:1; transform:none; } }
         .webhooks-split { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-items: start; }
         @media (max-width: 720px) { .webhooks-split { grid-template-columns: 1fr; } }
+        /* Clean rows by default (matches design); reveal actions on hover/focus, keyboard-accessible */
+        .wh-row .wh-actions { opacity: 0; transform: translateY(1px); transition: opacity 120ms ease, transform 120ms ease; }
+        .wh-row:hover .wh-actions,
+        .wh-row:focus-within .wh-actions { opacity: 1; transform: none; }
+        .wh-row:hover { background: var(--surface-2,#EFF2F7); }
+        @media (hover: none) { .wh-row .wh-actions { opacity: 1; transform: none; } }
       `}</style>
 
       <div style={{ background: "var(--bg,#F6F7FA)", minHeight: "100%" }}>
@@ -782,6 +804,8 @@ function WebhooksLayout({
             </div>
             <button
               onClick={onAdd}
+              onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "var(--brand-green-deep,#1DAF50)"; }}
+              onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "var(--brand-green,#28C55E)"; }}
               style={{
                 display: "inline-flex",
                 alignItems: "center",
@@ -790,7 +814,7 @@ function WebhooksLayout({
                 padding: "0 14px",
                 borderRadius: "var(--radius,6px)",
                 border: "1px solid transparent",
-                background: "var(--brand-blue,#1E66C9)",
+                background: "var(--brand-green,#28C55E)",
                 color: "#fff",
                 fontSize: 12.5,
                 fontWeight: 600,
@@ -815,9 +839,9 @@ function WebhooksLayout({
                 padding: "10px 14px",
                 fontSize: 12.5,
                 border: "1px solid var(--border,#E2E6EE)",
-                borderLeft: "3px solid var(--brand-blue,#1E66C9)",
-                background: "var(--brand-blue-soft,#E3EDFB)",
-                color: "var(--brand-blue-deep,#0F4FA8)",
+                borderLeft: "3px solid var(--brand-green,#28C55E)",
+                background: "var(--brand-green-soft,#DCFCE7)",
+                color: "var(--brand-green-deep,#1DAF50)",
               }}
             >
               {notice}

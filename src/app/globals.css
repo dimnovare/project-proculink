@@ -7,12 +7,13 @@
 
 /* ── Design System CSS custom properties (tokens.css) ───────────────────── */
 :root {
-  --brand-blue:        #1E66C9;
-  --brand-blue-deep:   #0F4FA8;
-  --brand-blue-soft:   #E3EDFB;
-  --brand-green:       #2E8E3A;
-  --brand-green-deep:  #1E6D29;
-  --brand-green-soft:  #E2F1E2;
+  /* Primary accent: emerald green — matches design CTAs + active nav */
+  --brand-blue:        #28C55E;   /* primary accent (renamed token, now green) */
+  --brand-blue-deep:   #1DAF50;   /* hover/active */
+  --brand-blue-soft:   #DCFCE7;   /* soft tint */
+  --brand-green:       #28C55E;
+  --brand-green-deep:  #1DAF50;
+  --brand-green-soft:  #DCFCE7;
   --navy:              #0B1A2F;
   --navy-surface:      #10243E;
   --navy-border:       #1C2F49;
@@ -34,8 +35,8 @@
   --danger-soft:       #FBE3E3;
   --ai:                #6F4FCE;
   --ai-soft:           #EEE7FB;
-  --gradient-link-spine:    linear-gradient(90deg, var(--brand-blue) 0%, var(--brand-blue) 35%, var(--brand-green) 65%, var(--brand-green) 100%);
-  --gradient-bridge-deck:   linear-gradient(90deg, var(--brand-blue), var(--brand-green));
+  --gradient-link-spine:    linear-gradient(90deg, var(--brand-green) 0%, var(--brand-green) 100%);
+  --gradient-bridge-deck:   linear-gradient(90deg, var(--brand-green-deep), var(--brand-green));
   --ease-out:    cubic-bezier(0.16, 1, 0.3, 1);
   --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
   --shadow-card: 0 1px 2px rgba(11, 26, 47, 0.04);
@@ -43,11 +44,11 @@
 }
 
 /* ── Selection ───────────────────────────────────────────────────────────── */
-::selection { background: var(--brand-blue-soft); }
+::selection { background: var(--brand-green-soft); }
 
 /* ── Focus visible — applies to all interactive elements ─────────────────── */
 :focus-visible {
-  outline: 2px solid var(--brand-blue);
+  outline: 2px solid var(--brand-green);
   outline-offset: 2px;
   border-radius: 4px;
 }
@@ -72,7 +73,8 @@ header :focus-visible {
     --popover:             0 0% 100%;
     --popover-foreground:  220 50% 11%;
 
-    --primary:             215 74% 45%;   /* #1E66C9 brand.blue */
+    /* Primary accent: emerald green #28C55E → HSL 142 68% 56% */
+    --primary:             142 68% 56%;   /* #28C55E emerald green */
     --primary-foreground:  0 0% 100%;
 
     --secondary:           214 29% 93%;
@@ -81,7 +83,7 @@ header :focus-visible {
     --muted:               214 20% 93%;
     --muted-foreground:    215 20% 47%;   /* ink.muted approx */
 
-    --accent:              215 74% 45%;
+    --accent:              142 68% 56%;   /* green accent */
     --accent-foreground:   0 0% 100%;
 
     --destructive:         0 58% 50%;     /* danger */
@@ -89,19 +91,19 @@ header :focus-visible {
 
     --border:              216 24% 90%;   /* #E2E6EE */
     --input:               216 24% 90%;
-    --ring:                215 74% 45%;
+    --ring:                142 68% 56%;   /* green focus ring */
 
     --radius: 0.5rem;
 
     /* Sidebar vars (shadcn sidebar primitive) */
     --sidebar-background:          220 52% 12%;  /* navy #0B1A2F approx */
     --sidebar-foreground:          214 28% 81%;  /* navy.text */
-    --sidebar-primary:             215 74% 45%;
+    --sidebar-primary:             142 68% 56%;  /* emerald green */
     --sidebar-primary-foreground:  0 0% 100%;
     --sidebar-accent:              219 59% 15%;  /* navy.surface */
     --sidebar-accent-foreground:   214 28% 91%;
     --sidebar-border:              219 46% 19%;  /* navy.border */
-    --sidebar-ring:                215 74% 45%;
+    --sidebar-ring:                142 68% 56%;  /* emerald green */
   }
 }
 
@@ -137,12 +139,12 @@ header :focus-visible {
   }
 
   /* ── XCard cross-section edge strip ─────────────────────────── */
-  .x-card-buyer    { border-left: 3px solid #1E66C9; }
-  .x-card-supplier { border-left: 3px solid #2E8E3A; }
+  .x-card-buyer    { border-left: 3px solid #28C55E; }
+  .x-card-supplier { border-left: 3px solid #28C55E; }
   .x-card-bridge   { border-left: 3px solid transparent;
-                      border-image: linear-gradient(180deg, #1E66C9, #2E8E3A) 1; }
+                      border-image: linear-gradient(180deg, #1DAF50, #28C55E) 1; }
   .x-card-top      { border-top: 3px solid transparent;
-                      border-image: linear-gradient(90deg, #1E66C9, #2E8E3A) 1; }
+                      border-image: linear-gradient(90deg, #1DAF50, #28C55E) 1; }
 
   /* ── Sidebar nav item states ─────────────────────────────────── */
   .nav-item {
@@ -157,11 +159,8 @@ header :focus-visible {
   .nav-item.active {
     background: rgba(255,255,255,0.09);
     @apply text-white;
-    box-shadow: inset 2px 0 0 0 transparent;
-    background-image: linear-gradient(90deg, #1E66C9 0%, #1E66C9 35%, #2E8E3A 65%, #2E8E3A 100%);
-    background-size: 2px 100%;
-    background-repeat: no-repeat;
-    background-position: left center;
+    box-shadow: inset 2px 0 0 0 #28C55E;
+    background-image: none;
     padding-left: 14px;
   }
 
@@ -193,7 +192,7 @@ header :focus-visible {
     white-space: nowrap;
   }
   .inbox-table tbody tr {
-    @apply border-b border-border hover:bg-brand-blue-soft/40
+    @apply border-b border-border hover:bg-brand-green-soft/40
            cursor-pointer transition-colors duration-75;
     height: 38px;
   }
@@ -247,8 +246,8 @@ header :focus-visible {
 
 /* Validate-to-deliver flush: sequential green wash */
 @keyframes stage-flush {
-  0%   { background: #1E66C9; }
-  100% { background: #2E8E3A; }
+  0%   { background: #1DAF50; }
+  100% { background: #28C55E; }
 }
 
 @layer utilities {
@@ -386,5 +385,5 @@ header :focus-visible {
   transition: color 0.1s ease !important;
 }
 .tbl-link:hover {
-  color: #1E66C9 !important;
+  color: #1DAF50 !important;
 }

@@ -142,7 +142,7 @@ export function BridgeSidebar({ onNavigate, collapsible = false }: BridgeSidebar
         className={`mt-3 mb-2 flex items-center rounded-[8px] text-left ${isCollapsed ? "mx-auto justify-center w-[42px] py-2" : "mx-3 gap-2.5 px-3 py-2 w-[calc(100%-24px)]"}`}
         style={{ background: "#10243E", border: "1px solid #1C2F49", cursor: "pointer" }}
       >
-        <div className="flex items-center justify-center rounded-[5px] text-[10px] font-bold text-white flex-shrink-0" style={{ width: 22, height: 22, background: "#1E66C9" }}>ND</div>
+        <div className="flex items-center justify-center rounded-[5px] text-[10px] font-bold text-white flex-shrink-0" style={{ width: 22, height: 22, background: "#28C55E" }}>ND</div>
         {!isCollapsed && (
           <>
             <div className="flex-1 min-w-0">
@@ -175,11 +175,11 @@ export function BridgeSidebar({ onNavigate, collapsible = false }: BridgeSidebar
                   onClick={onNavigate}
                   title={isCollapsed ? item.label : undefined}
                   className={`flex items-center rounded-[6px] text-[13px] font-medium transition-colors duration-75 relative ${isCollapsed ? "justify-center py-2" : "gap-2.5 px-3 py-[6px]"}`}
-                  style={{ color: active ? "#FFFFFF" : "#C5D2E4", background: active ? "#10243E" : "transparent", ...(active && { boxShadow: "inset 2px 0 0 0 #1E66C9" }) }}
+                  style={{ color: active ? "#FFFFFF" : "#C5D2E4", background: active ? "#10243E" : "transparent", ...(active && { boxShadow: "inset 2px 0 0 0 #28C55E" }) }}
                   onMouseEnter={(e) => { if (!active) { (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.05)"; (e.currentTarget as HTMLElement).style.color = "#FFFFFF"; } }}
                   onMouseLeave={(e) => { if (!active) { (e.currentTarget as HTMLElement).style.background = "transparent"; (e.currentTarget as HTMLElement).style.color = "#C5D2E4"; } }}
                 >
-                  <Ico size={16} strokeWidth={1.9} style={{ flexShrink: 0, color: active ? "#6BA5F0" : "#7C8DA6" }} />
+                  <Ico size={16} strokeWidth={1.9} style={{ flexShrink: 0, color: active ? "#28C55E" : "#7C8DA6" }} />
                   {!isCollapsed && <span className="flex-1">{item.label}</span>}
                   {!isCollapsed && badge && (
                     <span className="flex items-center justify-center rounded-full text-[10px] font-bold" style={{ minWidth: 17, height: 17, padding: "0 4px", background: "#C97A14", color: "#FFFFFF" }}>{badge}</span>
@@ -200,7 +200,7 @@ export function BridgeSidebar({ onNavigate, collapsible = false }: BridgeSidebar
         style={{ borderTop: "1px solid #1C2F49", flexShrink: 0 }}
         title={isCollapsed ? "Pipeline healthy · 12/min" : undefined}
       >
-        <div className="rounded-full flex-shrink-0" style={{ width: 7, height: 7, background: "#2E8E3A" }} />
+        <div className="rounded-full flex-shrink-0" style={{ width: 7, height: 7, background: "#28C55E" }} />
         {!isCollapsed && (
           <>
             <span className="text-[11.5px] flex-1" style={{ color: "#7C8DA6" }}>Pipeline healthy · 12/min</span>

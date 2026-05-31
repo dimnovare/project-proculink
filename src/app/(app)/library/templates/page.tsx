@@ -18,10 +18,10 @@ import {
 } from "@/lib/api-client";
 
 const MOCK_TEMPLATES = [
-  { id: "t1", name: "cXML 1.2.045 — OrderRequest", fmt: "cXML", suppliers: 2, lastUsed: "2m",  version: "1.2.045", isDefault: true },
-  { id: "t2", name: "UBL 2.1 — Order",             fmt: "UBL",  suppliers: 1, lastUsed: "1h",  version: "2.1" },
-  { id: "t3", name: "EDIFACT D.96A — ORDERS",      fmt: "EDI",  suppliers: 1, lastUsed: "3h",  version: "D.96A" },
-  { id: "t4", name: "X12 850 — Purchase Order",    fmt: "X12",  suppliers: 0, lastUsed: "1d",  version: "004010" },
+  { id: "t1", name: "cXML 1.2.045 — OrderRequest", fmt: "cXML", suppliers: 2, supplierNames: ["Acme Components", "MedicaSupply"], lastUsed: "2m",  version: "1.2.045", isDefault: true },
+  { id: "t2", name: "UBL 2.1 — Order",             fmt: "UBL",  suppliers: 1, supplierNames: ["BoltWorks BV"],                    lastUsed: "1h",  version: "2.1" },
+  { id: "t3", name: "EDIFACT D.96A — ORDERS",      fmt: "EDI",  suppliers: 1, supplierNames: ["VanderBerg Metaal"],              lastUsed: "3h",  version: "D.96A" },
+  { id: "t4", name: "X12 850 — Purchase Order",    fmt: "X12",  suppliers: 0, supplierNames: [],                                 lastUsed: "1d",  version: "004010" },
 ];
 
 type CardTemplate = {
@@ -29,6 +29,8 @@ type CardTemplate = {
   name: string;
   fmt: string;
   suppliers: number;
+  /** Optional supplier names for the assignment line (mock/demo only — live DTO has count only). */
+  supplierNames?: string[];
   lastUsed: string;
   version: string;
   isDefault?: boolean;
@@ -51,8 +53,8 @@ const FMT_DESC: Record<string, string> = {
   CSV:     "Flat CSV row export for tabular suppliers.",
 };
 
-// Illustrative envelope previews — {tokens} are filled from the canonical spine
-// at crossing time. Keyed by uppercased format.
+// Illustrative envelope previews — {tokens} are filled from the canonical order
+// at delivery time. Keyed by uppercased format.
 const PREVIEW_BY_FORMAT: Record<string, string[]> = {
   CXML: ['<cXML payloadID="..." xml:lang="en-US">', "  <Request>", "    <OrderRequest>", '      <OrderRequestHeader orderID="{po}"', '          orderDate="{date}" type="new">', '        <Total><Money currency="{cur}">{total}</Money></Total>', "      </OrderRequestHeader>", '      <ItemOut quantity="{qty}">…</ItemOut>', "    </OrderRequest>", "  </Request>", "</cXML>"],
   UBL:  ['<Order xmlns="urn:oasis:...:Order-2">', "  <cbc:ID>{po}</cbc:ID>", "  <cbc:IssueDate>{date}</cbc:IssueDate>", "  <cac:OrderLine>", "    <cac:LineItem>", '      <cbc:Quantity unitCode="{uom}">{qty}</cbc:Quantity>', '      <cbc:LineExtensionAmount currencyID="{cur}">{amt}</cbc:LineExtensionAmount>', "    </cac:LineItem>", "  </cac:OrderLine>", "</Order>"],
@@ -144,8 +146,10 @@ export default function TemplatesPage() {
         </div>
         <button
           onClick={newTemplate}
-          className="w-full rounded-[6px] px-3 text-[12.5px] font-medium sm:ml-auto sm:w-auto"
-          style={{ height: 32, background: "#1E66C9", color: "#FFFFFF", border: 0 }}
+          className="w-full rounded-[6px] px-3.5 text-[12.5px] font-semibold sm:ml-auto sm:w-auto transition-colors"
+          style={{ height: 32, background: "#28C55E", color: "#FFFFFF", border: 0, boxShadow: "0 1px 2px rgba(11,26,47,0.10)" }}
+          onMouseEnter={(e) => (e.currentTarget.style.background = "#1DAF50")}
+          onMouseLeave={(e) => (e.currentTarget.style.background = "#28C55E")}
         >
           + New template
         </button>
@@ -157,7 +161,7 @@ export default function TemplatesPage() {
             className="mb-4 rounded-[8px] px-4 py-3 text-[12.5px]"
             style={
               notice.kind === "ok"
-                ? { border: "1px solid #BDE0C1", borderLeft: "3px solid #2E8E3A", background: "#F0F7F1", color: "#1E6D29" }
+                ? { border: "1px solid #BBE9CC", borderLeft: "3px solid #28C55E", background: "#F0FBF4", color: "#1DAF50" }
                 : { border: "1px solid #F5C6CB", borderLeft: "3px solid #C62828", background: "#FFF5F5", color: "#B71C1C" }
             }
           >
@@ -194,7 +198,7 @@ export default function TemplatesPage() {
           ) : (
             <div className="grid gap-4 lg:grid-cols-[minmax(300px,360px)_minmax(0,1fr)]">
               {/* Left: template cards */}
-              <div className="flex flex-col gap-2">
+              <div className="flex flex-col gap-2.5">
                 {templates.map((t) => {
                   const active = selId === t.id;
                   const accent = FMT_COLOR[t.fmt] ?? "#56627A";
@@ -202,27 +206,36 @@ export default function TemplatesPage() {
                     <button
                       key={t.id}
                       onClick={() => { setNotice(null); setSelId(t.id); }}
-                      className="relative rounded-[8px] text-left overflow-hidden"
+                      className="relative rounded-[8px] text-left overflow-hidden transition-shadow"
                       style={{
                         background: "#FFFFFF",
-                        border: `1px solid ${active ? "#1E66C9" : "#E2E6EE"}`,
-                        boxShadow: active ? "0 0 0 1px #1E66C9" : "0 1px 3px rgba(11,26,47,0.04)",
-                        padding: "13px 15px 13px 17px",
+                        border: `1px solid ${active ? "#28C55E" : "#E2E6EE"}`,
+                        boxShadow: active ? "0 0 0 1px #28C55E" : "0 1px 3px rgba(11,26,47,0.04)",
+                        padding: "14px 16px 14px 18px",
                       }}
                     >
                       <span style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: 3, background: accent }} />
                       <div className="flex items-center justify-between gap-2">
                         <SrcChip type={t.fmt} />
                         {t.isDefault && (
-                          <span className="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-semibold" style={{ background: "#E2F1E2", color: "#1E6D29" }}>Default</span>
+                          <span className="inline-flex items-center rounded-[5px] px-2 py-0.5 text-[10.5px] font-semibold" style={{ background: "#DCFCE7", color: "#1DAF50" }}>Default</span>
                         )}
                       </div>
-                      <div className="text-[13px] font-semibold mt-2" style={{ color: "#0B1A2F" }}>{t.name}</div>
-                      <div className="text-[11.5px] mt-0.5" style={{ color: "#56627A" }}>{FMT_DESC[t.fmt] ?? `${t.fmt} output envelope.`}</div>
-                      <div className="mt-2 text-[11px]" style={{ color: "#8A93A5" }}>
-                        {t.suppliers > 0
-                          ? `${t.suppliers} supplier${t.suppliers !== 1 ? "s" : ""} assigned`
-                          : <span style={{ fontStyle: "italic" }}>Not assigned to a supplier</span>}
+                      <div className="text-[13.5px] font-semibold mt-2.5 tracking-[-0.01em]" style={{ color: "#0B1A2F" }}>{t.name}</div>
+                      <div className="text-[12px] mt-1 leading-[1.45]" style={{ color: "#56627A" }}>{FMT_DESC[t.fmt] ?? `${t.fmt} output envelope.`}</div>
+                      <div className="mt-2.5 text-[11.5px]" style={{ color: "#8A93A5" }}>
+                        {t.suppliers > 0 ? (
+                          <>
+                            <span style={{ fontWeight: 600, color: "#56627A" }}>
+                              {t.suppliers} supplier{t.suppliers !== 1 ? "s" : ""}
+                            </span>
+                            {t.supplierNames && t.supplierNames.length > 0 && (
+                              <span>: {t.supplierNames.join(", ")}</span>
+                            )}
+                          </>
+                        ) : (
+                          <span style={{ fontStyle: "italic" }}>Not assigned to a supplier</span>
+                        )}
                       </div>
                     </button>
                   );
@@ -237,12 +250,14 @@ export default function TemplatesPage() {
                       <span style={{ color: "#56627A", fontSize: 14 }}>{"</>"}</span>
                       <span className="text-[13px] font-semibold truncate" style={{ color: "#0B1A2F" }}>{selected.name}</span>
                     </div>
-                    <div className="flex items-center gap-2 flex-shrink-0">
+                    <div className="flex items-center gap-3 flex-shrink-0">
                       <span className="text-[11px] font-mono" style={{ color: "#8A93A5" }}>v{selected.version}</span>
                       <button
                         onClick={() => setNotice({ text: `Exported ${selected.name}.`, kind: "ok" })}
-                        className="inline-flex items-center gap-1 rounded-[5px] px-2.5 text-[12px] font-medium"
-                        style={{ height: 27, border: "1px solid #E2E6EE", background: "#FFFFFF", color: "#56627A" }}
+                        className="inline-flex items-center gap-1.5 rounded-[5px] px-1 text-[12.5px] font-semibold transition-colors"
+                        style={{ height: 27, border: 0, background: "transparent", color: "#0B1A2F" }}
+                        onMouseEnter={(e) => (e.currentTarget.style.color = "#1DAF50")}
+                        onMouseLeave={(e) => (e.currentTarget.style.color = "#0B1A2F")}
                       >
                         ↓ Export
                       </button>
@@ -256,12 +271,14 @@ export default function TemplatesPage() {
                   </pre>
                   <div className="flex items-center justify-between gap-2 px-4 py-3" style={{ borderTop: "1px solid #E2E6EE" }}>
                     <span className="text-[11px]" style={{ color: "#8A93A5" }}>
-                      <span style={{ color: "#6F4FCE", fontWeight: 600 }}>{"{tokens}"}</span> are filled from the canonical spine at delivery time.
+                      <span style={{ color: "#6F4FCE", fontWeight: 600 }}>{"{tokens}"}</span> are filled from the canonical order at delivery time.
                     </span>
                     <button
                       onClick={() => { setNotice(null); setEditing(selected); }}
-                      className="inline-flex items-center gap-1 rounded-[5px] px-2.5 text-[12px] font-medium"
-                      style={{ height: 27, border: "1px solid #E2E6EE", background: "#FFFFFF", color: "#0B1A2F" }}
+                      className="inline-flex items-center gap-1.5 rounded-[6px] px-3 text-[12.5px] font-semibold transition-colors"
+                      style={{ height: 30, border: "1px solid #D5DAEA", background: "#FFFFFF", color: "#0B1A2F" }}
+                      onMouseEnter={(e) => { e.currentTarget.style.background = "#F6F7FA"; e.currentTarget.style.borderColor = "#C6CDDA"; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.background = "#FFFFFF"; e.currentTarget.style.borderColor = "#D5DAEA"; }}
                     >
                       ✎ Edit template
                     </button>
@@ -377,7 +394,7 @@ function TemplatePanel({
             />
           </Field>
           <div className="rounded-[7px] border border-[#E2E6EE] bg-[#F6F7FA] p-3 text-[12px] leading-5" style={{ color: "#56627A" }}>
-            Canonical {"{tokens}"} are filled from the spine at delivery time. Keep placeholders explicit and supplier-scoped before assigning a supplier.
+            Canonical {"{tokens}"} are filled from the order at delivery time. Keep placeholders explicit and supplier-scoped before assigning a supplier.
           </div>
           {validation && (
             <div className="rounded-[7px] border border-[#B8CFF5] bg-[#F7FAFF] p-3 text-[12px] leading-5" style={{ color: "#0F4FA8" }}>

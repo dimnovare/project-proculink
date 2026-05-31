@@ -9,12 +9,13 @@
 
 export const color = {
   brand: {
-    blue:      "#1E66C9",
-    blueDeep:  "#0F4FA8",
-    blueSoft:  "#E3EDFB",
-    green:     "#2E8E3A",
-    greenDeep: "#1E6D29",
-    greenSoft: "#E2F1E2",
+    // Primary accent — emerald green (matches design CTAs + active-nav)
+    blue:      "#28C55E",   // formerly blue, now the PRIMARY accent green
+    blueDeep:  "#1DAF50",   // hover / active variant
+    blueSoft:  "#DCFCE7",   // soft tint for focus rings, hover rows, pills
+    green:     "#28C55E",   // alias kept for gradient / supplier-side uses
+    greenDeep: "#1DAF50",
+    greenSoft: "#DCFCE7",
   },
   navy: {
     DEFAULT: "#0B1A2F",
@@ -36,15 +37,15 @@ export const color = {
   amberSoft:"#FAEFD6",
   danger:   "#C53A3A",
   dangerSoft:"#FBE3E3",
-  ai:       "#6F4FCE",
+  ai:       "#6F4FCE",   // violet — intentionally kept for AI provenance (not brand accent)
   aiSoft:   "#EEE7FB",
 } as const;
 
 export const gradient = {
-  linkSpine:    "linear-gradient(90deg, #1E66C9 0%, #1E66C9 35%, #2E8E3A 65%, #2E8E3A 100%)",
-  bridgeDeck:   "linear-gradient(90deg, #1E66C9, #2E8E3A)",
-  railBuyer:    "linear-gradient(180deg, rgba(30,102,201,0.2), #1E66C9 50%, rgba(30,102,201,0.2))",
-  railSupplier: "linear-gradient(180deg, rgba(46,142,58,0.2), #2E8E3A 50%, rgba(46,142,58,0.2))",
+  linkSpine:    "linear-gradient(90deg, #28C55E 0%, #28C55E 35%, #28C55E 65%, #28C55E 100%)",
+  bridgeDeck:   "linear-gradient(90deg, #1DAF50, #28C55E)",
+  railBuyer:    "linear-gradient(180deg, rgba(40,197,94,0.2), #28C55E 50%, rgba(40,197,94,0.2))",
+  railSupplier: "linear-gradient(180deg, rgba(40,197,94,0.2), #28C55E 50%, rgba(40,197,94,0.2))",
 } as const;
 
 export const font = {

@@ -22,7 +22,14 @@ import { OnboardingChecklist } from "./OnboardingChecklist";
 import { OnboardingWizard } from "./OnboardingWizard";
 import { apiClient, isApiMockMode } from "@/lib/api-client";
 import type { OrderSummary, Supplier } from "@/types/procurement";
-import { Inbox, CheckCircle2, Zap, AlertTriangle, ArrowRight } from "lucide-react";
+import { ArrowRight, ArrowUpRight, Clock, AlertTriangle, CheckCircle2, ChevronDown, Send, Activity, Download } from "lucide-react";
+
+// ─── Brand accent (green) ─────────────────────────────────────────────────
+// The product accent is emerald green. Prefer the CSS var where it cascades;
+// these constants are for inline-styled SVG/border/background values.
+const GREEN = "#28C55E";
+const GREEN_DEEP = "#1DAF50";
+const GREEN_SOFT = "#DCFCE7";
 
 // ─── Status sets ──────────────────────────────────────────────────────────
 
@@ -335,6 +342,7 @@ export function BridgeDashboard() {
   const autoCount = eligibleInWindow.filter((o) => (o.unresolvedCount ?? 0) === 0).length;
   const autoPct = eligibleInWindow.length > 0 ? Math.round((100 * autoCount) / eligibleInWindow.length) : 0;
 
+  const exceptionsBad = openExceptionsAll > 0;
   const kpis = [
     {
       value: !isApiMockMode
@@ -343,10 +351,8 @@ export function BridgeDashboard() {
       label: "Orders received",
       sub: windowSub,
       subColor: "#56627A",
-      edge: "#1E66C9",
-      icon: Inbox,
-      iconBg: "#E3EDFB",
-      iconColor: "#1E66C9",
+      subIcon: ArrowUpRight,
+      edge: GREEN,
       loading: ordersLoading,
     },
     {
@@ -355,12 +361,21 @@ export function BridgeDashboard() {
         : fmt(deliveredInWindow),
       label: "Orders delivered",
       sub: windowSub,
-      subColor: "#1E6D29",
-      edge: "#2E8E3A",
-      icon: CheckCircle2,
-      iconBg: "#E2F1E2",
-      iconColor: "#1E6D29",
+      subColor: GREEN_DEEP,
+      subIcon: CheckCircle2,
+      edge: GREEN,
       loading: ordersLoading,
+    },
+    {
+      value: !isApiMockMode
+        ? (summaryLoading ? "…" : summaryError ? "—" : openExceptionsAll.toLocaleString())
+        : fmt(openExceptionsAll),
+      label: "Urgent exceptions",
+      sub: (summaryError || ordersError) ? "Live data unavailable" : exceptionsBad ? "Needs review now" : "All clear",
+      subColor: exceptionsBad ? "#C97A14" : GREEN_DEEP,
+      subIcon: exceptionsBad ? AlertTriangle : CheckCircle2,
+      edge: exceptionsBad ? "#C97A14" : GREEN,
+      loading: !isApiMockMode ? summaryLoading : ordersLoading,
     },
     {
       value: ordersLoading ? "…" : ordersError ? "—" : eligibleInWindow.length >= 3 ? `${autoPct}%` : "—",
@@ -370,25 +385,10 @@ export function BridgeDashboard() {
         : eligibleInWindow.length >= 3
         ? "No manual mapping needed"
         : "Needs 3+ completed orders",
-      subColor: "#56627A",
-      edge: "linear-gradient(90deg, #1E66C9, #2E8E3A)",
-      icon: Zap,
-      iconBg: "#EEE7FB",
-      iconColor: "#6F4FCE",
+      subColor: ordersError ? "#56627A" : eligibleInWindow.length >= 3 ? GREEN_DEEP : "#56627A",
+      subIcon: ordersError ? undefined : eligibleInWindow.length >= 3 ? CheckCircle2 : Clock,
+      edge: `linear-gradient(90deg, ${GREEN_DEEP}, ${GREEN})`,
       loading: ordersLoading,
-    },
-    {
-      value: !isApiMockMode
-        ? (summaryLoading ? "…" : summaryError ? "—" : openExceptionsAll.toLocaleString())
-        : fmt(openExceptionsAll),
-      label: "Urgent exceptions",
-      sub: (summaryError || ordersError) ? "Live data unavailable" : openExceptionsAll > 0 ? "Needs review now" : "All clear",
-      subColor: openExceptionsAll > 0 ? "#C97A14" : "#1E6D29",
-      edge: openExceptionsAll > 0 ? "#C97A14" : "#2E8E3A",
-      icon: AlertTriangle,
-      iconBg: openExceptionsAll > 0 ? "#FAEFD6" : "#E2F1E2",
-      iconColor: openExceptionsAll > 0 ? "#C97A14" : "#1E6D29",
-      loading: !isApiMockMode ? summaryLoading : ordersLoading,
     },
   ];
 
@@ -535,8 +535,16 @@ export function BridgeDashboard() {
           >
             Order topology
           </h1>
-          <p className="mt-0.5 text-[13px]" style={{ color: "#56627A" }}>
-            Live buyer → supplier lanes
+          <p className="mt-0.5 flex items-center gap-1.5 text-[13px]" style={{ color: "#56627A" }}>
+            <span
+              aria-hidden
+              style={{ width: 7, height: 7, borderRadius: "50%", background: GREEN, display: "inline-block" }}
+            />
+            Live order view
+            <span style={{ color: "#C6CDDA" }}>·</span>
+            {wireCount} lane{wireCount === 1 ? "" : "s"}
+            <span style={{ color: "#C6CDDA" }}>·</span>
+            {effective.suppliers.length} supplier{effective.suppliers.length === 1 ? "" : "s"}
           </p>
         </div>
 
@@ -589,7 +597,8 @@ export function BridgeDashboard() {
                 cursor: windowedOrders.length === 0 ? "not-allowed" : "pointer",
               }}
             >
-              ↓ Export report
+              <Download size={14} strokeWidth={2} aria-hidden />
+              Export report
             </button>
           </div>
         )}
@@ -617,32 +626,48 @@ export function BridgeDashboard() {
       ) : (
         <div className="flex flex-1 flex-col gap-4 p-3 sm:gap-5 sm:p-5">
           {/* ── Wire Topology — the hero ─────────────────────────────────── */}
+          {/* Single framed canvas with a cross-section top edge (buyer-blue →
+              supplier-green) and a slim legend header, matching the design. */}
           <section aria-label="Order topology">
-            {/* Hero framing: buyers ←→ suppliers summary + exception count */}
-            <div className="mb-2 flex flex-wrap items-center gap-x-3 gap-y-1 px-0.5 text-[12px]">
-              <span className="flex items-center gap-1.5 font-medium" style={{ color: "#0B1A2F" }}>
-                <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#1E66C9", display: "inline-block" }} />
-                {effective.buyers.length} buyer{effective.buyers.length === 1 ? "" : "s"}
-              </span>
-              <span style={{ color: "#C6CDDA" }}>·</span>
-              <span className="flex items-center gap-1.5 font-medium" style={{ color: "#0B1A2F" }}>
-                {wireCount} active lane{wireCount === 1 ? "" : "s"}
-              </span>
-              <span style={{ color: "#C6CDDA" }}>·</span>
-              <span className="flex items-center gap-1.5 font-medium" style={{ color: "#0B1A2F" }}>
-                <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#2E8E3A", display: "inline-block" }} />
-                {effective.suppliers.length} supplier{effective.suppliers.length === 1 ? "" : "s"}
-              </span>
-              {openExceptionsAll > 0 && (
-                <span
-                  className="ml-auto inline-flex items-center gap-1 rounded-[5px] px-2 py-0.5 text-[11.5px] font-semibold"
-                  style={{ background: "#FAEFD6", color: "#C97A14" }}
-                >
-                  ⚠ {openExceptionsAll} open exception{openExceptionsAll === 1 ? "" : "s"}
+            <div
+              className="relative overflow-hidden rounded-card"
+              style={{ background: "#FFFFFF", border: "1px solid #E2E6EE", boxShadow: "0 1px 2px rgba(11,26,47,0.04)" }}
+            >
+              {/* Cross-section accent — buyer side (blue) flows to supplier side (green). */}
+              <div
+                aria-hidden
+                style={{ position: "absolute", top: 0, left: 0, right: 0, height: 3, background: `linear-gradient(90deg, #1E66C9 0%, ${GREEN} 70%)` }}
+              />
+              {/* Legend header — right-aligned key; lane/supplier counts live in the page title. */}
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 px-4 pt-3.5 pb-2 text-[11.5px]" style={{ color: "#56627A" }}>
+                <span className="flex items-center gap-1.5">
+                  <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#1E66C9", display: "inline-block" }} />
+                  Buyer
                 </span>
-              )}
+                <span className="flex items-center gap-1.5">
+                  <span style={{ width: 7, height: 7, borderRadius: "50%", background: GREEN, display: "inline-block" }} />
+                  Supplier
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <span style={{ width: 12, height: 2.5, borderRadius: 2, background: "#C97A14", display: "inline-block" }} />
+                  At-risk lane
+                </span>
+
+                {openExceptionsAll > 0 && (
+                  <span
+                    className="ml-auto inline-flex items-center gap-1 rounded-[5px] px-2 py-0.5 text-[11.5px] font-semibold"
+                    style={{ background: "#FAEFD6", color: "#C97A14" }}
+                  >
+                    ⚠ {openExceptionsAll} open exception{openExceptionsAll === 1 ? "" : "s"}
+                  </span>
+                )}
+              </div>
+              {/* Canvas sits flush inside the frame — strip the inner card chrome so
+                  the surrounding wrapper is the single visible card (no double border). */}
+              <div className="[&_.rounded-card]:!rounded-none [&_.rounded-card]:!border-0 [&_.rounded-card]:!shadow-none">
+                {renderTopologyArea(topoHeight)}
+              </div>
             </div>
-            {renderTopologyArea(topoHeight)}
           </section>
 
           {/* ── Finish-setup band (recedes as steps complete, hidden when done) ── */}
@@ -661,27 +686,33 @@ export function BridgeDashboard() {
           {/* ── KPI strip ────────────────────────────────────────────────── */}
           <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
             {kpis.map((kpi, i) => {
-              const Icon = kpi.icon;
+              const SubIcon = kpi.subIcon;
               return (
                 <div
                   key={i}
-                  className="relative overflow-hidden rounded-card p-4"
+                  className="relative overflow-hidden rounded-card p-4 pt-[18px]"
                   style={{ background: "#FFFFFF", border: "1px solid #E2E6EE", boxShadow: "0 1px 2px rgba(11,26,47,0.04)" }}
                 >
                   <div aria-hidden style={{ position: "absolute", top: 0, left: 0, right: 0, height: 3, background: kpi.edge }} />
-                  <div className="flex items-start justify-between gap-2">
-                    <div
-                      className={`monument${kpi.loading ? " animate-pulse text-[#C6CDDA]" : ""}`}
-                      style={{ fontSize: "clamp(28px, 4vw, 36px)", color: "#0B1A2F" }}
-                    >
-                      {kpi.value}
-                    </div>
-                    <div className="flex flex-shrink-0 items-center justify-center rounded-[7px]" style={{ width: 28, height: 28, background: kpi.iconBg }}>
-                      <Icon size={15} style={{ color: kpi.iconColor }} />
-                    </div>
+                  <div
+                    className="text-[10.5px] font-semibold uppercase"
+                    style={{ color: "#8A93A5", letterSpacing: "0.06em" }}
+                  >
+                    {kpi.label}
                   </div>
-                  <div className="mt-1 text-[12px] font-medium" style={{ color: "#56627A" }}>{kpi.label}</div>
-                  <div className="mt-0.5 text-[11.5px] font-medium" style={{ color: kpi.subColor }}>{kpi.sub}</div>
+                  <div
+                    className={`monument mt-1.5${kpi.loading ? " animate-pulse text-[#C6CDDA]" : ""}`}
+                    style={{ fontSize: "clamp(28px, 4vw, 34px)", lineHeight: 1.05, color: "#0B1A2F" }}
+                  >
+                    {kpi.value}
+                  </div>
+                  <div
+                    className="mt-2 flex items-center gap-1.5 text-[11.5px] font-medium"
+                    style={{ color: kpi.subColor }}
+                  >
+                    {SubIcon && <SubIcon size={13} strokeWidth={2.25} style={{ flexShrink: 0 }} />}
+                    <span className="truncate">{kpi.sub}</span>
+                  </div>
                 </div>
               );
             })}
@@ -691,9 +722,17 @@ export function BridgeDashboard() {
           <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
             {/* In transit */}
             <div className="overflow-hidden rounded-card" style={{ background: "#FFFFFF", border: "1px solid #E2E6EE", boxShadow: "0 1px 2px rgba(11,26,47,0.04)" }}>
-              <div className="flex items-center px-4 py-3" style={{ borderBottom: "1px solid #E2E6EE" }}>
-                <span className="text-[13px] font-semibold" style={{ color: "#0B1A2F" }}>In transit</span>
-                <span className="ml-2 text-[11.5px]" style={{ color: "#8A93A5" }}>· moving through the pipeline now</span>
+              <div className="flex items-center justify-between gap-2 px-4 py-3" style={{ borderBottom: "1px solid #E2E6EE" }}>
+                <div className="flex min-w-0 items-center gap-2.5">
+                  <Send size={15} strokeWidth={2} style={{ color: "#56627A", flexShrink: 0 }} aria-hidden />
+                  <div className="min-w-0">
+                    <div className="text-[13px] font-semibold" style={{ color: "#0B1A2F" }}>In transit</div>
+                    <div className="text-[11.5px]" style={{ color: "#8A93A5" }}>moving through the pipeline now</div>
+                  </div>
+                </div>
+                <span className="flex flex-shrink-0 items-center gap-1 text-[11.5px] font-medium" style={{ color: "#56627A" }}>
+                  last 10 min <ChevronDown size={13} style={{ color: "#8A93A5" }} />
+                </span>
               </div>
               <div className="divide-y" style={{ borderColor: "#E2E6EE" }}>
                 {ordersLoading ? (
@@ -712,7 +751,7 @@ export function BridgeDashboard() {
                   inTransitRows.map((row, i) => {
                     const inner = (
                       <>
-                        <span className="min-w-[150px] flex-1 truncate font-mono text-[11.5px] font-medium" style={{ color: "#0F4FA8" }}>
+                        <span className="min-w-[150px] flex-1 truncate font-mono text-[11.5px] font-medium" style={{ color: GREEN_DEEP }}>
                           {row.po}
                         </span>
                         <span className="max-w-[90px] truncate text-[12px] text-[#56627A]">{row.buyer}</span>
@@ -743,36 +782,51 @@ export function BridgeDashboard() {
               </div>
             </div>
 
-            {/* Supplier dock health */}
+            {/* Supplier health */}
             <div className="overflow-hidden rounded-card" style={{ background: "#FFFFFF", border: "1px solid #E2E6EE", boxShadow: "0 1px 2px rgba(11,26,47,0.04)" }}>
-              <div className="flex items-center justify-between px-4 py-3" style={{ borderBottom: "1px solid #E2E6EE" }}>
-                <span className="text-[13px] font-semibold" style={{ color: "#0B1A2F" }}>Supplier health</span>
-                <Link href="/library/suppliers" className="inline-flex items-center gap-1 text-[11.5px] font-medium transition-colors hover:opacity-80" style={{ color: "#0F4FA8" }}>
+              <div className="flex items-center justify-between gap-2 px-4 py-3" style={{ borderBottom: "1px solid #E2E6EE" }}>
+                <div className="flex min-w-0 items-center gap-2.5">
+                  <Activity size={15} strokeWidth={2} style={{ color: "#56627A", flexShrink: 0 }} aria-hidden />
+                  <div className="min-w-0">
+                    <div className="text-[13px] font-semibold" style={{ color: "#0B1A2F" }}>Supplier health</div>
+                    <div className="text-[11.5px]" style={{ color: "#8A93A5" }}>Acceptance rate, last 30 days</div>
+                  </div>
+                </div>
+                <Link
+                  href="/library/suppliers"
+                  className="inline-flex flex-shrink-0 items-center gap-1 text-[11.5px] font-medium transition-colors hover:text-[#1DAF50]"
+                  style={{ color: "#56627A" }}
+                >
                   All suppliers <ArrowRight size={12} />
                 </Link>
               </div>
-              <div className="divide-y" style={{ borderColor: "#E2E6EE" }}>
+              <div className="divide-y" style={{ borderColor: "#EEF0F4" }}>
                 {effective.suppliers.length === 0 ? (
                   <div className="text-center" style={{ color: "#8A93A5", padding: 16, fontSize: 12.5 }}>
                     No suppliers yet.
                   </div>
                 ) : (
                   effective.suppliers.map((s) => {
-                    const color = s.health >= 95 ? "#2E8E3A" : s.health >= 85 ? "#C97A14" : "#C53A3A";
-                    const barBg = s.health >= 95 ? "#E2F1E2" : s.health >= 85 ? "#FAEFD6" : "#FBE3E3";
+                    const color = s.health >= 95 ? GREEN : s.health >= 85 ? "#C97A14" : "#C53A3A";
+                    const barBg = s.health >= 95 ? GREEN_SOFT : s.health >= 85 ? "#FAEFD6" : "#FBE3E3";
                     return (
-                      <Link key={s.id} href={`/library/suppliers/${s.id}`} className="block px-4 py-3 transition-colors hover:bg-[#F6F7FA]">
-                        <div className="mb-1.5 flex items-center justify-between">
-                          <span className="min-w-0 truncate pr-3 text-[12.5px] font-medium" style={{ color: "#0B1A2F" }}>
-                            {s.name}
-                          </span>
-                          <span className="text-[12px] font-bold" style={{ color, fontFamily: "'JetBrains Mono', monospace" }}>
-                            {s.health}%
-                          </span>
-                        </div>
-                        <div className="overflow-hidden rounded-full" style={{ height: 5, background: barBg }}>
+                      <Link
+                        key={s.id}
+                        href={`/library/suppliers/${s.id}`}
+                        className="flex items-center gap-3 px-4 py-2.5 transition-colors hover:bg-[#F6F7FA]"
+                      >
+                        <span className="min-w-0 flex-1 truncate text-[12.5px] font-medium" style={{ color: "#0B1A2F" }}>
+                          {s.name}
+                        </span>
+                        <div className="hidden overflow-hidden rounded-full sm:block" style={{ width: 120, height: 6, background: barBg }}>
                           <div className="h-full rounded-full transition-all" style={{ width: `${s.health}%`, background: color }} />
                         </div>
+                        <span
+                          className="w-[42px] flex-shrink-0 text-right text-[12px] font-bold"
+                          style={{ color, fontFamily: "'JetBrains Mono', monospace" }}
+                        >
+                          {s.health}%
+                        </span>
                       </Link>
                     );
                   })

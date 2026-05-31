@@ -44,8 +44,6 @@ const DEMO_RECENT: RecentRow[] = [
   { id: "ord-003", name: "westmark_q2.csv",      fmt: "CSV",   buyer: "Westmark Tools",       supplier: "Acme Components",    size: "44 KB",  age: "3h",  status: "done"       },
 ];
 
-const FORMATS: FormatKey[] = ["PDF", "XLSX", "CSV", "cXML", "EDI", "JSON", "EMAIL"];
-
 const TEMPLATES = ["Standard cXML PO", "SAP IDoc ORDERS05", "ERP Generic v2", "Custom template"];
 
 const STATUS_PILL: Record<RecentStatus, { bg: string; color: string; label: string }> = {
@@ -53,7 +51,7 @@ const STATUS_PILL: Record<RecentStatus, { bg: string; color: string; label: stri
   done:       { bg: "#E2F1E2", color: "#1E6D29", label: "Delivered"  },
   failed:     { bg: "#FBE3E3", color: "#C53A3A", label: "Failed"     },
   review:     { bg: "#FAEFD6", color: "#9A5F0A", label: "Needs review" },
-  ready:      { bg: "#E3EDFB", color: "#1E66C9", label: "Ready"      },
+  ready:      { bg: "#DCFCE7", color: "#1DAF50", label: "Ready"      },
   draft:      { bg: "#EFF2F7", color: "#56627A", label: "Draft"      },
 };
 
@@ -106,7 +104,7 @@ function relativeAge(iso: string): string {
 
 function XCard({
   edge = "none",
-  edgeColor = "#1E66C9",
+  edgeColor = "#28C55E",
   children,
   style,
 }: {
@@ -385,23 +383,22 @@ export function UploadWorkbench() {
             Upload an order
           </h1>
           <p className="text-[13px] mt-1" style={{ color: "#56627A" }}>
-            Drop a buyer&rsquo;s purchase order, pick the supplier, and send it.
+            Upload an order in any shape &mdash; we parse, normalize, and prepare it for review.
           </p>
         </div>
       </div>
 
       {/* Body */}
-      <div className="flex-1 overflow-auto p-4 sm:p-5">
-        <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_320px]">
-          {/* Left column: dropzone + recent */}
-          <div className="flex min-w-0 flex-col gap-4">
-            {/* Phase 10.3 — Pilot Book-a-demo CTA */}
+      <div className="flex-1 overflow-auto p-4 sm:p-6">
+        <div className="mx-auto flex w-full min-w-0 max-w-[860px] flex-col gap-4">
+          {/* Centered single column: dropzone hero → sample → config → recent → tip */}
+          {/* Phase 10.3 — Pilot Book-a-demo CTA */}
             {billing?.plan === "pilot" && process.env.NEXT_PUBLIC_BOOK_DEMO_URL && (
               <div
                 style={{
                   background: "#F6F7FA",
                   border: "1px solid #E2E6EE",
-                  borderLeft: "3px solid #1E66C9",
+                  borderLeft: "3px solid #28C55E",
                   borderRadius: 8,
                   padding: "12px 16px",
                   display: "flex",
@@ -434,35 +431,13 @@ export function UploadWorkbench() {
                 </a>
               </div>
             )}
-            {/* Drop zone — XCard edge="top" with link-spine gradient */}
+            {/* Drop zone — clean single card with a dashed inner target (matches design) */}
             <XCard
-              edge="top"
-              edgeColor="transparent"
               style={{
-                borderTop: dragging
-                  ? "2px solid #1E66C9"
-                  : "2px solid transparent",
-                backgroundImage: dragging
-                  ? undefined
-                  : "none",
-                position: "relative",
+                borderColor: dragging ? "#28C55E" : "#E2E6EE",
+                transition: "border-color 0.15s",
               }}
             >
-              {/* Gradient top border trick */}
-              <div
-                style={{
-                  position: "absolute",
-                  top: 0,
-                  left: 0,
-                  right: 0,
-                  height: 2,
-                  background: dragging
-                    ? "#1E66C9"
-                    : "linear-gradient(90deg, #1E66C9 0%, #1E66C9 35%, #2E8E3A 65%, #2E8E3A 100%)",
-                  borderRadius: "8px 8px 0 0",
-                }}
-              />
-
               <div
                 onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
                 onDragLeave={() => setDragging(false)}
@@ -478,16 +453,15 @@ export function UploadWorkbench() {
                 }}
                 onClick={() => fileInputRef.current?.click()}
                 style={{
-                  margin: 16,
-                  marginTop: 18,
-                  border: `2px dashed ${dragging ? "#1E66C9" : "#C6CDDA"}`,
-                  borderRadius: 6,
-                  padding: "32px 16px",
+                  margin: 20,
+                  border: `1.5px dashed ${dragging ? "#28C55E" : "#C6CDDA"}`,
+                  borderRadius: 10,
+                  padding: "64px 24px",
                   display: "flex",
                   flexDirection: "column",
                   alignItems: "center",
-                  gap: 12,
-                  background: dragging ? "#E3EDFB40" : "#F6F7FA",
+                  gap: 16,
+                  background: dragging ? "#F1FCF5" : "#FFFFFF",
                   opacity: isReadOnly ? 0.62 : 1,
                   transition: "all 0.15s",
                   cursor: isReadOnly ? "not-allowed" : "pointer",
@@ -507,60 +481,77 @@ export function UploadWorkbench() {
                     if (file) triggerDetection(file);
                   }}
                 />
-                {/* Upload icon */}
-                <div
-                  style={{
-                    width: 48,
-                    height: 48,
-                    borderRadius: "50%",
-                    background: "#E3EDFB",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                  }}
-                >
-                  <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
-                    <path
-                      d="M11 14V4M11 4L7 8M11 4l4 4"
-                      stroke="#1E66C9"
-                      strokeWidth="1.8"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                    <path
-                      d="M3 17v1a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-1"
-                      stroke="#1E66C9"
-                      strokeWidth="1.8"
-                      strokeLinecap="round"
-                    />
-                  </svg>
-                </div>
+                {/* Upload icon — plain outline, no tinted disc (matches design) */}
+                <svg width="40" height="40" viewBox="0 0 22 22" fill="none" aria-hidden="true">
+                  <path
+                    d="M11 14V4M11 4L7 8M11 4l4 4"
+                    stroke={dragging ? "#1DAF50" : "#8A93A5"}
+                    strokeWidth="1.6"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                  <path
+                    d="M3 17v1a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-1"
+                    stroke={dragging ? "#1DAF50" : "#8A93A5"}
+                    strokeWidth="1.6"
+                    strokeLinecap="round"
+                  />
+                </svg>
 
                 <div className="text-center">
                   <p
-                    className="text-[14px] font-semibold"
-                    style={{ color: "#0B1A2F" }}
+                    className="text-[19px] font-semibold tracking-[-0.01em]"
+                    style={{
+                      color: "#0B1A2F",
+                      fontFamily: "'Bricolage Grotesque', Inter, sans-serif",
+                    }}
                   >
-                    {selectedFile ? selectedFile.name : "Drop your source document here"}
+                    {selectedFile ? selectedFile.name : "Drop a purchase order here"}
                   </p>
-                  <p className="text-[12.5px] mt-1" style={{ color: "#56627A" }}>
+                  <p className="text-[12.5px] mt-2" style={{ color: "#8A93A5" }}>
                     {selectedFile
-                      ? `${Math.max(1, Math.round(selectedFile.size / 1024))} KB ready to send · `
-                      : "or "}
-                    <button
-                      className="font-medium underline underline-offset-2"
-                      style={{ color: "#1E66C9" }}
-                      type="button"
-                      disabled={isReadOnly || uploading}
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        fileInputRef.current?.click();
-                      }}
-                    >
-                      {selectedFile ? "change file" : "browse files"}
-                    </button>
+                      ? `${Math.max(1, Math.round(selectedFile.size / 1024))} KB ready to send`
+                      : "PDF · XLSX · CSV · cXML · UBL · EDIFACT · X12 — up to 25 MB"}
                   </p>
                 </div>
+
+                {/* Browse files — prominent green CTA (also the file-picker trigger) */}
+                <button
+                  type="button"
+                  disabled={isReadOnly || uploading}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    fileInputRef.current?.click();
+                  }}
+                  className="inline-flex items-center gap-2 rounded-[6px] px-4 py-2.5 text-[13px] font-semibold transition-colors"
+                  style={{
+                    background: isReadOnly || uploading ? "#E2E6EE" : "#28C55E",
+                    color: isReadOnly || uploading ? "#8A93A5" : "#FFFFFF",
+                    border: "none",
+                    boxShadow: isReadOnly || uploading ? "none" : "0 2px 8px rgba(40,197,94,0.25)",
+                    cursor: isReadOnly || uploading ? "not-allowed" : "pointer",
+                  }}
+                >
+                  <svg width="15" height="15" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                    <path
+                      d="M9 1.5H4.5A1.5 1.5 0 0 0 3 3v10a1.5 1.5 0 0 0 1.5 1.5h7A1.5 1.5 0 0 0 13 13V5.5L9 1.5Z"
+                      stroke="currentColor"
+                      strokeWidth="1.3"
+                      strokeLinejoin="round"
+                    />
+                    <path d="M9 1.5V5.5H13" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" />
+                  </svg>
+                  {selectedFile ? "Change file" : "Browse files"}
+                </button>
+
+                {/* Muted helper caption beneath the button (matches design) */}
+                {!selectedFile && (
+                  <p className="text-[11.5px] italic" style={{ color: "#A6AEBE" }}>
+                    {isApiMockMode
+                      ? "(Demo: click anywhere to simulate a parsed PDF)"
+                      : "or drop a file anywhere in this area"}
+                  </p>
+                )}
 
                 {/* Format detection pill — shown once a file is selected */}
                 {selectedFile && (detectionLoading || detection) && (
@@ -605,7 +596,7 @@ export function UploadWorkbench() {
                               flexShrink: 0,
                               background:
                                 detection.confidence >= 0.8
-                                  ? "#2E8E3A"
+                                  ? "#1DAF50"
                                   : detection.confidence >= 0.5
                                   ? "#C97A14"
                                   : "#8A93A5",
@@ -670,9 +661,9 @@ export function UploadWorkbench() {
                               fontSize: 11.5,
                               padding: "4px 9px",
                               borderRadius: 99,
-                              background: "#EAF6EC",
-                              border: "1px solid #BBE0C0",
-                              color: "#2E7D36",
+                              background: "#DCFCE7",
+                              border: "1px solid #A6E9BC",
+                              color: "#1DAF50",
                               fontWeight: 600,
                               userSelect: "none",
                             }}
@@ -680,7 +671,7 @@ export function UploadWorkbench() {
                             <svg width="11" height="11" viewBox="0 0 12 12" fill="none" aria-hidden="true">
                               <path
                                 d="M2.5 6.2l2.2 2.2 4.8-5"
-                                stroke="#2E7D36"
+                                stroke="#1DAF50"
                                 strokeWidth="1.6"
                                 strokeLinecap="round"
                                 strokeLinejoin="round"
@@ -695,20 +686,11 @@ export function UploadWorkbench() {
                   </div>
                 )}
 
-                {/* Format chips */}
-                <div className="flex items-center gap-1.5 flex-wrap justify-center">
-                  {FORMATS.map((f) => (
-                    <FileChip key={f} type={f} />
-                  ))}
-                </div>
-                <p className="text-[11.5px]" style={{ color: "#8A93A5" }}>
-                  Supports CSV, XLSX, and PDF purchase orders. Max 25MB.
-                </p>
               </div>
             </XCard>
 
             {/* Phase 6.3 — Try with sample order: the zero-friction primary first action */}
-            <XCard edge="left" edgeColor="#6F4FCE">
+            <XCard edge="left" edgeColor="#28C55E">
               <div className="flex flex-col gap-3 px-4 py-4">
                 <div style={{ minWidth: 0 }}>
                   <p className="text-[13px] font-semibold" style={{ color: "#0B1A2F" }}>
@@ -758,7 +740,7 @@ export function UploadWorkbench() {
                 <Link
                   href="/inbox"
                   className="text-[12px] font-medium"
-                  style={{ color: "#1E66C9" }}
+                  style={{ color: "#1DAF50" }}
                 >
                   View all ↗
                 </Link>
@@ -795,11 +777,11 @@ export function UploadWorkbench() {
                         </span>
                       </div>
                       <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 text-[12px]">
-                        <span className="truncate" style={{ color: "#1E66C9" }}>
+                        <span className="truncate" style={{ color: "#28C55E" }}>
                           {row.buyer}
                         </span>
-                        <span className="h-px w-5" style={{ background: "linear-gradient(90deg, #1E66C9, #2E8E3A)" }} />
-                        <span className="truncate text-right" style={{ color: "#2E8E3A" }}>
+                        <span className="h-px w-5" style={{ background: "linear-gradient(90deg, #28C55E, #1DAF50)" }} />
+                        <span className="truncate text-right" style={{ color: "#1DAF50" }}>
                           {row.supplier}
                         </span>
                       </div>
@@ -860,7 +842,7 @@ export function UploadWorkbench() {
                           <td className="px-4 py-2.5 min-w-[250px]">
                             <span
                               className="text-[12px]"
-                              style={{ color: "#1E66C9" }}
+                              style={{ color: "#28C55E" }}
                             >
                               {row.buyer}
                             </span>
@@ -872,7 +854,7 @@ export function UploadWorkbench() {
                             </span>
                             <span
                               className="text-[12px]"
-                              style={{ color: "#2E8E3A" }}
+                              style={{ color: "#1DAF50" }}
                             >
                               {row.supplier}
                             </span>
@@ -905,11 +887,9 @@ export function UploadWorkbench() {
               </div>
             </XCard>
             )}
-          </div>
 
-          {/* Right column: pipeline picker */}
-          <div className="flex min-w-0 flex-col gap-4">
-            <XCard edge="left" edgeColor="#1E66C9">
+            {/* Pipeline configuration — supplier, output template, processing mode */}
+            <XCard edge="left" edgeColor="#28C55E">
               <div
                 className="px-4 py-3"
                 style={{ borderBottom: "1px solid #E2E6EE" }}
@@ -935,7 +915,7 @@ export function UploadWorkbench() {
                       <span className="text-[11px] font-semibold uppercase tracking-[0.06em]" style={{ color: "#56627A" }}>
                         {billing.plan} plan
                       </span>
-                      <span className="rounded px-2 py-0.5 text-[10.5px] font-semibold" style={{ background: isReadOnly ? "#FAEFD6" : "#E3EDFB", color: isReadOnly ? "#9A5F0A" : "#1E66C9" }}>
+                      <span className="rounded px-2 py-0.5 text-[10.5px] font-semibold" style={{ background: isReadOnly ? "#FAEFD6" : "#DCFCE7", color: isReadOnly ? "#9A5F0A" : "#1DAF50" }}>
                         {isReadOnly ? "Processing paused" : "Ready"}
                       </span>
                     </div>
@@ -970,7 +950,7 @@ export function UploadWorkbench() {
                 <div>
                   <label
                     className="block text-[11px] font-semibold uppercase tracking-[0.06em] mb-1.5"
-                    style={{ color: "#1E66C9" }}
+                    style={{ color: "#56627A" }}
                   >
                     Buyer
                   </label>
@@ -989,7 +969,7 @@ export function UploadWorkbench() {
                       flex: 1,
                       height: 1,
                       background:
-                        "linear-gradient(90deg, #1E66C9 0%, #2E8E3A 100%)",
+                        "linear-gradient(90deg, #E2E6EE 0%, rgba(40,197,94,0.5) 100%)",
                     }}
                   />
                   <span
@@ -1003,7 +983,7 @@ export function UploadWorkbench() {
                       flex: 1,
                       height: 1,
                       background:
-                        "linear-gradient(90deg, #1E66C9 0%, #2E8E3A 100%)",
+                        "linear-gradient(90deg, rgba(40,197,94,0.5) 0%, #E2E6EE 100%)",
                     }}
                   />
                 </div>
@@ -1012,7 +992,7 @@ export function UploadWorkbench() {
                 <div>
                   <label
                     className="block text-[11px] font-semibold uppercase tracking-[0.06em] mb-1.5"
-                    style={{ color: "#2E8E3A" }}
+                    style={{ color: "#56627A" }}
                   >
                     Supplier
                   </label>
@@ -1038,7 +1018,7 @@ export function UploadWorkbench() {
                       style={{ border: "1px solid #E2E6EE", background: "#F6F7FA", color: "#56627A" }}
                     >
                       No suppliers yet.{" "}
-                      <Link href="/library/suppliers" className="font-medium underline" style={{ color: "#1E66C9" }}>
+                      <Link href="/library/suppliers" className="font-medium underline" style={{ color: "#1DAF50" }}>
                         Add a supplier
                       </Link>{" "}
                       before uploading.
@@ -1179,8 +1159,8 @@ export function UploadWorkbench() {
                               height: 3,
                               borderRadius: 99,
                               width: "100%",
-                              background: done    ? "#2E8E3A"
-                                        : active  ? "#1E66C9"
+                              background: done    ? "#1DAF50"
+                                        : active  ? "#28C55E"
                                         : "#E2E6EE",
                               transition: "background 0.3s",
                               position: "relative",
@@ -1199,7 +1179,7 @@ export function UploadWorkbench() {
                               fontSize: 9.5,
                               fontWeight: 600,
                               letterSpacing: "0.04em",
-                              color: done ? "#2E8E3A" : active ? "#1E66C9" : "#C6CDDA",
+                              color: done ? "#1DAF50" : active ? "#28C55E" : "#C6CDDA",
                               transition: "color 0.2s",
                             }}>
                               {done ? "✓ " : ""}{stage}
@@ -1212,7 +1192,7 @@ export function UploadWorkbench() {
                   </div>
                 )}
 
-                {/* Bridge button */}
+                {/* Send button */}
                 <button
                   onClick={handleUpload}
                   disabled={isUploadDisabled}
@@ -1220,16 +1200,16 @@ export function UploadWorkbench() {
                   style={{
                     background: isUploadDisabled
                       ? "#E2E6EE"
-                      : "linear-gradient(90deg, #1E66C9 0%, #2E8E3A 100%)",
+                      : "linear-gradient(90deg, #28C55E 0%, #1DAF50 100%)",
                     color: isUploadDisabled ? "#8A93A5" : "#FFFFFF",
                     border: "none",
-                    boxShadow: isUploadDisabled ? "none" : "0 2px 8px rgba(30,102,201,0.25)",
+                    boxShadow: isUploadDisabled ? "none" : "0 2px 8px rgba(40,197,94,0.25)",
                     cursor: isUploadDisabled ? "not-allowed" : "pointer",
                   }}
                 >
                   {uploading ? (
                     <span style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
-                      <span style={{ display: "inline-block", width: 12, height: 12, border: "2px solid #C6CDDA", borderTopColor: "#1E66C9", borderRadius: "50%", animation: "spin 0.7s linear infinite" }} />
+                      <span style={{ display: "inline-block", width: 12, height: 12, border: "2px solid #C6CDDA", borderTopColor: "#28C55E", borderRadius: "50%", animation: "spin 0.7s linear infinite" }} />
                       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
                       Sending…
                     </span>
@@ -1253,7 +1233,6 @@ export function UploadWorkbench() {
                 </p>
               </div>
             </XCard>
-          </div>
         </div>
       </div>
     </div>
@@ -1263,7 +1242,7 @@ export function UploadWorkbench() {
 function UsageLine({ label, used, limit }: { label: string; used: number; limit: number }) {
   const unlimited = limit >= 2_000_000_000;
   const pct = unlimited || limit === 0 ? 100 : Math.min(100, Math.round((used / limit) * 100));
-  const color = unlimited || pct < 75 ? "#2E8E3A" : pct < 95 ? "#C97A14" : "#C53A3A";
+  const color = unlimited || pct < 75 ? "#1DAF50" : pct < 95 ? "#C97A14" : "#C53A3A";
 
   return (
     <div className="mt-2">

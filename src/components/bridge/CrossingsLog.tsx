@@ -7,7 +7,6 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { getAuditLog, isApiMockMode, type AuditLogEntry } from "@/lib/api-client";
-import { FileChip } from "./FileChip";
 import { EmptyState } from "./EmptyState";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -244,6 +243,23 @@ const ACTOR_BG: Record<"user" | "system" | "ai", string> = {
   user:   "#1E66C9",
   system: "#56627A",
   ai:     "#6F4FCE",
+};
+
+// Canonical event visual config — the row's icon, circle tint, label, and text
+// color are driven by canonicalEvent (NOT the internal EventType) so every
+// "Validated" reads green-check, every "Edited" reads violet-pencil, etc.,
+// exactly like the design reference. Greens use the muted status green (#2E8E3A)
+// to match the supplier-side accent, not the bright brand green used on CTAs.
+const EV_CANON: Record<
+  CanonicalEvent,
+  { bg: string; color: string; label: string; iconPath: string }
+> = {
+  created:   { bg: "#E9EDF3", color: "#56627A", label: "Created",   iconPath: "M12 5v14M5 12h14" },
+  parsed:    { bg: "#E3EDFB", color: "#1E66C9", label: "Parsed",    iconPath: "M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z M14 2v6h6" },
+  validated: { bg: "#E2F1E2", color: "#2E8E3A", label: "Validated", iconPath: "M21.801 10A10 10 0 1 1 17 3.335M9 11l3 3L22 4" },
+  edited:    { bg: "#EEE7FB", color: "#6F4FCE", label: "Edited",    iconPath: "M12 20h9M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4z" },
+  delivered: { bg: "#E2F1E2", color: "#2E8E3A", label: "Delivered", iconPath: "M14.536 21.686a.5.5 0 0 0 .937-.024l6.5-19a.496.496 0 0 0-.635-.635l-19 6.5a.5.5 0 0 0-.024.937l7.93 3.18a2 2 0 0 1 1.112 1.11zM21.854 2.147l-10.94 10.939" },
+  failed:    { bg: "#FBE3E3", color: "#C53A3A", label: "Failed",    iconPath: "m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3zM12 9v4M12 17h.01" },
 };
 
 // Canonical filter labels (from CrossingsLogScreen)
@@ -584,7 +600,9 @@ export function CrossingsLog() {
                   }}
                 >
                   {entries.map((c, idx) => {
-                    const ev   = EV[c.event];
+                    // Visual treatment is canonical-event-driven to match the design
+                    // (green Validated/Delivered, violet Edited, blue Parsed, slate Created, red Failed).
+                    const ev   = EV_CANON[c.canonicalEvent];
                     const open = openId === c.id;
                     const hasDiff   = !!c.diff?.length;
                     const hasDetail = !!c.detail;
@@ -670,11 +688,6 @@ export function CrossingsLog() {
                             }}
                           >
                             {c.po}
-                          </span>
-
-                          {/* Format chip */}
-                          <span style={{ flexShrink: 0 }}>
-                            <FileChip type={c.fmt} />
                           </span>
 
                           {/* Buyer → supplier */}

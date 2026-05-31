@@ -24,8 +24,8 @@ function AccountMenu() {
         style={{
           width: 28,
           height: 28,
-          background: "#E2F1E2",
-          color: "#1E6D29",
+          background: "#DCFCE7",
+          color: "#1DAF50",
         }}
         title="Clerk is not configured"
       >
@@ -117,7 +117,7 @@ function timeAgo(iso: string): string {
 const NOTIF_META: Record<"review" | "failed" | "delivered", { dot: string; label: string }> = {
   failed:    { dot: "#C53A3A", label: "Delivery failed" },
   review:    { dot: "#C97A14", label: "Needs review" },
-  delivered: { dot: "#2E8E3A", label: "Delivered" },
+  delivered: { dot: "#28C55E", label: "Delivered" },
 };
 
 function NotificationsBell() {
@@ -232,7 +232,7 @@ function NotificationsBell() {
             type="button"
             onClick={() => { setOpen(false); router.push("/inbox"); }}
             className="w-full text-center"
-            style={{ padding: "9px 12px", fontSize: 12, fontWeight: 600, color: "#0F4FA8", background: "#FFFFFF", cursor: "pointer", borderTop: "1px solid #E2E6EE" }}
+            style={{ padding: "9px 12px", fontSize: 12, fontWeight: 600, color: "#1DAF50", background: "#FFFFFF", cursor: "pointer", borderTop: "1px solid #E2E6EE" }}
           >
             View all in inbox →
           </button>
@@ -388,14 +388,10 @@ export function BridgeTopbar({ crumb, onMenuClick }: BridgeTopbarProps) {
       {/* Help slide-over */}
       <HelpSlideover open={helpOpen} onClose={() => setHelpOpen(false)} />
 
-      {/* Link-spine — 2px gradient line at bottom edge */}
+      {/* Link-spine — 2px solid green line at bottom edge */}
       <div
         className="absolute bottom-0 left-0 right-0"
-        style={{
-          height: 2,
-          background:
-            "linear-gradient(90deg, #1E66C9 0%, #1E66C9 35%, #2E8E3A 65%, #2E8E3A 100%)",
-        }}
+        style={{ height: 2, background: "#28C55E" }}
         aria-hidden
       />
     </header>

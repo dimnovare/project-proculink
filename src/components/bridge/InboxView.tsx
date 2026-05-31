@@ -21,7 +21,56 @@ import {
   type RowSelectionState,
 } from "@tanstack/react-table";
 import { FileChip } from "./FileChip";
-import { StatusCell, type CrossingStatus } from "./StatusJourney";
+import { StatusJourney, type CrossingStatus, type OrderStage } from "./StatusJourney";
+
+// ─── Accent palette ─────────────────────────────────────────────────────────────
+// Primary accent migrated blue → green. Mirrors --brand-green* in globals.css /
+// ds-tokens. Kept as local consts so every inline style swaps consistently.
+const GREEN      = "#28C55E"; // --brand-green   (primary)
+const GREEN_DEEP = "#1DAF50"; // --brand-green-deep (hover / strong text)
+const GREEN_SOFT = "#DCFCE7"; // --brand-green-soft (tint / hover row / pill bg)
+const INK        = "#0B1A2F"; // navy ink — PO numbers, buyer side, primary nav text
+
+// ─── Status pill + pipeline stage ───────────────────────────────────────────────
+// Design target: STATUS column is a soft rounded-full pill with a leading colored
+// dot + full semantic label; PIPELINE column is a standalone 5-node track (no pill).
+// Colors/labels mirror STATUS_PILL / STATUS_STAGE in StatusJourney.tsx (kept local
+// so the whole row restyles from one place; the track itself reuses <StatusJourney>).
+const STATUS_PRESENTATION: Record<
+  CrossingStatus,
+  { bg: string; color: string; dot: string; pulse?: boolean; label: string; stage: OrderStage }
+> = {
+  new:        { bg: "#EFF2F7", color: "#56627A", dot: "#8A93A5",                label: "New",          stage: 0 },
+  extracting: { bg: "#E3EDFB", color: "#0F4FA8", dot: "#1E66C9",                label: "Extracting",   stage: 1 },
+  review:     { bg: "#FAEFD6", color: "#C97A14", dot: "#C97A14",                label: "Needs review", stage: 2 },
+  ready:      { bg: "#E2F1E2", color: "#1E6D29", dot: "#2E8E3A",                label: "Ready",        stage: 3 },
+  sent:       { bg: "#E2F1E2", color: "#1E6D29", dot: "#2E8E3A",                label: "Delivered",    stage: 4 },
+  delivering: { bg: "#E3EDFB", color: "#0F4FA8", dot: "#1E66C9", pulse: true,   label: "Delivering",   stage: 4 },
+  failed:     { bg: "#FBE3E3", color: "#C53A3A", dot: "#C53A3A",                label: "Failed",       stage: "failed" },
+};
+
+function StatusDotPill({ status, compact = false }: { status: CrossingStatus; compact?: boolean }) {
+  const p = STATUS_PRESENTATION[status];
+  return (
+    <span
+      className="inline-flex items-center rounded-full font-semibold"
+      style={{
+        gap: 6,
+        padding: compact ? "2px 9px" : "3px 10px",
+        fontSize: compact ? "11px" : "11.5px",
+        background: p.bg,
+        color: p.color,
+        whiteSpace: "nowrap",
+      }}
+    >
+      <span
+        className={["rounded-full flex-shrink-0", p.pulse ? "animate-[pulse-dot_1.4s_ease-in-out_infinite]" : ""].join(" ").trim()}
+        style={{ width: 6, height: 6, background: p.dot }}
+      />
+      {p.label}
+    </span>
+  );
+}
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -181,7 +230,7 @@ const columns = [
     header: ({ table }) => (
       <input
         type="checkbox"
-        style={{ accentColor: "#1E66C9", cursor: "pointer", width: 13, height: 13 }}
+        style={{ accentColor: GREEN, cursor: "pointer", width: 13, height: 13 }}
         checked={table.getIsAllPageRowsSelected()}
         onChange={table.getToggleAllPageRowsSelectedHandler()}
         aria-label="Select all"
@@ -190,7 +239,7 @@ const columns = [
     cell: ({ row }) => (
       <input
         type="checkbox"
-        style={{ accentColor: "#1E66C9", cursor: "pointer", width: 13, height: 13 }}
+        style={{ accentColor: GREEN, cursor: "pointer", width: 13, height: 13 }}
         checked={row.getIsSelected()}
         onChange={row.getToggleSelectedHandler()}
         onClick={(e) => e.stopPropagation()}
@@ -205,7 +254,7 @@ const columns = [
     cell: (info) => (
       <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-          <span className="font-mono text-[12px] font-semibold" style={{ color: "#0F4FA8" }}>
+          <span className="font-mono text-[12px] font-semibold" style={{ color: INK }}>
             {info.getValue()}
           </span>
           {info.row.original.assigned !== "—" && (
@@ -241,11 +290,11 @@ const columns = [
     header: "Buyer → Supplier",
     cell: ({ row }) => (
       <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: "12.5px" }}>
-        <span style={{ color: "#1E66C9", fontWeight: 500, flex: 1, minWidth: 0, textOverflow: "ellipsis", whiteSpace: "nowrap", overflow: "hidden" }}>
+        <span style={{ color: INK, fontWeight: 500, flex: 1, minWidth: 0, textOverflow: "ellipsis", whiteSpace: "nowrap", overflow: "hidden" }}>
           {row.original.buyer}
         </span>
         <span style={{ color: "#8A93A5", flexShrink: 0 }}>→</span>
-        <span style={{ color: "#2E8E3A", fontWeight: 500, flex: 1, minWidth: 0, textOverflow: "ellipsis", whiteSpace: "nowrap", overflow: "hidden" }}>
+        <span style={{ color: GREEN_DEEP, fontWeight: 500, flex: 1, minWidth: 0, textOverflow: "ellipsis", whiteSpace: "nowrap", overflow: "hidden" }}>
           {row.original.supplier}
         </span>
       </div>
@@ -267,47 +316,22 @@ const columns = [
     meta: { numeric: true },
     size: 110,
   }),
-  // Pipeline (StatusJourney compact)
+  // Pipeline — standalone 5-node track (status pill lives in its own column)
   columnHelper.accessor("status", {
     header: "Pipeline",
-    cell: (info) => <StatusCell status={info.getValue()} />,
-    size: 120,
+    cell: (info) => (
+      <div style={{ minWidth: 132, maxWidth: 176 }}>
+        <StatusJourney stage={STATUS_PRESENTATION[info.getValue()].stage} compact />
+      </div>
+    ),
+    size: 184,
   }),
-  // Status pill
+  // Status pill — soft rounded-full pill with leading dot + full semantic label
   columnHelper.display({
     id: "statusPill",
     header: "Status",
-    cell: ({ row }) => (
-      <span
-        style={{
-          display: "inline-block",
-          padding: "3px 8px",
-          borderRadius: 4,
-          fontSize: "11px",
-          fontWeight: 600,
-          textTransform: "capitalize",
-          background:
-            row.original.status === "review"
-              ? "#FAEFD6"
-              : row.original.status === "failed"
-              ? "#FBE3E3"
-              : row.original.status === "sent"
-              ? "#E2F1E2"
-              : "#E3EDFB",
-          color:
-            row.original.status === "review"
-              ? "#C97A14"
-              : row.original.status === "failed"
-              ? "#C53A3A"
-              : row.original.status === "sent"
-              ? "#2E8E3A"
-              : "#1E66C9",
-        }}
-      >
-        {row.original.status === "sent" ? "Delivered" : row.original.status}
-      </span>
-    ),
-    size: 88,
+    cell: ({ row }) => <StatusDotPill status={row.original.status} />,
+    size: 124,
   }),
   columnHelper.accessor("ageMin", {
     header: "Updated",
@@ -327,7 +351,7 @@ const columns = [
 
 function SortIcon({ state }: { state: "asc" | "desc" | false }) {
   return (
-    <span style={{ fontSize: 10, color: state ? "#1E66C9" : "#C6CDDA", marginLeft: 4, userSelect: "none" }}>
+    <span style={{ fontSize: 10, color: state ? GREEN_DEEP : "#C6CDDA", marginLeft: 4, userSelect: "none" }}>
       {state === "asc" ? "↑" : state === "desc" ? "↓" : "⇅"}
     </span>
   );
@@ -526,7 +550,7 @@ export function InboxView() {
           <p className="text-[13px] mt-1" style={{ color: "#56627A" }}>
             {totalCount.toLocaleString()} order{totalCount !== 1 ? "s" : ""}
             {isApiMockMode && <>{" · "}{reviewCount} need review{" · "}{failedCount} failed</>}
-            {selectedCount > 0 && <span style={{ color: "#1E66C9", marginLeft: 8 }}>· {selectedCount} selected</span>}
+            {selectedCount > 0 && <span style={{ color: GREEN_DEEP, marginLeft: 8 }}>· {selectedCount} selected</span>}
           </p>
         </div>
 
@@ -539,9 +563,11 @@ export function InboxView() {
             ↻ Sync
           </button>
           <button
-            className="flex items-center gap-1.5 rounded-[6px] px-3 text-[12.5px] font-medium"
-            style={{ height: 32, background: "#0B1A2F", color: "#FFFFFF", border: 0 }}
+            className="flex items-center gap-1.5 rounded-[6px] px-3 text-[12.5px] font-semibold transition-colors"
+            style={{ height: 32, background: GREEN, color: "#FFFFFF", border: 0 }}
             onClick={() => router.push("/upload")}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = GREEN_DEEP; }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = GREEN; }}
           >
             ↑ Upload order
           </button>
@@ -623,20 +649,26 @@ export function InboxView() {
               <button
                 key={label}
                 onClick={() => handleChip(i)}
-                className="flex items-center gap-1.5 rounded-[5px] px-2.5 text-[12px] font-medium transition-colors flex-shrink-0"
+                className="flex items-center gap-1.5 rounded-[6px] pl-2.5 pr-2 text-[12px] font-medium transition-colors flex-shrink-0"
                 style={{
-                  height: 26,
-                  border: `1px solid ${active ? "#1E66C933" : "#E2E6EE"}`,
-                  background: active ? "#E3EDFB" : "#FFFFFF",
-                  color: active ? "#0F4FA8" : "#0B1A2F",
+                  height: 28,
+                  border: `1px solid ${active ? INK : "#E2E6EE"}`,
+                  background: active ? INK : "#FFFFFF",
+                  color: active ? "#FFFFFF" : "#56627A",
                   cursor: "pointer",
                 }}
               >
                 {label}
                 {isApiMockMode && (
                   <span
-                    className="text-[11px] font-mono"
-                    style={{ color: active ? "#0F4FA8" : "#8A93A5" }}
+                    className="inline-flex items-center justify-center font-mono text-[10.5px] font-semibold rounded-[4px]"
+                    style={{
+                      minWidth: 18,
+                      height: 17,
+                      padding: "0 5px",
+                      background: active ? GREEN : "#EFF2F7",
+                      color: active ? "#FFFFFF" : "#8A93A5",
+                    }}
                   >
                     {chipCounts[i]?.toLocaleString() ?? 0}
                   </span>
@@ -686,7 +718,7 @@ export function InboxView() {
                   height: 32,
                   padding: "0 16px",
                   borderRadius: 6,
-                  background: "#1E66C9",
+                  background: GREEN,
                   color: "#FFFFFF",
                   border: "none",
                   fontSize: "12.5px",
@@ -708,7 +740,7 @@ export function InboxView() {
               <div className="mb-2 flex items-start justify-between gap-3">
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2 mb-1">
-                    <p className="truncate font-mono text-[12px] font-semibold" style={{ color: "#0F4FA8" }}>
+                    <p className="truncate font-mono text-[12px] font-semibold" style={{ color: INK }}>
                       {row.original.po}
                     </p>
                     {row.original.assigned !== "—" && (
@@ -732,34 +764,8 @@ export function InboxView() {
                     {row.original.age} ago · {row.original.lines} lines · {row.original.valueLabel}
                   </p>
                 </div>
-                <span
-                  style={{
-                    display: "inline-flex",
-                    padding: "3px 8px",
-                    borderRadius: 4,
-                    fontSize: "11px",
-                    fontWeight: 600,
-                    background:
-                      row.original.status === "review"
-                        ? "#FAEFD6"
-                        : row.original.status === "failed"
-                        ? "#FBE3E3"
-                        : row.original.status === "sent"
-                        ? "#E2F1E2"
-                        : "#E3EDFB",
-                    color:
-                      row.original.status === "review"
-                        ? "#C97A14"
-                        : row.original.status === "failed"
-                        ? "#C53A3A"
-                        : row.original.status === "sent"
-                        ? "#2E8E3A"
-                        : "#1E66C9",
-                    flexShrink: 0,
-                    marginLeft: 8,
-                  }}
-                >
-                  {row.original.status === "sent" ? "Delivered" : row.original.status}
+                <span style={{ flexShrink: 0, marginLeft: 8 }}>
+                  <StatusDotPill status={row.original.status} compact />
                 </span>
               </div>
               <div className="mb-2 flex items-center gap-2">
@@ -771,9 +777,9 @@ export function InboxView() {
                 )}
               </div>
               <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 text-[12px]">
-                <span className="truncate" style={{ color: "#1E66C9" }}>{row.original.buyer}</span>
-                <span className="h-px w-5" style={{ background: "linear-gradient(90deg, #1E66C9, #2E8E3A)" }} />
-                <span className="truncate text-right" style={{ color: "#2E8E3A" }}>{row.original.supplier}</span>
+                <span className="truncate" style={{ color: INK }}>{row.original.buyer}</span>
+                <span className="h-px w-5" style={{ background: `linear-gradient(90deg, ${INK}, ${GREEN})` }} />
+                <span className="truncate text-right" style={{ color: GREEN_DEEP }}>{row.original.supplier}</span>
               </div>
             </button>
           ))}
@@ -838,11 +844,11 @@ export function InboxView() {
                   key={row.id}
                   onClick={() => router.push(`/inbox/${row.original.id}`)}
                   style={{
-                    height: 38,
+                    height: 54,
                     borderBottom: "1px solid #F0F2F6",
                     cursor: "pointer",
                     background: isSelected
-                      ? "#EEF4FC"
+                      ? "#ECFDF3"
                       : row.original.status === "review"
                       ? "#FAEFD608"
                       : row.original.status === "failed"
@@ -865,7 +871,7 @@ export function InboxView() {
                     <td
                       key={cell.id}
                       style={{
-                        padding: "0 10px",
+                        padding: "9px 10px",
                         verticalAlign: "middle",
                         overflow: "hidden",
                         textOverflow: "ellipsis",
@@ -905,7 +911,7 @@ export function InboxView() {
                       height: 32,
                       padding: "0 16px",
                       borderRadius: 6,
-                      background: "#1E66C9",
+                      background: GREEN,
                       color: "#FFFFFF",
                       border: "none",
                       fontSize: "12.5px",
@@ -930,7 +936,7 @@ export function InboxView() {
       >
         <span className="text-[11px]" style={{ color: "#8A93A5" }}>
           {totalCount.toLocaleString()} order{totalCount !== 1 ? "s" : ""}
-          {selectedCount > 0 && <span style={{ color: "#1E66C9" }}> · {selectedCount} selected</span>}
+          {selectedCount > 0 && <span style={{ color: GREEN_DEEP }}> · {selectedCount} selected</span>}
         </span>
         <div className="ml-auto flex items-center gap-2">
           <button

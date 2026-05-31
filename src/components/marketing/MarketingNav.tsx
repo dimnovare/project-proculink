@@ -89,7 +89,7 @@ function MarketingClerkLinks() {
   if (!isLoaded || !isSignedIn) return <MarketingAuthLinks />;
   return (
     <div className="flex shrink-0 items-center gap-3">
-      <Link href="/bridge" className="text-[13px] font-semibold" style={{ color: "#6BA5F0" }}>
+      <Link href="/bridge" className="text-[13px] font-semibold" style={{ color: "#28C55E" }}>
         <span className="hidden sm:inline">Open the dashboard →</span>
         <span className="sm:hidden">Dashboard</span>
       </Link>
@@ -107,10 +107,12 @@ function MarketingAuthLinks() {
       <Link
         href="/sign-up"
         className="flex items-center gap-1.5 rounded-[6px] px-3 text-[12.5px] font-semibold sm:px-4 sm:text-[13px]"
-        style={{ height: 34, background: "#1E66C9", color: "#FFFFFF", border: "none" }}
+        style={{ height: 34, background: "#28C55E", color: "#FFFFFF", border: "none" }}
+        onMouseEnter={(e) => { (e.currentTarget as HTMLAnchorElement).style.background = "#1DAF50"; }}
+        onMouseLeave={(e) => { (e.currentTarget as HTMLAnchorElement).style.background = "#28C55E"; }}
       >
-        <span className="hidden sm:inline">Get started free →</span>
-        <span className="sm:hidden">Start →</span>
+        <span className="hidden sm:inline">Start free</span>
+        <span className="sm:hidden">Start</span>
       </Link>
     </div>
   );

@@ -3,13 +3,12 @@
 import type React from "react";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 
-// SpineConnectors — the "bridge made visible".
+// SpineConnectors — the live "send to supplier" routing made visible.
 // Draws two bezier wire-sets over the Review grid, anchored to the REAL DOM:
-//   Source-document section  →  Canonical-spine node  →  Supplier-output line.
-// Each wire is painted with one continuous buyer-blue → supplier-green gradient
-// spanning its full journey (userSpaceOnUse), so the spine sits at the teal
-// midpoint. Exceptions break the gradient: amber (75–89) / red (<75) dashed.
-// Everything flushes solid green once the order crosses.
+//   Source-document section  →  canonical-order node  →  supplier-output line.
+// High-confidence wires are painted in the brand green across their full
+// journey (userSpaceOnUse). Exceptions break the run: amber (75–89) / red
+// (<75) dashed. Everything flushes solid green once the order is sent.
 
 export interface ConnectorNode {
   id: string;
@@ -137,8 +136,8 @@ export function SpineConnectors({
       <defs>
         {wires.map((w) => (
           <linearGradient key={w.id} id={`scg-${w.id}`} gradientUnits="userSpaceOnUse" x1={w.sx} y1={w.sy} x2={w.ox} y2={w.oy}>
-            <stop offset="0%" stopColor="#1E66C9" />
-            <stop offset="100%" stopColor="#2E8E3A" />
+            <stop offset="0%" stopColor="#1DAF50" />
+            <stop offset="100%" stopColor="#28C55E" />
           </linearGradient>
         ))}
       </defs>
@@ -151,10 +150,10 @@ export function SpineConnectors({
         const confident = !crossed && w.pct >= 90;
         const amber = !crossed && w.pct >= 75 && w.pct < 90;
         const red = !crossed && w.pct < 75;
-        const stroke = crossed ? "#2E8E3A" : confident ? `url(#scg-${w.id})` : amber ? "#C97A14" : "#C53A3A";
+        const stroke = crossed ? "#28C55E" : confident ? `url(#scg-${w.id})` : amber ? "#C97A14" : "#C53A3A";
         const dashed = amber || red;
-        const srcDot = crossed ? "#2E8E3A" : confident ? "#1E66C9" : amber ? "#C97A14" : "#C53A3A";
-        const outDot = crossed || confident ? "#2E8E3A" : amber ? "#C97A14" : "#C53A3A";
+        const srcDot = crossed ? "#28C55E" : confident ? "#1DAF50" : amber ? "#C97A14" : "#C53A3A";
+        const outDot = crossed || confident ? "#28C55E" : amber ? "#C97A14" : "#C53A3A";
 
         const common: React.SVGProps<SVGPathElement> = {
           fill: "none",
@@ -171,7 +170,7 @@ export function SpineConnectors({
             <path d={curve(w.nrx, w.ny, w.ox, w.oy)} {...common} />
             <circle cx={w.sx} cy={w.sy} r={emphasized ? 3.6 : 2.7} fill={srcDot} opacity={opacity} />
             <circle cx={w.ox} cy={w.oy} r={emphasized ? 3.6 : 2.7} fill={outDot} opacity={opacity} />
-            <circle cx={w.nlx} cy={w.ny} r={2.4} fill="#FFFFFF" stroke={confident ? "#1E66C9" : srcDot} strokeWidth={1.4} opacity={opacity} />
+            <circle cx={w.nlx} cy={w.ny} r={2.4} fill="#FFFFFF" stroke={confident ? "#28C55E" : srcDot} strokeWidth={1.4} opacity={opacity} />
           </g>
         );
       })}

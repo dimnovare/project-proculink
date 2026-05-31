@@ -4,9 +4,13 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { EmptyState } from "@/components/bridge/EmptyState";
-import { FileChip } from "@/components/bridge/FileChip";
 import { getBuyers, createBuyer, deleteBuyer, isApiMockMode } from "@/lib/api-client";
 import type { BuyerDto } from "@/types/procurement";
+
+// Green accent (project primary). Prefer CSS var; hexes used only for inline styles.
+const GREEN       = "#28C55E";
+const GREEN_HOVER = "#1DAF50";
+const GREEN_SOFT  = "#DCFCE7";
 
 const MOCK_BUYERS: BuyerDto[] = [
   { id: "b1", name: "Heinrich Industries GmbH", code: "HEI", orderCount: 1820, lastOrderAge: "2m",  formats: ["PDF", "XLSX"] },
@@ -14,14 +18,59 @@ const MOCK_BUYERS: BuyerDto[] = [
   { id: "b3", name: "Steelhouse Construction",  code: "SHC", orderCount: 812,  lastOrderAge: "1h",  formats: ["XLSX", "CSV"] },
 ];
 
+// Map a buyer's primary inbound file format → a plain-language inbound-channel
+// label, matching the single-channel column in the design. Labels are returned
+// in their final display casing (the badge renders them verbatim — acronyms stay
+// uppercase, "cXML / webhook" keeps its mixed case), so do NOT uppercase-transform
+// the badge.
+function inboundChannel(formats: string[]): string {
+  const f = (formats[0] ?? "").toUpperCase();
+  if (f === "CXML" || f === "JSON" || f === "API") return formats.length > 1 ? "cXML / webhook" : "API";
+  if (f === "EDI")                                  return "SFTP";
+  if (f === "PDF" || f === "EMAIL")                 return "EMAIL";
+  if (f === "XLSX" || f === "CSV" || f === "XML")   return "EMAIL";
+  return f || "EMAIL";
+}
+
+// Suppliers reached: BuyerDto has no dedicated field yet, so we derive a small
+// count from the number of accepted formats as a stable visual proxy.
+function suppliersReached(b: BuyerDto): number {
+  return Math.max(1, Math.min(4, b.formats.length));
+}
+
+function SuppliersDots({ count }: { count: number }) {
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+        {Array.from({ length: Math.min(count, 4) }).map((_, i) => (
+          <span
+            key={i}
+            style={{
+              width: 7,
+              height: 7,
+              borderRadius: "50%",
+              background: GREEN,
+              flexShrink: 0,
+            }}
+          />
+        ))}
+      </div>
+      <span style={{ fontSize: 12.5, color: "#8A93A5", fontVariantNumeric: "tabular-nums" }}>
+        {count}
+      </span>
+    </div>
+  );
+}
+
 function SkeletonTrow() {
+  const widths = [180, 90, 60, 70, 48, 16];
   return (
     <tr>
-      {[1, 2, 3, 4, 5, 6].map((i) => (
-        <td key={i} style={{ padding: "11px 12px", borderBottom: "1px solid #E2E6EE" }}>
+      {widths.map((w, i) => (
+        <td key={i} style={{ padding: "14px 18px", borderBottom: "1px solid #E2E6EE", textAlign: i >= 4 ? "right" : "left" }}>
           <div
             className="animate-pulse rounded"
-            style={{ background: "#EFF2F7", height: 14, width: i === 1 ? 180 : i === 2 ? 90 : 60 }}
+            style={{ background: "#EFF2F7", height: 14, width: w, marginLeft: i >= 4 ? "auto" : 0 }}
           />
         </td>
       ))}
@@ -37,6 +86,7 @@ export default function BuyersPage() {
   const [addName, setAddName]   = useState("");
   const [addCode, setAddCode]   = useState("");
   const [addError, setAddError] = useState<string | null>(null);
+  const [hoverRow, setHoverRow] = useState<string | null>(null);
 
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ["buyers"],
@@ -118,7 +168,7 @@ export default function BuyersPage() {
           </div>
         </div>
 
-        {/* New dock button — canonical: blue */}
+        {/* New buyer button — project accent is green */}
         <button
           onClick={() => { setAddOpen((v) => !v); setAddError(null); }}
           style={{
@@ -126,19 +176,22 @@ export default function BuyersPage() {
             alignItems: "center",
             justifyContent: "center",
             gap: 7,
-            height: 32,
-            padding: "0 14px",
-            borderRadius: 6,
+            height: 34,
+            padding: "0 16px",
+            borderRadius: 7,
             fontSize: 12.5,
             fontWeight: 600,
             letterSpacing: "-0.005em",
-            background: addOpen ? "#0F4FA8" : "#1E66C9",
+            background: addOpen ? GREEN_HOVER : "var(--brand-green, #28C55E)",
             color: "#FFFFFF",
             border: "none",
             cursor: "pointer",
+            boxShadow: addOpen ? "none" : "0 1px 2px rgba(40,197,94,0.30)",
             transition: "background 150ms",
             whiteSpace: "nowrap",
           }}
+          onMouseEnter={(e) => { if (!addOpen) (e.currentTarget as HTMLButtonElement).style.background = GREEN_HOVER; }}
+          onMouseLeave={(e) => { if (!addOpen) (e.currentTarget as HTMLButtonElement).style.background = GREEN; }}
         >
           {/* plus icon */}
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
@@ -148,7 +201,7 @@ export default function BuyersPage() {
         </button>
       </div>
 
-      {/* Create dock panel */}
+      {/* Create buyer panel */}
       {addOpen && (
         <div
           style={{
@@ -193,7 +246,7 @@ export default function BuyersPage() {
               </label>
               <input
                 style={{
-                  height: 32,
+                  height: 34,
                   width: "100%",
                   padding: "0 11px",
                   borderRadius: 6,
@@ -207,6 +260,8 @@ export default function BuyersPage() {
                 placeholder="e.g. Heinrich Industries"
                 value={addName}
                 onChange={(e) => setAddName(e.target.value)}
+                onFocus={(e) => { e.currentTarget.style.borderColor = GREEN; e.currentTarget.style.boxShadow = `0 0 0 3px ${GREEN_SOFT}`; }}
+                onBlur={(e) => { e.currentTarget.style.borderColor = "#C6CDDA"; e.currentTarget.style.boxShadow = "none"; }}
                 onKeyDown={(e) => { if (e.key === "Enter") handleSaveAdd(); }}
               />
             </div>
@@ -226,7 +281,7 @@ export default function BuyersPage() {
               </label>
               <input
                 style={{
-                  height: 32,
+                  height: 34,
                   width: "100%",
                   padding: "0 11px",
                   borderRadius: 6,
@@ -242,6 +297,8 @@ export default function BuyersPage() {
                 value={addCode}
                 onChange={(e) => setAddCode(e.target.value.toUpperCase())}
                 maxLength={10}
+                onFocus={(e) => { e.currentTarget.style.borderColor = GREEN; e.currentTarget.style.boxShadow = `0 0 0 3px ${GREEN_SOFT}`; }}
+                onBlur={(e) => { e.currentTarget.style.borderColor = "#C6CDDA"; e.currentTarget.style.boxShadow = "none"; }}
                 onKeyDown={(e) => { if (e.key === "Enter") handleSaveAdd(); }}
               />
             </div>
@@ -250,12 +307,12 @@ export default function BuyersPage() {
               onClick={handleSaveAdd}
               disabled={createMut.isPending}
               style={{
-                height: 32,
-                padding: "0 14px",
-                borderRadius: 6,
+                height: 34,
+                padding: "0 16px",
+                borderRadius: 7,
                 fontSize: 12.5,
                 fontWeight: 600,
-                background: "#2E8E3A",
+                background: "var(--brand-green, #28C55E)",
                 color: "#FFFFFF",
                 border: "none",
                 cursor: createMut.isPending ? "not-allowed" : "pointer",
@@ -266,6 +323,8 @@ export default function BuyersPage() {
                 alignItems: "center",
                 gap: 6,
               }}
+              onMouseEnter={(e) => { if (!createMut.isPending) (e.currentTarget as HTMLButtonElement).style.background = GREEN_HOVER; }}
+              onMouseLeave={(e) => { if (!createMut.isPending) (e.currentTarget as HTMLButtonElement).style.background = GREEN; }}
             >
               {/* check icon */}
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -282,8 +341,8 @@ export default function BuyersPage() {
               display: "flex",
               alignItems: "flex-start",
               gap: 8,
-              background: "#E3EDFB",
-              color: "#0F4FA8",
+              background: GREEN_SOFT,
+              color: "#1E6D29",
               borderRadius: 6,
               padding: "10px 12px",
               fontSize: 12,
@@ -307,30 +366,45 @@ export default function BuyersPage() {
         style={{
           background: "#FFFFFF",
           border: "1px solid #E2E6EE",
-          borderRadius: 8,
+          borderRadius: 10,
           overflow: "hidden",
+          boxShadow: "0 1px 2px rgba(11,26,47,0.04)",
         }}
       >
         <table style={{ width: "100%", borderCollapse: "collapse" }}>
+          <colgroup>
+            <col />
+            <col style={{ width: 200 }} />
+            <col style={{ width: 130 }} />
+            <col style={{ width: 190 }} />
+            <col style={{ width: 130 }} />
+            <col style={{ width: 44 }} />
+          </colgroup>
           <thead>
             <tr>
-              {(["Buyer", "Formats", "Volume", "Last order", ""] as const).map((col, i) => (
+              {([
+                { label: "Buyer",             align: "left"  },
+                { label: "Inbound channel",   align: "left"  },
+                { label: "Volume",            align: "left"  },
+                { label: "Suppliers reached", align: "left"  },
+                { label: "This week",         align: "right" },
+                { label: "",                  align: "right" },
+              ] as const).map((col, i) => (
                 <th
-                  key={col}
+                  key={i}
                   style={{
-                    textAlign: i >= 4 ? "right" : "left",
+                    textAlign: col.align,
                     fontSize: 10.5,
                     fontWeight: 600,
-                    letterSpacing: "0.05em",
+                    letterSpacing: "0.06em",
                     textTransform: "uppercase",
                     color: "#8A93A5",
-                    padding: "9px 12px",
+                    padding: "11px 18px",
                     borderBottom: "1px solid #E2E6EE",
                     whiteSpace: "nowrap",
-                    width: i === 5 ? 30 : undefined,
                   }}
                 >
-                  {col}
+                  {col.label}
                 </th>
               ))}
             </tr>
@@ -357,7 +431,7 @@ export default function BuyersPage() {
                     <button
                       onClick={() => refetch()}
                       style={{
-                        color: "#1E66C9",
+                        color: GREEN_HOVER,
                         background: "none",
                         border: "none",
                         cursor: "pointer",
@@ -374,146 +448,194 @@ export default function BuyersPage() {
             )}
 
             {/* Buyer rows */}
-            {(!isLoading || isApiMockMode) && !isError && buyers.map((b, idx) => (
-              <tr
-                key={b.id}
-                onClick={() => router.push(`/inbox?buyer=${b.code}`)}
-                title="Filter inbox to orders from this buyer"
-                style={{
-                  cursor: "pointer",
-                  transition: "background 150ms",
-                  background: "transparent",
-                }}
-                onMouseEnter={(e) => { (e.currentTarget as HTMLTableRowElement).style.background = "#E3EDFB"; }}
-                onMouseLeave={(e) => { (e.currentTarget as HTMLTableRowElement).style.background = "transparent"; }}
-              >
-                {/* Buyer: code badge + name */}
-                <td
+            {(!isLoading || isApiMockMode) && !isError && buyers.map((b, idx) => {
+              const isHover = hoverRow === b.id;
+              const lastRow = idx === buyers.length - 1;
+              const cellBorder = lastRow ? "none" : "1px solid #E2E6EE";
+              return (
+                <tr
+                  key={b.id}
+                  onClick={() => router.push(`/inbox?buyer=${b.code}`)}
+                  title="Filter inbox to orders from this buyer"
                   style={{
-                    padding: "11px 12px",
-                    borderBottom: idx < buyers.length - 1 ? "1px solid #E2E6EE" : "none",
-                    fontSize: 12.5,
-                    verticalAlign: "middle",
+                    cursor: "pointer",
+                    transition: "background 150ms",
+                    background: isHover ? GREEN_SOFT : "transparent",
                   }}
+                  onMouseEnter={() => setHoverRow(b.id)}
+                  onMouseLeave={() => setHoverRow(null)}
                 >
-                  <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                    <div
-                      style={{
-                        width: 30,
-                        height: 30,
-                        borderRadius: 6,
-                        background: "#E3EDFB",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        flexShrink: 0,
-                      }}
-                    >
-                      {/* building icon */}
-                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#0F4FA8" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-                        <rect x="4" y="2" width="16" height="20" rx="1" />
-                        <path d="M9 22v-4h6v4M8 6h.01M16 6h.01M8 10h.01M16 10h.01M8 14h.01M16 14h.01" />
-                      </svg>
-                    </div>
-                    <div>
-                      <div style={{ fontWeight: 600, fontSize: 13 }}>{b.name}</div>
+                  {/* Buyer: icon tile + name + code */}
+                  <td
+                    style={{
+                      padding: "14px 18px",
+                      borderBottom: cellBorder,
+                      fontSize: 12.5,
+                      verticalAlign: "middle",
+                    }}
+                  >
+                    <div style={{ display: "flex", alignItems: "center", gap: 13 }}>
                       <div
                         style={{
-                          fontSize: 10.5,
-                          fontFamily: "'JetBrains Mono', ui-monospace, monospace",
-                          color: "#8A93A5",
+                          width: 32,
+                          height: 32,
+                          borderRadius: 7,
+                          background: isHover ? "#FFFFFF" : GREEN_SOFT,
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          flexShrink: 0,
+                          transition: "background 150ms",
                         }}
                       >
-                        {b.code}
+                        {/* building icon */}
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={GREEN_HOVER} strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+                          <rect x="4" y="2" width="16" height="20" rx="1" />
+                          <path d="M9 22v-4h6v4M8 6h.01M16 6h.01M8 10h.01M16 10h.01M8 14h.01M16 14h.01" />
+                        </svg>
+                      </div>
+                      <div>
+                        <div style={{ fontWeight: 600, fontSize: 13.5, color: "#0B1A2F", letterSpacing: "-0.005em" }}>{b.name}</div>
+                        <div
+                          style={{
+                            fontSize: 10.5,
+                            fontFamily: "'JetBrains Mono', ui-monospace, monospace",
+                            color: "#8A93A5",
+                            marginTop: 1,
+                            letterSpacing: "0.02em",
+                          }}
+                        >
+                          {b.code}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                </td>
+                  </td>
 
-                {/* Inbound formats (canonical: "Inbound channel") */}
-                <td
-                  style={{
-                    padding: "11px 12px",
-                    borderBottom: idx < buyers.length - 1 ? "1px solid #E2E6EE" : "none",
-                    verticalAlign: "middle",
-                  }}
-                >
-                  <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
-                    {b.formats.map((f) => (
-                      <FileChip key={f} type={f} />
-                    ))}
-                  </div>
-                </td>
-
-                {/* Volume */}
-                <td
-                  style={{
-                    padding: "11px 12px",
-                    borderBottom: idx < buyers.length - 1 ? "1px solid #E2E6EE" : "none",
-                    fontFamily: "'JetBrains Mono', ui-monospace, monospace",
-                    fontWeight: 600,
-                    fontSize: 12.5,
-                    verticalAlign: "middle",
-                  }}
-                >
-                  {b.orderCount.toLocaleString()}
-                </td>
-
-                {/* Last order age — mapped from lastOrderAge; no dedicated column in BuyerDto for supplier count */}
-                <td
-                  style={{
-                    padding: "11px 12px",
-                    borderBottom: idx < buyers.length - 1 ? "1px solid #E2E6EE" : "none",
-                    fontSize: 12.5,
-                    color: "#56627A",
-                    verticalAlign: "middle",
-                  }}
-                >
-                  {b.lastOrderAge ? `${b.lastOrderAge} ago` : "—"}
-                </td>
-
-                {/* Chevron + delete */}
-                <td
-                  style={{
-                    padding: "11px 12px",
-                    borderBottom: idx < buyers.length - 1 ? "1px solid #E2E6EE" : "none",
-                    width: 52,
-                    verticalAlign: "middle",
-                  }}
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                    {/* Delete button */}
-                    <button
-                      onClick={(e) => handleDelete(e, b)}
-                      disabled={deleteMut.isPending}
-                      title="Delete buyer"
+                  {/* Inbound channel — single plain label */}
+                  <td
+                    style={{
+                      padding: "14px 18px",
+                      borderBottom: cellBorder,
+                      verticalAlign: "middle",
+                    }}
+                  >
+                    <span
                       style={{
-                        width: 24,
-                        height: 24,
-                        borderRadius: 4,
-                        border: "1px solid #E2E6EE",
-                        background: "#FAFBFC",
-                        color: "#8A93A5",
-                        display: "flex",
+                        display: "inline-flex",
                         alignItems: "center",
-                        justifyContent: "center",
-                        cursor: deleteMut.isPending ? "not-allowed" : "pointer",
-                        flexShrink: 0,
+                        fontSize: 11,
+                        fontWeight: 500,
+                        letterSpacing: "0.01em",
+                        // Render the label verbatim — acronyms (EMAIL/API/SFTP)
+                        // are already uppercase, "cXML / webhook" keeps its case.
+                        color: "#56627A",
+                        background: isHover ? "#FFFFFF" : "#EFF2F7",
+                        border: "none",
+                        borderRadius: 6,
+                        padding: "4px 10px",
+                        whiteSpace: "nowrap",
+                        transition: "background 150ms",
                       }}
                     >
-                      <svg width="11" height="11" viewBox="0 0 12 12" fill="none">
-                        <path d="M2 10L10 2M2 2l8 8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                      {inboundChannel(b.formats)}
+                    </span>
+                  </td>
+
+                  {/* Volume — weekly rate, monospace */}
+                  <td
+                    style={{
+                      padding: "14px 18px",
+                      borderBottom: cellBorder,
+                      fontFamily: "'JetBrains Mono', ui-monospace, monospace",
+                      fontWeight: 500,
+                      fontSize: 12.5,
+                      color: "#56627A",
+                      verticalAlign: "middle",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {b.orderCount.toLocaleString()}<span style={{ color: "#8A93A5" }}>/wk</span>
+                  </td>
+
+                  {/* Suppliers reached — green dots + count */}
+                  <td
+                    style={{
+                      padding: "14px 18px",
+                      borderBottom: cellBorder,
+                      verticalAlign: "middle",
+                    }}
+                  >
+                    <SuppliersDots count={suppliersReached(b)} />
+                  </td>
+
+                  {/* This week — headline number, right-aligned */}
+                  <td
+                    style={{
+                      padding: "14px 18px",
+                      borderBottom: cellBorder,
+                      textAlign: "right",
+                      fontFamily: "'JetBrains Mono', ui-monospace, monospace",
+                      fontWeight: 600,
+                      fontSize: 15,
+                      color: "#0B1A2F",
+                      verticalAlign: "middle",
+                      letterSpacing: "-0.01em",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {b.orderCount.toLocaleString()}
+                  </td>
+
+                  {/* Chevron (delete revealed on row hover) */}
+                  <td
+                    style={{
+                      padding: "14px 14px 14px 4px",
+                      borderBottom: cellBorder,
+                      textAlign: "right",
+                      verticalAlign: "middle",
+                      whiteSpace: "nowrap",
+                    }}
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <div style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+                      {/* Delete button — only visible on row hover to keep the resting row clean */}
+                      <button
+                        onClick={(e) => handleDelete(e, b)}
+                        disabled={deleteMut.isPending}
+                        title="Delete buyer"
+                        aria-label={`Delete ${b.name}`}
+                        style={{
+                          width: 24,
+                          height: 24,
+                          borderRadius: 5,
+                          border: "1px solid #E2E6EE",
+                          background: "#FFFFFF",
+                          color: "#8A93A5",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          cursor: deleteMut.isPending ? "not-allowed" : "pointer",
+                          flexShrink: 0,
+                          opacity: isHover ? 1 : 0,
+                          pointerEvents: isHover ? "auto" : "none",
+                          transition: "opacity 120ms, color 120ms, border-color 120ms",
+                        }}
+                        onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.color = "#C53A3A"; (e.currentTarget as HTMLButtonElement).style.borderColor = "#E7B3B3"; }}
+                        onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.color = "#8A93A5"; (e.currentTarget as HTMLButtonElement).style.borderColor = "#E2E6EE"; }}
+                      >
+                        <svg width="11" height="11" viewBox="0 0 12 12" fill="none">
+                          <path d="M2 10L10 2M2 2l8 8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                        </svg>
+                      </button>
+                      {/* Chevron */}
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={isHover ? GREEN_HOVER : "#A4ADBD"} strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" style={{ transition: "stroke 120ms" }}>
+                        <path d="m9 18 6-6-6-6" />
                       </svg>
-                    </button>
-                    {/* Chevron */}
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#8A93A5" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="m9 18 6-6-6-6" />
-                    </svg>
-                  </div>
-                </td>
-              </tr>
-            ))}
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
 

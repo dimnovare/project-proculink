@@ -4,10 +4,16 @@
 // List of all supplier dock configurations. Fetches live data from GET /api/suppliers.
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getBillingStatus, apiClient } from "@/lib/api-client";
 
+// Green accent (project primary). Prefer CSS var; hexes used only for inline styles.
+const GREEN       = "#28C55E";
+const GREEN_HOVER = "#1DAF50";
+const GREEN_SOFT  = "#DCFCE7";
+
+/** Two-letter monogram from the supplier name (badge fallback, unused when icon shows). */
 function codeFromName(name: string): string {
   return name
     .replace(/[^A-Za-z0-9 ]/g, "")
@@ -20,12 +26,38 @@ function codeFromName(name: string): string {
     .slice(0, 4);
 }
 
+/**
+ * Short uppercase code shown under the supplier name — mirrors the design's
+ * ACME / BOLT / VDBM line. Derived from the name so it stays human-readable
+ * instead of surfacing a raw UUID fragment.
+ */
+function shortCode(name: string): string {
+  const cleaned = name.replace(/[^A-Za-z0-9 ]/g, "").trim();
+  const words = cleaned.split(/\s+/).filter(Boolean);
+  if (words.length === 0) return "SUP";
+  if (words.length === 1) return words[0].slice(0, 4).toUpperCase();
+  return words.slice(0, 4).map((w) => w[0].toUpperCase()).join("");
+}
+
+/** Supplier glyph — matches the badge/header icon in the design reference. */
+function SupplierGlyph({ color, size = 16 }: { color: string; size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M3 7h11v9H3z" />
+      <path d="M14 10h4l3 3v3h-7" />
+      <circle cx="7" cy="18" r="1.6" />
+      <circle cx="17.5" cy="18" r="1.6" />
+    </svg>
+  );
+}
+
 export function SupplierDockList() {
   const router = useRouter();
   const qc = useQueryClient();
   const [showAddPanel, setShowAddPanel] = useState(false);
   const [newName, setNewName] = useState("");
   const [addError, setAddError] = useState<string | null>(null);
+  const [hoverRow, setHoverRow] = useState<string | null>(null);
 
   // ── Billing check ──────────────────────────────────────────────────────────
   const { data: billing, isError: billingError } = useQuery({
@@ -73,51 +105,58 @@ export function SupplierDockList() {
     createMutation.mutate(trimmed);
   }
 
-  const addButtonLabel = !billingError && billing && !billing.canAddSupplier
-    ? "Supplier limit reached"
-    : "+ Add supplier";
+  const limitReached = !billingError && billing && !billing.canAddSupplier;
 
   return (
-    <div className="flex flex-col h-full min-h-0 overflow-hidden" style={{ background: "#F6F7FA" }}>
-      {/* Header */}
-      <div
-        className="flex flex-col items-start gap-3 px-4 py-4 sm:px-6 sm:flex-row sm:items-end sm:gap-4 flex-shrink-0"
-        style={{ borderBottom: "1px solid #E2E6EE", background: "#FFFFFF" }}
-      >
-        <div>
-          <h1
-            className="text-[26px] font-semibold tracking-[-0.02em]"
-            style={{ fontFamily: "'Bricolage Grotesque', Inter, sans-serif", color: "#0B1A2F" }}
-          >
-            Suppliers
-          </h1>
-          <p className="text-[13px] mt-1" style={{ color: "#56627A" }}>
-            {isLoading ? "Loading…" : `${suppliers.length} active supplier${suppliers.length === 1 ? "" : "s"}`}
-          </p>
-        </div>
-        <div className="w-full sm:ml-auto sm:w-auto">
-          <button
-            disabled={!canAddSupplier || createMutation.isPending}
-            onClick={() => { setShowAddPanel(true); setAddError(null); }}
-            className="flex w-full items-center justify-center gap-1.5 rounded-[6px] px-3 text-[12.5px] font-medium sm:w-auto"
-            style={{
-              height: 32,
-              background: canAddSupplier ? "#0B1A2F" : "#E2E6EE",
-              color: canAddSupplier ? "#FFFFFF" : "#8A93A5",
-              border: 0,
-              cursor: canAddSupplier ? "pointer" : "not-allowed",
-            }}
-          >
-            {addButtonLabel}
-          </button>
-        </div>
-      </div>
+    <div className="min-h-full" style={{ background: "#F6F7FA" }}>
+      <div className="mx-auto w-full max-w-[1480px] px-4 pb-16 pt-6 sm:px-8">
+        {/* Page header */}
+        <div className="mb-5 flex flex-col items-start gap-3 sm:mb-6 sm:flex-row sm:items-start sm:justify-between sm:gap-6">
+          <div>
+            <h1
+              className="text-[28px] font-semibold leading-[1.1] tracking-[-0.025em] sm:text-[30px]"
+              style={{ fontFamily: "'Bricolage Grotesque', Inter, sans-serif", color: "#0B1A2F" }}
+            >
+              Suppliers
+            </h1>
+            <p className="mt-[5px] text-[13px]" style={{ color: "#56627A" }}>
+              {isLoading
+                ? "Loading…"
+                : `${suppliers.length} active supplier${suppliers.length === 1 ? "" : "s"}`}
+            </p>
+          </div>
 
-      <div className="flex-1 overflow-auto p-4 sm:p-5">
+          {/* New supplier button — project accent is green */}
+          <div className="w-full sm:w-auto">
+            <button
+              disabled={!canAddSupplier || createMutation.isPending}
+              onClick={() => { setShowAddPanel(true); setAddError(null); }}
+              className="inline-flex h-[34px] w-full items-center justify-center gap-[7px] rounded-[7px] px-4 text-[12.5px] font-semibold tracking-[-0.005em] transition-colors sm:w-auto"
+              style={{
+                background: limitReached ? "#EFF2F7" : "var(--brand-green, #28C55E)",
+                color: limitReached ? "#8A93A5" : "#FFFFFF",
+                border: "none",
+                cursor: !canAddSupplier ? "not-allowed" : "pointer",
+                whiteSpace: "nowrap",
+                boxShadow: limitReached ? "none" : "0 1px 2px rgba(40,197,94,0.30)",
+              }}
+              onMouseEnter={(e) => { if (canAddSupplier) (e.currentTarget as HTMLButtonElement).style.background = GREEN_HOVER; }}
+              onMouseLeave={(e) => { if (canAddSupplier) (e.currentTarget as HTMLButtonElement).style.background = GREEN; }}
+            >
+              {!limitReached && (
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M5 12h14M12 5v14" />
+                </svg>
+              )}
+              {limitReached ? "Supplier limit reached" : "New supplier"}
+            </button>
+          </div>
+        </div>
+
         {/* Billing limit banner */}
         {billing && !billing.canAddSupplier && (
           <div
-            className="mb-4 rounded-[8px] px-4 py-3"
+            className="mb-4 rounded-[10px] px-4 py-3"
             style={{ border: "1px solid #F0D39A", borderLeft: "3px solid #C97A14", background: "#FFF8EA" }}
           >
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
@@ -143,7 +182,7 @@ export function SupplierDockList() {
         {/* Billing API unavailable notice */}
         {billingError && (
           <div
-            className="mb-4 rounded-[8px] px-4 py-3 text-[12.5px]"
+            className="mb-4 rounded-[10px] px-4 py-3 text-[12.5px]"
             style={{ border: "1px solid #F0D39A", background: "#FFF8EA", color: "#7A4D0B" }}
           >
             Supplier limits could not be checked because the billing API is unavailable.
@@ -153,23 +192,37 @@ export function SupplierDockList() {
         {/* Add supplier panel */}
         {showAddPanel && canAddSupplier && (
           <div
-            className="mb-4 overflow-hidden rounded-[8px]"
-            style={{ border: "1px solid #D5DAEA", background: "#FFFFFF", boxShadow: "0 1px 3px rgba(11,26,47,0.04)" }}
+            className="mb-4 overflow-hidden rounded-[10px]"
+            style={{ border: "1px solid #E2E6EE", background: "#FFFFFF", boxShadow: "0 1px 2px rgba(11,26,47,0.04)" }}
           >
-            <div className="flex items-start justify-between gap-3 px-4 py-3" style={{ borderBottom: "1px solid #E2E6EE", background: "#F6F7FA" }}>
-              <div>
-                <p className="text-[13px] font-semibold" style={{ color: "#0B1A2F" }}>New supplier</p>
-                <p className="mt-1 text-[12px]" style={{ color: "#56627A" }}>Name the supplier. You can configure mappings and delivery after.</p>
+            <div className="flex items-start justify-between gap-3 px-[18px] pt-[18px]">
+              <div className="flex items-start gap-3">
+                <div
+                  className="flex flex-shrink-0 items-center justify-center"
+                  style={{ width: 34, height: 34, borderRadius: 7, background: GREEN_SOFT }}
+                >
+                  <SupplierGlyph color={GREEN_HOVER} size={17} />
+                </div>
+                <div>
+                  <p className="text-[15px] font-semibold tracking-[-0.01em]" style={{ color: "#0B1A2F" }}>New supplier</p>
+                  <p className="mt-0.5 text-[12.5px]" style={{ color: "#56627A" }}>Name the supplier. You can configure mappings and delivery after.</p>
+                </div>
               </div>
               <button
                 onClick={() => { setShowAddPanel(false); setNewName(""); setAddError(null); }}
-                className="rounded px-2 py-1 text-[12px]"
-                style={{ border: "1px solid #E2E6EE", background: "#FFFFFF", color: "#56627A" }}
+                aria-label="Close add supplier panel"
+                className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-[6px]"
+                style={{ border: "1px solid #E2E6EE", background: "#FFFFFF", color: "#8A93A5" }}
               >
-                Close
+                <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                  <path d="M2 10L10 2M2 2l8 8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                </svg>
               </button>
             </div>
-            <div className="flex flex-col gap-2 p-4">
+            <div className="flex flex-col gap-2 px-[18px] pb-[18px] pt-3">
+              <label className="text-[11.5px] font-semibold" style={{ color: "#56627A" }}>
+                Supplier name <span style={{ color: "#C53A3A", marginLeft: 3 }}>*</span>
+              </label>
               <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto]">
                 <input
                   aria-label="Supplier name"
@@ -177,23 +230,41 @@ export function SupplierDockList() {
                   value={newName}
                   onChange={(e) => setNewName(e.target.value)}
                   onKeyDown={(e) => { if (e.key === "Enter") handleSave(); }}
-                  className="h-9 rounded-[6px] px-3 text-[13px]"
-                  style={{ border: "1px solid #D5DAEA", color: "#0B1A2F", outline: "none" }}
+                  className="h-[34px] rounded-[6px] px-3 text-[12.5px]"
+                  style={{ border: "1px solid #C6CDDA", color: "#0B1A2F", outline: "none", transition: "border-color 150ms, box-shadow 150ms" }}
+                  onFocus={(e) => { e.currentTarget.style.borderColor = GREEN; e.currentTarget.style.boxShadow = `0 0 0 3px ${GREEN_SOFT}`; }}
+                  onBlur={(e) => { e.currentTarget.style.borderColor = "#C6CDDA"; e.currentTarget.style.boxShadow = "none"; }}
                   autoFocus
                 />
                 <button
                   onClick={handleSave}
                   disabled={createMutation.isPending}
-                  className="h-9 rounded-[6px] px-4 text-[12.5px] font-semibold"
+                  className="inline-flex h-[34px] items-center justify-center gap-[6px] rounded-[7px] px-4 text-[12.5px] font-semibold transition-colors"
                   style={{
                     border: "none",
-                    background: createMutation.isPending ? "#D5DAEA" : "#0B1A2F",
-                    color: createMutation.isPending ? "#8A93A5" : "#FFFFFF",
+                    background: "var(--brand-green, #28C55E)",
+                    color: "#FFFFFF",
                     cursor: createMutation.isPending ? "not-allowed" : "pointer",
+                    opacity: createMutation.isPending ? 0.6 : 1,
+                    whiteSpace: "nowrap",
                   }}
+                  onMouseEnter={(e) => { if (!createMutation.isPending) (e.currentTarget as HTMLButtonElement).style.background = GREEN_HOVER; }}
+                  onMouseLeave={(e) => { if (!createMutation.isPending) (e.currentTarget as HTMLButtonElement).style.background = GREEN; }}
                 >
-                  {createMutation.isPending ? "Saving…" : "Save"}
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M20 6 9 17l-5-5" />
+                  </svg>
+                  {createMutation.isPending ? "Saving…" : "Save supplier"}
                 </button>
+              </div>
+              <div
+                className="mt-1 flex items-start gap-2 rounded-[6px] px-3 py-2.5 text-[12px] leading-5"
+                style={{ background: GREEN_SOFT, color: "#1E6D29" }}
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" style={{ marginTop: 1, flexShrink: 0 }}>
+                  <circle cx="12" cy="12" r="10" /><path d="M12 16v-4M12 8h.01" />
+                </svg>
+                Auto-process stays off until you configure delivery and turn it on for this supplier.
               </div>
               {addError && (
                 <p className="text-[12px]" style={{ color: "#C53A3A" }}>{addError}</p>
@@ -204,13 +275,23 @@ export function SupplierDockList() {
 
         {/* Loading state */}
         {isLoading && (
-          <div className="flex flex-col gap-3">
-            {[1, 2, 3].map((i) => (
+          <div
+            className="overflow-hidden rounded-[10px]"
+            style={{ border: "1px solid #E2E6EE", background: "#FFFFFF", boxShadow: "0 1px 2px rgba(11,26,47,0.04)" }}
+          >
+            <SupplierTableHeader />
+            {[1, 2, 3, 4].map((i, idx) => (
               <div
                 key={i}
-                className="h-[70px] rounded-[8px] animate-pulse"
-                style={{ background: "#E2E6EE" }}
-              />
+                className="flex items-center gap-[13px] px-[18px] py-[14px]"
+                style={{ borderTop: idx === 0 ? "none" : "1px solid #E2E6EE" }}
+              >
+                <div className="h-8 w-8 flex-shrink-0 rounded-[7px] animate-pulse" style={{ background: "#EFF2F7" }} />
+                <div className="flex flex-col gap-1.5">
+                  <div className="h-3.5 w-32 rounded animate-pulse" style={{ background: "#EFF2F7" }} />
+                  <div className="h-2.5 w-14 rounded animate-pulse" style={{ background: "#F2F4F9" }} />
+                </div>
+              </div>
             ))}
           </div>
         )}
@@ -218,7 +299,7 @@ export function SupplierDockList() {
         {/* Fetch error */}
         {suppliersError && !isLoading && (
           <div
-            className="rounded-[8px] px-4 py-3 text-[13px]"
+            className="rounded-[10px] px-4 py-3 text-[13px]"
             style={{ border: "1px solid #F1C9C9", background: "#FEF2F2", color: "#C53A3A" }}
           >
             Could not load suppliers. Check your connection and try refreshing.
@@ -228,90 +309,182 @@ export function SupplierDockList() {
         {/* Empty state */}
         {!isLoading && !suppliersError && suppliers.length === 0 && (
           <div
-            className="rounded-[8px] px-6 py-10 text-center"
-            style={{ border: "1px dashed #D5DAEA", background: "#FFFFFF" }}
+            className="rounded-[10px] px-6 py-12 text-center"
+            style={{ border: "1px dashed #C6CDDA", background: "#FFFFFF" }}
           >
+            <div
+              className="mx-auto mb-3 flex items-center justify-center"
+              style={{ width: 40, height: 40, borderRadius: 9, background: GREEN_SOFT }}
+            >
+              <SupplierGlyph color={GREEN_HOVER} size={20} />
+            </div>
             <p className="text-[14px] font-semibold" style={{ color: "#0B1A2F" }}>No suppliers configured</p>
-            <p className="mt-1 text-[12.5px]" style={{ color: "#56627A" }}>
-              Add a supplier to start processing purchase orders.
+            <p className="mx-auto mt-1 max-w-[360px] text-[12.5px] leading-5" style={{ color: "#56627A" }}>
+              Add a supplier to start processing purchase orders into the format and channel it requires.
             </p>
             {canAddSupplier && (
               <button
                 onClick={() => { setShowAddPanel(true); setAddError(null); }}
-                className="mt-4 h-9 rounded-[6px] px-4 text-[12.5px] font-semibold"
-                style={{ border: "none", background: "#0B1A2F", color: "#FFFFFF" }}
+                className="mt-4 inline-flex h-[34px] items-center justify-center gap-[7px] rounded-[7px] px-4 text-[12.5px] font-semibold"
+                style={{ border: "none", background: "var(--brand-green, #28C55E)", color: "#FFFFFF", boxShadow: "0 1px 2px rgba(40,197,94,0.30)" }}
+                onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = GREEN_HOVER; }}
+                onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = GREEN; }}
               >
-                + Add supplier
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M5 12h14M12 5v14" />
+                </svg>
+                New supplier
               </button>
             )}
           </div>
         )}
 
-        {/* Supplier list */}
+        {/* Supplier table */}
         {!isLoading && !suppliersError && suppliers.length > 0 && (
-          <div className="flex flex-col gap-3">
-            {suppliers.map((s) => {
-              const code = codeFromName(s.name);
-              const hc = "#2E8E3A";
-              const hb = "#E2F1E2";
+          <div
+            className="overflow-hidden rounded-[10px]"
+            style={{ border: "1px solid #E2E6EE", background: "#FFFFFF", boxShadow: "0 1px 2px rgba(11,26,47,0.04)" }}
+          >
+            {/* Desktop: column header. Hidden on mobile where rows stack. */}
+            <SupplierTableHeader />
+
+            {suppliers.map((s, idx) => {
+              const isHover = hoverRow === s.id;
               return (
                 <div
                   key={s.id}
                   onClick={() => router.push(`/library/suppliers/${s.id}`)}
+                  onMouseEnter={() => setHoverRow(s.id)}
+                  onMouseLeave={() => setHoverRow(null)}
                   title="View this supplier's delivery configuration and mappings"
-                  className="group cursor-pointer rounded-[8px] overflow-hidden"
+                  className="group grid cursor-pointer grid-cols-1 items-center gap-2 px-[18px] py-[14px] transition-colors sm:grid-cols-[minmax(0,2.4fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.1fr)_minmax(0,0.9fr)_minmax(0,1fr)_18px] sm:gap-4"
                   style={{
-                    background: "#FFFFFF",
-                    border: "1px solid #E2E6EE",
-                    boxShadow: "0 1px 3px rgba(11,26,47,0.04)",
-                    borderLeft: `3px solid ${hc}`,
+                    borderTop: idx === 0 ? "none" : "1px solid #E2E6EE",
+                    background: isHover ? GREEN_SOFT : "transparent",
                   }}
                 >
-                  <div className="grid gap-3 px-4 py-4 sm:grid-cols-[44px_minmax(0,1fr)_auto] sm:items-center sm:gap-4">
-                    {/* Code badge */}
+                  {/* Supplier — icon badge + name + code */}
+                  <div className="flex min-w-0 items-center gap-[13px]">
                     <div
+                      className="flex flex-shrink-0 items-center justify-center"
                       style={{
-                        width: 44,
-                        height: 44,
-                        borderRadius: 10,
-                        background: `${hc}18`,
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        fontFamily: "'JetBrains Mono', monospace",
-                        fontSize: 11,
-                        fontWeight: 800,
-                        color: hc,
-                        flexShrink: 0,
+                        width: 32,
+                        height: 32,
+                        borderRadius: 7,
+                        background: isHover ? "#FFFFFF" : GREEN_SOFT,
+                        transition: "background 150ms",
                       }}
                     >
-                      {code}
+                      <SupplierGlyph color={GREEN_HOVER} size={16} />
                     </div>
-
-                    {/* Name */}
                     <div className="min-w-0">
-                      <p className="text-[14px] font-semibold" style={{ color: "#0B1A2F" }}>
+                      <p className="truncate text-[13.5px] font-semibold leading-tight tracking-[-0.005em]" style={{ color: "#0B1A2F" }}>
                         {s.name}
                       </p>
-                      <p className="mt-0.5 text-[11.5px]" style={{ color: "#8A93A5" }}>
-                        Supplier · {s.id.slice(0, 8)}
+                      <p
+                        className="mt-[1px] truncate text-[10.5px] leading-tight tracking-[0.02em]"
+                        style={{ color: "#8A93A5", fontFamily: "'JetBrains Mono', ui-monospace, monospace" }}
+                      >
+                        {shortCode(s.name)}
                       </p>
                     </div>
-
-                    {/* Arrow */}
-                    <span
-                      className="opacity-0 group-hover:opacity-100 transition-opacity text-[14px]"
-                      style={{ color: "#C6CDDA" }}
-                    >
-                      →
-                    </span>
                   </div>
+
+                  {/* Format */}
+                  <MetaCell label="Format">
+                    <span className="text-[12.5px]" style={{ color: "#A2AAB9" }}>—</span>
+                  </MetaCell>
+
+                  {/* Channel */}
+                  <MetaCell label="Channel">
+                    <span className="text-[12.5px]" style={{ color: "#A2AAB9" }}>—</span>
+                  </MetaCell>
+
+                  {/* Auto-process */}
+                  <MetaCell label="Auto-process">
+                    <span
+                      className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-[3px] text-[11px] font-medium"
+                      style={{ background: isHover ? "#FFFFFF" : "#EFF2F7", color: "#8A93A5", transition: "background 150ms" }}
+                    >
+                      <span className="inline-block h-1.5 w-1.5 rounded-full" style={{ background: "#C6CDDA" }} />
+                      Not set
+                    </span>
+                  </MetaCell>
+
+                  {/* Orders */}
+                  <MetaCell label="Orders" align="right">
+                    <span className="text-[12.5px]" style={{ color: "#A2AAB9", fontFamily: "'JetBrains Mono', ui-monospace, monospace" }}>—</span>
+                  </MetaCell>
+
+                  {/* Acceptance */}
+                  <MetaCell label="Acceptance" align="right">
+                    <span className="text-[12.5px]" style={{ color: "#A2AAB9", fontFamily: "'JetBrains Mono', ui-monospace, monospace" }}>—</span>
+                  </MetaCell>
+
+                  {/* Chevron */}
+                  <span className="hidden items-center justify-end sm:flex">
+                    <svg
+                      width="16" height="16" viewBox="0 0 24 24" fill="none"
+                      stroke={isHover ? GREEN_HOVER : "#A4ADBD"} strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"
+                      style={{ transition: "stroke 120ms" }}
+                    >
+                      <path d="m9 18 6-6-6-6" />
+                    </svg>
+                  </span>
                 </div>
               );
             })}
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+/** Column header row — mirrors the design's table head. Desktop only. */
+function SupplierTableHeader() {
+  const cls = "text-[10.5px] font-semibold uppercase tracking-[0.06em]";
+  const color = "#8A93A5";
+  return (
+    <div
+      className="hidden grid-cols-[minmax(0,2.4fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.1fr)_minmax(0,0.9fr)_minmax(0,1fr)_18px] items-center gap-4 px-[18px] py-[11px] sm:grid"
+      style={{ background: "#FFFFFF", borderBottom: "1px solid #E2E6EE" }}
+    >
+      <span className={cls} style={{ color }}>Supplier</span>
+      <span className={cls} style={{ color }}>Format</span>
+      <span className={cls} style={{ color }}>Channel</span>
+      <span className={cls} style={{ color }}>Auto-process</span>
+      <span className={`${cls} text-right`} style={{ color }}>Orders</span>
+      <span className={`${cls} text-right`} style={{ color }}>Acceptance</span>
+      <span />
+    </div>
+  );
+}
+
+/**
+ * One metadata cell. On mobile it shows an inline label so the stacked card
+ * stays readable; on desktop the label is hidden (the column header carries it).
+ */
+function MetaCell({
+  label,
+  align = "left",
+  children,
+}: {
+  label: string;
+  align?: "left" | "right";
+  children: ReactNode;
+}) {
+  return (
+    <div
+      className={`flex items-center gap-2 text-[12.5px] sm:gap-0 ${align === "right" ? "sm:justify-end" : ""}`}
+    >
+      <span
+        className="text-[10.5px] font-semibold uppercase tracking-[0.06em] sm:hidden"
+        style={{ color: "#9AA3B2", minWidth: 84 }}
+      >
+        {label}
+      </span>
+      {children}
     </div>
   );
 }

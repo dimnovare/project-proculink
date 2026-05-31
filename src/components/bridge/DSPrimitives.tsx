@@ -26,9 +26,9 @@ const BUTTON_VARIANT: Record<ButtonVariant, string> = {
   ghost:     "bg-transparent text-ink-muted border-transparent hover:bg-surface-2 hover:text-ink",
   danger:    "bg-danger text-white border-transparent hover:opacity-90",
   ai:        "bg-ai text-white border-transparent hover:opacity-90",
-  // tokens.css .btn-blue / .btn-green
-  blue:      "[background:#1E66C9] text-white border-transparent hover:[background:#0F4FA8]",
-  green:     "[background:#2E8E3A] text-white border-transparent hover:[background:#1E6D29]",
+  // tokens.css .btn-blue / .btn-green — both now use the primary emerald green
+  blue:      "[background:#28C55E] text-white border-transparent hover:[background:#1DAF50]",
+  green:     "[background:#28C55E] text-white border-transparent hover:[background:#1DAF50]",
 };
 
 const BUTTON_SIZE: Record<ButtonSize, string> = {
@@ -78,13 +78,13 @@ type SrcType = "PDF" | "XLSX" | "CSV" | "XML" | "cXML" | "EDI" | "EMAIL" | "API"
 
 const SRC_PALETTE: Record<SrcType, { bg: string; fg: string }> = {
   PDF:   { bg: "#FBEEEE", fg: "#B53F3F" },
-  XLSX:  { bg: "#E2F1E2", fg: "#1E6D29" },   // brand-green-soft / brand-green-deep
+  XLSX:  { bg: "#DCFCE7", fg: "#1DAF50" },   // brand-green-soft / brand-green-deep
   CSV:   { bg: "#EEF3F8", fg: "#345470" },
   XML:   { bg: "#EEE7FB", fg: "#5E3DB0" },   // ai-soft / #5E3DB0
   cXML:  { bg: "#EEE7FB", fg: "#5E3DB0" },
   EDI:   { bg: "#FAEFD6", fg: "#C97A14" },   // amber-soft / amber
   EMAIL: { bg: "#E9EDF3", fg: "#4A5568" },
-  API:   { bg: "#E3F0E3", fg: "#1E6D29" },   // tokens uses #E3F0E3 for API
+  API:   { bg: "#DCFCE7", fg: "#1DAF50" },   // brand-green-soft
   JSON:  { bg: "#FFF4D6", fg: "#846100" },
   UBL:   { bg: "#EEF3F8", fg: "#345470" },   // same as CSV per tokens.css .src-UBL
 };
@@ -108,13 +108,13 @@ type Status = "new" | "extracting" | "review" | "ready" | "sent" | "delivering" 
 const STATUS_MAP: Record<Status, { bg: string; fg: string; dot: string; pulse?: boolean; label: string }> = {
   // tokens.css .pill-new → surface-2 / ink-muted / ink-faint
   new:        { bg: "#EFF2F7", fg: "#56627A", dot: "#8A93A5",  label: "New" },
-  // tokens.css .pill-extracting → brand-blue-soft / brand-blue-deep / brand-blue
-  extracting: { bg: "#E3EDFB", fg: "#0F4FA8", dot: "#1E66C9",  label: "Extracting" },
+  // extracting + delivering use the primary green accent
+  extracting: { bg: "#DCFCE7", fg: "#1DAF50", dot: "#28C55E",  label: "Extracting" },
   review:     { bg: "#FAEFD6", fg: "#C97A14", dot: "#C97A14",  label: "Needs review" },
-  ready:      { bg: "#E2F1E2", fg: "#1E6D29", dot: "#2E8E3A",  label: "Ready" },
-  sent:       { bg: "#E2F1E2", fg: "#1E6D29", dot: "#2E8E3A",  label: "Delivered" },
-  // tokens.css .pill-delivering → brand-blue-soft / brand-blue-deep / brand-blue (pulse-dot)
-  delivering: { bg: "#E3EDFB", fg: "#0F4FA8", dot: "#1E66C9", pulse: true, label: "Delivering" },
+  ready:      { bg: "#DCFCE7", fg: "#1DAF50", dot: "#28C55E",  label: "Ready" },
+  sent:       { bg: "#DCFCE7", fg: "#1DAF50", dot: "#28C55E",  label: "Delivered" },
+  // delivering uses green accent with pulse
+  delivering: { bg: "#DCFCE7", fg: "#1DAF50", dot: "#28C55E", pulse: true, label: "Delivering" },
   failed:     { bg: "#FBE3E3", fg: "#C53A3A", dot: "#C53A3A",  label: "Failed" },
 };
 
@@ -221,8 +221,8 @@ export function ProcuLinkMark({ size = 24, mono = false, gradientId }: MarkProps
   const autoId = React.useId();
   const id = gradientId ?? `procu-mark-${autoId.replace(/:/g, "")}`;
   const stroke = mono ? "currentColor" : `url(#${id})`;
-  const dotA   = mono ? "currentColor" : "#1E66C9";
-  const dotB   = mono ? "currentColor" : "#2E8E3A";
+  const dotA   = mono ? "currentColor" : "#28C55E";
+  const dotB   = mono ? "currentColor" : "#1DAF50";
 
   return (
     <svg width={size} height={size} viewBox="0 0 40 40" fill="none" aria-label="ProcuLink" role="img">
@@ -230,8 +230,8 @@ export function ProcuLinkMark({ size = 24, mono = false, gradientId }: MarkProps
       {!mono && (
         <defs>
           <linearGradient id={id} x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0%"   stopColor="#1E66C9"/>
-            <stop offset="100%" stopColor="#2E8E3A"/>
+            <stop offset="0%"   stopColor="#28C55E"/>
+            <stop offset="100%" stopColor="#1DAF50"/>
           </linearGradient>
         </defs>
       )}

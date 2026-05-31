@@ -36,7 +36,7 @@ export default function MarketingLayout({
                 format your supplier needs — with a full audit trail.
               </p>
               <div className="flex items-center gap-2 mt-4" style={{ fontSize: 12 }}>
-                <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#5FC06B", display: "inline-block" }} />
+                <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#28C55E", display: "inline-block" }} />
                 All systems operational
               </div>
             </div>

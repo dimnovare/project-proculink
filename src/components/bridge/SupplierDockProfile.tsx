@@ -6,6 +6,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
+import { ChevronLeft, Settings, Info, Clock, Link2, Truck, Plus } from "lucide-react";
 import { PoMappingEditor } from "./PoMappingEditor";
 import { DeliveryConfigEditor } from "./DeliveryConfigEditor";
 import { upsertPoMapping, deletePoMapping } from "@/lib/api/mapping";
@@ -14,19 +15,48 @@ import type { PoMappingConfig } from "@/lib/api/types";
 
 type Tab = "overview" | "mappings" | "po-mapping" | "delivery";
 
+// Brand accent — emerald green (matches design CTAs + active-nav)
+const GREEN = "#28C55E";
+const GREEN_DEEP = "#1DAF50";
+const GREEN_SOFT = "#DCFCE7";
+
+// Indigo — used for "Inherited" provenance pills + record-id links (matches design)
+const INDIGO = "#3E63DD";
+const INDIGO_SOFT = "#E5EAFB";
+const INDIGO_DEEP = "#3A4FB0";
+
+// Muted icon/label tone for card-header glyphs (design uses neutral, not green)
+const MUTED = "#8A93A5";
+
 // Demo data — only rendered when isApiMockMode is true (dev, never production)
 const DEMO_MOCK = {
   id:            "s1",
   name:          "Acme Components",
-  code:          "ACM",
+  code:          "ACME",
   health:        97,
-  totalOrders:   3218,
+  totalOrders:   1284,
   avgCycle:      "1m 38s",
   exceptionRate: "2.1%",
-  formats:       ["cXML", "EDI", "API"] as string[],
-  connectors: [
-    { type: "cXML PunchOut", endpoint: "https://acme.example.com/cxml/orders", lastPoll: "1m" },
-    { type: "API (REST)",    endpoint: "https://api.acme.example.com/v2/po",   lastPoll: "30s" },
+  formats:       ["cXML", "HTTP"] as string[],
+  autoProcess:   true,
+  summary: {
+    requiredFormat:    "cXML",
+    deliveryChannel:   "HTTP",
+    endpoint:          "sftp://vanderberg.example/in",
+    standardsProfile:  "EDIFACT D.96A ORDERS",
+    savedMappings:     1612,
+    lastDelivery:      "26m ago · accepted",
+  },
+  recent: [
+    { id: "PO-2026-008412", amount: "€71,240.00", status: "review"  as const },
+    { id: "SH-PO-44120",    amount: "€9,418.00",  status: "ready"   as const },
+    { id: "WST-2026-7741",  amount: "€2,140.00",  status: "sent"    as const },
+  ],
+  mappings: [
+    { buyer: "HX-4410", supplier: "ACM-PL-22", desc: "Hydraulic seal kit",     source: "AI"       as const, conf: 95  },
+    { buyer: "HX-4412", supplier: "ACM-FL-08", desc: "Flange coupling 80mm",   source: "Manual"   as const, conf: 100 },
+    { buyer: "HX-5500", supplier: "ACM-BR-55", desc: "Bracket assembly",       source: "Inherited" as const, conf: 100 },
+    { buyer: "HX-3301", supplier: "ACM-NT-33", desc: "Lock nut M12",           source: "Imported" as const, conf: 100 },
   ],
 };
 
@@ -43,12 +73,32 @@ const TABS: Array<{ id: Tab; label: string }> = [
   { id: "delivery",    label: "Delivery"          },
 ];
 
+// Source-pill palette for the SKU mappings table (provenance colour-coding per design).
+const SOURCE_PILL: Record<string, { bg: string; fg: string }> = {
+  AI:        { bg: "#EEE7FB",     fg: "#6F4FCE"    },   // violet — AI provenance
+  Manual:    { bg: "#EFF2F7",     fg: "#56627A"    },   // neutral gray
+  Inherited: { bg: INDIGO_SOFT,   fg: INDIGO_DEEP  },   // indigo — inherited from another supplier
+  Imported:  { bg: GREEN_SOFT,    fg: GREEN_DEEP   },   // green — imported from a file
+};
+
+// Soft-pill background tint that pairs with confColor() for confidence badges.
+function confPillBg(pct: number): string {
+  if (pct >= 90) return GREEN_SOFT;
+  if (pct >= 75) return "#FAEFD6";
+  return "#FBE3E3";
+}
+
+function confColor(pct: number): string {
+  if (pct >= 90) return GREEN_DEEP;
+  if (pct >= 75) return "#C97A14";
+  return "#C53A3A";
+}
+
 export function SupplierDockProfile({ id }: { id: string }) {
   const router = useRouter();
   const [tab, setTab] = useState<Tab>("overview");
   const [poMappingConfig, setPoMappingConfig] = useState<PoMappingConfig | null>(null);
   const [savingMapping, setSavingMapping] = useState(false);
-  const hc = "#2E8E3A";
 
   const { data: supplierList, isLoading, error } = useQuery({
     queryKey: ["suppliers"],
@@ -79,7 +129,7 @@ export function SupplierDockProfile({ id }: { id: string }) {
         <span style={{ fontSize: 13, color: "#C53A3A" }}>Failed to load supplier</span>
         <button
           onClick={() => router.push("/library/suppliers")}
-          style={{ fontSize: 12.5, color: "#1E66C9", background: "none", border: "none", cursor: "pointer" }}
+          style={{ fontSize: 12.5, color: GREEN_DEEP, background: "none", border: "none", cursor: "pointer" }}
         >
           ← Back to suppliers
         </button>
@@ -93,7 +143,7 @@ export function SupplierDockProfile({ id }: { id: string }) {
         <span style={{ fontSize: 14, fontWeight: 600, color: "#0B1A2F" }}>Supplier not found</span>
         <button
           onClick={() => router.push("/library/suppliers")}
-          style={{ fontSize: 12.5, color: "#1E66C9", background: "none", border: "none", cursor: "pointer" }}
+          style={{ fontSize: 12.5, color: GREEN_DEEP, background: "none", border: "none", cursor: "pointer" }}
         >
           ← Back to suppliers
         </button>
@@ -105,95 +155,96 @@ export function SupplierDockProfile({ id }: { id: string }) {
     <div className="flex flex-col h-full min-h-0 overflow-hidden" style={{ background: "#F6F7FA" }}>
       {/* Header */}
       <div
-        className="flex flex-col items-start gap-3 px-4 py-4 sm:px-6 lg:flex-row lg:gap-4 flex-shrink-0"
+        className="flex flex-col gap-4 px-4 py-4 sm:px-6 sm:py-5 flex-shrink-0"
         style={{ borderBottom: "1px solid #E2E6EE", background: "#FFFFFF" }}
       >
         <button
           onClick={() => router.push("/library/suppliers")}
-          className="text-[12.5px] font-medium mt-1 flex-shrink-0"
-          style={{ color: "#56627A", background: "none", border: "none", cursor: "pointer" }}
+          className="inline-flex items-center gap-1 self-start text-[12.5px] font-medium"
+          style={{ color: "#8A93A5", background: "none", border: "none", cursor: "pointer", padding: 0 }}
         >
-          ← Suppliers
+          <ChevronLeft size={14} strokeWidth={2.2} />
+          Suppliers
         </button>
 
-        <div className="flex min-w-0 items-center gap-3">
-          <div
-            style={{
-              width: 48,
-              height: 48,
-              borderRadius: 11,
-              background: `${hc}18`,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              fontFamily: "'JetBrains Mono', monospace",
-              fontSize: 12,
-              fontWeight: 800,
-              color: hc,
-              flexShrink: 0,
-            }}
-          >
-            {code}
-          </div>
-
-          <div className="min-w-0">
-            <h1
-              className="text-[22px] font-semibold tracking-[-0.02em]"
-              style={{ fontFamily: "'Bricolage Grotesque', Inter, sans-serif", color: "#0B1A2F" }}
+        <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center">
+          <div className="flex min-w-0 items-center gap-3.5">
+            {/* Supplier avatar */}
+            <div
+              style={{
+                width: 44,
+                height: 44,
+                borderRadius: 11,
+                background: GREEN_SOFT,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                flexShrink: 0,
+              }}
             >
-              {name}
-            </h1>
-            {isApiMockMode && DEMO_MOCK.formats.length > 0 && (
-              <div className="flex flex-wrap items-center gap-2 mt-1">
-                {DEMO_MOCK.formats.map((f) => (
-                  <span key={f} className="text-[10.5px] font-semibold rounded px-1.5 py-0.5" style={{ background: "#EFF2F7", color: "#56627A" }}>
-                    {f}
-                  </span>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* KPIs */}
-        <div className="grid w-full grid-cols-2 gap-3 lg:ml-auto lg:w-auto lg:flex lg:items-center lg:gap-6 lg:flex-shrink-0">
-          {(isApiMockMode
-            ? [
-                { label: "Total orders",   value: DEMO_MOCK.totalOrders.toLocaleString(), color: undefined },
-                { label: "Avg cycle",      value: DEMO_MOCK.avgCycle,                     color: undefined },
-                { label: "Exception rate", value: DEMO_MOCK.exceptionRate,                color: undefined },
-                { label: "Health",         value: `${DEMO_MOCK.health}%`,                 color: hc        },
-              ]
-            : [
-                { label: "Total orders",   value: "—", color: undefined },
-                { label: "Avg cycle",      value: "—", color: undefined },
-                { label: "Exception rate", value: "—", color: undefined },
-                { label: "Health",         value: "—", color: undefined },
-              ]
-          ).map(({ label, value, color }) => (
-            <div key={label} className="rounded-[7px] bg-[#F6F7FA] px-3 py-2 text-left lg:bg-transparent lg:p-0 lg:text-right">
-              <div
-                style={{
-                  fontFamily: "'Bricolage Grotesque', Inter, sans-serif",
-                  fontSize: 20,
-                  fontWeight: 700,
-                  color: color ?? (isApiMockMode ? "#0B1A2F" : "#C6CDDA"),
-                  letterSpacing: "-0.02em",
-                  lineHeight: 1,
-                }}
-              >
-                {value}
-              </div>
-              <div style={{ fontSize: 11, color: "#8A93A5", marginTop: 2 }}>{label}</div>
+              <Truck size={20} strokeWidth={2} color={GREEN_DEEP} />
             </div>
-          ))}
+
+            <div className="min-w-0">
+              <h1
+                className="text-[26px] leading-none font-semibold tracking-[-0.02em]"
+                style={{ fontFamily: "'Bricolage Grotesque', Inter, sans-serif", color: "#0B1A2F" }}
+              >
+                {name}
+              </h1>
+              {/* Inline meta row — code label · format pills · auto-process status */}
+              <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1.5 mt-2">
+                {code && code !== "—" && (
+                  <span
+                    className="text-[11px] font-semibold uppercase tracking-[0.04em]"
+                    style={{ color: MUTED, fontFamily: "'JetBrains Mono', monospace" }}
+                  >
+                    {code}
+                  </span>
+                )}
+                {(isApiMockMode ? DEMO_MOCK.formats : []).map((f) => {
+                  const isStandard = /xml|edi|peppol|x12/i.test(f);
+                  return (
+                    <span
+                      key={f}
+                      className="text-[10.5px] font-semibold rounded px-1.5 py-0.5"
+                      style={{
+                        background: isStandard ? "#EEE7FB" : "#EFF2F7",
+                        color: isStandard ? "#6F4FCE" : "#56627A",
+                        fontFamily: "'JetBrains Mono', monospace",
+                        letterSpacing: "0.02em",
+                      }}
+                    >
+                      {f}
+                    </span>
+                  );
+                })}
+                {isApiMockMode && (
+                  <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold" style={{ color: DEMO_MOCK.autoProcess ? GREEN_DEEP : MUTED }}>
+                    <span style={{ width: 6, height: 6, borderRadius: "50%", background: DEMO_MOCK.autoProcess ? GREEN : MUTED, display: "inline-block" }} />
+                    Auto-process: {DEMO_MOCK.autoProcess ? "ON" : "OFF"}
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Settings action — opens delivery configuration */}
+          <button
+            onClick={() => setTab("delivery")}
+            className="inline-flex items-center gap-1.5 self-start rounded-[7px] px-3 text-[12.5px] font-medium sm:ml-auto sm:self-center"
+            style={{ height: 34, border: "1px solid #D5DAEA", background: "#FFFFFF", color: "#0B1A2F", cursor: "pointer" }}
+          >
+            <Settings size={14} strokeWidth={2} color="#56627A" />
+            Supplier settings
+          </button>
         </div>
       </div>
 
       {/* Tabs */}
       <div
         className="flex items-center gap-0 overflow-x-auto px-4 sm:px-6 flex-shrink-0"
-        style={{ borderBottom: "1px solid #E2E6EE", background: "#FFFFFF", height: 40 }}
+        style={{ borderBottom: "1px solid #E2E6EE", background: "#FFFFFF", height: 42 }}
       >
         {TABS.map((t) => (
           <button
@@ -205,7 +256,7 @@ export function SupplierDockProfile({ id }: { id: string }) {
               background: "transparent",
               border: "none",
               cursor: "pointer",
-              borderBottom: tab === t.id ? "2px solid #1E66C9" : "2px solid transparent",
+              borderBottom: tab === t.id ? `2px solid ${GREEN}` : "2px solid transparent",
             }}
           >
             {t.label}
@@ -216,68 +267,197 @@ export function SupplierDockProfile({ id }: { id: string }) {
       {/* Tab body */}
       <div className="flex-1 overflow-auto p-4 sm:p-5">
         {tab === "overview" && (
-          <div className="grid gap-4 lg:grid-cols-2">
-            {/* Connectors summary */}
-            <div style={{ background: "#FFFFFF", border: "1px solid #E2E6EE", borderRadius: 8, padding: 20, borderLeft: "3px solid #2E8E3A" }}>
-              <h3 className="text-[13px] font-semibold mb-3" style={{ color: "#0B1A2F" }}>Active connectors</h3>
-              {isApiMockMode ? (
-                DEMO_MOCK.connectors.map((c, i) => (
-                  <div key={i} className="flex items-center gap-3 py-2" style={{ borderBottom: i < DEMO_MOCK.connectors.length - 1 ? "1px solid #F0F2F6" : undefined }}>
-                    <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#2E8E3A", flexShrink: 0, display: "inline-block" }} />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-[12.5px] font-medium" style={{ color: "#0B1A2F" }}>{c.type}</p>
-                      <p className="text-[11px] truncate" style={{ color: "#8A93A5", fontFamily: "'JetBrains Mono', monospace" }}>{c.endpoint}</p>
-                    </div>
-                    <span className="text-[11px]" style={{ color: "#8A93A5" }}>{c.lastPoll} ago</span>
-                  </div>
-                ))
-              ) : (
-                <p style={{ fontSize: 13, color: "#8A93A5" }}>
-                  No connectors configured. Set one up in the{" "}
-                  <button
-                    onClick={() => setTab("delivery")}
-                    style={{ color: "#1E66C9", background: "none", border: "none", cursor: "pointer", padding: 0, fontSize: 13 }}
+          <div className="flex flex-col gap-4">
+            {/* KPI stat cards */}
+            <div className="grid grid-cols-2 gap-3 lg:grid-cols-4 lg:gap-4">
+              {(isApiMockMode
+                ? [
+                    { label: "Total orders",    value: DEMO_MOCK.totalOrders.toLocaleString(), sub: "all time",        subAccent: false },
+                    { label: "Avg cycle time",  value: DEMO_MOCK.avgCycle,                     sub: "−14% vs prev",     subAccent: true  },
+                    { label: "Exception rate",  value: DEMO_MOCK.exceptionRate,                sub: "within target",    subAccent: true  },
+                    { label: "Acceptance",      value: `${DEMO_MOCK.health}%`,                 sub: "last 30 days",     subAccent: true  },
+                  ]
+                : [
+                    { label: "Total orders",    value: "—", sub: "no data yet", subAccent: false },
+                    { label: "Avg cycle time",  value: "—", sub: "no data yet", subAccent: false },
+                    { label: "Exception rate",  value: "—", sub: "no data yet", subAccent: false },
+                    { label: "Acceptance",      value: "—", sub: "no data yet", subAccent: false },
+                  ]
+              ).map(({ label, value, sub, subAccent }) => (
+                <div
+                  key={label}
+                  className="rounded-[10px] px-4 py-4"
+                  style={{ background: "#FFFFFF", border: "1px solid #E2E6EE", boxShadow: "0 1px 2px rgba(11,26,47,0.04)" }}
+                >
+                  <div className="text-[10.5px] font-semibold uppercase tracking-[0.04em]" style={{ color: "#8A93A5" }}>{label}</div>
+                  <div
+                    className="mt-2 tracking-[-0.02em]"
+                    style={{
+                      fontFamily: "'Bricolage Grotesque', Inter, sans-serif",
+                      fontSize: 30,
+                      lineHeight: 1,
+                      fontWeight: 700,
+                      color: isApiMockMode ? "#0B1A2F" : "#C6CDDA",
+                    }}
                   >
-                    Delivery
-                  </button>{" "}
-                  tab.
-                </p>
-              )}
+                    {value}
+                  </div>
+                  <div className="mt-1.5 text-[11px] font-medium" style={{ color: subAccent ? GREEN_DEEP : "#8A93A5" }}>{sub}</div>
+                </div>
+              ))}
             </div>
 
-            {/* Volume chart */}
-            <div style={{ background: "#FFFFFF", border: "1px solid #E2E6EE", borderRadius: 8, padding: 20 }}>
-              <h3 className="text-[13px] font-semibold mb-3" style={{ color: "#0B1A2F" }}>Delivery volume · last 7 days</h3>
-              {isApiMockMode ? (
-                <>
-                  <div style={{ display: "flex", alignItems: "flex-end", gap: 6, height: 80 }}>
-                    {[42, 58, 71, 63, 88, 74, 95].map((v, i) => (
+            {/* Summary + recent deliveries */}
+            <div className="grid gap-4 lg:grid-cols-2">
+              {/* Delivery summary */}
+              <div style={{ background: "#FFFFFF", border: "1px solid #E2E6EE", borderRadius: 10, overflow: "hidden" }}>
+                <div className="flex items-center gap-2 px-5 py-3.5" style={{ borderBottom: "1px solid #F0F2F6" }}>
+                  <Info size={15} strokeWidth={2} color={MUTED} />
+                  <h3 className="text-[13px] font-semibold" style={{ color: "#0B1A2F" }}>Delivery summary</h3>
+                </div>
+                {isApiMockMode ? (
+                  <div className="px-5 py-1">
+                    {([
+                      ["Required format",   DEMO_MOCK.summary.requiredFormat,   true ],
+                      ["Delivery channel",  DEMO_MOCK.summary.deliveryChannel,  true ],
+                      ["Endpoint",          DEMO_MOCK.summary.endpoint,         true ],
+                      ["Standards profile", DEMO_MOCK.summary.standardsProfile, true ],
+                      ["Saved SKU mappings", DEMO_MOCK.summary.savedMappings.toLocaleString(), false],
+                      ["Last delivery",     DEMO_MOCK.summary.lastDelivery,     false],
+                    ] as Array<[string, string, boolean]>).map(([k, v, mono], i, arr) => (
                       <div
-                        key={i}
-                        style={{ flex: 1, borderRadius: "3px 3px 0 0", background: i === 6 ? "#2E8E3A" : "#E2F1E2", height: `${v}%` }}
-                      />
+                        key={k}
+                        className="flex items-center justify-between gap-4 py-2.5"
+                        style={{ borderBottom: i < arr.length - 1 ? "1px solid #F4F5F8" : undefined }}
+                      >
+                        <span className="text-[12px]" style={{ color: "#56627A" }}>{k}</span>
+                        <span
+                          className="text-[12px] font-medium truncate text-right"
+                          style={{ color: "#0B1A2F", fontFamily: mono ? "'JetBrains Mono', monospace" : undefined }}
+                        >
+                          {v}
+                        </span>
+                      </div>
                     ))}
                   </div>
-                  <div className="flex justify-between mt-2">
-                    {["M", "T", "W", "T", "F", "S", "S"].map((d, i) => (
-                      <span key={i} style={{ fontSize: 10, color: "#8A93A5", flex: 1, textAlign: "center" }}>{d}</span>
+                ) : (
+                  <p className="px-5 py-5 text-[13px]" style={{ color: "#8A93A5" }}>
+                    Configure this supplier in the{" "}
+                    <button
+                      onClick={() => setTab("delivery")}
+                      style={{ color: GREEN_DEEP, background: "none", border: "none", cursor: "pointer", padding: 0, fontSize: 13, fontWeight: 500 }}
+                    >
+                      Delivery
+                    </button>{" "}
+                    tab to populate this summary.
+                  </p>
+                )}
+              </div>
+
+              {/* Recent deliveries */}
+              <div style={{ background: "#FFFFFF", border: "1px solid #E2E6EE", borderRadius: 10, overflow: "hidden" }}>
+                <div className="flex items-center gap-2 px-5 py-3.5" style={{ borderBottom: "1px solid #F0F2F6" }}>
+                  <Clock size={15} strokeWidth={2} color={MUTED} />
+                  <h3 className="text-[13px] font-semibold" style={{ color: "#0B1A2F" }}>Recent deliveries</h3>
+                </div>
+                {isApiMockMode ? (
+                  <div className="px-5 py-1">
+                    {DEMO_MOCK.recent.map((r, i) => (
+                      <div
+                        key={r.id}
+                        className="flex items-center gap-3 py-2.5"
+                        style={{ borderBottom: i < DEMO_MOCK.recent.length - 1 ? "1px solid #F4F5F8" : undefined }}
+                      >
+                        <span className="text-[12px] font-medium" style={{ color: INDIGO, fontFamily: "'JetBrains Mono', monospace" }}>{r.id}</span>
+                        <span className="ml-auto text-[12px]" style={{ color: MUTED, fontFamily: "'JetBrains Mono', monospace" }}>{r.amount}</span>
+                        <MiniStatusPill status={r.status} />
+                      </div>
                     ))}
                   </div>
-                </>
-              ) : (
-                <p style={{ fontSize: 13, color: "#8A93A5" }}>Volume data not available yet.</p>
-              )}
+                ) : (
+                  <p className="px-5 py-5 text-[13px]" style={{ color: "#8A93A5" }}>
+                    No deliveries yet for this supplier.
+                  </p>
+                )}
+              </div>
             </div>
           </div>
         )}
 
         {tab === "mappings" && (
-          <div style={{ background: "#FFFFFF", border: "1px solid #E2E6EE", borderRadius: 8, padding: 20 }}>
-            <p style={{ fontSize: 13, color: "#56627A" }}>
-              Showing mappings for {name}. See full{" "}
-              <a href="/library/mappings" style={{ color: "#1E66C9" }}>Mapping Editor</a>{" "}
-              for all supplier pairs.
-            </p>
+          <div style={{ background: "#FFFFFF", border: "1px solid #E2E6EE", borderRadius: 10, overflow: "hidden" }}>
+            {/* Card header */}
+            <div className="flex flex-col items-start gap-3 px-5 py-4 sm:flex-row sm:items-center" style={{ borderBottom: "1px solid #F0F2F6" }}>
+              <Link2 size={17} strokeWidth={2} color={MUTED} className="flex-shrink-0" />
+              <div className="min-w-0">
+                <h3 className="text-[14px] font-semibold" style={{ color: "#0B1A2F" }}>Saved SKU mappings</h3>
+                <p className="mt-0.5 text-[12px]" style={{ color: "#8A93A5" }}>
+                  {isApiMockMode ? `${DEMO_MOCK.summary.savedMappings.toLocaleString()} buyer → supplier item codes` : "Buyer → supplier item codes"}
+                </p>
+              </div>
+              <a
+                href="/library/mappings"
+                className="inline-flex items-center gap-1.5 self-stretch justify-center rounded-[7px] px-3 text-[12.5px] font-medium sm:ml-auto sm:self-center"
+                style={{ height: 32, border: "1px solid #D5DAEA", background: "#FFFFFF", color: "#0B1A2F", textDecoration: "none", whiteSpace: "nowrap" }}
+              >
+                <Plus size={14} strokeWidth={2.2} color={GREEN_DEEP} />
+                Add mapping
+              </a>
+            </div>
+
+            {isApiMockMode ? (
+              <div className="overflow-x-auto">
+                <table className="w-full border-collapse" style={{ minWidth: 640 }}>
+                  <thead>
+                    <tr style={{ borderBottom: "1px solid #F0F2F6" }}>
+                      {["Buyer code", "Supplier code", "Description", "Source", "Confidence"].map((h, i) => (
+                        <th
+                          key={h}
+                          className="px-5 py-2.5 text-[10.5px] font-semibold uppercase tracking-[0.04em]"
+                          style={{ color: "#8A93A5", textAlign: i === 4 ? "right" : "left" }}
+                        >
+                          {h}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {DEMO_MOCK.mappings.map((m, i) => {
+                      const pill = SOURCE_PILL[m.source];
+                      return (
+                        <tr key={m.buyer} style={{ borderBottom: i < DEMO_MOCK.mappings.length - 1 ? "1px solid #F4F5F8" : undefined }}>
+                          <td className="px-5 py-3 text-[12px] font-medium" style={{ color: "#0B1A2F", fontFamily: "'JetBrains Mono', monospace" }}>{m.buyer}</td>
+                          <td className="px-5 py-3 text-[12px] font-medium" style={{ color: GREEN_DEEP, fontFamily: "'JetBrains Mono', monospace" }}>{m.supplier}</td>
+                          <td className="px-5 py-3 text-[12.5px]" style={{ color: "#56627A" }}>{m.desc}</td>
+                          <td className="px-5 py-3" style={{ textAlign: "left" }}>
+                            <span
+                              className="inline-flex items-center rounded px-1.5 py-0.5 text-[10.5px] font-semibold"
+                              style={{ background: pill.bg, color: pill.fg }}
+                            >
+                              {m.source}
+                            </span>
+                          </td>
+                          <td className="px-5 py-3" style={{ textAlign: "right" }}>
+                            <span
+                              className="inline-flex items-center rounded px-1.5 py-0.5 text-[11px] font-semibold tabular-nums"
+                              style={{ background: confPillBg(m.conf), color: confColor(m.conf), fontFamily: "'JetBrains Mono', monospace" }}
+                            >
+                              {m.conf}%
+                            </span>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <p className="px-5 py-5 text-[13px]" style={{ color: "#56627A" }}>
+                Showing mappings for {name}. See the full{" "}
+                <a href="/library/mappings" style={{ color: GREEN_DEEP, fontWeight: 500 }}>Mapping Editor</a>{" "}
+                for all supplier pairs.
+              </p>
+            )}
           </div>
         )}
 
@@ -313,5 +493,24 @@ export function SupplierDockProfile({ id }: { id: string }) {
             placeholder tabs here. Re-add a tab once its supplier-scoped feature ships. */}
       </div>
     </div>
+  );
+}
+
+/* -------- MiniStatusPill — compact status badge for the recent-deliveries list -------- */
+function MiniStatusPill({ status }: { status: "review" | "ready" | "sent" }) {
+  const MAP: Record<string, { bg: string; fg: string; dot: string; label: string }> = {
+    review: { bg: "#FAEFD6", fg: "#C97A14",   dot: "#C97A14", label: "Needs review" },
+    ready:  { bg: GREEN_SOFT, fg: GREEN_DEEP,  dot: GREEN,     label: "Ready"        },
+    sent:   { bg: GREEN_SOFT, fg: GREEN_DEEP,  dot: GREEN,     label: "Delivered"    },
+  };
+  const s = MAP[status];
+  return (
+    <span
+      className="inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[10.5px] font-semibold"
+      style={{ background: s.bg, color: s.fg }}
+    >
+      <span style={{ width: 5, height: 5, borderRadius: "50%", background: s.dot, display: "inline-block" }} />
+      {s.label}
+    </span>
   );
 }

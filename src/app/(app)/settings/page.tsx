@@ -33,57 +33,75 @@ export default function SettingsPage() {
   const [tab, setTab] = useState<SettingsTab>("org");
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", height: "100%", minHeight: 0, overflow: "hidden", background: "#F6F7FA" }}>
-      {/* Page header */}
-      <div style={{ padding: "18px 24px 14px", borderBottom: "1px solid #E2E6EE", background: "#FFFFFF", flexShrink: 0 }}>
-        <h1 style={{ fontFamily: "'Bricolage Grotesque', Inter, sans-serif", fontSize: 30, fontWeight: 600, letterSpacing: "-0.025em", lineHeight: 1.1, margin: 0, color: "#0B1A2F" }}>
-          Settings
-        </h1>
-        <div style={{ color: "#56627A", fontSize: 13, marginTop: 5 }}>
-          Workspace configuration and integrations
+    <div style={{ height: "100%", minHeight: 0, overflowY: "auto", background: "#F6F7FA" }}>
+      <div style={{ maxWidth: 1040, margin: "0 auto", padding: "40px 32px 64px" }} className="settings-shell">
+        {/* Page header */}
+        <header style={{ marginBottom: 28 }}>
+          <h1 style={{ fontFamily: "'Bricolage Grotesque', Inter, sans-serif", fontSize: 34, fontWeight: 600, letterSpacing: "-0.025em", lineHeight: 1.05, margin: 0, color: "#0B1A2F" }}>
+            Settings
+          </h1>
+          <div style={{ color: "#56627A", fontSize: 13.5, marginTop: 8 }}>
+            Nordic Distribution · Operations plan
+          </div>
+        </header>
+
+        <div className="settings-grid" style={{ display: "grid", gridTemplateColumns: "200px minmax(0,1fr)", gap: 28, alignItems: "start" }}>
+          {/* Left nav — active = white card + left green accent bar + green icon */}
+          <nav
+            className="settings-nav flex w-full overflow-x-auto gap-1 md:flex-col md:overflow-visible md:gap-1"
+          >
+            {TABS.map((t) => {
+              const active = tab === t.id;
+              return (
+                <button
+                  key={t.id}
+                  onClick={() => setTab(t.id)}
+                  className="settings-nav-item flex shrink-0 items-center gap-[10px] rounded-[8px] py-[10px] pr-3 text-left text-[13px] transition-colors md:w-full"
+                  style={{
+                    paddingLeft: 12,
+                    color:      active ? "#0B1A2F"   : "#56627A",
+                    background: active ? "var(--brand-green-soft, #DCFCE7)" : "transparent",
+                    fontWeight: active ? 600 : 500,
+                    border:     "1px solid transparent",
+                    borderLeft: `2px solid ${active ? "var(--brand-green, #28C55E)" : "transparent"}`,
+                    cursor: "pointer",
+                  }}
+                  aria-current={active ? "page" : undefined}
+                >
+                  <t.Icon size={16} color={active ? "var(--brand-green-deep, #1DAF50)" : "#8A93A5"} strokeWidth={1.75} />
+                  <span>{t.label}</span>
+                </button>
+              );
+            })}
+          </nav>
+
+          {/* Content */}
+          <div style={{ minWidth: 0 }}>
+            {tab === "org"        && <OrgSection />}
+            {tab === "billing"    && <BillingSectionWrapper />}
+            {tab === "email"      && <EmailSettingsSection />}
+            {tab === "api"        && <ApiKeysSection />}
+            {tab === "connectors" && <ConnectorsSection />}
+          </div>
         </div>
       </div>
 
-      <div style={{ display: "flex", flex: 1, minHeight: 0, flexDirection: "column" }} className="md:flex-row">
-        {/* Left nav — canonical: icon + label, active = card shadow + 2px brand-blue border */}
-        <nav
-          style={{ flexShrink: 0, background: "#FFFFFF", borderRight: "1px solid #E2E6EE" }}
-          className="flex w-full overflow-x-auto border-b border-[#E2E6EE] px-2 py-2 gap-1 md:w-[210px] md:flex-col md:overflow-visible md:border-b-0 md:px-2 md:py-4 md:gap-0"
-        >
-          {TABS.map((t) => {
-            const active = tab === t.id;
-            return (
-              <button
-                key={t.id}
-                onClick={() => setTab(t.id)}
-                className="flex shrink-0 items-center gap-[10px] rounded-[6px] px-3 py-[9px] text-left text-[13px] font-medium transition-colors md:w-full"
-                style={{
-                  color:      active ? "#0B1A2F"   : "#56627A",
-                  background: active ? "#FFFFFF"   : "transparent",
-                  boxShadow:  active ? "0 1px 2px rgba(11,26,47,0.04)" : "none",
-                  fontWeight: active ? 600 : 500,
-                  border:     "none",
-                  borderLeft: `2px solid ${active ? "#1E66C9" : "transparent"}`,
-                  cursor: "pointer",
-                }}
-                aria-current={active ? "page" : undefined}
-              >
-                <t.Icon size={16} color={active ? "#1E66C9" : "#8A93A5"} strokeWidth={1.75} />
-                <span>{t.label}</span>
-              </button>
-            );
-          })}
-        </nav>
-
-        {/* Content */}
-        <div style={{ flex: 1, overflowY: "auto", padding: "20px 24px" }}>
-          {tab === "org"        && <OrgSection />}
-          {tab === "billing"    && <BillingSectionWrapper />}
-          {tab === "email"      && <EmailSettingsSection />}
-          {tab === "api"        && <ApiKeysSection />}
-          {tab === "connectors" && <ConnectorsSection />}
-        </div>
-      </div>
+      <style>{`
+        .settings-nav-item:not([aria-current="page"]):hover {
+          background: #EEF1F6;
+          color: #0B1A2F;
+        }
+        @media (max-width: 767px) {
+          .settings-shell { padding: 24px 16px 48px; }
+          .settings-grid { grid-template-columns: 1fr !important; gap: 16px !important; }
+          .settings-nav {
+            background: #FFFFFF;
+            border: 1px solid #E2E6EE;
+            border-radius: 10px;
+            padding: 6px;
+          }
+        }
+      `}</style>
     </div>
   );
 }
@@ -92,12 +110,12 @@ export default function SettingsPage() {
 
 function SettingsGroup({ title, sub, children }: { title: string; sub?: string; children: ReactNode }) {
   return (
-    <div style={{ background: "#FFFFFF", border: "1px solid #E2E6EE", borderRadius: 8, padding: 0, marginBottom: 16, overflow: "hidden" }}>
-      <div style={{ padding: "14px 18px", borderBottom: "1px solid #E2E6EE" }}>
-        <div style={{ fontWeight: 600, fontSize: 14.5 }}>{title}</div>
-        {sub && <div style={{ fontSize: 12, marginTop: 2, color: "#56627A" }}>{sub}</div>}
+    <div style={{ background: "#FFFFFF", border: "1px solid #E2E6EE", borderRadius: 12, padding: 0, marginBottom: 18, overflow: "hidden", boxShadow: "0 1px 2px rgba(11,26,47,0.04)" }}>
+      <div style={{ padding: "18px 22px", borderBottom: "1px solid #EDF0F5" }}>
+        <div style={{ fontWeight: 600, fontSize: 16, letterSpacing: "-0.01em", color: "#0B1A2F" }}>{title}</div>
+        {sub && <div style={{ fontSize: 13, marginTop: 4, color: "#56627A", lineHeight: 1.45 }}>{sub}</div>}
       </div>
-      <div style={{ padding: "16px 18px" }}>{children}</div>
+      <div style={{ padding: "20px 22px" }}>{children}</div>
     </div>
   );
 }
@@ -105,10 +123,10 @@ function SettingsGroup({ title, sub, children }: { title: string; sub?: string; 
 // Row inside a settings group — canonical label/hint + right slot
 function SettingsRow({ label, hint, children }: { label: string; hint?: string; children?: ReactNode }) {
   return (
-    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "11px 0", borderBottom: "1px solid #E2E6EE" }}>
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, padding: "16px 0", borderTop: "1px solid #EDF0F5" }}>
       <div>
-        <div style={{ fontSize: 13, fontWeight: 500 }}>{label}</div>
-        {hint && <div style={{ fontSize: 11.5, color: "#8A93A5", marginTop: 1 }}>{hint}</div>}
+        <div style={{ fontSize: 13.5, fontWeight: 600, color: "#0B1A2F" }}>{label}</div>
+        {hint && <div style={{ fontSize: 12.5, color: "#8A93A5", marginTop: 2 }}>{hint}</div>}
       </div>
       {children}
     </div>
@@ -119,31 +137,32 @@ function SettingsRow({ label, hint, children }: { label: string; hint?: string; 
 
 function OrgSection() {
   return (
-    <div style={{ maxWidth: 520 }}>
+    <div>
       <SettingsGroup title="Organization" sub="Your workspace identity across the product.">
-        <div style={{ marginBottom: 14 }}>
+        <div style={{ marginBottom: 18 }}>
           <label style={fieldLabelStyle}>Workspace name</label>
-          <input defaultValue="Nordic Distribution" style={{ ...inputStyle, maxWidth: 360 }} />
+          <input defaultValue="Nordic Distribution" style={{ ...inputStyle, maxWidth: 420 }} />
         </div>
-        <div style={{ marginBottom: 14 }}>
-          <label style={fieldLabelStyle}>Workspace ID</label>
-          <input defaultValue="nd-4f91a2" readOnly style={{ ...inputStyle, maxWidth: 220, fontFamily: "'JetBrains Mono', monospace", color: "#8A93A5", background: "#F6F7FA" }} />
-        </div>
-        <div style={{ marginBottom: 14 }}>
+        <div style={{ marginBottom: 4 }}>
           <label style={fieldLabelStyle}>Default currency</label>
-          <input defaultValue="EUR — Euro" style={{ ...inputStyle, maxWidth: 220 }} />
+          <input defaultValue="EUR — Euro" style={{ ...inputStyle, maxWidth: 240 }} />
         </div>
 
-        {/* Canonical read-only Workspace region row */}
+        {/* Read-only Workspace region row */}
         <SettingsRow label="Workspace region" hint="Where order data is stored.">
-          <span style={{ display: "inline-flex", alignItems: "center", height: 22, padding: "0 8px", borderRadius: 4, fontSize: 11, fontWeight: 600, background: "#EFF2F7", color: "#56627A" }}>
+          <span style={{ display: "inline-flex", alignItems: "center", height: 24, padding: "0 10px", borderRadius: 6, fontSize: 11.5, fontWeight: 600, background: "#EFF2F7", color: "#56627A" }}>
             EU (Frankfurt)
           </span>
         </SettingsRow>
-        {/* Members row intentionally omitted — no real member count/API exists yet */}
 
-        <div style={{ marginTop: 14 }}>
-          <button style={{ height: 32, padding: "0 14px", borderRadius: 6, border: "none", background: "#2E8E3A", color: "#FFFFFF", fontSize: 12.5, fontWeight: 600, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 6 }}>
+        {/* Members row — matches design (label + access count + Manage) */}
+        <SettingsRow label="Members" hint="6 people have access.">
+          <button style={secondaryNeutralButton}>Manage</button>
+        </SettingsRow>
+
+        <div style={{ marginTop: 18 }}>
+          <button style={primaryGreenButton}>
+            <Save size={14} strokeWidth={2} />
             Save changes
           </button>
         </div>
@@ -152,11 +171,46 @@ function OrgSection() {
   );
 }
 
+// Shared primary CTA — brand green (matches design "Save changes" / primary actions)
+const primaryGreenButton: CSSProperties = {
+  height: 38,
+  padding: "0 18px",
+  borderRadius: 8,
+  border: "none",
+  background: "var(--brand-green, #28C55E)",
+  color: "#FFFFFF",
+  fontSize: 13,
+  fontWeight: 600,
+  cursor: "pointer",
+  display: "inline-flex",
+  alignItems: "center",
+  gap: 7,
+  boxShadow: "0 1px 2px rgba(11,26,47,0.06)",
+};
+
+// Shared neutral secondary button — white, bordered (matches design "Manage" / "Change plan")
+const secondaryNeutralButton: CSSProperties = {
+  height: 34,
+  padding: "0 14px",
+  borderRadius: 8,
+  border: "1px solid #D5DAE5",
+  background: "#FFFFFF",
+  color: "#0B1A2F",
+  fontSize: 12.5,
+  fontWeight: 600,
+  cursor: "pointer",
+  display: "inline-flex",
+  alignItems: "center",
+  gap: 6,
+  flexShrink: 0,
+  whiteSpace: "nowrap",
+};
+
 // ── Billing wrapper ────────────────────────────────────────────────────────
 
 function BillingSectionWrapper() {
   return (
-    <div style={{ maxWidth: 620 }}>
+    <div>
       <BillingSection />
     </div>
   );
@@ -238,7 +292,7 @@ function EmailSettingsSection() {
 
   if (isLoading) {
     return (
-      <div style={{ maxWidth: 860, borderRadius: 8, background: "#FFFFFF", padding: 16, border: "1px solid #E2E6EE" }}>
+      <div style={{ borderRadius: 12, background: "#FFFFFF", padding: 22, border: "1px solid #E2E6EE", boxShadow: "0 1px 2px rgba(11,26,47,0.04)" }}>
         <div style={{ marginBottom: 16, height: 16, width: 160, borderRadius: 4, background: "#E2E6EE" }} />
         <div style={{ display: "grid", gap: 12, gridTemplateColumns: "repeat(3,1fr)" }}>
           <div style={{ height: 36, borderRadius: 6, background: "#EFF2F7" }} />
@@ -251,7 +305,7 @@ function EmailSettingsSection() {
 
   if (isError) {
     return (
-      <div style={{ maxWidth: 860, borderRadius: 8, background: "#FFFFFF", padding: "16px 18px", border: "1px solid #F0D2D2", borderLeft: "3px solid #C53A3A" }}>
+      <div style={{ borderRadius: 12, background: "#FFFFFF", padding: "20px 22px", border: "1px solid #F0D2D2", borderLeft: "3px solid #C53A3A", boxShadow: "0 1px 2px rgba(11,26,47,0.04)" }}>
         <h2 style={{ fontSize: 17, fontWeight: 600, color: "#0B1A2F", margin: "0 0 4px" }}>Email settings are unavailable</h2>
         <p style={{ margin: 0, maxWidth: 560, fontSize: 12.5, lineHeight: 1.55, color: "#56627A" }}>
           The UI is working, but the API did not answer the email settings request. This prevents saving or loading IMAP polling configuration.
@@ -268,38 +322,35 @@ function EmailSettingsSection() {
   }
 
   return (
-    <div style={{ maxWidth: 860 }}>
+    <div>
       <SettingsGroup title="Email intake" sub="Ingest orders that arrive by email — IMAP polling every 5 minutes.">
         {/* Enable row + billing gate notice */}
         {!canEnable && (
-          <div style={{ marginBottom: 14, borderRadius: 7, padding: "10px 14px", fontSize: 12.5, border: "1px solid #F0D39A", background: "#FFF8EA", color: "#7A4D0B" }}>
+          <div style={{ marginBottom: 16, borderRadius: 8, padding: "12px 14px", fontSize: 12.5, lineHeight: 1.5, border: "1px solid #F0D39A", background: "#FFF8EA", color: "#7A4D0B" }}>
             Email ingestion is included from the Integration plan. You can prepare the configuration here, but enabling polling requires an upgrade.
           </div>
         )}
 
-        {/* Polling status badge + enable toggle row */}
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "11px 0", borderBottom: "1px solid #E2E6EE" }}>
+        {/* Polling status + enable toggle row */}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, padding: "4px 0 16px", borderBottom: "1px solid #EDF0F5" }}>
           <div>
-            <div style={{ fontSize: 13, fontWeight: 500 }}>Poll inbox for orders</div>
-            <div style={{ fontSize: 11.5, color: "#8A93A5", marginTop: 1 }}>
+            <div style={{ fontSize: 13.5, fontWeight: 600, color: "#0B1A2F" }}>Poll inbox for orders</div>
+            <div style={{ fontSize: 12.5, color: "#8A93A5", marginTop: 2 }}>
               {form.enabled ? "Checking every 5 minutes" : "Disabled"}
             </div>
           </div>
-          <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, fontWeight: 600, color: "#0B1A2F", cursor: canEnable || form.enabled ? "pointer" : "not-allowed" }}>
-            <input
-              type="checkbox"
-              checked={form.enabled}
-              disabled={!canEnable && !form.enabled}
-              onChange={(event) => update("enabled", event.target.checked)}
-            />
-            {form.enabled ? "Enabled" : "Disabled"}
-          </label>
+          <ToggleSwitch
+            checked={form.enabled}
+            disabled={!canEnable && !form.enabled}
+            onChange={(v) => update("enabled", v)}
+            ariaLabel="Poll inbox for orders"
+          />
         </div>
 
         {/* IMAP config fields — canonical section framing, full form preserved (Group H) */}
         <div style={{ marginTop: 14 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
-            <Mail size={15} color="#1E66C9" strokeWidth={1.75} />
+            <Mail size={15} color="var(--brand-green, #28C55E)" strokeWidth={1.75} />
             <span style={{ fontSize: 13, fontWeight: 600, color: "#0B1A2F" }}>IMAP mailbox</span>
             <span style={{ fontSize: 11.5, color: "#56627A" }}>— unseen messages with CSV, XLSX, or PDF attachments are imported.</span>
           </div>
@@ -374,7 +425,7 @@ function EmailSettingsSection() {
         {/* Footer: security note + save */}
         <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 16, paddingTop: 14, borderTop: "1px solid #E2E6EE" }} className="sm:flex-row sm:items-center">
           <div style={{ display: "flex", alignItems: "center", gap: 8, flex: 1 }}>
-            <ShieldCheck size={15} color="#2E8E3A" strokeWidth={1.75} />
+            <ShieldCheck size={15} color="var(--brand-green, #28C55E)" strokeWidth={1.75} />
             <span style={{ fontSize: 11.5, color: "#56627A" }}>
               Passwords are stored encrypted. Last poll:{" "}
               {form.lastPolledAt ? new Date(form.lastPolledAt).toLocaleString() : "not run yet"}.
@@ -386,14 +437,65 @@ function EmailSettingsSection() {
           <button
             onClick={save}
             disabled={mutation.isPending}
-            style={{ display: "inline-flex", alignItems: "center", gap: 6, height: 32, padding: "0 14px", border: "none", borderRadius: 6, fontSize: 12, fontWeight: 600, color: "#FFFFFF", background: mutation.isPending ? "#8A93A5" : "#0B1A2F", cursor: mutation.isPending ? "not-allowed" : "pointer" }}
+            style={{ ...primaryGreenButton, background: mutation.isPending ? "#8A93A5" : "var(--brand-green, #28C55E)", cursor: mutation.isPending ? "not-allowed" : "pointer" }}
           >
-            <Save size={13} strokeWidth={2} />
+            <Save size={14} strokeWidth={2} />
             {mutation.isPending ? "Saving..." : "Save email"}
           </button>
         </div>
       </SettingsGroup>
     </div>
+  );
+}
+
+// Green pill toggle switch — matches design on/off control
+function ToggleSwitch({
+  checked,
+  disabled,
+  onChange,
+  ariaLabel,
+}: {
+  checked: boolean;
+  disabled?: boolean;
+  onChange: (v: boolean) => void;
+  ariaLabel?: string;
+}) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      aria-label={ariaLabel}
+      disabled={disabled}
+      onClick={() => !disabled && onChange(!checked)}
+      style={{
+        position: "relative",
+        width: 44,
+        height: 26,
+        flexShrink: 0,
+        borderRadius: 999,
+        border: "none",
+        padding: 0,
+        cursor: disabled ? "not-allowed" : "pointer",
+        background: checked ? "var(--brand-green, #28C55E)" : "#CBD2DE",
+        opacity: disabled ? 0.55 : 1,
+        transition: "background 150ms ease",
+      }}
+    >
+      <span
+        style={{
+          position: "absolute",
+          top: 3,
+          left: checked ? 21 : 3,
+          width: 20,
+          height: 20,
+          borderRadius: "50%",
+          background: "#FFFFFF",
+          boxShadow: "0 1px 2px rgba(11,26,47,0.25)",
+          transition: "left 150ms ease",
+        }}
+      />
+    </button>
   );
 }
 
@@ -408,32 +510,74 @@ function FormField({ label, children }: { label: string; children: ReactNode }) 
 }
 
 const fieldLabelStyle: CSSProperties = {
-  fontSize: 11.5,
+  fontSize: 12.5,
   fontWeight: 600,
-  color: "#56627A",
+  color: "#3C465A",
   display: "block",
-  marginBottom: 4,
+  marginBottom: 6,
 };
 
 const inputStyle: CSSProperties = {
   width: "100%",
-  height: 36,
-  border: "1px solid #C6CDDA",
-  borderRadius: 5,
-  padding: "0 10px",
-  fontSize: 12.5,
+  height: 40,
+  border: "1px solid #D5DAE5",
+  borderRadius: 8,
+  padding: "0 12px",
+  fontSize: 13,
   color: "#0B1A2F",
   outline: "none",
   background: "#FFFFFF",
+};
+
+// Connector list row — bordered card, icon tile + name/desc + right action (matches design)
+const connectorRow: CSSProperties = {
+  border: "1px solid #E2E6EE",
+  borderRadius: 10,
+  padding: "14px 16px",
+  display: "flex",
+  alignItems: "center",
+  gap: 12,
+  background: "#FFFFFF",
+};
+
+// Neutral soft icon tile used in connector rows (matches design's grey plug tiles)
+const connectorTile: CSSProperties = {
+  width: 38,
+  height: 38,
+  borderRadius: 9,
+  background: "#EFF2F7",
+  border: "1px solid #E2E6EE",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  flexShrink: 0,
+};
+
+// White bordered secondary action (connector "Open …" / "Connect") — matches design
+const connectorActionLink: CSSProperties = {
+  display: "inline-flex",
+  alignItems: "center",
+  gap: 5,
+  flexShrink: 0,
+  fontSize: 12.5,
+  fontWeight: 600,
+  color: "#0B1A2F",
+  border: "1px solid #D5DAE5",
+  borderRadius: 8,
+  padding: "8px 12px",
+  background: "#FFFFFF",
+  textDecoration: "none",
+  whiteSpace: "nowrap",
 };
 
 // ── API Keys Section ──────────────────────────────────────────────────────
 
 function ApiKeysSection() {
   const qc = useQueryClient();
-  const [newLabel, setNewLabel] = useState("");
-  const [newKey, setNewKey]     = useState<string | null>(null);
-  const [copied, setCopied]     = useState(false);
+  const [newLabel, setNewLabel]   = useState("");
+  const [newKey, setNewKey]       = useState<string | null>(null);
+  const [copied, setCopied]       = useState(false);
+  const [showCreate, setShowCreate] = useState(false);
 
   const { data: keys = [], isLoading, isError, refetch, isFetching } = useQuery<ApiKey[]>({
     queryKey: ["api-keys"],
@@ -446,6 +590,7 @@ function ApiKeysSection() {
     onSuccess: (data) => {
       setNewKey(data.rawKey);
       setNewLabel("");
+      setShowCreate(false);
       qc.invalidateQueries({ queryKey: ["api-keys"] });
     },
   });
@@ -467,7 +612,7 @@ function ApiKeysSection() {
 
   if (isError) {
     return (
-      <div style={{ maxWidth: 640, borderRadius: 8, background: "#FFFFFF", padding: "16px 18px", border: "1px solid #F0D2D2", borderLeft: "3px solid #C53A3A" }}>
+      <div style={{ borderRadius: 12, background: "#FFFFFF", padding: "20px 22px", border: "1px solid #F0D2D2", borderLeft: "3px solid #C53A3A", boxShadow: "0 1px 2px rgba(11,26,47,0.04)" }}>
         <h2 style={{ fontSize: 17, fontWeight: 600, color: "#0B1A2F", margin: "0 0 4px" }}>API keys unavailable</h2>
         <p style={{ margin: 0, maxWidth: 520, fontSize: 12.5, lineHeight: 1.55, color: "#56627A" }}>
           Could not reach the API keys endpoint. Your keys are not affected — this is a temporary connectivity issue.
@@ -484,25 +629,25 @@ function ApiKeysSection() {
   }
 
   return (
-    <div style={{ maxWidth: 640 }}>
+    <div>
       <SettingsGroup title="API keys" sub="Authenticate the ProcuLink REST + webhook API. Each key is shown once at creation.">
 
         {/* New key banner */}
         {newKey && (
-          <div style={{ border: "1px solid #A7F3D0", background: "#F0FDF4", borderRadius: 8, padding: "14px 16px", marginBottom: 16 }}>
-            <p style={{ fontSize: 12.5, fontWeight: 600, color: "#15803D", marginBottom: 4 }}>
+          <div style={{ border: "1px solid rgba(40,197,94,0.40)", background: "var(--brand-green-soft, #DCFCE7)", borderRadius: 8, padding: "14px 16px", marginBottom: 16 }}>
+            <p style={{ fontSize: 12.5, fontWeight: 600, color: "var(--brand-green-deep, #1DAF50)", marginBottom: 4 }}>
               API key created — copy it now
             </p>
-            <p style={{ fontSize: 11.5, color: "#166534", marginBottom: 10 }}>
+            <p style={{ fontSize: 11.5, color: "#15803D", marginBottom: 10 }}>
               This key cannot be retrieved again after you dismiss this notice.
             </p>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <code style={{ flex: 1, fontSize: 12, fontFamily: "'JetBrains Mono', monospace", background: "#FFFFFF", border: "1px solid #BBF7D0", borderRadius: 5, padding: "8px 10px", color: "#15803D", wordBreak: "break-all" }}>
+              <code style={{ flex: 1, fontSize: 12, fontFamily: "'JetBrains Mono', monospace", background: "#FFFFFF", border: "1px solid rgba(40,197,94,0.40)", borderRadius: 5, padding: "8px 10px", color: "var(--brand-green-deep, #1DAF50)", wordBreak: "break-all" }}>
                 {newKey}
               </code>
               <button
                 onClick={() => handleCopy(newKey)}
-                style={{ display: "flex", alignItems: "center", gap: 4, height: 34, padding: "0 12px", border: "1px solid #22C55E", borderRadius: 6, background: "#FFFFFF", color: "#15803D", fontSize: 12, fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap" }}
+                style={{ display: "flex", alignItems: "center", gap: 4, height: 34, padding: "0 12px", border: "1px solid var(--brand-green, #28C55E)", borderRadius: 6, background: "#FFFFFF", color: "var(--brand-green-deep, #1DAF50)", fontSize: 12, fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap" }}
               >
                 <Copy size={13} />
                 {copied ? "Copied!" : "Copy"}
@@ -517,34 +662,6 @@ function ApiKeysSection() {
           </div>
         )}
 
-        {/* Create form */}
-        <div style={{ marginBottom: 16 }}>
-          <p style={{ fontSize: 13, fontWeight: 600, color: "#0B1A2F", marginBottom: 8 }}>Create new key</p>
-          <div style={{ display: "flex", gap: 8 }}>
-            <input
-              type="text"
-              placeholder='e.g. "Zapier production" or "Make.com staging"'
-              value={newLabel}
-              onChange={e => setNewLabel(e.target.value)}
-              onKeyDown={e => { if (e.key === "Enter" && newLabel.trim()) create.mutate(newLabel.trim()); }}
-              style={{ ...inputStyle, flex: 1, height: 32 }}
-            />
-            <button
-              onClick={() => create.mutate(newLabel.trim())}
-              disabled={!newLabel.trim() || create.isPending}
-              style={{ display: "inline-flex", alignItems: "center", gap: 5, height: 32, padding: "0 14px", border: "none", borderRadius: 6, background: !newLabel.trim() || create.isPending ? "#CBD5E1" : "#0B1A2F", color: "#FFFFFF", fontSize: 12.5, fontWeight: 600, cursor: !newLabel.trim() || create.isPending ? "not-allowed" : "pointer", whiteSpace: "nowrap" }}
-            >
-              <Plus size={13} />
-              {create.isPending ? "Creating…" : "Create key"}
-            </button>
-          </div>
-          {create.isError && (
-            <p style={{ fontSize: 12, color: "#DC2626", marginTop: 6 }}>
-              {(create.error as Error).message || "Failed to create API key."}
-            </p>
-          )}
-        </div>
-
         {/* Keys table */}
         {isLoading && (
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
@@ -552,12 +669,12 @@ function ApiKeysSection() {
           </div>
         )}
 
-        {!isLoading && keys.length === 0 && (
+        {!isLoading && keys.length === 0 && !showCreate && (
           <div style={{ border: "1px dashed #C6CDDA", borderRadius: 8, padding: "36px 20px", textAlign: "center" }}>
             <Key size={28} color="#C6CDDA" style={{ margin: "0 auto 10px" }} />
             <p style={{ fontSize: 13, fontWeight: 600, color: "#56627A" }}>No API keys yet</p>
             <p style={{ fontSize: 12, color: "#8A93A5", marginTop: 4 }}>
-              Create a key above to connect Zapier, Make.com, or your own integration.
+              Create a key to connect Zapier, Make.com, or your own integration.
             </p>
           </div>
         )}
@@ -567,7 +684,7 @@ function ApiKeysSection() {
             <thead>
               <tr>
                 {["Name", "Key", "Created", "Last used", ""].map((h) => (
-                  <th key={h} style={{ textAlign: "left", fontSize: 10.5, fontWeight: 600, letterSpacing: "0.05em", textTransform: "uppercase", color: "#8A93A5", padding: "9px 12px", borderBottom: "1px solid #E2E6EE", whiteSpace: "nowrap" }}>
+                  <th key={h} style={{ textAlign: "left", fontSize: 10.5, fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase", color: "#8A93A5", padding: "0 12px 10px", borderBottom: "1px solid #E2E6EE", whiteSpace: "nowrap" }}>
                     {h}
                   </th>
                 ))}
@@ -576,24 +693,26 @@ function ApiKeysSection() {
             <tbody>
               {keys.map(key => (
                 <tr key={key.id} style={{ opacity: key.isActive ? 1 : 0.55 }}>
-                  <td style={{ padding: "11px 12px", borderBottom: "1px solid #E2E6EE", fontSize: 12.5, fontWeight: 600, color: "#0B1A2F" }}>{key.label}</td>
-                  <td style={{ padding: "11px 12px", borderBottom: "1px solid #E2E6EE", fontSize: 11.5 }}>
+                  <td style={{ padding: "13px 12px", borderBottom: "1px solid #EDF0F5", fontSize: 13, fontWeight: 600, color: "#0B1A2F" }}>{key.label}</td>
+                  <td style={{ padding: "13px 12px", borderBottom: "1px solid #EDF0F5", fontSize: 12 }}>
                     <code style={{ fontFamily: "'JetBrains Mono', monospace", color: "#56627A" }}>{key.keyPrefix}…</code>
                   </td>
-                  <td style={{ padding: "11px 12px", borderBottom: "1px solid #E2E6EE", fontSize: 12.5, color: "#8A93A5", whiteSpace: "nowrap" }}>
+                  <td style={{ padding: "13px 12px", borderBottom: "1px solid #EDF0F5", fontSize: 12.5, color: "#8A93A5", whiteSpace: "nowrap" }}>
                     {new Date(key.createdAt).toLocaleDateString()}
                   </td>
-                  <td style={{ padding: "11px 12px", borderBottom: "1px solid #E2E6EE", fontSize: 12.5, color: "#8A93A5", whiteSpace: "nowrap" }}>
+                  <td style={{ padding: "13px 12px", borderBottom: "1px solid #EDF0F5", fontSize: 12.5, color: "#8A93A5", whiteSpace: "nowrap" }}>
                     {key.lastUsedAt ? new Date(key.lastUsedAt).toLocaleDateString() : "—"}
                   </td>
-                  <td style={{ padding: "11px 12px", borderBottom: "1px solid #E2E6EE", textAlign: "right" }}>
+                  <td style={{ padding: "11px 12px", borderBottom: "1px solid #EDF0F5", textAlign: "right" }}>
                     {key.isActive ? (
                       <button
                         onClick={() => { if (confirm(`Revoke "${key.label}"? This will immediately break any integration using it.`)) revoke.mutate(key.id); }}
-                        style={{ background: "none", border: "none", cursor: "pointer", color: "#8A93A5", padding: 4, display: "inline-flex", alignItems: "center" }}
+                        style={{ background: "none", border: "none", cursor: "pointer", color: "#56627A", padding: "4px 2px", fontSize: 12.5, fontWeight: 600 }}
                         title="Revoke key"
+                        onMouseEnter={(e) => { e.currentTarget.style.color = "#C53A3A"; }}
+                        onMouseLeave={(e) => { e.currentTarget.style.color = "#56627A"; }}
                       >
-                        <Trash2 size={14} />
+                        Revoke
                       </button>
                     ) : (
                       <span style={{ fontSize: 11, fontWeight: 600, padding: "2px 7px", borderRadius: 4, background: "#EFF2F7", color: "#56627A" }}>Revoked</span>
@@ -603,6 +722,53 @@ function ApiKeysSection() {
               ))}
             </tbody>
           </table>
+        )}
+
+        {/* Create key — disclosure form (revealed by the Create key button) */}
+        {showCreate && (
+          <div style={{ marginTop: 16, border: "1px solid #C6CDDA", borderRadius: 8, background: "#FFFFFF", padding: 16 }}>
+            <p style={{ fontSize: 13, fontWeight: 600, color: "#0B1A2F", marginBottom: 8 }}>Create new key</p>
+            <div style={{ display: "flex", gap: 8 }}>
+              <input
+                type="text"
+                placeholder='e.g. "Zapier production" or "Make.com staging"'
+                value={newLabel}
+                autoFocus
+                onChange={e => setNewLabel(e.target.value)}
+                onKeyDown={e => { if (e.key === "Enter" && newLabel.trim()) create.mutate(newLabel.trim()); }}
+                style={{ ...inputStyle, flex: 1 }}
+              />
+              <button
+                onClick={() => create.mutate(newLabel.trim())}
+                disabled={!newLabel.trim() || create.isPending}
+                style={{ display: "inline-flex", alignItems: "center", gap: 6, height: 40, padding: "0 16px", border: "none", borderRadius: 8, background: !newLabel.trim() || create.isPending ? "#CBD5E1" : "var(--brand-green, #28C55E)", color: "#FFFFFF", fontSize: 13, fontWeight: 600, cursor: !newLabel.trim() || create.isPending ? "not-allowed" : "pointer", whiteSpace: "nowrap" }}
+              >
+                <Plus size={14} />
+                {create.isPending ? "Creating…" : "Create key"}
+              </button>
+              <button
+                onClick={() => { setShowCreate(false); setNewLabel(""); }}
+                style={{ height: 40, padding: "0 14px", border: "1px solid #D5DAE5", borderRadius: 8, background: "#FFFFFF", color: "#56627A", fontSize: 13, fontWeight: 600, cursor: "pointer" }}
+              >
+                Cancel
+              </button>
+            </div>
+            {create.isError && (
+              <p style={{ fontSize: 12, color: "#DC2626", marginTop: 6 }}>
+                {(create.error as Error).message || "Failed to create API key."}
+              </p>
+            )}
+          </div>
+        )}
+
+        {/* Create key button — table-first affordance (matches design) */}
+        {!showCreate && (
+          <div style={{ marginTop: 16 }}>
+            <button onClick={() => setShowCreate(true)} style={secondaryNeutralButton}>
+              <Plus size={14} strokeWidth={2} />
+              Create key
+            </button>
+          </div>
         )}
       </SettingsGroup>
     </div>
@@ -654,71 +820,67 @@ function ConnectorsSection() {
   });
 
   return (
-    <div style={{ maxWidth: 680 }}>
+    <div>
       <SettingsGroup title="Connectors" sub="ERP and channel integrations — send real-time events to Zapier, Make.com, or any webhook URL.">
 
-        {/* Platform cards — canonical connector-row look; Make.com uses token surface-2 not indigo */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 12, marginBottom: 20 }}>
+        {/* Platform connector rows — neutral icon tile + name/desc + right-aligned action (matches design) */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 22 }}>
           {/* Zapier */}
-          <div style={{ border: "1px solid #E2E6EE", borderRadius: 8, padding: "12px 14px" }}>
-            <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
-              <div style={{ width: 32, height: 32, borderRadius: 6, background: "#F59E0B", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                <Zap size={16} color="#FFFFFF" />
-              </div>
-              <div>
-                <p style={{ fontSize: 13, fontWeight: 600, color: "#0B1A2F", marginBottom: 4 }}>Zapier</p>
-                <p style={{ fontSize: 11.5, color: "#56627A", lineHeight: 1.5, marginBottom: 10 }}>
-                  Connect ProcuLink to 6,000+ apps. Use the &ldquo;New Order Created&rdquo; or &ldquo;Order Delivered&rdquo; triggers.
-                </p>
-                <a
-                  href="https://zapier.com/apps/proculink"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 11.5, fontWeight: 600, color: "#56627A", border: "1px solid #C6CDDA", borderRadius: 5, padding: "4px 10px", background: "#FFFFFF", textDecoration: "none" }}
-                >
-                  Open Zapier <ExternalLink size={11} />
-                </a>
-              </div>
+          <div style={connectorRow}>
+            <div style={connectorTile}>
+              <Zap size={18} color="#56627A" strokeWidth={1.75} />
             </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <p style={{ fontSize: 13.5, fontWeight: 600, color: "#0B1A2F", margin: 0 }}>Zapier</p>
+              <p style={{ fontSize: 12, color: "#56627A", lineHeight: 1.5, margin: "3px 0 0" }}>
+                Connect ProcuLink to 6,000+ apps via the &ldquo;New Order Created&rdquo; or &ldquo;Order Delivered&rdquo; triggers.
+              </p>
+            </div>
+            <a
+              href="https://zapier.com/apps/proculink"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={connectorActionLink}
+            >
+              Open Zapier <ExternalLink size={12} />
+            </a>
           </div>
 
-          {/* Make.com — brand logo icon keeps its Make brand colour; card chrome uses token palette */}
-          <div style={{ border: "1px solid #E2E6EE", borderRadius: 8, padding: "12px 14px" }}>
-            <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
-              <div style={{ width: 32, height: 32, borderRadius: 6, background: "#6741D9", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                <span style={{ fontSize: 13, fontWeight: 700, color: "#FFFFFF" }}>M</span>
-              </div>
-              <div>
-                <p style={{ fontSize: 13, fontWeight: 600, color: "#0B1A2F", marginBottom: 4 }}>Make.com</p>
-                <p style={{ fontSize: 11.5, color: "#56627A", lineHeight: 1.5, marginBottom: 10 }}>
-                  Build visual automation flows with ProcuLink as a trigger or action module.
-                </p>
-                <a
-                  href="https://make.com/en/integrations/proculink"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 11.5, fontWeight: 600, color: "#56627A", border: "1px solid #C6CDDA", borderRadius: 5, padding: "4px 10px", background: "#FFFFFF", textDecoration: "none" }}
-                >
-                  Open Make.com <ExternalLink size={11} />
-                </a>
-              </div>
+          {/* Make.com */}
+          <div style={connectorRow}>
+            <div style={connectorTile}>
+              <span style={{ fontSize: 15, fontWeight: 700, color: "#56627A" }}>M</span>
             </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <p style={{ fontSize: 13.5, fontWeight: 600, color: "#0B1A2F", margin: 0 }}>Make.com</p>
+              <p style={{ fontSize: 12, color: "#56627A", lineHeight: 1.5, margin: "3px 0 0" }}>
+                Build visual automation flows with ProcuLink as a trigger or action module.
+              </p>
+            </div>
+            <a
+              href="https://make.com/en/integrations/proculink"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={connectorActionLink}
+            >
+              Open Make.com <ExternalLink size={12} />
+            </a>
           </div>
         </div>
 
         {/* Webhook subscriptions */}
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-          <div>
-            <p style={{ fontSize: 13, fontWeight: 600, color: "#0B1A2F", margin: 0 }}>Webhook subscriptions</p>
-            <p style={{ fontSize: 11.5, color: "#56627A", marginTop: 2 }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 14, paddingTop: 4, borderTop: "1px solid #EDF0F5" }}>
+          <div style={{ paddingTop: 14 }}>
+            <p style={{ fontSize: 14, fontWeight: 600, color: "#0B1A2F", margin: 0 }}>Webhook subscriptions</p>
+            <p style={{ fontSize: 12.5, color: "#56627A", marginTop: 3 }}>
               Receive ProcuLink events at any URL — Zapier, Make.com, or custom.
             </p>
           </div>
           <button
             onClick={() => setShowForm(v => !v)}
-            style={{ display: "inline-flex", alignItems: "center", gap: 5, height: 32, padding: "0 12px", border: "1px solid #C6CDDA", borderRadius: 6, background: "#FFFFFF", color: "#0B1A2F", fontSize: 12.5, fontWeight: 600, cursor: "pointer" }}
+            style={{ display: "inline-flex", alignItems: "center", gap: 6, height: 38, padding: "0 14px", border: "1px solid #D5DAE5", borderRadius: 8, background: "#FFFFFF", color: "#0B1A2F", fontSize: 13, fontWeight: 600, cursor: "pointer", flexShrink: 0 }}
           >
-            <Plus size={13} /> Add webhook
+            <Plus size={14} /> Add webhook
           </button>
         </div>
 
@@ -771,13 +933,13 @@ function ConnectorsSection() {
               <button
                 onClick={() => create.mutate()}
                 disabled={!targetUrl.startsWith("http") || create.isPending}
-                style={{ height: 32, padding: "0 14px", border: "none", borderRadius: 6, background: !targetUrl.startsWith("http") || create.isPending ? "#CBD5E1" : "#0B1A2F", color: "#FFFFFF", fontSize: 12.5, fontWeight: 600, cursor: !targetUrl.startsWith("http") || create.isPending ? "not-allowed" : "pointer" }}
+                style={{ height: 38, padding: "0 16px", border: "none", borderRadius: 8, background: !targetUrl.startsWith("http") || create.isPending ? "#CBD5E1" : "var(--brand-green, #28C55E)", color: "#FFFFFF", fontSize: 13, fontWeight: 600, cursor: !targetUrl.startsWith("http") || create.isPending ? "not-allowed" : "pointer" }}
               >
                 {create.isPending ? "Saving…" : "Save webhook"}
               </button>
               <button
                 onClick={() => setShowForm(false)}
-                style={{ height: 32, padding: "0 12px", border: "1px solid #E2E6EE", borderRadius: 6, background: "#FFFFFF", color: "#56627A", fontSize: 12.5, cursor: "pointer" }}
+                style={{ height: 38, padding: "0 14px", border: "1px solid #D5DAE5", borderRadius: 8, background: "#FFFFFF", color: "#56627A", fontSize: 13, fontWeight: 600, cursor: "pointer" }}
               >
                 Cancel
               </button>
@@ -822,19 +984,24 @@ function ConnectorsSection() {
           {subs.map(sub => (
             <div
               key={sub.id}
-              style={{ border: "1px solid #E2E6EE", borderRadius: 8, background: "#FFFFFF", padding: "11px 14px", display: "flex", alignItems: "flex-start", gap: 10, opacity: sub.isActive ? 1 : 0.6 }}
+              style={{ border: "1px solid #E2E6EE", borderRadius: 10, background: "#FFFFFF", padding: "13px 16px", display: "flex", alignItems: "flex-start", gap: 10, opacity: sub.isActive ? 1 : 0.6 }}
             >
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 7, flexWrap: "wrap", marginBottom: 4 }}>
                   <span style={{ fontSize: 11, fontWeight: 600, padding: "2px 7px", borderRadius: 4, background: "#EFF2F7", color: "#56627A" }}>
                     {PLATFORM_LABELS[sub.platform] ?? sub.platform}
                   </span>
-                  <code style={{ fontSize: 11.5, fontFamily: "'JetBrains Mono', monospace", color: "#1E66C9" }}>
+                  <code style={{ fontSize: 11.5, fontFamily: "'JetBrains Mono', monospace", color: "var(--brand-green-deep, #1DAF50)" }}>
                     {sub.eventType}
                   </code>
-                  {!sub.isActive && (
+                  {sub.isActive && sub.failureCount === 0 ? (
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 11, fontWeight: 600, padding: "2px 8px", borderRadius: 999, background: "var(--brand-green-soft, #DCFCE7)", color: "var(--brand-green-deep, #1DAF50)" }}>
+                      <span style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--brand-green, #28C55E)" }} />
+                      Active
+                    </span>
+                  ) : !sub.isActive ? (
                     <span style={{ fontSize: 11, fontWeight: 600, padding: "2px 7px", borderRadius: 4, background: "#EFF2F7", color: "#56627A" }}>Paused</span>
-                  )}
+                  ) : null}
                   {sub.failureCount > 0 && (
                     <span style={{ fontSize: 11, fontWeight: 600, padding: "2px 7px", borderRadius: 4, background: "#FBE3E3", color: "#C53A3A" }}>
                       {sub.failureCount} failure{sub.failureCount !== 1 ? "s" : ""}

@@ -5,6 +5,7 @@ import { useMemo, useState } from "react";
 import { recommendPlanByOrders } from "@/lib/plans";
 
 // ─── Design tokens (match marketing landing) ─────────────────────────────────
+// Primary accent is green (matches the green brand token / CSS var --brand-green).
 const T = {
   ink: "#0B1A2F",
   inkSoft: "#56627A",
@@ -13,10 +14,10 @@ const T = {
   card: "#FFFFFF",
   border: "#E2E6EE",
   borderSoft: "#EEF1F6",
-  accent: "#1E66C9",
-  accentBg: "#E3EDFB",
-  green: "#2E8E3A",
-  greenBg: "#E2F1E2",
+  accent: "#1DAF50",
+  accentBg: "#DCFCE7",
+  green: "#1DAF50",
+  greenBg: "#DCFCE7",
   amber: "#C97A14",
   amberBg: "#FAEFD6",
   violet: "#6F4FCE",
@@ -27,7 +28,7 @@ const T = {
 // The recommended plan + its price/limits come from the shared plan ladder
 // (src/lib/plans.ts) via recommendPlanByOrders — no plan numbers live here.
 
-// ─── Field primitive (slider + value) ────────────────────────────────────────
+// ─── Field primitive (slider + value, as a row in the inputs card) ────────────
 function Field({
   label,
   value,
@@ -36,6 +37,7 @@ function Field({
   max,
   step,
   onChange,
+  divider,
 }: {
   label: string;
   value: number;
@@ -44,15 +46,14 @@ function Field({
   max: number;
   step: number;
   onChange: (v: number) => void;
+  divider: boolean;
 }) {
   return (
     <label
       style={{
         display: "block",
-        background: T.card,
-        border: `1px solid ${T.border}`,
-        borderRadius: 10,
-        padding: "16px 18px",
+        padding: "18px 0",
+        borderTop: divider ? `1px solid ${T.borderSoft}` : "none",
       }}
     >
       <div
@@ -101,34 +102,33 @@ function StatCard({
   label,
   value,
   sub,
-  color,
-  bg,
+  valueColor,
 }: {
   label: string;
   value: string;
   sub?: string;
-  color: string;
-  bg: string;
+  /** Accent applied to the headline figure. Defaults to ink. */
+  valueColor?: string;
 }) {
   return (
     <div
       style={{
         background: T.card,
         border: `1px solid ${T.border}`,
-        borderLeft: `3px solid ${color}`,
-        borderRadius: 10,
-        padding: "22px 22px 20px",
+        borderRadius: 12,
+        padding: "20px 22px",
         boxShadow: "0 1px 4px rgba(11,26,47,0.04)",
+        height: "100%",
       }}
     >
       <div
         style={{
-          fontSize: 11.5,
+          fontSize: 11,
           fontWeight: 600,
           color: T.inkSoft,
           textTransform: "uppercase",
           letterSpacing: "0.06em",
-          marginBottom: 8,
+          marginBottom: 10,
         }}
       >
         {label}
@@ -136,10 +136,10 @@ function StatCard({
       <div
         style={{
           fontFamily: "'Bricolage Grotesque', Inter, sans-serif",
-          fontSize: 32,
+          fontSize: 34,
           fontWeight: 700,
           letterSpacing: "-0.025em",
-          color: T.ink,
+          color: valueColor ?? T.ink,
           lineHeight: 1.05,
         }}
       >
@@ -151,20 +151,9 @@ function StatCard({
             fontSize: 12.5,
             color: T.inkSoft,
             marginTop: 10,
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 6,
+            lineHeight: 1.5,
           }}
         >
-          <span
-            style={{
-              width: 6,
-              height: 6,
-              borderRadius: "50%",
-              background: color,
-              display: "inline-block",
-            }}
-          />
           {sub}
         </div>
       )}
@@ -193,7 +182,7 @@ export function ROICalculator() {
     const setup = 0;
     const cta = plan.isCustom
       ? { label: "Contact sales →", href: plan.cta.href }
-      : { label: "Start 14-day Pilot →", href: "/sign-up" };
+      : { label: `Start with ${plan.name} →`, href: "/sign-up" };
 
     // Conservative assumption: ProcuLink automates 70% of the painful flow.
     const monthlySavings = totalPain * 0.7;
@@ -301,8 +290,16 @@ export function ROICalculator() {
           className="grid grid-cols-1 md:grid-cols-2"
           style={{ gap: 28 }}
         >
-          {/* Inputs */}
-          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          {/* Inputs — single card, slider rows */}
+          <div
+            style={{
+              background: T.card,
+              border: `1px solid ${T.border}`,
+              borderRadius: 12,
+              padding: "8px 24px",
+              boxShadow: "0 1px 4px rgba(11,26,47,0.04)",
+            }}
+          >
             <Field
               label="Orders per month"
               value={orders}
@@ -311,15 +308,17 @@ export function ROICalculator() {
               max={5000}
               step={10}
               onChange={setOrders}
+              divider={false}
             />
             <Field
-              label="% of orders that need manual entry"
+              label="% needing manual entry"
               value={manualPct}
               display={`${manualPct}%`}
               min={0}
               max={100}
               step={1}
               onChange={setManualPct}
+              divider
             />
             <Field
               label="Avg minutes per manual order"
@@ -329,6 +328,7 @@ export function ROICalculator() {
               max={30}
               step={1}
               onChange={setMinutes}
+              divider
             />
             <Field
               label="Internal hourly labour cost"
@@ -338,6 +338,7 @@ export function ROICalculator() {
               max={80}
               step={1}
               onChange={setHourly}
+              divider
             />
             <Field
               label="Error / rework rate"
@@ -347,6 +348,7 @@ export function ROICalculator() {
               max={10}
               step={0.5}
               onChange={setErrorPct}
+              divider
             />
             <Field
               label="Avg cost to fix one error"
@@ -356,47 +358,48 @@ export function ROICalculator() {
               max={200}
               step={5}
               onChange={setReworkCost}
+              divider
             />
           </div>
 
           {/* Outputs */}
           <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-            {/* Three stat cards */}
+            {/* Monthly savings — wide */}
             <StatCard
               label="Monthly savings (at 70% automation)"
               value={eur(calc.monthlySavings)}
               sub={`${eur(calc.manualCost)} labour + ${eur(calc.errorCost)} rework today`}
-              color={T.green}
-              bg={T.greenBg}
+              valueColor={T.green}
             />
-            <StatCard
-              label="Annual savings"
-              value={eur(calc.annualSavings)}
-              sub={
-                calc.plan.isCustom
-                  ? "Plus tailored volume pricing"
-                  : `${eur(calc.netMonthly)} net per month after plan cost`
-              }
-              color={T.accent}
-              bg={T.accentBg}
-            />
-            <StatCard
-              label="Payback period"
-              value={
-                isFinite(calc.paybackMonths)
-                  ? `${calc.paybackMonths.toFixed(1)} months`
-                  : "—"
-              }
-              sub={
-                calc.plan.isCustom
-                  ? "Contact sales for volume pricing"
-                  : isFinite(calc.paybackMonths)
-                    ? `${Math.round(calc.roi3yr)}% return over 3 years`
-                    : "Plan price exceeds current pain — start smaller"
-              }
-              color={T.amber}
-              bg={T.amberBg}
-            />
+
+            {/* Annual + payback — side by side */}
+            <div className="grid grid-cols-1 sm:grid-cols-2" style={{ gap: 14 }}>
+              <StatCard
+                label="Annual savings"
+                value={eur(calc.annualSavings)}
+                sub={
+                  calc.plan.isCustom
+                    ? "Plus tailored volume pricing"
+                    : `${eur(calc.netMonthly)} net / month after plan cost`
+                }
+                valueColor={T.green}
+              />
+              <StatCard
+                label="Payback period"
+                value={
+                  isFinite(calc.paybackMonths)
+                    ? `${calc.paybackMonths.toFixed(1)} mo`
+                    : "—"
+                }
+                sub={
+                  calc.plan.isCustom
+                    ? "Contact sales for volume pricing"
+                    : isFinite(calc.paybackMonths)
+                      ? `${Math.round(calc.roi3yr)}% return over 3 years`
+                      : "Plan price exceeds current pain — start smaller"
+                }
+              />
+            </div>
 
             {/* Plan recommendation */}
             <div
@@ -414,59 +417,56 @@ export function ROICalculator() {
                   position: "absolute",
                   inset: 0,
                   background:
-                    "radial-gradient(circle at top right, rgba(30,102,201,0.25), transparent 60%)",
+                    "radial-gradient(circle at top right, rgba(40,197,94,0.22), transparent 60%)",
                   pointerEvents: "none",
                 }}
               />
               <div style={{ position: "relative" }}>
                 <div
                   style={{
-                    fontSize: 11.5,
-                    color: "#7FB3F5",
-                    fontWeight: 600,
-                    letterSpacing: "0.06em",
-                    textTransform: "uppercase",
-                    marginBottom: 6,
-                  }}
-                >
-                  Recommended plan
-                </div>
-                <div
-                  style={{
                     display: "flex",
-                    alignItems: "baseline",
+                    alignItems: "flex-start",
                     justifyContent: "space-between",
                     gap: 12,
-                    flexWrap: "wrap",
                     marginBottom: 8,
                   }}
                 >
-                  <div
-                    style={{
-                      fontFamily: "'Bricolage Grotesque', Inter, sans-serif",
-                      fontSize: 28,
-                      fontWeight: 700,
-                      letterSpacing: "-0.025em",
-                    }}
-                  >
-                    {calc.plan.name}
+                  <div>
+                    <div
+                      style={{
+                        fontSize: 11,
+                        color: "#86E5AC",
+                        fontWeight: 600,
+                        letterSpacing: "0.06em",
+                        textTransform: "uppercase",
+                        marginBottom: 6,
+                      }}
+                    >
+                      Recommended plan
+                    </div>
+                    <div
+                      style={{
+                        fontFamily: "'Bricolage Grotesque', Inter, sans-serif",
+                        fontSize: 28,
+                        fontWeight: 700,
+                        letterSpacing: "-0.025em",
+                        lineHeight: 1.1,
+                      }}
+                    >
+                      {calc.plan.name}
+                    </div>
                   </div>
-                  <div
-                    style={{
-                      fontSize: 13,
-                      color: "#C5D2E4",
-                    }}
-                  >
+                  <div style={{ fontSize: 13, color: "#C5D2E4", whiteSpace: "nowrap" }}>
                     {calc.plan.isCustom ? (
-                      <span style={{ fontSize: 18, fontWeight: 700, color: "#FFFFFF" }}>
+                      <span style={{ fontSize: 20, fontWeight: 700, color: "#FFFFFF" }}>
                         Custom
                       </span>
                     ) : (
                       <>
-                        <span style={{ fontSize: 18, fontWeight: 700, color: "#FFFFFF" }}>
+                        <span style={{ fontSize: 22, fontWeight: 700, color: "#FFFFFF" }}>
                           {eur(calc.planPrice)}
                         </span>
-                        /month
+                        <span style={{ fontSize: 12 }}>/mo</span>
                         {calc.setup > 0 && (
                           <span style={{ marginLeft: 8 }}>
                             · {eur(calc.setup)} setup
@@ -481,7 +481,7 @@ export function ROICalculator() {
                     fontSize: 13.5,
                     color: "#C5D2E4",
                     lineHeight: 1.6,
-                    marginBottom: 16,
+                    marginBottom: 18,
                   }}
                 >
                   {calc.plan.recommendationBlurb}
@@ -489,16 +489,17 @@ export function ROICalculator() {
                 <Link
                   href={calc.cta.href}
                   style={{
-                    display: "inline-flex",
+                    display: "flex",
                     alignItems: "center",
+                    justifyContent: "center",
                     borderRadius: 8,
-                    padding: "10px 22px",
-                    fontSize: 13.5,
+                    padding: "12px 22px",
+                    fontSize: 14,
                     fontWeight: 600,
-                    background: "linear-gradient(90deg, #1E66C9, #2E8E3A)",
+                    background: `linear-gradient(90deg, ${T.green}, #28C55E)`,
                     color: "#FFFFFF",
                     textDecoration: "none",
-                    boxShadow: "0 4px 16px rgba(30,102,201,0.4)",
+                    boxShadow: "0 8px 20px rgba(40,197,94,0.32)",
                   }}
                 >
                   {calc.cta.label}

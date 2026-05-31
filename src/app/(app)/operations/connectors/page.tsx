@@ -3,7 +3,7 @@
 // §5.9 Connectors — icon-card grid matching canonical ConnectorsScreen
 import { EmptyState } from "@/components/bridge/EmptyState";
 import { useState, type ReactNode } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { getSuppliers, testFireDeliveryConfig, isApiMockMode } from "@/lib/api-client";
 
 // ── Mock fallback (used when USE_MOCK = true) ─────────────────────────────────
@@ -11,10 +11,10 @@ import { getSuppliers, testFireDeliveryConfig, isApiMockMode } from "@/lib/api-c
 const MOCK_CONNECTORS = [
   { id: "c1", type: "cXML PunchOut", name: "SAP Ariba",             status: "connected",  desc: "ERP connector · cXML in/out", docks: 2,  direction: "out" },
   { id: "c2", type: "ERP (REST)",    name: "Coupa",                  status: "connected",  desc: "ERP connector · cXML",        docks: 1,  direction: "out" },
-  { id: "c3", type: "EDI (SFTP)",    name: "Generic SFTP",           status: "connected",  desc: "File delivery",               docks: 3,  direction: "out" },
-  { id: "c4", type: "Email inbox",   name: "Email (IMAP)",           status: "connected",  desc: "Inbound order polling",       docks: 1,  direction: "in"  },
-  { id: "c5", type: "ERP (REST)",    name: "Erply",                  status: "available",  desc: "Retail ERP",                  docks: 0,  direction: "out" },
-  { id: "c6", type: "ERP (XML)",     name: "Directo",                status: "available",  desc: "Accounting ERP · XML",        docks: 0,  direction: "out" },
+  { id: "c3", type: "ERP (REST)",    name: "Microsoft Dynamics 365", status: "available",  desc: "ERP connector · OData",       docks: 0,  direction: "out" },
+  { id: "c4", type: "EDI (SFTP)",    name: "Generic SFTP",           status: "connected",  desc: "File delivery",               docks: 3,  direction: "out" },
+  { id: "c5", type: "Email (IMAP)",  name: "Email (IMAP)",           status: "connected",  desc: "Inbound order polling",       docks: 1,  direction: "in"  },
+  { id: "c6", type: "ERP — Erply",   name: "Erply",                  status: "available",  desc: "Retail ERP",                  docks: 0,  direction: "out" },
 ];
 
 type Connector = {
@@ -77,8 +77,8 @@ function ConnectorStatusPill({ status }: { status: string }) {
         borderRadius: 11,
         fontSize: 11,
         fontWeight: 600,
-        background: connected ? "var(--brand-green-soft,#E2F1E2)" : "var(--surface-2,#EFF2F7)",
-        color: connected ? "var(--brand-green-deep,#1E6D29)" : "var(--ink-muted,#56627A)",
+        background: connected ? "var(--brand-green-soft,#DCFCE7)" : "var(--surface-2,#EFF2F7)",
+        color: connected ? "var(--brand-green-deep,#1DAF50)" : "var(--ink-muted,#56627A)",
       }}
     >
       <span
@@ -86,7 +86,7 @@ function ConnectorStatusPill({ status }: { status: string }) {
           width: 6,
           height: 6,
           borderRadius: "50%",
-          background: connected ? "var(--brand-green,#2E8E3A)" : "var(--ink-faint,#8A93A5)",
+          background: connected ? "var(--brand-green,#28C55E)" : "var(--ink-faint,#8A93A5)",
           flexShrink: 0,
         }}
       />
@@ -104,11 +104,11 @@ function SkeletonConnectorCard() {
         background: "var(--surface,#FFFFFF)",
         border: "1px solid var(--border,#E2E6EE)",
         borderRadius: "var(--radius-md,8px)",
-        padding: 18,
+        padding: 20,
         animation: "skel-pulse 1.4s ease-in-out infinite",
       }}
     >
-      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 14 }}>
+      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 16 }}>
         <div style={{ width: 40, height: 40, borderRadius: "var(--radius-md,8px)", background: "var(--surface-2,#EFF2F7)" }} />
         <div style={{ width: 72, height: 21, borderRadius: 11, background: "var(--surface-2,#EFF2F7)" }} />
       </div>
@@ -122,14 +122,10 @@ function SkeletonConnectorCard() {
 
 function ConnectorCard({
   connector,
-  firingId,
   onManage,
-  onTestFire,
 }: {
   connector: Connector;
-  firingId: string | null;
   onManage: (c: Connector) => void;
-  onTestFire: (e: React.MouseEvent, id: string) => void;
 }) {
   const connected = isConnected(connector.status);
 
@@ -139,13 +135,13 @@ function ConnectorCard({
         background: "var(--surface,#FFFFFF)",
         border: "1px solid var(--border,#E2E6EE)",
         borderRadius: "var(--radius-md,8px)",
-        padding: 18,
+        padding: 20,
         display: "flex",
         flexDirection: "column",
       }}
     >
       {/* Top row: icon tile + status pill */}
-      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 14 }}>
+      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 16 }}>
         <div
           style={{
             width: 40,
@@ -164,75 +160,63 @@ function ConnectorCard({
       </div>
 
       {/* Name + description */}
-      <div style={{ fontWeight: 600, fontSize: 14, color: "var(--ink,#0B1A2F)", lineHeight: 1.3 }}>{connector.name}</div>
-      <div style={{ fontSize: 12, color: "var(--ink-muted,#56627A)", marginTop: 3, lineHeight: 1.4 }}>{connector.desc}</div>
+      <div style={{ fontWeight: 600, fontSize: 15, color: "var(--ink,#0B1A2F)", lineHeight: 1.3, letterSpacing: "-0.01em" }}>{connector.name}</div>
+      <div style={{ fontSize: 12.5, color: "var(--ink-muted,#56627A)", marginTop: 3, lineHeight: 1.4 }}>{connector.desc}</div>
 
-      {/* Footer: dock count + action button */}
+      {/* Footer: supplier count + single action (Manage = text link, Connect = bordered button) */}
       <div
         style={{
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
-          marginTop: 14,
-          paddingTop: 12,
+          marginTop: 16,
+          paddingTop: 13,
           borderTop: "1px solid var(--border,#E2E6EE)",
         }}
       >
-        <span style={{ fontSize: 11.5, color: "var(--ink-faint,#8A93A5)" }}>
+        <span style={{ fontSize: 12, color: "var(--ink-faint,#8A93A5)" }}>
           {connector.docks > 0 ? `${connector.docks} supplier${connector.docks > 1 ? "s" : ""}` : "Not in use"}
         </span>
-        <div style={{ display: "flex", gap: 6 }}>
-          {connected && connector.id !== "new" && (
-            <button
-              onClick={(e) => onTestFire(e, connector.id)}
-              disabled={firingId === connector.id}
-              style={{
-                height: 27,
-                padding: "0 10px",
-                borderRadius: "var(--radius,6px)",
-                border: "1px solid #B8CFF5",
-                background: "var(--surface,#FFFFFF)",
-                color: firingId === connector.id ? "var(--ink-faint,#8A93A5)" : "var(--brand-blue-deep,#0F4FA8)",
-                fontSize: 12,
-                fontWeight: 600,
-                cursor: firingId === connector.id ? "default" : "pointer",
-                whiteSpace: "nowrap",
-              }}
-            >
-              {firingId === connector.id ? "Firing…" : "Test fire"}
-            </button>
-          )}
+        {connected ? (
           <button
             onClick={() => onManage(connector)}
             style={{
-              height: 27,
-              padding: "0 10px",
-              borderRadius: "var(--radius,6px)",
-              border: "1px solid var(--border-strong,#C6CDDA)",
-              background: "var(--surface,#FFFFFF)",
+              height: 24,
+              padding: 0,
+              border: "none",
+              background: "none",
               color: "var(--ink,#0B1A2F)",
-              fontSize: 12,
+              fontSize: 13,
               fontWeight: 600,
               cursor: "pointer",
               whiteSpace: "nowrap",
             }}
           >
-            {connected ? "Manage" : "Connect"}
+            Manage
           </button>
-        </div>
+        ) : (
+          <button
+            onClick={() => onManage(connector)}
+            style={{
+              height: 28,
+              padding: "0 13px",
+              borderRadius: "var(--radius,6px)",
+              border: "1px solid var(--border-strong,#C6CDDA)",
+              background: "var(--surface,#FFFFFF)",
+              color: "var(--ink,#0B1A2F)",
+              fontSize: 12.5,
+              fontWeight: 600,
+              cursor: "pointer",
+              whiteSpace: "nowrap",
+            }}
+          >
+            Connect
+          </button>
+        )}
       </div>
     </div>
   );
 }
-
-// ── Responsive grid CSS (inline style + a helper) ─────────────────────────────
-// We can't use the raw .g-3 class without importing tokens.css globally, so
-// reproduce the same responsive grid with inline CSS-in-JS pattern.
-const GRID_STYLE: React.CSSProperties = {
-  display: "grid",
-  gridTemplateColumns: "repeat(3, 1fr)",
-  gap: 14,
-};
 
 // ── Main component ────────────────────────────────────────────────────────────
 
@@ -240,7 +224,6 @@ export default function ConnectorsPage() {
   const queryClient = useQueryClient();
   const [selected, setSelected] = useState<Connector | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
-  const [firingId, setFiringId] = useState<string | null>(null);
 
   // Live data from suppliers
   const { data: suppliersRaw, isLoading, isError } = useQuery({
@@ -265,30 +248,6 @@ export default function ConnectorsPage() {
 
   const connectedCount = connectors.filter((c) => isConnected(c.status)).length;
 
-  // Test-fire mutation
-  const testFireMutation = useMutation({
-    mutationFn: (supplierId: string) => testFireDeliveryConfig(supplierId),
-    onMutate: (id) => setFiringId(id),
-    onSettled: () => setFiringId(null),
-    onSuccess: (result, id) => {
-      const name = connectors.find((c) => c.id === id)?.name ?? id;
-      setNotice(result.success
-        ? `Test delivery to "${name}" succeeded — ${result.message}`
-        : `Test delivery to "${name}" failed — ${result.message}`);
-      queryClient.invalidateQueries({ queryKey: ["suppliers"] });
-    },
-    onError: (err: Error, id) => {
-      const name = connectors.find((c) => c.id === id)?.name ?? id;
-      setNotice(`Test fire to "${name}" failed — ${err.message}`);
-    },
-  });
-
-  const handleTestFire = (e: React.MouseEvent, id: string) => {
-    e.stopPropagation();
-    setNotice(null);
-    testFireMutation.mutate(id);
-  };
-
   const handleManage = (c: Connector) => {
     setNotice(null);
     setSelected(c);
@@ -298,7 +257,7 @@ export default function ConnectorsPage() {
     <>
       {/* Responsive grid breakpoints as a style tag (avoids needing global .g-3) */}
       <style>{`
-        .connectors-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 14px; }
+        .connectors-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 16px; }
         @media (max-width: 920px) { .connectors-grid { grid-template-columns: 1fr 1fr; } }
         @media (max-width: 540px) { .connectors-grid { grid-template-columns: 1fr; } }
         @keyframes skel-pulse { 0%,100%{opacity:1;} 50%{opacity:0.5;} }
@@ -356,7 +315,7 @@ export default function ConnectorsPage() {
                 padding: "0 14px",
                 borderRadius: "var(--radius,6px)",
                 border: "1px solid transparent",
-                background: "var(--brand-blue,#1E66C9)",
+                background: "var(--brand-green,#28C55E)",
                 color: "#fff",
                 fontSize: 12.5,
                 fontWeight: 600,
@@ -381,9 +340,9 @@ export default function ConnectorsPage() {
                 padding: "10px 14px",
                 fontSize: 12.5,
                 border: "1px solid var(--border,#E2E6EE)",
-                borderLeft: "3px solid var(--brand-blue,#1E66C9)",
-                background: "var(--brand-blue-soft,#E3EDFB)",
-                color: "var(--brand-blue-deep,#0F4FA8)",
+                borderLeft: "3px solid var(--brand-green,#28C55E)",
+                background: "var(--brand-green-soft,#DCFCE7)",
+                color: "var(--brand-green-deep,#1DAF50)",
               }}
             >
               {notice}
@@ -432,9 +391,7 @@ export default function ConnectorsPage() {
                 <ConnectorCard
                   key={c.id}
                   connector={c}
-                  firingId={firingId}
                   onManage={handleManage}
-                  onTestFire={handleTestFire}
                 />
               ))}
             </div>
@@ -517,14 +474,14 @@ function ConnectorPanel({
                 width: 34,
                 height: 34,
                 borderRadius: "var(--radius-md,8px)",
-                background: "var(--brand-blue-soft,#E3EDFB)",
+                background: "var(--brand-green-soft,#DCFCE7)",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
                 flexShrink: 0,
               }}
             >
-              <PlugIcon size={16} color="var(--brand-blue-deep,#0F4FA8)" />
+              <PlugIcon size={16} color="var(--brand-green-deep,#1DAF50)" />
             </div>
             <div>
               <div style={{ fontWeight: 600, fontSize: 16, letterSpacing: "-0.015em", color: "var(--ink,#0B1A2F)" }}>
@@ -637,9 +594,9 @@ function ConnectorPanel({
               style={{
                 borderRadius: "var(--radius,6px)",
                 border: "1px solid var(--border,#E2E6EE)",
-                borderLeft: "3px solid var(--brand-blue,#1E66C9)",
-                background: "var(--brand-blue-soft,#E3EDFB)",
-                color: "var(--brand-blue-deep,#0F4FA8)",
+                borderLeft: "3px solid var(--brand-green,#28C55E)",
+                background: "var(--brand-green-soft,#DCFCE7)",
+                color: "var(--brand-green-deep,#1DAF50)",
                 padding: "10px 12px",
                 fontSize: 12,
                 lineHeight: 1.5,
@@ -672,13 +629,13 @@ function ConnectorPanel({
           <button
             onClick={handleTestFire}
             disabled={firing}
-            style={{ height: 32, padding: "0 14px", borderRadius: "var(--radius,6px)", border: "1px solid #B8CFF5", background: "var(--surface,#FFFFFF)", color: firing ? "var(--ink-faint,#8A93A5)" : "var(--brand-blue-deep,#0F4FA8)", fontSize: 12.5, fontWeight: 600, cursor: firing ? "default" : "pointer" }}
+            style={{ height: 32, padding: "0 14px", borderRadius: "var(--radius,6px)", border: "1px solid var(--brand-green-soft,#DCFCE7)", background: "var(--surface,#FFFFFF)", color: firing ? "var(--ink-faint,#8A93A5)" : "var(--brand-green-deep,#1DAF50)", fontSize: 12.5, fontWeight: 600, cursor: firing ? "default" : "pointer" }}
           >
             {firing ? "Firing…" : "Test fire"}
           </button>
           <button
             onClick={() => onSaved(isNew ? "Connector draft prepared. Set delivery credentials in the supplier's Delivery tab." : "Connector configuration saved.")}
-            style={{ height: 32, padding: "0 14px", borderRadius: "var(--radius,6px)", border: "1px solid transparent", background: "var(--brand-blue,#1E66C9)", color: "#FFFFFF", fontSize: 12.5, fontWeight: 600, cursor: "pointer" }}
+            style={{ height: 32, padding: "0 14px", borderRadius: "var(--radius,6px)", border: "1px solid transparent", background: "var(--brand-green,#28C55E)", color: "#FFFFFF", fontSize: 12.5, fontWeight: 600, cursor: "pointer" }}
           >
             Save
           </button>

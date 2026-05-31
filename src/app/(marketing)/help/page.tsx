@@ -14,12 +14,33 @@ import { HelpIcon } from "@/components/help/HelpIcon";
 
 type Filter = HelpCategory | "All";
 
-// "All" reuses the buyer-blue accent; every other chip pulls its colour from
-// the locked per-category token map.
-function chipColors(filter: Filter): { color: string; soft: string } {
-  if (filter === "All") return { color: "#0F4FA8", soft: "#E3EDFB" };
-  const { color, soft } = CATEGORY_META[filter];
-  return { color, soft };
+const BRAND_DEEP = "#1DAF50";
+const BRAND_SOFT = "#DCFCE7";
+
+/** One-line description per category for the topic cards. Plain procurement copy. */
+const CATEGORY_BLURB: Record<HelpCategory, string> = {
+  "Getting started": "Upload your first purchase order and get it parsed.",
+  Mapping: "Connect buyer fields to your supplier formats.",
+  Delivery: "HTTP webhook, email, and ERP connectors.",
+  AI: "How mapping suggestions work and what confidence means.",
+  Billing: "Plans, quotas, and what happens at the limit.",
+  Email: "Ingest orders that arrive as email attachments.",
+  Troubleshooting: "Resolve failed deliveries and validation errors.",
+};
+
+/** Estimated read time per article slug — shown in the popular-articles list. */
+const READ_MIN: Record<string, number> = {
+  "first-upload": 4,
+  "mapping-basics": 6,
+  "delivery-config": 5,
+  "ai-suggestions": 5,
+  "billing-faq": 4,
+  "email-polling": 5,
+  troubleshooting: 3,
+};
+
+function articleCount(category: HelpCategory): number {
+  return HELP_ARTICLES.filter((a) => a.category === category).length;
 }
 
 export default function HelpIndex() {
@@ -30,6 +51,8 @@ export default function HelpIndex() {
     () => new Fuse(HELP_ARTICLES, { keys: ["title", "blurb", "category"], threshold: 0.4 }),
     [],
   );
+
+  const searching = q.trim().length > 0 || active !== "All";
 
   const results = useMemo(() => {
     let list: HelpArticle[] = q.trim() ? fuse.search(q).map((r) => r.item) : HELP_ARTICLES;
@@ -43,34 +66,47 @@ export default function HelpIndex() {
   }
 
   return (
-    <div className="mx-auto px-5 pb-24 pt-12 sm:px-6 sm:pt-16" style={{ maxWidth: 940 }}>
-      {/* Header */}
-      <header>
+    <div className="mx-auto px-5 pb-24 pt-12 sm:px-6 sm:pt-16" style={{ maxWidth: 980 }}>
+      {/* Centered hero */}
+      <header className="flex flex-col items-center text-center">
+        <span
+          className="flex h-12 w-12 items-center justify-center rounded-[14px]"
+          style={{ background: BRAND_SOFT, color: BRAND_DEEP }}
+          aria-hidden="true"
+        >
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.9} strokeLinecap="round" strokeLinejoin="round">
+            <path d="M4 12h7" />
+            <path d="M13 12h7" />
+            <path d="M8 8l-4 4 4 4" />
+            <path d="M16 8l4 4-4 4" />
+          </svg>
+        </span>
+
         <h1
+          className="mt-5"
           style={{
             fontFamily: "'Bricolage Grotesque', Inter, sans-serif",
-            fontSize: "clamp(30px, 4.5vw, 42px)",
+            fontSize: "clamp(32px, 5vw, 46px)",
             fontWeight: 700,
-            letterSpacing: "-0.025em",
-            lineHeight: 1.1,
+            letterSpacing: "-0.03em",
+            lineHeight: 1.05,
             color: "#0B1A2F",
           }}
         >
-          Help center
+          How can we help?
         </h1>
-        <p className="mt-2 text-[15px] sm:text-[15.5px]" style={{ color: "#56627A", lineHeight: 1.6 }}>
-          Short, focused guides for the most common ProcuLink tasks — uploading,
-          mapping, delivery, and billing.
+        <p className="mt-3 text-[15px] sm:text-[16px]" style={{ color: "#56627A", lineHeight: 1.6 }}>
+          Search the docs, or browse by topic.
         </p>
 
-        {/* Search */}
-        <div className="relative mt-6 sm:mt-7" style={{ maxWidth: 520 }}>
+        {/* Centered search */}
+        <div className="relative mt-7 w-full sm:mt-8" style={{ maxWidth: 640 }}>
           <span
-            className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2"
+            className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2"
             style={{ color: "#8A93A5" }}
             aria-hidden="true"
           >
-            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
               <circle cx="11" cy="11" r="7" />
               <path d="M21 21l-4.3-4.3" />
             </svg>
@@ -80,17 +116,17 @@ export default function HelpIndex() {
             value={q}
             onChange={(e) => setQ(e.target.value)}
             onKeyDown={(e) => e.key === "Escape" && setQ("")}
-            placeholder="Search articles…"
+            placeholder="Search for articles, e.g. 'SFTP delivery'…"
             aria-label="Search help articles"
-            className="w-full rounded-[8px] border border-[#E2E6EE] bg-white pl-10 pr-10 text-[14px] transition-colors focus:border-[#1E66C9] focus:outline-none focus:ring-[3px] focus:ring-[rgba(30,102,201,0.18)]"
-            style={{ height: 46, color: "#0B1A2F" }}
+            className="w-full rounded-[10px] border border-[#E2E6EE] bg-white pl-11 pr-11 text-[14.5px] shadow-[0_1px_2px_rgba(11,26,47,0.04)] transition-colors focus:border-[var(--brand-green)] focus:outline-none focus:ring-[3px] focus:ring-[rgba(40,197,94,0.18)]"
+            style={{ height: 52, color: "#0B1A2F" }}
           />
           {q && (
             <button
               type="button"
               onClick={() => setQ("")}
               aria-label="Clear search"
-              className="absolute right-2.5 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full text-[16px] transition-colors hover:bg-[#F0F2F7] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1E66C9]"
+              className="absolute right-3 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full text-[16px] transition-colors hover:bg-[#F0F2F7] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-green)]"
               style={{ color: "#8A93A5", lineHeight: 1 }}
             >
               ×
@@ -99,130 +135,182 @@ export default function HelpIndex() {
         </div>
       </header>
 
-      {/* Category filter chips */}
-      <div
-        role="group"
-        aria-label="Filter articles by category"
-        className="mt-6 flex flex-wrap gap-2"
-      >
-        {(["All", ...CATEGORY_ORDER] as Filter[]).map((filter) => {
-          const isActive = active === filter;
-          const { color, soft } = chipColors(filter);
-          return (
+      {/* Search / filter results — shown only when actively searching or filtering */}
+      {searching ? (
+        <section className="mt-10">
+          <div className="flex items-center justify-between">
+            <h2 className="text-[12px] font-semibold uppercase" style={{ color: "#8A93A5", letterSpacing: "0.07em" }}>
+              {active !== "All" ? active : "Search results"}
+            </h2>
             <button
-              key={filter}
               type="button"
-              aria-pressed={isActive}
-              onClick={() => setActive(filter)}
-              className={`rounded-full border px-3.5 py-1.5 text-[12.5px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1E66C9] focus-visible:ring-offset-2 ${
-                isActive
-                  ? ""
-                  : "border-[#E2E6EE] bg-white text-[#56627A] hover:bg-[#F6F7FA] hover:text-[#0B1A2F]"
-              }`}
-              style={isActive ? { background: soft, borderColor: `${color}55`, color } : undefined}
+              onClick={reset}
+              className="text-[12.5px] font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-green)] focus-visible:ring-offset-2"
+              style={{ color: BRAND_DEEP }}
             >
-              {filter}
+              Clear
             </button>
-          );
-        })}
-      </div>
+          </div>
 
-      {/* Results */}
-      <h2 className="sr-only">Articles</h2>
-      {results.length === 0 ? (
-        <div
-          className="mt-8 flex flex-col items-center gap-3 rounded-[12px] px-6 py-14 text-center"
-          style={{ border: "1px dashed #C6CDDA", background: "#FFFFFF" }}
-        >
-          <p className="text-[14px] font-medium" style={{ color: "#0B1A2F" }}>
-            No articles match {q ? <>&ldquo;{q}&rdquo;</> : "that filter"}.
-          </p>
-          <p className="text-[13px]" style={{ color: "#8A93A5" }}>
-            Try a different search, or browse every guide.
-          </p>
-          <button
-            type="button"
-            onClick={reset}
-            className="mt-1 rounded-[7px] px-4 py-2 text-[13px] font-semibold text-white transition-all hover:brightness-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1E66C9] focus-visible:ring-offset-2"
-            style={{ background: "#0B1A2F" }}
-          >
-            Reset
-          </button>
-        </div>
+          {results.length === 0 ? (
+            <div
+              className="mt-5 flex flex-col items-center gap-3 rounded-[12px] px-6 py-14 text-center"
+              style={{ border: "1px dashed #C6CDDA", background: "#FFFFFF" }}
+            >
+              <p className="text-[14px] font-medium" style={{ color: "#0B1A2F" }}>
+                No articles match {q ? <>&ldquo;{q}&rdquo;</> : "that topic"}.
+              </p>
+              <p className="text-[13px]" style={{ color: "#8A93A5" }}>
+                Try a different search, or browse every guide.
+              </p>
+              <button
+                type="button"
+                onClick={reset}
+                className="mt-1 rounded-[8px] px-4 py-2 text-[13px] font-semibold text-white transition-all hover:brightness-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-green)] focus-visible:ring-offset-2"
+                style={{ background: "#0B1A2F" }}
+              >
+                Reset
+              </button>
+            </div>
+          ) : (
+            <div
+              className="mt-5 overflow-hidden rounded-[12px] border border-[#E2E6EE] bg-white"
+              style={{ boxShadow: "0 1px 2px rgba(11,26,47,0.04)" }}
+            >
+              {results.map((article, i) => (
+                <ArticleRow key={article.slug} article={article} first={i === 0} />
+              ))}
+            </div>
+          )}
+        </section>
       ) : (
-        <div className="mt-7 grid gap-4 sm:grid-cols-2">
-          {results.map((article) => (
-            <ArticleCard key={article.slug} article={article} />
-          ))}
-        </div>
+        <>
+          {/* Topic cards */}
+          <h2 className="sr-only">Browse help topics</h2>
+          <div className="mt-10 grid gap-4 sm:mt-12 sm:grid-cols-2 lg:grid-cols-3">
+            {CATEGORY_ORDER.map((category) => (
+              <TopicCard
+                key={category}
+                category={category}
+                count={articleCount(category)}
+                onSelect={() => setActive(category)}
+              />
+            ))}
+          </div>
+
+          {/* Popular articles */}
+          <section className="mt-14">
+            <h2 className="text-[12px] font-semibold uppercase" style={{ color: "#8A93A5", letterSpacing: "0.07em" }}>
+              Popular articles
+            </h2>
+            <div
+              className="mt-4 overflow-hidden rounded-[12px] border border-[#E2E6EE] bg-white"
+              style={{ boxShadow: "0 1px 2px rgba(11,26,47,0.04)" }}
+            >
+              {HELP_ARTICLES.map((article, i) => (
+                <ArticleRow key={article.slug} article={article} first={i === 0} />
+              ))}
+            </div>
+          </section>
+        </>
       )}
 
-      {/* Contact band */}
-      <div
-        className="mt-10 flex flex-col items-start gap-3 rounded-[12px] px-6 py-5 sm:flex-row sm:items-center sm:justify-between"
-        style={{ border: "1px solid #E2E6EE", background: "#F6F7FA" }}
-      >
-        <div>
-          <p className="text-[15px] font-semibold" style={{ color: "#0B1A2F" }}>
-            Can&rsquo;t find what you&rsquo;re looking for?
-          </p>
-          <p className="mt-0.5 text-[13px]" style={{ color: "#56627A" }}>
-            Reach our team directly — we reply to every message.
-          </p>
-        </div>
+      {/* Quiet support escape hatch — keeps the page ending clean, matching the design. */}
+      <p className="mt-10 text-center text-[13.5px]" style={{ color: "#56627A" }}>
+        Can&rsquo;t find what you&rsquo;re looking for?{" "}
         <Link
           href="/support"
-          className="inline-flex shrink-0 items-center rounded-[7px] px-4 py-2 text-[13px] font-semibold text-white transition-all hover:brightness-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1E66C9] focus-visible:ring-offset-2"
-          style={{ background: "#0B1A2F" }}
+          className="font-semibold transition-colors hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-green)] focus-visible:ring-offset-2"
+          style={{ color: "var(--brand-green-deep)" }}
         >
           Contact support →
         </Link>
-      </div>
+      </p>
     </div>
   );
 }
 
-function ArticleCard({ article }: { article: HelpArticle }) {
-  const meta = CATEGORY_META[article.category];
+/** A browse-by-topic card. Clicking filters the index to that category. */
+function TopicCard({
+  category,
+  count,
+  onSelect,
+}: {
+  category: HelpCategory;
+  count: number;
+  onSelect: () => void;
+}) {
+  const meta = CATEGORY_META[category];
   return (
-    <Link
-      href={`/help/${article.slug}`}
-      className="group flex flex-col rounded-[10px] border border-[#E2E6EE] bg-white p-4 transition-all duration-200 hover:-translate-y-0.5 hover:border-[#C6CDDA] hover:shadow-[0_8px_24px_rgba(11,26,47,0.08)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1E66C9] focus-visible:ring-offset-2 motion-reduce:transform-none"
+    <button
+      type="button"
+      onClick={onSelect}
+      className="group flex h-full flex-col rounded-[12px] border border-[#E2E6EE] bg-white p-5 text-left transition-all duration-200 hover:-translate-y-0.5 hover:border-[#C6CDDA] hover:shadow-[0_8px_24px_rgba(11,26,47,0.08)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-green)] focus-visible:ring-offset-2 motion-reduce:transform-none"
     >
       <span
-        className="flex h-9 w-9 items-center justify-center rounded-[9px]"
-        style={{ background: meta.soft, color: meta.color }}
+        className="flex h-10 w-10 items-center justify-center rounded-[10px]"
+        style={{ background: "var(--brand-green-soft)", color: "var(--brand-green-deep)" }}
         aria-hidden="true"
       >
-        <HelpIcon name={meta.icon} size={18} />
-      </span>
-
-      <span
-        className="mt-3 text-[11px] font-semibold uppercase"
-        style={{ color: meta.color, letterSpacing: "0.05em" }}
-      >
-        {article.category}
+        <HelpIcon name={meta.icon} size={20} />
       </span>
 
       <h3
-        className="mt-1 text-[15.5px] font-semibold transition-colors group-hover:text-[#0F4FA8]"
+        className="mt-4 text-[16px] font-semibold transition-colors"
         style={{ color: "#0B1A2F", letterSpacing: "-0.01em" }}
       >
-        {article.title}
+        {category}
       </h3>
 
-      <p className="mt-1 line-clamp-2 text-[13px]" style={{ color: "#56627A", lineHeight: 1.5 }}>
-        {article.blurb}
+      <p className="mt-1.5 text-[13px]" style={{ color: "#56627A", lineHeight: 1.5 }}>
+        {CATEGORY_BLURB[category]}
       </p>
 
+      <span className="mt-4 text-[12.5px] font-medium" style={{ color: "#8A93A5" }}>
+        {count} {count === 1 ? "article" : "articles"}
+      </span>
+    </button>
+  );
+}
+
+/** A single article row in the popular / search-results list. */
+function ArticleRow({ article, first }: { article: HelpArticle; first: boolean }) {
+  const min = READ_MIN[article.slug];
+  return (
+    <Link
+      href={`/help/${article.slug}`}
+      className="group flex items-center gap-4 px-5 py-4 transition-colors hover:bg-[#F6F7FA] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--brand-green)]"
+      style={first ? undefined : { borderTop: "1px solid #EDEFF4" }}
+    >
       <span
-        className="mt-3 flex items-center gap-1 text-[12.5px] font-semibold"
-        style={{ color: "#1E66C9" }}
+        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[9px]"
+        style={{ background: "#F1F4F9", color: "#56627A" }}
+        aria-hidden="true"
       >
-        Read article
-        <span className="transition-transform group-hover:translate-x-0.5 motion-reduce:transform-none" aria-hidden="true">
-          →
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+          <path d="M14 2v6h6" />
+        </svg>
+      </span>
+
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-[14.5px] font-semibold" style={{ color: "#0B1A2F" }}>
+          {article.title}
         </span>
+        <span className="mt-0.5 block text-[12.5px]" style={{ color: "#8A93A5" }}>
+          {article.category}
+          {min ? <> · {min} min</> : null}
+        </span>
+      </span>
+
+      <span
+        className="shrink-0 transition-transform group-hover:translate-x-0.5 motion-reduce:transform-none"
+        style={{ color: "#B6BECC" }}
+        aria-hidden="true"
+      >
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+          <path d="M9 6l6 6-6 6" />
+        </svg>
       </span>
     </Link>
   );

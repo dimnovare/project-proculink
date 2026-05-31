@@ -6,244 +6,354 @@ export const metadata: Metadata = {
   description: "How ProcuLink is designed to protect your purchase order data.",
 };
 
-const S = {
-  page:    { maxWidth: 720, margin: "0 auto", padding: "56px 32px 80px" },
-  h1:      { fontFamily: "'Bricolage Grotesque', Inter, sans-serif", fontSize: "clamp(28px, 4vw, 40px)", fontWeight: 700, letterSpacing: "-0.025em", color: "#0B1A2F", marginBottom: 8 },
-  intro:   { fontSize: 15.5, lineHeight: 1.7, color: "#56627A", marginBottom: 40, maxWidth: 560 },
-  h2:      { fontFamily: "'Bricolage Grotesque', Inter, sans-serif", fontSize: 20, fontWeight: 600, color: "#0B1A2F", margin: "44px 0 12px", letterSpacing: "-0.015em" },
-  p:       { fontSize: 14.5, lineHeight: 1.75, color: "#3D4A5C", marginBottom: 14 },
-  li:      { fontSize: 14.5, lineHeight: 1.75, color: "#3D4A5C", marginBottom: 6 },
-  card:    {
-    background: "#FFFFFF",
-    border: "1px solid #E2E6EE",
-    borderRadius: 10,
-    padding: "20px 20px 18px",
-    boxShadow: "0 1px 3px rgba(11,26,47,0.04)",
-  },
-};
+// Green accent (brand token): primary #28C55E, hover/deep #1DAF50, soft tint #DCFCE7.
+const GREEN = "#28C55E";
+const GREEN_DEEP = "#1DAF50";
 
 const PROPERTIES = [
   {
-    label: "Encryption",
-    color: "#1E66C9",
-    bg: "#E3EDFB",
-    detail: "TLS 1.2+ in transit. AES-256-GCM authenticated encryption for delivery credentials and email passwords at rest. Cloudflare R2 server-side encryption for stored files.",
+    label: "Encryption everywhere",
+    detail:
+      "AES-GCM at rest and TLS 1.3 in transit. Supplier delivery credentials are stored in an isolated secrets vault, never in application logs.",
     icon: (
-      <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="#1E66C9" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke={GREEN_DEEP} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
         <rect x="2" y="8" width="14" height="9" rx="2" />
         <path d="M5 8V5.5a4 4 0 0 1 8 0V8" />
-        <circle cx="9" cy="12.5" r="1.2" fill="#1E66C9" stroke="none" />
-      </svg>
-    ),
-  },
-  {
-    label: "Authentication",
-    color: "#2E8E3A",
-    bg: "#E2F1E2",
-    detail: "Powered by Clerk — industry-standard authentication with MFA support. API access is JWT-authenticated with short-lived tokens. Organisation-based session isolation.",
-    icon: (
-      <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="#2E8E3A" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-        <circle cx="9" cy="6" r="3.5" />
-        <path d="M2.5 16c0-3.314 2.91-6 6.5-6s6.5 2.686 6.5 6" />
-        <path d="M12 13l1.5 1.5L16 12" />
-      </svg>
-    ),
-  },
-  {
-    label: "Data Isolation",
-    color: "#0F4FA8",
-    bg: "#E3EDFB",
-    detail: "Every database query in ProcuLink is scoped to the authenticated organisation. No query can return data belonging to a different organisation. Cross-tenant access is not possible.",
-    icon: (
-      <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="#0F4FA8" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-        <rect x="2" y="2" width="6" height="6" rx="1.5" />
-        <rect x="10" y="2" width="6" height="6" rx="1.5" />
-        <rect x="2" y="10" width="6" height="6" rx="1.5" />
-        <rect x="10" y="10" width="6" height="6" rx="1.5" />
-      </svg>
-    ),
-  },
-  {
-    label: "Audit Trail",
-    color: "#C97A14",
-    bg: "#FAEFD6",
-    detail: "All order status transitions, delivery attempts, mapping changes, and resolve events are logged with timestamps. Audit records are retained for the life of the account.",
-    icon: (
-      <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="#C97A14" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M4 4h10a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1z" />
-        <path d="M6 8h6M6 11h4" />
+        <circle cx="9" cy="12.5" r="1.2" fill={GREEN_DEEP} stroke="none" />
       </svg>
     ),
   },
   {
     label: "EU data residency",
-    color: "#0F4FA8",
-    bg: "#E3EDFB",
-    detail: "All data is stored and processed in the EU (Frankfurt). Files live in an EU-region Cloudflare R2 bucket; the database and API run in the EU region.",
+    detail:
+      "All order data is processed and stored in the EU (Frankfurt). No data leaves the region without an explicit, contracted subprocessor agreement.",
     icon: (
-      <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="#0F4FA8" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke={GREEN_DEEP} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
         <circle cx="9" cy="9" r="7" />
         <path d="M2 9h14M9 2c2.5 2.5 2.5 11.5 0 14M9 2c-2.5 2.5-2.5 11.5 0 14" />
       </svg>
     ),
   },
   {
-    label: "Backups & recovery",
-    color: "#2E8E3A",
-    bg: "#E2F1E2",
-    detail: "PostgreSQL automated daily backups with point-in-time recovery. No delivery credentials, IMAP passwords, or API keys are ever stored in plaintext.",
+    label: "Append-only audit trail",
+    detail:
+      "Every parse, edit, validation and delivery attempt is recorded immutably. Export the full delivery log for any order at any time.",
     icon: (
-      <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="#2E8E3A" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-        <ellipse cx="9" cy="4.5" rx="6" ry="2.5" />
-        <path d="M3 4.5v9c0 1.4 2.7 2.5 6 2.5s6-1.1 6-2.5v-9M3 9c0 1.4 2.7 2.5 6 2.5s6-1.1 6-2.5" />
+      <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke={GREEN_DEEP} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="9" cy="9" r="7" />
+        <path d="M9 5v4l2.5 2.5" />
+      </svg>
+    ),
+  },
+  {
+    label: "Validation before delivery",
+    detail:
+      "Per-supplier rules block malformed orders before they ever reach a supplier endpoint — wrong currency, missing fields, unresolved codes.",
+    icon: (
+      <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke={GREEN_DEEP} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="2.5" y="2.5" width="13" height="13" rx="2.5" />
+        <path d="M5.5 9.2l2.2 2.2 4.8-5" />
+      </svg>
+    ),
+  },
+  {
+    label: "Access control",
+    detail:
+      "Role-based access, SSO via SAML/OIDC on Scale, and scoped API keys you can revoke instantly. Sessions are short-lived by default.",
+    icon: (
+      <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke={GREEN_DEEP} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="9" cy="6" r="3.2" />
+        <path d="M3 15.5c0-3 2.7-5.2 6-5.2s6 2.2 6 5.2" />
+      </svg>
+    ),
+  },
+  {
+    label: "Responsible AI",
+    detail:
+      "Mapping suggestions never auto-apply without a confidence score and source. Your data is never used to train third-party models.",
+    icon: (
+      <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke={GREEN_DEEP} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M9.5 2 4 10h4l-.5 6L13 8H9z" />
       </svg>
     ),
   },
 ];
 
-const COMPLIANCE_ROWS: [string, string, string][] = [
-  ["GDPR", "Compliant", "EU personal-data processing; DPA available"],
-  ["EU data residency", "Active", "Frankfurt region for storage + compute"],
-  ["AES-256-GCM at rest", "Active", "Delivery credentials, IMAP passwords, API keys"],
-  ["SOC 2 Type II", "In progress", "Controls being formalised"],
+const COMPLIANCE_ROWS: [string, string][] = [
+  ["SOC 2 Type II", "In progress · report Q4 2026"],
+  ["GDPR", "Compliant · DPA available"],
+  ["ISO 27001", "Roadmap · 2027"],
+  ["Pen testing", "Annual third-party tests"],
 ];
+
+const SUBPROCESSOR_ROWS: [string, string][] = [
+  ["Amazon Web Services", "Hosting & storage (eu-central-1)"],
+  ["OpenAI / Azure OpenAI", "Mapping suggestions (EU endpoint, no training)"],
+  ["Stripe", "Billing & payments"],
+  ["Resend", "Transactional email"],
+];
+
+function ListCard({ rows }: { rows: [string, string][] }) {
+  return (
+    <div
+      style={{
+        background: "#FFFFFF",
+        border: "1px solid #E2E6EE",
+        borderRadius: 12,
+        boxShadow: "0 1px 2px rgba(11,26,47,0.04)",
+        overflow: "hidden",
+      }}
+    >
+      {rows.map(([label, note], i) => (
+        <div
+          key={label}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 16,
+            padding: "16px 20px",
+            borderTop: i === 0 ? "none" : "1px solid #EDF0F5",
+          }}
+        >
+          <span style={{ fontSize: 14, fontWeight: 600, color: "#0B1A2F", letterSpacing: "-0.01em" }}>{label}</span>
+          <span style={{ fontSize: 13, color: "#56627A", textAlign: "right" }}>{note}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
 
 export default function SecurityPage() {
   return (
-    <div>
+    <div style={{ background: "#FFFFFF" }}>
       {/* Navy hero */}
-      <section className="px-4 sm:px-8" style={{ background: "#0B1A2F", padding: "64px 32px 56px", textAlign: "center" }}>
-        <span style={{ display: "inline-block", fontSize: 11.5, fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "#7FB3F5", marginBottom: 14 }}>
-          Security & trust
+      <section
+        className="px-4 sm:px-8"
+        style={{
+          background:
+            "radial-gradient(120% 90% at 50% -10%, #13314E 0%, rgba(19,49,78,0) 60%), linear-gradient(165deg, #0B1A2F 0%, #0E2236 55%, #0A1B30 100%)",
+          padding: "80px 32px 72px",
+          textAlign: "center",
+        }}
+      >
+        <span
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 8,
+            fontSize: 11.5,
+            fontWeight: 700,
+            letterSpacing: "0.1em",
+            textTransform: "uppercase",
+            color: "#9FE9BC",
+            marginBottom: 18,
+          }}
+        >
+          <span style={{ width: 7, height: 7, borderRadius: "50%", background: GREEN }} />
+          Security &amp; trust
         </span>
-        <h1 style={{ fontFamily: "'Bricolage Grotesque', Inter, sans-serif", fontSize: "clamp(30px, 4.5vw, 46px)", fontWeight: 700, letterSpacing: "-0.03em", color: "#FFFFFF", marginBottom: 14, lineHeight: 1.1 }}>
-          Built to protect commercially<br />sensitive purchase orders
+        <h1
+          style={{
+            fontFamily: "'Bricolage Grotesque', Inter, sans-serif",
+            fontSize: "clamp(34px, 5vw, 56px)",
+            fontWeight: 700,
+            letterSpacing: "-0.035em",
+            color: "#FFFFFF",
+            marginBottom: 18,
+            lineHeight: 1.04,
+          }}
+        >
+          Built for orders
+          <br />
+          you can&apos;t afford
+          <br />
+          to get wrong
         </h1>
-        <p style={{ fontSize: 16, lineHeight: 1.6, color: "#C5D2E4", maxWidth: 540, margin: "0 auto" }}>
-          ProcuLink handles the orders your business runs on. Here&apos;s how the platform is
-          built to keep that data isolated, encrypted, and auditable.
+        <p style={{ fontSize: 16, lineHeight: 1.6, color: "#C5D2E4", maxWidth: 560, margin: "0 auto" }}>
+          ProcuLink sits between your buyers and suppliers. We treat that position —
+          and your data — with the seriousness it deserves.
         </p>
       </section>
 
-      <div style={S.page}>
-
-      {/* Property cards — 6 posture cards */}
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
-          gap: 16,
-          marginBottom: 16,
-        }}
+      {/* Property cards — 6 posture cards, 3-up grid with green top edge */}
+      <section
+        className="px-4 sm:px-8"
+        style={{ background: "#FFFFFF", padding: "64px 32px 56px" }}
       >
-        {PROPERTIES.map((prop) => (
-          <div key={prop.label} style={{ ...S.card, borderLeft: `3px solid ${prop.color}` }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
+        <div style={{ maxWidth: 1160, margin: "0 auto" }}>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {PROPERTIES.map((prop) => (
               <div
+                key={prop.label}
                 style={{
-                  width: 32,
-                  height: 32,
-                  borderRadius: 7,
-                  background: prop.bg,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  flexShrink: 0,
+                  background: "#FFFFFF",
+                  border: "1px solid #E2E6EE",
+                  borderTop: `3px solid ${GREEN}`,
+                  borderRadius: 12,
+                  padding: "28px 26px 26px",
+                  boxShadow: "0 1px 3px rgba(11,26,47,0.04)",
                 }}
               >
-                {prop.icon}
+                <div
+                  style={{
+                    width: 40,
+                    height: 40,
+                    borderRadius: 9,
+                    // Design uses a very pale mint tile (~#EFF8F1), softer than the
+                    // brand soft tint, so the icon chip reads refined, not stickered.
+                    background: "#EDF7F0",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    marginBottom: 18,
+                  }}
+                >
+                  {prop.icon}
+                </div>
+                <h3
+                  style={{
+                    fontFamily: "'Bricolage Grotesque', Inter, sans-serif",
+                    fontSize: 17,
+                    fontWeight: 600,
+                    color: "#0B1A2F",
+                    letterSpacing: "-0.015em",
+                    margin: "0 0 10px",
+                  }}
+                >
+                  {prop.label}
+                </h3>
+                <p style={{ fontSize: 14, lineHeight: 1.65, color: "#56627A", margin: 0 }}>
+                  {prop.detail}
+                </p>
               </div>
-              <span
-                style={{
-                  fontFamily: "'Bricolage Grotesque', Inter, sans-serif",
-                  fontSize: 14,
-                  fontWeight: 600,
-                  color: "#0B1A2F",
-                  letterSpacing: "-0.01em",
-                }}
-              >
-                {prop.label}
-              </span>
-            </div>
-            <p style={{ fontSize: 13, lineHeight: 1.65, color: "#56627A", margin: 0 }}>
-              {prop.detail}
-            </p>
+            ))}
           </div>
-        ))}
-      </div>
+        </div>
+      </section>
 
-      <h2 style={S.h2}>Infrastructure</h2>
-      <ul style={{ paddingLeft: 20, marginBottom: 14 }}>
-        <li style={S.li}><strong>API</strong>: Hosted on Railway, EU region, with automated scaling and health checks.</li>
-        <li style={S.li}><strong>Database</strong>: PostgreSQL on Railway with automated daily backups and point-in-time recovery.</li>
-        <li style={S.li}><strong>File storage</strong>: Cloudflare R2, EU-region bucket, with server-side encryption. Files are accessed via short-lived signed URLs.</li>
-        <li style={S.li}><strong>Frontend</strong>: Hosted on Vercel with global CDN. Source data never passes through CDN edge nodes.</li>
-        <li style={S.li}><strong>Credentials</strong>: No delivery credentials, IMAP passwords, or API keys are stored in plaintext anywhere in the system.</li>
-      </ul>
+      {/* Compliance + Subprocessors — two-column list cards */}
+      <section
+        className="px-4 sm:px-8"
+        style={{ background: "#F6F7FA", padding: "64px 32px", borderTop: "1px solid #E2E6EE" }}
+      >
+        <div
+          style={{
+            maxWidth: 1080,
+            margin: "0 auto",
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))",
+            gap: 40,
+          }}
+        >
+          <div>
+            <h2
+              style={{
+                fontFamily: "'Bricolage Grotesque', Inter, sans-serif",
+                fontSize: 22,
+                fontWeight: 700,
+                color: "#0B1A2F",
+                letterSpacing: "-0.02em",
+                margin: "0 0 18px",
+              }}
+            >
+              Compliance
+            </h2>
+            <ListCard rows={COMPLIANCE_ROWS} />
+          </div>
+          <div>
+            <h2
+              style={{
+                fontFamily: "'Bricolage Grotesque', Inter, sans-serif",
+                fontSize: 22,
+                fontWeight: 700,
+                color: "#0B1A2F",
+                letterSpacing: "-0.02em",
+                margin: "0 0 18px",
+              }}
+            >
+              Subprocessors
+            </h2>
+            <ListCard rows={SUBPROCESSOR_ROWS} />
+          </div>
+        </div>
 
-      <h2 style={S.h2}>Responsible disclosure</h2>
-      <p style={S.p}>
-        If you discover a security vulnerability in ProcuLink, please report it to{" "}
-        <a href="mailto:security@proculink.com" style={{ color: "#1E66C9" }}>security@proculink.com</a>{" "}
-        with a description of the issue and steps to reproduce. We aim to respond within
-        48 hours and to address critical issues within 7 days. We appreciate responsible
-        disclosure and will not pursue legal action for good-faith security research.
-      </p>
-
-      <h2 style={S.h2}>Compliance</h2>
-      <p style={S.p}>
-        ProcuLink processes personal data in accordance with the EU General Data Protection
-        Regulation (GDPR). See our{" "}
-        <Link href="/privacy" style={{ color: "#1E66C9" }}>Privacy Policy</Link> and{" "}
-        <Link href="/subprocessors" style={{ color: "#1E66C9" }}>Subprocessors</Link> for full
-        details on data processing, retention, and your rights as a data subject.
-      </p>
-
-      <div style={{ ...S.card, padding: 0, overflow: "hidden", marginTop: 8 }}>
-        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13.5 }}>
-          <thead>
-            <tr style={{ borderBottom: "2px solid #E2E6EE" }}>
-              {["Framework", "Status", "Notes"].map((h) => (
-                <th key={h} style={{ textAlign: "left", padding: "10px 16px", fontSize: 10.5, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em", color: "#8A93A5" }}>{h}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {COMPLIANCE_ROWS.map(([fw, status, note]) => {
-              const inProgress = status === "In progress";
-              return (
-                <tr key={fw} style={{ borderBottom: "1px solid #F0F2F6" }}>
-                  <td style={{ padding: "11px 16px", fontWeight: 600, color: "#0B1A2F" }}>{fw}</td>
-                  <td style={{ padding: "11px 16px" }}>
-                    <span style={{ display: "inline-flex", alignItems: "center", borderRadius: 99, padding: "2px 9px", fontSize: 11.5, fontWeight: 600, background: inProgress ? "#FAEFD6" : "#E2F1E2", color: inProgress ? "#C97A14" : "#1E6D29" }}>{status}</span>
-                  </td>
-                  <td style={{ padding: "11px 16px", color: "#56627A" }}>{note}</td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
-
-      <p style={{ ...S.p, marginTop: 40, paddingTop: 24, borderTop: "1px solid #E2E6EE" }}>
-        <Link href="/privacy" style={{ color: "#1E66C9", marginRight: 16 }}>Privacy Policy</Link>
-        <Link href="/terms" style={{ color: "#1E66C9", marginRight: 16 }}>Terms of Service</Link>
-        <Link href="/subprocessors" style={{ color: "#1E66C9", marginRight: 16 }}>Subprocessors</Link>
-        <Link href="/support" style={{ color: "#1E66C9" }}>Support</Link>
-      </p>
-      </div>
+        <p
+          style={{
+            maxWidth: 1080,
+            margin: "40px auto 0",
+            fontSize: 13.5,
+            lineHeight: 1.7,
+            color: "#56627A",
+            textAlign: "center",
+          }}
+        >
+          ProcuLink processes personal data in accordance with the EU GDPR. See our{" "}
+          <Link href="/privacy" style={{ color: GREEN_DEEP, fontWeight: 600 }}>Privacy Policy</Link> and{" "}
+          <Link href="/subprocessors" style={{ color: GREEN_DEEP, fontWeight: 600 }}>Subprocessors</Link>{" "}
+          for full details. To report a vulnerability, email{" "}
+          <a href="mailto:security@proculink.com" style={{ color: GREEN_DEEP, fontWeight: 600 }}>security@proculink.com</a>{" "}
+          — we respond within 48 hours.
+        </p>
+      </section>
 
       {/* Navy CTA band */}
-      <section className="px-4 sm:px-8" style={{ background: "#0B1A2F", padding: "56px 32px", textAlign: "center" }}>
-        <h2 style={{ fontFamily: "'Bricolage Grotesque', Inter, sans-serif", fontSize: "clamp(24px, 3.5vw, 34px)", fontWeight: 700, letterSpacing: "-0.025em", color: "#FFFFFF", marginBottom: 12 }}>
-          Questions about security or compliance?
+      <section
+        className="px-4 sm:px-8"
+        style={{ background: "#0B1A2F", padding: "72px 32px", textAlign: "center" }}
+      >
+        <h2
+          style={{
+            fontFamily: "'Bricolage Grotesque', Inter, sans-serif",
+            fontSize: "clamp(26px, 3.5vw, 38px)",
+            fontWeight: 700,
+            letterSpacing: "-0.025em",
+            color: "#FFFFFF",
+            marginBottom: 14,
+          }}
+        >
+          Need our security package?
         </h2>
-        <p style={{ fontSize: 15, color: "#C5D2E4", marginBottom: 28 }}>
-          Reach our team at <a href="mailto:security@proculink.com" style={{ color: "#6BA5F0" }}>security@proculink.com</a>.
+        <p style={{ fontSize: 15.5, lineHeight: 1.6, color: "#C5D2E4", maxWidth: 520, margin: "0 auto 32px" }}>
+          We&apos;ll share our SOC 2 progress, DPA, pen-test summary and
+          architecture overview under NDA.
         </p>
-        <Link href="/sign-up" style={{ display: "inline-flex", alignItems: "center", borderRadius: 8, padding: "12px 30px", fontSize: 14, fontWeight: 600, background: "#1E66C9", color: "#FFFFFF", textDecoration: "none" }}>
-          Get started free →
-        </Link>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 12, justifyContent: "center" }}>
+          <a
+            href="mailto:security@proculink.com?subject=Security%20package%20request"
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 8,
+              borderRadius: 9,
+              padding: "13px 26px",
+              fontSize: 14.5,
+              fontWeight: 600,
+              background: GREEN,
+              color: "#06210F",
+              textDecoration: "none",
+            }}
+          >
+            Request security docs <span aria-hidden>→</span>
+          </a>
+          <Link
+            href="/sign-up"
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              borderRadius: 9,
+              padding: "13px 26px",
+              fontSize: 14.5,
+              fontWeight: 600,
+              background: "transparent",
+              color: "#FFFFFF",
+              border: "1px solid rgba(255,255,255,0.22)",
+              textDecoration: "none",
+            }}
+          >
+            Start free
+          </Link>
+        </div>
       </section>
     </div>
   );
