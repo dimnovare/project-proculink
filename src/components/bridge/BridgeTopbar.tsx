@@ -156,7 +156,8 @@ function NotificationsBell() {
        (ordersSummary?.byStatus?.["failed"] ?? 0) +
        (ordersSummary?.byStatus?.["delivery_failed"] ?? 0) +
        (ordersSummary?.byStatus?.["transform_failed"] ?? 0) +
-       (ordersSummary?.byStatus?.["delivery_dead_letter"] ?? 0))
+       (ordersSummary?.byStatus?.["delivery_dead_letter"] ?? 0) +
+       (ordersSummary?.byStatus?.["rejected_by_supplier"] ?? 0))
     : items.filter((i) => i.kind === "failed" || i.kind === "review").length;
 
   useEffect(() => {

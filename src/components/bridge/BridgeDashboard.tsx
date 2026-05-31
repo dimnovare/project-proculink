@@ -51,6 +51,7 @@ const EXCEPTION_STATUSES = new Set([
   "transform_failed",
   "delivery_failed",
   "delivery_dead_letter",
+  "rejected_by_supplier",
 ]);
 
 /** Orders that have reached a "processed" milestone, used for the auto-rate. */
@@ -244,7 +245,7 @@ export function BridgeDashboard() {
     queryFn: () => apiClient.getDashboardTopology(),
     staleTime: 60_000,
   });
-  const { data: ordersSummary } = useQuery({
+  const { data: ordersSummary, isLoading: summaryLoading, isError: summaryError } = useQuery({
     queryKey: ["orders-summary"],
     queryFn: () => apiClient.getOrdersSummary(),
     staleTime: 30_000,
@@ -321,7 +322,8 @@ export function BridgeDashboard() {
        (ordersSummary?.byStatus?.["failed"] ?? 0) +
        (ordersSummary?.byStatus?.["delivery_failed"] ?? 0) +
        (ordersSummary?.byStatus?.["transform_failed"] ?? 0) +
-       (ordersSummary?.byStatus?.["delivery_dead_letter"] ?? 0))
+       (ordersSummary?.byStatus?.["delivery_dead_letter"] ?? 0) +
+       (ordersSummary?.byStatus?.["rejected_by_supplier"] ?? 0))
     : allOrders.filter((o) => EXCEPTION_STATUSES.has(o.status)).length;
 
   // ── KPIs — real counts, windowed where it makes sense, honestly labelled ──
@@ -376,15 +378,17 @@ export function BridgeDashboard() {
       loading: ordersLoading,
     },
     {
-      value: fmt(openExceptionsAll),
+      value: !isApiMockMode
+        ? (summaryLoading ? "…" : summaryError ? "—" : openExceptionsAll.toLocaleString())
+        : fmt(openExceptionsAll),
       label: "Urgent exceptions",
-      sub: ordersError ? "Live data unavailable" : openExceptionsAll > 0 ? "Needs review now" : "All clear",
+      sub: (summaryError || ordersError) ? "Live data unavailable" : openExceptionsAll > 0 ? "Needs review now" : "All clear",
       subColor: openExceptionsAll > 0 ? "#C97A14" : "#1E6D29",
       edge: openExceptionsAll > 0 ? "#C97A14" : "#2E8E3A",
       icon: AlertTriangle,
       iconBg: openExceptionsAll > 0 ? "#FAEFD6" : "#E2F1E2",
       iconColor: openExceptionsAll > 0 ? "#C97A14" : "#1E6D29",
-      loading: ordersLoading,
+      loading: !isApiMockMode ? summaryLoading : ordersLoading,
     },
   ];
 

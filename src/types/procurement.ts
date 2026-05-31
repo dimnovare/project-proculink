@@ -47,7 +47,8 @@ export type OrderStatus =
   | "failed"
   | "transform_failed"
   | "delivery_failed"
-  | "delivery_dead_letter";
+  | "delivery_dead_letter"
+  | "rejected_by_supplier";
 
 export interface OrderLine {
   id: string;
