@@ -250,6 +250,34 @@ export function BridgeDashboard() {
     staleTime: 30_000,
   });
 
+  // ISO start of current window — undefined when window is "all" (no date filter).
+  const windowCutoffISO = useMemo(() => {
+    const cutoff = windowStart(windowKey);
+    return cutoff > 0 ? new Date(cutoff).toISOString() : undefined;
+  }, [windowKey]);
+
+  // Accurate windowed count queries (pageSize:1 — only totalCount matters).
+  const { data: windowedReceivedPage } = useQuery({
+    queryKey: ["orders-count-received", windowKey],
+    queryFn: () => apiClient.getOrders({
+      pageSize: 1,
+      ...(windowCutoffISO ? { dateFrom: windowCutoffISO } : {}),
+    }),
+    staleTime: 60_000,
+    enabled: !isApiMockMode,
+  });
+
+  const { data: windowedDeliveredPage } = useQuery({
+    queryKey: ["orders-count-delivered", windowKey],
+    queryFn: () => apiClient.getOrders({
+      status: "delivered",
+      pageSize: 1,
+      ...(windowCutoffISO ? { dateFrom: windowCutoffISO } : {}),
+    }),
+    staleTime: 60_000,
+    enabled: !isApiMockMode,
+  });
+
   const allOrders = useMemo(() => ordersPage?.items ?? [], [ordersPage]);
 
   // Orders inside the selected time window — drives windowed KPIs + export.
@@ -306,7 +334,9 @@ export function BridgeDashboard() {
 
   const kpis = [
     {
-      value: fmt(windowedOrders.length),
+      value: !isApiMockMode
+        ? (ordersLoading ? "…" : ordersError ? "—" : (windowedReceivedPage?.totalCount ?? windowedOrders.length).toLocaleString())
+        : fmt(windowedOrders.length),
       label: "Orders received",
       sub: windowSub,
       subColor: "#56627A",
@@ -317,7 +347,9 @@ export function BridgeDashboard() {
       loading: ordersLoading,
     },
     {
-      value: fmt(deliveredInWindow),
+      value: !isApiMockMode
+        ? (ordersLoading ? "…" : ordersError ? "—" : (windowedDeliveredPage?.totalCount ?? deliveredInWindow).toLocaleString())
+        : fmt(deliveredInWindow),
       label: "Orders delivered",
       sub: windowSub,
       subColor: "#1E6D29",
@@ -537,7 +569,13 @@ export function BridgeDashboard() {
               type="button"
               onClick={handleExport}
               disabled={windowedOrders.length === 0}
-              title={windowedOrders.length === 0 ? "No orders in this window to export" : "Download this window's orders as CSV"}
+              title={
+                !isApiMockMode && (windowedReceivedPage?.totalCount ?? 0) > 100
+                  ? `Export contains the most recent 100 of ${(windowedReceivedPage!.totalCount).toLocaleString()} orders in this window`
+                  : windowedOrders.length === 0
+                    ? "No orders in this window to export"
+                    : "Download this window's orders as CSV"
+              }
               className="flex items-center gap-2 rounded-[6px] px-3 py-1.5 text-[12.5px] font-medium transition-colors"
               style={{
                 border: "1px solid #E2E6EE",
