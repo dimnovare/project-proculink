@@ -511,7 +511,7 @@ export function UploadWorkbench() {
                   <p className="text-[12.5px] mt-2" style={{ color: "#8A93A5" }}>
                     {selectedFile
                       ? `${Math.max(1, Math.round(selectedFile.size / 1024))} KB ready to send`
-                      : "PDF · XLSX · CSV · cXML · UBL · EDIFACT · X12 — up to 25 MB"}
+                      : "PDF · XLSX · CSV · cXML · UBL · EDIFACT · X12 — up to 10 MB"}
                   </p>
                 </div>
 

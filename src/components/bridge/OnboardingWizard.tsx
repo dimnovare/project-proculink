@@ -276,7 +276,7 @@ function Step2UploadOrder({ defaultSupplier, onSuccess }: Step2Props) {
           Upload your first purchase order
         </h2>
         <p style={{ fontSize: 13, color: T.muted, margin: 0, lineHeight: 1.55 }}>
-          Upload a CSV, XLSX, or PDF purchase order for{" "}
+          Upload a purchase order (CSV, XLSX, PDF, XML/cXML, or EDI) for{" "}
           <strong style={{ color: T.text }}>{defaultSupplier.name}</strong>. ProcuLink will parse the lines.
         </p>
       </div>
@@ -284,7 +284,7 @@ function Step2UploadOrder({ defaultSupplier, onSuccess }: Step2Props) {
       <input
         ref={inputRef}
         type="file"
-        accept=".csv,.xlsx,application/pdf"
+        accept=".csv,.xlsx,.xls,.xml,.cxml,.pdf,.edi,.txt"
         onChange={(e) => setFile(e.target.files?.[0] ?? null)}
         disabled={loading}
         style={{ fontSize: 13 }}
