@@ -1,6 +1,7 @@
 import type {
   Order,
   OrderSummary,
+  OrderStatus,
   OrdersPage,
   GetOrdersParams,
   Supplier,
@@ -407,7 +408,7 @@ async function realGetOrders(params: GetOrdersParams = {}): Promise<OrdersPage> 
 
 async function mockGetOrdersSummary(): Promise<OrdersSummary> {
   await delay(100);
-  const byStatus: Partial<Record<string, number>> = {};
+  const byStatus: Partial<Record<OrderStatus, number>> = {};
   for (const o of mockOrders) {
     byStatus[o.status] = (byStatus[o.status] ?? 0) + 1;
   }
@@ -416,7 +417,7 @@ async function mockGetOrdersSummary(): Promise<OrdersSummary> {
 
 async function realGetOrdersSummary(): Promise<OrdersSummary> {
   const res = await fetchWithTimeout(`${API_BASE_URL}/api/orders/summary`, { headers: await authHeader() });
-  if (!res.ok) throw new Error(`orders/summary: ${res.status}`);
+  if (!res.ok) throw new Error(`Failed to fetch orders summary: ${res.statusText}`);
   return res.json() as Promise<OrdersSummary>;
 }
 
@@ -1004,7 +1005,7 @@ async function mockGetDashboardTopology(): Promise<DashboardTopology> {
 
 async function realGetDashboardTopology(): Promise<DashboardTopology> {
   const res = await fetchWithTimeout(`${API_BASE_URL}/api/dashboard/topology`, { headers: await authHeader() });
-  if (!res.ok) throw new Error(`dashboard/topology: ${res.status}`);
+  if (!res.ok) throw new Error(`Failed to fetch dashboard topology: ${res.statusText}`);
   return res.json() as Promise<DashboardTopology>;
 }
 

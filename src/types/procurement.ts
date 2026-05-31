@@ -282,7 +282,7 @@ export interface GetOrdersParams {
 }
 
 export interface OrdersSummary {
-  byStatus: Partial<Record<string, number>>;
+  byStatus: Partial<Record<OrderStatus, number>>;
   total: number;
 }
 
