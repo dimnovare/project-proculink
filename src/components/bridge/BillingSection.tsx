@@ -28,13 +28,15 @@ function UsageBar({ used, limit, label }: { used: number; limit: number; label: 
   const atLimit  = !unlimited && pct >= 100;
   const warning  = !unlimited && pct >= 80 && pct < 100;
 
+  // Default fill is the buyer→supplier bridge gradient (buyer-blue → brand green),
+  // matching the canonical --gradient-link-spine direction in the design render.
   const barStyle: React.CSSProperties = unlimited
-    ? { background: "var(--brand-green, #28C55E)" }
+    ? { background: "linear-gradient(90deg, #1E66C9, var(--brand-green, #28C55E))" }
     : atLimit
     ? { background: "#C53A3A" }
     : warning
-    ? { background: "linear-gradient(90deg, var(--brand-green, #28C55E), #C97A14)" }
-    : { background: "var(--brand-green, #28C55E)" };
+    ? { background: "linear-gradient(90deg, #1E66C9, #C97A14)" }
+    : { background: "linear-gradient(90deg, #1E66C9, var(--brand-green, #28C55E))" };
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
@@ -104,15 +106,17 @@ const bannerStyle: React.CSSProperties = {
   color: "#7A4A0A",
 };
 
-// Large highlighted plan block — green-tinted to match the brand accent
+// Large highlighted plan block — buyer-blue soft tint with a buyer-blue price,
+// per the design render (the buyer side of the buyer→supplier bridge).
 function PlanCard({ status, action }: { status: BillingStatus; action?: React.ReactNode }) {
   const meta = PLAN_META[status.plan];
   const isExpired = status.plan === "pilot" && status.isTrialExpired;
   const displayLabel = isExpired ? "Pilot ended · Processing paused" : meta.label;
-  // Expired pilot uses amber tint; otherwise the brand green soft tint.
-  const accent = isExpired ? "#C97A14" : "var(--brand-green, #28C55E)";
-  const softBg = isExpired ? "#FBF3E3" : "var(--brand-green-soft, #DCFCE7)";
-  const borderCol = isExpired ? "#F0D8A8" : "rgba(40,197,94,0.30)";
+  // Expired pilot uses amber tint; an active plan uses the buyer-blue soft tint
+  // (sampled #E3EDFB) with a buyer-blue price — matches the design render.
+  const accent = isExpired ? "#C97A14" : "#1E66C9";
+  const softBg = isExpired ? "#FBF3E3" : "#E3EDFB";
+  const borderCol = isExpired ? "#F0D8A8" : "#C9DCF6";
 
   return (
     <div style={{

@@ -315,7 +315,7 @@ export default async function RootPage() {
           <div
             style={{
               marginTop: 44,
-              background: "#0E1F38",
+              background: "#0C1D34",
               border: "1px solid rgba(255,255,255,0.10)",
               borderRadius: 14,
               boxShadow: "0 30px 80px rgba(0,0,0,0.45)",
@@ -348,6 +348,7 @@ export default async function RootPage() {
                 ))}
               </div>
               <span
+                className="hidden sm:inline"
                 style={{
                   fontFamily: "'JetBrains Mono', ui-monospace, monospace",
                   fontSize: 11,
@@ -355,38 +356,47 @@ export default async function RootPage() {
                   marginLeft: 4,
                 }}
               >
-                Live · order flow
+                live order topology
               </span>
-              <div className="ml-auto flex items-center gap-2">
+              {/* Segmented view toggle (Topology active / Canonical view) */}
+              <div
+                className="ml-auto flex items-center"
+                style={{
+                  gap: 2,
+                  padding: 3,
+                  borderRadius: 8,
+                  background: "rgba(255,255,255,0.04)",
+                  border: "1px solid rgba(255,255,255,0.08)",
+                }}
+              >
                 <span
                   style={{
-                    fontSize: 10.5,
+                    fontSize: 11,
                     fontWeight: 600,
-                    color: "#0B1A2F",
-                    background: GREEN,
-                    borderRadius: 99,
-                    padding: "3px 10px",
+                    color: "#FFFFFF",
+                    background: "#2F6FE0",
+                    borderRadius: 6,
+                    padding: "4px 12px",
                   }}
                 >
-                  Live
+                  Topology
                 </span>
                 <span
                   style={{
-                    fontSize: 10.5,
+                    fontSize: 11,
                     fontWeight: 500,
-                    color: "#9DB2CE",
-                    border: "1px solid rgba(255,255,255,0.14)",
-                    borderRadius: 99,
-                    padding: "3px 10px",
+                    color: "#8EA2BF",
+                    borderRadius: 6,
+                    padding: "4px 12px",
                   }}
                 >
-                  Canonical order
+                  Canonical view
                 </span>
               </div>
             </div>
 
             {/* Topology */}
-            <div style={{ padding: "20px 18px 8px" }}>
+            <div style={{ padding: "16px 14px 14px" }}>
               <BridgeIllustration />
             </div>
           </div>
@@ -397,7 +407,7 @@ export default async function RootPage() {
       <section
         className="px-4 sm:px-8"
         style={{
-          background: "#F6F7FA",
+          background: "#EFF2F7",
           borderBottom: "1px solid #E2E6EE",
           display: "flex",
           justifyContent: "center",

@@ -15,18 +15,29 @@ import type { PoMappingConfig } from "@/lib/api/types";
 
 type Tab = "overview" | "mappings" | "po-mapping" | "delivery";
 
-// Brand accent — emerald green (matches design CTAs + active-nav)
+// Brand accent — emerald green. Reserved for *active* affordances only:
+// tab underline, status dots, toggles, the primary CTA fill (matches design + active-nav).
 const GREEN = "#28C55E";
 const GREEN_DEEP = "#1DAF50";
-const GREEN_SOFT = "#DCFCE7";
 
-// Indigo — used for "Inherited" provenance pills + record-id links (matches design)
+// Design-sampled greens (from the 1920px renders). The product's soft-green TINT and its
+// deep-green TEXT are forest-toned, distinct from the bright accent above:
+//   tile/pill background  #E2F1E2   ·   supplier-code / "deep" text  #1E6D29
+const GREEN_SOFT = "#E2F1E2";   // sampled avatar tile + confidence/imported pill bg
+const GREEN_TEXT = "#1E6D29";   // sampled supplier-code + deep-green pill/label text
+
+// Indigo / blue — "Inherited" provenance pills, selected-row tint, record-id links.
+// All sampled from the design: inherited pill #E3EDFB/#0F4FBA, selected row #E3EDFB.
 const INDIGO = "#3E63DD";
-const INDIGO_SOFT = "#E5EAFB";
-const INDIGO_DEEP = "#3A4FB0";
+const INDIGO_SOFT = "#E3EDFB";
+const INDIGO_DEEP = "#0F4FBA";
 
-// Muted icon/label tone for card-header glyphs (design uses neutral, not green)
+// Muted icon/label tone for card-header glyphs (design uses neutral slate, not green).
 const MUTED = "#8A93A5";
+
+// One consistent hairline for every card border, header divider, and row separator.
+// Sampled #E2E6EE across the whole design — the earlier #F0F2F6/#F4F5F8 read too faint.
+const LINE = "#E2E6EE";
 
 // Demo data — only rendered when isApiMockMode is true (dev, never production)
 const DEMO_MOCK = {
@@ -73,12 +84,12 @@ const TABS: Array<{ id: Tab; label: string }> = [
   { id: "delivery",    label: "Delivery"          },
 ];
 
-// Source-pill palette for the SKU mappings table (provenance colour-coding per design).
+// Source-pill palette for the SKU mappings table (provenance colour-coding, all sampled).
 const SOURCE_PILL: Record<string, { bg: string; fg: string }> = {
   AI:        { bg: "#EEE7FB",     fg: "#6F4FCE"    },   // violet — AI provenance
-  Manual:    { bg: "#EFF2F7",     fg: "#56627A"    },   // neutral gray
-  Inherited: { bg: INDIGO_SOFT,   fg: INDIGO_DEEP  },   // indigo — inherited from another supplier
-  Imported:  { bg: GREEN_SOFT,    fg: GREEN_DEEP   },   // green — imported from a file
+  Manual:    { bg: "#EFF2F7",     fg: "#56627A"    },   // neutral slate
+  Inherited: { bg: INDIGO_SOFT,   fg: INDIGO_DEEP  },   // blue — inherited from another supplier
+  Imported:  { bg: GREEN_SOFT,    fg: GREEN_TEXT   },   // green — imported from a file
 };
 
 // Soft-pill background tint that pairs with confColor() for confidence badges.
@@ -89,7 +100,7 @@ function confPillBg(pct: number): string {
 }
 
 function confColor(pct: number): string {
-  if (pct >= 90) return GREEN_DEEP;
+  if (pct >= 90) return GREEN_TEXT;
   if (pct >= 75) return "#C97A14";
   return "#C53A3A";
 }
@@ -156,7 +167,7 @@ export function SupplierDockProfile({ id }: { id: string }) {
       {/* Header */}
       <div
         className="flex flex-col gap-4 px-4 py-4 sm:px-6 sm:py-5 flex-shrink-0"
-        style={{ borderBottom: "1px solid #E2E6EE", background: "#FFFFFF" }}
+        style={{ borderBottom: `1px solid ${LINE}`, background: "#FFFFFF" }}
       >
         <button
           onClick={() => router.push("/library/suppliers")}
@@ -182,12 +193,12 @@ export function SupplierDockProfile({ id }: { id: string }) {
                 flexShrink: 0,
               }}
             >
-              <Truck size={20} strokeWidth={2} color={GREEN_DEEP} />
+              <Truck size={20} strokeWidth={2} color={GREEN_TEXT} />
             </div>
 
             <div className="min-w-0">
               <h1
-                className="text-[26px] leading-none font-semibold tracking-[-0.02em]"
+                className="text-[24px] leading-none font-semibold tracking-[-0.02em] sm:text-[32px]"
                 style={{ fontFamily: "'Bricolage Grotesque', Inter, sans-serif", color: "#0B1A2F" }}
               >
                 {name}
@@ -220,7 +231,7 @@ export function SupplierDockProfile({ id }: { id: string }) {
                   );
                 })}
                 {isApiMockMode && (
-                  <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold" style={{ color: DEMO_MOCK.autoProcess ? GREEN_DEEP : MUTED }}>
+                  <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold" style={{ color: DEMO_MOCK.autoProcess ? GREEN_TEXT : MUTED }}>
                     <span style={{ width: 6, height: 6, borderRadius: "50%", background: DEMO_MOCK.autoProcess ? GREEN : MUTED, display: "inline-block" }} />
                     Auto-process: {DEMO_MOCK.autoProcess ? "ON" : "OFF"}
                   </span>
@@ -233,7 +244,7 @@ export function SupplierDockProfile({ id }: { id: string }) {
           <button
             onClick={() => setTab("delivery")}
             className="inline-flex items-center gap-1.5 self-start rounded-[7px] px-3 text-[12.5px] font-medium sm:ml-auto sm:self-center"
-            style={{ height: 34, border: "1px solid #D5DAEA", background: "#FFFFFF", color: "#0B1A2F", cursor: "pointer" }}
+            style={{ height: 34, border: "1px solid #C6CDDA", background: "#FFFFFF", color: "#0B1A2F", cursor: "pointer" }}
           >
             <Settings size={14} strokeWidth={2} color="#56627A" />
             Supplier settings
@@ -243,8 +254,8 @@ export function SupplierDockProfile({ id }: { id: string }) {
 
       {/* Tabs */}
       <div
-        className="flex items-center gap-0 overflow-x-auto px-4 sm:px-6 flex-shrink-0"
-        style={{ borderBottom: "1px solid #E2E6EE", background: "#FFFFFF", height: 42 }}
+        className="flex items-center gap-0 overflow-x-auto px-4 sm:px-6 flex-shrink-0 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
+        style={{ borderBottom: `1px solid ${LINE}`, background: "#FFFFFF", height: 42 }}
       >
         {TABS.map((t) => (
           <button
@@ -287,9 +298,9 @@ export function SupplierDockProfile({ id }: { id: string }) {
                 <div
                   key={label}
                   className="rounded-[10px] px-4 py-4"
-                  style={{ background: "#FFFFFF", border: "1px solid #E2E6EE", boxShadow: "0 1px 2px rgba(11,26,47,0.04)" }}
+                  style={{ background: "#FFFFFF", border: `1px solid ${LINE}`, boxShadow: "0 1px 2px rgba(11,26,47,0.04)" }}
                 >
-                  <div className="text-[10.5px] font-semibold uppercase tracking-[0.04em]" style={{ color: "#8A93A5" }}>{label}</div>
+                  <div className="text-[10.5px] font-semibold uppercase tracking-[0.04em]" style={{ color: MUTED }}>{label}</div>
                   <div
                     className="mt-2 tracking-[-0.02em]"
                     style={{
@@ -302,7 +313,7 @@ export function SupplierDockProfile({ id }: { id: string }) {
                   >
                     {value}
                   </div>
-                  <div className="mt-1.5 text-[11px] font-medium" style={{ color: subAccent ? GREEN_DEEP : "#8A93A5" }}>{sub}</div>
+                  <div className="mt-1.5 text-[11px] font-medium" style={{ color: subAccent ? GREEN_TEXT : MUTED }}>{sub}</div>
                 </div>
               ))}
             </div>
@@ -310,13 +321,13 @@ export function SupplierDockProfile({ id }: { id: string }) {
             {/* Summary + recent deliveries */}
             <div className="grid gap-4 lg:grid-cols-2">
               {/* Delivery summary */}
-              <div style={{ background: "#FFFFFF", border: "1px solid #E2E6EE", borderRadius: 10, overflow: "hidden" }}>
-                <div className="flex items-center gap-2 px-5 py-3.5" style={{ borderBottom: "1px solid #F0F2F6" }}>
+              <div style={{ background: "#FFFFFF", border: `1px solid ${LINE}`, borderRadius: 10, overflow: "hidden" }}>
+                <div className="flex items-center gap-2 px-5 py-3.5" style={{ borderBottom: `1px solid ${LINE}` }}>
                   <Info size={15} strokeWidth={2} color={MUTED} />
                   <h3 className="text-[13px] font-semibold" style={{ color: "#0B1A2F" }}>Delivery summary</h3>
                 </div>
                 {isApiMockMode ? (
-                  <div className="px-5 py-1">
+                  <div className="px-4 py-1 sm:px-5">
                     {([
                       ["Required format",   DEMO_MOCK.summary.requiredFormat,   true ],
                       ["Delivery channel",  DEMO_MOCK.summary.deliveryChannel,  true ],
@@ -327,12 +338,12 @@ export function SupplierDockProfile({ id }: { id: string }) {
                     ] as Array<[string, string, boolean]>).map(([k, v, mono], i, arr) => (
                       <div
                         key={k}
-                        className="flex items-center justify-between gap-4 py-2.5"
-                        style={{ borderBottom: i < arr.length - 1 ? "1px solid #F4F5F8" : undefined }}
+                        className="flex items-center justify-between gap-3 py-2.5 sm:gap-4"
+                        style={{ borderBottom: i < arr.length - 1 ? `1px solid ${LINE}` : undefined }}
                       >
-                        <span className="text-[12px]" style={{ color: "#56627A" }}>{k}</span>
+                        <span className="flex-shrink-0 text-[12px]" style={{ color: "#56627A" }}>{k}</span>
                         <span
-                          className="text-[12px] font-medium truncate text-right"
+                          className="min-w-0 truncate text-right text-[12px] font-medium"
                           style={{ color: "#0B1A2F", fontFamily: mono ? "'JetBrains Mono', monospace" : undefined }}
                         >
                           {v}
@@ -341,7 +352,7 @@ export function SupplierDockProfile({ id }: { id: string }) {
                     ))}
                   </div>
                 ) : (
-                  <p className="px-5 py-5 text-[13px]" style={{ color: "#8A93A5" }}>
+                  <p className="px-4 py-5 text-[13px] sm:px-5" style={{ color: MUTED }}>
                     Configure this supplier in the{" "}
                     <button
                       onClick={() => setTab("delivery")}
@@ -355,27 +366,27 @@ export function SupplierDockProfile({ id }: { id: string }) {
               </div>
 
               {/* Recent deliveries */}
-              <div style={{ background: "#FFFFFF", border: "1px solid #E2E6EE", borderRadius: 10, overflow: "hidden" }}>
-                <div className="flex items-center gap-2 px-5 py-3.5" style={{ borderBottom: "1px solid #F0F2F6" }}>
+              <div style={{ background: "#FFFFFF", border: `1px solid ${LINE}`, borderRadius: 10, overflow: "hidden" }}>
+                <div className="flex items-center gap-2 px-5 py-3.5" style={{ borderBottom: `1px solid ${LINE}` }}>
                   <Clock size={15} strokeWidth={2} color={MUTED} />
                   <h3 className="text-[13px] font-semibold" style={{ color: "#0B1A2F" }}>Recent deliveries</h3>
                 </div>
                 {isApiMockMode ? (
-                  <div className="px-5 py-1">
+                  <div className="px-4 py-1 sm:px-5">
                     {DEMO_MOCK.recent.map((r, i) => (
                       <div
                         key={r.id}
-                        className="flex items-center gap-3 py-2.5"
-                        style={{ borderBottom: i < DEMO_MOCK.recent.length - 1 ? "1px solid #F4F5F8" : undefined }}
+                        className="flex items-center gap-2.5 py-2.5 sm:gap-3"
+                        style={{ borderBottom: i < DEMO_MOCK.recent.length - 1 ? `1px solid ${LINE}` : undefined }}
                       >
-                        <span className="text-[12px] font-medium" style={{ color: INDIGO, fontFamily: "'JetBrains Mono', monospace" }}>{r.id}</span>
-                        <span className="ml-auto text-[12px]" style={{ color: MUTED, fontFamily: "'JetBrains Mono', monospace" }}>{r.amount}</span>
-                        <MiniStatusPill status={r.status} />
+                        <span className="flex-shrink-0 text-[12px] font-medium" style={{ color: INDIGO, fontFamily: "'JetBrains Mono', monospace" }}>{r.id}</span>
+                        <span className="ml-auto min-w-0 truncate text-right text-[12px]" style={{ color: MUTED, fontFamily: "'JetBrains Mono', monospace" }}>{r.amount}</span>
+                        <span className="flex-shrink-0"><MiniStatusPill status={r.status} /></span>
                       </div>
                     ))}
                   </div>
                 ) : (
-                  <p className="px-5 py-5 text-[13px]" style={{ color: "#8A93A5" }}>
+                  <p className="px-4 py-5 text-[13px] sm:px-5" style={{ color: MUTED }}>
                     No deliveries yet for this supplier.
                   </p>
                 )}
@@ -385,76 +396,117 @@ export function SupplierDockProfile({ id }: { id: string }) {
         )}
 
         {tab === "mappings" && (
-          <div style={{ background: "#FFFFFF", border: "1px solid #E2E6EE", borderRadius: 10, overflow: "hidden" }}>
+          <div style={{ background: "#FFFFFF", border: `1px solid ${LINE}`, borderRadius: 10, overflow: "hidden" }}>
             {/* Card header */}
-            <div className="flex flex-col items-start gap-3 px-5 py-4 sm:flex-row sm:items-center" style={{ borderBottom: "1px solid #F0F2F6" }}>
+            <div className="flex flex-col items-start gap-3 px-4 py-4 sm:px-5 sm:flex-row sm:items-center" style={{ borderBottom: `1px solid ${LINE}` }}>
               <Link2 size={17} strokeWidth={2} color={MUTED} className="flex-shrink-0" />
               <div className="min-w-0">
                 <h3 className="text-[14px] font-semibold" style={{ color: "#0B1A2F" }}>Saved SKU mappings</h3>
-                <p className="mt-0.5 text-[12px]" style={{ color: "#8A93A5" }}>
+                <p className="mt-0.5 text-[12px]" style={{ color: MUTED }}>
                   {isApiMockMode ? `${DEMO_MOCK.summary.savedMappings.toLocaleString()} buyer → supplier item codes` : "Buyer → supplier item codes"}
                 </p>
               </div>
               <a
                 href="/library/mappings"
                 className="inline-flex items-center gap-1.5 self-stretch justify-center rounded-[7px] px-3 text-[12.5px] font-medium sm:ml-auto sm:self-center"
-                style={{ height: 32, border: "1px solid #D5DAEA", background: "#FFFFFF", color: "#0B1A2F", textDecoration: "none", whiteSpace: "nowrap" }}
+                style={{ height: 36, border: `1px solid #C6CDDA`, background: "#FFFFFF", color: "#0B1A2F", textDecoration: "none", whiteSpace: "nowrap" }}
               >
-                <Plus size={14} strokeWidth={2.2} color={GREEN_DEEP} />
+                <Plus size={14} strokeWidth={2.2} color="#465161" />
                 Add mapping
               </a>
             </div>
 
             {isApiMockMode ? (
-              <div className="overflow-x-auto">
-                <table className="w-full border-collapse" style={{ minWidth: 640 }}>
-                  <thead>
-                    <tr style={{ borderBottom: "1px solid #F0F2F6" }}>
-                      {["Buyer code", "Supplier code", "Description", "Source", "Confidence"].map((h, i) => (
-                        <th
-                          key={h}
-                          className="px-5 py-2.5 text-[10.5px] font-semibold uppercase tracking-[0.04em]"
-                          style={{ color: "#8A93A5", textAlign: i === 4 ? "right" : "left" }}
-                        >
-                          {h}
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {DEMO_MOCK.mappings.map((m, i) => {
-                      const pill = SOURCE_PILL[m.source];
-                      return (
-                        <tr key={m.buyer} style={{ borderBottom: i < DEMO_MOCK.mappings.length - 1 ? "1px solid #F4F5F8" : undefined }}>
-                          <td className="px-5 py-3 text-[12px] font-medium" style={{ color: "#0B1A2F", fontFamily: "'JetBrains Mono', monospace" }}>{m.buyer}</td>
-                          <td className="px-5 py-3 text-[12px] font-medium" style={{ color: GREEN_DEEP, fontFamily: "'JetBrains Mono', monospace" }}>{m.supplier}</td>
-                          <td className="px-5 py-3 text-[12.5px]" style={{ color: "#56627A" }}>{m.desc}</td>
-                          <td className="px-5 py-3" style={{ textAlign: "left" }}>
-                            <span
-                              className="inline-flex items-center rounded px-1.5 py-0.5 text-[10.5px] font-semibold"
-                              style={{ background: pill.bg, color: pill.fg }}
-                            >
-                              {m.source}
-                            </span>
-                          </td>
-                          <td className="px-5 py-3" style={{ textAlign: "right" }}>
-                            <span
-                              className="inline-flex items-center rounded px-1.5 py-0.5 text-[11px] font-semibold tabular-nums"
-                              style={{ background: confPillBg(m.conf), color: confColor(m.conf), fontFamily: "'JetBrains Mono', monospace" }}
-                            >
-                              {m.conf}%
-                            </span>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
+              <>
+                {/* Desktop / tablet: real table (≥sm). Hidden on phones. */}
+                <div className="hidden sm:block overflow-x-auto">
+                  <table className="w-full border-collapse" style={{ minWidth: 640 }}>
+                    <thead>
+                      <tr style={{ borderBottom: `1px solid ${LINE}` }}>
+                        {["Buyer code", "Supplier code", "Description", "Source", "Confidence"].map((h, i) => (
+                          <th
+                            key={h}
+                            className="px-5 py-2.5 text-[10.5px] font-semibold uppercase tracking-[0.04em]"
+                            style={{ color: MUTED, textAlign: i === 4 ? "right" : "left" }}
+                          >
+                            {h}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {DEMO_MOCK.mappings.map((m, i) => {
+                        const pill = SOURCE_PILL[m.source];
+                        return (
+                          <tr key={m.buyer} style={{ borderBottom: i < DEMO_MOCK.mappings.length - 1 ? `1px solid ${LINE}` : undefined }}>
+                            <td className="px-5 py-3 text-[12px] font-medium" style={{ color: "#0B1A2F", fontFamily: "'JetBrains Mono', monospace" }}>{m.buyer}</td>
+                            <td className="px-5 py-3 text-[12px] font-medium" style={{ color: GREEN_TEXT, fontFamily: "'JetBrains Mono', monospace" }}>{m.supplier}</td>
+                            <td className="px-5 py-3 text-[12.5px]" style={{ color: "#56627A" }}>{m.desc}</td>
+                            <td className="px-5 py-3" style={{ textAlign: "left" }}>
+                              <span
+                                className="inline-flex items-center rounded px-1.5 py-0.5 text-[10.5px] font-semibold"
+                                style={{ background: pill.bg, color: pill.fg }}
+                              >
+                                {m.source}
+                              </span>
+                            </td>
+                            <td className="px-5 py-3" style={{ textAlign: "right" }}>
+                              <span
+                                className="inline-flex items-center rounded px-1.5 py-0.5 text-[11px] font-semibold tabular-nums"
+                                style={{ background: confPillBg(m.conf), color: confColor(m.conf), fontFamily: "'JetBrains Mono', monospace" }}
+                              >
+                                {m.conf}%
+                              </span>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Phones (<sm): stacked row-cards — no horizontal overflow. */}
+                <div className="sm:hidden">
+                  {DEMO_MOCK.mappings.map((m, i) => {
+                    const pill = SOURCE_PILL[m.source];
+                    return (
+                      <div
+                        key={m.buyer}
+                        className="flex flex-col gap-2 px-4 py-3.5"
+                        style={{ borderBottom: i < DEMO_MOCK.mappings.length - 1 ? `1px solid ${LINE}` : undefined }}
+                      >
+                        {/* Buyer → supplier code line */}
+                        <div className="flex items-center gap-2 text-[13px] font-medium" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                          <span style={{ color: "#0B1A2F" }}>{m.buyer}</span>
+                          <span style={{ color: "#C6CDDA" }}>→</span>
+                          <span style={{ color: GREEN_TEXT }}>{m.supplier}</span>
+                        </div>
+                        {/* Description */}
+                        <div className="text-[12.5px]" style={{ color: "#56627A" }}>{m.desc}</div>
+                        {/* Source + confidence pills */}
+                        <div className="flex items-center gap-2">
+                          <span
+                            className="inline-flex items-center rounded px-1.5 py-0.5 text-[10.5px] font-semibold"
+                            style={{ background: pill.bg, color: pill.fg }}
+                          >
+                            {m.source}
+                          </span>
+                          <span
+                            className="inline-flex items-center rounded px-1.5 py-0.5 text-[11px] font-semibold tabular-nums"
+                            style={{ background: confPillBg(m.conf), color: confColor(m.conf), fontFamily: "'JetBrains Mono', monospace" }}
+                          >
+                            {m.conf}%
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </>
             ) : (
-              <p className="px-5 py-5 text-[13px]" style={{ color: "#56627A" }}>
+              <p className="px-4 py-5 text-[13px] sm:px-5" style={{ color: "#56627A" }}>
                 Showing mappings for {name}. See the full{" "}
-                <a href="/library/mappings" style={{ color: GREEN_DEEP, fontWeight: 500 }}>Mapping Editor</a>{" "}
+                <a href="/library/mappings" style={{ color: GREEN_TEXT, fontWeight: 500 }}>Mapping Editor</a>{" "}
                 for all supplier pairs.
               </p>
             )}
@@ -500,8 +552,8 @@ export function SupplierDockProfile({ id }: { id: string }) {
 function MiniStatusPill({ status }: { status: "review" | "ready" | "sent" }) {
   const MAP: Record<string, { bg: string; fg: string; dot: string; label: string }> = {
     review: { bg: "#FAEFD6", fg: "#C97A14",   dot: "#C97A14", label: "Needs review" },
-    ready:  { bg: GREEN_SOFT, fg: GREEN_DEEP,  dot: GREEN,     label: "Ready"        },
-    sent:   { bg: GREEN_SOFT, fg: GREEN_DEEP,  dot: GREEN,     label: "Delivered"    },
+    ready:  { bg: GREEN_SOFT, fg: GREEN_TEXT,  dot: GREEN,     label: "Ready"        },
+    sent:   { bg: GREEN_SOFT, fg: GREEN_TEXT,  dot: GREEN,     label: "Delivered"    },
   };
   const s = MAP[status];
   return (

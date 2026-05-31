@@ -1,8 +1,10 @@
 "use client";
 
 // BridgeIllustration — SVG marketing graphic (sits inside the dark hero panel).
-// Left: buyer docks (blue edge). Right: supplier docks (green edge).
-// Center: animated Bezier wire curves (blue → green) with travelling dots.
+// Left: buyer cards (blue edge). Right: supplier cards (green edge).
+// Center: a clean, symmetric set of curved wires that cross through the hub —
+// each buyer routes to its mirror supplier, so the bundle necks down to a tidy
+// hourglass at the centre node (blue on the left half → green on the right half).
 
 const BUYERS = [
   { label: "Heinrich Industries",  code: "HEI" },
@@ -18,61 +20,44 @@ const SUPPLIERS = [
   { label: "MedicaSupply OY",   code: "MDS" },
 ];
 
-// Brand accent is green.
+// Brand accent is green; buyer side is blue.
 const BLUE = "#3F86E8";
 const GREEN = "#28C55E";
-const GREEN_DEEP = "#1DAF50";
-const AMBER = "#E7B548";
 
-const WIRES: Array<{
-  buyerIdx: number;
-  suppIdx: number;
-  color: "ok" | "risk" | "down";
-  dur: number;
-}> = [
-  { buyerIdx: 0, suppIdx: 0, color: "ok",   dur: 3.2 },
-  { buyerIdx: 0, suppIdx: 1, color: "ok",   dur: 4.8 },
-  { buyerIdx: 1, suppIdx: 2, color: "risk", dur: 3.8 },
-  { buyerIdx: 1, suppIdx: 1, color: "ok",   dur: 5.1 },
-  { buyerIdx: 2, suppIdx: 2, color: "ok",   dur: 4.0 },
-  { buyerIdx: 2, suppIdx: 1, color: "ok",   dur: 6.2 },
-  { buyerIdx: 3, suppIdx: 3, color: "ok",   dur: 3.5 },
-  { buyerIdx: 3, suppIdx: 0, color: "down", dur: 7.0 },
+// Each buyer routes to its mirror supplier (0↔3, 1↔2, 2↔1, 3↔0). This produces
+// the clean, symmetric crossing in the reference: the four wires fan wide at the
+// cards and pinch to a tidy bundle as they pass the hub.
+const WIRES: Array<{ buyerIdx: number; suppIdx: number; dur: number; begin: number }> = [
+  { buyerIdx: 0, suppIdx: 3, dur: 5.6, begin: 0.0 },
+  { buyerIdx: 1, suppIdx: 2, dur: 4.8, begin: 1.4 },
+  { buyerIdx: 2, suppIdx: 1, dur: 5.2, begin: 0.7 },
+  { buyerIdx: 3, suppIdx: 0, dur: 6.0, begin: 2.1 },
 ];
-
-const PULSE_COLOR: Record<string, string> = {
-  ok:   GREEN,
-  risk: AMBER,
-  down: "#C53A3A",
-};
 
 export function BridgeIllustration({ className }: { className?: string }) {
   const W = 800;
-  const H = 320;
-  const padV = 36;
+  const H = 340;
+  const padV = 44;
   const rowH = (H - padV * 2) / (BUYERS.length - 1);
-  const leftX = 184;
-  const rightX = W - 184;
+  const leftX = 188;
+  const rightX = W - 188;
   const cx = W / 2;
+  const midY = H / 2;
 
   function buyerY(i: number) { return padV + i * rowH; }
   function suppY(i: number)  { return padV + i * rowH; }
 
-  // Deep S-curve topology: control points pull toward centre-X (0.9) so wires
-  // funnel through the node area, and each control point's Y is biased toward
-  // the vertical midline *in proportion to the wire's vertical span* — same-row
-  // wires stay shallow, crossing wires bow hard into a clean X (matches ref).
-  const spanFull = (BUYERS.length - 1) * rowH;
+  // Control points sit ~0.62 of the way toward centre-X so each wire leaves its
+  // card almost horizontally, then bows toward the midline. Mirror-paired wires
+  // therefore cross in a clean, open X centred on the hub — four distinct strands
+  // (blue on the left half, green on the right), matching the reference.
   function wirePath(bi: number, si: number) {
     const y0 = buyerY(bi);
     const y1 = suppY(si);
-    const midY = H / 2;
-    // 0 for a same-row wire → ~1 for a full top↔bottom crossing.
-    const pull = Math.min(Math.abs(y1 - y0) / spanFull, 1) * 0.55;
-    const cy0 = y0 + (midY - y0) * pull;
-    const cy1 = y1 + (midY - y1) * pull;
-    const cp1x = leftX  + (cx - leftX)  * 0.9;
-    const cp2x = rightX - (rightX - cx) * 0.9;
+    const cy0 = y0 + (midY - y0) * 0.38;
+    const cy1 = y1 + (midY - y1) * 0.38;
+    const cp1x = leftX  + (cx - leftX)  * 0.62;
+    const cp2x = rightX - (rightX - cx) * 0.62;
     return `M ${leftX} ${y0} C ${cp1x} ${cy0}, ${cp2x} ${cy1}, ${rightX} ${y1}`;
   }
 
@@ -80,7 +65,7 @@ export function BridgeIllustration({ className }: { className?: string }) {
     <svg
       viewBox={`0 0 ${W} ${H}`}
       className={className}
-      style={{ overflow: "hidden", width: "100%", height: "auto" }}
+      style={{ overflow: "hidden", width: "100%", height: "auto", display: "block" }}
       aria-hidden
     >
       <defs>
@@ -95,25 +80,30 @@ export function BridgeIllustration({ className }: { className?: string }) {
             y2={suppY(w.suppIdx)}
           >
             <stop offset="0%"   stopColor={BLUE} />
-            <stop offset="55%"  stopColor={BLUE} />
-            <stop offset="100%" stopColor={
-              w.color === "ok" ? GREEN :
-              w.color === "risk" ? AMBER : "#C53A3A"
-            } />
+            <stop offset="48%"  stopColor={BLUE} />
+            <stop offset="58%"  stopColor={GREEN} />
+            <stop offset="100%" stopColor={GREEN} />
           </linearGradient>
         ))}
+        {/* Soft hub glow */}
+        <radialGradient id="hub-glow" cx="50%" cy="50%" r="50%">
+          <stop offset="0%"  stopColor={BLUE} stopOpacity={0.30} />
+          <stop offset="70%" stopColor={BLUE} stopOpacity={0.06} />
+          <stop offset="100%" stopColor={BLUE} stopOpacity={0} />
+        </radialGradient>
       </defs>
 
       {/* ── Wire curves ─────────────────────────────────────── */}
       {WIRES.map((w, i) => (
         <g key={i}>
-          {/* Shadow wire */}
+          {/* Soft shadow underlay for depth */}
           <path
             d={wirePath(w.buyerIdx, w.suppIdx)}
             fill="none"
             stroke={`url(#wg-${i})`}
-            strokeWidth={1.5}
-            strokeOpacity={0.16}
+            strokeWidth={3.5}
+            strokeOpacity={0.10}
+            strokeLinecap="round"
           />
           {/* Main wire */}
           <path
@@ -121,71 +111,50 @@ export function BridgeIllustration({ className }: { className?: string }) {
             d={wirePath(w.buyerIdx, w.suppIdx)}
             fill="none"
             stroke={`url(#wg-${i})`}
-            strokeWidth={w.color === "ok" ? 1.8 : 1.4}
-            strokeOpacity={w.color === "down" ? 0.32 : 0.85}
-            strokeDasharray={w.color === "down" ? "4 4" : undefined}
+            strokeWidth={1.6}
+            strokeOpacity={0.9}
+            strokeLinecap="round"
           />
-          {/* Travelling pulse */}
-          {w.color !== "down" && (
-            <circle
-              className="wire-pulse-dot"
-              r={2.6}
-              fill={PULSE_COLOR[w.color]}
-              fillOpacity={0.9}
-              opacity={0}
-            >
-              <animateMotion
-                dur={`${w.dur}s`}
-                repeatCount="indefinite"
-                begin={`${i * 0.7}s`}
-              >
-                <mpath href={`#wpath-${i}`} />
-              </animateMotion>
-              <animate
-                attributeName="opacity"
-                values="0;0;1;1;0;0"
-                keyTimes="0;0.08;0.18;0.82;0.92;1"
-                dur={`${w.dur}s`}
-                begin={`${i * 0.7}s`}
-                repeatCount="indefinite"
-              />
-            </circle>
-          )}
+          {/* Travelling pulse — gentle, uniform */}
+          <circle r={2.4} fill={GREEN} fillOpacity={0.95} opacity={0}>
+            <animateMotion dur={`${w.dur}s`} begin={`${w.begin}s`} repeatCount="indefinite">
+              <mpath href={`#wpath-${i}`} />
+            </animateMotion>
+            <animate
+              attributeName="opacity"
+              values="0;0;1;1;0;0"
+              keyTimes="0;0.08;0.2;0.8;0.92;1"
+              dur={`${w.dur}s`}
+              begin={`${w.begin}s`}
+              repeatCount="indefinite"
+            />
+          </circle>
         </g>
       ))}
 
-      {/* ── Buyer docks (left) ───────────────────────────────── */}
+      {/* ── Buyer cards (left) ───────────────────────────────── */}
       {BUYERS.map((b, i) => (
         <g key={b.code} transform={`translate(${leftX}, ${buyerY(i)})`}>
-          {/* Outbound port — small chevron just past the card's right edge */}
-          <path
-            d="M -2 -4 L 4 0 L -2 4"
-            fill="none"
-            stroke={BLUE}
-            strokeWidth={1.6}
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            opacity={0.95}
-          />
-
           {/* Card */}
           <rect
-            x={-168}
-            y={-19}
-            width={152}
-            height={38}
-            rx={7}
-            fill="#13294466"
-            stroke="rgba(255,255,255,0.10)"
+            x={-172}
+            y={-20}
+            width={156}
+            height={40}
+            rx={8}
+            fill="#0E2138"
+            stroke="rgba(255,255,255,0.09)"
             strokeWidth={1}
           />
           {/* Blue left bar */}
-          <rect x={-168} y={-19} width={3} height={38} rx={1.5} fill={BLUE} />
+          <rect x={-172} y={-20} width={3} height={40} rx={1.5} fill={BLUE} />
+          {/* Outbound port dot at the card's right edge */}
+          <circle cx={-14} cy={0} r={2.4} fill={BLUE} fillOpacity={0.9} />
 
           {/* Code */}
           <text
-            x={-150}
-            y={-4}
+            x={-153}
+            y={-4.5}
             fontSize={8.5}
             fontFamily="'JetBrains Mono', monospace"
             fontWeight={700}
@@ -196,7 +165,7 @@ export function BridgeIllustration({ className }: { className?: string }) {
           </text>
           {/* Label */}
           <text
-            x={-150}
+            x={-153}
             y={10}
             fontSize={11}
             fontFamily="Inter, system-ui"
@@ -208,37 +177,28 @@ export function BridgeIllustration({ className }: { className?: string }) {
         </g>
       ))}
 
-      {/* ── Supplier docks (right) ──────────────────────────── */}
+      {/* ── Supplier cards (right) ──────────────────────────── */}
       {SUPPLIERS.map((s, i) => (
         <g key={s.code} transform={`translate(${rightX}, ${suppY(i)})`}>
-          {/* Inbound port — small chevron just before the card's left edge */}
-          <path
-            d="M -2 -4 L 4 0 L -2 4"
-            fill="none"
-            stroke={GREEN}
-            strokeWidth={1.6}
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            opacity={0.95}
-          />
-
+          {/* Inbound port dot at the card's left edge */}
+          <circle cx={14} cy={0} r={2.4} fill={GREEN} fillOpacity={0.9} />
           {/* Card */}
           <rect
             x={16}
-            y={-19}
-            width={152}
-            height={38}
-            rx={7}
-            fill="#13294466"
-            stroke="rgba(255,255,255,0.10)"
+            y={-20}
+            width={156}
+            height={40}
+            rx={8}
+            fill="#0E2138"
+            stroke="rgba(255,255,255,0.09)"
             strokeWidth={1}
           />
           {/* Green right bar */}
-          <rect x={16 + 149} y={-19} width={3} height={38} rx={1.5} fill={GREEN} />
+          <rect x={16 + 153} y={-20} width={3} height={40} rx={1.5} fill={GREEN} />
 
           <text
             x={28}
-            y={-4}
+            y={-4.5}
             fontSize={8.5}
             fontFamily="'JetBrains Mono', monospace"
             fontWeight={700}
@@ -260,29 +220,30 @@ export function BridgeIllustration({ className }: { className?: string }) {
         </g>
       ))}
 
-      {/* ── Center node ──────────────────────────────────────── */}
-      <g transform={`translate(${cx}, ${H / 2})`}>
-        <circle r={34} fill="#0B1A2F" stroke="rgba(255,255,255,0.12)" strokeWidth={1} />
-        <circle r={34} fill="none" stroke={GREEN} strokeWidth={1} strokeOpacity={0.35} />
-        {/* Logo mark — ProcuLink "link" glyph (no forbidden wording) */}
+      {/* ── Center hub ───────────────────────────────────────── */}
+      <g transform={`translate(${cx}, ${midY})`}>
+        <circle r={40} fill="url(#hub-glow)" />
+        <circle r={30} fill="#0B1A2F" stroke="rgba(255,255,255,0.12)" strokeWidth={1} />
+        <circle r={30} fill="none" stroke={BLUE} strokeWidth={1} strokeOpacity={0.4} />
+        {/* Logo mark — ProcuLink "link" glyph */}
         <path
           d="M -8 -3 a 6 6 0 0 1 8 -1 l 3 2 M 8 3 a 6 6 0 0 1 -8 1 l -3 -2"
           fill="none"
           stroke="#FFFFFF"
           strokeWidth={1.6}
           strokeLinecap="round"
-          transform="translate(0,-3) scale(1.05)"
+          transform="translate(0,-4) scale(1.0)"
         />
-        <circle cx={9} cy={-2} r={2.2} fill={GREEN} />
+        <circle cx={9} cy={-3} r={2.1} fill={GREEN} />
         <text
           x={0}
           y={15}
           textAnchor="middle"
-          fontSize={7.5}
+          fontSize={7}
           fontFamily="'JetBrains Mono', monospace"
           fontWeight={700}
           fill="#7C8DA6"
-          letterSpacing="0.12em"
+          letterSpacing="0.14em"
         >
           PROCULINK
         </text>

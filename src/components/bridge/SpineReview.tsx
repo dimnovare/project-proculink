@@ -178,12 +178,46 @@ const NODE_TO_FIELD: Record<string, string> = {
 
 function ConfChip({ pct }: { pct: number }) {
   const { bg, color } =
-    pct >= 90 ? { bg: "#DCFCE7", color: "#1DAF50" } :
+    pct >= 90 ? { bg: "#E2F1E2", color: "#1E6D29" } :
     pct >= 75 ? { bg: "#FAEFD6", color: "#C97A14" } :
                 { bg: "#FBE3E3", color: "#C53A3A" };
   return (
-    <span style={{ fontSize: 9.5, fontWeight: 700, fontFamily: "'JetBrains Mono',monospace", background: bg, color, borderRadius: 3, padding: "2px 5px" }}>
+    <span style={{ fontSize: 9.5, fontWeight: 700, fontFamily: "'JetBrains Mono',monospace", background: bg, color, borderRadius: 5, padding: "2px 7px" }}>
       {pct}%
+    </span>
+  );
+}
+
+// ─── Header bits ──────────────────────────────────────────────────────────────
+
+/** Paper-plane glyph used on the primary send action. */
+function PaperPlaneIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden style={{ flexShrink: 0 }}>
+      <path d="M14.5 1.5 7.3 8.7M14.5 1.5l-4.6 13-2.6-5.8L1.5 5.9l13-4.4Z" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+/** Small status pill next to the PO title — mirrors the canonical pill palette. */
+function HeaderStatusBadge({ status, crossed, exceptionCount }: { status: string; crossed: boolean; exceptionCount: number }) {
+  const spec =
+    crossed || status === "delivered"
+      ? { bg: "#E2F1E2", color: "#1E6D29", dot: "#2E8E3A", label: "Delivered" }
+      : status === "delivery_dead_letter" || status === "delivery_failed" || status === "transform_failed" || status === "failed"
+      ? { bg: "#FBE3E3", color: "#C53A3A", dot: "#C53A3A", label: "Failed" }
+      : status === "ready_to_deliver" || status === "transforming"
+      ? { bg: "#E3EDFB", color: "#0F4FA8", dot: "#1E66C9", label: "Ready" }
+      : exceptionCount > 0
+      ? { bg: "#FAEFD6", color: "#C97A14", dot: "#C97A14", label: "Needs review" }
+      : { bg: "#E2F1E2", color: "#1E6D29", dot: "#2E8E3A", label: "Ready" };
+  return (
+    <span
+      className="inline-flex items-center gap-1.5 rounded-full"
+      style={{ fontSize: 12, fontWeight: 600, padding: "3px 11px", background: spec.bg, color: spec.color, whiteSpace: "nowrap" }}
+    >
+      <span style={{ width: 6, height: 6, borderRadius: "50%", background: spec.dot, flexShrink: 0 }} />
+      {spec.label}
     </span>
   );
 }
@@ -222,6 +256,13 @@ function SpineNodeCard({
   const err   = node.pct < 75;
   const fieldBg = err ? "#FBE3E3" : issue ? "#FAEFD6" : "#FFFFFF";
 
+  // Lineage accent: blue for buyer-side / document-header fields, green for the
+  // supplier-side field. Encodes the buyer→supplier routing on every card.
+  const accent =
+    node.tone === "supplier" ? "#28C55E"
+    : node.tone === "buyer" || node.srcRef === "header" ? "#1E66C9"
+    : null;
+
   return (
     <div
       className="relative mb-2.5 pl-9"
@@ -232,17 +273,20 @@ function SpineNodeCard({
       {/* Canonical-order node dot */}
       <div
         className="absolute rounded-full bg-white z-10"
-        style={{ left: 17, top: 14, width: 13, height: 13, border: "2.5px solid #28C55E" }}
+        style={{ left: 17, top: 14, width: 13, height: 13, border: `2.5px solid ${accent ?? "#28C55E"}` }}
       />
 
       <div
         className="rounded-[6px] px-2.5 py-2"
-        style={{ background: fieldBg, border: `1px solid ${err ? "#F0D2D2" : issue ? "#F0E0BD" : "#E2E6EE"}` }}
+        style={{
+          background: fieldBg,
+          border: `1px solid ${err ? "#F0D2D2" : issue ? "#F0E0BD" : "#E2E6EE"}`,
+          borderLeft: accent ? `3px solid ${accent}` : `1px solid ${err ? "#F0D2D2" : issue ? "#F0E0BD" : "#E2E6EE"}`,
+        }}
       >
         {/* Label row */}
         <div className="flex items-center gap-1.5 mb-1">
-          {node.tone === "buyer"    && <div style={{ width: 5, height: 5, borderRadius: 1, background: "#28C55E", flexShrink: 0 }} />}
-          {node.tone === "supplier" && <div style={{ width: 5, height: 5, borderRadius: 1, background: "#28C55E", flexShrink: 0 }} />}
+          {accent && <div style={{ width: 5, height: 5, borderRadius: "50%", background: accent, flexShrink: 0 }} />}
           <span style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", color: "#8A93A5", flex: 1, display: "inline-flex", alignItems: "center", gap: 4 }}>
             {node.label}
             {NODE_TO_FIELD[node.id] && (
@@ -316,7 +360,7 @@ function SpineNodeCard({
 
               return (
                 <div key={sn.id} style={{ display: "flex", flexDirection: "column", gap: 5, paddingTop: 5, paddingBottom: 5, borderTop: si === 0 ? "none" : "1px solid #EEF0F4" }}>
-                  {/* Line row: N  Description  CODE · ×qty */}
+                  {/* Line row: N  Description  buyerCode · ×qty   →  supplierCode | missing */}
                   <div style={{ display: "flex", alignItems: "baseline", gap: 7 }}>
                     {sn.lineNo != null && (
                       <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10, color: "#A8B0BF", flexShrink: 0, width: 14, textAlign: "right" }}>
@@ -333,18 +377,25 @@ function SpineNodeCard({
                         overflow: "hidden",
                         textOverflow: "ellipsis",
                         whiteSpace: "nowrap",
-                        flex: 1,
+                        flexShrink: 1,
                         minWidth: 0,
                       }}
                     >
                       {sn.desc ?? rowCode}
                     </span>
-                    <span style={{ display: "inline-flex", alignItems: "center", gap: 4, flexShrink: 0, fontFamily: "'JetBrains Mono',monospace", fontSize: 10 }}>
-                      <span style={{ color: accepted ? "#1DAF50" : sn.err ? "#C53A3A" : "#8A93A5", fontWeight: accepted || sn.err ? 700 : 500, textDecoration: rejected ? "line-through" : "none" }}>
-                        {rowCode}
-                      </span>
+                    {/* Buyer code + qty (muted source side) */}
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: 4, flexShrink: 0, fontFamily: "'JetBrains Mono',monospace", fontSize: 10, color: "#A8B0BF" }}>
+                      <span style={{ textDecoration: rejected ? "line-through" : "none" }}>{sn.buyerCode ?? sn.sku}</span>
                       <span style={{ color: "#C6CDDA" }}>·</span>
-                      <span style={{ color: sn.err ? "#C53A3A" : "#8A93A5", fontWeight: sn.err ? 700 : 400 }}>×{sn.qty}</span>
+                      <span>×{sn.qty}</span>
+                    </span>
+                    {/* Resolved supplier code (green) or a 'missing' pill */}
+                    <span style={{ marginLeft: "auto", flexShrink: 0, display: "inline-flex", alignItems: "center" }}>
+                      {sn.err && !accepted ? (
+                        <span style={{ fontSize: 9.5, fontWeight: 700, fontFamily: "Inter,sans-serif", background: "#FBE3E3", color: "#C53A3A", borderRadius: 4, padding: "1px 6px" }}>missing</span>
+                      ) : (
+                        <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10, fontWeight: 700, color: rejected ? "#A8B0BF" : "#1E6D29", textDecoration: rejected ? "line-through" : "none" }}>{rowCode}</span>
+                      )}
                     </span>
                     {accepted   && <span style={{ fontSize: 9.5, fontWeight: 700, color: "#1DAF50", flexShrink: 0 }}>✓</span>}
                     {rejected   && <span style={{ fontSize: 9.5, fontWeight: 700, color: "#C53A3A", flexShrink: 0 }}>✗</span>}
@@ -363,16 +414,19 @@ function SpineNodeCard({
                     <div
                       style={{
                         marginLeft: 21,
-                        borderRadius: 7,
-                        padding: "8px 9px",
+                        borderRadius: 8,
+                        padding: "9px 11px",
                         background: "#EEE7FB",
-                        borderLeft: "3px solid #6F4FCE",
+                        border: "1px solid #DACEF3",
                       }}
                     >
                       <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
                         <span style={{ fontSize: 9.5, fontWeight: 800, letterSpacing: "0.04em", color: "#5E3DB0" }}>AI</span>
                         <span style={{ color: "#C4ABE8" }}>·</span>
                         <span style={{ fontSize: 9.5, fontWeight: 700, fontFamily: "'JetBrains Mono',monospace", color: "#6F4FCE" }}>{sn.pct ?? 0}%</span>
+                        <span style={{ marginLeft: "auto", fontSize: 9.5, color: "#8E7CB8" }}>
+                          {(sn.pct ?? 0) >= 85 ? "high confidence" : (sn.pct ?? 0) >= 70 ? "good match" : "low confidence"}
+                        </span>
                       </div>
                       <div style={{ fontSize: 11, color: "#3A2A66", marginBottom: 7, lineHeight: 1.35 }}>
                         Suggested supplier code{" "}
@@ -383,7 +437,7 @@ function SpineNodeCard({
                           type="button"
                           aria-label={`Accept AI suggestion for line ${sn.lineNo ?? sn.sku}`}
                           onClick={() => onAcceptSubnode(sn.id)}
-                          style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 11, fontWeight: 700, padding: "5px 12px", borderRadius: 6, border: "none", background: "#6F4FCE", color: "#FFFFFF", cursor: "pointer" }}
+                          style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 11, fontWeight: 700, padding: "7px 14px", borderRadius: 6, border: "none", background: "#6F4FCE", color: "#FFFFFF", cursor: "pointer" }}
                         >
                           ✓ Accept
                         </button>
@@ -391,7 +445,7 @@ function SpineNodeCard({
                           type="button"
                           aria-label={`Edit suggestion for line ${sn.lineNo ?? sn.sku}`}
                           onClick={() => onAcceptSubnode(sn.id)}
-                          style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 11, fontWeight: 600, padding: "5px 11px", borderRadius: 6, border: "1px solid #D6CBF0", background: "#FFFFFF", color: "#3A2A66", cursor: "pointer" }}
+                          style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 11, fontWeight: 600, padding: "7px 12px", borderRadius: 6, border: "1px solid #D6CBF0", background: "#FFFFFF", color: "#3A2A66", cursor: "pointer" }}
                         >
                           ✎ Edit
                         </button>
@@ -399,7 +453,7 @@ function SpineNodeCard({
                           type="button"
                           aria-label={`Reject AI suggestion for line ${sn.lineNo ?? sn.sku}`}
                           onClick={() => onRejectSubnode(sn.id)}
-                          style={{ fontSize: 11, fontWeight: 600, padding: "5px 10px", borderRadius: 6, border: "none", background: "transparent", color: "#8A93A5", cursor: "pointer" }}
+                          style={{ fontSize: 11, fontWeight: 600, padding: "7px 11px", borderRadius: 6, border: "none", background: "transparent", color: "#8A93A5", cursor: "pointer" }}
                         >
                           Reject
                         </button>
@@ -427,6 +481,23 @@ function SpineNodeCard({
 // Renders a document-styled view reconstructed from the order's parsed fields.
 // Driven entirely by live order data — no staged company/PO content.
 
+/** One confidence-zone marker in the source-document rail. */
+function ZoneMarker({ pct }: { pct: number }) {
+  const spec =
+    pct >= 90 ? { bg: "#2E8E3A", color: "#FFFFFF", border: "#2E8E3A" } :
+    pct >= 85 ? { bg: "#D4E5DA", color: "#1E6D29", border: "#BCD6C4" } :
+    pct >= 75 ? { bg: "#ECE0D0", color: "#9A5F0A", border: "#E0CFB8" } :
+                { bg: "#F4E6C0", color: "#9A5F0A", border: "#E8D89C" };
+  return (
+    <div
+      style={{ flex: 1, minHeight: 38, borderRadius: 6, background: spec.bg, border: `1px solid ${spec.border}`, color: spec.color, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'JetBrains Mono',monospace", fontSize: 10, fontWeight: 700 }}
+      aria-hidden
+    >
+      {pct}
+    </div>
+  );
+}
+
 function DocumentAnatomy({ order, onSection }: { order: Order; onSection?: (id: string, el: HTMLElement | null) => void }) {
   const lineCount = order.lines.length;
   const avgConf = lineCount > 0
@@ -434,6 +505,14 @@ function DocumentAnatomy({ order, onSection }: { order: Order; onSection?: (id: 
     : null;
   const dateLabel = order.orderDate || "—";
   const previewLines = order.lines.slice(0, 12);
+
+  // Per-section confidence used by the zone rail. Derived from live data so it
+  // tracks the real order (header/parties high; lines = avg; terms lower when
+  // currency/terms are softer signals).
+  const headerConf  = order.buyerName ? 99 : 60;
+  const partiesConf = order.buyerName ? 95 : 70;
+  const linesConf   = avgConf ?? 80;
+  const termsConf   = Math.max(60, Math.min(88, (avgConf ?? 80) - 10));
 
   return (
     <div style={{ borderRadius: 8, padding: 10, background: "#F6F7FA", border: "1px solid #E2E6EE", overflow: "hidden" }}>
@@ -445,9 +524,17 @@ function DocumentAnatomy({ order, onSection }: { order: Order; onSection?: (id: 
           </span>
         )}
       </div>
-      <div style={{ borderRadius: 6, background: "#FFFFFF", padding: "14px 16px", fontFamily: "'Times New Roman',serif", fontSize: 9.5, color: "#1a1a1a", boxShadow: "0 1px 4px rgba(0,0,0,0.08)", minHeight: 360 }}>
-        {/* Letterhead — real buyer + PO */}
-        <div ref={(el) => onSection?.("header", el)} style={{ display: "flex", justifyContent: "space-between", gap: 12, paddingBottom: 6, borderBottom: "2px solid #333" }}>
+      <div style={{ display: "flex", gap: 8, alignItems: "stretch" }}>
+        {/* Confidence zone rail */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 6, width: 26, flexShrink: 0 }}>
+          <ZoneMarker pct={headerConf} />
+          <ZoneMarker pct={partiesConf} />
+          <ZoneMarker pct={linesConf} />
+          <ZoneMarker pct={termsConf} />
+        </div>
+        <div style={{ flex: 1, minWidth: 0, borderRadius: 6, background: "#FFFFFF", padding: "14px 16px", fontFamily: "'Times New Roman',serif", fontSize: 9.5, color: "#1a1a1a", boxShadow: "0 1px 4px rgba(0,0,0,0.08)", minHeight: 360 }}>
+        {/* Letterhead — real buyer + PO (active zone: green outline) */}
+        <div ref={(el) => onSection?.("header", el)} style={{ display: "flex", justifyContent: "space-between", gap: 12, padding: "6px 8px 8px", marginBottom: 4, borderRadius: 6, border: "1.5px solid #28C55E", background: "rgba(40,197,94,0.04)" }}>
           <div style={{ fontFamily: "Inter,sans-serif", fontSize: 13, fontWeight: 800, letterSpacing: "0.04em", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "60%" }}>
             {order.buyerName ?? "Buyer (parsing…)"}
           </div>
@@ -481,6 +568,7 @@ function DocumentAnatomy({ order, onSection }: { order: Order; onSection?: (id: 
           <div style={{ marginTop: 4, fontSize: 8.5, color: "#888" }}>+ {lineCount - previewLines.length} more line{lineCount - previewLines.length !== 1 ? "s" : ""}</div>
         )}
         <div ref={(el) => onSection?.("totals", el)} style={{ marginTop: 10, textAlign: "right", fontSize: 9, fontWeight: 700 }}>Grand total: {formatMoney(order.currency, orderTotal(order))}</div>
+        </div>
       </div>
     </div>
   );
@@ -546,66 +634,87 @@ function OutputPreview({ order, acceptedSubnodes, rejectedSubnodes, crossed, fie
     }
   }
 
+  // Light-theme cXML syntax palette (sampled from the design render).
+  const C = {
+    tag:    "#5E3DB0", // element tags  <cXML> etc.
+    attr:   "#7A5BC9", // attribute names
+    str:    "#345470", // attribute / text values
+    ok:     "#1E6D29", // resolved supplier code
+    err:    "#C53A3A", // UNRESOLVED
+    cmt:    "#9AA3B2", // comments / xml decl
+    base:   "#3A4658", // structural text
+  };
+  const outFmt = outputArtifactType(artifacts);
+  const endpointHint = outputArtifactLabel(artifacts, order.supplierName);
+
   return (
-    <div style={{ borderRadius: 8, padding: 10, background: "#F6F7FA", border: "1px solid #E2E6EE" }}>
-      {/* Toolbar */}
-      <div style={{ display: "flex", gap: 8, marginBottom: 8, alignItems: "center" }}>
-        <span style={{ fontSize: 10.5, fontWeight: 700, padding: "3px 8px", background: "#EEE7FB", color: "#5E3DB0", borderRadius: 4 }}>cXML</span>
-        <span style={{ fontSize: 10.5, color: "#8A93A5", padding: "3px 8px", border: "1px solid #E2E6EE", borderRadius: 4 }}>CSV</span>
-        <span style={{ fontSize: 10.5, color: "#8A93A5", padding: "3px 8px", border: "1px solid #E2E6EE", borderRadius: 4 }}>JSON</span>
+    <div style={{ borderRadius: 10, background: "#FFFFFF", border: "1px solid #E2E6EE", overflow: "hidden" }}>
+      {/* Toolbar — title + format badge + format toggle + actions */}
+      <div style={{ display: "flex", gap: 8, padding: "8px 10px", alignItems: "center", borderBottom: "1px solid #EEF0F4", flexWrap: "wrap" }}>
+        <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12, fontWeight: 700, color: "#0B1A2F" }}>
+          <span style={{ color: "#8A93A5", fontFamily: "'JetBrains Mono',monospace", fontSize: 11 }}>{"<>"}</span>
+          Supplier output
+        </span>
+        <span style={{ fontSize: 9.5, fontWeight: 700, padding: "2px 7px", background: "#EEE7FB", color: "#5E3DB0", borderRadius: 4, textTransform: "uppercase", letterSpacing: "0.03em" }}>{outFmt}</span>
         <div style={{ flex: 1 }} />
+        {/* Format toggle */}
+        <div style={{ display: "inline-flex", border: "1px solid #E2E6EE", borderRadius: 6, overflow: "hidden" }}>
+          <span style={{ fontSize: 10.5, fontWeight: 700, padding: "3px 9px", background: "#0B1A2F", color: "#FFFFFF" }}>{outFmt}</span>
+          <span style={{ fontSize: 10.5, fontWeight: 500, padding: "3px 9px", background: "#FFFFFF", color: "#8A93A5" }}>JSON</span>
+        </div>
         <button
           onClick={handleCopy}
           disabled={copyLoading}
-          style={{ fontSize: 10.5, padding: "3px 8px", border: "1px solid #E2E6EE", borderRadius: 4, background: "#FFFFFF", cursor: copyLoading ? "default" : "pointer", color: "#56627A", opacity: copyLoading ? 0.6 : 1 }}
+          style={{ fontSize: 10.5, padding: "3px 9px", border: "1px solid #E2E6EE", borderRadius: 6, background: "#FFFFFF", cursor: copyLoading ? "default" : "pointer", color: "#56627A", opacity: copyLoading ? 0.6 : 1 }}
         >
           {copyLoading ? "Copying..." : "Copy"}
         </button>
         <button
           onClick={handleDownload}
           disabled={downloadLoading}
-          style={{ fontSize: 10.5, padding: "3px 8px", border: "1px solid #E2E6EE", borderRadius: 4, background: "#FFFFFF", cursor: downloadLoading ? "default" : "pointer", color: "#56627A", opacity: downloadLoading ? 0.6 : 1 }}
+          style={{ fontSize: 10.5, padding: "3px 9px", border: "1px solid #E2E6EE", borderRadius: 6, background: "#FFFFFF", cursor: downloadLoading ? "default" : "pointer", color: "#56627A", opacity: downloadLoading ? 0.6 : 1 }}
         >
           {downloadLoading ? "↓ Downloading..." : "↓ Download"}
         </button>
       </div>
 
-      <div style={{ position: "relative", borderRadius: 6, fontFamily: "'JetBrains Mono',monospace", fontSize: 10.5, lineHeight: 1.6, background: "#0B1A2F", color: "#C5D2E4", padding: "14px 16px", minHeight: 400 }}>
+      {/* Code body — light theme */}
+      <div style={{ position: "relative", fontFamily: "'JetBrains Mono',monospace", fontSize: 10.5, lineHeight: 1.65, background: "#FCFCFD", color: C.base, padding: "14px 16px", minHeight: 380 }}>
         {/* Status badge */}
-        <div style={{ position: "absolute", top: 10, right: 12, fontSize: 9.5, fontWeight: 700, background: "#DCFCE7", color: "#1DAF50", borderRadius: 4, padding: "2px 7px", fontFamily: "Inter,sans-serif" }}>
-          {crossed ? "✓ SENT" : "WILL BE SENT"}
+        <div style={{ position: "absolute", top: 10, right: 12, fontSize: 9.5, fontWeight: 700, background: crossed ? "#E2F1E2" : "#EEF3F8", color: crossed ? "#1E6D29" : "#56627A", borderRadius: 4, padding: "2px 7px", fontFamily: "Inter,sans-serif" }}>
+          {crossed ? "✓ Sent" : "Will be sent"}
         </div>
 
         {crossed && (
-          <div style={{ position: "absolute", inset: 0, borderRadius: 6, background: "rgba(40,197,94,0.08)", border: "2px solid #28C55E", pointerEvents: "none", transition: "all 300ms" }} />
+          <div style={{ position: "absolute", inset: 0, background: "rgba(40,197,94,0.05)", border: "2px solid #28C55E", pointerEvents: "none", transition: "all 300ms" }} />
         )}
 
-        <div style={{ color: "#7C8DA6" }}>{'<?xml version="1.0" ?>'}</div>
-        <div><span style={{ color: "#5FD98A" }}>{"<cXML>"}</span></div>
-        <div style={{ paddingLeft: 12 }}><span style={{ color: "#5FD98A" }}>{"<Request>"}</span></div>
+        <div style={{ color: C.cmt }}>{'<?xml version="1.0" encoding="UTF-8"?>'}</div>
+        <div><span style={{ color: C.tag }}>{"<cXML>"}</span></div>
+        <div style={{ paddingLeft: 12 }}><span style={{ color: C.tag }}>{"<Request>"}</span></div>
         <div ref={(el) => onLine?.("po", el)} style={{ paddingLeft: 24 }}>
-          <span style={{ color: "#5FD98A" }}>{"<OrderRequest "}</span>
-          <span style={{ color: "#8ABAEF" }}>orderID</span>{"="}
-          <span style={{ color: "#E0A23A" }}>&quot;{outPo}&quot;</span>
-          {fieldValues["po"] && fieldValues["po"] !== order.poNumber && <span style={{ marginLeft: 8, fontSize: 9, color: "#E0A23A" }}>← edited</span>}
+          <span style={{ color: C.tag }}>{"<OrderRequestHeader "}</span>
+          <span style={{ color: C.attr }}>orderID</span>{"="}
+          <span style={{ color: C.str }}>&quot;{outPo}&quot;</span>
+          {fieldValues["po"] && fieldValues["po"] !== order.poNumber && <span style={{ marginLeft: 8, fontSize: 9, color: "#C97A14" }}>← edited</span>}
         </div>
         <div ref={(el) => onLine?.("date", el)} style={{ paddingLeft: 60 }}>
-          <span style={{ color: "#8ABAEF" }}>orderDate</span>{"="}
-          <span style={{ color: "#E0A23A" }}>&quot;{outDate}&quot;</span>
-          <span style={{ color: "#5FD98A" }}>{">"}</span>
+          <span style={{ color: C.attr }}>orderDate</span>{"="}
+          <span style={{ color: C.str }}>&quot;{outDate}&quot;</span>
+          <span style={{ color: C.tag }}>{">"}</span>
         </div>
-        <div ref={(el) => { onLine?.("currency", el); onLine?.("totals", el); }} style={{ paddingLeft: 32, marginTop: 4, background: "rgba(40,197,94,0.12)", borderLeft: "2px solid #28C55E", paddingTop: 2, paddingBottom: 2 }}>
-          <span style={{ color: "#5FD98A" }}>{`<Total currency="${outCurrency}">`}{outTotal}{"</Total>"}</span>
+        <div ref={(el) => { onLine?.("currency", el); onLine?.("totals", el); }} style={{ paddingLeft: 32, marginTop: 4, background: "rgba(40,197,94,0.10)", borderLeft: "2px solid #28C55E", paddingTop: 2, paddingBottom: 2 }}>
+          <span style={{ color: C.tag }}>{"<Total "}</span><span style={{ color: C.attr }}>currency</span>{"="}<span style={{ color: C.str }}>&quot;{outCurrency}&quot;</span><span style={{ color: C.tag }}>{">"}</span>{outTotal}<span style={{ color: C.tag }}>{"</Total>"}</span>
         </div>
         <div ref={(el) => onLine?.("supplier", el)} style={{ paddingLeft: 32, marginTop: 4 }}>
-          <span style={{ color: "#5FD98A" }}>{"<ShipFrom>"}</span>{order.supplierName}<span style={{ color: "#5FD98A" }}>{"</ShipFrom>"}</span>
+          <span style={{ color: C.tag }}>{"<ShipFrom>"}</span>{order.supplierName}<span style={{ color: C.tag }}>{"</ShipFrom>"}</span>
         </div>
         <div ref={(el) => onLine?.("buyer", el)} style={{ paddingLeft: 32 }}>
-          <span style={{ color: "#5FD98A" }}>{"<BillTo>"}</span>
-          <span style={{ background: fieldValues["buyer"] ? "rgba(232,175,35,0.15)" : "transparent", color: fieldValues["buyer"] ? "#E0A23A" : "#C5D2E4", padding: "0 2px" }}>{outBuyer}</span>
-          <span style={{ color: "#5FD98A" }}>{"</BillTo>"}</span>
+          <span style={{ color: C.tag }}>{"<BillTo>"}</span>
+          <span style={{ background: fieldValues["buyer"] ? "rgba(201,122,20,0.14)" : "transparent", color: fieldValues["buyer"] ? "#C97A14" : C.base, padding: "0 2px" }}>{outBuyer}</span>
+          <span style={{ color: C.tag }}>{"</BillTo>"}</span>
         </div>
-        <div ref={(el) => onLine?.("lines", el)} style={{ paddingLeft: 32, marginTop: 6, color: "#7C8DA6" }}>{"<!-- ItemOut entries -->"}</div>
+        <div ref={(el) => onLine?.("lines", el)} style={{ paddingLeft: 32, marginTop: 6, color: C.cmt }}>{"<!-- ItemOut entries -->"}</div>
         {previewLines.map((line) => {
           const accepted = acceptedSubnodes.has(line.id);
           const rejected = rejectedSubnodes.has(line.id);
@@ -614,25 +723,36 @@ function OutputPreview({ order, acceptedSubnodes, rejectedSubnodes, crossed, fie
           const isAi  = !line.supplierItemCode && !!line.aiSuggestion && !accepted;
           const isErr = line.needsReview && !line.supplierItemCode && !line.aiSuggestion;
           return (
-            <div key={line.id} style={{ paddingLeft: 32, paddingTop: 2, paddingBottom: 2, background: isErr ? "rgba(197,58,58,0.15)" : accepted ? "rgba(40,197,94,0.14)" : isAi ? "rgba(111,79,206,0.10)" : "transparent", borderLeft: isErr ? "2px solid #C53A3A" : accepted ? "2px solid #28C55E" : isAi ? "2px solid #6F4FCE" : "none", transition: "all 200ms" }}>
-              <span style={{ color: "#5FD98A" }}>{"<ItemOut "}</span>
-              <span style={{ color: "#8ABAEF" }}>sku</span>{"="}
-              <span style={{ color: isErr ? "#F0A0A0" : accepted ? "#5FD98A" : isAi ? "#C4ABF0" : "#E0A23A" }}>&quot;{sku}&quot;</span>
-              <span style={{ color: "#8ABAEF" }}> qty</span>{"="}
-              <span style={{ color: isErr ? "#F0A0A0" : "#E0A23A" }}>&quot;{line.quantity}&quot;</span>
-              <span style={{ color: "#5FD98A" }}>{"/>"}</span>
-              {isAi && line.aiSuggestion && <span style={{ marginLeft: 8, fontSize: 9, fontWeight: 700, color: "#C4ABF0" }}>← AI mapped {Math.round(line.aiSuggestion.confidence * 100)}%</span>}
-              {accepted && <span style={{ marginLeft: 8, fontSize: 9, fontWeight: 700, color: "#5FD98A" }}>← accepted ✓</span>}
-              {isErr && <span style={{ marginLeft: 8, fontSize: 9, fontWeight: 700, color: "#F0A0A0" }}>← needs review</span>}
+            <div key={line.id} style={{ paddingLeft: 32, paddingTop: 2, paddingBottom: 2, background: isErr ? "rgba(197,58,58,0.08)" : accepted ? "rgba(40,197,94,0.10)" : isAi ? "rgba(111,79,206,0.07)" : "transparent", borderLeft: isErr ? "2px solid #C53A3A" : accepted ? "2px solid #28C55E" : isAi ? "2px solid #6F4FCE" : "none", transition: "all 200ms" }}>
+              <span style={{ color: C.tag }}>{"<ItemOut "}</span>
+              <span style={{ color: C.attr }}>quantity</span>{"="}
+              <span style={{ color: isErr ? C.err : C.str }}>&quot;{line.quantity}&quot;</span>
+              <span style={{ color: C.tag }}>{">"}</span>
+              <span style={{ color: C.tag }}>{"<SupplierPartID>"}</span>
+              {isErr
+                ? <span style={{ color: C.err }}>⚠ UNRESOLVED</span>
+                : <span style={{ color: accepted || !isAi ? C.ok : "#7A5BC9" }}>{sku}</span>}
+              <span style={{ color: C.tag }}>{"</SupplierPartID>"}</span>
+              {isAi && line.aiSuggestion && <span style={{ marginLeft: 8, fontSize: 9, fontWeight: 700, color: "#6F4FCE" }}>← AI mapped {Math.round(line.aiSuggestion.confidence * 100)}%</span>}
+              {accepted && <span style={{ marginLeft: 8, fontSize: 9, fontWeight: 700, color: C.ok }}>← accepted ✓</span>}
+              {isErr && <span style={{ marginLeft: 8, fontSize: 9, fontWeight: 700, color: C.err }}>← needs review</span>}
             </div>
           );
         })}
         {order.lines.length > previewLines.length && (
-          <div style={{ paddingLeft: 32, color: "#7C8DA6" }}>{`<!-- + ${order.lines.length - previewLines.length} more -->`}</div>
+          <div style={{ paddingLeft: 32, color: C.cmt }}>{`<!-- + ${order.lines.length - previewLines.length} more -->`}</div>
         )}
-        <div style={{ paddingLeft: 24, marginTop: 4 }}><span style={{ color: "#5FD98A" }}>{"</OrderRequest>"}</span></div>
-        <div style={{ paddingLeft: 12 }}><span style={{ color: "#5FD98A" }}>{"</Request>"}</span></div>
-        <div><span style={{ color: "#5FD98A" }}>{"</cXML>"}</span></div>
+        <div style={{ paddingLeft: 24, marginTop: 4 }}><span style={{ color: C.tag }}>{"</OrderRequestHeader>"}</span></div>
+        <div style={{ paddingLeft: 12 }}><span style={{ color: C.tag }}>{"</Request>"}</span></div>
+        <div><span style={{ color: C.tag }}>{"</cXML>"}</span></div>
+      </div>
+
+      {/* Footer — delivery channel */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, padding: "9px 12px", borderTop: "1px solid #EEF0F4", background: "#F6F7FA" }}>
+        <span style={{ fontSize: 11, color: "#56627A" }}>
+          Delivers via <strong style={{ color: "#0B1A2F", fontWeight: 600 }}>HTTP / webhook</strong>
+        </span>
+        <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10, color: "#A8B0BF", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "55%" }}>{endpointHint}</span>
       </div>
     </div>
   );
@@ -778,8 +898,10 @@ interface MobileSpineAccordionProps {
   artifacts: Order["artifacts"];
 }
 
-function AccordionPanel({ label, accent, defaultOpen, children }: {
+function AccordionPanel({ step, label, sub, accent, defaultOpen, children }: {
+  step: number;
   label: string;
+  sub?: string;
   accent: string;
   defaultOpen?: boolean;
   children: React.ReactNode;
@@ -788,15 +910,30 @@ function AccordionPanel({ label, accent, defaultOpen, children }: {
   return (
     <div className="rounded-[10px] overflow-hidden" style={{ border: "1px solid #E2E6EE", background: "#FFFFFF" }}>
       <button
-        className="w-full flex items-center gap-3 px-4 py-3 text-left"
-        style={{ borderBottom: open ? "1px solid #E2E6EE" : "none", background: open ? "rgba(40,197,94,0.04)" : "#FFFFFF" }}
+        type="button"
+        className="w-full flex items-center gap-3 px-3.5 text-left"
+        style={{ minHeight: 52, borderBottom: open ? "1px solid #E2E6EE" : "none", background: open ? "rgba(40,197,94,0.04)" : "#FFFFFF" }}
         onClick={() => setOpen(o => !o)}
+        aria-expanded={open}
       >
-        <span style={{ width: 3, height: 22, borderRadius: 2, background: accent, flexShrink: 0 }} />
-        <span style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "#56627A", flex: 1 }}>{label}</span>
-        <span style={{ fontSize: 14, color: "#8A93A5", transform: open ? "rotate(90deg)" : "none", transition: "transform 150ms" }}>›</span>
+        <span style={{ width: 4, height: 30, borderRadius: 2, background: accent, flexShrink: 0 }} />
+        <span style={{ width: 22, height: 22, borderRadius: "50%", background: "#F0F2F7", color: "#56627A", fontSize: 11, fontWeight: 700, display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>{step}</span>
+        <span className="min-w-0 flex-1">
+          <span style={{ display: "block", fontSize: 12.5, fontWeight: 700, color: "#0B1A2F", lineHeight: 1.2 }}>{label}</span>
+          {sub && <span style={{ display: "block", fontSize: 11, color: "#8A93A5", marginTop: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{sub}</span>}
+        </span>
+        <span style={{ fontSize: 16, color: "#8A93A5", transform: open ? "rotate(90deg)" : "none", transition: "transform 150ms", flexShrink: 0 }}>›</span>
       </button>
       {open && <div className="p-3">{children}</div>}
+    </div>
+  );
+}
+
+/** Small vertical connector between the stacked mobile sections (keeps the routing concept). */
+function MobileFlowConnector() {
+  return (
+    <div className="flex justify-center" style={{ height: 18 }} aria-hidden>
+      <div style={{ width: 2, background: "linear-gradient(180deg,#1DAF50,#28C55E)", borderRadius: 2 }} />
     </div>
   );
 }
@@ -807,13 +944,16 @@ function MobileSpineAccordion({
   onAcceptSubnode, onRejectSubnode, onKeyDown, inputRef, onOutputAction,
   orderId, artifacts,
 }: MobileSpineAccordionProps) {
+  const lineCount = order.lines.length;
   return (
-    <div className="md:hidden flex flex-col gap-3 px-4 py-4 pb-[80px]">
-      <AccordionPanel label="Source document" accent="#28C55E">
+    <div className="md:hidden flex flex-col px-4 py-4 pb-[88px]">
+      <AccordionPanel step={1} label="Source document" sub={order.buyerName ?? "Buyer"} accent="#1E66C9">
         <DocumentAnatomy order={order} />
       </AccordionPanel>
 
-      <AccordionPanel label="Canonical model" accent="linear-gradient(180deg,#1DAF50,#28C55E)" defaultOpen>
+      <MobileFlowConnector />
+
+      <AccordionPanel step={2} label="Canonical model" sub={`${lineCount} field${lineCount !== 1 ? "s" : ""} mapped`} accent="linear-gradient(180deg,#1DAF50,#28C55E)" defaultOpen>
         <div style={{ position: "relative" }}>
           <div style={{ position: "absolute", top: 4, bottom: 0, left: 22, width: 3, background: "linear-gradient(180deg,#1DAF50,#28C55E)", borderRadius: 2 }} />
           <div style={{ position: "relative", paddingTop: 4 }}>
@@ -839,7 +979,9 @@ function MobileSpineAccordion({
         </div>
       </AccordionPanel>
 
-      <AccordionPanel label="Supplier output" accent="#28C55E">
+      <MobileFlowConnector />
+
+      <AccordionPanel step={3} label="Supplier output" sub={order.supplierName} accent="#28C55E">
         <OutputPreview
           order={order}
           acceptedSubnodes={acceptedSubnodes}
@@ -1055,69 +1197,87 @@ export function SpineReview({ orderId }: { orderId: string }) {
 
       {/* Order header */}
       <div className="flex-shrink-0" style={{ background: "#FFFFFF", borderBottom: "1px solid #E2E6EE" }}>
-        {/* Top row: back + FROM/TO endpoints + actions */}
-        <div className="flex flex-wrap items-start gap-3 px-4 pt-3 pb-2 sm:items-center sm:px-5">
-          <button onClick={() => router.push("/inbox")} style={{ width: 28, height: 28, border: "1px solid #E2E6EE", borderRadius: 6, background: "#FFFFFF", color: "#56627A", cursor: "pointer", fontSize: 13, flexShrink: 0 }}>←</button>
-
-          {/* Buyer */}
-          <div className="min-w-[220px] flex-1" style={{ flexShrink: 0 }}>
-            <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.07em", textTransform: "uppercase", color: "#1DAF50" }}>From</div>
-            <div style={{ fontSize: 14, fontWeight: 600, color: "#0B1A2F", marginTop: 1, whiteSpace: "nowrap" }}>{order.buyerName ?? "(parsing…)"}</div>
-            <div style={{ display: "flex", alignItems: "center", gap: 5, marginTop: 2 }}>
-              <FileChip type={sourceFileType(order.sourceFileKey)} />
-              <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10.5, color: "#56627A" }}>{sourceFileLabel(order.sourceFileKey)}</span>
+        {/* Top row: back + PO title + status badge + buyer→supplier · total | stage track | actions */}
+        <div className="flex flex-wrap items-start gap-x-4 gap-y-3 px-4 pt-3.5 pb-3.5 lg:flex-nowrap lg:items-center lg:px-6">
+          {/* Title block */}
+          <div className="flex min-w-0 flex-1 items-start gap-3">
+            <button
+              onClick={() => router.push("/inbox")}
+              aria-label="Back to inbox"
+              style={{ width: 30, height: 30, border: "1px solid #E2E6EE", borderRadius: 7, background: "#FFFFFF", color: "#56627A", cursor: "pointer", fontSize: 14, flexShrink: 0, marginTop: 1 }}
+            >
+              ←
+            </button>
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2.5">
+                <h1
+                  style={{ fontFamily: "'Bricolage Grotesque',Inter,sans-serif", fontSize: 24, fontWeight: 700, letterSpacing: "-0.02em", color: "#0B1A2F", lineHeight: 1.1, whiteSpace: "nowrap" }}
+                >
+                  {order.poNumber}
+                </h1>
+                <HeaderStatusBadge status={order.status} crossed={crossed} exceptionCount={exceptionCount} />
+              </div>
+              <div className="mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-0.5" style={{ fontSize: 13 }}>
+                <span style={{ fontWeight: 600, color: "#0F4FAB", whiteSpace: "nowrap" }}>{order.buyerName ?? "(parsing…)"}</span>
+                <span style={{ color: "#C6CDDA" }}>→</span>
+                <span style={{ fontWeight: 600, color: "#1E6D29", whiteSpace: "nowrap" }}>{order.supplierName}</span>
+                <span style={{ color: "#C6CDDA" }}>·</span>
+                <span style={{ fontFamily: "'JetBrains Mono',monospace", color: "#566982", whiteSpace: "nowrap" }}>{dialogGrandTotal}</span>
+              </div>
             </div>
           </div>
 
-          <div className="hidden sm:block" style={{ flex: 1 }} />
-
-          {/* Supplier */}
-          <div className="min-w-[220px] flex-1 text-left sm:text-right" style={{ flexShrink: 0 }}>
-            <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.07em", textTransform: "uppercase", color: "#1DAF50" }}>To</div>
-            <div style={{ fontSize: 14, fontWeight: 600, color: "#0B1A2F", marginTop: 1, whiteSpace: "nowrap" }}>{order.supplierName}</div>
-            <div style={{ display: "flex", alignItems: "center", gap: 5, marginTop: 2, justifyContent: "flex-end" }}>
-              <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10.5, color: "#56627A" }}>{outputArtifactLabel(order.artifacts, order.supplierName)}</span>
-              <FileChip type={outputArtifactType(order.artifacts)} />
+          {/* Stage track — inline, compact (no Stage N of 5 sub-label) */}
+          <div className="order-3 w-full lg:order-none lg:w-auto lg:flex-shrink-0">
+            <div className="mx-auto w-full max-w-[420px] lg:mx-0 lg:w-[380px]">
+              <StatusJourney
+                stage={crossed || order.status === "delivered" ? 4 : orderStatusToStage(order.status)}
+              />
             </div>
           </div>
-
-          <div className="hidden sm:block" style={{ width: 1, height: 36, background: "#E2E6EE", flexShrink: 0 }} />
 
           {/* Actions */}
-          <div style={{ display: "flex", gap: 8, flexShrink: 0, flexWrap: "wrap" }}>
-            {order.status === "delivery_dead_letter" && (
-              <span
-                style={{ height: 32, display: "inline-flex", alignItems: "center", padding: "0 12px", borderRadius: 6, fontSize: 12, fontWeight: 600, background: "#FBE3E3", color: "#C53A3A", border: "1px solid #F0D2D2" }}
+          <div className="flex flex-shrink-0 flex-col items-stretch gap-1.5 sm:items-end">
+            <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+              {order.status === "delivery_dead_letter" && (
+                <span
+                  style={{ height: 34, display: "inline-flex", alignItems: "center", padding: "0 12px", borderRadius: 7, fontSize: 12, fontWeight: 600, background: "#FBE3E3", color: "#C53A3A", border: "1px solid #F0D2D2" }}
+                >
+                  ⚠ Dead-lettered · retries exhausted
+                </span>
+              )}
+              <button
+                onClick={handleSaveDraft}
+                style={{ height: 34, padding: "0 14px", borderRadius: 7, fontSize: 12.5, fontWeight: 500, background: "#FFFFFF", border: "1px solid #E2E6EE", color: "#0B1A2F", cursor: "pointer" }}
               >
-                ⚠ Dead-lettered · retries exhausted
+                Save draft
+              </button>
+              <button
+                onClick={() => !crossed && exceptionCount === 0 && setShowConfirm(true)}
+                disabled={!crossed && exceptionCount > 0}
+                aria-label="Send to supplier"
+                style={{
+                  height: 34, padding: "0 16px", borderRadius: 7, fontSize: 13, fontWeight: 700,
+                  background: crossed ? "#28C55E" : exceptionCount > 0 ? "#96C69C" : "#28C55E",
+                  color: "#FFFFFF", border: "none",
+                  cursor: crossed || exceptionCount > 0 ? "default" : "pointer",
+                  display: "flex", alignItems: "center", gap: 8, transition: "background 200ms",
+                }}
+              >
+                <PaperPlaneIcon />
+                {crossed ? "Sent" : "Send to supplier"}
+              </button>
+            </div>
+            {!crossed && exceptionCount > 0 && (
+              <span className="text-right" style={{ fontSize: 11.5, color: "#8A93A5", paddingRight: 2 }}>
+                {exceptionCount} issue{exceptionCount !== 1 ? "s" : ""} to resolve first
               </span>
             )}
-            <button
-              onClick={handleSaveDraft}
-              style={{ height: 32, padding: "0 14px", borderRadius: 6, fontSize: 12.5, fontWeight: 500, background: "#FFFFFF", border: "1px solid #E2E6EE", color: "#0B1A2F", cursor: "pointer" }}
-            >
-              Save draft
-            </button>
-            <button
-              onClick={() => !crossed && setShowConfirm(true)}
-              style={{ height: 32, padding: "0 16px", borderRadius: 6, fontSize: 12.5, fontWeight: 600, background: crossed ? "#28C55E" : "#0B1A2F", color: "#FFFFFF", border: "none", cursor: crossed ? "default" : "pointer", display: "flex", alignItems: "center", gap: 8, transition: "background 200ms" }}
-            >
-              {crossed ? "✓ Sent" : "Send to supplier"}
-              {!crossed && <span style={{ width: 10, height: 10, borderRadius: 2, background: "linear-gradient(90deg,#1DAF50,#28C55E)", display: "inline-block" }} />}
-            </button>
           </div>
-        </div>
-
-        {/* Stage track — full width, visually separate */}
-        <div style={{ padding: "8px 16px 14px", borderTop: "1px solid #F0F2F7" }}>
-          <StatusJourney
-            stage={crossed || order.status === "delivered" ? 4 : orderStatusToStage(order.status)}
-            crossingRef={crossed || order.status === "delivered" ? `Delivered · ${order.poNumber}` : `Validating · ${order.poNumber}`}
-          />
         </div>
 
         {flowNotice && (
-          <div className="px-4 pb-3 sm:px-5">
+          <div className="px-4 pb-3 lg:px-6">
             <div className="rounded-[7px] px-3 py-2 text-[12px] leading-relaxed" style={{ border: "1px solid #A6E9BE", background: "#ECFDF3", color: "#1DAF50" }}>
               {flowNotice}
             </div>
@@ -1171,12 +1331,14 @@ export function SpineReview({ orderId }: { orderId: string }) {
               This is a sample order. It uses an example CSV and doesn&apos;t count toward your monthly quota.
             </div>
           )}
-        <EdgeRails className="min-w-[1120px]">
+        {/* Desktop 3-column grid (with edge rails) — hidden on mobile to avoid the 1120px min-width overflow */}
+        <div className="hidden md:block min-w-[1120px]">
+          <EdgeRails>
           <div className="h-full overflow-y-auto">
             {/* Desktop 3-column grid */}
             <div
               ref={gridRef}
-              className="hidden md:grid gap-[40px] px-6 py-[18px]"
+              className="grid gap-[40px] px-6 py-[18px]"
               style={{ gridTemplateColumns: "1fr 1.05fr 1.15fr", alignItems: "start", position: "relative" }}
             >
               {/* Bridge connectors — Source → Spine → Output, drawn as live wires */}
@@ -1195,16 +1357,21 @@ export function SpineReview({ orderId }: { orderId: string }) {
 
               {/* Left — Document Anatomy */}
               <div ref={sourceColRef}>
-                <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 10 }}>
-                  <span style={{ fontSize: 10.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "#8A93A5" }}>Source document</span>
-                  <span style={{ fontSize: 9, fontWeight: 700, color: "#8A93A5", border: "1px solid #E2E6EE", borderRadius: 3, padding: "1px 5px", textTransform: "uppercase" }}>{sourceFileType(order.sourceFileKey)}</span>
+                <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 10, height: 18, minWidth: 0 }}>
+                  <span style={{ fontSize: 10.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "#8A93A5", flexShrink: 0 }}>Source document</span>
+                  <FileChip type={sourceFileType(order.sourceFileKey)} />
+                  <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10, color: "#A8B0BF", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", minWidth: 0 }}>{sourceFileLabel(order.sourceFileKey)}</span>
                 </div>
                 <DocumentAnatomy order={order} onSection={(id, el) => { srcSectionEls.current[id] = el; }} />
               </div>
 
               {/* Center — Canonical model */}
               <div style={{ position: "relative" }}>
-                <div style={{ fontSize: 10.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "#0B1A2F", marginBottom: 10, textAlign: "center" }}>Canonical model</div>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginBottom: 10, height: 18 }}>
+                  <span style={{ fontSize: 10, color: "#B4BBC8" }}>hover a field</span>
+                  <span style={{ fontSize: 10.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "#0B1A2F" }}>Canonical model</span>
+                  <span style={{ width: 56 }} />
+                </div>
                 {/* Spine line */}
                 <div style={{ position: "absolute", top: 36, bottom: 0, left: 22, width: 3, background: "linear-gradient(180deg,#1DAF50,#28C55E)", borderRadius: 2 }} />
                 <div style={{ position: "relative", paddingTop: 4 }}>
@@ -1233,7 +1400,11 @@ export function SpineReview({ orderId }: { orderId: string }) {
 
               {/* Right — Output Preview */}
               <div ref={outputColRef}>
-                <div style={{ fontSize: 10.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "#8A93A5", marginBottom: 10, textAlign: "right" }}>Supplier output</div>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginBottom: 10, height: 18 }}>
+                  <span style={{ fontSize: 10, color: "#B4BBC8" }}>ProcuLink model</span>
+                  <span style={{ fontSize: 10.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "#8A93A5" }}>Supplier output</span>
+                  <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10, color: "#A8B0BF", whiteSpace: "nowrap" }}>{outputArtifactType(order.artifacts)}</span>
+                </div>
                 <OutputPreview
                   order={order}
                   acceptedSubnodes={acceptedSubnodes}
@@ -1247,29 +1418,30 @@ export function SpineReview({ orderId }: { orderId: string }) {
                 />
               </div>
             </div>
-
-            {/* Mobile accordion */}
-            <MobileSpineAccordion
-              order={order}
-              nodes={nodes}
-              editingId={editingId}
-              fieldValues={fieldValues}
-              acceptedSubnodes={acceptedSubnodes}
-              rejectedSubnodes={rejectedSubnodes}
-              crossed={crossed}
-              onStartEdit={handleStartEdit}
-              onChangeValue={handleChangeValue}
-              onCommitEdit={handleCommitEdit}
-              onAcceptSubnode={handleAcceptSubnode}
-              onRejectSubnode={handleRejectSubnode}
-              onKeyDown={handleKeyDown}
-              inputRef={inputRefCallback}
-              onOutputAction={setFlowNotice}
-              orderId={orderId}
-              artifacts={order.artifacts}
-            />
           </div>
-        </EdgeRails>
+          </EdgeRails>
+        </div>
+
+        {/* Mobile accordion — sibling of the desktop block, no min-width */}
+        <MobileSpineAccordion
+          order={order}
+          nodes={nodes}
+          editingId={editingId}
+          fieldValues={fieldValues}
+          acceptedSubnodes={acceptedSubnodes}
+          rejectedSubnodes={rejectedSubnodes}
+          crossed={crossed}
+          onStartEdit={handleStartEdit}
+          onChangeValue={handleChangeValue}
+          onCommitEdit={handleCommitEdit}
+          onAcceptSubnode={handleAcceptSubnode}
+          onRejectSubnode={handleRejectSubnode}
+          onKeyDown={handleKeyDown}
+          inputRef={inputRefCallback}
+          onOutputAction={setFlowNotice}
+          orderId={orderId}
+          artifacts={order.artifacts}
+        />
       </div>
 
       {/* Sticky info bar — desktop only (mobile has its own sticky CTA) */}
@@ -1309,11 +1481,12 @@ export function SpineReview({ orderId }: { orderId: string }) {
           Save draft
         </button>
         <button
-          onClick={() => !crossed && setShowConfirm(true)}
-          style={{ flex: 1.5, height: 44, borderRadius: 8, fontSize: 13.5, fontWeight: 600, background: crossed ? "#28C55E" : "#0B1A2F", color: "#FFFFFF", border: "none", cursor: crossed ? "default" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, transition: "background 200ms" }}
+          onClick={() => !crossed && exceptionCount === 0 && setShowConfirm(true)}
+          disabled={!crossed && exceptionCount > 0}
+          style={{ flex: 1.5, height: 44, borderRadius: 8, fontSize: 13.5, fontWeight: 700, background: crossed ? "#28C55E" : exceptionCount > 0 ? "#96C69C" : "#28C55E", color: "#FFFFFF", border: "none", cursor: crossed || exceptionCount > 0 ? "default" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, transition: "background 200ms" }}
         >
-          {crossed ? "✓ Sent" : "Send to supplier"}
-          {!crossed && <span style={{ width: 10, height: 10, borderRadius: 2, background: "linear-gradient(90deg,#1DAF50,#28C55E)", display: "inline-block" }} />}
+          <PaperPlaneIcon />
+          {crossed ? "Sent" : exceptionCount > 0 ? `Resolve ${exceptionCount} to send` : "Send to supplier"}
         </button>
       </div>
 

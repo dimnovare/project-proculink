@@ -9,6 +9,13 @@ export const metadata: Metadata = {
 // Green accent (brand token): primary #28C55E, hover/deep #1DAF50, soft tint #DCFCE7.
 const GREEN = "#28C55E";
 const GREEN_DEEP = "#1DAF50";
+// Sampled from the 1920 design render: the card top-edge reads as a deeper,
+// muted forest green (#2E8E3A), not the bright brand green. The icon glyphs
+// stay on the deep brand green so the mint tiles still read on-brand.
+const GREEN_EDGE = "#2E8E3A";
+// Primary action colour on this page is buyer-blue (sampled ~#2A70CC → token #1E66C9),
+// not green: the "Request security docs" CTA is blue in the design.
+const BUYER_BLUE = "#1E66C9";
 
 const PROPERTIES = [
   {
@@ -107,17 +114,21 @@ function ListCard({ rows }: { rows: [string, string][] }) {
       {rows.map(([label, note], i) => (
         <div
           key={label}
+          className="px-4 sm:px-5"
           style={{
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
-            gap: 16,
-            padding: "16px 20px",
+            gap: 14,
+            paddingTop: 15,
+            paddingBottom: 15,
             borderTop: i === 0 ? "none" : "1px solid #EDF0F5",
           }}
         >
-          <span style={{ fontSize: 14, fontWeight: 600, color: "#0B1A2F", letterSpacing: "-0.01em" }}>{label}</span>
-          <span style={{ fontSize: 13, color: "#56627A", textAlign: "right" }}>{note}</span>
+          <span style={{ fontSize: 14, fontWeight: 600, color: "#0B1A2F", letterSpacing: "-0.01em", flexShrink: 0 }}>
+            {label}
+          </span>
+          <span style={{ fontSize: 13, color: "#56627A", textAlign: "right", minWidth: 0 }}>{note}</span>
         </div>
       ))}
     </div>
@@ -129,11 +140,12 @@ export default function SecurityPage() {
     <div style={{ background: "#FFFFFF" }}>
       {/* Navy hero */}
       <section
-        className="px-4 sm:px-8"
+        className="px-5 sm:px-8 py-16 sm:py-20"
         style={{
+          // Sampled: center-top radial lift (#13314E) behind the headline + a
+          // faint green-teal bloom in the upper-right corner, over the navy base.
           background:
-            "radial-gradient(120% 90% at 50% -10%, #13314E 0%, rgba(19,49,78,0) 60%), linear-gradient(165deg, #0B1A2F 0%, #0E2236 55%, #0A1B30 100%)",
-          padding: "80px 32px 72px",
+            "radial-gradient(70% 80% at 92% -8%, rgba(40,197,94,0.10) 0%, rgba(40,197,94,0) 58%), radial-gradient(120% 90% at 50% -10%, #13314E 0%, rgba(19,49,78,0) 60%), linear-gradient(165deg, #0B1A2F 0%, #0E2236 55%, #0A1B30 100%)",
           textAlign: "center",
         }}
       >
@@ -142,12 +154,19 @@ export default function SecurityPage() {
             display: "inline-flex",
             alignItems: "center",
             gap: 8,
+            // Sampled from the design: an outlined pill (hairline border +
+            // ~3% white fill over navy) with a green dot and cool steel text —
+            // not green text.
+            padding: "6px 13px 6px 11px",
+            borderRadius: 999,
+            border: "1px solid rgba(159,180,210,0.18)",
+            background: "rgba(255,255,255,0.03)",
             fontSize: 11.5,
             fontWeight: 700,
             letterSpacing: "0.1em",
             textTransform: "uppercase",
-            color: "#9FE9BC",
-            marginBottom: 18,
+            color: "#C5D2E4",
+            marginBottom: 20,
           }}
         >
           <span style={{ width: 7, height: 7, borderRadius: "50%", background: GREEN }} />
@@ -178,20 +197,20 @@ export default function SecurityPage() {
 
       {/* Property cards — 6 posture cards, 3-up grid with green top edge */}
       <section
-        className="px-4 sm:px-8"
-        style={{ background: "#FFFFFF", padding: "64px 32px 56px" }}
+        className="px-5 sm:px-8 pt-14 pb-12 sm:pt-[84px] sm:pb-14"
+        style={{ background: "#FFFFFF" }}
       >
         <div style={{ maxWidth: 1160, margin: "0 auto" }}>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 sm:gap-6">
             {PROPERTIES.map((prop) => (
               <div
                 key={prop.label}
                 style={{
                   background: "#FFFFFF",
                   border: "1px solid #E2E6EE",
-                  borderTop: `3px solid ${GREEN}`,
+                  borderTop: `3px solid ${GREEN_EDGE}`,
                   borderRadius: 12,
-                  padding: "28px 26px 26px",
+                  padding: "26px 24px 24px",
                   boxShadow: "0 1px 3px rgba(11,26,47,0.04)",
                 }}
               >
@@ -200,9 +219,9 @@ export default function SecurityPage() {
                     width: 40,
                     height: 40,
                     borderRadius: 9,
-                    // Design uses a very pale mint tile (~#EFF8F1), softer than the
-                    // brand soft tint, so the icon chip reads refined, not stickered.
-                    background: "#EDF7F0",
+                    // Sampled mint tile from the render (~#E4F3E8) — a touch deeper
+                    // than the previous value so the chip reads refined, not washed out.
+                    background: "#E4F3E8",
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
@@ -234,17 +253,12 @@ export default function SecurityPage() {
 
       {/* Compliance + Subprocessors — two-column list cards */}
       <section
-        className="px-4 sm:px-8"
-        style={{ background: "#F6F7FA", padding: "64px 32px", borderTop: "1px solid #E2E6EE" }}
+        className="px-5 sm:px-8 py-14 sm:py-16"
+        style={{ background: "#F6F7FA", borderTop: "1px solid #E2E6EE" }}
       >
         <div
-          style={{
-            maxWidth: 1080,
-            margin: "0 auto",
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))",
-            gap: 40,
-          }}
+          className="grid grid-cols-1 lg:grid-cols-2 gap-10 sm:gap-10"
+          style={{ maxWidth: 1080, margin: "0 auto" }}
         >
           <div>
             <h2
@@ -277,30 +291,12 @@ export default function SecurityPage() {
             <ListCard rows={SUBPROCESSOR_ROWS} />
           </div>
         </div>
-
-        <p
-          style={{
-            maxWidth: 1080,
-            margin: "40px auto 0",
-            fontSize: 13.5,
-            lineHeight: 1.7,
-            color: "#56627A",
-            textAlign: "center",
-          }}
-        >
-          ProcuLink processes personal data in accordance with the EU GDPR. See our{" "}
-          <Link href="/privacy" style={{ color: GREEN_DEEP, fontWeight: 600 }}>Privacy Policy</Link> and{" "}
-          <Link href="/subprocessors" style={{ color: GREEN_DEEP, fontWeight: 600 }}>Subprocessors</Link>{" "}
-          for full details. To report a vulnerability, email{" "}
-          <a href="mailto:security@proculink.com" style={{ color: GREEN_DEEP, fontWeight: 600 }}>security@proculink.com</a>{" "}
-          — we respond within 48 hours.
-        </p>
       </section>
 
       {/* Navy CTA band */}
       <section
-        className="px-4 sm:px-8"
-        style={{ background: "#0B1A2F", padding: "72px 32px", textAlign: "center" }}
+        className="px-5 sm:px-8 py-16 sm:py-[72px]"
+        style={{ background: "#0B1A2F", textAlign: "center" }}
       >
         <h2
           style={{
@@ -318,9 +314,10 @@ export default function SecurityPage() {
           We&apos;ll share our SOC 2 progress, DPA, pen-test summary and
           architecture overview under NDA.
         </p>
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 12, justifyContent: "center" }}>
+        <div className="flex flex-col sm:flex-row flex-wrap gap-3 justify-center items-stretch sm:items-center">
           <a
             href="mailto:security@proculink.com?subject=Security%20package%20request"
+            className="justify-center"
             style={{
               display: "inline-flex",
               alignItems: "center",
@@ -329,8 +326,9 @@ export default function SecurityPage() {
               padding: "13px 26px",
               fontSize: 14.5,
               fontWeight: 600,
-              background: GREEN,
-              color: "#06210F",
+              // Sampled: primary action is buyer-blue (#1E66C9), not green.
+              background: BUYER_BLUE,
+              color: "#FFFFFF",
               textDecoration: "none",
             }}
           >
@@ -338,6 +336,7 @@ export default function SecurityPage() {
           </a>
           <Link
             href="/sign-up"
+            className="justify-center"
             style={{
               display: "inline-flex",
               alignItems: "center",
@@ -345,9 +344,11 @@ export default function SecurityPage() {
               padding: "13px 26px",
               fontSize: 14.5,
               fontWeight: 600,
-              background: "transparent",
+              // Sampled: secondary is a solid dark-navy fill (#1D2D41) with a
+              // hairline border, not a transparent outline button.
+              background: "#1D2D41",
               color: "#FFFFFF",
-              border: "1px solid rgba(255,255,255,0.22)",
+              border: "1px solid #2A3A52",
               textDecoration: "none",
             }}
           >

@@ -29,7 +29,13 @@ import { ArrowRight, ArrowUpRight, Clock, AlertTriangle, CheckCircle2, ChevronDo
 // these constants are for inline-styled SVG/border/background values.
 const GREEN = "#28C55E";
 const GREEN_DEEP = "#1DAF50";
-const GREEN_SOFT = "#DCFCE7";
+// Deeper, calmer green used for health bars + their % labels (sampled from the
+// design render: bar fill #2E8E3A). The bright #28C55E reads as too neon on a
+// thin 6px bar; the design uses this muted forest green for "healthy".
+const GREEN_BAR = "#2E8E3A";
+// Buyer-blue — opens the headline KPI top-edge gradient (buyer side → supplier
+// green) and the onboarding progress bar. Sampled #1E66C9.
+const BLUE = "#1E66C9";
 
 // ─── Status sets ──────────────────────────────────────────────────────────
 
@@ -352,7 +358,9 @@ export function BridgeDashboard() {
       sub: windowSub,
       subColor: "#56627A",
       subIcon: ArrowUpRight,
-      edge: GREEN,
+      // Headline throughput metric: buyer-blue flows to supplier-green, mirroring
+      // the topology cross-section. Sampled #1E66C9 → #2E8E3A.
+      edge: `linear-gradient(90deg, ${BLUE} 0%, ${GREEN_BAR} 100%)`,
       loading: ordersLoading,
     },
     {
@@ -363,7 +371,7 @@ export function BridgeDashboard() {
       sub: windowSub,
       subColor: GREEN_DEEP,
       subIcon: CheckCircle2,
-      edge: GREEN,
+      edge: GREEN_BAR,
       loading: ordersLoading,
     },
     {
@@ -374,7 +382,7 @@ export function BridgeDashboard() {
       sub: (summaryError || ordersError) ? "Live data unavailable" : exceptionsBad ? "Needs review now" : "All clear",
       subColor: exceptionsBad ? "#C97A14" : GREEN_DEEP,
       subIcon: exceptionsBad ? AlertTriangle : CheckCircle2,
-      edge: exceptionsBad ? "#C97A14" : GREEN,
+      edge: exceptionsBad ? "#C97A14" : GREEN_BAR,
       loading: !isApiMockMode ? summaryLoading : ordersLoading,
     },
     {
@@ -387,7 +395,7 @@ export function BridgeDashboard() {
         : "Needs 3+ completed orders",
       subColor: ordersError ? "#56627A" : eligibleInWindow.length >= 3 ? GREEN_DEEP : "#56627A",
       subIcon: ordersError ? undefined : eligibleInWindow.length >= 3 ? CheckCircle2 : Clock,
-      edge: `linear-gradient(90deg, ${GREEN_DEEP}, ${GREEN})`,
+      edge: GREEN_BAR,
       loading: ordersLoading,
     },
   ];
@@ -523,19 +531,17 @@ export function BridgeDashboard() {
 
   return (
     <div className="flex h-full min-h-0 flex-col overflow-auto" style={{ background: "#F6F7FA" }}>
-      {/* Page header */}
-      <div
-        className="flex flex-shrink-0 flex-col gap-3 px-4 py-4 sm:flex-row sm:items-center sm:px-6"
-        style={{ borderBottom: "1px solid #E2E6EE", background: "#FFFFFF" }}
-      >
+      {/* Page header — sits directly on the grey canvas (no white bar), matching
+          the design's floating large title + muted meta line. */}
+      <div className="flex flex-shrink-0 flex-col gap-3 px-4 pt-5 pb-2 sm:flex-row sm:items-start sm:px-6 sm:pt-6 sm:pb-3">
         <div className="min-w-0 flex-1">
           <h1
-            className="text-[22px] font-semibold tracking-[-0.02em]"
+            className="text-[24px] font-bold tracking-[-0.02em] sm:text-[30px]"
             style={{ fontFamily: "'Bricolage Grotesque', Inter, sans-serif", color: "#0B1A2F" }}
           >
             Order topology
           </h1>
-          <p className="mt-0.5 flex items-center gap-1.5 text-[13px]" style={{ color: "#56627A" }}>
+          <p className="mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[13px]" style={{ color: "#56627A" }}>
             <span
               aria-hidden
               style={{ width: 7, height: 7, borderRadius: "50%", background: GREEN, display: "inline-block" }}
@@ -549,15 +555,17 @@ export function BridgeDashboard() {
         </div>
 
         {showWindowControls && (
-          <div className="flex flex-wrap items-center gap-2">
-            {/* Time-window selector — filters the data window the KPIs + export use. */}
+          <div className="flex flex-shrink-0 flex-wrap items-center gap-2">
+            {/* Time-window selector — inset-pill segmented control (white bordered
+                track holding rounded pills; active pill = navy), matching design.
+                Filters the data window the KPIs + export use. */}
             <div
-              className="flex min-w-0 items-center overflow-hidden rounded-[6px] text-[12.5px]"
-              style={{ border: "1px solid #E2E6EE" }}
+              className="flex min-w-0 items-center gap-0.5 rounded-[8px] p-[3px] text-[12.5px]"
+              style={{ border: "1px solid #E2E6EE", background: "#FFFFFF" }}
               role="group"
               aria-label="Time window"
             >
-              {WINDOWS.map((w, i) => {
+              {WINDOWS.map((w) => {
                 const active = w.key === windowKey;
                 return (
                   <button
@@ -566,11 +574,10 @@ export function BridgeDashboard() {
                     aria-pressed={active}
                     title={w.sub}
                     onClick={() => setWindowKey(w.key)}
-                    className="min-w-0 px-3 py-1.5 font-medium transition-colors"
+                    className="min-h-[28px] min-w-0 rounded-[6px] px-3 py-1 font-medium transition-colors"
                     style={{
-                      background: active ? "#0B1A2F" : "#FFFFFF",
+                      background: active ? "#0B1A2F" : "transparent",
                       color: active ? "#FFFFFF" : "#56627A",
-                      borderRight: i < WINDOWS.length - 1 ? "1px solid #E2E6EE" : undefined,
                     }}
                   >
                     {w.label}
@@ -589,12 +596,13 @@ export function BridgeDashboard() {
                     ? "No orders in this window to export"
                     : "Download this window's orders as CSV"
               }
-              className="flex items-center gap-2 rounded-[6px] px-3 py-1.5 text-[12.5px] font-medium transition-colors"
+              className="flex min-h-[36px] items-center gap-2 rounded-[8px] px-3.5 py-1.5 text-[12.5px] font-medium transition-colors hover:bg-[#FCFCFD]"
               style={{
                 border: "1px solid #E2E6EE",
                 background: "#FFFFFF",
                 color: windowedOrders.length === 0 ? "#8A93A5" : "#0B1A2F",
                 cursor: windowedOrders.length === 0 ? "not-allowed" : "pointer",
+                boxShadow: "0 1px 2px rgba(11,26,47,0.04)",
               }}
             >
               <Download size={14} strokeWidth={2} aria-hidden />
@@ -696,13 +704,13 @@ export function BridgeDashboard() {
                   <div aria-hidden style={{ position: "absolute", top: 0, left: 0, right: 0, height: 3, background: kpi.edge }} />
                   <div
                     className="text-[10.5px] font-semibold uppercase"
-                    style={{ color: "#8A93A5", letterSpacing: "0.06em" }}
+                    style={{ color: "#56627A", letterSpacing: "0.06em" }}
                   >
                     {kpi.label}
                   </div>
                   <div
                     className={`monument mt-1.5${kpi.loading ? " animate-pulse text-[#C6CDDA]" : ""}`}
-                    style={{ fontSize: "clamp(28px, 4vw, 34px)", lineHeight: 1.05, color: "#0B1A2F" }}
+                    style={{ fontSize: "clamp(28px, 4vw, 36px)", lineHeight: 1.05, color: "#0B1A2F" }}
                   >
                     {kpi.value}
                   </div>
@@ -751,10 +759,10 @@ export function BridgeDashboard() {
                   inTransitRows.map((row, i) => {
                     const inner = (
                       <>
-                        <span className="min-w-[150px] flex-1 truncate font-mono text-[11.5px] font-medium" style={{ color: GREEN_DEEP }}>
+                        <span className="min-w-[110px] flex-1 truncate font-mono text-[11.5px] font-medium sm:min-w-[150px]" style={{ color: GREEN_DEEP }}>
                           {row.po}
                         </span>
-                        <span className="max-w-[90px] truncate text-[12px] text-[#56627A]">{row.buyer}</span>
+                        <span className="max-w-[80px] truncate text-[12px] text-[#56627A] sm:max-w-[90px]">{row.buyer}</span>
                         <FileChip type={row.fmt} />
                         <span
                           className="rounded px-1.5 py-0.5 text-[11px] font-semibold"
@@ -768,12 +776,12 @@ export function BridgeDashboard() {
                       <Link
                         key={i}
                         href={`/inbox/${row.id}`}
-                        className="flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-2.5 transition-colors hover:bg-[#F6F7FA]"
+                        className="flex min-h-[44px] flex-wrap items-center gap-x-3 gap-y-1 px-4 py-2.5 transition-colors hover:bg-[#F6F7FA]"
                       >
                         {inner}
                       </Link>
                     ) : (
-                      <div key={i} className="flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-2.5">
+                      <div key={i} className="flex min-h-[44px] flex-wrap items-center gap-x-3 gap-y-1 px-4 py-2.5">
                         {inner}
                       </div>
                     );
@@ -807,22 +815,26 @@ export function BridgeDashboard() {
                   </div>
                 ) : (
                   effective.suppliers.map((s) => {
-                    const color = s.health >= 95 ? GREEN : s.health >= 85 ? "#C97A14" : "#C53A3A";
-                    const barBg = s.health >= 95 ? GREEN_SOFT : s.health >= 85 ? "#FAEFD6" : "#FBE3E3";
+                    // Sampled from the design render: healthy = forest green
+                    // #2E8E3A, at-risk = amber #C97A14, poor = red #C53A3A.
+                    const color = s.health >= 95 ? GREEN_BAR : s.health >= 85 ? "#C97A14" : "#C53A3A";
                     return (
                       <Link
                         key={s.id}
                         href={`/library/suppliers/${s.id}`}
-                        className="flex items-center gap-3 px-4 py-2.5 transition-colors hover:bg-[#F6F7FA]"
+                        className="flex min-h-[44px] items-center gap-3 px-4 py-2.5 transition-colors hover:bg-[#F6F7FA]"
                       >
-                        <span className="min-w-0 flex-1 truncate text-[12.5px] font-medium" style={{ color: "#0B1A2F" }}>
+                        <span className="min-w-0 flex-1 truncate text-[13px] font-semibold" style={{ color: "#0B1A2F" }}>
                           {s.name}
                         </span>
-                        <div className="hidden overflow-hidden rounded-full sm:block" style={{ width: 120, height: 6, background: barBg }}>
+                        <div
+                          className="hidden overflow-hidden rounded-full sm:block"
+                          style={{ width: 140, height: 5, background: "#EAECEF" }}
+                        >
                           <div className="h-full rounded-full transition-all" style={{ width: `${s.health}%`, background: color }} />
                         </div>
                         <span
-                          className="w-[42px] flex-shrink-0 text-right text-[12px] font-bold"
+                          className="w-[40px] flex-shrink-0 text-right text-[12px] font-bold tabular-nums"
                           style={{ color, fontFamily: "'JetBrains Mono', monospace" }}
                         >
                           {s.health}%

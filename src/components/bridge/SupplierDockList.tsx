@@ -4,7 +4,7 @@
 // List of all supplier dock configurations. Fetches live data from GET /api/suppliers.
 
 import { useRouter } from "next/navigation";
-import { useState, type ReactNode } from "react";
+import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getBillingStatus, apiClient } from "@/lib/api-client";
 
@@ -12,6 +12,8 @@ import { getBillingStatus, apiClient } from "@/lib/api-client";
 const GREEN       = "#28C55E";
 const GREEN_HOVER = "#1DAF50";
 const GREEN_SOFT  = "#DCFCE7";
+// Shared monospace stack for codes / numeric cells (matches the Buyers table).
+const MONO        = "'JetBrains Mono', ui-monospace, monospace";
 
 /** Two-letter monogram from the supplier name (badge fallback, unused when icon shows). */
 function codeFromName(name: string): string {
@@ -339,13 +341,12 @@ export function SupplierDockList() {
           </div>
         )}
 
-        {/* Supplier table */}
+        {/* ── Desktop: single table card (sm and up) ─────────────────────── */}
         {!isLoading && !suppliersError && suppliers.length > 0 && (
           <div
-            className="overflow-hidden rounded-[10px]"
+            className="hidden overflow-hidden rounded-[10px] sm:block"
             style={{ border: "1px solid #E2E6EE", background: "#FFFFFF", boxShadow: "0 1px 2px rgba(11,26,47,0.04)" }}
           >
-            {/* Desktop: column header. Hidden on mobile where rows stack. */}
             <SupplierTableHeader />
 
             {suppliers.map((s, idx) => {
@@ -357,7 +358,7 @@ export function SupplierDockList() {
                   onMouseEnter={() => setHoverRow(s.id)}
                   onMouseLeave={() => setHoverRow(null)}
                   title="View this supplier's delivery configuration and mappings"
-                  className="group grid cursor-pointer grid-cols-1 items-center gap-2 px-[18px] py-[14px] transition-colors sm:grid-cols-[minmax(0,2.4fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.1fr)_minmax(0,0.9fr)_minmax(0,1fr)_18px] sm:gap-4"
+                  className="group grid cursor-pointer grid-cols-[minmax(0,2.4fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.1fr)_minmax(0,0.9fr)_minmax(0,1fr)_18px] items-center gap-4 px-[18px] py-[14px] transition-colors"
                   style={{
                     borderTop: idx === 0 ? "none" : "1px solid #E2E6EE",
                     background: isHover ? GREEN_SOFT : "transparent",
@@ -383,7 +384,7 @@ export function SupplierDockList() {
                       </p>
                       <p
                         className="mt-[1px] truncate text-[10.5px] leading-tight tracking-[0.02em]"
-                        style={{ color: "#8A93A5", fontFamily: "'JetBrains Mono', ui-monospace, monospace" }}
+                        style={{ color: "#8A93A5", fontFamily: MONO }}
                       >
                         {shortCode(s.name)}
                       </p>
@@ -391,38 +392,24 @@ export function SupplierDockList() {
                   </div>
 
                   {/* Format */}
-                  <MetaCell label="Format">
-                    <span className="text-[12.5px]" style={{ color: "#A2AAB9" }}>—</span>
-                  </MetaCell>
+                  <span className="truncate text-[12.5px]" style={{ color: "#A2AAB9" }}>—</span>
 
                   {/* Channel */}
-                  <MetaCell label="Channel">
-                    <span className="text-[12.5px]" style={{ color: "#A2AAB9" }}>—</span>
-                  </MetaCell>
+                  <span className="truncate text-[12.5px]" style={{ color: "#A2AAB9" }}>—</span>
 
                   {/* Auto-process */}
-                  <MetaCell label="Auto-process">
-                    <span
-                      className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-[3px] text-[11px] font-medium"
-                      style={{ background: isHover ? "#FFFFFF" : "#EFF2F7", color: "#8A93A5", transition: "background 150ms" }}
-                    >
-                      <span className="inline-block h-1.5 w-1.5 rounded-full" style={{ background: "#C6CDDA" }} />
-                      Not set
-                    </span>
-                  </MetaCell>
+                  <span>
+                    <NotSetPill onHoverRow={isHover} />
+                  </span>
 
                   {/* Orders */}
-                  <MetaCell label="Orders" align="right">
-                    <span className="text-[12.5px]" style={{ color: "#A2AAB9", fontFamily: "'JetBrains Mono', ui-monospace, monospace" }}>—</span>
-                  </MetaCell>
+                  <span className="text-right text-[12.5px]" style={{ color: "#A2AAB9", fontFamily: MONO }}>—</span>
 
                   {/* Acceptance */}
-                  <MetaCell label="Acceptance" align="right">
-                    <span className="text-[12.5px]" style={{ color: "#A2AAB9", fontFamily: "'JetBrains Mono', ui-monospace, monospace" }}>—</span>
-                  </MetaCell>
+                  <span className="text-right text-[12.5px]" style={{ color: "#A2AAB9", fontFamily: MONO }}>—</span>
 
                   {/* Chevron */}
-                  <span className="hidden items-center justify-end sm:flex">
+                  <span className="flex items-center justify-end">
                     <svg
                       width="16" height="16" viewBox="0 0 24 24" fill="none"
                       stroke={isHover ? GREEN_HOVER : "#A4ADBD"} strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"
@@ -435,6 +422,66 @@ export function SupplierDockList() {
               );
             })}
           </div>
+        )}
+
+        {/* ── Mobile: one rounded card per supplier (below sm) ────────────── */}
+        {!isLoading && !suppliersError && suppliers.length > 0 && (
+          <ul className="flex list-none flex-col gap-3 p-0 sm:hidden">
+            {suppliers.map((s) => (
+              <li key={s.id}>
+                <button
+                  type="button"
+                  onClick={() => router.push(`/library/suppliers/${s.id}`)}
+                  className="block w-full rounded-[12px] p-4 text-left transition-colors active:opacity-95"
+                  style={{ border: "1px solid #E2E6EE", background: "#FFFFFF", boxShadow: "0 1px 2px rgba(11,26,47,0.04)" }}
+                >
+                  {/* Card head: badge + name + code, chevron on the right */}
+                  <div className="flex items-center gap-3">
+                    <div
+                      className="flex flex-shrink-0 items-center justify-center"
+                      style={{ width: 40, height: 40, borderRadius: 9, background: GREEN_SOFT }}
+                    >
+                      <SupplierGlyph color={GREEN_HOVER} size={19} />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-[15px] font-semibold leading-tight tracking-[-0.005em]" style={{ color: "#0B1A2F" }}>
+                        {s.name}
+                      </p>
+                      <p className="mt-[2px] truncate text-[11px] leading-tight tracking-[0.02em]" style={{ color: "#8A93A5", fontFamily: MONO }}>
+                        {shortCode(s.name)}
+                      </p>
+                    </div>
+                    <svg
+                      width="18" height="18" viewBox="0 0 24 24" fill="none"
+                      stroke="#A4ADBD" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"
+                      className="flex-shrink-0"
+                    >
+                      <path d="m9 18 6-6-6-6" />
+                    </svg>
+                  </div>
+
+                  {/* Card body: label / value rows */}
+                  <dl
+                    className="mt-3.5 grid grid-cols-2 gap-x-4 gap-y-3 border-t pt-3.5"
+                    style={{ borderColor: "#EEF1F6" }}
+                  >
+                    <MobileStat label="Format" value="—" />
+                    <MobileStat label="Channel" value="—" />
+                    <MobileStat label="Orders" value="—" mono />
+                    <MobileStat label="Acceptance" value="—" mono />
+                    <div className="col-span-2 flex items-center justify-between">
+                      <dt className="text-[10.5px] font-semibold uppercase tracking-[0.06em]" style={{ color: "#9AA3B2" }}>
+                        Auto-process
+                      </dt>
+                      <dd className="m-0">
+                        <NotSetPill onHoverRow={false} />
+                      </dd>
+                    </div>
+                  </dl>
+                </button>
+              </li>
+            ))}
+          </ul>
         )}
       </div>
     </div>
@@ -462,29 +509,35 @@ function SupplierTableHeader() {
 }
 
 /**
- * One metadata cell. On mobile it shows an inline label so the stacked card
- * stays readable; on desktop the label is hidden (the column header carries it).
+ * Neutral "Not set" status pill — mirrors the design's grey scope/status pill
+ * (bg #EFF2F7, text #8A93A5, leading dot). Turns its fill white on a hovered
+ * desktop row so it reads against the green row tint.
  */
-function MetaCell({
-  label,
-  align = "left",
-  children,
-}: {
-  label: string;
-  align?: "left" | "right";
-  children: ReactNode;
-}) {
+function NotSetPill({ onHoverRow }: { onHoverRow: boolean }) {
   return (
-    <div
-      className={`flex items-center gap-2 text-[12.5px] sm:gap-0 ${align === "right" ? "sm:justify-end" : ""}`}
+    <span
+      className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-[3px] text-[11px] font-medium"
+      style={{ background: onHoverRow ? "#FFFFFF" : "#EFF2F7", color: "#8A93A5", transition: "background 150ms" }}
     >
-      <span
-        className="text-[10.5px] font-semibold uppercase tracking-[0.06em] sm:hidden"
-        style={{ color: "#9AA3B2", minWidth: 84 }}
-      >
+      <span className="inline-block h-1.5 w-1.5 rounded-full" style={{ background: "#C6CDDA" }} />
+      Not set
+    </span>
+  );
+}
+
+/**
+ * One label/value stat inside a mobile supplier card. Stacks the uppercase
+ * column label above its value so the card stays scannable at 390px.
+ */
+function MobileStat({ label, value, mono = false }: { label: string; value: string; mono?: boolean }) {
+  return (
+    <div className="flex flex-col gap-1">
+      <dt className="text-[10.5px] font-semibold uppercase tracking-[0.06em]" style={{ color: "#9AA3B2" }}>
         {label}
-      </span>
-      {children}
+      </dt>
+      <dd className="m-0 text-[13px]" style={{ color: value === "—" ? "#A2AAB9" : "#0B1A2F", fontFamily: mono ? MONO : undefined }}>
+        {value}
+      </dd>
     </div>
   );
 }

@@ -13,6 +13,14 @@ import {
   type IntegrationSubscription,
 } from "@/lib/api-client";
 
+// Buyer-blue is the primary accent on this screen (sampled from the design render:
+// header button, modal CTA, modal icon-chip + info banner, and the order column in the
+// deliveries table all use #1E66C9). Green stays reserved for healthy/2xx status only.
+// There is no --buyer-blue CSS token, so these are intentional literals.
+const BLUE = "#1E66C9";
+const BLUE_DEEP = "#164689";
+const BLUE_SOFT = "#E3EDFB";
+
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 type WebhookRow = {
@@ -181,6 +189,11 @@ function CardHead({ title, sub, icon }: { title: string; sub?: string; icon: "we
 
 // ── Endpoint status pill ──────────────────────────────────────────────────────
 
+// Status indicator greens sampled from the design render (more muted than the bright
+// brand green): pill bg #E2F1E2, ink #1E6D29, dot kept on brand green #28C55E.
+const STATUS_GREEN_SOFT = "#E2F1E2";
+const STATUS_GREEN_INK = "#1E6D29";
+
 function EndpointPill({ status }: { status: "healthy" | "failing" }) {
   const healthy = status === "healthy";
   return (
@@ -194,8 +207,8 @@ function EndpointPill({ status }: { status: "healthy" | "failing" }) {
         borderRadius: 11,
         fontSize: 11,
         fontWeight: 600,
-        background: healthy ? "var(--brand-green-soft,#DCFCE7)" : "var(--danger-soft,#FBE3E3)",
-        color: healthy ? "var(--brand-green-deep,#1DAF50)" : "var(--danger,#C53A3A)",
+        background: healthy ? STATUS_GREEN_SOFT : "var(--danger-soft,#FBE3E3)",
+        color: healthy ? STATUS_GREEN_INK : "var(--danger,#C53A3A)",
         flexShrink: 0,
       }}
     >
@@ -305,10 +318,11 @@ function EndpointsCard({
             </div>
 
             {/* Last delivery + actions (actions reveal on row hover/focus to match the clean design) */}
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 7 }}>
+            <div className="wh-metarow" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginTop: 7 }}>
               <div style={{ fontSize: 11, color: "var(--ink-faint,#8A93A5)" }}>Last delivery: {w.lastDelivery}</div>
               <div className="wh-actions" style={{ display: "flex", gap: 6 }}>
                 <button
+                  className="wh-actionbtn"
                   onClick={() => onEdit(w)}
                   style={{
                     height: 27,
@@ -325,15 +339,16 @@ function EndpointsCard({
                   Edit
                 </button>
                 <button
+                  className="wh-actionbtn"
                   onClick={() => onToggle(w.id)}
                   disabled={togglingId === w.id}
                   style={{
                     height: 27,
                     padding: "0 10px",
                     borderRadius: "var(--radius,6px)",
-                    border: "1px solid var(--brand-green,#28C55E)",
+                    border: `1px solid ${BLUE}`,
                     background: "var(--surface,#FFFFFF)",
-                    color: togglingId === w.id ? "var(--ink-faint,#8A93A5)" : "var(--brand-green-deep,#1DAF50)",
+                    color: togglingId === w.id ? "var(--ink-faint,#8A93A5)" : BLUE,
                     fontSize: 12,
                     fontWeight: 600,
                     cursor: togglingId === w.id ? "default" : "pointer",
@@ -342,6 +357,7 @@ function EndpointsCard({
                   {togglingId === w.id ? "…" : w.status === "healthy" ? "Disable" : "Enable"}
                 </button>
                 <button
+                  className="wh-actionbtn"
                   onClick={() => {
                     if (window.confirm(`Delete webhook for ${w.url}?`)) onDelete(w.id);
                   }}
@@ -387,7 +403,59 @@ function DeliveriesCard({ deliveries }: { deliveries: DeliveryRow[] | null }) {
       {!deliveries || deliveries.length === 0 ? (
         <EmptyState compact title="No deliveries yet" sub="Delivery attempts will appear here once webhooks start firing." />
       ) : (
+        <>
+        {/* Phones (<=560px): stacked row-cards — avoids horizontal table overflow at 390px */}
+        <div className="wh-deliv-cards">
+          {deliveries.map((d, i) => (
+            <div
+              key={i}
+              style={{
+                padding: "12px 16px",
+                borderBottom: i < deliveries.length - 1 ? "1px solid var(--border,#E2E6EE)" : "none",
+                display: "grid",
+                gap: 7,
+              }}
+            >
+              {/* Event + status badge */}
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+                <span style={{ fontFamily: "var(--font-mono,'JetBrains Mono',monospace)", fontSize: 13, color: "var(--ink,#0B1A2F)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  {d.event}
+                </span>
+                <span
+                  style={{
+                    fontFamily: "var(--font-mono,'JetBrains Mono',monospace)",
+                    fontSize: 11,
+                    fontWeight: 700,
+                    padding: "2px 7px",
+                    borderRadius: "var(--radius-sm,4px)",
+                    background: d.fail ? "var(--danger-soft,#FBE3E3)" : STATUS_GREEN_SOFT,
+                    color: d.fail ? "var(--danger,#C53A3A)" : STATUS_GREEN_INK,
+                    flexShrink: 0,
+                  }}
+                >
+                  {d.status}
+                </span>
+              </div>
+              {/* Order (blue) + latency */}
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+                <span style={{ fontFamily: "var(--font-mono,'JetBrains Mono',monospace)", fontSize: 13, fontWeight: 600, color: BLUE }}>
+                  {d.po}
+                </span>
+                <span style={{ fontFamily: "var(--font-mono,'JetBrains Mono',monospace)", fontSize: 12, color: "var(--ink-faint,#8A93A5)", flexShrink: 0 }}>
+                  {d.dur}
+                </span>
+              </div>
+              {/* Time */}
+              <div style={{ fontFamily: "var(--font-mono,'JetBrains Mono',monospace)", fontSize: 11.5, color: "var(--ink-faint,#8A93A5)" }}>
+                {d.time}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Desktop (>560px): exact 5-column table */}
         <table
+          className="wh-deliv-table"
           style={{
             width: "100%",
             borderCollapse: "collapse",
@@ -454,7 +522,8 @@ function DeliveriesCard({ deliveries }: { deliveries: DeliveryRow[] | null }) {
                     borderBottom: i < deliveries.length - 1 ? "1px solid var(--border,#E2E6EE)" : "none",
                     fontFamily: "var(--font-mono,'JetBrains Mono',monospace)",
                     fontSize: 11.5,
-                    color: "var(--brand-green-deep,#1DAF50)",
+                    color: BLUE,
+                    fontWeight: 600,
                     whiteSpace: "nowrap",
                   }}
                 >
@@ -474,8 +543,8 @@ function DeliveriesCard({ deliveries }: { deliveries: DeliveryRow[] | null }) {
                       fontWeight: 700,
                       padding: "1px 6px",
                       borderRadius: "var(--radius-sm,4px)",
-                      background: d.fail ? "var(--danger-soft,#FBE3E3)" : "var(--brand-green-soft,#DCFCE7)",
-                      color: d.fail ? "var(--danger,#C53A3A)" : "var(--brand-green-deep,#1DAF50)",
+                      background: d.fail ? "var(--danger-soft,#FBE3E3)" : STATUS_GREEN_SOFT,
+                      color: d.fail ? "var(--danger,#C53A3A)" : STATUS_GREEN_INK,
                       display: "inline-flex",
                       alignItems: "center",
                       whiteSpace: "nowrap",
@@ -501,6 +570,7 @@ function DeliveriesCard({ deliveries }: { deliveries: DeliveryRow[] | null }) {
             ))}
           </tbody>
         </table>
+        </>
       )}
     </div>
   );
@@ -567,14 +637,14 @@ function WebhookPanel({
                 width: 34,
                 height: 34,
                 borderRadius: "var(--radius-md,8px)",
-                background: "var(--brand-green-soft,#DCFCE7)",
+                background: BLUE_SOFT,
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
                 flexShrink: 0,
               }}
             >
-              <WebhookIcon size={18} color="var(--brand-green-deep,#1DAF50)" />
+              <WebhookIcon size={18} color={BLUE} />
             </div>
             <div>
               <div style={{ fontWeight: 600, fontSize: 16, letterSpacing: "-0.015em", color: "var(--ink,#0B1A2F)" }}>
@@ -657,14 +727,14 @@ function WebhookPanel({
             </div>
           </div>
 
-          {/* Canonical test-ping note */}
+          {/* Test-ping note — blue info banner (sampled #E3EDFB bg, blue ink) */}
           <div
             style={{
               display: "flex",
               gap: 8,
               alignItems: "flex-start",
-              background: "var(--brand-green-soft,#DCFCE7)",
-              color: "var(--brand-green-deep,#1DAF50)",
+              background: BLUE_SOFT,
+              color: BLUE,
               borderRadius: "var(--radius,6px)",
               padding: "10px 12px",
               fontSize: 12,
@@ -700,8 +770,8 @@ function WebhookPanel({
           <button
             onClick={() => onSave(url, eventType, secret.trim() || undefined)}
             disabled={saving || !url.trim()}
-            onMouseEnter={(e) => { if (!saving && url.trim()) (e.currentTarget as HTMLElement).style.background = "var(--brand-green-deep,#1DAF50)"; }}
-            onMouseLeave={(e) => { if (!saving && url.trim()) (e.currentTarget as HTMLElement).style.background = "var(--brand-green,#28C55E)"; }}
+            onMouseEnter={(e) => { if (!saving && url.trim()) (e.currentTarget as HTMLElement).style.background = BLUE_DEEP; }}
+            onMouseLeave={(e) => { if (!saving && url.trim()) (e.currentTarget as HTMLElement).style.background = BLUE; }}
             style={{
               display: "inline-flex",
               alignItems: "center",
@@ -710,7 +780,7 @@ function WebhookPanel({
               padding: "0 14px",
               borderRadius: "var(--radius,6px)",
               border: "1px solid transparent",
-              background: saving || !url.trim() ? "var(--ink-faint,#8A93A5)" : "var(--brand-green,#28C55E)",
+              background: saving || !url.trim() ? "var(--ink-faint,#8A93A5)" : BLUE,
               color: "#FFFFFF",
               fontSize: 12.5,
               fontWeight: 600,
@@ -768,11 +838,29 @@ function WebhooksLayout({
         .wh-row:focus-within .wh-actions { opacity: 1; transform: none; }
         .wh-row:hover { background: var(--surface-2,#EFF2F7); }
         @media (hover: none) { .wh-row .wh-actions { opacity: 1; transform: none; } }
+        /* Deliveries: exact table on desktop, stacked row-cards on phones (no h-scroll) */
+        .wh-deliv-cards { display: none; }
+        .wh-deliv-table { display: table; }
+        @media (max-width: 560px) {
+          .wh-deliv-cards { display: block; }
+          .wh-deliv-table { display: none; }
+        }
+        /* Phone: actions always visible, stacked under the meta label, >=40px tap targets */
+        @media (max-width: 560px) {
+          .wh-metarow { flex-direction: column; align-items: stretch; gap: 10px; }
+          .wh-actions { opacity: 1 !important; transform: none !important; gap: 8px; }
+          .wh-actionbtn { flex: 1; height: 40px; font-size: 13px; }
+        }
+        /* Phone: tighten page gutters so content keeps comfortable width at 390px */
+        @media (max-width: 560px) {
+          .wh-pad-top { padding: 20px 16px 0 !important; }
+          .wh-pad-body { padding: 0 16px 48px !important; }
+        }
       `}</style>
 
       <div style={{ background: "var(--bg,#F6F7FA)", minHeight: "100%" }}>
         {/* Page header */}
-        <div style={{ padding: "26px 34px 0", maxWidth: 1480, margin: "0 auto", width: "100%" }}>
+        <div className="wh-pad-top" style={{ padding: "26px 34px 0", maxWidth: 1480, margin: "0 auto", width: "100%" }}>
           <div
             style={{
               display: "flex",
@@ -804,8 +892,8 @@ function WebhooksLayout({
             </div>
             <button
               onClick={onAdd}
-              onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "var(--brand-green-deep,#1DAF50)"; }}
-              onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "var(--brand-green,#28C55E)"; }}
+              onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = BLUE_DEEP; }}
+              onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = BLUE; }}
               style={{
                 display: "inline-flex",
                 alignItems: "center",
@@ -814,7 +902,7 @@ function WebhooksLayout({
                 padding: "0 14px",
                 borderRadius: "var(--radius,6px)",
                 border: "1px solid transparent",
-                background: "var(--brand-green,#28C55E)",
+                background: BLUE,
                 color: "#fff",
                 fontSize: 12.5,
                 fontWeight: 600,
@@ -829,7 +917,7 @@ function WebhooksLayout({
         </div>
 
         {/* Content */}
-        <div style={{ padding: "0 34px 64px", maxWidth: 1480, margin: "0 auto", width: "100%" }}>
+        <div className="wh-pad-body" style={{ padding: "0 34px 64px", maxWidth: 1480, margin: "0 auto", width: "100%" }}>
           {/* Notice */}
           {notice && (
             <div
@@ -839,9 +927,9 @@ function WebhooksLayout({
                 padding: "10px 14px",
                 fontSize: 12.5,
                 border: "1px solid var(--border,#E2E6EE)",
-                borderLeft: "3px solid var(--brand-green,#28C55E)",
-                background: "var(--brand-green-soft,#DCFCE7)",
-                color: "var(--brand-green-deep,#1DAF50)",
+                borderLeft: `3px solid ${BLUE}`,
+                background: BLUE_SOFT,
+                color: BLUE,
               }}
             >
               {notice}

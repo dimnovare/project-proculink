@@ -30,7 +30,7 @@ test.describe("Standards reference", () => {
     ).toBeVisible({ timeout: 10_000 });
 
     // All five standards are columns in the matrix (always-on visibility).
-    for (const col of ["UBL", "Peppol BIS", "EDIFACT", "X12", "cXML"]) {
+    for (const col of ["cXML 1.2", "UBL 2.1", "EDIFACT", "X12", "Peppol BIS"]) {
       await expect(page.getByRole("columnheader", { name: col, exact: true })).toBeVisible();
     }
 

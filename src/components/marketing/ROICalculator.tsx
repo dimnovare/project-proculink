@@ -89,8 +89,10 @@ function Field({
         onChange={(e) => onChange(Number(e.target.value))}
         style={{
           width: "100%",
+          height: 28,
           accentColor: T.accent,
           cursor: "pointer",
+          touchAction: "none",
         }}
       />
     </label>

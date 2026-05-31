@@ -46,7 +46,7 @@ export default function SettingsPage() {
         </header>
 
         <div className="settings-grid" style={{ display: "grid", gridTemplateColumns: "200px minmax(0,1fr)", gap: 28, alignItems: "start" }}>
-          {/* Left nav — active = white card + left green accent bar + green icon */}
+          {/* Left nav — active = white card + buyer-blue left accent bar + blue icon */}
           <nav
             className="settings-nav flex w-full overflow-x-auto gap-1 md:flex-col md:overflow-visible md:gap-1"
           >
@@ -60,15 +60,16 @@ export default function SettingsPage() {
                   style={{
                     paddingLeft: 12,
                     color:      active ? "#0B1A2F"   : "#56627A",
-                    background: active ? "var(--brand-green-soft, #DCFCE7)" : "transparent",
+                    background: active ? "#FFFFFF" : "transparent",
                     fontWeight: active ? 600 : 500,
-                    border:     "1px solid transparent",
-                    borderLeft: `2px solid ${active ? "var(--brand-green, #28C55E)" : "transparent"}`,
+                    border:      active ? "1px solid #E2E6EE" : "1px solid transparent",
+                    borderLeft: `2px solid ${active ? "#1E66C9" : "transparent"}`,
+                    boxShadow:  active ? "0 1px 2px rgba(11,26,47,0.05)" : "none",
                     cursor: "pointer",
                   }}
                   aria-current={active ? "page" : undefined}
                 >
-                  <t.Icon size={16} color={active ? "var(--brand-green-deep, #1DAF50)" : "#8A93A5"} strokeWidth={1.75} />
+                  <t.Icon size={16} color={active ? "#1E66C9" : "#8A93A5"} strokeWidth={1.75} />
                   <span>{t.label}</span>
                 </button>
               );
@@ -94,11 +95,32 @@ export default function SettingsPage() {
         @media (max-width: 767px) {
           .settings-shell { padding: 24px 16px 48px; }
           .settings-grid { grid-template-columns: 1fr !important; gap: 16px !important; }
+          /* Segmented-track on mobile so the white active pill reads clearly. */
           .settings-nav {
-            background: #FFFFFF;
+            background: #EFF2F7;
             border: 1px solid #E2E6EE;
             border-radius: 10px;
-            padding: 6px;
+            padding: 5px;
+            gap: 4px;
+            -webkit-overflow-scrolling: touch;
+            scrollbar-width: none;
+          }
+          .settings-nav::-webkit-scrollbar { display: none; }
+          /* Comfortable tap targets + readable label sizing on mobile. */
+          .settings-nav-item {
+            min-height: 40px;
+            font-size: 13px;
+            scroll-snap-align: start;
+          }
+          /* Platform connector rows stack so the action goes full-width. */
+          .connector-row {
+            flex-wrap: wrap;
+            align-items: flex-start !important;
+          }
+          .connector-action {
+            width: 100%;
+            justify-content: center;
+            min-height: 40px;
           }
         }
       `}</style>
@@ -679,8 +701,9 @@ function ApiKeysSection() {
           </div>
         )}
 
+        {/* Desktop: dense table (hidden on mobile to avoid horizontal overflow) */}
         {keys.length > 0 && (
-          <table style={{ width: "100%", borderCollapse: "collapse" }}>
+          <table className="hidden md:table" style={{ width: "100%", borderCollapse: "collapse" }}>
             <thead>
               <tr>
                 {["Name", "Key", "Created", "Last used", ""].map((h) => (
@@ -724,11 +747,44 @@ function ApiKeysSection() {
           </table>
         )}
 
+        {/* Mobile: each key as a stacked row-card (no horizontal scroll) */}
+        {keys.length > 0 && (
+          <div className="flex flex-col gap-2 md:hidden">
+            {keys.map(key => (
+              <div
+                key={key.id}
+                style={{ border: "1px solid #E2E6EE", borderRadius: 10, background: "#FFFFFF", padding: "12px 14px", opacity: key.isActive ? 1 : 0.6 }}
+              >
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+                  <span style={{ fontSize: 13.5, fontWeight: 600, color: "#0B1A2F", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{key.label}</span>
+                  {!key.isActive && (
+                    <span style={{ fontSize: 11, fontWeight: 600, padding: "2px 7px", borderRadius: 4, background: "#EFF2F7", color: "#56627A", flexShrink: 0 }}>Revoked</span>
+                  )}
+                </div>
+                <code style={{ display: "block", marginTop: 6, fontSize: 12, fontFamily: "'JetBrains Mono', monospace", color: "#56627A" }}>{key.keyPrefix}…</code>
+                <div style={{ marginTop: 6, fontSize: 11.5, color: "#8A93A5" }}>
+                  Created {new Date(key.createdAt).toLocaleDateString()}
+                  {" · Last used "}
+                  {key.lastUsedAt ? new Date(key.lastUsedAt).toLocaleDateString() : "—"}
+                </div>
+                {key.isActive && (
+                  <button
+                    onClick={() => { if (confirm(`Revoke "${key.label}"? This will immediately break any integration using it.`)) revoke.mutate(key.id); }}
+                    style={{ marginTop: 10, width: "100%", height: 40, borderRadius: 8, border: "1px solid #E9B8B8", background: "#FFFFFF", color: "#A52E2E", fontSize: 13, fontWeight: 600, cursor: "pointer" }}
+                  >
+                    Revoke
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+
         {/* Create key — disclosure form (revealed by the Create key button) */}
         {showCreate && (
           <div style={{ marginTop: 16, border: "1px solid #C6CDDA", borderRadius: 8, background: "#FFFFFF", padding: 16 }}>
             <p style={{ fontSize: 13, fontWeight: 600, color: "#0B1A2F", marginBottom: 8 }}>Create new key</p>
-            <div style={{ display: "flex", gap: 8 }}>
+            <div className="flex flex-col gap-2 sm:flex-row sm:gap-2">
               <input
                 type="text"
                 placeholder='e.g. "Zapier production" or "Make.com staging"'
@@ -738,20 +794,24 @@ function ApiKeysSection() {
                 onKeyDown={e => { if (e.key === "Enter" && newLabel.trim()) create.mutate(newLabel.trim()); }}
                 style={{ ...inputStyle, flex: 1 }}
               />
-              <button
-                onClick={() => create.mutate(newLabel.trim())}
-                disabled={!newLabel.trim() || create.isPending}
-                style={{ display: "inline-flex", alignItems: "center", gap: 6, height: 40, padding: "0 16px", border: "none", borderRadius: 8, background: !newLabel.trim() || create.isPending ? "#CBD5E1" : "var(--brand-green, #28C55E)", color: "#FFFFFF", fontSize: 13, fontWeight: 600, cursor: !newLabel.trim() || create.isPending ? "not-allowed" : "pointer", whiteSpace: "nowrap" }}
-              >
-                <Plus size={14} />
-                {create.isPending ? "Creating…" : "Create key"}
-              </button>
-              <button
-                onClick={() => { setShowCreate(false); setNewLabel(""); }}
-                style={{ height: 40, padding: "0 14px", border: "1px solid #D5DAE5", borderRadius: 8, background: "#FFFFFF", color: "#56627A", fontSize: 13, fontWeight: 600, cursor: "pointer" }}
-              >
-                Cancel
-              </button>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => create.mutate(newLabel.trim())}
+                  disabled={!newLabel.trim() || create.isPending}
+                  className="flex-1 sm:flex-none"
+                  style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6, height: 40, padding: "0 16px", border: "none", borderRadius: 8, background: !newLabel.trim() || create.isPending ? "#CBD5E1" : "var(--brand-green, #28C55E)", color: "#FFFFFF", fontSize: 13, fontWeight: 600, cursor: !newLabel.trim() || create.isPending ? "not-allowed" : "pointer", whiteSpace: "nowrap" }}
+                >
+                  <Plus size={14} />
+                  {create.isPending ? "Creating…" : "Create key"}
+                </button>
+                <button
+                  onClick={() => { setShowCreate(false); setNewLabel(""); }}
+                  className="flex-1 sm:flex-none"
+                  style={{ height: 40, padding: "0 14px", border: "1px solid #D5DAE5", borderRadius: 8, background: "#FFFFFF", color: "#56627A", fontSize: 13, fontWeight: 600, cursor: "pointer" }}
+                >
+                  Cancel
+                </button>
+              </div>
             </div>
             {create.isError && (
               <p style={{ fontSize: 12, color: "#DC2626", marginTop: 6 }}>
@@ -826,7 +886,7 @@ function ConnectorsSection() {
         {/* Platform connector rows — neutral icon tile + name/desc + right-aligned action (matches design) */}
         <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 22 }}>
           {/* Zapier */}
-          <div style={connectorRow}>
+          <div className="connector-row" style={connectorRow}>
             <div style={connectorTile}>
               <Zap size={18} color="#56627A" strokeWidth={1.75} />
             </div>
@@ -840,6 +900,7 @@ function ConnectorsSection() {
               href="https://zapier.com/apps/proculink"
               target="_blank"
               rel="noopener noreferrer"
+              className="connector-action"
               style={connectorActionLink}
             >
               Open Zapier <ExternalLink size={12} />
@@ -847,7 +908,7 @@ function ConnectorsSection() {
           </div>
 
           {/* Make.com */}
-          <div style={connectorRow}>
+          <div className="connector-row" style={connectorRow}>
             <div style={connectorTile}>
               <span style={{ fontSize: 15, fontWeight: 700, color: "#56627A" }}>M</span>
             </div>
@@ -861,6 +922,7 @@ function ConnectorsSection() {
               href="https://make.com/en/integrations/proculink"
               target="_blank"
               rel="noopener noreferrer"
+              className="connector-action"
               style={connectorActionLink}
             >
               Open Make.com <ExternalLink size={12} />

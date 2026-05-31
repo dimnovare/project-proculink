@@ -66,6 +66,9 @@ function isConnected(status: string) {
 
 function ConnectorStatusPill({ status }: { status: string }) {
   const connected = isConnected(status);
+  // Status-pill colours sampled pixel-exact from the design target render:
+  //   Connected → bg #E2F1E2, text #1E6D29, dot #2E8E3A (muted sage/forest green)
+  //   Available → bg #EFF2F7 (surface-2), text #56627A, dot #8A93A5 (neutral grey)
   return (
     <span
       style={{
@@ -77,8 +80,8 @@ function ConnectorStatusPill({ status }: { status: string }) {
         borderRadius: 11,
         fontSize: 11,
         fontWeight: 600,
-        background: connected ? "var(--brand-green-soft,#DCFCE7)" : "var(--surface-2,#EFF2F7)",
-        color: connected ? "var(--brand-green-deep,#1DAF50)" : "var(--ink-muted,#56627A)",
+        background: connected ? "#E2F1E2" : "var(--surface-2,#EFF2F7)",
+        color: connected ? "#1E6D29" : "var(--ink-muted,#56627A)",
       }}
     >
       <span
@@ -86,7 +89,7 @@ function ConnectorStatusPill({ status }: { status: string }) {
           width: 6,
           height: 6,
           borderRadius: "50%",
-          background: connected ? "var(--brand-green,#28C55E)" : "var(--ink-faint,#8A93A5)",
+          background: connected ? "#2E8E3A" : "var(--ink-faint,#8A93A5)",
           flexShrink: 0,
         }}
       />
@@ -179,6 +182,7 @@ function ConnectorCard({
         </span>
         {connected ? (
           <button
+            className="connector-action"
             onClick={() => onManage(connector)}
             style={{
               height: 24,
@@ -196,6 +200,7 @@ function ConnectorCard({
           </button>
         ) : (
           <button
+            className="connector-action"
             onClick={() => onManage(connector)}
             style={{
               height: 28,
@@ -255,19 +260,35 @@ export default function ConnectorsPage() {
 
   return (
     <>
-      {/* Responsive grid breakpoints as a style tag (avoids needing global .g-3) */}
+      {/* Responsive grid + padding breakpoints as a style tag (avoids needing global .g-3) */}
       <style>{`
         .connectors-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 16px; }
-        @media (max-width: 920px) { .connectors-grid { grid-template-columns: 1fr 1fr; } }
-        @media (max-width: 540px) { .connectors-grid { grid-template-columns: 1fr; } }
+        @media (max-width: 1100px) { .connectors-grid { grid-template-columns: 1fr 1fr; } }
+        @media (max-width: 640px)  { .connectors-grid { grid-template-columns: 1fr; } }
+
+        /* Page gutters: roomy on desktop, tighter on phones (390px → ~16px) */
+        .connectors-header { padding: 26px 34px 0; }
+        .connectors-content { padding: 0 34px 64px; }
+        @media (max-width: 640px) {
+          .connectors-header  { padding: 20px 16px 0; }
+          .connectors-content { padding: 0 16px 56px; }
+        }
+
+        /* Footer actions: keep the desktop visual height but guarantee a >=40px
+           touch target on phones via padding (the visible chrome is unchanged). */
+        @media (max-width: 640px) {
+          .connector-action { min-height: 40px; display: inline-flex; align-items: center; }
+          /* Full-width primary CTA on its own row, comfortable 40px touch height */
+          .connectors-addbtn { flex: 1 0 100%; width: 100%; height: 40px; }
+        }
         @keyframes skel-pulse { 0%,100%{opacity:1;} 50%{opacity:0.5;} }
       `}</style>
 
       <div style={{ background: "var(--bg,#F6F7FA)", display: "flex", flexDirection: "column", minHeight: "100%" }}>
         {/* Page header */}
         <div
+          className="connectors-header"
           style={{
-            padding: "26px 34px 0",
             maxWidth: 1480,
             margin: "0 auto",
             width: "100%",
@@ -303,6 +324,7 @@ export default function ConnectorsPage() {
               </div>
             </div>
             <button
+              className="connectors-addbtn"
               onClick={() => {
                 setNotice(null);
                 setSelected({ id: "new", type: "API (REST)", name: "", status: "available", desc: "", docks: 0, direction: "out" });
@@ -310,12 +332,14 @@ export default function ConnectorsPage() {
               style={{
                 display: "inline-flex",
                 alignItems: "center",
+                justifyContent: "center",
                 gap: 7,
                 height: 32,
                 padding: "0 14px",
                 borderRadius: "var(--radius,6px)",
                 border: "1px solid transparent",
-                background: "var(--brand-green,#28C55E)",
+                // Primary header CTA = buyer-blue (#1E66C9), matching the design target render.
+                background: "#1E66C9",
                 color: "#fff",
                 fontSize: 12.5,
                 fontWeight: 600,
@@ -330,7 +354,7 @@ export default function ConnectorsPage() {
         </div>
 
         {/* Content area */}
-        <div style={{ flex: 1, padding: "0 34px 64px", maxWidth: 1480, margin: "0 auto", width: "100%" }}>
+        <div className="connectors-content" style={{ flex: 1, maxWidth: 1480, margin: "0 auto", width: "100%" }}>
           {/* Notice */}
           {notice && (
             <div

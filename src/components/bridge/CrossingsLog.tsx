@@ -3,7 +3,7 @@
 // Crossings Log — append-only audit trail with date-grouped table-row layout.
 // Canonical: CrossingsLogScreen in screen-crossings.jsx
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { getAuditLog, isApiMockMode, type AuditLogEntry } from "@/lib/api-client";
@@ -254,7 +254,7 @@ const EV_CANON: Record<
   CanonicalEvent,
   { bg: string; color: string; label: string; iconPath: string }
 > = {
-  created:   { bg: "#E9EDF3", color: "#56627A", label: "Created",   iconPath: "M12 5v14M5 12h14" },
+  created:   { bg: "#EFF2F7", color: "#56627A", label: "Created",   iconPath: "M12 5v14M5 12h14" },
   parsed:    { bg: "#E3EDFB", color: "#1E66C9", label: "Parsed",    iconPath: "M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z M14 2v6h6" },
   validated: { bg: "#E2F1E2", color: "#2E8E3A", label: "Validated", iconPath: "M21.801 10A10 10 0 1 1 17 3.335M9 11l3 3L22 4" },
   edited:    { bg: "#EEE7FB", color: "#6F4FCE", label: "Edited",    iconPath: "M12 20h9M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4z" },
@@ -272,6 +272,23 @@ const FILTERS: Array<{ key: CanonicalEvent | "all"; label: string }> = [
   { key: "parsed",    label: "Parsed" },
   { key: "created",   label: "Created" },
 ];
+
+// ─── Responsive hook ──────────────────────────────────────────────────────────
+// Self-contained (no shared hook to import). SSR-safe: starts false, syncs after
+// mount so the desktop flat-row table stays pixel-exact while ≤ 640px gets a
+// stacked-card layout. 640px = Tailwind `sm` breakpoint.
+
+function useIsMobile(maxWidth = 640): boolean {
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia(`(max-width: ${maxWidth}px)`);
+    const update = () => setIsMobile(mq.matches);
+    update();
+    mq.addEventListener("change", update);
+    return () => mq.removeEventListener("change", update);
+  }, [maxWidth]);
+  return isMobile;
+}
 
 // ─── Skeleton row ─────────────────────────────────────────────────────────────
 
@@ -294,6 +311,7 @@ function SkeletonRow() {
 
 export function CrossingsLog() {
   const router = useRouter();
+  const isMobile = useIsMobile();
   const [openId, setOpenId]     = useState<string | null>(null);
   const [filter, setFilter]     = useState<CanonicalEvent | "all">("all");
   const [search, setSearch]     = useState("");
@@ -349,7 +367,7 @@ export function CrossingsLog() {
   );
 
   return (
-    <div style={{ padding: "26px 34px 64px" }}>
+    <div style={{ padding: isMobile ? "20px 16px 56px" : "26px 34px 64px" }}>
       {/* Page header */}
       <div
         style={{
@@ -365,7 +383,7 @@ export function CrossingsLog() {
           <h1
             style={{
               fontFamily: "'Bricolage Grotesque', Inter, sans-serif",
-              fontSize: 30,
+              fontSize: isMobile ? 26 : 30,
               fontWeight: 600,
               letterSpacing: "-0.025em",
               lineHeight: 1.1,
@@ -403,7 +421,8 @@ export function CrossingsLog() {
             alignItems: "center",
             justifyContent: "center",
             gap: 7,
-            height: 32,
+            height: isMobile ? 40 : 32,
+            width: isMobile ? "100%" : undefined,
             padding: "0 14px",
             borderRadius: 6,
             fontSize: 12.5,
@@ -429,21 +448,29 @@ export function CrossingsLog() {
       <div
         style={{
           display: "flex",
-          alignItems: "center",
+          flexDirection: isMobile ? "column" : "row",
+          alignItems: isMobile ? "stretch" : "center",
           justifyContent: "space-between",
-          gap: 12,
+          gap: isMobile ? 10 : 12,
           marginBottom: 14,
           flexWrap: "wrap",
         }}
       >
-        {/* Filter chips — canonical fchip-row */}
+        {/* Filter chips — canonical fchip-row. Mobile: single horizontal-scroll row
+            (edge-to-edge) instead of wrapping into 3 stacked lines. */}
         <div
           style={{
             display: "flex",
             alignItems: "center",
             gap: 6,
-            flexWrap: "wrap",
+            flexWrap: isMobile ? "nowrap" : "wrap",
             overflowX: "auto",
+            WebkitOverflowScrolling: "touch",
+            scrollbarWidth: "none",
+            paddingBottom: isMobile ? 2 : 0,
+            margin: isMobile ? "0 -16px" : 0,
+            paddingLeft: isMobile ? 16 : 0,
+            paddingRight: isMobile ? 16 : 0,
           }}
         >
           {FILTERS.map(({ key, label }) => {
@@ -455,8 +482,8 @@ export function CrossingsLog() {
                 style={{
                   display: "inline-flex",
                   alignItems: "center",
-                  height: 30,
-                  padding: "0 12px",
+                  height: isMobile ? 36 : 30,
+                  padding: isMobile ? "0 14px" : "0 12px",
                   borderRadius: 6,
                   border: `1px solid ${active ? "transparent" : "#E2E6EE"}`,
                   background: active ? "#0B1A2F" : "#FFFFFF",
@@ -475,7 +502,7 @@ export function CrossingsLog() {
           })}
         </div>
 
-        {/* PO search — canonical search input */}
+        {/* PO search — canonical search input. Mobile: full-width, 40px tall. */}
         <div
           style={{
             display: "flex",
@@ -485,8 +512,9 @@ export function CrossingsLog() {
             border: "1px solid #E2E6EE",
             borderRadius: 6,
             padding: "0 10px",
-            height: 30,
-            width: 200,
+            height: isMobile ? 40 : 30,
+            width: isMobile ? "100%" : 200,
+            flexShrink: 0,
           }}
         >
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#8A93A5" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
@@ -613,7 +641,105 @@ export function CrossingsLog() {
                         key={c.id}
                         style={{ borderBottom: isLast ? "none" : "1px solid #E2E6EE" }}
                       >
-                        {/* Main row — canonical CrossingRow button */}
+                        {/* Main row — canonical CrossingRow button.
+                            Desktop: single flat line with fixed columns (pixel-exact).
+                            Mobile: stacked card (icon+label+time / PO / buyer→supplier / actor). */}
+                        {isMobile ? (
+                          <button
+                            onClick={() => setOpenId(open ? null : c.id)}
+                            aria-expanded={open}
+                            style={{
+                              width: "100%",
+                              textAlign: "left",
+                              background: open ? "#EFF2F7" : "none",
+                              border: "none",
+                              padding: "13px 14px",
+                              transition: "background 150ms",
+                              cursor: "pointer",
+                              display: "flex",
+                              flexDirection: "column",
+                              gap: 7,
+                              minHeight: 40,
+                            }}
+                          >
+                            {/* Line 1: icon + label · time · chevron */}
+                            <span style={{ display: "flex", alignItems: "center", gap: 9, width: "100%" }}>
+                              <span
+                                style={{
+                                  width: 26,
+                                  height: 26,
+                                  borderRadius: "50%",
+                                  background: ev.bg,
+                                  display: "flex",
+                                  alignItems: "center",
+                                  justifyContent: "center",
+                                  flexShrink: 0,
+                                }}
+                              >
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={ev.color} strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+                                  <path d={ev.iconPath} />
+                                </svg>
+                              </span>
+                              <span style={{ fontSize: 13, fontWeight: 600, color: ev.color }}>
+                                {ev.label}
+                              </span>
+                              <span
+                                style={{
+                                  marginLeft: "auto",
+                                  fontFamily: "'JetBrains Mono', ui-monospace, monospace",
+                                  fontSize: 11.5,
+                                  color: "#8A93A5",
+                                  flexShrink: 0,
+                                }}
+                              >
+                                {c.ts}
+                              </span>
+                              <svg
+                                width="16" height="16" viewBox="0 0 24 24" fill="none"
+                                stroke="#8A93A5" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"
+                                style={{ transform: open ? "rotate(180deg)" : "none", transition: "transform 200ms", flexShrink: 0 }}
+                              >
+                                <path d="m6 9 6 6 6-6" />
+                              </svg>
+                            </span>
+
+                            {/* Line 2: PO mono */}
+                            <span
+                              style={{
+                                fontFamily: "'JetBrains Mono', ui-monospace, monospace",
+                                fontSize: 13,
+                                fontWeight: 600,
+                                color: "#1E66C9",
+                                paddingLeft: 35,
+                              }}
+                            >
+                              {c.po}
+                            </span>
+
+                            {/* Line 3: buyer → supplier (wraps) */}
+                            <span
+                              style={{
+                                display: "flex",
+                                alignItems: "center",
+                                flexWrap: "wrap",
+                                gap: 6,
+                                fontSize: 13,
+                                paddingLeft: 35,
+                              }}
+                            >
+                              <span style={{ color: "#1E66C9" }}>{c.buyer}</span>
+                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#8A93A5" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+                                <path d="M5 12h14M12 5l7 7-7 7" />
+                              </svg>
+                              <span style={{ color: "#2E8E3A" }}>{c.supplier}</span>
+                            </span>
+
+                            {/* Line 4: actor */}
+                            <span style={{ fontSize: 12, color: "#8A93A5", paddingLeft: 35 }}>
+                              {c.actor.name}
+                            </span>
+                          </button>
+                        ) : (
                         <button
                           onClick={() => setOpenId(open ? null : c.id)}
                           style={{
@@ -765,12 +891,15 @@ export function CrossingsLog() {
                             <path d="m6 9 6 6 6-6" />
                           </svg>
                         </button>
+                        )}
 
-                        {/* Expanded panel — canonical CrossingRow detail */}
+                        {/* Expanded panel — canonical CrossingRow detail.
+                            Desktop indents the detail card under the content columns (106px);
+                            mobile uses full width. */}
                         {open && (
                           <div
                             style={{
-                              padding: "4px 16px 16px 106px",
+                              padding: isMobile ? "4px 14px 14px" : "4px 16px 16px 106px",
                               background: "#EFF2F7",
                             }}
                           >
@@ -825,17 +954,26 @@ export function CrossingsLog() {
                                         key={i}
                                         style={{
                                           display: "flex",
-                                          alignItems: "center",
-                                          gap: 12,
+                                          alignItems: isMobile ? "flex-start" : "center",
+                                          flexWrap: isMobile ? "wrap" : "nowrap",
+                                          gap: isMobile ? "2px 8px" : 12,
                                           padding: "8px 11px",
                                           background: i % 2 === 0 ? "#FFFFFF" : "#F6F7FA",
                                           borderBottom: i < c.diff!.length - 1 ? "1px solid #F0F2F6" : "none",
                                         }}
                                       >
-                                        <span style={{ color: "#0F4FA8", minWidth: 200 }}>{d.field}</span>
-                                        <span style={{ color: "#C53A3A" }}>{d.from}</span>
+                                        <span
+                                          style={{
+                                            color: "#0F4FA8",
+                                            minWidth: isMobile ? "100%" : 200,
+                                            wordBreak: "break-all",
+                                          }}
+                                        >
+                                          {d.field}
+                                        </span>
+                                        <span style={{ color: "#C53A3A", wordBreak: "break-all" }}>{d.from}</span>
                                         <span style={{ color: "#C6CDDA" }}>→</span>
-                                        <span style={{ color: "#2E8E3A" }}>{d.to}</span>
+                                        <span style={{ color: "#2E8E3A", wordBreak: "break-all" }}>{d.to}</span>
                                       </div>
                                     ))}
                                   </div>
@@ -843,7 +981,7 @@ export function CrossingsLog() {
                               )}
 
                               {/* Action buttons — canonical: View order / Export entry / Retry crossing */}
-                              <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 11 }}>
+                              <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 8, marginTop: 11 }}>
                                 {/* View order — secondary, navigates to /inbox/{id} */}
                                 <button
                                   onClick={() => router.push(`/inbox/${c.crossingId}`)}
@@ -851,8 +989,8 @@ export function CrossingsLog() {
                                     display: "inline-flex",
                                     alignItems: "center",
                                     gap: 6,
-                                    height: 27,
-                                    padding: "0 10px",
+                                    height: isMobile ? 36 : 27,
+                                    padding: isMobile ? "0 12px" : "0 10px",
                                     borderRadius: 6,
                                     border: "1px solid #C6CDDA",
                                     background: "#FFFFFF",
@@ -882,8 +1020,8 @@ export function CrossingsLog() {
                                       display: "inline-flex",
                                       alignItems: "center",
                                       gap: 6,
-                                      height: 27,
-                                      padding: "0 10px",
+                                      height: isMobile ? 36 : 27,
+                                      padding: isMobile ? "0 12px" : "0 10px",
                                       borderRadius: 6,
                                       border: "1px solid #C6CDDA",
                                       background: "#FFFFFF",
@@ -920,8 +1058,8 @@ export function CrossingsLog() {
                                     display: "inline-flex",
                                     alignItems: "center",
                                     gap: 6,
-                                    height: 27,
-                                    padding: "0 10px",
+                                    height: isMobile ? 36 : 27,
+                                    padding: isMobile ? "0 12px" : "0 10px",
                                     borderRadius: 6,
                                     border: "none",
                                     background: "transparent",

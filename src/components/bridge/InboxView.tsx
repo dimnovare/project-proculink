@@ -482,12 +482,16 @@ export function InboxView() {
   if (!isApiMockMode && isLoading) {
     return (
       <div className="flex flex-col h-full min-h-0 overflow-hidden" style={{ background: "#F6F7FA" }}>
-        <div className="flex-1 flex flex-col gap-0 bg-white">
-          {Array.from({ length: 3 }).map((_, i) => (
-            <div key={i} className="flex items-center gap-3 px-5 py-3 border-b border-[#F0F2F6]">
-              <div className="h-5 w-20 rounded bg-[#E2E6EE] animate-pulse" />
-              <div className="h-5 flex-1 rounded bg-[#E2E6EE] animate-pulse" />
+        <div
+          className="flex-1 min-h-0 flex flex-col gap-0 overflow-hidden m-4 sm:m-6"
+          style={{ background: "#FFFFFF", border: "1px solid #E2E6EE", borderRadius: 12 }}
+        >
+          {Array.from({ length: 8 }).map((_, i) => (
+            <div key={i} className="flex items-center gap-3 px-5 py-3.5 border-b border-[#F0F2F6]">
               <div className="h-5 w-24 rounded bg-[#E2E6EE] animate-pulse" />
+              <div className="h-5 flex-1 rounded bg-[#EEF1F6] animate-pulse" />
+              <div className="h-5 w-24 rounded bg-[#EEF1F6] animate-pulse" />
+              <div className="h-5 w-16 rounded bg-[#EEF1F6] animate-pulse" />
             </div>
           ))}
         </div>
@@ -535,10 +539,10 @@ export function InboxView() {
   return (
     <div className="flex flex-col h-full min-h-0 overflow-hidden" style={{ background: "#F6F7FA" }}>
 
-      {/* Page header */}
+      {/* Page header — sits on the grey canvas, table floats below in a white card */}
       <div
-        className="flex flex-col items-start gap-3 px-4 py-4 sm:px-6 lg:flex-row lg:items-center lg:gap-4 flex-shrink-0"
-        style={{ borderBottom: "1px solid #E2E6EE", background: "#FFFFFF" }}
+        className="flex flex-col items-start gap-3 px-4 pt-5 pb-3 sm:px-6 lg:flex-row lg:items-center lg:gap-4 flex-shrink-0"
+        style={{ background: "#F6F7FA" }}
       >
         <div className="flex-1">
           <h1
@@ -637,10 +641,10 @@ export function InboxView() {
         </div>
       )}
 
-      {/* Filter chips + search input */}
+      {/* Filter chips + search input — toolbar on the grey canvas, above the table card */}
       <div
-        className="flex flex-wrap items-center gap-2 px-4 py-2 sm:px-6 flex-shrink-0"
-        style={{ borderBottom: "1px solid #E2E6EE", background: "#FFFFFF" }}
+        className="flex flex-wrap items-center gap-2 px-4 pb-3 sm:px-6 flex-shrink-0"
+        style={{ background: "#F6F7FA" }}
       >
         <div className="flex items-center gap-1.5 overflow-x-auto flex-1 min-w-0">
           {FILTER_CHIPS.map(({ label }, i) => {
@@ -703,8 +707,11 @@ export function InboxView() {
         </div>
       </div>
 
-      {/* ── Queue table / mobile route cards ──────────────────────────────────── */}
-      <div className="flex-1 overflow-auto" style={{ background: "#FFFFFF" }}>
+      {/* ── Queue table / mobile route cards — floating white card on grey canvas ── */}
+      <div
+        className="flex-1 min-h-0 overflow-auto mx-4 sm:mx-6 mb-3"
+        style={{ background: "#FFFFFF", border: "1px solid #E2E6EE", borderRadius: 12 }}
+      >
         <div className="divide-y divide-[#F0F2F6] md:hidden">
           {pagedRows.length === 0 && (
             <div className="flex flex-col items-center justify-center py-16 px-6 text-center gap-3">
@@ -733,14 +740,14 @@ export function InboxView() {
           {pagedRows.map((row) => (
             <button
               key={row.id}
-              className="block w-full px-4 py-3 text-left"
-              style={{ background: "#FFFFFF", border: "none" }}
+              className="block w-full px-4 py-3.5 text-left active:bg-[#F6F7FA]"
+              style={{ background: "#FFFFFF", border: "none", minHeight: 44 }}
               onClick={() => router.push(`/inbox/${row.original.id}`)}
             >
               <div className="mb-2 flex items-start justify-between gap-3">
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2 mb-1">
-                    <p className="truncate font-mono text-[12px] font-semibold" style={{ color: INK }}>
+                    <p className="truncate font-mono text-[13px] font-semibold" style={{ color: INK }}>
                       {row.original.po}
                     </p>
                     {row.original.assigned !== "—" && (
@@ -760,7 +767,7 @@ export function InboxView() {
                       </span>
                     )}
                   </div>
-                  <p className="mt-0.5 text-[11.5px]" style={{ color: "#8A93A5" }}>
+                  <p className="mt-0.5 text-[12.5px]" style={{ color: "#8A93A5" }}>
                     {row.original.age} ago · {row.original.lines} lines · {row.original.valueLabel}
                   </p>
                 </div>
@@ -776,10 +783,10 @@ export function InboxView() {
                   </span>
                 )}
               </div>
-              <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 text-[12px]">
-                <span className="truncate" style={{ color: INK }}>{row.original.buyer}</span>
-                <span className="h-px w-5" style={{ background: `linear-gradient(90deg, ${INK}, ${GREEN})` }} />
-                <span className="truncate text-right" style={{ color: GREEN_DEEP }}>{row.original.supplier}</span>
+              <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 text-[13px]">
+                <span className="truncate font-medium" style={{ color: INK }}>{row.original.buyer}</span>
+                <span className="h-px w-5 flex-shrink-0" style={{ background: "linear-gradient(90deg, #1E66C9, #28C55E)" }} />
+                <span className="truncate text-right font-medium" style={{ color: GREEN_DEEP }}>{row.original.supplier}</span>
               </div>
             </button>
           ))}
@@ -805,15 +812,16 @@ export function InboxView() {
           {/* Sticky header */}
           <thead style={{ position: "sticky", top: 0, zIndex: 4 }}>
             {table.getHeaderGroups().map((hg) => (
-              <tr key={hg.id} style={{ borderBottom: "2px solid #E2E6EE", background: "#FFFFFF" }}>
-                {hg.headers.map((header) => {
+              <tr key={hg.id} style={{ borderBottom: "1px solid #E2E6EE", background: "#FFFFFF" }}>
+                {hg.headers.map((header, hi) => {
                   const sorted = header.column.getIsSorted();
                   const canSort = header.column.getCanSort();
                   return (
                     <th
                       key={header.id}
                       style={{
-                        padding: "8px 10px",
+                        padding: "11px 10px",
+                        paddingLeft: hi === 0 ? 16 : 10,
                         textAlign: "left",
                         fontSize: 10.5,
                         fontWeight: 700,
@@ -844,11 +852,11 @@ export function InboxView() {
                   key={row.id}
                   onClick={() => router.push(`/inbox/${row.original.id}`)}
                   style={{
-                    height: 54,
+                    height: 56,
                     borderBottom: "1px solid #F0F2F6",
                     cursor: "pointer",
                     background: isSelected
-                      ? "#ECFDF3"
+                      ? "#E3EDFB"
                       : row.original.status === "review"
                       ? "#FAEFD608"
                       : row.original.status === "failed"
@@ -867,11 +875,12 @@ export function InboxView() {
                     }
                   }}
                 >
-                  {row.getVisibleCells().map((cell) => (
+                  {row.getVisibleCells().map((cell, ci) => (
                     <td
                       key={cell.id}
                       style={{
                         padding: "9px 10px",
+                        paddingLeft: ci === 0 ? 16 : 10,
                         verticalAlign: "middle",
                         overflow: "hidden",
                         textOverflow: "ellipsis",
@@ -929,10 +938,10 @@ export function InboxView() {
         </div>
       </div>
 
-      {/* Footer: total + pagination controls */}
+      {/* Footer: total + pagination controls — on the grey canvas, below the card */}
       <div
-        className="flex-shrink-0 flex flex-wrap items-center gap-3 px-5 py-2"
-        style={{ borderTop: "1px solid #E2E6EE", background: "#FFFFFF" }}
+        className="flex-shrink-0 flex flex-wrap items-center gap-3 px-4 sm:px-6 pb-3 pt-0.5"
+        style={{ background: "#F6F7FA" }}
       >
         <span className="text-[11px]" style={{ color: "#8A93A5" }}>
           {totalCount.toLocaleString()} order{totalCount !== 1 ? "s" : ""}

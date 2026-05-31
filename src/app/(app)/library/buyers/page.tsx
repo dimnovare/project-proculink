@@ -7,10 +7,29 @@ import { EmptyState } from "@/components/bridge/EmptyState";
 import { getBuyers, createBuyer, deleteBuyer, isApiMockMode } from "@/lib/api-client";
 import type { BuyerDto } from "@/types/procurement";
 
-// Green accent (project primary). Prefer CSS var; hexes used only for inline styles.
+// ── Palette (sampled pixel-exact from the design render) ──────────────────
+// Green accent (project primary) — interactive buttons + success surfaces.
 const GREEN       = "#28C55E";
 const GREEN_HOVER = "#1DAF50";
 const GREEN_SOFT  = "#DCFCE7";
+// Buyer-blue — the buyer entity is represented in blue across the product
+// (icon tile, active-row band). Sampled from zoom_table.png: tile #E3EDFB,
+// stroke #0F4FA8, active row band #E3EDFB.
+const BUYER_TILE   = "#E3EDFB"; // icon-tile fill
+const BUYER_STROKE = "#1E66C9"; // buyer-blue icon stroke (render reads #0F4FA8; brand buyer-blue)
+const ROW_ACTIVE   = "#E3EDFB"; // hover / selected row band (pale blue, NOT green)
+// Status dots use the render's deeper forest green (#2E8E3A), distinct from the
+// brand button green so the small markers read crisp on white.
+const DOT_GREEN    = "#2E8E3A";
+// Neutrals
+const INK          = "#0B1A2F"; // primary text
+const INK_SLATE    = "#3F4A5C"; // dark-slate (volume digits)
+const TEXT_MUTED   = "#56627A"; // pill text / subtitle
+const TEXT_FAINT   = "#8A93A5"; // header labels / counts / /wk
+const CODE_GREY    = "#9196A5"; // buyer short-code
+const BORDER       = "#E2E6EE"; // card border + row dividers
+const PILL_BG      = "#EFF2F7"; // inbound-channel pill fill
+const CHEVRON      = "#A4ADBD"; // resting chevron
 
 const MOCK_BUYERS: BuyerDto[] = [
   { id: "b1", name: "Heinrich Industries GmbH", code: "HEI", orderCount: 1820, lastOrderAge: "2m",  formats: ["PDF", "XLSX"] },
@@ -38,10 +57,59 @@ function suppliersReached(b: BuyerDto): number {
   return Math.max(1, Math.min(4, b.formats.length));
 }
 
+// ── Shared cell content (reused by desktop table + mobile cards) ──────────
+
+function BuyerIcon() {
+  // building / org glyph in a soft-blue tile — the buyer entity colour
+  return (
+    <div
+      style={{
+        width: 32,
+        height: 32,
+        borderRadius: 8,
+        background: BUYER_TILE,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        flexShrink: 0,
+      }}
+    >
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={BUYER_STROKE} strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="4" y="2" width="16" height="20" rx="1" />
+        <path d="M9 22v-4h6v4M8 6h.01M16 6h.01M8 10h.01M16 10h.01M8 14h.01M16 14h.01" />
+      </svg>
+    </div>
+  );
+}
+
+function ChannelPill({ label }: { label: string }) {
+  return (
+    <span
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        fontSize: 11,
+        fontWeight: 500,
+        letterSpacing: "0.01em",
+        // Render the label verbatim — acronyms (EMAIL/API/SFTP) are already
+        // uppercase, "cXML / webhook" keeps its mixed case.
+        color: TEXT_MUTED,
+        background: PILL_BG,
+        border: "none",
+        borderRadius: 6,
+        padding: "4px 10px",
+        whiteSpace: "nowrap",
+      }}
+    >
+      {label}
+    </span>
+  );
+}
+
 function SuppliersDots({ count }: { count: number }) {
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
         {Array.from({ length: Math.min(count, 4) }).map((_, i) => (
           <span
             key={i}
@@ -49,16 +117,33 @@ function SuppliersDots({ count }: { count: number }) {
               width: 7,
               height: 7,
               borderRadius: "50%",
-              background: GREEN,
+              background: DOT_GREEN,
               flexShrink: 0,
             }}
           />
         ))}
       </div>
-      <span style={{ fontSize: 12.5, color: "#8A93A5", fontVariantNumeric: "tabular-nums" }}>
+      <span style={{ fontSize: 12.5, color: TEXT_FAINT, fontVariantNumeric: "tabular-nums" }}>
         {count}
       </span>
     </div>
+  );
+}
+
+function VolumeText({ value }: { value: number }) {
+  return (
+    <span
+      style={{
+        fontFamily: "'JetBrains Mono', ui-monospace, monospace",
+        fontWeight: 500,
+        fontSize: 12.5,
+        color: INK_SLATE,
+        whiteSpace: "nowrap",
+      }}
+    >
+      {value.toLocaleString()}
+      <span style={{ color: TEXT_FAINT }}>/wk</span>
+    </span>
   );
 }
 
@@ -67,7 +152,7 @@ function SkeletonTrow() {
   return (
     <tr>
       {widths.map((w, i) => (
-        <td key={i} style={{ padding: "14px 18px", borderBottom: "1px solid #E2E6EE", textAlign: i >= 4 ? "right" : "left" }}>
+        <td key={i} style={{ padding: "14px 18px", borderBottom: `1px solid ${BORDER}`, textAlign: i >= 4 ? "right" : "left" }}>
           <div
             className="animate-pulse rounded"
             style={{ background: "#EFF2F7", height: 14, width: w, marginLeft: i >= 4 ? "auto" : 0 }}
@@ -75,6 +160,20 @@ function SkeletonTrow() {
         </td>
       ))}
     </tr>
+  );
+}
+
+function SkeletonCard() {
+  return (
+    <div style={{ padding: "16px 16px", borderBottom: `1px solid ${BORDER}` }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+        <div className="animate-pulse" style={{ width: 32, height: 32, borderRadius: 8, background: "#EFF2F7", flexShrink: 0 }} />
+        <div style={{ flex: 1 }}>
+          <div className="animate-pulse rounded" style={{ background: "#EFF2F7", height: 13, width: "60%" }} />
+          <div className="animate-pulse rounded" style={{ background: "#EFF2F7", height: 10, width: 48, marginTop: 7 }} />
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -135,35 +234,38 @@ export default function BuyersPage() {
     ? "Loading…"
     : `${buyers.length} buyer${buyers.length !== 1 ? "s" : ""} · where every order starts`;
 
+  const showSkeleton = isLoading && !isApiMockMode;
+  const showError    = isError && !isApiMockMode;
+  const showRows     = (!isLoading || isApiMockMode) && !isError;
+
   return (
-    <div style={{ padding: "26px 34px 64px", maxWidth: 1480, margin: "0 auto" }}>
+    <div className="mx-auto max-w-[1480px] px-4 pb-16 pt-5 sm:px-6 md:px-[34px] sm:pt-[26px]">
       {/* Page header */}
       <div
         style={{
           display: "flex",
           alignItems: "flex-start",
           justifyContent: "space-between",
-          gap: "16px 24px",
+          gap: "14px 24px",
           marginBottom: 22,
           flexWrap: "wrap",
         }}
       >
         <div>
           <h1
+            className="text-[26px] sm:text-[30px]"
             style={{
               fontFamily: "'Bricolage Grotesque', Inter, sans-serif",
-              fontSize: 30,
               fontWeight: 600,
               letterSpacing: "-0.025em",
               lineHeight: 1.1,
               margin: 0,
-              color: "#0B1A2F",
-              whiteSpace: "nowrap",
+              color: INK,
             }}
           >
             Buyers
           </h1>
-          <div style={{ color: "#56627A", fontSize: 13, marginTop: 5 }}>
+          <div style={{ color: TEXT_MUTED, fontSize: 13, marginTop: 5 }}>
             {countLabel}
           </div>
         </div>
@@ -171,12 +273,12 @@ export default function BuyersPage() {
         {/* New buyer button — project accent is green */}
         <button
           onClick={() => { setAddOpen((v) => !v); setAddError(null); }}
+          className="h-9 sm:h-[34px]"
           style={{
             display: "inline-flex",
             alignItems: "center",
             justifyContent: "center",
             gap: 7,
-            height: 34,
             padding: "0 16px",
             borderRadius: 7,
             fontSize: 12.5,
@@ -206,7 +308,7 @@ export default function BuyersPage() {
         <div
           style={{
             background: "#FFFFFF",
-            border: "1px solid #E2E6EE",
+            border: `1px solid ${BORDER}`,
             borderRadius: 10,
             padding: 18,
             marginBottom: 18,
@@ -220,12 +322,12 @@ export default function BuyersPage() {
                 fontWeight: 600,
                 fontSize: 15,
                 letterSpacing: "-0.01em",
-                color: "#0B1A2F",
+                color: INK,
               }}
             >
               New buyer
             </div>
-            <div style={{ color: "#56627A", fontSize: 12.5 }}>
+            <div style={{ color: TEXT_MUTED, fontSize: 12.5 }}>
               A buyer that sends you purchase orders
             </div>
           </div>
@@ -238,22 +340,22 @@ export default function BuyersPage() {
                   display: "block",
                   fontSize: 11.5,
                   fontWeight: 600,
-                  color: "#56627A",
+                  color: TEXT_MUTED,
                   marginBottom: 6,
                 }}
               >
                 Buyer name <span style={{ color: "#C53A3A", marginLeft: 3 }}>*</span>
               </label>
               <input
+                className="h-10 sm:h-[34px]"
                 style={{
-                  height: 34,
                   width: "100%",
                   padding: "0 11px",
                   borderRadius: 6,
                   border: "1px solid #C6CDDA",
                   background: "#FFFFFF",
-                  fontSize: 12.5,
-                  color: "#0B1A2F",
+                  fontSize: 13,
+                  color: INK,
                   outline: "none",
                   transition: "border-color 150ms, box-shadow 150ms",
                 }}
@@ -267,29 +369,29 @@ export default function BuyersPage() {
             </div>
 
             {/* Short code */}
-            <div style={{ width: 120 }}>
+            <div className="w-full sm:w-[120px]">
               <label
                 style={{
                   display: "block",
                   fontSize: 11.5,
                   fontWeight: 600,
-                  color: "#56627A",
+                  color: TEXT_MUTED,
                   marginBottom: 6,
                 }}
               >
                 Short code <span style={{ color: "#C53A3A", marginLeft: 3 }}>*</span>
               </label>
               <input
+                className="h-10 sm:h-[34px]"
                 style={{
-                  height: 34,
                   width: "100%",
                   padding: "0 11px",
                   borderRadius: 6,
                   border: "1px solid #C6CDDA",
                   background: "#FFFFFF",
-                  fontSize: 12.5,
+                  fontSize: 13,
                   fontFamily: "'JetBrains Mono', ui-monospace, monospace",
-                  color: "#0B1A2F",
+                  color: INK,
                   outline: "none",
                   transition: "border-color 150ms, box-shadow 150ms",
                 }}
@@ -306,8 +408,8 @@ export default function BuyersPage() {
             <button
               onClick={handleSaveAdd}
               disabled={createMut.isPending}
+              className="h-10 w-full sm:h-[34px] sm:w-auto"
               style={{
-                height: 34,
                 padding: "0 16px",
                 borderRadius: 7,
                 fontSize: 12.5,
@@ -321,6 +423,7 @@ export default function BuyersPage() {
                 whiteSpace: "nowrap",
                 display: "inline-flex",
                 alignItems: "center",
+                justifyContent: "center",
                 gap: 6,
               }}
               onMouseEnter={(e) => { if (!createMut.isPending) (e.currentTarget as HTMLButtonElement).style.background = GREEN_HOVER; }}
@@ -365,13 +468,14 @@ export default function BuyersPage() {
       <div
         style={{
           background: "#FFFFFF",
-          border: "1px solid #E2E6EE",
+          border: `1px solid ${BORDER}`,
           borderRadius: 10,
           overflow: "hidden",
           boxShadow: "0 1px 2px rgba(11,26,47,0.04)",
         }}
       >
-        <table style={{ width: "100%", borderCollapse: "collapse" }}>
+        {/* ── Desktop / tablet: data table (sm and up) ─────────────────── */}
+        <table className="hidden sm:table" style={{ width: "100%", borderCollapse: "collapse" }}>
           <colgroup>
             <col />
             <col style={{ width: 200 }} />
@@ -398,9 +502,9 @@ export default function BuyersPage() {
                     fontWeight: 600,
                     letterSpacing: "0.06em",
                     textTransform: "uppercase",
-                    color: "#8A93A5",
+                    color: TEXT_FAINT,
                     padding: "11px 18px",
-                    borderBottom: "1px solid #E2E6EE",
+                    borderBottom: `1px solid ${BORDER}`,
                     whiteSpace: "nowrap",
                   }}
                 >
@@ -411,7 +515,7 @@ export default function BuyersPage() {
           </thead>
           <tbody>
             {/* Skeleton rows while loading */}
-            {isLoading && !isApiMockMode && (
+            {showSkeleton && (
               <>
                 <SkeletonTrow />
                 <SkeletonTrow />
@@ -420,13 +524,13 @@ export default function BuyersPage() {
             )}
 
             {/* Error state in table */}
-            {isError && !isApiMockMode && (
+            {showError && (
               <tr>
                 <td
                   colSpan={6}
                   style={{ padding: "32px 16px", textAlign: "center" }}
                 >
-                  <span style={{ fontSize: 13, color: "#56627A" }}>
+                  <span style={{ fontSize: 13, color: TEXT_MUTED }}>
                     Failed to load buyers.{" "}
                     <button
                       onClick={() => refetch()}
@@ -448,10 +552,10 @@ export default function BuyersPage() {
             )}
 
             {/* Buyer rows */}
-            {(!isLoading || isApiMockMode) && !isError && buyers.map((b, idx) => {
+            {showRows && buyers.map((b, idx) => {
               const isHover = hoverRow === b.id;
               const lastRow = idx === buyers.length - 1;
-              const cellBorder = lastRow ? "none" : "1px solid #E2E6EE";
+              const cellBorder = lastRow ? "none" : `1px solid ${BORDER}`;
               return (
                 <tr
                   key={b.id}
@@ -460,7 +564,7 @@ export default function BuyersPage() {
                   style={{
                     cursor: "pointer",
                     transition: "background 150ms",
-                    background: isHover ? GREEN_SOFT : "transparent",
+                    background: isHover ? ROW_ACTIVE : "transparent",
                   }}
                   onMouseEnter={() => setHoverRow(b.id)}
                   onMouseLeave={() => setHoverRow(null)}
@@ -475,32 +579,14 @@ export default function BuyersPage() {
                     }}
                   >
                     <div style={{ display: "flex", alignItems: "center", gap: 13 }}>
-                      <div
-                        style={{
-                          width: 32,
-                          height: 32,
-                          borderRadius: 7,
-                          background: isHover ? "#FFFFFF" : GREEN_SOFT,
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          flexShrink: 0,
-                          transition: "background 150ms",
-                        }}
-                      >
-                        {/* building icon */}
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={GREEN_HOVER} strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-                          <rect x="4" y="2" width="16" height="20" rx="1" />
-                          <path d="M9 22v-4h6v4M8 6h.01M16 6h.01M8 10h.01M16 10h.01M8 14h.01M16 14h.01" />
-                        </svg>
-                      </div>
+                      <BuyerIcon />
                       <div>
-                        <div style={{ fontWeight: 600, fontSize: 13.5, color: "#0B1A2F", letterSpacing: "-0.005em" }}>{b.name}</div>
+                        <div style={{ fontWeight: 600, fontSize: 13.5, color: INK, letterSpacing: "-0.005em" }}>{b.name}</div>
                         <div
                           style={{
                             fontSize: 10.5,
                             fontFamily: "'JetBrains Mono', ui-monospace, monospace",
-                            color: "#8A93A5",
+                            color: CODE_GREY,
                             marginTop: 1,
                             letterSpacing: "0.02em",
                           }}
@@ -519,26 +605,7 @@ export default function BuyersPage() {
                       verticalAlign: "middle",
                     }}
                   >
-                    <span
-                      style={{
-                        display: "inline-flex",
-                        alignItems: "center",
-                        fontSize: 11,
-                        fontWeight: 500,
-                        letterSpacing: "0.01em",
-                        // Render the label verbatim — acronyms (EMAIL/API/SFTP)
-                        // are already uppercase, "cXML / webhook" keeps its case.
-                        color: "#56627A",
-                        background: isHover ? "#FFFFFF" : "#EFF2F7",
-                        border: "none",
-                        borderRadius: 6,
-                        padding: "4px 10px",
-                        whiteSpace: "nowrap",
-                        transition: "background 150ms",
-                      }}
-                    >
-                      {inboundChannel(b.formats)}
-                    </span>
+                    <ChannelPill label={inboundChannel(b.formats)} />
                   </td>
 
                   {/* Volume — weekly rate, monospace */}
@@ -546,15 +613,10 @@ export default function BuyersPage() {
                     style={{
                       padding: "14px 18px",
                       borderBottom: cellBorder,
-                      fontFamily: "'JetBrains Mono', ui-monospace, monospace",
-                      fontWeight: 500,
-                      fontSize: 12.5,
-                      color: "#56627A",
                       verticalAlign: "middle",
-                      whiteSpace: "nowrap",
                     }}
                   >
-                    {b.orderCount.toLocaleString()}<span style={{ color: "#8A93A5" }}>/wk</span>
+                    <VolumeText value={b.orderCount} />
                   </td>
 
                   {/* Suppliers reached — green dots + count */}
@@ -577,7 +639,7 @@ export default function BuyersPage() {
                       fontFamily: "'JetBrains Mono', ui-monospace, monospace",
                       fontWeight: 600,
                       fontSize: 15,
-                      color: "#0B1A2F",
+                      color: INK,
                       verticalAlign: "middle",
                       letterSpacing: "-0.01em",
                       whiteSpace: "nowrap",
@@ -608,9 +670,9 @@ export default function BuyersPage() {
                           width: 24,
                           height: 24,
                           borderRadius: 5,
-                          border: "1px solid #E2E6EE",
+                          border: `1px solid ${BORDER}`,
                           background: "#FFFFFF",
-                          color: "#8A93A5",
+                          color: TEXT_FAINT,
                           display: "flex",
                           alignItems: "center",
                           justifyContent: "center",
@@ -621,14 +683,14 @@ export default function BuyersPage() {
                           transition: "opacity 120ms, color 120ms, border-color 120ms",
                         }}
                         onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.color = "#C53A3A"; (e.currentTarget as HTMLButtonElement).style.borderColor = "#E7B3B3"; }}
-                        onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.color = "#8A93A5"; (e.currentTarget as HTMLButtonElement).style.borderColor = "#E2E6EE"; }}
+                        onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.color = TEXT_FAINT; (e.currentTarget as HTMLButtonElement).style.borderColor = BORDER; }}
                       >
                         <svg width="11" height="11" viewBox="0 0 12 12" fill="none">
                           <path d="M2 10L10 2M2 2l8 8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
                         </svg>
                       </button>
                       {/* Chevron */}
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={isHover ? GREEN_HOVER : "#A4ADBD"} strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" style={{ transition: "stroke 120ms" }}>
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={CHEVRON} strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
                         <path d="m9 18 6-6-6-6" />
                       </svg>
                     </div>
@@ -639,8 +701,134 @@ export default function BuyersPage() {
           </tbody>
         </table>
 
+        {/* ── Mobile: stacked row-cards (below sm) ──────────────────────── */}
+        <div className="sm:hidden">
+          {showSkeleton && (
+            <>
+              <SkeletonCard />
+              <SkeletonCard />
+              <SkeletonCard />
+            </>
+          )}
+
+          {showError && (
+            <div style={{ padding: "28px 16px", textAlign: "center" }}>
+              <span style={{ fontSize: 13, color: TEXT_MUTED }}>
+                Failed to load buyers.{" "}
+                <button
+                  onClick={() => refetch()}
+                  style={{ color: GREEN_HOVER, background: "none", border: "none", cursor: "pointer", fontWeight: 600, fontSize: 13, padding: 0 }}
+                >
+                  Retry
+                </button>
+              </span>
+            </div>
+          )}
+
+          {showRows && buyers.map((b, idx) => {
+            const lastRow = idx === buyers.length - 1;
+            return (
+              <div
+                key={b.id}
+                role="button"
+                tabIndex={0}
+                onClick={() => router.push(`/inbox?buyer=${b.code}`)}
+                onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); router.push(`/inbox?buyer=${b.code}`); } }}
+                title="Filter inbox to orders from this buyer"
+                className="active:bg-[#E3EDFB]"
+                style={{
+                  display: "block",
+                  padding: "15px 16px",
+                  borderBottom: lastRow ? "none" : `1px solid ${BORDER}`,
+                  cursor: "pointer",
+                  WebkitTapHighlightColor: "transparent",
+                }}
+              >
+                {/* Top: identity + delete */}
+                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                  <BuyerIcon />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontWeight: 600, fontSize: 14, color: INK, letterSpacing: "-0.005em", lineHeight: 1.25 }}>
+                      {b.name}
+                    </div>
+                    <div
+                      style={{
+                        fontSize: 11,
+                        fontFamily: "'JetBrains Mono', ui-monospace, monospace",
+                        color: CODE_GREY,
+                        marginTop: 2,
+                        letterSpacing: "0.02em",
+                      }}
+                    >
+                      {b.code}
+                    </div>
+                  </div>
+                  <button
+                    onClick={(e) => handleDelete(e, b)}
+                    disabled={deleteMut.isPending}
+                    title="Delete buyer"
+                    aria-label={`Delete ${b.name}`}
+                    style={{
+                      width: 40,
+                      height: 40,
+                      marginRight: -8,
+                      borderRadius: 8,
+                      border: "none",
+                      background: "transparent",
+                      color: TEXT_FAINT,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      cursor: deleteMut.isPending ? "not-allowed" : "pointer",
+                      flexShrink: 0,
+                    }}
+                  >
+                    <svg width="15" height="15" viewBox="0 0 12 12" fill="none">
+                      <path d="M2 10L10 2M2 2l8 8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                    </svg>
+                  </button>
+                </div>
+
+                {/* Stats row: 2x2 grid of labelled fields */}
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "1fr 1fr",
+                    gap: "12px 16px",
+                    marginTop: 14,
+                    paddingLeft: 44, // align under the name, past the icon tile
+                  }}
+                >
+                  <MobileField label="Inbound channel">
+                    <ChannelPill label={inboundChannel(b.formats)} />
+                  </MobileField>
+                  <MobileField label="Volume">
+                    <VolumeText value={b.orderCount} />
+                  </MobileField>
+                  <MobileField label="Suppliers reached">
+                    <SuppliersDots count={suppliersReached(b)} />
+                  </MobileField>
+                  <MobileField label="This week">
+                    <span
+                      style={{
+                        fontFamily: "'JetBrains Mono', ui-monospace, monospace",
+                        fontWeight: 600,
+                        fontSize: 16,
+                        color: INK,
+                        letterSpacing: "-0.01em",
+                      }}
+                    >
+                      {b.orderCount.toLocaleString()}
+                    </span>
+                  </MobileField>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
         {/* Empty state */}
-        {(!isLoading || isApiMockMode) && !isError && buyers.length === 0 && (
+        {showRows && buyers.length === 0 && (
           <EmptyState
             title="No buyers yet"
             sub="A buyer is an organization that sends you purchase orders, in whatever format they use."
@@ -648,6 +836,27 @@ export default function BuyersPage() {
           />
         )}
       </div>
+    </div>
+  );
+}
+
+// Small labelled field used in the mobile stacked card 2x2 grid.
+function MobileField({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div style={{ minWidth: 0 }}>
+      <div
+        style={{
+          fontSize: 10,
+          fontWeight: 600,
+          letterSpacing: "0.06em",
+          textTransform: "uppercase",
+          color: "#8A93A5",
+          marginBottom: 5,
+        }}
+      >
+        {label}
+      </div>
+      <div>{children}</div>
     </div>
   );
 }

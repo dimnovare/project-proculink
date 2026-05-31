@@ -1,17 +1,25 @@
 import Link from "next/link";
 
-// ─── Palette ────────────────────────────────────────────────────────────────
-// Primary accent is the brand green (CSS var --brand-green / #28C55E).
-// Per-step icon chips keep their category colours (blue / violet-AI / amber /
-// green) to read as distinct stages, matching the design.
+// ─── Palette (sampled pixel-exact from the 2026-05-30 design render) ──────────
+// The page follows a buyer → supplier topology:
+//   • buyer / process / primary-CTA elements use buyer-blue  (#1E66C9)
+//   • supplier-output / success elements use brand-green      (#28C55E family)
+//   • AI = violet (#6F4FCE), validation = amber (#C97A14)
+// Hexes below were sampled directly from the design render, not eyeballed.
 
 const NAVY = "#0B1A2F";
 const INK = "#0B1A2F";
 const MUTE = "#56627A";
 const HAIR = "#E6E9F0";
 const PANEL = "#F6F7FA";
-const GREEN = "var(--brand-green)";
-const GREEN_DEEP = "var(--brand-green-deep)";
+
+const BLUE = "#1E66C9"; // buyer-blue — CTA, early-stage chips, first pipeline node
+const BLUE_SOFT = "#E3EDFB"; // pale blue chip / eyebrow background
+const BLUE_NODE = "#2D7AE0"; // first (active) pipeline dot
+const RAIL = "#163052"; // inactive pipeline dots + connecting line
+const GREEN_TEXT = "#28C55E"; // supplier-output green text
+const VIOLET = "#6F4FCE";
+const AMBER = "#C97A14";
 
 // ─── Steps ────────────────────────────────────────────────────────────────────
 
@@ -31,8 +39,8 @@ const STEPS: Array<{
     title: "Receive in any format",
     desc:
       "Buyers send POs however they like — a PDF email attachment, an XLSX export, cXML over webhook, EDI dropped on SFTP. ProcuLink ingests all of it through one inbox.",
-    color: "#28C55E",
-    bg: "#DCFCE7",
+    color: BLUE,
+    bg: BLUE_SOFT,
     icon: <UploadIcon />,
     pills: [
       { label: "PDF", fg: "#B4452B", bg: "#FBE7E1" },
@@ -47,8 +55,8 @@ const STEPS: Array<{
     title: "Parse to a canonical order",
     desc:
       "Every order is parsed into one neutral structure — the canonical order. PO number, parties, line items, terms and totals each become a field with a confidence score and visible provenance.",
-    color: "#28C55E",
-    bg: "#DCFCE7",
+    color: BLUE,
+    bg: BLUE_SOFT,
     icon: <LayersIcon />,
   },
   {
@@ -56,7 +64,7 @@ const STEPS: Array<{
     title: "Resolve exceptions with AI",
     desc:
       "When a buyer item code doesn't match the supplier catalog, an LLM proposes the right code with its reasoning and source. Your team confirms or rejects — nothing is auto-applied without confidence you can see.",
-    color: "#6F4FCE",
+    color: VIOLET,
     bg: "#EEE7FB",
     icon: <SparkIcon />,
   },
@@ -65,7 +73,7 @@ const STEPS: Array<{
     title: "Validate against your rules",
     desc:
       "Per-supplier rules catch missing fields, wrong currency, or unresolved codes before anything leaves your system. Bad orders never reach the supplier.",
-    color: "#C97A14",
+    color: AMBER,
     bg: "#FAEFD6",
     icon: <CheckSquareIcon />,
   },
@@ -81,7 +89,7 @@ const STEPS: Array<{
       { label: "CXML", fg: "#6F4FCE", bg: "#EEE7FB" },
       { label: "UBL", fg: "#56627A", bg: "#EEF1F6" },
       { label: "EDIFACT", fg: "#C97A14", bg: "#FAEFD6" },
-      { label: "X12", fg: "#28C55E", bg: "#DCFCE7" },
+      { label: "X12", fg: "#2E8E3A", bg: "#E2F1E2" },
     ],
   },
 ];
@@ -94,20 +102,22 @@ const PIPELINE = ["Receive", "Parse", "Normalize", "Validate", "Transform", "Del
 export default function HowItWorksPage() {
   return (
     <div style={{ background: "#FFFFFF" }}>
+      <style>{responsiveCss}</style>
+
       {/* ── Hero (dark) ─────────────────────────────────────────────────── */}
       <section
+        className="hiw-hero"
         style={{
-          background: `radial-gradient(120% 140% at 80% -10%, #16324F 0%, ${NAVY} 55%)`,
-          padding: "84px 24px 96px",
+          background: `radial-gradient(105% 120% at 50% -8%, #0E2545 0%, ${NAVY} 58%)`,
           textAlign: "center",
         }}
       >
         <Eyebrow dark>How it works</Eyebrow>
 
         <h1
+          className="hiw-h1"
           style={{
             fontFamily: "'Bricolage Grotesque', Inter, sans-serif",
-            fontSize: "clamp(34px, 5.2vw, 56px)",
             fontWeight: 700,
             letterSpacing: "-0.035em",
             color: "#FFFFFF",
@@ -120,8 +130,8 @@ export default function HowItWorksPage() {
         </h1>
 
         <p
+          className="hiw-hero-sub"
           style={{
-            fontSize: 17,
             lineHeight: 1.6,
             color: "#9FB0C7",
             maxWidth: 520,
@@ -134,8 +144,9 @@ export default function HowItWorksPage() {
 
         {/* Terminal mock + pipeline */}
         <div
+          className="hiw-terminal"
           style={{
-            maxWidth: 1120,
+            maxWidth: 1116,
             margin: "44px auto 0",
             background: "rgba(255,255,255,0.025)",
             border: "1px solid rgba(255,255,255,0.09)",
@@ -147,6 +158,7 @@ export default function HowItWorksPage() {
         >
           {/* Title bar */}
           <div
+            className="hiw-term-bar"
             style={{
               display: "flex",
               alignItems: "center",
@@ -156,9 +168,9 @@ export default function HowItWorksPage() {
             }}
           >
             <span style={{ display: "inline-flex", gap: 7 }}>
-              <Dot c="#F2685E" />
-              <Dot c="#F4BE50" />
-              <Dot c="#5BCB73" />
+              <Dot c="#E05A52" />
+              <Dot c="#E0B13A" />
+              <Dot c="#3FA84C" />
             </span>
             <span
               style={{
@@ -172,64 +184,35 @@ export default function HowItWorksPage() {
             </span>
           </div>
 
-          <div style={{ padding: "28px 28px 30px" }}>
+          <div className="hiw-term-body" style={{ padding: "28px 28px 30px" }}>
             {/* Input → output badges */}
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                gap: 16,
-                flexWrap: "wrap",
-                marginBottom: 26,
-              }}
-            >
+            <div className="hiw-io" style={{ marginBottom: 26 }}>
               <span style={{ display: "inline-flex", alignItems: "center", gap: 9 }}>
-                <MonoTag fg="#F2A1A1" bg="rgba(242,104,94,0.16)">PDF</MonoTag>
+                <ChipTag fg="#BC3F3F" bg="#FBEEEE">PDF</ChipTag>
                 <Arrow />
-                <MonoLabel>buyer order</MonoLabel>
+                <MonoLabel style={{ color: BLUE, fontWeight: 600 }}>buyer order</MonoLabel>
               </span>
               <span style={{ display: "inline-flex", alignItems: "center", gap: 9 }}>
-                <MonoLabel style={{ color: GREEN }}>supplier output</MonoLabel>
-                <MonoTag fg="#A9F0BE" bg="rgba(40,197,94,0.16)">CXML</MonoTag>
+                <MonoLabel style={{ color: GREEN_TEXT, fontWeight: 600 }}>supplier output</MonoLabel>
+                <Arrow />
+                <ChipTag fg="#6F4FCE" bg="#EEE7FB">CXML</ChipTag>
               </span>
             </div>
 
             {/* Stage rail */}
-            <div
-              style={{
-                position: "relative",
-                display: "grid",
-                gridTemplateColumns: `repeat(${PIPELINE.length}, 1fr)`,
-                alignItems: "start",
-                marginBottom: 28,
-              }}
-            >
+            <div className="hiw-rail" style={{ position: "relative", marginBottom: 28 }}>
               {/* connecting line */}
-              <div
-                style={{
-                  position: "absolute",
-                  top: 7,
-                  left: `${100 / PIPELINE.length / 2}%`,
-                  right: `${100 / PIPELINE.length / 2}%`,
-                  height: 2,
-                  background:
-                    "linear-gradient(90deg, rgba(40,197,94,0.15), rgba(40,197,94,0.55) 50%, rgba(40,197,94,0.15))",
-                }}
-              />
+              <div className="hiw-rail-line" style={{ position: "absolute", background: RAIL }} />
               {PIPELINE.map((label, i) => (
-                <div
-                  key={label}
-                  style={{ position: "relative", display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}
-                >
+                <div key={label} className="hiw-node" style={{ position: "relative" }}>
                   <span
                     style={{
                       width: 14,
                       height: 14,
                       borderRadius: "50%",
-                      background: i === 0 ? GREEN : NAVY,
-                      border: `2px solid ${i === 0 ? GREEN : "rgba(255,255,255,0.28)"}`,
-                      boxShadow: i === 0 ? "0 0 0 4px rgba(40,197,94,0.18)" : "none",
+                      background: i === 0 ? BLUE_NODE : NAVY,
+                      border: `2px solid ${i === 0 ? BLUE_NODE : RAIL}`,
+                      boxShadow: i === 0 ? "0 0 0 4px rgba(46,122,224,0.18)" : "none",
                       zIndex: 1,
                     }}
                   />
@@ -248,43 +231,29 @@ export default function HowItWorksPage() {
             </div>
 
             {/* Data cells */}
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
-                gap: 14,
-              }}
-            >
-              <DataCell label="PO Number" value="PO-2026-008412" />
+            <div className="hiw-cells">
+              <DataCell label="PO Number" value="PO-2026-008412" valueColor="#5B9BE8" />
               <DataCell label="Grand Total" value="€71,240.00" />
-              <DataCell label="Ship To" value="Dortmund, DE" />
+              <DataCell label="Ship To" value="Dortmund, DE" valueColor="#43C06B" />
             </div>
           </div>
         </div>
       </section>
 
       {/* ── Steps (light) ───────────────────────────────────────────────── */}
-      <section style={{ padding: "80px 24px 88px", maxWidth: 860, margin: "0 auto" }}>
+      <section className="hiw-steps" style={{ maxWidth: 860, margin: "0 auto" }}>
         {STEPS.map((step, i) => (
           <div key={step.n}>
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "72px 1fr",
-                gap: 24,
-                padding: "28px 0",
-              }}
-            >
+            <div className="hiw-step-row">
               {/* Big number */}
               <div
+                className="hiw-step-num"
                 style={{
                   fontFamily: "'Bricolage Grotesque', Inter, sans-serif",
-                  fontSize: 40,
                   fontWeight: 700,
                   lineHeight: 1,
-                  color: "#D5DAE3",
+                  color: "#C6CDDA",
                   letterSpacing: "-0.02em",
-                  paddingTop: 4,
                 }}
               >
                 {step.n}
@@ -292,7 +261,7 @@ export default function HowItWorksPage() {
 
               {/* Content */}
               <div>
-                <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 14 }}>
+                <div className="hiw-step-head" style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 14 }}>
                   <span
                     style={{
                       width: 38,
@@ -309,9 +278,9 @@ export default function HowItWorksPage() {
                     {step.icon}
                   </span>
                   <h2
+                    className="hiw-step-title"
                     style={{
                       fontFamily: "'Bricolage Grotesque', Inter, sans-serif",
-                      fontSize: "clamp(20px, 2.6vw, 25px)",
                       fontWeight: 700,
                       letterSpacing: "-0.02em",
                       color: INK,
@@ -324,8 +293,8 @@ export default function HowItWorksPage() {
                 </div>
 
                 <p
+                  className="hiw-step-desc"
                   style={{
-                    fontSize: 15.5,
                     lineHeight: 1.7,
                     color: MUTE,
                     maxWidth: 560,
@@ -368,18 +337,18 @@ export default function HowItWorksPage() {
 
       {/* ── CTA band (light gray) ───────────────────────────────────────── */}
       <section
+        className="hiw-cta"
         style={{
           background: PANEL,
           borderTop: `1px solid ${HAIR}`,
-          padding: "84px 24px 92px",
           textAlign: "center",
         }}
       >
         <Eyebrow>See it live</Eyebrow>
         <h2
+          className="hiw-cta-title"
           style={{
             fontFamily: "'Bricolage Grotesque', Inter, sans-serif",
-            fontSize: "clamp(28px, 4vw, 42px)",
             fontWeight: 700,
             letterSpacing: "-0.03em",
             color: INK,
@@ -391,8 +360,8 @@ export default function HowItWorksPage() {
           Walk through a real delivery
         </h2>
         <p
+          className="hiw-cta-sub"
           style={{
-            fontSize: 16,
             lineHeight: 1.65,
             color: MUTE,
             maxWidth: 470,
@@ -405,6 +374,7 @@ export default function HowItWorksPage() {
         <div style={{ marginTop: 34 }}>
           <Link
             href="/watch"
+            className="hiw-cta-btn"
             style={{
               display: "inline-flex",
               alignItems: "center",
@@ -413,10 +383,10 @@ export default function HowItWorksPage() {
               padding: "13px 26px",
               fontSize: 14.5,
               fontWeight: 600,
-              background: GREEN,
+              background: BLUE,
               color: "#FFFFFF",
               textDecoration: "none",
-              boxShadow: "0 8px 22px -8px rgba(40,197,94,0.55)",
+              boxShadow: "0 8px 22px -8px rgba(30,102,201,0.55)",
             }}
           >
             Open the workbench
@@ -427,6 +397,61 @@ export default function HowItWorksPage() {
     </div>
   );
 }
+
+// ─── Responsive CSS (scoped via hiw- classes; keeps this a Server Component) ────
+
+const responsiveCss = `
+.hiw-hero { padding: 84px 24px 96px; }
+.hiw-h1 { font-size: clamp(34px, 5.2vw, 56px); }
+.hiw-hero-sub { font-size: 17px; }
+
+/* Terminal — layout lives in classes (not inline) so the breakpoint can override it */
+.hiw-io { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+.hiw-rail { display: grid; grid-template-columns: repeat(6, 1fr); align-items: start; }
+.hiw-rail-line { top: 7px; left: 8.3333%; right: 8.3333%; height: 2px; }
+.hiw-node { display: flex; flex-direction: column; align-items: center; gap: 12px; }
+.hiw-cells { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+
+.hiw-steps { padding: 80px 24px 88px; }
+.hiw-step-row { display: grid; grid-template-columns: 72px 1fr; gap: 24px; padding: 28px 0; }
+.hiw-step-num { font-size: 40px; padding-top: 4px; }
+.hiw-step-title { font-size: clamp(20px, 2.6vw, 25px); }
+.hiw-step-desc { font-size: 15.5px; }
+.hiw-cta { padding: 84px 24px 92px; }
+.hiw-cta-title { font-size: clamp(28px, 4vw, 42px); }
+.hiw-cta-sub { font-size: 16px; }
+
+@media (max-width: 640px) {
+  .hiw-hero { padding: 56px 18px 60px; }
+  .hiw-h1 { font-size: 30px; max-width: 100%; }
+  .hiw-hero-sub { font-size: 15px; }
+  .hiw-terminal { margin-top: 32px; border-radius: 13px; }
+  .hiw-term-bar { padding: 12px 16px; }
+  .hiw-term-body { padding: 20px 16px 22px; }
+  /* Input → output: stack the two halves vertically, full-width */
+  .hiw-io { flex-direction: column; align-items: flex-start; gap: 12px; }
+  /* Stage rail becomes a vertical list of labelled nodes */
+  .hiw-rail { grid-template-columns: 1fr; }
+  .hiw-node { flex-direction: row; align-items: center; gap: 12px; padding: 7px 0; }
+  .hiw-node > span:last-child { font-size: 14px; }
+  .hiw-rail-line { left: 6px; right: auto; top: 14px; bottom: 14px; width: 2px; height: auto; }
+  /* Data cells stack to one column */
+  .hiw-cells { grid-template-columns: 1fr; gap: 10px; }
+
+  /* Steps: number sits inline above the content, tighter rhythm */
+  .hiw-steps { padding: 44px 18px 48px; }
+  .hiw-step-row { grid-template-columns: 1fr; gap: 6px; padding: 22px 0; }
+  .hiw-step-num { font-size: 26px; padding-top: 0; }
+  .hiw-step-head { gap: 11px; margin-bottom: 11px; }
+  .hiw-step-title { font-size: 20px; }
+  .hiw-step-desc { font-size: 14px; }
+
+  .hiw-cta { padding: 52px 18px 56px; }
+  .hiw-cta-title { font-size: 26px; }
+  .hiw-cta-sub { font-size: 14px; }
+  .hiw-cta-btn { padding: 13px 24px; }
+}
+`;
 
 // ─── Small presentational helpers ──────────────────────────────────────────────
 
@@ -441,9 +466,9 @@ function Eyebrow({ children, dark = false }: { children: React.ReactNode; dark?:
         fontWeight: 700,
         letterSpacing: "0.14em",
         textTransform: "uppercase",
-        color: dark ? "#A9F0BE" : GREEN_DEEP,
-        background: dark ? "rgba(40,197,94,0.12)" : "var(--brand-green-soft)",
-        border: dark ? "1px solid rgba(40,197,94,0.25)" : "1px solid #C5EFD2",
+        color: dark ? "#AFC6EA" : BLUE,
+        background: dark ? "rgba(30,102,201,0.10)" : BLUE_SOFT,
+        border: dark ? "1px solid rgba(30,102,201,0.30)" : "1px solid #CBDDF6",
         borderRadius: 999,
         padding: "5px 12px",
       }}
@@ -453,7 +478,7 @@ function Eyebrow({ children, dark = false }: { children: React.ReactNode; dark?:
           width: 5,
           height: 5,
           borderRadius: "50%",
-          background: dark ? "#5BCB73" : GREEN,
+          background: dark ? BLUE_NODE : BLUE,
           display: "inline-block",
         }}
       />
@@ -466,18 +491,19 @@ function Dot({ c }: { c: string }) {
   return <span style={{ width: 11, height: 11, borderRadius: "50%", background: c, display: "inline-block" }} />;
 }
 
-function MonoTag({ children, fg, bg }: { children: React.ReactNode; fg: string; bg: string }) {
+function ChipTag({ children, fg, bg }: { children: React.ReactNode; fg: string; bg: string }) {
   return (
     <span
       style={{
         fontFamily: "'JetBrains Mono', ui-monospace, monospace",
         fontSize: 11,
-        fontWeight: 600,
-        letterSpacing: "0.03em",
+        fontWeight: 700,
+        letterSpacing: "0.04em",
         color: fg,
         background: bg,
         padding: "3px 8px",
         borderRadius: 6,
+        boxShadow: "0 1px 0 rgba(0,0,0,0.04)",
       }}
     >
       {children}
@@ -500,7 +526,7 @@ function MonoLabel({ children, style }: { children: React.ReactNode; style?: Rea
   );
 }
 
-function DataCell({ label, value }: { label: string; value: string }) {
+function DataCell({ label, value, valueColor }: { label: string; value: string; valueColor?: string }) {
   return (
     <div
       style={{
@@ -528,7 +554,7 @@ function DataCell({ label, value }: { label: string; value: string }) {
           fontFamily: "'JetBrains Mono', ui-monospace, monospace",
           fontSize: 14,
           fontWeight: 600,
-          color: "#CBD6E6",
+          color: valueColor ?? "#CBD6E6",
         }}
       >
         {value}
@@ -587,7 +613,7 @@ function SendIcon() {
 
 function Arrow() {
   return (
-    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#6C7C93" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#6880A0" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <line x1="5" y1="12" x2="19" y2="12" />
       <polyline points="12 5 19 12 12 19" />
     </svg>

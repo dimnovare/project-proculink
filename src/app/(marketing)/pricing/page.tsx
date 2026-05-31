@@ -7,13 +7,23 @@ import { PLANS, SETUP_FEE_NOTE } from "@/lib/plans";
 // ─────────────────────────────────────────────────────────────────────────────
 // Pricing page. Cards are derived from the shared plan ladder (src/lib/plans.ts)
 // so prices, order limits, and feature lists can never drift from billing/ROI.
-// Operations is the featured ("Most popular") plan; the green accent is the
-// project brand accent (#28C55E / hover #1DAF50 / soft #DCFCE7).
+//
+// Visual contract (sampled pixel-exact from the 2026-05-30 design render):
+//   • Featured ("Most popular") tier uses the BUYER-BLUE highlight #1E66C9 for
+//     its border + CTA + soft shadow — NOT green. This matches the reference,
+//     where Operations is bordered and CTA-filled in #1E66C9.
+//   • The "Most popular" badge is a centred pill with a left→right gradient from
+//     buyer-blue #1E66C9 to brand-green #2E8D3E, white left-aligned 2-line copy.
+//   • The brand green (#28C55E / #1DAF50 / soft #DCFCE7) stays on feature checks,
+//     the FAQ eyebrow, and the closing CTA band.
+//   • Card border #E2E6EE, radius 14, white surface, faint 1px shadow.
 // ─────────────────────────────────────────────────────────────────────────────
 
 const GREEN = "#28C55E";
 const GREEN_DEEP = "#1DAF50";
 const GREEN_SOFT = "#DCFCE7";
+const BLUE = "#1E66C9"; // buyer-blue — featured tier highlight (sampled from render)
+const BLUE_DEEP = "#1A57AC"; // featured CTA hover
 const NAVY = "#0B1A2F";
 const INK = "#0B1A2F";
 const INK_MUTED = "#56627A";
@@ -83,28 +93,33 @@ export default function PricingPage() {
   const [billing, setBilling] = useState<Billing>("monthly");
 
   return (
-    <div style={{ background: "#FFFFFF" }}>
+    <div className="plk-pricing" style={{ background: "#FFFFFF" }}>
+      {/* Page-scoped responsive rules. Kept here (not in shared globals.css) so
+          this file is fully self-contained. Mobile-first: defaults below the
+          smallest breakpoint, then progressive enhancement upward. */}
+      <style>{PRICING_CSS}</style>
+
       {/* ── Hero ─────────────────────────────────────────────────────────── */}
       <section
+        className="plk-hero"
         style={{
           background:
             "radial-gradient(120% 140% at 78% 0%, rgba(40,197,94,0.16) 0%, rgba(40,197,94,0) 46%), linear-gradient(180deg, #0B1A2F 0%, #0C1E36 100%)",
-          padding: "72px 32px 60px",
           textAlign: "center",
         }}
       >
         <div style={{ maxWidth: 760, margin: "0 auto" }}>
           <div
+            className="plk-eyebrow"
             style={{
               display: "inline-flex",
               alignItems: "center",
               gap: 7,
-              fontSize: 11.5,
               fontWeight: 800,
               letterSpacing: "0.14em",
               textTransform: "uppercase",
               color: GREEN,
-              marginBottom: 22,
+              marginBottom: 20,
             }}
           >
             <span style={{ width: 7, height: 7, borderRadius: "50%", background: GREEN }} />
@@ -112,9 +127,9 @@ export default function PricingPage() {
           </div>
 
           <h1
+            className="plk-h1"
             style={{
               fontFamily: DISPLAY,
-              fontSize: "clamp(34px, 5.4vw, 60px)",
               fontWeight: 700,
               letterSpacing: "-0.025em",
               color: "#FFFFFF",
@@ -128,8 +143,8 @@ export default function PricingPage() {
           </h1>
 
           <p
+            className="plk-sub"
             style={{
-              fontSize: 16,
               color: "#A9B7CC",
               maxWidth: 560,
               margin: "18px auto 0",
@@ -148,7 +163,7 @@ export default function PricingPage() {
               display: "inline-flex",
               alignItems: "center",
               gap: 4,
-              marginTop: 30,
+              marginTop: 28,
               padding: 4,
               borderRadius: 999,
               background: "rgba(255,255,255,0.06)",
@@ -172,9 +187,10 @@ export default function PricingPage() {
                     border: "none",
                     cursor: "pointer",
                     borderRadius: 999,
-                    padding: "8px 18px",
+                    padding: "9px 18px",
                     fontSize: 13,
                     fontWeight: 700,
+                    minHeight: 40,
                     transition: "background 150ms, color 150ms",
                     background: active ? "#FFFFFF" : "transparent",
                     color: active ? NAVY : "#C5D2E4",
@@ -189,18 +205,8 @@ export default function PricingPage() {
       </section>
 
       {/* ── Pricing cards ────────────────────────────────────────────────── */}
-      <section style={{ padding: "52px 24px 60px", maxWidth: 1320, margin: "0 auto" }}>
-        <div
-          style={{
-            display: "grid",
-            // One clean row of equal cards on desktop (6 tiers → ~190px each at
-            // max width); auto-fit degrades to 5 / 4 / … on narrower viewports
-            // and stacks on mobile.
-            gridTemplateColumns: "repeat(auto-fit, minmax(184px, 1fr))",
-            gap: 14,
-            alignItems: "stretch",
-          }}
-        >
+      <section className="plk-cards-section" style={{ maxWidth: 1320, margin: "0 auto" }}>
+        <div className="plk-grid">
           {TIERS.map((tier) => {
             const featured = tier.featured;
 
@@ -215,16 +221,17 @@ export default function PricingPage() {
             return (
               <article
                 key={tier.id}
+                className={featured ? "plk-card plk-card--featured" : "plk-card"}
                 style={{
                   position: "relative",
                   background: "#FFFFFF",
-                  border: featured ? `1.5px solid ${GREEN}` : `1px solid ${BORDER}`,
+                  border: featured ? `1.5px solid ${BLUE}` : `1px solid ${BORDER}`,
                   borderRadius: 14,
-                  padding: featured ? "30px 18px 24px" : "26px 18px 24px",
+                  padding: featured ? "32px 20px 24px" : "26px 20px 24px",
                   display: "flex",
                   flexDirection: "column",
                   boxShadow: featured
-                    ? "0 18px 44px rgba(40,197,94,0.18)"
+                    ? "0 18px 44px rgba(30,102,201,0.18)"
                     : "0 1px 3px rgba(11,26,47,0.05)",
                   zIndex: featured ? 1 : 0,
                   transition: "border-color 150ms, box-shadow 150ms",
@@ -232,7 +239,7 @@ export default function PricingPage() {
                 onMouseEnter={(e) => {
                   if (featured) return;
                   const el = e.currentTarget as HTMLElement;
-                  el.style.borderColor = "rgba(40,197,94,0.45)";
+                  el.style.borderColor = "rgba(30,102,201,0.45)";
                   el.style.boxShadow = "0 8px 22px rgba(11,26,47,0.08)";
                 }}
                 onMouseLeave={(e) => {
@@ -244,21 +251,27 @@ export default function PricingPage() {
               >
                 {featured && (
                   <span
+                    aria-label="Most popular"
                     style={{
                       position: "absolute",
-                      top: -13,
+                      top: -16,
                       left: "50%",
                       transform: "translateX(-50%)",
-                      whiteSpace: "nowrap",
-                      borderRadius: 999,
-                      background: GREEN,
+                      // ~104px forces "MOST POPULAR" to wrap onto two left-aligned
+                      // lines, matching the reference pill.
+                      width: 104,
+                      borderRadius: 11,
+                      // blue → green, matching the sampled gradient pill
+                      background: `linear-gradient(90deg, ${BLUE} 0%, #2E8D3E 100%)`,
                       color: "#FFFFFF",
-                      padding: "5px 14px",
+                      padding: "8px 14px",
                       fontSize: 10.5,
                       fontWeight: 800,
-                      letterSpacing: "0.08em",
+                      lineHeight: 1.18,
+                      letterSpacing: "0.07em",
                       textTransform: "uppercase",
-                      boxShadow: "0 4px 12px rgba(40,197,94,0.4)",
+                      textAlign: "left",
+                      boxShadow: "0 6px 16px rgba(30,102,201,0.30)",
                     }}
                   >
                     Most popular
@@ -279,8 +292,8 @@ export default function PricingPage() {
                   {tier.name}
                 </h3>
                 <p
+                  className="plk-blurb"
                   style={{
-                    minHeight: 50,
                     fontSize: 12.5,
                     color: INK_MUTED,
                     margin: "7px 0 0",
@@ -347,22 +360,23 @@ export default function PricingPage() {
                     justifyContent: "center",
                     gap: 6,
                     borderRadius: 9,
-                    padding: "10px 12px",
+                    padding: "11px 12px",
+                    minHeight: 42,
                     fontSize: 12.5,
                     fontWeight: 700,
                     textDecoration: "none",
                     marginTop: 18,
-                    background: featured ? GREEN : "#FFFFFF",
+                    background: featured ? BLUE : "#FFFFFF",
                     color: featured ? "#FFFFFF" : INK,
-                    border: featured ? `1px solid ${GREEN}` : `1px solid ${BORDER}`,
-                    boxShadow: featured ? "0 6px 16px rgba(40,197,94,0.3)" : "none",
+                    border: featured ? `1px solid ${BLUE}` : `1px solid ${BORDER}`,
+                    boxShadow: featured ? "0 6px 16px rgba(30,102,201,0.28)" : "none",
                     transition: "background 150ms, border-color 150ms, color 150ms",
                   }}
                   onMouseEnter={(e) => {
                     const el = e.currentTarget as HTMLAnchorElement;
                     if (featured) {
-                      el.style.background = GREEN_DEEP;
-                      el.style.borderColor = GREEN_DEEP;
+                      el.style.background = BLUE_DEEP;
+                      el.style.borderColor = BLUE_DEEP;
                     } else {
                       el.style.borderColor = GREEN;
                       el.style.color = GREEN_DEEP;
@@ -371,8 +385,8 @@ export default function PricingPage() {
                   onMouseLeave={(e) => {
                     const el = e.currentTarget as HTMLAnchorElement;
                     if (featured) {
-                      el.style.background = GREEN;
-                      el.style.borderColor = GREEN;
+                      el.style.background = BLUE;
+                      el.style.borderColor = BLUE;
                     } else {
                       el.style.borderColor = BORDER;
                       el.style.color = INK;
@@ -443,7 +457,10 @@ export default function PricingPage() {
       </section>
 
       {/* ── FAQ ──────────────────────────────────────────────────────────── */}
-      <section style={{ background: SURFACE_GRAY, borderTop: `1px solid ${BORDER}`, padding: "72px 24px" }}>
+      <section
+        className="plk-faq-section"
+        style={{ background: SURFACE_GRAY, borderTop: `1px solid ${BORDER}` }}
+      >
         <div style={{ maxWidth: 820, margin: "0 auto", textAlign: "center" }}>
           <span
             style={{
@@ -461,9 +478,9 @@ export default function PricingPage() {
             FAQ
           </span>
           <h2
+            className="plk-h2"
             style={{
               fontFamily: DISPLAY,
-              fontSize: "clamp(28px, 4vw, 40px)",
               fontWeight: 700,
               letterSpacing: "-0.025em",
               color: INK,
@@ -483,17 +500,17 @@ export default function PricingPage() {
 
       {/* ── "Not sure which plan fits?" CTA band ────────────────────────── */}
       <section
+        className="plk-cta-section"
         style={{
           background:
             "radial-gradient(120% 140% at 22% 0%, rgba(40,197,94,0.14) 0%, rgba(40,197,94,0) 48%), #0B1A2F",
-          padding: "80px 24px",
           textAlign: "center",
         }}
       >
         <h2
+          className="plk-h2"
           style={{
             fontFamily: DISPLAY,
-            fontSize: "clamp(28px, 4vw, 42px)",
             fontWeight: 700,
             letterSpacing: "-0.025em",
             color: "#FFFFFF",
@@ -502,18 +519,26 @@ export default function PricingPage() {
         >
           Not sure which plan fits?
         </h2>
-        <p style={{ fontSize: 15.5, color: "#A9B7CC", maxWidth: 460, margin: "16px auto 0", lineHeight: 1.6 }}>
+        <p
+          className="plk-sub"
+          style={{ color: "#A9B7CC", maxWidth: 460, margin: "16px auto 0", lineHeight: 1.6 }}
+        >
           Use the ROI calculator on the home page, or start the free Pilot and decide later.
         </p>
-        <div style={{ display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap", marginTop: 32 }}>
+        <div
+          className="plk-cta-row"
+          style={{ display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap", marginTop: 30 }}
+        >
           <Link
             href="/sign-up"
             style={{
               display: "inline-flex",
               alignItems: "center",
+              justifyContent: "center",
               gap: 7,
               borderRadius: 9,
-              padding: "12px 26px",
+              padding: "13px 26px",
+              minHeight: 46,
               fontSize: 14,
               fontWeight: 700,
               background: GREEN,
@@ -532,8 +557,10 @@ export default function PricingPage() {
             style={{
               display: "inline-flex",
               alignItems: "center",
+              justifyContent: "center",
               borderRadius: 9,
-              padding: "12px 26px",
+              padding: "13px 26px",
+              minHeight: 46,
               fontSize: 14,
               fontWeight: 700,
               background: "rgba(255,255,255,0.06)",
@@ -552,6 +579,75 @@ export default function PricingPage() {
     </div>
   );
 }
+
+// ─── Page-scoped responsive CSS ───────────────────────────────────────────────
+// Mobile-first. Section paddings + the card grid + display type all scale up at
+// breakpoints. The card grid stacks to 1 column on phones, 2 on small tablets,
+// 3 on tablets, then a fluid auto-fit row on desktop — so the 6-tier ladder
+// never overflows and never produces a single awkward ultra-wide card.
+const PRICING_CSS = `
+.plk-pricing { overflow-x: hidden; }
+
+/* Hero */
+.plk-hero { padding: 48px 20px 44px; }
+.plk-eyebrow { font-size: 11px; }
+.plk-h1 { font-size: 32px; }
+.plk-sub { font-size: 14.5px; }
+
+/* Cards */
+.plk-cards-section { padding: 40px 16px 48px; }
+.plk-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 14px;
+  align-items: stretch;
+}
+/* Featured card: on mobile it sits inline with the rest; the badge needs a
+   little headroom so it doesn't collide with the card above. */
+.plk-card--featured { margin-top: 8px; }
+.plk-blurb { min-height: 0; }
+
+/* FAQ + closing CTA */
+.plk-faq-section { padding: 56px 20px; }
+.plk-cta-section { padding: 64px 20px; }
+.plk-h2 { font-size: 26px; }
+.plk-cta-row > a { width: 100%; }
+
+/* ≥480px — give hero copy a touch more room */
+@media (min-width: 480px) {
+  .plk-h1 { font-size: 38px; }
+  .plk-sub { font-size: 15.5px; }
+  .plk-cta-row > a { width: auto; }
+}
+
+/* ≥640px — two cards per row, badge headroom no longer needed */
+@media (min-width: 640px) {
+  .plk-hero { padding: 60px 28px 52px; }
+  .plk-eyebrow { font-size: 11.5px; }
+  .plk-cards-section { padding: 48px 24px 56px; }
+  .plk-grid { grid-template-columns: repeat(2, 1fr); }
+  .plk-card--featured { margin-top: 0; }
+  .plk-blurb { min-height: 36px; }
+  .plk-faq-section { padding: 64px 24px; }
+  .plk-cta-section { padding: 72px 24px; }
+  .plk-h2 { font-size: 32px; }
+}
+
+/* ≥960px — three per row */
+@media (min-width: 960px) {
+  .plk-hero { padding: 72px 32px 60px; }
+  .plk-h1 { font-size: clamp(44px, 5vw, 60px); }
+  .plk-h2 { font-size: clamp(28px, 4vw, 42px); }
+  .plk-cards-section { padding: 52px 24px 60px; }
+  .plk-grid { grid-template-columns: repeat(3, 1fr); }
+  .plk-blurb { min-height: 50px; }
+}
+
+/* ≥1200px — single fluid row of all six tiers */
+@media (min-width: 1200px) {
+  .plk-grid { grid-template-columns: repeat(6, 1fr); gap: 14px; }
+}
+`;
 
 // ─── Small components ─────────────────────────────────────────────────────────
 
@@ -597,6 +693,7 @@ function FaqRow({ q, a }: { q: string; a: string }) {
           cursor: "pointer",
           textAlign: "left",
           padding: "20px 4px",
+          minHeight: 44,
         }}
       >
         <span style={{ fontSize: 15, fontWeight: 700, color: INK }}>{q}</span>

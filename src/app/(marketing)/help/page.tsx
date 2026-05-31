@@ -15,7 +15,6 @@ import { HelpIcon } from "@/components/help/HelpIcon";
 type Filter = HelpCategory | "All";
 
 const BRAND_DEEP = "#1DAF50";
-const BRAND_SOFT = "#DCFCE7";
 
 /** One-line description per category for the topic cards. Plain procurement copy. */
 const CATEGORY_BLURB: Record<HelpCategory, string> = {
@@ -69,18 +68,31 @@ export default function HelpIndex() {
     <div className="mx-auto px-5 pb-24 pt-12 sm:px-6 sm:pt-16" style={{ maxWidth: 980 }}>
       {/* Centered hero */}
       <header className="flex flex-col items-center text-center">
-        <span
-          className="flex h-12 w-12 items-center justify-center rounded-[14px]"
-          style={{ background: BRAND_SOFT, color: BRAND_DEEP }}
+        {/* ProcuLink link-curve mark — buyer→supplier gradient, sampled blue #1E66C9 → green #28C55E. */}
+        <svg
+          width="40"
+          height="40"
+          viewBox="0 0 40 40"
+          fill="none"
+          className="h-[34px] w-[34px] sm:h-[38px] sm:w-[38px]"
           aria-hidden="true"
         >
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.9} strokeLinecap="round" strokeLinejoin="round">
-            <path d="M4 12h7" />
-            <path d="M13 12h7" />
-            <path d="M8 8l-4 4 4 4" />
-            <path d="M16 8l4 4-4 4" />
-          </svg>
-        </span>
+          <defs>
+            <linearGradient id="help-hero-mark" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0%" stopColor="#1E66C9" />
+              <stop offset="100%" stopColor="#28C55E" />
+            </linearGradient>
+          </defs>
+          <path
+            d="M8 10h14a10 10 0 0 1 10 10v0a10 10 0 0 1-10 10H8"
+            stroke="url(#help-hero-mark)"
+            strokeWidth="3.6"
+            strokeLinecap="round"
+            fill="none"
+          />
+          <circle cx="8" cy="10" r="2.5" fill="#1E66C9" />
+          <circle cx="8" cy="30" r="2.5" fill="#28C55E" />
+        </svg>
 
         <h1
           className="mt-5"
@@ -118,7 +130,7 @@ export default function HelpIndex() {
             onKeyDown={(e) => e.key === "Escape" && setQ("")}
             placeholder="Search for articles, e.g. 'SFTP delivery'…"
             aria-label="Search help articles"
-            className="w-full rounded-[10px] border border-[#E2E6EE] bg-white pl-11 pr-11 text-[14.5px] shadow-[0_1px_2px_rgba(11,26,47,0.04)] transition-colors focus:border-[var(--brand-green)] focus:outline-none focus:ring-[3px] focus:ring-[rgba(40,197,94,0.18)]"
+            className="w-full rounded-[10px] border border-[#E2E6EE] bg-[#F6F7FA] pl-11 pr-11 text-[14.5px] transition-colors hover:border-[#C6CDDA] focus:border-[var(--brand-green)] focus:bg-white focus:outline-none focus:ring-[3px] focus:ring-[rgba(40,197,94,0.18)]"
             style={{ height: 52, color: "#0B1A2F" }}
           />
           {q && (
@@ -199,7 +211,7 @@ export default function HelpIndex() {
           </div>
 
           {/* Popular articles */}
-          <section className="mt-14">
+          <section className="mt-12 sm:mt-14">
             <h2 className="text-[12px] font-semibold uppercase" style={{ color: "#8A93A5", letterSpacing: "0.07em" }}>
               Popular articles
             </h2>
@@ -249,7 +261,7 @@ function TopicCard({
     >
       <span
         className="flex h-10 w-10 items-center justify-center rounded-[10px]"
-        style={{ background: "var(--brand-green-soft)", color: "var(--brand-green-deep)" }}
+        style={{ background: "#E3EDFB", color: "#1E66C9" }}
         aria-hidden="true"
       >
         <HelpIcon name={meta.icon} size={20} />
@@ -279,15 +291,11 @@ function ArticleRow({ article, first }: { article: HelpArticle; first: boolean }
   return (
     <Link
       href={`/help/${article.slug}`}
-      className="group flex items-center gap-4 px-5 py-4 transition-colors hover:bg-[#F6F7FA] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--brand-green)]"
+      className="group flex items-center gap-3.5 px-4 py-4 transition-colors hover:bg-[#F6F7FA] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--brand-green)] sm:px-5"
       style={first ? undefined : { borderTop: "1px solid #EDEFF4" }}
     >
-      <span
-        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[9px]"
-        style={{ background: "#F1F4F9", color: "#56627A" }}
-        aria-hidden="true"
-      >
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round">
+      <span className="flex shrink-0 items-center justify-center" style={{ color: "#8C95A6" }} aria-hidden="true">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round">
           <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
           <path d="M14 2v6h6" />
         </svg>

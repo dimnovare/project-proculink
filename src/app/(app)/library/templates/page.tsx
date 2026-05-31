@@ -37,10 +37,16 @@ type CardTemplate = {
 };
 
 // Accent strip + chip routing per standard family.
+// Sampled from the 2026-05-30 design render: cXML=violet, UBL=buyer-blue,
+// EDI/EDIFACT/X12=amber. (UBL is blue, NOT green, in the reference.)
 const FMT_COLOR: Record<string, string> = {
   cXML: "#6F4FCE", EDI: "#C97A14", EDIFACT: "#C97A14", X12: "#C97A14",
-  UBL: "#28C55E", JSON: "#A06200", CSV: "#56627A",
+  UBL: "#1E66C9", JSON: "#A06200", CSV: "#56627A",
 };
+
+// Selection + primary-action accent for this screen is buyer-blue (sampled
+// #1E66C9 on both the "+ New template" button and the selected card ring).
+const SELECT_BLUE = "#1E66C9";
 
 // One-line plain-language description of what each standard envelope is.
 const FMT_DESC: Record<string, string> = {
@@ -136,26 +142,27 @@ export default function TemplatesPage() {
 
   return (
     <div className="flex flex-col h-full min-h-0 overflow-hidden" style={{ background: "#F6F7FA" }}>
-      {/* Header */}
-      <div className="flex flex-col items-start gap-3 px-4 py-4 sm:px-6 sm:flex-row sm:items-end sm:gap-4 flex-shrink-0" style={{ borderBottom: "1px solid #E2E6EE", background: "#FFFFFF" }}>
+      {/* Header — sits directly on the page surface (no white bar / divider),
+          matching the design reference. */}
+      <div className="flex flex-col items-start gap-3 px-5 pt-6 pb-4 sm:px-8 sm:flex-row sm:items-end sm:gap-4 flex-shrink-0">
         <div>
-          <h1 className="text-[26px] font-semibold tracking-[-0.02em]" style={{ fontFamily: "'Bricolage Grotesque', Inter, sans-serif", color: "#0B1A2F" }}>Output templates</h1>
-          <p className="text-[13px] mt-1" style={{ color: "#56627A" }}>
+          <h1 className="text-[26px] sm:text-[28px] font-semibold tracking-[-0.02em] leading-[1.1]" style={{ fontFamily: "'Bricolage Grotesque', Inter, sans-serif", color: "#0B1A2F" }}>Output templates</h1>
+          <p className="text-[13px] mt-1.5" style={{ color: "#56627A" }}>
             The envelope each supplier receives · {templates.length} template{templates.length !== 1 ? "s" : ""}
           </p>
         </div>
         <button
           onClick={newTemplate}
-          className="w-full rounded-[6px] px-3.5 text-[12.5px] font-semibold sm:ml-auto sm:w-auto transition-colors"
-          style={{ height: 32, background: "#28C55E", color: "#FFFFFF", border: 0, boxShadow: "0 1px 2px rgba(11,26,47,0.10)" }}
-          onMouseEnter={(e) => (e.currentTarget.style.background = "#1DAF50")}
-          onMouseLeave={(e) => (e.currentTarget.style.background = "#28C55E")}
+          className="h-10 w-full rounded-[6px] px-3.5 text-[13px] font-semibold transition-colors sm:ml-auto sm:h-8 sm:w-auto sm:text-[12.5px]"
+          style={{ background: SELECT_BLUE, color: "#FFFFFF", border: 0, boxShadow: "0 1px 2px rgba(11,26,47,0.12)" }}
+          onMouseEnter={(e) => (e.currentTarget.style.background = "#1B5BB5")}
+          onMouseLeave={(e) => (e.currentTarget.style.background = SELECT_BLUE)}
         >
           + New template
         </button>
       </div>
 
-      <div className="flex-1 overflow-auto p-5">
+      <div className="flex-1 overflow-auto px-5 pt-1 pb-6 sm:px-8 sm:pb-8">
         {notice && (
           <div
             className="mb-4 rounded-[8px] px-4 py-3 text-[12.5px]"
@@ -170,7 +177,7 @@ export default function TemplatesPage() {
         )}
 
         {!isApiMockMode && isLoading && (
-          <div className="grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(320px,1fr))" }}>
+          <div className="grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(min(100%, 320px),1fr))" }}>
             {[1, 2, 3, 4].map((i) => (
               <div key={i} className="rounded-[8px] animate-pulse" style={{ height: 100, background: "#E2E6EE", border: "1px solid #E2E6EE" }} />
             ))}
@@ -209,8 +216,8 @@ export default function TemplatesPage() {
                       className="relative rounded-[8px] text-left overflow-hidden transition-shadow"
                       style={{
                         background: "#FFFFFF",
-                        border: `1px solid ${active ? "#28C55E" : "#E2E6EE"}`,
-                        boxShadow: active ? "0 0 0 1px #28C55E" : "0 1px 3px rgba(11,26,47,0.04)",
+                        border: `1px solid ${active ? SELECT_BLUE : "#E2E6EE"}`,
+                        boxShadow: active ? `0 0 0 1px ${SELECT_BLUE}` : "0 1px 3px rgba(11,26,47,0.04)",
                         padding: "14px 16px 14px 18px",
                       }}
                     >
@@ -218,12 +225,12 @@ export default function TemplatesPage() {
                       <div className="flex items-center justify-between gap-2">
                         <SrcChip type={t.fmt} />
                         {t.isDefault && (
-                          <span className="inline-flex items-center rounded-[5px] px-2 py-0.5 text-[10.5px] font-semibold" style={{ background: "#DCFCE7", color: "#1DAF50" }}>Default</span>
+                          <span className="inline-flex items-center rounded-[5px] px-2 py-0.5 text-[10.5px] font-semibold" style={{ background: "#E2F1E2", color: "#1E6D29" }}>Default</span>
                         )}
                       </div>
-                      <div className="text-[13.5px] font-semibold mt-2.5 tracking-[-0.01em]" style={{ color: "#0B1A2F" }}>{t.name}</div>
-                      <div className="text-[12px] mt-1 leading-[1.45]" style={{ color: "#56627A" }}>{FMT_DESC[t.fmt] ?? `${t.fmt} output envelope.`}</div>
-                      <div className="mt-2.5 text-[11.5px]" style={{ color: "#8A93A5" }}>
+                      <div className="text-[14px] sm:text-[13.5px] font-semibold mt-2.5 tracking-[-0.01em]" style={{ color: "#0B1A2F" }}>{t.name}</div>
+                      <div className="text-[13px] sm:text-[12px] mt-1 leading-[1.45]" style={{ color: "#56627A" }}>{FMT_DESC[t.fmt] ?? `${t.fmt} output envelope.`}</div>
+                      <div className="mt-2.5 text-[12px] sm:text-[11.5px]" style={{ color: "#8A93A5" }}>
                         {t.suppliers > 0 ? (
                           <>
                             <span style={{ fontWeight: 600, color: "#56627A" }}>
@@ -245,17 +252,17 @@ export default function TemplatesPage() {
               {/* Right: code preview panel */}
               {selected && (
                 <div className="rounded-[8px] overflow-hidden self-start" style={{ background: "#FFFFFF", border: "1px solid #E2E6EE", boxShadow: "0 1px 3px rgba(11,26,47,0.04)" }}>
-                  <div className="flex items-center justify-between gap-2 px-4 py-3" style={{ borderBottom: "1px solid #E2E6EE" }}>
+                  <div className="flex items-center justify-between gap-2 px-3 py-2.5 sm:px-4 sm:py-3" style={{ borderBottom: "1px solid #E2E6EE" }}>
                     <div className="flex items-center gap-2 min-w-0">
-                      <span style={{ color: "#56627A", fontSize: 14 }}>{"</>"}</span>
+                      <span className="flex-shrink-0" style={{ color: "#56627A", fontSize: 14 }}>{"</>"}</span>
                       <span className="text-[13px] font-semibold truncate" style={{ color: "#0B1A2F" }}>{selected.name}</span>
                     </div>
-                    <div className="flex items-center gap-3 flex-shrink-0">
-                      <span className="text-[11px] font-mono" style={{ color: "#8A93A5" }}>v{selected.version}</span>
+                    <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
+                      <span className="hidden text-[11px] font-mono sm:inline" style={{ color: "#8A93A5" }}>v{selected.version}</span>
                       <button
                         onClick={() => setNotice({ text: `Exported ${selected.name}.`, kind: "ok" })}
-                        className="inline-flex items-center gap-1.5 rounded-[5px] px-1 text-[12.5px] font-semibold transition-colors"
-                        style={{ height: 27, border: 0, background: "transparent", color: "#0B1A2F" }}
+                        className="inline-flex min-h-[40px] items-center gap-1.5 rounded-[5px] px-2 text-[12.5px] font-semibold transition-colors sm:min-h-[27px]"
+                        style={{ border: 0, background: "transparent", color: "#0B1A2F" }}
                         onMouseEnter={(e) => (e.currentTarget.style.color = "#1DAF50")}
                         onMouseLeave={(e) => (e.currentTarget.style.color = "#0B1A2F")}
                       >
@@ -269,14 +276,14 @@ export default function TemplatesPage() {
                   >
                     {previewFor(selected.fmt).map((line, i) => <PreviewLine key={i} line={line} />)}
                   </pre>
-                  <div className="flex items-center justify-between gap-2 px-4 py-3" style={{ borderTop: "1px solid #E2E6EE" }}>
-                    <span className="text-[11px]" style={{ color: "#8A93A5" }}>
+                  <div className="flex flex-col items-stretch gap-2.5 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-2" style={{ borderTop: "1px solid #E2E6EE" }}>
+                    <span className="text-[12px] leading-[1.45] sm:text-[11px]" style={{ color: "#8A93A5" }}>
                       <span style={{ color: "#6F4FCE", fontWeight: 600 }}>{"{tokens}"}</span> are filled from the canonical order at delivery time.
                     </span>
                     <button
                       onClick={() => { setNotice(null); setEditing(selected); }}
-                      className="inline-flex items-center gap-1.5 rounded-[6px] px-3 text-[12.5px] font-semibold transition-colors"
-                      style={{ height: 30, border: "1px solid #D5DAEA", background: "#FFFFFF", color: "#0B1A2F" }}
+                      className="inline-flex min-h-[40px] w-full items-center justify-center gap-1.5 rounded-[6px] px-3 text-[12.5px] font-semibold transition-colors sm:min-h-[30px] sm:w-auto sm:justify-start"
+                      style={{ border: "1px solid #D5DAEA", background: "#FFFFFF", color: "#0B1A2F" }}
                       onMouseEnter={(e) => { e.currentTarget.style.background = "#F6F7FA"; e.currentTarget.style.borderColor = "#C6CDDA"; }}
                       onMouseLeave={(e) => { e.currentTarget.style.background = "#FFFFFF"; e.currentTarget.style.borderColor = "#D5DAEA"; }}
                     >
@@ -361,19 +368,31 @@ function TemplatePanel({
     <div className="fixed inset-0 z-50 flex items-end bg-[#0B1A2F66] p-0 sm:items-center sm:justify-center sm:p-6">
       <div className="max-h-[92vh] w-full overflow-auto rounded-t-[10px] bg-white shadow-2xl sm:max-w-[680px] sm:rounded-[10px]" style={{ border: "1px solid #E2E6EE" }}>
         <div className="flex items-start justify-between gap-4 border-b border-[#E2E6EE] px-5 py-4">
-          <div>
-            <p className="text-[10px] font-bold uppercase tracking-[0.08em]" style={{ color: FMT_COLOR[template.fmt] ?? "#56627A" }}>Output template</p>
-            <h2 className="mt-1 text-[18px] font-semibold" style={{ color: "#0B1A2F" }}>{isNew ? "New template" : template.name}</h2>
+          <div className="flex items-start gap-3 min-w-0">
+            <span
+              className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-[8px] text-[16px]"
+              style={{ background: "#E3EDFB", color: "#1E66C9" }}
+              aria-hidden
+            >
+              ▤
+            </span>
+            <div className="min-w-0">
+              <h2 className="text-[18px] font-semibold leading-tight truncate" style={{ color: "#0B1A2F" }}>{isNew ? "New output template" : template.name}</h2>
+              <p className="mt-0.5 text-[12.5px]" style={{ color: "#818A9C" }}>The envelope a supplier receives</p>
+            </div>
           </div>
-          <button onClick={onClose} className="h-8 w-8 rounded-[6px] text-[16px]" style={{ border: "1px solid #E2E6EE", background: "#FFFFFF", color: "#56627A" }}>×</button>
+          <button onClick={onClose} aria-label="Close" className="h-8 w-8 flex-shrink-0 rounded-[6px] text-[16px] transition-colors" style={{ border: "1px solid #E2E6EE", background: "#FFFFFF", color: "#56627A" }} onMouseEnter={(e) => { e.currentTarget.style.background = "#F6F7FA"; }} onMouseLeave={(e) => { e.currentTarget.style.background = "#FFFFFF"; }}>×</button>
         </div>
         <div className="grid gap-4 p-5">
-          <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_120px_100px]">
+          <p className="text-[12.5px] leading-[1.5]" style={{ color: "#636E84" }}>
+            Choose the standard and starting point. You&rsquo;ll map canonical order fields into the envelope after creating.
+          </p>
+          <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_130px_110px]">
             <Field label="Template name">
-              <input ref={nameRef} defaultValue={template.name} placeholder="cXML 1.2.045 — OrderRequest" className="h-9 w-full rounded-[5px] border border-[#D5DAEA] px-2 text-[12px] text-[#0B1A2F]" />
+              <input ref={nameRef} defaultValue={template.name} placeholder="cXML 1.2.045 — OrderRequest" className="h-10 w-full rounded-[6px] border border-[#C6CDDA] px-2.5 text-[13px] text-[#0B1A2F] outline-none focus:border-[#1E66C9]" />
             </Field>
             <Field label="Standard">
-              <select ref={fmtRef} defaultValue={template.fmt} className="h-9 w-full rounded-[5px] border border-[#D5DAEA] px-2 text-[12px] text-[#0B1A2F]">
+              <select ref={fmtRef} defaultValue={template.fmt} className="h-10 w-full rounded-[6px] border border-[#C6CDDA] px-2.5 text-[13px] text-[#0B1A2F] outline-none focus:border-[#1E66C9]">
                 <option>cXML</option>
                 <option>UBL</option>
                 <option>EDI</option>
@@ -383,7 +402,7 @@ function TemplatePanel({
               </select>
             </Field>
             <Field label="Version">
-              <input ref={versionRef} defaultValue={template.version} className="h-9 w-full rounded-[5px] border border-[#D5DAEA] px-2 font-mono text-[12px] text-[#0B1A2F]" />
+              <input ref={versionRef} defaultValue={template.version} className="h-10 w-full rounded-[6px] border border-[#C6CDDA] px-2.5 font-mono text-[13px] text-[#0B1A2F] outline-none focus:border-[#1E66C9]" />
             </Field>
           </div>
           <Field label="Template body">
@@ -393,25 +412,27 @@ function TemplatePanel({
               className="min-h-[180px] w-full rounded-[5px] border border-[#D5DAEA] bg-[#0B1A2F] px-3 py-3 font-mono text-[11.5px] leading-5 text-[#C5D2E4]"
             />
           </Field>
-          <div className="rounded-[7px] border border-[#E2E6EE] bg-[#F6F7FA] p-3 text-[12px] leading-5" style={{ color: "#56627A" }}>
+          <div className="rounded-[7px] border border-[#E2E6EE] bg-[#F6F7FA] p-3 text-[13px] leading-5 sm:text-[12px]" style={{ color: "#56627A" }}>
             Canonical {"{tokens}"} are filled from the order at delivery time. Keep placeholders explicit and supplier-scoped before assigning a supplier.
           </div>
           {validation && (
-            <div className="rounded-[7px] border border-[#B8CFF5] bg-[#F7FAFF] p-3 text-[12px] leading-5" style={{ color: "#0F4FA8" }}>
+            <div className="rounded-[7px] border border-[#B8CFF5] bg-[#F7FAFF] p-3 text-[13px] leading-5 sm:text-[12px]" style={{ color: "#0F4FA8" }}>
               {validation}
             </div>
           )}
         </div>
         <div className="flex flex-col gap-2 border-t border-[#E2E6EE] bg-[#F6F7FA] px-5 py-4 sm:flex-row sm:justify-end">
           {onDelete && (
-            <button onClick={onDelete} className="h-9 rounded-[6px] px-4 text-[12px] font-semibold sm:mr-auto" style={{ border: "1px solid #F5C6CB", background: "#FFFFFF", color: "#C62828" }}>Delete</button>
+            <button onClick={onDelete} className="h-10 rounded-[6px] px-4 text-[13px] font-semibold sm:mr-auto sm:h-9 sm:text-[12px]" style={{ border: "1px solid #F5C6CB", background: "#FFFFFF", color: "#C62828" }}>Delete</button>
           )}
-          <button onClick={onClose} className="h-9 rounded-[6px] px-4 text-[12px] font-semibold" style={{ border: "1px solid #E2E6EE", background: "#FFFFFF", color: "#56627A" }}>Cancel</button>
+          <button onClick={onClose} className="h-10 rounded-[6px] px-4 text-[13px] font-semibold sm:h-9 sm:text-[12px]" style={{ border: "1px solid #E2E6EE", background: "#FFFFFF", color: "#56627A" }}>Cancel</button>
           <button
             onClick={handleSave}
             disabled={saving}
-            className="h-9 rounded-[6px] px-4 text-[12px] font-semibold"
-            style={{ border: 0, background: "#0B1A2F", color: "#FFFFFF", opacity: saving ? 0.6 : 1 }}
+            className="h-10 rounded-[6px] px-4 text-[13px] font-semibold transition-colors sm:h-9 sm:text-[12px]"
+            style={{ border: 0, background: "#28C55E", color: "#FFFFFF", boxShadow: "0 1px 2px rgba(11,26,47,0.10)", opacity: saving ? 0.6 : 1 }}
+            onMouseEnter={(e) => { if (!saving) e.currentTarget.style.background = "#1DAF50"; }}
+            onMouseLeave={(e) => { e.currentTarget.style.background = "#28C55E"; }}
           >
             {saving ? "Saving…" : "Save"}
           </button>

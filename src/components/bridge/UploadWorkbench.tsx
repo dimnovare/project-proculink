@@ -367,14 +367,14 @@ export function UploadWorkbench() {
       className="flex flex-col h-full min-h-0 overflow-hidden"
       style={{ background: "#F6F7FA" }}
     >
-      {/* Page header */}
+      {/* Page header — sits on the grey canvas (no white bar, no divider) to match design */}
       <div
-        className="flex flex-col items-start gap-1 px-4 py-4 sm:px-6 sm:items-end sm:flex-row sm:gap-4 flex-shrink-0"
-        style={{ borderBottom: "1px solid #E2E6EE", background: "#FFFFFF" }}
+        className="flex flex-col items-start gap-1 px-4 pt-5 pb-4 sm:px-6 sm:items-end sm:flex-row sm:gap-4 flex-shrink-0"
+        style={{ background: "#F6F7FA" }}
       >
         <div>
           <h1
-            className="text-[26px] font-semibold tracking-[-0.02em]"
+            className="text-[24px] sm:text-[28px] font-bold tracking-[-0.02em] leading-tight"
             style={{
               fontFamily: "'Bricolage Grotesque', Inter, sans-serif",
               color: "#0B1A2F",
@@ -382,7 +382,7 @@ export function UploadWorkbench() {
           >
             Upload an order
           </h1>
-          <p className="text-[13px] mt-1" style={{ color: "#56627A" }}>
+          <p className="text-[13px] mt-1.5" style={{ color: "#56627A" }}>
             Upload an order in any shape &mdash; we parse, normalize, and prepare it for review.
           </p>
         </div>
@@ -431,14 +431,8 @@ export function UploadWorkbench() {
                 </a>
               </div>
             )}
-            {/* Drop zone — clean single card with a dashed inner target (matches design) */}
-            <XCard
-              style={{
-                borderColor: dragging ? "#28C55E" : "#E2E6EE",
-                transition: "border-color 0.15s",
-              }}
-            >
-              <div
+            {/* Drop zone — single dashed-border card (matches design render exactly) */}
+            <div
                 onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
                 onDragLeave={() => setDragging(false)}
                 onDrop={(e) => {
@@ -452,19 +446,16 @@ export function UploadWorkbench() {
                   }
                 }}
                 onClick={() => fileInputRef.current?.click()}
+                className="flex flex-col items-center gap-4 px-6 py-10 sm:px-8 sm:py-14"
                 style={{
-                  margin: 20,
-                  border: `1.5px dashed ${dragging ? "#28C55E" : "#C6CDDA"}`,
+                  border: `1.5px dashed ${dragging ? "#1E66C9" : "#C6CDDA"}`,
                   borderRadius: 10,
-                  padding: "64px 24px",
-                  display: "flex",
-                  flexDirection: "column",
-                  alignItems: "center",
-                  gap: 16,
-                  background: dragging ? "#F1FCF5" : "#FFFFFF",
+                  background: dragging ? "#EFF4FC" : "#FFFFFF",
+                  boxShadow: "0 1px 3px rgba(11,26,47,0.05)",
                   opacity: isReadOnly ? 0.62 : 1,
                   transition: "all 0.15s",
                   cursor: isReadOnly ? "not-allowed" : "pointer",
+                  minWidth: 0,
                   maxWidth: "100%",
                 }}
               >
@@ -481,26 +472,26 @@ export function UploadWorkbench() {
                     if (file) triggerDetection(file);
                   }}
                 />
-                {/* Upload icon — plain outline, no tinted disc (matches design) */}
-                <svg width="40" height="40" viewBox="0 0 22 22" fill="none" aria-hidden="true">
+                {/* Upload icon — buyer-blue outline (matches design render exactly) */}
+                <svg width="38" height="38" viewBox="0 0 22 22" fill="none" aria-hidden="true">
                   <path
                     d="M11 14V4M11 4L7 8M11 4l4 4"
-                    stroke={dragging ? "#1DAF50" : "#8A93A5"}
+                    stroke={dragging ? "#1A5DBF" : "#1E66C9"}
                     strokeWidth="1.6"
                     strokeLinecap="round"
                     strokeLinejoin="round"
                   />
                   <path
                     d="M3 17v1a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-1"
-                    stroke={dragging ? "#1DAF50" : "#8A93A5"}
+                    stroke={dragging ? "#1A5DBF" : "#1E66C9"}
                     strokeWidth="1.6"
                     strokeLinecap="round"
                   />
                 </svg>
 
-                <div className="text-center">
+                <div className="text-center" style={{ minWidth: 0, maxWidth: "100%" }}>
                   <p
-                    className="text-[19px] font-semibold tracking-[-0.01em]"
+                    className="text-[18px] font-bold tracking-[-0.01em] break-words"
                     style={{
                       color: "#0B1A2F",
                       fontFamily: "'Bricolage Grotesque', Inter, sans-serif",
@@ -508,14 +499,14 @@ export function UploadWorkbench() {
                   >
                     {selectedFile ? selectedFile.name : "Drop a purchase order here"}
                   </p>
-                  <p className="text-[12.5px] mt-2" style={{ color: "#8A93A5" }}>
+                  <p className="text-[12.5px] mt-2" style={{ color: "#56627A" }}>
                     {selectedFile
                       ? `${Math.max(1, Math.round(selectedFile.size / 1024))} KB ready to send`
                       : "PDF · XLSX · CSV · cXML · UBL · EDIFACT · X12 — up to 10 MB"}
                   </p>
                 </div>
 
-                {/* Browse files — prominent green CTA (also the file-picker trigger) */}
+                {/* Browse files — prominent accent CTA (also the file-picker trigger) */}
                 <button
                   type="button"
                   disabled={isReadOnly || uploading}
@@ -523,14 +514,16 @@ export function UploadWorkbench() {
                     event.stopPropagation();
                     fileInputRef.current?.click();
                   }}
-                  className="inline-flex items-center gap-2 rounded-[6px] px-4 py-2.5 text-[13px] font-semibold transition-colors"
+                  className="inline-flex min-h-[40px] items-center gap-2 rounded-[6px] px-4 py-2 text-[13px] font-semibold transition-colors"
                   style={{
-                    background: isReadOnly || uploading ? "#E2E6EE" : "#28C55E",
+                    background: isReadOnly || uploading ? "#E2E6EE" : "#1E66C9",
                     color: isReadOnly || uploading ? "#8A93A5" : "#FFFFFF",
                     border: "none",
-                    boxShadow: isReadOnly || uploading ? "none" : "0 2px 8px rgba(40,197,94,0.25)",
+                    boxShadow: isReadOnly || uploading ? "none" : "0 2px 8px rgba(30,102,201,0.25)",
                     cursor: isReadOnly || uploading ? "not-allowed" : "pointer",
                   }}
+                  onMouseEnter={(e) => { if (!(isReadOnly || uploading)) e.currentTarget.style.background = "#1A5DBF"; }}
+                  onMouseLeave={(e) => { if (!(isReadOnly || uploading)) e.currentTarget.style.background = "#1E66C9"; }}
                 >
                   <svg width="15" height="15" viewBox="0 0 16 16" fill="none" aria-hidden="true">
                     <path
@@ -546,7 +539,7 @@ export function UploadWorkbench() {
 
                 {/* Muted helper caption beneath the button (matches design) */}
                 {!selectedFile && (
-                  <p className="text-[11.5px] italic" style={{ color: "#A6AEBE" }}>
+                  <p className="text-[11.5px] italic" style={{ color: "#99A1C5" }}>
                     {isApiMockMode
                       ? "(Demo: click anywhere to simulate a parsed PDF)"
                       : "or drop a file anywhere in this area"}
@@ -686,8 +679,7 @@ export function UploadWorkbench() {
                   </div>
                 )}
 
-              </div>
-            </XCard>
+            </div>
 
             {/* Phase 6.3 — Try with sample order: the zero-friction primary first action */}
             <XCard edge="left" edgeColor="#28C55E">
