@@ -1,5 +1,7 @@
+"use client";
+
 import Link from "next/link";
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { ProcuLinkMark } from "@/components/bridge/DSPrimitives";
 import { BridgeIllustration } from "@/components/marketing/BridgeIllustration";
 import { MarketingNav } from "@/components/marketing/MarketingNav";
@@ -186,7 +188,9 @@ const STATS = [
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
-export default async function RootPage() {
+export default function RootPage() {
+  const [heroView, setHeroView] = useState<"topology" | "canonical">("topology");
+
   return (
     <div
       style={{
@@ -383,7 +387,7 @@ export default async function RootPage() {
               >
                 live order topology
               </span>
-              {/* Segmented view toggle (Topology active / Canonical view) */}
+              {/* Segmented view toggle */}
               <div
                 className="ml-auto flex items-center"
                 style={{
@@ -394,35 +398,42 @@ export default async function RootPage() {
                   border: `1px solid ${NAVY_BORDER}`,
                 }}
               >
-                <span
+                <button
+                  type="button"
+                  onClick={() => setHeroView("topology")}
                   style={{
                     fontSize: 11,
                     fontWeight: 600,
-                    color: "#FFFFFF",
-                    background: BLUE,
+                    color: heroView === "topology" ? "#FFFFFF" : NAVY_MUTED,
+                    background: heroView === "topology" ? BLUE : "transparent",
                     borderRadius: 4,
                     padding: "4px 11px",
+                    border: 0,
                   }}
                 >
                   Topology
-                </span>
-                <span
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setHeroView("canonical")}
                   style={{
                     fontSize: 11,
                     fontWeight: 600,
-                    color: NAVY_MUTED,
+                    color: heroView === "canonical" ? "#FFFFFF" : NAVY_MUTED,
+                    background: heroView === "canonical" ? BLUE : "transparent",
                     borderRadius: 4,
                     padding: "4px 11px",
+                    border: 0,
                   }}
                 >
                   Canonical view
-                </span>
+                </button>
               </div>
             </div>
 
-            {/* Topology */}
+            {/* Topology / canonical preview */}
             <div style={{ padding: "16px 14px 14px" }}>
-              <BridgeIllustration />
+              {heroView === "topology" ? <BridgeIllustration /> : <CanonicalPreview />}
             </div>
           </div>
         </div>
@@ -929,6 +940,90 @@ export default async function RootPage() {
           </div>
         </div>
       </footer>
+    </div>
+  );
+}
+
+function CanonicalPreview() {
+  const rows = [
+    ["PO number", "PO-2026-008412", "OrderRequest/OrderID"],
+    ["Buyer", "Heinrich Industries", "BillTo/Contact"],
+    ["Supplier", "Acme Components", "ShipFrom/Contact"],
+    ["Currency", "EUR", "Total/Currency"],
+    ["Lines", "14 items", "ItemOut[]"],
+  ];
+
+  return (
+    <div
+      className="grid gap-3 md:grid-cols-[1fr_1.08fr_1fr]"
+      style={{ minHeight: 300, color: NAVY_TEXT }}
+    >
+      <HeroPane title="Source · what arrived" accent={BLUE_BRIGHT}>
+        <div style={{ border: `1px solid ${NAVY_BORDER}`, borderRadius: 8, overflow: "hidden", background: "#081424" }}>
+          {["HEADER ZONE", "PARTIES ZONE", "LINES ZONE", "TOTALS ZONE"].map((zone, idx) => (
+            <div key={zone} style={{ padding: "12px 14px", borderTop: idx ? `1px solid ${NAVY_BORDER}` : "none" }}>
+              <div style={{ fontSize: 10, fontFamily: "'JetBrains Mono', monospace", color: idx === 2 ? AMBER : BLUE_BRIGHT, fontWeight: 700 }}>
+                {zone}
+              </div>
+              <div style={{ marginTop: 5, height: idx === 2 ? 58 : 22, borderRadius: 5, background: "rgba(255,255,255,0.06)" }} />
+            </div>
+          ))}
+        </div>
+      </HeroPane>
+      <HeroPane title="Canonical order" accent="#FFFFFF">
+        <div style={{ display: "grid", gap: 8 }}>
+          {rows.map(([label, value]) => (
+            <div key={label} style={{ display: "flex", justifyContent: "space-between", gap: 14, padding: "10px 12px", borderRadius: 7, background: "#0F233C", border: `1px solid ${NAVY_BORDER}` }}>
+              <span style={{ fontSize: 11, color: NAVY_MUTED }}>{label}</span>
+              <span style={{ fontSize: 12.5, color: "#FFFFFF", fontWeight: 600, textAlign: "right" }}>{value}</span>
+            </div>
+          ))}
+        </div>
+      </HeroPane>
+      <HeroPane title="Output · what we send" accent={GREEN_BRIGHT}>
+        <pre
+          style={{
+            margin: 0,
+            minHeight: 244,
+            whiteSpace: "pre-wrap",
+            borderRadius: 8,
+            border: `1px solid ${NAVY_BORDER}`,
+            background: "#071221",
+            color: "#BFE7C5",
+            padding: 14,
+            fontFamily: "'JetBrains Mono', monospace",
+            fontSize: 10.5,
+            lineHeight: 1.55,
+          }}
+        >{`<OrderRequest>
+  <OrderID>PO-2026-008412</OrderID>
+  <Currency>EUR</Currency>
+  <ItemOut quantity="24">
+    <SupplierPartID>ACM-PLT-200</SupplierPartID>
+  </ItemOut>
+</OrderRequest>`}</pre>
+      </HeroPane>
+    </div>
+  );
+}
+
+function HeroPane({ title, accent, children }: { title: string; accent: string; children: ReactNode }) {
+  return (
+    <div>
+      <div
+        style={{
+          marginBottom: 10,
+          fontFamily: "'JetBrains Mono', monospace",
+          fontSize: 10,
+          fontWeight: 700,
+          letterSpacing: "0.08em",
+          textTransform: "uppercase",
+          color: accent,
+        }}
+      >
+        {title}
+      </div>
+      {children}
     </div>
   );
 }

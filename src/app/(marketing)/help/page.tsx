@@ -64,6 +64,21 @@ export default function HelpIndex() {
 
   return (
     <div className="mx-auto px-5 pb-24 pt-10 sm:px-6 sm:pt-14" style={{ maxWidth: 980 }}>
+      <Link
+        href="/bridge"
+        className="mb-5 inline-flex h-9 items-center gap-2 rounded-[7px] px-3 text-[13px] font-semibold"
+        style={{
+          border: "1px solid var(--border)",
+          background: "var(--surface)",
+          color: "var(--ink)",
+          textDecoration: "none",
+          boxShadow: "var(--shadow-card)",
+        }}
+      >
+        <span aria-hidden>←</span>
+        Back to dashboard
+      </Link>
+
       {/* Centered hero */}
       <header className="flex flex-col items-center text-center" style={{ padding: "10px 0 6px" }}>
         {/* ProcuLink link-curve mark — buyer→supplier gradient, blue #1E66C9 → green #2E8E3A. */}

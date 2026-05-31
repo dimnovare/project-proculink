@@ -221,8 +221,8 @@ export function ProcuLinkMark({ size = 24, mono = false, gradientId }: MarkProps
   const autoId = React.useId();
   const id = gradientId ?? `procu-mark-${autoId.replace(/:/g, "")}`;
   const stroke = mono ? "currentColor" : `url(#${id})`;
-  const dotA   = mono ? "currentColor" : "#28C55E";
-  const dotB   = mono ? "currentColor" : "#1DAF50";
+  const dotA   = mono ? "currentColor" : "#1E66C9";
+  const dotB   = mono ? "currentColor" : "#2E8E3A";
 
   return (
     <svg width={size} height={size} viewBox="0 0 40 40" fill="none" aria-label="ProcuLink" role="img">
@@ -230,8 +230,8 @@ export function ProcuLinkMark({ size = 24, mono = false, gradientId }: MarkProps
       {!mono && (
         <defs>
           <linearGradient id={id} x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0%"   stopColor="#28C55E"/>
-            <stop offset="100%" stopColor="#1DAF50"/>
+            <stop offset="0%"   stopColor="#1E66C9"/>
+            <stop offset="100%" stopColor="#2E8E3A"/>
           </linearGradient>
         </defs>
       )}

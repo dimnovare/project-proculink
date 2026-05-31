@@ -36,7 +36,7 @@ export default function SettingsPage() {
     <div style={{ height: "100%", minHeight: 0, overflowY: "auto", background: "#F6F7FA" }}>
       <div style={{ maxWidth: 1040, margin: "0 auto", padding: "26px 34px 64px" }} className="settings-shell">
         {/* Page header — matches design .page-title / .page-sub */}
-        <header style={{ marginBottom: 18 }}>
+        <header className="settings-header" style={{ marginBottom: 18 }}>
           <h1 style={{ fontFamily: "var(--font-display)", fontSize: 30, fontWeight: 600, letterSpacing: "-0.025em", lineHeight: 1.1, margin: 0, color: "var(--ink)" }}>
             Settings
           </h1>
@@ -95,22 +95,47 @@ export default function SettingsPage() {
         @media (max-width: 767px) {
           .settings-shell { padding: 24px 16px 48px; }
           .settings-grid { grid-template-columns: 1fr !important; gap: 16px !important; }
-          /* Segmented-track on mobile so the white active pill reads clearly. */
+          .settings-header {
+            padding: 2px 2px 0;
+          }
+          /* Mobile uses a compact command grid instead of a horizontal scroller:
+             every settings area is visible at once, which is faster for thumb use. */
           .settings-nav {
+            display: grid !important;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
             background: #EFF2F7;
             border: 1px solid #E2E6EE;
-            border-radius: 10px;
+            border-radius: 12px;
             padding: 5px;
             gap: 4px;
-            -webkit-overflow-scrolling: touch;
-            scrollbar-width: none;
+            overflow: visible !important;
           }
-          .settings-nav::-webkit-scrollbar { display: none; }
           /* Comfortable tap targets + readable label sizing on mobile. */
           .settings-nav-item {
             min-height: 40px;
             font-size: 13px;
-            scroll-snap-align: start;
+            justify-content: center;
+            padding-left: 10px !important;
+            padding-right: 10px !important;
+            border-left-width: 1px !important;
+            text-align: center;
+          }
+          .settings-nav-item:last-child:nth-child(odd) {
+            grid-column: 1 / -1;
+          }
+          .settings-nav-item svg {
+            flex-shrink: 0;
+          }
+          .settings-nav-item span {
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+          }
+          .settings-shell input,
+          .settings-shell select,
+          .settings-shell textarea {
+            font-size: 16px !important;
           }
           /* Platform connector rows stack so the action goes full-width. */
           .connector-row {
@@ -121,6 +146,9 @@ export default function SettingsPage() {
             width: 100%;
             justify-content: center;
             min-height: 40px;
+          }
+          .settings-shell [style*="grid-template-columns: 1fr 1fr"] {
+            grid-template-columns: 1fr !important;
           }
         }
       `}</style>

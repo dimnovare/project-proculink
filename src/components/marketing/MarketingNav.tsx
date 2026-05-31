@@ -28,7 +28,7 @@ export function MarketingNav() {
       <div className="flex items-center gap-3 px-4 sm:gap-6 sm:px-8" style={{ height: 58 }}>
         {/* Logo */}
         <Link href="/" className="flex min-w-0 items-center gap-2.5">
-          <ProcuLinkMark size={26} mono />
+          <ProcuLinkMark size={26} />
           <span
             style={{
               fontFamily: "'Bricolage Grotesque', Inter, sans-serif",
@@ -73,11 +73,28 @@ export function MarketingNav() {
 
       {/* Mobile menu */}
       {open && (
-        <div className="sm:hidden px-4 pb-4 flex flex-col gap-1" style={{ borderTop: "1px solid #1B2D49" }}>
+        <div
+          className="absolute right-3 top-[66px] z-50 flex w-[min(320px,calc(100vw-24px))] flex-col gap-1 rounded-[10px] p-3 shadow-2xl sm:hidden"
+          style={{ background: "#0B1A2F", border: "1px solid #1B2D49" }}
+        >
+          <div className="mb-1 flex items-center justify-between border-b pb-3" style={{ borderColor: "#1B2D49" }}>
+            <Link href="/" onClick={() => setOpen(false)} className="flex items-center gap-2.5">
+              <ProcuLinkMark size={24} />
+              <span className="text-[15px] font-bold text-white">ProcuLink</span>
+            </Link>
+            <Link
+              href="/sign-up"
+              onClick={() => setOpen(false)}
+              className="rounded-[6px] px-3 py-2 text-[12px] font-semibold"
+              style={{ background: "#28C55E", color: "#FFFFFF" }}
+            >
+              Start
+            </Link>
+          </div>
           {LINKS.map(({ label, href }) => (
-            <Link key={href} href={href} onClick={() => setOpen(false)} className="py-2 text-[14px]" style={{ color: "#9DB2CE" }}>{label}</Link>
+            <Link key={href} href={href} onClick={() => setOpen(false)} className="rounded-[7px] px-3 py-3 text-right text-[14px]" style={{ color: "#C5D2E4" }}>{label}</Link>
           ))}
-          <Link href="/sign-in" onClick={() => setOpen(false)} className="py-2 text-[14px]" style={{ color: "#9DB2CE" }}>Sign in</Link>
+          <Link href="/sign-in" onClick={() => setOpen(false)} className="rounded-[7px] px-3 py-3 text-right text-[14px]" style={{ color: "#C5D2E4" }}>Sign in</Link>
         </div>
       )}
     </nav>

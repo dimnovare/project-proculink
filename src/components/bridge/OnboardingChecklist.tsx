@@ -289,16 +289,31 @@ export function OnboardingChecklist({
 
         {/* ── Step list ───────────────────────────────────────────────── */}
         <ol
-          className="flex flex-col gap-3 lg:border-l lg:pl-7"
+          className="flex flex-col gap-2.5 lg:border-l lg:pl-7"
           style={{ listStyle: "none", margin: 0, padding: 0, borderColor: T.border }}
+          aria-label="First delivery setup steps"
         >
+          <li
+            className="mb-1 text-[10.5px] font-bold uppercase"
+            style={{ color: T.faint, letterSpacing: "0.09em" }}
+          >
+            Setup path
+          </li>
           {STEPS.map((step, i) => {
             const done = doneById[step.id];
             const locked = !done && isLocked(step);
             const active = !done && !locked && activeStep?.id === step.id;
 
             return (
-              <li key={step.id} className="flex items-start gap-3">
+              <li
+                key={step.id}
+                className="flex items-start gap-3 rounded-[8px] p-2.5"
+                style={{
+                  background: active ? T.blueSoft : done ? "#F3FAF4" : "transparent",
+                  border: active ? `1px solid ${T.blue}` : done ? "1px solid #D6EEDB" : `1px solid ${T.border}`,
+                  opacity: locked ? 0.72 : 1,
+                }}
+              >
                 {done ? <DoneMark /> : locked ? <LockMark /> : <NumberMark n={i + 1} active={active} />}
                 <div className="min-w-0 flex-1" style={{ marginTop: 1 }}>
                   <div
@@ -312,9 +327,9 @@ export function OnboardingChecklist({
                   >
                     {step.label}
                   </div>
-                  {active && (
+                  {(active || done) && (
                     <p className="mt-0.5 text-[11.5px] leading-snug" style={{ color: T.muted }}>
-                      {step.description}
+                      {done ? "Ready for the next step." : step.description}
                     </p>
                   )}
                 </div>

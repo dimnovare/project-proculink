@@ -1765,9 +1765,82 @@ export interface StarterTemplate {
 export async function getPoMappingTemplates(): Promise<StarterTemplate[]> {
   if (USE_MOCK) {
     await delay(200);
-    // Two mock templates matching the embedded fixture contents — checked against
-    // the real JSON in ProcuLink.Api/Fixtures/po-templates/.
+    // Mock templates mirror the embedded backend fixtures in
+    // ProcuLink.Api/Fixtures/po-templates/ so local QA does not hide missing
+    // starter coverage.
     return [
+      {
+        id: "generic-csv",
+        erp: "CSV",
+        name: "Generic CSV purchase order",
+        description: "Maps common buyer CSV exports with separate header and line columns.",
+        config: {
+          hasHeaderRecord: true,
+          separator: ",",
+          header: {
+            PoNumber:     { externalField: "po_number" },
+            OrderDate:    { externalField: "order_date", fieldManipulators: [{ type: "DateFormat", params: ["yyyy-MM-dd", "yyyy-MM-dd"] }] },
+            BuyerName:    { externalField: "buyer_name" },
+            SupplierName: { externalField: "supplier_name" },
+            Currency:     { externalField: "currency", fieldManipulators: [{ type: "Trim", params: [] }] },
+          },
+          lines: {
+            BuyerItemCode: { externalField: "buyer_item_code" },
+            Description:   { externalField: "description" },
+            Quantity:      { externalField: "quantity" },
+            Unit:          { externalField: "unit", fieldManipulators: [{ type: "Trim", params: [] }] },
+            UnitPrice:     { externalField: "unit_price" },
+          },
+        },
+      },
+      {
+        id: "buyer-excel",
+        erp: "Excel",
+        name: "Buyer Excel order sheet",
+        description: "Maps common spreadsheet purchase orders exported from procurement teams.",
+        config: {
+          hasHeaderRecord: true,
+          separator: ",",
+          header: {
+            PoNumber:  { externalField: "PO No", fieldManipulators: [{ type: "Trim", params: [] }] },
+            OrderDate: { externalField: "PO Date", fieldManipulators: [{ type: "DateFormat", params: ["dd/MM/yyyy", "yyyy-MM-dd"] }] },
+            BuyerName: { externalField: "Buyer", fieldManipulators: [{ type: "Trim", params: [] }] },
+            Currency:  { externalField: "Currency", fieldManipulators: [{ type: "Trim", params: [] }] },
+          },
+          lines: {
+            BuyerItemCode: { externalField: "Item code", fieldManipulators: [{ type: "Trim", params: [] }] },
+            Description:   { externalField: "Item description" },
+            Quantity:      { externalField: "Qty" },
+            Unit:          { externalField: "UOM", fieldManipulators: [{ type: "Trim", params: [] }] },
+            UnitPrice:     { externalField: "Net price" },
+          },
+        },
+      },
+      {
+        id: "cxml-orderrequest",
+        erp: "cXML",
+        name: "cXML OrderRequest",
+        description: "Maps cXML OrderRequest paths from PunchOut and procurement platforms.",
+        config: {
+          hasHeaderRecord: false,
+          separator: ",",
+          header: {
+            PoNumber:     { externalField: "Request/OrderRequest/OrderRequestHeader/@orderID" },
+            OrderDate:    { externalField: "Request/OrderRequest/OrderRequestHeader/@orderDate", fieldManipulators: [{ type: "DateFormat", params: ["yyyy-MM-ddTHH:mm:sszzz", "yyyy-MM-dd"] }] },
+            BuyerName:    { externalField: "Request/OrderRequest/OrderRequestHeader/BillTo/Address/Name" },
+            SupplierName: { externalField: "Request/OrderRequest/ItemOut/SupplierID" },
+            Currency:     { externalField: "Request/OrderRequest/OrderRequestHeader/Total/Money/@currency", fieldManipulators: [{ type: "Trim", params: [] }] },
+          },
+          lines: {
+            BuyerItemCode:    { externalField: "Request/OrderRequest/ItemOut/ItemID/BuyerPartID" },
+            SupplierItemCode: { externalField: "Request/OrderRequest/ItemOut/ItemID/SupplierPartID" },
+            Description:      { externalField: "Request/OrderRequest/ItemOut/ItemDetail/Description" },
+            Quantity:         { externalField: "Request/OrderRequest/ItemOut/@quantity" },
+            Unit:             { externalField: "Request/OrderRequest/ItemOut/ItemDetail/UnitOfMeasure" },
+            UnitPrice:        { externalField: "Request/OrderRequest/ItemOut/ItemDetail/UnitPrice/Money" },
+          },
+        },
+      },
       {
         id: "erply",
         erp: "Erply",

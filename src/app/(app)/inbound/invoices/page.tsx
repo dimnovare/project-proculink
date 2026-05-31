@@ -182,15 +182,17 @@ export default function InvoicesPage() {
             onChange={(e) => { const f = e.target.files?.[0]; if (f) { setNotice(null); uploadMut.mutate(f); } }}
             disabled={uploadMut.isPending}
           />
-          <button
-            onClick={() => fileInputRef.current?.click()}
-            disabled={uploadMut.isPending}
-            className="w-full sm:w-auto rounded-[6px] px-3 text-[12.5px] font-medium"
-            style={{ height: 32, background: "#0B1A2F", color: "#FFFFFF", border: 0, opacity: uploadMut.isPending ? 0.7 : 1 }}
-            title="Upload a supplier invoice (CSV, XLSX, or PDF)"
-          >
-            Upload invoice
-          </button>
+          {invoices.length > 0 && (
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploadMut.isPending}
+              className="w-full sm:w-auto rounded-[6px] px-3 text-[12.5px] font-medium"
+              style={{ height: 32, background: "#0B1A2F", color: "#FFFFFF", border: 0, opacity: uploadMut.isPending ? 0.7 : 1 }}
+              title="Upload a supplier invoice (CSV, XLSX, or PDF)"
+            >
+              Upload invoice
+            </button>
+          )}
         </div>
       </div>
 

@@ -258,6 +258,10 @@ export function BillingSection() {
       {/* ── Upgrade / change plan actions ── */}
       {isPilot && (
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          <div style={{ borderRadius: 10, padding: "13px 15px", background: "#FFFFFF", border: "1px solid #E2E6EE", borderLeft: "3px solid var(--brand-green)", fontSize: 12.5, lineHeight: 1.55, color: "#56627A" }}>
+            <strong style={{ color: "#0B1A2F" }}>Upgrade when this is ready for daily orders.</strong>{" "}
+            Growth keeps the same workflow but raises your monthly order volume, adds more supplier flows, and keeps processing open after the Pilot window ends.
+          </div>
           <button
             onClick={() => checkoutMutation.mutate("growth")}
             disabled={checkoutMutation.isPending}
@@ -277,7 +281,7 @@ export function BillingSection() {
               </button>
             ))}
           </div>
-          <a href="mailto:sales@proculink.com" style={{ fontSize: 12, color: "#8A93A5" }}>
+          <a href="mailto:sales@proculink.eu" style={{ fontSize: 12, color: "#8A93A5" }}>
             Need Enterprise? Contact sales
           </a>
           {process.env.NEXT_PUBLIC_BOOK_DEMO_URL && (
@@ -309,6 +313,9 @@ export function BillingSection() {
 
       {isPaid && (
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          <div style={{ borderRadius: 10, padding: "13px 15px", background: "#FFFFFF", border: "1px solid #E2E6EE", fontSize: 12.5, lineHeight: 1.55, color: "#56627A" }}>
+            Plan changes update order and supplier limits immediately after Stripe confirms the subscription. Existing orders, mappings, and delivery logs stay available.
+          </div>
           {nextPlan && (
             <button
               onClick={() => checkoutMutation.mutate(nextPlan)}

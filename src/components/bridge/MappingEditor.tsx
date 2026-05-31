@@ -150,6 +150,22 @@ export function MappingEditor() {
     return matchSearch && matchSrc;
   });
 
+  function openPanelForSupplier(kind: "import" | "export" | "add") {
+    setNotice(null);
+
+    if ((kind === "add" || kind === "import") && !selectedSupplierId) {
+      const firstSupplier = supplierList?.[0];
+      if (!firstSupplier) {
+        setNotice("Add a supplier before saving item-code mappings.");
+        return;
+      }
+      setSelectedSupplierId(firstSupplier.id);
+      setRoute(firstSupplier.name);
+    }
+
+    setPanel({ kind });
+  }
+
   return (
     <div
       className="flex flex-col h-full min-h-0 overflow-hidden"
@@ -177,7 +193,7 @@ export function MappingEditor() {
         </div>
         <div className="grid w-full grid-cols-2 gap-2 lg:ml-auto lg:flex lg:w-auto">
           <button
-            onClick={() => { setNotice(null); setPanel({ kind: "import" }); }}
+            onClick={() => openPanelForSupplier("import")}
             className="flex h-10 items-center justify-center gap-1.5 rounded-[7px] px-3.5 text-[13px] font-medium transition-colors lg:h-[34px] lg:text-[12.5px]"
             style={{
               border: "1px solid #E2E6EE",
@@ -194,7 +210,7 @@ export function MappingEditor() {
             Import
           </button>
           <button
-            onClick={() => { setNotice(null); setPanel({ kind: "add" }); }}
+            onClick={() => openPanelForSupplier("add")}
             className="flex h-10 items-center justify-center gap-1.5 rounded-[7px] px-3.5 text-[13px] font-semibold transition-colors lg:h-[34px] lg:text-[12.5px]"
             title="Map a buyer item code to a supplier item code"
             style={{
@@ -304,7 +320,7 @@ export function MappingEditor() {
 
         {/* Export — kept reachable as a quiet ghost action (design header has none) */}
         <button
-          onClick={() => { setNotice(null); setPanel({ kind: "export" }); }}
+          onClick={() => openPanelForSupplier("export")}
           className="flex h-10 w-full flex-shrink-0 items-center justify-center gap-1 rounded-[7px] px-3 text-[13px] font-medium transition-colors lg:h-[34px] lg:w-auto lg:text-[12px]"
           style={{
             border: "1px solid #E2E6EE",
@@ -573,7 +589,12 @@ function MappingPanel({
   const isCodePanel = panel.kind === "add" || panel.kind === "edit";
 
   const handleAction = async () => {
-    if (isApiMockMode || !supplierId) {
+    if (!supplierId) {
+      setError("Choose a supplier before saving mappings.");
+      return;
+    }
+
+    if (isApiMockMode) {
       // Demo mode: local-only notice
       const message =
         panel.kind === "export" ? "Export prepared for the selected mapping scope." :

@@ -301,7 +301,7 @@ const PRICING_CSS = `
 .plk-section { padding: 84px 0; }
 .plk-section.tint { background: var(--bg); }
 .plk-section.navy { background: var(--navy); color: #fff; }
-.plk-wrap { max-width: 1180px; margin: 0 auto; padding: 0 32px; }
+.plk-wrap { max-width: 1280px; margin: 0 auto; padding: 0 32px; }
 .plk-wrap.narrow { max-width: 920px; }
 
 /* Hero */
@@ -352,7 +352,7 @@ const PRICING_CSS = `
 .plk-section-sub { color: var(--navy-text); font-size: 16px; line-height: 1.6; margin: 14px auto 0; max-width: 460px; text-wrap: pretty; }
 
 /* Pricing grid + card (design .pricing-grid / .price-card) */
-.plk-pricing-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 12px; align-items: start; }
+.plk-pricing-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; align-items: start; }
 .plk-price-card {
   background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg);
   padding: 22px 18px; position: relative; display: flex; flex-direction: column;
@@ -414,7 +414,7 @@ const PRICING_CSS = `
 
 /* ── Responsive (mirrors marketing.css pricing breakpoints) ─────────────── */
 @media (max-width: 1100px) {
-  .plk-pricing-grid { grid-template-columns: repeat(3, 1fr); }
+  .plk-pricing-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @media (max-width: 760px) {
   .plk-pricing-grid { grid-template-columns: 1fr; }

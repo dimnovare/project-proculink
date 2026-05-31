@@ -2,9 +2,9 @@
 
 // Validation rules — canonical split-detail: rules table (left) + a sticky
 // inline rule editor (right). KEEP live API wiring (list / toggle / save /
-// delete). Scope column maps to the real `entity` field. RuleDto carries no
-// per-rule supplier binding, so the Supplier column is display-only and
-// defaults to "All suppliers" for live rules (sensible, non-fabricated).
+// delete). Scope column maps to the real `entity` field. RuleDto currently has
+// no per-rule supplier binding, so live rules are labelled "Global" instead of
+// pretending every rule has the same supplier-specific configuration.
 
 import { useState, useEffect, useRef, type ReactNode } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -69,7 +69,7 @@ function dtoToRule(dto: RuleDto): Rule {
     enabled:       dto.enabled,
     autoBlock:     dto.autoBlock,
     lastTriggered: dto.lastTriggered ?? "—",
-    supplier:      "All suppliers",
+    supplier:      "Global",
     code:          codeFor(dto.name, dto.entity),
     condition:     dto.description,
   };
@@ -233,7 +233,7 @@ export function ValidationRules() {
         <div>
           <h1 className="text-[28px] leading-[1.1] font-bold tracking-[-0.02em]" style={{ fontFamily: "'Bricolage Grotesque', Inter, sans-serif", color: "#0B1A2F" }}>Validation rules</h1>
           <p className="text-[13px] mt-1.5" style={{ color: "#56627A" }}>
-            Block bad orders before they reach a supplier · {activeCount} active
+            Block bad orders before they reach a supplier · {activeCount} active · global rules apply to every supplier route
           </p>
         </div>
         <button
@@ -344,8 +344,19 @@ export function ValidationRules() {
                       {sev.label}
                     </span>
                     <span className="inline-flex items-center rounded-[6px] px-2 h-[22px] text-[11.5px] font-medium" style={{ background: "#EFF2F7", color: "#5B6577" }}>{r.entity}</span>
-                    <span className="text-[12px]" style={{ color: "#647089" }}>{r.supplier}</span>
+                    <span
+                      className="text-[12px]"
+                      style={{
+                        color: r.supplier === "Global" ? "#0F4FA8" : "#647089",
+                        fontWeight: r.supplier === "Global" ? 600 : 400,
+                      }}
+                    >
+                      {r.supplier === "Global" ? "Global route rule" : r.supplier}
+                    </span>
                   </div>
+                  <p className="mt-2 text-[12px] leading-snug" style={{ color: "#56627A" }}>
+                    {r.description}
+                  </p>
                   <div className="mt-2.5 pt-2.5 text-[12px]" style={{ borderTop: "1px solid #F1F3F7", color: "#9AA3B5" }}>
                     Triggered <span className="font-semibold" style={{ color: r.triggers > 0 ? "#0B1A2F" : "#C6CDDA", fontFamily: "'JetBrains Mono', ui-monospace, SFMono-Regular, monospace" }}>{r.triggers}</span>
                     <span> in the last 30 days</span>

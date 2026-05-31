@@ -567,6 +567,124 @@ header :focus-visible {
   .connect-svg  { display: none; }
 }
 
+/* ── Legacy Bridge screen utilities ────────────────────────────────────── */
+/* Several Claude Design ports use these small semantic classes. Keep them
+   intentionally plain so they do not fight Tailwind utilities. */
+.work-inner {
+  width: 100%;
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 28px 24px 40px;
+}
+.work-inner.wide { max-width: 1360px; }
+.row { display: flex; }
+.between { justify-content: space-between; }
+.wrap { flex-wrap: wrap; }
+.grow { flex: 1 1 auto; }
+.items-center { align-items: center; }
+.faint { color: var(--ink-faint); }
+.mono { font-family: var(--font-mono); }
+.page-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+.page-title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 34px;
+  line-height: 1.05;
+  letter-spacing: 0;
+  font-weight: 700;
+  color: var(--ink);
+}
+.page-sub {
+  margin-top: 6px;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--ink-muted);
+}
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+  padding: 18px;
+}
+.eyebrow {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+.fchip-row { min-width: 0; }
+.fchip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 30px;
+  padding: 0 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--ink-muted);
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.fchip.active {
+  border-color: color-mix(in srgb, var(--brand-green) 35%, var(--border));
+  background: var(--brand-green-soft);
+  color: var(--brand-green-deep);
+}
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 34px;
+  padding: 0 12px;
+  border-radius: var(--radius);
+  border: 1px solid transparent;
+  font-size: 12.5px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.btn-secondary {
+  background: var(--surface);
+  border-color: var(--border);
+  color: var(--ink);
+}
+.btn-secondary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.skel {
+  border-radius: var(--radius-sm);
+  background: linear-gradient(90deg, #edf0f5, #f7f8fb, #edf0f5);
+  background-size: 220% 100%;
+  animation: skel-shimmer 1.4s ease-in-out infinite;
+}
+@keyframes skel-shimmer {
+  0% { background-position: 100% 0; }
+  100% { background-position: 0 0; }
+}
+@media (max-width: 640px) {
+  .work-inner { padding: 20px 16px 28px; }
+  .page-head { flex-direction: column; align-items: stretch; gap: 12px; }
+  .fchip-row {
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    padding-bottom: 2px;
+    scrollbar-width: none;
+  }
+  .fchip-row::-webkit-scrollbar { display: none; }
+}
+
 /* ── AI card + tag ─────────────────────────────────────────────────────── */
 .ai-card {
   position: relative; background: var(--ai-soft); border: 1px solid #ddd0f5;
