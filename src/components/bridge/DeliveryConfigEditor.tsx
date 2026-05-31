@@ -253,8 +253,8 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
                 }}
                 className="flex h-9 items-center justify-between rounded-[6px] px-3 text-[12px] font-semibold"
                 style={{
-                  border: protocol === item.id ? "1px solid #1E66C9" : "1px solid #D5DAEA",
-                  background: protocol === item.id ? "#EEF5FF" : "#FFFFFF",
+                  border: protocol === item.id ? "1px solid #28C55E" : "1px solid #D5DAEA",
+                  background: protocol === item.id ? "#DCFCE7" : "#FFFFFF",
                   color: item.enabled ? "#0B1A2F" : "#8A93A5",
                   cursor: item.enabled ? "pointer" : "not-allowed",
                 }}
@@ -352,7 +352,7 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
 
               <div className="rounded-[7px]" style={{ border: "1px solid #E2E6EE" }}>
                 <div className="flex items-center gap-2 px-3 py-2" style={{ borderBottom: "1px solid #E2E6EE" }}>
-                  <KeyRound size={14} color="#1E66C9" />
+                  <KeyRound size={14} color="#28C55E" />
                   <span className="text-[12px] font-semibold" style={{ color: "#0B1A2F" }}>Authentication</span>
                   {hasSavedCredentials && (
                     <span className="ml-auto text-[11px]" style={{ color: "#2E8E3A" }}>saved credential masked</span>

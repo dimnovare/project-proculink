@@ -36,11 +36,11 @@ export const CATEGORY_META: Record<
   HelpCategory,
   { color: string; soft: string; icon: HelpIconName }
 > = {
-  "Getting started": { color: "#1E66C9", soft: "#E3EDFB", icon: "upload" },
+  "Getting started": { color: "#28C55E", soft: "#DCFCE7", icon: "upload" },
   Mapping:           { color: "#C97A14", soft: "#FAEFD6", icon: "map" },
   Delivery:          { color: "#2E8E3A", soft: "#E2F1E2", icon: "deliver" },
   AI:                { color: "#6F4FCE", soft: "#EEE7FB", icon: "ai" },
-  Billing:           { color: "#0F4FA8", soft: "#E3EDFB", icon: "billing" },
+  Billing:           { color: "#0F4FA8", soft: "#DCFCE7", icon: "billing" },
   Email:             { color: "#56627A", soft: "#EFF2F7", icon: "email" },
   Troubleshooting:   { color: "#C53A3A", soft: "#FBE3E3", icon: "wrench" },
 };

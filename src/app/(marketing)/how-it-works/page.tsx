@@ -31,8 +31,8 @@ const STEPS: Array<{
     title: "Receive in any format",
     desc:
       "Buyers send POs however they like — a PDF email attachment, an XLSX export, cXML over webhook, EDI dropped on SFTP. ProcuLink ingests all of it through one inbox.",
-    color: "#1E66C9",
-    bg: "#E3EDFB",
+    color: "#28C55E",
+    bg: "#DCFCE7",
     icon: <UploadIcon />,
     pills: [
       { label: "PDF", fg: "#B4452B", bg: "#FBE7E1" },
@@ -47,8 +47,8 @@ const STEPS: Array<{
     title: "Parse to a canonical order",
     desc:
       "Every order is parsed into one neutral structure — the canonical order. PO number, parties, line items, terms and totals each become a field with a confidence score and visible provenance.",
-    color: "#1E66C9",
-    bg: "#E3EDFB",
+    color: "#28C55E",
+    bg: "#DCFCE7",
     icon: <LayersIcon />,
   },
   {
@@ -81,7 +81,7 @@ const STEPS: Array<{
       { label: "CXML", fg: "#6F4FCE", bg: "#EEE7FB" },
       { label: "UBL", fg: "#56627A", bg: "#EEF1F6" },
       { label: "EDIFACT", fg: "#C97A14", bg: "#FAEFD6" },
-      { label: "X12", fg: "#1E66C9", bg: "#E3EDFB" },
+      { label: "X12", fg: "#28C55E", bg: "#DCFCE7" },
     ],
   },
 ];

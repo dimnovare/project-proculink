@@ -187,7 +187,7 @@ export default function AsnsPage() {
             {/* Mobile cards */}
             <div className="flex flex-col gap-3 sm:hidden">
               {asns.map((asn) => (
-                <div key={asn.id} className="rounded-[8px] bg-white p-4" style={{ border: "1px solid #E2E6EE", borderLeft: "3px solid #1E66C9" }}>
+                <div key={asn.id} className="rounded-[8px] bg-white p-4" style={{ border: "1px solid #E2E6EE", borderLeft: "3px solid #28C55E" }}>
                   <div className="flex items-start justify-between gap-3 mb-2">
                     <div className="min-w-0">
                       <p className="text-[13px] font-semibold font-mono truncate" style={{ color: "#0B1A2F" }}>{asn.asnNumber ?? "—"}</p>

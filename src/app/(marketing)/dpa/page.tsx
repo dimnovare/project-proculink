@@ -15,7 +15,7 @@ const S = {
   h3:      { fontFamily: "'Bricolage Grotesque', Inter, sans-serif", fontSize: 16, fontWeight: 600, color: "#0B1A2F", margin: "24px 0 8px" },
   p:       { fontSize: 14.5, lineHeight: 1.75, color: "#3D4A5C", marginBottom: 14 },
   li:      { fontSize: 14.5, lineHeight: 1.75, color: "#3D4A5C", marginBottom: 6 },
-  callout: { background: "#F6F7FA", border: "1px solid #E2E6EE", borderLeft: "3px solid #1E66C9", borderRadius: 8, padding: "16px 18px", margin: "16px 0 24px", fontSize: 13.5, lineHeight: 1.6, color: "#3D4A5C" },
+  callout: { background: "#F6F7FA", border: "1px solid #E2E6EE", borderLeft: "3px solid #28C55E", borderRadius: 8, padding: "16px 18px", margin: "16px 0 24px", fontSize: 13.5, lineHeight: 1.6, color: "#3D4A5C" },
 };
 
 export default function DpaPage() {
@@ -33,7 +33,7 @@ export default function DpaPage() {
 
       <div style={S.callout}>
         <strong>For customers who need a counter-signed DPA:</strong> Email{" "}
-        <a href="mailto:legal@proculink.com" style={{ color: "#1E66C9" }}>legal@proculink.com</a>{" "}
+        <a href="mailto:legal@proculink.com" style={{ color: "#28C55E" }}>legal@proculink.com</a>{" "}
         and include your organisation legal name and contact for signature. We will return
         a counter-signed PDF within 5 business days.
       </div>
@@ -42,7 +42,7 @@ export default function DpaPage() {
       <p style={S.p}>
         Capitalised terms used but not defined here have the meaning given in the GDPR.
         &quot;Service&quot; means the ProcuLink procurement automation platform as described in
-        the <Link href="/terms" style={{ color: "#1E66C9" }}>Terms of Service</Link>.
+        the <Link href="/terms" style={{ color: "#28C55E" }}>Terms of Service</Link>.
       </p>
 
       <h2 style={S.h2}>2. Roles and scope</h2>
@@ -60,14 +60,14 @@ export default function DpaPage() {
         <li style={S.li}>Use sub-processors only as listed in <strong>Annex III</strong> and provide 30 days&apos; prior written notice of additions or replacements.</li>
         <li style={S.li}>Assist the Controller in responding to data-subject rights requests under GDPR Chapter III.</li>
         <li style={S.li}>Notify the Controller without undue delay (within 72 hours of awareness) of any personal data breach affecting the Controller&apos;s data.</li>
-        <li style={S.li}>On termination, delete or return all Controller personal data within the retention windows in the <Link href="/privacy" style={{ color: "#1E66C9" }}>Privacy Policy</Link>.</li>
+        <li style={S.li}>On termination, delete or return all Controller personal data within the retention windows in the <Link href="/privacy" style={{ color: "#28C55E" }}>Privacy Policy</Link>.</li>
         <li style={S.li}>Make available the information necessary to demonstrate compliance with GDPR Art. 28(3).</li>
       </ul>
 
       <h2 style={S.h2}>4. International transfers</h2>
       <p style={S.p}>
         All Controller personal data is processed in EU-region or EU-compliant infrastructure
-        as described in the <Link href="/subprocessors" style={{ color: "#1E66C9" }}>Subprocessors</Link>{" "}
+        as described in the <Link href="/subprocessors" style={{ color: "#28C55E" }}>Subprocessors</Link>{" "}
         page. Where any sub-processor processes data outside the EEA, the relevant Standard
         Contractual Clauses (Commission Implementing Decision 2021/914) apply.
       </p>
@@ -87,7 +87,7 @@ export default function DpaPage() {
       <h3 style={S.h3}>Processor</h3>
       <p style={S.p}>
         ProcuLink OÜ · Registration 17477775 · Katusepapi 6, Tallinn, Estonia · Contact:{" "}
-        <a href="mailto:legal@proculink.com" style={{ color: "#1E66C9" }}>legal@proculink.com</a>
+        <a href="mailto:legal@proculink.com" style={{ color: "#28C55E" }}>legal@proculink.com</a>
       </p>
 
       <h3 style={S.h3}>Categories of data subjects</h3>
@@ -103,7 +103,7 @@ export default function DpaPage() {
       <h3 style={S.h3}>Purpose and duration</h3>
       <p style={S.p}>
         Processing is for the provision of the Service and runs for the term of the agreement
-        plus the retention windows described in the <Link href="/privacy" style={{ color: "#1E66C9" }}>Privacy Policy</Link>.
+        plus the retention windows described in the <Link href="/privacy" style={{ color: "#28C55E" }}>Privacy Policy</Link>.
       </p>
 
       <h2 style={S.h2}>Annex II — Technical and organisational measures</h2>
@@ -121,17 +121,17 @@ export default function DpaPage() {
       <h2 style={S.h2}>Annex III — Authorised sub-processors</h2>
       <p style={S.p}>
         The current list of authorised sub-processors is maintained at{" "}
-        <Link href="/subprocessors" style={{ color: "#1E66C9" }}>/subprocessors</Link>. The
+        <Link href="/subprocessors" style={{ color: "#28C55E" }}>/subprocessors</Link>. The
         Controller may subscribe to change notifications by emailing{" "}
-        <a href="mailto:privacy@proculink.com" style={{ color: "#1E66C9" }}>privacy@proculink.com</a>{" "}
+        <a href="mailto:privacy@proculink.com" style={{ color: "#28C55E" }}>privacy@proculink.com</a>{" "}
         with the subject line &quot;Subprocessor notifications&quot;.
       </p>
 
       <p style={{ ...S.p, marginTop: 40, paddingTop: 24, borderTop: "1px solid #E2E6EE" }}>
-        <Link href="/privacy" style={{ color: "#1E66C9", marginRight: 16 }}>Privacy Policy</Link>
-        <Link href="/terms" style={{ color: "#1E66C9", marginRight: 16 }}>Terms of Service</Link>
-        <Link href="/subprocessors" style={{ color: "#1E66C9", marginRight: 16 }}>Subprocessors</Link>
-        <Link href="/security" style={{ color: "#1E66C9" }}>Security</Link>
+        <Link href="/privacy" style={{ color: "#28C55E", marginRight: 16 }}>Privacy Policy</Link>
+        <Link href="/terms" style={{ color: "#28C55E", marginRight: 16 }}>Terms of Service</Link>
+        <Link href="/subprocessors" style={{ color: "#28C55E", marginRight: 16 }}>Subprocessors</Link>
+        <Link href="/security" style={{ color: "#28C55E" }}>Security</Link>
       </p>
     </div>
   );

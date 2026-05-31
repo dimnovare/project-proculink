@@ -80,7 +80,7 @@ export default function PrivacyPage() {
       </ul>
       <p style={S.p}>
         To exercise any of these rights, email{" "}
-        <a href="mailto:privacy@proculink.com" style={{ color: "#1E66C9" }}>privacy@proculink.com</a>.
+        <a href="mailto:privacy@proculink.com" style={{ color: "#28C55E" }}>privacy@proculink.com</a>.
         We aim to respond within 30 days.
       </p>
 
@@ -93,7 +93,7 @@ export default function PrivacyPage() {
       <h2 style={S.h2}>Subprocessors</h2>
       <p style={S.p}>
         The authoritative list of subprocessors is maintained at{" "}
-        <Link href="/subprocessors" style={{ color: "#1E66C9" }}>/subprocessors</Link>{" "}
+        <Link href="/subprocessors" style={{ color: "#28C55E" }}>/subprocessors</Link>{" "}
         with a 30-day change-notification commitment. The current snapshot:
       </p>
       <table style={S.table}>
@@ -125,17 +125,17 @@ export default function PrivacyPage() {
       <h2 style={S.h2}>Contact and DPO</h2>
       <p style={S.p}>
         For privacy questions or to exercise your rights:{" "}
-        <a href="mailto:privacy@proculink.com" style={{ color: "#1E66C9" }}>privacy@proculink.com</a>
+        <a href="mailto:privacy@proculink.com" style={{ color: "#28C55E" }}>privacy@proculink.com</a>
         <br />
-        General support: <a href="mailto:support@proculink.com" style={{ color: "#1E66C9" }}>support@proculink.com</a>
+        General support: <a href="mailto:support@proculink.com" style={{ color: "#28C55E" }}>support@proculink.com</a>
         <br />
         Registered address: ProcuLink OÜ, Katusepapi 6, Tallinn, Estonia
       </p>
 
       <p style={{ ...S.p, marginTop: 40, paddingTop: 24, borderTop: "1px solid #E2E6EE" }}>
-        <Link href="/terms" style={{ color: "#1E66C9", marginRight: 16 }}>Terms of Service</Link>
-        <Link href="/security" style={{ color: "#1E66C9", marginRight: 16 }}>Security</Link>
-        <Link href="/support" style={{ color: "#1E66C9" }}>Support</Link>
+        <Link href="/terms" style={{ color: "#28C55E", marginRight: 16 }}>Terms of Service</Link>
+        <Link href="/security" style={{ color: "#28C55E", marginRight: 16 }}>Security</Link>
+        <Link href="/support" style={{ color: "#28C55E" }}>Support</Link>
       </p>
     </div>
   );

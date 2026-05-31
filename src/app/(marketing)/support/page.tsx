@@ -17,7 +17,7 @@ const S = {
   card:   {
     background: "#F6F7FA",
     border: "1px solid #E2E6EE",
-    borderLeft: "3px solid #1E66C9",
+    borderLeft: "3px solid #28C55E",
     borderRadius: 8,
     padding: "20px 22px",
     marginBottom: 12,
@@ -46,7 +46,7 @@ export default function SupportPage() {
           Email support
         </div>
         <p style={{ ...S.p, marginBottom: 4 }}>
-          <a href="mailto:support@proculink.com" style={{ color: "#1E66C9", fontWeight: 500 }}>
+          <a href="mailto:support@proculink.com" style={{ color: "#28C55E", fontWeight: 500 }}>
             support@proculink.com
           </a>
         </p>
@@ -60,29 +60,29 @@ export default function SupportPage() {
         <li style={S.li}>
           <strong>Billing and plans</strong> — For questions about your subscription, invoices, or
           upgrading your plan, visit the{" "}
-          <Link href="/pricing" style={{ color: "#1E66C9" }}>Pricing page</Link> or email{" "}
-          <a href="mailto:support@proculink.com" style={{ color: "#1E66C9" }}>support@proculink.com</a>.
+          <Link href="/pricing" style={{ color: "#28C55E" }}>Pricing page</Link> or email{" "}
+          <a href="mailto:support@proculink.com" style={{ color: "#28C55E" }}>support@proculink.com</a>.
         </li>
         <li style={S.li}>
           <strong>Data and privacy</strong> — For questions about how we handle your data, see
           our{" "}
-          <Link href="/privacy" style={{ color: "#1E66C9" }}>Privacy Policy</Link>.
+          <Link href="/privacy" style={{ color: "#28C55E" }}>Privacy Policy</Link>.
         </li>
         <li style={S.li}>
           <strong>Security</strong> — For questions about how ProcuLink is secured, see
           our{" "}
-          <Link href="/security" style={{ color: "#1E66C9" }}>Security page</Link>.
+          <Link href="/security" style={{ color: "#28C55E" }}>Security page</Link>.
         </li>
         <li style={S.li}>
           <strong>Terms and legal</strong> — See our{" "}
-          <Link href="/terms" style={{ color: "#1E66C9" }}>Terms of Service</Link>.
+          <Link href="/terms" style={{ color: "#28C55E" }}>Terms of Service</Link>.
         </li>
       </ul>
 
       <h2 style={S.h2}>Report a problem</h2>
       <p style={S.p}>
         Found a bug or unexpected behaviour? Email{" "}
-        <a href="mailto:support@proculink.com" style={{ color: "#1E66C9" }}>support@proculink.com</a>{" "}
+        <a href="mailto:support@proculink.com" style={{ color: "#28C55E" }}>support@proculink.com</a>{" "}
         and include:
       </p>
       <ul style={{ paddingLeft: 20, marginBottom: 14 }}>
@@ -98,16 +98,16 @@ export default function SupportPage() {
       <h2 style={S.h2}>Security issues</h2>
       <p style={S.p}>
         To report a security vulnerability, please email{" "}
-        <a href="mailto:security@proculink.com" style={{ color: "#1E66C9" }}>security@proculink.com</a>{" "}
+        <a href="mailto:security@proculink.com" style={{ color: "#28C55E" }}>security@proculink.com</a>{" "}
         directly. Do not report security issues in public forums. See our{" "}
-        <Link href="/security" style={{ color: "#1E66C9" }}>Security page</Link> for our
+        <Link href="/security" style={{ color: "#28C55E" }}>Security page</Link> for our
         responsible disclosure policy.
       </p>
 
       <h2 style={S.h2}>Enterprise and partnerships</h2>
       <p style={S.p}>
         For enterprise pricing, custom integrations, or partnership enquiries, email{" "}
-        <a href="mailto:hello@proculink.com" style={{ color: "#1E66C9" }}>hello@proculink.com</a>.
+        <a href="mailto:hello@proculink.com" style={{ color: "#28C55E" }}>hello@proculink.com</a>.
       </p>
 
       <ContactForm />

@@ -42,7 +42,7 @@ export default function HelpArticleShell({
       >
         <Link
           href="/help"
-          className="rounded-[4px] font-medium transition-colors hover:text-[#0F4FA8] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1E66C9] focus-visible:ring-offset-2"
+          className="rounded-[4px] font-medium transition-colors hover:text-[#0F4FA8] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#28C55E] focus-visible:ring-offset-2"
           style={{ color: "#56627A" }}
         >
           Help center
@@ -119,7 +119,7 @@ function FeedbackPrompt({ slug, title }: { slug: string; title?: string }) {
           <button
             type="button"
             onClick={() => vote("yes")}
-            className="rounded-[7px] px-3.5 py-1.5 text-[13px] font-medium transition-colors hover:bg-[#F6F7FA] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1E66C9] focus-visible:ring-offset-2"
+            className="rounded-[7px] px-3.5 py-1.5 text-[13px] font-medium transition-colors hover:bg-[#F6F7FA] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#28C55E] focus-visible:ring-offset-2"
             style={{ border: "1px solid #E2E6EE", color: "#0B1A2F", background: "#FFFFFF" }}
           >
             👍 Yes
@@ -127,7 +127,7 @@ function FeedbackPrompt({ slug, title }: { slug: string; title?: string }) {
           <button
             type="button"
             onClick={() => vote("no")}
-            className="rounded-[7px] px-3.5 py-1.5 text-[13px] font-medium transition-colors hover:bg-[#F6F7FA] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1E66C9] focus-visible:ring-offset-2"
+            className="rounded-[7px] px-3.5 py-1.5 text-[13px] font-medium transition-colors hover:bg-[#F6F7FA] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#28C55E] focus-visible:ring-offset-2"
             style={{ border: "1px solid #E2E6EE", color: "#0B1A2F", background: "#FFFFFF" }}
           >
             👎 No
@@ -160,7 +160,7 @@ function ContactCard() {
       </div>
       <Link
         href="/support"
-        className="inline-flex shrink-0 items-center rounded-[7px] px-4 py-2 text-[13px] font-semibold text-white transition-all hover:brightness-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1E66C9] focus-visible:ring-offset-2"
+        className="inline-flex shrink-0 items-center rounded-[7px] px-4 py-2 text-[13px] font-semibold text-white transition-all hover:brightness-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#28C55E] focus-visible:ring-offset-2"
         style={{ background: "#0B1A2F" }}
       >
         Contact support →
@@ -175,7 +175,7 @@ function Pager({ dir, article }: { dir: "prev" | "next"; article: HelpArticle })
   return (
     <Link
       href={`/help/${article.slug}`}
-      className="group flex flex-col gap-1 rounded-[10px] px-4 py-3 transition-all hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1E66C9] focus-visible:ring-offset-2 motion-reduce:transform-none"
+      className="group flex flex-col gap-1 rounded-[10px] px-4 py-3 transition-all hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#28C55E] focus-visible:ring-offset-2 motion-reduce:transform-none"
       style={{ border: "1px solid #E2E6EE", background: "#FFFFFF" }}
     >
       <span

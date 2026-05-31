@@ -26,12 +26,14 @@ import { getPoMappingTemplates, type StarterTemplate } from "@/lib/api-client";
 
 // ─── Design tokens ────────────────────────────────────────────────────────────
 const NAVY       = "#0B1A2F";
-const BLUE       = "#1E66C9";
-const BLUE_DEEP  = "#0F4FA8";
-const BLUE_SOFT  = "#E3EDFB";
+const BLUE       = "#28C55E";
+const BLUE_DEEP  = "#1DAF50";
+const BLUE_SOFT  = "#DCFCE7";
 const GREEN      = "#2E8E3A";
 const GREEN_DEEP = "#1E6D29";
 const GREEN_SOFT = "#E2F1E2";
+// topology-only: buyer endpoint / gradient start (blue=buyer, green=supplier)
+const BUYER_BLUE  = "#1E66C9";
 const BORDER     = "#E2E6EE";
 const INPUT_BDR  = "#D5DAEA";
 const MUTED      = "#56627A";
@@ -361,7 +363,7 @@ export function PoMappingEditor({
       style={{ border: `1px solid ${BORDER}`, background: SURFACE, boxShadow: "0 1px 2px rgba(11,26,47,0.04)" }}
     >
       {/* Bridge cross-section edge */}
-      <div style={{ height: 3, background: `linear-gradient(90deg, ${BLUE}, ${GREEN})` }} />
+      <div style={{ height: 3, background: `linear-gradient(90deg, ${BUYER_BLUE}, ${GREEN})` }} />
 
       {/* ── Header ─────────────────────────────────────────────────────────── */}
       <div className="px-4 py-3.5 sm:px-5" style={{ borderBottom: `1px solid ${BORDER}` }}>
@@ -534,7 +536,7 @@ export function PoMappingEditor({
             <defs>
               {/* Horizontal gradient shared by all accepted wires */}
               <linearGradient id={gradId} x1="0" y1="0" x2="1" y2="0">
-                <stop offset="0%"   stopColor={BLUE}  />
+                <stop offset="0%"   stopColor={BUYER_BLUE}  />
                 <stop offset="100%" stopColor={GREEN} />
               </linearGradient>
               <style>{`
@@ -570,7 +572,7 @@ export function PoMappingEditor({
                     style={isDrawing ? { animation: "pme-draw 800ms ease-out forwards" } : {}}
                   />
                   {/* Source endpoint (blue) */}
-                  <circle cx={p.x1} cy={p.y1} r="3.5" fill={BLUE} />
+                  <circle cx={p.x1} cy={p.y1} r="3.5" fill={BUYER_BLUE} />
                   {/* Destination endpoint (green) */}
                   <circle cx={p.x2} cy={p.y2} r="3.5" fill={GREEN} />
                 </g>

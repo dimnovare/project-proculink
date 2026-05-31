@@ -43,7 +43,7 @@ export function StandardsFieldPopover({ canonicalField, label }: StandardsFieldP
             transition: "color 120ms",
           }}
           onMouseEnter={(e) => {
-            (e.currentTarget as HTMLButtonElement).style.color = "#1E66C9";
+            (e.currentTarget as HTMLButtonElement).style.color = "#28C55E";
           }}
           onMouseLeave={(e) => {
             (e.currentTarget as HTMLButtonElement).style.color = "#8A93A5";
@@ -98,7 +98,7 @@ export function StandardsFieldPopover({ canonicalField, label }: StandardsFieldP
                 style={{
                   fontFamily: "'JetBrains Mono', monospace",
                   fontSize: 11.5,
-                  color: "#1E66C9",
+                  color: "#28C55E",
                   wordBreak: "break-all",
                 }}
               >

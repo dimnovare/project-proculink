@@ -39,7 +39,7 @@ type CardTemplate = {
 // Accent strip + chip routing per standard family.
 const FMT_COLOR: Record<string, string> = {
   cXML: "#6F4FCE", EDI: "#C97A14", EDIFACT: "#C97A14", X12: "#C97A14",
-  UBL: "#1E66C9", JSON: "#A06200", CSV: "#56627A",
+  UBL: "#28C55E", JSON: "#A06200", CSV: "#56627A",
 };
 
 // One-line plain-language description of what each standard envelope is.

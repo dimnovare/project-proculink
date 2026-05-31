@@ -262,7 +262,7 @@ export default function InvoicesPage() {
             {/* Mobile cards */}
             <div className="flex flex-col gap-3 sm:hidden">
               {invoices.map((inv) => (
-                <div key={inv.id} className="rounded-[8px] bg-white p-4" style={{ border: "1px solid #E2E6EE", borderLeft: "3px solid #1E66C9" }}>
+                <div key={inv.id} className="rounded-[8px] bg-white p-4" style={{ border: "1px solid #E2E6EE", borderLeft: "3px solid #28C55E" }}>
                   <div className="flex items-start justify-between gap-3 mb-2">
                     <div className="min-w-0">
                       <p className="text-[13px] font-semibold font-mono truncate" style={{ color: "#0B1A2F" }}>{inv.invoiceNumber ?? "—"}</p>

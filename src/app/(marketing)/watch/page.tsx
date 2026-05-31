@@ -31,12 +31,12 @@ export default function WatchPage() {
         </div>
       ) : (
         <div style={{ background: "#F6F7FA", border: "1px dashed #C6CDDA", borderRadius: 12, padding: 48, textAlign: "center", color: "#8A93A5", fontSize: 14 }}>
-          The walkthrough video is being recorded. Email <a href="mailto:hello@proculink.com" style={{ color: "#1E66C9" }}>hello@proculink.com</a> if you&apos;d like an early link.
+          The walkthrough video is being recorded. Email <a href="mailto:hello@proculink.com" style={{ color: "#28C55E" }}>hello@proculink.com</a> if you&apos;d like an early link.
         </div>
       )}
 
       <p style={{ marginTop: 36, fontSize: 14, color: "#56627A" }}>
-        Prefer a live walkthrough? <Link href="/pricing" style={{ color: "#1E66C9" }}>See pricing</Link> or book a 15-minute demo from inside the product.
+        Prefer a live walkthrough? <Link href="/pricing" style={{ color: "#28C55E" }}>See pricing</Link> or book a 15-minute demo from inside the product.
       </p>
     </div>
   );

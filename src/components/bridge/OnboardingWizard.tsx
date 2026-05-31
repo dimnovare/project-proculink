@@ -12,7 +12,7 @@ import type { Supplier } from "@/types/procurement";
 
 const T = {
   navy:    "#0B1A2F",
-  blue:    "#1E66C9",
+  blue:    "#28C55E",
   green:   "#2E8E3A",
   surface: "#FFFFFF",
   bg:      "#F6F7FA",

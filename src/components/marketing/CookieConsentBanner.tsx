@@ -43,7 +43,7 @@ export function CookieConsentBanner() {
       >
         ProcuLink uses functional cookies to keep you signed in, and optional analytics
         cookies to improve the product. We don&apos;t use advertising or cross-site tracking.{" "}
-        <Link href="/privacy" style={{ color: "#1E66C9" }}>See our Privacy Policy</Link>.
+        <Link href="/privacy" style={{ color: "#28C55E" }}>See our Privacy Policy</Link>.
       </p>
       <div style={{ display: "flex", gap: 8 }}>
         <button

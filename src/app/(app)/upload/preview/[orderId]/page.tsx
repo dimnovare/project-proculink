@@ -35,7 +35,7 @@ export default function MappingPreviewPage() {
           <Link
             href="/upload"
             className="hover:underline"
-            style={{ color: "#1E66C9", textDecoration: "none" }}
+            style={{ color: "#28C55E", textDecoration: "none" }}
           >
             Upload
           </Link>

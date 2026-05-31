@@ -60,7 +60,7 @@ const SOURCE_STYLE: Record<Source, { bg: string; color: string }> = {
   AI:        { bg: "#EEE7FB", color: "#6F4FCE" },   // violet — AI provenance (canonical)
   Manual:    { bg: "#EFF2F7", color: "#56627A" },   // neutral grey
   Imported:  { bg: "#E2F1E2", color: "#1E6D29" },   // green tint
-  Inherited: { bg: "#E3EDFB", color: "#0F4FA8" },   // blue tint
+  Inherited: { bg: "#DCFCE7", color: "#1DAF50" },   // green tint
 };
 
 function SourceTag({ src }: { src: Source }) {

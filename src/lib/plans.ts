@@ -111,7 +111,7 @@ export const PLANS: Plan[] = [
       "Basic audit log",
     ],
     cta: { label: "Upgrade to Growth", href: SIGN_UP },
-    color: "#1E66C9",
+    color: "#28C55E",
     highlight: true,
     isCheckout: true,
     isCustom: false,

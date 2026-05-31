@@ -106,7 +106,7 @@ export function HelpSlideover({ open, onClose }: Props) {
             style={{
               background: "#F6F7FA",
               border: "1px solid #E2E6EE",
-              borderLeft: "3px solid #1E66C9",
+              borderLeft: "3px solid #28C55E",
               borderRadius: 8,
               padding: "12px 14px",
               marginBottom: 18,

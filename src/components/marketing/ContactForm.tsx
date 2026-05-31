@@ -131,7 +131,7 @@ export function ContactForm() {
 
       <div style={S.actions}>
         <p style={{ fontSize: 12.5, color: "#8A93A5", margin: 0 }}>
-          Prefer email? <a href="mailto:support@proculink.com" style={{ color: "#1E66C9" }}>support@proculink.com</a>
+          Prefer email? <a href="mailto:support@proculink.com" style={{ color: "#28C55E" }}>support@proculink.com</a>
         </p>
         <button
           type="submit"
