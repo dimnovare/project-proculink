@@ -379,9 +379,15 @@ export function BridgeDashboard() {
         ? (summaryLoading ? "…" : summaryError ? "—" : openExceptionsAll.toLocaleString())
         : fmt(openExceptionsAll),
       label: "Urgent exceptions",
-      sub: (summaryError || ordersError) ? "Live data unavailable" : exceptionsBad ? "Needs review now" : "All clear",
-      subColor: exceptionsBad ? "#C97A14" : GREEN_DEEP,
-      subIcon: exceptionsBad ? AlertTriangle : CheckCircle2,
+      sub: !isApiMockMode
+        ? (summaryLoading ? "…" : summaryError ? "Live data unavailable" : exceptionsBad ? "Needs review now" : "All clear")
+        : (ordersError ? "Live data unavailable" : exceptionsBad ? "Needs review now" : "All clear"),
+      subColor: (!isApiMockMode ? (summaryLoading || summaryError) : (ordersLoading || ordersError))
+        ? "#56627A"
+        : exceptionsBad ? "#C97A14" : GREEN_DEEP,
+      subIcon: (!isApiMockMode ? (summaryLoading || summaryError) : (ordersLoading || ordersError))
+        ? undefined
+        : exceptionsBad ? AlertTriangle : CheckCircle2,
       edge: exceptionsBad ? "#C97A14" : GREEN_BAR,
       loading: !isApiMockMode ? summaryLoading : ordersLoading,
     },
