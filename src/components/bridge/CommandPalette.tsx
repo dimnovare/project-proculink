@@ -6,7 +6,7 @@
 import { useEffect, useState, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
-import { apiClient, getBuyers } from "@/lib/api-client";
+import { apiClient, getBuyers, isApiMockMode } from "@/lib/api-client";
 import type {
   OrderSummary,
   OrderStatus,
@@ -51,7 +51,7 @@ function buildIndex(
   suppliers: Supplier[],
   buyers: BuyerDto[],
 ): CmdItem[] {
-  const orderItems: CmdItem[] = orders.slice(0, 6).map((order) => ({
+  const orderItems: CmdItem[] = orders.map((order) => ({
     id: `o-${order.id}`,
     group: "Orders",
     icon: "↗",
@@ -104,10 +104,25 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
   const listRef                  = useRef<HTMLDivElement>(null);
   const activeRef                = useRef<HTMLButtonElement>(null);
 
+  // Debounce the user's query before firing a server search — avoids a request per keystroke.
+  const [debouncedQ, setDebouncedQ] = useState("");
+  useEffect(() => {
+    if (q.length < 2) { setDebouncedQ(""); return; }
+    const t = setTimeout(() => setDebouncedQ(q), 200);
+    return () => clearTimeout(t);
+  }, [q]);
+
   const { data: ordersPage } = useQuery({
     queryKey: ["orders"],
     queryFn: () => apiClient.getOrders({ pageSize: 100 }),
     staleTime: 60_000,
+  });
+
+  const { data: searchPage } = useQuery({
+    queryKey: ["orders-search", debouncedQ],
+    queryFn: () => apiClient.getOrders({ search: debouncedQ, pageSize: 8 }),
+    staleTime: 30_000,
+    enabled: !isApiMockMode && debouncedQ.length >= 2,
   });
   const { data: suppliers } = useQuery({
     queryKey: ["suppliers"],
@@ -120,7 +135,13 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
     staleTime: 60_000,
   });
 
-  const items = buildIndex(router, ordersPage?.items ?? [], suppliers ?? [], buyers ?? []);
+  // When search term is active and server results are available, use them (all orders searchable).
+  // Otherwise fall back to first 6 from the working set (empty query = recent orders preview).
+  const orderResults: OrderSummary[] = debouncedQ.length >= 2 && !isApiMockMode
+    ? (searchPage?.items ?? [])
+    : (ordersPage?.items ?? []).slice(0, 6);
+
+  const items = buildIndex(router, orderResults, suppliers ?? [], buyers ?? []);
 
   // Build filtered groups + flat list for keyboard nav
   const groups: Record<string, CmdItem[]> = {};
