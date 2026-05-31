@@ -304,7 +304,8 @@ export function BridgeDashboard() {
   );
   const derivedHasData = derived.buyers.length > 0 || derived.suppliers.length > 0;
   const endpointHasData = endpoint.buyers.length > 0 || endpoint.suppliers.length > 0;
-  const effective: DerivedTopology = derivedHasData ? derived : endpointHasData ? endpoint : { buyers: [], suppliers: [], wires: [] };
+  // Prefer server-side topology (all orders) over client-derived (capped at working set).
+  const effective: DerivedTopology = endpointHasData ? endpoint : derivedHasData ? derived : { buyers: [], suppliers: [], wires: [] };
 
   const topologyLoadingState = ordersLoading || topologyLoading;
   const topologyIsEmpty =
