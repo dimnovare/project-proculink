@@ -86,7 +86,7 @@ test.describe("Legal + trust pages", () => {
   const routes: Array<[string, RegExp]> = [
     ["/privacy",       /privacy policy/i],
     ["/terms",         /terms of service/i],
-    ["/security",      /built to protect/i],
+    ["/security",      /built for orders/i],
     ["/dpa",           /data processing addendum/i],
     ["/subprocessors", /^subprocessors$/i],
     ["/aup",           /acceptable use policy/i],
