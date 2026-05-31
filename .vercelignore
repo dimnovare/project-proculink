@@ -1,0 +1,11 @@
+.vs/
+.git/
+.qa-screenshots/
+node_modules/
+.next/
+out/
+dist/
+test-results/
+playwright-report/
+*.log
+*.local
