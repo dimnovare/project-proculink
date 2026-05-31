@@ -104,7 +104,7 @@ function relativeAge(iso: string): string {
 
 function XCard({
   edge = "none",
-  edgeColor = "#28C55E",
+  edgeColor = "#2E8E3A",
   children,
   style,
 }: {

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import AnimatedPipelinePanel from "./AnimatedPipelinePanel";
 
 // ─── Palette (sampled pixel-exact from the 2026-05-30 design render) ──────────
 // The page follows a buyer → supplier topology:
@@ -15,9 +16,7 @@ const PANEL = "#F6F7FA";
 
 const BLUE = "#1E66C9"; // buyer-blue — CTA, early-stage chips, first pipeline node
 const BLUE_SOFT = "#E3EDFB"; // pale blue chip / eyebrow background
-const BLUE_NODE = "#2D7AE0"; // first (active) pipeline dot
-const RAIL = "#163052"; // inactive pipeline dots + connecting line
-const GREEN_TEXT = "#28C55E"; // supplier-output green text
+const BLUE_NODE = "#2D7AE0"; // used in Eyebrow dot
 const VIOLET = "#6F4FCE";
 const AMBER = "#C97A14";
 
@@ -93,9 +92,6 @@ const STEPS: Array<{
     ],
   },
 ];
-
-// Pipeline stages shown in the hero terminal mock.
-const PIPELINE = ["Receive", "Parse", "Normalize", "Validate", "Transform", "Deliver"];
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
@@ -185,57 +181,7 @@ export default function HowItWorksPage() {
           </div>
 
           <div className="hiw-term-body" style={{ padding: "28px 28px 30px" }}>
-            {/* Input → output badges */}
-            <div className="hiw-io" style={{ marginBottom: 26 }}>
-              <span style={{ display: "inline-flex", alignItems: "center", gap: 9 }}>
-                <ChipTag fg="#BC3F3F" bg="#FBEEEE">PDF</ChipTag>
-                <Arrow />
-                <MonoLabel style={{ color: BLUE, fontWeight: 600 }}>buyer order</MonoLabel>
-              </span>
-              <span style={{ display: "inline-flex", alignItems: "center", gap: 9 }}>
-                <MonoLabel style={{ color: GREEN_TEXT, fontWeight: 600 }}>supplier output</MonoLabel>
-                <Arrow />
-                <ChipTag fg="#6F4FCE" bg="#EEE7FB">CXML</ChipTag>
-              </span>
-            </div>
-
-            {/* Stage rail */}
-            <div className="hiw-rail" style={{ position: "relative", marginBottom: 28 }}>
-              {/* connecting line */}
-              <div className="hiw-rail-line" style={{ position: "absolute", background: RAIL }} />
-              {PIPELINE.map((label, i) => (
-                <div key={label} className="hiw-node" style={{ position: "relative" }}>
-                  <span
-                    style={{
-                      width: 14,
-                      height: 14,
-                      borderRadius: "50%",
-                      background: i === 0 ? BLUE_NODE : NAVY,
-                      border: `2px solid ${i === 0 ? BLUE_NODE : RAIL}`,
-                      boxShadow: i === 0 ? "0 0 0 4px rgba(46,122,224,0.18)" : "none",
-                      zIndex: 1,
-                    }}
-                  />
-                  <span
-                    style={{
-                      fontSize: 12.5,
-                      fontWeight: i === 0 ? 700 : 500,
-                      color: i === 0 ? "#FFFFFF" : "#7E8DA3",
-                      fontFamily: "'Bricolage Grotesque', Inter, sans-serif",
-                    }}
-                  >
-                    {label}
-                  </span>
-                </div>
-              ))}
-            </div>
-
-            {/* Data cells */}
-            <div className="hiw-cells">
-              <DataCell label="PO Number" value="PO-2026-008412" valueColor="#5B9BE8" />
-              <DataCell label="Grand Total" value="€71,240.00" />
-              <DataCell label="Ship To" value="Dortmund, DE" valueColor="#43C06B" />
-            </div>
+            <AnimatedPipelinePanel />
           </div>
         </div>
       </section>
@@ -491,78 +437,6 @@ function Dot({ c }: { c: string }) {
   return <span style={{ width: 11, height: 11, borderRadius: "50%", background: c, display: "inline-block" }} />;
 }
 
-function ChipTag({ children, fg, bg }: { children: React.ReactNode; fg: string; bg: string }) {
-  return (
-    <span
-      style={{
-        fontFamily: "'JetBrains Mono', ui-monospace, monospace",
-        fontSize: 11,
-        fontWeight: 700,
-        letterSpacing: "0.04em",
-        color: fg,
-        background: bg,
-        padding: "3px 8px",
-        borderRadius: 6,
-        boxShadow: "0 1px 0 rgba(0,0,0,0.04)",
-      }}
-    >
-      {children}
-    </span>
-  );
-}
-
-function MonoLabel({ children, style }: { children: React.ReactNode; style?: React.CSSProperties }) {
-  return (
-    <span
-      style={{
-        fontFamily: "'JetBrains Mono', ui-monospace, monospace",
-        fontSize: 12.5,
-        color: "#9FB0C7",
-        ...style,
-      }}
-    >
-      {children}
-    </span>
-  );
-}
-
-function DataCell({ label, value, valueColor }: { label: string; value: string; valueColor?: string }) {
-  return (
-    <div
-      style={{
-        border: "1px solid rgba(255,255,255,0.08)",
-        background: "rgba(255,255,255,0.02)",
-        borderRadius: 10,
-        padding: "14px 16px",
-      }}
-    >
-      <div
-        style={{
-          fontFamily: "'JetBrains Mono', ui-monospace, monospace",
-          fontSize: 10,
-          fontWeight: 600,
-          letterSpacing: "0.1em",
-          textTransform: "uppercase",
-          color: "#6C7C93",
-          marginBottom: 7,
-        }}
-      >
-        {label}
-      </div>
-      <div
-        style={{
-          fontFamily: "'JetBrains Mono', ui-monospace, monospace",
-          fontSize: 14,
-          fontWeight: 600,
-          color: valueColor ?? "#CBD6E6",
-        }}
-      >
-        {value}
-      </div>
-    </div>
-  );
-}
-
 // ─── Icons (inline, stroke = currentColor) ─────────────────────────────────────
 
 function UploadIcon() {
@@ -607,15 +481,6 @@ function SendIcon() {
     <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <line x1="22" y1="2" x2="11" y2="13" />
       <polygon points="22 2 15 22 11 13 2 9 22 2" />
-    </svg>
-  );
-}
-
-function Arrow() {
-  return (
-    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#6880A0" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <line x1="5" y1="12" x2="19" y2="12" />
-      <polyline points="12 5 19 12 12 19" />
     </svg>
   );
 }

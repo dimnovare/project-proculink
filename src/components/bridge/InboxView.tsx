@@ -24,49 +24,41 @@ import { FileChip } from "./FileChip";
 import { StatusJourney, type CrossingStatus, type OrderStage } from "./StatusJourney";
 
 // ─── Accent palette ─────────────────────────────────────────────────────────────
-// Primary accent migrated blue → green. Mirrors --brand-green* in globals.css /
-// ds-tokens. Kept as local consts so every inline style swaps consistently.
-const GREEN      = "#28C55E"; // --brand-green   (primary)
-const GREEN_DEEP = "#1DAF50"; // --brand-green-deep (hover / strong text)
-const GREEN_SOFT = "#DCFCE7"; // --brand-green-soft (tint / hover row / pill bg)
-const INK        = "#0B1A2F"; // navy ink — PO numbers, buyer side, primary nav text
+// Bridge Layer semantic palette (mirrors --brand-* / chrome in globals.css):
+//   BLUE  = primary action + buyer side + the "active / in-progress" pipeline node
+//   GREEN = supplier side + "done" pipeline node
+//   NAVY  = display ink (PO numbers, page title, chips chrome)
+// Kept as local consts so every inline style swaps from one place.
+const BLUE       = "#1E66C9"; // --brand-blue        (primary action)
+const BLUE_DEEP  = "#0F4FA8"; // --brand-blue-deep   (hover / buyer text)
+const GREEN_DEEP = "#1E6D29"; // --brand-green-deep  (supplier text)
+const NAVY       = "#0B1A2F"; // --ink / --navy      (display ink)
+const INK        = NAVY;      // alias kept for existing references
 
-// ─── Status pill + pipeline stage ───────────────────────────────────────────────
-// Design target: STATUS column is a soft rounded-full pill with a leading colored
-// dot + full semantic label; PIPELINE column is a standalone 5-node track (no pill).
-// Colors/labels mirror STATUS_PILL / STATUS_STAGE in StatusJourney.tsx (kept local
-// so the whole row restyles from one place; the track itself reuses <StatusJourney>).
+// ─── Pipeline stage mapping ─────────────────────────────────────────────────────
+// STATUS column → soft pill via the ported .pill / .pill-* classes (leading dot +
+// full semantic label). PIPELINE column → standalone 5-node .journey.compact track.
+// `key` maps each CrossingStatus onto its globals.css .pill-* / status class.
 const STATUS_PRESENTATION: Record<
   CrossingStatus,
-  { bg: string; color: string; dot: string; pulse?: boolean; label: string; stage: OrderStage }
+  { key: string; label: string; stage: OrderStage }
 > = {
-  new:        { bg: "#EFF2F7", color: "#56627A", dot: "#8A93A5",                label: "New",          stage: 0 },
-  extracting: { bg: "#E3EDFB", color: "#0F4FA8", dot: "#1E66C9",                label: "Extracting",   stage: 1 },
-  review:     { bg: "#FAEFD6", color: "#C97A14", dot: "#C97A14",                label: "Needs review", stage: 2 },
-  ready:      { bg: "#E2F1E2", color: "#1E6D29", dot: "#2E8E3A",                label: "Ready",        stage: 3 },
-  sent:       { bg: "#E2F1E2", color: "#1E6D29", dot: "#2E8E3A",                label: "Delivered",    stage: 4 },
-  delivering: { bg: "#E3EDFB", color: "#0F4FA8", dot: "#1E66C9", pulse: true,   label: "Delivering",   stage: 4 },
-  failed:     { bg: "#FBE3E3", color: "#C53A3A", dot: "#C53A3A",                label: "Failed",       stage: "failed" },
+  new:        { key: "new",        label: "New",          stage: 0 },
+  extracting: { key: "extracting", label: "Extracting",   stage: 1 },
+  review:     { key: "review",     label: "Needs review", stage: 2 },
+  ready:      { key: "ready",      label: "Ready",        stage: 3 },
+  sent:       { key: "sent",       label: "Delivered",    stage: 4 },
+  delivering: { key: "delivering", label: "Delivering",   stage: 4 },
+  failed:     { key: "failed",     label: "Failed",       stage: "failed" },
 };
 
-function StatusDotPill({ status, compact = false }: { status: CrossingStatus; compact?: boolean }) {
+// Soft rounded pill with leading colored dot — renders the ported .pill / .pill-*
+// design classes so colours/spacing track tokens.css exactly.
+function StatusDotPill({ status }: { status: CrossingStatus; compact?: boolean }) {
   const p = STATUS_PRESENTATION[status];
   return (
-    <span
-      className="inline-flex items-center rounded-full font-semibold"
-      style={{
-        gap: 6,
-        padding: compact ? "2px 9px" : "3px 10px",
-        fontSize: compact ? "11px" : "11.5px",
-        background: p.bg,
-        color: p.color,
-        whiteSpace: "nowrap",
-      }}
-    >
-      <span
-        className={["rounded-full flex-shrink-0", p.pulse ? "animate-[pulse-dot_1.4s_ease-in-out_infinite]" : ""].join(" ").trim()}
-        style={{ width: 6, height: 6, background: p.dot }}
-      />
+    <span className={`pill pill-${p.key}`}>
+      <span className="dot" />
       {p.label}
     </span>
   );
@@ -230,7 +222,7 @@ const columns = [
     header: ({ table }) => (
       <input
         type="checkbox"
-        style={{ accentColor: GREEN, cursor: "pointer", width: 13, height: 13 }}
+        style={{ accentColor: BLUE, cursor: "pointer", width: 13, height: 13 }}
         checked={table.getIsAllPageRowsSelected()}
         onChange={table.getToggleAllPageRowsSelectedHandler()}
         aria-label="Select all"
@@ -239,7 +231,7 @@ const columns = [
     cell: ({ row }) => (
       <input
         type="checkbox"
-        style={{ accentColor: GREEN, cursor: "pointer", width: 13, height: 13 }}
+        style={{ accentColor: BLUE, cursor: "pointer", width: 13, height: 13 }}
         checked={row.getIsSelected()}
         onChange={row.getToggleSelectedHandler()}
         onClick={(e) => e.stopPropagation()}
@@ -290,7 +282,7 @@ const columns = [
     header: "Buyer → Supplier",
     cell: ({ row }) => (
       <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: "12.5px" }}>
-        <span style={{ color: INK, fontWeight: 500, flex: 1, minWidth: 0, textOverflow: "ellipsis", whiteSpace: "nowrap", overflow: "hidden" }}>
+        <span style={{ color: BLUE_DEEP, fontWeight: 500, flex: 1, minWidth: 0, textOverflow: "ellipsis", whiteSpace: "nowrap", overflow: "hidden" }}>
           {row.original.buyer}
         </span>
         <span style={{ color: "#8A93A5", flexShrink: 0 }}>→</span>
@@ -351,7 +343,7 @@ const columns = [
 
 function SortIcon({ state }: { state: "asc" | "desc" | false }) {
   return (
-    <span style={{ fontSize: 10, color: state ? GREEN_DEEP : "#C6CDDA", marginLeft: 4, userSelect: "none" }}>
+    <span style={{ fontSize: 10, color: state ? BLUE_DEEP : "#C6CDDA", marginLeft: 4, userSelect: "none" }}>
       {state === "asc" ? "↑" : state === "desc" ? "↓" : "⇅"}
     </span>
   );
@@ -554,7 +546,7 @@ export function InboxView() {
           <p className="text-[13px] mt-1" style={{ color: "#56627A" }}>
             {totalCount.toLocaleString()} order{totalCount !== 1 ? "s" : ""}
             {isApiMockMode && <>{" · "}{reviewCount} need review{" · "}{failedCount} failed</>}
-            {selectedCount > 0 && <span style={{ color: GREEN_DEEP, marginLeft: 8 }}>· {selectedCount} selected</span>}
+            {selectedCount > 0 && <span style={{ color: BLUE_DEEP, marginLeft: 8 }}>· {selectedCount} selected</span>}
           </p>
         </div>
 
@@ -568,10 +560,10 @@ export function InboxView() {
           </button>
           <button
             className="flex items-center gap-1.5 rounded-[6px] px-3 text-[12.5px] font-semibold transition-colors"
-            style={{ height: 32, background: GREEN, color: "#FFFFFF", border: 0 }}
+            style={{ height: 32, background: BLUE, color: "#FFFFFF", border: 0 }}
             onClick={() => router.push("/upload")}
-            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = GREEN_DEEP; }}
-            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = GREEN; }}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = BLUE_DEEP; }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = BLUE; }}
           >
             ↑ Upload order
           </button>
@@ -665,13 +657,13 @@ export function InboxView() {
                 {label}
                 {isApiMockMode && (
                   <span
-                    className="inline-flex items-center justify-center font-mono text-[10.5px] font-semibold rounded-[4px]"
+                    className="inline-flex items-center justify-center font-mono text-[10.5px] font-semibold rounded-[8px]"
                     style={{
                       minWidth: 18,
                       height: 17,
                       padding: "0 5px",
-                      background: active ? GREEN : "#EFF2F7",
-                      color: active ? "#FFFFFF" : "#8A93A5",
+                      background: active ? "rgba(255,255,255,0.16)" : "#EFF2F7",
+                      color: active ? "#FFFFFF" : "#56627A",
                     }}
                   >
                     {chipCounts[i]?.toLocaleString() ?? 0}
@@ -725,7 +717,7 @@ export function InboxView() {
                   height: 32,
                   padding: "0 16px",
                   borderRadius: 6,
-                  background: GREEN,
+                  background: BLUE,
                   color: "#FFFFFF",
                   border: "none",
                   fontSize: "12.5px",
@@ -784,8 +776,8 @@ export function InboxView() {
                 )}
               </div>
               <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 text-[13px]">
-                <span className="truncate font-medium" style={{ color: INK }}>{row.original.buyer}</span>
-                <span className="h-px w-5 flex-shrink-0" style={{ background: "linear-gradient(90deg, #1E66C9, #28C55E)" }} />
+                <span className="truncate font-medium" style={{ color: BLUE_DEEP }}>{row.original.buyer}</span>
+                <span className="h-px w-5 flex-shrink-0" style={{ background: "linear-gradient(90deg, #1E66C9, #2E8E3A)" }} />
                 <span className="truncate text-right font-medium" style={{ color: GREEN_DEEP }}>{row.original.supplier}</span>
               </div>
             </button>
@@ -920,7 +912,7 @@ export function InboxView() {
                       height: 32,
                       padding: "0 16px",
                       borderRadius: 6,
-                      background: GREEN,
+                      background: BLUE,
                       color: "#FFFFFF",
                       border: "none",
                       fontSize: "12.5px",
@@ -945,7 +937,7 @@ export function InboxView() {
       >
         <span className="text-[11px]" style={{ color: "#8A93A5" }}>
           {totalCount.toLocaleString()} order{totalCount !== 1 ? "s" : ""}
-          {selectedCount > 0 && <span style={{ color: GREEN_DEEP }}> · {selectedCount} selected</span>}
+          {selectedCount > 0 && <span style={{ color: BLUE_DEEP }}> · {selectedCount} selected</span>}
         </span>
         <div className="ml-auto flex items-center gap-2">
           <button

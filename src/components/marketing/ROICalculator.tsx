@@ -4,20 +4,33 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import { recommendPlanByOrders } from "@/lib/plans";
 
-// ─── Design tokens (match marketing landing) ─────────────────────────────────
-// Primary accent is green (matches the green brand token / CSS var --brand-green).
+// ─── Design tokens (Bridge Layer design system) ──────────────────────────────
+// Primary accent is BUYER-BLUE (#1E66C9) — sliders, eyebrow, annual savings.
+// Supplier-green (#2E8E3A) is reserved for the monthly-savings headline + plan
+// CTA, matching the marketing landing source (mkt-components.jsx ROICalculator).
 const T = {
   ink: "#0B1A2F",
   inkSoft: "#56627A",
   inkFaint: "#8A93A5",
   surface: "#F6F7FA",
+  surface2: "#EFF2F7",
   card: "#FFFFFF",
   border: "#E2E6EE",
   borderSoft: "#EEF1F6",
-  accent: "#1DAF50",
-  accentBg: "#DCFCE7",
-  green: "#1DAF50",
-  greenBg: "#DCFCE7",
+  navy: "#0B1A2F",
+  navyMuted: "#7C8DA6",
+  navyText: "#C5D2E4",
+  // Primary accent = blue
+  accent: "#1E66C9",
+  accentDeep: "#0F4FA8",
+  accentBg: "#E3EDFB",
+  blue: "#1E66C9",
+  blueDeep: "#0F4FA8",
+  blueBg: "#E3EDFB",
+  // Supplier accent = green
+  green: "#2E8E3A",
+  greenDeep: "#1E6D29",
+  greenBg: "#E2F1E2",
   amber: "#C97A14",
   amberBg: "#FAEFD6",
   violet: "#6F4FCE",
@@ -384,7 +397,7 @@ export function ROICalculator() {
                     ? "Plus tailored volume pricing"
                     : `${eur(calc.netMonthly)} net / month after plan cost`
                 }
-                valueColor={T.green}
+                valueColor={T.blueDeep}
               />
               <StatCard
                 label="Payback period"

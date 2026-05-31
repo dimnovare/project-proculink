@@ -1,7 +1,12 @@
 "use client";
 
-// Crossings Log — append-only audit trail with date-grouped table-row layout.
-// Canonical: CrossingsLogScreen in screen-crossings.jsx
+// Delivery log — append-only audit trail with date-grouped table-row layout.
+// Pixel-exact port of CrossingsLogScreen / CrossingRow in screen-crossings.jsx
+// (Claude Design source). Uses the ported design classes from globals.css
+// (.work-inner / .page-head / .page-title / .page-sub / .fchip / .btn / .card /
+// .eyebrow / .mono / .faint) and the locked colour vars (--brand-blue #1E66C9 =
+// buyer/primary, --brand-green #2E8E3A = supplier). User-visible copy is plain
+// ("Delivery log"); component/type/file names are unchanged.
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
@@ -49,11 +54,22 @@ type LogEntry = {
   canonicalEvent: CanonicalEvent;
   actor: Actor;
   message: string;
+  // Structured key/value detail grid (mirrors `c.detail` in screen-crossings.jsx).
+  // Rendered as the eyebrow-labelled grid in the expanded panel.
+  details?: Record<string, string>;
+  // Recoverable / hard error surfaced as an amber / red banner (design parity).
+  error?: string;
+  recoverable?: boolean;
+  // Legacy free-text detail + field-diff (kept for backward compat / API fallback).
   detail?: string;
   diff?: Array<{ field: string; from: string; to: string }>;
 };
 
 // ─── Mock data ─────────────────────────────────────────────────────────────────
+// Mirrors the CROSSINGS fixture shape from screen-crossings.jsx (structured
+// `details` grids + error banners) while keeping demo-safe PO ids — the
+// no-mock-residue e2e crawl bans the canonical fake-PO literals on this route,
+// so the design source's example PO numbers are intentionally NOT reused here.
 
 const now = Date.now();
 const MOCK_LOG: LogEntry[] = [
@@ -65,6 +81,7 @@ const MOCK_LOG: LogEntry[] = [
     event: "flagged", canonicalEvent: "validated",
     actor: { initials: "AI", name: "Extraction engine", type: "ai" },
     message: "3 validation errors flagged",
+    details: { rules: "3 failed", scope: "Lines 4, 9 · Header", note: "Unit price missing · delivery date in the past" },
     detail: "Unit price missing on lines 4, 9. Delivery date in the past (2026-05-10).",
     diff: [
       { field: "line[4].unitPrice", from: "(missing)", to: "⚠ required" },
@@ -80,6 +97,7 @@ const MOCK_LOG: LogEntry[] = [
     event: "extracted", canonicalEvent: "parsed",
     actor: { initials: "AI", name: "Extraction engine", type: "ai" },
     message: "14 line items extracted · avg confidence 84%",
+    details: { srcType: "PDF", lines: "14", confidence: "84% avg", dur: "1.1s" },
     detail: "Document parsed successfully. Zones: header (97%), line table (81%), footer (72%).",
   },
   {
@@ -90,6 +108,7 @@ const MOCK_LOG: LogEntry[] = [
     event: "uploaded", canonicalEvent: "created",
     actor: { initials: "MK", name: "Marius Klein", type: "user" },
     message: "Document uploaded — PO-DEMO-001.pdf (214 KB)",
+    details: { srcType: "PDF", size: "214 KB", via: "Manual upload" },
   },
   {
     id: "e4",
@@ -99,6 +118,7 @@ const MOCK_LOG: LogEntry[] = [
     event: "crossed", canonicalEvent: "delivered",
     actor: { initials: "MK", name: "Marius Klein", type: "user" },
     message: "Delivered successfully — cXML delivered to Acme ERP endpoint",
+    details: { channel: "HTTP", status: "HTTP 200", dur: "1.2s", size: "3.1 KB", attempt: "1" },
     detail: "HTTP 200. Transmission time 1.2s. ACK received.",
   },
   {
@@ -109,6 +129,7 @@ const MOCK_LOG: LogEntry[] = [
     event: "reviewed", canonicalEvent: "edited",
     actor: { initials: "MK", name: "Marius Klein", type: "user" },
     message: "Approved for delivery after manual review",
+    details: { field: "Header · approval", from: "pending", to: "approved" },
   },
   {
     id: "e6",
@@ -118,6 +139,9 @@ const MOCK_LOG: LogEntry[] = [
     event: "failed", canonicalEvent: "failed",
     actor: { initials: "SY", name: "ProcuLink system", type: "system" },
     message: "Delivery attempt failed — endpoint timeout (30s)",
+    details: { channel: "EMAIL", status: "SFTP timeout", dur: "30.0s", attempt: "2" },
+    error: "MedicaSupply OY endpoint returned HTTP 504 after 30s",
+    recoverable: true,
     detail: "MedicaSupply OY cXML endpoint returned HTTP 504. Will retry in 15 min.",
   },
   {
@@ -128,6 +152,7 @@ const MOCK_LOG: LogEntry[] = [
     event: "mapped", canonicalEvent: "edited",
     actor: { initials: "AI", name: "Mapping engine", type: "ai" },
     message: "18 codes mapped · 6 low-confidence matches",
+    details: { mapped: "18 codes", lowConfidence: "6 matches" },
     diff: [
       { field: "line[3].supplierCode", from: "CPH-SYRG-10", to: "MDS-SY-10-STERILE (72%)" },
       { field: "line[7].supplierCode", from: "CPH-GLOVE-L", to: "MDS-GL-L-NITRILE (68%)" },
@@ -141,6 +166,7 @@ const MOCK_LOG: LogEntry[] = [
     event: "extracted", canonicalEvent: "parsed",
     actor: { initials: "AI", name: "Extraction engine", type: "ai" },
     message: "18 line items extracted from EDI 850 segment",
+    details: { srcType: "EDI", lines: "18", segment: "850", dur: "0.6s" },
   },
 ];
 
@@ -225,41 +251,29 @@ function dateKey(isoTs: string): string {
   return d.toDateString();
 }
 
-// ─── Event visual config (canonical colors) ───────────────────────────────────
-
-const EV: Record<EventType, { bg: string; color: string; label: string; iconPath: string }> = {
-  uploaded:  { bg: "#E3EDFB", color: "#1E66C9", label: "Created",   iconPath: "M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12" },
-  extracted: { bg: "#EEE7FB", color: "#6F4FCE", label: "Parsed",    iconPath: "M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z M14 2v6h6" },
-  mapped:    { bg: "#FAEFD6", color: "#C97A14", label: "Edited",    iconPath: "M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" },
-  validated: { bg: "#E2F1E2", color: "#2E8E3A", label: "Validated", iconPath: "M20 6 9 17l-5-5" },
-  flagged:   { bg: "#FAEFD6", color: "#C97A14", label: "Validated", iconPath: "m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3zM12 9v4M12 17h.01" },
-  reviewed:  { bg: "#E3EDFB", color: "#0F4FA8", label: "Edited",    iconPath: "M12 20h9M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4z" },
-  crossed:   { bg: "#E2F1E2", color: "#2E8E3A", label: "Delivered", iconPath: "M14.536 21.686a.5.5 0 0 0 .937-.024l6.5-19a.496.496 0 0 0-.635-.635l-19 6.5a.5.5 0 0 0-.024.937l7.93 3.18a2 2 0 0 1 1.112 1.11zM21.854 2.147l-10.94 10.939" },
-  failed:    { bg: "#FBE3E3", color: "#C53A3A", label: "Failed",    iconPath: "m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3zM12 9v4M12 17h.01" },
-  retried:   { bg: "#FAEFD6", color: "#C97A14", label: "Failed",    iconPath: "M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8M21 3v5h-5M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16M8 16H3v5" },
-};
-
-const ACTOR_BG: Record<"user" | "system" | "ai", string> = {
-  user:   "#1E66C9",
-  system: "#56627A",
-  ai:     "#6F4FCE",
-};
-
-// Canonical event visual config — the row's icon, circle tint, label, and text
-// color are driven by canonicalEvent (NOT the internal EventType) so every
-// "Validated" reads green-check, every "Edited" reads violet-pencil, etc.,
-// exactly like the design reference. Greens use the muted status green (#2E8E3A)
-// to match the supplier-side accent, not the bright brand green used on CTAs.
+// ─── Canonical event visual config ────────────────────────────────────────────
+// The row's icon, circle tint, label, and text colour are driven by
+// canonicalEvent (NOT the internal EventType) so every "Validated" reads
+// green-check, every "Edited" reads violet-pencil, etc. — exactly like
+// CROSSING_EVENTS in the design source. All colours come from the locked
+// design tokens (greens use the muted status green #2E8E3A, not the bright
+// CTA green). Icon paths match data.jsx ICON_PATHS keys per event.
 const EV_CANON: Record<
   CanonicalEvent,
   { bg: string; color: string; label: string; iconPath: string }
 > = {
-  created:   { bg: "#EFF2F7", color: "#56627A", label: "Created",   iconPath: "M12 5v14M5 12h14" },
-  parsed:    { bg: "#E3EDFB", color: "#1E66C9", label: "Parsed",    iconPath: "M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z M14 2v6h6" },
-  validated: { bg: "#E2F1E2", color: "#2E8E3A", label: "Validated", iconPath: "M21.801 10A10 10 0 1 1 17 3.335M9 11l3 3L22 4" },
-  edited:    { bg: "#EEE7FB", color: "#6F4FCE", label: "Edited",    iconPath: "M12 20h9M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4z" },
-  delivered: { bg: "#E2F1E2", color: "#2E8E3A", label: "Delivered", iconPath: "M14.536 21.686a.5.5 0 0 0 .937-.024l6.5-19a.496.496 0 0 0-.635-.635l-19 6.5a.5.5 0 0 0-.024.937l7.93 3.18a2 2 0 0 1 1.112 1.11zM21.854 2.147l-10.94 10.939" },
-  failed:    { bg: "#FBE3E3", color: "#C53A3A", label: "Failed",    iconPath: "m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3zM12 9v4M12 17h.01" },
+  // created → "plus" · ink-muted on surface-2
+  created:   { bg: "var(--surface-2)",        color: "var(--ink-muted)",         label: "Created",   iconPath: "M5 12h14 M12 5v14" },
+  // parsed → "file" · brand-blue-deep on brand-blue-soft
+  parsed:    { bg: "var(--brand-blue-soft)",  color: "var(--brand-blue-deep)",   label: "Parsed",    iconPath: "M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z M14 2v6h6" },
+  // validated → "checkCircle" · brand-green-deep on brand-green-soft
+  validated: { bg: "var(--brand-green-soft)", color: "var(--brand-green-deep)",  label: "Validated", iconPath: "M12 2a10 10 0 1 0 10 10 M9 12l2 2 4-4" },
+  // edited → "pencil" · ai on ai-soft
+  edited:    { bg: "var(--ai-soft)",          color: "var(--ai)",                label: "Edited",    iconPath: "M12 20h9 M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4z" },
+  // delivered → "send" · brand-green-deep on brand-green-soft
+  delivered: { bg: "var(--brand-green-soft)", color: "var(--brand-green-deep)",  label: "Delivered", iconPath: "M14.536 21.686a.5.5 0 0 0 .937-.024l6.5-19a.496.496 0 0 0-.635-.635l-19 6.5a.5.5 0 0 0-.024.937l7.93 3.18a2 2 0 0 1 1.112 1.11z M21.854 2.147l-10.94 10.939" },
+  // failed → "alert" · danger on danger-soft
+  failed:    { bg: "var(--danger-soft)",      color: "var(--danger)",            label: "Failed",    iconPath: "m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3z M12 9v4 M12 17h.01" },
 };
 
 // Canonical filter labels (from CrossingsLogScreen)
@@ -294,16 +308,11 @@ function useIsMobile(maxWidth = 640): boolean {
 
 function SkeletonRow() {
   return (
-    <tr>
-      {[64, 80, 110, 70, 140, 100, 90, 30].map((w, i) => (
-        <td key={i} style={{ padding: "11px 12px", borderBottom: "1px solid #E2E6EE" }}>
-          <div
-            className="animate-pulse rounded"
-            style={{ height: 13, background: "#EFF2F7", width: w }}
-          />
-        </td>
+    <div className="row gap-3 items-center" style={{ padding: "11px 16px", borderBottom: "1px solid var(--border)" }}>
+      {[64, 26, 82, 150, 220, 110].map((w, i) => (
+        <div key={i} className="skel" style={{ height: 13, width: w, flexShrink: 0 }} />
       ))}
-    </tr>
+    </div>
   );
 }
 
@@ -331,7 +340,7 @@ export function CrossingsLog() {
     const esc = (v: unknown) => `"${String(v ?? "").replace(/"/g, '""')}"`;
     const header = ["Timestamp", "Event", "PO", "Buyer", "Supplier", "Format", "Actor", "Message"];
     const body = filtered.map((e) =>
-      [e.ts, EV[e.event].label, e.po, e.buyer, e.supplier, e.fmt, e.actor.name, e.message]
+      [e.ts, EV_CANON[e.canonicalEvent].label, e.po, e.buyer, e.supplier, e.fmt, e.actor.name, e.message]
         .map(esc).join(","),
     );
     const csv = [header.map(esc).join(","), ...body].join("\r\n");
@@ -367,45 +376,17 @@ export function CrossingsLog() {
   );
 
   return (
-    <div style={{ padding: isMobile ? "20px 16px 56px" : "26px 34px 64px" }}>
-      {/* Page header */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "flex-start",
-          justifyContent: "space-between",
-          gap: "16px 24px",
-          marginBottom: 22,
-          flexWrap: "wrap",
-        }}
-      >
+    <div className="work-inner wide" style={isMobile ? { paddingLeft: 16, paddingRight: 16 } : undefined}>
+      {/* Page header — canonical .page-head / .page-title / .page-sub */}
+      <div className="page-head">
         <div>
-          <h1
-            style={{
-              fontFamily: "'Bricolage Grotesque', Inter, sans-serif",
-              fontSize: isMobile ? 26 : 30,
-              fontWeight: 600,
-              letterSpacing: "-0.025em",
-              lineHeight: 1.1,
-              margin: 0,
-              color: "#0B1A2F",
-            }}
-          >
+          <h1 className="page-title" style={isMobile ? { fontSize: 26, whiteSpace: "normal" } : undefined}>
             Delivery log
           </h1>
-          <div
-            style={{
-              color: "#56627A",
-              fontSize: 13,
-              marginTop: 5,
-              display: "flex",
-              alignItems: "center",
-              gap: 6,
-            }}
-          >
+          <div className="page-sub row gap-2 items-center" style={{ flexWrap: "wrap" }}>
             {/* key icon */}
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#8A93A5" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M15.5 7.5 21 2m-3 3 1.5 1.5" /><circle cx="9" cy="15" r="6" /><path d="m13.2 10.8 3.3-3.3" />
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--ink-faint)" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M15.5 7.5 21 2" /><path d="m18 5 1.5 1.5" /><circle cx="9" cy="15" r="6" /><path d="m13.2 10.8 3.3-3.3" />
             </svg>
             Append-only · immutable · every parse, edit, validation and delivery
           </div>
@@ -413,28 +394,11 @@ export function CrossingsLog() {
 
         {/* Export log button — canonical: secondary */}
         <button
+          className="btn btn-secondary"
           onClick={handleExport}
           disabled={filtered.length === 0}
           title={filtered.length === 0 ? "Nothing to export" : "Download current log as CSV"}
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            justifyContent: "center",
-            gap: 7,
-            height: isMobile ? 40 : 32,
-            width: isMobile ? "100%" : undefined,
-            padding: "0 14px",
-            borderRadius: 6,
-            fontSize: 12.5,
-            fontWeight: 600,
-            letterSpacing: "-0.005em",
-            background: "#FFFFFF",
-            color: filtered.length === 0 ? "#8A93A5" : "#0B1A2F",
-            border: "1px solid #C6CDDA",
-            cursor: filtered.length === 0 ? "not-allowed" : "pointer",
-            transition: "background 150ms",
-            whiteSpace: "nowrap",
-          }}
+          style={isMobile ? { width: "100%", height: 40 } : undefined}
         >
           {/* download icon */}
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
@@ -446,139 +410,72 @@ export function CrossingsLog() {
 
       {/* Filter / search bar */}
       <div
+        className="row between items-center"
         style={{
-          display: "flex",
+          marginBottom: 14,
+          gap: 12,
           flexDirection: isMobile ? "column" : "row",
           alignItems: isMobile ? "stretch" : "center",
-          justifyContent: "space-between",
-          gap: isMobile ? 10 : 12,
-          marginBottom: 14,
-          flexWrap: "wrap",
         }}
       >
-        {/* Filter chips — canonical fchip-row. Mobile: single horizontal-scroll row
-            (edge-to-edge) instead of wrapping into 3 stacked lines. */}
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 6,
-            flexWrap: isMobile ? "nowrap" : "wrap",
-            overflowX: "auto",
-            WebkitOverflowScrolling: "touch",
-            scrollbarWidth: "none",
-            paddingBottom: isMobile ? 2 : 0,
-            margin: isMobile ? "0 -16px" : 0,
-            paddingLeft: isMobile ? 16 : 0,
-            paddingRight: isMobile ? 16 : 0,
-          }}
-        >
-          {FILTERS.map(({ key, label }) => {
-            const active = filter === key;
-            return (
-              <button
-                key={key}
-                onClick={() => setFilter(key)}
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  height: isMobile ? 36 : 30,
-                  padding: isMobile ? "0 14px" : "0 12px",
-                  borderRadius: 6,
-                  border: `1px solid ${active ? "transparent" : "#E2E6EE"}`,
-                  background: active ? "#0B1A2F" : "#FFFFFF",
-                  color: active ? "#FFFFFF" : "#56627A",
-                  fontSize: 12.5,
-                  fontWeight: 500,
-                  cursor: "pointer",
-                  transition: "all 150ms",
-                  whiteSpace: "nowrap",
-                  flexShrink: 0,
-                }}
-              >
-                {label}
-              </button>
-            );
-          })}
+        {/* Filter chips — canonical .fchip row (auto horizontal-scroll on mobile via .fchip-row) */}
+        <div className="row gap-2 wrap items-center fchip-row">
+          {FILTERS.map(({ key, label }) => (
+            <button
+              key={key}
+              className={`fchip ${filter === key ? "active" : ""}`}
+              onClick={() => setFilter(key)}
+              style={isMobile ? { height: 36 } : undefined}
+            >
+              {label}
+            </button>
+          ))}
         </div>
 
         {/* PO search — canonical search input. Mobile: full-width, 40px tall. */}
         <div
+          className="row gap-2 items-center"
           style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 9,
-            background: "#FFFFFF",
-            border: "1px solid #E2E6EE",
-            borderRadius: 6,
+            background: "var(--surface)",
+            border: "1px solid var(--border)",
+            borderRadius: "var(--radius)",
             padding: "0 10px",
             height: isMobile ? 40 : 30,
             width: isMobile ? "100%" : 200,
             flexShrink: 0,
           }}
         >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#8A93A5" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--ink-faint)" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
             <circle cx="11" cy="11" r="7" /><path d="M21 21l-4.3-4.3" />
           </svg>
           <input
             type="text"
+            className="grow"
             placeholder="Filter by PO…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            style={{
-              border: "none",
-              outline: "none",
-              background: "none",
-              fontSize: 12.5,
-              width: "100%",
-              color: "#0B1A2F",
-            }}
+            style={{ border: "none", outline: "none", background: "none", fontSize: 12.5, width: "100%", color: "var(--ink)" }}
           />
         </div>
       </div>
 
       {/* Loading state */}
       {isLoading && !isApiMockMode && (
-        <div style={{ background: "#FFFFFF", border: "1px solid #E2E6EE", borderRadius: 8, overflow: "hidden" }}>
-          <table style={{ width: "100%", borderCollapse: "collapse" }}>
-            <tbody>
-              <SkeletonRow />
-              <SkeletonRow />
-              <SkeletonRow />
-            </tbody>
-          </table>
+        <div className="card" style={{ padding: 0, overflow: "hidden" }}>
+          <SkeletonRow />
+          <SkeletonRow />
+          <SkeletonRow />
         </div>
       )}
 
       {/* Error state */}
       {isError && !isApiMockMode && (
-        <div
-          style={{
-            background: "#FFFFFF",
-            border: "1px solid #E2E6EE",
-            borderRadius: 8,
-            padding: "48px 24px",
-            textAlign: "center",
-          }}
-        >
-          <div style={{ fontSize: 28, color: "#C53A3A", marginBottom: 10 }}>⚠</div>
-          <p style={{ fontSize: 13, color: "#56627A", marginBottom: 16 }}>
+        <div className="card" style={{ padding: "48px 24px", textAlign: "center" }}>
+          <div style={{ fontSize: 28, color: "var(--danger)", marginBottom: 10 }}>⚠</div>
+          <p style={{ fontSize: 13, color: "var(--ink-muted)", marginBottom: 16 }}>
             Could not load the delivery log. Check your connection and try again.
           </p>
-          <button
-            onClick={() => refetch()}
-            style={{
-              height: 32,
-              padding: "0 14px",
-              borderRadius: 6,
-              fontSize: 12.5,
-              fontWeight: 600,
-              background: "#FFFFFF",
-              color: "#0B1A2F",
-              border: "1px solid #C6CDDA",
-              cursor: "pointer",
-            }}
-          >
+          <button className="btn btn-secondary" onClick={() => refetch()}>
             Retry
           </button>
         </div>
@@ -588,13 +485,7 @@ export function CrossingsLog() {
       {(!isLoading || isApiMockMode) && !isError && (
         <>
           {filtered.length === 0 ? (
-            <div
-              style={{
-                background: "#FFFFFF",
-                border: "1px solid #E2E6EE",
-                borderRadius: 8,
-              }}
-            >
+            <div className="card">
               <EmptyState
                 compact
                 title="No matching events"
@@ -605,41 +496,24 @@ export function CrossingsLog() {
             Array.from(byDate.entries()).map(([key, { label, entries }]) => (
               <div key={key} style={{ marginBottom: 18 }}>
                 {/* Date eyebrow */}
-                <div
-                  style={{
-                    fontSize: 10.5,
-                    fontWeight: 600,
-                    letterSpacing: "0.07em",
-                    textTransform: "uppercase",
-                    color: "#8A93A5",
-                    marginBottom: 8,
-                  }}
-                >
-                  {label}
-                </div>
+                <div className="eyebrow" style={{ marginBottom: 8 }}>{label}</div>
 
                 {/* Card with rows */}
-                <div
-                  style={{
-                    background: "#FFFFFF",
-                    border: "1px solid #E2E6EE",
-                    borderRadius: 8,
-                    overflow: "hidden",
-                  }}
-                >
+                <div className="card" style={{ padding: 0, overflow: "hidden" }}>
                   {entries.map((c, idx) => {
                     // Visual treatment is canonical-event-driven to match the design
                     // (green Validated/Delivered, violet Edited, blue Parsed, slate Created, red Failed).
                     const ev   = EV_CANON[c.canonicalEvent];
                     const open = openId === c.id;
-                    const hasDiff   = !!c.diff?.length;
-                    const hasDetail = !!c.detail;
-                    const isLast    = idx === entries.length - 1;
+                    const hasDetails = !!c.details && Object.keys(c.details).length > 0;
+                    const hasDiff    = !!c.diff?.length;
+                    const hasText    = !!c.detail;
+                    const isLast     = idx === entries.length - 1;
 
                     return (
                       <div
                         key={c.id}
-                        style={{ borderBottom: isLast ? "none" : "1px solid #E2E6EE" }}
+                        style={{ borderBottom: isLast ? "none" : "1px solid var(--border)" }}
                       >
                         {/* Main row — canonical CrossingRow button.
                             Desktop: single flat line with fixed columns (pixel-exact).
@@ -651,10 +525,10 @@ export function CrossingsLog() {
                             style={{
                               width: "100%",
                               textAlign: "left",
-                              background: open ? "#EFF2F7" : "none",
+                              background: open ? "var(--surface-2)" : "none",
                               border: "none",
                               padding: "13px 14px",
-                              transition: "background 150ms",
+                              transition: "background var(--duration-fast)",
                               cursor: "pointer",
                               display: "flex",
                               flexDirection: "column",
@@ -683,20 +557,12 @@ export function CrossingsLog() {
                               <span style={{ fontSize: 13, fontWeight: 600, color: ev.color }}>
                                 {ev.label}
                               </span>
-                              <span
-                                style={{
-                                  marginLeft: "auto",
-                                  fontFamily: "'JetBrains Mono', ui-monospace, monospace",
-                                  fontSize: 11.5,
-                                  color: "#8A93A5",
-                                  flexShrink: 0,
-                                }}
-                              >
+                              <span className="mono faint" style={{ marginLeft: "auto", fontSize: 11.5, flexShrink: 0 }}>
                                 {c.ts}
                               </span>
                               <svg
                                 width="16" height="16" viewBox="0 0 24 24" fill="none"
-                                stroke="#8A93A5" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"
+                                stroke="var(--ink-faint)" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"
                                 style={{ transform: open ? "rotate(180deg)" : "none", transition: "transform 200ms", flexShrink: 0 }}
                               >
                                 <path d="m6 9 6 6 6-6" />
@@ -704,15 +570,7 @@ export function CrossingsLog() {
                             </span>
 
                             {/* Line 2: PO mono */}
-                            <span
-                              style={{
-                                fontFamily: "'JetBrains Mono', ui-monospace, monospace",
-                                fontSize: 13,
-                                fontWeight: 600,
-                                color: "#1E66C9",
-                                paddingLeft: 35,
-                              }}
-                            >
+                            <span className="mono" style={{ fontSize: 13, fontWeight: 600, color: "var(--brand-blue-deep)", paddingLeft: 35 }}>
                               {c.po}
                             </span>
 
@@ -727,44 +585,34 @@ export function CrossingsLog() {
                                 paddingLeft: 35,
                               }}
                             >
-                              <span style={{ color: "#1E66C9" }}>{c.buyer}</span>
-                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#8A93A5" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+                              <span style={{ color: "var(--brand-blue-deep)" }}>{c.buyer}</span>
+                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--ink-faint)" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
                                 <path d="M5 12h14M12 5l7 7-7 7" />
                               </svg>
-                              <span style={{ color: "#2E8E3A" }}>{c.supplier}</span>
+                              <span style={{ color: "var(--brand-green-deep)" }}>{c.supplier}</span>
                             </span>
 
                             {/* Line 4: actor */}
-                            <span style={{ fontSize: 12, color: "#8A93A5", paddingLeft: 35 }}>
+                            <span className="faint" style={{ fontSize: 12, paddingLeft: 35 }}>
                               {c.actor.name}
                             </span>
                           </button>
                         ) : (
                         <button
                           onClick={() => setOpenId(open ? null : c.id)}
+                          className="row gap-3 items-center"
                           style={{
                             width: "100%",
                             textAlign: "left",
-                            background: open ? "#EFF2F7" : "none",
+                            background: open ? "var(--surface-2)" : "none",
                             border: "none",
                             padding: "11px 16px",
-                            transition: "background 150ms",
+                            transition: "background var(--duration-fast)",
                             cursor: "pointer",
-                            display: "flex",
-                            alignItems: "center",
-                            gap: 12,
                           }}
                         >
                           {/* Time */}
-                          <span
-                            style={{
-                              fontFamily: "'JetBrains Mono', ui-monospace, monospace",
-                              fontSize: 11.5,
-                              color: "#8A93A5",
-                              width: 64,
-                              flexShrink: 0,
-                            }}
-                          >
+                          <span className="mono faint" style={{ fontSize: 11.5, width: 64, flexShrink: 0 }}>
                             {c.ts}
                           </span>
 
@@ -787,27 +635,19 @@ export function CrossingsLog() {
                           </span>
 
                           {/* Event label */}
-                          <span
-                            style={{
-                              width: 82,
-                              flexShrink: 0,
-                              fontSize: 12.5,
-                              fontWeight: 600,
-                              color: ev.color,
-                            }}
-                          >
+                          <span style={{ width: 92, flexShrink: 0, fontSize: 12.5, fontWeight: 600, color: ev.color }}>
                             {ev.label}
                           </span>
 
                           {/* PO mono */}
                           <span
+                            className="mono"
                             style={{
-                              fontFamily: "'JetBrains Mono', ui-monospace, monospace",
                               fontSize: 12,
                               fontWeight: 600,
                               width: 150,
                               flexShrink: 0,
-                              color: "#1E66C9",
+                              color: "var(--brand-blue-deep)",
                               overflow: "hidden",
                               textOverflow: "ellipsis",
                               whiteSpace: "nowrap",
@@ -818,20 +658,12 @@ export function CrossingsLog() {
 
                           {/* Buyer → supplier */}
                           <span
-                            style={{
-                              flex: 1,
-                              display: "flex",
-                              alignItems: "center",
-                              gap: 8,
-                              fontSize: 12,
-                              color: "#56627A",
-                              minWidth: 0,
-                              overflow: "hidden",
-                            }}
+                            className="grow row gap-2 items-center"
+                            style={{ fontSize: 12, color: "var(--ink-muted)", minWidth: 0, overflow: "hidden" }}
                           >
                             <span
                               style={{
-                                color: "#1E66C9",
+                                color: "var(--brand-blue-deep)",
                                 overflow: "hidden",
                                 textOverflow: "ellipsis",
                                 whiteSpace: "nowrap",
@@ -840,12 +672,12 @@ export function CrossingsLog() {
                               {c.buyer}
                             </span>
                             {/* arrow right */}
-                            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#8A93A5" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+                            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="var(--ink-faint)" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
                               <path d="M5 12h14M12 5l7 7-7 7" />
                             </svg>
                             <span
                               style={{
-                                color: "#2E8E3A",
+                                color: "var(--brand-green-deep)",
                                 overflow: "hidden",
                                 textOverflow: "ellipsis",
                                 whiteSpace: "nowrap",
@@ -855,11 +687,11 @@ export function CrossingsLog() {
                             </span>
                           </span>
 
-                          {/* Actor badge */}
+                          {/* Actor */}
                           <span
+                            className="faint"
                             style={{
                               fontSize: 11.5,
-                              color: "#8A93A5",
                               width: 110,
                               flexShrink: 0,
                               textAlign: "right",
@@ -878,7 +710,7 @@ export function CrossingsLog() {
                             height="15"
                             viewBox="0 0 24 24"
                             fill="none"
-                            stroke="#8A93A5"
+                            stroke="var(--ink-faint)"
                             strokeWidth="1.75"
                             strokeLinecap="round"
                             strokeLinejoin="round"
@@ -900,52 +732,69 @@ export function CrossingsLog() {
                           <div
                             style={{
                               padding: isMobile ? "4px 14px 14px" : "4px 16px 16px 106px",
-                              background: "#EFF2F7",
+                              background: "var(--surface-2)",
                             }}
                           >
-                            <div
-                              style={{
-                                background: "#FFFFFF",
-                                border: "1px solid #E2E6EE",
-                                borderRadius: 8,
-                                padding: "12px 14px",
-                              }}
-                            >
-                              {/* Detail fields grid */}
-                              {hasDetail && (
-                                <p
+                            <div className="card" style={{ padding: "12px 14px", background: "var(--surface)" }}>
+                              {/* Structured detail grid — mirrors c.detail key/value grid in design */}
+                              {hasDetails && (
+                                <div
                                   style={{
-                                    fontSize: 12,
-                                    color: "#56627A",
-                                    marginBottom: 10,
-                                    lineHeight: 1.6,
+                                    display: "grid",
+                                    gridTemplateColumns: isMobile
+                                      ? "repeat(auto-fill, minmax(120px, 1fr))"
+                                      : "repeat(auto-fill, minmax(150px, 1fr))",
+                                    gap: "10px 20px",
                                   }}
                                 >
+                                  {Object.entries(c.details!).map(([k, v]) => (
+                                    <div key={k}>
+                                      <div className="eyebrow" style={{ fontSize: 9, marginBottom: 2 }}>
+                                        {k.replace(/([A-Z])/g, " $1")}
+                                      </div>
+                                      <div className="mono" style={{ fontSize: 12, fontWeight: 600 }}>{String(v)}</div>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+
+                              {/* Free-text detail fallback (API path / entries without a grid) */}
+                              {!hasDetails && hasText && (
+                                <p style={{ fontSize: 12, color: "var(--ink-muted)", lineHeight: 1.6, margin: 0 }}>
                                   {c.detail}
                                 </p>
                               )}
 
-                              {/* Diff table */}
+                              {/* Error banner — amber when recoverable, red otherwise (design parity) */}
+                              {c.error && (
+                                <div
+                                  className="row gap-2 items-center"
+                                  style={{
+                                    marginTop: 10,
+                                    padding: "8px 11px",
+                                    background: c.recoverable ? "var(--amber-soft)" : "var(--danger-soft)",
+                                    borderRadius: "var(--radius)",
+                                    fontSize: 11.5,
+                                    color: c.recoverable ? "var(--amber)" : "var(--danger)",
+                                  }}
+                                >
+                                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+                                    <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3z" /><path d="M12 9v4" /><path d="M12 17h.01" />
+                                  </svg>
+                                  <span>{c.error}{c.recoverable ? " · auto-retry scheduled" : ""}</span>
+                                </div>
+                              )}
+
+                              {/* Field-diff table (mapping / validation entries) */}
                               {hasDiff && (
-                                <div style={{ marginBottom: 12 }}>
+                                <div style={{ marginTop: hasDetails || hasText || c.error ? 12 : 0 }}>
+                                  <div className="eyebrow" style={{ fontSize: 9, marginBottom: 6 }}>Field changes</div>
                                   <div
+                                    className="mono"
                                     style={{
-                                      fontSize: 9,
-                                      fontWeight: 600,
-                                      letterSpacing: "0.07em",
-                                      textTransform: "uppercase",
-                                      color: "#8A93A5",
-                                      marginBottom: 6,
-                                    }}
-                                  >
-                                    Field changes
-                                  </div>
-                                  <div
-                                    style={{
-                                      borderRadius: 6,
-                                      border: "1px solid #E2E6EE",
+                                      borderRadius: "var(--radius)",
+                                      border: "1px solid var(--border)",
                                       overflow: "hidden",
-                                      fontFamily: "'JetBrains Mono', ui-monospace, monospace",
                                       fontSize: 11.5,
                                     }}
                                   >
@@ -958,48 +807,29 @@ export function CrossingsLog() {
                                           flexWrap: isMobile ? "wrap" : "nowrap",
                                           gap: isMobile ? "2px 8px" : 12,
                                           padding: "8px 11px",
-                                          background: i % 2 === 0 ? "#FFFFFF" : "#F6F7FA",
-                                          borderBottom: i < c.diff!.length - 1 ? "1px solid #F0F2F6" : "none",
+                                          background: i % 2 === 0 ? "var(--surface)" : "var(--surface-2)",
+                                          borderBottom: i < c.diff!.length - 1 ? "1px solid var(--border)" : "none",
                                         }}
                                       >
-                                        <span
-                                          style={{
-                                            color: "#0F4FA8",
-                                            minWidth: isMobile ? "100%" : 200,
-                                            wordBreak: "break-all",
-                                          }}
-                                        >
+                                        <span style={{ color: "var(--brand-blue-deep)", minWidth: isMobile ? "100%" : 200, wordBreak: "break-all" }}>
                                           {d.field}
                                         </span>
-                                        <span style={{ color: "#C53A3A", wordBreak: "break-all" }}>{d.from}</span>
-                                        <span style={{ color: "#C6CDDA" }}>→</span>
-                                        <span style={{ color: "#2E8E3A", wordBreak: "break-all" }}>{d.to}</span>
+                                        <span style={{ color: "var(--danger)", wordBreak: "break-all" }}>{d.from}</span>
+                                        <span style={{ color: "var(--border-strong)" }}>→</span>
+                                        <span style={{ color: "var(--brand-green-deep)", wordBreak: "break-all" }}>{d.to}</span>
                                       </div>
                                     ))}
                                   </div>
                                 </div>
                               )}
 
-                              {/* Action buttons — canonical: View order / Export entry / Retry crossing */}
-                              <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 8, marginTop: 11 }}>
+                              {/* Action buttons — canonical: View order / Retry delivery / Export entry */}
+                              <div className="row gap-2 wrap" style={{ marginTop: 11 }}>
                                 {/* View order — secondary, navigates to /inbox/{id} */}
                                 <button
+                                  className="btn btn-secondary sm"
                                   onClick={() => router.push(`/inbox/${c.crossingId}`)}
-                                  style={{
-                                    display: "inline-flex",
-                                    alignItems: "center",
-                                    gap: 6,
-                                    height: isMobile ? 36 : 27,
-                                    padding: isMobile ? "0 12px" : "0 10px",
-                                    borderRadius: 6,
-                                    border: "1px solid #C6CDDA",
-                                    background: "#FFFFFF",
-                                    color: "#0B1A2F",
-                                    fontSize: 12,
-                                    fontWeight: 600,
-                                    cursor: "pointer",
-                                    transition: "background 150ms",
-                                  }}
+                                  style={isMobile ? { height: 36 } : undefined}
                                 >
                                   {/* eye icon */}
                                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
@@ -1008,29 +838,13 @@ export function CrossingsLog() {
                                   View order
                                 </button>
 
-                                {/* Retry crossing — secondary, only for failed events */}
-                                {/* No retry API exists yet; button shown only when event is failed, with a placeholder */}
+                                {/* Retry delivery — secondary, only for failed events.
+                                    No retry API exists yet; navigate to the order for manual retry. */}
                                 {c.event === "failed" && (
                                   <button
-                                    onClick={() => {
-                                      // Retry API not yet implemented — navigate to order for manual retry
-                                      router.push(`/inbox/${c.crossingId}`);
-                                    }}
-                                    style={{
-                                      display: "inline-flex",
-                                      alignItems: "center",
-                                      gap: 6,
-                                      height: isMobile ? 36 : 27,
-                                      padding: isMobile ? "0 12px" : "0 10px",
-                                      borderRadius: 6,
-                                      border: "1px solid #C6CDDA",
-                                      background: "#FFFFFF",
-                                      color: "#0B1A2F",
-                                      fontSize: 12,
-                                      fontWeight: 600,
-                                      cursor: "pointer",
-                                      transition: "background 150ms",
-                                    }}
+                                    className="btn btn-secondary sm"
+                                    onClick={() => router.push(`/inbox/${c.crossingId}`)}
+                                    style={isMobile ? { height: 36 } : undefined}
                                   >
                                     {/* refresh icon */}
                                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
@@ -1042,9 +856,10 @@ export function CrossingsLog() {
 
                                 {/* Export entry — ghost */}
                                 <button
+                                  className="btn btn-ghost sm"
                                   onClick={() => {
                                     const esc = (v: unknown) => `"${String(v ?? "").replace(/"/g, '""')}"`;
-                                    const row = [c.ts, EV[c.event].label, c.po, c.buyer, c.supplier, c.fmt, c.actor.name, c.message].map(esc).join(",");
+                                    const row = [c.ts, EV_CANON[c.canonicalEvent].label, c.po, c.buyer, c.supplier, c.fmt, c.actor.name, c.message].map(esc).join(",");
                                     const csv = [`"Timestamp","Event","PO","Buyer","Supplier","Format","Actor","Message"`, row].join("\r\n");
                                     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
                                     const url = URL.createObjectURL(blob);
@@ -1054,21 +869,7 @@ export function CrossingsLog() {
                                     document.body.appendChild(a); a.click(); document.body.removeChild(a);
                                     URL.revokeObjectURL(url);
                                   }}
-                                  style={{
-                                    display: "inline-flex",
-                                    alignItems: "center",
-                                    gap: 6,
-                                    height: isMobile ? 36 : 27,
-                                    padding: isMobile ? "0 12px" : "0 10px",
-                                    borderRadius: 6,
-                                    border: "none",
-                                    background: "transparent",
-                                    color: "#56627A",
-                                    fontSize: 12,
-                                    fontWeight: 600,
-                                    cursor: "pointer",
-                                    transition: "background 150ms",
-                                  }}
+                                  style={isMobile ? { height: 36 } : undefined}
                                 >
                                   {/* download icon */}
                                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">

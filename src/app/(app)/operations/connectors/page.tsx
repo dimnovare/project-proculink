@@ -66,33 +66,12 @@ function isConnected(status: string) {
 
 function ConnectorStatusPill({ status }: { status: string }) {
   const connected = isConnected(status);
-  // Status-pill colours sampled pixel-exact from the design target render:
-  //   Connected → bg #E2F1E2, text #1E6D29, dot #2E8E3A (muted sage/forest green)
-  //   Available → bg #EFF2F7 (surface-2), text #56627A, dot #8A93A5 (neutral grey)
+  // Canonical design pills (screen-buyers.jsx ConnectorsScreen):
+  //   Connected → .pill-ready  (bg --brand-green-soft #E2F1E2, text --brand-green-deep #1E6D29, dot --brand-green #2E8E3A)
+  //   Available → .pill-new    (bg --surface-2 #EFF2F7,        text --ink-muted #56627A,        dot --ink-faint #8A93A5)
   return (
-    <span
-      style={{
-        display: "inline-flex",
-        alignItems: "center",
-        gap: 5,
-        height: 21,
-        padding: "0 9px",
-        borderRadius: 11,
-        fontSize: 11,
-        fontWeight: 600,
-        background: connected ? "#E2F1E2" : "var(--surface-2,#EFF2F7)",
-        color: connected ? "#1E6D29" : "var(--ink-muted,#56627A)",
-      }}
-    >
-      <span
-        style={{
-          width: 6,
-          height: 6,
-          borderRadius: "50%",
-          background: connected ? "#2E8E3A" : "var(--ink-faint,#8A93A5)",
-          flexShrink: 0,
-        }}
-      />
+    <span className={connected ? "pill pill-ready" : "pill pill-new"}>
+      <span className="dot" />
       {connected ? "Connected" : "Available"}
     </span>
   );
@@ -138,13 +117,13 @@ function ConnectorCard({
         background: "var(--surface,#FFFFFF)",
         border: "1px solid var(--border,#E2E6EE)",
         borderRadius: "var(--radius-md,8px)",
-        padding: 20,
+        padding: 18,
         display: "flex",
         flexDirection: "column",
       }}
     >
       {/* Top row: icon tile + status pill */}
-      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 16 }}>
+      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 14 }}>
         <div
           style={{
             width: 40,
@@ -162,35 +141,36 @@ function ConnectorCard({
         <ConnectorStatusPill status={connector.status} />
       </div>
 
-      {/* Name + description */}
-      <div style={{ fontWeight: 600, fontSize: 15, color: "var(--ink,#0B1A2F)", lineHeight: 1.3, letterSpacing: "-0.01em" }}>{connector.name}</div>
-      <div style={{ fontSize: 12.5, color: "var(--ink-muted,#56627A)", marginTop: 3, lineHeight: 1.4 }}>{connector.desc}</div>
+      {/* Name + description — canonical: name 14/600, desc muted 12 */}
+      <div style={{ fontWeight: 600, fontSize: 14, color: "var(--ink,#0B1A2F)", lineHeight: 1.3 }}>{connector.name}</div>
+      <div style={{ fontSize: 12, color: "var(--ink-muted,#56627A)", marginTop: 3, lineHeight: 1.4 }}>{connector.desc}</div>
 
-      {/* Footer: supplier count + single action (Manage = text link, Connect = bordered button) */}
+      {/* Footer: supplier count + single action (Manage = ghost text, Connect = bordered button) */}
       <div
         style={{
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
-          marginTop: 16,
-          paddingTop: 13,
+          marginTop: 14,
+          paddingTop: 12,
           borderTop: "1px solid var(--border,#E2E6EE)",
         }}
       >
-        <span style={{ fontSize: 12, color: "var(--ink-faint,#8A93A5)" }}>
+        <span style={{ fontSize: 11.5, color: "var(--ink-faint,#8A93A5)" }}>
           {connector.docks > 0 ? `${connector.docks} supplier${connector.docks > 1 ? "s" : ""}` : "Not in use"}
         </span>
         {connected ? (
           <button
-            className="connector-action"
+            className="connector-action btn-ghost"
             onClick={() => onManage(connector)}
             style={{
-              height: 24,
-              padding: 0,
-              border: "none",
+              height: 27,
+              padding: "0 10px",
+              borderRadius: "var(--radius,6px)",
+              border: "1px solid transparent",
               background: "none",
-              color: "var(--ink,#0B1A2F)",
-              fontSize: 13,
+              color: "var(--ink-muted,#56627A)",
+              fontSize: 12.5,
               fontWeight: 600,
               cursor: "pointer",
               whiteSpace: "nowrap",
@@ -200,11 +180,11 @@ function ConnectorCard({
           </button>
         ) : (
           <button
-            className="connector-action"
+            className="connector-action btn-ghost"
             onClick={() => onManage(connector)}
             style={{
-              height: 28,
-              padding: "0 13px",
+              height: 27,
+              padding: "0 12px",
               borderRadius: "var(--radius,6px)",
               border: "1px solid var(--border-strong,#C6CDDA)",
               background: "var(--surface,#FFFFFF)",
@@ -364,9 +344,9 @@ export default function ConnectorsPage() {
                 padding: "10px 14px",
                 fontSize: 12.5,
                 border: "1px solid var(--border,#E2E6EE)",
-                borderLeft: "3px solid var(--brand-green,#28C55E)",
-                background: "var(--brand-green-soft,#DCFCE7)",
-                color: "var(--brand-green-deep,#1DAF50)",
+                borderLeft: "3px solid var(--brand-green,#2E8E3A)",
+                background: "var(--brand-green-soft,#E2F1E2)",
+                color: "var(--brand-green-deep,#1E6D29)",
               }}
             >
               {notice}
@@ -498,14 +478,14 @@ function ConnectorPanel({
                 width: 34,
                 height: 34,
                 borderRadius: "var(--radius-md,8px)",
-                background: "var(--brand-green-soft,#DCFCE7)",
+                background: "var(--brand-green-soft,#E2F1E2)",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
                 flexShrink: 0,
               }}
             >
-              <PlugIcon size={16} color="var(--brand-green-deep,#1DAF50)" />
+              <PlugIcon size={16} color="var(--brand-green-deep,#1E6D29)" />
             </div>
             <div>
               <div style={{ fontWeight: 600, fontSize: 16, letterSpacing: "-0.015em", color: "var(--ink,#0B1A2F)" }}>
@@ -618,9 +598,9 @@ function ConnectorPanel({
               style={{
                 borderRadius: "var(--radius,6px)",
                 border: "1px solid var(--border,#E2E6EE)",
-                borderLeft: "3px solid var(--brand-green,#28C55E)",
-                background: "var(--brand-green-soft,#DCFCE7)",
-                color: "var(--brand-green-deep,#1DAF50)",
+                borderLeft: "3px solid var(--brand-green,#2E8E3A)",
+                background: "var(--brand-green-soft,#E2F1E2)",
+                color: "var(--brand-green-deep,#1E6D29)",
                 padding: "10px 12px",
                 fontSize: 12,
                 lineHeight: 1.5,
@@ -653,13 +633,13 @@ function ConnectorPanel({
           <button
             onClick={handleTestFire}
             disabled={firing}
-            style={{ height: 32, padding: "0 14px", borderRadius: "var(--radius,6px)", border: "1px solid var(--brand-green-soft,#DCFCE7)", background: "var(--surface,#FFFFFF)", color: firing ? "var(--ink-faint,#8A93A5)" : "var(--brand-green-deep,#1DAF50)", fontSize: 12.5, fontWeight: 600, cursor: firing ? "default" : "pointer" }}
+            style={{ height: 32, padding: "0 14px", borderRadius: "var(--radius,6px)", border: "1px solid var(--brand-green-soft,#E2F1E2)", background: "var(--surface,#FFFFFF)", color: firing ? "var(--ink-faint,#8A93A5)" : "var(--brand-green-deep,#1E6D29)", fontSize: 12.5, fontWeight: 600, cursor: firing ? "default" : "pointer" }}
           >
             {firing ? "Firing…" : "Test fire"}
           </button>
           <button
             onClick={() => onSaved(isNew ? "Connector draft prepared. Set delivery credentials in the supplier's Delivery tab." : "Connector configuration saved.")}
-            style={{ height: 32, padding: "0 14px", borderRadius: "var(--radius,6px)", border: "1px solid transparent", background: "var(--brand-green,#28C55E)", color: "#FFFFFF", fontSize: 12.5, fontWeight: 600, cursor: "pointer" }}
+            style={{ height: 32, padding: "0 14px", borderRadius: "var(--radius,6px)", border: "1px solid transparent", background: "var(--brand-green,#2E8E3A)", color: "#FFFFFF", fontSize: 12.5, fontWeight: 600, cursor: "pointer" }}
           >
             Save
           </button>

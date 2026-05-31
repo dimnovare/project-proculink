@@ -7,7 +7,7 @@ import { useQuery } from "@tanstack/react-query";
 import {
   Layers, Upload, Inbox, Truck, Building2, GitBranch,
   ShieldCheck, FileCode, BookOpen, FileText, Package, ScrollText,
-  Plug, Webhook, Settings, ChevronsLeft, ChevronsRight, ExternalLink,
+  Plug, Webhook, Settings, ChevronsLeft, ChevronsRight, ChevronDown, ExternalLink,
   Files, HelpCircle,
   type LucideIcon,
 } from "lucide-react";
@@ -111,10 +111,13 @@ export function BridgeSidebar({ onNavigate, collapsible = false }: BridgeSidebar
       style={{ width: isCollapsed ? 66 : 220, background: "#0B1A2F", borderRight: "1px solid #1C2F49" }}
     >
       {/* ── Logo + collapse toggle ────────────────────────────────── */}
-      <div className="flex items-center gap-2 px-3" style={{ height: 56, borderBottom: "1px solid #1C2F49", flexShrink: 0, color: "#FFFFFF" }}>
-        <ProcuLinkMark size={28} mono />
+      <div
+        className="flex items-center flex-shrink-0"
+        style={{ height: 56, gap: isCollapsed ? 0 : 9, padding: isCollapsed ? "0 14px" : "0 18px", borderBottom: "1px solid #1C2F49", color: "#FFFFFF" }}
+      >
+        <ProcuLinkMark size={24} mono />
         {!isCollapsed && (
-          <span className="flex-1" style={{ fontFamily: "'Bricolage Grotesque', Inter, system-ui, sans-serif", fontSize: 17, fontWeight: 700, color: "#FFFFFF", letterSpacing: "-0.02em" }}>
+          <span className="flex-1" style={{ fontFamily: "'Bricolage Grotesque', Inter, system-ui, sans-serif", fontSize: 16, fontWeight: 700, color: "#FFFFFF", letterSpacing: "-0.015em" }}>
             ProcuLink
           </span>
         )}
@@ -124,9 +127,9 @@ export function BridgeSidebar({ onNavigate, collapsible = false }: BridgeSidebar
             onClick={toggle}
             aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
             title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-            className="flex items-center justify-center rounded-[6px] flex-shrink-0"
-            style={{ width: 26, height: 26, color: "#7C8DA6", background: "transparent", cursor: "pointer" }}
-            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.06)"; (e.currentTarget as HTMLElement).style.color = "#C5D2E4"; }}
+            className={`flex items-center justify-center rounded-[6px] flex-shrink-0 ${isCollapsed ? "mx-auto" : "ml-auto"}`}
+            style={{ width: 28, height: 28, color: "#7C8DA6", background: "transparent", border: "1px solid transparent", cursor: "pointer", transition: "background 150ms, color 150ms" }}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "#10243E"; (e.currentTarget as HTMLElement).style.color = "#FFFFFF"; }}
             onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "transparent"; (e.currentTarget as HTMLElement).style.color = "#7C8DA6"; }}
           >
             {isCollapsed ? <ChevronsRight size={16} /> : <ChevronsLeft size={16} />}
@@ -139,27 +142,29 @@ export function BridgeSidebar({ onNavigate, collapsible = false }: BridgeSidebar
         type="button"
         aria-label="Switch workspace"
         title={isCollapsed ? "Nordic Distribution · Operations plan" : undefined}
-        className={`mt-3 mb-2 flex items-center rounded-[8px] text-left ${isCollapsed ? "mx-auto justify-center w-[42px] py-2" : "mx-3 gap-2.5 px-3 py-2 w-[calc(100%-24px)]"}`}
-        style={{ background: "#10243E", border: "1px solid #1C2F49", cursor: "pointer" }}
+        className={`flex items-center rounded-[6px] text-left ${isCollapsed ? "mx-auto justify-center w-[44px] py-[9px]" : "gap-2.5 w-[calc(100%-28px)]"}`}
+        style={{ background: "#10243E", border: "1px solid #1C2F49", cursor: "pointer", margin: isCollapsed ? "12px auto 6px" : "12px 14px 6px", padding: isCollapsed ? undefined : "9px 11px", transition: "background 150ms" }}
+        onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "#163052"; }}
+        onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "#10243E"; }}
       >
-        <div className="flex items-center justify-center rounded-[5px] text-[10px] font-bold text-white flex-shrink-0" style={{ width: 22, height: 22, background: "#28C55E" }}>ND</div>
+        <div className="flex items-center justify-center rounded-[4px] text-[10.5px] font-bold text-white flex-shrink-0" style={{ width: 26, height: 26, background: "#1E66C9" }}>ND</div>
         {!isCollapsed && (
           <>
             <div className="flex-1 min-w-0">
-              <div className="text-[12px] font-medium text-white leading-none truncate">Nordic Distribution</div>
+              <div className="text-[12.5px] font-semibold text-white leading-none truncate">Nordic Distribution</div>
               <div className="text-[10.5px] mt-0.5" style={{ color: "#7C8DA6" }}>Operations plan</div>
             </div>
-            <span style={{ color: "#7C8DA6", fontSize: 11 }}>⌄</span>
+            <ChevronDown size={15} style={{ color: "#7C8DA6", flexShrink: 0 }} />
           </>
         )}
       </button>
 
       {/* ── Navigation ───────────────────────────────────────────── */}
-      <nav className="flex-1 overflow-y-auto px-2 py-1" style={{ scrollbarWidth: "none" }}>
+      <nav className="flex-1 overflow-y-auto" style={{ scrollbarWidth: "none", padding: "8px 10px 20px" }}>
         {NAV.map((section, si) => (
           <div key={si} className={si > 0 ? "mt-4" : ""}>
             {section.group && !isCollapsed && (
-              <div className="px-3 pb-1 text-[10px] font-semibold uppercase tracking-[0.08em]" style={{ color: "#7C8DA6" }}>{section.group}</div>
+              <div className="px-[10px] pt-1.5 pb-1 text-[10px] font-semibold uppercase tracking-[0.08em]" style={{ color: "#7C8DA6" }}>{section.group}</div>
             )}
             {section.group && isCollapsed && si > 0 && (
               <div className="mx-3 mb-1.5" style={{ height: 1, background: "#1C2F49" }} aria-hidden />
@@ -174,15 +179,15 @@ export function BridgeSidebar({ onNavigate, collapsible = false }: BridgeSidebar
                   href={item.href}
                   onClick={onNavigate}
                   title={isCollapsed ? item.label : undefined}
-                  className={`flex items-center rounded-[6px] text-[13px] font-medium transition-colors duration-75 relative ${isCollapsed ? "justify-center py-2" : "gap-2.5 px-3 py-[6px]"}`}
-                  style={{ color: active ? "#FFFFFF" : "#C5D2E4", background: active ? "#10243E" : "transparent", ...(active && { boxShadow: "inset 2px 0 0 0 #28C55E" }) }}
-                  onMouseEnter={(e) => { if (!active) { (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.05)"; (e.currentTarget as HTMLElement).style.color = "#FFFFFF"; } }}
+                  className={`flex items-center rounded-[6px] text-[12.5px] font-medium transition-colors duration-75 relative ${isCollapsed ? "justify-center py-[9px]" : "gap-2.5 px-[10px] py-[7px]"}`}
+                  style={{ color: active ? "#FFFFFF" : "#C5D2E4", background: active ? "#1E66C9" : "transparent" }}
+                  onMouseEnter={(e) => { if (!active) { (e.currentTarget as HTMLElement).style.background = "#10243E"; (e.currentTarget as HTMLElement).style.color = "#FFFFFF"; } }}
                   onMouseLeave={(e) => { if (!active) { (e.currentTarget as HTMLElement).style.background = "transparent"; (e.currentTarget as HTMLElement).style.color = "#C5D2E4"; } }}
                 >
-                  <Ico size={16} strokeWidth={1.9} style={{ flexShrink: 0, color: active ? "#28C55E" : "#7C8DA6" }} />
+                  <Ico size={16} strokeWidth={1.9} style={{ flexShrink: 0, color: active ? "#FFFFFF" : "#7C8DA6" }} />
                   {!isCollapsed && <span className="flex-1">{item.label}</span>}
                   {!isCollapsed && badge && (
-                    <span className="flex items-center justify-center rounded-full text-[10px] font-bold" style={{ minWidth: 17, height: 17, padding: "0 4px", background: "#C97A14", color: "#FFFFFF" }}>{badge}</span>
+                    <span className="flex items-center justify-center rounded-full text-[10.5px] font-semibold" style={{ minWidth: 18, height: 18, padding: "0 5px", background: "#C97A14", color: "#FFFFFF" }}>{badge}</span>
                   )}
                   {isCollapsed && badge && (
                     <span className="absolute rounded-full" style={{ top: 5, right: 11, width: 7, height: 7, background: "#C97A14" }} aria-hidden />
@@ -196,11 +201,11 @@ export function BridgeSidebar({ onNavigate, collapsible = false }: BridgeSidebar
 
       {/* ── Footer — system health + back to site ─────────────────── */}
       <div
-        className={`flex items-center px-4 py-3 ${isCollapsed ? "justify-center" : "gap-2"}`}
-        style={{ borderTop: "1px solid #1C2F49", flexShrink: 0 }}
+        className={`flex items-center ${isCollapsed ? "justify-center" : "gap-2"}`}
+        style={{ borderTop: "1px solid #1C2F49", flexShrink: 0, padding: "12px 18px" }}
         title={isCollapsed ? "Pipeline healthy · 12/min" : undefined}
       >
-        <div className="rounded-full flex-shrink-0" style={{ width: 7, height: 7, background: "#28C55E" }} />
+        <div className="rounded-full flex-shrink-0" style={{ width: 7, height: 7, background: "#2E8E3A", boxShadow: "0 0 0 3px rgba(46,142,58,0.2)" }} />
         {!isCollapsed && (
           <>
             <span className="text-[11.5px] flex-1" style={{ color: "#7C8DA6" }}>Pipeline healthy · 12/min</span>

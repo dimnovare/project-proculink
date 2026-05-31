@@ -2,7 +2,7 @@
 
 import { UserButton } from "@clerk/nextjs";
 import { useQuery } from "@tanstack/react-query";
-import { Bell, Menu, Search } from "lucide-react";
+import { Bell, HelpCircle, Menu, Search } from "lucide-react";
 import { useRouter, usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
@@ -20,16 +20,17 @@ function AccountMenu() {
   if (!process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY) {
     return (
       <div
-        className="flex items-center justify-center rounded-full text-[11px] font-bold"
+        className="flex items-center justify-center rounded-full text-[11px] font-semibold"
         style={{
-          width: 28,
-          height: 28,
-          background: "#DCFCE7",
-          color: "#1DAF50",
+          width: 30,
+          height: 30,
+          background: "linear-gradient(135deg,#2a4b73,#1a3050)",
+          color: "#FFFFFF",
+          border: "1px solid #1C2F49",
         }}
         title="Clerk is not configured"
       >
-        D
+        MK
       </div>
     );
   }
@@ -117,7 +118,7 @@ function timeAgo(iso: string): string {
 const NOTIF_META: Record<"review" | "failed" | "delivered", { dot: string; label: string }> = {
   failed:    { dot: "#C53A3A", label: "Delivery failed" },
   review:    { dot: "#C97A14", label: "Needs review" },
-  delivered: { dot: "#28C55E", label: "Delivered" },
+  delivered: { dot: "#2E8E3A", label: "Delivered" },
 };
 
 function NotificationsBell() {
@@ -175,15 +176,17 @@ function NotificationsBell() {
         type="button"
         aria-label={unread > 0 ? `Notifications, ${unread} need action` : "Notifications"}
         onClick={() => setOpen((v) => !v)}
-        className="flex items-center justify-center rounded-full relative"
-        style={{ width: 24, height: 24, background: "#10243E", border: "1px solid #1C2F49", color: open ? "#C5D2E4" : "#7C8DA6", cursor: "pointer" }}
+        className="flex items-center justify-center rounded-[6px] relative"
+        style={{ width: 32, height: 32, background: open ? "#10243E" : "transparent", border: "1px solid transparent", color: open ? "#FFFFFF" : "#C5D2E4", cursor: "pointer", transition: "background 150ms, color 150ms" }}
+        onMouseEnter={(e) => { if (!open) { (e.currentTarget as HTMLElement).style.background = "#10243E"; } }}
+        onMouseLeave={(e) => { if (!open) { (e.currentTarget as HTMLElement).style.background = "transparent"; } }}
         title="Notifications"
       >
-        <Bell size={13} strokeWidth={2} />
+        <Bell size={17} strokeWidth={1.9} />
         {unread > 0 && (
           <span
-            className="absolute"
-            style={{ top: -4, right: -4, minWidth: 14, height: 14, padding: "0 3px", borderRadius: 7, background: "#C53A3A", color: "#FFFFFF", fontSize: 9, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", border: "1.5px solid #0B1A2F", lineHeight: 1 }}
+            className="absolute flex items-center justify-center"
+            style={{ top: 4, right: 4, minWidth: 15, height: 15, padding: "0 3.5px", borderRadius: 8, background: "#C97A14", color: "#FFFFFF", fontSize: 9.5, fontWeight: 700, border: "1.5px solid #0B1A2F", lineHeight: 1 }}
           >
             {unread > 9 ? "9+" : unread}
           </span>
@@ -232,7 +235,7 @@ function NotificationsBell() {
             type="button"
             onClick={() => { setOpen(false); router.push("/inbox"); }}
             className="w-full text-center"
-            style={{ padding: "9px 12px", fontSize: 12, fontWeight: 600, color: "#1DAF50", background: "#FFFFFF", cursor: "pointer", borderTop: "1px solid #E2E6EE" }}
+            style={{ padding: "9px 12px", fontSize: 12, fontWeight: 600, color: "#1E6D29", background: "#FFFFFF", cursor: "pointer", borderTop: "1px solid #E2E6EE" }}
           >
             View all in inbox →
           </button>
@@ -244,6 +247,7 @@ function NotificationsBell() {
 
 export function BridgeTopbar({ crumb, onMenuClick }: BridgeTopbarProps) {
   const router = useRouter();
+  const pathname = usePathname();
   const autoCrumb = useAutoCrumb();
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
@@ -266,7 +270,7 @@ export function BridgeTopbar({ crumb, onMenuClick }: BridgeTopbarProps) {
       style={{ height: 56, background: "#0B1A2F" }}
     >
       {/* Content row */}
-      <div className="flex h-full items-center gap-3 px-3 sm:px-5">
+      <div className="flex h-full items-center gap-3 sm:gap-4 px-3 sm:px-5">
         <button
           type="button"
           onClick={onMenuClick}
@@ -314,29 +318,31 @@ export function BridgeTopbar({ crumb, onMenuClick }: BridgeTopbarProps) {
           </span>
         )}
 
-        {/* Breadcrumbs */}
+        {/* Breadcrumbs — hidden on mobile (design parity), shown from sm up */}
         <div
-          className="flex min-w-0 items-center gap-1.5 text-[13px] flex-shrink-0"
+          className="hidden sm:flex min-w-0 items-center gap-2 text-[12.5px] flex-shrink-0"
           style={{ color: "#C5D2E4" }}
         >
           {crumb ?? autoCrumb}
         </div>
 
-        {/* cmd-K search field — wide, opens the command palette */}
+        {/* cmd-K search field — right-aligned, opens the command palette */}
         <button
           type="button"
           aria-label="Search (⌘K)"
           onClick={() => setPaletteOpen(true)}
-          className="hidden flex-1 max-w-[480px] items-center gap-2 rounded-[7px] px-3 transition-colors sm:flex sm:mx-auto"
+          className="hidden items-center gap-2.5 rounded-[6px] px-[11px] transition-colors sm:flex ml-auto"
           style={{
             height: 34,
+            width: 320,
+            maxWidth: "38vw",
             background: "#10243E",
             border: "1px solid #1C2F49",
             color: "#7C8DA6",
             fontSize: 12.5,
           }}
           onMouseEnter={(e) => {
-            (e.currentTarget as HTMLElement).style.borderColor = "#2A4A70";
+            (e.currentTarget as HTMLElement).style.borderColor = "#294063";
             (e.currentTarget as HTMLElement).style.color = "#C5D2E4";
           }}
           onMouseLeave={(e) => {
@@ -344,36 +350,42 @@ export function BridgeTopbar({ crumb, onMenuClick }: BridgeTopbarProps) {
             (e.currentTarget as HTMLElement).style.color = "#7C8DA6";
           }}
         >
-          <Search size={14} style={{ flexShrink: 0 }} />
-          <span className="flex-1 text-left">Search orders, suppliers, SKUs…</span>
+          <Search size={15} style={{ flexShrink: 0 }} />
+          <span className="flex-1 text-left truncate">Search orders, suppliers, SKUs…</span>
           <kbd
-            className="flex items-center gap-0.5 rounded text-[10px] font-medium px-1"
-            style={{ background: "#0B1A2F", color: "#7C8DA6" }}
+            className="flex items-center gap-0.5 rounded text-[10.5px] font-medium"
+            style={{ background: "#0a1626", border: "1px solid #1C2F49", padding: "1px 5px", color: "#7C8DA6", fontFamily: "'JetBrains Mono', ui-monospace, monospace" }}
           >
             ⌘K
           </kbd>
         </button>
 
-        {/* Notifications — live popover (needs-review / failed / delivered) */}
-        <NotificationsBell />
+        {/* Notifications — live popover (needs-review / failed / delivered).
+            ml-auto on mobile (search hidden) pushes the icon cluster right; reset on desktop. */}
+        <div className="ml-auto sm:ml-0 flex-shrink-0">
+          <NotificationsBell />
+        </div>
 
         {/* Help */}
         <button
           type="button"
           aria-label="Help"
           onClick={() => setHelpOpen(true)}
-          className="flex items-center justify-center rounded-full text-[11px] font-bold"
+          className="hidden sm:flex items-center justify-center rounded-[6px]"
           style={{
-            width: 24,
-            height: 24,
-            background: "#10243E",
-            border: "1px solid #1C2F49",
-            color: "#7C8DA6",
+            width: 32,
+            height: 32,
+            background: "transparent",
+            border: "1px solid transparent",
+            color: "#C5D2E4",
             cursor: "pointer",
+            transition: "background 150ms, color 150ms",
           }}
+          onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "#10243E"; }}
+          onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "transparent"; }}
           title="Help"
         >
-          ?
+          <HelpCircle size={17} strokeWidth={1.9} />
         </button>
 
         {/* Avatar / Clerk */}
@@ -388,10 +400,11 @@ export function BridgeTopbar({ crumb, onMenuClick }: BridgeTopbarProps) {
       {/* Help slide-over */}
       <HelpSlideover open={helpOpen} onClose={() => setHelpOpen(false)} />
 
-      {/* Link-spine — 2px solid green line at bottom edge */}
+      {/* Bottom edge — 2px blue→green gradient (matches design --gradient-link-spine) */}
       <div
-        className="absolute bottom-0 left-0 right-0"
-        style={{ height: 2, background: "#28C55E" }}
+        className="link-spine"
+        data-animated="true"
+        key={pathname}
         aria-hidden
       />
     </header>

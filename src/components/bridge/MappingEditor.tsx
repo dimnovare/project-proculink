@@ -23,11 +23,11 @@ const BLUE        = "#1E66C9"; // buyer-side primary (header button)
 const BLUE_DEEP   = "#1A57AD"; // hover / active for blue button
 const BLUE_LINK   = "#0F4FA8"; // buyer name link text
 const BLUE_SOFT   = "#E3EDFB"; // light-blue tint: eyebrow square, info banner, Inherited badge
-const GREEN       = "#28C55E"; // commit accent (modal Save)
-const GREEN_DEEP  = "#1DAF50"; // hover / active for green
-const GREEN_SOFT  = "#DCFCE7"; // soft green tint for active chips / focus rings
+const GREEN       = "#2E8E3A"; // supplier-side commit accent (modal Save) — canonical forest green
+const GREEN_DEEP  = "#1E6D29"; // hover / active for green; also supplier name + supplier code text
+const GREEN_SOFT  = "#E2F1E2"; // soft green tint for active chips / focus rings (brand-green-soft)
 const GREEN_CODE  = "#1E6D29"; // supplier name + supplier code text (sampled)
-const GREEN_CHIP  = "#E2F1E2"; // Imported badge fill (sampled)
+const GREEN_CHIP  = "#E2F1E2"; // Imported badge fill (sampled, brand-green-soft)
 const INK         = "#0B1A2F"; // buyer item code (near-black mono) + headings
 const BORDER      = "#E2E6EE"; // card border + header rule + row divider (sampled)
 
@@ -238,7 +238,7 @@ export function MappingEditor() {
                 onClick={() => setSrc(s)}
                 className="h-9 flex-shrink-0 rounded-[7px] px-3 text-[12.5px] font-medium transition-colors lg:h-[30px] lg:px-2.5 lg:text-[12px]"
                 style={{
-                  border: `1px solid ${active ? "#28C55E55" : "#E2E6EE"}`,
+                  border: `1px solid ${active ? "#2E8E3A55" : "#E2E6EE"}`,
                   background: active ? GREEN_SOFT : "#FFFFFF",
                   color: active ? GREEN_DEEP : "#56627A",
                 }}
@@ -320,7 +320,7 @@ export function MappingEditor() {
 
       {notice && (
         <div className="px-4 pb-3 sm:px-6">
-          <div className="rounded-[8px] px-3 py-2 text-[12px] leading-relaxed" style={{ border: "1px solid #A7E3BC", background: GREEN_SOFT, color: GREEN_DEEP }}>
+          <div className="rounded-[8px] px-3 py-2 text-[12px] leading-relaxed" style={{ border: "1px solid #BBD9BD", background: GREEN_SOFT, color: GREEN_DEEP }}>
             {notice}
           </div>
         </div>
@@ -650,7 +650,7 @@ function MappingPanel({
 
         {panel.kind === "import" && (
           <div className="grid gap-4 p-5">
-            <div className="rounded-[8px] border border-dashed p-5 text-center" style={{ borderColor: "#A7E3BC", background: "#F3FCF6" }}>
+            <div className="rounded-[8px] border border-dashed p-5 text-center" style={{ borderColor: "#BBD9BD", background: "#F2F9F3" }}>
               <div className="text-[13px] font-semibold" style={{ color: INK }}>Drop CSV here</div>
               <p className="mx-auto mt-1 max-w-[420px] text-[12px] leading-5" style={{ color: "#56627A" }}>
                 Expected columns: buyer_code, supplier_code. Existing buyer codes are updated, new rows are added.
@@ -770,7 +770,7 @@ function MappingPanel({
           <button
             onClick={onClose}
             className="flex h-10 items-center justify-center rounded-[7px] px-4 text-[13px] font-semibold transition-colors hover:bg-[#F6F7FA]"
-            style={{ border: `1px solid ${BORDER}`, background: "#FFFFFF", color: "#56627A" }}
+            style={{ border: 0, background: "transparent", color: "#56627A" }}
           >
             Cancel
           </button>

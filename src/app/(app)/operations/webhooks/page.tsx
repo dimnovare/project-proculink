@@ -188,39 +188,16 @@ function CardHead({ title, sub, icon }: { title: string; sub?: string; icon: "we
 }
 
 // ── Endpoint status pill ──────────────────────────────────────────────────────
-
-// Status indicator greens sampled from the design render (more muted than the bright
-// brand green): pill bg #E2F1E2, ink #1E6D29, dot kept on brand green #28C55E.
-const STATUS_GREEN_SOFT = "#E2F1E2";
-const STATUS_GREEN_INK = "#1E6D29";
+// Canonical design uses the ported .pill classes: .pill-ready (green-soft bg
+// #E2F1E2 / green-deep ink #1E6D29 / brand-green dot #2E8E3A) for "Healthy",
+// .pill-failed (danger-soft / danger) for "Failing". Verified by pixel-sampling
+// the design render — no bespoke literals, and definitely not the old #28C55E dot.
 
 function EndpointPill({ status }: { status: "healthy" | "failing" }) {
   const healthy = status === "healthy";
   return (
-    <span
-      style={{
-        display: "inline-flex",
-        alignItems: "center",
-        gap: 5,
-        height: 21,
-        padding: "0 9px",
-        borderRadius: 11,
-        fontSize: 11,
-        fontWeight: 600,
-        background: healthy ? STATUS_GREEN_SOFT : "var(--danger-soft,#FBE3E3)",
-        color: healthy ? STATUS_GREEN_INK : "var(--danger,#C53A3A)",
-        flexShrink: 0,
-      }}
-    >
-      <span
-        style={{
-          width: 6,
-          height: 6,
-          borderRadius: "50%",
-          background: healthy ? "var(--brand-green,#28C55E)" : "var(--danger,#C53A3A)",
-          flexShrink: 0,
-        }}
-      />
+    <span className={`pill ${healthy ? "pill-ready" : "pill-failed"}`} style={{ flexShrink: 0 }}>
+      <span className="dot" />
       {healthy ? "Healthy" : "Failing"}
     </span>
   );
@@ -294,22 +271,17 @@ function EndpointsCard({
               <EndpointPill status={w.status} />
             </div>
 
-            {/* Event chips */}
+            {/* Event chips — canonical .chip (surface-2 / ink-muted / mono 10px) */}
             <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 8 }}>
               {w.events.map((e) => (
                 <span
                   key={e}
+                  className="chip"
                   style={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    height: 22,
-                    padding: "0 8px",
-                    borderRadius: "var(--radius-sm,4px)",
                     background: "var(--surface-2,#EFF2F7)",
                     color: "var(--ink-muted,#56627A)",
                     fontFamily: "var(--font-mono,'JetBrains Mono',monospace)",
                     fontSize: 10,
-                    fontWeight: 600,
                   }}
                 >
                   {e}
@@ -422,23 +394,15 @@ function DeliveriesCard({ deliveries }: { deliveries: DeliveryRow[] | null }) {
                   {d.event}
                 </span>
                 <span
-                  style={{
-                    fontFamily: "var(--font-mono,'JetBrains Mono',monospace)",
-                    fontSize: 11,
-                    fontWeight: 700,
-                    padding: "2px 7px",
-                    borderRadius: "var(--radius-sm,4px)",
-                    background: d.fail ? "var(--danger-soft,#FBE3E3)" : STATUS_GREEN_SOFT,
-                    color: d.fail ? "var(--danger,#C53A3A)" : STATUS_GREEN_INK,
-                    flexShrink: 0,
-                  }}
+                  className={`conf ${d.fail ? "conf-lo" : "conf-hi"}`}
+                  style={{ fontSize: 11, padding: "2px 7px", flexShrink: 0 }}
                 >
                   {d.status}
                 </span>
               </div>
-              {/* Order (blue) + latency */}
+              {/* Order (buyer-blue) + latency */}
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
-                <span style={{ fontFamily: "var(--font-mono,'JetBrains Mono',monospace)", fontSize: 13, fontWeight: 600, color: BLUE }}>
+                <span style={{ fontFamily: "var(--font-mono,'JetBrains Mono',monospace)", fontSize: 13, fontWeight: 600, color: "var(--brand-blue-deep,#0F4FA8)" }}>
                   {d.po}
                 </span>
                 <span style={{ fontFamily: "var(--font-mono,'JetBrains Mono',monospace)", fontSize: 12, color: "var(--ink-faint,#8A93A5)", flexShrink: 0 }}>
@@ -522,7 +486,7 @@ function DeliveriesCard({ deliveries }: { deliveries: DeliveryRow[] | null }) {
                     borderBottom: i < deliveries.length - 1 ? "1px solid var(--border,#E2E6EE)" : "none",
                     fontFamily: "var(--font-mono,'JetBrains Mono',monospace)",
                     fontSize: 11.5,
-                    color: BLUE,
+                    color: "var(--brand-blue-deep,#0F4FA8)",
                     fontWeight: 600,
                     whiteSpace: "nowrap",
                   }}
@@ -535,21 +499,8 @@ function DeliveriesCard({ deliveries }: { deliveries: DeliveryRow[] | null }) {
                     borderBottom: i < deliveries.length - 1 ? "1px solid var(--border,#E2E6EE)" : "none",
                   }}
                 >
-                  {/* HTTP status badge — matches canonical .conf style */}
-                  <span
-                    style={{
-                      fontFamily: "var(--font-mono,'JetBrains Mono',monospace)",
-                      fontSize: 10.5,
-                      fontWeight: 700,
-                      padding: "1px 6px",
-                      borderRadius: "var(--radius-sm,4px)",
-                      background: d.fail ? "var(--danger-soft,#FBE3E3)" : STATUS_GREEN_SOFT,
-                      color: d.fail ? "var(--danger,#C53A3A)" : STATUS_GREEN_INK,
-                      display: "inline-flex",
-                      alignItems: "center",
-                      whiteSpace: "nowrap",
-                    }}
-                  >
+                  {/* HTTP status badge — canonical .conf (green-deep on green-soft / danger on danger-soft) */}
+                  <span className={`conf ${d.fail ? "conf-lo" : "conf-hi"}`} style={{ whiteSpace: "nowrap" }}>
                     {d.status}
                   </span>
                 </td>

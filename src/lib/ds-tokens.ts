@@ -2,20 +2,22 @@
  * ProcuLink design tokens — typed TS exports.
  *
  * Import in any TS file:
- *   import { color, font, size } from "@/design-system/tokens/tokens";
+ *   import { color, font, size } from "@/lib/ds-tokens";
  *
- * Source of truth: tokens.json. Keep this file in sync if you edit JSON.
+ * Source of truth: Claude Design export (tokens.css — Bridge Layer system).
+ * Keep this file in sync if you edit that CSS.
  */
 
 export const color = {
   brand: {
-    // Primary accent — emerald green (matches design CTAs + active-nav)
-    blue:      "#28C55E",   // formerly blue, now the PRIMARY accent green
-    blueDeep:  "#1DAF50",   // hover / active variant
-    blueSoft:  "#DCFCE7",   // soft tint for focus rings, hover rows, pills
-    green:     "#28C55E",   // alias kept for gradient / supplier-side uses
-    greenDeep: "#1DAF50",
-    greenSoft: "#DCFCE7",
+    // Buyer side / primary accent — brand blue
+    blue:      "#1E66C9",
+    blueDeep:  "#0F4FA8",
+    blueSoft:  "#E3EDFB",
+    // Supplier side — forest green (NOT the old bright #28C55E)
+    green:     "#2E8E3A",
+    greenDeep: "#1E6D29",
+    greenSoft: "#E2F1E2",
   },
   navy: {
     DEFAULT: "#0B1A2F",
@@ -24,34 +26,35 @@ export const color = {
     text:    "#C5D2E4",
     muted:   "#7C8DA6",
   },
-  bg:       "#F6F7FA",
-  bgWarm:   "#F8F6F1",
-  surface:  "#FFFFFF",
-  surface2: "#EFF2F7",
-  border:   "#E2E6EE",
+  bg:           "#F6F7FA",
+  bgWarm:       "#F8F6F1",
+  surface:      "#FFFFFF",
+  surface2:     "#EFF2F7",
+  border:       "#E2E6EE",
   borderStrong: "#C6CDDA",
-  ink:      "#0B1A2F",
-  inkMuted: "#56627A",
-  inkFaint: "#8A93A5",
-  amber:    "#C97A14",
-  amberSoft:"#FAEFD6",
-  danger:   "#C53A3A",
-  dangerSoft:"#FBE3E3",
-  ai:       "#6F4FCE",   // violet — intentionally kept for AI provenance (not brand accent)
-  aiSoft:   "#EEE7FB",
+  ink:          "#0B1A2F",
+  inkMuted:     "#56627A",
+  inkFaint:     "#8A93A5",
+  amber:        "#C97A14",
+  amberSoft:    "#FAEFD6",
+  danger:       "#C53A3A",
+  dangerSoft:   "#FBE3E3",
+  ai:           "#6F4FCE",
+  aiSoft:       "#EEE7FB",
 } as const;
 
 export const gradient = {
-  linkSpine:    "linear-gradient(90deg, #28C55E 0%, #28C55E 35%, #28C55E 65%, #28C55E 100%)",
-  bridgeDeck:   "linear-gradient(90deg, #1DAF50, #28C55E)",
-  railBuyer:    "linear-gradient(180deg, rgba(40,197,94,0.2), #28C55E 50%, rgba(40,197,94,0.2))",
-  railSupplier: "linear-gradient(180deg, rgba(40,197,94,0.2), #28C55E 50%, rgba(40,197,94,0.2))",
+  // Blue (buyer) → Green (supplier) spine
+  linkSpine:    "linear-gradient(90deg, #1E66C9 0%, #1E66C9 35%, #2E8E3A 65%, #2E8E3A 100%)",
+  bridgeDeck:   "linear-gradient(90deg, #1E66C9, #2E8E3A)",
+  railBuyer:    "linear-gradient(180deg, rgba(30,102,201,0.15), #1E66C9 50%, rgba(30,102,201,0.15))",
+  railSupplier: "linear-gradient(180deg, rgba(46,142,58,0.15), #2E8E3A 50%, rgba(46,142,58,0.15))",
 } as const;
 
 export const font = {
   sans:    '"Inter", system-ui, -apple-system, sans-serif',
   display: '"Bricolage Grotesque", "Inter", system-ui, sans-serif',
-  mono:    '"JetBrains Mono", ui-monospace, monospace',
+  mono:    '"JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace',
 } as const;
 
 export const size = {
@@ -77,12 +80,12 @@ export const shadow = {
 } as const;
 
 export const motion = {
-  easeOut:    "cubic-bezier(0.16, 1, 0.3, 1)",
-  easeInOut:  "cubic-bezier(0.65, 0, 0.35, 1)",
-  durationFast:    150,
-  duration:        250,
-  durationSlow:    400,
-  durationSpine:  1200,
+  easeOut:          "cubic-bezier(0.16, 1, 0.3, 1)",
+  easeInOut:        "cubic-bezier(0.65, 0, 0.35, 1)",
+  durationFast:     150,
+  duration:         250,
+  durationSlow:     400,
+  durationSpine:    1200,
   durationWireLoop: 6000,
 } as const;
 
@@ -104,6 +107,6 @@ export function confidenceTier(pct: number): "ok" | "warn" | "danger" {
 export function confidenceColors(pct: number) {
   const tier = confidenceTier(pct);
   if (tier === "ok")   return { fg: color.brand.greenDeep, bg: color.brand.greenSoft };
-  if (tier === "warn") return { fg: color.amber, bg: color.amberSoft };
-  return { fg: color.danger, bg: color.dangerSoft };
+  if (tier === "warn") return { fg: color.amber,           bg: color.amberSoft };
+  return                      { fg: color.danger,          bg: color.dangerSoft };
 }

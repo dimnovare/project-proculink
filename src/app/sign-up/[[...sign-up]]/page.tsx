@@ -1,102 +1,143 @@
 import { SignUp } from "@clerk/nextjs";
 import { ProcuLinkMark } from "@/components/bridge/DSPrimitives";
 
-/* ── Local helpers (auth pages only) ─────────────────────────────────────── */
+/* ── Local helpers (auth pages only) ──────────────────────────────────────────
+   Pixel-ported from the design source AuthScreen (mkt-components.jsx) — exact
+   tokens, colours, and spacing. Clerk drives the real form; the surrounding
+   split layout + brand panel match the design.
+   ──────────────────────────────────────────────────────────────────────────── */
 
-const FEATURES = [
-  "AI-assisted mapping with visible confidence",
-  "Validate before anything reaches the supplier",
-  "Orders out in minutes, fully audited",
+const FEATURES: { kind: "zap" | "check" | "clock"; label: string }[] = [
+  { kind: "zap", label: "AI-assisted mapping with visible confidence" },
+  { kind: "check", label: "Validate before anything reaches the supplier" },
+  { kind: "clock", label: "Orders out in minutes, fully audited" },
 ];
 
-function FeatureIcon({ kind }: { kind: "spark" | "check" | "clock" }) {
+/** Lucide-style line icons, matching the design's Icon set (zap / checkCircle / clock). */
+function FeatureIcon({ kind }: { kind: "zap" | "check" | "clock" }) {
   const common = {
-    width: 13,
-    height: 13,
-    viewBox: "0 0 14 14",
+    width: 15,
+    height: 15,
+    viewBox: "0 0 24 24",
     fill: "none",
-    stroke: "#9DB6E0",
-    strokeWidth: 1.4,
+    stroke: "#6BA5F0",
+    strokeWidth: 1.75,
     strokeLinecap: "round" as const,
     strokeLinejoin: "round" as const,
     "aria-hidden": true,
   };
-  if (kind === "spark") {
+  if (kind === "zap") {
     return (
       <svg {...common}>
-        <path d="M7 1.5 8.6 5.4 12.5 7 8.6 8.6 7 12.5 5.4 8.6 1.5 7 5.4 5.4 7 1.5Z" />
+        <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
       </svg>
     );
   }
   if (kind === "check") {
     return (
       <svg {...common}>
-        <circle cx="7" cy="7" r="5.2" />
-        <path d="M4.7 7.1 6.3 8.6 9.3 5.2" />
+        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+        <polyline points="22 4 12 14.01 9 11.01" />
       </svg>
     );
   }
   return (
     <svg {...common}>
-      <circle cx="7" cy="7" r="5.2" />
-      <path d="M7 4.2V7l2 1.4" />
+      <circle cx="12" cy="12" r="10" />
+      <polyline points="12 6 12 12 16 14" />
     </svg>
   );
 }
 
+/** Left navy panel — value prop + trust line. Hidden below lg (design @media). */
 function AuthBrandPanel() {
-  const kinds: ("spark" | "check" | "clock")[] = ["spark", "check", "clock"];
   return (
     <aside
-      className="relative hidden flex-col justify-between overflow-hidden p-10 lg:flex lg:p-12"
-      style={{ backgroundColor: "#0B1A2F", color: "#C5D2E4" }}
+      className="relative hidden flex-col overflow-hidden lg:flex"
+      style={{ background: "var(--navy)", color: "#fff", padding: 48 }}
     >
-      {/* faint blue accent glow, top-right — matches the near-flat navy of the design */}
+      {/* Dual radial accent glow (blue top-left, green bottom-right) — design ::before */}
       <div
         aria-hidden
-        className="pointer-events-none absolute -right-28 -top-28 h-80 w-80 rounded-full opacity-[0.10] blur-3xl"
-        style={{ background: "radial-gradient(circle, #2C5B9E 0%, transparent 70%)" }}
+        className="pointer-events-none absolute inset-0"
+        style={{
+          background:
+            "radial-gradient(600px 400px at 30% 20%, rgba(30,102,201,0.20), transparent 60%), radial-gradient(500px 360px at 80% 80%, rgba(46,142,58,0.16), transparent 60%)",
+        }}
       />
 
       {/* Wordmark */}
-      <div className="relative flex items-center gap-2.5 text-white">
-        <ProcuLinkMark size={26} mono />
-        <span className="text-[17px] font-semibold tracking-tight">ProcuLink</span>
-      </div>
+      <a
+        href="/"
+        className="relative inline-flex items-center"
+        style={{
+          gap: 9,
+          color: "#fff",
+          fontWeight: 700,
+          fontSize: 17,
+          textDecoration: "none",
+        }}
+      >
+        <ProcuLinkMark size={24} mono />
+        ProcuLink
+      </a>
 
       {/* Bottom content */}
-      <div className="relative">
+      <div className="relative" style={{ marginTop: "auto" }}>
         <h2
-          className="max-w-[14ch] text-[34px] font-semibold leading-[1.16] tracking-tight text-white"
-          style={{ fontFamily: '"Bricolage Grotesque", "Inter", system-ui, sans-serif' }}
+          style={{
+            fontFamily: "var(--font-display)",
+            fontSize: 30,
+            fontWeight: 600,
+            letterSpacing: "-0.03em",
+            lineHeight: 1.15,
+            color: "#fff",
+            maxWidth: "14ch",
+            margin: 0,
+          }}
         >
           The missing link between{" "}
-          <span style={{ color: "#3E83E0" }}>buyers</span> and{" "}
-          <span style={{ color: "#34CE6A" }}>suppliers</span>
-          <span style={{ color: "#34CE6A" }}>.</span>
+          <span style={{ color: "#6BA5F0" }}>buyers</span> and{" "}
+          <span style={{ color: "#5FC06B" }}>suppliers</span>.
         </h2>
 
-        <ul className="mt-9 space-y-[18px]">
-          {FEATURES.map((line, i) => (
-            <li key={line} className="flex items-center gap-3">
+        <div
+          style={{
+            marginTop: 28,
+            display: "flex",
+            flexDirection: "column",
+            gap: 14,
+          }}
+        >
+          {FEATURES.map((f) => (
+            <div
+              key={f.label}
+              className="flex items-center"
+              style={{ gap: 12, color: "var(--navy-text)", fontSize: 13.5 }}
+            >
               <span
                 aria-hidden
-                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full"
+                className="flex shrink-0 items-center justify-center"
                 style={{
-                  background: "rgba(110,140,190,0.10)",
-                  border: "1px solid rgba(130,160,210,0.22)",
+                  width: 30,
+                  height: 30,
+                  borderRadius: 8,
+                  background: "var(--navy-surface)",
                 }}
               >
-                <FeatureIcon kind={kinds[i]} />
+                <FeatureIcon kind={f.kind} />
               </span>
-              <span className="text-[14px] leading-snug text-[#AEBCD2]">{line}</span>
-            </li>
+              {f.label}
+            </div>
           ))}
-        </ul>
+        </div>
 
-        <p className="mt-10 text-[11.5px] tracking-wide text-[#6F809B]">
+        <div
+          className="relative"
+          style={{ marginTop: 32, color: "var(--navy-muted)", fontSize: 12 }}
+        >
           EU data residency · AES-GCM at rest · SOC 2 Type II in progress
-        </p>
+        </div>
       </div>
     </aside>
   );
@@ -106,27 +147,29 @@ function AuthShell({ children }: { children: React.ReactNode }) {
   return (
     <main
       className="grid min-h-screen grid-cols-1 lg:grid-cols-2"
-      style={{ background: "#F6F7FA" }}
+      style={{ background: "var(--bg)" }}
     >
       <AuthBrandPanel />
-      <section
-        className="flex min-h-screen flex-col items-center justify-center px-5 py-10 sm:px-8 lg:min-h-0 lg:px-10 lg:py-12"
-        style={{ background: "#F6F7FA" }}
-      >
+      {/* .auth-main — center the form vertically + horizontally, 48px pad on desktop */}
+      <section className="flex min-h-screen flex-col items-center justify-center px-6 py-12 sm:px-8 lg:p-12">
         {/* Mobile-only wordmark — the brand panel is hidden below lg */}
         <div className="mb-8 flex w-full max-w-[380px] items-center gap-2.5 lg:hidden">
           <ProcuLinkMark size={24} />
-          <span className="text-[16px] font-semibold tracking-tight text-[#0B1A2F]">
+          <span
+            className="text-[16px] font-semibold tracking-tight"
+            style={{ color: "var(--ink)" }}
+          >
             ProcuLink
           </span>
         </div>
+        {/* .auth-form — max-width 380 */}
         <div className="w-full max-w-[380px]">{children}</div>
       </section>
     </main>
   );
 }
 
-/** Shared Clerk appearance — borderless form that blends into our panel. */
+/** Shared Clerk appearance — borderless form styled to the design tokens. */
 const clerkAppearance = {
   layout: {
     socialButtonsVariant: "blockButton" as const,
@@ -135,11 +178,11 @@ const clerkAppearance = {
   variables: {
     colorPrimary: "#1E66C9",
     colorText: "#0B1A2F",
-    colorTextSecondary: "#5B6577",
+    colorTextSecondary: "#56627A",
     colorBackground: "#FFFFFF",
     colorInputText: "#0B1A2F",
     colorDanger: "#C53A3A",
-    borderRadius: "10px",
+    borderRadius: "6px",
     fontFamily: '"Inter", system-ui, -apple-system, sans-serif',
     fontSize: "14px",
   },
@@ -150,28 +193,35 @@ const clerkAppearance = {
     header: "hidden",
     headerTitle: "hidden",
     headerSubtitle: "hidden",
-    main: "gap-4",
+    main: "gap-2",
+    // Social buttons → .btn-secondary (white, border-strong, ink text)
     socialButtonsBlockButton:
-      "h-11 border border-[#D8DEE9] bg-white text-[#0B1A2F] font-semibold rounded-[10px] hover:bg-[#F1F4F9] hover:border-[#C6CEDB] transition-colors shadow-none",
-    socialButtonsBlockButtonText: "text-[14px] font-semibold text-[#0B1A2F]",
+      "h-[42px] border border-[#C6CDDA] bg-white text-[#0B1A2F] font-medium rounded-[6px] hover:bg-[#EFF2F7] transition-colors shadow-none",
+    socialButtonsBlockButtonText: "text-[14px] font-medium text-[#0B1A2F]",
     socialButtonsBlockButtonArrow: "hidden",
-    dividerRow: "my-1.5",
-    dividerLine: "bg-[#E0E5EE]",
-    dividerText: "text-[12px] text-[#8A93A5]",
-    formFieldLabel: "text-[13px] font-medium text-[#374254]",
+    // Divider → "or with email"
+    dividerRow: "my-5",
+    dividerLine: "bg-[#E2E6EE]",
+    dividerText: "text-[11.5px] text-[#8A93A5]",
+    // Fields → .field-label + .input
+    formFieldRow: "mb-3.5",
+    formFieldLabel: "text-[11.5px] font-semibold text-[#56627A] mb-1.5",
     formFieldInput:
-      "h-11 rounded-[10px] border border-[#D8DEE9] bg-white px-3 text-[14px] text-[#0B1A2F] placeholder:text-[#9AA3B2] focus:border-[#1E66C9] focus:ring-2 focus:ring-[#DBE7FA] shadow-none transition-colors",
+      "h-[42px] rounded-[6px] border border-[#C6CDDA] bg-white px-3 text-[14px] text-[#0B1A2F] placeholder:text-[#8A93A5] focus:border-[#1E66C9] focus:ring-[3px] focus:ring-[rgba(30,102,201,0.12)] shadow-none transition-colors",
+    // Primary CTA → .btn-blue
     formButtonPrimary:
-      "h-11 rounded-[10px] bg-[#1E66C9] text-white text-[14px] font-semibold hover:bg-[#1A57AD] active:bg-[#174E9C] shadow-none normal-case transition-colors",
-    formFieldAction: "text-[12px] font-medium text-[#1E66C9] hover:text-[#1A57AD]",
-    identityPreviewEditButton: "text-[#1E66C9]",
-    footer: "mt-3",
+      "h-11 rounded-[6px] bg-[#1E66C9] text-white text-[14px] font-medium hover:bg-[#0F4FA8] active:translate-y-[0.5px] shadow-none normal-case transition-colors mt-3",
+    // "Forgot?" action link → a.link (brand-blue-deep)
+    formFieldAction:
+      "text-[11.5px] font-medium text-[#0F4FA8] hover:underline",
+    identityPreviewEditButton: "text-[#0F4FA8]",
+    footer: "mt-5",
     footerAction: "justify-center",
-    footerActionText: "text-[13px] text-[#5B6577]",
-    footerActionLink: "text-[13px] font-semibold text-[#1E66C9] hover:text-[#1A57AD]",
-    formResendCodeLink: "text-[#1E66C9]",
-    otpCodeFieldInput: "border-[#D8DEE9] focus:border-[#1E66C9]",
-    formFieldInputShowPasswordButton: "text-[#8A93A5] hover:text-[#5B6577]",
+    footerActionText: "text-[13px] text-[#56627A]",
+    footerActionLink: "text-[13px] font-medium text-[#0F4FA8] hover:underline",
+    formResendCodeLink: "text-[#0F4FA8]",
+    otpCodeFieldInput: "border-[#C6CDDA] focus:border-[#1E66C9]",
+    formFieldInputShowPasswordButton: "text-[#8A93A5] hover:text-[#56627A]",
   },
 };
 
@@ -204,12 +254,24 @@ export default function SignUpPage() {
     <AuthShell>
       <div className="mb-6">
         <h1
-          className="text-[30px] font-semibold leading-tight tracking-tight text-[#0B1A2F]"
-          style={{ fontFamily: '"Bricolage Grotesque", "Inter", system-ui, sans-serif' }}
+          style={{
+            fontFamily: "var(--font-display)",
+            fontSize: 28,
+            fontWeight: 600,
+            letterSpacing: "-0.025em",
+            color: "var(--ink)",
+            margin: 0,
+          }}
         >
           Start for free
         </h1>
-        <p className="mt-2 text-[14px] text-[#5B6577]">
+        <p
+          style={{
+            fontSize: 13.5,
+            marginTop: 6,
+            color: "var(--ink-muted)",
+          }}
+        >
           No credit card. 20 orders free for 14 days.
         </p>
       </div>

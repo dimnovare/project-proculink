@@ -1,19 +1,39 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
+import { ProcuLinkMark } from "@/components/bridge/DSPrimitives";
 import { BridgeIllustration } from "@/components/marketing/BridgeIllustration";
 import { MarketingNav } from "@/components/marketing/MarketingNav";
 import { ROICalculator } from "@/components/marketing/ROICalculator";
 
-// ─── Brand accent (green) ─────────────────────────────────────────────────────
-// Primary accent token is now green. Prefer the CSS var / hex below for new
-// inline styles. Multi-colour feature accents stay for semantic variety.
-const GREEN = "#28C55E";
-const GREEN_DEEP = "#1DAF50";
-const GREEN_SOFT = "#DCFCE7";
-// Secondary decorative accent (matches the hero "any supplier" word + topology
-// buyer side). Used purely for per-card colour rhythm, not as the primary brand.
-const BLUE = "#2F6FE0";
-const BLUE_SOFT = "#E5EEFC";
+// ─── Brand tokens (Bridge Layer design system) ───────────────────────────────
+// Primary accent is BUYER-BLUE (#1E66C9); supplier side is forest green
+// (#2E8E3A). These mirror the CSS custom properties in globals.css so inline
+// styles stay in lockstep with the ported design classes.
+const BLUE = "#1E66C9"; // brand-blue — primary / buyer / active
+const BLUE_DEEP = "#0F4FA8"; // brand-blue-deep
+const BLUE_SOFT = "#E3EDFB"; // brand-blue-soft
+const GREEN = "#2E8E3A"; // brand-green — supplier
+const GREEN_DEEP = "#1E6D29"; // brand-green-deep
+const GREEN_SOFT = "#E2F1E2"; // brand-green-soft
+const AMBER = "#C97A14";
+const AMBER_SOFT = "#FAEFD6";
+const AI = "#6F4FCE";
+const AI_SOFT = "#EEE7FB";
+const NAVY = "#0B1A2F";
+const NAVY_SURFACE = "#10243E";
+const NAVY_BORDER = "#1C2F49";
+const NAVY_TEXT = "#C5D2E4";
+const NAVY_MUTED = "#7C8DA6";
+const INK = "#0B1A2F";
+const INK_MUTED = "#56627A";
+const INK_FAINT = "#8A93A5";
+const BORDER = "#E2E6EE";
+const SURFACE = "#FFFFFF";
+const SURFACE_2 = "#EFF2F7";
+const BG = "#F6F7FA";
+// Bright tints used on the navy chrome (hero/CTA) for accent words + dots.
+const BLUE_BRIGHT = "#6BA5F0";
+const GREEN_BRIGHT = "#5FC06B";
 
 // ─── Line-icon set (stroke = currentColor) ────────────────────────────────────
 function Icon({ name, color }: { name: string; color: string }) {
@@ -97,13 +117,15 @@ const FEATURES: Array<{
   desc: ReactNode;
   color: string;
   bg: string;
+  /** When set, the card's top edge is the blue→green gradient deck. */
+  topGradient?: boolean;
 }> = [
   {
     icon: "layers",
     title: "Universal ingestion",
     desc: "CSV, XLSX, PDF, cXML, UBL, EDI, JSON or an email attachment — drop any purchase order and ProcuLink parses it into one canonical structure.",
-    color: GREEN_DEEP,
-    bg: GREEN_SOFT,
+    color: BLUE_DEEP,
+    bg: BLUE_SOFT,
   },
   {
     icon: "spark",
@@ -115,15 +137,15 @@ const FEATURES: Array<{
         or rejects.
       </>
     ),
-    color: "#6F4FCE",
-    bg: "#EEE7FB",
+    color: AI,
+    bg: AI_SOFT,
   },
   {
     icon: "code",
     title: "Order review workbench",
     desc: "Side by side: source document, canonical view and the exact outbound payload. Resolve every exception before anything leaves your system.",
-    color: "#C97A14",
-    bg: "#FAEFD6",
+    color: AMBER,
+    bg: AMBER_SOFT,
   },
   {
     icon: "shield-check",
@@ -135,21 +157,22 @@ const FEATURES: Array<{
         resolve.
       </>
     ),
-    color: "#2E8E3A",
-    bg: "#E2F1E2",
+    color: GREEN_DEEP,
+    bg: GREEN_SOFT,
   },
   {
     icon: "send",
     title: "One-click delivery",
     desc: "HTTP webhook, SFTP, email or ERP connector — or download the artifact. Encrypted credentials, AES-GCM at rest, full audit trail per attempt.",
-    color: BLUE,
+    color: BLUE_DEEP,
     bg: BLUE_SOFT,
+    topGradient: true,
   },
   {
     icon: "layers",
     title: "Standards, on demand",
     desc: "Every canonical field maps to UBL, EDIFACT, X12, cXML and Peppol BIS paths — always visible, never hidden behind a mode. Built for 30-year procurement veterans.",
-    color: BLUE,
+    color: BLUE_DEEP,
     bg: BLUE_SOFT,
   },
 ];
@@ -179,9 +202,9 @@ export default async function RootPage() {
         className="px-4 sm:px-8"
         style={{
           background:
-            "radial-gradient(120% 120% at 80% 0%, rgba(40,197,94,0.10), transparent 55%), #0B1A2F",
+            "radial-gradient(800px 420px at 50% -8%, rgba(30,102,201,0.22), transparent 60%), radial-gradient(620px 380px at 84% 18%, rgba(46,142,58,0.16), transparent 60%), #0B1A2F",
           paddingTop: "64px",
-          paddingBottom: "56px",
+          paddingBottom: "76px",
           position: "relative",
           overflow: "hidden",
         }}
@@ -192,7 +215,7 @@ export default async function RootPage() {
             position: "absolute",
             inset: 0,
             backgroundImage:
-              "linear-gradient(rgba(40,197,94,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(40,197,94,0.05) 1px, transparent 1px)",
+              "linear-gradient(rgba(30,102,201,0.045) 1px, transparent 1px), linear-gradient(90deg, rgba(30,102,201,0.045) 1px, transparent 1px)",
             backgroundSize: "48px 48px",
             pointerEvents: "none",
           }}
@@ -205,11 +228,12 @@ export default async function RootPage() {
               display: "inline-flex",
               alignItems: "center",
               gap: 7,
-              borderRadius: 99,
-              padding: "4px 14px",
-              background: "rgba(40,197,94,0.14)",
-              border: "1px solid rgba(40,197,94,0.32)",
-              marginBottom: 26,
+              height: 28,
+              borderRadius: 14,
+              padding: "0 13px",
+              background: NAVY_SURFACE,
+              border: `1px solid ${NAVY_BORDER}`,
+              marginBottom: 22,
             }}
           >
             <span
@@ -217,17 +241,18 @@ export default async function RootPage() {
                 width: 6,
                 height: 6,
                 borderRadius: "50%",
-                background: GREEN,
+                background: BLUE,
+                boxShadow: "0 0 0 3px rgba(30,102,201,0.25)",
                 display: "inline-block",
               }}
             />
             <span
               style={{
-                fontSize: 11.5,
+                fontSize: 11,
                 fontWeight: 600,
                 letterSpacing: "0.08em",
                 textTransform: "uppercase",
-                color: "#86E5AC",
+                color: NAVY_TEXT,
               }}
             >
               B2B order automation
@@ -238,28 +263,29 @@ export default async function RootPage() {
           <h1
             style={{
               fontFamily: "'Bricolage Grotesque', Inter, sans-serif",
-              fontSize: "clamp(40px, 6vw, 66px)",
+              fontSize: "clamp(40px, 6vw, 68px)",
               fontWeight: 700,
-              letterSpacing: "-0.03em",
-              lineHeight: 1.06,
+              letterSpacing: "-0.035em",
+              lineHeight: 1.04,
               color: "#FFFFFF",
               maxWidth: 760,
               margin: "0 0 22px",
+              textWrap: "balance",
             }}
           >
             Send every purchase order to{" "}
-            <span style={{ color: "#6BA5F0" }}>any supplier</span>,{" "}
-            <span style={{ color: GREEN }}>any format</span>.
+            <span style={{ color: BLUE_BRIGHT }}>any supplier</span>,{" "}
+            <span style={{ color: GREEN_BRIGHT }}>any format</span>.
           </h1>
 
           {/* Sub */}
           <p
             style={{
-              fontSize: 18,
+              fontSize: "clamp(15px, 1.6vw, 18px)",
               lineHeight: 1.6,
-              color: "#C5D2E4",
+              color: NAVY_TEXT,
               maxWidth: 560,
-              margin: "0 0 36px",
+              margin: "0 0 30px",
             }}
           >
             ProcuLink transforms unstructured purchase orders into structured
@@ -280,14 +306,15 @@ export default async function RootPage() {
               style={{
                 display: "inline-flex",
                 alignItems: "center",
+                gap: 8,
                 borderRadius: 8,
-                padding: "13px 28px",
+                padding: "13px 26px",
                 fontSize: 14,
                 fontWeight: 600,
-                background: `linear-gradient(90deg, ${GREEN_DEEP}, ${GREEN})`,
+                background: BLUE,
                 color: "#FFFFFF",
                 textDecoration: "none",
-                boxShadow: "0 8px 24px rgba(40,197,94,0.32)",
+                boxShadow: "0 8px 24px rgba(30,102,201,0.32)",
               }}
             >
               Start for free →
@@ -298,13 +325,13 @@ export default async function RootPage() {
                 display: "inline-flex",
                 alignItems: "center",
                 borderRadius: 8,
-                padding: "13px 28px",
+                padding: "13px 26px",
                 fontSize: 14,
                 fontWeight: 600,
-                background: "rgba(255,255,255,0.06)",
+                background: NAVY_SURFACE,
                 color: "#FFFFFF",
                 textDecoration: "none",
-                border: "1px solid rgba(255,255,255,0.16)",
+                border: `1px solid ${NAVY_BORDER}`,
               }}
             >
               See how it works
@@ -314,26 +341,25 @@ export default async function RootPage() {
           {/* Illustration — framed window panel */}
           <div
             style={{
-              marginTop: 44,
-              background: "#0C1D34",
-              border: "1px solid rgba(255,255,255,0.10)",
-              borderRadius: 14,
-              boxShadow: "0 30px 80px rgba(0,0,0,0.45)",
+              marginTop: 46,
+              background: "linear-gradient(180deg, #0C1D34, #0A1729)",
+              border: `1px solid ${NAVY_BORDER}`,
+              borderRadius: 12,
+              boxShadow: "0 40px 90px rgba(0,0,0,0.40)",
               overflow: "hidden",
               position: "relative",
             }}
           >
             {/* Window chrome header */}
             <div
-              className="flex items-center gap-3"
+              className="flex items-center gap-2"
               style={{
-                padding: "11px 16px",
-                borderBottom: "1px solid rgba(255,255,255,0.08)",
-                background: "rgba(255,255,255,0.02)",
+                padding: "11px 14px",
+                borderBottom: `1px solid ${NAVY_BORDER}`,
               }}
             >
               <div className="flex items-center gap-1.5">
-                {["#F45D5D", "#E7B548", "#3FC76A"].map((c) => (
+                {["#E05A52", "#E0B13A", "#3FA84C"].map((c) => (
                   <span
                     key={c}
                     style={{
@@ -341,7 +367,6 @@ export default async function RootPage() {
                       height: 10,
                       borderRadius: "50%",
                       background: c,
-                      opacity: 0.85,
                       display: "inline-block",
                     }}
                   />
@@ -351,9 +376,9 @@ export default async function RootPage() {
                 className="hidden sm:inline"
                 style={{
                   fontFamily: "'JetBrains Mono', ui-monospace, monospace",
-                  fontSize: 11,
-                  color: "#7C8DA6",
-                  marginLeft: 4,
+                  fontSize: 11.5,
+                  color: NAVY_MUTED,
+                  marginLeft: 8,
                 }}
               >
                 live order topology
@@ -362,11 +387,11 @@ export default async function RootPage() {
               <div
                 className="ml-auto flex items-center"
                 style={{
-                  gap: 2,
+                  gap: 3,
                   padding: 3,
-                  borderRadius: 8,
-                  background: "rgba(255,255,255,0.04)",
-                  border: "1px solid rgba(255,255,255,0.08)",
+                  borderRadius: 6,
+                  background: "#0A1626",
+                  border: `1px solid ${NAVY_BORDER}`,
                 }}
               >
                 <span
@@ -374,9 +399,9 @@ export default async function RootPage() {
                     fontSize: 11,
                     fontWeight: 600,
                     color: "#FFFFFF",
-                    background: "#2F6FE0",
-                    borderRadius: 6,
-                    padding: "4px 12px",
+                    background: BLUE,
+                    borderRadius: 4,
+                    padding: "4px 11px",
                   }}
                 >
                   Topology
@@ -384,10 +409,10 @@ export default async function RootPage() {
                 <span
                   style={{
                     fontSize: 11,
-                    fontWeight: 500,
-                    color: "#8EA2BF",
-                    borderRadius: 6,
-                    padding: "4px 12px",
+                    fontWeight: 600,
+                    color: NAVY_MUTED,
+                    borderRadius: 4,
+                    padding: "4px 11px",
                   }}
                 >
                   Canonical view
@@ -405,33 +430,33 @@ export default async function RootPage() {
 
       {/* ── Stats strip ────────────────────────────────────────────── */}
       <section
-        className="px-4 sm:px-8"
         style={{
-          background: "#EFF2F7",
-          borderBottom: "1px solid #E2E6EE",
+          background: SURFACE_2,
+          borderTop: `1px solid ${NAVY_BORDER}`,
+          borderBottom: `1px solid ${BORDER}`,
           display: "flex",
           justifyContent: "center",
         }}
       >
         <div
           className="grid w-full grid-cols-2 divide-x divide-y divide-[#E2E6EE] sm:grid-cols-4 sm:divide-y-0"
-          style={{ maxWidth: 1000, textAlign: "center" }}
+          style={{ maxWidth: 1180, textAlign: "center" }}
         >
           {STATS.map((s, i) => (
-            <div key={i} style={{ padding: "30px 16px" }}>
+            <div key={i} style={{ padding: "26px 24px" }}>
               <div
                 style={{
                   fontFamily: "'Bricolage Grotesque', Inter, sans-serif",
-                  fontSize: 36,
-                  fontWeight: 700,
+                  fontSize: 30,
+                  fontWeight: 600,
                   letterSpacing: "-0.03em",
-                  color: "#0B1A2F",
+                  color: INK,
                   lineHeight: 1,
                 }}
               >
                 {s.value}
               </div>
-              <div style={{ fontSize: 12.5, color: "#56627A", marginTop: 8 }}>
+              <div style={{ fontSize: 12, color: INK_MUTED, marginTop: 4 }}>
                 {s.label}
               </div>
             </div>
@@ -440,13 +465,13 @@ export default async function RootPage() {
       </section>
 
       {/* ── Logo strip ─────────────────────────────────────────────── */}
-      <section className="px-4 sm:px-8" style={{ background: "#FFFFFF", paddingTop: 40, paddingBottom: 40 }}>
-        <p style={{ textAlign: "center", fontSize: 11.5, fontWeight: 600, letterSpacing: "0.09em", textTransform: "uppercase", color: "#8A93A5", marginBottom: 24 }}>
+      <section className="px-4 sm:px-8" style={{ background: SURFACE, paddingTop: 48, paddingBottom: 48 }}>
+        <p style={{ textAlign: "center", fontSize: 12, fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: INK_MUTED, marginBottom: 26 }}>
           Trusted by procurement teams across the EU
         </p>
-        <div className="flex flex-wrap items-center justify-center gap-x-12 gap-y-4" style={{ maxWidth: 920, margin: "0 auto" }}>
+        <div className="flex flex-wrap items-center justify-center gap-x-[38px] gap-y-4" style={{ maxWidth: 1180, margin: "0 auto", opacity: 0.8 }}>
           {["Heinrich Industries", "Nordmark Logistik", "Steelhouse", "Centralis Pharma", "Westmark"].map((name) => (
-            <span key={name} style={{ fontFamily: "'Bricolage Grotesque', Inter, sans-serif", fontSize: 17, fontWeight: 700, color: "#B7BFCC", letterSpacing: "-0.01em" }}>
+            <span key={name} style={{ fontFamily: "'Bricolage Grotesque', Inter, sans-serif", fontSize: 17, fontWeight: 600, color: INK_FAINT, letterSpacing: "-0.01em" }}>
               {name}
             </span>
           ))}
@@ -454,82 +479,85 @@ export default async function RootPage() {
       </section>
 
       {/* ── Features ───────────────────────────────────────────────── */}
-      <section className="px-4 sm:px-8" style={{ paddingTop: "64px", paddingBottom: "64px", maxWidth: 1100, margin: "0 auto" }}>
-        <div style={{ textAlign: "center", marginBottom: 56 }}>
+      <section className="px-4 sm:px-8" style={{ background: BG, paddingTop: "84px", paddingBottom: "84px" }}>
+        <div style={{ maxWidth: 1180, margin: "0 auto" }}>
+        <div style={{ textAlign: "center", maxWidth: 620, margin: "0 auto 48px" }}>
           <div
             style={{
               display: "inline-flex",
               alignItems: "center",
-              gap: 6,
-              padding: "4px 12px",
-              borderRadius: 99,
-              background: GREEN_SOFT,
-              border: `1px solid ${GREEN}40`,
-              fontSize: 11.5,
-              fontWeight: 600,
-              color: GREEN_DEEP,
-              letterSpacing: "0.06em",
+              height: 26,
+              padding: "0 12px",
+              borderRadius: 13,
+              background: BLUE_SOFT,
+              fontSize: 11,
+              fontWeight: 700,
+              color: BLUE_DEEP,
+              letterSpacing: "0.07em",
               textTransform: "uppercase",
-              marginBottom: 18,
+              marginBottom: 16,
             }}
           >
-            <span
-              style={{
-                width: 6,
-                height: 6,
-                borderRadius: "50%",
-                background: GREEN,
-                display: "inline-block",
-              }}
-            />
             The workflow
           </div>
           <h2
             style={{
               fontFamily: "'Bricolage Grotesque', Inter, sans-serif",
-              fontSize: "clamp(28px, 4vw, 40px)",
-              fontWeight: 700,
-              letterSpacing: "-0.025em",
-              color: "#0B1A2F",
-              marginBottom: 12,
+              fontSize: "clamp(28px, 3.6vw, 40px)",
+              fontWeight: 600,
+              letterSpacing: "-0.03em",
+              lineHeight: 1.1,
+              color: INK,
+              margin: 0,
+              textWrap: "balance",
             }}
           >
             Everything you need to receive, transform, and deliver
           </h2>
-          <p style={{ fontSize: 16, color: "#56627A", maxWidth: 480, margin: "0 auto" }}>
+          <p style={{ fontSize: 16, color: INK_MUTED, lineHeight: 1.6, marginTop: 14 }}>
             One workflow from inbound purchase order to delivered supplier document — built for procurement teams that don&apos;t want an integration project.
           </p>
         </div>
 
         <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))",
-            gap: 20,
-          }}
+          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3"
+          style={{ gap: 18 }}
         >
           {FEATURES.map((f, i) => (
             <div
               key={i}
               style={{
-                background: "#FFFFFF",
-                border: "1px solid #E2E6EE",
-                borderTop: `3px solid ${f.color}`,
+                position: "relative",
+                background: SURFACE,
+                border: `1px solid ${BORDER}`,
                 borderRadius: 10,
-                padding: "26px 24px 28px",
-                boxShadow: "0 1px 4px rgba(11,26,47,0.05)",
+                padding: 24,
+                overflow: "hidden",
               }}
             >
+              {/* Top accent edge — gradient deck for the delivery card, solid otherwise */}
+              <span
+                style={{
+                  position: "absolute",
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  height: 3,
+                  background: f.topGradient
+                    ? "linear-gradient(90deg, #1E66C9 0%, #1E66C9 35%, #2E8E3A 65%, #2E8E3A 100%)"
+                    : f.color,
+                }}
+              />
               <div
                 style={{
-                  width: 40,
-                  height: 40,
-                  borderRadius: 10,
+                  width: 44,
+                  height: 44,
+                  borderRadius: 8,
                   background: f.bg,
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
-                  marginBottom: 18,
+                  marginBottom: 16,
                 }}
               >
                 <Icon name={f.icon} color={f.color} />
@@ -539,119 +567,119 @@ export default async function RootPage() {
                   fontFamily: "'Bricolage Grotesque', Inter, sans-serif",
                   fontSize: 17,
                   fontWeight: 600,
-                  color: "#0B1A2F",
-                  marginBottom: 9,
+                  color: INK,
+                  margin: "0 0 8px",
                   letterSpacing: "-0.01em",
                 }}
               >
                 {f.title}
               </h3>
-              <p style={{ fontSize: 13.5, lineHeight: 1.65, color: "#56627A" }}>
+              <p style={{ fontSize: 13.5, lineHeight: 1.6, color: INK_MUTED, margin: 0 }}>
                 {f.desc}
               </p>
             </div>
           ))}
+        </div>
         </div>
       </section>
 
       {/* ── Why ProcuLink ─────────────────────────────────────────── */}
       <section
         className="px-4 sm:px-8"
-        style={{ background: "#F6F7FA", borderBottom: "1px solid #E2E6EE", paddingTop: "64px", paddingBottom: "64px" }}
+        style={{ background: SURFACE, paddingTop: "84px", paddingBottom: "84px" }}
       >
-        <div style={{ maxWidth: 1100, margin: "0 auto" }}>
-          <div style={{ textAlign: "center", marginBottom: 48 }}>
+        <div style={{ maxWidth: 1180, margin: "0 auto" }}>
+          <div style={{ textAlign: "center", maxWidth: 620, margin: "0 auto 48px" }}>
             <div
               style={{
                 display: "inline-flex",
                 alignItems: "center",
-                gap: 6,
-                padding: "4px 12px",
-                borderRadius: 99,
-                background: GREEN_SOFT,
-                border: `1px solid ${GREEN}40`,
-                fontSize: 11.5,
-                fontWeight: 600,
-                color: GREEN_DEEP,
-                letterSpacing: "0.06em",
+                height: 26,
+                padding: "0 12px",
+                borderRadius: 13,
+                background: BLUE_SOFT,
+                fontSize: 11,
+                fontWeight: 700,
+                color: BLUE_DEEP,
+                letterSpacing: "0.07em",
                 textTransform: "uppercase",
-                marginBottom: 18,
+                marginBottom: 16,
               }}
             >
-              <span
-                style={{
-                  width: 6,
-                  height: 6,
-                  borderRadius: "50%",
-                  background: GREEN,
-                  display: "inline-block",
-                }}
-              />
               Why ProcuLink
             </div>
             <h2
               style={{
                 fontFamily: "'Bricolage Grotesque', Inter, sans-serif",
-                fontSize: "clamp(26px, 3.5vw, 38px)",
-                fontWeight: 700,
-                letterSpacing: "-0.025em",
-                color: "#0B1A2F",
-                marginBottom: 10,
+                fontSize: "clamp(28px, 3.6vw, 40px)",
+                fontWeight: 600,
+                letterSpacing: "-0.03em",
+                lineHeight: 1.1,
+                color: INK,
+                margin: 0,
+                textWrap: "balance",
               }}
             >
               Why procurement teams choose ProcuLink
             </h2>
-            <p style={{ fontSize: 15.5, color: "#56627A", maxWidth: 480, margin: "0 auto" }}>
+            <p style={{ fontSize: 16, color: INK_MUTED, lineHeight: 1.6, marginTop: 14 }}>
               What ProcuLink changes for teams moving from manual reformatting to automated order delivery.
             </p>
           </div>
           <div
-            className="grid grid-cols-1 gap-5 sm:grid-cols-3"
+            className="grid grid-cols-1 gap-[18px] sm:grid-cols-3"
           >
             {[
               {
                 stat: "Skip the manual reformatting",
                 body: "Teams stop hand-converting orders for each supplier. ProcuLink maps your buyer PO to exactly what each supplier needs — automatically.",
                 color: BLUE,
-                bg: BLUE_SOFT,
                 icon: "link",
               },
               {
                 stat: "Stop orders getting bounced",
                 body: "Rejections for wrong item codes, missing fields, or bad formats cost hours of back-and-forth. ProcuLink validates before you send.",
-                color: "#2E8E3A",
-                bg: "#E2F1E2",
+                color: GREEN,
                 icon: "check-circle",
               },
               {
                 stat: "Orders out in minutes",
                 body: "From uploaded PO to delivered supplier order in one workflow. No email chains, no spreadsheet wrestling, no copy-paste errors.",
-                color: "#C97A14",
-                bg: "#FAEFD6",
+                color: AMBER,
                 icon: "clock",
               },
             ].map((item, i) => (
               <div
                 key={i}
                 style={{
-                  background: "#FFFFFF",
-                  border: "1px solid #E2E6EE",
-                  borderLeft: `3px solid ${item.color}`,
+                  position: "relative",
+                  background: SURFACE,
+                  border: `1px solid ${BORDER}`,
                   borderRadius: 10,
-                  padding: "28px 24px",
-                  boxShadow: "0 1px 4px rgba(11,26,47,0.04)",
+                  padding: 24,
+                  overflow: "hidden",
                 }}
               >
+                {/* Colored left edge */}
+                <span
+                  style={{
+                    position: "absolute",
+                    left: 0,
+                    top: 0,
+                    bottom: 0,
+                    width: 3,
+                    background: item.color,
+                  }}
+                />
                 <div
                   style={{
                     width: 38,
                     height: 38,
-                    borderRadius: 9,
-                    background: item.bg,
+                    borderRadius: 8,
+                    background: SURFACE_2,
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
-                    marginBottom: 16,
                   }}
                 >
                   <Icon name={item.icon} color={item.color} />
@@ -661,14 +689,14 @@ export default async function RootPage() {
                     fontFamily: "'Bricolage Grotesque', Inter, sans-serif",
                     fontSize: 16,
                     fontWeight: 600,
-                    color: "#0B1A2F",
-                    marginBottom: 10,
+                    color: INK,
+                    margin: "14px 0 8px",
                     letterSpacing: "-0.01em",
                   }}
                 >
                   {item.stat}
                 </h3>
-                <p style={{ fontSize: 13.5, lineHeight: 1.65, color: "#56627A" }}>
+                <p style={{ fontSize: 13.5, lineHeight: 1.6, color: INK_MUTED, margin: 0 }}>
                   {item.body}
                 </p>
               </div>
@@ -687,21 +715,28 @@ export default async function RootPage() {
           textAlign: "center",
         }}
       >
-        <figure style={{ maxWidth: 860, margin: "0 auto" }}>
+        <figure style={{ maxWidth: 920, margin: "0 auto" }}>
+          {/* Brand mark above the quote (green tint on navy) */}
+          <span
+            style={{ display: "inline-flex", color: GREEN_BRIGHT, marginBottom: 22 }}
+          >
+            <ProcuLinkMark size={34} mono />
+          </span>
           <blockquote
             style={{
               fontFamily: "'Bricolage Grotesque', Inter, sans-serif",
-              fontSize: "clamp(22px, 3vw, 32px)",
-              fontWeight: 600,
-              lineHeight: 1.4,
+              fontSize: "clamp(22px, 3vw, 30px)",
+              fontWeight: 500,
+              lineHeight: 1.32,
               letterSpacing: "-0.02em",
               color: "#FFFFFF",
               margin: 0,
+              textWrap: "balance",
             }}
           >
             &ldquo;We went from three people retyping orders into supplier portals
             to{" "}
-            <span style={{ color: GREEN }}>one workflow that just delivers</span>.
+            <span style={{ color: GREEN_BRIGHT }}>one workflow that just delivers</span>.
             A PO that took an afternoon now goes out in under two minutes.&rdquo;
           </blockquote>
 
@@ -715,16 +750,13 @@ export default async function RootPage() {
                 width: 40,
                 height: 40,
                 borderRadius: "50%",
-                background: "#16314F",
-                border: "1px solid rgba(255,255,255,0.10)",
-                color: "#86E5AC",
+                background: "linear-gradient(135deg, #2A4B73, #1A3050)",
+                color: "#FFFFFF",
                 display: "inline-flex",
                 alignItems: "center",
                 justifyContent: "center",
-                fontFamily: "'JetBrains Mono', ui-monospace, monospace",
-                fontSize: 12,
-                fontWeight: 700,
-                letterSpacing: "0.02em",
+                fontSize: 13,
+                fontWeight: 600,
               }}
             >
               MK
@@ -748,39 +780,40 @@ export default async function RootPage() {
 
           {/* Stat chips */}
           <div
-            className="mx-auto mt-10 grid grid-cols-3 overflow-hidden"
+            className="mx-auto mt-11 grid grid-cols-3 overflow-hidden"
             style={{
               maxWidth: 680,
-              background: "rgba(255,255,255,0.03)",
-              border: "1px solid rgba(255,255,255,0.08)",
-              borderRadius: 12,
+              gap: 1,
+              borderRadius: 10,
+              border: `1px solid ${NAVY_BORDER}`,
+              background: NAVY_BORDER,
             }}
           >
             {[
               { value: "−92%", label: "time per order", green: true },
               { value: "1.7m", label: "avg delivery time", green: false },
               { value: "99.4%", label: "first-pass acceptance", green: false },
-            ].map((m, i) => (
+            ].map((m) => (
               <div
                 key={m.label}
                 style={{
+                  background: NAVY_SURFACE,
                   padding: "22px 16px",
-                  borderLeft: i === 0 ? "none" : "1px solid rgba(255,255,255,0.08)",
                 }}
               >
                 <div
                   style={{
                     fontFamily: "'Bricolage Grotesque', Inter, sans-serif",
-                    fontSize: 28,
-                    fontWeight: 700,
-                    letterSpacing: "-0.025em",
-                    color: m.green ? GREEN : "#FFFFFF",
+                    fontSize: 30,
+                    fontWeight: 600,
+                    letterSpacing: "-0.03em",
+                    color: m.green ? GREEN_BRIGHT : "#FFFFFF",
                     lineHeight: 1,
                   }}
                 >
                   {m.value}
                 </div>
-                <div style={{ fontSize: 12, color: "#7C8DA6", marginTop: 8 }}>
+                <div style={{ fontSize: 12, color: NAVY_MUTED, marginTop: 4 }}>
                   {m.label}
                 </div>
               </div>
@@ -796,41 +829,43 @@ export default async function RootPage() {
       <section
         className="px-4 sm:px-8"
         style={{
-          background: "#0B1A2F",
-          paddingTop: "64px",
-          paddingBottom: "64px",
+          background: NAVY,
+          paddingTop: "84px",
+          paddingBottom: "84px",
           textAlign: "center",
         }}
       >
         <h2
           style={{
             fontFamily: "'Bricolage Grotesque', Inter, sans-serif",
-            fontSize: "clamp(28px, 4vw, 42px)",
-            fontWeight: 700,
-            letterSpacing: "-0.025em",
+            fontSize: "clamp(28px, 3.6vw, 40px)",
+            fontWeight: 600,
+            letterSpacing: "-0.03em",
+            lineHeight: 1.1,
             color: "#FFFFFF",
-            marginBottom: 16,
+            margin: 0,
           }}
         >
           Ready to put your orders on autopilot?
         </h2>
-        <p style={{ fontSize: 16, color: "#C5D2E4", marginBottom: 36 }}>
+        <p style={{ fontSize: 16, color: NAVY_TEXT, margin: "14px auto 0", maxWidth: 480, lineHeight: 1.6 }}>
           Start free. No credit card required.
         </p>
-        <div style={{ display: "flex", gap: 12, justifyContent: "center" }}>
+        <div style={{ display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap", marginTop: 28 }}>
           <Link
             href="/sign-up"
             style={{
               display: "inline-flex",
               alignItems: "center",
+              gap: 8,
               borderRadius: 8,
-              padding: "13px 32px",
+              padding: "13px 26px",
               fontSize: 14,
               fontWeight: 600,
-              background: `linear-gradient(90deg, ${GREEN_DEEP}, ${GREEN})`,
+              background: BLUE,
               color: "#FFFFFF",
               textDecoration: "none",
-              boxShadow: "0 8px 24px rgba(40,197,94,0.32)",
+              boxShadow: "0 8px 24px rgba(30,102,201,0.32)",
             }}
           >
             Get started free →
@@ -841,13 +876,13 @@ export default async function RootPage() {
               display: "inline-flex",
               alignItems: "center",
               borderRadius: 8,
-              padding: "13px 32px",
+              padding: "13px 26px",
               fontSize: 14,
               fontWeight: 600,
               background: "transparent",
-              color: "#C5D2E4",
+              color: "#FFFFFF",
               textDecoration: "none",
-              border: "1px solid rgba(255,255,255,0.18)",
+              border: `1px solid ${NAVY_BORDER}`,
             }}
           >
             See pricing
@@ -860,7 +895,10 @@ export default async function RootPage() {
         <div className="mx-auto max-w-[1100px] px-6 sm:px-8" style={{ padding: "48px 24px 0" }}>
           <div className="grid gap-10 grid-cols-2 sm:grid-cols-[1.6fr_repeat(3,1fr)]">
             <div>
-              <span style={{ fontFamily: "'Bricolage Grotesque', Inter, sans-serif", color: "#FFFFFF", fontWeight: 700, fontSize: 17 }}>ProcuLink</span>
+              <Link href="/" className="inline-flex items-center gap-2.5" style={{ textDecoration: "none" }}>
+                <ProcuLinkMark size={24} mono />
+                <span style={{ fontFamily: "'Bricolage Grotesque', Inter, sans-serif", color: "#FFFFFF", fontWeight: 700, fontSize: 17 }}>ProcuLink</span>
+              </Link>
               <p style={{ fontSize: 13, lineHeight: 1.6, maxWidth: 300, marginTop: 14 }}>
                 The missing link between buyers and suppliers. Turn any purchase order into the exact
                 format your supplier needs — with a full audit trail.
@@ -872,7 +910,7 @@ export default async function RootPage() {
             </div>
             {[
               { h: "Product", links: [["How it works", "/how-it-works"], ["Pricing", "/pricing"], ["Security", "/security"], ["Open the dashboard", "/bridge"]] },
-              { h: "Company", links: [["Changelog", "/changelog"], ["Support", "/support"]] },
+              { h: "Company", links: [["Customers", "/customers"], ["Changelog", "/changelog"], ["Support", "/support"]] },
               { h: "Legal",   links: [["Privacy", "/privacy"], ["Terms", "/terms"], ["AUP", "/aup"], ["DPA", "/dpa"], ["Subprocessors", "/subprocessors"]] },
             ].map((col) => (
               <div key={col.h}>

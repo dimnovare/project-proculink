@@ -239,7 +239,12 @@ interface SpineNodeCardProps {
   onKeyDown: (e: KeyboardEvent<HTMLInputElement>, id: string) => void;
   inputRef: (el: HTMLInputElement | null, id: string) => void;
   cardRef?: (el: HTMLDivElement | null) => void;
+  /** Called when this node is hovered, passing the node id (for wire emphasis). */
   onHover?: (id: string | null) => void;
+  /** Called with the srcRef zone when this node is hovered (for doc anatomy highlight). */
+  onZoneHover?: (zone: string | null) => void;
+  /** The currently-active zone from the document anatomy or canonical hover. */
+  activeZone?: string | null;
 }
 
 function SpineNodeCard({
@@ -248,13 +253,20 @@ function SpineNodeCard({
   acceptedSubnodes, rejectedSubnodes,
   onStartEdit, onChangeValue, onCommitEdit,
   onAcceptSubnode, onRejectSubnode,
-  onKeyDown, inputRef, cardRef, onHover,
+  onKeyDown, inputRef, cardRef, onHover, onZoneHover, activeZone,
 }: SpineNodeCardProps) {
   const isEditing = editingId === node.id;
   const displayVal = fieldValues[node.id] ?? node.value;
   const issue = node.pct < 90;
   const err   = node.pct < 75;
-  const fieldBg = err ? "#FBE3E3" : issue ? "#FAEFD6" : "#FFFFFF";
+  const isActiveZone = activeZone === node.srcRef;
+
+  // Background: dim errors/warnings; highlight when the linked doc zone is active.
+  const fieldBg =
+    isActiveZone ? "rgba(46,142,58,0.06)" :
+    err   ? "#FBE3E3" :
+    issue ? "#FAEFD6" :
+    "#FFFFFF";
 
   // Lineage accent: blue for buyer-side / document-header fields, green for the
   // supplier-side field. Encodes the buyer→supplier routing on every card.
@@ -263,12 +275,19 @@ function SpineNodeCard({
     : node.tone === "buyer" || node.srcRef === "header" ? "#1E66C9"
     : null;
 
+  // Border emphasis when the linked zone is active
+  const borderColor =
+    isActiveZone ? "#2E8E3A" :
+    err   ? "#F0D2D2" :
+    issue ? "#F0E0BD" :
+    "#E2E6EE";
+
   return (
     <div
       className="relative mb-2.5 pl-9"
       ref={cardRef}
-      onMouseEnter={() => onHover?.(node.id)}
-      onMouseLeave={() => onHover?.(null)}
+      onMouseEnter={() => { onHover?.(node.id); onZoneHover?.(node.srcRef); }}
+      onMouseLeave={() => { onHover?.(null); onZoneHover?.(null); }}
     >
       {/* Canonical-order node dot */}
       <div
@@ -280,8 +299,10 @@ function SpineNodeCard({
         className="rounded-[6px] px-2.5 py-2"
         style={{
           background: fieldBg,
-          border: `1px solid ${err ? "#F0D2D2" : issue ? "#F0E0BD" : "#E2E6EE"}`,
-          borderLeft: accent ? `3px solid ${accent}` : `1px solid ${err ? "#F0D2D2" : issue ? "#F0E0BD" : "#E2E6EE"}`,
+          border: `1px solid ${borderColor}`,
+          borderLeft: accent ? `3px solid ${isActiveZone ? "#2E8E3A" : accent}` : `1px solid ${borderColor}`,
+          transition: "background 150ms, border-color 150ms",
+          boxShadow: isActiveZone ? "0 0 0 2px rgba(46,142,58,0.14)" : undefined,
         }}
       >
         {/* Label row */}
@@ -466,39 +487,78 @@ function SpineNodeCard({
           </div>
         )}
 
-        {/* Source → output refs */}
+        {/* Source → output provenance refs — blue for source, green for output (design spec) */}
         <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 8, paddingTop: 6, borderTop: "1px dashed #E2E6EE", fontSize: 9.5, fontFamily: "'JetBrains Mono',monospace", fontWeight: 600 }}>
-          <span style={{ color: "#1DAF50", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "45%" }}>← {node.srcRef}</span>
-          <span style={{ color: "#8A93A5", flexShrink: 0 }}>→</span>
-          <span style={{ color: "#1DAF50", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1, textAlign: "right" }}>{node.outRef}</span>
+          <span title={`Source: ${node.srcRef}`} style={{ color: "#1E66C9", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "45%" }}>← {node.srcRef}</span>
+          <span style={{ color: "#C6CDDA", flexShrink: 0 }}>·</span>
+          <span title={`Output: ${node.outRef}`} style={{ color: "#1E6D29", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1, textAlign: "right" }}>→ {node.outRef}</span>
         </div>
       </div>
     </div>
   );
 }
 
+// ─── Zone definitions ──────────────────────────────────────────────────────────
+// Maps canonical node srcRef → zone appearance when active.
+// Used bidirectionally: hovering a node highlights the zone, hovering the zone
+// highlights the canonical node.
+
+const ZONE_CONF: Record<string, number> = {
+  header: 99, parties: 95, lines: 80, terms: 75, totals: 99,
+};
+
 // ─── Document Anatomy ─────────────────────────────────────────────────────────
 // Renders a document-styled view reconstructed from the order's parsed fields.
 // Driven entirely by live order data — no staged company/PO content.
+//
+// activeZone: the currently-hovered srcRef zone id (bidirectional with canonical spine).
+// onZoneHover: called by zone elements to propagate hover state upstream.
 
-/** One confidence-zone marker in the source-document rail. */
-function ZoneMarker({ pct }: { pct: number }) {
-  const spec =
-    pct >= 90 ? { bg: "#2E8E3A", color: "#FFFFFF", border: "#2E8E3A" } :
-    pct >= 85 ? { bg: "#D4E5DA", color: "#1E6D29", border: "#BCD6C4" } :
-    pct >= 75 ? { bg: "#ECE0D0", color: "#9A5F0A", border: "#E0CFB8" } :
-                { bg: "#F4E6C0", color: "#9A5F0A", border: "#E8D89C" };
+/** One confidence-zone marker in the source-document rail gutter. */
+function ZoneMarker({ pct, active, onClick, onEnter, onLeave }: {
+  pct: number;
+  active: boolean;
+  onClick?: () => void;
+  onEnter?: () => void;
+  onLeave?: () => void;
+}) {
+  // colour derivations (matching .conf-hi/.conf-mid/.conf-lo from tokens.css)
+  const solid  = pct >= 90 ? "#2E8E3A" : pct >= 75 ? "#C97A14" : "#C53A3A";
+  const soft   = pct >= 90 ? "rgba(46,142,58,0.22)" : pct >= 75 ? "rgba(201,122,20,0.22)" : "rgba(197,58,58,0.22)";
   return (
     <div
-      style={{ flex: 1, minHeight: 38, borderRadius: 6, background: spec.bg, border: `1px solid ${spec.border}`, color: spec.color, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'JetBrains Mono',monospace", fontSize: 10, fontWeight: 700 }}
       aria-hidden
+      style={{
+        flex: 1, minHeight: 38, borderRadius: 5,
+        background: active ? solid : soft,
+        border: `1px solid ${active ? solid : "transparent"}`,
+        display: "flex", alignItems: "center", justifyContent: "center",
+        fontFamily: "'JetBrains Mono',monospace", fontSize: 9, fontWeight: 700,
+        color: active ? "#fff" : solid,
+        cursor: "pointer", transition: "all 150ms",
+      }}
+      onClick={onClick}
+      onMouseEnter={onEnter}
+      onMouseLeave={onLeave}
     >
       {pct}
     </div>
   );
 }
 
-function DocumentAnatomy({ order, onSection }: { order: Order; onSection?: (id: string, el: HTMLElement | null) => void }) {
+function DocumentAnatomy({
+  order,
+  onSection,
+  activeZone,
+  onZoneHover,
+}: {
+  order: Order;
+  onSection?: (id: string, el: HTMLElement | null) => void;
+  /** The zone currently being highlighted (e.g. "header", "lines"). */
+  activeZone?: string | null;
+  /** Called when the user hovers into/out of a document zone. */
+  onZoneHover?: (zone: string | null) => void;
+}) {
   const lineCount = order.lines.length;
   const avgConf = lineCount > 0
     ? Math.round((order.lines.reduce((s, l) => s + l.confidence, 0) / lineCount) * 100)
@@ -514,60 +574,149 @@ function DocumentAnatomy({ order, onSection }: { order: Order; onSection?: (id: 
   const linesConf   = avgConf ?? 80;
   const termsConf   = Math.max(60, Math.min(88, (avgConf ?? 80) - 10));
 
+  // Tint overlay colour for an active section inside the document body.
+  function sectionStyle(zone: string): React.CSSProperties {
+    const isActive = activeZone === zone;
+    if (!isActive) return {};
+    const pct = ZONE_CONF[zone] ?? 80;
+    const col = pct >= 90 ? "#2E8E3A" : pct >= 75 ? "#C97A14" : "#C53A3A";
+    return {
+      outline: `1.5px solid ${col}`,
+      outlineOffset: 2,
+      background: pct >= 90 ? "rgba(46,142,58,0.06)" : pct >= 75 ? "rgba(201,122,20,0.07)" : "rgba(197,58,58,0.07)",
+      borderRadius: 4,
+      transition: "all 150ms",
+    };
+  }
+
   return (
     <div style={{ borderRadius: 8, padding: 10, background: "#F6F7FA", border: "1px solid #E2E6EE", overflow: "hidden" }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginBottom: 8 }}>
-        <span style={{ fontSize: 9.5, color: "#8A93A5" }}>Reconstructed from parsed fields</span>
+        <span style={{ fontSize: 9.5, color: "#8A93A5" }}>Reconstructed from parsed fields · hover a zone</span>
         {avgConf !== null && (
           <span style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 9, fontWeight: 700, color: "#56627A" }}>
-            Avg field confidence <ConfChip pct={avgConf} />
+            avg conf <ConfChip pct={avgConf} />
           </span>
         )}
       </div>
       <div style={{ display: "flex", gap: 8, alignItems: "stretch" }}>
-        {/* Confidence zone rail */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 6, width: 26, flexShrink: 0 }}>
-          <ZoneMarker pct={headerConf} />
-          <ZoneMarker pct={partiesConf} />
-          <ZoneMarker pct={linesConf} />
-          <ZoneMarker pct={termsConf} />
+        {/* Confidence zone rail — clickable/hoverable markers */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 5, width: 28, flexShrink: 0 }}>
+          {(["header", "parties", "lines", "terms"] as const).map((zone, idx) => {
+            const pct = [headerConf, partiesConf, linesConf, termsConf][idx];
+            return (
+              <ZoneMarker
+                key={zone}
+                pct={pct}
+                active={activeZone === zone}
+                onEnter={() => onZoneHover?.(zone)}
+                onLeave={() => onZoneHover?.(null)}
+                onClick={() => onZoneHover?.(activeZone === zone ? null : zone)}
+              />
+            );
+          })}
         </div>
-        <div style={{ flex: 1, minWidth: 0, borderRadius: 6, background: "#FFFFFF", padding: "14px 16px", fontFamily: "'Times New Roman',serif", fontSize: 9.5, color: "#1a1a1a", boxShadow: "0 1px 4px rgba(0,0,0,0.08)", minHeight: 360 }}>
-        {/* Letterhead — real buyer + PO (active zone: green outline) */}
-        <div ref={(el) => onSection?.("header", el)} style={{ display: "flex", justifyContent: "space-between", gap: 12, padding: "6px 8px 8px", marginBottom: 4, borderRadius: 6, border: "1.5px solid #28C55E", background: "rgba(40,197,94,0.04)" }}>
-          <div style={{ fontFamily: "Inter,sans-serif", fontSize: 13, fontWeight: 800, letterSpacing: "0.04em", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "60%" }}>
-            {order.buyerName ?? "Buyer (parsing…)"}
+
+        {/* Document body */}
+        <div style={{
+          position: "relative", flex: 1, minWidth: 0, borderRadius: 6, background: "#FFFFFF",
+          padding: "14px 16px", fontFamily: "'Times New Roman',serif", fontSize: 9.5,
+          color: "#1a1a1a", boxShadow: "0 1px 4px rgba(0,0,0,0.08)", minHeight: 360,
+        }}>
+          {/* Header zone */}
+          <div
+            ref={(el) => onSection?.("header", el)}
+            style={{ display: "flex", justifyContent: "space-between", gap: 12, padding: "6px 8px 8px", marginBottom: 4, borderRadius: 6, cursor: "pointer", transition: "all 150ms", ...sectionStyle("header") }}
+            onMouseEnter={() => onZoneHover?.("header")}
+            onMouseLeave={() => onZoneHover?.(null)}
+          >
+            <div style={{ fontFamily: "Inter,sans-serif", fontSize: 13, fontWeight: 800, letterSpacing: "0.04em", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "60%" }}>
+              {order.buyerName ?? "Buyer (parsing…)"}
+            </div>
+            <div style={{ textAlign: "right", flexShrink: 0 }}>
+              <div style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase" }}>Purchase Order</div>
+              <div style={{ fontSize: 9, fontFamily: "'JetBrains Mono',monospace" }}>{order.poNumber} · {dateLabel}</div>
+            </div>
           </div>
-          <div style={{ textAlign: "right", flexShrink: 0 }}>
-            <div style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase" }}>Purchase Order</div>
-            <div style={{ fontSize: 9, fontFamily: "'JetBrains Mono',monospace" }}>{order.poNumber} · {dateLabel}</div>
+
+          {/* Parties zone */}
+          <div
+            ref={(el) => onSection?.("parties", el)}
+            style={{ marginTop: 10, fontSize: 9, padding: "4px 6px", borderRadius: 4, cursor: "pointer", transition: "all 150ms", ...sectionStyle("parties") }}
+            onMouseEnter={() => onZoneHover?.("parties")}
+            onMouseLeave={() => onZoneHover?.(null)}
+          >
+            Buyer: {order.buyerName ?? "—"}<br/>Supplier: {order.supplierName}
           </div>
-        </div>
-        <div ref={(el) => onSection?.("parties", el)} style={{ marginTop: 10, fontSize: 9 }}>
-          Buyer: {order.buyerName ?? "—"}<br/>Supplier: {order.supplierName}
-        </div>
-        <div ref={(el) => onSection?.("terms", el)} style={{ marginTop: 8, fontSize: 9 }}>Currency: {order.currency} · {lineCount} line{lineCount !== 1 ? "s" : ""}</div>
-        {lineCount > 0 ? (
-          <table ref={(el) => onSection?.("lines", el)} style={{ width: "100%", borderCollapse: "collapse", marginTop: 10, fontSize: 8.5 }}>
-            <thead><tr style={{ background: "#EEE" }}><th style={{ textAlign: "left", padding: "3px 4px" }}>#</th><th style={{ textAlign: "left" }}>Item</th><th style={{ textAlign: "left" }}>Desc.</th><th style={{ textAlign: "right" }}>Qty</th></tr></thead>
-            <tbody>
-              {previewLines.map((l) => (
-                <tr key={l.id}>
-                  <td style={{ padding: "2px 4px", borderBottom: "1px dotted #BBB" }}>{l.lineNumber}</td>
-                  <td style={{ fontFamily: "monospace" }}>{l.buyerItemCode}</td>
-                  <td>{l.description ?? "—"}</td>
-                  <td style={{ textAlign: "right" }}>{l.quantity < 0 ? <span style={{ background: "#FBDADA", padding: "0 2px" }}>{l.quantity}</span> : l.quantity}</td>
+
+          {/* Terms zone */}
+          <div
+            ref={(el) => onSection?.("terms", el)}
+            style={{ marginTop: 8, fontSize: 9, padding: "4px 6px", borderRadius: 4, cursor: "pointer", transition: "all 150ms", ...sectionStyle("terms") }}
+            onMouseEnter={() => onZoneHover?.("terms")}
+            onMouseLeave={() => onZoneHover?.(null)}
+          >
+            Currency: {order.currency} · {lineCount} line{lineCount !== 1 ? "s" : ""}
+          </div>
+
+          {/* Lines zone */}
+          {lineCount > 0 ? (
+            <table
+              ref={(el) => onSection?.("lines", el)}
+              style={{ width: "100%", borderCollapse: "collapse", marginTop: 10, fontSize: 8.5, cursor: "pointer", transition: "all 150ms" }}
+              onMouseEnter={() => onZoneHover?.("lines")}
+              onMouseLeave={() => onZoneHover?.(null)}
+            >
+              <thead>
+                <tr style={{ background: activeZone === "lines" ? "rgba(46,142,58,0.08)" : "#EEE" }}>
+                  <th style={{ textAlign: "left", padding: "3px 4px" }}>#</th>
+                  <th style={{ textAlign: "left" }}>Item</th>
+                  <th style={{ textAlign: "left" }}>Desc.</th>
+                  <th style={{ textAlign: "right" }}>Qty</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        ) : (
-          <div ref={(el) => onSection?.("lines", el)} style={{ marginTop: 12, fontSize: 9, color: "#888", fontStyle: "italic" }}>No line items parsed yet.</div>
-        )}
-        {lineCount > previewLines.length && (
-          <div style={{ marginTop: 4, fontSize: 8.5, color: "#888" }}>+ {lineCount - previewLines.length} more line{lineCount - previewLines.length !== 1 ? "s" : ""}</div>
-        )}
-        <div ref={(el) => onSection?.("totals", el)} style={{ marginTop: 10, textAlign: "right", fontSize: 9, fontWeight: 700 }}>Grand total: {formatMoney(order.currency, orderTotal(order))}</div>
+              </thead>
+              <tbody>
+                {previewLines.map((l) => (
+                  <tr key={l.id}>
+                    <td style={{ padding: "2px 4px", borderBottom: "1px dotted #BBB" }}>{l.lineNumber}</td>
+                    <td style={{ fontFamily: "monospace" }}>{l.buyerItemCode}</td>
+                    <td>{l.description ?? "—"}</td>
+                    <td style={{ textAlign: "right" }}>{l.quantity < 0 ? <span style={{ background: "#FBDADA", padding: "0 2px" }}>{l.quantity}</span> : l.quantity}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          ) : (
+            <div
+              ref={(el) => onSection?.("lines", el)}
+              style={{ marginTop: 12, fontSize: 9, color: "#888", fontStyle: "italic", cursor: "pointer" }}
+              onMouseEnter={() => onZoneHover?.("lines")}
+              onMouseLeave={() => onZoneHover?.(null)}
+            >
+              No line items parsed yet.
+            </div>
+          )}
+          {lineCount > previewLines.length && (
+            <div style={{ marginTop: 4, fontSize: 8.5, color: "#888" }}>+ {lineCount - previewLines.length} more line{lineCount - previewLines.length !== 1 ? "s" : ""}</div>
+          )}
+
+          {/* Totals zone */}
+          <div
+            ref={(el) => onSection?.("totals", el)}
+            style={{ marginTop: 10, textAlign: "right", fontSize: 9, fontWeight: 700, padding: "4px 6px", borderRadius: 4, cursor: "pointer", transition: "all 150ms", ...sectionStyle("totals") }}
+            onMouseEnter={() => onZoneHover?.("totals")}
+            onMouseLeave={() => onZoneHover?.(null)}
+          >
+            Grand total: {formatMoney(order.currency, orderTotal(order))}
+          </div>
+
+          {/* Active zone tint overlay (screen-level, not per-section) */}
+          {activeZone && (
+            <div
+              style={{ position: "absolute", inset: 0, pointerEvents: "none", borderRadius: 6 }}
+              aria-hidden
+            />
+          )}
         </div>
       </div>
     </div>
@@ -948,14 +1097,15 @@ function MobileSpineAccordion({
   return (
     <div className="md:hidden flex flex-col px-4 py-4 pb-[88px]">
       <AccordionPanel step={1} label="Source document" sub={order.buyerName ?? "Buyer"} accent="#1E66C9">
+        {/* Mobile: no active-zone wiring — simplified */}
         <DocumentAnatomy order={order} />
       </AccordionPanel>
 
       <MobileFlowConnector />
 
-      <AccordionPanel step={2} label="Canonical model" sub={`${lineCount} field${lineCount !== 1 ? "s" : ""} mapped`} accent="linear-gradient(180deg,#1DAF50,#28C55E)" defaultOpen>
+      <AccordionPanel step={2} label="Canonical order" sub={`${lineCount} field${lineCount !== 1 ? "s" : ""} mapped`} accent="linear-gradient(180deg,#1E66C9,#2E8E3A)" defaultOpen>
         <div style={{ position: "relative" }}>
-          <div style={{ position: "absolute", top: 4, bottom: 0, left: 22, width: 3, background: "linear-gradient(180deg,#1DAF50,#28C55E)", borderRadius: 2 }} />
+          <div style={{ position: "absolute", top: 4, bottom: 0, left: 22, width: 3, background: "linear-gradient(180deg,#1E66C9,#2E8E3A)", borderRadius: 2 }} />
           <div style={{ position: "relative", paddingTop: 4 }}>
             {nodes.map((node, i) => (
               <SpineNodeCard
@@ -1047,6 +1197,33 @@ export function SpineReview({ orderId }: { orderId: string }) {
   const srcSectionEls = useRef<Record<string, HTMLElement | null>>({});
   const outLineEls = useRef<Record<string, HTMLElement | null>>({});
   const [hoveredId, setHoveredId] = useState<string | null>(null);
+  // activeZone: the document-anatomy zone id (e.g. "header", "lines") currently
+  // highlighted. Set bidirectionally — from DocumentAnatomy zone hover OR from
+  // canonical SpineNodeCard hover (using node.srcRef).
+  const [activeZone, setActiveZone] = useState<string | null>(null);
+
+  // Resolve which canonical node id corresponds to a given srcRef zone.
+  const nodeIdForZone = useCallback((zone: string | null): string | null => {
+    if (!zone) return null;
+    return nodes.find(n => n.srcRef === zone)?.id ?? null;
+  }, [nodes]);
+
+  // When hovering a document zone: also highlight the matching canonical wire.
+  const handleZoneHover = useCallback((zone: string | null) => {
+    setActiveZone(zone);
+    setHoveredId(nodeIdForZone(zone));
+  }, [nodeIdForZone]);
+
+  // When hovering a canonical node: also highlight its document zone.
+  const handleNodeHover = useCallback((id: string | null) => {
+    setHoveredId(id);
+    if (!id) {
+      setActiveZone(null);
+    } else {
+      const node = nodes.find(n => n.id === id);
+      setActiveZone(node?.srcRef ?? null);
+    }
+  }, [nodes]);
 
   // Count remaining unresolved exceptions (from live order lines)
   const exceptionCount = (() => {
@@ -1352,28 +1529,34 @@ export function SpineReview({ orderId }: { orderId: string }) {
                 nodes={connectorNodes}
                 hoveredId={hoveredId}
                 crossed={crossed}
-                signature={`${nodes.length}|${editingId ?? ""}|${[...acceptedSubnodes].sort().join(",")}|${[...rejectedSubnodes].sort().join(",")}|${hoveredId ?? ""}|${crossed ? 1 : 0}|${Object.entries(fieldValues).map(([k, v]) => k + v).join(",")}`}
+                signature={`${nodes.length}|${editingId ?? ""}|${[...acceptedSubnodes].sort().join(",")}|${[...rejectedSubnodes].sort().join(",")}|${hoveredId ?? ""}|${activeZone ?? ""}|${crossed ? 1 : 0}|${Object.entries(fieldValues).map(([k, v]) => k + v).join(",")}`}
               />
 
-              {/* Left — Document Anatomy */}
+              {/* Left — SOURCE DOCUMENT */}
               <div ref={sourceColRef}>
                 <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 10, height: 18, minWidth: 0 }}>
-                  <span style={{ fontSize: 10.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "#8A93A5", flexShrink: 0 }}>Source document</span>
+                  <span style={{ fontSize: 10.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "#1E66C9", flexShrink: 0 }}>Source document</span>
                   <FileChip type={sourceFileType(order.sourceFileKey)} />
                   <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10, color: "#A8B0BF", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", minWidth: 0 }}>{sourceFileLabel(order.sourceFileKey)}</span>
+                  <span style={{ marginLeft: "auto", fontSize: 9.5, color: "#B4BBC8", flexShrink: 0 }}>hover a zone</span>
                 </div>
-                <DocumentAnatomy order={order} onSection={(id, el) => { srcSectionEls.current[id] = el; }} />
+                <DocumentAnatomy
+                  order={order}
+                  onSection={(id, el) => { srcSectionEls.current[id] = el; }}
+                  activeZone={activeZone}
+                  onZoneHover={handleZoneHover}
+                />
               </div>
 
-              {/* Center — Canonical model */}
+              {/* Center — CANONICAL ORDER (ProcuLink model) */}
               <div style={{ position: "relative" }}>
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginBottom: 10, height: 18 }}>
-                  <span style={{ fontSize: 10, color: "#B4BBC8" }}>hover a field</span>
-                  <span style={{ fontSize: 10.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "#0B1A2F" }}>Canonical model</span>
-                  <span style={{ width: 56 }} />
+                  <span style={{ fontSize: 9.5, color: "#B4BBC8" }}>hover a field</span>
+                  <span style={{ fontSize: 10.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "#0B1A2F" }}>Canonical order</span>
+                  <span style={{ fontSize: 9.5, color: "#B4BBC8" }}>ProcuLink model</span>
                 </div>
-                {/* Spine line */}
-                <div style={{ position: "absolute", top: 36, bottom: 0, left: 22, width: 3, background: "linear-gradient(180deg,#1DAF50,#28C55E)", borderRadius: 2 }} />
+                {/* Canonical spine line */}
+                <div style={{ position: "absolute", top: 36, bottom: 0, left: 22, width: 3, background: "linear-gradient(180deg,#1E66C9,#2E8E3A)", borderRadius: 2 }} />
                 <div style={{ position: "relative", paddingTop: 4 }}>
                   {nodes.map((node, i) => (
                     <SpineNodeCard
@@ -1392,17 +1575,19 @@ export function SpineReview({ orderId }: { orderId: string }) {
                       onKeyDown={handleKeyDown}
                       inputRef={inputRefCallback}
                       cardRef={(el) => { nodeEls.current[node.id] = el; }}
-                      onHover={setHoveredId}
+                      onHover={handleNodeHover}
+                      onZoneHover={handleZoneHover}
+                      activeZone={activeZone}
                     />
                   ))}
                 </div>
               </div>
 
-              {/* Right — Output Preview */}
+              {/* Right — SUPPLIER OUTPUT */}
               <div ref={outputColRef}>
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginBottom: 10, height: 18 }}>
-                  <span style={{ fontSize: 10, color: "#B4BBC8" }}>ProcuLink model</span>
-                  <span style={{ fontSize: 10.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "#8A93A5" }}>Supplier output</span>
+                  <span style={{ fontSize: 9.5, color: "#B4BBC8" }}>canonical → supplier</span>
+                  <span style={{ fontSize: 10.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "#1E6D29" }}>Supplier output</span>
                   <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10, color: "#A8B0BF", whiteSpace: "nowrap" }}>{outputArtifactType(order.artifacts)}</span>
                 </div>
                 <OutputPreview

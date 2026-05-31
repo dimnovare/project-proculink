@@ -143,26 +143,26 @@ export default function TemplatesPage() {
   return (
     <div className="flex flex-col h-full min-h-0 overflow-hidden" style={{ background: "#F6F7FA" }}>
       {/* Header — sits directly on the page surface (no white bar / divider),
-          matching the design reference. */}
-      <div className="flex flex-col items-start gap-3 px-5 pt-6 pb-4 sm:px-8 sm:flex-row sm:items-end sm:gap-4 flex-shrink-0">
+          matching the design reference (.page-head + .page-title). */}
+      <div className="flex flex-col items-start gap-3 px-4 pt-[18px] pb-[18px] sm:px-[34px] sm:pt-[26px] sm:pb-[22px] sm:flex-row sm:items-start sm:gap-x-6 sm:gap-y-4 flex-shrink-0">
         <div>
-          <h1 className="text-[26px] sm:text-[28px] font-semibold tracking-[-0.02em] leading-[1.1]" style={{ fontFamily: "'Bricolage Grotesque', Inter, sans-serif", color: "#0B1A2F" }}>Output templates</h1>
-          <p className="text-[13px] mt-1.5" style={{ color: "#56627A" }}>
+          <h1 className="text-[24px] sm:text-[30px] font-semibold tracking-[-0.025em] leading-[1.1] sm:whitespace-nowrap" style={{ fontFamily: "'Bricolage Grotesque', Inter, sans-serif", color: "#0B1A2F", margin: 0 }}>Output templates</h1>
+          <p className="text-[13px] mt-[5px]" style={{ color: "#56627A" }}>
             The envelope each supplier receives · {templates.length} template{templates.length !== 1 ? "s" : ""}
           </p>
         </div>
         <button
           onClick={newTemplate}
-          className="h-10 w-full rounded-[6px] px-3.5 text-[13px] font-semibold transition-colors sm:ml-auto sm:h-8 sm:w-auto sm:text-[12.5px]"
-          style={{ background: SELECT_BLUE, color: "#FFFFFF", border: 0, boxShadow: "0 1px 2px rgba(11,26,47,0.12)" }}
-          onMouseEnter={(e) => (e.currentTarget.style.background = "#1B5BB5")}
+          className="inline-flex h-10 w-full items-center justify-center gap-[7px] rounded-[6px] px-3.5 text-[13px] font-semibold tracking-[-0.005em] transition-colors sm:ml-auto sm:h-8 sm:w-auto sm:px-[14px] sm:text-[12.5px]"
+          style={{ background: SELECT_BLUE, color: "#FFFFFF", border: "1px solid transparent" }}
+          onMouseEnter={(e) => (e.currentTarget.style.background = "#0F4FA8")}
           onMouseLeave={(e) => (e.currentTarget.style.background = SELECT_BLUE)}
         >
-          + New template
+          <span aria-hidden style={{ fontSize: 15, lineHeight: 1, marginTop: -1 }}>+</span> New template
         </button>
       </div>
 
-      <div className="flex-1 overflow-auto px-5 pt-1 pb-6 sm:px-8 sm:pb-8">
+      <div className="flex-1 overflow-auto px-4 pt-0 pb-[72px] sm:px-[34px] sm:pb-[64px]">
         {notice && (
           <div
             className="mb-4 rounded-[8px] px-4 py-3 text-[12.5px]"
@@ -177,10 +177,13 @@ export default function TemplatesPage() {
         )}
 
         {!isApiMockMode && isLoading && (
-          <div className="grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(min(100%, 320px),1fr))" }}>
-            {[1, 2, 3, 4].map((i) => (
-              <div key={i} className="rounded-[8px] animate-pulse" style={{ height: 100, background: "#E2E6EE", border: "1px solid #E2E6EE" }} />
-            ))}
+          <div className="grid gap-4 lg:grid-cols-[340px_minmax(0,1fr)] lg:items-start">
+            <div className="flex flex-col gap-2">
+              {[1, 2, 3, 4].map((i) => (
+                <div key={i} className="rounded-[8px] animate-pulse" style={{ height: 104, background: "#E2E6EE", border: "1px solid #E2E6EE" }} />
+              ))}
+            </div>
+            <div className="hidden rounded-[8px] animate-pulse lg:block" style={{ height: 340, background: "#E2E6EE", border: "1px solid #E2E6EE" }} />
           </div>
         )}
 
@@ -203,9 +206,9 @@ export default function TemplatesPage() {
               action={{ label: "+ New template", onClick: newTemplate }}
             />
           ) : (
-            <div className="grid gap-4 lg:grid-cols-[minmax(300px,360px)_minmax(0,1fr)]">
-              {/* Left: template cards */}
-              <div className="flex flex-col gap-2.5">
+            <div className="grid gap-4 lg:grid-cols-[340px_minmax(0,1fr)] lg:items-start">
+              {/* Left: template cards (.split-list left column · .col.gap-2) */}
+              <div className="flex flex-col gap-2">
                 {templates.map((t) => {
                   const active = selId === t.id;
                   const accent = FMT_COLOR[t.fmt] ?? "#56627A";
@@ -213,24 +216,24 @@ export default function TemplatesPage() {
                     <button
                       key={t.id}
                       onClick={() => { setNotice(null); setSelId(t.id); }}
-                      className="relative rounded-[8px] text-left overflow-hidden transition-shadow"
+                      className="relative rounded-[8px] text-left overflow-hidden transition-[transform,box-shadow,border-color] duration-200 hover:-translate-y-[2px]"
                       style={{
                         background: "#FFFFFF",
                         border: `1px solid ${active ? SELECT_BLUE : "#E2E6EE"}`,
-                        boxShadow: active ? `0 0 0 1px ${SELECT_BLUE}` : "0 1px 3px rgba(11,26,47,0.04)",
-                        padding: "14px 16px 14px 18px",
+                        boxShadow: active ? `0 0 0 1px ${SELECT_BLUE}` : "none",
+                        padding: "13px 15px 13px 17px",
                       }}
                     >
-                      <span style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: 3, background: accent }} />
+                      <span aria-hidden style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: 3, background: accent }} />
                       <div className="flex items-center justify-between gap-2">
                         <SrcChip type={t.fmt} />
                         {t.isDefault && (
-                          <span className="inline-flex items-center rounded-[5px] px-2 py-0.5 text-[10.5px] font-semibold" style={{ background: "#E2F1E2", color: "#1E6D29" }}>Default</span>
+                          <span className="inline-flex items-center rounded-[4px] text-[11px] font-semibold" style={{ height: 22, padding: "0 8px", background: "#E2F1E2", color: "#1E6D29" }}>Default</span>
                         )}
                       </div>
-                      <div className="text-[14px] sm:text-[13.5px] font-semibold mt-2.5 tracking-[-0.01em]" style={{ color: "#0B1A2F" }}>{t.name}</div>
-                      <div className="text-[13px] sm:text-[12px] mt-1 leading-[1.45]" style={{ color: "#56627A" }}>{FMT_DESC[t.fmt] ?? `${t.fmt} output envelope.`}</div>
-                      <div className="mt-2.5 text-[12px] sm:text-[11.5px]" style={{ color: "#8A93A5" }}>
+                      <div className="text-[13px] font-semibold tracking-[-0.005em]" style={{ color: "#0B1A2F", marginTop: 8 }}>{t.name}</div>
+                      <div className="text-[11.5px] leading-[1.45]" style={{ color: "#56627A", marginTop: 3 }}>{FMT_DESC[t.fmt] ?? `${t.fmt} output envelope.`}</div>
+                      <div className="text-[11px]" style={{ color: "#8A93A5", marginTop: 9 }}>
                         {t.suppliers > 0 ? (
                           <>
                             <span style={{ fontWeight: 600, color: "#56627A" }}>

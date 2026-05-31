@@ -28,15 +28,15 @@ function UsageBar({ used, limit, label }: { used: number; limit: number; label: 
   const atLimit  = !unlimited && pct >= 100;
   const warning  = !unlimited && pct >= 80 && pct < 100;
 
-  // Default fill is the buyer→supplier bridge gradient (buyer-blue → brand green),
-  // matching the canonical --gradient-link-spine direction in the design render.
+  // Default fill is the canonical buyer→supplier link gradient (buyer-blue → brand
+  // green), driven straight from the design token so it never drifts from the render.
   const barStyle: React.CSSProperties = unlimited
-    ? { background: "linear-gradient(90deg, #1E66C9, var(--brand-green, #28C55E))" }
+    ? { background: "var(--gradient-link-spine)" }
     : atLimit
-    ? { background: "#C53A3A" }
+    ? { background: "var(--danger)" }
     : warning
-    ? { background: "linear-gradient(90deg, #1E66C9, #C97A14)" }
-    : { background: "linear-gradient(90deg, #1E66C9, var(--brand-green, #28C55E))" };
+    ? { background: "linear-gradient(90deg, var(--brand-blue), var(--amber))" }
+    : { background: "var(--gradient-link-spine)" };
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
@@ -214,12 +214,12 @@ export function BillingSection() {
       <LimitBanner status={status} />
 
       {/* ── Current plan card (large highlighted block) ── */}
-      <div style={{ border: "1px solid #E2E6EE", borderRadius: 12, background: "#FFFFFF", padding: 0, overflow: "hidden", boxShadow: "0 1px 2px rgba(11,26,47,0.04)" }}>
+      <div style={{ border: "1px solid var(--border)", borderRadius: "var(--radius-md)", background: "var(--surface)", padding: 0, overflow: "hidden", boxShadow: "var(--shadow-card)" }}>
         {/* Card header */}
-        <div style={{ padding: "18px 22px", borderBottom: "1px solid #EDF0F5" }}>
-          <div style={{ fontWeight: 600, fontSize: 16, letterSpacing: "-0.01em", color: "#0B1A2F" }}>Current plan</div>
+        <div style={{ padding: "14px 18px", borderBottom: "1px solid var(--border)" }}>
+          <div style={{ fontWeight: 600, fontSize: 14.5, letterSpacing: "-0.01em", color: "var(--ink)" }}>Current plan</div>
         </div>
-        <div style={{ padding: "20px 22px", display: "flex", flexDirection: "column", gap: 16 }}>
+        <div style={{ padding: "16px 18px", display: "flex", flexDirection: "column", gap: 16 }}>
           <PlanCard
             status={status}
             action={(isPaid || isEnterprise) ? (
@@ -261,7 +261,7 @@ export function BillingSection() {
           <button
             onClick={() => checkoutMutation.mutate("growth")}
             disabled={checkoutMutation.isPending}
-            style={primaryButton("var(--brand-green, #28C55E)", checkoutMutation.isPending)}
+            style={primaryButton("var(--brand-green)", checkoutMutation.isPending)}
           >
             {status.isTrialExpired || status.isOrderLimitReached ? "Upgrade to continue" : "Upgrade to Growth"}
           </button>
@@ -292,7 +292,7 @@ export function BillingSection() {
                 background: "#FFFFFF",
                 color: "#0B1A2F",
                 border: "1px solid #C6CDDA",
-                borderLeft: "3px solid var(--brand-green, #28C55E)",
+                borderLeft: "3px solid var(--brand-green)",
                 borderRadius: 8,
                 padding: "9px 14px",
                 fontSize: 12.5,
@@ -334,15 +334,15 @@ export function BillingSection() {
 
       {/* ── Payment method — managed in Stripe (canonical structure, real binding) ── */}
       {(isPaid || isEnterprise) && (
-        <div style={{ border: "1px solid #E2E6EE", borderRadius: 12, background: "#FFFFFF", padding: 0, overflow: "hidden", boxShadow: "0 1px 2px rgba(11,26,47,0.04)" }}>
-          <div style={{ padding: "18px 22px", borderBottom: "1px solid #EDF0F5" }}>
-            <div style={{ fontWeight: 600, fontSize: 16, letterSpacing: "-0.01em", color: "#0B1A2F" }}>Payment method</div>
+        <div style={{ border: "1px solid var(--border)", borderRadius: "var(--radius-md)", background: "var(--surface)", padding: 0, overflow: "hidden", boxShadow: "var(--shadow-card)" }}>
+          <div style={{ padding: "14px 18px", borderBottom: "1px solid var(--border)" }}>
+            <div style={{ fontWeight: 600, fontSize: 14.5, letterSpacing: "-0.01em", color: "var(--ink)" }}>Payment method</div>
           </div>
-          <div style={{ padding: "0 22px" }}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, padding: "15px 0", borderBottom: "1px solid #EDF0F5" }}>
+          <div style={{ padding: "0 18px" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, padding: "13px 0", borderBottom: "1px solid var(--border)" }}>
               <div>
-                <div style={{ fontSize: 13.5, fontWeight: 600, color: "#0B1A2F" }}>Card &amp; billing details</div>
-                <div style={{ fontSize: 12.5, color: "#8A93A5", marginTop: 2 }}>Managed in Stripe</div>
+                <div style={{ fontSize: 13, fontWeight: 500, color: "var(--ink)" }}>Card &amp; billing details</div>
+                <div style={{ fontSize: 11.5, color: "var(--ink-faint)", marginTop: 2 }}>Managed in Stripe</div>
               </div>
               <button
                 onClick={() => portalMutation.mutate()}
@@ -358,10 +358,10 @@ export function BillingSection() {
               </button>
             </div>
             {/* Billing email row */}
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, padding: "15px 0" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, padding: "13px 0" }}>
               <div>
-                <div style={{ fontSize: 13.5, fontWeight: 600, color: "#0B1A2F" }}>Billing email</div>
-                <div style={{ fontSize: 12.5, color: "#8A93A5", marginTop: 2 }}>Update via the Stripe portal</div>
+                <div style={{ fontSize: 13, fontWeight: 500, color: "var(--ink)" }}>Billing email</div>
+                <div style={{ fontSize: 11.5, color: "var(--ink-faint)", marginTop: 2 }}>Update via the Stripe portal</div>
               </div>
               <button
                 onClick={() => portalMutation.mutate()}

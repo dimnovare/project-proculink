@@ -15,29 +15,39 @@ import type { PoMappingConfig } from "@/lib/api/types";
 
 type Tab = "overview" | "mappings" | "po-mapping" | "delivery";
 
-// Brand accent — emerald green. Reserved for *active* affordances only:
-// tab underline, status dots, toggles, the primary CTA fill (matches design + active-nav).
-const GREEN = "#28C55E";
-const GREEN_DEEP = "#1DAF50";
+// ── Design tokens (ported from tokens.css / globals.css) ─────────────────────
+// Buyer side = blue (#1E66C9, also the ACTIVE accent), supplier side = forest green.
+// These map 1:1 to the CSS custom properties so the screen matches screen-supplier.jsx.
 
-// Design-sampled greens (from the 1920px renders). The product's soft-green TINT and its
-// deep-green TEXT are forest-toned, distinct from the bright accent above:
-//   tile/pill background  #E2F1E2   ·   supplier-code / "deep" text  #1E6D29
-const GREEN_SOFT = "#E2F1E2";   // sampled avatar tile + confidence/imported pill bg
-const GREEN_TEXT = "#1E6D29";   // sampled supplier-code + deep-green pill/label text
+// Forest-green supplier palette — avatar tile, supplier codes, "imported" pills, deep text.
+// (Solid --brand-green #2E8E3A is supplied by the ported .pill/.toggle/.conf classes, so it
+// isn't declared here; this component only needs the deep-text + soft-tile tones.)
+const GREEN_DEEP  = "#1E6D29";  // --brand-green-deep (supplier code + deep-green text)
+const GREEN_SOFT  = "#E2F1E2";  // --brand-green-soft (avatar tile + confidence/imported pill bg)
+const GREEN_TEXT  = GREEN_DEEP; // alias retained for readability at call sites
 
-// Indigo / blue — "Inherited" provenance pills, selected-row tint, record-id links.
-// All sampled from the design: inherited pill #E3EDFB/#0F4FBA, selected row #E3EDFB.
-const INDIGO = "#3E63DD";
-const INDIGO_SOFT = "#E3EDFB";
-const INDIGO_DEEP = "#0F4FBA";
+// Buyer blue — the ACTIVE affordance (tab underline), record-id links, "inherited" provenance.
+const BLUE        = "#1E66C9";  // --brand-blue       (ACTIVE accent + record-id links)
+const BLUE_DEEP   = "#0F4FA8";  // --brand-blue-deep
+const BLUE_SOFT   = "#E3EDFB";  // --brand-blue-soft  (inherited pill bg / selected row)
 
-// Muted icon/label tone for card-header glyphs (design uses neutral slate, not green).
-const MUTED = "#8A93A5";
+// Ink + chrome.
+const INK         = "#0B1A2F";  // --ink
+const MUTED       = "#56627A";  // --ink-muted  (body labels, card-header glyphs)
+const FAINT       = "#8A93A5";  // --ink-faint  (eyebrows, secondary mono)
+const LINE        = "#E2E6EE";  // --border     (one hairline for every divider/border)
+const BORDER_STRONG = "#C6CDDA";// --border-strong (button outlines)
+const SURFACE     = "#FFFFFF";  // --surface
+const SURFACE_2   = "#EFF2F7";  // --surface-2  (neutral chip bg)
+const BG          = "#F6F7FA";  // --bg
 
-// One consistent hairline for every card border, header divider, and row separator.
-// Sampled #E2E6EE across the whole design — the earlier #F0F2F6/#F4F5F8 read too faint.
-const LINE = "#E2E6EE";
+// Semantic. (Amber tones are carried by the ported .conf-mid / .pill-review classes.)
+const DANGER      = "#C53A3A";  // --danger
+const AI          = "#6F4FCE";  // --ai      (AI provenance pill fg)
+const AI_SOFT     = "#EEE7FB";  // --ai-soft (AI provenance pill bg)
+
+const DISPLAY = "'Bricolage Grotesque', Inter, sans-serif";
+const MONO    = "'JetBrains Mono', ui-monospace, monospace";
 
 // Demo data — only rendered when isApiMockMode is true (dev, never production)
 const DEMO_MOCK = {
@@ -48,7 +58,6 @@ const DEMO_MOCK = {
   totalOrders:   1284,
   avgCycle:      "1m 38s",
   exceptionRate: "2.1%",
-  formats:       ["cXML", "HTTP"] as string[],
   autoProcess:   true,
   summary: {
     requiredFormat:    "cXML",
@@ -84,25 +93,20 @@ const TABS: Array<{ id: Tab; label: string }> = [
   { id: "delivery",    label: "Delivery"          },
 ];
 
-// Source-pill palette for the SKU mappings table (provenance colour-coding, all sampled).
+// Source-pill palette for the SKU mappings table (provenance colour-coding, from design).
 const SOURCE_PILL: Record<string, { bg: string; fg: string }> = {
-  AI:        { bg: "#EEE7FB",     fg: "#6F4FCE"    },   // violet — AI provenance
-  Manual:    { bg: "#EFF2F7",     fg: "#56627A"    },   // neutral slate
-  Inherited: { bg: INDIGO_SOFT,   fg: INDIGO_DEEP  },   // blue — inherited from another supplier
-  Imported:  { bg: GREEN_SOFT,    fg: GREEN_TEXT   },   // green — imported from a file
+  AI:        { bg: AI_SOFT,    fg: AI         },   // violet — AI provenance
+  Manual:    { bg: SURFACE_2,  fg: MUTED      },   // neutral slate
+  Inherited: { bg: BLUE_SOFT,  fg: BLUE_DEEP  },   // blue — inherited from another supplier
+  Imported:  { bg: GREEN_SOFT, fg: GREEN_DEEP },   // green — imported from a file
 };
 
-// Soft-pill background tint that pairs with confColor() for confidence badges.
-function confPillBg(pct: number): string {
-  if (pct >= 90) return GREEN_SOFT;
-  if (pct >= 75) return "#FAEFD6";
-  return "#FBE3E3";
-}
-
-function confColor(pct: number): string {
-  if (pct >= 90) return GREEN_TEXT;
-  if (pct >= 75) return "#C97A14";
-  return "#C53A3A";
+// Confidence-chip class selector — maps a percentage to the ported .conf-* classes
+// (.conf-hi green / .conf-mid amber / .conf-lo danger), matching design ConfidenceChip.
+function confClass(pct: number): string {
+  if (pct >= 90) return "conf-hi";
+  if (pct >= 75) return "conf-mid";
+  return "conf-lo";
 }
 
 export function SupplierDockProfile({ id }: { id: string }) {
@@ -128,16 +132,16 @@ export function SupplierDockProfile({ id }: { id: string }) {
 
   if (!isApiMockMode && isLoading) {
     return (
-      <div className="flex items-center justify-center h-full" style={{ background: "#F6F7FA" }}>
-        <span style={{ fontSize: 13, color: "#8A93A5" }}>Loading supplier…</span>
+      <div className="flex items-center justify-center h-full" style={{ background: BG }}>
+        <span style={{ fontSize: 13, color: FAINT }}>Loading supplier…</span>
       </div>
     );
   }
 
   if (!isApiMockMode && error) {
     return (
-      <div className="flex flex-col items-center justify-center h-full gap-3" style={{ background: "#F6F7FA" }}>
-        <span style={{ fontSize: 13, color: "#C53A3A" }}>Failed to load supplier</span>
+      <div className="flex flex-col items-center justify-center h-full gap-3" style={{ background: BG }}>
+        <span style={{ fontSize: 13, color: DANGER }}>Failed to load supplier</span>
         <button
           onClick={() => router.push("/library/suppliers")}
           style={{ fontSize: 12.5, color: GREEN_DEEP, background: "none", border: "none", cursor: "pointer" }}
@@ -150,8 +154,8 @@ export function SupplierDockProfile({ id }: { id: string }) {
 
   if (!isApiMockMode && !isLoading && realSupplier === null) {
     return (
-      <div className="flex flex-col items-center justify-center h-full gap-3" style={{ background: "#F6F7FA" }}>
-        <span style={{ fontSize: 14, fontWeight: 600, color: "#0B1A2F" }}>Supplier not found</span>
+      <div className="flex flex-col items-center justify-center h-full gap-3" style={{ background: BG }}>
+        <span style={{ fontSize: 14, fontWeight: 600, color: INK }}>Supplier not found</span>
         <button
           onClick={() => router.push("/library/suppliers")}
           style={{ fontSize: 12.5, color: GREEN_DEEP, background: "none", border: "none", cursor: "pointer" }}
@@ -163,29 +167,29 @@ export function SupplierDockProfile({ id }: { id: string }) {
   }
 
   return (
-    <div className="flex flex-col h-full min-h-0 overflow-hidden" style={{ background: "#F6F7FA" }}>
+    <div className="flex flex-col h-full min-h-0 overflow-hidden" style={{ background: BG }}>
       {/* Header */}
       <div
-        className="flex flex-col gap-4 px-4 py-4 sm:px-6 sm:py-5 flex-shrink-0"
-        style={{ borderBottom: `1px solid ${LINE}`, background: "#FFFFFF" }}
+        className="flex flex-col gap-3.5 px-4 py-4 sm:px-6 sm:py-5 flex-shrink-0"
+        style={{ borderBottom: `1px solid ${LINE}`, background: SURFACE }}
       >
         <button
           onClick={() => router.push("/library/suppliers")}
           className="inline-flex items-center gap-1 self-start text-[12.5px] font-medium"
-          style={{ color: "#8A93A5", background: "none", border: "none", cursor: "pointer", padding: 0 }}
+          style={{ color: MUTED, background: "none", border: "none", cursor: "pointer", padding: "4px 0" }}
         >
           <ChevronLeft size={14} strokeWidth={2.2} />
           Suppliers
         </button>
 
         <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center">
-          <div className="flex min-w-0 items-center gap-3.5">
+          <div className="flex min-w-0 items-center gap-4">
             {/* Supplier avatar */}
             <div
               style={{
-                width: 44,
-                height: 44,
-                borderRadius: 11,
+                width: 48,
+                height: 48,
+                borderRadius: 8,
                 background: GREEN_SOFT,
                 display: "flex",
                 alignItems: "center",
@@ -193,48 +197,34 @@ export function SupplierDockProfile({ id }: { id: string }) {
                 flexShrink: 0,
               }}
             >
-              <Truck size={20} strokeWidth={2} color={GREEN_TEXT} />
+              <Truck size={22} strokeWidth={2} color={GREEN_DEEP} />
             </div>
 
             <div className="min-w-0">
               <h1
-                className="text-[24px] leading-none font-semibold tracking-[-0.02em] sm:text-[32px]"
-                style={{ fontFamily: "'Bricolage Grotesque', Inter, sans-serif", color: "#0B1A2F" }}
+                className="text-[24px] leading-none font-semibold tracking-[-0.02em] sm:text-[26px]"
+                style={{ fontFamily: DISPLAY, color: INK }}
               >
                 {name}
               </h1>
-              {/* Inline meta row — code label · format pills · auto-process status */}
-              <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1.5 mt-2">
+              {/* Inline meta row — code · required format chip · delivery channel chip · auto-process pill */}
+              <div className="flex flex-wrap items-center gap-2 mt-1.5">
                 {code && code !== "—" && (
-                  <span
-                    className="text-[11px] font-semibold uppercase tracking-[0.04em]"
-                    style={{ color: MUTED, fontFamily: "'JetBrains Mono', monospace" }}
-                  >
+                  <span className="text-[11.5px]" style={{ color: FAINT, fontFamily: MONO }}>
                     {code}
                   </span>
                 )}
-                {(isApiMockMode ? DEMO_MOCK.formats : []).map((f) => {
-                  const isStandard = /xml|edi|peppol|x12/i.test(f);
-                  return (
-                    <span
-                      key={f}
-                      className="text-[10.5px] font-semibold rounded px-1.5 py-0.5"
-                      style={{
-                        background: isStandard ? "#EEE7FB" : "#EFF2F7",
-                        color: isStandard ? "#6F4FCE" : "#56627A",
-                        fontFamily: "'JetBrains Mono', monospace",
-                        letterSpacing: "0.02em",
-                      }}
-                    >
-                      {f}
-                    </span>
-                  );
-                })}
                 {isApiMockMode && (
-                  <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold" style={{ color: DEMO_MOCK.autoProcess ? GREEN_TEXT : MUTED }}>
-                    <span style={{ width: 6, height: 6, borderRadius: "50%", background: DEMO_MOCK.autoProcess ? GREEN : MUTED, display: "inline-block" }} />
-                    Auto-process: {DEMO_MOCK.autoProcess ? "ON" : "OFF"}
-                  </span>
+                  <>
+                    <SrcChip type={DEMO_MOCK.summary.requiredFormat} />
+                    <span className="chip" style={{ background: SURFACE_2, color: MUTED }}>
+                      {DEMO_MOCK.summary.deliveryChannel}
+                    </span>
+                    <span className={`pill ${DEMO_MOCK.autoProcess ? "pill-ready" : "pill-new"}`}>
+                      <span className="dot" />
+                      Auto-process: {DEMO_MOCK.autoProcess ? "ON" : "OFF"}
+                    </span>
+                  </>
                 )}
               </div>
             </div>
@@ -244,9 +234,9 @@ export function SupplierDockProfile({ id }: { id: string }) {
           <button
             onClick={() => setTab("delivery")}
             className="inline-flex items-center gap-1.5 self-start rounded-[7px] px-3 text-[12.5px] font-medium sm:ml-auto sm:self-center"
-            style={{ height: 34, border: "1px solid #C6CDDA", background: "#FFFFFF", color: "#0B1A2F", cursor: "pointer" }}
+            style={{ height: 34, border: `1px solid ${BORDER_STRONG}`, background: SURFACE, color: INK, cursor: "pointer" }}
           >
-            <Settings size={14} strokeWidth={2} color="#56627A" />
+            <Settings size={14} strokeWidth={2} color={MUTED} />
             Supplier settings
           </button>
         </div>
@@ -255,19 +245,19 @@ export function SupplierDockProfile({ id }: { id: string }) {
       {/* Tabs */}
       <div
         className="flex items-center gap-0 overflow-x-auto px-4 sm:px-6 flex-shrink-0 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
-        style={{ borderBottom: `1px solid ${LINE}`, background: "#FFFFFF", height: 42 }}
+        style={{ borderBottom: `1px solid ${LINE}`, background: SURFACE, height: 44 }}
       >
         {TABS.map((t) => (
           <button
             key={t.id}
             onClick={() => setTab(t.id)}
-            className="h-full shrink-0 px-4 text-[12.5px] font-medium transition-colors relative"
+            className="h-full shrink-0 px-4 text-[13px] font-medium transition-colors relative"
             style={{
-              color: tab === t.id ? "#0B1A2F" : "#56627A",
+              color: tab === t.id ? INK : MUTED,
               background: "transparent",
               border: "none",
               cursor: "pointer",
-              borderBottom: tab === t.id ? `2px solid ${GREEN}` : "2px solid transparent",
+              borderBottom: tab === t.id ? `2px solid ${BLUE}` : "2px solid transparent",
             }}
           >
             {t.label}
@@ -297,23 +287,17 @@ export function SupplierDockProfile({ id }: { id: string }) {
               ).map(({ label, value, sub, subAccent }) => (
                 <div
                   key={label}
-                  className="rounded-[10px] px-4 py-4"
-                  style={{ background: "#FFFFFF", border: `1px solid ${LINE}`, boxShadow: "0 1px 2px rgba(11,26,47,0.04)" }}
+                  className="monument rounded-[10px] px-4 py-4"
+                  style={{ background: SURFACE, border: `1px solid ${LINE}`, boxShadow: "0 1px 2px rgba(11,26,47,0.04)" }}
                 >
-                  <div className="text-[10.5px] font-semibold uppercase tracking-[0.04em]" style={{ color: MUTED }}>{label}</div>
+                  <div className="m-label">{label}</div>
                   <div
-                    className="mt-2 tracking-[-0.02em]"
-                    style={{
-                      fontFamily: "'Bricolage Grotesque', Inter, sans-serif",
-                      fontSize: 30,
-                      lineHeight: 1,
-                      fontWeight: 700,
-                      color: isApiMockMode ? "#0B1A2F" : "#C6CDDA",
-                    }}
+                    className="m-value"
+                    style={{ fontSize: 30, color: isApiMockMode ? INK : BORDER_STRONG }}
                   >
                     {value}
                   </div>
-                  <div className="mt-1.5 text-[11px] font-medium" style={{ color: subAccent ? GREEN_TEXT : MUTED }}>{sub}</div>
+                  <div className="m-sub" style={{ color: subAccent ? GREEN_DEEP : FAINT }}>{sub}</div>
                 </div>
               ))}
             </div>
@@ -321,10 +305,10 @@ export function SupplierDockProfile({ id }: { id: string }) {
             {/* Summary + recent deliveries */}
             <div className="grid gap-4 lg:grid-cols-2">
               {/* Delivery summary */}
-              <div style={{ background: "#FFFFFF", border: `1px solid ${LINE}`, borderRadius: 10, overflow: "hidden" }}>
+              <div style={{ background: SURFACE, border: `1px solid ${LINE}`, borderRadius: 10, overflow: "hidden" }}>
                 <div className="flex items-center gap-2 px-5 py-3.5" style={{ borderBottom: `1px solid ${LINE}` }}>
                   <Info size={15} strokeWidth={2} color={MUTED} />
-                  <h3 className="text-[13px] font-semibold" style={{ color: "#0B1A2F" }}>Delivery summary</h3>
+                  <h3 className="text-[13px] font-semibold" style={{ color: INK }}>Delivery summary</h3>
                 </div>
                 {isApiMockMode ? (
                   <div className="px-4 py-1 sm:px-5">
@@ -341,10 +325,10 @@ export function SupplierDockProfile({ id }: { id: string }) {
                         className="flex items-center justify-between gap-3 py-2.5 sm:gap-4"
                         style={{ borderBottom: i < arr.length - 1 ? `1px solid ${LINE}` : undefined }}
                       >
-                        <span className="flex-shrink-0 text-[12px]" style={{ color: "#56627A" }}>{k}</span>
+                        <span className="flex-shrink-0 text-[12px]" style={{ color: MUTED }}>{k}</span>
                         <span
                           className="min-w-0 truncate text-right text-[12px] font-medium"
-                          style={{ color: "#0B1A2F", fontFamily: mono ? "'JetBrains Mono', monospace" : undefined }}
+                          style={{ color: INK, fontFamily: mono ? MONO : undefined }}
                         >
                           {v}
                         </span>
@@ -366,10 +350,10 @@ export function SupplierDockProfile({ id }: { id: string }) {
               </div>
 
               {/* Recent deliveries */}
-              <div style={{ background: "#FFFFFF", border: `1px solid ${LINE}`, borderRadius: 10, overflow: "hidden" }}>
+              <div style={{ background: SURFACE, border: `1px solid ${LINE}`, borderRadius: 10, overflow: "hidden" }}>
                 <div className="flex items-center gap-2 px-5 py-3.5" style={{ borderBottom: `1px solid ${LINE}` }}>
                   <Clock size={15} strokeWidth={2} color={MUTED} />
-                  <h3 className="text-[13px] font-semibold" style={{ color: "#0B1A2F" }}>Recent deliveries</h3>
+                  <h3 className="text-[13px] font-semibold" style={{ color: INK }}>Recent deliveries</h3>
                 </div>
                 {isApiMockMode ? (
                   <div className="px-4 py-1 sm:px-5">
@@ -379,8 +363,8 @@ export function SupplierDockProfile({ id }: { id: string }) {
                         className="flex items-center gap-2.5 py-2.5 sm:gap-3"
                         style={{ borderBottom: i < DEMO_MOCK.recent.length - 1 ? `1px solid ${LINE}` : undefined }}
                       >
-                        <span className="flex-shrink-0 text-[12px] font-medium" style={{ color: INDIGO, fontFamily: "'JetBrains Mono', monospace" }}>{r.id}</span>
-                        <span className="ml-auto min-w-0 truncate text-right text-[12px]" style={{ color: MUTED, fontFamily: "'JetBrains Mono', monospace" }}>{r.amount}</span>
+                        <span className="flex-shrink-0 text-[12px] font-semibold" style={{ color: BLUE_DEEP, fontFamily: MONO }}>{r.id}</span>
+                        <span className="ml-auto min-w-0 truncate text-right text-[11.5px]" style={{ color: FAINT, fontFamily: MONO }}>{r.amount}</span>
                         <span className="flex-shrink-0"><MiniStatusPill status={r.status} /></span>
                       </div>
                     ))}
@@ -396,12 +380,12 @@ export function SupplierDockProfile({ id }: { id: string }) {
         )}
 
         {tab === "mappings" && (
-          <div style={{ background: "#FFFFFF", border: `1px solid ${LINE}`, borderRadius: 10, overflow: "hidden" }}>
+          <div style={{ background: SURFACE, border: `1px solid ${LINE}`, borderRadius: 10, overflow: "hidden" }}>
             {/* Card header */}
             <div className="flex flex-col items-start gap-3 px-4 py-4 sm:px-5 sm:flex-row sm:items-center" style={{ borderBottom: `1px solid ${LINE}` }}>
               <Link2 size={17} strokeWidth={2} color={MUTED} className="flex-shrink-0" />
               <div className="min-w-0">
-                <h3 className="text-[14px] font-semibold" style={{ color: "#0B1A2F" }}>Saved SKU mappings</h3>
+                <h3 className="text-[14px] font-semibold" style={{ color: INK }}>Saved SKU mappings</h3>
                 <p className="mt-0.5 text-[12px]" style={{ color: MUTED }}>
                   {isApiMockMode ? `${DEMO_MOCK.summary.savedMappings.toLocaleString()} buyer → supplier item codes` : "Buyer → supplier item codes"}
                 </p>
@@ -409,9 +393,9 @@ export function SupplierDockProfile({ id }: { id: string }) {
               <a
                 href="/library/mappings"
                 className="inline-flex items-center gap-1.5 self-stretch justify-center rounded-[7px] px-3 text-[12.5px] font-medium sm:ml-auto sm:self-center"
-                style={{ height: 36, border: `1px solid #C6CDDA`, background: "#FFFFFF", color: "#0B1A2F", textDecoration: "none", whiteSpace: "nowrap" }}
+                style={{ height: 34, border: `1px solid ${BORDER_STRONG}`, background: SURFACE, color: INK, textDecoration: "none", whiteSpace: "nowrap" }}
               >
-                <Plus size={14} strokeWidth={2.2} color="#465161" />
+                <Plus size={14} strokeWidth={2.2} color={MUTED} />
                 Add mapping
               </a>
             </div>
@@ -439,24 +423,16 @@ export function SupplierDockProfile({ id }: { id: string }) {
                         const pill = SOURCE_PILL[m.source];
                         return (
                           <tr key={m.buyer} style={{ borderBottom: i < DEMO_MOCK.mappings.length - 1 ? `1px solid ${LINE}` : undefined }}>
-                            <td className="px-5 py-3 text-[12px] font-medium" style={{ color: "#0B1A2F", fontFamily: "'JetBrains Mono', monospace" }}>{m.buyer}</td>
-                            <td className="px-5 py-3 text-[12px] font-medium" style={{ color: GREEN_TEXT, fontFamily: "'JetBrains Mono', monospace" }}>{m.supplier}</td>
-                            <td className="px-5 py-3 text-[12.5px]" style={{ color: "#56627A" }}>{m.desc}</td>
+                            <td className="px-5 py-3 text-[12px] font-semibold" style={{ color: INK, fontFamily: MONO }}>{m.buyer}</td>
+                            <td className="px-5 py-3 text-[12px] font-semibold" style={{ color: GREEN_DEEP, fontFamily: MONO }}>{m.supplier}</td>
+                            <td className="px-5 py-3 text-[12.5px]" style={{ color: MUTED }}>{m.desc}</td>
                             <td className="px-5 py-3" style={{ textAlign: "left" }}>
-                              <span
-                                className="inline-flex items-center rounded px-1.5 py-0.5 text-[10.5px] font-semibold"
-                                style={{ background: pill.bg, color: pill.fg }}
-                              >
+                              <span className="chip" style={{ background: pill.bg, color: pill.fg }}>
                                 {m.source}
                               </span>
                             </td>
                             <td className="px-5 py-3" style={{ textAlign: "right" }}>
-                              <span
-                                className="inline-flex items-center rounded px-1.5 py-0.5 text-[11px] font-semibold tabular-nums"
-                                style={{ background: confPillBg(m.conf), color: confColor(m.conf), fontFamily: "'JetBrains Mono', monospace" }}
-                              >
-                                {m.conf}%
-                              </span>
+                              <span className={`conf ${confClass(m.conf)} tabular-nums`}>{m.conf}%</span>
                             </td>
                           </tr>
                         );
@@ -476,27 +452,19 @@ export function SupplierDockProfile({ id }: { id: string }) {
                         style={{ borderBottom: i < DEMO_MOCK.mappings.length - 1 ? `1px solid ${LINE}` : undefined }}
                       >
                         {/* Buyer → supplier code line */}
-                        <div className="flex items-center gap-2 text-[13px] font-medium" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                          <span style={{ color: "#0B1A2F" }}>{m.buyer}</span>
-                          <span style={{ color: "#C6CDDA" }}>→</span>
-                          <span style={{ color: GREEN_TEXT }}>{m.supplier}</span>
+                        <div className="flex items-center gap-2 text-[13px] font-semibold" style={{ fontFamily: MONO }}>
+                          <span style={{ color: INK }}>{m.buyer}</span>
+                          <span style={{ color: BORDER_STRONG }}>→</span>
+                          <span style={{ color: GREEN_DEEP }}>{m.supplier}</span>
                         </div>
                         {/* Description */}
-                        <div className="text-[12.5px]" style={{ color: "#56627A" }}>{m.desc}</div>
+                        <div className="text-[12.5px]" style={{ color: MUTED }}>{m.desc}</div>
                         {/* Source + confidence pills */}
                         <div className="flex items-center gap-2">
-                          <span
-                            className="inline-flex items-center rounded px-1.5 py-0.5 text-[10.5px] font-semibold"
-                            style={{ background: pill.bg, color: pill.fg }}
-                          >
+                          <span className="chip" style={{ background: pill.bg, color: pill.fg }}>
                             {m.source}
                           </span>
-                          <span
-                            className="inline-flex items-center rounded px-1.5 py-0.5 text-[11px] font-semibold tabular-nums"
-                            style={{ background: confPillBg(m.conf), color: confColor(m.conf), fontFamily: "'JetBrains Mono', monospace" }}
-                          >
-                            {m.conf}%
-                          </span>
+                          <span className={`conf ${confClass(m.conf)} tabular-nums`}>{m.conf}%</span>
                         </div>
                       </div>
                     );
@@ -504,7 +472,7 @@ export function SupplierDockProfile({ id }: { id: string }) {
                 </div>
               </>
             ) : (
-              <p className="px-4 py-5 text-[13px] sm:px-5" style={{ color: "#56627A" }}>
+              <p className="px-4 py-5 text-[13px] sm:px-5" style={{ color: MUTED }}>
                 Showing mappings for {name}. See the full{" "}
                 <a href="/library/mappings" style={{ color: GREEN_TEXT, fontWeight: 500 }}>Mapping Editor</a>{" "}
                 for all supplier pairs.
@@ -548,20 +516,28 @@ export function SupplierDockProfile({ id }: { id: string }) {
   );
 }
 
+/* -------- SrcChip — format/source badge (.src-chip + .src-{TYPE}, ported design class) -------- */
+function SrcChip({ type }: { type: string }) {
+  // Normalise to the class suffixes defined in globals.css (.src-PDF/.src-XLSX/.src-CSV/
+  // .src-cXML/.src-XML/.src-EDI/.src-EMAIL/.src-API/.src-JSON/.src-UBL). Default = neutral CSV tone.
+  const known = ["PDF", "XLSX", "CSV", "cXML", "XML", "EDI", "EDIFACT", "EMAIL", "API", "JSON", "UBL"];
+  const match = known.find((k) => k.toLowerCase() === type.toLowerCase());
+  const suffix = match === "EDIFACT" ? "EDI" : (match ?? "CSV");
+  return <span className={`src-chip src-${suffix}`}>{type}</span>;
+}
+
 /* -------- MiniStatusPill — compact status badge for the recent-deliveries list -------- */
+/* Uses the ported .pill / .pill-* classes so colours match the design StatusPill exactly. */
 function MiniStatusPill({ status }: { status: "review" | "ready" | "sent" }) {
-  const MAP: Record<string, { bg: string; fg: string; dot: string; label: string }> = {
-    review: { bg: "#FAEFD6", fg: "#C97A14",   dot: "#C97A14", label: "Needs review" },
-    ready:  { bg: GREEN_SOFT, fg: GREEN_TEXT,  dot: GREEN,     label: "Ready"        },
-    sent:   { bg: GREEN_SOFT, fg: GREEN_TEXT,  dot: GREEN,     label: "Delivered"    },
+  const MAP: Record<string, { cls: string; label: string }> = {
+    review: { cls: "pill-review", label: "Needs review" },
+    ready:  { cls: "pill-ready",  label: "Ready"        },
+    sent:   { cls: "pill-sent",   label: "Delivered"    },
   };
   const s = MAP[status];
   return (
-    <span
-      className="inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[10.5px] font-semibold"
-      style={{ background: s.bg, color: s.fg }}
-    >
-      <span style={{ width: 5, height: 5, borderRadius: "50%", background: s.dot, display: "inline-block" }} />
+    <span className={`pill ${s.cls}`}>
+      <span className="dot" />
       {s.label}
     </span>
   );

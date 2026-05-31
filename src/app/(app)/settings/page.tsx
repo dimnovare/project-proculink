@@ -34,13 +34,13 @@ export default function SettingsPage() {
 
   return (
     <div style={{ height: "100%", minHeight: 0, overflowY: "auto", background: "#F6F7FA" }}>
-      <div style={{ maxWidth: 1040, margin: "0 auto", padding: "40px 32px 64px" }} className="settings-shell">
-        {/* Page header */}
-        <header style={{ marginBottom: 28 }}>
-          <h1 style={{ fontFamily: "'Bricolage Grotesque', Inter, sans-serif", fontSize: 34, fontWeight: 600, letterSpacing: "-0.025em", lineHeight: 1.05, margin: 0, color: "#0B1A2F" }}>
+      <div style={{ maxWidth: 1040, margin: "0 auto", padding: "26px 34px 64px" }} className="settings-shell">
+        {/* Page header — matches design .page-title / .page-sub */}
+        <header style={{ marginBottom: 18 }}>
+          <h1 style={{ fontFamily: "var(--font-display)", fontSize: 30, fontWeight: 600, letterSpacing: "-0.025em", lineHeight: 1.1, margin: 0, color: "var(--ink)" }}>
             Settings
           </h1>
-          <div style={{ color: "#56627A", fontSize: 13.5, marginTop: 8 }}>
+          <div style={{ color: "var(--ink-muted)", fontSize: 13, marginTop: 5 }}>
             Nordic Distribution · Operations plan
           </div>
         </header>
@@ -56,20 +56,20 @@ export default function SettingsPage() {
                 <button
                   key={t.id}
                   onClick={() => setTab(t.id)}
-                  className="settings-nav-item flex shrink-0 items-center gap-[10px] rounded-[8px] py-[10px] pr-3 text-left text-[13px] transition-colors md:w-full"
+                  className="settings-nav-item flex shrink-0 items-center gap-[10px] rounded-[6px] py-[9px] pr-3 text-left text-[13px] transition-colors md:w-full"
                   style={{
                     paddingLeft: 12,
-                    color:      active ? "#0B1A2F"   : "#56627A",
-                    background: active ? "#FFFFFF" : "transparent",
+                    color:      active ? "var(--ink)" : "var(--ink-muted)",
+                    background: active ? "var(--surface)" : "transparent",
                     fontWeight: active ? 600 : 500,
-                    border:      active ? "1px solid #E2E6EE" : "1px solid transparent",
-                    borderLeft: `2px solid ${active ? "#1E66C9" : "transparent"}`,
-                    boxShadow:  active ? "0 1px 2px rgba(11,26,47,0.05)" : "none",
+                    border:      active ? "1px solid var(--border)" : "1px solid transparent",
+                    borderLeft: `2px solid ${active ? "var(--brand-blue)" : "transparent"}`,
+                    boxShadow:  active ? "var(--shadow-card)" : "none",
                     cursor: "pointer",
                   }}
                   aria-current={active ? "page" : undefined}
                 >
-                  <t.Icon size={16} color={active ? "#1E66C9" : "#8A93A5"} strokeWidth={1.75} />
+                  <t.Icon size={16} color={active ? "var(--brand-blue)" : "var(--ink-faint)"} strokeWidth={1.75} />
                   <span>{t.label}</span>
                 </button>
               );
@@ -132,12 +132,12 @@ export default function SettingsPage() {
 
 function SettingsGroup({ title, sub, children }: { title: string; sub?: string; children: ReactNode }) {
   return (
-    <div style={{ background: "#FFFFFF", border: "1px solid #E2E6EE", borderRadius: 12, padding: 0, marginBottom: 18, overflow: "hidden", boxShadow: "0 1px 2px rgba(11,26,47,0.04)" }}>
-      <div style={{ padding: "18px 22px", borderBottom: "1px solid #EDF0F5" }}>
-        <div style={{ fontWeight: 600, fontSize: 16, letterSpacing: "-0.01em", color: "#0B1A2F" }}>{title}</div>
-        {sub && <div style={{ fontSize: 13, marginTop: 4, color: "#56627A", lineHeight: 1.45 }}>{sub}</div>}
+    <div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "var(--radius-md)", padding: 0, marginBottom: 16, overflow: "hidden", boxShadow: "var(--shadow-card)" }}>
+      <div style={{ padding: "14px 18px", borderBottom: "1px solid var(--border)" }}>
+        <div style={{ fontWeight: 600, fontSize: 14.5, letterSpacing: "-0.01em", color: "var(--ink)" }}>{title}</div>
+        {sub && <div style={{ fontSize: 12, marginTop: 2, color: "var(--ink-muted)", lineHeight: 1.45 }}>{sub}</div>}
       </div>
-      <div style={{ padding: "20px 22px" }}>{children}</div>
+      <div style={{ padding: "16px 18px" }}>{children}</div>
     </div>
   );
 }
@@ -145,10 +145,10 @@ function SettingsGroup({ title, sub, children }: { title: string; sub?: string; 
 // Row inside a settings group — canonical label/hint + right slot
 function SettingsRow({ label, hint, children }: { label: string; hint?: string; children?: ReactNode }) {
   return (
-    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, padding: "16px 0", borderTop: "1px solid #EDF0F5" }}>
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, padding: "11px 0", borderTop: "1px solid var(--border)" }}>
       <div>
-        <div style={{ fontSize: 13.5, fontWeight: 600, color: "#0B1A2F" }}>{label}</div>
-        {hint && <div style={{ fontSize: 12.5, color: "#8A93A5", marginTop: 2 }}>{hint}</div>}
+        <div style={{ fontSize: 13, fontWeight: 500, color: "var(--ink)" }}>{label}</div>
+        {hint && <div style={{ fontSize: 11.5, color: "var(--ink-faint)", marginTop: 2 }}>{hint}</div>}
       </div>
       {children}
     </div>
@@ -199,7 +199,7 @@ const primaryGreenButton: CSSProperties = {
   padding: "0 18px",
   borderRadius: 8,
   border: "none",
-  background: "var(--brand-green, #28C55E)",
+  background: "var(--brand-green)",
   color: "#FFFFFF",
   fontSize: 13,
   fontWeight: 600,
@@ -372,7 +372,7 @@ function EmailSettingsSection() {
         {/* IMAP config fields — canonical section framing, full form preserved (Group H) */}
         <div style={{ marginTop: 14 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
-            <Mail size={15} color="var(--brand-green, #28C55E)" strokeWidth={1.75} />
+            <Mail size={15} color="var(--brand-green)" strokeWidth={1.75} />
             <span style={{ fontSize: 13, fontWeight: 600, color: "#0B1A2F" }}>IMAP mailbox</span>
             <span style={{ fontSize: 11.5, color: "#56627A" }}>— unseen messages with CSV, XLSX, or PDF attachments are imported.</span>
           </div>
@@ -447,7 +447,7 @@ function EmailSettingsSection() {
         {/* Footer: security note + save */}
         <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 16, paddingTop: 14, borderTop: "1px solid #E2E6EE" }} className="sm:flex-row sm:items-center">
           <div style={{ display: "flex", alignItems: "center", gap: 8, flex: 1 }}>
-            <ShieldCheck size={15} color="var(--brand-green, #28C55E)" strokeWidth={1.75} />
+            <ShieldCheck size={15} color="var(--brand-green)" strokeWidth={1.75} />
             <span style={{ fontSize: 11.5, color: "#56627A" }}>
               Passwords are stored encrypted. Last poll:{" "}
               {form.lastPolledAt ? new Date(form.lastPolledAt).toLocaleString() : "not run yet"}.
@@ -459,7 +459,7 @@ function EmailSettingsSection() {
           <button
             onClick={save}
             disabled={mutation.isPending}
-            style={{ ...primaryGreenButton, background: mutation.isPending ? "#8A93A5" : "var(--brand-green, #28C55E)", cursor: mutation.isPending ? "not-allowed" : "pointer" }}
+            style={{ ...primaryGreenButton, background: mutation.isPending ? "#8A93A5" : "var(--brand-green)", cursor: mutation.isPending ? "not-allowed" : "pointer" }}
           >
             <Save size={14} strokeWidth={2} />
             {mutation.isPending ? "Saving..." : "Save email"}
@@ -499,7 +499,7 @@ function ToggleSwitch({
         border: "none",
         padding: 0,
         cursor: disabled ? "not-allowed" : "pointer",
-        background: checked ? "var(--brand-green, #28C55E)" : "#CBD2DE",
+        background: checked ? "var(--brand-green)" : "#CBD2DE",
         opacity: disabled ? 0.55 : 1,
         transition: "background 150ms ease",
       }}
@@ -656,20 +656,20 @@ function ApiKeysSection() {
 
         {/* New key banner */}
         {newKey && (
-          <div style={{ border: "1px solid rgba(40,197,94,0.40)", background: "var(--brand-green-soft, #DCFCE7)", borderRadius: 8, padding: "14px 16px", marginBottom: 16 }}>
-            <p style={{ fontSize: 12.5, fontWeight: 600, color: "var(--brand-green-deep, #1DAF50)", marginBottom: 4 }}>
+          <div style={{ border: "1px solid rgba(46,142,58,0.40)", background: "var(--brand-green-soft)", borderRadius: 8, padding: "14px 16px", marginBottom: 16 }}>
+            <p style={{ fontSize: 12.5, fontWeight: 600, color: "var(--brand-green-deep)", marginBottom: 4 }}>
               API key created — copy it now
             </p>
-            <p style={{ fontSize: 11.5, color: "#15803D", marginBottom: 10 }}>
+            <p style={{ fontSize: 11.5, color: "var(--brand-green-deep)", marginBottom: 10 }}>
               This key cannot be retrieved again after you dismiss this notice.
             </p>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <code style={{ flex: 1, fontSize: 12, fontFamily: "'JetBrains Mono', monospace", background: "#FFFFFF", border: "1px solid rgba(40,197,94,0.40)", borderRadius: 5, padding: "8px 10px", color: "var(--brand-green-deep, #1DAF50)", wordBreak: "break-all" }}>
+              <code style={{ flex: 1, fontSize: 12, fontFamily: "'JetBrains Mono', monospace", background: "#FFFFFF", border: "1px solid rgba(46,142,58,0.40)", borderRadius: 5, padding: "8px 10px", color: "var(--brand-green-deep)", wordBreak: "break-all" }}>
                 {newKey}
               </code>
               <button
                 onClick={() => handleCopy(newKey)}
-                style={{ display: "flex", alignItems: "center", gap: 4, height: 34, padding: "0 12px", border: "1px solid var(--brand-green, #28C55E)", borderRadius: 6, background: "#FFFFFF", color: "var(--brand-green-deep, #1DAF50)", fontSize: 12, fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap" }}
+                style={{ display: "flex", alignItems: "center", gap: 4, height: 34, padding: "0 12px", border: "1px solid var(--brand-green)", borderRadius: 6, background: "#FFFFFF", color: "var(--brand-green-deep)", fontSize: 12, fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap" }}
               >
                 <Copy size={13} />
                 {copied ? "Copied!" : "Copy"}
@@ -799,7 +799,7 @@ function ApiKeysSection() {
                   onClick={() => create.mutate(newLabel.trim())}
                   disabled={!newLabel.trim() || create.isPending}
                   className="flex-1 sm:flex-none"
-                  style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6, height: 40, padding: "0 16px", border: "none", borderRadius: 8, background: !newLabel.trim() || create.isPending ? "#CBD5E1" : "var(--brand-green, #28C55E)", color: "#FFFFFF", fontSize: 13, fontWeight: 600, cursor: !newLabel.trim() || create.isPending ? "not-allowed" : "pointer", whiteSpace: "nowrap" }}
+                  style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6, height: 40, padding: "0 16px", border: "none", borderRadius: 8, background: !newLabel.trim() || create.isPending ? "#CBD5E1" : "var(--brand-green)", color: "#FFFFFF", fontSize: 13, fontWeight: 600, cursor: !newLabel.trim() || create.isPending ? "not-allowed" : "pointer", whiteSpace: "nowrap" }}
                 >
                   <Plus size={14} />
                   {create.isPending ? "Creating…" : "Create key"}
@@ -995,7 +995,7 @@ function ConnectorsSection() {
               <button
                 onClick={() => create.mutate()}
                 disabled={!targetUrl.startsWith("http") || create.isPending}
-                style={{ height: 38, padding: "0 16px", border: "none", borderRadius: 8, background: !targetUrl.startsWith("http") || create.isPending ? "#CBD5E1" : "var(--brand-green, #28C55E)", color: "#FFFFFF", fontSize: 13, fontWeight: 600, cursor: !targetUrl.startsWith("http") || create.isPending ? "not-allowed" : "pointer" }}
+                style={{ height: 38, padding: "0 16px", border: "none", borderRadius: 8, background: !targetUrl.startsWith("http") || create.isPending ? "#CBD5E1" : "var(--brand-green)", color: "#FFFFFF", fontSize: 13, fontWeight: 600, cursor: !targetUrl.startsWith("http") || create.isPending ? "not-allowed" : "pointer" }}
               >
                 {create.isPending ? "Saving…" : "Save webhook"}
               </button>
@@ -1053,12 +1053,12 @@ function ConnectorsSection() {
                   <span style={{ fontSize: 11, fontWeight: 600, padding: "2px 7px", borderRadius: 4, background: "#EFF2F7", color: "#56627A" }}>
                     {PLATFORM_LABELS[sub.platform] ?? sub.platform}
                   </span>
-                  <code style={{ fontSize: 11.5, fontFamily: "'JetBrains Mono', monospace", color: "var(--brand-green-deep, #1DAF50)" }}>
+                  <code style={{ fontSize: 11.5, fontFamily: "'JetBrains Mono', monospace", color: "var(--brand-green-deep)" }}>
                     {sub.eventType}
                   </code>
                   {sub.isActive && sub.failureCount === 0 ? (
-                    <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 11, fontWeight: 600, padding: "2px 8px", borderRadius: 999, background: "var(--brand-green-soft, #DCFCE7)", color: "var(--brand-green-deep, #1DAF50)" }}>
-                      <span style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--brand-green, #28C55E)" }} />
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 11, fontWeight: 600, padding: "2px 8px", borderRadius: 999, background: "var(--brand-green-soft)", color: "var(--brand-green-deep)" }}>
+                      <span style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--brand-green)" }} />
                       Active
                     </span>
                   ) : !sub.isActive ? (

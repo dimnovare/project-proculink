@@ -6,9 +6,12 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react
 // SpineConnectors — the live "send to supplier" routing made visible.
 // Draws two bezier wire-sets over the Review grid, anchored to the REAL DOM:
 //   Source-document section  →  canonical-order node  →  supplier-output line.
-// High-confidence wires are painted in the brand green across their full
-// journey (userSpaceOnUse). Exceptions break the run: amber (75–89) / red
-// (<75) dashed. Everything flushes solid green once the order is sent.
+// High-confidence wires are painted blue→green (brand-blue on the source side,
+// brand-green on the output side) across their full journey (userSpaceOnUse).
+// Exceptions break the run: amber (75–89) / red (<75) dashed.
+// Everything flushes solid green once the order is sent.
+// A wire-traveller pulse animates along each live wire.
+// Hover highlights the hovered wire's pair; all others dim to 0.16 opacity.
 
 export interface ConnectorNode {
   id: string;
@@ -124,6 +127,12 @@ export function SpineConnectors({
     };
   }, [measure]);
 
+  // Confidence classes for colours:
+  //  confident (>=90) → brand-blue (#1E66C9) → brand-green (#2E8E3A), solid
+  //  amber    (75-89) → amber (#C97A14), dashed 5 4
+  //  red      (<75)   → danger (#C53A3A), dashed 4 3
+  //  crossed (all)    → green flush, solid
+
   return (
     <svg
       aria-hidden
@@ -134,43 +143,101 @@ export function SpineConnectors({
       }}
     >
       <defs>
+        {/* brand blue→green gradient for confident source-to-node segment */}
         {wires.map((w) => (
-          <linearGradient key={w.id} id={`scg-${w.id}`} gradientUnits="userSpaceOnUse" x1={w.sx} y1={w.sy} x2={w.ox} y2={w.oy}>
-            <stop offset="0%" stopColor="#1DAF50" />
-            <stop offset="100%" stopColor="#28C55E" />
+          <linearGradient key={`scg-src-${w.id}`} id={`scg-src-${w.id}`} gradientUnits="userSpaceOnUse" x1={w.sx} y1={w.sy} x2={w.nlx} y2={w.ny}>
+            <stop offset="0%" stopColor="#1E66C9" />
+            <stop offset="100%" stopColor="#2E8E3A" />
           </linearGradient>
         ))}
+        {/* green gradient for confident node-to-output segment */}
+        {wires.map((w) => (
+          <linearGradient key={`scg-out-${w.id}`} id={`scg-out-${w.id}`} gradientUnits="userSpaceOnUse" x1={w.nrx} y1={w.ny} x2={w.ox} y2={w.oy}>
+            <stop offset="0%" stopColor="#2E8E3A" />
+            <stop offset="100%" stopColor="#2E8E3A" />
+          </linearGradient>
+        ))}
+        {/* full-journey crossed gradient */}
+        {wires.map((w) => (
+          <linearGradient key={`scg-cross-${w.id}`} id={`scg-cross-${w.id}`} gradientUnits="userSpaceOnUse" x1={w.sx} y1={w.sy} x2={w.ox} y2={w.oy}>
+            <stop offset="0%" stopColor="#2E8E3A" />
+            <stop offset="100%" stopColor="#2E8E3A" />
+          </linearGradient>
+        ))}
+        {/* CSS keyframe for wire-traveller pulse */}
+        <style>{`
+          @keyframes _wire-pulse {
+            0%   { offset-distance: 0%;   opacity: 0; }
+            8%,88%{ opacity: 1; }
+            100% { offset-distance: 100%; opacity: 0; }
+          }
+        `}</style>
       </defs>
-      {wires.map((w) => {
+      {wires.map((w, i) => {
         const emphasized = hoveredId === w.id;
         const dim = hoveredId != null && !emphasized;
-        const opacity = dim ? 0.16 : 1;
+        const opacity = dim ? 0.14 : 1;
         const sw = emphasized ? 2.8 : 1.8;
 
-        const confident = !crossed && w.pct >= 90;
-        const amber = !crossed && w.pct >= 75 && w.pct < 90;
-        const red = !crossed && w.pct < 75;
-        const stroke = crossed ? "#28C55E" : confident ? `url(#scg-${w.id})` : amber ? "#C97A14" : "#C53A3A";
-        const dashed = amber || red;
-        const srcDot = crossed ? "#28C55E" : confident ? "#1DAF50" : amber ? "#C97A14" : "#C53A3A";
-        const outDot = crossed || confident ? "#28C55E" : amber ? "#C97A14" : "#C53A3A";
+        const confident  = !crossed && w.pct >= 90;
+        const amberConf  = !crossed && w.pct >= 75 && w.pct < 90;
+        const redConf    = !crossed && w.pct < 75;
+        const dashed     = amberConf || redConf;
+
+        // per-segment strokes
+        const srcStroke  = crossed ? "#2E8E3A" : confident ? `url(#scg-src-${w.id})`  : amberConf ? "#C97A14" : "#C53A3A";
+        const outStroke  = crossed ? "#2E8E3A" : confident ? `url(#scg-out-${w.id})`  : amberConf ? "#C97A14" : "#C53A3A";
+
+        const srcDot = crossed ? "#2E8E3A" : confident ? "#1E66C9" : amberConf ? "#C97A14" : "#C53A3A";
+        const outDot = crossed ? "#2E8E3A" : confident ? "#2E8E3A" : amberConf ? "#C97A14" : "#C53A3A";
 
         const common: React.SVGProps<SVGPathElement> = {
           fill: "none",
-          stroke,
           strokeWidth: sw,
-          opacity,
-          strokeDasharray: dashed ? "5 4" : undefined,
+          strokeDasharray: dashed ? (redConf ? "4 3" : "5 4") : undefined,
           style: { transition: "stroke-width 140ms ease, opacity 200ms ease" },
         };
 
+        // Paths used for travelling pulses
+        const pathSrc = curve(w.sx, w.sy, w.nlx, w.ny);
+        const pathOut = curve(w.nrx, w.ny, w.ox, w.oy);
+
+        const animDelay = `${-(i * 0.65).toFixed(2)}s`;
+        const animDur   = `${5 + (i % 3)}s`;
+
         return (
-          <g key={w.id}>
-            <path d={curve(w.sx, w.sy, w.nlx, w.ny)} {...common} />
-            <path d={curve(w.nrx, w.ny, w.ox, w.oy)} {...common} />
-            <circle cx={w.sx} cy={w.sy} r={emphasized ? 3.6 : 2.7} fill={srcDot} opacity={opacity} />
-            <circle cx={w.ox} cy={w.oy} r={emphasized ? 3.6 : 2.7} fill={outDot} opacity={opacity} />
-            <circle cx={w.nlx} cy={w.ny} r={2.4} fill="#FFFFFF" stroke={confident ? "#28C55E" : srcDot} strokeWidth={1.4} opacity={opacity} />
+          <g key={w.id} style={{ opacity, transition: "opacity 200ms ease" }}>
+            {/* Source → node segment */}
+            <path d={pathSrc} stroke={srcStroke} {...common} />
+            {/* Node → output segment */}
+            <path d={pathOut} stroke={outStroke} {...common} />
+
+            {/* Terminal dots */}
+            <circle cx={w.sx}  cy={w.sy}  r={emphasized ? 3.6 : 2.6} fill={srcDot} />
+            <circle cx={w.ox}  cy={w.oy}  r={emphasized ? 3.6 : 2.6} fill={outDot} />
+            {/* Node attachment dot (hollow) */}
+            <circle cx={w.nlx} cy={w.ny}  r={2.4} fill="#FFFFFF" stroke={srcDot} strokeWidth={1.4} />
+
+            {/* Travelling pulse on source segment — only for confident/crossed wires */}
+            {(confident || crossed) && (
+              <circle r="2.2" fill="#fff" stroke={crossed ? "#2E8E3A" : "#1E66C9"} strokeWidth="1.2"
+                style={{
+                  offsetPath: `path('${pathSrc}')`,
+                  offsetRotate: "0deg",
+                  animation: `_wire-pulse ${animDur} linear infinite`,
+                  animationDelay: animDelay,
+                } as React.CSSProperties} />
+            )}
+            {/* Travelling pulse on output segment */}
+            {(confident || crossed) && (
+              <circle r="2.2" fill="#fff" stroke="#2E8E3A" strokeWidth="1.2"
+                style={{
+                  offsetPath: `path('${pathOut}')`,
+                  offsetRotate: "0deg",
+                  animation: `_wire-pulse ${animDur} linear infinite`,
+                  animationDelay: `calc(${animDelay} - 0.4s)`,
+                } as React.CSSProperties} />
+            )}
           </g>
         );
       })}

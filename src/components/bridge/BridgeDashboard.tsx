@@ -16,6 +16,8 @@ import { useQuery } from "@tanstack/react-query";
 import { WireTopology } from "./WireTopology";
 import type { WireBuyer, WireSupplier, Wire } from "./WireTopology";
 import { FileChip } from "./FileChip";
+import { StatusJourney } from "./StatusJourney";
+import type { OrderStage } from "./StatusJourney";
 import { LaneDrawer } from "./LaneDrawer";
 import type { Lane } from "./LaneDrawer";
 import { OnboardingChecklist } from "./OnboardingChecklist";
@@ -24,18 +26,18 @@ import { apiClient, isApiMockMode } from "@/lib/api-client";
 import type { OrderSummary, Supplier } from "@/types/procurement";
 import { ArrowRight, ArrowUpRight, Clock, AlertTriangle, CheckCircle2, ChevronDown, Send, Activity, Download } from "lucide-react";
 
-// ─── Brand accent (green) ─────────────────────────────────────────────────
-// The product accent is emerald green. Prefer the CSS var where it cascades;
-// these constants are for inline-styled SVG/border/background values.
-const GREEN = "#28C55E";
-const GREEN_DEEP = "#1DAF50";
-// Deeper, calmer green used for health bars + their % labels (sampled from the
-// design render: bar fill #2E8E3A). The bright #28C55E reads as too neon on a
-// thin 6px bar; the design uses this muted forest green for "healthy".
+// ─── Brand accent (supplier green) ────────────────────────────────────────
+// The supplier accent is the calm forest green from the design tokens
+// (--brand-green #2E8E3A). These constants are for inline-styled
+// SVG/border/background values where the CSS var doesn't cascade.
+const GREEN = "#2E8E3A";        // --brand-green   (supplier dot, live dot)
+const GREEN_DEEP = "#1E6D29";   // --brand-green-deep (success text / % labels)
+// Same forest green for health bars + their % labels (design bar fill #2E8E3A).
 const GREEN_BAR = "#2E8E3A";
 // Buyer-blue — opens the headline KPI top-edge gradient (buyer side → supplier
-// green) and the onboarding progress bar. Sampled #1E66C9.
+// green) and drives buyer-side accents. Sampled --brand-blue #1E66C9.
 const BLUE = "#1E66C9";
+const BLUE_DEEP = "#0F4FA8";    // --brand-blue-deep (PO mono text in transit)
 
 // ─── Status sets ──────────────────────────────────────────────────────────
 
@@ -90,6 +92,32 @@ const STAGE_COLOR: Record<string, string> = {
   parsing: "#1E66C9", pending_parse: "#1E66C9", pending_review: "#C97A14",
   transforming: "#6F4FCE", delivering: "#2E8E3A", delivery_failed: "#C53A3A",
 };
+
+/**
+ * Maps an in-transit row to a {@link StatusJourney} stage on the
+ * Parse → Normalize → Validate → Transform → Deliver track (0–4 | "failed").
+ * Accepts both raw API statuses (live rows) and the short stage labels used by
+ * the mock-fallback rows, mirroring the design's per-row mini-stepper.
+ */
+function journeyStageFor(stage: string): OrderStage {
+  switch (stage) {
+    case "parsing":
+    case "pending_parse":
+    case "Parse":          return 0;
+    case "Normalize":      return 1;
+    case "pending_review":
+    case "Validate":       return 2;
+    case "transforming":
+    case "Extract":
+    case "Transform":      return 3;
+    case "delivering":
+    case "Ready":
+    case "Deliver":        return 4;
+    case "delivery_failed":
+    case "Failed":         return "failed";
+    default:               return 0;
+  }
+}
 
 // Dev-only demo rows — gated to mock mode so prospects never see staged content.
 const IN_TRANSIT_MOCK_FALLBACK = [
@@ -414,7 +442,9 @@ export function BridgeDashboard() {
         id: o.id as string | undefined,
         po: o.poNumber,
         buyer: o.buyerName ?? "Unknown",
-        fmt: o.sourceFormat ?? "csv",
+        // Uppercase so the format chip matches FileChip's canonical keys
+        // (XLSX/cXML/EDI…) and the design's uppercase tags.
+        fmt: (o.sourceFormat ?? "csv").toUpperCase(),
         stage: stageLabel(o.status),
       }));
     if (isApiMockMode && liveRows.length === 0) {
@@ -763,31 +793,38 @@ export function BridgeDashboard() {
                   </div>
                 ) : (
                   inTransitRows.map((row, i) => {
+                    // Per-row layout mirrors the design: a top line (PO · buyer ·
+                    // format · stage) above a compact Parse→Deliver mini-stepper.
                     const inner = (
                       <>
-                        <span className="min-w-[110px] flex-1 truncate font-mono text-[11.5px] font-medium sm:min-w-[150px]" style={{ color: GREEN_DEEP }}>
-                          {row.po}
-                        </span>
-                        <span className="max-w-[80px] truncate text-[12px] text-[#56627A] sm:max-w-[90px]">{row.buyer}</span>
-                        <FileChip type={row.fmt} />
-                        <span
-                          className="rounded px-1.5 py-0.5 text-[11px] font-semibold"
-                          style={{ color: STAGE_COLOR[row.stage] ?? "#56627A", background: `${STAGE_COLOR[row.stage] ?? "#56627A"}18` }}
-                        >
-                          {row.stage}
-                        </span>
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="flex min-w-0 items-center gap-2">
+                            <span className="whitespace-nowrap font-mono text-[12px] font-semibold" style={{ color: BLUE_DEEP }}>
+                              {row.po}
+                            </span>
+                            <span className="truncate text-[12px]" style={{ color: "#56627A" }}>{row.buyer}</span>
+                            <FileChip type={row.fmt} />
+                          </div>
+                          <span
+                            className="flex-shrink-0 whitespace-nowrap text-[11px] font-semibold"
+                            style={{ color: STAGE_COLOR[row.stage] ?? "#56627A" }}
+                          >
+                            {stageLabel(row.stage)}
+                          </span>
+                        </div>
+                        <StatusJourney stage={journeyStageFor(row.stage)} compact />
                       </>
                     );
                     return row.id ? (
                       <Link
                         key={i}
                         href={`/inbox/${row.id}`}
-                        className="flex min-h-[44px] flex-wrap items-center gap-x-3 gap-y-1 px-4 py-2.5 transition-colors hover:bg-[#F6F7FA]"
+                        className="flex flex-col gap-2 px-4 py-[11px] transition-colors hover:bg-[#F6F7FA]"
                       >
                         {inner}
                       </Link>
                     ) : (
-                      <div key={i} className="flex min-h-[44px] flex-wrap items-center gap-x-3 gap-y-1 px-4 py-2.5">
+                      <div key={i} className="flex flex-col gap-2 px-4 py-[11px]">
                         {inner}
                       </div>
                     );
@@ -808,7 +845,7 @@ export function BridgeDashboard() {
                 </div>
                 <Link
                   href="/library/suppliers"
-                  className="inline-flex flex-shrink-0 items-center gap-1 text-[11.5px] font-medium transition-colors hover:text-[#1DAF50]"
+                  className="inline-flex flex-shrink-0 items-center gap-1 text-[11.5px] font-medium transition-colors hover:text-[#1E6D29]"
                   style={{ color: "#56627A" }}
                 >
                   All suppliers <ArrowRight size={12} />
@@ -821,21 +858,21 @@ export function BridgeDashboard() {
                   </div>
                 ) : (
                   effective.suppliers.map((s) => {
-                    // Sampled from the design render: healthy = forest green
-                    // #2E8E3A, at-risk = amber #C97A14, poor = red #C53A3A.
-                    const color = s.health >= 95 ? GREEN_BAR : s.health >= 85 ? "#C97A14" : "#C53A3A";
+                    // Design thresholds (screen-bridge.jsx): healthy ≥90 = forest
+                    // green #2E8E3A, at-risk ≥80 = amber #C97A14, poor = red #C53A3A.
+                    const color = s.health >= 90 ? GREEN_BAR : s.health >= 80 ? "#C97A14" : "#C53A3A";
                     return (
                       <Link
                         key={s.id}
                         href={`/library/suppliers/${s.id}`}
                         className="flex min-h-[44px] items-center gap-3 px-4 py-2.5 transition-colors hover:bg-[#F6F7FA]"
                       >
-                        <span className="min-w-0 flex-1 truncate text-[13px] font-semibold" style={{ color: "#0B1A2F" }}>
+                        <span className="min-w-0 flex-1 truncate text-[12.5px] font-medium" style={{ color: "#0B1A2F" }}>
                           {s.name}
                         </span>
                         <div
                           className="hidden overflow-hidden rounded-full sm:block"
-                          style={{ width: 140, height: 5, background: "#EAECEF" }}
+                          style={{ width: 160, height: 6, background: "#EFF2F7" }}
                         >
                           <div className="h-full rounded-full transition-all" style={{ width: `${s.health}%`, background: color }} />
                         </div>

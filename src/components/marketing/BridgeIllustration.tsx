@@ -20,9 +20,15 @@ const SUPPLIERS = [
   { label: "MedicaSupply OY",   code: "MDS" },
 ];
 
-// Brand accent is green; buyer side is blue.
-const BLUE = "#3F86E8";
-const GREEN = "#28C55E";
+// Topology wire colours — exact design source values (mkt-components.jsx).
+// Buyer side = blue, supplier side = forest green, mid-blend = steel.
+const BLUE = "#2D7AE0";
+const GREEN = "#3FA84C";
+const MID = "#3f7fb8";
+// Card chrome (.mkt-node) + mono code text.
+const NODE_FILL = "#0E2138";
+const NODE_STROKE = "#21385A";
+const CODE_FILL = "#6F87A8";
 
 // Each buyer routes to its mirror supplier (0↔3, 1↔2, 2↔1, 3↔0). This produces
 // the clean, symmetric crossing in the reference: the four wires fan wide at the
@@ -80,8 +86,7 @@ export function BridgeIllustration({ className }: { className?: string }) {
             y2={suppY(w.suppIdx)}
           >
             <stop offset="0%"   stopColor={BLUE} />
-            <stop offset="48%"  stopColor={BLUE} />
-            <stop offset="58%"  stopColor={GREEN} />
+            <stop offset="50%"  stopColor={MID} />
             <stop offset="100%" stopColor={GREEN} />
           </linearGradient>
         ))}
@@ -90,6 +95,11 @@ export function BridgeIllustration({ className }: { className?: string }) {
           <stop offset="0%"  stopColor={BLUE} stopOpacity={0.30} />
           <stop offset="70%" stopColor={BLUE} stopOpacity={0.06} />
           <stop offset="100%" stopColor={BLUE} stopOpacity={0} />
+        </radialGradient>
+        {/* Hub core gradient (design: #163052 → #0e2138) */}
+        <radialGradient id="hub-core" cx="50%" cy="50%" r="50%">
+          <stop offset="0%"   stopColor="#163052" />
+          <stop offset="100%" stopColor="#0E2138" />
         </radialGradient>
       </defs>
 
@@ -115,8 +125,8 @@ export function BridgeIllustration({ className }: { className?: string }) {
             strokeOpacity={0.9}
             strokeLinecap="round"
           />
-          {/* Travelling pulse — gentle, uniform */}
-          <circle r={2.4} fill={GREEN} fillOpacity={0.95} opacity={0}>
+          {/* Travelling pulse — gentle, uniform (white, per design) */}
+          <circle r={3} fill="#FFFFFF" fillOpacity={0.95} opacity={0}>
             <animateMotion dur={`${w.dur}s`} begin={`${w.begin}s`} repeatCount="indefinite">
               <mpath href={`#wpath-${i}`} />
             </animateMotion>
@@ -142,8 +152,8 @@ export function BridgeIllustration({ className }: { className?: string }) {
             width={156}
             height={40}
             rx={8}
-            fill="#0E2138"
-            stroke="rgba(255,255,255,0.09)"
+            fill={NODE_FILL}
+            stroke={NODE_STROKE}
             strokeWidth={1}
           />
           {/* Blue left bar */}
@@ -159,7 +169,7 @@ export function BridgeIllustration({ className }: { className?: string }) {
             fontFamily="'JetBrains Mono', monospace"
             fontWeight={700}
             letterSpacing="0.08em"
-            fill="#6F9BD6"
+            fill={CODE_FILL}
           >
             {b.code}
           </text>
@@ -189,8 +199,8 @@ export function BridgeIllustration({ className }: { className?: string }) {
             width={156}
             height={40}
             rx={8}
-            fill="#0E2138"
-            stroke="rgba(255,255,255,0.09)"
+            fill={NODE_FILL}
+            stroke={NODE_STROKE}
             strokeWidth={1}
           />
           {/* Green right bar */}
@@ -203,7 +213,7 @@ export function BridgeIllustration({ className }: { className?: string }) {
             fontFamily="'JetBrains Mono', monospace"
             fontWeight={700}
             letterSpacing="0.08em"
-            fill="#5FB585"
+            fill={CODE_FILL}
           >
             {s.code}
           </text>
@@ -223,18 +233,17 @@ export function BridgeIllustration({ className }: { className?: string }) {
       {/* ── Center hub ───────────────────────────────────────── */}
       <g transform={`translate(${cx}, ${midY})`}>
         <circle r={40} fill="url(#hub-glow)" />
-        <circle r={30} fill="#0B1A2F" stroke="rgba(255,255,255,0.12)" strokeWidth={1} />
-        <circle r={30} fill="none" stroke={BLUE} strokeWidth={1} strokeOpacity={0.4} />
-        {/* Logo mark — ProcuLink "link" glyph */}
+        <circle r={30} fill="url(#hub-core)" stroke="#2A4565" strokeWidth={1} />
+        {/* Buyer→supplier link glyph: blue node, green node, arc connector */}
+        <circle cx={-9} cy={-4} r={3} fill={BLUE} />
+        <circle cx={9} cy={-4} r={3} fill={GREEN} />
         <path
-          d="M -8 -3 a 6 6 0 0 1 8 -1 l 3 2 M 8 3 a 6 6 0 0 1 -8 1 l -3 -2"
+          d="M -9 -4 Q 0 -13 9 -4"
           fill="none"
-          stroke="#FFFFFF"
-          strokeWidth={1.6}
+          stroke={MID}
+          strokeWidth={2}
           strokeLinecap="round"
-          transform="translate(0,-4) scale(1.0)"
         />
-        <circle cx={9} cy={-3} r={2.1} fill={GREEN} />
         <text
           x={0}
           y={15}
@@ -242,7 +251,7 @@ export function BridgeIllustration({ className }: { className?: string }) {
           fontSize={7}
           fontFamily="'JetBrains Mono', monospace"
           fontWeight={700}
-          fill="#7C8DA6"
+          fill={CODE_FILL}
           letterSpacing="0.14em"
         >
           PROCULINK

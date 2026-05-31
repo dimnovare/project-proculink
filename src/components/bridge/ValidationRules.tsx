@@ -96,10 +96,12 @@ const NEW_RULE: Rule = {
 
 // ─── Visual maps ─────────────────────────────────────────────────────────────
 
+// Exact ported tokens: danger #C53A3A / danger-soft #FBE3E3 (Block),
+// amber #C97A14 / amber-soft #FAEFD6 (Warn), blue #1E66C9 / blue-soft #E3EDFB (Info).
 const SEV: Record<Severity, { bg: string; color: string; bannerBg: string; bannerText: string; label: string; banner: string }> = {
-  error:   { bg: "#FBE3E3", color: "#C73D3A", bannerBg: "#FBE3E3", bannerText: "#C73D3A", label: "Block", banner: "Block delivery · request buyer confirmation" },
-  warning: { bg: "#FAEFD6", color: "#C97A14", bannerBg: "#FAEFD6", bannerText: "#A86A12", label: "Warn",  banner: "Hold for review · notify the buyer" },
-  info:    { bg: "#E6EEFB", color: "#1E66C9", bannerBg: "#E6EEFB", bannerText: "#1A5DBF", label: "Info",  banner: "Flag for reporting · let the order through" },
+  error:   { bg: "#FBE3E3", color: "#C53A3A", bannerBg: "#FBE3E3", bannerText: "#C53A3A", label: "Block", banner: "Block delivery · request buyer confirmation" },
+  warning: { bg: "#FAEFD6", color: "#C97A14", bannerBg: "#FAEFD6", bannerText: "#C97A14", label: "Warn",  banner: "Hold for review · notify the buyer" },
+  info:    { bg: "#E3EDFB", color: "#1E66C9", bannerBg: "#E3EDFB", bannerText: "#0F4FA8", label: "Info",  banner: "Flag for reporting · let the order through" },
 };
 
 const ENTITIES: Entity[] = ["Line item", "Header", "Supplier", "Buyer", "Amount"];
@@ -107,20 +109,16 @@ const ENTITIES: Entity[] = ["Line item", "Header", "Supplier", "Buyer", "Amount"
 // ─── Toggle ───────────────────────────────────────────────────────────────────
 
 function Toggle({ on, onChange }: { on: boolean; onChange: (v: boolean) => void }) {
+  // Ported design `.toggle` class (38×22, green-when-on knob). role/aria kept
+  // for accessibility + any switch-based selectors.
   return (
     <button
       onClick={() => onChange(!on)}
       role="switch"
       aria-checked={on}
-      style={{
-        width: 34, height: 20, borderRadius: 99,
-        background: on ? "var(--brand-green, #28C55E)" : "#C6CDDA",
-        border: "none", padding: 0, position: "relative", cursor: "pointer",
-        transition: "background 0.18s", flexShrink: 0,
-      }}
-    >
-      <span style={{ position: "absolute", top: 2, left: on ? 16 : 2, width: 16, height: 16, borderRadius: "50%", background: "#FFFFFF", transition: "left 0.18s", boxShadow: "0 1px 2px rgba(16,24,40,0.28)" }} />
-    </button>
+      className={`toggle${on ? " on" : ""}`}
+      style={{ cursor: "pointer" }}
+    />
   );
 }
 
@@ -430,7 +428,7 @@ function RuleEditor({
 
       <div className="p-5 grid gap-4">
         <Field label="Rule name">
-          <input ref={nameRef} defaultValue={rule.name} placeholder="e.g. Currency must be EUR" className="h-[38px] w-full rounded-[8px] px-3 text-[13px] text-[#0B1A2F] outline-none transition-colors" style={{ border: "1px solid #C6CDDA", background: "#FFFFFF" }} onFocus={(e) => (e.currentTarget.style.borderColor = "var(--brand-green, #28C55E)")} onBlur={(e) => (e.currentTarget.style.borderColor = "#C6CDDA")} />
+          <input ref={nameRef} defaultValue={rule.name} placeholder="e.g. Currency must be EUR" className="h-[38px] w-full rounded-[8px] px-3 text-[13px] text-[#0B1A2F] outline-none transition-colors" style={{ border: "1px solid #C6CDDA", background: "#FFFFFF" }} onFocus={(e) => (e.currentTarget.style.borderColor = "var(--brand-green)")} onBlur={(e) => (e.currentTarget.style.borderColor = "#C6CDDA")} />
         </Field>
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -465,7 +463,7 @@ function RuleEditor({
 
         {/* Description (editable detail) */}
         <Field label="Description">
-          <textarea ref={descRef} defaultValue={rule.description} placeholder="Explain when this rule should trigger" className="min-h-[64px] w-full rounded-[8px] px-3 py-2 text-[12.5px] text-[#0B1A2F] outline-none transition-colors" style={{ border: "1px solid #C6CDDA", background: "#FFFFFF" }} onFocus={(e) => (e.currentTarget.style.borderColor = "var(--brand-green, #28C55E)")} onBlur={(e) => (e.currentTarget.style.borderColor = "#C6CDDA")} />
+          <textarea ref={descRef} defaultValue={rule.description} placeholder="Explain when this rule should trigger" className="min-h-[64px] w-full rounded-[8px] px-3 py-2 text-[12.5px] text-[#0B1A2F] outline-none transition-colors" style={{ border: "1px solid #C6CDDA", background: "#FFFFFF" }} onFocus={(e) => (e.currentTarget.style.borderColor = "var(--brand-green)")} onBlur={(e) => (e.currentTarget.style.borderColor = "#C6CDDA")} />
         </Field>
 
         <div className="grid gap-2">
@@ -487,9 +485,9 @@ function RuleEditor({
           onClick={save}
           disabled={isSaving}
           className="inline-flex items-center gap-1.5 rounded-[8px] px-4 h-[40px] sm:h-[36px] text-[13px] font-semibold transition-colors"
-          style={{ border: 0, background: "var(--brand-green, #28C55E)", color: "#FFFFFF", opacity: isSaving ? 0.6 : 1, boxShadow: "0 1px 2px rgba(16,24,40,0.10)" }}
-          onMouseEnter={(e) => { if (!isSaving) e.currentTarget.style.background = "var(--brand-green-deep, #1DAF50)"; }}
-          onMouseLeave={(e) => { if (!isSaving) e.currentTarget.style.background = "var(--brand-green, #28C55E)"; }}
+          style={{ border: 0, background: "var(--brand-green)", color: "#FFFFFF", opacity: isSaving ? 0.6 : 1, boxShadow: "0 1px 2px rgba(16,24,40,0.10)" }}
+          onMouseEnter={(e) => { if (!isSaving) e.currentTarget.style.background = "var(--brand-green-deep)"; }}
+          onMouseLeave={(e) => { if (!isSaving) e.currentTarget.style.background = "var(--brand-green)"; }}
         >
           {!isSaving && <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5" /></svg>}
           {isSaving ? "Saving…" : isNew ? "Create rule" : "Save rule"}
@@ -535,7 +533,7 @@ function SeveritySegment({ value, onChange }: { value: Severity; onChange: (s: S
         type="button"
         onClick={() => onChange("error")}
         className="rounded-[6px] text-[12.5px] font-semibold transition-colors"
-        style={{ background: isBlock ? "#FFFFFF" : "transparent", color: isBlock ? "#C73D3A" : "#7B8597", boxShadow: isBlock ? "0 1px 2px rgba(16,24,40,0.10)" : "none" }}
+        style={{ background: isBlock ? "#FFFFFF" : "transparent", color: isBlock ? "#C53A3A" : "#7B8597", boxShadow: isBlock ? "0 1px 2px rgba(16,24,40,0.10)" : "none" }}
       >
         Block
       </button>
@@ -546,7 +544,7 @@ function SeveritySegment({ value, onChange }: { value: Severity; onChange: (s: S
 function CheckRow({ inputRef, defaultChecked, label, title }: { inputRef: React.RefObject<HTMLInputElement | null>; defaultChecked: boolean; label: string; title?: string }) {
   return (
     <label className="flex items-center gap-2.5 rounded-[8px] px-3 h-[42px] sm:h-[38px] text-[12.5px] cursor-pointer transition-colors" style={{ border: "1px solid #C6CDDA", background: "#FFFFFF", color: "#0B1A2F" }} title={title}>
-      <input ref={inputRef} type="checkbox" defaultChecked={defaultChecked} className="h-[16px] w-[16px] cursor-pointer" style={{ accentColor: "var(--brand-green, #28C55E)" }} />
+      <input ref={inputRef} type="checkbox" defaultChecked={defaultChecked} className="h-[16px] w-[16px] cursor-pointer" style={{ accentColor: "var(--brand-green)" }} />
       {label}
     </label>
   );
