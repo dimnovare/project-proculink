@@ -11,8 +11,7 @@ import {
   Files, HelpCircle,
   type LucideIcon,
 } from "lucide-react";
-import { apiClient, isApiMockMode } from "@/lib/api-client";
-import type { OrderSummary } from "@/types/procurement";
+import { apiClient } from "@/lib/api-client";
 import { ProcuLinkMark } from "./DSPrimitives";
 
 // ─── Nav structure (matches the "Bridge Layer" design handoff) ─────────────────
@@ -76,17 +75,13 @@ export function BridgeSidebar({ onNavigate, collapsible = false }: BridgeSidebar
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
 
-  // Live "needs review" count → Inbox badge (deduped with the inbox/notifications query).
-  const { data: ordersPage } = useQuery({
-    queryKey: ["orders"],
-    queryFn: () => apiClient.getOrders({ pageSize: 100 }),
-    enabled: !isApiMockMode,
+  // Live "needs review" count → Inbox badge via summary endpoint (accurate regardless of volume).
+  const { data: ordersSummary } = useQuery({
+    queryKey: ["orders-summary"],
+    queryFn: () => apiClient.getOrdersSummary(),
     staleTime: 30_000,
   });
-  const orders: OrderSummary[] = ordersPage?.items ?? [];
-  const reviewCount = orders.filter(
-    (o) => o.status === "pending_review" || (o.unresolvedCount ?? 0) > 0,
-  ).length;
+  const reviewCount = ordersSummary?.byStatus?.["pending_review"] ?? 0;
   const badgeFor = (key?: "review") => (key === "review" && reviewCount > 0 ? reviewCount : undefined);
 
   useEffect(() => {
