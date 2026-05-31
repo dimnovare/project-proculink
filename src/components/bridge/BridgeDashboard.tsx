@@ -244,6 +244,11 @@ export function BridgeDashboard() {
     queryFn: () => apiClient.getDashboardTopology(),
     staleTime: 60_000,
   });
+  const { data: ordersSummary } = useQuery({
+    queryKey: ["orders-summary"],
+    queryFn: () => apiClient.getOrdersSummary(),
+    staleTime: 60_000,
+  });
 
   const allOrders = useMemo(() => ordersPage?.items ?? [], [ordersPage]);
 
@@ -282,7 +287,13 @@ export function BridgeDashboard() {
   const topoHeight = Math.min(520, Math.max(320, 150 + maxPorts * 74));
 
   const wireCount = effective.wires.length;
-  const openExceptionsAll = allOrders.filter((o) => EXCEPTION_STATUSES.has(o.status)).length;
+  const openExceptionsAll = !isApiMockMode
+    ? ((ordersSummary?.byStatus?.["pending_review"] ?? 0) +
+       (ordersSummary?.byStatus?.["failed"] ?? 0) +
+       (ordersSummary?.byStatus?.["delivery_failed"] ?? 0) +
+       (ordersSummary?.byStatus?.["transform_failed"] ?? 0) +
+       (ordersSummary?.byStatus?.["delivery_dead_letter"] ?? 0))
+    : allOrders.filter((o) => EXCEPTION_STATUSES.has(o.status)).length;
 
   // ── KPIs — real counts, windowed where it makes sense, honestly labelled ──
   const windowSub = WINDOWS.find((w) => w.key === windowKey)!.sub;
