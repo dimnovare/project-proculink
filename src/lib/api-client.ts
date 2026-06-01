@@ -1528,12 +1528,12 @@ export async function getBillingStatus(): Promise<BillingStatus> {
   return res.json();
 }
 
-export async function createCheckoutSession(plan: string): Promise<string> {
+export async function createCheckoutSession(plan: string, billingInterval: "monthly" | "yearly" = "monthly"): Promise<string> {
   const headers = await authHeader();
   const res = await fetchWithTimeout(`${API_BASE_URL}/api/billing/checkout`, {
     method: "POST",
     headers: { ...headers, "Content-Type": "application/json" },
-    body: JSON.stringify({ plan }),
+    body: JSON.stringify({ plan, billingInterval }),
   }, 30000);
   if (!res.ok) throw new Error(`billing/checkout: ${res.status}`);
   const data = await res.json();
