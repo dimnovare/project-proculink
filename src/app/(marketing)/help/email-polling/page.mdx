@@ -30,7 +30,9 @@ ProcuLink polls every 5 minutes. There is no faster option in this release.
 
 ## What gets ingested
 
-Only attachments with the extensions `.csv`, `.xlsx`, and `.pdf` are picked up. The email body itself is not parsed yet. Each attachment becomes a separate order. A successfully picked-up message is marked as `Seen` in the mailbox so it isn't re-ingested.
+For IMAP polling, attachments with the extensions `.csv`, `.xlsx`, and `.pdf` are picked up. Each attachment becomes a separate order. A successfully picked-up message is marked as `Seen` in the mailbox so it isn't re-ingested.
+
+For hosted inbound email routing, ProcuLink can also accept `.xml`, `.edi`, and `.txt` attachments and can fall back to extracting a simple purchase order from the email body when AI extraction is enabled.
 
 ## When things fail
 
@@ -38,4 +40,4 @@ Bad credentials or unreachable hosts produce an alert on `Settings → Email pol
 
 ---
 
-Need help? Email [support@proculink.eu](mailto:support@proculink.eu) or see [Your first purchase order upload](/help/first-upload).
+Need help? Email [support@proculink.eu](mailto:support@proculink.eu), see [ways to send orders to ProcuLink](/help/order-intake-options), or read [your first purchase order upload](/help/first-upload).

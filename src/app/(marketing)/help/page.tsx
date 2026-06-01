@@ -27,6 +27,7 @@ const CATEGORY_BLURB: Record<HelpCategory, string> = {
 
 /** Estimated read time per article slug — shown in the popular-articles list. */
 const READ_MIN: Record<string, number> = {
+  "order-intake-options": 5,
   "first-upload": 4,
   "mapping-basics": 6,
   "delivery-config": 5,

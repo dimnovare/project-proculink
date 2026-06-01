@@ -150,6 +150,9 @@ export default function SettingsPage() {
           .settings-shell [style*="grid-template-columns: 1fr 1fr"] {
             grid-template-columns: 1fr !important;
           }
+          .imap-connection-grid {
+            grid-template-columns: 1fr !important;
+          }
         }
       `}</style>
     </div>
@@ -405,7 +408,16 @@ function EmailSettingsSection() {
             <span style={{ fontSize: 11.5, color: "#56627A" }}>— unseen messages with CSV, XLSX, or PDF attachments are imported.</span>
           </div>
 
-          <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_120px_120px]" style={{ marginBottom: 14 }}>
+          <div
+            className="imap-connection-grid"
+            style={{
+              display: "grid",
+              gridTemplateColumns: "minmax(260px,1fr) 150px 150px",
+              gap: 16,
+              alignItems: "start",
+              marginBottom: 14,
+            }}
+          >
             <FormField label="IMAP host">
               <input value={form.host} onChange={(event) => update("host", event.target.value)} placeholder="imap.company.com" style={inputStyle} />
               <span style={{ fontSize: 11.5, color: "#8A93A5", marginTop: 2 }}>e.g. imap.gmail.com for Gmail</span>
@@ -414,7 +426,7 @@ function EmailSettingsSection() {
               <input type="number" value={form.port} onChange={(event) => update("port", Number(event.target.value))} style={inputStyle} />
             </FormField>
             <FormField label="Security">
-              <label style={{ display: "flex", height: 36, alignItems: "center", gap: 8, borderRadius: 5, padding: "0 10px", fontSize: 12, border: "1px solid #D5DAEA", color: "#0B1A2F", cursor: "pointer" }}>
+              <label style={{ display: "flex", height: 40, alignItems: "center", gap: 8, borderRadius: 8, padding: "0 12px", fontSize: 13, border: "1px solid #D5DAEA", color: "#0B1A2F", cursor: "pointer", background: "#FFFFFF" }}>
                 <input type="checkbox" checked={form.useSsl} onChange={(event) => update("useSsl", event.target.checked)} />
                 SSL
               </label>
@@ -552,7 +564,7 @@ function ToggleSwitch({
 // Lightweight field label wrapper used in Email section
 function FormField({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <label style={{ display: "grid", gap: 4 }}>
+    <label style={{ display: "flex", flexDirection: "column", gap: 6, minWidth: 0 }}>
       <span style={fieldLabelStyle}>{label}</span>
       {children}
     </label>
@@ -564,7 +576,6 @@ const fieldLabelStyle: CSSProperties = {
   fontWeight: 600,
   color: "#3C465A",
   display: "block",
-  marginBottom: 6,
 };
 
 const inputStyle: CSSProperties = {
