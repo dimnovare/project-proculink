@@ -9,7 +9,7 @@ export const metadata: Metadata = {
     title: "Changelog — ProcuLink",
     description:
       "A record of every improvement shipped to ProcuLink — new features, integrations, and platform changes.",
-    url: "https://proculink.com/changelog",
+    url: "https://proculink.eu/changelog",
   },
 };
 

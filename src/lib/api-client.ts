@@ -24,7 +24,14 @@ import type {
   OrdersSummary,
 } from "@/types/procurement";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:5223";
+function normalizeApiBaseUrl(raw: string | undefined): string {
+  const value = (raw || "http://localhost:5223").trim().replace(/\/+$/, "");
+  if (!value) return "http://localhost:5223";
+  if (/^https?:\/\//i.test(value)) return value;
+  return `https://${value}`;
+}
+
+const API_BASE_URL = normalizeApiBaseUrl(process.env.NEXT_PUBLIC_API_BASE_URL);
 // Mock mode is opt-in AND dev-only. Production builds NEVER render mock data
 // regardless of env var, so prospects/customers never see staged content.
 // (J2) Previously defaulted to true when env was absent, which leaked demo

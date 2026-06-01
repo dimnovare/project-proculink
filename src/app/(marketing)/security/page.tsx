@@ -238,7 +238,7 @@ export default function SecurityPage() {
           </p>
           <div className="sec-cta-actions">
             <a
-              href="mailto:security@proculink.com?subject=Security%20package%20request"
+              href="mailto:security@proculink.eu?subject=Security%20package%20request"
               className="sec-btn sec-btn-blue"
               style={{ background: BLUE, color: "#FFFFFF" }}
             >

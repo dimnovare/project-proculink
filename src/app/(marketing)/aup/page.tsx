@@ -51,7 +51,7 @@ export default function AupPage() {
       <h2 style={S.h2}>Reporting abuse</h2>
       <p style={S.p}>
         To report abuse of the ProcuLink platform, email{" "}
-        <a href="mailto:abuse@proculink.com" style={{ color: "#28C55E" }}>abuse@proculink.com</a>.
+        <a href="mailto:abuse@proculink.eu" style={{ color: "#28C55E" }}>abuse@proculink.eu</a>.
         Include the affected organisation, supplier, or delivery destination, and a description
         of the issue. We will respond within 2 business days.
       </p>

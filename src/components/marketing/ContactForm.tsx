@@ -62,7 +62,7 @@ export function ContactForm() {
         tags: { ui_surface: "contact_form", category },
         extra: { route: pathname, has_email: Boolean(email.trim()) },
       });
-      const msg = err instanceof Error ? err.message : "Something went wrong. Please email support@proculink.com instead.";
+      const msg = err instanceof Error ? err.message : "Something went wrong. Please email support@proculink.eu instead.";
       setState({ status: "error", message: msg });
     }
   }
@@ -131,7 +131,7 @@ export function ContactForm() {
 
       <div style={S.actions}>
         <p style={{ fontSize: 12.5, color: "#8A93A5", margin: 0 }}>
-          Prefer email? <a href="mailto:support@proculink.com" style={{ color: "#28C55E" }}>support@proculink.com</a>
+          Prefer email? <a href="mailto:support@proculink.eu" style={{ color: "#28C55E" }}>support@proculink.eu</a>
         </p>
         <button
           type="submit"

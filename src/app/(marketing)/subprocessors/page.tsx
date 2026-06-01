@@ -68,7 +68,7 @@ export default function SubprocessorsPage() {
         <strong>30-day change notification.</strong> Before adding or replacing a subprocessor,
         we will give existing customers at least 30 days&apos; prior written notice. To
         subscribe to subprocessor change notifications, email{" "}
-        <a href="mailto:privacy@proculink.com" style={{ color: "#28C55E" }}>privacy@proculink.com</a>{" "}
+        <a href="mailto:privacy@proculink.eu" style={{ color: "#28C55E" }}>privacy@proculink.eu</a>{" "}
         with the subject line &quot;Subprocessor notifications&quot;. We track the subscriber list
         manually and will email all subscribers when this page changes.
       </div>

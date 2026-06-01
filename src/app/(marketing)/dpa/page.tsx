@@ -33,7 +33,7 @@ export default function DpaPage() {
 
       <div style={S.callout}>
         <strong>For customers who need a counter-signed DPA:</strong> Email{" "}
-        <a href="mailto:legal@proculink.com" style={{ color: "#28C55E" }}>legal@proculink.com</a>{" "}
+        <a href="mailto:legal@proculink.eu" style={{ color: "#28C55E" }}>legal@proculink.eu</a>{" "}
         and include your organisation legal name and contact for signature. We will return
         a counter-signed PDF within 5 business days.
       </div>
@@ -87,7 +87,7 @@ export default function DpaPage() {
       <h3 style={S.h3}>Processor</h3>
       <p style={S.p}>
         ProcuLink OÜ · Registration 17477775 · Katusepapi 6, Tallinn, Estonia · Contact:{" "}
-        <a href="mailto:legal@proculink.com" style={{ color: "#28C55E" }}>legal@proculink.com</a>
+        <a href="mailto:legal@proculink.eu" style={{ color: "#28C55E" }}>legal@proculink.eu</a>
       </p>
 
       <h3 style={S.h3}>Categories of data subjects</h3>
@@ -123,7 +123,7 @@ export default function DpaPage() {
         The current list of authorised sub-processors is maintained at{" "}
         <Link href="/subprocessors" style={{ color: "#28C55E" }}>/subprocessors</Link>. The
         Controller may subscribe to change notifications by emailing{" "}
-        <a href="mailto:privacy@proculink.com" style={{ color: "#28C55E" }}>privacy@proculink.com</a>{" "}
+        <a href="mailto:privacy@proculink.eu" style={{ color: "#28C55E" }}>privacy@proculink.eu</a>{" "}
         with the subject line &quot;Subprocessor notifications&quot;.
       </p>
 

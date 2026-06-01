@@ -115,9 +115,9 @@ export default function TermsPage() {
 
       <h2 style={S.h2}>Contact</h2>
       <p style={S.p}>
-        Legal enquiries: <a href="mailto:legal@proculink.com" style={{ color: "#28C55E" }}>legal@proculink.com</a>
+        Legal enquiries: <a href="mailto:legal@proculink.eu" style={{ color: "#28C55E" }}>legal@proculink.eu</a>
         <br />
-        General support: <a href="mailto:support@proculink.com" style={{ color: "#28C55E" }}>support@proculink.com</a>
+        General support: <a href="mailto:support@proculink.eu" style={{ color: "#28C55E" }}>support@proculink.eu</a>
       </p>
 
       <p style={{ ...S.p, marginTop: 40, paddingTop: 24, borderTop: "1px solid #E2E6EE" }}>

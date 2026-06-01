@@ -57,7 +57,7 @@ export interface Plan {
 }
 
 const SIGN_UP = "/sign-up";
-const SALES = "mailto:sales@proculink.com";
+const SALES = "mailto:sales@proculink.eu";
 
 export const PLANS: Plan[] = [
   {

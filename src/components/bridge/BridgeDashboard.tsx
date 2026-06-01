@@ -654,8 +654,8 @@ export function BridgeDashboard() {
       {showOnboardingHero ? (
         // ── Onboarding hero: the card is the primary next step (no topology yet) ──
         <div className="flex flex-1 justify-center p-4 sm:p-6">
-          <div className="w-full max-w-[760px]">
-            <p className="mb-3 text-[13px]" style={{ color: "#56627A" }}>
+          <div className="w-full max-w-[980px]">
+            <p className="mb-4 text-[13px]" style={{ color: "#56627A" }}>
               Your pipeline is ready. Connect its first lane to start routing orders to suppliers.
             </p>
             <OnboardingChecklist

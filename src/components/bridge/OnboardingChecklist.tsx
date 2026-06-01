@@ -196,7 +196,7 @@ export function OnboardingChecklist({
         }}
       />
 
-      <div className="grid gap-x-8 gap-y-5 p-5 sm:p-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
+      <div className="grid gap-x-10 gap-y-5 p-5 sm:p-6 lg:grid-cols-[minmax(280px,0.85fr)_minmax(430px,1.15fr)]">
         {/* ── Intro · progress · primary action ───────────────────────── */}
         <div className="min-w-0">
           <div
@@ -289,8 +289,8 @@ export function OnboardingChecklist({
 
         {/* ── Step list ───────────────────────────────────────────────── */}
         <ol
-          className="flex flex-col gap-2.5 lg:border-l lg:pl-7"
-          style={{ listStyle: "none", margin: 0, padding: 0, borderColor: T.border }}
+          className="flex flex-col gap-2 lg:border-l lg:pl-8"
+          style={{ listStyle: "none", margin: 0, borderColor: T.border }}
           aria-label="First delivery setup steps"
         >
           <li
@@ -307,7 +307,7 @@ export function OnboardingChecklist({
             return (
               <li
                 key={step.id}
-                className="flex items-start gap-3 rounded-[8px] p-2.5"
+                className="flex items-start gap-3 rounded-[8px] p-3"
                 style={{
                   background: active ? T.blueSoft : done ? "#F3FAF4" : "transparent",
                   border: active ? `1px solid ${T.blue}` : done ? "1px solid #D6EEDB" : `1px solid ${T.border}`,

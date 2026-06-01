@@ -359,7 +359,7 @@ export function PoMappingEditor({
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
     <div
-      className="rounded-[8px] overflow-hidden"
+      className="rounded-[8px] overflow-visible"
       style={{ border: `1px solid ${BORDER}`, background: SURFACE, boxShadow: "0 1px 2px rgba(11,26,47,0.04)" }}
     >
       {/* Bridge cross-section edge */}
@@ -1124,10 +1124,12 @@ function TemplatePicker({
           aria-label="Starter templates"
           style={{
             position: "absolute",
-            zIndex: 30,
+            zIndex: 1000,
             right: 0,
             marginTop: 4,
             minWidth: 260,
+            maxHeight: 300,
+            overflowY: "auto",
             background: SURFACE,
             border: `1px solid ${INPUT_BDR}`,
             borderRadius: 8,

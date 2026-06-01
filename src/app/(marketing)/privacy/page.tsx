@@ -27,7 +27,7 @@ export default function PrivacyPage() {
       <h2 style={S.h2}>Who we are</h2>
       <p style={S.p}>
         ProcuLink OÜ (&quot;ProcuLink&quot;, &quot;we&quot;, &quot;us&quot;, &quot;our&quot;) operates the ProcuLink procurement
-        automation platform at proculink.com. Company registration: 17477775. Registered
+        automation platform at proculink.eu. Company registration: 17477775. Registered
         address: Katusepapi 6, Tallinn, Estonia.
       </p>
 
@@ -80,7 +80,7 @@ export default function PrivacyPage() {
       </ul>
       <p style={S.p}>
         To exercise any of these rights, email{" "}
-        <a href="mailto:privacy@proculink.com" style={{ color: "#28C55E" }}>privacy@proculink.com</a>.
+        <a href="mailto:privacy@proculink.eu" style={{ color: "#28C55E" }}>privacy@proculink.eu</a>.
         We aim to respond within 30 days.
       </p>
 
@@ -125,9 +125,9 @@ export default function PrivacyPage() {
       <h2 style={S.h2}>Contact and DPO</h2>
       <p style={S.p}>
         For privacy questions or to exercise your rights:{" "}
-        <a href="mailto:privacy@proculink.com" style={{ color: "#28C55E" }}>privacy@proculink.com</a>
+        <a href="mailto:privacy@proculink.eu" style={{ color: "#28C55E" }}>privacy@proculink.eu</a>
         <br />
-        General support: <a href="mailto:support@proculink.com" style={{ color: "#28C55E" }}>support@proculink.com</a>
+        General support: <a href="mailto:support@proculink.eu" style={{ color: "#28C55E" }}>support@proculink.eu</a>
         <br />
         Registered address: ProcuLink OÜ, Katusepapi 6, Tallinn, Estonia
       </p>

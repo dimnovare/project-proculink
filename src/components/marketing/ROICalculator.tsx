@@ -133,7 +133,7 @@ function StatCard({
         borderRadius: 12,
         padding: "20px 22px",
         boxShadow: "0 1px 4px rgba(11,26,47,0.04)",
-        height: "100%",
+        minHeight: 132,
       }}
     >
       <div
@@ -378,7 +378,7 @@ export function ROICalculator() {
           </div>
 
           {/* Outputs */}
-          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 14, alignSelf: "start" }}>
             {/* Monthly savings — wide */}
             <StatCard
               label="Monthly savings (at 70% automation)"

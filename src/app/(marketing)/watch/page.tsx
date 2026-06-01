@@ -31,7 +31,7 @@ export default function WatchPage() {
         </div>
       ) : (
         <div style={{ background: "#F6F7FA", border: "1px dashed #C6CDDA", borderRadius: 12, padding: 48, textAlign: "center", color: "#8A93A5", fontSize: 14 }}>
-          The walkthrough video is being recorded. Email <a href="mailto:hello@proculink.com" style={{ color: "#28C55E" }}>hello@proculink.com</a> if you&apos;d like an early link.
+          The walkthrough video is being recorded. Email <a href="mailto:hello@proculink.eu" style={{ color: "#28C55E" }}>hello@proculink.eu</a> if you&apos;d like an early link.
         </div>
       )}
 

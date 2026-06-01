@@ -67,12 +67,12 @@ export default function OnePagerPage() {
       <h2 style={S.h2}>Trust + security</h2>
       <p style={S.p}>
         EU-region infrastructure. AES-256-GCM for delivery credentials and IMAP passwords. Org-scoped query isolation.
-        GDPR-aligned DPA available at <strong>proculink.com/dpa</strong>. Subprocessors at <strong>proculink.com/subprocessors</strong>.
+        GDPR-aligned DPA available at <strong>proculink.eu/dpa</strong>. Subprocessors at <strong>proculink.eu/subprocessors</strong>.
       </p>
 
       <div style={S.contact}>
         ProcuLink OÜ · Registration 17477775 · Katusepapi 6, Tallinn, Estonia<br />
-        hello@proculink.com · support@proculink.com · proculink.com
+        hello@proculink.eu · support@proculink.eu · proculink.eu
       </div>
     </div>
   );
