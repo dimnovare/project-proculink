@@ -61,12 +61,14 @@ Next frontend gate is Group J/live deployment QA against Railway/Vercel.
 Group J edge-fix slice started 2026-06-02: live `https://proculink.eu/` and
 `https://www.proculink.eu/` returned 200, and `https://api.proculink.eu/health`
 returned 200. Live `/upload` returned a signed-out protected-route 404 and live
-`/sitemap.xml` returned 404. Fix prepared locally: `src/middleware.ts` now
+`/sitemap.xml` returned 404. Fix pushed and verified live: `src/middleware.ts` now
 explicitly redirects signed-out protected app routes to
 `/sign-in?redirect_url=...`; `src/app/sitemap.ts` and `public/robots.txt` expose
 public marketing/help pages and disallow protected workspace paths. Local
 production verification passed: `bun run build`, `/upload` -> 307 sign-in
-redirect, `/sitemap.xml` -> 200 XML, `robots.txt` includes the sitemap URL.
+redirect, `/sitemap.xml` -> 200 XML, `robots.txt` includes the sitemap URL. Live
+verification after push: `https://proculink.eu/upload` -> 307 sign-in redirect,
+`https://proculink.eu/sitemap.xml` -> 200 XML.
 
 ---
 
