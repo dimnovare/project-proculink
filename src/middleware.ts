@@ -21,19 +21,27 @@ const isQaAuthBypass =
 
 function fallbackMiddleware(req: NextRequest) {
   if (isProtectedRoute(req)) {
-    const url = new URL("/sign-in", req.url);
-    url.searchParams.set("configuration", "server-env-missing");
-    return NextResponse.redirect(url);
+    return redirectToLocalSignIn(req, "server-env-missing");
   }
 
   return NextResponse.next();
+}
+
+function redirectToLocalSignIn(req: NextRequest, configuration?: string) {
+  const url = new URL("/sign-in", req.url);
+  url.searchParams.set("redirect_url", req.nextUrl.pathname + req.nextUrl.search);
+  if (configuration) url.searchParams.set("configuration", configuration);
+  return NextResponse.redirect(url);
 }
 
 const middleware = isQaAuthBypass
   ? () => NextResponse.next()
   : isClerkConfigured
     ? clerkMiddleware(async (auth, req) => {
-        if (isProtectedRoute(req)) await auth.protect();
+        if (!isProtectedRoute(req)) return;
+
+        const session = await auth();
+        if (!session.userId) return redirectToLocalSignIn(req);
       })
     : fallbackMiddleware;
 

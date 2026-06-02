@@ -1,8 +1,22 @@
 User-agent: Googlebot
 Allow: /
+Disallow: /bridge
+Disallow: /inbox
+Disallow: /upload
+Disallow: /drafts
+Disallow: /library
+Disallow: /operations
+Disallow: /settings
 
 User-agent: Bingbot
 Allow: /
+Disallow: /bridge
+Disallow: /inbox
+Disallow: /upload
+Disallow: /drafts
+Disallow: /library
+Disallow: /operations
+Disallow: /settings
 
 User-agent: Twitterbot
 Allow: /
@@ -12,3 +26,12 @@ Allow: /
 
 User-agent: *
 Allow: /
+Disallow: /bridge
+Disallow: /inbox
+Disallow: /upload
+Disallow: /drafts
+Disallow: /library
+Disallow: /operations
+Disallow: /settings
+
+Sitemap: https://proculink.eu/sitemap.xml
