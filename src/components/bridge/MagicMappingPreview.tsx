@@ -37,6 +37,7 @@ interface RowAction {
 interface Props {
   orderId: string;
   onCommitted?: (orderId: string) => void;
+  onParseFailed?: (orderId: string) => void;
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -181,7 +182,7 @@ function rowReducer(
 
 // ─── MagicMappingPreview ──────────────────────────────────────────────────────
 
-export function MagicMappingPreview({ orderId, onCommitted }: Props) {
+export function MagicMappingPreview({ orderId, onCommitted, onParseFailed }: Props) {
   const queryClient = useQueryClient();
 
   // ── Data fetch ────────────────────────────────────────────────────────────
@@ -199,6 +200,11 @@ export function MagicMappingPreview({ orderId, onCommitted }: Props) {
     }, 1_500);
     return () => window.clearInterval(timer);
   }, [preview?.orderStatus, refetch]);
+
+  useEffect(() => {
+    if (preview?.orderStatus !== "failed") return;
+    onParseFailed?.(orderId);
+  }, [onParseFailed, orderId, preview?.orderStatus]);
 
   // ── Per-row state ─────────────────────────────────────────────────────────
   const [rows, dispatch] = useReducer(rowReducer, new Map<number, RowState>());

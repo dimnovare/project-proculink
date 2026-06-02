@@ -45,16 +45,18 @@ Group I must continue unless the user explicitly reprioritizes:
 - Make core flows feel complete: sign-in, first upload, inbox/review, mapping, transform, delivery, settings/billing/email, and error states.
 - Only after that, add broader engine surfaces for more standards and output templates.
 
-2026-06-02 PO reliability state: the primary browser path is now verified by
+2026-06-02 PO reliability state: Task 6 is closed locally. The primary browser path is verified by
 `PLAYWRIGHT_API_URL=http://localhost:5223 bun run test:e2e:live -- tests/e2e/live-po-loop.spec.ts`.
 That live-only test drives CSV upload -> `/upload/preview/<id>` -> manual
 supplier-code entry -> save mapping -> `/inbox/<id>` -> send/transform/deliver
 -> missing delivery-config failure panel -> retry feedback. Mapping preview
 returns `orderStatus` and `resolvedSupplierCode`; the preview UI polls while
 parsing. The review "send" action calls transform/delivery instead of only
-advancing local state. Remaining frontend gate before Task 6 can close:
-unsupported-format UI, scanned-PDF/OCR-disabled UI, no-supplier-selected UI, and
-a real supplier rejection response state.
+advancing local state. Failure-state browser QA is verified by
+`PLAYWRIGHT_API_URL=http://localhost:5223 bun run test:e2e:live -- tests/e2e/live-po-failure-states.spec.ts`:
+no-supplier upload blocking, unsupported-format guidance, scanned/textless PDF
+parse-failure routing when OCR is disabled, and supplier HTTP 4xx rejection copy.
+Next frontend gate is Group J/live deployment QA against Railway/Vercel.
 
 ---
 

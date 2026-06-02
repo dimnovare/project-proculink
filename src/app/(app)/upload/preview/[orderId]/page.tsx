@@ -20,6 +20,10 @@ export default function MappingPreviewPage() {
     router.push(`/inbox/${encodeURIComponent(id)}`);
   }
 
+  function handleParseFailed(id: string) {
+    router.push(`/inbox/${encodeURIComponent(id)}`);
+  }
+
   return (
     <div
       className="flex flex-col h-full min-h-0 overflow-hidden"
@@ -60,7 +64,11 @@ export default function MappingPreviewPage() {
       {/* Body */}
       <div className="flex-1 overflow-auto p-4 sm:p-5">
         <div className="mx-auto max-w-5xl">
-          <MagicMappingPreview orderId={orderId} onCommitted={handleCommitted} />
+          <MagicMappingPreview
+            orderId={orderId}
+            onCommitted={handleCommitted}
+            onParseFailed={handleParseFailed}
+          />
         </div>
       </div>
     </div>

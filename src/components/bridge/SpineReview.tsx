@@ -127,7 +127,8 @@ function orderStatusToStage(status: string): OrderStage {
     case "failed":
     case "transform_failed":
     case "delivery_failed":
-    case "delivery_dead_letter": return "failed";
+    case "delivery_dead_letter":
+    case "rejected_by_supplier": return "failed";
     default:                  return 1;
   }
 }
@@ -178,7 +179,9 @@ function finalDeliveryMessage(status: Order["status"], errorMessage?: string | n
       : "Output generated, but delivery failed. Check the supplier Delivery tab and retry when the endpoint is ready.";
   }
   if (status === "rejected_by_supplier") {
-    return "The supplier rejected the order. Open the Supplier response tab for the rejection details.";
+    return errorMessage && errorMessage.trim().length > 0
+      ? `Supplier rejected the order: ${errorMessage}`
+      : "The supplier rejected the order. Open the Supplier response tab for the rejection details.";
   }
   if (status === "delivery_dead_letter") {
     return "Delivery retries are exhausted. The order is in the dead-letter queue for operator review.";
@@ -226,6 +229,8 @@ function HeaderStatusBadge({ status, crossed, exceptionCount }: { status: string
   const spec =
     crossed || status === "delivered"
       ? { bg: "#E2F1E2", color: "#1E6D29", dot: "#2E8E3A", label: "Delivered" }
+      : status === "rejected_by_supplier"
+      ? { bg: "#FBE3E3", color: "#C53A3A", dot: "#C53A3A", label: "Rejected" }
       : status === "delivery_dead_letter" || status === "delivery_failed" || status === "transform_failed" || status === "failed"
       ? { bg: "#FBE3E3", color: "#C53A3A", dot: "#C53A3A", label: "Failed" }
       : status === "ready_to_deliver" || status === "transforming"
@@ -1574,7 +1579,20 @@ export function SpineReview({ orderId }: { orderId: string }) {
 
         {flowNotice && (
           <div className="px-4 pb-3 lg:px-6">
-            <div className="rounded-[7px] px-3 py-2 text-[12px] leading-relaxed" style={{ border: "1px solid #A6E9BE", background: "#ECFDF3", color: "#1DAF50" }}>
+            <div
+              className="rounded-[7px] px-3 py-2 text-[12px] leading-relaxed"
+              style={{
+                border: order.status === "rejected_by_supplier"
+                  ? "1px solid #F0D2D2"
+                  : "1px solid #A6E9BE",
+                background: order.status === "rejected_by_supplier"
+                  ? "#FFF7F7"
+                  : "#ECFDF3",
+                color: order.status === "rejected_by_supplier"
+                  ? "#C53A3A"
+                  : "#1DAF50",
+              }}
+            >
               {flowNotice}
             </div>
           </div>
@@ -1814,6 +1832,18 @@ export function SpineReview({ orderId }: { orderId: string }) {
             <p className="text-[12.5px]" style={{ color: "#56627A", marginBottom: 16 }}>
               What {order.supplierName} confirmed back for <span className="font-mono" style={{ color: "#1DAF50" }}>{order.poNumber}</span>.
             </p>
+            {order.status === "rejected_by_supplier" && (
+              <div className="mb-4 rounded-[8px] px-4 py-3" style={{ border: "1px solid #F0D2D2", borderLeft: "3px solid #C53A3A", background: "#FFF7F7" }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: "#0B1A2F", marginBottom: 4 }}>
+                  Supplier rejected this order
+                </div>
+                <p style={{ margin: 0, fontSize: 12.5, color: "#56627A", lineHeight: 1.5 }}>
+                  {order.errorMessage && order.errorMessage.trim().length > 0
+                    ? order.errorMessage
+                    : "The last delivery attempt came back as a supplier rejection. Fix the order or delivery format, then resend."}
+                </p>
+              </div>
+            )}
             <SupplierResponsePanel orderId={orderId} currency={order.currency} />
           </div>
         </div>
