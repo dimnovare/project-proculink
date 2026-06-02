@@ -164,6 +164,28 @@ function outputArtifactType(artifacts: Order["artifacts"]): string {
   return fmt.toUpperCase();
 }
 
+function sleep(ms: number): Promise<void> {
+  return new Promise(resolve => window.setTimeout(resolve, ms));
+}
+
+function finalDeliveryMessage(status: Order["status"], errorMessage?: string | null): string {
+  if (status === "delivered") {
+    return "Delivered to supplier. The audit trail has been updated.";
+  }
+  if (status === "delivery_failed") {
+    return errorMessage && errorMessage.trim().length > 0
+      ? `Delivery failed: ${errorMessage}`
+      : "Output generated, but delivery failed. Check the supplier Delivery tab and retry when the endpoint is ready.";
+  }
+  if (status === "rejected_by_supplier") {
+    return "The supplier rejected the order. Open the Supplier response tab for the rejection details.";
+  }
+  if (status === "delivery_dead_letter") {
+    return "Delivery retries are exhausted. The order is in the dead-letter queue for operator review.";
+  }
+  return "Delivery is still processing. Refresh the order or check the Delivery Log for the latest attempt.";
+}
+
 // ─── Node → canonical field mapping (used for StandardsFieldPopover) ─────────
 
 const NODE_TO_FIELD: Record<string, string> = {
@@ -1153,7 +1175,7 @@ export function SpineReview({ orderId }: { orderId: string }) {
   const router = useRouter();
 
   // ── Live order data ────────────────────────────────────────────────────────
-  const { data: order, isLoading, isError } = useQuery({
+  const { data: order, isLoading, isError, refetch: refetchOrder } = useQuery({
     queryKey: ["order", orderId],
     queryFn: () => apiClient.getOrderById(orderId),
     retry: 1,
@@ -1187,6 +1209,7 @@ export function SpineReview({ orderId }: { orderId: string }) {
   const [crossed, setCrossed]                     = useState(false);
   const [showToast, setShowToast]                 = useState(false);
   const [flowNotice, setFlowNotice]               = useState<string | null>(null);
+  const [sendState, setSendState]                 = useState<"idle" | "transforming" | "delivering">("idle");
   const [tab, setTab]                             = useState<"review" | "passport" | "response">("review");
 
   const inputRefs = useRef<Record<string, HTMLInputElement | null>>({});
@@ -1301,13 +1324,109 @@ export function SpineReview({ orderId }: { orderId: string }) {
     setAcceptedSubnodes(prev => { const n = new Set(prev); n.delete(id); return n; });
   }, []);
 
+  const pollOrderUntil = useCallback(async (
+    predicate: (next: Order) => boolean,
+    timeoutMs: number,
+  ): Promise<Order> => {
+    const started = Date.now();
+    let latest: Order | null = null;
+
+    while (Date.now() - started < timeoutMs) {
+      latest = await apiClient.getOrderById(orderId);
+      if (latest && predicate(latest)) {
+        return latest;
+      }
+      await sleep(900);
+    }
+
+    if (latest) return latest;
+    throw new Error("Order did not refresh. Check your connection and try again.");
+  }, [orderId]);
+
   // ── Cross the bridge ───────────────────────────────────────────────────────
-  const handleConfirm = useCallback(() => {
+  const handleConfirm = useCallback(async () => {
     setShowConfirm(false);
-    setCrossed(true);
-    setShowToast(true);
-    setFlowNotice("Marked as sent in this view. Delivery confirmation and retries appear in the Delivery Log once the order is dispatched.");
-  }, []);
+    if (!order || sendState !== "idle") return;
+
+    if (order.lines.some(l => l.needsReview)) {
+      setFlowNotice("Resolve every missing supplier code before sending this order.");
+      return;
+    }
+
+    try {
+      let current = order;
+
+      if (current.status === "delivered") {
+        setCrossed(true);
+        setShowToast(true);
+        setFlowNotice(finalDeliveryMessage("delivered"));
+        return;
+      }
+
+      if (current.artifacts.length === 0 && current.status !== "ready_to_deliver") {
+        setSendState("transforming");
+        setFlowNotice("Generating the supplier-ready output...");
+        await apiClient.transformOrder(orderId, "xml");
+        current = await pollOrderUntil(
+          next =>
+            next.status === "ready_to_deliver" ||
+            next.status === "delivered" ||
+            next.status === "delivery_failed" ||
+            next.status === "transform_failed",
+          45_000,
+        );
+      }
+
+      if (current.status === "transform_failed") {
+        setFlowNotice(current.errorMessage ?? "Transform failed. Check the output template and try again.");
+        return;
+      }
+
+      if (current.status === "delivered") {
+        setCrossed(true);
+        setShowToast(true);
+        setFlowNotice(finalDeliveryMessage("delivered"));
+        await refetchOrder();
+        return;
+      }
+
+      if (current.status === "delivery_failed") {
+        setFlowNotice(finalDeliveryMessage(current.status, current.errorMessage));
+        await refetchOrder();
+        return;
+      }
+
+      if (current.artifacts.length === 0) {
+        setFlowNotice("Output generation has not finished yet. Refresh the order and try again.");
+        await refetchOrder();
+        return;
+      }
+
+      setSendState("delivering");
+      setFlowNotice("Sending the generated output to the supplier...");
+      await apiClient.redeliverOrder(orderId);
+      current = await pollOrderUntil(
+        next =>
+          next.status === "delivered" ||
+          next.status === "delivery_failed" ||
+          next.status === "rejected_by_supplier" ||
+          next.status === "delivery_dead_letter",
+        45_000,
+      );
+
+      if (current.status === "delivered") {
+        setCrossed(true);
+        setShowToast(true);
+      }
+      setFlowNotice(finalDeliveryMessage(current.status, current.errorMessage));
+      await refetchOrder();
+    } catch (err) {
+      setFlowNotice(err instanceof Error ? err.message : "Send failed. Check the Delivery Log and try again.");
+      await refetchOrder();
+    } finally {
+      setSendState("idle");
+    }
+  }, [order, orderId, pollOrderUntil, refetchOrder, sendState]);
 
   const handleSaveDraft = useCallback(() => {
     setFlowNotice("Your review changes stay on this screen. Saved drafts aren't kept after you leave yet — use “Send to supplier” when the order is ready.");
@@ -1430,19 +1549,19 @@ export function SpineReview({ orderId }: { orderId: string }) {
                 Save draft
               </button>
               <button
-                onClick={() => !crossed && exceptionCount === 0 && setShowConfirm(true)}
-                disabled={!crossed && exceptionCount > 0}
+                onClick={() => !crossed && exceptionCount === 0 && sendState === "idle" && setShowConfirm(true)}
+                disabled={sendState !== "idle" || (!crossed && exceptionCount > 0)}
                 aria-label="Send to supplier"
                 style={{
                   height: 34, padding: "0 16px", borderRadius: 7, fontSize: 13, fontWeight: 700,
-                  background: crossed ? "#28C55E" : exceptionCount > 0 ? "#96C69C" : "#28C55E",
+                  background: crossed ? "#28C55E" : sendState !== "idle" || exceptionCount > 0 ? "#96C69C" : "#28C55E",
                   color: "#FFFFFF", border: "none",
-                  cursor: crossed || exceptionCount > 0 ? "default" : "pointer",
+                  cursor: crossed || sendState !== "idle" || exceptionCount > 0 ? "default" : "pointer",
                   display: "flex", alignItems: "center", gap: 8, transition: "background 200ms",
                 }}
               >
                 <PaperPlaneIcon />
-                {crossed ? "Sent" : "Send to supplier"}
+                {crossed ? "Sent" : sendState === "transforming" ? "Generating..." : sendState === "delivering" ? "Sending..." : "Send to supplier"}
               </button>
             </div>
             {!crossed && exceptionCount > 0 && (
@@ -1666,12 +1785,12 @@ export function SpineReview({ orderId }: { orderId: string }) {
           Save draft
         </button>
         <button
-          onClick={() => !crossed && exceptionCount === 0 && setShowConfirm(true)}
-          disabled={!crossed && exceptionCount > 0}
-          style={{ flex: 1.5, height: 44, borderRadius: 8, fontSize: 13.5, fontWeight: 700, background: crossed ? "#28C55E" : exceptionCount > 0 ? "#96C69C" : "#28C55E", color: "#FFFFFF", border: "none", cursor: crossed || exceptionCount > 0 ? "default" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, transition: "background 200ms" }}
+          onClick={() => !crossed && exceptionCount === 0 && sendState === "idle" && setShowConfirm(true)}
+          disabled={sendState !== "idle" || (!crossed && exceptionCount > 0)}
+          style={{ flex: 1.5, height: 44, borderRadius: 8, fontSize: 13.5, fontWeight: 700, background: crossed ? "#28C55E" : sendState !== "idle" || exceptionCount > 0 ? "#96C69C" : "#28C55E", color: "#FFFFFF", border: "none", cursor: crossed || sendState !== "idle" || exceptionCount > 0 ? "default" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, transition: "background 200ms" }}
         >
           <PaperPlaneIcon />
-          {crossed ? "Sent" : exceptionCount > 0 ? `Resolve ${exceptionCount} to send` : "Send to supplier"}
+          {crossed ? "Sent" : sendState === "transforming" ? "Generating..." : sendState === "delivering" ? "Sending..." : exceptionCount > 0 ? `Resolve ${exceptionCount} to send` : "Send to supplier"}
         </button>
       </div>
 

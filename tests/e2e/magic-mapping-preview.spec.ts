@@ -82,15 +82,14 @@ test.describe("MagicMappingPreview — /upload/preview/[orderId]", () => {
     await expect(acceptAll).toBeEnabled();
   });
 
-  test("'Looks good → process order' commit button is present", async ({ page }) => {
+  test("commit button is present", async ({ page }) => {
     await page.goto(PREVIEW_URL);
 
     await expect(
       page.getByText(/review your order mapping/i),
     ).toBeVisible({ timeout: 10_000 });
 
-    // The commit button text may include an "(N unmapped)" suffix when rows remain.
-    const commitBtn = page.getByRole("button", { name: /looks good.*process order/i });
+    const commitBtn = page.getByRole("button", { name: /continue to review|confirm mapping/i });
     await expect(commitBtn).toBeVisible();
     await expect(commitBtn).toBeEnabled();
   });
@@ -112,7 +111,7 @@ test.describe("MagicMappingPreview — /upload/preview/[orderId]", () => {
     // We don't assert its disappearance because one row may still show 72% (still suggestable).
     // Instead, proceed to commit.
 
-    const commitBtn = page.getByRole("button", { name: /looks good.*process order/i });
+    const commitBtn = page.getByRole("button", { name: /continue to review|confirm mapping/i });
     await expect(commitBtn).toBeVisible();
     await expect(commitBtn).toBeEnabled();
 

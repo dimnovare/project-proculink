@@ -1119,6 +1119,7 @@ export interface MappingPreviewLine {
 
 export interface MappingPreview {
   orderId: string;
+  orderStatus: Order["status"];
   sourceFormat: string | null;
   detectedConfidence: number | null;
   lines: MappingPreviewLine[];
@@ -1165,7 +1166,7 @@ async function mockGetMappingPreview(orderId: string): Promise<MappingPreview> {
     };
   });
 
-  return { orderId, sourceFormat, detectedConfidence: null, lines };
+  return { orderId, orderStatus: order.status, sourceFormat, detectedConfidence: null, lines };
 }
 
 async function realGetMappingPreview(orderId: string): Promise<MappingPreview> {

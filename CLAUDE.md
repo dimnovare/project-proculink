@@ -45,6 +45,16 @@ Group I must continue unless the user explicitly reprioritizes:
 - Make core flows feel complete: sign-in, first upload, inbox/review, mapping, transform, delivery, settings/billing/email, and error states.
 - Only after that, add broader engine surfaces for more standards and output templates.
 
+2026-06-02 PO reliability state: backend/API + Worker smoke now verifies upload
+-> parse (`pending_review`) -> mapping preview with unresolved lines ->
+resolve/save mappings -> transform artifact -> missing-config `delivery_failed`
+with auditable delivery attempts. Mapping preview now returns `orderStatus` and
+`resolvedSupplierCode`; the preview UI polls while parsing. The review "send"
+action now calls transform/delivery instead of only advancing local state. Next
+frontend gate: run the same path with browser clicks from `/upload/preview/<id>`
+through review/save/transform/delivery-config-missing UI, manual delivery/retry
+UI, and supplier rejection response states.
+
 ---
 
 ## 2. Visual direction — "The Bridge Layer" (LOCKED)

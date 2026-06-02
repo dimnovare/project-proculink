@@ -14,7 +14,7 @@
  */
 
 import type React from "react";
-import { useState, useCallback, useReducer } from "react";
+import { useState, useCallback, useEffect, useReducer } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api-client";
 import type { MappingPreviewLine } from "@/lib/api-client";
@@ -191,6 +191,14 @@ export function MagicMappingPreview({ orderId, onCommitted }: Props) {
     retry: 1,
     staleTime: 60_000,
   });
+
+  useEffect(() => {
+    if (preview?.orderStatus !== "parsing") return;
+    const timer = window.setInterval(() => {
+      void refetch();
+    }, 1_500);
+    return () => window.clearInterval(timer);
+  }, [preview?.orderStatus, refetch]);
 
   // ── Per-row state ─────────────────────────────────────────────────────────
   const [rows, dispatch] = useReducer(rowReducer, new Map<number, RowState>());
@@ -388,6 +396,63 @@ export function MagicMappingPreview({ orderId, onCommitted }: Props) {
   const resolved = resolvedCount();
   const unresolved = unresolvedCount();
   const suggestable = suggestableCount();
+
+  if (preview.orderStatus === "parsing") {
+    return (
+      <div
+        style={{
+          padding: "40px 24px",
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          gap: 16,
+          color: "#56627A",
+          fontSize: 13,
+          background: "#FFFFFF",
+          border: "1px solid #E2E6EE",
+          borderRadius: 8,
+        }}
+      >
+        <svg width="28" height="28" viewBox="0 0 28 28" fill="none" aria-hidden style={{ animation: "spin 1s linear infinite" }}>
+          <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+          <circle cx="14" cy="14" r="11" stroke="#E2E6EE" strokeWidth="2.5" />
+          <path d="M14 3 A11 11 0 0 1 25 14" stroke="url(#spin-grad-parsing)" strokeWidth="2.5" strokeLinecap="round" />
+          <defs>
+            <linearGradient id="spin-grad-parsing" x1="14" y1="3" x2="25" y2="14" gradientUnits="userSpaceOnUse">
+              <stop stopColor="#1E66C9" />
+              <stop offset="1" stopColor="#2E8E3A" />
+            </linearGradient>
+          </defs>
+        </svg>
+        Parsing source file...
+      </div>
+    );
+  }
+
+  if (totalLines === 0) {
+    return (
+      <div
+        style={{
+          padding: "32px 24px",
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          gap: 12,
+          textAlign: "center",
+          background: "#FFFFFF",
+          border: "1px solid #E2E6EE",
+          borderRadius: 8,
+        }}
+      >
+        <p style={{ fontSize: 13, color: "#C53A3A", fontWeight: 600 }}>
+          No order lines were found
+        </p>
+        <p style={{ fontSize: 12, color: "#56627A", maxWidth: 360 }}>
+          Upload a corrected file with at least one purchase-order line.
+        </p>
+      </div>
+    );
+  }
 
   // ─── Render ────────────────────────────────────────────────────────────────
   return (
@@ -1064,9 +1129,9 @@ export function MagicMappingPreview({ orderId, onCommitted }: Props) {
           ) : commitSuccess ? (
             "Committed ✓"
           ) : unresolved > 0 ? (
-            `Looks good → process order (${unresolved} unmapped)`
+            `Continue to review (${unresolved} unmapped)`
           ) : (
-            "Looks good → process order"
+            "Confirm mapping → review order"
           )}
         </button>
       </div>
