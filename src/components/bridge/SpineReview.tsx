@@ -8,7 +8,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useState, useRef, useEffect, useCallback, useMemo, type KeyboardEvent } from "react";
 import { useAuth } from "@clerk/nextjs";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { apiClient, getOrderExceptions, validateOrder } from "@/lib/api-client";
+import { apiClient, getOrderExceptions, validateOrder, isApiMockMode } from "@/lib/api-client";
 import type { Order, OrderException, OrderValidationResult } from "@/types/procurement";
 import { EdgeRails } from "./EdgeRails";
 import { FileChip } from "./FileChip";
@@ -1187,12 +1187,15 @@ export function SpineReview({ orderId }: { orderId: string }) {
   const qc = useQueryClient();
   const { isLoaded: clerkLoaded, isSignedIn } = useAuth();
   const clerkReady = clerkLoaded && !!isSignedIn;
+  // Mock mode has no Clerk session, so gate queries on (mock OR clerkReady) —
+  // otherwise mock-mode pages (and the e2e suite) starve on a disabled query.
+  const queryEnabled = isApiMockMode || clerkReady;
 
   // ── Live order data ────────────────────────────────────────────────────────
   const { data: order, isLoading, isError, refetch: refetchOrder } = useQuery({
     queryKey: ["order", orderId],
     queryFn: () => apiClient.getOrderById(orderId),
-    enabled: clerkReady,
+    enabled: queryEnabled,
     retry: 2,
     retryDelay: 600,
     staleTime: 30_000,
@@ -1210,7 +1213,7 @@ export function SpineReview({ orderId }: { orderId: string }) {
   const { data: orderExceptions = [] } = useQuery<OrderException[]>({
     queryKey: ["order-exceptions", orderId],
     queryFn: () => getOrderExceptions(orderId),
-    enabled: clerkReady && !!orderId,
+    enabled: queryEnabled && !!orderId,
     staleTime: 30_000,
     retry: 1,
   });
@@ -1497,10 +1500,10 @@ export function SpineReview({ orderId }: { orderId: string }) {
 
   // ── Loading / error gates (must be after all hooks) ────────────────────────
   // While Clerk is still resolving the session the order query is disabled
-  // (enabled: clerkReady). In TanStack Query v5 a disabled query reports
-  // isLoading=false with data=undefined, so without the !clerkReady guard the
+  // (enabled: queryEnabled). In TanStack Query v5 a disabled query reports
+  // isLoading=false with data=undefined, so without the !queryEnabled guard the
   // page would flash the error gate before the session is ready.
-  if (!clerkReady || isLoading || order === undefined) return <SpineReviewSkeleton />;
+  if (!queryEnabled || isLoading || order === undefined) return <SpineReviewSkeleton />;
   if (isError || order === null) {
     return (
       <div className="flex flex-col items-center justify-center h-full gap-4" style={{ background: "#F6F7FA" }}>

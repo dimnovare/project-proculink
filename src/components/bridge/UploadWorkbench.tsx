@@ -144,6 +144,9 @@ function XCard({
 export function UploadWorkbench() {
   const { isLoaded: clerkLoaded, isSignedIn } = useAuth();
   const clerkReady = clerkLoaded && !!isSignedIn;
+  // Mock mode has no Clerk session — gate on (mock OR clerkReady) so mock-mode
+  // dev/e2e still loads suppliers/billing (otherwise the upload button stays disabled).
+  const queryEnabled = isApiMockMode || clerkReady;
 
   const [dragging, setDragging]     = useState(false);
   const [supplierId, setSupplierId] = useState("");
@@ -166,7 +169,7 @@ export function UploadWorkbench() {
   const { data: billing, isLoading: billingLoading, isError: billingError } = useQuery({
     queryKey: ["billing-status"],
     queryFn: getBillingStatus,
-    enabled: clerkReady,
+    enabled: queryEnabled,
     retry: 1,
     retryDelay: 800,
   });
@@ -179,7 +182,7 @@ export function UploadWorkbench() {
     queryKey: ["suppliers"],
     queryFn: apiClient.getSuppliers,
     staleTime: 5 * 60 * 1000,
-    enabled: clerkReady,
+    enabled: queryEnabled,
     retry: 1,
     retryDelay: 800,
   });
@@ -187,7 +190,7 @@ export function UploadWorkbench() {
   const { data: onboardingStatus } = useQuery({
     queryKey: ["onboarding-status"],
     queryFn: () => apiClient.getOnboardingStatus(),
-    enabled: clerkReady,
+    enabled: queryEnabled,
     retry: 1,
     staleTime: 60 * 1000,
   });

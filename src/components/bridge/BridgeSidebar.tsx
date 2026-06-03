@@ -12,7 +12,7 @@ import {
   Files, HelpCircle,
   type LucideIcon,
 } from "lucide-react";
-import { apiClient, getBillingStatus } from "@/lib/api-client";
+import { apiClient, getBillingStatus, isApiMockMode } from "@/lib/api-client";
 import { LAUNCH_CORE_ONLY, LAUNCH_CORE_HREFS } from "@/lib/launch-flags";
 import { ProcuLinkMark } from "./DSPrimitives";
 
@@ -90,12 +90,13 @@ export function BridgeSidebar({ onNavigate, collapsible = false }: BridgeSidebar
   const { isLoaded: clerkLoaded, isSignedIn } = useAuth();
   const { organization } = useOrganization();
   const clerkReady = clerkLoaded && !!isSignedIn;
+  const queryEnabled = isApiMockMode || clerkReady;
 
   // Live billing plan for workspace switcher display.
   const { data: billing } = useQuery({
     queryKey: ["billing-status"],
     queryFn: getBillingStatus,
-    enabled: clerkReady,
+    enabled: queryEnabled,
     retry: 1,
     retryDelay: 800,
     staleTime: 60_000,
@@ -107,7 +108,7 @@ export function BridgeSidebar({ onNavigate, collapsible = false }: BridgeSidebar
   const { data: ordersSummary } = useQuery({
     queryKey: ["orders-summary"],
     queryFn: () => apiClient.getOrdersSummary(),
-    enabled: clerkReady,
+    enabled: queryEnabled,
     staleTime: 30_000,
   });
   const reviewCount = ordersSummary?.byStatus?.["pending_review"] ?? 0;

@@ -16,7 +16,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useAuth } from "@clerk/nextjs";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { getBillingStatus, apiClient } from "@/lib/api-client";
+import { getBillingStatus, apiClient, isApiMockMode } from "@/lib/api-client";
 
 // ── Palette (CSS-var first; hexes mirror tokens for inline-only styles) ──────
 // Supplier-green is the supplier ENTITY colour across the product (badge tile,
@@ -68,6 +68,7 @@ export function SupplierDockList() {
   const qc = useQueryClient();
   const { isLoaded: clerkLoaded, isSignedIn } = useAuth();
   const clerkReady = clerkLoaded && !!isSignedIn;
+  const queryEnabled = isApiMockMode || clerkReady;
   const [showAddPanel, setShowAddPanel] = useState(false);
   const [newName, setNewName] = useState("");
   const [addError, setAddError] = useState<string | null>(null);
@@ -77,7 +78,7 @@ export function SupplierDockList() {
   const { data: billing, isError: billingError } = useQuery({
     queryKey: ["billing-status"],
     queryFn: getBillingStatus,
-    enabled: clerkReady,
+    enabled: queryEnabled,
     retry: 1,
     retryDelay: 800,
   });
@@ -93,7 +94,7 @@ export function SupplierDockList() {
   } = useQuery({
     queryKey: ["suppliers"],
     queryFn: () => apiClient.getSuppliers(),
-    enabled: clerkReady,
+    enabled: queryEnabled,
     retry: 1,
     retryDelay: 800,
   });
