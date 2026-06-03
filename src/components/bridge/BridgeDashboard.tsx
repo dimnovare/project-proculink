@@ -4,10 +4,12 @@
 //
 // The Wire Topology is the hero: a live buyer → supplier lane map derived from
 // real orders + suppliers. The dashboard never fabricates data —
-//   • topology is built from the org's actual orders/suppliers (the backend
-//     /api/dashboard/topology aggregation isn't live yet, so we derive it
-//     client-side instead of showing a false "no wires" empty state);
+//   • topology is built from the org's actual orders/suppliers — the server-side
+//     GET /api/dashboard/topology aggregation is preferred; client-derived topology
+//     (from the GET /api/orders working set) is the fallback when the endpoint
+//     returns empty;
 //   • KPIs are real counts over a selectable time window, or honestly labelled;
+//     the "Urgent exceptions" count comes from live GET /api/orders/summary;
 //   • the time-window selector + CSV export operate on that same order data.
 
 import Link from "next/link";

@@ -6,9 +6,9 @@
 import type React from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState, useRef, useEffect, useCallback, useMemo, type KeyboardEvent } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { apiClient } from "@/lib/api-client";
-import type { Order } from "@/types/procurement";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { apiClient, getOrderExceptions, validateOrder } from "@/lib/api-client";
+import type { Order, OrderException, OrderValidationResult } from "@/types/procurement";
 import { EdgeRails } from "./EdgeRails";
 import { FileChip } from "./FileChip";
 import { FailedPanel, ParseFailedPanel } from "./FailedPanels";
@@ -1176,8 +1176,14 @@ function MobileSpineAccordion({
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
+// ── Stuck-order threshold (mirrors the StuckOrderDetectionJob: 30 min for production,
+// but we surface a UI warning much earlier — at 2 min — so operators can investigate
+// before the backend job fires.)
+const STUCK_WARN_MS = 2 * 60 * 1000; // 2 minutes
+
 export function SpineReview({ orderId }: { orderId: string }) {
   const router = useRouter();
+  const qc = useQueryClient();
 
   // ── Live order data ────────────────────────────────────────────────────────
   const { data: order, isLoading, isError, refetch: refetchOrder } = useQuery({
@@ -1194,6 +1200,32 @@ export function SpineReview({ orderId }: { orderId: string }) {
     retry: 1,
     staleTime: 60_000,
   });
+
+  // ── Order exceptions (Task 1.G.2) ─────────────────────────────────────────
+  const { data: orderExceptions = [] } = useQuery<OrderException[]>({
+    queryKey: ["order-exceptions", orderId],
+    queryFn: () => getOrderExceptions(orderId),
+    enabled: !!orderId,
+    staleTime: 30_000,
+    retry: 1,
+  });
+
+  // ── Validation mutation (Task 1.F.4) ──────────────────────────────────────
+  const [validationResult, setValidationResult] = useState<OrderValidationResult | null>(null);
+  const validateMutation = useMutation({
+    mutationFn: () => validateOrder(orderId),
+    onSuccess: (result) => {
+      setValidationResult(result);
+      void qc.invalidateQueries({ queryKey: ["order", orderId] });
+    },
+  });
+
+  // ── Stuck-order detection (Task 0.B.2) ────────────────────────────────────
+  const isStuck = useMemo(() => {
+    if (!order || order.status !== "parsing") return false;
+    const updatedMs = new Date(order.updatedAt).getTime();
+    return Number.isFinite(updatedMs) && (Date.now() - updatedMs) > STUCK_WARN_MS;
+  }, [order]);
 
   // Derive nodes from the live order. Empty until the order resolves (the
   // loading/error gates below render before this is used). No demo fallback —
@@ -1645,6 +1677,151 @@ export function SpineReview({ orderId }: { orderId: string }) {
               This is a sample order. It uses an example CSV and doesn&apos;t count toward your monthly quota.
             </div>
           )}
+
+          {/* Stuck-order banner (Task 0.B.2) — shown when an order has been in
+              "parsing" for more than 2 minutes without progressing. The backend
+              StuckOrderDetectionJob fires at 30 min; this banner is an early warning. */}
+          {isStuck && (
+            <div
+              role="alert"
+              style={{
+                background: "#FAEFD6",
+                border: "1px solid #F0D39A",
+                color: "#7A4D0A",
+                padding: "10px 14px",
+                borderRadius: 8,
+                fontSize: 13,
+                margin: "16px 16px 0",
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+              }}
+            >
+              <span style={{ fontSize: 14 }}>⏳</span>
+              <span>
+                Still processing — this is taking longer than expected. If it persists, try re-uploading or contact support.
+              </span>
+            </div>
+          )}
+
+          {/* Open exceptions panel (Task 1.G.2) — shows unresolved exceptions inline */}
+          {orderExceptions.filter(e => !e.resolvedAt).length > 0 && (
+            <div
+              style={{
+                margin: "16px 16px 0",
+                background: "#FFFFFF",
+                border: "1px solid #E2E6EE",
+                borderRadius: 8,
+                overflow: "hidden",
+              }}
+            >
+              <div style={{ padding: "9px 14px", borderBottom: "1px solid #EEF0F4", fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", color: "#56627A" }}>
+                Open exceptions
+              </div>
+              <div>
+                {orderExceptions
+                  .filter(e => !e.resolvedAt)
+                  .map(ex => {
+                    const dotColor = ex.severity === "error" ? "#C53A3A" : ex.severity === "warning" ? "#C97A14" : "#1E66C9";
+                    return (
+                      <div key={ex.id} style={{ display: "flex", alignItems: "flex-start", gap: 8, padding: "8px 14px", borderBottom: "1px solid #F5F6F9" }}>
+                        <span style={{ width: 6, height: 6, borderRadius: "50%", background: dotColor, flexShrink: 0, marginTop: 5 }} />
+                        <span style={{ fontSize: 12.5, color: "#0B1A2F", flex: 1, lineHeight: 1.45 }}>{ex.message}</span>
+                        <span style={{ fontSize: 10.5, color: "#8A93A5", flexShrink: 0, whiteSpace: "nowrap" }}>
+                          {new Date(ex.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                        </span>
+                      </div>
+                    );
+                  })}
+              </div>
+            </div>
+          )}
+
+          {/* Validation panel (Task 1.F.4) */}
+          <div
+            style={{
+              margin: "16px 16px 0",
+              background: "#FFFFFF",
+              border: "1px solid #E2E6EE",
+              borderRadius: 8,
+              overflow: "hidden",
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "9px 14px", borderBottom: "1px solid #EEF0F4" }}>
+              <span style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", color: "#56627A" }}>
+                Supplier acceptance
+              </span>
+              <button
+                type="button"
+                onClick={() => validateMutation.mutate()}
+                disabled={validateMutation.isPending}
+                style={{
+                  height: 28,
+                  padding: "0 12px",
+                  borderRadius: 6,
+                  fontSize: 11.5,
+                  fontWeight: 600,
+                  background: "#0B1A2F",
+                  color: "#FFFFFF",
+                  border: "none",
+                  cursor: validateMutation.isPending ? "default" : "pointer",
+                  opacity: validateMutation.isPending ? 0.7 : 1,
+                }}
+              >
+                {validateMutation.isPending ? "Validating…" : "Validate against profile"}
+              </button>
+            </div>
+            {validateMutation.isError && (
+              <div style={{ padding: "8px 14px", fontSize: 12.5, color: "#C53A3A" }}>
+                {validateMutation.error instanceof Error
+                  ? validateMutation.error.message.includes("404") || validateMutation.error.message.includes("no acceptance")
+                    ? "No acceptance profile configured for this supplier."
+                    : `Validation failed: ${validateMutation.error.message}`
+                  : "Validation failed."}
+              </div>
+            )}
+            {!validationResult && !validateMutation.isError && !validateMutation.isPending && (
+              <div style={{ padding: "10px 14px", fontSize: 12.5, color: "#8A93A5" }}>
+                Run validation to check this order against the supplier&apos;s acceptance rules.
+              </div>
+            )}
+            {validationResult && (
+              <div>
+                {/* Overall result */}
+                <div style={{
+                  display: "flex", alignItems: "center", gap: 8, padding: "8px 14px",
+                  borderBottom: "1px solid #EEF0F4",
+                  background: validationResult.passed ? "#F0FDF4" : "#FFF7F7",
+                }}>
+                  <span style={{ width: 8, height: 8, borderRadius: "50%", background: validationResult.passed ? "#28C55E" : "#C53A3A", flexShrink: 0 }} />
+                  <span style={{ fontSize: 12.5, fontWeight: 600, color: validationResult.passed ? "#1E6D29" : "#C53A3A" }}>
+                    {validationResult.passed ? "Passed — order meets all acceptance rules" : "Failed — acceptance issues found"}
+                  </span>
+                </div>
+                {/* Per-result rows */}
+                {validationResult.results.length === 0 ? (
+                  <div style={{ padding: "8px 14px", fontSize: 12.5, color: "#8A93A5" }}>No rule results returned.</div>
+                ) : (
+                  validationResult.results.map((r, i) => {
+                    const dotColor = r.severity === "error" ? "#C53A3A" : "#C97A14";
+                    return (
+                      <div key={i} style={{ display: "flex", alignItems: "flex-start", gap: 8, padding: "7px 14px", borderBottom: "1px solid #F5F6F9" }}>
+                        <span style={{ width: 6, height: 6, borderRadius: "50%", background: r.passed ? "#28C55E" : dotColor, flexShrink: 0, marginTop: 5 }} />
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <span style={{ fontSize: 12, color: "#0B1A2F", fontFamily: "'JetBrains Mono',monospace" }}>{r.rule.fieldPath}</span>
+                          {r.message && <span style={{ fontSize: 11.5, color: "#56627A", marginLeft: 6 }}>{r.message}</span>}
+                          {r.lineNumber != null && <span style={{ fontSize: 10.5, color: "#8A93A5", marginLeft: 4 }}>· line {r.lineNumber}</span>}
+                        </div>
+                        <span style={{ fontSize: 10.5, fontWeight: 700, textTransform: "capitalize", color: r.passed ? "#1E6D29" : dotColor, flexShrink: 0 }}>
+                          {r.severity}
+                        </span>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            )}
+          </div>
         {/* Desktop 3-column grid (with edge rails) — hidden on mobile to avoid the 1120px min-width overflow */}
         <div className="hidden md:block min-w-[1120px]">
           <EdgeRails>

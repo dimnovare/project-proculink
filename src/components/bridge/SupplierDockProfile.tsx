@@ -1,19 +1,20 @@
 "use client";
 
 // Supplier Dock Profile — /library/suppliers/[id]
-// §5.8 — Header + tabs: Overview · Mappings · PO Mapping · Delivery
+// §5.8 — Header + tabs: Overview · Mappings · PO Mapping · Delivery · Acceptance
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { useQuery } from "@tanstack/react-query";
-import { ChevronLeft, Settings, Info, Clock, Link2, Truck, Plus } from "lucide-react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { ChevronLeft, Settings, Info, Clock, Link2, Truck, Plus, ShieldCheck } from "lucide-react";
 import { PoMappingEditor } from "./PoMappingEditor";
 import { DeliveryConfigEditor } from "./DeliveryConfigEditor";
 import { upsertPoMapping, deletePoMapping } from "@/lib/api/mapping";
-import { apiClient, isApiMockMode } from "@/lib/api-client";
+import { apiClient, isApiMockMode, getAcceptanceProfile, saveAcceptanceProfile, activateAcceptanceVersion } from "@/lib/api-client";
 import type { PoMappingConfig } from "@/lib/api/types";
+import type { AcceptanceRule, AcceptanceProfile } from "@/types/procurement";
 
-type Tab = "overview" | "mappings" | "po-mapping" | "delivery";
+type Tab = "overview" | "mappings" | "po-mapping" | "delivery" | "acceptance";
 
 // ── Design tokens (ported from tokens.css / globals.css) ─────────────────────
 // Buyer side = blue (#1E66C9, also the ACTIVE accent), supplier side = forest green.
@@ -91,6 +92,7 @@ const TABS: Array<{ id: Tab; label: string }> = [
   { id: "mappings",    label: "Mappings"          },
   { id: "po-mapping",  label: "PO Mapping"        },
   { id: "delivery",    label: "Delivery"          },
+  { id: "acceptance",  label: "Acceptance"        },
 ];
 
 // Source-pill palette for the SKU mappings table (provenance colour-coding, from design).
@@ -107,6 +109,405 @@ function confClass(pct: number): string {
   if (pct >= 90) return "conf-hi";
   if (pct >= 75) return "conf-mid";
   return "conf-lo";
+}
+
+// ── Operator and severity constants used in AcceptanceTab ─────────────────────
+
+const OPERATORS: AcceptanceRule["operator"][] = [
+  "required", "equals", "not_equals", "contains",
+  "greater_than", "less_than", "max_length",
+];
+
+const SEVERITY_DOT: Record<AcceptanceRule["severity"], string> = {
+  error:   "#C53A3A",
+  warning: "#C97A14",
+};
+
+// ── AcceptanceTab ─────────────────────────────────────────────────────────────
+
+function AcceptanceTab({ supplierId }: { supplierId: string }) {
+  const qc = useQueryClient();
+  const [editRules, setEditRules] = useState<AcceptanceRule[] | null>(null);
+  const [editProtocol, setEditProtocol] = useState("");
+  const [editOutputFormat, setEditOutputFormat] = useState("");
+  const [saveNotice, setSaveNotice] = useState<string | null>(null);
+
+  const { data: profile, isLoading, isError } = useQuery<AcceptanceProfile | null>({
+    queryKey: ["acceptance-profile", supplierId],
+    queryFn: () => getAcceptanceProfile(supplierId),
+    staleTime: 30_000,
+  });
+
+  const saveMutation = useMutation({
+    mutationFn: (body: { protocol?: string; outputFormat?: string; rules: AcceptanceRule[] }) =>
+      saveAcceptanceProfile(supplierId, body),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["acceptance-profile", supplierId] });
+      setEditRules(null);
+      setSaveNotice("New version saved as draft.");
+      setTimeout(() => setSaveNotice(null), 3000);
+    },
+    onError: (err: Error) => setSaveNotice(`Save failed: ${err.message}`),
+  });
+
+  const activateMutation = useMutation({
+    mutationFn: (versionNo: number) => activateAcceptanceVersion(supplierId, versionNo),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["acceptance-profile", supplierId] });
+      setSaveNotice("Version activated.");
+      setTimeout(() => setSaveNotice(null), 3000);
+    },
+    onError: (err: Error) => setSaveNotice(`Activate failed: ${err.message}`),
+  });
+
+  // Derive the edit rules — start from live profile when first opening the editor
+  const rules: AcceptanceRule[] = editRules ?? profile?.rules ?? [];
+
+  function startEdit() {
+    setEditRules(profile?.rules ? [...profile.rules] : []);
+    setEditProtocol(profile?.protocol ?? "");
+    setEditOutputFormat(profile?.outputFormat ?? "");
+  }
+
+  function addRule() {
+    const blank: AcceptanceRule = {
+      scope: "order",
+      fieldPath: "",
+      operator: "required",
+      expectedValue: "",
+      severity: "error",
+      blockOnFail: true,
+    };
+    setEditRules(prev => [...(prev ?? []), blank]);
+  }
+
+  function updateRule(idx: number, patch: Partial<AcceptanceRule>) {
+    setEditRules(prev => {
+      if (!prev) return prev;
+      const next = [...prev];
+      next[idx] = { ...next[idx], ...patch };
+      return next;
+    });
+  }
+
+  function removeRule(idx: number) {
+    setEditRules(prev => prev ? prev.filter((_, i) => i !== idx) : prev);
+  }
+
+  function handleSave() {
+    saveMutation.mutate({
+      protocol: editProtocol || undefined,
+      outputFormat: editOutputFormat || undefined,
+      rules,
+    });
+  }
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-10" style={{ color: FAINT, fontSize: 13 }}>
+        Loading acceptance profile…
+      </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <div className="flex items-center justify-center py-10" style={{ color: DANGER, fontSize: 13 }}>
+        Failed to load acceptance profile.
+      </div>
+    );
+  }
+
+  const isEditing = editRules !== null;
+
+  return (
+    <div className="flex flex-col gap-4">
+      {/* Notice */}
+      {saveNotice && (
+        <div
+          className="rounded-[7px] px-3 py-2 text-[12.5px]"
+          style={{ background: "#ECFDF3", border: "1px solid #A6E9BE", color: "#1DAF50" }}
+        >
+          {saveNotice}
+        </div>
+      )}
+
+      {/* Profile header card */}
+      <div style={{ background: SURFACE, border: `1px solid ${LINE}`, borderRadius: 10, overflow: "hidden" }}>
+        <div className="flex items-center justify-between gap-3 px-5 py-3.5" style={{ borderBottom: `1px solid ${LINE}` }}>
+          <div className="flex items-center gap-2">
+            <ShieldCheck size={15} strokeWidth={2} color={MUTED} />
+            <h3 className="text-[13px] font-semibold" style={{ color: INK }}>Acceptance profile</h3>
+            {profile && (
+              <span
+                className="rounded-full px-2.5 py-0.5 text-[11px] font-semibold"
+                style={{
+                  background: profile.status === "active" ? "#E2F1E2" : "#FAEFD6",
+                  color: profile.status === "active" ? GREEN_DEEP : "#C97A14",
+                }}
+              >
+                v{profile.versionNo} · {profile.status}
+              </span>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            {profile && profile.status === "draft" && !isEditing && (
+              <button
+                type="button"
+                onClick={() => activateMutation.mutate(profile.versionNo)}
+                disabled={activateMutation.isPending}
+                className="rounded-[7px] px-3 text-[12px] font-semibold"
+                style={{ height: 32, background: GREEN_SOFT, color: GREEN_DEEP, border: `1px solid #B8DDB8`, cursor: "pointer" }}
+              >
+                {activateMutation.isPending ? "Activating…" : "Activate"}
+              </button>
+            )}
+            {!isEditing ? (
+              <button
+                type="button"
+                onClick={startEdit}
+                className="rounded-[7px] px-3 text-[12px] font-medium"
+                style={{ height: 32, border: `1px solid ${LINE}`, background: SURFACE, color: INK, cursor: "pointer" }}
+              >
+                {profile ? "Edit rules" : "Add profile"}
+              </button>
+            ) : (
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setEditRules(null)}
+                  className="rounded-[7px] px-3 text-[12px] font-medium"
+                  style={{ height: 32, border: `1px solid ${LINE}`, background: SURFACE, color: MUTED, cursor: "pointer" }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSave}
+                  disabled={saveMutation.isPending}
+                  className="rounded-[7px] px-3 text-[12px] font-semibold"
+                  style={{ height: 32, background: INK, color: "#FFFFFF", border: "none", cursor: "pointer" }}
+                >
+                  {saveMutation.isPending ? "Saving…" : "Save new version"}
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Protocol / format fields (only shown in edit mode) */}
+        {isEditing && (
+          <div className="flex flex-wrap gap-4 px-5 py-4" style={{ borderBottom: `1px solid ${LINE}`, background: "#FAFBFC" }}>
+            <div className="flex flex-col gap-1">
+              <label className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: FAINT }}>Protocol</label>
+              <input
+                type="text"
+                value={editProtocol}
+                onChange={e => setEditProtocol(e.target.value)}
+                placeholder="e.g. https"
+                className="rounded-[6px] px-2.5 text-[12.5px]"
+                style={{ height: 32, border: `1px solid ${LINE}`, background: SURFACE, color: INK, width: 140, outline: "none" }}
+              />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: FAINT }}>Output format</label>
+              <input
+                type="text"
+                value={editOutputFormat}
+                onChange={e => setEditOutputFormat(e.target.value)}
+                placeholder="e.g. cXML, CSV"
+                className="rounded-[6px] px-2.5 text-[12.5px]"
+                style={{ height: 32, border: `1px solid ${LINE}`, background: SURFACE, color: INK, width: 140, outline: "none" }}
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Empty state */}
+        {!profile && !isEditing && (
+          <p className="px-5 py-6 text-[13px]" style={{ color: MUTED }}>
+            No acceptance profile yet. Define what this supplier will accept.
+          </p>
+        )}
+
+        {/* Summary row when not editing */}
+        {profile && !isEditing && (
+          <div className="flex flex-wrap gap-6 px-5 py-3.5">
+            {profile.protocol && (
+              <div>
+                <div className="text-[10.5px] font-semibold uppercase tracking-wide" style={{ color: FAINT }}>Protocol</div>
+                <div className="mt-0.5 text-[12.5px] font-medium" style={{ color: INK, fontFamily: "'JetBrains Mono',monospace" }}>{profile.protocol}</div>
+              </div>
+            )}
+            {profile.outputFormat && (
+              <div>
+                <div className="text-[10.5px] font-semibold uppercase tracking-wide" style={{ color: FAINT }}>Output format</div>
+                <div className="mt-0.5 text-[12.5px] font-medium" style={{ color: INK, fontFamily: "'JetBrains Mono',monospace" }}>{profile.outputFormat}</div>
+              </div>
+            )}
+            <div>
+              <div className="text-[10.5px] font-semibold uppercase tracking-wide" style={{ color: FAINT }}>Rules</div>
+              <div className="mt-0.5 text-[12.5px] font-medium" style={{ color: INK }}>{profile.rules.length}</div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Rules table / editor */}
+      <div style={{ background: SURFACE, border: `1px solid ${LINE}`, borderRadius: 10, overflow: "hidden" }}>
+        <div className="flex items-center justify-between gap-2 px-5 py-3" style={{ borderBottom: `1px solid ${LINE}` }}>
+          <span className="text-[13px] font-semibold" style={{ color: INK }}>Rules</span>
+          {isEditing && (
+            <button
+              type="button"
+              onClick={addRule}
+              className="inline-flex items-center gap-1.5 rounded-[7px] px-3 text-[12px] font-medium"
+              style={{ height: 30, border: `1px solid ${LINE}`, background: SURFACE, color: INK, cursor: "pointer" }}
+            >
+              <Plus size={13} strokeWidth={2.2} />
+              Add rule
+            </button>
+          )}
+        </div>
+
+        {rules.length === 0 ? (
+          <p className="px-5 py-5 text-[12.5px]" style={{ color: MUTED }}>
+            {isEditing ? "No rules yet — click \"Add rule\" to start." : "No rules defined."}
+          </p>
+        ) : isEditing ? (
+          /* Edit mode: form rows */
+          <div className="flex flex-col divide-y" style={{ borderColor: LINE }}>
+            {rules.map((rule, idx) => (
+              <div key={idx} className="flex flex-wrap items-center gap-3 px-4 py-3">
+                <select
+                  value={rule.scope}
+                  onChange={e => updateRule(idx, { scope: e.target.value as AcceptanceRule["scope"] })}
+                  className="rounded-[5px] px-2 text-[12px]"
+                  style={{ height: 30, border: `1px solid ${LINE}`, color: INK, background: SURFACE, outline: "none", cursor: "pointer" }}
+                >
+                  <option value="order">Order</option>
+                  <option value="line">Line</option>
+                </select>
+                <input
+                  type="text"
+                  value={rule.fieldPath}
+                  onChange={e => updateRule(idx, { fieldPath: e.target.value })}
+                  placeholder="fieldPath"
+                  className="rounded-[5px] px-2 text-[12px]"
+                  style={{ height: 30, border: `1px solid ${LINE}`, color: INK, background: SURFACE, outline: "none", width: 130 }}
+                />
+                <select
+                  value={rule.operator}
+                  onChange={e => updateRule(idx, { operator: e.target.value as AcceptanceRule["operator"] })}
+                  className="rounded-[5px] px-2 text-[12px]"
+                  style={{ height: 30, border: `1px solid ${LINE}`, color: INK, background: SURFACE, outline: "none", cursor: "pointer" }}
+                >
+                  {OPERATORS.map(op => (
+                    <option key={op} value={op}>{op}</option>
+                  ))}
+                </select>
+                <input
+                  type="text"
+                  value={rule.expectedValue ?? ""}
+                  onChange={e => updateRule(idx, { expectedValue: e.target.value })}
+                  placeholder="value"
+                  className="rounded-[5px] px-2 text-[12px]"
+                  style={{ height: 30, border: `1px solid ${LINE}`, color: INK, background: SURFACE, outline: "none", width: 90 }}
+                />
+                <select
+                  value={rule.severity}
+                  onChange={e => updateRule(idx, { severity: e.target.value as AcceptanceRule["severity"] })}
+                  className="rounded-[5px] px-2 text-[12px]"
+                  style={{ height: 30, border: `1px solid ${LINE}`, color: INK, background: SURFACE, outline: "none", cursor: "pointer" }}
+                >
+                  <option value="error">Error</option>
+                  <option value="warning">Warning</option>
+                </select>
+                <label className="flex items-center gap-1.5 text-[12px] cursor-pointer" style={{ color: MUTED }}>
+                  <input
+                    type="checkbox"
+                    checked={rule.blockOnFail}
+                    onChange={e => updateRule(idx, { blockOnFail: e.target.checked })}
+                    style={{ accentColor: INK, cursor: "pointer" }}
+                  />
+                  Blocks
+                </label>
+                <button
+                  type="button"
+                  onClick={() => removeRule(idx)}
+                  className="ml-auto rounded-[5px] px-2 text-[11px] font-medium"
+                  style={{ height: 28, background: "#FBE3E3", color: DANGER, border: "none", cursor: "pointer" }}
+                >
+                  Remove
+                </button>
+              </div>
+            ))}
+          </div>
+        ) : (
+          /* Read mode: compact table */
+          <>
+            {/* Desktop table */}
+            <div className="hidden sm:block overflow-x-auto">
+              <table className="w-full border-collapse" style={{ minWidth: 560 }}>
+                <thead>
+                  <tr style={{ borderBottom: `1px solid ${LINE}` }}>
+                    {["Scope", "Field path", "Operator", "Value", "Severity", "Blocks"].map((h, i) => (
+                      <th
+                        key={h}
+                        className="px-4 py-2.5 text-left text-[10.5px] font-semibold uppercase tracking-[0.04em]"
+                        style={{ color: MUTED, textAlign: i === 5 ? "center" : "left" }}
+                      >
+                        {h}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {rules.map((rule, i) => (
+                    <tr key={i} style={{ borderBottom: i < rules.length - 1 ? `1px solid ${LINE}` : undefined }}>
+                      <td className="px-4 py-3 text-[12px] font-medium capitalize" style={{ color: MUTED }}>{rule.scope}</td>
+                      <td className="px-4 py-3 text-[12px] font-semibold" style={{ color: INK, fontFamily: "'JetBrains Mono',monospace" }}>{rule.fieldPath}</td>
+                      <td className="px-4 py-3 text-[12px]" style={{ color: MUTED }}>{rule.operator}</td>
+                      <td className="px-4 py-3 text-[12px]" style={{ color: MUTED, fontFamily: "'JetBrains Mono',monospace" }}>{rule.expectedValue ?? "—"}</td>
+                      <td className="px-4 py-3">
+                        <span className="inline-flex items-center gap-1 text-[11.5px] font-semibold capitalize" style={{ color: SEVERITY_DOT[rule.severity] }}>
+                          <span style={{ width: 6, height: 6, borderRadius: "50%", background: SEVERITY_DOT[rule.severity], display: "inline-block", flexShrink: 0 }} />
+                          {rule.severity}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-center text-[12px]" style={{ color: rule.blockOnFail ? INK : FAINT }}>
+                        {rule.blockOnFail ? "Yes" : "No"}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Mobile rule cards */}
+            <div className="sm:hidden flex flex-col divide-y" style={{ borderColor: LINE }}>
+              {rules.map((rule, i) => (
+                <div key={i} className="flex flex-col gap-1.5 px-4 py-3.5">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[11.5px] font-semibold capitalize" style={{ color: INK, fontFamily: "'JetBrains Mono',monospace" }}>{rule.fieldPath}</span>
+                    <span className="text-[11px] capitalize" style={{ color: MUTED }}>{rule.scope}</span>
+                  </div>
+                  <div className="text-[12px]" style={{ color: MUTED }}>{rule.operator}{rule.expectedValue ? ` → ${rule.expectedValue}` : ""}</div>
+                  <div className="flex items-center gap-2">
+                    <span className="inline-flex items-center gap-1 text-[11px] font-semibold capitalize" style={{ color: SEVERITY_DOT[rule.severity] }}>
+                      <span style={{ width: 5, height: 5, borderRadius: "50%", background: SEVERITY_DOT[rule.severity], display: "inline-block" }} />
+                      {rule.severity}
+                    </span>
+                    {rule.blockOnFail && <span className="text-[11px]" style={{ color: MUTED }}>· blocks</span>}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
 }
 
 export function SupplierDockProfile({ id }: { id: string }) {
@@ -507,6 +908,8 @@ export function SupplierDockProfile({ id }: { id: string }) {
         )}
 
         {tab === "delivery" && <DeliveryConfigEditor supplierId={id} />}
+
+        {tab === "acceptance" && <AcceptanceTab supplierId={id} />}
 
         {/* Rules / Output templates / Connectors / History are managed globally (Library +
             Operations); supplier-scoped versions aren't built yet, so we don't surface empty

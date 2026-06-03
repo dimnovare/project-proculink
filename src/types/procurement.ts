@@ -437,3 +437,48 @@ export interface SupplierConfirmation {
   notes: string | null;
   lines: SupplierConfirmationLine[];
 }
+
+// ── Acceptance profile (GET/POST /api/suppliers/{id}/acceptance-profile) ──────
+
+export interface AcceptanceRule {
+  id?: string;
+  scope: "order" | "line";
+  fieldPath: string;
+  operator: "equals" | "not_equals" | "contains" | "greater_than" | "less_than" | "required" | "max_length";
+  expectedValue?: string;
+  severity: "error" | "warning";
+  blockOnFail: boolean;
+}
+
+export interface AcceptanceProfile {
+  id: string;
+  supplierId: string;
+  versionNo: number;
+  status: "draft" | "active";
+  protocol?: string;
+  outputFormat?: string;
+  rules: AcceptanceRule[];
+  createdAt: string;
+}
+
+export interface OrderValidationResult {
+  orderId: string;
+  passed: boolean;
+  results: Array<{
+    rule: AcceptanceRule;
+    passed: boolean;
+    message?: string;
+    lineNumber?: number;
+    severity: "error" | "warning";
+  }>;
+}
+
+// ── Order exceptions (GET /api/orders/{id}/exceptions) ────────────────────────
+
+export interface OrderException {
+  id: string;
+  severity: "error" | "warning" | "info";
+  message: string;
+  createdAt: string;
+  resolvedAt?: string | null;
+}

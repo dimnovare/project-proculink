@@ -2050,3 +2050,113 @@ export async function uploadAsn(file: File, supplierId?: string): Promise<AsnDto
   if (!res.ok) { const b = await res.json().catch(() => null); throw new Error(b?.error ?? `asns upload: ${res.status}`); }
   return res.json();
 }
+
+// ── Acceptance profile ────────────────────────────────────────────────────────
+// GET /api/suppliers/{id}/acceptance-profile
+// POST /api/suppliers/{id}/acceptance-profile
+// POST /api/suppliers/{id}/acceptance-profile/{versionNo}/activate
+
+import type { AcceptanceRule, AcceptanceProfile, OrderValidationResult, OrderException } from "@/types/procurement";
+
+async function mockGetAcceptanceProfile(_supplierId: string): Promise<AcceptanceProfile | null> {
+  await delay(200);
+  return null;
+}
+
+async function realGetAcceptanceProfile(supplierId: string): Promise<AcceptanceProfile | null> {
+  const res = await fetchWithTimeout(
+    `${API_BASE_URL}/api/suppliers/${supplierId}/acceptance-profile`,
+    { headers: await authHeader() },
+  );
+  if (res.status === 404) return null;
+  if (!res.ok) throw new Error(`acceptance-profile GET: ${res.status}`);
+  return res.json() as Promise<AcceptanceProfile>;
+}
+
+async function mockSaveAcceptanceProfile(
+  supplierId: string,
+  body: { protocol?: string; outputFormat?: string; rules: AcceptanceRule[] },
+): Promise<AcceptanceProfile> {
+  await delay(400);
+  return {
+    id: crypto.randomUUID(),
+    supplierId,
+    versionNo: 1,
+    status: "draft",
+    protocol: body.protocol,
+    outputFormat: body.outputFormat,
+    rules: body.rules,
+    createdAt: new Date().toISOString(),
+  };
+}
+
+async function realSaveAcceptanceProfile(
+  supplierId: string,
+  body: { protocol?: string; outputFormat?: string; rules: AcceptanceRule[] },
+): Promise<AcceptanceProfile> {
+  const res = await fetchWithTimeout(
+    `${API_BASE_URL}/api/suppliers/${supplierId}/acceptance-profile`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...await authHeader() },
+      body: JSON.stringify(body),
+    },
+    30000,
+  );
+  if (!res.ok) { const t = await res.text(); throw new Error(t || `acceptance-profile POST: ${res.status}`); }
+  return res.json() as Promise<AcceptanceProfile>;
+}
+
+async function mockActivateAcceptanceVersion(_supplierId: string, _versionNo: number): Promise<void> {
+  await delay(300);
+}
+
+async function realActivateAcceptanceVersion(supplierId: string, versionNo: number): Promise<void> {
+  const res = await fetchWithTimeout(
+    `${API_BASE_URL}/api/suppliers/${supplierId}/acceptance-profile/${versionNo}/activate`,
+    { method: "POST", headers: await authHeader() },
+    30000,
+  );
+  if (!res.ok) { const t = await res.text(); throw new Error(t || `acceptance-profile activate: ${res.status}`); }
+}
+
+async function mockValidateOrder(_orderId: string): Promise<OrderValidationResult> {
+  await delay(300);
+  return { orderId: _orderId, passed: true, results: [] };
+}
+
+async function realValidateOrder(orderId: string): Promise<OrderValidationResult> {
+  const res = await fetchWithTimeout(
+    `${API_BASE_URL}/api/orders/${orderId}/validate`,
+    { method: "POST", headers: await authHeader() },
+    30000,
+  );
+  if (!res.ok) { const t = await res.text(); throw new Error(t || `validate: ${res.status}`); }
+  return res.json() as Promise<OrderValidationResult>;
+}
+
+// ── Order exceptions ──────────────────────────────────────────────────────────
+// GET /api/orders/{id}/exceptions
+
+async function mockGetOrderExceptions(_orderId: string): Promise<OrderException[]> {
+  await delay(150);
+  return [];
+}
+
+async function realGetOrderExceptions(orderId: string): Promise<OrderException[]> {
+  const res = await fetchWithTimeout(
+    `${API_BASE_URL}/api/orders/${orderId}/exceptions`,
+    { headers: await authHeader() },
+  );
+  if (res.status === 404) return [];
+  if (!res.ok) throw new Error(`order-exceptions: ${res.status}`);
+  return res.json() as Promise<OrderException[]>;
+}
+
+// ── Acceptance + exceptions exports ──────────────────────────────────────────
+
+export const getAcceptanceProfile = USE_MOCK ? mockGetAcceptanceProfile : realGetAcceptanceProfile;
+export const saveAcceptanceProfile = USE_MOCK ? mockSaveAcceptanceProfile : realSaveAcceptanceProfile;
+export const activateAcceptanceVersion = USE_MOCK ? mockActivateAcceptanceVersion : realActivateAcceptanceVersion;
+export const validateOrder = USE_MOCK ? mockValidateOrder : realValidateOrder;
+export const getOrderExceptions = USE_MOCK ? mockGetOrderExceptions : realGetOrderExceptions;
