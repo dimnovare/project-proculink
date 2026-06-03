@@ -19,6 +19,11 @@ const isQaAuthBypass =
   process.env.PROCULINK_QA_BYPASS_AUTH === "true"
   && process.env.NODE_ENV !== "production";
 
+function isClerkHandshake(req: NextRequest) {
+  return req.nextUrl.searchParams.has("__clerk_handshake")
+    || req.nextUrl.searchParams.has("__clerk_db_jwt");
+}
+
 function fallbackMiddleware(req: NextRequest) {
   if (isProtectedRoute(req)) {
     return redirectToLocalSignIn(req, "server-env-missing");
@@ -39,6 +44,7 @@ const middleware = isQaAuthBypass
   : isClerkConfigured
     ? clerkMiddleware(async (auth, req) => {
         if (!isProtectedRoute(req)) return;
+        if (isClerkHandshake(req)) return NextResponse.next();
 
         const session = await auth();
         if (!session.userId) return redirectToLocalSignIn(req);
