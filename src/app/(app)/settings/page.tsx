@@ -201,18 +201,58 @@ function SettingsRow({ label, hint, children }: { label: string; hint?: string; 
 function OrgSection() {
   const { organization } = useOrganization();
   const orgName = organization?.name ?? "";
+  const [name, setName] = useState(orgName);
+  const [saving, setSaving] = useState(false);
+  const [feedback, setFeedback] = useState<{ text: string; kind: "ok" | "err" } | null>(null);
+
+  // Keep the field in sync once Clerk hydrates the organization.
+  useEffect(() => { setName(orgName); }, [orgName]);
+
+  // Real member count from Clerk — never a hardcoded number.
+  const memberCount = organization?.membersCount;
+  const membersHint =
+    memberCount == null
+      ? "Loading members…"
+      : `${memberCount} ${memberCount === 1 ? "person has" : "people have"} access.`;
+
+  async function handleSave() {
+    if (!organization) return;
+    const trimmed = name.trim();
+    if (!trimmed) { setFeedback({ text: "Workspace name can't be empty.", kind: "err" }); return; }
+    if (trimmed === orgName) { setFeedback({ text: "No changes to save.", kind: "ok" }); return; }
+    setSaving(true);
+    setFeedback(null);
+    try {
+      await organization.update({ name: trimmed });
+      setFeedback({ text: "Workspace name updated.", kind: "ok" });
+    } catch (err) {
+      setFeedback({ text: (err as Error).message || "Could not save changes.", kind: "err" });
+    } finally {
+      setSaving(false);
+    }
+  }
 
   return (
     <div>
       <SettingsGroup title="Organization" sub="Your workspace identity across the product.">
         <div style={{ marginBottom: 18 }}>
           <label style={fieldLabelStyle}>Workspace name</label>
-          <input defaultValue={orgName} key={orgName} style={{ ...inputStyle, maxWidth: 420 }} />
+          <input
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            disabled={!organization}
+            style={{ ...inputStyle, maxWidth: 420 }}
+          />
         </div>
-        <div style={{ marginBottom: 4 }}>
-          <label style={fieldLabelStyle}>Default currency</label>
-          <input defaultValue="EUR — Euro" style={{ ...inputStyle, maxWidth: 240 }} />
-        </div>
+
+        {/* Read-only default currency — currency is fixed to EUR for now (no
+            org-level setting endpoint), so this is a static display, not a
+            fake-editable field. */}
+        <SettingsRow label="Default currency" hint="Used across orders and billing.">
+          <span style={{ display: "inline-flex", alignItems: "center", height: 24, padding: "0 10px", borderRadius: 6, fontSize: 11.5, fontWeight: 600, background: "#EFF2F7", color: "#56627A" }}>
+            EUR — Euro
+          </span>
+        </SettingsRow>
 
         {/* Read-only Workspace region row */}
         <SettingsRow label="Workspace region" hint="Where order data is stored.">
@@ -221,16 +261,23 @@ function OrgSection() {
           </span>
         </SettingsRow>
 
-        {/* Members row — matches design (label + access count + Manage) */}
-        <SettingsRow label="Members" hint="6 people have access.">
-          <button style={secondaryNeutralButton}>Manage</button>
-        </SettingsRow>
+        {/* Members row — real count from Clerk. */}
+        <SettingsRow label="Members" hint={membersHint} />
 
-        <div style={{ marginTop: 18 }}>
-          <button style={primaryGreenButton}>
+        <div style={{ marginTop: 18, display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+          <button
+            onClick={handleSave}
+            disabled={saving || !organization}
+            style={{ ...primaryGreenButton, background: saving || !organization ? "#8A93A5" : "var(--brand-green)", cursor: saving || !organization ? "not-allowed" : "pointer" }}
+          >
             <Save size={14} strokeWidth={2} />
-            Save changes
+            {saving ? "Saving…" : "Save changes"}
           </button>
+          {feedback && (
+            <span style={{ fontSize: 12.5, fontWeight: 500, color: feedback.kind === "ok" ? "var(--brand-green-deep)" : "#A52E2E" }}>
+              {feedback.text}
+            </span>
+          )}
         </div>
       </SettingsGroup>
     </div>

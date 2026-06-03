@@ -140,6 +140,26 @@ export default function TemplatesPage() {
     setEditing({ id: "new", name: "", fmt: "cXML", suppliers: 0, lastUsed: "never", version: "1.0" });
   };
 
+  // Real export — downloads the previewed envelope as a file so the success
+  // notice is truthful (was a no-op setNotice before).
+  const exportTemplate = (t: CardTemplate) => {
+    const ext = (
+      { CXML: "xml", UBL: "xml", EDI: "edi", EDIFACT: "edi", X12: "x12", JSON: "json", CSV: "csv" } as Record<string, string>
+    )[t.fmt.toUpperCase()] ?? "txt";
+    const body = previewFor(t.fmt).join("\n");
+    const safeName = t.name.replace(/[^A-Za-z0-9._-]+/g, "-").replace(/^-+|-+$/g, "") || "template";
+    const blob = new Blob([body], { type: "text/plain;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${safeName}.${ext}`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    setNotice({ text: `Exported ${t.name}.`, kind: "ok" });
+  };
+
   return (
     <div className="flex flex-col h-full min-h-0 overflow-hidden" style={{ background: "#F6F7FA" }}>
       {/* Header — sits directly on the page surface (no white bar / divider),
@@ -263,7 +283,7 @@ export default function TemplatesPage() {
                     <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
                       <span className="hidden text-[11px] font-mono sm:inline" style={{ color: "#8A93A5" }}>v{selected.version}</span>
                       <button
-                        onClick={() => setNotice({ text: `Exported ${selected.name}.`, kind: "ok" })}
+                        onClick={() => exportTemplate(selected)}
                         className="inline-flex min-h-[40px] items-center gap-1.5 rounded-[5px] px-2 text-[12.5px] font-semibold transition-colors sm:min-h-[27px]"
                         style={{ border: 0, background: "transparent", color: "#0B1A2F" }}
                         onMouseEnter={(e) => (e.currentTarget.style.color = "#1DAF50")}
