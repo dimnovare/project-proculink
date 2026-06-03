@@ -6,6 +6,7 @@
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
+import { useAuth } from "@clerk/nextjs";
 import { useQuery } from "@tanstack/react-query";
 import { FileChip } from "./FileChip";
 import { ApiHttpError, apiClient, getBillingStatus, isApiMockMode, type DetectFormatResult } from "@/lib/api-client";
@@ -141,6 +142,9 @@ function XCard({
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export function UploadWorkbench() {
+  const { isLoaded: clerkLoaded, isSignedIn } = useAuth();
+  const clerkReady = clerkLoaded && !!isSignedIn;
+
   const [dragging, setDragging]     = useState(false);
   const [supplierId, setSupplierId] = useState("");
   const [template, setTemplate]     = useState(TEMPLATES[0]);
@@ -162,7 +166,9 @@ export function UploadWorkbench() {
   const { data: billing, isLoading: billingLoading, isError: billingError } = useQuery({
     queryKey: ["billing-status"],
     queryFn: getBillingStatus,
-    retry: false,
+    enabled: clerkReady,
+    retry: 1,
+    retryDelay: 800,
   });
 
   const {
@@ -173,13 +179,16 @@ export function UploadWorkbench() {
     queryKey: ["suppliers"],
     queryFn: apiClient.getSuppliers,
     staleTime: 5 * 60 * 1000,
-    retry: false,
+    enabled: clerkReady,
+    retry: 1,
+    retryDelay: 800,
   });
 
   const { data: onboardingStatus } = useQuery({
     queryKey: ["onboarding-status"],
     queryFn: () => apiClient.getOnboardingStatus(),
-    retry: false,
+    enabled: clerkReady,
+    retry: 1,
     staleTime: 60 * 1000,
   });
 
@@ -190,8 +199,8 @@ export function UploadWorkbench() {
     queryKey: ["orders"],
     queryFn: () => apiClient.getOrders({ pageSize: 100 }),
     staleTime: 60 * 1000,
-    retry: false,
-    enabled: !isApiMockMode,
+    retry: 1,
+    enabled: clerkReady && !isApiMockMode,
   });
   const recentOrders = ordersPage?.items ?? [];
 

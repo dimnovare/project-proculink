@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
+import { useAuth, useOrganization } from "@clerk/nextjs";
 import { useQuery } from "@tanstack/react-query";
 import {
   Layers, Upload, Inbox, Truck, Building2, GitBranch,
@@ -11,7 +12,7 @@ import {
   Files, HelpCircle,
   type LucideIcon,
 } from "lucide-react";
-import { apiClient } from "@/lib/api-client";
+import { apiClient, getBillingStatus } from "@/lib/api-client";
 import { LAUNCH_CORE_ONLY, LAUNCH_CORE_HREFS } from "@/lib/launch-flags";
 import { ProcuLinkMark } from "./DSPrimitives";
 
@@ -86,11 +87,27 @@ interface BridgeSidebarProps {
 export function BridgeSidebar({ onNavigate, collapsible = false }: BridgeSidebarProps) {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
+  const { isLoaded: clerkLoaded, isSignedIn } = useAuth();
+  const { organization } = useOrganization();
+  const clerkReady = clerkLoaded && !!isSignedIn;
+
+  // Live billing plan for workspace switcher display.
+  const { data: billing } = useQuery({
+    queryKey: ["billing-status"],
+    queryFn: getBillingStatus,
+    enabled: clerkReady,
+    retry: 1,
+    retryDelay: 800,
+    staleTime: 60_000,
+  });
+  const planLabel = billing ? `${billing.plan.charAt(0).toUpperCase()}${billing.plan.slice(1)} plan` : "Loading…";
+  const orgName = organization?.name ?? "Your workspace";
 
   // Live "needs review" count → Inbox badge via summary endpoint (accurate regardless of volume).
   const { data: ordersSummary } = useQuery({
     queryKey: ["orders-summary"],
     queryFn: () => apiClient.getOrdersSummary(),
+    enabled: clerkReady,
     staleTime: 30_000,
   });
   const reviewCount = ordersSummary?.byStatus?.["pending_review"] ?? 0;
@@ -153,7 +170,7 @@ export function BridgeSidebar({ onNavigate, collapsible = false }: BridgeSidebar
       <button
         type="button"
         aria-label="Switch workspace"
-        title={isCollapsed ? "Nordic Distribution · Operations plan" : undefined}
+        title={isCollapsed ? `${orgName} · ${planLabel}` : undefined}
         className={`flex items-center rounded-[6px] text-left ${isCollapsed ? "mx-auto justify-center w-[44px] py-[9px]" : "gap-2.5 w-[calc(100%-28px)]"}`}
         style={{ background: "#10243E", border: "1px solid #1C2F49", cursor: "pointer", margin: isCollapsed ? "12px auto 6px" : "12px 14px 6px", padding: isCollapsed ? undefined : "9px 11px", transition: "background 150ms" }}
         onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "#163052"; }}
@@ -163,8 +180,8 @@ export function BridgeSidebar({ onNavigate, collapsible = false }: BridgeSidebar
         {!isCollapsed && (
           <>
             <div className="flex-1 min-w-0">
-              <div className="text-[12.5px] font-semibold text-white leading-none truncate">Nordic Distribution</div>
-              <div className="text-[10.5px] mt-0.5" style={{ color: "#7C8DA6" }}>Operations plan</div>
+              <div className="text-[12.5px] font-semibold text-white leading-none truncate">{orgName}</div>
+              <div className="text-[10.5px] mt-0.5" style={{ color: "#7C8DA6" }}>{planLabel}</div>
             </div>
             <ChevronDown size={15} style={{ color: "#7C8DA6", flexShrink: 0 }} />
           </>

@@ -14,6 +14,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { useAuth } from "@clerk/nextjs";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getBillingStatus, apiClient } from "@/lib/api-client";
 
@@ -65,6 +66,8 @@ function SupplierGlyph({ color, size = 16 }: { color: string; size?: number }) {
 export function SupplierDockList() {
   const router = useRouter();
   const qc = useQueryClient();
+  const { isLoaded: clerkLoaded, isSignedIn } = useAuth();
+  const clerkReady = clerkLoaded && !!isSignedIn;
   const [showAddPanel, setShowAddPanel] = useState(false);
   const [newName, setNewName] = useState("");
   const [addError, setAddError] = useState<string | null>(null);
@@ -74,7 +77,9 @@ export function SupplierDockList() {
   const { data: billing, isError: billingError } = useQuery({
     queryKey: ["billing-status"],
     queryFn: getBillingStatus,
-    retry: false,
+    enabled: clerkReady,
+    retry: 1,
+    retryDelay: 800,
   });
 
   // When billing API is unavailable, optimistically allow adding (backend enforces the limit).
@@ -88,6 +93,9 @@ export function SupplierDockList() {
   } = useQuery({
     queryKey: ["suppliers"],
     queryFn: () => apiClient.getSuppliers(),
+    enabled: clerkReady,
+    retry: 1,
+    retryDelay: 800,
   });
 
   // ── Create supplier ────────────────────────────────────────────────────────
