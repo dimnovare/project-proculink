@@ -12,6 +12,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { apiClient } from "@/lib/api-client";
+import { LAUNCH_CORE_ONLY, LAUNCH_CORE_HREFS } from "@/lib/launch-flags";
 import { ProcuLinkMark } from "./DSPrimitives";
 
 // ─── Nav structure (matches the "Bridge Layer" design handoff) ─────────────────
@@ -62,6 +63,17 @@ const NAV: Array<{ group?: string; items: NavItem[] }> = [
     ],
   },
 ];
+
+// First-launch shell: filter NAV down to the core hrefs and drop now-empty
+// group sections. The full nav is restored by setting NEXT_PUBLIC_LAUNCH_FULL_NAV=true.
+const VISIBLE_NAV: Array<{ group?: string; items: NavItem[] }> = LAUNCH_CORE_ONLY
+  ? NAV
+      .map((section) => ({
+        ...section,
+        items: section.items.filter((item) => LAUNCH_CORE_HREFS.has(item.href)),
+      }))
+      .filter((section) => section.items.length > 0)
+  : NAV;
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
@@ -161,7 +173,7 @@ export function BridgeSidebar({ onNavigate, collapsible = false }: BridgeSidebar
 
       {/* ── Navigation ───────────────────────────────────────────── */}
       <nav className="flex-1 overflow-y-auto" style={{ scrollbarWidth: "none", padding: "8px 10px 20px" }}>
-        {NAV.map((section, si) => (
+        {VISIBLE_NAV.map((section, si) => (
           <div key={si} className={si > 0 ? "mt-4" : ""}>
             {section.group && !isCollapsed && (
               <div className="px-[10px] pt-1.5 pb-1 text-[10px] font-semibold uppercase tracking-[0.08em]" style={{ color: "#7C8DA6" }}>{section.group}</div>
