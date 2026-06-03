@@ -22,7 +22,7 @@ import {
   suggestMappingFields,
   type FieldSuggestion,
 } from "@/lib/api/mapping";
-import { getPoMappingTemplates, type StarterTemplate } from "@/lib/api-client";
+import { getPoMappingTemplates, type StarterTemplate, ApiHttpError } from "@/lib/api-client";
 
 // ─── Design tokens ────────────────────────────────────────────────────────────
 const NAVY       = "#0B1A2F";
@@ -92,6 +92,15 @@ interface PoMappingEditorProps {
   onSave: (config: PoMappingConfig) => Promise<void>;
   onDelete?: () => Promise<void>;
   saving?: boolean;
+  /** Display name of the supplier, shown in the "apply template" confirm. */
+  supplierName?: string;
+  /**
+   * Server-side apply: persists the chosen starter template onto the supplier
+   * and resolves with the saved config. When provided, picking a template
+   * confirms, calls this, and refreshes the editor from the returned config.
+   * When omitted, the picker falls back to a local (unsaved) load.
+   */
+  onApplyTemplate?: (templateId: string) => Promise<PoMappingConfig>;
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -114,6 +123,8 @@ export function PoMappingEditor({
   onSave,
   onDelete,
   saving = false,
+  supplierName,
+  onApplyTemplate,
 }: PoMappingEditorProps) {
   // ── API queries ────────────────────────────────────────────────────────────
   const sourceQuery = useQuery({
@@ -162,6 +173,12 @@ export function PoMappingEditor({
   }>({ status: "idle" });
   const [autoNote,    setAutoNote]   = useState<string | null>(null);
   const [autoSeeded,  setAutoSeeded] = useState(!!initialConfig);
+  // Pending "apply starter template" confirmation + in-flight state.
+  const [pendingTemplate, setPendingTemplate] = useState<StarterTemplate | null>(null);
+  const [applyState, setApplyState] = useState<{
+    status: "idle" | "applying" | "error";
+    message?: string;
+  }>({ status: "idle" });
 
   const autoNoteTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -311,23 +328,58 @@ export function PoMappingEditor({
     }
   }
 
-  function handleLoadTemplate(tpl: StarterTemplate) {
-    // Build accepted map from the template config's ExternalField values
+  // Re-seed the editor's accepted map + source options from a mapping config.
+  function seedFromConfig(config: PoMappingConfig) {
     const next = new Map<string, string>();
-    for (const [canonical, entry] of Object.entries(tpl.config.header ?? {})) {
+    for (const [canonical, entry] of Object.entries(config.header ?? {})) {
       if (entry?.externalField) next.set(canonical, entry.externalField);
     }
-    for (const [canonical, entry] of Object.entries(tpl.config.lines ?? {})) {
+    for (const [canonical, entry] of Object.entries(config.lines ?? {})) {
       if (entry?.externalField) next.set(canonical, entry.externalField);
     }
     setAccepted(next);
     setRejected(new Set());
     setSourceOpts({
-      hasHeaderRecord: tpl.config.hasHeaderRecord,
-      separator: tpl.config.separator,
+      hasHeaderRecord: config.hasHeaderRecord,
+      separator: config.separator,
     });
-    setSaveState({ status: "idle" });
-    flashNote(`Loaded the ${tpl.name} starter — check the column names against your export, then Save.`);
+  }
+
+  // User picked a template from the menu → ask to confirm before replacing.
+  function handleTemplatePick(tpl: StarterTemplate) {
+    setApplyState({ status: "idle" });
+    if (onApplyTemplate) {
+      // Server-side apply path: confirm, then persist + refresh.
+      setPendingTemplate(tpl);
+    } else {
+      // No persistence hook — fall back to a local (unsaved) load.
+      seedFromConfig(tpl.config);
+      setSaveState({ status: "idle" });
+      flashNote(`Loaded the ${tpl.name} starter — check the column names against your export, then Save.`);
+    }
+  }
+
+  // Confirmed: persist the pending template on the server, then refresh.
+  async function handleConfirmApply() {
+    if (!pendingTemplate || !onApplyTemplate) return;
+    const tpl = pendingTemplate;
+    setApplyState({ status: "applying" });
+    try {
+      const saved = await onApplyTemplate(tpl.id);
+      seedFromConfig(saved);
+      setPendingTemplate(null);
+      setApplyState({ status: "idle" });
+      setSaveState({ status: "saved" });
+      flashNote(`Applied the ${tpl.name} starter — review the column names against your export.`);
+    } catch (e) {
+      const message =
+        e instanceof ApiHttpError && e.status === 404
+          ? "Supplier or template not found."
+          : e instanceof Error
+            ? e.message
+            : "Apply failed";
+      setApplyState({ status: "error", message });
+    }
   }
 
   // ── Derived values ─────────────────────────────────────────────────────────
@@ -380,11 +432,11 @@ export function PoMappingEditor({
             </p>
           </div>
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3 flex-shrink-0">
-            {/* Start from template ▾ */}
+            {/* Apply starter template ▾ */}
             {templatesQuery.data && templatesQuery.data.length > 0 && (
               <TemplatePicker
                 templates={templatesQuery.data}
-                onSelect={handleLoadTemplate}
+                onSelect={handleTemplatePick}
               />
             )}
             <SourceStatus
@@ -398,6 +450,59 @@ export function PoMappingEditor({
           </div>
         </div>
       </div>
+
+      {/* ── Apply-template confirm ─────────────────────────────────────────── */}
+      {pendingTemplate && (
+        <div
+          className="px-4 py-3 sm:px-5"
+          style={{ background: AMBER_SOFT, borderBottom: "1px solid #E8CFA0" }}
+        >
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="min-w-0">
+              <div style={{ fontSize: 13, fontWeight: 600, color: NAVY }}>
+                Apply the <strong>{pendingTemplate.name}</strong> starter?
+              </div>
+              <div style={{ fontSize: 11.5, color: MUTED, marginTop: 2 }}>
+                This replaces the current PO mapping
+                {supplierName ? <> for <strong>{supplierName}</strong></> : null}. You can
+                still review and edit the columns before delivering.
+              </div>
+              {applyState.status === "error" && (
+                <div style={{ fontSize: 11.5, color: DANGER, marginTop: 4 }}>
+                  Couldn&apos;t apply — {applyState.message ?? "try again"}
+                </div>
+              )}
+            </div>
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <button
+                type="button"
+                onClick={() => { setPendingTemplate(null); setApplyState({ status: "idle" }); }}
+                disabled={applyState.status === "applying"}
+                className="rounded-[6px] px-3 py-1.5 text-[12px] font-medium"
+                style={{
+                  background: SURFACE, color: MUTED, border: `1px solid ${BORDER}`,
+                  cursor: applyState.status === "applying" ? "default" : "pointer",
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmApply}
+                disabled={applyState.status === "applying"}
+                className="inline-flex items-center gap-1.5 rounded-[6px] px-3 py-1.5 text-[12px] font-semibold"
+                style={{
+                  background: applyState.status === "applying" ? FAINT : NAVY,
+                  color: "#FFF", border: "none",
+                  cursor: applyState.status === "applying" ? "default" : "pointer",
+                }}
+              >
+                {applyState.status === "applying" ? "Applying…" : "Apply template"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── AI banner ──────────────────────────────────────────────────────── */}
       {suggestQuery.data && suggestQuery.data.length > 0 && (
@@ -1113,7 +1218,7 @@ function TemplatePicker({
           <rect x="1" y="6.5" width="8" height="3" rx="1" fill={BLUE_DEEP} opacity="0.5" />
           <rect x="1" y="11" width="5" height="3" rx="1" fill={BLUE_DEEP} />
         </svg>
-        Start from template
+        Apply starter template
         <svg width="10" height="10" viewBox="0 0 10 10" fill="none" aria-hidden>
           <path d="M2 3.5L5 6.5L8 3.5" stroke={BLUE_DEEP} strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
