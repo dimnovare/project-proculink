@@ -76,14 +76,20 @@ before applying the local signed-out redirect. This fixes temporary agent/test
 session handshakes on production HTTPS while keeping ordinary signed-out
 `/upload`, `/bridge`, etc. requests redirected to `/sign-in?redirect_url=...`.
 `bun run build` passed and Vercel production deploy
-`project-proculink-j02z9qtwg...` is Ready. Authenticated deployed PO QA is still
-blocked because production loads Clerk from `clerk.proculink.eu` with a
-`pk_live...` key, while local `.env.local` belongs to the old/test
-`golden-alpaca` instance. `vercel env pull --environment production` produced
-`CLERK_SECRET_KEY=""`; the temporary env file was deleted. To finish Group J,
-use a real production Clerk secret key or a reusable production QA user/password,
-then run the live browser path against `https://proculink.eu` and
-`https://api.proculink.eu`.
+`project-proculink-j02z9qtwg...` is Ready. Production Clerk secret was provided
+for the session (never commit or print it) and `@clerk/testing` is installed as
+a dev dependency for production-like browser QA. Clerk Testing Tokens can be
+created, and disposable production Clerk users can be created/deleted. Do not
+try to use `clerk.sessions.createSession` for production QA: Clerk rejects it
+with `request_invalid_for_environment` because Backend API session creation is
+development-only. The valid path is a browser/client session via
+`@clerk/testing/playwright` sign-in-token flow or a real signed-in browser
+session. Current Codex desktop environment cannot launch Playwright Chromium,
+Chrome, or Edge (browser launches time out before DevTools opens; DevTools-port
+manual launch is denied by Windows permissions), so authenticated deployed PO QA
+must be run from a browser-capable environment. Public edge checks are healthy:
+`https://api.proculink.eu/health` -> 200; protected `/upload` and `/bridge` ->
+307 local sign-in redirect; `/sign-in` -> 200.
 
 ---
 
