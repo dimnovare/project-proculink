@@ -71,30 +71,72 @@ export function MarketingNav() {
         </button>
       </div>
 
-      {/* Mobile menu */}
+      {/* Mobile menu — fixed full-screen overlay so hero is fully covered */}
       {open && (
         <div
-          className="absolute right-3 top-[66px] z-50 flex w-[min(320px,calc(100vw-24px))] flex-col gap-1 rounded-[10px] p-3 shadow-2xl sm:hidden"
-          style={{ background: "#0B1A2F", border: "1px solid #1B2D49" }}
+          className="fixed inset-0 z-50 flex flex-col sm:hidden"
+          style={{ background: "#0B1A2F" }}
         >
-          <div className="mb-1 flex items-center justify-between border-b pb-3" style={{ borderColor: "#1B2D49" }}>
+          {/* Top bar row: logo + close button */}
+          <div
+            className="flex items-center justify-between px-4"
+            style={{ height: 58, borderBottom: "1px solid #1B2D49" }}
+          >
             <Link href="/" onClick={() => setOpen(false)} className="flex items-center gap-2.5">
               <ProcuLinkMark size={24} />
-              <span className="text-[15px] font-bold text-white">ProcuLink</span>
+              <span
+                style={{
+                  fontFamily: "'Bricolage Grotesque', Inter, sans-serif",
+                  fontSize: 18, fontWeight: 700, color: "#FFFFFF", letterSpacing: "-0.02em",
+                }}
+              >
+                ProcuLink
+              </span>
             </Link>
+            <button
+              onClick={() => setOpen(false)}
+              aria-label="Close menu"
+              style={{ width: 34, height: 34, color: "#FFFFFF", background: "transparent", border: 0 }}
+              className="flex items-center justify-center text-xl"
+            >
+              ✕
+            </button>
+          </div>
+
+          {/* Nav links */}
+          <div className="flex flex-col px-4 pt-4 gap-1">
+            {LINKS.map(({ label, href }) => (
+              <Link
+                key={href}
+                href={href}
+                onClick={() => setOpen(false)}
+                className="rounded-[7px] px-3 py-4 text-[16px] font-medium"
+                style={{ color: "#C5D2E4", borderBottom: "1px solid #1B2D49" }}
+              >
+                {label}
+              </Link>
+            ))}
+            <Link
+              href="/sign-in"
+              onClick={() => setOpen(false)}
+              className="rounded-[7px] px-3 py-4 text-[16px] font-medium"
+              style={{ color: "#C5D2E4", borderBottom: "1px solid #1B2D49" }}
+            >
+              Sign in
+            </Link>
+          </div>
+
+          {/* CTA */}
+          <div className="px-4 pt-6">
             <Link
               href="/sign-up"
               onClick={() => setOpen(false)}
-              className="rounded-[6px] px-3 py-2 text-[12px] font-semibold"
+              className="flex items-center justify-center rounded-[6px] py-3 text-[15px] font-semibold w-full"
               style={{ background: "#28C55E", color: "#FFFFFF" }}
             >
-              Start
+              Start free
             </Link>
           </div>
-          {LINKS.map(({ label, href }) => (
-            <Link key={href} href={href} onClick={() => setOpen(false)} className="rounded-[7px] px-3 py-3 text-right text-[14px]" style={{ color: "#C5D2E4" }}>{label}</Link>
-          ))}
-          <Link href="/sign-in" onClick={() => setOpen(false)} className="rounded-[7px] px-3 py-3 text-right text-[14px]" style={{ color: "#C5D2E4" }}>Sign in</Link>
         </div>
       )}
     </nav>
