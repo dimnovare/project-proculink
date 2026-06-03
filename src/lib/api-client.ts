@@ -1914,6 +1914,47 @@ export async function getPoMappingTemplates(): Promise<StarterTemplate[]> {
   return res.json() as Promise<StarterTemplate[]>;
 }
 
+/**
+ * Applies a starter template to a supplier's PO mapping config.
+ *
+ * Server-side copy: the backend looks up the read-only template, persists its
+ * config onto the supplier (equivalent to PUT-ing the template config), and
+ * returns the saved {@link PoMappingConfig} so the editor can show it for
+ * review. Replaces any existing mapping for that supplier.
+ *
+ * POST /api/suppliers/{id}/po-mapping/apply-template  body { templateId }
+ *   404 — unknown supplier or unknown template
+ *   400 — blank templateId
+ */
+export async function applyPoMappingTemplate(
+  supplierId: string,
+  templateId: string,
+): Promise<import("@/lib/api/types").PoMappingConfig> {
+  if (USE_MOCK) {
+    await delay(220);
+    const templates = await getPoMappingTemplates();
+    const tpl = templates.find(t => t.id === templateId);
+    if (!tpl) throw new ApiHttpError(`Unknown starter template '${templateId}'.`, 404);
+    // Mirror the backend: the persisted config is the template config verbatim.
+    return tpl.config;
+  }
+  const headers = await authHeader();
+  const res = await fetchWithTimeout(
+    `${API_BASE_URL}/api/suppliers/${supplierId}/po-mapping/apply-template`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...headers },
+      body: JSON.stringify({ templateId }),
+    },
+  );
+  if (!res.ok) {
+    let body: unknown = null;
+    try { body = await res.json(); } catch { /* non-JSON error body */ }
+    throw new ApiHttpError(`apply-template: ${res.status}`, res.status, body);
+  }
+  return res.json() as Promise<import("@/lib/api/types").PoMappingConfig>;
+}
+
 // ── Standalone suppliers export (for components that prefer named imports) ────
 export const getSuppliers = USE_MOCK ? mockGetSuppliersFn : realGetSuppliersFn;
 

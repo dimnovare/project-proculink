@@ -10,7 +10,7 @@ import { ChevronLeft, Settings, Info, Clock, Link2, Truck, Plus, ShieldCheck } f
 import { PoMappingEditor } from "./PoMappingEditor";
 import { DeliveryConfigEditor } from "./DeliveryConfigEditor";
 import { upsertPoMapping, deletePoMapping } from "@/lib/api/mapping";
-import { apiClient, isApiMockMode, getAcceptanceProfile, saveAcceptanceProfile, activateAcceptanceVersion } from "@/lib/api-client";
+import { apiClient, isApiMockMode, getAcceptanceProfile, saveAcceptanceProfile, activateAcceptanceVersion, applyPoMappingTemplate } from "@/lib/api-client";
 import type { PoMappingConfig } from "@/lib/api/types";
 import type { AcceptanceRule, AcceptanceProfile } from "@/types/procurement";
 
@@ -887,6 +887,15 @@ export function SupplierDockProfile({ id }: { id: string }) {
             supplierId={id}
             initialConfig={poMappingConfig}
             saving={savingMapping}
+            supplierName={name}
+            onApplyTemplate={async (templateId) => {
+              // Persists the template server-side and refreshes the editor from
+              // the saved config. The PO mapping config is held in local state
+              // (not a TanStack query), so updating it here IS the refresh.
+              const saved = await applyPoMappingTemplate(id, templateId);
+              setPoMappingConfig(saved);
+              return saved;
+            }}
             onSave={async (config) => {
               setSavingMapping(true);
               try {
