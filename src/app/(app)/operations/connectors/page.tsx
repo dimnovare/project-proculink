@@ -2,6 +2,7 @@
 
 // §5.9 Connectors — icon-card grid matching canonical ConnectorsScreen
 import { EmptyState } from "@/components/bridge/EmptyState";
+import Link from "next/link";
 import { useState, type ReactNode } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { getSuppliers, testFireDeliveryConfig, isApiMockMode } from "@/lib/api-client";
@@ -408,10 +409,6 @@ export default function ConnectorsPage() {
         <ConnectorPanel
           connector={selected}
           onClose={() => setSelected(null)}
-          onSaved={(message) => {
-            setNotice(message);
-            setSelected(null);
-          }}
         />
       )}
     </>
@@ -423,11 +420,9 @@ export default function ConnectorsPage() {
 function ConnectorPanel({
   connector,
   onClose,
-  onSaved,
 }: {
   connector: Connector;
   onClose: () => void;
-  onSaved: (message: string) => void;
 }) {
   const isNew = connector.id === "new";
   const [testResult, setTestResult] = useState<string | null>(null);
@@ -518,62 +513,72 @@ function ConnectorPanel({
 
         {/* Body */}
         <div style={{ padding: 18, display: "grid", gap: 14 }}>
+          {/* Honest guidance: delivery endpoints are configured per supplier, not here. */}
+          <div
+            style={{
+              borderRadius: "var(--radius-md,8px)",
+              border: "1px solid var(--border,#E2E6EE)",
+              borderLeft: "3px solid #1E66C9",
+              background: "var(--surface-2,#EFF2F7)",
+              color: "var(--ink-muted,#56627A)",
+              padding: "12px 14px",
+              fontSize: 12.5,
+              lineHeight: 1.5,
+            }}
+          >
+            Delivery endpoints and credentials are configured per supplier, in the
+            supplier&apos;s <strong style={{ color: "var(--ink,#0B1A2F)" }}>Delivery</strong> tab.
+            This panel is read-only — use it to review the connector and test-fire delivery.
+          </div>
+
           <PanelField label="Connector type">
-            <select
-              defaultValue={connector.type}
+            <input
+              readOnly
+              value={connector.type}
               style={{
                 height: 32,
                 width: "100%",
                 borderRadius: "var(--radius,6px)",
                 border: "1px solid var(--border-strong,#C6CDDA)",
-                background: "var(--surface,#FFFFFF)",
+                background: "var(--surface-2,#EFF2F7)",
                 fontSize: 12.5,
-                color: "var(--ink,#0B1A2F)",
+                color: "var(--ink-muted,#56627A)",
                 padding: "0 11px",
               }}
-            >
-              <option>API (REST)</option>
-              <option>Email (IMAP)</option>
-              <option>EDI (SFTP)</option>
-              <option>cXML PunchOut</option>
-              <option>ERP — Erply</option>
-              <option>ERP — Directo</option>
-            </select>
+            />
           </PanelField>
           <PanelField label="Name or endpoint">
             <input
-              defaultValue={connector.name}
-              placeholder="Supplier, mailbox, or endpoint name"
+              readOnly
+              value={connector.name || "—"}
               style={{
                 height: 32,
                 width: "100%",
                 borderRadius: "var(--radius,6px)",
                 border: "1px solid var(--border-strong,#C6CDDA)",
-                background: "var(--surface,#FFFFFF)",
+                background: "var(--surface-2,#EFF2F7)",
                 fontSize: 12.5,
-                color: "var(--ink,#0B1A2F)",
+                color: "var(--ink-muted,#56627A)",
                 padding: "0 11px",
               }}
             />
           </PanelField>
           <div style={{ display: "grid", gap: 14, gridTemplateColumns: "1fr 1fr" }}>
             <PanelField label="Direction">
-              <select
-                defaultValue={connector.direction}
+              <input
+                readOnly
+                value={connector.direction === "in" ? "Input to ProcuLink" : "Output to supplier"}
                 style={{
                   height: 32,
                   width: "100%",
                   borderRadius: "var(--radius,6px)",
                   border: "1px solid var(--border-strong,#C6CDDA)",
-                  background: "var(--surface,#FFFFFF)",
+                  background: "var(--surface-2,#EFF2F7)",
                   fontSize: 12.5,
-                  color: "var(--ink,#0B1A2F)",
+                  color: "var(--ink-muted,#56627A)",
                   padding: "0 11px",
                 }}
-              >
-                <option value="in">Input to ProcuLink</option>
-                <option value="out">Output to supplier</option>
-              </select>
+              />
             </PanelField>
             <PanelField label="Status">
               <input
@@ -637,12 +642,13 @@ function ConnectorPanel({
           >
             {firing ? "Firing…" : "Test fire"}
           </button>
-          <button
-            onClick={() => onSaved(isNew ? "Connector draft prepared. Set delivery credentials in the supplier's Delivery tab." : "Connector configuration saved.")}
-            style={{ height: 32, padding: "0 14px", borderRadius: "var(--radius,6px)", border: "1px solid transparent", background: "var(--brand-green,#2E8E3A)", color: "#FFFFFF", fontSize: 12.5, fontWeight: 600, cursor: "pointer" }}
+          <Link
+            href={isNew || connector.id === "new" ? "/library/suppliers" : `/library/suppliers/${connector.id}`}
+            onClick={onClose}
+            style={{ height: 32, padding: "0 14px", borderRadius: "var(--radius,6px)", border: "1px solid transparent", background: "#1E66C9", color: "#FFFFFF", fontSize: 12.5, fontWeight: 600, cursor: "pointer", display: "inline-flex", alignItems: "center", textDecoration: "none" }}
           >
-            Save
-          </button>
+            Open supplier Delivery tab
+          </Link>
         </div>
       </div>
     </div>
