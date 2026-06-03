@@ -473,12 +473,31 @@ export interface OrderValidationResult {
   }>;
 }
 
-// ── Order exceptions (GET /api/orders/{id}/exceptions) ────────────────────────
+// ── Order exceptions ──────────────────────────────────────────────────────────
+// Per-order:  GET /api/orders/{id}/exceptions
+// All-orders: GET /api/exceptions?state=open|resolved|ignored
+//
+// The all-orders dashboard endpoint returns the richer shape (orderId, lineId,
+// stage, code, state); the per-order endpoint may omit those, so they are
+// optional here to keep both callers type-safe against the same interface.
+
+export type ExceptionSeverity = "info" | "warning" | "error" | "critical";
+export type ExceptionState = "open" | "resolved" | "ignored";
 
 export interface OrderException {
   id: string;
-  severity: "error" | "warning" | "info";
+  severity: ExceptionSeverity | string;
   message: string;
   createdAt: string;
   resolvedAt?: string | null;
+  /** Owning order — present on the all-orders dashboard endpoint. */
+  orderId?: string | null;
+  /** Owning order line, when the exception is line-scoped. */
+  lineId?: string | null;
+  /** Pipeline stage that raised it (e.g. parse / validate / transform / deliver). */
+  stage?: string | null;
+  /** Machine-readable exception code. */
+  code?: string | null;
+  /** Lifecycle state — present on the all-orders dashboard endpoint. */
+  state?: ExceptionState | string | null;
 }
