@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState, type CSSProperties, type ReactNode } from "react";
+import { useOrganization } from "@clerk/nextjs";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Building, Copy, Euro, ExternalLink, Key, Mail, Plug, Plus, Save, ShieldCheck, Trash2, Zap } from "lucide-react";
 import { BillingSection } from "@/components/bridge/BillingSection";
@@ -29,8 +30,17 @@ const TABS: Array<{ id: SettingsTab; label: string; Icon: React.ElementType }> =
   { id: "connectors", label: "Connectors",      Icon: Plug      },
 ];
 
+const PLAN_LABELS: Record<string, string> = {
+  pilot: "Pilot plan", growth: "Growth plan", operations: "Operations plan",
+  integration: "Integration plan", enterprise: "Enterprise",
+};
+
 export default function SettingsPage() {
   const [tab, setTab] = useState<SettingsTab>("org");
+  const { organization } = useOrganization();
+  const { data: billing } = useQuery({ queryKey: ["billing-status"], queryFn: getBillingStatus, staleTime: 60_000 });
+  const orgName   = organization?.name ?? "…";
+  const planLabel = billing ? (PLAN_LABELS[billing.plan] ?? billing.plan) : "…";
 
   return (
     <div style={{ height: "100%", minHeight: 0, overflowY: "auto", background: "#F6F7FA" }}>
@@ -41,7 +51,7 @@ export default function SettingsPage() {
             Settings
           </h1>
           <div style={{ color: "var(--ink-muted)", fontSize: 13, marginTop: 5 }}>
-            Nordic Distribution · Operations plan
+            {orgName} · {planLabel}
           </div>
         </header>
 
@@ -189,12 +199,15 @@ function SettingsRow({ label, hint, children }: { label: string; hint?: string; 
 // ── Organization section ───────────────────────────────────────────────────
 
 function OrgSection() {
+  const { organization } = useOrganization();
+  const orgName = organization?.name ?? "";
+
   return (
     <div>
       <SettingsGroup title="Organization" sub="Your workspace identity across the product.">
         <div style={{ marginBottom: 18 }}>
           <label style={fieldLabelStyle}>Workspace name</label>
-          <input defaultValue="Nordic Distribution" style={{ ...inputStyle, maxWidth: 420 }} />
+          <input defaultValue={orgName} key={orgName} style={{ ...inputStyle, maxWidth: 420 }} />
         </div>
         <div style={{ marginBottom: 4 }}>
           <label style={fieldLabelStyle}>Default currency</label>
