@@ -2153,6 +2153,116 @@ async function realGetOrderExceptions(orderId: string): Promise<OrderException[]
   return res.json() as Promise<OrderException[]>;
 }
 
+// ── All-orders exception dashboard ────────────────────────────────────────────
+// GET   /api/exceptions?state=open|resolved|ignored   → OrderException[]
+// PATCH /api/exceptions/{id}/resolve                   → 204
+// PATCH /api/exceptions/{id}/ignore                    → 204
+
+const _mockExceptions: OrderException[] = [
+  {
+    id: "exc-001",
+    orderId: "ord-002",
+    lineId: "l-002-2",
+    stage: "validate",
+    code: "UNRESOLVED_SUPPLIER_CODE",
+    severity: "error",
+    state: "open",
+    message: "Line 2 (TB-RES-220) has no confirmed supplier item code.",
+    createdAt: new Date(Date.now() - 12 * 60_000).toISOString(),
+    resolvedAt: null,
+  },
+  {
+    id: "exc-002",
+    orderId: "ord-002",
+    lineId: null,
+    stage: "transform",
+    code: "MISSING_DELIVERY_CONFIG",
+    severity: "warning",
+    state: "open",
+    message: "Supplier has no delivery configuration; order cannot be sent.",
+    createdAt: new Date(Date.now() - 48 * 60_000).toISOString(),
+    resolvedAt: null,
+  },
+  {
+    id: "exc-003",
+    orderId: "ord-003",
+    lineId: null,
+    stage: "deliver",
+    code: "SUPPLIER_HTTP_422",
+    severity: "critical",
+    state: "open",
+    message: "Supplier endpoint rejected the order (HTTP 422).",
+    createdAt: new Date(Date.now() - 3 * 60 * 60_000).toISOString(),
+    resolvedAt: null,
+  },
+  {
+    id: "exc-004",
+    orderId: "ord-001",
+    lineId: null,
+    stage: "parse",
+    code: "CURRENCY_ASSUMED",
+    severity: "info",
+    state: "resolved",
+    message: "Currency was not present in source; assumed USD from buyer default.",
+    createdAt: new Date(Date.now() - 26 * 60 * 60_000).toISOString(),
+    resolvedAt: new Date(Date.now() - 25 * 60 * 60_000).toISOString(),
+  },
+  {
+    id: "exc-005",
+    orderId: "ord-003",
+    lineId: null,
+    stage: "validate",
+    code: "DUPLICATE_PO_NUMBER",
+    severity: "warning",
+    state: "ignored",
+    message: "A previous order used PO number PO-2024-009012.",
+    createdAt: new Date(Date.now() - 50 * 60 * 60_000).toISOString(),
+    resolvedAt: null,
+  },
+];
+
+async function mockGetExceptions(state?: string): Promise<OrderException[]> {
+  await delay(200);
+  const list = state ? _mockExceptions.filter(e => e.state === state) : _mockExceptions;
+  // Newest first — mirrors the live endpoint ordering.
+  return [...list].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+}
+
+async function realGetExceptions(state?: string): Promise<OrderException[]> {
+  const qs = state ? `?state=${encodeURIComponent(state)}` : "";
+  const res = await fetchWithTimeout(`${API_BASE_URL}/api/exceptions${qs}`, { headers: await authHeader() });
+  if (!res.ok) throw new Error(`exceptions: ${res.status}`);
+  return res.json() as Promise<OrderException[]>;
+}
+
+async function mockResolveException(id: string): Promise<void> {
+  await delay(200);
+  const e = _mockExceptions.find(x => x.id === id);
+  if (e) { e.state = "resolved"; e.resolvedAt = new Date().toISOString(); }
+}
+
+async function realResolveException(id: string): Promise<void> {
+  const res = await fetchWithTimeout(`${API_BASE_URL}/api/exceptions/${id}/resolve`, {
+    method: "PATCH",
+    headers: await authHeader(),
+  }, 30000);
+  if (!res.ok && res.status !== 204) throw new Error(`exceptions/resolve: ${res.status}`);
+}
+
+async function mockIgnoreException(id: string): Promise<void> {
+  await delay(200);
+  const e = _mockExceptions.find(x => x.id === id);
+  if (e) e.state = "ignored";
+}
+
+async function realIgnoreException(id: string): Promise<void> {
+  const res = await fetchWithTimeout(`${API_BASE_URL}/api/exceptions/${id}/ignore`, {
+    method: "PATCH",
+    headers: await authHeader(),
+  }, 30000);
+  if (!res.ok && res.status !== 204) throw new Error(`exceptions/ignore: ${res.status}`);
+}
+
 // ── Acceptance + exceptions exports ──────────────────────────────────────────
 
 export const getAcceptanceProfile = USE_MOCK ? mockGetAcceptanceProfile : realGetAcceptanceProfile;
@@ -2160,3 +2270,6 @@ export const saveAcceptanceProfile = USE_MOCK ? mockSaveAcceptanceProfile : real
 export const activateAcceptanceVersion = USE_MOCK ? mockActivateAcceptanceVersion : realActivateAcceptanceVersion;
 export const validateOrder = USE_MOCK ? mockValidateOrder : realValidateOrder;
 export const getOrderExceptions = USE_MOCK ? mockGetOrderExceptions : realGetOrderExceptions;
+export const getExceptions = USE_MOCK ? mockGetExceptions : realGetExceptions;
+export const resolveException = USE_MOCK ? mockResolveException : realResolveException;
+export const ignoreException = USE_MOCK ? mockIgnoreException : realIgnoreException;
