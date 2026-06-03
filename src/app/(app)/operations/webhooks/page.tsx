@@ -1053,8 +1053,9 @@ function LiveWebhooksPage() {
     if (!panel || panel.id === "new") {
       createMutation.mutate({ url, eventType, secret });
     } else {
-      // Edit (update) not yet supported by the backend endpoint
-      setNotice("Webhook URL saved (changes take effect on next delivery).");
+      // The backend has no update endpoint yet — be honest rather than claim a
+      // save that didn't happen. To change an endpoint, delete and re-add it.
+      setNotice("Editing an existing endpoint isn't supported yet — delete this endpoint and add a new one to change its URL or event.");
       setPanel(null);
     }
   };
