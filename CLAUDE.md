@@ -91,6 +91,22 @@ must be run from a browser-capable environment. Public edge checks are healthy:
 `https://api.proculink.eu/health` -> 200; protected `/upload` and `/bridge` ->
 307 local sign-in redirect; `/sign-in` -> 200.
 
+Group J live API/storage update 2026-06-03: the Clerk FAPI sign-in-token flow
+can mint a real production session JWT for a disposable user + organisation,
+and Railway accepts authenticated API calls with that JWT:
+`GET /api/billing/status`, `POST /api/suppliers`, and `GET /api/suppliers` are
+green. Railway production R2 variables were updated with a Cloudflare R2 S3
+access key pair for bucket `proculink`; after redeploy, sample order now returns
+200 and direct multipart `POST /api/orders/upload` returns 200 with an R2
+`sourceFileKey`. Do not chase sample-order/upload as a frontend/CORS issue.
+The current live blocker is parse job execution: uploaded orders remain
+`parsing` for 30+ seconds. API logs show `ParseOrderJob` is enqueued, but the
+linked Railway service is only `ProcuLink` and the API intentionally does not
+run `AddHangfireServer`. Production needs a separate `ProcuLink.Worker` Railway
+service deployed from `Dockerfile.worker` with the same DB/storage/AI/delivery
+env vars. After that Worker consumes jobs, rerun upload -> preview -> review ->
+transform -> delivery against the live domain.
+
 ---
 
 ## 2. Visual direction — "The Bridge Layer" (LOCKED)
