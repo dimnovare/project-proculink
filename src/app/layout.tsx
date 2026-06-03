@@ -44,17 +44,19 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   const publishableKey = process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY;
 
+  // ClerkProvider is ALWAYS mounted so that components calling Clerk hooks
+  // (useAuth/useUser/useOrganization/...) never run outside a provider —
+  // including during static prerender at build time when no publishable key
+  // is configured. @clerk/nextjs tolerates an absent publishableKey by
+  // rendering children in a degraded, no-session state (sign-in/sign-out are
+  // simply unavailable). When the key IS present, behaviour is unchanged.
   return (
     <html lang="en">
       <body>
-        {publishableKey ? (
-          <ClerkProvider publishableKey={publishableKey}>
-            {children}
-            <AnalyticsBoot />
-          </ClerkProvider>
-        ) : (
-          children
-        )}
+        <ClerkProvider publishableKey={publishableKey}>
+          {children}
+          <AnalyticsBoot />
+        </ClerkProvider>
         <CookieConsentBanner />
       </body>
     </html>
