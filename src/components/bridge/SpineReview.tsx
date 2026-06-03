@@ -1492,7 +1492,7 @@ export function SpineReview({ orderId }: { orderId: string }) {
 
   // ── Loading / error gates (must be after all hooks) ────────────────────────
   if (isLoading) return <SpineReviewSkeleton />;
-  if (isError || order === null) {
+  if (isError || order == null) {
     return (
       <div className="flex flex-col items-center justify-center h-full gap-4" style={{ background: "#F6F7FA" }}>
         <div style={{ fontSize: 28, color: "#C6CDDA" }}>⊘</div>
