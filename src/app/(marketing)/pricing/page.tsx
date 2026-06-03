@@ -40,7 +40,7 @@ const SETUP_NOTE: Record<string, string> = {
   enterprise: "Annual contract",
 };
 
-const TIERS = PLANS.map((p) => ({
+const TIERS = PLANS.filter((p) => !p.hidden).map((p) => ({
   id: p.id,
   name: p.name,
   price: p.priceLabel,

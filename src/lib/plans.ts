@@ -54,6 +54,13 @@ export interface Plan {
   isCustom: boolean;
   /** Next upgrade plan id for in-app upsell, or null. */
   next: PlanId | null;
+  /**
+   * When true, this plan is hidden from all public UI (pricing page, in-app
+   * pickers, checkout buttons). The plan entry is kept in source so the
+   * backend billing engine can still reference it; it is simply not purchasable
+   * through the frontend for now.
+   */
+  hidden?: boolean;
 }
 
 const SIGN_UP = "/sign-up";
@@ -173,7 +180,7 @@ export const PLANS: Plan[] = [
     highlight: false,
     isCheckout: true,
     isCustom: false,
-    next: "distributor",
+    next: null,
   },
   {
     id: "distributor",
@@ -203,6 +210,7 @@ export const PLANS: Plan[] = [
     isCheckout: true,
     isCustom: false,
     next: null,
+    hidden: true,
   },
   {
     id: "enterprise",
@@ -244,8 +252,8 @@ export const PLAN_BY_ID: Record<PlanId, Plan> = PLANS.reduce(
   {} as Record<PlanId, Plan>,
 );
 
-/** Plan ids that go through self-serve Stripe Checkout (excludes Pilot + Enterprise). */
-export const CHECKOUT_PLAN_IDS: PlanId[] = PLANS.filter((p) => p.isCheckout).map((p) => p.id);
+/** Plan ids that go through self-serve Stripe Checkout (excludes Pilot, Enterprise, and hidden plans). */
+export const CHECKOUT_PLAN_IDS: PlanId[] = PLANS.filter((p) => p.isCheckout && !p.hidden).map((p) => p.id);
 
 /**
  * Setup / onboarding fee note. These fees are arranged manually with the
