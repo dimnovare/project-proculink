@@ -6,6 +6,7 @@
 import type React from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState, useRef, useEffect, useCallback, useMemo, type KeyboardEvent } from "react";
+import { useAuth } from "@clerk/nextjs";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiClient, getOrderExceptions, validateOrder } from "@/lib/api-client";
 import type { Order, OrderException, OrderValidationResult } from "@/types/procurement";
@@ -1184,12 +1185,16 @@ const STUCK_WARN_MS = 2 * 60 * 1000; // 2 minutes
 export function SpineReview({ orderId }: { orderId: string }) {
   const router = useRouter();
   const qc = useQueryClient();
+  const { isLoaded: clerkLoaded, isSignedIn } = useAuth();
+  const clerkReady = clerkLoaded && !!isSignedIn;
 
   // ── Live order data ────────────────────────────────────────────────────────
   const { data: order, isLoading, isError, refetch: refetchOrder } = useQuery({
     queryKey: ["order", orderId],
     queryFn: () => apiClient.getOrderById(orderId),
-    retry: 1,
+    enabled: clerkReady,
+    retry: 2,
+    retryDelay: 600,
     staleTime: 30_000,
   });
 
@@ -1205,7 +1210,7 @@ export function SpineReview({ orderId }: { orderId: string }) {
   const { data: orderExceptions = [] } = useQuery<OrderException[]>({
     queryKey: ["order-exceptions", orderId],
     queryFn: () => getOrderExceptions(orderId),
-    enabled: !!orderId,
+    enabled: clerkReady && !!orderId,
     staleTime: 30_000,
     retry: 1,
   });
