@@ -70,6 +70,21 @@ redirect, `/sitemap.xml` -> 200 XML, `robots.txt` includes the sitemap URL. Live
 verification after push: `https://proculink.eu/upload` -> 307 sign-in redirect,
 `https://proculink.eu/sitemap.xml` -> 200 XML.
 
+Group J auth boundary update 2026-06-03: `src/middleware.ts` now allows Clerk
+handshake requests (`__clerk_handshake` / `__clerk_db_jwt`) on protected routes
+before applying the local signed-out redirect. This fixes temporary agent/test
+session handshakes on production HTTPS while keeping ordinary signed-out
+`/upload`, `/bridge`, etc. requests redirected to `/sign-in?redirect_url=...`.
+`bun run build` passed and Vercel production deploy
+`project-proculink-j02z9qtwg...` is Ready. Authenticated deployed PO QA is still
+blocked because production loads Clerk from `clerk.proculink.eu` with a
+`pk_live...` key, while local `.env.local` belongs to the old/test
+`golden-alpaca` instance. `vercel env pull --environment production` produced
+`CLERK_SECRET_KEY=""`; the temporary env file was deleted. To finish Group J,
+use a real production Clerk secret key or a reusable production QA user/password,
+then run the live browser path against `https://proculink.eu` and
+`https://api.proculink.eu`.
+
 ---
 
 ## 2. Visual direction — "The Bridge Layer" (LOCKED)
