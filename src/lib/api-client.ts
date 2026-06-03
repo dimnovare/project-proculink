@@ -2314,3 +2314,95 @@ export const getOrderExceptions = USE_MOCK ? mockGetOrderExceptions : realGetOrd
 export const getExceptions = USE_MOCK ? mockGetExceptions : realGetExceptions;
 export const resolveException = USE_MOCK ? mockResolveException : realResolveException;
 export const ignoreException = USE_MOCK ? mockIgnoreException : realIgnoreException;
+
+// ── Operator job-health (GET /api/ops/*) ─────────────────────────────────────
+
+/** Aggregate pipeline-health counts for the org. Mirrors backend OpsHealthDto. */
+export interface OpsHealth {
+  parsingStuck: number;
+  deliveringStuck: number;
+  transformFailed: number;
+  deliveryFailed: number;
+  deliveryDeadLetter: number;
+  rejectedBySupplier: number;
+  failed: number;
+  slaBreached: number;
+  openExceptions: number;
+  stuckThresholdMinutes: number;
+  totalProblemOrders: number;
+}
+
+/** A dead-lettered (or failed) delivery awaiting operator review. Mirrors DeadLetterOrderDto. */
+export interface DeadLetterOrder {
+  orderId: string;
+  poNumber: string;
+  supplierId: string | null;
+  supplierName: string | null;
+  status: string;
+  deliveryAttempts: number;
+  lastError: string | null;
+  lastResponseCode: number | null;
+  lastAttemptAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+async function mockGetOpsHealth(): Promise<OpsHealth> {
+  await delay(200);
+  return {
+    parsingStuck: 0, deliveringStuck: 0, transformFailed: 0, deliveryFailed: 1,
+    deliveryDeadLetter: 1, rejectedBySupplier: 0, failed: 0, slaBreached: 0,
+    openExceptions: 2, stuckThresholdMinutes: 30, totalProblemOrders: 2,
+  };
+}
+
+async function realGetOpsHealth(): Promise<OpsHealth> {
+  const res = await fetchWithTimeout(`${API_BASE_URL}/api/ops/health`, { headers: await authHeader() });
+  if (!res.ok) throw new Error(`ops/health: ${res.status}`);
+  return res.json() as Promise<OpsHealth>;
+}
+
+async function mockGetDeadLetterOrders(includeFailed = false): Promise<DeadLetterOrder[]> {
+  await delay(200);
+  const now = new Date().toISOString();
+  const rows: DeadLetterOrder[] = [
+    { orderId: "mock-dl-1", poNumber: "PO-2026-0142", supplierId: "s1", supplierName: "Acme Components",
+      status: "delivery_dead_letter", deliveryAttempts: 3, lastError: "HTTP 503: supplier endpoint unavailable",
+      lastResponseCode: 503, lastAttemptAt: now, createdAt: now, updatedAt: now },
+  ];
+  return includeFailed
+    ? rows.concat({ orderId: "mock-dl-2", poNumber: "PO-2026-0151", supplierId: "s2", supplierName: "BoltWorks BV",
+        status: "delivery_failed", deliveryAttempts: 1, lastError: "Connection timed out", lastResponseCode: null,
+        lastAttemptAt: now, createdAt: now, updatedAt: now })
+    : rows;
+}
+
+async function realGetDeadLetterOrders(includeFailed = false): Promise<DeadLetterOrder[]> {
+  const qs = includeFailed ? "?includeFailed=true" : "";
+  const res = await fetchWithTimeout(`${API_BASE_URL}/api/ops/dead-letter${qs}`, { headers: await authHeader() });
+  if (!res.ok) throw new Error(`ops/dead-letter: ${res.status}`);
+  return res.json() as Promise<DeadLetterOrder[]>;
+}
+
+async function mockRequeueDelivery(_orderId: string): Promise<{ status: string }> {
+  await delay(300);
+  return { status: "delivering" };
+}
+
+async function realRequeueDelivery(orderId: string): Promise<{ status: string }> {
+  const res = await fetchWithTimeout(`${API_BASE_URL}/api/ops/orders/${orderId}/requeue-delivery`, {
+    method: "POST",
+    headers: await authHeader(),
+  }, 30000);
+  if (!res.ok) {
+    const body = await res.json().catch(() => null);
+    const message = body && typeof body === "object" && "error" in body
+      ? String((body as { error?: unknown }).error) : res.statusText;
+    throw new ApiHttpError(`requeue-delivery failed: ${message || res.status}`, res.status, body);
+  }
+  return res.json() as Promise<{ status: string }>;
+}
+
+export const getOpsHealth = USE_MOCK ? mockGetOpsHealth : realGetOpsHealth;
+export const getDeadLetterOrders = USE_MOCK ? mockGetDeadLetterOrders : realGetDeadLetterOrders;
+export const requeueDelivery = USE_MOCK ? mockRequeueDelivery : realRequeueDelivery;
