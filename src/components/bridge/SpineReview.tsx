@@ -1496,8 +1496,12 @@ export function SpineReview({ orderId }: { orderId: string }) {
   }, [nodes, acceptedSubnodes, rejectedSubnodes, handleAcceptSubnode, crossed, exceptionCount, editingId]);
 
   // ── Loading / error gates (must be after all hooks) ────────────────────────
-  if (isLoading) return <SpineReviewSkeleton />;
-  if (isError || order == null) {
+  // While Clerk is still resolving the session the order query is disabled
+  // (enabled: clerkReady). In TanStack Query v5 a disabled query reports
+  // isLoading=false with data=undefined, so without the !clerkReady guard the
+  // page would flash the error gate before the session is ready.
+  if (!clerkReady || isLoading || order === undefined) return <SpineReviewSkeleton />;
+  if (isError || order === null) {
     return (
       <div className="flex flex-col items-center justify-center h-full gap-4" style={{ background: "#F6F7FA" }}>
         <div style={{ fontSize: 28, color: "#C6CDDA" }}>⊘</div>
