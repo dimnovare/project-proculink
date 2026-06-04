@@ -314,8 +314,8 @@ export default function HowItWorksPage() {
             margin: "16px auto 0",
           }}
         >
-          Open the product and resolve an exception yourself — the review
-          workbench is interactive.
+          Watch a single upload become a delivered supplier order — parsed,
+          mapped, validated, and sent.
         </p>
         <div style={{ marginTop: 34 }}>
           <Link
@@ -335,7 +335,7 @@ export default function HowItWorksPage() {
               boxShadow: "0 8px 22px -8px rgba(30,102,201,0.55)",
             }}
           >
-            Open the workbench
+            Watch the walkthrough
             <ArrowRight />
           </Link>
         </div>
