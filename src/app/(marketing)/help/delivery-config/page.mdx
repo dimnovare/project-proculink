@@ -1,6 +1,6 @@
 export const metadata = {
   title: "Configuring supplier delivery — ProcuLink Help",
-  description: "Set up HTTP webhook delivery with credentials and test-fire.",
+  description: "Set up HTTP, SFTP/FTPS, email, or ERP delivery with credentials and test-fire.",
 };
 
 # Configuring supplier delivery
@@ -9,17 +9,18 @@ Delivery is the last stage of the pipeline — a transformed order has to actual
 
 ## Choosing a protocol
 
-ProcuLink supports three delivery protocols:
+ProcuLink supports these delivery channels:
 
-- `HTTP webhook` — the default. Works with any supplier that exposes a JSON endpoint.
-- `Erply` — purpose-built adapter for Erply ERP customers.
-- `Directo` — purpose-built adapter for Directo ERP customers.
+- `HTTP webhook` — the default. Works with any supplier that exposes a JSON/XML endpoint. Auth: none, API key, bearer, basic, or OAuth2 fetch-token.
+- `SFTP` / `FTPS` — drop the order file on the supplier's server (password or private key).
+- `Email (SMTP)` — send the order as an email attachment.
+- `Erply` / `Directo` — purpose-built adapters for those ERP tenants (authentication + field mapping handled for you).
 
-Pick HTTP when the supplier publishes an API. Pick the ERP adapter when you already share an Erply or Directo tenant with the supplier — it handles authentication and field mapping for you.
+Pick HTTP when the supplier publishes an API, SFTP/FTPS or email for file-based suppliers, or the ERP adapter when you share an Erply/Directo tenant. The output format each supplier receives is set on the same Delivery tab.
 
 ## Configuring HTTP delivery
 
-Enter the webhook URL, the auth method (`none`, `bearer`, or `basic`), and any required headers. Credentials are encrypted at rest with AES-256-GCM.
+Enter the webhook URL, the auth method (`none`, `API key`, `bearer`, `basic`, or `OAuth2 fetch-token` — which fetches a fresh access token from the supplier's token endpoint before each send), and any required headers. Credentials are encrypted at rest with AES-256-GCM.
 
 ## Test-fire before going live
 

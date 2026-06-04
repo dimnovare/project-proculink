@@ -129,11 +129,11 @@ export const STANDARDS: StandardSupport[] = [
     name: "ANSI X12 850",
     version: "004010 / 005010",
     family: "edi",
-    parse: "planned",
-    transform: "planned",
-    transport: "AS2 (partner-wrap) · VAN · SFTP",
+    parse: "supported",
+    transform: "supported",
+    transport: "HTTPS · SFTP/FTPS · email · AS2 (on request)",
     conformance:
-      "Group M Purchase Order work in active development — parser/transformer scaffolding exists but is not yet production-certified or plan-gated. Shares the EDIFACT library decision.",
+      "ANSI X12 850 parsing and outbound transform are live (004010/005010) with header + line-item fidelity, and the output is selectable per supplier. AS2/VAN transport is available on request.",
     referenceUrl: "https://x12.org/codes/transaction-sets",
   },
   // ── Tabular / document / API ───────────────────────────────────────────────

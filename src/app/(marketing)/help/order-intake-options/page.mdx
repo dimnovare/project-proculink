@@ -12,7 +12,7 @@ ProcuLink is designed to receive purchase orders the way your buyer or procureme
 1. **Manual upload** — best for the first supplier setup and testing real files.
 2. **Email intake** — best when buyers already send POs as attachments.
 3. **API push** — best when an ERP, procurement system, or automation tool can send structured order data.
-4. **SFTP or storage-folder polling** — best for recurring file exports from older systems. This is currently an assisted setup.
+4. **SFTP or storage-folder polling** — best for recurring file exports from older systems. Configure it yourself in **Settings → SFTP pull** or **S3 / R2 pull** (Integration plan).
 
 ## Manual upload
 
@@ -25,7 +25,7 @@ Common PO formats include CSV, XLSX, text-based PDF, XML/cXML, UBL/Peppol-style 
 There are two email patterns:
 
 - **IMAP polling**: ProcuLink checks a mailbox you own every 5 minutes and imports supported attachments. This is configured in **Settings → Email intake**.
-- **Hosted inbound address**: ProcuLink can receive messages through a provider-backed inbound email webhook, using an address such as `orders@your-workspace.proculink.eu`. This is an assisted setup while custom routing is being finalized.
+- **Hosted inbound address**: forward orders to a dedicated address such as `orders@your-workspace.proculink.eu` and ProcuLink imports the attachments. Routing to your workspace is automatic (on your workspace slug); we set up the receiving email domain with you.
 
 For repeatable automation, use a dedicated mailbox or folder and ask senders to attach one purchase order per email.
 
@@ -39,7 +39,7 @@ This path is best for ERPs, procurement systems, Zapier/Make-style automation, o
 
 ProcuLink can poll external SFTP and S3-compatible storage locations for recurring PO files. These flows are useful when a source system exports files on a schedule.
 
-Because folder-based intake needs supplier-resolution rules, duplicate protection, and credentials, it is currently configured with ProcuLink support rather than fully self-service.
+Configure SFTP and S3/R2 polling yourself in **Settings → SFTP pull** and **S3 / R2 pull**: set the host/bucket, credentials (encrypted at rest), and the default supplier imported files are attributed to. Available on the Integration plan and up.
 
 ## What to send
 
