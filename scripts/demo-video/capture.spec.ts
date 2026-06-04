@@ -79,16 +79,20 @@ test("ProcuLink walkthrough capture", async ({ page }) => {
     else document.addEventListener("DOMContentLoaded", add);
   });
 
-  // ── s1 — hook: marketing hero (cookie banner dismissed first) ────────────
+  // ── s1 — hook: the ANIMATED how-it-works pipeline (motion, on-topic) ──────
+  //   The how-it-works hero runs a live "order pipeline" (Receive→…→Deliver
+  //   dots cycling + data cells fading in), so the opening isn't a static hero.
   await soft("s1.goto", async () => {
-    await page.goto("/", { waitUntil: "networkidle" });
+    await page.goto("/how-it-works", { waitUntil: "networkidle" });
     await dismissCookie(page);
+    // Frame the terminal/pipeline nicely in view.
+    await page.evaluate(() => window.scrollTo({ top: 150, behavior: "instant" as ScrollBehavior })).catch(() => {});
   });
   await beat("s1-hook");
 
-  // ── s2 — promise: hold on the animated hero (no scroll) ──────────────────
+  // ── s2 — promise: stay on the animating pipeline (no scroll) ─────────────
   await soft("s2.hero", async () => {
-    await page.evaluate(() => window.scrollTo({ top: 0 })).catch(() => {});
+    await page.waitForTimeout(200);
   });
   await beat("s2-promise");
 
