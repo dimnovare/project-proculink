@@ -27,6 +27,11 @@ test("format detection pill appears after file selection", async ({ page }) => {
     page.getByRole("heading", { level: 1, name: /upload/i }).first(),
   ).toBeVisible({ timeout: 10_000 });
 
+  // Wait for the form to hydrate (supplier list loaded) so the file input's
+  // React onChange is attached before we set a file — otherwise the detection
+  // handler is missed and the pill never renders (hydration race).
+  await expect(page.getByRole("option", { name: /FastParts Inc/i })).toBeAttached({ timeout: 10_000 });
+
   // Select a minimal CSV file using the hidden file input.
   // The mock returns a fixed synthetic detection regardless of file content.
   await page.setInputFiles('input[type="file"]', {

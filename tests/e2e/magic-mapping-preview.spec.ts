@@ -141,6 +141,10 @@ test.describe("UploadWorkbench — post-upload routes to preview", () => {
       page.getByRole("heading", { level: 1, name: /upload/i }).first(),
     ).toBeVisible({ timeout: 10_000 });
 
+    // Wait for the form to hydrate (supplier list loaded) before selecting a file,
+    // so the file input's React onChange is attached (hydration race).
+    await expect(page.getByRole("option", { name: /FastParts Inc/i })).toBeAttached({ timeout: 10_000 });
+
     // Attach a minimal CSV file
     await page.setInputFiles('input[type="file"]', {
       name: "test-po.csv",
