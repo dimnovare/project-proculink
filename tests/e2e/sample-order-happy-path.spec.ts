@@ -30,6 +30,7 @@ test("upload page renders with the Try-with-sample-order button", async ({ page 
 });
 
 test("clicking Try with sample order routes to a sample order page with banner", async ({ page }) => {
+  test.setTimeout(60_000); // cold-compile of /inbox/[orderId] under full-suite CI load can exceed the 30s default
   await page.goto("/upload");
 
   const sampleCta = page.getByRole("button", { name: /try with.*sample order/i });
