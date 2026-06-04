@@ -346,33 +346,7 @@ function AcceptanceTab({ supplierId }: { supplierId: string }) {
           </div>
         </div>
 
-        {/* Protocol / format fields (only shown in edit mode) */}
-        {isEditing && (
-          <div className="flex flex-wrap gap-4 px-5 py-4" style={{ borderBottom: `1px solid ${LINE}`, background: "#FAFBFC" }}>
-            <div className="flex flex-col gap-1">
-              <label className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: FAINT }}>Protocol</label>
-              <input
-                type="text"
-                value={editProtocol}
-                onChange={e => setEditProtocol(e.target.value)}
-                placeholder="e.g. https"
-                className="rounded-[6px] px-2.5 text-[12.5px]"
-                style={{ height: 32, border: `1px solid ${LINE}`, background: SURFACE, color: INK, width: 140, outline: "none" }}
-              />
-            </div>
-            <div className="flex flex-col gap-1">
-              <label className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: FAINT }}>Output format</label>
-              <input
-                type="text"
-                value={editOutputFormat}
-                onChange={e => setEditOutputFormat(e.target.value)}
-                placeholder="e.g. cXML, CSV"
-                className="rounded-[6px] px-2.5 text-[12.5px]"
-                style={{ height: 32, border: `1px solid ${LINE}`, background: SURFACE, color: INK, width: 140, outline: "none" }}
-              />
-            </div>
-          </div>
-        )}
+        {/* Protocol + output format now live on the Delivery tab — the single source of truth. */}
 
         {/* Empty state */}
         {!profile && !isEditing && (
@@ -384,18 +358,6 @@ function AcceptanceTab({ supplierId }: { supplierId: string }) {
         {/* Summary row when not editing */}
         {profile && !isEditing && (
           <div className="flex flex-wrap gap-6 px-5 py-3.5">
-            {profile.protocol && (
-              <div>
-                <div className="text-[10.5px] font-semibold uppercase tracking-wide" style={{ color: FAINT }}>Protocol</div>
-                <div className="mt-0.5 text-[12.5px] font-medium" style={{ color: INK, fontFamily: "'JetBrains Mono',monospace" }}>{profile.protocol}</div>
-              </div>
-            )}
-            {profile.outputFormat && (
-              <div>
-                <div className="text-[10.5px] font-semibold uppercase tracking-wide" style={{ color: FAINT }}>Output format</div>
-                <div className="mt-0.5 text-[12.5px] font-medium" style={{ color: INK, fontFamily: "'JetBrains Mono',monospace" }}>{profile.outputFormat}</div>
-              </div>
-            )}
             <div>
               <div className="text-[10.5px] font-semibold uppercase tracking-wide" style={{ color: FAINT }}>Rules</div>
               <div className="mt-0.5 text-[12.5px] font-medium" style={{ color: INK }}>{profile.rules.length}</div>

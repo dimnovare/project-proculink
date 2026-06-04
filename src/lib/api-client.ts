@@ -615,7 +615,9 @@ async function realResolvePurchaseOrder(
 
 // ── Transform ─────────────────────────────────────────────────────────────
 
-async function mockTransformOrder(orderId: string, format: "xml" | "csv"): Promise<TransformResult> {
+type TransformFormat = "xml" | "csv" | "cxml" | "json" | "ubl" | "x12";
+
+async function mockTransformOrder(orderId: string, format: TransformFormat = "xml"): Promise<TransformResult> {
   await delay(300); // simulate fast enqueue
   const idx = mockOrders.findIndex(o => o.id === orderId);
   if (idx === -1) throw new Error("Order not found");
@@ -637,17 +639,18 @@ async function mockTransformOrder(orderId: string, format: "xml" | "csv"): Promi
   return { artifactId: "", format, createdAt: now };
 }
 
-async function realTransformOrder(orderId: string, format: "xml" | "csv"): Promise<TransformResult> {
+// format omitted → backend resolves the supplier's configured output format (or default).
+async function realTransformOrder(orderId: string, format?: TransformFormat): Promise<TransformResult> {
   const res = await fetchWithTimeout(`${API_BASE_URL}/api/orders/${orderId}/transform`, {
     method: "POST",
     headers: { "Content-Type": "application/json", ...await authHeader() },
-    body: JSON.stringify({ format }),
+    body: JSON.stringify(format ? { format } : {}),
   }, 30000);
   if (res.status === 422) { const t = await res.text(); throw new Error(`Unresolved lines: ${t}`); }
   if (!res.ok) { const t = await res.text(); throw new Error(`Transform failed: ${t || res.statusText}`); }
   // 202 Accepted — job enqueued; return a placeholder result
   const body = await res.json() as Record<string, unknown>;
-  return { artifactId: "", format, createdAt: new Date().toISOString(), ...body } as TransformResult;
+  return { artifactId: "", format: format ?? "xml", createdAt: new Date().toISOString(), ...body } as TransformResult;
 }
 
 // ── Retry delivery (operator replay + dead-letter) ────────────────────────

@@ -45,11 +45,14 @@ export interface TestPoMappingRequest {
 
 export type DeliveryProtocol = "http" | "sftp" | "ftps" | "smtp" | "erp_erply" | "erp_directo";
 
+export type OutputFormatId = "xml" | "csv" | "cxml" | "json" | "ubl" | "x12";
+
 export interface DeliveryConfig {
   supplierId: string;
   protocol: DeliveryProtocol;
   autoDeliver: boolean;
   configJson: string;
+  outputFormat?: string | null;
   hasCredentials: boolean;
   credentialsDisplay?: string | null;
   createdAt: string;
@@ -61,6 +64,7 @@ export interface UpsertDeliveryConfigRequest {
   autoDeliver: boolean;
   configJson: string;
   credentialsJson?: string | null;
+  outputFormat?: string | null;
 }
 
 export interface DeliveryTestResult {

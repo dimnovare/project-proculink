@@ -1411,7 +1411,8 @@ export function SpineReview({ orderId }: { orderId: string }) {
       if (current.artifacts.length === 0 && current.status !== "ready_to_deliver") {
         setSendState("transforming");
         setFlowNotice("Generating the supplier-ready output...");
-        await apiClient.transformOrder(orderId, "xml");
+        // No explicit format → backend transforms into the supplier's configured output format.
+        await apiClient.transformOrder(orderId);
         current = await pollOrderUntil(
           next =>
             next.status === "ready_to_deliver" ||
