@@ -11,7 +11,7 @@ import {
 } from "@/lib/api/delivery";
 import type { DeliveryConfig, DeliveryProtocol, DeliveryTestResult } from "@/lib/api/types";
 
-type AuthType = "none" | "apikey" | "bearer" | "basic";
+type AuthType = "none" | "apikey" | "bearer" | "basic" | "oauth2";
 
 interface DeliveryConfigEditorProps {
   supplierId: string;
@@ -19,11 +19,24 @@ interface DeliveryConfigEditorProps {
 
 const PROTOCOLS: Array<{ id: DeliveryProtocol; label: string; enabled: boolean }> = [
   { id: "http", label: "HTTP", enabled: true },
+  { id: "sftp", label: "SFTP", enabled: true },
+  { id: "ftps", label: "FTPS", enabled: true },
+  { id: "smtp", label: "Email (SMTP)", enabled: true },
   { id: "erp_erply", label: "Erply ERP", enabled: true },
   { id: "erp_directo", label: "Directo ERP", enabled: true },
-  { id: "sftp", label: "SFTP", enabled: false },
-  { id: "ftp", label: "FTPS", enabled: false },
 ];
+
+const URL_PROTOCOLS: DeliveryProtocol[] = ["http", "erp_erply", "erp_directo"];
+const HOST_PROTOCOLS: DeliveryProtocol[] = ["sftp", "ftps", "smtp"];
+
+function defaultPortFor(p: DeliveryProtocol): number | "" {
+  if (p === "sftp") return 22;
+  if (p === "ftps") return 21;
+  if (p === "smtp") return 587;
+  return "";
+}
+
+const INPUT_STYLE = { border: "1px solid #D5DAEA", color: "#0B1A2F" } as const;
 
 export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) {
   const [loading, setLoading] = useState(true);
@@ -32,18 +45,53 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
   const [savedConfig, setSavedConfig] = useState<DeliveryConfig | null>(null);
   const [protocol, setProtocol] = useState<DeliveryProtocol>("http");
   const [autoDeliver, setAutoDeliver] = useState(false);
+
+  // URL-based (http / erp_*)
   const [url, setUrl] = useState("");
   const [method, setMethod] = useState("POST");
-  const [timeoutSeconds, setTimeoutSeconds] = useState(30);
   const [erplyClientCode, setErplyClientCode] = useState("");
   const [directoDatabase, setDirectoDatabase] = useState("");
   const [directoKey, setDirectoKey] = useState("");
+
+  // Host-based (sftp / ftps / smtp)
+  const [host, setHost] = useState("");
+  const [port, setPort] = useState<number | "">("");
+  const [remotePath, setRemotePath] = useState("");
+  const [makeDirectories, setMakeDirectories] = useState(true);
+  const [sftpAuthMode, setSftpAuthMode] = useState<"password" | "key">("password");
+  const [privateKey, setPrivateKey] = useState("");
+  const [privateKeyPassphrase, setPrivateKeyPassphrase] = useState("");
+  const [allowInvalidCertificate, setAllowInvalidCertificate] = useState(false);
+
+  // Email (smtp)
+  const [useSsl, setUseSsl] = useState(false);
+  const [fromAddress, setFromAddress] = useState("");
+  const [toAddresses, setToAddresses] = useState("");
+  const [subjectTemplate, setSubjectTemplate] = useState("");
+  const [bodyTemplate, setBodyTemplate] = useState("");
+  const [attachmentFileName, setAttachmentFileName] = useState("");
+
+  // Shared
+  const [timeoutSeconds, setTimeoutSeconds] = useState(30);
+
+  // HTTP / ERP auth
   const [authType, setAuthType] = useState<AuthType>("none");
   const [apiKeyHeader, setApiKeyHeader] = useState("X-Api-Key");
   const [apiKeyValue, setApiKeyValue] = useState("");
   const [bearerToken, setBearerToken] = useState("");
   const [basicUsername, setBasicUsername] = useState("");
   const [basicPassword, setBasicPassword] = useState("");
+
+  // OAuth2 (HTTP — fetch token first)
+  const [tokenUrl, setTokenUrl] = useState("");
+  const [oauthClientId, setOauthClientId] = useState("");
+  const [oauthClientSecret, setOauthClientSecret] = useState("");
+  const [oauthScope, setOauthScope] = useState("");
+  const [oauthGrantType, setOauthGrantType] = useState("client_credentials");
+  const [oauthRequestStyle, setOauthRequestStyle] = useState<"form" | "json">("form");
+  const [oauthAuthStyle, setOauthAuthStyle] = useState<"body" | "basic">("body");
+  const [oauthTokenPath, setOauthTokenPath] = useState("access_token");
+
   const [testResult, setTestResult] = useState<DeliveryTestResult | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -77,30 +125,62 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
   }, [supplierId]);
 
   const hasSavedCredentials = savedConfig?.hasCredentials ?? false;
+  const isUrlProtocol = URL_PROTOCOLS.includes(protocol);
 
   const configPreview = JSON.stringify(buildConfigObject(), null, 2);
-  const canSave = Boolean(url) && (protocol !== "erp_directo" || Boolean(directoDatabase));
+
+  const canSave =
+    protocol === "sftp" || protocol === "ftps"
+      ? Boolean(host)
+      : protocol === "smtp"
+        ? Boolean(host) && Boolean(fromAddress) && Boolean(toAddresses.trim())
+        : Boolean(url) && (protocol !== "erp_directo" || Boolean(directoDatabase));
 
   function hydrateConfig(nextProtocol: DeliveryProtocol, configJson: string) {
     try {
-      const parsed = JSON.parse(configJson) as {
-        url?: string;
-        method?: string;
-        timeoutSeconds?: number;
-        clientCode?: string;
-        database?: string;
-      };
-      setUrl(parsed.url ?? "");
-      setMethod(parsed.method ?? "POST");
-      setTimeoutSeconds(parsed.timeoutSeconds ?? 30);
-      setErplyClientCode(nextProtocol === "erp_erply" ? parsed.clientCode ?? "" : "");
-      setDirectoDatabase(nextProtocol === "erp_directo" ? parsed.database ?? "" : "");
+      const p = JSON.parse(configJson) as Record<string, unknown>;
+      setTimeoutSeconds(typeof p.timeoutSeconds === "number" ? p.timeoutSeconds : 30);
+      // url-based
+      setUrl(typeof p.url === "string" ? p.url : "");
+      setMethod(typeof p.method === "string" ? p.method : "POST");
+      setErplyClientCode(nextProtocol === "erp_erply" && typeof p.clientCode === "string" ? p.clientCode : "");
+      setDirectoDatabase(nextProtocol === "erp_directo" && typeof p.database === "string" ? p.database : "");
+      // host-based
+      setHost(typeof p.host === "string" ? p.host : "");
+      setPort(typeof p.port === "number" ? p.port : defaultPortFor(nextProtocol));
+      setRemotePath(typeof p.remotePath === "string" ? p.remotePath : "");
+      setMakeDirectories(typeof p.makeDirectories === "boolean" ? p.makeDirectories : true);
+      setAllowInvalidCertificate(p.allowInvalidCertificate === true);
+      // smtp
+      setUseSsl(p.useSsl === true);
+      setFromAddress(typeof p.fromAddress === "string" ? p.fromAddress : "");
+      setToAddresses(
+        Array.isArray(p.toAddresses)
+          ? (p.toAddresses as string[]).join(", ")
+          : typeof p.toAddresses === "string"
+            ? p.toAddresses
+            : "",
+      );
+      setSubjectTemplate(typeof p.subjectTemplate === "string" ? p.subjectTemplate : "");
+      setBodyTemplate(typeof p.bodyTemplate === "string" ? p.bodyTemplate : "");
+      setAttachmentFileName(typeof p.attachmentFileName === "string" ? p.attachmentFileName : "");
     } catch {
       setUrl("");
       setMethod("POST");
       setTimeoutSeconds(30);
       setErplyClientCode("");
       setDirectoDatabase("");
+      setHost("");
+      setPort(defaultPortFor(nextProtocol));
+      setRemotePath("");
+      setMakeDirectories(true);
+      setAllowInvalidCertificate(false);
+      setUseSsl(false);
+      setFromAddress("");
+      setToAddresses("");
+      setSubjectTemplate("");
+      setBodyTemplate("");
+      setAttachmentFileName("");
     }
   }
 
@@ -109,40 +189,48 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
     setError(null);
   }
 
-  function buildConfigObject() {
-    if (protocol === "erp_erply") {
+  function buildConfigObject(): Record<string, unknown> {
+    if (protocol === "erp_erply") return { url, clientCode: erplyClientCode, timeoutSeconds };
+    if (protocol === "erp_directo") return { url, database: directoDatabase, timeoutSeconds };
+    if (protocol === "sftp") return { host, port: Number(port) || 22, remotePath, makeDirectories, timeoutSeconds };
+    if (protocol === "ftps")
+      return { host, port: Number(port) || 21, remotePath, makeDirectories, timeoutSeconds, allowInvalidCertificate };
+    if (protocol === "smtp")
       return {
-        url,
-        clientCode: erplyClientCode,
+        host,
+        port: Number(port) || 587,
+        useSsl,
+        fromAddress,
+        toAddresses,
         timeoutSeconds,
+        ...(subjectTemplate ? { subjectTemplate } : {}),
+        ...(bodyTemplate ? { bodyTemplate } : {}),
+        ...(attachmentFileName ? { attachmentFileName } : {}),
       };
-    }
-
-    if (protocol === "erp_directo") {
-      return {
-        url,
-        database: directoDatabase,
-        timeoutSeconds,
-      };
-    }
-
-    return {
-      url,
-      method,
-      timeoutSeconds,
-    };
+    return { url, method, timeoutSeconds }; // http
   }
 
   function buildCredentialsJson(): string | null {
-    if (protocol === "erp_directo") {
-      if (!basicPassword && !directoKey && hasSavedCredentials) return null;
-      return JSON.stringify({
-        user: basicUsername,
-        password: basicPassword,
-        key: directoKey,
-      });
+    if (protocol === "sftp") {
+      if (sftpAuthMode === "key") {
+        if (!privateKey && hasSavedCredentials) return null;
+        return JSON.stringify({ username: basicUsername, privateKey, privateKeyPassphrase });
+      }
+      if (!basicPassword && hasSavedCredentials) return null;
+      return JSON.stringify({ username: basicUsername, password: basicPassword });
     }
 
+    if (protocol === "ftps" || protocol === "smtp") {
+      if (!basicPassword && hasSavedCredentials) return null;
+      return JSON.stringify({ username: basicUsername, password: basicPassword });
+    }
+
+    if (protocol === "erp_directo") {
+      if (!basicPassword && !directoKey && hasSavedCredentials) return null;
+      return JSON.stringify({ user: basicUsername, password: basicPassword, key: directoKey });
+    }
+
+    // http (and erp_erply) use the header-style auth selector
     if (authType === "none") return hasSavedCredentials ? null : "{\"type\":\"none\"}";
     if (authType === "apikey") {
       if (!apiKeyValue && hasSavedCredentials) return null;
@@ -151,6 +239,20 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
     if (authType === "bearer") {
       if (!bearerToken && hasSavedCredentials) return null;
       return JSON.stringify({ type: "bearer", token: bearerToken });
+    }
+    if (authType === "oauth2") {
+      if (!oauthClientSecret && hasSavedCredentials) return null;
+      return JSON.stringify({
+        type: "oauth2_client_credentials",
+        tokenUrl,
+        clientId: oauthClientId,
+        clientSecret: oauthClientSecret,
+        scope: oauthScope,
+        grantType: oauthGrantType,
+        authStyle: oauthAuthStyle,
+        requestStyle: oauthRequestStyle,
+        tokenResponsePath: oauthTokenPath,
+      });
     }
     if (!basicPassword && hasSavedCredentials) return null;
     return JSON.stringify({ type: "basic", username: basicUsername, password: basicPassword });
@@ -171,6 +273,9 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
       setBearerToken("");
       setBasicPassword("");
       setDirectoKey("");
+      setPrivateKey("");
+      setPrivateKeyPassphrase("");
+      setOauthClientSecret("");
       setTestResult(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not save delivery config.");
@@ -190,6 +295,14 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
       setErplyClientCode("");
       setDirectoDatabase("");
       setDirectoKey("");
+      setHost("");
+      setRemotePath("");
+      setPrivateKey("");
+      setPrivateKeyPassphrase("");
+      setFromAddress("");
+      setToAddresses("");
+      setBasicPassword("");
+      setOauthClientSecret("");
       setAuthType("none");
       setTestResult(null);
     } catch (err) {
@@ -249,6 +362,7 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
                   setProtocol(item.id);
                   if (item.id === "erp_erply" && authType === "basic") setAuthType("bearer");
                   if (item.id === "erp_directo") setAuthType("basic");
+                  if (HOST_PROTOCOLS.includes(item.id)) setPort((prev) => (prev === "" ? defaultPortFor(item.id) : prev));
                   markEdited();
                 }}
                 className="flex h-9 items-center justify-between rounded-[6px] px-3 text-[12px] font-semibold"
@@ -278,78 +392,293 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
             <p className="text-[13px]" style={{ color: "#56627A" }}>Loading delivery config...</p>
           ) : (
             <div className="grid gap-4">
-              <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_150px_120px]">
-                <Field label="Endpoint URL">
-                  <input
-                    value={url}
-                    onChange={(e) => {
-                      setUrl(e.target.value);
-                      markEdited();
-                    }}
-                    placeholder={protocol === "erp_directo" ? "https://login.directo.ee/xmlcore" : "https://supplier.example/orders"}
-                    className="h-9 w-full rounded-[5px] px-2.5 text-[12px]"
-                    style={{ border: "1px solid #D5DAEA", color: "#0B1A2F" }}
-                  />
-                </Field>
-                {protocol === "http" && (
-                  <Field label="Method">
-                    <select
-                      value={method}
-                      onChange={(e) => {
-                        setMethod(e.target.value);
-                        markEdited();
-                      }}
-                      className="h-9 w-full rounded-[5px] px-2 text-[12px]"
-                      style={{ border: "1px solid #D5DAEA", background: "#FFF", color: "#0B1A2F" }}
-                    >
-                      <option>POST</option>
-                      <option>PUT</option>
-                    </select>
-                  </Field>
-                )}
-                {protocol === "erp_erply" && (
-                  <Field label="Client code">
+              {/* ── Connection ─────────────────────────────────────────────── */}
+              {isUrlProtocol && (
+                <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_150px_120px]">
+                  <Field label="Endpoint URL">
                     <input
-                      value={erplyClientCode}
+                      value={url}
                       onChange={(e) => {
-                        setErplyClientCode(e.target.value);
+                        setUrl(e.target.value);
                         markEdited();
                       }}
-                      placeholder="ACME"
+                      placeholder={protocol === "erp_directo" ? "https://login.directo.ee/xmlcore" : "https://supplier.example/orders"}
                       className="h-9 w-full rounded-[5px] px-2.5 text-[12px]"
-                      style={{ border: "1px solid #D5DAEA", color: "#0B1A2F" }}
+                      style={INPUT_STYLE}
                     />
                   </Field>
-                )}
-                {protocol === "erp_directo" && (
-                  <Field label="Database">
+                  {protocol === "http" && (
+                    <Field label="Method">
+                      <select
+                        value={method}
+                        onChange={(e) => {
+                          setMethod(e.target.value);
+                          markEdited();
+                        }}
+                        className="h-9 w-full rounded-[5px] px-2 text-[12px]"
+                        style={{ ...INPUT_STYLE, background: "#FFF" }}
+                      >
+                        <option>POST</option>
+                        <option>PUT</option>
+                      </select>
+                    </Field>
+                  )}
+                  {protocol === "erp_erply" && (
+                    <Field label="Client code">
+                      <input
+                        value={erplyClientCode}
+                        onChange={(e) => {
+                          setErplyClientCode(e.target.value);
+                          markEdited();
+                        }}
+                        placeholder="ACME"
+                        className="h-9 w-full rounded-[5px] px-2.5 text-[12px]"
+                        style={INPUT_STYLE}
+                      />
+                    </Field>
+                  )}
+                  {protocol === "erp_directo" && (
+                    <Field label="Database">
+                      <input
+                        value={directoDatabase}
+                        onChange={(e) => {
+                          setDirectoDatabase(e.target.value);
+                          markEdited();
+                        }}
+                        placeholder="company_db"
+                        className="h-9 w-full rounded-[5px] px-2.5 text-[12px]"
+                        style={INPUT_STYLE}
+                      />
+                    </Field>
+                  )}
+                  <Field label="Timeout">
                     <input
-                      value={directoDatabase}
+                      type="number"
+                      min={1}
+                      value={timeoutSeconds}
                       onChange={(e) => {
-                        setDirectoDatabase(e.target.value);
+                        setTimeoutSeconds(Number(e.target.value));
                         markEdited();
                       }}
-                      placeholder="company_db"
                       className="h-9 w-full rounded-[5px] px-2.5 text-[12px]"
-                      style={{ border: "1px solid #D5DAEA", color: "#0B1A2F" }}
+                      style={INPUT_STYLE}
                     />
                   </Field>
-                )}
-                <Field label="Timeout">
-                  <input
-                    type="number"
-                    min={1}
-                    value={timeoutSeconds}
-                    onChange={(e) => {
-                      setTimeoutSeconds(Number(e.target.value));
-                      markEdited();
-                    }}
-                    className="h-9 w-full rounded-[5px] px-2.5 text-[12px]"
-                    style={{ border: "1px solid #D5DAEA", color: "#0B1A2F" }}
-                  />
-                </Field>
-              </div>
+                </div>
+              )}
 
+              {(protocol === "sftp" || protocol === "ftps") && (
+                <div className="grid gap-3">
+                  <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_110px_110px]">
+                    <Field label="Host">
+                      <input
+                        value={host}
+                        onChange={(e) => {
+                          setHost(e.target.value);
+                          markEdited();
+                        }}
+                        placeholder="sftp.supplier.example"
+                        className="h-9 w-full rounded-[5px] px-2.5 text-[12px]"
+                        style={INPUT_STYLE}
+                      />
+                    </Field>
+                    <Field label="Port">
+                      <input
+                        type="number"
+                        min={1}
+                        value={port}
+                        onChange={(e) => {
+                          setPort(e.target.value === "" ? "" : Number(e.target.value));
+                          markEdited();
+                        }}
+                        className="h-9 w-full rounded-[5px] px-2.5 text-[12px]"
+                        style={INPUT_STYLE}
+                      />
+                    </Field>
+                    <Field label="Timeout">
+                      <input
+                        type="number"
+                        min={1}
+                        value={timeoutSeconds}
+                        onChange={(e) => {
+                          setTimeoutSeconds(Number(e.target.value));
+                          markEdited();
+                        }}
+                        className="h-9 w-full rounded-[5px] px-2.5 text-[12px]"
+                        style={INPUT_STYLE}
+                      />
+                    </Field>
+                  </div>
+                  <Field label="Remote path">
+                    <input
+                      value={remotePath}
+                      onChange={(e) => {
+                        setRemotePath(e.target.value);
+                        markEdited();
+                      }}
+                      placeholder="/inbound/orders"
+                      className="h-9 w-full rounded-[5px] px-2.5 text-[12px]"
+                      style={INPUT_STYLE}
+                    />
+                  </Field>
+                  <label className="flex items-center gap-2 text-[12px]" style={{ color: "#0B1A2F" }}>
+                    <input
+                      type="checkbox"
+                      checked={makeDirectories}
+                      onChange={(e) => {
+                        setMakeDirectories(e.target.checked);
+                        markEdited();
+                      }}
+                    />
+                    Create the remote directory if it does not exist
+                  </label>
+                  {protocol === "ftps" && (
+                    <label className="flex items-start gap-2 text-[12px]" style={{ color: "#8A4B00" }}>
+                      <input
+                        type="checkbox"
+                        checked={allowInvalidCertificate}
+                        onChange={(e) => {
+                          setAllowInvalidCertificate(e.target.checked);
+                          markEdited();
+                        }}
+                      />
+                      Allow invalid TLS certificate — only for a supplier with a self-signed or expired
+                      cert. Leave OFF for servers with a public CA certificate.
+                    </label>
+                  )}
+                </div>
+              )}
+
+              {protocol === "smtp" && (
+                <div className="grid gap-3">
+                  <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_110px_110px]">
+                    <Field label="SMTP host">
+                      <input
+                        value={host}
+                        onChange={(e) => {
+                          setHost(e.target.value);
+                          markEdited();
+                        }}
+                        placeholder="smtp.supplier.example"
+                        className="h-9 w-full rounded-[5px] px-2.5 text-[12px]"
+                        style={INPUT_STYLE}
+                      />
+                    </Field>
+                    <Field label="Port">
+                      <input
+                        type="number"
+                        min={1}
+                        value={port}
+                        onChange={(e) => {
+                          setPort(e.target.value === "" ? "" : Number(e.target.value));
+                          markEdited();
+                        }}
+                        className="h-9 w-full rounded-[5px] px-2.5 text-[12px]"
+                        style={INPUT_STYLE}
+                      />
+                    </Field>
+                    <Field label="Timeout">
+                      <input
+                        type="number"
+                        min={1}
+                        value={timeoutSeconds}
+                        onChange={(e) => {
+                          setTimeoutSeconds(Number(e.target.value));
+                          markEdited();
+                        }}
+                        className="h-9 w-full rounded-[5px] px-2.5 text-[12px]"
+                        style={INPUT_STYLE}
+                      />
+                    </Field>
+                  </div>
+                  <div className="grid gap-3 lg:grid-cols-2">
+                    <Field label="From address">
+                      <input
+                        value={fromAddress}
+                        onChange={(e) => {
+                          setFromAddress(e.target.value);
+                          markEdited();
+                        }}
+                        placeholder="orders@your-company.example"
+                        className="h-9 w-full rounded-[5px] px-2.5 text-[12px]"
+                        style={INPUT_STYLE}
+                      />
+                    </Field>
+                    <Field label="Recipients (comma-separated)">
+                      <input
+                        value={toAddresses}
+                        onChange={(e) => {
+                          setToAddresses(e.target.value);
+                          markEdited();
+                        }}
+                        placeholder="po@supplier.example, sales@supplier.example"
+                        className="h-9 w-full rounded-[5px] px-2.5 text-[12px]"
+                        style={INPUT_STYLE}
+                      />
+                    </Field>
+                  </div>
+                  <label className="flex items-center gap-2 text-[12px]" style={{ color: "#0B1A2F" }}>
+                    <input
+                      type="checkbox"
+                      checked={useSsl}
+                      onChange={(e) => {
+                        setUseSsl(e.target.checked);
+                        markEdited();
+                      }}
+                    />
+                    Use SSL on connect (implicit TLS, e.g. port 465). Otherwise STARTTLS is used when available.
+                  </label>
+                  <details>
+                    <summary className="cursor-pointer text-[11px] font-semibold" style={{ color: "#56627A" }}>
+                      Advanced — subject / body / attachment
+                    </summary>
+                    <div className="mt-3 grid gap-3">
+                      <Field label="Subject template">
+                        <input
+                          value={subjectTemplate}
+                          onChange={(e) => {
+                            setSubjectTemplate(e.target.value);
+                            markEdited();
+                          }}
+                          placeholder="Purchase Order {poNumber}"
+                          className="h-9 w-full rounded-[5px] px-2.5 text-[12px]"
+                          style={INPUT_STYLE}
+                        />
+                      </Field>
+                      <Field label="Body template">
+                        <textarea
+                          value={bodyTemplate}
+                          onChange={(e) => {
+                            setBodyTemplate(e.target.value);
+                            markEdited();
+                          }}
+                          placeholder="Please find the attached purchase order ({fileName})."
+                          rows={2}
+                          className="w-full rounded-[5px] px-2.5 py-2 text-[12px]"
+                          style={INPUT_STYLE}
+                        />
+                      </Field>
+                      <Field label="Attachment file name">
+                        <input
+                          value={attachmentFileName}
+                          onChange={(e) => {
+                            setAttachmentFileName(e.target.value);
+                            markEdited();
+                          }}
+                          placeholder="(defaults to the generated artifact name)"
+                          className="h-9 w-full rounded-[5px] px-2.5 text-[12px]"
+                          style={INPUT_STYLE}
+                        />
+                      </Field>
+                      <p className="text-[11px]" style={{ color: "#8A93A5" }}>
+                        Templates support <code>{"{poNumber}"}</code> and <code>{"{fileName}"}</code>.
+                      </p>
+                    </div>
+                  </details>
+                </div>
+              )}
+
+              {/* ── Authentication ─────────────────────────────────────────── */}
               <div className="rounded-[7px]" style={{ border: "1px solid #E2E6EE" }}>
                 <div className="flex items-center gap-2 px-3 py-2" style={{ borderBottom: "1px solid #E2E6EE" }}>
                   <KeyRound size={14} color="#28C55E" />
@@ -358,63 +687,154 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
                     <span className="ml-auto text-[11px]" style={{ color: "#2E8E3A" }}>saved credential masked</span>
                   )}
                 </div>
-                <div className="grid gap-3 p-3 lg:grid-cols-[160px_minmax(0,1fr)]">
-                  <Field label="Auth type">
-                    <select
-                      value={authType}
-                      onChange={(e) => {
-                        setAuthType(e.target.value as AuthType);
-                        markEdited();
-                      }}
-                      className="h-9 w-full rounded-[5px] px-2 text-[12px]"
-                      style={{ border: "1px solid #D5DAEA", background: "#FFF", color: "#0B1A2F" }}
-                    >
-                      {protocol === "erp_directo" ? (
-                        <option value="basic">Directo credentials</option>
-                      ) : (
-                        <>
-                          <option value="none">None</option>
-                          <option value="apikey">API key</option>
-                          <option value="bearer">Bearer token</option>
-                          <option value="basic">Basic auth</option>
-                        </>
-                      )}
-                    </select>
-                  </Field>
 
-                  {authType === "apikey" && (
-                    <div className="grid gap-3 lg:grid-cols-[180px_minmax(0,1fr)]">
-                      <Field label="Header">
-                        <input value={apiKeyHeader} onChange={(e) => setApiKeyHeader(e.target.value)} className="h-9 w-full rounded-[5px] px-2.5 text-[12px]" style={{ border: "1px solid #D5DAEA", color: "#0B1A2F" }} />
-                      </Field>
-                      <Field label="Value">
-                        <input value={apiKeyValue} onChange={(e) => setApiKeyValue(e.target.value)} placeholder={hasSavedCredentials ? "********" : "sk-..."} className="h-9 w-full rounded-[5px] px-2.5 text-[12px]" style={{ border: "1px solid #D5DAEA", color: "#0B1A2F" }} />
-                      </Field>
-                    </div>
-                  )}
-
-                  {authType === "bearer" && (
-                    <Field label="Token">
-                      <input value={bearerToken} onChange={(e) => setBearerToken(e.target.value)} placeholder={hasSavedCredentials ? "********" : "Bearer token"} className="h-9 w-full rounded-[5px] px-2.5 text-[12px]" style={{ border: "1px solid #D5DAEA", color: "#0B1A2F" }} />
+                {isUrlProtocol ? (
+                  <div className="grid gap-3 p-3">
+                    <Field label="Auth type">
+                      <select
+                        value={authType}
+                        onChange={(e) => {
+                          setAuthType(e.target.value as AuthType);
+                          markEdited();
+                        }}
+                        className="h-9 w-full rounded-[5px] px-2 text-[12px]"
+                        style={{ ...INPUT_STYLE, background: "#FFF" }}
+                      >
+                        {protocol === "erp_directo" ? (
+                          <option value="basic">Directo credentials</option>
+                        ) : (
+                          <>
+                            <option value="none">None</option>
+                            <option value="apikey">API key</option>
+                            <option value="bearer">Bearer token (static)</option>
+                            {protocol === "http" && <option value="oauth2">OAuth2 — fetch token first</option>}
+                            <option value="basic">Basic auth</option>
+                          </>
+                        )}
+                      </select>
                     </Field>
-                  )}
 
-                  {authType === "basic" && (
-                    <div className={protocol === "erp_directo" ? "grid gap-3 lg:grid-cols-3" : "grid gap-3 lg:grid-cols-2"}>
-                      <Field label="Username">
-                        <input value={basicUsername} onChange={(e) => setBasicUsername(e.target.value)} className="h-9 w-full rounded-[5px] px-2.5 text-[12px]" style={{ border: "1px solid #D5DAEA", color: "#0B1A2F" }} />
-                      </Field>
-                      <Field label="Password">
-                        <input value={basicPassword} onChange={(e) => setBasicPassword(e.target.value)} placeholder={hasSavedCredentials ? "********" : "Password"} className="h-9 w-full rounded-[5px] px-2.5 text-[12px]" style={{ border: "1px solid #D5DAEA", color: "#0B1A2F" }} />
-                      </Field>
-                      {protocol === "erp_directo" && (
-                        <Field label="API key">
-                          <input value={directoKey} onChange={(e) => setDirectoKey(e.target.value)} placeholder={hasSavedCredentials ? "********" : "Optional key"} className="h-9 w-full rounded-[5px] px-2.5 text-[12px]" style={{ border: "1px solid #D5DAEA", color: "#0B1A2F" }} />
+                    {authType === "apikey" && (
+                      <div className="grid gap-3 lg:grid-cols-[180px_minmax(0,1fr)]">
+                        <Field label="Header">
+                          <input value={apiKeyHeader} onChange={(e) => setApiKeyHeader(e.target.value)} className="h-9 w-full rounded-[5px] px-2.5 text-[12px]" style={INPUT_STYLE} />
                         </Field>
-                      )}
-                    </div>
-                  )}
-                </div>
+                        <Field label="Value">
+                          <input value={apiKeyValue} onChange={(e) => setApiKeyValue(e.target.value)} placeholder={hasSavedCredentials ? "********" : "sk-..."} className="h-9 w-full rounded-[5px] px-2.5 text-[12px]" style={INPUT_STYLE} />
+                        </Field>
+                      </div>
+                    )}
+
+                    {authType === "bearer" && (
+                      <Field label="Token">
+                        <input value={bearerToken} onChange={(e) => setBearerToken(e.target.value)} placeholder={hasSavedCredentials ? "********" : "Bearer token"} className="h-9 w-full rounded-[5px] px-2.5 text-[12px]" style={INPUT_STYLE} />
+                      </Field>
+                    )}
+
+                    {authType === "oauth2" && protocol === "http" && (
+                      <div className="grid gap-3">
+                        <p className="text-[11px]" style={{ color: "#56627A" }}>
+                          Before each delivery, ProcuLink calls the token URL with the client credentials, then
+                          sends the returned token as <code>Authorization: Bearer</code>. The token is fetched
+                          fresh each time and never stored.
+                        </p>
+                        <div className="grid gap-3 lg:grid-cols-2">
+                          <Field label="Token URL">
+                            <input value={tokenUrl} onChange={(e) => { setTokenUrl(e.target.value); markEdited(); }} placeholder="https://supplier.example/oauth/token" className="h-9 w-full rounded-[5px] px-2.5 text-[12px]" style={INPUT_STYLE} />
+                          </Field>
+                          <Field label="Scope (optional)">
+                            <input value={oauthScope} onChange={(e) => { setOauthScope(e.target.value); markEdited(); }} placeholder="orders.write" className="h-9 w-full rounded-[5px] px-2.5 text-[12px]" style={INPUT_STYLE} />
+                          </Field>
+                        </div>
+                        <div className="grid gap-3 lg:grid-cols-2">
+                          <Field label="Client ID">
+                            <input value={oauthClientId} onChange={(e) => { setOauthClientId(e.target.value); markEdited(); }} className="h-9 w-full rounded-[5px] px-2.5 text-[12px]" style={INPUT_STYLE} />
+                          </Field>
+                          <Field label="Client secret">
+                            <input value={oauthClientSecret} onChange={(e) => { setOauthClientSecret(e.target.value); markEdited(); }} placeholder={hasSavedCredentials ? "********" : "client secret"} className="h-9 w-full rounded-[5px] px-2.5 text-[12px]" style={INPUT_STYLE} />
+                          </Field>
+                        </div>
+                        <details>
+                          <summary className="cursor-pointer text-[11px] font-semibold" style={{ color: "#56627A" }}>
+                            Advanced — grant type / request format / token field
+                          </summary>
+                          <div className="mt-3 grid gap-3 lg:grid-cols-2">
+                            <Field label="Grant type">
+                              <input value={oauthGrantType} onChange={(e) => { setOauthGrantType(e.target.value); markEdited(); }} className="h-9 w-full rounded-[5px] px-2.5 text-[12px]" style={INPUT_STYLE} />
+                            </Field>
+                            <Field label="Token response field">
+                              <input value={oauthTokenPath} onChange={(e) => { setOauthTokenPath(e.target.value); markEdited(); }} placeholder="access_token" className="h-9 w-full rounded-[5px] px-2.5 text-[12px]" style={INPUT_STYLE} />
+                            </Field>
+                            <Field label="Request format">
+                              <select value={oauthRequestStyle} onChange={(e) => { setOauthRequestStyle(e.target.value as "form" | "json"); markEdited(); }} className="h-9 w-full rounded-[5px] px-2 text-[12px]" style={{ ...INPUT_STYLE, background: "#FFF" }}>
+                                <option value="form">Form-encoded (standard)</option>
+                                <option value="json">JSON</option>
+                              </select>
+                            </Field>
+                            <Field label="Client auth">
+                              <select value={oauthAuthStyle} onChange={(e) => { setOauthAuthStyle(e.target.value as "body" | "basic"); markEdited(); }} className="h-9 w-full rounded-[5px] px-2 text-[12px]" style={{ ...INPUT_STYLE, background: "#FFF" }}>
+                                <option value="body">In request body (standard)</option>
+                                <option value="basic">HTTP Basic header</option>
+                              </select>
+                            </Field>
+                          </div>
+                        </details>
+                      </div>
+                    )}
+
+                    {authType === "basic" && (
+                      <div className={protocol === "erp_directo" ? "grid gap-3 lg:grid-cols-3" : "grid gap-3 lg:grid-cols-2"}>
+                        <Field label="Username">
+                          <input value={basicUsername} onChange={(e) => setBasicUsername(e.target.value)} className="h-9 w-full rounded-[5px] px-2.5 text-[12px]" style={INPUT_STYLE} />
+                        </Field>
+                        <Field label="Password">
+                          <input value={basicPassword} onChange={(e) => setBasicPassword(e.target.value)} placeholder={hasSavedCredentials ? "********" : "Password"} className="h-9 w-full rounded-[5px] px-2.5 text-[12px]" style={INPUT_STYLE} />
+                        </Field>
+                        {protocol === "erp_directo" && (
+                          <Field label="API key">
+                            <input value={directoKey} onChange={(e) => setDirectoKey(e.target.value)} placeholder={hasSavedCredentials ? "********" : "Optional key"} className="h-9 w-full rounded-[5px] px-2.5 text-[12px]" style={INPUT_STYLE} />
+                          </Field>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="grid gap-3 p-3">
+                    {protocol === "sftp" && (
+                      <Field label="Auth method">
+                        <select
+                          value={sftpAuthMode}
+                          onChange={(e) => {
+                            setSftpAuthMode(e.target.value as "password" | "key");
+                            markEdited();
+                          }}
+                          className="h-9 w-full rounded-[5px] px-2 text-[12px]"
+                          style={{ ...INPUT_STYLE, background: "#FFF" }}
+                        >
+                          <option value="password">Password</option>
+                          <option value="key">Private key</option>
+                        </select>
+                      </Field>
+                    )}
+                    <Field label="Username">
+                      <input value={basicUsername} onChange={(e) => { setBasicUsername(e.target.value); markEdited(); }} className="h-9 w-full rounded-[5px] px-2.5 text-[12px]" style={INPUT_STYLE} />
+                    </Field>
+                    {protocol === "sftp" && sftpAuthMode === "key" ? (
+                      <>
+                        <Field label="Private key">
+                          <textarea value={privateKey} onChange={(e) => { setPrivateKey(e.target.value); markEdited(); }} placeholder={hasSavedCredentials ? "******** (leave blank to keep saved key)" : "-----BEGIN OPENSSH PRIVATE KEY-----"} rows={4} className="w-full rounded-[5px] px-2.5 py-2 font-mono text-[11px]" style={INPUT_STYLE} />
+                        </Field>
+                        <Field label="Key passphrase (optional)">
+                          <input value={privateKeyPassphrase} onChange={(e) => { setPrivateKeyPassphrase(e.target.value); markEdited(); }} className="h-9 w-full rounded-[5px] px-2.5 text-[12px]" style={INPUT_STYLE} />
+                        </Field>
+                      </>
+                    ) : (
+                      <Field label="Password">
+                        <input value={basicPassword} onChange={(e) => { setBasicPassword(e.target.value); markEdited(); }} placeholder={hasSavedCredentials ? "********" : "Password"} className="h-9 w-full rounded-[5px] px-2.5 text-[12px]" style={INPUT_STYLE} />
+                      </Field>
+                    )}
+                  </div>
+                )}
               </div>
 
               <pre className="rounded-[6px] p-3 text-[11px]" style={{ background: "#0B1A2F", color: "#DDE7F7", overflow: "auto" }}>
