@@ -87,8 +87,8 @@ const STEPS: Array<{
     pills: [
       { label: "CXML", fg: "#6F4FCE", bg: "#EEE7FB" },
       { label: "UBL", fg: "#56627A", bg: "#EEF1F6" },
-      { label: "EDIFACT", fg: "#C97A14", bg: "#FAEFD6" },
-      { label: "X12", fg: "#2E8E3A", bg: "#E2F1E2" },
+      { label: "CSV", fg: "#2E8E3A", bg: "#E2F1E2" },
+      { label: "JSON", fg: "#C97A14", bg: "#FAEFD6" },
     ],
   },
 ];

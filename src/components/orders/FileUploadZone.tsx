@@ -134,7 +134,7 @@ export function FileUploadZone({ onFileSelect, selectedFile, onClear, disabled }
           or click to browse
         </p>
         <p className="text-xs text-muted-foreground">
-          Supports PDF, CSV, XLS, XLSX
+          Supports CSV, XLSX, PDF — plus cXML, UBL, EDIFACT and X12
         </p>
       </div>
     </div>
