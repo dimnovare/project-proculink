@@ -1812,7 +1812,7 @@ export function SpineReview({ orderId }: { orderId: string }) {
                 </div>
                 {/* Per-result rows */}
                 {validationResult.results.length === 0 ? (
-                  <div style={{ padding: "8px 14px", fontSize: 12.5, color: "#8A93A5" }}>No rule results returned.</div>
+                  <div style={{ padding: "8px 14px", fontSize: 12.5, color: "#8A93A5" }}>No acceptance rules are configured for this supplier yet — nothing to check.</div>
                 ) : (
                   validationResult.results.map((r, i) => {
                     const dotColor = r.severity === "error" ? "#C53A3A" : "#C97A14";

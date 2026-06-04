@@ -22,7 +22,7 @@ const PROTOCOLS: Array<{ id: DeliveryProtocol; label: string; enabled: boolean }
   { id: "erp_erply", label: "Erply ERP", enabled: true },
   { id: "erp_directo", label: "Directo ERP", enabled: true },
   { id: "sftp", label: "SFTP", enabled: false },
-  { id: "ftp", label: "FTP", enabled: false },
+  { id: "ftp", label: "FTPS", enabled: false },
 ];
 
 export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) {

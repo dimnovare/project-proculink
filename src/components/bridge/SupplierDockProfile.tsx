@@ -92,7 +92,7 @@ const TABS: Array<{ id: Tab; label: string }> = [
   { id: "mappings",    label: "Mappings"          },
   { id: "po-mapping",  label: "PO Mapping"        },
   { id: "delivery",    label: "Delivery"          },
-  { id: "acceptance",  label: "Acceptance"        },
+  { id: "acceptance",  label: "Validation rules"  },
 ];
 
 // Source-pill palette for the SKU mappings table (provenance colour-coding, from design).
@@ -117,6 +117,17 @@ const OPERATORS: AcceptanceRule["operator"][] = [
   "required", "equals", "not_equals", "contains",
   "greater_than", "less_than", "max_length",
 ];
+
+// Human-readable operator labels (the raw operator ids are developer jargon).
+const OPERATOR_LABELS: Record<AcceptanceRule["operator"], string> = {
+  required: "Must have a value",
+  equals: "Must equal",
+  not_equals: "Must not equal",
+  contains: "Must contain",
+  greater_than: "Must be greater than",
+  less_than: "Must be less than",
+  max_length: "Max length",
+};
 
 const SEVERITY_DOT: Record<AcceptanceRule["severity"], string> = {
   error:   "#C53A3A",
@@ -144,7 +155,7 @@ function AcceptanceTab({ supplierId }: { supplierId: string }) {
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ["acceptance-profile", supplierId] });
       setEditRules(null);
-      setSaveNotice("New version saved as draft.");
+      setSaveNotice("Rules saved as draft — click “Activate rules” to make them live.");
       setTimeout(() => setSaveNotice(null), 3000);
     },
     onError: (err: Error) => setSaveNotice(`Save failed: ${err.message}`),
@@ -237,7 +248,7 @@ function AcceptanceTab({ supplierId }: { supplierId: string }) {
         <div className="flex items-center justify-between gap-3 px-5 py-3.5" style={{ borderBottom: `1px solid ${LINE}` }}>
           <div className="flex items-center gap-2">
             <ShieldCheck size={15} strokeWidth={2} color={MUTED} />
-            <h3 className="text-[13px] font-semibold" style={{ color: INK }}>Acceptance profile</h3>
+            <h3 className="text-[13px] font-semibold" style={{ color: INK }}>Supplier validation rules</h3>
             {profile && (
               <span
                 className="rounded-full px-2.5 py-0.5 text-[11px] font-semibold"
@@ -246,7 +257,7 @@ function AcceptanceTab({ supplierId }: { supplierId: string }) {
                   color: profile.status === "active" ? GREEN_DEEP : "#C97A14",
                 }}
               >
-                v{profile.versionNo} · {profile.status}
+                v{profile.versionNo} · {profile.status === "active" ? "live" : profile.status === "draft" ? "draft — not live yet" : profile.status}
               </span>
             )}
           </div>
@@ -259,7 +270,7 @@ function AcceptanceTab({ supplierId }: { supplierId: string }) {
                 className="rounded-[7px] px-3 text-[12px] font-semibold"
                 style={{ height: 32, background: GREEN_SOFT, color: GREEN_DEEP, border: `1px solid #B8DDB8`, cursor: "pointer" }}
               >
-                {activateMutation.isPending ? "Activating…" : "Activate"}
+                {activateMutation.isPending ? "Activating…" : "Activate rules"}
               </button>
             )}
             {!isEditing ? (
@@ -288,7 +299,7 @@ function AcceptanceTab({ supplierId }: { supplierId: string }) {
                   className="rounded-[7px] px-3 text-[12px] font-semibold"
                   style={{ height: 32, background: INK, color: "#FFFFFF", border: "none", cursor: "pointer" }}
                 >
-                  {saveMutation.isPending ? "Saving…" : "Save new version"}
+                  {saveMutation.isPending ? "Saving…" : "Save rules"}
                 </button>
               </div>
             )}
@@ -326,7 +337,7 @@ function AcceptanceTab({ supplierId }: { supplierId: string }) {
         {/* Empty state */}
         {!profile && !isEditing && (
           <p className="px-5 py-6 text-[13px]" style={{ color: MUTED }}>
-            No acceptance profile yet. Define what this supplier will accept.
+            No validation rules yet. Add rules to define what this supplier requires on every order — e.g. currency must be EUR, every line needs a supplier code.
           </p>
         )}
 
@@ -352,6 +363,11 @@ function AcceptanceTab({ supplierId }: { supplierId: string }) {
           </div>
         )}
       </div>
+
+      <p className="text-[12.5px] leading-relaxed" style={{ color: MUTED, paddingLeft: 2 }}>
+        Rules each supplier requires before an order can be sent — e.g. currency must be EUR, or every line needs a supplier code.{" "}
+        Orders that break an <strong style={{ color: INK }}>Error</strong> rule are blocked from delivery; <strong style={{ color: INK }}>Warning</strong> rules only flag.
+      </p>
 
       {/* Rules table / editor */}
       <div style={{ background: SURFACE, border: `1px solid ${LINE}`, borderRadius: 10, overflow: "hidden" }}>
@@ -392,7 +408,7 @@ function AcceptanceTab({ supplierId }: { supplierId: string }) {
                   type="text"
                   value={rule.fieldPath}
                   onChange={e => updateRule(idx, { fieldPath: e.target.value })}
-                  placeholder="fieldPath"
+                  placeholder="e.g. currency, supplierItemCode"
                   className="rounded-[5px] px-2 text-[12px]"
                   style={{ height: 30, border: `1px solid ${LINE}`, color: INK, background: SURFACE, outline: "none", width: 130 }}
                 />
@@ -403,7 +419,7 @@ function AcceptanceTab({ supplierId }: { supplierId: string }) {
                   style={{ height: 30, border: `1px solid ${LINE}`, color: INK, background: SURFACE, outline: "none", cursor: "pointer" }}
                 >
                   {OPERATORS.map(op => (
-                    <option key={op} value={op}>{op}</option>
+                    <option key={op} value={op}>{OPERATOR_LABELS[op]}</option>
                   ))}
                 </select>
                 <input
@@ -430,7 +446,7 @@ function AcceptanceTab({ supplierId }: { supplierId: string }) {
                     onChange={e => updateRule(idx, { blockOnFail: e.target.checked })}
                     style={{ accentColor: INK, cursor: "pointer" }}
                   />
-                  Blocks
+                  Blocks delivery
                 </label>
                 <button
                   type="button"
@@ -631,14 +647,19 @@ export function SupplierDockProfile({ id }: { id: string }) {
             </div>
           </div>
 
-          {/* Settings action — opens delivery configuration */}
+          {/* Settings action — opens the Delivery configuration tab */}
           <button
-            onClick={() => setTab("delivery")}
+            onClick={() => {
+              setTab("delivery");
+              setTimeout(() => {
+                document.getElementById("supplier-tab-delivery")?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+              }, 0);
+            }}
             className="inline-flex items-center gap-1.5 self-start rounded-[7px] px-3 text-[12.5px] font-medium sm:ml-auto sm:self-center"
             style={{ height: 34, border: `1px solid ${BORDER_STRONG}`, background: SURFACE, color: INK, cursor: "pointer" }}
           >
             <Settings size={14} strokeWidth={2} color={MUTED} />
-            Supplier settings
+            Configure delivery
           </button>
         </div>
       </div>
@@ -651,6 +672,7 @@ export function SupplierDockProfile({ id }: { id: string }) {
         {TABS.map((t) => (
           <button
             key={t.id}
+            id={t.id === "delivery" ? "supplier-tab-delivery" : undefined}
             onClick={() => setTab(t.id)}
             className="h-full shrink-0 px-4 text-[13px] font-medium transition-colors relative"
             style={{

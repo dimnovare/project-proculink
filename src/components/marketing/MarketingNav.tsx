@@ -11,7 +11,6 @@ import { ProcuLinkMark } from "@/components/bridge/DSPrimitives";
 
 const LINKS = [
   { label: "How it works", href: "/how-it-works" },
-  { label: "Watch",        href: "/watch"        },
   { label: "Pricing",      href: "/pricing"      },
   { label: "Security",     href: "/security"     },
 ];
