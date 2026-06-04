@@ -11,15 +11,17 @@ import {
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 
+type Fmt = "xml" | "csv" | "cxml" | "json" | "ubl" | "x12";
+
 interface OrderActionsProps {
   /** Called with the chosen format when the user clicks Transform. */
-  onTransform?: (format: "xml" | "csv") => void;
+  onTransform?: (format: Fmt) => void;
   /** @deprecated – transform is now async; spinner comes from polling. Kept for compat. */
   isTransforming?: boolean;
 }
 
 export function OrderActions({ onTransform }: OrderActionsProps) {
-  const [format, setFormat] = useState<"xml" | "csv">("xml");
+  const [format, setFormat] = useState<Fmt>("xml");
 
   return (
     <Card className="border-primary/30 bg-primary/5">
@@ -38,14 +40,18 @@ export function OrderActions({ onTransform }: OrderActionsProps) {
           <Label htmlFor="transform-format" className="text-sm">Output format</Label>
           <Select
             value={format}
-            onValueChange={(v) => setFormat(v as "xml" | "csv")}
+            onValueChange={(v) => setFormat(v as Fmt)}
           >
             <SelectTrigger id="transform-format">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="xml">XML</SelectItem>
               <SelectItem value="csv">CSV</SelectItem>
+              <SelectItem value="xml">XML (generic)</SelectItem>
+              <SelectItem value="cxml">cXML</SelectItem>
+              <SelectItem value="ubl">UBL 2.1 / Peppol</SelectItem>
+              <SelectItem value="x12">ANSI X12 850</SelectItem>
+              <SelectItem value="json">JSON</SelectItem>
             </SelectContent>
           </Select>
         </div>

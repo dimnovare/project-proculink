@@ -45,6 +45,7 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
   const [savedConfig, setSavedConfig] = useState<DeliveryConfig | null>(null);
   const [protocol, setProtocol] = useState<DeliveryProtocol>("http");
   const [autoDeliver, setAutoDeliver] = useState(false);
+  const [outputFormat, setOutputFormat] = useState(""); // "" = not set (defaults to xml at transform time)
 
   // URL-based (http / erp_*)
   const [url, setUrl] = useState("");
@@ -108,6 +109,7 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
         if (config) {
           setProtocol(config.protocol);
           setAutoDeliver(config.autoDeliver);
+          setOutputFormat(config.outputFormat ?? "");
           if (config.protocol === "erp_directo") setAuthType("basic");
           hydrateConfig(config.protocol, config.configJson);
         }
@@ -267,6 +269,7 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
         autoDeliver,
         configJson: JSON.stringify(buildConfigObject()),
         credentialsJson: buildCredentialsJson(),
+        outputFormat: outputFormat || null,
       });
       setSavedConfig(saved);
       setApiKeyValue("");
@@ -392,6 +395,32 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
             <p className="text-[13px]" style={{ color: "#56627A" }}>Loading delivery config...</p>
           ) : (
             <div className="grid gap-4">
+              {/* ── Output format (what this supplier requires) ────────────── */}
+              <div className="rounded-[7px] p-3" style={{ border: "1px solid #E2E6EE", background: "#FBFCFE" }}>
+                <Field label="Output format — the format this supplier requires">
+                  <select
+                    value={outputFormat}
+                    onChange={(e) => {
+                      setOutputFormat(e.target.value);
+                      markEdited();
+                    }}
+                    className="h-9 w-full rounded-[5px] px-2 text-[12px]"
+                    style={{ ...INPUT_STYLE, background: "#FFF" }}
+                  >
+                    <option value="">Not set — defaults to XML</option>
+                    <option value="csv">CSV</option>
+                    <option value="xml">XML (generic)</option>
+                    <option value="cxml">cXML</option>
+                    <option value="ubl">UBL 2.1 / Peppol</option>
+                    <option value="x12">ANSI X12 850</option>
+                    <option value="json">JSON</option>
+                  </select>
+                </Field>
+                <p className="mt-1.5 text-[11px]" style={{ color: "#8A93A5" }}>
+                  When set, sending an order to this supplier auto-transforms it into this format.
+                </p>
+              </div>
+
               {/* ── Connection ─────────────────────────────────────────────── */}
               {isUrlProtocol && (
                 <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_150px_120px]">

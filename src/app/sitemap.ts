@@ -5,6 +5,7 @@ const BASE_URL = "https://proculink.eu";
 const routes = [
   "/",
   "/how-it-works",
+  "/formats",
   "/pricing",
   "/security",
   "/help",
