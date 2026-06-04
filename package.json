@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "next dev -p 8082",
+    "dev:demo": "next dev -p 8090",
     "build": "next build",
     "start": "next start -p 8082",
     "lint": "next lint",
@@ -12,7 +13,10 @@
     "test:watch": "vitest",
     "test:e2e": "playwright test",
     "test:e2e:live": "cross-env PLAYWRIGHT_LIVE=1 playwright test",
-    "test:e2e:ui": "playwright test --ui"
+    "test:e2e:ui": "playwright test --ui",
+    "demo:capture": "playwright test --config=playwright.demo.config.ts",
+    "demo:vo": "node scripts/demo-video/generate-vo.mjs",
+    "demo:assemble": "node scripts/demo-video/assemble.mjs"
   },
   "dependencies": {
     "@clerk/nextjs": "^7.4.1",
