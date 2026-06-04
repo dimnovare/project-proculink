@@ -144,15 +144,19 @@ export default function AnimatedPipelinePanel(_props: AnimatedPipelinePanelProps
               <span
                 className={cur ? "hiw-node-pulse" : undefined}
                 style={{
-                  width: cur ? 18 : 14,
-                  height: cur ? 18 : 14,
+                  width: 14,
+                  height: 14,
                   borderRadius: "50%",
                   background: nodeColor,
                   border: `2px solid ${nodeBorder}`,
                   display: "inline-block",
                   zIndex: 1,
-                  // transition on non-pulse properties
-                  transition: "width 300ms ease, height 300ms ease, background 300ms ease, border-color 300ms ease",
+                  // The active node grows via transform (not width/height) so its
+                  // layout box stays 14px — the column no longer reflows and the
+                  // page stops jumping as the active dot cycles.
+                  transform: cur ? "scale(1.3)" : "scale(1)",
+                  transformOrigin: "center center",
+                  transition: "transform 300ms ease, background 300ms ease, border-color 300ms ease",
                   flexShrink: 0,
                 }}
               />
