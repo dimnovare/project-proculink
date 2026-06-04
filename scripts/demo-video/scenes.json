@@ -1,0 +1,42 @@
+[
+  {
+    "id": "s1-hook",
+    "holdMs": 17000,
+    "vo": "Every supplier wants your purchase orders a different way. A PDF here. A CSV there. cXML, EDI, a custom XML. So your team reformats orders by hand, and the mistakes get expensive."
+  },
+  {
+    "id": "s2-promise",
+    "holdMs": 11000,
+    "vo": "ProcuLink is the bridge. One place to take any incoming order and send it out in exactly the format and channel each supplier needs."
+  },
+  {
+    "id": "s3-upload",
+    "holdMs": 12000,
+    "vo": "Drop in an order. CSV, Excel, PDF, XML, or cXML. ProcuLink detects the format automatically and gets to work."
+  },
+  {
+    "id": "s4-parse",
+    "holdMs": 9000,
+    "vo": "It parses every line, and surfaces only the lines that actually need your attention. Not the whole order."
+  },
+  {
+    "id": "s5-ai",
+    "holdMs": 12000,
+    "vo": "When a supplier uses different item codes, the AI suggests the mapping, with a confidence score and the reason behind it, and it remembers your corrections for next time."
+  },
+  {
+    "id": "s6-validate",
+    "holdMs": 11000,
+    "vo": "Before anything goes out, the order is checked against that supplier's own acceptance rules, so it isn't rejected at the other end."
+  },
+  {
+    "id": "s7-deliver",
+    "holdMs": 15000,
+    "vo": "Then ProcuLink transforms the order into the supplier's required format, and delivers it. Over HTTP, SFTP, email, or straight into their ERP."
+  },
+  {
+    "id": "s8-passport",
+    "holdMs": 15000,
+    "vo": "Every step is logged. A complete audit trail and proof of delivery for each order. Boringly reliable, by design. ProcuLink. Try it with a sample order today."
+  }
+]

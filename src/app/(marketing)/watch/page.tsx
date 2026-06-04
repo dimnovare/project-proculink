@@ -5,22 +5,40 @@ import Link from "next/link";
 import { capture } from "@/lib/analytics";
 
 export default function WatchPage() {
+  // Priority: a self-hosted MP4 (e.g. in R2) → a Loom embed → a quiet fallback.
+  const videoUrl = process.env.NEXT_PUBLIC_WALKTHROUGH_VIDEO_URL ?? "";
+  const posterUrl = process.env.NEXT_PUBLIC_WALKTHROUGH_VIDEO_POSTER ?? "";
   const loomUrl = process.env.NEXT_PUBLIC_WALKTHROUGH_LOOM_URL ?? "";
 
   useEffect(() => {
-    if (loomUrl) capture("watch_demo_started", { loom_url_hash: hashUrl(loomUrl) });
-  }, [loomUrl]);
+    if (videoUrl) capture("watch_demo_started", { source: "r2" });
+    else if (loomUrl) capture("watch_demo_started", { loom_url_hash: hashUrl(loomUrl) });
+  }, [videoUrl, loomUrl]);
 
   return (
     <div style={{ maxWidth: 880, margin: "0 auto", padding: "72px 32px 80px" }}>
       <h1 style={{ fontFamily: "'Bricolage Grotesque', Inter, sans-serif", fontSize: "clamp(30px, 4vw, 44px)", fontWeight: 700, color: "#0B1A2F", marginBottom: 12, letterSpacing: "-0.025em" }}>
-        Watch a 90-second walkthrough
+        Watch the walkthrough
       </h1>
       <p style={{ fontSize: 16, color: "#56627A", lineHeight: 1.6, marginBottom: 32, maxWidth: 600 }}>
-        See how a single CSV upload becomes a delivered supplier order.
+        See how a single upload becomes a delivered supplier order — parsed, mapped, validated against the supplier&apos;s rules, and sent.
       </p>
 
-      {loomUrl ? (
+      {videoUrl ? (
+        <div style={{ borderRadius: 12, overflow: "hidden", boxShadow: "0 6px 22px rgba(11,26,47,0.1)", background: "#0B1A2F" }}>
+          <video
+            controls
+            playsInline
+            preload="metadata"
+            poster={posterUrl || undefined}
+            style={{ display: "block", width: "100%", height: "auto" }}
+          >
+            <source src={videoUrl} type="video/mp4" />
+            Your browser can&apos;t play embedded video.{" "}
+            <a href={videoUrl} style={{ color: "#28C55E" }}>Download the walkthrough</a>.
+          </video>
+        </div>
+      ) : loomUrl ? (
         <div style={{ position: "relative", paddingBottom: "56.25%", height: 0, borderRadius: 12, overflow: "hidden", boxShadow: "0 6px 22px rgba(11,26,47,0.1)" }}>
           <iframe
             src={loomUrl}
@@ -31,7 +49,7 @@ export default function WatchPage() {
         </div>
       ) : (
         <div style={{ background: "#F6F7FA", border: "1px dashed #C6CDDA", borderRadius: 12, padding: 48, textAlign: "center", color: "#8A93A5", fontSize: 14 }}>
-          The walkthrough video is being recorded. Email <a href="mailto:hello@proculink.eu" style={{ color: "#28C55E" }}>hello@proculink.eu</a> if you&apos;d like an early link.
+          The walkthrough is coming shortly. In the meantime, email <a href="mailto:hello@proculink.eu" style={{ color: "#28C55E" }}>hello@proculink.eu</a> for a guided demo.
         </div>
       )}
 

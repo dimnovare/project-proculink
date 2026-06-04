@@ -103,6 +103,7 @@ export function BridgeSidebar({ onNavigate, collapsible = false }: BridgeSidebar
   });
   const planLabel = billing ? `${billing.plan.charAt(0).toUpperCase()}${billing.plan.slice(1)} plan` : "Loading…";
   const orgName = organization?.name ?? "Your workspace";
+  const initials = (orgName.match(/\b\p{L}/gu) ?? []).slice(0, 2).join("").toUpperCase() || "PL";
 
   // Live "needs review" count → Inbox badge via summary endpoint (accurate regardless of volume).
   const { data: ordersSummary } = useQuery({
@@ -177,7 +178,7 @@ export function BridgeSidebar({ onNavigate, collapsible = false }: BridgeSidebar
         onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "#163052"; }}
         onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "#10243E"; }}
       >
-        <div className="flex items-center justify-center rounded-[4px] text-[10.5px] font-bold text-white flex-shrink-0" style={{ width: 26, height: 26, background: "#1E66C9" }}>ND</div>
+        <div className="flex items-center justify-center rounded-[4px] text-[10.5px] font-bold text-white flex-shrink-0" style={{ width: 26, height: 26, background: "#1E66C9" }}>{initials}</div>
         {!isCollapsed && (
           <>
             <div className="flex-1 min-w-0">
