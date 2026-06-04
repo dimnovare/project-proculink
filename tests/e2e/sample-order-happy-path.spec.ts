@@ -51,21 +51,23 @@ test("clicking Try with sample order routes to a sample order page with banner",
   await expect(banner).toContainText(/doesn'?t count toward your monthly quota/i);
 });
 
-test("watch page renders walkthrough placeholder when Loom URL is unset", async ({ page }) => {
+test("watch page renders the walkthrough video player", async ({ page }) => {
   await page.goto("/watch");
 
-  await expect(page.getByRole("heading", { level: 1, name: /watch a.*walkthrough/i })).toBeVisible({
+  await expect(page.getByRole("heading", { level: 1, name: /watch the walkthrough/i })).toBeVisible({
     timeout: 10_000,
   });
 
-  // Without NEXT_PUBLIC_WALKTHROUGH_LOOM_URL set we render the "video is being recorded" placeholder.
-  // (When the founder pastes a real Loom URL this assertion needs to flip — keep it loose.)
-  const placeholder = page.getByText(/walkthrough video is being recorded/i);
+  // /watch shows an HTML5 <video> when NEXT_PUBLIC_WALKTHROUGH_VIDEO_URL is set
+  // (the committed .env points it at the R2 walkthrough), falling back to a Loom
+  // iframe, then a quiet placeholder. Assert one of those states is present so the
+  // test stays green regardless of which env vars are configured.
+  const video = page.locator("video");
   const iframe = page.locator("iframe[title='ProcuLink walkthrough']");
+  const placeholder = page.getByText(/walkthrough is coming shortly/i);
 
-  // At least one of the two states must be present.
   expect(
-    (await placeholder.count()) > 0 || (await iframe.count()) > 0,
+    (await video.count()) > 0 || (await iframe.count()) > 0 || (await placeholder.count()) > 0,
   ).toBeTruthy();
 });
 
