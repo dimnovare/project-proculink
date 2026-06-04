@@ -2173,7 +2173,39 @@ async function realValidateOrder(orderId: string): Promise<OrderValidationResult
     30000,
   );
   if (!res.ok) { const t = await res.text(); throw new Error(t || `validate: ${res.status}`); }
-  return res.json() as Promise<OrderValidationResult>;
+  // The backend returns a bare array of flat result rows
+  // ({ lineNumber, severity, status, code, message }); some builds wrap them in an
+  // { orderId, passed, results } envelope. Normalise BOTH into the envelope shape
+  // the UI expects, so an empty result (e.g. a supplier with no acceptance profile
+  // → []) renders cleanly instead of crashing on `.results.length`.
+  type Row = { lineNumber?: number | null; severity?: string; status?: string; code?: string; message?: string };
+  const raw: unknown = await res.json();
+  const rows: Row[] = Array.isArray(raw)
+    ? (raw as Row[])
+    : Array.isArray((raw as { results?: unknown })?.results)
+      ? (raw as { results: Row[] }).results
+      : [];
+  return {
+    orderId,
+    passed: rows.every((r) => r.status === "pass"),
+    results: rows.map((r) => {
+      const severity: "error" | "warning" = r.severity === "warning" ? "warning" : "error";
+      const code = r.code ?? "";
+      return {
+        rule: {
+          scope: (r.lineNumber != null ? "line" : "order") as "order" | "line",
+          fieldPath: code.split(".")[0] || code || "rule",
+          operator: "equals" as const,
+          severity,
+          blockOnFail: severity === "error",
+        },
+        passed: r.status === "pass",
+        message: r.message ?? undefined,
+        lineNumber: r.lineNumber ?? undefined,
+        severity,
+      };
+    }),
+  };
 }
 
 // ── Order exceptions ──────────────────────────────────────────────────────────
