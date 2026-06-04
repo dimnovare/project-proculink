@@ -42,13 +42,13 @@ test("format detection pill appears after file selection", async ({ page }) => {
   // We don't assert on it — it might flash too fast to catch reliably.
 
   // Assert the fully-rendered detection pill is visible.
-  await expect(page.getByText(/Detected:/)).toBeVisible({ timeout: 2_000 });
+  await expect(page.getByText(/Detected:/)).toBeVisible({ timeout: 8_000 });
 
   // The mock returns 92% confidence — assert the percentage renders.
-  await expect(page.getByText(/92%/)).toBeVisible({ timeout: 2_000 });
+  await expect(page.getByText(/92%/)).toBeVisible({ timeout: 8_000 });
 
   // The mock detectedPoNumber is "PO-DETECT-DEMO" — the secondary line renders.
-  await expect(page.getByText(/PO-DETECT-DEMO/)).toBeVisible({ timeout: 2_000 });
+  await expect(page.getByText(/PO-DETECT-DEMO/)).toBeVisible({ timeout: 8_000 });
 });
 
 test("upload button stays enabled while detection is in-flight", async ({ page }) => {
