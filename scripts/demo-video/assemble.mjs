@@ -38,6 +38,10 @@ const FFMPEG = process.env.FFMPEG ?? "ffmpeg";
 const FFPROBE = process.env.FFPROBE ?? "ffprobe";
 const GAP = parseFloat(process.env.DEMO_GAP_SEC ?? "0.6");
 const MUSIC_VOL = parseFloat(process.env.DEMO_MUSIC_VOL ?? "0.22");
+// Final loudness lift: ElevenLabs VO peaks ~-9 dB, so the raw mix sits ~-25 LUFS
+// (quiet for web). A fixed +dB gain + safety limiter brings it to ~-18 LUFS
+// while preserving the VO↔music balance and the fades exactly (no loudnorm pump).
+const OUT_GAIN = parseFloat(process.env.DEMO_OUTPUT_GAIN_DB ?? "7");
 const INTRO = parseFloat(process.env.DEMO_INTRO_SEC ?? "4.5");
 const OUTRO = parseFloat(process.env.DEMO_OUTRO_SEC ?? "5");
 // Fonts for the title cards (escaped colon for the ffmpeg drawtext filter).
@@ -153,8 +157,8 @@ const finalOut = resolve(out, "walkthrough.mp4");
 const inputs = ["-i", intro, "-i", core, "-i", outro, ...(music ? ["-i", music] : [])];
 const concatF = "[0:v][0:a][1:v][1:a][2:v][2:a]concat=n=3:v=1:a=1[cv][ca]";
 const aOut = music
-  ? `${concatF};[3:a]aloop=loop=-1:size=2e9,volume=${MUSIC_VOL},afade=t=in:d=2,afade=t=out:st=${(totalDur - 2).toFixed(2)}:d=2[m];[ca][m]amix=inputs=2:duration=first:normalize=0[aout]`
-  : `${concatF};[ca]anull[aout]`;
+  ? `${concatF};[3:a]aloop=loop=-1:size=2e9,volume=${MUSIC_VOL},afade=t=in:d=2,afade=t=out:st=${(totalDur - 2).toFixed(2)}:d=2[m];[ca][m]amix=inputs=2:duration=first:normalize=0,volume=${OUT_GAIN}dB,alimiter=limit=0.95[aout]`
+  : `${concatF};[ca]volume=${OUT_GAIN}dB,alimiter=limit=0.95[aout]`;
 if (music) console.log(`🎵 music : ${music} @ vol ${MUSIC_VOL}`);
 run(["-y", ...inputs, "-filter_complex", aOut, "-map", "[cv]", "-map", "[aout]", "-t", totalDur.toFixed(2),
   "-c:v", "libx264", "-preset", "medium", "-crf", "20", "-pix_fmt", "yuv420p", "-ar", "44100", "-ac", "2", "-c:a", "aac", "-b:a", "192k", "-movflags", "+faststart", finalOut]);
