@@ -36,14 +36,18 @@ test("clicking Try with sample order routes to a sample order page with banner",
   await expect(sampleCta).toBeVisible({ timeout: 10_000 });
 
   // Click + wait for navigation to /inbox/<id>?sample=1.
+  // Generous timeout: in CI mock mode the webServer is `next dev`, which
+  // cold-compiles the /inbox/[orderId] route on first navigation. Under
+  // full-suite load (single worker) that compile plus the mock's ~800ms
+  // sample-create delay can exceed a tight 15s budget intermittently.
   await Promise.all([
-    page.waitForURL(/\/inbox\/[^/?]+\?.*sample=1/i, { timeout: 15_000 }),
+    page.waitForURL(/\/inbox\/[^/?]+\?.*sample=1/i, { timeout: 45_000 }),
     sampleCta.click(),
   ]);
 
   // The non-quota sample banner should be visible on the destination page.
   const banner = page.getByText(/this is a sample order/i);
-  await expect(banner).toBeVisible({ timeout: 10_000 });
+  await expect(banner).toBeVisible({ timeout: 15_000 });
   await expect(banner).toContainText(/doesn'?t count toward your monthly quota/i);
 });
 
