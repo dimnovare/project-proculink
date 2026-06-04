@@ -18,7 +18,7 @@ type Filter = HelpCategory | "All";
 const CATEGORY_BLURB: Record<HelpCategory, string> = {
   "Getting started": "Get your first order parsed and on its way.",
   Mapping: "Connect buyer fields to supplier formats.",
-  Delivery: "HTTP webhook, email, and ERP connectors.",
+  Delivery: "HTTP webhook, SFTP/FTPS, email, and ERP connectors (Erply, Directo).",
   AI: "How mapping suggestions work and what confidence means.",
   Billing: "Plans, quotas, and what happens at the limit.",
   Email: "Ingest orders that arrive by email.",
