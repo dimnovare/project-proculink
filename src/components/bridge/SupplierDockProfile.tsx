@@ -6,7 +6,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { ChevronLeft, Settings, Info, Clock, Link2, Truck, Plus, ShieldCheck } from "lucide-react";
+import { ChevronLeft, Trash2, Info, Clock, Link2, Truck, Plus, ShieldCheck } from "lucide-react";
 import { PoMappingEditor } from "./PoMappingEditor";
 import { DeliveryConfigEditor } from "./DeliveryConfigEditor";
 import { upsertPoMapping, deletePoMapping } from "@/lib/api/mapping";
@@ -114,8 +114,8 @@ function confClass(pct: number): string {
 // ── Operator and severity constants used in AcceptanceTab ─────────────────────
 
 const OPERATORS: AcceptanceRule["operator"][] = [
-  "required", "equals", "not_equals", "contains",
-  "greater_than", "less_than", "max_length",
+  "required", "equals", "not_equals", "in", "contains",
+  "greater_than", "less_than", "min", "max", "max_length",
 ];
 
 // Human-readable operator labels (the raw operator ids are developer jargon).
@@ -123,9 +123,12 @@ const OPERATOR_LABELS: Record<AcceptanceRule["operator"], string> = {
   required: "Must have a value",
   equals: "Must equal",
   not_equals: "Must not equal",
+  in: "Is one of (comma list)",
   contains: "Must contain",
   greater_than: "Must be greater than",
   less_than: "Must be less than",
+  min: "At least (≥)",
+  max: "At most (≤)",
   max_length: "Max length",
 };
 
@@ -133,6 +136,39 @@ const SEVERITY_DOT: Record<AcceptanceRule["severity"], string> = {
   error:   "#C53A3A",
   warning: "#C97A14",
 };
+
+// Field options are constrained PER SCOPE to only the paths the backend acceptance
+// validator actually resolves (EvaluateOrderField / EvaluateLineField in
+// SupplierAcceptanceService.cs). A free-text field path that the resolver doesn't know
+// silently passes — a dead rule — so we only offer fields that exist. Adding a field here
+// requires adding it to that resolver too.
+const FIELD_OPTIONS: Record<AcceptanceRule["scope"], Array<{ value: string; label: string }>> = {
+  order: [
+    { value: "currency", label: "Currency" },
+    { value: "buyerName", label: "Buyer name" },
+  ],
+  line: [
+    { value: "supplierItemCode", label: "Supplier item code" },
+    { value: "buyerItemCode", label: "Buyer item code" },
+    { value: "description", label: "Description" },
+    { value: "quantity", label: "Quantity" },
+    { value: "unitPrice", label: "Unit price" },
+  ],
+};
+
+function firstFieldFor(scope: AcceptanceRule["scope"]): string {
+  return FIELD_OPTIONS[scope][0].value;
+}
+
+// One-click templates so a user never has to learn field paths/operators cold.
+// Every template uses a resolvable field path (see FIELD_OPTIONS).
+const QUICK_RULES: Array<{ label: string; rule: AcceptanceRule }> = [
+  { label: "Currency must be EUR",           rule: { scope: "order", fieldPath: "currency",         operator: "equals",       expectedValue: "EUR", severity: "error",   blockOnFail: true } },
+  { label: "Every line has a supplier code", rule: { scope: "line",  fieldPath: "supplierItemCode", operator: "required",     expectedValue: "",    severity: "error",   blockOnFail: true } },
+  { label: "Quantity greater than 0",        rule: { scope: "line",  fieldPath: "quantity",         operator: "greater_than", expectedValue: "0",   severity: "error",   blockOnFail: true } },
+  { label: "Unit price is required",         rule: { scope: "line",  fieldPath: "unitPrice",        operator: "required",     expectedValue: "",    severity: "error",   blockOnFail: true } },
+  { label: "Every line has a description",   rule: { scope: "line",  fieldPath: "description",      operator: "required",     expectedValue: "",    severity: "warning", blockOnFail: false } },
+];
 
 // ── AcceptanceTab ─────────────────────────────────────────────────────────────
 
@@ -183,13 +219,17 @@ function AcceptanceTab({ supplierId }: { supplierId: string }) {
   function addRule() {
     const blank: AcceptanceRule = {
       scope: "order",
-      fieldPath: "",
+      fieldPath: "currency",
       operator: "required",
       expectedValue: "",
       severity: "error",
       blockOnFail: true,
     };
     setEditRules(prev => [...(prev ?? []), blank]);
+  }
+
+  function addQuickRule(rule: AcceptanceRule) {
+    setEditRules(prev => [...(prev ?? []), { ...rule }]);
   }
 
   function updateRule(idx: number, patch: Partial<AcceptanceRule>) {
@@ -364,25 +404,54 @@ function AcceptanceTab({ supplierId }: { supplierId: string }) {
         )}
       </div>
 
-      <p className="text-[12.5px] leading-relaxed" style={{ color: MUTED, paddingLeft: 2 }}>
-        Rules each supplier requires before an order can be sent — e.g. currency must be EUR, or every line needs a supplier code.{" "}
-        Orders that break an <strong style={{ color: INK }}>Error</strong> rule are blocked from delivery; <strong style={{ color: INK }}>Warning</strong> rules only flag.
-      </p>
+      <div
+        className="flex gap-2.5 rounded-[8px] px-3.5 py-3"
+        style={{ background: BLUE_SOFT, border: "1px solid #C5DAF5" }}
+      >
+        <Info size={16} strokeWidth={2} color={BLUE_DEEP} style={{ flexShrink: 0, marginTop: 1 }} />
+        <div className="text-[12.5px] leading-relaxed" style={{ color: INK }}>
+          <span className="font-semibold">How validation works.</span>{" "}
+          Before an order is sent to this supplier, ProcuLink checks it against these rules.{" "}
+          <strong style={{ color: DANGER }}>Error</strong> rules block delivery until they’re fixed;{" "}
+          <strong style={{ color: "#C97A14" }}>Warning</strong> rules only flag and never block.{" "}
+          Validation never changes the order — it’s a gate.
+          <span className="mt-1 block" style={{ color: MUTED }}>
+            e.g. <em>Currency must be EUR</em> (error) · <em>Every line needs a supplier code</em> (error).
+          </span>
+        </div>
+      </div>
 
       {/* Rules table / editor */}
       <div style={{ background: SURFACE, border: `1px solid ${LINE}`, borderRadius: 10, overflow: "hidden" }}>
         <div className="flex items-center justify-between gap-2 px-5 py-3" style={{ borderBottom: `1px solid ${LINE}` }}>
           <span className="text-[13px] font-semibold" style={{ color: INK }}>Rules</span>
           {isEditing && (
-            <button
-              type="button"
-              onClick={addRule}
-              className="inline-flex items-center gap-1.5 rounded-[7px] px-3 text-[12px] font-medium"
-              style={{ height: 30, border: `1px solid ${LINE}`, background: SURFACE, color: INK, cursor: "pointer" }}
-            >
-              <Plus size={13} strokeWidth={2.2} />
-              Add rule
-            </button>
+            <div className="flex items-center gap-2">
+              <select
+                value=""
+                onChange={(e) => {
+                  const t = QUICK_RULES[Number(e.target.value)];
+                  if (t) addQuickRule(t.rule);
+                  e.currentTarget.value = "";
+                }}
+                className="rounded-[7px] px-2.5 text-[12px] font-medium"
+                style={{ height: 30, border: `1px solid ${LINE}`, background: SURFACE, color: INK, cursor: "pointer", outline: "none" }}
+              >
+                <option value="">+ Add common rule…</option>
+                {QUICK_RULES.map((q, i) => (
+                  <option key={i} value={i}>{q.label}</option>
+                ))}
+              </select>
+              <button
+                type="button"
+                onClick={addRule}
+                className="inline-flex items-center gap-1.5 rounded-[7px] px-3 text-[12px] font-medium"
+                style={{ height: 30, border: `1px solid ${LINE}`, background: SURFACE, color: INK, cursor: "pointer" }}
+              >
+                <Plus size={13} strokeWidth={2.2} />
+                Add rule
+              </button>
+            </div>
           )}
         </div>
 
@@ -397,21 +466,26 @@ function AcceptanceTab({ supplierId }: { supplierId: string }) {
               <div key={idx} className="flex flex-wrap items-center gap-3 px-4 py-3">
                 <select
                   value={rule.scope}
-                  onChange={e => updateRule(idx, { scope: e.target.value as AcceptanceRule["scope"] })}
+                  onChange={e => {
+                    const scope = e.target.value as AcceptanceRule["scope"];
+                    updateRule(idx, { scope, fieldPath: firstFieldFor(scope) });
+                  }}
                   className="rounded-[5px] px-2 text-[12px]"
                   style={{ height: 30, border: `1px solid ${LINE}`, color: INK, background: SURFACE, outline: "none", cursor: "pointer" }}
                 >
                   <option value="order">Order</option>
                   <option value="line">Line</option>
                 </select>
-                <input
-                  type="text"
+                <select
                   value={rule.fieldPath}
                   onChange={e => updateRule(idx, { fieldPath: e.target.value })}
-                  placeholder="e.g. currency, supplierItemCode"
                   className="rounded-[5px] px-2 text-[12px]"
-                  style={{ height: 30, border: `1px solid ${LINE}`, color: INK, background: SURFACE, outline: "none", width: 130 }}
-                />
+                  style={{ height: 30, border: `1px solid ${LINE}`, color: INK, background: SURFACE, outline: "none", width: 160, cursor: "pointer" }}
+                >
+                  {FIELD_OPTIONS[rule.scope].map(f => (
+                    <option key={f.value} value={f.value}>{f.label}</option>
+                  ))}
+                </select>
                 <select
                   value={rule.operator}
                   onChange={e => updateRule(idx, { operator: e.target.value as AcceptanceRule["operator"] })}
@@ -528,9 +602,26 @@ function AcceptanceTab({ supplierId }: { supplierId: string }) {
 
 export function SupplierDockProfile({ id }: { id: string }) {
   const router = useRouter();
+  const qc = useQueryClient();
   const [tab, setTab] = useState<Tab>("overview");
   const [poMappingConfig, setPoMappingConfig] = useState<PoMappingConfig | null>(null);
   const [savingMapping, setSavingMapping] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  async function doDelete() {
+    setDeleting(true);
+    setDeleteError(null);
+    try {
+      await apiClient.deleteSupplier(id);
+      await qc.invalidateQueries({ queryKey: ["suppliers"] });
+      router.push("/library/suppliers");
+    } catch (e) {
+      setDeleteError(e instanceof Error ? e.message : "Could not delete supplier.");
+      setDeleting(false);
+    }
+  }
 
   const { data: supplierList, isLoading, error } = useQuery({
     queryKey: ["suppliers"],
@@ -585,6 +676,52 @@ export function SupplierDockProfile({ id }: { id: string }) {
 
   return (
     <div className="flex flex-col h-full min-h-0 overflow-hidden" style={{ background: BG }}>
+      {confirmDelete && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          style={{ background: "rgba(11,26,47,0.45)" }}
+          onClick={() => { if (!deleting) { setConfirmDelete(false); setDeleteError(null); } }}
+        >
+          <div
+            className="w-full max-w-[420px] rounded-[12px] p-5"
+            style={{ background: SURFACE, border: `1px solid ${LINE}`, boxShadow: "0 12px 40px rgba(11,26,47,0.25)" }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="text-[15px] font-semibold" style={{ color: INK, fontFamily: DISPLAY }}>
+              Delete {name || "this supplier"}?
+            </h3>
+            <p className="mt-2 text-[12.5px] leading-relaxed" style={{ color: MUTED }}>
+              This removes it from your supplier list. Past orders are kept for audit. This can’t be undone here.
+            </p>
+            {deleteError && (
+              <div className="mt-3 rounded-[6px] px-3 py-2 text-[12px]" style={{ background: "#FBE3E3", color: DANGER, border: "1px solid #F0C2C2" }}>
+                {deleteError}
+              </div>
+            )}
+            <div className="mt-4 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => { setConfirmDelete(false); setDeleteError(null); }}
+                disabled={deleting}
+                className="rounded-[7px] px-3 text-[12.5px] font-medium"
+                style={{ height: 34, border: `1px solid ${LINE}`, background: SURFACE, color: MUTED, cursor: "pointer" }}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={doDelete}
+                disabled={deleting}
+                className="rounded-[7px] px-3 text-[12.5px] font-semibold"
+                style={{ height: 34, border: "none", background: DANGER, color: "#FFFFFF", cursor: "pointer", opacity: deleting ? 0.7 : 1 }}
+              >
+                {deleting ? "Deleting…" : "Delete supplier"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div
         className="flex flex-col gap-3.5 px-4 py-4 sm:px-6 sm:py-5 flex-shrink-0"
@@ -647,19 +784,14 @@ export function SupplierDockProfile({ id }: { id: string }) {
             </div>
           </div>
 
-          {/* Settings action — opens the Delivery configuration tab */}
+          {/* Destructive action — soft-deletes the supplier (past orders retained for audit) */}
           <button
-            onClick={() => {
-              setTab("delivery");
-              setTimeout(() => {
-                document.getElementById("supplier-tab-delivery")?.scrollIntoView({ behavior: "smooth", block: "nearest" });
-              }, 0);
-            }}
+            onClick={() => setConfirmDelete(true)}
             className="inline-flex items-center gap-1.5 self-start rounded-[7px] px-3 text-[12.5px] font-medium sm:ml-auto sm:self-center"
-            style={{ height: 34, border: `1px solid ${BORDER_STRONG}`, background: SURFACE, color: INK, cursor: "pointer" }}
+            style={{ height: 34, border: "1px solid #E9C4C4", background: SURFACE, color: DANGER, cursor: "pointer" }}
           >
-            <Settings size={14} strokeWidth={2} color={MUTED} />
-            Configure delivery
+            <Trash2 size={14} strokeWidth={2} color={DANGER} />
+            Delete supplier
           </button>
         </div>
       </div>

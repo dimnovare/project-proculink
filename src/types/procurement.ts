@@ -444,7 +444,7 @@ export interface AcceptanceRule {
   id?: string;
   scope: "order" | "line";
   fieldPath: string;
-  operator: "equals" | "not_equals" | "contains" | "greater_than" | "less_than" | "required" | "max_length";
+  operator: "equals" | "not_equals" | "contains" | "greater_than" | "less_than" | "required" | "max_length" | "in" | "min" | "max";
   expectedValue?: string;
   severity: "error" | "warning";
   blockOnFail: boolean;
