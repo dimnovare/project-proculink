@@ -2,7 +2,7 @@
 import { useEffect, useState, type CSSProperties, type ReactNode } from "react";
 import { useOrganization } from "@clerk/nextjs";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Building, Copy, Euro, ExternalLink, Key, Mail, Plug, Plus, Save, ShieldCheck, Trash2, Zap } from "lucide-react";
+import { Building, Copy, Database, Euro, ExternalLink, HardDrive, Key, Mail, Plug, Plus, Save, ShieldCheck, Trash2, Zap } from "lucide-react";
 import { BillingSection } from "@/components/bridge/BillingSection";
 import {
   apiClient,
@@ -19,15 +19,18 @@ import {
 } from "@/lib/api-client";
 import type { EmailSettings, UpdateEmailSettingsPayload } from "@/types/procurement";
 import type { ApiKey, IntegrationSubscription } from "@/lib/api-client";
+import { SftpPullSettings, S3PullSettings } from "@/components/settings/PullIngressSettings";
 
-type SettingsTab = "org" | "billing" | "email" | "api" | "connectors";
+type SettingsTab = "org" | "billing" | "email" | "sftp" | "s3" | "api" | "connectors";
 
 const TABS: Array<{ id: SettingsTab; label: string; Icon: React.ElementType }> = [
-  { id: "org",        label: "Organization",    Icon: Building  },
-  { id: "billing",    label: "Billing & plan",  Icon: Euro      },
-  { id: "email",      label: "Email intake",    Icon: Mail      },
-  { id: "api",        label: "API keys",        Icon: Key       },
-  { id: "connectors", label: "Connectors",      Icon: Plug      },
+  { id: "org",        label: "Organization",    Icon: Building   },
+  { id: "billing",    label: "Billing & plan",  Icon: Euro       },
+  { id: "email",      label: "Email intake",    Icon: Mail       },
+  { id: "sftp",       label: "SFTP pull",       Icon: HardDrive  },
+  { id: "s3",         label: "S3 / R2 pull",    Icon: Database   },
+  { id: "api",        label: "API keys",        Icon: Key        },
+  { id: "connectors", label: "Connectors",      Icon: Plug       },
 ];
 
 const PLAN_LABELS: Record<string, string> = {
@@ -91,6 +94,8 @@ export default function SettingsPage() {
             {tab === "org"        && <OrgSection />}
             {tab === "billing"    && <BillingSectionWrapper />}
             {tab === "email"      && <EmailSettingsSection />}
+            {tab === "sftp"       && <SftpPullSettings />}
+            {tab === "s3"         && <S3PullSettings />}
             {tab === "api"        && <ApiKeysSection />}
             {tab === "connectors" && <ConnectorsSection />}
           </div>
