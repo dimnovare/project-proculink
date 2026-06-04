@@ -236,13 +236,13 @@ async function realGetSuppliersFn(): Promise<Supplier[]> {
 
 // ─── Support contact ───
 
-async function mockSubmitSupportRequest(payload: SupportContactPayload): Promise<{ ok: true }> {
+async function mockSubmitSupportRequest(payload: SupportContactPayload): Promise<{ ok: true; delivered: boolean; contactEmail: string }> {
   await delay(400);
   console.info("[mock] submitSupportRequest", payload);
-  return { ok: true };
+  return { ok: true, delivered: true, contactEmail: "support@proculink.eu" };
 }
 
-async function realSubmitSupportRequest(payload: SupportContactPayload): Promise<{ ok: true }> {
+async function realSubmitSupportRequest(payload: SupportContactPayload): Promise<{ ok: true; delivered: boolean; contactEmail: string }> {
   const res = await fetchWithTimeout(`${API_BASE_URL}/api/support/contact`, {
     method: "POST",
     headers: {
@@ -255,7 +255,7 @@ async function realSubmitSupportRequest(payload: SupportContactPayload): Promise
     const text = await res.text().catch(() => "");
     throw new Error(text || `submitSupportRequest failed: ${res.status}`);
   }
-  return res.json() as Promise<{ ok: true }>;
+  return res.json() as Promise<{ ok: true; delivered: boolean; contactEmail: string }>;
 }
 
 // ── Upload ────────────────────────────────────────────────────────────────
@@ -2330,6 +2330,11 @@ export interface OpsHealth {
   openExceptions: number;
   stuckThresholdMinutes: number;
   totalProblemOrders: number;
+  // Worker / Hangfire-server health — surfaces a dead Worker (which stalls the pipeline).
+  workerHealthy: boolean;
+  activeWorkers: number;
+  lastWorkerHeartbeatUtc: string | null;
+  secondsSinceWorkerHeartbeat: number | null;
 }
 
 /** A dead-lettered (or failed) delivery awaiting operator review. Mirrors DeadLetterOrderDto. */
@@ -2353,6 +2358,9 @@ async function mockGetOpsHealth(): Promise<OpsHealth> {
     parsingStuck: 0, deliveringStuck: 0, transformFailed: 0, deliveryFailed: 1,
     deliveryDeadLetter: 1, rejectedBySupplier: 0, failed: 0, slaBreached: 0,
     openExceptions: 2, stuckThresholdMinutes: 30, totalProblemOrders: 2,
+    workerHealthy: true, activeWorkers: 1,
+    lastWorkerHeartbeatUtc: new Date(Date.now() - 6000).toISOString(),
+    secondsSinceWorkerHeartbeat: 6,
   };
 }
 

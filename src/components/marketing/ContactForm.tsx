@@ -47,16 +47,25 @@ export function ContactForm() {
     if (!canSubmit) return;
     setState({ status: "submitting" });
     try {
-      await apiClient.submitSupportRequest({
+      const result = await apiClient.submitSupportRequest({
         category,
         subject: subject.trim() || "(no subject)",
         message: message.trim(),
         userEmail: email.trim() || undefined,
         route: pathname,
       });
-      setState({ status: "success", message: "Thanks — we'll reply within one business day." });
-      setSubject("");
-      setMessage("");
+      if (result.delivered) {
+        setState({ status: "success", message: "Thanks — we'll reply within one business day." });
+        setSubject("");
+        setMessage("");
+      } else {
+        // The endpoint accepted the request but no email was actually sent
+        // (e.g. SMTP not configured) — don't pretend it reached us.
+        setState({
+          status: "error",
+          message: `Your message couldn't be sent automatically. Please email us directly at ${result.contactEmail} and we'll reply within one business day.`,
+        });
+      }
     } catch (err) {
       captureException(err, {
         tags: { ui_surface: "contact_form", category },

@@ -51,6 +51,13 @@ function relativeTime(iso: string | null): string {
   return `${Math.floor(min / 1440)}d ago`;
 }
 
+function formatHeartbeat(s: number | null): string {
+  if (s == null) return "unknown";
+  if (s < 60) return `${Math.round(s)}s ago`;
+  if (s < 3600) return `${Math.round(s / 60)}m ago`;
+  return `${Math.round(s / 3600)}h ago`;
+}
+
 export default function OperationsHealthPage() {
   const { isLoaded, isSignedIn } = useAuth();
   const clerkReady = isLoaded && !!isSignedIn;
@@ -108,6 +115,26 @@ export default function OperationsHealthPage() {
 
   return (
     <Shell>
+      {/* Worker / pipeline-engine status — a dead Worker stalls the whole pipeline. */}
+      <div
+        style={{
+          marginBottom: 14, display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap",
+          background: h.workerHealthy ? "#E2F1E2" : "#FBE3E3",
+          border: `1px solid ${h.workerHealthy ? "#BFE3BF" : "#F0B4B4"}`,
+          borderRadius: 12, padding: "12px 16px",
+          color: h.workerHealthy ? "#1E6D29" : "#B42318", fontSize: 13.5,
+        }}
+      >
+        <span style={{ width: 9, height: 9, borderRadius: "50%", flexShrink: 0, background: h.workerHealthy ? "#2E8E3A" : "#D92D20" }} />
+        <span style={{ fontWeight: 700 }}>{h.workerHealthy ? "Worker online" : "Worker OFFLINE"}</span>
+        <span style={{ opacity: 0.9 }}>
+          {h.workerHealthy
+            ? `${h.activeWorkers} active · last heartbeat ${formatHeartbeat(h.secondsSinceWorkerHeartbeat)}`
+            : h.lastWorkerHeartbeatUtc
+              ? `No heartbeat in ${formatHeartbeat(h.secondsSinceWorkerHeartbeat)} — new uploads will stall until it recovers.`
+              : "No worker has reported in — uploads will stall at “parsing” until a worker starts."}
+        </span>
+      </div>
       {allClear ? (
         <div style={{ background: "#E2F1E2", border: "1px solid #BFE3BF", borderRadius: 12, padding: "16px 18px", color: "#1E6D29", fontSize: 14, fontWeight: 600 }}>
           ✓ All clear — no orders in a problem state and no open exceptions.
@@ -118,7 +145,7 @@ export default function OperationsHealthPage() {
           style={{ gridTemplateColumns: "repeat(auto-fill, minmax(168px, 1fr))" }}
         >
           {TILES.map(({ key, label, href }) => {
-            const count = h[key];
+            const count = h[key] as number; // TILES keys are all numeric count fields
             const t = tone(count, key);
             return (
               <Link

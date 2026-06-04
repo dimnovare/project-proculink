@@ -340,16 +340,6 @@ export function OrderPassport({ orderId }: { orderId: string }) {
           >
             {exported ? "✓ Downloaded" : "↓ Download acceptance proof"}
           </button>
-          <button
-            type="button"
-            disabled
-            title="PDF acceptance proof is coming soon — use JSON for now."
-            className="rounded-[6px] px-3 text-[12.5px] font-semibold inline-flex items-center gap-1.5"
-            style={{ height: 32, background: "#FFFFFF", color: "#8A93A5", border: "1px dashed #C6CDDA", cursor: "not-allowed" }}
-          >
-            PDF
-            <span style={{ fontSize: 9, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.05em", background: "#EFF2F7", color: "#8A93A5", borderRadius: 3, padding: "1px 4px" }}>Soon</span>
-          </button>
         </div>
       </div>
 
