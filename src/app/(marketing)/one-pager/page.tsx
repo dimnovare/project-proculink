@@ -41,7 +41,7 @@ export default function OnePagerPage() {
         {[
           { n: "1", t: "Import", d: "Upload CSV / XLSX / PDF, or let ProcuLink poll an IMAP mailbox." },
           { n: "2", t: "Map + transform", d: "Per-supplier field + item-code mapping with AI suggestions. Output to CSV, XML, cXML, JSON." },
-          { n: "3", t: "Deliver", d: "HTTP webhook, Erply, Directo, or download. Full audit trail and delivery status." },
+          { n: "3", t: "Deliver", d: "HTTP webhook, SFTP/FTPS, email, Erply, Directo, or download. Full audit trail and delivery status." },
         ].map((s) => (
           <div key={s.n} style={S.step}>
             <div style={S.stepN}>0{s.n}</div>
