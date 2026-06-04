@@ -22,6 +22,11 @@ const isLive = process.env.PLAYWRIGHT_LIVE === "1";
 
 export default defineConfig({
   testDir: "./tests/e2e",
+  // Warm /upload and the other heavy routes before the suite so the first test
+  // that hits them doesn't eat the Next dev cold-compile and flake.
+  globalSetup: "./tests/e2e/global-setup.ts",
+  // Generous default assertion timeout — single-worker CI under load is slow.
+  expect: { timeout: 10_000 },
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
