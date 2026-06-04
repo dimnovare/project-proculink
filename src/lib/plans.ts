@@ -207,7 +207,9 @@ export const PLANS: Plan[] = [
     cta: { label: "Upgrade to Distributor", href: SIGN_UP },
     color: "#0E7490",
     highlight: false,
-    isCheckout: true,
+    // Not self-serve yet: no Stripe Distributor product/price exists, so keep
+    // checkout off even if `hidden` is ever toggled (avoids a broken Checkout).
+    isCheckout: false,
     isCustom: false,
     next: null,
     hidden: true,

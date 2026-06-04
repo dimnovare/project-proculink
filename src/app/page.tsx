@@ -324,7 +324,7 @@ export default function RootPage() {
               Start for free →
             </Link>
             <Link
-              href="/how-it-works"
+              href="/watch"
               style={{
                 display: "inline-flex",
                 alignItems: "center",
@@ -338,7 +338,7 @@ export default function RootPage() {
                 border: `1px solid ${NAVY_BORDER}`,
               }}
             >
-              See how it works
+              Watch the walkthrough →
             </Link>
           </div>
 
@@ -920,7 +920,7 @@ export default function RootPage() {
               </div>
             </div>
             {[
-              { h: "Product", links: [["How it works", "/how-it-works"], ["Pricing", "/pricing"], ["Security", "/security"], ["Open the dashboard", "/bridge"]] },
+              { h: "Product", links: [["How it works", "/how-it-works"], ["Watch", "/watch"], ["Pricing", "/pricing"], ["Security", "/security"], ["Open the dashboard", "/bridge"]] },
               { h: "Company", links: [["Customers", "/customers"], ["Changelog", "/changelog"], ["Support", "/support"]] },
               { h: "Legal",   links: [["Privacy", "/privacy"], ["Terms", "/terms"], ["AUP", "/aup"], ["DPA", "/dpa"], ["Subprocessors", "/subprocessors"]] },
             ].map((col) => (
