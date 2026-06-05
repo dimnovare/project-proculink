@@ -1,4 +1,4 @@
-import type { PoMappingConfig, MappedOrder, TestPoMappingRequest } from "./types";
+import type { PoMappingConfig } from "./types";
 import { isApiMockMode } from "@/lib/api-client";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:5223";
@@ -20,10 +20,6 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   return res.json() as Promise<T>;
 }
 
-export async function getPoMapping(supplierId: string): Promise<PoMappingConfig | null> {
-  return apiFetch<PoMappingConfig | null>(`/suppliers/${supplierId}/po-mapping`);
-}
-
 export async function upsertPoMapping(
   supplierId: string,
   config: PoMappingConfig
@@ -36,16 +32,6 @@ export async function upsertPoMapping(
 
 export async function deletePoMapping(supplierId: string): Promise<void> {
   return apiFetch<void>(`/suppliers/${supplierId}/po-mapping`, { method: "DELETE" });
-}
-
-export async function testPoMapping(
-  supplierId: string,
-  request: TestPoMappingRequest
-): Promise<MappedOrder> {
-  return apiFetch<MappedOrder>(`/suppliers/${supplierId}/po-mapping/test`, {
-    method: "POST",
-    body: JSON.stringify(request),
-  });
 }
 
 // ───────────────────────────────────────────────────────────────────────────
