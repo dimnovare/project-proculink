@@ -912,8 +912,8 @@ export default function RootPage() {
 function CanonicalPreview() {
   const rows = [
     ["PO number", "PO-2026-008412", "OrderRequest/OrderID"],
-    ["Buyer", "Heinrich Industries", "BillTo/Contact"],
-    ["Supplier", "Acme Components", "ShipFrom/Contact"],
+    ["Buyer", "Northwind Trading", "BillTo/Contact"],
+    ["Supplier", "ElectroSupply Co", "ShipFrom/Contact"],
     ["Currency", "EUR", "Total/Currency"],
     ["Lines", "14 items", "ItemOut[]"],
   ];

@@ -6,18 +6,19 @@
 // each buyer routes to its mirror supplier, so the bundle necks down to a tidy
 // hourglass at the centre node (blue on the left half → green on the right half).
 
+// Generic industry/category labels — illustrative, not invented company names.
 const BUYERS = [
-  { label: "Heinrich Industries",  code: "HEI" },
-  { label: "Nordmark Logistik",    code: "NRD" },
-  { label: "Steelhouse Const.",    code: "SHC" },
-  { label: "Centralis Pharma",     code: "CPH" },
+  { label: "Manufacturing", code: "MFG" },
+  { label: "Distribution",  code: "DST" },
+  { label: "Construction",  code: "CON" },
+  { label: "Pharma",        code: "PHA" },
 ];
 
 const SUPPLIERS = [
-  { label: "Acme Components",   code: "ACM" },
-  { label: "BoltWorks BV",      code: "BWK" },
-  { label: "VanDerBerg Metaal", code: "VDB" },
-  { label: "MedicaSupply OY",   code: "MDS" },
+  { label: "Components", code: "CMP" },
+  { label: "Fasteners",  code: "FAS" },
+  { label: "Metals",     code: "MTL" },
+  { label: "Medical",    code: "MED" },
 ];
 
 // Topology wire colours — exact design source values (mkt-components.jsx).
