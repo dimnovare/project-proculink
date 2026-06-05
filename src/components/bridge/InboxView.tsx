@@ -367,6 +367,10 @@ export function InboxView() {
   const [statusFilter, setStatusFilter] = useState<OrderStatus | undefined>(undefined); // live ?status=
   const [page, setPage]                 = useState(1);  // 1-based page index
   const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Bulk "Send selected" lifecycle: idle while no request is in flight, then a
+  // visible pending → result feedback so the action is never a silent no-op.
+  const [bulkSending, setBulkSending]   = useState(false);
+  const [bulkResult, setBulkResult]     = useState<{ ok: boolean; text: string } | null>(null);
 
   const queryClient = useQueryClient();
   // Live (non-mock) path: the backend returns a paginated envelope and applies
@@ -421,9 +425,52 @@ export function InboxView() {
     searchTimer.current = setTimeout(() => setSearch(value), 350);
   }, []);
 
+  // Bulk "Send selected": selection keys are order ids (see getRowId). Re-deliver
+  // each in parallel, surface a pending state, then a success/failure summary
+  // instead of silently firing and forgetting.
+  const handleSendSelected = useCallback(async () => {
+    const ids = Object.keys(rowSelection);
+    if (!ids.length || bulkSending) return;
+    setBulkSending(true);
+    setBulkResult(null);
+    const base = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:5223";
+    try {
+      const results = await Promise.all(
+        ids.map((id) =>
+          fetch(`${base}/api/orders/${id}/redeliver`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+          })
+            .then((r) => r.ok)
+            .catch(() => false),
+        ),
+      );
+      const sent = results.filter(Boolean).length;
+      const failed = results.length - sent;
+      queryClient.invalidateQueries({ queryKey: ["orders"] });
+      if (failed === 0) {
+        setBulkResult({ ok: true, text: `${sent} order${sent !== 1 ? "s" : ""} sent` });
+        setRowSelection({});
+      } else {
+        setBulkResult({
+          ok: false,
+          text: sent > 0 ? `${sent} sent · ${failed} failed` : `Couldn't send ${failed} order${failed !== 1 ? "s" : ""}`,
+        });
+      }
+    } catch {
+      setBulkResult({ ok: false, text: "Send failed — please retry" });
+    } finally {
+      setBulkSending(false);
+    }
+  }, [rowSelection, bulkSending, queryClient]);
+
   const table = useReactTable({
     data: ALL_ORDERS,
     columns,
+    // Stable row id keyed on the order id (not the array index). Selection keys are
+    // therefore order ids, so bulk actions resolve to the correct orders regardless
+    // of current sort / filter / page — never positional `rows[index]` lookups.
+    getRowId: (row) => row.id,
     state: { sorting, columnFilters, rowSelection },
     onSortingChange: setSorting,
     onColumnFiltersChange: setColumnFilters,
@@ -579,55 +626,38 @@ export function InboxView() {
           <div className="flex items-center gap-3">
             <span style={{ fontSize: "12.5px", fontWeight: 600 }}>{selectedCount} selected</span>
             <button
-              onClick={() => setRowSelection({})}
+              onClick={() => { setRowSelection({}); setBulkResult(null); }}
               style={{ background: "none", border: "none", color: "#8A93A5", fontSize: "12px", cursor: "pointer" }}
             >
               Clear
             </button>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
+            {bulkResult && (
+              <span
+                role="status"
+                aria-live="polite"
+                style={{ fontSize: "12px", fontWeight: 600, color: bulkResult.ok ? "#7FD18A" : "#F2A6A6" }}
+              >
+                {bulkResult.ok ? "✓ " : "⚠ "}{bulkResult.text}
+              </span>
+            )}
             <button
+              type="button"
+              onClick={handleSendSelected}
+              disabled={bulkSending}
               style={{
                 background: "none",
                 border: "none",
                 color: "#FFFFFF",
                 fontSize: "12.5px",
                 fontWeight: 600,
-                cursor: "pointer",
+                cursor: bulkSending ? "default" : "pointer",
+                opacity: bulkSending ? 0.6 : 1,
                 padding: 0,
               }}
-              onClick={async () => {
-                const ids = Object.keys(rowSelection).map(k => rows[Number(k)]?.original.id).filter(Boolean);
-                if (!ids.length) return;
-                try {
-                  await Promise.all(
-                    ids.map(id =>
-                      fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:5223"}/api/orders/${id}/redeliver`, {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                      }).catch(() => null)
-                    )
-                  );
-                  queryClient.invalidateQueries({ queryKey: ["orders"] });
-                  setRowSelection({});
-                } catch { /* ignore */ }
-              }}
             >
-              Send selected
-            </button>
-            <button
-              style={{
-                background: "none",
-                border: "none",
-                color: "#FFFFFF",
-                fontSize: "12.5px",
-                fontWeight: 600,
-                cursor: "pointer",
-                padding: 0,
-              }}
-              onClick={() => {}}
-            >
-              Export
+              {bulkSending ? "Sending…" : "Send selected"}
             </button>
           </div>
         </div>
@@ -679,9 +709,10 @@ export function InboxView() {
           className="flex items-center gap-1.5 rounded-[6px] px-3 flex-shrink-0"
           style={{ background: "#FFFFFF", border: "1px solid #E2E6EE", height: 32, minWidth: 160, maxWidth: 240 }}
         >
-          <span style={{ fontSize: "14px", color: "#8A93A5", flexShrink: 0 }}>🔍</span>
+          <span aria-hidden="true" style={{ fontSize: "14px", color: "#8A93A5", flexShrink: 0 }}>🔍</span>
           <input
             type="text"
+            aria-label="Search orders"
             placeholder="Search PO, buyer, supplier…"
             value={searchInput}
             onChange={(e) => handleSearch(e.target.value)}
@@ -704,7 +735,7 @@ export function InboxView() {
         className="flex-1 min-h-0 overflow-auto mx-4 sm:mx-6 mb-3"
         style={{ background: "#FFFFFF", border: "1px solid #E2E6EE", borderRadius: 12 }}
       >
-        <div className="divide-y divide-[#F0F2F6] md:hidden">
+        <div className="divide-y divide-[#F0F2F6] lg:hidden">
           {pagedRows.length === 0 && (
             <div className="flex flex-col items-center justify-center py-16 px-6 text-center gap-3">
               <div style={{ fontSize: 28, color: "#C6CDDA" }}>⊘</div>
@@ -784,7 +815,7 @@ export function InboxView() {
           ))}
         </div>
 
-        <div className="hidden overflow-x-auto md:block">
+        <div className="hidden overflow-x-auto lg:block">
         <table
           style={{
             width: "100%",

@@ -34,7 +34,8 @@ function Bone({
 
 export function InboxSkeleton() {
   return (
-    <div className="flex flex-col h-full overflow-hidden" style={{ background: "#F6F7FA" }}>
+    <div className="flex flex-col h-full overflow-hidden" style={{ background: "#F6F7FA" }} role="status" aria-busy="true">
+      <span className="sr-only">Loading…</span>
       {/* Header */}
       <div className="px-6 py-4 flex items-end gap-4" style={{ borderBottom: "1px solid #E2E6EE", background: "#FFFFFF" }}>
         <div className="flex flex-col gap-2">
@@ -93,7 +94,8 @@ export function InboxSkeleton() {
 
 export function SpineReviewSkeleton() {
   return (
-    <div className="flex flex-col h-full overflow-hidden" style={{ background: "#F6F7FA" }}>
+    <div className="flex flex-col h-full overflow-hidden" style={{ background: "#F6F7FA" }} role="status" aria-busy="true">
+      <span className="sr-only">Loading…</span>
       {/* Header */}
       <div className="px-6 py-4 flex items-center gap-4" style={{ borderBottom: "1px solid #E2E6EE", background: "#FFFFFF" }}>
         <Bone w={28} h={28} radius={6} />
@@ -130,7 +132,8 @@ export function SpineReviewSkeleton() {
 
 export function DashboardSkeleton() {
   return (
-    <div className="flex flex-col h-full overflow-hidden" style={{ background: "#F6F7FA" }}>
+    <div className="flex flex-col h-full overflow-hidden" style={{ background: "#F6F7FA" }} role="status" aria-busy="true">
+      <span className="sr-only">Loading…</span>
       <div className="px-6 py-4" style={{ borderBottom: "1px solid #E2E6EE", background: "#FFFFFF" }}>
         <Bone w={140} h={22} />
         <Bone w={260} h={12} className="mt-2" />
@@ -174,7 +177,8 @@ export function DashboardSkeleton() {
 
 export function SupplierProfileSkeleton() {
   return (
-    <div className="flex flex-col h-full overflow-hidden" style={{ background: "#F6F7FA" }}>
+    <div className="flex flex-col h-full overflow-hidden" style={{ background: "#F6F7FA" }} role="status" aria-busy="true">
+      <span className="sr-only">Loading…</span>
       <div className="px-6 py-4 flex items-center gap-3" style={{ borderBottom: "1px solid #E2E6EE", background: "#FFFFFF" }}>
         <Bone w={28} h={28} radius={6} />
         <div className="flex flex-col gap-2">
@@ -217,7 +221,8 @@ export function SupplierProfileSkeleton() {
 
 export function TableSkeleton({ rows = 10, cols = 6 }: { rows?: number; cols?: number }) {
   return (
-    <div style={{ background: "#FFFFFF", border: "1px solid #E2E6EE", borderRadius: 8, overflow: "hidden" }}>
+    <div style={{ background: "#FFFFFF", border: "1px solid #E2E6EE", borderRadius: 8, overflow: "hidden" }} role="status" aria-busy="true">
+      <span className="sr-only">Loading…</span>
       {/* Header */}
       <div className="flex gap-4 px-4 py-3" style={{ borderBottom: "2px solid #E2E6EE" }}>
         {Array.from({ length: cols }).map((_, i) => <Bone key={i} w={60 + (i * 17) % 60} h={10} />)}

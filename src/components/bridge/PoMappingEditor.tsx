@@ -23,6 +23,7 @@ import {
   type FieldSuggestion,
 } from "@/lib/api/mapping";
 import { getPoMappingTemplates, type StarterTemplate, ApiHttpError } from "@/lib/api-client";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 // ─── Design tokens ────────────────────────────────────────────────────────────
 const NAVY       = "#0B1A2F";
@@ -126,6 +127,10 @@ export function PoMappingEditor({
   supplierName,
   onApplyTemplate,
 }: PoMappingEditorProps) {
+  // Below md the two panels stack vertically and the SVG wire layer + its
+  // 120px gutter are dropped, so the connect view fits a phone without overflow.
+  const isMobile = useIsMobile();
+
   // ── API queries ────────────────────────────────────────────────────────────
   const sourceQuery = useQuery({
     queryKey: ["po-mapping-source-columns", supplierId],
@@ -212,6 +217,8 @@ export function PoMappingEditor({
   const [positions, setPositions] = useState<WirePos[]>([]);
 
   const measure = useCallback(() => {
+    // The wire layer only mounts on desktop (md+); skip measurement on mobile.
+    if (isMobile) { setPositions([]); return; }
     if (!wrapRef.current) return;
     const wrap = wrapRef.current.getBoundingClientRect();
     if (wrap.width < 80) { setPositions([]); return; }
@@ -244,7 +251,7 @@ export function PoMappingEditor({
       });
     }
     setPositions(lines);
-  }, [accepted, rejected, suggestionByField]);
+  }, [accepted, rejected, suggestionByField, isMobile]);
 
   useLayoutEffect(() => { measure(); }, [measure]);
 
@@ -625,10 +632,19 @@ export function PoMappingEditor({
           </button>
         </div>
       ) : (
-        /* The measured container — SVG overlay spans the full div */
-        <div ref={wrapRef} style={{ position: "relative", display: "flex", overflow: "visible" }}>
+        /* The measured container — SVG overlay spans the full div (desktop only) */
+        <div
+          ref={wrapRef}
+          style={{
+            position: "relative",
+            display: "flex",
+            flexDirection: isMobile ? "column" : "row",
+            overflow: "visible",
+          }}
+        >
 
-          {/* SVG connector overlay */}
+          {/* SVG connector overlay — desktop only (no room for wires when stacked) */}
+          {!isMobile && (
           <svg
             aria-hidden
             style={{
@@ -684,13 +700,15 @@ export function PoMappingEditor({
               );
             })}
           </svg>
+          )}
 
           {/* ── Left: detected source columns ──────────────────────────────── */}
           <div
             style={{
-              flex: "0 0 calc(50% - 60px)",
+              flex: isMobile ? "1 1 auto" : "0 0 calc(50% - 60px)",
               padding: "12px 14px",
-              borderRight: `1px solid ${BORDER}`,
+              borderRight: isMobile ? "none" : `1px solid ${BORDER}`,
+              borderBottom: isMobile ? `1px solid ${BORDER}` : "none",
               minWidth: 0,
             }}
           >
@@ -752,15 +770,15 @@ export function PoMappingEditor({
             ))}
           </div>
 
-          {/* Center spacer — connectors travel through here */}
-          <div style={{ flex: "0 0 120px", flexShrink: 0 }} />
+          {/* Center spacer — connectors travel through here (desktop only) */}
+          {!isMobile && <div style={{ flex: "0 0 120px", flexShrink: 0 }} />}
 
           {/* ── Right: canonical ProcuLink fields ──────────────────────────── */}
           <div
             style={{
-              flex: "0 0 calc(50% - 60px)",
+              flex: isMobile ? "1 1 auto" : "0 0 calc(50% - 60px)",
               padding: "12px 14px",
-              borderLeft: `1px solid ${BORDER}`,
+              borderLeft: isMobile ? "none" : `1px solid ${BORDER}`,
               minWidth: 0,
             }}
           >
@@ -878,7 +896,7 @@ export function PoMappingEditor({
                       >
                         ← {pendColumn}
                       </div>
-                      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                      <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 6 }}>
                         <button
                           type="button"
                           onClick={() => handleAccept(f.canonical, pendColumn)}

@@ -14,10 +14,11 @@
  */
 
 import type React from "react";
-import { useState, useCallback, useEffect, useReducer } from "react";
+import { useState, useCallback, useEffect, useReducer, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api-client";
 import type { MappingPreviewLine } from "@/lib/api-client";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -135,6 +136,125 @@ function ArrowBridge() {
   );
 }
 
+/**
+ * InfoDisclosure — tap-toggle "i" affordance for AI provenance/reason.
+ *
+ * Replaces native `title=` tooltips, which never surface on touch devices.
+ * The circle is a real button (keyboard + screen-reader accessible) and the
+ * panel toggles open on click/tap, closing on outside-tap or Escape.
+ */
+function InfoDisclosure({ label, text }: { label: string; text: string }) {
+  const [open, setOpen] = useState(false);
+  const wrapRef = useRef<HTMLSpanElement | null>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const onDocPointer = (e: PointerEvent) => {
+      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+    document.addEventListener("pointerdown", onDocPointer);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("pointerdown", onDocPointer);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+
+  return (
+    <span ref={wrapRef} style={{ position: "relative", display: "inline-flex", flexShrink: 0 }}>
+      <button
+        type="button"
+        aria-label={label}
+        aria-expanded={open}
+        onClick={(e) => {
+          e.stopPropagation();
+          setOpen((v) => !v);
+        }}
+        style={{
+          display: "inline-flex",
+          alignItems: "center",
+          justifyContent: "center",
+          width: 16,
+          height: 16,
+          padding: 0,
+          borderRadius: "50%",
+          border: "1px solid #C5B8F0",
+          background: open ? "#EEE7FB" : "transparent",
+          fontSize: 9,
+          color: "#6F4FCE",
+          fontWeight: 700,
+          lineHeight: 1,
+          cursor: "pointer",
+        }}
+      >
+        i
+      </button>
+      {open && (
+        <span
+          role="tooltip"
+          style={{
+            position: "absolute",
+            top: "calc(100% + 6px)",
+            left: 0,
+            zIndex: 30,
+            width: "max-content",
+            maxWidth: 260,
+            padding: "8px 10px",
+            borderRadius: 6,
+            background: "#FFFFFF",
+            border: "1px solid #E2E6EE",
+            boxShadow: "0 4px 14px rgba(11,26,47,0.12)",
+            fontSize: 11.5,
+            fontWeight: 400,
+            lineHeight: 1.4,
+            color: "#3D4A5C",
+            textAlign: "left",
+            whiteSpace: "pre-line",
+          }}
+        >
+          {text}
+        </span>
+      )}
+    </span>
+  );
+}
+
+// ─── Maps-to affordance (mobile card) ─────────────────────────────────────────
+
+/** Compact "maps to → Supplier item code" row shown above the supplier control on mobile. */
+function MapsToAffordance() {
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 8 }} aria-hidden>
+      <svg width="20" height="10" viewBox="0 0 20 10" fill="none">
+        <defs>
+          <linearGradient id="mapsto-grad" x1="0" y1="0" x2="20" y2="0" gradientUnits="userSpaceOnUse">
+            <stop offset="0%" stopColor="#1E66C9" />
+            <stop offset="100%" stopColor="#2E8E3A" />
+          </linearGradient>
+        </defs>
+        <line x1="0" y1="5" x2="14" y2="5" stroke="url(#mapsto-grad)" strokeWidth="2" />
+        <path d="M12 1.5 L20 5 L12 8.5" fill="none" stroke="#2E8E3A" strokeWidth="1.6" strokeLinejoin="round" />
+      </svg>
+      <span
+        style={{
+          fontSize: 10,
+          fontWeight: 700,
+          color: "#8A93A5",
+          textTransform: "uppercase",
+          letterSpacing: "0.04em",
+        }}
+      >
+        Supplier item code
+      </span>
+    </div>
+  );
+}
+
 // ─── Row state reducer ────────────────────────────────────────────────────────
 
 function rowReducer(
@@ -184,6 +304,7 @@ function rowReducer(
 
 export function MagicMappingPreview({ orderId, onCommitted, onParseFailed }: Props) {
   const queryClient = useQueryClient();
+  const isMobile = useIsMobile();
 
   // ── Data fetch ────────────────────────────────────────────────────────────
   const { data: preview, isLoading, isError, error, refetch } = useQuery({
@@ -609,32 +730,46 @@ export function MagicMappingPreview({ orderId, onCommitted, onParseFailed }: Pro
         </div>
       </div>
 
-      {/* Column headers */}
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "1fr 36px 120px 36px 1fr",
-          gap: 0,
-          padding: "8px 16px",
-          background: "#EFF2F7",
-          borderBottom: "1px solid #E2E6EE",
-        }}
-      >
-        <span style={{ fontSize: 11, fontWeight: 700, color: "#56627A", textTransform: "uppercase", letterSpacing: "0.04em" }}>
-          Source field &amp; value
-        </span>
-        <span />
-        <span style={{ fontSize: 11, fontWeight: 700, color: "#56627A", textTransform: "uppercase", letterSpacing: "0.04em", textAlign: "center" }}>
-          Canonical
-        </span>
-        <span />
-        <span style={{ fontSize: 11, fontWeight: 700, color: "#56627A", textTransform: "uppercase", letterSpacing: "0.04em" }}>
-          Supplier code
-        </span>
-      </div>
+      {/* Column headers — desktop grid; mobile shows a single label since each line is a card */}
+      {isMobile ? (
+        <div
+          style={{
+            padding: "8px 16px",
+            background: "#EFF2F7",
+            borderBottom: "1px solid #E2E6EE",
+          }}
+        >
+          <span style={{ fontSize: 11, fontWeight: 700, color: "#56627A", textTransform: "uppercase", letterSpacing: "0.04em" }}>
+            Order lines
+          </span>
+        </div>
+      ) : (
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "1fr 36px 120px 36px 1fr",
+            gap: 0,
+            padding: "8px 16px",
+            background: "#EFF2F7",
+            borderBottom: "1px solid #E2E6EE",
+          }}
+        >
+          <span style={{ fontSize: 11, fontWeight: 700, color: "#56627A", textTransform: "uppercase", letterSpacing: "0.04em" }}>
+            Source field &amp; value
+          </span>
+          <span />
+          <span style={{ fontSize: 11, fontWeight: 700, color: "#56627A", textTransform: "uppercase", letterSpacing: "0.04em", textAlign: "center" }}>
+            Canonical
+          </span>
+          <span />
+          <span style={{ fontSize: 11, fontWeight: 700, color: "#56627A", textTransform: "uppercase", letterSpacing: "0.04em" }}>
+            Supplier code
+          </span>
+        </div>
+      )}
 
-      {/* Lines */}
-      <div style={{ overflowY: "auto", maxHeight: 480 }}>
+      {/* Lines — vertical scroll for long lists; horizontal scroll as a floor so dense desktop rows never clip */}
+      <div style={{ overflowY: "auto", overflowX: "auto", maxHeight: 480 }}>
         {preview.lines.map((line, idx) => {
           const rowState = rows.get(line.lineNumber) ?? { mode: "idle" };
           const isAlreadyResolved = line.status === "resolved";
@@ -674,10 +809,14 @@ export function MagicMappingPreview({ orderId, onCommitted, onParseFailed }: Pro
             <div
               key={line.lineNumber}
               style={{
-                display: "grid",
-                gridTemplateColumns: "1fr 36px 120px 36px 1fr",
-                alignItems: "start",
-                gap: 0,
+                ...(isMobile
+                  ? { display: "flex", flexDirection: "column", gap: 10 }
+                  : {
+                      display: "grid",
+                      gridTemplateColumns: "1fr 36px 120px 36px 1fr",
+                      alignItems: "start",
+                      gap: 0,
+                    }),
                 padding: "12px 16px",
                 background: rowBg,
                 borderBottom: idx < preview.lines.length - 1 ? `1px solid ${borderColor}` : "none",
@@ -686,61 +825,66 @@ export function MagicMappingPreview({ orderId, onCommitted, onParseFailed }: Pro
               {/* Source */}
               <SourceCell line={line} />
 
-              {/* Arrow 1 */}
-              <ArrowBridge />
+              {/* Mobile: compact maps-to affordance replaces the arrow + canonical columns */}
+              {isMobile && <MapsToAffordance />}
 
-              {/* Canonical field label */}
-              <div
-                style={{
-                  display: "flex",
-                  flexDirection: "column",
-                  alignItems: "center",
-                  gap: 3,
-                  paddingTop: 2,
-                }}
-              >
-                <span
+              {/* Arrow 1 (desktop only) */}
+              {!isMobile && <ArrowBridge />}
+
+              {/* Canonical field label (desktop only) */}
+              {!isMobile && (
+                <div
                   style={{
-                    fontSize: 10,
-                    fontWeight: 700,
-                    color: "#8A93A5",
-                    textTransform: "uppercase",
-                    letterSpacing: "0.04em",
-                    textAlign: "center",
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    gap: 3,
+                    paddingTop: 2,
                   }}
                 >
-                  Supplier
-                </span>
-                <span
-                  style={{
-                    fontSize: 10,
-                    fontWeight: 700,
-                    color: "#8A93A5",
-                    textTransform: "uppercase",
-                    letterSpacing: "0.04em",
-                    textAlign: "center",
-                  }}
-                >
-                  item code
-                </span>
-                {/* mini spine node */}
-                <span
-                  style={{
-                    width: 8,
-                    height: 8,
-                    borderRadius: "50%",
-                    background: "linear-gradient(135deg, #1E66C9, #2E8E3A)",
-                    display: "block",
-                    marginTop: 2,
-                  }}
-                />
-              </div>
+                  <span
+                    style={{
+                      fontSize: 10,
+                      fontWeight: 700,
+                      color: "#8A93A5",
+                      textTransform: "uppercase",
+                      letterSpacing: "0.04em",
+                      textAlign: "center",
+                    }}
+                  >
+                    Supplier
+                  </span>
+                  <span
+                    style={{
+                      fontSize: 10,
+                      fontWeight: 700,
+                      color: "#8A93A5",
+                      textTransform: "uppercase",
+                      letterSpacing: "0.04em",
+                      textAlign: "center",
+                    }}
+                  >
+                    item code
+                  </span>
+                  {/* mini spine node */}
+                  <span
+                    style={{
+                      width: 8,
+                      height: 8,
+                      borderRadius: "50%",
+                      background: "linear-gradient(135deg, #1E66C9, #2E8E3A)",
+                      display: "block",
+                      marginTop: 2,
+                    }}
+                  />
+                </div>
+              )}
 
-              {/* Arrow 2 */}
-              <ArrowBridge />
+              {/* Arrow 2 (desktop only) */}
+              {!isMobile && <ArrowBridge />}
 
               {/* Supplier code cell */}
-              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: 6, minWidth: 0, width: isMobile ? "100%" : undefined }}>
                 {/* Already resolved (server-side) */}
                 {isAlreadyResolved && (
                   <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
@@ -801,32 +945,16 @@ export function MagicMappingPreview({ orderId, onCommitted, onParseFailed }: Pro
                       </span>
                       {confidencePill(line.confidence)}
                       {(line.provenance || line.reason) && (
-                        <span
-                          title={[line.provenance, line.reason].filter(Boolean).join("\n")}
-                          style={{
-                            display: "inline-flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            width: 14,
-                            height: 14,
-                            borderRadius: "50%",
-                            border: "1px solid #C5B8F0",
-                            fontSize: 9,
-                            color: "#6F4FCE",
-                            fontWeight: 700,
-                            lineHeight: 1,
-                            flexShrink: 0,
-                            cursor: "help",
-                          }}
-                        >
-                          i
-                        </span>
+                        <InfoDisclosure
+                          label="Why this code was suggested"
+                          text={[line.provenance, line.reason].filter(Boolean).join("\n")}
+                        />
                       )}
                     </div>
 
                     {/* Accept / Edit / Reject row — only for unresolved rows */}
                     {rowState.mode !== "editing" && (
-                      <div style={{ display: "flex", gap: 4 }}>
+                      <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
                         <button
                           onClick={() =>
                             dispatch({
@@ -961,7 +1089,10 @@ export function MagicMappingPreview({ orderId, onCommitted, onParseFailed }: Pro
                         border: "1.5px solid #1E66C9",
                         outline: "none",
                         color: "#0B1A2F",
-                        width: 160,
+                        flex: "1 1 140px",
+                        width: "100%",
+                        minWidth: 0,
+                        boxSizing: "border-box",
                       }}
                     />
                     <button

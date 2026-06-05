@@ -410,7 +410,8 @@ function EmailSettingsSection() {
 
   if (isLoading) {
     return (
-      <div style={{ borderRadius: 12, background: "#FFFFFF", padding: 22, border: "1px solid #E2E6EE", boxShadow: "0 1px 2px rgba(11,26,47,0.04)" }}>
+      <div style={{ borderRadius: 12, background: "#FFFFFF", padding: 22, border: "1px solid #E2E6EE", boxShadow: "0 1px 2px rgba(11,26,47,0.04)" }} role="status" aria-busy="true">
+        <span className="sr-only">Loading…</span>
         <div style={{ marginBottom: 16, height: 16, width: 160, borderRadius: 4, background: "#E2E6EE" }} />
         <div style={{ display: "grid", gap: 12, gridTemplateColumns: "repeat(3,1fr)" }}>
           <div style={{ height: 36, borderRadius: 6, background: "#EFF2F7" }} />
@@ -790,7 +791,8 @@ function ApiKeysSection() {
 
         {/* Keys table */}
         {isLoading && (
-          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }} role="status" aria-busy="true">
+            <span className="sr-only">Loading…</span>
             {[1, 2].map(i => <div key={i} style={{ height: 52, borderRadius: 6, background: "#EFF2F7" }} />)}
           </div>
         )}
@@ -1187,6 +1189,8 @@ function ConnectorsSection() {
                 </button>
                 <button
                   onClick={() => { if (confirm("Delete this webhook subscription?")) remove.mutate(sub.id); }}
+                  aria-label="Delete webhook subscription"
+                  title="Delete webhook subscription"
                   style={{ width: 28, height: 28, display: "flex", alignItems: "center", justifyContent: "center", border: "none", background: "none", cursor: "pointer", color: "#8A93A5" }}
                 >
                   <Trash2 size={14} />

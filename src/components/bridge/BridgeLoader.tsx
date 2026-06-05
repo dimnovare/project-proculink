@@ -50,6 +50,7 @@ export function BridgeLoader({
   return (
     <div style={wrapStyle}>
       <svg
+        className="bridge-loader-svg"
         width={size}
         height={size}
         viewBox="0 0 40 40"

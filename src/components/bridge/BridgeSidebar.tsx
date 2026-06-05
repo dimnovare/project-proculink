@@ -9,7 +9,7 @@ import {
   Layers, Upload, Inbox, Truck, Building2, GitBranch,
   ShieldCheck, FileCode, BookOpen, FileText, Package, ScrollText,
   Plug, Webhook, Settings, ChevronsLeft, ChevronsRight, ChevronDown, ExternalLink,
-  Files, HelpCircle,
+  Files, HelpCircle, X,
   type LucideIcon,
 } from "lucide-react";
 import { apiClient, getBillingStatus, isApiMockMode } from "@/lib/api-client";
@@ -82,11 +82,32 @@ interface BridgeSidebarProps {
   onNavigate?: () => void;
   /** Desktop instance is collapsible (66px icon rail, persisted). The mobile drawer is not. */
   collapsible?: boolean;
+  /**
+   * Desktop only: default to the collapsed icon rail below the `lg` breakpoint
+   * (≤1023px) regardless of the persisted preference, restoring it at `lg`+.
+   * Keeps the tablet band (md→lg) on the compact rail.
+   */
+  collapseBelowLg?: boolean;
+  /** Mobile drawer: stretch the aside to fill its container (solid full-screen panel). */
+  fullWidth?: boolean;
+  /** Render an in-panel close (X) button in the header (mobile drawer). */
+  showClose?: boolean;
+  /** Invoked by the in-panel close button. */
+  onClose?: () => void;
 }
 
-export function BridgeSidebar({ onNavigate, collapsible = false }: BridgeSidebarProps) {
+export function BridgeSidebar({
+  onNavigate,
+  collapsible = false,
+  collapseBelowLg = false,
+  fullWidth = false,
+  showClose = false,
+  onClose,
+}: BridgeSidebarProps) {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
+  // Tablet band (md→lg): force the compact rail until the viewport reaches lg.
+  const [belowLg, setBelowLg] = useState(false);
   const { isLoaded: clerkLoaded, isSignedIn } = useAuth();
   const { organization } = useOrganization();
   const clerkReady = clerkLoaded && !!isSignedIn;
@@ -120,6 +141,15 @@ export function BridgeSidebar({ onNavigate, collapsible = false }: BridgeSidebar
     try { setCollapsed(localStorage.getItem("pl-side") === "1"); } catch { /* ignore */ }
   }, [collapsible]);
 
+  useEffect(() => {
+    if (!collapseBelowLg) return;
+    const mql = window.matchMedia("(max-width: 1023px)");
+    const onChange = () => setBelowLg(mql.matches);
+    onChange();
+    mql.addEventListener("change", onChange);
+    return () => mql.removeEventListener("change", onChange);
+  }, [collapseBelowLg]);
+
   const toggle = () =>
     setCollapsed((c) => {
       const next = !c;
@@ -127,7 +157,8 @@ export function BridgeSidebar({ onNavigate, collapsible = false }: BridgeSidebar
       return next;
     });
 
-  const isCollapsed = collapsible && collapsed;
+  // Forced rail in the tablet band wins; otherwise honor the persisted preference.
+  const isCollapsed = (collapseBelowLg && belowLg) || (collapsible && collapsed);
 
   function isActive(href: string) {
     const path = href.split("?")[0];
@@ -139,7 +170,7 @@ export function BridgeSidebar({ onNavigate, collapsible = false }: BridgeSidebar
   return (
     <aside
       className="flex h-full flex-shrink-0 flex-col overflow-hidden transition-[width] duration-200"
-      style={{ width: isCollapsed ? 66 : 220, background: "#0B1A2F", borderRight: "1px solid #1C2F49" }}
+      style={{ width: fullWidth ? "100%" : (isCollapsed ? 66 : 220), background: "#0B1A2F", borderRight: fullWidth ? "none" : "1px solid #1C2F49" }}
     >
       {/* ── Logo + collapse toggle ────────────────────────────────── */}
       <div
@@ -164,6 +195,20 @@ export function BridgeSidebar({ onNavigate, collapsible = false }: BridgeSidebar
             onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "transparent"; (e.currentTarget as HTMLElement).style.color = "#7C8DA6"; }}
           >
             {isCollapsed ? <ChevronsRight size={16} /> : <ChevronsLeft size={16} />}
+          </button>
+        )}
+        {showClose && (
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close navigation"
+            title="Close navigation"
+            className="flex items-center justify-center rounded-[6px] flex-shrink-0 ml-auto"
+            style={{ width: 28, height: 28, color: "#7C8DA6", background: "transparent", border: "1px solid transparent", cursor: "pointer", transition: "background 150ms, color 150ms" }}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "#10243E"; (e.currentTarget as HTMLElement).style.color = "#FFFFFF"; }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "transparent"; (e.currentTarget as HTMLElement).style.color = "#7C8DA6"; }}
+          >
+            <X size={18} />
           </button>
         )}
       </div>

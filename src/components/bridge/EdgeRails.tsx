@@ -36,14 +36,14 @@ export function EdgeRails({
       />
       {showLabels && (
         <>
-          {/* Port marker — left */}
+          {/* Port marker — left. Hidden below md to avoid crowding small screens. */}
           <div
             aria-hidden
-            className="absolute left-0 top-8 h-9 w-[14px] bg-brand-blue rounded-r-sm z-rails"
+            className="hidden md:block absolute left-0 top-8 h-9 w-[14px] bg-brand-blue rounded-r-sm z-rails"
           />
           <div
             aria-hidden
-            className="absolute left-[18px] top-9 text-[9px] font-bold text-brand-blue uppercase tracking-[0.12em] z-rails"
+            className="hidden md:block absolute left-[18px] top-9 text-[9px] font-bold text-brand-blue uppercase tracking-[0.12em] z-rails"
             style={{ writingMode: "vertical-rl" }}
           >
             Buyer · In
@@ -59,13 +59,14 @@ export function EdgeRails({
       />
       {showLabels && (
         <>
+          {/* Port marker — right. Hidden below md to avoid crowding small screens. */}
           <div
             aria-hidden
-            className="absolute right-0 top-8 h-9 w-[14px] bg-brand-green rounded-l-sm z-rails"
+            className="hidden md:block absolute right-0 top-8 h-9 w-[14px] bg-brand-green rounded-l-sm z-rails"
           />
           <div
             aria-hidden
-            className="absolute right-[18px] top-9 text-[9px] font-bold text-brand-green uppercase tracking-[0.12em] z-rails"
+            className="hidden md:block absolute right-[18px] top-9 text-[9px] font-bold text-brand-green uppercase tracking-[0.12em] z-rails"
             style={{ writingMode: "vertical-rl", transform: "rotate(180deg)" }}
           >
             Supplier · Out
@@ -73,7 +74,11 @@ export function EdgeRails({
         </>
       )}
 
-      {children}
+      {/*
+        Pad children to clear the rails (and the port-tab markers/labels above md).
+        Below md the labels are hidden, so only a small rail clearance is needed.
+      */}
+      <div className="relative h-full w-full px-3 md:px-7">{children}</div>
     </div>
   );
 }

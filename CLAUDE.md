@@ -344,19 +344,26 @@ All motion: respect `prefers-reduced-motion: reduce`. Disable wire-topology anim
 
 ## 9. Copy / vocabulary
 
-| Term | Meaning |
-|---|---|
-| Bridge | The product |
-| crossing | A single order transit |
-| dock | A supplier or buyer endpoint |
-| lane | A buyer↔supplier pairing |
-| spine | The canonical PO model |
-| anatomy | Source document zone overlay |
+The founder purged the bridge-metaphor jargon (dock / crossing / lane / spine,
+and "Cross the bridge") from all **user-facing** copy. Use plain procurement
+terms in anything a user reads.
 
-**Dashboard title:** "Order topology" (not "Dashboard").  
-**Primary action:** "Cross the bridge →" (not "Send").  
+| Term | User-facing meaning |
+|---|---|
+| order | A single PO transit (was "crossing") |
+| supplier / buyer | A supplier or buyer endpoint (was "dock") |
+| supplier flow | A buyer↔supplier pairing (was "lane") |
+| canonical PO model | The normalized order model (was "spine") |
+| anatomy | Source document zone overlay (internal label only) |
+
+**Dashboard title:** "Orders" (plain). Do not ship "Order topology" as a
+user-facing heading.  
+**Primary action:** "Send to supplier" (shipped copy; not "Cross the bridge →").  
 **Stages:** Parse · Normalize · Validate · Transform · Deliver.  
 **AI CTAs:** Accept / Edit / Reject — never "Apply magic" or sparkles.
+
+> Note: `dock`, `crossing`, `lane`, and `spine` now survive **only** as code
+> identifiers, CSS/design tokens, and route names — never in user-facing text.
 
 ---
 

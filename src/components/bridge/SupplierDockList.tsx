@@ -300,7 +300,10 @@ export function SupplierDockList() {
           <div
             className="overflow-hidden rounded-[10px]"
             style={{ border: "1px solid #E2E6EE", background: "#FFFFFF", boxShadow: "0 1px 2px rgba(11,26,47,0.04)" }}
+            role="status"
+            aria-busy="true"
           >
+            <span className="sr-only">Loading…</span>
             <SupplierTableHeader />
             {[1, 2, 3, 4].map((i, idx) => (
               <div

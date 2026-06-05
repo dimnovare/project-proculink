@@ -194,54 +194,69 @@ export default function OperationsHealthPage() {
             No orders awaiting operator review. {includeFailed ? "" : "Tick “Include delivery-failed” to widen the view."}
           </div>
         ) : (
-          <div style={{ background: "#FFFFFF", border: "1px solid #E2E6EE", borderRadius: 12, overflow: "hidden" }}>
-            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
-              <thead>
-                <tr style={{ background: "#F6F7FA", color: "#56627A", textAlign: "left" }}>
-                  <th style={th}>Order</th>
-                  <th style={th}>Supplier</th>
-                  <th style={th}>Status</th>
-                  <th style={{ ...th, textAlign: "right" }}>Attempts</th>
-                  <th style={th}>Last error</th>
-                  <th style={th}>Last attempt</th>
-                  <th style={{ ...th, textAlign: "right" }}>Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                {deadLetters.map((o) => (
-                  <tr key={o.orderId} style={{ borderTop: "1px solid #EEF0F4" }}>
-                    <td style={td}>
-                      <Link href={`/inbox/${o.orderId}`} style={{ color: BLUE_DEEP, fontWeight: 600, textDecoration: "none" }}>
-                        {o.poNumber || o.orderId.slice(0, 8)}
-                      </Link>
-                    </td>
-                    <td style={td}>{o.supplierName ?? "—"}</td>
-                    <td style={td}><StatusBadge status={o.status} /></td>
-                    <td style={{ ...td, textAlign: "right", fontVariantNumeric: "tabular-nums" }}>{o.deliveryAttempts}</td>
-                    <td style={{ ...td, maxWidth: 280, color: "#C53A3A" }}>
-                      <span title={o.lastError ?? ""} style={{ display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                        {o.lastError ?? "—"}{o.lastResponseCode ? ` (${o.lastResponseCode})` : ""}
-                      </span>
-                    </td>
-                    <td style={{ ...td, color: "#56627A", whiteSpace: "nowrap" }}>{relativeTime(o.lastAttemptAt)}</td>
-                    <td style={{ ...td, textAlign: "right" }}>
-                      <button
-                        onClick={() => requeue.mutate(o.orderId)}
-                        disabled={requeue.isPending}
-                        style={{
-                          fontSize: 12, fontWeight: 600, padding: "6px 12px", borderRadius: 7,
-                          border: "1px solid #D6E3F2", background: requeue.isPending ? "#EFF2F7" : "#FFFFFF",
-                          color: BLUE_DEEP, cursor: requeue.isPending ? "not-allowed" : "pointer", whiteSpace: "nowrap",
-                        }}
-                      >
-                        {requeue.isPending ? "Requeuing…" : "Requeue delivery"}
-                      </button>
-                    </td>
+          <>
+            {/* Desktop table */}
+            <div className="hidden md:block" style={{ background: "#FFFFFF", border: "1px solid #E2E6EE", borderRadius: 12, overflowX: "auto" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+                <thead>
+                  <tr style={{ background: "#F6F7FA", color: "#56627A", textAlign: "left" }}>
+                    <th style={th}>Order</th>
+                    <th style={th}>Supplier</th>
+                    <th style={th}>Status</th>
+                    <th style={{ ...th, textAlign: "right" }}>Attempts</th>
+                    <th style={th}>Last error</th>
+                    <th style={th}>Last attempt</th>
+                    <th style={{ ...th, textAlign: "right" }}>Action</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {deadLetters.map((o) => (
+                    <tr key={o.orderId} style={{ borderTop: "1px solid #EEF0F4" }}>
+                      <td style={td}>
+                        <Link href={`/inbox/${o.orderId}`} style={{ color: BLUE_DEEP, fontWeight: 600, textDecoration: "none" }}>
+                          {o.poNumber || o.orderId.slice(0, 8)}
+                        </Link>
+                      </td>
+                      <td style={td}>{o.supplierName ?? "—"}</td>
+                      <td style={td}><StatusBadge status={o.status} /></td>
+                      <td style={{ ...td, textAlign: "right", fontVariantNumeric: "tabular-nums" }}>{o.deliveryAttempts}</td>
+                      <td style={{ ...td, maxWidth: 280, color: "#C53A3A" }}>
+                        <span title={o.lastError ?? ""} style={{ display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                          {o.lastError ?? "—"}{o.lastResponseCode ? ` (${o.lastResponseCode})` : ""}
+                        </span>
+                      </td>
+                      <td style={{ ...td, color: "#56627A", whiteSpace: "nowrap" }}>{relativeTime(o.lastAttemptAt)}</td>
+                      <td style={{ ...td, textAlign: "right" }}>
+                        <button
+                          onClick={() => requeue.mutate(o.orderId)}
+                          disabled={requeue.isPending}
+                          style={{
+                            fontSize: 12, fontWeight: 600, padding: "6px 12px", borderRadius: 7,
+                            border: "1px solid #D6E3F2", background: requeue.isPending ? "#EFF2F7" : "#FFFFFF",
+                            color: BLUE_DEEP, cursor: requeue.isPending ? "not-allowed" : "pointer", whiteSpace: "nowrap",
+                          }}
+                        >
+                          {requeue.isPending ? "Requeuing…" : "Requeue delivery"}
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Mobile cards */}
+            <div className="md:hidden" style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              {deadLetters.map((o) => (
+                <DeadLetterCard
+                  key={o.orderId}
+                  o={o}
+                  busy={requeue.isPending}
+                  onRequeue={() => requeue.mutate(o.orderId)}
+                />
+              ))}
+            </div>
+          </>
         )}
       </section>
     </Shell>
@@ -252,7 +267,14 @@ export default function OperationsHealthPage() {
 function Shell({ children }: { children: React.ReactNode }) {
   return (
     <div style={{ height: "100%", minHeight: 0, overflowY: "auto", background: "#F6F7FA" }}>
-      <div style={{ maxWidth: 1100, margin: "0 auto", padding: "26px 34px 64px" }}>
+      {/* Page gutters: roomy on desktop, tighter on phones (~16px) — matches ops/settings pages */}
+      <style>{`
+        .ops-health-shell { padding: 26px 34px 64px; }
+        @media (max-width: 640px) {
+          .ops-health-shell { padding: 20px 16px 56px; }
+        }
+      `}</style>
+      <div className="ops-health-shell" style={{ maxWidth: 1100, margin: "0 auto" }}>
         <header style={{ marginBottom: 18 }}>
           <h1 style={{ fontFamily: "var(--font-display)", fontSize: 30, fontWeight: 600, letterSpacing: "-0.025em", lineHeight: 1.1, margin: 0, color: NAVY }}>
             Operations health
@@ -263,6 +285,46 @@ function Shell({ children }: { children: React.ReactNode }) {
         </header>
         {children}
       </div>
+    </div>
+  );
+}
+
+// Per-order card for phones — mirrors the desktop columns as stacked rows with
+// a full-width Requeue button so the action is never clipped.
+function DeadLetterCard({
+  o, busy, onRequeue,
+}: {
+  o: DeadLetterOrder;
+  busy: boolean;
+  onRequeue: () => void;
+}) {
+  return (
+    <div style={{ background: "#FFFFFF", border: "1px solid #E2E6EE", borderRadius: 12, padding: 14 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+        <Link href={`/inbox/${o.orderId}`} style={{ color: BLUE_DEEP, fontWeight: 600, fontSize: 14, textDecoration: "none" }}>
+          {o.poNumber || o.orderId.slice(0, 8)}
+        </Link>
+        <StatusBadge status={o.status} />
+      </div>
+      <div style={{ marginTop: 8, fontSize: 12.5, color: "#56627A" }}>
+        {o.supplierName ?? "—"} · {o.deliveryAttempts} attempt{o.deliveryAttempts === 1 ? "" : "s"} · {relativeTime(o.lastAttemptAt)}
+      </div>
+      {(o.lastError || o.lastResponseCode) && (
+        <div style={{ marginTop: 8, fontSize: 12.5, color: "#C53A3A", wordBreak: "break-word" }}>
+          {o.lastError ?? "—"}{o.lastResponseCode ? ` (${o.lastResponseCode})` : ""}
+        </div>
+      )}
+      <button
+        onClick={onRequeue}
+        disabled={busy}
+        style={{
+          marginTop: 12, width: "100%", minHeight: 40, fontSize: 13, fontWeight: 600, borderRadius: 7,
+          border: "1px solid #D6E3F2", background: busy ? "#EFF2F7" : "#FFFFFF",
+          color: BLUE_DEEP, cursor: busy ? "not-allowed" : "pointer",
+        }}
+      >
+        {busy ? "Requeuing…" : "Requeue delivery"}
+      </button>
     </div>
   );
 }

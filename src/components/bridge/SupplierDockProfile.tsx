@@ -3,7 +3,7 @@
 // Supplier Dock Profile — /library/suppliers/[id]
 // §5.8 — Header + tabs: Overview · Mappings · PO Mapping · Delivery · Acceptance
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { ChevronLeft, Trash2, Info, Clock, Link2, Truck, Plus, ShieldCheck } from "lucide-react";
@@ -425,14 +425,14 @@ function AcceptanceTab({ supplierId }: { supplierId: string }) {
           /* Edit mode: form rows */
           <div className="flex flex-col divide-y" style={{ borderColor: LINE }}>
             {rules.map((rule, idx) => (
-              <div key={idx} className="flex flex-wrap items-center gap-3 px-4 py-3">
+              <div key={idx} className="grid grid-cols-1 gap-3 px-4 py-3 sm:grid-cols-2 md:grid-cols-3">
                 <select
                   value={rule.scope}
                   onChange={e => {
                     const scope = e.target.value as AcceptanceRule["scope"];
                     updateRule(idx, { scope, fieldPath: firstFieldFor(scope) });
                   }}
-                  className="rounded-[5px] px-2 text-[12px]"
+                  className="w-full rounded-[5px] px-2 text-[12px]"
                   style={{ height: 30, border: `1px solid ${LINE}`, color: INK, background: SURFACE, outline: "none", cursor: "pointer" }}
                 >
                   <option value="order">Order</option>
@@ -441,8 +441,8 @@ function AcceptanceTab({ supplierId }: { supplierId: string }) {
                 <select
                   value={rule.fieldPath}
                   onChange={e => updateRule(idx, { fieldPath: e.target.value })}
-                  className="rounded-[5px] px-2 text-[12px]"
-                  style={{ height: 30, border: `1px solid ${LINE}`, color: INK, background: SURFACE, outline: "none", width: 160, cursor: "pointer" }}
+                  className="w-full rounded-[5px] px-2 text-[12px]"
+                  style={{ height: 30, border: `1px solid ${LINE}`, color: INK, background: SURFACE, outline: "none", cursor: "pointer" }}
                 >
                   {FIELD_OPTIONS[rule.scope].map(f => (
                     <option key={f.value} value={f.value}>{f.label}</option>
@@ -451,7 +451,7 @@ function AcceptanceTab({ supplierId }: { supplierId: string }) {
                 <select
                   value={rule.operator}
                   onChange={e => updateRule(idx, { operator: e.target.value as AcceptanceRule["operator"] })}
-                  className="rounded-[5px] px-2 text-[12px]"
+                  className="w-full rounded-[5px] px-2 text-[12px]"
                   style={{ height: 30, border: `1px solid ${LINE}`, color: INK, background: SURFACE, outline: "none", cursor: "pointer" }}
                 >
                   {OPERATORS.map(op => (
@@ -463,13 +463,13 @@ function AcceptanceTab({ supplierId }: { supplierId: string }) {
                   value={rule.expectedValue ?? ""}
                   onChange={e => updateRule(idx, { expectedValue: e.target.value })}
                   placeholder="value"
-                  className="rounded-[5px] px-2 text-[12px]"
-                  style={{ height: 30, border: `1px solid ${LINE}`, color: INK, background: SURFACE, outline: "none", width: 90 }}
+                  className="w-full rounded-[5px] px-2 text-[12px]"
+                  style={{ height: 30, border: `1px solid ${LINE}`, color: INK, background: SURFACE, outline: "none" }}
                 />
                 <select
                   value={rule.severity}
                   onChange={e => updateRule(idx, { severity: e.target.value as AcceptanceRule["severity"] })}
-                  className="rounded-[5px] px-2 text-[12px]"
+                  className="w-full rounded-[5px] px-2 text-[12px]"
                   style={{ height: 30, border: `1px solid ${LINE}`, color: INK, background: SURFACE, outline: "none", cursor: "pointer" }}
                 >
                   <option value="error">Error</option>
@@ -487,7 +487,7 @@ function AcceptanceTab({ supplierId }: { supplierId: string }) {
                 <button
                   type="button"
                   onClick={() => removeRule(idx)}
-                  className="ml-auto rounded-[5px] px-2 text-[11px] font-medium"
+                  className="w-full rounded-[5px] px-2 text-[11px] font-medium sm:col-span-2 sm:w-auto sm:justify-self-end md:col-span-3"
                   style={{ height: 28, background: "#FBE3E3", color: DANGER, border: "none", cursor: "pointer" }}
                 >
                   Remove
@@ -571,6 +571,14 @@ export function SupplierDockProfile({ id }: { id: string }) {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  const tabRefs = useRef<Partial<Record<Tab, HTMLButtonElement | null>>>({});
+
+  // Keep the active tab visible when the strip overflows horizontally (mobile).
+  // DOM-only UI side-effect — not data fetching.
+  useEffect(() => {
+    const el = tabRefs.current[tab];
+    el?.scrollIntoView({ behavior: "smooth", inline: "nearest", block: "nearest" });
+  }, [tab]);
 
   async function doDelete() {
     setDeleting(true);
@@ -759,27 +767,36 @@ export function SupplierDockProfile({ id }: { id: string }) {
       </div>
 
       {/* Tabs */}
-      <div
-        className="flex items-center gap-0 overflow-x-auto px-4 sm:px-6 flex-shrink-0 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
-        style={{ borderBottom: `1px solid ${LINE}`, background: SURFACE, height: 44 }}
-      >
-        {TABS.map((t) => (
-          <button
-            key={t.id}
-            id={t.id === "delivery" ? "supplier-tab-delivery" : undefined}
-            onClick={() => setTab(t.id)}
-            className="h-full shrink-0 px-4 text-[13px] font-medium transition-colors relative"
-            style={{
-              color: tab === t.id ? INK : MUTED,
-              background: "transparent",
-              border: "none",
-              cursor: "pointer",
-              borderBottom: tab === t.id ? `2px solid ${BLUE}` : "2px solid transparent",
-            }}
-          >
-            {t.label}
-          </button>
-        ))}
+      <div className="relative flex-shrink-0" style={{ background: SURFACE }}>
+        <div
+          className="flex items-center gap-0 overflow-x-auto px-4 sm:px-6 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
+          style={{ borderBottom: `1px solid ${LINE}`, height: 44 }}
+        >
+          {TABS.map((t) => (
+            <button
+              key={t.id}
+              ref={(el) => { tabRefs.current[t.id] = el; }}
+              id={t.id === "delivery" ? "supplier-tab-delivery" : undefined}
+              onClick={() => setTab(t.id)}
+              className="h-full shrink-0 px-4 text-[13px] font-medium transition-colors relative"
+              style={{
+                color: tab === t.id ? INK : MUTED,
+                background: "transparent",
+                border: "none",
+                cursor: "pointer",
+                borderBottom: tab === t.id ? `2px solid ${BLUE}` : "2px solid transparent",
+              }}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
+        {/* Subtle right-edge fade signalling more tabs are scrollable off-screen. */}
+        <div
+          aria-hidden
+          className="pointer-events-none absolute right-0 top-0 w-8"
+          style={{ height: 43, background: `linear-gradient(to right, rgba(255,255,255,0), ${SURFACE})` }}
+        />
       </div>
 
       {/* Tab body */}

@@ -3,7 +3,7 @@
 // Mapping Editor — buyer↔supplier code translation table.
 // Translated from Bridge_Mappings in v2-prototype.jsx.
 
-import { useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiClient, isApiMockMode } from "@/lib/api-client";
 import type { SupplierMapping } from "@/types/procurement";
@@ -290,6 +290,7 @@ export function MappingEditor() {
         {/* Search */}
         <div className="relative w-full lg:w-[300px] flex-shrink-0">
           <span
+            aria-hidden="true"
             className="absolute left-3 top-1/2 -translate-y-1/2 text-[13px]"
             style={{ color: "#8A93A5" }}
           >
@@ -297,6 +298,7 @@ export function MappingEditor() {
           </span>
           <input
             type="text"
+            aria-label="Search mappings"
             placeholder="Search codes or descriptions…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
@@ -575,6 +577,66 @@ function MappingPanel({
   const [importFile, setImportFile] = useState<File | null>(null);
   const queryClient = useQueryClient();
 
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<Element | null>(null);
+
+  // Capture the element that had focus when the modal opened, and restore it on close.
+  useEffect(() => {
+    triggerRef.current = document.activeElement;
+    return () => {
+      const el = triggerRef.current;
+      if (el instanceof HTMLElement) el.focus();
+    };
+  }, []);
+
+  // Autofocus the first field once the modal is mounted — prefer a form control,
+  // falling back to the first focusable element (e.g. Close) if there is none.
+  useEffect(() => {
+    const root = dialogRef.current;
+    if (!root) return;
+    const field = root.querySelector<HTMLElement>("input:not([type='file']), select, textarea");
+    const target =
+      field ??
+      root.querySelector<HTMLElement>(
+        'input, select, textarea, button, [href], [tabindex]:not([tabindex="-1"])',
+      );
+    target?.focus();
+  }, []);
+
+  // Escape to close + Tab focus trap within the dialog.
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        onClose();
+        return;
+      }
+      if (e.key !== "Tab") return;
+      const root = dialogRef.current;
+      if (!root) return;
+      const nodes = Array.from(
+        root.querySelectorAll<HTMLElement>(
+          'input, select, textarea, button, [href], [tabindex]:not([tabindex="-1"])',
+        ),
+      ).filter((el) => !el.hasAttribute("disabled") && el.offsetParent !== null);
+      if (nodes.length === 0) return;
+      const first = nodes[0];
+      const last = nodes[nodes.length - 1];
+      const active = document.activeElement;
+      if (e.shiftKey) {
+        if (active === first || !root.contains(active)) {
+          e.preventDefault();
+          last.focus();
+        }
+      } else if (active === last || !root.contains(active)) {
+        e.preventDefault();
+        first.focus();
+      }
+    }
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
   const title =
     panel.kind === "import" ? "Import mappings" :
     panel.kind === "export" ? "Export mappings" :
@@ -640,8 +702,19 @@ function MappingPanel({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end bg-[#0B1A2F66] p-0 sm:items-center sm:justify-center sm:p-6">
-      <div className="max-h-[92vh] w-full overflow-auto rounded-t-[12px] bg-white shadow-2xl sm:max-w-[600px] sm:rounded-[12px]" style={{ border: `1px solid ${BORDER}` }}>
+    <div
+      className="fixed inset-0 z-50 flex items-end bg-[#0B1A2F66] p-0 sm:items-center sm:justify-center sm:p-6"
+      onClick={onClose}
+    >
+      <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="mapping-panel-title"
+        onClick={(e) => e.stopPropagation()}
+        className="max-h-[92vh] w-full overflow-auto rounded-t-[12px] bg-white shadow-2xl sm:max-w-[600px] sm:rounded-[12px]"
+        style={{ border: `1px solid ${BORDER}` }}
+      >
         <div className="flex items-start justify-between gap-3 border-b px-5 py-4" style={{ borderColor: BORDER }}>
           <div className="flex items-start gap-3">
             {/* blue link-icon eyebrow square */}
@@ -655,7 +728,7 @@ function MappingPanel({
               </svg>
             </span>
             <div>
-              <h2 className="text-[18px] font-semibold leading-tight" style={{ color: INK }}>{title}</h2>
+              <h2 id="mapping-panel-title" className="text-[18px] font-semibold leading-tight" style={{ color: INK }}>{title}</h2>
               <p className="mt-0.5 text-[12.5px]" style={{ color: "#56627A" }}>{subtitle}</p>
             </div>
           </div>

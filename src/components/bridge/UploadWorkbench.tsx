@@ -139,6 +139,105 @@ function XCard({
   );
 }
 
+/**
+ * InfoDisclosure — a tap-toggle "i" affordance that reveals explanatory text.
+ *
+ * Replaces native `title=` tooltips, which never appear on touch devices.
+ * The circle is a real button (keyboard + screen-reader accessible) and the
+ * panel toggles open on click/tap and closes on outside-tap or Escape.
+ */
+function InfoDisclosure({
+  label,
+  text,
+  tone = "muted",
+}: {
+  label: string;
+  text: string;
+  tone?: "muted" | "ai";
+}) {
+  const [open, setOpen] = useState(false);
+  const wrapRef = useRef<HTMLSpanElement | null>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const onDocPointer = (e: PointerEvent) => {
+      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+    document.addEventListener("pointerdown", onDocPointer);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("pointerdown", onDocPointer);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+
+  const border = tone === "ai" ? "#C5B8F0" : "#C6CDDA";
+  const color = tone === "ai" ? "#6F4FCE" : "#8A93A5";
+
+  return (
+    <span ref={wrapRef} style={{ position: "relative", display: "inline-flex", flexShrink: 0 }}>
+      <button
+        type="button"
+        aria-label={label}
+        aria-expanded={open}
+        onClick={(e) => {
+          e.stopPropagation();
+          setOpen((v) => !v);
+        }}
+        style={{
+          display: "inline-flex",
+          alignItems: "center",
+          justifyContent: "center",
+          width: 16,
+          height: 16,
+          padding: 0,
+          borderRadius: "50%",
+          border: `1px solid ${border}`,
+          background: open ? (tone === "ai" ? "#EEE7FB" : "#EFF2F7") : "transparent",
+          fontSize: 9,
+          color,
+          fontWeight: 700,
+          lineHeight: 1,
+          cursor: "pointer",
+        }}
+      >
+        i
+      </button>
+      {open && (
+        <span
+          role="tooltip"
+          style={{
+            position: "absolute",
+            top: "calc(100% + 6px)",
+            right: 0,
+            zIndex: 30,
+            width: "max-content",
+            maxWidth: 260,
+            padding: "8px 10px",
+            borderRadius: 6,
+            background: "#FFFFFF",
+            border: "1px solid #E2E6EE",
+            boxShadow: "0 4px 14px rgba(11,26,47,0.12)",
+            fontSize: 11.5,
+            fontWeight: 400,
+            lineHeight: 1.4,
+            color: "#3D4A5C",
+            textAlign: "left",
+            whiteSpace: "normal",
+          }}
+        >
+          {text}
+        </span>
+      )}
+    </span>
+  );
+}
+
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export function UploadWorkbench() {
@@ -410,7 +509,7 @@ export function UploadWorkbench() {
                 style={{
                   background: "#F6F7FA",
                   border: "1px solid #E2E6EE",
-                  borderLeft: "3px solid #28C55E",
+                  borderLeft: "3px solid #2E8E3A",
                   borderRadius: 8,
                   padding: "12px 16px",
                   display: "flex",
@@ -578,7 +677,6 @@ export function UploadWorkbench() {
                     ) : detection ? (
                       <>
                         <span
-                          title={detection.reasoning.join(" · ")}
                           style={{
                             fontSize: 11.5,
                             padding: "6px 10px",
@@ -625,24 +723,12 @@ export function UploadWorkbench() {
                             : "Unknown format"}
                           {" · "}
                           {Math.round(detection.confidence * 100)}%
-                          <span
-                            style={{
-                              display: "inline-flex",
-                              alignItems: "center",
-                              justifyContent: "center",
-                              width: 14,
-                              height: 14,
-                              borderRadius: "50%",
-                              border: "1px solid #C6CDDA",
-                              fontSize: 9,
-                              color: "#8A93A5",
-                              fontWeight: 700,
-                              lineHeight: 1,
-                              flexShrink: 0,
-                            }}
-                          >
-                            i
-                          </span>
+                          {detection.reasoning.length > 0 && (
+                            <InfoDisclosure
+                              label="Why this format was detected"
+                              text={detection.reasoning.join(" · ")}
+                            />
+                          )}
                         </span>
                         {detection.detectedPoNumber !== null && (
                           <span
@@ -658,7 +744,6 @@ export function UploadWorkbench() {
                         {/* Schema fingerprint recognition — org-scoped "we've seen this before" */}
                         {detection.seenCount != null && detection.seenCount > 0 && (
                           <span
-                            title="We recognise this column layout from your previous uploads, so we're more confident in the detected format."
                             style={{
                               display: "inline-flex",
                               alignItems: "center",
@@ -684,6 +769,10 @@ export function UploadWorkbench() {
                             </svg>
                             We&apos;ve seen this layout {detection.seenCount}{" "}
                             {detection.seenCount === 1 ? "time" : "times"} before
+                            <InfoDisclosure
+                              label="Why we recognise this layout"
+                              text="We recognise this column layout from your previous uploads, so we're more confident in the detected format."
+                            />
                           </span>
                         )}
                       </>
@@ -694,7 +783,7 @@ export function UploadWorkbench() {
             </div>
 
             {/* Phase 6.3 — Try with sample order: the zero-friction primary first action */}
-            <XCard edge="left" edgeColor="#28C55E">
+            <XCard edge="left" edgeColor="#2E8E3A">
               <div className="flex flex-col gap-3 px-4 py-4">
                 <div style={{ minWidth: 0 }}>
                   <p className="text-[13px] font-semibold" style={{ color: "#0B1A2F" }}>
@@ -781,10 +870,10 @@ export function UploadWorkbench() {
                         </span>
                       </div>
                       <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 text-[12px]">
-                        <span className="truncate" style={{ color: "#28C55E" }}>
+                        <span className="truncate" style={{ color: "#2E8E3A" }}>
                           {row.buyer}
                         </span>
-                        <span className="h-px w-5" style={{ background: "linear-gradient(90deg, #28C55E, #1DAF50)" }} />
+                        <span className="h-px w-5" style={{ background: "linear-gradient(90deg, #2E8E3A, #1DAF50)" }} />
                         <span className="truncate text-right" style={{ color: "#1DAF50" }}>
                           {row.supplier}
                         </span>
@@ -846,7 +935,7 @@ export function UploadWorkbench() {
                           <td className="px-4 py-2.5 min-w-[250px]">
                             <span
                               className="text-[12px]"
-                              style={{ color: "#28C55E" }}
+                              style={{ color: "#2E8E3A" }}
                             >
                               {row.buyer}
                             </span>
@@ -893,7 +982,7 @@ export function UploadWorkbench() {
             )}
 
             {/* Pipeline configuration — supplier, output template, processing mode */}
-            <XCard edge="left" edgeColor="#28C55E">
+            <XCard edge="left" edgeColor="#2E8E3A">
               <div
                 className="px-4 py-3"
                 style={{ borderBottom: "1px solid #E2E6EE" }}
@@ -1164,7 +1253,7 @@ export function UploadWorkbench() {
                               borderRadius: 99,
                               width: "100%",
                               background: done    ? "#1DAF50"
-                                        : active  ? "#28C55E"
+                                        : active  ? "#2E8E3A"
                                         : "#E2E6EE",
                               transition: "background 0.3s",
                               position: "relative",
@@ -1183,7 +1272,7 @@ export function UploadWorkbench() {
                               fontSize: 9.5,
                               fontWeight: 600,
                               letterSpacing: "0.04em",
-                              color: done ? "#1DAF50" : active ? "#28C55E" : "#C6CDDA",
+                              color: done ? "#1DAF50" : active ? "#2E8E3A" : "#C6CDDA",
                               transition: "color 0.2s",
                             }}>
                               {done ? "✓ " : ""}{stage}
@@ -1204,7 +1293,7 @@ export function UploadWorkbench() {
                   style={{
                     background: isUploadDisabled
                       ? "#E2E6EE"
-                      : "linear-gradient(90deg, #28C55E 0%, #1DAF50 100%)",
+                      : "linear-gradient(90deg, #2E8E3A 0%, #1DAF50 100%)",
                     color: isUploadDisabled ? "#8A93A5" : "#FFFFFF",
                     border: "none",
                     boxShadow: isUploadDisabled ? "none" : "0 2px 8px rgba(40,197,94,0.25)",
@@ -1213,7 +1302,7 @@ export function UploadWorkbench() {
                 >
                   {uploading ? (
                     <span style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
-                      <span style={{ display: "inline-block", width: 12, height: 12, border: "2px solid #C6CDDA", borderTopColor: "#28C55E", borderRadius: "50%", animation: "spin 0.7s linear infinite" }} />
+                      <span style={{ display: "inline-block", width: 12, height: 12, border: "2px solid #C6CDDA", borderTopColor: "#2E8E3A", borderRadius: "50%", animation: "spin 0.7s linear infinite" }} />
                       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
                       Sending…
                     </span>

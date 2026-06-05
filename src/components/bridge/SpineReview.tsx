@@ -366,28 +366,51 @@ function SpineNodeCard({
               color: "#0B1A2F",
             }}
           />
+        ) : node.editable ? (
+          // Editable value — a real button so it is keyboard-focusable and
+          // activates on Enter/Space (native <button> behaviour fires onClick).
+          <button
+            type="button"
+            aria-label={`Edit ${node.label}`}
+            onClick={() => onStartEdit(node.id)}
+            style={{
+              display: "block",
+              width: "100%",
+              textAlign: "left",
+              background: "transparent",
+              border: "none",
+              fontSize: node.big ? 16 : 13,
+              fontWeight: node.big ? 600 : 500,
+              letterSpacing: node.big ? "-0.01em" : undefined,
+              fontFamily: node.mono ? "'JetBrains Mono',monospace" : "inherit",
+              color: "#0B1A2F",
+              cursor: "text",
+              borderRadius: 4,
+              padding: "2px 4px",
+              marginLeft: -4,
+              transition: "background 100ms",
+            }}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "#F0F2F7"; }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "transparent"; }}
+          >
+            {displayVal}
+            <span style={{ marginLeft: 4, fontSize: 9, color: "#C6CDDA", userSelect: "none" }}>✎</span>
+          </button>
         ) : (
           <div
-            onClick={() => node.editable && onStartEdit(node.id)}
             style={{
               fontSize: node.big ? 16 : 13,
               fontWeight: node.big ? 600 : 500,
               letterSpacing: node.big ? "-0.01em" : undefined,
               fontFamily: node.mono ? "'JetBrains Mono',monospace" : "inherit",
               color: "#0B1A2F",
-              cursor: node.editable ? "text" : "default",
+              cursor: "default",
               borderRadius: 4,
               padding: "2px 4px",
               marginLeft: -4,
-              transition: "background 100ms",
             }}
-            onMouseEnter={(e) => { if (node.editable) (e.currentTarget as HTMLElement).style.background = "#F0F2F7"; }}
-            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "transparent"; }}
           >
             {displayVal}
-            {node.editable && (
-              <span style={{ marginLeft: 4, fontSize: 9, color: "#C6CDDA", userSelect: "none" }}>✎</span>
-            )}
           </div>
         )}
 
@@ -1123,7 +1146,7 @@ function MobileSpineAccordion({
 }: MobileSpineAccordionProps) {
   const lineCount = order.lines.length;
   return (
-    <div className="md:hidden flex flex-col px-4 py-4 pb-[88px]">
+    <div className="xl:hidden flex flex-col px-4 py-4 pb-[88px]">
       <AccordionPanel step={1} label="Source document" sub={order.buyerName ?? "Buyer"} accent="#1E66C9">
         {/* Mobile: no active-zone wiring — simplified */}
         <DocumentAnatomy order={order} />
@@ -1835,8 +1858,11 @@ export function SpineReview({ orderId }: { orderId: string }) {
               </div>
             )}
           </div>
-        {/* Desktop 3-column grid (with edge rails) — hidden on mobile to avoid the 1120px min-width overflow */}
-        <div className="hidden md:block min-w-[1120px]">
+        {/* Desktop 3-column triptych (with edge rails). The grid needs ~1120px, so
+            it only turns on at xl (1280px); below xl the stacked accordion renders
+            instead. This keeps tablets (768–1279px) from getting a clipped/scrolling
+            three-column review. */}
+        <div className="hidden xl:block min-w-[1120px]">
           <EdgeRails>
           <div className="h-full overflow-y-auto">
             {/* Desktop 3-column grid */}
@@ -1956,8 +1982,8 @@ export function SpineReview({ orderId }: { orderId: string }) {
         />
       </div>
 
-      {/* Sticky info bar — desktop only (mobile has its own sticky CTA) */}
-      <div className="hidden md:flex flex-shrink-0 bg-white px-6 py-3 items-center gap-5" style={{ borderTop: "1px solid #E2E6EE" }}>
+      {/* Sticky info bar — desktop triptych only (the stacked layout below xl has its own sticky CTA) */}
+      <div className="hidden xl:flex flex-shrink-0 bg-white px-6 py-3 items-center gap-5" style={{ borderTop: "1px solid #E2E6EE" }}>
         <div className="min-w-0">
           <div style={{ fontSize: 10.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "#8A93A5", marginBottom: 2 }}>Grand total</div>
           <div style={{ fontFamily: "'Bricolage Grotesque',Inter,sans-serif", fontSize: 22, fontWeight: 600, color: "#0B1A2F", letterSpacing: "-0.02em", whiteSpace: "nowrap" }}>{dialogGrandTotal}</div>
@@ -1981,9 +2007,9 @@ export function SpineReview({ orderId }: { orderId: string }) {
         </div>
       </div>
 
-      {/* Mobile sticky CTA */}
+      {/* Stacked-layout sticky CTA — shown below xl, alongside the accordion */}
       <div
-        className="md:hidden flex-shrink-0 flex gap-2 px-4 py-3"
+        className="xl:hidden flex-shrink-0 flex gap-2 px-4 py-3"
         style={{ background: "#FFFFFF", borderTop: "1px solid #E2E6EE", boxShadow: "0 -4px 12px rgba(11,26,47,0.08)" }}
       >
         <button

@@ -544,7 +544,7 @@ export function BridgeDashboard() {
         >
           <div className="text-[16px] font-semibold" style={{ color: "#0B1A2F" }}>No deliveries yet</div>
           <div className="mt-1 max-w-[420px] text-[13px]" style={{ color: "#56627A" }}>
-            Add a supplier and upload your first PO — your buyer → supplier lanes appear here.
+            Add a supplier and upload your first PO — your buyer → supplier connections appear here.
           </div>
           <Link
             href="/library/suppliers"
@@ -586,7 +586,7 @@ export function BridgeDashboard() {
             />
             Live order view
             <span style={{ color: "#C6CDDA" }}>·</span>
-            {wireCount} lane{wireCount === 1 ? "" : "s"}
+            {wireCount} connection{wireCount === 1 ? "" : "s"}
             <span style={{ color: "#C6CDDA" }}>·</span>
             {effective.suppliers.length} supplier{effective.suppliers.length === 1 ? "" : "s"}
           </p>
@@ -658,7 +658,7 @@ export function BridgeDashboard() {
         <div className="flex flex-1 justify-center p-4 sm:p-6">
           <div className="w-full max-w-[980px]">
             <p className="mb-4 text-[13px]" style={{ color: "#56627A" }}>
-              Your pipeline is ready. Connect its first lane to start routing orders to suppliers.
+              Your pipeline is ready. Create its first connection to start routing orders to suppliers.
             </p>
             <OnboardingChecklist
               status={onboardingStatus!}
@@ -696,7 +696,7 @@ export function BridgeDashboard() {
                 </span>
                 <span className="flex items-center gap-1.5">
                   <span style={{ width: 12, height: 2.5, borderRadius: 2, background: "#C97A14", display: "inline-block" }} />
-                  At-risk lane
+                  At-risk connection
                 </span>
 
                 {openExceptionsAll > 0 && (

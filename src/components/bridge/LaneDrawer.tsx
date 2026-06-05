@@ -119,7 +119,7 @@ export function LaneDrawer({ lane, onClose }: LaneDrawerProps) {
                 letterSpacing: "-0.01em",
               }}
             >
-              Lane detail
+              Connection detail
             </h2>
             <button
               onClick={onClose}
@@ -316,7 +316,7 @@ export function LaneDrawer({ lane, onClose }: LaneDrawerProps) {
 
           {!isApiMockMode && (
             <div style={{ padding: "32px 20px", textAlign: "center", fontSize: 13, color: "#8A93A5" }}>
-              No recent deliveries on this lane.
+              No recent deliveries on this connection.
             </div>
           )}
 
@@ -415,7 +415,7 @@ export function LaneDrawer({ lane, onClose }: LaneDrawerProps) {
               cursor: "pointer",
             }}
           >
-            Lane settings
+            Connection settings
           </button>
         </div>
       </div>

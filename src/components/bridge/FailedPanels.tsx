@@ -187,7 +187,7 @@ export function ParseFailedPanel({
               </svg>
             </Link>
             <Link
-              href="/orders"
+              href="/inbox"
               style={{
                 display: "inline-flex",
                 alignItems: "center",
@@ -318,7 +318,7 @@ export function FailedPanel({
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             {isTransform ? (
               <Link
-                href={`/orders/${order.id}`}
+                href={`/inbox/${order.id}`}
                 style={{
                   display: "inline-flex",
                   alignItems: "center",
@@ -358,7 +358,7 @@ export function FailedPanel({
               </button>
             )}
             <Link
-              href="/orders"
+              href="/inbox"
               style={{
                 display: "inline-flex",
                 alignItems: "center",
