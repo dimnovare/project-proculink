@@ -37,7 +37,9 @@ const logos = await makeLogos(out);
 const FFMPEG = process.env.FFMPEG ?? "ffmpeg";
 const FFPROBE = process.env.FFPROBE ?? "ffprobe";
 const GAP = parseFloat(process.env.DEMO_GAP_SEC ?? "0.6");
-const MUSIC_VOL = parseFloat(process.env.DEMO_MUSIC_VOL ?? "0.22");
+// Bed is now a mastered ElevenLabs Music track (~-1 dB peak), so MUSIC_VOL is
+// much lower than the old synth pad needed → a quiet, subordinate enterprise bed.
+const MUSIC_VOL = parseFloat(process.env.DEMO_MUSIC_VOL ?? "0.10");
 // Final loudness lift: ElevenLabs VO peaks ~-9 dB, so the raw mix sits ~-25 LUFS
 // (quiet for web). A fixed +dB gain + safety limiter brings it to ~-18 LUFS
 // while preserving the VO↔music balance and the fades exactly (no loudnorm pump).

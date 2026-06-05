@@ -74,14 +74,18 @@ Upload `out/walkthrough.mp4` to the **public** R2 bucket `proculink-public` as
   `window.scrollTo`** (element-focus `scrollIntoViewIfNeeded` only); **s1 opens on the empty drop
   zone then the file arrives**, **s3 accepts each AI suggestion on-camera**; **VO recut** (6 scenes,
   dropped the "ProcuLink is the bridge" line per the purged metaphor, claims aligned to `/formats`);
-  **warmer music bed** (`make-music.mjs`).
+  warmer (synth) music bed.
+- v6.1 (2026-06-05): replaced the synth bed with a real **ElevenLabs Music** track
+  (`make-music-eleven.mjs` — warm felt-piano + pad, enterprise) and dropped the mix level
+  (`DEMO_MUSIC_VOL` 0.22 → 0.10) for a quiet, subordinate bed (~-19 dB under the VO).
 
 ## OPEN / notes
-- **Music** (founder chose "refined ambient bed, ready now"): `make-music.mjs` synthesises a warm
-  Cadd9 pad with a gentle ~8s breathing swell (no fast vibrato) → `assets/music.mp3`, peak-limited
-  so the mix level is predictable. To use a produced track instead, drop any **licensed** `.mp3` at
-  `assets/music.mp3` and re-run `demo:assemble` (no re-capture needed). Tune level with
-  `DEMO_MUSIC_VOL` (default 0.22). ElevenLabs Music API stays paid-plan-only (free → HTTP 402); unused.
+- **Music** = an **ElevenLabs Music** track (`make-music-eleven.mjs`, needs a paid plan; free → HTTP 402).
+  Generate a candidate: `ELEVENLABS_API_KEY=… node scripts/demo-video/make-music-eleven.mjs out/x.mp3 100000 "<prompt>"`,
+  then copy the chosen one to `assets/music.mp3` and re-run `demo:assemble` (no re-capture needed).
+  Tracks master hot (~-1 dB), so `DEMO_MUSIC_VOL` default is **0.10** → a quiet, subordinate bed
+  (~-19 dB, ~17 dB under the VO). `make-music.mjs` (synth pad) is kept only as an offline fallback.
+  A licensed `.mp3` dropped at `assets/music.mp3` also works.
 - **VO timing**: `scenes.json` `holdMs` were set with ~2–4s buffer over estimated VO length. After
   `demo:vo`, eyeball each clip's duration vs its hold; if a clip overruns, bump that scene's `holdMs`
   and re-capture so the on-screen dwell still covers the narration.
@@ -112,7 +116,8 @@ scripts/demo-video/
   scenes.json        narration text + per-scene holdMs (source of truth)
   capture.spec.ts    Playwright capture (mock) — writes footage + markers.json
   make-logo.mjs      rasterise the SVG logo → out/logo-lockup.png (called by assemble.mjs)
-  make-music.mjs     synthesise the music bed → assets/music.mp3 (or drop a licensed track there)
+  make-music-eleven.mjs  ElevenLabs Music API → mp3 (copy the chosen one to assets/music.mp3)
+  make-music.mjs     OFFLINE FALLBACK synth bed (production bed is the ElevenLabs track above)
   generate-vo.mjs    ElevenLabs TTS → out/vo/*.mp3 + manifest.json
   assemble.mjs       ffmpeg: logo'd intro/outro + footage + VO + music → walkthrough.mp4
   assets/music.mp3   music bed (synth placeholder — swap for a licensed track)
