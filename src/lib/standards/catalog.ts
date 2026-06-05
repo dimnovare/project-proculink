@@ -26,7 +26,7 @@
 //   JSON / REST payload . parse partial · transform supported    (inline parse in OrderService; JsonTransformService registered)
 //   CSV (buyer template)  parse supported · transform supported  (CsvOrderParser / CsvTransformService, registered)
 //   XLSX (buyer template) parse supported · transform none       (XlsxOrderParser registered; no XLSX output)
-//   Text-based PDF ...... parse supported · transform none       (PdfPig text layer → AI structured extraction; PdfOrderParser regex is the no-key/offline fallback. Scanned/image-only not yet supported.)
+//   Text-based PDF ...... parse supported · transform none       (PdfPig text layer → AI structured extraction; PdfOrderParser regex is the no-key/offline fallback. Scanned/image-only PDFs use an AI vision fallback — every line flagged for review.)
 //
 // ISO 20022 is reference-only (documentation alignment; no transport in scope).
 // ──────────────────────────────────────────────────────────────────────────
@@ -183,7 +183,7 @@ export const STANDARDS: StandardSupport[] = [
     transform: "none",
     transport: "HTTPS upload · email attachment",
     conformance:
-      "PdfPig reads the text layer, then AI structured extraction maps it to the canonical order (every emitted number is checked against the source). A deterministic parser is the no-key/offline fallback. Text-based PDFs only — scanned/image-only is not yet supported.",
+      "PdfPig reads the text layer, then AI structured extraction maps it to the canonical order (every emitted number is checked against the source) — the high-confidence primary path. A deterministic parser is the no-key/offline fallback. Scanned/image-only PDFs (no text layer) are read by an AI vision fallback; because there is no text to verify against, every line is flagged for review.",
     referenceUrl: "https://github.com/UglyToad/PdfPig",
   },
   // ── Reference-only ───────────────────────────────────────────────────────

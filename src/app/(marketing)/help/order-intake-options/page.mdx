@@ -18,7 +18,7 @@ ProcuLink is designed to receive purchase orders the way your buyer or procureme
 
 Use **Upload** in the ProcuLink app when you want immediate control. This is the safest first path because you can pick the supplier, review the parsed order, fix mappings, and confirm the supplier-ready output before delivery.
 
-Common PO formats include CSV, XLSX, text-based PDF, XML/cXML, UBL/Peppol-style XML, EDIFACT, and X12. Text-based PDFs are read and structured by AI extraction. Scanned/image-only PDFs (no text layer) are not yet supported — run OCR before uploading, or ask the buyer for a text PDF.
+Common PO formats include CSV, XLSX, text-based PDF, XML/cXML, UBL/Peppol-style XML, EDIFACT, and X12. Text-based PDFs are read and structured by AI extraction — the high-confidence primary path. Scanned/image-only PDFs (no text layer) are read by an AI vision fallback; because there is no text to verify against, every line is flagged for review before delivery.
 
 ## Email intake
 

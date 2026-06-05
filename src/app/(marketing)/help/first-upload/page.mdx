@@ -5,7 +5,7 @@ export const metadata = {
 
 # Your first purchase order upload
 
-ProcuLink accepts common purchase-order files such as CSV, XLSX, text-based PDF, XML/cXML, UBL/Peppol-style XML, EDIFACT, and X12. Text-based PDFs are read and structured by AI extraction. Image-only scanned PDFs (no text layer) are not yet supported — run OCR before uploading, or ask the buyer for a text PDF.
+ProcuLink accepts common purchase-order files such as CSV, XLSX, text-based PDF, XML/cXML, UBL/Peppol-style XML, EDIFACT, and X12. Text-based PDFs are read and structured by AI extraction — the high-confidence primary path. Image-only scanned PDFs (no text layer) are read by an AI vision fallback; because there is no text to verify against, every line is flagged for review before delivery.
 
 ## Step 1 — Open the upload screen
 

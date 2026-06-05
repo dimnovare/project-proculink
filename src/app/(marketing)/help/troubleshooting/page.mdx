@@ -21,7 +21,7 @@ CSV files exported from Excel sometimes include a UTF-8 byte-order mark, which m
 
 ## Scanned PDFs
 
-ProcuLink extracts text from text-based PDFs. Image-only scans (phone photos, photocopier output) are not yet supported. Run OCR before uploading, or ask the buyer for a text PDF.
+ProcuLink reads text-based PDFs directly — the high-confidence primary path. Image-only scans (phone photos, photocopier output) have no text layer, so they fall back to AI vision extraction; because there is nothing to verify the numbers against, every line is flagged for review before delivery. For the most reliable result, ask the buyer for a text PDF. If a scan is too low-quality to read at all, it will fail — re-scan at a higher resolution or request a text PDF.
 
 ## Supplier item code mismatch
 

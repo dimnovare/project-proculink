@@ -34,7 +34,7 @@ const IMPORT_FORMATS: Row[] = [
   { name: "CSV", status: "live", note: "Delimiters and common column aliases auto-detected." },
   { name: "Excel (XLSX)", status: "live", note: "First worksheet, header row." },
   { name: "PDF (text-based)", status: "live", note: "Text layer read, then AI structured extraction. Deterministic fallback when no AI key." },
-  { name: "PDF (scanned / image)", status: "planned", note: "No text layer yet supported — vision extraction is on the roadmap." },
+  { name: "PDF (scanned / image)", status: "live", note: "No text layer — read by AI vision extraction. Assisted: every line is flagged for review." },
   { name: "cXML 1.2", status: "live", note: "OrderRequest documents." },
   { name: "UBL 2.1 / Peppol BIS", status: "live", note: "Order documents." },
   { name: "EDIFACT ORDERS", status: "live", note: "D96A / D01B." },
