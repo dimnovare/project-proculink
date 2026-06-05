@@ -40,6 +40,15 @@ type SubNode = {
   aiSuggestedCode?: string;
   /** Short AI reason / provenance line. */
   aiReason?: string;
+  // ── Phase 4 enrichment (per line) — each shown only when non-null ──────────
+  /** Currency for formatting the line amount. */
+  currency?: string;
+  /** Stated line amount as extracted from the source document. */
+  lineAmount?: number | null;
+  /** Per-line tax/VAT rate as a percentage. */
+  taxRate?: number | null;
+  /** Per-line delivery date, ISO "yyyy-MM-dd". */
+  deliveryDate?: string | null;
 };
 
 interface SpineNodeData {
@@ -53,6 +62,8 @@ interface SpineNodeData {
   srcRef: string;
   outRef: string;
   hint?: string;
+  /** "warn" → amber ⚠ hint (default); "muted" → quiet grey provenance hint. */
+  hintTone?: "warn" | "muted";
   editable?: boolean;
   subnodes?: SubNode[];
 }
@@ -62,6 +73,15 @@ interface SpineNodeData {
 /** Sum of unitPrice × quantity across all order lines. */
 function orderTotal(order: Order): number {
   return order.lines.reduce((sum, l) => sum + Number(l.unitPrice) * Number(l.quantity), 0);
+}
+
+/**
+ * The grand total to display: prefer the backend-extracted `grandTotal`
+ * (Phase 4 enrichment) when present, else fall back to the client-computed
+ * sum so behaviour is unchanged when the field is absent (e.g. CSV orders).
+ */
+function resolvedGrandTotal(order: Order): number {
+  return order.grandTotal ?? orderTotal(order);
 }
 
 /** Format an amount with a currency symbol/code, e.g. "€ 4,436.73" or "USD 120.00". */
@@ -74,7 +94,15 @@ function formatMoney(currency: string, amount: number): string {
 
 function buildNodesFromOrder(order: Order): SpineNodeData[] {
   const lineCount = order.lines.length;
-  const formatted = formatMoney(order.currency, orderTotal(order));
+  const formatted = formatMoney(order.currency, resolvedGrandTotal(order));
+
+  // Phase 4 — supplier name as printed on the document, shown muted under the
+  // resolved supplier when it was captured AND differs from the resolved name.
+  const docSupplier = order.documentSupplierName?.trim();
+  const supplierHint =
+    docSupplier && docSupplier !== order.supplierName
+      ? `As printed on document: ${docSupplier}`
+      : undefined;
 
   // Avg line confidence (0-1 → 0-100)
   const lineConf = lineCount > 0
@@ -96,6 +124,11 @@ function buildNodesFromOrder(order: Order): SpineNodeData[] {
       aiSuggestedCode: l.aiSuggestion?.supplierItemCode,
       aiReason: l.aiSuggestion?.reason,
       hint: l.needsReview && !l.supplierItemCode && !l.aiSuggestion ? "Needs a supplier code" : undefined,
+      // Phase 4 enrichment — passed through only; rendered when non-null.
+      currency: order.currency,
+      lineAmount: l.lineAmount ?? null,
+      taxRate: l.taxRate ?? null,
+      deliveryDate: l.deliveryDate ?? null,
     };
   });
 
@@ -103,7 +136,7 @@ function buildNodesFromOrder(order: Order): SpineNodeData[] {
     { id: "po",       label: "PO number",   value: order.poNumber,            pct: 99, mono: true,  editable: false, srcRef: "header",  outRef: "Order/@orderID"    },
     { id: "date",     label: "Order date",  value: order.orderDate,            pct: 95, mono: true,  editable: true,  srcRef: "header",  outRef: "Order/orderDate"   },
     { id: "buyer",    label: "Buyer",       value: order.buyerName ?? "(parsing…)", pct: order.buyerName ? 98 : 50, tone: "buyer",    editable: true,  srcRef: "parties", outRef: "BillTo/Contact"    },
-    { id: "supplier", label: "Supplier",    value: order.supplierName,         pct: 97, tone: "supplier", editable: false, srcRef: "parties", outRef: "ShipFrom/Contact"  },
+    { id: "supplier", label: "Supplier",    value: order.supplierName,         pct: 97, tone: "supplier", editable: false, srcRef: "parties", outRef: "ShipFrom/Contact", hint: supplierHint, hintTone: "muted" },
     { id: "currency", label: "Currency",    value: order.currency,             pct: 99, mono: true,  editable: true,  srcRef: "terms",   outRef: "Total/@currency"   },
     {
       id: "lines", label: "Line items", value: `${lineCount} line${lineCount !== 1 ? "s" : ""} · ${formatted}`,
@@ -247,6 +280,74 @@ function HeaderStatusBadge({ status, crossed, exceptionCount }: { status: string
       <span style={{ width: 6, height: 6, borderRadius: "50%", background: spec.dot, flexShrink: 0 }} />
       {spec.label}
     </span>
+  );
+}
+
+/**
+ * Phase 4 — amber pill shown when the document classifier detected an invoice
+ * (these orders are force-held to pending_review). Reuses the "Needs review"
+ * amber palette. Renders nothing for non-invoice documents.
+ */
+function InvoiceBadge({ documentType }: { documentType?: string | null }) {
+  if (documentType !== "invoice") return null;
+  return (
+    <span
+      className="inline-flex items-center gap-1.5 rounded-full"
+      title="Detected as an invoice and held for review."
+      style={{ fontSize: 12, fontWeight: 600, padding: "3px 11px", background: "#FAEFD6", color: "#C97A14", whiteSpace: "nowrap" }}
+    >
+      <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#C97A14", flexShrink: 0 }} />
+      Looks like an invoice
+    </span>
+  );
+}
+
+/**
+ * Phase 4 — compact read-only totals block. Each row renders only when its
+ * value is non-null, so a CSV order (all fields null) shows nothing. Grand
+ * total prefers the backend-extracted value via resolvedGrandTotal().
+ */
+function TotalsSummary({ order }: { order: Order }) {
+  const rows: Array<{ label: string; value: string }> = [];
+  if (order.subTotal != null)   rows.push({ label: "Subtotal",      value: formatMoney(order.currency, order.subTotal) });
+  if (order.taxTotal != null)   rows.push({ label: "Tax",           value: formatMoney(order.currency, order.taxTotal) });
+  if (order.grandTotal != null) rows.push({ label: "Grand total",   value: formatMoney(order.currency, order.grandTotal) });
+  if (order.paymentTerms && order.paymentTerms.trim().length > 0)
+    rows.push({ label: "Payment terms", value: order.paymentTerms.trim() });
+
+  if (rows.length === 0) return null;
+
+  return (
+    <div style={{ marginTop: 12, borderRadius: 8, border: "1px solid #E2E6EE", background: "#FFFFFF", overflow: "hidden" }}>
+      <div style={{ padding: "8px 12px", borderBottom: "1px solid #EEF0F4", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "#8A93A5" }}>
+        Document totals
+      </div>
+      <div style={{ padding: "4px 0" }}>
+        {rows.map((r, i) => (
+          <div
+            key={r.label}
+            style={{
+              display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 12,
+              padding: "5px 12px",
+              borderTop: i === 0 ? "none" : "1px solid #F5F6F9",
+            }}
+          >
+            <span style={{ fontSize: 11, fontWeight: 600, color: "#56627A" }}>{r.label}</span>
+            <span
+              style={{
+                fontFamily: r.label === "Payment terms" ? "inherit" : "'JetBrains Mono',monospace",
+                fontSize: r.label === "Grand total" ? 14 : 12,
+                fontWeight: r.label === "Grand total" ? 700 : 500,
+                color: "#0B1A2F",
+                textAlign: "right",
+              }}
+            >
+              {r.value}
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }
 
@@ -414,9 +515,13 @@ function SpineNodeCard({
           </div>
         )}
 
-        {/* Hint */}
+        {/* Hint — amber warning by default, quiet grey for muted provenance hints */}
         {node.hint && !isEditing && (
-          <div style={{ fontSize: 10.5, marginTop: 3, color: "#C97A14" }}>⚠ {node.hint}</div>
+          node.hintTone === "muted" ? (
+            <div style={{ fontSize: 10.5, marginTop: 3, color: "#8A93A5" }}>{node.hint}</div>
+          ) : (
+            <div style={{ fontSize: 10.5, marginTop: 3, color: "#C97A14" }}>⚠ {node.hint}</div>
+          )
         )}
 
         {/* Subnodes — numbered line rows + prominent AI suggestion cards */}
@@ -455,11 +560,29 @@ function SpineNodeCard({
                     >
                       {sn.desc ?? rowCode}
                     </span>
-                    {/* Buyer code + qty (muted source side) */}
+                    {/* Buyer code + qty (muted source side) + Phase 4 enrichment */}
                     <span style={{ display: "inline-flex", alignItems: "center", gap: 4, flexShrink: 0, fontFamily: "'JetBrains Mono',monospace", fontSize: 10, color: "#A8B0BF" }}>
                       <span style={{ textDecoration: rejected ? "line-through" : "none" }}>{sn.buyerCode ?? sn.sku}</span>
                       <span style={{ color: "#C6CDDA" }}>·</span>
                       <span>×{sn.qty}</span>
+                      {sn.lineAmount != null && (
+                        <>
+                          <span style={{ color: "#C6CDDA" }}>·</span>
+                          <span title="Line amount">{formatMoney(sn.currency ?? "EUR", sn.lineAmount)}</span>
+                        </>
+                      )}
+                      {sn.taxRate != null && (
+                        <>
+                          <span style={{ color: "#C6CDDA" }}>·</span>
+                          <span title="Tax rate">{sn.taxRate}%</span>
+                        </>
+                      )}
+                      {sn.deliveryDate && (
+                        <>
+                          <span style={{ color: "#C6CDDA" }}>·</span>
+                          <span title="Delivery date">{sn.deliveryDate}</span>
+                        </>
+                      )}
                     </span>
                     {/* Resolved supplier code (green) or a 'missing' pill */}
                     <span style={{ marginLeft: "auto", flexShrink: 0, display: "inline-flex", alignItems: "center" }}>
@@ -1176,6 +1299,8 @@ function MobileSpineAccordion({
                 inputRef={inputRef}
               />
             ))}
+            {/* Phase 4 — document totals (renders only when enriched) */}
+            <TotalsSummary order={order} />
           </div>
         </div>
       </AccordionPanel>
@@ -1585,6 +1710,7 @@ export function SpineReview({ orderId }: { orderId: string }) {
                   {order.poNumber}
                 </h1>
                 <HeaderStatusBadge status={order.status} crossed={crossed} exceptionCount={exceptionCount} />
+                <InvoiceBadge documentType={order.documentType} />
               </div>
               <div className="mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-0.5" style={{ fontSize: 13 }}>
                 <span style={{ fontWeight: 600, color: "#0F4FAB", whiteSpace: "nowrap" }}>{order.buyerName ?? "(parsing…)"}</span>
@@ -1933,6 +2059,8 @@ export function SpineReview({ orderId }: { orderId: string }) {
                       activeZone={activeZone}
                     />
                   ))}
+                  {/* Phase 4 — document totals (renders only when enriched) */}
+                  <TotalsSummary order={order} />
                 </div>
               </div>
 

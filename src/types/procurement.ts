@@ -62,6 +62,12 @@ export interface OrderLine {
   confidence: number;
   needsReview: boolean;
   aiSuggestion?: AiMappingSuggestion | null;
+  /** Phase 4 enrichment — stated line amount as extracted from the source document. */
+  lineAmount?: number | null;
+  /** Phase 4 enrichment — per-line tax/VAT rate as a percentage. */
+  taxRate?: number | null;
+  /** Phase 4 enrichment — per-line delivery date, ISO "yyyy-MM-dd". */
+  deliveryDate?: string | null;
 }
 
 export interface AiMappingSuggestion {
@@ -97,6 +103,19 @@ export interface Order {
   isSample?: boolean;
   /** Human-readable error from the newest *Failed audit event; null for non-failed orders. */
   errorMessage?: string | null;
+  // ── Phase 4 enrichment (header) ───────────────────────────────────────────
+  /** Extracted document subtotal (before tax); null when not captured. */
+  subTotal?: number | null;
+  /** Extracted total tax/VAT amount; null when not captured. */
+  taxTotal?: number | null;
+  /** Extracted document grand total; prefer this over any client-computed total. */
+  grandTotal?: number | null;
+  /** Extracted payment terms as printed (e.g. "Net 30"); null when not captured. */
+  paymentTerms?: string | null;
+  /** Detected document type: "purchase_order" | "invoice" | "other" | null. */
+  documentType?: string | null;
+  /** Supplier name AS PRINTED ON THE DOCUMENT (extracted) — NOT the resolved supplier. */
+  documentSupplierName?: string | null;
 }
 
 export interface OrderSummary {
