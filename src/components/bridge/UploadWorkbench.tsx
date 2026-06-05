@@ -1321,8 +1321,9 @@ export function UploadWorkbench() {
                   ✦ AI extraction
                 </p>
                 <p className="text-[11.5px] leading-relaxed" style={{ color: "#56627A" }}>
-                  Unstructured PDFs and emails are parsed by our extraction engine.
-                  Field confidence is shown per-zone in the Order Review.
+                  Text-based PDFs are read and structured by our AI extraction
+                  engine. Every number is checked against the source text, and
+                  anything that doesn't reconcile is flagged for review.
                 </p>
               </div>
             </XCard>

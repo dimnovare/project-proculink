@@ -68,7 +68,7 @@ const COMPLIANCE_ROWS: Array<[string, string]> = [
 
 const SUBPROCESSOR_ROWS: Array<[string, string]> = [
   ["Amazon Web Services", "Hosting & storage (eu-central-1)"],
-  ["OpenAI / Azure OpenAI", "Mapping suggestions (EU endpoint, no training)"],
+  ["OpenAI", "Mapping suggestions & PDF text extraction (EU residency, no training)"],
   ["Stripe", "Billing & payments"],
   ["Resend", "Transactional email"],
 ];

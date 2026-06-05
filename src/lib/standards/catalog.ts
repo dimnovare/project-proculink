@@ -26,7 +26,7 @@
 //   JSON / REST payload . parse partial · transform supported    (inline parse in OrderService; JsonTransformService registered)
 //   CSV (buyer template)  parse supported · transform supported  (CsvOrderParser / CsvTransformService, registered)
 //   XLSX (buyer template) parse supported · transform none       (XlsxOrderParser registered; no XLSX output)
-//   Text-based PDF ...... parse supported · transform none       (PdfOrderParser via PdfPig, registered)
+//   Text-based PDF ...... parse supported · transform none       (PdfPig text layer → AI structured extraction; PdfOrderParser regex is the no-key/offline fallback. Scanned/image-only not yet supported.)
 //
 // ISO 20022 is reference-only (documentation alignment; no transport in scope).
 // ──────────────────────────────────────────────────────────────────────────
@@ -183,7 +183,7 @@ export const STANDARDS: StandardSupport[] = [
     transform: "none",
     transport: "HTTPS upload · email attachment",
     conformance:
-      "PdfPig regex header + line extraction; conservative parsing; non-scanned only. Scanned/OCR is deferred.",
+      "PdfPig reads the text layer, then AI structured extraction maps it to the canonical order (every emitted number is checked against the source). A deterministic parser is the no-key/offline fallback. Text-based PDFs only — scanned/image-only is not yet supported.",
     referenceUrl: "https://github.com/UglyToad/PdfPig",
   },
   // ── Reference-only ───────────────────────────────────────────────────────
