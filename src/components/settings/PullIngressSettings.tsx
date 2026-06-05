@@ -175,6 +175,7 @@ export function S3PullSettings() {
   const [bucketName, setBucketName] = useState("");
   const [keyPrefix, setKeyPrefix] = useState("");
   const [region, setRegion] = useState("");
+  const [serviceUrl, setServiceUrl] = useState("");
   const [accessKeyId, setAccessKeyId] = useState("");
   const [secretKey, setSecretKey] = useState("");
   const [defaultSupplierId, setDefaultSupplierId] = useState<string | null>(null);
@@ -183,7 +184,7 @@ export function S3PullSettings() {
   useEffect(() => {
     if (!data) return;
     setEnabled(data.enabled); setBucketName(data.bucketName); setKeyPrefix(data.keyPrefix);
-    setRegion(data.region); setAccessKeyId(data.accessKeyId);
+    setRegion(data.region); setServiceUrl(data.serviceUrl ?? ""); setAccessKeyId(data.accessKeyId);
     setDefaultSupplierId(data.defaultSupplierId);
   }, [data]);
 
@@ -191,6 +192,7 @@ export function S3PullSettings() {
     mutationFn: () => updateS3Settings({
       enabled, bucketName, keyPrefix, region, accessKeyId,
       secretKey: secretKey ? secretKey : null,
+      serviceUrl: serviceUrl ? serviceUrl : null,
       defaultSupplierId,
     }),
     onSuccess: () => {
@@ -212,6 +214,7 @@ export function S3PullSettings() {
         <Field label="Region (use 'auto' for R2)"><input value={region} onChange={(e) => setRegion(e.target.value)} placeholder="eu-west-1" style={inputStyle} /></Field>
         <Field label="Access key ID"><input value={accessKeyId} onChange={(e) => setAccessKeyId(e.target.value)} style={inputStyle} /></Field>
       </div>
+      <Field label="Endpoint URL (required for Cloudflare R2 / MinIO — leave blank for AWS S3)"><input value={serviceUrl} onChange={(e) => setServiceUrl(e.target.value)} placeholder="https://<account-id>.r2.cloudflarestorage.com" style={inputStyle} /></Field>
       <Field label="Secret access key"><input type="password" value={secretKey} onChange={(e) => setSecretKey(e.target.value)} placeholder={data?.hasSecretKey ? "•••••••• (leave blank to keep)" : "Secret access key"} style={inputStyle} /></Field>
       <SupplierSelect value={defaultSupplierId} onChange={setDefaultSupplierId} />
       <Notice msg={notice} />

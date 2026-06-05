@@ -1631,6 +1631,7 @@ export interface S3IngressSettings {
   hasSecretKey: boolean;
   secretKeyDisplay: string | null;
   updatedAt: string | null;
+  serviceUrl: string | null;
 }
 export interface UpdateS3IngressPayload {
   enabled: boolean;
@@ -1640,6 +1641,7 @@ export interface UpdateS3IngressPayload {
   accessKeyId: string;
   secretKey?: string | null;
   defaultSupplierId: string | null;
+  serviceUrl?: string | null;
 }
 
 export async function getSftpSettings(): Promise<SftpIngressSettings> {
@@ -1658,7 +1660,7 @@ export async function updateSftpSettings(payload: UpdateSftpIngressPayload): Pro
   return res.json();
 }
 export async function getS3Settings(): Promise<S3IngressSettings> {
-  if (USE_MOCK) return { enabled: false, bucketName: "", keyPrefix: "", region: "", accessKeyId: "", defaultSupplierId: null, hasSecretKey: false, secretKeyDisplay: null, updatedAt: null };
+  if (USE_MOCK) return { enabled: false, bucketName: "", keyPrefix: "", region: "", accessKeyId: "", defaultSupplierId: null, hasSecretKey: false, secretKeyDisplay: null, updatedAt: null, serviceUrl: null };
   const headers = await authHeader();
   const res = await fetchWithTimeout(`${API_BASE_URL}/api/settings/s3`, { headers });
   if (!res.ok) throw new Error(`settings/s3: ${res.status}`);
