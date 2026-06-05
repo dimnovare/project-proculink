@@ -4,10 +4,14 @@ Produces the `/watch` walkthrough from the **real ProcuLink frontend** (mock mod
 narrated by **ElevenLabs TTS**, assembled with **ffmpeg**. No Lovable, no fake
 rebuild. Output: `out/walkthrough.mp4` (1080p) + `out/captions.srt`.
 
-> **STATUS (2026-06-04): v5 rendered, but the founder says "it's still not the
-> one I want."** Get specifics from them before re-cutting — the most likely gap
-> is the **music** (see below). The full file is at `out/walkthrough.mp4` (out/
-> is gitignored, so re-run `demo:assemble` to regenerate it).
+> **STATUS (2026-06-04): v6 — logo'd cards + product-loop-only recut.** Branded
+> intro/outro (real logo lockup + "The missing link between buyers and
+> suppliers." intro / "Connecting procurement." + CTA outro), NO scrolling, a
+> real click-through product loop (upload → AI mapping → review → send →
+> delivered → audit). Pipeline + a silent-narration preview are verified
+> frame-by-frame. The final render just needs a current `ELEVENLABS_API_KEY` for
+> `demo:vo`. `out/` is gitignored — re-run `demo:vo` + `demo:assemble` to
+> regenerate `walkthrough.mp4`.
 
 ---
 
@@ -16,8 +20,8 @@ rebuild. Output: `out/walkthrough.mp4` (1080p) + `out/captions.srt`.
 ```bash
 # 1. Capture footage — mock mode, 1080p, port 8090. WARM the routes first so the
 #    capture doesn't eat cold-compile (else /upload etc. render slowly on camera):
-#    start a server,  hit /, /how-it-works, /upload, /upload/preview/ord-002,
-#    /inbox/ord-002,  THEN run the capture against it (reuseExistingServer=true).
+#    start a server,  hit /upload, /upload/preview/ord-002, /inbox/ord-002,
+#    THEN run the capture against it (reuseExistingServer=true).
 #      $env:NEXT_PUBLIC_USE_MOCK='true'; $env:PROCULINK_QA_BYPASS_AUTH='true'; bun run dev:demo   # bg
 #      (curl those routes once)
 bun run demo:capture        # → out/capture/**/video.webm + out/markers.json
@@ -42,17 +46,20 @@ Upload `out/walkthrough.mp4` to the **public** R2 bucket `proculink-public` as
 
 ---
 
-## Current cut (v5) — structure
-1. **Intro card** (4s): "ProcuLink" + "From any purchase order to supplier-ready delivery".
-2. **s1–s2 (hook+promise)**: the **animated `/how-it-works` "order pipeline"** (Receive→…→Deliver
-   cycling + format chips PDF/XLSX/cXML/EDI/CSV) — replaced the static landing hero so the
-   first ~30s isn't dead.
-3. **s3–s8 (product flow)**: `/upload` (drop file) → `/upload/preview/ord-002` (AI mapping,
-   accept) → `/inbox/ord-002` (validate "Passed") → **Send** ("Generating…"→"Sent") →
-   **Delivered** → **Passport** (all-green, delivery 200, supplier Acknowledged). All client-side,
-   one order, no reloads.
-4. **Outro card** (5s): "ProcuLink" + green "Start free at proculink.eu".
-5. **Music bed** under everything, audible (~-21 dB; VO ~-8 dB on top).
+## Current cut (v6) — structure
+1. **Intro card** (4.5s): the real **logo lockup** (gradient mark + white wordmark) + tagline
+   **"The missing link between buyers and suppliers."** (ffmpeg overlay of `out/logo-lockup.png`,
+   rasterised from the shipped SVG by `make-logo.mjs`).
+2. **Product loop** (~90s, 6 scenes, all in-app, NO page-scrolling — element focus only):
+   - **s1-intake** `/upload`: empty drop zone (PDF·XLSX·CSV·cXML·UBL·EDIFACT·X12) → file arrives + format detect.
+   - **s2-parse** `/upload/preview/ord-002`: parsed lines, source→canonical→supplier mapping.
+   - **s3-ai**: AI-suggested supplier codes (confidence + reason) → accept each → 4/4 mapped → commit.
+   - **s4-validate** `/inbox/ord-002`: validate against the supplier's acceptance rules ("Passed").
+   - **s5-deliver**: Send → "Generating…" → **Delivered** (status journey all-green).
+   - **s6-audit**: Passport — full timeline, mapping decisions, delivery attempt 200, supplier Acknowledged.
+   All client-side after the two initial loads (one order, no reloads).
+3. **Outro card** (5s): logo lockup + **"Connecting procurement."** + green **"Start free at proculink.eu"**.
+4. **Music bed** under everything (`make-music.mjs` → `assets/music.mp3`), audible (~-20 dB; VO ~-8 dB on top).
 
 ## Iteration history (what's already been fixed — don't redo)
 - v1–v2: built pipeline; marker-based VO sync; lead-in trim + fades.
@@ -60,18 +67,28 @@ Upload `out/walkthrough.mp4` to the **public** R2 bucket `proculink-public` as
   no sending" was a `page.goto` reload resetting mock state — keep it all client-side).
 - v4: hid the mock "Demo data" badge + Next.js dev overlay; fixed the sidebar avatar to
   derive initials from the org name ("YW"); send-confirm modal dwell.
-- v5 (this session): **branded intro/outro cards**, **animated how-it-works opening**
-  (fixed "dead first 30s"), **audible music** (was inaudible at 0.06 → now 0.22).
+- v5: text-only "branded" intro/outro cards, animated `/how-it-works` opening, audible music (0.22).
+- v6 (2026-06-04): **real logo lockup** composited onto both cards (`make-logo.mjs` rasterises the
+  SVG → white-wordmark PNG; ffmpeg `overlay`) + new taglines; **dropped the marketing
+  `/how-it-works` opening** → product-loop-only, opening in-app on `/upload`; **removed ALL
+  `window.scrollTo`** (element-focus `scrollIntoViewIfNeeded` only); **s1 opens on the empty drop
+  zone then the file arrives**, **s3 accepts each AI suggestion on-camera**; **VO recut** (6 scenes,
+  dropped the "ProcuLink is the bridge" line per the purged metaphor, claims aligned to `/formats`);
+  warmer (synth) music bed.
+- v6.1 (2026-06-05): replaced the synth bed with a real **ElevenLabs Music** track
+  (`make-music-eleven.mjs` — warm felt-piano + pad, enterprise) and dropped the mix level
+  (`DEMO_MUSIC_VOL` 0.22 → 0.10) for a quiet, subordinate bed (~-19 dB under the VO).
 
-## OPEN — what the founder still wants (get specifics!)
-- **Music**: wants it **enterprise**. ElevenLabs **Music API is paid-plan only** (free
-  account → HTTP 402 `paid_plan_required`; TTS works on free, Music doesn't). Current
-  `assets/music.mp3` is a **synthesized ffmpeg pad** (Cmaj7 + vibrato/tremolo/lowpass/echo) —
-  audible but not a produced corporate track. To upgrade: (a) founder upgrades ElevenLabs →
-  generate via `POST /v1/music {prompt, music_length_ms}`; or (b) drop any **licensed** track at
-  `assets/music.mp3` and re-run `demo:assemble`. Tune level with `DEMO_MUSIC_VOL` (default 0.22).
-- The founder said "still not the one I want" without further detail — **ask** what specifically
-  feels off (pacing? more product motion? different opening? voice? length?).
+## OPEN / notes
+- **Music** = an **ElevenLabs Music** track (`make-music-eleven.mjs`, needs a paid plan; free → HTTP 402).
+  Generate a candidate: `ELEVENLABS_API_KEY=… node scripts/demo-video/make-music-eleven.mjs out/x.mp3 100000 "<prompt>"`,
+  then copy the chosen one to `assets/music.mp3` and re-run `demo:assemble` (no re-capture needed).
+  Tracks master hot (~-1 dB), so `DEMO_MUSIC_VOL` default is **0.10** → a quiet, subordinate bed
+  (~-19 dB, ~17 dB under the VO). `make-music.mjs` (synth pad) is kept only as an offline fallback.
+  A licensed `.mp3` dropped at `assets/music.mp3` also works.
+- **VO timing**: `scenes.json` `holdMs` were set with ~2–4s buffer over estimated VO length. After
+  `demo:vo`, eyeball each clip's duration vs its hold; if a clip overruns, bump that scene's `holdMs`
+  and re-capture so the on-screen dwell still covers the narration.
 
 ---
 
@@ -98,10 +115,13 @@ Upload `out/walkthrough.mp4` to the **public** R2 bucket `proculink-public` as
 scripts/demo-video/
   scenes.json        narration text + per-scene holdMs (source of truth)
   capture.spec.ts    Playwright capture (mock) — writes footage + markers.json
+  make-logo.mjs      rasterise the SVG logo → out/logo-lockup.png (called by assemble.mjs)
+  make-music-eleven.mjs  ElevenLabs Music API → mp3 (copy the chosen one to assets/music.mp3)
+  make-music.mjs     OFFLINE FALLBACK synth bed (production bed is the ElevenLabs track above)
   generate-vo.mjs    ElevenLabs TTS → out/vo/*.mp3 + manifest.json
-  assemble.mjs       ffmpeg: intro/outro + footage + VO + music → walkthrough.mp4
-  assets/music.mp3   music bed (synth placeholder — swap for licensed/ElevenLabs)
-  out/               GITIGNORED — captures, vo, frames, walkthrough.mp4, captions.srt
+  assemble.mjs       ffmpeg: logo'd intro/outro + footage + VO + music → walkthrough.mp4
+  assets/music.mp3   music bed (synth placeholder — swap for a licensed track)
+  out/               GITIGNORED — captures, vo, frames, logo png, walkthrough.mp4, captions.srt
 playwright.demo.config.ts   isolated capture config (port 8090, mock, 1080p)
 package.json scripts: demo:capture / demo:vo / demo:assemble / dev:demo
 ```

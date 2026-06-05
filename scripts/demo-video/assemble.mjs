@@ -25,16 +25,26 @@ import {
 import { resolve, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { execFileSync } from "node:child_process";
+import { makeLogos } from "./make-logo.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const out = resolve(here, "out");
 mkdirSync(out, { recursive: true });
 
+// Rasterise the navy-card logo (gradient mark + white wordmark) → out/logo-lockup.png.
+const logos = await makeLogos(out);
+
 const FFMPEG = process.env.FFMPEG ?? "ffmpeg";
 const FFPROBE = process.env.FFPROBE ?? "ffprobe";
 const GAP = parseFloat(process.env.DEMO_GAP_SEC ?? "0.6");
-const MUSIC_VOL = parseFloat(process.env.DEMO_MUSIC_VOL ?? "0.22");
-const INTRO = parseFloat(process.env.DEMO_INTRO_SEC ?? "4");
+// Bed is now a mastered ElevenLabs Music track (~-1 dB peak), so MUSIC_VOL is
+// much lower than the old synth pad needed → a quiet, subordinate enterprise bed.
+const MUSIC_VOL = parseFloat(process.env.DEMO_MUSIC_VOL ?? "0.10");
+// Final loudness lift: ElevenLabs VO peaks ~-9 dB, so the raw mix sits ~-25 LUFS
+// (quiet for web). A fixed +dB gain + safety limiter brings it to ~-18 LUFS
+// while preserving the VO↔music balance and the fades exactly (no loudnorm pump).
+const OUT_GAIN = parseFloat(process.env.DEMO_OUTPUT_GAIN_DB ?? "7");
+const INTRO = parseFloat(process.env.DEMO_INTRO_SEC ?? "4.5");
 const OUTRO = parseFloat(process.env.DEMO_OUTRO_SEC ?? "5");
 // Fonts for the title cards (escaped colon for the ffmpeg drawtext filter).
 const FONT_BOLD = "C\\:/Windows/Fonts/arialbd.ttf";
@@ -104,26 +114,44 @@ run(["-y", ...(trimStart > 0 ? ["-ss", trimStart.toFixed(3)] : []), "-i", videoI
   "-map", "[v]", "-map", "1:a", "-t", coreDur.toFixed(2),
   "-c:v", "libx264", "-preset", "medium", "-crf", "19", "-pix_fmt", "yuv420p", "-ar", "44100", "-ac", "2", "-c:a", "aac", "-b:a", "192k", core]);
 
-// 6/7. Title cards (navy + wordmark + line) with a silent stereo track.
-function makeCard(outPath, dur, lines, fadeOut) {
+// 6/7. Branded title cards: navy bg + the real ProcuLink logo (gradient mark +
+// white wordmark) overlaid, + centered drawtext lines, fade in/out, silent
+// stereo track (music is mixed over the whole timeline in step 8).
+function makeCard(outPath, dur, opts) {
+  const { lines, fadeOut = false, logo, logoW = 640, logoY = 350 } = opts;
   const draws = lines.map((l) => `drawtext=fontfile='${l.font}':text='${l.text}':fontcolor=${l.color}:fontsize=${l.size}:x=(w-text_w)/2:y=${l.y}`).join(",");
-  const fades = `fade=t=in:d=0.6${fadeOut ? `,fade=t=out:st=${(dur - 0.6).toFixed(2)}:d=0.6` : ""}`;
+  const fadeOutF = fadeOut ? `,fade=t=out:st=${(dur - 0.6).toFixed(2)}:d=0.6` : "";
+  const filter =
+    `[2:v]scale=${logoW}:-1[lg];` +
+    `[0:v][lg]overlay=(W-w)/2:${logoY}[bg];` +
+    `[bg]${draws},fade=t=in:d=0.6${fadeOutF}[v]`;
   run(["-y",
     "-f", "lavfi", "-i", `color=c=0x0B1A2F:s=1920x1080:d=${dur}:r=30`,
     "-f", "lavfi", "-i", "anullsrc=r=44100:cl=stereo",
-    "-vf", `${draws},${fades}`, "-t", String(dur),
+    "-i", logo,
+    "-filter_complex", filter,
+    "-map", "[v]", "-map", "1:a", "-t", String(dur),
     "-c:v", "libx264", "-preset", "medium", "-crf", "20", "-pix_fmt", "yuv420p", "-c:a", "aac", "-b:a", "192k", "-shortest", outPath]);
 }
 const intro = resolve(out, "intro.mp4");
 const outro = resolve(out, "outro.mp4");
-makeCard(intro, INTRO, [
-  { text: "ProcuLink", font: FONT_BOLD, size: 120, color: "white", y: "(h/2)-90" },
-  { text: "From any purchase order to supplier-ready delivery", font: FONT_REG, size: 42, color: "0x9FB0C7", y: "(h/2)+55" },
-], true);
-makeCard(outro, OUTRO, [
-  { text: "ProcuLink", font: FONT_BOLD, size: 112, color: "white", y: "(h/2)-95" },
-  { text: "Start free at proculink.eu", font: FONT_BOLD, size: 48, color: "0x28C55E", y: "(h/2)+45" },
-], false);
+// Intro: logo + tagline.
+makeCard(intro, INTRO, {
+  logo: logos.lockup, logoW: 700, logoY: 400,
+  lines: [
+    { text: "The missing link between buyers and suppliers.", font: FONT_REG, size: 50, color: "0xC9D5E6", y: 625 },
+  ],
+  fadeOut: true,
+});
+// Outro: logo + statement + CTA.
+makeCard(outro, OUTRO, {
+  logo: logos.lockup, logoW: 660, logoY: 340,
+  lines: [
+    { text: "Connecting procurement.", font: FONT_BOLD, size: 58, color: "white", y: 560 },
+    { text: "Start free at proculink.eu", font: FONT_BOLD, size: 44, color: "0x3DBE6B", y: 672 },
+  ],
+  fadeOut: true,
+});
 
 // 8. Final: concat intro+core+outro, overlay the music bed (audible).
 const music = arg("music", existsSync(resolve(here, "assets", "music.mp3")) ? resolve(here, "assets", "music.mp3") : "");
@@ -131,8 +159,8 @@ const finalOut = resolve(out, "walkthrough.mp4");
 const inputs = ["-i", intro, "-i", core, "-i", outro, ...(music ? ["-i", music] : [])];
 const concatF = "[0:v][0:a][1:v][1:a][2:v][2:a]concat=n=3:v=1:a=1[cv][ca]";
 const aOut = music
-  ? `${concatF};[3:a]aloop=loop=-1:size=2e9,volume=${MUSIC_VOL},afade=t=in:d=2,afade=t=out:st=${(totalDur - 2).toFixed(2)}:d=2[m];[ca][m]amix=inputs=2:duration=first:normalize=0[aout]`
-  : `${concatF};[ca]anull[aout]`;
+  ? `${concatF};[3:a]aloop=loop=-1:size=2e9,volume=${MUSIC_VOL},afade=t=in:d=2,afade=t=out:st=${(totalDur - 2).toFixed(2)}:d=2[m];[ca][m]amix=inputs=2:duration=first:normalize=0,volume=${OUT_GAIN}dB,alimiter=limit=0.95[aout]`
+  : `${concatF};[ca]volume=${OUT_GAIN}dB,alimiter=limit=0.95[aout]`;
 if (music) console.log(`🎵 music : ${music} @ vol ${MUSIC_VOL}`);
 run(["-y", ...inputs, "-filter_complex", aOut, "-map", "[cv]", "-map", "[aout]", "-t", totalDur.toFixed(2),
   "-c:v", "libx264", "-preset", "medium", "-crf", "20", "-pix_fmt", "yuv420p", "-ar", "44100", "-ac", "2", "-c:a", "aac", "-b:a", "192k", "-movflags", "+faststart", finalOut]);
