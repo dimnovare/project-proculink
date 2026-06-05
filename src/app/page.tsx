@@ -478,11 +478,11 @@ export default function RootPage() {
       {/* ── Logo strip ─────────────────────────────────────────────── */}
       <section className="px-4 sm:px-8" style={{ background: SURFACE, paddingTop: 48, paddingBottom: 48 }}>
         <p style={{ textAlign: "center", fontSize: 12, fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: INK_MUTED, marginBottom: 26 }}>
-          Trusted by procurement teams across the EU
+          Speaks the formats your suppliers already use
         </p>
         <div className="flex flex-wrap items-center justify-center gap-x-[38px] gap-y-4" style={{ maxWidth: 1180, margin: "0 auto", opacity: 0.8 }}>
-          {["Heinrich Industries", "Nordmark Logistik", "Steelhouse", "Centralis Pharma", "Westmark"].map((name) => (
-            <span key={name} style={{ fontFamily: "'Bricolage Grotesque', Inter, sans-serif", fontSize: 17, fontWeight: 600, color: INK_FAINT, letterSpacing: "-0.01em" }}>
+          {["PDF", "CSV", "Excel", "cXML", "UBL", "EDIFACT", "X12"].map((name) => (
+            <span key={name} style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 15, fontWeight: 600, color: INK_FAINT, letterSpacing: "0.02em" }}>
               {name}
             </span>
           ))}
@@ -745,53 +745,18 @@ export default function RootPage() {
               textWrap: "balance",
             }}
           >
-            &ldquo;We went from three people retyping orders into supplier portals
-            to{" "}
-            <span style={{ color: GREEN_BRIGHT }}>one workflow that just delivers</span>.
-            A PO that took an afternoon now goes out in under two minutes.&rdquo;
+            Stop reformatting purchase orders.{" "}
+            <span style={{ color: GREEN_BRIGHT }}>Start delivering them.</span>{" "}
+            Any incoming order, sent out in exactly the format and channel each
+            supplier needs.
           </blockquote>
 
-          {/* Attribution */}
-          <figcaption
-            className="flex items-center justify-center gap-3"
-            style={{ marginTop: 28 }}
-          >
-            <span
-              style={{
-                width: 40,
-                height: 40,
-                borderRadius: "50%",
-                background: "linear-gradient(135deg, #2A4B73, #1A3050)",
-                color: "#FFFFFF",
-                display: "inline-flex",
-                alignItems: "center",
-                justifyContent: "center",
-                fontSize: 13,
-                fontWeight: 600,
-              }}
-            >
-              MK
-            </span>
-            <span style={{ textAlign: "left" }}>
-              <span
-                style={{
-                  display: "block",
-                  fontSize: 14,
-                  fontWeight: 600,
-                  color: "#FFFFFF",
-                }}
-              >
-                Maria Koppel
-              </span>
-              <span style={{ display: "block", fontSize: 13, color: "#7C8DA6" }}>
-                Head of Procurement Ops · Nordic Distribution
-              </span>
-            </span>
-          </figcaption>
+          {/* No fabricated customer attribution — the value statement stands on its own
+              until we have a real, consented quote. */}
 
           {/* Stat chips */}
           <div
-            className="mx-auto mt-11 grid grid-cols-3 overflow-hidden"
+            className="mx-auto mt-11 grid grid-cols-1 sm:grid-cols-3 overflow-hidden"
             style={{
               maxWidth: 680,
               gap: 1,
@@ -801,9 +766,9 @@ export default function RootPage() {
             }}
           >
             {[
-              { value: "−92%", label: "time per order", green: true },
-              { value: "1.7m", label: "avg delivery time", green: false },
-              { value: "99.4%", label: "first-pass acceptance", green: false },
+              { value: "Any format", label: "PDF · CSV · Excel · XML · cXML · EDI, in", green: false },
+              { value: "Supplier-ready", label: "CSV · XML · cXML · UBL · X12 · JSON, out", green: true },
+              { value: "Fully audited", label: "every step logged, proof of delivery", green: false },
             ].map((m) => (
               <div
                 key={m.label}
@@ -815,11 +780,11 @@ export default function RootPage() {
                 <div
                   style={{
                     fontFamily: "'Bricolage Grotesque', Inter, sans-serif",
-                    fontSize: 30,
+                    fontSize: 19,
                     fontWeight: 600,
-                    letterSpacing: "-0.03em",
+                    letterSpacing: "-0.02em",
                     color: m.green ? GREEN_BRIGHT : "#FFFFFF",
-                    lineHeight: 1,
+                    lineHeight: 1.15,
                   }}
                 >
                   {m.value}
