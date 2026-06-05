@@ -54,7 +54,7 @@ const POSTURE: Array<{ title: string; body: string; icon: React.ReactNode }> = [
   },
   {
     title: "Responsible AI",
-    body: "Mapping suggestions never auto-apply without a confidence score and source. Your data is never used to train third-party models.",
+    body: "Mapping suggestions never auto-apply without a confidence score and source. Your data is never used to train third-party models. Enterprise customers can opt into a self-hosted, no-egress mode where document extraction — including scanned-PDF OCR — runs entirely in your environment, with nothing sent to OpenAI.",
     icon: <ZapIcon />,
   },
 ];
@@ -68,7 +68,7 @@ const COMPLIANCE_ROWS: Array<[string, string]> = [
 
 const SUBPROCESSOR_ROWS: Array<[string, string]> = [
   ["Amazon Web Services", "Hosting & storage (eu-central-1)"],
-  ["OpenAI", "Mapping suggestions & PDF extraction — text, plus page images for scanned PDFs (EU residency, no training)"],
+  ["OpenAI", "Mapping suggestions & PDF extraction — text, plus page images for scanned PDFs (EU residency, no training). Optional self-hosted no-egress mode skips OpenAI entirely."],
   ["Stripe", "Billing & payments"],
   ["Resend", "Transactional email"],
 ];
