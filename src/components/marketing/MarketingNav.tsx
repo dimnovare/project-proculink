@@ -133,7 +133,7 @@ export function MarketingNav() {
               href="/sign-up"
               onClick={() => setOpen(false)}
               className="flex items-center justify-center rounded-[6px] py-3 text-[15px] font-semibold w-full"
-              style={{ background: "#28C55E", color: "#FFFFFF" }}
+              style={{ background: "#2E8E3A", color: "#FFFFFF" }}
             >
               Start free
             </Link>
@@ -149,7 +149,7 @@ function MarketingClerkLinks() {
   if (!isLoaded || !isSignedIn) return <MarketingAuthLinks />;
   return (
     <div className="flex shrink-0 items-center gap-3">
-      <Link href="/bridge" className="text-[13px] font-semibold" style={{ color: "#28C55E" }}>
+      <Link href="/bridge" className="text-[13px] font-semibold" style={{ color: "#2E8E3A" }}>
         <span className="hidden sm:inline">Open the dashboard →</span>
         <span className="sm:hidden">Dashboard</span>
       </Link>
@@ -167,9 +167,9 @@ function MarketingAuthLinks() {
       <Link
         href="/sign-up"
         className="flex items-center gap-1.5 rounded-[6px] px-3 text-[12.5px] font-semibold sm:px-4 sm:text-[13px]"
-        style={{ height: 34, background: "#28C55E", color: "#FFFFFF", border: "none" }}
-        onMouseEnter={(e) => { (e.currentTarget as HTMLAnchorElement).style.background = "#1DAF50"; }}
-        onMouseLeave={(e) => { (e.currentTarget as HTMLAnchorElement).style.background = "#28C55E"; }}
+        style={{ height: 34, background: "#2E8E3A", color: "#FFFFFF", border: "none" }}
+        onMouseEnter={(e) => { (e.currentTarget as HTMLAnchorElement).style.background = "#1E6D29"; }}
+        onMouseLeave={(e) => { (e.currentTarget as HTMLAnchorElement).style.background = "#2E8E3A"; }}
       >
         <span className="hidden sm:inline">Start free</span>
         <span className="sm:hidden">Start</span>

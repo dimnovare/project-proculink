@@ -35,7 +35,7 @@ export default function WatchPage() {
           >
             <source src={videoUrl} type="video/mp4" />
             Your browser can&apos;t play embedded video.{" "}
-            <a href={videoUrl} style={{ color: "#28C55E" }}>Download the walkthrough</a>.
+            <a href={videoUrl} style={{ color: "#2E8E3A" }}>Download the walkthrough</a>.
           </video>
         </div>
       ) : loomUrl ? (
@@ -49,12 +49,12 @@ export default function WatchPage() {
         </div>
       ) : (
         <div style={{ background: "#F6F7FA", border: "1px dashed #C6CDDA", borderRadius: 12, padding: 48, textAlign: "center", color: "#8A93A5", fontSize: 14 }}>
-          The walkthrough is coming shortly. In the meantime, email <a href="mailto:hello@proculink.eu" style={{ color: "#28C55E" }}>hello@proculink.eu</a> for a guided demo.
+          The walkthrough is coming shortly. In the meantime, email <a href="mailto:hello@proculink.eu" style={{ color: "#2E8E3A" }}>hello@proculink.eu</a> for a guided demo.
         </div>
       )}
 
       <p style={{ marginTop: 36, fontSize: 14, color: "#56627A" }}>
-        Prefer a live walkthrough? <Link href="/pricing" style={{ color: "#28C55E" }}>See pricing</Link> or book a 15-minute demo from inside the product.
+        Prefer a live walkthrough? <Link href="/pricing" style={{ color: "#2E8E3A" }}>See pricing</Link> or book a 15-minute demo from inside the product.
       </p>
     </div>
   );

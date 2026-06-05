@@ -24,7 +24,7 @@ export default function AupPage() {
 
       <p style={S.intro}>
         This Acceptable Use Policy supplements the{" "}
-        <Link href="/terms" style={{ color: "#28C55E" }}>Terms of Service</Link> and applies to
+        <Link href="/terms" style={{ color: "#2E8E3A" }}>Terms of Service</Link> and applies to
         all use of the ProcuLink platform.
       </p>
 
@@ -51,7 +51,7 @@ export default function AupPage() {
       <h2 style={S.h2}>Reporting abuse</h2>
       <p style={S.p}>
         To report abuse of the ProcuLink platform, email{" "}
-        <a href="mailto:abuse@proculink.eu" style={{ color: "#28C55E" }}>abuse@proculink.eu</a>.
+        <a href="mailto:abuse@proculink.eu" style={{ color: "#2E8E3A" }}>abuse@proculink.eu</a>.
         Include the affected organisation, supplier, or delivery destination, and a description
         of the issue. We will respond within 2 business days.
       </p>
@@ -64,9 +64,9 @@ export default function AupPage() {
       </p>
 
       <p style={{ ...S.p, marginTop: 40, paddingTop: 24, borderTop: "1px solid #E2E6EE" }}>
-        <Link href="/terms" style={{ color: "#28C55E", marginRight: 16 }}>Terms of Service</Link>
-        <Link href="/privacy" style={{ color: "#28C55E", marginRight: 16 }}>Privacy Policy</Link>
-        <Link href="/security" style={{ color: "#28C55E" }}>Security</Link>
+        <Link href="/terms" style={{ color: "#2E8E3A", marginRight: 16 }}>Terms of Service</Link>
+        <Link href="/privacy" style={{ color: "#2E8E3A", marginRight: 16 }}>Privacy Policy</Link>
+        <Link href="/security" style={{ color: "#2E8E3A" }}>Security</Link>
       </p>
     </div>
   );

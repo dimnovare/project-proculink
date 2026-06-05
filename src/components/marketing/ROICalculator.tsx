@@ -235,6 +235,7 @@ export function ROICalculator() {
 
   return (
     <section
+      id="roi"
       className="px-4 sm:px-8"
       style={{
         background: T.surface,
@@ -242,6 +243,7 @@ export function ROICalculator() {
         borderBottom: `1px solid ${T.border}`,
         paddingTop: 64,
         paddingBottom: 64,
+        scrollMarginTop: 70,
       }}
     >
       <div style={{ maxWidth: 1100, margin: "0 auto" }}>
@@ -432,7 +434,7 @@ export function ROICalculator() {
                   position: "absolute",
                   inset: 0,
                   background:
-                    "radial-gradient(circle at top right, rgba(40,197,94,0.22), transparent 60%)",
+                    "radial-gradient(circle at top right, rgba(46,142,58,0.22), transparent 60%)",
                   pointerEvents: "none",
                 }}
               />
@@ -511,10 +513,10 @@ export function ROICalculator() {
                     padding: "12px 22px",
                     fontSize: 14,
                     fontWeight: 600,
-                    background: `linear-gradient(90deg, ${T.green}, #28C55E)`,
+                    background: `linear-gradient(90deg, ${T.green}, ${T.greenDeep})`,
                     color: "#FFFFFF",
                     textDecoration: "none",
-                    boxShadow: "0 8px 20px rgba(40,197,94,0.32)",
+                    boxShadow: "0 8px 20px rgba(46,142,58,0.32)",
                   }}
                 >
                   {calc.cta.label}

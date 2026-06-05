@@ -14,7 +14,7 @@ const S = {
   p:       { fontSize: 13.5, color: "#3D4A5C", lineHeight: 1.55, margin: "0 0 10px" },
   threeCol:{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 22, margin: "16px 0 28px" },
   step:    { padding: 12, background: "#F6F7FA", border: "1px solid #E2E6EE", borderRadius: 8 },
-  stepN:   { fontFamily: "'Bricolage Grotesque', Inter, sans-serif", fontSize: 18, fontWeight: 700, color: "#28C55E" },
+  stepN:   { fontFamily: "'Bricolage Grotesque', Inter, sans-serif", fontSize: 18, fontWeight: 700, color: "#2E8E3A" },
   stepT:   { fontSize: 13, fontWeight: 600, color: "#0B1A2F", margin: "4px 0 4px" },
   stepD:   { fontSize: 12, color: "#56627A", lineHeight: 1.5, margin: 0 },
   table:   { width: "100%", borderCollapse: "collapse" as const, fontSize: 12.5, marginBottom: 24 },

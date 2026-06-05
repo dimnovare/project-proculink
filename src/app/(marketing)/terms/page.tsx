@@ -42,7 +42,7 @@ export default function TermsPage() {
       <h2 style={S.h2}>3. Acceptable use</h2>
       <p style={S.p}>
         Your use of ProcuLink is subject to the{" "}
-        <Link href="/aup" style={{ color: "#28C55E" }}>Acceptable Use Policy</Link>, which is
+        <Link href="/aup" style={{ color: "#2E8E3A" }}>Acceptable Use Policy</Link>, which is
         incorporated into these Terms by reference. The Acceptable Use Policy describes the
         permitted and prohibited categories of use, including the prohibition of malicious
         uploads, illegal goods, credential sharing, reverse engineering, and abuse of Service
@@ -101,7 +101,7 @@ export default function TermsPage() {
       <p style={S.p}>
         Either party may terminate at any time. On termination, your access to the
         service ends. We will retain your data for the period described in our{" "}
-        <Link href="/privacy" style={{ color: "#28C55E" }}>Privacy Policy</Link>, after
+        <Link href="/privacy" style={{ color: "#2E8E3A" }}>Privacy Policy</Link>, after
         which it will be deleted. We may suspend access immediately if we detect material
         breach of these Terms.
       </p>
@@ -115,15 +115,15 @@ export default function TermsPage() {
 
       <h2 style={S.h2}>Contact</h2>
       <p style={S.p}>
-        Legal enquiries: <a href="mailto:legal@proculink.eu" style={{ color: "#28C55E" }}>legal@proculink.eu</a>
+        Legal enquiries: <a href="mailto:legal@proculink.eu" style={{ color: "#2E8E3A" }}>legal@proculink.eu</a>
         <br />
-        General support: <a href="mailto:support@proculink.eu" style={{ color: "#28C55E" }}>support@proculink.eu</a>
+        General support: <a href="mailto:support@proculink.eu" style={{ color: "#2E8E3A" }}>support@proculink.eu</a>
       </p>
 
       <p style={{ ...S.p, marginTop: 40, paddingTop: 24, borderTop: "1px solid #E2E6EE" }}>
-        <Link href="/privacy" style={{ color: "#28C55E", marginRight: 16 }}>Privacy Policy</Link>
-        <Link href="/security" style={{ color: "#28C55E", marginRight: 16 }}>Security</Link>
-        <Link href="/support" style={{ color: "#28C55E" }}>Support</Link>
+        <Link href="/privacy" style={{ color: "#2E8E3A", marginRight: 16 }}>Privacy Policy</Link>
+        <Link href="/security" style={{ color: "#2E8E3A", marginRight: 16 }}>Security</Link>
+        <Link href="/support" style={{ color: "#2E8E3A" }}>Support</Link>
       </p>
     </div>
   );

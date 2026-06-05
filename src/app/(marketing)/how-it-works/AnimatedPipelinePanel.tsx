@@ -26,7 +26,7 @@ const NAVY = "#0B1A2F";
 const BLUE_NODE = "#2D7AE0";
 const RAIL = "#163052"; // inactive dot background
 const RAIL_BORDER = "#21385a"; // inactive dot border
-const GREEN_TEXT = "#28C55E";
+const GREEN_TEXT = "#2E8E3A";
 const BLUE_TEXT = "#1E66C9";
 
 // Per-stage gradient stops — buyer-blue early → supplier-green at Deliver

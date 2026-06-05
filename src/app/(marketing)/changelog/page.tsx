@@ -94,7 +94,7 @@ export default function ChangelogPage() {
               marginBottom: 20,
             }}
           >
-            <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#28C55E", display: "inline-block" }} />
+            <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#2E8E3A", display: "inline-block" }} />
             v1.4 — Latest
           </div>
           <h1
@@ -133,7 +133,7 @@ export default function ChangelogPage() {
                 <span
                   style={{
                     display: "inline-block",
-                    background: entry.latest ? "#28C55E" : "#0B1A2F",
+                    background: entry.latest ? "#2E8E3A" : "#0B1A2F",
                     color: "#FFFFFF",
                     fontSize: 11,
                     fontWeight: 800,
@@ -182,7 +182,7 @@ export default function ChangelogPage() {
                 style={{
                   background: "#FFFFFF",
                   border: "1px solid #E2E6EE",
-                  borderLeft: `3px solid ${entry.latest ? "#28C55E" : "#C6CDDA"}`,
+                  borderLeft: `3px solid ${entry.latest ? "#2E8E3A" : "#C6CDDA"}`,
                   borderRadius: 8,
                   padding: "20px 24px",
                   boxShadow: "0 1px 4px rgba(11,26,47,0.05)",
@@ -195,7 +195,7 @@ export default function ChangelogPage() {
                       style={{ display: "flex", alignItems: "flex-start", gap: 10, fontSize: 14, color: "#2D3A4A", lineHeight: 1.6 }}
                     >
                       <span
-                        style={{ width: 6, height: 6, borderRadius: "50%", background: entry.latest ? "#28C55E" : "#8A93A5", flexShrink: 0, marginTop: 8, display: "inline-block" }}
+                        style={{ width: 6, height: 6, borderRadius: "50%", background: entry.latest ? "#2E8E3A" : "#8A93A5", flexShrink: 0, marginTop: 8, display: "inline-block" }}
                       />
                       <span>{item}</span>
                     </li>
