@@ -196,6 +196,17 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
     return () => document.removeEventListener("keydown", down);
   }, [onClose]);
 
+  // Lock background scroll while the palette is open (it is mounted only when
+  // open). Mirrors the mobile nav drawer in (app)/layout.tsx: capture the prior
+  // overflow value, force "hidden", and restore it on close/unmount.
+  useEffect(() => {
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prevOverflow;
+    };
+  }, []);
+
   // Track flat index across groups for active highlighting
   let flatIdx = 0;
 

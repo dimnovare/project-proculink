@@ -889,17 +889,11 @@ async function mockDeleteSupplierProfile(name: string) {
 //   GET  /api/suppliers/profiles/{name}       → get profile by supplier name
 //   POST /api/suppliers/{id}/profiles         → upsert profile (supplier-GUID-scoped)
 // There is no separate PUT or DELETE for profiles — the POST is an upsert.
-// TODO(post-launch): createSupplierProfile / updateSupplierProfile / deleteSupplierProfile
-//   need to be refactored to accept a supplier GUID (not name) to match the backend.
-//   None of these three are currently called from any launch-visible component.
+// Only the two read endpoints below are wired live. The mock create/update/delete
+// profile helpers are retained for dev/mock mode; a live upsert/delete client must
+// be (re)introduced against the supplier-GUID-scoped route above when needed.
 async function realGetSupplierProfiles() { const r = await fetchWithTimeout(`${API_BASE_URL}/api/suppliers/profiles`, { headers: await authHeader() }); if (!r.ok) throw new Error(r.statusText); return r.json(); }
 async function realGetSupplierProfile(n: string) { const r = await fetchWithTimeout(`${API_BASE_URL}/api/suppliers/profiles/${encodeURIComponent(n)}`, { headers: await authHeader() }); if (r.status === 404) return null; if (!r.ok) throw new Error(r.statusText); return r.json(); }
-// TODO(post-launch): signature must change to (supplierId: string, p: UpsertSupplierProfileRequest) to match POST /api/suppliers/{id}/profiles
-async function realCreateSupplierProfile(p: import("@/types/procurement").SupplierProfile) { const r = await fetchWithTimeout(`${API_BASE_URL}/api/suppliers/profiles`, { method: "POST", headers: { "Content-Type": "application/json", ...await authHeader() }, body: JSON.stringify(p) }, 30000); if (!r.ok) { const t = await r.text(); throw new Error(t || r.statusText); } return r.json(); }
-// TODO(post-launch): backend has no PUT /api/suppliers/profiles/{name} — use POST /api/suppliers/{id}/profiles (upsert) instead
-async function realUpdateSupplierProfile(n: string, d: Omit<import("@/types/procurement").SupplierProfile, "supplierName">) { const r = await fetchWithTimeout(`${API_BASE_URL}/api/suppliers/profiles/${encodeURIComponent(n)}`, { method: "PUT", headers: { "Content-Type": "application/json", ...await authHeader() }, body: JSON.stringify(d) }, 30000); if (!r.ok) { const t = await r.text(); throw new Error(t || r.statusText); } return r.json(); }
-// TODO(post-launch): backend has no DELETE /api/suppliers/profiles/{name} — profile deletion is not yet exposed
-async function realDeleteSupplierProfile(n: string) { const r = await fetchWithTimeout(`${API_BASE_URL}/api/suppliers/profiles/${encodeURIComponent(n)}`, { method: "DELETE", headers: await authHeader() }, 30000); if (!r.ok) { const t = await r.text(); throw new Error(t || r.statusText); } }
 
 // ── Audit trail ───────────────────────────────────────────────────────────
 
@@ -1269,12 +1263,10 @@ export const apiClient = {
   updateSupplierMapping:  USE_MOCK ? mockUpdateSupplierMapping  : realUpdateSupplierMapping,
   importSupplierMappings: USE_MOCK ? mockImportSupplierMappings : realImportSupplierMappings,
 
-  // Supplier profiles (legacy admin)
+  // Supplier profiles (legacy admin) — read-only client; create/update/delete
+  // had no matching backend route and were removed (mock helpers retained below).
   getSupplierProfiles:    USE_MOCK ? mockGetSupplierProfiles   : realGetSupplierProfiles,
   getSupplierProfile:     USE_MOCK ? mockGetSupplierProfile    : realGetSupplierProfile,
-  createSupplierProfile:  USE_MOCK ? mockCreateSupplierProfile : realCreateSupplierProfile,
-  updateSupplierProfile:  USE_MOCK ? mockUpdateSupplierProfile : realUpdateSupplierProfile,
-  deleteSupplierProfile:  USE_MOCK ? mockDeleteSupplierProfile : realDeleteSupplierProfile,
 
   // Audit trail
   getOrderAudit:          USE_MOCK ? mockGetOrderAudit         : realGetOrderAudit,
