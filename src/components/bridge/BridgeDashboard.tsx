@@ -26,7 +26,7 @@ import { OnboardingChecklist } from "./OnboardingChecklist";
 import { OnboardingWizard } from "./OnboardingWizard";
 import { apiClient, isApiMockMode } from "@/lib/api-client";
 import type { OrderSummary, Supplier } from "@/types/procurement";
-import { ArrowRight, ArrowUpRight, Clock, AlertTriangle, CheckCircle2, ChevronDown, Send, Activity, Download } from "lucide-react";
+import { ArrowRight, ArrowUpRight, Clock, AlertTriangle, CheckCircle2, Send, Activity, Download } from "lucide-react";
 
 // ─── Brand accent (supplier green) ────────────────────────────────────────
 // The supplier accent is the calm forest green from the design tokens
@@ -776,9 +776,6 @@ export function BridgeDashboard() {
                     <div className="text-[11.5px]" style={{ color: "#8A93A5" }}>moving through the pipeline now</div>
                   </div>
                 </div>
-                <span className="flex flex-shrink-0 items-center gap-1 text-[11.5px] font-medium" style={{ color: "#56627A" }}>
-                  last 10 min <ChevronDown size={13} style={{ color: "#8A93A5" }} />
-                </span>
               </div>
               <div className="divide-y" style={{ borderColor: "#E2E6EE" }}>
                 {ordersLoading ? (

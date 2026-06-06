@@ -29,8 +29,8 @@ const FEATURED_ID = "operations";
 
 // Small contextual line under each price (design's "+ one-time setup" /
 // "No card required" / "Annual contract" sub-line). Kept consistent with
-// SETUP_FEE_NOTE — no invented euro figure, since onboarding is per-supplier
-// and waived for design partners.
+// SETUP_FEE_NOTE — no per-supplier fee is stated (the old €500/€150 onboarding-fee
+// model is retired); higher tiers get hands-on founder-led setup.
 const SETUP_NOTE: Record<string, string> = {
   pilot: "No card required",
   growth: "No setup fee",
