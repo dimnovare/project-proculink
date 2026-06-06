@@ -24,6 +24,8 @@ import {
 } from "@/lib/api/mapping";
 import { getPoMappingTemplates, type StarterTemplate, ApiHttpError } from "@/lib/api-client";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { fieldRefList } from "@/lib/standards/catalog";
+import { StandardsFieldPopover } from "./StandardsFieldPopover";
 
 // ─── Design tokens ────────────────────────────────────────────────────────────
 const NAVY       = "#0B1A2F";
@@ -60,20 +62,23 @@ interface CanonicalField {
   hint: string;
   required: boolean;
   section: Section;
-  standard: string;
 }
 
+// Canonical fields. Per-field standards references (UBL/Peppol BIS/EDIFACT/X12/
+// cXML) are NOT duplicated here — they are sourced from the shared catalog via
+// `fieldRefList(canonical)` / the `StandardsFieldPopover`. The `canonical` keys
+// below match the catalog's `FIELD_STANDARDS[].canonicalField` exactly.
 const ALL_CANONICAL: CanonicalField[] = [
-  { canonical: "PoNumber",      label: "PO Number",       hint: "Purchase order number",     required: true,  section: "header", standard: "UBL cbc:ID · X12 BEG02 · EDIFACT BGM+220 · cXML orderID" },
-  { canonical: "OrderDate",     label: "Order Date",      hint: "Order / document date",     required: true,  section: "header", standard: "UBL cbc:IssueDate · X12 BEG05 · EDIFACT DTM+137 · cXML @orderDate" },
-  { canonical: "BuyerName",     label: "Buyer Name",      hint: "Ordering buyer or company", required: false, section: "header", standard: "UBL BuyerCustomerParty · X12 N1*BY · EDIFACT NAD+BY" },
-  { canonical: "Currency",      label: "Currency",        hint: "ISO currency code",         required: false, section: "header", standard: "UBL DocumentCurrencyCode · X12 CUR01 · EDIFACT CUX · cXML @currency" },
-  { canonical: "LineNumber",    label: "Line #",          hint: "Line position",             required: false, section: "lines",  standard: "UBL LineItem/cbc:ID · X12 PO101 · EDIFACT LIN · cXML @lineNumber" },
-  { canonical: "BuyerItemCode", label: "Buyer Item Code", hint: "Buyer's item / SKU code",   required: true,  section: "lines",  standard: "UBL BuyersItemIdentification · X12 PO1(IN) · EDIFACT PIA+1 · cXML SupplierPartAuxID" },
-  { canonical: "Description",   label: "Description",     hint: "Item description",          required: false, section: "lines",  standard: "UBL Item/cbc:Description · X12 PID05 · EDIFACT IMD+F · cXML Description" },
-  { canonical: "Quantity",      label: "Quantity",        hint: "Quantity ordered",          required: true,  section: "lines",  standard: "UBL cbc:Quantity · X12 PO102 · EDIFACT QTY+21 · cXML @quantity" },
-  { canonical: "Unit",          label: "Unit of Measure", hint: "Unit of measure",           required: false, section: "lines",  standard: "UBL Quantity/@unitCode · X12 PO103 · EDIFACT QTY(UoM) · cXML UnitOfMeasure" },
-  { canonical: "UnitPrice",     label: "Unit Price",      hint: "Price per unit",            required: false, section: "lines",  standard: "UBL Price/cbc:PriceAmount · X12 PO104 · EDIFACT PRI+AAA · cXML UnitPrice/Money" },
+  { canonical: "PoNumber",      label: "PO Number",       hint: "Purchase order number",     required: true,  section: "header" },
+  { canonical: "OrderDate",     label: "Order Date",      hint: "Order / document date",     required: true,  section: "header" },
+  { canonical: "BuyerName",     label: "Buyer Name",      hint: "Ordering buyer or company", required: false, section: "header" },
+  { canonical: "Currency",      label: "Currency",        hint: "ISO currency code",         required: false, section: "header" },
+  { canonical: "LineNumber",    label: "Line #",          hint: "Line position",             required: false, section: "lines"  },
+  { canonical: "BuyerItemCode", label: "Buyer Item Code", hint: "Buyer's item / SKU code",   required: true,  section: "lines"  },
+  { canonical: "Description",   label: "Description",     hint: "Item description",          required: false, section: "lines"  },
+  { canonical: "Quantity",      label: "Quantity",        hint: "Quantity ordered",          required: true,  section: "lines"  },
+  { canonical: "Unit",          label: "Unit of Measure", hint: "Unit of measure",           required: false, section: "lines"  },
+  { canonical: "UnitPrice",     label: "Unit Price",      hint: "Price per unit",            required: false, section: "lines"  },
 ];
 
 const REQUIRED_FIELDS = ALL_CANONICAL.filter((f) => f.required).map((f) => f.canonical);
@@ -392,6 +397,9 @@ export function PoMappingEditor({
   // ── Derived values ─────────────────────────────────────────────────────────
   const isSaving      = saving || saveState.status === "saving";
   const reqMapped     = REQUIRED_FIELDS.every((f) => accepted.has(f));
+  // Mobile progress: how many canonical fields currently have an accepted column.
+  const matchedCount  = ALL_CANONICAL.reduce((n, f) => (accepted.has(f.canonical) ? n + 1 : n), 0);
+  const totalFields   = ALL_CANONICAL.length;
   const hasSuggestions = (suggestQuery.data ?? []).some(
     (s) => s.suggestedColumn && s.confidence >= ADOPT_THRESHOLD && !rejected.has(s.canonicalField),
   );
@@ -595,8 +603,22 @@ export function PoMappingEditor({
         className="flex items-center justify-between px-4 py-2 sm:px-5"
         style={{ background: BG, borderBottom: `1px solid ${BORDER}` }}
       >
-        <span className="text-[10.5px] font-semibold uppercase tracking-wide" style={{ color: MUTED }}>
+        <span className="flex items-center gap-2 text-[10.5px] font-semibold uppercase tracking-wide" style={{ color: MUTED }}>
           Connect columns → ProcuLink fields
+          {/* Mobile drops the wire connectors, so surface mapping progress here. */}
+          {isMobile && detectedColumns.length > 0 && (
+            <span
+              className="rounded px-1.5 py-0.5 normal-case tracking-normal"
+              style={{
+                background: matchedCount > 0 ? GREEN_SOFT : SURFACE2,
+                color: matchedCount > 0 ? GREEN_DEEP : FAINT,
+                fontSize: 10,
+                fontWeight: 600,
+              }}
+            >
+              {matchedCount} of {totalFields} matched
+            </span>
+          )}
         </span>
         <button
           type="button"
@@ -822,9 +844,16 @@ export function PoMappingEditor({
                   {/* Field header row */}
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
                     <div>
-                      <span style={{ fontSize: 12.5, fontWeight: 600, color: isAcc ? GREEN_DEEP : NAVY }}>
+                      <span
+                        style={{
+                          display: "inline-flex", alignItems: "center", gap: 4,
+                          fontSize: 12.5, fontWeight: 600, color: isAcc ? GREEN_DEEP : NAVY,
+                        }}
+                      >
                         {f.label}
                         {f.required && <span style={{ color: DANGER, marginLeft: 2 }}>*</span>}
+                        {/* Standards mapping sourced from the shared catalog (self-hides if none) */}
+                        <StandardsFieldPopover canonicalField={f.canonical} label={f.label} />
                       </span>
                       <div
                         style={{
@@ -852,18 +881,34 @@ export function PoMappingEditor({
                         display: "flex",
                         alignItems: "center",
                         justifyContent: "space-between",
+                        gap: 8,
                       }}
                     >
+                      {/* Source-column lineage. On mobile the wire connectors are
+                          dropped, so spell out "from: <column> · e.g. <sample>". */}
                       <span
                         style={{
+                          minWidth: 0,
                           fontFamily: "'JetBrains Mono', monospace",
                           fontSize: 10.5,
                           color: GREEN_DEEP,
                         }}
                       >
-                        ← {accColumn}
+                        {isMobile ? (
+                          <>
+                            <span style={{ color: FAINT, fontFamily: "inherit" }}>from:</span>{" "}
+                            {accColumn}
+                            {accColumn && sample?.[accColumn] ? (
+                              <span style={{ color: FAINT }}>
+                                {" "}· e.g. {sample[accColumn]}
+                              </span>
+                            ) : null}
+                          </>
+                        ) : (
+                          <>← {accColumn}</>
+                        )}
                       </span>
-                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
                         <button
                           type="button"
                           onClick={() => handleEditStart(f.canonical)}
@@ -894,7 +939,19 @@ export function PoMappingEditor({
                           marginBottom: 5,
                         }}
                       >
-                        ← {pendColumn}
+                        {isMobile ? (
+                          <>
+                            <span style={{ color: FAINT, fontFamily: "inherit" }}>from:</span>{" "}
+                            {pendColumn}
+                            {pendColumn && sample?.[pendColumn] ? (
+                              <span style={{ color: FAINT }}>
+                                {" "}· e.g. {sample[pendColumn]}
+                              </span>
+                            ) : null}
+                          </>
+                        ) : (
+                          <>← {pendColumn}</>
+                        )}
                       </div>
                       <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 6 }}>
                         <button
@@ -974,8 +1031,8 @@ export function PoMappingEditor({
                     </div>
                   )}
 
-                  {/* Standards strip */}
-                  {showStandards && (
+                  {/* Standards strip — sourced from the shared catalog (fieldRefList) */}
+                  {showStandards && fieldRefList(f.canonical).length > 0 && (
                     <div
                       style={{
                         marginTop: 6, paddingTop: 6,
@@ -985,7 +1042,9 @@ export function PoMappingEditor({
                         lineHeight: 1.55,
                       }}
                     >
-                      {f.standard}
+                      {fieldRefList(f.canonical)
+                        .map(({ label, ref }) => `${label} ${ref}`)
+                        .join(" · ")}
                     </div>
                   )}
                 </div>
