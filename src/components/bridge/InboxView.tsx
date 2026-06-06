@@ -423,7 +423,7 @@ export function InboxView() {
   // Live (non-mock) path: the backend returns a paginated envelope and applies
   // status + search filters server-side. A distinct query key keeps this apart
   // from the lightweight ["orders"] working-set used by sidebar/topbar/dashboard.
-  const { data: ordersPage, isLoading, isError, refetch } = useQuery({
+  const { data: ordersPage, isLoading, isError, isFetching, refetch } = useQuery({
     queryKey: ["orders", "inbox", page, statusFilter ?? "", search],
     queryFn: () => apiClient.getOrders({
       page,
@@ -491,9 +491,14 @@ export function InboxView() {
   }, []);
 
   // Search box: mock filters instantly client-side; live debounces into a server query.
+  // Clear any row selection on every search change (mirrors handleChip): search hides
+  // non-matching rows, so a previously-selected row can scroll out of view yet stay
+  // silently selected and get swept into a bulk action. Resetting keeps selection in
+  // sync with what's actually visible.
   const handleSearch = useCallback((value: string) => {
     setSearchInput(value);
     setPage(1);
+    setRowSelection({});
     if (isApiMockMode) return;
     if (searchTimer.current) clearTimeout(searchTimer.current);
     searchTimer.current = setTimeout(() => setSearch(value), 350);
@@ -688,10 +693,28 @@ export function InboxView() {
         <div className="flex w-full flex-wrap gap-2 lg:ml-auto lg:w-auto">
           <button
             className="flex items-center gap-1.5 rounded-[6px] px-3 text-[12.5px] font-medium transition-colors"
-            style={{ height: 32, border: "1px solid #E2E6EE", background: "#FFFFFF", color: "#0B1A2F" }}
+            style={{
+              height: 32,
+              border: "1px solid #E2E6EE",
+              background: "#FFFFFF",
+              color: isFetching ? "#8A93A5" : "#0B1A2F",
+              cursor: isFetching ? "default" : "pointer",
+            }}
             onClick={() => queryClient.invalidateQueries({ queryKey: ["orders"] })}
+            disabled={isFetching}
+            aria-busy={isFetching}
           >
-            ↻ Sync
+            <span
+              aria-hidden
+              style={{
+                display: "inline-block",
+                animation: isFetching ? "inbox-sync-spin 0.8s linear infinite" : undefined,
+              }}
+            >
+              ↻
+            </span>
+            <style>{`@keyframes inbox-sync-spin { to { transform: rotate(360deg); } }`}</style>
+            {isFetching ? "Syncing…" : "Sync"}
           </button>
           <button
             className="flex items-center gap-1.5 rounded-[6px] px-3 text-[12.5px] font-semibold transition-colors"
