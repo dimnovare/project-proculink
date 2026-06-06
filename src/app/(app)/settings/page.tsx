@@ -9,6 +9,8 @@ import {
   getBillingStatus,
   getEmailSettings,
   updateEmailSettings,
+  getOrgSettings,
+  updateOrgSettings,
   getApiKeys,
   createApiKey,
   revokeApiKey,
@@ -17,7 +19,7 @@ import {
   toggleIntegration,
   deleteIntegration,
 } from "@/lib/api-client";
-import type { EmailSettings, UpdateEmailSettingsPayload } from "@/types/procurement";
+import type { EmailSettings, UpdateEmailSettingsPayload, OrderDirection } from "@/types/procurement";
 import type { ApiKey, IntegrationSubscription } from "@/lib/api-client";
 import { SftpPullSettings, S3PullSettings } from "@/components/settings/PullIngressSettings";
 
@@ -285,7 +287,109 @@ function OrgSection() {
           )}
         </div>
       </SettingsGroup>
+
+      <OrderDirectionSetting />
     </div>
+  );
+}
+
+// ── Order direction setting ─────────────────────────────────────────────────
+// One control that flips how parties are labelled across the app. Persists via
+// getOrgSettings/updateOrgSettings; invalidating ["org-settings"] relabels every
+// component that reads useOrderDirection() immediately. DISPLAY-ONLY — no entity
+// or behaviour change.
+
+const DIRECTION_OPTIONS: Array<{ value: OrderDirection; title: string }> = [
+  { value: "outbound", title: "We send purchase orders to our suppliers" },
+  { value: "inbound", title: "We receive purchase orders from our customers" },
+];
+
+function OrderDirectionSetting() {
+  const queryClient = useQueryClient();
+  const { data, isLoading } = useQuery({
+    queryKey: ["org-settings"],
+    queryFn: getOrgSettings,
+    staleTime: 300_000,
+  });
+  const current: OrderDirection = data?.direction ?? "outbound";
+  const [feedback, setFeedback] = useState<{ text: string; kind: "ok" | "err" } | null>(null);
+
+  const mutation = useMutation({
+    mutationFn: (direction: OrderDirection) => updateOrgSettings(direction),
+    onSuccess: (saved) => {
+      queryClient.setQueryData(["org-settings"], saved);
+      // Relabel the whole app immediately.
+      void queryClient.invalidateQueries({ queryKey: ["org-settings"] });
+      setFeedback({ text: "Saved. Labels updated across the app.", kind: "ok" });
+    },
+    onError: (err: Error) => {
+      setFeedback({ text: err.message || "Could not save changes.", kind: "err" });
+    },
+  });
+
+  function choose(direction: OrderDirection) {
+    setFeedback(null);
+    if (direction === current) return;
+    mutation.mutate(direction);
+  }
+
+  return (
+    <SettingsGroup
+      title="How do you use ProcuLink?"
+      sub="This sets how parties are labelled across your inbox, dashboard, and suppliers."
+    >
+      <div role="radiogroup" aria-label="How do you use ProcuLink?" style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        {DIRECTION_OPTIONS.map((opt) => {
+          const selected = current === opt.value;
+          const pending = mutation.isPending && mutation.variables === opt.value;
+          return (
+            <button
+              key={opt.value}
+              type="button"
+              role="radio"
+              aria-checked={selected}
+              disabled={isLoading || mutation.isPending}
+              onClick={() => choose(opt.value)}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 12,
+                textAlign: "left",
+                padding: "13px 15px",
+                borderRadius: 8,
+                border: `1.5px solid ${selected ? "var(--brand-green)" : "var(--border)"}`,
+                background: selected ? "rgba(46,142,58,0.06)" : "#FFFFFF",
+                cursor: isLoading || mutation.isPending ? "default" : "pointer",
+                transition: "border-color 150ms, background 150ms",
+              }}
+            >
+              <span
+                aria-hidden
+                style={{
+                  width: 18,
+                  height: 18,
+                  borderRadius: "50%",
+                  border: `2px solid ${selected ? "var(--brand-green)" : "#C6CDDA"}`,
+                  flexShrink: 0,
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                {selected && <span style={{ width: 9, height: 9, borderRadius: "50%", background: "var(--brand-green)" }} />}
+              </span>
+              <span style={{ fontSize: 13.5, fontWeight: 500, color: "var(--ink)" }}>{opt.title}</span>
+              {pending && <span style={{ marginLeft: "auto", fontSize: 12, color: "var(--ink-muted)" }}>Saving…</span>}
+            </button>
+          );
+        })}
+      </div>
+      {feedback && (
+        <div style={{ marginTop: 12, fontSize: 12.5, fontWeight: 500, color: feedback.kind === "ok" ? "var(--brand-green-deep)" : "#A52E2E" }}>
+          {feedback.text}
+        </div>
+      )}
+    </SettingsGroup>
   );
 }
 

@@ -1,0 +1,86 @@
+"use client";
+
+// useOrderDirection — single source of truth for per-org party labelling.
+//
+// ProcuLink's built-in model is OUTBOUND (the org is the BUYER sending POs out
+// to suppliers). Inbound orgs are the SUPPLIER receiving customer POs. The data
+// model is direction-agnostic (orders store buyer=issuer, supplier=recipient);
+// this hook only swaps DISPLAY text. Entity/route/type names stay "supplier".
+//
+// Colour semantics are UNCHANGED across directions: buyer = blue, supplier =
+// green. Only the words change.
+
+import { useMemo } from "react";
+import { useAuth } from "@clerk/nextjs";
+import { useQuery } from "@tanstack/react-query";
+import { getOrgSettings, isApiMockMode } from "@/lib/api-client";
+import type { OrderDirection } from "@/types/procurement";
+
+/** The canonical label set every component reads, so strings stay identical. */
+export interface PartyLabels {
+  counterpartyNoun: string;
+  counterpartyPlural: string;
+  railHeader: string;
+  primaryCta: string;
+  primaryCtaProgress: string;
+  doneLabel: string;
+  deliveredLabel: string;
+  unknownBuyer: string;
+}
+
+/**
+ * Pure helper: map an order direction onto the canonical label set. Co-located
+ * with the hook so non-hook callers (and tests) can read identical strings.
+ */
+export function partyLabels(direction: OrderDirection): PartyLabels {
+  if (direction === "inbound") {
+    return {
+      counterpartyNoun: "Customer",
+      counterpartyPlural: "Customers",
+      railHeader: "Customer → You",
+      primaryCta: "Confirm order",
+      primaryCtaProgress: "Confirming…",
+      doneLabel: "Order confirmed",
+      deliveredLabel: "Order confirmed",
+      unknownBuyer: "Unknown customer",
+    };
+  }
+  return {
+    counterpartyNoun: "Supplier",
+    counterpartyPlural: "Suppliers",
+    railHeader: "Buyer → Supplier",
+    primaryCta: "Send to supplier",
+    primaryCtaProgress: "Sending…",
+    doneLabel: "Sent to supplier",
+    deliveredLabel: "Delivered to supplier",
+    unknownBuyer: "Unknown buyer",
+  };
+}
+
+export interface UseOrderDirectionResult {
+  direction: OrderDirection;
+  labels: PartyLabels;
+}
+
+/**
+ * Reads the org's order direction once and exposes the resolved labels. Defaults
+ * to "outbound" until the query resolves (every existing org is outbound). The
+ * query is gated on `isApiMockMode || clerkReady` to avoid the known
+ * clerkReady-starvation bug.
+ */
+export function useOrderDirection(): UseOrderDirectionResult {
+  const { isLoaded: clerkLoaded, isSignedIn } = useAuth();
+  const clerkReady = clerkLoaded && !!isSignedIn;
+
+  const { data } = useQuery({
+    queryKey: ["org-settings"],
+    queryFn: getOrgSettings,
+    staleTime: 300_000,
+    enabled: isApiMockMode || clerkReady,
+  });
+
+  const direction: OrderDirection = data?.direction ?? "outbound";
+  const labels = useMemo(() => partyLabels(direction), [direction]);
+
+  return { direction, labels };
+}

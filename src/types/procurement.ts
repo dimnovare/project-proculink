@@ -26,6 +26,18 @@ export interface CreateSupplierPayload {
   name: string;
 }
 
+// ── Order direction (per-org presentation setting) ──────────────────────────
+// ProcuLink's built-in model is OUTBOUND (the org is the BUYER sending POs out
+// to suppliers). Inbound orgs are the SUPPLIER receiving customer POs. The data
+// model is direction-agnostic — this setting only changes DISPLAY labels.
+// API contract is PascalCase ("Outbound" | "Inbound"); we normalise to lowercase
+// internally (see api-client getOrgSettings/updateOrgSettings).
+export type OrderDirection = "outbound" | "inbound";
+
+export interface OrgSettings {
+  direction: OrderDirection;
+}
+
 export interface RenameSupplierPayload {
   name: string;
 }

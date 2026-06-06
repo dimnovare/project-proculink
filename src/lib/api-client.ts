@@ -22,6 +22,8 @@ import type {
   PassportDto,
   SupplierConfirmation,
   OrdersSummary,
+  OrderDirection,
+  OrgSettings,
 } from "@/types/procurement";
 
 function normalizeApiBaseUrl(raw: string | undefined): string {
@@ -1709,6 +1711,58 @@ export async function updateEmailSettings(payload: UpdateEmailSettingsPayload): 
   }
 
   return res.json();
+}
+
+// ── Organisation settings (order direction) ───────────────────────────────
+// Backend contract:
+//   GET  /api/settings/organisation -> 200 { "direction": "Outbound" | "Inbound" }  (PascalCase)
+//   PUT  /api/settings/organisation  body { "direction": "Inbound" } -> 200 { "direction": "Inbound" }
+// Input is case-insensitive; the property name is camelCase `direction`.
+// We NORMALISE the response to lowercase internally and SEND PascalCase on write.
+
+/** Lowercase whatever the API returns ("Outbound"/"Inbound") to our internal union. */
+function normalizeDirection(raw: unknown): OrderDirection {
+  return String(raw ?? "Outbound").toLowerCase() === "inbound" ? "inbound" : "outbound";
+}
+
+/** PascalCase for the wire ("inbound" -> "Inbound"). */
+function toApiDirection(direction: OrderDirection): "Outbound" | "Inbound" {
+  return direction === "inbound" ? "Inbound" : "Outbound";
+}
+
+export async function getOrgSettings(): Promise<OrgSettings> {
+  // Mock mode has no backend/Clerk session — default to outbound so mock/e2e don't break.
+  if (USE_MOCK) {
+    return { direction: "outbound" };
+  }
+
+  const headers = await authHeader();
+  const res = await fetchWithTimeout(`${API_BASE_URL}/api/settings/organisation`, { headers });
+  if (!res.ok) throw new Error(`settings/organisation: ${res.status}`);
+  const body = await res.json().catch(() => ({}));
+  return { direction: normalizeDirection((body as { direction?: unknown }).direction) };
+}
+
+export async function updateOrgSettings(direction: OrderDirection): Promise<OrgSettings> {
+  // Mock mode: no-op success so the control still flips locally without a backend.
+  if (USE_MOCK) {
+    return { direction };
+  }
+
+  const headers = await authHeader();
+  const res = await fetchWithTimeout(`${API_BASE_URL}/api/settings/organisation`, {
+    method: "PUT",
+    headers: { ...headers, "Content-Type": "application/json" },
+    body: JSON.stringify({ direction: toApiDirection(direction) }),
+  }, 30000);
+
+  if (!res.ok) {
+    const body = await res.json().catch(() => null);
+    throw new Error(body?.error ?? `settings/organisation: ${res.status}`);
+  }
+
+  const body = await res.json().catch(() => ({}));
+  return { direction: normalizeDirection((body as { direction?: unknown }).direction) };
 }
 
 // ── SFTP / S3 pull-ingress settings ───────────────────────────────────────

@@ -19,6 +19,7 @@ import { StandardsFieldPopover } from "./StandardsFieldPopover";
 import { SpineConnectors } from "./SpineConnectors";
 import { OrderPassport } from "./OrderPassport";
 import { SupplierResponsePanel } from "./SupplierResponsePanel";
+import { useOrderDirection, type PartyLabels } from "@/hooks/useOrderDirection";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -203,9 +204,10 @@ function sleep(ms: number): Promise<void> {
   return new Promise(resolve => window.setTimeout(resolve, ms));
 }
 
-function finalDeliveryMessage(status: Order["status"], errorMessage?: string | null): string {
+function finalDeliveryMessage(status: Order["status"], errorMessage: string | null | undefined, labels: PartyLabels): string {
   if (status === "delivered") {
-    return "Delivered to supplier. The audit trail has been updated.";
+    // Inbound: "Order confirmed." Outbound: "Delivered to supplier." (mechanism identical).
+    return `${labels.deliveredLabel}. The audit trail has been updated.`;
   }
   if (status === "delivery_failed") {
     return errorMessage && errorMessage.trim().length > 0
@@ -1083,7 +1085,7 @@ function OutputPreview({ order, acceptedSubnodes, rejectedSubnodes, crossed, fie
 
 // ─── Confirm Dialog ───────────────────────────────────────────────────────────
 
-function ConfirmDialog({ exceptionCount, onConfirm, onCancel, supplierName, outputFormat, grandTotal, lineCount }: {
+function ConfirmDialog({ exceptionCount, onConfirm, onCancel, supplierName, outputFormat, grandTotal, lineCount, labels }: {
   exceptionCount: number;
   onConfirm: () => void;
   onCancel: () => void;
@@ -1091,7 +1093,9 @@ function ConfirmDialog({ exceptionCount, onConfirm, onCancel, supplierName, outp
   outputFormat: string;
   grandTotal: string;
   lineCount: number;
+  labels: PartyLabels;
 }) {
+  const inbound = labels.counterpartyNoun === "Customer";
   const [checked, setChecked] = useState(false);
   const checkRef = useRef<HTMLInputElement>(null);
 
@@ -1112,9 +1116,9 @@ function ConfirmDialog({ exceptionCount, onConfirm, onCancel, supplierName, outp
       <div style={{ position: "fixed", top: "50%", left: "50%", transform: "translate(-50%,-50%)", width: 440, background: "#FFFFFF", borderRadius: 12, boxShadow: "0 24px 64px rgba(11,26,47,0.22)", border: "1px solid #E2E6EE", zIndex: 9991, overflow: "hidden" }}>
         {/* Header */}
         <div style={{ padding: "20px 24px 0" }}>
-          <div style={{ fontFamily: "'Bricolage Grotesque',Inter,sans-serif", fontSize: 18, fontWeight: 700, color: "#0B1A2F", marginBottom: 6 }}>Send order to supplier?</div>
+          <div style={{ fontFamily: "'Bricolage Grotesque',Inter,sans-serif", fontSize: 18, fontWeight: 700, color: "#0B1A2F", marginBottom: 6 }}>{inbound ? "Confirm this order?" : "Send order to supplier?"}</div>
           <p style={{ fontSize: 13, color: "#56627A", lineHeight: 1.55, margin: 0 }}>
-            This will deliver the transformed {outputFormat.toUpperCase()} order to <strong style={{ color: "#0B1A2F" }}>{supplierName}</strong>
+            This will {inbound ? "confirm" : "deliver"} the transformed {outputFormat.toUpperCase()} order {inbound ? "for" : "to"} <strong style={{ color: "#0B1A2F" }}>{supplierName}</strong>
           </p>
         </div>
 
@@ -1146,7 +1150,7 @@ function ConfirmDialog({ exceptionCount, onConfirm, onCancel, supplierName, outp
             style={{ marginTop: 2, width: 15, height: 15, accentColor: "#28C55E", cursor: "pointer", flexShrink: 0 }}
           />
           <label htmlFor="confirm-check" style={{ fontSize: 13, color: "#0B1A2F", lineHeight: 1.5, cursor: "pointer" }}>
-            I've reviewed the {exceptionCount} exception{exceptionCount !== 1 ? "s" : ""}. Send to {supplierName}.
+            I've reviewed the {exceptionCount} exception{exceptionCount !== 1 ? "s" : ""}. {inbound ? `Confirm for ${supplierName}` : `Send to ${supplierName}`}.
           </label>
         </div>
 
@@ -1165,7 +1169,7 @@ function ConfirmDialog({ exceptionCount, onConfirm, onCancel, supplierName, outp
             disabled={!checked}
             style={{ padding: "9px 24px", borderRadius: 7, fontSize: 13, fontWeight: 600, background: checked ? "#0B1A2F" : "#C6CDDA", color: "#FFFFFF", border: "none", cursor: checked ? "pointer" : "not-allowed", display: "flex", alignItems: "center", gap: 8, transition: "background 150ms" }}
           >
-            Send to supplier →
+            {inbound ? "Confirm order" : "Send to supplier"} →
             <span style={{ width: 10, height: 10, borderRadius: 2, background: "linear-gradient(90deg,#1DAF50,#28C55E)", display: "inline-block" }} />
           </button>
         </div>
@@ -1176,12 +1180,14 @@ function ConfirmDialog({ exceptionCount, onConfirm, onCancel, supplierName, outp
 
 // ─── Success toast ────────────────────────────────────────────────────────────
 
-function CrossedToast({ onDismiss, supplierName, poNumber, lineCount }: {
+function CrossedToast({ onDismiss, supplierName, poNumber, lineCount, labels }: {
   onDismiss: () => void;
   supplierName: string;
   poNumber: string;
   lineCount: number;
+  labels: PartyLabels;
 }) {
+  const inbound = labels.counterpartyNoun === "Customer";
   useEffect(() => {
     const t = setTimeout(onDismiss, 5000);
     return () => clearTimeout(t);
@@ -1191,7 +1197,7 @@ function CrossedToast({ onDismiss, supplierName, poNumber, lineCount }: {
     <div style={{ position: "fixed", bottom: 24, right: 24, display: "flex", alignItems: "center", gap: 12, padding: "14px 18px", background: "#0B1A2F", borderRadius: 10, boxShadow: "0 8px 24px rgba(11,26,47,0.25)", zIndex: 9992, animation: "fade-up 0.3s ease-out both" }}>
       <div style={{ width: 28, height: 28, borderRadius: 7, background: "#DCFCE7", color: "#1DAF50", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14 }}>✓</div>
       <div>
-        <div style={{ fontSize: 13, fontWeight: 600, color: "#FFFFFF" }}>Sent to {supplierName} · accepted</div>
+        <div style={{ fontSize: 13, fontWeight: 600, color: "#FFFFFF" }}>{inbound ? `Order confirmed for ${supplierName}` : `Sent to ${supplierName} · accepted`}</div>
         <div style={{ fontSize: 11.5, color: "#7C8DA6", marginTop: 2 }}>{poNumber} · {lineCount} line{lineCount !== 1 ? "s" : ""}</div>
       </div>
       <button onClick={onDismiss} style={{ marginLeft: 8, background: "none", border: "none", color: "#7C8DA6", fontSize: 16, cursor: "pointer", padding: "0 2px" }}>✕</button>
@@ -1333,6 +1339,10 @@ const STUCK_WARN_MS = 2 * 60 * 1000; // 2 minutes
 export function SpineReview({ orderId }: { orderId: string }) {
   const router = useRouter();
   const qc = useQueryClient();
+  // Direction-aware labels: inbound relabels the green primary action to
+  // "Confirm order" and its progress/done states (mechanism UNCHANGED — still
+  // transform + deliver). Output-artifact labels (cXML/"Output") stay neutral.
+  const { labels } = useOrderDirection();
   const { isLoaded: clerkLoaded, isSignedIn } = useAuth();
   const clerkReady = clerkLoaded && !!isSignedIn;
   // Mock mode has no Clerk session, so gate queries on (mock OR clerkReady) —
@@ -1542,7 +1552,7 @@ export function SpineReview({ orderId }: { orderId: string }) {
     if (!order || sendState !== "idle") return;
 
     if (order.lines.some(l => l.needsReview)) {
-      setFlowNotice("Resolve every missing supplier code before sending this order.");
+      setFlowNotice("Resolve every missing supplier code before completing this order.");
       return;
     }
 
@@ -1552,13 +1562,13 @@ export function SpineReview({ orderId }: { orderId: string }) {
       if (current.status === "delivered") {
         setCrossed(true);
         setShowToast(true);
-        setFlowNotice(finalDeliveryMessage("delivered"));
+        setFlowNotice(finalDeliveryMessage("delivered", null, labels));
         return;
       }
 
       if (current.artifacts.length === 0 && current.status !== "ready_to_deliver") {
         setSendState("transforming");
-        setFlowNotice("Generating the supplier-ready output...");
+        setFlowNotice("Generating the output...");
         // No explicit format → backend transforms into the supplier's configured output format.
         await apiClient.transformOrder(orderId);
         current = await pollOrderUntil(
@@ -1579,13 +1589,13 @@ export function SpineReview({ orderId }: { orderId: string }) {
       if (current.status === "delivered") {
         setCrossed(true);
         setShowToast(true);
-        setFlowNotice(finalDeliveryMessage("delivered"));
+        setFlowNotice(finalDeliveryMessage("delivered", null, labels));
         await refetchOrder();
         return;
       }
 
       if (current.status === "delivery_failed") {
-        setFlowNotice(finalDeliveryMessage(current.status, current.errorMessage));
+        setFlowNotice(finalDeliveryMessage(current.status, current.errorMessage, labels));
         await refetchOrder();
         return;
       }
@@ -1597,7 +1607,11 @@ export function SpineReview({ orderId }: { orderId: string }) {
       }
 
       setSendState("delivering");
-      setFlowNotice("Sending the generated output to the supplier...");
+      setFlowNotice(
+        labels.counterpartyNoun === "Customer"
+          ? "Confirming the order..."
+          : "Sending the generated output to the supplier...",
+      );
       await apiClient.redeliverOrder(orderId);
       current = await pollOrderUntil(
         next =>
@@ -1612,7 +1626,7 @@ export function SpineReview({ orderId }: { orderId: string }) {
         setCrossed(true);
         setShowToast(true);
       }
-      setFlowNotice(finalDeliveryMessage(current.status, current.errorMessage));
+      setFlowNotice(finalDeliveryMessage(current.status, current.errorMessage, labels));
       await refetchOrder();
     } catch (err) {
       setFlowNotice(err instanceof Error ? err.message : "Send failed. Check the Delivery Log and try again.");
@@ -1620,11 +1634,11 @@ export function SpineReview({ orderId }: { orderId: string }) {
     } finally {
       setSendState("idle");
     }
-  }, [order, orderId, pollOrderUntil, refetchOrder, sendState]);
+  }, [order, orderId, pollOrderUntil, refetchOrder, sendState, labels]);
 
   const handleSaveDraft = useCallback(() => {
-    setFlowNotice("Your review changes stay on this screen. Saved drafts aren't kept after you leave yet — use “Send to supplier” when the order is ready.");
-  }, []);
+    setFlowNotice(`Your review changes stay on this screen. Saved drafts aren't kept after you leave yet — use “${labels.primaryCta}” when the order is ready.`);
+  }, [labels]);
 
   // ── Keyboard shortcuts (Bridge Layer reference) ────────────────────────────
   // A = accept the next unresolved AI line suggestion · C = open the send/confirm
@@ -1753,7 +1767,7 @@ export function SpineReview({ orderId }: { orderId: string }) {
               <button
                 onClick={() => !crossed && exceptionCount === 0 && sendState === "idle" && setShowConfirm(true)}
                 disabled={sendState !== "idle" || (!crossed && exceptionCount > 0)}
-                aria-label="Send to supplier"
+                aria-label={labels.primaryCta}
                 className="flex-1 justify-center sm:flex-none"
                 style={{
                   height: 34, padding: "0 16px", borderRadius: 7, fontSize: 13, fontWeight: 700,
@@ -1764,7 +1778,7 @@ export function SpineReview({ orderId }: { orderId: string }) {
                 }}
               >
                 <PaperPlaneIcon />
-                {crossed ? "Sent" : sendState === "transforming" ? "Generating..." : sendState === "delivering" ? "Sending..." : "Send to supplier"}
+                {crossed ? labels.doneLabel : sendState === "transforming" ? "Generating..." : sendState === "delivering" ? labels.primaryCtaProgress : labels.primaryCta}
               </button>
             </div>
             {!crossed && exceptionCount > 0 && (
@@ -2134,7 +2148,7 @@ export function SpineReview({ orderId }: { orderId: string }) {
           )}
           {crossed && (
             <span className="inline-flex rounded-[6px] px-2.5 py-1.5 text-[12px] font-semibold" style={{ background: "#ECFDF3", border: "1px solid #A6E9BE", color: "#1DAF50" }}>
-              ✓ Sent to supplier
+              ✓ {labels.doneLabel}
             </span>
           )}
         </div>
@@ -2157,7 +2171,7 @@ export function SpineReview({ orderId }: { orderId: string }) {
           style={{ flex: 1.5, height: 44, borderRadius: 8, fontSize: 13.5, fontWeight: 700, background: crossed ? "#28C55E" : sendState !== "idle" || exceptionCount > 0 ? "#96C69C" : "#28C55E", color: "#FFFFFF", border: "none", cursor: crossed || sendState !== "idle" || exceptionCount > 0 ? "default" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, transition: "background 200ms" }}
         >
           <PaperPlaneIcon />
-          {crossed ? "Sent" : sendState === "transforming" ? "Generating..." : sendState === "delivering" ? "Sending..." : exceptionCount > 0 ? `Resolve ${exceptionCount} to send` : "Send to supplier"}
+          {crossed ? labels.doneLabel : sendState === "transforming" ? "Generating..." : sendState === "delivering" ? labels.primaryCtaProgress : exceptionCount > 0 ? `Resolve ${exceptionCount} to send` : labels.primaryCta}
         </button>
       </div>
 
@@ -2208,6 +2222,7 @@ export function SpineReview({ orderId }: { orderId: string }) {
           outputFormat={dialogOutputFormat}
           grandTotal={dialogGrandTotal}
           lineCount={dialogLineCount}
+          labels={labels}
         />
       )}
       {showToast && (
@@ -2216,6 +2231,7 @@ export function SpineReview({ orderId }: { orderId: string }) {
           supplierName={dialogSupplierName}
           poNumber={order?.poNumber ?? orderId}
           lineCount={dialogLineCount}
+          labels={labels}
         />
       )}
     </div>
