@@ -12,7 +12,7 @@ import {
   getS3Settings,
   updateS3Settings,
 } from "@/lib/api-client";
-import { SettingsGroup, primaryGreenButton } from "@/app/(app)/settings/page";
+import { SettingsGroup, primaryGreenButton } from "@/components/settings/SettingsPrimitives";
 
 const INK = "#0B1A2F";
 const MUTED = "#56627A";
