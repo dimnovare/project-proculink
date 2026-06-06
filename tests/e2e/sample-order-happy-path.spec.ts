@@ -41,10 +41,13 @@ test("clicking Try with sample order routes to a sample order page with banner",
   // cold-compiles the /inbox/[orderId] route on first navigation. Under
   // full-suite load (single worker) that compile plus the mock's ~800ms
   // sample-create delay can exceed a tight 15s budget intermittently.
-  await Promise.all([
-    page.waitForURL(/\/inbox\/[^/?]+\?.*sample=1/i, { timeout: 45_000 }),
-    sampleCta.click(),
-  ]);
+  // The click can land before the next-dev page finishes hydrating (cold-compile,
+  // worse when the backend stack runs on the same machine), silently dropping the
+  // React handler. Retry click+wait until the navigation actually sticks.
+  await expect(async () => {
+    await sampleCta.click();
+    await page.waitForURL(/\/inbox\/[^/?]+\?.*sample=1/i, { timeout: 8_000 });
+  }).toPass({ timeout: 45_000, intervals: [500, 1000, 2000] });
 
   // The non-quota sample banner should be visible on the destination page.
   const banner = page.getByText(/this is a sample order/i);

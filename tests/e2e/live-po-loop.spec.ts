@@ -25,7 +25,7 @@ test.describe("Live PO loop — upload to delivery failure", () => {
       buffer: Buffer.from(csv),
     });
 
-    const uploadButton = page.getByRole("button", { name: /upload.*send/i });
+    const uploadButton = page.getByRole("button", { name: /upload.*(review|send)/i });
     await expect(uploadButton).toBeEnabled({ timeout: 10_000 });
     await uploadButton.click();
 

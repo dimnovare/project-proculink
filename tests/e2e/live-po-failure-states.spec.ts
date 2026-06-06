@@ -31,7 +31,7 @@ test.describe("Live PO loop — failure-state guidance", () => {
       mimeType: "text/csv",
       buffer: Buffer.from("po_number,item_code,quantity\nPO-NO-SUP,ABC,1\n"),
     });
-    await expect(page.getByRole("button", { name: /upload.*send/i })).toBeDisabled();
+    await expect(page.getByRole("button", { name: /upload.*(review|send)/i })).toBeDisabled();
   });
 
   test("shows supported-format guidance for unsupported files", async ({ page, request }) => {
@@ -44,7 +44,7 @@ test.describe("Live PO loop — failure-state guidance", () => {
       buffer: Buffer.from("not a supported PO upload"),
     });
 
-    const uploadButton = page.getByRole("button", { name: /upload.*send/i });
+    const uploadButton = page.getByRole("button", { name: /upload.*(review|send)/i });
     await expect(uploadButton).toBeEnabled({ timeout: 10_000 });
     await uploadButton.click();
 
@@ -62,7 +62,7 @@ test.describe("Live PO loop — failure-state guidance", () => {
       buffer: blankPdfBuffer(),
     });
 
-    const uploadButton = page.getByRole("button", { name: /upload.*send/i });
+    const uploadButton = page.getByRole("button", { name: /upload.*(review|send)/i });
     await expect(uploadButton).toBeEnabled({ timeout: 10_000 });
     await uploadButton.click();
 
@@ -184,7 +184,7 @@ async function uploadResolveAndSend(page: import("@playwright/test").Page, suppl
     mimeType: "text/csv",
     buffer: Buffer.from(csv),
   });
-  await page.getByRole("button", { name: /upload.*send/i }).click();
+  await page.getByRole("button", { name: /upload.*(review|send)/i }).click();
 
   await page.waitForURL(/\/upload\/preview\//i, { timeout: 30_000 });
   const orderId = new URL(page.url()).pathname.split("/").pop()!;
