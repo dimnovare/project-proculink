@@ -93,7 +93,7 @@ function buildIndex(
     { id: "a5",  group: "Actions", icon: "⚠", label: "Exceptions",           sub: "Open exception dashboard", action: () => router.push("/operations/exceptions"), color: "#C97A14" },
     { id: "a6",  group: "Actions", icon: "❤", label: "System health",        sub: "Open operator health view", action: () => router.push("/operations/health"),     color: "#0F4FA8" },
     { id: "a7",  group: "Actions", icon: "⚙", label: "Settings",             sub: "Workspace settings",     action: () => router.push("/settings"),         color: "#0F4FA8" },
-    { id: "a8",  group: "Actions", icon: "≣", label: "View standards matrix", sub: "Open standards comparison", action: () => router.push("/library/standards"), color: "#0F4FA8" },
+    { id: "a8",  group: "Actions", icon: "≣", label: "View standards matrix", sub: "Open standards reference", action: () => router.push("/library/standards"), color: "#0F4FA8" },
   ];
 }
 
