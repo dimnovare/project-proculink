@@ -1,11 +1,23 @@
 "use client";
 
 // Exception Dashboard — all-orders-in-exception view.
-// Lists every exception across orders, filterable by lifecycle state, with
-// per-row Resolve / Ignore actions. Mirrors the Bridge Layer visual language
-// from InboxView (grey canvas, floating white card, navy/blue palette).
+// Lists every exception across orders, filterable by lifecycle state. Mirrors
+// the Bridge Layer visual language from InboxView (grey canvas, floating white
+// card, navy/blue palette).
+//
+// Resolution model (honest UX): the backend Reconcile pass is the source of
+// truth — it auto-resolves an exception once the order's underlying cause is
+// gone (mapping resolved, transform succeeds, delivery succeeds). Status-derived
+// codes (unresolved_mapping / parse_failed / transform_failed / delivery_failed /
+// supplier_rejected / dead_letter) can NOT be cleared from this list: a manual
+// "Resolve" would only flip the row, and the next pipeline pass re-opens it. So
+// for any exception tied to an order the primary action is "Open order" — fix the
+// cause there and the exception clears on the next pass. "Ignore" remains for
+// genuine dismissal. A real "Resolve" is only offered for a list-clearable
+// exception (one with no owning order), if such ever appears.
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useState, useMemo } from "react";
 import { useAuth } from "@clerk/nextjs";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -56,9 +68,24 @@ const STATE_TABS: Array<{ label: string; state?: ExceptionState }> = [
   { label: "Ignored",  state: "ignored" },
 ];
 
+// The order-detail route in this app (see src/app/(app)/inbox/[orderId]).
+function orderHref(orderId: string): string {
+  return `/inbox/${orderId}`;
+}
+
+// Whether a manual "Resolve" actually clears this exception. Every status-derived
+// code is re-opened by the backend Reconcile pass until the order's cause is
+// fixed, so an exception that belongs to an order is NOT list-clearable — the
+// honest action is "Open order". A real "Resolve" is reserved for exceptions
+// with no owning order (none today, but kept defensive).
+function canResolveFromList(exc: OrderException): boolean {
+  return !exc.orderId;
+}
+
 export default function ExceptionsPage() {
   const { isLoaded, isSignedIn } = useAuth();
   const clerkReady = isLoaded && !!isSignedIn;
+  const router = useRouter();
 
   const qc = useQueryClient();
   const [activeTab, setActiveTab] = useState(0);
@@ -116,6 +143,9 @@ export default function ExceptionsPage() {
                 {exceptions.length.toLocaleString()} shown
               </span>
             )}
+          </p>
+          <p className="text-[12px] mt-1.5" style={{ color: "#8A93A5" }}>
+            Open the order to fix the cause — the exception clears on the next pipeline pass. Use Ignore to dismiss one you don&apos;t plan to act on.
           </p>
         </div>
         <div className="flex w-full flex-wrap gap-2 lg:ml-auto lg:w-auto">
@@ -228,6 +258,7 @@ export default function ExceptionsPage() {
                   busy={pendingId === exc.id}
                   onResolve={() => resolveMut.mutate(exc.id)}
                   onIgnore={() => ignoreMut.mutate(exc.id)}
+                  onOpen={() => { if (exc.orderId) router.push(orderHref(exc.orderId)); }}
                 />
               ))}
             </div>
@@ -305,19 +336,35 @@ export default function ExceptionsPage() {
                         <td style={{ padding: "9px 10px", paddingRight: 16, verticalAlign: "middle", textAlign: "right", whiteSpace: "nowrap" }}>
                           {exc.state === "open" ? (
                             <div className="inline-flex items-center gap-1.5">
-                              <button
-                                disabled={busy}
-                                onClick={() => resolveMut.mutate(exc.id)}
-                                className="rounded-[6px] px-2.5 text-[12px] font-semibold"
-                                style={{
-                                  height: 28, background: BLUE, color: "#FFFFFF", border: 0,
-                                  cursor: busy ? "default" : "pointer", opacity: busy ? 0.6 : 1,
-                                }}
-                                onMouseEnter={(e) => { if (!busy) (e.currentTarget as HTMLElement).style.background = BLUE_DEEP; }}
-                                onMouseLeave={(e) => { if (!busy) (e.currentTarget as HTMLElement).style.background = BLUE; }}
-                              >
-                                Resolve
-                              </button>
+                              {canResolveFromList(exc) ? (
+                                <button
+                                  disabled={busy}
+                                  onClick={() => resolveMut.mutate(exc.id)}
+                                  className="rounded-[6px] px-2.5 text-[12px] font-semibold"
+                                  style={{
+                                    height: 28, background: BLUE, color: "#FFFFFF", border: 0,
+                                    cursor: busy ? "default" : "pointer", opacity: busy ? 0.6 : 1,
+                                  }}
+                                  onMouseEnter={(e) => { if (!busy) (e.currentTarget as HTMLElement).style.background = BLUE_DEEP; }}
+                                  onMouseLeave={(e) => { if (!busy) (e.currentTarget as HTMLElement).style.background = BLUE; }}
+                                >
+                                  Resolve
+                                </button>
+                              ) : (
+                                <button
+                                  disabled={busy || !exc.orderId}
+                                  onClick={() => { if (exc.orderId) router.push(orderHref(exc.orderId)); }}
+                                  className="rounded-[6px] px-2.5 text-[12px] font-semibold"
+                                  style={{
+                                    height: 28, background: BLUE, color: "#FFFFFF", border: 0,
+                                    cursor: busy || !exc.orderId ? "default" : "pointer", opacity: busy || !exc.orderId ? 0.6 : 1,
+                                  }}
+                                  onMouseEnter={(e) => { if (!busy && exc.orderId) (e.currentTarget as HTMLElement).style.background = BLUE_DEEP; }}
+                                  onMouseLeave={(e) => { if (!busy && exc.orderId) (e.currentTarget as HTMLElement).style.background = BLUE; }}
+                                >
+                                  Open order
+                                </button>
+                              )}
                               <button
                                 disabled={busy}
                                 onClick={() => ignoreMut.mutate(exc.id)}
@@ -351,12 +398,13 @@ export default function ExceptionsPage() {
 
 // ─── Mobile card ─────────────────────────────────────────────────────────────
 function ExceptionCard({
-  exc, busy, onResolve, onIgnore,
+  exc, busy, onResolve, onIgnore, onOpen,
 }: {
   exc: OrderException;
   busy: boolean;
   onResolve: () => void;
   onIgnore: () => void;
+  onOpen: () => void;
 }) {
   return (
     <div className="px-4 py-3.5">
@@ -381,14 +429,25 @@ function ExceptionCard({
       )}
       {exc.state === "open" ? (
         <div className="mt-2.5 flex items-center gap-1.5">
-          <button
-            disabled={busy}
-            onClick={onResolve}
-            className="rounded-[6px] px-3 text-[12px] font-semibold"
-            style={{ height: 30, background: BLUE, color: "#FFFFFF", border: 0, cursor: busy ? "default" : "pointer", opacity: busy ? 0.6 : 1 }}
-          >
-            Resolve
-          </button>
+          {canResolveFromList(exc) ? (
+            <button
+              disabled={busy}
+              onClick={onResolve}
+              className="rounded-[6px] px-3 text-[12px] font-semibold"
+              style={{ height: 30, background: BLUE, color: "#FFFFFF", border: 0, cursor: busy ? "default" : "pointer", opacity: busy ? 0.6 : 1 }}
+            >
+              Resolve
+            </button>
+          ) : (
+            <button
+              disabled={busy || !exc.orderId}
+              onClick={onOpen}
+              className="rounded-[6px] px-3 text-[12px] font-semibold"
+              style={{ height: 30, background: BLUE, color: "#FFFFFF", border: 0, cursor: busy || !exc.orderId ? "default" : "pointer", opacity: busy || !exc.orderId ? 0.6 : 1 }}
+            >
+              Open order
+            </button>
+          )}
           <button
             disabled={busy}
             onClick={onIgnore}
