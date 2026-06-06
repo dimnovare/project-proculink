@@ -3,10 +3,13 @@
 // LaneDrawer — slides in from right when a wire is clicked in WireTopology.
 // Shows lane overview: buyer + supplier, health, recent crossings on this wire.
 
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { isApiMockMode } from "@/lib/api-client";
+import { useAuth } from "@clerk/nextjs";
+import { useQuery } from "@tanstack/react-query";
+import { apiClient, isApiMockMode } from "@/lib/api-client";
 import { useOrderDirection } from "@/hooks/useOrderDirection";
+import type { OrderStatus } from "@/types/procurement";
 
 export type Lane = {
   buyerName: string;
@@ -46,6 +49,24 @@ const STATUS_DOT: Record<string, string> = {
   new:    "#1E66C9",
 };
 
+// Real-order status → dot colour (mirrors the inbox status palette).
+function liveStatusDot(status: OrderStatus | string): string {
+  switch (status) {
+    case "delivered":
+      return "#2E8E3A";
+    case "pending_review":
+      return "#C97A14";
+    case "failed":
+    case "transform_failed":
+    case "delivery_failed":
+    case "delivery_dead_letter":
+    case "rejected_by_supplier":
+      return "#C53A3A";
+    default:
+      return "#1E66C9";
+  }
+}
+
 interface LaneDrawerProps {
   lane: Lane;
   onClose: () => void;
@@ -62,6 +83,41 @@ export function LaneDrawer({ lane, onClose }: LaneDrawerProps) {
     const parts = labels.railHeader.split("→").map(s => s.trim());
     return [parts[0] || "Buyer", parts[1] || "Supplier"];
   })();
+
+  // ── Live data (real customers) ────────────────────────────────────────────
+  // The Lane carries only display names/codes — not a supplier id — so resolve
+  // the id from the suppliers list by matching on name, then fetch this
+  // supplier's recent orders (the best filter the API supports; there is no
+  // buyer↔supplier pair filter, so this is supplier-scoped). In mock mode the
+  // staged MOCK_CROSSINGS render instead and these queries stay disabled.
+  const { isLoaded, isSignedIn } = useAuth();
+  const clerkReady = isLoaded && !!isSignedIn;
+  // Known repo gotcha: queries gated only on clerkReady starve in mock mode
+  // (no Clerk session). Mock path doesn't use these, so disable them there.
+  const liveEnabled = !isApiMockMode && clerkReady;
+
+  const { data: suppliers } = useQuery({
+    queryKey: ["suppliers"],
+    queryFn: () => apiClient.getSuppliers(),
+    enabled: liveEnabled,
+    staleTime: 60_000,
+    retry: 1,
+  });
+
+  const supplierId = useMemo(() => {
+    if (!suppliers) return undefined;
+    const want = lane.supplierName.trim().toLowerCase();
+    return suppliers.find(s => s.name.trim().toLowerCase() === want)?.id;
+  }, [suppliers, lane.supplierName]);
+
+  const { data: ordersPage, isLoading: ordersLoading } = useQuery({
+    queryKey: ["lane-orders", supplierId],
+    queryFn: () => apiClient.getOrders({ supplierId, pageSize: 5 }),
+    enabled: liveEnabled && !!supplierId,
+    staleTime: 15_000,
+    retry: 1,
+  });
+  const recentOrders = ordersPage?.items ?? [];
 
   // esc closes
   useEffect(() => {
@@ -323,9 +379,109 @@ export function LaneDrawer({ lane, onClose }: LaneDrawerProps) {
             Recent deliveries
           </div>
 
-          {!isApiMockMode && (
-            <div style={{ padding: "32px 20px", textAlign: "center", fontSize: 13, color: "#8A93A5" }}>
-              No recent deliveries on this connection.
+          {/* Live mode — real orders for this supplier (best available filter). */}
+          {!isApiMockMode && ordersLoading && (
+            <div style={{ padding: "0 20px" }}>
+              {Array.from({ length: 3 }).map((_, i) => (
+                <div
+                  key={i}
+                  style={{
+                    height: 14,
+                    margin: "14px 0",
+                    borderRadius: 4,
+                    background: "#EEF1F6",
+                  }}
+                  className="animate-pulse"
+                />
+              ))}
+            </div>
+          )}
+
+          {!isApiMockMode && !ordersLoading && recentOrders.length > 0 && recentOrders.map((o) => (
+            <div
+              key={o.id}
+              role="button"
+              tabIndex={0}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 10,
+                padding: "10px 20px",
+                borderBottom: "1px solid #F0F2F6",
+                cursor: "pointer",
+              }}
+              onClick={() => { onClose(); router.push(`/inbox/${o.id}`); }}
+              onKeyDown={(e) => { if (e.key === "Enter") { onClose(); router.push(`/inbox/${o.id}`); }}}
+              onMouseEnter={(e) =>
+                ((e.currentTarget as HTMLElement).style.background = "#F6F7FA")
+              }
+              onMouseLeave={(e) =>
+                ((e.currentTarget as HTMLElement).style.background = "transparent")
+              }
+            >
+              <span
+                style={{
+                  width: 7,
+                  height: 7,
+                  borderRadius: "50%",
+                  background: liveStatusDot(o.status),
+                  flexShrink: 0,
+                }}
+              />
+              <span
+                style={{
+                  fontFamily: "'JetBrains Mono', monospace",
+                  fontSize: 11.5,
+                  fontWeight: 600,
+                  color: "#0F4FA8",
+                  flex: 1,
+                  whiteSpace: "nowrap",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                }}
+              >
+                {o.poNumber}
+              </span>
+              <span style={{ fontSize: 11.5, color: "#8A93A5" }}>{o.lineCount}L</span>
+              {typeof o.totalValue === "number" && (
+                <span
+                  style={{
+                    fontFamily: "'JetBrains Mono', monospace",
+                    fontSize: 11.5,
+                    color: "#56627A",
+                  }}
+                >
+                  {o.totalValue.toLocaleString(undefined, {
+                    style: "currency",
+                    currency: o.currency || "EUR",
+                    maximumFractionDigits: 0,
+                  })}
+                </span>
+              )}
+            </div>
+          ))}
+
+          {/* Honest empty state — no always-empty fake list; offer a real path. */}
+          {!isApiMockMode && !ordersLoading && recentOrders.length === 0 && (
+            <div style={{ padding: "24px 20px", textAlign: "center" }}>
+              <div style={{ fontSize: 13, color: "#8A93A5", marginBottom: 12 }}>
+                No recent deliveries on this connection yet.
+              </div>
+              <button
+                onClick={() => { onClose(); router.push("/inbox"); }}
+                style={{
+                  borderRadius: 7,
+                  padding: "7px 14px",
+                  fontSize: 12.5,
+                  fontWeight: 600,
+                  background: "#FFFFFF",
+                  color: "#0F4FA8",
+                  border: "1px solid #E2E6EE",
+                  cursor: "pointer",
+                }}
+              >
+                Open inbox →
+              </button>
             </div>
           )}
 
@@ -413,6 +569,12 @@ export function LaneDrawer({ lane, onClose }: LaneDrawerProps) {
             View all deliveries →
           </button>
           <button
+            onClick={() => {
+              onClose();
+              // Deep-link to the resolved supplier when we have its id; otherwise
+              // fall back to the suppliers list so the button is never a no-op.
+              router.push(supplierId ? `/library/suppliers/${supplierId}` : "/library/suppliers");
+            }}
             style={{
               borderRadius: 7,
               padding: "9px 14px",
