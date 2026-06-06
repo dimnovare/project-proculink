@@ -530,6 +530,11 @@ export function MagicMappingPreview({ orderId, onCommitted, onParseFailed }: Pro
   const unresolved = unresolvedCount();
   const suggestable = suggestableCount();
 
+  // While the Worker is still parsing the uploaded file the preview legitimately
+  // has 0 lines yet — show an honest in-progress state (the 1.5s poll above keeps
+  // refetching until parsing finishes) instead of the alarming "no lines / upload
+  // a corrected file" empty state. Checked regardless of line count and BEFORE the
+  // empty-state branch so a normal in-progress parse never flashes the false error.
   if (preview.orderStatus === "parsing") {
     return (
       <div
@@ -538,9 +543,8 @@ export function MagicMappingPreview({ orderId, onCommitted, onParseFailed }: Pro
           display: "flex",
           flexDirection: "column",
           alignItems: "center",
-          gap: 16,
-          color: "#56627A",
-          fontSize: 13,
+          gap: 14,
+          textAlign: "center",
           background: "#FFFFFF",
           border: "1px solid #E2E6EE",
           borderRadius: 8,
@@ -557,12 +561,22 @@ export function MagicMappingPreview({ orderId, onCommitted, onParseFailed }: Pro
             </linearGradient>
           </defs>
         </svg>
-        Parsing source file...
+        <p style={{ fontSize: 13.5, color: "#0B1A2F", fontWeight: 600, margin: 0 }}>
+          Parsing your order…
+        </p>
+        <p style={{ fontSize: 12, color: "#56627A", maxWidth: 340, margin: 0, lineHeight: 1.45 }}>
+          We&apos;re reading your file and extracting its order lines. This usually takes a
+          few seconds — the mapping preview will appear automatically when it&apos;s ready.
+        </p>
       </div>
     );
   }
 
-  if (totalLines === 0) {
+  // Genuine empty state — only when parsing is FINISHED (not parsing, not failed)
+  // and there are still no lines. `failed` is routed away by the onParseFailed
+  // effect above; we also exclude it here so the misleading "upload a corrected
+  // file" copy can never flash if the parent keeps this mounted during a failure.
+  if (totalLines === 0 && preview.orderStatus !== "failed") {
     return (
       <div
         style={{
