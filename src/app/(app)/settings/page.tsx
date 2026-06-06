@@ -177,7 +177,7 @@ export default function SettingsPage() {
 
 // ── Settings group card — canonical section framing ────────────────────────
 
-function SettingsGroup({ title, sub, children }: { title: string; sub?: string; children: ReactNode }) {
+export function SettingsGroup({ title, sub, children }: { title: string; sub?: string; children: ReactNode }) {
   return (
     <div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "var(--radius-md)", padding: 0, marginBottom: 16, overflow: "hidden", boxShadow: "var(--shadow-card)" }}>
       <div style={{ padding: "14px 18px", borderBottom: "1px solid var(--border)" }}>
@@ -385,21 +385,49 @@ function OrderDirectionSetting() {
     mutation.mutate(direction);
   }
 
+  // Roving-tabindex + arrow-key navigation so the radiogroup is keyboard
+  // operable like a native radio group: only the checked option is tabbable,
+  // and Arrow keys move (and select) between options.
+  function handleKeyDown(event: React.KeyboardEvent<HTMLDivElement>) {
+    if (isLoading || mutation.isPending) return;
+    const keys = ["ArrowDown", "ArrowRight", "ArrowUp", "ArrowLeft"];
+    if (!keys.includes(event.key)) return;
+    event.preventDefault();
+    const currentIndex = DIRECTION_OPTIONS.findIndex((o) => o.value === current);
+    const forward = event.key === "ArrowDown" || event.key === "ArrowRight";
+    const nextIndex =
+      (currentIndex + (forward ? 1 : -1) + DIRECTION_OPTIONS.length) % DIRECTION_OPTIONS.length;
+    const next = DIRECTION_OPTIONS[nextIndex];
+    choose(next.value);
+    // Move focus to the newly selected radio (which becomes the tabbable one).
+    requestAnimationFrame(() => {
+      const el = document.getElementById(`direction-radio-${next.value}`);
+      el?.focus();
+    });
+  }
+
   return (
     <SettingsGroup
       title="How do you use ProcuLink?"
       sub="This sets how parties are labelled across your inbox, dashboard, and suppliers."
     >
-      <div role="radiogroup" aria-label="How do you use ProcuLink?" style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+      <div
+        role="radiogroup"
+        aria-label="How do you use ProcuLink?"
+        onKeyDown={handleKeyDown}
+        style={{ display: "flex", flexDirection: "column", gap: 10 }}
+      >
         {DIRECTION_OPTIONS.map((opt) => {
           const selected = current === opt.value;
           const pending = mutation.isPending && mutation.variables === opt.value;
           return (
             <button
               key={opt.value}
+              id={`direction-radio-${opt.value}`}
               type="button"
               role="radio"
               aria-checked={selected}
+              tabIndex={selected ? 0 : -1}
               disabled={isLoading || mutation.isPending}
               onClick={() => choose(opt.value)}
               style={{
@@ -446,7 +474,7 @@ function OrderDirectionSetting() {
 }
 
 // Shared primary CTA — brand green (matches design "Save changes" / primary actions)
-const primaryGreenButton: CSSProperties = {
+export const primaryGreenButton: CSSProperties = {
   height: 38,
   padding: "0 18px",
   borderRadius: 8,
@@ -1405,9 +1433,17 @@ function ConnectorsSection() {
         {!isLoading && !isError && subs.length === 0 && !showForm && (
           <div style={{ border: "1px dashed #C6CDDA", borderRadius: 8, padding: "36px 20px", textAlign: "center" }}>
             <p style={{ fontSize: 13, fontWeight: 600, color: "#56627A" }}>No webhooks yet</p>
-            <p style={{ fontSize: 12, color: "#8A93A5", marginTop: 4 }}>
-              Add a webhook above, or connect via Zapier or Make.com.
+            <p style={{ fontSize: 12, color: "#8A93A5", marginTop: 4, maxWidth: 420, marginLeft: "auto", marginRight: "auto", lineHeight: 1.5 }}>
+              Add a webhook to receive real-time order events at any URL — your own backend, or a Zapier/Make.com
+              webhook step.
             </p>
+            <button
+              onClick={() => setShowForm(true)}
+              style={{ ...primaryGreenButton, marginTop: 14 }}
+            >
+              <Plus size={14} strokeWidth={2} />
+              Add webhook
+            </button>
           </div>
         )}
 
