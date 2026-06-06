@@ -1510,7 +1510,7 @@ export function SpineReview({ orderId }: { orderId: string }) {
     // banner fires. Stops polling once the order reaches a terminal state.
     refetchInterval: (query) => {
       const s = query.state.data?.status;
-      return s === "parsing" || s === "transforming" || s === "delivering" ? 3_000 : false;
+      return s === "parsing" || s === "transforming" || s === "ready_to_deliver" ? 3_000 : false;
     },
   });
 
