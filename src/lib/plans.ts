@@ -204,16 +204,17 @@ export const PLANS: Plan[] = [
       "Priority onboarding",
       "Founder-led supplier setup",
     ],
-    // Distributor is the ICP tier (Baltic IT distributors / resellers), so it IS
-    // shown on /pricing. Contact-sales (manual onboarding) until a Stripe
-    // Distributor product/price exists — see the DistributorPriceId TODO.
-    cta: { label: "Contact sales", href: SALES },
+    // Distributor is the ICP tier (Baltic IT distributors / resellers): shown on
+    // /pricing AND self-serve. The Stripe Distributor product + monthly/yearly
+    // prices exist (Stripe:DistributorPriceId is set in Railway and verified
+    // active), and the backend checkout maps `distributor` -> that price, so it is
+    // purchasable through self-serve Checkout like the other paid tiers. The
+    // founder-led supplier onboarding fee (see SETUP_FEE_NOTE) is arranged
+    // manually, separate from the self-serve subscription.
+    cta: { label: "Upgrade to Distributor", href: SIGN_UP },
     color: "#0E7490",
     highlight: false,
-    // Not self-serve yet: no Stripe Distributor product/price exists, so keep
-    // checkout off (avoids a broken Checkout). Flip isCheckout=true + a checkout
-    // CTA once the Stripe Distributor product is created.
-    isCheckout: false,
+    isCheckout: true,
     isCustom: false,
     next: null,
     hidden: false,
