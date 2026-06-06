@@ -1558,6 +1558,118 @@ export async function createPortalSession(): Promise<string> {
   return data.url as string;
 }
 
+// ── Platform admin (owner area) ───────────────────────────────────────────
+// All endpoints sit under /api/admin behind a SERVER-SIDE platform-admin gate:
+//   401 → unauthenticated, 403 → authenticated but not on the admin allowlist.
+// The allowlist (Admin__UserIds / Admin__Emails) is server-side only — the
+// frontend can never see it, so a 403 is the canonical "you are not an admin"
+// signal. AdminAccessError carries the distinction so the page can render a
+// clean "no access" view (403) vs prompting sign-in (401) instead of a generic
+// "something broke" banner.
+
+/** Thrown when an /api/admin call is refused — 401 (signed out) or 403 (not an admin). */
+export class AdminAccessError extends Error {
+  status: 401 | 403;
+  constructor(status: 401 | 403) {
+    super(status === 401 ? "Not authenticated" : "Not authorized for the admin area");
+    this.name = "AdminAccessError";
+    this.status = status;
+  }
+}
+
+export interface AdminOverview {
+  /** Monthly recurring revenue in EUR, sourced from the DB account/plan ladder. */
+  mrr: number;
+  /** Annualised recurring revenue in EUR (mrr * 12). */
+  arr: number;
+  /** MRR as Stripe reports it, or null when Stripe MRR couldn't be sourced. */
+  stripeMrr: number | null;
+  /** True when the DB MRR reconciles with Stripe MRR. */
+  reconciled: boolean;
+  /** Raw account-status → count map (trialing | active | trial_expired | past_due | read_only | cancelled). */
+  countsByAccountStatus: Record<string, number>;
+  newOrgsThisMonth: number;
+  /** Trial→paid conversion as a 0..1 fraction. */
+  trialToPaidConversion: number;
+}
+
+export interface AdminOrganisation {
+  id: string;
+  name: string;
+  slug: string;
+  plan: string;
+  accountStatus: string;
+  stripeCustomerId: string | null;
+  stripeSubscriptionId: string | null;
+  /** This org's contribution to MRR in EUR. */
+  mrrContribution: number;
+  createdAt: string;
+  lastOrderActivity: string | null;
+  orderVolume30d: number;
+  supplierCount: number;
+}
+
+export interface CreateAdminInvoiceLineItem {
+  description: string;
+  /** PER-UNIT amount in cents (>0). */
+  amountCents: number;
+  /** Defaults to 1 on the backend when omitted. */
+  quantity?: number;
+}
+
+export interface CreateAdminInvoiceRequest {
+  organisationId: string;
+  lineItems: CreateAdminInvoiceLineItem[];
+  /** ISO-4217 lowercase; defaults to "eur" on the backend. */
+  currency?: string;
+}
+
+export interface CreateAdminInvoiceResult {
+  invoiceId: string;
+  hostedInvoiceUrl: string | null;
+  status: string;
+}
+
+/** Read an /api/admin error body and re-throw as AdminAccessError (401/403) or a message-bearing Error. */
+async function adminError(res: Response, label: string): Promise<never> {
+  if (res.status === 401 || res.status === 403) {
+    throw new AdminAccessError(res.status);
+  }
+  const body = await res.json().catch(() => null);
+  const message =
+    body && typeof body === "object" && "error" in body
+      ? String((body as { error?: unknown }).error)
+      : res.statusText;
+  throw new ApiHttpError(`${label}: ${message || res.status}`, res.status, body);
+}
+
+export async function getAdminOverview(): Promise<AdminOverview> {
+  const headers = await authHeader();
+  const res = await fetchWithTimeout(`${API_BASE_URL}/api/admin/overview`, { headers });
+  if (!res.ok) return adminError(res, "admin/overview");
+  return res.json() as Promise<AdminOverview>;
+}
+
+export async function getAdminOrganisations(): Promise<AdminOrganisation[]> {
+  const headers = await authHeader();
+  const res = await fetchWithTimeout(`${API_BASE_URL}/api/admin/organisations`, { headers });
+  if (!res.ok) return adminError(res, "admin/organisations");
+  return res.json() as Promise<AdminOrganisation[]>;
+}
+
+export async function createAdminInvoice(
+  req: CreateAdminInvoiceRequest,
+): Promise<CreateAdminInvoiceResult> {
+  const headers = await authHeader();
+  const res = await fetchWithTimeout(`${API_BASE_URL}/api/admin/invoices`, {
+    method: "POST",
+    headers: { ...headers, "Content-Type": "application/json" },
+    body: JSON.stringify(req),
+  }, 30000);
+  if (!res.ok) return adminError(res, "admin/invoices");
+  return res.json() as Promise<CreateAdminInvoiceResult>;
+}
+
 // ── Email polling settings ────────────────────────────────────────────────
 
 export async function getEmailSettings(): Promise<EmailSettings> {
