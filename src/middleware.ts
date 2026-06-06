@@ -9,6 +9,9 @@ const isProtectedRoute = createRouteMatcher([
   "/library(.*)",
   "/operations(.*)",
   "/settings(.*)",
+  // /admin requires sign-in at the edge; the real admin allowlist is enforced
+  // server-side by /api/admin (403 for non-admins), surfaced as a clean page.
+  "/admin(.*)",
 ]);
 
 const isClerkConfigured =

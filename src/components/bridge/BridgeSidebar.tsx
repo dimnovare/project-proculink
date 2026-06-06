@@ -9,7 +9,7 @@ import {
   Layers, Upload, Inbox, Truck, Building2, GitBranch,
   ShieldCheck, FileCode, BookOpen, FileText, Package, ScrollText,
   Plug, Webhook, Settings, ChevronsLeft, ChevronsRight, ChevronDown, ExternalLink,
-  Files, HelpCircle, X,
+  Files, HelpCircle, X, ShieldHalf,
   type LucideIcon,
 } from "lucide-react";
 import { apiClient, getBillingStatus, isApiMockMode } from "@/lib/api-client";
@@ -59,6 +59,9 @@ const NAV: Array<{ group?: string; items: NavItem[] }> = [
   },
   {
     items: [
+      // Admin is always rendered. The /admin page itself refuses non-admins
+      // (the backend allowlist returns 403), so showing the link leaks nothing.
+      { label: "Admin", href: "/admin", icon: ShieldHalf },
       { label: "Help", href: "/help", icon: HelpCircle },
       { label: "Settings", href: "/settings", icon: Settings },
     ],
