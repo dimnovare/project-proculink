@@ -1,9 +1,11 @@
 "use client";
 
 import { useEffect, useState, type ReactNode } from "react";
+import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   apiClient,
+  getBillingStatus,
   getSftpSettings,
   updateSftpSettings,
   getS3Settings,
@@ -14,8 +16,9 @@ const INK = "#0B1A2F";
 const MUTED = "#56627A";
 const FAINT = "#8A93A5";
 const LINE = "#E2E6EE";
-const GREEN = "#2E8E3A";
 const DANGER = "#A52E2E";
+
+const PLAN_HINT = "Available on any paid plan. Secrets are encrypted and never shown again.";
 
 const inputStyle: React.CSSProperties = {
   height: 36,
@@ -28,42 +31,114 @@ const inputStyle: React.CSSProperties = {
   outline: "none",
 };
 
-function Field({ label, children }: { label: string; children: ReactNode }) {
+// Maps the backend's machine error codes (and any other failure) to a plain
+// sentence so customers never see a raw `sftp_ingestion_requires_*` token.
+function humanizeError(message: string): string {
+  const code = message.trim().toLowerCase();
+  if (code.includes("ingestion_requires")) {
+    return "Automated pull ingestion is included on every paid plan. Upgrade from Pilot to enable it.";
+  }
+  if (code.includes("default supplier")) {
+    return "Choose a default supplier before enabling this source.";
+  }
+  if (/host is required/i.test(message)) return "Enter the SFTP host before saving.";
+  if (/username is required/i.test(message)) return "Enter a username before saving.";
+  if (/bucket/i.test(message) && /required/i.test(message)) return "Enter a bucket name before saving.";
+  if (/access key/i.test(message) && /required/i.test(message)) return "Enter the access key ID before saving.";
+  return message || "Could not save settings. Please try again.";
+}
+
+function Field({ label, required, children }: { label: string; required?: boolean; children: ReactNode }) {
   return (
     <label className="grid gap-1">
-      <span className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: FAINT }}>{label}</span>
+      <span className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: FAINT }}>
+        {label}
+        {required && <span style={{ color: DANGER, marginLeft: 3 }} aria-hidden>*</span>}
+      </span>
       {children}
     </label>
   );
 }
 
-function Toggle({ checked, onChange, label }: { checked: boolean; onChange: (v: boolean) => void; label: string }) {
+function Toggle({
+  checked,
+  disabled,
+  onChange,
+  label,
+}: {
+  checked: boolean;
+  disabled?: boolean;
+  onChange: (v: boolean) => void;
+  label: string;
+}) {
   return (
-    <label className="flex items-center gap-2 text-[13px] font-medium" style={{ color: INK }}>
-      <input type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} />
+    <label
+      className="flex items-center gap-2 text-[13px] font-medium"
+      style={{ color: disabled ? FAINT : INK, cursor: disabled ? "not-allowed" : "pointer" }}
+    >
+      <input
+        type="checkbox"
+        checked={checked}
+        disabled={disabled}
+        onChange={(e) => onChange(e.target.checked)}
+      />
       {label}
     </label>
   );
 }
 
 function useSuppliers() {
-  return useQuery({ queryKey: ["suppliers"], queryFn: () => apiClient.getSuppliers() });
+  return useQuery({ queryKey: ["suppliers"], queryFn: () => apiClient.getSuppliers(), retry: false });
 }
 
-function SupplierSelect({ value, onChange }: { value: string | null; onChange: (v: string | null) => void }) {
-  const { data: suppliers } = useSuppliers();
+function useBilling() {
+  return useQuery({ queryKey: ["billing-status"], queryFn: getBillingStatus, staleTime: 60_000, retry: false });
+}
+
+// Default supplier picker. When the org has no suppliers it dead-ends a new
+// org (backend rejects enable with "Default supplier is required."), so we
+// surface a "no suppliers yet" empty state linking to the suppliers page.
+function SupplierSelect({
+  value,
+  onChange,
+}: {
+  value: string | null;
+  onChange: (v: string | null) => void;
+}) {
+  const { data: suppliers, isLoading } = useSuppliers();
+  const list = suppliers ?? [];
+
+  if (!isLoading && list.length === 0) {
+    return (
+      <Field label="Default supplier" required>
+        <div
+          className="rounded-[6px] px-3 py-2.5 text-[12.5px]"
+          style={{ border: `1px dashed #C6CDDA`, background: "#F8FAFC", color: MUTED, lineHeight: 1.5 }}
+        >
+          No suppliers yet — orders need a supplier to attribute to.{" "}
+          <Link href="/library/suppliers" style={{ color: "var(--brand-green-deep, #1B6E2A)", fontWeight: 600 }}>
+            Add a supplier first →
+          </Link>
+        </div>
+      </Field>
+    );
+  }
+
   return (
-    <Field label="Default supplier (orders from this source are attributed to it)">
+    <Field label="Default supplier" required>
       <select
         value={value ?? ""}
         onChange={(e) => onChange(e.target.value || null)}
         style={{ ...inputStyle, background: "#FFF" }}
       >
         <option value="">Select a supplier…</option>
-        {(suppliers ?? []).map((s) => (
+        {list.map((s) => (
           <option key={s.id} value={s.id}>{s.name}</option>
         ))}
       </select>
+      <span style={{ fontSize: 11, color: FAINT, marginTop: 2 }}>
+        Orders from this source are attributed to this supplier.
+      </span>
     </Field>
   );
 }
@@ -84,23 +159,56 @@ function Notice({ msg }: { msg: { kind: "ok" | "err"; text: string } | null }) {
   if (!msg) return null;
   const ok = msg.kind === "ok";
   return (
-    <div className="rounded-[6px] px-3 py-2 text-[12.5px]" style={{
-      background: ok ? "#ECFDF3" : "#FCEBEB",
-      border: `1px solid ${ok ? "#A6E9BE" : "#F5C5C5"}`,
-      color: ok ? "#1DAF50" : DANGER,
-    }}>{msg.text}</div>
+    <div
+      role="status"
+      className="rounded-[6px] px-3 py-2 text-[12.5px]"
+      style={{
+        background: ok ? "#ECFDF3" : "#FCEBEB",
+        border: `1px solid ${ok ? "#A6E9BE" : "#F5C5C5"}`,
+        color: ok ? "#1DAF50" : DANGER,
+      }}
+    >
+      {msg.text}
+    </div>
   );
 }
 
-function SaveBar({ onSave, saving, hint }: { onSave: () => void; saving: boolean; hint: string }) {
+// Amber upgrade notice mirroring the Email section's proactive gate.
+function UpgradeNotice({ label }: { label: string }) {
   return (
-    <div className="flex items-center justify-between gap-3 pt-1">
+    <div
+      className="rounded-[8px] px-3.5 py-3 text-[12.5px]"
+      style={{ border: "1px solid #F0D39A", background: "#FFF8EA", color: "#7A4D0B", lineHeight: 1.5 }}
+    >
+      {label} ingestion is included from any paid plan. You can prepare the configuration here,
+      but enabling polling requires upgrading from Pilot.
+    </div>
+  );
+}
+
+function SaveBar({
+  onSave,
+  saving,
+  hint,
+}: {
+  onSave: () => void;
+  saving: boolean;
+  hint: string;
+}) {
+  return (
+    <div className="flex flex-col gap-2 pt-1 sm:flex-row sm:items-center sm:justify-between">
       <span className="text-[11px]" style={{ color: FAINT }}>{hint}</span>
       <button
         onClick={onSave}
         disabled={saving}
-        className="rounded-[7px] px-3.5 text-[12.5px] font-semibold"
-        style={{ height: 36, border: "none", background: saving ? FAINT : INK, color: "#FFF", cursor: "pointer" }}
+        className="rounded-[8px] px-4 text-[13px] font-semibold"
+        style={{
+          height: 38,
+          border: "none",
+          background: saving ? FAINT : "var(--brand-green, #2E8E3A)",
+          color: "#FFF",
+          cursor: saving ? "not-allowed" : "pointer",
+        }}
       >
         {saving ? "Saving…" : "Save"}
       </button>
@@ -108,13 +216,73 @@ function SaveBar({ onSave, saving, hint }: { onSave: () => void; saving: boolean
   );
 }
 
-const PLAN_HINT = "Available on the Integration plan and up. Secrets are encrypted and never shown again.";
+// Shared loading skeleton for the SFTP/S3 GET.
+function LoadingShell({ title, subtitle }: { title: string; subtitle: string }) {
+  return (
+    <Shell title={title} subtitle={subtitle}>
+      <div role="status" aria-busy="true" className="grid gap-3">
+        <span className="sr-only">Loading…</span>
+        <div style={{ height: 16, width: 170, borderRadius: 4, background: "#E2E6EE" }} />
+        <div style={{ height: 36, borderRadius: 6, background: "#EFF2F7" }} />
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div style={{ height: 36, borderRadius: 6, background: "#EFF2F7" }} />
+          <div style={{ height: 36, borderRadius: 6, background: "#EFF2F7" }} />
+        </div>
+        <div style={{ height: 36, borderRadius: 6, background: "#EFF2F7" }} />
+      </div>
+    </Shell>
+  );
+}
+
+// Shared API-unavailable panel for the SFTP/S3 GET.
+function ErrorShell({
+  title,
+  onRetry,
+  retrying,
+}: {
+  title: string;
+  onRetry: () => void;
+  retrying: boolean;
+}) {
+  return (
+    <div
+      className="rounded-[10px] px-5 py-5"
+      style={{ border: "1px solid #F0D2D2", borderLeft: "3px solid #C53A3A", background: "#FFF" }}
+    >
+      <h3 className="text-[14px] font-semibold" style={{ color: INK }}>{title} settings are unavailable</h3>
+      <p className="mt-1 max-w-[520px] text-[12.5px]" style={{ color: MUTED, lineHeight: 1.55 }}>
+        The UI is working, but the API did not answer the settings request. Your saved configuration is unaffected.
+      </p>
+      <button
+        onClick={onRetry}
+        disabled={retrying}
+        className="mt-3.5 rounded-[6px] px-3 text-[12px] font-semibold"
+        style={{ height: 32, border: "1px solid #E2E6EE", background: "#FFF", color: INK, cursor: retrying ? "not-allowed" : "pointer" }}
+      >
+        {retrying ? "Checking…" : "Retry connection"}
+      </button>
+    </div>
+  );
+}
 
 // ── SFTP pull ─────────────────────────────────────────────────────────────────
 
 export function SftpPullSettings() {
   const qc = useQueryClient();
-  const { data } = useQuery({ queryKey: ["sftp-settings"], queryFn: getSftpSettings, staleTime: 30_000 });
+  const { data, isLoading, isError, refetch, isFetching } = useQuery({
+    queryKey: ["sftp-settings"],
+    queryFn: getSftpSettings,
+    staleTime: 30_000,
+    retry: false,
+  });
+  const { data: billing } = useBilling();
+  const { data: suppliers, isLoading: suppliersLoading } = useSuppliers();
+
+  // Pilot is the only tier without pull ingestion (decoupled to all paid plans).
+  const canEnable = !!billing && billing.plan !== "pilot";
+  // Block enabling only once we know the org genuinely has zero suppliers
+  // (not while the list is still loading, to avoid disabling a working toggle).
+  const noSuppliers = !suppliersLoading && (suppliers ?? []).length === 0;
 
   const [enabled, setEnabled] = useState(false);
   const [host, setHost] = useState("");
@@ -143,24 +311,48 @@ export function SftpPullSettings() {
       setPassword("");
       setNotice({ kind: "ok", text: "SFTP pull settings saved." });
     },
-    onError: (e: Error) => setNotice({ kind: "err", text: e.message }),
+    onError: (e: Error) => setNotice({ kind: "err", text: humanizeError(e.message) }),
   });
 
+  function handleSave() {
+    setNotice(null);
+    // Client-side validation mirroring the backend so users get an inline
+    // message instead of a 400 round-trip.
+    if (enabled) {
+      if (!host.trim()) { setNotice({ kind: "err", text: "Enter the SFTP host before enabling." }); return; }
+      if (!username.trim()) { setNotice({ kind: "err", text: "Enter a username before enabling." }); return; }
+      if (!defaultSupplierId) { setNotice({ kind: "err", text: "Choose a default supplier before enabling." }); return; }
+    }
+    save.mutate();
+  }
+
+  const title = "SFTP pull";
+  const subtitle = "Poll a supplier/buyer SFTP folder for order files every few minutes and import them automatically.";
+
+  if (isLoading) return <LoadingShell title={title} subtitle={subtitle} />;
+  if (isError) return <ErrorShell title={title} onRetry={() => refetch()} retrying={isFetching} />;
+
   return (
-    <Shell title="SFTP pull" subtitle="Poll a supplier/buyer SFTP folder for order files every few minutes and import them automatically.">
-      <Toggle checked={enabled} onChange={setEnabled} label="Poll this SFTP folder for orders" />
+    <Shell title={title} subtitle={subtitle}>
+      {!canEnable && <UpgradeNotice label="SFTP" />}
+      <Toggle
+        checked={enabled}
+        disabled={(!canEnable && !enabled) || (noSuppliers && !enabled)}
+        onChange={setEnabled}
+        label="Poll this SFTP folder for orders"
+      />
       <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_120px]">
-        <Field label="Host"><input value={host} onChange={(e) => setHost(e.target.value)} placeholder="sftp.supplier.example" style={inputStyle} /></Field>
+        <Field label="Host" required><input value={host} onChange={(e) => setHost(e.target.value)} placeholder="sftp.supplier.example" style={inputStyle} /></Field>
         <Field label="Port"><input type="number" value={port} onChange={(e) => setPort(Number(e.target.value) || 22)} style={inputStyle} /></Field>
       </div>
       <div className="grid gap-4 sm:grid-cols-2">
-        <Field label="Username"><input value={username} onChange={(e) => setUsername(e.target.value)} style={inputStyle} /></Field>
+        <Field label="Username" required><input value={username} onChange={(e) => setUsername(e.target.value)} style={inputStyle} /></Field>
         <Field label="Password"><input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder={data?.hasPassword ? "•••••••• (leave blank to keep)" : "Password"} style={inputStyle} /></Field>
       </div>
       <Field label="Remote directory"><input value={remoteDirectory} onChange={(e) => setRemoteDirectory(e.target.value)} placeholder="/incoming/orders" style={inputStyle} /></Field>
       <SupplierSelect value={defaultSupplierId} onChange={setDefaultSupplierId} />
       <Notice msg={notice} />
-      <SaveBar onSave={() => { setNotice(null); save.mutate(); }} saving={save.isPending} hint={PLAN_HINT} />
+      <SaveBar onSave={handleSave} saving={save.isPending} hint={PLAN_HINT} />
     </Shell>
   );
 }
@@ -169,7 +361,17 @@ export function SftpPullSettings() {
 
 export function S3PullSettings() {
   const qc = useQueryClient();
-  const { data } = useQuery({ queryKey: ["s3-settings"], queryFn: getS3Settings, staleTime: 30_000 });
+  const { data, isLoading, isError, refetch, isFetching } = useQuery({
+    queryKey: ["s3-settings"],
+    queryFn: getS3Settings,
+    staleTime: 30_000,
+    retry: false,
+  });
+  const { data: billing } = useBilling();
+  const { data: suppliers, isLoading: suppliersLoading } = useSuppliers();
+
+  const canEnable = !!billing && billing.plan !== "pilot";
+  const noSuppliers = !suppliersLoading && (suppliers ?? []).length === 0;
 
   const [enabled, setEnabled] = useState(false);
   const [bucketName, setBucketName] = useState("");
@@ -200,25 +402,47 @@ export function S3PullSettings() {
       setSecretKey("");
       setNotice({ kind: "ok", text: "S3/R2 pull settings saved." });
     },
-    onError: (e: Error) => setNotice({ kind: "err", text: e.message }),
+    onError: (e: Error) => setNotice({ kind: "err", text: humanizeError(e.message) }),
   });
 
+  function handleSave() {
+    setNotice(null);
+    if (enabled) {
+      if (!bucketName.trim()) { setNotice({ kind: "err", text: "Enter a bucket name before enabling." }); return; }
+      if (!accessKeyId.trim()) { setNotice({ kind: "err", text: "Enter the access key ID before enabling." }); return; }
+      if (!defaultSupplierId) { setNotice({ kind: "err", text: "Choose a default supplier before enabling." }); return; }
+    }
+    save.mutate();
+  }
+
+  const title = "S3 / R2 pull";
+  const subtitle = "Watch an S3 or Cloudflare R2 bucket prefix for order files and import new objects automatically.";
+
+  if (isLoading) return <LoadingShell title={title} subtitle={subtitle} />;
+  if (isError) return <ErrorShell title={title} onRetry={() => refetch()} retrying={isFetching} />;
+
   return (
-    <Shell title="S3 / R2 pull" subtitle="Watch an S3 or Cloudflare R2 bucket prefix for order files and import new objects automatically.">
-      <Toggle checked={enabled} onChange={setEnabled} label="Watch this bucket for orders" />
+    <Shell title={title} subtitle={subtitle}>
+      {!canEnable && <UpgradeNotice label="S3 / R2" />}
+      <Toggle
+        checked={enabled}
+        disabled={(!canEnable && !enabled) || (noSuppliers && !enabled)}
+        onChange={setEnabled}
+        label="Watch this bucket for orders"
+      />
       <div className="grid gap-4 sm:grid-cols-2">
-        <Field label="Bucket name"><input value={bucketName} onChange={(e) => setBucketName(e.target.value)} placeholder="orders-inbound" style={inputStyle} /></Field>
+        <Field label="Bucket name" required><input value={bucketName} onChange={(e) => setBucketName(e.target.value)} placeholder="orders-inbound" style={inputStyle} /></Field>
         <Field label="Key prefix (optional)"><input value={keyPrefix} onChange={(e) => setKeyPrefix(e.target.value)} placeholder="incoming/" style={inputStyle} /></Field>
       </div>
       <div className="grid gap-4 sm:grid-cols-2">
         <Field label="Region (use 'auto' for R2)"><input value={region} onChange={(e) => setRegion(e.target.value)} placeholder="eu-west-1" style={inputStyle} /></Field>
-        <Field label="Access key ID"><input value={accessKeyId} onChange={(e) => setAccessKeyId(e.target.value)} style={inputStyle} /></Field>
+        <Field label="Access key ID" required><input value={accessKeyId} onChange={(e) => setAccessKeyId(e.target.value)} style={inputStyle} /></Field>
       </div>
       <Field label="Endpoint URL (required for Cloudflare R2 / MinIO — leave blank for AWS S3)"><input value={serviceUrl} onChange={(e) => setServiceUrl(e.target.value)} placeholder="https://<account-id>.r2.cloudflarestorage.com" style={inputStyle} /></Field>
       <Field label="Secret access key"><input type="password" value={secretKey} onChange={(e) => setSecretKey(e.target.value)} placeholder={data?.hasSecretKey ? "•••••••• (leave blank to keep)" : "Secret access key"} style={inputStyle} /></Field>
       <SupplierSelect value={defaultSupplierId} onChange={setDefaultSupplierId} />
       <Notice msg={notice} />
-      <SaveBar onSave={() => { setNotice(null); save.mutate(); }} saving={save.isPending} hint={PLAN_HINT} />
+      <SaveBar onSave={handleSave} saving={save.isPending} hint={PLAN_HINT} />
     </Shell>
   );
 }

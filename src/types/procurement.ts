@@ -36,6 +36,13 @@ export type OrderDirection = "outbound" | "inbound";
 
 export interface OrgSettings {
   direction: OrderDirection;
+  /**
+   * Org slug used to build the inbound ingress endpoint
+   * (`{API_BASE}/api/ingress/<slug>/orders`). Optional because the backend
+   * org-settings response may not include it yet (older API / mid-rollout);
+   * the UI shows "generating…" when absent.
+   */
+  slug?: string;
 }
 
 export interface RenameSupplierPayload {

@@ -36,6 +36,12 @@ function normalizeApiBaseUrl(raw: string | undefined): string {
 }
 
 const API_BASE_URL = normalizeApiBaseUrl(process.env.NEXT_PUBLIC_API_BASE_URL);
+/**
+ * Normalised public API base (no trailing slash). Exported so UI that needs to
+ * display a backend URL — e.g. the inbound ingress endpoint on the Settings →
+ * API keys tab — reuses the same normalization instead of re-reading the env.
+ */
+export const apiBaseUrl = API_BASE_URL;
 // Mock mode is opt-in AND dev-only. Production builds NEVER render mock data
 // regardless of env var, so prospects/customers never see staged content.
 // (J2) Previously defaulted to true when env was absent, which leaked demo
@@ -1788,14 +1794,18 @@ function toApiDirection(direction: OrderDirection): "Outbound" | "Inbound" {
 export async function getOrgSettings(): Promise<OrgSettings> {
   // Mock mode has no backend/Clerk session — default to outbound so mock/e2e don't break.
   if (USE_MOCK) {
-    return { direction: "outbound" };
+    return { direction: "outbound", slug: "demo-workspace" };
   }
 
   const headers = await authHeader();
   const res = await fetchWithTimeout(`${API_BASE_URL}/api/settings/organisation`, { headers });
   if (!res.ok) throw new Error(`settings/organisation: ${res.status}`);
   const body = await res.json().catch(() => ({}));
-  return { direction: normalizeDirection((body as { direction?: unknown }).direction) };
+  const raw = body as { direction?: unknown; slug?: unknown };
+  // `slug` is added by the backend org-settings response; tolerate its absence
+  // (older API / mid-rollout) by leaving it undefined so the UI shows "generating…".
+  const slug = typeof raw.slug === "string" && raw.slug.trim() ? raw.slug.trim() : undefined;
+  return { direction: normalizeDirection(raw.direction), slug };
 }
 
 export async function updateOrgSettings(direction: OrderDirection): Promise<OrgSettings> {
@@ -1817,7 +1827,9 @@ export async function updateOrgSettings(direction: OrderDirection): Promise<OrgS
   }
 
   const body = await res.json().catch(() => ({}));
-  return { direction: normalizeDirection((body as { direction?: unknown }).direction) };
+  const raw = body as { direction?: unknown; slug?: unknown };
+  const slug = typeof raw.slug === "string" && raw.slug.trim() ? raw.slug.trim() : undefined;
+  return { direction: normalizeDirection(raw.direction), slug };
 }
 
 // ── SFTP / S3 pull-ingress settings ───────────────────────────────────────
