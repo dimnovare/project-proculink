@@ -29,15 +29,15 @@ const FEATURED_ID = "operations";
 
 // Small contextual line under each price (design's "+ one-time setup" /
 // "No card required" / "Annual contract" sub-line). Kept consistent with
-// SETUP_FEE_NOTE — no invented euro figure, since onboarding is per-supplier
-// and waived for design partners.
+// SETUP_FEE_NOTE — self-serve plans include light setup at no extra cost; the
+// per-supplier onboarding fee applies only to Enterprise / complex setups.
 const SETUP_NOTE: Record<string, string> = {
   pilot: "No card required",
-  growth: "No setup fee",
-  operations: "Founder-led setup",
-  integration: "Founder-led setup",
-  distributor: "Founder-led setup",
-  enterprise: "Annual contract",
+  growth: "Setup included",
+  operations: "Setup included",
+  integration: "Setup included",
+  distributor: "Setup included",
+  enterprise: "Custom onboarding",
 };
 
 const TIERS = PLANS.filter((p) => !p.hidden).map((p) => ({
@@ -103,8 +103,8 @@ export default function PricingPage() {
           <h1 className="plk-h1">Pay for orders processed, nothing else</h1>
 
           <p className="plk-sub">
-            Start with a proof-of-value Pilot. Setup fees are one-time and include hands-on
-            mapping help. No per-seat pricing, no integration project.
+            Start with a proof-of-value Pilot. Self-serve plans include light setup at no extra
+            cost. No per-seat pricing, no integration project.
           </p>
 
           {/* Billing cadence toggle — the design's .billing-toggle pill */}

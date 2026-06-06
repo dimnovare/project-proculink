@@ -542,9 +542,10 @@ export function ROICalculator() {
           Savings model assumes ProcuLink automates 70% of the manual reformatting and validation
           flow — a conservative figure based on pilot customer measurements. Your number will be
           higher if your current process involves multiple retypes or supplier-specific formats.
-          Plans are billed monthly. Supplier onboarding is arranged manually and is not auto-charged
-          (waived for early design partners). The Pilot tier is free for 14 days (20 orders) and does
-          not require a card.
+          Plans are billed monthly and include light, self-serve setup at no extra cost; hands-on
+          per-supplier onboarding applies only to Enterprise and other complex setups, is arranged
+          manually (never auto-charged), and is waived for early design partners. The Pilot tier is
+          free for 14 days (20 orders) and does not require a card.
         </p>
       </div>
     </section>

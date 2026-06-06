@@ -252,18 +252,61 @@ export interface BillingStatus {
   plan:                   BillingPlan;
   accountStatus:          string;
   ordersThisMonth:        number;
+  /** EFFECTIVE order limit = admin override ?? plan default. */
   orderLimit:             number;
   suppliersUsed:          number;
+  /** EFFECTIVE supplier limit = admin override ?? plan default. */
   supplierLimit:          number;
   trialStartedAt:         string | null;
   trialEndsAt:            string | null;
   isTrialExpired:         boolean;
   isOrderLimitReached:    boolean;
   isSupplierLimitReached: boolean;
+  /** TRUE for active paid plans even over the cap — paid orders are never blocked. */
   canProcessOrders:       boolean;
   canAddSupplier:         boolean;
   stripeCustomerId:       string | null;
   stripeSubscriptionId:   string | null;
+  // ── Overage (paid plans bill extra orders at €0.50 each; never blocked) ─────
+  /** Orders processed beyond the monthly cap this period (0 when within cap). */
+  overageOrders:          number;
+  /** EUR billed for those overage orders this period (overageOrders × €0.50). */
+  overageAmountEur:       number;
+  /** True at ≥80% of the order limit (gentle "approaching" heads-up). */
+  nearLimit:              boolean;
+  /** True at ≥100% of the order limit (over-cap overage messaging). */
+  atLimit:                boolean;
+}
+
+// ── Admin: per-org limit / pilot overrides ──────────────────────────────────
+// POST /api/admin/organisations/{id}/limits  (behind [AdminOnly]; 403 for non-admins).
+// Every override is independent and optional; the matching clear* flag resets a
+// field back to its plan default. extendTrialDays adds days to the current trial
+// end; trialEndsAtOverride sets an absolute end date (ISO 8601).
+
+export interface SetOrgLimitsRequest {
+  orderLimitOverride?:    number;
+  supplierLimitOverride?: number;
+  /** Absolute trial end (ISO 8601). */
+  trialEndsAtOverride?:   string;
+  /** Relative extension added to the current trial end. */
+  extendTrialDays?:       number;
+  clearOrderLimit?:       boolean;
+  clearSupplierLimit?:    boolean;
+  clearTrialEnds?:        boolean;
+}
+
+export interface OrgLimitsResponse {
+  id:                      string;
+  name:                    string;
+  plan:                    string;
+  accountStatus:           string;
+  orderLimitOverride?:     number | null;
+  supplierLimitOverride?:  number | null;
+  trialEndsAtOverride?:    string | null;
+  effectiveOrderLimit:     number;
+  effectiveSupplierLimit:  number;
+  effectiveTrialEndsAt?:   string | null;
 }
 
 // ── Email polling settings ────────────────────────────────────────────────
