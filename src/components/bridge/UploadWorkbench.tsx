@@ -906,15 +906,21 @@ export function UploadWorkbench() {
                 </Link>
               </div>
 
-              <div className="divide-y divide-[#F0F2F6] sm:hidden">
+              <div className="flex flex-col gap-2 p-3 sm:hidden">
                 {recentRows.map((row) => {
                   const pill = STATUS_PILL[row.status];
                   return (
                     <button
                       key={row.id}
                       onClick={() => openOrder(row.id)}
-                      className="block w-full px-4 py-3 text-left transition-colors"
-                      style={{ background: "transparent", border: "none" }}
+                      className="block w-full px-4 py-3.5 text-left transition-colors active:bg-[#F6F7FA]"
+                      style={{
+                        background: "var(--surface)",
+                        border: "1px solid var(--border)",
+                        borderRadius: "var(--radius-md)",
+                        boxShadow: "var(--shadow-card)",
+                        minHeight: 44,
+                      }}
                     >
                       <div className="mb-2 flex items-start justify-between gap-3">
                         <span

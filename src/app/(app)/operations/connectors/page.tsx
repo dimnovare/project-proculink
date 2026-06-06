@@ -157,9 +157,18 @@ function ConnectorCard({
           borderTop: "1px solid var(--border,#E2E6EE)",
         }}
       >
-        <span style={{ fontSize: 11.5, color: "var(--ink-faint,#8A93A5)" }}>
-          {connector.docks > 0 ? `${connector.docks} supplier${connector.docks > 1 ? "s" : ""}` : "Not in use"}
-        </span>
+        {/* offer⇔works: only show a usage count when it's a REAL number.
+            docks === -1 means "unknown" (live mode — the supplier list endpoint
+            carries no per-connector usage signal), so we render nothing rather
+            than a misleading "Not in use" / "0". A spacer keeps the action
+            button right-aligned. */}
+        {connector.docks >= 0 ? (
+          <span style={{ fontSize: 11.5, color: "var(--ink-faint,#8A93A5)" }}>
+            {connector.docks > 0 ? `${connector.docks} supplier${connector.docks > 1 ? "s" : ""}` : "Not in use"}
+          </span>
+        ) : (
+          <span />
+        )}
         {connected ? (
           <button
             className="connector-action btn-ghost"
@@ -219,20 +228,37 @@ export default function ConnectorsPage() {
     staleTime: 30_000,
   });
 
-  // Derive connector rows: mock data (isApiMockMode) or real suppliers
+  // Derive connector rows: mock data (isApiMockMode) or real suppliers.
+  //
+  // offer⇔works: GET /api/suppliers returns ONLY { id, name } — it carries NO
+  // delivery-config signal (protocol / hasDeliveryConfig). Delivery config
+  // presence is only knowable via a PER-SUPPLIER GET /api/suppliers/{id}/delivery-config,
+  // which is too expensive to fan out across a list. So we must NOT claim each
+  // supplier is "connected" (the old hardcoded status:"connected" overstated the
+  // count: 10 suppliers with 0 configs read "10 connected"). Until the list
+  // endpoint exposes a delivery-config field, every live row is the truthful
+  // neutral "available" (needs setup), and `docks` (real per-connector usage
+  // count) is not derivable, so the "N suppliers / Not in use" footer line is
+  // omitted entirely (docks:0 always read a wrong "Not in use").
   const connectors: Connector[] = isApiMockMode
     ? MOCK_CONNECTORS
     : (suppliersRaw ?? []).map((s) => ({
         id: s.id,
         type: "API (REST)",
         name: s.name,
-        status: "connected",
+        status: "available",
         desc: "Supplier delivery endpoint",
-        docks: 0,
+        docks: -1, // -1 = usage count unknown → hide the footer usage line (live mode)
         direction: "out",
       }));
 
-  const connectedCount = connectors.filter((c) => isConnected(c.status)).length;
+  // Mock mode reports its hardcoded "connected" rows; live mode has no
+  // delivery-config signal in the list payload, so we report 0 rather than a
+  // fabricated count. (Becomes a real count once the list endpoint exposes
+  // delivery-config presence — see summary follow-up.)
+  const connectedCount = isApiMockMode
+    ? connectors.filter((c) => isConnected(c.status)).length
+    : 0;
 
   const handleManage = (c: Connector) => {
     setNotice(null);

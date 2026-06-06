@@ -56,17 +56,30 @@ const INK        = NAVY;      // alias kept for existing references
 // STATUS column → soft pill via the ported .pill / .pill-* classes (leading dot +
 // full semantic label). PIPELINE column → standalone 5-node .journey.compact track.
 // `key` maps each CrossingStatus onto its globals.css .pill-* / status class.
+// NOTE: this is the single source of truth for order-status DISPLAY LABELS in the
+// inbox. It should later consolidate into the shared map in
+// src/components/ui/status-badge.tsx (STATUS_MAP), which keys on raw backend
+// OrderStatus rather than the collapsed CrossingStatus used here — keep the label
+// vocabulary in sync until then.
+//   - `ready`      → "Normalized": parsed/normalized but NOT yet transformed
+//                    (Parse→Normalize→Validate→[Transform]→Deliver, stage 3).
+//                    Deliberately NOT "Ready"/"Ready to send" so a row badge can't be
+//                    misread next to the "Ready to send" chip (which counts the
+//                    post-transform `ready_to_deliver` status only).
+//   - `delivering` → carries the post-transform backend `ready_to_deliver` status
+//                    (see mapStatus) and is labelled "Ready to send" — identical
+//                    vocabulary to the "Ready to send" chip, so badge and chip agree.
 const STATUS_PRESENTATION: Record<
   CrossingStatus,
   { key: string; label: string; stage: OrderStage }
 > = {
-  new:        { key: "new",        label: "New",          stage: 0 },
-  extracting: { key: "extracting", label: "Extracting",   stage: 1 },
-  review:     { key: "review",     label: "Needs review", stage: 2 },
-  ready:      { key: "ready",      label: "Ready",        stage: 3 },
-  sent:       { key: "sent",       label: "Delivered",    stage: 4 },
-  delivering: { key: "delivering", label: "Delivering",   stage: 4 },
-  failed:     { key: "failed",     label: "Failed",       stage: "failed" },
+  new:        { key: "new",        label: "New",            stage: 0 },
+  extracting: { key: "extracting", label: "Extracting",     stage: 1 },
+  review:     { key: "review",     label: "Needs review",   stage: 2 },
+  ready:      { key: "ready",      label: "Normalized",     stage: 3 },
+  sent:       { key: "sent",       label: "Delivered",      stage: 4 },
+  delivering: { key: "delivering", label: "Ready to send",  stage: 4 },
+  failed:     { key: "failed",     label: "Failed",         stage: "failed" },
 };
 
 // Soft rounded pill with leading colored dot — renders the ported .pill / .pill-*
@@ -177,10 +190,21 @@ function generateOrders(count: number): OrderRow[] {
 
 // ─── API status mapping ───────────────────────────────────────────────────────
 
+// Backend `ready` and `ready_to_deliver` are DIFFERENT pipeline stages and must
+// NOT collapse to one display status, or the row badge contradicts the chips:
+//   - `ready`            = parsed/normalized, NOT yet transformed (pre-Transform).
+//                          Rendered as "Normalized" so it never reads as "Ready to send".
+//   - `ready_to_deliver` = post-transform, genuinely ready to send to the supplier.
+//                          Rendered as "Ready to send" — the SAME vocabulary as the
+//                          "Ready to send" filter chip (which counts ready_to_deliver).
+// We reuse the `delivering` CrossingStatus slot (stage 4, distinct blue pill) for
+// `ready_to_deliver`; no persisted `delivering` status exists upstream, so this slot
+// was otherwise unused. Counting logic / summaryKeys are unchanged — labels only.
 function mapStatus(s: string): CrossingStatus {
   if (s === "pending_review") return "review";
   if (s === "parsing" || s === "transforming") return "extracting";
-  if (s === "ready" || s === "ready_to_deliver") return "ready";
+  if (s === "ready_to_deliver") return "delivering";
+  if (s === "ready") return "ready";
   if (s === "delivered") return "sent";
   if (s === "delivery_failed" || s === "failed" || s === "transform_failed") return "failed";
   return "new";
@@ -244,9 +268,11 @@ function sumStatuses(
 // `api` is the backend OrderStatus passed to the live ?status= query param.
 // Each chip's `status` (mock client-side CrossingStatus filter) and `api`
 // (live ?status= OrderStatus) must resolve to the rows its label promises.
-// "Ready to send" filters `ready_to_deliver` (mock CrossingStatus "ready") —
-// the old "Delivering" chip filtered `ready_to_deliver` too but mislabelled it
-// (no persisted `delivering` status exists, so it never matched its label).
+// "Ready to send" filters the backend `ready_to_deliver` status — which mapStatus
+// now folds into the `delivering` CrossingStatus slot (labelled "Ready to send"),
+// NOT the `ready` slot (labelled "Normalized" — parsed/normalized, pre-transform).
+// Using "ready" here would make the chip filter rows that no longer match its
+// label. (summaryKeys / api are unchanged: counts still roll up ready_to_deliver.)
 // Failure handling is bucketed client-side over all failure statuses (see
 // matchesChip) because the red "Failed" pill collapses five backend statuses;
 // the live `api: "failed"` value is the closest single server filter (the
@@ -264,7 +290,7 @@ const FILTER_CHIPS: Array<{
 }> = [
   { label: "All orders" },
   { label: "Needs review",  status: "review", api: "pending_review",   summaryKeys: ["pending_review"]   },
-  { label: "Ready to send", status: "ready",  api: "ready_to_deliver", summaryKeys: ["ready_to_deliver"] },
+  { label: "Ready to send", status: "delivering", api: "ready_to_deliver", summaryKeys: ["ready_to_deliver"] },
   { label: "Delivered",     status: "sent",   api: "delivered",        summaryKeys: ["delivered"]        },
   { label: "Failed",        status: "failed", api: "failed",           summaryKeys: FAILED_BUCKET        },
 ];

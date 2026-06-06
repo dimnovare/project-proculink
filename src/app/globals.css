@@ -78,6 +78,17 @@
 
   --sidebar-w: 236px;
   --topbar-h:  56px;
+
+  /* ── Unified page-layout tokens ────────────────────────────────────────────
+     See docs/design-system/11-unified-page-rules.md for the canonical page
+     primitives (PageShell / PageHeader / Card / MobileListRow) that consume
+     these. Primary in-app action color = var(--brand-green); neutral CTA =
+     var(--navy). The page gutter ramps to 24px (sm) → 34px (lg) via the
+     PageShell component's responsive padding (px-4 sm:px-6 lg:px-[34px]). */
+  --tap-min:          44px;     /* minimum interactive hit area on mobile */
+  --container-narrow: 1040px;   /* page content max-width — forms / single-column */
+  --container-wide:   1480px;   /* page content max-width — tables / dashboards */
+  --page-gutter:      16px;     /* base (mobile) horizontal gutter; desktop ramps to 24/34px via PageShell */
 }
 
 /* ── Selection ───────────────────────────────────────────────────────────── */

@@ -167,6 +167,9 @@ export function ValidationRules() {
 
   const [selId, setSelId]   = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  // Mobile-only: the editor renders as a dismissible bottom-sheet. Desktop keeps
+  // the always-visible inline split-detail panel (this flag is ignored there).
+  const [editorOpen, setEditorOpen] = useState(false);
 
   // Keep a valid selection.
   useEffect(() => {
@@ -177,6 +180,22 @@ export function ValidationRules() {
 
   const selected = selId === "new" ? NEW_RULE : rules.find((r) => r.id === selId) ?? null;
   const activeCount = rules.filter((r) => r.enabled).length;
+
+  // Mobile bottom-sheet: lock body scroll + close on Escape while it is open.
+  // Self-contained (mirrors the app-layout drawer behaviour) — desktop is unaffected
+  // because the sheet is only ever rendered/opened under `lg:hidden`.
+  const mobileSheetOpen = !!selected && editorOpen;
+  useEffect(() => {
+    if (!mobileSheetOpen) return;
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setEditorOpen(false); };
+    window.addEventListener("keydown", onKey);
+    return () => {
+      document.body.style.overflow = prevOverflow;
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [mobileSheetOpen]);
 
   function handleToggle(id: string) {
     if (isApiMockMode) {
@@ -200,6 +219,8 @@ export function ValidationRules() {
       saveMutation.mutate({ id: rule.id === "new" ? null : rule.id, payload });
       setNotice(rule.id === "new" ? "Rule created." : "Rule saved.");
     }
+    // Dismiss the mobile bottom-sheet on save; no-op on desktop (flag unused there).
+    setEditorOpen(false);
   }
 
   function handleDelete(id: string) {
@@ -210,6 +231,8 @@ export function ValidationRules() {
     }
     setSelId(null);
     setNotice("Rule deleted.");
+    // Dismiss the mobile bottom-sheet on delete; no-op on desktop (flag unused there).
+    setEditorOpen(false);
   }
 
   // ── Loading / error states ───────────────────────────────────────────────
@@ -250,9 +273,9 @@ export function ValidationRules() {
           </p>
         </div>
         <button
-          onClick={() => { setNotice(null); setSelId("new"); }}
-          className="inline-flex w-full items-center justify-center gap-1.5 rounded-[9px] px-4 text-[13px] font-semibold transition-colors sm:ml-auto sm:w-auto"
-          style={{ height: 38, background: "#1E66C9", color: "#FFFFFF", border: 0, boxShadow: "0 1px 2px rgba(16,24,40,0.10)" }}
+          onClick={() => { setNotice(null); setSelId("new"); setEditorOpen(true); }}
+          className="inline-flex w-full items-center justify-center gap-1.5 rounded-[9px] px-4 text-[13px] font-semibold transition-colors sm:ml-auto sm:w-auto h-[44px] sm:h-[38px]"
+          style={{ background: "#1E66C9", color: "#FFFFFF", border: 0, boxShadow: "0 1px 2px rgba(16,24,40,0.10)" }}
           onMouseEnter={(e) => (e.currentTarget.style.background = "#1A5BB5")}
           onMouseLeave={(e) => (e.currentTarget.style.background = "#1E66C9")}
         >
@@ -261,8 +284,10 @@ export function ValidationRules() {
       </div>
 
       {/* Enforcement-location callout — this catalog documents checks; it does not
-          gate delivery. Real blocking/validation runs per supplier. */}
-      <div className="px-5 py-2.5 sm:px-7 flex-shrink-0" style={{ background: "#FFFFFF", borderBottom: "1px solid #E2E6EE" }}>
+          gate delivery. Real blocking/validation runs per supplier. Hidden on mobile:
+          the header subtitle already conveys "catalog, not a gate" and this would push
+          the rule list below the fold. */}
+      <div className="hidden sm:block px-5 py-2.5 sm:px-7 flex-shrink-0" style={{ background: "#FFFFFF", borderBottom: "1px solid #E2E6EE" }}>
         <div className="flex flex-col items-start gap-1.5 rounded-[8px] px-3.5 py-2.5 text-[12px] sm:flex-row sm:items-center sm:gap-2.5" style={{ border: "1px solid #D6E2F4", background: "#F2F7FE", color: "#37425A" }}>
           <span className="font-semibold" style={{ color: "#0F4FA8" }}>This is a catalog, not a gate.</span>
           <span style={{ color: "#56627A" }}>
@@ -345,7 +370,7 @@ export function ValidationRules() {
               return (
                 <div
                   key={r.id}
-                  onClick={() => { setNotice(null); setSelId(r.id); }}
+                  onClick={() => { setNotice(null); setSelId(r.id); setEditorOpen(true); }}
                   className="cursor-pointer rounded-[12px] p-3.5 transition-colors"
                   style={{
                     background: "#FFFFFF",
@@ -359,7 +384,13 @@ export function ValidationRules() {
                       <div className="font-semibold text-[14px] leading-snug" style={{ color: "#0B1A2F" }}>{r.name || <span style={{ color: "#9AA3B5", fontStyle: "italic" }}>Untitled rule</span>}</div>
                       <div className="text-[11px] mt-0.5 tracking-[0.02em]" style={{ color: "#9AA3B5", fontFamily: "'JetBrains Mono', ui-monospace, SFMono-Regular, monospace" }}>{r.code}</div>
                     </div>
-                    <div className="flex h-[40px] items-center" onClick={(e) => e.stopPropagation()}>
+                    {/* 44×44 hit area around the 38×22 toggle so a tap on/near it
+                        toggles the rule (and does NOT open the editor sheet). */}
+                    <div
+                      className="-m-1 inline-flex flex-shrink-0 items-center justify-center"
+                      style={{ minWidth: 44, minHeight: 44 }}
+                      onClick={(e) => e.stopPropagation()}
+                    >
                       <Toggle on={r.enabled} onChange={() => handleToggle(r.id)} />
                     </div>
                   </div>
@@ -396,7 +427,9 @@ export function ValidationRules() {
             )}
           </div>
 
-          {/* Inline editor */}
+          {/* Inline editor — desktop only. Stays a direct grid child so it keeps
+              its column placement + `lg:sticky`; `hidden lg:block` hides it below lg
+              where the mobile bottom-sheet (below) takes over. */}
           {selected && (
             <RuleEditor
               key={selected.id}
@@ -404,10 +437,61 @@ export function ValidationRules() {
               isSaving={saveMutation.isPending}
               onSave={(payload) => handleSave(selected, payload)}
               onDelete={selected.id !== "new" ? () => handleDelete(selected.id) : undefined}
+              className="hidden lg:block"
             />
           )}
         </div>
       </div>
+
+      {/* Mobile editor — dismissible bottom-sheet. Only rendered <lg and only when a
+          rule is selected AND the sheet was explicitly opened (card tap / New rule). */}
+      {mobileSheetOpen && selected && (
+        <div
+          className="fixed inset-0 z-40 lg:hidden"
+          role="dialog"
+          aria-modal="true"
+          aria-label={selected.id === "new" ? "New rule" : "Edit rule"}
+        >
+          {/* Dim backdrop — closes the sheet on tap. */}
+          <div
+            className="absolute inset-0"
+            style={{ background: "rgba(11,26,47,0.45)" }}
+            onClick={() => setEditorOpen(false)}
+          />
+          {/* Sheet */}
+          <div className="absolute inset-x-0 bottom-0 top-12 rounded-t-[18px] bg-white flex flex-col overflow-hidden" style={{ boxShadow: "0 -8px 30px rgba(16,24,40,0.20)" }}>
+            {/* Sticky sheet header */}
+            <div className="flex items-center gap-3 px-5 py-3.5 flex-shrink-0" style={{ borderBottom: "1px solid #EEF0F4", background: "#FFFFFF" }}>
+              <div className="min-w-0 flex-1">
+                <div className="text-[15px] font-bold leading-tight" style={{ fontFamily: "'Bricolage Grotesque', Inter, sans-serif", color: "#0B1A2F" }}>{selected.id === "new" ? "New rule" : "Edit rule"}</div>
+                <div className="text-[11px] mt-0.5 tracking-[0.02em] truncate" style={{ color: "#9AA3B5", fontFamily: "'JetBrains Mono', ui-monospace, SFMono-Regular, monospace" }}>{selected.id === "new" ? "Document a check for your catalog" : selected.code}</div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setEditorOpen(false)}
+                aria-label="Close"
+                className="inline-flex items-center justify-center flex-shrink-0 rounded-[10px] transition-colors"
+                style={{ width: 44, height: 44, border: "1px solid #E2E6EE", background: "#FFFFFF", color: "#56627A" }}
+                onMouseEnter={(e) => (e.currentTarget.style.background = "#F6F8FB")}
+                onMouseLeave={(e) => (e.currentTarget.style.background = "#FFFFFF")}
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg>
+              </button>
+            </div>
+            {/* Scrollable body */}
+            <div className="flex-1 overflow-auto">
+              <RuleEditor
+                key={`sheet-${selected.id}`}
+                rule={selected}
+                isSaving={saveMutation.isPending}
+                onSave={(payload) => handleSave(selected, payload)}
+                onDelete={selected.id !== "new" ? () => handleDelete(selected.id) : undefined}
+                variant="sheet"
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -419,13 +503,21 @@ function RuleEditor({
   isSaving,
   onSave,
   onDelete,
+  className,
+  variant = "panel",
 }: {
   rule: Rule;
   isSaving?: boolean;
   onSave: (payload: Omit<RuleDto, "id"|"triggerCount"|"lastTriggered"|"createdAt">) => void;
   onDelete?: () => void;
+  /** Extra classes on the root (e.g. `hidden lg:block` for the desktop instance). */
+  className?: string;
+  /** `panel` = sticky bordered card (desktop split-detail); `sheet` = chromeless
+      body inside the mobile bottom-sheet, which already supplies header + border. */
+  variant?: "panel" | "sheet";
 }) {
   const isNew = rule.id === "new";
+  const isSheet = variant === "sheet";
   const nameRef      = useRef<HTMLInputElement>(null);
   const descRef      = useRef<HTMLTextAreaElement>(null);
   const entityRef    = useRef<HTMLSelectElement>(null);
@@ -450,27 +542,32 @@ function RuleEditor({
   }
 
   return (
-    <div className="rounded-[12px] overflow-hidden self-start lg:sticky lg:top-0" style={{ background: "#FFFFFF", border: "1px solid #E2E6EE", boxShadow: "0 1px 3px rgba(16,24,40,0.05)" }}>
-      {/* Panel header */}
-      <div className="flex items-start gap-2.5 px-5 py-4" style={{ borderBottom: "1px solid #EEF0F4" }}>
-        <span aria-hidden className="inline-flex items-center justify-center flex-shrink-0" style={{ width: 22, height: 22, color: "#5C6280", marginTop: 1 }}>
-          <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="4" /><path d="m8 12 3 3 5-6" /></svg>
-        </span>
-        <div className="min-w-0">
-          <div className="text-[14.5px] font-bold leading-tight" style={{ fontFamily: "'Bricolage Grotesque', Inter, sans-serif", color: "#0B1A2F" }}>{isNew ? "New rule" : "Rule definition"}</div>
-          <div className="text-[11px] mt-0.5 tracking-[0.02em] truncate" style={{ color: "#9AA3B5", fontFamily: "'JetBrains Mono', ui-monospace, SFMono-Regular, monospace" }}>{isNew ? "Document a check for your catalog" : rule.code}</div>
+    <div
+      className={`${isSheet ? "" : "rounded-[12px] border self-start lg:sticky lg:top-0"} overflow-hidden${className ? ` ${className}` : ""}`}
+      style={isSheet ? { background: "#FFFFFF" } : { background: "#FFFFFF", borderColor: "#E2E6EE", boxShadow: "0 1px 3px rgba(16,24,40,0.05)" }}
+    >
+      {/* Panel header — desktop card only; the mobile sheet supplies its own header. */}
+      {!isSheet && (
+        <div className="flex items-start gap-2.5 px-5 py-4" style={{ borderBottom: "1px solid #EEF0F4" }}>
+          <span aria-hidden className="inline-flex items-center justify-center flex-shrink-0" style={{ width: 22, height: 22, color: "#5C6280", marginTop: 1 }}>
+            <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="4" /><path d="m8 12 3 3 5-6" /></svg>
+          </span>
+          <div className="min-w-0">
+            <div className="text-[14.5px] font-bold leading-tight" style={{ fontFamily: "'Bricolage Grotesque', Inter, sans-serif", color: "#0B1A2F" }}>{isNew ? "New rule" : "Rule definition"}</div>
+            <div className="text-[11px] mt-0.5 tracking-[0.02em] truncate" style={{ color: "#9AA3B5", fontFamily: "'JetBrains Mono', ui-monospace, SFMono-Regular, monospace" }}>{isNew ? "Document a check for your catalog" : rule.code}</div>
+          </div>
         </div>
-      </div>
+      )}
 
       <div className="p-5 grid gap-4">
         <Field label="Rule name">
-          <input ref={nameRef} defaultValue={rule.name} placeholder="e.g. Currency must be EUR" className="h-[38px] w-full rounded-[8px] px-3 text-[13px] text-[#0B1A2F] outline-none transition-colors" style={{ border: "1px solid #C6CDDA", background: "#FFFFFF" }} onFocus={(e) => (e.currentTarget.style.borderColor = "var(--brand-green)")} onBlur={(e) => (e.currentTarget.style.borderColor = "#C6CDDA")} />
+          <input ref={nameRef} defaultValue={rule.name} placeholder="e.g. Currency must be EUR" className="h-[44px] sm:h-[38px] w-full rounded-[8px] px-3 text-[15px] sm:text-[13px] text-[#0B1A2F] outline-none transition-colors" style={{ border: "1px solid #C6CDDA", background: "#FFFFFF" }} onFocus={(e) => (e.currentTarget.style.borderColor = "var(--brand-green)")} onBlur={(e) => (e.currentTarget.style.borderColor = "#C6CDDA")} />
         </Field>
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <Field label="Applies to">
             <div className="relative">
-              <select ref={entityRef} defaultValue={rule.entity} className="h-[38px] w-full appearance-none rounded-[8px] pl-3 pr-8 text-[13px] text-[#0B1A2F] outline-none cursor-pointer" style={{ border: "1px solid #C6CDDA", background: "#FFFFFF" }}>
+              <select ref={entityRef} defaultValue={rule.entity} className="h-[44px] sm:h-[38px] w-full appearance-none rounded-[8px] pl-3 pr-8 text-[15px] sm:text-[13px] text-[#0B1A2F] outline-none cursor-pointer" style={{ border: "1px solid #C6CDDA", background: "#FFFFFF" }}>
                 {ENTITIES.map((e) => <option key={e}>{e}</option>)}
               </select>
               <svg className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#9AA3B5" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6" /></svg>
@@ -520,11 +617,11 @@ function RuleEditor({
       </div>
 
       {/* Footer */}
-      <div className="flex items-center gap-2 px-5 py-3.5" style={{ borderTop: "1px solid #EEF0F4", background: "#FAFBFC" }}>
+      <div className="flex flex-wrap items-center gap-2 px-5 py-3.5" style={{ borderTop: "1px solid #EEF0F4", background: "#FAFBFC" }}>
         <button
           onClick={save}
           disabled={isSaving}
-          className="inline-flex items-center gap-1.5 rounded-[8px] px-4 h-[40px] sm:h-[36px] text-[13px] font-semibold transition-colors"
+          className="inline-flex items-center justify-center gap-1.5 rounded-[8px] px-4 h-[44px] sm:h-[36px] w-full sm:w-auto text-[13px] font-semibold transition-colors order-first"
           style={{ border: 0, background: "var(--brand-green)", color: "#FFFFFF", opacity: isSaving ? 0.6 : 1, boxShadow: "0 1px 2px rgba(16,24,40,0.10)" }}
           onMouseEnter={(e) => { if (!isSaving) e.currentTarget.style.background = "var(--brand-green-deep)"; }}
           onMouseLeave={(e) => { if (!isSaving) e.currentTarget.style.background = "var(--brand-green)"; }}
@@ -535,7 +632,7 @@ function RuleEditor({
         {!isNew && (
           <button
             type="button"
-            className="inline-flex items-center gap-1.5 rounded-[8px] px-3 h-[40px] sm:h-[36px] text-[13px] font-semibold transition-colors"
+            className="inline-flex items-center gap-1.5 rounded-[8px] px-3 h-[44px] sm:h-[36px] text-[13px] font-semibold transition-colors"
             style={{ border: 0, background: "transparent", color: "#56627A" }}
             onMouseEnter={(e) => (e.currentTarget.style.color = "#0B1A2F")}
             onMouseLeave={(e) => (e.currentTarget.style.color = "#56627A")}
@@ -546,7 +643,7 @@ function RuleEditor({
           </button>
         )}
         {onDelete && (
-          <button onClick={onDelete} aria-label="Delete rule" className="inline-flex items-center justify-center rounded-[8px] h-[40px] w-[40px] sm:h-[36px] sm:w-[36px] ml-auto transition-colors" style={{ border: "1px solid #EFD4D4", background: "#FFFFFF", color: "#C53A3A" }} onMouseEnter={(e) => (e.currentTarget.style.background = "#FCF1F1")} onMouseLeave={(e) => (e.currentTarget.style.background = "#FFFFFF")} title="Delete rule">
+          <button onClick={onDelete} aria-label="Delete rule" className="inline-flex items-center justify-center rounded-[8px] h-[44px] w-[44px] sm:h-[36px] sm:w-[36px] ml-auto transition-colors" style={{ border: "1px solid #EFD4D4", background: "#FFFFFF", color: "#C53A3A" }} onMouseEnter={(e) => (e.currentTarget.style.background = "#FCF1F1")} onMouseLeave={(e) => (e.currentTarget.style.background = "#FFFFFF")} title="Delete rule">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18" /><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /><path d="m19 6-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" /></svg>
           </button>
         )}
@@ -560,11 +657,11 @@ function SeveritySegment({ value, onChange }: { value: Severity; onChange: (s: S
   const isBlock = value === "error";
   const isWarn  = value === "warning" || value === "info";
   return (
-    <div className="grid grid-cols-2 rounded-[8px] p-0.5" style={{ background: "#EFF2F7", border: "1px solid #E2E6EE", height: 38 }}>
+    <div className="grid grid-cols-2 rounded-[8px] p-0.5 h-[44px] sm:h-[38px]" style={{ background: "#EFF2F7", border: "1px solid #E2E6EE" }}>
       <button
         type="button"
         onClick={() => onChange("warning")}
-        className="rounded-[6px] text-[12.5px] font-semibold transition-colors"
+        className="rounded-[6px] text-[15px] sm:text-[12.5px] font-semibold transition-colors"
         style={{ background: isWarn ? "#FFFFFF" : "transparent", color: isWarn ? "#C97A14" : "#7B8597", boxShadow: isWarn ? "0 1px 2px rgba(16,24,40,0.10)" : "none" }}
       >
         Warning
@@ -572,7 +669,7 @@ function SeveritySegment({ value, onChange }: { value: Severity; onChange: (s: S
       <button
         type="button"
         onClick={() => onChange("error")}
-        className="rounded-[6px] text-[12.5px] font-semibold transition-colors"
+        className="rounded-[6px] text-[15px] sm:text-[12.5px] font-semibold transition-colors"
         style={{ background: isBlock ? "#FFFFFF" : "transparent", color: isBlock ? "#C53A3A" : "#7B8597", boxShadow: isBlock ? "0 1px 2px rgba(16,24,40,0.10)" : "none" }}
       >
         Critical

@@ -21,21 +21,27 @@ const BUTTON_BASE =
   "inline-flex items-center justify-center gap-2 rounded font-medium border whitespace-nowrap transition-colors disabled:opacity-50 disabled:cursor-not-allowed";
 
 const BUTTON_VARIANT: Record<ButtonVariant, string> = {
-  primary:   "bg-navy text-white border-transparent hover:bg-navy-surface",
+  // In-app PRIMARY action color = brand-green (#2E8E3A). See
+  // docs/design-system/11-unified-page-rules.md. (Use variant="secondary" +
+  // bg-navy only for the rare neutral/navy CTA.)
+  primary:   "bg-brand-green text-white border-transparent hover:bg-brand-green-deep",
   secondary: "bg-surface text-ink border-border hover:bg-surface-2 hover:border-border-strong",
   ghost:     "bg-transparent text-ink-muted border-transparent hover:bg-surface-2 hover:text-ink",
   danger:    "bg-danger text-white border-transparent hover:opacity-90",
   ai:        "bg-ai text-white border-transparent hover:opacity-90",
-  // tokens.css .btn-blue / .btn-green — both now use the primary emerald green
-  blue:      "[background:#28C55E] text-white border-transparent hover:[background:#1DAF50]",
-  green:     "[background:#28C55E] text-white border-transparent hover:[background:#1DAF50]",
+  // tokens.css .btn-blue / .btn-green — both now use the canonical brand-green
+  blue:      "[background:#2E8E3A] text-white border-transparent hover:[background:#1E6D29]",
+  green:     "[background:#2E8E3A] text-white border-transparent hover:[background:#1E6D29]",
 };
 
+// Mobile-first hit area: every size is >=44px tall on small screens (--tap-min)
+// and shrinks to its dense desktop height at sm:. Visible desktop heights are
+// unchanged (sm 27 / md 32 / lg 38).
 const BUTTON_SIZE: Record<ButtonSize, string> = {
   // tokens.css .btn.sm / .btn (default) / .btn.lg
-  sm: "h-[27px] px-2.5 text-[12px]",
-  md: "h-[32px] px-3   text-[12.5px]",
-  lg: "h-[38px] px-4   text-[13.5px]",
+  sm: "h-[44px] sm:h-[27px] px-2.5 text-[12px]",
+  md: "h-[44px] sm:h-[32px] px-3   text-[12.5px]",
+  lg: "h-[44px] sm:h-[38px] px-4   text-[13.5px]",
 };
 
 export function Button({
@@ -78,13 +84,13 @@ type SrcType = "PDF" | "XLSX" | "CSV" | "XML" | "cXML" | "EDI" | "EMAIL" | "API"
 
 const SRC_PALETTE: Record<SrcType, { bg: string; fg: string }> = {
   PDF:   { bg: "#FBEEEE", fg: "#B53F3F" },
-  XLSX:  { bg: "#DCFCE7", fg: "#1DAF50" },   // brand-green-soft / brand-green-deep
+  XLSX:  { bg: "#E2F1E2", fg: "#2E8E3A" },   // brand-green-soft / brand-green
   CSV:   { bg: "#EEF3F8", fg: "#345470" },
   XML:   { bg: "#EEE7FB", fg: "#5E3DB0" },   // ai-soft / #5E3DB0
   cXML:  { bg: "#EEE7FB", fg: "#5E3DB0" },
   EDI:   { bg: "#FAEFD6", fg: "#C97A14" },   // amber-soft / amber
   EMAIL: { bg: "#E9EDF3", fg: "#4A5568" },
-  API:   { bg: "#DCFCE7", fg: "#1DAF50" },   // brand-green-soft
+  API:   { bg: "#E2F1E2", fg: "#2E8E3A" },   // brand-green-soft / brand-green
   JSON:  { bg: "#FFF4D6", fg: "#846100" },
   UBL:   { bg: "#EEF3F8", fg: "#345470" },   // same as CSV per tokens.css .src-UBL
 };
@@ -108,13 +114,13 @@ type Status = "new" | "extracting" | "review" | "ready" | "sent" | "delivering" 
 const STATUS_MAP: Record<Status, { bg: string; fg: string; dot: string; pulse?: boolean; label: string }> = {
   // tokens.css .pill-new → surface-2 / ink-muted / ink-faint
   new:        { bg: "#EFF2F7", fg: "#56627A", dot: "#8A93A5",  label: "New" },
-  // extracting + delivering use the primary green accent
-  extracting: { bg: "#DCFCE7", fg: "#1DAF50", dot: "#28C55E",  label: "Extracting" },
+  // extracting + delivering use the brand-blue progress accent
+  extracting: { bg: "#E3EDFB", fg: "#0F4FA8", dot: "#1E66C9",  label: "Extracting" },
   review:     { bg: "#FAEFD6", fg: "#C97A14", dot: "#C97A14",  label: "Needs review" },
-  ready:      { bg: "#DCFCE7", fg: "#1DAF50", dot: "#28C55E",  label: "Ready" },
-  sent:       { bg: "#DCFCE7", fg: "#1DAF50", dot: "#28C55E",  label: "Delivered" },
-  // delivering uses green accent with pulse
-  delivering: { bg: "#DCFCE7", fg: "#1DAF50", dot: "#28C55E", pulse: true, label: "Delivering" },
+  ready:      { bg: "#E2F1E2", fg: "#2E8E3A", dot: "#2E8E3A",  label: "Ready" },
+  sent:       { bg: "#E2F1E2", fg: "#2E8E3A", dot: "#2E8E3A",  label: "Delivered" },
+  // delivering uses the brand-blue progress accent with pulse
+  delivering: { bg: "#E3EDFB", fg: "#0F4FA8", dot: "#1E66C9", pulse: true, label: "Delivering" },
   failed:     { bg: "#FBE3E3", fg: "#C53A3A", dot: "#C53A3A",  label: "Failed" },
 };
 
