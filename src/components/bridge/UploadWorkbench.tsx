@@ -653,9 +653,9 @@ export function UploadWorkbench() {
                   type="file"
                   // Mirror the backend upload whitelist exactly
                   // (OrdersController.cs upload guard): .csv .xlsx .pdf .xml
-                  // .cxml .edi .txt. .xls / .json are NOT accepted server-side,
+                  // .cxml .edi .x12 .txt. .xls / .json are NOT accepted server-side,
                   // so they were dropped here to avoid offering a dead format.
-                  accept=".csv,.xlsx,.pdf,.xml,.cxml,.edi,.txt"
+                  accept=".csv,.xlsx,.pdf,.xml,.cxml,.edi,.x12,.txt"
                   className="hidden"
                   disabled={isReadOnly || uploading}
                   onChange={(event) => {
