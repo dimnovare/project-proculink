@@ -1448,7 +1448,7 @@ function MobileSpineAccordion({
 }: MobileSpineAccordionProps) {
   const lineCount = order.lines.length;
   return (
-    <div className="xl:hidden flex flex-col px-4 py-4 pb-[88px]">
+    <div className="md:hidden flex flex-col px-4 py-4 pb-[88px]">
       <AccordionPanel step={1} label="Source document" sub={order.buyerName ?? "Buyer"} accent="#1E66C9">
         {/* Mobile: no active-zone wiring — simplified */}
         <DocumentAnatomy order={order} />
@@ -1499,6 +1499,108 @@ function MobileSpineAccordion({
           artifacts={artifacts}
         />
       </AccordionPanel>
+    </div>
+  );
+}
+
+// ─── Tablet (md–xl) two-column layout ──────────────────────────────────────────
+// Intermediate composition for the 768–1279px band. Tablets are too narrow for
+// the full three-column triptych (which needs ~1120px and the SpineConnectors
+// overlay) but deserve more than the phone accordion. We lay out TWO columns:
+//   • Left  — the canonical order spine (every field + line, fully interactive).
+//   • Right — the source DocumentAnatomy stacked above the supplier OutputPreview.
+// This preserves ProcuLink's source → canonical → output lineage story on tablets
+// without the connector wires. Every sub-component and handler is reused verbatim
+// from the triptych, so behaviour (inline edit, AI accept/reject, zone↔field
+// highlight) is identical — only the responsive composition differs.
+
+interface TabletSpineLayoutProps extends MobileSpineAccordionProps {
+  /** Highlights the matching document zone when a canonical node is hovered. */
+  onNodeHover: (id: string | null) => void;
+  /** Highlights the matching canonical node when a document zone is hovered. */
+  onZoneHover: (zone: string | null) => void;
+  /** The zone currently highlighted (drives the DocumentAnatomy + card tint). */
+  activeZone: string | null;
+}
+
+function TabletSpineLayout({
+  order, nodes, editingId, fieldValues, acceptedSubnodes, rejectedSubnodes,
+  crossed, onStartEdit, onChangeValue, onCommitEdit,
+  onAcceptSubnode, onRejectSubnode, onKeyDown, inputRef, onOutputAction,
+  orderId, artifacts, acceptingLineId,
+  onNodeHover, onZoneHover, activeZone,
+}: TabletSpineLayoutProps) {
+  return (
+    <div className="hidden md:block xl:hidden px-6 py-[18px] pb-[88px]">
+      <div className="grid gap-x-7 gap-y-4" style={{ gridTemplateColumns: "1.1fr 1fr", alignItems: "start" }}>
+        {/* Left — CANONICAL ORDER spine (interactive) */}
+        <div style={{ position: "relative", minWidth: 0 }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginBottom: 10, height: 18 }}>
+            <span style={{ fontSize: 10.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "#0B1A2F" }}>Canonical order</span>
+            <span style={{ fontSize: 9.5, color: "#B4BBC8" }}>ProcuLink model</span>
+          </div>
+          {/* Canonical spine line (same as triptych centre column) */}
+          <div style={{ position: "absolute", top: 36, bottom: 0, left: 22, width: 3, background: "linear-gradient(180deg,#1E66C9,#2E8E3A)", borderRadius: 2 }} />
+          <div style={{ position: "relative", paddingTop: 4 }}>
+            {nodes.map((node, i) => (
+              <SpineNodeCard
+                key={node.id}
+                node={node}
+                idx={i}
+                editingId={editingId}
+                fieldValues={fieldValues}
+                acceptedSubnodes={acceptedSubnodes}
+                rejectedSubnodes={rejectedSubnodes}
+                onStartEdit={onStartEdit}
+                onChangeValue={onChangeValue}
+                onCommitEdit={onCommitEdit}
+                onAcceptSubnode={onAcceptSubnode}
+                onRejectSubnode={onRejectSubnode}
+                onKeyDown={onKeyDown}
+                inputRef={inputRef}
+                onHover={onNodeHover}
+                onZoneHover={onZoneHover}
+                activeZone={activeZone}
+                acceptingLineId={acceptingLineId}
+              />
+            ))}
+            {/* Phase 4 — document totals (renders only when enriched) */}
+            <TotalsSummary order={order} />
+          </div>
+        </div>
+
+        {/* Right — SOURCE document above SUPPLIER output (stacked, no connectors) */}
+        <div style={{ minWidth: 0, display: "flex", flexDirection: "column", gap: 18 }}>
+          <div>
+            <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 10, height: 18, minWidth: 0 }}>
+              <span style={{ fontSize: 10.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "#1E66C9", flexShrink: 0 }}>Source document</span>
+              <FileChip type={sourceFileType(order.sourceFileKey)} />
+              <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10, color: "#A8B0BF", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", minWidth: 0 }}>{sourceFileLabel(order.sourceFileKey)}</span>
+            </div>
+            <DocumentAnatomy
+              order={order}
+              activeZone={activeZone}
+              onZoneHover={onZoneHover}
+            />
+          </div>
+          <div>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginBottom: 10, height: 18 }}>
+              <span style={{ fontSize: 10.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "#1E6D29" }}>Supplier output</span>
+              <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10, color: "#A8B0BF", whiteSpace: "nowrap" }}>{outputArtifactType(order.artifacts)}</span>
+            </div>
+            <OutputPreview
+              order={order}
+              acceptedSubnodes={acceptedSubnodes}
+              rejectedSubnodes={rejectedSubnodes}
+              crossed={crossed}
+              fieldValues={fieldValues}
+              onOutputAction={onOutputAction}
+              orderId={orderId}
+              artifacts={order.artifacts}
+            />
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
@@ -2389,7 +2491,34 @@ export function SpineReview({ orderId }: { orderId: string }) {
           </EdgeRails>
         </div>
 
-        {/* Mobile accordion — sibling of the desktop block, no min-width */}
+        {/* Tablet (md–xl, 768–1279px) — two-column layout: canonical spine | source+output.
+            Richer than the phone accordion, no connector overlay. Sibling of the
+            desktop block; gated hidden md:block xl:hidden internally. */}
+        <TabletSpineLayout
+          order={order}
+          nodes={nodes}
+          editingId={editingId}
+          fieldValues={fieldValues}
+          acceptedSubnodes={acceptedSubnodes}
+          rejectedSubnodes={rejectedSubnodes}
+          crossed={crossed}
+          onStartEdit={handleStartEdit}
+          onChangeValue={handleChangeValue}
+          onCommitEdit={handleCommitEdit}
+          onAcceptSubnode={handleAcceptSubnode}
+          onRejectSubnode={handleRejectSubnode}
+          onKeyDown={handleKeyDown}
+          inputRef={inputRefCallback}
+          onOutputAction={setFlow}
+          orderId={orderId}
+          artifacts={order.artifacts}
+          acceptingLineId={acceptingLineId}
+          onNodeHover={handleNodeHover}
+          onZoneHover={handleZoneHover}
+          activeZone={activeZone}
+        />
+
+        {/* Mobile accordion — below md only; sibling of the desktop block, no min-width */}
         <MobileSpineAccordion
           order={order}
           nodes={nodes}
