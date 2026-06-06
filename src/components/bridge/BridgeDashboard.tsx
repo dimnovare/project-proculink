@@ -81,17 +81,22 @@ function stageLabel(status: string): string {
     case "parsing":         return "Parse";
     case "pending_parse":   return "Parse";
     case "pending_review":  return "Validate";
-    case "transforming":    return "Extract";
-    case "delivering":      return "Ready";
+    // Canonical pipeline vocabulary: "Transform" (not "Extract") and "Delivering"
+    // (not "Ready") — a green "Ready" badge on an actively-delivering order
+    // contradicted the per-row stepper.
+    case "transforming":    return "Transform";
+    case "delivering":      return "Delivering";
     case "delivery_failed": return "Failed";
     default:                return status;
   }
 }
 
 const STAGE_COLOR: Record<string, string> = {
-  // Human labels (mock fallback rows)
-  Parse: "#1E66C9", Extract: "#6F4FCE", Validate: "#C97A14", Ready: "#2E8E3A", Failed: "#C53A3A",
-  // Raw API status values (live rows)
+  // Canonical human labels (live rows via stageLabel)
+  Parse: "#1E66C9", Validate: "#C97A14", Transform: "#6F4FCE", Delivering: "#2E8E3A", Failed: "#C53A3A",
+  // Legacy human labels still emitted by the mock fallback rows
+  Extract: "#6F4FCE", Ready: "#2E8E3A",
+  // Raw API status values (defensive — if an unmapped status is shown verbatim)
   parsing: "#1E66C9", pending_parse: "#1E66C9", pending_review: "#C97A14",
   transforming: "#6F4FCE", delivering: "#2E8E3A", delivery_failed: "#C53A3A",
 };
@@ -114,6 +119,7 @@ function journeyStageFor(stage: string): OrderStage {
     case "Extract":
     case "Transform":      return 3;
     case "delivering":
+    case "Delivering":
     case "Ready":
     case "Deliver":        return 4;
     case "delivery_failed":
@@ -162,6 +168,18 @@ function codeFor(name: string): string {
   const initials = words.map((w) => w[0]).join("").toUpperCase();
   const code = initials.length >= 3 ? initials : words.join("").toUpperCase();
   return code.slice(0, 3);
+}
+
+/**
+ * Single source of truth for supplier/dock health → color, so every call site
+ * uses identical thresholds (previously two divergent sets lived in this screen).
+ * Design thresholds (screen-bridge.jsx): healthy ≥90 = forest green #2E8E3A,
+ * at-risk ≥80 = amber #C97A14, poor = red #C53A3A.
+ */
+function healthColor(pct: number): string {
+  if (pct >= 90) return GREEN_BAR;   // #2E8E3A
+  if (pct >= 80) return "#C97A14";   // amber
+  return "#C53A3A";                  // red
 }
 
 /** Order count → stroke-weight bucket (1–6). */
@@ -284,7 +302,7 @@ export function BridgeDashboard() {
     queryFn: () => apiClient.getSuppliers(),
     staleTime: 60_000,
   });
-  const { data: ordersPage, isLoading: ordersLoading, isError: ordersError } = useQuery({
+  const { data: ordersPage, isLoading: ordersLoading, isError: ordersError, refetch: refetchOrders } = useQuery({
     queryKey: ["orders"],
     queryFn: () => apiClient.getOrders({ pageSize: 100 }),
     staleTime: 60_000,
@@ -384,6 +402,14 @@ export function BridgeDashboard() {
   const autoCount = eligibleInWindow.filter((o) => (o.unresolvedCount ?? 0) === 0).length;
   const autoPct = eligibleInWindow.length > 0 ? Math.round((100 * autoCount) / eligibleInWindow.length) : 0;
 
+  // Auto-processed % is sampled over the loaded working set (capped at the
+  // 100-order page), whereas "Orders received" shows the true windowed total
+  // (windowedReceivedPage.totalCount). When the true total exceeds the loaded
+  // sample, the two headline numbers compute on different bases — say so, so they
+  // don't look contradictory.
+  const autoSampled =
+    !isApiMockMode && (windowedReceivedPage?.totalCount ?? 0) > allOrders.length;
+
   const exceptionsBad = openExceptionsAll > 0;
   const kpis = [
     {
@@ -433,7 +459,9 @@ export function BridgeDashboard() {
       sub: ordersError
         ? "Live data unavailable"
         : eligibleInWindow.length >= 3
-        ? "No manual mapping needed"
+        ? autoSampled
+          ? "Based on latest 100"
+          : "No manual mapping needed"
         : "Needs 3+ completed orders",
       subColor: ordersError ? "#56627A" : eligibleInWindow.length >= 3 ? GREEN_DEEP : "#56627A",
       subIcon: ordersError ? undefined : eligibleInWindow.length >= 3 ? CheckCircle2 : Clock,
@@ -477,7 +505,10 @@ export function BridgeDashboard() {
 
   // No crossings to plot yet (no orders + nothing from the endpoint) → the
   // onboarding card takes the hero slot instead of an empty topology.
-  const noTopologyData = !topologyLoadingState && orderCount === 0 && !endpointHasData;
+  // Guarded against ordersError: a failed orders fetch also yields orderCount===0,
+  // and we must NOT hijack the screen with the onboarding hero on a load error —
+  // the topology area's explicit error/Retry branch handles that case instead.
+  const noTopologyData = !topologyLoadingState && !ordersError && orderCount === 0 && !endpointHasData;
   const showOnboardingHero = noTopologyData && showChecklist;
 
   // Full-screen guided wizard for users without a supplier (unless dismissed).
@@ -542,6 +573,31 @@ export function BridgeDashboard() {
         />
       );
     }
+    // Explicit error state: a backend hiccup must NOT masquerade as the
+    // onboarding empty state ("Add a supplier"), which alarms an established org.
+    // The onboarding empty state below is reserved for a genuine success + 0 rows.
+    if (ordersError) {
+      return (
+        <div
+          className="flex flex-col items-center justify-center rounded-card text-center"
+          style={{ height, background: "#FFFFFF", border: "1px solid #E2E6EE", boxShadow: "0 1px 2px rgba(11,26,47,0.04)", padding: 24 }}
+          role="alert"
+        >
+          <div className="text-[16px] font-semibold" style={{ color: "#0B1A2F" }}>Couldn&apos;t load your topology</div>
+          <div className="mt-1 max-w-[420px] text-[13px]" style={{ color: "#56627A" }}>
+            We hit a problem fetching your live order view. Your connections are safe — this is a temporary loading error.
+          </div>
+          <button
+            type="button"
+            onClick={() => refetchOrders()}
+            className="mt-4 inline-flex items-center gap-1 rounded-[6px] px-3 py-1.5 text-[12.5px] font-medium transition-colors hover:bg-[#F6F7FA]"
+            style={{ border: "1px solid #E2E6EE", background: "#FFFFFF", color: "#0B1A2F" }}
+          >
+            Retry
+          </button>
+        </div>
+      );
+    }
     if (topologyIsEmpty) {
       return (
         <div
@@ -583,7 +639,7 @@ export function BridgeDashboard() {
             className="text-[24px] font-bold tracking-[-0.02em] sm:text-[30px]"
             style={{ fontFamily: "'Bricolage Grotesque', Inter, sans-serif", color: "#0B1A2F" }}
           >
-            Order topology
+            Dashboard
           </h1>
           <p className="mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[13px]" style={{ color: "#56627A" }}>
             <span
@@ -594,7 +650,10 @@ export function BridgeDashboard() {
             <span style={{ color: "#C6CDDA" }}>·</span>
             {wireCount} connection{wireCount === 1 ? "" : "s"}
             <span style={{ color: "#C6CDDA" }}>·</span>
-            {effective.suppliers.length} {nounLower}{effective.suppliers.length === 1 ? "" : "s"}
+            {/* "active {plural}" — this counts only docks currently carrying orders
+                (derived topology), NOT the full roster on the Suppliers page, so it
+                must not be labelled a bare "{N} suppliers" count. */}
+            {effective.suppliers.length} active {pluralLower}
           </p>
         </div>
 
@@ -792,6 +851,19 @@ export function BridgeDashboard() {
                       <div className="h-5 w-12 animate-pulse rounded" style={{ background: "#E2E6EE" }} />
                     </div>
                   ))
+                ) : ordersError ? (
+                  // Honest error state — never imply "nothing in flight" on a load failure.
+                  <div className="flex flex-col items-center gap-2 px-4 py-6 text-center text-[12.5px]" style={{ color: "#8A93A5" }} role="alert">
+                    <span style={{ color: "#56627A" }}>Couldn&apos;t load in-transit orders.</span>
+                    <button
+                      type="button"
+                      onClick={() => refetchOrders()}
+                      className="inline-flex items-center gap-1 rounded-[6px] px-3 py-1 text-[12px] font-medium transition-colors hover:bg-[#F6F7FA]"
+                      style={{ border: "1px solid #E2E6EE", background: "#FFFFFF", color: "#0B1A2F" }}
+                    >
+                      Retry
+                    </button>
+                  </div>
                 ) : inTransitRows.length === 0 ? (
                   <div className="px-4 py-6 text-center text-[12.5px]" style={{ color: "#8A93A5" }}>
                     No orders in flight right now.
@@ -802,12 +874,15 @@ export function BridgeDashboard() {
                     // format · stage) above a compact Parse→Deliver mini-stepper.
                     const inner = (
                       <>
-                        <div className="flex items-center justify-between gap-2">
-                          <div className="flex min-w-0 items-center gap-2">
+                        {/* Mobile-safe: PO · buyer · format · stage can crowd at 375px,
+                            so the line wraps and the stage badge drops below when
+                            there's no room (sm+ keeps it on one justify-between row). */}
+                        <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
+                          <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
                             <span className="whitespace-nowrap font-mono text-[12px] font-semibold" style={{ color: BLUE_DEEP }}>
                               {row.po}
                             </span>
-                            <span className="truncate text-[12px]" style={{ color: "#56627A" }}>{row.buyer}</span>
+                            <span className="max-w-full truncate text-[12px]" style={{ color: "#56627A" }}>{row.buyer}</span>
                             <FileChip type={row.fmt} />
                           </div>
                           <span
@@ -845,7 +920,10 @@ export function BridgeDashboard() {
                   <Activity size={15} strokeWidth={2} style={{ color: "#56627A", flexShrink: 0 }} aria-hidden />
                   <div className="min-w-0">
                     <div className="text-[13px] font-semibold" style={{ color: "#0B1A2F" }}>{noun} health</div>
-                    <div className="text-[11.5px]" style={{ color: "#8A93A5" }}>Acceptance rate, last 30 days</div>
+                    {/* "Delivery success rate" (not "Acceptance rate"): this figure
+                        measures successful pipeline delivery, not supplier acceptance.
+                        "last 30 days" is a real 30-day window (backend-filtered) — keep it. */}
+                    <div className="text-[11.5px]" style={{ color: "#8A93A5" }}>Delivery success rate, last 30 days</div>
                   </div>
                 </div>
                 <Link
@@ -863,9 +941,9 @@ export function BridgeDashboard() {
                   </div>
                 ) : (
                   effective.suppliers.map((s) => {
-                    // Design thresholds (screen-bridge.jsx): healthy ≥90 = forest
-                    // green #2E8E3A, at-risk ≥80 = amber #C97A14, poor = red #C53A3A.
-                    const color = s.health >= 90 ? GREEN_BAR : s.health >= 80 ? "#C97A14" : "#C53A3A";
+                    // Health → color via the single in-file healthColor() helper
+                    // (one threshold set, no per-call-site drift).
+                    const color = healthColor(s.health);
                     return (
                       <Link
                         key={s.id}
