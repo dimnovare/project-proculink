@@ -191,8 +191,8 @@ function SettingsGroup({ title, sub, children }: { title: string; sub?: string; 
 // Row inside a settings group — canonical label/hint + right slot
 function SettingsRow({ label, hint, children }: { label: string; hint?: string; children?: ReactNode }) {
   return (
-    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, padding: "11px 0", borderTop: "1px solid var(--border)" }}>
-      <div>
+    <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: 12, padding: "11px 0", borderTop: "1px solid var(--border)" }}>
+      <div style={{ minWidth: 0 }}>
         <div style={{ fontSize: 13, fontWeight: 500, color: "var(--ink)" }}>{label}</div>
         {hint && <div style={{ fontSize: 11.5, color: "var(--ink-faint)", marginTop: 2 }}>{hint}</div>}
       </div>
@@ -468,10 +468,12 @@ function EmailSettingsSection() {
 
         {/* IMAP config fields — canonical section framing, full form preserved (Group H) */}
         <div style={{ marginTop: 14 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
-            <Mail size={15} color="var(--brand-green)" strokeWidth={1.75} />
-            <span style={{ fontSize: 13, fontWeight: 600, color: "#0B1A2F" }}>IMAP mailbox</span>
-            <span style={{ fontSize: 11.5, color: "#56627A" }}>— unseen messages with CSV, XLSX, or PDF attachments are imported.</span>
+          <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:gap-2" style={{ marginBottom: 12 }}>
+            <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+              <Mail size={15} color="var(--brand-green)" strokeWidth={1.75} />
+              <span style={{ fontSize: 13, fontWeight: 600, color: "#0B1A2F" }}>IMAP mailbox</span>
+            </span>
+            <span style={{ fontSize: 11.5, color: "#56627A", lineHeight: 1.4 }}>— unseen messages with CSV, XLSX, or PDF attachments are imported.</span>
           </div>
 
           <div

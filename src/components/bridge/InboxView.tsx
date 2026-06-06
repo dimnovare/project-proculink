@@ -280,17 +280,21 @@ const columns = [
   columnHelper.display({
     id: "lane",
     header: "Buyer → Supplier",
-    cell: ({ row }) => (
-      <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: "12.5px" }}>
-        <span style={{ color: BLUE_DEEP, fontWeight: 500, flex: 1, minWidth: 0, textOverflow: "ellipsis", whiteSpace: "nowrap", overflow: "hidden" }}>
-          {row.original.buyer}
-        </span>
-        <span style={{ color: "#8A93A5", flexShrink: 0 }}>→</span>
-        <span style={{ color: GREEN_DEEP, fontWeight: 500, flex: 1, minWidth: 0, textOverflow: "ellipsis", whiteSpace: "nowrap", overflow: "hidden" }}>
-          {row.original.supplier}
-        </span>
-      </div>
-    ),
+    cell: ({ row }) => {
+      const buyer = row.original.buyer;
+      const hasBuyer = buyer != null && buyer.trim() !== "" && buyer.trim() !== "—";
+      return (
+        <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: "12.5px" }}>
+          <span style={{ color: hasBuyer ? BLUE_DEEP : "#8A93A5", fontWeight: hasBuyer ? 500 : 400, flex: 1, minWidth: 0, textOverflow: "ellipsis", whiteSpace: "nowrap", overflow: "hidden" }}>
+            {hasBuyer ? buyer : "Unknown buyer"}
+          </span>
+          <span style={{ color: "#8A93A5", flexShrink: 0 }}>→</span>
+          <span style={{ color: GREEN_DEEP, fontWeight: 500, flex: 1, minWidth: 0, textOverflow: "ellipsis", whiteSpace: "nowrap", overflow: "hidden" }}>
+            {row.original.supplier}
+          </span>
+        </div>
+      );
+    },
     size: 320,
   }),
   columnHelper.accessor("fmt", {
@@ -663,12 +667,14 @@ export function InboxView() {
         </div>
       )}
 
-      {/* Filter chips + search input — toolbar on the grey canvas, above the table card */}
+      {/* Filter chips + search input — toolbar on the grey canvas, above the table card.
+          Mobile: chips on a horizontal-scroll row, search full-width on its own row below.
+          sm+: both sit side by side on one row. */}
       <div
-        className="flex flex-wrap items-center gap-2 px-4 pb-3 sm:px-6 flex-shrink-0"
+        className="flex flex-col gap-2 px-4 pb-3 sm:flex-row sm:flex-wrap sm:items-center sm:px-6 flex-shrink-0"
         style={{ background: "#F6F7FA" }}
       >
-        <div className="flex items-center gap-1.5 overflow-x-auto flex-1 min-w-0">
+        <div className="no-scrollbar flex items-center gap-1.5 overflow-x-auto flex-nowrap w-full sm:w-auto sm:flex-1 min-w-0">
           {FILTER_CHIPS.map(({ label }, i) => {
             const active = i === activeChip;
             return (
@@ -704,10 +710,10 @@ export function InboxView() {
           })}
         </div>
 
-        {/* Search input */}
+        {/* Search input — full width on its own row on mobile, capped on sm+ */}
         <div
-          className="flex items-center gap-1.5 rounded-[6px] px-3 flex-shrink-0"
-          style={{ background: "#FFFFFF", border: "1px solid #E2E6EE", height: 32, minWidth: 160, maxWidth: 240 }}
+          className="flex items-center gap-1.5 rounded-[6px] px-3 w-full sm:w-auto sm:min-w-[160px] sm:max-w-[240px] sm:flex-shrink-0"
+          style={{ background: "#FFFFFF", border: "1px solid #E2E6EE", height: 32 }}
         >
           <span aria-hidden="true" style={{ fontSize: "14px", color: "#8A93A5", flexShrink: 0 }}>🔍</span>
           <input
@@ -735,7 +741,7 @@ export function InboxView() {
         className="flex-1 min-h-0 overflow-auto mx-4 sm:mx-6 mb-3"
         style={{ background: "#FFFFFF", border: "1px solid #E2E6EE", borderRadius: 12 }}
       >
-        <div className="divide-y divide-[#F0F2F6] lg:hidden">
+        <div className="flex flex-col gap-2.5 p-3 lg:hidden">
           {pagedRows.length === 0 && (
             <div className="flex flex-col items-center justify-center py-16 px-6 text-center gap-3">
               <div style={{ fontSize: 28, color: "#C6CDDA" }}>⊘</div>
@@ -763,8 +769,8 @@ export function InboxView() {
           {pagedRows.map((row) => (
             <button
               key={row.id}
-              className="block w-full px-4 py-3.5 text-left active:bg-[#F6F7FA]"
-              style={{ background: "#FFFFFF", border: "none", minHeight: 44 }}
+              className="block w-full rounded-[10px] px-4 py-3.5 text-left transition-colors active:bg-[#F6F7FA]"
+              style={{ background: "#FFFFFF", border: "1px solid #E2E6EE", boxShadow: "0 1px 2px rgba(11,26,47,0.05)", minHeight: 44 }}
               onClick={() => router.push(`/inbox/${row.original.id}`)}
             >
               <div className="mb-2 flex items-start justify-between gap-3">
@@ -806,11 +812,34 @@ export function InboxView() {
                   </span>
                 )}
               </div>
-              <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 text-[13px]">
-                <span className="truncate font-medium" style={{ color: BLUE_DEEP }}>{row.original.buyer}</span>
-                <span className="h-px w-5 flex-shrink-0" style={{ background: "linear-gradient(90deg, #1E66C9, #2E8E3A)" }} />
-                <span className="truncate text-right font-medium" style={{ color: GREEN_DEEP }}>{row.original.supplier}</span>
-              </div>
+              {(() => {
+                const buyer = row.original.buyer;
+                const hasBuyer = buyer != null && buyer.trim() !== "" && buyer.trim() !== "—";
+                // Missing buyer → one honest line (supplier only) instead of two
+                // disconnected dashes. Present buyer → buyer → supplier rail that
+                // stacks vertically on mobile, horizontal from sm up.
+                if (!hasBuyer) {
+                  return (
+                    <div className="flex items-center gap-1.5 text-[13px]">
+                      <span className="text-[11.5px]" style={{ color: "#8A93A5" }}>Unknown buyer</span>
+                      <span aria-hidden style={{ color: "#C6CDDA" }}>→</span>
+                      <span className="truncate font-medium" style={{ color: GREEN_DEEP }}>{row.original.supplier}</span>
+                    </div>
+                  );
+                }
+                return (
+                  <div className="flex flex-col gap-1 text-[13px] sm:flex-row sm:items-center sm:gap-2">
+                    <span className="truncate font-medium" style={{ color: BLUE_DEEP }}>{buyer}</span>
+                    <span
+                      aria-hidden
+                      className="h-px w-5 flex-shrink-0 hidden sm:block"
+                      style={{ background: "linear-gradient(90deg, #1E66C9, #2E8E3A)" }}
+                    />
+                    <span aria-hidden className="text-[11px] leading-none sm:hidden" style={{ color: "#C6CDDA" }}>↓</span>
+                    <span className="truncate font-medium" style={{ color: GREEN_DEEP }}>{row.original.supplier}</span>
+                  </div>
+                );
+              })()}
             </button>
           ))}
         </div>

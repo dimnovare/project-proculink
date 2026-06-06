@@ -685,6 +685,11 @@ header :focus-visible {
   .fchip-row::-webkit-scrollbar { display: none; }
 }
 
+/* Hide the scrollbar on horizontal-scroll rows (status filter tabs, etc.)
+   while keeping the row scrollable. */
+.no-scrollbar { scrollbar-width: none; -ms-overflow-style: none; }
+.no-scrollbar::-webkit-scrollbar { display: none; }
+
 /* ── AI card + tag ─────────────────────────────────────────────────────── */
 .ai-card {
   position: relative; background: var(--ai-soft); border: 1px solid #ddd0f5;

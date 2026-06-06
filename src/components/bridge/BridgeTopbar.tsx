@@ -195,14 +195,14 @@ function NotificationsBell() {
 
       {open && (
         <div
-          className="absolute right-0 z-50"
-          style={{ top: 32, width: 320, background: "#FFFFFF", border: "1px solid #E2E6EE", borderRadius: 10, boxShadow: "0 8px 24px rgba(11,26,47,.12)", overflow: "hidden" }}
+          className="fixed inset-x-2 top-14 z-50 w-auto sm:absolute sm:inset-x-auto sm:right-0 sm:top-8 sm:w-80"
+          style={{ background: "#FFFFFF", border: "1px solid #E2E6EE", borderRadius: 10, boxShadow: "0 8px 24px rgba(11,26,47,.12)", overflow: "hidden" }}
         >
           <div className="flex items-center justify-between" style={{ padding: "10px 12px", borderBottom: "1px solid #E2E6EE" }}>
             <span style={{ fontSize: 12.5, fontWeight: 700, color: "#0B1A2F" }}>Notifications</span>
             {unread > 0 && <span style={{ fontSize: 10.5, fontWeight: 600, color: "#C97A14" }}>{unread} need action</span>}
           </div>
-          <div style={{ maxHeight: 360, overflowY: "auto" }}>
+          <div className="max-h-[60vh] sm:max-h-[360px]" style={{ overflowY: "auto" }}>
             {top.length === 0 ? (
               <div style={{ padding: "24px 16px", textAlign: "center", fontSize: 12.5, color: "#8A93A5" }}>No new activity.</div>
             ) : (

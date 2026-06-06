@@ -864,7 +864,7 @@ export function BridgeDashboard() {
                       <Link
                         key={s.id}
                         href={`/library/suppliers/${s.id}`}
-                        className="flex min-h-[44px] items-center gap-3 px-4 py-2.5 transition-colors hover:bg-[#F6F7FA]"
+                        className="flex min-h-[44px] items-center gap-2.5 px-3 py-2 transition-colors hover:bg-[#F6F7FA] sm:gap-3 sm:px-4 sm:py-2.5"
                       >
                         <span className="min-w-0 flex-1 truncate text-[12.5px] font-medium" style={{ color: "#0B1A2F" }}>
                           {s.name}
