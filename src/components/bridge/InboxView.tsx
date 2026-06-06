@@ -5,7 +5,7 @@
 // Click a row → /inbox/[orderId] (Canonical Spine Review)
 
 import { useRouter } from "next/navigation";
-import { useState, useMemo, useCallback, useRef } from "react";
+import { useState, useMemo, useCallback, useRef, useEffect } from "react";
 import { useQueriesEnabled } from "@/hooks/useQueriesEnabled";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiClient, isApiMockMode } from "@/lib/api-client";
@@ -20,10 +20,25 @@ import {
   type SortingState,
   type ColumnFiltersState,
   type RowSelectionState,
+  type VisibilityState,
+  type RowData,
 } from "@tanstack/react-table";
 import { FileChip } from "./FileChip";
 import { StatusJourney, type CrossingStatus, type OrderStage } from "./StatusJourney";
 import { useOrderDirection, type PartyLabels } from "@/hooks/useOrderDirection";
+
+// Per-column metadata. `numeric` right-aligns value cells; `label` is the
+// human-readable name shown in the desktop "Columns" visibility menu (the raw
+// header for hideable columns is a plain string, but display columns have no
+// string header, so we carry an explicit label).
+declare module "@tanstack/react-table" {
+  // TData/TValue mirror react-table's own ColumnMeta signature; they're part of
+  // the augmented interface contract even though this app doesn't reference them.
+  interface ColumnMeta<TData extends RowData, TValue> {
+    numeric?: boolean;
+    label?: string;
+  }
+}
 
 // ─── Accent palette ─────────────────────────────────────────────────────────────
 // Bridge Layer semantic palette (mirrors --brand-* / chrome in globals.css):
@@ -267,6 +282,7 @@ function buildColumns(labels: PartyLabels) {
   // Checkbox select
   columnHelper.display({
     id: "select",
+    enableHiding: false,
     header: ({ table }) => (
       <input
         type="checkbox"
@@ -291,6 +307,7 @@ function buildColumns(labels: PartyLabels) {
   // Order column: PO# + lines/exceptions
   columnHelper.accessor("po", {
     header: "Order",
+    enableHiding: false,
     cell: (info) => (
       <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
@@ -311,6 +328,7 @@ function buildColumns(labels: PartyLabels) {
   // Buyer → Supplier (or Customer → You in inbound mode)
   columnHelper.display({
     id: "lane",
+    enableHiding: false,
     header: labels.railHeader,
     cell: ({ row }) => {
       const buyer = row.original.buyer;
@@ -332,6 +350,7 @@ function buildColumns(labels: PartyLabels) {
   columnHelper.accessor("fmt", {
     header: "Source",
     cell: (info) => <FileChip type={info.getValue()} />,
+    meta: { label: "Source" },
     size: 72,
   }),
   columnHelper.accessor("value", {
@@ -341,7 +360,7 @@ function buildColumns(labels: PartyLabels) {
         {info.row.original.valueLabel}
       </span>
     ),
-    meta: { numeric: true },
+    meta: { numeric: true, label: "Value" },
     size: 110,
   }),
   // Pipeline — standalone 5-node track (status pill lives in its own column)
@@ -352,11 +371,13 @@ function buildColumns(labels: PartyLabels) {
         <StatusJourney stage={STATUS_PRESENTATION[info.getValue()].stage} compact />
       </div>
     ),
+    meta: { label: "Pipeline" },
     size: 184,
   }),
   // Status pill — soft rounded-full pill with leading dot + full semantic label
   columnHelper.display({
     id: "statusPill",
+    enableHiding: false,
     header: "Status",
     cell: ({ row }) => <StatusDotPill status={row.original.status} />,
     size: 124,
@@ -364,11 +385,13 @@ function buildColumns(labels: PartyLabels) {
   columnHelper.accessor("ageMin", {
     header: "Updated",
     cell: (info) => <span style={{ color: "#56627A", fontSize: "12px" }}>{info.row.original.age} ago</span>,
+    meta: { label: "Updated" },
     size: 72,
   }),
   // Chevron
   columnHelper.display({
     id: "chevron",
+    enableHiding: false,
     header: "",
     cell: () => <span style={{ color: "#8A93A5", fontSize: "15px" }}>›</span>,
     size: 30,
@@ -408,6 +431,15 @@ export function InboxView() {
   const [sorting, setSorting]           = useState<SortingState>([{ id: "ageMin", desc: false }]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
+  // Column visibility — session-only (no localStorage). Empty = all visible.
+  const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
+  const [columnsMenuOpen, setColumnsMenuOpen]   = useState(false);
+  const columnsMenuRef = useRef<HTMLDivElement>(null);
+  // Keyboard row navigation (desktop): j/ArrowDown + k/ArrowUp move a row
+  // highlight, Enter opens it. -1 = no active row. The desktop table body is
+  // reffed so the active row can be scrolled into view as it moves.
+  const [activeRow, setActiveRow] = useState(-1);
+  const tableBodyRef = useRef<HTMLTableSectionElement>(null);
   const [activeChip, setActiveChip]     = useState(0); // index into FILTER_CHIPS
   const [searchInput, setSearchInput]   = useState(""); // controlled search-box value
   const [search, setSearch]             = useState(""); // committed (debounced) server search
@@ -550,10 +582,11 @@ export function InboxView() {
     // therefore order ids, so bulk actions resolve to the correct orders regardless
     // of current sort / filter / page — never positional `rows[index]` lookups.
     getRowId: (row) => row.id,
-    state: { sorting, columnFilters, rowSelection },
+    state: { sorting, columnFilters, rowSelection, columnVisibility },
     onSortingChange: setSorting,
     onColumnFiltersChange: setColumnFilters,
     onRowSelectionChange: setRowSelection,
+    onColumnVisibilityChange: setColumnVisibility,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
@@ -584,6 +617,78 @@ export function InboxView() {
 
   const selectedCount = Object.keys(rowSelection).length;
 
+  // ─── Keyboard row navigation (desktop) ────────────────────────────────────
+  // The visible set is what j/k traverses. Reset the highlight whenever it
+  // changes underfoot (page / filter / search / sort) so the active index never
+  // points past the end or at a now-different row.
+  const pageLen = pagedRows.length;
+  useEffect(() => {
+    setActiveRow(-1);
+  }, [currentPage, statusFilter, search, searchInput, activeChip, sorting]);
+
+  // Close the columns menu on outside click / Escape (mirrors BridgeTopbar).
+  useEffect(() => {
+    if (!columnsMenuOpen) return;
+    const onDoc = (e: MouseEvent) => {
+      if (columnsMenuRef.current && !columnsMenuRef.current.contains(e.target as Node)) {
+        setColumnsMenuOpen(false);
+      }
+    };
+    const onEsc = (e: KeyboardEvent) => { if (e.key === "Escape") setColumnsMenuOpen(false); };
+    document.addEventListener("mousedown", onDoc);
+    document.addEventListener("keydown", onEsc);
+    return () => {
+      document.removeEventListener("mousedown", onDoc);
+      document.removeEventListener("keydown", onEsc);
+    };
+  }, [columnsMenuOpen]);
+
+  // Global j/k/Arrow/Enter handler, scoped to the inbox. Ignored while typing in
+  // a field, when a modifier is held (don't hijack browser shortcuts), or when
+  // the columns menu / a dialog is open. Enter opens the highlighted order.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      if (columnsMenuOpen) return;
+      // Skip when focus is in an editable element or any open dialog/menu exists.
+      const el = e.target as HTMLElement | null;
+      const tag = el?.tagName;
+      if (
+        tag === "INPUT" ||
+        tag === "TEXTAREA" ||
+        tag === "SELECT" ||
+        el?.isContentEditable
+      ) {
+        return;
+      }
+      if (document.querySelector('[role="dialog"], [aria-modal="true"]')) return;
+      if (pageLen === 0) return;
+
+      const key = e.key;
+      if (key === "j" || key === "ArrowDown") {
+        e.preventDefault();
+        setActiveRow((i) => (i < 0 ? 0 : Math.min(i + 1, pageLen - 1)));
+      } else if (key === "k" || key === "ArrowUp") {
+        e.preventDefault();
+        setActiveRow((i) => (i <= 0 ? 0 : i - 1));
+      } else if (key === "Enter") {
+        if (activeRow >= 0 && activeRow < pagedRows.length) {
+          e.preventDefault();
+          router.push(`/inbox/${pagedRows[activeRow].original.id}`);
+        }
+      }
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [pageLen, pagedRows, router, columnsMenuOpen, activeRow]);
+
+  // Scroll the highlighted row into view as it moves.
+  useEffect(() => {
+    if (activeRow < 0 || !tableBodyRef.current) return;
+    const rowEl = tableBodyRef.current.querySelectorAll<HTMLTableRowElement>("tr[data-row]")[activeRow];
+    rowEl?.scrollIntoView({ block: "nearest" });
+  }, [activeRow]);
+
   // A chip filter is active (not "All orders") OR there is a search query. Drives
   // the filter-aware empty state: 0 rows under a filter/search means "no MATCHING
   // orders" (work may exist, just not here) — distinct from a genuinely empty inbox.
@@ -610,26 +715,12 @@ export function InboxView() {
     [byStatus, summary?.total],
   );
 
-  // Loading state
-  if (!isApiMockMode && isLoading) {
-    return (
-      <div className="flex flex-col h-full min-h-0 overflow-hidden" style={{ background: "#F6F7FA" }}>
-        <div
-          className="flex-1 min-h-0 flex flex-col gap-0 overflow-hidden m-4 sm:m-6"
-          style={{ background: "#FFFFFF", border: "1px solid #E2E6EE", borderRadius: 12 }}
-        >
-          {Array.from({ length: 8 }).map((_, i) => (
-            <div key={i} className="flex items-center gap-3 px-5 py-3.5 border-b border-[#F0F2F6]">
-              <div className="h-5 w-24 rounded bg-[#E2E6EE] animate-pulse" />
-              <div className="h-5 flex-1 rounded bg-[#EEF1F6] animate-pulse" />
-              <div className="h-5 w-24 rounded bg-[#EEF1F6] animate-pulse" />
-              <div className="h-5 w-16 rounded bg-[#EEF1F6] animate-pulse" />
-            </div>
-          ))}
-        </div>
-      </div>
-    );
-  }
+  // Initial load: show skeleton ROW BODIES inside the table card while keeping the
+  // header + filter chips + search fully rendered, so the chrome doesn't shift in
+  // when data arrives. (The old early-return swapped the whole screen for a bare
+  // card → layout jump.) Only the very first page load (no placeholder data yet)
+  // shows the skeleton; subsequent page/filter fetches keep prior rows visible.
+  const isInitialLoading = !isApiMockMode && isLoading && !ordersPage;
 
   // Error state
   if (!isApiMockMode && isError) {
@@ -683,9 +774,10 @@ export function InboxView() {
           >
             Inbox
           </h1>
+          {/* Header summary = the live "what needs me?" line. The total order count
+              is shown ONCE, in the footer next to pagination — not duplicated here. */}
           <p className="text-[13px] mt-1" style={{ color: "#56627A" }}>
-            {totalCount.toLocaleString()} order{totalCount !== 1 ? "s" : ""}
-            {" · "}{reviewCount.toLocaleString()} need review{" · "}{failedCount.toLocaleString()} failed
+            {reviewCount.toLocaleString()} need review{" · "}{failedCount.toLocaleString()} failed
             {selectedCount > 0 && <span style={{ color: BLUE_DEEP, marginLeft: 8 }}>· {selectedCount} selected</span>}
           </p>
         </div>
@@ -839,6 +931,76 @@ export function InboxView() {
             }}
           />
         </div>
+
+        {/* Columns visibility menu — desktop table only. Toggles the optional
+            columns (Source / Value / Pipeline / Updated); structural columns are
+            enableHiding:false so they never appear here. Session-only state. */}
+        <div ref={columnsMenuRef} className="relative hidden lg:block sm:flex-shrink-0">
+          <button
+            type="button"
+            onClick={() => setColumnsMenuOpen((o) => !o)}
+            aria-haspopup="menu"
+            aria-expanded={columnsMenuOpen}
+            className="flex items-center gap-1.5 rounded-[6px] px-3 text-[12.5px] font-medium transition-colors"
+            style={{
+              height: 32,
+              border: `1px solid ${columnsMenuOpen ? INK : "#E2E6EE"}`,
+              background: "#FFFFFF",
+              color: "#56627A",
+              cursor: "pointer",
+            }}
+          >
+            <span aria-hidden style={{ fontSize: "13px" }}>▦</span>
+            Columns
+          </button>
+          {columnsMenuOpen && (
+            <div
+              role="menu"
+              aria-label="Toggle columns"
+              className="absolute right-0 z-20 mt-1.5 rounded-[8px] py-1.5"
+              style={{
+                top: "100%",
+                minWidth: 168,
+                background: "#FFFFFF",
+                border: "1px solid #E2E6EE",
+                boxShadow: "0 8px 24px rgba(11,26,47,0.12)",
+              }}
+            >
+              <div
+                className="px-3 pb-1.5 pt-0.5 text-[10px] font-bold uppercase tracking-[0.06em]"
+                style={{ color: "#8A93A5" }}
+              >
+                Show columns
+              </div>
+              {table.getAllLeafColumns()
+                .filter((col) => col.getCanHide())
+                .map((col) => {
+                  const label = col.columnDef.meta?.label ?? col.id;
+                  const visible = col.getIsVisible();
+                  return (
+                    <button
+                      key={col.id}
+                      type="button"
+                      role="menuitemcheckbox"
+                      aria-checked={visible}
+                      onClick={() => col.toggleVisibility()}
+                      className="flex w-full items-center gap-2.5 px-3 py-1.5 text-left text-[12.5px] transition-colors hover:bg-[#F6F7FA]"
+                      style={{ color: "#0B1A2F", background: "none", border: "none", cursor: "pointer" }}
+                    >
+                      <input
+                        type="checkbox"
+                        readOnly
+                        checked={visible}
+                        tabIndex={-1}
+                        style={{ accentColor: BLUE, cursor: "pointer", width: 13, height: 13, pointerEvents: "none" }}
+                      />
+                      {label}
+                    </button>
+                  );
+                })}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* ── Queue table / mobile route cards — floating white card on grey canvas ── */}
@@ -847,7 +1009,27 @@ export function InboxView() {
         style={{ background: "#FFFFFF", border: "1px solid #E2E6EE", borderRadius: 12 }}
       >
         <div className="flex flex-col gap-2.5 p-3 lg:hidden">
-          {pagedRows.length === 0 && (
+          {/* Mobile loading skeleton — card-shaped, matching the route cards below
+              so the list doesn't reflow when data lands. */}
+          {isInitialLoading &&
+            Array.from({ length: 6 }).map((_, i) => (
+              <div
+                key={`sk-${i}`}
+                className="rounded-[10px] px-4 py-3.5"
+                style={{ background: "#FFFFFF", border: "1px solid #E2E6EE", boxShadow: "0 1px 2px rgba(11,26,47,0.05)" }}
+              >
+                <div className="mb-2 flex items-start justify-between gap-3">
+                  <div className="min-w-0 flex-1">
+                    <div className="mb-1.5 h-[15px] w-32 rounded bg-[#E2E6EE] animate-pulse" />
+                    <div className="h-[13px] w-44 rounded bg-[#EEF1F6] animate-pulse" />
+                  </div>
+                  <div className="h-[18px] w-20 rounded-full bg-[#EEF1F6] animate-pulse" />
+                </div>
+                <div className="mb-2 h-[18px] w-14 rounded bg-[#EEF1F6] animate-pulse" />
+                <div className="h-[15px] w-2/3 rounded bg-[#EEF1F6] animate-pulse" />
+              </div>
+            ))}
+          {!isInitialLoading && pagedRows.length === 0 && (
             <div className="flex flex-col items-center justify-center py-16 px-6 text-center gap-3">
               <div style={{ fontSize: 28, color: "#C6CDDA" }}>⊘</div>
               {isFiltered ? (
@@ -971,9 +1153,11 @@ export function InboxView() {
             tableLayout: "fixed",
           }}
         >
-          {/* Colgroup for fixed widths */}
+          {/* Colgroup for fixed widths — must track the VISIBLE leaf columns so
+              widths stay aligned when the Columns menu hides one (tableLayout:fixed
+              maps <col> positionally onto rendered cells). */}
           <colgroup>
-            {table.getAllColumns().map((col) => (
+            {table.getVisibleLeafColumns().map((col) => (
               <col key={col.id} style={{ width: col.getSize() }} />
             ))}
           </colgroup>
@@ -1038,12 +1222,30 @@ export function InboxView() {
             ))}
           </thead>
 
-          <tbody>
-            {pagedRows.map((row) => {
+          <tbody ref={tableBodyRef}>
+            {/* Desktop loading skeleton — one pulse bar per visible column, so the
+                table keeps its real shape (header stays mounted above) instead of
+                swapping to a bare card. */}
+            {isInitialLoading &&
+              Array.from({ length: 9 }).map((_, ri) => (
+                <tr key={`sk-row-${ri}`} style={{ height: 56, borderBottom: "1px solid #F0F2F6" }}>
+                  {table.getVisibleLeafColumns().map((col, ci) => (
+                    <td key={col.id} style={{ padding: "9px 10px", paddingLeft: ci === 0 ? 16 : 10 }}>
+                      <div
+                        className="h-[14px] rounded bg-[#EEF1F6] animate-pulse"
+                        style={{ width: ci === 0 ? 24 : "70%" }}
+                      />
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            {!isInitialLoading && pagedRows.map((row, rowIndex) => {
               const isSelected = row.getIsSelected();
+              const isActive = rowIndex === activeRow;
               return (
                 <tr
                   key={row.id}
+                  data-row
                   onClick={() => router.push(`/inbox/${row.original.id}`)}
                   style={{
                     height: 56,
@@ -1051,18 +1253,21 @@ export function InboxView() {
                     cursor: "pointer",
                     background: isSelected
                       ? "#E3EDFB"
+                      : isActive
+                      ? "#EEF4FE"
                       : row.original.status === "review"
                       ? "#FAEFD608"
                       : row.original.status === "failed"
                       ? "#FBE3E308"
                       : "#FFFFFF",
+                    boxShadow: isActive ? "inset 2px 0 0 #1E66C9, inset 0 0 0 1px #1E66C9" : undefined,
                     transition: "background 80ms",
                   }}
                   onMouseEnter={(e) => {
-                    if (!isSelected) (e.currentTarget as HTMLElement).style.background = "#F6F7FA";
+                    if (!isSelected && !isActive) (e.currentTarget as HTMLElement).style.background = "#F6F7FA";
                   }}
                   onMouseLeave={(e) => {
-                    if (!isSelected) {
+                    if (!isSelected && !isActive) {
                       const s = row.original.status;
                       (e.currentTarget as HTMLElement).style.background =
                         s === "review" ? "#FAEFD608" : s === "failed" ? "#FBE3E308" : "#FFFFFF";
@@ -1090,9 +1295,9 @@ export function InboxView() {
 
             {/* Empty state — filter-aware: 0 rows under a filter/search means "no
                 MATCHING orders" (clear filters), not a genuinely empty inbox. */}
-            {pagedRows.length === 0 && (
+            {!isInitialLoading && pagedRows.length === 0 && (
               <tr>
-                <td colSpan={columns.length} style={{ textAlign: "center", padding: "64px 0" }}>
+                <td colSpan={table.getVisibleLeafColumns().length} style={{ textAlign: "center", padding: "64px 0" }}>
                   <div style={{ fontSize: 32, marginBottom: 16, color: "#C6CDDA" }}>⊘</div>
                   {isFiltered ? (
                     <>
