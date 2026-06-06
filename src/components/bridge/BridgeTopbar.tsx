@@ -68,11 +68,25 @@ function useAutoCrumb(): ReactNode {
     log:       "Delivery log",
     connectors: "Connectors",
     webhooks:  "Webhooks",
+    admin:     "Admin",
+    help:      "Help",
+    inbound:   "Inbound",
+    invoices:  "Invoices",
+    asns:      "ASNs",
+    exceptions: "Exceptions",
+    health:    "System health",
   };
+
+  // Title-case fallback for any segment without an explicit label, so an
+  // unmapped route renders "Order Detail" rather than a raw "order-detail" slug.
+  const titleCase = (s: string) =>
+    s
+      .replace(/[-_]+/g, " ")
+      .replace(/\b\w/g, (c) => c.toUpperCase());
 
   if (seg.length === 0) return null;
 
-  const root = LABELS[seg[0]] ?? seg[0];
+  const root = LABELS[seg[0]] ?? titleCase(seg[0]);
 
   // Two-segment paths like /library/suppliers or /operations/log
   if (seg.length >= 2 && LABELS[seg[1]]) {

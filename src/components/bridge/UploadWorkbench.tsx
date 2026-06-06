@@ -12,6 +12,7 @@ import { FileChip } from "./FileChip";
 import { ApiHttpError, apiClient, getBillingStatus, isApiMockMode, type DetectFormatResult } from "@/lib/api-client";
 import { capture } from "@/lib/analytics";
 import { captureException } from "@/lib/sentry-context";
+import { useOrderDirection } from "@/hooks/useOrderDirection";
 
 // Pipeline stages for the upload animation
 const PIPELINE_STAGES = ["Parse", "Normalize", "Validate", "Transform"] as const;
@@ -20,7 +21,6 @@ const STAGE_MS = 600;
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type FormatKey = "PDF" | "XLSX" | "CSV" | "cXML" | "EDI" | "JSON" | "EMAIL";
-type ModeKey   = "auto" | "manual";
 
 // ─── Recent uploads ─────────────────────────────────────────────────────────
 
@@ -44,8 +44,6 @@ const DEMO_RECENT: RecentRow[] = [
   { id: "ord-002", name: "NRD_orders_may.xlsx",  fmt: "XLSX",  buyer: "Nordmark Logistics",   supplier: "VanDerBerg Metaal",  size: "88 KB",  age: "18m", status: "done"       },
   { id: "ord-003", name: "westmark_q2.csv",      fmt: "CSV",   buyer: "Westmark Tools",       supplier: "Acme Components",    size: "44 KB",  age: "3h",  status: "done"       },
 ];
-
-const TEMPLATES = ["Standard cXML PO", "SAP IDoc ORDERS05", "ERP Generic v2", "Custom template"];
 
 const STATUS_PILL: Record<RecentStatus, { bg: string; color: string; label: string }> = {
   processing: { bg: "#EEE7FB", color: "#6F4FCE", label: "Processing" },
@@ -243,14 +241,14 @@ function InfoDisclosure({
 export function UploadWorkbench() {
   const { isLoaded: clerkLoaded, isSignedIn } = useAuth();
   const clerkReady = clerkLoaded && !!isSignedIn;
+  // Direction-aware party label: outbound orgs see "Supplier", inbound "Customer".
+  const { labels } = useOrderDirection();
   // Mock mode has no Clerk session — gate on (mock OR clerkReady) so mock-mode
   // dev/e2e still loads suppliers/billing (otherwise the upload button stays disabled).
   const queryEnabled = isApiMockMode || clerkReady;
 
   const [dragging, setDragging]     = useState(false);
   const [supplierId, setSupplierId] = useState("");
-  const [template, setTemplate]     = useState(TEMPLATES[0]);
-  const [mode, setMode]             = useState<ModeKey>("auto");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [uploading, setUploading]   = useState(false);
   const [pipelineStage, setPipelineStage] = useState(-1);
@@ -357,11 +355,12 @@ export function UploadWorkbench() {
       return;
     }
     if (!selectedSupplier?.id) {
+      const noun = labels.counterpartyNoun.toLowerCase();
       setUploadError({
         code: "supplier_required",
-        title: "Choose a supplier first.",
-        message: "Add a supplier in the library before uploading a purchase order.",
-        cta: "Open suppliers",
+        title: `Choose a ${noun} first.`,
+        message: `Add a ${noun} in the library before uploading a purchase order.`,
+        cta: `Open ${labels.counterpartyPlural.toLowerCase()}`,
       });
       return;
     }
@@ -459,16 +458,6 @@ export function UploadWorkbench() {
       setDetectionLoading(false);
     });
   }
-
-  // Default output template when cxml is detected.
-  useEffect(() => {
-    if (!detection) return;
-    if (detection.format === "cxml") {
-      const match = TEMPLATES.find((t) => t.includes("cXML"));
-      if (match) setTemplate(match);
-    }
-    // ubl has no matching template in TEMPLATES; leave the current selection.
-  }, [detection]);
 
   // Cleanup timers on unmount
   useEffect(() => () => { timerRefs.current.forEach(clearTimeout); }, []);
@@ -573,7 +562,11 @@ export function UploadWorkbench() {
                 <input
                   ref={fileInputRef}
                   type="file"
-                  accept=".csv,.xlsx,.xls,.xml,.pdf,.json,.edi,.txt"
+                  // Mirror the backend upload whitelist exactly
+                  // (OrdersController.cs upload guard): .csv .xlsx .pdf .xml
+                  // .cxml .edi .txt. .xls / .json are NOT accepted server-side,
+                  // so they were dropped here to avoid offering a dead format.
+                  accept=".csv,.xlsx,.pdf,.xml,.cxml,.edi,.txt"
                   className="hidden"
                   disabled={isReadOnly || uploading}
                   onChange={(event) => {
@@ -981,7 +974,7 @@ export function UploadWorkbench() {
             </XCard>
             )}
 
-            {/* Pipeline configuration — supplier, output template, processing mode */}
+            {/* Pipeline configuration — plan usage, buyer (auto-detected), supplier */}
             <XCard edge="left" edgeColor="#2E8E3A">
               <div
                 className="px-4 py-3"
@@ -1081,13 +1074,13 @@ export function UploadWorkbench() {
                   />
                 </div>
 
-                {/* Supplier */}
+                {/* Supplier (or Customer in inbound mode) */}
                 <div>
                   <label
                     className="block text-[11px] font-semibold uppercase tracking-[0.06em] mb-1.5"
                     style={{ color: "#56627A" }}
                   >
-                    Supplier
+                    {labels.counterpartyNoun}
                   </label>
                   {suppliersLoading && (
                     <div
@@ -1110,9 +1103,9 @@ export function UploadWorkbench() {
                       className="rounded-[6px] px-3 py-2.5 text-[12px] leading-5"
                       style={{ border: "1px solid #E2E6EE", background: "#F6F7FA", color: "#56627A" }}
                     >
-                      No suppliers yet.{" "}
+                      No {labels.counterpartyPlural.toLowerCase()} yet.{" "}
                       <Link href="/library/suppliers" className="font-medium underline" style={{ color: "#1DAF50" }}>
-                        Add a supplier
+                        Add a {labels.counterpartyNoun.toLowerCase()}
                       </Link>{" "}
                       before uploading.
                     </div>
@@ -1136,80 +1129,11 @@ export function UploadWorkbench() {
                   )}
                 </div>
 
-                <div
-                  style={{ height: 1, background: "#E2E6EE" }}
-                />
-
-                {/* Output template */}
-                <div>
-                  <label
-                    className="block text-[11px] font-semibold uppercase tracking-[0.06em] mb-1.5"
-                    style={{ color: "#8A93A5" }}
-                  >
-                    Output template
-                  </label>
-                  <select
-                    value={template}
-                    onChange={(e) => setTemplate(e.target.value)}
-                    className="w-full rounded-[6px] px-3 py-2 text-[13px] appearance-none"
-                    style={{
-                      border: "1px solid #E2E6EE",
-                      background: "#FFFFFF",
-                      color: "#0B1A2F",
-                      outline: "none",
-                    }}
-                  >
-                    {TEMPLATES.map((t) => (
-                      <option key={t}>{t}</option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* Mode toggle */}
-                <div>
-                  <label
-                    className="block text-[11px] font-semibold uppercase tracking-[0.06em] mb-1.5"
-                    style={{ color: "#8A93A5" }}
-                  >
-                    Processing mode
-                  </label>
-                  <div
-                    className="flex rounded-[6px] overflow-hidden text-[12.5px]"
-                    style={{ border: "1px solid #E2E6EE" }}
-                  >
-                    {(["auto", "manual"] as ModeKey[]).map((m) => (
-                      <button
-                        key={m}
-                        className="flex-1 py-2 font-medium capitalize transition-colors"
-                        style={{
-                          background:
-                            mode === m ? "#0B1A2F" : "#FFFFFF",
-                          color: mode === m ? "#FFFFFF" : "#56627A",
-                          borderRight: m === "auto" ? "1px solid #E2E6EE" : undefined,
-                        }}
-                        onClick={() => setMode(m)}
-                      >
-                        {m === "auto" ? "Auto-process" : "Manual review"}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Auto-process warning */}
-                {mode === "auto" && (
-                  <div
-                    className="flex gap-2 rounded-[6px] px-3 py-2.5"
-                    style={{ background: "#FAEFD6", border: "1px solid #F0D98A" }}
-                  >
-                    <span style={{ color: "#C97A14", fontSize: 14, flexShrink: 0 }}>
-                      ⚠
-                    </span>
-                    <p className="text-[11.5px]" style={{ color: "#7A5000" }}>
-                      Auto-process will send to the supplier without human review.
-                      Enable only for trusted routes.
-                    </p>
-                  </div>
-                )}
+                {/* Every upload goes to review before any delivery, so there is
+                    no "output template" / "processing mode" choice here — those
+                    were dead local state never sent to the upload call, and the
+                    "auto-process sends without review" warning was false. The
+                    output format is chosen per supplier; review is always on. */}
 
                 {/* 429 billing error banner */}
                 {uploadError && (
@@ -1306,7 +1230,7 @@ export function UploadWorkbench() {
                       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
                       Sending…
                     </span>
-                  ) : isReadOnly ? "Processing paused" : selectedFile ? "↑ Upload & send" : "Choose a file to send"}
+                  ) : isReadOnly ? "Processing paused" : selectedFile ? "↑ Upload & review" : "Choose a file to upload"}
                 </button>
               </div>
             </XCard>

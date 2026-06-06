@@ -9,7 +9,7 @@ import {
   Layers, Upload, Inbox, Truck, Building2, GitBranch,
   ShieldCheck, FileCode, BookOpen, FileText, Package, ScrollText,
   Plug, Webhook, Settings, ChevronsLeft, ChevronsRight, ChevronDown, ExternalLink,
-  Files, HelpCircle, X, ShieldHalf,
+  Files, HelpCircle, X, ShieldHalf, AlertTriangle, Activity,
   type LucideIcon,
 } from "lucide-react";
 import { apiClient, getBillingStatus, isApiMockMode } from "@/lib/api-client";
@@ -45,7 +45,11 @@ const NAV: Array<{ group?: string; items: NavItem[] }> = [
   {
     group: "Operations",
     items: [
-      { label: "Delivery log", href: "/operations/log",        icon: ScrollText },
+      // Exceptions + System health pages existed but were URL-only (unreachable
+      // from the nav). Exceptions first — it's the daily triage surface.
+      { label: "Exceptions",    href: "/operations/exceptions", icon: AlertTriangle },
+      { label: "System health", href: "/operations/health",     icon: Activity },
+      { label: "Delivery log",  href: "/operations/log",        icon: ScrollText },
       { label: "Connectors",    href: "/operations/connectors", icon: Plug },
       { label: "Webhooks",      href: "/operations/webhooks",   icon: Webhook },
     ],
@@ -292,21 +296,25 @@ export function BridgeSidebar({
         ))}
       </nav>
 
-      {/* ── Footer — system health + back to site ─────────────────── */}
+      {/* ── Footer — back to site ─────────────────────────────────────
+          The old "Pipeline healthy · 12/min" line was a hardcoded literal, not
+          real telemetry, so it was removed (offer↔works). Live system status
+          now has its own nav entry (Operations → System health). */}
       <div
         className={`flex items-center ${isCollapsed ? "justify-center" : "gap-2"}`}
         style={{ borderTop: "1px solid #1C2F49", flexShrink: 0, padding: "12px 18px" }}
-        title={isCollapsed ? "Pipeline healthy · 12/min" : undefined}
+        title={isCollapsed ? "Back to site" : undefined}
       >
-        <div className="rounded-full flex-shrink-0" style={{ width: 7, height: 7, background: "#2E8E3A", boxShadow: "0 0 0 3px rgba(46,142,58,0.2)" }} />
-        {!isCollapsed && (
-          <>
-            <span className="text-[11.5px] flex-1" style={{ color: "#7C8DA6" }}>Pipeline healthy · 12/min</span>
-            <Link href="/" title="Back to site" aria-label="Back to site" style={{ color: "#7C8DA6", display: "inline-flex" }}>
-              <ExternalLink size={13} />
-            </Link>
-          </>
-        )}
+        <Link
+          href="/"
+          title="Back to site"
+          aria-label="Back to site"
+          className={`flex items-center text-[11.5px] ${isCollapsed ? "justify-center" : "gap-2 flex-1"}`}
+          style={{ color: "#7C8DA6" }}
+        >
+          <ExternalLink size={13} className="flex-shrink-0" />
+          {!isCollapsed && <span className="flex-1">Back to site</span>}
+        </Link>
       </div>
     </aside>
   );

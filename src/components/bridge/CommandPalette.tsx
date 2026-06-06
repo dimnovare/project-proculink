@@ -90,8 +90,10 @@ function buildIndex(
     { id: "a2",  group: "Actions", icon: "⊞", label: "View all deliveries",   sub: "Go to inbox",            action: () => router.push("/inbox"),            color: "#0F4FA8" },
     { id: "a3",  group: "Actions", icon: "⇄", label: "Manage mappings",      sub: "Open mapping editor",    action: () => router.push("/library/mappings"), color: "#0F4FA8" },
     { id: "a4",  group: "Actions", icon: "✓", label: "Validation rules",     sub: "Open rule library",      action: () => router.push("/library/rules"),    color: "#0F4FA8" },
-    { id: "a5",  group: "Actions", icon: "⚙", label: "Settings",             sub: "Workspace settings",     action: () => router.push("/settings"),         color: "#0F4FA8" },
-    { id: "a6",  group: "Actions", icon: "≣", label: "View standards matrix", sub: "Open standards comparison", action: () => router.push("/library/standards"), color: "#0F4FA8" },
+    { id: "a5",  group: "Actions", icon: "⚠", label: "Exceptions",           sub: "Open exception dashboard", action: () => router.push("/operations/exceptions"), color: "#C97A14" },
+    { id: "a6",  group: "Actions", icon: "❤", label: "System health",        sub: "Open operator health view", action: () => router.push("/operations/health"),     color: "#0F4FA8" },
+    { id: "a7",  group: "Actions", icon: "⚙", label: "Settings",             sub: "Workspace settings",     action: () => router.push("/settings"),         color: "#0F4FA8" },
+    { id: "a8",  group: "Actions", icon: "≣", label: "View standards matrix", sub: "Open standards comparison", action: () => router.push("/library/standards"), color: "#0F4FA8" },
   ];
 }
 
