@@ -2,11 +2,11 @@
 
 import { useState, useRef, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { useQuery } from "@tanstack/react-query";
-import { apiClient, isApiMockMode } from "@/lib/api-client";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { apiClient, updateOrgSettings, isApiMockMode } from "@/lib/api-client";
 import { capture } from "@/lib/analytics";
 import { captureException } from "@/lib/sentry-context";
-import type { Supplier } from "@/types/procurement";
+import type { Supplier, OrderDirection } from "@/types/procurement";
 
 // ─── Design tokens ────────────────────────────────────────────────────────────
 
@@ -93,6 +93,93 @@ function StepIndicator({ current, total }: { current: number; total: number }) {
           </div>
         );
       })}
+    </div>
+  );
+}
+
+// ─── Step 0 — Choose order direction (forced first step for new orgs) ─────────
+
+interface Step0Props {
+  onSuccess: (direction: OrderDirection) => void;
+}
+
+const DIRECTION_CHOICES: Array<{ value: OrderDirection; title: string }> = [
+  { value: "outbound", title: "We send purchase orders to our suppliers" },
+  { value: "inbound", title: "We receive purchase orders from our customers" },
+];
+
+function Step0Direction({ onSuccess }: Step0Props) {
+  const [saving, setSaving] = useState<OrderDirection | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  async function choose(direction: OrderDirection) {
+    if (saving) return;
+    setSaving(direction);
+    setError(null);
+    try {
+      await updateOrgSettings(direction);
+      onSuccess(direction);
+    } catch (err) {
+      captureException(err, {
+        tags: { ui_surface: "onboarding_wizard", wizard_step: "0_direction" },
+      });
+      setError(err instanceof Error ? err.message : "Couldn't save your choice. Please try again.");
+      setSaving(null);
+    }
+  }
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+      <div>
+        <h2
+          style={{
+            fontSize: 18,
+            fontWeight: 700,
+            color: T.text,
+            margin: "0 0 6px",
+            letterSpacing: "-0.02em",
+            fontFamily: "'Bricolage Grotesque', Inter, sans-serif",
+          }}
+        >
+          How do you use ProcuLink?
+        </h2>
+        <p style={{ fontSize: 13, color: T.muted, margin: 0, lineHeight: 1.55 }}>
+          This sets how parties are labelled across your inbox, dashboard, and suppliers. You can change it later in Settings.
+        </p>
+      </div>
+
+      <div role="radiogroup" aria-label="How do you use ProcuLink?" style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        {DIRECTION_CHOICES.map((opt) => (
+          <button
+            key={opt.value}
+            type="button"
+            role="radio"
+            aria-checked={false}
+            disabled={saving != null}
+            onClick={() => choose(opt.value)}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 12,
+              textAlign: "left",
+              padding: "14px 15px",
+              borderRadius: 8,
+              border: `1.5px solid ${T.border}`,
+              background: T.surface,
+              cursor: saving != null ? "default" : "pointer",
+            }}
+          >
+            <span
+              aria-hidden
+              style={{ width: 18, height: 18, borderRadius: "50%", border: `2px solid #C6CDDA`, flexShrink: 0 }}
+            />
+            <span style={{ fontSize: 13.5, fontWeight: 500, color: T.text }}>{opt.title}</span>
+            {saving === opt.value && <span style={{ marginLeft: "auto", fontSize: 12, color: T.muted }}>Saving…</span>}
+          </button>
+        ))}
+      </div>
+
+      {error && <p style={{ fontSize: 12, color: T.red, margin: 0 }}>{error}</p>}
     </div>
   );
 }
@@ -424,26 +511,30 @@ interface OnboardingWizardProps {
   onDismiss: () => void;
 }
 
-type WizardStep = 1 | 2 | 3 | 4;
+// Step 0 = choose order direction (forced first step for brand-new orgs).
+type WizardStep = 0 | 1 | 2 | 3 | 4;
+
+const TOTAL_STEPS = 5;
 
 export function OnboardingWizard({ onDismiss }: OnboardingWizardProps) {
+  const queryClient = useQueryClient();
   const { data: status } = useQuery({
     queryKey: ["onboarding-status"],
     queryFn: () => apiClient.getOnboardingStatus(),
     retry: false,
     staleTime: 30 * 1000,
   });
-
   const entryStep: WizardStep = useMemo(() => {
-    if (!status) return 1;
-    if (!status.hasSupplier) return 1;
-    if (!status.hasUpload) return 2;
-    if (!status.hasResolvedMapping) return 3;
-    if (!status.hasDelivery) return 4;
+    if (!status) return 0;
+    // Once any setup progress exists, the org already passed the direction step.
+    if (!status.hasSupplier) return 0;
+    if (!status.hasUpload) return 1;
+    if (!status.hasResolvedMapping) return 2;
+    if (!status.hasDelivery) return 3;
     return 4;
   }, [status]);
 
-  const [step, setStep] = useState<WizardStep>(1);
+  const [step, setStep] = useState<WizardStep>(0);
   const [firstSupplier, setFirstSupplier] = useState<Supplier | null>(null);
   const [firstOrderId, setFirstOrderId] = useState<string | null>(null);
   const initialisedRef = useRef(false);
@@ -460,6 +551,14 @@ export function OnboardingWizard({ onDismiss }: OnboardingWizardProps) {
   function handleDismiss() {
     capture("wizard_dismissed", { at_step: step });
     onDismiss();
+  }
+
+  function handleStep0Success(direction: OrderDirection) {
+    // Relabel the whole app immediately once the direction is chosen.
+    queryClient.setQueryData(["org-settings"], { direction });
+    void queryClient.invalidateQueries({ queryKey: ["org-settings"] });
+    capture("wizard_step_completed", { step: 0, step_name: "order_direction", direction });
+    setStep(1);
   }
 
   function handleStep1Success(s: Supplier) {
@@ -555,8 +654,9 @@ export function OnboardingWizard({ onDismiss }: OnboardingWizardProps) {
           </svg>
         </button>
 
-        <StepIndicator current={step} total={4} />
+        <StepIndicator current={step + 1} total={TOTAL_STEPS} />
 
+        {step === 0 && <Step0Direction onSuccess={handleStep0Success} />}
         {step === 1 && <Step1AddSupplier onSuccess={handleStep1Success} />}
         {step === 2 && step2Supplier && (
           <Step2UploadOrder defaultSupplier={step2Supplier} onSuccess={handleStep2Success} />
@@ -577,7 +677,7 @@ export function OnboardingWizard({ onDismiss }: OnboardingWizardProps) {
             lineHeight: 1.5,
           }}
         >
-          Step {step} of 4 · You can dismiss this and come back any time
+          Step {step + 1} of {TOTAL_STEPS} · You can dismiss this and come back any time
         </p>
       </div>
     </div>

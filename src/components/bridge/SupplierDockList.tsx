@@ -17,6 +17,7 @@ import { useState } from "react";
 import { useAuth } from "@clerk/nextjs";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getBillingStatus, apiClient, isApiMockMode } from "@/lib/api-client";
+import { useOrderDirection } from "@/hooks/useOrderDirection";
 
 // ── Palette (CSS-var first; hexes mirror tokens for inline-only styles) ──────
 // Supplier-green is the supplier ENTITY colour across the product (badge tile,
@@ -66,6 +67,12 @@ function SupplierGlyph({ color, size = 16 }: { color: string; size?: number }) {
 export function SupplierDockList() {
   const router = useRouter();
   const qc = useQueryClient();
+  // Direction-aware copy: "Supplier" → "Customer" in inbound mode (route/types unchanged).
+  const { labels } = useOrderDirection();
+  const noun = labels.counterpartyNoun;       // "Supplier" | "Customer"
+  const nounLower = noun.toLowerCase();        // "supplier" | "customer"
+  const plural = labels.counterpartyPlural;    // "Suppliers" | "Customers"
+  const pluralLower = plural.toLowerCase();     // "suppliers" | "customers"
   const { isLoaded: clerkLoaded, isSignedIn } = useAuth();
   const clerkReady = clerkLoaded && !!isSignedIn;
   const queryEnabled = isApiMockMode || clerkReady;
@@ -120,7 +127,7 @@ export function SupplierDockList() {
 
   function handleSave() {
     const trimmed = newName.trim();
-    if (!trimmed) { setAddError("Supplier name is required."); return; }
+    if (!trimmed) { setAddError(`${noun} name is required.`); return; }
     setAddError(null);
     createMutation.mutate(trimmed);
   }
@@ -138,12 +145,12 @@ export function SupplierDockList() {
               className="text-[28px] font-semibold leading-[1.1] tracking-[-0.025em] sm:text-[30px]"
               style={{ fontFamily: "'Bricolage Grotesque', Inter, sans-serif", color: INK }}
             >
-              Suppliers
+              {plural}
             </h1>
             <p className="mt-[5px] text-[13px]" style={{ color: TEXT_MUTED }}>
               {isLoading
                 ? "Loading…"
-                : `${suppliers.length} active supplier${suppliers.length === 1 ? "" : "s"}`}
+                : `${suppliers.length} active ${nounLower}${suppliers.length === 1 ? "" : "s"}`}
             </p>
           </div>
 
@@ -169,7 +176,7 @@ export function SupplierDockList() {
                   <path d="M5 12h14M12 5v14" />
                 </svg>
               )}
-              {limitReached ? "Supplier limit reached" : "New supplier"}
+              {limitReached ? `${noun} limit reached` : `New ${nounLower}`}
             </button>
           </div>
         </div>
@@ -183,10 +190,10 @@ export function SupplierDockList() {
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <p className="text-[13px] font-semibold" style={{ color: INK }}>
-                  Your {billing.plan} plan includes {billing.supplierLimit} supplier{billing.supplierLimit === 1 ? "" : "s"}.
+                  Your {billing.plan} plan includes {billing.supplierLimit} {nounLower}{billing.supplierLimit === 1 ? "" : "s"}.
                 </p>
                 <p className="mt-1 text-[12px] leading-5" style={{ color: "#7A4D0B" }}>
-                  Existing supplier flows remain viewable. Upgrade when you are ready to add another supplier route.
+                  Existing {nounLower} flows remain viewable. Upgrade when you are ready to add another {nounLower} route.
                 </p>
               </div>
               <button
@@ -206,7 +213,7 @@ export function SupplierDockList() {
             className="mb-4 rounded-[10px] px-4 py-3 text-[12.5px]"
             style={{ border: "1px solid #F0D39A", background: "#FFF8EA", color: "#7A4D0B" }}
           >
-            Supplier limits could not be checked because the billing API is unavailable.
+            {noun} limits could not be checked because the billing API is unavailable.
           </div>
         )}
 
@@ -225,8 +232,8 @@ export function SupplierDockList() {
                   <SupplierGlyph color={GREEN_DEEP} size={17} />
                 </div>
                 <div>
-                  <p className="text-[15px] font-semibold tracking-[-0.01em]" style={{ color: INK }}>New supplier</p>
-                  <p className="mt-0.5 text-[12.5px]" style={{ color: TEXT_MUTED }}>Name the supplier. You can configure mappings and delivery after.</p>
+                  <p className="text-[15px] font-semibold tracking-[-0.01em]" style={{ color: INK }}>New {nounLower}</p>
+                  <p className="mt-0.5 text-[12.5px]" style={{ color: TEXT_MUTED }}>Name the {nounLower}. You can configure mappings and delivery after.</p>
                 </div>
               </div>
               <button
@@ -242,11 +249,11 @@ export function SupplierDockList() {
             </div>
             <div className="flex flex-col gap-2 px-[18px] pb-[18px] pt-3">
               <label className="text-[11.5px] font-semibold" style={{ color: TEXT_MUTED }}>
-                Supplier name <span style={{ color: "#C53A3A", marginLeft: 3 }}>*</span>
+                {noun} name <span style={{ color: "#C53A3A", marginLeft: 3 }}>*</span>
               </label>
               <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto]">
                 <input
-                  aria-label="Supplier name"
+                  aria-label={`${noun} name`}
                   placeholder="e.g. Acme Components"
                   value={newName}
                   onChange={(e) => setNewName(e.target.value)}
@@ -276,7 +283,7 @@ export function SupplierDockList() {
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M20 6 9 17l-5-5" />
                   </svg>
-                  {createMutation.isPending ? "Saving…" : "Save supplier"}
+                  {createMutation.isPending ? "Saving…" : `Save ${nounLower}`}
                 </button>
               </div>
               <div
@@ -286,7 +293,7 @@ export function SupplierDockList() {
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" style={{ marginTop: 1, flexShrink: 0 }}>
                   <circle cx="12" cy="12" r="10" /><path d="M12 16v-4M12 8h.01" />
                 </svg>
-                Auto-process stays off until you configure delivery and turn it on for this supplier.
+                Auto-process stays off until you configure delivery and turn it on for this {nounLower}.
               </div>
               {addError && (
                 <p className="text-[12px]" style={{ color: "#C53A3A" }}>{addError}</p>
@@ -304,7 +311,7 @@ export function SupplierDockList() {
             aria-busy="true"
           >
             <span className="sr-only">Loading…</span>
-            <SupplierTableHeader />
+            <SupplierTableHeader counterpartyNoun={noun} />
             {[1, 2, 3, 4].map((i, idx) => (
               <div
                 key={i}
@@ -343,9 +350,9 @@ export function SupplierDockList() {
             >
               <SupplierGlyph color={GREEN_DEEP} size={20} />
             </div>
-            <p className="text-[14px] font-semibold" style={{ color: INK }}>No suppliers configured</p>
+            <p className="text-[14px] font-semibold" style={{ color: INK }}>No {pluralLower} configured</p>
             <p className="mx-auto mt-1 max-w-[360px] text-[12.5px] leading-5" style={{ color: TEXT_MUTED }}>
-              Add a supplier to start processing purchase orders into the format and channel it requires.
+              Add a {nounLower} to start processing purchase orders into the format and channel it requires.
             </p>
             {canAddSupplier && (
               <button
@@ -358,7 +365,7 @@ export function SupplierDockList() {
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M5 12h14M12 5v14" />
                 </svg>
-                New supplier
+                New {nounLower}
               </button>
             )}
           </div>
@@ -383,7 +390,7 @@ export function SupplierDockList() {
               <thead>
                 <tr>
                   {([
-                    { label: "Supplier",     align: "left"  },
+                    { label: noun,           align: "left"  },
                     { label: "Format",       align: "left"  },
                     { label: "Channel",      align: "left"  },
                     { label: "Auto-process", align: "left"  },
@@ -421,7 +428,7 @@ export function SupplierDockList() {
                       onClick={() => router.push(`/library/suppliers/${s.id}`)}
                       onMouseEnter={() => setHoverRow(s.id)}
                       onMouseLeave={() => setHoverRow(null)}
-                      title="View this supplier's delivery configuration and mappings"
+                      title={`View this ${nounLower}'s delivery configuration and mappings`}
                       style={{
                         cursor: "pointer",
                         transition: "background 150ms",
@@ -562,7 +569,7 @@ export function SupplierDockList() {
 }
 
 /** Column header row — used by the loading skeleton (desktop only). */
-function SupplierTableHeader() {
+function SupplierTableHeader({ counterpartyNoun = "Supplier" }: { counterpartyNoun?: string }) {
   const cls = "text-[10.5px] font-semibold uppercase tracking-[0.06em]";
   const color = "#8A93A5";
   return (
@@ -570,7 +577,7 @@ function SupplierTableHeader() {
       className="hidden grid-cols-[minmax(0,2.4fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.1fr)_minmax(0,0.9fr)_minmax(0,1fr)_18px] items-center gap-4 px-[18px] py-[11px] sm:grid"
       style={{ background: "#FFFFFF", borderBottom: "1px solid #E2E6EE" }}
     >
-      <span className={cls} style={{ color }}>Supplier</span>
+      <span className={cls} style={{ color }}>{counterpartyNoun}</span>
       <span className={cls} style={{ color }}>Format</span>
       <span className={cls} style={{ color }}>Channel</span>
       <span className={cls} style={{ color }}>Auto-process</span>

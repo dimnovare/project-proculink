@@ -15,6 +15,7 @@
 import React from "react";
 import Link from "next/link";
 import type { OnboardingStatus } from "@/types/procurement";
+import { useOrderDirection } from "@/hooks/useOrderDirection";
 
 // Locked Bridge Layer tokens (see CLAUDE.md §3). Do not substitute slate values.
 const T = {
@@ -53,40 +54,45 @@ interface Step {
   requires: string[];
 }
 
-const STEPS: Step[] = [
-  {
-    id: "supplier",
-    label: "Add your first supplier",
-    description: "Create a supplier to hold its delivery config and item mappings.",
-    href: "/library/suppliers",
-    cta: "Add a supplier",
-    requires: [],
-  },
-  {
-    id: "upload",
-    label: "Upload a purchase order",
-    description: "Drop a CSV, XLSX, PDF, or cXML order to get started.",
-    href: "/upload",
-    cta: "Upload an order",
-    requires: ["supplier"],
-  },
-  {
-    id: "map",
-    label: "Resolve item mapping",
-    description: "Connect buyer item codes to each supplier's own SKUs.",
-    href: "/library/mappings",
-    cta: "Resolve mapping",
-    requires: ["supplier", "upload"],
-  },
-  {
-    id: "deliver",
-    label: "Deliver your first order",
-    description: "Set up delivery, then send to your supplier.",
-    href: "/inbox",
-    cta: "Deliver an order",
-    requires: ["supplier", "upload", "map"],
-  },
-];
+// Steps depend on the org's direction labels ("supplier" → "customer" in inbound
+// mode), so they're built per-render from the counterparty noun rather than at
+// module scope. Step `id`s and `href`s are UNCHANGED (routes/state untouched).
+function buildSteps(noun: string, nounLower: string): Step[] {
+  return [
+    {
+      id: "supplier",
+      label: `Add your first ${nounLower}`,
+      description: `Create a ${nounLower} to hold its delivery config and item mappings.`,
+      href: "/library/suppliers",
+      cta: `Add a ${nounLower}`,
+      requires: [],
+    },
+    {
+      id: "upload",
+      label: "Upload a purchase order",
+      description: "Drop a CSV, XLSX, PDF, or cXML order to get started.",
+      href: "/upload",
+      cta: "Upload an order",
+      requires: ["supplier"],
+    },
+    {
+      id: "map",
+      label: "Resolve item mapping",
+      description: `Connect buyer item codes to each ${nounLower}'s own SKUs.`,
+      href: "/library/mappings",
+      cta: "Resolve mapping",
+      requires: ["supplier", "upload"],
+    },
+    {
+      id: "deliver",
+      label: "Deliver your first order",
+      description: `Set up delivery, then send to your ${nounLower}.`,
+      href: "/inbox",
+      cta: "Deliver an order",
+      requires: ["supplier", "upload", "map"],
+    },
+  ];
+}
 
 // ─── Status markers ─────────────────────────────────────────────────────────
 
@@ -148,6 +154,13 @@ export function OnboardingChecklist({
   deliveredCount,
   onResumeSetup,
 }: OnboardingChecklistProps) {
+  // Direction-aware step copy: "supplier" → "customer" in inbound mode (display only).
+  const { labels } = useOrderDirection();
+  const STEPS = React.useMemo(
+    () => buildSteps(labels.counterpartyNoun, labels.counterpartyNoun.toLowerCase()),
+    [labels.counterpartyNoun],
+  );
+
   // Each step's done-ness maps to a real signal — no fabricated completion.
   const doneById: Record<string, boolean> = {
     supplier: status.hasSupplier || supplierCount > 0,

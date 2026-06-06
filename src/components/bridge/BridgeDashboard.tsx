@@ -25,6 +25,7 @@ import type { Lane } from "./LaneDrawer";
 import { OnboardingChecklist } from "./OnboardingChecklist";
 import { OnboardingWizard } from "./OnboardingWizard";
 import { apiClient, isApiMockMode } from "@/lib/api-client";
+import { useOrderDirection } from "@/hooks/useOrderDirection";
 import type { OrderSummary, Supplier } from "@/types/procurement";
 import { ArrowRight, ArrowUpRight, Clock, AlertTriangle, CheckCircle2, Send, Activity, Download } from "lucide-react";
 
@@ -267,6 +268,11 @@ export function BridgeDashboard() {
   const [activeLane, setActiveLane] = useState<Lane | null>(null);
   const [wizardDismissed, setWizardDismissed] = useState(false);
   const [windowKey, setWindowKey] = useState<WindowKey>("30d");
+  // Direction-aware copy: "Supplier" → "Customer" in inbound mode (display only).
+  const { direction, labels } = useOrderDirection();
+  const noun = labels.counterpartyNoun;        // "Supplier" | "Customer"
+  const nounLower = noun.toLowerCase();          // "supplier" | "customer"
+  const pluralLower = labels.counterpartyPlural.toLowerCase(); // "suppliers" | "customers"
 
   const { data: onboardingStatus } = useQuery({
     queryKey: ["onboarding-status"],
@@ -544,14 +550,14 @@ export function BridgeDashboard() {
         >
           <div className="text-[16px] font-semibold" style={{ color: "#0B1A2F" }}>No deliveries yet</div>
           <div className="mt-1 max-w-[420px] text-[13px]" style={{ color: "#56627A" }}>
-            Add a supplier and upload your first PO — your buyer → supplier connections appear here.
+            Add a {nounLower} and upload your first PO — your {labels.railHeader.toLowerCase()} connections appear here.
           </div>
           <Link
             href="/library/suppliers"
             className="mt-4 inline-flex items-center gap-1 rounded-[6px] px-3 py-1.5 text-[12.5px] font-medium transition-colors hover:bg-[#F6F7FA]"
             style={{ border: "1px solid #E2E6EE", background: "#FFFFFF", color: "#0B1A2F" }}
           >
-            Add a supplier →
+            Add a {nounLower} →
           </Link>
         </div>
       );
@@ -588,7 +594,7 @@ export function BridgeDashboard() {
             <span style={{ color: "#C6CDDA" }}>·</span>
             {wireCount} connection{wireCount === 1 ? "" : "s"}
             <span style={{ color: "#C6CDDA" }}>·</span>
-            {effective.suppliers.length} supplier{effective.suppliers.length === 1 ? "" : "s"}
+            {effective.suppliers.length} {nounLower}{effective.suppliers.length === 1 ? "" : "s"}
           </p>
         </div>
 
@@ -658,7 +664,7 @@ export function BridgeDashboard() {
         <div className="flex flex-1 justify-center p-4 sm:p-6">
           <div className="w-full max-w-[980px]">
             <p className="mb-4 text-[13px]" style={{ color: "#56627A" }}>
-              Your pipeline is ready. Create its first connection to start routing orders to suppliers.
+              Your pipeline is ready. Create its first connection to start {direction === "inbound" ? "confirming orders from customers" : "routing orders to suppliers"}.
             </p>
             <OnboardingChecklist
               status={onboardingStatus!}
@@ -692,7 +698,7 @@ export function BridgeDashboard() {
                 </span>
                 <span className="flex items-center gap-1.5">
                   <span style={{ width: 7, height: 7, borderRadius: "50%", background: GREEN, display: "inline-block" }} />
-                  Supplier
+                  {noun}
                 </span>
                 <span className="flex items-center gap-1.5">
                   <span style={{ width: 12, height: 2.5, borderRadius: 2, background: "#C97A14", display: "inline-block" }} />
@@ -838,7 +844,7 @@ export function BridgeDashboard() {
                 <div className="flex min-w-0 items-center gap-2.5">
                   <Activity size={15} strokeWidth={2} style={{ color: "#56627A", flexShrink: 0 }} aria-hidden />
                   <div className="min-w-0">
-                    <div className="text-[13px] font-semibold" style={{ color: "#0B1A2F" }}>Supplier health</div>
+                    <div className="text-[13px] font-semibold" style={{ color: "#0B1A2F" }}>{noun} health</div>
                     <div className="text-[11.5px]" style={{ color: "#8A93A5" }}>Acceptance rate, last 30 days</div>
                   </div>
                 </div>
@@ -847,13 +853,13 @@ export function BridgeDashboard() {
                   className="inline-flex flex-shrink-0 items-center gap-1 text-[11.5px] font-medium transition-colors hover:text-[#1E6D29]"
                   style={{ color: "#56627A" }}
                 >
-                  All suppliers <ArrowRight size={12} />
+                  All {pluralLower} <ArrowRight size={12} />
                 </Link>
               </div>
               <div className="divide-y" style={{ borderColor: "#EEF0F4" }}>
                 {effective.suppliers.length === 0 ? (
                   <div className="text-center" style={{ color: "#8A93A5", padding: 16, fontSize: 12.5 }}>
-                    No suppliers yet.
+                    No {pluralLower} yet.
                   </div>
                 ) : (
                   effective.suppliers.map((s) => {

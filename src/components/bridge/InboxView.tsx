@@ -22,6 +22,7 @@ import {
 } from "@tanstack/react-table";
 import { FileChip } from "./FileChip";
 import { StatusJourney, type CrossingStatus, type OrderStage } from "./StatusJourney";
+import { useOrderDirection, type PartyLabels } from "@/hooks/useOrderDirection";
 
 // ─── Accent palette ─────────────────────────────────────────────────────────────
 // Bridge Layer semantic palette (mirrors --brand-* / chrome in globals.css):
@@ -215,7 +216,12 @@ const FILTER_CHIPS: Array<{ label: string; status?: CrossingStatus; api?: OrderS
 
 const columnHelper = createColumnHelper<OrderRow>();
 
-const columns = [
+// Columns depend on the org's direction labels (rail header + unknown-buyer
+// fallback), so they're built per-render via useMemo([labels]) inside the
+// component rather than living at module scope. getRowId still keys on order id,
+// so row stability / selection behaviour is unchanged.
+function buildColumns(labels: PartyLabels) {
+  return [
   // Checkbox select
   columnHelper.display({
     id: "select",
@@ -276,17 +282,17 @@ const columns = [
     ),
     size: 180,
   }),
-  // Buyer → Supplier
+  // Buyer → Supplier (or Customer → You in inbound mode)
   columnHelper.display({
     id: "lane",
-    header: "Buyer → Supplier",
+    header: labels.railHeader,
     cell: ({ row }) => {
       const buyer = row.original.buyer;
       const hasBuyer = buyer != null && buyer.trim() !== "" && buyer.trim() !== "—";
       return (
         <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: "12.5px" }}>
           <span style={{ color: hasBuyer ? BLUE_DEEP : "#8A93A5", fontWeight: hasBuyer ? 500 : 400, flex: 1, minWidth: 0, textOverflow: "ellipsis", whiteSpace: "nowrap", overflow: "hidden" }}>
-            {hasBuyer ? buyer : "Unknown buyer"}
+            {hasBuyer ? buyer : labels.unknownBuyer}
           </span>
           <span style={{ color: "#8A93A5", flexShrink: 0 }}>→</span>
           <span style={{ color: GREEN_DEEP, fontWeight: 500, flex: 1, minWidth: 0, textOverflow: "ellipsis", whiteSpace: "nowrap", overflow: "hidden" }}>
@@ -341,7 +347,8 @@ const columns = [
     cell: () => <span style={{ color: "#8A93A5", fontSize: "15px" }}>›</span>,
     size: 30,
   }),
-];
+  ];
+}
 
 // ─── Sort indicator ───────────────────────────────────────────────────────────
 
@@ -362,6 +369,15 @@ const PAGE_SIZE = 25;
 
 export function InboxView() {
   const router = useRouter();
+  const { direction, labels } = useOrderDirection();
+  // Columns depend only on direction labels — memoise so react-table receives a
+  // stable reference (rebuilt only when the org's direction changes).
+  const columns = useMemo(() => buildColumns(labels), [labels]);
+  // Empty-state copy: outbound orders arrive from buyers; inbound from customers.
+  const emptyStateCopy =
+    direction === "inbound"
+      ? "No orders match this filter. New orders land here automatically as customers send them, or upload one yourself."
+      : "No orders match this filter. New orders land here automatically as buyers send them, or upload one yourself.";
   const [sorting, setSorting]           = useState<SortingState>([{ id: "ageMin", desc: false }]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
@@ -746,7 +762,7 @@ export function InboxView() {
             <div className="flex flex-col items-center justify-center py-16 px-6 text-center gap-3">
               <div style={{ fontSize: 28, color: "#C6CDDA" }}>⊘</div>
               <p className="text-[14px] font-semibold" style={{ color: "#0B1A2F" }}>Your inbox is clear</p>
-              <p className="text-[13px]" style={{ color: "#56627A" }}>No orders match this filter. New orders land here automatically as buyers send them, or upload one yourself.</p>
+              <p className="text-[13px]" style={{ color: "#56627A" }}>{emptyStateCopy}</p>
               <button
                 onClick={() => router.push("/upload")}
                 style={{
@@ -821,7 +837,7 @@ export function InboxView() {
                 if (!hasBuyer) {
                   return (
                     <div className="flex items-center gap-1.5 text-[13px]">
-                      <span className="text-[11.5px]" style={{ color: "#8A93A5" }}>Unknown buyer</span>
+                      <span className="text-[11.5px]" style={{ color: "#8A93A5" }}>{labels.unknownBuyer}</span>
                       <span aria-hidden style={{ color: "#C6CDDA" }}>→</span>
                       <span className="truncate font-medium" style={{ color: GREEN_DEEP }}>{row.original.supplier}</span>
                     </div>
@@ -963,7 +979,7 @@ export function InboxView() {
                     Your inbox is clear
                   </p>
                   <p style={{ fontSize: 13, marginTop: 4, color: "#56627A", maxWidth: 380, margin: "8px auto 0" }}>
-                    No orders match this filter. New orders land here automatically as buyers send them, or upload one yourself.
+                    {emptyStateCopy}
                   </p>
                   <button
                     onClick={() => router.push("/upload")}

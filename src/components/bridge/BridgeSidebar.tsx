@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useAuth, useOrganization } from "@clerk/nextjs";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { apiClient, getBillingStatus, isApiMockMode } from "@/lib/api-client";
 import { LAUNCH_CORE_ONLY, LAUNCH_CORE_HREFS } from "@/lib/launch-flags";
+import { useOrderDirection } from "@/hooks/useOrderDirection";
 import { ProcuLinkMark } from "./DSPrimitives";
 
 // ─── Nav structure (matches the "Bridge Layer" design handoff) ─────────────────
@@ -70,14 +71,24 @@ const NAV: Array<{ group?: string; items: NavItem[] }> = [
 
 // First-launch shell: filter NAV down to the core hrefs and drop now-empty
 // group sections. The full nav is restored by setting NEXT_PUBLIC_LAUNCH_FULL_NAV=true.
-const VISIBLE_NAV: Array<{ group?: string; items: NavItem[] }> = LAUNCH_CORE_ONLY
-  ? NAV
-      .map((section) => ({
-        ...section,
-        items: section.items.filter((item) => LAUNCH_CORE_HREFS.has(item.href)),
-      }))
-      .filter((section) => section.items.length > 0)
-  : NAV;
+// `counterpartyPlural` relabels the "Suppliers" entry to "Customers" in inbound
+// mode (DISPLAY ONLY — the route stays /library/suppliers).
+function buildVisibleNav(counterpartyPlural: string): Array<{ group?: string; items: NavItem[] }> {
+  const relabelled = NAV.map((section) => ({
+    ...section,
+    items: section.items.map((item) =>
+      item.href === "/library/suppliers" ? { ...item, label: counterpartyPlural } : item,
+    ),
+  }));
+  return LAUNCH_CORE_ONLY
+    ? relabelled
+        .map((section) => ({
+          ...section,
+          items: section.items.filter((item) => LAUNCH_CORE_HREFS.has(item.href)),
+        }))
+        .filter((section) => section.items.length > 0)
+    : relabelled;
+}
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
@@ -115,6 +126,9 @@ export function BridgeSidebar({
   const { organization } = useOrganization();
   const clerkReady = clerkLoaded && !!isSignedIn;
   const queryEnabled = isApiMockMode || clerkReady;
+  // Direction-aware nav: "Suppliers" → "Customers" in inbound mode (route unchanged).
+  const { labels } = useOrderDirection();
+  const VISIBLE_NAV = useMemo(() => buildVisibleNav(labels.counterpartyPlural), [labels.counterpartyPlural]);
 
   // Live billing plan for workspace switcher display.
   const { data: billing } = useQuery({
