@@ -258,14 +258,14 @@ export const PLAN_BY_ID: Record<PlanId, Plan> = PLANS.reduce(
 export const CHECKOUT_PLAN_IDS: PlanId[] = PLANS.filter((p) => p.isCheckout && !p.hidden).map((p) => p.id);
 
 /**
- * Setup / onboarding fee note. These fees are arranged manually with the
- * customer and are NOT auto-charged through Stripe yet; they are waived for
- * early design partners.
+ * Onboarding note. Higher tiers get hands-on, founder-led supplier setup as part
+ * of the plan. No per-supplier fee is stated — the earlier €500/€150 onboarding-fee
+ * model is retired. (Confirm final onboarding wording with the founder before any
+ * external promotion.)
  */
 export const SETUP_FEE_NOTE =
-  "Operations, Integration, and Distributor include founder-led supplier onboarding — " +
-  "€500 per supplier for your first 3 suppliers, then €150 each. These are arranged " +
-  "manually (not auto-charged) and are waived for early design partners.";
+  "Operations, Integration, and Distributor include hands-on, founder-led supplier " +
+  "onboarding — we configure your suppliers with you during setup.";
 
 /**
  * Recommend the smallest plan whose monthly order allowance covers `ordersPerMonth`.
