@@ -1693,8 +1693,9 @@ export function SpineReview({ orderId }: { orderId: string }) {
       <div className="flex-shrink-0" style={{ background: "#FFFFFF", borderBottom: "1px solid #E2E6EE" }}>
         {/* Top row: back + PO title + status badge + buyer→supplier · total | stage track | actions */}
         <div className="flex flex-wrap items-start gap-x-4 gap-y-3 px-4 pt-3.5 pb-3.5 lg:flex-nowrap lg:items-center lg:px-6">
-          {/* Title block */}
-          <div className="flex min-w-0 flex-1 items-start gap-3">
+          {/* Title block — full width on mobile so the action bar wraps to its own
+              row below instead of overlapping the PO title. */}
+          <div className="flex w-full min-w-0 items-start gap-3 lg:w-auto lg:flex-1">
             <button
               onClick={() => router.push("/inbox")}
               aria-label="Back to inbox"
@@ -1731,9 +1732,10 @@ export function SpineReview({ orderId }: { orderId: string }) {
             </div>
           </div>
 
-          {/* Actions */}
-          <div className="flex flex-shrink-0 flex-col items-stretch gap-1.5 sm:items-end">
-            <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+          {/* Actions — full-width action bar stacked below the title on mobile;
+              right-aligned inline cluster on desktop. */}
+          <div className="flex w-full flex-col items-stretch gap-1.5 lg:w-auto lg:flex-shrink-0 sm:items-end">
+            <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:justify-end">
               {order.status === "delivery_dead_letter" && (
                 <span
                   style={{ height: 34, display: "inline-flex", alignItems: "center", padding: "0 12px", borderRadius: 7, fontSize: 12, fontWeight: 600, background: "#FBE3E3", color: "#C53A3A", border: "1px solid #F0D2D2" }}
@@ -1743,6 +1745,7 @@ export function SpineReview({ orderId }: { orderId: string }) {
               )}
               <button
                 onClick={handleSaveDraft}
+                className="flex-1 justify-center sm:flex-none"
                 style={{ height: 34, padding: "0 14px", borderRadius: 7, fontSize: 12.5, fontWeight: 500, background: "#FFFFFF", border: "1px solid #E2E6EE", color: "#0B1A2F", cursor: "pointer" }}
               >
                 Save draft
@@ -1751,6 +1754,7 @@ export function SpineReview({ orderId }: { orderId: string }) {
                 onClick={() => !crossed && exceptionCount === 0 && sendState === "idle" && setShowConfirm(true)}
                 disabled={sendState !== "idle" || (!crossed && exceptionCount > 0)}
                 aria-label="Send to supplier"
+                className="flex-1 justify-center sm:flex-none"
                 style={{
                   height: 34, padding: "0 16px", borderRadius: 7, fontSize: 13, fontWeight: 700,
                   background: crossed ? "#28C55E" : sendState !== "idle" || exceptionCount > 0 ? "#96C69C" : "#28C55E",
@@ -1909,7 +1913,7 @@ export function SpineReview({ orderId }: { orderId: string }) {
               overflow: "hidden",
             }}
           >
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "9px 14px", borderBottom: "1px solid #EEF0F4" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 8, padding: "9px 14px", borderBottom: "1px solid #EEF0F4" }}>
               <span style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", color: "#56627A" }}>
                 Supplier acceptance
               </span>
@@ -1918,11 +1922,12 @@ export function SpineReview({ orderId }: { orderId: string }) {
                 onClick={() => validateMutation.mutate()}
                 disabled={validateMutation.isPending}
                 style={{
-                  height: 28,
-                  padding: "0 12px",
+                  minHeight: 28,
+                  padding: "5px 12px",
                   borderRadius: 6,
                   fontSize: 11.5,
                   fontWeight: 600,
+                  lineHeight: 1.2,
                   background: "#0B1A2F",
                   color: "#FFFFFF",
                   border: "none",
