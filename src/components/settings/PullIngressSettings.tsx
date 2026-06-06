@@ -2,6 +2,7 @@
 
 import { useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
+import { Save } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   apiClient,
@@ -11,11 +12,11 @@ import {
   getS3Settings,
   updateS3Settings,
 } from "@/lib/api-client";
+import { SettingsGroup, primaryGreenButton } from "@/app/(app)/settings/page";
 
 const INK = "#0B1A2F";
 const MUTED = "#56627A";
 const FAINT = "#8A93A5";
-const LINE = "#E2E6EE";
 const DANGER = "#A52E2E";
 
 const PLAN_HINT = "Available on any paid plan. Secrets are encrypted and never shown again.";
@@ -143,15 +144,14 @@ function SupplierSelect({
   );
 }
 
+// Use the canonical Settings card framing (same SettingsGroup shell +
+// CSS-variable surface/border/shadow as Email, Organization, API keys, etc.)
+// so the SFTP/S3 panels are visually consistent with the rest of Settings.
 function Shell({ title, subtitle, children }: { title: string; subtitle: string; children: ReactNode }) {
   return (
-    <div className="rounded-[10px]" style={{ border: `1px solid ${LINE}`, background: "#FFF", overflow: "hidden" }}>
-      <div className="px-5 py-4" style={{ borderBottom: `1px solid ${LINE}`, background: "#F6F7FA" }}>
-        <h3 className="text-[14px] font-semibold" style={{ color: INK }}>{title}</h3>
-        <p className="mt-0.5 text-[12px]" style={{ color: MUTED }}>{subtitle}</p>
-      </div>
-      <div className="grid gap-4 p-5">{children}</div>
-    </div>
+    <SettingsGroup title={title} sub={subtitle}>
+      <div className="grid gap-4">{children}</div>
+    </SettingsGroup>
   );
 }
 
@@ -196,20 +196,18 @@ function SaveBar({
   hint: string;
 }) {
   return (
-    <div className="flex flex-col gap-2 pt-1 sm:flex-row sm:items-center sm:justify-between">
+    <div
+      className="flex flex-col gap-2 pt-3 sm:flex-row sm:items-center sm:justify-between"
+      style={{ borderTop: "1px solid var(--border)", marginTop: 2 }}
+    >
       <span className="text-[11px]" style={{ color: FAINT }}>{hint}</span>
+      {/* Shared brand-green Save button (matches Organization / Email "Save"). */}
       <button
         onClick={onSave}
         disabled={saving}
-        className="rounded-[8px] px-4 text-[13px] font-semibold"
-        style={{
-          height: 38,
-          border: "none",
-          background: saving ? FAINT : "var(--brand-green, #2E8E3A)",
-          color: "#FFF",
-          cursor: saving ? "not-allowed" : "pointer",
-        }}
+        style={{ ...primaryGreenButton, background: saving ? "#8A93A5" : "var(--brand-green)", cursor: saving ? "not-allowed" : "pointer" }}
       >
+        <Save size={14} strokeWidth={2} />
         {saving ? "Saving…" : "Save"}
       </button>
     </div>
@@ -244,20 +242,20 @@ function ErrorShell({
   onRetry: () => void;
   retrying: boolean;
 }) {
+  // Matches the canonical Email / API-keys "unavailable" panel (radius 12,
+  // left danger rule, card shadow) so error states are consistent too.
   return (
     <div
-      className="rounded-[10px] px-5 py-5"
-      style={{ border: "1px solid #F0D2D2", borderLeft: "3px solid #C53A3A", background: "#FFF" }}
+      style={{ borderRadius: 12, background: "#FFFFFF", padding: "20px 22px", border: "1px solid #F0D2D2", borderLeft: "3px solid #C53A3A", boxShadow: "0 1px 2px rgba(11,26,47,0.04)" }}
     >
-      <h3 className="text-[14px] font-semibold" style={{ color: INK }}>{title} settings are unavailable</h3>
-      <p className="mt-1 max-w-[520px] text-[12.5px]" style={{ color: MUTED, lineHeight: 1.55 }}>
+      <h2 style={{ fontSize: 17, fontWeight: 600, color: INK, margin: "0 0 4px" }}>{title} settings are unavailable</h2>
+      <p style={{ margin: 0, maxWidth: 560, fontSize: 12.5, lineHeight: 1.55, color: MUTED }}>
         The UI is working, but the API did not answer the settings request. Your saved configuration is unaffected.
       </p>
       <button
         onClick={onRetry}
         disabled={retrying}
-        className="mt-3.5 rounded-[6px] px-3 text-[12px] font-semibold"
-        style={{ height: 32, border: "1px solid #E2E6EE", background: "#FFF", color: INK, cursor: retrying ? "not-allowed" : "pointer" }}
+        style={{ marginTop: 14, height: 32, borderRadius: 6, border: "1px solid #E2E6EE", background: "#FFFFFF", color: INK, fontSize: 12, fontWeight: 600, padding: "0 12px", cursor: retrying ? "not-allowed" : "pointer" }}
       >
         {retrying ? "Checking…" : "Retry connection"}
       </button>
