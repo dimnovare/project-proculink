@@ -62,6 +62,9 @@ function TrialCountdown({ endsAt }: { endsAt: string }) {
   );
 }
 
+// Blocking banner — ONLY for Pilot, whose trial/limit really does pause
+// processing (Pilot becomes read-only). Paid plans are NEVER blocked; their
+// over-limit state is handled by the non-blocking OverageNotice below.
 function LimitBanner({ status }: { status: BillingStatus }) {
   if (status.plan === "pilot" && status.isTrialExpired) {
     return (
@@ -81,11 +84,47 @@ function LimitBanner({ status }: { status: BillingStatus }) {
     );
   }
 
-  if (status.isOrderLimitReached) {
+  return null;
+}
+
+// Non-blocking usage notice for PAID plans. Paid orders always process; this
+// only flags that the customer is approaching the cap (heads-up) or is over it
+// (overage billing). It never tells a paid customer that processing is paused.
+function OverageNotice({ status }: { status: BillingStatus }) {
+  // Pilot is handled by LimitBanner (it genuinely blocks); skip here.
+  if (status.plan === "pilot") return null;
+  // Enterprise has custom/no hard cap — no overage messaging.
+  if (status.plan === "enterprise") return null;
+
+  // Over the cap → honest overage line.
+  if (status.atLimit || status.overageOrders > 0) {
+    const eur = status.overageAmountEur.toLocaleString("en-IE", {
+      style: "currency",
+      currency: "EUR",
+      maximumFractionDigits: 2,
+    });
     return (
-      <div style={bannerStyle}>
-        <strong>You&apos;ve reached your plan&apos;s order limit.</strong>
-        <span>Upgrade to continue processing new buyer orders this month.</span>
+      <div style={infoNoticeStyle}>
+        <strong style={{ color: "#0F4FA8" }}>You&apos;re over your monthly order allowance.</strong>
+        <span>
+          Extra orders still process and bill at €0.50 each —{" "}
+          <strong>{status.overageOrders.toLocaleString()}</strong> this period (={" "}
+          <strong>{eur}</strong>). Upgrade for more included volume if this keeps up.
+        </span>
+      </div>
+    );
+  }
+
+  // Approaching the cap (≥80%) → gentle heads-up.
+  if (status.nearLimit) {
+    return (
+      <div style={warnNoticeStyle}>
+        <strong style={{ color: "#7A4A0A" }}>You&apos;re approaching your monthly order limit.</strong>
+        <span>
+          You&apos;ve used {status.ordersThisMonth.toLocaleString()} of{" "}
+          {status.orderLimit.toLocaleString()} orders. Orders keep processing past the limit and any
+          extras bill at €0.50 each.
+        </span>
       </div>
     );
   }
@@ -104,6 +143,36 @@ const bannerStyle: React.CSSProperties = {
   fontSize: 13,
   lineHeight: 1.5,
   color: "#7A4A0A",
+};
+
+// Gentle amber heads-up (approaching cap) — softer than the blocking bannerStyle.
+const warnNoticeStyle: React.CSSProperties = {
+  borderRadius: 10,
+  padding: "13px 16px",
+  background: "#FFFFFF",
+  border: "1px solid #E2E6EE",
+  borderLeft: "3px solid var(--amber)",
+  display: "flex",
+  flexDirection: "column",
+  gap: 4,
+  fontSize: 12.5,
+  lineHeight: 1.55,
+  color: "#56627A",
+};
+
+// Neutral blue info (over cap → overage billing) — informational, not a warning.
+const infoNoticeStyle: React.CSSProperties = {
+  borderRadius: 10,
+  padding: "13px 16px",
+  background: "#FFFFFF",
+  border: "1px solid #E2E6EE",
+  borderLeft: "3px solid var(--brand-blue)",
+  display: "flex",
+  flexDirection: "column",
+  gap: 4,
+  fontSize: 12.5,
+  lineHeight: 1.55,
+  color: "#56627A",
 };
 
 // Large highlighted plan block — buyer-blue soft tint with a buyer-blue price,
@@ -212,6 +281,7 @@ export function BillingSection() {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
       <LimitBanner status={status} />
+      <OverageNotice status={status} />
 
       {/* ── Current plan card (large highlighted block) ── */}
       <div style={{ border: "1px solid var(--border)", borderRadius: "var(--radius-md)", background: "var(--surface)", padding: 0, overflow: "hidden", boxShadow: "var(--shadow-card)" }}>

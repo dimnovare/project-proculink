@@ -8,9 +8,17 @@
 //   Pilot       €0      · 20 orders (trial total) · 1 supplier  · 14-day trial
 //   Growth      €149/mo · 150 orders/month        · 5 suppliers
 //   Operations  €399/mo · 500 orders/month        · 10 suppliers
-//   Integration €999/mo · 1,000 orders/month      · 20 suppliers
+//   Integration €999/mo · 1,500 orders/month      · 20 suppliers
 //   Distributor €1,499/mo · 2,500 orders/month    · 30 suppliers
 //   Enterprise  from €2,500/mo · custom volume     · custom suppliers
+//
+// Per-order value stays MONOTONIC down the ladder (more volume → cheaper/order):
+//   Growth €0.99 · Operations €0.80 · Integration ~€0.67 · Distributor €0.60.
+//
+// Delivery/ingestion CHANNELS (Webhook/API delivery, email ingestion, SFTP, S3)
+// are available on ALL paid plans (Growth+) — the backend gates them at Growth.
+// The paid tiers differ on VOLUME and SUPPLIER COUNT, not on which channels
+// they unlock.
 // ─────────────────────────────────────────────────────────────────────────────
 
 import type { BillingPlan } from "@/types/procurement";
@@ -102,20 +110,20 @@ export const PLANS: Plan[] = [
     priceLabel: "€149",
     priceCadence: "per month",
     billingPriceLabel: "€149/mo",
-    billingSummary: "Up to 150 orders / month · 5 suppliers",
+    billingSummary: "Up to 150 orders / month · 5 suppliers · all channels",
     orderLimit: 150,
     supplierLimit: 5,
     orderLimitIsMonthly: true,
     blurb: "For teams ready to process recurring buyer orders.",
     recommendationBlurb:
-      "Self-serve. Best for a single team replacing up to 150 monthly orders across 5 suppliers.",
+      "Self-serve. Best for a single team replacing up to 150 monthly orders across 5 suppliers — with every delivery and ingestion channel included.",
     features: [
       "150 orders/month",
       "5 suppliers",
-      "Mapping library",
-      "Validation",
-      "Output preview",
-      "Basic audit log",
+      "Webhook/API delivery",
+      "Email · SFTP · S3 ingestion",
+      "Mapping library + validation",
+      "Audit log",
     ],
     cta: { label: "Upgrade to Growth", href: SIGN_UP },
     color: "#28C55E",
@@ -137,14 +145,14 @@ export const PLANS: Plan[] = [
     orderLimitIsMonthly: true,
     blurb: "For order teams that need reliable daily processing.",
     recommendationBlurb:
-      "Reliable daily processing for 150–500 monthly orders across up to 10 suppliers.",
+      "Reliable daily processing for 150–500 monthly orders across up to 10 suppliers, with every channel included.",
     features: [
       "500 orders/month",
       "10 suppliers",
+      "Webhook/API + email/SFTP/S3 channels",
       "Bulk mapping import/export",
       "cXML support",
-      "Advanced audit trail",
-      "Priority support",
+      "Advanced audit trail + priority support",
     ],
     cta: { label: "Upgrade to Operations", href: SIGN_UP },
     color: "#2E8E3A",
@@ -160,19 +168,19 @@ export const PLANS: Plan[] = [
     priceLabel: "€999",
     priceCadence: "per month",
     billingPriceLabel: "€999/mo",
-    billingSummary: "Up to 1,000 orders / month · 20 suppliers · all channels",
-    orderLimit: 1000,
+    billingSummary: "Up to 1,500 orders / month · 20 suppliers · all channels",
+    orderLimit: 1500,
     supplierLimit: 20,
     orderLimitIsMonthly: true,
-    blurb: "For companies connecting ProcuLink into their order workflow.",
+    blurb: "For higher-volume teams scaling order processing across more suppliers.",
     recommendationBlurb:
-      "Webhook/API delivery and email ingestion for up to 1,000 orders and 20 suppliers.",
+      "Higher volume — up to 1,500 orders/month across 20 suppliers at about €0.67 per order, with every channel and custom output templates.",
     features: [
-      "1,000 orders/month",
+      "1,500 orders/month",
       "20 suppliers",
-      "Webhook/API delivery",
-      "Email ingestion",
+      "All channels (webhook/API, email, SFTP, S3)",
       "Custom output templates",
+      "Advanced audit trail",
       "Assisted onboarding",
     ],
     cta: { label: "Upgrade to Integration", href: SIGN_UP },
@@ -199,8 +207,8 @@ export const PLANS: Plan[] = [
     features: [
       "2,500 orders/month",
       "30 suppliers",
-      "Webhook/API + SFTP delivery",
-      "Bulk mapping + email ingestion",
+      "All channels (webhook/API, email, SFTP, S3)",
+      "Bulk mapping import/export",
       "Priority onboarding",
       "Founder-led supplier setup",
     ],
@@ -263,15 +271,14 @@ export const PLAN_BY_ID: Record<PlanId, Plan> = PLANS.reduce(
 export const CHECKOUT_PLAN_IDS: PlanId[] = PLANS.filter((p) => p.isCheckout && !p.hidden).map((p) => p.id);
 
 /**
- * Setup / onboarding fee note. These fees are arranged manually with the
- * customer and are NOT auto-charged through Stripe yet; they are waived for
- * early design partners. (Distributor is now shown on /pricing, so naming it
- * here is consistent.)
+ * Setup / onboarding fee note. Self-serve plans include light setup at no extra
+ * charge; the per-supplier onboarding fee applies only to Enterprise / complex
+ * integrations and is arranged manually (never auto-charged through Stripe).
  */
 export const SETUP_FEE_NOTE =
-  "Operations, Integration, and Distributor include founder-led supplier onboarding — " +
-  "€500 per supplier for your first 3 suppliers, then €150 each. These are arranged " +
-  "manually (not auto-charged) and are waived for early design partners.";
+  "Growth, Operations, Integration, and Distributor include light, self-serve setup at no extra cost. " +
+  "Hands-on, per-supplier onboarding (€500 per supplier for the first 3, then €150 each) applies only to " +
+  "Enterprise and other complex setups — arranged manually, never auto-charged, and waived for early design partners.";
 
 /**
  * Recommend the smallest plan whose monthly order allowance covers `ordersPerMonth`.

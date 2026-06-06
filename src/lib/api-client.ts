@@ -24,6 +24,8 @@ import type {
   OrdersSummary,
   OrderDirection,
   OrgSettings,
+  SetOrgLimitsRequest,
+  OrgLimitsResponse,
 } from "@/types/procurement";
 
 function normalizeApiBaseUrl(raw: string | undefined): string {
@@ -1529,6 +1531,10 @@ export async function getBillingStatus(): Promise<BillingStatus> {
       canAddSupplier:         false,
       stripeCustomerId:       null,
       stripeSubscriptionId:   null,
+      overageOrders:          0,
+      overageAmountEur:       0,
+      nearLimit:              false,
+      atLimit:                false,
     };
   }
   const headers = await authHeader();
@@ -1670,6 +1676,55 @@ export async function createAdminInvoice(
   }, 30000);
   if (!res.ok) return adminError(res, "admin/invoices");
   return res.json() as Promise<CreateAdminInvoiceResult>;
+}
+
+/**
+ * Adjust a single org's effective limits / pilot window.
+ * POST /api/admin/organisations/{id}/limits — behind the server-side [AdminOnly]
+ * gate (401 signed out / 403 not an admin, surfaced as AdminAccessError).
+ *
+ * Every field is optional and independent; the matching clear* flag resets that
+ * field to its plan default. Returns the saved overrides + the resulting
+ * effective limits so the caller can show what actually applies now.
+ *
+ * Mock mode echoes the request back as a no-op success (no backend), defaulting
+ * effective limits to the requested overrides or sensible Pilot defaults.
+ */
+export async function setOrgLimits(
+  orgId: string,
+  body: SetOrgLimitsRequest,
+): Promise<OrgLimitsResponse> {
+  if (USE_MOCK) {
+    await delay(400);
+    const now = Date.now();
+    const trialEnd = body.clearTrialEnds
+      ? null
+      : body.trialEndsAtOverride
+        ? body.trialEndsAtOverride
+        : body.extendTrialDays != null
+          ? new Date(now + body.extendTrialDays * 86_400_000).toISOString()
+          : null;
+    return {
+      id: orgId,
+      name: "Mock organisation",
+      plan: "pilot",
+      accountStatus: "trialing",
+      orderLimitOverride: body.clearOrderLimit ? null : body.orderLimitOverride ?? null,
+      supplierLimitOverride: body.clearSupplierLimit ? null : body.supplierLimitOverride ?? null,
+      trialEndsAtOverride: trialEnd,
+      effectiveOrderLimit: body.clearOrderLimit ? 20 : body.orderLimitOverride ?? 20,
+      effectiveSupplierLimit: body.clearSupplierLimit ? 1 : body.supplierLimitOverride ?? 1,
+      effectiveTrialEndsAt: trialEnd,
+    };
+  }
+  const headers = await authHeader();
+  const res = await fetchWithTimeout(`${API_BASE_URL}/api/admin/organisations/${orgId}/limits`, {
+    method: "POST",
+    headers: { ...headers, "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  }, 30000);
+  if (!res.ok) return adminError(res, "admin/organisations/limits");
+  return res.json() as Promise<OrgLimitsResponse>;
 }
 
 // ── Email polling settings ────────────────────────────────────────────────

@@ -28,6 +28,7 @@ import {
   type AdminOrganisation,
 } from "@/lib/api-client";
 import { CreateInvoiceModal } from "./CreateInvoiceModal";
+import { AdjustLimitsModal } from "./AdjustLimitsModal";
 
 const NAVY = "#0B1A2F";
 const BLUE = "#1E66C9";
@@ -133,6 +134,7 @@ export default function AdminPage() {
 
   const [showInvoice, setShowInvoice] = useState(false);
   const [invoiceOrgId, setInvoiceOrgId] = useState<string | null>(null);
+  const [limitsOrg, setLimitsOrg] = useState<AdminOrganisation | null>(null);
   const [sortKey, setSortKey] = useState<SortKey>("mrrContribution");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
 
@@ -309,6 +311,7 @@ export default function AdminPage() {
                     <SortableTh label="Created" col="createdAt" {...{ sortKey, sortDir, toggleSort }} />
                     <SortableTh label="Last activity" col="lastOrderActivity" {...{ sortKey, sortDir, toggleSort }} />
                     <th style={{ ...th, textAlign: "right" }}>Stripe</th>
+                    <th style={{ ...th, textAlign: "right" }}>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -345,6 +348,17 @@ export default function AdminPage() {
                           <span style={{ color: "#C5CBD6" }}>—</span>
                         )}
                       </td>
+                      <td style={{ ...td, textAlign: "right", whiteSpace: "nowrap" }}>
+                        <button
+                          onClick={() => setLimitsOrg(org)}
+                          style={{
+                            background: "#FFFFFF", border: "1px solid #D9DEE8", borderRadius: 7,
+                            padding: "5px 10px", fontSize: 12, fontWeight: 600, color: NAVY, cursor: "pointer",
+                          }}
+                        >
+                          Adjust limits
+                        </button>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -371,16 +385,27 @@ export default function AdminPage() {
                   <div style={{ marginTop: 8, fontSize: 11.5, color: "#8A93A5" }}>
                     Created {shortDate(org.createdAt)} · last activity {relativeTime(org.lastOrderActivity)}
                   </div>
-                  {org.stripeCustomerId && (
-                    <a
-                      href={`${STRIPE_CUSTOMER_BASE}${org.stripeCustomerId}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      style={{ display: "inline-block", marginTop: 10, color: BLUE_DEEP, fontWeight: 600, fontSize: 12.5, textDecoration: "none" }}
+                  <div style={{ marginTop: 12, display: "flex", flexWrap: "wrap", alignItems: "center", gap: 12 }}>
+                    <button
+                      onClick={() => setLimitsOrg(org)}
+                      style={{
+                        background: "#FFFFFF", border: "1px solid #D9DEE8", borderRadius: 7,
+                        padding: "7px 12px", fontSize: 12.5, fontWeight: 600, color: NAVY, cursor: "pointer",
+                      }}
                     >
-                      View in Stripe ↗
-                    </a>
-                  )}
+                      Adjust limits / extend pilot
+                    </button>
+                    {org.stripeCustomerId && (
+                      <a
+                        href={`${STRIPE_CUSTOMER_BASE}${org.stripeCustomerId}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{ color: BLUE_DEEP, fontWeight: 600, fontSize: 12.5, textDecoration: "none" }}
+                      >
+                        View in Stripe ↗
+                      </a>
+                    )}
+                  </div>
                 </div>
               ))}
             </div>
@@ -393,6 +418,14 @@ export default function AdminPage() {
           organisations={orgsForModal}
           defaultOrganisationId={invoiceOrgId}
           onClose={() => setShowInvoice(false)}
+        />
+      )}
+
+      {limitsOrg && (
+        <AdjustLimitsModal
+          org={limitsOrg}
+          onClose={() => setLimitsOrg(null)}
+          onSaved={() => orgsQ.refetch()}
         />
       )}
     </Shell>
