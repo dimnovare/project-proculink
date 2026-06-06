@@ -5,6 +5,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useAuth } from "@clerk/nextjs";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { ChevronLeft, Trash2, Info, Clock, Link2, Truck, Plus, ShieldCheck } from "lucide-react";
 import { PoMappingEditor } from "./PoMappingEditor";
@@ -13,7 +14,7 @@ import { upsertPoMapping, deletePoMapping } from "@/lib/api/mapping";
 import { apiClient, isApiMockMode, getAcceptanceProfile, saveAcceptanceProfile, activateAcceptanceVersion, applyPoMappingTemplate } from "@/lib/api-client";
 import { useOrderDirection } from "@/hooks/useOrderDirection";
 import type { PoMappingConfig } from "@/lib/api/types";
-import type { AcceptanceRule, AcceptanceProfile } from "@/types/procurement";
+import type { AcceptanceRule, AcceptanceProfile, SupplierMapping } from "@/types/procurement";
 
 type Tab = "overview" | "mappings" | "po-mapping" | "delivery" | "acceptance";
 
@@ -563,6 +564,158 @@ function AcceptanceTab({ supplierId }: { supplierId: string }) {
   );
 }
 
+// ── LiveMappingsTab ───────────────────────────────────────────────────────────
+// Real saved SKU mappings for a supplier, fetched from
+// GET /api/suppliers/{id}/mappings (apiClient.getSupplierMappings). The mock
+// branch above renders a richly-styled table from DEMO_MOCK; this is its live
+// twin. The real DTO carries { buyerItemCode, supplierItemCode, confidence,
+// source } only — there is NO description field on the backend, so the
+// Description column the mock shows is intentionally dropped here (offer↔works).
+// The "Add mapping" affordance lives in the shared card header above; the full
+// create/edit flow is the Mapping Editor (linked there), so this is read-only.
+
+// Maps the backend's lowercase source strings ("manual" | "imported" |
+// "suggested") to a display label + the existing SOURCE_PILL colour key. AI
+// suggestions are surfaced as the violet "AI" pill to match the mock vocabulary.
+function normalizeSource(source?: string): { label: string; pillKey: string } {
+  switch ((source ?? "").toLowerCase()) {
+    case "imported":  return { label: "Imported",  pillKey: "Imported" };
+    case "suggested": return { label: "AI",        pillKey: "AI" };
+    case "inherited": return { label: "Inherited", pillKey: "Inherited" };
+    case "manual":    return { label: "Manual",    pillKey: "Manual" };
+    default:          return { label: source ? source : "Manual", pillKey: "Manual" };
+  }
+}
+
+// Backend confidence is a 0–1 float; render as a whole-number percentage.
+function confPct(confidence?: number): number {
+  if (confidence == null) return 100;
+  return Math.round(confidence * 100);
+}
+
+function LiveMappingsTab({ supplierId, supplierName }: { supplierId: string; supplierName: string }) {
+  // Gate the query like every other live query in the app: in mock mode the
+  // parent never renders this branch, but keep the canonical guard so the query
+  // doesn't fire before Clerk is ready (which would 401).
+  const { isLoaded: clerkLoaded, isSignedIn } = useAuth();
+  const queryEnabled = isApiMockMode || (clerkLoaded && !!isSignedIn);
+
+  const { data: mappings = [], isLoading, isError } = useQuery<SupplierMapping[]>({
+    queryKey: ["supplier-mappings", supplierId],
+    queryFn: () => apiClient.getSupplierMappings(supplierId),
+    enabled: queryEnabled,
+    staleTime: 30_000,
+    retry: 1,
+    retryDelay: 800,
+  });
+
+  if (isLoading) {
+    return (
+      <div className="px-4 py-6 sm:px-5">
+        <div className="flex flex-col gap-2.5" role="status" aria-busy="true">
+          <span className="sr-only">Loading mappings…</span>
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="flex items-center gap-4">
+              <div className="h-3.5 w-24 rounded animate-pulse" style={{ background: SURFACE_2 }} />
+              <div className="h-3.5 w-24 rounded animate-pulse" style={{ background: SURFACE_2 }} />
+              <div className="ml-auto h-3.5 w-16 rounded animate-pulse" style={{ background: "#F2F4F9" }} />
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <p className="px-4 py-5 text-[13px] sm:px-5" style={{ color: DANGER }}>
+        Couldn’t load mappings for {supplierName}. Check your connection and try refreshing.
+      </p>
+    );
+  }
+
+  if (mappings.length === 0) {
+    return (
+      <div className="px-4 py-8 text-center sm:px-5">
+        <p className="text-[13px] font-medium" style={{ color: INK }}>No saved SKU mappings yet</p>
+        <p className="mx-auto mt-1 max-w-[420px] text-[12.5px] leading-5" style={{ color: MUTED }}>
+          Mappings link this supplier’s item codes to your buyer codes. They’re saved automatically
+          when you resolve an order, or add them in the{" "}
+          <a href="/library/mappings" style={{ color: GREEN_TEXT, fontWeight: 500 }}>Mapping Editor</a>.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <>
+      {/* Desktop / tablet: real table (≥sm). */}
+      <div className="hidden sm:block overflow-x-auto">
+        <table className="w-full border-collapse" style={{ minWidth: 560 }}>
+          <thead>
+            <tr style={{ borderBottom: `1px solid ${LINE}` }}>
+              {["Buyer code", "Supplier code", "Source", "Confidence"].map((h, i) => (
+                <th
+                  key={h}
+                  className="px-5 py-2.5 text-[10.5px] font-semibold uppercase tracking-[0.04em]"
+                  style={{ color: MUTED, textAlign: i === 3 ? "right" : "left" }}
+                >
+                  {h}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {mappings.map((m, i) => {
+              const src = normalizeSource(m.source);
+              const pill = SOURCE_PILL[src.pillKey] ?? SOURCE_PILL.Manual;
+              const pct = confPct(m.confidence);
+              return (
+                <tr key={m.id} style={{ borderBottom: i < mappings.length - 1 ? `1px solid ${LINE}` : undefined }}>
+                  <td className="px-5 py-3 text-[12px] font-semibold" style={{ color: INK, fontFamily: MONO }}>{m.buyerItemCode}</td>
+                  <td className="px-5 py-3 text-[12px] font-semibold" style={{ color: GREEN_DEEP, fontFamily: MONO }}>{m.supplierItemCode}</td>
+                  <td className="px-5 py-3" style={{ textAlign: "left" }}>
+                    <span className="chip" style={{ background: pill.bg, color: pill.fg }}>{src.label}</span>
+                  </td>
+                  <td className="px-5 py-3" style={{ textAlign: "right" }}>
+                    <span className={`conf ${confClass(pct)} tabular-nums`}>{pct}%</span>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Phones (<sm): stacked row-cards. */}
+      <div className="sm:hidden">
+        {mappings.map((m, i) => {
+          const src = normalizeSource(m.source);
+          const pill = SOURCE_PILL[src.pillKey] ?? SOURCE_PILL.Manual;
+          const pct = confPct(m.confidence);
+          return (
+            <div
+              key={m.id}
+              className="flex flex-col gap-2 px-4 py-3.5"
+              style={{ borderBottom: i < mappings.length - 1 ? `1px solid ${LINE}` : undefined }}
+            >
+              <div className="flex items-center gap-2 text-[13px] font-semibold" style={{ fontFamily: MONO }}>
+                <span style={{ color: INK }}>{m.buyerItemCode}</span>
+                <span style={{ color: BORDER_STRONG }}>→</span>
+                <span style={{ color: GREEN_DEEP }}>{m.supplierItemCode}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="chip" style={{ background: pill.bg, color: pill.fg }}>{src.label}</span>
+                <span className={`conf ${confClass(pct)} tabular-nums`}>{pct}%</span>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </>
+  );
+}
+
 export function SupplierDockProfile({ id }: { id: string }) {
   const router = useRouter();
   const qc = useQueryClient();
@@ -1013,11 +1166,7 @@ export function SupplierDockProfile({ id }: { id: string }) {
                 </div>
               </>
             ) : (
-              <p className="px-4 py-5 text-[13px] sm:px-5" style={{ color: MUTED }}>
-                Showing mappings for {name}. See the full{" "}
-                <a href="/library/mappings" style={{ color: GREEN_TEXT, fontWeight: 500 }}>Mapping Editor</a>{" "}
-                for all supplier pairs.
-              </p>
+              <LiveMappingsTab supplierId={id} supplierName={name} />
             )}
           </div>
         )}

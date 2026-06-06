@@ -2,22 +2,55 @@
 
 // Suppliers — /library/suppliers
 // List of every supplier the buyer delivers orders to. Fetches live data from
-// GET /api/suppliers. Pixel-ported from the design source (screen-misc.jsx
-// SuppliersListScreen): a single table card with the columns Supplier / Format /
-// Channel / Auto-process / Orders / Acceptance, a green supplier-entity accent
-// (badge tile, hover band, acceptance), and a blue primary "New supplier" action.
+// GET /api/suppliers, then enriches each visible row with its delivery config
+// (GET /api/suppliers/{id}/delivery-config) so the Supplier / Format / Channel /
+// Auto-process columns carry real data. A green supplier-entity accent (badge
+// tile, hover band) and a blue primary "New supplier" action.
 //
-// The live Supplier DTO only carries { id, name }, so the format / channel /
-// auto-process / orders / acceptance cells render a faint "—" placeholder until
-// those values are configured per supplier — the structure still matches the
-// design 1:1 so the screen is consistent the moment real data arrives.
+// Columns the design once showed but for which no real data source exists on
+// either the supplier list or the delivery config — "Orders" and "Acceptance"
+// (they'd need a per-supplier order/delivery-success aggregate the API doesn't
+// expose here) — were DROPPED rather than rendered as permanent dashes, per the
+// offer↔works rule. Format / Channel / Auto-process come from the delivery
+// config and read "Not set" only when the supplier genuinely has no config yet.
+//
+// Performance: the delivery config is fetched PER ROW via a child component's own
+// query, but bounded — only the first DELIVERY_FETCH_CAP rows fetch — so a large
+// supplier book can't trigger an unbounded burst of requests. Each row's query
+// has a long staleTime so navigating away and back doesn't re-hit the API.
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useAuth } from "@clerk/nextjs";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getBillingStatus, apiClient, isApiMockMode } from "@/lib/api-client";
+import { getDeliveryConfig } from "@/lib/api/delivery";
+import type { DeliveryConfig, DeliveryProtocol } from "@/lib/api/types";
 import { useOrderDirection } from "@/hooks/useOrderDirection";
+
+// How many rows enrich themselves with a delivery-config fetch. Procurement
+// books are typically 3–20 suppliers (the ICP), so this comfortably covers a
+// real account while capping the request burst on the rare oversized list.
+const DELIVERY_FETCH_CAP = 50;
+
+// Friendly channel labels for the raw protocol ids (mirrors DeliveryConfigEditor).
+const PROTOCOL_LABEL: Record<DeliveryProtocol, string> = {
+  http: "HTTP",
+  sftp: "SFTP",
+  ftps: "FTPS",
+  smtp: "Email",
+  erp_erply: "Erply ERP",
+  erp_directo: "Directo ERP",
+};
+
+function channelLabel(protocol: string): string {
+  return PROTOCOL_LABEL[protocol as DeliveryProtocol] ?? protocol.toUpperCase();
+}
+
+function formatLabel(outputFormat?: string | null): string | null {
+  if (!outputFormat) return null;
+  return outputFormat.toUpperCase();
+}
 
 // ── Palette (CSS-var first; hexes mirror tokens for inline-only styles) ──────
 // Supplier-green is the supplier ENTITY colour across the product (badge tile,
@@ -380,11 +413,9 @@ export function SupplierDockList() {
             <table style={{ width: "100%", borderCollapse: "collapse" }}>
               <colgroup>
                 <col />
-                <col style={{ width: 150 }} />
-                <col style={{ width: 140 }} />
                 <col style={{ width: 160 }} />
-                <col style={{ width: 120 }} />
-                <col style={{ width: 140 }} />
+                <col style={{ width: 160 }} />
+                <col style={{ width: 170 }} />
                 <col style={{ width: 44 }} />
               </colgroup>
               <thead>
@@ -394,8 +425,6 @@ export function SupplierDockList() {
                     { label: "Format",       align: "left"  },
                     { label: "Channel",      align: "left"  },
                     { label: "Auto-process", align: "left"  },
-                    { label: "Orders",       align: "right" },
-                    { label: "Acceptance",   align: "right" },
                     { label: "",             align: "right" },
                   ] as const).map((col, i) => (
                     <th
@@ -418,87 +447,20 @@ export function SupplierDockList() {
                 </tr>
               </thead>
               <tbody>
-                {suppliers.map((s, idx) => {
-                  const isHover = hoverRow === s.id;
-                  const lastRow = idx === suppliers.length - 1;
-                  const cellBorder = lastRow ? "none" : `1px solid ${BORDER}`;
-                  return (
-                    <tr
-                      key={s.id}
-                      onClick={() => router.push(`/library/suppliers/${s.id}`)}
-                      onMouseEnter={() => setHoverRow(s.id)}
-                      onMouseLeave={() => setHoverRow(null)}
-                      title={`View this ${nounLower}'s delivery configuration and mappings`}
-                      style={{
-                        cursor: "pointer",
-                        transition: "background 150ms",
-                        background: isHover ? GREEN_SOFT : "transparent",
-                      }}
-                    >
-                      {/* Supplier — green tile + name + code */}
-                      <td style={{ padding: "14px 18px", borderBottom: cellBorder, verticalAlign: "middle" }}>
-                        <div className="flex min-w-0 items-center gap-[13px]">
-                          <div
-                            className="flex flex-shrink-0 items-center justify-center"
-                            style={{
-                              width: 32,
-                              height: 32,
-                              borderRadius: 7,
-                              background: isHover ? "#FFFFFF" : GREEN_SOFT,
-                              transition: "background 150ms",
-                            }}
-                          >
-                            <SupplierGlyph color={GREEN_DEEP} size={16} />
-                          </div>
-                          <div className="min-w-0">
-                            <p className="truncate text-[13.5px] font-semibold leading-tight tracking-[-0.005em]" style={{ color: INK }}>
-                              {s.name}
-                            </p>
-                            <p className="mt-[1px] truncate text-[10.5px] leading-tight tracking-[0.02em]" style={{ color: TEXT_FAINT, fontFamily: MONO }}>
-                              {shortCode(s.name)}
-                            </p>
-                          </div>
-                        </div>
-                      </td>
-
-                      {/* Format */}
-                      <td style={{ padding: "14px 18px", borderBottom: cellBorder, verticalAlign: "middle" }}>
-                        <span className="text-[12.5px]" style={{ color: PLACEHOLDER }}>—</span>
-                      </td>
-
-                      {/* Channel */}
-                      <td style={{ padding: "14px 18px", borderBottom: cellBorder, verticalAlign: "middle" }}>
-                        <span className="text-[12.5px]" style={{ color: PLACEHOLDER }}>—</span>
-                      </td>
-
-                      {/* Auto-process */}
-                      <td style={{ padding: "14px 18px", borderBottom: cellBorder, verticalAlign: "middle" }}>
-                        <NotSetPill onHoverRow={isHover} />
-                      </td>
-
-                      {/* Orders */}
-                      <td style={{ padding: "14px 18px", borderBottom: cellBorder, textAlign: "right", verticalAlign: "middle" }}>
-                        <span className="text-[12.5px]" style={{ color: PLACEHOLDER, fontFamily: MONO }}>—</span>
-                      </td>
-
-                      {/* Acceptance */}
-                      <td style={{ padding: "14px 18px", borderBottom: cellBorder, textAlign: "right", verticalAlign: "middle" }}>
-                        <span className="text-[12.5px]" style={{ color: PLACEHOLDER, fontFamily: MONO }}>—</span>
-                      </td>
-
-                      {/* Chevron */}
-                      <td style={{ padding: "14px 14px", borderBottom: cellBorder, textAlign: "right", verticalAlign: "middle" }}>
-                        <svg
-                          width="16" height="16" viewBox="0 0 24 24" fill="none"
-                          stroke={isHover ? GREEN_DEEP : "#A4ADBD"} strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"
-                          style={{ transition: "stroke 120ms", display: "inline-block" }}
-                        >
-                          <path d="m9 18 6-6-6-6" />
-                        </svg>
-                      </td>
-                    </tr>
-                  );
-                })}
+                {suppliers.map((s, idx) => (
+                  <SupplierTableRow
+                    key={s.id}
+                    id={s.id}
+                    name={s.name}
+                    isHover={hoverRow === s.id}
+                    isLast={idx === suppliers.length - 1}
+                    fetchConfig={queryEnabled && idx < DELIVERY_FETCH_CAP}
+                    nounLower={nounLower}
+                    onEnter={() => setHoverRow(s.id)}
+                    onLeave={() => setHoverRow(null)}
+                    onOpen={() => router.push(`/library/suppliers/${s.id}`)}
+                  />
+                ))}
               </tbody>
             </table>
           </div>
@@ -507,59 +469,14 @@ export function SupplierDockList() {
         {/* ── Mobile: one rounded card per supplier (below sm) ────────────── */}
         {hasRows && (
           <ul className="flex list-none flex-col gap-3 p-0 sm:hidden">
-            {suppliers.map((s) => (
-              <li key={s.id}>
-                <button
-                  type="button"
-                  onClick={() => router.push(`/library/suppliers/${s.id}`)}
-                  className="block w-full rounded-[12px] p-4 text-left transition-colors active:opacity-95"
-                  style={{ border: "1px solid #E2E6EE", background: "#FFFFFF", boxShadow: "0 1px 2px rgba(11,26,47,0.04)" }}
-                >
-                  {/* Card head: badge + name + code, chevron on the right */}
-                  <div className="flex items-center gap-3">
-                    <div
-                      className="flex flex-shrink-0 items-center justify-center"
-                      style={{ width: 40, height: 40, borderRadius: 9, background: GREEN_SOFT }}
-                    >
-                      <SupplierGlyph color={GREEN_DEEP} size={19} />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-[15px] font-semibold leading-tight tracking-[-0.005em]" style={{ color: INK }}>
-                        {s.name}
-                      </p>
-                      <p className="mt-[2px] truncate text-[11px] leading-tight tracking-[0.02em]" style={{ color: TEXT_FAINT, fontFamily: MONO }}>
-                        {shortCode(s.name)}
-                      </p>
-                    </div>
-                    <svg
-                      width="18" height="18" viewBox="0 0 24 24" fill="none"
-                      stroke="#A4ADBD" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"
-                      className="flex-shrink-0"
-                    >
-                      <path d="m9 18 6-6-6-6" />
-                    </svg>
-                  </div>
-
-                  {/* Card body: label / value rows */}
-                  <dl
-                    className="mt-3.5 grid grid-cols-2 gap-x-4 gap-y-3 border-t pt-3.5"
-                    style={{ borderColor: "#EEF1F6" }}
-                  >
-                    <MobileStat label="Format" value="—" />
-                    <MobileStat label="Channel" value="—" />
-                    <MobileStat label="Orders" value="—" mono />
-                    <MobileStat label="Acceptance" value="—" mono />
-                    <div className="col-span-2 flex items-center justify-between">
-                      <dt className="text-[10.5px] font-semibold uppercase tracking-[0.06em]" style={{ color: "#9AA3B2" }}>
-                        Auto-process
-                      </dt>
-                      <dd className="m-0">
-                        <NotSetPill onHoverRow={false} />
-                      </dd>
-                    </div>
-                  </dl>
-                </button>
-              </li>
+            {suppliers.map((s, idx) => (
+              <SupplierMobileCard
+                key={s.id}
+                id={s.id}
+                name={s.name}
+                fetchConfig={queryEnabled && idx < DELIVERY_FETCH_CAP}
+                onOpen={() => router.push(`/library/suppliers/${s.id}`)}
+              />
             ))}
           </ul>
         )}
@@ -574,17 +491,252 @@ function SupplierTableHeader({ counterpartyNoun = "Supplier" }: { counterpartyNo
   const color = "#8A93A5";
   return (
     <div
-      className="hidden grid-cols-[minmax(0,2.4fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.1fr)_minmax(0,0.9fr)_minmax(0,1fr)_18px] items-center gap-4 px-[18px] py-[11px] sm:grid"
+      className="hidden grid-cols-[minmax(0,2.4fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.1fr)_18px] items-center gap-4 px-[18px] py-[11px] sm:grid"
       style={{ background: "#FFFFFF", borderBottom: "1px solid #E2E6EE" }}
     >
       <span className={cls} style={{ color }}>{counterpartyNoun}</span>
       <span className={cls} style={{ color }}>Format</span>
       <span className={cls} style={{ color }}>Channel</span>
       <span className={cls} style={{ color }}>Auto-process</span>
-      <span className={`${cls} text-right`} style={{ color }}>Orders</span>
-      <span className={`${cls} text-right`} style={{ color }}>Acceptance</span>
       <span />
     </div>
+  );
+}
+
+/**
+ * Per-row delivery-config query. Each visible supplier row owns its own fetch so
+ * the list can render immediately while configs stream in. Bounded at the call
+ * site (only the first DELIVERY_FETCH_CAP rows pass `enabled`), with a long
+ * staleTime so the configs survive navigation without re-hitting the API.
+ *
+ * Returns null both when no config exists (backend 204 → null) and when the
+ * fetch is disabled/still loading — callers distinguish via `isLoading`.
+ */
+function useSupplierDeliveryConfig(supplierId: string, enabled: boolean) {
+  return useQuery<DeliveryConfig | null>({
+    queryKey: ["supplier-delivery-config", supplierId],
+    queryFn: () => getDeliveryConfig(supplierId),
+    enabled,
+    staleTime: 5 * 60_000,
+    retry: 1,
+    retryDelay: 800,
+  });
+}
+
+/**
+ * Auto-process status pill. ON = green (delivery is auto-fired), OFF = neutral
+ * "Off", and "Not set" when the supplier has no delivery config yet (the honest
+ * empty state — distinct from a configured-but-manual supplier).
+ */
+function AutoProcessPill({ state, onHoverRow }: { state: "on" | "off" | "unset"; onHoverRow: boolean }) {
+  if (state === "unset") return <NotSetPill onHoverRow={onHoverRow} />;
+  const isOn = state === "on";
+  return (
+    <span
+      className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-[3px] text-[11px] font-medium"
+      style={{
+        background: isOn ? GREEN_SOFT : (onHoverRow ? "#FFFFFF" : PILL_BG),
+        color: isOn ? GREEN_DEEP : TEXT_MUTED,
+        transition: "background 150ms",
+      }}
+    >
+      <span className="inline-block h-1.5 w-1.5 rounded-full" style={{ background: isOn ? GREEN : "#C6CDDA" }} />
+      {isOn ? "On" : "Off"}
+    </span>
+  );
+}
+
+/** Faint inline placeholder cell value (loading shimmer or honest "—"). */
+function CellValue({
+  isLoading,
+  value,
+}: {
+  isLoading: boolean;
+  value: string | null;
+}) {
+  if (isLoading) {
+    return <span className="inline-block h-3 w-12 rounded animate-pulse align-middle" style={{ background: "#EFF2F7" }} />;
+  }
+  if (value == null) {
+    return <span className="text-[12.5px]" style={{ color: PLACEHOLDER }}>—</span>;
+  }
+  return <span className="text-[12.5px]" style={{ color: INK }}>{value}</span>;
+}
+
+/**
+ * One desktop table row, enriched with its delivery config. Format / Channel are
+ * derived from the config (or a faint "—" when unconfigured); Auto-process is a
+ * pill driven by `autoDeliver`.
+ */
+function SupplierTableRow({
+  id,
+  name,
+  isHover,
+  isLast,
+  fetchConfig,
+  nounLower,
+  onEnter,
+  onLeave,
+  onOpen,
+}: {
+  id: string;
+  name: string;
+  isHover: boolean;
+  isLast: boolean;
+  fetchConfig: boolean;
+  nounLower: string;
+  onEnter: () => void;
+  onLeave: () => void;
+  onOpen: () => void;
+}) {
+  const { data: config, isLoading } = useSupplierDeliveryConfig(id, fetchConfig);
+  // Only show the loading shimmer while a fetch is genuinely in flight.
+  const loading = fetchConfig && isLoading;
+  const autoState: "on" | "off" | "unset" = !config ? "unset" : config.autoDeliver ? "on" : "off";
+  const cellBorder = isLast ? "none" : `1px solid ${BORDER}`;
+
+  return (
+    <tr
+      onClick={onOpen}
+      onMouseEnter={onEnter}
+      onMouseLeave={onLeave}
+      title={`View this ${nounLower}'s delivery configuration and mappings`}
+      style={{
+        cursor: "pointer",
+        transition: "background 150ms",
+        background: isHover ? GREEN_SOFT : "transparent",
+      }}
+    >
+      {/* Supplier — green tile + name + code */}
+      <td style={{ padding: "14px 18px", borderBottom: cellBorder, verticalAlign: "middle" }}>
+        <div className="flex min-w-0 items-center gap-[13px]">
+          <div
+            className="flex flex-shrink-0 items-center justify-center"
+            style={{
+              width: 32,
+              height: 32,
+              borderRadius: 7,
+              background: isHover ? "#FFFFFF" : GREEN_SOFT,
+              transition: "background 150ms",
+            }}
+          >
+            <SupplierGlyph color={GREEN_DEEP} size={16} />
+          </div>
+          <div className="min-w-0">
+            <p className="truncate text-[13.5px] font-semibold leading-tight tracking-[-0.005em]" style={{ color: INK }}>
+              {name}
+            </p>
+            <p className="mt-[1px] truncate text-[10.5px] leading-tight tracking-[0.02em]" style={{ color: TEXT_FAINT, fontFamily: MONO }}>
+              {shortCode(name)}
+            </p>
+          </div>
+        </div>
+      </td>
+
+      {/* Format — from delivery config outputFormat */}
+      <td style={{ padding: "14px 18px", borderBottom: cellBorder, verticalAlign: "middle" }}>
+        <CellValue isLoading={loading} value={config ? formatLabel(config.outputFormat) : null} />
+      </td>
+
+      {/* Channel — from delivery config protocol */}
+      <td style={{ padding: "14px 18px", borderBottom: cellBorder, verticalAlign: "middle" }}>
+        <CellValue isLoading={loading} value={config ? channelLabel(config.protocol) : null} />
+      </td>
+
+      {/* Auto-process — from delivery config autoDeliver */}
+      <td style={{ padding: "14px 18px", borderBottom: cellBorder, verticalAlign: "middle" }}>
+        {loading ? (
+          <span className="inline-block h-4 w-14 rounded-full animate-pulse align-middle" style={{ background: "#EFF2F7" }} />
+        ) : (
+          <AutoProcessPill state={autoState} onHoverRow={isHover} />
+        )}
+      </td>
+
+      {/* Chevron */}
+      <td style={{ padding: "14px 14px", borderBottom: cellBorder, textAlign: "right", verticalAlign: "middle" }}>
+        <svg
+          width="16" height="16" viewBox="0 0 24 24" fill="none"
+          stroke={isHover ? GREEN_DEEP : "#A4ADBD"} strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"
+          style={{ transition: "stroke 120ms", display: "inline-block" }}
+        >
+          <path d="m9 18 6-6-6-6" />
+        </svg>
+      </td>
+    </tr>
+  );
+}
+
+/** One mobile supplier card, enriched with its delivery config. */
+function SupplierMobileCard({
+  id,
+  name,
+  fetchConfig,
+  onOpen,
+}: {
+  id: string;
+  name: string;
+  fetchConfig: boolean;
+  onOpen: () => void;
+}) {
+  const { data: config, isLoading } = useSupplierDeliveryConfig(id, fetchConfig);
+  const loading = fetchConfig && isLoading;
+  const autoState: "on" | "off" | "unset" = !config ? "unset" : config.autoDeliver ? "on" : "off";
+
+  return (
+    <li>
+      <button
+        type="button"
+        onClick={onOpen}
+        className="block w-full rounded-[12px] p-4 text-left transition-colors active:opacity-95"
+        style={{ border: "1px solid #E2E6EE", background: "#FFFFFF", boxShadow: "0 1px 2px rgba(11,26,47,0.04)" }}
+      >
+        {/* Card head: badge + name + code, chevron on the right */}
+        <div className="flex items-center gap-3">
+          <div
+            className="flex flex-shrink-0 items-center justify-center"
+            style={{ width: 40, height: 40, borderRadius: 9, background: GREEN_SOFT }}
+          >
+            <SupplierGlyph color={GREEN_DEEP} size={19} />
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-[15px] font-semibold leading-tight tracking-[-0.005em]" style={{ color: INK }}>
+              {name}
+            </p>
+            <p className="mt-[2px] truncate text-[11px] leading-tight tracking-[0.02em]" style={{ color: TEXT_FAINT, fontFamily: MONO }}>
+              {shortCode(name)}
+            </p>
+          </div>
+          <svg
+            width="18" height="18" viewBox="0 0 24 24" fill="none"
+            stroke="#A4ADBD" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"
+            className="flex-shrink-0"
+          >
+            <path d="m9 18 6-6-6-6" />
+          </svg>
+        </div>
+
+        {/* Card body: label / value rows (Format · Channel · Auto-process) */}
+        <dl
+          className="mt-3.5 grid grid-cols-2 gap-x-4 gap-y-3 border-t pt-3.5"
+          style={{ borderColor: "#EEF1F6" }}
+        >
+          <MobileStat label="Format" loading={loading} value={config ? formatLabel(config.outputFormat) : null} />
+          <MobileStat label="Channel" loading={loading} value={config ? channelLabel(config.protocol) : null} />
+          <div className="col-span-2 flex items-center justify-between">
+            <dt className="text-[10.5px] font-semibold uppercase tracking-[0.06em]" style={{ color: "#9AA3B2" }}>
+              Auto-process
+            </dt>
+            <dd className="m-0">
+              {loading ? (
+                <span className="inline-block h-4 w-14 rounded-full animate-pulse" style={{ background: "#EFF2F7" }} />
+              ) : (
+                <AutoProcessPill state={autoState} onHoverRow={false} />
+              )}
+            </dd>
+          </div>
+        </dl>
+      </button>
+    </li>
   );
 }
 
@@ -607,16 +759,21 @@ function NotSetPill({ onHoverRow }: { onHoverRow: boolean }) {
 
 /**
  * One label/value stat inside a mobile supplier card. Stacks the uppercase
- * column label above its value so the card stays scannable at 390px.
+ * column label above its value so the card stays scannable at 390px. A null
+ * value renders the honest faint "—"; `loading` shows a shimmer.
  */
-function MobileStat({ label, value, mono = false }: { label: string; value: string; mono?: boolean }) {
+function MobileStat({ label, value, loading = false }: { label: string; value: string | null; loading?: boolean }) {
   return (
     <div className="flex flex-col gap-1">
       <dt className="text-[10.5px] font-semibold uppercase tracking-[0.06em]" style={{ color: "#9AA3B2" }}>
         {label}
       </dt>
-      <dd className="m-0 text-[13px]" style={{ color: value === "—" ? PLACEHOLDER : INK, fontFamily: mono ? MONO : undefined }}>
-        {value}
+      <dd className="m-0 text-[13px]" style={{ color: value == null ? PLACEHOLDER : INK }}>
+        {loading ? (
+          <span className="inline-block h-3 w-12 rounded animate-pulse" style={{ background: "#EFF2F7" }} />
+        ) : (
+          value ?? "—"
+        )}
       </dd>
     </div>
   );
