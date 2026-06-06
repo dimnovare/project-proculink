@@ -5,10 +5,10 @@
 
 import { useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { useAuth } from "@clerk/nextjs";
 import { useQuery } from "@tanstack/react-query";
 import { apiClient, isApiMockMode } from "@/lib/api-client";
 import { useOrderDirection } from "@/hooks/useOrderDirection";
+import { useQueriesEnabled } from "@/hooks/useQueriesEnabled";
 import type { OrderStatus } from "@/types/procurement";
 
 export type Lane = {
@@ -90,11 +90,12 @@ export function LaneDrawer({ lane, onClose }: LaneDrawerProps) {
   // supplier's recent orders (the best filter the API supports; there is no
   // buyer↔supplier pair filter, so this is supplier-scoped). In mock mode the
   // staged MOCK_CROSSINGS render instead and these queries stay disabled.
-  const { isLoaded, isSignedIn } = useAuth();
-  const clerkReady = isLoaded && !!isSignedIn;
   // Known repo gotcha: queries gated only on clerkReady starve in mock mode
-  // (no Clerk session). Mock path doesn't use these, so disable them there.
-  const liveEnabled = !isApiMockMode && clerkReady;
+  // and live QA-bypass e2e (no Clerk session). useQueriesEnabled covers both;
+  // the mock path doesn't use these queries, so exclude mock here. Call the
+  // hook unconditionally (rules-of-hooks), then combine.
+  const queriesEnabled = useQueriesEnabled();
+  const liveEnabled = !isApiMockMode && queriesEnabled;
 
   const { data: suppliers } = useQuery({
     queryKey: ["suppliers"],

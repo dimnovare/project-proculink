@@ -19,9 +19,9 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useMemo } from "react";
-import { useAuth } from "@clerk/nextjs";
+import { useQueriesEnabled } from "@/hooks/useQueriesEnabled";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { getExceptions, resolveException, ignoreException, isApiMockMode } from "@/lib/api-client";
+import { getExceptions, resolveException, ignoreException } from "@/lib/api-client";
 import type { OrderException, ExceptionState } from "@/types/procurement";
 
 // ─── Palette (mirrors InboxView / globals.css --brand-* tokens) ──────────────
@@ -83,17 +83,16 @@ function canResolveFromList(exc: OrderException): boolean {
 }
 
 export default function ExceptionsPage() {
-  const { isLoaded, isSignedIn } = useAuth();
-  const clerkReady = isLoaded && !!isSignedIn;
   const router = useRouter();
 
   const qc = useQueryClient();
   const [activeTab, setActiveTab] = useState(0);
   const activeState = STATE_TABS[activeTab].state;
 
-  // In mock mode there is no Clerk session, so don't gate the query on it —
-  // otherwise the page would hang on the loading skeleton forever locally.
-  const queryEnabled = isApiMockMode || clerkReady;
+  // In mock mode (and live QA-bypass e2e) there is no Clerk session, so don't
+  // gate the query on it — otherwise the page would hang on the loading
+  // skeleton forever. See useQueriesEnabled.
+  const queryEnabled = useQueriesEnabled();
 
   const { data, isLoading, isError, refetch, isFetching } = useQuery({
     queryKey: ["exceptions", activeState ?? "all"],

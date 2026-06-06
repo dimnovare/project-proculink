@@ -65,6 +65,15 @@ export interface SupportContactPayload {
 export const isApiMockMode = USE_MOCK;
 
 /**
+ * True only in the live QA-bypass e2e harness (NEXT_PUBLIC_QA_BYPASS_AUTH=true),
+ * paired with PROCULINK_QA_BYPASS_AUTH on the backend. In that mode the browser
+ * has NO Clerk session, so the usual `clerkReady` data-query gate would starve
+ * every query. This flag lets queries run anyway. It is unset in prod and mock,
+ * so production/mock behavior is unchanged.
+ */
+export const isQaBypass = process.env.NEXT_PUBLIC_QA_BYPASS_AUTH === "true";
+
+/**
  * Returns an Authorization header with the current Clerk session JWT.
  * Uses window.Clerk (set by ClerkProvider) so this works outside React components.
  */
@@ -574,6 +583,12 @@ async function mockResolvePurchaseOrder(
   if (idx === -1) throw new Error("Order not found");
 
   const order: Order = { ...mockOrders[idx], lines: mockOrders[idx].lines.map(l => ({ ...l })) };
+
+  // Item 2: echo edited header fields so a refetch in mock mode shows the
+  // "persisted" values (real backend persists; mock just mirrors the request).
+  if (payload.orderDate !== undefined) order.orderDate = payload.orderDate;
+  if (payload.buyerName !== undefined) order.buyerName = payload.buyerName;
+  if (payload.currency  !== undefined) order.currency  = payload.currency;
 
   for (const res of payload.lineResolutions) {
     const li = order.lines.findIndex(l => l.lineNumber === res.lineNumber);
@@ -1298,16 +1313,26 @@ export const apiClient = {
   acceptAiSuggestions:    USE_MOCK ? mockAcceptAiSuggestions   : realAcceptAiSuggestions,
 
   /**
-   * Commit resolved supplier-item codes for an order.
-   * Thin wrapper around resolvePurchaseOrder with saveMappings: true.
+   * Commit resolved supplier-item codes for an order, plus optional header-field
+   * corrections (orderDate / buyerName / currency). Thin wrapper around
+   * resolvePurchaseOrder with saveMappings: true.
+   *
+   * Only the header fields actually passed are forwarded — the backend treats
+   * null/absent as "no change", so a header-only edit can ride along even with
+   * an empty resolutions list. PO number + supplier are NOT editable.
    */
   commitMappings(
     orderId: string,
     resolutions: { lineNumber: number; supplierItemCode: string }[],
+    header?: { orderDate?: string; buyerName?: string; currency?: string },
   ) {
     return (USE_MOCK ? mockResolvePurchaseOrder : realResolvePurchaseOrder)(orderId, {
       lineResolutions: resolutions,
       saveMappings: true,
+      // Spread only present keys so absent fields stay absent on the wire.
+      ...(header?.orderDate !== undefined ? { orderDate: header.orderDate } : {}),
+      ...(header?.buyerName !== undefined ? { buyerName: header.buyerName } : {}),
+      ...(header?.currency  !== undefined ? { currency:  header.currency  } : {}),
     });
   },
 };

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
-import { useAuth, useOrganization } from "@clerk/nextjs";
+import { useOrganization } from "@clerk/nextjs";
 import { useQuery } from "@tanstack/react-query";
 import {
   Layers, Upload, Inbox, Truck, Building2, GitBranch,
@@ -12,9 +12,10 @@ import {
   Files, HelpCircle, X, ShieldHalf, AlertTriangle, Activity,
   type LucideIcon,
 } from "lucide-react";
-import { apiClient, getBillingStatus, isApiMockMode } from "@/lib/api-client";
+import { apiClient, getBillingStatus } from "@/lib/api-client";
 import { LAUNCH_CORE_ONLY, LAUNCH_CORE_HREFS } from "@/lib/launch-flags";
 import { useOrderDirection } from "@/hooks/useOrderDirection";
+import { useQueriesEnabled } from "@/hooks/useQueriesEnabled";
 import { ProcuLinkMark } from "./DSPrimitives";
 
 // ─── Nav structure (matches the "Bridge Layer" design handoff) ─────────────────
@@ -128,10 +129,8 @@ export function BridgeSidebar({
   const [collapsed, setCollapsed] = useState(false);
   // Tablet band (md→lg): force the compact rail until the viewport reaches lg.
   const [belowLg, setBelowLg] = useState(false);
-  const { isLoaded: clerkLoaded, isSignedIn } = useAuth();
   const { organization } = useOrganization();
-  const clerkReady = clerkLoaded && !!isSignedIn;
-  const queryEnabled = isApiMockMode || clerkReady;
+  const queryEnabled = useQueriesEnabled();
   // Direction-aware nav: "Suppliers" → "Customers" in inbound mode (route unchanged).
   const { labels } = useOrderDirection();
   const VISIBLE_NAV = useMemo(() => buildVisibleNav(labels.counterpartyPlural), [labels.counterpartyPlural]);

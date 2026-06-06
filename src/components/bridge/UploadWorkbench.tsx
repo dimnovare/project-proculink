@@ -6,13 +6,13 @@
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useAuth } from "@clerk/nextjs";
 import { useQuery } from "@tanstack/react-query";
 import { FileChip } from "./FileChip";
 import { ApiHttpError, apiClient, getBillingStatus, isApiMockMode, type DetectFormatResult } from "@/lib/api-client";
 import { capture } from "@/lib/analytics";
 import { captureException } from "@/lib/sentry-context";
 import { useOrderDirection } from "@/hooks/useOrderDirection";
+import { useQueriesEnabled } from "@/hooks/useQueriesEnabled";
 
 // Pipeline stages for the pre-redirect upload animation. "Transform" is NOT
 // shown here: nothing is transformed before the review step, so claiming it
@@ -251,13 +251,12 @@ function InfoDisclosure({
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export function UploadWorkbench() {
-  const { isLoaded: clerkLoaded, isSignedIn } = useAuth();
-  const clerkReady = clerkLoaded && !!isSignedIn;
   // Direction-aware party label: outbound orgs see "Supplier", inbound "Customer".
   const { labels } = useOrderDirection();
-  // Mock mode has no Clerk session — gate on (mock OR clerkReady) so mock-mode
-  // dev/e2e still loads suppliers/billing (otherwise the upload button stays disabled).
-  const queryEnabled = isApiMockMode || clerkReady;
+  // Mock mode AND live QA-bypass e2e have no Clerk session — gate via
+  // useQueriesEnabled (mock OR qa-bypass OR signed-in) so they still load
+  // suppliers/billing (otherwise the upload button stays disabled).
+  const queryEnabled = useQueriesEnabled();
 
   const [dragging, setDragging]     = useState(false);
   const [supplierId, setSupplierId] = useState("");
@@ -315,7 +314,8 @@ export function UploadWorkbench() {
     queryFn: () => apiClient.getOrders({ pageSize: 100 }),
     staleTime: 60 * 1000,
     retry: 1,
-    enabled: clerkReady && !isApiMockMode,
+    // Live orders only: signed-in OR qa-bypass, but never mock (which uses DEMO_RECENT).
+    enabled: queryEnabled && !isApiMockMode,
   });
   const recentOrders = ordersPage?.items ?? [];
 

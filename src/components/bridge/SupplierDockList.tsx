@@ -21,10 +21,10 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { useAuth } from "@clerk/nextjs";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { getBillingStatus, apiClient, isApiMockMode } from "@/lib/api-client";
+import { getBillingStatus, apiClient } from "@/lib/api-client";
 import { getDeliveryConfig } from "@/lib/api/delivery";
+import { useQueriesEnabled } from "@/hooks/useQueriesEnabled";
 import type { DeliveryConfig, DeliveryProtocol } from "@/lib/api/types";
 import { useOrderDirection } from "@/hooks/useOrderDirection";
 
@@ -106,9 +106,7 @@ export function SupplierDockList() {
   const nounLower = noun.toLowerCase();        // "supplier" | "customer"
   const plural = labels.counterpartyPlural;    // "Suppliers" | "Customers"
   const pluralLower = plural.toLowerCase();     // "suppliers" | "customers"
-  const { isLoaded: clerkLoaded, isSignedIn } = useAuth();
-  const clerkReady = clerkLoaded && !!isSignedIn;
-  const queryEnabled = isApiMockMode || clerkReady;
+  const queryEnabled = useQueriesEnabled();
   const [showAddPanel, setShowAddPanel] = useState(false);
   const [newName, setNewName] = useState("");
   const [addError, setAddError] = useState<string | null>(null);

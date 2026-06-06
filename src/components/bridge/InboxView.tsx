@@ -6,7 +6,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState, useMemo, useCallback, useRef } from "react";
-import { useAuth } from "@clerk/nextjs";
+import { useQueriesEnabled } from "@/hooks/useQueriesEnabled";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiClient, isApiMockMode } from "@/lib/api-client";
 import type { OrderSummary, OrderStatus } from "@/types/procurement";
@@ -395,8 +395,7 @@ const PAGE_SIZE = 25;
 
 export function InboxView() {
   const router = useRouter();
-  const { isLoaded: clerkLoaded, isSignedIn } = useAuth();
-  const clerkReady = clerkLoaded && !!isSignedIn;
+  const queryEnabled = useQueriesEnabled();
   const { direction, labels } = useOrderDirection();
   // Columns depend only on direction labels — memoise so react-table receives a
   // stable reference (rebuilt only when the org's direction changes).
@@ -441,13 +440,13 @@ export function InboxView() {
   // returns whole-account per-status counts (not just the current page/filter), so
   // the chip badges and header summary stay accurate regardless of pagination. This
   // runs in BOTH mock and live so paying customers see real counts (previously the
-  // counts rendered only under isApiMockMode). Gated on (mock OR clerkReady) per the
-  // query rule — mock mode has no Clerk session.
+  // counts rendered only under isApiMockMode). Gated via useQueriesEnabled
+  // (mock OR qa-bypass OR signed-in) — mock/qa-bypass have no Clerk session.
   const { data: summary } = useQuery({
     queryKey: ["orders", "summary"],
     queryFn: () => apiClient.getOrdersSummary(),
     staleTime: 30_000,
-    enabled: isApiMockMode || clerkReady,
+    enabled: queryEnabled,
   });
 
   // Memoize so react-table receives a STABLE `data` reference across renders.

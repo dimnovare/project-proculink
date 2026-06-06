@@ -5,7 +5,6 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useAuth } from "@clerk/nextjs";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { ChevronLeft, Trash2, Info, Clock, Link2, Truck, Plus, ShieldCheck } from "lucide-react";
 import { PoMappingEditor } from "./PoMappingEditor";
@@ -13,6 +12,7 @@ import { DeliveryConfigEditor } from "./DeliveryConfigEditor";
 import { upsertPoMapping, deletePoMapping } from "@/lib/api/mapping";
 import { apiClient, isApiMockMode, getAcceptanceProfile, saveAcceptanceProfile, activateAcceptanceVersion, applyPoMappingTemplate } from "@/lib/api-client";
 import { useOrderDirection } from "@/hooks/useOrderDirection";
+import { useQueriesEnabled } from "@/hooks/useQueriesEnabled";
 import type { PoMappingConfig } from "@/lib/api/types";
 import type { AcceptanceRule, AcceptanceProfile, SupplierMapping } from "@/types/procurement";
 
@@ -597,8 +597,7 @@ function LiveMappingsTab({ supplierId, supplierName }: { supplierId: string; sup
   // Gate the query like every other live query in the app: in mock mode the
   // parent never renders this branch, but keep the canonical guard so the query
   // doesn't fire before Clerk is ready (which would 401).
-  const { isLoaded: clerkLoaded, isSignedIn } = useAuth();
-  const queryEnabled = isApiMockMode || (clerkLoaded && !!isSignedIn);
+  const queryEnabled = useQueriesEnabled();
 
   const { data: mappings = [], isLoading, isError } = useQuery<SupplierMapping[]>({
     queryKey: ["supplier-mappings", supplierId],

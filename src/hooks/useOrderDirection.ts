@@ -11,9 +11,9 @@
 // green. Only the words change.
 
 import { useMemo } from "react";
-import { useAuth } from "@clerk/nextjs";
 import { useQuery } from "@tanstack/react-query";
-import { getOrgSettings, isApiMockMode } from "@/lib/api-client";
+import { getOrgSettings } from "@/lib/api-client";
+import { useQueriesEnabled } from "@/hooks/useQueriesEnabled";
 import type { OrderDirection } from "@/types/procurement";
 
 /** The canonical label set every component reads, so strings stay identical. */
@@ -65,18 +65,17 @@ export interface UseOrderDirectionResult {
 /**
  * Reads the org's order direction once and exposes the resolved labels. Defaults
  * to "outbound" until the query resolves (every existing org is outbound). The
- * query is gated on `isApiMockMode || clerkReady` to avoid the known
- * clerkReady-starvation bug.
+ * query is gated via `useQueriesEnabled()` (mock || qa-bypass || signed-in) to
+ * avoid the known clerkReady-starvation bug, including in live QA-bypass e2e.
  */
 export function useOrderDirection(): UseOrderDirectionResult {
-  const { isLoaded: clerkLoaded, isSignedIn } = useAuth();
-  const clerkReady = clerkLoaded && !!isSignedIn;
+  const queryEnabled = useQueriesEnabled();
 
   const { data } = useQuery({
     queryKey: ["org-settings"],
     queryFn: getOrgSettings,
     staleTime: 300_000,
-    enabled: isApiMockMode || clerkReady,
+    enabled: queryEnabled,
   });
 
   const direction: OrderDirection = data?.direction ?? "outbound";

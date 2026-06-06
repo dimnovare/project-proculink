@@ -17,16 +17,15 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { useAuth } from "@clerk/nextjs";
 import { useQuery } from "@tanstack/react-query";
 import {
   getAdminOverview,
   getAdminOrganisations,
-  isApiMockMode,
   AdminAccessError,
   type AdminOverview,
   type AdminOrganisation,
 } from "@/lib/api-client";
+import { useQueriesEnabled } from "@/hooks/useQueriesEnabled";
 import { CreateInvoiceModal } from "./CreateInvoiceModal";
 import { AdjustLimitsModal } from "./AdjustLimitsModal";
 
@@ -128,9 +127,7 @@ function sortOrgs(rows: AdminOrganisation[], key: SortKey, dir: SortDir): AdminO
 }
 
 export default function AdminPage() {
-  const { isLoaded, isSignedIn } = useAuth();
-  const clerkReady = isLoaded && !!isSignedIn;
-  const queryEnabled = isApiMockMode || clerkReady;
+  const queryEnabled = useQueriesEnabled();
 
   const [showInvoice, setShowInvoice] = useState(false);
   const [invoiceOrgId, setInvoiceOrgId] = useState<string | null>(null);
