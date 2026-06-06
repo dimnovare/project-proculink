@@ -7,6 +7,27 @@
 // Below md: renders WireTopologyLaneList (lane rows, no SVG canvas).
 // Above md: renders WireTopologyCanvas (full SVG).
 
+import { useEffect, useState } from "react";
+
+/**
+ * Detects the OS-level `prefers-reduced-motion: reduce` setting and keeps it in
+ * sync. SVG SMIL (`<animateMotion>`) cannot be stopped by CSS `animation: none`,
+ * so the canvas must NOT render the SMIL element at all when reduce is set.
+ * Reduced-motion is a canonical Bridge rule (accessibility + brand).
+ */
+function useReducedMotion(): boolean {
+  const [reduced, setReduced] = useState(false);
+  useEffect(() => {
+    if (typeof window === "undefined" || !window.matchMedia) return;
+    const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
+    setReduced(mq.matches);
+    const onChange = (e: MediaQueryListEvent) => setReduced(e.matches);
+    mq.addEventListener("change", onChange);
+    return () => mq.removeEventListener("change", onChange);
+  }, []);
+  return reduced;
+}
+
 export interface WireBuyer {
   id: string;
   name: string;
@@ -177,6 +198,9 @@ function WireTopologyCanvas({
   height = 560,
   onWireClick,
 }: WireTopologyProps) {
+  // When the user prefers reduced motion, the travelling pulse dots are not
+  // rendered at all (SMIL can't be paused via CSS). The static wires remain.
+  const reducedMotion = useReducedMotion();
   const W = 900;
   const H = height;
   const PORT_W = 140;
@@ -292,21 +316,24 @@ function WireTopologyCanvas({
                 strokeLinecap="round"
               />
 
-              {/* Travelling pulse — r=2.2, no opacity fade */}
-              <circle
-                r={2.2}
-                fill="#FFFFFF"
-                stroke={PULSE_COLOR[w.health]}
-                strokeWidth={1.2}
-                aria-hidden="true"
-              >
-                <animateMotion
-                  dur={pulseDur}
-                  begin={pulseBegin}
-                  repeatCount="indefinite"
-                  path={pathD}
-                />
-              </circle>
+              {/* Travelling pulse — r=2.2, no opacity fade. Omitted entirely when
+                  prefers-reduced-motion is set (SMIL can't be CSS-stopped). */}
+              {!reducedMotion && (
+                <circle
+                  r={2.2}
+                  fill="#FFFFFF"
+                  stroke={PULSE_COLOR[w.health]}
+                  strokeWidth={1.2}
+                  aria-hidden="true"
+                >
+                  <animateMotion
+                    dur={pulseDur}
+                    begin={pulseBegin}
+                    repeatCount="indefinite"
+                    path={pathD}
+                  />
+                </circle>
+              )}
 
               {/* Alert badge — white fill, amber stroke, amber numeral, no stem */}
               {alertAnchor && w.alert && (

@@ -1,11 +1,20 @@
 "use client";
 
-// Validation rules — canonical split-detail: rules table (left) + a sticky
+// Rule catalog — canonical split-detail: rules table (left) + a sticky
 // inline rule editor (right). KEEP live API wiring (list / toggle / save /
 // delete). Scope column maps to the real `entity` field. RuleDto currently has
 // no per-rule supplier binding, so live rules are labelled "Global" instead of
 // pretending every rule has the same supplier-specific configuration.
+//
+// HONESTY (offer↔works): the backend ValidationRule has no executable condition,
+// and IValidationRuleService is never called by the transform/delivery pipeline —
+// so this screen documents/classifies rules but does NOT gate or block delivery.
+// The ONLY validation that actually runs is the per-supplier Acceptance tab
+// (SupplierAcceptanceService). This screen is therefore presented as a descriptive
+// catalog, with gating affordances (Block/Auto-block) removed and a link out to
+// where enforcement is really configured (the supplier Acceptance tab).
 
+import Link from "next/link";
 import { useState, useEffect, useRef, type ReactNode } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
@@ -96,12 +105,15 @@ const NEW_RULE: Rule = {
 
 // ─── Visual maps ─────────────────────────────────────────────────────────────
 
-// Exact ported tokens: danger #C53A3A / danger-soft #FBE3E3 (Block),
-// amber #C97A14 / amber-soft #FAEFD6 (Warn), blue #1E66C9 / blue-soft #E3EDFB (Info).
+// Exact ported tokens: danger #C53A3A / danger-soft #FBE3E3 (Critical),
+// amber #C97A14 / amber-soft #FAEFD6 (Warning), blue #1E66C9 / blue-soft #E3EDFB (Info).
+// `label` is a DESCRIPTIVE severity classification, not a gating action — this
+// catalog does not block delivery (see header note). `banner` documents what the
+// rule represents; enforcement happens in the supplier Acceptance tab.
 const SEV: Record<Severity, { bg: string; color: string; bannerBg: string; bannerText: string; label: string; banner: string }> = {
-  error:   { bg: "#FBE3E3", color: "#C53A3A", bannerBg: "#FBE3E3", bannerText: "#C53A3A", label: "Block", banner: "Block delivery · request buyer confirmation" },
-  warning: { bg: "#FAEFD6", color: "#C97A14", bannerBg: "#FAEFD6", bannerText: "#C97A14", label: "Warn",  banner: "Hold for review · notify the buyer" },
-  info:    { bg: "#E3EDFB", color: "#1E66C9", bannerBg: "#E3EDFB", bannerText: "#0F4FA8", label: "Info",  banner: "Flag for reporting · let the order through" },
+  error:   { bg: "#FBE3E3", color: "#C53A3A", bannerBg: "#FBE3E3", bannerText: "#C53A3A", label: "Critical", banner: "Critical — recommended to enforce as a blocking acceptance rule per supplier" },
+  warning: { bg: "#FAEFD6", color: "#C97A14", bannerBg: "#FAEFD6", bannerText: "#C97A14", label: "Warning",  banner: "Warning — recommended to enforce as a review/notify rule per supplier" },
+  info:    { bg: "#E3EDFB", color: "#1E66C9", bannerBg: "#E3EDFB", bannerText: "#0F4FA8", label: "Info",      banner: "Informational — for reporting and classification" },
 };
 
 const ENTITIES: Entity[] = ["Line item", "Header", "Supplier", "Buyer", "Amount"];
@@ -231,9 +243,10 @@ export function ValidationRules() {
       {/* Header */}
       <div className="flex flex-col items-start gap-3 px-5 py-5 sm:px-7 sm:flex-row sm:items-center sm:gap-4 flex-shrink-0" style={{ background: "#FFFFFF", borderBottom: "1px solid #E2E6EE" }}>
         <div>
-          <h1 className="text-[28px] leading-[1.1] font-bold tracking-[-0.02em]" style={{ fontFamily: "'Bricolage Grotesque', Inter, sans-serif", color: "#0B1A2F" }}>Validation rules</h1>
+          <h1 className="text-[28px] leading-[1.1] font-bold tracking-[-0.02em]" style={{ fontFamily: "'Bricolage Grotesque', Inter, sans-serif", color: "#0B1A2F" }}>Rule catalog</h1>
           <p className="text-[13px] mt-1.5" style={{ color: "#56627A" }}>
-            Block bad orders before they reach a supplier · {activeCount} active · global rules apply to every supplier route
+            A catalog of the checks you want to run · {activeCount} active. Enforcement is configured per supplier — set up blocking checks on each{" "}
+            <Link href="/library/suppliers" className="font-semibold underline" style={{ color: "#1E66C9" }}>supplier&apos;s Validation rules tab</Link>.
           </p>
         </div>
         <button
@@ -245,6 +258,18 @@ export function ValidationRules() {
         >
           <span style={{ fontSize: 15, lineHeight: 1, marginTop: -1 }}>+</span> New rule
         </button>
+      </div>
+
+      {/* Enforcement-location callout — this catalog documents checks; it does not
+          gate delivery. Real blocking/validation runs per supplier. */}
+      <div className="px-5 py-2.5 sm:px-7 flex-shrink-0" style={{ background: "#FFFFFF", borderBottom: "1px solid #E2E6EE" }}>
+        <div className="flex flex-col items-start gap-1.5 rounded-[8px] px-3.5 py-2.5 text-[12px] sm:flex-row sm:items-center sm:gap-2.5" style={{ border: "1px solid #D6E2F4", background: "#F2F7FE", color: "#37425A" }}>
+          <span className="font-semibold" style={{ color: "#0F4FA8" }}>This is a catalog, not a gate.</span>
+          <span style={{ color: "#56627A" }}>
+            Rules here describe and classify the checks you care about. They are not enforced automatically — set up the checks that actually hold or block an order on each{" "}
+            <Link href="/library/suppliers" className="font-semibold underline" style={{ color: "#1E66C9" }}>supplier&apos;s Validation rules tab</Link>.
+          </span>
+        </div>
       </div>
 
       {notice && (
@@ -305,7 +330,7 @@ export function ValidationRules() {
                     );
                   })}
                   {rules.length === 0 && (
-                    <tr><td colSpan={6} className="px-5 py-12 text-center text-[12.5px]" style={{ color: "#647089" }}>No validation rules yet. Create one to start blocking bad orders.</td></tr>
+                    <tr><td colSpan={6} className="px-5 py-12 text-center text-[12.5px]" style={{ color: "#647089" }}>No rules in your catalog yet. Create one to document a check you want to run.</td></tr>
                   )}
                 </tbody>
               </table>
@@ -366,7 +391,7 @@ export function ValidationRules() {
             })}
             {rules.length === 0 && (
               <div className="rounded-[12px] px-5 py-12 text-center text-[12.5px]" style={{ background: "#FFFFFF", border: "1px solid #E2E6EE", color: "#647089" }}>
-                No validation rules yet. Create one to start blocking bad orders.
+                No rules in your catalog yet. Create one to document a check you want to run.
               </div>
             )}
           </div>
@@ -404,12 +429,11 @@ function RuleEditor({
   const nameRef      = useRef<HTMLInputElement>(null);
   const descRef      = useRef<HTMLTextAreaElement>(null);
   const entityRef    = useRef<HTMLSelectElement>(null);
-  const autoBlockRef = useRef<HTMLInputElement>(null);
   const enabledRef   = useRef<HTMLInputElement>(null);
 
-  // Severity is edited via a segmented Warn/Block control. `info` rules are
-  // preserved: the segment shows their nearest visual (Warn) but the stored
-  // value is only overwritten once the user actively picks Warn or Block.
+  // Severity is edited via a segmented Warning/Critical control. `info` rules are
+  // preserved: the segment shows their nearest visual (Warning) but the stored
+  // value is only overwritten once the user actively picks Warning or Critical.
   const [severity, setSeverity] = useState<Severity>(rule.severity);
   const sev = SEV[severity];
 
@@ -420,7 +444,8 @@ function RuleEditor({
       severity,
       entity:      entityRef.current?.value ?? rule.entity,
       enabled:     enabledRef.current?.checked ?? rule.enabled,
-      autoBlock:   autoBlockRef.current?.checked ?? rule.autoBlock,
+      // autoBlock affordance removed — preserve the rule's existing value.
+      autoBlock:   rule.autoBlock,
     });
   }
 
@@ -433,7 +458,7 @@ function RuleEditor({
         </span>
         <div className="min-w-0">
           <div className="text-[14.5px] font-bold leading-tight" style={{ fontFamily: "'Bricolage Grotesque', Inter, sans-serif", color: "#0B1A2F" }}>{isNew ? "New rule" : "Rule definition"}</div>
-          <div className="text-[11px] mt-0.5 tracking-[0.02em] truncate" style={{ color: "#9AA3B5", fontFamily: "'JetBrains Mono', ui-monospace, SFMono-Regular, monospace" }}>{isNew ? "Define a condition to hold or block orders" : rule.code}</div>
+          <div className="text-[11px] mt-0.5 tracking-[0.02em] truncate" style={{ color: "#9AA3B5", fontFamily: "'JetBrains Mono', ui-monospace, SFMono-Regular, monospace" }}>{isNew ? "Document a check for your catalog" : rule.code}</div>
         </div>
       </div>
 
@@ -464,9 +489,11 @@ function RuleEditor({
           </div>
         </div>
 
-        {/* Action (THEN) */}
+        {/* Recommended enforcement — descriptive only. This catalog does not act on
+            orders; the recommendation tells you how to set the matching check up on
+            the supplier Acceptance tab, where enforcement really runs. */}
         <div className="grid gap-1.5">
-          <span className="text-[12px] font-semibold tracking-[0]" style={{ color: "#5C6280" }}>Action <span style={{ color: "#9AA3B5", fontWeight: 500 }}>(THEN)</span></span>
+          <span className="text-[12px] font-semibold tracking-[0]" style={{ color: "#5C6280" }}>Recommended enforcement <span style={{ color: "#9AA3B5", fontWeight: 500 }}>(per supplier)</span></span>
           <div className="rounded-[8px] px-3.5 py-2.5 text-[12.5px] font-medium" style={{ background: sev.bannerBg, color: sev.bannerText }}>
             {sev.banner}
           </div>
@@ -478,8 +505,10 @@ function RuleEditor({
         </Field>
 
         <div className="grid gap-2">
-          <CheckRow inputRef={autoBlockRef} defaultChecked={rule.autoBlock} label="Auto-block delivery on trigger" title="Automatically block orders that trigger this rule" />
-          <CheckRow inputRef={enabledRef} defaultChecked={rule.enabled} label="Active" />
+          {/* Auto-block affordance removed (offer↔works): this catalog cannot block
+              delivery — enforcement is configured per supplier. The autoBlock field
+              is preserved on save (defaults to the rule's existing value). */}
+          <CheckRow inputRef={enabledRef} defaultChecked={rule.enabled} label="In catalog (active)" />
         </div>
 
         {!isNew && (
@@ -538,7 +567,7 @@ function SeveritySegment({ value, onChange }: { value: Severity; onChange: (s: S
         className="rounded-[6px] text-[12.5px] font-semibold transition-colors"
         style={{ background: isWarn ? "#FFFFFF" : "transparent", color: isWarn ? "#C97A14" : "#7B8597", boxShadow: isWarn ? "0 1px 2px rgba(16,24,40,0.10)" : "none" }}
       >
-        Warn
+        Warning
       </button>
       <button
         type="button"
@@ -546,7 +575,7 @@ function SeveritySegment({ value, onChange }: { value: Severity; onChange: (s: S
         className="rounded-[6px] text-[12.5px] font-semibold transition-colors"
         style={{ background: isBlock ? "#FFFFFF" : "transparent", color: isBlock ? "#C53A3A" : "#7B8597", boxShadow: isBlock ? "0 1px 2px rgba(16,24,40,0.10)" : "none" }}
       >
-        Block
+        Critical
       </button>
     </div>
   );

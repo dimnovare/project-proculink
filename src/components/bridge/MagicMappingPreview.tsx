@@ -19,6 +19,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api-client";
 import type { MappingPreviewLine } from "@/lib/api-client";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useOrderDirection } from "@/hooks/useOrderDirection";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -226,8 +227,8 @@ function InfoDisclosure({ label, text }: { label: string; text: string }) {
 
 // ─── Maps-to affordance (mobile card) ─────────────────────────────────────────
 
-/** Compact "maps to → Supplier item code" row shown above the supplier control on mobile. */
-function MapsToAffordance() {
+/** Compact "maps to → {counterparty} item code" row shown above the supplier control on mobile. */
+function MapsToAffordance({ counterpartyNoun }: { counterpartyNoun: string }) {
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 8 }} aria-hidden>
       <svg width="20" height="10" viewBox="0 0 20 10" fill="none">
@@ -249,7 +250,7 @@ function MapsToAffordance() {
           letterSpacing: "0.04em",
         }}
       >
-        Supplier item code
+        {counterpartyNoun} item code
       </span>
     </div>
   );
@@ -305,6 +306,11 @@ function rowReducer(
 export function MagicMappingPreview({ orderId, onCommitted, onParseFailed }: Props) {
   const queryClient = useQueryClient();
   const isMobile = useIsMobile();
+  // Direction-aware labels so inbound orgs see "Customer code" rather than a
+  // split-brain "Supplier code". Lowercased form for inline prose.
+  const { labels } = useOrderDirection();
+  const counterpartyNoun = labels.counterpartyNoun;            // "Supplier" | "Customer"
+  const counterpartyLower = counterpartyNoun.toLowerCase();    // "supplier" | "customer"
 
   // ── Data fetch ────────────────────────────────────────────────────────────
   const { data: preview, isLoading, isError, error, refetch } = useQuery({
@@ -615,7 +621,7 @@ export function MagicMappingPreview({ orderId, onCommitted, onParseFailed }: Pro
         <p style={{ fontSize: 12.5, color: "#56627A", margin: "4px 0 0" }}>
           Here&apos;s exactly how we&apos;ll map your order to{" "}
           <strong style={{ color: "#0B1A2F" }}>
-            {preview.lines.length > 0 ? "your supplier" : "the supplier"}
+            {preview.lines.length > 0 ? `your ${counterpartyLower}` : `the ${counterpartyLower}`}
           </strong>
           . Review and confirm — nothing is sent yet.
           {preview.sourceFormat && (
@@ -763,7 +769,7 @@ export function MagicMappingPreview({ orderId, onCommitted, onParseFailed }: Pro
           </span>
           <span />
           <span style={{ fontSize: 11, fontWeight: 700, color: "#56627A", textTransform: "uppercase", letterSpacing: "0.04em" }}>
-            Supplier code
+            {counterpartyNoun} code
           </span>
         </div>
       )}
@@ -826,7 +832,7 @@ export function MagicMappingPreview({ orderId, onCommitted, onParseFailed }: Pro
               <SourceCell line={line} />
 
               {/* Mobile: compact maps-to affordance replaces the arrow + canonical columns */}
-              {isMobile && <MapsToAffordance />}
+              {isMobile && <MapsToAffordance counterpartyNoun={counterpartyNoun} />}
 
               {/* Arrow 1 (desktop only) */}
               {!isMobile && <ArrowBridge />}
@@ -852,7 +858,7 @@ export function MagicMappingPreview({ orderId, onCommitted, onParseFailed }: Pro
                       textAlign: "center",
                     }}
                   >
-                    Supplier
+                    {counterpartyNoun}
                   </span>
                   <span
                     style={{
@@ -1066,7 +1072,7 @@ export function MagicMappingPreview({ orderId, onCommitted, onParseFailed }: Pro
                       autoFocus
                       type="text"
                       value={rowState.draft}
-                      placeholder="Supplier item code…"
+                      placeholder={`${counterpartyNoun} item code…`}
                       onChange={e =>
                         dispatch({
                           lineNumber: line.lineNumber,
@@ -1161,7 +1167,7 @@ export function MagicMappingPreview({ orderId, onCommitted, onParseFailed }: Pro
                           cursor: "pointer",
                         }}
                       >
-                        + Enter supplier code
+                        + Enter {counterpartyLower} code
                       </button>
                     </div>
                   )}
@@ -1207,7 +1213,7 @@ export function MagicMappingPreview({ orderId, onCommitted, onParseFailed }: Pro
             {resolved} of {totalLines} lines mapped
             {unresolved > 0 && (
               <span style={{ color: "#C97A14" }}>
-                {" "}— {unresolved} still need a supplier code
+                {" "}— {unresolved} still need a {counterpartyLower} code
               </span>
             )}
           </span>

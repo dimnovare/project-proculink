@@ -6,6 +6,7 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { isApiMockMode } from "@/lib/api-client";
+import { useOrderDirection } from "@/hooks/useOrderDirection";
 
 export type Lane = {
   buyerName: string;
@@ -53,6 +54,14 @@ interface LaneDrawerProps {
 export function LaneDrawer({ lane, onClose }: LaneDrawerProps) {
   const hc     = HEALTH_COLOR[lane.health];
   const router = useRouter();
+  // Direction-aware party labels (avoids a split-brain "Supplier" UI for inbound
+  // orgs). railHeader is "Buyer → Supplier" (outbound) / "Customer → You"
+  // (inbound); split it into the two side labels.
+  const { labels } = useOrderDirection();
+  const [leftPartyLabel, rightPartyLabel] = (() => {
+    const parts = labels.railHeader.split("→").map(s => s.trim());
+    return [parts[0] || "Buyer", parts[1] || "Supplier"];
+  })();
 
   // esc closes
   useEffect(() => {
@@ -160,7 +169,7 @@ export function LaneDrawer({ lane, onClose }: LaneDrawerProps) {
                   marginBottom: 2,
                 }}
               >
-                Buyer
+                {leftPartyLabel}
               </div>
               <div
                 style={{
@@ -228,7 +237,7 @@ export function LaneDrawer({ lane, onClose }: LaneDrawerProps) {
                   marginBottom: 2,
                 }}
               >
-                Supplier
+                {rightPartyLabel}
               </div>
               <div
                 style={{

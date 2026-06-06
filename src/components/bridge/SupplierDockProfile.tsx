@@ -11,6 +11,7 @@ import { PoMappingEditor } from "./PoMappingEditor";
 import { DeliveryConfigEditor } from "./DeliveryConfigEditor";
 import { upsertPoMapping, deletePoMapping } from "@/lib/api/mapping";
 import { apiClient, isApiMockMode, getAcceptanceProfile, saveAcceptanceProfile, activateAcceptanceVersion, applyPoMappingTemplate } from "@/lib/api-client";
+import { useOrderDirection } from "@/hooks/useOrderDirection";
 import type { PoMappingConfig } from "@/lib/api/types";
 import type { AcceptanceRule, AcceptanceProfile } from "@/types/procurement";
 
@@ -565,6 +566,12 @@ function AcceptanceTab({ supplierId }: { supplierId: string }) {
 export function SupplierDockProfile({ id }: { id: string }) {
   const router = useRouter();
   const qc = useQueryClient();
+  // Direction-aware party labels so an inbound org's profile isn't a split-brain
+  // "Supplier" UI while its list reads "Customers".
+  const { labels } = useOrderDirection();
+  const partyNoun = labels.counterpartyNoun;            // "Supplier" | "Customer"
+  const partyNounLower = partyNoun.toLowerCase();        // "supplier" | "customer"
+  const partyPluralLower = labels.counterpartyPlural.toLowerCase(); // "suppliers" | "customers"
   const [tab, setTab] = useState<Tab>("overview");
   const [poMappingConfig, setPoMappingConfig] = useState<PoMappingConfig | null>(null);
   const [savingMapping, setSavingMapping] = useState(false);
@@ -588,7 +595,7 @@ export function SupplierDockProfile({ id }: { id: string }) {
       await qc.invalidateQueries({ queryKey: ["suppliers"] });
       router.push("/library/suppliers");
     } catch (e) {
-      setDeleteError(e instanceof Error ? e.message : "Could not delete supplier.");
+      setDeleteError(e instanceof Error ? e.message : `Could not delete ${partyNounLower}.`);
       setDeleting(false);
     }
   }
@@ -611,7 +618,7 @@ export function SupplierDockProfile({ id }: { id: string }) {
   if (!isApiMockMode && isLoading) {
     return (
       <div className="flex items-center justify-center h-full" style={{ background: BG }}>
-        <span style={{ fontSize: 13, color: FAINT }}>Loading supplier…</span>
+        <span style={{ fontSize: 13, color: FAINT }}>Loading {partyNounLower}…</span>
       </div>
     );
   }
@@ -619,12 +626,12 @@ export function SupplierDockProfile({ id }: { id: string }) {
   if (!isApiMockMode && error) {
     return (
       <div className="flex flex-col items-center justify-center h-full gap-3" style={{ background: BG }}>
-        <span style={{ fontSize: 13, color: DANGER }}>Failed to load supplier</span>
+        <span style={{ fontSize: 13, color: DANGER }}>Failed to load {partyNounLower}</span>
         <button
           onClick={() => router.push("/library/suppliers")}
           style={{ fontSize: 12.5, color: GREEN_DEEP, background: "none", border: "none", cursor: "pointer" }}
         >
-          ← Back to suppliers
+          ← Back to {partyPluralLower}
         </button>
       </div>
     );
@@ -633,12 +640,12 @@ export function SupplierDockProfile({ id }: { id: string }) {
   if (!isApiMockMode && !isLoading && realSupplier === null) {
     return (
       <div className="flex flex-col items-center justify-center h-full gap-3" style={{ background: BG }}>
-        <span style={{ fontSize: 14, fontWeight: 600, color: INK }}>Supplier not found</span>
+        <span style={{ fontSize: 14, fontWeight: 600, color: INK }}>{partyNoun} not found</span>
         <button
           onClick={() => router.push("/library/suppliers")}
           style={{ fontSize: 12.5, color: GREEN_DEEP, background: "none", border: "none", cursor: "pointer" }}
         >
-          ← Back to suppliers
+          ← Back to {partyPluralLower}
         </button>
       </div>
     );
@@ -658,10 +665,10 @@ export function SupplierDockProfile({ id }: { id: string }) {
             onClick={(e) => e.stopPropagation()}
           >
             <h3 className="text-[15px] font-semibold" style={{ color: INK, fontFamily: DISPLAY }}>
-              Delete {name || "this supplier"}?
+              Delete {name || `this ${partyNounLower}`}?
             </h3>
             <p className="mt-2 text-[12.5px] leading-relaxed" style={{ color: MUTED }}>
-              This removes it from your supplier list. Past orders are kept for audit. This can’t be undone here.
+              This removes it from your {partyNounLower} list. Past orders are kept for audit. This can’t be undone here.
             </p>
             {deleteError && (
               <div className="mt-3 rounded-[6px] px-3 py-2 text-[12px]" style={{ background: "#FBE3E3", color: DANGER, border: "1px solid #F0C2C2" }}>
@@ -685,7 +692,7 @@ export function SupplierDockProfile({ id }: { id: string }) {
                 className="rounded-[7px] px-3 text-[12.5px] font-semibold"
                 style={{ height: 34, border: "none", background: DANGER, color: "#FFFFFF", cursor: "pointer", opacity: deleting ? 0.7 : 1 }}
               >
-                {deleting ? "Deleting…" : "Delete supplier"}
+                {deleting ? "Deleting…" : `Delete ${partyNounLower}`}
               </button>
             </div>
           </div>
@@ -703,7 +710,7 @@ export function SupplierDockProfile({ id }: { id: string }) {
           style={{ color: MUTED, background: "none", border: "none", cursor: "pointer", padding: "4px 0" }}
         >
           <ChevronLeft size={14} strokeWidth={2.2} />
-          Suppliers
+          {labels.counterpartyPlural}
         </button>
 
         <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center">
@@ -761,7 +768,7 @@ export function SupplierDockProfile({ id }: { id: string }) {
             style={{ height: 34, border: "1px solid #E9C4C4", background: SURFACE, color: DANGER, cursor: "pointer" }}
           >
             <Trash2 size={14} strokeWidth={2} color={DANGER} />
-            Delete supplier
+            Delete {partyNounLower}
           </button>
         </div>
       </div>
