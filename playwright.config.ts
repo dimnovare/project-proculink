@@ -54,6 +54,10 @@ export default defineConfig({
     reuseExistingServer: !process.env.CI,
     env: {
       PROCULINK_QA_BYPASS_AUTH: "true",
+      // Browser-visible twin of the backend bypass: lets the Next client enable
+      // data queries without a Clerk session (see useQueriesEnabled / isQaBypass).
+      // Test-only — never set in production builds.
+      NEXT_PUBLIC_QA_BYPASS_AUTH: "true",
       NEXT_PUBLIC_USE_MOCK: isLive ? "false" : "true",
       // When live, point at the locally-running backend. Default falls back to
       // HTTPS dev profile; override with PLAYWRIGHT_API_URL for HTTP.

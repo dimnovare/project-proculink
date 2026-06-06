@@ -6,9 +6,9 @@
 import type React from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState, useRef, useEffect, useCallback, useMemo, type KeyboardEvent } from "react";
-import { useAuth } from "@clerk/nextjs";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { apiClient, getOrderExceptions, validateOrder, isApiMockMode } from "@/lib/api-client";
+import { apiClient, getOrderExceptions, validateOrder } from "@/lib/api-client";
+import { useQueriesEnabled } from "@/hooks/useQueriesEnabled";
 import type { Order, OrderException, OrderValidationResult } from "@/types/procurement";
 import { EdgeRails } from "./EdgeRails";
 import { FileChip } from "./FileChip";
@@ -144,16 +144,18 @@ function buildNodesFromOrder(order: Order, labels: PartyLabels): SpineNodeData[]
   });
 
   return [
-    // Header fields are READ-ONLY: the backend /api/orders/{id}/resolve endpoint
-    // only accepts per-line supplier-code resolutions, not header-field edits, so
-    // an inline edit here could never be persisted and would be silently dropped
-    // on transform/deliver. Until the backend supports header corrections, these
-    // stay read-only (no fake edit UI). See REPORT (backend gap).
+    // Header editing (Item 2): date / buyer / currency are editable — the backend
+    // /api/orders/{id}/resolve endpoint now accepts optional header corrections
+    // ({ orderDate, buyerName, currency }) alongside line resolutions, persisted
+    // before transform/deliver. PO number stays read-only (it is the document's
+    // identity / dedupe key) and supplier stays read-only (changing it would
+    // re-route delivery and remap codes — handled via the supplier picker, not
+    // an inline header edit).
     { id: "po",       label: "PO number",   value: order.poNumber,            pct: 99, mono: true,  editable: false, srcRef: "header",  outRef: "Order/@orderID"    },
-    { id: "date",     label: "Order date",  value: order.orderDate,            pct: 95, mono: true,  editable: false, srcRef: "header",  outRef: "Order/orderDate"   },
-    { id: "buyer",    label: "Buyer",       value: order.buyerName ?? "(parsing…)", pct: order.buyerName ? 98 : 50, tone: "buyer",    editable: false, srcRef: "parties", outRef: "BillTo/Contact"    },
+    { id: "date",     label: "Order date",  value: order.orderDate,            pct: 95, mono: true,  editable: true,  srcRef: "header",  outRef: "Order/orderDate"   },
+    { id: "buyer",    label: "Buyer",       value: order.buyerName ?? "(parsing…)", pct: order.buyerName ? 98 : 50, tone: "buyer",    editable: true,  srcRef: "parties", outRef: "BillTo/Contact"    },
     { id: "supplier", label: labels.counterpartyNoun, value: order.supplierName, pct: 97, tone: "supplier", editable: false, srcRef: "parties", outRef: "ShipFrom/Contact", hint: supplierHint, hintTone: "muted" },
-    { id: "currency", label: "Currency",    value: order.currency,             pct: 99, mono: true,  editable: false, srcRef: "terms",   outRef: "Total/@currency"   },
+    { id: "currency", label: "Currency",    value: order.currency,             pct: 99, mono: true,  editable: true,  srcRef: "terms",   outRef: "Total/@currency"   },
     {
       id: "lines", label: "Line items", value: `${lineCount} line${lineCount !== 1 ? "s" : ""} · ${formatted}`,
       pct: lineConf, big: true, editable: false, srcRef: "lines", outRef: "ItemOut[]",
@@ -430,6 +432,12 @@ function SpineNodeCard({
 }: SpineNodeCardProps) {
   const isEditing = editingId === node.id;
   const displayVal = fieldValues[node.id] ?? node.value;
+  // "edited" badge: the user changed this field's value from the parsed original
+  // (and it isn't blank). Shown for header fields once committed locally.
+  const isEdited =
+    fieldValues[node.id] !== undefined &&
+    fieldValues[node.id] !== node.value &&
+    fieldValues[node.id].trim() !== "";
   const issue = node.pct < 90;
   const err   = node.pct < 75;
   const isActiveZone = activeZone === node.srcRef;
@@ -485,6 +493,24 @@ function SpineNodeCard({
             {node.label}
             {NODE_TO_FIELD[node.id] && (
               <StandardsFieldPopover canonicalField={NODE_TO_FIELD[node.id]} label={node.label} />
+            )}
+            {isEdited && !isEditing && (
+              <span
+                title="You edited this field. It will be saved when you send the order."
+                style={{
+                  fontSize: 9,
+                  fontWeight: 700,
+                  textTransform: "uppercase",
+                  letterSpacing: "0.04em",
+                  color: "#1E6D29",
+                  background: "#E6F7EC",
+                  border: "1px solid #BfE6CB",
+                  borderRadius: 4,
+                  padding: "1px 4px",
+                }}
+              >
+                edited
+              </span>
             )}
           </span>
           <ConfChip pct={node.pct} />
@@ -1491,11 +1517,10 @@ export function SpineReview({ orderId }: { orderId: string }) {
   // "Confirm order" and its progress/done states (mechanism UNCHANGED — still
   // transform + deliver). Output-artifact labels (cXML/"Output") stay neutral.
   const { labels } = useOrderDirection();
-  const { isLoaded: clerkLoaded, isSignedIn } = useAuth();
-  const clerkReady = clerkLoaded && !!isSignedIn;
-  // Mock mode has no Clerk session, so gate queries on (mock OR clerkReady) —
-  // otherwise mock-mode pages (and the e2e suite) starve on a disabled query.
-  const queryEnabled = isApiMockMode || clerkReady;
+  // Mock mode AND live QA-bypass e2e have no Clerk session, so gate queries via
+  // useQueriesEnabled (mock OR qa-bypass OR signed-in) — otherwise those pages
+  // (and the e2e suite) starve on a disabled query.
+  const queryEnabled = useQueriesEnabled();
 
   // ── Live order data ────────────────────────────────────────────────────────
   const { data: order, isLoading, isError, refetch: refetchOrder } = useQuery({
@@ -1583,6 +1608,8 @@ export function SpineReview({ orderId }: { orderId: string }) {
   const [tab, setTab]                             = useState<"review" | "passport" | "response">("review");
   // The line id currently being resolved against the backend (Accept in-flight).
   const [acceptingLineId, setAcceptingLineId]     = useState<string | null>(null);
+  // The header field id (date/buyer/currency) whose correction is being persisted.
+  const [savingHeaderId, setSavingHeaderId]       = useState<string | null>(null);
 
   const inputRefs = useRef<Record<string, HTMLInputElement | null>>({});
   const gridRef = useRef<HTMLDivElement>(null);
@@ -1656,20 +1683,62 @@ export function SpineReview({ orderId }: { orderId: string }) {
 
   // ── Edit handlers ──────────────────────────────────────────────────────────
   const handleStartEdit = useCallback((id: string) => {
+    // Don't re-open a field whose previous edit is still persisting.
+    if (savingHeaderId) return;
     const node = nodes.find(n => n.id === id);
     if (!node) return;
     setFieldValues(prev => ({ ...prev, [id]: prev[id] ?? node.value }));
     setEditingId(id);
     setTimeout(() => inputRefs.current[id]?.focus(), 0);
-  }, [nodes]);
+  }, [nodes, savingHeaderId]);
 
   const handleChangeValue = useCallback((id: string, val: string) => {
     setFieldValues(prev => ({ ...prev, [id]: val }));
   }, []);
 
+  // Header fields that map to a backend resolve correction. PO# + supplier are
+  // intentionally absent (read-only). Each maps the node id to the resolve
+  // payload key and the order's current persisted value (for change detection).
+  const headerFieldMap: Record<string, { key: "orderDate" | "buyerName" | "currency"; current: string }> = useMemo(() => ({
+    date:     { key: "orderDate", current: order?.orderDate ?? "" },
+    buyer:    { key: "buyerName", current: order?.buyerName ?? "" },
+    currency: { key: "currency",  current: order?.currency ?? "" },
+  }), [order]);
+
   const handleCommitEdit = useCallback((id: string) => {
     setEditingId(null);
-  }, []);
+
+    const header = headerFieldMap[id];
+    if (!header || !order) return;
+    if (savingHeaderId === id) return;       // a save for this field is already in flight
+
+    const raw = fieldValues[id];
+    if (raw === undefined) return;           // never edited
+    const next = raw.trim();
+    if (next === "" || next === header.current) return; // blank or unchanged → no-op
+
+    // Persist the single edited header field via the resolve endpoint (empty
+    // line resolutions — the backend treats absent line work + present header
+    // field as a header-only correction). Refetch on success so the persisted
+    // value renders from server truth.
+    setSavingHeaderId(id);
+    setFlow("Saving change…", "info");
+    void (async () => {
+      try {
+        await apiClient.commitMappings(orderId, [], { [header.key]: next });
+        await qc.invalidateQueries({ queryKey: ["order", orderId] });
+        await refetchOrder();
+        // Drop the local override so the refetched server value is the source of
+        // truth (avoids a stale fieldValues entry masking the persisted value).
+        setFieldValues(prev => { const n = { ...prev }; delete n[id]; return n; });
+        setFlow("Change saved.", "success");
+      } catch (err) {
+        setFlow(err instanceof Error ? err.message : "Couldn't save that change. Try again.", "error");
+      } finally {
+        setSavingHeaderId(null);
+      }
+    })();
+  }, [headerFieldMap, order, fieldValues, orderId, qc, refetchOrder, setFlow, savingHeaderId]);
 
   const handleKeyDown = useCallback((e: KeyboardEvent<HTMLInputElement>, id: string) => {
     if (e.key === "Enter" || e.key === "Tab") {

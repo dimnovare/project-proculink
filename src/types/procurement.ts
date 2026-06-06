@@ -165,6 +165,14 @@ export interface LineResolution {
 export interface ResolvePayload {
   saveMappings: boolean;
   lineResolutions: LineResolution[];
+  // ── Optional header-field corrections (Item 2) ─────────────────────────────
+  // Sent ONLY for fields the user actually edited in the order-review header.
+  // The backend treats null/absent as "no change", so omitting a field leaves
+  // the parsed value untouched. ISO "yyyy-MM-dd" for orderDate, ISO-4217 for
+  // currency. PO number + supplier are intentionally NOT editable.
+  orderDate?: string;
+  buyerName?: string;
+  currency?: string;
 }
 
 export interface ResolveResult {

@@ -8,16 +8,15 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { useAuth } from "@clerk/nextjs";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   getOpsHealth,
   getDeadLetterOrders,
   requeueDelivery,
-  isApiMockMode,
   type OpsHealth,
   type DeadLetterOrder,
 } from "@/lib/api-client";
+import { useQueriesEnabled } from "@/hooks/useQueriesEnabled";
 
 const NAVY = "#0B1A2F";
 const BLUE_DEEP = "#0F4FA8";
@@ -59,9 +58,7 @@ function formatHeartbeat(s: number | null): string {
 }
 
 export default function OperationsHealthPage() {
-  const { isLoaded, isSignedIn } = useAuth();
-  const clerkReady = isLoaded && !!isSignedIn;
-  const queryEnabled = isApiMockMode || clerkReady;
+  const queryEnabled = useQueriesEnabled();
   const qc = useQueryClient();
 
   const [includeFailed, setIncludeFailed] = useState(true);
