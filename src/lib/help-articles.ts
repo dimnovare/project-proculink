@@ -21,7 +21,7 @@ export const HELP_ARTICLES: HelpArticle[] = [
   { slug: "delivery-config",  title: "Configuring supplier delivery",      blurb: "Set up HTTP webhook delivery with credentials and test-fire.",         category: "Delivery" },
   { slug: "ai-suggestions",   title: "How AI mapping suggestions work",    blurb: "When OpenAI runs, what confidence means, and how to confirm or clear suggestions.", category: "AI" },
   { slug: "billing-faq",      title: "Billing and plans FAQ",              blurb: "Pilot, Growth, Operations, Integration, Enterprise — what's included and what happens at quota.", category: "Billing" },
-  { slug: "email-polling",    title: "Email polling (IMAP) setup",         blurb: "Receive POs as email attachments — only on Integration and above.",   category: "Email" },
+  { slug: "email-polling",    title: "Email polling (IMAP) setup",         blurb: "Receive POs as email attachments — available on any paid plan.",   category: "Email" },
   { slug: "troubleshooting",  title: "Troubleshooting common parse errors",blurb: "Date format mismatches, missing columns, encoding issues — what to fix.", category: "Troubleshooting" },
 ];
 

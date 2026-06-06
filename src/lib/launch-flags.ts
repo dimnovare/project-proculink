@@ -18,6 +18,8 @@ export const LAUNCH_CORE_HREFS: ReadonlySet<string> = new Set([
   "/upload",
   "/inbox",
   "/library/suppliers",
+  "/operations/exceptions",
+  "/operations/health",
   "/admin",
   "/settings",
   "/help",
