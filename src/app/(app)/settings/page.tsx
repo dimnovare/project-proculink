@@ -1,11 +1,13 @@
 "use client";
 import { useEffect, useState, type CSSProperties, type ReactNode } from "react";
+import Link from "next/link";
 import { useOrganization } from "@clerk/nextjs";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Building, Copy, Database, Euro, ExternalLink, HardDrive, Key, Mail, Plug, Plus, Save, ShieldCheck, Trash2, Zap } from "lucide-react";
+import { Building, Copy, Database, Euro, HardDrive, Key, Mail, Plug, Plus, Save, ShieldCheck, Trash2, Zap } from "lucide-react";
 import { BillingSection } from "@/components/bridge/BillingSection";
 import {
   apiClient,
+  apiBaseUrl,
   getBillingStatus,
   getEmailSettings,
   updateEmailSettings,
@@ -164,9 +166,6 @@ export default function SettingsPage() {
             justify-content: center;
             min-height: 40px;
           }
-          .settings-shell [style*="grid-template-columns: 1fr 1fr"] {
-            grid-template-columns: 1fr !important;
-          }
           .imap-connection-grid {
             grid-template-columns: 1fr !important;
           }
@@ -199,6 +198,51 @@ function SettingsRow({ label, hint, children }: { label: string; hint?: string; 
         {hint && <div style={{ fontSize: 11.5, color: "var(--ink-faint)", marginTop: 2 }}>{hint}</div>}
       </div>
       {children}
+    </div>
+  );
+}
+
+// Inline two-button confirm — replaces native confirm()/alert for destructive
+// actions so they stay on-brand. Renders the trigger; on click swaps to a
+// "Confirm / Cancel" pair scoped to the row.
+function InlineConfirm({
+  onConfirm,
+  trigger,
+  confirmLabel = "Confirm",
+  prompt,
+  danger = true,
+  fullWidth = false,
+}: {
+  onConfirm: () => void;
+  trigger: (open: () => void) => ReactNode;
+  confirmLabel?: string;
+  prompt?: string;
+  danger?: boolean;
+  fullWidth?: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  if (!open) return <>{trigger(() => setOpen(true))}</>;
+  return (
+    <div
+      role="group"
+      aria-label={prompt ?? "Confirm action"}
+      style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", width: fullWidth ? "100%" : undefined }}
+    >
+      {prompt && <span style={{ fontSize: 12, color: "#56627A", marginRight: 2 }}>{prompt}</span>}
+      <button
+        onClick={() => { setOpen(false); onConfirm(); }}
+        className={fullWidth ? "flex-1" : undefined}
+        style={{ height: 32, padding: "0 12px", borderRadius: 6, border: "none", background: danger ? "#C53A3A" : "var(--brand-green)", color: "#FFFFFF", fontSize: 12.5, fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap" }}
+      >
+        {confirmLabel}
+      </button>
+      <button
+        onClick={() => setOpen(false)}
+        className={fullWidth ? "flex-1" : undefined}
+        style={{ height: 32, padding: "0 12px", borderRadius: 6, border: "1px solid #D5DAE5", background: "#FFFFFF", color: "#56627A", fontSize: 12.5, fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap" }}
+      >
+        Cancel
+      </button>
     </div>
   );
 }
@@ -252,24 +296,32 @@ function OrgSection() {
           />
         </div>
 
-        {/* Read-only default currency — currency is fixed to EUR for now (no
-            org-level setting endpoint), so this is a static display, not a
-            fake-editable field. */}
-        <SettingsRow label="Default currency" hint="Used across orders and billing.">
-          <span style={{ display: "inline-flex", alignItems: "center", height: 24, padding: "0 10px", borderRadius: 6, fontSize: 11.5, fontWeight: 600, background: "#EFF2F7", color: "#56627A" }}>
-            EUR — Euro
-          </span>
-        </SettingsRow>
-
-        {/* Read-only Workspace region row */}
-        <SettingsRow label="Workspace region" hint="Where order data is stored.">
-          <span style={{ display: "inline-flex", alignItems: "center", height: 24, padding: "0 10px", borderRadius: 6, fontSize: 11.5, fontWeight: 600, background: "#EFF2F7", color: "#56627A" }}>
-            EU (Frankfurt)
-          </span>
-        </SettingsRow>
-
         {/* Members row — real count from Clerk. */}
         <SettingsRow label="Members" hint={membersHint} />
+
+        {/* About this workspace — fixed (non-editable) facts grouped together so
+            they don't read as editable fields the user can change. Currency is
+            fixed to EUR and region to EU until org-level settings endpoints
+            exist; presenting them as a labelled info block (not input rows)
+            keeps the offer↔works honesty rule. */}
+        <div style={{ marginTop: 18, border: "1px solid var(--border)", borderRadius: 8, background: "#F8FAFC", padding: "12px 14px" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginBottom: 8 }}>
+            <span style={{ fontSize: 12, fontWeight: 600, color: "var(--ink)" }}>About this workspace</span>
+            <span style={{ fontSize: 10.5, fontWeight: 600, letterSpacing: "0.04em", textTransform: "uppercase", color: "#8A93A5", border: "1px solid #E2E6EE", borderRadius: 999, padding: "1px 8px", background: "#FFFFFF" }}>
+              Fixed
+            </span>
+          </div>
+          <dl style={{ display: "grid", gap: 6, margin: 0 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", gap: 12, fontSize: 12.5 }}>
+              <dt style={{ color: "#56627A" }}>Default currency</dt>
+              <dd style={{ margin: 0, fontWeight: 600, color: "var(--ink)" }}>EUR — Euro</dd>
+            </div>
+            <div style={{ display: "flex", justifyContent: "space-between", gap: 12, fontSize: 12.5 }}>
+              <dt style={{ color: "#56627A" }}>Workspace region</dt>
+              <dd style={{ margin: 0, fontWeight: 600, color: "var(--ink)" }}>EU (Frankfurt)</dd>
+            </div>
+          </dl>
+        </div>
 
         <div style={{ marginTop: 18, display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
           <button
@@ -476,6 +528,8 @@ function EmailSettingsSection() {
   });
   const [password, setPassword] = useState("");
   const [passwordTouched, setPasswordTouched] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [validationError, setValidationError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!settings) return;
@@ -484,22 +538,40 @@ function EmailSettingsSection() {
     setPasswordTouched(false);
   }, [settings]);
 
-  const canEnable = billing?.plan === "integration" || billing?.plan === "enterprise";
+  // Pilot is the only tier without email ingestion (decoupled to all paid plans).
+  const canEnable = !!billing && billing.plan !== "pilot";
 
   const mutation = useMutation({
     mutationFn: (payload: UpdateEmailSettingsPayload) => updateEmailSettings(payload),
-    onSuccess: (saved) => {
-      queryClient.setQueryData(["email-settings"], saved);
+    onSuccess: (savedSettings) => {
+      queryClient.setQueryData(["email-settings"], savedSettings);
       setPassword("");
       setPasswordTouched(false);
+      setSaved(true);
+      setTimeout(() => setSaved(false), 4000);
     },
   });
 
   function update<K extends keyof EmailSettings>(key: K, value: EmailSettings[K]) {
     setForm((current) => ({ ...current, [key]: value }));
+    setSaved(false);
+    setValidationError(null);
   }
 
   function save() {
+    setValidationError(null);
+    setSaved(false);
+    // Client-side validation mirroring the backend so the user gets an inline
+    // message instead of a 400 round-trip. Connection fields are only required
+    // when polling is actually being enabled.
+    if (form.enabled) {
+      if (!form.host.trim()) { setValidationError("IMAP host is required to enable polling."); return; }
+      if (!form.username.trim()) { setValidationError("Username is required to enable polling."); return; }
+      if (!form.defaultSupplierId) { setValidationError("Choose a default supplier to enable polling."); return; }
+      if (!form.hasPassword && !(passwordTouched && password)) {
+        setValidationError("A password is required to enable polling."); return;
+      }
+    }
     mutation.mutate({
       enabled: form.enabled,
       host: form.host,
@@ -550,7 +622,7 @@ function EmailSettingsSection() {
         {/* Enable row + billing gate notice */}
         {!canEnable && (
           <div style={{ marginBottom: 16, borderRadius: 8, padding: "12px 14px", fontSize: 12.5, lineHeight: 1.5, border: "1px solid #F0D39A", background: "#FFF8EA", color: "#7A4D0B" }}>
-            Email ingestion is included from the Integration plan. You can prepare the configuration here, but enabling polling requires an upgrade.
+            Email ingestion is included from any paid plan. You can prepare the configuration here, but enabling polling requires upgrading from Pilot.
           </div>
         )}
 
@@ -564,7 +636,7 @@ function EmailSettingsSection() {
           </div>
           <ToggleSwitch
             checked={form.enabled}
-            disabled={!canEnable && !form.enabled}
+            disabled={(!canEnable && !form.enabled) || (suppliers.length === 0 && !form.enabled)}
             onChange={(v) => update("enabled", v)}
             ariaLabel="Poll inbox for orders"
           />
@@ -590,7 +662,7 @@ function EmailSettingsSection() {
               marginBottom: 14,
             }}
           >
-            <FormField label="IMAP host">
+            <FormField label="IMAP host" required>
               <input value={form.host} onChange={(event) => update("host", event.target.value)} placeholder="imap.company.com" style={inputStyle} />
               <span style={{ fontSize: 11.5, color: "#8A93A5", marginTop: 2 }}>e.g. imap.gmail.com for Gmail</span>
             </FormField>
@@ -606,7 +678,7 @@ function EmailSettingsSection() {
           </div>
 
           <div className="grid gap-4 md:grid-cols-2" style={{ marginBottom: 14 }}>
-            <FormField label="Username">
+            <FormField label="Username" required>
               <input value={form.username} onChange={(event) => update("username", event.target.value)} placeholder="orders@company.com" style={inputStyle} />
             </FormField>
             <FormField label="Password">
@@ -641,17 +713,24 @@ function EmailSettingsSection() {
             <FormField label="Folder">
               <input value={form.folder} onChange={(event) => update("folder", event.target.value)} placeholder="INBOX" style={inputStyle} />
             </FormField>
-            <FormField label="Default supplier">
-              <select
-                value={form.defaultSupplierId ?? ""}
-                onChange={(event) => update("defaultSupplierId", event.target.value || null)}
-                style={{ ...inputStyle, background: "#FFFFFF" }}
-              >
-                <option value="">Choose supplier</option>
-                {suppliers.map((supplier) => (
-                  <option key={supplier.id} value={supplier.id}>{supplier.name}</option>
-                ))}
-              </select>
+            <FormField label="Default supplier" required>
+              {suppliers.length === 0 ? (
+                <div style={{ borderRadius: 8, border: "1px dashed #C6CDDA", background: "#F8FAFC", padding: "10px 12px", fontSize: 12, color: "#56627A", lineHeight: 1.5 }}>
+                  No suppliers yet —{" "}
+                  <Link href="/library/suppliers" style={{ color: "var(--brand-green-deep)", fontWeight: 600 }}>add one first →</Link>
+                </div>
+              ) : (
+                <select
+                  value={form.defaultSupplierId ?? ""}
+                  onChange={(event) => update("defaultSupplierId", event.target.value || null)}
+                  style={{ ...inputStyle, background: "#FFFFFF" }}
+                >
+                  <option value="">Choose supplier</option>
+                  {suppliers.map((supplier) => (
+                    <option key={supplier.id} value={supplier.id}>{supplier.name}</option>
+                  ))}
+                </select>
+              )}
             </FormField>
           </div>
         </div>
@@ -665,8 +744,14 @@ function EmailSettingsSection() {
               {form.lastPolledAt ? new Date(form.lastPolledAt).toLocaleString() : "not run yet"}.
             </span>
           </div>
-          {mutation.error && (
-            <span style={{ fontSize: 12, color: "#A52E2E" }}>{(mutation.error as Error).message}</span>
+          {validationError && (
+            <span role="alert" style={{ fontSize: 12, fontWeight: 500, color: "#A52E2E" }}>{validationError}</span>
+          )}
+          {mutation.error && !validationError && (
+            <span role="alert" style={{ fontSize: 12, color: "#A52E2E" }}>{(mutation.error as Error).message}</span>
+          )}
+          {saved && !mutation.error && !validationError && (
+            <span role="status" style={{ fontSize: 12.5, fontWeight: 600, color: "var(--brand-green-deep)" }}>Email settings saved.</span>
           )}
           <button
             onClick={save}
@@ -734,10 +819,13 @@ function ToggleSwitch({
 }
 
 // Lightweight field label wrapper used in Email section
-function FormField({ label, children }: { label: string; children: ReactNode }) {
+function FormField({ label, required, children }: { label: string; required?: boolean; children: ReactNode }) {
   return (
     <label style={{ display: "flex", flexDirection: "column", gap: 6, minWidth: 0 }}>
-      <span style={fieldLabelStyle}>{label}</span>
+      <span style={fieldLabelStyle}>
+        {label}
+        {required && <span style={{ color: "#A52E2E", marginLeft: 3 }} aria-hidden>*</span>}
+      </span>
       {children}
     </label>
   );
@@ -786,22 +874,61 @@ const connectorTile: CSSProperties = {
   flexShrink: 0,
 };
 
-// White bordered secondary action (connector "Open …" / "Connect") — matches design
-const connectorActionLink: CSSProperties = {
-  display: "inline-flex",
-  alignItems: "center",
-  gap: 5,
-  flexShrink: 0,
-  fontSize: 12.5,
-  fontWeight: 600,
-  color: "#0B1A2F",
-  border: "1px solid #D5DAE5",
-  borderRadius: 8,
-  padding: "8px 12px",
-  background: "#FFFFFF",
-  textDecoration: "none",
-  whiteSpace: "nowrap",
-};
+// ── Ingress endpoint row ───────────────────────────────────────────────────
+// Read-only "where do I send orders" block on the API-keys tab. Builds the
+// inbound URL from the normalised public API base + the org slug, plus the
+// required auth header. Handles the slug being absent (older API / still
+// generating) with a "generating…" placeholder rather than a broken URL.
+
+function IngressEndpointRow({ slug }: { slug: string | undefined }) {
+  const [copied, setCopied] = useState(false);
+  const endpoint = slug ? `${apiBaseUrl}/api/ingress/${slug}/orders` : null;
+
+  const copy = async () => {
+    if (!endpoint) return;
+    try {
+      await navigator.clipboard.writeText(endpoint);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // clipboard may be blocked
+    }
+  };
+
+  return (
+    <div style={{ border: "1px solid #E2E6EE", borderRadius: 8, background: "#F8FAFC", padding: "14px 16px", marginBottom: 16 }}>
+      <p style={{ fontSize: 12.5, fontWeight: 600, color: "#0B1A2F", margin: 0 }}>Your ingress endpoint</p>
+      <p style={{ fontSize: 11.5, color: "#56627A", margin: "3px 0 10px", lineHeight: 1.5 }}>
+        POST order files here to import them via the REST API, Zapier, or Make.com.
+      </p>
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+        <code
+          style={{ flex: 1, minWidth: 0, fontSize: 12, fontFamily: "'JetBrains Mono', monospace", background: "#FFFFFF", border: "1px solid #E2E6EE", borderRadius: 6, padding: "9px 11px", color: endpoint ? "#0B1A2F" : "#8A93A5", wordBreak: "break-all" }}
+        >
+          {endpoint ?? `${apiBaseUrl}/api/ingress/`}
+          {!endpoint && <span style={{ fontStyle: "italic" }}>generating…</span>}
+          {!endpoint && "/orders"}
+        </code>
+        <button
+          onClick={copy}
+          disabled={!endpoint}
+          className="sm:flex-none"
+          style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 5, height: 36, padding: "0 14px", border: "1px solid #D5DAE5", borderRadius: 6, background: "#FFFFFF", color: endpoint ? "#0B1A2F" : "#8A93A5", fontSize: 12.5, fontWeight: 600, cursor: endpoint ? "pointer" : "not-allowed", whiteSpace: "nowrap" }}
+        >
+          <Copy size={13} />
+          {copied ? "Copied!" : "Copy"}
+        </button>
+      </div>
+      <p style={{ fontSize: 11.5, color: "#56627A", margin: "10px 0 0", lineHeight: 1.5 }}>
+        Authenticate with the header{" "}
+        <code style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 11.5, background: "#EFF2F7", borderRadius: 4, padding: "1px 5px", color: "#0B1A2F" }}>
+          X-ProcuLink-Key: &lt;your key&gt;
+        </code>{" "}
+        using a key created below.
+      </p>
+    </div>
+  );
+}
 
 // ── API Keys Section ──────────────────────────────────────────────────────
 
@@ -815,6 +942,15 @@ function ApiKeysSection() {
   const { data: keys = [], isLoading, isError, refetch, isFetching } = useQuery<ApiKey[]>({
     queryKey: ["api-keys"],
     queryFn: getApiKeys,
+    retry: false,
+  });
+
+  // Org slug → inbound ingress endpoint. Customers need this URL + the
+  // X-ProcuLink-Key header to POST orders; without it a created key is useless.
+  const { data: orgSettings } = useQuery({
+    queryKey: ["org-settings"],
+    queryFn: getOrgSettings,
+    staleTime: 300_000,
     retry: false,
   });
 
@@ -865,6 +1001,9 @@ function ApiKeysSection() {
     <div>
       <SettingsGroup title="API keys" sub="Authenticate the ProcuLink REST + webhook API. Each key is shown once at creation.">
 
+        {/* Where to send orders — slug + endpoint + auth header */}
+        <IngressEndpointRow slug={orgSettings?.slug} />
+
         {/* New key banner */}
         {newKey && (
           <div style={{ border: "1px solid rgba(46,142,58,0.40)", background: "var(--brand-green-soft)", borderRadius: 8, padding: "14px 16px", marginBottom: 16 }}>
@@ -908,7 +1047,7 @@ function ApiKeysSection() {
             <Key size={28} color="#C6CDDA" style={{ margin: "0 auto 10px" }} />
             <p style={{ fontSize: 13, fontWeight: 600, color: "#56627A" }}>No API keys yet</p>
             <p style={{ fontSize: 12, color: "#8A93A5", marginTop: 4 }}>
-              Create a key to connect Zapier, Make.com, or your own integration.
+              Create a key to post orders to the REST API or a custom webhook integration.
             </p>
           </div>
         )}
@@ -940,15 +1079,24 @@ function ApiKeysSection() {
                   </td>
                   <td style={{ padding: "11px 12px", borderBottom: "1px solid #EDF0F5", textAlign: "right" }}>
                     {key.isActive ? (
-                      <button
-                        onClick={() => { if (confirm(`Revoke "${key.label}"? This will immediately break any integration using it.`)) revoke.mutate(key.id); }}
-                        style={{ background: "none", border: "none", cursor: "pointer", color: "#56627A", padding: "4px 2px", fontSize: 12.5, fontWeight: 600 }}
-                        title="Revoke key"
-                        onMouseEnter={(e) => { e.currentTarget.style.color = "#C53A3A"; }}
-                        onMouseLeave={(e) => { e.currentTarget.style.color = "#56627A"; }}
-                      >
-                        Revoke
-                      </button>
+                      <div style={{ display: "inline-flex", justifyContent: "flex-end" }}>
+                        <InlineConfirm
+                          onConfirm={() => revoke.mutate(key.id)}
+                          confirmLabel="Revoke"
+                          prompt="Break any integration using it?"
+                          trigger={(open) => (
+                            <button
+                              onClick={open}
+                              style={{ background: "none", border: "none", cursor: "pointer", color: "#56627A", padding: "4px 2px", fontSize: 12.5, fontWeight: 600 }}
+                              title="Revoke key"
+                              onMouseEnter={(e) => { e.currentTarget.style.color = "#C53A3A"; }}
+                              onMouseLeave={(e) => { e.currentTarget.style.color = "#56627A"; }}
+                            >
+                              Revoke
+                            </button>
+                          )}
+                        />
+                      </div>
                     ) : (
                       <span style={{ fontSize: 11, fontWeight: 600, padding: "2px 7px", borderRadius: 4, background: "#EFF2F7", color: "#56627A" }}>Revoked</span>
                     )}
@@ -980,12 +1128,22 @@ function ApiKeysSection() {
                   {key.lastUsedAt ? new Date(key.lastUsedAt).toLocaleDateString() : "—"}
                 </div>
                 {key.isActive && (
-                  <button
-                    onClick={() => { if (confirm(`Revoke "${key.label}"? This will immediately break any integration using it.`)) revoke.mutate(key.id); }}
-                    style={{ marginTop: 10, width: "100%", height: 40, borderRadius: 8, border: "1px solid #E9B8B8", background: "#FFFFFF", color: "#A52E2E", fontSize: 13, fontWeight: 600, cursor: "pointer" }}
-                  >
-                    Revoke
-                  </button>
+                  <div style={{ marginTop: 10 }}>
+                    <InlineConfirm
+                      onConfirm={() => revoke.mutate(key.id)}
+                      confirmLabel="Revoke"
+                      prompt="Break any integration using it?"
+                      fullWidth
+                      trigger={(open) => (
+                        <button
+                          onClick={open}
+                          style={{ width: "100%", height: 40, borderRadius: 8, border: "1px solid #E9B8B8", background: "#FFFFFF", color: "#A52E2E", fontSize: 13, fontWeight: 600, cursor: "pointer" }}
+                        >
+                          Revoke
+                        </button>
+                      )}
+                    />
+                  </div>
                 )}
               </div>
             ))}
@@ -999,7 +1157,7 @@ function ApiKeysSection() {
             <div className="flex flex-col gap-2 sm:flex-row sm:gap-2">
               <input
                 type="text"
-                placeholder='e.g. "Zapier production" or "Make.com staging"'
+                placeholder='e.g. "Production integration" or "Staging webhook"'
                 value={newLabel}
                 autoFocus
                 onChange={e => setNewLabel(e.target.value)}
@@ -1095,56 +1253,54 @@ function ConnectorsSection() {
     <div>
       <SettingsGroup title="Connectors" sub="ERP and channel integrations — send real-time events to Zapier, Make.com, or any webhook URL.">
 
-        {/* Platform connector rows — neutral icon tile + name/desc + right-aligned action (matches design) */}
+        {/* How to connect — lead with the working REST/webhook path. The native
+            Zapier/Make.com apps aren't published yet, so we don't link out to
+            unpublished listings (they 404); we say they're coming instead. */}
         <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 22 }}>
-          {/* Zapier */}
+          {/* REST + webhook (the working path) */}
           <div className="connector-row" style={connectorRow}>
             <div style={connectorTile}>
-              <Zap size={18} color="#56627A" strokeWidth={1.75} />
+              <Plug size={18} color="#56627A" strokeWidth={1.75} />
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <p style={{ fontSize: 13.5, fontWeight: 600, color: "#0B1A2F", margin: 0 }}>Zapier</p>
+              <p style={{ fontSize: 13.5, fontWeight: 600, color: "#0B1A2F", margin: 0 }}>REST API &amp; webhooks</p>
               <p style={{ fontSize: 12, color: "#56627A", lineHeight: 1.5, margin: "3px 0 0" }}>
-                Connect ProcuLink to 6,000+ apps via the &ldquo;New Order Created&rdquo; or &ldquo;Order Delivered&rdquo; triggers.
+                Post orders to your ingress endpoint and receive real-time events at any URL — works with
+                Zapier, Make.com, n8n, or your own backend today. Create a key on the API keys tab, then add a
+                webhook below.
               </p>
             </div>
-            <a
-              href="https://zapier.com/apps/proculink"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="connector-action"
-              style={connectorActionLink}
-            >
-              Open Zapier <ExternalLink size={12} />
-            </a>
           </div>
 
-          {/* Make.com */}
-          <div className="connector-row" style={connectorRow}>
+          {/* Native apps — coming soon, no dead links */}
+          <div className="connector-row" style={{ ...connectorRow, background: "#F8FAFC" }}>
             <div style={connectorTile}>
-              <span style={{ fontSize: 15, fontWeight: 700, color: "#56627A" }}>M</span>
+              <Zap size={18} color="#8A93A5" strokeWidth={1.75} />
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <p style={{ fontSize: 13.5, fontWeight: 600, color: "#0B1A2F", margin: 0 }}>Make.com</p>
-              <p style={{ fontSize: 12, color: "#56627A", lineHeight: 1.5, margin: "3px 0 0" }}>
-                Build visual automation flows with ProcuLink as a trigger or action module.
+              <p style={{ fontSize: 13.5, fontWeight: 600, color: "#56627A", margin: 0 }}>
+                Native Zapier &amp; Make.com apps
+              </p>
+              <p style={{ fontSize: 12, color: "#8A93A5", lineHeight: 1.5, margin: "3px 0 0" }}>
+                One-click published apps are coming soon. In the meantime, point a Zapier/Make webhook step at a
+                subscription below.
               </p>
             </div>
-            <a
-              href="https://make.com/en/integrations/proculink"
-              target="_blank"
-              rel="noopener noreferrer"
+            <span
               className="connector-action"
-              style={connectorActionLink}
+              style={{ fontSize: 11.5, fontWeight: 600, color: "#8A93A5", padding: "6px 10px", borderRadius: 999, background: "#EFF2F7", whiteSpace: "nowrap" }}
             >
-              Open Make.com <ExternalLink size={12} />
-            </a>
+              Coming soon
+            </span>
           </div>
         </div>
 
         {/* Webhook subscriptions */}
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 14, paddingTop: 4, borderTop: "1px solid #EDF0F5" }}>
-          <div style={{ paddingTop: 14 }}>
+        <div
+          className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"
+          style={{ flexWrap: "wrap", marginBottom: 14, paddingTop: 4, borderTop: "1px solid #EDF0F5" }}
+        >
+          <div style={{ paddingTop: 14, minWidth: 0 }}>
             <p style={{ fontSize: 14, fontWeight: 600, color: "#0B1A2F", margin: 0 }}>Webhook subscriptions</p>
             <p style={{ fontSize: 12.5, color: "#56627A", marginTop: 3 }}>
               Receive ProcuLink events at any URL — Zapier, Make.com, or custom.
@@ -1152,7 +1308,8 @@ function ConnectorsSection() {
           </div>
           <button
             onClick={() => setShowForm(v => !v)}
-            style={{ display: "inline-flex", alignItems: "center", gap: 6, height: 38, padding: "0 14px", border: "1px solid #D5DAE5", borderRadius: 8, background: "#FFFFFF", color: "#0B1A2F", fontSize: 13, fontWeight: 600, cursor: "pointer", flexShrink: 0 }}
+            className="w-full sm:w-auto"
+            style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6, height: 38, padding: "0 14px", border: "1px solid #D5DAE5", borderRadius: 8, background: "#FFFFFF", color: "#0B1A2F", fontSize: 13, fontWeight: 600, cursor: "pointer", flexShrink: 0 }}
           >
             <Plus size={14} /> Add webhook
           </button>
@@ -1162,7 +1319,7 @@ function ConnectorsSection() {
           <div style={{ border: "1px solid #C6CDDA", borderRadius: 8, background: "#FFFFFF", padding: 16, marginBottom: 14 }}>
             <p style={{ fontSize: 13, fontWeight: 600, color: "#0B1A2F", marginBottom: 14 }}>New webhook subscription</p>
 
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 12 }}>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2" style={{ marginBottom: 12 }}>
               <label style={{ display: "grid", gap: 4 }}>
                 <span style={fieldLabelStyle}>Platform</span>
                 <select value={platform} onChange={e => setPlatform(e.target.value)} style={{ ...inputStyle, height: 32 }}>
@@ -1293,14 +1450,21 @@ function ConnectorsSection() {
                 >
                   {sub.isActive ? "Pause" : "Resume"}
                 </button>
-                <button
-                  onClick={() => { if (confirm("Delete this webhook subscription?")) remove.mutate(sub.id); }}
-                  aria-label="Delete webhook subscription"
-                  title="Delete webhook subscription"
-                  style={{ width: 28, height: 28, display: "flex", alignItems: "center", justifyContent: "center", border: "none", background: "none", cursor: "pointer", color: "#8A93A5" }}
-                >
-                  <Trash2 size={14} />
-                </button>
+                <InlineConfirm
+                  onConfirm={() => remove.mutate(sub.id)}
+                  confirmLabel="Delete"
+                  prompt="Delete this webhook?"
+                  trigger={(open) => (
+                    <button
+                      onClick={open}
+                      aria-label="Delete webhook subscription"
+                      title="Delete webhook subscription"
+                      style={{ width: 28, height: 28, display: "flex", alignItems: "center", justifyContent: "center", border: "none", background: "none", cursor: "pointer", color: "#8A93A5" }}
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  )}
+                />
               </div>
             </div>
           ))}
