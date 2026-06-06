@@ -203,13 +203,21 @@ function summaryToRow(o: OrderSummary): OrderRow {
 
 // `status` drives mock-mode client-side column filtering (CrossingStatus);
 // `api` is the backend OrderStatus passed to the live ?status= query param.
+// Each chip's `status` (mock client-side CrossingStatus filter) and `api`
+// (live ?status= OrderStatus) must resolve to the rows its label promises.
+// "Ready to send" filters `ready_to_deliver` (mock CrossingStatus "ready") —
+// the old "Delivering" chip filtered `ready_to_deliver` too but mislabelled it
+// (no persisted `delivering` status exists, so it never matched its label).
+// Failure handling is bucketed client-side over all failure statuses (see
+// matchesChip) because the red "Failed" pill collapses five backend statuses;
+// the live `api: "failed"` value is the closest single server filter (the
+// remaining failure statuses are folded in client-side).
 const FILTER_CHIPS: Array<{ label: string; status?: CrossingStatus; api?: OrderStatus }> = [
   { label: "All orders" },
-  { label: "Needs review", status: "review",     api: "pending_review"   },
-  { label: "Ready",        status: "ready",      api: "ready"            },
-  { label: "Delivering",   status: "delivering", api: "ready_to_deliver" },
-  { label: "Delivered",    status: "sent",       api: "delivered"        },
-  { label: "Failed",       status: "failed",     api: "failed"           },
+  { label: "Needs review",  status: "review", api: "pending_review"   },
+  { label: "Ready to send", status: "ready",  api: "ready_to_deliver" },
+  { label: "Delivered",     status: "sent",   api: "delivered"        },
+  { label: "Failed",        status: "failed", api: "failed"           },
 ];
 
 // ─── Column helper ────────────────────────────────────────────────────────────
@@ -255,22 +263,6 @@ function buildColumns(labels: PartyLabels) {
           <span className="font-mono text-[12px] font-semibold" style={{ color: INK }}>
             {info.getValue()}
           </span>
-          {info.row.original.assigned !== "—" && (
-            <span
-              className="font-mono text-[9.5px]"
-              style={{
-                background: "#EEE7FB",
-                color: "#6F4FCE",
-                padding: "0 5px",
-                height: 17,
-                display: "flex",
-                alignItems: "center",
-                borderRadius: 3,
-              }}
-            >
-              AI
-            </span>
-          )}
         </div>
         <div
           className="text-[11px]"
@@ -453,15 +445,15 @@ export function InboxView() {
     if (!ids.length || bulkSending) return;
     setBulkSending(true);
     setBulkResult(null);
-    const base = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:5223";
     try {
+      // Route through apiClient.redeliverOrder so the Clerk auth header is
+      // attached (a raw fetch here 401'd for real users). It resolves on
+      // success and throws on failure → map each to a boolean.
       const results = await Promise.all(
         ids.map((id) =>
-          fetch(`${base}/api/orders/${id}/redeliver`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-          })
-            .then((r) => r.ok)
+          apiClient
+            .redeliverOrder(id)
+            .then(() => true)
             .catch(() => false),
         ),
       );
@@ -795,22 +787,6 @@ export function InboxView() {
                     <p className="truncate font-mono text-[13px] font-semibold" style={{ color: INK }}>
                       {row.original.po}
                     </p>
-                    {row.original.assigned !== "—" && (
-                      <span
-                        className="font-mono text-[9px] flex-shrink-0"
-                        style={{
-                          background: "#EEE7FB",
-                          color: "#6F4FCE",
-                          padding: "0 5px",
-                          height: 16,
-                          display: "flex",
-                          alignItems: "center",
-                          borderRadius: 3,
-                        }}
-                      >
-                        AI
-                      </span>
-                    )}
                   </div>
                   <p className="mt-0.5 text-[12.5px]" style={{ color: "#8A93A5" }}>
                     {row.original.age} ago · {row.original.lines} lines · {row.original.valueLabel}
@@ -884,9 +860,24 @@ export function InboxView() {
                 {hg.headers.map((header, hi) => {
                   const sorted = header.column.getIsSorted();
                   const canSort = header.column.getCanSort();
+                  const toggleSort = header.column.getToggleSortingHandler();
                   return (
                     <th
                       key={header.id}
+                      // Sortable headers are keyboard-operable: focusable, exposed
+                      // as a button to AT, and toggled with Enter/Space. aria-sort
+                      // announces the current direction. Veterans live on the keyboard.
+                      role={canSort ? "button" : undefined}
+                      tabIndex={canSort ? 0 : undefined}
+                      aria-sort={
+                        canSort
+                          ? sorted === "asc"
+                            ? "ascending"
+                            : sorted === "desc"
+                            ? "descending"
+                            : "none"
+                          : undefined
+                      }
                       style={{
                         padding: "11px 10px",
                         paddingLeft: hi === 0 ? 16 : 10,
@@ -901,7 +892,17 @@ export function InboxView() {
                         userSelect: "none",
                         background: "#FFFFFF",
                       }}
-                      onClick={canSort ? header.column.getToggleSortingHandler() : undefined}
+                      onClick={canSort ? toggleSort : undefined}
+                      onKeyDown={
+                        canSort
+                          ? (e) => {
+                              if (e.key === "Enter" || e.key === " ") {
+                                e.preventDefault();
+                                toggleSort?.(e);
+                              }
+                            }
+                          : undefined
+                      }
                     >
                       {flexRender(header.column.columnDef.header, header.getContext())}
                       {canSort && <SortIcon state={sorted} />}
