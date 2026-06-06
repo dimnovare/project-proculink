@@ -93,7 +93,7 @@ function formatMoney(currency: string, amount: number): string {
 
 // ─── Map live order → SpineNodeData ──────────────────────────────────────────
 
-function buildNodesFromOrder(order: Order): SpineNodeData[] {
+function buildNodesFromOrder(order: Order, labels: PartyLabels): SpineNodeData[] {
   const lineCount = order.lines.length;
   const formatted = formatMoney(order.currency, resolvedGrandTotal(order));
 
@@ -134,11 +134,16 @@ function buildNodesFromOrder(order: Order): SpineNodeData[] {
   });
 
   return [
+    // Header fields are READ-ONLY: the backend /api/orders/{id}/resolve endpoint
+    // only accepts per-line supplier-code resolutions, not header-field edits, so
+    // an inline edit here could never be persisted and would be silently dropped
+    // on transform/deliver. Until the backend supports header corrections, these
+    // stay read-only (no fake edit UI). See REPORT (backend gap).
     { id: "po",       label: "PO number",   value: order.poNumber,            pct: 99, mono: true,  editable: false, srcRef: "header",  outRef: "Order/@orderID"    },
-    { id: "date",     label: "Order date",  value: order.orderDate,            pct: 95, mono: true,  editable: true,  srcRef: "header",  outRef: "Order/orderDate"   },
-    { id: "buyer",    label: "Buyer",       value: order.buyerName ?? "(parsing…)", pct: order.buyerName ? 98 : 50, tone: "buyer",    editable: true,  srcRef: "parties", outRef: "BillTo/Contact"    },
-    { id: "supplier", label: "Supplier",    value: order.supplierName,         pct: 97, tone: "supplier", editable: false, srcRef: "parties", outRef: "ShipFrom/Contact", hint: supplierHint, hintTone: "muted" },
-    { id: "currency", label: "Currency",    value: order.currency,             pct: 99, mono: true,  editable: true,  srcRef: "terms",   outRef: "Total/@currency"   },
+    { id: "date",     label: "Order date",  value: order.orderDate,            pct: 95, mono: true,  editable: false, srcRef: "header",  outRef: "Order/orderDate"   },
+    { id: "buyer",    label: "Buyer",       value: order.buyerName ?? "(parsing…)", pct: order.buyerName ? 98 : 50, tone: "buyer",    editable: false, srcRef: "parties", outRef: "BillTo/Contact"    },
+    { id: "supplier", label: labels.counterpartyNoun, value: order.supplierName, pct: 97, tone: "supplier", editable: false, srcRef: "parties", outRef: "ShipFrom/Contact", hint: supplierHint, hintTone: "muted" },
+    { id: "currency", label: "Currency",    value: order.currency,             pct: 99, mono: true,  editable: false, srcRef: "terms",   outRef: "Total/@currency"   },
     {
       id: "lines", label: "Line items", value: `${lineCount} line${lineCount !== 1 ? "s" : ""} · ${formatted}`,
       pct: lineConf, big: true, editable: false, srcRef: "lines", outRef: "ItemOut[]",
@@ -215,9 +220,10 @@ function finalDeliveryMessage(status: Order["status"], errorMessage: string | nu
       : "Output generated, but delivery failed. Check the supplier Delivery tab and retry when the endpoint is ready.";
   }
   if (status === "rejected_by_supplier") {
+    const noun = labels.counterpartyNoun;
     return errorMessage && errorMessage.trim().length > 0
-      ? `Supplier rejected the order: ${errorMessage}`
-      : "The supplier rejected the order. Open the Supplier response tab for the rejection details.";
+      ? `${noun} rejected the order: ${errorMessage}`
+      : `The ${noun.toLowerCase()} rejected the order. Open the ${noun} response tab for the rejection details.`;
   }
   if (status === "delivery_dead_letter") {
     return "Delivery retries are exhausted. The order is in the dead-letter queue for operator review.";
@@ -376,6 +382,8 @@ interface SpineNodeCardProps {
   onZoneHover?: (zone: string | null) => void;
   /** The currently-active zone from the document anatomy or canonical hover. */
   activeZone?: string | null;
+  /** Line id whose Accept is currently committing to the server (disables its buttons). */
+  acceptingLineId?: string | null;
 }
 
 function SpineNodeCard({
@@ -385,6 +393,7 @@ function SpineNodeCard({
   onStartEdit, onChangeValue, onCommitEdit,
   onAcceptSubnode, onRejectSubnode,
   onKeyDown, inputRef, cardRef, onHover, onZoneHover, activeZone,
+  acceptingLineId,
 }: SpineNodeCardProps) {
   const isEditing = editingId === node.id;
   const displayVal = fieldValues[node.id] ?? node.value;
@@ -630,30 +639,31 @@ function SpineNodeCard({
                         <span style={{ fontFamily: "'JetBrains Mono',monospace", fontWeight: 700, color: "#5E3DB0" }}>{sn.aiSuggestedCode ?? sn.sku}</span>
                       </div>
                       <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                        <button
-                          type="button"
-                          aria-label={`Accept AI suggestion for line ${sn.lineNo ?? sn.sku}`}
-                          onClick={() => onAcceptSubnode(sn.id)}
-                          style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 11, fontWeight: 700, padding: "7px 14px", borderRadius: 6, border: "none", background: "#6F4FCE", color: "#FFFFFF", cursor: "pointer" }}
-                        >
-                          ✓ Accept
-                        </button>
-                        <button
-                          type="button"
-                          aria-label={`Edit suggestion for line ${sn.lineNo ?? sn.sku}`}
-                          onClick={() => onAcceptSubnode(sn.id)}
-                          style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 11, fontWeight: 600, padding: "7px 12px", borderRadius: 6, border: "1px solid #D6CBF0", background: "#FFFFFF", color: "#3A2A66", cursor: "pointer" }}
-                        >
-                          ✎ Edit
-                        </button>
-                        <button
-                          type="button"
-                          aria-label={`Reject AI suggestion for line ${sn.lineNo ?? sn.sku}`}
-                          onClick={() => onRejectSubnode(sn.id)}
-                          style={{ fontSize: 11, fontWeight: 600, padding: "7px 11px", borderRadius: 6, border: "none", background: "transparent", color: "#8A93A5", cursor: "pointer" }}
-                        >
-                          Reject
-                        </button>
+                        {(() => {
+                          const accepting = acceptingLineId === sn.id;
+                          return (
+                            <>
+                              <button
+                                type="button"
+                                aria-label={`Accept AI suggestion for line ${sn.lineNo ?? sn.sku}`}
+                                onClick={() => onAcceptSubnode(sn.id)}
+                                disabled={accepting}
+                                style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 11, fontWeight: 700, padding: "7px 14px", borderRadius: 6, border: "none", background: "#6F4FCE", color: "#FFFFFF", cursor: accepting ? "default" : "pointer", opacity: accepting ? 0.6 : 1 }}
+                              >
+                                {accepting ? "Saving…" : "✓ Accept"}
+                              </button>
+                              <button
+                                type="button"
+                                aria-label={`Reject AI suggestion for line ${sn.lineNo ?? sn.sku}`}
+                                onClick={() => onRejectSubnode(sn.id)}
+                                disabled={accepting}
+                                style={{ fontSize: 11, fontWeight: 600, padding: "7px 11px", borderRadius: 6, border: "none", background: "transparent", color: "#8A93A5", cursor: accepting ? "default" : "pointer", opacity: accepting ? 0.6 : 1 }}
+                              >
+                                Reject
+                              </button>
+                            </>
+                          );
+                        })()}
                       </div>
                     </div>
                   )}
@@ -982,11 +992,6 @@ function OutputPreview({ order, acceptedSubnodes, rejectedSubnodes, crossed, fie
         </span>
         <span style={{ fontSize: 9.5, fontWeight: 700, padding: "2px 7px", background: "#EEE7FB", color: "#5E3DB0", borderRadius: 4, textTransform: "uppercase", letterSpacing: "0.03em" }}>{outFmt}</span>
         <div style={{ flex: 1 }} />
-        {/* Format toggle */}
-        <div style={{ display: "inline-flex", border: "1px solid #E2E6EE", borderRadius: 6, overflow: "hidden" }}>
-          <span style={{ fontSize: 10.5, fontWeight: 700, padding: "3px 9px", background: "#0B1A2F", color: "#FFFFFF" }}>{outFmt}</span>
-          <span style={{ fontSize: 10.5, fontWeight: 500, padding: "3px 9px", background: "#FFFFFF", color: "#8A93A5" }}>JSON</span>
-        </div>
         <button
           onClick={handleCopy}
           disabled={copyLoading}
@@ -1021,7 +1026,6 @@ function OutputPreview({ order, acceptedSubnodes, rejectedSubnodes, crossed, fie
           <span style={{ color: C.tag }}>{"<OrderRequestHeader "}</span>
           <span style={{ color: C.attr }}>orderID</span>{"="}
           <span style={{ color: C.str }}>&quot;{outPo}&quot;</span>
-          {fieldValues["po"] && fieldValues["po"] !== order.poNumber && <span style={{ marginLeft: 8, fontSize: 9, color: "#C97A14" }}>← edited</span>}
         </div>
         <div ref={(el) => onLine?.("date", el)} style={{ paddingLeft: 60 }}>
           <span style={{ color: C.attr }}>orderDate</span>{"="}
@@ -1036,7 +1040,7 @@ function OutputPreview({ order, acceptedSubnodes, rejectedSubnodes, crossed, fie
         </div>
         <div ref={(el) => onLine?.("buyer", el)} style={{ paddingLeft: 32 }}>
           <span style={{ color: C.tag }}>{"<BillTo>"}</span>
-          <span style={{ background: fieldValues["buyer"] ? "rgba(201,122,20,0.14)" : "transparent", color: fieldValues["buyer"] ? "#C97A14" : C.base, padding: "0 2px" }}>{outBuyer}</span>
+          <span style={{ color: C.base, padding: "0 2px" }}>{outBuyer}</span>
           <span style={{ color: C.tag }}>{"</BillTo>"}</span>
         </div>
         <div ref={(el) => onLine?.("lines", el)} style={{ paddingLeft: 32, marginTop: 6, color: C.cmt }}>{"<!-- ItemOut entries -->"}</div>
@@ -1156,7 +1160,7 @@ function ConfirmDialog({ exceptionCount, onConfirm, onCancel, supplierName, outp
 
         {/* Retry note */}
         <div style={{ margin: "0 24px 20px", padding: "8px 12px", background: "#ECFDF3", borderRadius: 6, fontSize: 11.5, color: "#1DAF50" }}>
-          On delivery failure: 3 automatic retries · 30-min intervals · alert to MK
+          On delivery failure: 3 automatic retries · 30-min intervals · we&apos;ll email you
         </div>
 
         {/* Actions */}
@@ -1169,7 +1173,7 @@ function ConfirmDialog({ exceptionCount, onConfirm, onCancel, supplierName, outp
             disabled={!checked}
             style={{ padding: "9px 24px", borderRadius: 7, fontSize: 13, fontWeight: 600, background: checked ? "#0B1A2F" : "#C6CDDA", color: "#FFFFFF", border: "none", cursor: checked ? "pointer" : "not-allowed", display: "flex", alignItems: "center", gap: 8, transition: "background 150ms" }}
           >
-            {inbound ? "Confirm order" : "Send to supplier"} →
+            {labels.primaryCta} →
             <span style={{ width: 10, height: 10, borderRadius: 2, background: "linear-gradient(90deg,#1DAF50,#28C55E)", display: "inline-block" }} />
           </button>
         </div>
@@ -1225,6 +1229,7 @@ interface MobileSpineAccordionProps {
   onOutputAction: (msg: string) => void;
   orderId: string;
   artifacts: Order["artifacts"];
+  acceptingLineId?: string | null;
 }
 
 function AccordionPanel({ step, label, sub, accent, defaultOpen, children }: {
@@ -1271,7 +1276,7 @@ function MobileSpineAccordion({
   order, nodes, editingId, fieldValues, acceptedSubnodes, rejectedSubnodes,
   crossed, onStartEdit, onChangeValue, onCommitEdit,
   onAcceptSubnode, onRejectSubnode, onKeyDown, inputRef, onOutputAction,
-  orderId, artifacts,
+  orderId, artifacts, acceptingLineId,
 }: MobileSpineAccordionProps) {
   const lineCount = order.lines.length;
   return (
@@ -1303,6 +1308,7 @@ function MobileSpineAccordion({
                 onRejectSubnode={onRejectSubnode}
                 onKeyDown={onKeyDown}
                 inputRef={inputRef}
+                acceptingLineId={acceptingLineId}
               />
             ))}
             {/* Phase 4 — document totals (renders only when enriched) */}
@@ -1396,7 +1402,7 @@ export function SpineReview({ orderId }: { orderId: string }) {
   // Derive nodes from the live order. Empty until the order resolves (the
   // loading/error gates below render before this is used). No demo fallback —
   // real users must never see staged PO-DEMO-001 content.
-  const nodes = useMemo(() => (order ? buildNodesFromOrder(order) : []), [order]);
+  const nodes = useMemo(() => (order ? buildNodesFromOrder(order, labels) : []), [order, labels]);
   const connectorNodes = useMemo(() => nodes.map((n) => ({ id: n.id, pct: n.pct, srcRef: n.srcRef })), [nodes]);
 
   // Sample order banner: query param OR order.isSample
@@ -1414,6 +1420,8 @@ export function SpineReview({ orderId }: { orderId: string }) {
   const [flowNotice, setFlowNotice]               = useState<string | null>(null);
   const [sendState, setSendState]                 = useState<"idle" | "transforming" | "delivering">("idle");
   const [tab, setTab]                             = useState<"review" | "passport" | "response">("review");
+  // The line id currently being resolved against the backend (Accept in-flight).
+  const [acceptingLineId, setAcceptingLineId]     = useState<string | null>(null);
 
   const inputRefs = useRef<Record<string, HTMLInputElement | null>>({});
   const gridRef = useRef<HTMLDivElement>(null);
@@ -1451,10 +1459,12 @@ export function SpineReview({ orderId }: { orderId: string }) {
     }
   }, [nodes]);
 
-  // Count remaining unresolved exceptions (from live order lines)
+  // Count remaining unresolved exceptions from SERVER truth. Accepting an AI
+  // suggestion now persists via /resolve + refetch, so needsReview flips to false
+  // on the server — no local-state subtraction is needed (or correct) here.
   const exceptionCount = (() => {
     if (order) {
-      return order.lines.filter(l => l.needsReview && !fieldValues[l.id]).length;
+      return order.lines.filter(l => l.needsReview).length;
     }
     // fallback for mock
     let n = 0;
@@ -1517,10 +1527,42 @@ export function SpineReview({ orderId }: { orderId: string }) {
   }, []);
 
   // ── Subnode accept/reject ──────────────────────────────────────────────────
+  // Accept must REALLY resolve the line on the server, not just flip local state:
+  // the Send guard reads `order.lines.some(l => l.needsReview)` from server truth,
+  // so a purely-local accept would never unblock Send. We commit the AI-suggested
+  // supplier code via POST /api/orders/{id}/resolve, then refetch so every guard
+  // (exceptionCount, the send button, the keyboard 'a' shortcut) recomputes from
+  // the fresh server state.
   const handleAcceptSubnode = useCallback((id: string) => {
+    if (!order) return;
+    const line = order.lines.find(l => l.id === id);
+    const code = line?.supplierItemCode ?? line?.aiSuggestion?.supplierItemCode;
+    // No line / no code to commit → nothing the backend can persist. Reflect the
+    // local highlight only (used by mock paths that lack a server resolve).
+    if (!line || !code) {
+      setAcceptedSubnodes(prev => new Set([...prev, id]));
+      setRejectedSubnodes(prev => { const n = new Set(prev); n.delete(id); return n; });
+      return;
+    }
+    setAcceptingLineId(id);
+    // Optimistic highlight while the resolve is in flight.
     setAcceptedSubnodes(prev => new Set([...prev, id]));
     setRejectedSubnodes(prev => { const n = new Set(prev); n.delete(id); return n; });
-  }, []);
+    void (async () => {
+      try {
+        await apiClient.commitMappings(orderId, [{ lineNumber: line.lineNumber, supplierItemCode: code }]);
+        // Pull server truth so the needsReview-based guards recompute.
+        await qc.invalidateQueries({ queryKey: ["order", orderId] });
+        await refetchOrder();
+      } catch (err) {
+        // Roll back the optimistic highlight and surface the failure.
+        setAcceptedSubnodes(prev => { const n = new Set(prev); n.delete(id); return n; });
+        setFlowNotice(err instanceof Error ? err.message : `Couldn't save that ${labels.counterpartyNoun.toLowerCase()} code. Try again.`);
+      } finally {
+        setAcceptingLineId(null);
+      }
+    })();
+  }, [order, orderId, qc, refetchOrder, labels]);
 
   const handleRejectSubnode = useCallback((id: string) => {
     setRejectedSubnodes(prev => new Set([...prev, id]));
@@ -1635,10 +1677,6 @@ export function SpineReview({ orderId }: { orderId: string }) {
       setSendState("idle");
     }
   }, [order, orderId, pollOrderUntil, refetchOrder, sendState, labels]);
-
-  const handleSaveDraft = useCallback(() => {
-    setFlowNotice(`Your review changes stay on this screen. Saved drafts aren't kept after you leave yet — use “${labels.primaryCta}” when the order is ready.`);
-  }, [labels]);
 
   // ── Keyboard shortcuts (Bridge Layer reference) ────────────────────────────
   // A = accept the next unresolved AI line suggestion · C = open the send/confirm
@@ -1758,13 +1796,6 @@ export function SpineReview({ orderId }: { orderId: string }) {
                 </span>
               )}
               <button
-                onClick={handleSaveDraft}
-                className="flex-1 justify-center sm:flex-none"
-                style={{ height: 34, padding: "0 14px", borderRadius: 7, fontSize: 12.5, fontWeight: 500, background: "#FFFFFF", border: "1px solid #E2E6EE", color: "#0B1A2F", cursor: "pointer" }}
-              >
-                Save draft
-              </button>
-              <button
                 onClick={() => !crossed && exceptionCount === 0 && sendState === "idle" && setShowConfirm(true)}
                 disabled={sendState !== "idle" || (!crossed && exceptionCount > 0)}
                 aria-label={labels.primaryCta}
@@ -1811,12 +1842,12 @@ export function SpineReview({ orderId }: { orderId: string }) {
         )}
       </div>
 
-      {/* Tabs: Review · Passport · Supplier response */}
+      {/* Tabs: Review · Passport · {counterparty} response */}
       <div className="flex-shrink-0 flex items-center gap-1 px-4 sm:px-5" style={{ background: "#FFFFFF", borderBottom: "1px solid #E2E6EE" }}>
         {([
           { id: "review",   label: "Review" },
           { id: "passport", label: "Passport" },
-          { id: "response", label: "Supplier response" },
+          { id: "response", label: `${labels.counterpartyNoun} response` },
         ] as const).map((t) => {
           const active = tab === t.id;
           return (
@@ -1956,7 +1987,7 @@ export function SpineReview({ orderId }: { orderId: string }) {
               <div style={{ padding: "8px 14px", fontSize: 12.5, color: "#C53A3A" }}>
                 {validateMutation.error instanceof Error
                   ? validateMutation.error.message.includes("404") || validateMutation.error.message.includes("no acceptance")
-                    ? "No acceptance profile configured for this supplier."
+                    ? `No acceptance profile configured for this ${labels.counterpartyNoun.toLowerCase()}.`
                     : `Validation failed: ${validateMutation.error.message}`
                   : "Validation failed."}
               </div>
@@ -2076,6 +2107,7 @@ export function SpineReview({ orderId }: { orderId: string }) {
                       onHover={handleNodeHover}
                       onZoneHover={handleZoneHover}
                       activeZone={activeZone}
+                      acceptingLineId={acceptingLineId}
                     />
                   ))}
                   {/* Phase 4 — document totals (renders only when enriched) */}
@@ -2126,6 +2158,7 @@ export function SpineReview({ orderId }: { orderId: string }) {
           onOutputAction={setFlowNotice}
           orderId={orderId}
           artifacts={order.artifacts}
+          acceptingLineId={acceptingLineId}
         />
       </div>
 
@@ -2160,15 +2193,9 @@ export function SpineReview({ orderId }: { orderId: string }) {
         style={{ background: "#FFFFFF", borderTop: "1px solid #E2E6EE", boxShadow: "0 -4px 12px rgba(11,26,47,0.08)" }}
       >
         <button
-          onClick={handleSaveDraft}
-          style={{ flex: 1, height: 44, borderRadius: 8, fontSize: 13.5, fontWeight: 500, background: "#FFFFFF", border: "1px solid #E2E6EE", color: "#0B1A2F", cursor: "pointer" }}
-        >
-          Save draft
-        </button>
-        <button
           onClick={() => !crossed && exceptionCount === 0 && sendState === "idle" && setShowConfirm(true)}
           disabled={sendState !== "idle" || (!crossed && exceptionCount > 0)}
-          style={{ flex: 1.5, height: 44, borderRadius: 8, fontSize: 13.5, fontWeight: 700, background: crossed ? "#28C55E" : sendState !== "idle" || exceptionCount > 0 ? "#96C69C" : "#28C55E", color: "#FFFFFF", border: "none", cursor: crossed || sendState !== "idle" || exceptionCount > 0 ? "default" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, transition: "background 200ms" }}
+          style={{ flex: 1, height: 44, borderRadius: 8, fontSize: 13.5, fontWeight: 700, background: crossed ? "#28C55E" : sendState !== "idle" || exceptionCount > 0 ? "#96C69C" : "#28C55E", color: "#FFFFFF", border: "none", cursor: crossed || sendState !== "idle" || exceptionCount > 0 ? "default" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, transition: "background 200ms" }}
         >
           <PaperPlaneIcon />
           {crossed ? labels.doneLabel : sendState === "transforming" ? "Generating..." : sendState === "delivering" ? labels.primaryCtaProgress : exceptionCount > 0 ? `Resolve ${exceptionCount} to send` : labels.primaryCta}
@@ -2190,7 +2217,7 @@ export function SpineReview({ orderId }: { orderId: string }) {
         <div className="flex-1 overflow-auto px-4 py-5 sm:px-6" style={{ background: "#F6F7FA" }}>
           <div className="mx-auto w-full max-w-[900px]">
             <h2 style={{ fontFamily: "'Bricolage Grotesque', Inter, sans-serif", fontSize: 20, fontWeight: 700, letterSpacing: "-0.02em", color: "#0B1A2F", marginBottom: 4 }}>
-              Supplier response
+              {labels.counterpartyNoun} response
             </h2>
             <p className="text-[12.5px]" style={{ color: "#56627A", marginBottom: 16 }}>
               What {order.supplierName} confirmed back for <span className="font-mono" style={{ color: "#1DAF50" }}>{order.poNumber}</span>.
@@ -2198,7 +2225,7 @@ export function SpineReview({ orderId }: { orderId: string }) {
             {order.status === "rejected_by_supplier" && (
               <div className="mb-4 rounded-[8px] px-4 py-3" style={{ border: "1px solid #F0D2D2", borderLeft: "3px solid #C53A3A", background: "#FFF7F7" }}>
                 <div style={{ fontSize: 13, fontWeight: 700, color: "#0B1A2F", marginBottom: 4 }}>
-                  Supplier rejected this order
+                  {labels.counterpartyNoun} rejected this order
                 </div>
                 <p style={{ margin: 0, fontSize: 12.5, color: "#56627A", lineHeight: 1.5 }}>
                   {order.errorMessage && order.errorMessage.trim().length > 0

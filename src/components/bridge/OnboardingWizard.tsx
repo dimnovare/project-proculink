@@ -6,6 +6,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiClient, updateOrgSettings, isApiMockMode } from "@/lib/api-client";
 import { capture } from "@/lib/analytics";
 import { captureException } from "@/lib/sentry-context";
+import { useOrderDirection } from "@/hooks/useOrderDirection";
 import type { Supplier, OrderDirection } from "@/types/procurement";
 
 // ─── Design tokens ────────────────────────────────────────────────────────────
@@ -191,6 +192,11 @@ interface Step1Props {
 }
 
 function Step1AddSupplier({ onSuccess }: Step1Props) {
+  // Direction-aware labels — Step 0 has already set the org direction, so this
+  // reflects the user's choice ("Supplier" outbound / "Customer" inbound).
+  const { labels } = useOrderDirection();
+  const partyNoun = labels.counterpartyNoun;
+  const partyNounLower = partyNoun.toLowerCase();
   const [name, setName] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -234,7 +240,7 @@ function Step1AddSupplier({ onSuccess }: Step1Props) {
         `If you're on production, set the Railway 'Frontend:Url' env var so the API CORS allow-list includes this site. ` +
         `If you're running locally, run 'dotnet dev-certs https --trust' and confirm the API is up.`;
     }
-    return raw || "Failed to create supplier. Please try again.";
+    return raw || `Failed to create ${partyNounLower}. Please try again.`;
   }
 
   return (
@@ -250,10 +256,10 @@ function Step1AddSupplier({ onSuccess }: Step1Props) {
             fontFamily: "'Bricolage Grotesque', Inter, sans-serif",
           }}
         >
-          Add your first supplier
+          Add your first {partyNounLower}
         </h2>
         <p style={{ fontSize: 13, color: T.muted, margin: 0, lineHeight: 1.55 }}>
-          Give this supplier a display name. You can add delivery formats later.
+          Give this {partyNounLower} a display name. You can add delivery formats later.
         </p>
       </div>
 
@@ -262,7 +268,7 @@ function Step1AddSupplier({ onSuccess }: Step1Props) {
           htmlFor="wizard-supplier-name"
           style={{ fontSize: 12.5, fontWeight: 600, color: T.text, letterSpacing: "0.01em" }}
         >
-          Supplier name
+          {partyNoun} name
         </label>
         <input
           id="wizard-supplier-name"
@@ -313,7 +319,7 @@ function Step1AddSupplier({ onSuccess }: Step1Props) {
           letterSpacing: "0.01em",
         }}
       >
-        {loading ? "Adding supplier…" : "Add supplier →"}
+        {loading ? `Adding ${partyNounLower}…` : `Add ${partyNounLower} →`}
       </button>
     </form>
   );
@@ -518,6 +524,7 @@ const TOTAL_STEPS = 5;
 
 export function OnboardingWizard({ onDismiss }: OnboardingWizardProps) {
   const queryClient = useQueryClient();
+  const { labels } = useOrderDirection();
   const { data: status } = useQuery({
     queryKey: ["onboarding-status"],
     queryFn: () => apiClient.getOnboardingStatus(),
@@ -587,7 +594,7 @@ export function OnboardingWizard({ onDismiss }: OnboardingWizardProps) {
   // firstSupplier, we fall back to a placeholder — the actual supplier was set
   // earlier in a previous session.
   const step2Supplier: Supplier | null =
-    firstSupplier ?? (status?.hasSupplier ? { id: "", name: "your supplier" } : null);
+    firstSupplier ?? (status?.hasSupplier ? { id: "", name: `your ${labels.counterpartyNoun.toLowerCase()}` } : null);
 
   return (
     <div

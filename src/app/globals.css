@@ -352,6 +352,7 @@ header :focus-visible {
     .connector-draw,
     .spine-reveal,
     .fade-up,
+    .link-spine[data-animated="true"],
     [class*="animate-"] {
       animation: none !important;
     }
