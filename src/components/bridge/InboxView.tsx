@@ -6,6 +6,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState, useMemo, useCallback, useRef } from "react";
+import { useAuth } from "@clerk/nextjs";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiClient, isApiMockMode } from "@/lib/api-client";
 import type { OrderSummary, OrderStatus } from "@/types/procurement";
@@ -199,6 +200,29 @@ function summaryToRow(o: OrderSummary): OrderRow {
   };
 }
 
+// ─── Status buckets for live action counts ──────────────────────────────────────
+// The red "Failed" pill collapses FIVE backend statuses into one (mapStatus above
+// folds them all to CrossingStatus "failed"). The live `GET /api/orders/summary`
+// returns raw per-OrderStatus counts in `byStatus`, so to surface the same count
+// the pill represents we must sum the whole failure bucket. "Needs review" maps to
+// the single backend `pending_review` status. Any status absent from byStatus is
+// treated as 0 (byStatus is Partial<Record<OrderStatus, number>>).
+const FAILED_BUCKET: OrderStatus[] = [
+  "failed",
+  "transform_failed",
+  "delivery_failed",
+  "delivery_dead_letter",
+  "rejected_by_supplier",
+];
+
+function sumStatuses(
+  byStatus: Partial<Record<OrderStatus, number>> | undefined,
+  keys: OrderStatus[],
+): number {
+  if (!byStatus) return 0;
+  return keys.reduce((acc, k) => acc + (byStatus[k] ?? 0), 0);
+}
+
 // ─── Filter chips ─────────────────────────────────────────────────────────────
 
 // `status` drives mock-mode client-side column filtering (CrossingStatus);
@@ -212,12 +236,22 @@ function summaryToRow(o: OrderSummary): OrderRow {
 // matchesChip) because the red "Failed" pill collapses five backend statuses;
 // the live `api: "failed"` value is the closest single server filter (the
 // remaining failure statuses are folded in client-side).
-const FILTER_CHIPS: Array<{ label: string; status?: CrossingStatus; api?: OrderStatus }> = [
+// `summaryKeys` lists the backend OrderStatus values whose `byStatus` counts roll
+// up into this chip's badge. It is intentionally DECOUPLED from `api` (the single
+// server `?status=` filter value): the "Failed" pill collapses five statuses, so
+// its badge sums the whole FAILED_BUCKET even though the live filter passes only
+// "failed". Chips with no `summaryKeys` (All orders) show the summary `total`.
+const FILTER_CHIPS: Array<{
+  label: string;
+  status?: CrossingStatus;
+  api?: OrderStatus;
+  summaryKeys?: OrderStatus[];
+}> = [
   { label: "All orders" },
-  { label: "Needs review",  status: "review", api: "pending_review"   },
-  { label: "Ready to send", status: "ready",  api: "ready_to_deliver" },
-  { label: "Delivered",     status: "sent",   api: "delivered"        },
-  { label: "Failed",        status: "failed", api: "failed"           },
+  { label: "Needs review",  status: "review", api: "pending_review",   summaryKeys: ["pending_review"]   },
+  { label: "Ready to send", status: "ready",  api: "ready_to_deliver", summaryKeys: ["ready_to_deliver"] },
+  { label: "Delivered",     status: "sent",   api: "delivered",        summaryKeys: ["delivered"]        },
+  { label: "Failed",        status: "failed", api: "failed",           summaryKeys: FAILED_BUCKET        },
 ];
 
 // ─── Column helper ────────────────────────────────────────────────────────────
@@ -361,6 +395,8 @@ const PAGE_SIZE = 25;
 
 export function InboxView() {
   const router = useRouter();
+  const { isLoaded: clerkLoaded, isSignedIn } = useAuth();
+  const clerkReady = clerkLoaded && !!isSignedIn;
   const { direction, labels } = useOrderDirection();
   // Columns depend only on direction labels — memoise so react-table receives a
   // stable reference (rebuilt only when the org's direction changes).
@@ -401,6 +437,19 @@ export function InboxView() {
     placeholderData: (prev) => prev, // keep the current page visible while the next loads
   });
 
+  // Action counts — the headline "what needs me?". `GET /api/orders/summary`
+  // returns whole-account per-status counts (not just the current page/filter), so
+  // the chip badges and header summary stay accurate regardless of pagination. This
+  // runs in BOTH mock and live so paying customers see real counts (previously the
+  // counts rendered only under isApiMockMode). Gated on (mock OR clerkReady) per the
+  // query rule — mock mode has no Clerk session.
+  const { data: summary } = useQuery({
+    queryKey: ["orders", "summary"],
+    queryFn: () => apiClient.getOrdersSummary(),
+    staleTime: 30_000,
+    enabled: isApiMockMode || clerkReady,
+  });
+
   // Memoize so react-table receives a STABLE `data` reference across renders.
   // A bare `.map(summaryToRow)` would build a brand-new array on EVERY render. In
   // the live (non-mock) path the inbox is also subscribed to TanStack Query, so it
@@ -426,6 +475,20 @@ export function InboxView() {
     } else {
       setStatusFilter(chip.api);
     }
+  }, []);
+
+  // Reset every active filter/search back to "All orders" with no query. Mirrors
+  // handleChip(0) plus clearing both the controlled search input and the committed
+  // (debounced) live search term. Used by the filter-aware empty state.
+  const handleClearFilters = useCallback(() => {
+    if (searchTimer.current) clearTimeout(searchTimer.current);
+    setActiveChip(0);
+    setColumnFilters([]);
+    setStatusFilter(undefined);
+    setSearchInput("");
+    setSearch("");
+    setPage(1);
+    setRowSelection({});
   }, []);
 
   // Search box: mock filters instantly client-side; live debounces into a server query.
@@ -516,17 +579,31 @@ export function InboxView() {
     : filteredRows;
 
   const selectedCount = Object.keys(rowSelection).length;
-  const reviewCount = useMemo(() => ALL_ORDERS.filter((o) => o.status === "review").length, [ALL_ORDERS]);
-  const failedCount = useMemo(() => ALL_ORDERS.filter((o) => o.status === "failed").length, [ALL_ORDERS]);
 
-  // Chip counts are only meaningful against the full mock set; live mode would
-  // need extra count queries, so labels show without counts there.
+  // A chip filter is active (not "All orders") OR there is a search query. Drives
+  // the filter-aware empty state: 0 rows under a filter/search means "no MATCHING
+  // orders" (work may exist, just not here) — distinct from a genuinely empty inbox.
+  // searchInput covers both modes (mock filters on it directly; live mirrors it into
+  // the debounced `search`), so an in-flight live debounce still counts as filtered.
+  const isFiltered = activeChip !== 0 || searchInput.trim() !== "";
+
+  // Whole-account action counts from `GET /api/orders/summary` (byStatus). These
+  // drive the header summary AND the per-chip badges in BOTH mock and live. Summing
+  // the byStatus buckets (rather than counting the current page's ALL_ORDERS) keeps
+  // the headline correct across pagination/filtering. While the summary query is in
+  // flight `byStatus`/`total` are undefined → sumStatuses returns 0 (treated as 0
+  // per the Partial<Record> contract).
+  const byStatus = summary?.byStatus;
+  const reviewCount = useMemo(() => sumStatuses(byStatus, ["pending_review"]), [byStatus]);
+  const failedCount = useMemo(() => sumStatuses(byStatus, FAILED_BUCKET), [byStatus]);
+
+  // Per-chip badge counts, keyed off the chip's `summaryKeys` roll-up. "All orders"
+  // (no summaryKeys) shows the summary `total`. Absent statuses count as 0.
   const chipCounts = useMemo(
-    () => isApiMockMode
-      ? FILTER_CHIPS.map(({ status }) =>
-          status ? ALL_ORDERS.filter((o) => o.status === status).length : ALL_ORDERS.length)
-      : [],
-    [ALL_ORDERS],
+    () =>
+      FILTER_CHIPS.map(({ summaryKeys }) =>
+        summaryKeys ? sumStatuses(byStatus, summaryKeys) : summary?.total ?? 0),
+    [byStatus, summary?.total],
   );
 
   // Loading state
@@ -604,7 +681,7 @@ export function InboxView() {
           </h1>
           <p className="text-[13px] mt-1" style={{ color: "#56627A" }}>
             {totalCount.toLocaleString()} order{totalCount !== 1 ? "s" : ""}
-            {isApiMockMode && <>{" · "}{reviewCount} need review{" · "}{failedCount} failed</>}
+            {" · "}{reviewCount.toLocaleString()} need review{" · "}{failedCount.toLocaleString()} failed
             {selectedCount > 0 && <span style={{ color: BLUE_DEEP, marginLeft: 8 }}>· {selectedCount} selected</span>}
           </p>
         </div>
@@ -699,20 +776,18 @@ export function InboxView() {
                 }}
               >
                 {label}
-                {isApiMockMode && (
-                  <span
-                    className="inline-flex items-center justify-center font-mono text-[10.5px] font-semibold rounded-[8px]"
-                    style={{
-                      minWidth: 18,
-                      height: 17,
-                      padding: "0 5px",
-                      background: active ? "rgba(255,255,255,0.16)" : "#EFF2F7",
-                      color: active ? "#FFFFFF" : "#56627A",
-                    }}
-                  >
-                    {chipCounts[i]?.toLocaleString() ?? 0}
-                  </span>
-                )}
+                <span
+                  className="inline-flex items-center justify-center font-mono text-[10.5px] font-semibold rounded-[8px]"
+                  style={{
+                    minWidth: 18,
+                    height: 17,
+                    padding: "0 5px",
+                    background: active ? "rgba(255,255,255,0.16)" : "#EFF2F7",
+                    color: active ? "#FFFFFF" : "#56627A",
+                  }}
+                >
+                  {chipCounts[i]?.toLocaleString() ?? 0}
+                </span>
               </button>
             );
           })}
@@ -753,25 +828,53 @@ export function InboxView() {
           {pagedRows.length === 0 && (
             <div className="flex flex-col items-center justify-center py-16 px-6 text-center gap-3">
               <div style={{ fontSize: 28, color: "#C6CDDA" }}>⊘</div>
-              <p className="text-[14px] font-semibold" style={{ color: "#0B1A2F" }}>Your inbox is clear</p>
-              <p className="text-[13px]" style={{ color: "#56627A" }}>{emptyStateCopy}</p>
-              <button
-                onClick={() => router.push("/upload")}
-                style={{
-                  marginTop: 8,
-                  height: 32,
-                  padding: "0 16px",
-                  borderRadius: 6,
-                  background: BLUE,
-                  color: "#FFFFFF",
-                  border: "none",
-                  fontSize: "12.5px",
-                  fontWeight: 600,
-                  cursor: "pointer",
-                }}
-              >
-                ↑ Upload an order
-              </button>
+              {isFiltered ? (
+                <>
+                  <p className="text-[14px] font-semibold" style={{ color: "#0B1A2F" }}>No matching orders</p>
+                  <p className="text-[13px]" style={{ color: "#56627A" }}>
+                    No orders match the current filter or search. Try a different filter, or clear them to see everything.
+                  </p>
+                  <button
+                    onClick={handleClearFilters}
+                    style={{
+                      marginTop: 8,
+                      height: 32,
+                      padding: "0 16px",
+                      borderRadius: 6,
+                      background: "#FFFFFF",
+                      color: "#0B1A2F",
+                      border: "1px solid #E2E6EE",
+                      fontSize: "12.5px",
+                      fontWeight: 600,
+                      cursor: "pointer",
+                    }}
+                  >
+                    Clear filters
+                  </button>
+                </>
+              ) : (
+                <>
+                  <p className="text-[14px] font-semibold" style={{ color: "#0B1A2F" }}>Your inbox is clear</p>
+                  <p className="text-[13px]" style={{ color: "#56627A" }}>{emptyStateCopy}</p>
+                  <button
+                    onClick={() => router.push("/upload")}
+                    style={{
+                      marginTop: 8,
+                      height: 32,
+                      padding: "0 16px",
+                      borderRadius: 6,
+                      background: BLUE,
+                      color: "#FFFFFF",
+                      border: "none",
+                      fontSize: "12.5px",
+                      fontWeight: 600,
+                      cursor: "pointer",
+                    }}
+                  >
+                    ↑ Upload an order
+                  </button>
+                </>
+              )}
             </div>
           )}
           {pagedRows.map((row) => (
@@ -963,42 +1066,81 @@ export function InboxView() {
               );
             })}
 
-            {/* Empty state */}
+            {/* Empty state — filter-aware: 0 rows under a filter/search means "no
+                MATCHING orders" (clear filters), not a genuinely empty inbox. */}
             {pagedRows.length === 0 && (
               <tr>
                 <td colSpan={columns.length} style={{ textAlign: "center", padding: "64px 0" }}>
                   <div style={{ fontSize: 32, marginBottom: 16, color: "#C6CDDA" }}>⊘</div>
-                  <p
-                    style={{
-                      fontSize: 20,
-                      fontWeight: 600,
-                      color: "#0B1A2F",
-                      fontFamily: "'Bricolage Grotesque', Inter, sans-serif",
-                      marginBottom: 8,
-                    }}
-                  >
-                    Your inbox is clear
-                  </p>
-                  <p style={{ fontSize: 13, marginTop: 4, color: "#56627A", maxWidth: 380, margin: "8px auto 0" }}>
-                    {emptyStateCopy}
-                  </p>
-                  <button
-                    onClick={() => router.push("/upload")}
-                    style={{
-                      marginTop: 16,
-                      height: 32,
-                      padding: "0 16px",
-                      borderRadius: 6,
-                      background: BLUE,
-                      color: "#FFFFFF",
-                      border: "none",
-                      fontSize: "12.5px",
-                      fontWeight: 600,
-                      cursor: "pointer",
-                    }}
-                  >
-                    ↑ Upload an order
-                  </button>
+                  {isFiltered ? (
+                    <>
+                      <p
+                        style={{
+                          fontSize: 20,
+                          fontWeight: 600,
+                          color: "#0B1A2F",
+                          fontFamily: "'Bricolage Grotesque', Inter, sans-serif",
+                          marginBottom: 8,
+                        }}
+                      >
+                        No matching orders
+                      </p>
+                      <p style={{ fontSize: 13, marginTop: 4, color: "#56627A", maxWidth: 380, margin: "8px auto 0" }}>
+                        No orders match the current filter or search. Try a different filter, or clear them to see everything.
+                      </p>
+                      <button
+                        onClick={handleClearFilters}
+                        style={{
+                          marginTop: 16,
+                          height: 32,
+                          padding: "0 16px",
+                          borderRadius: 6,
+                          background: "#FFFFFF",
+                          color: "#0B1A2F",
+                          border: "1px solid #E2E6EE",
+                          fontSize: "12.5px",
+                          fontWeight: 600,
+                          cursor: "pointer",
+                        }}
+                      >
+                        Clear filters
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <p
+                        style={{
+                          fontSize: 20,
+                          fontWeight: 600,
+                          color: "#0B1A2F",
+                          fontFamily: "'Bricolage Grotesque', Inter, sans-serif",
+                          marginBottom: 8,
+                        }}
+                      >
+                        Your inbox is clear
+                      </p>
+                      <p style={{ fontSize: 13, marginTop: 4, color: "#56627A", maxWidth: 380, margin: "8px auto 0" }}>
+                        {emptyStateCopy}
+                      </p>
+                      <button
+                        onClick={() => router.push("/upload")}
+                        style={{
+                          marginTop: 16,
+                          height: 32,
+                          padding: "0 16px",
+                          borderRadius: 6,
+                          background: BLUE,
+                          color: "#FFFFFF",
+                          border: "none",
+                          fontSize: "12.5px",
+                          fontWeight: 600,
+                          cursor: "pointer",
+                        }}
+                      >
+                        ↑ Upload an order
+                      </button>
+                    </>
+                  )}
                 </td>
               </tr>
             )}
