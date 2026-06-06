@@ -15,13 +15,10 @@ import type { BuyerDto } from "@/types/procurement";
 const BLUE        = "#1E66C9"; // --brand-blue   · primary / buyer / active
 const BLUE_HOVER  = "#0F4FA8"; // --brand-blue-deep
 const BLUE_SOFT   = "#E3EDFB"; // --brand-blue-soft · tile fill / active row band / focus ring
-// Supplier-reach status dots use the design's forest green.
-const DOT_GREEN   = "#2E8E3A"; // --brand-green
 // Neutrals (all from the design token set).
 const INK         = "#0B1A2F"; // --ink
-const INK_SLATE   = "#3F4A5C"; // dark-slate (volume digits)
 const TEXT_MUTED  = "#56627A"; // --ink-muted · pill text / subtitle
-const TEXT_FAINT  = "#8A93A5"; // --ink-faint · header labels / counts / /wk
+const TEXT_FAINT  = "#8A93A5"; // --ink-faint · header labels / counts / em-dash
 const CODE_GREY   = "#9196A5"; // buyer short-code
 const BORDER      = "#E2E6EE"; // --border · card border + row dividers
 const BORDER_STRONG = "#C6CDDA"; // --border-strong · input border
@@ -34,26 +31,6 @@ const MOCK_BUYERS: BuyerDto[] = [
   { id: "b2", name: "Nordmark Logistics A/S",   code: "NRD", orderCount: 1104, lastOrderAge: "14m", formats: ["cXML", "EDI"] },
   { id: "b3", name: "Steelhouse Construction",  code: "SHC", orderCount: 812,  lastOrderAge: "1h",  formats: ["XLSX", "CSV"] },
 ];
-
-// Map a buyer's primary inbound file format → a plain-language inbound-channel
-// label, matching the single-channel column in the design. Labels are returned
-// in their final display casing (the badge renders them verbatim — acronyms stay
-// uppercase, "cXML / webhook" keeps its mixed case), so do NOT uppercase-transform
-// the badge.
-function inboundChannel(formats: string[]): string {
-  const f = (formats[0] ?? "").toUpperCase();
-  if (f === "CXML" || f === "JSON" || f === "API") return formats.length > 1 ? "cXML / webhook" : "API";
-  if (f === "EDI")                                  return "SFTP";
-  if (f === "PDF" || f === "EMAIL")                 return "EMAIL";
-  if (f === "XLSX" || f === "CSV" || f === "XML")   return "EMAIL";
-  return f || "EMAIL";
-}
-
-// Suppliers reached: BuyerDto has no dedicated field yet, so we derive a small
-// count from the number of accepted formats as a stable visual proxy.
-function suppliersReached(b: BuyerDto): number {
-  return Math.max(1, Math.min(4, b.formats.length));
-}
 
 // ── Shared cell content (reused by desktop table + mobile cards) ──────────
 
@@ -86,8 +63,7 @@ function ChannelPill({ label }: { label: string }) {
     <span
       className="chip"
       style={{
-        // Render the label verbatim — acronyms (EMAIL/API/SFTP) are already
-        // uppercase, "cXML / webhook" keeps its mixed case.
+        // Render the format label verbatim from the backend (CSV/XLSX/PDF/cXML/EDI/XML).
         color: TEXT_MUTED,
         background: SURFACE_2,
         whiteSpace: "nowrap",
@@ -98,59 +74,23 @@ function ChannelPill({ label }: { label: string }) {
   );
 }
 
-function SuppliersDots({ count }: { count: number }) {
-  return (
-    <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-        {Array.from({ length: Math.min(count, 4) }).map((_, i) => (
-          <span
-            key={i}
-            style={{
-              width: 7,
-              height: 7,
-              borderRadius: "50%",
-              background: DOT_GREEN,
-              flexShrink: 0,
-            }}
-          />
-        ))}
-      </div>
-      <span style={{ fontSize: 11.5, color: TEXT_FAINT, fontVariantNumeric: "tabular-nums", marginLeft: 4 }}>
-        {count}
-      </span>
-    </div>
-  );
-}
-
-function VolumeText({ value }: { value: number }) {
-  return (
-    <span
-      style={{
-        fontFamily: "var(--font-mono, 'JetBrains Mono', ui-monospace, monospace)",
-        fontWeight: 600,
-        fontSize: 12.5,
-        color: INK_SLATE,
-        whiteSpace: "nowrap",
-      }}
-    >
-      {value.toLocaleString()}
-      <span style={{ color: TEXT_FAINT, fontWeight: 500 }}>/wk</span>
-    </span>
-  );
-}
-
 function SkeletonTrow() {
-  const widths = [180, 90, 60, 70, 48, 16];
+  const widths = [180, 90, 64, 56, 16];
   return (
     <tr>
-      {widths.map((w, i) => (
-        <td key={i} style={{ padding: "14px 18px", borderBottom: `1px solid ${BORDER}`, textAlign: i >= 4 ? "right" : "left" }}>
-          <div
-            className="animate-pulse rounded"
-            style={{ background: SURFACE_2, height: 14, width: w, marginLeft: i >= 4 ? "auto" : 0 }}
-          />
-        </td>
-      ))}
+      {widths.map((w, i) => {
+        // Columns: 0 Buyer (left), 1 Primary format (left), 2 Orders (right),
+        // 3 Last order (right), 4 chevron (right).
+        const right = i >= 2;
+        return (
+          <td key={i} style={{ padding: "14px 18px", borderBottom: `1px solid ${BORDER}`, textAlign: right ? "right" : "left" }}>
+            <div
+              className="animate-pulse rounded"
+              style={{ background: SURFACE_2, height: 14, width: w, marginLeft: right ? "auto" : 0 }}
+            />
+          </td>
+        );
+      })}
     </tr>
   );
 }
@@ -470,21 +410,19 @@ export default function BuyersPage() {
         <table className="hidden sm:table" style={{ width: "100%", borderCollapse: "collapse" }}>
           <colgroup>
             <col />
-            <col style={{ width: 200 }} />
-            <col style={{ width: 130 }} />
-            <col style={{ width: 190 }} />
+            <col style={{ width: 170 }} />
+            <col style={{ width: 150 }} />
             <col style={{ width: 130 }} />
             <col style={{ width: 44 }} />
           </colgroup>
           <thead>
             <tr>
               {([
-                { label: "Buyer",             align: "left"  },
-                { label: "Inbound channel",   align: "left"  },
-                { label: "Volume",            align: "left"  },
-                { label: "Suppliers reached", align: "left"  },
-                { label: "This week",         align: "right" },
-                { label: "",                  align: "right" },
+                { label: "Buyer",            align: "left"  },
+                { label: "Primary format",   align: "left"  },
+                { label: "Orders (all time)", align: "right" },
+                { label: "Last order",       align: "right" },
+                { label: "",                 align: "right" },
               ] as const).map((col, i) => (
                 <th
                   key={i}
@@ -519,7 +457,7 @@ export default function BuyersPage() {
             {showError && (
               <tr>
                 <td
-                  colSpan={6}
+                  colSpan={5}
                   style={{ padding: "32px 16px", textAlign: "center" }}
                 >
                   <span style={{ fontSize: 13, color: TEXT_MUTED }}>
@@ -589,7 +527,7 @@ export default function BuyersPage() {
                     </div>
                   </td>
 
-                  {/* Inbound channel — single plain label */}
+                  {/* Primary format — first parsed format, or em-dash if unknown */}
                   <td
                     style={{
                       padding: "14px 18px",
@@ -597,32 +535,12 @@ export default function BuyersPage() {
                       verticalAlign: "middle",
                     }}
                   >
-                    <ChannelPill label={inboundChannel(b.formats)} />
+                    {b.formats.length > 0
+                      ? <ChannelPill label={b.formats[0]} />
+                      : <span style={{ fontSize: 12.5, color: TEXT_FAINT }}>—</span>}
                   </td>
 
-                  {/* Volume — weekly rate, monospace */}
-                  <td
-                    style={{
-                      padding: "14px 18px",
-                      borderBottom: cellBorder,
-                      verticalAlign: "middle",
-                    }}
-                  >
-                    <VolumeText value={b.orderCount} />
-                  </td>
-
-                  {/* Suppliers reached — green dots + count */}
-                  <td
-                    style={{
-                      padding: "14px 18px",
-                      borderBottom: cellBorder,
-                      verticalAlign: "middle",
-                    }}
-                  >
-                    <SuppliersDots count={suppliersReached(b)} />
-                  </td>
-
-                  {/* This week — headline number, right-aligned */}
+                  {/* Orders (all time) — real backend count, right-aligned */}
                   <td
                     style={{
                       padding: "14px 18px",
@@ -638,6 +556,21 @@ export default function BuyersPage() {
                     }}
                   >
                     {b.orderCount.toLocaleString()}
+                  </td>
+
+                  {/* Last order — relative age from backend, or em-dash */}
+                  <td
+                    style={{
+                      padding: "14px 18px",
+                      borderBottom: cellBorder,
+                      textAlign: "right",
+                      fontSize: 12.5,
+                      color: b.lastOrderAge ? TEXT_MUTED : TEXT_FAINT,
+                      verticalAlign: "middle",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {b.lastOrderAge ?? "—"}
                   </td>
 
                   {/* Chevron (delete revealed on row hover) */}
@@ -781,7 +714,7 @@ export default function BuyersPage() {
                   </button>
                 </div>
 
-                {/* Stats row: 2x2 grid of labelled fields */}
+                {/* Stats row: labelled fields in a 2-column grid */}
                 <div
                   style={{
                     display: "grid",
@@ -791,16 +724,12 @@ export default function BuyersPage() {
                     paddingLeft: 44, // align under the name, past the icon tile
                   }}
                 >
-                  <MobileField label="Inbound channel">
-                    <ChannelPill label={inboundChannel(b.formats)} />
+                  <MobileField label="Primary format">
+                    {b.formats.length > 0
+                      ? <ChannelPill label={b.formats[0]} />
+                      : <span style={{ fontSize: 13, color: TEXT_FAINT }}>—</span>}
                   </MobileField>
-                  <MobileField label="Volume">
-                    <VolumeText value={b.orderCount} />
-                  </MobileField>
-                  <MobileField label="Suppliers reached">
-                    <SuppliersDots count={suppliersReached(b)} />
-                  </MobileField>
-                  <MobileField label="This week">
+                  <MobileField label="Orders (all time)">
                     <span
                       style={{
                         fontFamily: "var(--font-mono, 'JetBrains Mono', ui-monospace, monospace)",
@@ -811,6 +740,11 @@ export default function BuyersPage() {
                       }}
                     >
                       {b.orderCount.toLocaleString()}
+                    </span>
+                  </MobileField>
+                  <MobileField label="Last order">
+                    <span style={{ fontSize: 13, color: b.lastOrderAge ? TEXT_MUTED : TEXT_FAINT }}>
+                      {b.lastOrderAge ?? "—"}
                     </span>
                   </MobileField>
                 </div>

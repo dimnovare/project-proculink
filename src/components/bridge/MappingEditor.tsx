@@ -41,7 +41,6 @@ type MappingRow = {
   buyerCode: string;
   supplier: string;     // supplier organisation name
   supplierCode: string;
-  description: string;
   source: Source;
   used?: number;        // times this translation has been applied
 };
@@ -55,7 +54,6 @@ function apiMappingToRow(m: SupplierMapping, supplierName: string): MappingRow {
     buyerCode: m.buyerItemCode,
     supplier: supplierName,
     supplierCode: m.supplierItemCode,
-    description: "",
     source: (m.source === "suggested"
       ? "AI"
       : m.source === "imported"
@@ -92,18 +90,18 @@ function SourceTag({ src }: { src: Source }) {
 // ─── Mock rows (shown only in mock mode when no supplier is selected) ─────────
 
 const MOCK_ROWS: MappingRow[] = [
-  { id: "1",  buyer: "Heinrich Industries", buyerCode: "HX-4410", supplier: "Acme Components",  supplierCode: "ACM-PL-22",  description: "Hydraulic seal kit",    source: "AI",        used: 41 },
-  { id: "2",  buyer: "Heinrich Industries", buyerCode: "HX-4412", supplier: "Acme Components",  supplierCode: "ACM-FL-08",  description: "Flange coupling 80mm",  source: "Manual",    used: 28 },
-  { id: "3",  buyer: "Steelhouse Co.",      buyerCode: "ST-220",  supplier: "Acme Components",  supplierCode: "ACM-BR-55",  description: "Bracket assembly",      source: "Imported",  used: 17 },
-  { id: "4",  buyer: "Nordmark Logistik",   buyerCode: "NM-9981", supplier: "BoltWorks BV",     supplierCode: "BLT-DV-20",  description: "Drive shaft 20mm",      source: "AI",        used: 12 },
-  { id: "5",  buyer: "Heinrich Industries", buyerCode: "HX-4411", supplier: "VanDerBerg Metaal",supplierCode: "VDB-88-2201",description: "Pressure valve M20",    source: "Inherited", used:  9 },
-  { id: "6",  buyer: "Centralis Pharma",    buyerCode: "CN-117",  supplier: "MedicaSupply",     supplierCode: "MED-AMP-5",  description: "Ampoule tray (5ml)",    source: "Manual",    used:  6 },
-  { id: "7",  buyer: "Heinrich Industries", buyerCode: "HX-4418", supplier: "Acme Components",  supplierCode: "ACM-NUT-M8", description: "M8 hex nut, zinc-plated",source: "AI",       used: 93 },
-  { id: "8",  buyer: "Steelhouse Co.",      buyerCode: "ST-204",  supplier: "BoltWorks BV",     supplierCode: "BLT-RD-12",  description: "Aluminium rod 12mm",    source: "Manual",    used:  7 },
-  { id: "9",  buyer: "Nordmark Logistik",   buyerCode: "NM-7750", supplier: "Acme Components",  supplierCode: "ACM-CS-50",  description: "Conduit sleeve 50mm",   source: "Imported",  used: 11 },
-  { id: "10", buyer: "Heinrich Industries", buyerCode: "HX-4490", supplier: "Acme Components",  supplierCode: "ACM-SCR-410",description: "M4×10 countersunk screw",source: "AI",       used: 312 },
-  { id: "11", buyer: "Centralis Pharma",    buyerCode: "CN-205",  supplier: "MedicaSupply",     supplierCode: "MED-BG-75",  description: "75mm sterile bandage",  source: "AI",        used: 55 },
-  { id: "12", buyer: "Steelhouse Co.",      buyerCode: "ST-250",  supplier: "VanDerBerg Metaal",supplierCode: "VDB-ST-40",  description: "Steel pipe 50mm SCH40", source: "Inherited", used: 23 },
+  { id: "1",  buyer: "Heinrich Industries", buyerCode: "HX-4410", supplier: "Acme Components",  supplierCode: "ACM-PL-22",  source: "AI",        used: 41 },
+  { id: "2",  buyer: "Heinrich Industries", buyerCode: "HX-4412", supplier: "Acme Components",  supplierCode: "ACM-FL-08",  source: "Manual",    used: 28 },
+  { id: "3",  buyer: "Steelhouse Co.",      buyerCode: "ST-220",  supplier: "Acme Components",  supplierCode: "ACM-BR-55",  source: "Imported",  used: 17 },
+  { id: "4",  buyer: "Nordmark Logistik",   buyerCode: "NM-9981", supplier: "BoltWorks BV",     supplierCode: "BLT-DV-20",  source: "AI",        used: 12 },
+  { id: "5",  buyer: "Heinrich Industries", buyerCode: "HX-4411", supplier: "VanDerBerg Metaal",supplierCode: "VDB-88-2201",source: "Inherited", used:  9 },
+  { id: "6",  buyer: "Centralis Pharma",    buyerCode: "CN-117",  supplier: "MedicaSupply",     supplierCode: "MED-AMP-5",  source: "Manual",    used:  6 },
+  { id: "7",  buyer: "Heinrich Industries", buyerCode: "HX-4418", supplier: "Acme Components",  supplierCode: "ACM-NUT-M8", source: "AI",        used: 93 },
+  { id: "8",  buyer: "Steelhouse Co.",      buyerCode: "ST-204",  supplier: "BoltWorks BV",     supplierCode: "BLT-RD-12",  source: "Manual",    used:  7 },
+  { id: "9",  buyer: "Nordmark Logistik",   buyerCode: "NM-7750", supplier: "Acme Components",  supplierCode: "ACM-CS-50",  source: "Imported",  used: 11 },
+  { id: "10", buyer: "Heinrich Industries", buyerCode: "HX-4490", supplier: "Acme Components",  supplierCode: "ACM-SCR-410",source: "AI",        used: 312 },
+  { id: "11", buyer: "Centralis Pharma",    buyerCode: "CN-205",  supplier: "MedicaSupply",     supplierCode: "MED-BG-75",  source: "AI",        used: 55 },
+  { id: "12", buyer: "Steelhouse Co.",      buyerCode: "ST-250",  supplier: "VanDerBerg Metaal",supplierCode: "VDB-ST-40",  source: "Inherited", used: 23 },
 ];
 
 // ─── Main Component ───────────────────────────────────────────────────────────
@@ -133,6 +131,13 @@ export function MappingEditor() {
   const selectedSupplierName =
     supplierList?.find((s) => s.id === selectedSupplierId)?.name ?? "";
 
+  // In live mode the per-supplier mappings query only runs once a supplier is
+  // chosen (mappings are stored per supplier, there is no cross-supplier list
+  // endpoint). With the default "All suppliers" route the table would read as an
+  // empty / "0 saved" account even when the org has mappings, so we instead
+  // require an explicit supplier selection and show clear copy.
+  const needsSupplierSelection = !isApiMockMode && !selectedSupplierId;
+
   const allRows: MappingRow[] = isApiMockMode
     ? MOCK_ROWS
     : (liveRows ?? []).map((m) => apiMappingToRow(m, selectedSupplierName));
@@ -144,8 +149,7 @@ export function MappingEditor() {
       m.buyer.toLowerCase().includes(q) ||
       m.buyerCode.toLowerCase().includes(q) ||
       m.supplier.toLowerCase().includes(q) ||
-      m.supplierCode.toLowerCase().includes(q) ||
-      m.description.toLowerCase().includes(q);
+      m.supplierCode.toLowerCase().includes(q);
     const matchSrc = srcFilter === "All" || m.source === srcFilter;
     return matchSearch && matchSrc;
   });
@@ -153,10 +157,18 @@ export function MappingEditor() {
   function openPanelForSupplier(kind: "import" | "export" | "add") {
     setNotice(null);
 
-    if ((kind === "add" || kind === "import") && !selectedSupplierId) {
+    // add / import / export all act on a single supplier. With the default
+    // "All suppliers" route, fall back to the first supplier so the panel has a
+    // concrete target (and never shows a misleading "choose a supplier" error).
+    // In mock mode there are no real suppliers; the panel just shows a local notice.
+    if (!isApiMockMode && !selectedSupplierId) {
       const firstSupplier = supplierList?.[0];
       if (!firstSupplier) {
-        setNotice("Add a supplier before saving item-code mappings.");
+        setNotice(
+          kind === "export"
+            ? "Add a supplier before exporting item-code mappings."
+            : "Add a supplier before saving item-code mappings.",
+        );
         return;
       }
       setSelectedSupplierId(firstSupplier.id);
@@ -184,11 +196,17 @@ export function MappingEditor() {
             Mappings
           </h1>
           <p className="text-[13px] mt-1" style={{ color: "#56627A" }}>
-            Global buyer → supplier item code library ·{" "}
-            <span style={{ color: "#0B1A2F", fontWeight: 600 }}>
-              {allRows.length.toLocaleString()}
-            </span>{" "}
-            saved
+            {needsSupplierSelection ? (
+              "Buyer → supplier item code library · select a supplier to view its mappings"
+            ) : (
+              <>
+                {isApiMockMode ? "Global buyer" : "Buyer"} → supplier item code library ·{" "}
+                <span style={{ color: "#0B1A2F", fontWeight: 600 }}>
+                  {allRows.length.toLocaleString()}
+                </span>{" "}
+                saved{isApiMockMode ? "" : selectedSupplierName ? ` for ${selectedSupplierName}` : ""}
+              </>
+            )}
           </p>
         </div>
         <div className="grid w-full grid-cols-2 gap-2 lg:ml-auto lg:flex lg:w-auto">
@@ -234,12 +252,18 @@ export function MappingEditor() {
       {/* Result count + search — on the grey canvas, above the table card */}
       <div className="flex flex-col items-stretch gap-2 px-4 pb-3 sm:px-6 lg:flex-row lg:items-center lg:gap-3 flex-shrink-0">
         <p className="text-[12.5px] flex-shrink-0" style={{ color: "#56627A" }}>
-          Showing{" "}
-          <span style={{ color: INK, fontWeight: 600 }}>{filtered.length}</span>{" "}
-          of{" "}
-          <span style={{ color: INK, fontWeight: 600 }}>
-            {allRows.length.toLocaleString()}
-          </span>
+          {needsSupplierSelection ? (
+            <span style={{ color: "#8A93A5" }}>No supplier selected</span>
+          ) : (
+            <>
+              Showing{" "}
+              <span style={{ color: INK, fontWeight: 600 }}>{filtered.length}</span>{" "}
+              of{" "}
+              <span style={{ color: INK, fontWeight: 600 }}>
+                {allRows.length.toLocaleString()}
+              </span>
+            </>
+          )}
         </p>
 
         <div className="hidden flex-1 lg:block" />
@@ -299,7 +323,7 @@ export function MappingEditor() {
           <input
             type="text"
             aria-label="Search mappings"
-            placeholder="Search codes or descriptions…"
+            placeholder="Search buyer or supplier codes…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="h-10 w-full rounded-[7px] pl-8 pr-3 text-[13px] transition-shadow lg:h-[34px] lg:text-[12.5px]"
@@ -351,6 +375,24 @@ export function MappingEditor() {
           style={{ background: "#FFFFFF", border: "1px solid #E2E6EE", boxShadow: "0 1px 2px rgba(11,26,47,0.04)" }}
         >
 
+          {/* Live mode, no supplier chosen yet — prompt for selection instead of
+              showing an empty / "0 saved" table (mappings are stored per supplier). */}
+          {needsSupplierSelection && (
+            <div
+              className="flex flex-col items-center justify-center py-16 px-6 text-center"
+              style={{ color: "#8A93A5" }}
+            >
+              <span style={{ fontSize: 30, marginBottom: 10 }} aria-hidden="true">⇅</span>
+              <p className="text-[13px] font-semibold" style={{ color: INK, marginBottom: 4 }}>
+                Select a supplier to view its mappings
+              </p>
+              <p className="text-[12.5px]" style={{ maxWidth: 380 }}>
+                Item-code mappings are saved per supplier. Choose a supplier above to see
+                its buyer → supplier code library, or add a new mapping.
+              </p>
+            </div>
+          )}
+
           {/* Loading skeleton when a supplier is selected and fetching */}
           {!isApiMockMode && selectedSupplierId && mappingsLoading && (
             <div className="px-5 py-4">
@@ -360,7 +402,7 @@ export function MappingEditor() {
             </div>
           )}
 
-          {(!(!isApiMockMode && selectedSupplierId && mappingsLoading)) && (
+          {!needsSupplierSelection && (!(!isApiMockMode && selectedSupplierId && mappingsLoading)) && (
             <>
               {/* Mobile card list — buyer (blue) → supplier (green) translation cards */}
               <div className="md:hidden" style={{ borderColor: BORDER }}>
@@ -393,17 +435,13 @@ export function MappingEditor() {
                         {row.supplierCode}
                       </span>
                     </div>
-                    {/* supplier name + description + used */}
+                    {/* supplier name + used */}
                     <div className="flex items-center justify-between gap-3">
                       <p className="min-w-0 flex-1 truncate text-[12.5px]" style={{ color: "#56627A" }}>
                         {row.supplier ? (
-                          <>
-                            <span style={{ color: GREEN_CODE, fontWeight: 500 }}>{row.supplier}</span>
-                            {row.description ? <span style={{ color: "#C2C9D6" }}> · </span> : null}
-                            {row.description}
-                          </>
+                          <span style={{ color: GREEN_CODE, fontWeight: 500 }}>{row.supplier}</span>
                         ) : (
-                          row.description || "—"
+                          "—"
                         )}
                       </p>
                       {row.used != null && (
@@ -418,7 +456,7 @@ export function MappingEditor() {
 
               {/* Desktop table */}
               <div className="hidden overflow-x-auto md:block">
-              <table className="w-full min-w-[920px] border-collapse" style={{ fontSize: 12.5 }}>
+              <table className="w-full min-w-[760px] border-collapse" style={{ fontSize: 12.5 }}>
                 <thead
                   style={{
                     position: "sticky",
@@ -433,7 +471,6 @@ export function MappingEditor() {
                       { label: "Buyer code",    align: "left"  as const },
                       { label: "Supplier",      align: "left"  as const },
                       { label: "Supplier code", align: "left"  as const },
-                      { label: "Description",   align: "left"  as const },
                       { label: "Source",        align: "left"  as const },
                       { label: "Used",          align: "right" as const },
                     ].map(({ label, align }, i) => (
@@ -487,14 +524,6 @@ export function MappingEditor() {
                         <span className="font-mono text-[12px] font-semibold tracking-[-0.01em]" style={{ color: GREEN_CODE }}>
                           {row.supplierCode}
                         </span>
-                      </td>
-
-                      {/* Description */}
-                      <td
-                        className="px-4 py-3.5 text-[12.5px]"
-                        style={{ color: INK, maxWidth: 260 }}
-                      >
-                        {row.description || "—"}
                       </td>
 
                       {/* Source */}
@@ -645,7 +674,7 @@ function MappingPanel({
 
   const subtitle =
     panel.kind === "import" ? "Bulk upload a buyer → supplier code list" :
-    panel.kind === "export" ? "Download the current mapping library" :
+    panel.kind === "export" ? "Export this supplier's mappings as CSV" :
     "Connect a buyer code to a supplier code";
 
   const isCodePanel = panel.kind === "add" || panel.kind === "edit";
@@ -659,7 +688,7 @@ function MappingPanel({
     if (isApiMockMode) {
       // Demo mode: local-only notice
       const message =
-        panel.kind === "export" ? "Export prepared for the selected mapping scope." :
+        panel.kind === "export" ? "Export prepared for this supplier's mappings." :
         panel.kind === "import" ? "Import file validated. Connect an API session to upsert the mappings." :
         panel.kind === "add" ? "Mapping saved." :
         "Mapping updated.";
@@ -764,19 +793,25 @@ function MappingPanel({
 
         {panel.kind === "export" && (
           <div className="grid gap-3.5 p-5">
-            <Field label="Export scope">
-              <select defaultValue="filtered" className="h-10 w-full rounded-[7px] px-3 text-[13px]" style={{ border: `1px solid ${BORDER}`, color: INK }}>
-                <option value="filtered">Current filters</option>
-                <option value="route">Selected supplier</option>
-                <option value="all">All mappings</option>
-              </select>
+            {/* Supplier (context) — export always covers the selected supplier */}
+            <Field label="Supplier">
+              <div
+                className="flex h-10 w-full items-center rounded-[7px] px-3 text-[13px]"
+                style={{ border: `1px solid ${BORDER}`, background: "#F8FAFC", color: GREEN_CODE, fontWeight: 500 }}
+              >
+                {route}
+              </div>
             </Field>
-            <Field label="Format">
-              <select defaultValue="csv" className="h-10 w-full rounded-[7px] px-3 text-[13px]" style={{ border: `1px solid ${BORDER}`, color: INK }}>
-                <option value="csv">CSV</option>
-                <option value="xlsx">XLSX</option>
-              </select>
-            </Field>
+            <div
+              className="flex items-start gap-2.5 rounded-[8px] px-3.5 py-3 text-[12.5px] leading-relaxed"
+              style={{ background: BLUE_SOFT, color: BLUE_LINK }}
+            >
+              <svg width="15" height="15" viewBox="0 0 16 16" fill="none" className="mt-px flex-shrink-0" aria-hidden="true">
+                <circle cx="8" cy="8" r="6.4" stroke={BLUE_LINK} strokeWidth="1.3" />
+                <path d="M8 7.2v3.6M8 5.2h.01" stroke={BLUE_LINK} strokeWidth="1.4" strokeLinecap="round" />
+              </svg>
+              <span>Downloads this supplier&apos;s mappings as a CSV (buyer_code, supplier_code).</span>
+            </div>
           </div>
         )}
 
@@ -828,18 +863,6 @@ function MappingPanel({
               />
             </RequiredField>
 
-            {/* Description */}
-            <Field label="Description">
-              <input
-                defaultValue={panel.row?.description ?? ""}
-                placeholder="Pressure valve M20"
-                className="h-10 w-full rounded-[7px] px-3 text-[13px] outline-none transition-shadow"
-                style={{ border: `1px solid ${BORDER}`, color: INK }}
-                onFocus={(e) => { e.currentTarget.style.borderColor = BLUE; e.currentTarget.style.boxShadow = `0 0 0 3px ${BLUE_SOFT}`; }}
-                onBlur={(e) => { e.currentTarget.style.borderColor = BORDER; e.currentTarget.style.boxShadow = "none"; }}
-              />
-            </Field>
-
             {/* Info banner — blue, matches render */}
             <div
               className="mt-1 flex items-start gap-2.5 rounded-[8px] px-3.5 py-3 text-[12.5px] leading-relaxed"
@@ -881,7 +904,7 @@ function MappingPanel({
                 <path d="M3.5 8.5l3 3 6-6.5" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
             )}
-            {panel.kind === "export" ? "Prepare export" : panel.kind === "import" ? "Validate import" : "Save mapping"}
+            {panel.kind === "export" ? "Export CSV" : panel.kind === "import" ? "Validate import" : "Save mapping"}
           </button>
         </div>
       </div>
