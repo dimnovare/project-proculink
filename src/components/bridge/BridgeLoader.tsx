@@ -153,21 +153,16 @@ export function BridgePageLoader({ label = "Loading…" }: { label?: string }) {
       }}
     >
       <BridgeLoader size={56} fullScreen={false} />
-      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
-        <span
-          style={{
-            fontFamily: "'Bricolage Grotesque', Inter, sans-serif",
-            fontSize: 15,
-            fontWeight: 600,
-            color: "#0B1A2F",
-          }}
-        >
-          {label}
-        </span>
-        <span style={{ fontSize: 12, color: "#8A93A5" }}>
-          Loading…
-        </span>
-      </div>
+      <span
+        style={{
+          fontFamily: "'Bricolage Grotesque', Inter, sans-serif",
+          fontSize: 15,
+          fontWeight: 600,
+          color: "#0B1A2F",
+        }}
+      >
+        {label}
+      </span>
     </div>
   );
 }

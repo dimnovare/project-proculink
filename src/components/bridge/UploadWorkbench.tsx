@@ -14,9 +14,21 @@ import { capture } from "@/lib/analytics";
 import { captureException } from "@/lib/sentry-context";
 import { useOrderDirection } from "@/hooks/useOrderDirection";
 
-// Pipeline stages for the upload animation
-const PIPELINE_STAGES = ["Parse", "Normalize", "Validate", "Transform"] as const;
+// Pipeline stages for the pre-redirect upload animation. "Transform" is NOT
+// shown here: nothing is transformed before the review step, so claiming it
+// would be dishonest (offer↔works). The real transform happens after review.
+const PIPELINE_STAGES = ["Parse", "Normalize", "Validate"] as const;
 const STAGE_MS = 600;
+
+// Accepted upload extensions — mirrors the backend whitelist exactly
+// (OrdersController.cs upload guard) and the dropzone <input accept=…>.
+const ACCEPTED_EXTENSIONS = [".csv", ".xlsx", ".pdf", ".xml", ".cxml", ".edi", ".txt"] as const;
+
+/** True when the file's extension is in the accepted whitelist. */
+function hasAcceptedExtension(name: string): boolean {
+  const lower = name.toLowerCase();
+  return ACCEPTED_EXTENSIONS.some((ext) => lower.endsWith(ext));
+}
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -250,6 +262,9 @@ export function UploadWorkbench() {
   const [dragging, setDragging]     = useState(false);
   const [supplierId, setSupplierId] = useState("");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  // Inline "unsupported file type" error shown at the dropzone, set the moment
+  // a disallowed file is dropped or picked (before any upload round-trip).
+  const [fileError, setFileError] = useState<string | null>(null);
   const [uploading, setUploading]   = useState(false);
   const [pipelineStage, setPipelineStage] = useState(-1);
   const [uploadError, setUploadError] = useState<{ code: string; title: string; message: string; cta: string } | null>(null);
@@ -322,6 +337,11 @@ export function UploadWorkbench() {
 
   const openOrder = (id: string) =>
     router.push(`/inbox/${id}`);
+
+  // First-run org (no suppliers configured AND no recent orders): promote the
+  // zero-friction "Try a sample" path above the dropzone. Established orgs keep
+  // it below. In mock mode there's always demo data, so never treat as empty.
+  const isEmptyOrg = !isApiMockMode && suppliers.length === 0 && recentRows.length === 0;
 
   useEffect(() => {
     if (suppliers.length === 0) {
@@ -438,6 +458,26 @@ export function UploadWorkbench() {
     }
   }
 
+  /**
+   * Validate a chosen/dropped file against the accepted whitelist, then either
+   * select it (clearing prior errors and kicking off format detection) or show
+   * an inline unsupported-type error. Used by both the file picker and drop.
+   */
+  function acceptFile(file: File) {
+    if (!hasAcceptedExtension(file.name)) {
+      setSelectedFile(null);
+      setUploadError(null);
+      setFileError(
+        `${file.name} isn't a supported file type. Upload one of: ${ACCEPTED_EXTENSIONS.join(", ")}.`,
+      );
+      return;
+    }
+    setFileError(null);
+    setSelectedFile(file);
+    setUploadError(null);
+    triggerDetection(file);
+  }
+
   function triggerDetection(file: File) {
     // Abort any in-flight detection for a previously selected file.
     detectAbortRef.current?.abort();
@@ -461,6 +501,43 @@ export function UploadWorkbench() {
 
   // Cleanup timers on unmount
   useEffect(() => () => { timerRefs.current.forEach(clearTimeout); }, []);
+
+  // Phase 6.3 — Try with sample order: the zero-friction first action. Rendered
+  // above the dropzone for a first-run org, below it otherwise (see isEmptyOrg).
+  const sampleCard = (
+    <XCard edge="left" edgeColor="#2E8E3A">
+      <div className="flex flex-col gap-3 px-4 py-4">
+        <div style={{ minWidth: 0 }}>
+          <p className="text-[13px] font-semibold" style={{ color: "#0B1A2F" }}>
+            New here? Start with a sample order
+          </p>
+          <p className="text-[12px] mt-1" style={{ color: "#56627A" }}>
+            No purchase order handy? Run one with an example CSV in seconds — it won&apos;t count toward your monthly quota.
+          </p>
+          {sampleError && (
+            <p className="mt-2 text-[12px]" style={{ color: "#C53A3A" }}>
+              {sampleError}
+            </p>
+          )}
+        </div>
+        <button
+          type="button"
+          onClick={handleSample}
+          disabled={sampleLoading || uploading}
+          className="w-full rounded-[6px] py-2.5 text-[13px] font-semibold transition-all"
+          style={{
+            background: sampleLoading || uploading ? "#E2E6EE" : "#0B1A2F",
+            color: sampleLoading || uploading ? "#8A93A5" : "#FFFFFF",
+            border: "none",
+            boxShadow: sampleLoading || uploading ? "none" : "0 2px 8px rgba(11,26,47,0.18)",
+            cursor: sampleLoading || uploading ? "not-allowed" : "pointer",
+          }}
+        >
+          {sampleLoading ? "Starting sample…" : "Try with a sample order →"}
+        </button>
+      </div>
+    </XCard>
+  );
 
   return (
     <div
@@ -531,21 +608,33 @@ export function UploadWorkbench() {
                 </a>
               </div>
             )}
-            {/* Drop zone — single dashed-border card (matches design render exactly) */}
+            {/* First-run org: lead with the zero-friction sample path. */}
+            {isEmptyOrg && sampleCard}
+
+            {/* Drop zone — single dashed-border card (matches design render exactly).
+                Focusable button so keyboard users can open the picker with
+                Enter/Space, not just mouse-click. */}
             <div
-                onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
+                role="button"
+                tabIndex={isReadOnly ? -1 : 0}
+                aria-label="Upload a purchase order — drop a file or press Enter to browse"
+                aria-disabled={isReadOnly || undefined}
+                onDragOver={(e) => { e.preventDefault(); if (!isReadOnly) setDragging(true); }}
                 onDragLeave={() => setDragging(false)}
                 onDrop={(e) => {
                   e.preventDefault();
                   setDragging(false);
+                  if (isReadOnly || uploading) return;
                   const file = e.dataTransfer.files.item(0);
-                  if (file) {
-                    setSelectedFile(file);
-                    setUploadError(null);
-                    triggerDetection(file);
+                  if (file) acceptFile(file);
+                }}
+                onClick={() => { if (!isReadOnly && !uploading) fileInputRef.current?.click(); }}
+                onKeyDown={(e) => {
+                  if ((e.key === "Enter" || e.key === " ") && !isReadOnly && !uploading) {
+                    e.preventDefault();
+                    fileInputRef.current?.click();
                   }
                 }}
-                onClick={() => fileInputRef.current?.click()}
                 className="flex flex-col items-center gap-4 px-6 py-10 sm:px-8 sm:py-14"
                 style={{
                   border: `1.5px dashed ${dragging ? "#1E66C9" : "#C6CDDA"}`,
@@ -571,9 +660,13 @@ export function UploadWorkbench() {
                   disabled={isReadOnly || uploading}
                   onChange={(event) => {
                     const file = event.target.files?.[0] ?? null;
-                    setSelectedFile(file);
-                    setUploadError(null);
-                    if (file) triggerDetection(file);
+                    if (file) {
+                      acceptFile(file);
+                    } else {
+                      setSelectedFile(null);
+                      setFileError(null);
+                      setUploadError(null);
+                    }
                   }}
                 />
                 {/* Upload icon — buyer-blue outline (matches design render exactly) */}
@@ -641,8 +734,20 @@ export function UploadWorkbench() {
                   {selectedFile ? "Change file" : "Browse files"}
                 </button>
 
+                {/* Inline unsupported-file-type error — set at drop/pick time,
+                    before any upload round-trip (offer↔works: reject early). */}
+                {fileError && (
+                  <p
+                    role="alert"
+                    className="text-[12px] text-center max-w-[420px]"
+                    style={{ color: "#C53A3A" }}
+                  >
+                    {fileError}
+                  </p>
+                )}
+
                 {/* Muted helper caption beneath the button (matches design) */}
-                {!selectedFile && (
+                {!selectedFile && !fileError && (
                   <p className="text-[11.5px] italic" style={{ color: "#99A1C5" }}>
                     {isApiMockMode
                       ? "(Demo: click anywhere to simulate a parsed PDF)"
@@ -775,39 +880,8 @@ export function UploadWorkbench() {
 
             </div>
 
-            {/* Phase 6.3 — Try with sample order: the zero-friction primary first action */}
-            <XCard edge="left" edgeColor="#2E8E3A">
-              <div className="flex flex-col gap-3 px-4 py-4">
-                <div style={{ minWidth: 0 }}>
-                  <p className="text-[13px] font-semibold" style={{ color: "#0B1A2F" }}>
-                    New here? Start with a sample order
-                  </p>
-                  <p className="text-[12px] mt-1" style={{ color: "#56627A" }}>
-                    No purchase order handy? Run one with an example CSV in seconds — it won&apos;t count toward your monthly quota.
-                  </p>
-                  {sampleError && (
-                    <p className="mt-2 text-[12px]" style={{ color: "#C53A3A" }}>
-                      {sampleError}
-                    </p>
-                  )}
-                </div>
-                <button
-                  type="button"
-                  onClick={handleSample}
-                  disabled={sampleLoading || uploading}
-                  className="w-full rounded-[6px] py-2.5 text-[13px] font-semibold transition-all"
-                  style={{
-                    background: sampleLoading || uploading ? "#E2E6EE" : "#0B1A2F",
-                    color: sampleLoading || uploading ? "#8A93A5" : "#FFFFFF",
-                    border: "none",
-                    boxShadow: sampleLoading || uploading ? "none" : "0 2px 8px rgba(11,26,47,0.18)",
-                    cursor: sampleLoading || uploading ? "not-allowed" : "pointer",
-                  }}
-                >
-                  {sampleLoading ? "Starting sample…" : "Try with a sample order →"}
-                </button>
-              </div>
-            </XCard>
+            {/* Established org: keep the sample path below the dropzone. */}
+            {!isEmptyOrg && sampleCard}
 
             {/* Recent uploads — hidden entirely when there is nothing recent */}
             {recentRows.length > 0 && (

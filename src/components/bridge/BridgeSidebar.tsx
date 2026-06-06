@@ -8,7 +8,7 @@ import { useQuery } from "@tanstack/react-query";
 import {
   Layers, Upload, Inbox, Truck, Building2, GitBranch,
   ShieldCheck, FileCode, BookOpen, FileText, Package, ScrollText,
-  Plug, Webhook, Settings, ChevronsLeft, ChevronsRight, ChevronDown, ExternalLink,
+  Plug, Webhook, Settings, ChevronsLeft, ChevronsRight, ExternalLink,
   Files, HelpCircle, X, ShieldHalf, AlertTriangle, Activity,
   type LucideIcon,
 } from "lucide-react";
@@ -19,7 +19,7 @@ import { ProcuLinkMark } from "./DSPrimitives";
 
 // ─── Nav structure (matches the "Bridge Layer" design handoff) ─────────────────
 
-type NavItem = { label: string; href: string; icon: LucideIcon; badgeKey?: "review" };
+type NavItem = { label: string; href: string; icon: LucideIcon; badgeKey?: "review"; newTab?: boolean };
 
 const NAV: Array<{ group?: string; items: NavItem[] }> = [
   { items: [{ label: "Dashboard", href: "/bridge", icon: Layers }] },
@@ -67,7 +67,9 @@ const NAV: Array<{ group?: string; items: NavItem[] }> = [
       // Admin is always rendered. The /admin page itself refuses non-admins
       // (the backend allowlist returns 403), so showing the link leaks nothing.
       { label: "Admin", href: "/admin", icon: ShieldHalf },
-      { label: "Help", href: "/help", icon: HelpCircle },
+      // Help lives in the marketing layout (no app shell). Open it in a new tab
+      // so the user doesn't lose the app shell mid-task.
+      { label: "Help", href: "/help", icon: HelpCircle, newTab: true },
       { label: "Settings", href: "/settings", icon: Settings },
     ],
   },
@@ -234,27 +236,24 @@ export function BridgeSidebar({
         )}
       </div>
 
-      {/* ── Workspace switcher ────────────────────────────────────── */}
-      <button
-        type="button"
-        aria-label="Switch workspace"
+      {/* ── Workspace badge ───────────────────────────────────────────
+          Static workspace identity (org name + plan). There is no multi-org
+          switcher wired, so this is a read-only badge — no chevron, pointer,
+          or "Switch workspace" affordance that would imply a menu that doesn't
+          exist (offer↔works). */}
+      <div
         title={isCollapsed ? `${orgName} · ${planLabel}` : undefined}
         className={`flex items-center rounded-[6px] text-left ${isCollapsed ? "mx-auto justify-center w-[44px] py-[9px]" : "gap-2.5 w-[calc(100%-28px)]"}`}
-        style={{ background: "#10243E", border: "1px solid #1C2F49", cursor: "pointer", margin: isCollapsed ? "12px auto 6px" : "12px 14px 6px", padding: isCollapsed ? undefined : "9px 11px", transition: "background 150ms" }}
-        onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "#163052"; }}
-        onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "#10243E"; }}
+        style={{ background: "#10243E", border: "1px solid #1C2F49", margin: isCollapsed ? "12px auto 6px" : "12px 14px 6px", padding: isCollapsed ? undefined : "9px 11px" }}
       >
         <div className="flex items-center justify-center rounded-[4px] text-[10.5px] font-bold text-white flex-shrink-0" style={{ width: 26, height: 26, background: "#1E66C9" }}>{initials}</div>
         {!isCollapsed && (
-          <>
-            <div className="flex-1 min-w-0">
-              <div className="text-[12.5px] font-semibold text-white leading-none truncate">{orgName}</div>
-              <div className="text-[10.5px] mt-0.5" style={{ color: "#7C8DA6" }}>{planLabel}</div>
-            </div>
-            <ChevronDown size={15} style={{ color: "#7C8DA6", flexShrink: 0 }} />
-          </>
+          <div className="flex-1 min-w-0">
+            <div className="text-[12.5px] font-semibold text-white leading-none truncate">{orgName}</div>
+            <div className="text-[10.5px] mt-0.5" style={{ color: "#7C8DA6" }}>{planLabel}</div>
+          </div>
         )}
-      </button>
+      </div>
 
       {/* ── Navigation ───────────────────────────────────────────── */}
       <nav className="flex-1 overflow-y-auto" style={{ scrollbarWidth: "none", padding: "8px 10px 20px" }}>
@@ -275,6 +274,8 @@ export function BridgeSidebar({
                   key={item.href}
                   href={item.href}
                   onClick={onNavigate}
+                  target={item.newTab ? "_blank" : undefined}
+                  rel={item.newTab ? "noopener noreferrer" : undefined}
                   title={isCollapsed ? item.label : undefined}
                   className={`flex items-center rounded-[6px] text-[12.5px] font-medium transition-colors duration-75 relative ${isCollapsed ? "justify-center py-[9px]" : "gap-2.5 px-[10px] py-[7px]"}`}
                   style={{ color: active ? "#FFFFFF" : "#C5D2E4", background: active ? "#1E66C9" : "transparent" }}

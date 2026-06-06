@@ -114,6 +114,55 @@ function useAutoCrumb(): ReactNode {
   return <span style={{ color: "#C5D2E4", fontWeight: 500 }}>{root}</span>;
 }
 
+/**
+ * Compact page label for the mobile topbar — the LAST meaningful crumb segment
+ * as a plain string. Mirrors useAutoCrumb's LABELS/title-case rules so the
+ * mobile title reads the same as the desktop breadcrumb tail.
+ */
+function useMobilePageLabel(): string | null {
+  const pathname = usePathname();
+  const seg = pathname.split("/").filter(Boolean);
+
+  const LABELS: Record<string, string> = {
+    bridge:    "Order topology",
+    inbox:     "Inbox",
+    upload:    "Upload",
+    drafts:    "Drafts",
+    settings:  "Settings",
+    library:   "Library",
+    suppliers: "Suppliers",
+    buyers:    "Buyers",
+    mappings:  "Mappings",
+    rules:     "Validation rules",
+    templates: "Output templates",
+    standards: "Standards",
+    operations: "Operations",
+    log:       "Delivery log",
+    connectors: "Connectors",
+    webhooks:  "Webhooks",
+    admin:     "Admin",
+    help:      "Help",
+    inbound:   "Inbound",
+    invoices:  "Invoices",
+    asns:      "ASNs",
+    exceptions: "Exceptions",
+    health:    "System health",
+  };
+
+  const titleCase = (s: string) =>
+    s.replace(/[-_]+/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+
+  if (seg.length === 0) return null;
+
+  const last = seg[seg.length - 1];
+  // Mapped segment → its label; an unmapped trailing slug (a detail-page id)
+  // falls back to the parent segment's label so we never surface a raw id.
+  if (LABELS[last]) return LABELS[last];
+  const parent = seg.length >= 2 ? seg[seg.length - 2] : last;
+  if (LABELS[parent]) return LABELS[parent];
+  return titleCase(parent);
+}
+
 // ─── Notifications popover ──────────────────────────────────────────────────
 // Live, honest notifications derived from the order queue: needs-review and
 // failed orders are actionable (drive the unread count); delivered are activity.
@@ -263,6 +312,7 @@ export function BridgeTopbar({ crumb, onMenuClick }: BridgeTopbarProps) {
   const router = useRouter();
   const pathname = usePathname();
   const autoCrumb = useAutoCrumb();
+  const mobileLabel = useMobilePageLabel();
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
 
@@ -299,10 +349,12 @@ export function BridgeTopbar({ crumb, onMenuClick }: BridgeTopbarProps) {
           <Menu size={18} strokeWidth={2.2} />
         </button>
 
-        {/* Demo-mode badge — visible only when NEXT_PUBLIC_USE_MOCK=true */}
+        {/* Demo-mode badge — visible only when NEXT_PUBLIC_USE_MOCK=true.
+            Full pill from sm up; a compact dot-only pill on mobile so the
+            honesty signal isn't lost on small screens. */}
         {process.env.NEXT_PUBLIC_USE_MOCK === "true" && (
           <span
-            className="hidden sm:inline-flex items-center"
+            className="inline-flex items-center flex-shrink-0"
             style={{
               gap: 6,
               height: 22,
@@ -315,7 +367,6 @@ export function BridgeTopbar({ crumb, onMenuClick }: BridgeTopbarProps) {
               fontWeight: 600,
               letterSpacing: "0.05em",
               textTransform: "uppercase",
-              flexShrink: 0,
             }}
             title="You are viewing mock data. Set NEXT_PUBLIC_USE_MOCK=false to see your organisation's real orders."
           >
@@ -328,17 +379,27 @@ export function BridgeTopbar({ crumb, onMenuClick }: BridgeTopbarProps) {
                 display: "inline-block",
               }}
             />
-            Demo data
+            <span className="hidden sm:inline">Demo data</span>
+            <span className="sm:hidden">Demo</span>
           </span>
         )}
 
-        {/* Breadcrumbs — hidden on mobile (design parity), shown from sm up */}
+        {/* Breadcrumbs — full breadcrumb from sm up; on mobile show a compact
+            single-segment page title so the user always knows where they are. */}
         <div
           className="hidden sm:flex min-w-0 items-center gap-2 text-[12.5px] flex-shrink-0"
           style={{ color: "#C5D2E4" }}
         >
           {crumb ?? autoCrumb}
         </div>
+        {mobileLabel && (
+          <span
+            className="sm:hidden min-w-0 truncate text-[13px] font-semibold"
+            style={{ color: "#FFFFFF" }}
+          >
+            {mobileLabel}
+          </span>
+        )}
 
         {/* cmd-K search field — right-aligned, opens the command palette */}
         <button
