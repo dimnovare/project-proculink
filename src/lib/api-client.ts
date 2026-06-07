@@ -1677,6 +1677,27 @@ export async function getAdminOrganisations(): Promise<AdminOrganisation[]> {
   return res.json() as Promise<AdminOrganisation[]>;
 }
 
+/**
+ * Probe whether the current user is on the server-side admin allowlist — used
+ * ONLY to decide whether to render the Admin nav link. Returns true on 2xx
+ * (the [AdminOnly] gate let us through), false on 401/403 or any error.
+ *
+ * This is a UX hint, never a security boundary: the /admin page and every
+ * /api/admin endpoint independently enforce the gate, so a wrong answer here
+ * can only show or hide a link — it can never grant access. Fail-closed on
+ * error (hide the link) and surface the link in mock mode for dev/demo.
+ */
+export async function checkAdminAccess(): Promise<boolean> {
+  if (isApiMockMode) return true;
+  try {
+    const headers = await authHeader();
+    const res = await fetchWithTimeout(`${API_BASE_URL}/api/admin/access`, { headers });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
 export async function createAdminInvoice(
   req: CreateAdminInvoiceRequest,
 ): Promise<CreateAdminInvoiceResult> {

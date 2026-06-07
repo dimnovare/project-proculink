@@ -12,7 +12,7 @@ import {
   Files, HelpCircle, X, ShieldHalf, AlertTriangle, Activity,
   type LucideIcon,
 } from "lucide-react";
-import { apiClient, getBillingStatus } from "@/lib/api-client";
+import { apiClient, getBillingStatus, checkAdminAccess } from "@/lib/api-client";
 import { LAUNCH_CORE_ONLY, LAUNCH_CORE_HREFS, INBOUND_ENABLED } from "@/lib/launch-flags";
 import { useOrderDirection } from "@/hooks/useOrderDirection";
 import { useQueriesEnabled } from "@/hooks/useQueriesEnabled";
@@ -65,8 +65,10 @@ const NAV: Array<{ group?: string; items: NavItem[] }> = [
   },
   {
     items: [
-      // Admin is always rendered. The /admin page itself refuses non-admins
-      // (the backend allowlist returns 403), so showing the link leaks nothing.
+      // Admin is shown only to allowlisted users (buildVisibleNav filters it via
+      // the /api/admin/access probe). Even if shown, the page + every /api/admin
+      // endpoint re-gate server-side (403), so the link never leaks access — the
+      // probe just spares non-admins a dead end.
       { label: "Admin", href: "/admin", icon: ShieldHalf },
       // Help lives in the marketing layout (no app shell). Open it in a new tab
       // so the user doesn't lose the app shell mid-task.
@@ -80,7 +82,10 @@ const NAV: Array<{ group?: string; items: NavItem[] }> = [
 // group sections. The full nav is restored by setting NEXT_PUBLIC_LAUNCH_FULL_NAV=true.
 // `counterpartyPlural` relabels the "Suppliers" entry to "Customers" in inbound
 // mode (DISPLAY ONLY — the route stays /library/suppliers).
-function buildVisibleNav(counterpartyPlural: string): Array<{ group?: string; items: NavItem[] }> {
+function buildVisibleNav(
+  counterpartyPlural: string,
+  isAdmin: boolean,
+): Array<{ group?: string; items: NavItem[] }> {
   // Inbound (Invoices/ASNs) stays hidden unless its OWN flag is set — revealing
   // the full nav (NEXT_PUBLIC_LAUNCH_FULL_NAV=true) must NOT surface it, since
   // it isn't part of the outbound-PO product we sell today. Routes still resolve
@@ -88,18 +93,26 @@ function buildVisibleNav(counterpartyPlural: string): Array<{ group?: string; it
   const scoped = INBOUND_ENABLED ? NAV : NAV.filter((section) => section.group !== "Inbound");
   const relabelled = scoped.map((section) => ({
     ...section,
-    items: section.items.map((item) =>
-      item.href === "/library/suppliers" ? { ...item, label: counterpartyPlural } : item,
-    ),
+    items: section.items
+      // Hide the Admin link unless the server confirmed this user is on the
+      // admin allowlist. This is UX only — the /admin page and every /api/admin
+      // endpoint independently enforce the gate, so hiding the link removes a
+      // dead end for non-admins without weakening security. Default-hidden while
+      // the probe resolves: a real admin sees it appear; a non-admin never does.
+      .filter((item) => item.href !== "/admin" || isAdmin)
+      .map((item) =>
+        item.href === "/library/suppliers" ? { ...item, label: counterpartyPlural } : item,
+      ),
   }));
-  return LAUNCH_CORE_ONLY
-    ? relabelled
-        .map((section) => ({
-          ...section,
-          items: section.items.filter((item) => LAUNCH_CORE_HREFS.has(item.href)),
-        }))
-        .filter((section) => section.items.length > 0)
+  const core = LAUNCH_CORE_ONLY
+    ? relabelled.map((section) => ({
+        ...section,
+        items: section.items.filter((item) => LAUNCH_CORE_HREFS.has(item.href)),
+      }))
     : relabelled;
+  // Drop any section left empty by the filters above (e.g. a single-item group
+  // whose only entry was filtered out).
+  return core.filter((section) => section.items.length > 0);
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -138,7 +151,19 @@ export function BridgeSidebar({
   const queryEnabled = useQueriesEnabled();
   // Direction-aware nav: "Suppliers" → "Customers" in inbound mode (route unchanged).
   const { labels } = useOrderDirection();
-  const VISIBLE_NAV = useMemo(() => buildVisibleNav(labels.counterpartyPlural), [labels.counterpartyPlural]);
+  // Admin-link visibility probe (UX hint only; the page + API re-gate server-side).
+  const { data: adminAccess } = useQuery({
+    queryKey: ["admin-access"],
+    queryFn: checkAdminAccess,
+    enabled: queryEnabled,
+    staleTime: 300_000,
+    retry: false,
+  });
+  const isAdmin = adminAccess === true;
+  const VISIBLE_NAV = useMemo(
+    () => buildVisibleNav(labels.counterpartyPlural, isAdmin),
+    [labels.counterpartyPlural, isAdmin],
+  );
 
   // Live billing plan for workspace switcher display.
   const { data: billing } = useQuery({
