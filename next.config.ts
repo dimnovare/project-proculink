@@ -24,6 +24,11 @@ const nextConfig: NextConfig = {
             key: "Permissions-Policy",
             value: "camera=(), microphone=(), geolocation=(), browsing-topics=()",
           },
+          // Anti-clickjacking via CSP — the modern equivalent of the
+          // X-Frame-Options above, kept in sync with it (same-origin only).
+          // A full script/style/connect CSP stays deferred (needs careful
+          // testing against Clerk/Stripe/PostHog/Sentry).
+          { key: "Content-Security-Policy", value: "frame-ancestors 'self'" },
         ],
       },
     ];

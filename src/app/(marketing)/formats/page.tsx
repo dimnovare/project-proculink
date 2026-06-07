@@ -5,6 +5,13 @@ export const metadata: Metadata = {
   title: "Formats & methods — ProcuLink",
   description:
     "Every way ProcuLink can import and deliver purchase orders, and every format it reads and produces — each tagged Supported, Configurable, On request, or Planned. Don't see yours? We likely support it or can add it.",
+  alternates: { canonical: "/formats" },
+  openGraph: {
+    title: "Formats & methods — ProcuLink",
+    description:
+      "Every import/delivery method and every PO format ProcuLink reads and produces — honestly tagged Supported / Configurable / On request / Planned.",
+    url: "/formats",
+  },
 };
 
 // ── Status vocabulary ──────────────────────────────────────────────────────────

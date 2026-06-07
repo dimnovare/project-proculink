@@ -1,5 +1,19 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import AnimatedPipelinePanel from "./AnimatedPipelinePanel";
+
+export const metadata: Metadata = {
+  title: "How it works — ProcuLink",
+  description:
+    "Parse, normalize, validate, review, transform, and deliver purchase orders — from any format to each supplier's required format and channel. See the pipeline step by step.",
+  alternates: { canonical: "/how-it-works" },
+  openGraph: {
+    title: "How it works — ProcuLink",
+    description:
+      "From any order format to each supplier's required format and channel — the ProcuLink pipeline, step by step.",
+    url: "/how-it-works",
+  },
+};
 
 // ─── Palette (sampled pixel-exact from the 2026-05-30 design render) ──────────
 // The page follows a buyer → supplier topology:

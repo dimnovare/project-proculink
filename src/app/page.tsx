@@ -180,9 +180,9 @@ const FEATURES: Array<{
 ];
 
 const STATS = [
-  { value: "4+",     label: "Inbound formats"    },
-  { value: "5+",     label: "Outbound formats"   },
-  { value: "4",      label: "Delivery channels"  },
+  { value: "9",      label: "Inbound formats"    },
+  { value: "6",      label: "Outbound formats"   },
+  { value: "6",      label: "Delivery channels"  },
   { value: "EU",     label: "Data residency"     },
 ];
 
