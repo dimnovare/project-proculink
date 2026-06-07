@@ -265,8 +265,12 @@ export default function OperationsHealthPage() {
               </table>
             </div>
 
-            {/* Mobile list — MobileListRow per dead-letter order */}
-            <div className="md:hidden" style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            {/* Mobile list — MobileListRow per dead-letter order.
+                Layout via Tailwind (flex/flex-col/gap-3) NOT inline style: an inline
+                `display:flex` would override `md:hidden`'s `display:none` at md+ (inline
+                styles beat stylesheet media-query rules), rendering both the cards AND
+                the desktop table on desktop. gap-3 = 12px, matching the prior value. */}
+            <div className="flex flex-col gap-3 md:hidden">
               {deadLetters.map((o) => (
                 <MobileListRow key={o.orderId}>
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
