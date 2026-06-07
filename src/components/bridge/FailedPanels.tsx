@@ -29,7 +29,7 @@ const T = {
 const SRC_META: Record<string, { bg: string; color: string; label: string }> = {
   pdf:   { bg: "#FEE2E2", color: "#B91C1C", label: "PDF"   },
   csv:   { bg: "#DBEAFE", color: "#1D4ED8", label: "CSV"   },
-  xlsx:  { bg: "#DCFCE7", color: "#15803D", label: "XLSX"  },
+  xlsx:  { bg: "#E2F1E2", color: "#15803D", label: "XLSX"  },
   cxml:  { bg: "#CCFBF1", color: "#0F766E", label: "cXML"  },
   edi:   { bg: "#FEF3C7", color: "#B45309", label: "EDI"   },
   ubl:   { bg: "#CCFBF1", color: "#0F766E", label: "UBL"   },

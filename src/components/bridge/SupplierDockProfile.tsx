@@ -279,7 +279,7 @@ function AcceptanceTab({ supplierId }: { supplierId: string }) {
       {saveNotice && (
         <div
           className="rounded-[7px] px-3 py-2 text-[12.5px]"
-          style={{ background: "#ECFDF3", border: "1px solid #A6E9BE", color: "#1DAF50" }}
+          style={{ background: "#ECFDF3", border: "1px solid #A6E9BE", color: "#1E6D29" }}
         >
           {saveNotice}
         </div>

@@ -21,7 +21,7 @@ export function CanonicalSpine({ children, className }: SpineProps) {
       <div
         aria-hidden
         className="absolute top-0 bottom-0 w-spine rounded-sm"
-        style={{ left: 22, background: "linear-gradient(180deg,#1DAF50,#28C55E)" }}
+        style={{ left: 22, background: "linear-gradient(180deg,#1E6D29,#2E8E3A)" }}
       />
       {children}
     </div>
@@ -69,7 +69,7 @@ export function SpineNode(props: SpineNodeProps) {
   const isErr  = confidence < 75;
 
   const conf =
-    confidence >= 90 ? { bg: "#DCFCE7", fg: "#1DAF50" } :
+    confidence >= 90 ? { bg: "#E2F1E2", fg: "#1E6D29" } :
     confidence >= 75 ? { bg: "#FAEFD6", fg: "#C97A14" } :
                        { bg: "#FBE3E3", fg: "#C53A3A" };
 
@@ -87,15 +87,15 @@ export function SpineNode(props: SpineNodeProps) {
       <div
         aria-hidden
         className="absolute top-3.5 w-[13px] h-[13px] rounded-full bg-white border-[2.5px] z-base"
-        style={{ left: 17, borderColor: "#28C55E" }}
+        style={{ left: 17, borderColor: "#2E8E3A" }}
       />
 
       {/* Connector stubs */}
       <svg width="14" height="34" viewBox="0 0 14 34" aria-hidden className="absolute" style={{ left: -14, top: 8 }}>
-        <path d="M 0 17 Q 7 17 14 17" stroke="#1DAF50" strokeWidth="1" strokeDasharray="2 2" fill="none"/>
+        <path d="M 0 17 Q 7 17 14 17" stroke="#1E6D29" strokeWidth="1" strokeDasharray="2 2" fill="none"/>
       </svg>
       <svg width="14" height="34" viewBox="0 0 14 34" aria-hidden className="absolute" style={{ right: -14, top: 8 }}>
-        <path d="M 0 17 Q 7 17 14 17" stroke="#28C55E" strokeWidth="1" strokeDasharray="2 2" fill="none"/>
+        <path d="M 0 17 Q 7 17 14 17" stroke="#2E8E3A" strokeWidth="1" strokeDasharray="2 2" fill="none"/>
       </svg>
 
       <div
@@ -106,8 +106,8 @@ export function SpineNode(props: SpineNodeProps) {
       >
         {/* Header row */}
         <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-[0.05em] font-semibold text-ink-faint mb-1">
-          {tone === "buyer"    && <span className="w-[5px] h-[5px] rounded-sm" style={{ background: "#28C55E" }}/>}
-          {tone === "supplier" && <span className="w-[5px] h-[5px] rounded-sm" style={{ background: "#28C55E" }}/>}
+          {tone === "buyer"    && <span className="w-[5px] h-[5px] rounded-sm" style={{ background: "#2E8E3A" }}/>}
+          {tone === "supplier" && <span className="w-[5px] h-[5px] rounded-sm" style={{ background: "#2E8E3A" }}/>}
           <span>{label}</span>
           <span className="ml-auto font-mono text-[9.5px] font-bold px-1 py-px rounded-sm" style={{ background: conf.bg, color: conf.fg }}>
             {confidence}%
@@ -150,7 +150,7 @@ export function SpineNode(props: SpineNodeProps) {
                     sn.err ? "text-danger" :
                     sn.ai  ? "text-ai"     : "",
                   ].join(" ")}
-                  style={!sn.err && !sn.ai ? { color: "#1DAF50" } : undefined}
+                  style={!sn.err && !sn.ai ? { color: "#1E6D29" } : undefined}
                 >
                   {sn.sku}
                 </span>
@@ -170,11 +170,11 @@ export function SpineNode(props: SpineNodeProps) {
 
         {/* Footer: source → output mapping refs (inside the card) */}
         <div className="mt-2 pt-1.5 border-t border-dashed border-border flex items-center gap-1.5 text-[9.5px] font-mono font-semibold leading-tight">
-          <span title={srcRef} className="overflow-hidden text-ellipsis whitespace-nowrap max-w-[45%]" style={{ color: "#1DAF50" }}>
+          <span title={srcRef} className="overflow-hidden text-ellipsis whitespace-nowrap max-w-[45%]" style={{ color: "#1E6D29" }}>
             ← {srcRef}
           </span>
           <span className="text-ink-faint shrink-0">→</span>
-          <span title={outRef} className="overflow-hidden text-ellipsis whitespace-nowrap flex-1 text-right" style={{ color: "#1DAF50" }}>
+          <span title={outRef} className="overflow-hidden text-ellipsis whitespace-nowrap flex-1 text-right" style={{ color: "#1E6D29" }}>
             {outRef}
           </span>
         </div>

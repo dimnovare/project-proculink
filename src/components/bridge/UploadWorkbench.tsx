@@ -62,7 +62,7 @@ const STATUS_PILL: Record<RecentStatus, { bg: string; color: string; label: stri
   done:       { bg: "#E2F1E2", color: "#1E6D29", label: "Delivered"  },
   failed:     { bg: "#FBE3E3", color: "#C53A3A", label: "Failed"     },
   review:     { bg: "#FAEFD6", color: "#9A5F0A", label: "Needs review" },
-  ready:      { bg: "#DCFCE7", color: "#1DAF50", label: "Ready"      },
+  ready:      { bg: "#E2F1E2", color: "#1E6D29", label: "Ready"      },
   draft:      { bg: "#EFF2F7", color: "#56627A", label: "Draft"      },
 };
 
@@ -797,7 +797,7 @@ export function UploadWorkbench() {
                               flexShrink: 0,
                               background:
                                 detection.confidence >= 0.8
-                                  ? "#1DAF50"
+                                  ? "#1E6D29"
                                   : detection.confidence >= 0.5
                                   ? "#C97A14"
                                   : "#8A93A5",
@@ -849,9 +849,9 @@ export function UploadWorkbench() {
                               fontSize: 11.5,
                               padding: "4px 9px",
                               borderRadius: 99,
-                              background: "#DCFCE7",
+                              background: "#E2F1E2",
                               border: "1px solid #A6E9BC",
-                              color: "#1DAF50",
+                              color: "#1E6D29",
                               fontWeight: 600,
                               userSelect: "none",
                             }}
@@ -859,7 +859,7 @@ export function UploadWorkbench() {
                             <svg width="11" height="11" viewBox="0 0 12 12" fill="none" aria-hidden="true">
                               <path
                                 d="M2.5 6.2l2.2 2.2 4.8-5"
-                                stroke="#1DAF50"
+                                stroke="#1E6D29"
                                 strokeWidth="1.6"
                                 strokeLinecap="round"
                                 strokeLinejoin="round"
@@ -900,7 +900,7 @@ export function UploadWorkbench() {
                 <Link
                   href="/inbox"
                   className="text-[12px] font-medium"
-                  style={{ color: "#1DAF50" }}
+                  style={{ color: "#1E6D29" }}
                 >
                   View all ↗
                 </Link>
@@ -946,8 +946,8 @@ export function UploadWorkbench() {
                         <span className="truncate" style={{ color: "#2E8E3A" }}>
                           {row.buyer}
                         </span>
-                        <span className="h-px w-5" style={{ background: "linear-gradient(90deg, #2E8E3A, #1DAF50)" }} />
-                        <span className="truncate text-right" style={{ color: "#1DAF50" }}>
+                        <span className="h-px w-5" style={{ background: "linear-gradient(90deg, #2E8E3A, #1E6D29)" }} />
+                        <span className="truncate text-right" style={{ color: "#1E6D29" }}>
                           {row.supplier}
                         </span>
                       </div>
@@ -1020,7 +1020,7 @@ export function UploadWorkbench() {
                             </span>
                             <span
                               className="text-[12px]"
-                              style={{ color: "#1DAF50" }}
+                              style={{ color: "#1E6D29" }}
                             >
                               {row.supplier}
                             </span>
@@ -1081,7 +1081,7 @@ export function UploadWorkbench() {
                       <span className="text-[11px] font-semibold uppercase tracking-[0.06em]" style={{ color: "#56627A" }}>
                         {billing.plan} plan
                       </span>
-                      <span className="rounded px-2 py-0.5 text-[10.5px] font-semibold" style={{ background: isReadOnly ? "#FAEFD6" : "#DCFCE7", color: isReadOnly ? "#9A5F0A" : "#1DAF50" }}>
+                      <span className="rounded px-2 py-0.5 text-[10.5px] font-semibold" style={{ background: isReadOnly ? "#FAEFD6" : "#E2F1E2", color: isReadOnly ? "#9A5F0A" : "#1E6D29" }}>
                         {isReadOnly ? "Processing paused" : "Ready"}
                       </span>
                     </div>
@@ -1135,7 +1135,7 @@ export function UploadWorkbench() {
                       flex: 1,
                       height: 1,
                       background:
-                        "linear-gradient(90deg, #E2E6EE 0%, rgba(40,197,94,0.5) 100%)",
+                        "linear-gradient(90deg, #E2E6EE 0%, rgba(46,142,58,0.5) 100%)",
                     }}
                   />
                   <span
@@ -1149,7 +1149,7 @@ export function UploadWorkbench() {
                       flex: 1,
                       height: 1,
                       background:
-                        "linear-gradient(90deg, rgba(40,197,94,0.5) 0%, #E2E6EE 100%)",
+                        "linear-gradient(90deg, rgba(46,142,58,0.5) 0%, #E2E6EE 100%)",
                     }}
                   />
                 </div>
@@ -1184,7 +1184,7 @@ export function UploadWorkbench() {
                       style={{ border: "1px solid #E2E6EE", background: "#F6F7FA", color: "#56627A" }}
                     >
                       No {labels.counterpartyPlural.toLowerCase()} yet.{" "}
-                      <Link href="/library/suppliers" className="font-medium underline" style={{ color: "#1DAF50" }}>
+                      <Link href="/library/suppliers" className="font-medium underline" style={{ color: "#1E6D29" }}>
                         Add a {labels.counterpartyNoun.toLowerCase()}
                       </Link>{" "}
                       before uploading.
@@ -1256,7 +1256,7 @@ export function UploadWorkbench() {
                               height: 3,
                               borderRadius: 99,
                               width: "100%",
-                              background: done    ? "#1DAF50"
+                              background: done    ? "#1E6D29"
                                         : active  ? "#2E8E3A"
                                         : "#E2E6EE",
                               transition: "background 0.3s",
@@ -1276,7 +1276,7 @@ export function UploadWorkbench() {
                               fontSize: 9.5,
                               fontWeight: 600,
                               letterSpacing: "0.04em",
-                              color: done ? "#1DAF50" : active ? "#2E8E3A" : "#C6CDDA",
+                              color: done ? "#1E6D29" : active ? "#2E8E3A" : "#C6CDDA",
                               transition: "color 0.2s",
                             }}>
                               {done ? "✓ " : ""}{stage}
@@ -1297,10 +1297,10 @@ export function UploadWorkbench() {
                   style={{
                     background: isUploadDisabled
                       ? "#E2E6EE"
-                      : "linear-gradient(90deg, #2E8E3A 0%, #1DAF50 100%)",
+                      : "linear-gradient(90deg, #2E8E3A 0%, #1E6D29 100%)",
                     color: isUploadDisabled ? "#8A93A5" : "#FFFFFF",
                     border: "none",
-                    boxShadow: isUploadDisabled ? "none" : "0 2px 8px rgba(40,197,94,0.25)",
+                    boxShadow: isUploadDisabled ? "none" : "0 2px 8px rgba(46,142,58,0.25)",
                     cursor: isUploadDisabled ? "not-allowed" : "pointer",
                   }}
                 >
@@ -1340,7 +1340,7 @@ export function UploadWorkbench() {
 function UsageLine({ label, used, limit }: { label: string; used: number; limit: number }) {
   const unlimited = limit >= 2_000_000_000;
   const pct = unlimited || limit === 0 ? 100 : Math.min(100, Math.round((used / limit) * 100));
-  const color = unlimited || pct < 75 ? "#1DAF50" : pct < 95 ? "#C97A14" : "#C53A3A";
+  const color = unlimited || pct < 75 ? "#1E6D29" : pct < 95 ? "#C97A14" : "#C53A3A";
 
   return (
     <div className="mt-2">

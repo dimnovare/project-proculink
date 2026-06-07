@@ -29,9 +29,9 @@ import { StandardsFieldPopover } from "./StandardsFieldPopover";
 
 // ─── Design tokens ────────────────────────────────────────────────────────────
 const NAVY       = "#0B1A2F";
-const BLUE       = "#28C55E";
-const BLUE_DEEP  = "#1DAF50";
-const BLUE_SOFT  = "#DCFCE7";
+const BLUE       = "#2E8E3A";
+const BLUE_DEEP  = "#1E6D29";
+const BLUE_SOFT  = "#E2F1E2";
 const GREEN      = "#2E8E3A";
 const GREEN_DEEP = "#1E6D29";
 const GREEN_SOFT = "#E2F1E2";

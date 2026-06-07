@@ -42,7 +42,7 @@ function humanStatus(status: OrderStatus): string {
 function orderColor(status: OrderStatus): string {
   if (status === "pending_review" || status === "delivery_failed") return "#C97A14";
   if (status === "delivered") return "#2E8E3A";
-  return "#28C55E";
+  return "#2E8E3A";
 }
 
 function buildIndex(
@@ -332,7 +332,7 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
                       cursor: "pointer",
                       textAlign: "left",
                       outline: "none",
-                      borderLeft: isActive ? "2px solid #28C55E" : "2px solid transparent",
+                      borderLeft: isActive ? "2px solid #2E8E3A" : "2px solid transparent",
                       transition: "background 0.1s",
                     }}
                   >
@@ -342,12 +342,12 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
                         width: 28,
                         height: 28,
                         borderRadius: 7,
-                        background: `${item.color ?? "#28C55E"}18`,
+                        background: `${item.color ?? "#2E8E3A"}18`,
                         display: "flex",
                         alignItems: "center",
                         justifyContent: "center",
                         fontSize: 13,
-                        color: item.color ?? "#28C55E",
+                        color: item.color ?? "#2E8E3A",
                         flexShrink: 0,
                       }}
                     >
