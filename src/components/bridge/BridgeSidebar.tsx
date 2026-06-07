@@ -9,7 +9,7 @@ import {
   Layers, Upload, Inbox, Truck, Building2, GitBranch,
   ShieldCheck, FileCode, BookOpen, FileText, Package, ScrollText,
   Plug, Webhook, Settings, ChevronsLeft, ChevronsRight, ExternalLink,
-  Files, HelpCircle, X, ShieldHalf, AlertTriangle, Activity,
+  Files, HelpCircle, X, ShieldHalf, AlertTriangle, Activity, MessageCircle,
   type LucideIcon,
 } from "lucide-react";
 import { apiClient, getBillingStatus, checkAdminAccess } from "@/lib/api-client";
@@ -326,20 +326,33 @@ export function BridgeSidebar({
         ))}
       </nav>
 
-      {/* ── Footer — back to site ─────────────────────────────────────
+      {/* ── Footer — talk to a human + back to site ───────────────────
           The old "Pipeline healthy · 12/min" line was a hardcoded literal, not
           real telemetry, so it was removed (offer↔works). Live system status
-          now has its own nav entry (Operations → System health). */}
+          now has its own nav entry (Operations → System health).
+          "Talk to a human" is a mailto so it always works regardless of the
+          support-form SMTP state — the ICP is high-touch (audit "reach a human"). */}
       <div
-        className={`flex items-center ${isCollapsed ? "justify-center" : "gap-2"}`}
-        style={{ borderTop: "1px solid #1C2F49", flexShrink: 0, padding: "12px 18px" }}
-        title={isCollapsed ? "Back to site" : undefined}
+        className={`flex flex-col ${isCollapsed ? "items-center" : ""}`}
+        style={{ borderTop: "1px solid #1C2F49", flexShrink: 0, padding: "10px 18px", gap: 4 }}
       >
+        <a
+          href="mailto:sales@proculink.eu?subject=ProcuLink%20support"
+          title="Talk to a human"
+          aria-label="Talk to a human — email support"
+          className={`flex items-center text-[11.5px] ${isCollapsed ? "justify-center w-[44px] h-[28px]" : "gap-2"}`}
+          style={{ color: "#9DB0CC" }}
+          onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = "#FFFFFF"; }}
+          onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = "#9DB0CC"; }}
+        >
+          <MessageCircle size={13} className="flex-shrink-0" />
+          {!isCollapsed && <span className="flex-1">Talk to a human</span>}
+        </a>
         <Link
           href="/"
           title="Back to site"
           aria-label="Back to site"
-          className={`flex items-center text-[11.5px] ${isCollapsed ? "justify-center" : "gap-2 flex-1"}`}
+          className={`flex items-center text-[11.5px] ${isCollapsed ? "justify-center w-[44px] h-[28px]" : "gap-2"}`}
           style={{ color: "#7C8DA6" }}
         >
           <ExternalLink size={13} className="flex-shrink-0" />
