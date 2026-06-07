@@ -2,6 +2,8 @@
 
 // §5.9 Connectors — icon-card grid matching canonical ConnectorsScreen
 import { EmptyState } from "@/components/bridge/EmptyState";
+import { PageShell } from "@/components/bridge/layout/PageShell";
+import { PageHeader } from "@/components/bridge/layout/PageHeader";
 import Link from "next/link";
 import { useState, type ReactNode } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -267,19 +269,11 @@ export default function ConnectorsPage() {
 
   return (
     <>
-      {/* Responsive grid + padding breakpoints as a style tag (avoids needing global .g-3) */}
+      {/* Responsive grid breakpoints (PageShell owns the page gutter) */}
       <style>{`
         .connectors-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 16px; }
         @media (max-width: 1100px) { .connectors-grid { grid-template-columns: 1fr 1fr; } }
         @media (max-width: 640px)  { .connectors-grid { grid-template-columns: 1fr; } }
-
-        /* Page gutters: roomy on desktop, tighter on phones (390px → ~16px) */
-        .connectors-header { padding: 26px 34px 0; }
-        .connectors-content { padding: 0 34px 64px; }
-        @media (max-width: 640px) {
-          .connectors-header  { padding: 20px 16px 0; }
-          .connectors-content { padding: 0 16px 56px; }
-        }
 
         /* Footer actions: keep the desktop visual height but guarantee a >=40px
            touch target on phones via padding (the visible chrome is unchanged). */
@@ -291,45 +285,11 @@ export default function ConnectorsPage() {
         @keyframes skel-pulse { 0%,100%{opacity:1;} 50%{opacity:0.5;} }
       `}</style>
 
-      <div style={{ background: "var(--bg,#F6F7FA)", display: "flex", flexDirection: "column", minHeight: "100%" }}>
-        {/* Page header */}
-        <div
-          className="connectors-header"
-          style={{
-            maxWidth: 1480,
-            margin: "0 auto",
-            width: "100%",
-          }}
-        >
-          <div
-            style={{
-              display: "flex",
-              alignItems: "flex-start",
-              justifyContent: "space-between",
-              gap: "16px 24px",
-              marginBottom: 22,
-              flexWrap: "wrap",
-            }}
-          >
-            <div>
-              <h1
-                style={{
-                  fontFamily: "var(--font-display,'Bricolage Grotesque',Inter,sans-serif)",
-                  fontSize: 30,
-                  fontWeight: 600,
-                  letterSpacing: "-0.025em",
-                  lineHeight: 1.1,
-                  margin: 0,
-                  color: "var(--ink,#0B1A2F)",
-                  whiteSpace: "nowrap",
-                }}
-              >
-                Connectors
-              </h1>
-              <div style={{ color: "var(--ink-muted,#56627A)", fontSize: 13, marginTop: 5 }}>
-                ERP and channel integrations · {connectedCount} connected
-              </div>
-            </div>
+      <PageShell variant="wide">
+        <PageHeader
+          title="Connectors"
+          sub={`ERP and channel integrations · ${connectedCount} connected`}
+          actions={
             <button
               className="connectors-addbtn"
               onClick={() => {
@@ -345,8 +305,8 @@ export default function ConnectorsPage() {
                 padding: "0 14px",
                 borderRadius: "var(--radius,6px)",
                 border: "1px solid transparent",
-                // Primary header CTA = buyer-blue (#1E66C9), matching the design target render.
-                background: "#1E66C9",
+                // In-app primary CTA = brand-green per the unified design system (in-app primary = green).
+                background: "var(--brand-green,#2E8E3A)",
                 color: "#fff",
                 fontSize: 12.5,
                 fontWeight: 600,
@@ -357,78 +317,75 @@ export default function ConnectorsPage() {
               <PlusIcon size={15} />
               Add connector
             </button>
+          }
+        />
+
+        {/* Notice */}
+        {notice && (
+          <div
+            style={{
+              marginBottom: 16,
+              borderRadius: "var(--radius-md,8px)",
+              padding: "10px 14px",
+              fontSize: 12.5,
+              border: "1px solid var(--border,#E2E6EE)",
+              borderLeft: "3px solid var(--brand-green,#2E8E3A)",
+              background: "var(--brand-green-soft,#E2F1E2)",
+              color: "var(--brand-green-deep,#1E6D29)",
+            }}
+          >
+            {notice}
           </div>
-        </div>
+        )}
 
-        {/* Content area */}
-        <div className="connectors-content" style={{ flex: 1, maxWidth: 1480, margin: "0 auto", width: "100%" }}>
-          {/* Notice */}
-          {notice && (
-            <div
-              style={{
-                marginBottom: 16,
-                borderRadius: "var(--radius-md,8px)",
-                padding: "10px 14px",
-                fontSize: 12.5,
-                border: "1px solid var(--border,#E2E6EE)",
-                borderLeft: "3px solid var(--brand-green,#2E8E3A)",
-                background: "var(--brand-green-soft,#E2F1E2)",
-                color: "var(--brand-green-deep,#1E6D29)",
-              }}
+        {/* Error state */}
+        {isError && !isApiMockMode && (
+          <div
+            style={{
+              marginBottom: 16,
+              borderRadius: "var(--radius-md,8px)",
+              padding: "10px 14px",
+              fontSize: 12.5,
+              border: "1px solid #F5B8B8",
+              borderLeft: "3px solid var(--danger,#C53A3A)",
+              background: "var(--danger-soft,#FBE3E3)",
+              color: "#7B1C1C",
+            }}
+          >
+            Failed to load connectors.{" "}
+            <button
+              onClick={() => queryClient.invalidateQueries({ queryKey: ["suppliers"] })}
+              style={{ textDecoration: "underline", fontWeight: 600, background: "none", border: "none", cursor: "pointer", color: "inherit", fontSize: "inherit" }}
             >
-              {notice}
-            </div>
-          )}
+              Retry
+            </button>
+          </div>
+        )}
 
-          {/* Error state */}
-          {isError && !isApiMockMode && (
-            <div
-              style={{
-                marginBottom: 16,
-                borderRadius: "var(--radius-md,8px)",
-                padding: "10px 14px",
-                fontSize: 12.5,
-                border: "1px solid #F5B8B8",
-                borderLeft: "3px solid var(--danger,#C53A3A)",
-                background: "var(--danger-soft,#FBE3E3)",
-                color: "#7B1C1C",
-              }}
-            >
-              Failed to load connectors.{" "}
-              <button
-                onClick={() => queryClient.invalidateQueries({ queryKey: ["suppliers"] })}
-                style={{ textDecoration: "underline", fontWeight: 600, background: "none", border: "none", cursor: "pointer", color: "inherit", fontSize: "inherit" }}
-              >
-                Retry
-              </button>
-            </div>
-          )}
-
-          {/* Loading skeleton grid */}
-          {isLoading && !isApiMockMode ? (
-            <div className="connectors-grid">
-              {[1, 2, 3].map((k) => <SkeletonConnectorCard key={k} />)}
-            </div>
-          ) : connectors.length === 0 ? (
-            <EmptyState
-              title="No connectors configured"
-              sub="Add a connector to start routing purchase orders to suppliers via API, SFTP, email, ERP, or cXML PunchOut."
-              action={{ label: "Add connector", onClick: () => setSelected({ id: "new", type: "API (REST)", name: "", status: "available", desc: "", docks: 0, direction: "out" }) }}
-            />
-          ) : (
-            /* Connector card grid */
-            <div className="connectors-grid">
-              {connectors.map((c) => (
-                <ConnectorCard
-                  key={c.id}
-                  connector={c}
-                  onManage={handleManage}
-                />
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
+        {/* Loading skeleton grid */}
+        {isLoading && !isApiMockMode ? (
+          <div className="connectors-grid">
+            {[1, 2, 3].map((k) => <SkeletonConnectorCard key={k} />)}
+          </div>
+        ) : connectors.length === 0 ? (
+          <EmptyState
+            title="No connectors configured"
+            sub="Add a connector to start routing purchase orders to suppliers via API, SFTP, email, ERP, or cXML PunchOut."
+            action={{ label: "Add connector", onClick: () => setSelected({ id: "new", type: "API (REST)", name: "", status: "available", desc: "", docks: 0, direction: "out" }) }}
+          />
+        ) : (
+          /* Connector card grid */
+          <div className="connectors-grid">
+            {connectors.map((c) => (
+              <ConnectorCard
+                key={c.id}
+                connector={c}
+                onManage={handleManage}
+              />
+            ))}
+          </div>
+        )}
+      </PageShell>
 
       {/* Panel */}
       {selected && (
@@ -544,7 +501,7 @@ function ConnectorPanel({
             style={{
               borderRadius: "var(--radius-md,8px)",
               border: "1px solid var(--border,#E2E6EE)",
-              borderLeft: "3px solid #1E66C9",
+              borderLeft: "3px solid var(--brand-blue,#1E66C9)",
               background: "var(--surface-2,#EFF2F7)",
               color: "var(--ink-muted,#56627A)",
               padding: "12px 14px",
@@ -662,6 +619,7 @@ function ConnectorPanel({
             Cancel
           </button>
           <button
+            className="connector-action"
             onClick={handleTestFire}
             disabled={firing}
             style={{ height: 32, padding: "0 14px", borderRadius: "var(--radius,6px)", border: "1px solid var(--brand-green-soft,#E2F1E2)", background: "var(--surface,#FFFFFF)", color: firing ? "var(--ink-faint,#8A93A5)" : "var(--brand-green-deep,#1E6D29)", fontSize: 12.5, fontWeight: 600, cursor: firing ? "default" : "pointer" }}
@@ -671,7 +629,7 @@ function ConnectorPanel({
           <Link
             href={isNew || connector.id === "new" ? "/library/suppliers" : `/library/suppliers/${connector.id}`}
             onClick={onClose}
-            style={{ height: 32, padding: "0 14px", borderRadius: "var(--radius,6px)", border: "1px solid transparent", background: "#1E66C9", color: "#FFFFFF", fontSize: 12.5, fontWeight: 600, cursor: "pointer", display: "inline-flex", alignItems: "center", textDecoration: "none" }}
+            style={{ height: 32, padding: "0 14px", borderRadius: "var(--radius,6px)", border: "1px solid transparent", background: "var(--brand-green,#2E8E3A)", color: "var(--surface,#FFFFFF)", fontSize: 12.5, fontWeight: 600, cursor: "pointer", display: "inline-flex", alignItems: "center", textDecoration: "none" }}
           >
             Open supplier Delivery tab
           </Link>

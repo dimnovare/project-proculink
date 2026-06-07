@@ -6,25 +6,19 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { EmptyState } from "@/components/bridge/EmptyState";
 import { getBuyers, createBuyer, deleteBuyer, isApiMockMode } from "@/lib/api-client";
 import type { BuyerDto } from "@/types/procurement";
+import { PageShell } from "@/components/bridge/layout/PageShell";
+import { PageHeader } from "@/components/bridge/layout/PageHeader";
+import { Card } from "@/components/bridge/layout/Card";
+import { MobileListRow } from "@/components/bridge/layout/MobileListRow";
+import { Button } from "@/components/bridge/DSPrimitives";
 
-// ── Palette — ported verbatim from the design system (tokens.css / globals.css) ─
-// The buyer entity is the PRIMARY / ACTIVE colour across ProcuLink: buyer-blue
-// #1E66C9. The design source's create button is variant="blue", so every
-// primary affordance on this screen (header CTA, create button, focus ring,
-// active row band, icon tile) is blue — NOT the old green.
-const BLUE        = "#1E66C9"; // --brand-blue   · primary / buyer / active
-const BLUE_HOVER  = "#0F4FA8"; // --brand-blue-deep
-const BLUE_SOFT   = "#E3EDFB"; // --brand-blue-soft · tile fill / active row band / focus ring
-// Neutrals (all from the design token set).
-const INK         = "#0B1A2F"; // --ink
-const TEXT_MUTED  = "#56627A"; // --ink-muted · pill text / subtitle
-const TEXT_FAINT  = "#8A93A5"; // --ink-faint · header labels / counts / em-dash
-const CODE_GREY   = "#9196A5"; // buyer short-code
-const BORDER      = "#E2E6EE"; // --border · card border + row dividers
-const BORDER_STRONG = "#C6CDDA"; // --border-strong · input border
-const SURFACE_2   = "#EFF2F7"; // --surface-2 · inbound-channel pill fill
-const CHEVRON     = "#A4ADBD"; // resting chevron
-const DANGER      = "#C53A3A"; // --danger · required asterisk / delete hover
+// Residual constants without a 1:1 design token — kept as literals.
+// CODE_GREY (#9196A5) — buyer short-code mono; no exact token.
+// BORDER_STRONG (#C6CDDA) — input focus border; no exact token.
+// CHEVRON (#A4ADBD) — resting chevron; no exact token.
+const CODE_GREY    = "#9196A5";
+const BORDER_STRONG = "#C6CDDA";
+const CHEVRON      = "#A4ADBD";
 
 const MOCK_BUYERS: BuyerDto[] = [
   { id: "b1", name: "Heinrich Industries GmbH", code: "HEI", orderCount: 1820, lastOrderAge: "2m",  formats: ["PDF", "XLSX"] },
@@ -42,14 +36,14 @@ function BuyerIcon() {
         width: 32,
         height: 32,
         borderRadius: 8,
-        background: BLUE_SOFT,
+        background: "var(--brand-blue-soft)",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
         flexShrink: 0,
       }}
     >
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={BLUE_HOVER} strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--brand-blue-deep)" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
         <rect x="4" y="2" width="16" height="20" rx="1" />
         <path d="M9 22v-4h6v4M8 6h.01M16 6h.01M8 10h.01M16 10h.01M8 14h.01M16 14h.01" />
       </svg>
@@ -64,8 +58,8 @@ function ChannelPill({ label }: { label: string }) {
       className="chip"
       style={{
         // Render the format label verbatim from the backend (CSV/XLSX/PDF/cXML/EDI/XML).
-        color: TEXT_MUTED,
-        background: SURFACE_2,
+        color: "var(--ink-muted)",
+        background: "var(--surface-2)",
         whiteSpace: "nowrap",
       }}
     >
@@ -83,10 +77,10 @@ function SkeletonTrow() {
         // 3 Last order (right), 4 chevron (right).
         const right = i >= 2;
         return (
-          <td key={i} style={{ padding: "14px 18px", borderBottom: `1px solid ${BORDER}`, textAlign: right ? "right" : "left" }}>
+          <td key={i} style={{ padding: "14px 18px", borderBottom: "1px solid var(--border)", textAlign: right ? "right" : "left" }}>
             <div
               className="animate-pulse rounded"
-              style={{ background: SURFACE_2, height: 14, width: w, marginLeft: right ? "auto" : 0 }}
+              style={{ background: "var(--surface-2)", height: 14, width: w, marginLeft: right ? "auto" : 0 }}
             />
           </td>
         );
@@ -97,12 +91,12 @@ function SkeletonTrow() {
 
 function SkeletonCard() {
   return (
-    <div style={{ padding: "16px 16px", borderBottom: `1px solid ${BORDER}` }}>
+    <div style={{ padding: "16px 16px", borderBottom: "1px solid var(--border)" }}>
       <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-        <div className="animate-pulse" style={{ width: 32, height: 32, borderRadius: 8, background: SURFACE_2, flexShrink: 0 }} />
+        <div className="animate-pulse" style={{ width: 32, height: 32, borderRadius: 8, background: "var(--surface-2)", flexShrink: 0 }} />
         <div style={{ flex: 1 }}>
-          <div className="animate-pulse rounded" style={{ background: SURFACE_2, height: 13, width: "60%" }} />
-          <div className="animate-pulse rounded" style={{ background: SURFACE_2, height: 10, width: 48, marginTop: 7 }} />
+          <div className="animate-pulse rounded" style={{ background: "var(--surface-2)", height: 13, width: "60%" }} />
+          <div className="animate-pulse rounded" style={{ background: "var(--surface-2)", height: 10, width: 48, marginTop: 7 }} />
         </div>
       </div>
     </div>
@@ -171,82 +165,29 @@ export default function BuyersPage() {
   const showRows     = (!isLoading || isApiMockMode) && !isError;
 
   return (
-    <div className="mx-auto max-w-[1480px] px-4 pb-16 pt-5 sm:px-6 md:px-[34px] sm:pt-[26px]">
-      {/* Page header */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "flex-start",
-          justifyContent: "space-between",
-          gap: "14px 24px",
-          marginBottom: 22,
-          flexWrap: "wrap",
-        }}
-      >
-        <div>
-          <h1
-            className="text-[26px] sm:text-[30px]"
-            style={{
-              fontFamily: "var(--font-display, 'Bricolage Grotesque', Inter, sans-serif)",
-              fontWeight: 600,
-              letterSpacing: "-0.025em",
-              lineHeight: 1.1,
-              margin: 0,
-              color: INK,
-            }}
+    <PageShell variant="wide">
+      <PageHeader
+        title="Buyers"
+        sub={countLabel}
+        actions={
+          /* New buyer button — primary accent is buyer-blue (design variant="blue") */
+          <Button
+            variant="blue"
+            size="md"
+            onClick={() => { setAddOpen((v) => !v); setAddError(null); }}
           >
-            Buyers
-          </h1>
-          <div style={{ color: TEXT_MUTED, fontSize: 13, marginTop: 5 }}>
-            {countLabel}
-          </div>
-        </div>
-
-        {/* New buyer button — primary accent is buyer-blue (design variant="blue") */}
-        <button
-          onClick={() => { setAddOpen((v) => !v); setAddError(null); }}
-          className="h-9 sm:h-[34px]"
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            justifyContent: "center",
-            gap: 7,
-            padding: "0 16px",
-            borderRadius: 7,
-            fontSize: 12.5,
-            fontWeight: 600,
-            letterSpacing: "-0.005em",
-            background: addOpen ? BLUE_HOVER : BLUE,
-            color: "#FFFFFF",
-            border: "none",
-            cursor: "pointer",
-            boxShadow: addOpen ? "none" : "0 1px 2px rgba(30,102,201,0.30)",
-            transition: "background 150ms",
-            whiteSpace: "nowrap",
-          }}
-          onMouseEnter={(e) => { if (!addOpen) (e.currentTarget as HTMLButtonElement).style.background = BLUE_HOVER; }}
-          onMouseLeave={(e) => { if (!addOpen) (e.currentTarget as HTMLButtonElement).style.background = BLUE; }}
-        >
-          {/* plus icon */}
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M5 12h14M12 5v14" />
-          </svg>
-          {addOpen ? "Cancel" : "New buyer"}
-        </button>
-      </div>
+            {/* plus icon */}
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M5 12h14M12 5v14" />
+            </svg>
+            {addOpen ? "Cancel" : "New buyer"}
+          </Button>
+        }
+      />
 
       {/* Create buyer panel */}
       {addOpen && (
-        <div
-          style={{
-            background: "#FFFFFF",
-            border: `1px solid ${BORDER}`,
-            borderRadius: 10,
-            padding: 18,
-            marginBottom: 18,
-            boxShadow: "0 1px 2px rgba(11,26,47,0.04)",
-          }}
-        >
+        <Card className="mb-[18px]">
           {/* Panel header */}
           <div style={{ marginBottom: 14 }}>
             <div
@@ -254,12 +195,12 @@ export default function BuyersPage() {
                 fontWeight: 600,
                 fontSize: 15,
                 letterSpacing: "-0.01em",
-                color: INK,
+                color: "var(--ink)",
               }}
             >
               New buyer
             </div>
-            <div style={{ color: TEXT_MUTED, fontSize: 12.5 }}>
+            <div style={{ color: "var(--ink-muted)", fontSize: 12.5 }}>
               A buyer that sends you purchase orders
             </div>
           </div>
@@ -272,11 +213,11 @@ export default function BuyersPage() {
                   display: "block",
                   fontSize: 11.5,
                   fontWeight: 600,
-                  color: TEXT_MUTED,
+                  color: "var(--ink-muted)",
                   marginBottom: 6,
                 }}
               >
-                Buyer name <span style={{ color: DANGER, marginLeft: 3 }}>*</span>
+                Buyer name <span style={{ color: "var(--danger)", marginLeft: 3 }}>*</span>
               </label>
               <input
                 className="h-10 sm:h-[34px]"
@@ -285,16 +226,16 @@ export default function BuyersPage() {
                   padding: "0 11px",
                   borderRadius: 6,
                   border: `1px solid ${BORDER_STRONG}`,
-                  background: "#FFFFFF",
+                  background: "var(--surface)",
                   fontSize: 13,
-                  color: INK,
+                  color: "var(--ink)",
                   outline: "none",
                   transition: "border-color 150ms, box-shadow 150ms",
                 }}
                 placeholder="e.g. Heinrich Industries"
                 value={addName}
                 onChange={(e) => setAddName(e.target.value)}
-                onFocus={(e) => { e.currentTarget.style.borderColor = BLUE; e.currentTarget.style.boxShadow = `0 0 0 3px ${BLUE_SOFT}`; }}
+                onFocus={(e) => { e.currentTarget.style.borderColor = "var(--brand-blue)"; e.currentTarget.style.boxShadow = "0 0 0 3px var(--brand-blue-soft)"; }}
                 onBlur={(e) => { e.currentTarget.style.borderColor = BORDER_STRONG; e.currentTarget.style.boxShadow = "none"; }}
                 onKeyDown={(e) => { if (e.key === "Enter") handleSaveAdd(); }}
               />
@@ -307,11 +248,11 @@ export default function BuyersPage() {
                   display: "block",
                   fontSize: 11.5,
                   fontWeight: 600,
-                  color: TEXT_MUTED,
+                  color: "var(--ink-muted)",
                   marginBottom: 6,
                 }}
               >
-                Short code <span style={{ color: DANGER, marginLeft: 3 }}>*</span>
+                Short code <span style={{ color: "var(--danger)", marginLeft: 3 }}>*</span>
               </label>
               <input
                 className="h-10 sm:h-[34px]"
@@ -320,10 +261,10 @@ export default function BuyersPage() {
                   padding: "0 11px",
                   borderRadius: 6,
                   border: `1px solid ${BORDER_STRONG}`,
-                  background: "#FFFFFF",
+                  background: "var(--surface)",
                   fontSize: 13,
                   fontFamily: "var(--font-mono, 'JetBrains Mono', ui-monospace, monospace)",
-                  color: INK,
+                  color: "var(--ink)",
                   outline: "none",
                   transition: "border-color 150ms, box-shadow 150ms",
                 }}
@@ -331,42 +272,28 @@ export default function BuyersPage() {
                 value={addCode}
                 onChange={(e) => setAddCode(e.target.value.toUpperCase())}
                 maxLength={10}
-                onFocus={(e) => { e.currentTarget.style.borderColor = BLUE; e.currentTarget.style.boxShadow = `0 0 0 3px ${BLUE_SOFT}`; }}
+                onFocus={(e) => { e.currentTarget.style.borderColor = "var(--brand-blue)"; e.currentTarget.style.boxShadow = "0 0 0 3px var(--brand-blue-soft)"; }}
                 onBlur={(e) => { e.currentTarget.style.borderColor = BORDER_STRONG; e.currentTarget.style.boxShadow = "none"; }}
                 onKeyDown={(e) => { if (e.key === "Enter") handleSaveAdd(); }}
               />
             </div>
 
-            <button
+            <Button
+              variant="blue"
+              size="md"
               onClick={handleSaveAdd}
               disabled={createMut.isPending}
-              className="h-10 w-full sm:h-[34px] sm:w-auto"
-              style={{
-                padding: "0 16px",
-                borderRadius: 7,
-                fontSize: 12.5,
-                fontWeight: 600,
-                background: BLUE,
-                color: "#FFFFFF",
-                border: "none",
-                cursor: createMut.isPending ? "not-allowed" : "pointer",
-                opacity: createMut.isPending ? 0.6 : 1,
-                transition: "background 150ms",
-                whiteSpace: "nowrap",
-                display: "inline-flex",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: 6,
-              }}
-              onMouseEnter={(e) => { if (!createMut.isPending) (e.currentTarget as HTMLButtonElement).style.background = BLUE_HOVER; }}
-              onMouseLeave={(e) => { if (!createMut.isPending) (e.currentTarget as HTMLButtonElement).style.background = BLUE; }}
+              loading={createMut.isPending}
+              className="w-full sm:w-auto"
             >
               {/* check icon */}
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M20 6 9 17l-5-5" />
-              </svg>
+              {!createMut.isPending && (
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M20 6 9 17l-5-5" />
+                </svg>
+              )}
               {createMut.isPending ? "Creating…" : "Create buyer"}
-            </button>
+            </Button>
           </div>
 
           {/* Intro note — buyer-blue info callout, matching the design's note style */}
@@ -376,8 +303,8 @@ export default function BuyersPage() {
               display: "flex",
               alignItems: "flex-start",
               gap: 8,
-              background: BLUE_SOFT,
-              color: BLUE_HOVER,
+              background: "var(--brand-blue-soft)",
+              color: "var(--brand-blue-deep)",
               borderRadius: 6,
               padding: "10px 12px",
               fontSize: 12,
@@ -391,21 +318,13 @@ export default function BuyersPage() {
           </div>
 
           {addError && (
-            <p style={{ marginTop: 8, fontSize: 12, color: DANGER }}>{addError}</p>
+            <p style={{ marginTop: 8, fontSize: 12, color: "var(--danger)" }}>{addError}</p>
           )}
-        </div>
+        </Card>
       )}
 
       {/* Table card */}
-      <div
-        style={{
-          background: "#FFFFFF",
-          border: `1px solid ${BORDER}`,
-          borderRadius: 10,
-          overflow: "hidden",
-          boxShadow: "0 1px 2px rgba(11,26,47,0.04)",
-        }}
-      >
+      <Card className="overflow-hidden !p-0">
         {/* ── Desktop / tablet: data table (sm and up) ─────────────────── */}
         <table className="hidden sm:table" style={{ width: "100%", borderCollapse: "collapse" }}>
           <colgroup>
@@ -432,9 +351,9 @@ export default function BuyersPage() {
                     fontWeight: 600,
                     letterSpacing: "0.06em",
                     textTransform: "uppercase",
-                    color: TEXT_FAINT,
+                    color: "var(--ink-faint)",
                     padding: "11px 18px",
-                    borderBottom: `1px solid ${BORDER}`,
+                    borderBottom: "1px solid var(--border)",
                     whiteSpace: "nowrap",
                   }}
                 >
@@ -460,12 +379,12 @@ export default function BuyersPage() {
                   colSpan={5}
                   style={{ padding: "32px 16px", textAlign: "center" }}
                 >
-                  <span style={{ fontSize: 13, color: TEXT_MUTED }}>
+                  <span style={{ fontSize: 13, color: "var(--ink-muted)" }}>
                     Failed to load buyers.{" "}
                     <button
                       onClick={() => refetch()}
                       style={{
-                        color: BLUE,
+                        color: "var(--brand-blue)",
                         background: "none",
                         border: "none",
                         cursor: "pointer",
@@ -485,7 +404,7 @@ export default function BuyersPage() {
             {showRows && buyers.map((b, idx) => {
               const isHover = hoverRow === b.id;
               const lastRow = idx === buyers.length - 1;
-              const cellBorder = lastRow ? "none" : `1px solid ${BORDER}`;
+              const cellBorder = lastRow ? "none" : "1px solid var(--border)";
               return (
                 <tr
                   key={b.id}
@@ -494,7 +413,7 @@ export default function BuyersPage() {
                   style={{
                     cursor: "pointer",
                     transition: "background 150ms",
-                    background: isHover ? BLUE_SOFT : "transparent",
+                    background: isHover ? "var(--brand-blue-soft)" : "transparent",
                   }}
                   onMouseEnter={() => setHoverRow(b.id)}
                   onMouseLeave={() => setHoverRow(null)}
@@ -511,7 +430,7 @@ export default function BuyersPage() {
                     <div style={{ display: "flex", alignItems: "center", gap: 13 }}>
                       <BuyerIcon />
                       <div>
-                        <div style={{ fontWeight: 600, fontSize: 13.5, color: INK, letterSpacing: "-0.005em" }}>{b.name}</div>
+                        <div style={{ fontWeight: 600, fontSize: 13.5, color: "var(--ink)", letterSpacing: "-0.005em" }}>{b.name}</div>
                         <div
                           style={{
                             fontSize: 10.5,
@@ -537,7 +456,7 @@ export default function BuyersPage() {
                   >
                     {b.formats.length > 0
                       ? <ChannelPill label={b.formats[0]} />
-                      : <span style={{ fontSize: 12.5, color: TEXT_FAINT }}>—</span>}
+                      : <span style={{ fontSize: 12.5, color: "var(--ink-faint)" }}>—</span>}
                   </td>
 
                   {/* Orders (all time) — real backend count, right-aligned */}
@@ -549,7 +468,7 @@ export default function BuyersPage() {
                       fontFamily: "var(--font-mono, 'JetBrains Mono', ui-monospace, monospace)",
                       fontWeight: 600,
                       fontSize: 15,
-                      color: INK,
+                      color: "var(--ink)",
                       verticalAlign: "middle",
                       letterSpacing: "-0.01em",
                       whiteSpace: "nowrap",
@@ -565,7 +484,7 @@ export default function BuyersPage() {
                       borderBottom: cellBorder,
                       textAlign: "right",
                       fontSize: 12.5,
-                      color: b.lastOrderAge ? TEXT_MUTED : TEXT_FAINT,
+                      color: b.lastOrderAge ? "var(--ink-muted)" : "var(--ink-faint)",
                       verticalAlign: "middle",
                       whiteSpace: "nowrap",
                     }}
@@ -595,9 +514,9 @@ export default function BuyersPage() {
                           width: 24,
                           height: 24,
                           borderRadius: 5,
-                          border: `1px solid ${BORDER}`,
-                          background: "#FFFFFF",
-                          color: TEXT_FAINT,
+                          border: "1px solid var(--border)",
+                          background: "var(--surface)",
+                          color: "var(--ink-faint)",
                           display: "flex",
                           alignItems: "center",
                           justifyContent: "center",
@@ -607,8 +526,8 @@ export default function BuyersPage() {
                           pointerEvents: isHover ? "auto" : "none",
                           transition: "opacity 120ms, color 120ms, border-color 120ms",
                         }}
-                        onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.color = DANGER; (e.currentTarget as HTMLButtonElement).style.borderColor = "#E7B3B3"; }}
-                        onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.color = TEXT_FAINT; (e.currentTarget as HTMLButtonElement).style.borderColor = BORDER; }}
+                        onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.color = "var(--danger)"; (e.currentTarget as HTMLButtonElement).style.borderColor = "var(--danger-soft)"; }}
+                        onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.color = "var(--ink-faint)"; (e.currentTarget as HTMLButtonElement).style.borderColor = "var(--border)"; }}
                       >
                         <svg width="11" height="11" viewBox="0 0 12 12" fill="none">
                           <path d="M2 10L10 2M2 2l8 8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
@@ -627,7 +546,7 @@ export default function BuyersPage() {
         </table>
 
         {/* ── Mobile: stacked row-cards (below sm) ──────────────────────── */}
-        <div className="sm:hidden">
+        <div className="sm:hidden flex flex-col gap-2 p-3">
           {showSkeleton && (
             <>
               <SkeletonCard />
@@ -638,11 +557,11 @@ export default function BuyersPage() {
 
           {showError && (
             <div style={{ padding: "28px 16px", textAlign: "center" }}>
-              <span style={{ fontSize: 13, color: TEXT_MUTED }}>
+              <span style={{ fontSize: 13, color: "var(--ink-muted)" }}>
                 Failed to load buyers.{" "}
                 <button
                   onClick={() => refetch()}
-                  style={{ color: BLUE, background: "none", border: "none", cursor: "pointer", fontWeight: 600, fontSize: 13, padding: 0 }}
+                  style={{ color: "var(--brand-blue)", background: "none", border: "none", cursor: "pointer", fontWeight: 600, fontSize: 13, padding: 0 }}
                 >
                   Retry
                 </button>
@@ -650,107 +569,92 @@ export default function BuyersPage() {
             </div>
           )}
 
-          {showRows && buyers.map((b, idx) => {
-            const lastRow = idx === buyers.length - 1;
-            return (
-              <div
-                key={b.id}
-                role="button"
-                tabIndex={0}
-                onClick={() => router.push(`/inbox?buyer=${b.code}`)}
-                onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); router.push(`/inbox?buyer=${b.code}`); } }}
-                title="Filter inbox to orders from this buyer"
-                className="active:bg-[#E3EDFB]"
-                style={{
-                  display: "block",
-                  padding: "15px 16px",
-                  borderBottom: lastRow ? "none" : `1px solid ${BORDER}`,
-                  cursor: "pointer",
-                  WebkitTapHighlightColor: "transparent",
-                }}
-              >
-                {/* Top: identity + delete */}
-                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                  <BuyerIcon />
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontWeight: 600, fontSize: 14, color: INK, letterSpacing: "-0.005em", lineHeight: 1.25 }}>
-                      {b.name}
-                    </div>
-                    <div
-                      style={{
-                        fontSize: 11,
-                        fontFamily: "var(--font-mono, 'JetBrains Mono', ui-monospace, monospace)",
-                        color: CODE_GREY,
-                        marginTop: 2,
-                        letterSpacing: "0.02em",
-                      }}
-                    >
-                      {b.code}
-                    </div>
+          {showRows && buyers.map((b) => (
+            <MobileListRow
+              key={b.id}
+              onClick={() => router.push(`/inbox?buyer=${b.code}`)}
+            >
+              {/* Top: identity + delete */}
+              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                <BuyerIcon />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontWeight: 600, fontSize: 14, color: "var(--ink)", letterSpacing: "-0.005em", lineHeight: 1.25 }}>
+                    {b.name}
                   </div>
-                  <button
-                    onClick={(e) => handleDelete(e, b)}
-                    disabled={deleteMut.isPending}
-                    title="Delete buyer"
-                    aria-label={`Delete ${b.name}`}
+                  <div
                     style={{
-                      width: 40,
-                      height: 40,
-                      marginRight: -8,
-                      borderRadius: 8,
-                      border: "none",
-                      background: "transparent",
-                      color: TEXT_FAINT,
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      cursor: deleteMut.isPending ? "not-allowed" : "pointer",
-                      flexShrink: 0,
+                      fontSize: 11,
+                      fontFamily: "var(--font-mono, 'JetBrains Mono', ui-monospace, monospace)",
+                      color: CODE_GREY,
+                      marginTop: 2,
+                      letterSpacing: "0.02em",
                     }}
                   >
-                    <svg width="15" height="15" viewBox="0 0 12 12" fill="none">
-                      <path d="M2 10L10 2M2 2l8 8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-                    </svg>
-                  </button>
+                    {b.code}
+                  </div>
                 </div>
-
-                {/* Stats row: labelled fields in a 2-column grid */}
-                <div
+                <button
+                  onClick={(e) => handleDelete(e, b)}
+                  disabled={deleteMut.isPending}
+                  title="Delete buyer"
+                  aria-label={`Delete ${b.name}`}
                   style={{
-                    display: "grid",
-                    gridTemplateColumns: "1fr 1fr",
-                    gap: "12px 16px",
-                    marginTop: 14,
-                    paddingLeft: 44, // align under the name, past the icon tile
+                    width: 40,
+                    height: 40,
+                    marginRight: -8,
+                    borderRadius: 8,
+                    border: "none",
+                    background: "transparent",
+                    color: "var(--ink-faint)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    cursor: deleteMut.isPending ? "not-allowed" : "pointer",
+                    flexShrink: 0,
                   }}
                 >
-                  <MobileField label="Primary format">
-                    {b.formats.length > 0
-                      ? <ChannelPill label={b.formats[0]} />
-                      : <span style={{ fontSize: 13, color: TEXT_FAINT }}>—</span>}
-                  </MobileField>
-                  <MobileField label="Orders (all time)">
-                    <span
-                      style={{
-                        fontFamily: "var(--font-mono, 'JetBrains Mono', ui-monospace, monospace)",
-                        fontWeight: 600,
-                        fontSize: 16,
-                        color: INK,
-                        letterSpacing: "-0.01em",
-                      }}
-                    >
-                      {b.orderCount.toLocaleString()}
-                    </span>
-                  </MobileField>
-                  <MobileField label="Last order">
-                    <span style={{ fontSize: 13, color: b.lastOrderAge ? TEXT_MUTED : TEXT_FAINT }}>
-                      {b.lastOrderAge ?? "—"}
-                    </span>
-                  </MobileField>
-                </div>
+                  <svg width="15" height="15" viewBox="0 0 12 12" fill="none">
+                    <path d="M2 10L10 2M2 2l8 8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                  </svg>
+                </button>
               </div>
-            );
-          })}
+
+              {/* Stats row: labelled fields in a 2-column grid */}
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "1fr 1fr",
+                  gap: "12px 16px",
+                  marginTop: 6,
+                  paddingLeft: 44, // align under the name, past the icon tile
+                }}
+              >
+                <MobileField label="Primary format">
+                  {b.formats.length > 0
+                    ? <ChannelPill label={b.formats[0]} />
+                    : <span style={{ fontSize: 13, color: "var(--ink-faint)" }}>—</span>}
+                </MobileField>
+                <MobileField label="Orders (all time)">
+                  <span
+                    style={{
+                      fontFamily: "var(--font-mono, 'JetBrains Mono', ui-monospace, monospace)",
+                      fontWeight: 600,
+                      fontSize: 16,
+                      color: "var(--ink)",
+                      letterSpacing: "-0.01em",
+                    }}
+                  >
+                    {b.orderCount.toLocaleString()}
+                  </span>
+                </MobileField>
+                <MobileField label="Last order">
+                  <span style={{ fontSize: 13, color: b.lastOrderAge ? "var(--ink-muted)" : "var(--ink-faint)" }}>
+                    {b.lastOrderAge ?? "—"}
+                  </span>
+                </MobileField>
+              </div>
+            </MobileListRow>
+          ))}
         </div>
 
         {/* Empty state */}
@@ -761,8 +665,8 @@ export default function BuyersPage() {
             action={{ label: "New buyer", onClick: () => setAddOpen(true) }}
           />
         )}
-      </div>
-    </div>
+      </Card>
+    </PageShell>
   );
 }
 
@@ -776,7 +680,7 @@ function MobileField({ label, children }: { label: string; children: React.React
           fontWeight: 600,
           letterSpacing: "0.06em",
           textTransform: "uppercase",
-          color: TEXT_FAINT,
+          color: "var(--ink-faint)",
           marginBottom: 5,
         }}
       >

@@ -17,9 +17,12 @@ import {
   type DeadLetterOrder,
 } from "@/lib/api-client";
 import { useQueriesEnabled } from "@/hooks/useQueriesEnabled";
-
-const NAVY = "#0B1A2F";
-const BLUE_DEEP = "#0F4FA8";
+import { PageShell } from "@/components/bridge/layout/PageShell";
+import { PageHeader } from "@/components/bridge/layout/PageHeader";
+import { Card } from "@/components/bridge/layout/Card";
+import { MobileListRow } from "@/components/bridge/layout/MobileListRow";
+import { Button } from "@/components/bridge/DSPrimitives";
+import { UnifiedStatusBadge } from "@/components/bridge/UnifiedStatusBadge";
 
 // Each tile: which OpsHealth field, label, and which inbox filter it links to.
 const TILES: Array<{ key: keyof OpsHealth; label: string; href: string }> = [
@@ -34,11 +37,11 @@ const TILES: Array<{ key: keyof OpsHealth; label: string; href: string }> = [
 ];
 
 function tone(count: number, key: keyof OpsHealth): { bg: string; fg: string } {
-  if (count === 0) return { bg: "#EFF2F7", fg: "#56627A" };
+  if (count === 0) return { bg: "var(--surface-2)", fg: "var(--ink-muted)" };
   // Hard-failure states read red; soft/awaiting-review states read amber.
   const red = key === "deliveryDeadLetter" || key === "transformFailed" ||
               key === "deliveryFailed" || key === "rejectedBySupplier" || key === "failed";
-  return red ? { bg: "#FBE3E3", fg: "#C53A3A" } : { bg: "#FAEFD6", fg: "#9A6B0B" };
+  return red ? { bg: "var(--danger-soft)", fg: "var(--danger)" } : { bg: "var(--amber-soft)", fg: "var(--amber)" };
 }
 
 function relativeTime(iso: string | null): string {
@@ -55,6 +58,14 @@ function formatHeartbeat(s: number | null): string {
   if (s < 60) return `${Math.round(s)}s ago`;
   if (s < 3600) return `${Math.round(s / 60)}m ago`;
   return `${Math.round(s / 3600)}h ago`;
+}
+
+// UnifiedStatusBadge does not include `rejected_by_supplier` in its STATUS_META,
+// so that key falls through to neutral tone. Map it to `rejected` (danger) to
+// preserve the HEAD behavior where supplier-rejected orders read as red.
+function normalizeDeadLetterStatus(status: string): string {
+  if (status === "rejected_by_supplier") return "rejected";
+  return status;
 }
 
 export default function OperationsHealthPage() {
@@ -94,15 +105,23 @@ export default function OperationsHealthPage() {
 
   // ── Loading / error gates ──────────────────────────────────────────────────
   if (!queryEnabled || healthQ.isLoading) {
-    return <Shell><div style={{ color: "#56627A", fontSize: 14 }}>Loading pipeline health…</div></Shell>;
+    return (
+      <PageShell variant="wide">
+        <PageHeader title="Operations health" sub="Pipeline trouble at a glance — stuck, failed, and dead-lettered orders." />
+        <div style={{ color: "var(--ink-muted)", fontSize: 14 }}>Loading pipeline health…</div>
+      </PageShell>
+    );
   }
   if (healthQ.isError || healthQ.data === undefined) {
     return (
-      <Shell>
-        <div style={{ background: "#FFFFFF", border: "1px solid #FBE3E3", borderRadius: 12, padding: 20, color: "#C53A3A", fontSize: 14 }}>
-          Could not load operations health. The API may be unavailable — retry shortly.
-        </div>
-      </Shell>
+      <PageShell variant="wide">
+        <PageHeader title="Operations health" sub="Pipeline trouble at a glance — stuck, failed, and dead-lettered orders." />
+        <Card edge="none">
+          <div style={{ color: "var(--danger)", fontSize: 14 }}>
+            Could not load operations health. The API may be unavailable — retry shortly.
+          </div>
+        </Card>
+      </PageShell>
     );
   }
 
@@ -111,29 +130,34 @@ export default function OperationsHealthPage() {
   const deadLetters = deadLetterQ.data ?? [];
 
   return (
-    <Shell>
+    <PageShell variant="wide">
+      <PageHeader
+        title="Operations health"
+        sub="Pipeline trouble at a glance — stuck, failed, and dead-lettered orders."
+      />
+
       {/* Worker / pipeline-engine status — a dead Worker stalls the whole pipeline. */}
       <div
         style={{
           marginBottom: 14, display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap",
-          background: h.workerHealthy ? "#E2F1E2" : "#FBE3E3",
+          background: h.workerHealthy ? "var(--brand-green-soft)" : "var(--danger-soft)",
           border: `1px solid ${h.workerHealthy ? "#BFE3BF" : "#F0B4B4"}`,
-          borderRadius: 12, padding: "12px 16px",
-          color: h.workerHealthy ? "#1E6D29" : "#B42318", fontSize: 13.5,
+          borderRadius: "var(--radius-md)", padding: "12px 16px",
+          color: h.workerHealthy ? "var(--brand-green-deep)" : "var(--danger)", fontSize: 13.5,
         }}
       >
-        <span style={{ width: 9, height: 9, borderRadius: "50%", flexShrink: 0, background: h.workerHealthy ? "#2E8E3A" : "#D92D20" }} />
+        <span style={{ width: 9, height: 9, borderRadius: "50%", flexShrink: 0, background: h.workerHealthy ? "var(--brand-green)" : "var(--danger)" }} />
         <span style={{ fontWeight: 700 }}>{h.workerHealthy ? "Worker online" : "Worker OFFLINE"}</span>
         <span style={{ opacity: 0.9 }}>
           {h.workerHealthy
             ? `${h.activeWorkers} active · last heartbeat ${formatHeartbeat(h.secondsSinceWorkerHeartbeat)}`
             : h.lastWorkerHeartbeatUtc
               ? `No heartbeat in ${formatHeartbeat(h.secondsSinceWorkerHeartbeat)} — new uploads will stall until it recovers.`
-              : "No worker has reported in — uploads will stall at “parsing” until a worker starts."}
+              : "No worker has reported in — uploads will stall at 'parsing' until a worker starts."}
         </span>
       </div>
       {allClear ? (
-        <div style={{ background: "#E2F1E2", border: "1px solid #BFE3BF", borderRadius: 12, padding: "16px 18px", color: "#1E6D29", fontSize: 14, fontWeight: 600 }}>
+        <div style={{ background: "var(--brand-green-soft)", border: "1px solid #BFE3BF", borderRadius: "var(--radius-md)", padding: "16px 18px", color: "var(--brand-green-deep)", fontSize: 14, fontWeight: 600 }}>
           ✓ All clear — no orders in a problem state and no open exceptions.
         </div>
       ) : (
@@ -149,14 +173,14 @@ export default function OperationsHealthPage() {
                 key={key}
                 href={href}
                 className="rounded-[10px] px-4 py-3 transition-shadow hover:shadow-md"
-                style={{ background: "#FFFFFF", border: "1px solid #E2E6EE", textDecoration: "none" }}
+                style={{ background: "var(--surface)", border: "1px solid var(--border)", textDecoration: "none" }}
               >
-                <div style={{ fontSize: 26, fontWeight: 700, color: count === 0 ? "#8A93A5" : NAVY, lineHeight: 1.1 }}>
+                <div style={{ fontSize: 26, fontWeight: 700, color: count === 0 ? "var(--ink-faint)" : "var(--ink)", lineHeight: 1.1 }}>
                   {count}
                 </div>
                 <div style={{ marginTop: 6, display: "flex", alignItems: "center", gap: 6 }}>
                   <span style={{ width: 7, height: 7, borderRadius: "50%", background: t.fg, opacity: count === 0 ? 0.4 : 1 }} />
-                  <span style={{ fontSize: 12, fontWeight: 500, color: "#56627A" }}>{label}</span>
+                  <span style={{ fontSize: 12, fontWeight: 500, color: "var(--ink-muted)" }}>{label}</span>
                 </div>
               </Link>
             );
@@ -164,39 +188,41 @@ export default function OperationsHealthPage() {
         </div>
       )}
 
-      <div style={{ marginTop: 10, fontSize: 11.5, color: "#8A93A5" }}>
+      <div style={{ marginTop: 10, fontSize: 11.5, color: "var(--ink-faint)" }}>
         Stuck threshold: {h.stuckThresholdMinutes} min · auto-refreshes every 45s
       </div>
 
       {/* ── Dead-letter queue ──────────────────────────────────────────────── */}
       <section style={{ marginTop: 28 }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 10, marginBottom: 12 }}>
-          <h2 style={{ fontFamily: "var(--font-display)", fontSize: 18, fontWeight: 600, color: NAVY, margin: 0 }}>
+          <h2 style={{ fontFamily: "var(--font-display)", fontSize: 18, fontWeight: 600, color: "var(--ink)", margin: 0 }}>
             Dead-letter queue
           </h2>
-          <label style={{ display: "inline-flex", alignItems: "center", gap: 7, fontSize: 12.5, color: "#56627A", cursor: "pointer" }}>
+          <label style={{ display: "inline-flex", alignItems: "center", gap: 7, fontSize: 12.5, color: "var(--ink-muted)", cursor: "pointer" }}>
             <input type="checkbox" checked={includeFailed} onChange={(e) => setIncludeFailed(e.target.checked)} />
             Include delivery-failed
           </label>
         </div>
 
         {notice && (
-          <div style={{ marginBottom: 12, background: "#EEF3F8", border: "1px solid #D6E3F2", borderRadius: 8, padding: "9px 12px", fontSize: 12.5, color: BLUE_DEEP }}>
+          <div style={{ marginBottom: 12, background: "var(--brand-blue-soft)", border: "1px solid #D6E3F2", borderRadius: "var(--radius-md)", padding: "9px 12px", fontSize: 12.5, color: "var(--brand-blue-deep)" }}>
             {notice}
           </div>
         )}
 
         {deadLetters.length === 0 ? (
-          <div style={{ background: "#FFFFFF", border: "1px solid #E2E6EE", borderRadius: 12, padding: 24, color: "#56627A", fontSize: 13.5 }}>
-            No orders awaiting operator review. {includeFailed ? "" : "Tick “Include delivery-failed” to widen the view."}
-          </div>
+          <Card edge="none">
+            <div style={{ color: "var(--ink-muted)", fontSize: 13.5 }}>
+              No orders awaiting operator review. {includeFailed ? "" : "Tick 'Include delivery-failed' to widen the view."}
+            </div>
+          </Card>
         ) : (
           <>
             {/* Desktop table */}
-            <div className="hidden md:block" style={{ background: "#FFFFFF", border: "1px solid #E2E6EE", borderRadius: 12, overflowX: "auto" }}>
+            <div className="hidden md:block" style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "var(--radius-md)", overflowX: "auto" }}>
               <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
                 <thead>
-                  <tr style={{ background: "#F6F7FA", color: "#56627A", textAlign: "left" }}>
+                  <tr style={{ background: "var(--bg)", color: "var(--ink-muted)", textAlign: "left" }}>
                     <th style={th}>Order</th>
                     <th style={th}>Supplier</th>
                     <th style={th}>Status</th>
@@ -208,33 +234,30 @@ export default function OperationsHealthPage() {
                 </thead>
                 <tbody>
                   {deadLetters.map((o) => (
-                    <tr key={o.orderId} style={{ borderTop: "1px solid #EEF0F4" }}>
+                    <tr key={o.orderId} style={{ borderTop: "1px solid var(--border)" }}>
                       <td style={td}>
-                        <Link href={`/inbox/${o.orderId}`} style={{ color: BLUE_DEEP, fontWeight: 600, textDecoration: "none" }}>
+                        <Link href={`/inbox/${o.orderId}`} style={{ color: "var(--brand-blue-deep)", fontWeight: 600, textDecoration: "none" }}>
                           {o.poNumber || o.orderId.slice(0, 8)}
                         </Link>
                       </td>
                       <td style={td}>{o.supplierName ?? "—"}</td>
-                      <td style={td}><StatusBadge status={o.status} /></td>
+                      <td style={td}><UnifiedStatusBadge status={normalizeDeadLetterStatus(o.status)} /></td>
                       <td style={{ ...td, textAlign: "right", fontVariantNumeric: "tabular-nums" }}>{o.deliveryAttempts}</td>
-                      <td style={{ ...td, maxWidth: 280, color: "#C53A3A" }}>
+                      <td style={{ ...td, maxWidth: 280, color: "var(--danger)" }}>
                         <span title={o.lastError ?? ""} style={{ display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                           {o.lastError ?? "—"}{o.lastResponseCode ? ` (${o.lastResponseCode})` : ""}
                         </span>
                       </td>
-                      <td style={{ ...td, color: "#56627A", whiteSpace: "nowrap" }}>{relativeTime(o.lastAttemptAt)}</td>
+                      <td style={{ ...td, color: "var(--ink-muted)", whiteSpace: "nowrap" }}>{relativeTime(o.lastAttemptAt)}</td>
                       <td style={{ ...td, textAlign: "right" }}>
-                        <button
+                        <Button
+                          variant="blue"
+                          size="sm"
                           onClick={() => requeue.mutate(o.orderId)}
                           disabled={requeue.isPending}
-                          style={{
-                            fontSize: 12, fontWeight: 600, padding: "6px 12px", borderRadius: 7,
-                            border: "1px solid #D6E3F2", background: requeue.isPending ? "#EFF2F7" : "#FFFFFF",
-                            color: BLUE_DEEP, cursor: requeue.isPending ? "not-allowed" : "pointer", whiteSpace: "nowrap",
-                          }}
                         >
                           {requeue.isPending ? "Requeuing…" : "Requeue delivery"}
-                        </button>
+                        </Button>
                       </td>
                     </tr>
                   ))}
@@ -242,104 +265,44 @@ export default function OperationsHealthPage() {
               </table>
             </div>
 
-            {/* Mobile cards */}
+            {/* Mobile list — MobileListRow per dead-letter order */}
             <div className="md:hidden" style={{ display: "flex", flexDirection: "column", gap: 12 }}>
               {deadLetters.map((o) => (
-                <DeadLetterCard
-                  key={o.orderId}
-                  o={o}
-                  busy={requeue.isPending}
-                  onRequeue={() => requeue.mutate(o.orderId)}
-                />
+                <MobileListRow key={o.orderId}>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+                    <Link href={`/inbox/${o.orderId}`} style={{ color: "var(--brand-blue-deep)", fontWeight: 600, fontSize: 14, textDecoration: "none" }}>
+                      {o.poNumber || o.orderId.slice(0, 8)}
+                    </Link>
+                    <UnifiedStatusBadge status={normalizeDeadLetterStatus(o.status)} />
+                  </div>
+                  <div style={{ marginTop: 6, fontSize: 12.5, color: "var(--ink-muted)" }}>
+                    {o.supplierName ?? "—"} · {o.deliveryAttempts} attempt{o.deliveryAttempts === 1 ? "" : "s"} · {relativeTime(o.lastAttemptAt)}
+                  </div>
+                  {(o.lastError || o.lastResponseCode) && (
+                    <div style={{ marginTop: 6, fontSize: 12.5, color: "var(--danger)", wordBreak: "break-word" }}>
+                      {o.lastError ?? "—"}{o.lastResponseCode ? ` (${o.lastResponseCode})` : ""}
+                    </div>
+                  )}
+                  <div style={{ marginTop: 10 }}>
+                    <Button
+                      variant="blue"
+                      size="md"
+                      onClick={() => requeue.mutate(o.orderId)}
+                      disabled={requeue.isPending}
+                      style={{ width: "100%" }}
+                    >
+                      {requeue.isPending ? "Requeuing…" : "Requeue delivery"}
+                    </Button>
+                  </div>
+                </MobileListRow>
               ))}
             </div>
           </>
         )}
       </section>
-    </Shell>
-  );
-}
-
-// ── Layout shell ──────────────────────────────────────────────────────────────
-function Shell({ children }: { children: React.ReactNode }) {
-  return (
-    <div style={{ height: "100%", minHeight: 0, overflowY: "auto", background: "#F6F7FA" }}>
-      {/* Page gutters: roomy on desktop, tighter on phones (~16px) — matches ops/settings pages */}
-      <style>{`
-        .ops-health-shell { padding: 26px 34px 64px; }
-        @media (max-width: 640px) {
-          .ops-health-shell { padding: 20px 16px 56px; }
-        }
-      `}</style>
-      <div className="ops-health-shell" style={{ maxWidth: 1100, margin: "0 auto" }}>
-        <header style={{ marginBottom: 18 }}>
-          <h1 style={{ fontFamily: "var(--font-display)", fontSize: 30, fontWeight: 600, letterSpacing: "-0.025em", lineHeight: 1.1, margin: 0, color: NAVY }}>
-            Operations health
-          </h1>
-          <div style={{ color: "#56627A", fontSize: 13, marginTop: 5 }}>
-            Pipeline trouble at a glance — stuck, failed, and dead-lettered orders.
-          </div>
-        </header>
-        {children}
-      </div>
-    </div>
-  );
-}
-
-// Per-order card for phones — mirrors the desktop columns as stacked rows with
-// a full-width Requeue button so the action is never clipped.
-function DeadLetterCard({
-  o, busy, onRequeue,
-}: {
-  o: DeadLetterOrder;
-  busy: boolean;
-  onRequeue: () => void;
-}) {
-  return (
-    <div style={{ background: "#FFFFFF", border: "1px solid #E2E6EE", borderRadius: 12, padding: 14 }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
-        <Link href={`/inbox/${o.orderId}`} style={{ color: BLUE_DEEP, fontWeight: 600, fontSize: 14, textDecoration: "none" }}>
-          {o.poNumber || o.orderId.slice(0, 8)}
-        </Link>
-        <StatusBadge status={o.status} />
-      </div>
-      <div style={{ marginTop: 8, fontSize: 12.5, color: "#56627A" }}>
-        {o.supplierName ?? "—"} · {o.deliveryAttempts} attempt{o.deliveryAttempts === 1 ? "" : "s"} · {relativeTime(o.lastAttemptAt)}
-      </div>
-      {(o.lastError || o.lastResponseCode) && (
-        <div style={{ marginTop: 8, fontSize: 12.5, color: "#C53A3A", wordBreak: "break-word" }}>
-          {o.lastError ?? "—"}{o.lastResponseCode ? ` (${o.lastResponseCode})` : ""}
-        </div>
-      )}
-      <button
-        onClick={onRequeue}
-        disabled={busy}
-        style={{
-          marginTop: 12, width: "100%", minHeight: 40, fontSize: 13, fontWeight: 600, borderRadius: 7,
-          border: "1px solid #D6E3F2", background: busy ? "#EFF2F7" : "#FFFFFF",
-          color: BLUE_DEEP, cursor: busy ? "not-allowed" : "pointer",
-        }}
-      >
-        {busy ? "Requeuing…" : "Requeue delivery"}
-      </button>
-    </div>
-  );
-}
-
-function StatusBadge({ status }: { status: string }) {
-  const red = status === "delivery_dead_letter" || status === "delivery_failed" || status === "rejected_by_supplier";
-  const spec = red
-    ? { bg: "#FBE3E3", fg: "#C53A3A" }
-    : { bg: "#FAEFD6", fg: "#9A6B0B" };
-  return (
-    <span
-      className="inline-flex items-center rounded-[4px] px-2 py-0.5 text-[10.5px] font-semibold uppercase tracking-[0.03em]"
-      style={{ background: spec.bg, color: spec.fg }}
-    >
-      {status.replace(/_/g, " ")}
-    </span>
+    </PageShell>
   );
 }
 
 const th: React.CSSProperties = { padding: "9px 14px", fontSize: 10.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" };
-const td: React.CSSProperties = { padding: "10px 14px", color: NAVY, verticalAlign: "middle" };
+const td: React.CSSProperties = { padding: "10px 14px", color: "var(--ink)", verticalAlign: "middle" };

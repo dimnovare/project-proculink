@@ -4,8 +4,10 @@
 // envelope each supplier receives, previewed as code with {token} highlighting
 // (right). KEEP live CRUD (create / update / delete) + the editor modal.
 
+import { PageShell } from "@/components/bridge/layout/PageShell";
+import { PageHeader } from "@/components/bridge/layout/PageHeader";
 import { EmptyState } from "@/components/bridge/EmptyState";
-import { SrcChip } from "@/components/bridge/DSPrimitives";
+import { SrcChip, Button } from "@/components/bridge/DSPrimitives";
 import { useState, useRef, useEffect, type ReactNode } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
@@ -40,13 +42,13 @@ type CardTemplate = {
 // Sampled from the 2026-05-30 design render: cXML=violet, UBL=buyer-blue,
 // EDI/EDIFACT/X12=amber. (UBL is blue, NOT green, in the reference.)
 const FMT_COLOR: Record<string, string> = {
-  cXML: "#6F4FCE", EDI: "#C97A14", EDIFACT: "#C97A14", X12: "#C97A14",
-  UBL: "#1E66C9", JSON: "#A06200", CSV: "#56627A",
+  cXML: "#6F4FCE", EDI: "var(--amber)", EDIFACT: "var(--amber)", X12: "var(--amber)",
+  UBL: "var(--brand-blue)", JSON: "#A06200", CSV: "var(--ink-muted)",
 };
 
-// Selection + primary-action accent for this screen is buyer-blue (sampled
-// #1E66C9 on both the "+ New template" button and the selected card ring).
-const SELECT_BLUE = "#1E66C9";
+// Selection + primary-action accent for this screen is buyer-blue.
+// Was const SELECT_BLUE = "#1E66C9" → now var(--brand-blue) everywhere.
+const SELECT_BLUE = "var(--brand-blue)";
 
 // One-line plain-language description of what each standard envelope is.
 const FMT_DESC: Record<string, string> = {
@@ -161,35 +163,31 @@ export default function TemplatesPage() {
   };
 
   return (
-    <div className="flex flex-col h-full min-h-0 overflow-hidden" style={{ background: "#F6F7FA" }}>
-      {/* Header — sits directly on the page surface (no white bar / divider),
-          matching the design reference (.page-head + .page-title). */}
-      <div className="flex flex-col items-start gap-3 px-4 pt-[18px] pb-[18px] sm:px-[34px] sm:pt-[26px] sm:pb-[22px] sm:flex-row sm:items-start sm:gap-x-6 sm:gap-y-4 flex-shrink-0">
-        <div>
-          <h1 className="text-[24px] sm:text-[30px] font-semibold tracking-[-0.025em] leading-[1.1] sm:whitespace-nowrap" style={{ fontFamily: "'Bricolage Grotesque', Inter, sans-serif", color: "#0B1A2F", margin: 0 }}>Output templates</h1>
-          <p className="text-[13px] mt-[5px]" style={{ color: "#56627A" }}>
-            The envelope each supplier receives · {templates.length} template{templates.length !== 1 ? "s" : ""}
-          </p>
-        </div>
-        <button
-          onClick={newTemplate}
-          className="inline-flex h-10 w-full items-center justify-center gap-[7px] rounded-[6px] px-3.5 text-[13px] font-semibold tracking-[-0.005em] transition-colors sm:ml-auto sm:h-8 sm:w-auto sm:px-[14px] sm:text-[12.5px]"
-          style={{ background: SELECT_BLUE, color: "#FFFFFF", border: "1px solid transparent" }}
-          onMouseEnter={(e) => (e.currentTarget.style.background = "#0F4FA8")}
-          onMouseLeave={(e) => (e.currentTarget.style.background = SELECT_BLUE)}
-        >
-          <span aria-hidden style={{ fontSize: 15, lineHeight: 1, marginTop: -1 }}>+</span> New template
-        </button>
-      </div>
+    <PageShell variant="wide">
+      <PageHeader
+        title="Output templates"
+        sub={`The envelope each supplier receives · ${templates.length} template${templates.length !== 1 ? "s" : ""}`}
+        actions={
+          // In-app primary CTA = brand-green per the unified design system.
+          <button
+            onClick={newTemplate}
+            className="inline-flex h-[44px] sm:h-[27px] w-full sm:w-auto items-center justify-center gap-[7px] rounded-[6px] px-3.5 text-[13px] font-semibold tracking-[-0.005em] transition-colors sm:px-[14px] sm:text-[12.5px]"
+            style={{ background: "var(--brand-green)", color: "var(--surface)", border: "1px solid transparent" }}
+            onMouseEnter={(e) => (e.currentTarget.style.background = "var(--brand-green-deep)")}
+            onMouseLeave={(e) => (e.currentTarget.style.background = "var(--brand-green)")}
+          >
+            <span aria-hidden style={{ fontSize: 15, lineHeight: 1, marginTop: -1 }}>+</span> New template
+          </button>
+        }
+      />
 
-      <div className="flex-1 overflow-auto px-4 pt-0 pb-[72px] sm:px-[34px] sm:pb-[64px]">
         {notice && (
           <div
             className="mb-4 rounded-[8px] px-4 py-3 text-[12.5px]"
             style={
               notice.kind === "ok"
-                ? { border: "1px solid #BBE9CC", borderLeft: "3px solid #28C55E", background: "#F0FBF4", color: "#1DAF50" }
-                : { border: "1px solid #F5C6CB", borderLeft: "3px solid #C62828", background: "#FFF5F5", color: "#B71C1C" }
+                ? { border: "1px solid var(--brand-green-soft)", borderLeft: "3px solid var(--brand-green)", background: "var(--brand-green-soft)", color: "var(--brand-green-deep)" }
+                : { border: "1px solid #F5C6CB", borderLeft: "3px solid var(--danger)", background: "var(--danger-soft)", color: "var(--danger)" }
             }
           >
             {notice.text}
@@ -200,19 +198,19 @@ export default function TemplatesPage() {
           <div className="grid gap-4 lg:grid-cols-[340px_minmax(0,1fr)] lg:items-start">
             <div className="flex flex-col gap-2">
               {[1, 2, 3, 4].map((i) => (
-                <div key={i} className="rounded-[8px] animate-pulse" style={{ height: 104, background: "#E2E6EE", border: "1px solid #E2E6EE" }} />
+                <div key={i} className="rounded-[8px] animate-pulse" style={{ height: 104, background: "var(--border)", border: "1px solid var(--border)" }} />
               ))}
             </div>
-            <div className="hidden rounded-[8px] animate-pulse lg:block" style={{ height: 340, background: "#E2E6EE", border: "1px solid #E2E6EE" }} />
+            <div className="hidden rounded-[8px] animate-pulse lg:block" style={{ height: 340, background: "var(--border)", border: "1px solid var(--border)" }} />
           </div>
         )}
 
         {!isApiMockMode && isError && (
           <div className="flex flex-col items-center justify-center py-12 gap-4">
-            <div className="rounded-[8px] px-5 py-4 text-center" style={{ border: "1px solid #F5C6CB", background: "#FFF5F5" }}>
-              <p className="text-[13px] font-semibold" style={{ color: "#C62828" }}>Could not load templates</p>
-              <p className="text-[12px] mt-1" style={{ color: "#56627A" }}>Check the API connection and try again.</p>
-              <button onClick={() => refetch()} className="mt-3 h-8 rounded-[6px] px-4 text-[12px] font-semibold" style={{ border: "1px solid #E2E6EE", background: "#FFFFFF", color: "#0B1A2F" }}>Retry</button>
+            <div className="rounded-[8px] px-5 py-4 text-center" style={{ border: "1px solid var(--danger-soft)", background: "var(--danger-soft)" }}>
+              <p className="text-[13px] font-semibold" style={{ color: "var(--danger)" }}>Could not load templates</p>
+              <p className="text-[12px] mt-1" style={{ color: "var(--ink-muted)" }}>Check the API connection and try again.</p>
+              <Button variant="secondary" size="sm" onClick={() => refetch()} className="mt-3">Retry</Button>
             </div>
           </div>
         )}
@@ -231,15 +229,15 @@ export default function TemplatesPage() {
               <div className="flex flex-col gap-2">
                 {templates.map((t) => {
                   const active = selId === t.id;
-                  const accent = FMT_COLOR[t.fmt] ?? "#56627A";
+                  const accent = FMT_COLOR[t.fmt] ?? "var(--ink-muted)";
                   return (
                     <button
                       key={t.id}
                       onClick={() => { setNotice(null); setSelId(t.id); }}
                       className="relative rounded-[8px] text-left overflow-hidden transition-[transform,box-shadow,border-color] duration-200 hover:-translate-y-[2px]"
                       style={{
-                        background: "#FFFFFF",
-                        border: `1px solid ${active ? SELECT_BLUE : "#E2E6EE"}`,
+                        background: "var(--surface)",
+                        border: `1px solid ${active ? SELECT_BLUE : "var(--border)"}`,
                         boxShadow: active ? `0 0 0 1px ${SELECT_BLUE}` : "none",
                         padding: "13px 15px 13px 17px",
                       }}
@@ -248,15 +246,15 @@ export default function TemplatesPage() {
                       <div className="flex items-center justify-between gap-2">
                         <SrcChip type={t.fmt} />
                         {t.isDefault && (
-                          <span className="inline-flex items-center rounded-[4px] text-[11px] font-semibold" style={{ height: 22, padding: "0 8px", background: "#E2F1E2", color: "#1E6D29" }}>Default</span>
+                          <span className="inline-flex items-center rounded-[4px] text-[11px] font-semibold" style={{ height: 22, padding: "0 8px", background: "var(--brand-green-soft)", color: "var(--brand-green-deep)" }}>Default</span>
                         )}
                       </div>
-                      <div className="text-[13px] font-semibold tracking-[-0.005em]" style={{ color: "#0B1A2F", marginTop: 8 }}>{t.name}</div>
-                      <div className="text-[11.5px] leading-[1.45]" style={{ color: "#56627A", marginTop: 3 }}>{FMT_DESC[t.fmt] ?? `${t.fmt} output envelope.`}</div>
-                      <div className="text-[11px]" style={{ color: "#8A93A5", marginTop: 9 }}>
+                      <div className="text-[13px] font-semibold tracking-[-0.005em]" style={{ color: "var(--ink)", marginTop: 8 }}>{t.name}</div>
+                      <div className="text-[11.5px] leading-[1.45]" style={{ color: "var(--ink-muted)", marginTop: 3 }}>{FMT_DESC[t.fmt] ?? `${t.fmt} output envelope.`}</div>
+                      <div className="text-[11px]" style={{ color: "var(--ink-faint)", marginTop: 9 }}>
                         {t.suppliers > 0 ? (
                           <>
-                            <span style={{ fontWeight: 600, color: "#56627A" }}>
+                            <span style={{ fontWeight: 600, color: "var(--ink-muted)" }}>
                               {t.suppliers} supplier{t.suppliers !== 1 ? "s" : ""}
                             </span>
                             {t.supplierNames && t.supplierNames.length > 0 && (
@@ -272,25 +270,24 @@ export default function TemplatesPage() {
                 })}
               </div>
 
-              {/* Right: code preview panel */}
+              {/* Right: code preview panel — plain div because Card applies 18px
+                  internal padding and does not accept a style prop for override. */}
               {selected && (
-                <div className="rounded-[8px] overflow-hidden self-start" style={{ background: "#FFFFFF", border: "1px solid #E2E6EE", boxShadow: "0 1px 3px rgba(11,26,47,0.04)" }}>
-                  <div className="flex items-center justify-between gap-2 px-3 py-2.5 sm:px-4 sm:py-3" style={{ borderBottom: "1px solid #E2E6EE" }}>
+                <div className="overflow-hidden self-start" style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "var(--radius-md)", boxShadow: "var(--shadow-card)" }}>
+                  <div className="flex items-center justify-between gap-2 px-3 py-2.5 sm:px-4 sm:py-3" style={{ borderBottom: "1px solid var(--border)" }}>
                     <div className="flex items-center gap-2 min-w-0">
-                      <span className="flex-shrink-0" style={{ color: "#56627A", fontSize: 14 }}>{"</>"}</span>
-                      <span className="text-[13px] font-semibold truncate" style={{ color: "#0B1A2F" }}>{selected.name}</span>
+                      <span className="flex-shrink-0" style={{ color: "var(--ink-muted)", fontSize: 14 }}>{"</>"}</span>
+                      <span className="text-[13px] font-semibold truncate" style={{ color: "var(--ink)" }}>{selected.name}</span>
                     </div>
                     <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
-                      <span className="hidden text-[11px] font-mono sm:inline" style={{ color: "#8A93A5" }}>v{selected.version}</span>
-                      <button
+                      <span className="hidden text-[11px] font-mono sm:inline" style={{ color: "var(--ink-faint)" }}>v{selected.version}</span>
+                      <Button
+                        variant="ghost"
+                        size="sm"
                         onClick={() => exportTemplate(selected)}
-                        className="inline-flex min-h-[40px] items-center gap-1.5 rounded-[5px] px-2 text-[12.5px] font-semibold transition-colors sm:min-h-[27px]"
-                        style={{ border: 0, background: "transparent", color: "#0B1A2F" }}
-                        onMouseEnter={(e) => (e.currentTarget.style.color = "#1DAF50")}
-                        onMouseLeave={(e) => (e.currentTarget.style.color = "#0B1A2F")}
                       >
                         ↓ Export
-                      </button>
+                      </Button>
                     </div>
                   </div>
                   <pre
@@ -299,26 +296,24 @@ export default function TemplatesPage() {
                   >
                     {previewFor(selected.fmt).map((line, i) => <PreviewLine key={i} line={line} />)}
                   </pre>
-                  <div className="flex flex-col items-stretch gap-2.5 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-2" style={{ borderTop: "1px solid #E2E6EE" }}>
-                    <span className="text-[12px] leading-[1.45] sm:text-[11px]" style={{ color: "#8A93A5" }}>
+                  <div className="flex flex-col items-stretch gap-2.5 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-2" style={{ borderTop: "1px solid var(--border)" }}>
+                    <span className="text-[12px] leading-[1.45] sm:text-[11px]" style={{ color: "var(--ink-faint)" }}>
                       <span style={{ color: "#6F4FCE", fontWeight: 600 }}>{"{tokens}"}</span> are filled from the canonical order at delivery time.
                     </span>
-                    <button
+                    <Button
+                      variant="secondary"
+                      size="sm"
                       onClick={() => { setNotice(null); setEditing(selected); }}
-                      className="inline-flex min-h-[40px] w-full items-center justify-center gap-1.5 rounded-[6px] px-3 text-[12.5px] font-semibold transition-colors sm:min-h-[30px] sm:w-auto sm:justify-start"
-                      style={{ border: "1px solid #D5DAEA", background: "#FFFFFF", color: "#0B1A2F" }}
-                      onMouseEnter={(e) => { e.currentTarget.style.background = "#F6F7FA"; e.currentTarget.style.borderColor = "#C6CDDA"; }}
-                      onMouseLeave={(e) => { e.currentTarget.style.background = "#FFFFFF"; e.currentTarget.style.borderColor = "#D5DAEA"; }}
+                      className="w-full sm:w-auto"
                     >
                       ✎ Edit template
-                    </button>
+                    </Button>
                   </div>
                 </div>
               )}
             </div>
           )
         )}
-      </div>
 
       {editing && (
         <TemplatePanel
@@ -332,7 +327,7 @@ export default function TemplatesPage() {
           }}
         />
       )}
-    </div>
+    </PageShell>
   );
 }
 
@@ -389,33 +384,33 @@ function TemplatePanel({
 
   return (
     <div className="fixed inset-0 z-50 flex items-end bg-[#0B1A2F66] p-0 sm:items-center sm:justify-center sm:p-6">
-      <div className="max-h-[92vh] w-full overflow-auto rounded-t-[10px] bg-white shadow-2xl sm:max-w-[680px] sm:rounded-[10px]" style={{ border: "1px solid #E2E6EE" }}>
-        <div className="flex items-start justify-between gap-4 border-b border-[#E2E6EE] px-5 py-4">
+      <div className="max-h-[92vh] w-full overflow-auto rounded-t-[10px] bg-white shadow-2xl sm:max-w-[680px] sm:rounded-[10px]" style={{ border: "1px solid var(--border)" }}>
+        <div className="flex items-start justify-between gap-4 px-5 py-4" style={{ borderBottom: "1px solid var(--border)" }}>
           <div className="flex items-start gap-3 min-w-0">
             <span
               className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-[8px] text-[16px]"
-              style={{ background: "#E3EDFB", color: "#1E66C9" }}
+              style={{ background: "var(--brand-blue-soft)", color: "var(--brand-blue)" }}
               aria-hidden
             >
               ▤
             </span>
             <div className="min-w-0">
-              <h2 className="text-[18px] font-semibold leading-tight truncate" style={{ color: "#0B1A2F" }}>{isNew ? "New output template" : template.name}</h2>
-              <p className="mt-0.5 text-[12.5px]" style={{ color: "#818A9C" }}>The envelope a supplier receives</p>
+              <h2 className="text-[18px] font-semibold leading-tight truncate" style={{ color: "var(--ink)" }}>{isNew ? "New output template" : template.name}</h2>
+              <p className="mt-0.5 text-[12.5px]" style={{ color: "var(--ink-muted)" }}>The envelope a supplier receives</p>
             </div>
           </div>
-          <button onClick={onClose} aria-label="Close" className="h-8 w-8 flex-shrink-0 rounded-[6px] text-[16px] transition-colors" style={{ border: "1px solid #E2E6EE", background: "#FFFFFF", color: "#56627A" }} onMouseEnter={(e) => { e.currentTarget.style.background = "#F6F7FA"; }} onMouseLeave={(e) => { e.currentTarget.style.background = "#FFFFFF"; }}>×</button>
+          <button onClick={onClose} aria-label="Close" className="h-8 w-8 flex-shrink-0 rounded-[6px] text-[16px] transition-colors" style={{ border: "1px solid var(--border)", background: "var(--surface)", color: "var(--ink-muted)" }} onMouseEnter={(e) => { e.currentTarget.style.background = "var(--surface-2)"; }} onMouseLeave={(e) => { e.currentTarget.style.background = "var(--surface)"; }}>×</button>
         </div>
         <div className="grid gap-4 p-5">
-          <p className="text-[12.5px] leading-[1.5]" style={{ color: "#636E84" }}>
+          <p className="text-[12.5px] leading-[1.5]" style={{ color: "var(--ink-muted)" }}>
             Choose the standard and starting point. You&rsquo;ll map canonical order fields into the envelope after creating.
           </p>
           <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_130px_110px]">
             <Field label="Template name">
-              <input ref={nameRef} defaultValue={template.name} placeholder="cXML 1.2.045 — OrderRequest" className="h-10 w-full rounded-[6px] border border-[#C6CDDA] px-2.5 text-[13px] text-[#0B1A2F] outline-none focus:border-[#1E66C9]" />
+              <input ref={nameRef} defaultValue={template.name} placeholder="cXML 1.2.045 — OrderRequest" className="h-10 w-full rounded-[6px] border border-[#C6CDDA] px-2.5 text-[13px] text-[#0B1A2F] outline-none focus:border-[var(--brand-blue)]" />
             </Field>
             <Field label="Standard">
-              <select ref={fmtRef} defaultValue={template.fmt} className="h-10 w-full rounded-[6px] border border-[#C6CDDA] px-2.5 text-[13px] text-[#0B1A2F] outline-none focus:border-[#1E66C9]">
+              <select ref={fmtRef} defaultValue={template.fmt} className="h-10 w-full rounded-[6px] border border-[#C6CDDA] px-2.5 text-[13px] text-[#0B1A2F] outline-none focus:border-[var(--brand-blue)]">
                 <option>cXML</option>
                 <option>UBL</option>
                 <option>EDI</option>
@@ -425,7 +420,7 @@ function TemplatePanel({
               </select>
             </Field>
             <Field label="Version">
-              <input ref={versionRef} defaultValue={template.version} className="h-10 w-full rounded-[6px] border border-[#C6CDDA] px-2.5 font-mono text-[13px] text-[#0B1A2F] outline-none focus:border-[#1E66C9]" />
+              <input ref={versionRef} defaultValue={template.version} className="h-10 w-full rounded-[6px] border border-[#C6CDDA] px-2.5 font-mono text-[13px] text-[#0B1A2F] outline-none focus:border-[var(--brand-blue)]" />
             </Field>
           </div>
           <Field label="Template body">
@@ -435,30 +430,29 @@ function TemplatePanel({
               className="min-h-[180px] w-full rounded-[5px] border border-[#D5DAEA] bg-[#0B1A2F] px-3 py-3 font-mono text-[11.5px] leading-5 text-[#C5D2E4]"
             />
           </Field>
-          <div className="rounded-[7px] border border-[#E2E6EE] bg-[#F6F7FA] p-3 text-[13px] leading-5 sm:text-[12px]" style={{ color: "#56627A" }}>
+          <div className="rounded-[7px] p-3 text-[13px] leading-5 sm:text-[12px]" style={{ border: "1px solid var(--border)", background: "var(--bg)", color: "var(--ink-muted)" }}>
             Canonical {"{tokens}"} are filled from the order at delivery time. Keep placeholders explicit and supplier-scoped before assigning a supplier.
           </div>
           {validation && (
-            <div className="rounded-[7px] border border-[#B8CFF5] bg-[#F7FAFF] p-3 text-[13px] leading-5 sm:text-[12px]" style={{ color: "#0F4FA8" }}>
+            <div className="rounded-[7px] p-3 text-[13px] leading-5 sm:text-[12px]" style={{ border: "1px solid var(--brand-blue-soft)", background: "var(--brand-blue-soft)", color: "var(--brand-blue-deep)" }}>
               {validation}
             </div>
           )}
         </div>
-        <div className="flex flex-col gap-2 border-t border-[#E2E6EE] bg-[#F6F7FA] px-5 py-4 sm:flex-row sm:justify-end">
+        <div className="flex flex-col gap-2 px-5 py-4 sm:flex-row sm:justify-end" style={{ borderTop: "1px solid var(--border)", background: "var(--bg)" }}>
           {onDelete && (
-            <button onClick={onDelete} className="h-10 rounded-[6px] px-4 text-[13px] font-semibold sm:mr-auto sm:h-9 sm:text-[12px]" style={{ border: "1px solid #F5C6CB", background: "#FFFFFF", color: "#C62828" }}>Delete</button>
+            <Button variant="danger" size="md" onClick={onDelete} className="sm:mr-auto">Delete</Button>
           )}
-          <button onClick={onClose} className="h-10 rounded-[6px] px-4 text-[13px] font-semibold sm:h-9 sm:text-[12px]" style={{ border: "1px solid #E2E6EE", background: "#FFFFFF", color: "#56627A" }}>Cancel</button>
-          <button
+          <Button variant="secondary" size="md" onClick={onClose}>Cancel</Button>
+          <Button
+            variant="primary"
+            size="md"
             onClick={handleSave}
             disabled={saving}
-            className="h-10 rounded-[6px] px-4 text-[13px] font-semibold transition-colors sm:h-9 sm:text-[12px]"
-            style={{ border: 0, background: "#28C55E", color: "#FFFFFF", boxShadow: "0 1px 2px rgba(11,26,47,0.10)", opacity: saving ? 0.6 : 1 }}
-            onMouseEnter={(e) => { if (!saving) e.currentTarget.style.background = "#1DAF50"; }}
-            onMouseLeave={(e) => { e.currentTarget.style.background = "#28C55E"; }}
+            loading={saving}
           >
             {saving ? "Saving…" : "Save"}
-          </button>
+          </Button>
         </div>
       </div>
     </div>
@@ -468,7 +462,7 @@ function TemplatePanel({
 function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
     <label className="grid gap-1">
-      <span className="text-[11px] font-semibold uppercase" style={{ color: "#8A93A5" }}>{label}</span>
+      <span className="text-[11px] font-semibold uppercase" style={{ color: "var(--ink-faint)" }}>{label}</span>
       {children}
     </label>
   );

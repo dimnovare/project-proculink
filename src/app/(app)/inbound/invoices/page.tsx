@@ -10,6 +10,11 @@ import {
   isApiMockMode,
   type InvoiceDto,
 } from "@/lib/api-client";
+import { PageShell } from "@/components/bridge/layout/PageShell";
+import { PageHeader } from "@/components/bridge/layout/PageHeader";
+import { Card } from "@/components/bridge/layout/Card";
+import { MobileListRow } from "@/components/bridge/layout/MobileListRow";
+import { Button } from "@/components/bridge/DSPrimitives";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -19,14 +24,16 @@ function fmt(amount: number | null, currency: string | null) {
 }
 
 // ── Status badge ──────────────────────────────────────────────────────────────
+// Invoice statuses (pending/approved/rejected) are NOT order lifecycle statuses —
+// keep local badge, tokenized to design-system CSS vars.
 
 function StatusBadge({ status }: { status: string }) {
   const map: Record<string, { bg: string; color: string; label: string }> = {
-    pending:  { bg: "#FEF3C7", color: "#B45309", label: "Pending"  },
-    approved: { bg: "#DCFCE7", color: "#15803D", label: "Approved" },
-    rejected: { bg: "#FEE2E2", color: "#B91C1C", label: "Rejected" },
+    pending:  { bg: "var(--amber-soft)",        color: "var(--amber)",       label: "Pending"  },
+    approved: { bg: "var(--brand-green-soft)",  color: "var(--brand-green-deep)", label: "Approved" },
+    rejected: { bg: "var(--danger-soft)",       color: "var(--danger)",      label: "Rejected" },
   };
-  const s = map[status] ?? { bg: "#EFF2F7", color: "#56627A", label: status };
+  const s = map[status] ?? { bg: "var(--surface-2)", color: "var(--ink-muted)", label: status };
   return (
     <span
       className="inline-flex items-center gap-1 rounded px-2 py-0.5 text-[10.5px] font-semibold flex-shrink-0"
@@ -42,10 +49,10 @@ function StatusBadge({ status }: { status: string }) {
 
 function SkeletonRow() {
   return (
-    <tr style={{ borderBottom: "1px solid #F0F2F6" }}>
+    <tr style={{ borderBottom: "1px solid var(--surface-2)" }}>
       {[120, 140, 80, 80, 60, 60, 80].map((w, i) => (
         <td key={i} className="px-4 py-3">
-          <div className="h-3 animate-pulse rounded" style={{ width: w, background: "#E2E6EE" }} />
+          <div className="h-3 animate-pulse rounded" style={{ width: w, background: "var(--border)" }} />
         </td>
       ))}
     </tr>
@@ -54,12 +61,12 @@ function SkeletonRow() {
 
 function SkeletonCard() {
   return (
-    <div className="rounded-[8px] bg-white p-4 animate-pulse" style={{ border: "1px solid #E2E6EE" }}>
+    <div className="rounded-[8px] p-4 animate-pulse" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
       <div className="flex justify-between mb-3">
-        <div className="h-4 w-28 rounded" style={{ background: "#E2E6EE" }} />
-        <div className="h-4 w-16 rounded" style={{ background: "#E2E6EE" }} />
+        <div className="h-4 w-28 rounded" style={{ background: "var(--border)" }} />
+        <div className="h-4 w-16 rounded" style={{ background: "var(--border)" }} />
       </div>
-      <div className="h-3 w-36 rounded" style={{ background: "#E2E6EE" }} />
+      <div className="h-3 w-36 rounded" style={{ background: "var(--border)" }} />
     </div>
   );
 }
@@ -82,25 +89,27 @@ function InvoiceActions({
   return (
     <div className="flex items-center gap-2 flex-shrink-0">
       {inv.status === "pending" && (
-        <button
+        <Button
+          variant="secondary"
+          size="sm"
           onClick={() => onApprove(inv.id)}
           disabled={approving === inv.id}
-          className="rounded px-2 py-1 text-[11.5px] font-medium"
-          style={{ border: "1px solid #BDE0C1", background: "#FFFFFF", color: approving === inv.id ? "#8A93A5" : "#15803D" }}
           title="Approve this invoice"
+          style={{ borderColor: "var(--brand-green-soft)", color: approving === inv.id ? "var(--ink-faint)" : "var(--brand-green-deep)" }}
         >
           {approving === inv.id ? "…" : "Approve"}
-        </button>
+        </Button>
       )}
-      <button
+      <Button
+        variant="secondary"
+        size="sm"
         onClick={() => onDownload(inv.id)}
         disabled={downloading === inv.id}
-        className="rounded px-2 py-1 text-[11.5px] font-medium"
-        style={{ border: "1px solid #B8CFF5", background: "#FFFFFF", color: downloading === inv.id ? "#8A93A5" : "#0F4FA8" }}
         title="Download as CSV"
+        style={{ borderColor: "var(--brand-blue-soft)", color: downloading === inv.id ? "var(--ink-faint)" : "var(--brand-blue-deep)" }}
       >
         {downloading === inv.id ? "…" : "↓ CSV"}
-      </button>
+      </Button>
     </div>
   );
 }
@@ -164,168 +173,209 @@ export default function InvoicesPage() {
     }
   };
 
+  const subText = isLoading && !isApiMockMode
+    ? "Loading…"
+    : `${invoices.length} invoice${invoices.length !== 1 ? "s" : ""}`;
+
+  const uploadAction = (
+    <div className="flex items-center gap-3 flex-shrink-0">
+      {uploadMut.isPending && (
+        <span className="text-[12px]" style={{ color: "var(--ink-muted)" }}>Uploading…</span>
+      )}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".xml,.edi"
+        className="hidden"
+        onChange={(e) => { const f = e.target.files?.[0]; if (f) { setNotice(null); uploadMut.mutate(f); } }}
+        disabled={uploadMut.isPending}
+      />
+      {invoices.length > 0 && (
+        <Button
+          variant="primary"
+          size="md"
+          onClick={() => fileInputRef.current?.click()}
+          disabled={uploadMut.isPending}
+          title="Upload an XML or EDI invoice"
+        >
+          Upload invoice
+        </Button>
+      )}
+    </div>
+  );
+
   return (
-    <div className="flex flex-col h-full min-h-0 overflow-hidden" style={{ background: "#F6F7FA" }}>
-      {/* Header */}
-      <div className="flex flex-col gap-3 px-4 py-4 sm:px-6 sm:flex-row sm:items-end sm:gap-4 flex-shrink-0" style={{ borderBottom: "1px solid #E2E6EE", background: "#FFFFFF" }}>
-        <div>
-          <h1 className="text-[26px] font-semibold tracking-[-0.02em]" style={{ fontFamily: "'Bricolage Grotesque', Inter, sans-serif", color: "#0B1A2F" }}>Invoices</h1>
-          <p className="text-[13px] mt-1" style={{ color: "#56627A" }}>
-            {isLoading && !isApiMockMode ? "Loading…" : `${invoices.length} invoice${invoices.length !== 1 ? "s" : ""}`}
-          </p>
-        </div>
-        <div className="sm:ml-auto flex items-center gap-3 flex-shrink-0">
-          {uploadMut.isPending && <span className="text-[12px]" style={{ color: "#56627A" }}>Uploading…</span>}
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".xml,.edi"
-            className="hidden"
-            onChange={(e) => { const f = e.target.files?.[0]; if (f) { setNotice(null); uploadMut.mutate(f); } }}
-            disabled={uploadMut.isPending}
-          />
-          {invoices.length > 0 && (
-            <button
-              onClick={() => fileInputRef.current?.click()}
-              disabled={uploadMut.isPending}
-              className="w-full sm:w-auto rounded-[6px] px-3 text-[12.5px] font-medium"
-              style={{ height: 32, background: "#0B1A2F", color: "#FFFFFF", border: 0, opacity: uploadMut.isPending ? 0.7 : 1 }}
-              title="Upload an XML or EDI invoice"
-            >
-              Upload invoice
-            </button>
-          )}
-        </div>
-      </div>
+    <PageShell variant="wide">
+      <PageHeader
+        title="Invoices"
+        sub={subText}
+        actions={uploadAction}
+      />
 
-      <div className="flex-1 overflow-auto p-4 sm:p-5">
-        {/* Notice */}
-        {notice && (
-          <div
-            className="mb-4 rounded-[8px] px-4 py-3 text-[12.5px]"
-            style={{
-              border: notice.includes("failed") || notice.includes("Failed") ? "1px solid #F5B8B8" : "1px solid #BDE0C1",
-              borderLeft: notice.includes("failed") || notice.includes("Failed") ? "3px solid #C53A3A" : "3px solid #2E8E3A",
-              background: notice.includes("failed") || notice.includes("Failed") ? "#FBF0F0" : "#F0F7F1",
-              color: notice.includes("failed") || notice.includes("Failed") ? "#7B1C1C" : "#1E6D29",
-            }}
-          >
-            <div className="flex items-center justify-between gap-3">
-              <span>{notice}</span>
-              <button onClick={() => setNotice(null)} style={{ color: "inherit", background: "none", border: "none", cursor: "pointer", fontSize: 14 }}>✕</button>
-            </div>
+      {/* Notice */}
+      {notice && (
+        <div
+          className="mb-4 rounded-[8px] px-4 py-3 text-[12.5px]"
+          style={{
+            border: notice.includes("failed") || notice.includes("Failed")
+              ? "1px solid var(--danger-soft)"
+              : "1px solid var(--brand-green-soft)",
+            borderLeft: notice.includes("failed") || notice.includes("Failed")
+              ? "3px solid var(--danger)"
+              : "3px solid var(--brand-green)",
+            background: notice.includes("failed") || notice.includes("Failed")
+              ? "var(--danger-soft)"
+              : "var(--brand-green-soft)",
+            color: notice.includes("failed") || notice.includes("Failed")
+              ? "var(--danger)"
+              : "var(--brand-green-deep)",
+          }}
+        >
+          <div className="flex items-center justify-between gap-3">
+            <span>{notice}</span>
+            <button onClick={() => setNotice(null)} style={{ color: "inherit", background: "none", border: "none", cursor: "pointer", fontSize: 14 }}>✕</button>
           </div>
-        )}
+        </div>
+      )}
 
-        {/* Loading */}
-        {isLoading && !isApiMockMode ? (
-          <>
-            <div className="hidden sm:block rounded-[8px] overflow-hidden" style={{ background: "#FFFFFF", border: "1px solid #E2E6EE" }}>
-              <table className="w-full border-collapse">
-                <thead>
-                  <tr style={{ borderBottom: "2px solid #E2E6EE" }}>
-                    {["Invoice #","Supplier","Date","Amount","Lines","Status",""].map((h, i) => (
-                      <th key={i} className="px-4 py-2.5 text-left text-[10.5px] font-semibold uppercase tracking-[0.06em]" style={{ color: "#8A93A5" }}>{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody><SkeletonRow /><SkeletonRow /><SkeletonRow /></tbody>
-              </table>
-            </div>
-            <div className="flex flex-col gap-3 sm:hidden"><SkeletonCard /><SkeletonCard /><SkeletonCard /></div>
-          </>
-        ) : isError && !isApiMockMode ? (
-          /* Error */
-          <div className="flex flex-col items-center justify-center gap-3 rounded-[8px] p-10 text-center" style={{ background: "#FFFFFF", border: "1px solid #E2E6EE" }}>
-            <p className="text-[14px] font-semibold" style={{ color: "#0B1A2F" }}>Failed to load invoices</p>
-            <button
+      {/* Loading */}
+      {isLoading && !isApiMockMode ? (
+        <>
+          <Card className="hidden sm:block" dense>
+            <table className="w-full border-collapse">
+              <thead>
+                <tr style={{ borderBottom: "2px solid var(--border)" }}>
+                  {["Invoice #","Supplier","Date","Amount","Lines","Status",""].map((h, i) => (
+                    <th key={i} className="px-4 py-2.5 text-left text-[10.5px] font-semibold uppercase tracking-[0.06em]" style={{ color: "var(--ink-faint)" }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody><SkeletonRow /><SkeletonRow /><SkeletonRow /></tbody>
+            </table>
+          </Card>
+          <div className="flex flex-col gap-3 sm:hidden"><SkeletonCard /><SkeletonCard /><SkeletonCard /></div>
+        </>
+      ) : isError && !isApiMockMode ? (
+        /* Error */
+        <Card>
+          <div className="flex flex-col items-center justify-center gap-3 p-6 text-center">
+            <p className="text-[14px] font-semibold" style={{ color: "var(--ink)" }}>Failed to load invoices</p>
+            <Button
+              variant="primary"
+              size="md"
               onClick={() => queryClient.invalidateQueries({ queryKey: ["invoices"] })}
-              className="rounded-[6px] px-4 text-[12.5px] font-medium"
-              style={{ height: 32, background: "#0B1A2F", color: "#FFFFFF", border: 0 }}
             >
               Retry
-            </button>
+            </Button>
           </div>
-        ) : invoices.length === 0 ? (
-          /* Empty */
-          <div className="flex flex-col items-center justify-center gap-3 rounded-[8px] p-10 text-center" style={{ background: "#FFFFFF", border: "1px solid #E2E6EE" }}>
-            <p className="text-[15px] font-semibold" style={{ color: "#0B1A2F" }}>No invoices yet</p>
-            <p className="text-[13px] max-w-[320px]" style={{ color: "#56627A" }}>
+        </Card>
+      ) : invoices.length === 0 ? (
+        /* Empty */
+        <Card>
+          <div className="flex flex-col items-center justify-center gap-3 p-6 text-center">
+            <p className="text-[15px] font-semibold" style={{ color: "var(--ink)" }}>No invoices yet</p>
+            <p className="text-[13px] max-w-[320px]" style={{ color: "var(--ink-muted)" }}>
               Upload supplier invoices to review, approve, and reconcile them against your purchase orders.
             </p>
-            <button
+            <Button
+              variant="primary"
+              size="md"
+              className="mt-1"
               onClick={() => fileInputRef.current?.click()}
-              className="mt-1 rounded-[6px] px-4 text-[12.5px] font-medium"
-              style={{ height: 32, background: "#0B1A2F", color: "#FFFFFF", border: 0 }}
             >
               Upload invoice
-            </button>
+            </Button>
           </div>
-        ) : (
-          <>
-            {/* Mobile cards */}
-            <div className="flex flex-col gap-3 sm:hidden">
-              {invoices.map((inv) => (
-                <div key={inv.id} className="rounded-[8px] bg-white p-4" style={{ border: "1px solid #E2E6EE", borderLeft: "3px solid #28C55E" }}>
-                  <div className="flex items-start justify-between gap-3 mb-2">
-                    <div className="min-w-0">
-                      <p className="text-[13px] font-semibold font-mono truncate" style={{ color: "#0B1A2F" }}>{inv.invoiceNumber ?? "—"}</p>
-                      <p className="text-[12px] mt-0.5" style={{ color: "#56627A" }}>{inv.supplierName ?? "—"}</p>
-                    </div>
-                    <StatusBadge status={inv.status} />
+        </Card>
+      ) : (
+        <>
+          {/* Mobile cards */}
+          <div className="flex flex-col gap-3 sm:hidden">
+            {invoices.map((inv) => (
+              /* Wrapper supplies the Bridge-Layer green left-accent strip (3 px) that the
+                 HEAD card had. MobileListRow renders the card surface; the wrapper clips
+                 the card to its own radius so the strip aligns with the card edge. */
+              <div
+                key={inv.id}
+                style={{
+                  position: "relative",
+                  borderRadius: "var(--radius-md)",
+                  overflow: "hidden",
+                }}
+              >
+                {/* left accent strip */}
+                <span
+                  aria-hidden
+                  style={{
+                    position: "absolute",
+                    left: 0,
+                    top: 0,
+                    bottom: 0,
+                    width: 3,
+                    background: "var(--brand-green)",
+                    zIndex: 1,
+                  }}
+                />
+                <MobileListRow>
+                <div className="flex items-start justify-between gap-3 mb-2">
+                  <div className="min-w-0">
+                    <p className="text-[13px] font-semibold font-mono truncate" style={{ color: "var(--ink)" }}>{inv.invoiceNumber ?? "—"}</p>
+                    <p className="text-[12px] mt-0.5" style={{ color: "var(--ink-muted)" }}>{inv.supplierName ?? "—"}</p>
                   </div>
-                  <div className="flex items-center gap-4 mt-2 mb-3 text-[12px]" style={{ color: "#8A93A5" }}>
-                    <span>{inv.invoiceDate ?? "—"}</span>
-                    <span className="font-semibold" style={{ color: "#0B1A2F" }}>{fmt(inv.totalAmount, inv.currency)}</span>
-                    <span>{inv.lineCount} line{inv.lineCount !== 1 ? "s" : ""}</span>
-                  </div>
-                  <InvoiceActions
-                    inv={inv}
-                    onApprove={(id) => approveMut.mutate(id)}
-                    onDownload={handleDownload}
-                    approving={approvingId}
-                    downloading={downloadingId}
-                  />
+                  <StatusBadge status={inv.status} />
                 </div>
-              ))}
-            </div>
+                <div className="flex items-center gap-4 mt-2 mb-3 text-[12px]" style={{ color: "var(--ink-faint)" }}>
+                  <span>{inv.invoiceDate ?? "—"}</span>
+                  <span className="font-semibold" style={{ color: "var(--ink)" }}>{fmt(inv.totalAmount, inv.currency)}</span>
+                  <span>{inv.lineCount} line{inv.lineCount !== 1 ? "s" : ""}</span>
+                </div>
+                <InvoiceActions
+                  inv={inv}
+                  onApprove={(id) => approveMut.mutate(id)}
+                  onDownload={handleDownload}
+                  approving={approvingId}
+                  downloading={downloadingId}
+                />
+                </MobileListRow>
+              </div>
+            ))}
+          </div>
 
-            {/* Desktop table */}
-            <div className="hidden sm:block rounded-[8px] overflow-hidden" style={{ background: "#FFFFFF", border: "1px solid #E2E6EE" }}>
-              <table className="w-full border-collapse text-left" style={{ fontSize: 12.5 }}>
-                <thead>
-                  <tr style={{ borderBottom: "2px solid #E2E6EE" }}>
-                    {["Invoice #","Supplier","Date","Amount","Lines","Status","Actions"].map((h, i) => (
-                      <th key={i} className="px-4 py-2.5 text-[10.5px] font-semibold uppercase tracking-[0.06em]" style={{ color: "#8A93A5" }}>{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {invoices.map((inv, i) => (
-                    <tr key={inv.id} style={{ borderBottom: i < invoices.length - 1 ? "1px solid #F0F2F6" : "none" }}>
-                      <td className="px-4 py-3 font-mono font-semibold" style={{ color: "#0B1A2F" }}>{inv.invoiceNumber ?? "—"}</td>
-                      <td className="px-4 py-3" style={{ color: "#56627A" }}>{inv.supplierName ?? "—"}</td>
-                      <td className="px-4 py-3" style={{ color: "#56627A" }}>{inv.invoiceDate ?? "—"}</td>
-                      <td className="px-4 py-3 font-semibold" style={{ color: "#0B1A2F" }}>{fmt(inv.totalAmount, inv.currency)}</td>
-                      <td className="px-4 py-3" style={{ color: "#8A93A5" }}>{inv.lineCount}</td>
-                      <td className="px-4 py-3"><StatusBadge status={inv.status} /></td>
-                      <td className="px-4 py-3">
-                        <InvoiceActions
-                          inv={inv}
-                          onApprove={(id) => approveMut.mutate(id)}
-                          onDownload={handleDownload}
-                          approving={approvingId}
-                          downloading={downloadingId}
-                        />
-                      </td>
-                    </tr>
+          {/* Desktop table */}
+          <Card className="hidden sm:block" dense>
+            <table className="w-full border-collapse text-left" style={{ fontSize: 12.5 }}>
+              <thead>
+                <tr style={{ borderBottom: "2px solid var(--border)" }}>
+                  {["Invoice #","Supplier","Date","Amount","Lines","Status","Actions"].map((h, i) => (
+                    <th key={i} className="px-4 py-2.5 text-[10.5px] font-semibold uppercase tracking-[0.06em]" style={{ color: "var(--ink-faint)" }}>{h}</th>
                   ))}
-                </tbody>
-              </table>
-            </div>
-          </>
-        )}
-      </div>
-    </div>
+                </tr>
+              </thead>
+              <tbody>
+                {invoices.map((inv, i) => (
+                  <tr key={inv.id} style={{ borderBottom: i < invoices.length - 1 ? "1px solid var(--surface-2)" : "none" }}>
+                    <td className="px-4 py-3 font-mono font-semibold" style={{ color: "var(--ink)" }}>{inv.invoiceNumber ?? "—"}</td>
+                    <td className="px-4 py-3" style={{ color: "var(--ink-muted)" }}>{inv.supplierName ?? "—"}</td>
+                    <td className="px-4 py-3" style={{ color: "var(--ink-muted)" }}>{inv.invoiceDate ?? "—"}</td>
+                    <td className="px-4 py-3 font-semibold" style={{ color: "var(--ink)" }}>{fmt(inv.totalAmount, inv.currency)}</td>
+                    <td className="px-4 py-3" style={{ color: "var(--ink-faint)" }}>{inv.lineCount}</td>
+                    <td className="px-4 py-3"><StatusBadge status={inv.status} /></td>
+                    <td className="px-4 py-3">
+                      <InvoiceActions
+                        inv={inv}
+                        onApprove={(id) => approveMut.mutate(id)}
+                        onDownload={handleDownload}
+                        approving={approvingId}
+                        downloading={downloadingId}
+                      />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </Card>
+        </>
+      )}
+    </PageShell>
   );
 }

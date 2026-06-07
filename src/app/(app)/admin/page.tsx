@@ -28,10 +28,11 @@ import {
 import { useQueriesEnabled } from "@/hooks/useQueriesEnabled";
 import { CreateInvoiceModal } from "./CreateInvoiceModal";
 import { AdjustLimitsModal } from "./AdjustLimitsModal";
-
-const NAVY = "#0B1A2F";
-const BLUE = "#1E66C9";
-const BLUE_DEEP = "#0F4FA8";
+import { PageShell } from "@/components/bridge/layout/PageShell";
+import { PageHeader } from "@/components/bridge/layout/PageHeader";
+import { Card } from "@/components/bridge/layout/Card";
+import { MobileListRow } from "@/components/bridge/layout/MobileListRow";
+import { Button } from "@/components/bridge/DSPrimitives";
 
 // Stripe is currently in TEST mode — links go to the /test/ dashboard.
 // TODO: drop "/test" once the account is switched to live mode at go-live.
@@ -65,19 +66,20 @@ function shortDate(iso: string | null): string {
 }
 
 // ── Account-status presentation ──────────────────────────────────────────────
+// These are org/plan statuses (NOT order lifecycle) — keep local badge, tokenize colors.
 const STATUS_STYLE: Record<string, { bg: string; fg: string; label: string }> = {
-  trialing:      { bg: "#E3EDFB", fg: "#0F4FA8", label: "Trialing" },
-  active:        { bg: "#E2F1E2", fg: "#1E6D29", label: "Active" },
-  trial_expired: { bg: "#FAEFD6", fg: "#9A6B0B", label: "Trial expired" },
-  past_due:      { bg: "#FBE3E3", fg: "#C53A3A", label: "Past due" },
-  read_only:     { bg: "#EFF2F7", fg: "#56627A", label: "Read-only" },
-  cancelled:     { bg: "#F4D5D5", fg: "#8E1F1F", label: "Cancelled" },
+  trialing:      { bg: "var(--brand-blue-soft)", fg: "var(--brand-blue-deep)", label: "Trialing" },
+  active:        { bg: "var(--brand-green-soft)", fg: "var(--brand-green-deep)", label: "Active" },
+  trial_expired: { bg: "var(--amber-soft)", fg: "var(--amber)", label: "Trial expired" },
+  past_due:      { bg: "var(--danger-soft)", fg: "var(--danger)", label: "Past due" },
+  read_only:     { bg: "var(--surface-2)", fg: "var(--ink-muted)", label: "Read-only" },
+  cancelled:     { bg: "var(--danger-soft)", fg: "var(--danger)", label: "Cancelled" },
 };
-function statusLabel(raw: string): string {
+function orgStatusLabel(raw: string): string {
   return STATUS_STYLE[raw]?.label ?? raw.replace(/_/g, " ");
 }
 function StatusBadge({ status }: { status: string }) {
-  const s = STATUS_STYLE[status] ?? { bg: "#EFF2F7", fg: "#56627A", label: statusLabel(status) };
+  const s = STATUS_STYLE[status] ?? { bg: "var(--surface-2)", fg: "var(--ink-muted)", label: orgStatusLabel(status) };
   return (
     <span
       className="inline-flex items-center rounded-[4px] px-2 py-0.5 text-[10.5px] font-semibold uppercase tracking-[0.03em]"
@@ -91,7 +93,7 @@ function PlanBadge({ plan }: { plan: string }) {
   return (
     <span
       className="inline-flex items-center rounded-[4px] px-2 py-0.5 text-[10.5px] font-semibold uppercase tracking-[0.03em]"
-      style={{ background: "#EEF0F4", color: NAVY }}
+      style={{ background: "var(--surface-2)", color: "var(--ink)" }}
     >
       {plan}
     </span>
@@ -174,21 +176,22 @@ export default function AdminPage() {
   // ── Access gate ─────────────────────────────────────────────────────────────
   if (accessError) {
     return (
-      <Shell hideActions>
+      <PageShell variant="wide">
+        <PageHeader title="Admin" sub="Revenue, customer health, and manual invoicing for the platform owner." />
         <div
           className="mx-auto mt-6 max-w-[480px] rounded-[14px] px-6 py-8 text-center"
-          style={{ background: "#FFFFFF", border: "1px solid #E2E6EE" }}
+          style={{ background: "var(--surface)", border: "1px solid var(--border)" }}
         >
           <div
             className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full"
-            style={{ background: "#EFF2F7" }}
+            style={{ background: "var(--surface-2)" }}
           >
             <span style={{ fontSize: 22 }}>🔒</span>
           </div>
-          <h2 className="text-[18px] font-semibold" style={{ color: NAVY, fontFamily: "var(--font-display)" }}>
+          <h2 className="text-[18px] font-semibold" style={{ color: "var(--ink)", fontFamily: "var(--font-display)" }}>
             {accessError.status === 401 ? "Please sign in" : "You don't have access to the admin area."}
           </h2>
-          <p className="mx-auto mt-2 max-w-[360px] text-[13px]" style={{ color: "#56627A" }}>
+          <p className="mx-auto mt-2 max-w-[360px] text-[13px]" style={{ color: "var(--ink-muted)" }}>
             {accessError.status === 401
               ? "Your session expired. Sign in again to continue."
               : "The admin area is restricted to platform owners. If you believe this is a mistake, contact the team."}
@@ -196,35 +199,37 @@ export default function AdminPage() {
           <Link
             href={accessError.status === 401 ? "/sign-in" : "/bridge"}
             className="mt-5 inline-flex items-center rounded-[8px] px-4 py-2 text-[13px] font-semibold"
-            style={{ background: BLUE, color: "#FFFFFF", textDecoration: "none" }}
+            style={{ background: "var(--brand-blue)", color: "white", textDecoration: "none" }}
           >
             {accessError.status === 401 ? "Go to sign-in" : "Back to dashboard"}
           </Link>
         </div>
-      </Shell>
+      </PageShell>
     );
   }
 
   // ── Loading gate ────────────────────────────────────────────────────────────
   if (!queryEnabled || overviewQ.isLoading) {
     return (
-      <Shell hideActions>
-        <div style={{ color: "#56627A", fontSize: 14 }}>Loading admin overview…</div>
-      </Shell>
+      <PageShell variant="wide">
+        <PageHeader title="Admin" sub="Revenue, customer health, and manual invoicing for the platform owner." />
+        <div style={{ color: "var(--ink-muted)", fontSize: 14 }}>Loading admin overview…</div>
+      </PageShell>
     );
   }
 
   // ── Non-access error gate ───────────────────────────────────────────────────
   if (overviewQ.isError || overviewQ.data === undefined) {
     return (
-      <Shell hideActions>
+      <PageShell variant="wide">
+        <PageHeader title="Admin" sub="Revenue, customer health, and manual invoicing for the platform owner." />
         <div
           className="rounded-[12px] px-5 py-4 text-[14px]"
-          style={{ background: "#FFFFFF", border: "1px solid #FBE3E3", color: "#C53A3A" }}
+          style={{ background: "var(--surface)", border: "1px solid var(--danger-soft)", color: "var(--danger)" }}
         >
           Could not load the admin overview. The API may be unavailable — retry shortly.
         </div>
-      </Shell>
+      </PageShell>
     );
   }
 
@@ -241,13 +246,25 @@ export default function AdminPage() {
         : { tone: "warn" as const, text: `DB ${eur(o.mrr)} vs Stripe ${eur(o.stripeMrr)} — mismatch` };
 
   return (
-    <Shell
-      onCreateInvoice={() => {
-        setInvoiceOrgId(null);
-        setShowInvoice(true);
-      }}
-      canInvoice={orgsForModal.length > 0}
-    >
+    <PageShell variant="wide">
+      <PageHeader
+        title="Admin"
+        sub="Revenue, customer health, and manual invoicing for the platform owner."
+        actions={
+          <Button
+            variant="blue"
+            size="md"
+            onClick={() => {
+              setInvoiceOrgId(null);
+              setShowInvoice(true);
+            }}
+            disabled={orgsForModal.length === 0}
+          >
+            + Create invoice
+          </Button>
+        }
+      />
+
       {/* ── Overview cards ──────────────────────────────────────────────────── */}
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <MetricCard label="MRR" value={eur(o.mrr)} sub={reconcile.text} subTone={reconcile.tone} />
@@ -267,10 +284,13 @@ export default function AdminPage() {
       {/* ── Customers ───────────────────────────────────────────────────────── */}
       <section className="mt-7">
         <div className="mb-3 flex items-center justify-between gap-3">
-          <h2 className="text-[18px] font-semibold" style={{ fontFamily: "var(--font-display)", color: NAVY, margin: 0 }}>
+          <h2
+            className="text-[18px] font-semibold"
+            style={{ fontFamily: "var(--font-display)", color: "var(--ink)", margin: 0 }}
+          >
             Customers
           </h2>
-          <span className="text-[12px]" style={{ color: "#8A93A5" }}>
+          <span className="text-[12px]" style={{ color: "var(--ink-faint)" }}>
             {orgsQ.isLoading ? "Loading…" : `${(orgsQ.data ?? []).length} orgs`}
           </span>
         </div>
@@ -278,14 +298,14 @@ export default function AdminPage() {
         {orgsQ.isError && !(orgsQ.error instanceof AdminAccessError) ? (
           <div
             className="rounded-[12px] px-5 py-4 text-[13.5px]"
-            style={{ background: "#FFFFFF", border: "1px solid #FBE3E3", color: "#C53A3A" }}
+            style={{ background: "var(--surface)", border: "1px solid var(--danger-soft)", color: "var(--danger)" }}
           >
             Could not load organisations.
           </div>
         ) : (orgsQ.data ?? []).length === 0 ? (
           <div
             className="rounded-[12px] px-5 py-6 text-[13.5px]"
-            style={{ background: "#FFFFFF", border: "1px solid #E2E6EE", color: "#56627A" }}
+            style={{ background: "var(--surface)", border: "1px solid var(--border)", color: "var(--ink-muted)" }}
           >
             No organisations yet.
           </div>
@@ -294,11 +314,11 @@ export default function AdminPage() {
             {/* Desktop table */}
             <div
               className="hidden md:block"
-              style={{ background: "#FFFFFF", border: "1px solid #E2E6EE", borderRadius: 12, overflowX: "auto" }}
+              style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 12, overflowX: "auto" }}
             >
               <table style={{ width: "100%", minWidth: 920, borderCollapse: "collapse", fontSize: 13 }}>
                 <thead>
-                  <tr style={{ background: "#F6F7FA", color: "#56627A", textAlign: "left" }}>
+                  <tr style={{ background: "var(--bg)", color: "var(--ink-muted)", textAlign: "left" }}>
                     <SortableTh label="Organisation" col="name" {...{ sortKey, sortDir, toggleSort }} />
                     <SortableTh label="Plan" col="plan" {...{ sortKey, sortDir, toggleSort }} />
                     <SortableTh label="Status" col="accountStatus" {...{ sortKey, sortDir, toggleSort }} />
@@ -313,48 +333,42 @@ export default function AdminPage() {
                 </thead>
                 <tbody>
                   {sortedOrgs.map((org) => (
-                    <tr key={org.id} style={{ borderTop: "1px solid #EEF0F4" }}>
+                    <tr key={org.id} style={{ borderTop: "1px solid var(--surface-2)" }}>
                       <td style={td}>
-                        <div style={{ fontWeight: 600, color: NAVY }}>{org.name}</div>
-                        <div style={{ fontSize: 11.5, color: "#8A93A5" }}>{org.slug}</div>
+                        <div style={{ fontWeight: 600, color: "var(--ink)" }}>{org.name}</div>
+                        <div style={{ fontSize: 11.5, color: "var(--ink-faint)" }}>{org.slug}</div>
                       </td>
                       <td style={td}><PlanBadge plan={org.plan} /></td>
                       <td style={td}><StatusBadge status={org.accountStatus} /></td>
                       <td style={{ ...td, textAlign: "right", fontVariantNumeric: "tabular-nums" }}>
                         {eurCents(org.mrrContribution)}
                       </td>
-                      <td style={{ ...td, textAlign: "right", fontVariantNumeric: "tabular-nums", color: "#56627A" }}>
+                      <td style={{ ...td, textAlign: "right", fontVariantNumeric: "tabular-nums", color: "var(--ink-muted)" }}>
                         {org.orderVolume30d}
                       </td>
-                      <td style={{ ...td, textAlign: "right", fontVariantNumeric: "tabular-nums", color: "#56627A" }}>
+                      <td style={{ ...td, textAlign: "right", fontVariantNumeric: "tabular-nums", color: "var(--ink-muted)" }}>
                         {org.supplierCount}
                       </td>
-                      <td style={{ ...td, color: "#56627A", whiteSpace: "nowrap" }}>{shortDate(org.createdAt)}</td>
-                      <td style={{ ...td, color: "#56627A", whiteSpace: "nowrap" }}>{relativeTime(org.lastOrderActivity)}</td>
+                      <td style={{ ...td, color: "var(--ink-muted)", whiteSpace: "nowrap" }}>{shortDate(org.createdAt)}</td>
+                      <td style={{ ...td, color: "var(--ink-muted)", whiteSpace: "nowrap" }}>{relativeTime(org.lastOrderActivity)}</td>
                       <td style={{ ...td, textAlign: "right", whiteSpace: "nowrap" }}>
                         {org.stripeCustomerId ? (
                           <a
                             href={`${STRIPE_CUSTOMER_BASE}${org.stripeCustomerId}`}
                             target="_blank"
                             rel="noopener noreferrer"
-                            style={{ color: BLUE_DEEP, fontWeight: 600, textDecoration: "none" }}
+                            style={{ color: "var(--brand-blue-deep)", fontWeight: 600, textDecoration: "none" }}
                           >
                             View ↗
                           </a>
                         ) : (
-                          <span style={{ color: "#C5CBD6" }}>—</span>
+                          <span style={{ color: "var(--ink-faint)" }}>—</span>
                         )}
                       </td>
                       <td style={{ ...td, textAlign: "right", whiteSpace: "nowrap" }}>
-                        <button
-                          onClick={() => setLimitsOrg(org)}
-                          style={{
-                            background: "#FFFFFF", border: "1px solid #D9DEE8", borderRadius: 7,
-                            padding: "5px 10px", fontSize: 12, fontWeight: 600, color: NAVY, cursor: "pointer",
-                          }}
-                        >
+                        <Button variant="secondary" size="sm" onClick={() => setLimitsOrg(org)}>
                           Adjust limits
-                        </button>
+                        </Button>
                       </td>
                     </tr>
                   ))}
@@ -362,48 +376,42 @@ export default function AdminPage() {
               </table>
             </div>
 
-            {/* Mobile cards */}
-            <div className="md:hidden" style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            {/* Mobile cards — MobileListRow */}
+            <div className="md:hidden flex flex-col gap-3">
               {sortedOrgs.map((org) => (
-                <div key={org.id} style={{ background: "#FFFFFF", border: "1px solid #E2E6EE", borderRadius: 12, padding: 14 }}>
+                <MobileListRow key={org.id}>
                   <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 10 }}>
                     <div style={{ minWidth: 0 }}>
-                      <div style={{ fontWeight: 600, color: NAVY, fontSize: 14 }}>{org.name}</div>
-                      <div style={{ fontSize: 11.5, color: "#8A93A5" }}>{org.slug}</div>
+                      <div style={{ fontWeight: 600, color: "var(--ink)", fontSize: 14 }}>{org.name}</div>
+                      <div style={{ fontSize: 11.5, color: "var(--ink-faint)" }}>{org.slug}</div>
                     </div>
                     <StatusBadge status={org.accountStatus} />
                   </div>
-                  <div style={{ marginTop: 10, display: "flex", flexWrap: "wrap", gap: "6px 16px", fontSize: 12.5, color: "#56627A" }}>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: "6px 16px", fontSize: 12.5, color: "var(--ink-muted)" }}>
                     <span><PlanBadge plan={org.plan} /></span>
-                    <span><strong style={{ color: NAVY }}>{eurCents(org.mrrContribution)}</strong> MRR</span>
+                    <span><strong style={{ color: "var(--ink)" }}>{eurCents(org.mrrContribution)}</strong> MRR</span>
                     <span>{org.orderVolume30d} orders/30d</span>
                     <span>{org.supplierCount} suppliers</span>
                   </div>
-                  <div style={{ marginTop: 8, fontSize: 11.5, color: "#8A93A5" }}>
+                  <div style={{ fontSize: 11.5, color: "var(--ink-faint)" }}>
                     Created {shortDate(org.createdAt)} · last activity {relativeTime(org.lastOrderActivity)}
                   </div>
-                  <div style={{ marginTop: 12, display: "flex", flexWrap: "wrap", alignItems: "center", gap: 12 }}>
-                    <button
-                      onClick={() => setLimitsOrg(org)}
-                      style={{
-                        background: "#FFFFFF", border: "1px solid #D9DEE8", borderRadius: 7,
-                        padding: "7px 12px", fontSize: 12.5, fontWeight: 600, color: NAVY, cursor: "pointer",
-                      }}
-                    >
+                  <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 12 }}>
+                    <Button variant="secondary" size="sm" onClick={() => setLimitsOrg(org)}>
                       Adjust limits / extend pilot
-                    </button>
+                    </Button>
                     {org.stripeCustomerId && (
                       <a
                         href={`${STRIPE_CUSTOMER_BASE}${org.stripeCustomerId}`}
                         target="_blank"
                         rel="noopener noreferrer"
-                        style={{ color: BLUE_DEEP, fontWeight: 600, fontSize: 12.5, textDecoration: "none" }}
+                        style={{ color: "var(--brand-blue-deep)", fontWeight: 600, fontSize: 12.5, textDecoration: "none" }}
                       >
                         View in Stripe ↗
                       </a>
                     )}
                   </div>
-                </div>
+                </MobileListRow>
               ))}
             </div>
           </>
@@ -425,7 +433,7 @@ export default function AdminPage() {
           onSaved={() => orgsQ.refetch()}
         />
       )}
-    </Shell>
+    </PageShell>
   );
 }
 
@@ -438,13 +446,16 @@ function MetricCard({
   sub?: string;
   subTone?: "muted" | "ok" | "warn";
 }) {
-  const subColor = subTone === "ok" ? "#1E6D29" : subTone === "warn" ? "#C53A3A" : "#8A93A5";
+  const subColor =
+    subTone === "ok" ? "var(--brand-green-deep)" :
+    subTone === "warn" ? "var(--danger)" :
+    "var(--ink-faint)";
   return (
-    <div className="rounded-[12px] px-4 py-3.5" style={{ background: "#FFFFFF", border: "1px solid #E2E6EE" }}>
-      <div className="text-[11px] font-semibold uppercase tracking-[0.05em]" style={{ color: "#8A93A5" }}>
+    <Card dense>
+      <div className="text-[11px] font-semibold uppercase tracking-[0.05em]" style={{ color: "var(--ink-faint)" }}>
         {label}
       </div>
-      <div className="mt-1 text-[24px] font-bold leading-tight" style={{ color: NAVY, fontVariantNumeric: "tabular-nums" }}>
+      <div className="mt-1 text-[24px] font-bold leading-tight" style={{ color: "var(--ink)", fontVariantNumeric: "tabular-nums" }}>
         {value}
       </div>
       {sub && (
@@ -452,7 +463,7 @@ function MetricCard({
           {sub}
         </div>
       )}
-    </div>
+    </Card>
   );
 }
 
@@ -475,7 +486,7 @@ function SortableTh({
         className="inline-flex items-center gap-1"
         style={{
           background: "transparent", border: 0, cursor: "pointer", padding: 0,
-          font: "inherit", color: active ? NAVY : "#8A93A5", textTransform: "uppercase",
+          font: "inherit", color: active ? "var(--ink)" : "var(--ink-faint)", textTransform: "uppercase",
           letterSpacing: "0.05em", fontSize: 10.5, fontWeight: 700,
         }}
         aria-label={`Sort by ${label}`}
@@ -489,56 +500,5 @@ function SortableTh({
   );
 }
 
-// ── Layout shell ──────────────────────────────────────────────────────────────
-function Shell({
-  children, onCreateInvoice, canInvoice = true, hideActions = false,
-}: {
-  children: React.ReactNode;
-  onCreateInvoice?: () => void;
-  canInvoice?: boolean;
-  hideActions?: boolean;
-}) {
-  return (
-    <div style={{ height: "100%", minHeight: 0, overflowY: "auto", background: "#F6F7FA" }}>
-      <style>{`
-        .admin-shell { padding: 26px 34px 64px; }
-        @media (max-width: 640px) { .admin-shell { padding: 20px 16px 56px; } }
-      `}</style>
-      <div className="admin-shell" style={{ maxWidth: 1180, margin: "0 auto" }}>
-        <header className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h1
-              style={{
-                fontFamily: "var(--font-display)", fontSize: 30, fontWeight: 600,
-                letterSpacing: "-0.025em", lineHeight: 1.1, margin: 0, color: NAVY,
-              }}
-            >
-              Admin
-            </h1>
-            <div style={{ color: "#56627A", fontSize: 13, marginTop: 5 }}>
-              Revenue, customer health, and manual invoicing for the platform owner.
-            </div>
-          </div>
-          {!hideActions && (
-            <button
-              onClick={onCreateInvoice}
-              disabled={!canInvoice}
-              className="self-start rounded-[8px] px-4 py-2 text-[13px] font-semibold sm:self-auto"
-              style={{
-                background: canInvoice ? BLUE : "#9FB6DC",
-                color: "#FFFFFF", border: 0,
-                cursor: canInvoice ? "pointer" : "not-allowed",
-              }}
-            >
-              + Create invoice
-            </button>
-          )}
-        </header>
-        {children}
-      </div>
-    </div>
-  );
-}
-
 const th: React.CSSProperties = { padding: "9px 14px", fontSize: 10.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", whiteSpace: "nowrap" };
-const td: React.CSSProperties = { padding: "10px 14px", color: NAVY, verticalAlign: "middle" };
+const td: React.CSSProperties = { padding: "10px 14px", color: "var(--ink)", verticalAlign: "middle" };

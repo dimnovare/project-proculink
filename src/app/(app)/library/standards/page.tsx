@@ -19,6 +19,8 @@
 import { useState } from "react";
 import { FIELD_STANDARDS, type CanonicalFieldStandards } from "@/lib/standards/catalog";
 import { EmptyState } from "@/components/bridge/EmptyState";
+import { PageShell } from "@/components/bridge/layout/PageShell";
+import { PageHeader } from "@/components/bridge/layout/PageHeader";
 
 // ── Local presentation order — cXML first, versioned labels (design spec) ──────
 // key is a field on CanonicalFieldStandards. The header labels here are the exact
@@ -48,67 +50,65 @@ export default function StandardsPage() {
     return REF_COLUMNS.some(({ key }) => (f[key] ?? "").toLowerCase().includes(query));
   });
 
+  // Field search input — rendered in the PageHeader actions slot.
+  const searchInput = (
+    <label
+      className="flex h-10 w-full items-center gap-2 sm:h-8 sm:w-[240px]"
+      style={{
+        background: "var(--surface)",
+        border: "1px solid var(--border)",
+        borderRadius: "var(--radius)",
+        padding: "0 11px",
+      }}
+    >
+      <svg
+        width="15"
+        height="15"
+        viewBox="0 0 24 24"
+        fill="none"
+        aria-hidden
+        style={{ flexShrink: 0 }}
+      >
+        <circle cx="11" cy="11" r="7" stroke="var(--ink-faint)" strokeWidth="2" />
+        <path
+          d="m20 20-3.5-3.5"
+          stroke="var(--ink-faint)"
+          strokeWidth="2"
+          strokeLinecap="round"
+        />
+      </svg>
+      <input
+        value={q}
+        onChange={(e) => setQ(e.target.value)}
+        placeholder="Search fields or paths…"
+        aria-label="Search fields or paths"
+        className="min-w-0 flex-1 bg-transparent text-[12.5px] outline-none"
+        style={{ color: "var(--ink)" }}
+      />
+    </label>
+  );
+
   return (
-    // .work-inner.wide — full-width work area (max-width: none in the design),
-    // 26px/34px desktop padding, 18px/16px on mobile.
-    <div className="mx-auto w-full px-4 pb-16 pt-[18px] sm:px-[34px] sm:pt-[26px]">
-      {/* .page-head — title block left, field search right; wraps on narrow widths */}
-      <header className="mb-[18px] flex flex-wrap items-start justify-between gap-x-6 gap-y-3 sm:mb-[22px]">
-        <div className="min-w-0">
-          <h1
-            className="m-0 text-[24px] font-semibold leading-[1.1] tracking-[-0.025em] sm:whitespace-nowrap sm:text-[30px]"
-            style={{ fontFamily: "var(--font-display)", color: "var(--ink)" }}
-          >
-            Standards reference
-          </h1>
-          <p className="mt-[5px] text-[13px] leading-snug" style={{ color: "var(--ink-muted)" }}>
-            How every canonical field maps across formats — always visible, never hidden
-          </p>
-        </div>
+    <PageShell variant="wide">
+      <PageHeader
+        title="Standards reference"
+        sub="How every canonical field maps across formats — always visible, never hidden"
+        actions={searchInput}
+      />
 
-        {/* Field search — h32 · w240 · radius 6 · --border · 12.5px input (design) */}
-        <label
-          className="flex h-10 w-full items-center gap-2 sm:h-8 sm:w-[240px]"
-          style={{
-            background: "var(--surface)",
-            border: "1px solid var(--border)",
-            borderRadius: "var(--radius)",
-            padding: "0 11px",
-          }}
-        >
-          <svg
-            width="15"
-            height="15"
-            viewBox="0 0 24 24"
-            fill="none"
-            aria-hidden
-            style={{ flexShrink: 0 }}
-          >
-            <circle cx="11" cy="11" r="7" stroke="var(--ink-faint)" strokeWidth="2" />
-            <path
-              d="m20 20-3.5-3.5"
-              stroke="var(--ink-faint)"
-              strokeWidth="2"
-              strokeLinecap="round"
-            />
-          </svg>
-          <input
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            placeholder="Search fields or paths…"
-            aria-label="Search fields or paths"
-            className="min-w-0 flex-1 bg-transparent text-[12.5px] outline-none"
-            style={{ color: "var(--ink)" }}
-          />
-        </label>
-      </header>
-
-      {/* .card — single white card, 1px --border, 8px radius (no shadow in source).
-          On mobile the table scrolls horizontally with a sticky first column so the
-          canonical field stays anchored while the reference codes scroll. */}
+      {/* Single white card — table scrolls horizontally with a sticky first column so
+          the canonical field stays anchored while the reference codes scroll.
+          <Card> is not used here because the table requires zero internal padding for
+          its edge-to-edge layout; the Card primitive always applies a fixed pad value.
+          The div is already fully token-clean (surface/border/radius-md). */}
       <div
-        className="overflow-hidden rounded-[8px]"
-        style={{ background: "var(--surface)", border: "1px solid var(--border)" }}
+        className="overflow-hidden"
+        style={{
+          background: "var(--surface)",
+          border: "1px solid var(--border)",
+          borderRadius: "var(--radius-md)",
+          boxShadow: "var(--shadow-card)",
+        }}
       >
         <div className="overflow-x-auto">
           {/* min-width forces horizontal scroll on narrow viewports */}
@@ -209,6 +209,6 @@ export default function StandardsPage() {
           Request a format
         </a>
       </div>
-    </div>
+    </PageShell>
   );
 }

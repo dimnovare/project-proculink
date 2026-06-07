@@ -15,11 +15,9 @@ import {
 
 // Buyer-blue is the primary accent on this screen (sampled from the design render:
 // header button, modal CTA, modal icon-chip + info banner, and the order column in the
-// deliveries table all use #1E66C9). Green stays reserved for healthy/2xx status only.
-// There is no --buyer-blue CSS token, so these are intentional literals.
-const BLUE = "#1E66C9";
-const BLUE_DEEP = "#164689";
-const BLUE_SOFT = "#E3EDFB";
+// deliveries table all use #1E66C9). Mapped to canonical design tokens.
+const BLUE = "var(--brand-blue,#1E66C9)";
+const BLUE_SOFT = "var(--brand-blue-soft,#E3EDFB)";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -721,8 +719,8 @@ function WebhookPanel({
           <button
             onClick={() => onSave(url, eventType, secret.trim() || undefined)}
             disabled={saving || !url.trim()}
-            onMouseEnter={(e) => { if (!saving && url.trim()) (e.currentTarget as HTMLElement).style.background = BLUE_DEEP; }}
-            onMouseLeave={(e) => { if (!saving && url.trim()) (e.currentTarget as HTMLElement).style.background = BLUE; }}
+            onMouseEnter={(e) => { if (!saving && url.trim()) (e.currentTarget as HTMLElement).style.background = "var(--brand-green-deep)"; }}
+            onMouseLeave={(e) => { if (!saving && url.trim()) (e.currentTarget as HTMLElement).style.background = "var(--brand-green)"; }}
             style={{
               display: "inline-flex",
               alignItems: "center",
@@ -731,8 +729,8 @@ function WebhookPanel({
               padding: "0 14px",
               borderRadius: "var(--radius,6px)",
               border: "1px solid transparent",
-              background: saving || !url.trim() ? "var(--ink-faint,#8A93A5)" : BLUE,
-              color: "#FFFFFF",
+              background: saving || !url.trim() ? "var(--ink-faint,#8A93A5)" : "var(--brand-green)",
+              color: "var(--surface,#FFFFFF)",
               fontSize: 12.5,
               fontWeight: 600,
               cursor: saving || !url.trim() ? "default" : "pointer",
@@ -843,8 +841,8 @@ function WebhooksLayout({
             </div>
             <button
               onClick={onAdd}
-              onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = BLUE_DEEP; }}
-              onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = BLUE; }}
+              onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "var(--brand-green-deep)"; }}
+              onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "var(--brand-green)"; }}
               style={{
                 display: "inline-flex",
                 alignItems: "center",
@@ -853,8 +851,8 @@ function WebhooksLayout({
                 padding: "0 14px",
                 borderRadius: "var(--radius,6px)",
                 border: "1px solid transparent",
-                background: BLUE,
-                color: "#fff",
+                background: "var(--brand-green)",
+                color: "var(--surface,#FFFFFF)",
                 fontSize: 12.5,
                 fontWeight: 600,
                 cursor: "pointer",
