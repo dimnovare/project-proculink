@@ -6,6 +6,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiClient, isApiMockMode } from "@/lib/api-client";
+import { useOrderDirection } from "@/hooks/useOrderDirection";
 import type { SupplierMapping } from "@/types/procurement";
 
 // ─── Palette (sampled pixel-exact from the design render 2026-05-30) ───────────
@@ -107,8 +108,15 @@ const MOCK_ROWS: MappingRow[] = [
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export function MappingEditor() {
+  // Direction-aware copy: "Supplier" → "Customer" in inbound mode (route/types unchanged).
+  const { labels } = useOrderDirection();
+  const partyNoun = labels.counterpartyNoun;                       // "Supplier" | "Customer"
+  const partyNounLower = partyNoun.toLowerCase();                  // "supplier" | "customer"
+  const partyPluralLower = labels.counterpartyPlural.toLowerCase(); // "suppliers" | "customers"
+  const allParties = `All ${partyPluralLower}`;                   // "All suppliers" | "All customers"
+
   const [search, setSearch]   = useState("");
-  const [route, setRoute]     = useState("All suppliers");
+  const [route, setRoute]     = useState(allParties);
   const [srcFilter, setSrc]   = useState<Source | "All">("All");
   const [panel, setPanel] = useState<{ kind: "import" | "export" | "add" | "edit"; row?: MappingRow } | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -166,8 +174,8 @@ export function MappingEditor() {
       if (!firstSupplier) {
         setNotice(
           kind === "export"
-            ? "Add a supplier before exporting item-code mappings."
-            : "Add a supplier before saving item-code mappings.",
+            ? `Add a ${partyNounLower} before exporting item-code mappings.`
+            : `Add a ${partyNounLower} before saving item-code mappings.`,
         );
         return;
       }
@@ -197,10 +205,10 @@ export function MappingEditor() {
           </h1>
           <p className="text-[13px] mt-1" style={{ color: "#56627A" }}>
             {needsSupplierSelection ? (
-              "Buyer → supplier item code library · select a supplier to view its mappings"
+              `Buyer → ${partyNounLower} item code library · select a ${partyNounLower} to view its mappings`
             ) : (
               <>
-                {isApiMockMode ? "Global buyer" : "Buyer"} → supplier item code library ·{" "}
+                {isApiMockMode ? "Global buyer" : "Buyer"} → {partyNounLower} item code library ·{" "}
                 <span style={{ color: "#0B1A2F", fontWeight: 600 }}>
                   {allRows.length.toLocaleString()}
                 </span>{" "}
@@ -230,7 +238,7 @@ export function MappingEditor() {
           <button
             onClick={() => openPanelForSupplier("add")}
             className="flex h-10 items-center justify-center gap-1.5 rounded-[7px] px-3.5 text-[13px] font-semibold transition-colors lg:h-[34px] lg:text-[12.5px]"
-            title="Map a buyer item code to a supplier item code"
+            title={`Map a buyer item code to a ${partyNounLower} item code`}
             style={{
               background: BLUE,
               color: "#FFFFFF",
@@ -253,7 +261,7 @@ export function MappingEditor() {
       <div className="flex flex-col items-stretch gap-2 px-4 pb-3 sm:px-6 lg:flex-row lg:items-center lg:gap-3 flex-shrink-0">
         <p className="text-[12.5px] flex-shrink-0" style={{ color: "#56627A" }}>
           {needsSupplierSelection ? (
-            <span style={{ color: "#8A93A5" }}>No supplier selected</span>
+            <span style={{ color: "#8A93A5" }}>No {partyNounLower} selected</span>
           ) : (
             <>
               Showing{" "}
@@ -295,7 +303,7 @@ export function MappingEditor() {
           onChange={(e) => {
             const val = e.target.value;
             setSelectedSupplierId(val || null);
-            setRoute(val ? (supplierList?.find(s => s.id === val)?.name ?? "All suppliers") : "All suppliers");
+            setRoute(val ? (supplierList?.find(s => s.id === val)?.name ?? allParties) : allParties);
           }}
           className="h-10 w-full flex-shrink-0 appearance-none rounded-[7px] px-3 text-[13px] lg:h-[34px] lg:w-auto lg:text-[12.5px]"
           style={{
@@ -305,7 +313,7 @@ export function MappingEditor() {
             outline: "none",
           }}
         >
-          <option value="">All suppliers</option>
+          <option value="">{allParties}</option>
           {(supplierList ?? []).map(s => (
             <option key={s.id} value={s.id}>{s.name}</option>
           ))}
@@ -323,7 +331,7 @@ export function MappingEditor() {
           <input
             type="text"
             aria-label="Search mappings"
-            placeholder="Search buyer or supplier codes…"
+            placeholder={`Search buyer or ${partyNounLower} codes…`}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="h-10 w-full rounded-[7px] pl-8 pr-3 text-[13px] transition-shadow lg:h-[34px] lg:text-[12.5px]"
@@ -384,11 +392,11 @@ export function MappingEditor() {
             >
               <span style={{ fontSize: 30, marginBottom: 10 }} aria-hidden="true">⇅</span>
               <p className="text-[13px] font-semibold" style={{ color: INK, marginBottom: 4 }}>
-                Select a supplier to view its mappings
+                Select a {partyNounLower} to view its mappings
               </p>
               <p className="text-[12.5px]" style={{ maxWidth: 380 }}>
-                Item-code mappings are saved per supplier. Choose a supplier above to see
-                its buyer → supplier code library, or add a new mapping.
+                Item-code mappings are saved per {partyNounLower}. Choose a {partyNounLower} above to see
+                its buyer → {partyNounLower} code library, or add a new mapping.
               </p>
             </div>
           )}
@@ -467,12 +475,12 @@ export function MappingEditor() {
                 >
                   <tr style={{ borderBottom: `1px solid ${BORDER}` }}>
                     {[
-                      { label: "Buyer",         align: "left"  as const },
-                      { label: "Buyer code",    align: "left"  as const },
-                      { label: "Supplier",      align: "left"  as const },
-                      { label: "Supplier code", align: "left"  as const },
-                      { label: "Source",        align: "left"  as const },
-                      { label: "Used",          align: "right" as const },
+                      { label: "Buyer",              align: "left"  as const },
+                      { label: "Buyer code",         align: "left"  as const },
+                      { label: partyNoun,            align: "left"  as const },
+                      { label: `${partyNoun} code`,  align: "left"  as const },
+                      { label: "Source",             align: "left"  as const },
+                      { label: "Used",               align: "right" as const },
                     ].map(({ label, align }, i) => (
                       <th
                         key={i}
@@ -552,7 +560,7 @@ export function MappingEditor() {
                   <span style={{ fontSize: 32, marginBottom: 8 }}>⊘</span>
                   <p className="text-[13px] font-semibold" style={{ color: INK, marginBottom: 4 }}>No item mappings yet</p>
                   <p className="text-[12.5px] text-center" style={{ maxWidth: 400 }}>
-                    Add mappings to automatically translate your buyer item codes to supplier item codes.
+                    Add mappings to automatically translate your buyer item codes to {partyNounLower} item codes.
                   </p>
                 </div>
               )}
@@ -574,6 +582,8 @@ export function MappingEditor() {
           panel={panel}
           route={route}
           supplierId={selectedSupplierId}
+          partyNoun={partyNoun}
+          partyNounLower={partyNounLower}
           onClose={() => setPanel(null)}
           onDone={(message) => {
             setNotice(message);
@@ -590,12 +600,16 @@ function MappingPanel({
   panel,
   route,
   supplierId,
+  partyNoun,
+  partyNounLower,
   onClose,
   onDone,
 }: {
   panel: { kind: "import" | "export" | "add" | "edit"; row?: MappingRow };
   route: string;
   supplierId: string | null;
+  partyNoun: string;        // "Supplier" | "Customer"
+  partyNounLower: string;   // "supplier" | "customer"
   onClose: () => void;
   onDone: (message: string) => void;
 }) {
@@ -673,22 +687,22 @@ function MappingPanel({
     "Edit SKU mapping";
 
   const subtitle =
-    panel.kind === "import" ? "Bulk upload a buyer → supplier code list" :
-    panel.kind === "export" ? "Export this supplier's mappings as CSV" :
-    "Connect a buyer code to a supplier code";
+    panel.kind === "import" ? `Bulk upload a buyer → ${partyNounLower} code list` :
+    panel.kind === "export" ? `Export this ${partyNounLower}'s mappings as CSV` :
+    `Connect a buyer code to a ${partyNounLower} code`;
 
   const isCodePanel = panel.kind === "add" || panel.kind === "edit";
 
   const handleAction = async () => {
     if (!supplierId) {
-      setError("Choose a supplier before saving mappings.");
+      setError(`Choose a ${partyNounLower} before saving mappings.`);
       return;
     }
 
     if (isApiMockMode) {
       // Demo mode: local-only notice
       const message =
-        panel.kind === "export" ? "Export prepared for this supplier's mappings." :
+        panel.kind === "export" ? `Export prepared for this ${partyNounLower}'s mappings.` :
         panel.kind === "import" ? "Import file validated. Connect an API session to upsert the mappings." :
         panel.kind === "add" ? "Mapping saved." :
         "Mapping updated.";
@@ -794,7 +808,7 @@ function MappingPanel({
         {panel.kind === "export" && (
           <div className="grid gap-3.5 p-5">
             {/* Supplier (context) — export always covers the selected supplier */}
-            <Field label="Supplier">
+            <Field label={partyNoun}>
               <div
                 className="flex h-10 w-full items-center rounded-[7px] px-3 text-[13px]"
                 style={{ border: `1px solid ${BORDER}`, background: "#F8FAFC", color: GREEN_CODE, fontWeight: 500 }}
@@ -810,7 +824,7 @@ function MappingPanel({
                 <circle cx="8" cy="8" r="6.4" stroke={BLUE_LINK} strokeWidth="1.3" />
                 <path d="M8 7.2v3.6M8 5.2h.01" stroke={BLUE_LINK} strokeWidth="1.4" strokeLinecap="round" />
               </svg>
-              <span>Downloads this supplier&apos;s mappings as a CSV (buyer_code, supplier_code).</span>
+              <span>Downloads this {partyNounLower}&apos;s mappings as a CSV (buyer_code, supplier_code).</span>
             </div>
           </div>
         )}
@@ -841,7 +855,7 @@ function MappingPanel({
             </RequiredField>
 
             {/* Supplier (context) */}
-            <Field label="Supplier">
+            <Field label={partyNoun}>
               <div
                 className="flex h-10 w-full items-center rounded-[7px] px-3 text-[13px]"
                 style={{ border: `1px solid ${BORDER}`, background: "#F8FAFC", color: GREEN_CODE, fontWeight: 500 }}
@@ -851,7 +865,7 @@ function MappingPanel({
             </Field>
 
             {/* Supplier item code — required, mono */}
-            <RequiredField label="Supplier item code">
+            <RequiredField label={`${partyNoun} item code`}>
               <input
                 value={supplierCode}
                 onChange={(e) => setSupplierCode(e.target.value)}
@@ -872,7 +886,7 @@ function MappingPanel({
                 <circle cx="8" cy="8" r="6.4" stroke={BLUE_LINK} strokeWidth="1.3" />
                 <path d="M8 7.2v3.6M8 5.2h.01" stroke={BLUE_LINK} strokeWidth="1.4" strokeLinecap="round" />
               </svg>
-              <span>Saved mappings are reused automatically on every future order for this buyer → supplier pair.</span>
+              <span>Saved mappings are reused automatically on every future order for this buyer → {partyNounLower} pair.</span>
             </div>
           </div>
         )}

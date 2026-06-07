@@ -25,7 +25,8 @@ type WebhookRow = {
   id: string;
   url: string;
   events: string[];
-  status: "healthy" | "failing";
+  // "paused" = operator-disabled (isActive:false); NOT a delivery failure.
+  status: "healthy" | "failing" | "paused";
   lastDelivery: string;
 };
 
@@ -93,8 +94,9 @@ function toRow(sub: IntegrationSubscription): WebhookRow {
     id: sub.id,
     url: sub.targetUrl,
     events: [sub.eventType],
-    // Active integration → "healthy"; inactive → "failing"
-    status: sub.isActive ? "healthy" : "failing",
+    // Active integration → "healthy"; operator-disabled (isActive:false) → "paused".
+    // A paused endpoint is intentionally off, not failing — don't show a red error pill.
+    status: sub.isActive ? "healthy" : "paused",
     lastDelivery: relativeTime(sub.updatedAt),
   };
 }
@@ -190,13 +192,16 @@ function CardHead({ title, sub, icon }: { title: string; sub?: string; icon: "we
 // #E2F1E2 / green-deep ink #1E6D29 / brand-green dot #2E8E3A) for "Healthy",
 // .pill-failed (danger-soft / danger) for "Failing". Verified by pixel-sampling
 // the design render — no bespoke literals, and definitely not the old #28C55E dot.
+// "Paused" (operator-disabled) uses the neutral .pill-new (surface-2 / ink-muted /
+// ink-faint dot) — same neutral idiom the connectors screen uses for off states.
 
-function EndpointPill({ status }: { status: "healthy" | "failing" }) {
-  const healthy = status === "healthy";
+function EndpointPill({ status }: { status: "healthy" | "failing" | "paused" }) {
+  const cls = status === "healthy" ? "pill-ready" : status === "paused" ? "pill-new" : "pill-failed";
+  const label = status === "healthy" ? "Healthy" : status === "paused" ? "Paused" : "Failing";
   return (
-    <span className={`pill ${healthy ? "pill-ready" : "pill-failed"}`} style={{ flexShrink: 0 }}>
+    <span className={`pill ${cls}`} style={{ flexShrink: 0 }}>
       <span className="dot" />
-      {healthy ? "Healthy" : "Failing"}
+      {label}
     </span>
   );
 }
@@ -208,6 +213,7 @@ function EndpointsCard({
   isLoading,
   togglingId,
   deletingId,
+  allowEdit,
   onEdit,
   onToggle,
   onDelete,
@@ -216,6 +222,9 @@ function EndpointsCard({
   isLoading: boolean;
   togglingId: string | null;
   deletingId: string | null;
+  // Live mode has no update endpoint, so the Edit affordance is hidden there
+  // (offer⇔works). Mock mode supports in-place edits and shows it.
+  allowEdit: boolean;
   onEdit: (row: WebhookRow) => void;
   onToggle: (id: string) => void;
   onDelete: (id: string) => void;
@@ -291,23 +300,25 @@ function EndpointsCard({
             <div className="wh-metarow" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginTop: 7 }}>
               <div style={{ fontSize: 11, color: "var(--ink-faint,#8A93A5)" }}>Last delivery: {w.lastDelivery}</div>
               <div className="wh-actions" style={{ display: "flex", gap: 6 }}>
-                <button
-                  className="wh-actionbtn"
-                  onClick={() => onEdit(w)}
-                  style={{
-                    height: 27,
-                    padding: "0 10px",
-                    borderRadius: "var(--radius,6px)",
-                    border: "1px solid var(--border-strong,#C6CDDA)",
-                    background: "var(--surface,#FFFFFF)",
-                    color: "var(--ink-muted,#56627A)",
-                    fontSize: 12,
-                    fontWeight: 600,
-                    cursor: "pointer",
-                  }}
-                >
-                  Edit
-                </button>
+                {allowEdit && (
+                  <button
+                    className="wh-actionbtn"
+                    onClick={() => onEdit(w)}
+                    style={{
+                      height: 27,
+                      padding: "0 10px",
+                      borderRadius: "var(--radius,6px)",
+                      border: "1px solid var(--border-strong,#C6CDDA)",
+                      background: "var(--surface,#FFFFFF)",
+                      color: "var(--ink-muted,#56627A)",
+                      fontSize: 12,
+                      fontWeight: 600,
+                      cursor: "pointer",
+                    }}
+                  >
+                    Edit
+                  </button>
+                )}
                 <button
                   className="wh-actionbtn"
                   onClick={() => onToggle(w.id)}
@@ -751,6 +762,7 @@ function WebhooksLayout({
   rows,
   deliveries,
   notice,
+  allowEdit,
   onAdd,
   onEdit,
   onToggle,
@@ -764,6 +776,7 @@ function WebhooksLayout({
   rows: WebhookRow[];
   deliveries: DeliveryRow[] | null;
   notice: string | null;
+  allowEdit: boolean;
   onAdd: () => void;
   onEdit: (row: WebhookRow) => void;
   onToggle: (id: string) => void;
@@ -785,6 +798,10 @@ function WebhooksLayout({
         .wh-row .wh-actions { opacity: 0; transform: translateY(1px); transition: opacity 120ms ease, transform 120ms ease; }
         .wh-row:hover .wh-actions,
         .wh-row:focus-within .wh-actions { opacity: 1; transform: none; }
+        /* Keyboard a11y: a tabbed-to action button must reveal itself even if a
+           future change moves it out of the row's focus-within scope. */
+        .wh-actionbtn:focus-visible { opacity: 1; }
+        .wh-actions:focus-within { opacity: 1; transform: none; }
         .wh-row:hover { background: var(--surface-2,#EFF2F7); }
         @media (hover: none) { .wh-row .wh-actions { opacity: 1; transform: none; } }
         /* Deliveries: exact table on desktop, stacked row-cards on phones (no h-scroll) */
@@ -820,7 +837,7 @@ function WebhooksLayout({
               flexWrap: "wrap",
             }}
           >
-            <div>
+            <div style={{ minWidth: 0 }}>
               <h1
                 style={{
                   fontFamily: "var(--font-display,'Bricolage Grotesque',Inter,sans-serif)",
@@ -830,7 +847,6 @@ function WebhooksLayout({
                   lineHeight: 1.1,
                   margin: 0,
                   color: "var(--ink,#0B1A2F)",
-                  whiteSpace: "nowrap",
                 }}
               >
                 Webhooks
@@ -916,6 +932,7 @@ function WebhooksLayout({
               isLoading={isLoading}
               togglingId={togglingId}
               deletingId={deletingId}
+              allowEdit={allowEdit}
               onEdit={onEdit}
               onToggle={onToggle}
               onDelete={onDelete}
@@ -975,6 +992,7 @@ function MockWebhooksPage() {
         rows={rows}
         deliveries={MOCK_DELIVERIES}
         notice={notice}
+        allowEdit
         onAdd={() => { setNotice(null); setPanel({ id: "new", url: "", events: [WEBHOOK_EVENT_TYPES[0].value], status: "healthy", lastDelivery: "never" }); }}
         onEdit={(w) => { setNotice(null); setPanel(w); }}
         onToggle={handleToggle}
@@ -1065,6 +1083,8 @@ function LiveWebhooksPage() {
         // No delivery-history API in live mode — show empty state in DeliveriesCard
         deliveries={null}
         notice={notice}
+        // No PUT/update endpoint in live mode — hide Edit rather than promise a no-op save.
+        allowEdit={false}
         onAdd={() => { setNotice(null); setPanel({ id: "new", url: "", events: [WEBHOOK_EVENT_TYPES[0].value], status: "healthy", lastDelivery: "never" }); }}
         onEdit={(w) => { setNotice(null); setPanel(w); }}
         onToggle={(id) => toggleMutation.mutate(id)}

@@ -906,7 +906,7 @@ export function UploadWorkbench() {
                 </Link>
               </div>
 
-              <div className="flex flex-col gap-2 p-3 sm:hidden">
+              <div className="flex flex-col gap-2 p-3 lg:hidden">
                 {recentRows.map((row) => {
                   const pill = STATUS_PILL[row.status];
                   return (
@@ -956,7 +956,7 @@ export function UploadWorkbench() {
                 })}
               </div>
 
-              <div className="hidden overflow-x-auto sm:block">
+              <div className="hidden overflow-x-auto lg:block">
                 <table
                   className="w-full min-w-[760px] border-collapse"
                   style={{ fontSize: 12.5 }}
@@ -1194,7 +1194,7 @@ export function UploadWorkbench() {
                     <select
                       value={supplierId}
                       onChange={(e) => setSupplierId(e.target.value)}
-                      className="w-full rounded-[6px] px-3 py-2 text-[13px] appearance-none"
+                      className="w-full rounded-[6px] px-3 py-2 text-[13px] appearance-none min-h-[44px] md:min-h-0"
                       style={{
                         border: "1px solid #E2E6EE",
                         background: "#FFFFFF",

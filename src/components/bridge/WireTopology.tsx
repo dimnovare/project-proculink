@@ -4,8 +4,9 @@
 // Buyer ports down the left, supplier ports down the right,
 // Bezier wires arcing between them with animated travelling dots.
 //
-// Below md: renders WireTopologyLaneList (lane rows, no SVG canvas).
-// Above md: renders WireTopologyCanvas (full SVG).
+// Below lg: renders WireTopologyLaneList (lane rows, no SVG canvas) — tablets
+//   included, so the min-w-[760px] SVG never overflows the narrower content band.
+// At lg and up: renders WireTopologyCanvas (full SVG).
 
 import { useEffect, useState } from "react";
 
@@ -32,7 +33,7 @@ export interface WireBuyer {
   id: string;
   name: string;
   code: string;
-  volume: string; // e.g. "412/wk"
+  volume: string; // e.g. "12 ord"
 }
 
 export interface WireSupplier {
@@ -40,7 +41,7 @@ export interface WireSupplier {
   name: string;
   code: string;
   volume: string;
-  health: number; // 0–100 acceptance %
+  health: number; // 0–100 delivery success %
 }
 
 export interface Wire {
@@ -95,6 +96,11 @@ function cubicPoint(
 function WireTopologyLaneList({ buyers, suppliers, wires, onWireClick }: WireTopologyProps) {
   return (
     <div className="flex flex-col gap-2 p-2 bg-[#F6F7FA] rounded-card">
+      {wires.length === 0 && (
+        <div className="bg-white border border-[#E2E6EE] rounded-[10px] px-3 py-6 text-center text-[12.5px] text-[#8A93A5]">
+          No connections to show yet.
+        </div>
+      )}
       {wires.map((wire, i) => {
         const buyer = buyers.find((b) => b.id === wire.buyerId);
         const supplier = suppliers.find((s) => s.id === wire.supplierId);
@@ -102,8 +108,9 @@ function WireTopologyLaneList({ buyers, suppliers, wires, onWireClick }: WireTop
 
         const sw = strokeFromWeight(wire.weight);
         const isWarn = wire.health === "risk" || wire.health === "down";
+        // Shared health thresholds with BridgeDashboard.healthColor (>=90 green, >=80 amber).
         const supplierColor =
-          supplier.health >= 95 ? "#2E8E3A" : supplier.health >= 85 ? "#C97A14" : "#C53A3A";
+          supplier.health >= 90 ? "#2E8E3A" : supplier.health >= 80 ? "#C97A14" : "#C53A3A";
         const gradId = `m-wire-${i}`;
 
         return (
@@ -179,7 +186,7 @@ function WireTopologyLaneList({ buyers, suppliers, wires, onWireClick }: WireTop
                 {supplier.name}
               </div>
               <div className="text-[9.5px]" style={{ color: supplierColor }}>
-                {supplier.health}% acc
+                {supplier.health}% del
               </div>
             </div>
           </div>
@@ -405,11 +412,12 @@ function WireTopologyCanvas({
         {/* ── Supplier ports (right) ───────────────────────────── */}
         {suppliers.map((s, i) => {
           const y = supplierY(i);
-          const isHealthy = s.health >= 85;
+          // Shared health thresholds with BridgeDashboard.healthColor (>=90 green, >=80 amber).
+          const isHealthy = s.health >= 80;
           const borderColor = isHealthy ? "#2E8E3A" : "#C97A14";
           const bgColor     = isHealthy ? "#E2F1E2"  : "#FAEFD6";
           const healthColor =
-            s.health >= 95 ? "#1E6D29" : s.health >= 85 ? "#C97A14" : "#C53A3A";
+            s.health >= 90 ? "#1E6D29" : s.health >= 80 ? "#C97A14" : "#C53A3A";
           return (
             <g key={s.id} transform={`translate(0, ${y})`}>
               <rect
@@ -443,7 +451,7 @@ function WireTopologyCanvas({
                 fontFamily="JetBrains Mono, monospace"
               >
                 {s.code} ·{" "}
-                <tspan fill={healthColor}>{s.health}% acc</tspan>
+                <tspan fill={healthColor}>{s.health}% del</tspan>
               </text>
               {/* Connector dot — hollow with colored stroke */}
               <circle cx={RIGHT_X} cy={0} r={4} fill="#FFFFFF" stroke={borderColor} strokeWidth={2} />
@@ -479,10 +487,10 @@ function WireTopologyCanvas({
 export function WireTopology(props: WireTopologyProps) {
   return (
     <>
-      <div className="hidden md:block">
+      <div className="hidden lg:block">
         <WireTopologyCanvas {...props} />
       </div>
-      <div className="md:hidden">
+      <div className="lg:hidden">
         <WireTopologyLaneList {...props} />
       </div>
     </>

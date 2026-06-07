@@ -52,7 +52,7 @@ function useAutoCrumb(): ReactNode {
   const seg = pathname.split("/").filter(Boolean);
 
   const LABELS: Record<string, string> = {
-    bridge:    "Order topology",
+    bridge:    "Dashboard",
     inbox:     "Inbox",
     upload:    "Upload",
     drafts:    "Drafts",
@@ -124,7 +124,7 @@ function useMobilePageLabel(): string | null {
   const seg = pathname.split("/").filter(Boolean);
 
   const LABELS: Record<string, string> = {
-    bridge:    "Order topology",
+    bridge:    "Dashboard",
     inbox:     "Inbox",
     upload:    "Upload",
     drafts:    "Drafts",

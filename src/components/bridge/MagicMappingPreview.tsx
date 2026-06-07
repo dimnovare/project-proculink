@@ -984,7 +984,8 @@ export function MagicMappingPreview({ orderId, onCommitted, onParseFailed }: Pro
                             })
                           }
                           style={{
-                            padding: "2px 9px",
+                            padding: isMobile ? "9px 14px" : "2px 9px",
+                            minHeight: isMobile ? 40 : undefined,
                             borderRadius: 4,
                             border: "1px solid #2E8E3A",
                             background: "#E2F1E2",
@@ -1005,7 +1006,8 @@ export function MagicMappingPreview({ orderId, onCommitted, onParseFailed }: Pro
                             })
                           }
                           style={{
-                            padding: "2px 9px",
+                            padding: isMobile ? "9px 14px" : "2px 9px",
+                            minHeight: isMobile ? 40 : undefined,
                             borderRadius: 4,
                             border: "1px solid #C6CDDA",
                             background: "#FFFFFF",
@@ -1022,7 +1024,8 @@ export function MagicMappingPreview({ orderId, onCommitted, onParseFailed }: Pro
                             dispatch({ lineNumber: line.lineNumber, type: "reject" })
                           }
                           style={{
-                            padding: "2px 9px",
+                            padding: isMobile ? "9px 14px" : "2px 9px",
+                            minHeight: isMobile ? 40 : undefined,
                             borderRadius: 4,
                             border: "1px solid #EDBBBB",
                             background: "#FBE3E3",
@@ -1172,7 +1175,8 @@ export function MagicMappingPreview({ orderId, onCommitted, onParseFailed }: Pro
                           })
                         }
                         style={{
-                          padding: "3px 10px",
+                          padding: isMobile ? "10px 14px" : "3px 10px",
+                          minHeight: isMobile ? 40 : undefined,
                           borderRadius: 4,
                           border: "1px dashed #C6CDDA",
                           background: "transparent",

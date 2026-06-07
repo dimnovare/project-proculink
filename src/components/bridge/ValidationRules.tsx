@@ -26,6 +26,7 @@ import {
   isApiMockMode,
   type RuleDto,
 } from "@/lib/api-client";
+import { useOrderDirection } from "@/hooks/useOrderDirection";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -138,6 +139,11 @@ function Toggle({ on, onChange }: { on: boolean; onChange: (v: boolean) => void 
 
 export function ValidationRules() {
   const queryClient = useQueryClient();
+
+  // Direction-aware copy: "Supplier" → "Customer" in inbound mode (route/types unchanged).
+  const { labels } = useOrderDirection();
+  const partyNoun = labels.counterpartyNoun;             // "Supplier" | "Customer"
+  const partyNounLower = partyNoun.toLowerCase();         // "supplier" | "customer"
 
   const [mockRules, setMockRules] = useState(RULES);
 
@@ -268,8 +274,8 @@ export function ValidationRules() {
         <div>
           <h1 className="text-[28px] leading-[1.1] font-bold tracking-[-0.02em]" style={{ fontFamily: "'Bricolage Grotesque', Inter, sans-serif", color: "#0B1A2F" }}>Rule catalog</h1>
           <p className="text-[13px] mt-1.5" style={{ color: "#56627A" }}>
-            A catalog of the checks you want to run · {activeCount} active. Enforcement is configured per supplier — set up blocking checks on each{" "}
-            <Link href="/library/suppliers" className="font-semibold underline" style={{ color: "#1E66C9" }}>supplier&apos;s Validation rules tab</Link>.
+            A catalog of the checks you want to run · {activeCount} active. Enforcement is configured per {partyNounLower} — set up blocking checks on each{" "}
+            <Link href="/library/suppliers" className="font-semibold underline" style={{ color: "#1E66C9" }}>{partyNounLower}&apos;s Validation rules tab</Link>.
           </p>
         </div>
         <button
@@ -292,7 +298,7 @@ export function ValidationRules() {
           <span className="font-semibold" style={{ color: "#0F4FA8" }}>This is a catalog, not a gate.</span>
           <span style={{ color: "#56627A" }}>
             Rules here describe and classify the checks you care about. They are not enforced automatically — set up the checks that actually hold or block an order on each{" "}
-            <Link href="/library/suppliers" className="font-semibold underline" style={{ color: "#1E66C9" }}>supplier&apos;s Validation rules tab</Link>.
+            <Link href="/library/suppliers" className="font-semibold underline" style={{ color: "#1E66C9" }}>{partyNounLower}&apos;s Validation rules tab</Link>.
           </span>
         </div>
       </div>
@@ -315,7 +321,7 @@ export function ValidationRules() {
               <table className="w-full border-collapse" style={{ fontSize: 13 }}>
                 <thead>
                   <tr style={{ borderBottom: "1px solid #E2E6EE" }}>
-                    {["Rule", "Scope", "Supplier", "Severity", "Triggered 30d", "Active"].map((h, i) => (
+                    {["Rule", "Scope", partyNoun, "Severity", "Triggered 30d", "Active"].map((h, i) => (
                       <th key={h} className="px-5 py-3 text-[10.5px] font-semibold uppercase tracking-[0.07em]" style={{ color: "#9AA3B5", textAlign: i === 5 ? "right" : "left", whiteSpace: "nowrap" }}>{h}</th>
                     ))}
                   </tr>
@@ -629,19 +635,9 @@ function RuleEditor({
           {!isSaving && <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5" /></svg>}
           {isSaving ? "Saving…" : isNew ? "Create rule" : "Save rule"}
         </button>
-        {!isNew && (
-          <button
-            type="button"
-            className="inline-flex items-center gap-1.5 rounded-[8px] px-3 h-[44px] sm:h-[36px] text-[13px] font-semibold transition-colors"
-            style={{ border: 0, background: "transparent", color: "#56627A" }}
-            onMouseEnter={(e) => (e.currentTarget.style.color = "#0B1A2F")}
-            onMouseLeave={(e) => (e.currentTarget.style.color = "#56627A")}
-            title="See orders this rule has flagged"
-          >
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z" /><circle cx="12" cy="12" r="3" /></svg>
-            View triggers
-          </button>
-        )}
+        {/* "View triggers" button removed (offer↔works): there is no trigger-history
+            view, so the control had no onClick and did nothing. Reinstate it once a
+            real flagged-orders view exists. */}
         {onDelete && (
           <button onClick={onDelete} aria-label="Delete rule" className="inline-flex items-center justify-center rounded-[8px] h-[44px] w-[44px] sm:h-[36px] sm:w-[36px] ml-auto transition-colors" style={{ border: "1px solid #EFD4D4", background: "#FFFFFF", color: "#C53A3A" }} onMouseEnter={(e) => (e.currentTarget.style.background = "#FCF1F1")} onMouseLeave={(e) => (e.currentTarget.style.background = "#FFFFFF")} title="Delete rule">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18" /><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /><path d="m19 6-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" /></svg>
