@@ -145,7 +145,7 @@ export default function InvoicesPage() {
     onError: (err: Error) => setNotice(`Approve failed — ${err.message}`),
   });
 
-  // Download handler
+  // Download handler — downloadInvoice returns a blob object URL (binary file).
   const handleDownload = async (id: string) => {
     setDownloadingId(id);
     try {
@@ -154,6 +154,8 @@ export default function InvoicesPage() {
         setNotice("Download ready (mock mode — no real file).");
       } else {
         window.open(data.url, "_blank");
+        // Release the object URL once the browser has had a chance to open it.
+        setTimeout(() => URL.revokeObjectURL(data.url), 60_000);
       }
     } catch (err) {
       setNotice(`Download failed — ${(err as Error).message}`);
@@ -177,7 +179,7 @@ export default function InvoicesPage() {
           <input
             ref={fileInputRef}
             type="file"
-            accept=".csv,.xlsx,.pdf"
+            accept=".xml,.edi"
             className="hidden"
             onChange={(e) => { const f = e.target.files?.[0]; if (f) { setNotice(null); uploadMut.mutate(f); } }}
             disabled={uploadMut.isPending}
@@ -188,7 +190,7 @@ export default function InvoicesPage() {
               disabled={uploadMut.isPending}
               className="w-full sm:w-auto rounded-[6px] px-3 text-[12.5px] font-medium"
               style={{ height: 32, background: "#0B1A2F", color: "#FFFFFF", border: 0, opacity: uploadMut.isPending ? 0.7 : 1 }}
-              title="Upload a supplier invoice (CSV, XLSX, or PDF)"
+              title="Upload an XML or EDI invoice"
             >
               Upload invoice
             </button>

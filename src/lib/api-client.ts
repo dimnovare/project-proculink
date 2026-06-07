@@ -2375,12 +2375,18 @@ export async function approveInvoice(id: string): Promise<InvoiceDto> {
   return res.json();
 }
 
+// Backend GET /api/invoices/{id}/download returns a BINARY file (File(bytes,...)),
+// not JSON. Read the blob and return an object URL the caller can open + revoke.
 export async function downloadInvoice(id: string, format = "csv"): Promise<{ url: string }> {
   if (USE_MOCK) { return { url: `#mock-invoice-download/${id}` }; }
   const headers = await authHeader();
   const res = await fetchWithTimeout(`${API_BASE_URL}/api/invoices/${id}/download?format=${format}`, { headers });
-  if (!res.ok) throw new Error(`invoices download: ${res.status}`);
-  return res.json();
+  if (!res.ok) {
+    const b = await res.json().catch(() => null);
+    throw new Error(b?.error ?? `invoices download: ${res.status}`);
+  }
+  const blob = await res.blob();
+  return { url: URL.createObjectURL(blob) };
 }
 
 // ── Inbound: ASNs (Advance Shipping Notices) ──────────────────────────────────

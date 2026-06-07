@@ -749,10 +749,9 @@ function SpineNodeCard({
 // Maps canonical node srcRef → zone appearance when active.
 // Used bidirectionally: hovering a node highlights the zone, hovering the zone
 // highlights the canonical node.
-
-const ZONE_CONF: Record<string, number> = {
-  header: 99, parties: 95, lines: 80, terms: 75, totals: 99,
-};
+//
+// NOTE: there is no static per-zone confidence map. Zone tints are driven by the
+// real per-zone confidences derived from live order data inside DocumentAnatomy.
 
 // ─── Document Anatomy ─────────────────────────────────────────────────────────
 // Renders a document-styled view reconstructed from the order's parsed fields.
@@ -823,11 +822,31 @@ function DocumentAnatomy({
   const linesConf   = avgConf ?? 80;
   const termsConf   = Math.max(60, Math.min(88, (avgConf ?? 80) - 10));
 
+  // Real per-zone confidences, keyed by zone id. Only zones backed by live data
+  // appear here; zones without a real confidence (e.g. totals) fall through to a
+  // neutral tint rather than asserting an invented green/amber/red.
+  const zoneConf: Record<string, number> = {
+    header: headerConf,
+    parties: partiesConf,
+    lines: linesConf,
+    terms: termsConf,
+  };
+
   // Tint overlay colour for an active section inside the document body.
   function sectionStyle(zone: string): React.CSSProperties {
     const isActive = activeZone === zone;
     if (!isActive) return {};
-    const pct = ZONE_CONF[zone] ?? 80;
+    const pct = zoneConf[zone];
+    // No real confidence for this zone → neutral highlight (no conf claim).
+    if (pct == null) {
+      return {
+        outline: "1.5px solid #C6CDDA",
+        outlineOffset: 2,
+        background: "rgba(86,98,122,0.06)",
+        borderRadius: 4,
+        transition: "all 150ms",
+      };
+    }
     const col = pct >= 90 ? "#2E8E3A" : pct >= 75 ? "#C97A14" : "#C53A3A";
     return {
       outline: `1.5px solid ${col}`,

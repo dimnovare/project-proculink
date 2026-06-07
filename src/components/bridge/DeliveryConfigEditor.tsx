@@ -337,7 +337,7 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
         <div className="min-w-0 flex-1">
           <h3 className="text-[13px] font-semibold" style={{ color: "#0B1A2F" }}>Supplier delivery</h3>
           <p className="text-[11px]" style={{ color: "#56627A" }}>
-            Configure the channel used after an order reaches ready_to_deliver.
+            Configure the channel used once an order is ready to send.
           </p>
         </div>
         <label className="flex items-center gap-2 text-[12px] font-medium" style={{ color: "#0B1A2F" }}>

@@ -78,7 +78,7 @@ function LimitBanner({ status }: { status: BillingStatus }) {
   if (status.plan === "pilot" && status.isOrderLimitReached) {
     return (
       <div style={bannerStyle}>
-        <strong>You&apos;ve used all 20 Pilot orders.</strong>
+        <strong>You&apos;ve used all {PLAN_BY_ID.pilot.orderLimit} Pilot orders.</strong>
         <span>Upgrade to Growth to continue processing new orders.</span>
       </div>
     );
@@ -319,7 +319,7 @@ export function BillingSection() {
             <UsageBar
               used={status.suppliersUsed}
               limit={status.supplierLimit}
-              label="Supplier flows"
+              label="Suppliers"
             />
           </div>
         </div>
@@ -330,7 +330,7 @@ export function BillingSection() {
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
           <div style={{ borderRadius: 10, padding: "13px 15px", background: "#FFFFFF", border: "1px solid #E2E6EE", borderLeft: "3px solid var(--brand-green)", fontSize: 12.5, lineHeight: 1.55, color: "#56627A" }}>
             <strong style={{ color: "#0B1A2F" }}>Upgrade when this is ready for daily orders.</strong>{" "}
-            Growth keeps the same workflow but raises your monthly order volume, adds more supplier flows, and keeps processing open after the Pilot window ends.
+            Growth keeps the same workflow but raises your monthly order volume, adds more suppliers, and keeps processing open after the Pilot window ends.
           </div>
           <button
             onClick={() => checkoutMutation.mutate("growth")}

@@ -13,7 +13,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { apiClient, getBillingStatus } from "@/lib/api-client";
-import { LAUNCH_CORE_ONLY, LAUNCH_CORE_HREFS } from "@/lib/launch-flags";
+import { LAUNCH_CORE_ONLY, LAUNCH_CORE_HREFS, INBOUND_ENABLED } from "@/lib/launch-flags";
 import { useOrderDirection } from "@/hooks/useOrderDirection";
 import { useQueriesEnabled } from "@/hooks/useQueriesEnabled";
 import { ProcuLinkMark } from "./DSPrimitives";
@@ -81,7 +81,12 @@ const NAV: Array<{ group?: string; items: NavItem[] }> = [
 // `counterpartyPlural` relabels the "Suppliers" entry to "Customers" in inbound
 // mode (DISPLAY ONLY — the route stays /library/suppliers).
 function buildVisibleNav(counterpartyPlural: string): Array<{ group?: string; items: NavItem[] }> {
-  const relabelled = NAV.map((section) => ({
+  // Inbound (Invoices/ASNs) stays hidden unless its OWN flag is set — revealing
+  // the full nav (NEXT_PUBLIC_LAUNCH_FULL_NAV=true) must NOT surface it, since
+  // it isn't part of the outbound-PO product we sell today. Routes still resolve
+  // if navigated to directly.
+  const scoped = INBOUND_ENABLED ? NAV : NAV.filter((section) => section.group !== "Inbound");
+  const relabelled = scoped.map((section) => ({
     ...section,
     items: section.items.map((item) =>
       item.href === "/library/suppliers" ? { ...item, label: counterpartyPlural } : item,

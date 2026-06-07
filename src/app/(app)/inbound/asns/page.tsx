@@ -98,7 +98,7 @@ export default function AsnsPage() {
           <input
             ref={fileInputRef}
             type="file"
-            accept=".edi,.xml,.csv"
+            accept=".xml,.csv"
             className="hidden"
             onChange={(e) => { const f = e.target.files?.[0]; if (f) { setNotice(null); uploadMut.mutate(f); } }}
             disabled={uploadMut.isPending}
@@ -111,7 +111,7 @@ export default function AsnsPage() {
               disabled={uploadMut.isPending}
               className="w-full sm:w-auto rounded-[6px] px-3 text-[12.5px] font-medium"
               style={{ height: 32, background: "#0B1A2F", color: "#FFFFFF", border: 0, opacity: uploadMut.isPending ? 0.7 : 1 }}
-              title="Upload an ASN file (EDI DESADV, XML, or CSV)"
+              title="Upload an ASN file (XML or CSV). EDIFACT DESADV on request."
             >
               Upload ASN
             </button>
@@ -172,7 +172,7 @@ export default function AsnsPage() {
           <div className="flex flex-col items-center justify-center gap-3 rounded-[8px] p-10 text-center" style={{ background: "#FFFFFF", border: "1px solid #E2E6EE" }}>
             <p className="text-[15px] font-semibold" style={{ color: "#0B1A2F" }}>No advance shipping notices yet</p>
             <p className="text-[13px] max-w-[340px]" style={{ color: "#56627A" }}>
-              ASNs are sent by suppliers to confirm upcoming deliveries. Upload an EDI DESADV, XML, or CSV file to get started.
+              ASNs are sent by suppliers to confirm upcoming deliveries. Upload an XML or CSV file to get started — EDIFACT DESADV is available on request.
             </p>
             <button
               onClick={() => fileInputRef.current?.click()}
