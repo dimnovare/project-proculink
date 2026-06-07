@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
-import { PLANS, SETUP_FEE_NOTE } from "@/lib/plans";
+import { useMemo, useState } from "react";
+import { PLANS, SETUP_FEE_NOTE, recommendPlanByOrders } from "@/lib/plans";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Pricing page — pixel-exact port of the Claude Design source (app/Pricing.html).
@@ -20,12 +20,29 @@ import { PLANS, SETUP_FEE_NOTE } from "@/lib/plans";
 //   • Real plan ladder + prices come from src/lib/plans.ts (6 tiers), not the
 //     demo tiers baked into the HTML — so pricing can never drift from billing.
 //   • Plain product copy only (no "bridge"/"dock"/"crossing" vocabulary).
-//   • The Operations tier is the featured ("Most popular") card: buyer-blue
+//   • The Operations tier is the featured ("Most popular") anchor card: buyer-blue
 //     border + soft blue glow + centred blue→green gradient badge + blue CTA,
 //     exactly matching the design's .price-card.featured + .price-badge.
+//
+// CHOICE-OVERLOAD REDUCTION (UX#1):
+//   The 6-tier ladder is no longer shown as one flat 6-card wall. Instead the page
+//   leads with the ROI/volume recommender (reusing recommendPlanByOrders — the
+//   same helper the landing-page ROICalculator uses) and shows THREE primary
+//   decisions above the fold:
+//     1. Pilot       (free trial)
+//     2. Operations  (the €399 ICP anchor, "Most popular")
+//     3. Enterprise  (contact sales)
+//   The remaining tiers (Growth, Integration, Distributor) live behind a
+//   "See all tiers / compare plans" disclosure so every tier — and every
+//   CHECKOUT_PLAN_ID — stays reachable, while only three cards compete for
+//   attention by default.
 // ─────────────────────────────────────────────────────────────────────────────
 
 const FEATURED_ID = "operations";
+
+// Above-the-fold primary decisions, in display order. Everything else (Growth,
+// Integration, Distributor) is reachable behind the "See all tiers" disclosure.
+const PRIMARY_IDS = ["pilot", "operations", "enterprise"] as const;
 
 // Small contextual line under each price (design's "+ one-time setup" /
 // "No card required" / "Annual contract" sub-line). Kept consistent with
@@ -40,7 +57,7 @@ const SETUP_NOTE: Record<string, string> = {
   enterprise: "Custom onboarding",
 };
 
-const TIERS = PLANS.filter((p) => !p.hidden).map((p) => ({
+const ALL_TIERS = PLANS.filter((p) => !p.hidden).map((p) => ({
   id: p.id,
   name: p.name,
   price: p.priceLabel,
@@ -53,8 +70,24 @@ const TIERS = PLANS.filter((p) => !p.hidden).map((p) => ({
   /** Plans whose price is a real recurring monthly amount get a "/mo" tag. */
   isMonthly: p.orderLimitIsMonthly && p.priceMonthly != null && p.priceMonthly > 0,
   priceMonthly: p.priceMonthly,
+  orderLimit: p.orderLimit,
   featured: p.id === FEATURED_ID,
 }));
+
+type Tier = (typeof ALL_TIERS)[number];
+
+const TIER_BY_ID: Record<string, Tier> = ALL_TIERS.reduce(
+  (acc, t) => {
+    acc[t.id] = t;
+    return acc;
+  },
+  {} as Record<string, Tier>,
+);
+
+const PRIMARY_TIERS = PRIMARY_IDS.map((id) => TIER_BY_ID[id]).filter(Boolean);
+const SECONDARY_TIERS = ALL_TIERS.filter(
+  (t) => !PRIMARY_IDS.includes(t.id as (typeof PRIMARY_IDS)[number]),
+);
 
 const FAQ: Array<[string, string]> = [
   [
@@ -88,6 +121,19 @@ export default function PricingPage() {
   const [billing, setBilling] = useState<Billing>("monthly");
   const yearly = billing === "yearly";
 
+  // Volume recommender — reuses the SAME helper the landing-page ROICalculator
+  // uses (recommendPlanByOrders), so the pricing page and ROI calculator can
+  // never recommend different tiers for the same volume.
+  const [orders, setOrders] = useState(200);
+  const recommended = useMemo(() => recommendPlanByOrders(orders), [orders]);
+  const recommendedId = recommended.id;
+
+  // If the recommended tier lives behind the disclosure, surface it by default
+  // so the recommendation is always actionable without a second click.
+  const recommendedIsSecondary = SECONDARY_TIERS.some((t) => t.id === recommendedId);
+  const [showAll, setShowAll] = useState(false);
+  const tiersExpanded = showAll || recommendedIsSecondary;
+
   return (
     <div style={{ background: "var(--surface)", color: "var(--ink)" }}>
       <style>{PRICING_CSS}</style>
@@ -103,9 +149,52 @@ export default function PricingPage() {
           <h1 className="plk-h1">Pay for orders processed, nothing else</h1>
 
           <p className="plk-sub">
-            Start with a proof-of-value Pilot. Self-serve plans include light setup at no extra
-            cost. No per-seat pricing, no integration project.
+            Tell us your order volume and we&apos;ll point you at the right plan. Self-serve plans
+            include light setup at no extra cost. No per-seat pricing, no integration project.
           </p>
+
+          {/* Volume recommender — leads with the ROI helper's recommendation */}
+          <div className="plk-reco">
+            <label className="plk-reco-label" htmlFor="plk-orders">
+              How many purchase orders do you send per month?
+            </label>
+            <div className="plk-reco-input-row">
+              <input
+                id="plk-orders"
+                className="plk-reco-input"
+                type="range"
+                min={10}
+                max={5000}
+                step={10}
+                value={orders}
+                onChange={(e) => setOrders(Number(e.target.value))}
+                aria-label="Purchase orders per month"
+                aria-describedby="plk-reco-readout"
+              />
+              <span className="plk-reco-count" id="plk-reco-readout" aria-live="polite">
+                {orders.toLocaleString()}
+                <small> POs/mo</small>
+              </span>
+            </div>
+            <div className="plk-reco-out" role="status">
+              <span className="plk-reco-out-label">Recommended plan</span>
+              <strong className="plk-reco-out-plan">{recommended.name}</strong>
+              <span className="plk-reco-out-price">
+                {recommended.isCustom
+                  ? "Custom"
+                  : recommended.priceMonthly === 0
+                    ? "Free"
+                    : `${recommended.priceLabel}/mo`}
+              </span>
+              <Link
+                href={recommended.isCustom ? recommended.cta.href : "/sign-up"}
+                className="plk-btn plk-btn-blue plk-reco-cta"
+              >
+                {recommended.isCustom ? "Contact sales" : `Start with ${recommended.name}`}{" "}
+                <span aria-hidden>→</span>
+              </Link>
+            </div>
+          </div>
 
           {/* Billing cadence toggle — the design's .billing-toggle pill */}
           <div className="plk-toggle-wrap">
@@ -131,62 +220,72 @@ export default function PricingPage() {
         </div>
       </header>
 
-      {/* ── Pricing cards (mirrors .section + .pricing-grid) ─────────────── */}
+      {/* ── Primary pricing cards (3 above the fold) ─────────────────────── */}
       <section className="plk-section" style={{ paddingTop: 48 }}>
         <div className="plk-wrap">
           <div className="plk-pricing-grid">
-            {TIERS.map((tier) => {
-              const featured = tier.featured;
-
-              // Annual display: 17% off the monthly price, shown per-month.
-              const showYearly = yearly && tier.isMonthly && tier.priceMonthly;
-              const yearlyMonthly = tier.priceMonthly
-                ? Math.round(tier.priceMonthly * (1 - YEARLY_DISCOUNT))
-                : null;
-              const bigPrice = showYearly ? `€${yearlyMonthly}` : tier.price;
-              const priceTag = tier.isMonthly;
-
-              return (
-                <article
-                  key={tier.id}
-                  className={featured ? "plk-price-card featured" : "plk-price-card"}
-                >
-                  {featured && <span className="plk-price-badge">Most popular</span>}
-
-                  <div className="plk-tier">{tier.name}</div>
-                  <div className="plk-tier-sub">{tier.desc}</div>
-
-                  <div className="plk-price">
-                    {bigPrice}
-                    {priceTag && <small>/mo</small>}
-                  </div>
-                  <div className="plk-price-note">
-                    {tier.isMonthly
-                      ? showYearly
-                        ? "billed yearly"
-                        : tier.setupNote
-                      : tier.setupNote}
-                  </div>
-
-                  <Link
-                    href={tier.href}
-                    className={featured ? "plk-btn plk-btn-blue" : "plk-btn plk-btn-secondary"}
-                  >
-                    {tier.cta} <span aria-hidden>→</span>
-                  </Link>
-
-                  <ul className="plk-feats">
-                    {tier.features.map((feature) => (
-                      <li key={feature}>
-                        <CheckIcon />
-                        <span>{feature}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </article>
-              );
-            })}
+            {PRIMARY_TIERS.map((tier) => (
+              <PriceCard
+                key={tier.id}
+                tier={tier}
+                yearly={yearly}
+                recommended={tier.id === recommendedId}
+              />
+            ))}
           </div>
+
+          {/* ── See all tiers / compare plans disclosure ──────────────────── */}
+          <div className="plk-disclosure">
+            <button
+              type="button"
+              className="plk-disclosure-btn"
+              aria-expanded={tiersExpanded}
+              aria-controls="plk-all-tiers"
+              onClick={() => setShowAll((v) => !v)}
+              disabled={recommendedIsSecondary}
+            >
+              {tiersExpanded ? "Hide other tiers" : "See all tiers · compare plans"}
+              {!recommendedIsSecondary && (
+                <svg
+                  aria-hidden
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  style={{
+                    transform: tiersExpanded ? "rotate(180deg)" : "none",
+                    transition: "transform 250ms var(--ease-out)",
+                  }}
+                >
+                  <path
+                    d="M6 9l6 6 6-6"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              )}
+            </button>
+            {recommendedIsSecondary && (
+              <span className="plk-disclosure-hint">
+                Showing {recommended.name} below because it fits your volume.
+              </span>
+            )}
+          </div>
+
+          {tiersExpanded && (
+            <div id="plk-all-tiers" className="plk-pricing-grid plk-secondary-grid">
+              {SECONDARY_TIERS.map((tier) => (
+                <PriceCard
+                  key={tier.id}
+                  tier={tier}
+                  yearly={yearly}
+                  recommended={tier.id === recommendedId}
+                />
+              ))}
+            </div>
+          )}
 
           <p className="plk-fine">{SETUP_FEE_NOTE}</p>
           <p className="plk-fine" style={{ marginTop: 10 }}>
@@ -235,6 +334,68 @@ export default function PricingPage() {
 }
 
 // ─── Small components ─────────────────────────────────────────────────────────
+
+function PriceCard({
+  tier,
+  yearly,
+  recommended,
+}: {
+  tier: Tier;
+  yearly: boolean;
+  recommended: boolean;
+}) {
+  const featured = tier.featured;
+
+  // Annual display: 17% off the monthly price, shown per-month.
+  const showYearly = yearly && tier.isMonthly && tier.priceMonthly;
+  const yearlyMonthly = tier.priceMonthly
+    ? Math.round(tier.priceMonthly * (1 - YEARLY_DISCOUNT))
+    : null;
+  const bigPrice = showYearly ? `€${yearlyMonthly}` : tier.price;
+  const priceTag = tier.isMonthly;
+
+  // A card is visually emphasised when it is the static anchor (featured =
+  // Operations) OR when the volume recommender currently points at it.
+  const emphasised = featured || recommended;
+  const cardClass = emphasised ? "plk-price-card featured" : "plk-price-card";
+
+  // Badge text: the recommender wins over the static "Most popular" label so the
+  // user's own volume answer is always reflected on the card it points at.
+  const badge = recommended ? "Recommended for you" : featured ? "Most popular" : null;
+
+  return (
+    <article className={cardClass}>
+      {badge && <span className="plk-price-badge">{badge}</span>}
+
+      <div className="plk-tier">{tier.name}</div>
+      <div className="plk-tier-sub">{tier.desc}</div>
+
+      <div className="plk-price">
+        {bigPrice}
+        {priceTag && <small>/mo</small>}
+      </div>
+      <div className="plk-price-note">
+        {tier.isMonthly ? (showYearly ? "billed yearly" : tier.setupNote) : tier.setupNote}
+      </div>
+
+      <Link
+        href={tier.href}
+        className={emphasised ? "plk-btn plk-btn-blue" : "plk-btn plk-btn-secondary"}
+      >
+        {tier.cta} <span aria-hidden>→</span>
+      </Link>
+
+      <ul className="plk-feats">
+        {tier.features.map((feature) => (
+          <li key={feature}>
+            <CheckIcon />
+            <span>{feature}</span>
+          </li>
+        ))}
+      </ul>
+    </article>
+  );
+}
 
 function CheckIcon() {
   // Flat brand-green check glyph — matches the design's lightweight feature
@@ -296,7 +457,8 @@ function FaqItem({ q, a }: { q: string; a: string }) {
 // ─── Page-scoped CSS — reproduces the design's marketing classes + responsive ──
 // Mobile-first. Mirrors marketing.css .hero / .section / .pricing-grid /
 // .price-card / .billing-toggle / .faq-item, including the design breakpoints
-// (≤1100px → 3 cols, ≤760px → 1 col) so the 6-tier ladder never overflows.
+// (≤1100px → 2 cols, ≤760px → 1 col). The primary grid is now 3 cards, so the
+// 3-col layout fits comfortably; secondary tiers reuse the same grid when shown.
 const PRICING_CSS = `
 .plk-section { padding: 84px 0; }
 .plk-section.tint { background: var(--bg); }
@@ -329,6 +491,30 @@ const PRICING_CSS = `
   margin: 20px auto 0; max-width: 18ch; text-wrap: balance; color: #fff;
 }
 .plk-sub { color: var(--navy-text); font-size: clamp(15px, 1.6vw, 18px); line-height: 1.6; max-width: 56ch; margin: 18px auto 0; text-wrap: pretty; }
+
+/* Volume recommender (leads with the ROI helper's recommendation) */
+.plk-reco {
+  margin: 30px auto 0; max-width: 620px; text-align: left;
+  background: var(--navy-surface); border: 1px solid var(--navy-border);
+  border-radius: var(--radius-lg); padding: 22px 24px;
+}
+.plk-reco-label { display: block; font-size: 13.5px; font-weight: 600; color: #fff; margin-bottom: 14px; }
+.plk-reco-input-row { display: flex; align-items: center; gap: 16px; }
+.plk-reco-input { flex: 1; height: 28px; accent-color: var(--brand-blue); cursor: pointer; touch-action: none; }
+.plk-reco-count {
+  font-family: var(--font-mono, 'JetBrains Mono', ui-monospace, monospace);
+  font-size: 16px; font-weight: 700; color: #fff; white-space: nowrap; min-width: 132px; text-align: right;
+}
+.plk-reco-count small { font-size: 11px; font-weight: 500; color: var(--navy-text); font-family: var(--font-sans); }
+.plk-reco-out {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 10px 14px;
+  margin-top: 18px; padding-top: 18px; border-top: 1px solid var(--navy-border);
+}
+.plk-reco-out-label { font-size: 10.5px; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; color: var(--navy-text); }
+.plk-reco-out-plan { font-family: var(--font-display); font-size: 20px; font-weight: 700; letter-spacing: -0.02em; color: #fff; }
+.plk-reco-out-price { font-size: 14px; font-weight: 600; color: var(--navy-text); }
+.plk-reco-cta { width: auto; margin-top: 0; margin-left: auto; }
+
 .plk-toggle-wrap { margin-top: 26px; display: flex; justify-content: center; }
 
 /* Billing toggle (design .billing-toggle) */
@@ -353,6 +539,7 @@ const PRICING_CSS = `
 
 /* Pricing grid + card (design .pricing-grid / .price-card) */
 .plk-pricing-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; align-items: start; }
+.plk-secondary-grid { margin-top: 22px; }
 .plk-price-card {
   background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg);
   padding: 22px 18px; position: relative; display: flex; flex-direction: column;
@@ -375,6 +562,20 @@ const PRICING_CSS = `
 .plk-price { font-family: var(--font-display); font-size: 40px; font-weight: 700; letter-spacing: -0.035em; margin: 14px 0 2px; color: var(--ink); line-height: 1; }
 .plk-price small { font-size: 14px; color: var(--ink-muted); font-family: var(--font-sans); font-weight: 500; letter-spacing: 0; }
 .plk-price-note { font-size: 12px; color: var(--ink-faint); min-height: 18px; }
+
+/* See-all-tiers disclosure */
+.plk-disclosure { display: flex; flex-direction: column; align-items: center; gap: 8px; margin-top: 28px; }
+.plk-disclosure-btn {
+  display: inline-flex; align-items: center; gap: 8px;
+  height: 38px; padding: 0 18px; border-radius: var(--radius);
+  background: var(--surface); color: var(--brand-blue-deep);
+  border: 1px solid var(--border-strong);
+  font-size: 13px; font-weight: 600; cursor: pointer;
+  transition: background var(--duration-fast), border-color var(--duration-fast), color var(--duration-fast);
+}
+.plk-disclosure-btn:hover:not(:disabled) { background: var(--surface-2); border-color: var(--brand-blue); }
+.plk-disclosure-btn:disabled { opacity: 0.55; cursor: default; }
+.plk-disclosure-hint { font-size: 12.5px; color: var(--ink-muted); }
 
 /* Card CTA (design .btn / .btn-blue / .btn-secondary) */
 .plk-btn {
@@ -418,11 +619,13 @@ const PRICING_CSS = `
 }
 @media (max-width: 760px) {
   .plk-pricing-grid { grid-template-columns: 1fr; }
+  .plk-reco-cta { margin-left: 0; width: 100%; }
 }
 @media (max-width: 560px) {
   .plk-wrap { padding: 0 18px; }
   .plk-hero-inner { padding: 44px 18px 48px; }
   .plk-section { padding: 56px 0; }
   .plk-cta-row .plk-btn { width: 100%; }
+  .plk-reco { padding: 18px 16px; }
 }
 `;

@@ -188,7 +188,9 @@ export const PLANS: Plan[] = [
     highlight: false,
     isCheckout: true,
     isCustom: false,
-    next: null,
+    // Integration → Distributor completes the in-app upsell chain so a growing
+    // org can self-serve up to the Distributor ICP tier before Enterprise.
+    next: "distributor",
   },
   {
     id: "distributor",

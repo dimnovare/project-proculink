@@ -13,7 +13,7 @@ import type { Supplier, OrderDirection } from "@/types/procurement";
 
 const T = {
   navy:    "#0B1A2F",
-  blue:    "#2E8E3A",
+  blue:    "#1E66C9",
   green:   "#2E8E3A",
   surface: "#FFFFFF",
   bg:      "#F6F7FA",
@@ -110,11 +110,15 @@ const DIRECTION_CHOICES: Array<{ value: OrderDirection; title: string }> = [
 ];
 
 function Step0Direction({ onSuccess }: Step0Props) {
+  const [selected, setSelected] = useState<OrderDirection | null>(null);
   const [saving, setSaving] = useState<OrderDirection | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   async function choose(direction: OrderDirection) {
     if (saving) return;
+    // Render the chosen state immediately so screen readers announce the
+    // selection and the radio dot fills before we fire-and-advance.
+    setSelected(direction);
     setSaving(direction);
     setError(null);
     try {
@@ -126,6 +130,7 @@ function Step0Direction({ onSuccess }: Step0Props) {
       });
       setError(err instanceof Error ? err.message : "Couldn't save your choice. Please try again.");
       setSaving(null);
+      setSelected(null);
     }
   }
 
@@ -150,34 +155,53 @@ function Step0Direction({ onSuccess }: Step0Props) {
       </div>
 
       <div role="radiogroup" aria-label="How do you use ProcuLink?" style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-        {DIRECTION_CHOICES.map((opt) => (
-          <button
-            key={opt.value}
-            type="button"
-            role="radio"
-            aria-checked={false}
-            disabled={saving != null}
-            onClick={() => choose(opt.value)}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 12,
-              textAlign: "left",
-              padding: "14px 15px",
-              borderRadius: 8,
-              border: `1.5px solid ${T.border}`,
-              background: T.surface,
-              cursor: saving != null ? "default" : "pointer",
-            }}
-          >
-            <span
-              aria-hidden
-              style={{ width: 18, height: 18, borderRadius: "50%", border: `2px solid #C6CDDA`, flexShrink: 0 }}
-            />
-            <span style={{ fontSize: 13.5, fontWeight: 500, color: T.text }}>{opt.title}</span>
-            {saving === opt.value && <span style={{ marginLeft: "auto", fontSize: 12, color: T.muted }}>Saving…</span>}
-          </button>
-        ))}
+        {DIRECTION_CHOICES.map((opt) => {
+          const isSelected = selected === opt.value;
+          return (
+            <button
+              key={opt.value}
+              type="button"
+              role="radio"
+              aria-checked={isSelected}
+              disabled={saving != null}
+              onClick={() => choose(opt.value)}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 12,
+                textAlign: "left",
+                padding: "14px 15px",
+                borderRadius: 8,
+                border: `1.5px solid ${isSelected ? T.blue : T.border}`,
+                background: T.surface,
+                cursor: saving != null ? "default" : "pointer",
+              }}
+            >
+              <span
+                aria-hidden
+                style={{
+                  width: 18,
+                  height: 18,
+                  borderRadius: "50%",
+                  border: `2px solid ${isSelected ? T.blue : "#C6CDDA"}`,
+                  flexShrink: 0,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  transition: "border-color 0.15s",
+                }}
+              >
+                {isSelected && (
+                  <span
+                    style={{ width: 8, height: 8, borderRadius: "50%", background: T.blue }}
+                  />
+                )}
+              </span>
+              <span style={{ fontSize: 13.5, fontWeight: 500, color: T.text }}>{opt.title}</span>
+              {saving === opt.value && <span style={{ marginLeft: "auto", fontSize: 12, color: T.muted }}>Saving…</span>}
+            </button>
+          );
+        })}
       </div>
 
       {error && <p style={{ fontSize: 12, color: T.red, margin: 0 }}>{error}</p>}

@@ -340,7 +340,7 @@ export function BillingSection() {
             {status.isTrialExpired || status.isOrderLimitReached ? "Upgrade to continue" : "Upgrade to Growth"}
           </button>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-            {(["operations", "integration"] as const).map((plan) => (
+            {(["operations", "integration", "distributor"] as const).map((plan) => (
               <button
                 key={plan}
                 onClick={() => checkoutMutation.mutate(plan)}
