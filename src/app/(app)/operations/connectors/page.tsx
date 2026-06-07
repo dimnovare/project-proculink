@@ -11,13 +11,17 @@ import { getSuppliers, testFireDeliveryConfig, isApiMockMode } from "@/lib/api-c
 
 // ── Mock fallback (used when USE_MOCK = true) ─────────────────────────────────
 
+// offer<=>works: SAP Ariba and Coupa are not built connectors — mark them
+// "coming_soon" so they are never presented as connected or ready to use.
+// Generic SFTP and Email (IMAP) are real, implemented channels.
+// Erply is a real delivery adapter (erp_erply protocol).
 const MOCK_CONNECTORS = [
-  { id: "c1", type: "cXML PunchOut", name: "SAP Ariba",             status: "connected",  desc: "ERP connector · cXML in/out", docks: 2,  direction: "out" },
-  { id: "c2", type: "ERP (REST)",    name: "Coupa",                  status: "connected",  desc: "ERP connector · cXML",        docks: 1,  direction: "out" },
-  { id: "c3", type: "ERP (REST)",    name: "Microsoft Dynamics 365", status: "available",  desc: "ERP connector · OData",       docks: 0,  direction: "out" },
-  { id: "c4", type: "EDI (SFTP)",    name: "Generic SFTP",           status: "connected",  desc: "File delivery",               docks: 3,  direction: "out" },
-  { id: "c5", type: "Email (IMAP)",  name: "Email (IMAP)",           status: "connected",  desc: "Inbound order polling",       docks: 1,  direction: "in"  },
-  { id: "c6", type: "ERP — Erply",   name: "Erply",                  status: "available",  desc: "Retail ERP",                  docks: 0,  direction: "out" },
+  { id: "c1", type: "cXML PunchOut", name: "SAP Ariba",             status: "coming_soon", desc: "ERP connector · cXML in/out — not yet available", docks: 0,  direction: "out" },
+  { id: "c2", type: "ERP (REST)",    name: "Coupa",                  status: "coming_soon", desc: "ERP connector · cXML — not yet available",         docks: 0,  direction: "out" },
+  { id: "c3", type: "ERP (REST)",    name: "Microsoft Dynamics 365", status: "coming_soon", desc: "ERP connector · OData — not yet available",        docks: 0,  direction: "out" },
+  { id: "c4", type: "EDI (SFTP)",    name: "Generic SFTP",           status: "connected",   desc: "File delivery",                                    docks: 3,  direction: "out" },
+  { id: "c5", type: "Email (IMAP)",  name: "Email (IMAP)",           status: "connected",   desc: "Inbound order polling",                            docks: 1,  direction: "in"  },
+  { id: "c6", type: "ERP — Erply",   name: "Erply",                  status: "available",   desc: "Retail ERP",                                       docks: 0,  direction: "out" },
 ];
 
 type Connector = {
@@ -69,9 +73,19 @@ function isConnected(status: string) {
 
 function ConnectorStatusPill({ status }: { status: string }) {
   const connected = isConnected(status);
+  const comingSoon = status === "coming_soon";
   // Canonical design pills (screen-buyers.jsx ConnectorsScreen):
-  //   Connected → .pill-ready  (bg --brand-green-soft #E2F1E2, text --brand-green-deep #1E6D29, dot --brand-green #2E8E3A)
-  //   Available → .pill-new    (bg --surface-2 #EFF2F7,        text --ink-muted #56627A,        dot --ink-faint #8A93A5)
+  //   Connected   → .pill-ready  (bg --brand-green-soft #E2F1E2, text --brand-green-deep #1E6D29, dot --brand-green #2E8E3A)
+  //   Available   → .pill-new    (bg --surface-2 #EFF2F7,        text --ink-muted #56627A,        dot --ink-faint #8A93A5)
+  //   Coming soon → inline style (muted amber) — not "connected", not "available to connect"
+  if (comingSoon) {
+    return (
+      <span style={{ display: "inline-flex", alignItems: "center", gap: 5, borderRadius: 20, padding: "2px 9px", background: "var(--amber-soft,#FFF4D6)", fontSize: 11.5, fontWeight: 600, color: "var(--amber-deep,#7A5700)", whiteSpace: "nowrap" }}>
+        <span style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--amber,#D4900A)", flexShrink: 0, display: "inline-block" }} />
+        Coming soon
+      </span>
+    );
+  }
   return (
     <span className={connected ? "pill pill-ready" : "pill pill-new"}>
       <span className="dot" />
@@ -113,6 +127,7 @@ function ConnectorCard({
   onManage: (c: Connector) => void;
 }) {
   const connected = isConnected(connector.status);
+  const comingSoon = connector.status === "coming_soon";
 
   return (
     <div
@@ -171,7 +186,10 @@ function ConnectorCard({
         ) : (
           <span />
         )}
-        {connected ? (
+        {comingSoon ? (
+          /* offer<=>works: connector is not built — no actionable button */
+          <span style={{ fontSize: 11.5, color: "var(--ink-faint,#8A93A5)", fontStyle: "italic" }}>Not available yet</span>
+        ) : connected ? (
           <button
             className="connector-action btn-ghost"
             onClick={() => onManage(connector)}

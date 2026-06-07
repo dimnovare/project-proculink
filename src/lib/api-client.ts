@@ -891,32 +891,13 @@ const mockSupplierProfiles: import("@/types/procurement").SupplierProfile[] = [
 
 async function mockGetSupplierProfiles() { await delay(300); return [...mockSupplierProfiles]; }
 async function mockGetSupplierProfile(n: string) { await delay(200); return mockSupplierProfiles.find(p => p.supplierName === n) ?? null; }
-async function mockCreateSupplierProfile(p: import("@/types/procurement").SupplierProfile) {
-  await delay(400);
-  if (mockSupplierProfiles.find(x => x.supplierName === p.supplierName)) throw new Error("Supplier profile already exists");
-  mockSupplierProfiles.push(p); return p;
-}
-async function mockUpdateSupplierProfile(name: string, data: Omit<import("@/types/procurement").SupplierProfile, "supplierName">) {
-  await delay(400);
-  const i = mockSupplierProfiles.findIndex(p => p.supplierName === name);
-  if (i === -1) throw new Error("Not found");
-  const u = { ...data, supplierName: name }; mockSupplierProfiles[i] = u; return u;
-}
-async function mockDeleteSupplierProfile(name: string) {
-  await delay(300);
-  const i = mockSupplierProfiles.findIndex(p => p.supplierName === name);
-  if (i === -1) throw new Error("Not found");
-  mockSupplierProfiles.splice(i, 1);
-}
-
 // Backend routes (SuppliersController, route prefix "api/suppliers"):
 //   GET  /api/suppliers/profiles              → list all profiles for the org
 //   GET  /api/suppliers/profiles/{name}       → get profile by supplier name
 //   POST /api/suppliers/{id}/profiles         → upsert profile (supplier-GUID-scoped)
 // There is no separate PUT or DELETE for profiles — the POST is an upsert.
-// Only the two read endpoints below are wired live. The mock create/update/delete
-// profile helpers are retained for dev/mock mode; a live upsert/delete client must
-// be (re)introduced against the supplier-GUID-scoped route above when needed.
+// Only the two read endpoints below are wired live. A live upsert/delete client
+// must be introduced against the supplier-GUID-scoped route above when needed.
 async function realGetSupplierProfiles() { const r = await fetchWithTimeout(`${API_BASE_URL}/api/suppliers/profiles`, { headers: await authHeader() }); if (!r.ok) throw new Error(r.statusText); return r.json(); }
 async function realGetSupplierProfile(n: string) { const r = await fetchWithTimeout(`${API_BASE_URL}/api/suppliers/profiles/${encodeURIComponent(n)}`, { headers: await authHeader() }); if (r.status === 404) return null; if (!r.ok) throw new Error(r.statusText); return r.json(); }
 

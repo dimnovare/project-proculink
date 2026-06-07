@@ -125,7 +125,7 @@ const FEATURES: Array<{
   {
     icon: "layers",
     title: "Universal ingestion",
-    desc: "CSV, XLSX, PDF, cXML, UBL, EDIFACT, X12 or JSON — drop a purchase order in any of these and ProcuLink parses it into one canonical structure.",
+    desc: "CSV, XLSX, PDF, cXML, UBL, EDIFACT or X12 — drop a file straight in. JSON orders come in via the REST API. ProcuLink parses all of it into one canonical structure.",
     color: BLUE_DEEP,
     bg: BLUE_SOFT,
   },
