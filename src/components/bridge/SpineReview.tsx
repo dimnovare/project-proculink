@@ -396,6 +396,23 @@ function TotalsSummary({ order }: { order: Order }) {
 
 // ─── SpineNodeCard ────────────────────────────────────────────────────────────
 
+// Manual supplier-code entry API, threaded into SpineNodeCard so the control
+// renders identically on mobile / tablet / desktop (it lives in the shared card,
+// not a per-breakpoint block). Persistence goes through the SAME /resolve path as
+// Accept (commitMappings + refetch) so the server needsReview send-guard clears.
+interface LineEditApi {
+  /** Known supplier codes from the supplier's saved mappings (datalist typeahead). */
+  knownCodes: string[];
+  /** Line id currently in manual-entry mode (only one at a time), or null. */
+  editId: string | null;
+  /** Current draft text in the manual-entry input. */
+  draft: string;
+  onStart: (lineId: string, initial: string) => void;
+  onChange: (value: string) => void;
+  onCommit: (lineId: string) => void;
+  onCancel: () => void;
+}
+
 interface SpineNodeCardProps {
   node: SpineNodeData;
   idx: number;
@@ -419,6 +436,61 @@ interface SpineNodeCardProps {
   activeZone?: string | null;
   /** Line id whose Accept is currently committing to the server (disables its buttons). */
   acceptingLineId?: string | null;
+  /** Manual supplier-code entry API (renders the "Set supplier code" control). */
+  lineEdit?: LineEditApi;
+}
+
+// Manual supplier-code entry row for an unresolved line. Free text + a native
+// <datalist> typeahead of the supplier's known codes (zero deps, accessible).
+// Enter commits, Escape cancels. Persistence is the caller's job (commitMappings).
+function ManualCodeRow({ sn, lineEdit, saving }: { sn: SubNode; lineEdit: LineEditApi; saving: boolean }) {
+  const listId = `known-codes-${sn.id}`;
+  const draft = lineEdit.draft.trim();
+  const novel = draft.length > 0 && lineEdit.knownCodes.length > 0 && !lineEdit.knownCodes.includes(draft);
+  return (
+    <div style={{ marginLeft: 21, display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+      <input
+        autoFocus
+        list={lineEdit.knownCodes.length ? listId : undefined}
+        value={lineEdit.draft}
+        onChange={(e) => lineEdit.onChange(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") { e.preventDefault(); lineEdit.onCommit(sn.id); }
+          if (e.key === "Escape") { e.preventDefault(); lineEdit.onCancel(); }
+        }}
+        placeholder="Supplier code"
+        aria-label={`Supplier code for line ${sn.lineNo ?? sn.sku}`}
+        disabled={saving}
+        style={{ flex: "1 1 140px", minWidth: 120, minHeight: 32, border: "1px solid #2E8E3A", borderRadius: 6, padding: "5px 8px", fontSize: 12, fontFamily: "'JetBrains Mono',monospace", background: "#F0FDF4", color: "#0B1A2F", outline: "none" }}
+      />
+      {lineEdit.knownCodes.length > 0 && (
+        <datalist id={listId}>
+          {lineEdit.knownCodes.map((c) => <option key={c} value={c} />)}
+        </datalist>
+      )}
+      <button
+        type="button"
+        onClick={() => lineEdit.onCommit(sn.id)}
+        disabled={saving || draft.length === 0}
+        style={{ fontSize: 11, fontWeight: 700, padding: "6px 12px", borderRadius: 6, border: "none", background: "#2E8E3A", color: "#FFFFFF", cursor: saving || draft.length === 0 ? "default" : "pointer", opacity: saving || draft.length === 0 ? 0.55 : 1, minHeight: 32 }}
+      >
+        {saving ? "Saving…" : "Save"}
+      </button>
+      <button
+        type="button"
+        onClick={lineEdit.onCancel}
+        disabled={saving}
+        style={{ fontSize: 11, fontWeight: 600, padding: "6px 10px", borderRadius: 6, border: "none", background: "transparent", color: "#8A93A5", cursor: saving ? "default" : "pointer", minHeight: 32 }}
+      >
+        Cancel
+      </button>
+      {novel && (
+        <span style={{ flexBasis: "100%", fontSize: 9.5, color: "#C97A14" }}>
+          Not in saved mappings — it&apos;ll be remembered for next time.
+        </span>
+      )}
+    </div>
+  );
 }
 
 function SpineNodeCard({
@@ -428,7 +500,7 @@ function SpineNodeCard({
   onStartEdit, onChangeValue, onCommitEdit,
   onAcceptSubnode, onRejectSubnode,
   onKeyDown, inputRef, cardRef, onHover, onZoneHover, activeZone,
-  acceptingLineId,
+  acceptingLineId, lineEdit,
 }: SpineNodeCardProps) {
   const isEditing = editingId === node.id;
   const displayVal = fieldValues[node.id] ?? node.value;
@@ -666,8 +738,31 @@ function SpineNodeCard({
                     {rejected   && <span style={{ fontSize: 9.5, fontWeight: 700, color: "#C53A3A", flexShrink: 0 }}>✗</span>}
                   </div>
 
-                  {/* Error line with no AI suggestion */}
-                  {sn.err && !showAiCard && !done && (
+                  {/* Error line with no AI suggestion — manual supplier-code entry.
+                      Lives in the shared card, so it works on mobile/tablet/desktop.
+                      This closes the dead-end where an unresolved line had no way to
+                      be fixed (the #1 review gap). */}
+                  {sn.err && !showAiCard && !done && lineEdit && lineEdit.editId === sn.id && (
+                    <ManualCodeRow sn={sn} lineEdit={lineEdit} saving={acceptingLineId === sn.id} />
+                  )}
+                  {sn.err && !showAiCard && !done && lineEdit && lineEdit.editId !== sn.id && (
+                    <div style={{ marginLeft: 21, display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                      <span style={{ fontSize: 10, fontWeight: 600, color: "#C53A3A", display: "inline-flex", alignItems: "center", gap: 5 }}>
+                        <span style={{ width: 4, height: 4, borderRadius: 1, background: "#C53A3A", display: "inline-block" }} />
+                        {sn.hint ?? "Needs a supplier code"}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => lineEdit.onStart(sn.id, "")}
+                        aria-label={`Set supplier code for line ${sn.lineNo ?? sn.sku}`}
+                        style={{ fontSize: 11, fontWeight: 700, padding: "6px 12px", borderRadius: 6, border: "1px solid #1E66C9", background: "#FFFFFF", color: "#1E66C9", cursor: "pointer", minHeight: 32 }}
+                      >
+                        Set supplier code
+                      </button>
+                    </div>
+                  )}
+                  {/* Read-only fallback (no edit API wired) — keep the honest hint. */}
+                  {sn.err && !showAiCard && !done && !lineEdit && (
                     <div style={{ marginLeft: 21, fontSize: 10, fontWeight: 600, color: "#C53A3A", display: "inline-flex", alignItems: "center", gap: 5 }}>
                       <span style={{ width: 4, height: 4, borderRadius: 1, background: "#C53A3A", display: "inline-block" }} />
                       {sn.hint ?? "Needs a supplier code"} — will be held back
@@ -722,10 +817,26 @@ function SpineNodeCard({
                               >
                                 Reject
                               </button>
+                              {lineEdit && lineEdit.editId !== sn.id && (
+                                <button
+                                  type="button"
+                                  aria-label={`Enter a supplier code manually for line ${sn.lineNo ?? sn.sku}`}
+                                  onClick={() => lineEdit.onStart(sn.id, sn.aiSuggestedCode ?? "")}
+                                  disabled={accepting}
+                                  style={{ fontSize: 11, fontWeight: 600, padding: "7px 11px", borderRadius: 6, border: "none", background: "transparent", color: "#6F4FCE", cursor: accepting ? "default" : "pointer", opacity: accepting ? 0.6 : 1 }}
+                                >
+                                  Enter manually
+                                </button>
+                              )}
                             </>
                           );
                         })()}
                       </div>
+                      {lineEdit && lineEdit.editId === sn.id && (
+                        <div style={{ marginTop: 8, marginLeft: -21 }}>
+                          <ManualCodeRow sn={sn} lineEdit={lineEdit} saving={acceptingLineId === sn.id} />
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
@@ -1417,6 +1528,7 @@ interface MobileSpineAccordionProps {
   orderId: string;
   artifacts: Order["artifacts"];
   acceptingLineId?: string | null;
+  lineEdit?: LineEditApi;
 }
 
 function AccordionPanel({ step, label, sub, accent, defaultOpen, children }: {
@@ -1463,7 +1575,7 @@ function MobileSpineAccordion({
   order, nodes, editingId, fieldValues, acceptedSubnodes, rejectedSubnodes,
   crossed, onStartEdit, onChangeValue, onCommitEdit,
   onAcceptSubnode, onRejectSubnode, onKeyDown, inputRef, onOutputAction,
-  orderId, artifacts, acceptingLineId,
+  orderId, artifacts, acceptingLineId, lineEdit,
 }: MobileSpineAccordionProps) {
   const lineCount = order.lines.length;
   return (
@@ -1496,6 +1608,7 @@ function MobileSpineAccordion({
                 onKeyDown={onKeyDown}
                 inputRef={inputRef}
                 acceptingLineId={acceptingLineId}
+                lineEdit={lineEdit}
               />
             ))}
             {/* Phase 4 — document totals (renders only when enriched) */}
@@ -1546,7 +1659,7 @@ function TabletSpineLayout({
   order, nodes, editingId, fieldValues, acceptedSubnodes, rejectedSubnodes,
   crossed, onStartEdit, onChangeValue, onCommitEdit,
   onAcceptSubnode, onRejectSubnode, onKeyDown, inputRef, onOutputAction,
-  orderId, artifacts, acceptingLineId,
+  orderId, artifacts, acceptingLineId, lineEdit,
   onNodeHover, onZoneHover, activeZone,
 }: TabletSpineLayoutProps) {
   return (
@@ -1581,6 +1694,7 @@ function TabletSpineLayout({
                 onZoneHover={onZoneHover}
                 activeZone={activeZone}
                 acceptingLineId={acceptingLineId}
+                lineEdit={lineEdit}
               />
             ))}
             {/* Phase 4 — document totals (renders only when enriched) */}
@@ -1677,6 +1791,25 @@ export function SpineReview({ orderId }: { orderId: string }) {
     retry: 1,
   });
 
+  // ── Known supplier codes (datalist typeahead for manual line resolution) ───
+  // Best-effort: a failure just means no suggestions — free-text entry still
+  // works. Sourced from the supplier's saved mappings.
+  const { data: supplierMappings } = useQuery({
+    queryKey: ["supplier-mappings", order?.supplierId],
+    queryFn: () => apiClient.getSupplierMappings(order!.supplierId),
+    enabled: queryEnabled && !!order?.supplierId,
+    staleTime: 60_000,
+    retry: 1,
+  });
+  const knownSupplierCodes = useMemo(
+    () => Array.from(new Set(
+      (supplierMappings ?? [])
+        .map((m) => m.supplierItemCode)
+        .filter((c): c is string => !!c && c.trim().length > 0),
+    )).sort((a, b) => a.localeCompare(b)),
+    [supplierMappings],
+  );
+
   // ── Validation mutation (Task 1.F.4) ──────────────────────────────────────
   const [validationResult, setValidationResult] = useState<OrderValidationResult | null>(null);
   const validateMutation = useMutation({
@@ -1731,6 +1864,9 @@ export function SpineReview({ orderId }: { orderId: string }) {
   const [acceptingLineId, setAcceptingLineId]     = useState<string | null>(null);
   // The header field id (date/buyer/currency) whose correction is being persisted.
   const [savingHeaderId, setSavingHeaderId]       = useState<string | null>(null);
+  // Manual supplier-code entry: which line (id) is in edit mode + its draft text.
+  const [lineEditId, setLineEditId]               = useState<string | null>(null);
+  const [lineDraft, setLineDraft]                 = useState<string>("");
 
   const inputRefs = useRef<Record<string, HTMLInputElement | null>>({});
   const gridRef = useRef<HTMLDivElement>(null);
@@ -1927,6 +2063,50 @@ export function SpineReview({ orderId }: { orderId: string }) {
     setRejectedSubnodes(prev => new Set([...prev, id]));
     setAcceptedSubnodes(prev => { const n = new Set(prev); n.delete(id); return n; });
   }, []);
+
+  // ── Manual supplier-code entry (the #1 review action) ──────────────────────
+  const handleStartLineEdit = useCallback((id: string, initial: string) => {
+    setLineEditId(id);
+    setLineDraft(initial ?? "");
+  }, []);
+  const handleCancelLineEdit = useCallback(() => {
+    setLineEditId(null);
+    setLineDraft("");
+  }, []);
+  // Persist a hand-typed supplier code via the SAME server path as Accept
+  // (commitMappings → refetch) so the needsReview send-guard recomputes from
+  // server truth — never local-only, or the line would look fixed but still
+  // block Send. saveMappings (default true) also remembers it for next time.
+  const handleCommitLineCode = useCallback((id: string) => {
+    if (!order) return;
+    const line = order.lines.find(l => l.id === id);
+    const code = lineDraft.trim();
+    if (!line || code.length === 0) return;
+    setAcceptingLineId(id);
+    void (async () => {
+      try {
+        await apiClient.commitMappings(orderId, [{ lineNumber: line.lineNumber, supplierItemCode: code }]);
+        await qc.invalidateQueries({ queryKey: ["order", orderId] });
+        await refetchOrder();
+        setLineEditId(null);
+        setLineDraft("");
+      } catch (err) {
+        setFlow(err instanceof Error ? err.message : `Couldn't save that ${labels.counterpartyNoun.toLowerCase()} code. Try again.`, "error");
+      } finally {
+        setAcceptingLineId(null);
+      }
+    })();
+  }, [order, orderId, lineDraft, qc, refetchOrder, labels, setFlow]);
+
+  const lineEditApi = useMemo(() => ({
+    knownCodes: knownSupplierCodes,
+    editId: lineEditId,
+    draft: lineDraft,
+    onStart: handleStartLineEdit,
+    onChange: setLineDraft,
+    onCommit: handleCommitLineCode,
+    onCancel: handleCancelLineEdit,
+  }), [knownSupplierCodes, lineEditId, lineDraft, handleStartLineEdit, handleCommitLineCode, handleCancelLineEdit]);
 
   const pollOrderUntil = useCallback(async (
     predicate: (next: Order) => boolean,
@@ -2479,6 +2659,7 @@ export function SpineReview({ orderId }: { orderId: string }) {
                       onZoneHover={handleZoneHover}
                       activeZone={activeZone}
                       acceptingLineId={acceptingLineId}
+                      lineEdit={lineEditApi}
                     />
                   ))}
                   {/* Phase 4 — document totals (renders only when enriched) */}
@@ -2532,6 +2713,7 @@ export function SpineReview({ orderId }: { orderId: string }) {
           orderId={orderId}
           artifacts={order.artifacts}
           acceptingLineId={acceptingLineId}
+          lineEdit={lineEditApi}
           onNodeHover={handleNodeHover}
           onZoneHover={handleZoneHover}
           activeZone={activeZone}
@@ -2557,6 +2739,7 @@ export function SpineReview({ orderId }: { orderId: string }) {
           orderId={orderId}
           artifacts={order.artifacts}
           acceptingLineId={acceptingLineId}
+          lineEdit={lineEditApi}
         />
       </div>
 

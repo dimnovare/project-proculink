@@ -110,22 +110,60 @@ export function SpineConnectors({
     setWires(next);
   }, [gridRef, sourceColRef, outputColRef, nodeEls, srcSectionEls, outLineEls, nodes]);
 
+  // Double-rAF: measure AFTER the browser has committed the latest layout. A
+  // single rAF can still race a same-frame height change (e.g. the 3s refetch
+  // swapping content), which left wires missing/misplaced.
+  const scheduleMeasure = useCallback(() => {
+    if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    rafRef.current = requestAnimationFrame(() => {
+      rafRef.current = requestAnimationFrame(measure);
+    });
+  }, [measure]);
+
   useLayoutEffect(() => { measure(); }, [measure, signature]);
 
   useEffect(() => {
-    const onResize = () => {
-      if (rafRef.current) cancelAnimationFrame(rafRef.current);
-      rafRef.current = requestAnimationFrame(measure);
-    };
-    window.addEventListener("resize", onResize);
-    // Re-measure once after fonts/layout settle, then reveal.
+    const grid = gridRef.current;
+    measure();
+    // Reveal after fonts/layout settle.
     const t = setTimeout(() => { measure(); setShown(true); }, 70);
+
+    // Re-measure on ANY layout-affecting change — not just window resize. This
+    // replaces the old measure-once-at-70ms approach that left wires stale when
+    // the order's 3s refetch changed node heights after the snapshot, or when
+    // the user scrolled the overflow container.
+    //  • ResizeObserver on the grid, both columns, and every anchor element
+    //    (heights shift on edit / accept / reject / enrich / async load).
+    //  • scroll on the nearest scrollable ancestor (overlay is positioned to the
+    //    grid, which lives inside an overflow-y-auto container).
+    //  • window resize / zoom.
+    const ro = new ResizeObserver(scheduleMeasure);
+    const seen = new Set<Element>();
+    const observe = (el: Element | null | undefined) => { if (el && !seen.has(el)) { seen.add(el); ro.observe(el); } };
+    observe(grid);
+    observe(sourceColRef.current);
+    observe(outputColRef.current);
+    Object.values(nodeEls.current).forEach(observe);
+    Object.values(srcSectionEls.current).forEach(observe);
+    Object.values(outLineEls.current).forEach(observe);
+
+    let scroller: HTMLElement | null = grid?.parentElement ?? null;
+    while (scroller && scroller !== document.body) {
+      const oy = getComputedStyle(scroller).overflowY;
+      if (oy === "auto" || oy === "scroll") break;
+      scroller = scroller.parentElement;
+    }
+    scroller?.addEventListener("scroll", scheduleMeasure, { passive: true });
+    window.addEventListener("resize", scheduleMeasure);
+
     return () => {
-      window.removeEventListener("resize", onResize);
-      if (rafRef.current) cancelAnimationFrame(rafRef.current);
       clearTimeout(t);
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+      ro.disconnect();
+      scroller?.removeEventListener("scroll", scheduleMeasure);
+      window.removeEventListener("resize", scheduleMeasure);
     };
-  }, [measure]);
+  }, [measure, scheduleMeasure, gridRef, sourceColRef, outputColRef, nodeEls, srcSectionEls, outLineEls]);
 
   // Confidence classes for colours:
   //  confident (>=90) → brand-blue (#1E66C9) → brand-green (#2E8E3A), solid
