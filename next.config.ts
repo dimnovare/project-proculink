@@ -7,6 +7,27 @@ const withMDX = createMDX({ extension: /\.mdx?$/ });
 const nextConfig: NextConfig = {
   pageExtensions: ["ts", "tsx", "mdx"],
   // API lives on a separate origin — no rewrites needed
+  // Baseline security headers on every response. HSTS is already applied by the
+  // Vercel edge, so we add the remaining hardening headers here. A full
+  // Content-Security-Policy (script/style allowlist compatible with Clerk +
+  // Next's inline runtime) is intentionally deferred — it needs careful testing
+  // against the Clerk SDK to avoid breaking auth, so it is tracked separately.
+  async headers() {
+    return [
+      {
+        source: "/:path*",
+        headers: [
+          { key: "X-Content-Type-Options", value: "nosniff" },
+          { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+          { key: "X-Frame-Options", value: "SAMEORIGIN" },
+          {
+            key: "Permissions-Policy",
+            value: "camera=(), microphone=(), geolocation=(), browsing-topics=()",
+          },
+        ],
+      },
+    ];
+  },
   async redirects() {
     return [
       // Orphan legacy views (older `src/views/*`) — collapse them onto the

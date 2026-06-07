@@ -9,6 +9,7 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://proculink.eu"),
   title: "ProcuLink — Connecting Procurement",
   description: "The missing link between buyers and suppliers.",
   icons: {

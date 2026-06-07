@@ -540,8 +540,10 @@ export function ROICalculator() {
           }}
         >
           Savings model assumes ProcuLink automates 70% of the manual reformatting and validation
-          flow — a conservative figure based on pilot customer measurements. Your number will be
-          higher if your current process involves multiple retypes or supplier-specific formats.
+          flow — an illustrative default based on our analysis of typical manual reformatting
+          effort, not a measured customer outcome. Adjust the sliders for your own numbers; your
+          result will be higher if your current process involves multiple retypes or
+          supplier-specific formats.
           Plans are billed monthly and include light, self-serve setup at no extra cost; hands-on
           per-supplier onboarding applies only to Enterprise and other complex setups, is arranged
           manually (never auto-charged), and is waived for early design partners. The Pilot tier is

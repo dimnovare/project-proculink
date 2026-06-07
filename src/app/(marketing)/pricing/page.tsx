@@ -274,18 +274,24 @@ export default function PricingPage() {
             )}
           </div>
 
-          {tiersExpanded && (
-            <div id="plk-all-tiers" className="plk-pricing-grid plk-secondary-grid">
-              {SECONDARY_TIERS.map((tier) => (
-                <PriceCard
-                  key={tier.id}
-                  tier={tier}
-                  yearly={yearly}
-                  recommended={tier.id === recommendedId}
-                />
-              ))}
-            </div>
-          )}
+          {/* Secondary tiers stay in the DOM (SSR-crawlable + valid aria-controls
+              target) and collapse via [hidden] when not expanded, so search
+              engines and no-JS visitors still see Growth/Integration/Distributor
+              while only three cards compete for attention by default. */}
+          <div
+            id="plk-all-tiers"
+            className="plk-pricing-grid plk-secondary-grid"
+            hidden={!tiersExpanded}
+          >
+            {SECONDARY_TIERS.map((tier) => (
+              <PriceCard
+                key={tier.id}
+                tier={tier}
+                yearly={yearly}
+                recommended={tier.id === recommendedId}
+              />
+            ))}
+          </div>
 
           <p className="plk-fine">{SETUP_FEE_NOTE}</p>
           <p className="plk-fine" style={{ marginTop: 10 }}>
@@ -539,6 +545,9 @@ const PRICING_CSS = `
 
 /* Pricing grid + card (design .pricing-grid / .price-card) */
 .plk-pricing-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; align-items: start; }
+/* [hidden] must beat the explicit display:grid above so the collapsed secondary
+   tier panel is truly removed from layout while staying in the DOM. */
+.plk-pricing-grid[hidden] { display: none; }
 .plk-secondary-grid { margin-top: 22px; }
 .plk-price-card {
   background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg);
