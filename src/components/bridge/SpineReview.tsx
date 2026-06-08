@@ -2929,7 +2929,12 @@ export function SpineReview({ orderId }: { orderId: string }) {
             three-column review. */}
         <div className="hidden xl:block min-w-[1120px]">
           <EdgeRails>
-          <div className="h-full overflow-y-auto">
+          {/* NOTE: no overflow here. The real scroll container is the SpineReview Body
+              (flex:1, overflow:auto). An overflow-y-auto here was a full-height FROZEN
+              scroll context that blocked position:sticky on the columns — removing it
+              lets the source + output columns stick to the Body scroller so they follow
+              the user while the tall canonical column scrolls. */}
+          <div className="h-full">
             {/* Desktop 3-column grid */}
             <div
               ref={gridRef}
@@ -2977,8 +2982,11 @@ export function SpineReview({ orderId }: { orderId: string }) {
                   it live in the source column below (sourceChipProps). */}
               {sourceWireSvg}
 
-              {/* Left — SOURCE DOCUMENT */}
-              <div ref={sourceColRef}>
+              {/* Left — SOURCE DOCUMENT. Sticky so it follows the user as the tall
+                  canonical column scrolls (founder: "the left and right should follow
+                  me"). Pure sticky (no internal overflow) keeps wire endpoints clean;
+                  the source column is kept short by the tamed source-field panel. */}
+              <div ref={sourceColRef} style={{ position: "sticky", top: 8, alignSelf: "start" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 10, height: 18, minWidth: 0 }}>
                   <span style={{ fontSize: 10.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "#1E66C9", flexShrink: 0 }}>Source document</span>
                   <FileChip type={sourceFileType(order.sourceFileKey)} />
@@ -3038,8 +3046,9 @@ export function SpineReview({ orderId }: { orderId: string }) {
                 </div>
               </div>
 
-              {/* Right — SUPPLIER OUTPUT */}
-              <div ref={outputColRef}>
+              {/* Right — SUPPLIER OUTPUT. Sticky, mirrors the source column so it
+                  stays in view while the canonical column scrolls. */}
+              <div ref={outputColRef} style={{ position: "sticky", top: 8, alignSelf: "start" }}>
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginBottom: 10, height: 18 }}>
                   <span style={{ fontSize: 9.5, color: "#B4BBC8" }}>canonical → supplier</span>
                   <span style={{ fontSize: 10.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "#1E6D29" }}>Supplier output</span>
