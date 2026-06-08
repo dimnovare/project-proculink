@@ -2754,6 +2754,9 @@ export function SpineReview({ orderId }: { orderId: string }) {
                 hoveredId={hoveredId}
                 crossed={crossed}
                 signature={`${nodes.length}|${editingId ?? ""}|${[...acceptedSubnodes].sort().join(",")}|${[...rejectedSubnodes].sort().join(",")}|${hoveredId ?? ""}|${activeZone ?? ""}|${crossed ? 1 : 0}|${Object.entries(fieldValues).map(([k, v]) => k + v).join(",")}|${wireSig}`}
+                // WireDragLayer owns the canonical→output (right) wires so they can be
+                // override-aware + re-routable; SpineConnectors draws only source→canonical.
+                drawOutput={false}
               />
 
               {/* Interactive drag-to-wire layer — canonical → output only, xl desktop.

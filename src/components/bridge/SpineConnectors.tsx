@@ -33,6 +33,13 @@ interface SpineConnectorsProps {
   crossed: boolean;
   /** Any change forces a re-measure (heights shift on edit/accept/reject). */
   signature: string;
+  /**
+   * When false, the canonical→output (node→output) segment, its output dot and
+   * its output-side pulse are NOT drawn — WireDragLayer owns that side so it can
+   * render it OVERRIDE-AWARE and re-routable. The source→canonical (left) segment
+   * always renders. Defaults to true (full both-sides render).
+   */
+  drawOutput?: boolean;
 }
 
 // Fallback anchor heights (% of the source/output column) used only when a real
@@ -55,7 +62,7 @@ function curve(x1: number, y1: number, x2: number, y2: number): string {
 
 export function SpineConnectors({
   gridRef, sourceColRef, outputColRef, nodeEls, srcSectionEls, outLineEls,
-  nodes, hoveredId, crossed, signature,
+  nodes, hoveredId, crossed, signature, drawOutput = true,
 }: SpineConnectorsProps) {
   const [wires, setWires] = useState<Wire[]>([]);
   const [shown, setShown] = useState(false);
@@ -265,12 +272,12 @@ export function SpineConnectors({
           <g key={w.id} style={{ opacity, transition: "opacity 200ms ease" }}>
             {/* Source → node segment */}
             <path d={pathSrc} stroke={srcStroke} {...common} />
-            {/* Node → output segment */}
-            <path d={pathOut} stroke={outStroke} {...common} />
+            {/* Node → output segment — owned by WireDragLayer when drawOutput=false */}
+            {drawOutput && <path d={pathOut} stroke={outStroke} {...common} />}
 
             {/* Terminal dots */}
             <circle cx={w.sx}  cy={w.sy}  r={emphasized ? 3.6 : 2.6} fill={srcDot} />
-            <circle cx={w.ox}  cy={w.oy}  r={emphasized ? 3.6 : 2.6} fill={outDot} />
+            {drawOutput && <circle cx={w.ox} cy={w.oy} r={emphasized ? 3.6 : 2.6} fill={outDot} />}
             {/* Node attachment dot (hollow) */}
             <circle cx={w.nlx} cy={w.ny}  r={2.4} fill="#FFFFFF" stroke={srcDot} strokeWidth={1.4} />
 
@@ -285,7 +292,7 @@ export function SpineConnectors({
                 } as React.CSSProperties} />
             )}
             {/* Travelling pulse on output segment */}
-            {(confident || crossed) && (
+            {drawOutput && (confident || crossed) && (
               <circle r="2.2" fill="#fff" stroke="#2E8E3A" strokeWidth="1.2"
                 style={{
                   offsetPath: `path('${pathOut}')`,
