@@ -2188,7 +2188,11 @@ export function SpineReview({ orderId }: { orderId: string }) {
   // higher and are easier to reach. Lifted here (not inside DocumentAnatomy) so the
   // decorative source→canonical wires (SpineConnectors) can stop drawing when their
   // section anchors are hidden — otherwise they'd point at zero-rect elements.
-  const [parsedDocCollapsed, setParsedDocCollapsed] = useState(false);
+  // Default COLLAPSED on desktop: the reconstructed-document table (up to N rows)
+  // otherwise dominates the source column, pushing the draggable source-field chips
+  // (the actual wiring targets) below the fold when the column is sticky-pinned. The
+  // same parsed data is already shown as canonical nodes; one click re-expands it.
+  const [parsedDocCollapsed, setParsedDocCollapsed] = useState(true);
 
   // Resolve which canonical node id corresponds to a given srcRef zone.
   const nodeIdForZone = useCallback((zone: string | null): string | null => {
