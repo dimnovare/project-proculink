@@ -34,6 +34,7 @@ import {
 } from "react";
 import type { ConnectorNode } from "./SpineConnectors";
 import { useDragAutoScroll } from "./useDragAutoScroll";
+import { useScrollResync } from "./useScrollResync";
 
 // nodeId → canonical field name (the SourceMap dictionary key the backend reads).
 // Mirrors WireDragLayer.NODE_TO_CANONICAL exactly so both sides agree on field names.
@@ -218,6 +219,11 @@ export function useSourceWireDrag({
     if (rafRef.current) cancelAnimationFrame(rafRef.current);
     rafRef.current = requestAnimationFrame(() => { rafRef.current = requestAnimationFrame(measure); });
   }, [measure]);
+
+  // Event-independent scroll tracking: a rAF loop polls scroll positions and
+  // re-measures on any change (the document "scroll" listener below never fired
+  // reliably for the real nested scroller / sticky columns).
+  useScrollResync(gridRef, scheduleMeasure);
 
   useLayoutEffect(() => { measure(); }, [measure, signature]);
 

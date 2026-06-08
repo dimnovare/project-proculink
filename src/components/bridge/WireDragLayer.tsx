@@ -26,6 +26,7 @@ import {
 } from "react";
 import type { ConnectorNode } from "./SpineConnectors";
 import { useDragAutoScroll } from "./useDragAutoScroll";
+import { useScrollResync } from "./useScrollResync";
 
 // Output lines that can be re-sourced (match the ids in OutputPreview's onLine refs).
 export const OUTPUT_LINE_IDS = ["po", "date", "supplier", "buyer", "currency", "totals", "lines"] as const;
@@ -154,6 +155,10 @@ export function WireDragLayer({
     if (rafRef.current) cancelAnimationFrame(rafRef.current);
     rafRef.current = requestAnimationFrame(() => { rafRef.current = requestAnimationFrame(measure); });
   }, [measure]);
+
+  // Event-independent scroll tracking (see useScrollResync). Keeps the
+  // canonical→output wires glued to the sticky output column while scrolling.
+  useScrollResync(gridRef, scheduleMeasure);
 
   useLayoutEffect(() => { measure(); }, [measure, signature]);
 

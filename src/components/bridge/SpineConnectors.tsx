@@ -2,6 +2,7 @@
 
 import type React from "react";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useScrollResync } from "./useScrollResync";
 
 // SpineConnectors — the live "send to supplier" routing made visible.
 // Draws two bezier wire-sets over the Review grid, anchored to the REAL DOM:
@@ -171,6 +172,10 @@ export function SpineConnectors({
       rafRef.current = requestAnimationFrame(measure);
     });
   }, [measure]);
+
+  // Event-independent scroll tracking (see useScrollResync) — the decorative
+  // source→canonical wires now follow the sticky source column on scroll.
+  useScrollResync(gridRef, scheduleMeasure);
 
   useLayoutEffect(() => { measure(); }, [measure, signature]);
 
