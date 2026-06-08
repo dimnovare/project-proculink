@@ -7,9 +7,10 @@ import type React from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState, useRef, useEffect, useCallback, useMemo, type KeyboardEvent } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { apiClient, getOrderExceptions, validateOrder, getSupplierCatalog } from "@/lib/api-client";
+import { apiClient, getOrderExceptions, validateOrder, getSupplierCatalog, getMappingOverride, upsertMappingOverride } from "@/lib/api-client";
 import { useQueriesEnabled } from "@/hooks/useQueriesEnabled";
 import type { Order, OrderException, OrderValidationResult } from "@/types/procurement";
+import type { OrderMappingOverride } from "@/lib/api/types";
 import { EdgeRails } from "./EdgeRails";
 import { FileChip } from "./FileChip";
 import { FailedPanel, ParseFailedPanel } from "./FailedPanels";
@@ -17,6 +18,7 @@ import { StatusJourney, type OrderStage } from "./StatusJourney";
 import { SpineReviewSkeleton } from "./Skeletons";
 import { StandardsFieldPopover } from "./StandardsFieldPopover";
 import { SpineConnectors } from "./SpineConnectors";
+import { WireDragLayer } from "./WireDragLayer";
 import { OutputMappingEditor } from "./OutputMappingEditor";
 import { OrderPassport } from "./OrderPassport";
 import { SupplierResponsePanel } from "./SupplierResponsePanel";
@@ -1860,6 +1862,39 @@ export function SpineReview({ orderId }: { orderId: string }) {
     [catalogCodes, mappingCodes],
   );
 
+  // ── Per-order mapping override (for WireDragLayer existing-connections + upsert) ──
+  // Fetched on mount so the drag handles know which canonical→output wires are
+  // already set (and can show them highlighted). The OutputMappingEditor has its
+  // own copy; we share the same query-key ["mapping-override", orderId] so they
+  // stay in sync.
+  const { data: mappingOverride, refetch: refetchOverride } = useQuery({
+    queryKey: ["mapping-override", orderId],
+    queryFn: () => getMappingOverride(orderId),
+    enabled: queryEnabled,
+    staleTime: 10_000,
+  });
+
+  // Map outputLineId → canonicalField from the existing override.
+  // Used by WireDragLayer to highlight already-connected pairs.
+  const existingWireConnections = useMemo<Partial<Record<string, string>>>(() => {
+    const result: Record<string, string> = {};
+    const override = mappingOverride?.output?.header ?? {};
+    Object.values(override).forEach((rule) => {
+      if (rule.outputPath && rule.canonicalField) {
+        result[rule.outputPath] = rule.canonicalField;
+      }
+    });
+    return result;
+  }, [mappingOverride]);
+
+  // Bumped after each successful wire upsert — added to the SpineConnectors
+  // signature so it schedules a re-measure.
+  const [wireSig, setWireSig] = useState(0);
+
+  // Debounced upsert ref — we cancel any pending save when a new drop comes in
+  // so rapid reconnects don't send stale payloads.
+  const wireDebRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   // ── Validation mutation (Task 1.F.4) ──────────────────────────────────────
   const [validationResult, setValidationResult] = useState<OrderValidationResult | null>(null);
   const validateMutation = useMutation({
@@ -1908,6 +1943,61 @@ export function SpineReview({ orderId }: { orderId: string }) {
     const m = (message ?? "").toLowerCase();
     setFlowSeverity(/fail|failed|reject|error|couldn't|could not|exhausted|unresolved|resolve every/.test(m) ? "error" : "info");
   }, []);
+
+  // ── Wire drag connect handler (WireDragLayer callback) ────────────────────
+  // Placed AFTER setFlow so it can call it.
+  // nodeId  = canonical node id (e.g. "po", "date", "buyer" …)
+  // lineId  = output line id (e.g. "po", "date", "supplier" …)
+  //
+  // NODE_TO_CANONICAL_FIELD matches WireDragLayer's internal map — kept here so
+  // SpineReview can build OutputFieldRule without depending on WireDragLayer internals.
+  const NODE_TO_CANONICAL_FIELD: Record<string, string> = {
+    po:       "PoNumber",
+    date:     "OrderDate",
+    buyer:    "BuyerName",
+    supplier: "SupplierName",
+    currency: "Currency",
+    lines:    "LineNumber",
+    totals:   "LineTotal",
+  };
+
+  const handleWireConnect = useCallback((nodeId: string, outputLineId: string) => {
+    if (wireDebRef.current) clearTimeout(wireDebRef.current);
+    wireDebRef.current = setTimeout(async () => {
+      const canonicalField = NODE_TO_CANONICAL_FIELD[nodeId];
+      if (!canonicalField) return;
+
+      // Merge with the existing override — don't clobber other rules.
+      const base: OrderMappingOverride = mappingOverride ?? { customFields: [], output: { header: {}, lines: {} } };
+      const headerRules = { ...(base.output?.header ?? {}) };
+      // Set (or replace) the rule for this output line path.
+      headerRules[outputLineId] = {
+        outputPath: outputLineId,
+        canonicalField,
+        fixedValue: null,
+        fieldManipulators: [],
+      };
+
+      const next: OrderMappingOverride = {
+        ...base,
+        output: { ...(base.output ?? {}), header: headerRules, lines: base.output?.lines ?? {} },
+      };
+
+      try {
+        await upsertMappingOverride(orderId, next);
+        await qc.invalidateQueries({ queryKey: ["mapping-override", orderId] });
+        await refetchOverride();
+        // Bump wireSig → gets included in the SpineConnectors signature →
+        // SpineConnectors schedules a re-measure via its useLayoutEffect.
+        setWireSig(s => s + 1);
+        setFlow(`Wire set: ${nodeId} → ${outputLineId}`, "success");
+      } catch (err) {
+        setFlow(err instanceof Error ? err.message : "Couldn't save wire connection.", "error");
+      }
+    }, 120); // short debounce — rapid drags shouldn't stack
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mappingOverride, orderId, qc, refetchOverride, setFlow]);
+
   const [sendState, setSendState]                 = useState<"idle" | "transforming" | "delivering">("idle");
   const [tab, setTab]                             = useState<"review" | "passport" | "response">("review");
   // The line id currently being resolved against the backend (Accept in-flight).
@@ -2663,7 +2753,20 @@ export function SpineReview({ orderId }: { orderId: string }) {
                 nodes={connectorNodes}
                 hoveredId={hoveredId}
                 crossed={crossed}
-                signature={`${nodes.length}|${editingId ?? ""}|${[...acceptedSubnodes].sort().join(",")}|${[...rejectedSubnodes].sort().join(",")}|${hoveredId ?? ""}|${activeZone ?? ""}|${crossed ? 1 : 0}|${Object.entries(fieldValues).map(([k, v]) => k + v).join(",")}`}
+                signature={`${nodes.length}|${editingId ?? ""}|${[...acceptedSubnodes].sort().join(",")}|${[...rejectedSubnodes].sort().join(",")}|${hoveredId ?? ""}|${activeZone ?? ""}|${crossed ? 1 : 0}|${Object.entries(fieldValues).map(([k, v]) => k + v).join(",")}|${wireSig}`}
+              />
+
+              {/* Interactive drag-to-wire layer — canonical → output only, xl desktop.
+                  Sits above the decorative SpineConnectors (z-index:3 vs 2).
+                  Uses native pointer events; decorative SVG pointerEvents:none is unchanged. */}
+              <WireDragLayer
+                gridRef={gridRef}
+                nodeEls={nodeEls}
+                outLineEls={outLineEls}
+                nodes={connectorNodes}
+                onConnect={handleWireConnect}
+                existingConnections={existingWireConnections}
+                signature={`${nodes.length}|${wireSig}`}
               />
 
               {/* Left — SOURCE DOCUMENT */}
