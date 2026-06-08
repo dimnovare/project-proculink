@@ -1330,6 +1330,62 @@ export async function getDeadLetterCount(): Promise<number> {
   return data.count;
 }
 
+// ── Per-order mapping override (heart-piece-flex) ────────────────────────────
+// Default (no override) leaves the transform byte-identical; these power the
+// "Edit mapping manually" power-user editor + live preview.
+
+const _mockOverrides: Record<string, import("@/lib/api/types").OrderMappingOverride> = {};
+
+export async function getMappingOverride(
+  orderId: string,
+): Promise<import("@/lib/api/types").OrderMappingOverride | null> {
+  if (USE_MOCK) { await delay(120); return _mockOverrides[orderId] ?? null; }
+  const headers = await authHeader();
+  const res = await fetchWithTimeout(`${API_BASE_URL}/api/orders/${orderId}/mapping-override`, { headers });
+  if (res.status === 404) return null;
+  if (!res.ok) throw new Error(`mapping-override: ${res.status}`);
+  const data = await res.json().catch(() => null);
+  return data ?? null; // 200 with null body when no override is set
+}
+
+export async function upsertMappingOverride(
+  orderId: string,
+  override: import("@/lib/api/types").OrderMappingOverride,
+): Promise<import("@/lib/api/types").OrderMappingOverride> {
+  if (USE_MOCK) { await delay(150); _mockOverrides[orderId] = override; return override; }
+  const headers = await authHeader();
+  const res = await fetchWithTimeout(`${API_BASE_URL}/api/orders/${orderId}/mapping-override`, {
+    method: "PUT", headers: { ...headers, "Content-Type": "application/json" }, body: JSON.stringify(override),
+  }, 30000);
+  if (!res.ok) {
+    const b = await res.json().catch(() => null) as { error?: string } | null;
+    throw new Error(b?.error || `Couldn't save the mapping: ${res.status}`);
+  }
+  return res.json();
+}
+
+export async function previewMappingOverride(
+  orderId: string,
+  override: import("@/lib/api/types").OrderMappingOverride,
+  format = "csv",
+): Promise<import("@/lib/api/types").MappingOverridePreview> {
+  if (USE_MOCK) {
+    await delay(150);
+    return { format, contentType: "text/csv", content: override.output ? "code,qty\n(mapped preview)" : "(default transform)" };
+  }
+  const headers = await authHeader();
+  const res = await fetchWithTimeout(
+    `${API_BASE_URL}/api/orders/${orderId}/mapping-override/preview?format=${encodeURIComponent(format)}`,
+    { method: "POST", headers: { ...headers, "Content-Type": "application/json" }, body: JSON.stringify(override) },
+    30000,
+  );
+  if (!res.ok) {
+    const b = await res.json().catch(() => null) as { error?: string } | null;
+    throw new Error(b?.error || `Preview failed: ${res.status}`);
+  }
+  return res.json();
+}
+
 // ── Buyers ─────────────────────────────────────────────────────────────────
 
 export async function getBuyers(): Promise<import("@/types/procurement").BuyerDto[]> {

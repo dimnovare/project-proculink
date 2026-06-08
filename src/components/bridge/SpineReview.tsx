@@ -17,6 +17,7 @@ import { StatusJourney, type OrderStage } from "./StatusJourney";
 import { SpineReviewSkeleton } from "./Skeletons";
 import { StandardsFieldPopover } from "./StandardsFieldPopover";
 import { SpineConnectors } from "./SpineConnectors";
+import { OutputMappingEditor } from "./OutputMappingEditor";
 import { OrderPassport } from "./OrderPassport";
 import { SupplierResponsePanel } from "./SupplierResponsePanel";
 import { useOrderDirection, type PartyLabels } from "@/hooks/useOrderDirection";
@@ -1114,6 +1115,8 @@ function OutputPreview({ order, acceptedSubnodes, rejectedSubnodes, crossed, fie
 }) {
   const [downloadLoading, setDownloadLoading] = useState(false);
   const [copyLoading, setCopyLoading] = useState(false);
+  // Power-user "map & manipulate" editor (heart-piece-flex Phase 3).
+  const [mapOpen, setMapOpen] = useState(false);
 
   // Output reflects the live order, with any inline edits applied.
   const outPo       = fieldValues["po"]       ?? order.poNumber;
@@ -1180,6 +1183,7 @@ function OutputPreview({ order, acceptedSubnodes, rejectedSubnodes, crossed, fie
 
   return (
     <div style={{ borderRadius: 10, background: "#FFFFFF", border: "1px solid #E2E6EE", overflow: "hidden" }}>
+      <OutputMappingEditor orderId={orderId} open={mapOpen} onClose={() => setMapOpen(false)} />
       {/* Toolbar — title + format badge + actions */}
       <div style={{ display: "flex", gap: 8, padding: "8px 10px", alignItems: "center", borderBottom: "1px solid #EEF0F4", flexWrap: "wrap" }}>
         <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12, fontWeight: 700, color: "#0B1A2F" }}>
@@ -1188,6 +1192,13 @@ function OutputPreview({ order, acceptedSubnodes, rejectedSubnodes, crossed, fie
         </span>
         <span style={{ fontSize: 9.5, fontWeight: 700, padding: "2px 7px", background: "#EEE7FB", color: "#5E3DB0", borderRadius: 4, textTransform: "uppercase", letterSpacing: "0.03em" }} title="The supplier's configured output format. The delivered file matches this format.">{outFmt}</span>
         <div style={{ flex: 1 }} />
+        <button
+          onClick={() => setMapOpen(true)}
+          title="Map &amp; manipulate each output field, per order (power user)"
+          style={{ fontSize: 10.5, padding: "3px 9px", border: "1px solid #1E66C9", borderRadius: 6, background: "#FFFFFF", cursor: "pointer", color: "#1E66C9", fontWeight: 600 }}
+        >
+          Edit mapping
+        </button>
         <button
           onClick={handleCopy}
           disabled={copyLoading}
