@@ -7,7 +7,7 @@ import type React from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState, useRef, useEffect, useCallback, useMemo, type KeyboardEvent } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { apiClient, getOrderExceptions, validateOrder } from "@/lib/api-client";
+import { apiClient, getOrderExceptions, validateOrder, getSupplierCatalog } from "@/lib/api-client";
 import { useQueriesEnabled } from "@/hooks/useQueriesEnabled";
 import type { Order, OrderException, OrderValidationResult } from "@/types/procurement";
 import { EdgeRails } from "./EdgeRails";
@@ -402,8 +402,12 @@ function TotalsSummary({ order }: { order: Order }) {
 // not a per-breakpoint block). Persistence goes through the SAME /resolve path as
 // Accept (commitMappings + refetch) so the server needsReview send-guard clears.
 interface LineEditApi {
-  /** Known supplier codes from the supplier's saved mappings (datalist typeahead). */
+  /** Datalist typeahead codes (supplier catalog ∪ saved mappings). */
   knownCodes: string[];
+  /** The supplier's CATALOG codes — the ground truth of valid codes. Empty if no catalog uploaded. */
+  catalogCodes: string[];
+  /** Supplier display name, for the "not in {supplier}'s catalog" warning. */
+  supplierName: string;
   /** Line id currently in manual-entry mode (only one at a time), or null. */
   editId: string | null;
   /** Current draft text in the manual-entry input. */
@@ -447,7 +451,11 @@ interface SpineNodeCardProps {
 function ManualCodeRow({ sn, lineEdit, saving }: { sn: SubNode; lineEdit: LineEditApi; saving: boolean }) {
   const listId = `known-codes-${sn.id}`;
   const draft = lineEdit.draft.trim();
-  const novel = draft.length > 0 && lineEdit.knownCodes.length > 0 && !lineEdit.knownCodes.includes(draft);
+  const hasCatalog = lineEdit.catalogCodes.length > 0;
+  // Strong, ground-truth signal: the supplier has a catalog and this isn't one of its codes.
+  const notInCatalog = hasCatalog && draft.length > 0 && !lineEdit.catalogCodes.includes(draft);
+  // Soft signal (only when there's no catalog to check against): unseen in saved mappings.
+  const novel = !hasCatalog && draft.length > 0 && lineEdit.knownCodes.length > 0 && !lineEdit.knownCodes.includes(draft);
   return (
     <div style={{ marginLeft: 21, display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
       <input
@@ -485,6 +493,11 @@ function ManualCodeRow({ sn, lineEdit, saving }: { sn: SubNode; lineEdit: LineEd
       >
         Cancel
       </button>
+      {notInCatalog && (
+        <span style={{ flexBasis: "100%", fontSize: 9.5, color: "#C53A3A" }}>
+          ⚠ Not in {lineEdit.supplierName || "the supplier"}&apos;s catalog — double-check this is a real supplier code.
+        </span>
+      )}
       {novel && (
         <span style={{ flexBasis: "100%", fontSize: 9.5, color: "#C97A14" }}>
           Not in saved mappings — it&apos;ll be remembered for next time.
@@ -1812,13 +1825,39 @@ export function SpineReview({ orderId }: { orderId: string }) {
     staleTime: 60_000,
     retry: 1,
   });
-  const knownSupplierCodes = useMemo(
+  const mappingCodes = useMemo(
     () => Array.from(new Set(
       (supplierMappings ?? [])
         .map((m) => m.supplierItemCode)
         .filter((c): c is string => !!c && c.trim().length > 0),
-    )).sort((a, b) => a.localeCompare(b)),
+    )),
     [supplierMappings],
+  );
+
+  // ── Supplier CATALOG (ground truth of valid supplier codes) ────────────────
+  // This is how an operator (and the AI) knows which codes are even POSSIBLE:
+  // the supplier's own product list. Best-effort — no catalog just means no
+  // catalog-grounded warning; saved mappings + free text still work.
+  const { data: catalogPage } = useQuery({
+    queryKey: ["supplier-catalog-codes", order?.supplierId],
+    queryFn: () => getSupplierCatalog(order!.supplierId, undefined, 1000),
+    enabled: queryEnabled && !!order?.supplierId,
+    staleTime: 60_000,
+    retry: 1,
+  });
+  const catalogCodes = useMemo(
+    () => Array.from(new Set(
+      (catalogPage?.items ?? [])
+        .map((p) => p.code)
+        .filter((c): c is string => !!c && c.trim().length > 0),
+    )).sort((a, b) => a.localeCompare(b)),
+    [catalogPage],
+  );
+
+  // Datalist typeahead = catalog codes (the real "what's possible") ∪ saved mappings.
+  const knownSupplierCodes = useMemo(
+    () => Array.from(new Set([...catalogCodes, ...mappingCodes])).sort((a, b) => a.localeCompare(b)),
+    [catalogCodes, mappingCodes],
   );
 
   // ── Validation mutation (Task 1.F.4) ──────────────────────────────────────
@@ -2111,13 +2150,15 @@ export function SpineReview({ orderId }: { orderId: string }) {
 
   const lineEditApi = useMemo(() => ({
     knownCodes: knownSupplierCodes,
+    catalogCodes,
+    supplierName: order?.supplierName ?? "",
     editId: lineEditId,
     draft: lineDraft,
     onStart: handleStartLineEdit,
     onChange: setLineDraft,
     onCommit: handleCommitLineCode,
     onCancel: handleCancelLineEdit,
-  }), [knownSupplierCodes, lineEditId, lineDraft, handleStartLineEdit, handleCommitLineCode, handleCancelLineEdit]);
+  }), [knownSupplierCodes, catalogCodes, order?.supplierName, lineEditId, lineDraft, handleStartLineEdit, handleCommitLineCode, handleCancelLineEdit]);
 
   const pollOrderUntil = useCallback(async (
     predicate: (next: Order) => boolean,
