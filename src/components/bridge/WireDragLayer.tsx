@@ -74,6 +74,8 @@ interface WireDragLayerProps {
   nodes: ConnectorNode[];
   /** Re-point an output line's source: onConnect(canonicalNodeId, outputLineId). */
   onConnect: (nodeId: string, outputLineId: string) => void;
+  /** Remove an output override (revert the line to its default source). */
+  onDisconnect: (outputLineId: string) => void;
   /** Current per-order overrides: outputLineId → canonicalField. */
   existingConnections: Partial<Record<string, string>>;
   /** Any change re-measures (mirrors SpineConnectors). */
@@ -94,8 +96,9 @@ function bezier(x1: number, y1: number, x2: number, y2: number): string {
 }
 
 export function WireDragLayer({
-  gridRef, nodeEls, outLineEls, nodes, onConnect, existingConnections, signature,
+  gridRef, nodeEls, outLineEls, nodes, onConnect, onDisconnect, existingConnections, signature,
 }: WireDragLayerProps) {
+  const sigRef = useRef<{ h: string; z: string }>({ h: "", z: "" });
   const [handles, setHandles]   = useState<Pt[]>([]);   // canonical node right-edge anchors, id = nodeId
   const [zones, setZones]       = useState<Pt[]>([]);   // output line left-edge anchors, id = outputLineId
   const [drag, setDrag]         = useState<DragState | null>(null);
@@ -128,9 +131,12 @@ export function WireDragLayer({
       const r = el.getBoundingClientRect();
       z.push({ id: lid, x: r.left - g.left, y: r.top - g.top + r.height / 2 });
     });
-    // Keep last-good if a transient render nulled the refs (mirrors SpineConnectors).
-    setHandles(prev => (h.length === 0 && prev.length > 0) ? prev : h);
-    setZones(prev => (z.length === 0 && prev.length > 0) ? prev : z);
+    // Commit ONLY when positions changed (compared via sigRef, not state) and never
+    // blank to empty on a transient null-ref pass — prevents any measure→render→measure loop.
+    const sig = (a: Pt[]) => a.map(p => `${p.id}:${Math.round(p.x)}:${Math.round(p.y)}`).join("|");
+    const hSig = sig(h), zSig = sig(z);
+    if (!(h.length === 0 && sigRef.current.h.length > 0) && hSig !== sigRef.current.h) { sigRef.current.h = hSig; setHandles(h); }
+    if (!(z.length === 0 && sigRef.current.z.length > 0) && zSig !== sigRef.current.z) { sigRef.current.z = zSig; setZones(z); }
   }, [gridRef, nodeEls, outLineEls, nodes]);
 
   const scheduleMeasure = useCallback(() => {
@@ -149,19 +155,15 @@ export function WireDragLayer({
     obs(gridRef.current);
     Object.values(nodeEls.current).forEach(obs);
     Object.values(outLineEls.current).forEach(obs);
-    let scroller: HTMLElement | null = gridRef.current?.parentElement ?? null;
-    while (scroller && scroller !== document.body) {
-      const oy = getComputedStyle(scroller).overflowY;
-      if (oy === "auto" || oy === "scroll") break;
-      scroller = scroller.parentElement;
-    }
-    scroller?.addEventListener("scroll", scheduleMeasure, { passive: true });
+    // Capture-phase document scroll catches every scroll container (page / review
+    // wrapper / any inner pane) so wires track on any scroll.
+    document.addEventListener("scroll", scheduleMeasure, { capture: true, passive: true });
     window.addEventListener("resize", scheduleMeasure);
     return () => {
       clearTimeout(t);
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
       ro.disconnect();
-      scroller?.removeEventListener("scroll", scheduleMeasure);
+      document.removeEventListener("scroll", scheduleMeasure, { capture: true } as EventListenerOptions);
       window.removeEventListener("resize", scheduleMeasure);
     };
   }, [measure, scheduleMeasure, gridRef, nodeEls, outLineEls]);
@@ -274,6 +276,18 @@ export function WireDragLayer({
               <path d={bezier(w.hx, w.hy, w.zx, w.zy)} fill="none" stroke={stroke}
                 strokeWidth={w.isOverride ? 2.4 : 1.8} style={{ pointerEvents: "none" }} />
               <circle cx={w.zx} cy={w.zy} r={2.6} fill={stroke} style={{ pointerEvents: "none" }} />
+              {/* Delete affordance — only on a manual override (revert to default) */}
+              {w.isOverride && !dimmed && (
+                <g role="button" tabIndex={0}
+                  aria-label={`Reset ${LINE_LABEL[w.lineId] ?? w.lineId} to its default source`}
+                  style={{ pointerEvents: "auto", cursor: "pointer", outline: "none" }}
+                  onClick={() => onDisconnect(w.lineId)}
+                  onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onDisconnect(w.lineId); } }}>
+                  <circle cx={w.zx + 12} cy={w.zy} r={6.5} fill="#FFFFFF" stroke="#1E66C9" strokeWidth={1.3} />
+                  <text x={w.zx + 12} y={w.zy + 3} textAnchor="middle" fontSize={8.5} fontWeight={700} fill="#1E66C9"
+                    style={{ pointerEvents: "none", userSelect: "none" }}>✕</text>
+                </g>
+              )}
             </g>
           );
         })}

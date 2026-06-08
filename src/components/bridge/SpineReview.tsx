@@ -2023,6 +2023,29 @@ export function SpineReview({ orderId }: { orderId: string }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mappingOverride, orderId, qc, refetchOverride, setFlow]);
 
+  // Remove a canonical→output override — drops output.header[lineId] (line reverts to its default source).
+  const handleWireDisconnect = useCallback((outputLineId: string) => {
+    if (wireDebRef.current) clearTimeout(wireDebRef.current);
+    wireDebRef.current = setTimeout(async () => {
+      if (!mappingOverride?.output?.header?.[outputLineId]) return;
+      const header = { ...mappingOverride.output.header };
+      delete header[outputLineId];
+      const next: OrderMappingOverride = {
+        ...mappingOverride,
+        output: { ...mappingOverride.output, header, lines: mappingOverride.output?.lines ?? {} },
+      };
+      try {
+        await upsertMappingOverride(orderId, next);
+        await qc.invalidateQueries({ queryKey: ["mapping-override", orderId] });
+        await refetchOverride();
+        setWireSig(s => s + 1);
+        setFlow(`Reset ${outputLineId} to its default source`, "info");
+      } catch (err) {
+        setFlow(err instanceof Error ? err.message : "Couldn't remove the wire.", "error");
+      }
+    }, 60);
+  }, [mappingOverride, orderId, qc, refetchOverride, setFlow]);
+
   // ── Source→canonical wire connect handler (SourceWireDragLayer callback) ──────
   // tokenId        = the source-token id being dragged FROM (e.g. "cell:r1c3")
   // canonicalField = the canonical field name the node maps to (e.g. "PoNumber")
@@ -2909,6 +2932,7 @@ export function SpineReview({ orderId }: { orderId: string }) {
                 outLineEls={outLineEls}
                 nodes={connectorNodes}
                 onConnect={handleWireConnect}
+                onDisconnect={handleWireDisconnect}
                 existingConnections={existingWireConnections}
                 signature={`${nodes.length}|${wireSig}`}
               />
