@@ -49,7 +49,7 @@ const POSTURE: Array<{ title: string; body: string; icon: React.ReactNode }> = [
   },
   {
     title: "Access control",
-    body: "Role-based access, SSO via SAML/OIDC on Scale, and scoped API keys you can revoke instantly. Sessions are short-lived by default.",
+    body: "Role-based access, SAML/OIDC SSO available on Enterprise, and scoped API keys you can revoke instantly. Sessions are short-lived by default.",
     icon: <UserIcon />,
   },
   {
