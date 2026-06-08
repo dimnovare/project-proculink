@@ -21,6 +21,7 @@
 //   cXML 1.2 ............ parse supported · transform supported  (CxmlOrderParser / CxmlTransformService, registered)
 //   UBL 2.1 Order ....... parse supported · transform supported  (UblOrderParser / UblOrderTransformService, registered)
 //   Peppol BIS Order 3.0  partial both — rides the UBL pipeline; full BIS 3.0 conformance still hardening
+//   SAP IDoc ORDERS05 ... parse supported · transform none       (IDocOrders05Parser registered; hand-rolled XML, no EdiFabric; INBOUND only — no IDoc output; live-verified on prod 2026-06-08)
 //   EDIFACT ORDERS ...... parse partial · transform planned     (EdifactOrderParser registered; EdiFabric library decision pending; NO output transformer)
 //   ANSI X12 850 ........ parse planned · transform planned      (X12OrderParser/X12TransformService scaffolding on main but in active Group M development — not production-certified)
 //   JSON / REST payload . parse partial · transform supported    (inline parse in OrderService; JsonTransformService registered)
@@ -109,6 +110,18 @@ export const STANDARDS: StandardSupport[] = [
       "Rides the UBL 2.1 pipeline; full BIS 3.0 business-rule conformance (UBL-CR / EN 16931 alignment) is still hardening. Access Point delivery is partner-wrapped.",
     referenceUrl:
       "https://docs.peppol.eu/poacc/upgrade-3/profiles/3-order/",
+  },
+  {
+    id: "sap-idoc-orders05",
+    name: "SAP IDoc ORDERS05",
+    version: "ORDERS05 (basic type)",
+    family: "xml",
+    parse: "supported",
+    transform: "none",
+    transport: "HTTPS upload · email attachment · SFTP",
+    conformance:
+      "Hand-rolled System.Xml.Linq parser (IDocOrders05Parser) — no commercial EDI library. The root <ORDERS05> is routed ahead of UBL/cXML; it maps E1EDK01/E1EDK02 header (BELNR, currency, order date), E1EDKA1 parties (AG buyer / LF supplier), and E1EDP01 lines (E1EDP19 IDTNR + E1EDPT1 long text). Inbound only — ProcuLink ingests the SAP IDoc and emits the supplier's chosen format; there is no IDoc output.",
+    referenceUrl: "https://help.sap.com/docs/",
   },
   // ── EDI ──────────────────────────────────────────────────────────────────
   {

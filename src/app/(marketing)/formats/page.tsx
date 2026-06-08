@@ -44,6 +44,7 @@ const IMPORT_FORMATS: Row[] = [
   { name: "PDF (scanned / image)", status: "live", note: "No text layer — read by AI vision extraction. Assisted: every line is flagged for review." },
   { name: "cXML 1.2", status: "live", note: "OrderRequest documents." },
   { name: "UBL 2.1 / Peppol BIS", status: "live", note: "Order documents." },
+  { name: "SAP IDoc ORDERS05", status: "live", note: "SAP's ORDERS05 purchase-order IDoc, sent as XML." },
   { name: "EDIFACT ORDERS", status: "live", note: "D96A / D01B." },
   { name: "ANSI X12 850", status: "live", note: "004010 / 005010." },
   { name: "JSON", status: "live", note: "Via the REST API order shape." },
