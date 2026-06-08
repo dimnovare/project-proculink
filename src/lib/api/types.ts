@@ -69,9 +69,54 @@ export interface CustomField {
   lineValues?: Record<string, string> | null;
 }
 
+/**
+ * One source→canonical re-derive rule (SourceMap engine, backend `SourceFieldRule`).
+ * The effective canonical value for a field comes from a source token (by id), a fixed
+ * literal, or — when both are null — the original parsed value, then runs through the
+ * manipulator chain. Omitting a field from the SourceMap is always safe (pass-through).
+ */
+export interface SourceFieldRule {
+  /** Stable source-token id to use as the raw value (e.g. "cell:r1c3" for CSV, an XPath for XML). */
+  sourceToken?: string | null;
+  /** Constant value used when `sourceToken` is null or yields no match. */
+  fixedValue?: string | null;
+  /** Ordered manipulator chain applied to the resolved value (reuses the existing engine). */
+  manipulators: ManipulatorEntry[];
+}
+
 export interface OrderMappingOverride {
   customFields: CustomField[];
   output?: OutputMappingConfig | null;
+  /**
+   * Optional source→canonical remapping, keyed by canonical field NAME
+   * (header: PoNumber/OrderDate/BuyerName/Currency/SupplierName;
+   *  line: LineNumber/BuyerItemCode/SupplierItemCode/Description/Quantity/Unit/UnitPrice/LineTotal).
+   * Null/absent = the parsed canonical values are used unchanged (byte-for-byte identical).
+   */
+  sourceMap?: Record<string, SourceFieldRule> | null;
+}
+
+/**
+ * A single addressable value from the order's source file (backend `SourceToken`).
+ * The `id` is the stable lookup key written into `SourceFieldRule.sourceToken`.
+ */
+export interface SourceToken {
+  /** Stable, format-specific address (CSV: "cell:r{row}c{col}"; XML: an XPath). */
+  id: string;
+  /** Human-readable display name for the token chip. */
+  label: string;
+  /** The raw text value extracted from the source file. */
+  value: string;
+  /** "header" | "line" grouping hint, or null when the format has no distinction. */
+  group?: string | null;
+}
+
+/** Summary returned by POST /api/orders/{id}/mapping-override/promote. */
+export interface PromoteMappingResult {
+  supplierId: string;
+  headerFieldsPromoted: number;
+  lineFieldsPromoted: number;
+  schemaFingerprintHash?: string | null;
 }
 
 export interface MappingOverridePreview {

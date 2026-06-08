@@ -7,10 +7,10 @@ import type React from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState, useRef, useEffect, useCallback, useMemo, type KeyboardEvent } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { apiClient, getOrderExceptions, validateOrder, getSupplierCatalog, getMappingOverride, upsertMappingOverride } from "@/lib/api-client";
+import { apiClient, getOrderExceptions, validateOrder, getSupplierCatalog, getMappingOverride, upsertMappingOverride, getSourceTokens, promoteMapping } from "@/lib/api-client";
 import { useQueriesEnabled } from "@/hooks/useQueriesEnabled";
 import type { Order, OrderException, OrderValidationResult } from "@/types/procurement";
-import type { OrderMappingOverride } from "@/lib/api/types";
+import type { OrderMappingOverride, SourceToken } from "@/lib/api/types";
 import { EdgeRails } from "./EdgeRails";
 import { FileChip } from "./FileChip";
 import { FailedPanel, ParseFailedPanel } from "./FailedPanels";
@@ -19,6 +19,8 @@ import { SpineReviewSkeleton } from "./Skeletons";
 import { StandardsFieldPopover } from "./StandardsFieldPopover";
 import { SpineConnectors } from "./SpineConnectors";
 import { WireDragLayer } from "./WireDragLayer";
+import { useSourceWireDrag } from "./SourceWireDragLayer";
+import { SourceTokenPanel } from "./SourceTokenPanel";
 import { OutputMappingEditor } from "./OutputMappingEditor";
 import { OrderPassport } from "./OrderPassport";
 import { SupplierResponsePanel } from "./SupplierResponsePanel";
@@ -1887,6 +1889,17 @@ export function SpineReview({ orderId }: { orderId: string }) {
     return result;
   }, [mappingOverride]);
 
+  // ── Source tokens (the draggable "source field" set for source→canonical wiring) ──
+  // Best-effort: a failure / unsupported format just means no chips — the rest of the
+  // review screen is unaffected. Loaded once per order on mount.
+  const { data: sourceTokens = [], isLoading: sourceTokensLoading } = useQuery<SourceToken[]>({
+    queryKey: ["source-tokens", orderId],
+    queryFn: () => getSourceTokens(orderId),
+    enabled: queryEnabled,
+    staleTime: 60_000,
+    retry: 1,
+  });
+
   // Bumped after each successful wire upsert — added to the SpineConnectors
   // signature so it schedules a re-measure.
   const [wireSig, setWireSig] = useState(0);
@@ -1894,6 +1907,9 @@ export function SpineReview({ orderId }: { orderId: string }) {
   // Debounced upsert ref — we cancel any pending save when a new drop comes in
   // so rapid reconnects don't send stale payloads.
   const wireDebRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Separate debounce for the source→canonical (SourceMap) wires so a left-side and
+  // a right-side drag in quick succession don't cancel each other's save.
+  const srcWireDebRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // ── Validation mutation (Task 1.F.4) ──────────────────────────────────────
   const [validationResult, setValidationResult] = useState<OrderValidationResult | null>(null);
@@ -1998,6 +2014,60 @@ export function SpineReview({ orderId }: { orderId: string }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mappingOverride, orderId, qc, refetchOverride, setFlow]);
 
+  // ── Source→canonical wire connect handler (SourceWireDragLayer callback) ──────
+  // tokenId        = the source-token id being dragged FROM (e.g. "cell:r1c3")
+  // canonicalField = the canonical field name the node maps to (e.g. "PoNumber")
+  //
+  // Sets OrderMappingOverride.sourceMap[<canonicalField>] = { sourceToken, manipulators: [] }
+  // and persists via upsertMappingOverride (which round-trips canonical_json, the same
+  // store the promote endpoint later reads). Merges with the existing override so the
+  // output-side rules + other source mappings are preserved. Bumps wireSig → re-measure,
+  // so the persistent violet wire visibly re-routes from the new token on drop.
+  const handleSourceWireConnect = useCallback((tokenId: string, canonicalField: string) => {
+    if (srcWireDebRef.current) clearTimeout(srcWireDebRef.current);
+    srcWireDebRef.current = setTimeout(async () => {
+      const base: OrderMappingOverride = mappingOverride ?? { customFields: [], output: { header: {}, lines: {} } };
+      const sourceMap = { ...(base.sourceMap ?? {}) };
+      // Preserve any manipulator chain already configured for this field (e.g. via a
+      // future power editor); only the source token is being re-pointed here.
+      const existing = sourceMap[canonicalField];
+      sourceMap[canonicalField] = {
+        sourceToken: tokenId,
+        fixedValue: null,
+        manipulators: existing?.manipulators ?? [],
+      };
+
+      const next: OrderMappingOverride = { ...base, sourceMap };
+
+      try {
+        await upsertMappingOverride(orderId, next);
+        await qc.invalidateQueries({ queryKey: ["mapping-override", orderId] });
+        await refetchOverride();
+        setWireSig(s => s + 1);
+        setFlow(`Source field wired → ${canonicalField}`, "success");
+      } catch (err) {
+        setFlow(err instanceof Error ? err.message : "Couldn't save the source wire.", "error");
+      }
+    }, 120);
+  }, [mappingOverride, orderId, qc, refetchOverride, setFlow]);
+
+  // ── Promote the per-order re-wiring to the supplier's reusable mapping ────────
+  // Persist any pending SourceMap edit first is unnecessary — each drop already
+  // upserts immediately — so promote just reads canonical_json server-side.
+  const promoteMutation = useMutation({
+    mutationFn: () => promoteMapping(orderId),
+    onSuccess: (r) => {
+      const n = r.headerFieldsPromoted + r.lineFieldsPromoted;
+      setFlow(
+        n > 0
+          ? `Saved for ${order?.supplierName ?? "this supplier"} — ${n} field${n !== 1 ? "s" : ""} will auto-apply next time.`
+          : "Nothing to save yet — wire at least one source field first.",
+        n > 0 ? "success" : "info",
+      );
+    },
+    onError: (err) => setFlow(err instanceof Error ? err.message : "Couldn't save the supplier mapping.", "error"),
+  });
+
   const [sendState, setSendState]                 = useState<"idle" | "transforming" | "delivering">("idle");
   const [tab, setTab]                             = useState<"review" | "passport" | "response">("review");
   // The line id currently being resolved against the backend (Accept in-flight).
@@ -2015,6 +2085,8 @@ export function SpineReview({ orderId }: { orderId: string }) {
   const nodeEls = useRef<Record<string, HTMLDivElement | null>>({});
   const srcSectionEls = useRef<Record<string, HTMLElement | null>>({});
   const outLineEls = useRef<Record<string, HTMLElement | null>>({});
+  // Source-token chip elements, keyed by token id — drag handles for source→canonical wires.
+  const tokenEls = useRef<Record<string, HTMLElement | null>>({});
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   // activeZone: the document-anatomy zone id (e.g. "header", "lines") currently
   // highlighted. Set bidirectionally — from DocumentAnatomy zone hover OR from
@@ -2043,6 +2115,26 @@ export function SpineReview({ orderId }: { orderId: string }) {
       setActiveZone(node?.srcRef ?? null);
     }
   }, [nodes]);
+
+  // ── Source→canonical interactive wiring (desktop xl triptych) ────────────────
+  // Owns drag/keyboard/measure state for the LEFT side, mirroring WireDragLayer for
+  // the RIGHT side. chipProps() makes each source-token chip a drag handle; svg is
+  // the persistent-wire + drop-zone overlay rendered inside the grid. Only the token
+  // id + label are needed for the chip/keyboard ordering.
+  const sourceTokenList = useMemo(
+    () => sourceTokens.map((t) => ({ id: t.id, label: t.label })),
+    [sourceTokens],
+  );
+  const { chipProps: sourceChipProps, svg: sourceWireSvg } = useSourceWireDrag({
+    gridRef,
+    nodeEls,
+    tokenEls,
+    nodes: connectorNodes,
+    tokens: sourceTokenList,
+    onConnect: handleSourceWireConnect,
+    sourceMap: mappingOverride?.sourceMap,
+    signature: `${connectorNodes.length}|${sourceTokenList.length}|${wireSig}`,
+  });
 
   // Count remaining unresolved exceptions from SERVER truth. Accepting an AI
   // suggestion now persists via /resolve + refetch, so needsReview flips to false
@@ -2485,6 +2577,25 @@ export function SpineReview({ orderId }: { orderId: string }) {
                   ⚠ Dead-lettered · retries exhausted
                 </span>
               )}
+              {/* Promote the per-order source→canonical re-wiring to the supplier's
+                  reusable mapping, so the same source layout auto-applies next time.
+                  Desktop xl only — the drag UI that produces a SourceMap is xl-only. */}
+              <button
+                type="button"
+                onClick={() => promoteMutation.mutate()}
+                disabled={promoteMutation.isPending}
+                title={`Save these field mappings for ${order.supplierName} so they auto-apply to future orders`}
+                aria-label={`Save these mappings for ${order.supplierName} to reuse next time`}
+                className="hidden xl:inline-flex"
+                style={{
+                  height: 34, padding: "0 14px", borderRadius: 7, fontSize: 12.5, fontWeight: 600,
+                  background: "#FFFFFF", color: "#5E3DB0", border: "1px solid #C4ABE8",
+                  cursor: promoteMutation.isPending ? "default" : "pointer", opacity: promoteMutation.isPending ? 0.6 : 1,
+                  alignItems: "center", gap: 6, whiteSpace: "nowrap",
+                }}
+              >
+                {promoteMutation.isPending ? "Saving…" : `Save mappings for ${order.supplierName}`}
+              </button>
               <button
                 onClick={() => !crossed && exceptionCount === 0 && sendState === "idle" && setShowConfirm(true)}
                 disabled={sendState !== "idle" || (!crossed && exceptionCount > 0)}
@@ -2772,6 +2883,12 @@ export function SpineReview({ orderId }: { orderId: string }) {
                 signature={`${nodes.length}|${wireSig}`}
               />
 
+              {/* Interactive drag-to-wire layer — SOURCE TOKEN → canonical only, xl desktop.
+                  Persistent override-aware violet wires drawn from useSourceWireDrag; sits
+                  above SpineConnectors (z2) + WireDragLayer (z3) at z4. The chips that drive
+                  it live in the source column below (sourceChipProps). */}
+              {sourceWireSvg}
+
               {/* Left — SOURCE DOCUMENT */}
               <div ref={sourceColRef}>
                 <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 10, height: 18, minWidth: 0 }}>
@@ -2784,6 +2901,12 @@ export function SpineReview({ orderId }: { orderId: string }) {
                   onSection={(id, el) => { srcSectionEls.current[id] = el; }}
                   activeZone={activeZone}
                   onZoneHover={handleZoneHover}
+                />
+                {/* Draggable source-field chips — the addressable values to wire FROM. */}
+                <SourceTokenPanel
+                  tokens={sourceTokens}
+                  chipProps={sourceChipProps}
+                  loading={sourceTokensLoading}
                 />
               </div>
 

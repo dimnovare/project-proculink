@@ -1438,6 +1438,69 @@ export async function previewMappingOverride(
   return res.json();
 }
 
+// ── Source→canonical mapping (drag-to-wire on the order review heart-piece) ──
+
+/**
+ * Every addressable value (token) in the order's stored source file, used as the
+ * draggable "source field" set on the review screen. Returns [] for unsupported
+ * formats / no stored file (the backend never throws), so the UI degrades cleanly.
+ */
+export async function getSourceTokens(
+  orderId: string,
+): Promise<import("@/lib/api/types").SourceToken[]> {
+  if (USE_MOCK) {
+    await delay(120);
+    return [
+      { id: "cell:r1c1", label: "PO Number",  value: "PO-DEMO-001",      group: "header" },
+      { id: "cell:r1c2", label: "Order Date", value: "2026-01-10",        group: "header" },
+      { id: "cell:r1c3", label: "Buyer",      value: "Acme Manufacturing", group: "header" },
+      { id: "cell:r1c4", label: "Currency",   value: "EUR",               group: "header" },
+      { id: "cell:r2c1", label: "Item Code",  value: "ACM-BOLT-001",      group: "line" },
+      { id: "cell:r2c2", label: "Quantity",   value: "500",               group: "line" },
+    ];
+  }
+  const headers = await authHeader();
+  const res = await fetchWithTimeout(`${API_BASE_URL}/api/orders/${orderId}/source-tokens`, { headers });
+  if (res.status === 404) return [];
+  if (!res.ok) throw new Error(`source-tokens: ${res.status}`);
+  return res.json();
+}
+
+/**
+ * Promote this order's per-order SourceMap into the supplier's reusable inbound PO
+ * mapping, so the SAME source layout auto-applies to future orders from that supplier.
+ * Persist any pending SourceMap edits via upsertMappingOverride FIRST — promote reads
+ * the SourceMap stored in canonical_json, not the request body.
+ */
+export async function promoteMapping(
+  orderId: string,
+): Promise<import("@/lib/api/types").PromoteMappingResult> {
+  if (USE_MOCK) {
+    await delay(150);
+    const sm = _mockOverrides[orderId]?.sourceMap ?? {};
+    const keys = Object.keys(sm);
+    const lineKeys = new Set(["LineNumber", "BuyerItemCode", "SupplierItemCode", "Description", "Quantity", "Unit", "UnitPrice", "LineTotal"]);
+    return {
+      supplierId: "00000000-0000-0000-0000-000000000000",
+      headerFieldsPromoted: keys.filter((k) => !lineKeys.has(k)).length,
+      lineFieldsPromoted: keys.filter((k) => lineKeys.has(k)).length,
+      schemaFingerprintHash: null,
+    };
+  }
+  const headers = await authHeader();
+  const res = await fetchWithTimeout(
+    `${API_BASE_URL}/api/orders/${orderId}/mapping-override/promote`,
+    { method: "POST", headers },
+    30000,
+  );
+  if (res.status === 404) throw new Error("No saved mapping to promote yet for this order.");
+  if (!res.ok) {
+    const b = await res.json().catch(() => null) as { error?: string } | null;
+    throw new Error(b?.error || `Couldn't save the supplier mapping: ${res.status}`);
+  }
+  return res.json();
+}
+
 // ── Buyers ─────────────────────────────────────────────────────────────────
 
 export async function getBuyers(): Promise<import("@/types/procurement").BuyerDto[]> {
