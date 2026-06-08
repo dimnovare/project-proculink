@@ -25,6 +25,8 @@ interface SpineConnectorsProps {
   sourceColRef: React.RefObject<HTMLElement | null>;
   outputColRef: React.RefObject<HTMLElement | null>;
   nodeEls: React.MutableRefObject<Record<string, HTMLElement | null>>;
+  /** Canonical node circle-dot elements, keyed by node id — source wire snaps to the dot. */
+  dotEls: React.MutableRefObject<Record<string, HTMLElement | null>>;
   /** Real source-document section elements, keyed by node.srcRef (header/parties/terms/lines/totals). */
   srcSectionEls: React.MutableRefObject<Record<string, HTMLElement | null>>;
   /** Real supplier-output line elements, keyed by node.id. */
@@ -65,12 +67,16 @@ interface Wire {
 }
 
 function curve(x1: number, y1: number, x2: number, y2: number): string {
-  const cx = x1 + (x2 - x1) * 0.5;
-  return `M ${x1} ${y1} C ${cx} ${y1} ${cx} ${y2} ${x2} ${y2}`;
+  // Clamp the horizontal control-point offset so a large VERTICAL gap (tall
+  // canonical column, a source cell far from its node) routes as a tidy S-curve
+  // instead of one giant horizontal bulge. Offset ∈ [24, 80]px from each end.
+  const dx = x2 - x1;
+  const off = Math.sign(dx || 1) * Math.max(24, Math.min(Math.abs(dx) * 0.5, 80));
+  return `M ${x1} ${y1} C ${x1 + off} ${y1} ${x2 - off} ${y2} ${x2} ${y2}`;
 }
 
 export function SpineConnectors({
-  gridRef, sourceColRef, outputColRef, nodeEls, srcSectionEls, outLineEls,
+  gridRef, sourceColRef, outputColRef, nodeEls, dotEls, srcSectionEls, outLineEls,
   nodes, hoveredId, crossed, signature, drawOutput = true, drawSource = true,
 }: SpineConnectorsProps) {
   const [wires, setWires] = useState<Wire[]>([]);
@@ -119,7 +125,12 @@ export function SpineConnectors({
         return;
       }
       const r = el.getBoundingClientRect();
-      const ny = r.top - g.top + 18; // attach near the node dot / label row
+      // Snap the canonical (node-left) anchor to the circle-dot centre when present
+      // so the source→canonical wire terminates ON the dot, not beside the card.
+      const dot = dotEls.current[node.id];
+      const dotR = dot ? dot.getBoundingClientRect() : null;
+      const nlx = dotR ? (dotR.left - g.left + dotR.width / 2) : (r.left - g.left);
+      const ny = dotR ? (dotR.top - g.top + dotR.height / 2) : (r.top - g.top + 18); // dot centre / label row
 
       // Source anchor — real section element if mounted, else a sensible %.
       const secEl = srcSectionEls.current[node.srcRef];
@@ -145,7 +156,7 @@ export function SpineConnectors({
         oy = o.top - g.top + (o.height * (OUT_Y_FALLBACK[node.id] ?? ((i + 0.5) / nodes.length) * 100)) / 100;
       }
 
-      next.push({ id: node.id, pct: node.pct, sx, sy, nlx: r.left - g.left, nrx: r.right - g.left, ny, ox, oy });
+      next.push({ id: node.id, pct: node.pct, sx, sy, nlx, nrx: r.right - g.left, ny, ox, oy });
     });
 
     // Never blank the whole wire-set on a transient empty measure while nodes
@@ -161,7 +172,7 @@ export function SpineConnectors({
     if (sig === sigRef.current) return;
     sigRef.current = sig;
     setWires(next);
-  }, [gridRef, sourceColRef, outputColRef, nodeEls, srcSectionEls, outLineEls]);
+  }, [gridRef, sourceColRef, outputColRef, nodeEls, dotEls, srcSectionEls, outLineEls]);
 
   // Double-rAF: measure AFTER the browser has committed the latest layout. A
   // single rAF can still race a same-frame height change (e.g. the 3s refetch

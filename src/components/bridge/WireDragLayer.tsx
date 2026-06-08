@@ -93,8 +93,11 @@ const ZONE_H = 16;
 const SNAP_PX = 36;
 
 function bezier(x1: number, y1: number, x2: number, y2: number): string {
-  const cx = x1 + (x2 - x1) * 0.5;
-  return `M ${x1} ${y1} C ${cx} ${y1} ${cx} ${y2} ${x2} ${y2}`;
+  // Clamp the horizontal control-point offset → tidy S-curve, no giant bulge over
+  // large vertical spans (matches SpineConnectors.curve).
+  const dx = x2 - x1;
+  const off = Math.sign(dx || 1) * Math.max(24, Math.min(Math.abs(dx) * 0.5, 80));
+  return `M ${x1} ${y1} C ${x1 + off} ${y1} ${x2 - off} ${y2} ${x2} ${y2}`;
 }
 
 export function WireDragLayer({

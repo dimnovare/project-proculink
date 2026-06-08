@@ -437,6 +437,8 @@ interface SpineNodeCardProps {
   onKeyDown: (e: KeyboardEvent<HTMLInputElement>, id: string) => void;
   inputRef: (el: HTMLInputElement | null, id: string) => void;
   cardRef?: (el: HTMLDivElement | null) => void;
+  /** Called with the node's circle-dot element so wires can snap to the circle. */
+  dotRef?: (el: HTMLDivElement | null) => void;
   /** Called when this node is hovered, passing the node id (for wire emphasis). */
   onHover?: (id: string | null) => void;
   /** Called with the srcRef zone when this node is hovered (for doc anatomy highlight). */
@@ -517,7 +519,7 @@ function SpineNodeCard({
   acceptedSubnodes, rejectedSubnodes,
   onStartEdit, onChangeValue, onCommitEdit,
   onAcceptSubnode, onRejectSubnode,
-  onKeyDown, inputRef, cardRef, onHover, onZoneHover, activeZone,
+  onKeyDown, inputRef, cardRef, dotRef, onHover, onZoneHover, activeZone,
   acceptingLineId, lineEdit,
 }: SpineNodeCardProps) {
   const isEditing = editingId === node.id;
@@ -560,8 +562,9 @@ function SpineNodeCard({
       onMouseEnter={() => { onHover?.(node.id); onZoneHover?.(node.srcRef); }}
       onMouseLeave={() => { onHover?.(null); onZoneHover?.(null); }}
     >
-      {/* Canonical-order node dot */}
+      {/* Canonical-order node dot — wires snap to this circle's centre (dotRef). */}
       <div
+        ref={dotRef}
         className="absolute rounded-full bg-white z-10"
         style={{ left: 17, top: 14, width: 13, height: 13, border: `2.5px solid ${accent ?? "#2E8E3A"}` }}
       />
@@ -2059,6 +2062,11 @@ export function SpineReview({ orderId }: { orderId: string }) {
         ...mappingOverride,
         output: { ...mappingOverride.output, header, lines: mappingOverride.output?.lines ?? {} },
       };
+      // Optimistic: drop the wire from the cache + bump the signature NOW so the
+      // overlay (which derives purely from the override) clears on the same frame,
+      // instead of lingering until the server round-trip completes.
+      qc.setQueryData(["mapping-override", orderId], next);
+      setWireSig(s => s + 1);
       try {
         await upsertMappingOverride(orderId, next);
         await qc.invalidateQueries({ queryKey: ["mapping-override", orderId] });
@@ -2116,6 +2124,10 @@ export function SpineReview({ orderId }: { orderId: string }) {
       const sourceMap = { ...mappingOverride.sourceMap };
       delete sourceMap[canonicalField];
       const next: OrderMappingOverride = { ...mappingOverride, sourceMap };
+      // Optimistic clear (see handleWireDisconnect) — the violet overlay derives
+      // purely from sourceMap, so updating the cache removes the wire instantly.
+      qc.setQueryData(["mapping-override", orderId], next);
+      setWireSig(s => s + 1);
       try {
         await upsertMappingOverride(orderId, next);
         await qc.invalidateQueries({ queryKey: ["mapping-override", orderId] });
@@ -2160,6 +2172,9 @@ export function SpineReview({ orderId }: { orderId: string }) {
   const sourceColRef = useRef<HTMLDivElement>(null);
   const outputColRef = useRef<HTMLDivElement>(null);
   const nodeEls = useRef<Record<string, HTMLDivElement | null>>({});
+  // Canonical node circle-dot elements (keyed by node id) — wire overlays snap
+  // their canonical endpoint to the dot's centre instead of the card edge.
+  const dotEls = useRef<Record<string, HTMLDivElement | null>>({});
   const srcSectionEls = useRef<Record<string, HTMLElement | null>>({});
   const outLineEls = useRef<Record<string, HTMLElement | null>>({});
   // Source-token chip elements, keyed by token id — drag handles for source→canonical wires.
@@ -2210,6 +2225,7 @@ export function SpineReview({ orderId }: { orderId: string }) {
   const { chipProps: sourceChipProps, svg: sourceWireSvg } = useSourceWireDrag({
     gridRef,
     nodeEls,
+    dotEls,
     tokenEls,
     nodes: connectorNodes,
     tokens: sourceTokenList,
@@ -2947,6 +2963,7 @@ export function SpineReview({ orderId }: { orderId: string }) {
                 sourceColRef={sourceColRef}
                 outputColRef={outputColRef}
                 nodeEls={nodeEls}
+                dotEls={dotEls}
                 srcSectionEls={srcSectionEls}
                 outLineEls={outLineEls}
                 nodes={connectorNodes}
@@ -3034,6 +3051,7 @@ export function SpineReview({ orderId }: { orderId: string }) {
                       onKeyDown={handleKeyDown}
                       inputRef={inputRefCallback}
                       cardRef={(el) => { nodeEls.current[node.id] = el; }}
+                      dotRef={(el) => { dotEls.current[node.id] = el; }}
                       onHover={handleNodeHover}
                       onZoneHover={handleZoneHover}
                       activeZone={activeZone}

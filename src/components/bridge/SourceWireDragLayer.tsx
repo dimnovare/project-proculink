@@ -102,14 +102,19 @@ const ZONE_H = 18;
 const SNAP_PX = 40;
 
 function bezier(x1: number, y1: number, x2: number, y2: number): string {
-  const cx = x1 + (x2 - x1) * 0.5;
-  return `M ${x1} ${y1} C ${cx} ${y1} ${cx} ${y2} ${x2} ${y2}`;
+  // Clamp the horizontal control-point offset → tidy S-curve, no giant bulge over
+  // large vertical spans (matches SpineConnectors.curve).
+  const dx = x2 - x1;
+  const off = Math.sign(dx || 1) * Math.max(24, Math.min(Math.abs(dx) * 0.5, 80));
+  return `M ${x1} ${y1} C ${x1 + off} ${y1} ${x2 - off} ${y2} ${x2} ${y2}`;
 }
 
 export interface UseSourceWireDragArgs {
   gridRef: React.RefObject<HTMLElement | null>;
   /** Canonical node card elements, keyed by node id (shared with SpineReview). */
   nodeEls: React.MutableRefObject<Record<string, HTMLElement | null>>;
+  /** Canonical node circle-dot elements, keyed by node id — wires snap to the dot. */
+  dotEls: React.MutableRefObject<Record<string, HTMLElement | null>>;
   /** Source-token chip elements, keyed by token id. */
   tokenEls: React.MutableRefObject<Record<string, HTMLElement | null>>;
   /** Canonical nodes on screen (for drop-zone anchors + ordering). */
@@ -150,7 +155,7 @@ export interface UseSourceWireDrag {
 }
 
 export function useSourceWireDrag({
-  gridRef, nodeEls, tokenEls, nodes, tokens, onConnect, onDisconnect, sourceMap, signature,
+  gridRef, nodeEls, dotEls, tokenEls, nodes, tokens, onConnect, onDisconnect, sourceMap, signature,
 }: UseSourceWireDragArgs): UseSourceWireDrag {
   // Source-token RIGHT-edge anchors, id = tokenId.
   const [handles, setHandles] = useState<Pt[]>([]);
@@ -201,10 +206,15 @@ export function useSourceWireDrag({
     });
     const z: Pt[] = [];
     nodesRef.current.forEach((node) => {
-      const el = nodeEls.current[node.id];
+      // Snap the canonical endpoint to the node's circle-dot centre when present;
+      // fall back to the card's left edge + 18 only while the dot ref is unmounted.
+      const dot = dotEls.current[node.id];
+      const el = dot ?? nodeEls.current[node.id];
       if (!el) return;
       const r = el.getBoundingClientRect();
-      z.push({ id: node.id, x: r.left - g.left, y: r.top - g.top + 18 });
+      const x = dot ? (r.left - g.left + r.width / 2) : (r.left - g.left);
+      const y = dot ? (r.top - g.top + r.height / 2) : (r.top - g.top + 18);
+      z.push({ id: node.id, x, y });
     });
     // Commit ONLY when positions changed (and never blank to empty on a transient
     // null-ref pass while items still exist). Compared via sigRef (NOT state) so
@@ -213,7 +223,7 @@ export function useSourceWireDrag({
     const hSig = sig(h), zSig = sig(z);
     if (!(h.length === 0 && sigRef.current.h.length > 0) && hSig !== sigRef.current.h) { sigRef.current.h = hSig; setHandles(h); }
     if (!(z.length === 0 && sigRef.current.z.length > 0) && zSig !== sigRef.current.z) { sigRef.current.z = zSig; setZones(z); }
-  }, [gridRef, nodeEls, tokenEls]);
+  }, [gridRef, nodeEls, dotEls, tokenEls]);
 
   const scheduleMeasure = useCallback(() => {
     if (rafRef.current) cancelAnimationFrame(rafRef.current);
