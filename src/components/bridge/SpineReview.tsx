@@ -926,6 +926,8 @@ function DocumentAnatomy({
   onSection,
   activeZone,
   onZoneHover,
+  collapsed,
+  onToggleCollapse,
 }: {
   order: Order;
   onSection?: (id: string, el: HTMLElement | null) => void;
@@ -933,6 +935,11 @@ function DocumentAnatomy({
   activeZone?: string | null;
   /** Called when the user hovers into/out of a document zone. */
   onZoneHover?: (zone: string | null) => void;
+  /** Controlled collapse of the reconstructed-document body (state lives in SpineReview
+   *  so SpineConnectors can stop drawing the source wires when their anchors are hidden).
+   *  Optional — only the desktop triptych passes them; mobile/tablet render uncollapsible. */
+  collapsed?: boolean;
+  onToggleCollapse?: () => void;
 }) {
   const lineCount = order.lines.length;
   const avgConf = lineCount > 0
@@ -986,17 +993,35 @@ function DocumentAnatomy({
     };
   }
 
+  // Only the desktop triptych passes onToggleCollapse → only it renders a clickable
+  // collapse toggle. Mobile/tablet keep the original static header (no dead button).
+  const collapsible = typeof onToggleCollapse === "function";
+  const confBadge = avgConf !== null && (
+    <span style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 9, fontWeight: 700, color: "#56627A" }}>
+      avg conf <ConfChip pct={avgConf} />
+    </span>
+  );
+
   return (
     <div style={{ borderRadius: 8, padding: 10, background: "#F6F7FA", border: "1px solid #E2E6EE", overflow: "hidden" }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginBottom: 8 }}>
-        <span style={{ fontSize: 9.5, color: "#8A93A5" }}>Reconstructed from parsed fields</span>
-        {avgConf !== null && (
-          <span style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 9, fontWeight: 700, color: "#56627A" }}>
-            avg conf <ConfChip pct={avgConf} />
+      {collapsible ? (
+        <button type="button" onClick={onToggleCollapse}
+          aria-expanded={!collapsed}
+          title={collapsed ? "Show the reconstructed document" : "Hide it to make source fields easier to reach"}
+          style={{ display: "flex", width: "100%", alignItems: "center", justifyContent: "space-between", gap: 8, marginBottom: collapsed ? 0 : 8, border: "none", background: "transparent", padding: 0, cursor: "pointer" }}>
+          <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 9.5, color: "#8A93A5" }}>
+            <span style={{ display: "inline-block", transition: "transform 150ms", transform: collapsed ? "rotate(-90deg)" : "none", fontSize: 8 }}>▾</span>
+            Reconstructed from parsed fields
           </span>
-        )}
-      </div>
-      <div style={{ display: "flex", gap: 8, alignItems: "stretch" }}>
+          {confBadge}
+        </button>
+      ) : (
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginBottom: 8 }}>
+          <span style={{ fontSize: 9.5, color: "#8A93A5" }}>Reconstructed from parsed fields</span>
+          {confBadge}
+        </div>
+      )}
+      <div style={{ display: collapsed ? "none" : "flex", gap: 8, alignItems: "stretch" }}>
         {/* Confidence zone rail — clickable/hoverable markers */}
         <div style={{ display: "flex", flexDirection: "column", gap: 5, width: 28, flexShrink: 0 }}>
           {(["header", "parties", "lines", "terms"] as const).map((zone, idx) => {
@@ -2144,6 +2169,11 @@ export function SpineReview({ orderId }: { orderId: string }) {
   // highlighted. Set bidirectionally — from DocumentAnatomy zone hover OR from
   // canonical SpineNodeCard hover (using node.srcRef).
   const [activeZone, setActiveZone] = useState<string | null>(null);
+  // Collapse the reconstructed-document body so the draggable source-field chips sit
+  // higher and are easier to reach. Lifted here (not inside DocumentAnatomy) so the
+  // decorative source→canonical wires (SpineConnectors) can stop drawing when their
+  // section anchors are hidden — otherwise they'd point at zero-rect elements.
+  const [parsedDocCollapsed, setParsedDocCollapsed] = useState(false);
 
   // Resolve which canonical node id corresponds to a given srcRef zone.
   const nodeIdForZone = useCallback((zone: string | null): string | null => {
@@ -2917,10 +2947,14 @@ export function SpineReview({ orderId }: { orderId: string }) {
                 nodes={connectorNodes}
                 hoveredId={hoveredId}
                 crossed={crossed}
-                signature={`${nodes.length}|${editingId ?? ""}|${[...acceptedSubnodes].sort().join(",")}|${[...rejectedSubnodes].sort().join(",")}|${hoveredId ?? ""}|${activeZone ?? ""}|${crossed ? 1 : 0}|${Object.entries(fieldValues).map(([k, v]) => k + v).join(",")}|${wireSig}`}
+                signature={`${nodes.length}|${editingId ?? ""}|${[...acceptedSubnodes].sort().join(",")}|${[...rejectedSubnodes].sort().join(",")}|${hoveredId ?? ""}|${activeZone ?? ""}|${crossed ? 1 : 0}|${Object.entries(fieldValues).map(([k, v]) => k + v).join(",")}|${wireSig}|${parsedDocCollapsed ? "c" : ""}`}
                 // WireDragLayer owns the canonical→output (right) wires so they can be
                 // override-aware + re-routable; SpineConnectors draws only source→canonical.
                 drawOutput={false}
+                // When the reconstructed-document body is collapsed its section anchors
+                // are display:none (zero rect) — stop drawing source→canonical wires so
+                // they don't collapse onto the panel's top-left corner.
+                drawSource={!parsedDocCollapsed}
               />
 
               {/* Interactive drag-to-wire layer — canonical → output only, xl desktop.
@@ -2955,6 +2989,8 @@ export function SpineReview({ orderId }: { orderId: string }) {
                   onSection={(id, el) => { srcSectionEls.current[id] = el; }}
                   activeZone={activeZone}
                   onZoneHover={handleZoneHover}
+                  collapsed={parsedDocCollapsed}
+                  onToggleCollapse={() => setParsedDocCollapsed(c => !c)}
                 />
                 {/* Draggable source-field chips — the addressable values to wire FROM. */}
                 <SourceTokenPanel

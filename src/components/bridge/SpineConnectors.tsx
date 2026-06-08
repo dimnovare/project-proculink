@@ -40,6 +40,14 @@ interface SpineConnectorsProps {
    * always renders. Defaults to true (full both-sides render).
    */
   drawOutput?: boolean;
+  /**
+   * When false, the source→canonical (left) segment, the source dot, the node
+   * attachment dot and the source-side pulse are NOT drawn. Set false while the
+   * reconstructed-document body is collapsed — its section anchors are display:none
+   * (zero rect) so the wires would otherwise collapse onto the panel corner.
+   * Defaults to true.
+   */
+  drawSource?: boolean;
 }
 
 // Fallback anchor heights (% of the source/output column) used only when a real
@@ -62,7 +70,7 @@ function curve(x1: number, y1: number, x2: number, y2: number): string {
 
 export function SpineConnectors({
   gridRef, sourceColRef, outputColRef, nodeEls, srcSectionEls, outLineEls,
-  nodes, hoveredId, crossed, signature, drawOutput = true,
+  nodes, hoveredId, crossed, signature, drawOutput = true, drawSource = true,
 }: SpineConnectorsProps) {
   const [wires, setWires] = useState<Wire[]>([]);
   const [shown, setShown] = useState(false);
@@ -270,19 +278,19 @@ export function SpineConnectors({
 
         return (
           <g key={w.id} style={{ opacity, transition: "opacity 200ms ease" }}>
-            {/* Source → node segment */}
-            <path d={pathSrc} stroke={srcStroke} {...common} />
+            {/* Source → node segment — hidden when the source panel is collapsed */}
+            {drawSource && <path d={pathSrc} stroke={srcStroke} {...common} />}
             {/* Node → output segment — owned by WireDragLayer when drawOutput=false */}
             {drawOutput && <path d={pathOut} stroke={outStroke} {...common} />}
 
             {/* Terminal dots */}
-            <circle cx={w.sx}  cy={w.sy}  r={emphasized ? 3.6 : 2.6} fill={srcDot} />
+            {drawSource && <circle cx={w.sx}  cy={w.sy}  r={emphasized ? 3.6 : 2.6} fill={srcDot} />}
             {drawOutput && <circle cx={w.ox} cy={w.oy} r={emphasized ? 3.6 : 2.6} fill={outDot} />}
-            {/* Node attachment dot (hollow) */}
-            <circle cx={w.nlx} cy={w.ny}  r={2.4} fill="#FFFFFF" stroke={srcDot} strokeWidth={1.4} />
+            {/* Node attachment dot (hollow) — only meaningful with the source segment */}
+            {drawSource && <circle cx={w.nlx} cy={w.ny}  r={2.4} fill="#FFFFFF" stroke={srcDot} strokeWidth={1.4} />}
 
             {/* Travelling pulse on source segment — only for confident/crossed wires */}
-            {(confident || crossed) && (
+            {drawSource && (confident || crossed) && (
               <circle r="2.2" fill="#fff" stroke={crossed ? "#2E8E3A" : "#1E66C9"} strokeWidth="1.2"
                 style={{
                   offsetPath: `path('${pathSrc}')`,
