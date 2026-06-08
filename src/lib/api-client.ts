@@ -828,6 +828,58 @@ async function realImportSupplierMappings(
   return res.json();
 }
 
+// ── Supplier product catalog (ground truth for AI suggestions) ───────────────
+
+const _mockCatalog: Record<string, import("@/lib/api/types").SupplierProduct[]> = {};
+
+export async function getSupplierCatalog(
+  supplierId: string, q?: string, take = 100,
+): Promise<import("@/lib/api/types").SupplierCatalogPage> {
+  if (USE_MOCK) {
+    await delay(120);
+    let items = _mockCatalog[supplierId] ?? [];
+    if (q) { const t = q.toLowerCase(); items = items.filter(p => `${p.code} ${p.name ?? ""} ${p.barcode ?? ""}`.toLowerCase().includes(t)); }
+    return { total: items.length, items: items.slice(0, take) };
+  }
+  const headers = await authHeader();
+  const url = `${API_BASE_URL}/api/suppliers/${supplierId}/catalog?take=${take}${q ? `&q=${encodeURIComponent(q)}` : ""}`;
+  const res = await fetchWithTimeout(url, { headers });
+  if (!res.ok) throw new Error(`catalog: ${res.status}`);
+  return res.json();
+}
+
+export async function importSupplierCatalog(
+  supplierId: string, file: File,
+): Promise<import("@/lib/api/types").SupplierCatalogImportResult> {
+  if (USE_MOCK) {
+    await delay(300);
+    const text = await file.text();
+    const rows = text.split(/\r?\n/).filter(Boolean).slice(1); // skip header
+    const list = _mockCatalog[supplierId] ?? (_mockCatalog[supplierId] = []);
+    let created = 0;
+    for (const r of rows) {
+      const [code, name] = r.split(",");
+      if (!code?.trim()) continue;
+      list.push({ id: crypto.randomUUID(), code: code.trim(), name: name?.trim() ?? null });
+      created++;
+    }
+    return { created, updated: 0, skipped: 0, total: list.length };
+  }
+  const fd = new FormData(); fd.append("file", file);
+  const res = await fetchWithTimeout(`${API_BASE_URL}/api/suppliers/${supplierId}/catalog/import`, {
+    method: "POST", headers: await authHeader(), body: fd,
+  }, 60000);
+  if (!res.ok) { const t = await res.text(); throw new Error(t || res.statusText); }
+  return res.json();
+}
+
+export async function clearSupplierCatalog(supplierId: string): Promise<{ deleted: number }> {
+  if (USE_MOCK) { await delay(150); const n = (_mockCatalog[supplierId] ?? []).length; _mockCatalog[supplierId] = []; return { deleted: n }; }
+  const res = await fetchWithTimeout(`${API_BASE_URL}/api/suppliers/${supplierId}/catalog`, { method: "DELETE", headers: await authHeader() }, 30000);
+  if (!res.ok) { const t = await res.text(); throw new Error(t || res.statusText); }
+  return res.json();
+}
+
 // ── Supplier CRUD ─────────────────────────────────────────────────────────
 
 async function mockCreateSupplier(payload: CreateSupplierPayload): Promise<Supplier> {

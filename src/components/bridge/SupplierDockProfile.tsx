@@ -10,13 +10,13 @@ import { ChevronLeft, Trash2, Info, Clock, Link2, Truck, Plus, ShieldCheck } fro
 import { PoMappingEditor } from "./PoMappingEditor";
 import { DeliveryConfigEditor } from "./DeliveryConfigEditor";
 import { upsertPoMapping, deletePoMapping } from "@/lib/api/mapping";
-import { apiClient, isApiMockMode, getAcceptanceProfile, saveAcceptanceProfile, activateAcceptanceVersion, applyPoMappingTemplate } from "@/lib/api-client";
+import { apiClient, isApiMockMode, getAcceptanceProfile, saveAcceptanceProfile, activateAcceptanceVersion, applyPoMappingTemplate, getSupplierCatalog, importSupplierCatalog, clearSupplierCatalog } from "@/lib/api-client";
 import { useOrderDirection } from "@/hooks/useOrderDirection";
 import { useQueriesEnabled } from "@/hooks/useQueriesEnabled";
 import type { PoMappingConfig } from "@/lib/api/types";
 import type { AcceptanceRule, AcceptanceProfile, SupplierMapping } from "@/types/procurement";
 
-type Tab = "overview" | "mappings" | "po-mapping" | "delivery" | "acceptance";
+type Tab = "overview" | "mappings" | "catalog" | "po-mapping" | "delivery" | "acceptance";
 
 // ── Design tokens (ported from tokens.css / globals.css) ─────────────────────
 // Buyer side = blue (#1E66C9, also the ACTIVE accent), supplier side = forest green.
@@ -92,6 +92,7 @@ function deriveCode(name: string): string {
 const TABS: Array<{ id: Tab; label: string }> = [
   { id: "overview",    label: "Overview"          },
   { id: "mappings",    label: "Mappings"          },
+  { id: "catalog",     label: "Catalog"           },
   { id: "po-mapping",  label: "PO Mapping"        },
   { id: "delivery",    label: "Delivery"          },
   { id: "acceptance",  label: "Validation rules"  },
@@ -715,6 +716,104 @@ function LiveMappingsTab({ supplierId, supplierName }: { supplierId: string; sup
   );
 }
 
+// ── CatalogTab ────────────────────────────────────────────────────────────────
+// The supplier's product catalog = ground truth for AI suggestions. Importing it
+// lets the AI suggest ONLY real codes (catalog-grounded + allow-list guard) and
+// powers the manual-entry typeahead. Import CSV/XLSX (columns: code, name, unit,
+// price, barcode, external_id — auto-detected).
+function CatalogTab({ supplierId }: { supplierId: string }) {
+  const qc = useQueryClient();
+  const queryEnabled = useQueriesEnabled();
+  const [q, setQ] = useState("");
+  const [notice, setNotice] = useState<string | null>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  const { data, isLoading } = useQuery({
+    queryKey: ["supplier-catalog", supplierId, q],
+    queryFn: () => getSupplierCatalog(supplierId, q || undefined, 200),
+    enabled: queryEnabled,
+    staleTime: 15_000,
+  });
+  const importMut = useMutation({
+    mutationFn: (file: File) => importSupplierCatalog(supplierId, file),
+    onSuccess: (r) => { setNotice(`Imported ${r.created} new, ${r.updated} updated, ${r.skipped} skipped — ${r.total} products total.`); void qc.invalidateQueries({ queryKey: ["supplier-catalog", supplierId] }); },
+    onError: (e) => setNotice(e instanceof Error ? e.message : "Import failed."),
+  });
+  const clearMut = useMutation({
+    mutationFn: () => clearSupplierCatalog(supplierId),
+    onSuccess: (r) => { setNotice(`Cleared ${r.deleted} products.`); void qc.invalidateQueries({ queryKey: ["supplier-catalog", supplierId] }); },
+  });
+
+  const items = data?.items ?? [];
+  return (
+    <div>
+      <div style={{ display: "flex", alignItems: "flex-start", gap: 12, flexWrap: "wrap", marginBottom: 12 }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: 14, fontWeight: 700, color: INK }}>Product catalog{data ? ` · ${data.total}` : ""}</div>
+          <div style={{ fontSize: 12, color: MUTED, marginTop: 2 }}>
+            The supplier&apos;s valid product codes. With a catalog, the AI suggests only real codes and unknown codes are flagged.
+          </div>
+        </div>
+        <input ref={fileRef} type="file" accept=".csv,.xlsx" hidden
+          onChange={(e) => { const f = e.target.files?.[0]; if (f) importMut.mutate(f); e.target.value = ""; }} />
+        <button type="button" onClick={() => fileRef.current?.click()} disabled={importMut.isPending}
+          style={{ minHeight: 36, padding: "0 14px", border: "none", background: "#2E8E3A", color: "#FFFFFF", borderRadius: 6, fontSize: 12.5, fontWeight: 700, cursor: "pointer", opacity: importMut.isPending ? 0.6 : 1 }}>
+          {importMut.isPending ? "Importing…" : "Import CSV / XLSX"}
+        </button>
+        {!!data?.total && (
+          <button type="button" onClick={() => { if (confirm("Clear the entire catalog for this supplier?")) clearMut.mutate(); }} disabled={clearMut.isPending}
+            style={{ minHeight: 36, padding: "0 12px", border: "1px solid #E2E6EE", background: "#FFFFFF", color: "#C53A3A", borderRadius: 6, fontSize: 12.5, cursor: "pointer" }}>
+            Clear
+          </button>
+        )}
+      </div>
+
+      {notice && <div style={{ fontSize: 12, color: MUTED, marginBottom: 10, padding: "8px 10px", background: "#F6F7FA", border: "1px solid #E2E6EE", borderRadius: 6 }}>{notice}</div>}
+
+      {(data?.total ?? 0) > 0 && (
+        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search code / name / barcode"
+          style={{ width: "100%", maxWidth: 360, minHeight: 36, border: "1px solid #C6CDDA", borderRadius: 6, padding: "5px 10px", fontSize: 12.5, marginBottom: 10 }} />
+      )}
+
+      {isLoading ? (
+        <div style={{ fontSize: 12, color: MUTED }}>Loading catalog…</div>
+      ) : items.length === 0 ? (
+        <div style={{ fontSize: 12.5, color: MUTED, padding: "18px 14px", background: "#F6F7FA", border: "1px dashed #C6CDDA", borderRadius: 8, textAlign: "center" }}>
+          {q ? "No products match." : "No products yet. Import a CSV/XLSX (columns: code, name, unit, price, barcode) so the AI suggests only real supplier codes."}
+        </div>
+      ) : (
+        <div style={{ border: "1px solid #E2E6EE", borderRadius: 8, overflow: "hidden" }}>
+          <table className="w-full border-collapse" style={{ fontSize: 12 }}>
+            <thead>
+              <tr style={{ background: "#F6F7FA", color: MUTED, textAlign: "left" }}>
+                <th style={{ padding: "7px 10px", fontWeight: 700 }}>Code</th>
+                <th style={{ padding: "7px 10px", fontWeight: 700 }}>Name</th>
+                <th style={{ padding: "7px 10px", fontWeight: 700 }}>Unit</th>
+                <th style={{ padding: "7px 10px", fontWeight: 700, textAlign: "right" }}>Price</th>
+                <th style={{ padding: "7px 10px", fontWeight: 700 }}>Barcode</th>
+              </tr>
+            </thead>
+            <tbody>
+              {items.map((p) => (
+                <tr key={p.id} style={{ borderTop: "1px solid #EEF0F4" }}>
+                  <td style={{ padding: "6px 10px", fontFamily: "'JetBrains Mono',monospace", color: INK }}>{p.code}</td>
+                  <td style={{ padding: "6px 10px", color: INK }}>{p.name ?? "—"}</td>
+                  <td style={{ padding: "6px 10px", color: MUTED }}>{p.unit ?? "—"}</td>
+                  <td style={{ padding: "6px 10px", textAlign: "right", fontFamily: "'JetBrains Mono',monospace", color: MUTED }}>{p.price != null ? p.price : "—"}</td>
+                  <td style={{ padding: "6px 10px", fontFamily: "'JetBrains Mono',monospace", color: MUTED }}>{p.barcode ?? "—"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {data && data.total > items.length && (
+            <div style={{ padding: "6px 10px", fontSize: 11, color: MUTED, borderTop: "1px solid #EEF0F4" }}>Showing {items.length} of {data.total}. Refine with search.</div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function SupplierDockProfile({ id }: { id: string }) {
   const router = useRouter();
   const qc = useQueryClient();
@@ -1203,6 +1302,8 @@ export function SupplierDockProfile({ id }: { id: string }) {
             }
           />
         )}
+
+        {tab === "catalog" && <CatalogTab supplierId={id} />}
 
         {tab === "delivery" && <DeliveryConfigEditor supplierId={id} />}
 

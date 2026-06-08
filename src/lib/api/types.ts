@@ -128,3 +128,28 @@ export interface DeliveryTestResult {
   errorMessage?: string | null;
   responseCode?: number | null;
 }
+
+// ── Supplier product catalog (ground truth for AI suggestions) ───────────────
+
+export interface SupplierProduct {
+  id: string;
+  code: string;
+  name?: string | null;
+  unit?: string | null;
+  price?: number | null;
+  currency?: string | null;
+  barcode?: string | null;
+  externalId?: string | null;
+}
+
+export interface SupplierCatalogPage {
+  total: number;
+  items: SupplierProduct[];
+}
+
+export interface SupplierCatalogImportResult {
+  created: number;
+  updated: number;
+  skipped: number;
+  total: number;
+}
