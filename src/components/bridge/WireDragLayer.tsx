@@ -43,6 +43,20 @@ const NODE_TO_CANONICAL: Record<string, string> = {
 const CANONICAL_TO_NODE: Record<string, string> =
   Object.fromEntries(Object.entries(NODE_TO_CANONICAL).map(([n, c]) => [c, n]));
 
+/**
+ * Resolve the canonical SOURCE node that currently feeds an output line.
+ * Default is identity (output "totals" ← node "totals"); a per-order override
+ * canonicalField re-points it (e.g. "Currency" → node "currency"). Pure + exported
+ * so the wire-routing logic is unit-tested independently of the SVG.
+ */
+export function resolveWireSource(
+  lineId: string,
+  overrideField: string | undefined | null,
+): { sourceNode: string; isOverride: boolean } {
+  const sourceNode = overrideField ? (CANONICAL_TO_NODE[overrideField] ?? lineId) : lineId;
+  return { sourceNode, isOverride: overrideField != null && sourceNode !== lineId };
+}
+
 // Human labels for the SR announcer.
 const NODE_LABEL: Record<string, string> = {
   po: "PO number", date: "Order date", buyer: "Buyer", supplier: "Supplier",
@@ -155,9 +169,7 @@ export function WireDragLayer({
   // ── Resolve each output line's CURRENT source node (override or identity default) ──
   const wires = useMemo(() => {
     return zones.map((z) => {
-      const overrideField = existingConnections[z.id];               // canonicalField or undefined
-      const sourceNode = overrideField ? (CANONICAL_TO_NODE[overrideField] ?? z.id) : z.id;
-      const isOverride = overrideField != null && sourceNode !== z.id;
+      const { sourceNode, isOverride } = resolveWireSource(z.id, existingConnections[z.id]);
       const h = handleById.get(sourceNode);
       return h ? { lineId: z.id, sourceNode, isOverride, hx: h.x, hy: h.y, zx: z.x, zy: z.y } : null;
     }).filter(Boolean) as { lineId: string; sourceNode: string; isOverride: boolean; hx: number; hy: number; zx: number; zy: number; }[];
