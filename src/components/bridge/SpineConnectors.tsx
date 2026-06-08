@@ -60,6 +60,11 @@ export function SpineConnectors({
   const [wires, setWires] = useState<Wire[]>([]);
   const [shown, setShown] = useState(false);
   const rafRef = useRef<number | null>(null);
+  // Last-good wires, read inside measure() WITHOUT putting `wires` in its deps
+  // (that would rebuild measure on every frame). Used to survive transient
+  // ref-null windows during the order's 3s refetch re-render.
+  const wiresRef = useRef<Wire[]>([]);
+  useEffect(() => { wiresRef.current = wires; }, [wires]);
 
   const measure = useCallback(() => {
     const grid = gridRef.current;
@@ -72,11 +77,19 @@ export function SpineConnectors({
 
     const s = src.getBoundingClientRect();
     const o = out.getBoundingClientRect();
+    const prev = wiresRef.current;
     const next: Wire[] = [];
 
     nodes.forEach((node, i) => {
       const el = nodeEls.current[node.id];
-      if (!el) return;
+      if (!el) {
+        // Ref transiently absent (the 3s refetch re-render swaps node elements,
+        // briefly nulling refs). Keep the last-good wire for this node instead of
+        // dropping it, so wires don't flicker/vanish mid-refresh.
+        const last = prev.find((w) => w.id === node.id);
+        if (last) next.push(last);
+        return;
+      }
       const r = el.getBoundingClientRect();
       const ny = r.top - g.top + 18; // attach near the node dot / label row
 
@@ -106,6 +119,11 @@ export function SpineConnectors({
 
       next.push({ id: node.id, pct: node.pct, sx, sy, nlx: r.left - g.left, nrx: r.right - g.left, ny, ox, oy });
     });
+
+    // Never blank the whole wire-set on a transient empty measure while nodes
+    // still exist (e.g. mid-refetch when every ref is briefly null). Keep the
+    // last-good render; the next scheduled measure will refresh it.
+    if (next.length === 0 && nodes.length > 0 && prev.length > 0) return;
 
     setWires(next);
   }, [gridRef, sourceColRef, outputColRef, nodeEls, srcSectionEls, outLineEls, nodes]);
