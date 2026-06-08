@@ -116,6 +116,8 @@ export interface UseSourceWireDragArgs {
   tokens: { id: string; label: string }[];
   /** Re-point a canonical field's source: onConnect(tokenId, canonicalField). */
   onConnect: (tokenId: string, canonicalField: string) => void;
+  /** Remove a source→canonical wire (clears sourceMap[canonicalField]). */
+  onDisconnect: (canonicalField: string) => void;
   /** Current per-order SourceMap: canonicalField → rule (only sourceToken is read here). */
   sourceMap: Record<string, { sourceToken?: string | null } | undefined> | undefined | null;
   /** Any change re-measures (mirrors WireDragLayer / SpineConnectors). */
@@ -146,7 +148,7 @@ export interface UseSourceWireDrag {
 }
 
 export function useSourceWireDrag({
-  gridRef, nodeEls, tokenEls, nodes, tokens, onConnect, sourceMap, signature,
+  gridRef, nodeEls, tokenEls, nodes, tokens, onConnect, onDisconnect, sourceMap, signature,
 }: UseSourceWireDragArgs): UseSourceWireDrag {
   // Source-token RIGHT-edge anchors, id = tokenId.
   const [handles, setHandles] = useState<Pt[]>([]);
@@ -160,6 +162,10 @@ export function useSourceWireDrag({
   const [shown, setShown]       = useState(false);
   const announcerRef = useRef<HTMLDivElement>(null);
   const rafRef = useRef<number | null>(null);
+  // Last-applied position signatures — measure only commits state when anchors
+  // ACTUALLY moved, so a repeated measure (e.g. identity churn) can never drive a
+  // setState→render→measure loop (defence-in-depth for React #185).
+  const sigRef = useRef<{ h: string; z: string }>({ h: "", z: "" });
 
   const handleById = useMemo(() => new Map(handles.map(h => [h.id, h])), [handles]);
   const zoneById   = useMemo(() => new Map(zones.map(z => [z.id, z])), [zones]);
@@ -186,9 +192,13 @@ export function useSourceWireDrag({
       const r = el.getBoundingClientRect();
       z.push({ id: node.id, x: r.left - g.left, y: r.top - g.top + 18 });
     });
-    // Keep last-good if a transient render nulled the refs (mirrors WireDragLayer).
-    setHandles(prev => (h.length === 0 && prev.length > 0) ? prev : h);
-    setZones(prev => (z.length === 0 && prev.length > 0) ? prev : z);
+    // Commit ONLY when positions changed (and never blank to empty on a transient
+    // null-ref pass while items still exist). Compared via sigRef (NOT state) so
+    // measure's deps stay stable — prevents any measure→setState→render→measure loop.
+    const sig = (a: Pt[]) => a.map(p => `${p.id}:${Math.round(p.x)}:${Math.round(p.y)}`).join("|");
+    const hSig = sig(h), zSig = sig(z);
+    if (!(h.length === 0 && sigRef.current.h.length > 0) && hSig !== sigRef.current.h) { sigRef.current.h = hSig; setHandles(h); }
+    if (!(z.length === 0 && sigRef.current.z.length > 0) && zSig !== sigRef.current.z) { sigRef.current.z = zSig; setZones(z); }
   }, [gridRef, nodeEls, tokenEls, nodes, tokens]);
 
   const scheduleMeasure = useCallback(() => {
@@ -207,19 +217,17 @@ export function useSourceWireDrag({
     obs(gridRef.current);
     Object.values(nodeEls.current).forEach(obs);
     Object.values(tokenEls.current).forEach(obs);
-    let scroller: HTMLElement | null = gridRef.current?.parentElement ?? null;
-    while (scroller && scroller !== document.body) {
-      const oy = getComputedStyle(scroller).overflowY;
-      if (oy === "auto" || oy === "scroll") break;
-      scroller = scroller.parentElement;
-    }
-    scroller?.addEventListener("scroll", scheduleMeasure, { passive: true });
+    // Capture-phase scroll on the document catches EVERY scroll container — the page,
+    // the review's overflow wrapper, AND the source-token panel's own inner scroll — so
+    // the wires track the chips no matter which pane scrolls (fixes "wires stay static
+    // when I scroll the source fields").
+    document.addEventListener("scroll", scheduleMeasure, { capture: true, passive: true });
     window.addEventListener("resize", scheduleMeasure);
     return () => {
       clearTimeout(t);
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
       ro.disconnect();
-      scroller?.removeEventListener("scroll", scheduleMeasure);
+      document.removeEventListener("scroll", scheduleMeasure, { capture: true } as EventListenerOptions);
       window.removeEventListener("resize", scheduleMeasure);
     };
   }, [measure, scheduleMeasure, gridRef, nodeEls, tokenEls]);
@@ -367,6 +375,18 @@ export function useSourceWireDrag({
               <path d={bezier(w.hx, w.hy, w.zx, w.zy)} fill="none" stroke={stroke} strokeWidth={2.4} />
               <circle cx={w.hx} cy={w.hy} r={2.6} fill={stroke} />
               <circle cx={w.zx} cy={w.zy} r={2.6} fill="#1E66C9" />
+              {/* Delete affordance — clickable ✕ on the wire near the canonical end */}
+              {!dimmed && (
+                <g role="button" tabIndex={0}
+                  aria-label={`Remove the wire feeding ${NODE_LABEL[w.nodeId] ?? w.nodeId}`}
+                  style={{ pointerEvents: "auto", cursor: "pointer", outline: "none" }}
+                  onClick={() => onDisconnect(w.canonicalField)}
+                  onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onDisconnect(w.canonicalField); } }}>
+                  <circle cx={w.zx - 12} cy={w.zy} r={6.5} fill="#FFFFFF" stroke="#6F4FCE" strokeWidth={1.3} />
+                  <text x={w.zx - 12} y={w.zy + 3} textAnchor="middle" fontSize={8.5} fontWeight={700} fill="#6F4FCE"
+                    style={{ pointerEvents: "none", userSelect: "none" }}>✕</text>
+                </g>
+              )}
             </g>
           );
         })}

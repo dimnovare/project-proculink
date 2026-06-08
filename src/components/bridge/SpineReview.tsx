@@ -1773,6 +1773,13 @@ function TabletSpineLayout({
 // before the backend job fires.)
 const STUCK_WARN_MS = 2 * 60 * 1000; // 2 minutes
 
+// STABLE empty array for the source-tokens query default. A `= []` destructuring
+// default allocates a NEW array every render while the query is loading/disabled,
+// which makes the memoised sourceTokenList — and thus useSourceWireDrag's `measure`
+// callback — change identity each render, firing its useLayoutEffect in an infinite
+// setState loop (React #185 "Maximum update depth exceeded"). A shared const fixes it.
+const EMPTY_SOURCE_TOKENS: SourceToken[] = [];
+
 export function SpineReview({ orderId }: { orderId: string }) {
   const router = useRouter();
   const qc = useQueryClient();
@@ -1892,13 +1899,15 @@ export function SpineReview({ orderId }: { orderId: string }) {
   // ── Source tokens (the draggable "source field" set for source→canonical wiring) ──
   // Best-effort: a failure / unsupported format just means no chips — the rest of the
   // review screen is unaffected. Loaded once per order on mount.
-  const { data: sourceTokens = [], isLoading: sourceTokensLoading } = useQuery<SourceToken[]>({
+  const { data: sourceTokensData, isLoading: sourceTokensLoading } = useQuery<SourceToken[]>({
     queryKey: ["source-tokens", orderId],
     queryFn: () => getSourceTokens(orderId),
     enabled: queryEnabled,
     staleTime: 60_000,
     retry: 1,
   });
+  // Stable reference when empty (see EMPTY_SOURCE_TOKENS) — never `?? []` inline here.
+  const sourceTokens = sourceTokensData ?? EMPTY_SOURCE_TOKENS;
 
   // Bumped after each successful wire upsert — added to the SpineConnectors
   // signature so it schedules a re-measure.
@@ -2051,6 +2060,26 @@ export function SpineReview({ orderId }: { orderId: string }) {
     }, 120);
   }, [mappingOverride, orderId, qc, refetchOverride, setFlow]);
 
+  // Remove a source→canonical wire — clears sourceMap[canonicalField] and persists.
+  const handleSourceWireDisconnect = useCallback((canonicalField: string) => {
+    if (srcWireDebRef.current) clearTimeout(srcWireDebRef.current);
+    srcWireDebRef.current = setTimeout(async () => {
+      if (!mappingOverride?.sourceMap?.[canonicalField]) return;
+      const sourceMap = { ...mappingOverride.sourceMap };
+      delete sourceMap[canonicalField];
+      const next: OrderMappingOverride = { ...mappingOverride, sourceMap };
+      try {
+        await upsertMappingOverride(orderId, next);
+        await qc.invalidateQueries({ queryKey: ["mapping-override", orderId] });
+        await refetchOverride();
+        setWireSig(s => s + 1);
+        setFlow(`Removed the source wire for ${canonicalField}`, "info");
+      } catch (err) {
+        setFlow(err instanceof Error ? err.message : "Couldn't remove the source wire.", "error");
+      }
+    }, 60);
+  }, [mappingOverride, orderId, qc, refetchOverride, setFlow]);
+
   // ── Promote the per-order re-wiring to the supplier's reusable mapping ────────
   // Persist any pending SourceMap edit first is unnecessary — each drop already
   // upserts immediately — so promote just reads canonical_json server-side.
@@ -2132,6 +2161,7 @@ export function SpineReview({ orderId }: { orderId: string }) {
     nodes: connectorNodes,
     tokens: sourceTokenList,
     onConnect: handleSourceWireConnect,
+    onDisconnect: handleSourceWireDisconnect,
     sourceMap: mappingOverride?.sourceMap,
     signature: `${connectorNodes.length}|${sourceTokenList.length}|${wireSig}`,
   });
