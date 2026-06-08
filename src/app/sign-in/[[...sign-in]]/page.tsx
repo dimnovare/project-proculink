@@ -199,6 +199,9 @@ const clerkAppearance = {
       "h-[42px] border border-[#C6CDDA] bg-white text-[#0B1A2F] font-medium rounded-[6px] hover:bg-[#EFF2F7] transition-colors shadow-none",
     socialButtonsBlockButtonText: "text-[14px] font-medium text-[#0B1A2F]",
     socialButtonsBlockButtonArrow: "hidden",
+    // Hide Clerk's unstyled "Last used" badge — it overhangs the button's top-right
+    // corner as a clipped notch (no appearance styling), which reads as a glitch.
+    lastAuthenticationStrategyBadge: "hidden",
     // Divider → "or with email"
     dividerRow: "my-5",
     dividerLine: "bg-[#E2E6EE]",
