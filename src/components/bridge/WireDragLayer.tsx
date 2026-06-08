@@ -25,6 +25,7 @@ import {
   useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState,
 } from "react";
 import type { ConnectorNode } from "./SpineConnectors";
+import { useDragAutoScroll } from "./useDragAutoScroll";
 
 // Output lines that can be re-sourced (match the ids in OutputPreview's onLine refs).
 export const OUTPUT_LINE_IDS = ["po", "date", "supplier", "buyer", "currency", "totals", "lines"] as const;
@@ -108,6 +109,8 @@ export function WireDragLayer({
   const [shown, setShown]       = useState(false);
   const announcerRef = useRef<HTMLDivElement>(null);
   const rafRef = useRef<number | null>(null);
+
+  const { onDragPointer, stopAutoScroll } = useDragAutoScroll(gridRef);
 
   const handleById = useMemo(() => new Map(handles.map(h => [h.id, h])), [handles]);
 
@@ -200,12 +203,14 @@ export function WireDragLayer({
     if (!drag) return;
     const p = ptToGrid(e);
     if (!p) return;
+    onDragPointer(e.clientY); // edge auto-scroll so bottom drop targets stay reachable
     setDrag(d => d ? { ...d, x: p.x, y: p.y } : null);
     setHoverZone(nearestZone(p.x, p.y));
-  }, [drag, ptToGrid, nearestZone]);
+  }, [drag, ptToGrid, nearestZone, onDragPointer]);
 
   const onUp = useCallback((e: React.PointerEvent) => {
     if (!drag) return;
+    stopAutoScroll();
     const p = ptToGrid(e);
     const target = p ? nearestZone(p.x, p.y) : null;
     if (target) {
@@ -213,7 +218,7 @@ export function WireDragLayer({
       announce(`Connected ${NODE_LABEL[drag.sourceId] ?? drag.sourceId} to output ${LINE_LABEL[target] ?? target}`);
     }
     setDrag(null); setHoverZone(null);
-  }, [drag, ptToGrid, nearestZone, onConnect]);
+  }, [drag, ptToGrid, nearestZone, onConnect, stopAutoScroll]);
 
   // ── Keyboard connect mode ─────────────────────────────────────────────────────
   const onHandleKey = useCallback((e: React.KeyboardEvent, nodeId: string) => {
@@ -265,7 +270,7 @@ export function WireDragLayer({
         }}
         onPointerMove={drag ? onMove : undefined}
         onPointerUp={drag ? onUp : undefined}
-        onPointerCancel={() => { setDrag(null); setHoverZone(null); }}
+        onPointerCancel={() => { stopAutoScroll(); setDrag(null); setHoverZone(null); }}
       >
         {/* ── Persistent canonical→output wires (override-aware) ──────────────── */}
         {wires.map((w) => {

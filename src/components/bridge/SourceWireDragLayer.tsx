@@ -33,6 +33,7 @@ import {
   useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState,
 } from "react";
 import type { ConnectorNode } from "./SpineConnectors";
+import { useDragAutoScroll } from "./useDragAutoScroll";
 
 // nodeId → canonical field name (the SourceMap dictionary key the backend reads).
 // Mirrors WireDragLayer.NODE_TO_CANONICAL exactly so both sides agree on field names.
@@ -167,6 +168,8 @@ export function useSourceWireDrag({
   // setState→render→measure loop (defence-in-depth for React #185).
   const sigRef = useRef<{ h: string; z: string }>({ h: "", z: "" });
 
+  const { onDragPointer, stopAutoScroll } = useDragAutoScroll(gridRef);
+
   const handleById = useMemo(() => new Map(handles.map(h => [h.id, h])), [handles]);
   const zoneById   = useMemo(() => new Map(zones.map(z => [z.id, z])), [zones]);
   const knownTokenIds = useMemo(() => new Set(tokens.map(t => t.id)), [tokens]);
@@ -276,12 +279,14 @@ export function useSourceWireDrag({
     if (!drag) return;
     const p = ptToGrid(e);
     if (!p) return;
+    onDragPointer(e.clientY); // edge auto-scroll so the canonical nodes stay reachable
     setDrag(d => d ? { ...d, x: p.x, y: p.y } : null);
     setHoverZone(nearestZone(p.x, p.y));
-  }, [drag, ptToGrid, nearestZone]);
+  }, [drag, ptToGrid, nearestZone, onDragPointer]);
 
   const onChipUp = useCallback((e: React.PointerEvent) => {
     if (!drag) return;
+    stopAutoScroll();
     const p = ptToGrid(e);
     const targetNode = p ? nearestZone(p.x, p.y) : null;
     const canonicalField = targetNode ? NODE_TO_CANONICAL_FIELD[targetNode] : null;
@@ -290,7 +295,7 @@ export function useSourceWireDrag({
       announce(`Wired source field to ${NODE_LABEL[targetNode!] ?? targetNode}`);
     }
     setDrag(null); setHoverZone(null);
-  }, [drag, ptToGrid, nearestZone, onConnect]);
+  }, [drag, ptToGrid, nearestZone, onConnect, stopAutoScroll]);
 
   // ── Keyboard connect mode ─────────────────────────────────────────────────────
   const onChipKey = useCallback((e: React.KeyboardEvent, tokenId: string) => {
@@ -338,7 +343,7 @@ export function useSourceWireDrag({
       onPointerDown: (e) => onChipDown(e, tokenId),
       onPointerMove: onChipMove,
       onPointerUp: onChipUp,
-      onPointerCancel: () => { setDrag(null); setHoverZone(null); },
+      onPointerCancel: () => { stopAutoScroll(); setDrag(null); setHoverZone(null); },
       onKeyDown: (e) => onChipKey(e, tokenId),
       tabIndex: 0,
       role: "button",
@@ -348,7 +353,7 @@ export function useSourceWireDrag({
       "data-wired": !!wiredTo,
       "data-connecting": connecting,
     };
-  }, [tokenWiredField, kbSource, drag, tokenEls, onChipDown, onChipMove, onChipUp, onChipKey]);
+  }, [tokenWiredField, kbSource, drag, tokenEls, onChipDown, onChipMove, onChipUp, onChipKey, stopAutoScroll]);
 
   const dragHandle = drag ? handleById.get(drag.tokenId) : undefined;
   const kbZone = kbSource ? zoneById.get(nodeIds[kbTarget]) : undefined;
