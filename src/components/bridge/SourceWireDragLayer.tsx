@@ -175,6 +175,16 @@ export function useSourceWireDrag({
   const knownTokenIds = useMemo(() => new Set(tokens.map(t => t.id)), [tokens]);
   const nodeIds    = useMemo(() => nodes.map(n => n.id), [nodes]);
 
+  // Read `tokens`/`nodes` from refs so measure()'s identity stays STABLE across
+  // renders (both get new identities when the order/source-tokens memos recompute).
+  // An unstable measure re-ran the layout/observer effects every render — a driver
+  // of the React #185 update-depth loop. measure now re-runs only on signature
+  // change or a real DOM event.
+  const tokensRef = useRef(tokens);
+  tokensRef.current = tokens;
+  const nodesRef = useRef(nodes);
+  nodesRef.current = nodes;
+
   const measure = useCallback(() => {
     const grid = gridRef.current;
     if (!grid) return;
@@ -182,14 +192,14 @@ export function useSourceWireDrag({
     if (g.width < 60) { setHandles([]); setZones([]); return; }
 
     const h: Pt[] = [];
-    tokens.forEach((t) => {
+    tokensRef.current.forEach((t) => {
       const el = tokenEls.current[t.id];
       if (!el) return;
       const r = el.getBoundingClientRect();
       h.push({ id: t.id, x: r.right - g.left, y: r.top - g.top + r.height / 2 });
     });
     const z: Pt[] = [];
-    nodes.forEach((node) => {
+    nodesRef.current.forEach((node) => {
       const el = nodeEls.current[node.id];
       if (!el) return;
       const r = el.getBoundingClientRect();
@@ -202,7 +212,7 @@ export function useSourceWireDrag({
     const hSig = sig(h), zSig = sig(z);
     if (!(h.length === 0 && sigRef.current.h.length > 0) && hSig !== sigRef.current.h) { sigRef.current.h = hSig; setHandles(h); }
     if (!(z.length === 0 && sigRef.current.z.length > 0) && zSig !== sigRef.current.z) { sigRef.current.z = zSig; setZones(z); }
-  }, [gridRef, nodeEls, tokenEls, nodes, tokens]);
+  }, [gridRef, nodeEls, tokenEls]);
 
   const scheduleMeasure = useCallback(() => {
     if (rafRef.current) cancelAnimationFrame(rafRef.current);

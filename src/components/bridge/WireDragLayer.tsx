@@ -114,6 +114,14 @@ export function WireDragLayer({
 
   const handleById = useMemo(() => new Map(handles.map(h => [h.id, h])), [handles]);
 
+  // Read `nodes` from a ref so measure()'s identity stays STABLE across renders
+  // (connectorNodes gets a new identity whenever the order/labels memo recomputes).
+  // An unstable measure made the layout effect re-run every render — a contributor
+  // to the React #185 update-depth loop. measure now re-runs only on signature
+  // change or a real DOM event.
+  const nodesRef = useRef(nodes);
+  nodesRef.current = nodes;
+
   const measure = useCallback(() => {
     const grid = gridRef.current;
     if (!grid) return;
@@ -121,7 +129,7 @@ export function WireDragLayer({
     if (g.width < 60) { setHandles([]); setZones([]); return; }
 
     const h: Pt[] = [];
-    nodes.forEach((node) => {
+    nodesRef.current.forEach((node) => {
       const el = nodeEls.current[node.id];
       if (!el) return;
       const r = el.getBoundingClientRect();
@@ -140,7 +148,7 @@ export function WireDragLayer({
     const hSig = sig(h), zSig = sig(z);
     if (!(h.length === 0 && sigRef.current.h.length > 0) && hSig !== sigRef.current.h) { sigRef.current.h = hSig; setHandles(h); }
     if (!(z.length === 0 && sigRef.current.z.length > 0) && zSig !== sigRef.current.z) { sigRef.current.z = zSig; setZones(z); }
-  }, [gridRef, nodeEls, outLineEls, nodes]);
+  }, [gridRef, nodeEls, outLineEls]);
 
   const scheduleMeasure = useCallback(() => {
     if (rafRef.current) cancelAnimationFrame(rafRef.current);

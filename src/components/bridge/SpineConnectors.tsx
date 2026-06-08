@@ -80,6 +80,17 @@ export function SpineConnectors({
   // ref-null windows during the order's 3s refetch re-render.
   const wiresRef = useRef<Wire[]>([]);
   useEffect(() => { wiresRef.current = wires; }, [wires]);
+  // `nodes` (connectorNodes) gets a NEW identity whenever the order/labels memo
+  // recomputes. Reading it from a ref keeps measure()'s identity STABLE so the
+  // layout/observer effects run only on signature change or a real DOM event —
+  // NOT on every render. An unstable measure was the engine of the React #185
+  // "Maximum update depth exceeded" loop (every render → effect → setWires → …).
+  const nodesRef = useRef(nodes);
+  nodesRef.current = nodes;
+  // Last-committed position signature — measure() commits state ONLY when the
+  // rendered geometry actually changed, so a redundant measure can never drive a
+  // setState→render→measure loop (defence-in-depth alongside the stable identity).
+  const sigRef = useRef<string>("");
 
   const measure = useCallback(() => {
     const grid = gridRef.current;
@@ -88,12 +99,13 @@ export function SpineConnectors({
     if (!grid || !src || !out) return;
 
     const g = grid.getBoundingClientRect();
-    if (g.width < 60) { setWires([]); return; } // hidden / mobile
+    if (g.width < 60) { if (sigRef.current !== "") { sigRef.current = ""; setWires([]); } return; } // hidden / mobile
 
     const s = src.getBoundingClientRect();
     const o = out.getBoundingClientRect();
     const prev = wiresRef.current;
     const next: Wire[] = [];
+    const nodes = nodesRef.current;
 
     nodes.forEach((node, i) => {
       const el = nodeEls.current[node.id];
@@ -140,8 +152,15 @@ export function SpineConnectors({
     // last-good render; the next scheduled measure will refresh it.
     if (next.length === 0 && nodes.length > 0 && prev.length > 0) return;
 
+    // Commit ONLY when the geometry actually changed. Without this, a redundant
+    // measure (driven by an unstable parent re-render or a scrollbar reflow) kept
+    // calling setWires with a fresh-but-equal array → render → measure → … until
+    // React's 50-update limit threw #185. Rounding absorbs sub-pixel jitter.
+    const sig = next.map(w => `${w.id}:${Math.round(w.sx)},${Math.round(w.sy)},${Math.round(w.nlx)},${Math.round(w.ny)},${Math.round(w.ox)},${Math.round(w.oy)}`).join("|");
+    if (sig === sigRef.current) return;
+    sigRef.current = sig;
     setWires(next);
-  }, [gridRef, sourceColRef, outputColRef, nodeEls, srcSectionEls, outLineEls, nodes]);
+  }, [gridRef, sourceColRef, outputColRef, nodeEls, srcSectionEls, outLineEls]);
 
   // Double-rAF: measure AFTER the browser has committed the latest layout. A
   // single rAF can still race a same-frame height change (e.g. the 3s refetch
