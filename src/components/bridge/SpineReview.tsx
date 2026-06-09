@@ -2236,7 +2236,8 @@ export function SpineReview({ orderId }: { orderId: string }) {
     onConnect: handleSourceWireConnect,
     onDisconnect: handleSourceWireDisconnect,
     sourceMap: mappingOverride?.sourceMap,
-    signature: `${connectorNodes.length}|${sourceTokenList.length}|${wireSig}`,
+    hoveredId,
+    signature: `${connectorNodes.length}|${sourceTokenList.length}|${wireSig}|${hoveredId ?? ""}`,
   });
 
   // Count remaining unresolved exceptions from SERVER truth. Accepting an AI
@@ -2994,7 +2995,8 @@ export function SpineReview({ orderId }: { orderId: string }) {
                 onConnect={handleWireConnect}
                 onDisconnect={handleWireDisconnect}
                 existingConnections={existingWireConnections}
-                signature={`${nodes.length}|${wireSig}`}
+                hoveredId={hoveredId}
+                signature={`${nodes.length}|${wireSig}|${hoveredId ?? ""}`}
               />
 
               {/* Interactive drag-to-wire layer — SOURCE TOKEN → canonical only, xl desktop.

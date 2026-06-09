@@ -305,7 +305,8 @@ export function OutputMappingEditor({
 
   return (
     <div role="dialog" aria-label="Edit output mapping" style={{ position: "fixed", inset: 0, zIndex: 60, display: "flex", justifyContent: "flex-end" }}>
-      <div onClick={onClose} aria-hidden style={{ position: "absolute", inset: 0, background: "rgba(11,26,47,0.35)" }} />
+      {/* Opaque + blurred enough that the triptych wires behind don't bleed through. */}
+      <div onClick={onClose} aria-hidden style={{ position: "absolute", inset: 0, background: "rgba(11,26,47,0.62)", backdropFilter: "blur(2px)" }} />
       <aside style={{ position: "relative", width: "min(720px, 96vw)", height: "100%", background: "#F6F7FA", boxShadow: "-8px 0 24px rgba(0,0,0,0.18)", display: "flex", flexDirection: "column" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "14px 18px", borderBottom: "1px solid #E2E6EE", background: "#FFFFFF" }}>
           <div style={{ flex: 1 }}>

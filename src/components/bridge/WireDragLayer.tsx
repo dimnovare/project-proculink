@@ -80,6 +80,10 @@ interface WireDragLayerProps {
   onDisconnect: (outputLineId: string) => void;
   /** Current per-order overrides: outputLineId → canonicalField. */
   existingConnections: Partial<Record<string, string>>;
+  /** Hovered canonical node id — its wire is emphasised, all others dim. */
+  hoveredId?: string | null;
+  /** When true (e.g. the mapping editor slideover is open) the layer hides. */
+  hidden?: boolean;
   /** Any change re-measures (mirrors SpineConnectors). */
   signature: string;
 }
@@ -102,6 +106,7 @@ function bezier(x1: number, y1: number, x2: number, y2: number): string {
 
 export function WireDragLayer({
   gridRef, nodeEls, outLineEls, nodes, onConnect, onDisconnect, existingConnections, signature,
+  hoveredId, hidden,
 }: WireDragLayerProps) {
   const sigRef = useRef<{ h: string; z: string }>({ h: "", z: "" });
   const [handles, setHandles]   = useState<Pt[]>([]);   // canonical node right-edge anchors, id = nodeId
@@ -159,9 +164,10 @@ export function WireDragLayer({
     rafRef.current = requestAnimationFrame(() => { rafRef.current = requestAnimationFrame(measure); });
   }, [measure]);
 
-  // Event-independent scroll tracking (see useScrollResync). Keeps the
-  // canonical→output wires glued to the sticky output column while scrolling.
-  useScrollResync(gridRef, scheduleMeasure);
+  // Event-independent scroll tracking (see useScrollResync). DIRECT measure (not
+  // scheduleMeasure) so continuous scroll updates the wires every frame instead of
+  // snapping when scroll stops. Keeps wires glued to the sticky output column.
+  useScrollResync(gridRef, measure);
 
   useLayoutEffect(() => { measure(); }, [measure, signature]);
 
@@ -281,8 +287,8 @@ export function WireDragLayer({
       <svg aria-hidden
         style={{
           position: "absolute", inset: 0, width: "100%", height: "100%",
-          pointerEvents: drag ? "auto" : "none", zIndex: 3,
-          opacity: shown ? 1 : 0, transition: "opacity 320ms ease-out",
+          pointerEvents: hidden ? "none" : (drag ? "auto" : "none"), zIndex: 3,
+          opacity: hidden ? 0 : (shown ? 1 : 0), transition: "opacity 200ms ease-out",
         }}
         onPointerMove={drag ? onMove : undefined}
         onPointerUp={drag ? onUp : undefined}
@@ -291,9 +297,14 @@ export function WireDragLayer({
         {/* ── Persistent canonical→output wires (override-aware) ──────────────── */}
         {wires.map((w) => {
           const dimmed = drag != null || kbSource != null;
+          // Hover emphasis: when a canonical node is hovered, its wire stays bright
+          // and all others fade (matches SpineConnectors' decorative behaviour).
+          const hov = hoveredId != null;
+          const isHovered = hov && (w.sourceNode === hoveredId || w.lineId === hoveredId);
+          const opacity = dimmed ? 0.45 : hov ? (isHovered ? 1 : 0.14) : 1;
           const stroke = w.isOverride ? "#1E66C9" : "#2E8E3A";
           return (
-            <g key={`w-${w.lineId}`} style={{ opacity: dimmed ? 0.45 : 1, transition: "opacity 160ms" }}>
+            <g key={`w-${w.lineId}`} style={{ opacity, transition: "opacity 160ms" }}>
               <path d={bezier(w.hx, w.hy, w.zx, w.zy)} fill="none" stroke={stroke}
                 strokeWidth={w.isOverride ? 2.4 : 1.8} style={{ pointerEvents: "none" }} />
               <circle cx={w.zx} cy={w.zy} r={2.6} fill={stroke} style={{ pointerEvents: "none" }} />

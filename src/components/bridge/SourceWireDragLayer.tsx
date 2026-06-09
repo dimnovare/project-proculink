@@ -127,6 +127,10 @@ export interface UseSourceWireDragArgs {
   onDisconnect: (canonicalField: string) => void;
   /** Current per-order SourceMap: canonicalField → rule (only sourceToken is read here). */
   sourceMap: Record<string, { sourceToken?: string | null } | undefined> | undefined | null;
+  /** Hovered canonical node id — its source wire is emphasised, all others dim. */
+  hoveredId?: string | null;
+  /** When true (e.g. the mapping editor slideover is open) the overlay hides. */
+  hidden?: boolean;
   /** Any change re-measures (mirrors WireDragLayer / SpineConnectors). */
   signature: string;
 }
@@ -156,6 +160,7 @@ export interface UseSourceWireDrag {
 
 export function useSourceWireDrag({
   gridRef, nodeEls, dotEls, tokenEls, nodes, tokens, onConnect, onDisconnect, sourceMap, signature,
+  hoveredId, hidden,
 }: UseSourceWireDragArgs): UseSourceWireDrag {
   // Source-token RIGHT-edge anchors, id = tokenId.
   const [handles, setHandles] = useState<Pt[]>([]);
@@ -231,9 +236,11 @@ export function useSourceWireDrag({
   }, [measure]);
 
   // Event-independent scroll tracking: a rAF loop polls scroll positions and
-  // re-measures on any change (the document "scroll" listener below never fired
-  // reliably for the real nested scroller / sticky columns).
-  useScrollResync(gridRef, scheduleMeasure);
+  // re-measures on any change (the document "scroll" listener never fired reliably
+  // for the real nested scroller / sticky columns). DIRECT measure (not the
+  // self-cancelling double-rAF scheduleMeasure) so continuous scroll updates the
+  // wires every frame instead of snapping when scroll stops.
+  useScrollResync(gridRef, measure);
 
   useLayoutEffect(() => { measure(); }, [measure, signature]);
 
@@ -394,15 +401,18 @@ export function useSourceWireDrag({
         style={{
           position: "absolute", inset: 0, width: "100%", height: "100%",
           pointerEvents: "none", zIndex: 4,
-          opacity: shown ? 1 : 0, transition: "opacity 320ms ease-out",
+          opacity: hidden ? 0 : (shown ? 1 : 0), transition: "opacity 200ms ease-out",
         }}
       >
         {/* ── Persistent source→canonical override wires (re-route on drop) ────── */}
         {wires.map((w) => {
           const dimmed = drag != null || kbSource != null;
+          const hov = hoveredId != null;
+          const isHovered = hov && w.nodeId === hoveredId;
+          const opacity = dimmed ? 0.45 : hov ? (isHovered ? 1 : 0.14) : 1;
           const stroke = "#6F4FCE"; // explicit re-wire → violet→blue
           return (
-            <g key={`sw-${w.canonicalField}`} style={{ opacity: dimmed ? 0.45 : 1, transition: "opacity 160ms" }}>
+            <g key={`sw-${w.canonicalField}`} style={{ opacity, transition: "opacity 160ms" }}>
               <path d={bezier(w.hx, w.hy, w.zx, w.zy)} fill="none" stroke={stroke} strokeWidth={2.4} />
               <circle cx={w.hx} cy={w.hy} r={2.6} fill={stroke} />
               <circle cx={w.zx} cy={w.zy} r={2.6} fill="#1E66C9" />

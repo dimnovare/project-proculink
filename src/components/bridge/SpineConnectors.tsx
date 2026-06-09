@@ -185,8 +185,12 @@ export function SpineConnectors({
   }, [measure]);
 
   // Event-independent scroll tracking (see useScrollResync) — the decorative
-  // source→canonical wires now follow the sticky source column on scroll.
-  useScrollResync(gridRef, scheduleMeasure);
+  // source→canonical wires follow the sticky source column on scroll. Use the
+  // DIRECT measure (not scheduleMeasure): the poll already runs once per frame,
+  // and scheduleMeasure's self-cancelling double-rAF would be perpetually
+  // re-cancelled during continuous scroll, so wires only updated when scrolling
+  // STOPPED (the "wires jump" symptom). Direct measure → smooth per-frame update.
+  useScrollResync(gridRef, measure);
 
   useLayoutEffect(() => { measure(); }, [measure, signature]);
 
