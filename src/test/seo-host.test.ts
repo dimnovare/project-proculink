@@ -8,6 +8,10 @@ describe("canonical production host", () => {
     expect(sitemap().every(({ url }) => url.startsWith("https://proculink.eu/"))).toBe(true);
   });
 
+  it("does not claim every page changed at deployment time", () => {
+    expect(sitemap().every(({ lastModified }) => lastModified === undefined)).toBe(true);
+  });
+
   it("redirects the www host to the apex domain", async () => {
     const redirects = await nextConfig.redirects?.();
 
