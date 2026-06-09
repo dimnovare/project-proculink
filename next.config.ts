@@ -35,6 +35,15 @@ const nextConfig: NextConfig = {
   },
   async redirects() {
     return [
+      // Keep one public origin for search engines, auth callbacks, and shared
+      // links. The sitemap and metadata use the apex domain, so www must not
+      // serve a second copy of the site.
+      {
+        source: "/:path*",
+        has: [{ type: "host", value: "www.proculink.eu" }],
+        destination: "https://proculink.eu/:path*",
+        permanent: true,
+      },
       // Orphan legacy views (older `src/views/*`) — collapse them onto the
       // canonical Bridge-design routes so any bookmarked or typed old URL
       // ends up at the same place the sidebar links to.
