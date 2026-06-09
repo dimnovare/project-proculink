@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { LEGAL_ENTITY, PRODUCT_OPERATOR_NOTICE } from "@/lib/legal-entity";
 
 export const metadata: Metadata = {
   title: "Terms of Service — ProcuLink",
@@ -19,13 +20,12 @@ export default function TermsPage() {
   return (
     <div style={S.page}>
       <h1 style={S.h1}>Terms of Service</h1>
-      <p style={S.updated}>Last updated: May 2026</p>
+      <p style={S.updated}>Last updated: June 2026</p>
 
       <h2 style={S.h2}>1. Agreement</h2>
       <p style={S.p}>
         By accessing or using ProcuLink you agree to be bound by these Terms of Service.
-        &quot;ProcuLink&quot; is operated by ProcuLink OÜ (registration 17477775,
-        Katusepapi 6, Tallinn, Estonia). &quot;You&quot; means the organisation or individual
+        {" "}{PRODUCT_OPERATOR_NOTICE} &quot;You&quot; means the organisation or individual
         accessing the service. If you are accepting on behalf of an organisation, you
         represent that you have authority to bind that organisation.
       </p>
@@ -75,7 +75,8 @@ export default function TermsPage() {
 
       <h2 style={S.h2}>6. Intellectual property</h2>
       <p style={S.p}>
-        The ProcuLink software, design, documentation, and brand are owned by ProcuLink OÜ. You may not copy, modify, distribute, sell, or sublicence any
+        The ProcuLink software, design, documentation, and brand are owned by{" "}
+        {LEGAL_ENTITY.legalName}. You may not copy, modify, distribute, sell, or sublicence any
         part of the software or platform. Your feedback may be used by us to improve the
         service without obligation to you.
       </p>

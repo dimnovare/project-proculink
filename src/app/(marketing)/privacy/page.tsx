@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { LEGAL_ENTITY, PRODUCT_OPERATOR_NOTICE } from "@/lib/legal-entity";
 
 export const metadata: Metadata = {
   title: "Privacy Policy — ProcuLink",
@@ -22,13 +23,13 @@ export default function PrivacyPage() {
   return (
     <div style={S.page}>
       <h1 style={S.h1}>Privacy Policy</h1>
-      <p style={S.updated}>Last updated: May 2026</p>
+      <p style={S.updated}>Last updated: June 2026</p>
 
       <h2 style={S.h2}>Who we are</h2>
       <p style={S.p}>
-        ProcuLink OÜ (&quot;ProcuLink&quot;, &quot;we&quot;, &quot;us&quot;, &quot;our&quot;) operates the ProcuLink procurement
-        automation platform at proculink.eu. Company registration: 17477775. Registered
-        address: Katusepapi 6, Tallinn, Estonia.
+        {PRODUCT_OPERATOR_NOTICE} In this policy, &quot;ProcuLink&quot;, &quot;we&quot;,
+        &quot;us&quot;, and &quot;our&quot; refer to {LEGAL_ENTITY.legalName} as operator
+        of the ProcuLink procurement automation platform at proculink.eu.
       </p>
 
       <h2 style={S.h2}>What data we collect</h2>
@@ -129,7 +130,7 @@ export default function PrivacyPage() {
         <br />
         General support: <a href="mailto:support@proculink.eu" style={{ color: "#2E8E3A" }}>support@proculink.eu</a>
         <br />
-        Registered address: ProcuLink OÜ, Katusepapi 6, Tallinn, Estonia
+        Registered address: {LEGAL_ENTITY.legalName}, {LEGAL_ENTITY.registeredAddress}
       </p>
 
       <p style={{ ...S.p, marginTop: 40, paddingTop: 24, borderTop: "1px solid #E2E6EE" }}>

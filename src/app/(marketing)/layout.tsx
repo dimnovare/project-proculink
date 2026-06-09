@@ -1,5 +1,6 @@
 import { MarketingNav } from "@/components/marketing/MarketingNav";
 import { ProcuLinkMark } from "@/components/bridge/DSPrimitives";
+import { COPYRIGHT_NOTICE } from "@/lib/legal-entity";
 
 const FOOTER_COLS: { h: string; links: [string, string][] }[] = [
   { h: "Product", links: [["How it works", "/how-it-works"], ["Pricing", "/pricing"], ["Security", "/security"], ["Open the dashboard", "/bridge"]] },
@@ -58,7 +59,7 @@ export default function MarketingLayout({
             className="flex flex-wrap items-center justify-between gap-3 mt-12"
             style={{ borderTop: "1px solid #1B2D49", padding: "18px 0 28px", fontSize: 12 }}
           >
-            <span>© 2026 ProcuLink OÜ · Tallinn, Estonia</span>
+            <span>{COPYRIGHT_NOTICE}</span>
             <span className="flex items-center gap-3">
               <span>EU data residency (Frankfurt)</span><span>·</span><span>AES-GCM at rest</span>
             </span>

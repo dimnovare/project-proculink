@@ -6,6 +6,7 @@ import { ProcuLinkMark } from "@/components/bridge/DSPrimitives";
 import { BridgeIllustration } from "@/components/marketing/BridgeIllustration";
 import { MarketingNav } from "@/components/marketing/MarketingNav";
 import { ROICalculator } from "@/components/marketing/ROICalculator";
+import { COPYRIGHT_NOTICE } from "@/lib/legal-entity";
 
 // ─── Brand tokens (Bridge Layer design system) ───────────────────────────────
 // Primary accent is BUYER-BLUE (#1E66C9); supplier side is forest green
@@ -900,7 +901,7 @@ export default function RootPage() {
             ))}
           </div>
           <div className="flex flex-wrap items-center justify-between gap-3 mt-12" style={{ borderTop: "1px solid #1B2D49", padding: "18px 0 28px", fontSize: 12 }}>
-            <span>© 2026 ProcuLink OÜ · Tallinn, Estonia</span>
+            <span>{COPYRIGHT_NOTICE}</span>
             <span className="flex items-center gap-3"><span>EU data residency (Frankfurt)</span><span>·</span><span>AES-GCM at rest</span></span>
           </div>
         </div>

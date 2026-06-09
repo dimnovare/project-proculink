@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./print.css";
+import { LEGAL_ENTITY, LEGAL_ENTITY_REFERENCE } from "@/lib/legal-entity";
 
 export const metadata: Metadata = {
   title: "ProcuLink — one-pager",
@@ -71,7 +72,7 @@ export default function OnePagerPage() {
       </p>
 
       <div style={S.contact}>
-        ProcuLink OÜ · Registration 17477775 · Katusepapi 6, Tallinn, Estonia<br />
+        {LEGAL_ENTITY.productName} is a product of {LEGAL_ENTITY_REFERENCE}.<br />
         hello@proculink.eu · support@proculink.eu · proculink.eu
       </div>
     </div>

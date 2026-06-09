@@ -105,12 +105,16 @@ test.describe("Legal + trust pages", () => {
 });
 
 test.describe("Legal entity", () => {
-  test("no Estoria references remain on /privacy or /terms", async ({ page }) => {
-    for (const route of ["/privacy", "/terms"]) {
+  test("legal pages identify Diip Solutions OÜ while retaining the ProcuLink brand", async ({ page }) => {
+    for (const route of ["/privacy", "/terms", "/dpa", "/one-pager"]) {
       await page.goto(route);
       const body = await page.locator("body").innerText();
       expect(body).not.toMatch(/estoria/i);
-      expect(body).toMatch(/ProcuLink OÜ/i);
+      expect(body).not.toMatch(/ProcuLink OÜ/i);
+      expect(body).not.toMatch(/17477775|Katusepapi/i);
+      expect(body).toMatch(/Diip Solutions OÜ/i);
+      expect(body).toMatch(/17527757/i);
+      expect(body).toMatch(/ProcuLink/i);
     }
   });
 });

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { LEGAL_ENTITY, LEGAL_ENTITY_REFERENCE } from "@/lib/legal-entity";
 
 export const metadata: Metadata = {
   title: "Data Processing Addendum — ProcuLink",
@@ -22,11 +23,12 @@ export default function DpaPage() {
   return (
     <div style={S.page}>
       <h1 style={S.h1}>Data Processing Addendum</h1>
-      <p style={S.updated}>Effective: May 2026 · Version 1.0</p>
+      <p style={S.updated}>Effective: June 2026 · Version 1.1</p>
 
       <p style={S.intro}>
         This Data Processing Addendum (&quot;DPA&quot;) forms part of the agreement between
-        ProcuLink OÜ (the &quot;Processor&quot;) and the customer organisation (the &quot;Controller&quot;)
+        {LEGAL_ENTITY.legalName}, operator of the ProcuLink service (the &quot;Processor&quot;),
+        and the customer organisation (the &quot;Controller&quot;)
         for the processing of personal data under the EU General Data Protection
         Regulation 2016/679 (&quot;GDPR&quot;).
       </p>
@@ -86,7 +88,7 @@ export default function DpaPage() {
 
       <h3 style={S.h3}>Processor</h3>
       <p style={S.p}>
-        ProcuLink OÜ · Registration 17477775 · Katusepapi 6, Tallinn, Estonia · Contact:{" "}
+        {LEGAL_ENTITY_REFERENCE} · Contact:{" "}
         <a href="mailto:legal@proculink.eu" style={{ color: "#2E8E3A" }}>legal@proculink.eu</a>
       </p>
 

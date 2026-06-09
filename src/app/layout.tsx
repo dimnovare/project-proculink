@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { ClerkProvider } from "@clerk/nextjs";
 import { AnalyticsBoot } from "@/components/analytics/AnalyticsBoot";
 import { CookieConsentBanner } from "@/components/marketing/CookieConsentBanner";
+import { ORGANIZATION_STRUCTURED_DATA } from "@/lib/legal-entity";
 import "./globals.css";
 
 export const viewport: Viewport = {
@@ -53,6 +54,14 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   // simply unavailable). When the key IS present, behaviour is unchanged.
   return (
     <html lang="en">
+      <head>
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify(ORGANIZATION_STRUCTURED_DATA).replace(/</g, "\\u003c"),
+          }}
+        />
+      </head>
       <body>
         <ClerkProvider publishableKey={publishableKey}>
           {children}
