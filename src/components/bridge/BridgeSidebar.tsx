@@ -10,7 +10,7 @@ import {
   ShieldCheck, FileCode, BookOpen, FileText, Package, ScrollText,
   Plug, Webhook, Settings, ChevronsLeft, ChevronsRight, ExternalLink,
   Files, HelpCircle, X, ShieldHalf, AlertTriangle, Activity, MessageCircle,
-  Link2,
+  Link2, ListChecks,
   type LucideIcon,
 } from "lucide-react";
 import { apiClient, getBillingStatus, checkAdminAccess } from "@/lib/api-client";
@@ -41,6 +41,7 @@ const NAV: Array<{ group?: string; items: NavItem[] }> = [
       { label: "Buyers",      href: "/library/buyers",      icon: Building2 },
       { label: "Mappings",       href: "/library/mappings",  icon: GitBranch },
       { label: "Rules",          href: "/library/rules",     icon: ShieldCheck },
+      { label: "Rule definitions", href: "/library/rule-definitions", icon: ListChecks },
       { label: "Output templates", href: "/library/templates", icon: FileCode },
       { label: "Standards",      href: "/library/standards", icon: BookOpen },
     ],

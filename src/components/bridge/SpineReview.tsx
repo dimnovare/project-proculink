@@ -24,6 +24,7 @@ import { SourceTokenPanel } from "./SourceTokenPanel";
 import { OutputMappingEditor } from "./OutputMappingEditor";
 import { OrderPassport } from "./OrderPassport";
 import { SupplierResponsePanel } from "./SupplierResponsePanel";
+import { ConformancePanel } from "./ConformancePanel";
 import { useOrderDirection, type PartyLabels } from "@/hooks/useOrderDirection";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -2172,7 +2173,13 @@ export function SpineReview({ orderId }: { orderId: string }) {
   });
 
   const [sendState, setSendState]                 = useState<"idle" | "transforming" | "delivering">("idle");
-  const [tab, setTab]                             = useState<"review" | "passport" | "response">("review");
+  // Initial tab honours a `?tab=` deep-link (e.g. an exception linking to the
+  // Conformance panel). Falls back to "review".
+  const initialTab = ((): "review" | "passport" | "conformance" | "response" => {
+    const t = searchParams.get("tab");
+    return t === "passport" || t === "conformance" || t === "response" ? t : "review";
+  })();
+  const [tab, setTab]                             = useState<"review" | "passport" | "conformance" | "response">(initialTab);
   // The line id currently being resolved against the backend (Accept in-flight).
   const [acceptingLineId, setAcceptingLineId]     = useState<string | null>(null);
   // The header field id (date/buyer/currency) whose correction is being persisted.
@@ -2781,9 +2788,10 @@ export function SpineReview({ orderId }: { orderId: string }) {
       {/* Tabs: Review · Passport · {counterparty} response */}
       <div className="flex-shrink-0 flex items-center gap-1 px-4 sm:px-5" style={{ background: "#FFFFFF", borderBottom: "1px solid #E2E6EE" }}>
         {([
-          { id: "review",   label: "Review" },
-          { id: "passport", label: "Passport" },
-          { id: "response", label: `${labels.counterpartyNoun} response` },
+          { id: "review",      label: "Review" },
+          { id: "passport",    label: "Passport" },
+          { id: "conformance", label: "Conformance" },
+          { id: "response",    label: `${labels.counterpartyNoun} response` },
         ] as const).map((t) => {
           const active = tab === t.id;
           return (
@@ -3227,6 +3235,21 @@ export function SpineReview({ orderId }: { orderId: string }) {
       {tab === "passport" && (
         <div className="flex-1 overflow-auto" style={{ background: "#F6F7FA" }}>
           <OrderPassport orderId={orderId} />
+        </div>
+      )}
+
+      {/* Conformance tab (Group V8) */}
+      {tab === "conformance" && (
+        <div className="flex-1 overflow-auto px-4 py-5 sm:px-6" style={{ background: "#F6F7FA" }}>
+          <div className="mx-auto w-full max-w-[900px]">
+            <h2 style={{ fontFamily: "'Bricolage Grotesque', Inter, sans-serif", fontSize: 20, fontWeight: 700, letterSpacing: "-0.02em", color: "#0B1A2F", marginBottom: 4 }}>
+              Standards conformance
+            </h2>
+            <p className="text-[12.5px]" style={{ color: "#56627A", marginBottom: 16 }}>
+              Validate the outbound document for <span className="font-mono" style={{ color: "#1E6D29" }}>{order.poNumber}</span> against a named standards profile.
+            </p>
+            <ConformancePanel orderId={orderId} supplierName={order.supplierName} />
+          </div>
         </div>
       )}
 
