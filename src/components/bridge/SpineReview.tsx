@@ -441,9 +441,19 @@ interface SpineNodeCardProps {
   cardRef?: (el: HTMLDivElement | null) => void;
   /** Called with the node's circle-dot element so wires can snap to the circle. */
   dotRef?: (el: HTMLDivElement | null) => void;
-  /** Called when this node is hovered, passing the node id (for wire emphasis). */
+  /**
+   * Called when this node is hovered, passing the node id (for wire emphasis).
+   * The parent's handler also derives + sets the active doc-anatomy zone from the
+   * node's srcRef, so the card no longer dispatches onZoneHover itself (doing so
+   * routed the highlight through a lossy zone→first-node lookup and lit the wrong
+   * wire when two nodes share a srcRef, e.g. PO + Order date on "header-meta").
+   */
   onHover?: (id: string | null) => void;
-  /** Called with the srcRef zone when this node is hovered (for doc anatomy highlight). */
+  /**
+   * Reverse direction only: a document-anatomy zone hover highlights its
+   * representative canonical node. Consumed by DocumentAnatomy's zone rail — NOT by
+   * SpineNodeCard (kept in the props for the shared call sites; the card ignores it).
+   */
   onZoneHover?: (zone: string | null) => void;
   /** The currently-active zone from the document anatomy or canonical hover. */
   activeZone?: string | null;
@@ -521,7 +531,7 @@ function SpineNodeCard({
   acceptedSubnodes, rejectedSubnodes,
   onStartEdit, onChangeValue, onCommitEdit,
   onAcceptSubnode, onRejectSubnode,
-  onKeyDown, inputRef, cardRef, dotRef, onHover, onZoneHover, activeZone,
+  onKeyDown, inputRef, cardRef, dotRef, onHover, activeZone,
   acceptingLineId, lineEdit,
 }: SpineNodeCardProps) {
   const isEditing = editingId === node.id;
@@ -561,8 +571,16 @@ function SpineNodeCard({
     <div
       className="relative mb-2.5 pl-9"
       ref={cardRef}
-      onMouseEnter={() => { onHover?.(node.id); onZoneHover?.(node.srcRef); }}
-      onMouseLeave={() => { onHover?.(null); onZoneHover?.(null); }}
+      // Hovering a canonical CARD highlights THIS node's wire by its unique node id.
+      // Only call onHover(node.id): the parent's node-hover handler already sets BOTH
+      // the precise hoveredId AND the activeZone (= node.srcRef). The previous code also
+      // fired onZoneHover(node.srcRef), which routed through the zone→node lookup and
+      // overwrote hoveredId with the FIRST node sharing that srcRef — so hovering ORDER
+      // DATE (srcRef "header-meta", shared with PO) lit PO's wire and left DATE's dim.
+      // The zone-rail in DocumentAnatomy still calls onZoneHover directly for the
+      // reverse (zone → representative node) direction.
+      onMouseEnter={() => { onHover?.(node.id); }}
+      onMouseLeave={() => { onHover?.(null); }}
     >
       {/* Canonical-order node dot — wires snap to this circle's centre (dotRef). */}
       <div

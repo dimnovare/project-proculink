@@ -75,6 +75,33 @@ function curve(x1: number, y1: number, x2: number, y2: number): string {
   return `M ${x1} ${y1} C ${x1 + off} ${y1} ${x2 - off} ${y2} ${x2} ${y2}`;
 }
 
+/**
+ * Decide the PAINT order for the wires given the hovered canonical node id.
+ *
+ * The highlight is keyed on the unique node id (each wire's `id`). Two wires can
+ * share the SAME source anchor (PO + Order date both originate from the
+ * "header-meta" line), so their paths overlap near the source end. If the hovered
+ * (emphasised, opaque) wire were painted BEFORE an overlapping dimmed wire, the
+ * dimmed wire would sit on top and grey out the very wire the user is highlighting.
+ *
+ * So: keep the natural order, but move the hovered wire to the END so it always
+ * paints on top. Pure + exported so the "highlight is by node id, hovered paints
+ * last" contract is unit-tested without the DOM. `oi` is the wire's ORIGINAL index,
+ * preserved for stable per-wire animation timing after the reorder.
+ */
+export function orderWiresForRender<T extends { id: string }>(
+  wires: T[],
+  hoveredId: string | null,
+): { wire: T; oi: number }[] {
+  const indexed = wires.map((wire, oi) => ({ wire, oi }));
+  if (hoveredId == null) return indexed;
+  // Stable partition: everything except the hovered wire keeps its order, the
+  // hovered wire (matched by its unique node id) goes last → painted on top.
+  const rest = indexed.filter((w) => w.wire.id !== hoveredId);
+  const top = indexed.filter((w) => w.wire.id === hoveredId);
+  return [...rest, ...top];
+}
+
 export function SpineConnectors({
   gridRef, sourceColRef, outputColRef, nodeEls, dotEls, srcSectionEls, outLineEls,
   nodes, hoveredId, crossed, signature, drawOutput = true, drawSource = true,
@@ -307,7 +334,12 @@ export function SpineConnectors({
           }
         `}</style>
       </defs>
-      {wires.map((w, i) => {
+      {orderWiresForRender(wires, hoveredId).map(({ wire: w, oi: i }) => {
+        // Highlight is keyed on the UNIQUE canonical node id (w.id) — never on the
+        // shared source anchor — so hovering ANY node (incl. ones sharing a source,
+        // e.g. PO + Order date on "header-meta") emphasises THAT node's wire. The
+        // hovered wire is also painted last (see orderWiresForRender) so an
+        // overlapping dimmed wire can't grey it out.
         const emphasized = hoveredId === w.id;
         const dim = hoveredId != null && !emphasized;
         const opacity = dim ? 0.14 : 1;

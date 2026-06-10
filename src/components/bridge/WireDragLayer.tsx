@@ -295,7 +295,16 @@ export function WireDragLayer({
         onPointerCancel={() => { stopAutoScroll(); setDrag(null); setHoverZone(null); }}
       >
         {/* ── Persistent canonical→output wires (override-aware) ──────────────── */}
-        {wires.map((w) => {
+        {/* Paint the hovered node's wire(s) LAST so an overlapping dimmed wire (e.g.
+            two output lines overridden to the same source node) can't grey it out.
+            Stable partition keyed on the node ids — never on a shared coordinate. */}
+        {[...wires]
+          .sort((a, b) => {
+            const ah = hoveredId != null && (a.sourceNode === hoveredId || a.lineId === hoveredId);
+            const bh = hoveredId != null && (b.sourceNode === hoveredId || b.lineId === hoveredId);
+            return (ah ? 1 : 0) - (bh ? 1 : 0); // hovered → end of paint order
+          })
+          .map((w) => {
           const dimmed = drag != null || kbSource != null;
           // Hover emphasis: when a canonical node is hovered, its wire stays bright
           // and all others fade (matches SpineConnectors' decorative behaviour).
