@@ -13,6 +13,7 @@
     "test:watch": "vitest",
     "test:e2e": "playwright test",
     "test:e2e:live": "cross-env PLAYWRIGHT_LIVE=1 playwright test",
+    "test:e2e:full": "cross-env PLAYWRIGHT_LIVE=1 PLAYWRIGHT_FULL=1 playwright test live-full-e2e.spec.ts",
     "test:e2e:ui": "playwright test --ui",
     "demo:capture": "playwright test --config=playwright.demo.config.ts",
     "demo:vo": "node scripts/demo-video/generate-vo.mjs",
