@@ -55,7 +55,7 @@ interface SpineConnectorsProps {
 
 // Fallback anchor heights (% of the source/output column) used only when a real
 // element ref hasn't mounted yet.
-const SRC_Y_FALLBACK: Record<string, number> = { header: 9, parties: 22, terms: 28, lines: 56, totals: 88 };
+const SRC_Y_FALLBACK: Record<string, number> = { header: 9, "header-meta": 11, parties: 22, terms: 28, lines: 56, totals: 88 };
 const OUT_Y_FALLBACK: Record<string, number> = { po: 15, date: 20, currency: 26, supplier: 31, buyer: 36, lines: 62, totals: 26 };
 
 interface Wire {
@@ -236,6 +236,30 @@ export function SpineConnectors({
       window.removeEventListener("resize", scheduleMeasure);
     };
   }, [measure, scheduleMeasure, gridRef, sourceColRef, outputColRef, nodeEls, srcSectionEls, outLineEls]);
+
+  // Re-measure across several COMMITTED frames whenever the source panel's
+  // expand/collapse state changes (drawSource = !parsedDocCollapsed). On EXPAND
+  // the reconstructed-document body flips display:none → flex; its section
+  // anchors (incl. the new "header-meta") only get a real rect AFTER that layout
+  // commits. useLayoutEffect(measure) runs on the SAME render — before the commit —
+  // so the first source-wire draw would otherwise read a zero/stale rect and snap
+  // to the SRC_Y_FALLBACK origin, then jump on the next scroll/rAF. A short rAF
+  // burst + a trailing timeout reuses the SAME measure so the first post-expand
+  // draw already uses the committed layout → no jump. (Reuses `measure`; no second
+  // divergent measure is introduced.)
+  useEffect(() => {
+    const rafs: number[] = [];
+    const step = (n: number) => {
+      measure();
+      if (n > 0) rafs.push(requestAnimationFrame(() => step(n - 1)));
+    };
+    rafs.push(requestAnimationFrame(() => step(2))); // 3 committed-frame measures
+    const t = setTimeout(measure, 120); // safety net for late reflow (fonts/sticky)
+    return () => {
+      rafs.forEach(cancelAnimationFrame);
+      clearTimeout(t);
+    };
+  }, [measure, drawSource]);
 
   // Confidence classes for colours:
   //  confident (>=90) → brand-blue (#1E66C9) → brand-green (#2E8E3A), solid
