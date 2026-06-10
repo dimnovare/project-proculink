@@ -3032,6 +3032,8 @@ import type {
   ConnectionRevisionStatus,
   CreateConnectionRevisionRequest,
   ConnectionRevisionBundle,
+  ReplayRequest,
+  ReplayResponse,
 } from "@/lib/api/types";
 
 // In mock mode the Connections UI runs against an in-memory store so the screens
@@ -3271,6 +3273,123 @@ function mockConnectionLifecycle(action: "test" | "publish" | "archive") {
   };
 }
 
+// ── Group V2 — replay / impact preview ───────────────────────────────────────
+// POST /api/connections/{connectionId}/revisions/{revisionId}/replay. Runs
+// historical orders through the revision and returns a per-order diff vs. the
+// order's CURRENT result. Non-mutating, never delivers. Backend:
+// ProcuLink.Api/Services/ReplayService.cs (MaxOrders=50, recentLimit clamp 1..50).
+
+function _mockReplayOrders(): ReplayResponse["orders"] {
+  return [
+    {
+      orderId: "ord-mock-1",
+      poNumber: "PO-2026-0481",
+      outputFormat: "Csv",
+      outputChanged: true,
+      currentOutput:
+        "PoNumber,LineNo,ItemCode,Qty,UnitPrice\nPO-2026-0481,1,FP-B001,12,4.50\nPO-2026-0481,2,FP-W210,4,18.00",
+      draftOutput:
+        "PoNumber,LineNo,ItemCode,Qty,UnitPrice\nPO-2026-0481,1,FP-B001,12,4.500\nPO-2026-0481,2,SUP-W210,4,18.000",
+      outputError: null,
+      effectiveValueChanges: [
+        { scope: "line", lineNumber: 2, field: "SupplierItemCode", currentValue: "FP-W210", draftValue: "SUP-W210" },
+        { scope: "line", lineNumber: 1, field: "UnitPrice", currentValue: "4.50", draftValue: "4.500" },
+      ],
+      validationChanged: true,
+      currentValidation: { passed: true, passCount: 6, failCount: 0, hasProfile: true },
+      draftValidation: { passed: false, passCount: 5, failCount: 1, hasProfile: true },
+      validationFlips: [
+        {
+          code: "ITEM_IN_CATALOG",
+          lineNumber: 2,
+          currentStatus: "pass",
+          draftStatus: "fail",
+          message: "Supplier item code 'SUP-W210' was not found in the supplier catalog.",
+        },
+      ],
+    },
+    {
+      orderId: "ord-mock-2",
+      poNumber: "PO-2026-0479",
+      outputFormat: "Csv",
+      outputChanged: true,
+      currentOutput: "PoNumber,LineNo,ItemCode,Qty\nPO-2026-0479,1,FP-B001,3",
+      draftOutput: "PoNumber,LineNo,ItemCode,Qty\nPO-2026-0479,1,FP-B001,3.0",
+      outputError: null,
+      effectiveValueChanges: [
+        { scope: "line", lineNumber: 1, field: "Quantity", currentValue: "3", draftValue: "3.0" },
+      ],
+      validationChanged: false,
+      currentValidation: { passed: true, passCount: 4, failCount: 0, hasProfile: true },
+      draftValidation: { passed: true, passCount: 4, failCount: 0, hasProfile: true },
+      validationFlips: [],
+    },
+    {
+      orderId: "ord-mock-3",
+      poNumber: "PO-2026-0470",
+      outputFormat: "Xml",
+      outputChanged: false,
+      currentOutput: null,
+      draftOutput: null,
+      outputError: "Template render failed: unknown variable 'Line.Sku' at line 8.",
+      effectiveValueChanges: [],
+      validationChanged: false,
+      currentValidation: { passed: true, passCount: 0, failCount: 0, hasProfile: false },
+      draftValidation: { passed: true, passCount: 0, failCount: 0, hasProfile: false },
+      validationFlips: [],
+    },
+  ];
+}
+
+async function mockReplayConnectionRevision(
+  connectionId: string,
+  revisionId: string,
+  body?: ReplayRequest,
+): Promise<ReplayResponse> {
+  await delay(450);
+  const conn = _mockConnections.find((c) => c.id === connectionId);
+  const rev = conn?.revisions.find((r) => r.id === revisionId);
+  const limit = Math.max(1, Math.min(50, body?.recentLimit && body.recentLimit > 0 ? body.recentLimit : 20));
+  const orders = _mockReplayOrders().slice(0, Math.min(limit, 3));
+  return {
+    connectionId,
+    revisionId,
+    revisionVersionNo: rev?.versionNo ?? 1,
+    revisionStatus: rev?.status ?? "draft",
+    orderCount: orders.length,
+    orders,
+  };
+}
+
+async function realReplayConnectionRevision(
+  connectionId: string,
+  revisionId: string,
+  body?: ReplayRequest,
+): Promise<ReplayResponse> {
+  const res = await fetchWithTimeout(
+    `${API_BASE_URL}/api/connections/${connectionId}/revisions/${revisionId}/replay`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...await authHeader() },
+      body: JSON.stringify({
+        orderIds: body?.orderIds ?? null,
+        recentLimit: body?.recentLimit ?? 20,
+      }),
+    },
+    60000,
+  );
+  if (res.status === 404) throw new ApiHttpError("Connection or revision not found.", 404);
+  if (!res.ok) throw new ApiHttpError(`Replay failed: ${res.statusText}`, res.status);
+  return res.json() as Promise<ReplayResponse>;
+}
+
+export const replayConnectionRevision: (
+  connectionId: string,
+  revisionId: string,
+  body?: ReplayRequest,
+) => Promise<ReplayResponse> =
+  USE_MOCK ? mockReplayConnectionRevision : realReplayConnectionRevision;
+
 export const listConnections: () => Promise<ConnectionSummary[]> =
   USE_MOCK ? mockListConnections : realListConnections;
 export const getConnection: (connectionId: string) => Promise<ConnectionDetail | null> =
@@ -3297,4 +3416,6 @@ export type {
   ConnectionRevisionStatus,
   ConnectionRevisionBundle,
   CreateConnectionRevisionRequest,
+  ReplayRequest,
+  ReplayResponse,
 };

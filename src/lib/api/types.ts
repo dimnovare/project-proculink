@@ -436,3 +436,104 @@ export interface CreateConnectionRevisionRequest {
   cloneFromActive: boolean;
   bundle?: ConnectionRevisionBundle | null;
 }
+
+// ── Group V2 — replay / impact preview ───────────────────────────────────────
+// Mirrors the backend contracts in ProcuLink.Api/Contracts/ReplayDto.cs. Replay
+// runs historical orders through a revision (typically a DRAFT being vetted before
+// publish) and returns a per-order DIFF vs. the order's CURRENT result. The call
+// is NON-MUTATING and never delivers — nothing is written.
+// Bounded server-side at ReplayService.MaxOrders (50) per call.
+
+/** Body for POST /api/connections/{id}/revisions/{revisionId}/replay. */
+export interface ReplayRequest {
+  /**
+   * Explicit order ids to replay (org-scoped, capped at 50). When null/empty,
+   * the most recent {@link recentLimit} orders for the supplier are used.
+   */
+  orderIds?: string[] | null;
+  /**
+   * When orderIds is empty, replay the most recent N orders for the supplier.
+   * Default 20; the backend clamps to 1..50.
+   */
+  recentLimit?: number;
+}
+
+/** "header" or "line" — scope of an effective-value or validation change. */
+export type ReplayChangeScope = "header" | "line" | string;
+
+/** "pass" or "fail" — a rule's outcome under one side of a validation diff. */
+export type ReplayRuleStatus = "pass" | "fail" | string;
+
+/** A single effective canonical-value change (header- or line-scoped). */
+export interface ReplayFieldChange {
+  /** "header" or "line". */
+  scope: ReplayChangeScope;
+  /** Line number for line-scope changes; null for header-scope. */
+  lineNumber: number | null;
+  field: string;
+  currentValue: string | null;
+  draftValue: string | null;
+}
+
+/** Aggregate pass/fail counts for one side of a validation diff. */
+export interface ReplayValidationSummary {
+  /** True when no rule failed (an order with no bound profile is considered passing). */
+  passed: boolean;
+  passCount: number;
+  failCount: number;
+  /** True when a bound acceptance profile was evaluated. */
+  hasProfile: boolean;
+}
+
+/** One rule whose pass/fail status differs between the current and replayed validation. */
+export interface ReplayValidationFlip {
+  code: string;
+  lineNumber: number | null;
+  /** "pass"|"fail" under the order's current bound profile (null when the rule did not exist there). */
+  currentStatus: ReplayRuleStatus | null;
+  /** "pass"|"fail" under the replayed revision's bound profile (null when the rule does not exist there). */
+  draftStatus: ReplayRuleStatus | null;
+  message: string;
+}
+
+/**
+ * The diff for one replayed order: the would-be output + validation under the
+ * replayed revision, vs. the order's CURRENT result. Nothing here is persisted.
+ */
+export interface ReplayOrderDiff {
+  orderId: string;
+  poNumber: string;
+  /** The output format the replayed revision would emit (e.g. "Csv", "Xml"). */
+  outputFormat: string;
+
+  // Output diff
+  /** True when the replayed revision's output text differs from the order's current output text. */
+  outputChanged: boolean;
+  /** The order's CURRENT would-be output. Null if it could not be produced (e.g. unresolved lines). */
+  currentOutput: string | null;
+  /** The output the DRAFT/replayed revision would produce. Null if it could not be produced. */
+  draftOutput: string | null;
+  /** Set when the replayed revision's output could not be produced (broken template, unresolved lines, …). */
+  outputError: string | null;
+
+  // Canonical / effective-value diff
+  effectiveValueChanges: ReplayFieldChange[];
+
+  // Validation diff
+  /** True when the order's pass/fail outcome flips under the replayed revision's bound profile. */
+  validationChanged: boolean;
+  currentValidation: ReplayValidationSummary;
+  draftValidation: ReplayValidationSummary;
+  validationFlips: ReplayValidationFlip[];
+}
+
+/** Response from POST /api/connections/{id}/revisions/{revisionId}/replay. */
+export interface ReplayResponse {
+  connectionId: string;
+  revisionId: string;
+  revisionVersionNo: number;
+  revisionStatus: string;
+  /** How many orders were actually replayed (after the cap / recent-window resolution). */
+  orderCount: number;
+  orders: ReplayOrderDiff[];
+}

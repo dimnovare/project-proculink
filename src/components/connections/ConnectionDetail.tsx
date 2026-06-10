@@ -13,8 +13,8 @@
 //
 // The component-level draft editors (mapping / output template / delivery /
 // item codes) are NOT rebuilt here — V1 links to the existing per-supplier
-// editors. The replay / impact view is a SEPARATE V2 follow-up: a labelled
-// placeholder marks where it will land.
+// editors. The replay / impact view (V2) is now LIVE: ReplayPanel below replays
+// historical orders against a revision and shows the per-order diff before publish.
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -25,6 +25,7 @@ import { PageHeader } from "@/components/bridge/layout/PageHeader";
 import { Card } from "@/components/bridge/layout/Card";
 import { Button } from "@/components/bridge/DSPrimitives";
 import { RevisionStatusBadge } from "@/components/connections/RevisionStatusBadge";
+import { ReplayPanel } from "@/components/connections/ReplayPanel";
 import {
   getConnection,
   getConnectionRevision,
@@ -407,19 +408,14 @@ export function ConnectionDetail({ connectionId }: { connectionId: string }) {
             )}
           </Card>
 
-          {/* ── Replay / impact — V2 placeholder (NOT built in V1) ────── */}
-          <Card
-            edge="blue"
-            title="Replay & impact preview"
-            sub="Coming soon"
-            className="lg:col-span-2"
-          >
-            <p className="text-[12.5px] leading-[1.55]" style={{ color: "var(--ink-muted)" }}>
-              A future release will let you replay past orders against a draft revision and preview
-              the diff before publishing — so you can see exactly which orders a change would affect.
-              The replay endpoint is being built in parallel; this section is a placeholder until it ships.
-            </p>
-          </Card>
+          {/* ── Replay / impact preview — V2 (live) ───────────────────── */}
+          <div className="lg:col-span-2">
+            <ReplayPanel
+              connectionId={connectionId}
+              revisions={revisions}
+              activeRevisionId={activeRevisionId}
+            />
+          </div>
         </div>
       )}
 
