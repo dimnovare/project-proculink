@@ -169,10 +169,18 @@ export interface ResolvePayload {
   // Sent ONLY for fields the user actually edited in the order-review header.
   // The backend treats null/absent as "no change", so omitting a field leaves
   // the parsed value untouched. ISO "yyyy-MM-dd" for orderDate, ISO-4217 for
-  // currency. PO number + supplier are intentionally NOT editable.
+  // currency.
   orderDate?: string;
   buyerName?: string;
   currency?: string;
+  // ── PO number + printed supplier name (display-only corrections) ───────────
+  // The backend accepts both (trimmed, max 256). poNumber corrects the document
+  // identity shown across the UI; supplierName corrects ONLY the printed/display
+  // name and does NOT change routing/SupplierId (delivery still goes to the
+  // resolved supplier). A header-only edit (poNumber with zero line resolutions)
+  // is accepted by the resolve endpoint.
+  poNumber?: string;
+  supplierName?: string;
 }
 
 export interface ResolveResult {

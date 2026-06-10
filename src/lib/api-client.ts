@@ -586,9 +586,13 @@ async function mockResolvePurchaseOrder(
 
   // Item 2: echo edited header fields so a refetch in mock mode shows the
   // "persisted" values (real backend persists; mock just mirrors the request).
-  if (payload.orderDate !== undefined) order.orderDate = payload.orderDate;
-  if (payload.buyerName !== undefined) order.buyerName = payload.buyerName;
-  if (payload.currency  !== undefined) order.currency  = payload.currency;
+  // poNumber + supplierName are display-only here too (supplierName never changes
+  // the routed supplierId — same as the real backend).
+  if (payload.orderDate    !== undefined) order.orderDate    = payload.orderDate;
+  if (payload.buyerName    !== undefined) order.buyerName    = payload.buyerName;
+  if (payload.currency     !== undefined) order.currency     = payload.currency;
+  if (payload.poNumber     !== undefined) order.poNumber     = payload.poNumber;
+  if (payload.supplierName !== undefined) order.supplierName = payload.supplierName;
 
   for (const res of payload.lineResolutions) {
     const li = order.lines.findIndex(l => l.lineNumber === res.lineNumber);
@@ -1347,25 +1351,28 @@ export const apiClient = {
 
   /**
    * Commit resolved supplier-item codes for an order, plus optional header-field
-   * corrections (orderDate / buyerName / currency). Thin wrapper around
-   * resolvePurchaseOrder with saveMappings: true.
+   * corrections (orderDate / buyerName / currency / poNumber / supplierName).
+   * Thin wrapper around resolvePurchaseOrder with saveMappings: true.
    *
    * Only the header fields actually passed are forwarded — the backend treats
    * null/absent as "no change", so a header-only edit can ride along even with
-   * an empty resolutions list. PO number + supplier are NOT editable.
+   * an empty resolutions list. poNumber + supplierName are display-only: the
+   * backend trims them (max 256) and supplierName does NOT change routing/SupplierId.
    */
   commitMappings(
     orderId: string,
     resolutions: { lineNumber: number; supplierItemCode: string }[],
-    header?: { orderDate?: string; buyerName?: string; currency?: string },
+    header?: { orderDate?: string; buyerName?: string; currency?: string; poNumber?: string; supplierName?: string },
   ) {
     return (USE_MOCK ? mockResolvePurchaseOrder : realResolvePurchaseOrder)(orderId, {
       lineResolutions: resolutions,
       saveMappings: true,
       // Spread only present keys so absent fields stay absent on the wire.
-      ...(header?.orderDate !== undefined ? { orderDate: header.orderDate } : {}),
-      ...(header?.buyerName !== undefined ? { buyerName: header.buyerName } : {}),
-      ...(header?.currency  !== undefined ? { currency:  header.currency  } : {}),
+      ...(header?.orderDate    !== undefined ? { orderDate:    header.orderDate }    : {}),
+      ...(header?.buyerName    !== undefined ? { buyerName:    header.buyerName }    : {}),
+      ...(header?.currency     !== undefined ? { currency:     header.currency }     : {}),
+      ...(header?.poNumber     !== undefined ? { poNumber:     header.poNumber }     : {}),
+      ...(header?.supplierName !== undefined ? { supplierName: header.supplierName } : {}),
     });
   },
 };
