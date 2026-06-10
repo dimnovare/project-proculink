@@ -1044,7 +1044,110 @@ function DocumentAnatomy({
           {confBadge}
         </div>
       )}
-      <div style={{ display: collapsed ? "none" : "flex", gap: 8, alignItems: "stretch" }}>
+      {/* COLLAPSED summary card — a REAL VISIBLE element set (not display:none) that
+          carries the SAME onSection zone anchors as the expanded body. The source→
+          canonical wires read srcSectionEls[zone] for their SOURCE endpoint; if the
+          only anchors lived in the expanded body (display:none → zero rect), every
+          source wire's endpoint collapsed to (≈0,0) i.e. the top-left of the page —
+          the "wires fly up to the top" bug. We render EITHER this summary OR the full
+          body (never both), so React attaches each zone ref to whichever branch is
+          mounted/visible — srcSectionEls[zone] always resolves to a real laid-out
+          element in BOTH states. Shows the buyer line, the PURCHASE ORDER po#·date
+          line (header-meta), and a compact line table — matching the founder's video. */}
+      {collapsed ? (
+        <div
+          style={{
+            borderRadius: 6, background: "#FFFFFF", padding: "10px 12px",
+            fontFamily: "'Times New Roman',serif", fontSize: 9.5, color: "#1a1a1a",
+            boxShadow: "0 1px 4px rgba(0,0,0,0.06)", border: "1px solid #ECEFF4",
+          }}
+        >
+          {/* Header line — buyer + "PURCHASE ORDER po#·date". po#/date carry the
+              "header-meta" anchor (po + date canonical wires terminate here); the buyer
+              name carries "header". */}
+          <div
+            ref={(el) => onSection?.("header", el)}
+            style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 10, ...sectionStyle("header") }}
+            onMouseEnter={() => onZoneHover?.("header")}
+            onMouseLeave={() => onZoneHover?.(null)}
+          >
+            <span style={{ fontFamily: "Inter,sans-serif", fontSize: 12, fontWeight: 800, letterSpacing: "0.03em", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "55%" }}>
+              {order.buyerName ?? "Buyer (parsing…)"}
+            </span>
+            <span
+              ref={(el) => onSection?.("header-meta", el)}
+              style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 9, flexShrink: 0, textAlign: "right" }}
+            >
+              PURCHASE ORDER {order.poNumber} · {dateLabel}
+            </span>
+          </div>
+
+          {/* Parties — buyer/supplier. Carries the "parties" anchor (buyer + supplier
+              canonical wires terminate here). */}
+          <div
+            ref={(el) => onSection?.("parties", el)}
+            style={{ marginTop: 8, fontSize: 9, padding: "2px 0", ...sectionStyle("parties") }}
+            onMouseEnter={() => onZoneHover?.("parties")}
+            onMouseLeave={() => onZoneHover?.(null)}
+          >
+            Buyer: {order.buyerName ?? "—"} · Supplier: {order.supplierName}
+          </div>
+
+          {/* Terms — currency + line count. Carries the "terms" anchor (currency wire). */}
+          <div
+            ref={(el) => onSection?.("terms", el)}
+            style={{ marginTop: 6, fontSize: 9, padding: "2px 0", ...sectionStyle("terms") }}
+            onMouseEnter={() => onZoneHover?.("terms")}
+            onMouseLeave={() => onZoneHover?.(null)}
+          >
+            Currency: {order.currency} · {lineCount} line{lineCount !== 1 ? "s" : ""}
+          </div>
+
+          {/* Compact line table — carries the "lines" anchor (the line-items wire). */}
+          {lineCount > 0 ? (
+            <table
+              ref={(el) => onSection?.("lines", el)}
+              style={{ width: "100%", borderCollapse: "collapse", marginTop: 8, fontSize: 8.5, cursor: "pointer" }}
+              onMouseEnter={() => onZoneHover?.("lines")}
+              onMouseLeave={() => onZoneHover?.(null)}
+            >
+              <tbody>
+                {previewLines.slice(0, 4).map((l) => (
+                  <tr key={l.id}>
+                    <td style={{ padding: "1px 4px", borderBottom: "1px dotted #E0E0E0", color: "#888" }}>{l.lineNumber}</td>
+                    <td style={{ fontFamily: "monospace" }}>{l.buyerItemCode}</td>
+                    <td style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 0 }}>{l.description ?? "—"}</td>
+                    <td style={{ textAlign: "right" }}>×{l.quantity}</td>
+                  </tr>
+                ))}
+                {previewLines.length > 4 && (
+                  <tr><td colSpan={4} style={{ padding: "1px 4px", fontSize: 8, color: "#A8B0BF", fontStyle: "italic" }}>+{previewLines.length - 4} more</td></tr>
+                )}
+              </tbody>
+            </table>
+          ) : (
+            <div
+              ref={(el) => onSection?.("lines", el)}
+              style={{ marginTop: 8, fontSize: 9, color: "#888", fontStyle: "italic" }}
+              onMouseEnter={() => onZoneHover?.("lines")}
+              onMouseLeave={() => onZoneHover?.(null)}
+            >
+              No line items parsed yet.
+            </div>
+          )}
+
+          {/* Totals — grand total. Carries the "totals" anchor. */}
+          <div
+            ref={(el) => onSection?.("totals", el)}
+            style={{ marginTop: 8, textAlign: "right", fontSize: 9, fontWeight: 700, ...sectionStyle("totals") }}
+            onMouseEnter={() => onZoneHover?.("totals")}
+            onMouseLeave={() => onZoneHover?.(null)}
+          >
+            Grand total: {formatMoney(order.currency, resolvedGrandTotal(order))}
+          </div>
+        </div>
+      ) : (
+      <div style={{ display: "flex", gap: 8, alignItems: "stretch" }}>
         {/* Confidence zone rail — clickable/hoverable markers */}
         <div style={{ display: "flex", flexDirection: "column", gap: 5, width: 28, flexShrink: 0 }}>
           {(["header", "parties", "lines", "terms"] as const).map((zone, idx) => {
@@ -1164,6 +1267,7 @@ function DocumentAnatomy({
           )}
         </div>
       </div>
+      )}
     </div>
   );
 }
@@ -3036,10 +3140,14 @@ export function SpineReview({ orderId }: { orderId: string }) {
                   // WireDragLayer owns the canonical→output (right) wires so they can be
                   // override-aware + re-routable; SpineConnectors draws only source→canonical.
                   drawOutput={false}
-                  // When the reconstructed-document body is collapsed its section anchors
-                  // are display:none (zero rect) — stop drawing source→canonical wires so
-                  // they don't collapse onto the panel's top-left corner.
-                  drawSource={!parsedDocCollapsed}
+                  // Source→canonical wires draw in BOTH collapsed and expanded states.
+                  // The collapsed summary card (DocumentAnatomy) now carries the SAME
+                  // onSection zone anchors as the expanded body on REAL VISIBLE elements,
+                  // so srcSectionEls[zone] resolves to a laid-out rect either way — the
+                  // wires anchor to the visible PO#/date line, parties, and line rows
+                  // instead of flying to the top-left when collapsed. The signature below
+                  // still carries the collapse flag so a toggle forces a re-measure.
+                  drawSource
                 />
               )}
 
