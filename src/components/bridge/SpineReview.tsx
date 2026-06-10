@@ -158,8 +158,8 @@ function buildNodesFromOrder(order: Order, labels: PartyLabels): SpineNodeData[]
     // supplierName edits the PRINTED/display name only — it does NOT re-route
     // delivery or remap codes (the routed supplier is still chosen via the
     // supplier picker, not this inline edit).
-    { id: "po",       label: "PO number",   value: order.poNumber,            pct: 99, mono: true,  editable: true,  srcRef: "header",  outRef: "Order/@orderID"    },
-    { id: "date",     label: "Order date",  value: order.orderDate,            pct: 95, mono: true,  editable: true,  srcRef: "header",  outRef: "Order/orderDate"   },
+    { id: "po",       label: "PO number",   value: order.poNumber,            pct: 99, mono: true,  editable: true,  srcRef: "header-meta",  outRef: "Order/@orderID"    },
+    { id: "date",     label: "Order date",  value: order.orderDate,            pct: 95, mono: true,  editable: true,  srcRef: "header-meta",  outRef: "Order/orderDate"   },
     { id: "buyer",    label: "Buyer",       value: order.buyerName ?? "(parsing…)", pct: order.buyerName ? 98 : 50, tone: "buyer",    editable: true,  srcRef: "parties", outRef: "BillTo/Contact"    },
     { id: "supplier", label: labels.counterpartyNoun, value: order.supplierName, pct: 97, tone: "supplier", editable: true,  srcRef: "parties", outRef: "ShipFrom/Contact", hint: supplierHint, hintTone: "muted" },
     { id: "currency", label: "Currency",    value: order.currency,             pct: 99, mono: true,  editable: true,  srcRef: "terms",   outRef: "Total/@currency"   },
@@ -1062,7 +1062,10 @@ function DocumentAnatomy({
             </div>
             <div style={{ textAlign: "right", flexShrink: 0 }}>
               <div style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase" }}>Purchase Order</div>
-              <div style={{ fontSize: 9, fontFamily: "'JetBrains Mono',monospace" }}>{order.poNumber} · {dateLabel}</div>
+              {/* PO number + order date live on THIS line — anchor it distinctly so the
+                  "po"/"date" canonical wires terminate here, not at the header's vertical
+                  centre (which sits on the buyer name above). */}
+              <div ref={(el) => onSection?.("header-meta", el)} style={{ fontSize: 9, fontFamily: "'JetBrains Mono',monospace" }}>{order.poNumber} · {dateLabel}</div>
             </div>
           </div>
 
