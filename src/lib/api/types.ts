@@ -330,6 +330,61 @@ export interface SupplierCatalogImportResult {
   total: number;
 }
 
+// ── Group V7 — Connector Manifests ───────────────────────────────────────────
+
+/**
+ * A single configuration field descriptor within a connector manifest.
+ * Mirrors ConnectorConfigFieldDto (ProcuLink.Api/Contracts/ConnectorManifestDto.cs).
+ */
+export interface ConnectorConfigField {
+  /** JSON key the dispatcher reads (e.g. "url", "host", "port"). */
+  name: string;
+  /** Human-readable label for UI display. */
+  label: string;
+  /** Data type hint: "string", "number", "bool", "secret", or "url". */
+  type: string;
+  /** True when the dispatcher validates this field as required. */
+  required: boolean;
+  /** True when the field is stored in encrypted credentials rather than plain config JSON. */
+  secret: boolean;
+  /** Optional one-sentence help text for UI, or null. */
+  helpText: string | null;
+}
+
+/**
+ * API representation of a connector manifest.
+ * Mirrors ConnectorManifestDto (ProcuLink.Api/Contracts/ConnectorManifestDto.cs).
+ */
+export interface ConnectorManifest {
+  /** Protocol key (e.g. "http", "sftp", "erp_erply"). Matches DeliveryProtocolConstants. */
+  key: string;
+  /** Human-readable display name (e.g. "HTTP / REST", "SFTP"). */
+  displayName: string;
+  /** Transport category (e.g. "http", "sftp", "ftps", "smtp", "erp"). */
+  transport: string;
+  /** Supported authentication types (free-text description). */
+  authType: string;
+  /** Ordered configuration field descriptors. */
+  fields: ConnectorConfigField[];
+  /** Short capability notes, or null. */
+  capabilities: string | null;
+  /** Optional documentation URL, or null. */
+  docsRef: string | null;
+}
+
+/**
+ * Result of POST /api/connector-manifests/{key}/validate-config.
+ * Mirrors ValidateConfigResultDto (ProcuLink.Api/Contracts/ConnectorManifestDto.cs).
+ */
+export interface ValidateConnectorConfigResult {
+  /** True when all required fields are present and no unknown keys were posted. */
+  valid: boolean;
+  /** Required field names that are absent from the posted config object. */
+  missing: string[];
+  /** Keys present in the posted config object that are not declared in the manifest. */
+  unknown: string[];
+}
+
 // ── Group V1 — versioned Supplier Connection ─────────────────────────────────
 // Mirrors the backend contracts in ProcuLink.Api/Contracts/ConnectionDto.cs and
 // the lifecycle on ProcuLink.Core/Entities/SupplierConnectionRevision.cs. A
