@@ -12,46 +12,7 @@ import type {
   OrgSettings,
   OrderDirection,
 } from "@/types/procurement";
-
-const API_BASE_URL = (() => {
-  const raw = (process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:5223").trim().replace(/\/+$/, "");
-  if (!raw) return "http://localhost:5223";
-  if (/^https?:\/\//i.test(raw)) return raw;
-  return `https://${raw}`;
-})();
-
-const USE_MOCK =
-  process.env.NEXT_PUBLIC_USE_MOCK === "true" &&
-  process.env.NODE_ENV !== "production";
-
-async function authHeader(): Promise<Record<string, string>> {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const token = await (window as any).Clerk?.session?.getToken();
-  return token ? { Authorization: `Bearer ${token}` } : {};
-}
-
-async function fetchWithTimeout(
-  input: RequestInfo | URL,
-  init?: RequestInit,
-  timeoutMs = 8000,
-): Promise<Response> {
-  const controller = new AbortController();
-  let didTimeout = false;
-  const timeout = globalThis.setTimeout(() => {
-    didTimeout = true;
-    controller.abort();
-  }, timeoutMs);
-  try {
-    return await fetch(input, { ...init, signal: controller.signal });
-  } catch (err) {
-    if (didTimeout || (err instanceof DOMException && err.name === "AbortError")) {
-      throw new Error(`Request timed out after ${timeoutMs}ms`, { cause: err });
-    }
-    throw err;
-  } finally {
-    globalThis.clearTimeout(timeout);
-  }
-}
+import { API_BASE_URL, USE_MOCK, authHeader, fetchWithTimeout } from "./core";
 
 // ── Email polling settings ────────────────────────────────────────────────
 
