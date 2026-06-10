@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import type { ReactNode } from "react";
 import { KeyRound, Save, Send, Trash2 } from "lucide-react";
+import { ConnectorRequirementsPanel } from "@/components/bridge/ConnectorRequirementsPanel";
 import {
   deleteDeliveryConfig,
   getDeliveryConfig,
@@ -865,6 +866,13 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
                   </div>
                 )}
               </div>
+
+              {/* ── Connector requirements (V7, additive) ────────────────── */}
+              <ConnectorRequirementsPanel
+                supplierId={supplierId}
+                protocol={protocol}
+                buildConfig={buildConfigObject}
+              />
 
               <pre className="rounded-[6px] p-3 text-[11px]" style={{ background: "#0B1A2F", color: "#DDE7F7", overflow: "auto" }}>
                 {configPreview}
