@@ -16,16 +16,9 @@ import type {
   OnboardingStatus,
   DashboardStats,
   DashboardTopology,
-  BillingStatus,
-  EmailSettings,
-  UpdateEmailSettingsPayload,
   PassportDto,
   SupplierConfirmation,
   OrdersSummary,
-  OrderDirection,
-  OrgSettings,
-  SetOrgLimitsRequest,
-  OrgLimitsResponse,
 } from "@/types/procurement";
 
 function normalizeApiBaseUrl(raw: string | undefined): string {
@@ -1377,17 +1370,8 @@ export const apiClient = {
   },
 };
 
-// ── Delivery reliability: dead-letter count (ops view) ──────────────────────
-
-/** Number of orders currently in the terminal delivery_dead_letter state. */
-export async function getDeadLetterCount(): Promise<number> {
-  if (USE_MOCK) { await delay(120); return 0; }
-  const headers = await authHeader();
-  const res = await fetchWithTimeout(`${API_BASE_URL}/api/orders/dead-letter-count`, { headers });
-  if (!res.ok) throw new Error(`dead-letter-count: ${res.status}`);
-  const data = await res.json() as { count: number };
-  return data.count;
-}
+// ── Delivery reliability: dead-letter count (moved to src/lib/api/operations.ts) ──
+export { getDeadLetterCount } from "@/lib/api/operations";
 
 // ── Per-order mapping override (heart-piece-flex) ────────────────────────────
 // Default (no override) leaves the transform byte-identical; these power the
@@ -1757,417 +1741,43 @@ export async function deleteTemplate(id: string): Promise<void> {
   if (!res.ok) throw new Error(`templates/delete: ${res.status}`);
 }
 
-// ── Billing ────────────────────────────────────────────────────────────────
+// ── Billing + admin (moved to src/lib/api/billing.ts) ─────────────────────────
+export {
+  getBillingStatus,
+  createCheckoutSession,
+  createPortalSession,
+  AdminAccessError,
+  getAdminOverview,
+  getAdminOrganisations,
+  checkAdminAccess,
+  createAdminInvoice,
+  setOrgLimits,
+} from "@/lib/api/billing";
+export type {
+  AdminOverview,
+  AdminOrganisation,
+  CreateAdminInvoiceLineItem,
+  CreateAdminInvoiceRequest,
+  CreateAdminInvoiceResult,
+} from "@/lib/api/billing";
 
-export async function getBillingStatus(): Promise<BillingStatus> {
-  if (USE_MOCK) {
-    return {
-      plan:                   "pilot",
-      accountStatus:          "trialing",
-      ordersThisMonth:        5,
-      orderLimit:             20,
-      suppliersUsed:          1,
-      supplierLimit:          1,
-      trialStartedAt:         new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
-      trialEndsAt:            new Date(Date.now() + 9 * 24 * 60 * 60 * 1000).toISOString(),
-      isTrialExpired:         false,
-      isOrderLimitReached:    false,
-      isSupplierLimitReached: true,
-      canProcessOrders:       true,
-      canAddSupplier:         false,
-      stripeCustomerId:       null,
-      stripeSubscriptionId:   null,
-      overageOrders:          0,
-      overageAmountEur:       0,
-      nearLimit:              false,
-      atLimit:                false,
-    };
-  }
-  const headers = await authHeader();
-  const res = await fetchWithTimeout(`${API_BASE_URL}/api/billing/status`, { headers });
-  if (!res.ok) throw new Error(`billing/status: ${res.status}`);
-  return res.json();
-}
-
-export async function createCheckoutSession(plan: string, billingInterval: "monthly" | "yearly" = "monthly"): Promise<string> {
-  const headers = await authHeader();
-  const res = await fetchWithTimeout(`${API_BASE_URL}/api/billing/checkout`, {
-    method: "POST",
-    headers: { ...headers, "Content-Type": "application/json" },
-    body: JSON.stringify({ plan, billingInterval }),
-  }, 30000);
-  if (!res.ok) throw new Error(`billing/checkout: ${res.status}`);
-  const data = await res.json();
-  return data.url as string;
-}
-
-export async function createPortalSession(): Promise<string> {
-  const headers = await authHeader();
-  const res = await fetchWithTimeout(`${API_BASE_URL}/api/billing/portal`, {
-    method: "POST",
-    headers,
-  }, 30000);
-  if (!res.ok) throw new Error(`billing/portal: ${res.status}`);
-  const data = await res.json();
-  return data.url as string;
-}
-
-// ── Platform admin (owner area) ───────────────────────────────────────────
-// All endpoints sit under /api/admin behind a SERVER-SIDE platform-admin gate:
-//   401 → unauthenticated, 403 → authenticated but not on the admin allowlist.
-// The allowlist (Admin__UserIds / Admin__Emails) is server-side only — the
-// frontend can never see it, so a 403 is the canonical "you are not an admin"
-// signal. AdminAccessError carries the distinction so the page can render a
-// clean "no access" view (403) vs prompting sign-in (401) instead of a generic
-// "something broke" banner.
-
-/** Thrown when an /api/admin call is refused — 401 (signed out) or 403 (not an admin). */
-export class AdminAccessError extends Error {
-  status: 401 | 403;
-  constructor(status: 401 | 403) {
-    super(status === 401 ? "Not authenticated" : "Not authorized for the admin area");
-    this.name = "AdminAccessError";
-    this.status = status;
-  }
-}
-
-export interface AdminOverview {
-  /** Monthly recurring revenue in EUR, sourced from the DB account/plan ladder. */
-  mrr: number;
-  /** Annualised recurring revenue in EUR (mrr * 12). */
-  arr: number;
-  /** MRR as Stripe reports it, or null when Stripe MRR couldn't be sourced. */
-  stripeMrr: number | null;
-  /** True when the DB MRR reconciles with Stripe MRR. */
-  reconciled: boolean;
-  /** Raw account-status → count map (trialing | active | trial_expired | past_due | read_only | cancelled). */
-  countsByAccountStatus: Record<string, number>;
-  newOrgsThisMonth: number;
-  /** Trial→paid conversion as a 0..1 fraction. */
-  trialToPaidConversion: number;
-}
-
-export interface AdminOrganisation {
-  id: string;
-  name: string;
-  slug: string;
-  plan: string;
-  accountStatus: string;
-  stripeCustomerId: string | null;
-  stripeSubscriptionId: string | null;
-  /** This org's contribution to MRR in EUR. */
-  mrrContribution: number;
-  createdAt: string;
-  lastOrderActivity: string | null;
-  orderVolume30d: number;
-  supplierCount: number;
-}
-
-export interface CreateAdminInvoiceLineItem {
-  description: string;
-  /** PER-UNIT amount in cents (>0). */
-  amountCents: number;
-  /** Defaults to 1 on the backend when omitted. */
-  quantity?: number;
-}
-
-export interface CreateAdminInvoiceRequest {
-  organisationId: string;
-  lineItems: CreateAdminInvoiceLineItem[];
-  /** ISO-4217 lowercase; defaults to "eur" on the backend. */
-  currency?: string;
-}
-
-export interface CreateAdminInvoiceResult {
-  invoiceId: string;
-  hostedInvoiceUrl: string | null;
-  status: string;
-}
-
-/** Read an /api/admin error body and re-throw as AdminAccessError (401/403) or a message-bearing Error. */
-async function adminError(res: Response, label: string): Promise<never> {
-  if (res.status === 401 || res.status === 403) {
-    throw new AdminAccessError(res.status);
-  }
-  const body = await res.json().catch(() => null);
-  const message =
-    body && typeof body === "object" && "error" in body
-      ? String((body as { error?: unknown }).error)
-      : res.statusText;
-  throw new ApiHttpError(`${label}: ${message || res.status}`, res.status, body);
-}
-
-export async function getAdminOverview(): Promise<AdminOverview> {
-  const headers = await authHeader();
-  const res = await fetchWithTimeout(`${API_BASE_URL}/api/admin/overview`, { headers });
-  if (!res.ok) return adminError(res, "admin/overview");
-  return res.json() as Promise<AdminOverview>;
-}
-
-export async function getAdminOrganisations(): Promise<AdminOrganisation[]> {
-  const headers = await authHeader();
-  const res = await fetchWithTimeout(`${API_BASE_URL}/api/admin/organisations`, { headers });
-  if (!res.ok) return adminError(res, "admin/organisations");
-  return res.json() as Promise<AdminOrganisation[]>;
-}
-
-/**
- * Probe whether the current user is on the server-side admin allowlist — used
- * ONLY to decide whether to render the Admin nav link. Returns true on 2xx
- * (the [AdminOnly] gate let us through), false on 401/403 or any error.
- *
- * This is a UX hint, never a security boundary: the /admin page and every
- * /api/admin endpoint independently enforce the gate, so a wrong answer here
- * can only show or hide a link — it can never grant access. Fail-closed on
- * error (hide the link) and surface the link in mock mode for dev/demo.
- */
-export async function checkAdminAccess(): Promise<boolean> {
-  if (isApiMockMode) return true;
-  try {
-    const headers = await authHeader();
-    const res = await fetchWithTimeout(`${API_BASE_URL}/api/admin/access`, { headers });
-    return res.ok;
-  } catch {
-    return false;
-  }
-}
-
-export async function createAdminInvoice(
-  req: CreateAdminInvoiceRequest,
-): Promise<CreateAdminInvoiceResult> {
-  const headers = await authHeader();
-  const res = await fetchWithTimeout(`${API_BASE_URL}/api/admin/invoices`, {
-    method: "POST",
-    headers: { ...headers, "Content-Type": "application/json" },
-    body: JSON.stringify(req),
-  }, 30000);
-  if (!res.ok) return adminError(res, "admin/invoices");
-  return res.json() as Promise<CreateAdminInvoiceResult>;
-}
-
-/**
- * Adjust a single org's effective limits / pilot window.
- * POST /api/admin/organisations/{id}/limits — behind the server-side [AdminOnly]
- * gate (401 signed out / 403 not an admin, surfaced as AdminAccessError).
- *
- * Every field is optional and independent; the matching clear* flag resets that
- * field to its plan default. Returns the saved overrides + the resulting
- * effective limits so the caller can show what actually applies now.
- *
- * Mock mode echoes the request back as a no-op success (no backend), defaulting
- * effective limits to the requested overrides or sensible Pilot defaults.
- */
-export async function setOrgLimits(
-  orgId: string,
-  body: SetOrgLimitsRequest,
-): Promise<OrgLimitsResponse> {
-  if (USE_MOCK) {
-    await delay(400);
-    const now = Date.now();
-    const trialEnd = body.clearTrialEnds
-      ? null
-      : body.trialEndsAtOverride
-        ? body.trialEndsAtOverride
-        : body.extendTrialDays != null
-          ? new Date(now + body.extendTrialDays * 86_400_000).toISOString()
-          : null;
-    return {
-      id: orgId,
-      name: "Mock organisation",
-      plan: "pilot",
-      accountStatus: "trialing",
-      orderLimitOverride: body.clearOrderLimit ? null : body.orderLimitOverride ?? null,
-      supplierLimitOverride: body.clearSupplierLimit ? null : body.supplierLimitOverride ?? null,
-      trialEndsAtOverride: trialEnd,
-      effectiveOrderLimit: body.clearOrderLimit ? 20 : body.orderLimitOverride ?? 20,
-      effectiveSupplierLimit: body.clearSupplierLimit ? 1 : body.supplierLimitOverride ?? 1,
-      effectiveTrialEndsAt: trialEnd,
-    };
-  }
-  const headers = await authHeader();
-  const res = await fetchWithTimeout(`${API_BASE_URL}/api/admin/organisations/${orgId}/limits`, {
-    method: "POST",
-    headers: { ...headers, "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  }, 30000);
-  if (!res.ok) return adminError(res, "admin/organisations/limits");
-  return res.json() as Promise<OrgLimitsResponse>;
-}
-
-// ── Email polling settings ────────────────────────────────────────────────
-
-export async function getEmailSettings(): Promise<EmailSettings> {
-  if (USE_MOCK) {
-    return {
-      enabled: false,
-      host: "",
-      port: 993,
-      useSsl: true,
-      username: "",
-      folder: "INBOX",
-      defaultSupplierId: null,
-      hasPassword: false,
-      passwordDisplay: null,
-      lastPolledAt: null,
-      updatedAt: null,
-    };
-  }
-
-  const headers = await authHeader();
-  const res = await fetchWithTimeout(`${API_BASE_URL}/api/settings/email`, { headers });
-  if (!res.ok) throw new Error(`settings/email: ${res.status}`);
-  return res.json();
-}
-
-export async function updateEmailSettings(payload: UpdateEmailSettingsPayload): Promise<EmailSettings> {
-  const headers = await authHeader();
-  const res = await fetchWithTimeout(`${API_BASE_URL}/api/settings/email`, {
-    method: "PUT",
-    headers: { ...headers, "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  }, 30000);
-
-  if (!res.ok) {
-    const body = await res.json().catch(() => null);
-    throw new Error(body?.error ?? `settings/email: ${res.status}`);
-  }
-
-  return res.json();
-}
-
-// ── Organisation settings (order direction) ───────────────────────────────
-// Backend contract:
-//   GET  /api/settings/organisation -> 200 { "direction": "Outbound" | "Inbound" }  (PascalCase)
-//   PUT  /api/settings/organisation  body { "direction": "Inbound" } -> 200 { "direction": "Inbound" }
-// Input is case-insensitive; the property name is camelCase `direction`.
-// We NORMALISE the response to lowercase internally and SEND PascalCase on write.
-
-/** Lowercase whatever the API returns ("Outbound"/"Inbound") to our internal union. */
-function normalizeDirection(raw: unknown): OrderDirection {
-  return String(raw ?? "Outbound").toLowerCase() === "inbound" ? "inbound" : "outbound";
-}
-
-/** PascalCase for the wire ("inbound" -> "Inbound"). */
-function toApiDirection(direction: OrderDirection): "Outbound" | "Inbound" {
-  return direction === "inbound" ? "Inbound" : "Outbound";
-}
-
-export async function getOrgSettings(): Promise<OrgSettings> {
-  // Mock mode has no backend/Clerk session — default to outbound so mock/e2e don't break.
-  if (USE_MOCK) {
-    return { direction: "outbound", slug: "demo-workspace" };
-  }
-
-  const headers = await authHeader();
-  const res = await fetchWithTimeout(`${API_BASE_URL}/api/settings/organisation`, { headers });
-  if (!res.ok) throw new Error(`settings/organisation: ${res.status}`);
-  const body = await res.json().catch(() => ({}));
-  const raw = body as { direction?: unknown; slug?: unknown };
-  // `slug` is added by the backend org-settings response; tolerate its absence
-  // (older API / mid-rollout) by leaving it undefined so the UI shows "generating…".
-  const slug = typeof raw.slug === "string" && raw.slug.trim() ? raw.slug.trim() : undefined;
-  return { direction: normalizeDirection(raw.direction), slug };
-}
-
-export async function updateOrgSettings(direction: OrderDirection): Promise<OrgSettings> {
-  // Mock mode: no-op success so the control still flips locally without a backend.
-  if (USE_MOCK) {
-    return { direction };
-  }
-
-  const headers = await authHeader();
-  const res = await fetchWithTimeout(`${API_BASE_URL}/api/settings/organisation`, {
-    method: "PUT",
-    headers: { ...headers, "Content-Type": "application/json" },
-    body: JSON.stringify({ direction: toApiDirection(direction) }),
-  }, 30000);
-
-  if (!res.ok) {
-    const body = await res.json().catch(() => null);
-    throw new Error(body?.error ?? `settings/organisation: ${res.status}`);
-  }
-
-  const body = await res.json().catch(() => ({}));
-  const raw = body as { direction?: unknown; slug?: unknown };
-  const slug = typeof raw.slug === "string" && raw.slug.trim() ? raw.slug.trim() : undefined;
-  return { direction: normalizeDirection(raw.direction), slug };
-}
-
-// ── SFTP / S3 pull-ingress settings ───────────────────────────────────────
-
-export interface SftpIngressSettings {
-  enabled: boolean;
-  host: string;
-  port: number;
-  username: string;
-  remoteDirectory: string;
-  defaultSupplierId: string | null;
-  hasPassword: boolean;
-  passwordDisplay: string | null;
-  updatedAt: string | null;
-}
-export interface UpdateSftpIngressPayload {
-  enabled: boolean;
-  host: string;
-  port: number;
-  username: string;
-  password?: string | null;
-  remoteDirectory: string;
-  defaultSupplierId: string | null;
-}
-export interface S3IngressSettings {
-  enabled: boolean;
-  bucketName: string;
-  keyPrefix: string;
-  region: string;
-  accessKeyId: string;
-  defaultSupplierId: string | null;
-  hasSecretKey: boolean;
-  secretKeyDisplay: string | null;
-  updatedAt: string | null;
-  serviceUrl: string | null;
-}
-export interface UpdateS3IngressPayload {
-  enabled: boolean;
-  bucketName: string;
-  keyPrefix: string;
-  region: string;
-  accessKeyId: string;
-  secretKey?: string | null;
-  defaultSupplierId: string | null;
-  serviceUrl?: string | null;
-}
-
-export async function getSftpSettings(): Promise<SftpIngressSettings> {
-  if (USE_MOCK) return { enabled: false, host: "", port: 22, username: "", remoteDirectory: "", defaultSupplierId: null, hasPassword: false, passwordDisplay: null, updatedAt: null };
-  const headers = await authHeader();
-  const res = await fetchWithTimeout(`${API_BASE_URL}/api/settings/sftp`, { headers });
-  if (!res.ok) throw new Error(`settings/sftp: ${res.status}`);
-  return res.json();
-}
-export async function updateSftpSettings(payload: UpdateSftpIngressPayload): Promise<SftpIngressSettings> {
-  const headers = await authHeader();
-  const res = await fetchWithTimeout(`${API_BASE_URL}/api/settings/sftp`, {
-    method: "PUT", headers: { ...headers, "Content-Type": "application/json" }, body: JSON.stringify(payload),
-  }, 30000);
-  if (!res.ok) { const b = await res.json().catch(() => null); throw new Error(b?.error ?? `settings/sftp: ${res.status}`); }
-  return res.json();
-}
-export async function getS3Settings(): Promise<S3IngressSettings> {
-  if (USE_MOCK) return { enabled: false, bucketName: "", keyPrefix: "", region: "", accessKeyId: "", defaultSupplierId: null, hasSecretKey: false, secretKeyDisplay: null, updatedAt: null, serviceUrl: null };
-  const headers = await authHeader();
-  const res = await fetchWithTimeout(`${API_BASE_URL}/api/settings/s3`, { headers });
-  if (!res.ok) throw new Error(`settings/s3: ${res.status}`);
-  return res.json();
-}
-export async function updateS3Settings(payload: UpdateS3IngressPayload): Promise<S3IngressSettings> {
-  const headers = await authHeader();
-  const res = await fetchWithTimeout(`${API_BASE_URL}/api/settings/s3`, {
-    method: "PUT", headers: { ...headers, "Content-Type": "application/json" }, body: JSON.stringify(payload),
-  }, 30000);
-  if (!res.ok) { const b = await res.json().catch(() => null); throw new Error(b?.error ?? `settings/s3: ${res.status}`); }
-  return res.json();
-}
+// ── Email / org / ingress settings (moved to src/lib/api/settings.ts) ─────────
+export {
+  getEmailSettings,
+  updateEmailSettings,
+  getOrgSettings,
+  updateOrgSettings,
+  getSftpSettings,
+  updateSftpSettings,
+  getS3Settings,
+  updateS3Settings,
+} from "@/lib/api/settings";
+export type {
+  SftpIngressSettings,
+  UpdateSftpIngressPayload,
+  S3IngressSettings,
+  UpdateS3IngressPayload,
+} from "@/lib/api/settings";
 
 // ── Wave 4: API Keys ──────────────────────────────────────────────────────
 
@@ -2797,116 +2407,6 @@ async function realGetOrderExceptions(orderId: string): Promise<OrderException[]
   return res.json() as Promise<OrderException[]>;
 }
 
-// ── All-orders exception dashboard ────────────────────────────────────────────
-// GET   /api/exceptions?state=open|resolved|ignored   → OrderException[]
-// PATCH /api/exceptions/{id}/resolve                   → 204
-// PATCH /api/exceptions/{id}/ignore                    → 204
-
-const _mockExceptions: OrderException[] = [
-  {
-    id: "exc-001",
-    orderId: "ord-002",
-    lineId: "l-002-2",
-    stage: "validate",
-    code: "UNRESOLVED_SUPPLIER_CODE",
-    severity: "error",
-    state: "open",
-    message: "Line 2 (TB-RES-220) has no confirmed supplier item code.",
-    createdAt: new Date(Date.now() - 12 * 60_000).toISOString(),
-    resolvedAt: null,
-  },
-  {
-    id: "exc-002",
-    orderId: "ord-002",
-    lineId: null,
-    stage: "transform",
-    code: "MISSING_DELIVERY_CONFIG",
-    severity: "warning",
-    state: "open",
-    message: "Supplier has no delivery configuration; order cannot be sent.",
-    createdAt: new Date(Date.now() - 48 * 60_000).toISOString(),
-    resolvedAt: null,
-  },
-  {
-    id: "exc-003",
-    orderId: "ord-003",
-    lineId: null,
-    stage: "deliver",
-    code: "SUPPLIER_HTTP_422",
-    severity: "critical",
-    state: "open",
-    message: "Supplier endpoint rejected the order (HTTP 422).",
-    createdAt: new Date(Date.now() - 3 * 60 * 60_000).toISOString(),
-    resolvedAt: null,
-  },
-  {
-    id: "exc-004",
-    orderId: "ord-001",
-    lineId: null,
-    stage: "parse",
-    code: "CURRENCY_ASSUMED",
-    severity: "info",
-    state: "resolved",
-    message: "Currency was not present in source; assumed USD from buyer default.",
-    createdAt: new Date(Date.now() - 26 * 60 * 60_000).toISOString(),
-    resolvedAt: new Date(Date.now() - 25 * 60 * 60_000).toISOString(),
-  },
-  {
-    id: "exc-005",
-    orderId: "ord-003",
-    lineId: null,
-    stage: "validate",
-    code: "DUPLICATE_PO_NUMBER",
-    severity: "warning",
-    state: "ignored",
-    message: "A previous order used PO number PO-2024-009012.",
-    createdAt: new Date(Date.now() - 50 * 60 * 60_000).toISOString(),
-    resolvedAt: null,
-  },
-];
-
-async function mockGetExceptions(state?: string): Promise<OrderException[]> {
-  await delay(200);
-  const list = state ? _mockExceptions.filter(e => e.state === state) : _mockExceptions;
-  // Newest first — mirrors the live endpoint ordering.
-  return [...list].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
-}
-
-async function realGetExceptions(state?: string): Promise<OrderException[]> {
-  const qs = state ? `?state=${encodeURIComponent(state)}` : "";
-  const res = await fetchWithTimeout(`${API_BASE_URL}/api/exceptions${qs}`, { headers: await authHeader() });
-  if (!res.ok) throw new Error(`exceptions: ${res.status}`);
-  return res.json() as Promise<OrderException[]>;
-}
-
-async function mockResolveException(id: string): Promise<void> {
-  await delay(200);
-  const e = _mockExceptions.find(x => x.id === id);
-  if (e) { e.state = "resolved"; e.resolvedAt = new Date().toISOString(); }
-}
-
-async function realResolveException(id: string): Promise<void> {
-  const res = await fetchWithTimeout(`${API_BASE_URL}/api/exceptions/${id}/resolve`, {
-    method: "PATCH",
-    headers: await authHeader(),
-  }, 30000);
-  if (!res.ok && res.status !== 204) throw new Error(`exceptions/resolve: ${res.status}`);
-}
-
-async function mockIgnoreException(id: string): Promise<void> {
-  await delay(200);
-  const e = _mockExceptions.find(x => x.id === id);
-  if (e) e.state = "ignored";
-}
-
-async function realIgnoreException(id: string): Promise<void> {
-  const res = await fetchWithTimeout(`${API_BASE_URL}/api/exceptions/${id}/ignore`, {
-    method: "PATCH",
-    headers: await authHeader(),
-  }, 30000);
-  if (!res.ok && res.status !== 204) throw new Error(`exceptions/ignore: ${res.status}`);
-}
-
 // ── Acceptance + exceptions exports ──────────────────────────────────────────
 
 export const getAcceptanceProfile = USE_MOCK ? mockGetAcceptanceProfile : realGetAcceptanceProfile;
@@ -2914,109 +2414,17 @@ export const saveAcceptanceProfile = USE_MOCK ? mockSaveAcceptanceProfile : real
 export const activateAcceptanceVersion = USE_MOCK ? mockActivateAcceptanceVersion : realActivateAcceptanceVersion;
 export const validateOrder = USE_MOCK ? mockValidateOrder : realValidateOrder;
 export const getOrderExceptions = USE_MOCK ? mockGetOrderExceptions : realGetOrderExceptions;
-export const getExceptions = USE_MOCK ? mockGetExceptions : realGetExceptions;
-export const resolveException = USE_MOCK ? mockResolveException : realResolveException;
-export const ignoreException = USE_MOCK ? mockIgnoreException : realIgnoreException;
 
-// ── Operator job-health (GET /api/ops/*) ─────────────────────────────────────
-
-/** Aggregate pipeline-health counts for the org. Mirrors backend OpsHealthDto. */
-export interface OpsHealth {
-  parsingStuck: number;
-  deliveringStuck: number;
-  transformFailed: number;
-  deliveryFailed: number;
-  deliveryDeadLetter: number;
-  rejectedBySupplier: number;
-  failed: number;
-  slaBreached: number;
-  openExceptions: number;
-  stuckThresholdMinutes: number;
-  totalProblemOrders: number;
-  // Worker / Hangfire-server health — surfaces a dead Worker (which stalls the pipeline).
-  workerHealthy: boolean;
-  activeWorkers: number;
-  lastWorkerHeartbeatUtc: string | null;
-  secondsSinceWorkerHeartbeat: number | null;
-}
-
-/** A dead-lettered (or failed) delivery awaiting operator review. Mirrors DeadLetterOrderDto. */
-export interface DeadLetterOrder {
-  orderId: string;
-  poNumber: string;
-  supplierId: string | null;
-  supplierName: string | null;
-  status: string;
-  deliveryAttempts: number;
-  lastError: string | null;
-  lastResponseCode: number | null;
-  lastAttemptAt: string | null;
-  createdAt: string;
-  updatedAt: string;
-}
-
-async function mockGetOpsHealth(): Promise<OpsHealth> {
-  await delay(200);
-  return {
-    parsingStuck: 0, deliveringStuck: 0, transformFailed: 0, deliveryFailed: 1,
-    deliveryDeadLetter: 1, rejectedBySupplier: 0, failed: 0, slaBreached: 0,
-    openExceptions: 2, stuckThresholdMinutes: 30, totalProblemOrders: 2,
-    workerHealthy: true, activeWorkers: 1,
-    lastWorkerHeartbeatUtc: new Date(Date.now() - 6000).toISOString(),
-    secondsSinceWorkerHeartbeat: 6,
-  };
-}
-
-async function realGetOpsHealth(): Promise<OpsHealth> {
-  const res = await fetchWithTimeout(`${API_BASE_URL}/api/ops/health`, { headers: await authHeader() });
-  if (!res.ok) throw new Error(`ops/health: ${res.status}`);
-  return res.json() as Promise<OpsHealth>;
-}
-
-async function mockGetDeadLetterOrders(includeFailed = false): Promise<DeadLetterOrder[]> {
-  await delay(200);
-  const now = new Date().toISOString();
-  const rows: DeadLetterOrder[] = [
-    { orderId: "mock-dl-1", poNumber: "PO-2026-0142", supplierId: "s1", supplierName: "Acme Components",
-      status: "delivery_dead_letter", deliveryAttempts: 3, lastError: "HTTP 503: supplier endpoint unavailable",
-      lastResponseCode: 503, lastAttemptAt: now, createdAt: now, updatedAt: now },
-  ];
-  return includeFailed
-    ? rows.concat({ orderId: "mock-dl-2", poNumber: "PO-2026-0151", supplierId: "s2", supplierName: "BoltWorks BV",
-        status: "delivery_failed", deliveryAttempts: 1, lastError: "Connection timed out", lastResponseCode: null,
-        lastAttemptAt: now, createdAt: now, updatedAt: now })
-    : rows;
-}
-
-async function realGetDeadLetterOrders(includeFailed = false): Promise<DeadLetterOrder[]> {
-  const qs = includeFailed ? "?includeFailed=true" : "";
-  const res = await fetchWithTimeout(`${API_BASE_URL}/api/ops/dead-letter${qs}`, { headers: await authHeader() });
-  if (!res.ok) throw new Error(`ops/dead-letter: ${res.status}`);
-  return res.json() as Promise<DeadLetterOrder[]>;
-}
-
-async function mockRequeueDelivery(_orderId: string): Promise<{ status: string }> {
-  await delay(300);
-  return { status: "delivering" };
-}
-
-async function realRequeueDelivery(orderId: string): Promise<{ status: string }> {
-  const res = await fetchWithTimeout(`${API_BASE_URL}/api/ops/orders/${orderId}/requeue-delivery`, {
-    method: "POST",
-    headers: await authHeader(),
-  }, 30000);
-  if (!res.ok) {
-    const body = await res.json().catch(() => null);
-    const message = body && typeof body === "object" && "error" in body
-      ? String((body as { error?: unknown }).error) : res.statusText;
-    throw new ApiHttpError(`requeue-delivery failed: ${message || res.status}`, res.status, body);
-  }
-  return res.json() as Promise<{ status: string }>;
-}
-
-export const getOpsHealth = USE_MOCK ? mockGetOpsHealth : realGetOpsHealth;
-export const getDeadLetterOrders = USE_MOCK ? mockGetDeadLetterOrders : realGetDeadLetterOrders;
-export const requeueDelivery = USE_MOCK ? mockRequeueDelivery : realRequeueDelivery;
+// ── Exceptions + ops/health (moved to src/lib/api/operations.ts) ──────────────
+export {
+  getExceptions,
+  resolveException,
+  ignoreException,
+  getOpsHealth,
+  getDeadLetterOrders,
+  requeueDelivery,
+} from "@/lib/api/operations";
+export type { OpsHealth, DeadLetterOrder } from "@/lib/api/operations";
 
 // ── Group V8 — standards conformance report (GET /api/orders/{id}/conformance) ──
 // Backend: ProcuLink.Api/Controllers/OrdersController.cs GetConformance. Read-only,
