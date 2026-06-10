@@ -3018,6 +3018,214 @@ export const getOpsHealth = USE_MOCK ? mockGetOpsHealth : realGetOpsHealth;
 export const getDeadLetterOrders = USE_MOCK ? mockGetDeadLetterOrders : realGetDeadLetterOrders;
 export const requeueDelivery = USE_MOCK ? mockRequeueDelivery : realRequeueDelivery;
 
+// ── Group V8 — standards conformance report (GET /api/orders/{id}/conformance) ──
+// Backend: ProcuLink.Api/Controllers/OrdersController.cs GetConformance. Read-only,
+// non-mutating — transforms the order to the named standards format IN MEMORY and
+// validates the produced bytes against the named profile (cXML 1.2 / UBL 2.1 / X12 850).
+// Org-scoped server-side. `?format=cxml|ubl|x12` is explicit; omitting it resolves the
+// supplier's configured delivery format and 400s if none. `?download=md` returns a
+// downloadable text/markdown report (handled separately via conformanceReportDownloadUrl).
+
+/** One named, profile-referenced conformance check row. Mirrors ConformanceCheckDto. */
+export interface ConformanceCheck {
+  /** Stable machine code, e.g. "ubl.id". */
+  code: string;
+  /** "Error" | "Warning" | "Info". */
+  severity: string;
+  passed: boolean;
+  message: string;
+  /** The exact element / segment / cardinality reference in the named profile. */
+  profileRef: string;
+}
+
+/** A standards conformance report for one order's would-be outbound document. Mirrors ConformanceReportDto. */
+export interface ConformanceReport {
+  orderId: string;
+  /** The output format the report was produced for (e.g. "cxml", "ubl", "x12"). */
+  format: string;
+  /** The named profile enum value, e.g. "Ubl21Order". */
+  profile: string;
+  /** Human-readable profile name, e.g. "UBL 2.1 Order (Peppol BIS Order-only 3.0)". */
+  profileName: string;
+  /** Profile version, e.g. "2.1" / "004010" / "D.96A". */
+  profileVersion: string;
+  /** True when no Error-severity check failed. */
+  overallPass: boolean;
+  errorCount: number;
+  warningCount: number;
+  checks: ConformanceCheck[];
+}
+
+export type ConformanceFormat = "cxml" | "ubl" | "x12";
+
+async function mockGetConformanceReport(orderId: string, format: ConformanceFormat = "cxml"): Promise<ConformanceReport> {
+  await delay(250);
+  const profiles: Record<ConformanceFormat, { profile: string; name: string; version: string }> = {
+    cxml: { profile: "Cxml12OrderRequest", name: "cXML 1.2 OrderRequest", version: "1.2.060" },
+    ubl:  { profile: "Ubl21Order",         name: "UBL 2.1 Order (Peppol BIS Order-only 3.0)", version: "2.1" },
+    x12:  { profile: "X12_850",            name: "X12 850 Purchase Order", version: "004010" },
+  };
+  const p = profiles[format];
+  const checks: ConformanceCheck[] = [
+    { code: `${format}.id`,       severity: "Error",   passed: true,  message: "Order identifier present.",        profileRef: format === "ubl" ? "cbc:ID" : format === "x12" ? "BEG03" : "OrderRequestHeader/@orderID" },
+    { code: `${format}.currency`, severity: "Error",   passed: true,  message: "Document currency present.",        profileRef: format === "ubl" ? "cbc:DocumentCurrencyCode" : format === "x12" ? "CUR02" : "Total/Money/@currency" },
+    { code: `${format}.lines`,    severity: "Error",   passed: format !== "x12", message: format === "x12" ? "At least one PO1 line segment is required." : "Order has at least one line.", profileRef: format === "ubl" ? "cac:OrderLine" : format === "x12" ? "PO1" : "ItemOut" },
+    { code: `${format}.shipto`,   severity: "Warning", passed: false, message: "Ship-to party is recommended but missing.", profileRef: format === "ubl" ? "cac:Delivery/cac:DeliveryLocation" : format === "x12" ? "N1*ST" : "ShipTo/Address" },
+  ];
+  const errorCount = checks.filter(c => c.severity === "Error" && !c.passed).length;
+  const warningCount = checks.filter(c => c.severity === "Warning" && !c.passed).length;
+  return {
+    orderId, format, profile: p.profile, profileName: p.name, profileVersion: p.version,
+    overallPass: errorCount === 0, errorCount, warningCount, checks,
+  };
+}
+
+async function realGetConformanceReport(orderId: string, format?: ConformanceFormat): Promise<ConformanceReport> {
+  const qs = format ? `?format=${format}` : "";
+  const res = await fetchWithTimeout(`${API_BASE_URL}/api/orders/${orderId}/conformance${qs}`, {
+    headers: await authHeader(),
+  }, 30000);
+  if (!res.ok) {
+    const body = await res.json().catch(() => null);
+    const message = body && typeof body === "object" && "error" in body
+      ? String((body as { error?: unknown }).error) : res.statusText;
+    throw new ApiHttpError(message || `conformance: ${res.status}`, res.status, body);
+  }
+  return res.json() as Promise<ConformanceReport>;
+}
+
+export const getConformanceReport = USE_MOCK ? mockGetConformanceReport : realGetConformanceReport;
+
+/**
+ * Build the absolute URL for the downloadable Markdown conformance report. The
+ * backend serves it at the same route with `?download=md`; the link must still
+ * carry the Clerk JWT, so callers fetch it via downloadConformanceReport (below)
+ * rather than navigating directly.
+ */
+export function conformanceReportDownloadUrl(orderId: string, format: ConformanceFormat): string {
+  return `${API_BASE_URL}/api/orders/${orderId}/conformance?format=${format}&download=md`;
+}
+
+/**
+ * Fetch the Markdown conformance report (authenticated) and return it as a Blob so
+ * the UI can trigger a client-side download. In mock mode it synthesises Markdown
+ * from the mock JSON report so the button still produces a file in dev/demo.
+ */
+async function realDownloadConformanceReport(orderId: string, format: ConformanceFormat): Promise<Blob> {
+  const res = await fetchWithTimeout(conformanceReportDownloadUrl(orderId, format), {
+    headers: await authHeader(),
+  }, 30000);
+  if (!res.ok) {
+    const t = await res.text().catch(() => "");
+    throw new ApiHttpError(t || `conformance download: ${res.status}`, res.status, null);
+  }
+  return res.blob();
+}
+
+async function mockDownloadConformanceReport(orderId: string, format: ConformanceFormat): Promise<Blob> {
+  const report = await mockGetConformanceReport(orderId, format);
+  const md = conformanceReportToMarkdown(report);
+  return new Blob([md], { type: "text/markdown" });
+}
+
+export const downloadConformanceReport = USE_MOCK ? mockDownloadConformanceReport : realDownloadConformanceReport;
+
+/** Render a ConformanceReport to Markdown (client-side fallback mirroring the backend's ToMarkdown). */
+export function conformanceReportToMarkdown(report: ConformanceReport): string {
+  const lines: string[] = [];
+  lines.push(`# Conformance report — ${report.profileName}`);
+  lines.push("");
+  lines.push(`- Order: ${report.orderId}`);
+  lines.push(`- Format: ${report.format}`);
+  lines.push(`- Profile: ${report.profile} (v${report.profileVersion})`);
+  lines.push(`- Result: ${report.overallPass ? "PASS" : "FAIL"} (${report.errorCount} error${report.errorCount === 1 ? "" : "s"}, ${report.warningCount} warning${report.warningCount === 1 ? "" : "s"})`);
+  lines.push("");
+  lines.push("| Result | Severity | Code | Message | Profile reference |");
+  lines.push("| --- | --- | --- | --- | --- |");
+  for (const c of report.checks) {
+    lines.push(`| ${c.passed ? "PASS" : "FAIL"} | ${c.severity} | ${c.code} | ${c.message.replace(/\|/g, "\\|")} | ${c.profileRef.replace(/\|/g, "\\|")} |`);
+  }
+  lines.push("");
+  return lines.join("\n");
+}
+
+// ── Group V4 — rule definitions catalog + supplier bindings ───────────────────
+// Backend: ProcuLink.Api/Controllers/RuleDefinitionsController.cs.
+//   GET /api/rule-definitions                       → RuleDefinitionDto[]   (the org catalog)
+//   GET /api/rule-definitions/{definitionId}        → RuleDefinitionDto
+//   GET /api/suppliers/{supplierId}/rule-bindings   → SupplierRuleBindingDto[]
+// Read-only (authoring lives in the supplier Acceptance tab). Org-scoped server-side.
+
+/** A reusable rule definition (template) in the org's catalog. Mirrors RuleDefinitionDto. */
+export interface RuleDefinition {
+  id: string;
+  code: string;
+  title: string;
+  description: string | null;
+  scope: string;
+  fieldPath: string;
+  operator: string;
+  defaultSeverity: string;
+  defaultExpectedValue: string | null;
+  paramHint: string | null;
+  ublRef: string | null;
+  edifactRef: string | null;
+  x12Ref: string | null;
+  cxmlRef: string | null;
+  isSystem: boolean;
+  createdAt: string;
+}
+
+/** A supplier's executable acceptance rule joined to the definition it binds to. Mirrors SupplierRuleBindingDto. */
+export interface SupplierRuleBinding {
+  ruleId: string;
+  ruleDefinitionId: string | null;
+  ruleCode: string | null;
+  scope: string;
+  fieldPath: string;
+  operator: string;
+  expectedValue: string | null;
+  severity: string;
+  blockOnFail: boolean;
+  /** Null for an unlinked legacy rule. */
+  definition: RuleDefinition | null;
+}
+
+const MOCK_RULE_DEFINITIONS: RuleDefinition[] = [
+  { id: "rd-1", code: "ORDER.CURRENCY.REQUIRED", title: "Order currency is present", description: "Every order must carry a document currency.", scope: "order", fieldPath: "currency", operator: "required", defaultSeverity: "error", defaultExpectedValue: null, paramHint: null, ublRef: "cbc:DocumentCurrencyCode", edifactRef: "CUX C504 6345", x12Ref: "CUR02", cxmlRef: "Total/Money/@currency", isSystem: true, createdAt: "2026-06-01T00:00:00Z" },
+  { id: "rd-2", code: "LINE.SUPPLIERCODE.REQUIRED", title: "Every line has a supplier item code", description: "Each line must resolve to a supplier item code before delivery.", scope: "line", fieldPath: "supplierItemCode", operator: "required", defaultSeverity: "error", defaultExpectedValue: null, paramHint: null, ublRef: "cac:Item/cac:SellersItemIdentification/cbc:ID", edifactRef: "LIN C212 7140", x12Ref: "PO107", cxmlRef: "ItemID/SupplierPartID", isSystem: true, createdAt: "2026-06-01T00:00:00Z" },
+  { id: "rd-3", code: "LINE.QTY.POSITIVE", title: "Quantity greater than zero", description: "Reject any line whose ordered quantity is zero or negative.", scope: "line", fieldPath: "quantity", operator: "greater_than", defaultSeverity: "error", defaultExpectedValue: "0", paramHint: "numeric", ublRef: "cbc:Quantity", edifactRef: "QTY C186 6060", x12Ref: "PO102", cxmlRef: "ItemOut/@quantity", isSystem: true, createdAt: "2026-06-01T00:00:00Z" },
+];
+
+async function mockListRuleDefinitions(): Promise<RuleDefinition[]> {
+  await delay(200);
+  return [...MOCK_RULE_DEFINITIONS];
+}
+
+async function realListRuleDefinitions(): Promise<RuleDefinition[]> {
+  const res = await fetchWithTimeout(`${API_BASE_URL}/api/rule-definitions`, { headers: await authHeader() });
+  if (!res.ok) throw new Error(`rule-definitions: ${res.status}`);
+  return res.json() as Promise<RuleDefinition[]>;
+}
+
+async function mockGetSupplierRuleBindings(supplierId: string): Promise<SupplierRuleBinding[]> {
+  await delay(200);
+  void supplierId;
+  return [
+    { ruleId: "b-1", ruleDefinitionId: "rd-1", ruleCode: "ORDER.CURRENCY.REQUIRED", scope: "order", fieldPath: "currency", operator: "equals", expectedValue: "EUR", severity: "error", blockOnFail: true, definition: MOCK_RULE_DEFINITIONS[0] },
+    { ruleId: "b-2", ruleDefinitionId: "rd-2", ruleCode: "LINE.SUPPLIERCODE.REQUIRED", scope: "line", fieldPath: "supplierItemCode", operator: "required", expectedValue: null, severity: "error", blockOnFail: true, definition: MOCK_RULE_DEFINITIONS[1] },
+  ];
+}
+
+async function realGetSupplierRuleBindings(supplierId: string): Promise<SupplierRuleBinding[]> {
+  const res = await fetchWithTimeout(`${API_BASE_URL}/api/suppliers/${supplierId}/rule-bindings`, { headers: await authHeader() });
+  if (!res.ok) throw new Error(`rule-bindings: ${res.status}`);
+  return res.json() as Promise<SupplierRuleBinding[]>;
+}
+
+export const listRuleDefinitions = USE_MOCK ? mockListRuleDefinitions : realListRuleDefinitions;
+export const getSupplierRuleBindings = USE_MOCK ? mockGetSupplierRuleBindings : realGetSupplierRuleBindings;
+
 // ── Group V1 — versioned Supplier Connection (GET/POST/PUT /api/connections) ──
 // Backend: ProcuLink.Api/Controllers/ConnectionsController.cs (route "api/connections").
 // All routes are org-scoped server-side via ICurrentTenantService (the auth header

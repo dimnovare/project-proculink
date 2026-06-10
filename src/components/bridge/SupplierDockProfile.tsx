@@ -10,7 +10,8 @@ import { ChevronLeft, Trash2, Info, Clock, Link2, Truck, Plus, ShieldCheck } fro
 import { PoMappingEditor } from "./PoMappingEditor";
 import { DeliveryConfigEditor } from "./DeliveryConfigEditor";
 import { upsertPoMapping, deletePoMapping } from "@/lib/api/mapping";
-import { apiClient, isApiMockMode, getAcceptanceProfile, saveAcceptanceProfile, activateAcceptanceVersion, applyPoMappingTemplate, getSupplierCatalog, importSupplierCatalog, clearSupplierCatalog } from "@/lib/api-client";
+import { apiClient, isApiMockMode, getAcceptanceProfile, saveAcceptanceProfile, activateAcceptanceVersion, applyPoMappingTemplate, getSupplierCatalog, importSupplierCatalog, clearSupplierCatalog, getSupplierRuleBindings, type SupplierRuleBinding } from "@/lib/api-client";
+import { StandardsRefList, hasStandardsRefs } from "./StandardsRefList";
 import { useOrderDirection } from "@/hooks/useOrderDirection";
 import { useQueriesEnabled } from "@/hooks/useQueriesEnabled";
 import type { PoMappingConfig } from "@/lib/api/types";
@@ -172,6 +173,142 @@ const QUICK_RULES: Array<{ label: string; rule: AcceptanceRule }> = [
   { label: "Unit price is required",         rule: { scope: "line",  fieldPath: "unitPrice",        operator: "required",     expectedValue: "",    severity: "error",   blockOnFail: true } },
   { label: "Every line has a description",   rule: { scope: "line",  fieldPath: "description",      operator: "required",     expectedValue: "",    severity: "warning", blockOnFail: false } },
 ];
+
+// ── SupplierRuleBindingsPanel (Group V4) ──────────────────────────────────────
+// Read-only view of this supplier's ACTIVE-profile rule bindings joined to their
+// reusable definitions. Surfaces the standards references (UBL/EDIFACT/X12/cXML)
+// via the binding's definition. count 0 is normal (a supplier with no acceptance
+// rules) → a clean empty state, NOT an error.
+// Endpoint: GET /api/suppliers/{supplierId}/rule-bindings → SupplierRuleBinding[].
+
+function bindingSeverityColor(severity: string): string {
+  const s = (severity ?? "").toLowerCase();
+  if (s === "error") return DANGER;
+  if (s === "warning") return "#C97A14";
+  return BLUE;
+}
+
+function SupplierRuleBindingsPanel({ supplierId }: { supplierId: string }) {
+  const queryEnabled = useQueriesEnabled();
+  const [openId, setOpenId] = useState<string | null>(null);
+
+  const { data, isLoading, isError, refetch } = useQuery<SupplierRuleBinding[]>({
+    queryKey: ["rule-bindings", supplierId],
+    queryFn: () => getSupplierRuleBindings(supplierId),
+    enabled: queryEnabled,
+    staleTime: 30_000,
+    retry: 1,
+  });
+
+  const showLoading = !queryEnabled || (isLoading && data === undefined);
+  const bindings = data ?? [];
+
+  return (
+    <div style={{ background: SURFACE, border: `1px solid ${LINE}`, borderRadius: 10, overflow: "hidden" }}>
+      <div className="flex items-center justify-between gap-2 px-5 py-3" style={{ borderBottom: `1px solid ${LINE}` }}>
+        <div className="flex items-center gap-2">
+          <Link2 size={14} strokeWidth={2} color={MUTED} />
+          <span className="text-[13px] font-semibold" style={{ color: INK }}>Active rule bindings</span>
+          {!showLoading && !isError && (
+            <span className="text-[11.5px]" style={{ color: FAINT }}>{bindings.length}</span>
+          )}
+        </div>
+        <span className="text-[11px]" style={{ color: FAINT }}>with standards mapping</span>
+      </div>
+
+      {showLoading && (
+        <div className="px-5 py-6 text-[12.5px]" style={{ color: FAINT }}>Loading rule bindings…</div>
+      )}
+
+      {!showLoading && isError && (
+        <div className="flex items-center justify-between gap-3 px-5 py-5">
+          <span className="text-[12.5px]" style={{ color: DANGER }}>Couldn&apos;t load rule bindings.</span>
+          <button
+            type="button"
+            onClick={() => refetch()}
+            className="rounded-[7px] px-3 text-[12px] font-medium"
+            style={{ height: 30, border: `1px solid ${LINE}`, background: SURFACE, color: INK, cursor: "pointer" }}
+          >
+            ↻ Retry
+          </button>
+        </div>
+      )}
+
+      {/* count 0 is normal — clean empty state, not an error. */}
+      {!showLoading && !isError && bindings.length === 0 && (
+        <p className="px-5 py-6 text-[12.5px]" style={{ color: MUTED }}>
+          No active rule bindings for this supplier. Add and activate rules above to bind them here — each binding shows the standard it maps to.
+        </p>
+      )}
+
+      {!showLoading && !isError && bindings.length > 0 && (
+        <div className="flex flex-col divide-y" style={{ borderColor: LINE }}>
+          {bindings.map((b) => {
+            const def = b.definition;
+            const refs = {
+              ublRef: def?.ublRef ?? null,
+              edifactRef: def?.edifactRef ?? null,
+              x12Ref: def?.x12Ref ?? null,
+              cxmlRef: def?.cxmlRef ?? null,
+            };
+            const showRefs = hasStandardsRefs(refs);
+            const open = openId === b.ruleId;
+            const sevColor = bindingSeverityColor(b.severity);
+            return (
+              <div key={b.ruleId}>
+                <div className="flex items-start gap-3 px-5 py-3.5">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="text-[12.5px] font-semibold" style={{ color: INK }}>
+                        {def?.title ?? b.ruleCode ?? "Unlinked rule"}
+                      </span>
+                      <span className="inline-flex items-center gap-1 text-[11px] font-semibold capitalize" style={{ color: sevColor }}>
+                        <span style={{ width: 6, height: 6, borderRadius: "50%", background: sevColor, display: "inline-block", flexShrink: 0 }} />
+                        {b.severity}
+                      </span>
+                      {b.blockOnFail && (
+                        <span className="text-[11px]" style={{ color: MUTED }}>· blocks delivery</span>
+                      )}
+                      {!def && (
+                        <span className="inline-flex items-center rounded-[4px] px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-[0.04em]" style={{ background: SURFACE_2, color: FAINT }}>
+                          Legacy
+                        </span>
+                      )}
+                    </div>
+                    <div className="mt-0.5 font-mono text-[11px]" style={{ color: MUTED }}>
+                      {b.fieldPath} {b.operator}{b.expectedValue ? ` ${b.expectedValue}` : ""}
+                    </div>
+                  </div>
+                  {showRefs && (
+                    <button
+                      type="button"
+                      onClick={() => setOpenId(open ? null : b.ruleId)}
+                      aria-expanded={open}
+                      aria-label={open ? "Hide standards mapping" : "Show standards mapping"}
+                      className="inline-flex flex-shrink-0 items-center gap-1 rounded-[6px] px-2 text-[11.5px] font-medium"
+                      style={{ height: 28, border: `1px solid ${LINE}`, background: open ? SURFACE_2 : SURFACE, color: MUTED, cursor: "pointer" }}
+                    >
+                      <Info size={12} strokeWidth={2} />
+                      Standards
+                    </button>
+                  )}
+                </div>
+                {open && showRefs && (
+                  <div className="px-5 pb-3.5">
+                    <div className="rounded-[8px] px-3.5 py-3" style={{ background: SURFACE_2, border: `1px solid ${LINE}` }}>
+                      <div className="mb-2 text-[11px] font-semibold uppercase tracking-[0.05em]" style={{ color: FAINT }}>Maps to</div>
+                      <StandardsRefList refs={refs} />
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
 
 // ── AcceptanceTab ─────────────────────────────────────────────────────────────
 
@@ -561,6 +698,9 @@ function AcceptanceTab({ supplierId }: { supplierId: string }) {
           </>
         )}
       </div>
+
+      {/* Active rule bindings (Group V4) — read-only, with standards refs. */}
+      <SupplierRuleBindingsPanel supplierId={supplierId} />
     </div>
   );
 }

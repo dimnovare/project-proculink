@@ -16,9 +16,8 @@
 // genuine dismissal. A real "Resolve" is only offered for a list-clearable
 // exception (one with no owning order), if such ever appears.
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState, useMemo } from "react";
+import { useState, useMemo, Fragment } from "react";
 import { useQueriesEnabled } from "@/hooks/useQueriesEnabled";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getExceptions, resolveException, ignoreException } from "@/lib/api-client";
@@ -27,6 +26,7 @@ import { PageShell } from "@/components/bridge/layout/PageShell";
 import { PageHeader } from "@/components/bridge/layout/PageHeader";
 import { MobileListRow } from "@/components/bridge/layout/MobileListRow";
 import { Button } from "@/components/bridge/DSPrimitives";
+import { ExceptionDetail } from "@/components/bridge/ExceptionDetail";
 
 // ─── Severity presentation ───────────────────────────────────────────────────
 // Critical/error read in the alert-red family; warning amber; info blue-grey.
@@ -90,6 +90,10 @@ export default function ExceptionsPage() {
   const qc = useQueryClient();
   const [activeTab, setActiveTab] = useState(0);
   const activeState = STATE_TABS[activeTab].state;
+  // Progressive disclosure: rows are collapsed by default; expanding one reveals
+  // the what/why/how-to-fix/status breakdown (lazy-fetches the owning order).
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const toggleExpanded = (id: string) => setExpandedId((cur) => (cur === id ? null : id));
 
   // In mock mode (and live QA-bypass e2e) there is no Clerk session, so don't
   // gate the query on it — otherwise the page would hang on the loading
@@ -149,7 +153,7 @@ export default function ExceptionsPage() {
 
       {/* Instructional note */}
       <p className="text-[12px] mb-4 -mt-3" style={{ color: "var(--ink-faint)" }}>
-        Open the order to fix the cause — the exception clears on the next pipeline pass. Use Ignore to dismiss one you don&apos;t plan to act on.
+        Expand a row to see what&apos;s wrong, why, how to fix it, and its real delivery status. Fixing the cause clears the exception on the next pipeline pass.
       </p>
 
       {/* State filter tabs */}
@@ -250,6 +254,8 @@ export default function ExceptionsPage() {
                   key={exc.id}
                   exc={exc}
                   busy={pendingId === exc.id}
+                  expanded={expandedId === exc.id}
+                  onToggle={() => toggleExpanded(exc.id)}
                   onResolve={() => resolveMut.mutate(exc.id)}
                   onIgnore={() => ignoreMut.mutate(exc.id)}
                   onOpen={() => { if (exc.orderId) router.push(orderHref(exc.orderId)); }}
@@ -263,6 +269,7 @@ export default function ExceptionsPage() {
                 style={{ width: "100%", minWidth: 980, borderCollapse: "collapse", fontSize: 12.5, tableLayout: "fixed" }}
               >
                 <colgroup>
+                  <col style={{ width: 40 }} />
                   <col style={{ width: 96 }} />
                   <col style={{ width: 110 }} />
                   <col style={{ width: 180 }} />
@@ -272,14 +279,14 @@ export default function ExceptionsPage() {
                 </colgroup>
                 <thead style={{ position: "sticky", top: 0, zIndex: 4 }}>
                   <tr style={{ borderBottom: "1px solid var(--border)", background: "var(--surface)" }}>
-                    {["Severity", "Stage", "Code", "Message", "Raised", ""].map((h, i) => (
+                    {["", "Severity", "Stage", "Code", "Message", "Raised", ""].map((h, i) => (
                       <th
                         key={i}
                         style={{
                           padding: "11px 10px",
                           paddingLeft: i === 0 ? 16 : 10,
-                          textAlign: i === 5 ? "right" : "left",
-                          paddingRight: i === 5 ? 16 : 10,
+                          textAlign: i === 6 ? "right" : "left",
+                          paddingRight: i === 6 ? 16 : 10,
                           fontSize: 10.5, fontWeight: 700, letterSpacing: "0.06em",
                           textTransform: "uppercase", color: "var(--ink-faint)", whiteSpace: "nowrap",
                           background: "var(--surface)",
@@ -293,9 +300,23 @@ export default function ExceptionsPage() {
                 <tbody>
                   {exceptions.map((exc) => {
                     const busy = pendingId === exc.id;
+                    const expanded = expandedId === exc.id;
                     return (
-                      <tr key={exc.id} style={{ borderBottom: "1px solid #F0F2F6", background: "var(--surface)" }}>
-                        <td style={{ padding: "11px 10px", paddingLeft: 16, verticalAlign: "middle" }}>
+                      <Fragment key={exc.id}>
+                      <tr style={{ borderBottom: expanded ? "none" : "1px solid #F0F2F6", background: expanded ? "#FAFBFC" : "var(--surface)" }}>
+                        <td style={{ padding: "9px 10px", paddingLeft: 16, verticalAlign: "middle" }}>
+                          <button
+                            type="button"
+                            onClick={() => toggleExpanded(exc.id)}
+                            aria-expanded={expanded}
+                            aria-label={expanded ? "Collapse details" : "Expand details"}
+                            className="inline-flex items-center justify-center rounded-[6px] transition-colors"
+                            style={{ width: 24, height: 24, border: "1px solid var(--border)", background: "var(--surface)", color: "var(--ink-muted)", cursor: "pointer" }}
+                          >
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden style={{ transform: expanded ? "rotate(90deg)" : "none", transition: "transform 120ms" }}><path d="m9 18 6-6-6-6" /></svg>
+                          </button>
+                        </td>
+                        <td style={{ padding: "11px 10px", verticalAlign: "middle" }}>
                           <SeverityBadge severity={String(exc.severity)} />
                         </td>
                         <td style={{ padding: "11px 10px", verticalAlign: "middle", color: "var(--ink-muted)" }}>
@@ -312,17 +333,14 @@ export default function ExceptionsPage() {
                             overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
                           }}
                         >
-                          {exc.orderId ? (
-                            <Link
-                              href={`/inbox/${exc.orderId}`}
-                              className="hover:underline"
-                              style={{ color: "var(--ink)" }}
-                            >
-                              {exc.message}
-                            </Link>
-                          ) : (
-                            exc.message
-                          )}
+                          <button
+                            type="button"
+                            onClick={() => toggleExpanded(exc.id)}
+                            className="hover:underline"
+                            style={{ background: "none", border: 0, padding: 0, color: "var(--ink)", cursor: "pointer", font: "inherit", textAlign: "left", maxWidth: "100%", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", display: "block" }}
+                          >
+                            {exc.message}
+                          </button>
                         </td>
                         <td style={{ padding: "11px 10px", verticalAlign: "middle", color: "var(--ink-muted)", whiteSpace: "nowrap" }}>
                           {relativeTime(exc.createdAt)}
@@ -365,6 +383,14 @@ export default function ExceptionsPage() {
                           )}
                         </td>
                       </tr>
+                      {expanded && (
+                        <tr style={{ borderBottom: "1px solid #F0F2F6", background: "#FAFBFC" }}>
+                          <td colSpan={7} style={{ padding: 0 }}>
+                            <ExceptionDetail exc={exc} />
+                          </td>
+                        </tr>
+                      )}
+                      </Fragment>
                     );
                   })}
                 </tbody>
@@ -379,10 +405,12 @@ export default function ExceptionsPage() {
 
 // ─── Mobile card ─────────────────────────────────────────────────────────────
 function ExceptionCard({
-  exc, busy, onResolve, onIgnore, onOpen,
+  exc, busy, expanded, onToggle, onResolve, onIgnore, onOpen,
 }: {
   exc: OrderException;
   busy: boolean;
+  expanded: boolean;
+  onToggle: () => void;
   onResolve: () => void;
   onIgnore: () => void;
   onOpen: () => void;
@@ -396,17 +424,23 @@ function ExceptionCard({
         )}
         <span className="ml-auto text-[11.5px]" style={{ color: "var(--ink-faint)" }}>{relativeTime(exc.createdAt)}</span>
       </div>
-      <p className="text-[13px] leading-snug" style={{ color: "var(--ink)" }}>
-        {exc.orderId ? (
-          <Link href={`/inbox/${exc.orderId}`} className="hover:underline" style={{ color: "var(--ink)" }}>
-            {exc.message}
-          </Link>
-        ) : (
-          exc.message
-        )}
-      </p>
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-expanded={expanded}
+        className="flex w-full items-start gap-2 text-left"
+        style={{ background: "none", border: 0, padding: 0, cursor: "pointer" }}
+      >
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden style={{ color: "var(--ink-faint)", marginTop: 2, flexShrink: 0, transform: expanded ? "rotate(90deg)" : "none", transition: "transform 120ms" }}><path d="m9 18 6-6-6-6" /></svg>
+        <span className="text-[13px] leading-snug" style={{ color: "var(--ink)" }}>{exc.message}</span>
+      </button>
       {exc.code && (
         <p className="mt-1 font-mono text-[11px]" style={{ color: "var(--ink-faint)" }}>{exc.code}</p>
+      )}
+      {expanded && (
+        <div className="mt-2 -mx-3.5 -mb-3.5 overflow-hidden rounded-b-[var(--radius-md)]">
+          <ExceptionDetail exc={exc} />
+        </div>
       )}
       {exc.state === "open" ? (
         <div className="mt-2.5 flex items-center gap-1.5">
