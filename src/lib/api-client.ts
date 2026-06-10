@@ -3017,3 +3017,284 @@ async function realRequeueDelivery(orderId: string): Promise<{ status: string }>
 export const getOpsHealth = USE_MOCK ? mockGetOpsHealth : realGetOpsHealth;
 export const getDeadLetterOrders = USE_MOCK ? mockGetDeadLetterOrders : realGetDeadLetterOrders;
 export const requeueDelivery = USE_MOCK ? mockRequeueDelivery : realRequeueDelivery;
+
+// ── Group V1 — versioned Supplier Connection (GET/POST/PUT /api/connections) ──
+// Backend: ProcuLink.Api/Controllers/ConnectionsController.cs (route "api/connections").
+// All routes are org-scoped server-side via ICurrentTenantService (the auth header
+// carries the Clerk JWT). Lifecycle endpoints return 204 No Content; this client
+// resolves them to void and surfaces the backend's 409 (immutable/illegal
+// transition) as an ApiHttpError so the UI can show a clear message.
+
+import type {
+  ConnectionSummary,
+  ConnectionDetail,
+  ConnectionRevision,
+  ConnectionRevisionStatus,
+  CreateConnectionRevisionRequest,
+  ConnectionRevisionBundle,
+} from "@/lib/api/types";
+
+// In mock mode the Connections UI runs against an in-memory store so the screens
+// are explorable without a backend. The store is seeded from MOCK_SUPPLIERS.
+const _mockConnections: ConnectionDetail[] = MOCK_SUPPLIERS.slice(0, 2).map((s, i) => {
+  const now = new Date(Date.now() - (i + 1) * 86_400_000).toISOString();
+  const publishedRevId = `rev-${s.id}-1`;
+  return {
+    id: `conn-${s.id}`,
+    supplierId: s.id,
+    name: s.name,
+    activeRevisionId: i === 0 ? publishedRevId : null,
+    createdAt: now,
+    updatedAt: now,
+    revisions:
+      i === 0
+        ? [
+            { id: `rev-${s.id}-2`, versionNo: 2, status: "draft", effectiveFrom: null, effectiveTo: null, publishedAt: null, createdAt: now },
+            { id: publishedRevId, versionNo: 1, status: "published", effectiveFrom: now, effectiveTo: null, publishedAt: now, createdAt: now },
+          ]
+        : [
+            { id: `rev-${s.id}-1`, versionNo: 1, status: "draft", effectiveFrom: null, effectiveTo: null, publishedAt: null, createdAt: now },
+          ],
+  };
+});
+
+function _mockRevisionBundle(connId: string, revId: string): ConnectionRevision {
+  const conn = _mockConnections.find((c) => c.id === connId);
+  const summary = conn?.revisions.find((r) => r.id === revId);
+  return {
+    id: revId,
+    connectionId: connId,
+    versionNo: summary?.versionNo ?? 1,
+    status: summary?.status ?? "draft",
+    effectiveFrom: summary?.effectiveFrom ?? null,
+    effectiveTo: summary?.effectiveTo ?? null,
+    publishedAt: summary?.publishedAt ?? null,
+    createdAt: summary?.createdAt ?? new Date().toISOString(),
+    inputMappingJson: '{"hasHeaderRecord":true,"separator":","}',
+    outputMappingJson: null,
+    outputFormat: "csv",
+    deliveryProtocol: "http",
+    deliveryConfigJson: '{"endpoint":"https://supplier.example.com/orders"}',
+    deliveryAutoDeliver: false,
+    hasCredentials: true,
+    acceptanceProfileId: null,
+    acceptanceVersionNo: null,
+    catalogMode: "live",
+    itemMappings: [
+      { buyerItemCode: "ACM-BOLT-001", supplierItemCode: "FP-B001", confidence: 1, source: "manual" },
+    ],
+  };
+}
+
+async function mockListConnections(): Promise<ConnectionSummary[]> {
+  await delay(200);
+  return _mockConnections.map((c) => ({
+    id: c.id,
+    supplierId: c.supplierId,
+    name: c.name,
+    activeRevisionId: c.activeRevisionId,
+    activeVersionNo: c.revisions.find((r) => r.id === c.activeRevisionId)?.versionNo ?? null,
+    createdAt: c.createdAt,
+    updatedAt: c.updatedAt,
+  }));
+}
+
+async function realListConnections(): Promise<ConnectionSummary[]> {
+  const res = await fetchWithTimeout(`${API_BASE_URL}/api/connections`, { headers: await authHeader() });
+  if (!res.ok) throw new ApiHttpError(`Failed to list connections: ${res.statusText}`, res.status);
+  return res.json() as Promise<ConnectionSummary[]>;
+}
+
+async function mockGetConnection(connectionId: string): Promise<ConnectionDetail | null> {
+  await delay(200);
+  return _mockConnections.find((c) => c.id === connectionId) ?? null;
+}
+
+async function realGetConnection(connectionId: string): Promise<ConnectionDetail | null> {
+  const res = await fetchWithTimeout(`${API_BASE_URL}/api/connections/${connectionId}`, { headers: await authHeader() });
+  if (res.status === 404) return null;
+  if (!res.ok) throw new ApiHttpError(`Failed to fetch connection: ${res.statusText}`, res.status);
+  return res.json() as Promise<ConnectionDetail>;
+}
+
+async function mockEnsureConnection(supplierId: string): Promise<ConnectionDetail | null> {
+  await delay(200);
+  const existing = _mockConnections.find((c) => c.supplierId === supplierId);
+  if (existing) return existing;
+  const supplier = mockSupplierList.find((s) => s.id === supplierId);
+  if (!supplier) return null;
+  const now = new Date().toISOString();
+  const conn: ConnectionDetail = {
+    id: `conn-${supplierId}`,
+    supplierId,
+    name: supplier.name,
+    activeRevisionId: null,
+    createdAt: now,
+    updatedAt: now,
+    revisions: [],
+  };
+  _mockConnections.push(conn);
+  return conn;
+}
+
+async function realEnsureConnection(supplierId: string): Promise<ConnectionDetail | null> {
+  const res = await fetchWithTimeout(`${API_BASE_URL}/api/connections/ensure/${supplierId}`, {
+    method: "POST",
+    headers: await authHeader(),
+  }, 30000);
+  if (res.status === 404) return null;
+  if (!res.ok) throw new ApiHttpError(`Failed to ensure connection: ${res.statusText}`, res.status);
+  return res.json() as Promise<ConnectionDetail>;
+}
+
+async function mockGetConnectionRevision(connectionId: string, revisionId: string): Promise<ConnectionRevision | null> {
+  await delay(150);
+  const conn = _mockConnections.find((c) => c.id === connectionId);
+  if (!conn || !conn.revisions.some((r) => r.id === revisionId)) return null;
+  return _mockRevisionBundle(connectionId, revisionId);
+}
+
+async function realGetConnectionRevision(connectionId: string, revisionId: string): Promise<ConnectionRevision | null> {
+  const res = await fetchWithTimeout(
+    `${API_BASE_URL}/api/connections/${connectionId}/revisions/${revisionId}`,
+    { headers: await authHeader() },
+  );
+  if (res.status === 404) return null;
+  if (!res.ok) throw new ApiHttpError(`Failed to fetch revision: ${res.statusText}`, res.status);
+  return res.json() as Promise<ConnectionRevision>;
+}
+
+async function mockCreateConnectionDraft(
+  connectionId: string,
+  _request?: CreateConnectionRevisionRequest,
+): Promise<ConnectionRevision | null> {
+  await delay(300);
+  const conn = _mockConnections.find((c) => c.id === connectionId);
+  if (!conn) return null;
+  const nextVersion = (conn.revisions.reduce((m, r) => Math.max(m, r.versionNo), 0) || 0) + 1;
+  const now = new Date().toISOString();
+  const revId = `rev-${conn.supplierId}-${nextVersion}`;
+  conn.revisions.unshift({
+    id: revId, versionNo: nextVersion, status: "draft",
+    effectiveFrom: null, effectiveTo: null, publishedAt: null, createdAt: now,
+  });
+  conn.updatedAt = now;
+  return _mockRevisionBundle(connectionId, revId);
+}
+
+async function realCreateConnectionDraft(
+  connectionId: string,
+  request?: CreateConnectionRevisionRequest,
+): Promise<ConnectionRevision | null> {
+  const res = await fetchWithTimeout(`${API_BASE_URL}/api/connections/${connectionId}/revisions`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...await authHeader() },
+    body: JSON.stringify(request ?? { cloneFromActive: true }),
+  }, 30000);
+  if (res.status === 404) return null;
+  if (!res.ok) throw new ApiHttpError(`Failed to create draft: ${res.statusText}`, res.status);
+  return res.json() as Promise<ConnectionRevision>;
+}
+
+async function mockUpdateConnectionDraft(
+  _connectionId: string,
+  _revisionId: string,
+  _bundle: ConnectionRevisionBundle,
+): Promise<void> {
+  await delay(300);
+}
+
+async function realUpdateConnectionDraft(
+  connectionId: string,
+  revisionId: string,
+  bundle: ConnectionRevisionBundle,
+): Promise<void> {
+  const res = await fetchWithTimeout(
+    `${API_BASE_URL}/api/connections/${connectionId}/revisions/${revisionId}`,
+    {
+      method: "PUT",
+      headers: { "Content-Type": "application/json", ...await authHeader() },
+      body: JSON.stringify({ bundle }),
+    },
+    30000,
+  );
+  if (res.ok || res.status === 204) return;
+  if (res.status === 409) throw new ApiHttpError("Published/archived revisions cannot be edited.", 409);
+  throw new ApiHttpError(`Failed to update draft: ${res.statusText}`, res.status);
+}
+
+/** Drive a draft/test revision through its lifecycle. Returns void; 409 → ApiHttpError. */
+async function realConnectionLifecycle(
+  connectionId: string,
+  revisionId: string,
+  action: "test" | "publish" | "archive",
+): Promise<void> {
+  const res = await fetchWithTimeout(
+    `${API_BASE_URL}/api/connections/${connectionId}/revisions/${revisionId}/${action}`,
+    { method: "POST", headers: await authHeader() },
+    30000,
+  );
+  if (res.ok || res.status === 204) return;
+  if (res.status === 409) {
+    const msg =
+      action === "publish" ? "This revision is already published or archived."
+      : action === "test" ? "Only draft or test revisions can be marked test."
+      : "This revision cannot be archived.";
+    throw new ApiHttpError(msg, 409);
+  }
+  if (res.status === 404) throw new ApiHttpError("Connection or revision not found.", 404);
+  throw new ApiHttpError(`Failed to ${action} revision: ${res.statusText}`, res.status);
+}
+
+function mockConnectionLifecycle(action: "test" | "publish" | "archive") {
+  return async (connectionId: string, revisionId: string): Promise<void> => {
+    await delay(300);
+    const conn = _mockConnections.find((c) => c.id === connectionId);
+    const rev = conn?.revisions.find((r) => r.id === revisionId);
+    if (!conn || !rev) return;
+    const now = new Date().toISOString();
+    if (action === "test") {
+      rev.status = "test";
+    } else if (action === "publish") {
+      for (const r of conn.revisions) {
+        if (r.status === "published") { r.status = "archived"; r.effectiveTo = now; }
+      }
+      rev.status = "published";
+      rev.publishedAt = now;
+      rev.effectiveFrom = now;
+      conn.activeRevisionId = rev.id;
+    } else {
+      rev.status = "archived";
+      if (conn.activeRevisionId === rev.id) conn.activeRevisionId = null;
+    }
+    conn.updatedAt = now;
+  };
+}
+
+export const listConnections: () => Promise<ConnectionSummary[]> =
+  USE_MOCK ? mockListConnections : realListConnections;
+export const getConnection: (connectionId: string) => Promise<ConnectionDetail | null> =
+  USE_MOCK ? mockGetConnection : realGetConnection;
+export const ensureConnection: (supplierId: string) => Promise<ConnectionDetail | null> =
+  USE_MOCK ? mockEnsureConnection : realEnsureConnection;
+export const getConnectionRevision: (connectionId: string, revisionId: string) => Promise<ConnectionRevision | null> =
+  USE_MOCK ? mockGetConnectionRevision : realGetConnectionRevision;
+export const createConnectionDraft: (connectionId: string, request?: CreateConnectionRevisionRequest) => Promise<ConnectionRevision | null> =
+  USE_MOCK ? mockCreateConnectionDraft : realCreateConnectionDraft;
+export const updateConnectionDraft: (connectionId: string, revisionId: string, bundle: ConnectionRevisionBundle) => Promise<void> =
+  USE_MOCK ? mockUpdateConnectionDraft : realUpdateConnectionDraft;
+export const markConnectionRevisionTest: (connectionId: string, revisionId: string) => Promise<void> =
+  USE_MOCK ? mockConnectionLifecycle("test") : (c, r) => realConnectionLifecycle(c, r, "test");
+export const publishConnectionRevision: (connectionId: string, revisionId: string) => Promise<void> =
+  USE_MOCK ? mockConnectionLifecycle("publish") : (c, r) => realConnectionLifecycle(c, r, "publish");
+export const archiveConnectionRevision: (connectionId: string, revisionId: string) => Promise<void> =
+  USE_MOCK ? mockConnectionLifecycle("archive") : (c, r) => realConnectionLifecycle(c, r, "archive");
+
+export type {
+  ConnectionSummary,
+  ConnectionDetail,
+  ConnectionRevision,
+  ConnectionRevisionStatus,
+  ConnectionRevisionBundle,
+  CreateConnectionRevisionRequest,
+};

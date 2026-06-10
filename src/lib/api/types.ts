@@ -329,3 +329,110 @@ export interface SupplierCatalogImportResult {
   skipped: number;
   total: number;
 }
+
+// ── Group V1 — versioned Supplier Connection ─────────────────────────────────
+// Mirrors the backend contracts in ProcuLink.Api/Contracts/ConnectionDto.cs and
+// the lifecycle on ProcuLink.Core/Entities/SupplierConnectionRevision.cs. A
+// connection is the durable (org, supplier) handle; its ActiveRevisionId points
+// at whichever immutable revision is currently published. Every order pins a
+// ConnectionRevisionId — published revisions are immutable forever.
+
+/** draft → test → published → archived. */
+export type ConnectionRevisionStatus = "draft" | "test" | "published" | "archived";
+
+/** Row shape for the Connections list (one per supplier in V1). */
+export interface ConnectionSummary {
+  id: string;
+  supplierId: string;
+  name: string;
+  /** Null until the first publish. */
+  activeRevisionId: string | null;
+  /** Version number of the active published revision, or null when none is live. */
+  activeVersionNo: number | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** A revision as shown in the revision-history list (no bundle body). */
+export interface ConnectionRevisionSummary {
+  id: string;
+  versionNo: number;
+  status: ConnectionRevisionStatus | string;
+  effectiveFrom: string | null;
+  effectiveTo: string | null;
+  publishedAt: string | null;
+  createdAt: string;
+}
+
+/** A connection plus its revision history (the detail-page header). */
+export interface ConnectionDetail {
+  id: string;
+  supplierId: string;
+  name: string;
+  activeRevisionId: string | null;
+  createdAt: string;
+  updatedAt: string;
+  /** Newest version first (backend orders by VersionNo descending). */
+  revisions: ConnectionRevisionSummary[];
+}
+
+/** One product-code mapping carried by a revision. */
+export interface ConnectionItemMapping {
+  buyerItemCode: string;
+  supplierItemCode: string;
+  confidence: number;
+  source: string;
+}
+
+/** The full revision bundle (input mapping + output template + delivery + …). */
+export interface ConnectionRevision {
+  id: string;
+  connectionId: string;
+  versionNo: number;
+  status: ConnectionRevisionStatus | string;
+  effectiveFrom: string | null;
+  effectiveTo: string | null;
+  publishedAt: string | null;
+  createdAt: string;
+  /** Snapshot of the supplier PO mapping config JSON (null = none). */
+  inputMappingJson: string | null;
+  /** Snapshot of the assigned output template config JSON (null = fixed transformer). */
+  outputMappingJson: string | null;
+  /** 'xml' | 'csv' | 'cxml' | 'json' | 'ubl' | 'x12'. */
+  outputFormat: string | null;
+  /** 'http' | 'sftp' | 'ftp' | 'erp_erply' | 'erp_directo'; null = no delivery configured. */
+  deliveryProtocol: string | null;
+  /** Non-secret delivery config JSON (endpoint, host, path, headers, timeout…). */
+  deliveryConfigJson: string | null;
+  deliveryAutoDeliver: boolean;
+  /** True when an encrypted credential payload is present (the secret is never returned). */
+  hasCredentials: boolean;
+  acceptanceProfileId: string | null;
+  acceptanceVersionNo: number | null;
+  /** 'live' in V1 — the catalog is read live at ingest (no snapshot). */
+  catalogMode: string;
+  itemMappings: ConnectionItemMapping[];
+}
+
+/** The mutable bundle a caller may set when creating/updating a DRAFT revision. */
+export interface ConnectionRevisionBundle {
+  inputMappingJson?: string | null;
+  outputMappingJson?: string | null;
+  outputFormat?: string | null;
+  deliveryProtocol?: string | null;
+  deliveryConfigJson?: string | null;
+  deliveryAutoDeliver: boolean;
+  credentialsRef?: string | null;
+  acceptanceProfileId?: string | null;
+  acceptanceVersionNo?: number | null;
+  /** Defaults to "live" on the backend when blank. */
+  catalogMode: string;
+  itemMappings?: ConnectionItemMapping[] | null;
+}
+
+/** Body for POST /api/connections/{id}/revisions. */
+export interface CreateConnectionRevisionRequest {
+  /** When true (default) and an active revision exists, the draft is cloned from it. */
+  cloneFromActive: boolean;
+  bundle?: ConnectionRevisionBundle | null;
+}
