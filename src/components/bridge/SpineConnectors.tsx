@@ -58,6 +58,52 @@ interface SpineConnectorsProps {
 const SRC_Y_FALLBACK: Record<string, number> = { header: 9, "header-meta": 11, parties: 22, terms: 28, lines: 56, totals: 88 };
 const OUT_Y_FALLBACK: Record<string, number> = { po: 15, date: 20, currency: 26, supplier: 31, buyer: 36, lines: 62, totals: 26 };
 
+interface ColumnBox { top: number; bottom: number; right: number; }
+
+/**
+ * Compute the SOURCE endpoint for a wire whose section element is missing OR has a
+ * zero/degenerate rect (e.g. a `display:none` collapsed branch, or an element not
+ * yet laid out). The endpoint MUST stay on the source column's right edge at a y
+ * near the canonical node's OWN y — it must NEVER fly to the top of the page (the
+ * old behaviour: a `display:none` element reports a rect at (0,0), so the wire
+ * snapped to ≈0 → "wires fly up"; even the percentage SRC_Y_FALLBACK put header
+ * fields at ~9-11% i.e. near the top regardless of where their node actually sits).
+ *
+ * Pure + exported so the "missing/zero-rect source never flies to the top" contract
+ * is unit-tested without the DOM. All values are in grid-local px (already offset by
+ * the grid origin). `nodeY` is the canonical node's attach-y; we anchor level with it
+ * and clamp to the column so the wire is a tidy near-horizontal hop, not a diagonal
+ * to a corner. `pctFallbackY`, when provided, is used ONLY if it lands inside the
+ * column AND no node y is available — otherwise the node y (or column centre) wins.
+ */
+export function fallbackSourceAnchor(
+  col: ColumnBox,
+  nodeY: number | null,
+  pctFallbackY?: number | null,
+): { sx: number; sy: number } {
+  const sx = col.right;
+  const centre = (col.top + col.bottom) / 2;
+  // Prefer the node's own y so the wire stays level with its canonical card.
+  // Fall back to a percentage y only if it is finite AND inside the column.
+  let sy: number;
+  if (nodeY != null && Number.isFinite(nodeY)) {
+    sy = nodeY;
+  } else if (pctFallbackY != null && Number.isFinite(pctFallbackY) && pctFallbackY >= col.top && pctFallbackY <= col.bottom) {
+    sy = pctFallbackY;
+  } else {
+    sy = centre;
+  }
+  // Never let the endpoint escape the column (which would visibly "fly" off it).
+  if (sy < col.top) sy = col.top;
+  if (sy > col.bottom) sy = col.bottom;
+  return { sx, sy };
+}
+
+/** A DOMRect is unusable for anchoring when it has no area (display:none / not yet laid out). */
+function isZeroRect(r: { width: number; height: number }): boolean {
+  return r.width === 0 && r.height === 0;
+}
+
 interface Wire {
   id: string;
   pct: number;
@@ -159,16 +205,27 @@ export function SpineConnectors({
       const nlx = dotR ? (dotR.left - g.left + dotR.width / 2) : (r.left - g.left);
       const ny = dotR ? (dotR.top - g.top + dotR.height / 2) : (r.top - g.top + 18); // dot centre / label row
 
-      // Source anchor — real section element if mounted, else a sensible %.
+      // Source anchor — real section element if mounted AND laid out. A present-but-
+      // display:none element (e.g. a stale collapsed/expanded branch) reports a
+      // zero-area rect at (0,0); using it would snap the wire to the page corner
+      // ("wires fly up to the top"). So treat a zero-rect element as missing and route
+      // it through fallbackSourceAnchor, which pins the endpoint to the source column's
+      // right edge LEVEL with the canonical node's own y — never the top.
       const secEl = srcSectionEls.current[node.srcRef];
+      const sr = secEl ? secEl.getBoundingClientRect() : null;
       let sx: number, sy: number;
-      if (secEl) {
-        const sr = secEl.getBoundingClientRect();
+      if (sr && !isZeroRect(sr)) {
         sx = sr.right - g.left;
         sy = sr.top - g.top + sr.height / 2;
       } else {
-        sx = s.right - g.left;
-        sy = s.top - g.top + (s.height * (SRC_Y_FALLBACK[node.srcRef] ?? ((i + 0.5) / nodes.length) * 100)) / 100;
+        const pctY = s.top - g.top + (s.height * (SRC_Y_FALLBACK[node.srcRef] ?? ((i + 0.5) / nodes.length) * 100)) / 100;
+        const fb = fallbackSourceAnchor(
+          { top: s.top - g.top, bottom: s.bottom - g.top, right: s.right - g.left },
+          ny,
+          pctY,
+        );
+        sx = fb.sx;
+        sy = fb.sy;
       }
 
       // Output anchor — real output line if mounted, else a sensible %.
@@ -264,16 +321,17 @@ export function SpineConnectors({
     };
   }, [measure, scheduleMeasure, gridRef, sourceColRef, outputColRef, nodeEls, srcSectionEls, outLineEls]);
 
-  // Re-measure across several COMMITTED frames whenever the source panel's
-  // expand/collapse state changes (drawSource = !parsedDocCollapsed). On EXPAND
-  // the reconstructed-document body flips display:none → flex; its section
-  // anchors (incl. the new "header-meta") only get a real rect AFTER that layout
-  // commits. useLayoutEffect(measure) runs on the SAME render — before the commit —
-  // so the first source-wire draw would otherwise read a zero/stale rect and snap
-  // to the SRC_Y_FALLBACK origin, then jump on the next scroll/rAF. A short rAF
-  // burst + a trailing timeout reuses the SAME measure so the first post-expand
-  // draw already uses the committed layout → no jump. (Reuses `measure`; no second
-  // divergent measure is introduced.)
+  // Re-measure across several COMMITTED frames whenever the source panel toggles
+  // between its collapsed summary card and its expanded reconstructed-document body.
+  // On EITHER transition the source section anchors (incl. "header-meta") swap to a
+  // different DOM element whose real rect only exists AFTER that layout commits.
+  // useLayoutEffect(measure) runs on the SAME render — before the commit — so the
+  // first source-wire draw would otherwise read a stale/zero rect and snap, then jump
+  // on the next scroll/rAF. A short rAF burst + a trailing timeout reuses the SAME
+  // measure so the first post-toggle draw already uses the committed layout → no jump.
+  // Keyed on `signature` (which carries the collapse flag) so it covers BOTH collapse→
+  // and →expand, not just →expand. (`drawSource` is now constant; `signature` is the
+  // toggle trigger.) Reuses `measure`; no second divergent measure is introduced.
   useEffect(() => {
     const rafs: number[] = [];
     const step = (n: number) => {
@@ -286,7 +344,7 @@ export function SpineConnectors({
       rafs.forEach(cancelAnimationFrame);
       clearTimeout(t);
     };
-  }, [measure, drawSource]);
+  }, [measure, signature]);
 
   // Confidence classes for colours:
   //  confident (>=90) → brand-blue (#1E66C9) → brand-green (#2E8E3A), solid
