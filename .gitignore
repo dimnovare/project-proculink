@@ -5,6 +5,11 @@
 # Logs
 logs
 *.log
+
+# Live-matrix harness RUN ARTIFACTS (the harness tooling itself IS committed;
+# its accumulated run output is not — it's resumable local state, not source).
+scripts/live-matrix/ingest-results.ndjson
+scripts/live-matrix/*-results.ndjson
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
