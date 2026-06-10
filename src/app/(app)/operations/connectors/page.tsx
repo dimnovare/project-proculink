@@ -5,9 +5,11 @@ import { EmptyState } from "@/components/bridge/EmptyState";
 import { PageShell } from "@/components/bridge/layout/PageShell";
 import { PageHeader } from "@/components/bridge/layout/PageHeader";
 import Link from "next/link";
-import { useState, type ReactNode } from "react";
+import { useState, useEffect, type ReactNode } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { getSuppliers, testFireDeliveryConfig, isApiMockMode } from "@/lib/api-client";
+import { getConnectorManifest } from "@/lib/api/connectors";
+import type { DeliveryProtocol, ConnectorConfigField } from "@/lib/api/types";
 
 // ── Mock fallback (used when USE_MOCK = true) ─────────────────────────────────
 
@@ -416,6 +418,202 @@ export default function ConnectorsPage() {
   );
 }
 
+// ── Clerk-ready hook (mirrors ConnectorRequirementsPanel) ─────────────────────
+
+function useClerkReady(): boolean {
+  const [ready, setReady] = useState(false);
+  useEffect(() => {
+    if (isApiMockMode) { setReady(true); return; }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const clerk = (window as any).Clerk;
+    if (clerk?.loaded) { setReady(true); return; }
+    const handle = setInterval(() => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      if ((window as any).Clerk?.loaded) { setReady(true); clearInterval(handle); }
+    }, 100);
+    return () => clearInterval(handle);
+  }, []);
+  return ready;
+}
+
+/**
+ * Derive a DeliveryProtocol manifest key from the connector's free-text `type`
+ * string (as stored in MOCK_CONNECTORS and derived from live suppliers).
+ *
+ * The type strings are internal — this mapping is intentionally conservative:
+ * only return a key we are confident about; return null for unknown types so
+ * the requirements section is silently omitted (no error shown).
+ */
+function resolveManifestKey(connector: Connector): DeliveryProtocol | null {
+  const t = connector.type.toLowerCase();
+  if (t.includes("sftp"))        return "sftp";
+  if (t.includes("ftps"))        return "ftps";
+  if (t.includes("smtp") || t.includes("email (smtp)")) return "smtp";
+  if (t.includes("erply"))       return "erp_erply";
+  if (t.includes("directo"))     return "erp_directo";
+  // "API (REST)" / "ERP (REST)" / generic HTTP connectors
+  if (t.includes("rest") || t.includes("http") || t.includes("api")) return "http";
+  return null;
+}
+
+// ── ManifestRequirementsSection — read-only, additive, shown in ConnectorPanel ─
+
+/**
+ * Fetches and renders the manifest requirements for the given protocol key.
+ * Uses the same visual language (Required/Secret/type pills, FieldRow look) as
+ * ConnectorRequirementsPanel.  Secret fields are listed by NAME only — values
+ * are never exposed.  If the manifest is unavailable or the key is null this
+ * section renders nothing (silent degradation).
+ *
+ * ADDITIVE ONLY — does not affect save, test-fire, or any other behaviour.
+ */
+function ManifestRequirementsSection({ manifestKey }: { manifestKey: DeliveryProtocol }) {
+  const clerkReady = useClerkReady();
+  const enabled = isApiMockMode || clerkReady;
+
+  const { data: manifest, isLoading } = useQuery({
+    queryKey: ["connector-manifest", manifestKey],
+    queryFn: () => getConnectorManifest(manifestKey),
+    enabled,
+    staleTime: 5 * 60 * 1000,
+    retry: 1,
+  });
+
+  if (!enabled || (isLoading && !manifest)) {
+    return (
+      <div
+        style={{
+          borderRadius: "var(--radius-md,8px)",
+          border: "1px solid var(--border,#E2E6EE)",
+          background: "var(--surface-2,#EFF2F7)",
+          padding: "10px 14px",
+        }}
+      >
+        <p style={{ fontSize: 11.5, color: "var(--ink-faint,#8A93A5)", margin: 0 }}>
+          Loading connector requirements…
+        </p>
+      </div>
+    );
+  }
+
+  // Silent degradation — no error shown if manifest is unavailable.
+  if (!manifest) return null;
+
+  const requiredFields = manifest.fields.filter((f) => f.required);
+  const secretOnlyFields = manifest.fields.filter((f) => f.secret && !f.required);
+  const optionalFields = manifest.fields.filter((f) => !f.required && !f.secret);
+
+  return (
+    <div
+      style={{
+        borderRadius: "var(--radius-md,8px)",
+        border: "1px solid var(--border,#E2E6EE)",
+        background: "var(--surface-2,#EFF2F7)",
+        padding: "12px 14px",
+        display: "grid",
+        gap: 10,
+      }}
+    >
+      <p style={{ fontSize: 11.5, fontWeight: 600, color: "var(--ink-muted,#56627A)", margin: 0 }}>
+        What this connector needs
+        {manifest.authType && (
+          <span style={{ fontWeight: 400, marginLeft: 6, color: "var(--ink-faint,#8A93A5)" }}>
+            · {manifest.authType}
+          </span>
+        )}
+      </p>
+
+      {/* Required fields */}
+      {requiredFields.length > 0 && (
+        <ManifestFieldGroup title="Required" fields={requiredFields} />
+      )}
+
+      {/* Credential-only (secret, not required) fields */}
+      {secretOnlyFields.length > 0 && (
+        <ManifestFieldGroup title="Credentials (stored encrypted)" fields={secretOnlyFields} />
+      )}
+
+      {/* Optional fields */}
+      {optionalFields.length > 0 && (
+        <ManifestFieldGroup title="Optional" fields={optionalFields} />
+      )}
+
+      {manifest.docsRef && (
+        <p style={{ fontSize: 11, color: "var(--ink-faint,#8A93A5)", margin: 0 }}>
+          <a
+            href={manifest.docsRef}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ color: "var(--brand-green-deep,#1E6D29)", textDecoration: "underline" }}
+          >
+            {manifest.displayName} documentation
+          </a>
+        </p>
+      )}
+    </div>
+  );
+}
+
+function ManifestFieldGroup({
+  title,
+  fields,
+}: {
+  title: string;
+  fields: ConnectorConfigField[];
+}) {
+  return (
+    <div style={{ display: "grid", gap: 4 }}>
+      <p style={{ fontSize: 10.5, fontWeight: 600, textTransform: "uppercase", color: "var(--ink-faint,#8A93A5)", margin: 0 }}>
+        {title}
+      </p>
+      {fields.map((field) => (
+        <ManifestFieldRow key={field.name} field={field} />
+      ))}
+    </div>
+  );
+}
+
+function ManifestFieldRow({ field }: { field: ConnectorConfigField }) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        flexWrap: "wrap",
+        alignItems: "flex-start",
+        gap: "2px 8px",
+        borderRadius: 5,
+        padding: "5px 8px",
+        background: "var(--surface,#FFFFFF)",
+        border: "1px solid var(--border,#E2E6EE)",
+      }}
+    >
+      <span style={{ fontFamily: "monospace", fontSize: 11, fontWeight: 600, color: "var(--ink,#0B1A2F)" }}>
+        {field.name}
+      </span>
+      <span style={{ fontSize: 11, color: "var(--ink-muted,#56627A)", flex: 1 }}>
+        {field.label}
+      </span>
+      <span style={{ display: "flex", gap: 4, alignItems: "center", marginLeft: "auto" }}>
+        {field.required && (
+          <span style={{ borderRadius: 3, padding: "1px 5px", fontSize: 10, fontWeight: 600, textTransform: "uppercase", background: "#FFF0E0", color: "#A56B00", border: "1px solid #F5DFA0" }}>
+            Required
+          </span>
+        )}
+        {field.secret && (
+          <span style={{ borderRadius: 3, padding: "1px 5px", fontSize: 10, fontWeight: 600, textTransform: "uppercase", background: "#EDF2FF", color: "#2E5FAA", border: "1px solid #C7D8F5" }}>
+            Secret
+          </span>
+        )}
+        {field.type !== "string" && (
+          <span style={{ borderRadius: 3, padding: "1px 5px", fontSize: 10, fontWeight: 500, background: "#F0F7F1", color: "#2E8E3A", border: "1px solid #CBE8CE" }}>
+            {field.type}
+          </span>
+        )}
+      </span>
+    </div>
+  );
+}
+
 // ── ConnectorPanel (inline slideover — functionality preserved) ───────────────
 
 function ConnectorPanel({
@@ -428,6 +626,9 @@ function ConnectorPanel({
   const isNew = connector.id === "new";
   const [testResult, setTestResult] = useState<string | null>(null);
   const [firing, setFiring] = useState(false);
+
+  // Derive the manifest key from the connector's type string (null = no manifest shown)
+  const manifestKey = resolveManifestKey(connector);
 
   const handleTestFire = async () => {
     if (connector.id === "new") {
@@ -598,6 +799,9 @@ function ConnectorPanel({
               />
             </PanelField>
           </div>
+
+          {/* ── Additive: manifest requirements (read-only, no effect on save/test-fire) */}
+          {manifestKey && <ManifestRequirementsSection manifestKey={manifestKey} />}
 
           {testResult && (
             <div

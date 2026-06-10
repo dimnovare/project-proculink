@@ -26,6 +26,30 @@ import type { ValidateConnectorConfigResult } from "@/lib/api/types";
 import type { DeliveryProtocol } from "@/lib/api/types";
 import { Card } from "@/components/bridge/layout/Card";
 
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+/**
+ * Returns a shallow copy of `obj` with keys whose value is null, undefined, or
+ * an empty/whitespace-only string removed.
+ *
+ * This is applied before POSTing to validate-config so that fields left blank
+ * in the UI (e.g. url:"") are correctly reported as missing by the backend,
+ * rather than silently passing validation with an empty string value.
+ *
+ * It is a pure function with no side effects and does not touch the save path.
+ */
+export function stripEmptyValues(
+  obj: Record<string, unknown>,
+): Record<string, unknown> {
+  return Object.fromEntries(
+    Object.entries(obj).filter(([, v]) => {
+      if (v === null || v === undefined) return false;
+      if (typeof v === "string" && v.trim() === "") return false;
+      return true;
+    }),
+  );
+}
+
 function useClerkReady(): boolean {
   const [ready, setReady] = useState(false);
   useEffect(() => {
@@ -100,7 +124,7 @@ export function ConnectorRequirementsPanel({
     setCheckResult(null);
     setCheckError(null);
     try {
-      const result = await validateConnectorConfig(protocol, buildConfig());
+      const result = await validateConnectorConfig(protocol, stripEmptyValues(buildConfig()));
       setCheckResult(result);
     } catch (err) {
       setCheckError(err instanceof Error ? err.message : "Validation request failed.");
