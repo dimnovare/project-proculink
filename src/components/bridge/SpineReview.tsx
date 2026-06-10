@@ -149,17 +149,18 @@ function buildNodesFromOrder(order: Order, labels: PartyLabels): SpineNodeData[]
   });
 
   return [
-    // Header editing (Item 2): date / buyer / currency are editable — the backend
-    // /api/orders/{id}/resolve endpoint now accepts optional header corrections
-    // ({ orderDate, buyerName, currency }) alongside line resolutions, persisted
-    // before transform/deliver. PO number stays read-only (it is the document's
-    // identity / dedupe key) and supplier stays read-only (changing it would
-    // re-route delivery and remap codes — handled via the supplier picker, not
-    // an inline header edit).
-    { id: "po",       label: "PO number",   value: order.poNumber,            pct: 99, mono: true,  editable: false, srcRef: "header",  outRef: "Order/@orderID"    },
+    // Header editing (Item 2): date / buyer / currency / PO number / supplier
+    // name are editable — the backend /api/orders/{id}/resolve endpoint accepts
+    // optional header corrections ({ orderDate, buyerName, currency, poNumber,
+    // supplierName }) alongside line resolutions, persisted before transform/
+    // deliver. poNumber corrects the document identity shown across the UI;
+    // supplierName edits the PRINTED/display name only — it does NOT re-route
+    // delivery or remap codes (the routed supplier is still chosen via the
+    // supplier picker, not this inline edit).
+    { id: "po",       label: "PO number",   value: order.poNumber,            pct: 99, mono: true,  editable: true,  srcRef: "header",  outRef: "Order/@orderID"    },
     { id: "date",     label: "Order date",  value: order.orderDate,            pct: 95, mono: true,  editable: true,  srcRef: "header",  outRef: "Order/orderDate"   },
     { id: "buyer",    label: "Buyer",       value: order.buyerName ?? "(parsing…)", pct: order.buyerName ? 98 : 50, tone: "buyer",    editable: true,  srcRef: "parties", outRef: "BillTo/Contact"    },
-    { id: "supplier", label: labels.counterpartyNoun, value: order.supplierName, pct: 97, tone: "supplier", editable: false, srcRef: "parties", outRef: "ShipFrom/Contact", hint: supplierHint, hintTone: "muted" },
+    { id: "supplier", label: labels.counterpartyNoun, value: order.supplierName, pct: 97, tone: "supplier", editable: true,  srcRef: "parties", outRef: "ShipFrom/Contact", hint: supplierHint, hintTone: "muted" },
     { id: "currency", label: "Currency",    value: order.currency,             pct: 99, mono: true,  editable: true,  srcRef: "terms",   outRef: "Total/@currency"   },
     {
       id: "lines", label: "Line items", value: `${lineCount} line${lineCount !== 1 ? "s" : ""} · ${formatted}`,
@@ -1147,7 +1148,7 @@ function DocumentAnatomy({
 
 // ─── Output Preview ───────────────────────────────────────────────────────────
 
-function OutputPreview({ order, acceptedSubnodes, rejectedSubnodes, crossed, fieldValues, onOutputAction, orderId, artifacts, onLine }: {
+function OutputPreview({ order, acceptedSubnodes, rejectedSubnodes, crossed, fieldValues, onOutputAction, orderId, artifacts, onLine, onMappingEditorOpenChange }: {
   order: Order;
   acceptedSubnodes: Set<string>;
   rejectedSubnodes: Set<string>;
@@ -1157,11 +1158,19 @@ function OutputPreview({ order, acceptedSubnodes, rejectedSubnodes, crossed, fie
   orderId: string;
   artifacts: Order["artifacts"];
   onLine?: (id: string, el: HTMLElement | null) => void;
+  /** Relays the "Edit mapping" slideover open-state up so the desktop triptych can
+   *  hide the interactive wires while it's open (they bleed through the editor). */
+  onMappingEditorOpenChange?: (open: boolean) => void;
 }) {
   const [downloadLoading, setDownloadLoading] = useState(false);
   const [copyLoading, setCopyLoading] = useState(false);
   // Power-user "map & manipulate" editor (heart-piece-flex Phase 3).
   const [mapOpen, setMapOpen] = useState(false);
+  // Relay open-state changes up (desktop triptych hides the wires while open).
+  // Only the desktop callsite passes the callback; mobile/tablet ignore it.
+  useEffect(() => {
+    onMappingEditorOpenChange?.(mapOpen);
+  }, [mapOpen, onMappingEditorOpenChange]);
 
   // Output reflects the live order, with any inline edits applied.
   const outPo       = fieldValues["po"]       ?? order.poNumber;
@@ -2198,6 +2207,12 @@ export function SpineReview({ orderId }: { orderId: string }) {
   // (the actual wiring targets) below the fold when the column is sticky-pinned. The
   // same parsed data is already shown as canonical nodes; one click re-expands it.
   const [parsedDocCollapsed, setParsedDocCollapsed] = useState(true);
+  // Whether the OutputPreview's "Edit output mapping" slideover is open. Relayed up
+  // from OutputPreview (onMappingEditorOpenChange) so the desktop triptych can FULLY
+  // hide the interactive wire overlays + the decorative source connectors while the
+  // editor is open — otherwise the wires bleed through the slideover. Affects render/
+  // opacity only (never the wire measure deps), so it can't destabilise the #185 guards.
+  const [mapEditorOpen, setMapEditorOpen] = useState(false);
 
   // Resolve which canonical node id corresponds to a given srcRef zone.
   const nodeIdForZone = useCallback((zone: string | null): string | null => {
@@ -2242,6 +2257,9 @@ export function SpineReview({ orderId }: { orderId: string }) {
     onDisconnect: handleSourceWireDisconnect,
     sourceMap: mappingOverride?.sourceMap,
     hoveredId,
+    // Hide the persistent source→canonical wires while the output-mapping editor
+    // slideover is open (render/opacity only — NOT in the signature/measure deps).
+    hidden: mapEditorOpen,
     signature: `${connectorNodes.length}|${sourceTokenList.length}|${wireSig}|${hoveredId ?? ""}`,
   });
 
@@ -2294,13 +2312,16 @@ export function SpineReview({ orderId }: { orderId: string }) {
     setFieldValues(prev => ({ ...prev, [id]: val }));
   }, []);
 
-  // Header fields that map to a backend resolve correction. PO# + supplier are
-  // intentionally absent (read-only). Each maps the node id to the resolve
-  // payload key and the order's current persisted value (for change detection).
-  const headerFieldMap: Record<string, { key: "orderDate" | "buyerName" | "currency"; current: string }> = useMemo(() => ({
-    date:     { key: "orderDate", current: order?.orderDate ?? "" },
-    buyer:    { key: "buyerName", current: order?.buyerName ?? "" },
-    currency: { key: "currency",  current: order?.currency ?? "" },
+  // Header fields that map to a backend resolve correction. Each maps the node id
+  // to the resolve payload key and the order's current persisted value (for change
+  // detection). poNumber + supplierName are display-only on the backend
+  // (supplierName does NOT change routing/SupplierId).
+  const headerFieldMap: Record<string, { key: "orderDate" | "buyerName" | "currency" | "poNumber" | "supplierName"; current: string }> = useMemo(() => ({
+    date:     { key: "orderDate",    current: order?.orderDate ?? "" },
+    buyer:    { key: "buyerName",    current: order?.buyerName ?? "" },
+    currency: { key: "currency",     current: order?.currency ?? "" },
+    po:       { key: "poNumber",     current: order?.poNumber ?? "" },
+    supplier: { key: "supplierName", current: order?.supplierName ?? "" },
   }), [order]);
 
   const handleCommitEdit = useCallback((id: string) => {
@@ -2967,31 +2988,36 @@ export function SpineReview({ orderId }: { orderId: string }) {
               className="grid gap-[40px] px-6 py-[18px]"
               style={{ gridTemplateColumns: "1fr 1.05fr 1.15fr", alignItems: "start", position: "relative" }}
             >
-              {/* Bridge connectors — Source → Spine → Output, drawn as live wires */}
-              <SpineConnectors
-                gridRef={gridRef}
-                sourceColRef={sourceColRef}
-                outputColRef={outputColRef}
-                nodeEls={nodeEls}
-                dotEls={dotEls}
-                srcSectionEls={srcSectionEls}
-                outLineEls={outLineEls}
-                nodes={connectorNodes}
-                hoveredId={hoveredId}
-                crossed={crossed}
-                signature={`${nodes.length}|${editingId ?? ""}|${[...acceptedSubnodes].sort().join(",")}|${[...rejectedSubnodes].sort().join(",")}|${hoveredId ?? ""}|${activeZone ?? ""}|${crossed ? 1 : 0}|${Object.entries(fieldValues).map(([k, v]) => k + v).join(",")}|${wireSig}|${parsedDocCollapsed ? "c" : ""}`}
-                // WireDragLayer owns the canonical→output (right) wires so they can be
-                // override-aware + re-routable; SpineConnectors draws only source→canonical.
-                drawOutput={false}
-                // When the reconstructed-document body is collapsed its section anchors
-                // are display:none (zero rect) — stop drawing source→canonical wires so
-                // they don't collapse onto the panel's top-left corner.
-                drawSource={!parsedDocCollapsed}
-              />
+              {/* Bridge connectors — Source → Spine → Output, drawn as live wires.
+                  Skipped entirely while the output-mapping editor slideover is open so
+                  the decorative source→canonical wires don't bleed through the editor. */}
+              {!mapEditorOpen && (
+                <SpineConnectors
+                  gridRef={gridRef}
+                  sourceColRef={sourceColRef}
+                  outputColRef={outputColRef}
+                  nodeEls={nodeEls}
+                  dotEls={dotEls}
+                  srcSectionEls={srcSectionEls}
+                  outLineEls={outLineEls}
+                  nodes={connectorNodes}
+                  hoveredId={hoveredId}
+                  crossed={crossed}
+                  signature={`${nodes.length}|${editingId ?? ""}|${[...acceptedSubnodes].sort().join(",")}|${[...rejectedSubnodes].sort().join(",")}|${hoveredId ?? ""}|${activeZone ?? ""}|${crossed ? 1 : 0}|${Object.entries(fieldValues).map(([k, v]) => k + v).join(",")}|${wireSig}|${parsedDocCollapsed ? "c" : ""}`}
+                  // WireDragLayer owns the canonical→output (right) wires so they can be
+                  // override-aware + re-routable; SpineConnectors draws only source→canonical.
+                  drawOutput={false}
+                  // When the reconstructed-document body is collapsed its section anchors
+                  // are display:none (zero rect) — stop drawing source→canonical wires so
+                  // they don't collapse onto the panel's top-left corner.
+                  drawSource={!parsedDocCollapsed}
+                />
+              )}
 
               {/* Interactive drag-to-wire layer — canonical → output only, xl desktop.
                   Sits above the decorative SpineConnectors (z-index:3 vs 2).
-                  Uses native pointer events; decorative SVG pointerEvents:none is unchanged. */}
+                  Uses native pointer events; decorative SVG pointerEvents:none is unchanged.
+                  hidden while the editor slideover is open (opacity 0 + no pointer events). */}
               <WireDragLayer
                 gridRef={gridRef}
                 nodeEls={nodeEls}
@@ -3001,6 +3027,7 @@ export function SpineReview({ orderId }: { orderId: string }) {
                 onDisconnect={handleWireDisconnect}
                 existingConnections={existingWireConnections}
                 hoveredId={hoveredId}
+                hidden={mapEditorOpen}
                 signature={`${nodes.length}|${wireSig}|${hoveredId ?? ""}`}
               />
 
@@ -3093,6 +3120,7 @@ export function SpineReview({ orderId }: { orderId: string }) {
                   orderId={orderId}
                   artifacts={order.artifacts}
                   onLine={(id, el) => { outLineEls.current[id] = el; }}
+                  onMappingEditorOpenChange={setMapEditorOpen}
                 />
               </div>
             </div>
