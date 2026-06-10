@@ -94,6 +94,18 @@ export interface OrderMappingOverride {
    * Null/absent = the parsed canonical values are used unchanged (byte-for-byte identical).
    */
   sourceMap?: Record<string, SourceFieldRule> | null;
+  /**
+   * Whole-document Scriban template. When non-blank, the transform renders the ENTIRE
+   * output document from this single template (highest precedence — overrides `output`
+   * field rules). Null/blank = field-by-field / default transform. See
+   * docs/qa/2026-06-09-scriban-template-namespace.md for the available variables.
+   */
+  outputTemplate?: string | null;
+  /**
+   * MIME type stamped on the template-rendered artifact (default "application/json").
+   * The file extension follows the content type (application/xml → .xml, text/plain → .txt).
+   */
+  outputTemplateContentType?: string | null;
 }
 
 /**
@@ -133,6 +145,12 @@ export interface MappingOverridePreview {
   contentType?: string;
   content: string | null;
   warning?: string;
+  /**
+   * Template-mode render error (Scriban compile/render failure). The endpoint returns
+   * HTTP 200 with { ok:false, error } so the editor can surface it inline rather than
+   * crashing. Null/absent on success.
+   */
+  error?: string | null;
 }
 
 /** The 8 manipulators ManipulatorRegistry supports, with their param hints. */
@@ -150,6 +168,110 @@ export const MANIPULATOR_TYPES: ReadonlyArray<{ type: string; params: string[]; 
 /** Canonical fields selectable as a source in the mapping editor. */
 export const CANONICAL_HEADER_FIELDS = ["PoNumber", "OrderDate", "BuyerName", "Currency", "SupplierName"] as const;
 export const CANONICAL_LINE_FIELDS = ["LineNumber", "BuyerItemCode", "SupplierItemCode", "Description", "Quantity", "Unit", "UnitPrice", "LineTotal"] as const;
+
+// ── Whole-document Scriban template mode ─────────────────────────────────────
+// Mirrors docs/qa/2026-06-09-scriban-template-namespace.md (the backend source of
+// truth). Used by the "proposed structure / available fields" reference panel.
+
+/** A clickable template variable: the {{ token }} it inserts + a short note. */
+export interface ScribanTemplateField {
+  /** The exact text inserted at the cursor (already wrapped in {{ }}). */
+  token: string;
+  /** Short human-readable hint. */
+  hint: string;
+}
+
+export interface ScribanTemplateGroup {
+  label: string;
+  fields: ScribanTemplateField[];
+}
+
+/** Header/global scope variables, the ShippingAddress object, and the Lines loop. */
+export const SCRIBAN_TEMPLATE_GROUPS: ReadonlyArray<ScribanTemplateGroup> = [
+  {
+    label: "Header / globals",
+    fields: [
+      { token: "{{ OrderNr }}", hint: "PO number (alias of PoNumber)" },
+      { token: "{{ OrderDate }}", hint: "Order date, ISO yyyy-MM-dd" },
+      { token: "{{ Currency }}", hint: "e.g. EUR" },
+      { token: "{{ BuyerName }}", hint: "Buyer name (empty if unknown)" },
+      { token: "{{ SupplierName }}", hint: "Resolved supplier name" },
+    ],
+  },
+  {
+    label: "Shipping address",
+    fields: [
+      { token: "{{ ShippingAddress.Company }}", hint: "" },
+      { token: "{{ ShippingAddress.FirstName }}", hint: "" },
+      { token: "{{ ShippingAddress.LastName }}", hint: "" },
+      { token: "{{ ShippingAddress.Address1 }}", hint: "" },
+      { token: "{{ ShippingAddress.Address2 }}", hint: "" },
+      { token: "{{ ShippingAddress.City }}", hint: "" },
+      { token: "{{ ShippingAddress.ProvinceCode }}", hint: "" },
+      { token: "{{ ShippingAddress.State }}", hint: "" },
+      { token: "{{ ShippingAddress.PostalCode }}", hint: "" },
+      { token: "{{ ShippingAddress.CountryCode }}", hint: "" },
+      { token: "{{ ShippingAddress.Phone }}", hint: "" },
+      { token: "{{ ShippingAddress.Email }}", hint: "" },
+    ],
+  },
+  {
+    label: "Lines loop — inside {{ for Line in Lines }} … {{ end }}",
+    fields: [
+      { token: "{{ for Line in Lines }}", hint: "Start the per-line loop" },
+      { token: "{{ end }}", hint: "Close a for / if block" },
+      { token: "{{ Line.LineNr }}", hint: "Line number (alias of LineNumber)" },
+      { token: "{{ Line.SupplierItemCode }}", hint: "Resolved supplier item code" },
+      { token: "{{ Line.DistributorPid }}", hint: "Alias of SupplierItemCode (Ingram-style)" },
+      { token: "{{ Line.BuyerItemCode }}", hint: "The buyer's own code" },
+      { token: "{{ Line.Description }}", hint: "Item description" },
+      { token: "{{ Line.Qty }}", hint: "Quantity (real number, unquoted)" },
+      { token: "{{ Line.UnitPrice }}", hint: "Unit price (real number, unquoted)" },
+      { token: "{{ Line.LineTotal }}", hint: "Quantity × UnitPrice" },
+      { token: "{{ if !for.last }},{{ end }}", hint: "Comma between JSON array items" },
+    ],
+  },
+];
+
+/** Content types a whole-document template can stamp on its artifact. */
+export const TEMPLATE_CONTENT_TYPES: ReadonlyArray<{ value: string; label: string }> = [
+  { value: "application/json", label: "JSON" },
+  { value: "application/xml", label: "XML" },
+  { value: "text/plain", label: "Plain text" },
+];
+
+/** Output formats the field-mapping live preview can render (backend supports all 6). */
+export const PREVIEW_FORMATS: ReadonlyArray<{ value: OutputFormatId; label: string }> = [
+  { value: "csv", label: "CSV" },
+  { value: "json", label: "JSON" },
+  { value: "xml", label: "XML" },
+  { value: "cxml", label: "cXML" },
+  { value: "ubl", label: "UBL" },
+  { value: "x12", label: "X12" },
+];
+
+/** A realistic Ingram-Micro-style starter template for "Insert starter template". */
+export const SCRIBAN_STARTER_TEMPLATE = `{
+  "customerOrderNumber": "{{ OrderNr }}",
+  "notes": "Order for {{ ShippingAddress.Company }}",
+  "shipToInfo": {
+    "contact": "{{ ShippingAddress.FirstName }} {{ ShippingAddress.LastName }}",
+    "address1": "{{ ShippingAddress.Address1 }}",
+    "city": "{{ ShippingAddress.City }}",
+    "postalCode": "{{ ShippingAddress.PostalCode }}",
+    "countryCode": "{{ ShippingAddress.CountryCode }}"
+  },
+  "lines": [{{ for Line in Lines }}
+    {
+      "customerLineNumber": "{{ Line.LineNr }}",
+      "ingramPartNumber": "{{ Line.DistributorPid }}",
+      "description": "{{ Line.Description }}",
+      "quantity": {{ Line.Qty }},
+      "unitPrice": {{ Line.UnitPrice }}
+    }{{ if !for.last }},{{ end }}{{ end }}
+  ]
+}
+`;
 
 // Supplier delivery configuration
 

@@ -1416,6 +1416,50 @@ export async function upsertMappingOverride(
   return res.json();
 }
 
+/**
+ * Normalise the several preview-response shapes the backend may return into the
+ * canonical MappingOverridePreview. We tolerate:
+ *   • the legacy field shape          { format, contentType, content, warning }
+ *   • the template shape (success)    { ok: true,  output, contentType }
+ *   • the template shape (error)      { ok: false, error }  (HTTP 200)
+ *   • a raw string body              "…rendered document…"
+ * A template compile/render error is surfaced via `error`, NOT thrown, so the
+ * editor shows it inline (amber) instead of crashing.
+ */
+function normalizeMappingPreview(
+  body: unknown,
+  format: string,
+): import("@/lib/api/types").MappingOverridePreview {
+  if (typeof body === "string") {
+    return { format, content: body };
+  }
+  if (body && typeof body === "object") {
+    const o = body as Record<string, unknown>;
+    const contentType = typeof o.contentType === "string" ? o.contentType : undefined;
+    const warning = typeof o.warning === "string" ? o.warning : undefined;
+    // Template-mode { ok, output, error }
+    if ("ok" in o || "output" in o) {
+      if (o.ok === false || typeof o.error === "string") {
+        return { format, contentType, content: null, error: typeof o.error === "string" ? o.error : "Template render failed" };
+      }
+      const output = typeof o.output === "string" ? o.output
+        : typeof o.content === "string" ? o.content : null;
+      return { format, contentType, content: output, warning };
+    }
+    // Legacy field shape { content, warning }
+    if ("content" in o) {
+      return {
+        format: typeof o.format === "string" ? o.format : format,
+        contentType,
+        content: typeof o.content === "string" ? o.content : null,
+        warning,
+        error: typeof o.error === "string" ? o.error : null,
+      };
+    }
+  }
+  return { format, content: null };
+}
+
 export async function previewMappingOverride(
   orderId: string,
   override: import("@/lib/api/types").OrderMappingOverride,
@@ -1423,6 +1467,14 @@ export async function previewMappingOverride(
 ): Promise<import("@/lib/api/types").MappingOverridePreview> {
   if (USE_MOCK) {
     await delay(150);
+    const tmpl = override.outputTemplate?.trim();
+    if (tmpl) {
+      return {
+        format,
+        contentType: override.outputTemplateContentType ?? "application/json",
+        content: `{ "preview": "rendered from template (${tmpl.length} chars)" }`,
+      };
+    }
     return { format, contentType: "text/csv", content: override.output ? "code,qty\n(mapped preview)" : "(default transform)" };
   }
   const headers = await authHeader();
@@ -1435,7 +1487,11 @@ export async function previewMappingOverride(
     const b = await res.json().catch(() => null) as { error?: string } | null;
     throw new Error(b?.error || `Preview failed: ${res.status}`);
   }
-  return res.json();
+  const contentType = res.headers.get("content-type") ?? "";
+  const raw: unknown = contentType.includes("application/json")
+    ? await res.json().catch(() => null)
+    : await res.text().catch(() => "");
+  return normalizeMappingPreview(raw, format);
 }
 
 // ── Source→canonical mapping (drag-to-wire on the order review heart-piece) ──

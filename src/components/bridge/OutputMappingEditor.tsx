@@ -13,14 +13,16 @@
 // Visual drag-to-connect lives in the ORDER-VIEW wires (SpineReview), not here — this panel
 // is the explicit, keyboard-friendly form.
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   getMappingOverride, upsertMappingOverride, previewMappingOverride,
 } from "@/lib/api-client";
 import {
   MANIPULATOR_TYPES, CANONICAL_HEADER_FIELDS, CANONICAL_LINE_FIELDS,
+  SCRIBAN_TEMPLATE_GROUPS, TEMPLATE_CONTENT_TYPES, PREVIEW_FORMATS, SCRIBAN_STARTER_TEMPLATE,
   type OrderMappingOverride, type OutputFieldRule, type ManipulatorEntry, type CustomField,
+  type OutputFormatId,
 } from "@/lib/api/types";
 
 type Scope = "header" | "lines";
@@ -216,6 +218,87 @@ function CustomFieldsSection({ rows, setRows }: { rows: CustomRow[]; setRows: (r
   );
 }
 
+// ── Template-mode sub-components (module-level → stable identity) ──────────────
+
+const DEFAULT_TEMPLATE_CONTENT_TYPE = "application/json";
+
+function TemplateReferencePanel({ onInsert }: { onInsert: (token: string) => void }) {
+  return (
+    <section aria-label="Available template fields"
+      style={{ border: "1px solid #E2E6EE", borderRadius: 8, background: "#FFFFFF", padding: 12 }}>
+      <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "#56627A", marginBottom: 4 }}>
+        Proposed structure / available fields
+      </div>
+      <div style={{ fontSize: 11, color: "#8A93A5", marginBottom: 10 }}>
+        Click a field to insert its token at the cursor. Numbers (Qty, UnitPrice…) emit unquoted.
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+        {SCRIBAN_TEMPLATE_GROUPS.map((group) => (
+          <div key={group.label}>
+            <div style={{ fontSize: 10.5, fontWeight: 700, color: "#5E3DB0", marginBottom: 6 }}>{group.label}</div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+              {group.fields.map((f) => (
+                <button key={f.token} type="button" onClick={() => onInsert(f.token)}
+                  title={f.hint || f.token}
+                  style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10.5, color: "#5E3DB0", background: "#EEE7FB", border: "1px solid #DACEF3", borderRadius: 6, padding: "3px 7px", cursor: "pointer", lineHeight: 1.3 }}>
+                  {f.token}
+                </button>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function TemplateEditor({
+  template, contentType, onTemplateChange, onContentTypeChange, onInsertStarter, textareaRef,
+}: {
+  template: string;
+  contentType: string;
+  onTemplateChange: (v: string) => void;
+  onContentTypeChange: (v: string) => void;
+  onInsertStarter: () => void;
+  textareaRef: React.RefObject<HTMLTextAreaElement | null>;
+}) {
+  return (
+    <section>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginBottom: 8 }}>
+        <span style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "#56627A" }}>
+          Document template
+        </span>
+        <div style={{ flex: 1 }} />
+        <label style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 11.5, color: "#56627A" }}>
+          Content type
+          <select value={contentType} onChange={(e) => onContentTypeChange(e.target.value)} aria-label="Template content type"
+            style={{ minHeight: 30, border: "1px solid #C6CDDA", borderRadius: 6, padding: "3px 8px", fontSize: 12, background: "#FFFFFF" }}>
+            {TEMPLATE_CONTENT_TYPES.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
+          </select>
+        </label>
+        <button type="button" onClick={onInsertStarter}
+          style={{ fontSize: 11.5, fontWeight: 600, color: "#1E66C9", background: "#FFFFFF", border: "1px solid #1E66C9", borderRadius: 6, padding: "5px 10px", cursor: "pointer", minHeight: 30 }}>
+          Insert starter template
+        </button>
+      </div>
+      <textarea
+        ref={textareaRef}
+        value={template}
+        onChange={(e) => onTemplateChange(e.target.value)}
+        spellCheck={false}
+        aria-label="Scriban output template"
+        placeholder={'Write a Scriban template that renders the whole document, e.g.\n{ "po": "{{ OrderNr }}", "lines": [{{ for Line in Lines }}…{{ end }}] }'}
+        style={{
+          width: "100%", minHeight: 280, resize: "vertical",
+          border: "1px solid #C6CDDA", borderRadius: 8, padding: 12,
+          fontSize: 12, lineHeight: 1.5, fontFamily: "'JetBrains Mono',monospace",
+          color: "#0B1A2F", background: "#FFFFFF", boxSizing: "border-box", whiteSpace: "pre", overflowWrap: "normal", overflowX: "auto",
+        }}
+      />
+    </section>
+  );
+}
+
 // ── Main panel ────────────────────────────────────────────────────────────────
 
 export function OutputMappingEditor({
@@ -236,8 +319,14 @@ export function OutputMappingEditor({
   const [headerRows, setHeaderRows] = useState<Row[]>([]);
   const [lineRows, setLineRows]     = useState<Row[]>([]);
   const [customRows, setCustomRows] = useState<CustomRow[]>([]);
-  const [format, setFormat]         = useState<"csv" | "json">("csv");
+  const [format, setFormat]         = useState<OutputFormatId>("csv");
   const [seeded, setSeeded]         = useState(false);
+
+  // Template mode (whole-document Scriban). Off = the field-by-field UI (default).
+  const [templateMode, setTemplateMode]   = useState(false);
+  const [template, setTemplate]           = useState("");
+  const [templateContentType, setTemplateContentType] = useState(DEFAULT_TEMPLATE_CONTENT_TYPE);
+  const templateRef = useRef<HTMLTextAreaElement | null>(null);
 
   useEffect(() => {
     if (!open) { setSeeded(false); return; }
@@ -245,8 +334,35 @@ export function OutputMappingEditor({
     setHeaderRows(toRows(existing?.output?.header));
     setLineRows(toRows(existing?.output?.lines));
     setCustomRows(toCustomRows(existing?.customFields));
+    const tmpl = existing?.outputTemplate ?? "";
+    setTemplate(tmpl);
+    setTemplateContentType(existing?.outputTemplateContentType ?? DEFAULT_TEMPLATE_CONTENT_TYPE);
+    setTemplateMode(tmpl.trim().length > 0);
     setSeeded(true);
   }, [open, seeded, existing]);
+
+  // Insert a token at the textarea caret (or append). Keeps focus + selection sane.
+  const insertToken = useCallback((token: string) => {
+    const el = templateRef.current;
+    setTemplate((prev) => {
+      if (!el) return prev + token;
+      const start = el.selectionStart ?? prev.length;
+      const end = el.selectionEnd ?? prev.length;
+      const next = prev.slice(0, start) + token + prev.slice(end);
+      // Restore caret just after the inserted token on the next tick.
+      requestAnimationFrame(() => {
+        el.focus();
+        const pos = start + token.length;
+        el.setSelectionRange(pos, pos);
+      });
+      return next;
+    });
+  }, []);
+
+  const insertStarter = useCallback(() => {
+    setTemplate(SCRIBAN_STARTER_TEMPLATE);
+    setTemplateContentType("application/json");
+  }, []);
 
   // Header-scoped custom fields (one value each), available as a source to both scopes.
   const customFields: CustomField[] = useMemo(
@@ -259,28 +375,46 @@ export function OutputMappingEditor({
   const headerSources = useMemo(() => [...CANONICAL_HEADER_FIELDS, ...customKeys], [customKeys]);
   const lineSources   = useMemo(() => [...CANONICAL_LINE_FIELDS, ...CANONICAL_HEADER_FIELDS, ...customKeys], [customKeys]);
 
-  const draft: OrderMappingOverride = useMemo(() => ({
-    customFields,
-    output: { header: toRecord(headerRows), lines: toRecord(lineRows) },
-  }), [customFields, headerRows, lineRows]);
+  const trimmedTemplate = template.trim();
+  const draft: OrderMappingOverride = useMemo(() => {
+    const base: OrderMappingOverride = {
+      customFields,
+      output: { header: toRecord(headerRows), lines: toRecord(lineRows) },
+    };
+    // Template mode takes precedence on the backend; only send the template when
+    // the toggle is on AND it's non-blank, so flipping the toggle off clears it.
+    if (templateMode && trimmedTemplate.length > 0) {
+      base.outputTemplate = template;
+      base.outputTemplateContentType = templateContentType;
+    } else {
+      base.outputTemplate = null;
+      base.outputTemplateContentType = null;
+    }
+    return base;
+  }, [customFields, headerRows, lineRows, templateMode, trimmedTemplate, template, templateContentType]);
 
   const [preview, setPreview] = useState<{ content: string | null; warning?: string; error?: string } | null>(null);
   const [previewing, setPreviewing] = useState(false);
+  // In template mode preview renders the chosen content type, not a CSV/JSON/… format.
+  const previewFormat = templateMode ? templateContentType.replace(/^.*\//, "") : format;
+  const blankTemplate = templateMode && trimmedTemplate.length === 0;
   const debRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
     if (!open || !seeded) return;
+    if (blankTemplate) { setPreview(null); return; }
     if (debRef.current) clearTimeout(debRef.current);
+    // Slightly faster debounce (≈400ms) so the template editor feels live.
     debRef.current = setTimeout(async () => {
       setPreviewing(true);
       try {
-        const r = await previewMappingOverride(orderId, draft, format);
-        setPreview({ content: r.content, warning: r.warning });
+        const r = await previewMappingOverride(orderId, draft, templateMode ? "json" : format);
+        setPreview({ content: r.content, warning: r.warning, error: r.error ?? undefined });
       } catch (e) {
         setPreview({ content: null, error: e instanceof Error ? e.message : "Preview failed" });
       } finally { setPreviewing(false); }
-    }, 500);
+    }, 400);
     return () => { if (debRef.current) clearTimeout(debRef.current); };
-  }, [orderId, draft, format, open, seeded]);
+  }, [orderId, draft, format, open, seeded, templateMode, blankTemplate]);
 
   const save = useMutation({
     mutationFn: () => upsertMappingOverride(orderId, draft),
@@ -291,9 +425,12 @@ export function OutputMappingEditor({
     },
   });
   const reset = useMutation({
-    mutationFn: () => upsertMappingOverride(orderId, { customFields: [], output: { header: {}, lines: {} } }),
+    mutationFn: () => upsertMappingOverride(orderId, {
+      customFields: [], output: { header: {}, lines: {} }, outputTemplate: null, outputTemplateContentType: null,
+    }),
     onSuccess: async () => {
       setHeaderRows([]); setLineRows([]); setCustomRows([]);
+      setTemplate(""); setTemplateContentType(DEFAULT_TEMPLATE_CONTENT_TYPE); setTemplateMode(false);
       await qc.invalidateQueries({ queryKey: ["mapping-override", orderId] });
       await qc.invalidateQueries({ queryKey: ["order", orderId] });
     },
@@ -311,35 +448,89 @@ export function OutputMappingEditor({
         <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "14px 18px", borderBottom: "1px solid #E2E6EE", background: "#FFFFFF" }}>
           <div style={{ flex: 1 }}>
             <div style={{ fontSize: 15, fontWeight: 700, color: "#0B1A2F" }}>Edit output mapping</div>
-            <div style={{ fontSize: 11.5, color: "#8A93A5" }}>Choose how each delivered field is built. Empty = the default transform.</div>
+            <div style={{ fontSize: 11.5, color: "#8A93A5" }}>
+              {templateMode
+                ? "Render the whole document from one Scriban template."
+                : "Choose how each delivered field is built. Empty = the default transform."}
+            </div>
           </div>
-          <select value={format} onChange={(e) => setFormat(e.target.value as "csv" | "json")} aria-label="Preview format"
-            style={{ minHeight: 34, border: "1px solid #C6CDDA", borderRadius: 6, padding: "4px 8px", fontSize: 12 }}>
-            <option value="csv">CSV</option>
-            <option value="json">JSON</option>
-          </select>
+          {!templateMode && (
+            <label style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 11.5, color: "#56627A" }}>
+              <span className="sr-only" style={{ position: "absolute", width: 1, height: 1, overflow: "hidden", clip: "rect(0 0 0 0)" }}>Preview format</span>
+              <select value={format} onChange={(e) => setFormat(e.target.value as OutputFormatId)} aria-label="Preview format"
+                style={{ minHeight: 34, border: "1px solid #C6CDDA", borderRadius: 6, padding: "4px 8px", fontSize: 12, background: "#FFFFFF" }}>
+                {PREVIEW_FORMATS.map((f) => <option key={f.value} value={f.value}>{f.label}</option>)}
+              </select>
+            </label>
+          )}
           <button type="button" onClick={onClose} aria-label="Close" style={{ minHeight: 34, minWidth: 34, border: "none", background: "transparent", fontSize: 18, color: "#56627A", cursor: "pointer" }}>✕</button>
         </div>
 
+        {/* Template-mode toggle — off (default) keeps the field-by-field UI. */}
+        <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 18px", borderBottom: "1px solid #E2E6EE", background: "#FFFFFF" }}>
+          <span style={{ fontSize: 12, fontWeight: 600, color: templateMode ? "#5E3DB0" : "#56627A" }}>Template mode</span>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={templateMode}
+            aria-label="Template mode"
+            onClick={() => setTemplateMode((v) => !v)}
+            style={{
+              position: "relative", width: 42, height: 24, borderRadius: 12, cursor: "pointer",
+              border: "none", padding: 0,
+              background: templateMode ? "#6F4FCE" : "#C6CDDA", transition: "background 120ms ease",
+            }}
+          >
+            <span aria-hidden style={{
+              position: "absolute", top: 2, left: templateMode ? 20 : 2, width: 20, height: 20,
+              borderRadius: "50%", background: "#FFFFFF", boxShadow: "0 1px 2px rgba(0,0,0,0.25)",
+              transition: "left 120ms ease",
+            }} />
+          </button>
+          <span style={{ fontSize: 11, color: "#8A93A5" }}>
+            {templateMode
+              ? "One Scriban template renders the entire output document (overrides field rules)."
+              : "Map each delivered field one-by-one. Turn on to write a whole-document template instead."}
+          </span>
+        </div>
+
         <div style={{ flex: 1, overflowY: "auto", padding: 18, display: "flex", flexDirection: "column", gap: 18 }}>
-          {isEmpty && (
-            <div style={{ fontSize: 12.5, color: "#56627A", background: "#EEF3FB", border: "1px solid #D5E3F6", borderRadius: 8, padding: "10px 12px", lineHeight: 1.5 }}>
-              This order delivers with the supplier&apos;s <strong>default</strong> mapping. Add a field below to override one or
-              more columns just for this order — e.g. rename <code>po_number</code>, inject a fixed value, or reformat a date.
-            </div>
+          {templateMode ? (
+            <>
+              <TemplateEditor
+                template={template}
+                contentType={templateContentType}
+                onTemplateChange={setTemplate}
+                onContentTypeChange={setTemplateContentType}
+                onInsertStarter={insertStarter}
+                textareaRef={templateRef}
+              />
+              <TemplateReferencePanel onInsert={insertToken} />
+            </>
+          ) : (
+            <>
+              {isEmpty && (
+                <div style={{ fontSize: 12.5, color: "#56627A", background: "#EEF3FB", border: "1px solid #D5E3F6", borderRadius: 8, padding: "10px 12px", lineHeight: 1.5 }}>
+                  This order delivers with the supplier&apos;s <strong>default</strong> mapping. Add a field below to override one or
+                  more columns just for this order — e.g. rename <code>po_number</code>, inject a fixed value, or reformat a date.
+                </div>
+              )}
+              <CustomFieldsSection rows={customRows} setRows={setCustomRows} />
+              <RuleSection title="Header fields" scope="header" rows={headerRows} sources={headerSources} setRows={setHeaderRows} />
+              <RuleSection title="Line fields" scope="lines" rows={lineRows} sources={lineSources} setRows={setLineRows} />
+            </>
           )}
-          <CustomFieldsSection rows={customRows} setRows={setCustomRows} />
-          <RuleSection title="Header fields" scope="header" rows={headerRows} sources={headerSources} setRows={setHeaderRows} />
-          <RuleSection title="Line fields" scope="lines" rows={lineRows} sources={lineSources} setRows={setLineRows} />
           <section>
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
-              <span style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "#56627A" }}>Live preview</span>
+              <span style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "#56627A" }}>
+                Live preview{templateMode ? ` · ${previewFormat}` : ` · ${previewFormat.toUpperCase()}`}
+              </span>
               {previewing && <span style={{ fontSize: 10.5, color: "#8A93A5" }}>updating…</span>}
             </div>
             {preview?.warning && <div style={{ fontSize: 11.5, color: "#C97A14", marginBottom: 6 }}>⚠ {preview.warning}</div>}
-            {preview?.error && <div style={{ fontSize: 11.5, color: "#C53A3A", marginBottom: 6 }}>{preview.error}</div>}
+            {preview?.error && <div role="alert" style={{ fontSize: 11.5, color: "#C97A14", background: "#FBF3E4", border: "1px solid #F0DCAE", borderRadius: 6, padding: "7px 9px", marginBottom: 6, whiteSpace: "pre-wrap" }}>{preview.error}</div>}
             <pre style={{ margin: 0, background: "#0B1A2F", color: "#C5D2E4", borderRadius: 8, padding: 12, fontSize: 11.5, fontFamily: "'JetBrains Mono',monospace", overflowX: "auto", maxHeight: 240, whiteSpace: "pre-wrap" }}>
-{preview?.content ?? (previewing ? "…" : "(no preview)")}
+{preview?.content ?? (blankTemplate ? "(write a template to preview)" : previewing ? "…" : "(no preview)")}
             </pre>
           </section>
         </div>
