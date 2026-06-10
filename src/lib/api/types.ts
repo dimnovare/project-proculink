@@ -116,6 +116,15 @@ export interface PromoteMappingResult {
   supplierId: string;
   headerFieldsPromoted: number;
   lineFieldsPromoted: number;
+  /** Output-side mapping fields promoted (added 2026-06-09 backend). */
+  outputHeaderFieldsPromoted?: number;
+  outputLineFieldsPromoted?: number;
+  /** Total across inbound source + output sides. */
+  totalFieldsPromoted?: number;
+  /** True when there was nothing promotable (show as info, not success). */
+  nothingToPromote?: boolean;
+  /** Human-readable result for both the success and nothing-to-save cases. */
+  message?: string;
   schemaFingerprintHash?: string | null;
 }
 

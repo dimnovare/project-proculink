@@ -2146,13 +2146,18 @@ export function SpineReview({ orderId }: { orderId: string }) {
   const promoteMutation = useMutation({
     mutationFn: () => promoteMapping(orderId),
     onSuccess: (r) => {
-      const n = r.headerFieldsPromoted + r.lineFieldsPromoted;
-      setFlow(
-        n > 0
-          ? `Saved for ${order?.supplierName ?? "this supplier"} — ${n} field${n !== 1 ? "s" : ""} will auto-apply next time.`
-          : "Nothing to save yet — wire at least one source field first.",
-        n > 0 ? "success" : "info",
-      );
+      // Count BOTH the inbound source side and the output side (the old code only
+      // counted source fields, so an output-only mapping looked like "nothing saved").
+      const total = r.totalFieldsPromoted
+        ?? (r.headerFieldsPromoted + r.lineFieldsPromoted
+            + (r.outputHeaderFieldsPromoted ?? 0) + (r.outputLineFieldsPromoted ?? 0));
+      const nothing = r.nothingToPromote ?? total === 0;
+      // Prefer the backend's human-readable message; fall back to a local one.
+      const msg = r.message
+        ?? (nothing
+              ? "Nothing to save yet — wire a source field or add an output mapping first."
+              : `Saved for ${order?.supplierName ?? "this supplier"} — ${total} field${total !== 1 ? "s" : ""} will auto-apply next time.`);
+      setFlow(msg, nothing ? "info" : "success");
     },
     onError: (err) => setFlow(err instanceof Error ? err.message : "Couldn't save the supplier mapping.", "error"),
   });
