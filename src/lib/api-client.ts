@@ -21,27 +21,29 @@ import type {
   OrdersSummary,
 } from "@/types/procurement";
 
-function normalizeApiBaseUrl(raw: string | undefined): string {
-  const value = (raw || "http://localhost:5223").trim().replace(/\/+$/, "");
-  if (!value) return "http://localhost:5223";
-  if (/^https?:\/\//i.test(value)) return value;
-  return `https://${value}`;
-}
+// Shared API-layer primitives now live in a single source of truth (./api/core)
+// so there is exactly ONE ApiHttpError class identity and one place to change
+// auth / mock / timeout policy. Re-exported below to preserve the public surface.
+import {
+  API_BASE_URL,
+  USE_MOCK,
+  isApiMockMode,
+  authHeader,
+  fetchWithTimeout,
+  delay,
+  ApiHttpError,
+} from "./api/core";
 
-const API_BASE_URL = normalizeApiBaseUrl(process.env.NEXT_PUBLIC_API_BASE_URL);
 /**
  * Normalised public API base (no trailing slash). Exported so UI that needs to
  * display a backend URL — e.g. the inbound ingress endpoint on the Settings →
  * API keys tab — reuses the same normalization instead of re-reading the env.
  */
 export const apiBaseUrl = API_BASE_URL;
-// Mock mode is opt-in AND dev-only. Production builds NEVER render mock data
-// regardless of env var, so prospects/customers never see staged content.
-// (J2) Previously defaulted to true when env was absent, which leaked demo
-// state into Vercel deploys without `NEXT_PUBLIC_USE_MOCK=false` set.
-const USE_MOCK =
-  process.env.NEXT_PUBLIC_USE_MOCK === "true" &&
-  process.env.NODE_ENV !== "production";
+
+// Re-export the shared primitives so every existing `@/lib/api-client` import
+// (incl. ApiHttpError, isApiMockMode) keeps working unchanged.
+export { ApiHttpError, isApiMockMode };
 
 // ─── Support contact ───
 // Placed near the top of api-client.ts so the support form chip doesn't
@@ -54,9 +56,6 @@ export interface SupportContactPayload {
   route?: string;
 }
 
-/** True when the frontend uses in-memory mocks instead of the ASP.NET API. */
-export const isApiMockMode = USE_MOCK;
-
 /**
  * True only in the live QA-bypass e2e harness (NEXT_PUBLIC_QA_BYPASS_AUTH=true),
  * paired with PROCULINK_QA_BYPASS_AUTH on the backend. In that mode the browser
@@ -65,52 +64,6 @@ export const isApiMockMode = USE_MOCK;
  * so production/mock behavior is unchanged.
  */
 export const isQaBypass = process.env.NEXT_PUBLIC_QA_BYPASS_AUTH === "true";
-
-/**
- * Returns an Authorization header with the current Clerk session JWT.
- * Uses window.Clerk (set by ClerkProvider) so this works outside React components.
- */
-async function authHeader(): Promise<Record<string, string>> {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const token = await (window as any).Clerk?.session?.getToken();
-  return token ? { Authorization: `Bearer ${token}` } : {};
-}
-
-const delay = (ms: number) => new Promise<void>(resolve => setTimeout(resolve, ms));
-
-export class ApiHttpError extends Error {
-  status: number;
-  body: unknown;
-
-  constructor(message: string, status: number, body: unknown = null) {
-    super(message);
-    this.name = "ApiHttpError";
-    this.status = status;
-    this.body = body;
-  }
-}
-
-async function fetchWithTimeout(input: RequestInfo | URL, init?: RequestInit, timeoutMs = 8000) {
-  const controller = new AbortController();
-  let didTimeout = false;
-  const timeout = globalThis.setTimeout(() => {
-    didTimeout = true;
-    controller.abort();
-  }, timeoutMs);
-  try {
-    return await fetch(input, { ...init, signal: controller.signal });
-  } catch (err) {
-    // Re-throw AbortError as a clearer timeout error so callers (and the user)
-    // can distinguish "backend didn't respond in time" from a generic network
-    // failure. Preserves the original error chain via `cause`.
-    if (didTimeout || (err instanceof DOMException && err.name === "AbortError")) {
-      throw new Error(`Request timed out after ${timeoutMs}ms`, { cause: err });
-    }
-    throw err;
-  } finally {
-    globalThis.clearTimeout(timeout);
-  }
-}
 
 // ── Mock data ─────────────────────────────────────────────────────────────
 
