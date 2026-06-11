@@ -10,7 +10,7 @@ export const metadata: Metadata = {
 const S = {
   page:    { maxWidth: 760, margin: "0 auto", padding: "56px 32px 80px" },
   h1:      { fontFamily: "'Bricolage Grotesque', Inter, sans-serif", fontSize: "clamp(28px, 4vw, 40px)", fontWeight: 700, letterSpacing: "-0.025em", color: "#0B1A2F", marginBottom: 8 },
-  updated: { fontSize: 13, color: "#8A93A5", marginBottom: 40 },
+  updated: { fontSize: 13, color: "var(--ink-faint)", marginBottom: 40 },
   intro:   { fontSize: 15.5, lineHeight: 1.7, color: "#56627A", marginBottom: 40 },
   h2:      { fontFamily: "'Bricolage Grotesque', Inter, sans-serif", fontSize: 20, fontWeight: 600, color: "#0B1A2F", margin: "40px 0 12px", letterSpacing: "-0.015em" },
   h3:      { fontFamily: "'Bricolage Grotesque', Inter, sans-serif", fontSize: 16, fontWeight: 600, color: "#0B1A2F", margin: "24px 0 8px" },

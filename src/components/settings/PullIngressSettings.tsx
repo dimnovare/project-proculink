@@ -16,7 +16,7 @@ import { SettingsGroup, primaryGreenButton } from "@/components/settings/Setting
 
 const INK = "#0B1A2F";
 const MUTED = "#56627A";
-const FAINT = "#8A93A5";
+const FAINT = "var(--ink-faint)";
 const DANGER = "#A52E2E";
 
 const PLAN_HINT = "Available on any paid plan. Secrets are encrypted and never shown again.";
@@ -29,7 +29,6 @@ const inputStyle: React.CSSProperties = {
   padding: "0 10px",
   fontSize: 13,
   color: INK,
-  outline: "none",
 };
 
 // Maps the backend's machine error codes (and any other failure) to a plain
@@ -205,7 +204,7 @@ function SaveBar({
       <button
         onClick={onSave}
         disabled={saving}
-        style={{ ...primaryGreenButton, background: saving ? "#8A93A5" : "var(--brand-green)", cursor: saving ? "not-allowed" : "pointer" }}
+        style={{ ...primaryGreenButton, background: saving ? "var(--ink-faint)" : "var(--brand-green)", cursor: saving ? "not-allowed" : "pointer" }}
       >
         <Save size={14} strokeWidth={2} />
         {saving ? "Saving…" : "Save"}

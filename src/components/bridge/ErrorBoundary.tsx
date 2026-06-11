@@ -122,7 +122,7 @@ function DefaultErrorPanel({
         }}
       >
         <summary
-          style={{ fontSize: 11.5, fontWeight: 600, color: "#8A93A5", cursor: "pointer", userSelect: "none" }}
+          style={{ fontSize: 11.5, fontWeight: 600, color: "var(--ink-faint)", cursor: "pointer", userSelect: "none" }}
         >
           Error details
         </summary>

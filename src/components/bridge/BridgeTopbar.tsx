@@ -267,7 +267,7 @@ function NotificationsBell() {
           </div>
           <div className="max-h-[60vh] sm:max-h-[360px]" style={{ overflowY: "auto" }}>
             {top.length === 0 ? (
-              <div style={{ padding: "24px 16px", textAlign: "center", fontSize: 12.5, color: "#8A93A5" }}>No new activity.</div>
+              <div style={{ padding: "24px 16px", textAlign: "center", fontSize: 12.5, color: "var(--ink-faint)" }}>No new activity.</div>
             ) : (
               top.map(({ o, kind }) => {
                 const meta = NOTIF_META[kind];
@@ -288,7 +288,7 @@ function NotificationsBell() {
                         <span style={{ fontFamily: "'JetBrains Mono',monospace" }}>{o.poNumber}</span> · {o.supplierName}
                       </span>
                     </span>
-                    <span style={{ fontSize: 10, color: "#8A93A5", flexShrink: 0, marginTop: 1 }}>{timeAgo(o.createdAt)}</span>
+                    <span style={{ fontSize: 10, color: "var(--ink-faint)", flexShrink: 0, marginTop: 1 }}>{timeAgo(o.createdAt)}</span>
                   </button>
                 );
               })

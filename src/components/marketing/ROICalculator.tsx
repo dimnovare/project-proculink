@@ -11,7 +11,7 @@ import { OVERAGE_PER_ORDER_EUR, planEffectiveMonthlyCost, recommendPlanByOrders 
 const T = {
   ink: "#0B1A2F",
   inkSoft: "#56627A",
-  inkFaint: "#8A93A5",
+  inkFaint: "var(--ink-faint)",
   surface: "#F6F7FA",
   surface2: "#EFF2F7",
   card: "#FFFFFF",

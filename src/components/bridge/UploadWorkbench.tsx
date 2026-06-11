@@ -187,7 +187,7 @@ function InfoDisclosure({
   }, [open]);
 
   const border = tone === "ai" ? "#C5B8F0" : "#C6CDDA";
-  const color = tone === "ai" ? "#6F4FCE" : "#8A93A5";
+  const color = tone === "ai" ? "#6F4FCE" : "var(--ink-faint)";
 
   return (
     <span ref={wrapRef} style={{ position: "relative", display: "inline-flex", flexShrink: 0 }}>
@@ -527,7 +527,7 @@ export function UploadWorkbench() {
           className="w-full rounded-[6px] py-2.5 text-[13px] font-semibold transition-all"
           style={{
             background: sampleLoading || uploading ? "#E2E6EE" : "#0B1A2F",
-            color: sampleLoading || uploading ? "#8A93A5" : "#FFFFFF",
+            color: sampleLoading || uploading ? "var(--ink-faint)" : "#FFFFFF",
             border: "none",
             boxShadow: sampleLoading || uploading ? "none" : "0 2px 8px rgba(11,26,47,0.18)",
             cursor: sampleLoading || uploading ? "not-allowed" : "pointer",
@@ -714,7 +714,7 @@ export function UploadWorkbench() {
                   className="inline-flex min-h-[40px] items-center gap-2 rounded-[6px] px-4 py-2 text-[13px] font-semibold transition-colors"
                   style={{
                     background: isReadOnly || uploading ? "#E2E6EE" : "#1E66C9",
-                    color: isReadOnly || uploading ? "#8A93A5" : "#FFFFFF",
+                    color: isReadOnly || uploading ? "var(--ink-faint)" : "#FFFFFF",
                     border: "none",
                     boxShadow: isReadOnly || uploading ? "none" : "0 2px 8px rgba(30,102,201,0.25)",
                     cursor: isReadOnly || uploading ? "not-allowed" : "pointer",
@@ -766,7 +766,7 @@ export function UploadWorkbench() {
                           borderRadius: 99,
                           background: "#FFFFFF",
                           border: "1px solid #E2E6EE",
-                          color: "#8A93A5",
+                          color: "var(--ink-faint)",
                           userSelect: "none",
                         }}
                       >
@@ -800,7 +800,7 @@ export function UploadWorkbench() {
                                   ? "#1E6D29"
                                   : detection.confidence >= 0.5
                                   ? "#C97A14"
-                                  : "#8A93A5",
+                                  : "var(--ink-faint)",
                             }}
                           />
                           Detected:{" "}
@@ -938,7 +938,7 @@ export function UploadWorkbench() {
                       </div>
                       <div className="mb-2 flex items-center gap-2">
                         <FileChip type={row.fmt} />
-                        <span className="text-[11.5px]" style={{ color: "#8A93A5" }}>
+                        <span className="text-[11.5px]" style={{ color: "var(--ink-faint)" }}>
                           {row.size === "—" ? row.age : `${row.size} · ${row.age}`}
                         </span>
                       </div>
@@ -968,7 +968,7 @@ export function UploadWorkbench() {
                           <th
                             key={h}
                             className="text-left px-4 py-2 text-[10.5px] font-semibold uppercase tracking-[0.06em]"
-                            style={{ color: "#8A93A5" }}
+                            style={{ color: "var(--ink-faint)" }}
                           >
                             {h}
                           </th>
@@ -1033,7 +1033,7 @@ export function UploadWorkbench() {
                           </td>
                           <td
                             className="px-4 py-2.5 text-[12px]"
-                            style={{ color: "#8A93A5" }}
+                            style={{ color: "var(--ink-faint)" }}
                           >
                             {row.age}
                           </td>
@@ -1140,7 +1140,7 @@ export function UploadWorkbench() {
                   />
                   <span
                     className="text-[11px] font-mono"
-                    style={{ color: "#8A93A5" }}
+                    style={{ color: "var(--ink-faint)" }}
                   >
                     routes to
                   </span>
@@ -1199,7 +1199,6 @@ export function UploadWorkbench() {
                         border: "1px solid #E2E6EE",
                         background: "#FFFFFF",
                         color: "#0B1A2F",
-                        outline: "none",
                       }}
                     >
                       {suppliers.map((s) => (
@@ -1298,7 +1297,7 @@ export function UploadWorkbench() {
                     background: isUploadDisabled
                       ? "#E2E6EE"
                       : "linear-gradient(90deg, #2E8E3A 0%, #1E6D29 100%)",
-                    color: isUploadDisabled ? "#8A93A5" : "#FFFFFF",
+                    color: isUploadDisabled ? "var(--ink-faint)" : "#FFFFFF",
                     border: "none",
                     boxShadow: isUploadDisabled ? "none" : "0 2px 8px rgba(46,142,58,0.25)",
                     cursor: isUploadDisabled ? "not-allowed" : "pointer",

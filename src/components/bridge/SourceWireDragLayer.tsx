@@ -420,7 +420,7 @@ export function useSourceWireDrag({
               {!dimmed && (
                 <g role="button" tabIndex={0}
                   aria-label={`Remove the wire feeding ${NODE_LABEL[w.nodeId] ?? w.nodeId}`}
-                  style={{ pointerEvents: "auto", cursor: "pointer", outline: "none" }}
+                  style={{ pointerEvents: "auto", cursor: "pointer" }}
                   onClick={() => onDisconnect(w.canonicalField)}
                   onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onDisconnect(w.canonicalField); } }}>
                   <circle cx={w.zx - 12} cy={w.zy} r={6.5} fill="#FFFFFF" stroke="#6F4FCE" strokeWidth={1.3} />

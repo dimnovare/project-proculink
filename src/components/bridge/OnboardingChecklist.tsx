@@ -30,7 +30,7 @@ const T = {
   border:    "#E2E6EE",
   ink:       "#0B1A2F",
   muted:     "#56627A",
-  faint:     "#8A93A5",
+  faint:     "var(--ink-faint)",
 };
 
 interface OnboardingChecklistProps {

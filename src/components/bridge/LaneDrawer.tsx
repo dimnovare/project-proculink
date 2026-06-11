@@ -194,7 +194,7 @@ export function LaneDrawer({ lane, onClose }: LaneDrawerProps) {
                 background: "transparent",
                 cursor: "pointer",
                 fontSize: 18,
-                color: "#8A93A5",
+                color: "var(--ink-faint)",
                 padding: "0 4px",
               }}
             >
@@ -357,7 +357,7 @@ export function LaneDrawer({ lane, onClose }: LaneDrawerProps) {
                 >
                   {value}
                 </div>
-                <div style={{ fontSize: 10.5, color: "#8A93A5", marginTop: 1 }}>
+                <div style={{ fontSize: 10.5, color: "var(--ink-faint)", marginTop: 1 }}>
                   {label}
                 </div>
               </div>
@@ -374,7 +374,7 @@ export function LaneDrawer({ lane, onClose }: LaneDrawerProps) {
               fontWeight: 700,
               letterSpacing: "0.06em",
               textTransform: "uppercase",
-              color: "#8A93A5",
+              color: "var(--ink-faint)",
             }}
           >
             Recent deliveries
@@ -443,7 +443,7 @@ export function LaneDrawer({ lane, onClose }: LaneDrawerProps) {
               >
                 {o.poNumber}
               </span>
-              <span style={{ fontSize: 11.5, color: "#8A93A5" }}>{o.lineCount}L</span>
+              <span style={{ fontSize: 11.5, color: "var(--ink-faint)" }}>{o.lineCount}L</span>
               {typeof o.totalValue === "number" && (
                 <span
                   style={{
@@ -465,7 +465,7 @@ export function LaneDrawer({ lane, onClose }: LaneDrawerProps) {
           {/* Honest empty state — no always-empty fake list; offer a real path. */}
           {!isApiMockMode && !ordersLoading && recentOrders.length === 0 && (
             <div style={{ padding: "24px 20px", textAlign: "center" }}>
-              <div style={{ fontSize: 13, color: "#8A93A5", marginBottom: 12 }}>
+              <div style={{ fontSize: 13, color: "var(--ink-faint)", marginBottom: 12 }}>
                 No recent deliveries on this connection yet.
               </div>
               <button
@@ -513,7 +513,7 @@ export function LaneDrawer({ lane, onClose }: LaneDrawerProps) {
                   width: 7,
                   height: 7,
                   borderRadius: "50%",
-                  background: STATUS_DOT[c.status] ?? "#8A93A5",
+                  background: STATUS_DOT[c.status] ?? "var(--ink-faint)",
                   flexShrink: 0,
                 }}
               />
@@ -528,7 +528,7 @@ export function LaneDrawer({ lane, onClose }: LaneDrawerProps) {
               >
                 {c.po}
               </span>
-              <span style={{ fontSize: 11.5, color: "#8A93A5" }}>{c.lines}L</span>
+              <span style={{ fontSize: 11.5, color: "var(--ink-faint)" }}>{c.lines}L</span>
               <span
                 style={{
                   fontFamily: "'JetBrains Mono', monospace",
@@ -538,7 +538,7 @@ export function LaneDrawer({ lane, onClose }: LaneDrawerProps) {
               >
                 {c.value}
               </span>
-              <span style={{ fontSize: 11, color: "#8A93A5" }}>{c.age}</span>
+              <span style={{ fontSize: 11, color: "var(--ink-faint)" }}>{c.age}</span>
             </div>
           ))}
         </div>

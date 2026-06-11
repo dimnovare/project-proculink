@@ -25,6 +25,7 @@ import { OutputMappingEditor } from "./OutputMappingEditor";
 import { OrderPassport } from "./OrderPassport";
 import { SupplierResponsePanel } from "./SupplierResponsePanel";
 import { ConformancePanel } from "./ConformancePanel";
+import { UnifiedStatusBadge } from "./UnifiedStatusBadge";
 import { useOrderDirection, type PartyLabels } from "@/hooks/useOrderDirection";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -62,7 +63,16 @@ interface SpineNodeData {
   id: string;
   label: string;
   value: string;
+  /**
+   * Confidence percentage. INTERNAL plumbing for SpineConnectors' wire
+   * colouring/dash logic — only rendered as a ConfChip when `realConf` is true
+   * (i.e. the number derives from real backend per-line confidences). Header
+   * fields carry heuristic constants here purely so the wires keep their
+   * established colours; those constants must never be SHOWN as confidence.
+   */
   pct: number;
+  /** True only when pct derives from real backend confidence values. */
+  realConf?: boolean;
   mono?: boolean;
   big?: boolean;
   tone?: "buyer" | "supplier";
@@ -158,6 +168,11 @@ function buildNodesFromOrder(order: Order, labels: PartyLabels): SpineNodeData[]
     // supplierName edits the PRINTED/display name only — it does NOT re-route
     // delivery or remap codes (the routed supplier is still chosen via the
     // supplier picker, not this inline edit).
+    // NOTE on pct: header/totals values below are HEURISTIC CONSTANTS kept only
+    // so SpineConnectors' wire colouring stays byte-identical. They are NOT real
+    // confidences and are never rendered (realConf is unset → neutral "parsed"
+    // chip). Only the lines node, whose pct averages real backend per-line
+    // confidences, renders a percentage.
     { id: "po",       label: "PO number",   value: order.poNumber,            pct: 99, mono: true,  editable: true,  srcRef: "header-meta",  outRef: "Order/@orderID"    },
     { id: "date",     label: "Order date",  value: order.orderDate,            pct: 95, mono: true,  editable: true,  srcRef: "header-meta",  outRef: "Order/orderDate"   },
     { id: "buyer",    label: "Buyer",       value: order.buyerName ?? "(parsing…)", pct: order.buyerName ? 98 : 50, tone: "buyer",    editable: true,  srcRef: "parties", outRef: "BillTo/Contact"    },
@@ -165,7 +180,7 @@ function buildNodesFromOrder(order: Order, labels: PartyLabels): SpineNodeData[]
     { id: "currency", label: "Currency",    value: order.currency,             pct: 99, mono: true,  editable: true,  srcRef: "terms",   outRef: "Total/@currency"   },
     {
       id: "lines", label: "Line items", value: `${lineCount} line${lineCount !== 1 ? "s" : ""} · ${formatted}`,
-      pct: lineConf, big: true, editable: false, srcRef: "lines", outRef: "ItemOut[]",
+      pct: lineConf, realConf: lineCount > 0, big: true, editable: false, srcRef: "lines", outRef: "ItemOut[]",
       subnodes,
     },
     { id: "totals", label: "Grand total", value: formatted, pct: 100, mono: true, big: true, editable: false, srcRef: "totals", outRef: "Total/@amount" },
@@ -274,6 +289,23 @@ function ConfChip({ pct }: { pct: number }) {
   );
 }
 
+/**
+ * Neutral provenance chip for fields parsed from the document WITHOUT a real
+ * model confidence. Replaces the fabricated header percentages (PO 99% / buyer
+ * 98% / supplier 97% / total 100% …) that rendered in the same UI as real
+ * per-line AI confidence. The internal pct stays for wire colouring only.
+ */
+function ParsedChip() {
+  return (
+    <span
+      title="Parsed from the document — no model confidence is computed for this field."
+      style={{ fontSize: 9.5, fontWeight: 700, fontFamily: "'JetBrains Mono',monospace", background: "#EFF2F7", color: "#56627A", borderRadius: 5, padding: "2px 7px" }}
+    >
+      parsed
+    </span>
+  );
+}
+
 // ─── Header bits ──────────────────────────────────────────────────────────────
 
 /** Visible keyboard-shortcut hint chip (e.g. the "A" next to Accept). */
@@ -308,29 +340,18 @@ function PaperPlaneIcon() {
   );
 }
 
-/** Small status pill next to the PO title — mirrors the canonical pill palette. */
-function HeaderStatusBadge({ status, crossed, exceptionCount }: { status: string; crossed: boolean; exceptionCount: number }) {
-  const spec =
-    crossed || status === "delivered"
-      ? { bg: "#E2F1E2", color: "#1E6D29", dot: "#2E8E3A", label: "Delivered" }
-      : status === "rejected_by_supplier"
-      ? { bg: "#FBE3E3", color: "#C53A3A", dot: "#C53A3A", label: "Rejected" }
-      : status === "delivery_dead_letter" || status === "delivery_failed" || status === "transform_failed" || status === "failed"
-      ? { bg: "#FBE3E3", color: "#C53A3A", dot: "#C53A3A", label: "Failed" }
-      : status === "ready_to_deliver" || status === "transforming"
-      ? { bg: "#E3EDFB", color: "#0F4FA8", dot: "#1E66C9", label: "Ready" }
-      : exceptionCount > 0
-      ? { bg: "#FAEFD6", color: "#C97A14", dot: "#C97A14", label: "Needs review" }
-      : { bg: "#E2F1E2", color: "#1E6D29", dot: "#2E8E3A", label: "Ready" };
-  return (
-    <span
-      className="inline-flex items-center gap-1.5 rounded-full"
-      style={{ fontSize: 12, fontWeight: 600, padding: "3px 11px", background: spec.bg, color: spec.color, whiteSpace: "nowrap" }}
-    >
-      <span style={{ width: 6, height: 6, borderRadius: "50%", background: spec.dot, flexShrink: 0 }} />
-      {spec.label}
-    </span>
-  );
+/**
+ * Resolve the status KEY for the header badge next to the PO title. The badge
+ * itself renders via UnifiedStatusBadge so the vocabulary matches the Inbox
+ * exactly (kills the old "Ready" vs "Normalized" contradiction — this local
+ * pill said "Ready" both for `ready` and `ready_to_deliver`). The crossed /
+ * exceptionCount overrides are kept, but as status-key selection only.
+ */
+function headerBadgeStatus(status: string, crossed: boolean, exceptionCount: number): string {
+  if (crossed) return "delivered";
+  // Server truth (unresolved lines) outranks a stale ready/pending status value.
+  if ((status === "ready" || status === "pending_review") && exceptionCount > 0) return "pending_review";
+  return status;
 }
 
 /**
@@ -369,7 +390,7 @@ function TotalsSummary({ order }: { order: Order }) {
 
   return (
     <div style={{ marginTop: 12, borderRadius: 8, border: "1px solid #E2E6EE", background: "#FFFFFF", overflow: "hidden" }}>
-      <div style={{ padding: "8px 12px", borderBottom: "1px solid #EEF0F4", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "#8A93A5" }}>
+      <div style={{ padding: "8px 12px", borderBottom: "1px solid #EEF0F4", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--ink-faint)" }}>
         Document totals
       </div>
       <div style={{ padding: "4px 0" }}>
@@ -488,7 +509,7 @@ function ManualCodeRow({ sn, lineEdit, saving }: { sn: SubNode; lineEdit: LineEd
         placeholder="Supplier code"
         aria-label={`Supplier code for line ${sn.lineNo ?? sn.sku}`}
         disabled={saving}
-        style={{ flex: "1 1 140px", minWidth: 120, minHeight: 32, border: "1px solid #2E8E3A", borderRadius: 6, padding: "5px 8px", fontSize: 12, fontFamily: "'JetBrains Mono',monospace", background: "#F0FDF4", color: "#0B1A2F", outline: "none" }}
+        style={{ flex: "1 1 140px", minWidth: 120, minHeight: 32, border: "1px solid #2E8E3A", borderRadius: 6, padding: "5px 8px", fontSize: 12, fontFamily: "'JetBrains Mono',monospace", background: "#F0FDF4", color: "#0B1A2F" }}
       />
       {lineEdit.knownCodes.length > 0 && (
         <datalist id={listId}>
@@ -507,17 +528,17 @@ function ManualCodeRow({ sn, lineEdit, saving }: { sn: SubNode; lineEdit: LineEd
         type="button"
         onClick={lineEdit.onCancel}
         disabled={saving}
-        style={{ fontSize: 11, fontWeight: 600, padding: "6px 10px", borderRadius: 6, border: "none", background: "transparent", color: "#8A93A5", cursor: saving ? "default" : "pointer", minHeight: 32 }}
+        style={{ fontSize: 11, fontWeight: 600, padding: "6px 10px", borderRadius: 6, border: "none", background: "transparent", color: "var(--ink-faint)", cursor: saving ? "default" : "pointer", minHeight: 32 }}
       >
         Cancel
       </button>
       {notInCatalog && (
-        <span style={{ flexBasis: "100%", fontSize: 9.5, color: "#C53A3A" }}>
+        <span style={{ flexBasis: "100%", fontSize: 10.5, color: "#C53A3A" }}>
           ⚠ Not in {lineEdit.supplierName || "the supplier"}&apos;s catalog — double-check this is a real supplier code.
         </span>
       )}
       {novel && (
-        <span style={{ flexBasis: "100%", fontSize: 9.5, color: "#C97A14" }}>
+        <span style={{ flexBasis: "100%", fontSize: 10.5, color: "#C97A14" }}>
           Not in saved mappings — it&apos;ll be remembered for next time.
         </span>
       )}
@@ -602,7 +623,7 @@ function SpineNodeCard({
         {/* Label row */}
         <div className="flex items-center gap-1.5 mb-1">
           {accent && <div style={{ width: 5, height: 5, borderRadius: "50%", background: accent, flexShrink: 0 }} />}
-          <span style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", color: "#8A93A5", flex: 1, display: "inline-flex", alignItems: "center", gap: 4 }}>
+          <span style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--ink-faint)", flex: 1, display: "inline-flex", alignItems: "center", gap: 4 }}>
             {node.label}
             {NODE_TO_FIELD[node.id] && (
               <StandardsFieldPopover canonicalField={NODE_TO_FIELD[node.id]} label={node.label} />
@@ -626,7 +647,10 @@ function SpineNodeCard({
               </span>
             )}
           </span>
-          <ConfChip pct={node.pct} />
+          {/* Honest confidence: a percentage ONLY when the backend computed one
+              (per-line confidences). Header fields show a neutral "parsed" chip —
+              the old hardcoded 95–100% values were fabricated. */}
+          {node.realConf ? <ConfChip pct={node.pct} /> : <ParsedChip />}
         </div>
 
         {/* Value — editable inline */}
@@ -645,7 +669,6 @@ function SpineNodeCard({
               fontSize: node.big ? 16 : 12.5,
               fontWeight: node.big ? 600 : 500,
               fontFamily: node.mono ? "'JetBrains Mono',monospace" : "inherit",
-              outline: "none",
               background: "#F0FDF4",
               color: "#0B1A2F",
             }}
@@ -701,7 +724,7 @@ function SpineNodeCard({
         {/* Hint — amber warning by default, quiet grey for muted provenance hints */}
         {node.hint && !isEditing && (
           node.hintTone === "muted" ? (
-            <div style={{ fontSize: 10.5, marginTop: 3, color: "#8A93A5" }}>{node.hint}</div>
+            <div style={{ fontSize: 10.5, marginTop: 3, color: "var(--ink-faint)" }}>{node.hint}</div>
           ) : (
             <div style={{ fontSize: 10.5, marginTop: 3, color: "#C97A14" }}>⚠ {node.hint}</div>
           )
@@ -770,7 +793,7 @@ function SpineNodeCard({
                     {/* Resolved supplier code (green) or a 'missing' pill */}
                     <span style={{ marginLeft: "auto", flexShrink: 0, display: "inline-flex", alignItems: "center" }}>
                       {sn.err && !accepted ? (
-                        <span style={{ fontSize: 9.5, fontWeight: 700, fontFamily: "Inter,sans-serif", background: "#FBE3E3", color: "#C53A3A", borderRadius: 4, padding: "1px 6px" }}>missing</span>
+                        <span style={{ fontSize: 10.5, fontWeight: 700, fontFamily: "Inter,sans-serif", background: "#FBE3E3", color: "#C53A3A", borderRadius: 4, padding: "1px 6px" }}>missing</span>
                       ) : (
                         <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10, fontWeight: 700, color: rejected ? "#A8B0BF" : "#1E6D29", textDecoration: rejected ? "line-through" : "none" }}>{rowCode}</span>
                       )}
@@ -788,7 +811,7 @@ function SpineNodeCard({
                   )}
                   {sn.err && !showAiCard && !done && lineEdit && lineEdit.editId !== sn.id && (
                     <div style={{ marginLeft: 21, display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                      <span style={{ fontSize: 10, fontWeight: 600, color: "#C53A3A", display: "inline-flex", alignItems: "center", gap: 5 }}>
+                      <span style={{ fontSize: 10.5, fontWeight: 600, color: "#C53A3A", display: "inline-flex", alignItems: "center", gap: 5 }}>
                         <span style={{ width: 4, height: 4, borderRadius: 1, background: "#C53A3A", display: "inline-block" }} />
                         {sn.hint ?? "Needs a supplier code"}
                       </span>
@@ -804,7 +827,7 @@ function SpineNodeCard({
                   )}
                   {/* Read-only fallback (no edit API wired) — keep the honest hint. */}
                   {sn.err && !showAiCard && !done && !lineEdit && (
-                    <div style={{ marginLeft: 21, fontSize: 10, fontWeight: 600, color: "#C53A3A", display: "inline-flex", alignItems: "center", gap: 5 }}>
+                    <div style={{ marginLeft: 21, fontSize: 10.5, fontWeight: 600, color: "#C53A3A", display: "inline-flex", alignItems: "center", gap: 5 }}>
                       <span style={{ width: 4, height: 4, borderRadius: 1, background: "#C53A3A", display: "inline-block" }} />
                       {sn.hint ?? "Needs a supplier code"} — will be held back
                     </div>
@@ -833,6 +856,13 @@ function SpineNodeCard({
                         Suggested supplier code{" "}
                         <span style={{ fontFamily: "'JetBrains Mono',monospace", fontWeight: 700, color: "#5E3DB0" }}>{sn.aiSuggestedCode ?? sn.sku}</span>
                       </div>
+                      {/* AI reason / provenance — fetched + mapped since Group E but
+                          never displayed. One muted line so the reviewer sees WHY. */}
+                      {sn.aiReason && (
+                        <div style={{ fontSize: 11, color: "#6F5BA8", marginTop: -4, marginBottom: 7, lineHeight: 1.4 }}>
+                          {sn.aiReason}
+                        </div>
+                      )}
                       <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
                         {(() => {
                           const accepting = acceptingLineId === sn.id;
@@ -854,7 +884,7 @@ function SpineNodeCard({
                                 aria-label={`Reject AI suggestion for line ${sn.lineNo ?? sn.sku}`}
                                 onClick={() => onRejectSubnode(sn.id)}
                                 disabled={accepting}
-                                style={{ fontSize: 11, fontWeight: 600, padding: "7px 11px", borderRadius: 6, border: "none", background: "transparent", color: "#8A93A5", cursor: accepting ? "default" : "pointer", opacity: accepting ? 0.6 : 1 }}
+                                style={{ fontSize: 11, fontWeight: 600, padding: "7px 11px", borderRadius: 6, border: "none", background: "transparent", color: "var(--ink-faint)", cursor: accepting ? "default" : "pointer", opacity: accepting ? 0.6 : 1 }}
                               >
                                 Reject
                               </button>
@@ -912,17 +942,21 @@ function SpineNodeCard({
 // activeZone: the currently-hovered srcRef zone id (bidirectional with canonical spine).
 // onZoneHover: called by zone elements to propagate hover state upstream.
 
-/** One confidence-zone marker in the source-document rail gutter. */
+/** One confidence-zone marker in the source-document rail gutter.
+ *  `pct` is optional: zones WITHOUT a real backend confidence (header/parties/
+ *  terms — the old 99/95/60/70 numbers were heuristics presented as measured)
+ *  render a neutral numberless marker instead of asserting a fabricated value. */
 function ZoneMarker({ pct, active, onClick, onEnter, onLeave }: {
-  pct: number;
+  pct?: number;
   active: boolean;
   onClick?: () => void;
   onEnter?: () => void;
   onLeave?: () => void;
 }) {
-  // colour derivations (matching .conf-hi/.conf-mid/.conf-lo from tokens.css)
-  const solid  = pct >= 90 ? "#2E8E3A" : pct >= 75 ? "#C97A14" : "#C53A3A";
-  const soft   = pct >= 90 ? "rgba(46,142,58,0.22)" : pct >= 75 ? "rgba(201,122,20,0.22)" : "rgba(197,58,58,0.22)";
+  // colour derivations (matching .conf-hi/.conf-mid/.conf-lo from tokens.css);
+  // neutral grey when no real confidence exists for the zone.
+  const solid  = pct == null ? "#56627A" : pct >= 90 ? "#2E8E3A" : pct >= 75 ? "#C97A14" : "#C53A3A";
+  const soft   = pct == null ? "rgba(86,98,122,0.14)" : pct >= 90 ? "rgba(46,142,58,0.22)" : pct >= 75 ? "rgba(201,122,20,0.22)" : "rgba(197,58,58,0.22)";
   return (
     <div
       aria-hidden
@@ -939,7 +973,7 @@ function ZoneMarker({ pct, active, onClick, onEnter, onLeave }: {
       onMouseEnter={onEnter}
       onMouseLeave={onLeave}
     >
-      {pct}
+      {pct ?? "·"}
     </div>
   );
 }
@@ -973,22 +1007,14 @@ function DocumentAnatomy({
   // be the one tripping the send guard; the reviewer must be able to see it.
   const previewLines = order.lines;
 
-  // Per-section confidence used by the zone rail. Derived from live data so it
-  // tracks the real order (header/parties high; lines = avg; terms lower when
-  // currency/terms are softer signals).
-  const headerConf  = order.buyerName ? 99 : 60;
-  const partiesConf = order.buyerName ? 95 : 70;
-  const linesConf   = avgConf ?? 80;
-  const termsConf   = Math.max(60, Math.min(88, (avgConf ?? 80) - 10));
-
-  // Real per-zone confidences, keyed by zone id. Only zones backed by live data
-  // appear here; zones without a real confidence (e.g. totals) fall through to a
-  // neutral tint rather than asserting an invented green/amber/red.
-  const zoneConf: Record<string, number> = {
-    header: headerConf,
-    parties: partiesConf,
-    lines: linesConf,
-    terms: termsConf,
+  // REAL per-zone confidences only, keyed by zone id. The only zone backed by
+  // real backend data is "lines" (average of per-line confidences). The previous
+  // header/parties/terms numbers (99/95 when buyerName present, 60/70 otherwise,
+  // and a derived terms formula) were heuristics rendered as if measured —
+  // fabricated confidence. Zones without a real value fall through to the
+  // neutral tint in sectionStyle() and a neutral numberless rail marker.
+  const zoneConf: Record<string, number | undefined> = {
+    ...(avgConf !== null ? { lines: avgConf } : {}),
   };
 
   // Tint overlay colour for an active section inside the document body.
@@ -1032,7 +1058,7 @@ function DocumentAnatomy({
           aria-expanded={!collapsed}
           title={collapsed ? "Show the reconstructed document" : "Hide it to make source fields easier to reach"}
           style={{ display: "flex", width: "100%", alignItems: "center", justifyContent: "space-between", gap: 8, marginBottom: collapsed ? 0 : 8, border: "none", background: "transparent", padding: 0, cursor: "pointer" }}>
-          <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 9.5, color: "#8A93A5" }}>
+          <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 9.5, color: "var(--ink-faint)" }}>
             <span style={{ display: "inline-block", transition: "transform 150ms", transform: collapsed ? "rotate(-90deg)" : "none", fontSize: 8 }}>▾</span>
             Reconstructed from parsed fields
           </span>
@@ -1040,7 +1066,7 @@ function DocumentAnatomy({
         </button>
       ) : (
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginBottom: 8 }}>
-          <span style={{ fontSize: 9.5, color: "#8A93A5" }}>Reconstructed from parsed fields</span>
+          <span style={{ fontSize: 9.5, color: "var(--ink-faint)" }}>Reconstructed from parsed fields</span>
           {confBadge}
         </div>
       )}
@@ -1107,7 +1133,7 @@ function DocumentAnatomy({
           {lineCount > 0 ? (
             <table
               ref={(el) => onSection?.("lines", el)}
-              style={{ width: "100%", borderCollapse: "collapse", marginTop: 8, fontSize: 8.5, cursor: "pointer" }}
+              style={{ width: "100%", borderCollapse: "collapse", marginTop: 8, fontSize: 10.5, cursor: "pointer" }}
               onMouseEnter={() => onZoneHover?.("lines")}
               onMouseLeave={() => onZoneHover?.(null)}
             >
@@ -1121,7 +1147,7 @@ function DocumentAnatomy({
                   </tr>
                 ))}
                 {previewLines.length > 4 && (
-                  <tr><td colSpan={4} style={{ padding: "1px 4px", fontSize: 8, color: "#A8B0BF", fontStyle: "italic" }}>+{previewLines.length - 4} more</td></tr>
+                  <tr><td colSpan={4} style={{ padding: "1px 4px", fontSize: 10.5, color: "var(--ink-faint)", fontStyle: "italic" }}>+{previewLines.length - 4} more</td></tr>
                 )}
               </tbody>
             </table>
@@ -1150,19 +1176,16 @@ function DocumentAnatomy({
       <div style={{ display: "flex", gap: 8, alignItems: "stretch" }}>
         {/* Confidence zone rail — clickable/hoverable markers */}
         <div style={{ display: "flex", flexDirection: "column", gap: 5, width: 28, flexShrink: 0 }}>
-          {(["header", "parties", "lines", "terms"] as const).map((zone, idx) => {
-            const pct = [headerConf, partiesConf, linesConf, termsConf][idx];
-            return (
-              <ZoneMarker
-                key={zone}
-                pct={pct}
-                active={activeZone === zone}
-                onEnter={() => onZoneHover?.(zone)}
-                onLeave={() => onZoneHover?.(null)}
-                onClick={() => onZoneHover?.(activeZone === zone ? null : zone)}
-              />
-            );
-          })}
+          {(["header", "parties", "lines", "terms"] as const).map((zone) => (
+            <ZoneMarker
+              key={zone}
+              pct={zoneConf[zone]}
+              active={activeZone === zone}
+              onEnter={() => onZoneHover?.(zone)}
+              onLeave={() => onZoneHover?.(null)}
+              onClick={() => onZoneHover?.(activeZone === zone ? null : zone)}
+            />
+          ))}
         </div>
 
         {/* Document body */}
@@ -1214,7 +1237,7 @@ function DocumentAnatomy({
           {lineCount > 0 ? (
             <table
               ref={(el) => onSection?.("lines", el)}
-              style={{ width: "100%", borderCollapse: "collapse", marginTop: 10, fontSize: 8.5, cursor: "pointer", transition: "all 150ms" }}
+              style={{ width: "100%", borderCollapse: "collapse", marginTop: 10, fontSize: 10.5, cursor: "pointer", transition: "all 150ms" }}
               onMouseEnter={() => onZoneHover?.("lines")}
               onMouseLeave={() => onZoneHover?.(null)}
             >
@@ -1367,7 +1390,7 @@ function OutputPreview({ order, acceptedSubnodes, rejectedSubnodes, crossed, fie
       {/* Toolbar — title + format badge + actions */}
       <div style={{ display: "flex", gap: 8, padding: "8px 10px", alignItems: "center", borderBottom: "1px solid #EEF0F4", flexWrap: "wrap" }}>
         <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12, fontWeight: 700, color: "#0B1A2F" }}>
-          <span style={{ color: "#8A93A5", fontFamily: "'JetBrains Mono',monospace", fontSize: 11 }}>{"<>"}</span>
+          <span style={{ color: "var(--ink-faint)", fontFamily: "'JetBrains Mono',monospace", fontSize: 11 }}>{"<>"}</span>
           Canonical mapping preview
         </span>
         <span style={{ fontSize: 9.5, fontWeight: 700, padding: "2px 7px", background: "#EEE7FB", color: "#5E3DB0", borderRadius: 4, textTransform: "uppercase", letterSpacing: "0.03em" }} title="The supplier's configured output format. The delivered file matches this format.">{outFmt}</span>
@@ -1602,7 +1625,7 @@ function ConfirmDialog({ exceptionCount, onConfirm, onCancel, supplierName, outp
               { label: "Format",         value: outputFormat.toUpperCase() },
             ].map(({ label, value, color }) => (
               <div key={label} style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "#8A93A5", marginBottom: 2 }}>{label}</div>
+                <div style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--ink-faint)", marginBottom: 2 }}>{label}</div>
                 <div style={{ fontSize: 13, fontWeight: 600, color: color ?? "#0B1A2F", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{value}</div>
               </div>
             ))}
@@ -1620,7 +1643,9 @@ function ConfirmDialog({ exceptionCount, onConfirm, onCancel, supplierName, outp
             style={{ marginTop: 2, width: 15, height: 15, accentColor: "#2E8E3A", cursor: "pointer", flexShrink: 0 }}
           />
           <label htmlFor="confirm-check" style={{ fontSize: 13, color: "#0B1A2F", lineHeight: 1.5, cursor: "pointer" }}>
-            I've reviewed the {exceptionCount} exception{exceptionCount !== 1 ? "s" : ""}. {inbound ? `Confirm for ${supplierName}` : `Send to ${supplierName}`}.
+            {exceptionCount === 0
+              ? <>Everything checks out. {inbound ? `Confirm for ${supplierName}` : `Send to ${supplierName}`}.</>
+              : <>I've reviewed the {exceptionCount} exception{exceptionCount !== 1 ? "s" : ""}. {inbound ? `Confirm for ${supplierName}` : `Send to ${supplierName}`}.</>}
           </label>
         </div>
 
@@ -1693,7 +1718,7 @@ function CrossedToast({ onDismiss, supplierName, poNumber, lineCount, labels }: 
         <div style={{ fontSize: 13, fontWeight: 600, color: "#FFFFFF" }}>{inbound ? `Order confirmed for ${supplierName}` : `Sent to ${supplierName} · accepted`}</div>
         <div style={{ fontSize: 11.5, color: "#7C8DA6", marginTop: 2 }}>{poNumber} · {lineCount} line{lineCount !== 1 ? "s" : ""}</div>
       </div>
-      <button onClick={onDismiss} style={{ marginLeft: 8, background: "none", border: "none", color: "#7C8DA6", fontSize: 16, cursor: "pointer", padding: "0 2px" }}>✕</button>
+      <button onClick={onDismiss} aria-label="Dismiss notification" style={{ marginLeft: 8, background: "none", border: "none", color: "#7C8DA6", fontSize: 16, cursor: "pointer", padding: "0 2px" }}>✕</button>
     </div>
   );
 }
@@ -1744,9 +1769,9 @@ function AccordionPanel({ step, label, sub, accent, defaultOpen, children }: {
         <span style={{ width: 22, height: 22, borderRadius: "50%", background: "#F0F2F7", color: "#56627A", fontSize: 11, fontWeight: 700, display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>{step}</span>
         <span className="min-w-0 flex-1">
           <span style={{ display: "block", fontSize: 12.5, fontWeight: 700, color: "#0B1A2F", lineHeight: 1.2 }}>{label}</span>
-          {sub && <span style={{ display: "block", fontSize: 11, color: "#8A93A5", marginTop: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{sub}</span>}
+          {sub && <span style={{ display: "block", fontSize: 11, color: "var(--ink-faint)", marginTop: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{sub}</span>}
         </span>
-        <span style={{ fontSize: 16, color: "#8A93A5", transform: open ? "rotate(90deg)" : "none", transition: "transform 150ms", flexShrink: 0 }}>›</span>
+        <span style={{ fontSize: 16, color: "var(--ink-faint)", transform: open ? "rotate(90deg)" : "none", transition: "transform 150ms", flexShrink: 0 }}>›</span>
       </button>
       {open && <div className="p-3">{children}</div>}
     </div>
@@ -2287,11 +2312,12 @@ export function SpineReview({ orderId }: { orderId: string }) {
         ?? (r.headerFieldsPromoted + r.lineFieldsPromoted
             + (r.outputHeaderFieldsPromoted ?? 0) + (r.outputLineFieldsPromoted ?? 0));
       const nothing = r.nothingToPromote ?? total === 0;
-      // Prefer the backend's human-readable message; fall back to a local one.
-      const msg = r.message
-        ?? (nothing
-              ? "Nothing to save yet — wire a source field or add an output mapping first."
-              : `Saved for ${order?.supplierName ?? "this supplier"} — ${total} field${total !== 1 ? "s" : ""} will auto-apply next time.`);
+      // HONEST success copy (stopgap): the promoted mapping is persisted, but
+      // nothing CONSUMES it on future orders yet — that lands in a later batch.
+      // Don't echo the backend message here, it claims auto-apply works now.
+      const msg = nothing
+        ? (r.message ?? "Nothing to save yet — wire a source field or add an output mapping first.")
+        : `Saved — ${total} field${total !== 1 ? "s" : ""} applied to this order. Supplier-wide reuse is coming soon.`;
       setFlow(msg, nothing ? "info" : "success");
     },
     onError: (err) => setFlow(err instanceof Error ? err.message : "Couldn't save the supplier mapping.", "error"),
@@ -2806,7 +2832,7 @@ export function SpineReview({ orderId }: { orderId: string }) {
                 >
                   {order.poNumber}
                 </h1>
-                <HeaderStatusBadge status={order.status} crossed={crossed} exceptionCount={exceptionCount} />
+                <UnifiedStatusBadge size="md" status={headerBadgeStatus(order.status, crossed, exceptionCount)} />
                 <InvoiceBadge documentType={order.documentType} />
               </div>
               <div className="mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-0.5" style={{ fontSize: 13 }}>
@@ -2846,8 +2872,8 @@ export function SpineReview({ orderId }: { orderId: string }) {
                 type="button"
                 onClick={() => promoteMutation.mutate()}
                 disabled={promoteMutation.isPending}
-                title={`Save these field mappings for ${order.supplierName} so they auto-apply to future orders`}
-                aria-label={`Save these mappings for ${order.supplierName} to reuse next time`}
+                title={`Save these field mappings for ${order.supplierName} (applies to this order now; supplier-wide reuse coming soon)`}
+                aria-label={`Save these field mappings for ${order.supplierName}`}
                 className="hidden xl:inline-flex"
                 style={{
                   height: 34, padding: "0 14px", borderRadius: 7, fontSize: 12.5, fontWeight: 600,
@@ -2877,7 +2903,7 @@ export function SpineReview({ orderId }: { orderId: string }) {
               </button>
             </div>
             {!crossed && exceptionCount > 0 && (
-              <span className="text-right" style={{ fontSize: 11.5, color: "#8A93A5", paddingRight: 2 }}>
+              <span className="text-right" style={{ fontSize: 11.5, color: "var(--ink-faint)", paddingRight: 2 }}>
                 {exceptionCount} issue{exceptionCount !== 1 ? "s" : ""} to resolve first
               </span>
             )}
@@ -2919,17 +2945,34 @@ export function SpineReview({ orderId }: { orderId: string }) {
           { id: "response",    label: `${labels.counterpartyNoun} response` },
         ] as const).map((t) => {
           const active = tab === t.id;
+          // The deep-link reader (initialTab) already honours ?tab=; mirror tab
+          // changes back into the URL so refresh/share/back keep the active tab.
+          const rejected = t.id === "response" && order.status === "rejected_by_supplier";
           return (
             <button
               key={t.id}
               type="button"
-              onClick={() => setTab(t.id)}
+              onClick={() => {
+                setTab(t.id);
+                // Preserve other params (e.g. ?sample=1) — only swap the tab.
+                const params = new URLSearchParams(searchParams.toString());
+                params.set("tab", t.id);
+                router.replace(`?${params.toString()}`, { scroll: false });
+              }}
+              title={rejected ? `${labels.counterpartyNoun} rejected this order — open for details` : undefined}
               style={{
                 position: "relative", height: 38, padding: "0 12px", background: "none", border: "none",
                 fontSize: 12.5, fontWeight: active ? 700 : 500, color: active ? "#0B1A2F" : "#56627A", cursor: "pointer",
               }}
             >
               {t.label}
+              {/* Rejection indicator — the answer the user is looking for lives here */}
+              {rejected && (
+                <span
+                  aria-hidden
+                  style={{ display: "inline-block", marginLeft: 5, width: 6, height: 6, borderRadius: "50%", background: "#C53A3A", verticalAlign: "middle" }}
+                />
+              )}
               {active && <span style={{ position: "absolute", left: 8, right: 8, bottom: 0, height: 2, borderRadius: 2, background: "linear-gradient(90deg,#1E6D29,#2E8E3A)" }} />}
             </button>
           );
@@ -3007,7 +3050,7 @@ export function SpineReview({ orderId }: { orderId: string }) {
                       <div key={ex.id} style={{ display: "flex", alignItems: "flex-start", gap: 8, padding: "8px 14px", borderBottom: "1px solid #F5F6F9" }}>
                         <span style={{ width: 6, height: 6, borderRadius: "50%", background: dotColor, flexShrink: 0, marginTop: 5 }} />
                         <span style={{ fontSize: 12.5, color: "#0B1A2F", flex: 1, lineHeight: 1.45 }}>{ex.message}</span>
-                        <span style={{ fontSize: 10.5, color: "#8A93A5", flexShrink: 0, whiteSpace: "nowrap" }}>
+                        <span style={{ fontSize: 10.5, color: "var(--ink-faint)", flexShrink: 0, whiteSpace: "nowrap" }}>
                           {new Date(ex.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
                         </span>
                       </div>
@@ -3062,7 +3105,7 @@ export function SpineReview({ orderId }: { orderId: string }) {
               </div>
             )}
             {!validationResult && !validateMutation.isError && !validateMutation.isPending && (
-              <div style={{ padding: "10px 14px", fontSize: 12.5, color: "#8A93A5" }}>
+              <div style={{ padding: "10px 14px", fontSize: 12.5, color: "var(--ink-faint)" }}>
                 Run validation to check this order against the supplier&apos;s acceptance rules.
               </div>
             )}
@@ -3081,7 +3124,7 @@ export function SpineReview({ orderId }: { orderId: string }) {
                 </div>
                 {/* Per-result rows */}
                 {validationResult.results.length === 0 ? (
-                  <div style={{ padding: "8px 14px", fontSize: 12.5, color: "#8A93A5" }}>No acceptance rules are configured for this supplier yet — nothing to check.</div>
+                  <div style={{ padding: "8px 14px", fontSize: 12.5, color: "var(--ink-faint)" }}>No acceptance rules are configured for this supplier yet — nothing to check.</div>
                 ) : (
                   validationResult.results.map((r, i) => {
                     const dotColor = r.severity === "error" ? "#C53A3A" : "#C97A14";
@@ -3091,7 +3134,7 @@ export function SpineReview({ orderId }: { orderId: string }) {
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <span style={{ fontSize: 12, color: "#0B1A2F", fontFamily: "'JetBrains Mono',monospace" }}>{r.rule.fieldPath}</span>
                           {r.message && <span style={{ fontSize: 11.5, color: "#56627A", marginLeft: 6 }}>{r.message}</span>}
-                          {r.lineNumber != null && <span style={{ fontSize: 10.5, color: "#8A93A5", marginLeft: 4 }}>· line {r.lineNumber}</span>}
+                          {r.lineNumber != null && <span style={{ fontSize: 10.5, color: "var(--ink-faint)", marginLeft: 4 }}>· line {r.lineNumber}</span>}
                         </div>
                         <span style={{ fontSize: 10.5, fontWeight: 700, textTransform: "capitalize", color: r.passed ? "#1E6D29" : dotColor, flexShrink: 0 }}>
                           {r.severity}
@@ -3320,12 +3363,12 @@ export function SpineReview({ orderId }: { orderId: string }) {
       {/* Sticky info bar — desktop triptych only (the stacked layout below xl has its own sticky CTA) */}
       <div className="hidden xl:flex flex-shrink-0 bg-white px-6 py-3 items-center gap-5" style={{ borderTop: "1px solid #E2E6EE" }}>
         <div className="min-w-0">
-          <div style={{ fontSize: 10.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "#8A93A5", marginBottom: 2 }}>Grand total</div>
+          <div style={{ fontSize: 10.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--ink-faint)", marginBottom: 2 }}>Grand total</div>
           <div style={{ fontFamily: "'Bricolage Grotesque',Inter,sans-serif", fontSize: 22, fontWeight: 600, color: "#0B1A2F", letterSpacing: "-0.02em", whiteSpace: "nowrap" }}>{dialogGrandTotal}</div>
         </div>
         <div style={{ width: 1, height: 36, background: "#E2E6EE", flexShrink: 0 }} />
         <div className="min-w-0">
-          <div style={{ fontSize: 10.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "#8A93A5", marginBottom: 2 }}>Output</div>
+          <div style={{ fontSize: 10.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--ink-faint)", marginBottom: 2 }}>Output</div>
           <div style={{ fontSize: 13, fontWeight: 500, color: "#0B1A2F", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{order.supplierName} · {dialogOutputFormat}</div>
         </div>
         <div className="ml-auto">

@@ -38,7 +38,7 @@ export default function HelpArticleShell({
       <nav
         aria-label="Breadcrumb"
         className="flex items-center gap-1.5 text-[12.5px]"
-        style={{ color: "#8A93A5" }}
+        style={{ color: "var(--ink-faint)" }}
       >
         <Link
           href="/help"
@@ -52,7 +52,7 @@ export default function HelpArticleShell({
             <span aria-hidden="true" style={{ color: "#C6CDDA" }}>
               /
             </span>
-            <span style={{ color: "#8A93A5" }}>{article.category}</span>
+            <span style={{ color: "var(--ink-faint)" }}>{article.category}</span>
           </>
         )}
       </nav>
@@ -180,7 +180,7 @@ function Pager({ dir, article }: { dir: "prev" | "next"; article: HelpArticle })
     >
       <span
         className="flex items-center gap-1 text-[11.5px] font-semibold uppercase"
-        style={{ color: "#8A93A5", letterSpacing: "0.04em", justifyContent: isNext ? "flex-end" : "flex-start" }}
+        style={{ color: "var(--ink-faint)", letterSpacing: "0.04em", justifyContent: isNext ? "flex-end" : "flex-start" }}
       >
         {!isNext && <span aria-hidden="true">←</span>}
         {isNext ? "Next" : "Previous"}

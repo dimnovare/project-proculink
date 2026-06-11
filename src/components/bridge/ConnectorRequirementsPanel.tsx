@@ -144,7 +144,7 @@ export function ConnectorRequirementsPanel({
         className="rounded-[7px] px-3 py-2.5"
         style={{ border: "1px solid #E2E6EE", background: "#FBFCFE" }}
       >
-        <p className="text-[11px]" style={{ color: "#8A93A5" }}>
+        <p className="text-[11px]" style={{ color: "var(--ink-faint)" }}>
           Loading connector requirements...
         </p>
       </div>
@@ -181,9 +181,9 @@ export function ConnectorRequirementsPanel({
           </span>
         )}
         {expanded ? (
-          <ChevronDown size={13} aria-hidden="true" style={{ color: "#8A93A5", flexShrink: 0 }} />
+          <ChevronDown size={13} aria-hidden="true" style={{ color: "var(--ink-faint)", flexShrink: 0 }} />
         ) : (
-          <ChevronRight size={13} aria-hidden="true" style={{ color: "#8A93A5", flexShrink: 0 }} />
+          <ChevronRight size={13} aria-hidden="true" style={{ color: "var(--ink-faint)", flexShrink: 0 }} />
         )}
       </button>
 
@@ -228,7 +228,7 @@ export function ConnectorRequirementsPanel({
 
           {/* Docs link */}
           {manifest.docsRef && (
-            <p className="text-[11px]" style={{ color: "#8A93A5" }}>
+            <p className="text-[11px]" style={{ color: "var(--ink-faint)" }}>
               <a
                 href={manifest.docsRef}
                 target="_blank"
@@ -261,7 +261,7 @@ export function ConnectorRequirementsPanel({
             >
               {checking ? "Checking..." : "Check configuration"}
             </button>
-            <p className="text-[11px] leading-snug" style={{ color: "#8A93A5" }}>
+            <p className="text-[11px] leading-snug" style={{ color: "var(--ink-faint)" }}>
               Advisory check — does not block save.
             </p>
           </div>
@@ -334,12 +334,12 @@ function FieldGroup({ title, fields, credentialNote = false }: FieldGroupProps) 
   return (
     <div className="grid gap-1.5">
       {title && (
-        <p className="text-[11px] font-semibold uppercase" style={{ color: "#8A93A5" }}>
+        <p className="text-[11px] font-semibold uppercase" style={{ color: "var(--ink-faint)" }}>
           {title}
         </p>
       )}
       {credentialNote && (
-        <p className="text-[11px]" style={{ color: "#8A93A5" }}>
+        <p className="text-[11px]" style={{ color: "var(--ink-faint)" }}>
           These values are stored in the encrypted credential vault — the raw values are never exposed.
         </p>
       )}
@@ -393,7 +393,7 @@ function FieldRow({ field }: { field: import("@/lib/api/types").ConnectorConfigF
         )}
       </div>
       {field.helpText && (
-        <p className="w-full text-[11px]" style={{ color: "#8A93A5" }}>
+        <p className="w-full text-[11px]" style={{ color: "var(--ink-faint)" }}>
           {field.helpText}
         </p>
       )}

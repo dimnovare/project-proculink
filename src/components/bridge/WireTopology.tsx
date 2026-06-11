@@ -97,7 +97,7 @@ function WireTopologyLaneList({ buyers, suppliers, wires, onWireClick }: WireTop
   return (
     <div className="flex flex-col gap-2 p-2 bg-[#F6F7FA] rounded-card">
       {wires.length === 0 && (
-        <div className="bg-white border border-[#E2E6EE] rounded-[10px] px-3 py-6 text-center text-[12.5px] text-[#8A93A5]">
+        <div className="bg-white border border-[#E2E6EE] rounded-[10px] px-3 py-6 text-center text-[12.5px] text-[color:var(--ink-faint)]">
           No connections to show yet.
         </div>
       )}
@@ -128,7 +128,7 @@ function WireTopologyLaneList({ buyers, suppliers, wires, onWireClick }: WireTop
               <div className="text-[11.5px] font-semibold text-[#0B1A2F] truncate">
                 {buyer.name}
               </div>
-              <div className="text-[9.5px] text-[#8A93A5]">{buyer.volume}</div>
+              <div className="text-[9.5px] text-[color:var(--ink-faint)]">{buyer.volume}</div>
             </div>
 
             {/* Mini arc */}
@@ -471,7 +471,7 @@ function WireTopologyCanvas({
                 strokeLinecap="round"
                 opacity={0.7}
               />
-              <text x={22} y={4} fill="#8A93A5" fontSize={8} fontFamily="Inter, sans-serif">
+              <text x={22} y={4} fill="#5B6980" fontSize={8} fontFamily="Inter, sans-serif">
                 {["low", "med", "high", "max"][i]}
               </text>
             </g>

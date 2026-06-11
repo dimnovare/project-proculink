@@ -205,12 +205,12 @@ const clerkAppearance = {
     // Divider → "or with email"
     dividerRow: "my-5",
     dividerLine: "bg-[#E2E6EE]",
-    dividerText: "text-[11.5px] text-[#8A93A5]",
+    dividerText: "text-[11.5px] text-[color:var(--ink-faint)]",
     // Fields → .field-label + .input
     formFieldRow: "mb-3.5",
     formFieldLabel: "text-[11.5px] font-semibold text-[#56627A] mb-1.5",
     formFieldInput:
-      "h-[42px] rounded-[6px] border border-[#C6CDDA] bg-white px-3 text-[14px] text-[#0B1A2F] placeholder:text-[#8A93A5] focus:border-[#1E66C9] focus:ring-[3px] focus:ring-[rgba(30,102,201,0.12)] shadow-none transition-colors",
+      "h-[42px] rounded-[6px] border border-[#C6CDDA] bg-white px-3 text-[14px] text-[#0B1A2F] placeholder:text-[color:var(--ink-faint)] focus:border-[#1E66C9] focus:ring-[3px] focus:ring-[rgba(30,102,201,0.12)] shadow-none transition-colors",
     // Primary CTA → .btn-blue
     formButtonPrimary:
       "h-11 rounded-[6px] bg-[#1E66C9] text-white text-[14px] font-medium hover:bg-[#0F4FA8] active:translate-y-[0.5px] shadow-none normal-case transition-colors mt-3",
@@ -224,7 +224,7 @@ const clerkAppearance = {
     footerActionLink: "text-[13px] font-medium text-[#0F4FA8] hover:underline",
     formResendCodeLink: "text-[#0F4FA8]",
     otpCodeFieldInput: "border-[#C6CDDA] focus:border-[#1E66C9]",
-    formFieldInputShowPasswordButton: "text-[#8A93A5] hover:text-[#56627A]",
+    formFieldInputShowPasswordButton: "text-[color:var(--ink-faint)] hover:text-[#56627A]",
   },
 };
 

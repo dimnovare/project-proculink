@@ -233,7 +233,7 @@ export default function InvoicesPage() {
         >
           <div className="flex items-center justify-between gap-3">
             <span>{notice}</span>
-            <button onClick={() => setNotice(null)} style={{ color: "inherit", background: "none", border: "none", cursor: "pointer", fontSize: 14 }}>✕</button>
+            <button onClick={() => setNotice(null)} aria-label="Dismiss notice" style={{ color: "inherit", background: "none", border: "none", cursor: "pointer", fontSize: 14 }}>✕</button>
           </div>
         </div>
       )}

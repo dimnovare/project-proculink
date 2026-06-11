@@ -38,7 +38,7 @@ const BLUE_SOFT   = "#E3EDFB";  // --brand-blue-soft  (inherited pill bg / selec
 // Ink + chrome.
 const INK         = "#0B1A2F";  // --ink
 const MUTED       = "#56627A";  // --ink-muted  (body labels, card-header glyphs)
-const FAINT       = "#8A93A5";  // --ink-faint  (eyebrows, secondary mono)
+const FAINT       = "var(--ink-faint)";  // --ink-faint  (eyebrows, secondary mono)
 const LINE        = "#E2E6EE";  // --border     (one hairline for every divider/border)
 const BORDER_STRONG = "#C6CDDA";// --border-strong (button outlines)
 const SURFACE     = "#FFFFFF";  // --surface
@@ -537,7 +537,7 @@ function AcceptanceTab({ supplierId }: { supplierId: string }) {
                   e.currentTarget.value = "";
                 }}
                 className="rounded-[7px] px-2.5 text-[12px] font-medium"
-                style={{ height: 30, border: `1px solid ${LINE}`, background: SURFACE, color: INK, cursor: "pointer", outline: "none" }}
+                style={{ height: 30, border: `1px solid ${LINE}`, background: SURFACE, color: INK, cursor: "pointer" }}
               >
                 <option value="">+ Add common rule…</option>
                 {QUICK_RULES.map((q, i) => (
@@ -573,7 +573,7 @@ function AcceptanceTab({ supplierId }: { supplierId: string }) {
                     updateRule(idx, { scope, fieldPath: firstFieldFor(scope) });
                   }}
                   className="w-full rounded-[5px] px-2 text-[12px]"
-                  style={{ height: 30, border: `1px solid ${LINE}`, color: INK, background: SURFACE, outline: "none", cursor: "pointer" }}
+                  style={{ height: 30, border: `1px solid ${LINE}`, color: INK, background: SURFACE, cursor: "pointer" }}
                 >
                   <option value="order">Order</option>
                   <option value="line">Line</option>
@@ -582,7 +582,7 @@ function AcceptanceTab({ supplierId }: { supplierId: string }) {
                   value={rule.fieldPath}
                   onChange={e => updateRule(idx, { fieldPath: e.target.value })}
                   className="w-full rounded-[5px] px-2 text-[12px]"
-                  style={{ height: 30, border: `1px solid ${LINE}`, color: INK, background: SURFACE, outline: "none", cursor: "pointer" }}
+                  style={{ height: 30, border: `1px solid ${LINE}`, color: INK, background: SURFACE, cursor: "pointer" }}
                 >
                   {FIELD_OPTIONS[rule.scope].map(f => (
                     <option key={f.value} value={f.value}>{f.label}</option>
@@ -592,7 +592,7 @@ function AcceptanceTab({ supplierId }: { supplierId: string }) {
                   value={rule.operator}
                   onChange={e => updateRule(idx, { operator: e.target.value as AcceptanceRule["operator"] })}
                   className="w-full rounded-[5px] px-2 text-[12px]"
-                  style={{ height: 30, border: `1px solid ${LINE}`, color: INK, background: SURFACE, outline: "none", cursor: "pointer" }}
+                  style={{ height: 30, border: `1px solid ${LINE}`, color: INK, background: SURFACE, cursor: "pointer" }}
                 >
                   {OPERATORS.map(op => (
                     <option key={op} value={op}>{OPERATOR_LABELS[op]}</option>
@@ -604,13 +604,13 @@ function AcceptanceTab({ supplierId }: { supplierId: string }) {
                   onChange={e => updateRule(idx, { expectedValue: e.target.value })}
                   placeholder="value"
                   className="w-full rounded-[5px] px-2 text-[12px]"
-                  style={{ height: 30, border: `1px solid ${LINE}`, color: INK, background: SURFACE, outline: "none" }}
+                  style={{ height: 30, border: `1px solid ${LINE}`, color: INK, background: SURFACE }}
                 />
                 <select
                   value={rule.severity}
                   onChange={e => updateRule(idx, { severity: e.target.value as AcceptanceRule["severity"] })}
                   className="w-full rounded-[5px] px-2 text-[12px]"
-                  style={{ height: 30, border: `1px solid ${LINE}`, color: INK, background: SURFACE, outline: "none", cursor: "pointer" }}
+                  style={{ height: 30, border: `1px solid ${LINE}`, color: INK, background: SURFACE, cursor: "pointer" }}
                 >
                   <option value="error">Error</option>
                   <option value="warning">Warning</option>

@@ -103,7 +103,7 @@ export function BridgeLoader({
       </svg>
 
       {label && (
-        <span style={{ fontSize: 12.5, color: "#8A93A5", letterSpacing: "0.01em" }}>
+        <span style={{ fontSize: 12.5, color: "var(--ink-faint)", letterSpacing: "0.01em" }}>
           {label}
         </span>
       )}

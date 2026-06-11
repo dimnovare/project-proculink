@@ -113,7 +113,7 @@ type Status = "new" | "extracting" | "review" | "ready" | "sent" | "delivering" 
 // Colors match tokens.css .pill-* exactly
 const STATUS_MAP: Record<Status, { bg: string; fg: string; dot: string; pulse?: boolean; label: string }> = {
   // tokens.css .pill-new → surface-2 / ink-muted / ink-faint
-  new:        { bg: "#EFF2F7", fg: "#56627A", dot: "#8A93A5",  label: "New" },
+  new:        { bg: "#EFF2F7", fg: "#56627A", dot: "var(--ink-faint)",  label: "New" },
   // extracting + delivering use the brand-blue progress accent
   extracting: { bg: "#E3EDFB", fg: "#0F4FA8", dot: "#1E66C9",  label: "Extracting" },
   review:     { bg: "#FAEFD6", fg: "#C97A14", dot: "#C97A14",  label: "Needs review" },
@@ -190,7 +190,7 @@ export function AiSuggestion({ confidence, title, description, provenance, actio
           AI · {confidence}%
         </span>
         {provenance && (
-          <span style={{ fontSize: 10.5, color: "#8A93A5" }}>{provenance}</span>
+          <span style={{ fontSize: 10.5, color: "var(--ink-faint)" }}>{provenance}</span>
         )}
       </div>
       {/* Suggestion title */}

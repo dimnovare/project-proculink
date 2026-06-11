@@ -23,10 +23,10 @@ const S = {
   input:    { width: "100%", height: 38, padding: "0 12px", border: "1px solid #C6CDDA", borderRadius: 6, fontSize: 13.5, color: "#0B1A2F", background: "#FFFFFF", boxSizing: "border-box" as const },
   select:   { width: "100%", height: 38, padding: "0 12px", border: "1px solid #C6CDDA", borderRadius: 6, fontSize: 13.5, color: "#0B1A2F", background: "#FFFFFF", boxSizing: "border-box" as const },
   textarea: { width: "100%", minHeight: 140, padding: "10px 12px", border: "1px solid #C6CDDA", borderRadius: 6, fontSize: 13.5, color: "#0B1A2F", background: "#FFFFFF", boxSizing: "border-box" as const, lineHeight: 1.5, fontFamily: "Inter, sans-serif", resize: "vertical" as const },
-  hint:     { fontSize: 12, color: "#8A93A5", marginTop: 4 },
+  hint:     { fontSize: 12, color: "var(--ink-faint)", marginTop: 4 },
   actions:  { display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginTop: 18, flexWrap: "wrap" as const },
   submit:   { background: "#0B1A2F", color: "#FFFFFF", border: "none", borderRadius: 6, padding: "10px 18px", fontSize: 13.5, fontWeight: 600, cursor: "pointer" },
-  submitDisabled: { background: "#8A93A5", color: "#FFFFFF", border: "none", borderRadius: 6, padding: "10px 18px", fontSize: 13.5, fontWeight: 600, cursor: "not-allowed" },
+  submitDisabled: { background: "var(--ink-faint)", color: "#FFFFFF", border: "none", borderRadius: 6, padding: "10px 18px", fontSize: 13.5, fontWeight: 600, cursor: "not-allowed" },
   notice:   { padding: "10px 14px", borderRadius: 6, fontSize: 13, lineHeight: 1.5, marginTop: 14, border: "1px solid transparent" },
   success:  { background: "#EAF3EA", borderColor: "#9FC8A4", color: "#22622A" },
   error:    { background: "#FBECEC", borderColor: "#E0A3A3", color: "#8A2A2A" },
@@ -139,7 +139,7 @@ export function ContactForm() {
       </div>
 
       <div style={S.actions}>
-        <p style={{ fontSize: 12.5, color: "#8A93A5", margin: 0 }}>
+        <p style={{ fontSize: 12.5, color: "var(--ink-faint)", margin: 0 }}>
           Prefer email? <a href="mailto:support@proculink.eu" style={{ color: "#2E8E3A" }}>support@proculink.eu</a>
         </p>
         <button

@@ -216,7 +216,7 @@ function PlanCard({ status, action }: { status: BillingStatus; action?: React.Re
           </div>
         )}
         {!isExpired && (
-          <div style={{ fontSize: 11, color: "#8A93A5" }}>
+          <div style={{ fontSize: 11, color: "var(--ink-faint)" }}>
             {status.accountStatus.replaceAll("_", " ")}
           </div>
         )}
@@ -351,7 +351,7 @@ export function BillingSection() {
               </button>
             ))}
           </div>
-          <a href="mailto:sales@proculink.eu" style={{ fontSize: 12, color: "#8A93A5" }}>
+          <a href="mailto:sales@proculink.eu" style={{ fontSize: 12, color: "var(--ink-faint)" }}>
             Need Enterprise? Contact sales
           </a>
           {process.env.NEXT_PUBLIC_BOOK_DEMO_URL && (

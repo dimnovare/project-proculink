@@ -334,7 +334,7 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
         className="flex flex-col items-start gap-3 px-4 py-3 sm:flex-row sm:items-center"
         style={{ borderBottom: "1px solid #E2E6EE", background: "#F6F7FA" }}
       >
-        <span className="h-2.5 w-2.5 rounded-full" style={{ background: autoDeliver ? "#2E8E3A" : "#8A93A5" }} />
+        <span className="h-2.5 w-2.5 rounded-full" style={{ background: autoDeliver ? "#2E8E3A" : "var(--ink-faint)" }} />
         <div className="min-w-0 flex-1">
           <h3 className="text-[13px] font-semibold" style={{ color: "#0B1A2F" }}>Supplier delivery</h3>
           <p className="text-[11px]" style={{ color: "#56627A" }}>
@@ -356,7 +356,7 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
 
       <div className="grid gap-0 lg:grid-cols-[220px_minmax(0,1fr)]">
         <div className="p-4" style={{ borderRight: "1px solid #E2E6EE", background: "#FBFCFE" }}>
-          <p className="mb-2 text-[11px] font-semibold uppercase" style={{ color: "#8A93A5" }}>Protocol</p>
+          <p className="mb-2 text-[11px] font-semibold uppercase" style={{ color: "var(--ink-faint)" }}>Protocol</p>
           <div className="grid gap-2">
             {PROTOCOLS.map((item) => (
               <button
@@ -373,7 +373,7 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
                 style={{
                   border: protocol === item.id ? "1px solid #2E8E3A" : "1px solid #D5DAEA",
                   background: protocol === item.id ? "#E2F1E2" : "#FFFFFF",
-                  color: item.enabled ? "#0B1A2F" : "#8A93A5",
+                  color: item.enabled ? "#0B1A2F" : "var(--ink-faint)",
                   cursor: item.enabled ? "pointer" : "not-allowed",
                 }}
               >
@@ -417,7 +417,7 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
                     <option value="json">JSON</option>
                   </select>
                 </Field>
-                <p className="mt-1.5 text-[11px]" style={{ color: "#8A93A5" }}>
+                <p className="mt-1.5 text-[11px]" style={{ color: "var(--ink-faint)" }}>
                   When set, sending an order to this supplier auto-transforms it into this format.
                 </p>
               </div>
@@ -700,7 +700,7 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
                           style={INPUT_STYLE}
                         />
                       </Field>
-                      <p className="text-[11px]" style={{ color: "#8A93A5" }}>
+                      <p className="text-[11px]" style={{ color: "var(--ink-faint)" }}>
                         Templates support <code>{"{poNumber}"}</code> and <code>{"{fileName}"}</code>.
                       </p>
                     </div>
@@ -911,7 +911,7 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
         <button onClick={testFire} disabled={!savedConfig || testing} className="inline-flex h-8 items-center justify-center gap-1.5 rounded-[6px] px-3 text-[12px] font-semibold" style={{ border: "1px solid #D5DAEA", color: "#0B1A2F", background: "#FFF", opacity: !savedConfig ? 0.55 : 1 }}>
           <Send size={13} /> {testing ? "Testing..." : "Test-fire"}
         </button>
-        <button onClick={save} disabled={saving || !canSave} className="inline-flex h-8 items-center justify-center gap-1.5 rounded-[6px] px-3 text-[12px] font-semibold" style={{ border: "none", color: "#FFF", background: saving || !canSave ? "#8A93A5" : "#0B1A2F" }}>
+        <button onClick={save} disabled={saving || !canSave} className="inline-flex h-8 items-center justify-center gap-1.5 rounded-[6px] px-3 text-[12px] font-semibold" style={{ border: "none", color: "#FFF", background: saving || !canSave ? "var(--ink-faint)" : "#0B1A2F" }}>
           <Save size={13} /> {saving ? "Saving..." : "Save delivery"}
         </button>
       </div>
@@ -922,7 +922,7 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
 function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
     <label className="grid gap-1">
-      <span className="text-[11px] font-semibold uppercase" style={{ color: "#8A93A5" }}>{label}</span>
+      <span className="text-[11px] font-semibold uppercase" style={{ color: "var(--ink-faint)" }}>{label}</span>
       {children}
     </label>
   );

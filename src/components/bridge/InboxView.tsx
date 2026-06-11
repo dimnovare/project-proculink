@@ -361,10 +361,10 @@ function buildColumns(labels: PartyLabels) {
       const hasBuyer = buyer != null && buyer.trim() !== "" && buyer.trim() !== "—";
       return (
         <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: "12.5px" }}>
-          <span style={{ color: hasBuyer ? BLUE_DEEP : "#8A93A5", fontWeight: hasBuyer ? 500 : 400, flex: 1, minWidth: 0, textOverflow: "ellipsis", whiteSpace: "nowrap", overflow: "hidden" }}>
+          <span style={{ color: hasBuyer ? BLUE_DEEP : "var(--ink-faint)", fontWeight: hasBuyer ? 500 : 400, flex: 1, minWidth: 0, textOverflow: "ellipsis", whiteSpace: "nowrap", overflow: "hidden" }}>
             {hasBuyer ? buyer : labels.unknownBuyer}
           </span>
-          <span style={{ color: "#8A93A5", flexShrink: 0 }}>→</span>
+          <span style={{ color: "var(--ink-faint)", flexShrink: 0 }}>→</span>
           <span style={{ color: GREEN_DEEP, fontWeight: 500, flex: 1, minWidth: 0, textOverflow: "ellipsis", whiteSpace: "nowrap", overflow: "hidden" }}>
             {row.original.supplier}
           </span>
@@ -419,7 +419,7 @@ function buildColumns(labels: PartyLabels) {
     id: "chevron",
     enableHiding: false,
     header: "",
-    cell: () => <span style={{ color: "#8A93A5", fontSize: "15px" }}>›</span>,
+    cell: () => <span style={{ color: "var(--ink-faint)", fontSize: "15px" }}>›</span>,
     size: 30,
   }),
   ];
@@ -815,7 +815,7 @@ export function InboxView() {
               height: 32,
               border: "1px solid #E2E6EE",
               background: "#FFFFFF",
-              color: isFetching ? "#8A93A5" : "#0B1A2F",
+              color: isFetching ? "var(--ink-faint)" : "#0B1A2F",
               cursor: isFetching ? "default" : "pointer",
             }}
             onClick={() => queryClient.invalidateQueries({ queryKey: ["orders"] })}
@@ -856,7 +856,7 @@ export function InboxView() {
             <span style={{ fontSize: "12.5px", fontWeight: 600 }}>{selectedCount} selected</span>
             <button
               onClick={() => { setRowSelection({}); setBulkResult(null); }}
-              style={{ background: "none", border: "none", color: "#8A93A5", fontSize: "12px", cursor: "pointer" }}
+              style={{ background: "none", border: "none", color: "var(--ink-faint)", fontSize: "12px", cursor: "pointer" }}
             >
               Clear
             </button>
@@ -938,7 +938,7 @@ export function InboxView() {
           className="flex items-center gap-1.5 rounded-[6px] px-3 w-full sm:w-auto sm:min-w-[160px] sm:max-w-[240px] sm:flex-shrink-0"
           style={{ background: "#FFFFFF", border: "1px solid #E2E6EE", height: 32 }}
         >
-          <span aria-hidden="true" style={{ fontSize: "14px", color: "#8A93A5", flexShrink: 0 }}>🔍</span>
+          <span aria-hidden="true" style={{ fontSize: "14px", color: "var(--ink-faint)", flexShrink: 0 }}>🔍</span>
           <input
             type="text"
             aria-label="Search orders"
@@ -947,7 +947,6 @@ export function InboxView() {
             onChange={(e) => handleSearch(e.target.value)}
             style={{
               border: "none",
-              outline: "none",
               background: "none",
               fontSize: "12.5px",
               color: "#0B1A2F",
@@ -994,7 +993,7 @@ export function InboxView() {
             >
               <div
                 className="px-3 pb-1.5 pt-0.5 text-[10px] font-bold uppercase tracking-[0.06em]"
-                style={{ color: "#8A93A5" }}
+                style={{ color: "var(--ink-faint)" }}
               >
                 Show columns
               </div>
@@ -1121,7 +1120,7 @@ export function InboxView() {
                       {row.original.po}
                     </p>
                   </div>
-                  <p className="mt-0.5 text-[12.5px]" style={{ color: "#8A93A5" }}>
+                  <p className="mt-0.5 text-[12.5px]" style={{ color: "var(--ink-faint)" }}>
                     {row.original.age} ago · {row.original.lines} lines · {row.original.valueLabel}
                   </p>
                 </div>
@@ -1146,7 +1145,7 @@ export function InboxView() {
                 if (!hasBuyer) {
                   return (
                     <div className="flex items-center gap-1.5 text-[13px]">
-                      <span className="text-[11.5px]" style={{ color: "#8A93A5" }}>{labels.unknownBuyer}</span>
+                      <span className="text-[11.5px]" style={{ color: "var(--ink-faint)" }}>{labels.unknownBuyer}</span>
                       <span aria-hidden style={{ color: "#C6CDDA" }}>→</span>
                       <span className="truncate font-medium" style={{ color: GREEN_DEEP }}>{row.original.supplier}</span>
                     </div>
@@ -1221,7 +1220,7 @@ export function InboxView() {
                         fontWeight: 700,
                         letterSpacing: "0.06em",
                         textTransform: "uppercase",
-                        color: "#8A93A5",
+                        color: "var(--ink-faint)",
                         whiteSpace: "nowrap",
                         cursor: canSort ? "pointer" : "default",
                         userSelect: "none",
@@ -1407,7 +1406,7 @@ export function InboxView() {
         className="flex-shrink-0 flex flex-wrap items-center gap-3 px-4 sm:px-6 pb-3 pt-0.5"
         style={{ background: "#F6F7FA" }}
       >
-        <span className="text-[11px]" style={{ color: "#8A93A5" }}>
+        <span className="text-[11px]" style={{ color: "var(--ink-faint)" }}>
           {totalCount.toLocaleString()} order{totalCount !== 1 ? "s" : ""}
           {selectedCount > 0 && <span style={{ color: BLUE_DEEP }}> · {selectedCount} selected</span>}
         </span>

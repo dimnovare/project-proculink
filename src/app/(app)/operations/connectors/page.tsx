@@ -78,7 +78,7 @@ function ConnectorStatusPill({ status }: { status: string }) {
   const comingSoon = status === "coming_soon";
   // Canonical design pills (screen-buyers.jsx ConnectorsScreen):
   //   Connected   → .pill-ready  (bg --brand-green-soft #E2F1E2, text --brand-green-deep #1E6D29, dot --brand-green #2E8E3A)
-  //   Available   → .pill-new    (bg --surface-2 #EFF2F7,        text --ink-muted #56627A,        dot --ink-faint #8A93A5)
+  //   Available   → .pill-new    (bg --surface-2 #EFF2F7,        text --ink-muted #56627A,        dot --ink-faint #5B6980)
   //   Coming soon → inline style (muted amber) — not "connected", not "available to connect"
   if (comingSoon) {
     return (
@@ -182,7 +182,7 @@ function ConnectorCard({
             than a misleading "Not in use" / "0". A spacer keeps the action
             button right-aligned. */}
         {connector.docks >= 0 ? (
-          <span style={{ fontSize: 11.5, color: "var(--ink-faint,#8A93A5)" }}>
+          <span style={{ fontSize: 11.5, color: "var(--ink-faint,#5B6980)" }}>
             {connector.docks > 0 ? `${connector.docks} supplier${connector.docks > 1 ? "s" : ""}` : "Not in use"}
           </span>
         ) : (
@@ -190,7 +190,7 @@ function ConnectorCard({
         )}
         {comingSoon ? (
           /* offer<=>works: connector is not built — no actionable button */
-          <span style={{ fontSize: 11.5, color: "var(--ink-faint,#8A93A5)", fontStyle: "italic" }}>Not available yet</span>
+          <span style={{ fontSize: 11.5, color: "var(--ink-faint,#5B6980)", fontStyle: "italic" }}>Not available yet</span>
         ) : connected ? (
           <button
             className="connector-action btn-ghost"
@@ -489,7 +489,7 @@ function ManifestRequirementsSection({ manifestKey }: { manifestKey: DeliveryPro
           padding: "10px 14px",
         }}
       >
-        <p style={{ fontSize: 11.5, color: "var(--ink-faint,#8A93A5)", margin: 0 }}>
+        <p style={{ fontSize: 11.5, color: "var(--ink-faint,#5B6980)", margin: 0 }}>
           Loading connector requirements…
         </p>
       </div>
@@ -517,7 +517,7 @@ function ManifestRequirementsSection({ manifestKey }: { manifestKey: DeliveryPro
       <p style={{ fontSize: 11.5, fontWeight: 600, color: "var(--ink-muted,#56627A)", margin: 0 }}>
         What this connector needs
         {manifest.authType && (
-          <span style={{ fontWeight: 400, marginLeft: 6, color: "var(--ink-faint,#8A93A5)" }}>
+          <span style={{ fontWeight: 400, marginLeft: 6, color: "var(--ink-faint,#5B6980)" }}>
             · {manifest.authType}
           </span>
         )}
@@ -539,7 +539,7 @@ function ManifestRequirementsSection({ manifestKey }: { manifestKey: DeliveryPro
       )}
 
       {manifest.docsRef && (
-        <p style={{ fontSize: 11, color: "var(--ink-faint,#8A93A5)", margin: 0 }}>
+        <p style={{ fontSize: 11, color: "var(--ink-faint,#5B6980)", margin: 0 }}>
           <a
             href={manifest.docsRef}
             target="_blank"
@@ -563,7 +563,7 @@ function ManifestFieldGroup({
 }) {
   return (
     <div style={{ display: "grid", gap: 4 }}>
-      <p style={{ fontSize: 10.5, fontWeight: 600, textTransform: "uppercase", color: "var(--ink-faint,#8A93A5)", margin: 0 }}>
+      <p style={{ fontSize: 10.5, fontWeight: 600, textTransform: "uppercase", color: "var(--ink-faint,#5B6980)", margin: 0 }}>
         {title}
       </p>
       {fields.map((field) => (
@@ -700,7 +700,7 @@ function ConnectorPanel({
               borderRadius: "var(--radius,6px)",
               background: "none",
               border: "none",
-              color: "var(--ink-faint,#8A93A5)",
+              color: "var(--ink-faint,#5B6980)",
               cursor: "pointer",
               display: "flex",
               alignItems: "center",
@@ -844,7 +844,7 @@ function ConnectorPanel({
             className="connector-action"
             onClick={handleTestFire}
             disabled={firing}
-            style={{ height: 32, padding: "0 14px", borderRadius: "var(--radius,6px)", border: "1px solid var(--brand-green-soft,#E2F1E2)", background: "var(--surface,#FFFFFF)", color: firing ? "var(--ink-faint,#8A93A5)" : "var(--brand-green-deep,#1E6D29)", fontSize: 12.5, fontWeight: 600, cursor: firing ? "default" : "pointer" }}
+            style={{ height: 32, padding: "0 14px", borderRadius: "var(--radius,6px)", border: "1px solid var(--brand-green-soft,#E2F1E2)", background: "var(--surface,#FFFFFF)", color: firing ? "var(--ink-faint,#5B6980)" : "var(--brand-green-deep,#1E6D29)", fontSize: 12.5, fontWeight: 600, cursor: firing ? "default" : "pointer" }}
           >
             {firing ? "Firing…" : "Test fire"}
           </button>

@@ -40,7 +40,7 @@ const BUYER_BLUE  = "#1E66C9";
 const BORDER     = "#E2E6EE";
 const INPUT_BDR  = "#D5DAEA";
 const MUTED      = "#56627A";
-const FAINT      = "#8A93A5";
+const FAINT      = "var(--ink-faint)";
 const BG         = "#F6F7FA";
 const SURFACE    = "#FFFFFF";
 const SURFACE2   = "#EFF2F7";
@@ -1409,7 +1409,7 @@ function ColumnCombobox({
             width: "100%", borderRadius: 5,
             padding: "5px 26px 5px 10px",
             fontSize: 12, border: `1px solid #CBB8F2`,
-            color: NAVY, background: "#FBFAFE", outline: "none",
+            color: NAVY, background: "#FBFAFE",
             fontFamily: "'JetBrains Mono', monospace",
           }}
         />

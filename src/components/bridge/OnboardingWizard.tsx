@@ -310,7 +310,6 @@ function Step1AddSupplier({ onSuccess }: Step1Props) {
             background: T.surface,
             border: `1px solid ${error ? T.red : T.border}`,
             borderRadius: 6,
-            outline: "none",
             width: "100%",
             boxSizing: "border-box",
             fontFamily: "Inter, sans-serif",

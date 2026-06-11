@@ -94,7 +94,7 @@ function RuleRow({ row, sources, onChange, onRemove }: {
           aria-label="Output field name"
           style={{ ...inputStyle, flex: "1 1 140px", minWidth: 120, fontFamily: "'JetBrains Mono',monospace" }}
         />
-        <span style={{ color: "#8A93A5", fontSize: 13 }} aria-hidden>=</span>
+        <span style={{ color: "var(--ink-faint)", fontSize: 13 }} aria-hidden>=</span>
         <select
           value={usingFixed ? FIXED : (rule.canonicalField ?? "")}
           onChange={(e) => {
@@ -124,7 +124,7 @@ function RuleRow({ row, sources, onChange, onRemove }: {
           style={{ minHeight: 36, padding: "0 10px", border: "none", background: "transparent", color: "#C53A3A", cursor: "pointer", fontSize: 13 }}>✕</button>
       </div>
       <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap", marginTop: 8 }}>
-        <span style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em", color: "#8A93A5" }}>then</span>
+        <span style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em", color: "var(--ink-faint)" }}>then</span>
         {(rule.fieldManipulators ?? []).map((m, mi) => (
           <ManipChip key={mi} entry={m}
             onChange={(next) => onChange({ fieldManipulators: rule.fieldManipulators.map((x, i) => i === mi ? next : x) })}
@@ -158,7 +158,7 @@ function RuleSection({ title, scope, rows, sources, setRows }: {
       <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "#56627A", marginBottom: 8 }}>{title}</div>
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
         {rows.length === 0 && (
-          <div style={{ fontSize: 12, color: "#8A93A5", padding: "2px 0" }}>None — the default transform is used for {scope === "header" ? "header" : "line"} fields. Add one to override it.</div>
+          <div style={{ fontSize: 12, color: "var(--ink-faint)", padding: "2px 0" }}>None — the default transform is used for {scope === "header" ? "header" : "line"} fields. Add one to override it.</div>
         )}
         {rows.map((r) => (
           <RuleRow key={r.id} row={r} sources={sources}
@@ -181,10 +181,10 @@ function CustomFieldsSection({ rows, setRows }: { rows: CustomRow[]; setRows: (r
     <section>
       <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 8 }}>
         <span style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "#56627A" }}>Custom fields</span>
-        <span style={{ fontSize: 11, color: "#8A93A5" }}>a value the file didn&apos;t carry — usable as a source below</span>
+        <span style={{ fontSize: 11, color: "var(--ink-faint)" }}>a value the file didn&apos;t carry — usable as a source below</span>
       </div>
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-        {rows.length === 0 && <div style={{ fontSize: 12, color: "#8A93A5" }}>None yet.</div>}
+        {rows.length === 0 && <div style={{ fontSize: 12, color: "var(--ink-faint)" }}>None yet.</div>}
         {rows.map((c) => {
           const key = sanitizeKey(c.field.key || c.field.label);
           const collides = key.length > 0 && CANONICAL_LOWER.has(key.toLowerCase());
@@ -198,7 +198,7 @@ function CustomFieldsSection({ rows, setRows }: { rows: CustomRow[]; setRows: (r
               <input value={c.field.key} onChange={(e) => set({ key: e.target.value })}
                 placeholder="key" aria-label="Custom field key"
                 style={{ ...inputStyle, flex: "1 1 100px", minWidth: 80, fontFamily: "'JetBrains Mono',monospace", color: "#5E3DB0", borderColor: collides ? "#C53A3A" : "#C6CDDA" }} />
-              <span style={{ color: "#8A93A5", fontSize: 12 }}>=</span>
+              <span style={{ color: "var(--ink-faint)", fontSize: 12 }}>=</span>
               <input value={c.field.value ?? ""} onChange={(e) => set({ value: e.target.value })}
                 placeholder="value" aria-label="Custom field value"
                 style={{ ...inputStyle, flex: "1 1 140px", minWidth: 110 }} />
@@ -229,7 +229,7 @@ function TemplateReferencePanel({ onInsert }: { onInsert: (token: string) => voi
       <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "#56627A", marginBottom: 4 }}>
         Proposed structure / available fields
       </div>
-      <div style={{ fontSize: 11, color: "#8A93A5", marginBottom: 10 }}>
+      <div style={{ fontSize: 11, color: "var(--ink-faint)", marginBottom: 10 }}>
         Click a field to insert its token at the cursor. Numbers (Qty, UnitPrice…) emit unquoted.
       </div>
       <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
@@ -448,7 +448,7 @@ export function OutputMappingEditor({
         <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "14px 18px", borderBottom: "1px solid #E2E6EE", background: "#FFFFFF" }}>
           <div style={{ flex: 1 }}>
             <div style={{ fontSize: 15, fontWeight: 700, color: "#0B1A2F" }}>Edit output mapping</div>
-            <div style={{ fontSize: 11.5, color: "#8A93A5" }}>
+            <div style={{ fontSize: 11.5, color: "var(--ink-faint)" }}>
               {templateMode
                 ? "Render the whole document from one Scriban template."
                 : "Choose how each delivered field is built. Empty = the default transform."}
@@ -487,7 +487,7 @@ export function OutputMappingEditor({
               transition: "left 120ms ease",
             }} />
           </button>
-          <span style={{ fontSize: 11, color: "#8A93A5" }}>
+          <span style={{ fontSize: 11, color: "var(--ink-faint)" }}>
             {templateMode
               ? "One Scriban template renders the entire output document (overrides field rules)."
               : "Map each delivered field one-by-one. Turn on to write a whole-document template instead."}
@@ -525,7 +525,7 @@ export function OutputMappingEditor({
               <span style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "#56627A" }}>
                 Live preview{templateMode ? ` · ${previewFormat}` : ` · ${previewFormat.toUpperCase()}`}
               </span>
-              {previewing && <span style={{ fontSize: 10.5, color: "#8A93A5" }}>updating…</span>}
+              {previewing && <span style={{ fontSize: 10.5, color: "var(--ink-faint)" }}>updating…</span>}
             </div>
             {preview?.warning && <div style={{ fontSize: 11.5, color: "#C97A14", marginBottom: 6 }}>⚠ {preview.warning}</div>}
             {preview?.error && <div role="alert" style={{ fontSize: 11.5, color: "#C97A14", background: "#FBF3E4", border: "1px solid #F0DCAE", borderRadius: 6, padding: "7px 9px", marginBottom: 6, whiteSpace: "pre-wrap" }}>{preview.error}</div>}

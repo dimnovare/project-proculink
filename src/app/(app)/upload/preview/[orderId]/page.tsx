@@ -35,7 +35,7 @@ export default function MappingPreviewPage() {
         style={{ borderBottom: "1px solid #E2E6EE", background: "#FFFFFF" }}
       >
         {/* Breadcrumb */}
-        <nav className="flex items-center gap-1.5 text-[12px]" style={{ color: "#8A93A5" }}>
+        <nav className="flex items-center gap-1.5 text-[12px]" style={{ color: "var(--ink-faint)" }}>
           <Link
             href="/upload"
             className="hover:underline"

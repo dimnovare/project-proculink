@@ -159,7 +159,7 @@ export default function ChangelogPage() {
                     Latest
                   </span>
                 )}
-                <span style={{ fontSize: 12, color: "#8A93A5", fontWeight: 500, marginTop: 2 }}>
+                <span style={{ fontSize: 12, color: "var(--ink-faint)", fontWeight: 500, marginTop: 2 }}>
                   {entry.date}
                 </span>
                 {/* Timeline connector */}
@@ -195,7 +195,7 @@ export default function ChangelogPage() {
                       style={{ display: "flex", alignItems: "flex-start", gap: 10, fontSize: 14, color: "#2D3A4A", lineHeight: 1.6 }}
                     >
                       <span
-                        style={{ width: 6, height: 6, borderRadius: "50%", background: entry.latest ? "#2E8E3A" : "#8A93A5", flexShrink: 0, marginTop: 8, display: "inline-block" }}
+                        style={{ width: 6, height: 6, borderRadius: "50%", background: entry.latest ? "#2E8E3A" : "var(--ink-faint)", flexShrink: 0, marginTop: 8, display: "inline-block" }}
                       />
                       <span>{item}</span>
                     </li>
@@ -217,7 +217,7 @@ export default function ChangelogPage() {
             textAlign: "center",
           }}
         >
-          <p style={{ fontSize: 14, color: "#8A93A5", marginBottom: 20 }}>
+          <p style={{ fontSize: 14, color: "var(--ink-faint)", marginBottom: 20 }}>
             Ready to automate your purchase orders?
           </p>
           <Link

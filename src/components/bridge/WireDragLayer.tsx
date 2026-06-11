@@ -115,6 +115,10 @@ export function WireDragLayer({
   const [hoverZone, setHoverZone] = useState<string | null>(null);
   const [kbSource, setKbSource] = useState<string | null>(null);
   const [kbTarget, setKbTarget] = useState(0);
+  // Keyboard-focused handle id — drives the same halo circle the kbSource/drag
+  // states already use, so Tab focus is visibly indicated on the SVG handles.
+  // Render-only: never feeds measure/anchor logic.
+  const [focusedHandleId, setFocusedHandleId] = useState<string | null>(null);
   const [shown, setShown]       = useState(false);
   const announcerRef = useRef<HTMLDivElement>(null);
   const rafRef = useRef<number | null>(null);
@@ -321,7 +325,7 @@ export function WireDragLayer({
               {w.isOverride && !dimmed && (
                 <g role="button" tabIndex={0}
                   aria-label={`Reset ${LINE_LABEL[w.lineId] ?? w.lineId} to its default source`}
-                  style={{ pointerEvents: "auto", cursor: "pointer", outline: "none" }}
+                  style={{ pointerEvents: "auto", cursor: "pointer" }}
                   onClick={() => onDisconnect(w.lineId)}
                   onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onDisconnect(w.lineId); } }}>
                   <circle cx={w.zx + 12} cy={w.zy} r={6.5} fill="#FFFFFF" stroke="#1E66C9" strokeWidth={1.3} />
@@ -371,12 +375,17 @@ export function WireDragLayer({
           return (
             <g key={`h-${h.id}`} tabIndex={0} role="button"
               aria-label={`Drag ${NODE_LABEL[h.id] ?? h.id} onto an output field to wire it${kbSource === h.id ? " — connect mode active, use arrow keys" : ""}`}
-              style={{ pointerEvents: "auto", cursor: "grab", outline: "none" }}
+              style={{ pointerEvents: "auto", cursor: "grab" }}
               onPointerDown={(e) => onHandleDown(e, h.id)}
               onKeyDown={(e) => onHandleKey(e, h.id)}
+              onFocus={() => setFocusedHandleId(h.id)}
+              onBlur={() => setFocusedHandleId(null)}
             >
+              {/* Halo — also lights on keyboard focus (focus-visible restore) */}
               <circle cx={h.x} cy={h.y} r={HANDLE_R + 4}
-                fill={isSource ? "rgba(30,102,201,0.15)" : "transparent"} style={{ transition: "fill 150ms" }} />
+                fill={isSource || focusedHandleId === h.id ? "rgba(30,102,201,0.15)" : "transparent"}
+                stroke={focusedHandleId === h.id ? "#1E66C9" : "none"} strokeWidth={1.5}
+                style={{ transition: "fill 150ms" }} />
               <circle cx={h.x} cy={h.y} r={HANDLE_R} fill={fill} stroke={stroke} strokeWidth={1.8}
                 style={{ transition: "fill 150ms, stroke 150ms" }} />
               <text x={h.x} y={h.y + 3.2} textAnchor="middle" fontSize={7.5} fontWeight={700}

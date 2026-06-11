@@ -192,7 +192,7 @@ export function CreateInvoiceModal({
             onClick={onClose}
             aria-label="Close"
             className="flex h-7 w-7 items-center justify-center rounded-[6px]"
-            style={{ color: "#8A93A5", border: "1px solid transparent", cursor: "pointer" }}
+            style={{ color: "var(--ink-faint)", border: "1px solid transparent", cursor: "pointer" }}
           >
             ✕
           </button>
@@ -225,7 +225,7 @@ export function CreateInvoiceModal({
                   Open hosted invoice ↗
                 </a>
               ) : (
-                <p className="mt-3 text-[12.5px]" style={{ color: "#8A93A5" }}>
+                <p className="mt-3 text-[12.5px]" style={{ color: "var(--ink-faint)" }}>
                   No hosted invoice URL was returned (the invoice may be a draft in Stripe).
                 </p>
               )}
@@ -258,7 +258,7 @@ export function CreateInvoiceModal({
               {/* Line items */}
               <div className="mt-3 mb-1 flex items-center justify-between">
                 <span className="text-[12px] font-semibold" style={{ color: "#56627A" }}>Line items</span>
-                <span className="text-[11px]" style={{ color: "#8A93A5" }}>Amounts in EUR, per unit</span>
+                <span className="text-[11px]" style={{ color: "var(--ink-faint)" }}>Amounts in EUR, per unit</span>
               </div>
               <div className="flex flex-col gap-2">
                 {lines.map((l, i) => (
@@ -327,7 +327,7 @@ export function CreateInvoiceModal({
                   />
                 </div>
                 <div className="text-right">
-                  <div className="text-[11px] font-semibold uppercase tracking-[0.05em]" style={{ color: "#8A93A5" }}>
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.05em]" style={{ color: "var(--ink-faint)" }}>
                     Total
                   </div>
                   <div className="text-[20px] font-bold" style={{ color: NAVY, fontVariantNumeric: "tabular-nums" }}>

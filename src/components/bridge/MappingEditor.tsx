@@ -261,7 +261,7 @@ export function MappingEditor() {
       <div className="flex flex-col items-stretch gap-2 px-4 pb-3 sm:px-6 lg:flex-row lg:items-center lg:gap-3 flex-shrink-0">
         <p className="text-[12.5px] flex-shrink-0" style={{ color: "#56627A" }}>
           {needsSupplierSelection ? (
-            <span style={{ color: "#8A93A5" }}>No {partyNounLower} selected</span>
+            <span style={{ color: "var(--ink-faint)" }}>No {partyNounLower} selected</span>
           ) : (
             <>
               Showing{" "}
@@ -310,7 +310,6 @@ export function MappingEditor() {
             border: "1px solid #E2E6EE",
             background: "#FFFFFF",
             color: INK,
-            outline: "none",
           }}
         >
           <option value="">{allParties}</option>
@@ -324,7 +323,7 @@ export function MappingEditor() {
           <span
             aria-hidden="true"
             className="absolute left-3 top-1/2 -translate-y-1/2 text-[13px]"
-            style={{ color: "#8A93A5" }}
+            style={{ color: "var(--ink-faint)" }}
           >
             ⌕
           </span>
@@ -339,7 +338,6 @@ export function MappingEditor() {
               border: "1px solid #E2E6EE",
               background: "#FFFFFF",
               color: INK,
-              outline: "none",
             }}
             onFocus={(e) => {
               e.currentTarget.style.borderColor = GREEN;
@@ -388,7 +386,7 @@ export function MappingEditor() {
           {needsSupplierSelection && (
             <div
               className="flex flex-col items-center justify-center py-16 px-6 text-center"
-              style={{ color: "#8A93A5" }}
+              style={{ color: "var(--ink-faint)" }}
             >
               <span style={{ fontSize: 30, marginBottom: 10 }} aria-hidden="true">⇅</span>
               <p className="text-[13px] font-semibold" style={{ color: INK, marginBottom: 4 }}>
@@ -453,7 +451,7 @@ export function MappingEditor() {
                         )}
                       </p>
                       {row.used != null && (
-                        <span className="flex-shrink-0 font-mono text-[11.5px]" style={{ color: "#8A93A5" }}>
+                        <span className="flex-shrink-0 font-mono text-[11.5px]" style={{ color: "var(--ink-faint)" }}>
                           {row.used}×
                         </span>
                       )}
@@ -485,7 +483,7 @@ export function MappingEditor() {
                       <th
                         key={i}
                         className="px-4 py-2.5 text-[10.5px] font-semibold uppercase tracking-[0.07em]"
-                        style={{ color: "#8A93A5", textAlign: align }}
+                        style={{ color: "var(--ink-faint)", textAlign: align }}
                       >
                         {label}
                       </th>
@@ -542,7 +540,7 @@ export function MappingEditor() {
                       {/* Used */}
                       <td
                         className="px-4 py-3.5 text-right font-mono text-[12px]"
-                        style={{ color: "#8A93A5" }}
+                        style={{ color: "var(--ink-faint)" }}
                       >
                         {row.used != null ? `${row.used}×` : "—"}
                       </td>
@@ -555,7 +553,7 @@ export function MappingEditor() {
               {filtered.length === 0 && allRows.length === 0 && (
                 <div
                   className="flex flex-col items-center justify-center py-16"
-                  style={{ color: "#8A93A5" }}
+                  style={{ color: "var(--ink-faint)" }}
                 >
                   <span style={{ fontSize: 32, marginBottom: 8 }}>⊘</span>
                   <p className="text-[13px] font-semibold" style={{ color: INK, marginBottom: 4 }}>No item mappings yet</p>
@@ -567,7 +565,7 @@ export function MappingEditor() {
               {filtered.length === 0 && allRows.length > 0 && (
                 <div
                   className="flex flex-col items-center justify-center py-16"
-                  style={{ color: "#8A93A5" }}
+                  style={{ color: "var(--ink-faint)" }}
                 >
                   <span style={{ fontSize: 32, marginBottom: 8 }}>⊘</span>
                   <p className="text-[13px]">No mappings match your filter</p>
@@ -909,7 +907,7 @@ function MappingPanel({
             onClick={handleAction}
             disabled={saving}
             className="flex h-10 items-center justify-center gap-1.5 rounded-[7px] px-4 text-[13px] font-semibold transition-colors"
-            style={{ border: 0, background: saving ? "#8A93A5" : GREEN, color: "#FFFFFF" }}
+            style={{ border: 0, background: saving ? "var(--ink-faint)" : GREEN, color: "#FFFFFF" }}
             onMouseEnter={(e) => { if (!saving) (e.currentTarget as HTMLElement).style.background = GREEN_DEEP; }}
             onMouseLeave={(e) => { if (!saving) (e.currentTarget as HTMLElement).style.background = GREEN; }}
           >
