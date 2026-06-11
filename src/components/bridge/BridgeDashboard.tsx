@@ -25,6 +25,7 @@ import { LaneDrawer } from "./LaneDrawer";
 import type { Lane } from "./LaneDrawer";
 import { OnboardingChecklist } from "./OnboardingChecklist";
 import { OnboardingWizard } from "./OnboardingWizard";
+import { PageHeader } from "./layout/PageHeader";
 import { apiClient, isApiMockMode } from "@/lib/api-client";
 import { useOrderDirection } from "@/hooks/useOrderDirection";
 import type { OrderSummary, Supplier } from "@/types/procurement";
@@ -683,88 +684,86 @@ export function BridgeDashboard() {
 
   return (
     <div className="flex h-full min-h-0 flex-col overflow-auto" style={{ background: "#F6F7FA" }}>
-      {/* Page header — sits directly on the grey canvas (no white bar), matching
-          the design's floating large title + muted meta line. */}
-      <div className="flex flex-shrink-0 flex-col gap-3 px-4 pt-5 pb-2 sm:flex-row sm:items-start sm:px-6 sm:pt-6 sm:pb-3">
-        <div className="min-w-0 flex-1">
-          <h1
-            className="text-[24px] font-bold tracking-[-0.02em] sm:text-[30px]"
-            style={{ fontFamily: "'Bricolage Grotesque', Inter, sans-serif", color: "#0B1A2F" }}
-          >
-            Dashboard
-          </h1>
-          <p className="mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[13px]" style={{ color: "#56627A" }}>
-            <span
-              aria-hidden
-              style={{ width: 7, height: 7, borderRadius: "50%", background: GREEN, display: "inline-block" }}
-            />
-            Live order view
-            <span style={{ color: "#C6CDDA" }}>·</span>
-            {wireCount} connection{wireCount === 1 ? "" : "s"}
-            <span style={{ color: "#C6CDDA" }}>·</span>
-            {/* "active {plural}" — this counts only docks currently carrying orders
-                (derived topology), NOT the full roster on the Suppliers page, so it
-                must not be labelled a bare "{N} suppliers" count. */}
-            {effective.suppliers.length} active {pluralLower}
-          </p>
-        </div>
-
-        {showWindowControls && (
-          <div className="flex flex-shrink-0 flex-wrap items-center gap-2">
-            {/* Time-window selector — inset-pill segmented control (white bordered
-                track holding rounded pills; active pill = navy), matching design.
-                Filters the data window the KPIs + export use. */}
-            <div
-              className="flex min-w-0 items-center gap-0.5 rounded-[8px] p-[3px] text-[12.5px]"
-              style={{ border: "1px solid #E2E6EE", background: "#FFFFFF" }}
-              role="group"
-              aria-label="Time window"
-            >
-              {WINDOWS.map((w) => {
-                const active = w.key === windowKey;
-                return (
-                  <button
-                    key={w.key}
-                    type="button"
-                    aria-pressed={active}
-                    title={w.sub}
-                    onClick={() => setWindowKey(w.key)}
-                    className="min-h-[28px] min-w-0 rounded-[6px] px-3 py-1 font-medium transition-colors"
-                    style={{
-                      background: active ? "#0B1A2F" : "transparent",
-                      color: active ? "#FFFFFF" : "#56627A",
-                    }}
-                  >
-                    {w.label}
-                  </button>
-                );
-              })}
-            </div>
-            <button
-              type="button"
-              onClick={handleExport}
-              disabled={windowedOrders.length === 0}
-              title={
-                !isApiMockMode && (windowedReceivedPage?.totalCount ?? 0) > 100
-                  ? `Export contains the most recent 100 of ${(windowedReceivedPage!.totalCount).toLocaleString()} orders in this window`
-                  : windowedOrders.length === 0
-                    ? "No orders in this window to export"
-                    : "Download this window's orders as CSV"
-              }
-              className="flex min-h-[36px] items-center gap-2 rounded-[8px] px-3.5 py-1.5 text-[12.5px] font-medium transition-colors hover:bg-[#FCFCFD]"
-              style={{
-                border: "1px solid #E2E6EE",
-                background: "#FFFFFF",
-                color: windowedOrders.length === 0 ? "var(--ink-faint)" : "#0B1A2F",
-                cursor: windowedOrders.length === 0 ? "not-allowed" : "pointer",
-                boxShadow: "0 1px 2px rgba(11,26,47,0.04)",
-              }}
-            >
-              <Download size={14} strokeWidth={2} aria-hidden />
-              Export report
-            </button>
-          </div>
-        )}
+      {/* Page header — canonical PageHeader, sits directly on the grey canvas
+          (no white bar), floating title + muted meta line. */}
+      <div className="flex-shrink-0 px-4 pt-5 sm:px-6 sm:pt-6">
+        <PageHeader
+          title="Dashboard"
+          sub={
+            <span className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
+              <span
+                aria-hidden
+                style={{ width: 7, height: 7, borderRadius: "50%", background: GREEN, display: "inline-block" }}
+              />
+              Live order view
+              <span style={{ color: "#C6CDDA" }}>·</span>
+              {wireCount} connection{wireCount === 1 ? "" : "s"}
+              <span style={{ color: "#C6CDDA" }}>·</span>
+              {/* "active {plural}" — this counts only docks currently carrying orders
+                  (derived topology), NOT the full roster on the Suppliers page, so it
+                  must not be labelled a bare "{N} suppliers" count. */}
+              {effective.suppliers.length} active {pluralLower}
+            </span>
+          }
+          actions={
+            showWindowControls ? (
+              <>
+                {/* Time-window selector — inset-pill segmented control (white bordered
+                    track holding rounded pills; active pill = navy), matching design.
+                    Filters the data window the KPIs + export use. */}
+                <div
+                  className="flex min-w-0 items-center gap-0.5 rounded-[8px] p-[3px] text-[12.5px]"
+                  style={{ border: "1px solid #E2E6EE", background: "#FFFFFF" }}
+                  role="group"
+                  aria-label="Time window"
+                >
+                  {WINDOWS.map((w) => {
+                    const active = w.key === windowKey;
+                    return (
+                      <button
+                        key={w.key}
+                        type="button"
+                        aria-pressed={active}
+                        title={w.sub}
+                        onClick={() => setWindowKey(w.key)}
+                        className="min-h-[28px] min-w-0 rounded-[6px] px-3 py-1 font-medium transition-colors"
+                        style={{
+                          background: active ? "#0B1A2F" : "transparent",
+                          color: active ? "#FFFFFF" : "#56627A",
+                        }}
+                      >
+                        {w.label}
+                      </button>
+                    );
+                  })}
+                </div>
+                <button
+                  type="button"
+                  onClick={handleExport}
+                  disabled={windowedOrders.length === 0}
+                  title={
+                    !isApiMockMode && (windowedReceivedPage?.totalCount ?? 0) > 100
+                      ? `Export contains the most recent 100 of ${(windowedReceivedPage!.totalCount).toLocaleString()} orders in this window`
+                      : windowedOrders.length === 0
+                        ? "No orders in this window to export"
+                        : "Download this window's orders as CSV"
+                  }
+                  className="flex min-h-[36px] items-center gap-2 rounded-[8px] px-3.5 py-1.5 text-[12.5px] font-medium transition-colors hover:bg-[#FCFCFD]"
+                  style={{
+                    border: "1px solid #E2E6EE",
+                    background: "#FFFFFF",
+                    color: windowedOrders.length === 0 ? "var(--ink-faint)" : "#0B1A2F",
+                    cursor: windowedOrders.length === 0 ? "not-allowed" : "pointer",
+                    boxShadow: "0 1px 2px rgba(11,26,47,0.04)",
+                  }}
+                >
+                  <Download size={14} strokeWidth={2} aria-hidden />
+                  Export report
+                </button>
+              </>
+            ) : undefined
+          }
+        />
       </div>
 
       {/* Guided wizard overlay — new users without a supplier */}

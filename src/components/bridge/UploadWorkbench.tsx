@@ -8,6 +8,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { FileChip } from "./FileChip";
+import { PageHeader } from "./layout/PageHeader";
 import { ApiHttpError, apiClient, getBillingStatus, isApiMockMode, type DetectFormatResult } from "@/lib/api-client";
 import { capture } from "@/lib/analytics";
 import { captureException } from "@/lib/sentry-context";
@@ -544,25 +545,12 @@ export function UploadWorkbench() {
       className="flex flex-col h-full min-h-0 overflow-hidden"
       style={{ background: "#F6F7FA" }}
     >
-      {/* Page header — sits on the grey canvas (no white bar, no divider) to match design */}
-      <div
-        className="flex flex-col items-start gap-1 px-4 pt-5 pb-4 sm:px-6 sm:items-end sm:flex-row sm:gap-4 flex-shrink-0"
-        style={{ background: "#F6F7FA" }}
-      >
-        <div>
-          <h1
-            className="text-[24px] sm:text-[28px] font-bold tracking-[-0.02em] leading-tight"
-            style={{
-              fontFamily: "'Bricolage Grotesque', Inter, sans-serif",
-              color: "#0B1A2F",
-            }}
-          >
-            Upload an order
-          </h1>
-          <p className="text-[13px] mt-1.5" style={{ color: "#56627A" }}>
-            Upload an order in any shape &mdash; we parse, normalize, and prepare it for review.
-          </p>
-        </div>
+      {/* Page header — canonical PageHeader on the grey canvas (no white bar, no divider) */}
+      <div className="px-4 pt-5 sm:px-6 flex-shrink-0" style={{ background: "#F6F7FA" }}>
+        <PageHeader
+          title="Upload an order"
+          sub={"Upload an order in any shape — we parse, normalize, and prepare it for review."}
+        />
       </div>
 
       {/* Body */}

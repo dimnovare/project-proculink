@@ -34,10 +34,16 @@ const NAV: Array<{ group?: string; items: NavItem[] }> = [
     ],
   },
   {
+    // Versioned supplier connections are the core product object (draft → test →
+    // publish → archive), not library reference material — so Connections gets a
+    // standalone top-level entry next to the Workbench rather than living inside
+    // the Library group. Route + label unchanged.
+    items: [{ label: "Connections", href: "/connections", icon: Link2 }],
+  },
+  {
     group: "Library",
     items: [
       { label: "Suppliers",   href: "/library/suppliers",   icon: Truck },
-      { label: "Connections", href: "/connections",         icon: Link2 },
       { label: "Buyers",      href: "/library/buyers",      icon: Building2 },
       { label: "Mappings",       href: "/library/mappings",  icon: GitBranch },
       { label: "Rules",          href: "/library/rules",     icon: ShieldCheck },

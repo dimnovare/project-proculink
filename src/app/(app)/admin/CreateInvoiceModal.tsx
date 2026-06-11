@@ -296,7 +296,9 @@ export function CreateInvoiceModal({
                       style={{
                         border: "1px solid #E2E6EE",
                         background: "#FFFFFF",
-                        color: lines.length === 1 ? "#C5CBD6" : "#C53A3A",
+                        // Disabled glyph was #C5CBD6 (1.6:1 on white) — ink-faint keeps it
+                        // visibly muted while staying legible (5.6:1).
+                        color: lines.length === 1 ? "var(--ink-faint)" : "#C53A3A",
                         cursor: lines.length === 1 ? "not-allowed" : "pointer",
                       }}
                     >

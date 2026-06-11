@@ -3,8 +3,11 @@ import * as React from "react";
 import { confidenceTier } from "@/lib/ds-tokens";
 
 /* =====================================================================
-   Primitives — Button, ConfidenceChip, SrcChip, StatusPill,
+   Primitives — Button, ConfidenceChip, SrcChip,
    AiSuggestion, ProcuLinkMark.
+
+   Status badges live in UnifiedStatusBadge (orders/exceptions) and
+   RevisionStatusBadge (connection revisions) — not here.
    ===================================================================== */
 
 /* -------- Button -------- */
@@ -103,39 +106,6 @@ export function SrcChip({ type }: { type: SrcType | string }) {
       style={{ background: p.bg, color: p.fg, letterSpacing: "0.02em" }}
     >
       {type}
-    </span>
-  );
-}
-
-/* -------- StatusPill -------- */
-type Status = "new" | "extracting" | "review" | "ready" | "sent" | "delivering" | "failed";
-
-// Colors match tokens.css .pill-* exactly
-const STATUS_MAP: Record<Status, { bg: string; fg: string; dot: string; pulse?: boolean; label: string }> = {
-  // tokens.css .pill-new → surface-2 / ink-muted / ink-faint
-  new:        { bg: "#EFF2F7", fg: "#56627A", dot: "var(--ink-faint)",  label: "New" },
-  // extracting + delivering use the brand-blue progress accent
-  extracting: { bg: "#E3EDFB", fg: "#0F4FA8", dot: "#1E66C9",  label: "Extracting" },
-  review:     { bg: "#FAEFD6", fg: "#C97A14", dot: "#C97A14",  label: "Needs review" },
-  ready:      { bg: "#E2F1E2", fg: "#2E8E3A", dot: "#2E8E3A",  label: "Ready" },
-  sent:       { bg: "#E2F1E2", fg: "#2E8E3A", dot: "#2E8E3A",  label: "Delivered" },
-  // delivering uses the brand-blue progress accent with pulse
-  delivering: { bg: "#E3EDFB", fg: "#0F4FA8", dot: "#1E66C9", pulse: true, label: "Delivering" },
-  failed:     { bg: "#FBE3E3", fg: "#C53A3A", dot: "#C53A3A",  label: "Failed" },
-};
-
-export function StatusPill({ status }: { status: Status }) {
-  const s = STATUS_MAP[status];
-  return (
-    <span
-      className="inline-flex items-center gap-1.5 h-5 px-2 rounded-full text-[11px] font-semibold"
-      style={{ background: s.bg, color: s.fg }}
-    >
-      <span
-        className={["w-[6px] h-[6px] rounded-full flex-shrink-0", s.pulse ? "animate-[pulse-dot_1.4s_ease-in-out_infinite]" : ""].join(" ").trim()}
-        style={{ background: s.dot }}
-      />
-      {s.label}
     </span>
   );
 }

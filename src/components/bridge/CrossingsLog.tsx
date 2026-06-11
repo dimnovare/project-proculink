@@ -3,16 +3,18 @@
 // Delivery log — append-only audit trail with date-grouped table-row layout.
 // Pixel-exact port of CrossingsLogScreen / CrossingRow in screen-crossings.jsx
 // (Claude Design source). Uses the ported design classes from globals.css
-// (.work-inner / .page-head / .page-title / .page-sub / .fchip / .btn / .card /
-// .eyebrow / .mono / .faint) and the locked colour vars (--brand-blue #1E66C9 =
-// buyer/primary, --brand-green #2E8E3A = supplier). User-visible copy is plain
-// ("Delivery log"); component/type/file names are unchanged.
+// (.work-inner / .fchip / .btn / .card / .eyebrow / .mono / .faint), the
+// canonical PageHeader for the title row, and the locked colour vars
+// (--brand-blue #1E66C9 = buyer/primary, --brand-green #2E8E3A = supplier).
+// User-visible copy is plain ("Delivery log"); component/type/file names are
+// unchanged.
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { getAuditLog, isApiMockMode, type AuditLogEntry } from "@/lib/api-client";
 import { EmptyState } from "./EmptyState";
+import { PageHeader } from "./layout/PageHeader";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -377,36 +379,35 @@ export function CrossingsLog() {
 
   return (
     <div className="work-inner wide" style={isMobile ? { paddingLeft: 16, paddingRight: 16 } : undefined}>
-      {/* Page header — canonical .page-head / .page-title / .page-sub */}
-      <div className="page-head">
-        <div>
-          <h1 className="page-title" style={isMobile ? { fontSize: 26, whiteSpace: "normal" } : undefined}>
-            Delivery log
-          </h1>
-          <div className="page-sub row gap-2 items-center" style={{ flexWrap: "wrap" }}>
+      {/* Page header — canonical PageHeader */}
+      <PageHeader
+        title="Delivery log"
+        sub={
+          <span className="row gap-2 items-center" style={{ flexWrap: "wrap" }}>
             {/* key icon */}
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--ink-faint)" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
               <path d="M15.5 7.5 21 2" /><path d="m18 5 1.5 1.5" /><circle cx="9" cy="15" r="6" /><path d="m13.2 10.8 3.3-3.3" />
             </svg>
             Append-only · immutable · every parse, edit, validation and delivery
-          </div>
-        </div>
-
-        {/* Export log button — canonical: secondary */}
-        <button
-          className="btn btn-secondary"
-          onClick={handleExport}
-          disabled={filtered.length === 0}
-          title={filtered.length === 0 ? "Nothing to export" : "Download current log as CSV"}
-          style={isMobile ? { width: "100%", height: 40 } : undefined}
-        >
-          {/* download icon */}
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3" />
-          </svg>
-          Export log
-        </button>
-      </div>
+          </span>
+        }
+        actions={
+          /* Export log button — canonical: secondary */
+          <button
+            className="btn btn-secondary"
+            onClick={handleExport}
+            disabled={filtered.length === 0}
+            title={filtered.length === 0 ? "Nothing to export" : "Download current log as CSV"}
+            style={isMobile ? { width: "100%", height: 40 } : undefined}
+          >
+            {/* download icon */}
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3" />
+            </svg>
+            Export log
+          </button>
+        }
+      />
 
       {/* Filter / search bar */}
       <div

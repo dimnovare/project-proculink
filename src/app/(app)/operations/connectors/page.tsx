@@ -594,8 +594,9 @@ function ManifestFieldRow({ field }: { field: ConnectorConfigField }) {
         {field.label}
       </span>
       <span style={{ display: "flex", gap: 4, alignItems: "center", marginLeft: "auto" }}>
+        {/* Required chip: #A56B00 on #FFF0E0 was 4.0:1 — below AA for 10px text; deepened amber reads 5.9:1. */}
         {field.required && (
-          <span style={{ borderRadius: 3, padding: "1px 5px", fontSize: 10, fontWeight: 600, textTransform: "uppercase", background: "#FFF0E0", color: "#A56B00", border: "1px solid #F5DFA0" }}>
+          <span style={{ borderRadius: 3, padding: "1px 5px", fontSize: 10, fontWeight: 600, textTransform: "uppercase", background: "#FFF0E0", color: "var(--amber-deep,#7A5700)", border: "1px solid #F5DFA0" }}>
             Required
           </span>
         )}
@@ -604,8 +605,9 @@ function ManifestFieldRow({ field }: { field: ConnectorConfigField }) {
             Secret
           </span>
         )}
+        {/* Type chip: #2E8E3A on #F0F7F1 was 3.8:1 — below AA for 10px text; brand-green-deep reads 5.9:1. */}
         {field.type !== "string" && (
-          <span style={{ borderRadius: 3, padding: "1px 5px", fontSize: 10, fontWeight: 500, background: "#F0F7F1", color: "#2E8E3A", border: "1px solid #CBE8CE" }}>
+          <span style={{ borderRadius: 3, padding: "1px 5px", fontSize: 10, fontWeight: 500, background: "#F0F7F1", color: "var(--brand-green-deep,#1E6D29)", border: "1px solid #CBE8CE" }}>
             {field.type}
           </span>
         )}
