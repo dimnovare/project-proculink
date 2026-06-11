@@ -1,7 +1,14 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 import { createServer } from "node:http";
 
 const API_BASE_URL = process.env.PLAYWRIGHT_API_URL ?? "http://localhost:5223";
+
+// Batch 9 Phase C (parity gate G4): journeys that cross the REVIEW screen run
+// once per sub-view (?view=classic|triage). The first three tests never mount
+// the review body (upload page / parse-failure gate render before the
+// sub-views), so they stay single-run — parameterizing them would only re-test
+// identical chrome.
+const VIEWS = ["classic", "triage"] as const;
 
 test.describe("Live PO loop — failure-state guidance", () => {
   test.skip(process.env.PLAYWRIGHT_LIVE !== "1", "Live PO failure-state QA requires PLAYWRIGHT_LIVE=1");
@@ -72,30 +79,52 @@ test.describe("Live PO loop — failure-state guidance", () => {
     await expect(page.getByRole("link", { name: /re-upload/i })).toBeVisible();
   });
 
-  test("surfaces supplier rejection response and next action after delivery", async ({ page, request }) => {
-    const rejectingEndpoint = await startRejectingEndpoint();
-    try {
-      const supplier = await createSupplier(request, "Browser QA Rejecting Supplier");
-      const previousConfig = await getDeliveryConfig(request, supplier.id);
+  for (const view of VIEWS) {
+    test(`surfaces supplier rejection response and next action after delivery [${view} view]`, async ({ page, request }) => {
+      const rejectingEndpoint = await startRejectingEndpoint();
       try {
-        await upsertHttpDeliveryConfig(request, supplier.id, rejectingEndpoint.url);
+        const supplier = await createSupplier(request, "Browser QA Rejecting Supplier");
+        const previousConfig = await getDeliveryConfig(request, supplier.id);
+        try {
+          await upsertHttpDeliveryConfig(request, supplier.id, rejectingEndpoint.url);
 
-        const orderId = await uploadResolveAndSend(page, supplier.id, Date.now());
+          // Sends FROM the sub-view under test — the rejection surfaces
+          // (flow notice + Supplier response tab) are shared chrome and the
+          // same selectors must hold in both compositions.
+          const orderId = await uploadResolveAndSend(page, supplier.id, Date.now(), view);
 
-        await expect(page).toHaveURL(new RegExp(`/inbox/${orderId}`), { timeout: 30_000 });
-        await expect(page.getByText(/supplier rejected the order/i)).toBeVisible({ timeout: 60_000 });
-        await expect(page.getByText(/invalid supplier sku/i).first()).toBeVisible();
+          await expect(page).toHaveURL(new RegExp(`/inbox/${orderId}`), { timeout: 30_000 });
+          await expect(page.getByText(/supplier rejected the order/i)).toBeVisible({ timeout: 60_000 });
+          await expect(page.getByText(/invalid supplier sku/i).first()).toBeVisible();
 
-        await page.getByRole("button", { name: /supplier response/i }).click();
-        await expect(page.getByText(/supplier rejected this order/i)).toBeVisible();
-        await expect(page.getByText(/invalid supplier sku/i).first()).toBeVisible();
+          await page.getByRole("button", { name: /supplier response/i }).click();
+          await expect(page.getByText(/supplier rejected this order/i)).toBeVisible();
+          await expect(page.getByText(/invalid supplier sku/i).first()).toBeVisible();
+        } finally {
+          await restoreDeliveryConfig(request, supplier.id, previousConfig);
+        }
       } finally {
-        await restoreDeliveryConfig(request, supplier.id, previousConfig);
+        await rejectingEndpoint.close();
       }
-    } finally {
-      await rejectingEndpoint.close();
-    }
-  });
+    });
+  }
+});
+
+// ── Mock-mode parity subset (runs in CI / `bun run test:e2e`, no backend) ─────
+// The ?view= parameter must never break the order gates: an unknown order id
+// shows the not-found gate (not a crash, not a blank screen) in BOTH views.
+
+test.describe("Review failure gates — mock parity subset", () => {
+  test.skip(process.env.PLAYWRIGHT_LIVE === "1", "Mock subset requires mock mode");
+  test.setTimeout(60_000);
+
+  for (const view of VIEWS) {
+    test(`unknown order id shows the not-found gate [${view} view]`, async ({ page }) => {
+      await page.goto(`/inbox/does-not-exist?view=${view}`);
+      await expect(page.getByText(/order not found/i)).toBeVisible({ timeout: 20_000 });
+      await expect(page.getByRole("button", { name: /back to inbox/i })).toBeVisible();
+    });
+  }
 });
 
 async function createSupplier(
@@ -172,7 +201,12 @@ async function upsertHttpDeliveryConfig(
   expect(saved.ok()).toBeTruthy();
 }
 
-async function uploadResolveAndSend(page: import("@playwright/test").Page, supplierId: string, stamp: number): Promise<string> {
+async function uploadResolveAndSend(
+  page: Page,
+  supplierId: string,
+  stamp: number,
+  view: (typeof VIEWS)[number],
+): Promise<string> {
   const csv = [
     "po_number,buyer_name,line_no,item_code,description,quantity,unit_price,currency",
     `QA-REJECT-${stamp},Browser QA Buyer,1,BQA-REJECT-${stamp},Rejected test item,1,12.00,EUR`,
@@ -201,6 +235,16 @@ async function uploadResolveAndSend(page: import("@playwright/test").Page, suppl
     page.waitForURL(/\/inbox\//i, { timeout: 30_000 }),
     commitButton.click(),
   ]);
+
+  // Force the review sub-view under test (parity gate G4) before sending.
+  const url = new URL(page.url());
+  url.searchParams.set("view", view);
+  await page.goto(url.toString());
+  if (view === "triage") {
+    await expect(page.getByTestId("fix-queue-triage")).toBeVisible({ timeout: 30_000 });
+  } else {
+    await expect(page.getByTestId("fix-queue-triage")).toHaveCount(0);
+  }
 
   await expect(page.getByRole("button", { name: /^send to supplier$/i })).toBeVisible({ timeout: 30_000 });
   await page.getByRole("button", { name: /^send to supplier$/i }).click();

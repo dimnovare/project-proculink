@@ -9,8 +9,9 @@ import { useState, useRef, useEffect, useCallback, useMemo, type KeyboardEvent }
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiClient, getSupplierCatalog, getMappingOverride, upsertMappingOverride, getSourceTokens, promoteMapping, type ConformanceFormat } from "@/lib/api-client";
 import { getDeliveryConfig } from "@/lib/api/delivery";
+import { setSidebarAutoCollapse } from "@/lib/sidebar-auto-collapse";
 import type { Order } from "@/types/procurement";
-import type { DeliveryConfig, DeliveryProtocol, OrderMappingOverride, SourceToken } from "@/lib/api/types";
+import type { DeliveryConfig, OrderMappingOverride, SourceToken } from "@/lib/api/types";
 import { EdgeRails } from "./EdgeRails";
 import { FileChip } from "./FileChip";
 import { FailedPanel, ParseFailedPanel } from "./FailedPanels";
@@ -21,7 +22,6 @@ import { SpineConnectors } from "./SpineConnectors";
 import { WireDragLayer } from "./WireDragLayer";
 import { useSourceWireDrag } from "./SourceWireDragLayer";
 import { SourceTokenPanel } from "./SourceTokenPanel";
-import { OutputMappingEditor } from "./OutputMappingEditor";
 import { OrderPassport } from "./OrderPassport";
 import { SupplierResponsePanel } from "./SupplierResponsePanel";
 import { ConformancePanel } from "./ConformancePanel";
@@ -36,6 +36,12 @@ import { AiSuggestionContent } from "./review/AiSuggestionContent";
 import { HeaderInlineEditField } from "./review/HeaderInlineEditField";
 import { ConfirmDialog } from "./review/ConfirmDialog";
 import { FixQueueTriage } from "./review/FixQueueTriage";
+// Phase C extractions: OutputPreview (now also serves the Triage context
+// stage's fragment mode), the shared display helpers and NODE_TO_FIELD.
+// Pure moves — the classic render is unchanged.
+import { OutputPreview } from "./review/OutputPreview";
+import { formatMoney, resolvedGrandTotal, outputArtifactType } from "./review/orderDisplay";
+import { NODE_TO_FIELD } from "./review/stageModel";
 import { useOrderReview } from "./review/hooks/useOrderReview";
 import { useResolveActions } from "./review/hooks/useResolveActions";
 import { useAcceptanceValidation } from "./review/hooks/useAcceptanceValidation";
@@ -98,27 +104,7 @@ interface SpineNodeData {
   subnodes?: SubNode[];
 }
 
-// ─── Money helpers ───────────────────────────────────────────────────────────
-
-/** Sum of unitPrice × quantity across all order lines. */
-function orderTotal(order: Order): number {
-  return order.lines.reduce((sum, l) => sum + Number(l.unitPrice) * Number(l.quantity), 0);
-}
-
-/**
- * The grand total to display: prefer the backend-extracted `grandTotal`
- * (Phase 4 enrichment) when present, else fall back to the client-computed
- * sum so behaviour is unchanged when the field is absent (e.g. CSV orders).
- */
-function resolvedGrandTotal(order: Order): number {
-  return order.grandTotal ?? orderTotal(order);
-}
-
-/** Format an amount with a currency symbol/code, e.g. "€ 4,436.73" or "USD 120.00". */
-function formatMoney(currency: string, amount: number): string {
-  const prefix = currency === "EUR" ? "€" : currency === "USD" ? "$" : currency === "GBP" ? "£" : currency;
-  return `${prefix} ${amount.toLocaleString("en-IE", { minimumFractionDigits: 2 })}`;
-}
+// ─── Money helpers — moved to ./review/orderDisplay (Phase C) ────────────────
 
 // ─── Map live order → SpineNodeData ──────────────────────────────────────────
 
@@ -236,36 +222,8 @@ function sourceFileType(fileKey: string | null | undefined): string {
   return "PDF";
 }
 
-/** Generate a display label for the supplier output file. */
-function outputArtifactLabel(artifacts: Order["artifacts"], supplierName: string): string {
-  const fmt = artifacts[0]?.format;
-  const slug = supplierName.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
-  return fmt ? `${slug}.${fmt}` : `${slug}.xml`;
-}
-
-/** Derive FileChip format from the latest outbound artifact. */
-function outputArtifactType(artifacts: Order["artifacts"]): string {
-  const fmt = artifacts[0]?.format?.toLowerCase();
-  if (!fmt)           return "XML";
-  if (fmt === "cxml") return "cXML";
-  if (fmt === "csv")  return "CSV";
-  return fmt.toUpperCase();
-}
-
-// Friendly channel labels for the raw delivery protocol ids (mirrors
-// DeliveryConfigEditor / SupplierDockList).
-const PROTOCOL_LABEL: Record<DeliveryProtocol, string> = {
-  http: "HTTP",
-  sftp: "SFTP",
-  ftps: "FTPS",
-  smtp: "Email",
-  erp_erply: "Erply ERP",
-  erp_directo: "Directo ERP",
-};
-
-function deliveryChannelLabel(protocol: string): string {
-  return PROTOCOL_LABEL[protocol as DeliveryProtocol] ?? protocol.toUpperCase();
-}
+// outputArtifactLabel / outputArtifactType / PROTOCOL_LABEL / deliveryChannelLabel
+// moved to ./review/orderDisplay (Phase C).
 
 /** Map the supplier's configured output format onto a conformance profile id;
  *  undefined when no named profile exists for it (panel falls back to cXML). */
@@ -277,14 +235,8 @@ function conformanceDefaultFormat(outputFormat: string | null | undefined): Conf
 // sleep + finalDeliveryMessage moved to ./review/hooks (useSendFlow/useOrderReview).
 
 // ─── Node → canonical field mapping (used for StandardsFieldPopover) ─────────
-
-const NODE_TO_FIELD: Record<string, string> = {
-  po:       "PoNumber",
-  date:     "OrderDate",
-  buyer:    "BuyerName",
-  currency: "Currency",
-  lines:    "Lines",
-};
+// NODE_TO_FIELD moved to ./review/stageModel (Phase C) — shared with the
+// Triage context stage so the standards join key can't drift.
 
 // ─── ConfChip ────────────────────────────────────────────────────────────────
 
@@ -1127,259 +1079,8 @@ function DocumentAnatomy({
   );
 }
 
-// ─── Output Preview ───────────────────────────────────────────────────────────
-
-function OutputPreview({ order, crossed, fieldValues, onOutputAction, orderId, artifacts, deliveryProtocol, onLine, onMappingEditorOpenChange }: {
-  order: Order;
-  crossed: boolean;
-  fieldValues: Record<string, string>;
-  onOutputAction: (message: string) => void;
-  orderId: string;
-  artifacts: Order["artifacts"];
-  /** The supplier's REAL configured delivery protocol (from delivery config).
-   *  undefined = unknown (loading/error) · null = no config saved · string = protocol id. */
-  deliveryProtocol?: string | null;
-  onLine?: (id: string, el: HTMLElement | null) => void;
-  /** Relays the "Edit mapping" slideover open-state up so the desktop triptych can
-   *  hide the interactive wires while it's open (they bleed through the editor). */
-  onMappingEditorOpenChange?: (open: boolean) => void;
-}) {
-  const [downloadLoading, setDownloadLoading] = useState(false);
-  const [copyLoading, setCopyLoading] = useState(false);
-  // Power-user "map & manipulate" editor (heart-piece-flex Phase 3).
-  const [mapOpen, setMapOpen] = useState(false);
-  // Relay open-state changes up (desktop triptych hides the wires while open).
-  // Only the desktop callsite passes the callback; mobile/tablet ignore it.
-  useEffect(() => {
-    onMappingEditorOpenChange?.(mapOpen);
-  }, [mapOpen, onMappingEditorOpenChange]);
-
-  // Output reflects the live order, with any inline edits applied.
-  const outPo       = fieldValues["po"]       ?? order.poNumber;
-  const outDate     = fieldValues["date"]     ?? order.orderDate;
-  const outCurrency = fieldValues["currency"] ?? order.currency;
-  const outBuyer    = fieldValues["buyer"]    ?? order.buyerName ?? "—";
-  const outTotal    = formatMoney(outCurrency, resolvedGrandTotal(order));
-  // Show every line in the mapping preview — no cap, matching the canonical spine.
-  const previewLines = order.lines;
-
-  async function handleDownload() {
-    const artifact = artifacts?.[0];
-    if (!artifact) {
-      onOutputAction("No artifact available yet — transform the order first.");
-      return;
-    }
-    onOutputAction("Downloading artifact...");
-    setDownloadLoading(true);
-    try {
-      const data = await apiClient.getDownloadUrl(orderId, artifact.id);
-      window.open(data.url, "_blank");
-    } catch {
-      onOutputAction("Download failed — check your connection and try again.");
-    } finally {
-      setDownloadLoading(false);
-    }
-  }
-
-  async function handleCopy() {
-    const artifact = artifacts?.[0];
-    if (!artifact) {
-      onOutputAction("No artifact available yet.");
-      return;
-    }
-    setCopyLoading(true);
-    try {
-      const data = await apiClient.getDownloadUrl(orderId, artifact.id);
-      await navigator.clipboard.writeText(data.url);
-      onOutputAction("Output URL copied to clipboard.");
-    } catch {
-      onOutputAction("Copy failed.");
-    } finally {
-      setCopyLoading(false);
-    }
-  }
-
-  // Light-theme cXML syntax palette (sampled from the design render).
-  const C = {
-    tag:    "#5E3DB0", // element tags  <cXML> etc.
-    attr:   "#7A5BC9", // attribute names
-    str:    "#345470", // attribute / text values
-    ok:     "#1E6D29", // resolved supplier code
-    err:    "#C53A3A", // UNRESOLVED
-    cmt:    "#9AA3B2", // comments / xml decl
-    base:   "#3A4658", // structural text
-  };
-  const outFmt = outputArtifactType(artifacts);
-  const endpointHint = outputArtifactLabel(artifacts, order.supplierName);
-  // Only render the cXML scaffold when the supplier's configured output IS cXML.
-  // For any other format (CSV/UBL/EDIFACT/X12…) emitting cXML tags would lie
-  // about what gets delivered, so we show a neutral canonical mapping view and
-  // label the panel honestly. The actual delivered artifact is downloadable.
-  const isCxmlOutput = outFmt.toLowerCase() === "cxml";
-
-  return (
-    <div style={{ borderRadius: 10, background: "#FFFFFF", border: "1px solid #E2E6EE", overflow: "hidden" }}>
-      <OutputMappingEditor orderId={orderId} open={mapOpen} onClose={() => setMapOpen(false)} />
-      {/* Toolbar — title + format badge + actions */}
-      <div style={{ display: "flex", gap: 8, padding: "8px 10px", alignItems: "center", borderBottom: "1px solid #EEF0F4", flexWrap: "wrap" }}>
-        <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12, fontWeight: 700, color: "#0B1A2F" }}>
-          <span style={{ color: "var(--ink-faint)", fontFamily: "'JetBrains Mono',monospace", fontSize: 11 }}>{"<>"}</span>
-          Canonical mapping preview
-        </span>
-        <span style={{ fontSize: 9.5, fontWeight: 700, padding: "2px 7px", background: "#EEE7FB", color: "#5E3DB0", borderRadius: 4, textTransform: "uppercase", letterSpacing: "0.03em" }} title="The supplier's configured output format. The delivered file matches this format.">{outFmt}</span>
-        <div style={{ flex: 1 }} />
-        <button
-          onClick={() => setMapOpen(true)}
-          title="Map &amp; manipulate each output field, per order (power user)"
-          style={{ fontSize: 10.5, padding: "3px 9px", border: "1px solid #1E66C9", borderRadius: 6, background: "#FFFFFF", cursor: "pointer", color: "#1E66C9", fontWeight: 600 }}
-        >
-          Edit mapping
-        </button>
-        <button
-          onClick={handleCopy}
-          disabled={copyLoading}
-          style={{ fontSize: 10.5, padding: "3px 9px", border: "1px solid #E2E6EE", borderRadius: 6, background: "#FFFFFF", cursor: copyLoading ? "default" : "pointer", color: "#56627A", opacity: copyLoading ? 0.6 : 1 }}
-        >
-          {copyLoading ? "Copying..." : "Copy"}
-        </button>
-        <button
-          onClick={handleDownload}
-          disabled={downloadLoading}
-          style={{ fontSize: 10.5, padding: "3px 9px", border: "1px solid #E2E6EE", borderRadius: 6, background: "#FFFFFF", cursor: downloadLoading ? "default" : "pointer", color: "#56627A", opacity: downloadLoading ? 0.6 : 1 }}
-        >
-          {downloadLoading ? "↓ Downloading..." : "↓ Download"}
-        </button>
-      </div>
-
-      {/* Code body — light theme */}
-      <div style={{ position: "relative", fontFamily: "'JetBrains Mono',monospace", fontSize: 10.5, lineHeight: 1.65, background: "#FCFCFD", color: C.base, padding: "14px 16px", minHeight: 380 }}>
-        {/* Status badge */}
-        <div style={{ position: "absolute", top: 10, right: 12, fontSize: 9.5, fontWeight: 700, background: crossed ? "#E2F1E2" : "#EEF3F8", color: crossed ? "#1E6D29" : "#56627A", borderRadius: 4, padding: "2px 7px", fontFamily: "Inter,sans-serif" }}>
-          {crossed ? "✓ Sent" : "Will be sent"}
-        </div>
-
-        {crossed && (
-          <div style={{ position: "absolute", inset: 0, background: "rgba(46,142,58,0.05)", border: "2px solid #2E8E3A", pointerEvents: "none", transition: "all 300ms" }} />
-        )}
-
-        {isCxmlOutput ? (
-          /* The supplier's configured output IS cXML — show the cXML scaffold. */
-          <>
-            <div style={{ color: C.cmt }}>{'<?xml version="1.0" encoding="UTF-8"?>'}</div>
-            <div><span style={{ color: C.tag }}>{"<cXML>"}</span></div>
-            <div style={{ paddingLeft: 12 }}><span style={{ color: C.tag }}>{"<Request>"}</span></div>
-            <div ref={(el) => onLine?.("po", el)} style={{ paddingLeft: 24 }}>
-              <span style={{ color: C.tag }}>{"<OrderRequestHeader "}</span>
-              <span style={{ color: C.attr }}>orderID</span>{"="}
-              <span style={{ color: C.str }}>&quot;{outPo}&quot;</span>
-            </div>
-            <div ref={(el) => onLine?.("date", el)} style={{ paddingLeft: 60 }}>
-              <span style={{ color: C.attr }}>orderDate</span>{"="}
-              <span style={{ color: C.str }}>&quot;{outDate}&quot;</span>
-              <span style={{ color: C.tag }}>{">"}</span>
-            </div>
-            <div ref={(el) => { onLine?.("currency", el); onLine?.("totals", el); }} style={{ paddingLeft: 32, marginTop: 4, background: "rgba(46,142,58,0.10)", borderLeft: "2px solid #2E8E3A", paddingTop: 2, paddingBottom: 2 }}>
-              <span style={{ color: C.tag }}>{"<Total "}</span><span style={{ color: C.attr }}>currency</span>{"="}<span style={{ color: C.str }}>&quot;{outCurrency}&quot;</span><span style={{ color: C.tag }}>{">"}</span>{outTotal}<span style={{ color: C.tag }}>{"</Total>"}</span>
-            </div>
-            <div ref={(el) => onLine?.("supplier", el)} style={{ paddingLeft: 32, marginTop: 4 }}>
-              <span style={{ color: C.tag }}>{"<ShipFrom>"}</span>{order.supplierName}<span style={{ color: C.tag }}>{"</ShipFrom>"}</span>
-            </div>
-            <div ref={(el) => onLine?.("buyer", el)} style={{ paddingLeft: 32 }}>
-              <span style={{ color: C.tag }}>{"<BillTo>"}</span>
-              <span style={{ color: C.base, padding: "0 2px" }}>{outBuyer}</span>
-              <span style={{ color: C.tag }}>{"</BillTo>"}</span>
-            </div>
-            <div ref={(el) => onLine?.("lines", el)} style={{ paddingLeft: 32, marginTop: 6, color: C.cmt }}>{"<!-- ItemOut entries -->"}</div>
-            {previewLines.map((line) => {
-              // SERVER TRUTH ONLY: a line shows resolved (green) when the refetched
-              // order carries its supplierItemCode — no local accepted/rejected sets.
-              const sku = line.supplierItemCode ?? line.aiSuggestion?.supplierItemCode ?? line.buyerItemCode;
-              const isAi  = !line.supplierItemCode && !!line.aiSuggestion;
-              const isErr = line.needsReview && !line.supplierItemCode && !line.aiSuggestion;
-              return (
-                <div key={line.id} style={{ paddingLeft: 32, paddingTop: 2, paddingBottom: 2, background: isErr ? "rgba(197,58,58,0.08)" : isAi ? "rgba(111,79,206,0.07)" : "transparent", borderLeft: isErr ? "2px solid #C53A3A" : isAi ? "2px solid #6F4FCE" : "none", transition: "all 200ms" }}>
-                  <span style={{ color: C.tag }}>{"<ItemOut "}</span>
-                  <span style={{ color: C.attr }}>quantity</span>{"="}
-                  <span style={{ color: isErr ? C.err : C.str }}>&quot;{line.quantity}&quot;</span>
-                  <span style={{ color: C.tag }}>{">"}</span>
-                  <span style={{ color: C.tag }}>{"<SupplierPartID>"}</span>
-                  {isErr
-                    ? <span style={{ color: C.err }}>⚠ UNRESOLVED</span>
-                    : <span style={{ color: !isAi ? C.ok : "#7A5BC9" }}>{sku}</span>}
-                  <span style={{ color: C.tag }}>{"</SupplierPartID>"}</span>
-                  {isAi && line.aiSuggestion && <span style={{ marginLeft: 8, fontSize: 9, fontWeight: 700, color: "#6F4FCE" }}>← AI mapped {Math.round(line.aiSuggestion.confidence * 100)}%</span>}
-                  {isErr && <span style={{ marginLeft: 8, fontSize: 9, fontWeight: 700, color: C.err }}>← needs review</span>}
-                </div>
-              );
-            })}
-            <div style={{ paddingLeft: 24, marginTop: 4 }}><span style={{ color: C.tag }}>{"</OrderRequestHeader>"}</span></div>
-            <div style={{ paddingLeft: 12 }}><span style={{ color: C.tag }}>{"</Request>"}</span></div>
-            <div><span style={{ color: C.tag }}>{"</cXML>"}</span></div>
-          </>
-        ) : (
-          /* Neutral canonical mapping view — no format-specific tags. Shows the
-             field → value mapping that gets serialized into the supplier's actual
-             format ({outFmt}) on transform. Honest: doesn't pretend to be cXML. */
-          <>
-            <div style={{ color: C.cmt, marginBottom: 6 }}>{`// canonical → ${outFmt} on transform`}</div>
-            {([
-              { id: "po",       label: "po_number",  value: outPo },
-              { id: "date",     label: "order_date", value: outDate },
-              { id: "supplier", label: "supplier",   value: order.supplierName },
-              { id: "buyer",    label: "buyer",       value: outBuyer },
-              { id: "currency", label: "currency",    value: outCurrency },
-              { id: "totals",   label: "grand_total", value: outTotal },
-            ] as const).map((row) => (
-              <div
-                key={row.id}
-                ref={(el) => onLine?.(row.id, el)}
-                style={{ display: "flex", gap: 8, paddingTop: 2, paddingBottom: 2, ...(row.id === "totals" ? { background: "rgba(46,142,58,0.10)", borderLeft: "2px solid #2E8E3A", paddingLeft: 6 } : {}) }}
-              >
-                <span style={{ color: C.attr, minWidth: 96, flexShrink: 0 }}>{row.label}</span>
-                <span style={{ color: C.cmt }}>:</span>
-                <span style={{ color: C.str }}>{row.value}</span>
-              </div>
-            ))}
-            <div ref={(el) => onLine?.("lines", el)} style={{ marginTop: 8, color: C.cmt }}>{`// ${previewLines.length} line item(s)`}</div>
-            {previewLines.map((line) => {
-              // SERVER TRUTH ONLY — see the cXML branch above.
-              const sku = line.supplierItemCode ?? line.aiSuggestion?.supplierItemCode ?? line.buyerItemCode;
-              const isAi  = !line.supplierItemCode && !!line.aiSuggestion;
-              const isErr = line.needsReview && !line.supplierItemCode && !line.aiSuggestion;
-              return (
-                <div key={line.id} style={{ display: "flex", gap: 8, paddingTop: 2, paddingBottom: 2, background: isErr ? "rgba(197,58,58,0.08)" : isAi ? "rgba(111,79,206,0.07)" : "transparent", borderLeft: isErr ? "2px solid #C53A3A" : isAi ? "2px solid #6F4FCE" : "none", paddingLeft: 6, transition: "all 200ms" }}>
-                  <span style={{ color: C.cmt, minWidth: 24, flexShrink: 0, textAlign: "right" }}>{line.lineNumber}</span>
-                  <span style={{ color: isErr ? C.err : (!isAi ? C.ok : "#7A5BC9"), flexShrink: 0 }}>
-                    {isErr ? "⚠ UNRESOLVED" : sku}
-                  </span>
-                  <span style={{ color: C.cmt }}>×{line.quantity}</span>
-                  {isAi && line.aiSuggestion && <span style={{ marginLeft: "auto", fontSize: 9, fontWeight: 700, color: "#6F4FCE" }}>← AI mapped {Math.round(line.aiSuggestion.confidence * 100)}%</span>}
-                  {isErr && <span style={{ marginLeft: "auto", fontSize: 9, fontWeight: 700, color: C.err }}>← needs review</span>}
-                </div>
-              );
-            })}
-          </>
-        )}
-      </div>
-
-      {/* Footer — delivery channel. Shows the supplier's REAL configured protocol
-          (from delivery config), never a hardcoded claim (offer⇔works). */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, padding: "9px 12px", borderTop: "1px solid #EEF0F4", background: "#F6F7FA" }}>
-        <span style={{ fontSize: 11, color: "#56627A" }}>
-          {deliveryProtocol ? (
-            <>Delivers via <strong style={{ color: "#0B1A2F", fontWeight: 600 }}>{deliveryChannelLabel(deliveryProtocol)}</strong></>
-          ) : deliveryProtocol === null ? (
-            <>Delivery channel: not configured</>
-          ) : (
-            /* unknown (config still loading / unavailable) — claim nothing */
-            <>Delivery channel: —</>
-          )}
-        </span>
-        <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10, color: "#A8B0BF", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "55%" }}>{endpointHint}</span>
-      </div>
-    </div>
-  );
-}
+// ─── Output Preview — moved to ./review/OutputPreview (Phase C; now also
+// renders the Triage context stage's single-line fragment mode). ─────────────
 
 // ConfirmDialog moved to ./review/ConfirmDialog (shared by both sub-views).
 
@@ -2014,6 +1715,19 @@ export function SpineReview({ orderId }: { orderId: string }) {
     router.replace(`?${params.toString()}`, { scroll: false });
   }, [searchParams, router]);
 
+  // g-d / g-b destination (Phase C, stolen from Queue & Bench): jump to the
+  // Review tab AND the named sub-view in one keystroke pair, syncing BOTH URL
+  // params in a single replace (two replaces in one tick would race and drop
+  // whichever param the stale searchParams snapshot lacked).
+  const jumpToReviewSubView = useCallback((v: "triage" | "classic") => {
+    setTab("review");
+    setViewOverride(v);
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("tab", "review");
+    params.set("view", v);
+    router.replace(`?${params.toString()}`, { scroll: false });
+  }, [searchParams, router]);
+
   // Compact dismissible strips (sample/stuck) — dismissal is per-visit UI state,
   // never a line-resolution state.
   const [sampleDismissed, setSampleDismissed] = useState(false);
@@ -2168,6 +1882,48 @@ export function SpineReview({ orderId }: { orderId: string }) {
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
   }, [tab, subView, nodes, resolve, crossed, exceptionCount, editingId, showConfirm, sendState, setShowConfirm]);
+
+  // ── g-d / g-b two-key sequences (Phase C) ──────────────────────────────────
+  // g then d → Review tab, Full document sub-view ("document").
+  // g then b → Review tab, Triage sub-view (the "bench"/fix-queue work surface).
+  // Works from ANY tab on this screen (it navigates to Review); same typing /
+  // modifier / modal guards as the other shortcuts. The 1s arm window means a
+  // lone "g" does nothing visible.
+  const gArmedAtRef = useRef(0);
+  useEffect(() => {
+    const handler = (e: globalThis.KeyboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      const tag = target?.tagName?.toLowerCase();
+      const typing = tag === "input" || tag === "textarea" || tag === "select" || target?.isContentEditable;
+      if (typing || e.metaKey || e.ctrlKey || e.altKey || editingId || showConfirm) return;
+      const k = e.key.toLowerCase();
+      if (k === "g") { gArmedAtRef.current = Date.now(); return; }
+      const armed = Date.now() - gArmedAtRef.current < 1000;
+      if (!armed) return;
+      gArmedAtRef.current = 0;
+      if (k === "d") { e.preventDefault(); jumpToReviewSubView("classic"); }
+      else if (k === "b") { e.preventDefault(); jumpToReviewSubView("triage"); }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [editingId, showConfirm, jumpToReviewSubView]);
+
+  // ── Full-document sidebar auto-collapse (Phase C) ──────────────────────────
+  // The triptych needs ~1120px; below 1440px the expanded 220px sidebar forces
+  // horizontal scrolling. Entering Full-document mode at <1440px asks the
+  // desktop sidebar to collapse to its 66px rail (WITHOUT touching the user's
+  // persisted preference); leaving the mode — or this screen — restores it.
+  useEffect(() => {
+    if (tab !== "review" || subView !== "classic") return;
+    const mql = window.matchMedia("(max-width: 1439px)");
+    const apply = () => setSidebarAutoCollapse(mql.matches);
+    apply();
+    mql.addEventListener("change", apply);
+    return () => {
+      mql.removeEventListener("change", apply);
+      setSidebarAutoCollapse(false); // restore on exit
+    };
+  }, [tab, subView]);
 
   // ── Loading / error gates (must be after all hooks) ────────────────────────
   // While Clerk is still resolving the session the order query is disabled
@@ -2494,15 +2250,24 @@ export function SpineReview({ orderId }: { orderId: string }) {
               state lives in useAcceptanceValidation, surfaced in the Triage rail
               (and the confirm dialog's failing-rules ack). */}
 
-        {/* TRIAGE sub-view — Fix Queue rail + Context area. */}
+        {/* TRIAGE sub-view — Fix Queue rail + Context Stage + Send readiness. */}
         {subView === "triage" && (
           <FixQueueTriage
             order={order}
+            orderId={orderId}
             labels={labels}
             lineEdit={lineEditApi}
             resolve={resolve}
             validation={validation}
             keysEnabled={!showConfirm && !editingId}
+            crossed={crossed}
+            onOutputAction={setFlow}
+            deliveryProtocol={deliveryProtocol}
+            conformanceFormat={
+              conformanceDefaultFormat(deliveryConfig?.outputFormat)
+                ?? conformanceDefaultFormat(order.artifacts[0]?.format)
+            }
+            configuredFormatLabel={outputArtifactType(order.artifacts)}
           />
         )}
 
