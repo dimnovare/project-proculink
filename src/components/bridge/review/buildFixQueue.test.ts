@@ -4,7 +4,8 @@
 // append-only insertion of newly flagged issues.
 
 import { describe, it, expect } from "vitest";
-import { buildFixQueue, openCardCount, type FixQueueCard } from "./buildFixQueue";
+import { buildFixQueue, openCardCount, adjacentOpenKey, type FixQueueCard } from "./buildFixQueue";
+import { shouldRequireConfirmCheckbox } from "./confirmPolicy";
 import type { Order, OrderLine, OrderValidationResult, AcceptanceRule } from "@/types/procurement";
 
 // ── Factories ────────────────────────────────────────────────────────────────
@@ -233,6 +234,68 @@ describe("buildFixQueue — frozen ordering against prevQueue", () => {
     const queue = buildFixQueue(order, validation);
     const keys = queue.map(c => c.key);
     expect(new Set(keys).size).toBe(2);
+  });
+});
+
+describe("adjacentOpenKey — focus auto-advance / skip / arrow navigation (Phase B)", () => {
+  const card = (key: string, resolved = false): FixQueueCard => ({
+    key, kind: "manual-code", severity: 1, title: "t", resolved,
+  });
+
+  it("returns the next open card after the anchor, skipping resolved ones", () => {
+    const q = [card("a"), card("b", true), card("c")];
+    expect(adjacentOpenKey(q, "a", 1)).toBe("c");
+  });
+
+  it("wraps around the end of the frozen queue", () => {
+    const q = [card("a"), card("b", true), card("c")];
+    expect(adjacentOpenKey(q, "c", 1)).toBe("a");
+    expect(adjacentOpenKey(q, "a", -1)).toBe("c");
+  });
+
+  it("advances past a JUST-resolved anchor to the next open card", () => {
+    // The exact auto-advance case: the selected card collapsed server-side.
+    const q = [card("a", true), card("b"), card("c")];
+    expect(adjacentOpenKey(q, "a", 1)).toBe("b");
+  });
+
+  it("returns the only open card even when it is the anchor (single-card skip)", () => {
+    const q = [card("a"), card("b", true)];
+    expect(adjacentOpenKey(q, "a", 1)).toBe("a");
+  });
+
+  it("returns null when nothing is open", () => {
+    const q = [card("a", true), card("b", true)];
+    expect(adjacentOpenKey(q, "a", 1)).toBeNull();
+    expect(adjacentOpenKey(q, null, 1)).toBeNull();
+    expect(adjacentOpenKey([], null, 1)).toBeNull();
+  });
+
+  it("anchors at the first/last open card when no anchor is given", () => {
+    const q = [card("a", true), card("b"), card("c")];
+    expect(adjacentOpenKey(q, null, 1)).toBe("b");
+    expect(adjacentOpenKey(q, null, -1)).toBe("c");
+    // Unknown anchor behaves like no anchor.
+    expect(adjacentOpenKey(q, "zzz", 1)).toBe("b");
+  });
+});
+
+describe("shouldRequireConfirmCheckbox — conditional confirm policy (Phase B)", () => {
+  const clean = { exceptionCount: 0, failingRuleCount: 0, validationStale: false };
+
+  it("ALWAYS requires the checkbox when the flag keeps current behaviour (default)", () => {
+    expect(shouldRequireConfirmCheckbox(clean, true)).toBe(true);
+    expect(shouldRequireConfirmCheckbox({ ...clean, exceptionCount: 3 }, true)).toBe(true);
+  });
+
+  it("conditional mode: hides the checkbox only on a fully clean order", () => {
+    expect(shouldRequireConfirmCheckbox(clean, false)).toBe(false);
+  });
+
+  it("conditional mode: any exception, failing rule, or stale validation requires it", () => {
+    expect(shouldRequireConfirmCheckbox({ ...clean, exceptionCount: 1 }, false)).toBe(true);
+    expect(shouldRequireConfirmCheckbox({ ...clean, failingRuleCount: 2 }, false)).toBe(true);
+    expect(shouldRequireConfirmCheckbox({ ...clean, validationStale: true }, false)).toBe(true);
   });
 });
 

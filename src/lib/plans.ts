@@ -31,6 +31,17 @@ export interface Plan {
   name: string;
   /** Numeric monthly price in EUR. 0 for Pilot; null for Enterprise (custom). */
   priceMonthly: number | null;
+  /**
+   * Numeric YEARLY price in EUR (the amount billed once per year on annual
+   * billing). null when the plan has no annual price (Pilot, Enterprise).
+   *
+   * TODO-verify-stripe-amounts: these are PLACEHOLDERS computed as
+   * floor(monthly × 12 × 0.83) (≈17% annual discount). The real
+   * Stripe `*YearlyPriceId` amounts were not visible from the frontend —
+   * verify each against a test-mode Checkout session and correct any drift
+   * BEFORE trusting this number in production copy.
+   */
+  priceYearly: number | null;
   /** Big price label for pricing cards: "Free" / "€149" / "Custom". */
   priceLabel: string;
   /** Sub-label under the price on the pricing page. */
@@ -74,11 +85,18 @@ export interface Plan {
 const SIGN_UP = "/sign-up";
 const SALES = "mailto:sales@proculink.eu";
 
+// TODO-verify-stripe-amounts: placeholder annual pricing until the real Stripe
+// `*YearlyPriceId` amounts are confirmed via a test-mode Checkout session.
+// floor(monthly × 12 × 0.83) ≈ a 17% annual discount, matching the discount the
+// pricing page advertised before the toggle was removed (2026-06-11).
+const placeholderYearly = (monthly: number): number => Math.floor(monthly * 12 * 0.83);
+
 export const PLANS: Plan[] = [
   {
     id: "pilot",
     name: "Pilot",
     priceMonthly: 0,
+    priceYearly: null,
     priceLabel: "Free",
     priceCadence: "14 days",
     billingPriceLabel: "Free trial",
@@ -107,6 +125,7 @@ export const PLANS: Plan[] = [
     id: "growth",
     name: "Growth",
     priceMonthly: 149,
+    priceYearly: placeholderYearly(149), // €1,484/yr — TODO-verify-stripe-amounts
     priceLabel: "€149",
     priceCadence: "per month",
     billingPriceLabel: "€149/mo",
@@ -136,6 +155,7 @@ export const PLANS: Plan[] = [
     id: "operations",
     name: "Operations",
     priceMonthly: 399,
+    priceYearly: placeholderYearly(399), // €3,974/yr — TODO-verify-stripe-amounts
     priceLabel: "€399",
     priceCadence: "per month",
     billingPriceLabel: "€399/mo",
@@ -165,6 +185,7 @@ export const PLANS: Plan[] = [
     id: "integration",
     name: "Integration",
     priceMonthly: 999,
+    priceYearly: placeholderYearly(999), // €9,950/yr — TODO-verify-stripe-amounts
     priceLabel: "€999",
     priceCadence: "per month",
     billingPriceLabel: "€999/mo",
@@ -196,6 +217,7 @@ export const PLANS: Plan[] = [
     id: "distributor",
     name: "Distributor",
     priceMonthly: 1499,
+    priceYearly: placeholderYearly(1499), // €14,930/yr — TODO-verify-stripe-amounts
     priceLabel: "€1,499",
     priceCadence: "per month",
     billingPriceLabel: "€1,499/mo",
@@ -233,6 +255,7 @@ export const PLANS: Plan[] = [
     id: "enterprise",
     name: "Enterprise",
     priceMonthly: null,
+    priceYearly: null,
     priceLabel: "Custom",
     priceCadence: "from €2,500/mo",
     billingPriceLabel: "Custom",
@@ -271,6 +294,24 @@ export const PLAN_BY_ID: Record<PlanId, Plan> = PLANS.reduce(
 
 /** Plan ids that go through self-serve Stripe Checkout (excludes Pilot, Enterprise, and hidden plans). */
 export const CHECKOUT_PLAN_IDS: PlanId[] = PLANS.filter((p) => p.isCheckout && !p.hidden).map((p) => p.id);
+
+/**
+ * Derived annual savings for a plan, in whole percent (e.g. 17), comparing the
+ * yearly price to 12× the monthly price. null when the plan has no yearly
+ * price. ALWAYS derive the advertised save-% from this — never hardcode it —
+ * so the copy self-corrects when the placeholder yearly amounts are replaced
+ * with the verified Stripe ones (see TODO-verify-stripe-amounts above).
+ */
+export function yearlySavePercent(plan: Plan): number | null {
+  if (plan.priceYearly == null || plan.priceMonthly == null || plan.priceMonthly <= 0) return null;
+  return Math.round((1 - plan.priceYearly / (plan.priceMonthly * 12)) * 100);
+}
+
+/** Monthly-equivalent of the annual price (yearly ÷ 12, rounded). null when no yearly price. */
+export function yearlyMonthlyEquivalent(plan: Plan): number | null {
+  if (plan.priceYearly == null) return null;
+  return Math.round(plan.priceYearly / 12);
+}
 
 /**
  * Setup / onboarding fee note. Self-serve plans include light setup at no extra

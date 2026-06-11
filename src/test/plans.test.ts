@@ -1,9 +1,13 @@
 import { describe, expect, it } from "vitest";
 import {
+  CHECKOUT_PLAN_IDS,
   OVERAGE_PER_ORDER_EUR,
   PLAN_BY_ID,
+  PLANS,
   planEffectiveMonthlyCost,
   recommendPlanByOrders,
+  yearlyMonthlyEquivalent,
+  yearlySavePercent,
 } from "@/lib/plans";
 
 // Cost-optimal recommendation (LAUNCH BATCH 1, Task C): effective monthly cost
@@ -82,5 +86,41 @@ describe("recommendPlanByOrders (cost-optimal)", () => {
   it("recommends Enterprise only once Distributor's effective cost reaches the €2,500 floor", () => {
     expect(recommendPlanByOrders(4501).id).toBe("distributor");
     expect(recommendPlanByOrders(4502).id).toBe("enterprise");
+  });
+});
+
+// Yearly billing (batch 8 FE). The yearly amounts are PLACEHOLDERS —
+// floor(monthly × 12 × 0.83) — pending Stripe verification
+// (TODO-verify-stripe-amounts in plans.ts). These tests pin the derivation,
+// not the final Stripe truth.
+describe("yearly pricing", () => {
+  it("every self-serve checkout plan has a yearly price; Pilot/Enterprise have none", () => {
+    for (const id of CHECKOUT_PLAN_IDS) {
+      expect(PLAN_BY_ID[id].priceYearly).not.toBeNull();
+    }
+    expect(PLAN_BY_ID.pilot.priceYearly).toBeNull();
+    expect(PLAN_BY_ID.enterprise.priceYearly).toBeNull();
+  });
+
+  it("placeholder yearly amounts equal floor(monthly × 12 × 0.83)", () => {
+    expect(PLAN_BY_ID.growth.priceYearly).toBe(1484);       // floor(149 × 12 × 0.83)
+    expect(PLAN_BY_ID.operations.priceYearly).toBe(3974);   // floor(399 × 12 × 0.83)
+    expect(PLAN_BY_ID.integration.priceYearly).toBe(9950);  // floor(999 × 12 × 0.83)
+    expect(PLAN_BY_ID.distributor.priceYearly).toBe(14930); // floor(1499 × 12 × 0.83)
+  });
+
+  it("yearly is never more expensive than 12× monthly (sanity for any future amounts)", () => {
+    for (const plan of PLANS) {
+      if (plan.priceYearly == null || plan.priceMonthly == null || plan.priceMonthly <= 0) continue;
+      expect(plan.priceYearly).toBeLessThanOrEqual(plan.priceMonthly * 12);
+    }
+  });
+
+  it("derives the save-% and monthly equivalent from the ladder", () => {
+    expect(yearlySavePercent(PLAN_BY_ID.growth)).toBe(17);
+    expect(yearlyMonthlyEquivalent(PLAN_BY_ID.growth)).toBe(124);  // round(1484 / 12)
+    expect(yearlySavePercent(PLAN_BY_ID.pilot)).toBeNull();
+    expect(yearlySavePercent(PLAN_BY_ID.enterprise)).toBeNull();
+    expect(yearlyMonthlyEquivalent(PLAN_BY_ID.enterprise)).toBeNull();
   });
 });

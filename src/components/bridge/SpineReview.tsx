@@ -1662,6 +1662,23 @@ export function SpineReview({ orderId }: { orderId: string }) {
     staleTime: 60_000,
   });
 
+  // ── Next needs-review order (continuation flow, batch 9 Phase B) ───────────
+  // After the operator confirms a send the dialog closes immediately and
+  // delivery continues in the background (header pill; useSendFlow keeps
+  // polling). "Next order →" jumps to the next order waiting for review —
+  // server-filtered to pending_review, hidden when there is none.
+  const { data: nextReviewPage } = useQuery({
+    queryKey: ["orders", "next-review", orderId],
+    queryFn: () => apiClient.getOrders({ status: "pending_review", pageSize: 10 }),
+    enabled: queryEnabled,
+    staleTime: 30_000,
+    retry: 1,
+  });
+  const nextReviewOrderId = useMemo(
+    () => nextReviewPage?.items.find((o) => o.id !== orderId)?.id ?? null,
+    [nextReviewPage, orderId],
+  );
+
   // ── Known supplier codes (datalist typeahead for manual line resolution) ───
   // Best-effort: a failure just means no suggestions — free-text entry still
   // works. Sourced from the supplier's saved mappings.
@@ -2290,6 +2307,42 @@ export function SpineReview({ orderId }: { orderId: string }) {
                 {exceptionCount} issue{exceptionCount !== 1 ? "s" : ""} to resolve first
               </span>
             )}
+            {/* Continuation row (Phase B): a non-blocking delivery pill while the
+                send pipeline runs in the background, plus "Next order →" to move
+                on to the next needs-review order without waiting. */}
+            {(sendState !== "idle" || ((crossed || order.status === "delivered") && nextReviewOrderId)) && (
+              <div className="flex w-full flex-wrap items-center justify-end gap-2 sm:w-auto">
+                {sendState !== "idle" && (
+                  <span
+                    role="status"
+                    aria-live="polite"
+                    style={{
+                      display: "inline-flex", alignItems: "center", gap: 6, height: 26,
+                      padding: "0 10px", borderRadius: 13, fontSize: 11.5, fontWeight: 600,
+                      background: "#EFF5FE", border: "1px solid #BFD7F5", color: "#0F4FAB",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    <span aria-hidden style={{ fontSize: 12, lineHeight: 1 }}>⟳</span>
+                    {sendState === "transforming" ? "Generating in background…" : "Delivering in background…"}
+                  </span>
+                )}
+                {nextReviewOrderId && (
+                  <button
+                    type="button"
+                    onClick={() => router.push(`/inbox/${nextReviewOrderId}`)}
+                    aria-label="Open the next order that needs review"
+                    style={{
+                      height: 26, padding: "0 11px", borderRadius: 13, fontSize: 11.5, fontWeight: 700,
+                      background: "#FFFFFF", color: "#1E66C9", border: "1px solid #BFD7F5",
+                      cursor: "pointer", whiteSpace: "nowrap",
+                    }}
+                  >
+                    Next order →
+                  </button>
+                )}
+              </div>
+            )}
           </div>
         </div>
 
@@ -2778,6 +2831,7 @@ export function SpineReview({ orderId }: { orderId: string }) {
           lineCount={dialogLineCount}
           labels={labels}
           failingRuleCount={failingRuleCount}
+          validationStale={validation.isStale}
         />
       )}
       {showToast && (

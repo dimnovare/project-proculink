@@ -2,12 +2,17 @@
 
 // ConfirmDialog — the send/confirm modal with focus trap and the
 // failing-acceptance-rules acknowledgement. Moved as-is from SpineReview.tsx
-// (batch 9 Phase A); behaviour and DOM unchanged.
+// (batch 9 Phase A). Phase B: the confirmation checkbox is now policy-driven
+// (confirmPolicy.ts) behind NEXT_PUBLIC_CONFIRM_ALWAYS — the default (flag
+// unset) keeps today's always-on checkbox byte-identical; "false" makes it
+// conditional (renders only when exceptions / failing rules / stale validation
+// give the operator something real to acknowledge).
 
 import { useState, useRef, useEffect } from "react";
 import type { PartyLabels } from "@/hooks/useOrderDirection";
+import { shouldRequireConfirmCheckbox, confirmAlwaysFlag } from "./confirmPolicy";
 
-export function ConfirmDialog({ exceptionCount, onConfirm, onCancel, supplierName, outputFormat, grandTotal, lineCount, labels, failingRuleCount }: {
+export function ConfirmDialog({ exceptionCount, onConfirm, onCancel, supplierName, outputFormat, grandTotal, lineCount, labels, failingRuleCount, validationStale = false }: {
   exceptionCount: number;
   onConfirm: () => void;
   onCancel: () => void;
@@ -18,21 +23,33 @@ export function ConfirmDialog({ exceptionCount, onConfirm, onCancel, supplierNam
   labels: PartyLabels;
   /** Number of acceptance-profile rules that FAILED the last validation; 0 if it passed or wasn't run. Requires an explicit ack before send. */
   failingRuleCount: number;
+  /** True while the acceptance validation is stale / re-running after a commit. */
+  validationStale?: boolean;
 }) {
   const inbound = labels.counterpartyNoun === "Customer";
   const [checked, setChecked] = useState(false);
   // Second acknowledgement, required only when validation flagged failing rules.
   const [ackValidation, setAckValidation] = useState(false);
-  const canConfirm = checked && (failingRuleCount === 0 || ackValidation);
+  // Conditional confirm checkbox (Phase B) — policy in confirmPolicy.ts; the
+  // flag default keeps the checkbox always-on (current behaviour).
+  const confirmAlways = confirmAlwaysFlag();
+  const requireCheckbox = shouldRequireConfirmCheckbox(
+    { exceptionCount, failingRuleCount, validationStale },
+    confirmAlways,
+  );
+  const canConfirm = (!requireCheckbox || checked) && (failingRuleCount === 0 || ackValidation);
   const checkRef = useRef<HTMLInputElement>(null);
+  const confirmBtnRef = useRef<HTMLButtonElement>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
   const titleId = "spine-confirm-title";
 
-  // Move focus into the dialog on open and restore it to the previously-focused
-  // element (the Send button) when the dialog closes.
+  // Move focus into the dialog on open (the checkbox when it renders, else the
+  // primary confirm button) and restore it to the previously-focused element
+  // (the Send button) when the dialog closes.
   useEffect(() => {
     const previouslyFocused = document.activeElement as HTMLElement | null;
-    checkRef.current?.focus();
+    if (checkRef.current) checkRef.current.focus();
+    else confirmBtnRef.current?.focus();
     return () => previouslyFocused?.focus?.();
   }, []);
 
@@ -92,22 +109,34 @@ export function ConfirmDialog({ exceptionCount, onConfirm, onCancel, supplierNam
           </div>
         </div>
 
-        {/* Confirmation checkbox */}
-        <div style={{ margin: "0 24px 20px", display: "flex", alignItems: "flex-start", gap: 10 }}>
-          <input
-            ref={checkRef}
-            type="checkbox"
-            id="confirm-check"
-            checked={checked}
-            onChange={(e) => setChecked(e.target.checked)}
-            style={{ marginTop: 2, width: 15, height: 15, accentColor: "#2E8E3A", cursor: "pointer", flexShrink: 0 }}
-          />
-          <label htmlFor="confirm-check" style={{ fontSize: 13, color: "#0B1A2F", lineHeight: 1.5, cursor: "pointer" }}>
-            {exceptionCount === 0
-              ? <>Everything checks out. {inbound ? `Confirm for ${supplierName}` : `Send to ${supplierName}`}.</>
-              : <>I&apos;ve reviewed the {exceptionCount} exception{exceptionCount !== 1 ? "s" : ""}. {inbound ? `Confirm for ${supplierName}` : `Send to ${supplierName}`}.</>}
-          </label>
-        </div>
+        {/* Confirmation checkbox — policy-driven (always by default; conditional
+            when NEXT_PUBLIC_CONFIRM_ALWAYS=false and nothing needs acknowledging). */}
+        {requireCheckbox && (
+          <div style={{ margin: "0 24px 20px", display: "flex", alignItems: "flex-start", gap: 10 }}>
+            <input
+              ref={checkRef}
+              type="checkbox"
+              id="confirm-check"
+              checked={checked}
+              onChange={(e) => setChecked(e.target.checked)}
+              style={{ marginTop: 2, width: 15, height: 15, accentColor: "#2E8E3A", cursor: "pointer", flexShrink: 0 }}
+            />
+            <label htmlFor="confirm-check" style={{ fontSize: 13, color: "#0B1A2F", lineHeight: 1.5, cursor: "pointer" }}>
+              {exceptionCount === 0
+                ? <>Everything checks out. {inbound ? `Confirm for ${supplierName}` : `Send to ${supplierName}`}.</>
+                : <>I&apos;ve reviewed the {exceptionCount} exception{exceptionCount !== 1 ? "s" : ""}. {inbound ? `Confirm for ${supplierName}` : `Send to ${supplierName}`}.</>}
+            </label>
+          </div>
+        )}
+
+        {/* Stale-validation note — CONDITIONAL MODE ONLY (flag=false), where it
+            explains why the checkbox appears on an otherwise-clean order while
+            the auto-revalidate settles. Default mode stays byte-identical. */}
+        {!confirmAlways && validationStale && (
+          <div style={{ margin: "0 24px 20px", padding: "8px 12px", background: "#FFF8EA", border: "1px solid #F0D39A", borderRadius: 6, fontSize: 11.5, color: "#7A4D0A" }}>
+            Acceptance validation is re-checking after your last change — results may update.
+          </div>
+        )}
 
         {/* Validation-failure acknowledgement — only when the last "Validate
             against profile" run found failing acceptance rules. Doesn't hard-block
@@ -143,6 +172,7 @@ export function ConfirmDialog({ exceptionCount, onConfirm, onCancel, supplierNam
             Cancel
           </button>
           <button
+            ref={confirmBtnRef}
             onClick={() => canConfirm && onConfirm()}
             disabled={!canConfirm}
             style={{ padding: "9px 24px", borderRadius: 7, fontSize: 13, fontWeight: 600, background: canConfirm ? "#0B1A2F" : "#C6CDDA", color: "#FFFFFF", border: "none", cursor: canConfirm ? "pointer" : "not-allowed", display: "flex", alignItems: "center", gap: 8, transition: "background 150ms" }}

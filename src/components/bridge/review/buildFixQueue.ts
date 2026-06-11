@@ -168,3 +168,35 @@ export function buildFixQueue(
 export function openCardCount(queue: FixQueueCard[]): number {
   return queue.reduce((n, c) => n + (c.resolved ? 0 : 1), 0);
 }
+
+/**
+ * The key of the adjacent OPEN card relative to `fromKey`, walking the frozen
+ * queue in `dir` and WRAPPING around the ends. Drives focus auto-advance after
+ * a server-confirmed resolve, "Skip — keep flagged", and the rail's roving
+ * tabindex arrow navigation (one pure implementation for all three).
+ *
+ * • `fromKey` itself is never returned unless it is the ONLY open card.
+ * • When `fromKey` is null/absent (e.g. nothing selected yet), returns the
+ *   first open card for dir=1 and the last open card for dir=-1.
+ * • Returns null when the queue has no open cards.
+ */
+export function adjacentOpenKey(
+  queue: FixQueueCard[],
+  fromKey: string | null,
+  dir: 1 | -1 = 1,
+): string | null {
+  if (queue.length === 0) return null;
+  const start = fromKey == null ? -1 : queue.findIndex(c => c.key === fromKey);
+  if (start === -1) {
+    // No anchor — first open (forward) / last open (backward).
+    const open = queue.filter(c => !c.resolved);
+    if (open.length === 0) return null;
+    return dir === 1 ? open[0].key : open[open.length - 1].key;
+  }
+  const n = queue.length;
+  for (let step = 1; step <= n; step++) {
+    const c = queue[(((start + dir * step) % n) + n) % n];
+    if (!c.resolved) return c.key;
+  }
+  return null;
+}

@@ -21,7 +21,7 @@ export interface AiSuggestionLineRef {
   aiReason?: string;
 }
 
-export function AiSuggestionContent({ sn, showAcceptKbd, showManualKbd, accepting, onAccept, lineEdit }: {
+export function AiSuggestionContent({ sn, showAcceptKbd, showManualKbd, accepting, onAccept, lineEdit, acceptButtonRef }: {
   sn: AiSuggestionLineRef;
   /** Render the "A" kbd hint on the Accept button (first card only in the classic spine). */
   showAcceptKbd?: boolean;
@@ -32,6 +32,8 @@ export function AiSuggestionContent({ sn, showAcceptKbd, showManualKbd, acceptin
   onAccept: (lineId: string) => void;
   /** Manual supplier-code entry API; when present, "Enter manually" is offered. */
   lineEdit?: LineEditApi;
+  /** Optional ref to the Accept button — the triage focus auto-advance targets it as the card's primary control. */
+  acceptButtonRef?: (el: HTMLButtonElement | null) => void;
 }) {
   return (
     <div
@@ -65,6 +67,7 @@ export function AiSuggestionContent({ sn, showAcceptKbd, showManualKbd, acceptin
       <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
         <button
           type="button"
+          ref={acceptButtonRef}
           aria-label={`Accept AI suggestion for line ${sn.lineNo ?? sn.sku}`}
           onClick={() => onAccept(sn.id)}
           disabled={accepting}
