@@ -29,6 +29,7 @@ import { useQueriesEnabled } from "@/hooks/useQueriesEnabled";
 import type { DeliveryConfig, DeliveryProtocol } from "@/lib/api/types";
 import { useOrderDirection } from "@/hooks/useOrderDirection";
 import { PageHeader } from "./layout/PageHeader";
+import { PageShell } from "./layout/PageShell";
 
 // How many rows enrich themselves with a delivery-config fetch. Procurement
 // books are typically 3–20 suppliers (the ICP), so this comfortably covers a
@@ -186,8 +187,7 @@ export function SupplierDockList() {
   const hasRows = !isLoading && !suppliersError && suppliers.length > 0;
 
   return (
-    <div className="min-h-full" style={{ background: "#F6F7FA" }}>
-      <div className="mx-auto w-full max-w-[1480px] px-4 pb-16 pt-6 sm:px-8">
+    <PageShell variant="wide">
         {/* Page header — canonical PageHeader; New supplier = primary action (blue, per design source) */}
         <PageHeader
           title={plural}
@@ -494,8 +494,7 @@ export function SupplierDockList() {
             ))}
           </ul>
         )}
-      </div>
-    </div>
+    </PageShell>
   );
 }
 

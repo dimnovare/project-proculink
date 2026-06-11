@@ -2,6 +2,8 @@
 
 // §5.10 Webhooks — two-column split matching canonical WebhooksScreen
 import { EmptyState } from "@/components/bridge/EmptyState";
+import { PageShell } from "@/components/bridge/layout/PageShell";
+import { PageHeader } from "@/components/bridge/layout/PageHeader";
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
@@ -817,44 +819,14 @@ function WebhooksLayout({
           .wh-actions { opacity: 1 !important; transform: none !important; gap: 8px; }
           .wh-actionbtn { flex: 1; height: 40px; font-size: 13px; }
         }
-        /* Phone: tighten page gutters so content keeps comfortable width at 390px */
-        @media (max-width: 560px) {
-          .wh-pad-top { padding: 20px 16px 0 !important; }
-          .wh-pad-body { padding: 0 16px 48px !important; }
-        }
       `}</style>
 
-      <div style={{ background: "var(--bg,#F6F7FA)", minHeight: "100%" }}>
-        {/* Page header */}
-        <div className="wh-pad-top" style={{ padding: "26px 34px 0", maxWidth: 1480, margin: "0 auto", width: "100%" }}>
-          <div
-            style={{
-              display: "flex",
-              alignItems: "flex-start",
-              justifyContent: "space-between",
-              gap: "16px 24px",
-              marginBottom: 22,
-              flexWrap: "wrap",
-            }}
-          >
-            <div style={{ minWidth: 0 }}>
-              <h1
-                style={{
-                  fontFamily: "var(--font-display,'Bricolage Grotesque',Inter,sans-serif)",
-                  fontSize: 30,
-                  fontWeight: 600,
-                  letterSpacing: "-0.025em",
-                  lineHeight: 1.1,
-                  margin: 0,
-                  color: "var(--ink,#0B1A2F)",
-                }}
-              >
-                Webhooks
-              </h1>
-              <div style={{ color: "var(--ink-muted,#56627A)", fontSize: 13, marginTop: 5 }}>
-                Push order events to your systems · {rows.length} endpoint{rows.length !== 1 ? "s" : ""}
-              </div>
-            </div>
+      <PageShell variant="wide">
+        {/* Page header — canonical PageHeader */}
+        <PageHeader
+          title="Webhooks"
+          sub={`Push order events to your systems · ${rows.length} endpoint${rows.length !== 1 ? "s" : ""}`}
+          actions={
             <button
               onClick={onAdd}
               onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "var(--brand-green-deep)"; }}
@@ -878,11 +850,11 @@ function WebhooksLayout({
               <PlusIcon size={15} />
               Add endpoint
             </button>
-          </div>
-        </div>
+          }
+        />
 
         {/* Content */}
-        <div className="wh-pad-body" style={{ padding: "0 34px 64px", maxWidth: 1480, margin: "0 auto", width: "100%" }}>
+        <div>
           {/* Notice */}
           {notice && (
             <div
@@ -940,7 +912,7 @@ function WebhooksLayout({
             <DeliveriesCard deliveries={deliveries} />
           </div>
         </div>
-      </div>
+      </PageShell>
     </>
   );
 }

@@ -8,6 +8,8 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiClient, isApiMockMode } from "@/lib/api-client";
 import { useOrderDirection } from "@/hooks/useOrderDirection";
 import type { SupplierMapping } from "@/types/procurement";
+import { PageShell } from "./layout/PageShell";
+import { PageHeader } from "./layout/PageHeader";
 
 // ─── Palette (sampled pixel-exact from the design render 2026-05-30) ───────────
 // Topology semantics in this screen: the BUYER side is blue, the SUPPLIER side is
@@ -187,37 +189,25 @@ export function MappingEditor() {
   }
 
   return (
-    <div
-      className="flex flex-col h-full min-h-0 overflow-hidden"
-      style={{ background: "#F6F7FA" }}
-    >
-      {/* Page header — sits directly on the grey canvas */}
-      <div className="flex flex-col items-start gap-3 px-4 pt-5 pb-3 sm:px-6 lg:flex-row lg:items-start lg:gap-4 flex-shrink-0">
-        <div>
-          <h1
-            className="text-[26px] font-semibold tracking-[-0.02em]"
-            style={{
-              fontFamily: "'Bricolage Grotesque', Inter, sans-serif",
-              color: INK,
-            }}
-          >
-            Mappings
-          </h1>
-          <p className="text-[13px] mt-1" style={{ color: "#56627A" }}>
-            {needsSupplierSelection ? (
-              `Buyer → ${partyNounLower} item code library · select a ${partyNounLower} to view its mappings`
-            ) : (
-              <>
-                {isApiMockMode ? "Global buyer" : "Buyer"} → {partyNounLower} item code library ·{" "}
-                <span style={{ color: "#0B1A2F", fontWeight: 600 }}>
-                  {allRows.length.toLocaleString()}
-                </span>{" "}
-                saved{isApiMockMode ? "" : selectedSupplierName ? ` for ${selectedSupplierName}` : ""}
-              </>
-            )}
-          </p>
-        </div>
-        <div className="grid w-full grid-cols-2 gap-2 lg:ml-auto lg:flex lg:w-auto">
+    <PageShell variant="wide" className="flex flex-col">
+      {/* Page header — canonical PageHeader on the grey canvas */}
+      <PageHeader
+        title="Mappings"
+        sub={
+          needsSupplierSelection ? (
+            `Buyer → ${partyNounLower} item code library · select a ${partyNounLower} to view its mappings`
+          ) : (
+            <>
+              {isApiMockMode ? "Global buyer" : "Buyer"} → {partyNounLower} item code library ·{" "}
+              <span style={{ color: "#0B1A2F", fontWeight: 600 }}>
+                {allRows.length.toLocaleString()}
+              </span>{" "}
+              saved{isApiMockMode ? "" : selectedSupplierName ? ` for ${selectedSupplierName}` : ""}
+            </>
+          )
+        }
+        actions={
+        <div className="grid w-full grid-cols-2 gap-2 lg:flex lg:w-auto">
           <button
             onClick={() => openPanelForSupplier("import")}
             className="flex h-10 items-center justify-center gap-1.5 rounded-[7px] px-3.5 text-[13px] font-medium transition-colors lg:h-[34px] lg:text-[12.5px]"
@@ -255,10 +245,11 @@ export function MappingEditor() {
             <span className="sm:hidden">Add</span>
           </button>
         </div>
-      </div>
+        }
+      />
 
       {/* Result count + search — on the grey canvas, above the table card */}
-      <div className="flex flex-col items-stretch gap-2 px-4 pb-3 sm:px-6 lg:flex-row lg:items-center lg:gap-3 flex-shrink-0">
+      <div className="flex flex-col items-stretch gap-2 pb-3 lg:flex-row lg:items-center lg:gap-3 flex-shrink-0">
         <p className="text-[12.5px] flex-shrink-0" style={{ color: "#56627A" }}>
           {needsSupplierSelection ? (
             <span style={{ color: "var(--ink-faint)" }}>No {partyNounLower} selected</span>
@@ -367,7 +358,7 @@ export function MappingEditor() {
       </div>
 
       {notice && (
-        <div className="px-4 pb-3 sm:px-6">
+        <div className="pb-3">
           <div className="rounded-[8px] px-3 py-2 text-[12px] leading-relaxed" style={{ border: "1px solid #BBD9BD", background: GREEN_SOFT, color: GREEN_DEEP }}>
             {notice}
           </div>
@@ -375,7 +366,7 @@ export function MappingEditor() {
       )}
 
       {/* Table card — white rounded card floating on the grey canvas */}
-      <div className="flex-1 overflow-auto px-4 pb-5 sm:px-6">
+      <div className="flex-1 min-h-0 overflow-auto">
         <div
           className="overflow-hidden rounded-[10px]"
           style={{ background: "#FFFFFF", border: "1px solid #E2E6EE", boxShadow: "0 1px 2px rgba(11,26,47,0.04)" }}
@@ -590,7 +581,7 @@ export function MappingEditor() {
           }}
         />
       )}
-    </div>
+    </PageShell>
   );
 }
 

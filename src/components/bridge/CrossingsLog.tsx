@@ -15,6 +15,7 @@ import { useQuery } from "@tanstack/react-query";
 import { getAuditLog, isApiMockMode, type AuditLogEntry } from "@/lib/api-client";
 import { EmptyState } from "./EmptyState";
 import { PageHeader } from "./layout/PageHeader";
+import { PageShell } from "./layout/PageShell";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -378,7 +379,7 @@ export function CrossingsLog() {
   );
 
   return (
-    <div className="work-inner wide" style={isMobile ? { paddingLeft: 16, paddingRight: 16 } : undefined}>
+    <PageShell variant="wide">
       {/* Page header — canonical PageHeader */}
       <PageHeader
         title="Delivery log"
@@ -891,6 +892,6 @@ export function CrossingsLog() {
           )}
         </>
       )}
-    </div>
+    </PageShell>
   );
 }

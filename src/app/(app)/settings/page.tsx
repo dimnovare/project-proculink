@@ -3,6 +3,7 @@ import { useEffect, useState, type CSSProperties, type ReactNode } from "react";
 import Link from "next/link";
 import { useOrganization } from "@clerk/nextjs";
 import { PageHeader } from "@/components/bridge/layout/PageHeader";
+import { PageShell } from "@/components/bridge/layout/PageShell";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Building, Copy, Database, Euro, HardDrive, Key, Mail, Plug, Plus, Save, ShieldCheck, Trash2, Zap } from "lucide-react";
 import { BillingSection } from "@/components/bridge/BillingSection";
@@ -52,12 +53,9 @@ export default function SettingsPage() {
   const planLabel = billing ? (PLAN_LABELS[billing.plan] ?? billing.plan) : "…";
 
   return (
-    <div style={{ height: "100%", minHeight: 0, overflowY: "auto", background: "var(--bg)" }}>
-      <div style={{ maxWidth: 1040, margin: "0 auto", padding: "26px 34px 64px" }} className="settings-shell">
+    <PageShell className="settings-shell">
         {/* Page header */}
-        <div className="settings-header" style={{ marginBottom: 18 }}>
-          <PageHeader title="Settings" sub={`${orgName} · ${planLabel}`} />
-        </div>
+        <PageHeader title="Settings" sub={`${orgName} · ${planLabel}`} />
 
         <div className="settings-grid" style={{ display: "grid", gridTemplateColumns: "200px minmax(0,1fr)", gap: 28, alignItems: "start" }}>
           {/* Left nav — active = white card + buyer-blue left accent bar + blue icon */}
@@ -101,7 +99,6 @@ export default function SettingsPage() {
             {tab === "connectors" && <ConnectorsSection />}
           </div>
         </div>
-      </div>
 
       <style>{`
         .settings-nav-item:not([aria-current="page"]):hover {
@@ -109,11 +106,7 @@ export default function SettingsPage() {
           color: var(--ink);
         }
         @media (max-width: 767px) {
-          .settings-shell { padding: 24px 16px 48px; }
           .settings-grid { grid-template-columns: 1fr !important; gap: 16px !important; }
-          .settings-header {
-            padding: 2px 2px 0;
-          }
           /* Mobile uses a compact command grid instead of a horizontal scroller:
              every settings area is visible at once, which is faster for thumb use. */
           .settings-nav {
@@ -168,7 +161,7 @@ export default function SettingsPage() {
           }
         }
       `}</style>
-    </div>
+    </PageShell>
   );
 }
 

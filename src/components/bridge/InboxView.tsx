@@ -25,6 +25,7 @@ import {
 } from "@tanstack/react-table";
 import { FileChip } from "./FileChip";
 import { PageHeader } from "./layout/PageHeader";
+import { PageShell } from "./layout/PageShell";
 import { StatusJourney, type CrossingStatus, type OrderStage } from "./StatusJourney";
 import { useOrderDirection, type PartyLabels } from "@/hooks/useOrderDirection";
 
@@ -755,7 +756,7 @@ export function InboxView() {
   // Error state
   if (!isApiMockMode && isError) {
     return (
-      <div className="flex flex-col h-full min-h-0 overflow-hidden items-center justify-center" style={{ background: "#F6F7FA" }}>
+      <PageShell variant="wide" className="flex flex-col items-center justify-center">
         <div style={{ textAlign: "center" }}>
           <div
             style={{
@@ -785,16 +786,15 @@ export function InboxView() {
             ↻ Retry
           </button>
         </div>
-      </div>
+      </PageShell>
     );
   }
 
   return (
-    <div className="flex flex-col h-full min-h-0 overflow-hidden" style={{ background: "#F6F7FA" }}>
+    <PageShell variant="wide" className="flex flex-col">
 
       {/* Page header — canonical PageHeader on the grey canvas, table floats below in a white card */}
-      <div className="px-4 pt-5 sm:px-6 flex-shrink-0" style={{ background: "#F6F7FA" }}>
-        <PageHeader
+      <PageHeader
           title="Inbox"
           /* Header summary = the live "what needs me?" line. The total order count
              is shown ONCE, in the footer next to pagination — not duplicated here. */
@@ -843,12 +843,11 @@ export function InboxView() {
             </>
           }
         />
-      </div>
 
-      {/* Bulk action bar (shown full-width when selecting) */}
+      {/* Bulk action bar (shown when selecting) */}
       {selectedCount > 0 && (
         <div
-          className="flex items-center justify-between px-4 py-2 sm:px-6 flex-shrink-0"
+          className="flex items-center justify-between rounded-[8px] px-4 py-2 mb-3 flex-shrink-0"
           style={{ background: "#0B1A2F", color: "#FFFFFF" }}
         >
           <div className="flex items-center gap-3">
@@ -895,8 +894,8 @@ export function InboxView() {
           Mobile: chips on a horizontal-scroll row, search full-width on its own row below.
           sm+: both sit side by side on one row. */}
       <div
-        className="flex flex-col gap-2 px-4 pb-3 sm:flex-row sm:flex-wrap sm:items-center sm:px-6 flex-shrink-0"
-        style={{ background: "#F6F7FA" }}
+        className="flex flex-col gap-2 pb-3 sm:flex-row sm:flex-wrap sm:items-center flex-shrink-0"
+        style={{ background: "var(--bg)" }}
       >
         <div className="no-scrollbar flex items-center gap-1.5 overflow-x-auto flex-nowrap w-full sm:w-auto sm:flex-1 min-w-0">
           {FILTER_CHIPS.map(({ label }, i) => {
@@ -1029,7 +1028,7 @@ export function InboxView() {
 
       {/* ── Queue table / mobile route cards — floating white card on grey canvas ── */}
       <div
-        className="flex-1 min-h-0 overflow-auto mx-4 sm:mx-6 mb-3"
+        className="flex-1 min-h-0 overflow-auto mb-3"
         style={{ background: "#FFFFFF", border: "1px solid #E2E6EE", borderRadius: 12 }}
       >
         <div className="flex flex-col gap-2.5 p-3 lg:hidden">
@@ -1402,8 +1401,8 @@ export function InboxView() {
 
       {/* Footer: total + pagination controls — on the grey canvas, below the card */}
       <div
-        className="flex-shrink-0 flex flex-wrap items-center gap-3 px-4 sm:px-6 pb-3 pt-0.5"
-        style={{ background: "#F6F7FA" }}
+        className="flex-shrink-0 flex flex-wrap items-center gap-3 pt-0.5"
+        style={{ background: "var(--bg)" }}
       >
         <span className="text-[11px]" style={{ color: "var(--ink-faint)" }}>
           {totalCount.toLocaleString()} order{totalCount !== 1 ? "s" : ""}
@@ -1433,6 +1432,6 @@ export function InboxView() {
           </button>
         </div>
       </div>
-    </div>
+    </PageShell>
   );
 }
