@@ -6,9 +6,17 @@ import {
   createPortalSession,
   getBillingStatus,
 } from "@/lib/api-client";
+import { useState } from "react";
 import type { BillingPlan, BillingStatus } from "@/types/procurement";
-import { PLAN_BY_ID, CHECKOUT_PLAN_IDS } from "@/lib/plans";
+import { PLAN_BY_ID, CHECKOUT_PLAN_IDS, yearlySavePercent } from "@/lib/plans";
 import { capture } from "@/lib/analytics";
+
+type BillingInterval = "monthly" | "yearly";
+
+// Derived annual save-% for the upgrade toggle (uniform across the paid ladder
+// today; sourced from plans.ts so it self-corrects with the Stripe-verified
+// amounts — see TODO-verify-stripe-amounts there).
+const ANNUAL_SAVE_PERCENT = yearlySavePercent(PLAN_BY_ID.growth);
 
 // Plan presentation is derived from the shared plan ladder (src/lib/plans.ts)
 // so the in-app billing card never drifts from the pricing page or ROI tool.
@@ -209,6 +217,13 @@ function PlanCard({ status, action }: { status: BillingStatus; action?: React.Re
         <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 24, fontWeight: 700, color: accent, lineHeight: 1 }}>
           {meta.price}
         </div>
+        {/* Payment interval — from billing-status billingInterval (server-derived
+            from the Stripe price id). Hidden when null/absent (no subscription). */}
+        {(status.billingInterval === "monthly" || status.billingInterval === "yearly") && (
+          <div style={{ fontSize: 11.5, fontWeight: 600, color: "#56627A" }}>
+            {status.billingInterval === "yearly" ? "Billed annually" : "Billed monthly"}
+          </div>
+        )}
         {action}
         {status.plan === "pilot" && !isExpired && status.trialEndsAt && (
           <div>
@@ -233,8 +248,13 @@ export function BillingSection() {
     retry: false,
   });
 
+  // Billing cadence for NEW checkouts (upgrades). Yearly is real self-serve:
+  // the backend maps plan+interval to the Stripe `*YearlyPriceId`s.
+  const [checkoutInterval, setCheckoutInterval] = useState<BillingInterval>("monthly");
+
   const checkoutMutation = useMutation({
-    mutationFn: (plan: BillingPlan) => createCheckoutSession(plan),
+    mutationFn: ({ plan, interval }: { plan: BillingPlan; interval: BillingInterval }) =>
+      createCheckoutSession(plan, interval),
     onSuccess: (url) => { window.location.href = url; },
   });
 
@@ -332,8 +352,9 @@ export function BillingSection() {
             <strong style={{ color: "#0B1A2F" }}>Upgrade when this is ready for daily orders.</strong>{" "}
             Growth keeps the same workflow but raises your monthly order volume, adds more suppliers, and keeps processing open after the Pilot window ends.
           </div>
+          <IntervalToggle value={checkoutInterval} onChange={setCheckoutInterval} disabled={checkoutMutation.isPending} />
           <button
-            onClick={() => checkoutMutation.mutate("growth")}
+            onClick={() => checkoutMutation.mutate({ plan: "growth", interval: checkoutInterval })}
             disabled={checkoutMutation.isPending}
             style={primaryButton("var(--brand-green)", checkoutMutation.isPending)}
           >
@@ -343,7 +364,7 @@ export function BillingSection() {
             {(["operations", "integration", "distributor"] as const).map((plan) => (
               <button
                 key={plan}
-                onClick={() => checkoutMutation.mutate(plan)}
+                onClick={() => checkoutMutation.mutate({ plan, interval: checkoutInterval })}
                 disabled={checkoutMutation.isPending}
                 style={secondaryButton(PLAN_META[plan].color, checkoutMutation.isPending)}
               >
@@ -387,13 +408,16 @@ export function BillingSection() {
             Plan changes update order and supplier limits immediately after Stripe confirms the subscription. Existing orders, mappings, and delivery logs stay available.
           </div>
           {nextPlan && (
-            <button
-              onClick={() => checkoutMutation.mutate(nextPlan)}
-              disabled={checkoutMutation.isPending}
-              style={secondaryButton(PLAN_META[nextPlan].color, checkoutMutation.isPending)}
-            >
-              Need more volume? Upgrade to {nextPlan.charAt(0).toUpperCase() + nextPlan.slice(1)}.
-            </button>
+            <>
+              <IntervalToggle value={checkoutInterval} onChange={setCheckoutInterval} disabled={checkoutMutation.isPending} />
+              <button
+                onClick={() => checkoutMutation.mutate({ plan: nextPlan, interval: checkoutInterval })}
+                disabled={checkoutMutation.isPending}
+                style={secondaryButton(PLAN_META[nextPlan].color, checkoutMutation.isPending)}
+              >
+                Need more volume? Upgrade to {nextPlan.charAt(0).toUpperCase() + nextPlan.slice(1)}.
+              </button>
+            </>
           )}
           {checkoutMutation.isError && (
             <p style={{ margin: 0, fontSize: 12, color: "#C53A3A" }}>
@@ -468,6 +492,50 @@ export function BillingSection() {
       )}
 
       {/* Pilot: no payment method section (not yet a customer) */}
+    </div>
+  );
+}
+
+// Monthly/Annual cadence picker for new checkouts. The chosen interval is
+// passed straight through createCheckoutSession → POST /api/billing/checkout
+// { plan, billingInterval } → the Stripe `*YearlyPriceId` on "yearly".
+function IntervalToggle({ value, onChange, disabled }: {
+  value: BillingInterval;
+  onChange: (v: BillingInterval) => void;
+  disabled: boolean;
+}) {
+  const options: Array<{ id: BillingInterval; label: string }> = [
+    { id: "monthly", label: "Monthly" },
+    { id: "yearly",  label: `Annual${ANNUAL_SAVE_PERCENT != null ? ` · save ${ANNUAL_SAVE_PERCENT}%` : ""}` },
+  ];
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+      <div role="group" aria-label="Billing period" style={{ display: "inline-flex", background: "#EFF2F7", borderRadius: 8, padding: 3, gap: 2 }}>
+        {options.map((o) => {
+          const on = value === o.id;
+          return (
+            <button
+              key={o.id}
+              type="button"
+              aria-pressed={on}
+              onClick={() => onChange(o.id)}
+              disabled={disabled}
+              style={{
+                border: "none", borderRadius: 6, padding: "6px 13px",
+                fontSize: 12, fontWeight: 600, cursor: disabled ? "not-allowed" : "pointer",
+                background: on ? "#FFFFFF" : "transparent",
+                color: on ? "#0B1A2F" : "#56627A",
+                boxShadow: on ? "0 1px 2px rgba(11,26,47,0.08)" : "none",
+              }}
+            >
+              {o.label}
+            </button>
+          );
+        })}
+      </div>
+      {value === "yearly" && (
+        <span style={{ fontSize: 11.5, color: "var(--ink-faint)" }}>Billed once per year</span>
+      )}
     </div>
   );
 }

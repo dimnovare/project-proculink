@@ -299,6 +299,15 @@ export interface BillingStatus {
   nearLimit:              boolean;
   /** True at ≥100% of the order limit (over-cap overage messaging). */
   atLimit:                boolean;
+  /**
+   * Payment interval of the active Stripe subscription, derived server-side
+   * from the persisted price id: "yearly" when it matches a `*YearlyPriceId`,
+   * "monthly" otherwise, null when no Stripe subscription is on file (Pilot /
+   * manual Enterprise). Informational only — the order quota stays a
+   * calendar-month allowance regardless. Optional so older fixtures/responses
+   * that omit it stay valid (treat absent as null → hide the interval line).
+   */
+  billingInterval?:       "monthly" | "yearly" | null;
 }
 
 // ── Admin: per-org limit / pilot overrides ──────────────────────────────────

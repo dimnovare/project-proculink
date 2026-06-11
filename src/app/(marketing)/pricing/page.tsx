@@ -5,9 +5,12 @@ import { useMemo, useState } from "react";
 import {
   OVERAGE_PER_ORDER_EUR,
   PLANS,
+  PLAN_BY_ID,
   SETUP_FEE_NOTE,
   planEffectiveMonthlyCost,
   recommendPlanByOrders,
+  yearlyMonthlyEquivalent,
+  yearlySavePercent,
 } from "@/lib/plans";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -78,9 +81,18 @@ const ALL_TIERS = PLANS.filter((p) => !p.hidden).map((p) => ({
   /** Plans whose price is a real recurring monthly amount get a "/mo" tag. */
   isMonthly: p.orderLimitIsMonthly && p.priceMonthly != null && p.priceMonthly > 0,
   priceMonthly: p.priceMonthly,
+  /** Annual price billed once per year (placeholder until Stripe amounts verified — see plans.ts). */
+  priceYearly: p.priceYearly,
+  yearlyMonthlyEq: yearlyMonthlyEquivalent(p),
+  savePercent: yearlySavePercent(p),
   orderLimit: p.orderLimit,
   featured: p.id === FEATURED_ID,
 }));
+
+// Uniform advertised annual discount, DERIVED from the plan ladder (all paid
+// tiers share the same placeholder discount today; if the verified Stripe
+// amounts ever diverge per tier, the per-card save-% still renders its own).
+const TOGGLE_SAVE_PERCENT = yearlySavePercent(PLAN_BY_ID.growth);
 
 type Tier = (typeof ALL_TIERS)[number];
 
@@ -125,10 +137,14 @@ const FAQ: Array<[string, string]> = [
 ];
 
 export default function PricingPage() {
-  // NOTE: the yearly/annual billing toggle was REMOVED (2026-06-11). Yearly
-  // checkout is not wired in the self-serve flow (createCheckoutSession is only
-  // ever called with the monthly default), so offering a yearly price here
-  // violated offer⇔works. Re-add only once yearly checkout is purchasable.
+  // Monthly/Annual toggle — RESTORED (2026-06-11, batch 8/9). The backend now
+  // accepts billingInterval on /api/billing/checkout and maps yearly plans to
+  // the Stripe `*YearlyPriceId`s, and the in-app upgrade flow passes the chosen
+  // interval through createCheckoutSession — so annual is purchasable
+  // (offer⇔works holds again). Annual amounts are placeholders pending Stripe
+  // verification (see TODO-verify-stripe-amounts in plans.ts).
+  const [billing, setBilling] = useState<"monthly" | "yearly">("monthly");
+  const yearly = billing === "yearly";
 
   // Volume recommender — reuses the SAME helper the landing-page ROICalculator
   // uses (recommendPlanByOrders), so the pricing page and ROI calculator can
@@ -218,9 +234,33 @@ export default function PricingPage() {
       {/* ── Primary pricing cards (3 above the fold) ─────────────────────── */}
       <section className="plk-section" style={{ paddingTop: 48 }}>
         <div className="plk-wrap">
+          {/* Billing cadence toggle — the design's .billing-toggle pill.
+              Annual is REAL self-serve now (backend billingInterval + yearly
+              Stripe prices); the save-% is derived from the plan ladder. */}
+          <div className="plk-toggle-wrap">
+            <div className="plk-billing-toggle" role="group" aria-label="Billing period">
+              <button
+                type="button"
+                className={!yearly ? "on" : ""}
+                aria-pressed={!yearly}
+                onClick={() => setBilling("monthly")}
+              >
+                Monthly
+              </button>
+              <button
+                type="button"
+                className={yearly ? "on" : ""}
+                aria-pressed={yearly}
+                onClick={() => setBilling("yearly")}
+              >
+                Annual{TOGGLE_SAVE_PERCENT != null ? ` · save ${TOGGLE_SAVE_PERCENT}%` : ""}
+              </button>
+            </div>
+          </div>
+
           <div className="plk-pricing-grid plk-primary-grid">
             {PRIMARY_TIERS.map((tier) => (
-              <PriceCard key={tier.id} tier={tier} recommended={tier.id === recommendedId} />
+              <PriceCard key={tier.id} tier={tier} yearly={yearly} recommended={tier.id === recommendedId} />
             ))}
           </div>
 
@@ -274,7 +314,7 @@ export default function PricingPage() {
             hidden={!tiersExpanded}
           >
             {SECONDARY_TIERS.map((tier) => (
-              <PriceCard key={tier.id} tier={tier} recommended={tier.id === recommendedId} />
+              <PriceCard key={tier.id} tier={tier} yearly={yearly} recommended={tier.id === recommendedId} />
             ))}
           </div>
 
@@ -326,9 +366,15 @@ export default function PricingPage() {
 
 // ─── Small components ─────────────────────────────────────────────────────────
 
-function PriceCard({ tier, recommended }: { tier: Tier; recommended: boolean }) {
+function PriceCard({ tier, yearly, recommended }: { tier: Tier; yearly: boolean; recommended: boolean }) {
   const featured = tier.featured;
-  const bigPrice = tier.price;
+
+  // Annual display: the plan's REAL yearly price (plans.ts single source —
+  // placeholder until Stripe-verified), shown as a monthly equivalent with the
+  // billed-annually total + derived save-% underneath. Tiers without an annual
+  // price (Pilot, Enterprise) render their normal monthly/custom card.
+  const showYearly = yearly && tier.isMonthly && tier.priceYearly != null && tier.yearlyMonthlyEq != null;
+  const bigPrice = showYearly ? `€${tier.yearlyMonthlyEq!.toLocaleString("en-IE")}` : tier.price;
   const priceTag = tier.isMonthly;
 
   // A card is visually emphasised when it is the static anchor (featured =
@@ -351,7 +397,11 @@ function PriceCard({ tier, recommended }: { tier: Tier; recommended: boolean }) 
         {bigPrice}
         {priceTag && <small>/mo</small>}
       </div>
-      <div className="plk-price-note">{tier.setupNote}</div>
+      <div className="plk-price-note">
+        {showYearly
+          ? `billed annually (€${tier.priceYearly!.toLocaleString("en-IE")}/yr)${tier.savePercent != null ? ` · save ${tier.savePercent}%` : ""}`
+          : tier.setupNote}
+      </div>
       {/* Overage visibility (offer⇔works): paid plans never block at the
           allowance — extra orders meter at €0.50/order. */}
       {tier.isMonthly && tier.orderLimit != null && (
@@ -508,6 +558,16 @@ const PRICING_CSS = `
 .plk-section-title { font-family: var(--font-display); font-size: clamp(28px, 3.6vw, 40px); font-weight: 700; letter-spacing: -0.03em; line-height: 1.1; margin: 0; text-wrap: balance; }
 .plk-section.navy .plk-section-eyebrow { background: var(--navy-surface); color: var(--navy-text); border: 1px solid var(--navy-border); }
 .plk-section-sub { color: var(--navy-text); font-size: 16px; line-height: 1.6; margin: 14px auto 0; max-width: 460px; text-wrap: pretty; }
+
+/* Billing toggle (design .billing-toggle) */
+.plk-toggle-wrap { margin-bottom: 26px; display: flex; justify-content: center; }
+.plk-billing-toggle { display: inline-flex; background: var(--surface-2); border-radius: var(--radius); padding: 3px; gap: 2px; }
+.plk-billing-toggle button {
+  border: none; background: none; padding: 7px 16px; border-radius: 5px;
+  font-size: 13px; font-weight: 600; color: var(--ink-muted); cursor: pointer;
+  transition: background var(--duration-fast), color var(--duration-fast), box-shadow var(--duration-fast);
+}
+.plk-billing-toggle button.on { background: var(--surface); color: var(--ink); box-shadow: var(--shadow-card); }
 
 /* Pricing grid + card (design .pricing-grid / .price-card) */
 .plk-pricing-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; align-items: start; }

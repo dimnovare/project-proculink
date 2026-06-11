@@ -65,6 +65,7 @@ export async function getBillingStatus(): Promise<BillingStatus> {
       overageAmountEur:       0,
       nearLimit:              false,
       atLimit:                false,
+      billingInterval:        null, // Pilot has no Stripe subscription
     };
   }
   const headers = await authHeader();
