@@ -17,7 +17,7 @@ const S = {
   stepTitle: { fontSize: 14.5, fontWeight: 600, color: "#0B1A2F", margin: 0 },
   stepDesc:  { fontSize: 13, color: "#56627A", margin: "4px 0 0", lineHeight: 1.55 },
   cta:    { display: "inline-block", background: "#0B1A2F", color: "#fff", textDecoration: "none", padding: "12px 22px", borderRadius: 8, fontWeight: 600, fontSize: 14, marginTop: 8 },
-  skip:   { display: "block", marginTop: 16, color: "#8A93A5", fontSize: 13 },
+  skip:   { display: "block", marginTop: 16, color: "var(--ink-faint)", fontSize: 13 },
 };
 
 function WelcomeBody() {

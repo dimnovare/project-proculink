@@ -229,7 +229,6 @@ export default function BuyersPage() {
                   background: "var(--surface)",
                   fontSize: 13,
                   color: "var(--ink)",
-                  outline: "none",
                   transition: "border-color 150ms, box-shadow 150ms",
                 }}
                 placeholder="e.g. Heinrich Industries"
@@ -265,7 +264,6 @@ export default function BuyersPage() {
                   fontSize: 13,
                   fontFamily: "var(--font-mono, 'JetBrains Mono', ui-monospace, monospace)",
                   color: "var(--ink)",
-                  outline: "none",
                   transition: "border-color 150ms, box-shadow 150ms",
                 }}
                 placeholder="HEIN"

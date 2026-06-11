@@ -93,7 +93,7 @@ export function HelpSlideover({ open, onClose }: Props) {
               cursor: "pointer",
               fontSize: 22,
               lineHeight: 1,
-              color: "#8A93A5",
+              color: "var(--ink-faint)",
               padding: 4,
             }}
           >
@@ -117,7 +117,7 @@ export function HelpSlideover({ open, onClose }: Props) {
                 margin: 0,
                 fontSize: 12,
                 fontWeight: 600,
-                color: "#8A93A5",
+                color: "var(--ink-faint)",
                 textTransform: "uppercase",
                 letterSpacing: "0.05em",
               }}

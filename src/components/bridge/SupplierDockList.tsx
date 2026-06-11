@@ -65,7 +65,7 @@ const BLUE_DEEP    = "#0F4FA8";
 // Neutrals (sampled from the design render / tokens.css).
 const INK          = "#0B1A2F"; // primary text
 const TEXT_MUTED   = "#56627A"; // subtitle / pill text
-const TEXT_FAINT   = "#8A93A5"; // header labels / codes
+const TEXT_FAINT   = "var(--ink-faint)"; // header labels / codes
 const PLACEHOLDER  = "#A2AAB9"; // faint "—" for not-yet-configured cells
 const BORDER       = "#E2E6EE"; // card border + row dividers
 const PILL_BG      = "#EFF2F7"; // neutral "Not set" pill fill
@@ -193,7 +193,7 @@ export function SupplierDockList() {
               className="inline-flex h-[34px] w-full items-center justify-center gap-[7px] rounded-[7px] px-4 text-[12.5px] font-semibold tracking-[-0.005em] transition-colors sm:w-auto"
               style={{
                 background: limitReached ? "#EFF2F7" : BLUE,
-                color: limitReached ? "#8A93A5" : "#FFFFFF",
+                color: limitReached ? "var(--ink-faint)" : "#FFFFFF",
                 border: "none",
                 cursor: !canAddSupplier ? "not-allowed" : "pointer",
                 whiteSpace: "nowrap",
@@ -271,7 +271,7 @@ export function SupplierDockList() {
                 onClick={() => { setShowAddPanel(false); setNewName(""); setAddError(null); }}
                 aria-label="Close add supplier panel"
                 className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-[6px]"
-                style={{ border: "1px solid #E2E6EE", background: "#FFFFFF", color: "#8A93A5" }}
+                style={{ border: "1px solid #E2E6EE", background: "#FFFFFF", color: "var(--ink-faint)" }}
               >
                 <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
                   <path d="M2 10L10 2M2 2l8 8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
@@ -290,7 +290,7 @@ export function SupplierDockList() {
                   onChange={(e) => setNewName(e.target.value)}
                   onKeyDown={(e) => { if (e.key === "Enter") handleSave(); }}
                   className="h-[34px] rounded-[6px] px-3 text-[12.5px]"
-                  style={{ border: "1px solid #C6CDDA", color: INK, outline: "none", transition: "border-color 150ms, box-shadow 150ms" }}
+                  style={{ border: "1px solid #C6CDDA", color: INK, transition: "border-color 150ms, box-shadow 150ms" }}
                   onFocus={(e) => { e.currentTarget.style.borderColor = GREEN; e.currentTarget.style.boxShadow = `0 0 0 3px ${GREEN_SOFT}`; }}
                   onBlur={(e) => { e.currentTarget.style.borderColor = "#C6CDDA"; e.currentTarget.style.boxShadow = "none"; }}
                   autoFocus
@@ -486,7 +486,7 @@ export function SupplierDockList() {
 /** Column header row — used by the loading skeleton (desktop only). */
 function SupplierTableHeader({ counterpartyNoun = "Supplier" }: { counterpartyNoun?: string }) {
   const cls = "text-[10.5px] font-semibold uppercase tracking-[0.06em]";
-  const color = "#8A93A5";
+  const color = "var(--ink-faint)";
   return (
     <div
       className="hidden grid-cols-[minmax(0,2.4fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.1fr)_18px] items-center gap-4 px-[18px] py-[11px] sm:grid"

@@ -298,7 +298,7 @@ function EndpointsCard({
 
             {/* Last delivery + actions (actions reveal on row hover/focus to match the clean design) */}
             <div className="wh-metarow" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginTop: 7 }}>
-              <div style={{ fontSize: 11, color: "var(--ink-faint,#8A93A5)" }}>Last delivery: {w.lastDelivery}</div>
+              <div style={{ fontSize: 11, color: "var(--ink-faint,#5B6980)" }}>Last delivery: {w.lastDelivery}</div>
               <div className="wh-actions" style={{ display: "flex", gap: 6 }}>
                 {allowEdit && (
                   <button
@@ -329,7 +329,7 @@ function EndpointsCard({
                     borderRadius: "var(--radius,6px)",
                     border: `1px solid ${BLUE}`,
                     background: "var(--surface,#FFFFFF)",
-                    color: togglingId === w.id ? "var(--ink-faint,#8A93A5)" : BLUE,
+                    color: togglingId === w.id ? "var(--ink-faint,#5B6980)" : BLUE,
                     fontSize: 12,
                     fontWeight: 600,
                     cursor: togglingId === w.id ? "default" : "pointer",
@@ -349,7 +349,7 @@ function EndpointsCard({
                     borderRadius: "var(--radius,6px)",
                     border: "1px solid #F5B8B8",
                     background: "var(--surface,#FFFFFF)",
-                    color: deletingId === w.id ? "var(--ink-faint,#8A93A5)" : "var(--danger,#C53A3A)",
+                    color: deletingId === w.id ? "var(--ink-faint,#5B6980)" : "var(--danger,#C53A3A)",
                     fontSize: 12,
                     fontWeight: 600,
                     cursor: deletingId === w.id ? "default" : "pointer",
@@ -414,12 +414,12 @@ function DeliveriesCard({ deliveries }: { deliveries: DeliveryRow[] | null }) {
                 <span style={{ fontFamily: "var(--font-mono,'JetBrains Mono',monospace)", fontSize: 13, fontWeight: 600, color: "var(--brand-blue-deep,#0F4FA8)" }}>
                   {d.po}
                 </span>
-                <span style={{ fontFamily: "var(--font-mono,'JetBrains Mono',monospace)", fontSize: 12, color: "var(--ink-faint,#8A93A5)", flexShrink: 0 }}>
+                <span style={{ fontFamily: "var(--font-mono,'JetBrains Mono',monospace)", fontSize: 12, color: "var(--ink-faint,#5B6980)", flexShrink: 0 }}>
                   {d.dur}
                 </span>
               </div>
               {/* Time */}
-              <div style={{ fontFamily: "var(--font-mono,'JetBrains Mono',monospace)", fontSize: 11.5, color: "var(--ink-faint,#8A93A5)" }}>
+              <div style={{ fontFamily: "var(--font-mono,'JetBrains Mono',monospace)", fontSize: 11.5, color: "var(--ink-faint,#5B6980)" }}>
                 {d.time}
               </div>
             </div>
@@ -446,7 +446,7 @@ function DeliveriesCard({ deliveries }: { deliveries: DeliveryRow[] | null }) {
                     fontWeight: 600,
                     letterSpacing: "0.05em",
                     textTransform: "uppercase",
-                    color: "var(--ink-faint,#8A93A5)",
+                    color: "var(--ink-faint,#5B6980)",
                     padding: "9px 12px",
                     borderBottom: "1px solid var(--border,#E2E6EE)",
                     whiteSpace: "nowrap",
@@ -471,7 +471,7 @@ function DeliveriesCard({ deliveries }: { deliveries: DeliveryRow[] | null }) {
                     borderBottom: i < deliveries.length - 1 ? "1px solid var(--border,#E2E6EE)" : "none",
                     fontFamily: "var(--font-mono,'JetBrains Mono',monospace)",
                     fontSize: 11.5,
-                    color: "var(--ink-faint,#8A93A5)",
+                    color: "var(--ink-faint,#5B6980)",
                     whiteSpace: "nowrap",
                   }}
                 >
@@ -520,7 +520,7 @@ function DeliveriesCard({ deliveries }: { deliveries: DeliveryRow[] | null }) {
                     textAlign: "right",
                     fontFamily: "var(--font-mono,'JetBrains Mono',monospace)",
                     fontSize: 11.5,
-                    color: "var(--ink-faint,#8A93A5)",
+                    color: "var(--ink-faint,#5B6980)",
                     whiteSpace: "nowrap",
                   }}
                 >
@@ -624,7 +624,7 @@ function WebhookPanel({
               borderRadius: "var(--radius,6px)",
               background: "none",
               border: "none",
-              color: "var(--ink-faint,#8A93A5)",
+              color: "var(--ink-faint,#5B6980)",
               cursor: "pointer",
               display: "flex",
               alignItems: "center",
@@ -682,7 +682,7 @@ function WebhookPanel({
                 fontFamily: "var(--font-mono,'JetBrains Mono',monospace)",
               }}
             />
-            <div style={{ fontSize: 11, color: "var(--ink-faint,#8A93A5)", marginTop: 4 }}>
+            <div style={{ fontSize: 11, color: "var(--ink-faint,#5B6980)", marginTop: 4 }}>
               We sign every payload with HMAC-SHA256 using this secret.
             </div>
           </div>
@@ -740,7 +740,7 @@ function WebhookPanel({
               padding: "0 14px",
               borderRadius: "var(--radius,6px)",
               border: "1px solid transparent",
-              background: saving || !url.trim() ? "var(--ink-faint,#8A93A5)" : "var(--brand-green)",
+              background: saving || !url.trim() ? "var(--ink-faint,#5B6980)" : "var(--brand-green)",
               color: "var(--surface,#FFFFFF)",
               fontSize: 12.5,
               fontWeight: 600,

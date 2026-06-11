@@ -168,7 +168,7 @@ export function AdjustLimitsModal({
             <h2 className="text-[17px] font-semibold" style={{ fontFamily: "var(--font-display)", color: NAVY }}>
               Adjust limits
             </h2>
-            <div className="mt-0.5 text-[12px]" style={{ color: "#8A93A5" }}>
+            <div className="mt-0.5 text-[12px]" style={{ color: "var(--ink-faint)" }}>
               {org.name} · {org.plan} · {org.accountStatus.replace(/_/g, " ")}
             </div>
           </div>
@@ -176,7 +176,7 @@ export function AdjustLimitsModal({
             onClick={onClose}
             aria-label="Close"
             className="flex h-7 w-7 items-center justify-center rounded-[6px]"
-            style={{ color: "#8A93A5", border: "1px solid transparent", cursor: "pointer" }}
+            style={{ color: "var(--ink-faint)", border: "1px solid transparent", cursor: "pointer" }}
           >
             ✕
           </button>
@@ -377,7 +377,7 @@ function NumField({
         className="w-full rounded-[8px] px-3 py-2 text-[13px]"
         style={{ border: "1px solid #D9DEE8", background: disabled ? "#F6F7FA" : "#FFFFFF", color: NAVY }}
       />
-      <label className="mt-1.5 flex items-center gap-2 text-[11.5px]" style={{ color: "#8A93A5" }}>
+      <label className="mt-1.5 flex items-center gap-2 text-[11.5px]" style={{ color: "var(--ink-faint)" }}>
         <input type="checkbox" checked={clearChecked} onChange={(e) => onClear(e.target.checked)} />
         Clear · {hint}
       </label>

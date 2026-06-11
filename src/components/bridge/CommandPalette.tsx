@@ -253,7 +253,7 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
             borderBottom: "1px solid #E2E6EE",
           }}
         >
-          <span style={{ fontSize: 16, color: "#8A93A5" }}>⌕</span>
+          <span style={{ fontSize: 16, color: "var(--ink-faint)" }}>⌕</span>
           <input
             autoFocus
             value={q}
@@ -263,7 +263,6 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
             style={{
               flex: 1,
               border: "none",
-              outline: "none",
               fontSize: 14,
               color: "#0B1A2F",
               background: "transparent",
@@ -273,7 +272,7 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
             style={{
               fontSize: 10.5,
               fontFamily: "'JetBrains Mono', monospace",
-              color: "#8A93A5",
+              color: "var(--ink-faint)",
               background: "#F6F7FA",
               border: "1px solid #E2E6EE",
               borderRadius: 4,
@@ -291,7 +290,7 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
               style={{
                 padding: "32px 16px",
                 textAlign: "center",
-                color: "#8A93A5",
+                color: "var(--ink-faint)",
                 fontSize: 13,
               }}
             >
@@ -307,7 +306,7 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
                     fontWeight: 700,
                     letterSpacing: "0.07em",
                     textTransform: "uppercase",
-                    color: "#8A93A5",
+                    color: "var(--ink-faint)",
                   }}
                 >
                   {group}
@@ -331,7 +330,6 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
                       background: isActive ? "#F0F4FB" : "transparent",
                       cursor: "pointer",
                       textAlign: "left",
-                      outline: "none",
                       borderLeft: isActive ? "2px solid #2E8E3A" : "2px solid transparent",
                       transition: "background 0.1s",
                     }}
@@ -372,7 +370,7 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
                         <div
                           style={{
                             fontSize: 11.5,
-                            color: "#8A93A5",
+                            color: "var(--ink-faint)",
                             whiteSpace: "nowrap",
                             overflow: "hidden",
                             textOverflow: "ellipsis",
@@ -422,7 +420,7 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
                 >
                   {key}
                 </kbd>
-                <span style={{ fontSize: 11, color: "#8A93A5" }}>{label}</span>
+                <span style={{ fontSize: 11, color: "var(--ink-faint)" }}>{label}</span>
               </div>
             )
           )}

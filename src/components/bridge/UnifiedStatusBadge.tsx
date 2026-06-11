@@ -88,6 +88,7 @@ const STATUS_META: Record<string, StatusMeta> = {
   delivery_failed: { label: "Delivery failed", tone: "danger" },
   delivery_dead_letter: { label: "Dead-lettered", tone: "danger" },
   rejected: { label: "Rejected", tone: "danger" },
+  rejected_by_supplier: { label: "Rejected", tone: "danger" },
 
   // ── Terminal / inactive ──────────────────────────────────────────────
   cancelled: { label: "Cancelled", tone: "neutral" },

@@ -178,7 +178,7 @@ function deriveTimeline(p: PassportDto): DerivedTimeline {
 const STATE_STYLE: Record<StageState, { ring: string; fill: string; text: string; glyph: string }> = {
   done:    { ring: "#2E8E3A", fill: "#2E8E3A", text: "#1E6D29", glyph: "✓" },
   current: { ring: "#1E66C9", fill: "#FFFFFF", text: "#0F4FA8", glyph: "●" },
-  pending: { ring: "#C6CDDA", fill: "#FFFFFF", text: "#8A93A5", glyph: "" },
+  pending: { ring: "#C6CDDA", fill: "#FFFFFF", text: "var(--ink-faint)", glyph: "" },
   failed:  { ring: "#C53A3A", fill: "#C53A3A", text: "#C53A3A", glyph: "✕" },
 };
 
@@ -201,7 +201,7 @@ function Section({ title, count, children }: { title: string; count?: number; ch
       <div style={{ padding: "10px 14px", borderBottom: "1px solid #E2E6EE", display: "flex", alignItems: "center", gap: 8 }}>
         <h3 style={{ fontSize: 11, fontWeight: 800, letterSpacing: "0.07em", textTransform: "uppercase", color: "#56627A", margin: 0 }}>{title}</h3>
         {count != null && (
-          <span style={{ fontSize: 10.5, fontFamily: "'JetBrains Mono',monospace", color: "#8A93A5" }}>{count}</span>
+          <span style={{ fontSize: 10.5, fontFamily: "'JetBrains Mono',monospace", color: "var(--ink-faint)" }}>{count}</span>
         )}
       </div>
       <div style={{ padding: 14 }}>{children}</div>
@@ -212,7 +212,7 @@ function Section({ title, count, children }: { title: string; count?: number; ch
 function Ref({ label, value }: { label: string; value: string | null | undefined }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 0 }}>
-      <span style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", color: "#8A93A5" }}>{label}</span>
+      <span style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--ink-faint)" }}>{label}</span>
       <span style={{ fontSize: 11.5, fontFamily: "'JetBrains Mono',monospace", color: "#0B1A2F", wordBreak: "break-all" }}>{value || "—"}</span>
     </div>
   );
@@ -228,9 +228,9 @@ function MappingRow({ d }: { d: PassportMappingDecision }) {
   const badge = SOURCE_BADGE[lc(d.source)] ?? { bg: "#EFF2F7", color: "#56627A" };
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 0", borderTop: "1px solid #F0F2F6", fontSize: 11.5 }}>
-      <span style={{ width: 22, flexShrink: 0, color: "#8A93A5", fontFamily: "'JetBrains Mono',monospace" }}>{d.lineNumber}</span>
+      <span style={{ width: 22, flexShrink: 0, color: "var(--ink-faint)", fontFamily: "'JetBrains Mono',monospace" }}>{d.lineNumber}</span>
       <span style={{ fontFamily: "'JetBrains Mono',monospace", color: "#1E66C9", flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis" }}>{d.buyerCode || "—"}</span>
-      <span style={{ color: "#8A93A5", flexShrink: 0 }}>→</span>
+      <span style={{ color: "var(--ink-faint)", flexShrink: 0 }}>→</span>
       <span style={{ fontFamily: "'JetBrains Mono',monospace", color: d.supplierCode ? "#2E8E3A" : "#C53A3A", flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis" }}>{d.supplierCode || "unresolved"}</span>
       <span style={{ flexShrink: 0, fontSize: 9.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em", background: badge.bg, color: badge.color, borderRadius: 3, padding: "2px 6px" }}>{d.source}</span>
       {d.confidence != null && <Pct value={d.confidence <= 1 ? d.confidence * 100 : d.confidence} />}
@@ -246,9 +246,9 @@ function DeliveryRow({ a }: { a: PassportDeliveryAttempt }) {
       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
         <span style={{ fontSize: 10.5, fontWeight: 700, color: "#56627A", fontFamily: "'JetBrains Mono',monospace" }}>#{a.attemptNumber}</span>
         <span style={{ fontSize: 11, fontWeight: 700, color, textTransform: "capitalize" }}>{a.status || "—"}</span>
-        {a.channel && <span style={{ fontSize: 10.5, color: "#8A93A5" }}>· {a.channel}</span>}
-        {a.responseCode != null && <span style={{ fontSize: 10.5, fontFamily: "'JetBrains Mono',monospace", color: "#8A93A5" }}>· {a.responseCode}</span>}
-        <span style={{ marginLeft: "auto", fontSize: 10.5, color: "#8A93A5" }}>{fmtDateTime(a.attemptedAt)}</span>
+        {a.channel && <span style={{ fontSize: 10.5, color: "var(--ink-faint)" }}>· {a.channel}</span>}
+        {a.responseCode != null && <span style={{ fontSize: 10.5, fontFamily: "'JetBrains Mono',monospace", color: "var(--ink-faint)" }}>· {a.responseCode}</span>}
+        <span style={{ marginLeft: "auto", fontSize: 10.5, color: "var(--ink-faint)" }}>{fmtDateTime(a.attemptedAt)}</span>
       </div>
       {a.destination && <div style={{ fontSize: 10.5, fontFamily: "'JetBrains Mono',monospace", color: "#56627A", wordBreak: "break-all" }}>{a.destination}</div>}
       {(a.errorMessage || a.rejectionReason) && (
@@ -367,11 +367,11 @@ export function OrderPassport({ orderId }: { orderId: string }) {
                       {s.glyph}
                     </div>
                     <div style={{ display: "flex", alignItems: "baseline", gap: 6, flexWrap: "wrap" }}>
-                      <span style={{ fontSize: 12.5, fontWeight: 600, color: n.state === "pending" ? "#8A93A5" : "#0B1A2F" }}>{n.label}</span>
+                      <span style={{ fontSize: 12.5, fontWeight: 600, color: n.state === "pending" ? "var(--ink-faint)" : "#0B1A2F" }}>{n.label}</span>
                       {n.state === "current" && <span style={{ fontSize: 9.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", color: s.text }}>in progress</span>}
                     </div>
                     {n.detail && <div style={{ fontSize: 11, color: n.state === "failed" ? "#C53A3A" : "#56627A", marginTop: 1 }}>{n.detail}</div>}
-                    {n.at && <div style={{ fontSize: 10.5, color: "#8A93A5", marginTop: 1 }}>{fmtDateTime(n.at)}</div>}
+                    {n.at && <div style={{ fontSize: 10.5, color: "var(--ink-faint)", marginTop: 1 }}>{fmtDateTime(n.at)}</div>}
                   </div>
                 );
               })}
@@ -427,7 +427,7 @@ export function OrderPassport({ orderId }: { orderId: string }) {
           {/* Delivery attempts */}
           <Section title="Delivery attempts" count={passport.deliveryAttempts.length}>
             {passport.deliveryAttempts.length === 0 ? (
-              <p className="text-[12.5px]" style={{ color: "#8A93A5", margin: 0 }}>No delivery attempts yet.</p>
+              <p className="text-[12.5px]" style={{ color: "var(--ink-faint)", margin: 0 }}>No delivery attempts yet.</p>
             ) : (
               <div>{passport.deliveryAttempts.map((a) => <DeliveryRow key={a.attemptNumber} a={a} />)}</div>
             )}
@@ -445,7 +445,7 @@ export function OrderPassport({ orderId }: { orderId: string }) {
                 {passport.supplierResponse.rejectionReason && <div style={{ color: "#C53A3A" }}>{passport.supplierResponse.rejectionReason}</div>}
               </div>
             ) : (
-              <p className="text-[12.5px]" style={{ color: "#8A93A5", margin: 0 }}>No supplier response recorded yet.</p>
+              <p className="text-[12.5px]" style={{ color: "var(--ink-faint)", margin: 0 }}>No supplier response recorded yet.</p>
             )}
           </Section>
         </div>

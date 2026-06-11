@@ -50,7 +50,7 @@ export default function SupportPage() {
             support@proculink.eu
           </a>
         </p>
-        <p style={{ ...S.p, marginBottom: 0, fontSize: 13, color: "#8A93A5" }}>
+        <p style={{ ...S.p, marginBottom: 0, fontSize: 13, color: "var(--ink-faint)" }}>
           Monday – Friday, 9am – 6pm EET. We aim to respond within one business day.
         </p>
       </div>

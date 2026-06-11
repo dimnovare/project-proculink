@@ -17,7 +17,7 @@ const T = {
   navy:        "#0B1A2F",
   ink:         "#0B1A2F",
   inkMuted:    "#56627A",
-  inkFaint:    "#8A93A5",
+  inkFaint:    "var(--ink-faint)",
   surface:     "#FFFFFF",
   surface2:    "#F1F3F7",
   border:      "#E2E6EE",

@@ -32,7 +32,7 @@ export function StandardsFieldPopover({ canonicalField, label }: StandardsFieldP
             borderRadius: "50%",
             border: "1.5px solid currentColor",
             background: "transparent",
-            color: "#8A93A5",
+            color: "var(--ink-faint)",
             fontSize: 10,
             fontWeight: 700,
             fontFamily: "'JetBrains Mono', monospace",
@@ -46,7 +46,7 @@ export function StandardsFieldPopover({ canonicalField, label }: StandardsFieldP
             (e.currentTarget as HTMLButtonElement).style.color = "#2E8E3A";
           }}
           onMouseLeave={(e) => {
-            (e.currentTarget as HTMLButtonElement).style.color = "#8A93A5";
+            (e.currentTarget as HTMLButtonElement).style.color = "var(--ink-faint)";
           }}
         >
           i
@@ -65,7 +65,7 @@ export function StandardsFieldPopover({ canonicalField, label }: StandardsFieldP
             fontWeight: 700,
             textTransform: "uppercase",
             letterSpacing: "0.06em",
-            color: "#8A93A5",
+            color: "var(--ink-faint)",
             marginBottom: 8,
           }}
         >

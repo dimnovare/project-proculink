@@ -124,7 +124,7 @@ export function StatusJourney({ stage, compact = false, crossingRef }: StatusJou
                 <span
                   className="mt-1.5 text-[10px] text-center leading-tight"
                   style={{
-                    color: active ? "#0B1A2F" : done ? "#2E8E3A" : "#8A93A5",
+                    color: active ? "#0B1A2F" : done ? "#2E8E3A" : "var(--ink-faint)",
                     fontWeight: active ? 700 : 400,
                   }}
                 >
@@ -144,8 +144,8 @@ export function StatusJourney({ stage, compact = false, crossingRef }: StatusJou
 export type CrossingStatus = "new" | "extracting" | "review" | "ready" | "sent" | "delivering" | "failed";
 
 const STATUS_PILL: Record<CrossingStatus, { bg: string; color: string; dot: string; pulse?: boolean; label: string }> = {
-  // tokens.css .pill-new → surface-2 (#EFF2F7) / ink-muted (#56627A) / ink-faint (#8A93A5)
-  new:        { bg: "#EFF2F7", color: "#56627A", dot: "#8A93A5",  label: "New" },
+  // tokens.css .pill-new → surface-2 (#EFF2F7) / ink-muted (#56627A) / ink-faint (#5B6980)
+  new:        { bg: "#EFF2F7", color: "#56627A", dot: "var(--ink-faint)",  label: "New" },
   // tokens.css .pill-extracting → brand-blue-soft / brand-blue-deep / brand-blue (NOT violet)
   extracting: { bg: "#E3EDFB", color: "#0F4FA8", dot: "#1E66C9",  label: "Extracting" },
   review:     { bg: "#FAEFD6", color: "#C97A14", dot: "#C97A14",  label: "Needs review" },

@@ -56,8 +56,8 @@ function Delta({ ordered, confirmed, changed }: { ordered: string; confirmed: st
   if (!changed) return <span style={{ color: "#0B1A2F" }}>{confirmed}</span>;
   return (
     <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
-      <span style={{ color: "#8A93A5", textDecoration: "line-through" }}>{ordered}</span>
-      <span style={{ color: "#8A93A5" }}>→</span>
+      <span style={{ color: "var(--ink-faint)", textDecoration: "line-through" }}>{ordered}</span>
+      <span style={{ color: "var(--ink-faint)" }}>→</span>
       <span style={{ color: "#9A5F0A", fontWeight: 700 }}>{confirmed}</span>
     </span>
   );
@@ -71,7 +71,7 @@ function ChangedLineRow({ line, currency }: { line: SupplierConfirmationLine; cu
 
   return (
     <tr style={{ borderTop: "1px solid #F0F2F6", background: rejected ? "#FDF1F1" : "transparent" }}>
-      <td style={{ padding: "8px 8px", fontFamily: "'JetBrains Mono',monospace", color: "#8A93A5" }}>{line.lineNumber}</td>
+      <td style={{ padding: "8px 8px", fontFamily: "'JetBrains Mono',monospace", color: "var(--ink-faint)" }}>{line.lineNumber}</td>
       <td style={{ padding: "8px 8px", fontFamily: "'JetBrains Mono',monospace", color: "#0B1A2F" }}>
         {line.supplierItemCode || line.buyerItemCode || "—"}
       </td>
@@ -108,7 +108,7 @@ function ConfirmationCard({ confirmation, currency }: { confirmation: SupplierCo
             Ref <span className="font-mono" style={{ color: "#0B1A2F" }}>{confirmation.supplierReference}</span>
           </span>
         )}
-        <span style={{ marginLeft: "auto", fontSize: 11.5, color: "#8A93A5" }}>{fmtDateTime(confirmation.receivedAt)}</span>
+        <span style={{ marginLeft: "auto", fontSize: 11.5, color: "var(--ink-faint)" }}>{fmtDateTime(confirmation.receivedAt)}</span>
       </div>
 
       <div style={{ padding: 14 }}>
@@ -129,7 +129,7 @@ function ConfirmationCard({ confirmation, currency }: { confirmation: SupplierCo
               <thead>
                 <tr style={{ background: "#F6F7FA" }}>
                   {["Line", "Item", "Qty", "Unit price", "Delivery", ""].map((h, i) => (
-                    <th key={h || i} style={{ padding: "7px 8px", textAlign: i >= 2 ? "right" : "left", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", color: "#8A93A5", whiteSpace: "nowrap" }}>{h}</th>
+                    <th key={h || i} style={{ padding: "7px 8px", textAlign: i >= 2 ? "right" : "left", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--ink-faint)", whiteSpace: "nowrap" }}>{h}</th>
                   ))}
                 </tr>
               </thead>

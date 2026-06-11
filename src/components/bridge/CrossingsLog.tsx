@@ -454,7 +454,7 @@ export function CrossingsLog() {
             placeholder="Filter by PO…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            style={{ border: "none", outline: "none", background: "none", fontSize: 12.5, width: "100%", color: "var(--ink)" }}
+            style={{ border: "none", background: "none", fontSize: 12.5, width: "100%", color: "var(--ink)" }}
           />
         </div>
       </div>

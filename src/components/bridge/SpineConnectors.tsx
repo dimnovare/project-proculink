@@ -442,9 +442,11 @@ export function SpineConnectors({
             {/* Node attachment dot (hollow) — only meaningful with the source segment */}
             {drawSource && <circle cx={w.nlx} cy={w.ny}  r={2.4} fill="#FFFFFF" stroke={srcDot} strokeWidth={1.4} />}
 
-            {/* Travelling pulse on source segment — only for confident/crossed wires */}
+            {/* Travelling pulse on source segment — only for confident/crossed wires.
+                wire-pulse-dot: globals.css hides + de-animates it under
+                prefers-reduced-motion (a11y); no effect otherwise. */}
             {drawSource && (confident || crossed) && (
-              <circle r="2.2" fill="#fff" stroke={crossed ? "#2E8E3A" : "#1E66C9"} strokeWidth="1.2"
+              <circle className="wire-pulse-dot" r="2.2" fill="#fff" stroke={crossed ? "#2E8E3A" : "#1E66C9"} strokeWidth="1.2"
                 style={{
                   offsetPath: `path('${pathSrc}')`,
                   offsetRotate: "0deg",
@@ -452,9 +454,9 @@ export function SpineConnectors({
                   animationDelay: animDelay,
                 } as React.CSSProperties} />
             )}
-            {/* Travelling pulse on output segment */}
+            {/* Travelling pulse on output segment (wire-pulse-dot: reduced-motion) */}
             {drawOutput && (confident || crossed) && (
-              <circle r="2.2" fill="#fff" stroke="#2E8E3A" strokeWidth="1.2"
+              <circle className="wire-pulse-dot" r="2.2" fill="#fff" stroke="#2E8E3A" strokeWidth="1.2"
                 style={{
                   offsetPath: `path('${pathOut}')`,
                   offsetRotate: "0deg",

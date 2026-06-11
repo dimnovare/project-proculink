@@ -703,7 +703,7 @@ export function BridgeDashboard() {
               style={{
                 border: "1px solid #E2E6EE",
                 background: "#FFFFFF",
-                color: windowedOrders.length === 0 ? "#8A93A5" : "#0B1A2F",
+                color: windowedOrders.length === 0 ? "var(--ink-faint)" : "#0B1A2F",
                 cursor: windowedOrders.length === 0 ? "not-allowed" : "pointer",
                 boxShadow: "0 1px 2px rgba(11,26,47,0.04)",
               }}
@@ -838,7 +838,7 @@ export function BridgeDashboard() {
                   <Send size={15} strokeWidth={2} style={{ color: "#56627A", flexShrink: 0 }} aria-hidden />
                   <div className="min-w-0">
                     <div className="text-[13px] font-semibold" style={{ color: "#0B1A2F" }}>In transit</div>
-                    <div className="text-[11.5px]" style={{ color: "#8A93A5" }}>moving through the pipeline now</div>
+                    <div className="text-[11.5px]" style={{ color: "var(--ink-faint)" }}>moving through the pipeline now</div>
                   </div>
                 </div>
               </div>
@@ -853,7 +853,7 @@ export function BridgeDashboard() {
                   ))
                 ) : ordersError ? (
                   // Honest error state — never imply "nothing in flight" on a load failure.
-                  <div className="flex flex-col items-center gap-2 px-4 py-6 text-center text-[12.5px]" style={{ color: "#8A93A5" }} role="alert">
+                  <div className="flex flex-col items-center gap-2 px-4 py-6 text-center text-[12.5px]" style={{ color: "var(--ink-faint)" }} role="alert">
                     <span style={{ color: "#56627A" }}>Couldn&apos;t load in-transit orders.</span>
                     <button
                       type="button"
@@ -865,7 +865,7 @@ export function BridgeDashboard() {
                     </button>
                   </div>
                 ) : inTransitRows.length === 0 ? (
-                  <div className="px-4 py-6 text-center text-[12.5px]" style={{ color: "#8A93A5" }}>
+                  <div className="px-4 py-6 text-center text-[12.5px]" style={{ color: "var(--ink-faint)" }}>
                     No orders in flight right now.
                   </div>
                 ) : (
@@ -923,7 +923,7 @@ export function BridgeDashboard() {
                     {/* "Delivery success rate" (not "Acceptance rate"): this figure
                         measures successful pipeline delivery, not supplier acceptance.
                         "last 30 days" is a real 30-day window (backend-filtered) — keep it. */}
-                    <div className="text-[11.5px]" style={{ color: "#8A93A5" }}>Delivery success rate, last 30 days</div>
+                    <div className="text-[11.5px]" style={{ color: "var(--ink-faint)" }}>Delivery success rate, last 30 days</div>
                   </div>
                 </div>
                 <Link
@@ -936,7 +936,7 @@ export function BridgeDashboard() {
               </div>
               <div className="divide-y" style={{ borderColor: "#EEF0F4" }}>
                 {effective.suppliers.length === 0 ? (
-                  <div className="text-center" style={{ color: "#8A93A5", padding: 16, fontSize: 12.5 }}>
+                  <div className="text-center" style={{ color: "var(--ink-faint)", padding: 16, fontSize: 12.5 }}>
                     No {pluralLower} yet.
                   </div>
                 ) : (

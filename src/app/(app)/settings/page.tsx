@@ -848,7 +848,6 @@ const inputStyle: CSSProperties = {
   padding: "0 12px",
   fontSize: 13,
   color: "var(--ink)",
-  outline: "none",
   background: "var(--surface)",
 };
 
