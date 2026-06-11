@@ -3,9 +3,9 @@ import * as React from "react";
 /* =====================================================================
    UnifiedStatusBadge — the ONE canonical order/exception status badge.
 
-   Named UnifiedStatusBadge (not StatusBadge) because an unrelated
-   `StatusBadge` already exists at src/components/ui/status-badge.tsx; this
-   avoids a colliding export while we converge pages onto one mapping.
+   Named UnifiedStatusBadge (not StatusBadge) to avoid colliding with the
+   page-local `StatusBadge` helpers that still exist for NON-order statuses
+   (admin account status, invoice/ASN status, supplier-response outcome).
 
    Single source of truth for:
      - canonical human labels (STATUS_LABELS / statusLabel)

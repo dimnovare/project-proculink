@@ -24,6 +24,7 @@ import {
   type RowData,
 } from "@tanstack/react-table";
 import { FileChip } from "./FileChip";
+import { PageHeader } from "./layout/PageHeader";
 import { StatusJourney, type CrossingStatus, type OrderStage } from "./StatusJourney";
 import { useOrderDirection, type PartyLabels } from "@/hooks/useOrderDirection";
 
@@ -57,10 +58,10 @@ const INK        = NAVY;      // alias kept for existing references
 // full semantic label). PIPELINE column → standalone 5-node .journey.compact track.
 // `key` maps each CrossingStatus onto its globals.css .pill-* / status class.
 // NOTE: this is the single source of truth for order-status DISPLAY LABELS in the
-// inbox. It should later consolidate into the shared map in
-// src/components/ui/status-badge.tsx (STATUS_MAP), which keys on raw backend
-// OrderStatus rather than the collapsed CrossingStatus used here — keep the label
-// vocabulary in sync until then.
+// inbox. It should later consolidate into the canonical map in
+// src/components/bridge/UnifiedStatusBadge.tsx (STATUS_META), which keys on raw
+// backend OrderStatus rather than the collapsed CrossingStatus used here — keep
+// the label vocabulary in sync until then.
 //   - `ready`      → "Normalized": parsed/normalized but NOT yet transformed
 //                    (Parse→Normalize→Validate→[Transform]→Deliver, stage 3).
 //                    Deliberately NOT "Ready"/"Ready to send" so a row badge can't be
@@ -791,62 +792,57 @@ export function InboxView() {
   return (
     <div className="flex flex-col h-full min-h-0 overflow-hidden" style={{ background: "#F6F7FA" }}>
 
-      {/* Page header — sits on the grey canvas, table floats below in a white card */}
-      <div
-        className="flex flex-col items-start gap-3 px-4 pt-5 pb-3 sm:px-6 lg:flex-row lg:items-center lg:gap-4 flex-shrink-0"
-        style={{ background: "#F6F7FA" }}
-      >
-        <div className="flex-1">
-          <h1
-            className="text-[26px] font-semibold tracking-[-0.02em]"
-            style={{ fontFamily: "'Bricolage Grotesque', Inter, sans-serif", color: "#0B1A2F" }}
-          >
-            Inbox
-          </h1>
-          {/* Header summary = the live "what needs me?" line. The total order count
-              is shown ONCE, in the footer next to pagination — not duplicated here. */}
-          <p className="text-[13px] mt-1" style={{ color: "#56627A" }}>
-            {reviewCount.toLocaleString()} need review{" · "}{failedCount.toLocaleString()} failed
-            {selectedCount > 0 && <span style={{ color: BLUE_DEEP, marginLeft: 8 }}>· {selectedCount} selected</span>}
-          </p>
-        </div>
-
-        <div className="flex w-full flex-wrap gap-2 lg:ml-auto lg:w-auto">
-          <button
-            className="flex items-center gap-1.5 rounded-[6px] px-3 text-[12.5px] font-medium transition-colors"
-            style={{
-              height: 32,
-              border: "1px solid #E2E6EE",
-              background: "#FFFFFF",
-              color: isFetching ? "var(--ink-faint)" : "#0B1A2F",
-              cursor: isFetching ? "default" : "pointer",
-            }}
-            onClick={() => queryClient.invalidateQueries({ queryKey: ["orders"] })}
-            disabled={isFetching}
-            aria-busy={isFetching}
-          >
-            <span
-              aria-hidden
-              style={{
-                display: "inline-block",
-                animation: isFetching ? "inbox-sync-spin 0.8s linear infinite" : undefined,
-              }}
-            >
-              ↻
-            </span>
-            <style>{`@keyframes inbox-sync-spin { to { transform: rotate(360deg); } }`}</style>
-            {isFetching ? "Syncing…" : "Sync"}
-          </button>
-          <button
-            className="flex items-center gap-1.5 rounded-[6px] px-3 text-[12.5px] font-semibold transition-colors"
-            style={{ height: 32, background: BLUE, color: "#FFFFFF", border: 0 }}
-            onClick={() => router.push("/upload")}
-            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = BLUE_DEEP; }}
-            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = BLUE; }}
-          >
-            ↑ Upload order
-          </button>
-        </div>
+      {/* Page header — canonical PageHeader on the grey canvas, table floats below in a white card */}
+      <div className="px-4 pt-5 sm:px-6 flex-shrink-0" style={{ background: "#F6F7FA" }}>
+        <PageHeader
+          title="Inbox"
+          /* Header summary = the live "what needs me?" line. The total order count
+             is shown ONCE, in the footer next to pagination — not duplicated here. */
+          sub={
+            <>
+              {reviewCount.toLocaleString()} need review{" · "}{failedCount.toLocaleString()} failed
+              {selectedCount > 0 && <span style={{ color: BLUE_DEEP, marginLeft: 8 }}>· {selectedCount} selected</span>}
+            </>
+          }
+          actions={
+            <>
+              <button
+                className="flex items-center gap-1.5 rounded-[6px] px-3 text-[12.5px] font-medium transition-colors"
+                style={{
+                  height: 32,
+                  border: "1px solid #E2E6EE",
+                  background: "#FFFFFF",
+                  color: isFetching ? "var(--ink-faint)" : "#0B1A2F",
+                  cursor: isFetching ? "default" : "pointer",
+                }}
+                onClick={() => queryClient.invalidateQueries({ queryKey: ["orders"] })}
+                disabled={isFetching}
+                aria-busy={isFetching}
+              >
+                <span
+                  aria-hidden
+                  style={{
+                    display: "inline-block",
+                    animation: isFetching ? "inbox-sync-spin 0.8s linear infinite" : undefined,
+                  }}
+                >
+                  ↻
+                </span>
+                <style>{`@keyframes inbox-sync-spin { to { transform: rotate(360deg); } }`}</style>
+                {isFetching ? "Syncing…" : "Sync"}
+              </button>
+              <button
+                className="flex items-center gap-1.5 rounded-[6px] px-3 text-[12.5px] font-semibold transition-colors"
+                style={{ height: 32, background: BLUE, color: "#FFFFFF", border: 0 }}
+                onClick={() => router.push("/upload")}
+                onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = BLUE_DEEP; }}
+                onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = BLUE; }}
+              >
+                ↑ Upload order
+              </button>
+            </>
+          }
+        />
       </div>
 
       {/* Bulk action bar (shown full-width when selecting) */}

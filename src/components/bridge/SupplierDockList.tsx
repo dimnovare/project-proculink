@@ -28,6 +28,7 @@ import { getDeliveryConfig } from "@/lib/api/delivery";
 import { useQueriesEnabled } from "@/hooks/useQueriesEnabled";
 import type { DeliveryConfig, DeliveryProtocol } from "@/lib/api/types";
 import { useOrderDirection } from "@/hooks/useOrderDirection";
+import { PageHeader } from "./layout/PageHeader";
 
 // How many rows enrich themselves with a delivery-config fetch. Procurement
 // books are typically 3–20 suppliers (the ICP), so this comfortably covers a
@@ -187,48 +188,41 @@ export function SupplierDockList() {
   return (
     <div className="min-h-full" style={{ background: "#F6F7FA" }}>
       <div className="mx-auto w-full max-w-[1480px] px-4 pb-16 pt-6 sm:px-8">
-        {/* Page header */}
-        <div className="mb-5 flex flex-col items-start gap-3 sm:mb-6 sm:flex-row sm:items-start sm:justify-between sm:gap-6">
-          <div>
-            <h1
-              className="text-[28px] font-semibold leading-[1.1] tracking-[-0.025em] sm:text-[30px]"
-              style={{ fontFamily: "'Bricolage Grotesque', Inter, sans-serif", color: INK }}
-            >
-              {plural}
-            </h1>
-            <p className="mt-[5px] text-[13px]" style={{ color: TEXT_MUTED }}>
-              {isLoading
-                ? "Loading…"
-                : `${suppliers.length} active ${nounLower}${suppliers.length === 1 ? "" : "s"}`}
-            </p>
-          </div>
-
-          {/* New supplier — primary action (blue, per design source) */}
-          <div className="w-full sm:w-auto">
-            <button
-              disabled={!canAddSupplier || createMutation.isPending}
-              onClick={() => { setShowAddPanel(true); setAddError(null); }}
-              className="inline-flex h-[34px] w-full items-center justify-center gap-[7px] rounded-[7px] px-4 text-[12.5px] font-semibold tracking-[-0.005em] transition-colors sm:w-auto"
-              style={{
-                background: limitReached ? "#EFF2F7" : BLUE,
-                color: limitReached ? "var(--ink-faint)" : "#FFFFFF",
-                border: "none",
-                cursor: !canAddSupplier ? "not-allowed" : "pointer",
-                whiteSpace: "nowrap",
-                boxShadow: limitReached ? "none" : "0 1px 2px rgba(30,102,201,0.30)",
-              }}
-              onMouseEnter={(e) => { if (canAddSupplier && !limitReached) (e.currentTarget as HTMLButtonElement).style.background = BLUE_DEEP; }}
-              onMouseLeave={(e) => { if (canAddSupplier && !limitReached) (e.currentTarget as HTMLButtonElement).style.background = BLUE; }}
-            >
-              {!limitReached && (
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M5 12h14M12 5v14" />
-                </svg>
-              )}
-              {limitReached ? `${noun} limit reached` : `New ${nounLower}`}
-            </button>
-          </div>
-        </div>
+        {/* Page header — canonical PageHeader; New supplier = primary action (blue, per design source) */}
+        <PageHeader
+          title={plural}
+          sub={
+            isLoading
+              ? "Loading…"
+              : `${suppliers.length} active ${nounLower}${suppliers.length === 1 ? "" : "s"}`
+          }
+          actions={
+            <div className="w-full sm:w-auto">
+              <button
+                disabled={!canAddSupplier || createMutation.isPending}
+                onClick={() => { setShowAddPanel(true); setAddError(null); }}
+                className="inline-flex h-[34px] w-full items-center justify-center gap-[7px] rounded-[7px] px-4 text-[12.5px] font-semibold tracking-[-0.005em] transition-colors sm:w-auto"
+                style={{
+                  background: limitReached ? "#EFF2F7" : BLUE,
+                  color: limitReached ? "var(--ink-faint)" : "#FFFFFF",
+                  border: "none",
+                  cursor: !canAddSupplier ? "not-allowed" : "pointer",
+                  whiteSpace: "nowrap",
+                  boxShadow: limitReached ? "none" : "0 1px 2px rgba(30,102,201,0.30)",
+                }}
+                onMouseEnter={(e) => { if (canAddSupplier && !limitReached) (e.currentTarget as HTMLButtonElement).style.background = BLUE_DEEP; }}
+                onMouseLeave={(e) => { if (canAddSupplier && !limitReached) (e.currentTarget as HTMLButtonElement).style.background = BLUE; }}
+              >
+                {!limitReached && (
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M5 12h14M12 5v14" />
+                  </svg>
+                )}
+                {limitReached ? `${noun} limit reached` : `New ${nounLower}`}
+              </button>
+            </div>
+          }
+        />
 
         {/* Billing limit banner */}
         {billing && !billing.canAddSupplier && (

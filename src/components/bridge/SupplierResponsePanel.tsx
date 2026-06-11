@@ -7,6 +7,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api-client";
+import { useQueriesEnabled } from "@/hooks/useQueriesEnabled";
 import type { SupplierConfirmation, SupplierConfirmationLine } from "@/types/procurement";
 
 // ─── Status badge ───────────────────────────────────────────────────────────
@@ -147,14 +148,24 @@ function ConfirmationCard({ confirmation, currency }: { confirmation: SupplierCo
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
 export function SupplierResponsePanel({ orderId, currency }: { orderId: string; currency?: string }) {
+  // In mock mode (and live QA-bypass e2e) there is no Clerk session, so don't
+  // fire before the auth gate is ready — otherwise the request 401s and the
+  // panel flashes the error state on first paint (known clerkReady gotcha).
+  const queryEnabled = useQueriesEnabled();
+
   const { data: confirmations, isLoading, isError, refetch } = useQuery({
     queryKey: ["order-confirmation", orderId],
     queryFn: () => apiClient.getOrderConfirmation(orderId),
+    enabled: queryEnabled,
     retry: 1,
     staleTime: 30_000,
   });
 
-  if (isLoading) {
+  // A disabled query reports undefined data with isLoading=true; treat the
+  // not-yet-ready state as loading, never as an error (known repo gotcha).
+  const showLoading = !queryEnabled || (isLoading && confirmations === undefined);
+
+  if (showLoading) {
     return (
       <div style={{ display: "grid", gap: 10 }}>
         <div style={{ height: 16, width: 160, background: "#E2E6EE", borderRadius: 4 }} />

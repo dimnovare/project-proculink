@@ -17,7 +17,8 @@ import * as React from "react";
 
 type PageHeaderProps = {
   title: string;
-  sub?: string;
+  /** Subtitle line. Accepts inline JSX (status dots, counts) — rendered inside the canonical 13px muted paragraph. */
+  sub?: React.ReactNode;
   /** Right-aligned actions (buttons, filters). Wraps to a new line on mobile. */
   actions?: React.ReactNode;
   className?: string;

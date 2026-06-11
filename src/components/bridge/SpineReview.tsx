@@ -7,10 +7,11 @@ import type React from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState, useRef, useEffect, useCallback, useMemo, type KeyboardEvent } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { apiClient, getOrderExceptions, validateOrder, getSupplierCatalog, getMappingOverride, upsertMappingOverride, getSourceTokens, promoteMapping } from "@/lib/api-client";
+import { apiClient, getOrderExceptions, validateOrder, getSupplierCatalog, getMappingOverride, upsertMappingOverride, getSourceTokens, promoteMapping, type ConformanceFormat } from "@/lib/api-client";
+import { getDeliveryConfig } from "@/lib/api/delivery";
 import { useQueriesEnabled } from "@/hooks/useQueriesEnabled";
 import type { Order, OrderException, OrderValidationResult } from "@/types/procurement";
-import type { OrderMappingOverride, SourceToken } from "@/lib/api/types";
+import type { DeliveryConfig, DeliveryProtocol, OrderMappingOverride, SourceToken } from "@/lib/api/types";
 import { EdgeRails } from "./EdgeRails";
 import { FileChip } from "./FileChip";
 import { FailedPanel, ParseFailedPanel } from "./FailedPanels";
@@ -237,6 +238,28 @@ function outputArtifactType(artifacts: Order["artifacts"]): string {
   if (fmt === "cxml") return "cXML";
   if (fmt === "csv")  return "CSV";
   return fmt.toUpperCase();
+}
+
+// Friendly channel labels for the raw delivery protocol ids (mirrors
+// DeliveryConfigEditor / SupplierDockList).
+const PROTOCOL_LABEL: Record<DeliveryProtocol, string> = {
+  http: "HTTP",
+  sftp: "SFTP",
+  ftps: "FTPS",
+  smtp: "Email",
+  erp_erply: "Erply ERP",
+  erp_directo: "Directo ERP",
+};
+
+function deliveryChannelLabel(protocol: string): string {
+  return PROTOCOL_LABEL[protocol as DeliveryProtocol] ?? protocol.toUpperCase();
+}
+
+/** Map the supplier's configured output format onto a conformance profile id;
+ *  undefined when no named profile exists for it (panel falls back to cXML). */
+function conformanceDefaultFormat(outputFormat: string | null | undefined): ConformanceFormat | undefined {
+  const f = outputFormat?.toLowerCase();
+  return f === "cxml" || f === "ubl" || f === "x12" ? f : undefined;
 }
 
 function sleep(ms: number): Promise<void> {
@@ -1297,7 +1320,7 @@ function DocumentAnatomy({
 
 // ─── Output Preview ───────────────────────────────────────────────────────────
 
-function OutputPreview({ order, acceptedSubnodes, rejectedSubnodes, crossed, fieldValues, onOutputAction, orderId, artifacts, onLine, onMappingEditorOpenChange }: {
+function OutputPreview({ order, acceptedSubnodes, rejectedSubnodes, crossed, fieldValues, onOutputAction, orderId, artifacts, deliveryProtocol, onLine, onMappingEditorOpenChange }: {
   order: Order;
   acceptedSubnodes: Set<string>;
   rejectedSubnodes: Set<string>;
@@ -1306,6 +1329,9 @@ function OutputPreview({ order, acceptedSubnodes, rejectedSubnodes, crossed, fie
   onOutputAction: (message: string) => void;
   orderId: string;
   artifacts: Order["artifacts"];
+  /** The supplier's REAL configured delivery protocol (from delivery config).
+   *  undefined = unknown (loading/error) · null = no config saved · string = protocol id. */
+  deliveryProtocol?: string | null;
   onLine?: (id: string, el: HTMLElement | null) => void;
   /** Relays the "Edit mapping" slideover open-state up so the desktop triptych can
    *  hide the interactive wires while it's open (they bleed through the editor). */
@@ -1534,10 +1560,18 @@ function OutputPreview({ order, acceptedSubnodes, rejectedSubnodes, crossed, fie
         )}
       </div>
 
-      {/* Footer — delivery channel */}
+      {/* Footer — delivery channel. Shows the supplier's REAL configured protocol
+          (from delivery config), never a hardcoded claim (offer⇔works). */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, padding: "9px 12px", borderTop: "1px solid #EEF0F4", background: "#F6F7FA" }}>
         <span style={{ fontSize: 11, color: "#56627A" }}>
-          Delivers via <strong style={{ color: "#0B1A2F", fontWeight: 600 }}>HTTP / webhook</strong>
+          {deliveryProtocol ? (
+            <>Delivers via <strong style={{ color: "#0B1A2F", fontWeight: 600 }}>{deliveryChannelLabel(deliveryProtocol)}</strong></>
+          ) : deliveryProtocol === null ? (
+            <>Delivery channel: not configured</>
+          ) : (
+            /* unknown (config still loading / unavailable) — claim nothing */
+            <>Delivery channel: —</>
+          )}
         </span>
         <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10, color: "#A8B0BF", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "55%" }}>{endpointHint}</span>
       </div>
@@ -1743,6 +1777,8 @@ interface MobileSpineAccordionProps {
   onOutputAction: (msg: string) => void;
   orderId: string;
   artifacts: Order["artifacts"];
+  /** Supplier's configured delivery protocol — see OutputPreview. */
+  deliveryProtocol?: string | null;
   acceptingLineId?: string | null;
   lineEdit?: LineEditApi;
 }
@@ -1791,7 +1827,7 @@ function MobileSpineAccordion({
   order, nodes, editingId, fieldValues, acceptedSubnodes, rejectedSubnodes,
   crossed, onStartEdit, onChangeValue, onCommitEdit,
   onAcceptSubnode, onRejectSubnode, onKeyDown, inputRef, onOutputAction,
-  orderId, artifacts, acceptingLineId, lineEdit,
+  orderId, artifacts, deliveryProtocol, acceptingLineId, lineEdit,
 }: MobileSpineAccordionProps) {
   const lineCount = order.lines.length;
   return (
@@ -1845,6 +1881,7 @@ function MobileSpineAccordion({
           onOutputAction={onOutputAction}
           orderId={orderId}
           artifacts={artifacts}
+          deliveryProtocol={deliveryProtocol}
         />
       </AccordionPanel>
     </div>
@@ -1875,7 +1912,7 @@ function TabletSpineLayout({
   order, nodes, editingId, fieldValues, acceptedSubnodes, rejectedSubnodes,
   crossed, onStartEdit, onChangeValue, onCommitEdit,
   onAcceptSubnode, onRejectSubnode, onKeyDown, inputRef, onOutputAction,
-  orderId, artifacts, acceptingLineId, lineEdit,
+  orderId, artifacts, deliveryProtocol, acceptingLineId, lineEdit,
   onNodeHover, onZoneHover, activeZone,
 }: TabletSpineLayoutProps) {
   return (
@@ -1946,6 +1983,7 @@ function TabletSpineLayout({
               onOutputAction={onOutputAction}
               orderId={orderId}
               artifacts={order.artifacts}
+              deliveryProtocol={deliveryProtocol}
             />
           </div>
         </div>
@@ -2058,6 +2096,25 @@ export function SpineReview({ orderId }: { orderId: string }) {
     () => Array.from(new Set([...catalogCodes, ...mappingCodes])).sort((a, b) => a.localeCompare(b)),
     [catalogCodes, mappingCodes],
   );
+
+  // ── Supplier delivery config (real configured channel + output format) ─────
+  // Drives the OutputPreview footer ("Delivers via …") and the Conformance tab's
+  // default format — instead of a hardcoded "HTTP / webhook" claim (offer⇔works).
+  // Shares the ["supplier-delivery-config", id] cache key with the supplier list.
+  // Backend returns 204 → null when no config exists. Best-effort: on error the
+  // footer just shows the neutral unknown state.
+  const { data: deliveryConfig, isSuccess: deliveryConfigLoaded } = useQuery<DeliveryConfig | null>({
+    queryKey: ["supplier-delivery-config", order?.supplierId],
+    queryFn: () => getDeliveryConfig(order!.supplierId),
+    enabled: queryEnabled && !!order?.supplierId,
+    staleTime: 5 * 60_000,
+    retry: 1,
+    retryDelay: 800,
+  });
+  // undefined = unknown (loading/error) · null = known none · string = configured.
+  const deliveryProtocol: string | null | undefined = deliveryConfigLoaded
+    ? (deliveryConfig?.protocol ?? null)
+    : undefined;
 
   // ── Per-order mapping override (for WireDragLayer existing-connections + upsert) ──
   // Fetched on mount so the drag handles know which canonical→output wires are
@@ -2312,12 +2369,12 @@ export function SpineReview({ orderId }: { orderId: string }) {
         ?? (r.headerFieldsPromoted + r.lineFieldsPromoted
             + (r.outputHeaderFieldsPromoted ?? 0) + (r.outputLineFieldsPromoted ?? 0));
       const nothing = r.nothingToPromote ?? total === 0;
-      // HONEST success copy (stopgap): the promoted mapping is persisted, but
-      // nothing CONSUMES it on future orders yet — that lands in a later batch.
-      // Don't echo the backend message here, it claims auto-apply works now.
+      // Promoted mappings ARE consumed on the supplier's future orders since
+      // backend batch 4A (precedence: per-order override > promoted > fixed),
+      // so the success copy can honestly promise auto-apply now.
       const msg = nothing
         ? (r.message ?? "Nothing to save yet — wire a source field or add an output mapping first.")
-        : `Saved — ${total} field${total !== 1 ? "s" : ""} applied to this order. Supplier-wide reuse is coming soon.`;
+        : `Saved ${total} field mapping${total !== 1 ? "s" : ""} for ${order?.supplierName ?? "this supplier"} — applies to their next order automatically.`;
       setFlow(msg, nothing ? "info" : "success");
     },
     onError: (err) => setFlow(err instanceof Error ? err.message : "Couldn't save the supplier mapping.", "error"),
@@ -2872,7 +2929,7 @@ export function SpineReview({ orderId }: { orderId: string }) {
                 type="button"
                 onClick={() => promoteMutation.mutate()}
                 disabled={promoteMutation.isPending}
-                title={`Save these field mappings for ${order.supplierName} (applies to this order now; supplier-wide reuse coming soon)`}
+                title={`Save mappings for ${order.supplierName} — applies to their next order automatically.`}
                 aria-label={`Save these field mappings for ${order.supplierName}`}
                 className="hidden xl:inline-flex"
                 style={{
@@ -3299,6 +3356,7 @@ export function SpineReview({ orderId }: { orderId: string }) {
                   onOutputAction={setFlow}
                   orderId={orderId}
                   artifacts={order.artifacts}
+                  deliveryProtocol={deliveryProtocol}
                   onLine={(id, el) => { outLineEls.current[id] = el; }}
                   onMappingEditorOpenChange={setMapEditorOpen}
                 />
@@ -3329,6 +3387,7 @@ export function SpineReview({ orderId }: { orderId: string }) {
           onOutputAction={setFlow}
           orderId={orderId}
           artifacts={order.artifacts}
+          deliveryProtocol={deliveryProtocol}
           acceptingLineId={acceptingLineId}
           lineEdit={lineEditApi}
           onNodeHover={handleNodeHover}
@@ -3355,6 +3414,7 @@ export function SpineReview({ orderId }: { orderId: string }) {
           onOutputAction={setFlow}
           orderId={orderId}
           artifacts={order.artifacts}
+          deliveryProtocol={deliveryProtocol}
           acceptingLineId={acceptingLineId}
           lineEdit={lineEditApi}
         />
@@ -3420,7 +3480,17 @@ export function SpineReview({ orderId }: { orderId: string }) {
             <p className="text-[12.5px]" style={{ color: "#56627A", marginBottom: 16 }}>
               Validate the outbound document for <span className="font-mono" style={{ color: "#1E6D29" }}>{order.poNumber}</span> against a named standards profile.
             </p>
-            <ConformancePanel orderId={orderId} supplierName={order.supplierName} />
+            <ConformancePanel
+              orderId={orderId}
+              supplierName={order.supplierName}
+              /* Default the selector to the supplier's configured output format
+                 (delivery config first, generated artifact as evidence fallback);
+                 cXML only when neither maps to a named profile. */
+              defaultFormat={
+                conformanceDefaultFormat(deliveryConfig?.outputFormat)
+                  ?? conformanceDefaultFormat(order.artifacts[0]?.format)
+              }
+            />
           </div>
         </div>
       )}

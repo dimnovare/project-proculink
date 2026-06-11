@@ -73,8 +73,14 @@ function isBlocking(c: ConformanceCheck): boolean {
   return !c.passed && c.severity === "Error";
 }
 
-export function ConformancePanel({ orderId, supplierName }: { orderId: string; supplierName?: string }) {
-  const [format, setFormat] = useState<ConformanceFormat>("cxml");
+export function ConformancePanel({ orderId, supplierName, defaultFormat }: {
+  orderId: string;
+  supplierName?: string;
+  /** Initial format selection — the supplier's configured output format when it
+   *  has a named profile (cxml/ubl/x12). Falls back to cXML only when unknown. */
+  defaultFormat?: ConformanceFormat;
+}) {
+  const [format, setFormat] = useState<ConformanceFormat>(defaultFormat ?? "cxml");
   const [downloading, setDownloading] = useState(false);
   const [downloadError, setDownloadError] = useState<string | null>(null);
   const queryEnabled = useQueriesEnabled();

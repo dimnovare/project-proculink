@@ -33,22 +33,24 @@ import {
 // CHOICE-OVERLOAD REDUCTION (UX#1):
 //   The 6-tier ladder is no longer shown as one flat 6-card wall. Instead the page
 //   leads with the ROI/volume recommender (reusing recommendPlanByOrders — the
-//   same helper the landing-page ROICalculator uses) and shows THREE primary
+//   same helper the landing-page ROICalculator uses) and shows FOUR primary
 //   decisions above the fold:
 //     1. Pilot       (free trial)
-//     2. Operations  (the €399 ICP anchor, "Most popular")
-//     3. Enterprise  (contact sales)
-//   The remaining tiers (Growth, Integration, Distributor) live behind a
+//     2. Growth      (the €149 first paid step — hiding it made the cheapest
+//                     paid entry invisible at 1080p without a click)
+//     3. Operations  (the €399 ICP anchor, "Most popular")
+//     4. Enterprise  (contact sales)
+//   The remaining tiers (Integration, Distributor) live behind a
 //   "See all tiers / compare plans" disclosure so every tier — and every
-//   CHECKOUT_PLAN_ID — stays reachable, while only three cards compete for
+//   CHECKOUT_PLAN_ID — stays reachable, while only four cards compete for
 //   attention by default.
 // ─────────────────────────────────────────────────────────────────────────────
 
 const FEATURED_ID = "operations";
 
-// Above-the-fold primary decisions, in display order. Everything else (Growth,
-// Integration, Distributor) is reachable behind the "See all tiers" disclosure.
-const PRIMARY_IDS = ["pilot", "operations", "enterprise"] as const;
+// Above-the-fold primary decisions, in display order. Everything else
+// (Integration, Distributor) is reachable behind the "See all tiers" disclosure.
+const PRIMARY_IDS = ["pilot", "growth", "operations", "enterprise"] as const;
 
 // Small contextual line under each price (design's "+ one-time setup" /
 // "No card required" / "Annual contract" sub-line). Kept consistent with
@@ -216,7 +218,7 @@ export default function PricingPage() {
       {/* ── Primary pricing cards (3 above the fold) ─────────────────────── */}
       <section className="plk-section" style={{ paddingTop: 48 }}>
         <div className="plk-wrap">
-          <div className="plk-pricing-grid">
+          <div className="plk-pricing-grid plk-primary-grid">
             {PRIMARY_TIERS.map((tier) => (
               <PriceCard key={tier.id} tier={tier} recommended={tier.id === recommendedId} />
             ))}
@@ -264,8 +266,8 @@ export default function PricingPage() {
 
           {/* Secondary tiers stay in the DOM (SSR-crawlable + valid aria-controls
               target) and collapse via [hidden] when not expanded, so search
-              engines and no-JS visitors still see Growth/Integration/Distributor
-              while only three cards compete for attention by default. */}
+              engines and no-JS visitors still see Integration/Distributor
+              while only four cards compete for attention by default. */}
           <div
             id="plk-all-tiers"
             className="plk-pricing-grid plk-secondary-grid"
@@ -509,6 +511,11 @@ const PRICING_CSS = `
 
 /* Pricing grid + card (design .pricing-grid / .price-card) */
 .plk-pricing-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; align-items: start; }
+/* Primary row carries FOUR cards (Pilot / Growth / Operations / Enterprise) so
+   the cheapest paid step is above the fold at 1080p. The later @media rules
+   share its specificity and come after it in source, so the 2-col (≤1100px)
+   and 1-col (≤760px) collapses still win. */
+.plk-primary-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 /* [hidden] must beat the explicit display:grid above so the collapsed secondary
    tier panel is truly removed from layout while staying in the DOM. */
 .plk-pricing-grid[hidden] { display: none; }
