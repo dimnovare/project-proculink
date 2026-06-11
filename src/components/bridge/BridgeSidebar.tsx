@@ -14,6 +14,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { apiClient, getBillingStatus, checkAdminAccess } from "@/lib/api-client";
+import { SIDEBAR_AUTO_COLLAPSE_EVENT } from "@/lib/sidebar-auto-collapse";
 import { LAUNCH_CORE_ONLY, LAUNCH_CORE_HREFS, INBOUND_ENABLED } from "@/lib/launch-flags";
 import { useOrderDirection } from "@/hooks/useOrderDirection";
 import { useQueriesEnabled } from "@/hooks/useQueriesEnabled";
@@ -156,6 +157,9 @@ export function BridgeSidebar({
   const [collapsed, setCollapsed] = useState(false);
   // Tablet band (md→lg): force the compact rail until the viewport reaches lg.
   const [belowLg, setBelowLg] = useState(false);
+  // Screen-requested collapse (e.g. the Review screen's Full-document mode at
+  // <1440px). Session-only — never persisted; the requester restores it on exit.
+  const [autoCollapsed, setAutoCollapsed] = useState(false);
   const { organization } = useOrganization();
   const queryEnabled = useQueriesEnabled();
   // Direction-aware nav: "Suppliers" → "Customers" in inbound mode (route unchanged).
@@ -211,15 +215,29 @@ export function BridgeSidebar({
     return () => mql.removeEventListener("change", onChange);
   }, [collapseBelowLg]);
 
-  const toggle = () =>
+  // Listen for screen-requested auto-collapse (window event channel; only the
+  // collapsible desktop instance participates — the mobile drawer ignores it).
+  useEffect(() => {
+    if (!collapsible) return;
+    const onAuto = (e: Event) => setAutoCollapsed((e as CustomEvent<boolean>).detail === true);
+    window.addEventListener(SIDEBAR_AUTO_COLLAPSE_EVENT, onAuto);
+    return () => window.removeEventListener(SIDEBAR_AUTO_COLLAPSE_EVENT, onAuto);
+  }, [collapsible]);
+
+  const toggle = () => {
+    // A manual click overrides a screen-requested auto-collapse first (user
+    // agency wins; no persistence change for that step), then behaves as before.
+    if (autoCollapsed) { setAutoCollapsed(false); return; }
     setCollapsed((c) => {
       const next = !c;
       try { localStorage.setItem("pl-side", next ? "1" : "0"); } catch { /* ignore */ }
       return next;
     });
+  };
 
-  // Forced rail in the tablet band wins; otherwise honor the persisted preference.
-  const isCollapsed = (collapseBelowLg && belowLg) || (collapsible && collapsed);
+  // Forced rail in the tablet band wins; then a screen-requested auto-collapse;
+  // otherwise honor the persisted preference.
+  const isCollapsed = (collapseBelowLg && belowLg) || (collapsible && autoCollapsed) || (collapsible && collapsed);
 
   function isActive(href: string) {
     const path = href.split("?")[0];
