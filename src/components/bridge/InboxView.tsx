@@ -450,10 +450,13 @@ export function InboxView() {
   // stable reference (rebuilt only when the org's direction changes).
   const columns = useMemo(() => buildColumns(labels), [labels]);
   // Empty-state copy: outbound orders arrive from buyers; inbound from customers.
+  // Shown only in the genuinely-empty (no filter active) branch — the filtered
+  // zero-result branch has its own "No matching orders" copy, so don't open
+  // with "No orders match this filter." here.
   const emptyStateCopy =
     direction === "inbound"
-      ? "No orders match this filter. New orders land here automatically as customers send them, or upload one yourself."
-      : "No orders match this filter. New orders land here automatically as buyers send them, or upload one yourself.";
+      ? "New orders land here automatically as customers send them, or upload one yourself."
+      : "New orders land here automatically as buyers send them, or upload one yourself.";
   const [sorting, setSorting]           = useState<SortingState>([{ id: "ageMin", desc: false }]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({});

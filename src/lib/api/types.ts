@@ -467,6 +467,24 @@ export interface ConnectionRevision {
   /** 'live' in V1 — the catalog is read live at ingest (no snapshot). */
   catalogMode: string;
   itemMappings: ConnectionItemMapping[];
+  // Launch batch 3 — stored test evidence (null/absent on never-tested revisions).
+  testPassed?: boolean | null;
+  testedAt?: string | null;
+  testResultJson?: string | null;
+}
+
+/**
+ * Evidence returned by POST /api/connections/{id}/revisions/{revId}/test.
+ * The backend RUNS the real test pack (replay over recent orders + a conformance
+ * check; never delivers), stores the evidence on the revision, marks it `test`,
+ * and returns this summary. A FAILED pack still returns 200 with passed=false —
+ * failure to PASS is not failure to RUN. `summaryJson` is the stored camelCase
+ * TestPackSummary: { replay, conformance, error }.
+ */
+export interface ConnectionTestEvidence {
+  passed: boolean;
+  testedAt: string;
+  summaryJson: string;
 }
 
 /** The mutable bundle a caller may set when creating/updating a DRAFT revision. */

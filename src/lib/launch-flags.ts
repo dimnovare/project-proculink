@@ -1,10 +1,11 @@
 // Single source of truth for first-launch product scope.
 //
-// For the initial commercial launch we deliberately show a narrow, calm shell:
-// Dashboard · Upload · Inbox · Suppliers · Settings · Help. Every other route
-// still exists and resolves if navigated to directly — it is just kept out of
-// the primary navigation so the first-run product feels focused rather than
-// like a broad integration toolkit.
+// For the initial commercial launch we deliberately show a narrow, calm shell —
+// the hrefs in LAUNCH_CORE_HREFS below (dashboard, upload, inbox, suppliers,
+// connections, exceptions, system health, admin, settings, help). Every other
+// route still exists and resolves if navigated to directly — it is just kept
+// out of the primary navigation so the first-run product feels focused rather
+// than like a broad integration toolkit.
 //
 // To reveal the full product surface (drafts, buyers, rules, templates,
 // standards, operations, inbound docs), set NEXT_PUBLIC_LAUNCH_FULL_NAV=true.

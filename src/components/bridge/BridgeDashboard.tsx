@@ -13,7 +13,8 @@
 //   • the time-window selector + CSV export operate on that same order data.
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { WireTopology } from "./WireTopology";
 import type { WireBuyer, WireSupplier, Wire } from "./WireTopology";
@@ -282,10 +283,36 @@ function deriveTopology(orders: OrderSummary[], suppliers: Supplier[]): DerivedT
 
 // ─── Component ───────────────────────────────────────────────────────────────
 
+// Wizard dismissal persists per BROWSER SESSION (sessionStorage), so the guided
+// wizard doesn't re-pop on every pre-supplier /bridge visit within a session,
+// while a fresh session still offers it again. Not localStorage on purpose —
+// this is a "not right now", not a permanent preference.
+const WIZARD_DISMISSED_KEY = "plk-onboarding-wizard-dismissed";
+
 export function BridgeDashboard() {
   const [activeLane, setActiveLane] = useState<Lane | null>(null);
-  const [wizardDismissed, setWizardDismissed] = useState(false);
+  const [wizardDismissed, setWizardDismissed] = useState<boolean>(() => {
+    if (typeof window === "undefined") return false;
+    try { return window.sessionStorage.getItem(WIZARD_DISMISSED_KEY) === "1"; } catch { return false; }
+  });
   const [windowKey, setWindowKey] = useState<WindowKey>("30d");
+
+  const dismissWizard = useCallback(() => {
+    setWizardDismissed(true);
+    try { window.sessionStorage.setItem(WIZARD_DISMISSED_KEY, "1"); } catch { /* storage unavailable — in-memory state still applies */ }
+  }, []);
+  const resumeWizard = useCallback(() => {
+    setWizardDismissed(false);
+    try { window.sessionStorage.removeItem(WIZARD_DISMISSED_KEY); } catch { /* storage unavailable */ }
+  }, []);
+
+  // ?onboard=skip — the welcome page's "Skip the wizard for now" link lands here.
+  // Previously this param was never read, so the wizard re-popped anyway.
+  const searchParams = useSearchParams();
+  const onboardSkip = searchParams.get("onboard") === "skip";
+  useEffect(() => {
+    if (onboardSkip) dismissWizard();
+  }, [onboardSkip, dismissWizard]);
   // Direction-aware copy: "Supplier" → "Customer" in inbound mode (display only).
   const { direction, labels } = useOrderDirection();
   const noun = labels.counterpartyNoun;        // "Supplier" | "Customer"
@@ -411,7 +438,24 @@ export function BridgeDashboard() {
     !isApiMockMode && (windowedReceivedPage?.totalCount ?? 0) > allOrders.length;
 
   const exceptionsBad = openExceptionsAll > 0;
-  const kpis = [
+  // The exception count is only trustworthy once its source query has settled —
+  // never flash an amber strip off a loading/error state (honest zero-state =
+  // no banner at all).
+  const exceptionsCountReliable = !isApiMockMode
+    ? !summaryLoading && !summaryError
+    : !ordersLoading && !ordersError;
+  const showExceptionStrip = exceptionsCountReliable && openExceptionsAll > 0;
+  const kpis: Array<{
+    value: string;
+    label: string;
+    sub: string;
+    subColor: string;
+    subIcon: typeof ArrowUpRight | undefined;
+    edge: string;
+    loading: boolean;
+    /** When set, the whole KPI card is a link (e.g. exceptions → triage view). */
+    href?: string;
+  }> = [
     {
       value: !isApiMockMode
         ? (ordersLoading ? "…" : ordersError ? "—" : (windowedReceivedPage?.totalCount ?? windowedOrders.length).toLocaleString())
@@ -452,6 +496,9 @@ export function BridgeDashboard() {
         : exceptionsBad ? AlertTriangle : CheckCircle2,
       edge: exceptionsBad ? "#C97A14" : GREEN_BAR,
       loading: !isApiMockMode ? summaryLoading : ordersLoading,
+      // The KPI is also the entry point to triage — the card links to the
+      // exceptions view instead of being a dead number.
+      href: "/operations/exceptions",
     },
     {
       value: ordersLoading ? "…" : ordersError ? "—" : eligibleInWindow.length >= 3 ? `${autoPct}%` : "—",
@@ -492,6 +539,11 @@ export function BridgeDashboard() {
   // ── Onboarding state ──────────────────────────────────────────────────────
   const supplierCount = suppliers?.length ?? 0;
   const orderCount = allOrders.length;
+  // First-run "Resolve item mapping" target — mirrors the wizard, which routes
+  // to the uploaded order's review screen (/inbox/{id}). Prefer an order that
+  // actually has unresolved lines; else the most recent order; null → /inbox.
+  const mappingOrderId =
+    allOrders.find((o) => (o.unresolvedCount ?? 0) > 0)?.id ?? allOrders[0]?.id ?? null;
   const deliveredCount = allOrders.filter((o) => o.status === "delivered").length;
   const hasOrders = orderCount > 0;
 
@@ -716,7 +768,7 @@ export function BridgeDashboard() {
       </div>
 
       {/* Guided wizard overlay — new users without a supplier */}
-      {showWizard && <OnboardingWizard onDismiss={() => setWizardDismissed(true)} />}
+      {showWizard && <OnboardingWizard onDismiss={dismissWizard} />}
 
       {showOnboardingHero ? (
         // ── Onboarding hero: the card is the primary next step (no topology yet) ──
@@ -730,12 +782,32 @@ export function BridgeDashboard() {
               supplierCount={supplierCount}
               orderCount={orderCount}
               deliveredCount={deliveredCount}
-              onResumeSetup={() => setWizardDismissed(false)}
+              firstOrderId={mappingOrderId}
+              onResumeSetup={resumeWizard}
             />
           </div>
         </div>
       ) : (
         <div className="flex flex-1 flex-col gap-4 p-3 sm:gap-5 sm:p-5">
+          {/* ── Exception strip — founder-approved triage entry (batch 4B) ──
+              Shown only when open exceptions exist AND the count's source query
+              has settled; zero exceptions = no banner (honest zero-state). */}
+          {showExceptionStrip && (
+            <Link
+              href="/operations/exceptions"
+              className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1.5 rounded-[10px] px-4 py-3 no-underline transition-shadow hover:shadow-md"
+              style={{ border: "1px solid #F0D39A", borderLeft: "3px solid #C97A14", background: "#FFF8EA" }}
+            >
+              <span className="flex min-w-0 items-center gap-2 text-[13px] font-semibold" style={{ color: "#7A4D0B" }}>
+                <AlertTriangle size={15} strokeWidth={2.25} style={{ color: "#C97A14", flexShrink: 0 }} aria-hidden />
+                {openExceptionsAll} order{openExceptionsAll === 1 ? "" : "s"} need{openExceptionsAll === 1 ? "s" : ""} your attention
+              </span>
+              <span className="whitespace-nowrap text-[12.5px] font-semibold" style={{ color: "#9A5F0A" }}>
+                Review exceptions →
+              </span>
+            </Link>
+          )}
+
           {/* ── Wire Topology — the hero ─────────────────────────────────── */}
           {/* Single framed canvas with a cross-section top edge (buyer-blue →
               supplier-green) and a slim legend header, matching the design. */}
@@ -765,12 +837,14 @@ export function BridgeDashboard() {
                 </span>
 
                 {openExceptionsAll > 0 && (
-                  <span
-                    className="ml-auto inline-flex items-center gap-1 rounded-[5px] px-2 py-0.5 text-[11.5px] font-semibold"
+                  <Link
+                    href="/operations/exceptions"
+                    className="ml-auto inline-flex items-center gap-1 rounded-[5px] px-2 py-0.5 text-[11.5px] font-semibold no-underline transition-opacity hover:opacity-80"
                     style={{ background: "#FAEFD6", color: "#C97A14" }}
+                    title="Review exceptions"
                   >
                     ⚠ {openExceptionsAll} open exception{openExceptionsAll === 1 ? "" : "s"}
-                  </span>
+                  </Link>
                 )}
               </div>
               {/* Canvas sits flush inside the frame — strip the inner card chrome so
@@ -788,7 +862,8 @@ export function BridgeDashboard() {
               supplierCount={supplierCount}
               orderCount={orderCount}
               deliveredCount={deliveredCount}
-              onResumeSetup={() => setWizardDismissed(false)}
+              firstOrderId={mappingOrderId}
+              onResumeSetup={resumeWizard}
             />
           )}
 
@@ -798,12 +873,10 @@ export function BridgeDashboard() {
           <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
             {kpis.map((kpi, i) => {
               const SubIcon = kpi.subIcon;
-              return (
-                <div
-                  key={i}
-                  className="relative overflow-hidden rounded-card p-4 pt-[18px]"
-                  style={{ background: "#FFFFFF", border: "1px solid #E2E6EE", boxShadow: "0 1px 2px rgba(11,26,47,0.04)" }}
-                >
+              const cardClass = "relative overflow-hidden rounded-card p-4 pt-[18px]";
+              const cardStyle = { background: "#FFFFFF", border: "1px solid #E2E6EE", boxShadow: "0 1px 2px rgba(11,26,47,0.04)" } as const;
+              const inner = (
+                <>
                   <div aria-hidden style={{ position: "absolute", top: 0, left: 0, right: 0, height: 3, background: kpi.edge }} />
                   <div
                     className="text-[10.5px] font-semibold uppercase"
@@ -824,6 +897,23 @@ export function BridgeDashboard() {
                     {SubIcon && <SubIcon size={13} strokeWidth={2.25} style={{ flexShrink: 0 }} />}
                     <span className="truncate">{kpi.sub}</span>
                   </div>
+                </>
+              );
+              // KPI cards with an href are real links (e.g. Urgent exceptions →
+              // the triage view) — same chrome, plus a hover affordance.
+              return kpi.href ? (
+                <Link
+                  key={i}
+                  href={kpi.href}
+                  className={`${cardClass} no-underline transition-shadow hover:shadow-md`}
+                  style={cardStyle}
+                  title={`Open ${kpi.label.toLowerCase()}`}
+                >
+                  {inner}
+                </Link>
+              ) : (
+                <div key={i} className={cardClass} style={cardStyle}>
+                  {inner}
                 </div>
               );
             })}
