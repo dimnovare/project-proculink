@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./print.css";
 import { LEGAL_ENTITY, LEGAL_ENTITY_REFERENCE } from "@/lib/legal-entity";
+import { OVERAGE_PER_ORDER_EUR, PLANS } from "@/lib/plans";
 
 export const metadata: Metadata = {
   title: "ProcuLink — one-pager",
@@ -53,17 +54,37 @@ export default function OnePagerPage() {
       </div>
 
       <h2 style={S.h2}>Pricing</h2>
+      {/* Rows are built from src/lib/plans.ts (the shared plan ladder, aligned
+          with backend PlanConstants) so this one-pager can never go stale. */}
       <table style={S.table}>
         <thead><tr><th style={S.th}>Plan</th><th style={S.th}>Price</th><th style={S.th}>Orders / month</th><th style={S.th}>Suppliers</th></tr></thead>
         <tbody>
-          <tr><td style={S.td}>Pilot</td><td style={S.td}>Free, 14 days</td><td style={S.td}>20 total</td><td style={S.td}>1</td></tr>
-          <tr><td style={S.td}>Growth</td><td style={S.td}>€149/mo</td><td style={S.td}>150</td><td style={S.td}>5</td></tr>
-          <tr><td style={S.td}>Operations</td><td style={S.td}>€399/mo</td><td style={S.td}>500</td><td style={S.td}>10</td></tr>
-          <tr><td style={S.td}>Integration</td><td style={S.td}>€999/mo</td><td style={S.td}>1,000</td><td style={S.td}>20</td></tr>
-          <tr><td style={S.td}>Distributor</td><td style={S.td}>€1,499/mo</td><td style={S.td}>2,500</td><td style={S.td}>30</td></tr>
-          <tr><td style={S.td}>Enterprise</td><td style={S.td}>From €2,500/mo</td><td style={S.td}>Custom</td><td style={S.td}>Custom</td></tr>
+          {PLANS.filter((p) => !p.hidden).map((p) => (
+            <tr key={p.id}>
+              <td style={S.td}>{p.name}</td>
+              <td style={S.td}>
+                {p.id === "pilot"
+                  ? "Free, 14 days"
+                  : p.priceMonthly == null
+                    ? `Custom, ${p.priceCadence}`
+                    : `€${p.priceMonthly.toLocaleString("en-IE")}/mo`}
+              </td>
+              <td style={S.td}>
+                {p.orderLimit == null
+                  ? "Custom"
+                  : p.orderLimitIsMonthly
+                    ? p.orderLimit.toLocaleString("en-IE")
+                    : `${p.orderLimit} total`}
+              </td>
+              <td style={S.td}>{p.supplierLimit == null ? "Custom" : p.supplierLimit}</td>
+            </tr>
+          ))}
         </tbody>
       </table>
+      <p style={{ ...S.p, marginTop: -14, fontSize: 12 }}>
+        Paid plans never block at the included volume — additional orders bill automatically at
+        €{OVERAGE_PER_ORDER_EUR.toFixed(2)}/order.
+      </p>
 
       <h2 style={S.h2}>Trust + security</h2>
       <p style={S.p}>

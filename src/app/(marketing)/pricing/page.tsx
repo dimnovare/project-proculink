@@ -2,7 +2,13 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { PLANS, SETUP_FEE_NOTE, recommendPlanByOrders } from "@/lib/plans";
+import {
+  OVERAGE_PER_ORDER_EUR,
+  PLANS,
+  SETUP_FEE_NOTE,
+  planEffectiveMonthlyCost,
+  recommendPlanByOrders,
+} from "@/lib/plans";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Pricing page — pixel-exact port of the Claude Design source (app/Pricing.html).
@@ -92,7 +98,7 @@ const SECONDARY_TIERS = ALL_TIERS.filter(
 const FAQ: Array<[string, string]> = [
   [
     "What counts as an order?",
-    "One buyer purchase order that ProcuLink processes end to end — from inbound parse to a delivered supplier document. Re-deliveries of the same order don't count again.",
+    "One buyer purchase order that enters processing in ProcuLink. Each order counts once, at intake; retries and re-deliveries of the same order don't count again, and sample orders never count toward your allowance.",
   ],
   [
     "What happens after the Pilot?",
@@ -100,7 +106,11 @@ const FAQ: Array<[string, string]> = [
   ],
   [
     "Do you charge for failed orders?",
-    "No. An order only counts once it's successfully delivered. Validation failures and retries are free.",
+    "An order counts when it enters processing, whether or not delivery later fails. Retries and re-deliveries of the same order are free, and sample orders are always free.",
+  ],
+  [
+    "What if I go over my monthly orders?",
+    "Nothing blocks. Orders above your plan's monthly allowance are billed automatically at €0.50 per order at the end of the billing period — and the overage is capped so you never pay more than the price of the next plan that covers your volume.",
   ],
   [
     "Can I change plans later?",
@@ -108,25 +118,27 @@ const FAQ: Array<[string, string]> = [
   ],
   [
     "Where is my data stored?",
-    "All order data is stored in the EU (Frankfurt) and encrypted with AES-GCM at rest. See the Security page for the full posture.",
+    "All order data is stored and processed in the EU and encrypted with AES-GCM at rest. See the Security page for the full posture.",
   ],
 ];
 
-type Billing = "monthly" | "yearly";
-
-// Annual billing applies a 17% discount to the listed monthly price.
-const YEARLY_DISCOUNT = 0.17;
-
 export default function PricingPage() {
-  const [billing, setBilling] = useState<Billing>("monthly");
-  const yearly = billing === "yearly";
+  // NOTE: the yearly/annual billing toggle was REMOVED (2026-06-11). Yearly
+  // checkout is not wired in the self-serve flow (createCheckoutSession is only
+  // ever called with the monthly default), so offering a yearly price here
+  // violated offer⇔works. Re-add only once yearly checkout is purchasable.
 
   // Volume recommender — reuses the SAME helper the landing-page ROICalculator
   // uses (recommendPlanByOrders), so the pricing page and ROI calculator can
-  // never recommend different tiers for the same volume.
+  // never recommend different tiers for the same volume. The recommendation is
+  // COST-OPTIMAL: flat price + €0.50/order overage, cheapest effective cost.
   const [orders, setOrders] = useState(200);
   const recommended = useMemo(() => recommendPlanByOrders(orders), [orders]);
   const recommendedId = recommended.id;
+  const recommendedCost = useMemo(
+    () => planEffectiveMonthlyCost(recommended, orders),
+    [recommended, orders],
+  );
 
   // If the recommended tier lives behind the disclosure, surface it by default
   // so the recommendation is always actionable without a second click.
@@ -184,7 +196,9 @@ export default function PricingPage() {
                   ? "Custom"
                   : recommended.priceMonthly === 0
                     ? "Free"
-                    : `${recommended.priceLabel}/mo`}
+                    : recommendedCost && recommendedCost.overageOrders > 0
+                      ? `≈ €${Math.round(recommendedCost.total).toLocaleString("en-IE")}/mo (${recommended.priceLabel} + €${Math.round(recommendedCost.overageEur).toLocaleString("en-IE")} overage)`
+                      : `${recommended.priceLabel}/mo`}
               </span>
               <Link
                 href={recommended.isCustom ? recommended.cta.href : "/sign-up"}
@@ -196,27 +210,6 @@ export default function PricingPage() {
             </div>
           </div>
 
-          {/* Billing cadence toggle — the design's .billing-toggle pill */}
-          <div className="plk-toggle-wrap">
-            <div className="plk-billing-toggle" role="group" aria-label="Billing period">
-              <button
-                type="button"
-                className={!yearly ? "on" : ""}
-                aria-pressed={!yearly}
-                onClick={() => setBilling("monthly")}
-              >
-                Monthly
-              </button>
-              <button
-                type="button"
-                className={yearly ? "on" : ""}
-                aria-pressed={yearly}
-                onClick={() => setBilling("yearly")}
-              >
-                Yearly · save 17%
-              </button>
-            </div>
-          </div>
         </div>
       </header>
 
@@ -225,12 +218,7 @@ export default function PricingPage() {
         <div className="plk-wrap">
           <div className="plk-pricing-grid">
             {PRIMARY_TIERS.map((tier) => (
-              <PriceCard
-                key={tier.id}
-                tier={tier}
-                yearly={yearly}
-                recommended={tier.id === recommendedId}
-              />
+              <PriceCard key={tier.id} tier={tier} recommended={tier.id === recommendedId} />
             ))}
           </div>
 
@@ -284,12 +272,7 @@ export default function PricingPage() {
             hidden={!tiersExpanded}
           >
             {SECONDARY_TIERS.map((tier) => (
-              <PriceCard
-                key={tier.id}
-                tier={tier}
-                yearly={yearly}
-                recommended={tier.id === recommendedId}
-              />
+              <PriceCard key={tier.id} tier={tier} recommended={tier.id === recommendedId} />
             ))}
           </div>
 
@@ -341,23 +324,9 @@ export default function PricingPage() {
 
 // ─── Small components ─────────────────────────────────────────────────────────
 
-function PriceCard({
-  tier,
-  yearly,
-  recommended,
-}: {
-  tier: Tier;
-  yearly: boolean;
-  recommended: boolean;
-}) {
+function PriceCard({ tier, recommended }: { tier: Tier; recommended: boolean }) {
   const featured = tier.featured;
-
-  // Annual display: 17% off the monthly price, shown per-month.
-  const showYearly = yearly && tier.isMonthly && tier.priceMonthly;
-  const yearlyMonthly = tier.priceMonthly
-    ? Math.round(tier.priceMonthly * (1 - YEARLY_DISCOUNT))
-    : null;
-  const bigPrice = showYearly ? `€${yearlyMonthly}` : tier.price;
+  const bigPrice = tier.price;
   const priceTag = tier.isMonthly;
 
   // A card is visually emphasised when it is the static anchor (featured =
@@ -380,9 +349,15 @@ function PriceCard({
         {bigPrice}
         {priceTag && <small>/mo</small>}
       </div>
-      <div className="plk-price-note">
-        {tier.isMonthly ? (showYearly ? "billed yearly" : tier.setupNote) : tier.setupNote}
-      </div>
+      <div className="plk-price-note">{tier.setupNote}</div>
+      {/* Overage visibility (offer⇔works): paid plans never block at the
+          allowance — extra orders meter at €0.50/order. */}
+      {tier.isMonthly && tier.orderLimit != null && (
+        <div className="plk-overage-note">
+          {tier.orderLimit.toLocaleString("en-IE")} orders/mo included · then €
+          {OVERAGE_PER_ORDER_EUR.toFixed(2)}/order, never blocked
+        </div>
+      )}
 
       <Link
         href={tier.href}
@@ -521,17 +496,6 @@ const PRICING_CSS = `
 .plk-reco-out-price { font-size: 14px; font-weight: 600; color: var(--navy-text); }
 .plk-reco-cta { width: auto; margin-top: 0; margin-left: auto; }
 
-.plk-toggle-wrap { margin-top: 26px; display: flex; justify-content: center; }
-
-/* Billing toggle (design .billing-toggle) */
-.plk-billing-toggle { display: inline-flex; background: var(--surface-2); border-radius: var(--radius); padding: 3px; gap: 2px; }
-.plk-billing-toggle button {
-  border: none; background: none; padding: 7px 16px; border-radius: 5px;
-  font-size: 13px; font-weight: 600; color: var(--ink-muted); cursor: pointer;
-  transition: background var(--duration-fast), color var(--duration-fast), box-shadow var(--duration-fast);
-}
-.plk-billing-toggle button.on { background: var(--surface); color: var(--ink); box-shadow: var(--shadow-card); }
-
 /* Section head + eyebrow (design .section-head / .section-eyebrow / .section-title) */
 .plk-section-head { text-align: center; max-width: 620px; margin: 0 auto 30px; }
 .plk-section-eyebrow {
@@ -571,6 +535,7 @@ const PRICING_CSS = `
 .plk-price { font-family: var(--font-display); font-size: 40px; font-weight: 700; letter-spacing: -0.035em; margin: 14px 0 2px; color: var(--ink); line-height: 1; }
 .plk-price small { font-size: 14px; color: var(--ink-muted); font-family: var(--font-sans); font-weight: 500; letter-spacing: 0; }
 .plk-price-note { font-size: 12px; color: var(--ink-faint); min-height: 18px; }
+.plk-overage-note { font-size: 11.5px; color: var(--ink-muted); margin-top: 4px; line-height: 1.45; }
 
 /* See-all-tiers disclosure */
 .plk-disclosure { display: flex; flex-direction: column; align-items: center; gap: 8px; margin-top: 28px; }

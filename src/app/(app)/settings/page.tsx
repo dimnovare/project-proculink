@@ -306,7 +306,7 @@ function OrgSection() {
             </div>
             <div style={{ display: "flex", justifyContent: "space-between", gap: 12, fontSize: 12.5 }}>
               <dt style={{ color: "var(--ink-muted)" }}>Workspace region</dt>
-              <dd style={{ margin: 0, fontWeight: 600, color: "var(--ink)" }}>EU (Frankfurt)</dd>
+              <dd style={{ margin: 0, fontWeight: 600, color: "var(--ink)" }}>EU</dd>
             </div>
           </dl>
         </div>

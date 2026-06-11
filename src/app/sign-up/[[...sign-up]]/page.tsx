@@ -136,7 +136,7 @@ function AuthBrandPanel() {
           className="relative"
           style={{ marginTop: 32, color: "var(--navy-muted)", fontSize: 12 }}
         >
-          EU data residency · AES-GCM at rest · SOC 2 Type II in progress
+          EU data residency · AES-GCM at rest · Full audit trail
         </div>
       </div>
     </aside>

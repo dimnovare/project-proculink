@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { LEGAL_ENTITY, PRODUCT_OPERATOR_NOTICE } from "@/lib/legal-entity";
+import { SUBPROCESSORS } from "@/lib/subprocessors";
 
 export const metadata: Metadata = {
   title: "Privacy Policy — ProcuLink",
@@ -23,7 +24,7 @@ export default function PrivacyPage() {
   return (
     <div style={S.page}>
       <h1 style={S.h1}>Privacy Policy</h1>
-      <p style={S.updated}>Last updated: June 2026</p>
+      <p style={S.updated}>Last updated: 11 June 2026</p>
 
       <h2 style={S.h2}>Who we are</h2>
       <p style={S.p}>
@@ -46,7 +47,7 @@ export default function PrivacyPage() {
       <ul style={{ paddingLeft: 20, marginBottom: 14 }}>
         <li style={S.li}>To provide the ProcuLink service: parse, map, transform, and deliver your purchase orders.</li>
         <li style={S.li}>To send transactional emails such as order status notifications and billing receipts.</li>
-        <li style={S.li}>To improve the product via aggregated, anonymised analytics.</li>
+        <li style={S.li}>To improve the product via aggregated, pseudonymous product analytics.</li>
         <li style={S.li}>To comply with legal obligations, including tax records for invoiced subscriptions.</li>
       </ul>
       <p style={S.p}>We do not sell your data to third parties. We do not use your order content to train AI models.</p>
@@ -56,7 +57,8 @@ export default function PrivacyPage() {
       <ul style={{ paddingLeft: 20, marginBottom: 14 }}>
         <li style={S.li}><strong>Authentication</strong>: Clerk (US-based, EU data residency available on request)</li>
         <li style={S.li}><strong>File storage</strong>: Cloudflare R2 (EU-region bucket)</li>
-        <li style={S.li}><strong>Database</strong>: PostgreSQL hosted on Railway (EU region)</li>
+        <li style={S.li}><strong>API hosting</strong>: Railway (EU region — europe-west4, Netherlands)</li>
+        <li style={S.li}><strong>Database</strong>: PostgreSQL hosted on Neon (EU region)</li>
         <li style={S.li}><strong>Error monitoring</strong>: Sentry (EU region instance)</li>
         <li style={S.li}><strong>Frontend</strong>: Vercel (global CDN, source data stays in EU)</li>
       </ul>
@@ -64,7 +66,7 @@ export default function PrivacyPage() {
       <h2 style={S.h2}>Data retention</h2>
       <ul style={{ paddingLeft: 20, marginBottom: 14 }}>
         <li style={S.li}>Active account data is retained while your account is active.</li>
-        <li style={S.li}>Order files and output artifacts are retained for 90 days after order creation, then deleted from object storage.</li>
+        <li style={S.li}>Order files and output artifacts are retained for the life of the account by default. We delete order data on written request, and automated retention windows are on our roadmap.</li>
         <li style={S.li}>Account and billing data is deleted within 30 days of account closure on written request.</li>
         <li style={S.li}>Audit log entries are retained for the life of the account.</li>
       </ul>
@@ -88,7 +90,7 @@ export default function PrivacyPage() {
       <h2 style={S.h2}>Cookies</h2>
       <p style={S.p}>
         We use only functional cookies (authentication session, CSRF protection) and analytics
-        cookies (product usage — anonymised). We do not use advertising or cross-site tracking cookies.
+        cookies (product usage — pseudonymous). We do not use advertising or cross-site tracking cookies.
       </p>
 
       <h2 style={S.h2}>Subprocessors</h2>
@@ -106,18 +108,11 @@ export default function PrivacyPage() {
           </tr>
         </thead>
         <tbody>
-          {[
-            ["Clerk",         "Authentication and session management",  "US / EU"],
-            ["Stripe",        "Payment processing and subscriptions",   "US"],
-            ["Railway",       "API hosting and database",               "EU"],
-            ["Cloudflare R2", "Order file and artifact storage",        "EU"],
-            ["Vercel",        "Frontend hosting",                       "Global CDN"],
-            ["Sentry",        "Error monitoring and diagnostics",       "EU"],
-          ].map(([proc, purpose, loc]) => (
-            <tr key={proc}>
-              <td style={S.td}>{proc}</td>
-              <td style={S.td}>{purpose}</td>
-              <td style={S.td}>{loc}</td>
+          {SUBPROCESSORS.map((s) => (
+            <tr key={s.name}>
+              <td style={S.td}>{s.name}</td>
+              <td style={S.td}>{s.purpose}</td>
+              <td style={S.td}>{s.location}</td>
             </tr>
           ))}
         </tbody>

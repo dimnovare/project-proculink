@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { LEGAL_ENTITY, PRODUCT_OPERATOR_NOTICE } from "@/lib/legal-entity";
+import { OVERAGE_PER_ORDER_EUR, PLANS } from "@/lib/plans";
 
 export const metadata: Metadata = {
   title: "Terms of Service — ProcuLink",
@@ -20,7 +21,7 @@ export default function TermsPage() {
   return (
     <div style={S.page}>
       <h1 style={S.h1}>Terms of Service</h1>
-      <p style={S.updated}>Last updated: June 2026</p>
+      <p style={S.updated}>Last updated: 11 June 2026</p>
 
       <h2 style={S.h2}>1. Agreement</h2>
       <p style={S.p}>
@@ -59,14 +60,29 @@ export default function TermsPage() {
       </p>
 
       <h2 style={S.h2}>5. Subscription and billing</h2>
+      {/* Plan numbers come from src/lib/plans.ts (the shared frontend ladder,
+          aligned with backend PlanConstants) so the Terms can never drift. */}
       <ul style={{ paddingLeft: 20, marginBottom: 14 }}>
-        <li style={S.li}><strong>Pilot</strong>: 14-day free trial. On expiry, accounts become read-only. No Stripe card required.</li>
-        <li style={S.li}><strong>Growth</strong>: €149/month — up to 150 orders/month, 5 suppliers.</li>
-        <li style={S.li}><strong>Operations</strong>: €399/month — up to 500 orders/month, 10 suppliers.</li>
-        <li style={S.li}><strong>Integration</strong>: €999/month — up to 1,500 orders/month, 20 suppliers.</li>
-        <li style={S.li}><strong>Distributor</strong>: €1,499/month — up to 2,500 orders/month, 30 suppliers.</li>
-        <li style={S.li}><strong>Enterprise</strong>: Custom pricing. Contact us.</li>
+        {PLANS.filter((p) => !p.hidden).map((p) => (
+          <li key={p.id} style={S.li}>
+            <strong>{p.name}</strong>:{" "}
+            {p.id === "pilot"
+              ? `14-day free trial — includes ${p.orderLimit} orders total, ${p.supplierLimit} supplier. On expiry, accounts become read-only. No Stripe card required.`
+              : p.priceMonthly == null
+                ? "Custom pricing. Contact us."
+                : `€${p.priceMonthly.toLocaleString("en-IE")}/month — includes ${p.orderLimit?.toLocaleString("en-IE")} orders/month, ${p.supplierLimit} suppliers.`}
+          </li>
+        ))}
       </ul>
+      <p style={S.p}>
+        Paid plans include the monthly order volume listed above as a soft allowance, not a
+        hard cap: order processing is never blocked when you exceed it. Orders processed above
+        the included volume are billed automatically at €{OVERAGE_PER_ORDER_EUR.toFixed(2)} per
+        additional order at the end of the billing period, and the metered overage is capped so
+        your monthly total never exceeds the list price of the cheapest higher self-serve plan
+        that covers your usage. The Pilot trial allowance is a hard limit (expired trials become
+        read-only) and does not accrue overage.
+      </p>
       <p style={S.p}>
         Subscriptions are billed monthly via Stripe. No refunds are provided for partial
         months, except where required by applicable law. We will provide 30 days&apos; notice

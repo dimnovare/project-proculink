@@ -283,14 +283,68 @@ export const SETUP_FEE_NOTE =
   "Enterprise and other complex setups — arranged manually, never auto-charged, and waived for early design partners.";
 
 /**
- * Recommend the smallest plan whose monthly order allowance covers `ordersPerMonth`.
- * Used by the ROI calculator. Falls back to Enterprise above the Distributor ceiling.
+ * Per-order overage fee (EUR) on every order a paid self-serve plan processes
+ * above its monthly allowance. MUST match backend
+ * `PlanConstants.OveragePerOrderEur`. Going over the allowance never blocks —
+ * it is a soft cap, metered at €0.50/order via a Stripe invoice item.
+ */
+export const OVERAGE_PER_ORDER_EUR = 0.5;
+
+/** Enterprise "from" price floor (EUR/month) — used only as a recommendation
+ *  threshold; Enterprise itself is custom / contact-sales. */
+const ENTERPRISE_FLOOR_EUR = 2500;
+
+export interface EffectiveCost {
+  /** Flat list price + overage, EUR/month. */
+  total: number;
+  /** Orders above the plan's monthly allowance at the given volume. */
+  overageOrders: number;
+  /** Overage cost in EUR (overageOrders × €0.50). */
+  overageEur: number;
+}
+
+/**
+ * Effective monthly cost of a paid self-serve plan at a given order volume:
+ * flat price + max(0, orders − allowance) × €0.50. Returns null for plans
+ * without a fixed list price or monthly allowance (Pilot, Enterprise).
+ */
+export function planEffectiveMonthlyCost(plan: Plan, ordersPerMonth: number): EffectiveCost | null {
+  if (plan.priceMonthly == null || plan.priceMonthly <= 0 || plan.orderLimit == null || !plan.orderLimitIsMonthly) {
+    return null;
+  }
+  const overageOrders = Math.max(0, ordersPerMonth - plan.orderLimit);
+  const overageEur = overageOrders * OVERAGE_PER_ORDER_EUR;
+  return { total: plan.priceMonthly + overageEur, overageOrders, overageEur };
+}
+
+/**
+ * COST-OPTIMAL plan recommendation (mirrors the backend best-price overage
+ * logic in `PlanConstants.BestPriceOverageOrders`): walk the self-serve ladder
+ * smallest → largest and upgrade whenever the current tier's effective monthly
+ * cost (flat + €0.50 × overage) reaches the next tier's flat price — at that
+ * point you are already paying next-tier money, so you should be ON that tier
+ * (more included volume for the same or less). The backend guarantees a
+ * customer is never charged more than the cheapest tier covering their usage,
+ * so this recommendation never costs more than the old volume-fit one.
+ *
+ * Crossovers: 200 → Growth (€149 + 50×€0.50 = €174, NOT Operations €399);
+ * 650 → Operations (Growth effective hits €399); 1,700 → Integration;
+ * 2,500 → Distributor; Enterprise only once even Distributor's effective cost
+ * reaches the €2,500/mo Enterprise floor.
  */
 export function recommendPlanByOrders(ordersPerMonth: number): Plan {
   const ladder: PlanId[] = ["growth", "operations", "integration", "distributor"];
-  for (const id of ladder) {
-    const plan = PLAN_BY_ID[id];
-    if (plan.orderLimit != null && ordersPerMonth <= plan.orderLimit) return plan;
+  let current = PLAN_BY_ID[ladder[0]];
+  for (let i = 1; i < ladder.length; i++) {
+    const next = PLAN_BY_ID[ladder[i]];
+    const cost = planEffectiveMonthlyCost(current, ordersPerMonth);
+    if (cost != null && next.priceMonthly != null && cost.total >= next.priceMonthly) {
+      current = next;
+    }
   }
-  return PLAN_BY_ID.enterprise;
+  const cost = planEffectiveMonthlyCost(current, ordersPerMonth);
+  if (current.id === "distributor" && cost != null && cost.total >= ENTERPRISE_FLOOR_EUR) {
+    return PLAN_BY_ID.enterprise;
+  }
+  return current;
 }
