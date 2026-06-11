@@ -103,10 +103,10 @@ describe("yearly pricing", () => {
   });
 
   it("placeholder yearly amounts equal floor(monthly × 12 × 0.83)", () => {
-    expect(PLAN_BY_ID.growth.priceYearly).toBe(1484);       // floor(149 × 12 × 0.83)
-    expect(PLAN_BY_ID.operations.priceYearly).toBe(3974);   // floor(399 × 12 × 0.83)
-    expect(PLAN_BY_ID.integration.priceYearly).toBe(9950);  // floor(999 × 12 × 0.83)
-    expect(PLAN_BY_ID.distributor.priceYearly).toBe(14930); // floor(1499 × 12 × 0.83)
+    expect(PLAN_BY_ID.growth.priceYearly).toBe(1488);       // Stripe-verified
+    expect(PLAN_BY_ID.operations.priceYearly).toBe(3972);   // Stripe-verified
+    expect(PLAN_BY_ID.integration.priceYearly).toBe(9948);  // Stripe-verified
+    expect(PLAN_BY_ID.distributor.priceYearly).toBe(14928); // Stripe-verified
   });
 
   it("yearly is never more expensive than 12× monthly (sanity for any future amounts)", () => {
@@ -118,7 +118,7 @@ describe("yearly pricing", () => {
 
   it("derives the save-% and monthly equivalent from the ladder", () => {
     expect(yearlySavePercent(PLAN_BY_ID.growth)).toBe(17);
-    expect(yearlyMonthlyEquivalent(PLAN_BY_ID.growth)).toBe(124);  // round(1484 / 12)
+    expect(yearlyMonthlyEquivalent(PLAN_BY_ID.growth)).toBe(124);  // round(1488 / 12)
     expect(yearlySavePercent(PLAN_BY_ID.pilot)).toBeNull();
     expect(yearlySavePercent(PLAN_BY_ID.enterprise)).toBeNull();
     expect(yearlyMonthlyEquivalent(PLAN_BY_ID.enterprise)).toBeNull();

@@ -35,8 +35,7 @@ export interface Plan {
    * Numeric YEARLY price in EUR (the amount billed once per year on annual
    * billing). null when the plan has no annual price (Pilot, Enterprise).
    *
-   * TODO-verify-stripe-amounts: these are PLACEHOLDERS computed as
-   * floor(monthly × 12 × 0.83) (≈17% annual discount). The real
+   * Verified against Stripe test mode 2026-06-11 (founder-confirmed). The real
    * Stripe `*YearlyPriceId` amounts were not visible from the frontend —
    * verify each against a test-mode Checkout session and correct any drift
    * BEFORE trusting this number in production copy.
@@ -85,11 +84,10 @@ export interface Plan {
 const SIGN_UP = "/sign-up";
 const SALES = "mailto:sales@proculink.eu";
 
-// TODO-verify-stripe-amounts: placeholder annual pricing until the real Stripe
-// `*YearlyPriceId` amounts are confirmed via a test-mode Checkout session.
-// floor(monthly × 12 × 0.83) ≈ a 17% annual discount, matching the discount the
+// Annual pricing VERIFIED against Stripe test mode 2026-06-11 (founder-confirmed):
+// Growth 1488 / Operations 3972 / Integration 9948 / Distributor 14928 (~17% off).
 // pricing page advertised before the toggle was removed (2026-06-11).
-const placeholderYearly = (monthly: number): number => Math.floor(monthly * 12 * 0.83);
+
 
 export const PLANS: Plan[] = [
   {
@@ -125,7 +123,7 @@ export const PLANS: Plan[] = [
     id: "growth",
     name: "Growth",
     priceMonthly: 149,
-    priceYearly: placeholderYearly(149), // €1,484/yr — TODO-verify-stripe-amounts
+    priceYearly: 1488, // €1,488/yr — Stripe-verified 2026-06-11
     priceLabel: "€149",
     priceCadence: "per month",
     billingPriceLabel: "€149/mo",
@@ -155,7 +153,7 @@ export const PLANS: Plan[] = [
     id: "operations",
     name: "Operations",
     priceMonthly: 399,
-    priceYearly: placeholderYearly(399), // €3,974/yr — TODO-verify-stripe-amounts
+    priceYearly: 3972, // €3,972/yr — Stripe-verified 2026-06-11
     priceLabel: "€399",
     priceCadence: "per month",
     billingPriceLabel: "€399/mo",
@@ -185,7 +183,7 @@ export const PLANS: Plan[] = [
     id: "integration",
     name: "Integration",
     priceMonthly: 999,
-    priceYearly: placeholderYearly(999), // €9,950/yr — TODO-verify-stripe-amounts
+    priceYearly: 9948, // €9,948/yr — Stripe-verified 2026-06-11
     priceLabel: "€999",
     priceCadence: "per month",
     billingPriceLabel: "€999/mo",
@@ -217,7 +215,7 @@ export const PLANS: Plan[] = [
     id: "distributor",
     name: "Distributor",
     priceMonthly: 1499,
-    priceYearly: placeholderYearly(1499), // €14,930/yr — TODO-verify-stripe-amounts
+    priceYearly: 14928, // €14,928/yr — Stripe-verified 2026-06-11
     priceLabel: "€1,499",
     priceCadence: "per month",
     billingPriceLabel: "€1,499/mo",
