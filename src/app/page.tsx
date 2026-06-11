@@ -880,10 +880,6 @@ export default function RootPage() {
                 The missing link between buyers and suppliers. Turn any purchase order into the exact
                 format your supplier needs — with a full audit trail.
               </p>
-              <div className="flex items-center gap-2 mt-4" style={{ fontSize: 12 }}>
-                <span style={{ width: 7, height: 7, borderRadius: "50%", background: GREEN, display: "inline-block" }} />
-                All systems operational
-              </div>
             </div>
             {[
               { h: "Product", links: [["How it works", "/how-it-works"], ["Pricing", "/pricing"], ["Security", "/security"], ["Open the dashboard", "/bridge"]] },
@@ -896,13 +892,16 @@ export default function RootPage() {
                   {col.links.map(([label, href]) => (
                     <a key={label} href={href} style={{ color: "#9DB2CE", fontSize: 13, textDecoration: "none" }}>{label}</a>
                   ))}
+                  {col.h === "Company" && process.env.NEXT_PUBLIC_STATUS_URL && (
+                    <a href={process.env.NEXT_PUBLIC_STATUS_URL} target="_blank" rel="noopener noreferrer" style={{ color: "#9DB2CE", fontSize: 13, textDecoration: "none" }}>Status</a>
+                  )}
                 </div>
               </div>
             ))}
           </div>
           <div className="flex flex-wrap items-center justify-between gap-3 mt-12" style={{ borderTop: "1px solid #1B2D49", padding: "18px 0 28px", fontSize: 12 }}>
             <span>{COPYRIGHT_NOTICE}</span>
-            <span className="flex items-center gap-3"><span>EU data residency (Frankfurt)</span><span>·</span><span>AES-GCM at rest</span></span>
+            <span className="flex items-center gap-3"><span>EU data residency</span><span>·</span><span>AES-GCM at rest</span></span>
           </div>
         </div>
       </footer>

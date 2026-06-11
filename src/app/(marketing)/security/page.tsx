@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { SUBPROCESSORS } from "@/lib/subprocessors";
 
 export const metadata: Metadata = {
   title: "Security & trust — ProcuLink",
@@ -29,12 +30,12 @@ const BLUE = "#1E66C9"; // buyer-blue — primary CTA
 const POSTURE: Array<{ title: string; body: string; icon: React.ReactNode }> = [
   {
     title: "Encryption everywhere",
-    body: "AES-GCM at rest and TLS 1.3 in transit. Supplier delivery credentials are stored in an isolated secrets vault, never in application logs.",
+    body: "AES-GCM at rest and TLS 1.2+ in transit (TLS 1.3 where supported). Supplier delivery credentials are encrypted with AES-256-GCM authenticated encryption and never written to application logs.",
     icon: <KeyIcon />,
   },
   {
     title: "EU data residency",
-    body: "All order data is processed and stored in the EU (Frankfurt). No data leaves the region without an explicit, contracted subprocessor agreement.",
+    body: "All order data is processed and stored in EU-region infrastructure. No data leaves the region without an explicit, contracted subprocessor agreement.",
     icon: <BuildingIcon />,
   },
   {
@@ -60,18 +61,14 @@ const POSTURE: Array<{ title: string; body: string; icon: React.ReactNode }> = [
 ];
 
 const COMPLIANCE_ROWS: Array<[string, string]> = [
-  ["SOC 2 Type II", "In progress · report Q4 2026"],
   ["GDPR", "Compliant · DPA available"],
-  ["ISO 27001", "Roadmap · 2027"],
-  ["Pen testing", "Annual third-party tests"],
+  ["SOC 2", "Readiness on our roadmap"],
+  ["ISO 27001", "On our roadmap"],
 ];
 
-const SUBPROCESSOR_ROWS: Array<[string, string]> = [
-  ["Amazon Web Services", "Hosting & storage (eu-central-1)"],
-  ["OpenAI", "Mapping suggestions & PDF extraction — text, plus page images for scanned PDFs (EU residency, no training). Optional self-hosted no-egress mode skips OpenAI entirely."],
-  ["Stripe", "Billing & payments"],
-  ["Resend", "Transactional email"],
-];
+// Rendered from the single-source subprocessor list (src/lib/subprocessors.ts)
+// so this card can never diverge from /subprocessors and /privacy.
+const SUBPROCESSOR_ROWS: Array<[string, string]> = SUBPROCESSORS.map((s) => [s.name, s.purpose]);
 
 // ─── Page ───────────────────────────────────────────────────────────────────────
 
@@ -209,6 +206,12 @@ export default function SecurityPage() {
           <div>
             <h2 className="sec-col-title">Subprocessors</h2>
             <ListCard rows={SUBPROCESSOR_ROWS} />
+            <p style={{ fontSize: 12.5, color: MUTE, margin: "12px 2px 0" }}>
+              Full list with locations, contracts, and change notifications:{" "}
+              <Link href="/subprocessors" style={{ color: GREEN_DEEP }}>
+                /subprocessors
+              </Link>
+            </p>
           </div>
         </div>
       </section>
@@ -233,8 +236,8 @@ export default function SecurityPage() {
             className="sec-cta-sub"
             style={{ color: "#9DB2CE", lineHeight: 1.6, margin: "14px auto 0", maxWidth: 480 }}
           >
-            We&apos;ll share our SOC 2 progress, DPA, pen-test summary and architecture
-            overview under NDA.
+            We&apos;ll share our DPA, security overview, and architecture
+            documentation under NDA.
           </p>
           <div className="sec-cta-actions">
             <a

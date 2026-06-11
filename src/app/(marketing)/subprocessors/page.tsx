@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { SUBPROCESSORS, SUBPROCESSORS_UPDATED } from "@/lib/subprocessors";
 
 export const metadata: Metadata = {
   title: "Subprocessors — ProcuLink",
@@ -19,22 +20,14 @@ const S = {
   callout: { background: "#F6F7FA", border: "1px solid #E2E6EE", borderLeft: "3px solid #2E8E3A", borderRadius: 8, padding: "16px 18px", margin: "24px 0", fontSize: 13.5, lineHeight: 1.6, color: "#3D4A5C" },
 };
 
-const SUBPROCESSORS = [
-  { name: "Clerk",         purpose: "Authentication and session management", location: "US, EU data residency available", contract: "Clerk DPA" },
-  { name: "Stripe",        purpose: "Payment processing and subscription management", location: "US, EU establishment", contract: "Stripe DPA + SCCs" },
-  { name: "Railway",       purpose: "API and database hosting", location: "EU (Frankfurt region)", contract: "Railway DPA" },
-  { name: "Cloudflare R2", purpose: "Purchase-order file and artifact storage", location: "EU region bucket", contract: "Cloudflare DPA" },
-  { name: "Vercel",        purpose: "Frontend hosting and CDN", location: "Global CDN, source data EU", contract: "Vercel DPA + SCCs" },
-  { name: "Sentry",        purpose: "Error monitoring and diagnostics", location: "EU region", contract: "Sentry DPA" },
-  { name: "OpenAI",        purpose: "AI mapping suggestions (line-level item code suggestions)", location: "US", contract: "OpenAI Enterprise DPA + SCCs" },
-  { name: "PostHog",       purpose: "Product analytics (anonymised usage data)", location: "EU (eu.posthog.com)", contract: "PostHog DPA" },
-];
+// The subprocessor list itself lives in src/lib/subprocessors.ts — the single
+// source shared with /security and /privacy so the lists can never diverge.
 
 export default function SubprocessorsPage() {
   return (
     <div style={S.page}>
       <h1 style={S.h1}>Subprocessors</h1>
-      <p style={S.updated}>Effective: May 2026 · Version 1.0</p>
+      <p style={S.updated}>Last updated: {SUBPROCESSORS_UPDATED} · Version 1.1</p>
 
       <p style={S.intro}>
         ProcuLink uses the following subprocessors to deliver the Service. Each subprocessor

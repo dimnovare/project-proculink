@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { recommendPlanByOrders } from "@/lib/plans";
+import { OVERAGE_PER_ORDER_EUR, planEffectiveMonthlyCost, recommendPlanByOrders } from "@/lib/plans";
 
 // ─── Design tokens (Bridge Layer design system) ──────────────────────────────
 // Primary accent is BUYER-BLUE (#1E66C9) — sliders, eyebrow, annual savings.
@@ -190,19 +190,24 @@ export function ROICalculator() {
     const errorCost = orders * (errorPct / 100) * reworkCost;
     const totalPain = manualCost + errorCost;
 
+    // Cost-optimal recommendation: flat price + €0.50/order overage at this
+    // volume (mirrors backend PlanConstants best-price logic via plans.ts).
     const plan = recommendPlanByOrders(orders);
-    const planPrice = plan.isCustom ? 0 : (plan.priceMonthly ?? 0);
+    const effective = planEffectiveMonthlyCost(plan, orders);
+    const planPrice = plan.isCustom ? 0 : (effective?.total ?? plan.priceMonthly ?? 0);
+    const overageOrders = effective?.overageOrders ?? 0;
+    const overageEur = effective?.overageEur ?? 0;
     // Onboarding fees are arranged manually (not auto-charged), so the ROI math
     // treats setup as €0 — see the fine print below.
     const setup = 0;
-    const cta = plan.isCustom
-      ? { label: "Contact sales →", href: plan.cta.href }
-      : { label: `Start with ${plan.name} →`, href: "/sign-up" };
 
     // Conservative assumption: ProcuLink automates 70% of the painful flow.
     const monthlySavings = totalPain * 0.7;
-    const netMonthly = Math.max(monthlySavings - planPrice, 0);
-    const annualSavings = monthlySavings * 12;
+    // NET of the plan's effective monthly cost (can be negative — that drives
+    // the honest "start smaller" state below instead of a green upsell CTA).
+    const netMonthly = plan.isCustom ? monthlySavings : monthlySavings - planPrice;
+    const netPositive = plan.isCustom ? monthlySavings > 0 : netMonthly > 0;
+    const netAnnual = Math.max(netMonthly, 0) * 12;
     const paybackMonths =
       plan.isCustom || netMonthly <= 0 ? Infinity : (setup + planPrice) / netMonthly;
     // 3-year ROI: (savings over 36 months - cost over 36 months) / cost × 100
@@ -210,17 +215,26 @@ export function ROICalculator() {
     const savings36 = monthlySavings * 36;
     const roi3yr = !plan.isCustom && cost36 > 0 ? ((savings36 - cost36) / cost36) * 100 : 0;
 
+    const cta = plan.isCustom
+      ? { label: "Contact sales →", href: plan.cta.href }
+      : netPositive
+        ? { label: `Start with ${plan.name} →`, href: "/sign-up" }
+        : { label: "Start with the free Pilot →", href: "/sign-up" };
+
     return {
       manualCost,
       errorCost,
       totalPain,
       plan,
       planPrice,
+      overageOrders,
+      overageEur,
       setup,
       cta,
       monthlySavings,
       netMonthly,
-      annualSavings,
+      netPositive,
+      netAnnual,
       paybackMonths,
       roi3yr,
     };
@@ -381,23 +395,29 @@ export function ROICalculator() {
 
           {/* Outputs */}
           <div style={{ display: "flex", flexDirection: "column", gap: 14, alignSelf: "start" }}>
-            {/* Monthly savings — wide */}
+            {/* Net monthly savings — wide, NET of the plan's effective cost */}
             <StatCard
-              label="Monthly savings (at 70% automation)"
-              value={eur(calc.monthlySavings)}
-              sub={`${eur(calc.manualCost)} labour + ${eur(calc.errorCost)} rework today`}
-              valueColor={T.green}
+              label="Net monthly savings (after plan cost)"
+              value={calc.netPositive ? eur(Math.max(calc.netMonthly, 0)) : "€0"}
+              sub={
+                calc.plan.isCustom
+                  ? `${eur(calc.monthlySavings)} gross savings at 70% automation · plus tailored volume pricing`
+                  : `${eur(calc.monthlySavings)} gross savings (${eur(calc.manualCost)} labour + ${eur(calc.errorCost)} rework) − ${eur(calc.planPrice)} plan cost`
+              }
+              valueColor={calc.netPositive ? T.green : T.inkSoft}
             />
 
             {/* Annual + payback — side by side */}
             <div className="grid grid-cols-1 sm:grid-cols-2" style={{ gap: 14 }}>
               <StatCard
-                label="Annual savings"
-                value={eur(calc.annualSavings)}
+                label="Net annual savings"
+                value={calc.netPositive ? eur(calc.netAnnual) : "€0"}
                 sub={
                   calc.plan.isCustom
                     ? "Plus tailored volume pricing"
-                    : `${eur(calc.netMonthly)} net / month after plan cost`
+                    : calc.netPositive
+                      ? `${eur(Math.max(calc.netMonthly, 0))} net / month after plan cost`
+                      : "Plan cost exceeds estimated savings at these inputs"
                 }
                 valueColor={T.blueDeep}
               />
@@ -452,14 +472,14 @@ export function ROICalculator() {
                     <div
                       style={{
                         fontSize: 11,
-                        color: "#86E5AC",
+                        color: calc.netPositive || calc.plan.isCustom ? "#86E5AC" : "#C5D2E4",
                         fontWeight: 600,
                         letterSpacing: "0.06em",
                         textTransform: "uppercase",
                         marginBottom: 6,
                       }}
                     >
-                      Recommended plan
+                      {calc.netPositive || calc.plan.isCustom ? "Recommended plan" : "Start smaller"}
                     </div>
                     <div
                       style={{
@@ -470,7 +490,7 @@ export function ROICalculator() {
                         lineHeight: 1.1,
                       }}
                     >
-                      {calc.plan.name}
+                      {calc.netPositive || calc.plan.isCustom ? calc.plan.name : "Pilot"}
                     </div>
                   </div>
                   <div style={{ fontSize: 13, color: "#C5D2E4", whiteSpace: "nowrap" }}>
@@ -478,21 +498,30 @@ export function ROICalculator() {
                       <span style={{ fontSize: 20, fontWeight: 700, color: "#FFFFFF" }}>
                         Custom
                       </span>
-                    ) : (
+                    ) : calc.netPositive ? (
                       <>
                         <span style={{ fontSize: 22, fontWeight: 700, color: "#FFFFFF" }}>
                           {eur(calc.planPrice)}
                         </span>
                         <span style={{ fontSize: 12 }}>/mo</span>
-                        {calc.setup > 0 && (
-                          <span style={{ marginLeft: 8 }}>
-                            · {eur(calc.setup)} setup
-                          </span>
-                        )}
                       </>
+                    ) : (
+                      <span style={{ fontSize: 20, fontWeight: 700, color: "#FFFFFF" }}>
+                        Free
+                      </span>
                     )}
                   </div>
                 </div>
+                {/* Overage math, shown transparently when the volume exceeds the
+                    plan's monthly allowance (soft cap — never blocked). */}
+                {!calc.plan.isCustom && calc.netPositive && calc.overageOrders > 0 && (
+                  <p style={{ fontSize: 12.5, color: "#9DB2CE", lineHeight: 1.5, margin: "0 0 10px" }}>
+                    {eur(calc.plan.priceMonthly ?? 0)} plan + {calc.overageOrders.toLocaleString()}{" "}
+                    orders over the {calc.plan.orderLimit?.toLocaleString()}/mo allowance ×{" "}
+                    {OVERAGE_PER_ORDER_EUR.toLocaleString("en-GB", { style: "currency", currency: "EUR" })}{" "}
+                    = {eur(calc.overageEur)} overage. Processing is never blocked.
+                  </p>
+                )}
                 <p
                   style={{
                     fontSize: 13.5,
@@ -501,7 +530,9 @@ export function ROICalculator() {
                     marginBottom: 18,
                   }}
                 >
-                  {calc.plan.recommendationBlurb}
+                  {calc.plan.isCustom || calc.netPositive
+                    ? calc.plan.recommendationBlurb
+                    : `At these inputs, the ${calc.plan.name} plan (${eur(calc.planPrice)}/mo at your volume) would cost more than the ${eur(calc.monthlySavings)}/mo it saves. Start with the free 14-day Pilot — 20 orders, no card required — and upgrade once the savings are real.`}
                 </p>
                 <Link
                   href={calc.cta.href}
@@ -513,10 +544,16 @@ export function ROICalculator() {
                     padding: "12px 22px",
                     fontSize: 14,
                     fontWeight: 600,
-                    background: `linear-gradient(90deg, ${T.green}, ${T.greenDeep})`,
+                    background:
+                      calc.netPositive || calc.plan.isCustom
+                        ? `linear-gradient(90deg, ${T.green}, ${T.greenDeep})`
+                        : `linear-gradient(90deg, ${T.blue}, ${T.blueDeep})`,
                     color: "#FFFFFF",
                     textDecoration: "none",
-                    boxShadow: "0 8px 20px rgba(46,142,58,0.32)",
+                    boxShadow:
+                      calc.netPositive || calc.plan.isCustom
+                        ? "0 8px 20px rgba(46,142,58,0.32)"
+                        : "0 8px 20px rgba(30,102,201,0.32)",
                   }}
                 >
                   {calc.cta.label}
@@ -546,7 +583,9 @@ export function ROICalculator() {
           supplier-specific formats.
           Plans are billed monthly and include light, self-serve setup at no extra cost; hands-on
           per-supplier onboarding applies only to Enterprise and other complex setups, is arranged
-          manually (never auto-charged), and is waived for early design partners. The Pilot tier is
+          manually (never auto-charged), and is waived for early design partners. Paid plans include
+          a monthly order allowance; orders above it bill at €0.50/order and are never blocked — the
+          plan cost and payback maths above already include that overage. The Pilot tier is
           free for 14 days (20 orders) and does not require a card.
         </p>
       </div>

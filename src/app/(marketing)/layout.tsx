@@ -36,10 +36,6 @@ export default function MarketingLayout({
                 The missing link between buyers and suppliers. Turn any purchase order into the exact
                 format your supplier needs — with a full audit trail.
               </p>
-              <div className="flex items-center gap-2 mt-4" style={{ fontSize: 12 }}>
-                <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#2E8E3A", display: "inline-block" }} />
-                All systems operational
-              </div>
             </div>
             {FOOTER_COLS.map((col) => (
               <div key={col.h}>
@@ -61,7 +57,7 @@ export default function MarketingLayout({
           >
             <span>{COPYRIGHT_NOTICE}</span>
             <span className="flex items-center gap-3">
-              <span>EU data residency (Frankfurt)</span><span>·</span><span>AES-GCM at rest</span>
+              <span>EU data residency</span><span>·</span><span>AES-GCM at rest</span>
             </span>
           </div>
         </div>
