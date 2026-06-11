@@ -7,10 +7,9 @@ import type React from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState, useRef, useEffect, useCallback, useMemo, type KeyboardEvent } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { apiClient, getOrderExceptions, validateOrder, getSupplierCatalog, getMappingOverride, upsertMappingOverride, getSourceTokens, promoteMapping, type ConformanceFormat } from "@/lib/api-client";
+import { apiClient, getSupplierCatalog, getMappingOverride, upsertMappingOverride, getSourceTokens, promoteMapping, type ConformanceFormat } from "@/lib/api-client";
 import { getDeliveryConfig } from "@/lib/api/delivery";
-import { useQueriesEnabled } from "@/hooks/useQueriesEnabled";
-import type { Order, OrderException, OrderValidationResult } from "@/types/procurement";
+import type { Order } from "@/types/procurement";
 import type { DeliveryConfig, DeliveryProtocol, OrderMappingOverride, SourceToken } from "@/lib/api/types";
 import { EdgeRails } from "./EdgeRails";
 import { FileChip } from "./FileChip";
@@ -28,6 +27,19 @@ import { SupplierResponsePanel } from "./SupplierResponsePanel";
 import { ConformancePanel } from "./ConformancePanel";
 import { UnifiedStatusBadge } from "./UnifiedStatusBadge";
 import { useOrderDirection, type PartyLabels } from "@/hooks/useOrderDirection";
+// Batch 9 Phase A — extracted review primitives + hooks (spec:
+// docs/strategy/2026-06-11-SPINE-REDESIGN-SPEC.md). Pure moves of existing
+// logic; both the classic triptych and the Triage sub-view consume these.
+import { Kbd } from "./review/Kbd";
+import { ManualCodeRow, type LineEditApi } from "./review/ManualCodeRow";
+import { AiSuggestionContent } from "./review/AiSuggestionContent";
+import { HeaderInlineEditField } from "./review/HeaderInlineEditField";
+import { ConfirmDialog } from "./review/ConfirmDialog";
+import { FixQueueTriage } from "./review/FixQueueTriage";
+import { useOrderReview } from "./review/hooks/useOrderReview";
+import { useResolveActions } from "./review/hooks/useResolveActions";
+import { useAcceptanceValidation } from "./review/hooks/useAcceptanceValidation";
+import { useSendFlow } from "./review/hooks/useSendFlow";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -262,31 +274,7 @@ function conformanceDefaultFormat(outputFormat: string | null | undefined): Conf
   return f === "cxml" || f === "ubl" || f === "x12" ? f : undefined;
 }
 
-function sleep(ms: number): Promise<void> {
-  return new Promise(resolve => window.setTimeout(resolve, ms));
-}
-
-function finalDeliveryMessage(status: Order["status"], errorMessage: string | null | undefined, labels: PartyLabels): string {
-  if (status === "delivered") {
-    // Inbound: "Order confirmed." Outbound: "Delivered to supplier." (mechanism identical).
-    return `${labels.deliveredLabel}. The audit trail has been updated.`;
-  }
-  if (status === "delivery_failed") {
-    return errorMessage && errorMessage.trim().length > 0
-      ? `Delivery failed: ${errorMessage}`
-      : "Output generated, but delivery failed. Check the supplier Delivery tab and retry when the endpoint is ready.";
-  }
-  if (status === "rejected_by_supplier") {
-    const noun = labels.counterpartyNoun;
-    return errorMessage && errorMessage.trim().length > 0
-      ? `${noun} rejected the order: ${errorMessage}`
-      : `The ${noun.toLowerCase()} rejected the order. Open the ${noun} response tab for the rejection details.`;
-  }
-  if (status === "delivery_dead_letter") {
-    return "Delivery retries are exhausted. The order is in the dead-letter queue for operator review.";
-  }
-  return "Delivery is still processing. Refresh the order or check the Delivery Log for the latest attempt.";
-}
+// sleep + finalDeliveryMessage moved to ./review/hooks (useSendFlow/useOrderReview).
 
 // ─── Node → canonical field mapping (used for StandardsFieldPopover) ─────────
 
@@ -330,29 +318,7 @@ function ParsedChip() {
 }
 
 // ─── Header bits ──────────────────────────────────────────────────────────────
-
-/** Visible keyboard-shortcut hint chip (e.g. the "A" next to Accept). */
-function Kbd({ children }: { children: React.ReactNode }) {
-  return (
-    <kbd
-      aria-hidden
-      style={{
-        fontFamily: "'JetBrains Mono',monospace",
-        fontSize: 9,
-        fontWeight: 700,
-        lineHeight: 1,
-        padding: "2px 5px",
-        borderRadius: 4,
-        background: "rgba(255,255,255,0.22)",
-        border: "1px solid rgba(255,255,255,0.35)",
-        color: "inherit",
-        textTransform: "uppercase",
-      }}
-    >
-      {children}
-    </kbd>
-  );
-}
+// Kbd moved to ./review/Kbd (shared with the Triage rail).
 
 /** Paper-plane glyph used on the primary send action. */
 function PaperPlaneIcon() {
@@ -447,39 +413,19 @@ function TotalsSummary({ order }: { order: Order }) {
 
 // ─── SpineNodeCard ────────────────────────────────────────────────────────────
 
-// Manual supplier-code entry API, threaded into SpineNodeCard so the control
-// renders identically on mobile / tablet / desktop (it lives in the shared card,
-// not a per-breakpoint block). Persistence goes through the SAME /resolve path as
-// Accept (commitMappings + refetch) so the server needsReview send-guard clears.
-interface LineEditApi {
-  /** Datalist typeahead codes (supplier catalog ∪ saved mappings). */
-  knownCodes: string[];
-  /** The supplier's CATALOG codes — the ground truth of valid codes. Empty if no catalog uploaded. */
-  catalogCodes: string[];
-  /** Supplier display name, for the "not in {supplier}'s catalog" warning. */
-  supplierName: string;
-  /** Line id currently in manual-entry mode (only one at a time), or null. */
-  editId: string | null;
-  /** Current draft text in the manual-entry input. */
-  draft: string;
-  onStart: (lineId: string, initial: string) => void;
-  onChange: (value: string) => void;
-  onCommit: (lineId: string) => void;
-  onCancel: () => void;
-}
+// LineEditApi + ManualCodeRow moved to ./review/ManualCodeRow (shared with the
+// Triage rail). Persistence still goes through the SAME /resolve path as Accept
+// (commitMappings + refetch) so the server needsReview send-guard clears.
 
 interface SpineNodeCardProps {
   node: SpineNodeData;
   idx: number;
   editingId: string | null;
   fieldValues: Record<string, string>;
-  acceptedSubnodes: Set<string>;
-  rejectedSubnodes: Set<string>;
   onStartEdit: (id: string) => void;
   onChangeValue: (id: string, val: string) => void;
   onCommitEdit: (id: string) => void;
   onAcceptSubnode: (id: string) => void;
-  onRejectSubnode: (id: string) => void;
   onKeyDown: (e: KeyboardEvent<HTMLInputElement>, id: string) => void;
   inputRef: (el: HTMLInputElement | null, id: string) => void;
   cardRef?: (el: HTMLDivElement | null) => void;
@@ -507,74 +453,11 @@ interface SpineNodeCardProps {
   lineEdit?: LineEditApi;
 }
 
-// Manual supplier-code entry row for an unresolved line. Free text + a native
-// <datalist> typeahead of the supplier's known codes (zero deps, accessible).
-// Enter commits, Escape cancels. Persistence is the caller's job (commitMappings).
-function ManualCodeRow({ sn, lineEdit, saving }: { sn: SubNode; lineEdit: LineEditApi; saving: boolean }) {
-  const listId = `known-codes-${sn.id}`;
-  const draft = lineEdit.draft.trim();
-  const hasCatalog = lineEdit.catalogCodes.length > 0;
-  // Strong, ground-truth signal: the supplier has a catalog and this isn't one of its codes.
-  const notInCatalog = hasCatalog && draft.length > 0 && !lineEdit.catalogCodes.includes(draft);
-  // Soft signal (only when there's no catalog to check against): unseen in saved mappings.
-  const novel = !hasCatalog && draft.length > 0 && lineEdit.knownCodes.length > 0 && !lineEdit.knownCodes.includes(draft);
-  return (
-    <div style={{ marginLeft: 21, display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
-      <input
-        autoFocus
-        list={lineEdit.knownCodes.length ? listId : undefined}
-        value={lineEdit.draft}
-        onChange={(e) => lineEdit.onChange(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key === "Enter") { e.preventDefault(); lineEdit.onCommit(sn.id); }
-          if (e.key === "Escape") { e.preventDefault(); lineEdit.onCancel(); }
-        }}
-        placeholder="Supplier code"
-        aria-label={`Supplier code for line ${sn.lineNo ?? sn.sku}`}
-        disabled={saving}
-        style={{ flex: "1 1 140px", minWidth: 120, minHeight: 32, border: "1px solid #2E8E3A", borderRadius: 6, padding: "5px 8px", fontSize: 12, fontFamily: "'JetBrains Mono',monospace", background: "#F0FDF4", color: "#0B1A2F" }}
-      />
-      {lineEdit.knownCodes.length > 0 && (
-        <datalist id={listId}>
-          {lineEdit.knownCodes.map((c) => <option key={c} value={c} />)}
-        </datalist>
-      )}
-      <button
-        type="button"
-        onClick={() => lineEdit.onCommit(sn.id)}
-        disabled={saving || draft.length === 0}
-        style={{ fontSize: 11, fontWeight: 700, padding: "6px 12px", borderRadius: 6, border: "none", background: "#2E8E3A", color: "#FFFFFF", cursor: saving || draft.length === 0 ? "default" : "pointer", opacity: saving || draft.length === 0 ? 0.55 : 1, minHeight: 32 }}
-      >
-        {saving ? "Saving…" : "Save"}
-      </button>
-      <button
-        type="button"
-        onClick={lineEdit.onCancel}
-        disabled={saving}
-        style={{ fontSize: 11, fontWeight: 600, padding: "6px 10px", borderRadius: 6, border: "none", background: "transparent", color: "var(--ink-faint)", cursor: saving ? "default" : "pointer", minHeight: 32 }}
-      >
-        Cancel
-      </button>
-      {notInCatalog && (
-        <span style={{ flexBasis: "100%", fontSize: 10.5, color: "#C53A3A" }}>
-          ⚠ Not in {lineEdit.supplierName || "the supplier"}&apos;s catalog — double-check this is a real supplier code.
-        </span>
-      )}
-      {novel && (
-        <span style={{ flexBasis: "100%", fontSize: 10.5, color: "#C97A14" }}>
-          Not in saved mappings — it&apos;ll be remembered for next time.
-        </span>
-      )}
-    </div>
-  );
-}
-
 function SpineNodeCard({
   node, idx,
   editingId, fieldValues,
-  acceptedSubnodes, rejectedSubnodes,
   onStartEdit, onChangeValue, onCommitEdit,
-  onAcceptSubnode, onRejectSubnode,
+  onAcceptSubnode,
   onKeyDown, inputRef, cardRef, dotRef, onHover, activeZone,
   acceptingLineId, lineEdit,
 }: SpineNodeCardProps) {
@@ -676,25 +559,18 @@ function SpineNodeCard({
           {node.realConf ? <ConfChip pct={node.pct} /> : <ParsedChip />}
         </div>
 
-        {/* Value — editable inline */}
+        {/* Value — editable inline (extracted HeaderInlineEditField; Tab-chain
+            lives in useResolveActions.handleEditKeyDown) */}
         {isEditing ? (
-          <input
-            ref={(el) => inputRef(el, node.id)}
+          <HeaderInlineEditField
+            id={node.id}
             value={displayVal}
-            onChange={(e) => onChangeValue(node.id, e.target.value)}
-            onBlur={() => onCommitEdit(node.id)}
-            onKeyDown={(e) => onKeyDown(e, node.id)}
-            style={{
-              width: "100%",
-              border: "1px solid #2E8E3A",
-              borderRadius: 4,
-              padding: "3px 6px",
-              fontSize: node.big ? 16 : 12.5,
-              fontWeight: node.big ? 600 : 500,
-              fontFamily: node.mono ? "'JetBrains Mono',monospace" : "inherit",
-              background: "#F0FDF4",
-              color: "#0B1A2F",
-            }}
+            mono={node.mono}
+            big={node.big}
+            inputRef={inputRef}
+            onChange={onChangeValue}
+            onCommit={onCommitEdit}
+            onKeyDown={onKeyDown}
           />
         ) : node.editable ? (
           // Editable value — a real button so it is keyboard-focusable and
@@ -757,12 +633,13 @@ function SpineNodeCard({
         {node.subnodes && (
           <div style={{ marginTop: 8, paddingTop: 6, borderTop: "1px dashed #E2E6EE", display: "flex", flexDirection: "column" }}>
             {node.subnodes.map((sn, si) => {
-              const accepted = acceptedSubnodes.has(sn.id);
-              const rejected = rejectedSubnodes.has(sn.id);
-              const done = accepted || rejected;
-              // The supplier code shown in the line row: accepted → AI code; else resolved/buyer code.
-              const rowCode = accepted && sn.aiSuggestedCode ? sn.aiSuggestedCode : sn.sku;
-              const showAiCard = sn.ai && !done;
+              // SERVER TRUTH ONLY (gates G1/G2): a line renders resolved when the
+              // refetched order says so — there is no local accepted/rejected
+              // state. The old local "Reject" strike-through was a P0 dead-end
+              // (never persisted, recoverable only by reload) and is deleted;
+              // "Enter manually" is the honest alternative.
+              const rowCode = sn.sku;
+              const showAiCard = !!sn.ai;
 
               return (
                 <div key={sn.id} style={{ display: "flex", flexDirection: "column", gap: 5, paddingTop: 5, paddingBottom: 5, borderTop: si === 0 ? "none" : "1px solid #EEF0F4" }}>
@@ -778,8 +655,8 @@ function SpineNodeCard({
                       style={{
                         fontSize: 11.5,
                         fontWeight: 600,
-                        color: rejected ? "#A8B0BF" : "#0B1A2F",
-                        textDecoration: rejected ? "line-through" : "none",
+                        color: "#0B1A2F",
+                        textDecoration: "none",
                         overflow: "hidden",
                         textOverflow: "ellipsis",
                         whiteSpace: "nowrap",
@@ -791,7 +668,7 @@ function SpineNodeCard({
                     </span>
                     {/* Buyer code + qty (muted source side) + Phase 4 enrichment */}
                     <span style={{ display: "inline-flex", alignItems: "center", gap: 4, flexShrink: 0, fontFamily: "'JetBrains Mono',monospace", fontSize: 10, color: "#A8B0BF" }}>
-                      <span style={{ textDecoration: rejected ? "line-through" : "none" }}>{sn.buyerCode ?? sn.sku}</span>
+                      <span>{sn.buyerCode ?? sn.sku}</span>
                       <span style={{ color: "#C6CDDA" }}>·</span>
                       <span>×{sn.qty}</span>
                       {sn.lineAmount != null && (
@@ -815,24 +692,22 @@ function SpineNodeCard({
                     </span>
                     {/* Resolved supplier code (green) or a 'missing' pill */}
                     <span style={{ marginLeft: "auto", flexShrink: 0, display: "inline-flex", alignItems: "center" }}>
-                      {sn.err && !accepted ? (
+                      {sn.err ? (
                         <span style={{ fontSize: 10.5, fontWeight: 700, fontFamily: "Inter,sans-serif", background: "#FBE3E3", color: "#C53A3A", borderRadius: 4, padding: "1px 6px" }}>missing</span>
                       ) : (
-                        <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10, fontWeight: 700, color: rejected ? "#A8B0BF" : "#1E6D29", textDecoration: rejected ? "line-through" : "none" }}>{rowCode}</span>
+                        <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10, fontWeight: 700, color: "#1E6D29", textDecoration: "none" }}>{rowCode}</span>
                       )}
                     </span>
-                    {accepted   && <span style={{ fontSize: 9.5, fontWeight: 700, color: "#1E6D29", flexShrink: 0 }}>✓</span>}
-                    {rejected   && <span style={{ fontSize: 9.5, fontWeight: 700, color: "#C53A3A", flexShrink: 0 }}>✗</span>}
                   </div>
 
                   {/* Error line with no AI suggestion — manual supplier-code entry.
                       Lives in the shared card, so it works on mobile/tablet/desktop.
                       This closes the dead-end where an unresolved line had no way to
                       be fixed (the #1 review gap). */}
-                  {sn.err && !showAiCard && !done && lineEdit && lineEdit.editId === sn.id && (
+                  {sn.err && !showAiCard && lineEdit && lineEdit.editId === sn.id && (
                     <ManualCodeRow sn={sn} lineEdit={lineEdit} saving={acceptingLineId === sn.id} />
                   )}
-                  {sn.err && !showAiCard && !done && lineEdit && lineEdit.editId !== sn.id && (
+                  {sn.err && !showAiCard && lineEdit && lineEdit.editId !== sn.id && (
                     <div style={{ marginLeft: 21, display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
                       <span style={{ fontSize: 10.5, fontWeight: 600, color: "#C53A3A", display: "inline-flex", alignItems: "center", gap: 5 }}>
                         <span style={{ width: 4, height: 4, borderRadius: 1, background: "#C53A3A", display: "inline-block" }} />
@@ -849,89 +724,23 @@ function SpineNodeCard({
                     </div>
                   )}
                   {/* Read-only fallback (no edit API wired) — keep the honest hint. */}
-                  {sn.err && !showAiCard && !done && !lineEdit && (
+                  {sn.err && !showAiCard && !lineEdit && (
                     <div style={{ marginLeft: 21, fontSize: 10.5, fontWeight: 600, color: "#C53A3A", display: "inline-flex", alignItems: "center", gap: 5 }}>
                       <span style={{ width: 4, height: 4, borderRadius: 1, background: "#C53A3A", display: "inline-block" }} />
                       {sn.hint ?? "Needs a supplier code"} — will be held back
                     </div>
                   )}
 
-                  {/* AI suggestion card */}
+                  {/* AI suggestion card (extracted; Reject — the local-only dead-end —
+                      is gone, replaced by "Enter manually" through the server path). */}
                   {showAiCard && (
-                    <div
-                      style={{
-                        marginLeft: 21,
-                        borderRadius: 8,
-                        padding: "9px 11px",
-                        background: "#EEE7FB",
-                        border: "1px solid #DACEF3",
-                      }}
-                    >
-                      <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
-                        <span style={{ fontSize: 9.5, fontWeight: 800, letterSpacing: "0.04em", color: "#5E3DB0" }}>AI</span>
-                        <span style={{ color: "#C4ABE8" }}>·</span>
-                        <span style={{ fontSize: 9.5, fontWeight: 700, fontFamily: "'JetBrains Mono',monospace", color: "#6F4FCE" }}>{sn.pct ?? 0}%</span>
-                        <span style={{ marginLeft: "auto", fontSize: 9.5, color: "#8E7CB8" }}>
-                          {(sn.pct ?? 0) >= 85 ? "high confidence" : (sn.pct ?? 0) >= 70 ? "good match" : "low confidence"}
-                        </span>
-                      </div>
-                      <div style={{ fontSize: 11, color: "#3A2A66", marginBottom: 7, lineHeight: 1.35 }}>
-                        Suggested supplier code{" "}
-                        <span style={{ fontFamily: "'JetBrains Mono',monospace", fontWeight: 700, color: "#5E3DB0" }}>{sn.aiSuggestedCode ?? sn.sku}</span>
-                      </div>
-                      {/* AI reason / provenance — fetched + mapped since Group E but
-                          never displayed. One muted line so the reviewer sees WHY. */}
-                      {sn.aiReason && (
-                        <div style={{ fontSize: 11, color: "#6F5BA8", marginTop: -4, marginBottom: 7, lineHeight: 1.4 }}>
-                          {sn.aiReason}
-                        </div>
-                      )}
-                      <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                        {(() => {
-                          const accepting = acceptingLineId === sn.id;
-                          return (
-                            <>
-                              <button
-                                type="button"
-                                aria-label={`Accept AI suggestion for line ${sn.lineNo ?? sn.sku}`}
-                                onClick={() => onAcceptSubnode(sn.id)}
-                                disabled={accepting}
-                                style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 11, fontWeight: 700, padding: "7px 14px", borderRadius: 6, border: "none", background: "#6F4FCE", color: "#FFFFFF", cursor: accepting ? "default" : "pointer", opacity: accepting ? 0.6 : 1 }}
-                                title="Accept the AI-suggested code (shortcut: A)"
-                              >
-                                {accepting ? "Saving…" : "✓ Accept"}
-                                {!accepting && si === 0 && <Kbd>A</Kbd>}
-                              </button>
-                              <button
-                                type="button"
-                                aria-label={`Reject AI suggestion for line ${sn.lineNo ?? sn.sku}`}
-                                onClick={() => onRejectSubnode(sn.id)}
-                                disabled={accepting}
-                                style={{ fontSize: 11, fontWeight: 600, padding: "7px 11px", borderRadius: 6, border: "none", background: "transparent", color: "var(--ink-faint)", cursor: accepting ? "default" : "pointer", opacity: accepting ? 0.6 : 1 }}
-                              >
-                                Reject
-                              </button>
-                              {lineEdit && lineEdit.editId !== sn.id && (
-                                <button
-                                  type="button"
-                                  aria-label={`Enter a supplier code manually for line ${sn.lineNo ?? sn.sku}`}
-                                  onClick={() => lineEdit.onStart(sn.id, sn.aiSuggestedCode ?? "")}
-                                  disabled={accepting}
-                                  style={{ fontSize: 11, fontWeight: 600, padding: "7px 11px", borderRadius: 6, border: "none", background: "transparent", color: "#6F4FCE", cursor: accepting ? "default" : "pointer", opacity: accepting ? 0.6 : 1 }}
-                                >
-                                  Enter manually
-                                </button>
-                              )}
-                            </>
-                          );
-                        })()}
-                      </div>
-                      {lineEdit && lineEdit.editId === sn.id && (
-                        <div style={{ marginTop: 8, marginLeft: -21 }}>
-                          <ManualCodeRow sn={sn} lineEdit={lineEdit} saving={acceptingLineId === sn.id} />
-                        </div>
-                      )}
-                    </div>
+                    <AiSuggestionContent
+                      sn={sn}
+                      showAcceptKbd={si === 0}
+                      accepting={acceptingLineId === sn.id}
+                      onAccept={onAcceptSubnode}
+                      lineEdit={lineEdit}
+                    />
                   )}
                 </div>
               );
@@ -1320,10 +1129,8 @@ function DocumentAnatomy({
 
 // ─── Output Preview ───────────────────────────────────────────────────────────
 
-function OutputPreview({ order, acceptedSubnodes, rejectedSubnodes, crossed, fieldValues, onOutputAction, orderId, artifacts, deliveryProtocol, onLine, onMappingEditorOpenChange }: {
+function OutputPreview({ order, crossed, fieldValues, onOutputAction, orderId, artifacts, deliveryProtocol, onLine, onMappingEditorOpenChange }: {
   order: Order;
-  acceptedSubnodes: Set<string>;
-  rejectedSubnodes: Set<string>;
   crossed: boolean;
   fieldValues: Record<string, string>;
   onOutputAction: (message: string) => void;
@@ -1484,14 +1291,13 @@ function OutputPreview({ order, acceptedSubnodes, rejectedSubnodes, crossed, fie
             </div>
             <div ref={(el) => onLine?.("lines", el)} style={{ paddingLeft: 32, marginTop: 6, color: C.cmt }}>{"<!-- ItemOut entries -->"}</div>
             {previewLines.map((line) => {
-              const accepted = acceptedSubnodes.has(line.id);
-              const rejected = rejectedSubnodes.has(line.id);
-              if (rejected) return null;
+              // SERVER TRUTH ONLY: a line shows resolved (green) when the refetched
+              // order carries its supplierItemCode — no local accepted/rejected sets.
               const sku = line.supplierItemCode ?? line.aiSuggestion?.supplierItemCode ?? line.buyerItemCode;
-              const isAi  = !line.supplierItemCode && !!line.aiSuggestion && !accepted;
+              const isAi  = !line.supplierItemCode && !!line.aiSuggestion;
               const isErr = line.needsReview && !line.supplierItemCode && !line.aiSuggestion;
               return (
-                <div key={line.id} style={{ paddingLeft: 32, paddingTop: 2, paddingBottom: 2, background: isErr ? "rgba(197,58,58,0.08)" : accepted ? "rgba(46,142,58,0.10)" : isAi ? "rgba(111,79,206,0.07)" : "transparent", borderLeft: isErr ? "2px solid #C53A3A" : accepted ? "2px solid #2E8E3A" : isAi ? "2px solid #6F4FCE" : "none", transition: "all 200ms" }}>
+                <div key={line.id} style={{ paddingLeft: 32, paddingTop: 2, paddingBottom: 2, background: isErr ? "rgba(197,58,58,0.08)" : isAi ? "rgba(111,79,206,0.07)" : "transparent", borderLeft: isErr ? "2px solid #C53A3A" : isAi ? "2px solid #6F4FCE" : "none", transition: "all 200ms" }}>
                   <span style={{ color: C.tag }}>{"<ItemOut "}</span>
                   <span style={{ color: C.attr }}>quantity</span>{"="}
                   <span style={{ color: isErr ? C.err : C.str }}>&quot;{line.quantity}&quot;</span>
@@ -1499,10 +1305,9 @@ function OutputPreview({ order, acceptedSubnodes, rejectedSubnodes, crossed, fie
                   <span style={{ color: C.tag }}>{"<SupplierPartID>"}</span>
                   {isErr
                     ? <span style={{ color: C.err }}>⚠ UNRESOLVED</span>
-                    : <span style={{ color: accepted || !isAi ? C.ok : "#7A5BC9" }}>{sku}</span>}
+                    : <span style={{ color: !isAi ? C.ok : "#7A5BC9" }}>{sku}</span>}
                   <span style={{ color: C.tag }}>{"</SupplierPartID>"}</span>
                   {isAi && line.aiSuggestion && <span style={{ marginLeft: 8, fontSize: 9, fontWeight: 700, color: "#6F4FCE" }}>← AI mapped {Math.round(line.aiSuggestion.confidence * 100)}%</span>}
-                  {accepted && <span style={{ marginLeft: 8, fontSize: 9, fontWeight: 700, color: C.ok }}>← accepted ✓</span>}
                   {isErr && <span style={{ marginLeft: 8, fontSize: 9, fontWeight: 700, color: C.err }}>← needs review</span>}
                 </div>
               );
@@ -1535,23 +1340,20 @@ function OutputPreview({ order, acceptedSubnodes, rejectedSubnodes, crossed, fie
                 <span style={{ color: C.str }}>{row.value}</span>
               </div>
             ))}
-            <div ref={(el) => onLine?.("lines", el)} style={{ marginTop: 8, color: C.cmt }}>{`// ${previewLines.filter(l => !rejectedSubnodes.has(l.id)).length} line item(s)`}</div>
+            <div ref={(el) => onLine?.("lines", el)} style={{ marginTop: 8, color: C.cmt }}>{`// ${previewLines.length} line item(s)`}</div>
             {previewLines.map((line) => {
-              const accepted = acceptedSubnodes.has(line.id);
-              const rejected = rejectedSubnodes.has(line.id);
-              if (rejected) return null;
+              // SERVER TRUTH ONLY — see the cXML branch above.
               const sku = line.supplierItemCode ?? line.aiSuggestion?.supplierItemCode ?? line.buyerItemCode;
-              const isAi  = !line.supplierItemCode && !!line.aiSuggestion && !accepted;
+              const isAi  = !line.supplierItemCode && !!line.aiSuggestion;
               const isErr = line.needsReview && !line.supplierItemCode && !line.aiSuggestion;
               return (
-                <div key={line.id} style={{ display: "flex", gap: 8, paddingTop: 2, paddingBottom: 2, background: isErr ? "rgba(197,58,58,0.08)" : accepted ? "rgba(46,142,58,0.10)" : isAi ? "rgba(111,79,206,0.07)" : "transparent", borderLeft: isErr ? "2px solid #C53A3A" : accepted ? "2px solid #2E8E3A" : isAi ? "2px solid #6F4FCE" : "none", paddingLeft: 6, transition: "all 200ms" }}>
+                <div key={line.id} style={{ display: "flex", gap: 8, paddingTop: 2, paddingBottom: 2, background: isErr ? "rgba(197,58,58,0.08)" : isAi ? "rgba(111,79,206,0.07)" : "transparent", borderLeft: isErr ? "2px solid #C53A3A" : isAi ? "2px solid #6F4FCE" : "none", paddingLeft: 6, transition: "all 200ms" }}>
                   <span style={{ color: C.cmt, minWidth: 24, flexShrink: 0, textAlign: "right" }}>{line.lineNumber}</span>
-                  <span style={{ color: isErr ? C.err : (accepted || !isAi ? C.ok : "#7A5BC9"), flexShrink: 0 }}>
+                  <span style={{ color: isErr ? C.err : (!isAi ? C.ok : "#7A5BC9"), flexShrink: 0 }}>
                     {isErr ? "⚠ UNRESOLVED" : sku}
                   </span>
                   <span style={{ color: C.cmt }}>×{line.quantity}</span>
                   {isAi && line.aiSuggestion && <span style={{ marginLeft: "auto", fontSize: 9, fontWeight: 700, color: "#6F4FCE" }}>← AI mapped {Math.round(line.aiSuggestion.confidence * 100)}%</span>}
-                  {accepted && <span style={{ marginLeft: "auto", fontSize: 9, fontWeight: 700, color: C.ok }}>← accepted ✓</span>}
                   {isErr && <span style={{ marginLeft: "auto", fontSize: 9, fontWeight: 700, color: C.err }}>← needs review</span>}
                 </div>
               );
@@ -1579,156 +1381,7 @@ function OutputPreview({ order, acceptedSubnodes, rejectedSubnodes, crossed, fie
   );
 }
 
-// ─── Confirm Dialog ───────────────────────────────────────────────────────────
-
-function ConfirmDialog({ exceptionCount, onConfirm, onCancel, supplierName, outputFormat, grandTotal, lineCount, labels, failingRuleCount }: {
-  exceptionCount: number;
-  onConfirm: () => void;
-  onCancel: () => void;
-  supplierName: string;
-  outputFormat: string;
-  grandTotal: string;
-  lineCount: number;
-  labels: PartyLabels;
-  /** Number of acceptance-profile rules that FAILED the last validation; 0 if it passed or wasn't run. Requires an explicit ack before send. */
-  failingRuleCount: number;
-}) {
-  const inbound = labels.counterpartyNoun === "Customer";
-  const [checked, setChecked] = useState(false);
-  // Second acknowledgement, required only when validation flagged failing rules.
-  const [ackValidation, setAckValidation] = useState(false);
-  const canConfirm = checked && (failingRuleCount === 0 || ackValidation);
-  const checkRef = useRef<HTMLInputElement>(null);
-  const dialogRef = useRef<HTMLDivElement>(null);
-  const titleId = "spine-confirm-title";
-
-  // Move focus into the dialog on open and restore it to the previously-focused
-  // element (the Send button) when the dialog closes.
-  useEffect(() => {
-    const previouslyFocused = document.activeElement as HTMLElement | null;
-    checkRef.current?.focus();
-    return () => previouslyFocused?.focus?.();
-  }, []);
-
-  function handleKeyDown(e: globalThis.KeyboardEvent) {
-    if (e.key === "Escape") { onCancel(); return; }
-    if (e.key === "Enter" && canConfirm) { onConfirm(); return; }
-    // Focus trap — keep Tab within the dialog's focusable elements.
-    if (e.key === "Tab" && dialogRef.current) {
-      const focusables = dialogRef.current.querySelectorAll<HTMLElement>(
-        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
-      );
-      if (focusables.length === 0) return;
-      const first = focusables[0];
-      const last = focusables[focusables.length - 1];
-      const active = document.activeElement;
-      if (e.shiftKey && active === first) { e.preventDefault(); last.focus(); }
-      else if (!e.shiftKey && active === last) { e.preventDefault(); first.focus(); }
-    }
-  }
-  useEffect(() => {
-    document.addEventListener("keydown", handleKeyDown);
-    return () => document.removeEventListener("keydown", handleKeyDown);
-  });
-
-  return (
-    <>
-      <div style={{ position: "fixed", inset: 0, background: "rgba(11,26,47,0.6)", backdropFilter: "blur(4px)", zIndex: 9990 }} onClick={onCancel} />
-      <div
-        ref={dialogRef}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby={titleId}
-        style={{ position: "fixed", top: "50%", left: "50%", transform: "translate(-50%,-50%)", width: 440, background: "#FFFFFF", borderRadius: 12, boxShadow: "0 24px 64px rgba(11,26,47,0.22)", border: "1px solid #E2E6EE", zIndex: 9991, overflow: "hidden" }}
-      >
-        {/* Header */}
-        <div style={{ padding: "20px 24px 0" }}>
-          <div id={titleId} style={{ fontFamily: "'Bricolage Grotesque',Inter,sans-serif", fontSize: 18, fontWeight: 700, color: "#0B1A2F", marginBottom: 6 }}>{inbound ? "Confirm this order?" : "Send order to supplier?"}</div>
-          <p style={{ fontSize: 13, color: "#56627A", lineHeight: 1.55, margin: 0 }}>
-            This will {inbound ? "confirm" : "deliver"} the transformed {outputFormat.toUpperCase()} order {inbound ? "for" : "to"} <strong style={{ color: "#0B1A2F" }}>{supplierName}</strong>
-          </p>
-        </div>
-
-        {/* Summary */}
-        <div style={{ margin: "16px 24px", padding: "12px 14px", background: "#F6F7FA", borderRadius: 8, border: "1px solid #E2E6EE" }}>
-          <div style={{ display: "flex", gap: 20 }}>
-            {[
-              { label: "Grand total",    value: grandTotal },
-              { label: "Lines",          value: `${lineCount} item${lineCount !== 1 ? "s" : ""}` },
-              { label: "Exceptions",     value: `${exceptionCount}`, color: exceptionCount > 0 ? "#C97A14" : "#1E6D29" },
-              { label: "Format",         value: outputFormat.toUpperCase() },
-            ].map(({ label, value, color }) => (
-              <div key={label} style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--ink-faint)", marginBottom: 2 }}>{label}</div>
-                <div style={{ fontSize: 13, fontWeight: 600, color: color ?? "#0B1A2F", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{value}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Confirmation checkbox */}
-        <div style={{ margin: "0 24px 20px", display: "flex", alignItems: "flex-start", gap: 10 }}>
-          <input
-            ref={checkRef}
-            type="checkbox"
-            id="confirm-check"
-            checked={checked}
-            onChange={(e) => setChecked(e.target.checked)}
-            style={{ marginTop: 2, width: 15, height: 15, accentColor: "#2E8E3A", cursor: "pointer", flexShrink: 0 }}
-          />
-          <label htmlFor="confirm-check" style={{ fontSize: 13, color: "#0B1A2F", lineHeight: 1.5, cursor: "pointer" }}>
-            {exceptionCount === 0
-              ? <>Everything checks out. {inbound ? `Confirm for ${supplierName}` : `Send to ${supplierName}`}.</>
-              : <>I've reviewed the {exceptionCount} exception{exceptionCount !== 1 ? "s" : ""}. {inbound ? `Confirm for ${supplierName}` : `Send to ${supplierName}`}.</>}
-          </label>
-        </div>
-
-        {/* Validation-failure acknowledgement — only when the last "Validate
-            against profile" run found failing acceptance rules. Doesn't hard-block
-            (the supplier may still accept), but requires an explicit ack. */}
-        {failingRuleCount > 0 && (
-          <div style={{ margin: "0 24px 20px", padding: "10px 12px", background: "#FFF7F7", border: "1px solid #F0D2D2", borderRadius: 6 }}>
-            <div style={{ fontSize: 11.5, fontWeight: 700, color: "#C53A3A", marginBottom: 6 }}>
-              ⚠ {failingRuleCount} acceptance rule{failingRuleCount !== 1 ? "s" : ""} failed validation
-            </div>
-            <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
-              <input
-                type="checkbox"
-                id="confirm-ack-validation"
-                checked={ackValidation}
-                onChange={(e) => setAckValidation(e.target.checked)}
-                style={{ marginTop: 2, width: 15, height: 15, accentColor: "#C53A3A", cursor: "pointer", flexShrink: 0 }}
-              />
-              <label htmlFor="confirm-ack-validation" style={{ fontSize: 12.5, color: "#0B1A2F", lineHeight: 1.5, cursor: "pointer" }}>
-                Send anyway — I understand this order doesn&apos;t meet {supplierName}&apos;s acceptance rules and may be rejected.
-              </label>
-            </div>
-          </div>
-        )}
-
-        {/* Retry note */}
-        <div style={{ margin: "0 24px 20px", padding: "8px 12px", background: "#ECFDF3", borderRadius: 6, fontSize: 11.5, color: "#1E6D29" }}>
-          On delivery failure: 3 automatic retries · 30-min intervals · we&apos;ll email you
-        </div>
-
-        {/* Actions */}
-        <div style={{ padding: "14px 24px", borderTop: "1px solid #E2E6EE", display: "flex", gap: 10, justifyContent: "flex-end" }}>
-          <button onClick={onCancel} style={{ padding: "9px 18px", borderRadius: 7, fontSize: 13, fontWeight: 500, background: "#FFFFFF", color: "#56627A", border: "1px solid #E2E6EE", cursor: "pointer" }}>
-            Cancel
-          </button>
-          <button
-            onClick={() => canConfirm && onConfirm()}
-            disabled={!canConfirm}
-            style={{ padding: "9px 24px", borderRadius: 7, fontSize: 13, fontWeight: 600, background: canConfirm ? "#0B1A2F" : "#C6CDDA", color: "#FFFFFF", border: "none", cursor: canConfirm ? "pointer" : "not-allowed", display: "flex", alignItems: "center", gap: 8, transition: "background 150ms" }}
-          >
-            {labels.primaryCta} →
-            <span style={{ width: 10, height: 10, borderRadius: 2, background: "linear-gradient(90deg,#1E6D29,#2E8E3A)", display: "inline-block" }} />
-          </button>
-        </div>
-      </div>
-    </>
-  );
-}
+// ConfirmDialog moved to ./review/ConfirmDialog (shared by both sub-views).
 
 // ─── Success toast ────────────────────────────────────────────────────────────
 
@@ -1764,14 +1417,11 @@ interface MobileSpineAccordionProps {
   nodes: SpineNodeData[];
   editingId: string | null;
   fieldValues: Record<string, string>;
-  acceptedSubnodes: Set<string>;
-  rejectedSubnodes: Set<string>;
   crossed: boolean;
   onStartEdit: (id: string) => void;
   onChangeValue: (id: string, val: string) => void;
   onCommitEdit: (id: string) => void;
   onAcceptSubnode: (id: string) => void;
-  onRejectSubnode: (id: string) => void;
   onKeyDown: (e: KeyboardEvent<HTMLInputElement>, id: string) => void;
   inputRef: (el: HTMLInputElement | null, id: string) => void;
   onOutputAction: (msg: string) => void;
@@ -1824,9 +1474,9 @@ function MobileFlowConnector() {
 }
 
 function MobileSpineAccordion({
-  order, nodes, editingId, fieldValues, acceptedSubnodes, rejectedSubnodes,
+  order, nodes, editingId, fieldValues,
   crossed, onStartEdit, onChangeValue, onCommitEdit,
-  onAcceptSubnode, onRejectSubnode, onKeyDown, inputRef, onOutputAction,
+  onAcceptSubnode, onKeyDown, inputRef, onOutputAction,
   orderId, artifacts, deliveryProtocol, acceptingLineId, lineEdit,
 }: MobileSpineAccordionProps) {
   const lineCount = order.lines.length;
@@ -1850,13 +1500,10 @@ function MobileSpineAccordion({
                 idx={i}
                 editingId={editingId}
                 fieldValues={fieldValues}
-                acceptedSubnodes={acceptedSubnodes}
-                rejectedSubnodes={rejectedSubnodes}
                 onStartEdit={onStartEdit}
                 onChangeValue={onChangeValue}
                 onCommitEdit={onCommitEdit}
                 onAcceptSubnode={onAcceptSubnode}
-                onRejectSubnode={onRejectSubnode}
                 onKeyDown={onKeyDown}
                 inputRef={inputRef}
                 acceptingLineId={acceptingLineId}
@@ -1874,8 +1521,6 @@ function MobileSpineAccordion({
       <AccordionPanel step={3} label="Supplier output" sub={order.supplierName} accent="#2E8E3A">
         <OutputPreview
           order={order}
-          acceptedSubnodes={acceptedSubnodes}
-          rejectedSubnodes={rejectedSubnodes}
           crossed={crossed}
           fieldValues={fieldValues}
           onOutputAction={onOutputAction}
@@ -1909,9 +1554,9 @@ interface TabletSpineLayoutProps extends MobileSpineAccordionProps {
 }
 
 function TabletSpineLayout({
-  order, nodes, editingId, fieldValues, acceptedSubnodes, rejectedSubnodes,
+  order, nodes, editingId, fieldValues,
   crossed, onStartEdit, onChangeValue, onCommitEdit,
-  onAcceptSubnode, onRejectSubnode, onKeyDown, inputRef, onOutputAction,
+  onAcceptSubnode, onKeyDown, inputRef, onOutputAction,
   orderId, artifacts, deliveryProtocol, acceptingLineId, lineEdit,
   onNodeHover, onZoneHover, activeZone,
 }: TabletSpineLayoutProps) {
@@ -1934,13 +1579,10 @@ function TabletSpineLayout({
                 idx={i}
                 editingId={editingId}
                 fieldValues={fieldValues}
-                acceptedSubnodes={acceptedSubnodes}
-                rejectedSubnodes={rejectedSubnodes}
                 onStartEdit={onStartEdit}
                 onChangeValue={onChangeValue}
                 onCommitEdit={onCommitEdit}
                 onAcceptSubnode={onAcceptSubnode}
-                onRejectSubnode={onRejectSubnode}
                 onKeyDown={onKeyDown}
                 inputRef={inputRef}
                 onHover={onNodeHover}
@@ -1976,8 +1618,6 @@ function TabletSpineLayout({
             </div>
             <OutputPreview
               order={order}
-              acceptedSubnodes={acceptedSubnodes}
-              rejectedSubnodes={rejectedSubnodes}
               crossed={crossed}
               fieldValues={fieldValues}
               onOutputAction={onOutputAction}
@@ -1993,11 +1633,7 @@ function TabletSpineLayout({
 }
 
 // ─── Main component ───────────────────────────────────────────────────────────
-
-// ── Stuck-order threshold (mirrors the StuckOrderDetectionJob: 30 min for production,
-// but we surface a UI warning much earlier — at 2 min — so operators can investigate
-// before the backend job fires.)
-const STUCK_WARN_MS = 2 * 60 * 1000; // 2 minutes
+// Stuck-order detection moved to ./review/hooks/useOrderReview.
 
 // STABLE empty array for the source-tokens query default. A `= []` destructuring
 // default allocates a NEW array every render while the query is loading/disabled,
@@ -2013,27 +1649,10 @@ export function SpineReview({ orderId }: { orderId: string }) {
   // "Confirm order" and its progress/done states (mechanism UNCHANGED — still
   // transform + deliver). Output-artifact labels (cXML/"Output") stay neutral.
   const { labels } = useOrderDirection();
-  // Mock mode AND live QA-bypass e2e have no Clerk session, so gate queries via
-  // useQueriesEnabled (mock OR qa-bypass OR signed-in) — otherwise those pages
-  // (and the e2e suite) starve on a disabled query.
-  const queryEnabled = useQueriesEnabled();
 
-  // ── Live order data ────────────────────────────────────────────────────────
-  const { data: order, isLoading, isError, refetch: refetchOrder } = useQuery({
-    queryKey: ["order", orderId],
-    queryFn: () => apiClient.getOrderById(orderId),
-    enabled: queryEnabled,
-    retry: 2,
-    retryDelay: 600,
-    staleTime: 30_000,
-    // Auto-refresh while the pipeline is mid-flight so the screen updates on its
-    // own (parse → transform → deliver) instead of looking stuck until the 2-min
-    // banner fires. Stops polling once the order reaches a terminal state.
-    refetchInterval: (query) => {
-      const s = query.state.data?.status;
-      return s === "parsing" || s === "transforming" || s === "ready_to_deliver" ? 3_000 : false;
-    },
-  });
+  // ── Live order data (extracted hook — query + stuck detection + SERVER-truth
+  //    exceptionCount; gates queries via useQueriesEnabled internally) ─────────
+  const { order, isLoading, isError, refetchOrder, isStuck, exceptionCount, queryEnabled } = useOrderReview(orderId);
 
   const { data: auditEvents = [] } = useQuery({
     queryKey: ["order-audit", orderId],
@@ -2041,15 +1660,6 @@ export function SpineReview({ orderId }: { orderId: string }) {
     enabled: order?.status === "failed",
     retry: 1,
     staleTime: 60_000,
-  });
-
-  // ── Order exceptions (Task 1.G.2) ─────────────────────────────────────────
-  const { data: orderExceptions = [] } = useQuery<OrderException[]>({
-    queryKey: ["order-exceptions", orderId],
-    queryFn: () => getOrderExceptions(orderId),
-    enabled: queryEnabled && !!orderId,
-    staleTime: 30_000,
-    retry: 1,
   });
 
   // ── Known supplier codes (datalist typeahead for manual line resolution) ───
@@ -2165,23 +1775,6 @@ export function SpineReview({ orderId }: { orderId: string }) {
   // a right-side drag in quick succession don't cancel each other's save.
   const srcWireDebRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // ── Validation mutation (Task 1.F.4) ──────────────────────────────────────
-  const [validationResult, setValidationResult] = useState<OrderValidationResult | null>(null);
-  const validateMutation = useMutation({
-    mutationFn: () => validateOrder(orderId),
-    onSuccess: (result) => {
-      setValidationResult(result);
-      void qc.invalidateQueries({ queryKey: ["order", orderId] });
-    },
-  });
-
-  // ── Stuck-order detection (Task 0.B.2) ────────────────────────────────────
-  const isStuck = useMemo(() => {
-    if (!order || order.status !== "parsing") return false;
-    const updatedMs = new Date(order.updatedAt).getTime();
-    return Number.isFinite(updatedMs) && (Date.now() - updatedMs) > STUCK_WARN_MS;
-  }, [order]);
-
   // Derive nodes from the live order. Empty until the order resolves (the
   // loading/error gates below render before this is used). No demo fallback —
   // real users must never see staged PO-DEMO-001 content.
@@ -2192,27 +1785,22 @@ export function SpineReview({ orderId }: { orderId: string }) {
   const searchParams = useSearchParams();
   const isSample = searchParams.get("sample") === "1" || order?.isSample === true;
 
-  // ── State ──────────────────────────────────────────────────────────────────
-  const [fieldValues, setFieldValues]             = useState<Record<string, string>>({});
-  const [editingId, setEditingId]                 = useState<string | null>(null);
-  const [acceptedSubnodes, setAcceptedSubnodes]   = useState<Set<string>>(new Set());
-  const [rejectedSubnodes, setRejectedSubnodes]   = useState<Set<string>>(new Set());
-  const [showConfirm, setShowConfirm]             = useState(false);
-  const [crossed, setCrossed]                     = useState(false);
-  const [showToast, setShowToast]                 = useState(false);
-  const [flowNotice, setFlowNotice]               = useState<string | null>(null);
-  // Severity drives the flow-notice colour (info/success/error) so failure
-  // messages don't render green just because order.status isn't "rejected".
-  // setFlow sets both; when severity is omitted it is INFERRED from failure
-  // keywords in the message, so the OutputPreview/mobile callsites that pass
-  // a bare message string still colour errors correctly.
-  const [flowSeverity, setFlowSeverity]           = useState<"info" | "success" | "error">("info");
-  const setFlow = useCallback((message: string | null, severity?: "info" | "success" | "error") => {
-    setFlowNotice(message);
-    if (severity) { setFlowSeverity(severity); return; }
-    const m = (message ?? "").toLowerCase();
-    setFlowSeverity(/fail|failed|reject|error|couldn't|could not|exhausted|unresolved|resolve every/.test(m) ? "error" : "info");
-  }, []);
+  // ── Send flow + flow notices (extracted hook) ───────────────────────────────
+  const {
+    flowNotice, flowSeverity, setFlow,
+    sendState, crossed, showToast, setShowToast,
+    showConfirm, setShowConfirm, confirmSend,
+  } = useSendFlow({ orderId, order, labels, refetchOrder });
+
+  // ── Line/header resolution actions (extracted hook — single server path) ───
+  const resolve = useResolveActions({ orderId, order, nodes, labels, setFlow, refetchOrder });
+  const {
+    fieldValues, editingId, acceptingLineId,
+  } = resolve;
+
+  // ── Acceptance validation (extracted hook + debounced auto-revalidate) ─────
+  const validation = useAcceptanceValidation(orderId, { commitVersion: resolve.commitVersion });
+  const { validationResult, failingRuleCount } = validation;
 
   // ── Wire drag connect handler (WireDragLayer callback) ────────────────────
   // Placed AFTER setFlow so it can call it.
@@ -2380,7 +1968,6 @@ export function SpineReview({ orderId }: { orderId: string }) {
     onError: (err) => setFlow(err instanceof Error ? err.message : "Couldn't save the supplier mapping.", "error"),
   });
 
-  const [sendState, setSendState]                 = useState<"idle" | "transforming" | "delivering">("idle");
   // Initial tab honours a `?tab=` deep-link (e.g. an exception linking to the
   // Conformance panel). Falls back to "review".
   const initialTab = ((): "review" | "passport" | "conformance" | "response" => {
@@ -2388,15 +1975,33 @@ export function SpineReview({ orderId }: { orderId: string }) {
     return t === "passport" || t === "conformance" || t === "response" ? t : "review";
   })();
   const [tab, setTab]                             = useState<"review" | "passport" | "conformance" | "response">(initialTab);
-  // The line id currently being resolved against the backend (Accept in-flight).
-  const [acceptingLineId, setAcceptingLineId]     = useState<string | null>(null);
-  // The header field id (date/buyer/currency) whose correction is being persisted.
-  const [savingHeaderId, setSavingHeaderId]       = useState<string | null>(null);
-  // Manual supplier-code entry: which line (id) is in edit mode + its draft text.
-  const [lineEditId, setLineEditId]               = useState<string | null>(null);
-  const [lineDraft, setLineDraft]                 = useState<string>("");
 
-  const inputRefs = useRef<Record<string, HTMLInputElement | null>>({});
+  // ── Review sub-view: Triage (Fix Queue) | Full document (classic triptych) ──
+  // One-experience rule: NO localStorage flag. The default is DETERMINISTIC and
+  // latched once per order load: Triage iff there is work to do (server
+  // exceptionCount > 0 or failing acceptance rules), else Full document.
+  // ?view=classic|triage overrides (and doubles as the rollback story).
+  const viewParam = searchParams.get("view");
+  const [viewOverride, setViewOverride] = useState<"triage" | "classic" | null>(
+    viewParam === "classic" ? "classic" : viewParam === "triage" ? "triage" : null,
+  );
+  const defaultViewRef = useRef<"triage" | "classic" | null>(null);
+  if (order && defaultViewRef.current === null) {
+    defaultViewRef.current = exceptionCount > 0 || failingRuleCount > 0 ? "triage" : "classic";
+  }
+  const subView: "triage" | "classic" = viewOverride ?? defaultViewRef.current ?? "classic";
+  const switchSubView = useCallback((v: "triage" | "classic") => {
+    setViewOverride(v);
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("view", v);
+    router.replace(`?${params.toString()}`, { scroll: false });
+  }, [searchParams, router]);
+
+  // Compact dismissible strips (sample/stuck) — dismissal is per-visit UI state,
+  // never a line-resolution state.
+  const [sampleDismissed, setSampleDismissed] = useState(false);
+  const [stuckDismissed, setStuckDismissed]   = useState(false);
+
   const gridRef = useRef<HTMLDivElement>(null);
   const sourceColRef = useRef<HTMLDivElement>(null);
   const outputColRef = useRef<HTMLDivElement>(null);
@@ -2478,20 +2083,15 @@ export function SpineReview({ orderId }: { orderId: string }) {
     signature: `${connectorNodes.length}|${sourceTokenList.length}|${wireSig}|${hoveredId ?? ""}`,
   });
 
-  // Count remaining unresolved exceptions from SERVER truth. Accepting an AI
-  // suggestion now persists via /resolve + refetch, so needsReview flips to false
-  // on the server — no local-state subtraction is needed (or correct) here.
-  const exceptionCount = (() => {
-    if (order) {
-      return order.lines.filter(l => l.needsReview).length;
-    }
-    // fallback for mock
-    let n = 0;
-    if (!fieldValues["incoterm"] || fieldValues["incoterm"] === "DDP") n++;
-    if (!fieldValues["billTo"]) n++;
-    n++;
-    return Math.max(0, n - acceptedSubnodes.size);
-  })();
+  // exceptionCount comes from useOrderReview — SERVER truth only (gate G1).
+
+  // Per-line server state, included in the SpineConnectors signature so a line
+  // resolving (needsReview flip / code set after refetch) schedules a wire
+  // re-measure — this replaces the old local accepted/rejected set terms.
+  const lineStateSig = useMemo(
+    () => (order ? order.lines.map(l => `${l.id}:${l.needsReview ? 1 : 0}:${l.supplierItemCode ?? ""}`).join(",") : ""),
+    [order],
+  );
 
   // ── Dialog / toast context derived from live order ────────────────────────
   const dialogSupplierName = order?.supplierName ?? "supplier";
@@ -2504,303 +2104,27 @@ export function SpineReview({ orderId }: { orderId: string }) {
     ? formatMoney(order.currency, resolvedGrandTotal(order))
     : "—";
   const dialogLineCount    = order?.lines.length ?? 0;
-  // Count failing acceptance-profile rules from the last "Validate against
-  // profile" run. A failed validation doesn't hard-block send (the supplier may
-  // still accept), but the user must explicitly acknowledge it in the confirm
-  // dialog before sending — surfaced as a required second checkbox.
-  const failingRuleCount = validationResult && !validationResult.passed
-    ? validationResult.results.filter(r => !r.passed).length
-    : 0;
+  // failingRuleCount comes from useAcceptanceValidation. A failed validation
+  // doesn't hard-block send (the supplier may still accept), but the user must
+  // explicitly acknowledge it in the confirm dialog — required second checkbox.
 
-  // ── Edit handlers ──────────────────────────────────────────────────────────
-  const handleStartEdit = useCallback((id: string) => {
-    // Don't re-open a field whose previous edit is still persisting.
-    if (savingHeaderId) return;
-    const node = nodes.find(n => n.id === id);
-    if (!node) return;
-    setFieldValues(prev => ({ ...prev, [id]: prev[id] ?? node.value }));
-    setEditingId(id);
-    setTimeout(() => inputRefs.current[id]?.focus(), 0);
-  }, [nodes, savingHeaderId]);
-
-  const handleChangeValue = useCallback((id: string, val: string) => {
-    setFieldValues(prev => ({ ...prev, [id]: val }));
-  }, []);
-
-  // Header fields that map to a backend resolve correction. Each maps the node id
-  // to the resolve payload key and the order's current persisted value (for change
-  // detection). poNumber + supplierName are display-only on the backend
-  // (supplierName does NOT change routing/SupplierId).
-  const headerFieldMap: Record<string, { key: "orderDate" | "buyerName" | "currency" | "poNumber" | "supplierName"; current: string }> = useMemo(() => ({
-    date:     { key: "orderDate",    current: order?.orderDate ?? "" },
-    buyer:    { key: "buyerName",    current: order?.buyerName ?? "" },
-    currency: { key: "currency",     current: order?.currency ?? "" },
-    po:       { key: "poNumber",     current: order?.poNumber ?? "" },
-    supplier: { key: "supplierName", current: order?.supplierName ?? "" },
-  }), [order]);
-
-  const handleCommitEdit = useCallback((id: string) => {
-    setEditingId(null);
-
-    const header = headerFieldMap[id];
-    if (!header || !order) return;
-    if (savingHeaderId === id) return;       // a save for this field is already in flight
-
-    const raw = fieldValues[id];
-    if (raw === undefined) return;           // never edited
-    const next = raw.trim();
-    if (next === "" || next === header.current) return; // blank or unchanged → no-op
-
-    // Persist the single edited header field via the resolve endpoint (empty
-    // line resolutions — the backend treats absent line work + present header
-    // field as a header-only correction). Refetch on success so the persisted
-    // value renders from server truth.
-    setSavingHeaderId(id);
-    setFlow("Saving change…", "info");
-    void (async () => {
-      try {
-        await apiClient.commitMappings(orderId, [], { [header.key]: next });
-        await qc.invalidateQueries({ queryKey: ["order", orderId] });
-        await refetchOrder();
-        // Drop the local override so the refetched server value is the source of
-        // truth (avoids a stale fieldValues entry masking the persisted value).
-        setFieldValues(prev => { const n = { ...prev }; delete n[id]; return n; });
-        setFlow("Change saved.", "success");
-      } catch (err) {
-        setFlow(err instanceof Error ? err.message : "Couldn't save that change. Try again.", "error");
-      } finally {
-        setSavingHeaderId(null);
-      }
-    })();
-  }, [headerFieldMap, order, fieldValues, orderId, qc, refetchOrder, setFlow, savingHeaderId]);
-
-  const handleKeyDown = useCallback((e: KeyboardEvent<HTMLInputElement>, id: string) => {
-    if (e.key === "Enter" || e.key === "Tab") {
-      e.preventDefault();
-      handleCommitEdit(id);
-      // Tab to next editable field
-      if (e.key === "Tab") {
-        const editables = nodes.filter(n => n.editable);
-        const idx = editables.findIndex(n => n.id === id);
-        const next = editables[idx + 1];
-        if (next) setTimeout(() => handleStartEdit(next.id), 0);
-      }
-    }
-    if (e.key === "Escape") {
-      setEditingId(null);
-      // Restore original value
-      const node = nodes.find(n => n.id === id);
-      if (node) setFieldValues(prev => ({ ...prev, [id]: node.value }));
-    }
-  }, [handleCommitEdit, handleStartEdit, nodes]);
-
-  const inputRefCallback = useCallback((el: HTMLInputElement | null, id: string) => {
-    inputRefs.current[id] = el;
-  }, []);
-
-  // ── Subnode accept/reject ──────────────────────────────────────────────────
-  // Accept must REALLY resolve the line on the server, not just flip local state:
-  // the Send guard reads `order.lines.some(l => l.needsReview)` from server truth,
-  // so a purely-local accept would never unblock Send. We commit the AI-suggested
-  // supplier code via POST /api/orders/{id}/resolve, then refetch so every guard
-  // (exceptionCount, the send button, the keyboard 'a' shortcut) recomputes from
-  // the fresh server state.
-  const handleAcceptSubnode = useCallback((id: string) => {
-    if (!order) return;
-    const line = order.lines.find(l => l.id === id);
-    const code = line?.supplierItemCode ?? line?.aiSuggestion?.supplierItemCode;
-    // No line / no code to commit → nothing the backend can persist. Reflect the
-    // local highlight only (used by mock paths that lack a server resolve).
-    if (!line || !code) {
-      setAcceptedSubnodes(prev => new Set([...prev, id]));
-      setRejectedSubnodes(prev => { const n = new Set(prev); n.delete(id); return n; });
-      return;
-    }
-    setAcceptingLineId(id);
-    // Optimistic highlight while the resolve is in flight.
-    setAcceptedSubnodes(prev => new Set([...prev, id]));
-    setRejectedSubnodes(prev => { const n = new Set(prev); n.delete(id); return n; });
-    void (async () => {
-      try {
-        await apiClient.commitMappings(orderId, [{ lineNumber: line.lineNumber, supplierItemCode: code }]);
-        // Pull server truth so the needsReview-based guards recompute.
-        await qc.invalidateQueries({ queryKey: ["order", orderId] });
-        await refetchOrder();
-      } catch (err) {
-        // Roll back the optimistic highlight and surface the failure.
-        setAcceptedSubnodes(prev => { const n = new Set(prev); n.delete(id); return n; });
-        setFlow(err instanceof Error ? err.message : `Couldn't save that ${labels.counterpartyNoun.toLowerCase()} code. Try again.`, "error");
-      } finally {
-        setAcceptingLineId(null);
-      }
-    })();
-  }, [order, orderId, qc, refetchOrder, labels, setFlow]);
-
-  const handleRejectSubnode = useCallback((id: string) => {
-    setRejectedSubnodes(prev => new Set([...prev, id]));
-    setAcceptedSubnodes(prev => { const n = new Set(prev); n.delete(id); return n; });
-  }, []);
-
-  // ── Manual supplier-code entry (the #1 review action) ──────────────────────
-  const handleStartLineEdit = useCallback((id: string, initial: string) => {
-    setLineEditId(id);
-    setLineDraft(initial ?? "");
-  }, []);
-  const handleCancelLineEdit = useCallback(() => {
-    setLineEditId(null);
-    setLineDraft("");
-  }, []);
-  // Persist a hand-typed supplier code via the SAME server path as Accept
-  // (commitMappings → refetch) so the needsReview send-guard recomputes from
-  // server truth — never local-only, or the line would look fixed but still
-  // block Send. saveMappings (default true) also remembers it for next time.
-  const handleCommitLineCode = useCallback((id: string) => {
-    if (!order) return;
-    const line = order.lines.find(l => l.id === id);
-    const code = lineDraft.trim();
-    if (!line || code.length === 0) return;
-    setAcceptingLineId(id);
-    void (async () => {
-      try {
-        await apiClient.commitMappings(orderId, [{ lineNumber: line.lineNumber, supplierItemCode: code }]);
-        await qc.invalidateQueries({ queryKey: ["order", orderId] });
-        await refetchOrder();
-        setLineEditId(null);
-        setLineDraft("");
-      } catch (err) {
-        setFlow(err instanceof Error ? err.message : `Couldn't save that ${labels.counterpartyNoun.toLowerCase()} code. Try again.`, "error");
-      } finally {
-        setAcceptingLineId(null);
-      }
-    })();
-  }, [order, orderId, lineDraft, qc, refetchOrder, labels, setFlow]);
-
-  const lineEditApi = useMemo(() => ({
+  // ── Edit / resolve handlers — extracted to useResolveActions; the shared
+  // LineEditApi below threads them into the line cards (classic + triage).
+  const lineEditApi = useMemo<LineEditApi>(() => ({
     knownCodes: knownSupplierCodes,
     catalogCodes,
     supplierName: order?.supplierName ?? "",
-    editId: lineEditId,
-    draft: lineDraft,
-    onStart: handleStartLineEdit,
-    onChange: setLineDraft,
-    onCommit: handleCommitLineCode,
-    onCancel: handleCancelLineEdit,
-  }), [knownSupplierCodes, catalogCodes, order?.supplierName, lineEditId, lineDraft, handleStartLineEdit, handleCommitLineCode, handleCancelLineEdit]);
-
-  const pollOrderUntil = useCallback(async (
-    predicate: (next: Order) => boolean,
-    timeoutMs: number,
-  ): Promise<Order> => {
-    const started = Date.now();
-    let latest: Order | null = null;
-
-    while (Date.now() - started < timeoutMs) {
-      latest = await apiClient.getOrderById(orderId);
-      if (latest && predicate(latest)) {
-        return latest;
-      }
-      await sleep(900);
-    }
-
-    if (latest) return latest;
-    throw new Error("Order did not refresh. Check your connection and try again.");
-  }, [orderId]);
-
-  // ── Cross the bridge ───────────────────────────────────────────────────────
-  const handleConfirm = useCallback(async () => {
-    setShowConfirm(false);
-    if (!order || sendState !== "idle") return;
-
-    if (order.lines.some(l => l.needsReview)) {
-      setFlow("Resolve every missing supplier code before completing this order.", "error");
-      return;
-    }
-
-    try {
-      let current = order;
-
-      if (current.status === "delivered") {
-        setCrossed(true);
-        setShowToast(true);
-        setFlow(finalDeliveryMessage("delivered", null, labels), "success");
-        return;
-      }
-
-      if (current.artifacts.length === 0 && current.status !== "ready_to_deliver") {
-        setSendState("transforming");
-        setFlow("Generating the output...", "info");
-        // No explicit format → backend transforms into the supplier's configured output format.
-        await apiClient.transformOrder(orderId);
-        current = await pollOrderUntil(
-          next =>
-            next.status === "ready_to_deliver" ||
-            next.status === "delivered" ||
-            next.status === "delivery_failed" ||
-            next.status === "transform_failed",
-          45_000,
-        );
-      }
-
-      if (current.status === "transform_failed") {
-        setFlow(current.errorMessage ?? "Transform failed. Check the output template and try again.", "error");
-        return;
-      }
-
-      if (current.status === "delivered") {
-        setCrossed(true);
-        setShowToast(true);
-        setFlow(finalDeliveryMessage("delivered", null, labels), "success");
-        await refetchOrder();
-        return;
-      }
-
-      if (current.status === "delivery_failed") {
-        setFlow(finalDeliveryMessage(current.status, current.errorMessage, labels), "error");
-        await refetchOrder();
-        return;
-      }
-
-      if (current.artifacts.length === 0) {
-        setFlow("Output generation has not finished yet. Refresh the order and try again.", "error");
-        await refetchOrder();
-        return;
-      }
-
-      setSendState("delivering");
-      setFlow(
-        labels.counterpartyNoun === "Customer"
-          ? "Confirming the order..."
-          : "Sending the generated output to the supplier...",
-        "info",
-      );
-      await apiClient.redeliverOrder(orderId);
-      current = await pollOrderUntil(
-        next =>
-          next.status === "delivered" ||
-          next.status === "delivery_failed" ||
-          next.status === "rejected_by_supplier" ||
-          next.status === "delivery_dead_letter",
-        45_000,
-      );
-
-      if (current.status === "delivered") {
-        setCrossed(true);
-        setShowToast(true);
-        setFlow(finalDeliveryMessage(current.status, current.errorMessage, labels), "success");
-      } else {
-        setFlow(finalDeliveryMessage(current.status, current.errorMessage, labels), "error");
-      }
-      await refetchOrder();
-    } catch (err) {
-      setFlow(err instanceof Error ? err.message : "Send failed. Check the Delivery Log and try again.", "error");
-      await refetchOrder();
-    } finally {
-      setSendState("idle");
-    }
-  }, [order, orderId, pollOrderUntil, refetchOrder, sendState, labels, setFlow]);
+    editId: resolve.lineEditId,
+    draft: resolve.lineDraft,
+    onStart: resolve.startLineEdit,
+    onChange: resolve.setLineDraft,
+    onCommit: resolve.commitLineCode,
+    onCancel: resolve.cancelLineEdit,
+  }), [knownSupplierCodes, catalogCodes, order?.supplierName, resolve.lineEditId, resolve.lineDraft, resolve.startLineEdit, resolve.setLineDraft, resolve.commitLineCode, resolve.cancelLineEdit]);
 
   // ── Keyboard shortcuts (Bridge Layer reference) ────────────────────────────
-  // A = accept the next unresolved AI line suggestion · C = open the send/confirm
+  // A = accept the next unresolved AI line suggestion (CLASSIC sub-view only —
+  // the Triage rail owns A/E for its selected card) · C = open the send/confirm
   // when there are no blocking exceptions. SCOPED: only fires on the Review tab,
   // not while typing in a field/select, not while a modal dialog is open, and
   // not with a modifier held. Discoverable via the visible kbd hints on the
@@ -2814,9 +2138,11 @@ export function SpineReview({ orderId }: { orderId: string }) {
       if (typing || e.metaKey || e.ctrlKey || e.altKey || editingId || showConfirm) return;
       const k = e.key.toLowerCase();
       if (k === "a") {
+        if (subView !== "classic") return; // FixQueueTriage handles A in triage
         for (const n of nodes) {
-          const sn = n.subnodes?.find(s => s.ai && !acceptedSubnodes.has(s.id) && !rejectedSubnodes.has(s.id));
-          if (sn) { e.preventDefault(); handleAcceptSubnode(sn.id); return; }
+          // sn.ai derives from SERVER truth (unresolved + suggestion present).
+          const sn = n.subnodes?.find(s => s.ai);
+          if (sn) { e.preventDefault(); resolve.acceptSuggestion(sn.id); return; }
         }
       } else if (k === "c") {
         if (!crossed && exceptionCount === 0 && sendState === "idle") { e.preventDefault(); setShowConfirm(true); }
@@ -2824,7 +2150,7 @@ export function SpineReview({ orderId }: { orderId: string }) {
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [tab, nodes, acceptedSubnodes, rejectedSubnodes, handleAcceptSubnode, crossed, exceptionCount, editingId, showConfirm, sendState]);
+  }, [tab, subView, nodes, resolve, crossed, exceptionCount, editingId, showConfirm, sendState, setShowConfirm]);
 
   // ── Loading / error gates (must be after all hooks) ────────────────────────
   // While Clerk is still resolving the session the order query is disabled
@@ -3038,171 +2364,98 @@ export function SpineReview({ orderId }: { orderId: string }) {
 
       {tab === "review" && (
       <>
+      {/* Sub-view toggle — [Triage | Full document]. One-experience rule: the
+          default is deterministic (work to do → Triage), latched per order load;
+          ?view=classic|triage overrides. No localStorage. */}
+      <div className="flex-shrink-0 flex flex-wrap items-center gap-2 px-4 lg:px-6" style={{ background: "#FFFFFF", borderBottom: "1px solid #EEF0F4", paddingTop: 6, paddingBottom: 6 }}>
+        <div role="group" aria-label="Review layout" style={{ display: "inline-flex", borderRadius: 7, border: "1px solid #E2E6EE", overflow: "hidden" }}>
+          {([
+            { id: "triage" as const,  label: `Triage${exceptionCount + failingRuleCount > 0 ? ` (${exceptionCount + failingRuleCount})` : ""}` },
+            { id: "classic" as const, label: "Full document" },
+          ]).map((v) => {
+            const active = subView === v.id;
+            return (
+              <button
+                key={v.id}
+                type="button"
+                onClick={() => switchSubView(v.id)}
+                aria-pressed={active}
+                style={{
+                  fontSize: 11.5, fontWeight: active ? 700 : 500, padding: "5px 12px",
+                  background: active ? "#0B1A2F" : "#FFFFFF", color: active ? "#FFFFFF" : "#56627A",
+                  border: "none", cursor: "pointer",
+                }}
+              >
+                {v.label}
+              </button>
+            );
+          })}
+        </div>
+        {validation.isStale && (
+          <span aria-live="polite" style={{ fontSize: 11, color: "#C97A14" }}>Re-checking acceptance…</span>
+        )}
+      </div>
+
       {/* Body */}
       <div style={{ flex: 1, position: "relative", overflow: "auto" }}>
-          {isSample && (
+          {/* Compact dismissible strips (28px) — the old full banners stacked
+              ~200px above the fold; the message is kept, the height is not. */}
+          {isSample && !sampleDismissed && (
             <div
               role="note"
               aria-label="Sample order"
               style={{
-                background: "#FFF8E1",
-                border: "1px solid #F6D88E",
-                color: "#7A5A0A",
-                padding: "10px 14px",
-                borderRadius: 8,
-                fontSize: 13,
-                margin: "16px 16px 0",
+                height: 28, display: "flex", alignItems: "center", gap: 8,
+                background: "#FFF8E1", border: "1px solid #F6D88E", color: "#7A5A0A",
+                padding: "0 10px", borderRadius: 6, fontSize: 12, margin: "10px 16px 0",
               }}
             >
-              This is a sample order. It uses an example CSV and doesn&apos;t count toward your monthly quota.
+              <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                This is a sample order — example CSV, doesn&apos;t count toward your monthly quota.
+              </span>
+              <button type="button" aria-label="Dismiss sample-order note" onClick={() => setSampleDismissed(true)} style={{ background: "none", border: "none", color: "#7A5A0A", fontSize: 13, cursor: "pointer", padding: "0 2px", flexShrink: 0 }}>✕</button>
             </div>
           )}
 
-          {/* Stuck-order banner (Task 0.B.2) — shown when an order has been in
-              "parsing" for more than 2 minutes without progressing. The backend
-              StuckOrderDetectionJob fires at 30 min; this banner is an early warning. */}
-          {isStuck && (
+          {/* Stuck-order strip (Task 0.B.2) — early warning ahead of the backend
+              StuckOrderDetectionJob (30 min); dismissible, 28px. */}
+          {isStuck && !stuckDismissed && (
             <div
               role="alert"
               style={{
-                background: "#FAEFD6",
-                border: "1px solid #F0D39A",
-                color: "#7A4D0A",
-                padding: "10px 14px",
-                borderRadius: 8,
-                fontSize: 13,
-                margin: "16px 16px 0",
-                display: "flex",
-                alignItems: "center",
-                gap: 8,
+                height: 28, display: "flex", alignItems: "center", gap: 8,
+                background: "#FAEFD6", border: "1px solid #F0D39A", color: "#7A4D0A",
+                padding: "0 10px", borderRadius: 6, fontSize: 12, margin: "10px 16px 0",
               }}
             >
-              <span style={{ fontSize: 14 }}>⏳</span>
-              <span>
-                Still processing — this is taking longer than expected. If it persists, try re-uploading or contact support.
+              <span aria-hidden style={{ fontSize: 13, flexShrink: 0 }}>⏳</span>
+              <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                Still processing — taking longer than expected. If it persists, try re-uploading or contact support.
               </span>
+              <button type="button" aria-label="Dismiss processing warning" onClick={() => setStuckDismissed(true)} style={{ background: "none", border: "none", color: "#7A4D0A", fontSize: 13, cursor: "pointer", padding: "0 2px", flexShrink: 0 }}>✕</button>
             </div>
           )}
 
-          {/* Open exceptions panel (Task 1.G.2) — shows unresolved exceptions inline */}
-          {orderExceptions.filter(e => !e.resolvedAt).length > 0 && (
-            <div
-              style={{
-                margin: "16px 16px 0",
-                background: "#FFFFFF",
-                border: "1px solid #E2E6EE",
-                borderRadius: 8,
-                overflow: "hidden",
-              }}
-            >
-              <div style={{ padding: "9px 14px", borderBottom: "1px solid #EEF0F4", fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", color: "#56627A" }}>
-                Open exceptions
-              </div>
-              <div>
-                {orderExceptions
-                  .filter(e => !e.resolvedAt)
-                  .map(ex => {
-                    const dotColor = ex.severity === "error" ? "#C53A3A" : ex.severity === "warning" ? "#C97A14" : "#1E66C9";
-                    return (
-                      <div key={ex.id} style={{ display: "flex", alignItems: "flex-start", gap: 8, padding: "8px 14px", borderBottom: "1px solid #F5F6F9" }}>
-                        <span style={{ width: 6, height: 6, borderRadius: "50%", background: dotColor, flexShrink: 0, marginTop: 5 }} />
-                        <span style={{ fontSize: 12.5, color: "#0B1A2F", flex: 1, lineHeight: 1.45 }}>{ex.message}</span>
-                        <span style={{ fontSize: 10.5, color: "var(--ink-faint)", flexShrink: 0, whiteSpace: "nowrap" }}>
-                          {new Date(ex.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                        </span>
-                      </div>
-                    );
-                  })}
-              </div>
-            </div>
-          )}
+          {/* DELETED (batch 9 Phase A, per spec): the actionless open-exceptions
+              panel and the standalone always-on acceptance panel. Acceptance
+              state lives in useAcceptanceValidation, surfaced in the Triage rail
+              (and the confirm dialog's failing-rules ack). */}
 
-          {/* Validation panel (Task 1.F.4) */}
-          <div
-            style={{
-              margin: "16px 16px 0",
-              background: "#FFFFFF",
-              border: "1px solid #E2E6EE",
-              borderRadius: 8,
-              overflow: "hidden",
-            }}
-          >
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 8, padding: "9px 14px", borderBottom: "1px solid #EEF0F4" }}>
-              <span style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", color: "#56627A" }}>
-                Supplier acceptance
-              </span>
-              <button
-                type="button"
-                onClick={() => validateMutation.mutate()}
-                disabled={validateMutation.isPending}
-                style={{
-                  minHeight: 28,
-                  padding: "5px 12px",
-                  borderRadius: 6,
-                  fontSize: 11.5,
-                  fontWeight: 600,
-                  lineHeight: 1.2,
-                  background: "#0B1A2F",
-                  color: "#FFFFFF",
-                  border: "none",
-                  cursor: validateMutation.isPending ? "default" : "pointer",
-                  opacity: validateMutation.isPending ? 0.7 : 1,
-                }}
-              >
-                {validateMutation.isPending ? "Validating…" : "Validate against profile"}
-              </button>
-            </div>
-            {validateMutation.isError && (
-              <div style={{ padding: "8px 14px", fontSize: 12.5, color: "#C53A3A" }}>
-                {validateMutation.error instanceof Error
-                  ? validateMutation.error.message.includes("404") || validateMutation.error.message.includes("no acceptance")
-                    ? `No acceptance profile configured for this ${labels.counterpartyNoun.toLowerCase()}.`
-                    : `Validation failed: ${validateMutation.error.message}`
-                  : "Validation failed."}
-              </div>
-            )}
-            {!validationResult && !validateMutation.isError && !validateMutation.isPending && (
-              <div style={{ padding: "10px 14px", fontSize: 12.5, color: "var(--ink-faint)" }}>
-                Run validation to check this order against the supplier&apos;s acceptance rules.
-              </div>
-            )}
-            {validationResult && (
-              <div>
-                {/* Overall result */}
-                <div style={{
-                  display: "flex", alignItems: "center", gap: 8, padding: "8px 14px",
-                  borderBottom: "1px solid #EEF0F4",
-                  background: validationResult.passed ? "#F0FDF4" : "#FFF7F7",
-                }}>
-                  <span style={{ width: 8, height: 8, borderRadius: "50%", background: validationResult.passed ? "#2E8E3A" : "#C53A3A", flexShrink: 0 }} />
-                  <span style={{ fontSize: 12.5, fontWeight: 600, color: validationResult.passed ? "#1E6D29" : "#C53A3A" }}>
-                    {validationResult.passed ? "Passed — order meets all acceptance rules" : "Failed — acceptance issues found"}
-                  </span>
-                </div>
-                {/* Per-result rows */}
-                {validationResult.results.length === 0 ? (
-                  <div style={{ padding: "8px 14px", fontSize: 12.5, color: "var(--ink-faint)" }}>No acceptance rules are configured for this supplier yet — nothing to check.</div>
-                ) : (
-                  validationResult.results.map((r, i) => {
-                    const dotColor = r.severity === "error" ? "#C53A3A" : "#C97A14";
-                    return (
-                      <div key={i} style={{ display: "flex", alignItems: "flex-start", gap: 8, padding: "7px 14px", borderBottom: "1px solid #F5F6F9" }}>
-                        <span style={{ width: 6, height: 6, borderRadius: "50%", background: r.passed ? "#2E8E3A" : dotColor, flexShrink: 0, marginTop: 5 }} />
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <span style={{ fontSize: 12, color: "#0B1A2F", fontFamily: "'JetBrains Mono',monospace" }}>{r.rule.fieldPath}</span>
-                          {r.message && <span style={{ fontSize: 11.5, color: "#56627A", marginLeft: 6 }}>{r.message}</span>}
-                          {r.lineNumber != null && <span style={{ fontSize: 10.5, color: "var(--ink-faint)", marginLeft: 4 }}>· line {r.lineNumber}</span>}
-                        </div>
-                        <span style={{ fontSize: 10.5, fontWeight: 700, textTransform: "capitalize", color: r.passed ? "#1E6D29" : dotColor, flexShrink: 0 }}>
-                          {r.severity}
-                        </span>
-                      </div>
-                    );
-                  })
-                )}
-              </div>
-            )}
-          </div>
+        {/* TRIAGE sub-view — Fix Queue rail + Context area. */}
+        {subView === "triage" && (
+          <FixQueueTriage
+            order={order}
+            labels={labels}
+            lineEdit={lineEditApi}
+            resolve={resolve}
+            validation={validation}
+            keysEnabled={!showConfirm && !editingId}
+          />
+        )}
+
+        {/* FULL DOCUMENT sub-view — today's triptych body, mounted unchanged. */}
+        {subView === "classic" && (
+        <>
         {/* Desktop 3-column triptych (with edge rails). The grid needs ~1120px, so
             it only turns on at xl (1280px); below xl the stacked accordion renders
             instead. This keeps tablets (768–1279px) from getting a clipped/scrolling
@@ -3236,7 +2489,7 @@ export function SpineReview({ orderId }: { orderId: string }) {
                   nodes={connectorNodes}
                   hoveredId={hoveredId}
                   crossed={crossed}
-                  signature={`${nodes.length}|${editingId ?? ""}|${[...acceptedSubnodes].sort().join(",")}|${[...rejectedSubnodes].sort().join(",")}|${hoveredId ?? ""}|${activeZone ?? ""}|${crossed ? 1 : 0}|${Object.entries(fieldValues).map(([k, v]) => k + v).join(",")}|${wireSig}|${parsedDocCollapsed ? "c" : ""}`}
+                  signature={`${nodes.length}|${editingId ?? ""}|${lineStateSig}|${hoveredId ?? ""}|${activeZone ?? ""}|${crossed ? 1 : 0}|${Object.entries(fieldValues).map(([k, v]) => k + v).join(",")}|${wireSig}|${parsedDocCollapsed ? "c" : ""}`}
                   // WireDragLayer owns the canonical→output (right) wires so they can be
                   // override-aware + re-routable; SpineConnectors draws only source→canonical.
                   drawOutput={false}
@@ -3316,15 +2569,12 @@ export function SpineReview({ orderId }: { orderId: string }) {
                       idx={i}
                       editingId={editingId}
                       fieldValues={fieldValues}
-                      acceptedSubnodes={acceptedSubnodes}
-                      rejectedSubnodes={rejectedSubnodes}
-                      onStartEdit={handleStartEdit}
-                      onChangeValue={handleChangeValue}
-                      onCommitEdit={handleCommitEdit}
-                      onAcceptSubnode={handleAcceptSubnode}
-                      onRejectSubnode={handleRejectSubnode}
-                      onKeyDown={handleKeyDown}
-                      inputRef={inputRefCallback}
+                      onStartEdit={resolve.startEdit}
+                      onChangeValue={resolve.changeValue}
+                      onCommitEdit={resolve.commitEdit}
+                      onAcceptSubnode={resolve.acceptSuggestion}
+                      onKeyDown={resolve.handleEditKeyDown}
+                      inputRef={resolve.inputRefCallback}
                       cardRef={(el) => { nodeEls.current[node.id] = el; }}
                       dotRef={(el) => { dotEls.current[node.id] = el; }}
                       onHover={handleNodeHover}
@@ -3349,8 +2599,6 @@ export function SpineReview({ orderId }: { orderId: string }) {
                 </div>
                 <OutputPreview
                   order={order}
-                  acceptedSubnodes={acceptedSubnodes}
-                  rejectedSubnodes={rejectedSubnodes}
                   crossed={crossed}
                   fieldValues={fieldValues}
                   onOutputAction={setFlow}
@@ -3374,16 +2622,13 @@ export function SpineReview({ orderId }: { orderId: string }) {
           nodes={nodes}
           editingId={editingId}
           fieldValues={fieldValues}
-          acceptedSubnodes={acceptedSubnodes}
-          rejectedSubnodes={rejectedSubnodes}
           crossed={crossed}
-          onStartEdit={handleStartEdit}
-          onChangeValue={handleChangeValue}
-          onCommitEdit={handleCommitEdit}
-          onAcceptSubnode={handleAcceptSubnode}
-          onRejectSubnode={handleRejectSubnode}
-          onKeyDown={handleKeyDown}
-          inputRef={inputRefCallback}
+          onStartEdit={resolve.startEdit}
+          onChangeValue={resolve.changeValue}
+          onCommitEdit={resolve.commitEdit}
+          onAcceptSubnode={resolve.acceptSuggestion}
+          onKeyDown={resolve.handleEditKeyDown}
+          inputRef={resolve.inputRefCallback}
           onOutputAction={setFlow}
           orderId={orderId}
           artifacts={order.artifacts}
@@ -3401,16 +2646,13 @@ export function SpineReview({ orderId }: { orderId: string }) {
           nodes={nodes}
           editingId={editingId}
           fieldValues={fieldValues}
-          acceptedSubnodes={acceptedSubnodes}
-          rejectedSubnodes={rejectedSubnodes}
           crossed={crossed}
-          onStartEdit={handleStartEdit}
-          onChangeValue={handleChangeValue}
-          onCommitEdit={handleCommitEdit}
-          onAcceptSubnode={handleAcceptSubnode}
-          onRejectSubnode={handleRejectSubnode}
-          onKeyDown={handleKeyDown}
-          inputRef={inputRefCallback}
+          onStartEdit={resolve.startEdit}
+          onChangeValue={resolve.changeValue}
+          onCommitEdit={resolve.commitEdit}
+          onAcceptSubnode={resolve.acceptSuggestion}
+          onKeyDown={resolve.handleEditKeyDown}
+          inputRef={resolve.inputRefCallback}
           onOutputAction={setFlow}
           orderId={orderId}
           artifacts={order.artifacts}
@@ -3418,6 +2660,8 @@ export function SpineReview({ orderId }: { orderId: string }) {
           acceptingLineId={acceptingLineId}
           lineEdit={lineEditApi}
         />
+        </>
+        )}
       </div>
 
       {/* Sticky info bar — desktop triptych only (the stacked layout below xl has its own sticky CTA) */}
@@ -3526,7 +2770,7 @@ export function SpineReview({ orderId }: { orderId: string }) {
       {showConfirm && (
         <ConfirmDialog
           exceptionCount={exceptionCount}
-          onConfirm={handleConfirm}
+          onConfirm={confirmSend}
           onCancel={() => setShowConfirm(false)}
           supplierName={dialogSupplierName}
           outputFormat={dialogOutputFormat}
