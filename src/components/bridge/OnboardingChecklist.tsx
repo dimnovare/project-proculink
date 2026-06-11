@@ -39,6 +39,12 @@ interface OnboardingChecklistProps {
   orderCount: number;
   /** Count of orders that actually reached `delivered`. Drives the final step. */
   deliveredCount?: number;
+  /**
+   * The order whose review screen the "Resolve item mapping" step should open
+   * (mirrors the wizard, which routes to /inbox/{orderId}). Null/absent →
+   * the step falls back to the order inbox.
+   */
+  firstOrderId?: string | null;
   /** Re-opens the guided setup wizard. Only surfaced before the first supplier. */
   onResumeSetup?: () => void;
 }
@@ -55,9 +61,10 @@ interface Step {
 }
 
 // Steps depend on the org's direction labels ("supplier" → "customer" in inbound
-// mode), so they're built per-render from the counterparty noun rather than at
-// module scope. Step `id`s and `href`s are UNCHANGED (routes/state untouched).
-function buildSteps(noun: string, nounLower: string): Step[] {
+// mode) and on the first order's id (the mapping step opens that order's review
+// screen, matching the wizard), so they're built per-render rather than at
+// module scope.
+function buildSteps(noun: string, nounLower: string, mapHref: string): Step[] {
   return [
     {
       id: "supplier",
@@ -79,7 +86,9 @@ function buildSteps(noun: string, nounLower: string): Step[] {
       id: "map",
       label: "Resolve item mapping",
       description: `Connect buyer item codes to each ${nounLower}'s own SKUs.`,
-      href: "/library/mappings",
+      // The uploaded order's review screen is where mapping is resolved —
+      // same destination the wizard uses; /inbox when no order id is known.
+      href: mapHref,
       cta: "Resolve mapping",
       requires: ["supplier", "upload"],
     },
@@ -152,13 +161,15 @@ export function OnboardingChecklist({
   supplierCount,
   orderCount,
   deliveredCount,
+  firstOrderId,
   onResumeSetup,
 }: OnboardingChecklistProps) {
   // Direction-aware step copy: "supplier" → "customer" in inbound mode (display only).
   const { labels } = useOrderDirection();
+  const mapHref = firstOrderId ? `/inbox/${firstOrderId}` : "/inbox";
   const STEPS = React.useMemo(
-    () => buildSteps(labels.counterpartyNoun, labels.counterpartyNoun.toLowerCase()),
-    [labels.counterpartyNoun],
+    () => buildSteps(labels.counterpartyNoun, labels.counterpartyNoun.toLowerCase(), mapHref),
+    [labels.counterpartyNoun, mapHref],
   );
 
   // Each step's done-ness maps to a real signal — no fabricated completion.

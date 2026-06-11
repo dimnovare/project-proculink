@@ -2599,6 +2599,7 @@ import type {
   ConnectionDetail,
   ConnectionRevision,
   ConnectionRevisionStatus,
+  ConnectionTestEvidence,
   CreateConnectionRevisionRequest,
   ConnectionRevisionBundle,
   ReplayRequest,
@@ -2794,11 +2795,42 @@ async function realUpdateConnectionDraft(
   throw new ApiHttpError(`Failed to update draft: ${res.statusText}`, res.status);
 }
 
-/** Drive a draft/test revision through its lifecycle. Returns void; 409 → ApiHttpError. */
+/**
+ * Best-effort extraction of the backend's error message from a non-OK response.
+ * ConnectionsController returns Conflict("plain message") (text/plain), but be
+ * tolerant of a JSON-string body or ProblemDetails-ish object shapes too.
+ */
+async function readErrorBodyText(res: Response): Promise<string | null> {
+  try {
+    const raw = (await res.text()).trim();
+    if (!raw) return null;
+    if (raw.startsWith('"') && raw.endsWith('"')) {
+      try { return JSON.parse(raw) as string; } catch { return raw.slice(1, -1); }
+    }
+    if (raw.startsWith("{")) {
+      try {
+        const obj = JSON.parse(raw) as Record<string, unknown>;
+        const msg = obj.message ?? obj.error ?? obj.detail ?? obj.title;
+        return typeof msg === "string" && msg ? msg : null;
+      } catch { return null; }
+    }
+    return raw;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Drive a revision through publish/archive. Returns void; 409 → ApiHttpError
+ * carrying the BACKEND's message (e.g. publish without test evidence returns
+ * "Run tests on this revision before publishing.") so the UI shows the real
+ * reason inline, not a stale guess. (The test action lives separately in
+ * markConnectionRevisionTest — it RUNS the test pack and returns evidence.)
+ */
 async function realConnectionLifecycle(
   connectionId: string,
   revisionId: string,
-  action: "test" | "publish" | "archive",
+  action: "publish" | "archive",
 ): Promise<void> {
   const res = await fetchWithTimeout(
     `${API_BASE_URL}/api/connections/${connectionId}/revisions/${revisionId}/${action}`,
@@ -2807,26 +2839,25 @@ async function realConnectionLifecycle(
   );
   if (res.ok || res.status === 204) return;
   if (res.status === 409) {
-    const msg =
-      action === "publish" ? "This revision is already published or archived."
-      : action === "test" ? "Only draft or test revisions can be marked test."
-      : "This revision cannot be archived.";
-    throw new ApiHttpError(msg, 409);
+    const serverMsg = await readErrorBodyText(res);
+    const fallback =
+      action === "publish"
+        ? "This revision cannot be published in its current state."
+        : "This revision cannot be archived.";
+    throw new ApiHttpError(serverMsg || fallback, 409);
   }
   if (res.status === 404) throw new ApiHttpError("Connection or revision not found.", 404);
   throw new ApiHttpError(`Failed to ${action} revision: ${res.statusText}`, res.status);
 }
 
-function mockConnectionLifecycle(action: "test" | "publish" | "archive") {
+function mockConnectionLifecycle(action: "publish" | "archive") {
   return async (connectionId: string, revisionId: string): Promise<void> => {
     await delay(300);
     const conn = _mockConnections.find((c) => c.id === connectionId);
     const rev = conn?.revisions.find((r) => r.id === revisionId);
     if (!conn || !rev) return;
     const now = new Date().toISOString();
-    if (action === "test") {
-      rev.status = "test";
-    } else if (action === "publish") {
+    if (action === "publish") {
       for (const r of conn.revisions) {
         if (r.status === "published") { r.status = "archived"; r.effectiveTo = now; }
       }
@@ -2840,6 +2871,100 @@ function mockConnectionLifecycle(action: "test" | "publish" | "archive") {
     }
     conn.updatedAt = now;
   };
+}
+
+// ── Launch batch 3 — run the test pack + rollback ─────────────────────────────
+// POST .../test RUNS the real test pack server-side (replay over recent orders +
+// conformance; never delivers), stores the evidence, marks the revision `test`,
+// and returns the evidence summary (200 even when the pack FAILED — passed:false).
+// POST .../rollback clones a previously-published (now archived) revision into a
+// NEW published revision and flips the active pointer; the target stays archived.
+
+async function mockMarkConnectionRevisionTest(
+  connectionId: string,
+  revisionId: string,
+): Promise<ConnectionTestEvidence> {
+  await delay(400);
+  const conn = _mockConnections.find((c) => c.id === connectionId);
+  const rev = conn?.revisions.find((r) => r.id === revisionId);
+  const now = new Date().toISOString();
+  if (conn && rev) {
+    rev.status = "test";
+    conn.updatedAt = now;
+  }
+  return {
+    passed: true,
+    testedAt: now,
+    summaryJson: JSON.stringify({
+      replay: { passed: true, orderCount: 3, outputErrors: 0, outputChanged: 1, validationChanged: 0, note: null },
+      conformance: { skipped: false, passed: true, profile: "CSV baseline", errors: 0, warnings: 0, note: null },
+      error: null,
+    }),
+  };
+}
+
+async function realMarkConnectionRevisionTest(
+  connectionId: string,
+  revisionId: string,
+): Promise<ConnectionTestEvidence> {
+  const res = await fetchWithTimeout(
+    `${API_BASE_URL}/api/connections/${connectionId}/revisions/${revisionId}/test`,
+    { method: "POST", headers: await authHeader() },
+    60000, // the pack replays recent orders server-side — allow it time
+  );
+  if (res.status === 409) {
+    throw new ApiHttpError(
+      (await readErrorBodyText(res)) || "Only draft or test revisions can be tested.",
+      409,
+    );
+  }
+  if (res.status === 404) throw new ApiHttpError("Connection or revision not found.", 404);
+  if (!res.ok) throw new ApiHttpError(`Failed to run tests: ${res.statusText}`, res.status);
+  return res.json() as Promise<ConnectionTestEvidence>;
+}
+
+async function mockRollbackConnectionRevision(
+  connectionId: string,
+  revisionId: string,
+): Promise<ConnectionRevision | null> {
+  await delay(300);
+  const conn = _mockConnections.find((c) => c.id === connectionId);
+  const target = conn?.revisions.find((r) => r.id === revisionId);
+  if (!conn || !target) return null;
+  const now = new Date().toISOString();
+  for (const r of conn.revisions) {
+    if (r.status === "published") { r.status = "archived"; r.effectiveTo = now; }
+  }
+  const nextVersion = conn.revisions.reduce((m, r) => Math.max(m, r.versionNo), 0) + 1;
+  const revId = `rev-${conn.supplierId}-${nextVersion}`;
+  conn.revisions.unshift({
+    id: revId, versionNo: nextVersion, status: "published",
+    effectiveFrom: now, effectiveTo: null, publishedAt: now, createdAt: now,
+  });
+  conn.activeRevisionId = revId;
+  conn.updatedAt = now;
+  return _mockRevisionBundle(connectionId, revId);
+}
+
+async function realRollbackConnectionRevision(
+  connectionId: string,
+  revisionId: string,
+): Promise<ConnectionRevision | null> {
+  const res = await fetchWithTimeout(
+    `${API_BASE_URL}/api/connections/${connectionId}/revisions/${revisionId}/rollback`,
+    { method: "POST", headers: await authHeader() },
+    30000,
+  );
+  if (res.status === 409) {
+    throw new ApiHttpError(
+      (await readErrorBodyText(res)) ||
+        "Rollback target must be a previously published (now archived) revision.",
+      409,
+    );
+  }
+  if (res.status === 404) throw new ApiHttpError("Connection or revision not found.", 404);
+  if (!res.ok) throw new ApiHttpError(`Failed to roll back: ${res.statusText}`, res.status);
+  return res.json() as Promise<ConnectionRevision>;
 }
 
 // ── Group V2 — replay / impact preview ───────────────────────────────────────
@@ -2971,12 +3096,14 @@ export const createConnectionDraft: (connectionId: string, request?: CreateConne
   USE_MOCK ? mockCreateConnectionDraft : realCreateConnectionDraft;
 export const updateConnectionDraft: (connectionId: string, revisionId: string, bundle: ConnectionRevisionBundle) => Promise<void> =
   USE_MOCK ? mockUpdateConnectionDraft : realUpdateConnectionDraft;
-export const markConnectionRevisionTest: (connectionId: string, revisionId: string) => Promise<void> =
-  USE_MOCK ? mockConnectionLifecycle("test") : (c, r) => realConnectionLifecycle(c, r, "test");
+export const markConnectionRevisionTest: (connectionId: string, revisionId: string) => Promise<ConnectionTestEvidence> =
+  USE_MOCK ? mockMarkConnectionRevisionTest : realMarkConnectionRevisionTest;
 export const publishConnectionRevision: (connectionId: string, revisionId: string) => Promise<void> =
   USE_MOCK ? mockConnectionLifecycle("publish") : (c, r) => realConnectionLifecycle(c, r, "publish");
 export const archiveConnectionRevision: (connectionId: string, revisionId: string) => Promise<void> =
   USE_MOCK ? mockConnectionLifecycle("archive") : (c, r) => realConnectionLifecycle(c, r, "archive");
+export const rollbackConnectionRevision: (connectionId: string, revisionId: string) => Promise<ConnectionRevision | null> =
+  USE_MOCK ? mockRollbackConnectionRevision : realRollbackConnectionRevision;
 
 export type {
   ConnectionSummary,
@@ -2984,6 +3111,7 @@ export type {
   ConnectionRevision,
   ConnectionRevisionStatus,
   ConnectionRevisionBundle,
+  ConnectionTestEvidence,
   CreateConnectionRevisionRequest,
   ReplayRequest,
   ReplayResponse,

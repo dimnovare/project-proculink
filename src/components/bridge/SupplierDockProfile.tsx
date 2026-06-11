@@ -4,14 +4,16 @@
 // §5.8 — Header + tabs: Overview · Mappings · PO Mapping · Delivery · Acceptance
 
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { ChevronLeft, Trash2, Info, Clock, Link2, Truck, Plus, ShieldCheck } from "lucide-react";
+import { ChevronLeft, Trash2, Info, Clock, Link2, Truck, Plus, ShieldCheck, GitBranch } from "lucide-react";
 import { PoMappingEditor } from "./PoMappingEditor";
 import { DeliveryConfigEditor } from "./DeliveryConfigEditor";
 import { upsertPoMapping, deletePoMapping } from "@/lib/api/mapping";
-import { apiClient, isApiMockMode, getAcceptanceProfile, saveAcceptanceProfile, activateAcceptanceVersion, applyPoMappingTemplate, getSupplierCatalog, importSupplierCatalog, clearSupplierCatalog, getSupplierRuleBindings, type SupplierRuleBinding } from "@/lib/api-client";
+import { apiClient, isApiMockMode, getAcceptanceProfile, saveAcceptanceProfile, activateAcceptanceVersion, applyPoMappingTemplate, getSupplierCatalog, importSupplierCatalog, clearSupplierCatalog, getSupplierRuleBindings, listConnections, type SupplierRuleBinding } from "@/lib/api-client";
 import { StandardsRefList, hasStandardsRefs } from "./StandardsRefList";
+import { statusLabel } from "./UnifiedStatusBadge";
 import { useOrderDirection } from "@/hooks/useOrderDirection";
 import { useQueriesEnabled } from "@/hooks/useQueriesEnabled";
 import type { PoMappingConfig } from "@/lib/api/types";
@@ -306,6 +308,38 @@ function SupplierRuleBindingsPanel({ supplierId }: { supplierId: string }) {
           })}
         </div>
       )}
+    </div>
+  );
+}
+
+// ── LiveEditNotice ────────────────────────────────────────────────────────────
+// Honest revision-context line shown atop the three editor tabs (PO Mapping,
+// Delivery, Validation rules). These editors write the LIVE loose config tables
+// directly — they do NOT edit a connection revision — so say exactly that, and
+// point at the versioned Connection when one exists (link hidden otherwise).
+
+function LiveEditNotice({ connectionId, nounLower }: { connectionId: string | null; nounLower: string }) {
+  return (
+    <div
+      className="mb-4 flex items-start gap-2 rounded-[7px] px-3 py-2.5 text-[12px] leading-relaxed"
+      style={{ background: SURFACE_2, border: `1px solid ${LINE}`, color: MUTED }}
+    >
+      <Info size={13} strokeWidth={2} color={MUTED} style={{ flexShrink: 0, marginTop: 2 }} aria-hidden />
+      <span>
+        Edits here apply immediately to live processing.
+        {connectionId && (
+          <>
+            {" "}Versioned snapshots live in this {nounLower}&rsquo;s{" "}
+            <Link
+              href={`/connections/${connectionId}`}
+              style={{ color: BLUE_DEEP, fontWeight: 600 }}
+            >
+              Connection
+            </Link>
+            .
+          </>
+        )}
+      </span>
     </div>
   );
 }
@@ -997,6 +1031,20 @@ export function SupplierDockProfile({ id }: { id: string }) {
     enabled: !isApiMockMode,
   });
 
+  // Resolve this supplier's versioned Connection (if one exists) so the header
+  // can link to it and the editor tabs can point at the versioned snapshots.
+  // No connection yet → links stay hidden (a connection is created the first
+  // time the supplier is configured).
+  const connectionsEnabled = useQueriesEnabled();
+  const { data: connectionList } = useQuery({
+    queryKey: ["connections"],
+    queryFn: listConnections,
+    enabled: connectionsEnabled,
+    staleTime: 60_000,
+    retry: 1,
+  });
+  const connectionId = connectionList?.find((c) => c.supplierId === id)?.id ?? null;
+
   // In mock mode: all fields come from DEMO_MOCK.
   // In real mode: only name comes from the API; metrics show honest placeholders.
   const realSupplier = !isApiMockMode
@@ -1152,15 +1200,29 @@ export function SupplierDockProfile({ id }: { id: string }) {
             </div>
           </div>
 
-          {/* Destructive action — soft-deletes the supplier (past orders retained for audit) */}
-          <button
-            onClick={() => setConfirmDelete(true)}
-            className="inline-flex items-center gap-1.5 self-start rounded-[7px] px-3 text-[12.5px] font-medium sm:ml-auto sm:self-center"
-            style={{ height: 34, border: "1px solid #E9C4C4", background: SURFACE, color: DANGER, cursor: "pointer" }}
-          >
-            <Trash2 size={14} strokeWidth={2} color={DANGER} />
-            Delete {partyNounLower}
-          </button>
+          <div className="flex flex-wrap items-center gap-2 self-start sm:ml-auto sm:self-center">
+            {/* Versioned Connection — draft → test → publish snapshots for this supplier.
+                Hidden when no connection exists yet. */}
+            {connectionId && (
+              <Link
+                href={`/connections/${connectionId}`}
+                className="inline-flex items-center gap-1.5 rounded-[7px] px-3 text-[12.5px] font-medium no-underline"
+                style={{ height: 34, border: `1px solid ${BORDER_STRONG}`, background: SURFACE, color: INK }}
+              >
+                <GitBranch size={14} strokeWidth={2} color={MUTED} />
+                Connection
+              </Link>
+            )}
+            {/* Destructive action — soft-deletes the supplier (past orders retained for audit) */}
+            <button
+              onClick={() => setConfirmDelete(true)}
+              className="inline-flex items-center gap-1.5 rounded-[7px] px-3 text-[12.5px] font-medium"
+              style={{ height: 34, border: "1px solid #E9C4C4", background: SURFACE, color: DANGER, cursor: "pointer" }}
+            >
+              <Trash2 size={14} strokeWidth={2} color={DANGER} />
+              Delete {partyNounLower}
+            </button>
+          </div>
         </div>
       </div>
 
@@ -1410,6 +1472,8 @@ export function SupplierDockProfile({ id }: { id: string }) {
         )}
 
         {tab === "po-mapping" && (
+          <>
+          <LiveEditNotice connectionId={connectionId} nounLower={partyNounLower} />
           <PoMappingEditor
             supplierId={id}
             initialConfig={poMappingConfig}
@@ -1441,13 +1505,24 @@ export function SupplierDockProfile({ id }: { id: string }) {
                 : undefined
             }
           />
+          </>
         )}
 
         {tab === "catalog" && <CatalogTab supplierId={id} />}
 
-        {tab === "delivery" && <DeliveryConfigEditor supplierId={id} />}
+        {tab === "delivery" && (
+          <>
+            <LiveEditNotice connectionId={connectionId} nounLower={partyNounLower} />
+            <DeliveryConfigEditor supplierId={id} />
+          </>
+        )}
 
-        {tab === "acceptance" && <AcceptanceTab supplierId={id} />}
+        {tab === "acceptance" && (
+          <>
+            <LiveEditNotice connectionId={connectionId} nounLower={partyNounLower} />
+            <AcceptanceTab supplierId={id} />
+          </>
+        )}
 
         {/* Rules / Output templates / Connectors / History are managed globally (Library +
             Operations); supplier-scoped versions aren't built yet, so we don't surface empty
@@ -1468,18 +1543,19 @@ function SrcChip({ type }: { type: string }) {
 }
 
 /* -------- MiniStatusPill — compact status badge for the recent-deliveries list -------- */
-/* Uses the ported .pill / .pill-* classes so colours match the design StatusPill exactly. */
+/* Uses the ported .pill / .pill-* classes so colours match the design StatusPill exactly.
+   Labels come from the canonical statusLabel() map (UnifiedStatusBadge) so this pill
+   never drifts from the unified vocabulary (e.g. ready → "Normalized", sent → "Delivered"). */
 function MiniStatusPill({ status }: { status: "review" | "ready" | "sent" }) {
-  const MAP: Record<string, { cls: string; label: string }> = {
-    review: { cls: "pill-review", label: "Needs review" },
-    ready:  { cls: "pill-ready",  label: "Ready"        },
-    sent:   { cls: "pill-sent",   label: "Delivered"    },
+  const PILL_CLS: Record<string, string> = {
+    review: "pill-review",
+    ready:  "pill-ready",
+    sent:   "pill-sent",
   };
-  const s = MAP[status];
   return (
-    <span className={`pill ${s.cls}`}>
+    <span className={`pill ${PILL_CLS[status]}`}>
       <span className="dot" />
-      {s.label}
+      {statusLabel(status)}
     </span>
   );
 }

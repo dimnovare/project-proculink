@@ -19,10 +19,11 @@
 // supplier book can't trigger an unbounded burst of requests. Each row's query
 // has a long staleTime so navigating away and back doesn't re-hit the API.
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { getBillingStatus, apiClient } from "@/lib/api-client";
+import { getBillingStatus, apiClient, listConnections } from "@/lib/api-client";
 import { getDeliveryConfig } from "@/lib/api/delivery";
 import { useQueriesEnabled } from "@/hooks/useQueriesEnabled";
 import type { DeliveryConfig, DeliveryProtocol } from "@/lib/api/types";
@@ -136,6 +137,23 @@ export function SupplierDockList() {
     retry: 1,
     retryDelay: 800,
   });
+
+  // ── Versioned connections (one query for the whole list) ──────────────────
+  // supplierId → connectionId, so each row can link to its Connection where one
+  // exists. Rows without a connection simply show no link (a connection is
+  // created the first time the supplier is configured).
+  const { data: connections } = useQuery({
+    queryKey: ["connections"],
+    queryFn: listConnections,
+    enabled: queryEnabled,
+    staleTime: 5 * 60_000,
+    retry: 1,
+    retryDelay: 800,
+  });
+  const connectionIdBySupplier = useMemo(
+    () => new Map((connections ?? []).map((c) => [c.supplierId, c.id] as const)),
+    [connections],
+  );
 
   // ── Create supplier ────────────────────────────────────────────────────────
   const createMutation = useMutation({
@@ -414,6 +432,7 @@ export function SupplierDockList() {
                 <col style={{ width: 160 }} />
                 <col style={{ width: 160 }} />
                 <col style={{ width: 170 }} />
+                <col style={{ width: 110 }} />
                 <col style={{ width: 44 }} />
               </colgroup>
               <thead>
@@ -423,6 +442,7 @@ export function SupplierDockList() {
                     { label: "Format",       align: "left"  },
                     { label: "Channel",      align: "left"  },
                     { label: "Auto-process", align: "left"  },
+                    { label: "",             align: "right" },
                     { label: "",             align: "right" },
                   ] as const).map((col, i) => (
                     <th
@@ -454,6 +474,7 @@ export function SupplierDockList() {
                     isLast={idx === suppliers.length - 1}
                     fetchConfig={queryEnabled && idx < DELIVERY_FETCH_CAP}
                     nounLower={nounLower}
+                    connectionId={connectionIdBySupplier.get(s.id) ?? null}
                     onEnter={() => setHoverRow(s.id)}
                     onLeave={() => setHoverRow(null)}
                     onOpen={() => router.push(`/library/suppliers/${s.id}`)}
@@ -473,6 +494,7 @@ export function SupplierDockList() {
                 id={s.id}
                 name={s.name}
                 fetchConfig={queryEnabled && idx < DELIVERY_FETCH_CAP}
+                connectionId={connectionIdBySupplier.get(s.id) ?? null}
                 onOpen={() => router.push(`/library/suppliers/${s.id}`)}
               />
             ))}
@@ -573,6 +595,7 @@ function SupplierTableRow({
   isLast,
   fetchConfig,
   nounLower,
+  connectionId,
   onEnter,
   onLeave,
   onOpen,
@@ -583,6 +606,8 @@ function SupplierTableRow({
   isLast: boolean;
   fetchConfig: boolean;
   nounLower: string;
+  /** This supplier's versioned Connection id, or null when none exists yet. */
+  connectionId: string | null;
   onEnter: () => void;
   onLeave: () => void;
   onOpen: () => void;
@@ -650,6 +675,21 @@ function SupplierTableRow({
         )}
       </td>
 
+      {/* Connection — compact link to the versioned Connection (hidden when none exists) */}
+      <td style={{ padding: "14px 8px", borderBottom: cellBorder, textAlign: "right", verticalAlign: "middle", whiteSpace: "nowrap" }}>
+        {connectionId && (
+          <Link
+            href={`/connections/${connectionId}`}
+            onClick={(e) => e.stopPropagation()}
+            title={`Open this ${nounLower}'s versioned connection`}
+            className="text-[11.5px] font-medium"
+            style={{ color: isHover ? GREEN_DEEP : TEXT_MUTED, textDecoration: "none", transition: "color 120ms" }}
+          >
+            Connection ›
+          </Link>
+        )}
+      </td>
+
       {/* Chevron */}
       <td style={{ padding: "14px 14px", borderBottom: cellBorder, textAlign: "right", verticalAlign: "middle" }}>
         <svg
@@ -669,11 +709,14 @@ function SupplierMobileCard({
   id,
   name,
   fetchConfig,
+  connectionId,
   onOpen,
 }: {
   id: string;
   name: string;
   fetchConfig: boolean;
+  /** This supplier's versioned Connection id, or null when none exists yet. */
+  connectionId: string | null;
   onOpen: () => void;
 }) {
   const { data: config, isLoading } = useSupplierDeliveryConfig(id, fetchConfig);
@@ -734,6 +777,17 @@ function SupplierMobileCard({
           </div>
         </dl>
       </button>
+      {/* Versioned Connection link — sits OUTSIDE the card button (no nested
+          interactive elements); hidden when no connection exists yet. */}
+      {connectionId && (
+        <Link
+          href={`/connections/${connectionId}`}
+          className="mt-1.5 inline-flex items-center px-1 py-1 text-[12px] font-medium"
+          style={{ color: TEXT_MUTED, textDecoration: "none" }}
+        >
+          View connection ›
+        </Link>
+      )}
     </li>
   );
 }

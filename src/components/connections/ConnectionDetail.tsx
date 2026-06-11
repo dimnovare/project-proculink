@@ -3,12 +3,20 @@
 // Connection detail — Group V1. Shows the ACTIVE published revision's bundle
 // (input mapping, output template/format, delivery channel, item-mapping count,
 // acceptance binding, catalog mode) + the revision history with lifecycle
-// controls: create draft (clones active), mark test, publish (with confirm),
-// archive, and rollback (publish a prior revision again).
+// controls: create draft (clones active), run tests, publish (with confirm),
+// archive, and rollback (clone a prior published revision into a new live one).
 //
 // Backend: ProcuLink.Api/Controllers/ConnectionsController.cs.
 //   - published revisions are IMMUTABLE; edit = create a NEW draft (clone-from-active).
 //   - publishing flips the connection's active pointer + archives the prior published rev.
+//   - publish is EVIDENCE-GATED (launch batch 3): the backend 409s with
+//     "Run tests on this revision before publishing." until the test pack has
+//     passed since the last edit — that server message renders inline here.
+//   - POST .../test RUNS the test pack (replay + conformance; never delivers) and
+//     returns the evidence body; a FAILED pack is still a 200 with passed=false.
+//   - POST .../rollback clones an archived previously-published revision into a
+//     NEW published revision; the target stays archived and pinned orders are
+//     unaffected.
 //   - the backend's 409 (illegal transition / immutable) surfaces as an ApiHttpError.
 //
 // The component-level draft editors (mapping / output template / delivery /
@@ -33,9 +41,10 @@ import {
   publishConnectionRevision,
   markConnectionRevisionTest,
   archiveConnectionRevision,
+  rollbackConnectionRevision,
   ApiHttpError,
 } from "@/lib/api-client";
-import type { ConnectionRevisionSummary } from "@/lib/api/types";
+import type { ConnectionRevisionSummary, ConnectionTestEvidence } from "@/lib/api/types";
 import { useQueriesEnabled } from "@/hooks/useQueriesEnabled";
 
 function formatDateTime(iso: string | null): string {
@@ -54,9 +63,62 @@ function formatDateTime(iso: string | null): string {
 type Notice = { text: string; kind: "ok" | "err" } | null;
 
 type ConfirmState =
-  | { kind: "publish"; revisionId: string; versionNo: number; isRollback: boolean }
+  | { kind: "publish"; revisionId: string; versionNo: number }
+  | { kind: "rollback"; revisionId: string; versionNo: number }
   | { kind: "archive"; revisionId: string; versionNo: number }
   | null;
+
+// ── Test-pack evidence (returned by POST .../test) ───────────────────────────
+// Mirrors the backend's stored TestPackSummary JSON (camelCase):
+//   { replay: {...} | null, conformance: {...} | null, error: string | null }
+
+interface TestPackReplayLeg {
+  passed: boolean;
+  orderCount: number;
+  outputErrors: number;
+  outputChanged: number;
+  validationChanged: number;
+  note: string | null;
+}
+
+interface TestPackConformanceLeg {
+  skipped: boolean;
+  passed: boolean | null;
+  profile: string | null;
+  errors: number;
+  warnings: number;
+  note: string | null;
+}
+
+interface TestPackSummary {
+  replay: TestPackReplayLeg | null;
+  conformance: TestPackConformanceLeg | null;
+  error: string | null;
+}
+
+interface RevisionTestEvidence {
+  revisionId: string;
+  passed: boolean;
+  testedAt: string;
+  summary: TestPackSummary | null;
+}
+
+function parseTestSummary(summaryJson: string): TestPackSummary | null {
+  try {
+    const parsed = JSON.parse(summaryJson) as TestPackSummary;
+    return parsed && typeof parsed === "object" ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Non-null notes carried by the evidence (replay note, conformance note, pack error). */
+function evidenceNotes(summary: TestPackSummary | null): string[] {
+  if (!summary) return [];
+  return [summary.replay?.note, summary.conformance?.note, summary.error].filter(
+    (n): n is string => typeof n === "string" && n.length > 0,
+  );
+}
 
 export function ConnectionDetail({ connectionId }: { connectionId: string }) {
   const router = useRouter();
@@ -64,6 +126,8 @@ export function ConnectionDetail({ connectionId }: { connectionId: string }) {
   const queriesEnabled = useQueriesEnabled();
   const [notice, setNotice] = useState<Notice>(null);
   const [confirm, setConfirm] = useState<ConfirmState>(null);
+  // Evidence from the most recent "Run tests" call, rendered inline under its revision row.
+  const [testEvidence, setTestEvidence] = useState<RevisionTestEvidence | null>(null);
 
   const {
     data: connection,
@@ -111,9 +175,19 @@ export function ConnectionDetail({ connectionId }: { connectionId: string }) {
 
   const testMutation = useMutation({
     mutationFn: (revisionId: string) => markConnectionRevisionTest(connectionId, revisionId),
-    onSuccess: () => {
+    onSuccess: (evidence: ConnectionTestEvidence, revisionId: string) => {
       invalidate();
-      setNotice({ text: "Revision marked as test.", kind: "ok" });
+      setTestEvidence({
+        revisionId,
+        passed: evidence.passed,
+        testedAt: evidence.testedAt,
+        summary: parseTestSummary(evidence.summaryJson),
+      });
+      setNotice(
+        evidence.passed
+          ? { text: "Test pack passed — revision marked as test.", kind: "ok" }
+          : { text: "Test pack ran but FAILED — see the evidence below. Fix the issues before publishing.", kind: "err" },
+      );
     },
     onError: onMutationError,
   });
@@ -124,6 +198,27 @@ export function ConnectionDetail({ connectionId }: { connectionId: string }) {
       invalidate();
       setConfirm(null);
       setNotice({ text: "Published — this is now the live revision for new orders.", kind: "ok" });
+    },
+    onError: (e) => {
+      setConfirm(null);
+      onMutationError(e);
+    },
+  });
+
+  // Rollback = clone a previously-published (archived) revision into a NEW
+  // published revision via POST .../rollback. The target stays archived;
+  // orders pinned to it are unaffected.
+  const rollbackMutation = useMutation({
+    mutationFn: (revisionId: string) => rollbackConnectionRevision(connectionId, revisionId),
+    onSuccess: (rev) => {
+      invalidate();
+      setConfirm(null);
+      setNotice({
+        text: rev
+          ? `Rolled back — v${rev.versionNo} (a clone of the archived version) is now live for new orders.`
+          : "Rolled back.",
+        kind: "ok",
+      });
     },
     onError: (e) => {
       setConfirm(null);
@@ -148,6 +243,7 @@ export function ConnectionDetail({ connectionId }: { connectionId: string }) {
     createDraftMutation.isPending ||
     testMutation.isPending ||
     publishMutation.isPending ||
+    rollbackMutation.isPending ||
     archiveMutation.isPending;
 
   const revisions: ConnectionRevisionSummary[] = useMemo(
@@ -283,7 +379,7 @@ export function ConnectionDetail({ connectionId }: { connectionId: string }) {
                 </p>
                 <p className="text-[12.5px] mt-1.5 leading-[1.55]" style={{ color: "var(--ink-muted)" }}>
                   This connection only has drafts. Configure a draft using the supplier editors,
-                  mark it as test, then publish it to make it live for new orders.
+                  run its tests, then publish it to make it live for new orders.
                 </p>
                 <Link
                   href={`/library/suppliers/${connection.supplierId}`}
@@ -355,7 +451,7 @@ export function ConnectionDetail({ connectionId }: { connectionId: string }) {
                             loading={testMutation.isPending && testMutation.variables === r.id}
                             onClick={() => { setNotice(null); testMutation.mutate(r.id); }}
                           >
-                            Mark test
+                            Run tests
                           </Button>
                         )}
                         {canPublish && (
@@ -364,7 +460,7 @@ export function ConnectionDetail({ connectionId }: { connectionId: string }) {
                             size="sm"
                             disabled={busy}
                             onClick={() =>
-                              setConfirm({ kind: "publish", revisionId: r.id, versionNo: r.versionNo, isRollback: false })
+                              setConfirm({ kind: "publish", revisionId: r.id, versionNo: r.versionNo })
                             }
                           >
                             Publish
@@ -375,8 +471,9 @@ export function ConnectionDetail({ connectionId }: { connectionId: string }) {
                             variant="secondary"
                             size="sm"
                             disabled={busy}
+                            loading={rollbackMutation.isPending && rollbackMutation.variables === r.id}
                             onClick={() =>
-                              setConfirm({ kind: "publish", revisionId: r.id, versionNo: r.versionNo, isRollback: true })
+                              setConfirm({ kind: "rollback", revisionId: r.id, versionNo: r.versionNo })
                             }
                           >
                             Roll back to this
@@ -401,6 +498,10 @@ export function ConnectionDetail({ connectionId }: { connectionId: string }) {
                           </span>
                         )}
                       </div>
+
+                      {testEvidence && testEvidence.revisionId === r.id && (
+                        <TestEvidenceSummary evidence={testEvidence} />
+                      )}
                     </li>
                   );
                 })}
@@ -422,16 +523,69 @@ export function ConnectionDetail({ connectionId }: { connectionId: string }) {
       {confirm && (
         <ConfirmDialog
           state={confirm}
-          busy={publishMutation.isPending || archiveMutation.isPending}
+          busy={publishMutation.isPending || rollbackMutation.isPending || archiveMutation.isPending}
           onCancel={() => setConfirm(null)}
           onConfirm={() => {
             setNotice(null);
             if (confirm.kind === "publish") publishMutation.mutate(confirm.revisionId);
+            else if (confirm.kind === "rollback") rollbackMutation.mutate(confirm.revisionId);
             else archiveMutation.mutate(confirm.revisionId);
           }}
         />
       )}
     </PageShell>
+  );
+}
+
+// ── Test-pack evidence summary (inline under the tested revision row) ─────────
+
+function TestEvidenceSummary({ evidence }: { evidence: RevisionTestEvidence }) {
+  const { passed, testedAt, summary } = evidence;
+  const notes = evidenceNotes(summary);
+  const replay = summary?.replay ?? null;
+  const conformance = summary?.conformance ?? null;
+
+  return (
+    <div
+      className="mt-2.5 rounded-[6px] px-3 py-2.5 text-[11.5px] leading-[1.55]"
+      style={
+        passed
+          ? { background: "var(--brand-green-soft)", border: "1px solid var(--brand-green-soft)", color: "var(--brand-green-deep)" }
+          : { background: "var(--danger-soft)", border: "1px solid #F5C6CB", color: "var(--danger)" }
+      }
+      role="status"
+    >
+      <span className="font-semibold">
+        Test pack {passed ? "passed" : "failed"}
+      </span>
+      <span> · {formatDateTime(testedAt)}</span>
+      {(replay || conformance) && (
+        <div className="mt-1" style={{ opacity: 0.92 }}>
+          {replay && (
+            <span>
+              Replay: {replay.orderCount} order{replay.orderCount === 1 ? "" : "s"}
+              {replay.outputErrors > 0 ? `, ${replay.outputErrors} render error${replay.outputErrors === 1 ? "" : "s"}` : ""}
+            </span>
+          )}
+          {replay && conformance && <span> · </span>}
+          {conformance && (
+            <span>
+              Conformance:{" "}
+              {conformance.skipped
+                ? "skipped"
+                : `${conformance.passed ? "passed" : "failed"}${conformance.profile ? ` (${conformance.profile})` : ""}`}
+            </span>
+          )}
+        </div>
+      )}
+      {notes.length > 0 && (
+        <ul className="mt-1 list-disc pl-4 m-0">
+          {notes.map((n, i) => (
+            <li key={i}>{n}</li>
+          ))}
+        </ul>
+      )}
+    </div>
   );
 }
 
@@ -539,15 +693,18 @@ function ConfirmDialog({
   onConfirm: () => void;
 }) {
   const isPublish = state.kind === "publish";
+  const isRollback = state.kind === "rollback";
   const title = isPublish
-    ? state.isRollback
+    ? `Publish v${state.versionNo}?`
+    : isRollback
       ? `Roll back to v${state.versionNo}?`
-      : `Publish v${state.versionNo}?`
-    : `Archive v${state.versionNo}?`;
+      : `Archive v${state.versionNo}?`;
   const body = isPublish
     ? "This becomes the live revision for new orders. The currently-published revision is archived. Orders already in flight keep the revision they were created with."
-    : "Archiving removes this revision from the working set. Published revisions stay retained for orders that pinned them.";
-  const confirmLabel = isPublish ? (state.isRollback ? "Roll back & publish" : "Publish") : "Archive";
+    : isRollback
+      ? "Clones this revision as a new published version. The clone becomes the live revision for new orders and the currently-published revision is archived. This archived original stays unchanged, and orders pinned to it are unaffected."
+      : "Archiving removes this revision from the working set. Published revisions stay retained for orders that pinned them.";
+  const confirmLabel = isPublish ? "Publish" : isRollback ? "Roll back" : "Archive";
 
   return (
     <div
@@ -578,7 +735,7 @@ function ConfirmDialog({
             Cancel
           </Button>
           <Button
-            variant={isPublish ? "primary" : "danger"}
+            variant={isPublish || isRollback ? "primary" : "danger"}
             size="md"
             onClick={onConfirm}
             disabled={busy}
