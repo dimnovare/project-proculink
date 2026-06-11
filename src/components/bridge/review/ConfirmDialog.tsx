@@ -1,0 +1,157 @@
+"use client";
+
+// ConfirmDialog — the send/confirm modal with focus trap and the
+// failing-acceptance-rules acknowledgement. Moved as-is from SpineReview.tsx
+// (batch 9 Phase A); behaviour and DOM unchanged.
+
+import { useState, useRef, useEffect } from "react";
+import type { PartyLabels } from "@/hooks/useOrderDirection";
+
+export function ConfirmDialog({ exceptionCount, onConfirm, onCancel, supplierName, outputFormat, grandTotal, lineCount, labels, failingRuleCount }: {
+  exceptionCount: number;
+  onConfirm: () => void;
+  onCancel: () => void;
+  supplierName: string;
+  outputFormat: string;
+  grandTotal: string;
+  lineCount: number;
+  labels: PartyLabels;
+  /** Number of acceptance-profile rules that FAILED the last validation; 0 if it passed or wasn't run. Requires an explicit ack before send. */
+  failingRuleCount: number;
+}) {
+  const inbound = labels.counterpartyNoun === "Customer";
+  const [checked, setChecked] = useState(false);
+  // Second acknowledgement, required only when validation flagged failing rules.
+  const [ackValidation, setAckValidation] = useState(false);
+  const canConfirm = checked && (failingRuleCount === 0 || ackValidation);
+  const checkRef = useRef<HTMLInputElement>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const titleId = "spine-confirm-title";
+
+  // Move focus into the dialog on open and restore it to the previously-focused
+  // element (the Send button) when the dialog closes.
+  useEffect(() => {
+    const previouslyFocused = document.activeElement as HTMLElement | null;
+    checkRef.current?.focus();
+    return () => previouslyFocused?.focus?.();
+  }, []);
+
+  function handleKeyDown(e: globalThis.KeyboardEvent) {
+    if (e.key === "Escape") { onCancel(); return; }
+    if (e.key === "Enter" && canConfirm) { onConfirm(); return; }
+    // Focus trap — keep Tab within the dialog's focusable elements.
+    if (e.key === "Tab" && dialogRef.current) {
+      const focusables = dialogRef.current.querySelectorAll<HTMLElement>(
+        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
+      );
+      if (focusables.length === 0) return;
+      const first = focusables[0];
+      const last = focusables[focusables.length - 1];
+      const active = document.activeElement;
+      if (e.shiftKey && active === first) { e.preventDefault(); last.focus(); }
+      else if (!e.shiftKey && active === last) { e.preventDefault(); first.focus(); }
+    }
+  }
+  useEffect(() => {
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  });
+
+  return (
+    <>
+      <div style={{ position: "fixed", inset: 0, background: "rgba(11,26,47,0.6)", backdropFilter: "blur(4px)", zIndex: 9990 }} onClick={onCancel} />
+      <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        style={{ position: "fixed", top: "50%", left: "50%", transform: "translate(-50%,-50%)", width: 440, background: "#FFFFFF", borderRadius: 12, boxShadow: "0 24px 64px rgba(11,26,47,0.22)", border: "1px solid #E2E6EE", zIndex: 9991, overflow: "hidden" }}
+      >
+        {/* Header */}
+        <div style={{ padding: "20px 24px 0" }}>
+          <div id={titleId} style={{ fontFamily: "'Bricolage Grotesque',Inter,sans-serif", fontSize: 18, fontWeight: 700, color: "#0B1A2F", marginBottom: 6 }}>{inbound ? "Confirm this order?" : "Send order to supplier?"}</div>
+          <p style={{ fontSize: 13, color: "#56627A", lineHeight: 1.55, margin: 0 }}>
+            This will {inbound ? "confirm" : "deliver"} the transformed {outputFormat.toUpperCase()} order {inbound ? "for" : "to"} <strong style={{ color: "#0B1A2F" }}>{supplierName}</strong>
+          </p>
+        </div>
+
+        {/* Summary */}
+        <div style={{ margin: "16px 24px", padding: "12px 14px", background: "#F6F7FA", borderRadius: 8, border: "1px solid #E2E6EE" }}>
+          <div style={{ display: "flex", gap: 20 }}>
+            {[
+              { label: "Grand total",    value: grandTotal },
+              { label: "Lines",          value: `${lineCount} item${lineCount !== 1 ? "s" : ""}` },
+              { label: "Exceptions",     value: `${exceptionCount}`, color: exceptionCount > 0 ? "#C97A14" : "#1E6D29" },
+              { label: "Format",         value: outputFormat.toUpperCase() },
+            ].map(({ label, value, color }) => (
+              <div key={label} style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--ink-faint)", marginBottom: 2 }}>{label}</div>
+                <div style={{ fontSize: 13, fontWeight: 600, color: color ?? "#0B1A2F", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{value}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Confirmation checkbox */}
+        <div style={{ margin: "0 24px 20px", display: "flex", alignItems: "flex-start", gap: 10 }}>
+          <input
+            ref={checkRef}
+            type="checkbox"
+            id="confirm-check"
+            checked={checked}
+            onChange={(e) => setChecked(e.target.checked)}
+            style={{ marginTop: 2, width: 15, height: 15, accentColor: "#2E8E3A", cursor: "pointer", flexShrink: 0 }}
+          />
+          <label htmlFor="confirm-check" style={{ fontSize: 13, color: "#0B1A2F", lineHeight: 1.5, cursor: "pointer" }}>
+            {exceptionCount === 0
+              ? <>Everything checks out. {inbound ? `Confirm for ${supplierName}` : `Send to ${supplierName}`}.</>
+              : <>I&apos;ve reviewed the {exceptionCount} exception{exceptionCount !== 1 ? "s" : ""}. {inbound ? `Confirm for ${supplierName}` : `Send to ${supplierName}`}.</>}
+          </label>
+        </div>
+
+        {/* Validation-failure acknowledgement — only when the last "Validate
+            against profile" run found failing acceptance rules. Doesn't hard-block
+            (the supplier may still accept), but requires an explicit ack. */}
+        {failingRuleCount > 0 && (
+          <div style={{ margin: "0 24px 20px", padding: "10px 12px", background: "#FFF7F7", border: "1px solid #F0D2D2", borderRadius: 6 }}>
+            <div style={{ fontSize: 11.5, fontWeight: 700, color: "#C53A3A", marginBottom: 6 }}>
+              ⚠ {failingRuleCount} acceptance rule{failingRuleCount !== 1 ? "s" : ""} failed validation
+            </div>
+            <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
+              <input
+                type="checkbox"
+                id="confirm-ack-validation"
+                checked={ackValidation}
+                onChange={(e) => setAckValidation(e.target.checked)}
+                style={{ marginTop: 2, width: 15, height: 15, accentColor: "#C53A3A", cursor: "pointer", flexShrink: 0 }}
+              />
+              <label htmlFor="confirm-ack-validation" style={{ fontSize: 12.5, color: "#0B1A2F", lineHeight: 1.5, cursor: "pointer" }}>
+                Send anyway — I understand this order doesn&apos;t meet {supplierName}&apos;s acceptance rules and may be rejected.
+              </label>
+            </div>
+          </div>
+        )}
+
+        {/* Retry note */}
+        <div style={{ margin: "0 24px 20px", padding: "8px 12px", background: "#ECFDF3", borderRadius: 6, fontSize: 11.5, color: "#1E6D29" }}>
+          On delivery failure: 3 automatic retries · 30-min intervals · we&apos;ll email you
+        </div>
+
+        {/* Actions */}
+        <div style={{ padding: "14px 24px", borderTop: "1px solid #E2E6EE", display: "flex", gap: 10, justifyContent: "flex-end" }}>
+          <button onClick={onCancel} style={{ padding: "9px 18px", borderRadius: 7, fontSize: 13, fontWeight: 500, background: "#FFFFFF", color: "#56627A", border: "1px solid #E2E6EE", cursor: "pointer" }}>
+            Cancel
+          </button>
+          <button
+            onClick={() => canConfirm && onConfirm()}
+            disabled={!canConfirm}
+            style={{ padding: "9px 24px", borderRadius: 7, fontSize: 13, fontWeight: 600, background: canConfirm ? "#0B1A2F" : "#C6CDDA", color: "#FFFFFF", border: "none", cursor: canConfirm ? "pointer" : "not-allowed", display: "flex", alignItems: "center", gap: 8, transition: "background 150ms" }}
+          >
+            {labels.primaryCta} →
+            <span style={{ width: 10, height: 10, borderRadius: 2, background: "linear-gradient(90deg,#1E6D29,#2E8E3A)", display: "inline-block" }} />
+          </button>
+        </div>
+      </div>
+    </>
+  );
+}
