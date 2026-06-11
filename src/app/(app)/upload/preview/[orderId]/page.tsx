@@ -10,6 +10,8 @@
 
 import { useParams, useRouter } from "next/navigation";
 import { MagicMappingPreview } from "@/components/bridge/MagicMappingPreview";
+import { PageShell } from "@/components/bridge/layout/PageShell";
+import { PageHeader } from "@/components/bridge/layout/PageHeader";
 import Link from "next/link";
 
 export default function MappingPreviewPage() {
@@ -25,52 +27,32 @@ export default function MappingPreviewPage() {
   }
 
   return (
-    <div
-      className="flex flex-col h-full min-h-0 overflow-hidden"
-      style={{ background: "#F6F7FA" }}
-    >
-      {/* Page header */}
-      <div
-        className="flex flex-col gap-1 px-4 py-4 sm:px-6 flex-shrink-0"
-        style={{ borderBottom: "1px solid #E2E6EE", background: "#FFFFFF" }}
-      >
-        {/* Breadcrumb */}
-        <nav className="flex items-center gap-1.5 text-[12px]" style={{ color: "var(--ink-faint)" }}>
-          <Link
-            href="/upload"
-            className="hover:underline"
-            style={{ color: "#2E8E3A", textDecoration: "none" }}
-          >
-            Upload
-          </Link>
-          <span aria-hidden>›</span>
-          <span style={{ color: "#56627A" }}>Review mapping</span>
-        </nav>
-
-        <h1
-          className="text-[22px] font-semibold tracking-[-0.02em]"
-          style={{
-            fontFamily: "'Bricolage Grotesque', Inter, sans-serif",
-            color: "#0B1A2F",
-          }}
+    <PageShell>
+      {/* Breadcrumb */}
+      <nav className="flex items-center gap-1.5 pb-1 text-[12px]" style={{ color: "var(--ink-faint)" }}>
+        <Link
+          href="/upload"
+          className="hover:underline"
+          style={{ color: "#2E8E3A", textDecoration: "none" }}
         >
-          Review mapping
-        </h1>
-        <p className="text-[13px] mt-0.5" style={{ color: "#56627A" }}>
-          Confirm how your order lines map to supplier codes before processing.
-        </p>
-      </div>
+          Upload
+        </Link>
+        <span aria-hidden>›</span>
+        <span style={{ color: "#56627A" }}>Review mapping</span>
+      </nav>
+
+      {/* Page header — canonical PageHeader */}
+      <PageHeader
+        title="Review mapping"
+        sub="Confirm how your order lines map to supplier codes before processing."
+      />
 
       {/* Body */}
-      <div className="flex-1 overflow-auto p-4 sm:p-5">
-        <div className="mx-auto max-w-5xl">
-          <MagicMappingPreview
-            orderId={orderId}
-            onCommitted={handleCommitted}
-            onParseFailed={handleParseFailed}
-          />
-        </div>
-      </div>
-    </div>
+      <MagicMappingPreview
+        orderId={orderId}
+        onCommitted={handleCommitted}
+        onParseFailed={handleParseFailed}
+      />
+    </PageShell>
   );
 }

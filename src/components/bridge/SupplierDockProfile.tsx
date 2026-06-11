@@ -16,6 +16,7 @@ import { StandardsRefList, hasStandardsRefs } from "./StandardsRefList";
 import { statusLabel } from "./UnifiedStatusBadge";
 import { useOrderDirection } from "@/hooks/useOrderDirection";
 import { useQueriesEnabled } from "@/hooks/useQueriesEnabled";
+import { PageShell } from "./layout/PageShell";
 import type { PoMappingConfig } from "@/lib/api/types";
 import type { AcceptanceRule, AcceptanceProfile, SupplierMapping } from "@/types/procurement";
 
@@ -1056,15 +1057,15 @@ export function SupplierDockProfile({ id }: { id: string }) {
 
   if (!isApiMockMode && isLoading) {
     return (
-      <div className="flex items-center justify-center h-full" style={{ background: BG }}>
+      <PageShell variant="wide" className="flex items-center justify-center">
         <span style={{ fontSize: 13, color: FAINT }}>Loading {partyNounLower}…</span>
-      </div>
+      </PageShell>
     );
   }
 
   if (!isApiMockMode && error) {
     return (
-      <div className="flex flex-col items-center justify-center h-full gap-3" style={{ background: BG }}>
+      <PageShell variant="wide" className="flex flex-col items-center justify-center gap-3">
         <span style={{ fontSize: 13, color: DANGER }}>Failed to load {partyNounLower}</span>
         <button
           onClick={() => router.push("/library/suppliers")}
@@ -1072,13 +1073,13 @@ export function SupplierDockProfile({ id }: { id: string }) {
         >
           ← Back to {partyPluralLower}
         </button>
-      </div>
+      </PageShell>
     );
   }
 
   if (!isApiMockMode && !isLoading && realSupplier === null) {
     return (
-      <div className="flex flex-col items-center justify-center h-full gap-3" style={{ background: BG }}>
+      <PageShell variant="wide" className="flex flex-col items-center justify-center gap-3">
         <span style={{ fontSize: 14, fontWeight: 600, color: INK }}>{partyNoun} not found</span>
         <button
           onClick={() => router.push("/library/suppliers")}
@@ -1086,12 +1087,12 @@ export function SupplierDockProfile({ id }: { id: string }) {
         >
           ← Back to {partyPluralLower}
         </button>
-      </div>
+      </PageShell>
     );
   }
 
   return (
-    <div className="flex flex-col h-full min-h-0 overflow-hidden" style={{ background: BG }}>
+    <PageShell variant="wide" className="flex flex-col">
       {confirmDelete && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center p-4"
@@ -1138,11 +1139,9 @@ export function SupplierDockProfile({ id }: { id: string }) {
         </div>
       )}
 
-      {/* Header */}
-      <div
-        className="flex flex-col gap-3.5 px-4 py-4 sm:px-6 sm:py-5 flex-shrink-0"
-        style={{ borderBottom: `1px solid ${LINE}`, background: SURFACE }}
-      >
+      {/* Header — bespoke detail header (back link + avatar + meta + actions) on the
+          grey canvas; PageHeader's string-title API can't carry the avatar/meta row. */}
+      <div className="flex flex-col gap-3.5 pb-4 flex-shrink-0">
         <button
           onClick={() => router.push("/library/suppliers")}
           className="inline-flex items-center gap-1 self-start text-[12.5px] font-medium"
@@ -1227,9 +1226,9 @@ export function SupplierDockProfile({ id }: { id: string }) {
       </div>
 
       {/* Tabs */}
-      <div className="relative flex-shrink-0" style={{ background: SURFACE }}>
+      <div className="relative flex-shrink-0">
         <div
-          className="flex items-center gap-0 overflow-x-auto px-4 sm:px-6 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
+          className="flex items-center gap-0 overflow-x-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
           style={{ borderBottom: `1px solid ${LINE}`, height: 44 }}
         >
           {TABS.map((t) => (
@@ -1255,12 +1254,12 @@ export function SupplierDockProfile({ id }: { id: string }) {
         <div
           aria-hidden
           className="pointer-events-none absolute right-0 top-0 w-8"
-          style={{ height: 43, background: `linear-gradient(to right, rgba(255,255,255,0), ${SURFACE})` }}
+          style={{ height: 43, background: `linear-gradient(to right, rgba(246,247,250,0), ${BG})` }}
         />
       </div>
 
       {/* Tab body */}
-      <div className="flex-1 overflow-auto p-4 sm:p-5">
+      <div className="flex-1 min-h-0 overflow-auto pt-4">
         {tab === "overview" && (
           <div className="flex flex-col gap-4">
             {/* KPI stat cards */}
@@ -1528,7 +1527,7 @@ export function SupplierDockProfile({ id }: { id: string }) {
             Operations); supplier-scoped versions aren't built yet, so we don't surface empty
             placeholder tabs here. Re-add a tab once its supplier-scoped feature ships. */}
       </div>
-    </div>
+    </PageShell>
   );
 }
 

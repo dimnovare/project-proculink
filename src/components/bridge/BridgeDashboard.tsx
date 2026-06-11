@@ -26,6 +26,7 @@ import type { Lane } from "./LaneDrawer";
 import { OnboardingChecklist } from "./OnboardingChecklist";
 import { OnboardingWizard } from "./OnboardingWizard";
 import { PageHeader } from "./layout/PageHeader";
+import { PageShell } from "./layout/PageShell";
 import { apiClient, isApiMockMode } from "@/lib/api-client";
 import { useOrderDirection } from "@/hooks/useOrderDirection";
 import type { OrderSummary, Supplier } from "@/types/procurement";
@@ -683,11 +684,10 @@ export function BridgeDashboard() {
   }
 
   return (
-    <div className="flex h-full min-h-0 flex-col overflow-auto" style={{ background: "#F6F7FA" }}>
+    <PageShell variant="wide" className="flex flex-col">
       {/* Page header — canonical PageHeader, sits directly on the grey canvas
           (no white bar), floating title + muted meta line. */}
-      <div className="flex-shrink-0 px-4 pt-5 sm:px-6 sm:pt-6">
-        <PageHeader
+      <PageHeader
           title="Dashboard"
           sub={
             <span className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
@@ -764,14 +764,13 @@ export function BridgeDashboard() {
             ) : undefined
           }
         />
-      </div>
 
       {/* Guided wizard overlay — new users without a supplier */}
       {showWizard && <OnboardingWizard onDismiss={dismissWizard} />}
 
       {showOnboardingHero ? (
         // ── Onboarding hero: the card is the primary next step (no topology yet) ──
-        <div className="flex flex-1 justify-center p-4 sm:p-6">
+        <div className="flex flex-1 justify-center">
           <div className="w-full max-w-[980px]">
             <p className="mb-4 text-[13px]" style={{ color: "#56627A" }}>
               Your pipeline is ready. Create its first connection to start {direction === "inbound" ? "confirming orders from customers" : "routing orders to suppliers"}.
@@ -787,7 +786,7 @@ export function BridgeDashboard() {
           </div>
         </div>
       ) : (
-        <div className="flex flex-1 flex-col gap-4 p-3 sm:gap-5 sm:p-5">
+        <div className="flex flex-1 flex-col gap-4 sm:gap-5">
           {/* ── Exception strip — founder-approved triage entry (batch 4B) ──
               Shown only when open exceptions exist AND the count's source query
               has settled; zero exceptions = no banner (honest zero-state). */}
@@ -1063,6 +1062,6 @@ export function BridgeDashboard() {
           </div>
         </div>
       )}
-    </div>
+    </PageShell>
   );
 }

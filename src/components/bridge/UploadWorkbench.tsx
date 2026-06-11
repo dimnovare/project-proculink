@@ -9,6 +9,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { FileChip } from "./FileChip";
 import { PageHeader } from "./layout/PageHeader";
+import { PageShell } from "./layout/PageShell";
 import { ApiHttpError, apiClient, getBillingStatus, isApiMockMode, type DetectFormatResult } from "@/lib/api-client";
 import { capture } from "@/lib/analytics";
 import { captureException } from "@/lib/sentry-context";
@@ -541,21 +542,15 @@ export function UploadWorkbench() {
   );
 
   return (
-    <div
-      className="flex flex-col h-full min-h-0 overflow-hidden"
-      style={{ background: "#F6F7FA" }}
-    >
+    <PageShell>
       {/* Page header — canonical PageHeader on the grey canvas (no white bar, no divider) */}
-      <div className="px-4 pt-5 sm:px-6 flex-shrink-0" style={{ background: "#F6F7FA" }}>
-        <PageHeader
-          title="Upload an order"
-          sub={"Upload an order in any shape — we parse, normalize, and prepare it for review."}
-        />
-      </div>
+      <PageHeader
+        title="Upload an order"
+        sub={"Upload an order in any shape — we parse, normalize, and prepare it for review."}
+      />
 
       {/* Body */}
-      <div className="flex-1 overflow-auto p-4 sm:p-6">
-        <div className="mx-auto flex w-full min-w-0 max-w-[860px] flex-col gap-4">
+      <div className="mx-auto flex w-full min-w-0 max-w-[860px] flex-col gap-4">
           {/* Centered single column: dropzone hero → sample → config → recent → tip */}
           {/* Phase 10.3 — Pilot Book-a-demo CTA */}
             {billing?.plan === "pilot" && process.env.NEXT_PUBLIC_BOOK_DEMO_URL && (
@@ -1319,8 +1314,7 @@ export function UploadWorkbench() {
               </div>
             </XCard>
         </div>
-      </div>
-    </div>
+    </PageShell>
   );
 }
 

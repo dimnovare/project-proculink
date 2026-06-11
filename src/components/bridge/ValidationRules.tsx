@@ -27,6 +27,8 @@ import {
   type RuleDto,
 } from "@/lib/api-client";
 import { useOrderDirection } from "@/hooks/useOrderDirection";
+import { PageShell } from "./layout/PageShell";
+import { PageHeader } from "./layout/PageHeader";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -244,56 +246,58 @@ export function ValidationRules() {
   // ── Loading / error states ───────────────────────────────────────────────
   if (!isApiMockMode && isLoading) {
     return (
-      <div className="flex flex-col h-full min-h-0 overflow-hidden" style={{ background: "#F6F7FA" }}>
-        <div className="px-5 py-5 sm:px-7 flex-shrink-0" style={{ background: "#FFFFFF", borderBottom: "1px solid #E2E6EE" }}>
+      <PageShell variant="wide" className="flex flex-col">
+        <div className="mb-5 flex-shrink-0">
           <div style={{ height: 28, width: 200, borderRadius: 6, background: "#E2E6EE" }} className="animate-pulse" />
         </div>
-        <div className="flex-1 overflow-auto p-5 sm:p-7">
+        <div className="flex-1 overflow-auto">
           <div className="rounded-[12px] animate-pulse" style={{ height: 360, background: "#FFFFFF", border: "1px solid #E2E6EE" }} />
         </div>
-      </div>
+      </PageShell>
     );
   }
 
   if (!isApiMockMode && isError) {
     return (
-      <div className="flex flex-col h-full min-h-0 items-center justify-center" style={{ background: "#F6F7FA" }}>
+      <PageShell variant="wide" className="flex flex-col items-center justify-center">
         <div className="rounded-[12px] p-8 text-center max-w-sm" style={{ background: "#FFFFFF", border: "1px solid #E2E6EE", boxShadow: "0 1px 3px rgba(16,24,40,0.06)" }}>
           <p className="text-[14px] font-semibold mb-1" style={{ color: "#C53A3A" }}>Could not load validation rules</p>
           <p className="text-[12px] mb-4" style={{ color: "#56627A" }}>Check your connection and try again.</p>
           <button onClick={() => refetch()} className="rounded-[8px] px-4 py-2 text-[12px] font-semibold" style={{ background: "#0B1A2F", color: "#FFFFFF", border: 0 }}>Retry</button>
         </div>
-      </div>
+      </PageShell>
     );
   }
 
   return (
-    <div className="flex flex-col h-full min-h-0 overflow-hidden" style={{ background: "#F6F7FA" }}>
-      {/* Header */}
-      <div className="flex flex-col items-start gap-3 px-5 py-5 sm:px-7 sm:flex-row sm:items-center sm:gap-4 flex-shrink-0" style={{ background: "#FFFFFF", borderBottom: "1px solid #E2E6EE" }}>
-        <div>
-          <h1 className="text-[28px] leading-[1.1] font-bold tracking-[-0.02em]" style={{ fontFamily: "'Bricolage Grotesque', Inter, sans-serif", color: "#0B1A2F" }}>Rule catalog</h1>
-          <p className="text-[13px] mt-1.5" style={{ color: "#56627A" }}>
+    <PageShell variant="wide" className="flex flex-col">
+      {/* Header — canonical PageHeader on the grey canvas */}
+      <PageHeader
+        title="Rule catalog"
+        sub={
+          <>
             A catalog of the checks you want to run · {activeCount} active. Enforcement is configured per {partyNounLower} — set up blocking checks on each{" "}
             <Link href="/library/suppliers" className="font-semibold underline" style={{ color: "#1E66C9" }}>{partyNounLower}&apos;s Validation rules tab</Link>.
-          </p>
-        </div>
-        <button
-          onClick={() => { setNotice(null); setSelId("new"); setEditorOpen(true); }}
-          className="inline-flex w-full items-center justify-center gap-1.5 rounded-[9px] px-4 text-[13px] font-semibold transition-colors sm:ml-auto sm:w-auto h-[44px] sm:h-[38px]"
-          style={{ background: "#1E66C9", color: "#FFFFFF", border: 0, boxShadow: "0 1px 2px rgba(16,24,40,0.10)" }}
-          onMouseEnter={(e) => (e.currentTarget.style.background = "#1A5BB5")}
-          onMouseLeave={(e) => (e.currentTarget.style.background = "#1E66C9")}
-        >
-          <span style={{ fontSize: 15, lineHeight: 1, marginTop: -1 }}>+</span> New rule
-        </button>
-      </div>
+          </>
+        }
+        actions={
+          <button
+            onClick={() => { setNotice(null); setSelId("new"); setEditorOpen(true); }}
+            className="inline-flex w-full items-center justify-center gap-1.5 rounded-[9px] px-4 text-[13px] font-semibold transition-colors sm:w-auto h-[44px] sm:h-[38px]"
+            style={{ background: "#1E66C9", color: "#FFFFFF", border: 0, boxShadow: "0 1px 2px rgba(16,24,40,0.10)" }}
+            onMouseEnter={(e) => (e.currentTarget.style.background = "#1A5BB5")}
+            onMouseLeave={(e) => (e.currentTarget.style.background = "#1E66C9")}
+          >
+            <span style={{ fontSize: 15, lineHeight: 1, marginTop: -1 }}>+</span> New rule
+          </button>
+        }
+      />
 
       {/* Enforcement-location callout — this catalog documents checks; it does not
           gate delivery. Real blocking/validation runs per supplier. Hidden on mobile:
           the header subtitle already conveys "catalog, not a gate" and this would push
           the rule list below the fold. */}
-      <div className="hidden sm:block px-5 py-2.5 sm:px-7 flex-shrink-0" style={{ background: "#FFFFFF", borderBottom: "1px solid #E2E6EE" }}>
+      <div className="hidden sm:block pb-3 flex-shrink-0">
         <div className="flex flex-col items-start gap-1.5 rounded-[8px] px-3.5 py-2.5 text-[12px] sm:flex-row sm:items-center sm:gap-2.5" style={{ border: "1px solid #D6E2F4", background: "#F2F7FE", color: "#37425A" }}>
           <span className="font-semibold" style={{ color: "#0F4FA8" }}>This is a catalog, not a gate.</span>
           <span style={{ color: "#56627A" }}>
@@ -304,7 +308,7 @@ export function ValidationRules() {
       </div>
 
       {notice && (
-        <div className="px-5 py-2.5 sm:px-7 flex-shrink-0" style={{ background: "#FFFFFF", borderBottom: "1px solid #E2E6EE" }}>
+        <div className="pb-3 flex-shrink-0">
           <div className="inline-flex items-center gap-2 rounded-[8px] px-3 py-1.5 text-[12px] font-medium" style={{ border: "1px solid #B9E4C3", background: "#ECFBF0", color: "#1B7A33" }}>
             <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#1B7A33" }} />
             {notice}
@@ -313,7 +317,7 @@ export function ValidationRules() {
       )}
 
       {/* Split-detail */}
-      <div className="flex-1 overflow-auto p-5 sm:p-7">
+      <div className="flex-1 min-h-0 overflow-auto">
         <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(340px,400px)]">
           {/* Rules table — desktop */}
           <div className="hidden rounded-[12px] overflow-hidden self-start lg:block" style={{ background: "#FFFFFF", border: "1px solid #E2E6EE", boxShadow: "0 1px 3px rgba(16,24,40,0.05)" }}>
@@ -498,7 +502,7 @@ export function ValidationRules() {
           </div>
         </div>
       )}
-    </div>
+    </PageShell>
   );
 }
 
