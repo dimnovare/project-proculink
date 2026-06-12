@@ -927,7 +927,8 @@ function DocumentAnatomy({
                     <td style={{ padding: "1px 4px", borderBottom: "1px dotted #E0E0E0", color: "#888" }}>{l.lineNumber}</td>
                     <td style={{ fontFamily: "monospace" }}>{l.buyerItemCode}</td>
                     <td style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 0 }}>{l.description ?? "—"}</td>
-                    <td style={{ textAlign: "right" }}>×{l.quantity}</td>
+                    {/* 0/null quantity = "not parsed" — render an honest dash, not a fake ×0. */}
+                    <td style={{ textAlign: "right" }}>{l.quantity ? `×${l.quantity}` : "×—"}</td>
                   </tr>
                 ))}
                 {previewLines.length > 4 && (
@@ -1039,7 +1040,8 @@ function DocumentAnatomy({
                     <td style={{ padding: "2px 4px", borderBottom: "1px dotted #BBB" }}>{l.lineNumber}</td>
                     <td style={{ fontFamily: "monospace" }}>{l.buyerItemCode}</td>
                     <td>{l.description ?? "—"}</td>
-                    <td style={{ textAlign: "right" }}>{l.quantity < 0 ? <span style={{ background: "#FBDADA", padding: "0 2px" }}>{l.quantity}</span> : l.quantity}</td>
+                    {/* Negative = highlighted anomaly · 0/null = honest dash (not a fake 0). */}
+                    <td style={{ textAlign: "right" }}>{l.quantity < 0 ? <span style={{ background: "#FBDADA", padding: "0 2px" }}>{l.quantity}</span> : l.quantity ? l.quantity : "—"}</td>
                   </tr>
                 ))}
               </tbody>
@@ -2368,6 +2370,7 @@ export function SpineReview({ orderId }: { orderId: string }) {
                   tokens={sourceTokens}
                   chipProps={sourceChipProps}
                   loading={sourceTokensLoading}
+                  sourceFileKey={order.sourceFileKey}
                 />
               </div>
 

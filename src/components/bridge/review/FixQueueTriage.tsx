@@ -33,7 +33,7 @@ import { useSearchParams } from "next/navigation";
 import type { Order, OrderLine } from "@/types/procurement";
 import type { PartyLabels } from "@/hooks/useOrderDirection";
 import type { ConformanceFormat } from "@/lib/api-client";
-import { buildFixQueue, openCardCount, adjacentOpenKey, type FixQueueCard, type FixCardKind } from "./buildFixQueue";
+import { buildFixQueue, openCardCount, adjacentOpenKey, bulkAcceptStats, bulkAcceptDisabledReason, type FixQueueCard, type FixCardKind } from "./buildFixQueue";
 import { ContextStage } from "./ContextStage";
 import { SendReadinessCard } from "./SendReadinessCard";
 import { useBreakpointBand } from "./useBreakpointBand";
@@ -166,11 +166,11 @@ export function FixQueueTriage({ order, orderId, labels, lineEdit, resolve, vali
     return m;
   }, [queue]);
 
-  // Bulk-accept eligibility (≥90% confidence, unresolved, no code yet).
-  const bulkEligible = useMemo(
-    () => order.lines.filter(l => l.needsReview && !l.supplierItemCode && l.aiSuggestion && l.aiSuggestion.confidence >= 0.9).length,
-    [order],
-  );
+  // Bulk-accept eligibility (≥90% confidence, unresolved, no code yet) + the
+  // honest disabled reason (pure helpers — see buildFixQueue.ts).
+  const bulkStats = useMemo(() => bulkAcceptStats(order, 0.9), [order]);
+  const bulkEligible = bulkStats.eligible;
+  const bulkDisabledReason = bulkAcceptDisabledReason(bulkStats);
 
   const visible = filter === "all" ? queue : queue.filter(c => c.kind === filter || c.resolved);
   const selected = queue.find(c => c.key === selectedKey) ?? null;
@@ -367,6 +367,10 @@ export function FixQueueTriage({ order, orderId, labels, lineEdit, resolve, vali
           >
             {resolve.bulkAccepting ? "Accepting…" : `Accept all ≥90% (${bulkEligible})`}
           </button>
+          {/* Honest disabled reason — "no suggestions at all" vs "all below the bar". */}
+          {bulkDisabledReason && !resolve.bulkAccepting && (
+            <span style={{ fontSize: 10.5, color: "var(--ink-faint)" }}>{bulkDisabledReason}</span>
+          )}
           <span style={{ marginLeft: "auto", display: "inline-flex", alignItems: "center", gap: 5, fontSize: 10, color: "var(--ink-faint)" }}>
             <KbdLight>A</KbdLight> accept · <KbdLight>E</KbdLight> manual · <KbdLight>S</KbdLight> skip · <KbdLight>C</KbdLight> send
             <button

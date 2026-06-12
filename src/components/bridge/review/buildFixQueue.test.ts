@@ -4,7 +4,7 @@
 // append-only insertion of newly flagged issues.
 
 import { describe, it, expect } from "vitest";
-import { buildFixQueue, openCardCount, adjacentOpenKey, type FixQueueCard } from "./buildFixQueue";
+import { buildFixQueue, openCardCount, adjacentOpenKey, bulkAcceptStats, bulkAcceptDisabledReason, type FixQueueCard } from "./buildFixQueue";
 import { shouldRequireConfirmCheckbox } from "./confirmPolicy";
 import type { Order, OrderLine, OrderValidationResult, AcceptanceRule } from "@/types/procurement";
 
@@ -296,6 +296,39 @@ describe("shouldRequireConfirmCheckbox — conditional confirm policy (Phase B)"
     expect(shouldRequireConfirmCheckbox({ ...clean, exceptionCount: 1 }, false)).toBe(true);
     expect(shouldRequireConfirmCheckbox({ ...clean, failingRuleCount: 2 }, false)).toBe(true);
     expect(shouldRequireConfirmCheckbox({ ...clean, validationStale: true }, false)).toBe(true);
+  });
+});
+
+describe("bulkAcceptStats / bulkAcceptDisabledReason — 'Accept all ≥90%' (G8 bug E)", () => {
+  const suggestion = (code: string, confidence: number) =>
+    ({ supplierItemCode: code, confidence, reason: "r", provenance: "p" });
+
+  it("counts eligible vs below-threshold open AI suggestions", () => {
+    const order = makeOrder([
+      makeLine({ id: "l1", lineNumber: 1, needsReview: true, aiSuggestion: suggestion("S-1", 0.95) }),
+      makeLine({ id: "l2", lineNumber: 2, needsReview: true, aiSuggestion: suggestion("S-2", 0.9) }),  // boundary: ≥ counts
+      makeLine({ id: "l3", lineNumber: 3, needsReview: true, aiSuggestion: suggestion("S-3", 0.7) }),
+    ]);
+    expect(bulkAcceptStats(order, 0.9)).toEqual({ eligible: 2, belowThreshold: 1 });
+    expect(bulkAcceptDisabledReason(bulkAcceptStats(order, 0.9))).toBeNull();
+  });
+
+  it("ignores resolved lines, lines with a code, and lines without suggestions", () => {
+    const order = makeOrder([
+      makeLine({ id: "l1", lineNumber: 1, needsReview: false, aiSuggestion: suggestion("S-1", 0.99) }), // not flagged
+      makeLine({ id: "l2", lineNumber: 2, needsReview: true, supplierItemCode: "S-2", aiSuggestion: suggestion("S-2", 0.99) }), // has a code
+      makeLine({ id: "l3", lineNumber: 3, needsReview: true }), // no suggestion
+    ]);
+    expect(bulkAcceptStats(order, 0.9)).toEqual({ eligible: 0, belowThreshold: 0 });
+  });
+
+  it("reason distinguishes 'no suggestions at all' from 'all below the bar'", () => {
+    expect(bulkAcceptDisabledReason({ eligible: 0, belowThreshold: 0 }))
+      .toBe("No AI suggestions on this order");
+    expect(bulkAcceptDisabledReason({ eligible: 0, belowThreshold: 1 }))
+      .toBe("1 suggestion below 90% confidence");
+    expect(bulkAcceptDisabledReason({ eligible: 0, belowThreshold: 3 }))
+      .toBe("3 suggestions below 90% confidence");
   });
 });
 

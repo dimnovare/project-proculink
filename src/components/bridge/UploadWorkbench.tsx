@@ -541,6 +541,35 @@ export function UploadWorkbench() {
     </XCard>
   );
 
+  // The primary submit action. ONE element rendered in TWO places: the
+  // quick-action bar directly under the dropzone (visible the moment a file is
+  // selected — founder G8 bug G: the CTA sat below the fold) and the bottom of
+  // the Pipeline configuration card (the natural end-of-page flow).
+  const uploadButton = (
+    <button
+      onClick={handleUpload}
+      disabled={isUploadDisabled}
+      className="w-full rounded-[6px] py-2.5 text-[13px] font-semibold transition-all"
+      style={{
+        background: isUploadDisabled
+          ? "#E2E6EE"
+          : "linear-gradient(90deg, #2E8E3A 0%, #1E6D29 100%)",
+        color: isUploadDisabled ? "var(--ink-faint)" : "#FFFFFF",
+        border: "none",
+        boxShadow: isUploadDisabled ? "none" : "0 2px 8px rgba(46,142,58,0.25)",
+        cursor: isUploadDisabled ? "not-allowed" : "pointer",
+      }}
+    >
+      {uploading ? (
+        <span style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+          <span style={{ display: "inline-block", width: 12, height: 12, border: "2px solid #C6CDDA", borderTopColor: "#2E8E3A", borderRadius: "50%", animation: "spin 0.7s linear infinite" }} />
+          <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+          Sending…
+        </span>
+      ) : isReadOnly ? "Processing paused" : selectedFile ? "↑ Upload & review" : "Choose a file to upload"}
+    </button>
+  );
+
   return (
     <PageShell>
       {/* Page header — canonical PageHeader on the grey canvas (no white bar, no divider) */}
@@ -618,7 +647,7 @@ export function UploadWorkbench() {
                     fileInputRef.current?.click();
                   }
                 }}
-                className="flex flex-col items-center gap-4 px-6 py-10 sm:px-8 sm:py-14"
+                className="flex flex-col items-center gap-4 px-6 py-8 sm:px-8 sm:py-10"
                 style={{
                   border: `1.5px dashed ${dragging ? "#1E66C9" : "#C6CDDA"}`,
                   borderRadius: 10,
@@ -862,6 +891,26 @@ export function UploadWorkbench() {
                 )}
 
             </div>
+
+            {/* Quick-action bar — appears the moment a file is selected, so the
+                primary "Upload & review" CTA is visible without scrolling to the
+                Pipeline configuration card at the bottom of the page. */}
+            {selectedFile && (
+              <XCard edge="left" edgeColor="#2E8E3A">
+                <div className="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center">
+                  <p className="min-w-0 flex-1 truncate text-[12.5px]" style={{ color: "#56627A", margin: 0 }}>
+                    <span className="font-mono text-[11.5px]" style={{ color: "#0B1A2F" }}>{selectedFile.name}</span>
+                    {selectedSupplier && (
+                      <>
+                        {" "}· routes to{" "}
+                        <span style={{ color: "#1E6D29", fontWeight: 600 }}>{selectedSupplier.name}</span>
+                      </>
+                    )}
+                  </p>
+                  <div className="w-full sm:w-[240px] sm:flex-shrink-0">{uploadButton}</div>
+                </div>
+              </XCard>
+            )}
 
             {/* Established org: keep the sample path below the dropzone. */}
             {!isEmptyOrg && sampleCard}
@@ -1271,29 +1320,8 @@ export function UploadWorkbench() {
                   </div>
                 )}
 
-                {/* Send button */}
-                <button
-                  onClick={handleUpload}
-                  disabled={isUploadDisabled}
-                  className="w-full rounded-[6px] py-2.5 text-[13px] font-semibold transition-all"
-                  style={{
-                    background: isUploadDisabled
-                      ? "#E2E6EE"
-                      : "linear-gradient(90deg, #2E8E3A 0%, #1E6D29 100%)",
-                    color: isUploadDisabled ? "var(--ink-faint)" : "#FFFFFF",
-                    border: "none",
-                    boxShadow: isUploadDisabled ? "none" : "0 2px 8px rgba(46,142,58,0.25)",
-                    cursor: isUploadDisabled ? "not-allowed" : "pointer",
-                  }}
-                >
-                  {uploading ? (
-                    <span style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
-                      <span style={{ display: "inline-block", width: 12, height: 12, border: "2px solid #C6CDDA", borderTopColor: "#2E8E3A", borderRadius: "50%", animation: "spin 0.7s linear infinite" }} />
-                      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-                      Sending…
-                    </span>
-                  ) : isReadOnly ? "Processing paused" : selectedFile ? "↑ Upload & review" : "Choose a file to upload"}
-                </button>
+                {/* Send button (same element as the quick-action bar under the dropzone) */}
+                {uploadButton}
               </div>
             </XCard>
 

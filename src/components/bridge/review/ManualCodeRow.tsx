@@ -52,6 +52,12 @@ export function ManualCodeRow({ sn, lineEdit, saving }: { sn: ManualCodeLineRef;
         list={lineEdit.knownCodes.length ? listId : undefined}
         value={lineEdit.draft}
         onChange={(e) => lineEdit.onChange(e.target.value)}
+        // Select the prefilled text on focus: triage entry points seed the draft
+        // (AI suggestion / existing code), and Chrome filters the <datalist> by
+        // the current value — a non-matching prefill made the popup look EMPTY.
+        // Select-all means typing replaces the prefill, and clearing (or opening
+        // the picker) shows the full known-codes list again.
+        onFocus={(e) => e.target.select()}
         onKeyDown={(e) => {
           if (e.key === "Enter") { e.preventDefault(); lineEdit.onCommit(sn.id); }
           if (e.key === "Escape") { e.preventDefault(); lineEdit.onCancel(); }
@@ -82,6 +88,13 @@ export function ManualCodeRow({ sn, lineEdit, saving }: { sn: ManualCodeLineRef;
       >
         Cancel
       </button>
+      {/* No typeahead data at all — say so instead of silently omitting the
+          datalist (the founder read the empty dropdown as a broken control). */}
+      {lineEdit.knownCodes.length === 0 && (
+        <span style={{ flexBasis: "100%", fontSize: 10.5, color: "var(--ink-faint)" }}>
+          No catalog or saved mappings for {lineEdit.supplierName || "this supplier"} yet — type the code manually.
+        </span>
+      )}
       {notInCatalog && (
         <span style={{ flexBasis: "100%", fontSize: 10.5, color: "#C53A3A" }}>
           ⚠ Not in {lineEdit.supplierName || "the supplier"}&apos;s catalog — double-check this is a real supplier code.

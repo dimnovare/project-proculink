@@ -15,13 +15,16 @@
 import { useMemo, useState } from "react";
 import type { SourceToken } from "@/lib/api/types";
 import type { SourceWireDragChipProps } from "./SourceWireDragLayer";
+import { snippetKindForSource, sourceIngestLabel } from "./review/stageModel";
 
 interface SourceTokenPanelProps {
   tokens: SourceToken[];
   /** Per-token drag/keyboard props from useSourceWireDrag.chipProps(token.id). */
   chipProps: (tokenId: string) => SourceWireDragChipProps;
-  /** Whether tokens are still loading (best-effort — absence just hides the panel). */
+  /** Whether tokens are still loading (best-effort — absence shows the honest empty state). */
   loading?: boolean;
+  /** The order's stored source file key — phrases the honest no-tokens empty state. */
+  sourceFileKey?: string | null;
 }
 
 function TokenChip({ token, props }: { token: SourceToken; props: SourceWireDragChipProps }) {
@@ -80,7 +83,7 @@ function ChipGrid({ tokens, chipProps }: { tokens: SourceToken[]; chipProps: (id
   );
 }
 
-export function SourceTokenPanel({ tokens, chipProps, loading }: SourceTokenPanelProps) {
+export function SourceTokenPanel({ tokens, chipProps, loading, sourceFileKey }: SourceTokenPanelProps) {
   const [query, setQuery] = useState("");
   const [showLines, setShowLines] = useState(false);
 
@@ -105,7 +108,22 @@ export function SourceTokenPanel({ tokens, chipProps, loading }: SourceTokenPane
       </div>
     );
   }
-  if (tokens.length === 0) return null;
+  if (tokens.length === 0) {
+    // HONEST empty state instead of vanishing (the founder read the missing
+    // panel on API-ingress orders as data loss). Mirrors ContextStage's
+    // NoSourceSnippet wording via the same stageModel helpers.
+    const message = !sourceFileKey
+      ? "This order arrived via the API — there's no source document to wire from."
+      : snippetKindForSource(sourceFileKey) === "none"
+      ? `This order arrived via ${sourceIngestLabel(sourceFileKey)} — there's no source document to wire from.`
+      : "No draggable source fields for this document type — the parsed values are the source of truth.";
+    return (
+      <div style={{ marginTop: 10, padding: "10px 12px", borderRadius: 8, border: "1px dashed #D5DAE3", background: "#F6F7FA" }}>
+        <div style={{ fontSize: 10.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "#56627A", marginBottom: 3 }}>Source fields</div>
+        <div style={{ fontSize: 10.5, color: "var(--ink-faint)", lineHeight: 1.45 }}>{message}</div>
+      </div>
+    );
+  }
 
   // While searching, line matches auto-reveal so a query finds any cell.
   const linesVisible = showLines || q.length > 0;

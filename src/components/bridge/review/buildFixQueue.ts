@@ -169,6 +169,42 @@ export function openCardCount(queue: FixQueueCard[]): number {
   return queue.reduce((n, c) => n + (c.resolved ? 0 : 1), 0);
 }
 
+// ── Bulk-accept ("Accept all ≥90%") eligibility — PURE, unit-tested ──────────
+
+export interface BulkAcceptStats {
+  /** Open AI-suggestion lines at/above the confidence threshold (the button's count). */
+  eligible: number;
+  /** Open AI-suggestion lines BELOW the threshold — they keep the button disabled. */
+  belowThreshold: number;
+}
+
+/**
+ * Count the open AI suggestions on the order against the bulk-accept threshold.
+ * "Open" = needsReview, no supplier code yet, and an AI suggestion present —
+ * the same predicate the bulk-accept endpoint applies.
+ */
+export function bulkAcceptStats(order: Order, threshold = 0.9): BulkAcceptStats {
+  let eligible = 0;
+  let belowThreshold = 0;
+  for (const l of order.lines) {
+    if (!l.needsReview || l.supplierItemCode || !l.aiSuggestion) continue;
+    if (l.aiSuggestion.confidence >= threshold) eligible++;
+    else belowThreshold++;
+  }
+  return { eligible, belowThreshold };
+}
+
+/**
+ * Why the "Accept all ≥90%" button is disabled (null = it isn't). Distinguishes
+ * "this order has no open AI suggestions at all" from "there are suggestions,
+ * but none clear the confidence bar".
+ */
+export function bulkAcceptDisabledReason(stats: BulkAcceptStats): string | null {
+  if (stats.eligible > 0) return null;
+  if (stats.belowThreshold === 0) return "No AI suggestions on this order";
+  return `${stats.belowThreshold} suggestion${stats.belowThreshold === 1 ? "" : "s"} below 90% confidence`;
+}
+
 /**
  * The key of the adjacent OPEN card relative to `fromKey`, walking the frozen
  * queue in `dir` and WRAPPING around the ends. Drives focus auto-advance after

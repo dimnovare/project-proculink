@@ -11,9 +11,13 @@
 // each keystroke (new function identity) → inputs lose focus. Do NOT inline them again.
 //
 // Visual drag-to-connect lives in the ORDER-VIEW wires (SpineReview), not here — this panel
-// is the explicit, keyboard-friendly form.
+// is the explicit, keyboard-friendly form. The saved draft must CARRY the existing
+// sourceMap through (PUT replaces the whole override document — see buildOverrideDraft),
+// and the dialog renders via createPortal to document.body because its inline mount sits
+// inside a `position: sticky` column whose stacking context would trap it under the rails.
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   getMappingOverride, upsertMappingOverride, previewMappingOverride,
@@ -22,7 +26,7 @@ import {
   MANIPULATOR_TYPES, CANONICAL_HEADER_FIELDS, CANONICAL_LINE_FIELDS,
   SCRIBAN_TEMPLATE_GROUPS, TEMPLATE_CONTENT_TYPES, PREVIEW_FORMATS, SCRIBAN_STARTER_TEMPLATE,
   type OrderMappingOverride, type OutputFieldRule, type ManipulatorEntry, type CustomField,
-  type OutputFormatId,
+  type OutputFormatId, type SourceFieldRule,
 } from "@/lib/api/types";
 
 type Scope = "header" | "lines";
@@ -51,6 +55,42 @@ function sanitizeKey(raw: string): string {
 const CANONICAL_LOWER = new Set(
   [...CANONICAL_HEADER_FIELDS, ...CANONICAL_LINE_FIELDS].map((f) => f.toLowerCase()),
 );
+
+/**
+ * Build the override draft this editor saves/previews. PURE — unit-tested.
+ *
+ * CRITICAL: `existingSourceMap` must be the sourceMap from the CURRENT server
+ * override. The backend PUT replaces the WHOLE mappingOverride sub-document, so
+ * omitting sourceMap here silently destroys every drag-wired source→canonical
+ * mapping the user made in the order view (founder-reported data loss).
+ */
+export function buildOverrideDraft(opts: {
+  customFields: CustomField[];
+  header: Record<string, OutputFieldRule>;
+  lines: Record<string, OutputFieldRule>;
+  templateMode: boolean;
+  template: string;
+  templateContentType: string;
+  existingSourceMap?: Record<string, SourceFieldRule> | null;
+}): OrderMappingOverride {
+  const base: OrderMappingOverride = {
+    customFields: opts.customFields,
+    output: { header: opts.header, lines: opts.lines },
+    // Carry the drag-wired source mappings through unchanged — this editor
+    // only edits the OUTPUT side.
+    sourceMap: opts.existingSourceMap ?? null,
+  };
+  // Template mode takes precedence on the backend; only send the template when
+  // the toggle is on AND it's non-blank, so flipping the toggle off clears it.
+  if (opts.templateMode && opts.template.trim().length > 0) {
+    base.outputTemplate = opts.template;
+    base.outputTemplateContentType = opts.templateContentType;
+  } else {
+    base.outputTemplate = null;
+    base.outputTemplateContentType = null;
+  }
+  return base;
+}
 
 const inputStyle: React.CSSProperties = {
   minHeight: 36, border: "1px solid #C6CDDA", borderRadius: 6, padding: "5px 8px", fontSize: 12.5,
@@ -309,12 +349,16 @@ export function OutputMappingEditor({
   onClose: () => void;
 }) {
   const qc = useQueryClient();
-  const { data: existing } = useQuery({
+  const { data: existing, isSuccess: existingLoaded, isError: existingError } = useQuery({
     queryKey: ["mapping-override", orderId],
     queryFn: () => getMappingOverride(orderId),
     enabled: open,
     staleTime: 10_000,
   });
+
+  // Portal mount guard — document.body only exists client-side after mount.
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => { setMounted(true); }, []);
 
   const [headerRows, setHeaderRows] = useState<Row[]>([]);
   const [lineRows, setLineRows]     = useState<Row[]>([]);
@@ -331,6 +375,10 @@ export function OutputMappingEditor({
   useEffect(() => {
     if (!open) { setSeeded(false); return; }
     if (seeded) return;
+    // Seed ONLY once the override query has SETTLED. Seeding while the fetch
+    // was still in flight latched an EMPTY editor over a saved override on a
+    // cold cache — and a Save then persisted the empty draft (data loss).
+    if (!existingLoaded && !existingError) return;
     setHeaderRows(toRows(existing?.output?.header));
     setLineRows(toRows(existing?.output?.lines));
     setCustomRows(toCustomRows(existing?.customFields));
@@ -339,7 +387,7 @@ export function OutputMappingEditor({
     setTemplateContentType(existing?.outputTemplateContentType ?? DEFAULT_TEMPLATE_CONTENT_TYPE);
     setTemplateMode(tmpl.trim().length > 0);
     setSeeded(true);
-  }, [open, seeded, existing]);
+  }, [open, seeded, existing, existingLoaded, existingError]);
 
   // Insert a token at the textarea caret (or append). Keeps focus + selection sane.
   const insertToken = useCallback((token: string) => {
@@ -376,22 +424,20 @@ export function OutputMappingEditor({
   const lineSources   = useMemo(() => [...CANONICAL_LINE_FIELDS, ...CANONICAL_HEADER_FIELDS, ...customKeys], [customKeys]);
 
   const trimmedTemplate = template.trim();
-  const draft: OrderMappingOverride = useMemo(() => {
-    const base: OrderMappingOverride = {
+  const draft: OrderMappingOverride = useMemo(
+    () => buildOverrideDraft({
       customFields,
-      output: { header: toRecord(headerRows), lines: toRecord(lineRows) },
-    };
-    // Template mode takes precedence on the backend; only send the template when
-    // the toggle is on AND it's non-blank, so flipping the toggle off clears it.
-    if (templateMode && trimmedTemplate.length > 0) {
-      base.outputTemplate = template;
-      base.outputTemplateContentType = templateContentType;
-    } else {
-      base.outputTemplate = null;
-      base.outputTemplateContentType = null;
-    }
-    return base;
-  }, [customFields, headerRows, lineRows, templateMode, trimmedTemplate, template, templateContentType]);
+      header: toRecord(headerRows),
+      lines: toRecord(lineRows),
+      templateMode,
+      template,
+      templateContentType,
+      // Preserve the drag-wired source mappings (PUT replaces the whole
+      // override document — see buildOverrideDraft).
+      existingSourceMap: existing?.sourceMap ?? null,
+    }),
+    [customFields, headerRows, lineRows, templateMode, template, templateContentType, existing],
+  );
 
   const [preview, setPreview] = useState<{ content: string | null; warning?: string; error?: string } | null>(null);
   const [previewing, setPreviewing] = useState(false);
@@ -427,6 +473,9 @@ export function OutputMappingEditor({
   const reset = useMutation({
     mutationFn: () => upsertMappingOverride(orderId, {
       customFields: [], output: { header: {}, lines: {} }, outputTemplate: null, outputTemplateContentType: null,
+      // "Reset to default" resets only what THIS editor edits (the output
+      // side). The drag-wired source mappings from the order view stay.
+      sourceMap: existing?.sourceMap ?? null,
     }),
     onSuccess: async () => {
       setHeaderRows([]); setLineRows([]); setCustomRows([]);
@@ -436,11 +485,16 @@ export function OutputMappingEditor({
     },
   });
 
-  if (!open) return null;
+  // Render through a portal to document.body: the editor is mounted inside the
+  // review triptych's `position: sticky` column, whose stacking context traps
+  // this fixed-position dialog UNDER the EdgeRails / StatusJourney layers (the
+  // green SUPPLIER·OUT rail painted over the slideover). No z-index can fix
+  // that from inside the trapped context — only moving the mount point can.
+  if (!open || !mounted) return null;
 
   const isEmpty = headerRows.length === 0 && lineRows.length === 0 && customRows.length === 0;
 
-  return (
+  return createPortal(
     <div role="dialog" aria-label="Edit output mapping" style={{ position: "fixed", inset: 0, zIndex: 60, display: "flex", justifyContent: "flex-end" }}>
       {/* Opaque + blurred enough that the triptych wires behind don't bleed through. */}
       <div onClick={onClose} aria-hidden style={{ position: "absolute", inset: 0, background: "rgba(11,26,47,0.62)", backdropFilter: "blur(2px)" }} />
@@ -495,7 +549,17 @@ export function OutputMappingEditor({
         </div>
 
         <div style={{ flex: 1, overflowY: "auto", padding: 18, display: "flex", flexDirection: "column", gap: 18 }}>
-          {templateMode ? (
+          {!seeded && (
+            <div style={{ fontSize: 12.5, color: "#56627A", padding: "10px 12px", background: "#EEF3FB", border: "1px solid #D5E3F6", borderRadius: 8 }}>
+              Loading the saved mapping…
+            </div>
+          )}
+          {seeded && existingError && (
+            <div role="alert" style={{ fontSize: 12, color: "#7A4D0A", background: "#FFF8EA", border: "1px solid #F0D39A", borderRadius: 8, padding: "9px 11px", lineHeight: 1.5 }}>
+              Couldn&apos;t load the saved mapping for this order — saving now may overwrite it. Close and reopen to retry.
+            </div>
+          )}
+          {seeded && (templateMode ? (
             <>
               <TemplateEditor
                 template={template}
@@ -519,7 +583,7 @@ export function OutputMappingEditor({
               <RuleSection title="Header fields" scope="header" rows={headerRows} sources={headerSources} setRows={setHeaderRows} />
               <RuleSection title="Line fields" scope="lines" rows={lineRows} sources={lineSources} setRows={setLineRows} />
             </>
-          )}
+          ))}
           <section>
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
               <span style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "#56627A" }}>
@@ -536,19 +600,21 @@ export function OutputMappingEditor({
         </div>
 
         <div style={{ display: "flex", gap: 10, padding: "12px 18px", borderTop: "1px solid #E2E6EE", background: "#FFFFFF" }}>
-          <button type="button" onClick={() => reset.mutate()} disabled={reset.isPending}
-            style={{ minHeight: 38, padding: "0 14px", border: "1px solid #C6CDDA", background: "#FFFFFF", color: "#56627A", borderRadius: 6, cursor: "pointer", fontSize: 12.5 }}>
+          <button type="button" onClick={() => reset.mutate()} disabled={reset.isPending || !seeded}
+            style={{ minHeight: 38, padding: "0 14px", border: "1px solid #C6CDDA", background: "#FFFFFF", color: "#56627A", borderRadius: 6, cursor: "pointer", fontSize: 12.5, opacity: !seeded ? 0.6 : 1 }}>
             {reset.isPending ? "Resetting…" : "Reset to default"}
           </button>
           <div style={{ flex: 1 }} />
           {save.isError && <span style={{ alignSelf: "center", fontSize: 11.5, color: "#C53A3A" }}>{(save.error as Error)?.message}</span>}
           <button type="button" onClick={onClose} style={{ minHeight: 38, padding: "0 14px", border: "1px solid #C6CDDA", background: "#FFFFFF", color: "#56627A", borderRadius: 6, cursor: "pointer", fontSize: 12.5 }}>Cancel</button>
-          <button type="button" onClick={() => save.mutate()} disabled={save.isPending}
-            style={{ minHeight: 38, padding: "0 18px", border: "none", background: "#2E8E3A", color: "#FFFFFF", borderRadius: 6, cursor: "pointer", fontSize: 12.5, fontWeight: 700, opacity: save.isPending ? 0.6 : 1 }}>
+          <button type="button" onClick={() => save.mutate()} disabled={save.isPending || !seeded}
+            title={!seeded ? "Wait for the saved mapping to load first" : undefined}
+            style={{ minHeight: 38, padding: "0 18px", border: "none", background: "#2E8E3A", color: "#FFFFFF", borderRadius: 6, cursor: "pointer", fontSize: 12.5, fontWeight: 700, opacity: save.isPending || !seeded ? 0.6 : 1 }}>
             {save.isPending ? "Saving…" : "Save mapping"}
           </button>
         </div>
       </aside>
-    </div>
+    </div>,
+    document.body,
   );
 }
