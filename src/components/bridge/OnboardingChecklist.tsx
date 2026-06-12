@@ -1,12 +1,21 @@
 "use client";
 
-// OnboardingChecklist — the first-run "Get your first order automated" card.
+// OnboardingChecklist — the first-run "Get your first order automated" card (v2).
 //
-// A confident, self-contained card that reads as the primary next step while
-// onboarding is incomplete and graduates away (renders nothing) once every
-// milestone is done. Four milestones, each backed by a real OnboardingStatus
-// flag — never a fabricated "done" state:
-//   supplier → upload → resolve mapping → deliver first order
+// Six server-verified steps (supplier → catalog → upload → resolve → delivery →
+// send) derived by the pure buildChecklistSteps() model from the extended
+// GET /api/onboarding/status payload. Self-fetches via useOnboardingStatus —
+// no prop threading from BridgeDashboard.
+//
+// Honesty rules:
+//   • status loading or errored → renders NOTHING (never a fabricated 0/6);
+//   • a legacy backend payload (4 booleans) yields the 4 derivable steps —
+//     unknown signals are omitted, not shown as "not done";
+//   • step 5 has an intermediate state: config saved but no test-fire →
+//     "Configured — send a test to finish" (a real delivery counts it done);
+//   • at full completion the card shows a ONE-TIME completion card (only when
+//     this browser session actually saw the checklist incomplete — a fresh
+//     session on a long-finished org never re-celebrates), then graduates away.
 //
 // Used by BridgeDashboard in two slots (same component, different placement):
 //   • as the hero, centered, when the org has no data yet (empty topology)
@@ -14,8 +23,11 @@
 
 import React from "react";
 import Link from "next/link";
-import type { OnboardingStatus } from "@/types/procurement";
+import { usePathname } from "next/navigation";
 import { useOrderDirection } from "@/hooks/useOrderDirection";
+import { useOnboardingStatus } from "@/hooks/useOnboardingStatus";
+import { useSampleOrder } from "@/hooks/useSampleOrder";
+import { buildChecklistSteps, type ChecklistStep } from "./buildChecklistSteps";
 
 // Locked Bridge Layer tokens (see CLAUDE.md §3). Do not substitute slate values.
 const T = {
@@ -31,76 +43,27 @@ const T = {
   ink:       "#0B1A2F",
   muted:     "#56627A",
   faint:     "var(--ink-faint)",
+  amber:     "#C97A14",
+  amberSoft: "#FFF8EA",
 };
 
+// Session-scoped completion bookkeeping. WAS_INCOMPLETE marks that this browser
+// session actually rendered the checklist in an incomplete state, so completion
+// can be celebrated exactly once — and a fresh session on an org that finished
+// onboarding long ago renders nothing instead of re-celebrating.
+const WAS_INCOMPLETE_KEY = "plk-checklist-was-incomplete";
+const CELEBRATED_KEY = "plk-checklist-celebrated";
+
+function sessionGet(key: string): string | null {
+  try { return window.sessionStorage.getItem(key); } catch { return null; }
+}
+function sessionSet(key: string, value: string) {
+  try { window.sessionStorage.setItem(key, value); } catch { /* storage unavailable */ }
+}
+
 interface OnboardingChecklistProps {
-  status: OnboardingStatus;
-  supplierCount: number;
-  orderCount: number;
-  /** Count of orders that actually reached `delivered`. Drives the final step. */
-  deliveredCount?: number;
-  /**
-   * The order whose review screen the "Resolve item mapping" step should open
-   * (mirrors the wizard, which routes to /inbox/{orderId}). Null/absent →
-   * the step falls back to the order inbox.
-   */
-  firstOrderId?: string | null;
   /** Re-opens the guided setup wizard. Only surfaced before the first supplier. */
   onResumeSetup?: () => void;
-}
-
-interface Step {
-  id: string;
-  label: string;
-  description: string;
-  href: string;
-  /** Imperative label for the primary CTA when this is the active step. */
-  cta: string;
-  /** Steps that must be done before this one unlocks. */
-  requires: string[];
-}
-
-// Steps depend on the org's direction labels ("supplier" → "customer" in inbound
-// mode) and on the first order's id (the mapping step opens that order's review
-// screen, matching the wizard), so they're built per-render rather than at
-// module scope.
-function buildSteps(noun: string, nounLower: string, mapHref: string): Step[] {
-  return [
-    {
-      id: "supplier",
-      label: `Add your first ${nounLower}`,
-      description: `Create a ${nounLower} to hold its delivery config and item mappings.`,
-      href: "/library/suppliers",
-      cta: `Add a ${nounLower}`,
-      requires: [],
-    },
-    {
-      id: "upload",
-      label: "Upload a purchase order",
-      description: "Drop a CSV, XLSX, PDF, or cXML order to get started.",
-      href: "/upload",
-      cta: "Upload an order",
-      requires: ["supplier"],
-    },
-    {
-      id: "map",
-      label: "Resolve item mapping",
-      description: `Connect buyer item codes to each ${nounLower}'s own SKUs.`,
-      // The uploaded order's review screen is where mapping is resolved —
-      // same destination the wizard uses; /inbox when no order id is known.
-      href: mapHref,
-      cta: "Resolve mapping",
-      requires: ["supplier", "upload"],
-    },
-    {
-      id: "deliver",
-      label: "Deliver your first order",
-      description: `Set up delivery, then send to your ${nounLower}.`,
-      href: "/inbox",
-      cta: "Deliver an order",
-      requires: ["supplier", "upload", "map"],
-    },
-  ];
 }
 
 // ─── Status markers ─────────────────────────────────────────────────────────
@@ -154,53 +117,12 @@ function LockMark() {
   );
 }
 
-// ─── Component ────────────────────────────────────────────────────────────────
+// ─── Card frame (shared by checklist + completion card) ─────────────────────
 
-export function OnboardingChecklist({
-  status,
-  supplierCount,
-  orderCount,
-  deliveredCount,
-  firstOrderId,
-  onResumeSetup,
-}: OnboardingChecklistProps) {
-  // Direction-aware step copy: "supplier" → "customer" in inbound mode (display only).
-  const { labels } = useOrderDirection();
-  const mapHref = firstOrderId ? `/inbox/${firstOrderId}` : "/inbox";
-  const STEPS = React.useMemo(
-    () => buildSteps(labels.counterpartyNoun, labels.counterpartyNoun.toLowerCase(), mapHref),
-    [labels.counterpartyNoun, mapHref],
-  );
-
-  // Each step's done-ness maps to a real signal — no fabricated completion.
-  const doneById: Record<string, boolean> = {
-    supplier: status.hasSupplier || supplierCount > 0,
-    upload:   status.hasUpload   || orderCount > 0,
-    map:      status.hasResolvedMapping,
-    deliver:  deliveredCount != null ? deliveredCount > 0 : status.hasDelivery,
-  };
-
-  const totalDone = STEPS.filter((s) => doneById[s.id]).length;
-
-  // Graduate away cleanly once everything is done — the dashboard reclaims the space.
-  if (totalDone >= STEPS.length) return null;
-
-  const progress = (totalDone / STEPS.length) * 100;
-  const remaining = STEPS.length - totalDone;
-
-  // Active step = first not-done step whose prerequisites are all met.
-  const isLocked = (s: Step) => s.requires.some((r) => !doneById[r]);
-  const activeStep =
-    STEPS.find((s) => !doneById[s.id] && !isLocked(s)) ??
-    STEPS.find((s) => !doneById[s.id]) ??
-    null;
-
-  const showSample = !doneById.upload; // sample PO shortcut helps before the first upload
-  const showGuided = !doneById.supplier && typeof onResumeSetup === "function";
-
+function CardFrame({ children, ariaLabel }: { children: React.ReactNode; ariaLabel: string }) {
   return (
     <section
-      aria-label="Onboarding progress"
+      aria-label={ariaLabel}
       style={{
         position: "relative",
         background: T.surface,
@@ -219,7 +141,137 @@ export function OnboardingChecklist({
           background: "linear-gradient(180deg, #1E66C9 0%, #2E8E3A 100%)",
         }}
       />
+      {children}
+    </section>
+  );
+}
 
+// ─── Completion card — shown ONCE at full completion ─────────────────────────
+
+function CompletionCard({ nounLower, onDismiss }: { nounLower: string; onDismiss: () => void }) {
+  const nextLinks = [
+    { href: "/settings?tab=email", label: "Set up email intake", sub: "Orders arrive by email — no manual upload." },
+    { href: "/settings?tab=api",   label: "Create an API key",   sub: "Push orders in from your own systems." },
+    { href: "/library/suppliers",  label: `Add another ${nounLower}`, sub: "Repeat the setup for the next connection." },
+  ];
+  return (
+    <CardFrame ariaLabel="Onboarding complete">
+      <div className="p-5 sm:p-6">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="min-w-0">
+            <div
+              className="text-[10.5px] font-bold uppercase"
+              style={{ color: T.greenDeep, letterSpacing: "0.09em" }}
+            >
+              Setup complete
+            </div>
+            <h2
+              className="mt-1 text-[19px] leading-tight"
+              style={{
+                fontFamily: "'Bricolage Grotesque', Inter, sans-serif",
+                fontWeight: 600,
+                letterSpacing: "-0.02em",
+                color: T.ink,
+              }}
+            >
+              Your first order is delivered
+            </h2>
+            <p className="mt-1 text-[12.5px]" style={{ color: T.muted }}>
+              The full path works end to end: upload → review → deliver. Here&apos;s where teams usually go next.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onDismiss}
+            className="inline-flex min-h-[44px] items-center rounded-[6px] px-4 text-[13px] font-semibold transition-colors"
+            style={{ border: `1px solid ${T.border}`, background: T.surface, color: T.ink, cursor: "pointer" }}
+          >
+            Done
+          </button>
+        </div>
+
+        <div className="mt-4 grid gap-2 sm:grid-cols-3">
+          {nextLinks.map((l) => (
+            <Link
+              key={l.href}
+              href={l.href}
+              className="flex min-h-[44px] flex-col justify-center rounded-[8px] p-3 no-underline transition-colors hover:bg-[#F6F7FA]"
+              style={{ border: `1px solid ${T.border}` }}
+            >
+              <span className="text-[13px] font-semibold" style={{ color: T.blueDeep }}>
+                {l.label} →
+              </span>
+              <span className="mt-0.5 text-[11.5px] leading-snug" style={{ color: T.muted }}>
+                {l.sub}
+              </span>
+            </Link>
+          ))}
+        </div>
+      </div>
+    </CardFrame>
+  );
+}
+
+// ─── Component ────────────────────────────────────────────────────────────────
+
+export function OnboardingChecklist({ onResumeSetup }: OnboardingChecklistProps) {
+  // Direction-aware step copy: "supplier" → "customer" in inbound mode (display only).
+  const { labels } = useOrderDirection();
+  const nounLower = labels.counterpartyNoun.toLowerCase();
+  const pathname = usePathname();
+
+  const { data: status, isError } = useOnboardingStatus();
+  const { runSample, isPending: samplePending, error: sampleError } = useSampleOrder(pathname ?? "/bridge");
+
+  const model = React.useMemo(
+    () => (status ? buildChecklistSteps(status, nounLower) : null),
+    [status, nounLower],
+  );
+
+  // Track "this session saw the checklist incomplete" so completion is
+  // celebrated exactly once, and only when it happened in front of the user.
+  const incomplete = model != null && !model.complete;
+  React.useEffect(() => {
+    if (incomplete) sessionSet(WAS_INCOMPLETE_KEY, "1");
+  }, [incomplete]);
+
+  const [celebrationDismissed, setCelebrationDismissed] = React.useState(false);
+
+  // Honest empty states: nothing while loading, nothing on error — a fetch
+  // failure must never paint a fabricated 0/N.
+  if (isError || !status || !model) return null;
+
+  // ── Completion: one-time celebration card, then graduate away ─────────────
+  if (model.complete) {
+    const sawIncomplete = sessionGet(WAS_INCOMPLETE_KEY) === "1";
+    const alreadyCelebrated = sessionGet(CELEBRATED_KEY) === "1";
+    if (!sawIncomplete || alreadyCelebrated || celebrationDismissed) return null;
+    return (
+      <CompletionCard
+        nounLower={nounLower}
+        onDismiss={() => {
+          sessionSet(CELEBRATED_KEY, "1");
+          setCelebrationDismissed(true);
+        }}
+      />
+    );
+  }
+
+  const { steps, totalDone, totalSteps, activeStep } = model;
+  const progress = (totalDone / totalSteps) * 100;
+  const remaining = totalSteps - totalDone;
+
+  // Sample CTA: helps before the first real upload; once a sample exists, link
+  // to it instead of minting another.
+  const showSample = !steps.find((s) => s.id === "upload")?.done;
+  const existingSampleHref =
+    status.hasSampleOrder && status.sampleOrderId
+      ? `/inbox/${encodeURIComponent(status.sampleOrderId)}?sample=1`
+      : null;
+  const showGuided = !steps[0].done && typeof onResumeSetup === "function";
+
+  return (
+    <CardFrame ariaLabel="Onboarding progress">
       <div className="grid gap-x-10 gap-y-5 p-5 sm:p-6 lg:grid-cols-[minmax(280px,0.85fr)_minmax(430px,1.15fr)]">
         {/* ── Intro · progress · primary action ───────────────────────── */}
         <div className="min-w-0">
@@ -242,7 +294,7 @@ export function OnboardingChecklist({
           </h2>
           <p className="mt-1 text-[12.5px]" style={{ color: T.muted }}>
             {totalDone === 0
-              ? "Four quick steps · about 5 minutes"
+              ? `${totalSteps} quick steps · about 10 minutes`
               : `${remaining} step${remaining === 1 ? "" : "s"} left · almost there`}
           </p>
 
@@ -254,7 +306,7 @@ export function OnboardingChecklist({
               role="progressbar"
               aria-valuenow={totalDone}
               aria-valuemin={0}
-              aria-valuemax={STEPS.length}
+              aria-valuemax={totalSteps}
             >
               <div
                 style={{
@@ -270,16 +322,21 @@ export function OnboardingChecklist({
               className="text-[11px] font-bold tabular-nums"
               style={{ color: T.muted, fontFamily: "'JetBrains Mono', monospace" }}
             >
-              {totalDone}/{STEPS.length}
+              {totalDone}/{totalSteps}
             </span>
           </div>
 
-          {/* Primary next step */}
+          {/* Primary next step — green primary, 44px tap target */}
           {activeStep && (
             <Link
               href={activeStep.href}
-              className="mt-5 inline-flex h-9 items-center gap-1.5 rounded-[6px] px-4 text-[13px] font-semibold transition-colors"
-              style={{ background: T.navy, color: "#fff", letterSpacing: "0.01em" }}
+              className="mt-5 inline-flex min-h-[44px] items-center gap-1.5 rounded-[6px] px-4 text-[13px] font-semibold transition-colors"
+              style={{
+                background: `linear-gradient(90deg, ${T.green} 0%, ${T.greenDeep} 100%)`,
+                color: "#fff",
+                letterSpacing: "0.01em",
+                boxShadow: "0 2px 8px rgba(46,142,58,0.25)",
+              }}
             >
               {activeStep.cta}
               <span aria-hidden>→</span>
@@ -287,26 +344,53 @@ export function OnboardingChecklist({
           )}
 
           {/* Secondary affordances */}
-          <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1.5">
+          <div className="mt-3 flex flex-col items-start gap-2">
             {showGuided && (
               <button
                 type="button"
                 onClick={onResumeSetup}
-                className="text-[12px] font-semibold transition-colors"
+                className="min-h-[44px] text-[12px] font-semibold transition-colors"
                 style={{ color: T.blueDeep, background: "none", border: "none", padding: 0, cursor: "pointer" }}
               >
                 Use guided setup
               </button>
             )}
             {showSample && (
-              <a
-                href="/demo-purchase-order.csv"
-                download
-                className="text-[12px] font-medium"
-                style={{ color: T.muted }}
-              >
-                Download sample CSV ↓
-              </a>
+              <div className="min-w-0">
+                {existingSampleHref ? (
+                  <Link
+                    href={existingSampleHref}
+                    className="inline-flex min-h-[44px] items-center text-[12px] font-semibold"
+                    style={{ color: T.blueDeep }}
+                  >
+                    Open your practice order →
+                  </Link>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={runSample}
+                    disabled={samplePending}
+                    className="inline-flex min-h-[44px] items-center text-[12px] font-semibold"
+                    style={{
+                      color: samplePending ? T.muted : T.blueDeep,
+                      background: "none", border: "none", padding: 0,
+                      cursor: samplePending ? "default" : "pointer",
+                    }}
+                  >
+                    {samplePending ? "Starting practice order…" : "Try a practice order →"}
+                  </button>
+                )}
+                {/* Honesty line — pre-frames the sample's intentional ending. */}
+                <p className="mt-0.5 max-w-[340px] text-[11px] leading-snug" style={{ color: T.faint }}>
+                  Free practice order — doesn&apos;t count against your plan. Sending stops at
+                  &quot;delivery not set up&quot;, which is expected for the practice {nounLower}.
+                </p>
+                {sampleError && (
+                  <p className="mt-1 text-[11.5px]" style={{ color: "#C53A3A" }}>
+                    {sampleError.message || "Could not start the practice order."}
+                  </p>
+                )}
+              </div>
             )}
           </div>
         </div>
@@ -323,38 +407,65 @@ export function OnboardingChecklist({
           >
             Setup path
           </li>
-          {STEPS.map((step, i) => {
-            const done = doneById[step.id];
-            const locked = !done && isLocked(step);
+          {steps.map((step: ChecklistStep, i: number) => {
+            const { done, locked, intermediate } = step;
             const active = !done && !locked && activeStep?.id === step.id;
+            const showDescription = active || done || intermediate;
 
             return (
               <li
                 key={step.id}
                 className="flex items-start gap-3 rounded-[8px] p-3"
                 style={{
-                  background: active ? T.blueSoft : done ? "#F3FAF4" : "transparent",
-                  border: active ? `1px solid ${T.blue}` : done ? "1px solid #D6EEDB" : `1px solid ${T.border}`,
+                  background: active ? T.blueSoft : done ? "#F3FAF4" : intermediate ? T.amberSoft : "transparent",
+                  border: active
+                    ? `1px solid ${T.blue}`
+                    : done
+                    ? "1px solid #D6EEDB"
+                    : intermediate
+                    ? "1px solid #F0D39A"
+                    : `1px solid ${T.border}`,
                   opacity: locked ? 0.72 : 1,
                 }}
               >
                 {done ? <DoneMark /> : locked ? <LockMark /> : <NumberMark n={i + 1} active={active} />}
                 <div className="min-w-0 flex-1" style={{ marginTop: 1 }}>
-                  <div
-                    className="text-[13px]"
-                    style={{
-                      color: done ? T.muted : locked ? T.faint : T.ink,
-                      fontWeight: active ? 600 : 500,
-                      textDecoration: done ? "line-through" : "none",
-                      letterSpacing: "-0.005em",
-                    }}
-                  >
-                    {step.label}
+                  <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                    <span
+                      className="text-[13px]"
+                      style={{
+                        color: done ? T.muted : locked ? T.faint : T.ink,
+                        fontWeight: active ? 600 : 500,
+                        textDecoration: done ? "line-through" : "none",
+                        letterSpacing: "-0.005em",
+                      }}
+                    >
+                      {step.label}
+                    </span>
+                    {intermediate && (
+                      <span
+                        className="rounded-[4px] px-1.5 py-0.5 text-[10px] font-bold uppercase"
+                        style={{ background: "#FAEFD6", color: T.amber, letterSpacing: "0.05em" }}
+                      >
+                        Almost there
+                      </span>
+                    )}
                   </div>
-                  {(active || done) && (
+                  {showDescription && (
                     <p className="mt-0.5 text-[11.5px] leading-snug" style={{ color: T.muted }}>
                       {done ? "Ready for the next step." : step.description}
                     </p>
+                  )}
+                  {/* Intermediate step 5 keeps its own CTA visible even when a
+                      different step is active — the nudge is the point. */}
+                  {intermediate && !active && (
+                    <Link
+                      href={step.href}
+                      className="mt-1 inline-flex min-h-[32px] items-center text-[12px] font-semibold"
+                      style={{ color: T.blueDeep }}
+                    >
+                      Send a test →
+                    </Link>
                   )}
                 </div>
               </li>
@@ -362,6 +473,6 @@ export function OnboardingChecklist({
           })}
         </ol>
       </div>
-    </section>
+    </CardFrame>
   );
 }

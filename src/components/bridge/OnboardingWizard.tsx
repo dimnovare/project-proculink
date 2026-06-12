@@ -1,12 +1,20 @@
 "use client";
 
-import { useState, useRef, useEffect, useMemo } from "react";
-import { useRouter } from "next/navigation";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+// OnboardingWizard — the slim first-run modal: choose the org's order
+// direction, create the first supplier/customer, done.
+//
+// Everything after that (catalog, upload, resolve, delivery, send) is owned by
+// the OnboardingChecklist on the dashboard — the wizard's closing notice points
+// there. The old steps 2–4 and their resume logic (which could hand the upload
+// step a placeholder supplier with an empty id) were deleted with the shrink.
+
+import { useEffect, useRef, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { apiClient, updateOrgSettings, isApiMockMode } from "@/lib/api-client";
 import { capture } from "@/lib/analytics";
 import { captureException } from "@/lib/sentry-context";
 import { useOrderDirection } from "@/hooks/useOrderDirection";
+import { invalidateOnboardingStatus } from "@/hooks/useOnboardingStatus";
 import type { Supplier, OrderDirection } from "@/types/procurement";
 
 // ─── Design tokens ────────────────────────────────────────────────────────────
@@ -330,8 +338,8 @@ function Step1AddSupplier({ onSuccess }: Step1Props) {
         type="submit"
         disabled={loading || !name.trim()}
         style={{
-          height: 40,
-          background: loading || !name.trim() ? "#C6CDDA" : T.navy,
+          height: 44,
+          background: loading || !name.trim() ? "#C6CDDA" : T.green,
           color: "#fff",
           border: "none",
           borderRadius: 6,
@@ -348,95 +356,11 @@ function Step1AddSupplier({ onSuccess }: Step1Props) {
   );
 }
 
-// ─── Step 2 — Upload first purchase order ────────────────────────────────────
+// ─── Closing notice — points at the dashboard checklist ──────────────────────
 
-interface Step2Props {
-  defaultSupplier: Supplier;
-  onSuccess: (orderId: string) => void;
-}
-
-function Step2UploadOrder({ defaultSupplier, onSuccess }: Step2Props) {
-  const [file, setFile] = useState<File | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    if (!file) return;
-    setLoading(true);
-    setError(null);
-    try {
-      const result = await apiClient.uploadPurchaseOrder(file, defaultSupplier.id);
-      onSuccess(result.order.id);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Upload failed. Please try again.");
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  return (
-    <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-      <div>
-        <h2
-          style={{
-            fontSize: 18,
-            fontWeight: 700,
-            color: T.text,
-            margin: "0 0 6px",
-            letterSpacing: "-0.02em",
-            fontFamily: "'Bricolage Grotesque', Inter, sans-serif",
-          }}
-        >
-          Upload your first purchase order
-        </h2>
-        <p style={{ fontSize: 13, color: T.muted, margin: 0, lineHeight: 1.55 }}>
-          Upload a purchase order (CSV, XLSX, PDF, XML/cXML, or EDI) for{" "}
-          <strong style={{ color: T.text }}>{defaultSupplier.name}</strong>. ProcuLink will parse the lines.
-        </p>
-      </div>
-
-      <input
-        ref={inputRef}
-        type="file"
-        accept=".csv,.xlsx,.xls,.xml,.cxml,.pdf,.edi,.txt"
-        onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-        disabled={loading}
-        style={{ fontSize: 13 }}
-      />
-
-      {error && <p style={{ fontSize: 12, color: T.red, margin: 0 }}>{error}</p>}
-
-      <button
-        type="submit"
-        disabled={loading || !file}
-        style={{
-          height: 40,
-          background: loading || !file ? "#C6CDDA" : T.navy,
-          color: "#fff",
-          border: "none",
-          borderRadius: 6,
-          fontSize: 13.5,
-          fontWeight: 600,
-          cursor: loading || !file ? "not-allowed" : "pointer",
-        }}
-      >
-        {loading ? "Uploading…" : "Upload and parse"}
-      </button>
-    </form>
-  );
-}
-
-// ─── Step 3 — Resolve mapping ────────────────────────────────────────────────
-
-interface Step3Props {
-  orderId: string | null;
-  onSuccess: () => void;
-}
-
-function Step3ResolveMapping({ orderId, onSuccess }: Step3Props) {
-  const router = useRouter();
+function StepDone({ supplier, onClose }: { supplier: Supplier; onClose: () => void }) {
+  const { labels } = useOrderDirection();
+  const partyNounLower = labels.counterpartyNoun.toLowerCase();
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
@@ -451,84 +375,30 @@ function Step3ResolveMapping({ orderId, onSuccess }: Step3Props) {
             fontFamily: "'Bricolage Grotesque', Inter, sans-serif",
           }}
         >
-          Review and resolve
+          <strong>{supplier.name}</strong> is in
         </h2>
         <p style={{ fontSize: 13, color: T.muted, margin: 0, lineHeight: 1.55 }}>
-          We&apos;ll take you to the order review screen. Confirm field mappings and any line items that need supplier codes, then click &quot;Resolve all&quot;.
+          Your setup guide is on the dashboard — it walks you through the {partyNounLower}&apos;s
+          item codes, your first upload, and delivery, and ticks itself off as you go.
         </p>
       </div>
 
       <button
         type="button"
-        onClick={() => {
-          onSuccess();
-          router.push(orderId ? `/inbox/${orderId}` : "/inbox");
-        }}
+        onClick={onClose}
         style={{
-          height: 40,
-          background: T.navy,
+          height: 44,
+          background: T.green,
           color: "#fff",
           border: "none",
           borderRadius: 6,
           fontSize: 13.5,
           fontWeight: 600,
           cursor: "pointer",
+          letterSpacing: "0.01em",
         }}
       >
-        Open order review
-      </button>
-    </div>
-  );
-}
-
-// ─── Step 4 — Configure delivery ─────────────────────────────────────────────
-
-interface Step4Props {
-  supplier: Supplier | null;
-  onSuccess: () => void;
-}
-
-function Step4ConfigureDelivery({ supplier, onSuccess }: Step4Props) {
-  const router = useRouter();
-
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-      <div>
-        <h2
-          style={{
-            fontSize: 18,
-            fontWeight: 700,
-            color: T.text,
-            margin: "0 0 6px",
-            letterSpacing: "-0.02em",
-            fontFamily: "'Bricolage Grotesque', Inter, sans-serif",
-          }}
-        >
-          Configure delivery
-        </h2>
-        <p style={{ fontSize: 13, color: T.muted, margin: 0, lineHeight: 1.55 }}>
-          Tell ProcuLink how to deliver finished orders{supplier ? <> to <strong style={{ color: T.text }}>{supplier.name}</strong></> : null}. HTTP webhook is the simplest option for first delivery.
-        </p>
-      </div>
-
-      <button
-        type="button"
-        onClick={() => {
-          onSuccess();
-          router.push(supplier ? `/library/suppliers/${supplier.id}?tab=delivery` : "/library/suppliers");
-        }}
-        style={{
-          height: 40,
-          background: T.navy,
-          color: "#fff",
-          border: "none",
-          borderRadius: 6,
-          fontSize: 13.5,
-          fontWeight: 600,
-          cursor: "pointer",
-        }}
-      >
-        Open delivery config
+        Open my setup guide
       </button>
     </div>
   );
@@ -540,43 +410,23 @@ interface OnboardingWizardProps {
   onDismiss: () => void;
 }
 
-// Step 0 = choose order direction (forced first step for brand-new orgs).
-type WizardStep = 0 | 1 | 2 | 3 | 4;
+// 0 = choose order direction · 1 = add first supplier · "done" = closing notice.
+type WizardStep = 0 | 1 | "done";
 
-const TOTAL_STEPS = 5;
+const TOTAL_STEPS = 2;
 
 export function OnboardingWizard({ onDismiss }: OnboardingWizardProps) {
   const queryClient = useQueryClient();
-  const { labels } = useOrderDirection();
-  const { data: status } = useQuery({
-    queryKey: ["onboarding-status"],
-    queryFn: () => apiClient.getOnboardingStatus(),
-    retry: false,
-    staleTime: 30 * 1000,
-  });
-  const entryStep: WizardStep = useMemo(() => {
-    if (!status) return 0;
-    // Once any setup progress exists, the org already passed the direction step.
-    if (!status.hasSupplier) return 0;
-    if (!status.hasUpload) return 1;
-    if (!status.hasResolvedMapping) return 2;
-    if (!status.hasDelivery) return 3;
-    return 4;
-  }, [status]);
-
   const [step, setStep] = useState<WizardStep>(0);
   const [firstSupplier, setFirstSupplier] = useState<Supplier | null>(null);
-  const [firstOrderId, setFirstOrderId] = useState<string | null>(null);
-  const initialisedRef = useRef(false);
 
-  // Initialise step from server status on first successful query and emit wizard_opened.
+  // Emit wizard_opened once per mount (ref-guarded against StrictMode re-runs).
+  const openedRef = useRef(false);
   useEffect(() => {
-    if (initialisedRef.current) return;
-    if (!status) return;
-    initialisedRef.current = true;
-    setStep(entryStep);
-    capture("wizard_opened", { step: entryStep });
-  }, [status, entryStep]);
+    if (openedRef.current) return;
+    openedRef.current = true;
+    capture("wizard_opened", { step: 0 });
+  }, []);
 
   function handleDismiss() {
     capture("wizard_dismissed", { at_step: step });
@@ -593,31 +443,15 @@ export function OnboardingWizard({ onDismiss }: OnboardingWizardProps) {
 
   function handleStep1Success(s: Supplier) {
     setFirstSupplier(s);
+    // The checklist's step 1 (and the supplier-dependent surfaces) must see the
+    // new supplier without waiting out a staleTime.
+    void invalidateOnboardingStatus(queryClient);
+    void queryClient.invalidateQueries({ queryKey: ["suppliers"] });
     capture("wizard_step_completed", { step: 1, step_name: "add_supplier" });
-    setStep(2);
+    setStep("done");
   }
 
-  function handleStep2Success(orderId: string) {
-    setFirstOrderId(orderId);
-    capture("wizard_step_completed", { step: 2, step_name: "upload_order" });
-    setStep(3);
-  }
-
-  function handleStep3Success() {
-    capture("wizard_step_completed", { step: 3, step_name: "resolve_mapping_started" });
-    setStep(4);
-  }
-
-  function handleStep4Success() {
-    capture("wizard_step_completed", { step: 4, step_name: "delivery_config_opened" });
-    onDismiss();
-  }
-
-  // For Step 2, we need a supplier. If user resumes at step 2+ without local
-  // firstSupplier, we fall back to a placeholder — the actual supplier was set
-  // earlier in a previous session.
-  const step2Supplier: Supplier | null =
-    firstSupplier ?? (status?.hasSupplier ? { id: "", name: `your ${labels.counterpartyNoun.toLowerCase()}` } : null);
+  const indicatorCurrent = step === "done" ? TOTAL_STEPS + 1 : step + 1;
 
   return (
     <div
@@ -684,18 +518,12 @@ export function OnboardingWizard({ onDismiss }: OnboardingWizardProps) {
           </svg>
         </button>
 
-        <StepIndicator current={step + 1} total={TOTAL_STEPS} />
+        <StepIndicator current={indicatorCurrent} total={TOTAL_STEPS} />
 
         {step === 0 && <Step0Direction onSuccess={handleStep0Success} />}
         {step === 1 && <Step1AddSupplier onSuccess={handleStep1Success} />}
-        {step === 2 && step2Supplier && (
-          <Step2UploadOrder defaultSupplier={step2Supplier} onSuccess={handleStep2Success} />
-        )}
-        {step === 3 && (
-          <Step3ResolveMapping orderId={firstOrderId} onSuccess={handleStep3Success} />
-        )}
-        {step === 4 && (
-          <Step4ConfigureDelivery supplier={firstSupplier} onSuccess={handleStep4Success} />
+        {step === "done" && firstSupplier && (
+          <StepDone supplier={firstSupplier} onClose={onDismiss} />
         )}
 
         <p
@@ -707,7 +535,9 @@ export function OnboardingWizard({ onDismiss }: OnboardingWizardProps) {
             lineHeight: 1.5,
           }}
         >
-          Step {step + 1} of {TOTAL_STEPS} · You can dismiss this and come back any time
+          {step === "done"
+            ? "The rest of setup continues on the dashboard"
+            : `Step ${step + 1} of ${TOTAL_STEPS} · You can dismiss this and come back any time`}
         </p>
       </div>
     </div>

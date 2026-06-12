@@ -25,9 +25,11 @@ import { LaneDrawer } from "./LaneDrawer";
 import type { Lane } from "./LaneDrawer";
 import { OnboardingChecklist } from "./OnboardingChecklist";
 import { OnboardingWizard } from "./OnboardingWizard";
+import { buildChecklistSteps } from "./buildChecklistSteps";
 import { PageHeader } from "./layout/PageHeader";
 import { PageShell } from "./layout/PageShell";
 import { apiClient, isApiMockMode } from "@/lib/api-client";
+import { useOnboardingStatus } from "@/hooks/useOnboardingStatus";
 import { useOrderDirection } from "@/hooks/useOrderDirection";
 import type { OrderSummary, Supplier } from "@/types/procurement";
 import { ArrowRight, ArrowUpRight, Clock, AlertTriangle, CheckCircle2, Send, Activity, Download } from "lucide-react";
@@ -321,11 +323,8 @@ export function BridgeDashboard() {
   const nounLower = noun.toLowerCase();          // "supplier" | "customer"
   const pluralLower = labels.counterpartyPlural.toLowerCase(); // "suppliers" | "customers"
 
-  const { data: onboardingStatus } = useQuery({
-    queryKey: ["onboarding-status"],
-    queryFn: () => apiClient.getOnboardingStatus(),
-    staleTime: 60_000,
-  });
+  // Shared onboarding-status query (same cache the checklist + wizard read).
+  const { data: onboardingStatus } = useOnboardingStatus();
   const { data: suppliers } = useQuery({
     queryKey: ["suppliers"],
     queryFn: () => apiClient.getSuppliers(),
@@ -539,22 +538,13 @@ export function BridgeDashboard() {
   })();
 
   // ── Onboarding state ──────────────────────────────────────────────────────
-  const supplierCount = suppliers?.length ?? 0;
+  // The checklist self-fetches its own data (no prop threading); the dashboard
+  // only needs the derived completion state for layout (hero vs band slot).
   const orderCount = allOrders.length;
-  // First-run "Resolve item mapping" target — mirrors the wizard, which routes
-  // to the uploaded order's review screen (/inbox/{id}). Prefer an order that
-  // actually has unresolved lines; else the most recent order; null → /inbox.
-  const mappingOrderId =
-    allOrders.find((o) => (o.unresolvedCount ?? 0) > 0)?.id ?? allOrders[0]?.id ?? null;
-  const deliveredCount = allOrders.filter((o) => o.status === "delivered").length;
   const hasOrders = orderCount > 0;
 
   const onboardingComplete =
-    onboardingStatus != null &&
-    onboardingStatus.hasSupplier &&
-    onboardingStatus.hasUpload &&
-    onboardingStatus.hasResolvedMapping &&
-    (deliveredCount > 0 || onboardingStatus.hasDelivery);
+    onboardingStatus != null && buildChecklistSteps(onboardingStatus, nounLower).complete;
   const showChecklist = onboardingStatus != null && !onboardingComplete;
 
   // No crossings to plot yet (no orders + nothing from the endpoint) → the
@@ -775,14 +765,7 @@ export function BridgeDashboard() {
             <p className="mb-4 text-[13px]" style={{ color: "#56627A" }}>
               Your pipeline is ready. Create its first connection to start {direction === "inbound" ? "confirming orders from customers" : "routing orders to suppliers"}.
             </p>
-            <OnboardingChecklist
-              status={onboardingStatus!}
-              supplierCount={supplierCount}
-              orderCount={orderCount}
-              deliveredCount={deliveredCount}
-              firstOrderId={mappingOrderId}
-              onResumeSetup={resumeWizard}
-            />
+            <OnboardingChecklist onResumeSetup={resumeWizard} />
           </div>
         </div>
       ) : (
@@ -853,17 +836,9 @@ export function BridgeDashboard() {
             </div>
           </section>
 
-          {/* ── Finish-setup band (recedes as steps complete, hidden when done) ── */}
-          {showChecklist && (
-            <OnboardingChecklist
-              status={onboardingStatus!}
-              supplierCount={supplierCount}
-              orderCount={orderCount}
-              deliveredCount={deliveredCount}
-              firstOrderId={mappingOrderId}
-              onResumeSetup={resumeWizard}
-            />
-          )}
+          {/* ── Finish-setup band (recedes as steps complete; self-nulls when
+              loading/errored, and shows the one-time completion card at 6/6) ── */}
+          <OnboardingChecklist onResumeSetup={resumeWizard} />
 
           {activeLane && <LaneDrawer lane={activeLane} onClose={() => setActiveLane(null)} />}
 

@@ -221,6 +221,33 @@ export interface OnboardingStatus {
   hasUpload: boolean;
   hasResolvedMapping: boolean;
   hasDelivery: boolean;
+
+  // ── Extended status (onboarding-overhaul B1 shape) ────────────────────────
+  // ALL extended fields are OPTIONAL: the backend extension may not be deployed
+  // yet. Consumers must treat an absent field as "unknown" and degrade
+  // gracefully (e.g. omit the step it backs) — never fabricate a 0/6 state.
+  /** Org has at least one catalog row on a real (non-sample) supplier. */
+  hasCatalog?: boolean;
+  /** Org has at least one saved item mapping on a real supplier. */
+  hasItemMappings?: boolean;
+  /** Org has a saved delivery config on a real supplier. */
+  hasDeliveryConfig?: boolean;
+  /** A delivery-config test-fire succeeded (DeliveryAttempt with null OrderId). */
+  hasTestFired?: boolean;
+  /** First real supplier's id — checklist deep-link target; null when none. */
+  firstSupplierId?: string | null;
+  /** Order the resolve/send steps should open (unresolved first); null when none. */
+  firstActionableOrderId?: string | null;
+  /** Non-sample supplier count. */
+  supplierCount?: number;
+  /** Non-sample order count. */
+  orderCount?: number;
+  /** Non-sample orders that reached `delivered`. */
+  deliveredCount?: number;
+  /** Org has run the practice/sample order at least once. */
+  hasSampleOrder?: boolean;
+  /** Most recent sample order id; null when none. */
+  sampleOrderId?: string | null;
 }
 
 // ── Dashboard ─────────────────────────────────────────────────────────────

@@ -953,11 +953,35 @@ async function realGetOrderAudit(orderId: string): Promise<AuditEvent[]> {
 
 async function mockGetOnboardingStatus(): Promise<OnboardingStatus> {
   await delay(150);
+  // Representative MID-PROGRESS payload (extended B1 shape). Supplier, catalog,
+  // upload, and resolve are derived from the mock data set; delivery is pinned
+  // to "config saved but not test-fired, nothing delivered" so the checklist's
+  // intermediate step-5 state and completion gating stay exercisable in
+  // mock/demo mode (deriving hasDelivery from mock orders would show 6/6 and
+  // graduate the card away on first paint).
   const hasSupplier        = mockSupplierList.length > 0;
   const hasUpload          = mockOrders.length > 0;
   const hasResolvedMapping = mockOrders.some(o => o.lines.some(l => l.supplierItemCode != null));
-  const hasDelivery        = mockOrders.some(o => o.status === "delivered");
-  return { hasSupplier, hasUpload, hasResolvedMapping, hasDelivery };
+  const sampleOrder        = mockOrders.find(o => o.isSample === true);
+  const firstActionable    =
+    mockOrders.find(o => o.lines.some(l => l.supplierItemCode == null)) ?? mockOrders[0];
+  return {
+    hasSupplier,
+    hasUpload,
+    hasResolvedMapping,
+    hasDelivery:            false,
+    hasCatalog:             true,
+    hasItemMappings:        hasResolvedMapping,
+    hasDeliveryConfig:      true,
+    hasTestFired:           false,
+    firstSupplierId:        mockSupplierList[0]?.id ?? null,
+    firstActionableOrderId: firstActionable?.id ?? null,
+    supplierCount:          mockSupplierList.length,
+    orderCount:             mockOrders.length,
+    deliveredCount:         0,
+    hasSampleOrder:         sampleOrder != null,
+    sampleOrderId:          sampleOrder?.id ?? null,
+  };
 }
 
 async function realGetOnboardingStatus(): Promise<OnboardingStatus> {

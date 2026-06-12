@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState, type CSSProperties, type ReactNode } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { useOrganization } from "@clerk/nextjs";
 import { PageHeader } from "@/components/bridge/layout/PageHeader";
 import { PageShell } from "@/components/bridge/layout/PageShell";
@@ -46,7 +47,14 @@ const PLAN_LABELS: Record<string, string> = {
 };
 
 export default function SettingsPage() {
-  const [tab, setTab] = useState<SettingsTab>("org");
+  // Initial tab honours a `?tab=` deep-link (e.g. the onboarding completion
+  // card's "Set up email intake" → ?tab=email and "Create an API key" →
+  // ?tab=api). Validated against the SettingsTab union; falls back to "org".
+  const searchParams = useSearchParams();
+  const requestedTab = searchParams?.get("tab");
+  const isSettingsTab = (v: string | null | undefined): v is SettingsTab =>
+    v != null && TABS.some((t) => t.id === v);
+  const [tab, setTab] = useState<SettingsTab>(isSettingsTab(requestedTab) ? requestedTab : "org");
   const { organization } = useOrganization();
   const { data: billing } = useQuery({ queryKey: ["billing-status"], queryFn: getBillingStatus, staleTime: 60_000 });
   const orgName   = organization?.name ?? "…";

@@ -5,7 +5,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { ChevronLeft, Trash2, Info, Clock, Link2, Truck, Plus, ShieldCheck, GitBranch } from "lucide-react";
 import { PoMappingEditor } from "./PoMappingEditor";
@@ -998,7 +998,14 @@ export function SupplierDockProfile({ id }: { id: string }) {
   const partyNoun = labels.counterpartyNoun;            // "Supplier" | "Customer"
   const partyNounLower = partyNoun.toLowerCase();        // "supplier" | "customer"
   const partyPluralLower = labels.counterpartyPlural.toLowerCase(); // "suppliers" | "customers"
-  const [tab, setTab] = useState<Tab>("overview");
+  // Initial tab honours a `?tab=` deep-link (e.g. the onboarding checklist's
+  // "Add item codes" → ?tab=catalog and "Set up delivery" → ?tab=delivery
+  // CTAs). Validated against the Tab union via TABS; falls back to "overview".
+  const searchParams = useSearchParams();
+  const requestedTab = searchParams?.get("tab");
+  const isTab = (v: string | null | undefined): v is Tab =>
+    v != null && TABS.some((t) => t.id === v);
+  const [tab, setTab] = useState<Tab>(isTab(requestedTab) ? requestedTab : "overview");
   const [poMappingConfig, setPoMappingConfig] = useState<PoMappingConfig | null>(null);
   const [savingMapping, setSavingMapping] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
