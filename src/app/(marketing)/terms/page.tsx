@@ -84,9 +84,17 @@ export default function TermsPage() {
         read-only) and does not accrue overage.
       </p>
       <p style={S.p}>
-        Subscriptions are billed monthly via Stripe. No refunds are provided for partial
-        months, except where required by applicable law. We will provide 30 days&apos; notice
-        to active subscribers before changing pricing.
+        Subscriptions are billed monthly or annually via Stripe. No refunds are provided for
+        partial periods, except where required by applicable law. We will provide 30 days&apos;
+        notice to active subscribers before changing pricing.
+      </p>
+      <p style={S.p}>
+        If your subscription ends — by cancellation, downgrade, or termination — we reserve
+        the right to invoice any usage-based overage accrued since your last invoice, metered
+        per calendar month at the rates above with the same per-month cap. For monthly
+        subscriptions we currently waive this final-period overage as a courtesy; for annual
+        subscriptions, accrued overage across the subscription year may be invoiced on
+        termination.
       </p>
 
       <h2 style={S.h2}>6. Intellectual property</h2>
