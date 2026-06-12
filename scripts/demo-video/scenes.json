@@ -1,32 +1,58 @@
 [
   {
-    "id": "s1-intake",
-    "holdMs": 17000,
-    "vo": "Every supplier wants your purchase orders a different way — a PDF, a CSV, cXML, even EDI. Instead of reformatting by hand, you drop it into ProcuLink, which detects the format automatically."
+    "id": "s0-problem",
+    "title": "The problem",
+    "kicker": "Outbound purchase orders",
+    "body": "Every supplier wants it\\ntheir own way.",
+    "vo": "Sending purchase orders to suppliers should be simple. But every supplier wants it their own way. A different file format, a different delivery channel, their own item codes. So procurement teams end up reformatting every order by hand."
   },
   {
-    "id": "s2-parse",
-    "holdMs": 9000,
-    "vo": "It parses every line, and surfaces only the ones that actually need your attention. Not the whole order."
+    "id": "s1-intake",
+    "title": "Upload an order",
+    "kicker": "Step 1 — Intake",
+    "body": "PDF · CSV · XLSX · cXML\\nUBL · EDIFACT · X12 · IDoc",
+    "vo": "ProcuLink replaces that. You drop in your order, in whatever format it already lives in. A PDF, a spreadsheet, a CSV, cXML, UBL, EDIFACT, X12. ProcuLink detects the format automatically and reads every line."
+  },
+  {
+    "id": "s2-review",
+    "title": "Review and resolve",
+    "kicker": "Step 2 — The heart screen",
+    "body": "Only the lines that\\nneed your attention.",
+    "vo": "Then it surfaces only the lines that actually need a decision. Not the whole order. You see your code, the supplier's code, and exactly what's unresolved, side by side, in one place."
   },
   {
     "id": "s3-ai",
-    "holdMs": 13000,
-    "vo": "When a supplier uses different item codes, the AI suggests the mapping, with a confidence score and the reason behind it, and it remembers your corrections for next time."
+    "title": "AI item-code mapping",
+    "kicker": "Suggested, never silent",
+    "body": "Confidence + reason,\\nand it learns.",
+    "vo": "When a supplier uses different item codes, the AI suggests the mapping, with a confidence score and the reason behind it. You stay in control. And every correction you make, it remembers for next time."
   },
   {
     "id": "s4-validate",
-    "holdMs": 11000,
-    "vo": "Before anything goes out, the order is checked against that supplier's own acceptance rules, so it isn't rejected at the other end."
+    "title": "Validate",
+    "kicker": "Step 3 — Acceptance rules",
+    "body": "Checked against\\ntheir rules first.",
+    "vo": "Before anything leaves your hands, the order is checked against that supplier's own acceptance rules. So it isn't rejected at the other end, after you thought it was sent."
   },
   {
     "id": "s5-deliver",
-    "holdMs": 14000,
-    "vo": "Then ProcuLink transforms the order into the exact format that supplier requires, and delivers it. Over HTTP, SFTP, email, or straight into their ERP."
+    "title": "Transform and deliver",
+    "kicker": "Step 4 — Send",
+    "body": "Their exact format.\\nHTTP · SFTP · Email · ERP.",
+    "vo": "Then ProcuLink transforms the order into the exact format that supplier requires, and delivers it. Over HTTP, SFTP, or email, or straight into their ERP, like Erply or Directo."
   },
   {
     "id": "s6-audit",
-    "holdMs": 16000,
-    "vo": "Every step is logged. A complete audit trail, and proof of delivery for every order. Boringly reliable, by design. Try ProcuLink free with a sample order today."
+    "title": "Proof of delivery",
+    "kicker": "Step 5 — Audit trail",
+    "body": "Every step logged.\\nProof for every order.",
+    "vo": "And every step is logged. A complete audit trail, and proof of delivery, for every single order. Boringly reliable, by design."
+  },
+  {
+    "id": "s7-cta",
+    "title": "Start free",
+    "kicker": "Connecting procurement",
+    "body": "Try it with a\\nsample order today.",
+    "vo": "That's ProcuLink. The missing link between buyers and suppliers. Try it free with a sample order today, at proculink dot e u."
   }
 ]
