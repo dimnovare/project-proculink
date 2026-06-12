@@ -75,17 +75,27 @@ function SourceZoneCrop({ order, zone, line }: {
       const idx = line ? sorted.findIndex(l => l.id === line.id) : 0;
       const from = Math.max(0, idx - 1);
       const rows = sorted.slice(from, Math.min(sorted.length, from + 3));
+      // table-layout:fixed + a generous description column lets the description
+      // WRAP (up to ~2 lines) instead of clipping to a near-zero cell ("D.");
+      // the full text is always available via the cell title tooltip.
       body = (
-        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 10.5 }}>
+        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 10.5, tableLayout: "fixed" }}>
+          <colgroup>
+            <col style={{ width: 22 }} />
+            <col style={{ width: "30%" }} />
+            <col />
+            <col style={{ width: 34 }} />
+          </colgroup>
           <tbody>
             {rows.map((l) => {
               const isSel = line != null && l.id === line.id;
+              const desc = l.description ?? "—";
               return (
                 <tr key={l.id} style={isSel ? { background: "rgba(46,142,58,0.08)", outline: "1.5px solid #2E8E3A" } : undefined}>
-                  <td style={{ padding: "2px 4px", borderBottom: "1px dotted #E0E0E0", color: "#888", width: 18 }}>{l.lineNumber}</td>
-                  <td style={{ fontFamily: "monospace", whiteSpace: "nowrap" }}>{l.buyerItemCode}</td>
-                  <td style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 0 }}>{l.description ?? "—"}</td>
-                  <td style={{ textAlign: "right", whiteSpace: "nowrap" }}>×{l.quantity}</td>
+                  <td style={{ padding: "3px 4px", borderBottom: "1px dotted #E0E0E0", color: "#888", verticalAlign: "top" }}>{l.lineNumber}</td>
+                  <td style={{ padding: "3px 4px", borderBottom: "1px dotted #E0E0E0", fontFamily: "monospace", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", verticalAlign: "top" }} title={l.buyerItemCode}>{l.buyerItemCode}</td>
+                  <td style={{ padding: "3px 6px", borderBottom: "1px dotted #E0E0E0", overflow: "hidden", verticalAlign: "top", lineHeight: 1.35, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }} title={desc}>{desc}</td>
+                  <td style={{ padding: "3px 4px", borderBottom: "1px dotted #E0E0E0", textAlign: "right", whiteSpace: "nowrap", color: "#555", verticalAlign: "top" }}>×{l.quantity}</td>
                 </tr>
               );
             })}
@@ -118,11 +128,11 @@ function SourceZoneCrop({ order, zone, line }: {
   }
 
   return (
-    <div data-testid="source-zone-crop" style={{ borderRadius: 8, padding: 8, background: "#F6F7FA", border: "1px solid #E2E6EE" }}>
-      <div style={{ fontSize: 9, color: "var(--ink-faint)", marginBottom: 6 }}>
+    <div data-testid="source-zone-crop" style={{ borderRadius: 9, padding: 10, background: "#F6F7FA", border: "1px solid #E2E6EE", minWidth: 0 }}>
+      <div style={{ fontSize: 9.5, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em", color: "var(--ink-faint)", marginBottom: 7 }}>
         Source · reconstructed from parsed fields
       </div>
-      <div style={{ borderRadius: 6, background: "#FFFFFF", padding: "8px 10px", fontFamily: "'Times New Roman',serif", color: "#1a1a1a", boxShadow: "0 1px 4px rgba(0,0,0,0.06)", border: "1px solid #ECEFF4" }}>
+      <div style={{ borderRadius: 6, background: "#FFFFFF", padding: "9px 11px", fontFamily: "'Times New Roman',serif", color: "#1a1a1a", boxShadow: "0 1px 4px rgba(0,0,0,0.06)", border: "1px solid #ECEFF4", minWidth: 0, overflow: "hidden" }}>
         {body}
       </div>
     </div>
@@ -522,8 +532,8 @@ export function ContextStage({
       ref={containerRef}
       style={
         wide
-          ? { position: "relative", display: "grid", gridTemplateColumns: "minmax(0,0.9fr) minmax(0,1.1fr) minmax(0,1fr)", gap: 28, alignItems: "start" }
-          : { position: "relative", display: "flex", flexDirection: "column", gap: 14, paddingLeft: 24 }
+          ? { position: "relative", display: "grid", gridTemplateColumns: "minmax(0,0.95fr) minmax(0,1.1fr) minmax(0,1fr)", gap: 30, alignItems: "start" }
+          : { position: "relative", display: "flex", flexDirection: "column", gap: 16, paddingLeft: 24 }
       }
     >
       <StageWireSvg wires={wires} wide={wide} />
@@ -534,8 +544,16 @@ export function ContextStage({
           <NoSourceSnippet sourceFileKey={order.sourceFileKey} />
         )}
       </div>
+      {/* CANONICAL zone — given the same peer-card chrome + label as Source and
+          Output so the three zones read as a clear left→middle→right progression
+          and the controls (Set supplier code etc.) sit in a calm framed panel. */}
       <div ref={canonicalRef} style={{ position: "relative", zIndex: 2, minWidth: 0 }}>
-        {canonicalContent}
+        <div style={{ borderRadius: 9, padding: 11, background: "#FBFCFD", border: "1px solid #E2E6EE", minWidth: 0 }}>
+          <div style={{ fontSize: 9.5, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em", color: "var(--ink-faint)", marginBottom: 8 }}>
+            Canonical line
+          </div>
+          {canonicalContent}
+        </div>
       </div>
       {showOutputFragment && (
         <div ref={outputRef} style={{ position: "relative", zIndex: 2, minWidth: 0 }}>

@@ -1,14 +1,16 @@
 "use client";
 
 import { UserButton } from "@clerk/nextjs";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Bell, HelpCircle, Menu, Search } from "lucide-react";
+import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { apiClient, isApiMockMode } from "@/lib/api-client";
 import { guideSeenKey, matchGuide } from "@/lib/section-guides";
-import type { OrderSummary } from "@/types/procurement";
+import type { Order, OrderSummary, Supplier } from "@/types/procurement";
+import { buildCrumbTrail, formatCrumbLabel, truncateLabel, type CrumbContext } from "./breadcrumb";
 import { CommandPalette } from "./CommandPalette";
 import { HelpSlideover } from "./HelpSlideover";
 import { SetupProgressChip } from "./SetupProgressChip";
@@ -48,121 +50,109 @@ function AccountMenu() {
   );
 }
 
-/** Derive a 1–2-segment breadcrumb from the current pathname. */
-function useAutoCrumb(): ReactNode {
-  const pathname = usePathname();
-  const seg = pathname.split("/").filter(Boolean);
+/**
+ * Resolve human names for dynamic path segments from the EXISTING query cache —
+ * no new fetch. The detail pages already load these via useQuery, so we read
+ * the cached entries by their stable keys:
+ *   • order  → ["order", orderId]              (Order.poNumber)
+ *   • supplier → ["suppliers"] list            (find by id → Supplier.name)
+ *   • connection → ["connection", connectionId] (ConnectionDetail.name)
+ */
+function useCrumbContext(segments: string[]): CrumbContext {
+  const qc = useQueryClient();
+  const ctx: CrumbContext = {};
 
-  const LABELS: Record<string, string> = {
-    bridge:    "Dashboard",
-    inbox:     "Inbox",
-    upload:    "Upload",
-    drafts:    "Drafts",
-    settings:  "Settings",
-    library:   "Library",
-    suppliers: "Suppliers",
-    buyers:    "Buyers",
-    mappings:  "Mappings",
-    rules:     "Validation rules",
-    templates: "Output templates",
-    standards: "Standards",
-    operations: "Operations",
-    log:       "Delivery log",
-    connectors: "Connectors",
-    webhooks:  "Webhooks",
-    admin:     "Admin",
-    help:      "Help",
-    inbound:   "Inbound",
-    invoices:  "Invoices",
-    asns:      "ASNs",
-    exceptions: "Exceptions",
-    health:    "System health",
-  };
-
-  // Title-case fallback for any segment without an explicit label, so an
-  // unmapped route renders "Order Detail" rather than a raw "order-detail" slug.
-  const titleCase = (s: string) =>
-    s
-      .replace(/[-_]+/g, " ")
-      .replace(/\b\w/g, (c) => c.toUpperCase());
-
-  if (seg.length === 0) return null;
-
-  const root = LABELS[seg[0]] ?? titleCase(seg[0]);
-
-  // Two-segment paths like /library/suppliers or /operations/log
-  if (seg.length >= 2 && LABELS[seg[1]]) {
-    return (
-      <>
-        <span style={{ color: "#7C8DA6" }}>{root}</span>
-        <span style={{ color: "#3A547A", margin: "0 3px" }}>/</span>
-        <span style={{ color: "#C5D2E4", fontWeight: 500 }}>{LABELS[seg[1]]}</span>
-      </>
-    );
+  // /inbox/[orderId]  ·  /upload/preview/[orderId]
+  const orderId =
+    (segments[0] === "inbox" && segments[1]) ||
+    (segments[0] === "upload" && segments[1] === "preview" && segments[2]) ||
+    null;
+  if (orderId) {
+    const order = qc.getQueryData<Order>(["order", orderId]);
+    ctx.orderPoNumber = order?.poNumber ?? null;
   }
 
-  // Detail pages like /inbox/[id] or /library/suppliers/[id]
-  if (seg.length >= 2 && !LABELS[seg[1]]) {
-    const slug = seg[1].length > 16 ? seg[1].slice(0, 15) + "…" : seg[1];
-    return (
-      <>
-        <span style={{ color: "#7C8DA6" }}>{root}</span>
-        <span style={{ color: "#3A547A", margin: "0 3px" }}>/</span>
-        <span style={{ color: "#C5D2E4", fontWeight: 500 }}>{slug}</span>
-      </>
-    );
+  // /connections/[connectionId]
+  if (segments[0] === "connections" && segments[1]) {
+    const connection = qc.getQueryData<{ name?: string }>(["connection", segments[1]]);
+    ctx.connectionName = connection?.name ?? null;
   }
 
-  return <span style={{ color: "#C5D2E4", fontWeight: 500 }}>{root}</span>;
+  // /library/suppliers/[id]
+  if (segments[0] === "library" && segments[1] === "suppliers" && segments[2]) {
+    const suppliers = qc.getQueryData<Supplier[]>(["suppliers"]);
+    ctx.supplierName = suppliers?.find((s) => s.id === segments[2])?.name ?? null;
+  }
+
+  return ctx;
 }
 
 /**
- * Compact page label for the mobile topbar — the LAST meaningful crumb segment
- * as a plain string. Mirrors useAutoCrumb's LABELS/title-case rules so the
- * mobile title reads the same as the desktop breadcrumb tail.
+ * Derive the full breadcrumb trail from the current pathname. Every crumb except
+ * the current page links to its cumulative path; dynamic detail segments resolve
+ * to a readable label (PO number / supplier / connection name) from the query
+ * cache, falling back to a noun + short id — never a bare full UUID.
+ */
+function useAutoCrumb(): ReactNode {
+  const pathname = usePathname();
+  const segments = pathname.split("/").filter(Boolean);
+  const ctx = useCrumbContext(segments);
+
+  if (segments.length === 0) return null;
+
+  const trail = buildCrumbTrail(pathname, ctx);
+
+  return (
+    <nav aria-label="Breadcrumb" style={{ display: "flex", alignItems: "center", minWidth: 0 }}>
+      {trail.map((crumb, i) => {
+        const isLast = i === trail.length - 1;
+        const display = truncateLabel(crumb.label);
+        return (
+          <span key={`${crumb.href ?? "current"}-${i}`} style={{ display: "inline-flex", alignItems: "center", minWidth: 0 }}>
+            {i > 0 && <span aria-hidden style={{ color: "#3A547A", margin: "0 3px", flexShrink: 0 }}>/</span>}
+            {crumb.href ? (
+              <Link
+                href={crumb.href}
+                title={crumb.label}
+                className="truncate transition-colors hover:underline"
+                style={{ color: "#7C8DA6", maxWidth: 220 }}
+                onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = "#C5D2E4"; }}
+                onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = "#7C8DA6"; }}
+              >
+                {display}
+              </Link>
+            ) : (
+              <span
+                aria-current="page"
+                title={crumb.label}
+                className="truncate"
+                style={{ color: "#C5D2E4", fontWeight: 500, maxWidth: 260 }}
+              >
+                {display}
+              </span>
+            )}
+          </span>
+        );
+      })}
+    </nav>
+  );
+}
+
+/**
+ * Compact page label for the mobile topbar — the LAST crumb segment as a plain
+ * string, resolved through the SAME formatCrumbLabel rules as the desktop trail
+ * (so a detail page shows its PO number / supplier / connection name, and never
+ * a raw id). Truncated for the narrow mobile bar.
  */
 function useMobilePageLabel(): string | null {
   const pathname = usePathname();
-  const seg = pathname.split("/").filter(Boolean);
+  const segments = pathname.split("/").filter(Boolean);
+  const ctx = useCrumbContext(segments);
 
-  const LABELS: Record<string, string> = {
-    bridge:    "Dashboard",
-    inbox:     "Inbox",
-    upload:    "Upload",
-    drafts:    "Drafts",
-    settings:  "Settings",
-    library:   "Library",
-    suppliers: "Suppliers",
-    buyers:    "Buyers",
-    mappings:  "Mappings",
-    rules:     "Validation rules",
-    templates: "Output templates",
-    standards: "Standards",
-    operations: "Operations",
-    log:       "Delivery log",
-    connectors: "Connectors",
-    webhooks:  "Webhooks",
-    admin:     "Admin",
-    help:      "Help",
-    inbound:   "Inbound",
-    invoices:  "Invoices",
-    asns:      "ASNs",
-    exceptions: "Exceptions",
-    health:    "System health",
-  };
+  if (segments.length === 0) return null;
 
-  const titleCase = (s: string) =>
-    s.replace(/[-_]+/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
-
-  if (seg.length === 0) return null;
-
-  const last = seg[seg.length - 1];
-  // Mapped segment → its label; an unmapped trailing slug (a detail-page id)
-  // falls back to the parent segment's label so we never surface a raw id.
-  if (LABELS[last]) return LABELS[last];
-  const parent = seg.length >= 2 ? seg[seg.length - 2] : last;
-  if (LABELS[parent]) return LABELS[parent];
-  return titleCase(parent);
+  const lastIdx = segments.length - 1;
+  return truncateLabel(formatCrumbLabel(segments[lastIdx], lastIdx, segments, ctx), 32);
 }
 
 // ─── Notifications popover ──────────────────────────────────────────────────
