@@ -4,6 +4,9 @@ import { useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { capture } from "@/lib/analytics";
+import { useOrderDirection } from "@/hooks/useOrderDirection";
+import { matchGuide, replaySectionGuide, resolveGuideText } from "@/lib/section-guides";
+import { SectionGuideBody } from "./SectionGuide";
 
 interface Props {
   open:    boolean;
@@ -28,6 +31,8 @@ const CONTEXTUAL_LINKS: Array<{
 
 export function HelpSlideover({ open, onClose }: Props) {
   const pathname = usePathname();
+  const { labels } = useOrderDirection();
+  const guide = matchGuide(pathname);
   const contextual = pathname
     ? CONTEXTUAL_LINKS.find((l) => l.match(pathname))
     : undefined;
@@ -109,6 +114,73 @@ export function HelpSlideover({ open, onClose }: Props) {
             ×
           </button>
         </header>
+
+        {/* Current screen's section guide — same registry/renderer as the
+            inline SectionGuide card, in compact form. */}
+        {guide && (
+          <section
+            style={{
+              background: "#FFFFFF",
+              border: "1px solid #E2E6EE",
+              borderRadius: 8,
+              padding: "12px 14px",
+              marginBottom: 18,
+            }}
+          >
+            <p
+              style={{
+                margin: 0,
+                fontSize: 12,
+                fontWeight: 600,
+                color: "var(--ink-faint)",
+                textTransform: "uppercase",
+                letterSpacing: "0.05em",
+              }}
+            >
+              This screen
+            </p>
+            <h3
+              style={{
+                margin: "6px 0 8px",
+                fontSize: 14,
+                fontWeight: 600,
+                color: "#0B1A2F",
+                lineHeight: 1.3,
+              }}
+            >
+              {resolveGuideText(guide.title, labels)}
+            </h3>
+            <SectionGuideBody
+              guide={guide}
+              labels={labels}
+              compact
+              onNavigate={onClose}
+            />
+            <button
+              type="button"
+              onClick={() => {
+                // Clear the seen key + expand the inline card, then close so
+                // the user actually sees it on the page.
+                replaySectionGuide(guide.route);
+                onClose();
+              }}
+              style={{
+                marginTop: 10,
+                minHeight: 34,
+                padding: "5px 12px",
+                borderRadius: 6,
+                border: "1px solid #E2E6EE",
+                background: "#FFFFFF",
+                fontSize: 12.5,
+                fontWeight: 600,
+                color: "var(--ink-muted)",
+                cursor: "pointer",
+              }}
+            >
+              Replay intro
+            </button>
+          </section>
+        )}
 
         {contextual && (
           <section
