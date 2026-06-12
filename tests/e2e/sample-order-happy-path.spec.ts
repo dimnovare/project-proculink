@@ -50,9 +50,13 @@ test("clicking Try with sample order routes to a sample order page with banner",
   }).toPass({ timeout: 45_000, intervals: [500, 1000, 2000] });
 
   // The non-quota sample banner should be visible on the destination page.
-  const banner = page.getByText(/this is a sample order/i);
+  // The banner copy was changed to the honest pre-frame wording: it leads with
+  // "Practice order — free, doesn't count against your plan…" and pre-warns that
+  // sending stops at "delivery not set up" (expected for the practice order).
+  const banner = page.getByText(/practice order/i);
   await expect(banner).toBeVisible({ timeout: 15_000 });
-  await expect(banner).toContainText(/doesn'?t count toward your monthly quota/i);
+  await expect(banner).toContainText(/free/i);
+  await expect(banner).toContainText(/doesn'?t count against your plan/i);
 });
 
 test("watch page renders the walkthrough video player", async ({ page }) => {
@@ -75,16 +79,48 @@ test("watch page renders the walkthrough video player", async ({ page }) => {
   ).toBeTruthy();
 });
 
-test("help index renders 7 articles", async ({ page }) => {
+test("help index renders the browse-by-topic categories and popular articles", async ({ page }) => {
   await page.goto("/help");
 
-  await expect(page.getByRole("heading", { level: 1, name: /help/i })).toBeVisible({
+  // Redesigned help center: hero is "How can we help?" (still the page h1).
+  await expect(page.getByRole("heading", { level: 1, name: /how can we help/i })).toBeVisible({
     timeout: 10_000,
   });
 
-  const articles = page.getByRole("link").filter({ hasText: /upload|mapping|delivery|ai|billing|email|troubleshooting/i });
-  // We expect 7 articles per Phase 8, give or take footer / nav links.
-  expect(await articles.count()).toBeGreaterThanOrEqual(7);
+  // The default (non-search) view is a browse-by-topic grid: one card per
+  // category that has at least one published article. Categories are <button>s
+  // (they filter the index in place), each carrying a category heading and an
+  // "N articles" count. Assert the full set of topic categories renders — this
+  // is the real article-surfacing structure (17 articles across 8 categories),
+  // replacing the old brittle "count keyword-matching links" assertion that
+  // assumed a flat link list.
+  const topicGrid = page.getByRole("heading", { level: 2, name: /browse help topics/i });
+  await expect(topicGrid).toBeAttached();
+
+  for (const category of [
+    "Getting started",
+    "Connections",
+    "Mapping",
+    "Delivery",
+    "Integrations",
+    "AI",
+    "Billing",
+    "Troubleshooting",
+  ]) {
+    await expect(
+      page.getByRole("heading", { level: 3, name: new RegExp(`^${category}$`, "i") }),
+    ).toBeVisible();
+  }
+
+  // The category cards advertise an article count each; the totals across all
+  // visible cards must add up to the full registry (17 articles). Assert at
+  // least 8 "N article(s)" counters are present (one per category).
+  const countLabels = page.getByText(/^\d+ articles?$/);
+  expect(await countLabels.count()).toBeGreaterThanOrEqual(8);
+
+  // The "Popular articles" rail renders real article links (not dead controls).
+  const popularLinks = page.getByRole("link").filter({ hasText: /first purchase order upload/i });
+  await expect(popularLinks.first()).toBeVisible();
 });
 
 test("cookie consent banner appears on first marketing visit", async ({ context, page }) => {

@@ -1297,8 +1297,13 @@ export function UploadWorkbench() {
                   </div>
                 )}
 
-                {/* Send button (same element as the quick-action bar under the dropzone) */}
-                {uploadButton}
+                {/* Send button — only when NO file is selected. Once a file is
+                    chosen the quick-action bar under the dropzone renders the
+                    SAME primary CTA, so rendering it here too would put two
+                    "↑ Upload & review" buttons in the DOM (strict-mode
+                    violation + confusing double CTA). The no-file state shows
+                    "Choose a file to upload" here as the page-bottom prompt. */}
+                {!selectedFile && uploadButton}
               </div>
             </XCard>
 
