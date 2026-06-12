@@ -1,5 +1,26 @@
 # Per-tool walkthrough videos — production record
 
+> **FULL WALKTHROUGH v7 (2026-06-13, DRAFT — founder review pending):** the
+> refreshed ~3-minute successor to v5 is produced with THIS per-tool pipeline
+> (not the card pipeline) as tool id **`walkthrough`** — real-UI footage of the
+> CURRENT product (section guides, help center, catalog HTTP sources, line-card
+> polish, breadcrumbs all merged). Spec `walkthrough.json` +
+> `capture-walkthrough.spec.ts`; `make-tool-cards.mjs` gained a BRAND card
+> variant (spec keys `introTagline` / `outroHeadline` / `outroCta`) that
+> renders the v5 founder-locked intro ("The missing link between buyers and
+> suppliers.") and outro ("Connecting procurement." + "Start free at
+> proculink.eu") instead of the tool-guide cards. Assemble with
+> `DEMO_INTRO_SEC=3.2 DEMO_OUTRO_SEC=4.5`. One take, four page loads
+> (how-it-works → upload → inbox/ord-002 → supplier?tab=catalog), everything
+> else client-side; beats: problem (animated how-it-works pipeline) → upload
+> (detect + route) → review (accept AI / manual code / readiness) → send →
+> Delivered → catalog import + automatic sources (HTTP push) → versioned
+> connection (run tests → publish → rollback affordance) → exceptions + health
+> → "?" help slideover → dashboard close. Output staged as
+> `scripts/demo-video/out/walkthrough-v7.mp4` (+ poster) — **NOT uploaded to
+> R2, no env/registry change**; review copy at
+> `C:\Users\Dmitri.MARKIT\Videos\ProcuLink\walkthrough-v7-DRAFT.mp4`.
+
 One short video per tab/tool, **real screen recordings** (the founder judged
 the card-based cut worse than v5's real-UI footage). Quality bar = v5: real UI
 on screen, professional ElevenLabs voiceover, low music bed, brand intro card.

@@ -61,7 +61,20 @@ const BACKDROP = `
   <rect x="0" y="0" width="${W}" height="6" fill="url(#deck)"/>`;
 
 // Intro: lockup + kicker + the tool's name as the headline.
+// BRAND variant (full walkthrough): when the spec carries `introTagline`, the
+// intro is the v5 founder-locked card — big lockup + the tagline, nothing else
+// (mirrors ../make-cards.mjs introCard()).
 function introCard(spec) {
+  if (spec.introTagline) {
+    const sc = 5.0;
+    const lw = 178 * sc, lh = 40 * sc;
+    const lx = (W - lw) / 2, ly = 392;
+    return `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">
+    ${BACKDROP}
+    ${lockup(lx, ly, sc)}
+    <text x="${W / 2}" y="${ly + lh + 96}" text-anchor="middle" font-family="${FONT}" font-weight="500" font-size="54" letter-spacing="-0.5" fill="${NAVY_TEXT}">${esc(spec.introTagline)}</text>
+  </svg>`;
+  }
   const sc = 3.2;
   const lw = 178 * sc;
   const lx = (W - lw) / 2, ly = 300;
@@ -75,7 +88,22 @@ function introCard(spec) {
 }
 
 // Outro: lockup + closing line + domain.
+// BRAND variant (full walkthrough): when the spec carries `outroHeadline`, the
+// outro is the v5 founder-locked card — lockup + big white headline + green
+// CTA pill (mirrors ../make-cards.mjs outroCard()).
 function outroCard(spec) {
+  if (spec.outroHeadline) {
+    const sc = 4.4;
+    const lw = 178 * sc;
+    const lx = (W - lw) / 2, ly = 322;
+    return `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">
+    ${BACKDROP}
+    ${lockup(lx, ly, sc)}
+    <text x="${W / 2}" y="615" text-anchor="middle" font-family="${FONT}" font-weight="800" font-size="70" letter-spacing="-1" fill="#FFFFFF">${esc(spec.outroHeadline)}</text>
+    <rect x="${W / 2 - 300}" y="690" width="600" height="90" rx="45" fill="${GREEN_CTA}"/>
+    <text x="${W / 2}" y="749" text-anchor="middle" font-family="${FONT}" font-weight="700" font-size="40" letter-spacing="-0.3" fill="#06210F">${esc(spec.outroCta ?? "Start free at proculink.eu")}</text>
+  </svg>`;
+  }
   const sc = 3.6;
   const lw = 178 * sc;
   const lx = (W - lw) / 2, ly = 360;

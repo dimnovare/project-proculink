@@ -1,0 +1,114 @@
+{
+  "id": "walkthrough",
+  "toolName": "ProcuLink walkthrough",
+  "route": "/how-it-works",
+  "kicker": "Product walkthrough",
+  "introTagline": "The missing link between buyers and suppliers.",
+  "outroHeadline": "Connecting procurement.",
+  "outroCta": "Start free at proculink.eu",
+  "outroLine": "",
+  "beats": [
+    {
+      "id": "p1-problem",
+      "shot": "How-it-works animated pipeline (Receive→Deliver dots cycling). Cursor drifts along the stages, settles at Deliver.",
+      "vo": "Every supplier wants your purchase orders a different way — PDF, CSV, EDI, custom XML — so teams reformat them by hand. ProcuLink is the missing link."
+    },
+    {
+      "id": "u1-upload",
+      "shot": "Cut to /upload. A CSV arrives via Browse; the detect pill appears: Detected CSV, PO number, line count.",
+      "extraMs": 800,
+      "vo": "It starts at upload — CSV, Excel, PDF, or EDI formats like EDIFACT and X12. ProcuLink detects the format, the PO number, and the lines."
+    },
+    {
+      "id": "u2-supplier",
+      "shot": "Supplier select switched to ElectroSupply Co; the 'routes to' line updates live.",
+      "actionLeadMs": 700,
+      "extraMs": 600,
+      "vo": "Each upload routes to one supplier — their format, their channel, their codes."
+    },
+    {
+      "id": "u3-go",
+      "shot": "Click 'Upload & review' → Parse / Normalize / Validate stage animation → the mapping preview lands.",
+      "actionLeadMs": 400,
+      "extraMs": 2200,
+      "vo": "Then upload: parse, normalize, validate — and into review."
+    },
+    {
+      "id": "r1-review",
+      "shot": "Cut to /inbox/ord-002 (PO-2024-005678). Header sweep, then the Triage fix queue rail.",
+      "extraMs": 800,
+      "vo": "Review is where an order becomes supplier-ready. The fix queue holds only the lines that need a decision."
+    },
+    {
+      "id": "r2-accept",
+      "shot": "Hover the AI suggestion card (code · confidence · reason) while the VO explains, then click Accept; the queue advances.",
+      "actionLeadMs": 4200,
+      "extraMs": 800,
+      "vo": "The AI suggests the supplier's code, with a confidence score and the reason. If it's right — accept, and the queue moves on."
+    },
+    {
+      "id": "r3-manual",
+      "shot": "Line 4: 'Enter manually' → type ES-WIRE-22BK-100 → Save.",
+      "actionLeadMs": 1000,
+      "extraMs": 1800,
+      "vo": "Or type the code yourself — ProcuLink remembers it for next time."
+    },
+    {
+      "id": "r4-readiness",
+      "shot": "Cursor rests on the send-readiness card: lines resolved, acceptance, conformance, delivery.",
+      "actionLeadMs": 600,
+      "vo": "The readiness card is the honest pre-send check — lines, acceptance rules, conformance, delivery."
+    },
+    {
+      "id": "d1-send",
+      "shot": "Click 'Send to supplier' → confirm dialog → checkbox → final send.",
+      "actionLeadMs": 600,
+      "extraMs": 2400,
+      "vo": "When everything is green, send. One confirmation — the exact format this supplier requires."
+    },
+    {
+      "id": "d2-delivered",
+      "shot": "Status runs Generating → Sent → Delivered; the audit-trail banner lands.",
+      "extraMs": 1800,
+      "vo": "Generating. Sent. Delivered. Every step lands in the audit trail — proof for every order."
+    },
+    {
+      "id": "m1-catalog",
+      "shot": "Cut to the supplier profile, Catalog tab. Import CSV → product rows appear; expand 'Automatic import' → scheduled pull + the HTTP push endpoint card.",
+      "extraMs": 700,
+      "vo": "Load the supplier's own catalog so suggestions only use real codes — import a file, pull on a schedule, or take an HTTP push."
+    },
+    {
+      "id": "m2-connections",
+      "shot": "Sidebar → Connections → open FastParts Inc: live revision + history; click Run tests → 'Test pack passed' evidence.",
+      "extraMs": 1500,
+      "vo": "Every integration is a versioned connection: changes happen in drafts, and tests replay your own recent orders."
+    },
+    {
+      "id": "m3-publish",
+      "shot": "Click Publish on the v2 draft → confirm dialog (in-flight orders keep their revision) → success; v1 flips to archived with 'Roll back to this'.",
+      "actionLeadMs": 400,
+      "extraMs": 2400,
+      "vo": "Publishing is explicit — in-flight orders keep their revision — and rollback is one click away."
+    },
+    {
+      "id": "m4-ops",
+      "shot": "Sidebar → Exceptions (queue with plain-language messages), then System health (worker heartbeat, dead-letter tiles, Requeue button).",
+      "extraMs": 600,
+      "vo": "Nothing fails silently. Exceptions explain problems in plain language; system health shows the pipeline at a glance — requeue included."
+    },
+    {
+      "id": "m5-help",
+      "shot": "Click the topbar '?' — the help slideover opens with this screen's guide and the help center links.",
+      "actionLeadMs": 600,
+      "extraMs": 800,
+      "vo": "And every screen explains itself — its guide is behind the help button."
+    },
+    {
+      "id": "c1-close",
+      "shot": "Close the slideover; sidebar → Dashboard. Rest on the live order-flow view.",
+      "extraMs": 1200,
+      "vo": "ProcuLink. The missing link between buyers and suppliers. Start free — with a sample order — today."
+    }
+  ]
+}
