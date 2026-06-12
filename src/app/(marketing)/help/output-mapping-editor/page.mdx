@@ -1,0 +1,71 @@
+export const metadata = {
+  title: "Editing the output your supplier receives — ProcuLink Help",
+  description: "The per-order output mapping editor: sources, manipulator chains, Scriban expressions, whole-document templates, and live preview.",
+};
+
+# Editing the output your supplier receives
+
+Sometimes one supplier needs the output shaped differently — an extra field, a renamed column, a calculated value, or an exact JSON structure their system insists on. The **output mapping editor** lets you do that per order, preview the result live, and optionally save the layout for every future order from that supplier.
+
+## Where it lives
+
+Open an order from the **Inbox** and choose **Edit output mapping** on the review screen. The editor is a panel with three layers you can mix:
+
+1. **Field rules** — one row per output field.
+2. **Custom fields** — extra values that don't exist in the parsed order.
+3. **Template mode** — one Scriban template that renders the whole document.
+
+## The default is "change nothing"
+
+An order with no override produces **byte-identical output** to your supplier-level mapping. The override only kicks in for the fields (or the template) you actually set, and it always wins over the supplier-level mapping for that order.
+
+## Field rules: source → manipulators → output
+
+Each output field rule picks where its value comes from:
+
+- a **canonical field** (PO number, order date, buyer, currency, supplier; per line: line number, buyer/supplier item code, description, quantity, unit, unit price, line total),
+- a **custom field** you added,
+- a **fixed value** — the same literal on every order or line.
+
+Then an optional **manipulator chain** transforms it — the same eight manipulators as supplier-level mapping (Trim, Replace, DateFormat, Concat, Fallback, Split, Multiply, Divide; see [mapping basics](/help/mapping-basics)).
+
+## Scriban expressions (advanced)
+
+When a source-plus-manipulators recipe isn't enough, a rule can carry a free-form **Scriban expression** instead — it then takes precedence over the chosen source. Examples:
+
+```
+{{ order.PoNumber }}
+{{ line.Quantity * line.UnitPrice }}
+{{ order.Currency }}-{{ line.SupplierItemCode }}
+```
+
+Expressions run in a sandbox: a broken expression never crashes the transform — it surfaces as a clear error and the order stays un-transformed.
+
+## Custom fields
+
+Add header-scoped (one value per order) or line-scoped (one value per line) custom fields, then reference them from output rules. Custom fields live only on this order — they never alter the parsed canonical data.
+
+## Template mode: the whole document as one template
+
+For suppliers with an exact required structure (say, a nested JSON with a `lines` array), switch to **template mode** and write the entire output document as one Scriban template:
+
+```
+{"customerOrderNumber":"{{ OrderNr }}",
+ "lines":[{{ for Line in Lines }}{"qty":{{ Line.Qty }}}{{ if !for.last }},{{ end }}{{ end }}]}
+```
+
+Template mode takes precedence over the field-by-field rules, and you can set the content type (JSON by default; CSV, XML, or plain text if the template produces those). Two safety rails hold regardless: a template that fails to compile or render produces a clear error instead of bad output, and a template can never deliver an order that still has unresolved lines.
+
+## Live preview
+
+The editor previews the generated output as you work — a dry run that changes nothing until you save. Saving stores the override on this order only.
+
+## Keeping the layout for future orders
+
+If the override fixes the supplier's layout for good, use **Save mappings for this supplier** on the review screen. That promotes the order's source and output rules into the supplier's reusable mapping, additively — fields you didn't touch are preserved — so future orders apply it automatically. The per-order override still wins whenever one exists.
+
+For controlled, versioned changes to a supplier's whole setup, see [supplier connections](/help/connections).
+
+---
+
+Need help? Email [support@proculink.eu](mailto:support@proculink.eu) or start with [PO field mapping basics](/help/mapping-basics).

@@ -19,16 +19,30 @@ Every order must resolve these five canonical fields:
 
 Optional fields like delivery date and currency are accepted but never required.
 
+## Start from a template or a suggestion
+
+You rarely have to build a mapping from a blank form:
+
+- **Starter templates** — the PO mapping editor has a one-click "Apply starter template" for common ERP exports (Erply and Directo). Apply one, then adjust the column names to match your real export.
+- **AI suggestions** — given a sample file, ProcuLink can propose a full column-to-field mapping for you to review and correct. (Workspaces configured as no-egress skip this and use the manual editor — see [how AI mapping suggestions work](/help/ai-suggestions).)
+
 ## Manipulators
 
-When a source column doesn't match the canonical shape directly, attach a manipulator:
+When a source column doesn't match the canonical shape directly, attach manipulators. All eight:
 
-- `Replace` — substitute a string. Useful for stripping a supplier prefix, e.g. removing `SUP-` from item codes.
-- `Trim` — drop leading or trailing whitespace introduced by Excel exports.
-- `DateFormat` — convert a source date to ISO 8601, e.g. turn `15/03/2026` into `2026-03-15`.
-- `Concat` — join two source columns into one canonical field, e.g. combine `prefix` and `code` into a single `item_code`.
+- `Trim` — drop leading/trailing whitespace introduced by Excel exports.
+- `Replace` — substitute text, e.g. strip a `SUP-` prefix from item codes.
+- `DateFormat` — convert a date between explicit formats, e.g. `dd/MM/yyyy` → `yyyy-MM-dd`.
+- `Concat` — join named source columns with a separator, e.g. build `item_code` from `prefix` + `code`.
+- `Split` — split on a delimiter and keep one piece, e.g. take the part before a `/`.
+- `Fallback` — use the first non-empty value among several named columns.
+- `Multiply` / `Divide` — scale a numeric value, e.g. convert price-per-100 to unit price.
 
-Manipulators chain left to right and stop on the first failure.
+Manipulators run in order, each transforming the previous result. They're forgiving by design: one that can't apply (a date that doesn't match the input format, a non-numeric value in `Multiply`) passes the value through unchanged rather than destroying it.
+
+## Beyond manipulators: Scriban expressions (advanced)
+
+For logic a manipulator chain can't express — calculated values like `{{ line.Quantity * line.UnitPrice }}`, or combining order and line fields — the [output mapping editor](/help/output-mapping-editor) accepts free-form Scriban expressions and even a whole-document template. That's the escape hatch for a supplier's exact required structure; most mappings never need it.
 
 ## Testing a mapping
 

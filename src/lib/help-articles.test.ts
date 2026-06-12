@@ -55,13 +55,13 @@ describe("resolveArticles", () => {
   });
 
   it("silently skips slugs without a published article", () => {
-    const out = resolveArticles(["connections", "first-upload", "output-mapping-editor"]);
+    const out = resolveArticles(["not-written-yet", "first-upload", "another-future-article"]);
     expect(out.map((a) => a.slug)).toEqual(["first-upload"]);
   });
 
   it("caps at max AFTER skipping unknowns (forward-compatible curation)", () => {
     const out = resolveArticles(
-      ["connections", "first-upload", "delivery-setup", "billing-faq", "troubleshooting"],
+      ["not-written-yet", "first-upload", "delivery-setup", "billing-faq", "troubleshooting"],
       3,
     );
     expect(out.map((a) => a.slug)).toEqual(["first-upload", "delivery-setup", "billing-faq"]);

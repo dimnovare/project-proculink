@@ -1,0 +1,40 @@
+export const metadata = {
+  title: "Receiving orders from your customers (inbound mode) — ProcuLink Help",
+  description: "Flip your workspace from sending POs to suppliers to receiving POs from customers. Labels change; the pipeline doesn't.",
+};
+
+# Receiving orders from your customers (inbound mode)
+
+ProcuLink works in both directions. Most teams **send** purchase orders out to suppliers — but if your company is the one **receiving** purchase orders from customers, the same pipeline works for you with the labels flipped.
+
+## Switching direction
+
+Open **Settings** and answer "How do you use ProcuLink?":
+
+- **We send purchase orders to our suppliers** — outbound, the default.
+- **We receive purchase orders from our customers** — inbound.
+
+The change applies immediately, is available on every plan including the Pilot trial, and can be switched back at any time.
+
+## What changes — and what doesn't
+
+The direction setting is a **labelling choice, not a different product**:
+
+- Across the inbox, dashboard, and library, the counterpart is called a **Customer** instead of a Supplier.
+- Your data, routes, mappings, and order history are untouched by switching — nothing is migrated or converted.
+- The pipeline is identical: parse → review exceptions → transform → deliver. An inbound workspace still transforms processed orders and can deliver the result onward (for example into your own ERP endpoint).
+
+## Getting customer orders in
+
+All intake channels work the same in inbound mode — you're just receiving from customers instead of suppliers:
+
+- manual upload,
+- email intake (IMAP polling or the hosted inbound address),
+- the inbound REST API,
+- SFTP or S3/R2 folder polling on paid plans.
+
+See [ways to send orders to ProcuLink](/help/order-intake-options) for the full rundown of each channel.
+
+---
+
+Next: [Your first purchase order upload](/help/first-upload) — the walkthrough reads the same either way; just read "supplier" as "customer".

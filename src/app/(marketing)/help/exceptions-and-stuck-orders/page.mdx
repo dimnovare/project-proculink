@@ -1,0 +1,51 @@
+export const metadata = {
+  title: "Working the exceptions queue — ProcuLink Help",
+  description: "What lands in Exceptions, what Resolve and Ignore really do, how delivery retries and dead-letter work, and when to check system health.",
+};
+
+# Working the exceptions queue
+
+**Operations → Exceptions** is the one list of every order blocked on a human decision. Nothing is hidden to look tidy: if an order can't move forward, an exception says so, with the stage and the reason.
+
+## What lands here
+
+Exceptions are generated automatically from order state:
+
+- **Needs a supplier code** (`unresolved_mapping`) — lines that couldn't be matched to the supplier's item codes. This includes **every line from a scanned PDF**: with no text layer to verify the numbers against, scanned-PDF orders are always routed to human review rather than delivered blind.
+- **Parse failed** — the source file couldn't be read into an order.
+- **Transform failed** — generating the supplier's output failed.
+- **Delivery failed** — sending to the supplier failed; the attempt's error is captured.
+- **Rejected by supplier** — the supplier's system returned the order after delivery.
+- **Dead-lettered** (critical) — automatic delivery retries are exhausted.
+
+## Resolve vs Ignore — what they really do
+
+The exception list mirrors reality; it doesn't replace it:
+
+- **The real fix is fixing the order.** Open the blocked order, resolve the cause (enter the code, correct the mapping, set up delivery), and the exception clears itself on the next pipeline touch.
+- **Resolve** marks the row done — but if the underlying problem still exists, a fresh exception reopens so the problem stays visible. You can't make a broken order look healthy by clicking Resolve.
+- **Ignore** is a deliberate dismissal: an ignored exception is never reopened and never nags again for the same cause. Use it for things you've decided not to act on.
+
+## Delivery failures, retries, and dead-letter
+
+A failed delivery is retried automatically — **3 attempts in total** — and then the order moves to **Dead-lettered**, with each attempt's error and response code kept in the audit trail.
+
+Dead-lettered orders can't be retried from the order screen (that path is deliberately closed once retries are exhausted). Instead, go to **Operations → Health**, find the order in the dead-letter table, fix the cause (usually the delivery config or the supplier endpoint), and **Requeue**. Requeue re-sends the order's latest generated output.
+
+One caveat to keep front of mind: a successful delivery means the supplier's endpoint answered — **HTTP 200 is not business acceptance**. A delivered order can still come back as Rejected by supplier; that creates its own exception.
+
+## "Is it slow, or is it dead?"
+
+When an order sits in Parsing or Sending longer than feels right, check **Operations → Health** before re-uploading:
+
+- the **worker banner** shows whether the background worker is alive — an offline worker stalls every upload in the workspace, and no amount of re-uploading helps;
+- the count tiles show orders stuck past the threshold, failed transforms/deliveries, and dead-letters, and link to the affected orders;
+- counts refresh automatically every 45 seconds.
+
+## Escalating to support
+
+If the cause isn't visible from the order page or Health, email [support@proculink.eu](mailto:support@proculink.eu) with the PO number, the order's status, and roughly when it got stuck — that's enough for us to trace it in the audit trail.
+
+---
+
+Related: [Troubleshooting common parse errors](/help/troubleshooting) · [Setting up delivery and test-fire](/help/delivery-setup) · [Order statuses from upload to delivered](/help/dashboard-and-statuses)

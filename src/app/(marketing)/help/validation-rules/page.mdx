@@ -1,0 +1,41 @@
+export const metadata = {
+  title: "Validation rules and rule definitions — ProcuLink Help",
+  description: "The org rule catalog, the reusable rule definitions, and the supplier acceptance rules that actually check orders.",
+};
+
+# Validation rules and rule definitions
+
+ProcuLink has three rule surfaces, and only one of them actually checks orders. Knowing which is which saves a lot of confusion.
+
+## 1. The rule catalog (Library → Rules)
+
+A catalog that **documents** the checks your organisation cares about — name, description, and a severity (error, warning, or info). It comes seeded with starter rules and you can add your own.
+
+Honesty first: **the catalog does not block or hold any order by itself.** Toggling a catalog rule changes the documentation, not enforcement. It's the shared vocabulary your team agrees on before wiring real checks per supplier.
+
+## 2. Rule definitions (Library → Rule definitions)
+
+A read-only library of the **reusable check shapes** that supplier rules bind to — each with its scope (order or line), field, operator, default severity, and, where applicable, references into the standards (UBL, EDIFACT, X12, cXML). Definitions are created automatically as you author supplier rules, so this page is a reference, not an editor.
+
+## 3. Supplier acceptance rules — the ones that run
+
+Real enforcement lives on each supplier's **Validation rules** tab. Rules there are grouped into a versioned **acceptance profile** (new versions are drafted, then activated; activating archives the previous version), and each rule specifies:
+
+- **scope** — the whole order, or every line,
+- **field** — e.g. currency or buyer name on the order; supplier/buyer item code, description, quantity, or unit price on lines,
+- **operator** — `required`, `equals`, `not_equals`, `in` (comma-separated list), `contains`, `min`, `max`, `greater_than`, `less_than`, `max_length`,
+- **severity** — error, warning, or info,
+- a **block-on-fail** flag carried with the rule and its results.
+
+## Where results surface
+
+Validating an order evaluates it against the supplier's active profile and records a pass/fail result for every rule (line rules produce one result per line, so you see exactly which line failed what). Re-validating replaces the previous results — the report always reflects the current state of the order.
+
+Two places lean on these rules beyond the order screen:
+
+- **Connection testing** — a connection revision's test pack includes a conformance check, and replay shows which validation results would flip between pass and fail under a draft revision before you publish ([supplier connections](/help/connections)).
+- **Pinned orders** — an order processed under a published connection revision validates against the profile bound to *that* revision, so publishing new rules never rewrites the verdict on historical orders.
+
+---
+
+Need help designing checks for a supplier? Email [support@proculink.eu](mailto:support@proculink.eu) or start from [supplier connections](/help/connections).

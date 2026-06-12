@@ -1,0 +1,87 @@
+export const metadata = {
+  title: "API keys, inbound API, webhooks, and connectors — ProcuLink Help",
+  description: "Create plk_ API keys, push orders in over the inbound REST API, and receive HMAC-signed webhooks when orders are created, delivered, or fail.",
+};
+
+# API keys, inbound API, webhooks, and connectors
+
+ProcuLink connects to your other systems in two directions: an **inbound API** that lets any tool push orders in, and **outbound webhooks** that notify your systems when orders are created, delivered, or fail.
+
+## API keys
+
+Create keys under **Settings → API keys**. Each key:
+
+- starts with `plk_` and is shown **once**, at creation — copy it then, because only the prefix is stored and displayed afterwards,
+- can carry an optional expiry date,
+- can be revoked at any time from the same list.
+
+Callers authenticate by sending the key in the `X-ProcuLink-Key` header.
+
+## The inbound API
+
+Your workspace has a slug-based ingress endpoint:
+
+- `GET /api/ingress/{your-slug}/ping` — auth test; returns OK when the key and slug match.
+- `POST /api/ingress/{your-slug}/orders` — creates an order.
+
+The order payload is JSON:
+
+```json
+{
+  "orderNumber": "PO-2026-0042",
+  "orderDate": "2026-06-12",
+  "currency": "EUR",
+  "supplierId": "<supplier GUID or exact supplier name>",
+  "lines": [
+    { "buyerItemCode": "A4-COPY-500", "description": "Copy paper A4",
+      "quantity": 10, "unit": "box", "unitPrice": 24.9 }
+  ]
+}
+```
+
+At least one line is required. `supplierId` accepts the supplier's GUID or its exact name (case-insensitive). The created order then runs through the normal pipeline — review, transform, deliver.
+
+**Duplicates are handled for you.** Automation tools deliver "at least once", so the same order may be posted twice. Send an `Idempotency-Key` header if you can; without one, ProcuLink derives a key from the payload itself. Within 24 hours, a repeat post returns the original order instead of creating a duplicate.
+
+## Outbound webhooks
+
+Add endpoints under **Settings → Connectors** (also visible at **Operations → Webhooks**). Three events exist:
+
+- `order.created` — a new order entered the pipeline,
+- `order.delivered` — a delivery attempt succeeded,
+- `order.failed` — a delivery attempt failed.
+
+One honesty note worth repeating: `order.delivered` means the supplier's endpoint **accepted the transmission**. Whether their business system accepts the order's content is a separate question — a delivered order can still be rejected by the supplier later.
+
+### Verifying the signature
+
+If you set a secret on the endpoint (it's encrypted at rest), every payload is signed with HMAC-SHA256. The request carries two headers:
+
+- `X-ProcuLink-Event` — the event type,
+- `X-ProcuLink-Signature` — `sha256=<hex digest>` of the raw JSON body.
+
+Verify it like this (Node.js):
+
+```js
+const crypto = require("crypto");
+const expected = "sha256=" +
+  crypto.createHmac("sha256", secret).update(rawBody).digest("hex");
+const ok = crypto.timingSafeEqual(
+  Buffer.from(expected), Buffer.from(req.headers["x-proculink-signature"]));
+```
+
+### Failure handling
+
+A failing endpoint is retried, and after **3 consecutive failures the subscription deactivates itself** so a dead URL doesn't get hammered forever. A single success resets the failure count. You can pause, resume, or delete endpoints anytime; editing isn't supported yet — delete and re-add instead.
+
+## Zapier, Make.com, and similar tools
+
+There are no native ProcuLink apps in those directories yet. Both directions still work today with the generic pieces: point their HTTP modules at the inbound API (with your `plk_` key) to push orders in, and use a custom webhook endpoint to receive `order.*` events.
+
+## Connectors page
+
+**Operations → Connectors** is a read-only overview of each supplier's delivery channel with a safe test-fire button. The actual delivery endpoints are configured per supplier — see [setting up delivery and test-fire](/help/delivery-setup).
+
+---
+
+Need help? Email [support@proculink.eu](mailto:support@proculink.eu) or see [ways to send orders to ProcuLink](/help/order-intake-options).

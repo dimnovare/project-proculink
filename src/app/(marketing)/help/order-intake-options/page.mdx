@@ -18,7 +18,7 @@ ProcuLink is designed to receive purchase orders the way your buyer or procureme
 
 Use **Upload** in the ProcuLink app when you want immediate control. This is the safest first path because you can pick the supplier, review the parsed order, fix mappings, and confirm the supplier-ready output before delivery.
 
-Common PO formats include CSV, XLSX, text-based PDF, XML/cXML, UBL/Peppol-style XML, EDIFACT, and X12. Text-based PDFs are read and structured by AI extraction — the high-confidence primary path. Scanned/image-only PDFs (no text layer) are read by an AI vision fallback; because there is no text to verify against, every line is flagged for review before delivery.
+Common PO formats include CSV, XLSX, text-based PDF, XML/cXML, UBL/Peppol-style XML, SAP IDoc (ORDERS05), EDIFACT, and X12. Text-based PDFs are read and structured by AI extraction — the high-confidence primary path. Scanned/image-only PDFs (no text layer) are read by an AI vision fallback; because there is no text to verify against, every line is flagged for review before delivery.
 
 ## Email intake
 
@@ -33,7 +33,7 @@ For repeatable automation, use a dedicated mailbox or folder and ask senders to 
 
 Use the inbound API when another system can send structured order data directly. The API is authenticated with a ProcuLink API key and scoped to your workspace slug.
 
-This path is best for ERPs, procurement systems, Zapier/Make-style automation, or internal tools that already know the supplier and line-item data.
+This path is best for ERPs, procurement systems, Zapier/Make-style automation, or internal tools that already know the supplier and line-item data. Endpoint details, the payload shape, and duplicate handling are in [API keys, inbound API, webhooks, and connectors](/help/api-and-integrations).
 
 ## SFTP or storage-folder polling
 
@@ -54,6 +54,8 @@ Whichever channel you use, the best files include:
 - Description, quantity, unit, and price when available
 
 If a file is missing fields, ProcuLink will route it to review instead of silently sending a risky order.
+
+All of these channels work the same when your workspace **receives** orders from customers instead of sending them to suppliers — see [inbound mode](/help/inbound-mode).
 
 ---
 

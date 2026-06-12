@@ -1,0 +1,45 @@
+export const metadata = {
+  title: "Output templates and formats — ProcuLink Help",
+  description: "Which output formats ProcuLink can send to suppliers today, and what the templates page does — and doesn't do.",
+};
+
+# Output templates and formats
+
+"What does the supplier actually receive?" has three answers in ProcuLink: the **output format** set on each supplier's delivery config, an optional **per-order template** for exact custom shapes, and a **templates page** that — honestly — is a reference list, not a control.
+
+## Output formats that work today
+
+The format a supplier receives is chosen on that supplier's **delivery config**. Sending auto-transforms the reviewed order into it. Current support for output:
+
+| Format | Output support |
+|---|---|
+| CSV | Supported |
+| JSON | Supported |
+| cXML 1.2 | Supported |
+| UBL 2.1 Order | Supported |
+| ANSI X12 850 | Supported |
+| Peppol BIS Order 3.0 | Partial — rides the UBL pipeline; full BIS conformance still hardening |
+| EDIFACT ORDERS | Not yet — parsing exists, no outbound transformer |
+| XLSX / PDF / SAP IDoc | Input only — ProcuLink reads them but does not emit them |
+
+The in-app **Library → Standards** page is the always-current version of this table, down to field-level references (how "PO number" maps to UBL `cbc:ID`, X12 `BEG03`, and so on).
+
+## The templates page (Library → Templates)
+
+This page records the output formats you plan to use — a name, standard, and version per entry — and lets you preview and download an example envelope for each standard. It's useful for aligning with a supplier on what they'll receive.
+
+What it does **not** do: change what any supplier actually receives. Delivery output is controlled by each supplier's delivery config, full stop. Nothing on the templates page is required for sending.
+
+## Exact custom shapes: per-order Scriban templates
+
+When a supplier requires a structure none of the standard formats produce — for instance a specific nested JSON — you can write the entire output document as a Scriban template on the order, with a selectable content type and a live preview. A broken template fails loudly rather than sending bad output, and a template can never deliver an order with unresolved lines.
+
+See [editing the output your supplier receives](/help/output-mapping-editor) for how template mode works.
+
+## If a format you need is missing
+
+Tell us via [the support page](/support) — the standards catalog above is deliberately conservative, and requests directly shape what gets built next.
+
+---
+
+Next: [Setting up delivery and test-fire](/help/delivery-setup) — where the output format is actually chosen.

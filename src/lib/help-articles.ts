@@ -25,12 +25,13 @@ export interface HelpArticle {
  * Integrations → AI → Billing → Troubleshooting.
  */
 export const HELP_ARTICLES: HelpArticle[] = [
+  // ── Getting started ──────────────────────────────────────────────────────
   {
     slug: "first-upload",
     title: "Your first purchase order upload",
     blurb: "Walk through uploading a purchase order file and getting it parsed.",
     category: "Getting started",
-    keywords: ["upload", "csv", "xlsx", "pdf", "parse", "sample order", "preview"],
+    keywords: ["upload", "csv", "xlsx", "pdf", "parse", "sample order", "preview", "format detection", "auto-detect"],
     readMin: 4,
   },
   {
@@ -38,15 +39,41 @@ export const HELP_ARTICLES: HelpArticle[] = [
     title: "Ways to send orders to ProcuLink",
     blurb: "Manual upload, email, API, SFTP, and storage-folder options for getting POs into ProcuLink.",
     category: "Getting started",
-    keywords: ["email", "imap", "api", "sftp", "s3", "intake", "ingestion", "channels"],
+    keywords: ["email", "imap", "api", "sftp", "s3", "intake", "ingestion", "channels", "idoc", "inbound email"],
     readMin: 5,
   },
+  {
+    slug: "inbound-mode",
+    title: "Receiving orders from your customers (inbound mode)",
+    blurb: "Flip your workspace from sending POs to suppliers to receiving POs from customers — labels change, the pipeline doesn't.",
+    category: "Getting started",
+    keywords: ["inbound", "customers", "direction", "receive orders", "relabel", "outbound"],
+    readMin: 3,
+  },
+  {
+    slug: "dashboard-and-statuses",
+    title: "Order statuses from upload to delivered",
+    blurb: "What Parsing, Needs review, Normalized, Ready to send, Sending, Delivered, and the failure states actually mean.",
+    category: "Getting started",
+    keywords: ["status", "normalized", "ready to send", "needs review", "sending", "delivered", "rejected", "dead-letter", "lifecycle"],
+    readMin: 4,
+  },
+  // ── Connections ──────────────────────────────────────────────────────────
+  {
+    slug: "connections",
+    title: "Supplier connections: draft, test, publish, roll back",
+    blurb: "Version a supplier's whole setup — mapping, rules, output, delivery — and change it safely with tests, replay, and rollback.",
+    category: "Connections",
+    keywords: ["connection", "revision", "draft", "publish", "test pack", "replay", "rollback", "version", "archive", "pinned"],
+    readMin: 6,
+  },
+  // ── Mapping ──────────────────────────────────────────────────────────────
   {
     slug: "mapping-basics",
     title: "PO field mapping basics",
     blurb: "Map your CSV columns to the canonical purchase-order fields ProcuLink expects.",
     category: "Mapping",
-    keywords: ["mapping", "columns", "fields", "manipulators", "starter template", "scriban"],
+    keywords: ["mapping", "columns", "fields", "manipulators", "starter template", "scriban", "erply", "directo", "expression", "auto-map"],
     readMin: 6,
   },
   {
@@ -54,9 +81,26 @@ export const HELP_ARTICLES: HelpArticle[] = [
     title: "Supplier item codes, catalogs, and mappings",
     blurb: "What supplier item codes are, how a catalog upload powers auto-matching, and how resolutions are remembered.",
     category: "Mapping",
-    keywords: ["item codes", "catalog", "sku", "auto-match", "code mappings", "resolve"],
+    keywords: ["item codes", "catalog", "sku", "auto-match", "code mappings", "resolve", "catalog import", "barcode", "gtin", "ean"],
     readMin: 5,
   },
+  {
+    slug: "output-mapping-editor",
+    title: "Editing the output your supplier receives",
+    blurb: "Per-order output overrides: pick sources, chain manipulators, write Scriban expressions or a whole-document template, and preview live.",
+    category: "Mapping",
+    keywords: ["output mapping", "override", "scriban", "template", "manipulators", "preview", "custom field", "promote", "expression"],
+    readMin: 6,
+  },
+  {
+    slug: "validation-rules",
+    title: "Validation rules and rule definitions",
+    blurb: "The rule catalog, reusable rule definitions, and the supplier acceptance rules that actually check orders.",
+    category: "Mapping",
+    keywords: ["validation", "rules", "rule definitions", "severity", "acceptance", "operators", "required", "blocking"],
+    readMin: 5,
+  },
+  // ── Delivery ─────────────────────────────────────────────────────────────
   {
     slug: "delivery-setup",
     title: "Setting up delivery and test-fire",
@@ -66,36 +110,64 @@ export const HELP_ARTICLES: HelpArticle[] = [
     readMin: 5,
   },
   {
+    slug: "output-templates",
+    title: "Output templates and formats",
+    blurb: "Which output formats ProcuLink can actually send today, and what the templates page does (and doesn't do).",
+    category: "Delivery",
+    keywords: ["templates", "output format", "csv", "xml", "cxml", "ubl", "x12", "json", "peppol", "edifact", "scriban"],
+    readMin: 4,
+  },
+  // ── Integrations ─────────────────────────────────────────────────────────
+  {
     slug: "email-polling",
     title: "Email polling (IMAP) setup",
     blurb: "Receive POs as email attachments — available on any paid plan.",
     category: "Integrations",
-    keywords: ["imap", "email", "mailbox", "attachments", "polling", "app password"],
+    keywords: ["imap", "email", "mailbox", "attachments", "polling", "app password", "growth"],
     readMin: 5,
   },
+  {
+    slug: "api-and-integrations",
+    title: "API keys, inbound API, webhooks, and connectors",
+    blurb: "Create plk_ API keys, push orders in over REST, and get signed webhooks out when orders are created, delivered, or fail.",
+    category: "Integrations",
+    keywords: ["api key", "plk_", "webhook", "hmac", "signature", "ingress", "zapier", "make", "idempotency", "rest"],
+    readMin: 7,
+  },
+  // ── AI ───────────────────────────────────────────────────────────────────
   {
     slug: "ai-suggestions",
     title: "How AI mapping suggestions work",
-    blurb: "When OpenAI runs, what confidence means, and how to confirm or clear suggestions.",
+    blurb: "When OpenAI runs, what confidence means, how catalog grounding works, and what the monthly AI budget does.",
     category: "AI",
-    keywords: ["ai", "openai", "confidence", "suggestions", "provenance"],
+    keywords: ["ai", "openai", "confidence", "suggestions", "provenance", "catalog grounding", "token budget", "no-egress", "cap"],
     readMin: 5,
   },
+  // ── Billing ──────────────────────────────────────────────────────────────
   {
     slug: "billing-faq",
     title: "Billing and plans FAQ",
-    blurb: "Pilot, Growth, Operations, Integration, Enterprise — what's included and what happens at quota.",
+    blurb: "Pilot, Growth, Operations, Integration, Distributor, Enterprise — what's included and what happens at quota.",
     category: "Billing",
-    keywords: ["billing", "plans", "quota", "overage", "soft cap", "429", "pilot", "upgrade"],
+    keywords: ["billing", "plans", "quota", "overage", "soft cap", "429", "pilot", "upgrade", "read-only", "distributor", "cancel"],
     readMin: 4,
   },
+  // ── Troubleshooting ──────────────────────────────────────────────────────
   {
     slug: "troubleshooting",
     title: "Troubleshooting common parse errors",
     blurb: "Date format mismatches, missing columns, encoding issues — what to fix.",
     category: "Troubleshooting",
-    keywords: ["parse error", "encoding", "bom", "date format", "missing columns", "scanned pdf"],
+    keywords: ["parse error", "encoding", "bom", "date format", "missing columns", "scanned pdf", "comma decimal", "idoc"],
     readMin: 3,
+  },
+  {
+    slug: "exceptions-and-stuck-orders",
+    title: "Working the exceptions queue",
+    blurb: "What lands in Exceptions, what Resolve and Ignore really do, and how to requeue a dead-lettered delivery.",
+    category: "Troubleshooting",
+    keywords: ["exceptions", "stuck", "dead-letter", "requeue", "ignore", "resolve", "worker", "health", "delivery failed"],
+    readMin: 5,
   },
 ];
 

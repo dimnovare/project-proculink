@@ -1,6 +1,6 @@
 export const metadata = {
   title: "How AI mapping suggestions work — ProcuLink Help",
-  description: "When OpenAI runs, what confidence means, and how to confirm or clear suggestions.",
+  description: "When OpenAI runs, what confidence means, how catalog grounding prevents invented codes, and what the monthly AI budget does.",
 };
 
 # How AI mapping suggestions work
@@ -15,17 +15,30 @@ Every incoming order is first put through your deterministic mappings and valida
 
 Each AI suggestion carries three pieces of metadata:
 
-- `confidence` — a percentage between 0 and 100 representing the model's self-reported certainty.
+- `confidence` — a percentage; the review screen reads 85%+ as high confidence, 70–84% as a good match, and anything lower as low confidence.
 - `reason` — a short, human-readable explanation, e.g. "matched on description plus unit size".
 - `provenance` — the source data the model was given, so you can audit what it actually saw.
 
-## Accept or reject
+## Grounded in the supplier's catalog
 
-Nothing is written to the order automatically. Suggestions appear on the Review screen with `Accept` and `Reject` actions. Accepting writes the value into the canonical line and marks the line resolved. Rejecting clears the suggestion; the line stays unresolved until you map it manually.
+If the supplier has a [product catalog](/help/item-codes) uploaded, suggestions are **catalog-grounded**: the model must pick from the supplier's real codes, and any answer outside the catalog is rejected after the fact — a hallucinated code can never reach your screen. Without a catalog, suggestions are best-effort from the evidence on the line, which is exactly why uploading the catalog is the single best thing you can do for suggestion quality.
 
-## Plan availability
+## Accept or enter manually
 
-AI suggestions run for all paying plans when OpenAI is configured on the workspace. Pilot trials also receive suggestions for the duration of the 14-day trial so new customers can see the feature in action.
+Nothing is written to the order automatically. Each suggestion appears as a card on the Review screen with two actions:
+
+- **Accept** writes the suggested code to the line and marks it resolved — and the resolution is remembered as a mapping for next time.
+- **Enter manually** opens the normal code-entry field (pre-filled with the suggestion) so you can type the right code instead. Both paths save to the server the same way.
+
+## The monthly AI budget
+
+Every workspace has a monthly AI token budget shared across all AI features — PDF extraction, line suggestions, email-body extraction, and mapping inference. The budget scales with plan, from 200,000 tokens on the Pilot trial to 10 million on Enterprise (roughly 50 vs 2,500 PDF extractions a month).
+
+When the budget runs out, nothing breaks and nothing blocks: AI quietly steps aside for the rest of the month, and unresolved lines simply wait for manual entry on the Review screen. The budget resets monthly.
+
+## No-egress workspaces
+
+Workspaces configured for no-egress document processing (an enterprise option an operator enables) never send order data to OpenAI: suggestions, PDF AI extraction, email-body extraction, and mapping inference are all switched off, and unresolved lines always go to human review.
 
 ---
 

@@ -23,9 +23,17 @@ CSV files exported from Excel sometimes include a UTF-8 byte-order mark, which m
 
 ProcuLink reads text-based PDFs directly — the high-confidence primary path. Image-only scans (phone photos, photocopier output) have no text layer, so they fall back to AI vision extraction; because there is nothing to verify the numbers against, every line is flagged for review before delivery. For the most reliable result, ask the buyer for a text PDF. If a scan is too low-quality to read at all, it will fail — re-scan at a higher resolution or request a text PDF.
 
+## European decimal commas
+
+Files that write `12,50` for twelve-and-a-half are handled automatically — semicolon-delimited CSVs are treated as European formatting, and Excel numbers are read as raw values rather than display text. If quantities or prices ever look off by 10× or 100× after a parse, don't send — flag it to support with the file attached.
+
 ## Supplier item code mismatch
 
 A line parses but its `item_code` does not match any SKU in the supplier mapping. Either add the SKU to the supplier mapping, or accept an AI suggestion on the Review screen when one is offered.
+
+## Where failures queue up
+
+Every parse failure (and every later failure — transform, delivery, supplier rejection) opens an entry in **Operations → Exceptions**, so nothing fails silently. See [working the exceptions queue](/help/exceptions-and-stuck-orders) for how to triage that list and what to do when an order looks stuck rather than failed.
 
 ---
 

@@ -22,6 +22,15 @@ The fastest way to close the gap is to import the supplier's product catalog und
 
 Most suppliers can export this list from their ERP or webshop in a minute. One upload keeps teaching every future order.
 
+## Catalog file requirements
+
+The import is deliberately forgiving — point it at the supplier's export and it figures the columns out:
+
+- **File type:** CSV or Excel (`.xlsx`/`.xls`). For CSV, comma, semicolon, and tab delimiters are all auto-detected. For Excel, the **first worksheet** is read; the first row must be the headers.
+- **Required column:** a product **code**. The header can be named `code`, `sku`, `product_code`, `item_code`, `supplier_code`, and similar — matching is case-insensitive. Rows without a code are skipped (the import tells you how many).
+- **Recognised optional columns:** name (`name`, `description`, `product`, `title`), unit (`unit`, `uom`), price (`price`, `unit_price`, `list_price` — use a dot decimal, e.g. `24.90`), currency, barcode (`barcode`, `gtin`, `ean`, `upc`), and an external id (`external_id`, `product_id`, `erp_id`).
+- **Re-imports are safe:** rows are matched by code and updated in place, so importing this month's export over last month's just refreshes the data — the result reports how many rows were created vs updated.
+
 ## ProcuLink remembers your resolutions
 
 When you type a supplier code on the review screen, that resolution is saved as an **item mapping** for that supplier. The next order with the same buyer code resolves automatically — you should only ever have to teach each product once. Saved mappings live under **Library → Mappings**.
