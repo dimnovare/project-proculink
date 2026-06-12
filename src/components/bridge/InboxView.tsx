@@ -29,6 +29,7 @@ import { PageHeader } from "./layout/PageHeader";
 import { PageShell } from "./layout/PageShell";
 import { StatusJourney, type CrossingStatus, type OrderStage } from "./StatusJourney";
 import { useOrderDirection, type PartyLabels } from "@/hooks/useOrderDirection";
+import { formatBulkSendResult, isRedeliverable } from "./inboxSend";
 
 // Per-column metadata. `numeric` right-aligns value cells; `label` is the
 // human-readable name shown in the desktop "Columns" visibility menu (the raw
@@ -102,6 +103,14 @@ function StatusDotPill({ status }: { status: CrossingStatus; compact?: boolean }
 type OrderRow = {
   id: string;
   status: CrossingStatus;
+  /**
+   * RAW backend OrderStatus (e.g. "ready_to_deliver", "delivery_failed",
+   * "transform_failed"). Drives ACTION gating — the collapsed display
+   * `status` above folds five failure statuses into one "failed" pill, so it
+   * cannot tell a redeliverable delivery_failed from a non-redeliverable
+   * parse/transform failure (see isRedeliverable in ./inboxSend).
+   */
+  rawStatus: string;
   fmt: string;
   buyer: string;
   supplier: string;
@@ -138,10 +147,24 @@ function fmtAge(min: number) {
   return `${Math.floor(min / 1440)}d`;
 }
 
+// Mock-only: a representative raw backend status per display status so the
+// deliverable-row gating behaves realistically in demo mode (mock "failed"
+// rows act like delivery_failed, which IS redeliverable; "delivering" carries
+// ready_to_deliver — see mapStatus below).
+const MOCK_RAW_STATUS: Record<CrossingStatus, string> = {
+  new:        "pending_parse",
+  extracting: "parsing",
+  review:     "pending_review",
+  ready:      "ready",
+  sent:       "delivered",
+  delivering: "ready_to_deliver",
+  failed:     "delivery_failed",
+};
+
 function generateOrders(count: number): OrderRow[] {
   const rows: OrderRow[] = [];
   // Seed with the original 12 hand-crafted rows first
-  const SEED: Array<Omit<OrderRow, "ageMin">> = [
+  const SEED: Array<Omit<OrderRow, "ageMin" | "rawStatus">> = [
     { id: "demo-001",  status: "review",     fmt: "PDF",   buyer: BUYERS[0], supplier: SUPPLIERS[0], po: "PO-DEMO-001",  lines: 14, value: 24180.50, valueLabel: "€ 24,180.50", issues: 3, assigned: "MK", age: "2m"  },
     { id: "nrd9981", status: "new",        fmt: "cXML",  buyer: BUYERS[1], supplier: SUPPLIERS[1], po: "PO-NRD-9981",     lines:  7, value:  8420.00, valueLabel: "€  8,420.00", issues: 0, assigned: "—",  age: "4m"  },
     { id: "sh44120", status: "extracting", fmt: "XLSX",  buyer: BUYERS[2], supplier: SUPPLIERS[2], po: "SH-PO-44120",     lines: 32, value: 71205.18, valueLabel: "€ 71,205.18", issues: 0, assigned: "—",  age: "6m"  },
@@ -155,7 +178,7 @@ function generateOrders(count: number): OrderRow[] {
     { id: "ar1104",  status: "failed",     fmt: "PDF",   buyer: BUYERS[5], supplier: SUPPLIERS[0], po: "AR-2026-1104",    lines: 28, value: 41205.50, valueLabel: "€ 41,205.50", issues: 5, assigned: "EL", age: "3h"  },
     { id: "850198",  status: "sent",       fmt: "EDI",   buyer: BUYERS[3], supplier: SUPPLIERS[4], po: "850-99198",       lines: 12, value:  9114.40, valueLabel: "€  9,114.40", issues: 0, assigned: "JT", age: "4h"  },
   ];
-  SEED.forEach((s) => rows.push({ ...s, ageMin: s.age.endsWith("d") ? parseInt(s.age)*1440 : s.age.endsWith("h") ? parseInt(s.age)*60 : parseInt(s.age) }));
+  SEED.forEach((s) => rows.push({ ...s, rawStatus: MOCK_RAW_STATUS[s.status], ageMin: s.age.endsWith("d") ? parseInt(s.age)*1440 : s.age.endsWith("h") ? parseInt(s.age)*60 : parseInt(s.age) }));
 
   // Generate remaining rows procedurally
   for (let i = rows.length; i < count; i++) {
@@ -175,6 +198,7 @@ function generateOrders(count: number): OrderRow[] {
     rows.push({
       id: `gen-${pad(i, 6)}`,
       status: STATUSES[si],
+      rawStatus: MOCK_RAW_STATUS[STATUSES[si]],
       fmt,
       buyer: BUYERS[bi],
       supplier: SUPPLIERS[supi],
@@ -228,6 +252,7 @@ function summaryToRow(o: OrderSummary): OrderRow {
   return {
     id: o.id,
     status: mapStatus(o.status),
+    rawStatus: o.status,
     fmt,
     buyer: o.buyerName ?? "—",
     supplier: o.supplierName,
@@ -308,7 +333,13 @@ const columnHelper = createColumnHelper<OrderRow>();
 // so row stability / selection behaviour is unchanged.
 function buildColumns(labels: PartyLabels) {
   return [
-  // Checkbox select
+  // Checkbox select — selection feeds ONLY the "Send selected" bulk action
+  // (POST /redeliver), which the backend accepts from ready_to_deliver /
+  // delivery_failed alone. Rows in any other status are NOT selectable
+  // (enableRowSelection gates on isRedeliverable in the table options), so
+  // "Send selected" can never fire a guaranteed-400 request. TanStack's
+  // select-all helpers respect getCanSelect(), so the header checkbox keeps
+  // working on filtered views and selects only the sendable rows.
   columnHelper.display({
     id: "select",
     enableHiding: false,
@@ -318,19 +349,39 @@ function buildColumns(labels: PartyLabels) {
         style={{ accentColor: BLUE, cursor: "pointer", width: 13, height: 13 }}
         checked={table.getIsAllPageRowsSelected()}
         onChange={table.getToggleAllPageRowsSelectedHandler()}
-        aria-label="Select all"
+        aria-label="Select all sendable orders"
+        title="Selects orders that can be sent (Ready to send or Failed delivery)"
       />
     ),
-    cell: ({ row }) => (
-      <input
-        type="checkbox"
-        style={{ accentColor: BLUE, cursor: "pointer", width: 13, height: 13 }}
-        checked={row.getIsSelected()}
-        onChange={row.getToggleSelectedHandler()}
-        onClick={(e) => e.stopPropagation()}
-        aria-label="Select row"
-      />
-    ),
+    cell: ({ row }) => {
+      const canSelect = row.getCanSelect();
+      return (
+        <input
+          type="checkbox"
+          style={{
+            accentColor: BLUE,
+            cursor: canSelect ? "pointer" : "not-allowed",
+            width: 13,
+            height: 13,
+            opacity: canSelect ? 1 : 0.35,
+          }}
+          checked={row.getIsSelected()}
+          disabled={!canSelect}
+          onChange={row.getToggleSelectedHandler()}
+          onClick={(e) => e.stopPropagation()}
+          aria-label={
+            canSelect
+              ? "Select row"
+              : "Can't select — only orders that are Ready to send or have a failed delivery can be sent"
+          }
+          title={
+            canSelect
+              ? undefined
+              : "Only orders that are Ready to send or have a failed delivery can be sent"
+          }
+        />
+      );
+    },
     size: 36,
   }),
   // Order column: PO# + lines/exceptions
@@ -571,44 +622,55 @@ export function InboxView() {
     searchTimer.current = setTimeout(() => setSearch(value), 350);
   }, []);
 
-  // Bulk "Send selected": selection keys are order ids (see getRowId). Re-deliver
-  // each in parallel, surface a pending state, then a success/failure summary
-  // instead of silently firing and forgetting.
+  // Bulk "Send selected": selection keys are order ids (see getRowId), and
+  // selection is gated to redeliverable statuses (see enableRowSelection), so
+  // every id here SHOULD be accepted — but the status can still change
+  // server-side between render and click (or the request can fail), so each
+  // re-deliver runs in parallel and failures are reported BY PO NUMBER with
+  // the per-order reason instead of an opaque "N failed".
   const handleSendSelected = useCallback(async () => {
     const ids = Object.keys(rowSelection);
     if (!ids.length || bulkSending) return;
     setBulkSending(true);
     setBulkResult(null);
+    // PO labels for failure reporting. Selection can outlive the loaded page
+    // (page changes don't clear it), so fall back to a shortened order id for
+    // rows no longer in the current data set.
+    const poById = new Map(ALL_ORDERS.map((r) => [r.id, r.po]));
     try {
       // Route through apiClient.redeliverOrder so the Clerk auth header is
       // attached (a raw fetch here 401'd for real users). It resolves on
-      // success and throws on failure → map each to a boolean.
+      // success and throws on failure — keep the error message, it carries
+      // the backend's actual reason (e.g. the not-redeliverable-status 400).
       const results = await Promise.all(
         ids.map((id) =>
           apiClient
             .redeliverOrder(id)
-            .then(() => true)
-            .catch(() => false),
+            .then(() => ({ id, ok: true as const }))
+            .catch((err: unknown) => ({
+              id,
+              ok: false as const,
+              reason: err instanceof Error ? err.message : "Unknown error",
+            })),
         ),
       );
-      const sent = results.filter(Boolean).length;
-      const failed = results.length - sent;
+      const failures = results
+        .filter((r): r is { id: string; ok: false; reason: string } => !r.ok)
+        .map((r) => ({ po: poById.get(r.id) ?? r.id.slice(0, 8), reason: r.reason }));
+      const sent = results.length - failures.length;
       queryClient.invalidateQueries({ queryKey: ["orders"] });
-      if (failed === 0) {
-        setBulkResult({ ok: true, text: `${sent} order${sent !== 1 ? "s" : ""} sent` });
-        setRowSelection({});
-      } else {
-        setBulkResult({
-          ok: false,
-          text: sent > 0 ? `${sent} sent · ${failed} failed` : `Couldn't send ${failed} order${failed !== 1 ? "s" : ""}`,
-        });
-      }
+      setBulkResult(formatBulkSendResult(sent, failures));
+      // Keep ONLY the failed rows selected (so a retry can't re-send the
+      // orders that already went out); clear entirely on full success.
+      setRowSelection(
+        Object.fromEntries(results.filter((r) => !r.ok).map((r) => [r.id, true])),
+      );
     } catch {
       setBulkResult({ ok: false, text: "Send failed — please retry" });
     } finally {
       setBulkSending(false);
     }
-  }, [rowSelection, bulkSending, queryClient]);
+  }, [rowSelection, bulkSending, queryClient, ALL_ORDERS]);
 
   const table = useReactTable({
     data: ALL_ORDERS,
@@ -625,7 +687,12 @@ export function InboxView() {
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
-    enableRowSelection: true,
+    // Selection exists solely for "Send selected" (POST /redeliver), and the
+    // backend rejects every status outside RedeliverableFrom with a 400 — so
+    // gate selection on the RAW backend status (the display pill is too
+    // coarse: its "failed" bucket mixes redeliverable delivery_failed with
+    // non-redeliverable parse/transform failures and dead-letters).
+    enableRowSelection: (row) => isRedeliverable(row.original.rawStatus),
   });
 
   const { rows } = table.getRowModel();
@@ -848,19 +915,24 @@ export function InboxView() {
           }
         />
 
-      {/* Bulk action bar (shown when selecting) */}
-      {selectedCount > 0 && (
+      {/* Bulk action bar — shown while selecting AND while a send result is on
+          display. A full success clears the selection, which previously
+          unmounted the bar together with its "N orders sent" confirmation, so
+          the action read as a silent no-op; now the bar stays until dismissed. */}
+      {(selectedCount > 0 || bulkResult !== null) && (
         <div
           className="flex items-center justify-between rounded-[8px] px-4 py-2 mb-3 flex-shrink-0"
           style={{ background: "#0B1A2F", color: "#FFFFFF" }}
         >
           <div className="flex items-center gap-3">
-            <span style={{ fontSize: "12.5px", fontWeight: 600 }}>{selectedCount} selected</span>
+            <span style={{ fontSize: "12.5px", fontWeight: 600 }}>
+              {selectedCount > 0 ? `${selectedCount} selected` : "Send complete"}
+            </span>
             <button
               onClick={() => { setRowSelection({}); setBulkResult(null); }}
               style={{ background: "none", border: "none", color: "var(--ink-faint)", fontSize: "12px", cursor: "pointer" }}
             >
-              Clear
+              {selectedCount > 0 ? "Clear" : "Dismiss"}
             </button>
           </div>
           <div className="flex items-center gap-3">
@@ -873,23 +945,25 @@ export function InboxView() {
                 {bulkResult.ok ? "✓ " : "⚠ "}{bulkResult.text}
               </span>
             )}
-            <button
-              type="button"
-              onClick={handleSendSelected}
-              disabled={bulkSending}
-              style={{
-                background: "none",
-                border: "none",
-                color: "#FFFFFF",
-                fontSize: "12.5px",
-                fontWeight: 600,
-                cursor: bulkSending ? "default" : "pointer",
-                opacity: bulkSending ? 0.6 : 1,
-                padding: 0,
-              }}
-            >
-              {bulkSending ? "Sending…" : "Send selected"}
-            </button>
+            {selectedCount > 0 && (
+              <button
+                type="button"
+                onClick={handleSendSelected}
+                disabled={bulkSending}
+                style={{
+                  background: "none",
+                  border: "none",
+                  color: "#FFFFFF",
+                  fontSize: "12.5px",
+                  fontWeight: 600,
+                  cursor: bulkSending ? "default" : "pointer",
+                  opacity: bulkSending ? 0.6 : 1,
+                  padding: 0,
+                }}
+              >
+                {bulkSending ? "Sending…" : "Send selected"}
+              </button>
+            )}
           </div>
         </div>
       )}

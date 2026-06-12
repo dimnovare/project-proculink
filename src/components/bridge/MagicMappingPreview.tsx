@@ -9,13 +9,16 @@
  *
  * Architecture: approach B (persist-then-preview).  The order is already
  * persisted in `pending_review`.  This component renders the preview and
- * commits via the existing resolve endpoint.  Nothing irreversible happens
- * until transform/deliver.
+ * commits via the existing resolve endpoint.  Bulk accept ("Accept all AI
+ * suggestions" / "Accept ≥85% only") runs server-side via
+ * POST /accept-ai-suggestions and persists immediately — no separate Commit
+ * needed for those lines.  Nothing irreversible happens until
+ * transform/deliver.
  */
 
 import type React from "react";
 import Link from "next/link";
-import { useState, useCallback, useEffect, useReducer, useRef } from "react";
+import { useState, useEffect, useReducer, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api-client";
 import type { MappingPreviewLine } from "@/lib/api-client";
@@ -376,46 +379,64 @@ export function MagicMappingPreview({ orderId, onCommitted, onParseFailed }: Pro
     },
   });
 
-  // ── Server-side bulk-accept of high-confidence suggestions ────────────────
+  // ── Bulk accept — ONE unified server-side path (audit item 8) ─────────────
+  // Previously TWO overlapping buttons coexisted: a purple CLIENT-side
+  // "Accept all AI suggestions" (local row state only — needed a separate
+  // Commit to persist) and a green SERVER-side "Accept all high-confidence"
+  // (persisted immediately). Overlapping scopes + contradicting counts read
+  // as a bug on the most-repeated action. Both now run through the SAME
+  // backend endpoint (POST /accept-ai-suggestions?minConfidence=) so the
+  // result is persisted immediately: minConfidence=0 accepts EVERY suggested
+  // line (the old purple scope — the backend treats null confidence as 0.0),
+  // 0.85 is the conservative secondary option (the old green scope).
+  //
+  // Any local per-row decision (an accepted code or an in-progress edit
+  // draft — exactly what the Commit button would send) is committed FIRST so
+  // a code the user already chose by hand is never clobbered by the bulk
+  // accept (the backend would otherwise re-accept those still-unresolved
+  // lines with the AI's code).
   const [bulkNotice, setBulkNotice] = useState<string | null>(null);
-  const { mutate: bulkAccept, isPending: isBulkAccepting } = useMutation({
-    mutationFn: () => apiClient.acceptAiSuggestions(orderId, 0.85),
-    onSuccess: (result) => {
-      setBulkNotice(
-        `${result.accepted} high-confidence suggestion${result.accepted === 1 ? "" : "s"} accepted.`,
-      );
+  const {
+    mutate: bulkAccept,
+    isPending: isBulkAccepting,
+    variables: bulkThreshold,
+  } = useMutation({
+    mutationFn: async (minConfidence: number) => {
+      const local = buildResolutions();
+      if (local.length > 0) await apiClient.commitMappings(orderId, local);
+      const result = await apiClient.acceptAiSuggestions(orderId, minConfidence);
+      return { accepted: result.accepted, committed: local.length };
+    },
+    onSuccess: ({ accepted, committed }) => {
+      const parts = [
+        `${accepted} suggestion${accepted === 1 ? "" : "s"} accepted and saved`,
+      ];
+      if (committed > 0)
+        parts.push(`${committed} manual code${committed === 1 ? "" : "s"} saved`);
+      setBulkNotice(`${parts.join(" · ")}.`);
       queryClient.invalidateQueries({ queryKey: ["mapping-preview", orderId] });
       queryClient.invalidateQueries({ queryKey: ["order", orderId] });
       queryClient.invalidateQueries({ queryKey: ["orders"] });
     },
     onError: (err: Error) => setBulkNotice(`Accept failed: ${err.message}`),
   });
-  const highConf = preview
-    ? preview.lines.filter(l => l.status !== "resolved" && (l.confidence ?? 0) >= 0.85).length
-    : 0;
 
-  // ── Accept-all handler ────────────────────────────────────────────────────
-  const acceptAll = useCallback(() => {
-    if (!preview) return;
-    let filled = 0;
-    for (const line of preview.lines) {
-      if (
-        line.aiSuggestedSupplierCode !== null &&
-        line.status !== "resolved"
-      ) {
-        const current = rows.get(line.lineNumber);
-        if (!current || current.mode === "idle" || current.mode === "rejected") {
-          dispatch({
-            lineNumber: line.lineNumber,
-            type: "accept",
-            code: line.aiSuggestedSupplierCode,
-          });
-          filled++;
-        }
-      }
-    }
-    return filled;
-  }, [preview, rows]);
+  // Counts for the two bulk actions, both measured against SERVER state
+  // (preview line status), so the badge always matches what the endpoint
+  // will act on — the old client-side count drifted from the server one.
+  const suggestedUnresolved = preview
+    ? preview.lines.filter(
+        l => l.status !== "resolved" && l.aiSuggestedSupplierCode !== null,
+      ).length
+    : 0;
+  const highConf = preview
+    ? preview.lines.filter(
+        l =>
+          l.status !== "resolved" &&
+          l.aiSuggestedSupplierCode !== null &&
+          (l.confidence ?? 0) >= 0.85,
+      ).length
+    : 0;
 
   // ── Derived resolution map for commit ─────────────────────────────────────
   function buildResolutions(): { lineNumber: number; supplierItemCode: string }[] {
@@ -453,16 +474,6 @@ export function MagicMappingPreview({ orderId, onCommitted, onParseFailed }: Pro
   function unresolvedCount(): number {
     if (!preview) return 0;
     return preview.lines.length - resolvedCount();
-  }
-
-  function suggestableCount(): number {
-    if (!preview) return 0;
-    return preview.lines.filter(l => {
-      if (l.status === "resolved") return false;
-      if (!l.aiSuggestedSupplierCode) return false;
-      const rowState = rows.get(l.lineNumber);
-      return !rowState || rowState.mode === "idle" || rowState.mode === "rejected";
-    }).length;
   }
 
   // ─── Loading state ─────────────────────────────────────────────────────────
@@ -549,7 +560,6 @@ export function MagicMappingPreview({ orderId, onCommitted, onParseFailed }: Pro
   const totalLines = preview.lines.length;
   const resolved = resolvedCount();
   const unresolved = unresolvedCount();
-  const suggestable = suggestableCount();
 
   // While the Worker is still parsing the uploaded file the preview legitimately
   // has 0 lines yet — show an honest in-progress state (the 1.5s poll above keeps
@@ -700,7 +710,11 @@ export function MagicMappingPreview({ orderId, onCommitted, onParseFailed }: Pro
           )}
         </p>
 
-        {/* Accept-all + stats row */}
+        {/* Bulk-accept + stats row — ONE primary action (audit item 8).
+            Primary accepts and SAVES every AI-suggested line (server path, no
+            separate Commit needed for them); the quieter secondary narrows
+            the same persisted action to ≥85%-confidence suggestions only, and
+            is hidden when its scope equals the primary's (identical effect). */}
         <div
           style={{
             marginTop: 12,
@@ -710,9 +724,11 @@ export function MagicMappingPreview({ orderId, onCommitted, onParseFailed }: Pro
             flexWrap: "wrap",
           }}
         >
-          {suggestable > 0 && (
+          {suggestedUnresolved > 0 && (
             <button
-              onClick={acceptAll}
+              onClick={() => bulkAccept(0)}
+              disabled={isBulkAccepting}
+              title={`Accepts and saves all ${suggestedUnresolved} AI-suggested codes`}
               style={{
                 display: "inline-flex",
                 alignItems: "center",
@@ -724,7 +740,8 @@ export function MagicMappingPreview({ orderId, onCommitted, onParseFailed }: Pro
                 color: "#6F4FCE",
                 fontSize: 12,
                 fontWeight: 600,
-                cursor: "pointer",
+                cursor: isBulkAccepting ? "wait" : "pointer",
+                opacity: isBulkAccepting ? 0.6 : 1,
               }}
             >
               <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden>
@@ -736,7 +753,9 @@ export function MagicMappingPreview({ orderId, onCommitted, onParseFailed }: Pro
                   strokeLinejoin="round"
                 />
               </svg>
-              Accept all AI suggestions
+              {isBulkAccepting && bulkThreshold === 0
+                ? "Accepting…"
+                : "Accept all AI suggestions"}
               <span
                 style={{
                   background: "#6F4FCE",
@@ -747,41 +766,59 @@ export function MagicMappingPreview({ orderId, onCommitted, onParseFailed }: Pro
                   fontWeight: 700,
                 }}
               >
-                {suggestable}
+                {suggestedUnresolved}
               </span>
             </button>
           )}
 
-          {highConf > 0 && (
+          {highConf > 0 && highConf < suggestedUnresolved && (
             <button
-              onClick={() => bulkAccept()}
+              onClick={() => bulkAccept(0.85)}
               disabled={isBulkAccepting}
+              title="Accepts and saves only the suggestions with at least 85% confidence"
               style={{
                 display: "inline-flex",
                 alignItems: "center",
                 gap: 6,
                 padding: "5px 12px",
                 borderRadius: 6,
-                border: "1px solid #BBE0C0",
-                background: "#EAF6EC",
-                color: "#1E6D29",
+                border: "1px solid #C6CDDA",
+                background: "#FFFFFF",
+                color: "#56627A",
                 fontSize: 12,
                 fontWeight: 600,
                 cursor: isBulkAccepting ? "wait" : "pointer",
                 opacity: isBulkAccepting ? 0.6 : 1,
               }}
             >
-              <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden>
-                <path d="M2 6.5L5 9.5L10 3" stroke="#1E6D29" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-              {isBulkAccepting ? "Accepting…" : "Accept all high-confidence"}
-              <span style={{ background: "#1E6D29", color: "#FFFFFF", borderRadius: 8, padding: "0 5px", fontSize: 10, fontWeight: 700 }}>
+              {isBulkAccepting && bulkThreshold === 0.85
+                ? "Accepting…"
+                : "Accept ≥85% only"}
+              <span
+                style={{
+                  background: "#EFF2F7",
+                  color: "#56627A",
+                  borderRadius: 8,
+                  padding: "0 5px",
+                  fontSize: 10,
+                  fontWeight: 700,
+                }}
+              >
                 {highConf}
               </span>
             </button>
           )}
           {bulkNotice && (
-            <span style={{ fontSize: 12, color: "#1E6D29", fontWeight: 500 }}>{bulkNotice}</span>
+            <span
+              role="status"
+              style={{
+                fontSize: 12,
+                color: bulkNotice.startsWith("Accept failed") ? "#C53A3A" : "#1E6D29",
+                fontWeight: 500,
+              }}
+            >
+              {bulkNotice}
+            </span>
           )}
 
           <span style={{ fontSize: 12, color: "var(--ink-faint)" }}>

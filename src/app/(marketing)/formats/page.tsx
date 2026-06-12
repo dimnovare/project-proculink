@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { STANDARDS, type SupportLevel } from "@/lib/standards/catalog";
 
 export const metadata: Metadata = {
   title: "Formats & methods — ProcuLink",
@@ -27,6 +28,26 @@ const STATUS: Record<StatusKey, { label: string; fg: string; bg: string; desc: s
 
 interface Row { name: string; status: StatusKey; note: string }
 
+// ── Catalog-derived statuses (anti-drift) ──────────────────────────────────────
+// For document standards that exist in src/lib/standards/catalog.ts (the
+// conservative offer⇔works source of truth, reconciled against the backend DI
+// registrations), the badge is DERIVED from the catalog's `parse` level so this
+// marketing page can never silently over-claim again — the EDIFACT row used to
+// say "Supported" while the catalog said `parse: "partial"`.
+const PARSE_LEVEL_STATUS: Record<SupportLevel, StatusKey> = {
+  supported: "live",
+  partial: "configurable", // works today with caveats — we verify it with you in setup
+  planned: "planned",
+  none: "planned",
+};
+
+function parseStatus(catalogId: string): StatusKey {
+  const entry = STANDARDS.find((s) => s.id === catalogId);
+  // Fail the static build loudly on a typo'd id rather than render a wrong badge.
+  if (!entry) throw new Error(`formats page: unknown standards catalog id '${catalogId}'`);
+  return PARSE_LEVEL_STATUS[entry.parse];
+}
+
 const IMPORT_METHODS: Row[] = [
   { name: "Manual upload (drag-and-drop / browse)", status: "live", note: "Drop a file straight into the app." },
   { name: "REST API", status: "live", note: "POST orders as JSON with an API key — Zapier, Make, or your own code." },
@@ -42,11 +63,11 @@ const IMPORT_FORMATS: Row[] = [
   { name: "Excel (XLSX)", status: "live", note: "First worksheet, header row." },
   { name: "PDF (text-based)", status: "live", note: "Text layer read, then AI structured extraction. Deterministic fallback when no AI key." },
   { name: "PDF (scanned / image)", status: "live", note: "No text layer — read by AI vision extraction. Assisted: every line is flagged for review." },
-  { name: "cXML 1.2", status: "live", note: "OrderRequest documents." },
-  { name: "UBL 2.1 / Peppol BIS", status: "live", note: "Order documents." },
-  { name: "SAP IDoc ORDERS05", status: "live", note: "SAP's ORDERS05 purchase-order IDoc, sent as XML." },
-  { name: "EDIFACT ORDERS", status: "live", note: "D96A / D01B." },
-  { name: "ANSI X12 850", status: "live", note: "004010 / 005010." },
+  { name: "cXML 1.2", status: parseStatus("cxml-1-2"), note: "OrderRequest documents." },
+  { name: "UBL 2.1 / Peppol BIS", status: parseStatus("ubl-2-1-order"), note: "Order documents." },
+  { name: "SAP IDoc ORDERS05", status: parseStatus("sap-idoc-orders05"), note: "SAP's ORDERS05 purchase-order IDoc, sent as XML." },
+  { name: "EDIFACT ORDERS", status: parseStatus("edifact-orders"), note: "D96A — core segment coverage today; we verify your message files with you during setup." },
+  { name: "ANSI X12 850", status: parseStatus("x12-850"), note: "004010 / 005010." },
   { name: "JSON", status: "live", note: "Via the REST API order shape." },
 ];
 
