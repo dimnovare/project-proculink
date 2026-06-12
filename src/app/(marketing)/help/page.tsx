@@ -363,9 +363,19 @@ function ArticleRow({ article, first }: { article: HelpArticle; first: boolean }
           <span className="block truncate text-[13.5px] font-medium" style={{ color: "var(--ink)" }}>
             {article.title}
           </span>
-          <span className="mt-0.5 block text-[11.5px]" style={{ color: "var(--ink-faint)" }}>
-            {article.category}
-            {min ? <> · {min} min</> : null}
+          <span className="mt-0.5 flex items-center gap-1.5 text-[11.5px]" style={{ color: "var(--ink-faint)" }}>
+            <span>
+              {article.category}
+              {min ? <> · {min} min</> : null}
+            </span>
+            {article.videoUrl && (
+              <span
+                className="inline-flex items-center gap-1 rounded-[4px] px-1.5 py-px text-[10.5px] font-semibold"
+                style={{ color: "var(--brand-blue-deep)", background: "var(--brand-blue-soft)" }}
+              >
+                <span aria-hidden="true">▶</span> Video
+              </span>
+            )}
           </span>
         </span>
       </span>

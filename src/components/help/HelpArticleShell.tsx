@@ -72,6 +72,19 @@ export default function HelpArticleShell({
         </div>
       )}
 
+      {/* Per-tool walkthrough video — renders only when the registry entry
+          carries a hosted, verified videoUrl (offer⇔works). No autoplay. */}
+      {article?.videoUrl && (
+        <video
+          controls
+          preload="metadata"
+          poster={article.videoPosterUrl}
+          src={article.videoUrl}
+          className="mt-5 w-full rounded-[10px] border"
+          style={{ borderColor: "#E2E6EE", background: "#0B1A2F", maxWidth: 720 }}
+        />
+      )}
+
       {/* Prose column — typography supplied by src/mdx-components.tsx */}
       <article className="mt-3" style={{ maxWidth: 720 }}>
         {children}

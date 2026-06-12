@@ -17,7 +17,20 @@ export interface HelpArticle {
   keywords: string[];
   /** Estimated read time in minutes — single source (no page-local maps). */
   readMin: number;
+  /**
+   * Hosted per-tool walkthrough video (mp4). set ONLY when the mp4 is uploaded +
+   * verified (offer⇔works). At most one article carries a given videoUrl.
+   */
+  videoUrl?: string;
+  /**
+   * Poster frame for the video element. set ONLY when the mp4 is uploaded +
+   * verified (offer⇔works).
+   */
+  videoPosterUrl?: string;
 }
+
+/** Public R2 base for the per-tool walkthrough videos (assets.proculink.eu). */
+const TOOL_VIDEO_BASE = "https://assets.proculink.eu/marketing/tools";
 
 /**
  * Registry array order = reading order (drives the prev/next article pager).
@@ -33,6 +46,8 @@ export const HELP_ARTICLES: HelpArticle[] = [
     category: "Getting started",
     keywords: ["upload", "csv", "xlsx", "pdf", "parse", "sample order", "preview", "format detection", "auto-detect"],
     readMin: 4,
+    videoUrl: `${TOOL_VIDEO_BASE}/upload.mp4`,
+    videoPosterUrl: `${TOOL_VIDEO_BASE}/upload-poster.jpg`,
   },
   {
     slug: "order-intake-options",
@@ -57,6 +72,8 @@ export const HELP_ARTICLES: HelpArticle[] = [
     category: "Getting started",
     keywords: ["status", "normalized", "ready to send", "needs review", "sending", "delivered", "rejected", "dead-letter", "lifecycle"],
     readMin: 4,
+    videoUrl: `${TOOL_VIDEO_BASE}/dashboard.mp4`,
+    videoPosterUrl: `${TOOL_VIDEO_BASE}/dashboard-poster.jpg`,
   },
   // ── Connections ──────────────────────────────────────────────────────────
   {
@@ -66,6 +83,8 @@ export const HELP_ARTICLES: HelpArticle[] = [
     category: "Connections",
     keywords: ["connection", "revision", "draft", "publish", "test pack", "replay", "rollback", "version", "archive", "pinned"],
     readMin: 6,
+    videoUrl: `${TOOL_VIDEO_BASE}/connections.mp4`,
+    videoPosterUrl: `${TOOL_VIDEO_BASE}/connections-poster.jpg`,
   },
   // ── Mapping ──────────────────────────────────────────────────────────────
   {
@@ -75,6 +94,8 @@ export const HELP_ARTICLES: HelpArticle[] = [
     category: "Mapping",
     keywords: ["mapping", "columns", "fields", "manipulators", "starter template", "scriban", "erply", "directo", "expression", "auto-map"],
     readMin: 6,
+    videoUrl: `${TOOL_VIDEO_BASE}/po-mapping.mp4`,
+    videoPosterUrl: `${TOOL_VIDEO_BASE}/po-mapping-poster.jpg`,
   },
   {
     slug: "item-codes",
@@ -83,6 +104,8 @@ export const HELP_ARTICLES: HelpArticle[] = [
     category: "Mapping",
     keywords: ["item codes", "catalog", "sku", "auto-match", "code mappings", "resolve", "catalog import", "barcode", "gtin", "ean"],
     readMin: 5,
+    videoUrl: `${TOOL_VIDEO_BASE}/review.mp4`,
+    videoPosterUrl: `${TOOL_VIDEO_BASE}/review-poster.jpg`,
   },
   {
     slug: "output-mapping-editor",
@@ -108,6 +131,8 @@ export const HELP_ARTICLES: HelpArticle[] = [
     category: "Delivery",
     keywords: ["delivery", "test-fire", "http", "webhook", "sftp", "ftps", "smtp", "erply", "directo", "oauth2"],
     readMin: 5,
+    videoUrl: `${TOOL_VIDEO_BASE}/delivery.mp4`,
+    videoPosterUrl: `${TOOL_VIDEO_BASE}/delivery-poster.jpg`,
   },
   {
     slug: "output-templates",
@@ -133,6 +158,8 @@ export const HELP_ARTICLES: HelpArticle[] = [
     category: "Integrations",
     keywords: ["api key", "plk_", "webhook", "hmac", "signature", "ingress", "zapier", "make", "idempotency", "rest"],
     readMin: 7,
+    videoUrl: `${TOOL_VIDEO_BASE}/settings-integrations.mp4`,
+    videoPosterUrl: `${TOOL_VIDEO_BASE}/settings-integrations-poster.jpg`,
   },
   // ── AI ───────────────────────────────────────────────────────────────────
   {
@@ -168,6 +195,8 @@ export const HELP_ARTICLES: HelpArticle[] = [
     category: "Troubleshooting",
     keywords: ["exceptions", "stuck", "dead-letter", "requeue", "ignore", "resolve", "worker", "health", "delivery failed"],
     readMin: 5,
+    videoUrl: `${TOOL_VIDEO_BASE}/exceptions.mp4`,
+    videoPosterUrl: `${TOOL_VIDEO_BASE}/exceptions-poster.jpg`,
   },
 ];
 

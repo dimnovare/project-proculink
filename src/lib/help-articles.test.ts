@@ -91,3 +91,34 @@ describe("getAdjacentArticles", () => {
     expect(getAdjacentArticles("nope")).toEqual({});
   });
 });
+
+describe("per-tool video wiring (offer⇔works)", () => {
+  const TOOL_VIDEO_PREFIX = "https://assets.proculink.eu/marketing/tools/";
+  const withVideo = HELP_ARTICLES.filter((a) => a.videoUrl);
+
+  it("wires at least one per-tool video", () => {
+    expect(withVideo.length).toBeGreaterThan(0);
+  });
+
+  it("every videoUrl is a hosted assets.proculink.eu/marketing/tools/ mp4", () => {
+    for (const a of withVideo) {
+      expect(
+        a.videoUrl!.startsWith(TOOL_VIDEO_PREFIX),
+        `${a.slug} videoUrl must start with ${TOOL_VIDEO_PREFIX}`,
+      ).toBe(true);
+      expect(a.videoUrl!.endsWith(".mp4"), `${a.slug} videoUrl must end with .mp4`).toBe(true);
+    }
+  });
+
+  it("every videoUrl also carries a poster on the same host", () => {
+    for (const a of withVideo) {
+      expect(a.videoPosterUrl, `${a.slug} must carry a poster`).toBeTruthy();
+      expect(a.videoPosterUrl!.startsWith(TOOL_VIDEO_PREFIX)).toBe(true);
+    }
+  });
+
+  it("no two articles share a videoUrl (one article = at most one video)", () => {
+    const urls = withVideo.map((a) => a.videoUrl!);
+    expect(new Set(urls).size).toBe(urls.length);
+  });
+});
