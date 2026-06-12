@@ -1,0 +1,46 @@
+{
+  "id": "po-mapping",
+  "toolName": "PO field mapping",
+  "route": "/library/suppliers/22222222-2222-2222-2222-222222222222?tab=po-mapping",
+  "kicker": "Tool guide",
+  "outroLine": "Map it once — every order after that is automatic.",
+  "beats": [
+    {
+      "id": "b1-open",
+      "shot": "Land on the PO Mapping tab: detected source columns on the left, ProcuLink fields on the right, wires between, auto-detect banner on top.",
+      "vo": "This is where ProcuLink learns to read a supplier's files. On the left, the columns found in a real sample file. On the right, the fields ProcuLink needs. The wires between them are the mapping — and most of it was matched automatically."
+    },
+    {
+      "id": "b2-evidence",
+      "shot": "Cursor moves down the left column over detected fields and their sample values ('e.g. …'), then over a matched field's confidence.",
+      "vo": "Nothing here is a guess you have to take on faith. Each match shows its evidence — a sample value pulled straight from the file — so you can see why the wire is there."
+    },
+    {
+      "id": "b3-adjust",
+      "shot": "Cursor moves to a mapped ProcuLink field card and rests on its 'change' control, then on the required-field marker. (No click — the matches are pre-accepted in mock mode, so 'Accept all' would flash 'Nothing new to accept'.)",
+      "actionLeadMs": 1200,
+      "vo": "And nothing is locked in. If a match is wrong, change it on the spot — every field carries its own change control, and the required fields are marked, so you always know what must be mapped before saving."
+    },
+    {
+      "id": "b4-templates",
+      "shot": "Cursor opens the 'Apply starter template' menu; the list (Generic CSV, Buyer Excel, cXML, Erply, Directo) is hovered, then the menu is closed without applying.",
+      "actionLeadMs": 1300,
+      "extraMs": 1200,
+      "vo": "Starting from a known system instead? Starter templates pre-fill the whole layout. There are starters for Erply, Directo, generic C S V exports, and c X M L."
+    },
+    {
+      "id": "b5-standards",
+      "shot": "Cursor clicks 'Show standards'; standards references appear against the canonical fields.",
+      "actionLeadMs": 1400,
+      "extraMs": 1200,
+      "vo": "And for the standards people. Any field can show exactly where it lands in U B L, EDIFACT, X 12 or c X M L. The mapping is not a black box."
+    },
+    {
+      "id": "b6-save",
+      "shot": "Cursor moves to 'Save mapping' and rests on it (not clicked — the PUT has no mock twin; an on-camera click would error).",
+      "actionLeadMs": 1200,
+      "extraMs": 800,
+      "vo": "Save, and the mapping becomes part of this supplier's connection. Every order from them now parses the same way, automatically."
+    }
+  ]
+}

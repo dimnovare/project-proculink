@@ -1,0 +1,44 @@
+{
+  "id": "delivery",
+  "toolName": "Delivery setup",
+  "route": "/library/suppliers/22222222-2222-2222-2222-222222222222?tab=delivery",
+  "kicker": "Tool guide",
+  "outroLine": "Prove the route before it matters.",
+  "beats": [
+    {
+      "id": "b1-open",
+      "shot": "Land on the Delivery tab: protocol rail (HTTP, SFTP, FTPS, Email, Erply ERP, Directo ERP) with HTTP selected; cursor walks the protocol cards.",
+      "vo": "Delivery is the last leg — how a finished order physically reaches this supplier. Pick the channel they want. A direct H T T P endpoint, S F T P, email, or straight into an E R P like Erply or Directo."
+    },
+    {
+      "id": "b2-format",
+      "shot": "Cursor opens the Output format select and picks CSV; the 'auto-transforms into this format' note sits underneath.",
+      "actionLeadMs": 1800,
+      "vo": "Then the output format their system expects. Once it's set, every order to this supplier is transformed into exactly this format before it's sent."
+    },
+    {
+      "id": "b3-endpoint",
+      "shot": "Cursor clicks the Endpoint URL field and types the supplier's order endpoint; then opens Auth type and picks API key.",
+      "actionLeadMs": 1100,
+      "extraMs": 2000,
+      "vo": "Point it at their endpoint, and pick the authentication their side needs. A P I key, bearer token, basic auth, or O Auth 2."
+    },
+    {
+      "id": "b4-boundary",
+      "shot": "Cursor rests on the 'Delivery state boundary' card: transform creates an artifact; only this delivery workflow can mark it delivered.",
+      "vo": "Notice the boundary ProcuLink draws here. Transforming an order only creates the file. Nothing is ever marked delivered until this delivery workflow actually delivers it."
+    },
+    {
+      "id": "b5-testfire",
+      "shot": "Cursor moves to the Test-fire button in the footer and rests on it (config not saved in the demo, so it is not fired).",
+      "vo": "Before any real order rides this route, you test-fire it — a safe test payload to the endpoint. And be precise about what a green result means. The endpoint answered. That is not the same as the supplier accepting an order, and ProcuLink never pretends it is."
+    },
+    {
+      "id": "b6-auto",
+      "shot": "Cursor clicks the Auto-deliver checkbox in the panel header; it ticks on.",
+      "actionLeadMs": 1800,
+      "extraMs": 800,
+      "vo": "And when the route has earned your trust, auto-deliver sends ready orders without the manual step. Until then, every send stays a human decision."
+    }
+  ]
+}

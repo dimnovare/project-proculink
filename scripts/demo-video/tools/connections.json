@@ -1,0 +1,53 @@
+{
+  "id": "connections",
+  "toolName": "Versioned connections",
+  "route": "/connections",
+  "kicker": "Tool guide",
+  "outroLine": "Test, publish, and roll back with confidence.",
+  "beats": [
+    {
+      "id": "b1-open",
+      "shot": "Land on /connections: the list shows each supplier connection with its lifecycle badge (Published / Draft).",
+      "vo": "A connection is everything one supplier integration is — the input mapping, the output template, delivery, and item codes — bundled together and versioned, like releases of software."
+    },
+    {
+      "id": "b2-detail",
+      "shot": "Click into FastParts Inc: the Live revision card — what this supplier receives for new orders today, and the immutability note.",
+      "actionLeadMs": 1300,
+      "extraMs": 1500,
+      "vo": "Opening one shows the live revision — exactly what this supplier receives for new orders today. Published revisions are immutable. Nobody can quietly change what production does."
+    },
+    {
+      "id": "b3-history",
+      "shot": "Cursor moves to the Revision history: v2 draft with Run tests / Publish, v1 published and live.",
+      "vo": "Changing anything means a draft. The history shows every version of this connection and where it is in its life. Draft, published, archived."
+    },
+    {
+      "id": "b4-test",
+      "shot": "Cursor clicks 'Run tests' on the v2 draft; the test-pack evidence appears inline (replay over recent orders + conformance).",
+      "actionLeadMs": 2200,
+      "extraMs": 2000,
+      "vo": "Run tests replays your own recent orders through the draft and checks the output against the supplier's conformance profile. Nothing is delivered. It's evidence, before you commit."
+    },
+    {
+      "id": "b5-replay",
+      "shot": "Scroll to 'Replay & impact preview'; click Run replay; the per-order diff list appears — output changed, validation changed, would start failing.",
+      "actionLeadMs": 2500,
+      "extraMs": 3000,
+      "vo": "The impact preview goes further. Replay recent orders and see, order by order, what would change — including orders that pass today but would start failing under the draft. You see the blast radius before you publish."
+    },
+    {
+      "id": "b6-publish",
+      "shot": "Scroll back up; click Publish on v2; the confirm dialog explains in-flight orders keep their revision; confirm; the success notice lands and v1 flips to archived.",
+      "actionLeadMs": 1500,
+      "extraMs": 3000,
+      "vo": "Publishing flips the draft live for new orders. And orders already in flight keep the revision they were created with. That is the reproducibility guarantee — you can always say exactly which rules produced any order."
+    },
+    {
+      "id": "b7-rollback",
+      "shot": "Cursor rests on 'Roll back to this' on the now-archived v1.",
+      "extraMs": 800,
+      "vo": "And if a publish turns out wrong, the previous version is one click away. Rollback republishes it as a new revision. History is never rewritten."
+    }
+  ]
+}

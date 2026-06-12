@@ -1,0 +1,49 @@
+{
+  "id": "suppliers",
+  "toolName": "Supplier profiles",
+  "route": "/library/suppliers/22222222-2222-2222-2222-222222222222",
+  "kicker": "Tool guide",
+  "outroLine": "Every supplier's requirements, in one place.",
+  "beats": [
+    {
+      "id": "b1-open",
+      "shot": "Land on the supplier profile, Overview tab: header badges (format, channel, auto-process), KPI cards, delivery summary, recent deliveries.",
+      "vo": "Every supplier you send orders to has a profile like this. The header says how they receive orders — the format, the channel, and whether orders go out automatically. Below it, how the relationship is actually performing."
+    },
+    {
+      "id": "b2-mappings",
+      "shot": "Click the Mappings tab: the saved SKU mapping table with provenance pills (AI / Manual / Inherited / Imported) and confidence.",
+      "actionLeadMs": 1200,
+      "extraMs": 1000,
+      "vo": "Mappings are the translation table. Your item codes on one side, the supplier's on the other. And every pair carries its origin — imported, entered by hand, inherited, or suggested by AI — with a confidence score."
+    },
+    {
+      "id": "b3-catalog",
+      "shot": "Click the Catalog tab; click Import CSV/XLSX; a catalog file arrives and product rows appear in the table.",
+      "actionLeadMs": 5200,
+      "extraMs": 1500,
+      "vo": "The catalog is the supplier's own product list, and it's ground truth. With a catalog in place, AI suggestions only use real codes, and unknown codes are flagged. Import it from a file…"
+    },
+    {
+      "id": "b4-sources",
+      "shot": "Expand 'Automatic import': the scheduled pull editor (SFTP/FTP/FTPS) and the push card with the supplier's HTTP API endpoint.",
+      "actionLeadMs": 1300,
+      "extraMs": 1500,
+      "vo": "…or make it automatic. ProcuLink can pull the catalog on a schedule from an S F T P folder, or the supplier can push updates straight to an H T T P endpoint with an A P I key. The catalog stays fresh without anyone thinking about it."
+    },
+    {
+      "id": "b5-tabs",
+      "shot": "Click PO Mapping briefly (the column-mapping spine appears), then Delivery (the channel editor appears).",
+      "actionLeadMs": 1100,
+      "extraMs": 1500,
+      "vo": "Two more tabs do the heavy lifting. P O Mapping is how this supplier's files are read. Delivery is how finished orders reach them. Each one has its own guide."
+    },
+    {
+      "id": "b6-validation",
+      "shot": "Click Validation rules: active rule bindings with severity, 'blocks delivery' labels, and the how-validation-works note.",
+      "actionLeadMs": 1300,
+      "extraMs": 1000,
+      "vo": "And validation rules are the gate — what this supplier requires on every order. Error rules block delivery until they're fixed, warnings only flag. Validation never changes the order. It only checks it."
+    }
+  ]
+}

@@ -1,0 +1,59 @@
+{
+  "id": "review",
+  "toolName": "Review & resolve",
+  "route": "/inbox/ord-002",
+  "kicker": "Tool guide",
+  "outroLine": "Every order passes review before it ships.",
+  "beats": [
+    {
+      "id": "b1-open",
+      "shot": "Land on /inbox/ord-002. Cursor sweeps across the header: PO number, buyer → supplier, total, progress steps.",
+      "vo": "This is order review, the screen where you make an order supplier-ready. At the top: the purchase order, the buyer, the supplier it routes to, and how far it has progressed."
+    },
+    {
+      "id": "b2-triage",
+      "shot": "Cursor moves down the Fix Queue rail on the left: two open cards, resolved counter.",
+      "vo": "ProcuLink opens in Triage: a fix queue with only the lines that actually need a decision. Here, two of the four lines need attention. The rest are already resolved."
+    },
+    {
+      "id": "b3-accept",
+      "shot": "First card selected (Resistor, AI 84%). Cursor hovers the suggestion card — code, confidence, reason — then clicks Accept. Card resolves, queue advances.",
+      "actionLeadMs": 6500,
+      "extraMs": 1500,
+      "vo": "The first line has an AI suggestion: the supplier's item code, with a confidence score and the reason behind it. If it's right, accept it. The line resolves, and the queue moves on to the next decision."
+    },
+    {
+      "id": "b4-manual",
+      "shot": "Second card (Wire). Cursor clicks 'Enter manually', types the supplier code, clicks Save.",
+      "actionLeadMs": 2800,
+      "extraMs": 2000,
+      "vo": "When you'd rather decide yourself, enter the code manually. ProcuLink checks it against what it knows about this supplier, and remembers your answer for next time."
+    },
+    {
+      "id": "b5-fulldoc",
+      "shot": "Cursor clicks the 'Full document' toggle. The triptych appears: source document, canonical order, supplier output.",
+      "actionLeadMs": 1400,
+      "extraMs": 1500,
+      "vo": "Need the whole picture? Switch to Full document: your source file, the normalized order, and the supplier's output, side by side."
+    },
+    {
+      "id": "b6-readiness",
+      "shot": "Cursor clicks back to Triage and rests on the send-readiness card: lines resolved, acceptance, conformance, delivery channel.",
+      "actionLeadMs": 1300,
+      "vo": "Back in Triage, the readiness card is the honest pre-send check: every line resolved, the supplier's acceptance rules, conformance, and how the order will be delivered."
+    },
+    {
+      "id": "b7-send",
+      "shot": "Cursor clicks 'Send to supplier'. The confirm dialog opens; cursor checks the confirmation box and clicks the final Send.",
+      "actionLeadMs": 1200,
+      "extraMs": 2500,
+      "vo": "When everything is green, send. You confirm once, and ProcuLink generates the exact format this supplier requires and delivers it."
+    },
+    {
+      "id": "b8-delivered",
+      "shot": "The order tracks through Generating → Sent → Delivered on screen. Cursor rests.",
+      "extraMs": 2000,
+      "vo": "The order tracks through generating, sent, and delivered. And every step lands in the audit trail, so there is proof for every single order."
+    }
+  ]
+}

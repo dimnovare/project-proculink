@@ -1,168 +1,183 @@
 #!/usr/bin/env node
 /**
- * Assemble the final walkthrough MP4:
- *   intro card → (footage + voiceover) → outro card,  with a music bed under it all.
+ * Assemble the final card-based walkthrough MP4:
+ *
+ *   intro card → [ scene card + voiceover ] × N → outro card,  music bed under all.
  *
  *   node scripts/demo-video/assemble.mjs
  *
- * Inputs:
- *   - newest .webm under out/capture/      (Playwright screen capture)
- *   - out/vo/*.mp3 + out/vo/manifest.json  (ElevenLabs voiceover)
- *   - out/markers.json                     (scene timestamps for narration sync)
- *   - assets/music.mp3                      (optional music bed)
+ * This is the CARD pipeline — no screen-recording. Each scene in scenes.json is
+ * a clean, on-brand navy card (make-cards.mjs) shown for exactly its voiceover's
+ * length (+ a small pad), with a subtle fade + slow zoom so it reads as motion,
+ * not a static slideshow. The ElevenLabs voiceover for each scene is muxed onto
+ * its own clip, so narration and caption always track the card on screen.
+ *
+ * Inputs (all produced by the sibling scripts):
+ *   - out/cards/*.png            (make-cards.mjs — run automatically here)
+ *   - out/vo/*.mp3 + manifest    (generate-vo.mjs — `bun run demo:vo`)
+ *   - assets/music.mp3           (ElevenLabs Music bed — optional, looped)
  *
  * Flags / env:
- *   --video=<path>        specific capture file
- *   --no-captions         skip captions.srt
- *   DEMO_MUSIC_VOL=0.22   music mix level (0..1) — bump if you can't hear it
- *   DEMO_LEAD_SEC=0.3     lead-in trimmed off the footage
+ *   DEMO_MUSIC_VOL=0.10   music mix level (0..1)
+ *   DEMO_PAD_SEC=1.0      silent pad added after each scene's VO
+ *   DEMO_INTRO_SEC=4.5    intro card length
+ *   DEMO_OUTRO_SEC=5.5    outro card length
+ *   DEMO_VO_LEAD=0.5      delay before each scene's VO starts (lets the card land)
  *
- * Requires ffmpeg + ffprobe on PATH.
+ * Requires ffmpeg + ffprobe on PATH, and `magick` (ImageMagick) for the cards.
  */
 import {
-  readFileSync, writeFileSync, mkdirSync, readdirSync, statSync, existsSync,
+  readFileSync, writeFileSync, mkdirSync, existsSync, rmSync,
 } from "node:fs";
-import { resolve, dirname, join } from "node:path";
+import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { execFileSync } from "node:child_process";
-import { makeLogos } from "./make-logo.mjs";
+import { makeCards } from "./make-cards.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const out = resolve(here, "out");
 mkdirSync(out, { recursive: true });
 
-// Rasterise the navy-card logo (gradient mark + white wordmark) → out/logo-lockup.png.
-const logos = await makeLogos(out);
-
 const FFMPEG = process.env.FFMPEG ?? "ffmpeg";
 const FFPROBE = process.env.FFPROBE ?? "ffprobe";
-const GAP = parseFloat(process.env.DEMO_GAP_SEC ?? "0.6");
-// Bed is now a mastered ElevenLabs Music track (~-1 dB peak), so MUSIC_VOL is
-// much lower than the old synth pad needed → a quiet, subordinate enterprise bed.
 const MUSIC_VOL = parseFloat(process.env.DEMO_MUSIC_VOL ?? "0.10");
-// Final loudness lift: ElevenLabs VO peaks ~-9 dB, so the raw mix sits ~-25 LUFS
-// (quiet for web). A fixed +dB gain + safety limiter brings it to ~-18 LUFS
-// while preserving the VO↔music balance and the fades exactly (no loudnorm pump).
-const OUT_GAIN = parseFloat(process.env.DEMO_OUTPUT_GAIN_DB ?? "7");
-const INTRO = parseFloat(process.env.DEMO_INTRO_SEC ?? "4.5");
-const OUTRO = parseFloat(process.env.DEMO_OUTRO_SEC ?? "5");
-// Fonts for the title cards (escaped colon for the ffmpeg drawtext filter).
-const FONT_BOLD = "C\\:/Windows/Fonts/arialbd.ttf";
-const FONT_REG = "C\\:/Windows/Fonts/arial.ttf";
+const OUT_GAIN = parseFloat(process.env.DEMO_OUTPUT_GAIN_DB ?? "6");
+// Pad = extra dwell after each scene's VO so the card has reading time and the
+// pacing breathes (this is what lifts the cut to a comfortable ~2.5 min).
+const PAD = parseFloat(process.env.DEMO_PAD_SEC ?? "1.8");
+const VO_LEAD = parseFloat(process.env.DEMO_VO_LEAD ?? "0.5");
+const INTRO = parseFloat(process.env.DEMO_INTRO_SEC ?? "5.0");
+const OUTRO = parseFloat(process.env.DEMO_OUTRO_SEC ?? "6.0");
+const W = 1920, H = 1080, FPS = 30;
 
 const args = process.argv.slice(2);
 const arg = (k, d) => { const a = args.find((x) => x.startsWith(`--${k}=`)); return a ? a.split("=").slice(1).join("=") : d; };
 const noCaptions = args.includes("--no-captions");
 
-const scenes = JSON.parse(readFileSync(resolve(here, "scenes.json"), "utf8"));
+const run = (a) => execFileSync(FFMPEG, a, { stdio: ["ignore", "ignore", "inherit"] });
+const probeDur = (f) => parseFloat(execFileSync(FFPROBE, ["-v", "error", "-show_entries", "format=duration", "-of", "default=nw=1:nk=1", f]).toString().trim());
+
+// 0. Render the brand + scene cards.
+console.log("🎨 rendering cards …");
+const cards = makeCards(out);
+
+// 1. Voiceover manifest (per-scene durations).
 const manifestPath = resolve(out, "vo", "manifest.json");
 if (!existsSync(manifestPath)) { console.error("No out/vo/manifest.json — run `bun run demo:vo` first."); process.exit(1); }
 const vo = JSON.parse(readFileSync(manifestPath, "utf8"));
 const byId = Object.fromEntries(vo.map((v) => [v.id, v]));
-const markers = existsSync(resolve(out, "markers.json"))
-  ? JSON.parse(readFileSync(resolve(out, "markers.json"), "utf8")) : null;
+const scenes = cards.scenes;
 
-const run = (a) => execFileSync(FFMPEG, a, { stdio: "inherit" });
-const probeDur = (f) => parseFloat(execFileSync(FFPROBE, ["-v", "error", "-show_entries", "format=duration", "-of", "default=nw=1:nk=1", f]).toString().trim());
+// 2. Build one clip per card.
+//    A "still" card → an animated clip: scale, slow zoom (Ken Burns), fade in/out.
+//    Scene clips carry the scene's VO (delayed by VO_LEAD); intro/outro are silent.
+const clipsDir = resolve(out, "clips");
+mkdirSync(clipsDir, { recursive: true });
 
-// 1. Locate the capture video.
-function newestWebm(dir) {
-  let best = null;
-  const walk = (d) => { for (const e of readdirSync(d)) { const p = join(d, e); const st = statSync(p); if (st.isDirectory()) walk(p); else if (e.endsWith(".webm") && (!best || st.mtimeMs > best.m)) best = { p, m: st.mtimeMs }; } };
-  if (existsSync(dir)) walk(dir);
-  return best?.p;
+function kenBurns(dur) {
+  // Very gentle zoom from 1.00 → ~1.04 over the clip — motion without drama.
+  const frames = Math.max(1, Math.round(dur * FPS));
+  return (
+    `scale=${W * 4}:-1,` +
+    `zoompan=z='min(zoom+0.00035,1.045)':d=${frames}:s=${W}x${H}:fps=${FPS}:` +
+    `x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)',` +
+    `setsar=1`
+  );
 }
-const videoIn = arg("video", newestWebm(resolve(out, "capture")));
-if (!videoIn) { console.error("No capture .webm found. Run `bun run demo:capture` first (or pass --video=)."); process.exit(1); }
-const videoDur = probeDur(videoIn);
-console.log(`🎞  video : ${videoIn} (${videoDur.toFixed(1)}s)`);
 
-// 2. Per-scene start offsets (relative to the footage), lead-in trimmed.
-const starts = {};
-if (markers) { for (const s of scenes) starts[s.id] = markers[s.id] ?? 0; }
-else { let t = 0; for (const s of scenes) { starts[s.id] = t; t += (byId[s.id]?.durationSec ?? 0) + GAP; } }
-const LEAD = parseFloat(process.env.DEMO_LEAD_SEC ?? "0.3");
-const trimStart = markers ? Math.max(0, (starts[scenes[0].id] ?? 0) - LEAD) : 0;
-if (trimStart > 0) for (const s of scenes) starts[s.id] = Math.max(0, starts[s.id] - trimStart);
+function imageClip(png, dur, outPath, { voFile, fadeOut } = {}) {
+  const fIn = `fade=t=in:st=0:d=0.5`;
+  const fOut = fadeOut ? `,fade=t=out:st=${(dur - 0.6).toFixed(2)}:d=0.6` : "";
+  const vf = `${kenBurns(dur)},${fIn}${fOut},format=yuv420p`;
+  if (voFile) {
+    // VO delayed so the card lands first; clip held for dur; silence-padded tail.
+    const ms = Math.round(VO_LEAD * 1000);
+    run([
+      "-y", "-loop", "1", "-i", png, "-i", resolve(out, "vo", voFile),
+      "-filter_complex",
+      `[0:v]${vf}[v];[1:a]adelay=${ms}|${ms},apad,aresample=44100[a]`,
+      "-map", "[v]", "-map", "[a]", "-t", dur.toFixed(2),
+      "-c:v", "libx264", "-preset", "medium", "-crf", "20", "-pix_fmt", "yuv420p",
+      "-ar", "44100", "-ac", "2", "-c:a", "aac", "-b:a", "192k", outPath,
+    ]);
+  } else {
+    run([
+      "-y", "-loop", "1", "-i", png, "-f", "lavfi", "-i", "anullsrc=r=44100:cl=stereo",
+      "-filter_complex", `[0:v]${vf}[v]`,
+      "-map", "[v]", "-map", "1:a", "-t", dur.toFixed(2),
+      "-c:v", "libx264", "-preset", "medium", "-crf", "20", "-pix_fmt", "yuv420p",
+      "-ar", "44100", "-ac", "2", "-c:a", "aac", "-b:a", "192k", "-shortest", outPath,
+    ]);
+  }
+}
 
-const lastEnd = Math.max(...scenes.map((s) => (starts[s.id] ?? 0) + (byId[s.id]?.durationSec ?? 0)));
-const coreDur = Math.max(videoDur - trimStart, lastEnd) + 0.6;
-const totalDur = INTRO + coreDur + OUTRO;
-console.log(`✂️  trim ${trimStart.toFixed(1)}s · core ${coreDur.toFixed(1)}s · total ${totalDur.toFixed(1)}s (intro ${INTRO} + core + outro ${OUTRO})`);
+const clips = [];
+const timeline = []; // { id, start, dur } for captions
 
-// 3. Voiceover track (delay each clip to its marker, mix).
-const voFiles = scenes.map((s) => byId[s.id]).filter(Boolean);
-const voInputs = voFiles.flatMap((v) => ["-i", resolve(out, "vo", v.file)]);
-const delays = voFiles.map((v, i) => { const ms = Math.round((starts[v.id] ?? 0) * 1000); return `[${i}:a]adelay=${ms}|${ms}[a${i}]`; }).join(";");
-const mix = voFiles.map((_, i) => `[a${i}]`).join("") + `amix=inputs=${voFiles.length}:normalize=0[vo]`;
-const voOut = resolve(out, "voiceover.m4a");
-run(["-y", ...voInputs, "-filter_complex", `${delays};${mix}`, "-map", "[vo]", "-t", coreDur.toFixed(2), "-ar", "44100", "-ac", "2", "-c:a", "aac", "-b:a", "192k", voOut]);
+console.log("🎬 intro card …");
+const introClip = resolve(clipsDir, "00-intro.mp4");
+imageClip(cards.intro, INTRO, introClip, { fadeOut: true });
+clips.push(introClip);
+let cursor = INTRO;
 
-// 4. Captions — shifted by the intro so they line up in the final cut.
+scenes.forEach((s, i) => {
+  const voDur = byId[s.id]?.durationSec ?? 4;
+  const dur = +(VO_LEAD + voDur + PAD).toFixed(2);
+  const clip = resolve(clipsDir, `${String(i + 1).padStart(2, "0")}-${s.id}.mp4`);
+  console.log(`🎬 ${s.id}  (vo ${voDur.toFixed(1)}s → clip ${dur.toFixed(1)}s)`);
+  imageClip(cards.scenePngs[s.id], dur, clip, { voFile: byId[s.id]?.file, fadeOut: true });
+  clips.push(clip);
+  timeline.push({ id: s.id, vo: s.vo, start: cursor + VO_LEAD, dur: voDur });
+  cursor += dur;
+});
+
+console.log("🎬 outro card …");
+const outroClip = resolve(clipsDir, "99-outro.mp4");
+imageClip(cards.outro, OUTRO, outroClip, { fadeOut: true });
+clips.push(outroClip);
+const totalDur = cursor + OUTRO;
+
+// 3. Captions.srt over the final timeline.
 if (!noCaptions) {
   const tc = (sec) => { const h = Math.floor(sec / 3600), m = Math.floor((sec % 3600) / 60), s = Math.floor(sec % 60), ms = Math.round((sec - Math.floor(sec)) * 1000); const p = (n, w = 2) => String(n).padStart(w, "0"); return `${p(h)}:${p(m)}:${p(s)},${p(ms, 3)}`; };
-  const srt = scenes.map((s, i) => { const st = (starts[s.id] ?? 0) + INTRO; const d = byId[s.id]?.durationSec ?? 3; return `${i + 1}\n${tc(st)} --> ${tc(st + d)}\n${s.vo.replace(/\s+/g, " ").trim()}\n`; }).join("\n");
+  const srt = timeline.map((t, i) => `${i + 1}\n${tc(t.start)} --> ${tc(t.start + t.dur)}\n${t.vo.replace(/\s+/g, " ").trim()}\n`).join("\n");
   writeFileSync(resolve(out, "captions.srt"), srt, "utf8");
   console.log("📝 captions:", resolve(out, "captions.srt"));
 }
 
-// 5. Core = footage (scaled, lead-trimmed, fade-in, frozen tail) + voiceover.
-const core = resolve(out, "core.mp4");
-run(["-y", ...(trimStart > 0 ? ["-ss", trimStart.toFixed(3)] : []), "-i", videoIn, "-i", voOut,
-  "-filter_complex",
-  "[0:v]scale=1920:1080:force_original_aspect_ratio=decrease,pad=1920:1080:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=30,fade=t=in:st=0:d=0.4,tpad=stop=-1:stop_mode=clone[v]",
-  "-map", "[v]", "-map", "1:a", "-t", coreDur.toFixed(2),
-  "-c:v", "libx264", "-preset", "medium", "-crf", "19", "-pix_fmt", "yuv420p", "-ar", "44100", "-ac", "2", "-c:a", "aac", "-b:a", "192k", core]);
+// 4. Concat all clips (consistent codec/sr/ac → demuxer concat is safe).
+const listPath = resolve(out, "_concat.txt");
+writeFileSync(listPath, clips.map((c) => `file '${c.replace(/'/g, "'\\''")}'`).join("\n"), "utf8");
+const concatOut = resolve(out, "core.mp4");
+// Stream-copy the video (already uniform H.264) but RE-ENCODE the audio so the
+// per-clip AAC frames stitch with clean, monotonic timestamps (a plain `-c copy`
+// concat of separately-encoded clips warns on non-monotonic DTS at each seam).
+run([
+  "-y", "-f", "concat", "-safe", "0", "-i", listPath,
+  "-c:v", "copy", "-c:a", "aac", "-b:a", "192k", "-ar", "44100", "-ac", "2",
+  "-video_track_timescale", "30000", concatOut,
+]);
 
-// 6/7. Branded title cards: navy bg + the real ProcuLink logo (gradient mark +
-// white wordmark) overlaid, + centered drawtext lines, fade in/out, silent
-// stereo track (music is mixed over the whole timeline in step 8).
-function makeCard(outPath, dur, opts) {
-  const { lines, fadeOut = false, logo, logoW = 640, logoY = 350 } = opts;
-  const draws = lines.map((l) => `drawtext=fontfile='${l.font}':text='${l.text}':fontcolor=${l.color}:fontsize=${l.size}:x=(w-text_w)/2:y=${l.y}`).join(",");
-  const fadeOutF = fadeOut ? `,fade=t=out:st=${(dur - 0.6).toFixed(2)}:d=0.6` : "";
-  const filter =
-    `[2:v]scale=${logoW}:-1[lg];` +
-    `[0:v][lg]overlay=(W-w)/2:${logoY}[bg];` +
-    `[bg]${draws},fade=t=in:d=0.6${fadeOutF}[v]`;
-  run(["-y",
-    "-f", "lavfi", "-i", `color=c=0x0B1A2F:s=1920x1080:d=${dur}:r=30`,
-    "-f", "lavfi", "-i", "anullsrc=r=44100:cl=stereo",
-    "-i", logo,
-    "-filter_complex", filter,
-    "-map", "[v]", "-map", "1:a", "-t", String(dur),
-    "-c:v", "libx264", "-preset", "medium", "-crf", "20", "-pix_fmt", "yuv420p", "-c:a", "aac", "-b:a", "192k", "-shortest", outPath]);
-}
-const intro = resolve(out, "intro.mp4");
-const outro = resolve(out, "outro.mp4");
-// Intro: logo + tagline.
-makeCard(intro, INTRO, {
-  logo: logos.lockup, logoW: 700, logoY: 400,
-  lines: [
-    { text: "The missing link between buyers and suppliers.", font: FONT_REG, size: 50, color: "0xC9D5E6", y: 625 },
-  ],
-  fadeOut: true,
-});
-// Outro: logo + statement + CTA.
-makeCard(outro, OUTRO, {
-  logo: logos.lockup, logoW: 660, logoY: 340,
-  lines: [
-    { text: "Connecting procurement.", font: FONT_BOLD, size: 58, color: "white", y: 560 },
-    { text: "Start free at proculink.eu", font: FONT_BOLD, size: 44, color: "0x3DBE6B", y: 672 },
-  ],
-  fadeOut: true,
-});
-
-// 8. Final: concat intro+core+outro, overlay the music bed (audible).
+// 5. Final: music bed under the whole timeline + output loudness lift.
 const music = arg("music", existsSync(resolve(here, "assets", "music.mp3")) ? resolve(here, "assets", "music.mp3") : "");
 const finalOut = resolve(out, "walkthrough.mp4");
-const inputs = ["-i", intro, "-i", core, "-i", outro, ...(music ? ["-i", music] : [])];
-const concatF = "[0:v][0:a][1:v][1:a][2:v][2:a]concat=n=3:v=1:a=1[cv][ca]";
-const aOut = music
-  ? `${concatF};[3:a]aloop=loop=-1:size=2e9,volume=${MUSIC_VOL},afade=t=in:d=2,afade=t=out:st=${(totalDur - 2).toFixed(2)}:d=2[m];[ca][m]amix=inputs=2:duration=first:normalize=0,volume=${OUT_GAIN}dB,alimiter=limit=0.95[aout]`
-  : `${concatF};[ca]volume=${OUT_GAIN}dB,alimiter=limit=0.95[aout]`;
-if (music) console.log(`🎵 music : ${music} @ vol ${MUSIC_VOL}`);
-run(["-y", ...inputs, "-filter_complex", aOut, "-map", "[cv]", "-map", "[aout]", "-t", totalDur.toFixed(2),
-  "-c:v", "libx264", "-preset", "medium", "-crf", "20", "-pix_fmt", "yuv420p", "-ar", "44100", "-ac", "2", "-c:a", "aac", "-b:a", "192k", "-movflags", "+faststart", finalOut]);
+if (music) {
+  console.log(`🎵 music : ${music} @ vol ${MUSIC_VOL}`);
+  run([
+    "-y", "-i", concatOut, "-i", music,
+    "-filter_complex",
+    `[1:a]aloop=loop=-1:size=2e9,volume=${MUSIC_VOL},afade=t=in:d=2,afade=t=out:st=${(totalDur - 2).toFixed(2)}:d=2[m];` +
+      `[0:a][m]amix=inputs=2:duration=first:normalize=0,volume=${OUT_GAIN}dB,alimiter=limit=0.95[aout]`,
+    "-map", "0:v", "-map", "[aout]", "-t", totalDur.toFixed(2),
+    "-c:v", "copy", "-ar", "44100", "-ac", "2", "-c:a", "aac", "-b:a", "192k", "-movflags", "+faststart", finalOut,
+  ]);
+} else {
+  run([
+    "-y", "-i", concatOut, "-af", `volume=${OUT_GAIN}dB,alimiter=limit=0.95`,
+    "-c:v", "copy", "-ar", "44100", "-ac", "2", "-c:a", "aac", "-b:a", "192k", "-movflags", "+faststart", finalOut,
+  ]);
+}
 
-console.log(`\n✅ ${finalOut}`);
+rmSync(listPath, { force: true });
+const finalDur = probeDur(finalOut);
+console.log(`\n✅ ${finalOut}  —  ${finalDur.toFixed(1)}s`);

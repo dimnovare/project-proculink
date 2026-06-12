@@ -1,0 +1,49 @@
+{
+  "id": "upload",
+  "toolName": "Upload an order",
+  "route": "/upload",
+  "kicker": "Tool guide",
+  "outroLine": "Next: review & resolve the order.",
+  "beats": [
+    {
+      "id": "b1-open",
+      "shot": "Land on /upload. Cursor drifts toward the page title, settles near the dropzone.",
+      "vo": "This is the Upload workbench, where every order enters ProcuLink."
+    },
+    {
+      "id": "b2-formats",
+      "shot": "Cursor traces the dropzone format line (CSV, XLSX, PDF, XML, EDI), then rests on Browse files.",
+      "vo": "You can drop a purchase order here in whatever format it already lives in. A CSV, a spreadsheet, a PDF, or structured formats like cXML, UBL, EDIFACT and X12. ProcuLink detects the format for you."
+    },
+    {
+      "id": "b3-sample",
+      "shot": "Cursor glides down to the sample-order chip and hovers the 'Try with a sample order' button. No click.",
+      "vo": "No order handy yet? The sample order runs a safe example through the whole flow, and it never counts toward your monthly quota."
+    },
+    {
+      "id": "b4-file",
+      "shot": "Cursor returns to Browse files, clicks; a CSV file 'arrives'. Detect pill appears: Detected CSV, PO number, line count, 'seen this layout before'.",
+      "actionLeadMs": 1700,
+      "vo": "Let's add a real file. The moment it lands, ProcuLink identifies the format, the purchase order number, and the line count. And if it has seen this layout before, it tells you."
+    },
+    {
+      "id": "b5-supplier",
+      "shot": "Cursor moves to the Pipeline configuration panel, opens the supplier select and switches to ElectroSupply Co; the 'routes to' line updates.",
+      "actionLeadMs": 1500,
+      "vo": "Every upload routes to one supplier. Pick the one this order is for. Their format and delivery settings are what ProcuLink will use later, when the order is sent."
+    },
+    {
+      "id": "b6-upload",
+      "shot": "Cursor clicks 'Upload & review'. The Parse, Normalize, Validate stage animation plays.",
+      "actionLeadMs": 1200,
+      "extraMs": 2500,
+      "vo": "Then upload. ProcuLink parses the file, normalizes it into one canonical order, and runs the first validation checks."
+    },
+    {
+      "id": "b7-after",
+      "shot": "The mapping preview page lands: parsed lines with AI suggestions visible. Cursor rests; no interaction.",
+      "extraMs": 1200,
+      "vo": "And this is what happens next. The parsed order opens for review, line by line. Nothing is ever sent to a supplier without passing through review first. That's the next guide."
+    }
+  ]
+}
