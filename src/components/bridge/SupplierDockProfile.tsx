@@ -10,7 +10,10 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { ChevronLeft, Trash2, Info, Clock, Link2, Truck, Plus, ShieldCheck, GitBranch } from "lucide-react";
 import { PoMappingEditor } from "./PoMappingEditor";
 import { DeliveryConfigEditor } from "./DeliveryConfigEditor";
+import { CatalogSourceEditor } from "./CatalogSourceEditor";
 import { upsertPoMapping, deletePoMapping } from "@/lib/api/mapping";
+import { getOrgSettings } from "@/lib/api/settings";
+import { API_BASE_URL } from "@/lib/api/core";
 import { apiClient, isApiMockMode, getAcceptanceProfile, saveAcceptanceProfile, activateAcceptanceVersion, applyPoMappingTemplate, getSupplierCatalog, importSupplierCatalog, clearSupplierCatalog, getSupplierRuleBindings, listConnections, type SupplierRuleBinding } from "@/lib/api-client";
 import { StandardsRefList, hasStandardsRefs } from "./StandardsRefList";
 import { statusLabel } from "./UnifiedStatusBadge";
@@ -998,6 +1001,83 @@ function CatalogTab({ supplierId }: { supplierId: string }) {
           )}
         </div>
       )}
+
+      {/* ── Automatic import sources (additive — manual upload above stays primary) ── */}
+      <details style={{ marginTop: 18, border: "1px solid #E2E6EE", borderRadius: 8, background: "#FBFCFE" }}>
+        <summary style={{ cursor: "pointer", listStyle: "none", padding: "11px 14px", fontSize: 13, fontWeight: 700, color: INK }}>
+          Automatic import
+          <span style={{ fontSize: 11.5, fontWeight: 500, color: MUTED, marginLeft: 8 }}>
+            Pull on a schedule, or let the supplier push to you
+          </span>
+        </summary>
+        <div style={{ display: "grid", gap: 14, padding: "0 14px 14px" }}>
+          <CatalogSourceEditor supplierId={supplierId} />
+          <CatalogPushCard supplierId={supplierId} />
+        </div>
+      </details>
+    </div>
+  );
+}
+
+// ── CatalogPushCard ───────────────────────────────────────────────────────────
+// Read-only display of the API-key push endpoint for this supplier. The FE only
+// shows the copyable URL + points to the API-keys docs; the push itself is
+// machine-to-machine (API-key auth) and not called from the browser.
+function CatalogPushCard({ supplierId }: { supplierId: string }) {
+  const queryEnabled = useQueriesEnabled();
+  const [copied, setCopied] = useState(false);
+
+  const { data: orgSettings } = useQuery({
+    queryKey: ["org-settings"],
+    queryFn: getOrgSettings,
+    enabled: queryEnabled,
+    staleTime: 60_000,
+  });
+  const orgSlug = orgSettings?.slug ?? null;
+  const url = orgSlug
+    ? `${API_BASE_URL}/api/ingress/${orgSlug}/catalog/${supplierId}`
+    : `${API_BASE_URL}/api/ingress/{your-org-slug}/catalog/${supplierId}`;
+
+  async function copy() {
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1800);
+    } catch {
+      /* clipboard blocked — the URL is still visible to copy by hand */
+    }
+  }
+
+  return (
+    <div style={{ border: "1px solid #E2E6EE", borderRadius: 8, background: "#FFFFFF" }}>
+      <div style={{ padding: "11px 14px", borderBottom: "1px solid #E2E6EE", background: "#F6F7FA" }}>
+        <div style={{ fontSize: 13, fontWeight: 600, color: INK }}>Push from your system</div>
+        <div style={{ fontSize: 11.5, color: MUTED, marginTop: 2 }}>
+          POST a CSV or XLSX to this endpoint with your API key — products upsert by code.
+        </div>
+      </div>
+      <div style={{ padding: 14, display: "grid", gap: 10 }}>
+        <div style={{ display: "flex", alignItems: "stretch", gap: 8, flexWrap: "wrap" }}>
+          <code style={{ flex: 1, minWidth: 220, fontFamily: MONO, fontSize: 11.5, color: INK, background: "#0B1A2F0A", border: "1px solid #E2E6EE", borderRadius: 6, padding: "8px 10px", wordBreak: "break-all", display: "flex", alignItems: "center" }}>
+            POST {url}
+          </code>
+          <button type="button" onClick={copy}
+            style={{ minHeight: 36, padding: "0 14px", border: "1px solid #C6CDDA", background: "#FFFFFF", color: INK, borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
+            {copied ? "Copied" : "Copy"}
+          </button>
+        </div>
+        {!orgSlug && (
+          <div style={{ fontSize: 11.5, color: MUTED }}>
+            Replace <code style={{ fontFamily: MONO }}>{"{your-org-slug}"}</code> with your workspace slug (Settings).
+          </div>
+        )}
+        <div style={{ fontSize: 11.5, color: MUTED, lineHeight: 1.5 }}>
+          Authenticate with an API key from{" "}
+          <Link href="/settings?tab=api" style={{ color: BLUE, fontWeight: 600 }}>Settings → API keys</Link>.{" "}
+          See the{" "}
+          <Link href="/help/api-and-integrations" style={{ color: BLUE, fontWeight: 600 }}>API &amp; integrations guide</Link>.
+        </div>
+      </div>
     </div>
   );
 }

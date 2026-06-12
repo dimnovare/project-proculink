@@ -1756,6 +1756,23 @@ export type {
   UpdateS3IngressPayload,
 } from "@/lib/api/settings";
 
+// ── Supplier catalog pull-source config (plan 2026-06-12) ─────────────────────
+export {
+  getCatalogSource,
+  upsertCatalogSource,
+  deleteCatalogSource,
+  testFetchCatalogSource,
+} from "@/lib/api/catalogSources";
+export type {
+  CatalogSource,
+  CatalogSourceProtocol,
+  CatalogSyncStatus,
+  UpsertCatalogSourcePayload,
+  UpsertCatalogSourceResult,
+  CatalogSourceTestResult,
+  CatalogMappedField,
+} from "@/lib/api/catalogSources";
+
 // ── Wave 4: API Keys ──────────────────────────────────────────────────────
 
 export interface ApiKey {
