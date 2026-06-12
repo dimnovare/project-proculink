@@ -1,5 +1,13 @@
 # Walkthrough video pipeline
 
+> **Per-tool video library (2026-06-12):** the founder judged the card-based
+> cut WORSE than v5's real-screen-recording walkthrough, and asked for one
+> short REAL-UI video per tab/tool instead. That pipeline lives in
+> **`tools/`** (specs + Playwright captures + per-tool assembler) — see
+> `tools/PRODUCTION.md` (two pilots built: Upload, Review & resolve) and
+> `HELP-INTEGRATION.md` (how videos plug into the help center — design only).
+> The card pipeline below still works but is no longer the direction.
+
 Produces the `/watch` walkthrough as a clean, **card-based** narrated video:
 on-brand title cards (navy + the blue→green ProcuLink bridge mark), an
 **ElevenLabs** voiceover per scene, an ElevenLabs music bed, assembled with

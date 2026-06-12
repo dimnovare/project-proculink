@@ -18,6 +18,9 @@
     "demo:capture": "playwright test --config=playwright.demo.config.ts",
     "demo:vo": "node scripts/demo-video/generate-vo.mjs",
     "demo:assemble": "node scripts/demo-video/assemble.mjs",
+    "demo:tools:vo": "node scripts/demo-video/tools/generate-tool-vo.mjs",
+    "demo:tools:capture": "playwright test --config=playwright.tools.config.ts",
+    "demo:tools:assemble": "node scripts/demo-video/tools/assemble-tool.mjs",
     "check:pageshell": "node scripts/check-pageshell.mjs"
   },
   "dependencies": {
