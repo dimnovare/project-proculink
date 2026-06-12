@@ -213,6 +213,18 @@ export function ParseFailedPanel({
 
 // ─── FailedPanel ──────────────────────────────────────────────────────────────
 
+/**
+ * True when a delivery failure is the "no delivery config" cliff (task 7).
+ * Matches the backend DeliveryService message ("Supplier delivery config is
+ * missing. Add a delivery endpoint before sending this order.") plus close
+ * variants, case-insensitively — retrying can NEVER fix this state, so the
+ * panel leads with "Set up delivery" and demotes Retry.
+ */
+export function isDeliveryConfigMissing(errorMessage: string | null | undefined): boolean {
+  if (!errorMessage) return false;
+  return /delivery\s+config(uration)?\s+is\s+missing|missing\s+(supplier\s+)?delivery\s+config/i.test(errorMessage);
+}
+
 export function FailedPanel({
   order,
   stage,
@@ -225,6 +237,10 @@ export function FailedPanel({
   const queryClient = useQueryClient();
 
   const isTransform  = stage === "transform";
+  // Config-missing is a SETUP gap, not a transient failure — Retry cannot
+  // succeed until a delivery config exists, so the primary CTA becomes
+  // "Set up delivery" (deep link to the supplier's Delivery tab).
+  const configMissing = !isTransform && isDeliveryConfigMissing(order.errorMessage);
   const accentColor  = isTransform ? T.amber : T.danger;
   const bgColor      = isTransform ? T.amberSoft : T.dangerSoft;
   const title        = isTransform ? "Output generation failed" : "Delivery to supplier failed";
@@ -334,6 +350,58 @@ export function FailedPanel({
               >
                 Back to review
               </Link>
+            ) : configMissing ? (
+              <>
+                {/* Config-missing variant (task 7): the fix is setup, not a
+                    retry — primary CTA deep-links to the Delivery tab; Retry
+                    stays available but demoted, with an honest helper. */}
+                <Link
+                  href={`/library/suppliers/${order.supplierId}?tab=delivery`}
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: 6,
+                    padding: "9px 18px",
+                    borderRadius: 7,
+                    background: T.navy,
+                    color: "#FFFFFF",
+                    fontSize: 13,
+                    fontWeight: 600,
+                    textDecoration: "none",
+                  }}
+                >
+                  Set up delivery
+                  <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
+                    <path d="M6 3l5 5-5 5" stroke="#FFFFFF" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </Link>
+                <button
+                  onClick={() => void handleRedeliver()}
+                  disabled={isRetrying}
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: 6,
+                    padding: "7px 14px",
+                    borderRadius: 7,
+                    background: "transparent",
+                    border: `1px solid ${T.border}`,
+                    color: T.inkMuted,
+                    fontSize: 12.5,
+                    fontWeight: 500,
+                    cursor: isRetrying ? "not-allowed" : "pointer",
+                    fontFamily: T.ui,
+                    opacity: isRetrying ? 0.6 : 1,
+                  }}
+                >
+                  {isRetrying ? "Retrying…" : "Retry delivery"}
+                </button>
+                <p style={{ fontSize: 11.5, color: T.inkFaint, margin: 0, textAlign: "center" }}>
+                  Retry won&apos;t succeed until delivery is set up.
+                </p>
+              </>
             ) : (
               <button
                 onClick={() => void handleRedeliver()}

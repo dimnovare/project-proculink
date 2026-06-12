@@ -15,6 +15,7 @@
 //      "not configured" / "—" when absent or unknown.
 
 import type { ReactNode } from "react";
+import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { useQueriesEnabled } from "@/hooks/useQueriesEnabled";
 import { getConformanceReport, ApiHttpError, type ConformanceFormat } from "@/lib/api-client";
@@ -116,7 +117,19 @@ export function SendReadinessCard({ orderId, order, validation, deliveryProtocol
 
   const deliveryValue =
     deliveryProtocol ? <>Delivers via <strong style={{ color: "#0B1A2F" }}>{deliveryChannelLabel(deliveryProtocol)}</strong></>
-    : deliveryProtocol === null ? "Not configured"
+    : deliveryProtocol === null ? (
+        // Known-none (server said no config) → deep link straight to the fix
+        // (task 7). The ?tab= deep link is honoured by SupplierDockProfile.
+        <>
+          Not configured ·{" "}
+          <Link
+            href={`/library/suppliers/${order.supplierId}?tab=delivery`}
+            style={{ color: "#1E66C9", fontWeight: 700, textDecoration: "none", whiteSpace: "nowrap" }}
+          >
+            Set up →
+          </Link>
+        </>
+      )
     : "—";
   const deliveryTone = deliveryProtocol ? "good" : deliveryProtocol === null ? "warn" : "muted";
 

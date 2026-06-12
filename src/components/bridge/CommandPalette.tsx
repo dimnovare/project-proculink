@@ -1,6 +1,7 @@
 "use client";
 
-// CommandPalette — cmd+K fuzzy search across orders, suppliers, SKUs, actions.
+// CommandPalette — cmd+K fuzzy search across orders, suppliers, buyers, and
+// actions (that IS the whole index — keep the placeholder copy in sync).
 // Built on cmdk (already installed). Wired into BridgeTopbar.
 
 import { useEffect, useState, useRef, useCallback } from "react";
@@ -97,6 +98,13 @@ function buildIndex(
     { id: "a9",  group: "Actions", icon: "▤", label: "Delivery log",         sub: "Open delivery log",      action: () => router.push("/operations/log"),   color: "#0F4FA8" },
     { id: "a7",  group: "Actions", icon: "⚙", label: "Settings",             sub: "Workspace settings",     action: () => router.push("/settings"),         color: "#0F4FA8" },
     { id: "a8",  group: "Actions", icon: "≣", label: "View standards matrix", sub: "Open standards reference", action: () => router.push("/library/standards"), color: "#0F4FA8" },
+    // ── Onboarding entry points (task 9) ────────────────────
+    { id: "a10", group: "Actions", icon: "✓", label: "Getting started",      sub: "Open the setup checklist", action: () => router.push("/bridge"),          color: "#2E8E3A" },
+    // Navigates to /upload, where the sample CTA lives: the palette unmounts
+    // on selection, so hosting the useSampleOrder mutation here would lose its
+    // onSuccess navigation mid-flight (TanStack observer teardown).
+    { id: "a11", group: "Actions", icon: "▶", label: "Run a sample order",   sub: "Practice with an example order — opens Upload", action: () => router.push("/upload"), color: "#2E8E3A" },
+    { id: "a12", group: "Actions", icon: "?", label: "Open help",            sub: "Help docs",              action: () => router.push("/help"),             color: "#0F4FA8" },
   ];
 }
 
@@ -262,7 +270,7 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
             value={q}
             onChange={(e) => setQ(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Search orders, suppliers, SKUs, actions…"
+            placeholder="Search orders, suppliers, buyers, actions…"
             style={{
               flex: 1,
               border: "none",

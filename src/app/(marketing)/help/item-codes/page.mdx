@@ -1,0 +1,35 @@
+export const metadata = {
+  title: "Supplier item codes, catalogs, and mappings — ProcuLink Help",
+  description: "What supplier item codes are, how a catalog upload powers auto-matching, and how ProcuLink remembers your resolutions.",
+};
+
+# Supplier item codes, catalogs, and mappings
+
+Your purchase orders use **your** item codes. Each supplier expects **their own** codes — the article numbers in their system. The review screen's "needs a supplier code" lines are exactly this gap, and closing it is the one piece of real work ProcuLink can't invent for you.
+
+## What a supplier item code is
+
+A supplier item code is the identifier the supplier's order system recognises for a product — their SKU or article number. When an order line shows your code (say `A4-COPY-500`) but the supplier sells it as `PAP-0042`, someone has to say so once. That "saying so" is a mapping.
+
+## Upload the supplier's catalog once
+
+The fastest way to close the gap is to import the supplier's product catalog under **Library → Suppliers → Catalog** (CSV or XLSX; columns like `code, name, unit, price, barcode` are auto-detected). With a catalog in place:
+
+- new orders auto-match lines against the supplier's real codes,
+- manual entry gets a typeahead of codes that actually exist,
+- AI suggestions are grounded in the catalog — they can only propose real codes,
+- a typo gets flagged immediately ("not in the supplier's catalog").
+
+Most suppliers can export this list from their ERP or webshop in a minute. One upload keeps teaching every future order.
+
+## ProcuLink remembers your resolutions
+
+When you type a supplier code on the review screen, that resolution is saved as an **item mapping** for that supplier. The next order with the same buyer code resolves automatically — you should only ever have to teach each product once. Saved mappings live under **Library → Mappings**.
+
+## No catalog handy?
+
+You can always type codes manually — the order still goes out. The catalog just turns a per-order chore into a one-time setup.
+
+---
+
+Next: [Setting up delivery and test-fire](/help/delivery-setup) — where resolved orders actually go.

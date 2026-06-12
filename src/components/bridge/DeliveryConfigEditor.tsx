@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import type { ReactNode } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { KeyRound, Save, Send, Trash2 } from "lucide-react";
 import { ConnectorRequirementsPanel } from "@/components/bridge/ConnectorRequirementsPanel";
 import {
@@ -10,6 +11,7 @@ import {
   testFireDelivery,
   upsertDeliveryConfig,
 } from "@/lib/api/delivery";
+import { invalidateOnboardingStatus } from "@/hooks/useOnboardingStatus";
 import type { DeliveryConfig, DeliveryProtocol, DeliveryTestResult } from "@/lib/api/types";
 
 type AuthType = "none" | "apikey" | "bearer" | "basic" | "oauth2";
@@ -40,9 +42,14 @@ function defaultPortFor(p: DeliveryProtocol): number | "" {
 const INPUT_STYLE = { border: "1px solid #D5DAEA", color: "#0B1A2F" } as const;
 
 export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) {
+  const queryClient = useQueryClient();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
+  // Test-fire nudge (task 8): true right after a successful save, until the
+  // form is edited again or a test result lands — drives the success strip
+  // with the "Send a test now" shortcut to the EXISTING test-fire flow.
+  const [justSaved, setJustSaved] = useState(false);
   const [savedConfig, setSavedConfig] = useState<DeliveryConfig | null>(null);
   const [protocol, setProtocol] = useState<DeliveryProtocol>("http");
   const [autoDeliver, setAutoDeliver] = useState(false);
@@ -190,6 +197,7 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
   function markEdited() {
     setTestResult(null);
     setError(null);
+    setJustSaved(false);
   }
 
   function buildConfigObject(): Record<string, unknown> {
@@ -281,6 +289,9 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
       setPrivateKeyPassphrase("");
       setOauthClientSecret("");
       setTestResult(null);
+      setJustSaved(true);
+      // hasDeliveryConfig just flipped — refresh the checklist/chip surfaces.
+      void invalidateOnboardingStatus(queryClient);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not save delivery config.");
     } finally {
@@ -309,6 +320,9 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
       setOauthClientSecret("");
       setAuthType("none");
       setTestResult(null);
+      setJustSaved(false);
+      // hasDeliveryConfig may have flipped back — refresh checklist surfaces.
+      void invalidateOnboardingStatus(queryClient);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not delete delivery config.");
     } finally {
@@ -320,7 +334,13 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
     setTesting(true);
     setError(null);
     try {
-      setTestResult(await testFireDelivery(supplierId));
+      const result = await testFireDelivery(supplierId);
+      setTestResult(result);
+      setJustSaved(false); // the strip's job is done — the verbatim result takes over
+      if (result.success) {
+        // hasTestFired just flipped — checklist step 5 can complete.
+        void invalidateOnboardingStatus(queryClient);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not run delivery test.");
     } finally {
@@ -884,16 +904,54 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
                 </div>
               )}
 
+              {/* Post-save nudge (task 8): config is saved but unproven — offer
+                  the EXISTING test-fire flow right here. Hidden once a result
+                  lands or the form is edited again. */}
+              {justSaved && !testResult && (
+                <div
+                  className="flex flex-col items-start gap-2 rounded-[6px] px-3 py-2 sm:flex-row sm:items-center"
+                  role="status"
+                  style={{ background: "#F0F7F1", border: "1px solid #CBE8CE" }}
+                >
+                  <p className="m-0 min-w-0 flex-1 text-[12px] font-medium" style={{ color: "#1F6F2A" }}>
+                    Delivery config saved. Prove the connection with a test payload.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={testFire}
+                    disabled={testing}
+                    className="inline-flex h-8 flex-shrink-0 items-center justify-center gap-1.5 rounded-[6px] px-3 text-[12px] font-semibold"
+                    style={{ border: "none", background: testing ? "var(--ink-faint)" : "#2E8E3A", color: "#FFF", cursor: testing ? "default" : "pointer" }}
+                  >
+                    <Send size={13} /> {testing ? "Testing..." : "Send a test now"}
+                  </button>
+                </div>
+              )}
+
+              {/* Verbatim test result (task 8): success/errorMessage/responseCode
+                  exactly as the backend reported them, plus the honesty note —
+                  a 2xx answer is NOT supplier business acceptance. */}
               {testResult && (
                 <div
-                  className="rounded-[6px] px-3 py-2 text-[12px] font-medium"
+                  className="rounded-[6px] px-3 py-2 text-[12px]"
                   style={{
                     background: testResult.success ? "#F0F7F1" : "#FCEBEB",
                     color: testResult.success ? "#1F6F2A" : "#A52E2E",
                     border: `1px solid ${testResult.success ? "#CBE8CE" : "#F5C5C5"}`,
                   }}
                 >
-                  {testResult.success ? "Test-fire accepted" : testResult.errorMessage ?? "Test-fire failed"}
+                  <p className="m-0 font-semibold">
+                    {testResult.success ? "Test-fire succeeded" : "Test-fire failed"}
+                    {testResult.responseCode != null ? ` · response code ${testResult.responseCode}` : ""}
+                  </p>
+                  {testResult.errorMessage && (
+                    <p className="m-0 mt-1 font-medium">{testResult.errorMessage}</p>
+                  )}
+                  {testResult.success && (
+                    <p className="m-0 mt-1 text-[11px]" style={{ color: "#2E5F35" }}>
+                      A successful test means their endpoint answered — it doesn&apos;t mean an order was accepted.
+                    </p>
+                  )}
                 </div>
               )}
             </div>

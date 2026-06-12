@@ -16,6 +16,7 @@ import { StandardsRefList, hasStandardsRefs } from "./StandardsRefList";
 import { statusLabel } from "./UnifiedStatusBadge";
 import { useOrderDirection } from "@/hooks/useOrderDirection";
 import { useQueriesEnabled } from "@/hooks/useQueriesEnabled";
+import { invalidateOnboardingStatus } from "@/hooks/useOnboardingStatus";
 import { PageShell } from "./layout/PageShell";
 import type { PoMappingConfig } from "@/lib/api/types";
 import type { AcceptanceRule, AcceptanceProfile, SupplierMapping } from "@/types/procurement";
@@ -909,14 +910,21 @@ function CatalogTab({ supplierId }: { supplierId: string }) {
     enabled: queryEnabled,
     staleTime: 15_000,
   });
+  // Besides this tab's own list key, refresh the review screen's shared
+  // ["supplier-catalog-codes"] probe (typeahead + CatalogHintCard self-resolve)
+  // and — on import — the onboarding status (hasCatalog can flip step 2).
+  const invalidateCatalogCaches = () => {
+    void qc.invalidateQueries({ queryKey: ["supplier-catalog", supplierId] });
+    void qc.invalidateQueries({ queryKey: ["supplier-catalog-codes", supplierId] });
+  };
   const importMut = useMutation({
     mutationFn: (file: File) => importSupplierCatalog(supplierId, file),
-    onSuccess: (r) => { setNotice(`Imported ${r.created} new, ${r.updated} updated, ${r.skipped} skipped — ${r.total} products total.`); void qc.invalidateQueries({ queryKey: ["supplier-catalog", supplierId] }); },
+    onSuccess: (r) => { setNotice(`Imported ${r.created} new, ${r.updated} updated, ${r.skipped} skipped — ${r.total} products total.`); invalidateCatalogCaches(); void invalidateOnboardingStatus(qc); },
     onError: (e) => setNotice(e instanceof Error ? e.message : "Import failed."),
   });
   const clearMut = useMutation({
     mutationFn: () => clearSupplierCatalog(supplierId),
-    onSuccess: (r) => { setNotice(`Cleared ${r.deleted} products.`); void qc.invalidateQueries({ queryKey: ["supplier-catalog", supplierId] }); },
+    onSuccess: (r) => { setNotice(`Cleared ${r.deleted} products.`); invalidateCatalogCaches(); void invalidateOnboardingStatus(qc); },
   });
 
   const items = data?.items ?? [];

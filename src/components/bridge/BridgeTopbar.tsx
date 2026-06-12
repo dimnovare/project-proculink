@@ -10,6 +10,7 @@ import { apiClient, isApiMockMode } from "@/lib/api-client";
 import type { OrderSummary } from "@/types/procurement";
 import { CommandPalette } from "./CommandPalette";
 import { HelpSlideover } from "./HelpSlideover";
+import { SetupProgressChip } from "./SetupProgressChip";
 
 interface BridgeTopbarProps {
   crumb?: ReactNode;
@@ -401,6 +402,10 @@ export function BridgeTopbar({ crumb, onMenuClick }: BridgeTopbarProps) {
           </span>
         )}
 
+        {/* Setup progress chip — visible only while onboarding is genuinely
+            incomplete (server-verified); hides itself at completion/unknown. */}
+        <SetupProgressChip />
+
         {/* cmd-K search field — right-aligned, opens the command palette */}
         <button
           type="button"
@@ -426,7 +431,8 @@ export function BridgeTopbar({ crumb, onMenuClick }: BridgeTopbarProps) {
           }}
         >
           <Search size={15} style={{ flexShrink: 0 }} />
-          <span className="flex-1 text-left truncate">Search orders, suppliers, SKUs…</span>
+          {/* Claims only what the palette index actually searches (offer⇔works). */}
+          <span className="flex-1 text-left truncate">Search orders, suppliers, buyers…</span>
           <kbd
             className="flex items-center gap-0.5 rounded text-[10.5px] font-medium"
             style={{ background: "#0a1626", border: "1px solid #1C2F49", padding: "1px 5px", color: "#7C8DA6", fontFamily: "'JetBrains Mono', ui-monospace, monospace" }}

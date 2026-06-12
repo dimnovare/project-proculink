@@ -12,9 +12,11 @@ import { PageHeader } from "./layout/PageHeader";
 import { PageShell } from "./layout/PageShell";
 import { ApiHttpError, apiClient, getBillingStatus, isApiMockMode, type DetectFormatResult } from "@/lib/api-client";
 import { capture } from "@/lib/analytics";
-import { captureException } from "@/lib/sentry-context";
 import { useOrderDirection } from "@/hooks/useOrderDirection";
 import { useQueriesEnabled } from "@/hooks/useQueriesEnabled";
+import { useOnboardingStatus } from "@/hooks/useOnboardingStatus";
+import { useSampleOrder } from "@/hooks/useSampleOrder";
+import { ACCEPTED_UPLOAD_FORMATS, hasAcceptedUploadExtension } from "@/lib/upload-formats";
 
 // Pipeline stages for the pre-redirect upload animation. "Transform" is NOT
 // shown here: nothing is transformed before the review step, so claiming it
@@ -22,15 +24,10 @@ import { useQueriesEnabled } from "@/hooks/useQueriesEnabled";
 const PIPELINE_STAGES = ["Parse", "Normalize", "Validate"] as const;
 const STAGE_MS = 600;
 
-// Accepted upload extensions — mirrors the backend whitelist exactly
-// (OrdersController.cs upload guard) and the dropzone <input accept=…>.
-const ACCEPTED_EXTENSIONS = [".csv", ".xlsx", ".pdf", ".xml", ".cxml", ".edi", ".txt"] as const;
-
-/** True when the file's extension is in the accepted whitelist. */
-function hasAcceptedExtension(name: string): boolean {
-  const lower = name.toLowerCase();
-  return ACCEPTED_EXTENSIONS.some((ext) => lower.endsWith(ext));
-}
+// Accepted upload formats live in @/lib/upload-formats (the ONE frontend
+// mirror of the backend whitelist in OrdersController.cs) — the dropzone
+// accept attr, inline validation, and human copy all read from it. The old
+// local constant here had drifted (it was missing .x12).
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -273,8 +270,9 @@ export function UploadWorkbench() {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [sampleLoading, setSampleLoading] = useState(false);
-  const [sampleError, setSampleError] = useState<string | null>(null);
+  // Shared sample-order mutation (task 9) — same analytics/invalidation/
+  // routing as every other practice-order entry point.
+  const sample = useSampleOrder("/upload");
   const [detection, setDetection] = useState<DetectFormatResult | null>(null);
   const [detectionLoading, setDetectionLoading] = useState(false);
   const detectAbortRef = useRef<AbortController | null>(null);
@@ -300,13 +298,9 @@ export function UploadWorkbench() {
     retryDelay: 800,
   });
 
-  const { data: onboardingStatus } = useQuery({
-    queryKey: ["onboarding-status"],
-    queryFn: () => apiClient.getOnboardingStatus(),
-    enabled: queryEnabled,
-    retry: 1,
-    staleTime: 60 * 1000,
-  });
+  // Shared onboarding-status query (same ["onboarding-status"] cache entry as
+  // the checklist/chip — one fetch serves all surfaces).
+  const { data: onboardingStatus } = useOnboardingStatus();
 
   // Recent uploads come from the live orders API. In mock mode we show demo
   // rows for local dev; otherwise the list reflects the user's real orders and
@@ -439,26 +433,9 @@ export function UploadWorkbench() {
     timerRefs.current.push(total);
   }
 
-  async function handleSample() {
-    if (sampleLoading || uploading) return;
-    capture("sample_order_started", { from_route: "/upload" });
-    setSampleError(null);
-    setSampleLoading(true);
-    try {
-      const { orderId } = await apiClient.runSampleOrder();
-      router.push(`/inbox/${encodeURIComponent(orderId)}?sample=1`);
-    } catch (err) {
-      captureException(err, {
-        tags: { ui_surface: "upload_sample_cta" },
-        extra: {
-          api_base_url: process.env.NEXT_PUBLIC_API_BASE_URL ?? "(unset)",
-          is_mock_mode: isApiMockMode,
-        },
-      });
-      setSampleError(err instanceof Error ? err.message : "Could not start sample run.");
-      setSampleLoading(false);
-    }
-  }
+  // handleSample was replaced by the shared useSampleOrder hook (task 9):
+  // identical capture → POST → redirect flow, plus onboarding-status/orders
+  // cache invalidation that the inline version lacked.
 
   /**
    * Validate a chosen/dropped file against the accepted whitelist, then either
@@ -466,11 +443,11 @@ export function UploadWorkbench() {
    * an inline unsupported-type error. Used by both the file picker and drop.
    */
   function acceptFile(file: File) {
-    if (!hasAcceptedExtension(file.name)) {
+    if (!hasAcceptedUploadExtension(file.name)) {
       setSelectedFile(null);
       setUploadError(null);
       setFileError(
-        `${file.name} isn't a supported file type. Upload one of: ${ACCEPTED_EXTENSIONS.join(", ")}.`,
+        `${file.name} isn't a supported file type. Upload one of: ${ACCEPTED_UPLOAD_FORMATS.extensions.join(", ")}.`,
       );
       return;
     }
@@ -516,26 +493,26 @@ export function UploadWorkbench() {
           <p className="text-[12px] mt-1" style={{ color: "#56627A" }}>
             No purchase order handy? Run one with an example CSV in seconds — it won&apos;t count toward your monthly quota.
           </p>
-          {sampleError && (
+          {sample.error && (
             <p className="mt-2 text-[12px]" style={{ color: "#C53A3A" }}>
-              {sampleError}
+              {sample.error.message}
             </p>
           )}
         </div>
         <button
           type="button"
-          onClick={handleSample}
-          disabled={sampleLoading || uploading}
+          onClick={() => { if (!uploading) sample.runSample(); }}
+          disabled={sample.isPending || uploading}
           className="w-full rounded-[6px] py-2.5 text-[13px] font-semibold transition-all"
           style={{
-            background: sampleLoading || uploading ? "#E2E6EE" : "#0B1A2F",
-            color: sampleLoading || uploading ? "var(--ink-faint)" : "#FFFFFF",
+            background: sample.isPending || uploading ? "#E2E6EE" : "#0B1A2F",
+            color: sample.isPending || uploading ? "var(--ink-faint)" : "#FFFFFF",
             border: "none",
-            boxShadow: sampleLoading || uploading ? "none" : "0 2px 8px rgba(11,26,47,0.18)",
-            cursor: sampleLoading || uploading ? "not-allowed" : "pointer",
+            boxShadow: sample.isPending || uploading ? "none" : "0 2px 8px rgba(11,26,47,0.18)",
+            cursor: sample.isPending || uploading ? "not-allowed" : "pointer",
           }}
         >
-          {sampleLoading ? "Starting sample…" : "Try with a sample order →"}
+          {sample.isPending ? "Starting sample…" : "Try with a sample order →"}
         </button>
       </div>
     </XCard>
@@ -663,11 +640,11 @@ export function UploadWorkbench() {
                 <input
                   ref={fileInputRef}
                   type="file"
-                  // Mirror the backend upload whitelist exactly
-                  // (OrdersController.cs upload guard): .csv .xlsx .pdf .xml
-                  // .cxml .edi .x12 .txt. .xls / .json are NOT accepted server-side,
-                  // so they were dropped here to avoid offering a dead format.
-                  accept=".csv,.xlsx,.pdf,.xml,.cxml,.edi,.x12,.txt"
+                  // Mirrors the backend upload whitelist via the shared
+                  // ACCEPTED_UPLOAD_FORMATS constant (lib/upload-formats.ts) —
+                  // .xls / .json are NOT accepted server-side, so the lib
+                  // omits them to avoid offering a dead format.
+                  accept={ACCEPTED_UPLOAD_FORMATS.dropzoneAccept}
                   className="hidden"
                   disabled={isReadOnly || uploading}
                   onChange={(event) => {
@@ -711,7 +688,7 @@ export function UploadWorkbench() {
                   <p className="text-[12.5px] mt-2" style={{ color: "#56627A" }}>
                     {selectedFile
                       ? `${Math.max(1, Math.round(selectedFile.size / 1024))} KB ready to send`
-                      : "PDF · XLSX · CSV · cXML · UBL · EDIFACT · X12 — up to 10 MB"}
+                      : `${ACCEPTED_UPLOAD_FORMATS.humanList} — up to 10 MB`}
                   </p>
                 </div>
 

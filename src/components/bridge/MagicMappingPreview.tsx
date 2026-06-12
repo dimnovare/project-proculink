@@ -14,12 +14,14 @@
  */
 
 import type React from "react";
+import Link from "next/link";
 import { useState, useCallback, useEffect, useReducer, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api-client";
 import type { MappingPreviewLine } from "@/lib/api-client";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useOrderDirection } from "@/hooks/useOrderDirection";
+import { isParseStalled } from "./parseStall";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -320,10 +322,29 @@ export function MagicMappingPreview({ orderId, onCommitted, onParseFailed }: Pro
     staleTime: 60_000,
   });
 
+  // Worker-down honesty (task 10 / G9): if the order sits in `parsing` beyond
+  // the 90s threshold, escalate the copy to "processing may be paused" with a
+  // /operations/health link. Polling CONTINUES unchanged — this is never a
+  // false "failed" (the Worker may just be catching up). The start mark and
+  // flag reset whenever the status leaves `parsing`.
+  const [parseStalled, setParseStalled] = useState(false);
+  const parseStartRef = useRef<number | null>(null);
+
   useEffect(() => {
-    if (preview?.orderStatus !== "parsing") return;
+    if (preview?.orderStatus !== "parsing") {
+      parseStartRef.current = null;
+      setParseStalled(false);
+      return;
+    }
+    if (parseStartRef.current === null) parseStartRef.current = Date.now();
     const timer = window.setInterval(() => {
       void refetch();
+      if (
+        parseStartRef.current !== null &&
+        isParseStalled(Date.now() - parseStartRef.current)
+      ) {
+        setParseStalled(true);
+      }
     }, 1_500);
     return () => window.clearInterval(timer);
   }, [preview?.orderStatus, refetch]);
@@ -568,6 +589,30 @@ export function MagicMappingPreview({ orderId, onCommitted, onParseFailed }: Pro
           We&apos;re reading your file and extracting its order lines. This usually takes a
           few seconds — the mapping preview will appear automatically when it&apos;s ready.
         </p>
+        {/* 90s+ in `parsing` → escalate honestly (task 10): processing MAY be
+            paused; never claim failure. Polling keeps running underneath. */}
+        {parseStalled && (
+          <p
+            role="status"
+            style={{
+              fontSize: 12,
+              color: "#7A4D0A",
+              background: "#FAEFD6",
+              border: "1px solid #F0D39A",
+              borderRadius: 6,
+              padding: "8px 12px",
+              maxWidth: 360,
+              margin: 0,
+              lineHeight: 1.5,
+            }}
+          >
+            This is taking longer than usual. Order processing may be paused —{" "}
+            <Link href="/operations/health" style={{ color: "#7A4D0A", fontWeight: 700, textDecoration: "underline" }}>
+              check system health
+            </Link>
+            . We&apos;ll keep checking automatically.
+          </p>
+        )}
       </div>
     );
   }

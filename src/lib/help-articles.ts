@@ -18,6 +18,8 @@ export const HELP_ARTICLES: HelpArticle[] = [
   { slug: "order-intake-options", title: "Ways to send orders to ProcuLink", blurb: "Manual upload, email, API, SFTP, and storage-folder options for getting POs into ProcuLink.", category: "Getting started" },
   { slug: "first-upload",     title: "Your first purchase order upload",   blurb: "Walk through uploading a purchase order file and getting it parsed.",   category: "Getting started" },
   { slug: "mapping-basics",   title: "PO field mapping basics",            blurb: "Map your CSV columns to the canonical purchase-order fields ProcuLink expects.", category: "Mapping" },
+  { slug: "item-codes",       title: "Supplier item codes, catalogs, and mappings", blurb: "What supplier item codes are, how a catalog upload powers auto-matching, and how resolutions are remembered.", category: "Mapping" },
+  { slug: "delivery-setup",   title: "Setting up delivery and test-fire",  blurb: "Choose a protocol, send a test payload, and what a successful test does — and doesn't — prove.", category: "Delivery" },
   { slug: "delivery-config",  title: "Configuring supplier delivery",      blurb: "Set up HTTP webhook delivery with credentials and test-fire.",         category: "Delivery" },
   { slug: "ai-suggestions",   title: "How AI mapping suggestions work",    blurb: "When OpenAI runs, what confidence means, and how to confirm or clear suggestions.", category: "AI" },
   { slug: "billing-faq",      title: "Billing and plans FAQ",              blurb: "Pilot, Growth, Operations, Integration, Enterprise — what's included and what happens at quota.", category: "Billing" },

@@ -1,0 +1,35 @@
+export const metadata = {
+  title: "Setting up delivery and test-fire — ProcuLink Help",
+  description: "Choose a delivery protocol, send a test payload, and understand what a successful test does — and does not — prove.",
+};
+
+# Setting up delivery and test-fire
+
+A reviewed order still needs somewhere to go. Delivery is configured **per supplier** under **Library → Suppliers → Delivery** — until it's set up, sending stops honestly at "delivery not set up" instead of pretending.
+
+## Pick the channel the supplier actually uses
+
+- **HTTP webhook** — the supplier exposes an endpoint; ProcuLink posts the order there. Auth options: none, API key, bearer token, basic, or OAuth2 fetch-token.
+- **SFTP / FTPS** — the order file is dropped on the supplier's server.
+- **Email (SMTP)** — the order goes out as an email attachment.
+- **Erply / Directo** — purpose-built ERP adapters.
+
+On the same tab you set the **output format** the supplier requires (CSV, XML, cXML, UBL/Peppol, X12, JSON) — sending auto-transforms into it.
+
+## Send a test before the first real order
+
+After saving the config, use **Send a test now** (or the Test-fire button). ProcuLink sends a real test payload to the configured destination and shows you the verbatim result: success or failure, the error message if any, and the response code.
+
+This is the rehearsal that makes the first real send boring — it proves credentials, the URL/host, and the network path against the supplier's *actual* endpoint.
+
+## A successful test is not an accepted order
+
+Be precise about what a green test means: **the supplier's endpoint answered — it doesn't mean an order was accepted.** An HTTP 200 proves the connection works; it says nothing about whether the supplier's system will take a given order's content (their side can still reject unknown item codes, missing fields, or business rules). That's why ProcuLink tracks a separate supplier-response stage after delivery, and why a delivered order can still come back `rejected_by_supplier`.
+
+## What the statuses mean
+
+`ready_to_deliver` → `delivering` → `delivered` on success. A failure lands in `delivery_failed` with the attempt's error captured for retry. If the failure is "delivery config is missing", retrying won't help — set up delivery first.
+
+---
+
+Need help? Email [support@proculink.eu](mailto:support@proculink.eu) or see [Configuring supplier delivery](/help/delivery-config) for the field-by-field reference.

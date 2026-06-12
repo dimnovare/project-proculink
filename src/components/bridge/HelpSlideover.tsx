@@ -10,18 +10,27 @@ interface Props {
   onClose: () => void;
 }
 
-const CONTEXTUAL_LINKS: Record<string, { href: string; title: string }> = {
-  "/upload":            { href: "/help/first-upload",    title: "Your first purchase order upload" },
-  "/library/mappings":  { href: "/help/mapping-basics",  title: "PO field mapping basics" },
-  "/library/suppliers": { href: "/help/delivery-config", title: "Configuring supplier delivery" },
-  "/settings":          { href: "/help/billing-faq",     title: "Billing and plans FAQ" },
-};
+// Ordered route → article map; FIRST match wins, so more specific matchers
+// (supplier DETAIL page) sit above their prefix parents (supplier list).
+const CONTEXTUAL_LINKS: Array<{
+  match: (path: string) => boolean;
+  href: string;
+  title: string;
+}> = [
+  { match: (p) => p.startsWith("/upload"),                      href: "/help/first-upload",    title: "Your first purchase order upload" },
+  { match: (p) => p.startsWith("/inbox"),                       href: "/help/item-codes",      title: "Supplier item codes, catalogs, and mappings" },
+  { match: (p) => p.startsWith("/library/mappings"),            href: "/help/mapping-basics",  title: "PO field mapping basics" },
+  // Supplier DETAIL (where the Delivery/Catalog tabs live) → delivery setup.
+  { match: (p) => /^\/library\/suppliers\/.+/.test(p),          href: "/help/delivery-setup",  title: "Setting up delivery and test-fire" },
+  { match: (p) => p.startsWith("/library/suppliers"),           href: "/help/delivery-config", title: "Configuring supplier delivery" },
+  { match: (p) => p.startsWith("/settings"),                    href: "/help/billing-faq",     title: "Billing and plans FAQ" },
+];
 
 export function HelpSlideover({ open, onClose }: Props) {
   const pathname = usePathname();
-  const contextual = Object.entries(CONTEXTUAL_LINKS).find(
-    ([prefix]) => pathname?.startsWith(prefix),
-  )?.[1];
+  const contextual = pathname
+    ? CONTEXTUAL_LINKS.find((l) => l.match(pathname))
+    : undefined;
 
   useEffect(() => {
     if (open) capture("help_slideover_opened", { route: pathname });

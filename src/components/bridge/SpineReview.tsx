@@ -36,6 +36,7 @@ import { AiSuggestionContent } from "./review/AiSuggestionContent";
 import { HeaderInlineEditField } from "./review/HeaderInlineEditField";
 import { ConfirmDialog } from "./review/ConfirmDialog";
 import { FixQueueTriage } from "./review/FixQueueTriage";
+import { CatalogHintCard } from "./review/CatalogHintCard";
 // Phase C extractions: OutputPreview (now also serves the Triage context
 // stage's fragment mode), the shared display helpers and NODE_TO_FIELD.
 // Pure moves — the classic render is unchanged.
@@ -1843,6 +1844,14 @@ export function SpineReview({ orderId }: { orderId: string }) {
 
   // ── Edit / resolve handlers — extracted to useResolveActions; the shared
   // LineEditApi below threads them into the line cards (classic + triage).
+  // First-resolution micro-helper (task 7): no line on this order carries a
+  // supplier code yet → the manual-entry row shows a one-line muted teaching
+  // hint. Server truth only; self-resolves after the first commit + refetch.
+  const noLineResolvedYet = useMemo(
+    () => !!order && !order.lines.some((l) => !!l.supplierItemCode),
+    [order],
+  );
+
   const lineEditApi = useMemo<LineEditApi>(() => ({
     knownCodes: knownSupplierCodes,
     catalogCodes,
@@ -1853,7 +1862,8 @@ export function SpineReview({ orderId }: { orderId: string }) {
     onChange: resolve.setLineDraft,
     onCommit: resolve.commitLineCode,
     onCancel: resolve.cancelLineEdit,
-  }), [knownSupplierCodes, catalogCodes, order?.supplierName, resolve.lineEditId, resolve.lineDraft, resolve.startLineEdit, resolve.setLineDraft, resolve.commitLineCode, resolve.cancelLineEdit]);
+    firstResolveHint: noLineResolvedYet,
+  }), [knownSupplierCodes, catalogCodes, order?.supplierName, resolve.lineEditId, resolve.lineDraft, resolve.startLineEdit, resolve.setLineDraft, resolve.commitLineCode, resolve.cancelLineEdit, noLineResolvedYet]);
 
   // ── Keyboard shortcuts (Bridge Layer reference) ────────────────────────────
   // A = accept the next unresolved AI line suggestion (CLASSIC sub-view only —
@@ -2221,8 +2231,11 @@ export function SpineReview({ orderId }: { orderId: string }) {
                 padding: "0 10px", borderRadius: 6, fontSize: 12, margin: "10px 16px 0",
               }}
             >
+              {/* Pre-framing (design §Sample strategy 3): the sample's honest
+                  ending IS the delivery lesson — say so BEFORE the user sends,
+                  so the config-missing stop reads as expected, not broken. */}
               <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                This is a sample order — example CSV, doesn&apos;t count toward your monthly quota.
+                Practice order — free, doesn&apos;t count against your plan. Sending will stop at &ldquo;delivery not set up&rdquo; — that&apos;s expected for the practice {labels.counterpartyNoun.toLowerCase()}.
               </span>
               <button type="button" aria-label="Dismiss sample-order note" onClick={() => setSampleDismissed(true)} style={{ background: "none", border: "none", color: "#7A5A0A", fontSize: 13, cursor: "pointer", padding: "0 2px", flexShrink: 0 }}>✕</button>
             </div>
@@ -2245,6 +2258,19 @@ export function SpineReview({ orderId }: { orderId: string }) {
               </span>
               <button type="button" aria-label="Dismiss processing warning" onClick={() => setStuckDismissed(true)} style={{ background: "none", border: "none", color: "#7A4D0A", fontSize: 13, cursor: "pointer", padding: "0 2px", flexShrink: 0 }}>✕</button>
             </div>
+          )}
+
+          {/* Catalog cliff hint (task 7) — per-supplier probe, additive only.
+              Renders nothing while loading/error; self-resolves when a catalog
+              exists or any line resolves. Sits above both sub-views, next to
+              the Fix Queue / triage work surface. */}
+          {order.supplierId && (
+            <CatalogHintCard
+              supplierId={order.supplierId}
+              supplierName={order.supplierName}
+              hasUnresolvedLines={exceptionCount > 0}
+              anyLineResolved={order.lines.some((l) => !!l.supplierItemCode)}
+            />
           )}
 
           {/* DELETED (batch 9 Phase A, per spec): the actionless open-exceptions

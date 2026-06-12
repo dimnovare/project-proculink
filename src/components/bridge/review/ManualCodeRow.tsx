@@ -26,6 +26,12 @@ export interface LineEditApi {
   onChange: (value: string) => void;
   onCommit: (lineId: string) => void;
   onCancel: () => void;
+  /**
+   * Optional (task 7): true while NO line on the order is resolved yet — the
+   * row shows a one-line muted teaching hint ("…ProcuLink remembers it for
+   * next time"). Self-resolves after the first commit + refetch.
+   */
+  firstResolveHint?: boolean;
 }
 
 /** The minimal line shape ManualCodeRow needs (subset of SpineReview's SubNode). */
@@ -103,6 +109,14 @@ export function ManualCodeRow({ sn, lineEdit, saving }: { sn: ManualCodeLineRef;
       {novel && (
         <span style={{ flexBasis: "100%", fontSize: 10.5, color: "#C97A14" }}>
           Not in saved mappings — it&apos;ll be remembered for next time.
+        </span>
+      )}
+      {/* First-resolution micro-helper (task 7) — shown only until the first
+          line on the order resolves, and suppressed when the novel/not-in-
+          catalog notices already carry the message (no stacked duplicates). */}
+      {lineEdit.firstResolveHint && !novel && !notInCatalog && (
+        <span style={{ flexBasis: "100%", fontSize: 10.5, color: "var(--ink-faint)" }}>
+          Type the code {lineEdit.supplierName || "this supplier"} uses for this item — ProcuLink remembers it for next time.
         </span>
       )}
     </div>
