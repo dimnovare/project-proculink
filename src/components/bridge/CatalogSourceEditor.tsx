@@ -20,7 +20,10 @@ import {
   buildAuthConfigPayload,
   defaultPortForProtocol,
   formatLastSync,
+  hasSavedAuthSecretForMethod,
+  httpAuthFormSatisfied,
   protocolUsesUrl,
+  type CatalogAuthFormState,
 } from "./catalogSourceHelpers";
 
 const INPUT_STYLE = { border: "1px solid #D5DAEA", color: "#0B1A2F" } as const;
@@ -106,6 +109,7 @@ export function CatalogSourceEditor({ supplierId }: CatalogSourceEditorProps) {
 
   function hydrate(s: CatalogSource) {
     setProtocol(s.protocol);
+    setHost(s.host);
     setPort(s.port || defaultPortForProtocol(s.protocol));
     setUsername(s.username ?? "");
     setRemotePath(s.remotePath);
@@ -135,7 +139,6 @@ export function CatalogSourceEditor({ supplierId }: CatalogSourceEditorProps) {
 
   const isUrlProtocol = protocolUsesUrl(protocol);
   const hasPassword = savedSource?.hasPassword ?? false;
-  const hasAuthConfig = savedSource?.hasAuthConfig ?? false;
   const usernameRequired = protocol === "sftp" || protocol === "ftps";
   const passwordRequired = protocol === "sftp" || protocol === "ftps";
 
@@ -146,31 +149,32 @@ export function CatalogSourceEditor({ supplierId }: CatalogSourceEditorProps) {
     return ""; // none / clear
   }
 
-  // The HTTP auth method's secret is "already provided" when newly entered or kept
-  // from a previous save — drives the save-enable gate honestly.
-  function httpSecretSatisfied(): boolean {
-    switch (authMethod) {
-      case "none":
-        return true;
-      case "apikey":
-        return apiKeyValue.length > 0 || hasAuthConfig;
-      case "bearer":
-        return bearerToken.length > 0 || hasAuthConfig;
-      case "basic":
-        return (basicPassword.length > 0 || hasAuthConfig) && basicUsername.trim().length > 0;
-      case "oauth2_client_credentials":
-        return (
-          tokenUrl.trim().length > 0 &&
-          clientId.trim().length > 0 &&
-          (clientSecret.length > 0 || hasAuthConfig)
-        );
-      default:
-        return false;
-    }
-  }
+  // The HTTP auth form state, shared by the save-gate and the write-only payload
+  // builder so the two can never disagree on keep-vs-replace.
+  const authForm: CatalogAuthFormState = {
+    authMethod,
+    apiKeyHeader,
+    apiKeyValue,
+    bearerToken,
+    basicUsername,
+    basicPassword,
+    tokenUrl,
+    clientId,
+    clientSecret,
+    scope,
+  };
+  // "Leave blank to keep" is only honest when the saved secret belongs to the SAME
+  // method — the backend keeps the old encrypted blob (and applies ITS auth type at
+  // fetch time) whenever authConfig is null, so a method switch must re-enter creds.
+  const savedAuthSecretForMethod = hasSavedAuthSecretForMethod(savedSource, authMethod);
+  const savedAuthMethodDiffers =
+    isUrlProtocol &&
+    (savedSource?.hasAuthConfig ?? false) &&
+    authMethod !== "none" &&
+    savedSource?.authMethod !== authMethod;
 
   const canSave = isUrlProtocol
-    ? Boolean(url.trim()) && httpSecretSatisfied()
+    ? Boolean(url.trim()) && httpAuthFormSatisfied(authForm, savedAuthSecretForMethod)
     : Boolean(host.trim()) &&
       Boolean(remotePath.trim()) &&
       (!usernameRequired || Boolean(username.trim())) &&
@@ -194,23 +198,7 @@ export function CatalogSourceEditor({ supplierId }: CatalogSourceEditorProps) {
         // http/https only:
         url: isUrlProtocol ? url.trim() : null,
         authMethod: isUrlProtocol ? authMethod : null,
-        authConfig: isUrlProtocol
-          ? buildAuthConfigPayload(
-              {
-                authMethod,
-                apiKeyHeader,
-                apiKeyValue,
-                bearerToken,
-                basicUsername,
-                basicPassword,
-                tokenUrl,
-                clientId,
-                clientSecret,
-                scope,
-              },
-              hasAuthConfig,
-            )
-          : null,
+        authConfig: isUrlProtocol ? buildAuthConfigPayload(authForm, savedAuthSecretForMethod) : null,
         httpMethod: isUrlProtocol ? "GET" : null,
       });
       setSavedSource(result.source);
@@ -225,7 +213,7 @@ export function CatalogSourceEditor({ supplierId }: CatalogSourceEditorProps) {
       } else if (msg.includes("host_not_allowed")) {
         setError("That host is not allowed — private, loopback, and link-local addresses are blocked.");
       } else if (msg.includes("credentials_in_url_not_allowed")) {
-        setError("Put credentials in the auth fields below, not in the URL (user:pass@host is rejected).");
+        setError("Remove the username/password from the URL — store credentials in the auth fields instead.");
       } else {
         setError(msg);
       }
@@ -292,7 +280,9 @@ export function CatalogSourceEditor({ supplierId }: CatalogSourceEditorProps) {
 
   const lastSync = formatLastSync(savedSource);
   // Cleartext warning: plain ftp leaks creds; plain http:// leaks the URL + any header/token.
-  const cleartextHttp = protocol === "http" && url.trim().toLowerCase().startsWith("http://");
+  // Keyed on the URL's actual scheme (not the picker) — the scheme in the URL is what the
+  // fetch uses, regardless of which API button is selected.
+  const cleartextHttp = isUrlProtocol && url.trim().toLowerCase().startsWith("http://");
 
   return (
     <div className="overflow-hidden rounded-[8px]" style={{ border: "1px solid #E2E6EE", background: "#FFFFFF" }}>
@@ -392,7 +382,16 @@ export function CatalogSourceEditor({ supplierId }: CatalogSourceEditorProps) {
                 <Field label="Catalog URL (full request URL)">
                   <input
                     value={url}
-                    onChange={(e) => { setUrl(e.target.value); markEdited(); }}
+                    onChange={(e) => {
+                      const next = e.target.value;
+                      setUrl(next);
+                      // Keep the picker honest: the URL's scheme is what the fetch uses,
+                      // so the selected API protocol follows it.
+                      const lower = next.trim().toLowerCase();
+                      if (lower.startsWith("http://")) setProtocol("http");
+                      else if (lower.startsWith("https://")) setProtocol("https");
+                      markEdited();
+                    }}
                     placeholder="https://api.supplier.example/v1/catalog.csv"
                     className="h-9 w-full rounded-[5px] px-2.5 text-[12px]"
                     style={INPUT_STYLE}
@@ -462,7 +461,7 @@ export function CatalogSourceEditor({ supplierId }: CatalogSourceEditorProps) {
                   <div className="flex items-center gap-2 px-3 py-2" style={{ borderBottom: "1px solid #E2E6EE" }}>
                     <KeyRound size={14} color="#2E8E3A" />
                     <span className="text-[12px] font-semibold" style={{ color: "#0B1A2F" }}>Authentication</span>
-                    {hasAuthConfig && authMethod !== "none" && (
+                    {savedAuthSecretForMethod && (
                       <span className="ml-auto text-[11px]" style={{ color: "#2E8E3A" }}>saved · masked</span>
                     )}
                   </div>
@@ -480,31 +479,54 @@ export function CatalogSourceEditor({ supplierId }: CatalogSourceEditorProps) {
                       </select>
                     </Field>
 
+                    {savedAuthMethodDiffers && (
+                      <p className="m-0 text-[11px]" style={{ color: "#7A4D0B" }}>
+                        The saved credential is for a different auth method — enter this
+                        method&apos;s credentials to switch.
+                      </p>
+                    )}
+
                     {authMethod === "apikey" && (
-                      <div className="grid gap-3 lg:grid-cols-[180px_minmax(0,1fr)]">
-                        <Field label="Header name">
-                          <input value={apiKeyHeader} onChange={(e) => { setApiKeyHeader(e.target.value); markEdited(); }} placeholder="X-Api-Key" className="h-9 w-full rounded-[5px] px-2.5 text-[12px]" style={INPUT_STYLE} />
-                        </Field>
-                        <Field label="Value">
-                          <input type="password" value={apiKeyValue} onChange={(e) => { setApiKeyValue(e.target.value); markEdited(); }} placeholder={hasAuthConfig ? "******** (leave blank to keep)" : "Key value"} className="h-9 w-full rounded-[5px] px-2.5 text-[12px]" style={INPUT_STYLE} />
-                        </Field>
+                      <div className="grid gap-2">
+                        <div className="grid gap-3 lg:grid-cols-[180px_minmax(0,1fr)]">
+                          <Field label="Header name">
+                            <input value={apiKeyHeader} onChange={(e) => { setApiKeyHeader(e.target.value); markEdited(); }} placeholder="X-Api-Key" className="h-9 w-full rounded-[5px] px-2.5 text-[12px]" style={INPUT_STYLE} />
+                          </Field>
+                          <Field label="Value">
+                            <input type="password" value={apiKeyValue} onChange={(e) => { setApiKeyValue(e.target.value); markEdited(); }} placeholder={savedAuthSecretForMethod ? "******** (leave blank to keep)" : "Key value"} className="h-9 w-full rounded-[5px] px-2.5 text-[12px]" style={INPUT_STYLE} />
+                          </Field>
+                        </div>
+                        {savedAuthSecretForMethod && (
+                          <p className="m-0 text-[11px]" style={{ color: "var(--ink-faint)" }}>
+                            Leave the value blank to keep the saved header and key. To change the
+                            header, re-enter the value too — they are stored together.
+                          </p>
+                        )}
                       </div>
                     )}
 
                     {authMethod === "bearer" && (
                       <Field label="Bearer token">
-                        <input type="password" value={bearerToken} onChange={(e) => { setBearerToken(e.target.value); markEdited(); }} placeholder={hasAuthConfig ? "******** (leave blank to keep)" : "Token"} className="h-9 w-full rounded-[5px] px-2.5 text-[12px]" style={INPUT_STYLE} />
+                        <input type="password" value={bearerToken} onChange={(e) => { setBearerToken(e.target.value); markEdited(); }} placeholder={savedAuthSecretForMethod ? "******** (leave blank to keep)" : "Token"} className="h-9 w-full rounded-[5px] px-2.5 text-[12px]" style={INPUT_STYLE} />
                       </Field>
                     )}
 
                     {authMethod === "basic" && (
-                      <div className="grid gap-3 lg:grid-cols-2">
-                        <Field label="Username">
-                          <input value={basicUsername} onChange={(e) => { setBasicUsername(e.target.value); markEdited(); }} className="h-9 w-full rounded-[5px] px-2.5 text-[12px]" style={INPUT_STYLE} />
-                        </Field>
-                        <Field label="Password">
-                          <input type="password" value={basicPassword} onChange={(e) => { setBasicPassword(e.target.value); markEdited(); }} placeholder={hasAuthConfig ? "******** (leave blank to keep)" : "Password"} className="h-9 w-full rounded-[5px] px-2.5 text-[12px]" style={INPUT_STYLE} />
-                        </Field>
+                      <div className="grid gap-2">
+                        <div className="grid gap-3 lg:grid-cols-2">
+                          <Field label="Username">
+                            <input value={basicUsername} onChange={(e) => { setBasicUsername(e.target.value); markEdited(); }} className="h-9 w-full rounded-[5px] px-2.5 text-[12px]" style={INPUT_STYLE} />
+                          </Field>
+                          <Field label="Password">
+                            <input type="password" value={basicPassword} onChange={(e) => { setBasicPassword(e.target.value); markEdited(); }} placeholder={savedAuthSecretForMethod ? "******** (leave blank to keep)" : "Password"} className="h-9 w-full rounded-[5px] px-2.5 text-[12px]" style={INPUT_STYLE} />
+                          </Field>
+                        </div>
+                        {savedAuthSecretForMethod && (
+                          <p className="m-0 text-[11px]" style={{ color: "var(--ink-faint)" }}>
+                            Leave both fields blank to keep the saved credentials. Anything you
+                            enter replaces both — they are stored together.
+                          </p>
+                        )}
                       </div>
                     )}
 
@@ -528,9 +550,16 @@ export function CatalogSourceEditor({ supplierId }: CatalogSourceEditorProps) {
                             <input value={clientId} onChange={(e) => { setClientId(e.target.value); markEdited(); }} className="h-9 w-full rounded-[5px] px-2.5 text-[12px]" style={INPUT_STYLE} />
                           </Field>
                           <Field label="Client secret">
-                            <input type="password" value={clientSecret} onChange={(e) => { setClientSecret(e.target.value); markEdited(); }} placeholder={hasAuthConfig ? "******** (leave blank to keep)" : "Client secret"} className="h-9 w-full rounded-[5px] px-2.5 text-[12px]" style={INPUT_STYLE} />
+                            <input type="password" value={clientSecret} onChange={(e) => { setClientSecret(e.target.value); markEdited(); }} placeholder={savedAuthSecretForMethod ? "******** (leave blank to keep)" : "Client secret"} className="h-9 w-full rounded-[5px] px-2.5 text-[12px]" style={INPUT_STYLE} />
                           </Field>
                         </div>
+                        {savedAuthSecretForMethod && (
+                          <p className="m-0 text-[11px]" style={{ color: "var(--ink-faint)" }}>
+                            Leave all fields blank to keep the saved OAuth settings (token URL,
+                            client ID, secret, scope). To change any of them, re-enter all of
+                            them — they are stored together.
+                          </p>
+                        )}
                       </div>
                     )}
 

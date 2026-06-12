@@ -3,6 +3,8 @@ import {
   buildAuthConfigPayload,
   defaultPortForProtocol,
   formatLastSync,
+  hasSavedAuthSecretForMethod,
+  httpAuthFormSatisfied,
   protocolUsesUrl,
   relativeTime,
   type CatalogAuthFormState,
@@ -155,6 +157,72 @@ describe("buildAuthConfigPayload", () => {
       false,
     );
     expect(out).toEqual({ bearerToken: "t" });
+  });
+});
+
+describe("hasSavedAuthSecretForMethod", () => {
+  it("is true only when a config is stored AND its method matches the form's", () => {
+    expect(hasSavedAuthSecretForMethod({ hasAuthConfig: true, authMethod: "bearer" }, "bearer")).toBe(true);
+    expect(hasSavedAuthSecretForMethod({ hasAuthConfig: true, authMethod: "apikey" }, "apikey")).toBe(true);
+  });
+  it("is false on a method switch — the stored blob would apply the OLD auth type", () => {
+    expect(hasSavedAuthSecretForMethod({ hasAuthConfig: true, authMethod: "bearer" }, "basic")).toBe(false);
+    expect(
+      hasSavedAuthSecretForMethod({ hasAuthConfig: true, authMethod: "basic" }, "oauth2_client_credentials"),
+    ).toBe(false);
+  });
+  it("is false when nothing is stored, for 'none', or without a saved source", () => {
+    expect(hasSavedAuthSecretForMethod({ hasAuthConfig: false, authMethod: "bearer" }, "bearer")).toBe(false);
+    expect(hasSavedAuthSecretForMethod({ hasAuthConfig: true, authMethod: "none" }, "none")).toBe(false);
+    expect(hasSavedAuthSecretForMethod(null, "bearer")).toBe(false);
+  });
+});
+
+describe("httpAuthFormSatisfied", () => {
+  it("none is always satisfied", () => {
+    expect(httpAuthFormSatisfied(authForm({ authMethod: "none" }), false)).toBe(true);
+  });
+
+  describe("keep path (blank fields + method-matched saved secret)", () => {
+    it("allows a blank form for every secret-carrying method", () => {
+      expect(httpAuthFormSatisfied(authForm({ authMethod: "apikey", apiKeyHeader: "X-Api-Key" }), true)).toBe(true);
+      expect(httpAuthFormSatisfied(authForm({ authMethod: "bearer" }), true)).toBe(true);
+      expect(httpAuthFormSatisfied(authForm({ authMethod: "basic" }), true)).toBe(true);
+      expect(httpAuthFormSatisfied(authForm({ authMethod: "oauth2_client_credentials" }), true)).toBe(true);
+    });
+    it("rejects a blank form when no method-matched secret is saved (e.g. after a method switch)", () => {
+      expect(httpAuthFormSatisfied(authForm({ authMethod: "bearer" }), false)).toBe(false);
+      expect(httpAuthFormSatisfied(authForm({ authMethod: "basic" }), false)).toBe(false);
+      expect(httpAuthFormSatisfied(authForm({ authMethod: "oauth2_client_credentials" }), false)).toBe(false);
+    });
+  });
+
+  describe("replace path (anything typed requires the full usable set)", () => {
+    it("apikey: a value needs a header; a custom header needs the value re-entered", () => {
+      expect(httpAuthFormSatisfied(authForm({ authMethod: "apikey", apiKeyValue: "k", apiKeyHeader: "X-Api-Key" }), false)).toBe(true);
+      expect(httpAuthFormSatisfied(authForm({ authMethod: "apikey", apiKeyValue: "k", apiKeyHeader: "  " }), false)).toBe(false);
+      // Header-only edit with a saved secret cannot merge with the stored value.
+      expect(httpAuthFormSatisfied(authForm({ authMethod: "apikey", apiKeyHeader: "X-Custom" }), true)).toBe(false);
+    });
+    it("basic: a typed username without a password is never silently dropped", () => {
+      expect(httpAuthFormSatisfied(authForm({ authMethod: "basic", basicUsername: "u" }), true)).toBe(false);
+      expect(httpAuthFormSatisfied(authForm({ authMethod: "basic", basicUsername: "u", basicPassword: "p" }), true)).toBe(true);
+      expect(httpAuthFormSatisfied(authForm({ authMethod: "basic", basicPassword: "p" }), false)).toBe(true);
+    });
+    it("oauth2: a partial edit forces the full set (tokenUrl + clientId + secret)", () => {
+      expect(
+        httpAuthFormSatisfied(authForm({ authMethod: "oauth2_client_credentials", tokenUrl: "https://t" }), true),
+      ).toBe(false);
+      expect(
+        httpAuthFormSatisfied(authForm({ authMethod: "oauth2_client_credentials", scope: "s" }), true),
+      ).toBe(false);
+      expect(
+        httpAuthFormSatisfied(
+          authForm({ authMethod: "oauth2_client_credentials", tokenUrl: "https://t", clientId: "c", clientSecret: "s" }),
+          false,
+        ),
+      ).toBe(true);
+    });
   });
 });
 
