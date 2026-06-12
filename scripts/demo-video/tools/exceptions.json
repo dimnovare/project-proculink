@@ -1,0 +1,49 @@
+{
+  "id": "exceptions",
+  "toolName": "Exceptions & health",
+  "route": "/operations/exceptions",
+  "kicker": "Tool guide",
+  "outroLine": "Nothing fails silently.",
+  "beats": [
+    {
+      "id": "b1-open",
+      "shot": "Land on /operations/exceptions: the queue with severity, pipeline stage, machine code, and plain-language message per row.",
+      "vo": "Everything that needs a human decision before an order can be sent lands here — with a severity, the pipeline stage it happened in, and a message in plain language."
+    },
+    {
+      "id": "b2-expand",
+      "shot": "Expand the first row (unresolved supplier code): the four-step panel — what's wrong, why, how to fix, real delivery status.",
+      "actionLeadMs": 1600,
+      "extraMs": 2000,
+      "vo": "Every exception explains itself. What's wrong, why it matters, and how to fix it, with a button that takes you straight to the order. Fix the cause, and the exception clears on the next pipeline pass."
+    },
+    {
+      "id": "b3-honesty",
+      "shot": "Collapse; expand the critical deliver-stage row: its status panel reads 'Sent — acceptance unconfirmed … a 2xx is not the same as business acceptance'.",
+      "actionLeadMs": 2800,
+      "extraMs": 2500,
+      "vo": "And ProcuLink is strict about delivery truth. This order was sent and the endpoint answered — but the status says acceptance unconfirmed, because a two hundred response is not the same as the supplier's system accepting the order. The screen says so, in those words."
+    },
+    {
+      "id": "b4-ignored",
+      "shot": "Cursor clicks the 'Ignored' filter: the deliberately-ignored duplicate-PO exception shows — an explicit, recorded decision.",
+      "actionLeadMs": 1400,
+      "extraMs": 1000,
+      "vo": "Decisions here are explicit. Fix an exception, or ignore it deliberately — a duplicate P O you already know about, for instance. Either way, there's a record."
+    },
+    {
+      "id": "b5-health",
+      "shot": "Navigate to Operations → System health: the worker heartbeat banner and the count tiles — stuck, failed, dead-letter, SLA.",
+      "actionLeadMs": 1300,
+      "extraMs": 2000,
+      "vo": "System health is the pipeline at a glance. Whether the worker is alive, what's stuck, what failed, and what has been dead-lettered after repeated delivery attempts."
+    },
+    {
+      "id": "b6-requeue",
+      "shot": "Cursor clicks 'Requeue delivery' on the dead-lettered order; the confirmation notice appears.",
+      "actionLeadMs": 2200,
+      "extraMs": 2000,
+      "vo": "Dead-lettered does not mean lost. The queue keeps the order, the attempt count, and the exact last error — and when the supplier's endpoint is back, requeue it and it moves again."
+    }
+  ]
+}

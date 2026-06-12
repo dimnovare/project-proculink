@@ -1,0 +1,43 @@
+{
+  "id": "dashboard",
+  "toolName": "Dashboard",
+  "route": "/bridge",
+  "kicker": "Tool guide",
+  "outroLine": "Your whole order flow, at a glance.",
+  "beats": [
+    {
+      "id": "b1-open",
+      "shot": "Land on /bridge. Cursor settles by the Dashboard title; the live topology fills the frame.",
+      "vo": "This is the dashboard, the first thing you see every morning. One look tells you what's flowing, and what needs you."
+    },
+    {
+      "id": "b2-topology",
+      "shot": "Cursor traces the topology: buyer nodes left, supplier nodes right, wires between; rests near an amber at-risk route.",
+      "vo": "The map is your live order flow. Buyers on the left, suppliers on the right, and every line is a route that is actually carrying orders. Thicker lines carry more volume, and an amber route is asking for attention."
+    },
+    {
+      "id": "b3-windows",
+      "shot": "Cursor moves to the time-window control (Today / 7d / 30d / All) and clicks All.",
+      "actionLeadMs": 1500,
+      "vo": "The numbers follow the time window you pick. Today, the last week, the last month, or everything."
+    },
+    {
+      "id": "b4-kpis",
+      "shot": "Scroll down to the KPI strip; cursor sweeps across Orders received, Orders delivered, Urgent exceptions, Auto-processed.",
+      "actionLeadMs": 800,
+      "vo": "Below the map, the counts that matter. Orders received, orders delivered, exceptions that need you now, and how much went through hands-free."
+    },
+    {
+      "id": "b5-health",
+      "shot": "Cursor moves over the Supplier health panel (per-supplier delivery success bars), then the In transit panel.",
+      "vo": "Supplier health shows the delivery success rate for each supplier, so a route that is degrading shows up here before it becomes a fire. And In transit is what's moving through the pipeline right now."
+    },
+    {
+      "id": "b6-exceptions",
+      "shot": "Scroll back to the top; cursor clicks the amber 'Review exceptions →' banner; the Exceptions screen lands.",
+      "actionLeadMs": 2200,
+      "extraMs": 2000,
+      "vo": "And when something needs a decision, the banner takes you straight to the exception queue. One click, and you're working the problem. That's the whole point of the dashboard."
+    }
+  ]
+}

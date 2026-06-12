@@ -4,18 +4,67 @@ One short video per tab/tool, **real screen recordings** (the founder judged
 the card-based cut worse than v5's real-UI footage). Quality bar = v5: real UI
 on screen, professional ElevenLabs voiceover, low music bed, brand intro card.
 
-> **Built 2026-06-12 — TWO PILOTS for founder review (do not batch the
-> remaining ~8 tabs until the quality is approved):**
+> **FULL LIBRARY SHIPPED + PUBLISHED 2026-06-12.** The two pilots (upload,
+> review) were founder-approved, then the remaining 8 were produced with the
+> same pipeline and ALL TEN published to the public R2 bucket
+> (`proculink-public`) at `marketing/tools/<id>.mp4` + `<id>-poster.jpg` —
+> every URL verified 200 `video/mp4` via https://assets.proculink.eu.
 >
-> | Video | Duration | Size | Output |
+> | Video | Duration | Size | R2 URL (assets.proculink.eu) |
 > |---|---|---|---|
-> | Upload an order | 1:33 (92.8s) | 5.5 MB | `tools/out/upload.mp4` |
-> | Review & resolve | 1:55 (115.4s) | 8.0 MB | `tools/out/review.mp4` |
+> | Upload an order (pilot) | 1:33 (92.8s) | 5.5 MB | `/marketing/tools/upload.mp4` |
+> | Review & resolve (pilot) | 1:55 (115.4s) | 8.0 MB | `/marketing/tools/review.mp4` |
+> | Dashboard | 1:24 (83.7s) | 6.9 MB | `/marketing/tools/dashboard.mp4` |
+> | The Inbox | 1:29 (89.4s) | 7.6 MB | `/marketing/tools/inbox.mp4` |
+> | Supplier profiles | 1:54 (114.2s) | 6.8 MB | `/marketing/tools/suppliers.mp4` |
+> | PO field mapping | 1:34 (94.1s) | 6.3 MB | `/marketing/tools/po-mapping.mp4` |
+> | Delivery setup | 1:41 (101.0s) | 5.7 MB | `/marketing/tools/delivery.mp4` |
+> | Versioned connections | 2:02 (122.0s) | 7.8 MB | `/marketing/tools/connections.mp4` |
+> | Exceptions & health | 1:49 (109.3s) | 6.4 MB | `/marketing/tools/exceptions.mp4` |
+> | Settings & integrations | 1:43 (102.7s) | 5.6 MB | `/marketing/tools/settings-integrations.mp4` |
 >
-> Review copies: `C:\Users\Dmitri.MARKIT\Videos\ProcuLink\tool-upload-PILOT.mp4`
-> and `tool-review-PILOT.mp4`. **Not uploaded to R2** — founder reviews first.
-> Verified: 1080p30 H.264+AAC, zero decode errors, mean volume ≈ -22.5 dB
-> (v5 reference loudness), frame-by-frame spot checks of every beat.
+> Review copies live in `C:\Users\Dmitri.MARKIT\Videos\ProcuLink\` as
+> `tool-<id>.mp4`. All ten verified: 1080p30 H.264+AAC, zero decode errors,
+> mean volume −22.0…−22.7 dB (v5 reference loudness), and a frame-by-frame
+> eyeball of every beat (per-beat stills under `out/<id>/check/`, gitignored).
+
+## Mock-mode gaps found while filming (and how each was handled)
+
+These are capture-time decisions, not product claims. "Hidden" always means
+the capture-scoped `hideTexts` hider in `demo-helpers.ts` (visibility-only,
+layout-stable, documented per capture spec):
+
+- **Inbox header summary + filter-chip count badges HIDDEN** — the counts come
+  from the 3-order base mock store while the table shows ~25 staged demo rows;
+  the numbers contradict the rows in the same frame. Chips + filtering remain.
+- **Inbox bulk-send success text is UNREACHABLE UI** (real bug, not just mock):
+  on success the selection is cleared, which unmounts the whole bulk bar —
+  including the "N orders sent" message inside it. The VO claims the action,
+  not the feedback.
+- **Delivery tab "Failed to fetch" HIDDEN** — `getDeliveryConfig`/`upsert`/
+  `test-fire` have no mock twins, so the initial GET error banner would sit in
+  frame. Test-fire and Save are RESTED ON, never clicked (both would error).
+- **PO Mapping "Accept all" is a no-op in mock** (suggestions auto-seed as
+  accepted → "Nothing new to accept"), so the beat shows the per-field
+  `change` controls instead. "Save mapping" is rested on, not clicked
+  (`upsertPoMapping` has no mock twin). The starter-template menu is opened
+  and hovered but NOT applied (applying would visibly break the auto-detected
+  demo mapping).
+- **Suppliers video never shows the list → detail transition** — in mock mode
+  the detail always renders the staged "Acme Components" profile regardless of
+  the routed id, so navigating from a row named "ElectroSupply Co" would flip
+  the name on camera. The video opens directly on the profile. (Add-supplier
+  is also untestable in mock: the pilot-plan limit renders the button as
+  "Supplier limit reached".)
+- **Settings "Loading members…" HIDDEN** — the members query has no mock twin
+  and spins forever.
+- **Ops-health requeue notice fixed IN THE PRODUCT** (small win, not a hide):
+  it used to print the truncated internal order id ("mock-dl-…" on camera,
+  equally unhelpful for real users); it now names the PO number
+  (`src/app/(app)/operations/health/page.tsx`).
+- Mock ingress/push URLs show `http://localhost:5223/...` (the dev API base)
+  in the API-keys and catalog-push shots — left as-is; it is honestly the
+  demo environment.
 
 ---
 
@@ -139,16 +188,20 @@ bun run demo:tools:capture capture-<tool>
 bun run demo:tools:assemble <tool>    # → tools/out/<tool>.mp4 + poster + srt
 ```
 
-Verify (this environment can't play video):
+Verify (this environment can't play video) — one command does all four checks
+and writes a per-beat still to `out/<tool>/check/<beat>.jpg` for the eyeball:
 
 ```bash
-ffprobe -v error -show_entries format=duration,size -of default=nw=1 scripts/demo-video/tools/out/<tool>.mp4
-ffmpeg -v error -i scripts/demo-video/tools/out/<tool>.mp4 -f null NUL        # 0 decode errors
-ffmpeg -i scripts/demo-video/tools/out/<tool>.mp4 -af volumedetect -f null NUL # mean ≈ -22 dB
-ffmpeg -ss 30 -i scripts/demo-video/tools/out/<tool>.mp4 -frames:v 1 -update 1 f.jpg  # eyeball frames
+node scripts/demo-video/tools/verify-tool.mjs <tool> [<tool> …]
+# = ffprobe stream/format check (1080p30 h264+aac), decode-error count,
+#   volumedetect (target mean ≈ -22 dB), and a frame per beat.
 ```
 
-## Hosting (after founder approval — NOT done for the pilots)
+Note when eyeballing: the per-beat still is taken ~60% into the beat — clicks
+that happen late in a beat (after a long `actionLeadMs`) land AFTER the still,
+so pull an extra frame near the NEXT marker before concluding a click failed.
+
+## Hosting (DONE 2026-06-12 — all ten live)
 
 Public R2 bucket `proculink-public` (assets.proculink.eu), keys
 `marketing/tools/<tool>.mp4` + `marketing/tools/<tool>-poster.jpg`:
@@ -158,7 +211,9 @@ wrangler r2 object put proculink-public/marketing/tools/upload.mp4 \
   --file scripts/demo-video/tools/out/upload.mp4 --content-type video/mp4 --remote
 ```
 
-Then wire into Help per `../HELP-INTEGRATION.md` (registry-driven `videoUrl`).
+All ten videos + posters are uploaded and each URL HEAD-checks 200 with the
+right content type. Next step: wire into Help per `../HELP-INTEGRATION.md`
+(registry-driven `videoUrl` on the mapped article — NOT yet done).
 **Never** make the private `proculink` order-data bucket public.
 
 ## Known production notes

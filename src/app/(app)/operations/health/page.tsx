@@ -94,9 +94,12 @@ export default function OperationsHealthPage() {
   });
 
   const requeue = useMutation({
-    mutationFn: (orderId: string) => requeueDelivery(orderId),
-    onSuccess: (_res, orderId) => {
-      setNotice(`Re-queued delivery for ${orderId.slice(0, 8)}… It will move back to "delivering".`);
+    // Takes the whole row so the success notice can name the order by its PO
+    // number (the operator-facing identifier) instead of a truncated internal
+    // order id, which read as gibberish (e.g. "mock-dl-…") in the notice.
+    mutationFn: (order: DeadLetterOrder) => requeueDelivery(order.orderId),
+    onSuccess: (_res, order) => {
+      setNotice(`Re-queued delivery for ${order.poNumber}. It will move back to "delivering".`);
       qc.invalidateQueries({ queryKey: ["ops-health"] });
       qc.invalidateQueries({ queryKey: ["ops-dead-letter"] });
     },
@@ -253,7 +256,7 @@ export default function OperationsHealthPage() {
                         <Button
                           variant="blue"
                           size="sm"
-                          onClick={() => requeue.mutate(o.orderId)}
+                          onClick={() => requeue.mutate(o)}
                           disabled={requeue.isPending}
                         >
                           {requeue.isPending ? "Requeuing…" : "Requeue delivery"}
@@ -291,7 +294,7 @@ export default function OperationsHealthPage() {
                     <Button
                       variant="blue"
                       size="md"
-                      onClick={() => requeue.mutate(o.orderId)}
+                      onClick={() => requeue.mutate(o)}
                       disabled={requeue.isPending}
                       style={{ width: "100%" }}
                     >

@@ -93,17 +93,22 @@ in this directory). **Never** the private `proculink` order-data bucket.
 
 | # | Video id (`tools/<id>.json`) | Tab / screen | Article slug to carry `videoUrl` | Status |
 |---|---|---|---|---|
-| 1 | `upload` | Upload (`/upload`) | `first-upload` | **PILOT — built** |
-| 2 | `review` | Inbox → order review (`/inbox/{id}`) | `item-codes` (or a new `review-and-resolve` article) | **PILOT — built** |
-| 3 | `dashboard` | Dashboard (`/bridge`) | `dashboard-and-statuses` | future |
-| 4 | `inbox` | Inbox list + statuses (`/inbox`) | `dashboard-and-statuses` (shares) or new `inbox-basics` | future |
-| 5 | `suppliers` | Suppliers + catalog tab (`/library/suppliers`, detail) | `item-codes` | future |
-| 6 | `po-mapping` | PO field mapping editor + starter templates | `mapping-basics` | future |
-| 7 | `delivery` | Delivery config + test-fire (supplier → Delivery tab) | `delivery-setup` | future |
-| 8 | `connections` | Versioned connections (`/connections`) | `connections` | future |
-| 9 | `exceptions` | Exceptions + health (`/operations/exceptions`, `/health`) | `exceptions-and-stuck-orders` | future |
-| 10 | `settings-integrations` | Settings: API keys / connectors / email intake | `api-and-integrations` (+ `email-polling`) | future |
+| 1 | `upload` | Upload (`/upload`) | `first-upload` | **built + hosted** |
+| 2 | `review` | Inbox → order review (`/inbox/{id}`) | `item-codes` (or a new `review-and-resolve` article) | **built + hosted** |
+| 3 | `dashboard` | Dashboard (`/bridge`) | `dashboard-and-statuses` | **built + hosted** |
+| 4 | `inbox` | Inbox list + statuses (`/inbox`) | `dashboard-and-statuses` (shares) or new `inbox-basics` | **built + hosted** |
+| 5 | `suppliers` | Suppliers + catalog tab (`/library/suppliers`, detail) | `item-codes` | **built + hosted** |
+| 6 | `po-mapping` | PO field mapping editor + starter templates | `mapping-basics` | **built + hosted** |
+| 7 | `delivery` | Delivery config + test-fire (supplier → Delivery tab) | `delivery-setup` | **built + hosted** |
+| 8 | `connections` | Versioned connections (`/connections`) | `connections` | **built + hosted** |
+| 9 | `exceptions` | Exceptions + health (`/operations/exceptions`, `/health`) | `exceptions-and-stuck-orders` | **built + hosted** |
+| 10 | `settings-integrations` | Settings: API keys / connectors / email intake | `api-and-integrations` (+ `email-polling`) | **built + hosted** |
 | 11 (opt.) | `output-mapping` | "Edit output mapping" power editor | `output-mapping-editor` | future |
+
+All ten hosted videos are live at
+`https://assets.proculink.eu/marketing/tools/<id>.mp4` (+ `<id>-poster.jpg`),
+verified 200/`video/mp4` on 2026-06-12. The registry `videoUrl` wiring (steps
+3–4 above) is still TODO.
 
 Rules for adding each future video:
 

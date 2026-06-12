@@ -1,0 +1,49 @@
+{
+  "id": "settings-integrations",
+  "toolName": "Settings & integrations",
+  "route": "/settings",
+  "kicker": "Tool guide",
+  "outroLine": "Connect the ways orders already reach you.",
+  "beats": [
+    {
+      "id": "b1-direction",
+      "shot": "Land on /settings, Organization tab. Cursor rests on the 'How do you use ProcuLink?' direction cards (send to suppliers / receive from customers).",
+      "vo": "Settings starts with a question that shapes the whole product. Do you send purchase orders to your suppliers, or receive them from your customers? ProcuLink works in both directions — this sets how the parties are labelled across the app."
+    },
+    {
+      "id": "b2-email",
+      "shot": "Click Email intake: the IMAP mailbox form; cursor types a host; the 'unseen messages with CSV, XLSX, or PDF attachments are imported' note is on screen.",
+      "actionLeadMs": 1400,
+      "extraMs": 1500,
+      "vo": "If orders arrive by email today, point ProcuLink at the mailbox. Unseen messages with order attachments are picked up automatically, every few minutes. No forwarding, no copy-paste."
+    },
+    {
+      "id": "b3-sftp",
+      "shot": "Click SFTP pull: host/port/credentials/folder form, default supplier select, and the 'secrets are encrypted and never shown again' footer.",
+      "actionLeadMs": 1400,
+      "extraMs": 1000,
+      "vo": "The same goes for file drops. Poll an S F T P folder for order files, attribute them to a supplier — and secrets are encrypted, never shown again."
+    },
+    {
+      "id": "b4-s3",
+      "shot": "Click S3 / R2 pull: the bucket polling form.",
+      "actionLeadMs": 1300,
+      "extraMs": 800,
+      "vo": "Or pull from an S 3 compatible bucket, if that's where your systems already drop order files."
+    },
+    {
+      "id": "b5-apikeys",
+      "shot": "Click API keys: the workspace ingress endpoint; cursor clicks Create key, types a label, creates it — the one-time key banner appears.",
+      "actionLeadMs": 2600,
+      "extraMs": 3000,
+      "vo": "For real integrations there's the REST A P I. Your workspace has its own ingress endpoint, and keys authenticate it. A key is shown exactly once, at creation — copy it then, because it cannot be retrieved again."
+    },
+    {
+      "id": "b6-connectors",
+      "shot": "Click Connectors: REST API & webhooks card, the honest 'Coming soon' on native Zapier/Make apps, and the Add webhook affordance.",
+      "actionLeadMs": 1400,
+      "extraMs": 1500,
+      "vo": "And webhooks push events out the moment they happen — to your own backend, or into a Zapier or Make scenario today. The native one-click apps are marked coming soon, because what's offered on this screen is only ever what already works."
+    }
+  ]
+}

@@ -81,8 +81,35 @@ export class MarkerClock {
  * Pre-page setup: seed cookie consent (no banner on camera), hide the mock-data
  * badge + Next dev overlays, and inject a visible demo cursor that follows the
  * real mouse events (Playwright recordings have no OS cursor).
+ *
+ * `opts.hideTexts`: capture-scoped list of substrings; the SMALLEST element
+ * containing each is hidden (visibility, layout-stable). Used ONLY for
+ * mock-mode furniture that contradicts itself on camera (e.g. summary counts
+ * computed from a different mock dataset than the staged table rows, or
+ * "Failed to fetch" from an API that has no mock twin). Product UI itself is
+ * never hidden — document every entry in PRODUCTION.md.
  */
-export async function prepareDemoPage(page: Page) {
+export async function prepareDemoPage(page: Page, opts?: { hideTexts?: string[] }) {
+  if (opts?.hideTexts?.length) {
+    await page.addInitScript((patterns: string[]) => {
+      const hideSmallest = () => {
+        for (const pat of patterns) {
+          const all = Array.from(document.querySelectorAll<HTMLElement>("p,span,div,em,i,td,code"));
+          for (const el of all) {
+            if (!(el.textContent ?? "").includes(pat)) continue;
+            const childHasIt = Array.from(el.children).some((c) => (c.textContent ?? "").includes(pat));
+            if (!childHasIt) el.style.visibility = "hidden";
+          }
+        }
+      };
+      const start = () => {
+        hideSmallest();
+        new MutationObserver(hideSmallest).observe(document.body, { childList: true, subtree: true, characterData: true });
+      };
+      if (document.body) start();
+      else document.addEventListener("DOMContentLoaded", start);
+    }, opts.hideTexts);
+  }
   await page.addInitScript(() => {
     try {
       window.localStorage.setItem("proculink_cookie_consent_v1", "functional-only");

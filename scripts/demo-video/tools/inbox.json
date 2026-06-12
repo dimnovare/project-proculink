@@ -1,0 +1,53 @@
+{
+  "id": "inbox",
+  "toolName": "The Inbox",
+  "route": "/inbox",
+  "kicker": "Tool guide",
+  "outroLine": "Every order, one queue.",
+  "beats": [
+    {
+      "id": "b1-open",
+      "shot": "Land on /inbox. Cursor sweeps the table: source badges, buyer → supplier, value, pipeline dots, status.",
+      "vo": "The inbox is your work queue. Every order, whichever way it arrived, in one list. Each row shows where the order came from, where it's going, and how far it has moved down the pipeline."
+    },
+    {
+      "id": "b2-statuses",
+      "shot": "Cursor clicks the 'Needs review' filter chip; the table narrows to orders needing a decision.",
+      "actionLeadMs": 4200,
+      "vo": "Orders move through the pipeline from new to delivered. Filter to just the ones that need you, and the queue shrinks to the real work."
+    },
+    {
+      "id": "b3-search",
+      "shot": "Back to All orders; cursor clicks the search box and types a buyer name; rows filter live, then the search is cleared.",
+      "actionLeadMs": 900,
+      "extraMs": 1500,
+      "vo": "Search works on whatever you remember. The P-O number, the buyer, or the supplier. The list narrows as you type."
+    },
+    {
+      "id": "b4-keyboard",
+      "shot": "Cursor parks; J/J/J then K pressed — the row highlight walks down and back up the queue.",
+      "actionLeadMs": 2500,
+      "vo": "And if you live in this screen, you barely need the mouse. J and K walk you down and up the queue, which matters when you're triaging fifty orders at a stretch."
+    },
+    {
+      "id": "b5-bulk",
+      "shot": "Cursor clicks the 'Failed' chip, then ticks two rows; the dark bulk-action bar appears with the selection count.",
+      "actionLeadMs": 1200,
+      "extraMs": 1000,
+      "vo": "Bulk actions work on a selection. Say a supplier's endpoint was down over the weekend. Filter to failed, tick the orders, and the action bar appears."
+    },
+    {
+      "id": "b6-send",
+      "shot": "Cursor clicks 'Send selected'; the orders are handed back to delivery and the selection clears. (The bar's success text unmounts with the selection — a product quirk — so the VO claims the action, not the feedback.)",
+      "actionLeadMs": 1400,
+      "extraMs": 1500,
+      "vo": "Send selected hands them all back to delivery in one go. One decision, applied to the whole selection. No order-by-order clicking."
+    },
+    {
+      "id": "b7-close",
+      "shot": "Back to 'All orders'; the full queue rests on screen.",
+      "actionLeadMs": 800,
+      "vo": "However orders arrive — upload, email, or the API — this queue is where they wait for you."
+    }
+  ]
+}
