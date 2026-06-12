@@ -1767,6 +1767,8 @@ export type {
   CatalogSource,
   CatalogSourceProtocol,
   CatalogSyncStatus,
+  CatalogHttpAuthMethod,
+  CatalogHttpAuthConfig,
   UpsertCatalogSourcePayload,
   UpsertCatalogSourceResult,
   CatalogSourceTestResult,

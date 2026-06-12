@@ -1,52 +1,103 @@
 /**
- * catalogSources.ts — supplier catalog PULL-source config (SFTP / FTP / FTPS).
+ * catalogSources.ts — supplier catalog PULL-source config.
+ *
+ * Channels: file-server (SFTP / FTP / FTPS) and HTTP/HTTPS API pull.
  *
  * Backend: SuppliersController GET/PUT/DELETE /api/suppliers/{id}/catalog/source
  * + POST .../catalog/source/test-fetch (read-only honesty probe).
  *
+ * Field names match the backend wire contract verbatim (camelCase of
+ * CatalogSourceResponse / UpsertCatalogSourceRequest): remotePath,
+ * syncIntervalHours, fileFormat, url, authMethod, authConfig, httpMethod.
+ *
  * Conventions mirror settings.ts / delivery.ts: shared core primitives
- * (API_BASE_URL, USE_MOCK, authHeader, fetchWithTimeout), masked write-only
- * password (null = keep, "" = clear, value = set), and a USE_MOCK branch so
- * the supplier Catalog tab renders in dev mock mode without a backend.
+ * (API_BASE_URL, USE_MOCK, authHeader, fetchWithTimeout, delay), write-only
+ * masked secrets (null = keep, "" = clear, value = set — both `password` and
+ * the per-method `authConfig` fields), and a USE_MOCK branch so the supplier
+ * Catalog tab renders in dev mock mode without a backend.
  *
  * Re-exported from @/lib/api-client so existing import sites stay unchanged.
  */
 
 import { API_BASE_URL, USE_MOCK, authHeader, fetchWithTimeout, delay } from "./core";
 
-export type CatalogSourceProtocol = "sftp" | "ftp" | "ftps";
+export type CatalogSourceProtocol = "sftp" | "ftp" | "ftps" | "http" | "https";
 export type CatalogSyncStatus = "running" | "ok" | "unchanged" | "failed";
 
-/** Masked pull-source config as returned by GET (never carries the secret). */
+/**
+ * HTTP auth methods. Only the five the backend implements — no POST, no extra
+ * schemes. `oauth2_client_credentials` matches the backend discriminator verbatim.
+ */
+export type CatalogHttpAuthMethod =
+  | "none"
+  | "apikey"
+  | "bearer"
+  | "basic"
+  | "oauth2_client_credentials";
+
+/** Masked pull-source config as returned by GET (never carries a secret). */
 export interface CatalogSource {
   protocol: CatalogSourceProtocol;
   host: string;
   port: number;
-  path: string;
+  remotePath: string;
   username: string | null;
   hasPassword: boolean;
-  schedule: number; // SyncIntervalHours
+  fileFormat: string; // auto | csv | xlsx | json
+  syncIntervalHours: number;
   isEnabled: boolean;
   lastSyncAt: string | null;
   lastSyncStatus: CatalogSyncStatus | null;
   lastSyncError: string | null;
+  // http/https only — null for sftp/ftp. Secrets NEVER returned; only presence.
+  url: string | null;
+  authMethod: CatalogHttpAuthMethod | null;
+  hasAuthConfig: boolean;
+  httpMethod: string | null; // "GET" for v2 http sources
 }
 
 /**
- * Upsert payload. Password is write-only:
+ * Write-only HTTP auth secrets supplied on PUT. The field set used depends on
+ * `authMethod`. Mirrors the backend CatalogHttpAuthConfig record exactly.
+ * A missing field follows the same keep/clear/set semantics as `password`:
+ * the whole object is null = keep stored, present = re-encrypt the new values.
+ */
+export interface CatalogHttpAuthConfig {
+  apiKeyHeader?: string;
+  apiKeyValue?: string;
+  bearerToken?: string;
+  basicUsername?: string;
+  basicPassword?: string;
+  tokenUrl?: string;
+  clientId?: string;
+  clientSecret?: string;
+  scope?: string;
+}
+
+/**
+ * Upsert payload. Secret semantics (both `password` and `authConfig`):
  *   null  → keep the stored secret
- *   ""    → clear the stored secret
+ *   ""    → clear the stored secret (password); cleared values clear (authConfig)
  *   value → set a new secret
+ *
+ * For sftp/ftp/ftps the host/port/username/password/remotePath fields apply.
+ * For http/https the url/authMethod/authConfig/httpMethod fields apply.
  */
 export interface UpsertCatalogSourcePayload {
   protocol: CatalogSourceProtocol;
   host: string;
   port: number;
-  path: string;
+  remotePath: string;
   username: string | null;
   password: string | null;
-  schedule: number;
+  fileFormat: string;
+  syncIntervalHours: number;
   isEnabled: boolean;
+  // http/https only (null/ignored for sftp/ftp):
+  url?: string | null;
+  authMethod?: CatalogHttpAuthMethod | null;
+  authConfig?: CatalogHttpAuthConfig | null;
+  httpMethod?: string | null;
 }
 
 export interface UpsertCatalogSourceResult {
@@ -101,21 +152,36 @@ export async function upsertCatalogSource(
   if (USE_MOCK) {
     await delay(250);
     const prev = _mockSources[supplierId] ?? null;
+    const isHttp = payload.protocol === "http" || payload.protocol === "https";
     const hasPassword =
       payload.password === null ? (prev?.hasPassword ?? false) : payload.password !== "";
+    const authMethod = (payload.authMethod ?? "none") as CatalogHttpAuthMethod;
+    // Mirror the backend's authConfig keep/clear/set + 'none' clears.
+    const hasAuthConfig = !isHttp
+      ? false
+      : authMethod === "none"
+        ? false
+        : payload.authConfig == null
+          ? (prev?.hasAuthConfig ?? false)
+          : true;
     const wasEnabled = prev?.isEnabled ?? false;
     const source: CatalogSource = {
       protocol: payload.protocol,
-      host: payload.host,
-      port: payload.port,
-      path: payload.path,
-      username: payload.username,
-      hasPassword,
-      schedule: payload.schedule,
+      host: isHttp ? "" : payload.host,
+      port: isHttp ? 0 : payload.port,
+      remotePath: isHttp ? "" : payload.remotePath,
+      username: isHttp ? null : payload.username,
+      hasPassword: isHttp ? false : hasPassword,
+      fileFormat: payload.fileFormat || "auto",
+      syncIntervalHours: payload.syncIntervalHours,
       isEnabled: payload.isEnabled,
       lastSyncAt: prev?.lastSyncAt ?? null,
       lastSyncStatus: prev?.lastSyncStatus ?? null,
       lastSyncError: prev?.lastSyncError ?? null,
+      url: isHttp ? (payload.url ?? null) : null,
+      authMethod: isHttp ? authMethod : null,
+      hasAuthConfig,
+      httpMethod: isHttp ? "GET" : null,
     };
     _mockSources[supplierId] = source;
     return { source, syncEnqueued: payload.isEnabled && !wasEnabled };

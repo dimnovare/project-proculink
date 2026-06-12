@@ -11,19 +11,36 @@ import {
   upsertCatalogSource,
 } from "@/lib/api/catalogSources";
 import type {
+  CatalogHttpAuthMethod,
   CatalogSource,
   CatalogSourceProtocol,
   CatalogSourceTestResult,
 } from "@/lib/api/catalogSources";
-import { defaultPortForProtocol, formatLastSync } from "./catalogSourceHelpers";
+import {
+  buildAuthConfigPayload,
+  defaultPortForProtocol,
+  formatLastSync,
+  protocolUsesUrl,
+} from "./catalogSourceHelpers";
 
 const INPUT_STYLE = { border: "1px solid #D5DAEA", color: "#0B1A2F" } as const;
 
-// FTPS first to default-discourage plaintext FTP.
+// HTTPS + FTPS/SFTP first to default-discourage plaintext FTP / cleartext HTTP.
 const PROTOCOLS: Array<{ id: CatalogSourceProtocol; label: string }> = [
+  { id: "https", label: "HTTPS API" },
+  { id: "http", label: "HTTP API" },
   { id: "sftp", label: "SFTP" },
   { id: "ftps", label: "FTPS" },
   { id: "ftp", label: "FTP" },
+];
+
+// Only the five auth methods the backend implements. Labels mirror DeliveryConfigEditor.
+const AUTH_METHODS: Array<{ id: CatalogHttpAuthMethod; label: string }> = [
+  { id: "none", label: "None" },
+  { id: "apikey", label: "API key (header)" },
+  { id: "bearer", label: "Bearer token" },
+  { id: "basic", label: "Basic auth" },
+  { id: "oauth2_client_credentials", label: "OAuth2 — client credentials" },
 ];
 
 interface CatalogSourceEditorProps {
@@ -38,14 +55,28 @@ export function CatalogSourceEditor({ supplierId }: CatalogSourceEditorProps) {
   const [testing, setTesting] = useState(false);
   const [savedSource, setSavedSource] = useState<CatalogSource | null>(null);
 
-  const [protocol, setProtocol] = useState<CatalogSourceProtocol>("sftp");
+  const [protocol, setProtocol] = useState<CatalogSourceProtocol>("https");
   const [host, setHost] = useState("");
   const [port, setPort] = useState<number | "">(22);
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [remotePath, setRemotePath] = useState("");
   const [schedule, setSchedule] = useState<number | "">(24);
+  const [fileFormat, setFileFormat] = useState("auto");
   const [isEnabled, setIsEnabled] = useState(false);
+
+  // HTTP/HTTPS — URL + auth method + per-method write-only credentials.
+  const [url, setUrl] = useState("");
+  const [authMethod, setAuthMethod] = useState<CatalogHttpAuthMethod>("none");
+  const [apiKeyHeader, setApiKeyHeader] = useState("X-Api-Key");
+  const [apiKeyValue, setApiKeyValue] = useState("");
+  const [bearerToken, setBearerToken] = useState("");
+  const [basicUsername, setBasicUsername] = useState("");
+  const [basicPassword, setBasicPassword] = useState("");
+  const [tokenUrl, setTokenUrl] = useState("");
+  const [clientId, setClientId] = useState("");
+  const [clientSecret, setClientSecret] = useState("");
+  const [scope, setScope] = useState("");
 
   const [testResult, setTestResult] = useState<CatalogSourceTestResult | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -75,13 +106,25 @@ export function CatalogSourceEditor({ supplierId }: CatalogSourceEditorProps) {
 
   function hydrate(s: CatalogSource) {
     setProtocol(s.protocol);
-    setHost(s.host);
     setPort(s.port || defaultPortForProtocol(s.protocol));
     setUsername(s.username ?? "");
-    setRemotePath(s.path);
-    setSchedule(s.schedule || 24);
+    setRemotePath(s.remotePath);
+    setSchedule(s.syncIntervalHours || 24);
+    setFileFormat(s.fileFormat || "auto");
     setIsEnabled(s.isEnabled);
     setPassword("");
+    // http/https
+    setUrl(s.url ?? "");
+    setAuthMethod(s.authMethod ?? "none");
+    setApiKeyHeader("X-Api-Key");
+    setApiKeyValue("");
+    setBearerToken("");
+    setBasicUsername("");
+    setBasicPassword("");
+    setTokenUrl("");
+    setClientId("");
+    setClientSecret("");
+    setScope("");
   }
 
   function markEdited() {
@@ -90,7 +133,9 @@ export function CatalogSourceEditor({ supplierId }: CatalogSourceEditorProps) {
     setNotice(null);
   }
 
+  const isUrlProtocol = protocolUsesUrl(protocol);
   const hasPassword = savedSource?.hasPassword ?? false;
+  const hasAuthConfig = savedSource?.hasAuthConfig ?? false;
   const usernameRequired = protocol === "sftp" || protocol === "ftps";
   const passwordRequired = protocol === "sftp" || protocol === "ftps";
 
@@ -101,11 +146,35 @@ export function CatalogSourceEditor({ supplierId }: CatalogSourceEditorProps) {
     return ""; // none / clear
   }
 
-  const canSave =
-    Boolean(host.trim()) &&
-    Boolean(remotePath.trim()) &&
-    (!usernameRequired || Boolean(username.trim())) &&
-    (!passwordRequired || password.length > 0 || hasPassword);
+  // The HTTP auth method's secret is "already provided" when newly entered or kept
+  // from a previous save — drives the save-enable gate honestly.
+  function httpSecretSatisfied(): boolean {
+    switch (authMethod) {
+      case "none":
+        return true;
+      case "apikey":
+        return apiKeyValue.length > 0 || hasAuthConfig;
+      case "bearer":
+        return bearerToken.length > 0 || hasAuthConfig;
+      case "basic":
+        return (basicPassword.length > 0 || hasAuthConfig) && basicUsername.trim().length > 0;
+      case "oauth2_client_credentials":
+        return (
+          tokenUrl.trim().length > 0 &&
+          clientId.trim().length > 0 &&
+          (clientSecret.length > 0 || hasAuthConfig)
+        );
+      default:
+        return false;
+    }
+  }
+
+  const canSave = isUrlProtocol
+    ? Boolean(url.trim()) && httpSecretSatisfied()
+    : Boolean(host.trim()) &&
+      Boolean(remotePath.trim()) &&
+      (!usernameRequired || Boolean(username.trim())) &&
+      (!passwordRequired || password.length > 0 || hasPassword);
 
   async function save() {
     setSaving(true);
@@ -114,13 +183,35 @@ export function CatalogSourceEditor({ supplierId }: CatalogSourceEditorProps) {
     try {
       const result = await upsertCatalogSource(supplierId, {
         protocol,
-        host: host.trim(),
-        port: Number(port) || defaultPortForProtocol(protocol),
-        path: remotePath.trim(),
-        username: usernameRequired ? username.trim() : username.trim() || null,
-        password: passwordPayload(),
-        schedule: Number(schedule) || 24,
+        host: isUrlProtocol ? "" : host.trim(),
+        port: isUrlProtocol ? 0 : Number(port) || defaultPortForProtocol(protocol),
+        remotePath: isUrlProtocol ? "" : remotePath.trim(),
+        username: isUrlProtocol ? null : usernameRequired ? username.trim() : username.trim() || null,
+        password: isUrlProtocol ? null : passwordPayload(),
+        fileFormat,
+        syncIntervalHours: Number(schedule) || 24,
         isEnabled,
+        // http/https only:
+        url: isUrlProtocol ? url.trim() : null,
+        authMethod: isUrlProtocol ? authMethod : null,
+        authConfig: isUrlProtocol
+          ? buildAuthConfigPayload(
+              {
+                authMethod,
+                apiKeyHeader,
+                apiKeyValue,
+                bearerToken,
+                basicUsername,
+                basicPassword,
+                tokenUrl,
+                clientId,
+                clientSecret,
+                scope,
+              },
+              hasAuthConfig,
+            )
+          : null,
+        httpMethod: isUrlProtocol ? "GET" : null,
       });
       setSavedSource(result.source);
       hydrate(result.source);
@@ -128,11 +219,13 @@ export function CatalogSourceEditor({ supplierId }: CatalogSourceEditorProps) {
       invalidateCatalogCaches();
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Could not save import source.";
-      // Surface the backend's billing/SSRF gates as plain language.
+      // Surface the backend's billing/SSRF/URL gates as plain language.
       if (msg.includes("catalog_sync_requires_integration")) {
         setError("Automatic catalog sync is included from any paid plan. Upgrade from Pilot to enable polling.");
       } else if (msg.includes("host_not_allowed")) {
         setError("That host is not allowed — private, loopback, and link-local addresses are blocked.");
+      } else if (msg.includes("credentials_in_url_not_allowed")) {
+        setError("Put credentials in the auth fields below, not in the URL (user:pass@host is rejected).");
       } else {
         setError(msg);
       }
@@ -148,14 +241,26 @@ export function CatalogSourceEditor({ supplierId }: CatalogSourceEditorProps) {
     try {
       await deleteCatalogSource(supplierId);
       setSavedSource(null);
-      setProtocol("sftp");
+      setProtocol("https");
       setHost("");
       setPort(22);
       setUsername("");
       setPassword("");
       setRemotePath("");
       setSchedule(24);
+      setFileFormat("auto");
       setIsEnabled(false);
+      setUrl("");
+      setAuthMethod("none");
+      setApiKeyHeader("X-Api-Key");
+      setApiKeyValue("");
+      setBearerToken("");
+      setBasicUsername("");
+      setBasicPassword("");
+      setTokenUrl("");
+      setClientId("");
+      setClientSecret("");
+      setScope("");
       setTestResult(null);
       setNotice("Import source deleted.");
       invalidateCatalogCaches();
@@ -186,6 +291,8 @@ export function CatalogSourceEditor({ supplierId }: CatalogSourceEditorProps) {
   }
 
   const lastSync = formatLastSync(savedSource);
+  // Cleartext warning: plain ftp leaks creds; plain http:// leaks the URL + any header/token.
+  const cleartextHttp = protocol === "http" && url.trim().toLowerCase().startsWith("http://");
 
   return (
     <div className="overflow-hidden rounded-[8px]" style={{ border: "1px solid #E2E6EE", background: "#FFFFFF" }}>
@@ -195,9 +302,9 @@ export function CatalogSourceEditor({ supplierId }: CatalogSourceEditorProps) {
       >
         <span className="h-2.5 w-2.5 rounded-full" style={{ background: isEnabled ? "#2E8E3A" : "var(--ink-faint)" }} />
         <div className="min-w-0 flex-1">
-          <h3 className="text-[13px] font-semibold" style={{ color: "#0B1A2F" }}>Pull from a file server</h3>
+          <h3 className="text-[13px] font-semibold" style={{ color: "#0B1A2F" }}>Pull from a file server or API</h3>
           <p className="text-[11px]" style={{ color: "#56627A" }}>
-            ProcuLink fetches the supplier&apos;s catalog file on a schedule and upserts products by code.
+            ProcuLink fetches the supplier&apos;s catalog on a schedule and upserts products by code.
           </p>
         </div>
         <label className="flex items-center gap-2 text-[12px] font-medium" style={{ color: "#0B1A2F" }}>
@@ -222,7 +329,9 @@ export function CatalogSourceEditor({ supplierId }: CatalogSourceEditorProps) {
                 key={item.id}
                 onClick={() => {
                   setProtocol(item.id);
-                  setPort((prev) => (prev === "" ? defaultPortForProtocol(item.id) : prev));
+                  if (!protocolUsesUrl(item.id)) {
+                    setPort((prev) => (prev === "" || prev === 0 ? defaultPortForProtocol(item.id) : prev));
+                  }
                   markEdited();
                 }}
                 className="flex h-9 items-center justify-between rounded-[6px] px-3 text-[12px] font-semibold"
@@ -241,7 +350,7 @@ export function CatalogSourceEditor({ supplierId }: CatalogSourceEditorProps) {
           <div className="mt-4 rounded-[6px] p-3" style={{ background: "#F0F7F1", border: "1px solid #CBE8CE" }}>
             <p className="text-[11px] font-semibold" style={{ color: "#1F6F2A" }}>What gets imported</p>
             <p className="mt-1 text-[11px]" style={{ color: "#2E5F35" }}>
-              CSV/XLSX columns are auto-detected: code (required), name, unit, price, currency, barcode.
+              CSV/XLSX/JSON columns are auto-detected: code (required), name, unit, price, currency, barcode.
             </p>
           </div>
         </div>
@@ -264,69 +373,206 @@ export function CatalogSourceEditor({ supplierId }: CatalogSourceEditorProps) {
                 </div>
               )}
 
-              <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_110px]">
-                <Field label="Host">
+              {cleartextHttp && (
+                <div
+                  className="flex items-start gap-2 rounded-[6px] px-3 py-2 text-[12px]"
+                  style={{ background: "#FFF8EA", border: "1px solid #F0D39A", color: "#7A4D0B" }}
+                >
+                  <AlertTriangle size={15} className="mt-px flex-shrink-0" />
+                  <span>
+                    Plain <code>http://</code> sends the request — including any API key, token, or
+                    Basic password — unencrypted. Prefer an <code>https://</code> URL when the supplier
+                    supports it.
+                  </span>
+                </div>
+              )}
+
+              {/* ── Connection: URL (http/https) OR host+port+path (sftp/ftp) ── */}
+              {isUrlProtocol ? (
+                <Field label="Catalog URL (full request URL)">
                   <input
-                    value={host}
-                    onChange={(e) => { setHost(e.target.value); markEdited(); }}
-                    placeholder="files.supplier.example"
+                    value={url}
+                    onChange={(e) => { setUrl(e.target.value); markEdited(); }}
+                    placeholder="https://api.supplier.example/v1/catalog.csv"
                     className="h-9 w-full rounded-[5px] px-2.5 text-[12px]"
                     style={INPUT_STYLE}
                   />
                 </Field>
-                <Field label="Port">
-                  <input
-                    type="number"
-                    min={1}
-                    value={port}
-                    onChange={(e) => { setPort(e.target.value === "" ? "" : Number(e.target.value)); markEdited(); }}
-                    className="h-9 w-full rounded-[5px] px-2.5 text-[12px]"
-                    style={INPUT_STYLE}
-                  />
+              ) : (
+                <>
+                  <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_110px]">
+                    <Field label="Host">
+                      <input
+                        value={host}
+                        onChange={(e) => { setHost(e.target.value); markEdited(); }}
+                        placeholder="files.supplier.example"
+                        className="h-9 w-full rounded-[5px] px-2.5 text-[12px]"
+                        style={INPUT_STYLE}
+                      />
+                    </Field>
+                    <Field label="Port">
+                      <input
+                        type="number"
+                        min={1}
+                        value={port}
+                        onChange={(e) => { setPort(e.target.value === "" ? "" : Number(e.target.value)); markEdited(); }}
+                        className="h-9 w-full rounded-[5px] px-2.5 text-[12px]"
+                        style={INPUT_STYLE}
+                      />
+                    </Field>
+                  </div>
+
+                  <Field label="Remote file path">
+                    <input
+                      value={remotePath}
+                      onChange={(e) => { setRemotePath(e.target.value); markEdited(); }}
+                      placeholder="/exports/catalog.csv"
+                      className="h-9 w-full rounded-[5px] px-2.5 text-[12px]"
+                      style={INPUT_STYLE}
+                    />
+                  </Field>
+                </>
+              )}
+
+              {/* ── File format ───────────────────────────────────────────── */}
+              <div className="grid gap-3 lg:grid-cols-[180px_minmax(0,1fr)]">
+                <Field label="File format">
+                  <select
+                    value={fileFormat}
+                    onChange={(e) => { setFileFormat(e.target.value); markEdited(); }}
+                    className="h-9 w-full rounded-[5px] px-2 text-[12px]"
+                    style={{ ...INPUT_STYLE, background: "#FFF" }}
+                  >
+                    <option value="auto">Auto-detect</option>
+                    <option value="csv">CSV</option>
+                    <option value="xlsx">XLSX</option>
+                    <option value="json">JSON</option>
+                  </select>
                 </Field>
-              </div>
-
-              <Field label="Remote file path">
-                <input
-                  value={remotePath}
-                  onChange={(e) => { setRemotePath(e.target.value); markEdited(); }}
-                  placeholder="/exports/catalog.csv"
-                  className="h-9 w-full rounded-[5px] px-2.5 text-[12px]"
-                  style={INPUT_STYLE}
-                />
-              </Field>
-
-              {/* ── Credentials ───────────────────────────────────────────── */}
-              <div className="rounded-[7px]" style={{ border: "1px solid #E2E6EE" }}>
-                <div className="flex items-center gap-2 px-3 py-2" style={{ borderBottom: "1px solid #E2E6EE" }}>
-                  <KeyRound size={14} color="#2E8E3A" />
-                  <span className="text-[12px] font-semibold" style={{ color: "#0B1A2F" }}>Credentials</span>
-                  {hasPassword && (
-                    <span className="ml-auto text-[11px]" style={{ color: "#2E8E3A" }}>saved · masked</span>
-                  )}
-                </div>
-                <div className="grid gap-3 p-3 lg:grid-cols-2">
-                  <Field label={usernameRequired ? "Username" : "Username (anonymous if blank)"}>
-                    <input
-                      value={username}
-                      onChange={(e) => { setUsername(e.target.value); markEdited(); }}
-                      placeholder={protocol === "ftp" ? "anonymous" : ""}
-                      className="h-9 w-full rounded-[5px] px-2.5 text-[12px]"
-                      style={INPUT_STYLE}
-                    />
-                  </Field>
-                  <Field label="Password">
-                    <input
-                      type="password"
-                      value={password}
-                      onChange={(e) => { setPassword(e.target.value); markEdited(); }}
-                      placeholder={hasPassword ? "******** (leave blank to keep)" : "Password"}
-                      className="h-9 w-full rounded-[5px] px-2.5 text-[12px]"
-                      style={INPUT_STYLE}
-                    />
-                  </Field>
+                <div className="flex items-end">
+                  <p className="text-[11px]" style={{ color: "var(--ink-faint)" }}>
+                    Leave on auto-detect unless the supplier&apos;s file has no clear extension.
+                  </p>
                 </div>
               </div>
+
+              {/* ── Credentials: file-server password OR HTTP auth ─────────── */}
+              {isUrlProtocol ? (
+                <div className="rounded-[7px]" style={{ border: "1px solid #E2E6EE" }}>
+                  <div className="flex items-center gap-2 px-3 py-2" style={{ borderBottom: "1px solid #E2E6EE" }}>
+                    <KeyRound size={14} color="#2E8E3A" />
+                    <span className="text-[12px] font-semibold" style={{ color: "#0B1A2F" }}>Authentication</span>
+                    {hasAuthConfig && authMethod !== "none" && (
+                      <span className="ml-auto text-[11px]" style={{ color: "#2E8E3A" }}>saved · masked</span>
+                    )}
+                  </div>
+                  <div className="grid gap-3 p-3">
+                    <Field label="Auth method">
+                      <select
+                        value={authMethod}
+                        onChange={(e) => { setAuthMethod(e.target.value as CatalogHttpAuthMethod); markEdited(); }}
+                        className="h-9 w-full rounded-[5px] px-2 text-[12px]"
+                        style={{ ...INPUT_STYLE, background: "#FFF" }}
+                      >
+                        {AUTH_METHODS.map((m) => (
+                          <option key={m.id} value={m.id}>{m.label}</option>
+                        ))}
+                      </select>
+                    </Field>
+
+                    {authMethod === "apikey" && (
+                      <div className="grid gap-3 lg:grid-cols-[180px_minmax(0,1fr)]">
+                        <Field label="Header name">
+                          <input value={apiKeyHeader} onChange={(e) => { setApiKeyHeader(e.target.value); markEdited(); }} placeholder="X-Api-Key" className="h-9 w-full rounded-[5px] px-2.5 text-[12px]" style={INPUT_STYLE} />
+                        </Field>
+                        <Field label="Value">
+                          <input type="password" value={apiKeyValue} onChange={(e) => { setApiKeyValue(e.target.value); markEdited(); }} placeholder={hasAuthConfig ? "******** (leave blank to keep)" : "Key value"} className="h-9 w-full rounded-[5px] px-2.5 text-[12px]" style={INPUT_STYLE} />
+                        </Field>
+                      </div>
+                    )}
+
+                    {authMethod === "bearer" && (
+                      <Field label="Bearer token">
+                        <input type="password" value={bearerToken} onChange={(e) => { setBearerToken(e.target.value); markEdited(); }} placeholder={hasAuthConfig ? "******** (leave blank to keep)" : "Token"} className="h-9 w-full rounded-[5px] px-2.5 text-[12px]" style={INPUT_STYLE} />
+                      </Field>
+                    )}
+
+                    {authMethod === "basic" && (
+                      <div className="grid gap-3 lg:grid-cols-2">
+                        <Field label="Username">
+                          <input value={basicUsername} onChange={(e) => { setBasicUsername(e.target.value); markEdited(); }} className="h-9 w-full rounded-[5px] px-2.5 text-[12px]" style={INPUT_STYLE} />
+                        </Field>
+                        <Field label="Password">
+                          <input type="password" value={basicPassword} onChange={(e) => { setBasicPassword(e.target.value); markEdited(); }} placeholder={hasAuthConfig ? "******** (leave blank to keep)" : "Password"} className="h-9 w-full rounded-[5px] px-2.5 text-[12px]" style={INPUT_STYLE} />
+                        </Field>
+                      </div>
+                    )}
+
+                    {authMethod === "oauth2_client_credentials" && (
+                      <div className="grid gap-3">
+                        <p className="text-[11px]" style={{ color: "#56627A" }}>
+                          Before each fetch, ProcuLink calls the token URL with the client credentials, then
+                          sends the returned token as <code>Authorization: Bearer</code>. The client secret is
+                          stored encrypted; the token is fetched fresh and never stored.
+                        </p>
+                        <div className="grid gap-3 lg:grid-cols-2">
+                          <Field label="Token URL">
+                            <input value={tokenUrl} onChange={(e) => { setTokenUrl(e.target.value); markEdited(); }} placeholder="https://api.supplier.example/oauth/token" className="h-9 w-full rounded-[5px] px-2.5 text-[12px]" style={INPUT_STYLE} />
+                          </Field>
+                          <Field label="Scope (optional)">
+                            <input value={scope} onChange={(e) => { setScope(e.target.value); markEdited(); }} placeholder="catalog.read" className="h-9 w-full rounded-[5px] px-2.5 text-[12px]" style={INPUT_STYLE} />
+                          </Field>
+                        </div>
+                        <div className="grid gap-3 lg:grid-cols-2">
+                          <Field label="Client ID">
+                            <input value={clientId} onChange={(e) => { setClientId(e.target.value); markEdited(); }} className="h-9 w-full rounded-[5px] px-2.5 text-[12px]" style={INPUT_STYLE} />
+                          </Field>
+                          <Field label="Client secret">
+                            <input type="password" value={clientSecret} onChange={(e) => { setClientSecret(e.target.value); markEdited(); }} placeholder={hasAuthConfig ? "******** (leave blank to keep)" : "Client secret"} className="h-9 w-full rounded-[5px] px-2.5 text-[12px]" style={INPUT_STYLE} />
+                          </Field>
+                        </div>
+                      </div>
+                    )}
+
+                    {authMethod === "none" && (
+                      <p className="text-[11px]" style={{ color: "var(--ink-faint)" }}>
+                        No authentication — the catalog URL is fetched anonymously.
+                      </p>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <div className="rounded-[7px]" style={{ border: "1px solid #E2E6EE" }}>
+                  <div className="flex items-center gap-2 px-3 py-2" style={{ borderBottom: "1px solid #E2E6EE" }}>
+                    <KeyRound size={14} color="#2E8E3A" />
+                    <span className="text-[12px] font-semibold" style={{ color: "#0B1A2F" }}>Credentials</span>
+                    {hasPassword && (
+                      <span className="ml-auto text-[11px]" style={{ color: "#2E8E3A" }}>saved · masked</span>
+                    )}
+                  </div>
+                  <div className="grid gap-3 p-3 lg:grid-cols-2">
+                    <Field label={usernameRequired ? "Username" : "Username (anonymous if blank)"}>
+                      <input
+                        value={username}
+                        onChange={(e) => { setUsername(e.target.value); markEdited(); }}
+                        placeholder={protocol === "ftp" ? "anonymous" : ""}
+                        className="h-9 w-full rounded-[5px] px-2.5 text-[12px]"
+                        style={INPUT_STYLE}
+                      />
+                    </Field>
+                    <Field label="Password">
+                      <input
+                        type="password"
+                        value={password}
+                        onChange={(e) => { setPassword(e.target.value); markEdited(); }}
+                        placeholder={hasPassword ? "******** (leave blank to keep)" : "Password"}
+                        className="h-9 w-full rounded-[5px] px-2.5 text-[12px]"
+                        style={INPUT_STYLE}
+                      />
+                    </Field>
+                  </div>
+                </div>
+              )}
 
               <div className="grid gap-3 lg:grid-cols-[150px_minmax(0,1fr)]">
                 <Field label="Every (hours)">
