@@ -1,0 +1,71 @@
+export const metadata = {
+  title: "Managing suppliers and their catalogs — ProcuLink Help",
+  description: "The suppliers list, the six-tab supplier profile, and the three ways to fill a supplier's product catalog: file upload, scheduled pull, and API push.",
+};
+
+# Managing suppliers and their catalogs
+
+**Library → Suppliers** is home base for everyone you send orders to. Each supplier row carries its own setup — code mappings, product catalog, PO column mapping, delivery, validation rules — and the better that setup, the fewer orders ever need your attention.
+
+(If your workspace [receives orders instead of sending them](/help/inbound-mode), this same screen is labelled **Customers** — everything below works identically.)
+
+## The suppliers list
+
+The list shows one row per supplier with three at-a-glance columns: the **output format** it receives, the **delivery channel** it's sent over, and whether **auto-process** is on. Creating a supplier needs only a name — everything else is configured afterwards on the detail page. Auto-process stays off until delivery is configured and you deliberately switch it on, and plan limits apply (Pilot includes one supplier).
+
+## The six tabs
+
+Open a supplier to find its full setup across six tabs:
+
+| Tab | What lives there |
+|---|---|
+| **Overview** | Order stats, the delivery summary, and recent deliveries for this supplier. |
+| **Mappings** | The saved buyer-code → supplier-code pairs, each with its source (AI, Manual, Imported, Inherited) and confidence. |
+| **Catalog** | The supplier's product list — the ground truth for code matching (more below). |
+| **PO Mapping** | Maps the columns of this supplier's order files to ProcuLink's canonical fields. It works from a real sample, so upload an order for this supplier first. |
+| **Delivery** | Output format, channel, credentials, and a safe test send — see [setting up delivery and test-fire](/help/delivery-setup). |
+| **Validation rules** | The acceptance checks that actually hold orders. Edits save as a **draft**; nothing is enforced until you activate that version. |
+
+Edits on these tabs apply to live processing — there's no separate "publish" step outside the validation-rules draft flow and [versioned connections](/help/connections).
+
+## Three ways to fill the catalog
+
+The catalog is the supplier's list of valid product codes. There are three ways to get it in, and they combine freely — pushes, pulls, and uploads all upsert by code, so re-importing is always safe.
+
+### 1. Upload a file
+
+On the **Catalog** tab, **Import CSV / XLSX** takes the supplier's export as-is. Columns are auto-detected — a `code` column is required; name, unit, price, and barcode are picked up when present. Re-imports match rows by code and update in place, and the result tells you how many products were created, updated, or skipped. Full file requirements (accepted header names, delimiters, decimal format) are in [supplier item codes, catalogs, and mappings](/help/item-codes).
+
+### 2. Pull on a schedule
+
+Under **Catalog → Automatic import**, point ProcuLink at wherever the supplier publishes their catalog and it fetches on a schedule, importing only when the file has actually changed:
+
+- **File servers:** SFTP, FTPS, or plain FTP (the editor warns you that plain FTP sends credentials unencrypted — prefer the other two).
+- **HTTP APIs:** any HTTPS (or HTTP) URL that returns a CSV, XLSX, or JSON file, with five authentication options — none, API key header, Bearer token, Basic auth, or OAuth2 client credentials. Credentials are stored encrypted and never shown back; OAuth2 tokens are fetched fresh per sync and never stored.
+
+**Test connection & preview** is a read-only probe: it connects, reads the file, and shows the detected format, the column mapping, and sample rows — *what would be imported* — without saving anything. Scheduled pulling is included on any paid plan; manual upload works everywhere.
+
+### 3. Push from your system
+
+If your ERP or a script already has the catalog, push it instead — no schedule needed. The Catalog tab shows a copyable endpoint:
+
+```
+POST /api/ingress/{your-slug}/catalog/{supplierId}
+```
+
+Send a CSV or XLSX file, authenticated with a `plk_` API key in the `X-ProcuLink-Key` header (created under **Settings → API keys**). Products upsert by code, same as every other path. See [API keys, inbound API, webhooks, and connectors](/help/api-and-integrations) for the key setup.
+
+## Why the catalog matters
+
+With a catalog in place, every future order gets easier:
+
+- order lines **auto-match** against the supplier's real codes,
+- manual entry gets a **typeahead** of codes that actually exist,
+- [AI suggestions](/help/ai-suggestions) are grounded in the catalog — they can only propose real codes,
+- a typo is flagged immediately as "not in the supplier's catalog".
+
+No catalog is still workable — you can always type codes manually — but one import turns a per-order chore into a one-time setup.
+
+---
+
+Next: [PO field mapping basics](/help/mapping-basics) · [Supplier item codes, catalogs, and mappings](/help/item-codes)

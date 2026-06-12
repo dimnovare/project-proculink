@@ -1,0 +1,69 @@
+export const metadata = {
+  title: "Working the Inbox — ProcuLink Help",
+  description: "The Inbox is your order work queue: status filters, search, keyboard navigation, and bulk send — and where each status leads next.",
+};
+
+# Working the Inbox
+
+The Inbox is your work queue: every order in the workspace, one row each, newest activity first. Most days the whole job is "open the Inbox, clear what needs me" — this article covers the tools that make that fast.
+
+## The status filters
+
+The chips above the table filter the queue by what an order needs:
+
+| Chip | Shows |
+|---|---|
+| **All orders** | Everything, regardless of state. |
+| **Needs review** | Orders waiting on a human — usually lines without a supplier item code. |
+| **Ready to send** | The supplier's output file exists; delivery is the next step. |
+| **Delivered** | The supplier's endpoint accepted the transmission. |
+| **Failed** | Anything that went wrong — parse, transform, or delivery failures, exhausted retries, and supplier rejections, all in one red bucket. |
+
+Each chip carries a count for the **whole workspace**, not just the page you're looking at — so "Needs review · 12" is always the real size of the pile. The header line above the table repeats the two numbers that matter most: how many need review and how many failed.
+
+Rows also carry a status pill of their own (New, Extracting, Needs review, Normalized, Ready to send, Delivered, Failed). One distinction worth knowing: **Normalized** means parsed and clean but nothing generated yet, while **Ready to send** means the output file for the supplier already exists. The full vocabulary is in [order statuses from upload to delivered](/help/dashboard-and-statuses).
+
+## Finding an order
+
+The search box matches the PO number, the buyer, or the supplier name, and combines with whichever chip is active — "Failed" + a supplier name is the quickest way to ask "what's stuck with them?". The queue shows 25 rows per page; search narrows before you ever need to paginate. On desktop, a **Columns** menu lets you hide the optional columns (Source, Value, Pipeline, Updated) for the session.
+
+## Keyboard navigation
+
+On desktop you can work the queue without the mouse:
+
+- **j** / **k** (or the arrow keys) move the row highlight down / up,
+- **Enter** opens the highlighted order.
+
+The keys stay out of your way while you're typing in the search box or any other field.
+
+## Bulk send
+
+Tick the checkboxes to select rows; a dark action bar appears with **Send selected**.
+
+Only rows the backend can actually send are selectable: orders that are **Ready to send**, or whose last **delivery attempt failed**. Everything else is greyed out — that's the server's rule, not a display quirk, so a bulk send can never fire a request that's guaranteed to be rejected. The header checkbox respects the same rule: it selects only the sendable rows in the current view. Note that a "Failed" pill alone doesn't make a row sendable — parse and transform failures need fixing on the order itself, and exhausted (dead-lettered) deliveries are requeued from [System health](/help/exceptions-and-stuck-orders), not from here.
+
+After a send, the bar tells you exactly what happened:
+
+- full success reads "N orders sent",
+- partial failures **name each failing PO with its reason** (the first three, then "and N more") — never an opaque "2 failed",
+- the rows that failed stay selected, so retrying can't accidentally re-send the orders that already went out.
+
+One honesty note: a successful send means the supplier's endpoint **accepted the transmission** — not that their business system accepted the order's content. A delivered order can still be [rejected by the supplier afterwards](/help/dashboard-and-statuses).
+
+## Where each status leads next
+
+| You see | Do this |
+|---|---|
+| **Needs review** | Open the order, resolve the flagged lines (accept a suggestion or type the supplier's code). |
+| **Normalized** | Open the order and send it on — the supplier's output is generated at that point. |
+| **Ready to send** | Select and **Send selected**, or open the order and send from there. |
+| **Delivered** | Nothing — unless the supplier reports a problem on their side. |
+| **Failed** | Open the order to see the exact error; every failure also lands in [the exceptions queue](/help/exceptions-and-stuck-orders). |
+
+## An empty inbox
+
+A brand-new workspace shows an empty state with two ways in: upload your first file, or run a **practice order** — a free sample that never counts toward your quota and walks the whole pipeline end to end.
+
+---
+
+Next: [Order statuses from upload to delivered](/help/dashboard-and-statuses) · [Working the exceptions queue](/help/exceptions-and-stuck-orders)

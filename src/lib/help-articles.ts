@@ -75,6 +75,16 @@ export const HELP_ARTICLES: HelpArticle[] = [
     videoUrl: `${TOOL_VIDEO_BASE}/dashboard.mp4`,
     videoPosterUrl: `${TOOL_VIDEO_BASE}/dashboard-poster.jpg`,
   },
+  {
+    slug: "inbox-basics",
+    title: "Working the Inbox",
+    blurb: "The order work queue: status filters, search, keyboard navigation, and bulk send.",
+    category: "Getting started",
+    keywords: ["inbox", "work queue", "bulk send", "send selected", "filters", "search", "keyboard", "j/k", "pagination", "queue"],
+    readMin: 5,
+    videoUrl: `${TOOL_VIDEO_BASE}/inbox.mp4`,
+    videoPosterUrl: `${TOOL_VIDEO_BASE}/inbox-poster.jpg`,
+  },
   // ── Connections ──────────────────────────────────────────────────────────
   {
     slug: "connections",
@@ -87,6 +97,16 @@ export const HELP_ARTICLES: HelpArticle[] = [
     videoPosterUrl: `${TOOL_VIDEO_BASE}/connections-poster.jpg`,
   },
   // ── Mapping ──────────────────────────────────────────────────────────────
+  {
+    slug: "managing-suppliers",
+    title: "Managing suppliers and their catalogs",
+    blurb: "The suppliers list, the six-tab supplier profile, and the three ways to fill a catalog: file upload, scheduled pull, and API push.",
+    category: "Mapping",
+    keywords: ["suppliers", "customers", "supplier list", "catalog import", "catalog sync", "sftp", "ftps", "http api", "push", "auto-process", "tabs", "profile"],
+    readMin: 6,
+    videoUrl: `${TOOL_VIDEO_BASE}/suppliers.mp4`,
+    videoPosterUrl: `${TOOL_VIDEO_BASE}/suppliers-poster.jpg`,
+  },
   {
     slug: "mapping-basics",
     title: "PO field mapping basics",

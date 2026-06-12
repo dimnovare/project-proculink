@@ -95,7 +95,7 @@ export const SECTION_GUIDES: SectionGuideEntry[] = [
       { text: "Move with j/k or arrow keys; Enter opens an order" },
     ],
     firstStep: { text: "If your inbox is empty, start with a practice order or upload your first file.", href: "/upload" },
-    articleSlugs: ["dashboard-and-statuses", "item-codes"],
+    articleSlugs: ["inbox-basics", "dashboard-and-statuses", "item-codes"],
   },
   {
     route: "/inbox/[orderId]",
@@ -158,7 +158,7 @@ export const SECTION_GUIDES: SectionGuideEntry[] = [
       { text: "Plan limits apply — Pilot includes one {supplier}", href: "/settings?tab=billing" },
     ],
     firstStep: { text: "Click \"New {supplier}\" and enter a name — mapping, catalog, and delivery are configured afterwards on the detail page." },
-    articleSlugs: ["delivery-setup", "item-codes"],
+    articleSlugs: ["managing-suppliers", "delivery-setup", "item-codes"],
   },
   {
     route: "/library/suppliers/[id]",
@@ -172,7 +172,7 @@ export const SECTION_GUIDES: SectionGuideEntry[] = [
       { text: "Edits on these tabs apply immediately to live processing" },
     ],
     firstStep: { text: "Import the {supplier}'s item catalog or set up delivery first — PO mapping only works after a sample order is uploaded.", href: "?tab=catalog" },
-    articleSlugs: ["delivery-setup", "item-codes", "mapping-basics"],
+    articleSlugs: ["managing-suppliers", "delivery-setup", "item-codes", "mapping-basics"],
   },
   {
     route: "/library/buyers",
