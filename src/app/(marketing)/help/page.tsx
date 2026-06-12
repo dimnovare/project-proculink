@@ -2,14 +2,18 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import Fuse from "fuse.js";
 import {
   HELP_ARTICLES,
   CATEGORY_META,
   CATEGORY_ORDER,
+  POPULAR_ARTICLE_SLUGS,
+  resolveArticles,
   type HelpArticle,
   type HelpCategory,
 } from "@/lib/help-articles";
+import { buildHelpFuse } from "@/lib/help-search";
+import { walkthroughConfigured } from "@/lib/walkthrough";
+import { capture } from "@/lib/analytics";
 import { HelpIcon } from "@/components/help/HelpIcon";
 
 type Filter = HelpCategory | "All";
@@ -17,24 +21,13 @@ type Filter = HelpCategory | "All";
 /** One-line description per category for the topic cards. Plain procurement copy. */
 const CATEGORY_BLURB: Record<HelpCategory, string> = {
   "Getting started": "Get your first order parsed and on its way.",
+  Connections: "Versioned supplier connections — draft, test, publish, roll back.",
   Mapping: "Connect buyer fields to supplier formats.",
   Delivery: "HTTP webhook, SFTP/FTPS, email, and ERP connectors (Erply, Directo).",
+  Integrations: "Email intake, API keys, webhooks, and connectors.",
   AI: "How mapping suggestions work and what confidence means.",
   Billing: "Plans, quotas, and what happens at the limit.",
-  Email: "Ingest orders that arrive by email.",
   Troubleshooting: "Resolve failed deliveries and validation errors.",
-};
-
-/** Estimated read time per article slug — shown in the popular-articles list. */
-const READ_MIN: Record<string, number> = {
-  "order-intake-options": 5,
-  "first-upload": 4,
-  "mapping-basics": 6,
-  "delivery-config": 5,
-  "ai-suggestions": 5,
-  "billing-faq": 4,
-  "email-polling": 5,
-  troubleshooting: 3,
 };
 
 function articleCount(category: HelpCategory): number {
@@ -45,10 +38,7 @@ export default function HelpIndex() {
   const [q, setQ] = useState("");
   const [active, setActive] = useState<Filter>("All");
 
-  const fuse = useMemo(
-    () => new Fuse(HELP_ARTICLES, { keys: ["title", "blurb", "category"], threshold: 0.4 }),
-    [],
-  );
+  const fuse = useMemo(() => buildHelpFuse(), []);
 
   const searching = q.trim().length > 0 || active !== "All";
 
@@ -162,6 +152,21 @@ export default function HelpIndex() {
             {searching ? `${results.length} result${results.length === 1 ? "" : "s"}` : ""}
           </span>
         </div>
+
+        {/* Walkthrough link — rendered only when the video is configured (offer⇔works). */}
+        {walkthroughConfigured() && (
+          <p className="mt-3 text-[13px]" style={{ color: "var(--ink-muted)" }}>
+            Prefer watching?{" "}
+            <Link
+              href="/watch"
+              onClick={() => capture("help_watch_click", { surface: "help_center" })}
+              className="font-semibold hover:underline"
+              style={{ color: "var(--brand-blue-deep)" }}
+            >
+              3-minute walkthrough →
+            </Link>
+          </p>
+        )}
       </header>
 
       {/* Search / filter results — shown only when actively searching or filtering */}
@@ -226,10 +231,12 @@ export default function HelpIndex() {
         </section>
       ) : (
         <>
-          {/* Topic cards */}
+          {/* Topic cards — categories with no published article yet are hidden
+              (offer⇔works: a card that filters to nothing is a dead control).
+              They appear automatically as the content pass ships articles. */}
           <h2 className="sr-only">Browse help topics</h2>
           <div className="mt-8 grid gap-4 sm:mt-9 sm:grid-cols-2 lg:grid-cols-3">
-            {CATEGORY_ORDER.map((category) => (
+            {CATEGORY_ORDER.filter((category) => articleCount(category) > 0).map((category) => (
               <TopicCard
                 key={category}
                 category={category}
@@ -256,7 +263,7 @@ export default function HelpIndex() {
                 boxShadow: "var(--shadow-card)",
               }}
             >
-              {HELP_ARTICLES.map((article, i) => (
+              {resolveArticles(POPULAR_ARTICLE_SLUGS, POPULAR_ARTICLE_SLUGS.length).map((article, i) => (
                 <ArticleRow key={article.slug} article={article} first={i === 0} />
               ))}
             </div>
@@ -337,7 +344,7 @@ function TopicCard({
 
 /** A single article row in the popular / search-results list. */
 function ArticleRow({ article, first }: { article: HelpArticle; first: boolean }) {
-  const min = READ_MIN[article.slug];
+  const min = article.readMin;
   return (
     <Link
       href={`/help/${article.slug}`}

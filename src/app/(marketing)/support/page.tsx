@@ -79,7 +79,7 @@ export default function SupportPage() {
         </li>
       </ul>
 
-      <h2 style={S.h2}>Report a problem</h2>
+      <h2 style={S.h2} id="report-a-bug">Report a problem</h2>
       <p style={S.p}>
         Found a bug or unexpected behaviour? Email{" "}
         <a href="mailto:support@proculink.eu" style={{ color: "#2E8E3A" }}>support@proculink.eu</a>{" "}

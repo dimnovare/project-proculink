@@ -10,11 +10,17 @@ A reviewed order still needs somewhere to go. Delivery is configured **per suppl
 ## Pick the channel the supplier actually uses
 
 - **HTTP webhook** — the supplier exposes an endpoint; ProcuLink posts the order there. Auth options: none, API key, bearer token, basic, or OAuth2 fetch-token.
-- **SFTP / FTPS** — the order file is dropped on the supplier's server.
+- **SFTP / FTPS** — the order file is dropped on the supplier's server (password or private-key authentication).
 - **Email (SMTP)** — the order goes out as an email attachment.
-- **Erply / Directo** — purpose-built ERP adapters.
+- **Erply / Directo** — purpose-built ERP adapters for those tenants. They authenticate and deliver the **generated order artifact** into the ERP — the same output the other channels send, not a native re-modelling of the order inside the ERP.
+
+Pick HTTP when the supplier publishes an API, SFTP/FTPS or email for file-based suppliers, or the ERP adapter when you share an Erply or Directo tenant.
 
 On the same tab you set the **output format** the supplier requires (CSV, XML, cXML, UBL/Peppol, X12, JSON) — sending auto-transforms into it.
+
+## Configuring HTTP delivery
+
+Enter the webhook URL, the auth method (`none`, `API key`, `bearer`, `basic`, or `OAuth2 fetch-token` — which fetches a fresh access token from the supplier's token endpoint before each send), and any required headers. Credentials are encrypted at rest with AES-256-GCM.
 
 ## Send a test before the first real order
 
@@ -28,8 +34,8 @@ Be precise about what a green test means: **the supplier's endpoint answered —
 
 ## What the statuses mean
 
-`ready_to_deliver` → `delivering` → `delivered` on success. A failure lands in `delivery_failed` with the attempt's error captured for retry. If the failure is "delivery config is missing", retrying won't help — set up delivery first.
+`ready_to_deliver` → `delivering` → `delivered` on success. A failure lands in `delivery_failed` with the attempt's error captured for retry. A transform artifact alone does not mean the order was sent — the explicit `delivered` state is the source of truth. If the failure is "delivery config is missing", retrying won't help — set up delivery first.
 
 ---
 
-Need help? Email [support@proculink.eu](mailto:support@proculink.eu) or see [Configuring supplier delivery](/help/delivery-config) for the field-by-field reference.
+Need help? Email [support@proculink.eu](mailto:support@proculink.eu) or see [Troubleshooting common parse errors](/help/troubleshooting).

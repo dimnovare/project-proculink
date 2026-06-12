@@ -4,7 +4,7 @@ import { COPYRIGHT_NOTICE } from "@/lib/legal-entity";
 
 const FOOTER_COLS: { h: string; links: [string, string][] }[] = [
   { h: "Product", links: [["How it works", "/how-it-works"], ["Pricing", "/pricing"], ["Security", "/security"], ["Open the dashboard", "/bridge"]] },
-  { h: "Company", links: [["Customers", "/customers"], ["Changelog", "/changelog"], ["Support", "/support"]] },
+  { h: "Company", links: [["Customers", "/customers"], ["Changelog", "/changelog"], ["Help center", "/help"], ["Support", "/support"]] },
   { h: "Legal",   links: [["Privacy", "/privacy"], ["Terms", "/terms"], ["AUP", "/aup"], ["DPA", "/dpa"], ["Subprocessors", "/subprocessors"]] },
 ];
 

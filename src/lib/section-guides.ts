@@ -25,6 +25,14 @@ export interface SectionGuideEntry {
   purpose: string;
   bullets: GuideLink[];
   firstStep: GuideLink;
+  /**
+   * Related help-center article slugs for this screen ("Related reading" in
+   * the help slideover; first 3 shown). Slugs are resolved against
+   * HELP_ARTICLES and SILENTLY SKIPPED when no article exists yet — so this
+   * list may reference articles the content pass hasn't written; they light
+   * up as they ship, and nothing dead ever renders.
+   */
+  articleSlugs?: string[];
 }
 
 /** Minimal structural slice of PartyLabels — keeps this lib free of hook imports. */
@@ -46,6 +54,7 @@ export const SECTION_GUIDES: SectionGuideEntry[] = [
       { text: "Export the current view as CSV — it covers your most recent 100 orders" },
     ],
     firstStep: { text: "Complete the two-step setup wizard — choose your order direction and add your first {supplier} — then use \"Try a practice order\" in the checklist." },
+    articleSlugs: ["dashboard-and-statuses", "first-upload"],
   },
   {
     route: "/upload",
@@ -59,6 +68,20 @@ export const SECTION_GUIDES: SectionGuideEntry[] = [
       { text: "Check your plan's order and {supplier} usage in the side panel" },
     ],
     firstStep: { text: "Click \"Try with a sample order\" — it needs no setup and is free." },
+    articleSlugs: ["first-upload", "order-intake-options"],
+  },
+  {
+    route: "/upload/preview/[orderId]",
+    title: "Mapping preview",
+    purpose: "Your file is being parsed — review how its lines were read and mapped before the order is committed.",
+    bullets: [
+      { text: "Wait for parsing to finish — large files and PDFs can take a few seconds" },
+      { text: "Check the detected lines and accept, edit, or clear suggested codes" },
+      { text: "Commit the mapping to create the order and continue in the Inbox" },
+      { text: "If parsing fails, you land on the order with the exact error to fix" },
+    ],
+    firstStep: { text: "Let parsing finish, review the suggested mapping, then commit to continue." },
+    articleSlugs: ["first-upload", "troubleshooting"],
   },
   {
     route: "/inbox",
@@ -72,6 +95,7 @@ export const SECTION_GUIDES: SectionGuideEntry[] = [
       { text: "Move with j/k or arrow keys; Enter opens an order" },
     ],
     firstStep: { text: "If your inbox is empty, start with a practice order or upload your first file.", href: "/upload" },
+    articleSlugs: ["dashboard-and-statuses", "item-codes"],
   },
   {
     route: "/inbox/[orderId]",
@@ -85,6 +109,7 @@ export const SECTION_GUIDES: SectionGuideEntry[] = [
       { text: "Download or copy the output after the order is transformed" },
     ],
     firstStep: { text: "Resolve each flagged line — accept a suggestion or set a code — then use the send/confirm button (shortcut C)." },
+    articleSlugs: ["output-mapping-editor", "item-codes", "delivery-setup"],
   },
   {
     route: "/drafts",
@@ -108,6 +133,7 @@ export const SECTION_GUIDES: SectionGuideEntry[] = [
       { text: "Download an invoice as CSV" },
     ],
     firstStep: { text: "Upload a UBL 2.1 XML invoice from a {supplier} — it parses automatically and appears in the list as pending review." },
+    articleSlugs: ["order-intake-options"],
   },
   {
     route: "/inbound/asns",
@@ -132,6 +158,7 @@ export const SECTION_GUIDES: SectionGuideEntry[] = [
       { text: "Plan limits apply — Pilot includes one {supplier}", href: "/settings?tab=billing" },
     ],
     firstStep: { text: "Click \"New {supplier}\" and enter a name — mapping, catalog, and delivery are configured afterwards on the detail page." },
+    articleSlugs: ["delivery-setup", "item-codes"],
   },
   {
     route: "/library/suppliers/[id]",
@@ -145,6 +172,7 @@ export const SECTION_GUIDES: SectionGuideEntry[] = [
       { text: "Edits on these tabs apply immediately to live processing" },
     ],
     firstStep: { text: "Import the {supplier}'s item catalog or set up delivery first — PO mapping only works after a sample order is uploaded.", href: "?tab=catalog" },
+    articleSlugs: ["delivery-setup", "item-codes", "mapping-basics"],
   },
   {
     route: "/library/buyers",
@@ -157,6 +185,7 @@ export const SECTION_GUIDES: SectionGuideEntry[] = [
       { text: "Delete a buyer with the × on its row" },
     ],
     firstStep: { text: "Create one buyer, then upload a PO — formats and order history fill in from real orders." },
+    articleSlugs: ["inbound-mode"],
   },
   {
     route: "/connections",
@@ -168,6 +197,7 @@ export const SECTION_GUIDES: SectionGuideEntry[] = [
       { text: "Connections are created automatically when you configure a {supplier}" },
     ],
     firstStep: { text: "Configure a {supplier}'s mapping, output, and delivery — a versioned connection appears here automatically.", href: "/library/suppliers" },
+    articleSlugs: ["connections"],
   },
   {
     route: "/connections/[connectionId]",
@@ -181,6 +211,7 @@ export const SECTION_GUIDES: SectionGuideEntry[] = [
       { text: "Publish to go live, or roll back from an archived revision" },
     ],
     firstStep: { text: "Create a draft from live, edit it via the {supplier} editors, run tests, replay recent orders, then publish." },
+    articleSlugs: ["connections", "output-mapping-editor"],
   },
   {
     route: "/library/mappings",
@@ -194,6 +225,7 @@ export const SECTION_GUIDES: SectionGuideEntry[] = [
       { text: "Filter by source: AI, Manual, Imported, or Inherited" },
     ],
     firstStep: { text: "Pick the {supplier} first, then import a CSV of your existing buyer-to-{supplier} code pairs." },
+    articleSlugs: ["mapping-basics", "output-mapping-editor", "item-codes"],
   },
   {
     route: "/library/rules",
@@ -206,6 +238,7 @@ export const SECTION_GUIDES: SectionGuideEntry[] = [
       { text: "Set real enforcement on each {supplier}'s Validation rules tab", href: "/library/suppliers" },
     ],
     firstStep: { text: "Skim the starter rules, then open a {supplier} to set up the checks that actually hold orders.", href: "/library/suppliers" },
+    articleSlugs: ["validation-rules"],
   },
   {
     route: "/library/rule-definitions",
@@ -217,6 +250,7 @@ export const SECTION_GUIDES: SectionGuideEntry[] = [
       { text: "Authoring happens on each {supplier}'s Validation rules tab" },
     ],
     firstStep: { text: "Use this page as a reference; bind and enforce checks on a {supplier}'s Validation rules tab.", href: "/library/suppliers" },
+    articleSlugs: ["validation-rules"],
   },
   {
     route: "/library/templates",
@@ -230,6 +264,7 @@ export const SECTION_GUIDES: SectionGuideEntry[] = [
       { text: "Actual delivery formats are set in each {supplier}'s delivery config", href: "/library/suppliers" },
     ],
     firstStep: { text: "Nothing here is required — to change what a {supplier} actually receives, edit its delivery config.", href: "/library/suppliers" },
+    articleSlugs: ["output-templates", "delivery-setup"],
   },
   {
     route: "/library/standards",
@@ -242,6 +277,7 @@ export const SECTION_GUIDES: SectionGuideEntry[] = [
       { text: "Request a format that's missing", href: "/support" },
     ],
     firstStep: { text: "Search a field like \"PO number\" or \"currency\" to read its exact reference in each standard." },
+    articleSlugs: ["output-templates", "order-intake-options"],
   },
   {
     route: "/operations/exceptions",
@@ -255,6 +291,7 @@ export const SECTION_GUIDES: SectionGuideEntry[] = [
       { text: "Order exceptions can't be resolved from this list — fix the order instead" },
     ],
     firstStep: { text: "Nothing to do here until an order hits trouble — when an exception appears, expand it and use \"Open order to fix\"." },
+    articleSlugs: ["exceptions-and-stuck-orders", "troubleshooting"],
   },
   {
     route: "/operations/health",
@@ -268,6 +305,7 @@ export const SECTION_GUIDES: SectionGuideEntry[] = [
       { text: "Counts refresh automatically every 45 seconds" },
     ],
     firstStep: { text: "Glance at the worker banner before your first upload — green means parsing will run." },
+    articleSlugs: ["exceptions-and-stuck-orders"],
   },
   {
     route: "/operations/log",
@@ -281,6 +319,7 @@ export const SECTION_GUIDES: SectionGuideEntry[] = [
       { text: "Only the latest 50 events load — exports cover those" },
     ],
     firstStep: { text: "Once orders exist, filter by Failed and open the order to retry it from there." },
+    articleSlugs: ["dashboard-and-statuses", "delivery-setup"],
   },
   {
     route: "/operations/connectors",
@@ -293,6 +332,7 @@ export const SECTION_GUIDES: SectionGuideEntry[] = [
       { text: "Configure real endpoints on the {supplier} profile's Delivery tab", href: "/library/suppliers" },
     ],
     firstStep: { text: "Open a card and jump to the {supplier}'s Delivery tab to set up the real endpoint, then come back and test fire." },
+    articleSlugs: ["delivery-setup", "api-and-integrations"],
   },
   {
     route: "/operations/webhooks",
@@ -306,6 +346,7 @@ export const SECTION_GUIDES: SectionGuideEntry[] = [
       { text: "Delivery history isn't recorded here yet" },
     ],
     firstStep: { text: "Add an endpoint for order.delivered with a signing secret, pointing at your ERP or automation tool's catch URL." },
+    articleSlugs: ["api-and-integrations"],
   },
   {
     route: "/settings",
@@ -319,6 +360,7 @@ export const SECTION_GUIDES: SectionGuideEntry[] = [
       { text: "Add webhooks — failure counts show here too", href: "/settings?tab=connectors" },
     ],
     firstStep: { text: "Set your order direction on the Organization tab first — it relabels the whole app.", href: "/settings?tab=org" },
+    articleSlugs: ["billing-faq", "email-polling", "api-and-integrations", "inbound-mode"],
   },
 ];
 

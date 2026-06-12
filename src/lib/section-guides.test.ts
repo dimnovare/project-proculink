@@ -42,6 +42,9 @@ describe("matchGuide", () => {
     expect(matchGuide("/connections/abc-123")?.route).toBe(
       "/connections/[connectionId]",
     );
+    expect(matchGuide("/upload/preview/3f2b1a90-0c4d-4e5f-9a1b-2c3d4e5f6a7b")?.route).toBe(
+      "/upload/preview/[orderId]",
+    );
   });
 
   it("disambiguates /inbox from /inbox/[orderId]", () => {
@@ -59,7 +62,7 @@ describe("matchGuide", () => {
   it("returns null when no entry matches", () => {
     expect(matchGuide("/")).toBeNull();
     expect(matchGuide("/admin")).toBeNull();
-    expect(matchGuide("/upload/preview/some-order-id")).toBeNull();
+    expect(matchGuide("/upload/preview")).toBeNull();
     expect(matchGuide("/inbox/a/b")).toBeNull();
     expect(matchGuide("/nonexistent")).toBeNull();
     expect(matchGuide("/library")).toBeNull();
@@ -111,8 +114,8 @@ describe("guideSeenKey", () => {
 });
 
 describe("SECTION_GUIDES registry shape", () => {
-  it("has 23 entries with unique routes", () => {
-    expect(SECTION_GUIDES).toHaveLength(23);
+  it("has 24 entries with unique routes", () => {
+    expect(SECTION_GUIDES).toHaveLength(24);
     const routes = SECTION_GUIDES.map((g) => g.route);
     expect(new Set(routes).size).toBe(routes.length);
   });
@@ -147,6 +150,32 @@ describe("SECTION_GUIDES registry shape", () => {
       for (const href of hrefs) {
         expect(/^[/?]/.test(href), `href "${href}" on ${g.route}`).toBe(true);
       }
+    }
+  });
+
+  it("articleSlugs, when present, are non-empty kebab-case slugs, unique per entry", () => {
+    const SLUG = /^[a-z0-9]+(-[a-z0-9]+)*$/;
+    for (const g of SECTION_GUIDES) {
+      if (g.articleSlugs === undefined) continue;
+      expect(g.articleSlugs.length, `articleSlugs of ${g.route}`).toBeGreaterThan(0);
+      expect(
+        new Set(g.articleSlugs).size,
+        `duplicate articleSlugs on ${g.route}`,
+      ).toBe(g.articleSlugs.length);
+      for (const slug of g.articleSlugs) {
+        expect(typeof slug, `slug type on ${g.route}`).toBe("string");
+        expect(SLUG.test(slug), `slug "${slug}" on ${g.route} is not kebab-case`).toBe(true);
+      }
+    }
+  });
+
+  it("honestly-unavailable screens carry no related articles", () => {
+    // /drafts and /inbound/asns document unavailable features — linking
+    // articles from them would violate offer⇔works.
+    for (const route of ["/drafts", "/inbound/asns"]) {
+      const g = SECTION_GUIDES.find((e) => e.route === route);
+      expect(g, route).toBeDefined();
+      expect(g?.articleSlugs, `articleSlugs of ${route}`).toBeUndefined();
     }
   });
 

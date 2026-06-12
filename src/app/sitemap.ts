@@ -1,4 +1,5 @@
 import type { MetadataRoute } from "next";
+import { HELP_ARTICLES } from "@/lib/help-articles";
 
 const BASE_URL = "https://proculink.eu";
 
@@ -9,14 +10,8 @@ const routes = [
   "/pricing",
   "/security",
   "/help",
-  "/help/ai-suggestions",
-  "/help/billing-faq",
-  "/help/delivery-config",
-  "/help/email-polling",
-  "/help/first-upload",
-  "/help/mapping-basics",
-  "/help/order-intake-options",
-  "/help/troubleshooting",
+  // Help articles come straight from the registry — a hand list can't drift.
+  ...HELP_ARTICLES.map((a) => `/help/${a.slug}`),
   "/watch",
   "/support",
   "/privacy",

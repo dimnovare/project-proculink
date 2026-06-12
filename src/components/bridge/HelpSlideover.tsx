@@ -1,10 +1,17 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { capture } from "@/lib/analytics";
 import { useOrderDirection } from "@/hooks/useOrderDirection";
+import {
+  POPULAR_ARTICLE_SLUGS,
+  resolveArticles,
+  type HelpArticle,
+} from "@/lib/help-articles";
+import { buildHelpFuse, searchHelpArticles } from "@/lib/help-search";
+import { walkthroughConfigured } from "@/lib/walkthrough";
 import {
   matchGuide,
   resolveGuideText,
@@ -16,22 +23,6 @@ interface Props {
   open:    boolean;
   onClose: () => void;
 }
-
-// Ordered route → article map; FIRST match wins, so more specific matchers
-// (supplier DETAIL page) sit above their prefix parents (supplier list).
-const CONTEXTUAL_LINKS: Array<{
-  match: (path: string) => boolean;
-  href: string;
-  title: string;
-}> = [
-  { match: (p) => p.startsWith("/upload"),                      href: "/help/first-upload",    title: "Your first purchase order upload" },
-  { match: (p) => p.startsWith("/inbox"),                       href: "/help/item-codes",      title: "Supplier item codes, catalogs, and mappings" },
-  { match: (p) => p.startsWith("/library/mappings"),            href: "/help/mapping-basics",  title: "PO field mapping basics" },
-  // Supplier DETAIL (where the Delivery/Catalog tabs live) → delivery setup.
-  { match: (p) => /^\/library\/suppliers\/.+/.test(p),          href: "/help/delivery-setup",  title: "Setting up delivery and test-fire" },
-  { match: (p) => p.startsWith("/library/suppliers"),           href: "/help/delivery-config", title: "Configuring supplier delivery" },
-  { match: (p) => p.startsWith("/settings"),                    href: "/help/billing-faq",     title: "Billing and plans FAQ" },
-];
 
 // ─── Section guide body ──────────────────────────────────────────────────────
 // Renders one registry entry's purpose / bullets / "Start here" line. The help
@@ -155,17 +146,135 @@ function SectionGuideBody({ guide, labels, onNavigate }: SectionGuideBodyProps) 
   );
 }
 
+// ─── Article row ─────────────────────────────────────────────────────────────
+// One help-center article link — used by both search results and the related-
+// reading / popular lists. Always opens in a NEW TAB so the operator's
+// work-in-progress on the current screen is preserved.
+
+function ArticleLinkRow({
+  article,
+  surface,
+  route,
+  showCategory,
+}: {
+  article: HelpArticle;
+  surface: string;
+  route: string | null;
+  showCategory?: boolean;
+}) {
+  return (
+    <a
+      href={`/help/${article.slug}`}
+      target="_blank"
+      rel="noopener"
+      onClick={() => capture("help_article_click", { slug: article.slug, surface, route })}
+      className="hover:underline"
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 10,
+        minHeight: "var(--tap-min)",
+        padding: "8px 10px",
+        borderRadius: 6,
+        textDecoration: "none",
+      }}
+    >
+      <span style={{ minWidth: 0, flex: 1 }}>
+        <span
+          style={{
+            display: "block",
+            fontSize: 13,
+            fontWeight: 600,
+            color: "var(--ink)",
+            lineHeight: 1.35,
+          }}
+        >
+          {article.title}
+        </span>
+        <span
+          style={{
+            display: "block",
+            marginTop: 2,
+            fontSize: 11,
+            color: "var(--ink-faint)",
+          }}
+        >
+          {showCategory && (
+            <span
+              style={{
+                display: "inline-block",
+                marginRight: 6,
+                padding: "1px 6px",
+                borderRadius: 99,
+                background: "var(--surface-2)",
+                color: "var(--ink-muted)",
+                fontWeight: 600,
+              }}
+            >
+              {article.category}
+            </span>
+          )}
+          {article.readMin} min read
+        </span>
+      </span>
+      <span aria-hidden style={{ color: "var(--ink-faint)", fontSize: 12, flexShrink: 0 }}>
+        ↗
+      </span>
+    </a>
+  );
+}
+
+// ─── Slideover ───────────────────────────────────────────────────────────────
+
 export function HelpSlideover({ open, onClose }: Props) {
   const pathname = usePathname();
   const { labels } = useOrderDirection();
   const guide = matchGuide(pathname);
-  const contextual = pathname
-    ? CONTEXTUAL_LINKS.find((l) => l.match(pathname))
-    : undefined;
+
+  const searchRef = useRef<HTMLInputElement>(null);
+  const [query, setQuery] = useState("");
+  const [debounced, setDebounced] = useState("");
+
+  const fuse = useMemo(() => buildHelpFuse(), []);
+  const results = useMemo(
+    () => searchHelpArticles(fuse, debounced, 6),
+    [fuse, debounced],
+  );
+  const searching = debounced.trim().length > 0;
+
+  const related = resolveArticles(guide?.articleSlugs, 3);
+  const popular = resolveArticles(POPULAR_ARTICLE_SLUGS, 3);
+  const showWatch = walkthroughConfigured();
 
   useEffect(() => {
     if (open) capture("help_slideover_opened", { route: pathname });
   }, [open, pathname]);
+
+  // Focus the search input on open (BridgeTopbar restores focus to "?" on close).
+  useEffect(() => {
+    if (open) searchRef.current?.focus();
+    else {
+      setQuery("");
+      setDebounced("");
+    }
+  }, [open]);
+
+  // Debounce the query 150 ms before searching.
+  useEffect(() => {
+    const t = setTimeout(() => setDebounced(query), 150);
+    return () => clearTimeout(t);
+  }, [query]);
+
+  // One help_search event per settled (debounced) non-empty query.
+  useEffect(() => {
+    const q = debounced.trim();
+    if (!q) return;
+    capture("help_search", {
+      query_len: q.length,
+      results: searchHelpArticles(fuse, q, 6).length,
+      surface: "slideover",
+    });
+  }, [debounced, fuse]);
 
   useEffect(() => {
     if (!open) return;
@@ -177,6 +286,23 @@ export function HelpSlideover({ open, onClose }: Props) {
   }, [open, onClose]);
 
   if (!open) return null;
+
+  const sectionLabelStyle: React.CSSProperties = {
+    margin: 0,
+    fontSize: 12,
+    fontWeight: 600,
+    color: "var(--ink-faint)",
+    textTransform: "uppercase",
+    letterSpacing: "0.05em",
+  };
+
+  const cardStyle: React.CSSProperties = {
+    background: "var(--surface)",
+    border: "1px solid var(--border)",
+    borderRadius: 8,
+    padding: "12px 14px",
+    marginBottom: 16,
+  };
 
   return (
     <div
@@ -197,27 +323,30 @@ export function HelpSlideover({ open, onClose }: Props) {
         onClick={(e) => e.stopPropagation()}
         style={{
           width: "min(380px, 100%)",
-          background: "#FFFFFF",
+          background: "var(--surface)",
           height: "100%",
-          padding: "24px 22px",
+          display: "flex",
+          flexDirection: "column",
           boxShadow: "-12px 0 30px rgba(11,26,47,0.12)",
-          overflowY: "auto",
         }}
       >
+        {/* Header */}
         <header
           style={{
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
-            marginBottom: 18,
+            padding: "20px 22px 0",
+            marginBottom: 12,
+            flexShrink: 0,
           }}
         >
           <h2
             style={{
-              fontFamily: "'Bricolage Grotesque', Inter, sans-serif",
+              fontFamily: "var(--font-display, 'Bricolage Grotesque', Inter, sans-serif)",
               fontSize: 18,
               fontWeight: 600,
-              color: "#0B1A2F",
+              color: "var(--ink)",
               margin: 0,
             }}
           >
@@ -234,138 +363,198 @@ export function HelpSlideover({ open, onClose }: Props) {
               fontSize: 22,
               lineHeight: 1,
               color: "var(--ink-faint)",
-              padding: 4,
+              padding: 10,
+              minWidth: "var(--tap-min)",
+              minHeight: "var(--tap-min)",
             }}
           >
             ×
           </button>
         </header>
 
-        {/* Current screen's section guide — the only home for guide content. */}
-        {guide && (
-          <section
+        {/* Search */}
+        <div style={{ padding: "0 22px", marginBottom: 14, flexShrink: 0 }}>
+          <input
+            ref={searchRef}
+            type="search"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search help…"
+            aria-label="Search help articles"
             style={{
-              background: "#FFFFFF",
-              border: "1px solid #E2E6EE",
-              borderRadius: 8,
-              padding: "12px 14px",
-              marginBottom: 18,
+              width: "100%",
+              height: 38,
+              padding: "0 12px",
+              fontSize: 13,
+              color: "var(--ink)",
+              background: "var(--surface)",
+              border: "1px solid var(--border-strong)",
+              borderRadius: 6,
+              outline: "none",
             }}
-          >
-            <p
-              style={{
-                margin: 0,
-                fontSize: 12,
-                fontWeight: 600,
-                color: "var(--ink-faint)",
-                textTransform: "uppercase",
-                letterSpacing: "0.05em",
-              }}
-            >
-              This screen
-            </p>
-            <h3
-              style={{
-                margin: "6px 0 8px",
-                fontSize: 14,
-                fontWeight: 600,
-                color: "#0B1A2F",
-                lineHeight: 1.3,
-              }}
-            >
-              {resolveGuideText(guide.title, labels)}
-            </h3>
-            <SectionGuideBody
-              guide={guide}
-              labels={labels}
-              onNavigate={onClose}
-            />
-          </section>
-        )}
+          />
+        </div>
 
-        {contextual && (
-          <section
-            style={{
-              background: "#F6F7FA",
-              border: "1px solid #E2E6EE",
-              borderLeft: "3px solid #2E8E3A",
-              borderRadius: 8,
-              padding: "12px 14px",
-              marginBottom: 18,
-            }}
-          >
-            <p
+        {/* Scrollable body */}
+        <div style={{ flex: 1, overflowY: "auto", padding: "0 22px 16px" }}>
+          {searching ? (
+            // ── Search results replace sections 3–5 while a query is active ──
+            <section style={cardStyle}>
+              <p style={sectionLabelStyle}>Search results</p>
+              {results.length === 0 ? (
+                <p
+                  style={{
+                    margin: "8px 0 2px",
+                    fontSize: 12.5,
+                    lineHeight: 1.5,
+                    color: "var(--ink-muted)",
+                  }}
+                >
+                  No matches — open the help center or contact support.
+                </p>
+              ) : (
+                <div style={{ marginTop: 4 }}>
+                  {results.map((a) => (
+                    <ArticleLinkRow
+                      key={a.slug}
+                      article={a}
+                      surface="slideover_search"
+                      route={pathname}
+                      showCategory
+                    />
+                  ))}
+                </div>
+              )}
+            </section>
+          ) : (
+            <>
+              {/* "This screen" — the current route's section guide. */}
+              {guide && (
+                <section style={cardStyle}>
+                  <p style={sectionLabelStyle}>This screen</p>
+                  <h3
+                    style={{
+                      margin: "6px 0 8px",
+                      fontSize: 14,
+                      fontWeight: 600,
+                      color: "var(--ink)",
+                      lineHeight: 1.3,
+                    }}
+                  >
+                    {resolveGuideText(guide.title, labels)}
+                  </h3>
+                  <SectionGuideBody
+                    guide={guide}
+                    labels={labels}
+                    onNavigate={onClose}
+                  />
+                </section>
+              )}
+
+              {/* No-guide fallback — popular articles instead of an empty panel. */}
+              {!guide && popular.length > 0 && (
+                <section style={cardStyle}>
+                  <p style={sectionLabelStyle}>Popular articles</p>
+                  <div style={{ marginTop: 4 }}>
+                    {popular.map((a) => (
+                      <ArticleLinkRow
+                        key={a.slug}
+                        article={a}
+                        surface="slideover_popular"
+                        route={pathname}
+                      />
+                    ))}
+                  </div>
+                </section>
+              )}
+
+              {/* "Related reading" — up to 3 registry-driven article rows. */}
+              {guide && related.length > 0 && (
+                <section style={cardStyle}>
+                  <p style={sectionLabelStyle}>Related reading</p>
+                  <div style={{ marginTop: 4 }}>
+                    {related.map((a) => (
+                      <ArticleLinkRow
+                        key={a.slug}
+                        article={a}
+                        surface="slideover_related"
+                        route={pathname}
+                      />
+                    ))}
+                  </div>
+                </section>
+              )}
+
+              {/* Walkthrough — rendered only when the video is configured. */}
+              {showWatch && (
+                <a
+                  href="/watch"
+                  target="_blank"
+                  rel="noopener"
+                  onClick={() => capture("help_watch_click", { surface: "slideover" })}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 10,
+                    minHeight: "var(--tap-min)",
+                    padding: "10px 14px",
+                    marginBottom: 16,
+                    border: "1px solid var(--border)",
+                    borderRadius: 8,
+                    fontSize: 13,
+                    fontWeight: 600,
+                    color: "var(--ink)",
+                    textDecoration: "none",
+                    background: "var(--brand-green-soft)",
+                  }}
+                >
+                  <span aria-hidden style={{ color: "var(--brand-green-deep)" }}>▷</span>
+                  Watch the 3-minute walkthrough
+                  <span aria-hidden style={{ marginLeft: "auto", color: "var(--ink-faint)", fontSize: 12 }}>↗</span>
+                </a>
+              )}
+            </>
+          )}
+        </div>
+
+        {/* Persistent footer nav — visible during search too. All new tab. */}
+        <nav
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            gap: 8,
+            padding: "14px 22px 20px",
+            borderTop: "1px solid var(--border)",
+            flexShrink: 0,
+          }}
+        >
+          {[
+            { href: "/help",                 label: "Open help center" },
+            { href: "/support",              label: "Contact support" },
+            { href: "/support#report-a-bug", label: "Report a bug" },
+          ].map((l) => (
+            <a
+              key={l.href}
+              href={l.href}
+              target="_blank"
+              rel="noopener"
               style={{
-                margin: 0,
-                fontSize: 12,
-                fontWeight: 600,
-                color: "var(--ink-faint)",
-                textTransform: "uppercase",
-                letterSpacing: "0.05em",
-              }}
-            >
-              For this page
-            </p>
-            <Link
-              href={contextual.href}
-              onClick={onClose}
-              style={{
-                display: "block",
-                marginTop: 6,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                minHeight: "var(--tap-min)",
+                padding: "10px 12px",
+                border: "1px solid var(--border)",
+                borderRadius: 6,
                 fontSize: 14,
-                fontWeight: 600,
-                color: "#0B1A2F",
+                color: "var(--ink)",
                 textDecoration: "none",
               }}
             >
-              {contextual.title}
-            </Link>
-          </section>
-        )}
-
-        <nav style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-          <Link
-            href="/help"
-            onClick={onClose}
-            style={{
-              padding: "10px 12px",
-              border: "1px solid #E2E6EE",
-              borderRadius: 6,
-              fontSize: 14,
-              color: "#0B1A2F",
-              textDecoration: "none",
-            }}
-          >
-            Open help docs →
-          </Link>
-          <Link
-            href="/support"
-            onClick={onClose}
-            style={{
-              padding: "10px 12px",
-              border: "1px solid #E2E6EE",
-              borderRadius: 6,
-              fontSize: 14,
-              color: "#0B1A2F",
-              textDecoration: "none",
-            }}
-          >
-            Contact support
-          </Link>
-          <Link
-            href="/support#report-a-bug"
-            onClick={onClose}
-            style={{
-              padding: "10px 12px",
-              border: "1px solid #E2E6EE",
-              borderRadius: 6,
-              fontSize: 14,
-              color: "#0B1A2F",
-              textDecoration: "none",
-            }}
-          >
-            Report a bug
-          </Link>
+              {l.label}
+              <span aria-hidden style={{ color: "var(--ink-faint)", fontSize: 12 }}>↗</span>
+            </a>
+          ))}
         </nav>
       </aside>
     </div>

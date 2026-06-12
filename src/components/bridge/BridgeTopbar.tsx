@@ -317,6 +317,9 @@ export function BridgeTopbar({ crumb, onMenuClick }: BridgeTopbarProps) {
   const mobileLabel = useMobilePageLabel();
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
+  // Focus management: the slideover moves focus to its search input on open;
+  // closing must hand focus back to the "?" trigger.
+  const helpBtnRef = useRef<HTMLButtonElement>(null);
 
   // Unseen-guide dot on the "?" button — discovery cue now that guide content
   // lives only in the help slideover. SSR-safe: state starts false (badge
@@ -468,6 +471,7 @@ export function BridgeTopbar({ crumb, onMenuClick }: BridgeTopbarProps) {
 
         {/* Help — dot badge while the current route's guide is unseen */}
         <button
+          ref={helpBtnRef}
           type="button"
           aria-label={guideUnseen ? "Help — guide available for this screen" : "Help"}
           onClick={() => {
@@ -523,7 +527,13 @@ export function BridgeTopbar({ crumb, onMenuClick }: BridgeTopbarProps) {
       {paletteOpen && <CommandPalette onClose={() => setPaletteOpen(false)} />}
 
       {/* Help slide-over */}
-      <HelpSlideover open={helpOpen} onClose={() => setHelpOpen(false)} />
+      <HelpSlideover
+        open={helpOpen}
+        onClose={() => {
+          setHelpOpen(false);
+          helpBtnRef.current?.focus();
+        }}
+      />
 
       {/* Bottom edge — 2px blue→green gradient (matches design --gradient-link-spine) */}
       <div
