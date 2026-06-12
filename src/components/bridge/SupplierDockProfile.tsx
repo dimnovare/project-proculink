@@ -18,6 +18,7 @@ import { useOrderDirection } from "@/hooks/useOrderDirection";
 import { useQueriesEnabled } from "@/hooks/useQueriesEnabled";
 import { invalidateOnboardingStatus } from "@/hooks/useOnboardingStatus";
 import { PageShell } from "./layout/PageShell";
+import { useTabParamSync } from "@/lib/tab-param-sync";
 import type { PoMappingConfig } from "@/lib/api/types";
 import type { AcceptanceRule, AcceptanceProfile, SupplierMapping } from "@/types/procurement";
 
@@ -102,6 +103,10 @@ const TABS: Array<{ id: Tab; label: string }> = [
   { id: "delivery",    label: "Delivery"          },
   { id: "acceptance",  label: "Validation rules"  },
 ];
+
+// Module-scope so useTabParamSync's effect deps stay referentially stable.
+const isTab = (v: string | null | undefined): v is Tab =>
+  v != null && TABS.some((t) => t.id === v);
 
 // Source-pill palette for the SKU mappings table (provenance colour-coding, from design).
 const SOURCE_PILL: Record<string, { bg: string; fg: string }> = {
@@ -1011,9 +1016,12 @@ export function SupplierDockProfile({ id }: { id: string }) {
   // CTAs). Validated against the Tab union via TABS; falls back to "overview".
   const searchParams = useSearchParams();
   const requestedTab = searchParams?.get("tab");
-  const isTab = (v: string | null | undefined): v is Tab =>
-    v != null && TABS.some((t) => t.id === v);
   const [tab, setTab] = useState<Tab>(isTab(requestedTab) ? requestedTab : "overview");
+  // ?tab= changes while MOUNTED (e.g. help-slideover guide links like
+  // "?tab=catalog" on this page) must also switch tabs; manual tab clicks
+  // don't write the URL back, so the sync fires only when the param VALUE
+  // itself changes.
+  useTabParamSync<Tab>(requestedTab, isTab, setTab);
   const [poMappingConfig, setPoMappingConfig] = useState<PoMappingConfig | null>(null);
   const [savingMapping, setSavingMapping] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);

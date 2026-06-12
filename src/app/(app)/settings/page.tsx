@@ -27,6 +27,7 @@ import {
 } from "@/lib/api-client";
 import type { EmailSettings, UpdateEmailSettingsPayload, OrderDirection } from "@/types/procurement";
 import type { ApiKey, IntegrationSubscription } from "@/lib/api-client";
+import { useTabParamSync } from "@/lib/tab-param-sync";
 import { SftpPullSettings, S3PullSettings } from "@/components/settings/PullIngressSettings";
 
 type SettingsTab = "org" | "billing" | "email" | "sftp" | "s3" | "api" | "connectors";
@@ -46,15 +47,21 @@ const PLAN_LABELS: Record<string, string> = {
   integration: "Integration plan", enterprise: "Enterprise",
 };
 
+// Module-scope so useTabParamSync's effect deps stay referentially stable.
+const isSettingsTab = (v: string | null | undefined): v is SettingsTab =>
+  v != null && TABS.some((t) => t.id === v);
+
 export default function SettingsPage() {
   // Initial tab honours a `?tab=` deep-link (e.g. the onboarding completion
   // card's "Set up email intake" → ?tab=email and "Create an API key" →
   // ?tab=api). Validated against the SettingsTab union; falls back to "org".
   const searchParams = useSearchParams();
   const requestedTab = searchParams?.get("tab");
-  const isSettingsTab = (v: string | null | undefined): v is SettingsTab =>
-    v != null && TABS.some((t) => t.id === v);
   const [tab, setTab] = useState<SettingsTab>(isSettingsTab(requestedTab) ? requestedTab : "org");
+  // ?tab= changes while MOUNTED (e.g. help-slideover guide links on /settings)
+  // must also switch tabs; manual tab clicks don't write the URL back, so the
+  // sync fires only when the param VALUE itself changes.
+  useTabParamSync<SettingsTab>(requestedTab, isSettingsTab, setTab);
   const { organization } = useOrganization();
   const { data: billing } = useQuery({ queryKey: ["billing-status"], queryFn: getBillingStatus, staleTime: 60_000 });
   const orgName   = organization?.name ?? "…";

@@ -5,8 +5,12 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { capture } from "@/lib/analytics";
 import { useOrderDirection } from "@/hooks/useOrderDirection";
-import { matchGuide, replaySectionGuide, resolveGuideText } from "@/lib/section-guides";
-import { SectionGuideBody } from "./SectionGuide";
+import {
+  matchGuide,
+  resolveGuideText,
+  type GuidePartyLabels,
+  type SectionGuideEntry,
+} from "@/lib/section-guides";
 
 interface Props {
   open:    boolean;
@@ -28,6 +32,128 @@ const CONTEXTUAL_LINKS: Array<{
   { match: (p) => p.startsWith("/library/suppliers"),           href: "/help/delivery-config", title: "Configuring supplier delivery" },
   { match: (p) => p.startsWith("/settings"),                    href: "/help/billing-faq",     title: "Billing and plans FAQ" },
 ];
+
+// ─── Section guide body ──────────────────────────────────────────────────────
+// Renders one registry entry's purpose / bullets / "Start here" line. The help
+// slideover is the ONLY home for guide content (the inline first-visit card was
+// removed); guide hrefs that are bare "?tab=…" resolve against the CURRENT
+// pathname, which is correct because the slideover always renders on the page
+// the guide describes.
+
+interface SectionGuideBodyProps {
+  guide: SectionGuideEntry;
+  labels: GuidePartyLabels;
+  /** Called when a guide link is followed (the slideover closes itself). */
+  onNavigate?: () => void;
+}
+
+function SectionGuideBody({ guide, labels, onNavigate }: SectionGuideBodyProps) {
+  const t = (s: string) => resolveGuideText(s, labels);
+  const bodySize = 12;
+
+  const linkStyle: React.CSSProperties = {
+    color: "var(--brand-blue-deep)",
+    fontWeight: 500,
+    textDecoration: "none",
+  };
+
+  return (
+    <div>
+      <p
+        style={{
+          margin: 0,
+          fontSize: bodySize + 0.5,
+          lineHeight: 1.5,
+          color: "var(--ink-muted)",
+        }}
+      >
+        {t(guide.purpose)}
+      </p>
+
+      <p
+        style={{
+          margin: "10px 0 5px",
+          fontSize: 11,
+          fontWeight: 600,
+          letterSpacing: "0.05em",
+          textTransform: "uppercase",
+          color: "var(--ink-faint)",
+        }}
+      >
+        What you can do here
+      </p>
+
+      <ul style={{ listStyle: "none", margin: 0, padding: 0 }}>
+        {guide.bullets.map((bullet, i) => (
+          <li
+            key={i}
+            style={{
+              display: "flex",
+              alignItems: "flex-start",
+              gap: 8,
+              padding: "2.5px 0",
+              fontSize: bodySize,
+              lineHeight: 1.5,
+              color: "var(--ink-muted)",
+            }}
+          >
+            <span
+              aria-hidden
+              style={{
+                width: 4,
+                height: 4,
+                borderRadius: "50%",
+                background: "var(--border-strong)",
+                marginTop: 7,
+                flexShrink: 0,
+              }}
+            />
+            {bullet.href ? (
+              <Link
+                href={bullet.href}
+                onClick={onNavigate}
+                className="hover:underline"
+                style={linkStyle}
+              >
+                {t(bullet.text)}
+              </Link>
+            ) : (
+              <span>{t(bullet.text)}</span>
+            )}
+          </li>
+        ))}
+      </ul>
+
+      <div
+        style={{
+          marginTop: 10,
+          padding: "8px 10px",
+          borderRadius: 6,
+          background: "var(--brand-green-soft)",
+          fontSize: bodySize,
+          lineHeight: 1.5,
+          color: "var(--ink)",
+        }}
+      >
+        <span style={{ fontWeight: 700, color: "var(--brand-green-deep)" }}>
+          Start here:
+        </span>{" "}
+        {guide.firstStep.href ? (
+          <Link
+            href={guide.firstStep.href}
+            onClick={onNavigate}
+            className="hover:underline"
+            style={{ ...linkStyle, color: "var(--ink)", fontWeight: 600 }}
+          >
+            {t(guide.firstStep.text)}
+          </Link>
+        ) : (
+          <span>{t(guide.firstStep.text)}</span>
+        )}
+      </div>
+    </div>
+  );
+}
 
 export function HelpSlideover({ open, onClose }: Props) {
   const pathname = usePathname();
@@ -115,8 +241,7 @@ export function HelpSlideover({ open, onClose }: Props) {
           </button>
         </header>
 
-        {/* Current screen's section guide — same registry/renderer as the
-            inline SectionGuide card, in compact form. */}
+        {/* Current screen's section guide — the only home for guide content. */}
         {guide && (
           <section
             style={{
@@ -153,32 +278,8 @@ export function HelpSlideover({ open, onClose }: Props) {
             <SectionGuideBody
               guide={guide}
               labels={labels}
-              compact
               onNavigate={onClose}
             />
-            <button
-              type="button"
-              onClick={() => {
-                // Clear the seen key + expand the inline card, then close so
-                // the user actually sees it on the page.
-                replaySectionGuide(guide.route);
-                onClose();
-              }}
-              style={{
-                marginTop: 10,
-                minHeight: 34,
-                padding: "5px 12px",
-                borderRadius: 6,
-                border: "1px solid #E2E6EE",
-                background: "#FFFFFF",
-                fontSize: 12.5,
-                fontWeight: 600,
-                color: "var(--ink-muted)",
-                cursor: "pointer",
-              }}
-            >
-              Replay intro
-            </button>
           </section>
         )}
 

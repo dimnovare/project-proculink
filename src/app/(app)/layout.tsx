@@ -9,7 +9,6 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { BridgeSidebar } from "@/components/bridge/BridgeSidebar";
 import { BridgeTopbar } from "@/components/bridge/BridgeTopbar";
 import { ErrorBoundary } from "@/components/bridge/ErrorBoundary";
-import { SectionGuide } from "@/components/bridge/SectionGuide";
 import { MSWProvider } from "@/mocks/MSWProvider";
 
 /**
@@ -162,10 +161,6 @@ export default function AppShellLayout({
           {/* Right: topbar + scrollable main content */}
           <div className="flex flex-1 flex-col min-w-0 overflow-hidden">
             <BridgeTopbar onMenuClick={openSidebar} />
-            {/* First-visit section guide — registry-matched, renders nothing on
-                routes without an entry. Pinned between topbar and the page's
-                own scroll area (PageShell scrolls internally). */}
-            <SectionGuide />
             <main className="flex-1 overflow-auto">
               <ErrorBoundary context="App">
                 {children}

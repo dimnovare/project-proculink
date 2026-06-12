@@ -7,6 +7,7 @@ import { useRouter, usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { apiClient, isApiMockMode } from "@/lib/api-client";
+import { guideSeenKey, matchGuide } from "@/lib/section-guides";
 import type { OrderSummary } from "@/types/procurement";
 import { CommandPalette } from "./CommandPalette";
 import { HelpSlideover } from "./HelpSlideover";
@@ -317,6 +318,24 @@ export function BridgeTopbar({ crumb, onMenuClick }: BridgeTopbarProps) {
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
 
+  // Unseen-guide dot on the "?" button — discovery cue now that guide content
+  // lives only in the help slideover. SSR-safe: state starts false (badge
+  // renders nothing) and is computed after mount; opening the slideover is the
+  // only "seen" trigger (sets guideSeenKey for the current route).
+  const guideRoute = matchGuide(pathname)?.route ?? null;
+  const [guideUnseen, setGuideUnseen] = useState(false);
+  useEffect(() => {
+    if (!guideRoute) {
+      setGuideUnseen(false);
+      return;
+    }
+    try {
+      setGuideUnseen(window.localStorage.getItem(guideSeenKey(guideRoute)) === null);
+    } catch {
+      setGuideUnseen(false); // storage blocked — can't remember "seen", never badge
+    }
+  }, [guideRoute]);
+
   // Global cmd+K listener
   useEffect(() => {
     function down(e: KeyboardEvent) {
@@ -447,12 +466,22 @@ export function BridgeTopbar({ crumb, onMenuClick }: BridgeTopbarProps) {
           <NotificationsBell />
         </div>
 
-        {/* Help */}
+        {/* Help — dot badge while the current route's guide is unseen */}
         <button
           type="button"
-          aria-label="Help"
-          onClick={() => setHelpOpen(true)}
-          className="hidden sm:flex items-center justify-center rounded-[6px]"
+          aria-label={guideUnseen ? "Help — guide available for this screen" : "Help"}
+          onClick={() => {
+            if (guideRoute) {
+              try {
+                window.localStorage.setItem(guideSeenKey(guideRoute), new Date().toISOString());
+              } catch {
+                // storage blocked — the slideover still opens
+              }
+            }
+            setGuideUnseen(false);
+            setHelpOpen(true);
+          }}
+          className="hidden sm:flex items-center justify-center rounded-[6px] relative"
           style={{
             width: 32,
             height: 32,
@@ -467,6 +496,21 @@ export function BridgeTopbar({ crumb, onMenuClick }: BridgeTopbarProps) {
           title="Help"
         >
           <HelpCircle size={17} strokeWidth={1.9} />
+          {guideUnseen && (
+            <span
+              aria-hidden
+              style={{
+                position: "absolute",
+                top: 4,
+                right: 4,
+                width: 8,
+                height: 8,
+                borderRadius: "50%",
+                background: "#C97A14",
+                border: "1.5px solid #0B1A2F",
+              }}
+            />
+          )}
         </button>
 
         {/* Avatar / Clerk */}

@@ -1,9 +1,11 @@
-// section-guides — first-visit "what is this screen" registry + pure helpers.
+// section-guides — "what is this screen" registry + pure helpers.
 //
-// One entry per in-app sidebar screen. The SectionGuide component (mounted once
-// in the (app) layout) matches the current pathname against this registry and
-// renders a calm, dismissible inline card on first visit; HelpSlideover reuses
-// the same registry/renderer in compact form.
+// One entry per in-app sidebar screen. HelpSlideover (opened from the topbar
+// "?" button) is the ONLY home for guide content: it matches the current
+// pathname against this registry and renders the entry in its "This screen"
+// section. The topbar "?" button shows a small dot badge while the current
+// route's guide is unseen (guideSeenKey absent); opening the slideover marks
+// the route seen.
 //
 // CONTENT SOURCE (canonical — do not rewrite copy here):
 // ProcuLink repo: docs/superpowers/plans/2026-06-12-section-guides-content.md
@@ -379,26 +381,12 @@ export function resolveGuideText(text: string, labels: GuidePartyLabels): string
     .replaceAll("{supplier}", labels.counterpartyNoun.toLowerCase());
 }
 
-// ─── Seen state + replay ─────────────────────────────────────────────────────
+// ─── Seen state ──────────────────────────────────────────────────────────────
 
-/** localStorage key marking a guide as dismissed. Keyed by the registry ROUTE
- *  pattern (e.g. `/inbox/[orderId]`), so dismissing once covers all instances. */
+/** localStorage key marking a route's guide as seen (set when the help
+ *  slideover is opened on that route; drives the topbar "?" dot badge).
+ *  Keyed by the registry ROUTE pattern (e.g. `/inbox/[orderId]`), so seeing
+ *  it once covers all instances. */
 export function guideSeenKey(route: string): string {
   return `plk-guide-seen:${route}`;
-}
-
-/** Window event SectionGuide listens to for "Replay intro" from HelpSlideover. */
-export const SECTION_GUIDE_REPLAY_EVENT = "plk:section-guide-replay";
-
-/**
- * Clear the seen flag for a route and ask the mounted SectionGuide to expand.
- * Client-only (touches window) — callers are 'use client' components.
- */
-export function replaySectionGuide(route: string): void {
-  try {
-    window.localStorage.removeItem(guideSeenKey(route));
-  } catch {
-    // localStorage unavailable (private mode / blocked) — the event still expands.
-  }
-  window.dispatchEvent(new CustomEvent(SECTION_GUIDE_REPLAY_EVENT, { detail: { route } }));
 }
