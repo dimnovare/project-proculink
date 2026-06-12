@@ -29,7 +29,7 @@ import { PageHeader } from "./layout/PageHeader";
 import { PageShell } from "./layout/PageShell";
 import { StatusJourney, type CrossingStatus, type OrderStage } from "./StatusJourney";
 import { useOrderDirection, type PartyLabels } from "@/hooks/useOrderDirection";
-import { formatBulkSendResult, isRedeliverable } from "./inboxSend";
+import { formatBulkSendResult, isRedeliverable, shouldShowBulkBar, type BulkSendResult } from "./inboxSend";
 
 // Per-column metadata. `numeric` right-aligns value cells; `label` is the
 // human-readable name shown in the desktop "Columns" visibility menu (the raw
@@ -535,7 +535,7 @@ export function InboxView() {
   // Bulk "Send selected" lifecycle: idle while no request is in flight, then a
   // visible pending → result feedback so the action is never a silent no-op.
   const [bulkSending, setBulkSending]   = useState(false);
-  const [bulkResult, setBulkResult]     = useState<{ ok: boolean; text: string } | null>(null);
+  const [bulkResult, setBulkResult]     = useState<BulkSendResult | null>(null);
 
   const queryClient = useQueryClient();
   // Live (non-mock) path: the backend returns a paginated envelope and applies
@@ -919,7 +919,7 @@ export function InboxView() {
           display. A full success clears the selection, which previously
           unmounted the bar together with its "N orders sent" confirmation, so
           the action read as a silent no-op; now the bar stays until dismissed. */}
-      {(selectedCount > 0 || bulkResult !== null) && (
+      {shouldShowBulkBar(selectedCount, bulkResult) && (
         <div
           className="flex items-center justify-between rounded-[8px] px-4 py-2 mb-3 flex-shrink-0"
           style={{ background: "#0B1A2F", color: "#FFFFFF" }}

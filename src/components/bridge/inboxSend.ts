@@ -30,6 +30,30 @@ export interface BulkSendFailure {
   reason: string;
 }
 
+/** Result of a bulk send — `ok` toggles the success/failure styling + glyph. */
+export interface BulkSendResult {
+  ok: boolean;
+  text: string;
+}
+
+/**
+ * Whether the inbox bulk-action bar should stay mounted.
+ *
+ * REGRESSION GUARD: a FULL success clears the row selection (so already-sent
+ * orders can't be re-sent on retry), which — if the bar rendered on
+ * `selectedCount > 0` alone — unmounted the bar together with its
+ * "N orders sent" confirmation, making the send read as a silent no-op (the
+ * success line vanished the instant Send selected succeeded). The bar must
+ * therefore render while EITHER rows are selected OR a result is still on
+ * display awaiting dismissal.
+ */
+export function shouldShowBulkBar(
+  selectedCount: number,
+  bulkResult: BulkSendResult | null,
+): boolean {
+  return selectedCount > 0 || bulkResult !== null;
+}
+
 const MAX_LISTED_FAILURES = 3;
 const MAX_REASON_CHARS = 90;
 
@@ -47,7 +71,7 @@ function clipReason(reason: string): string {
 export function formatBulkSendResult(
   sent: number,
   failures: BulkSendFailure[],
-): { ok: boolean; text: string } {
+): BulkSendResult {
   if (failures.length === 0) {
     return { ok: true, text: `${sent} order${sent === 1 ? "" : "s"} sent` };
   }

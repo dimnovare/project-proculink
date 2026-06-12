@@ -3,6 +3,7 @@ import {
   REDELIVERABLE_STATUSES,
   formatBulkSendResult,
   isRedeliverable,
+  shouldShowBulkBar,
 } from "./inboxSend";
 
 describe("isRedeliverable — mirrors backend OrderStatusMachine.RedeliverableFrom", () => {
@@ -84,5 +85,28 @@ describe("formatBulkSendResult — failure summary names POs and reasons", () =>
 
     const blank = formatBulkSendResult(0, [{ po: "PO-9", reason: "   " }]);
     expect(blank.text).toBe("Couldn't send 1 order: PO-9 — no reason given");
+  });
+});
+
+describe("shouldShowBulkBar — keeps the success confirmation reachable", () => {
+  it("shows while rows are selected (no result yet)", () => {
+    expect(shouldShowBulkBar(2, null)).toBe(true);
+  });
+
+  it("stays mounted on FULL success after selection is cleared", () => {
+    // The actual bug: a full success clears rowSelection (selectedCount → 0)
+    // AND sets a result. Gating on selectedCount alone unmounted the bar with
+    // its "N orders sent" line, so the send read as a silent no-op.
+    const result = formatBulkSendResult(3, []);
+    expect(shouldShowBulkBar(0, result)).toBe(true);
+  });
+
+  it("stays mounted on partial failure (failed rows stay selected, result shown)", () => {
+    const result = formatBulkSendResult(1, [{ po: "PO-1", reason: "rejected" }]);
+    expect(shouldShowBulkBar(1, result)).toBe(true);
+  });
+
+  it("hides only when there is no selection AND no result to dismiss", () => {
+    expect(shouldShowBulkBar(0, null)).toBe(false);
   });
 });
