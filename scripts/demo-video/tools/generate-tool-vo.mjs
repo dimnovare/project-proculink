@@ -45,6 +45,14 @@ const VOICE_ID = process.env.ELEVENLABS_VOICE_ID ?? "onwK4e9ZLuTAKqWW03F9"; // D
 const MODEL = process.env.ELEVENLABS_MODEL ?? "eleven_multilingual_v2";
 const FFPROBE = process.env.FFPROBE ?? "ffprobe";
 
+// Voice settings. Defaults match the published tool library (stability 0.5).
+// For a CALM, measured, teacherly delivery (the v10 explainer), raise stability
+// (less expressive jitter) and keep style at 0 — set via env, e.g.
+//   ELEVENLABS_STABILITY=0.72 node generate-tool-vo.mjs walkthrough-v10
+const VS_STABILITY = parseFloat(process.env.ELEVENLABS_STABILITY ?? "0.5");
+const VS_SIMILARITY = parseFloat(process.env.ELEVENLABS_SIMILARITY ?? "0.8");
+const VS_STYLE = parseFloat(process.env.ELEVENLABS_STYLE ?? "0.0");
+
 for (const tool of tools) {
   const spec = JSON.parse(readFileSync(resolve(here, `${tool}.json`), "utf8"));
   const outDir = resolve(here, "out", tool);
@@ -79,7 +87,7 @@ for (const tool of tools) {
       body: JSON.stringify({
         text: b.vo,
         model_id: MODEL,
-        voice_settings: { stability: 0.5, similarity_boost: 0.8, style: 0.0, use_speaker_boost: true },
+        voice_settings: { stability: VS_STABILITY, similarity_boost: VS_SIMILARITY, style: VS_STYLE, use_speaker_boost: true },
       }),
     });
     if (!res.ok) {

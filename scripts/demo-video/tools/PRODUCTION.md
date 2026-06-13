@@ -1,5 +1,51 @@
 # Per-tool walkthrough videos — production record
 
+> **FULL WALKTHROUGH v10 (2026-06-13, DRAFT — founder review pending):** a
+> FROM-SCRATCH EXPLAINER after v7, v8 AND v9 were all rejected. The founder
+> diagnosed the issue as STORY & STRUCTURE — not the AI voice, not the
+> auto-capture pipeline, not pacing-as-speed. v10's desired feeling is CALM &
+> EXPLANATORY — teacherly, patient, easy to follow. It TEACHES how the product
+> works: it gives the viewer the mental MAP first, then walks it calmly, each
+> step with its purpose explained. NOT a feature tour, NOT a sales race.
+>
+> The narration is the founder-APPROVED 8-beat script, implemented VERBATIM
+> (`walkthrough-v10.json`); the capture only TIMES the visuals to it. Beats:
+> (1) PROBLEM — open on the live Inbox; the reformatting problem · (2) THE MAP —
+> **the NEW thing**: a clean on-brand 5-step pipeline graphic (Read → Check →
+> Resolve → Convert → Deliver) built as an HTML/CSS motion card
+> (`map-card.html`, navy backdrop + blue→green bridge line, steps reveal one at
+> a time) served via `page.setContent` and captured IN-TAKE · (3) READ —
+> `/upload`, CSV dropped, format auto-detected, PO + lines found · (4) CHECK &
+> RESOLVE — `/inbox/ord-002`, the heart: accept the catalog-grounded AI
+> suggestion (confidence + reason), then type one supplier code manually + save ·
+> (5) CONVERT — Full document triptych (source / canonical / supplier XML) ·
+> (6) DELIVER — Send → confirm → Generating → Sent → Delivered + audit banner ·
+> (7) PAYOFF — it learns; less work next time · (8) CLOSE — brand outro card.
+>
+> CALM delivery: the ElevenLabs Daniel VO is generated with raised stability
+> (`ELEVENLABS_STABILITY=0.72`, new env knob in `generate-tool-vo.mjs`) for a
+> measured, less-jittery read; music bed stays at the low 0.14 tutorial level.
+> The map card + the unhurried map-then-walk structure are the NEW things vs the
+> prior drafts. Output **2:53 (173.3s)**, 1080p30 H.264+AAC, **11.4 MB**, mean
+> **−23.1 dB** / max −3.7 dB, **0 decode errors**; every beat frame-checked
+> (stills in `out/walkthrough-v10/check/`), the 5-step map verified, no
+> "Loading…" spinner at any cut, A/V in sync. Staged at
+> `scripts/demo-video/tools/out/walkthrough-v10.mp4` (+ poster) — **NOT uploaded
+> to R2, no env/registry change**; review copy at
+> `C:\Users\Dmitri.MARKIT\Videos\ProcuLink\walkthrough-v10-DRAFT.mp4`.
+> Produce: `ELEVENLABS_STABILITY=0.72 node tools/generate-tool-vo.mjs walkthrough-v10` →
+> `bun run demo:tools:capture capture-walkthrough-v10` →
+> `DEMO_INTRO_SEC=3.2 DEMO_OUTRO_SEC=4.5 node tools/assemble-tool.mjs walkthrough-v10`.
+>
+> **Mock-mode notes:** same Inbox-list gap as v9 — the list renders the 50-row
+> MSW seed (no ord-002), so the inbox is used only as the opening PROBLEM hook
+> (generic, no claim any row IS our order) and the take CUTS to `/inbox/ord-002`
+> for the order we follow. The map card is a self-contained brand graphic
+> (`setContent`), so it has no demo cursor (intentional) and no dev-server
+> dependency (instant paint, never a spinner). The readiness card still shows
+> Acceptance "Not validated yet" / Conformance "No named profile for XML" in
+> mock — the VO says the steps happen, it doesn't claim those checks passed.
+
 > **FULL WALKTHROUGH v9 (2026-06-13, DRAFT — founder review pending):** a
 > FROM-SCRATCH rewrite after v7 + v8 were both rejected ("rewrite the whole
 > video, start from scratch, much better"). v9 DROPS the feature-tour structure
