@@ -1,5 +1,58 @@
 # Per-tool walkthrough videos — production record
 
+> **FULL WALKTHROUGH v13 — ENTERPRISE MASTER (2026-06-13, DRAFT — founder review
+> pending):** a fresh, enterprise-grade ~2 min cut built to a HYBRID structure
+> (founder-chosen): one end-to-end PO journey (the spine) + a fast enterprise
+> capability montage. Inherits v12's accepted discipline VERBATIM (still cursor,
+> NO synthetic drift, real motion only) and extends it across screens. 11 narrated
+> beats between the brand intro/outro cards: **spine** — s1 upload+auto-detect
+> (`/upload`, real CSV drop → "Detected: CSV") · s2 review/triage · s3 accept the
+> catalog-grounded AI suggestion · s4 manual code + save (learns) · s5 send-readiness
+> (acceptance rules + conformance) · s6 Full-document triptych (source/canonical/
+> supplier-XML) · s7 send → Generating→Sent→**Delivered** + audit banner; **montage**
+> — s8 `/settings` API Keys (ingress endpoint + one-time `plk_` key) · s9 `/settings`
+> SFTP "secrets are encrypted" + an honest brand lower-third (AES-GCM · self-hosted
+> no-egress — no self-serve toggle exists to film) · s10 `/connections` versioned
+> revisions (Published/Draft, run-tests/publish/rollback, replay&impact); **s11**
+> close VO over the brand outro card. Spec `walkthrough-v13.json` +
+> `capture-walkthrough-v13.spec.ts`. Trust signals (founder-chosen, all four): audit
+> trail/proof, validation-before-send, integrations/ERP, security/no-egress.
+>
+> NEW vs prior cuts: (1) a **fresh enterprise music bed** — five ElevenLabs Music
+> takes generated (B–E + the original). Founder review #1 said the bed was "a bit
+> too loud and could be a bit better", so the chosen take is **E — a flat
+> boardroom-ambient pad (LRA 1.4 LU, no swells to fight the VO)**, **loudnorm'd**
+> (`I=-18:TP=-1.5:LRA=8` → `v13-music-E-norm.mp3`) so there is no soft intro, and
+> mixed LOWER at `DEMO_MUSIC_VOL=0.20` / `DEMO_MUSIC_FADEIN=0.6` (both new env knobs
+> on `assemble-tool.mjs`; was 0.30). The bed does NOT overwrite the shared
+> `assets/music.mp3` (used by all 10 published tool videos) — it is supplied via the
+> new backwards-compatible **`DEMO_MUSIC_FILE`** override. (1b) s1 was a long, mostly
+> STATIC opening, so it now performs a real mid-beat state change — routing the
+> upload to ElectroSupply Co (the "routes to …" line updates live) — which also ties
+> the opening to the order followed from s2 on. (2) Honest fixes caught in
+> the frame-check: the manual-code combobox was appended-to (garbled supplier code
+> leaked into the output XML) → `realType` now clears first; the Full-document
+> source-fields helper's placeholder buyer "Acme Manufacturing" (contradicts Nordic
+> Electronics in-frame) is hidden; the ingress endpoint's dev host `localhost:5223`
+> is cosmetically prod-ified to `https://api.proculink.eu` (path + capability real).
+>
+> Output **2:06 (126.3s)**, 1080p30 H.264+AAC, **8.0 MB**, mean **−22.2 dB** / max
+> **−4.3 dB**, **0 decode errors**; every beat frame-checked (stills in
+> `out/walkthrough-v13/check/`), Delivered + created-key landings confirmed via late
+> frames, music present in intro (peaks ~−20 dB) yet buried under the Daniel VO.
+> Voice: Daniel (`onwK4e9ZLuTAKqWW03F9`), calm (`ELEVENLABS_STABILITY=0.6
+> ELEVENLABS_SPEED=1.04`). Staged at `scripts/demo-video/tools/out/walkthrough-v13.mp4`
+> (+ poster + srt) — **NOT uploaded to R2, no env/registry change** (live `/watch`
+> video untouched); review copy at
+> `C:\Users\Dmitri.MARKIT\Videos\ProcuLink\walkthrough-v13-DRAFT.mp4`.
+> Produce:
+> `ELEVENLABS_STABILITY=0.6 ELEVENLABS_SPEED=1.04 node tools/generate-tool-vo.mjs walkthrough-v13` →
+> `bun run demo:tools:capture capture-walkthrough-v13` →
+> (music) `ELEVENLABS_API_KEY=… node make-music-eleven.mjs out/v13-music-E.mp3 125000 "<prompt>"` +
+> `ffmpeg -i out/v13-music-E.mp3 -af loudnorm=I=-18:TP=-1.5:LRA=8 out/v13-music-E-norm.mp3` →
+> `DEMO_INTRO_SEC=3.2 DEMO_OUTRO_SEC=4.5 DEMO_MUSIC_VOL=0.20 DEMO_MUSIC_FADEIN=0.6 DEMO_MUSIC_FILE=out/v13-music-E-norm.mp3 node tools/assemble-tool.mjs walkthrough-v13`.
+> Design doc: `docs/superpowers/specs/2026-06-13-enterprise-walkthrough-v13-design.md`.
+
 > **FULL WALKTHROUGH v11 (2026-06-13, DRAFT — founder review pending):** a
 > PACING RE-CUT of v10. The founder approved v10's SCRIPT ("the text itself is
 > GOOD") but rejected its PACING: "too slow, too much talking, too many stale

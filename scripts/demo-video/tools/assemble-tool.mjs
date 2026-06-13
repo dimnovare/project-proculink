@@ -41,6 +41,9 @@ const MUSIC_VOL = parseFloat(process.env.DEMO_MUSIC_VOL ?? "0.14");
 // of clipping (max ≈ -3.3 dB).
 const OUT_GAIN = parseFloat(process.env.DEMO_OUT_GAIN ?? "1.7");
 const LEAD = parseFloat(process.env.DEMO_LEAD_SEC ?? "0.4");
+// Music fade-in seconds (DEMO_MUSIC_FADEIN). Shorter = the bed establishes faster
+// over the intro card; default keeps the original 1.5s behaviour.
+const MUSIC_FADEIN = parseFloat(process.env.DEMO_MUSIC_FADEIN ?? "1.5");
 const INTRO = parseFloat(process.env.DEMO_INTRO_SEC ?? "2.0");
 const OUTRO = parseFloat(process.env.DEMO_OUTRO_SEC ?? "3.2");
 
@@ -156,12 +159,19 @@ for (const tool of tools) {
     outroBeat ? resolve(dir, "vo", byId[outroBeat.id].file) : null);
 
   // 5. Final: concat intro+core+outro; loop the music bed underneath, low.
-  const music = existsSync(resolve(here, "..", "assets", "music.mp3")) ? resolve(here, "..", "assets", "music.mp3") : "";
+  //    DEMO_MUSIC_FILE overrides the shared committed bed (assets/music.mp3) so a
+  //    per-video bed (e.g. the v13 enterprise track) never overwrites the bed the
+  //    10 published tool videos share. Falls back to the committed bed.
+  const musicOverride = process.env.DEMO_MUSIC_FILE ? resolve(process.cwd(), process.env.DEMO_MUSIC_FILE) : "";
+  const defaultMusic = resolve(here, "..", "assets", "music.mp3");
+  const music = musicOverride && existsSync(musicOverride)
+    ? musicOverride
+    : existsSync(defaultMusic) ? defaultMusic : "";
   const finalOut = resolve(here, "out", `${tool}.mp4`);
   const inputs = ["-i", introClip, "-i", core, "-i", outroClip, ...(music ? ["-i", music] : [])];
   const concatF = "[0:v][0:a][1:v][1:a][2:v][2:a]concat=n=3:v=1:a=1[cv][ca]";
   const aOut = music
-    ? `${concatF};[3:a]aloop=loop=-1:size=2e9,volume=${MUSIC_VOL},afade=t=in:d=1.5,afade=t=out:st=${(totalDur - 2).toFixed(2)}:d=2[m];[ca][m]amix=inputs=2:duration=first:normalize=0,volume=${OUT_GAIN}[aout]`
+    ? `${concatF};[3:a]aloop=loop=-1:size=2e9,volume=${MUSIC_VOL},afade=t=in:d=${MUSIC_FADEIN},afade=t=out:st=${(totalDur - 2).toFixed(2)}:d=2[m];[ca][m]amix=inputs=2:duration=first:normalize=0,volume=${OUT_GAIN}[aout]`
     : `${concatF};[ca]volume=${OUT_GAIN}[aout]`;
   if (music) console.log(`[${tool}] 🎵 music @ vol ${MUSIC_VOL}`);
   run(["-y", ...inputs, "-filter_complex", aOut, "-map", "[cv]", "-map", "[aout]", "-t", totalDur.toFixed(2),
