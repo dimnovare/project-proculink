@@ -1,0 +1,79 @@
+{
+  "id": "walkthrough-v9",
+  "toolName": "ProcuLink walkthrough",
+  "route": "/inbox",
+  "kicker": "One order, start to finish",
+  "introTagline": "The missing link between buyers and suppliers.",
+  "outroHeadline": "Connecting procurement.",
+  "outroCta": "Start free at proculink.eu",
+  "outroLine": "",
+  "beats": [
+    {
+      "id": "s1-arrival",
+      "shot": "Open IN the product on the Inbox — the live queue of incoming purchase orders. Cursor settles over the 'needs review' order at the top of the list.",
+      "extraMs": 700,
+      "vo": "This is your inbox — every purchase order coming in, from every buyer. One just landed that needs a few minutes. Let's take it all the way to delivered."
+    },
+    {
+      "id": "s2-open",
+      "shot": "Cut to the order in review (PO-2024-005678, Nordic Electronics → ElectroSupply Co). Header sweep: the PO number, the buyer, the supplier it's going to, and a progress bar from received to delivered.",
+      "extraMs": 800,
+      "vo": "Here it is. The PO number, the buyer it came from, ElectroSupply Co — the supplier it's going to — and exactly how far along it is. Four lines, and two still need a decision."
+    },
+    {
+      "id": "s3-queue",
+      "shot": "Cursor moves to the Fix Queue rail (Open issues list) — only the two lines that need a decision are listed; the resolved lines aren't in the way.",
+      "actionLeadMs": 400,
+      "extraMs": 600,
+      "vo": "ProcuLink doesn't make you re-check the whole order. It surfaces only the lines that actually need you — here, two of the four."
+    },
+    {
+      "id": "s4-accept",
+      "shot": "Select the resistor line. The AI suggestion card shows the supplier's code, an 84% confidence, and the reason. Hover it, then click Accept; the line resolves and the queue advances.",
+      "actionLeadMs": 3600,
+      "extraMs": 900,
+      "vo": "The first line, a resistor, has no supplier code yet. ProcuLink suggests one — drawn from this supplier's own catalog — with a confidence score and the reason behind it. It's right, so accept it. Done."
+    },
+    {
+      "id": "s5-manual",
+      "shot": "Next open line, the wire. Click 'Enter manually' → the input opens → type ES-WIRE-22BK-100 → Save. A hint notes it's remembered for next time.",
+      "actionLeadMs": 800,
+      "extraMs": 1600,
+      "vo": "The last one you'd rather decide yourself. Type the supplier's code, save — and ProcuLink remembers it, so next time this line resolves on its own."
+    },
+    {
+      "id": "s6-ready",
+      "shot": "Cursor rests on the Send-readiness card: lines four of four resolved, plus the supplier-acceptance, conformance and delivery checks.",
+      "actionLeadMs": 600,
+      "extraMs": 400,
+      "vo": "Now the honest pre-send check. Every line resolved, four of four — and right here, the supplier's acceptance rules, the format conformance, and the delivery channel, all in one place before anything goes out."
+    },
+    {
+      "id": "s7-send",
+      "shot": "Click 'Send to supplier' → the confirm dialog opens (total, lines, the exact output format) → tick the checkbox → click the final Send.",
+      "actionLeadMs": 600,
+      "extraMs": 2200,
+      "vo": "So send it. One confirmation, and ProcuLink builds the exact format ElectroSupply requires and delivers it on their channel — no reformatting by hand."
+    },
+    {
+      "id": "s8-delivered",
+      "shot": "The status runs Generating → Sent → Delivered; the audit-trail banner lands. Cursor rests on the Delivered state.",
+      "extraMs": 1800,
+      "vo": "Generating. Sent. Delivered. And every step is logged, so there's a record for this order that you can show anyone — proof it went out, in the right shape."
+    },
+    {
+      "id": "s9-safety",
+      "shot": "Quick aside: sidebar → Exceptions (plain-language queue), then System health (worker heartbeat, requeue). Cursor glances across both, doesn't linger.",
+      "actionLeadMs": 500,
+      "extraMs": 700,
+      "vo": "And when an order can't go out, nothing fails silently. Problems land here in plain language, and one glance at system health tells you the pipeline is moving."
+    },
+    {
+      "id": "s10-close",
+      "shot": "Sidebar → Dashboard. Rest on the live order-flow view, calm close.",
+      "actionLeadMs": 500,
+      "extraMs": 1200,
+      "vo": "That was one order, handled in a couple of minutes. The next one takes even less. ProcuLink — the missing link between buyers and suppliers. Start free today."
+    }
+  ]
+}
