@@ -1,0 +1,68 @@
+{
+  "id": "walkthrough-v11",
+  "toolName": "ProcuLink walkthrough",
+  "route": "/inbox",
+  "kicker": "How ProcuLink works",
+  "introTagline": "The missing link between buyers and suppliers.",
+  "outroHeadline": "Connecting procurement.",
+  "outroCta": "Start free at proculink.eu",
+  "outroLine": "",
+  "beats": [
+    {
+      "id": "s1-problem",
+      "shot": "Open IN the product on the Inbox — the live queue of incoming purchase orders. The cursor glides and the queue SCROLLS gently under the hook so the frame is never static while the problem is stated.",
+      "actionLeadMs": 0,
+      "extraMs": 0,
+      "vo": "If your team sends purchase orders to suppliers, you know the problem. Every supplier wants them a different way — their format, their channel, their item codes — so someone reformats every order by hand. ProcuLink does that for you. Let me show you how it works."
+    },
+    {
+      "id": "s2-map",
+      "shot": "Cut to the clean 5-step pipeline graphic (Read, Check, Resolve, Convert, Deliver) — an on-brand HTML/CSS motion card on the navy backdrop, served via page.setContent and captured in-take. The five steps light up BRISKLY left to right with the connecting line drawing fast through them. It should NOT sit — the reveal keeps moving the whole beat.",
+      "actionLeadMs": 0,
+      "extraMs": 0,
+      "vo": "Every order takes the same five steps. ProcuLink reads it, checks it, asks you about anything unclear, converts it to the supplier's format, and delivers it. We'll walk through one order, one step at a time."
+    },
+    {
+      "id": "s3-read",
+      "shot": "Cut to /upload. Cursor glides to the dropzone, a CSV file drops, the format is auto-detected (Detected: CSV), the PO number and line count appear, then the cursor moves to the supplier route — continuous motion, no rest on a static detect pill.",
+      "actionLeadMs": 0,
+      "extraMs": 0,
+      "vo": "You don't tell it the format. Drop in a CSV, an Excel file, a PDF, even EDI — it detects the format, finds the PO number, and pulls out every line."
+    },
+    {
+      "id": "s4-check",
+      "shot": "Cut to the order in review (PO-2024-005678 → ElectroSupply Co). The Fix Queue scrolls in, the cursor glides to the AI suggestion on line 2, accept animates and the queue advances, the cursor moves to line 4 and TYPES the supplier code live, then Save and the line resolves. The heart — busy and clear, never idle.",
+      "actionLeadMs": 0,
+      "extraMs": 0,
+      "vo": "Most lines are fine, so ProcuLink stays quiet about them. It only asks about the few it isn't sure of. Here, it suggests this supplier's code — drawn from their own catalog — and tells you how confident it is and why. You agree, so accept. The last one you'd rather decide yourself: type the code, and ProcuLink remembers it for next time."
+    },
+    {
+      "id": "s5-convert",
+      "shot": "Toggle to Full document — the source file, the normalized canonical order, and the supplier's output format side by side, with the connecting wires. The cursor traces across the triptych to the supplier-output column as it builds — keep it moving.",
+      "actionLeadMs": 0,
+      "extraMs": 0,
+      "vo": "Now it builds the exact file this supplier needs — their layout, their codes — without you touching a template."
+    },
+    {
+      "id": "s6-deliver",
+      "shot": "Back to Triage; click Send to supplier → confirm dialog → final send. The status runs Generating → Sent → Delivered, and the audit-trail banner lands. Keep the cursor tracking through the states; cut as Delivered lands.",
+      "actionLeadMs": 0,
+      "extraMs": 0,
+      "vo": "Send, and it goes out on the channel this supplier uses. Generating, sent, delivered — and every step is recorded, so you can prove what went where."
+    },
+    {
+      "id": "s7-payoff",
+      "shot": "A quick confident glance at the resolved/delivered order — the cursor sweeps the delivered state once and the beat cuts. No long hold.",
+      "actionLeadMs": 0,
+      "extraMs": 0,
+      "vo": "And it learns. Every code you confirm, it keeps — so the next order from this supplier needs even less from you. That's the whole point: less reformatting every week, not more."
+    },
+    {
+      "id": "s8-close",
+      "shot": "The branded outro card — logo, 'Connecting procurement.', green 'Start free at proculink.eu' pill. (This beat's VO plays over the outro card, which the assembler appends.)",
+      "actionLeadMs": 0,
+      "extraMs": 0,
+      "vo": "That's ProcuLink — it sits between you and your suppliers and speaks each one's language. The missing link between buyers and suppliers. Try it free today."
+    }
+  ]
+}
