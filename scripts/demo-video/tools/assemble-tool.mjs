@@ -77,15 +77,24 @@ for (const tool of tools) {
   const videoDur = probeDur(videoIn);
   console.log(`[${tool}] 🎞 footage ${videoDur.toFixed(1)}s · ${vo.length} VO clips`);
 
+  // A beat flagged `overOutro:true` in the spec has its VO laid over the OUTRO
+  // brand card (not the core footage), so the closing line never plays over a
+  // stale/frozen product frame. It is excluded from the core VO mix; OUTRO is
+  // auto-extended to fit its clip.
+  const outroBeat = spec.beats.find((b) => b.overOutro && byId[b.id]);
+
   // Per-beat start offsets relative to the (lead-trimmed) footage.
-  const beats = spec.beats.filter((b) => byId[b.id] && markers[b.id] != null);
+  const beats = spec.beats.filter((b) => byId[b.id] && markers[b.id] != null && !b.overOutro);
   const trimStart = Math.max(0, (markers[beats[0].id] ?? 0) - LEAD);
   const starts = {};
   for (const b of beats) starts[b.id] = Math.max(0, markers[b.id] - trimStart);
   const lastEnd = Math.max(...beats.map((b) => starts[b.id] + byId[b.id].durationSec));
   const coreDur = Math.max(videoDur - trimStart, lastEnd) + 0.8;
-  const totalDur = INTRO + coreDur + OUTRO;
-  console.log(`[${tool}] ✂ trim ${trimStart.toFixed(1)}s · core ${coreDur.toFixed(1)}s · total ${totalDur.toFixed(1)}s`);
+  // Outro card holds its VO + a short tail; falls back to the env default.
+  const outroVoDur = outroBeat ? byId[outroBeat.id].durationSec : 0;
+  const outroDur = outroBeat ? Math.max(OUTRO, outroVoDur + 1.4) : OUTRO;
+  const totalDur = INTRO + coreDur + outroDur;
+  console.log(`[${tool}] ✂ trim ${trimStart.toFixed(1)}s · core ${coreDur.toFixed(1)}s · outro ${outroDur.toFixed(1)}s · total ${totalDur.toFixed(1)}s`);
 
   // 1. Voiceover track — delay each clip to its beat marker, mix.
   const voInputs = beats.flatMap((b) => ["-i", resolve(dir, "vo", byId[b.id].file)]);
@@ -105,11 +114,12 @@ for (const tool of tools) {
     const p = (n, w = 2) => String(n).padStart(w, "0");
     return `${p(h)}:${p(m)}:${p(s)},${p(ms, 3)}`;
   };
-  const srt = beats
-    .map((b, i) => {
-      const st = starts[b.id] + INTRO;
-      return `${i + 1}\n${tc(st)} --> ${tc(st + byId[b.id].durationSec)}\n${b.vo.replace(/\s+/g, " ").trim()}\n`;
-    })
+  const srtRows = beats.map((b) => ({ st: starts[b.id] + INTRO, dur: byId[b.id].durationSec, vo: b.vo }));
+  if (outroBeat) {
+    srtRows.push({ st: INTRO + coreDur + 0.45, dur: outroVoDur, vo: outroBeat.vo }); // over the outro card
+  }
+  const srt = srtRows
+    .map((r, i) => `${i + 1}\n${tc(r.st)} --> ${tc(r.st + r.dur)}\n${r.vo.replace(/\s+/g, " ").trim()}\n`)
     .join("\n");
   const srtPath = resolve(here, "out", `${tool}.srt`);
   writeFileSync(srtPath, srt, "utf8");
@@ -124,18 +134,26 @@ for (const tool of tools) {
 
   // 4. Intro / outro cards (re-rendered each run; cheap + deterministic).
   const cards = makeToolCards(tool);
-  const cardClip = (png, dur, out, fadeOut) => {
+  // A card clip with silent audio. `voFile` (optional) lays a VO clip over the
+  // card, delayed by `voDelay` seconds (used for the over-outro closing line).
+  const cardClip = (png, dur, out, fadeOut, voFile, voDelay = 0.45) => {
     const fades = `fade=t=in:d=0.45${fadeOut ? `,fade=t=out:st=${(dur - 0.5).toFixed(2)}:d=0.5` : ""}`;
+    const aArgs = voFile
+      ? ["-i", voFile, "-filter_complex",
+         `[1:a]adelay=${Math.round(voDelay * 1000)}|${Math.round(voDelay * 1000)},apad[av]`,
+         "-map", "0:v", "-map", "[av]"]
+      : ["-f", "lavfi", "-t", String(dur), "-i", "anullsrc=r=44100:cl=stereo", "-map", "0:v", "-map", "1:a"];
     run(["-y", "-loop", "1", "-t", String(dur), "-i", png,
-      "-f", "lavfi", "-t", String(dur), "-i", "anullsrc=r=44100:cl=stereo",
+      ...aArgs,
       "-vf", `scale=1920:1080,setsar=1,fps=30,${fades}`,
       "-c:v", "libx264", "-preset", "medium", "-crf", "20", "-pix_fmt", "yuv420p",
-      "-c:a", "aac", "-b:a", "192k", "-shortest", out]);
+      "-c:a", "aac", "-b:a", "192k", "-ar", "44100", "-ac", "2", "-t", String(dur), out]);
   };
   const introClip = resolve(dir, "intro.mp4");
   const outroClip = resolve(dir, "outro.mp4");
   cardClip(cards.intro, INTRO, introClip, true);
-  cardClip(cards.outro, OUTRO, outroClip, false);
+  cardClip(cards.outro, outroDur, outroClip, false,
+    outroBeat ? resolve(dir, "vo", byId[outroBeat.id].file) : null);
 
   // 5. Final: concat intro+core+outro; loop the music bed underneath, low.
   const music = existsSync(resolve(here, "..", "assets", "music.mp3")) ? resolve(here, "..", "assets", "music.mp3") : "";

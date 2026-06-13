@@ -6,19 +6,14 @@ import { fileURLToPath } from "node:url";
 /**
  * ProcuLink walkthrough CAPTURE script (not a test).
  *
- * ── v13 (2026-06-13): faithful re-capture of the v5/v6 recipe on TODAY's UI. ──
- * Same six VO scenes, same scene order, same per-scene holds (scenes.json), same
- * cursor discipline as v5/v6 — the ONLY changes vs the original are the
- * selectors / routes / waits, because the review screen, upload, suppliers etc.
- * changed since June. Nothing about the choreography, pacing, or narration sync
- * was altered. Cursor style preserved verbatim from v6: the camera never pans a
- * page (no window.scrollTo); where a control is off-screen we use
- * element-targeted scrollIntoViewIfNeeded() ("element focus"), and there is NO
- * synthetic/drifting cursor.
- *
  * Drives the REAL ProcuLink frontend through ONE order, end to end, and lets
  * Playwright record the screen. MOCK mode (set by playwright.demo.config.ts) so
  * the footage is deterministic and needs no backend.
+ *
+ * PRODUCT-LOOP ONLY (founder direction 2026-06-04): no marketing pages, and
+ * NO page-scrolling — the camera never pans a page. We open in-app and drive
+ * the loop by clicks; where a control is off-screen we use element-targeted
+ * scrollIntoViewIfNeeded() (interaction/"element focus"), never window.scrollTo.
  *
  * KEY: mock state lives in an in-memory array, so a full page reload RESETS it.
  * There are exactly TWO loads (/upload, then the seeded order's preview); after
@@ -28,8 +23,8 @@ import { fileURLToPath } from "node:url";
  *
  * Flow (order ord-002 / PO-2024-005678, Nordic Electronics → ElectroSupply Co):
  *   /upload (empty drop zone → file arrives + format detect) → preview (parsed
- *   + AI mapping; accept each suggestion) → commit → order review (acceptance
- *   rules checked) → SEND (Generating… → Sent → Delivered) → Passport (audit + 200).
+ *   + AI mapping; accept each suggestion) → commit → order review → validate
+ *   (Passed) → SEND (Generating… → Sent → Delivered) → Passport (audit + 200).
  *
  * Footage, not verification: steps are fail-soft so a take never aborts. Scene
  * markers (out/markers.json) sync the narration in assemble.mjs.
@@ -166,43 +161,26 @@ test("ProcuLink walkthrough capture", async ({ page }) => {
     }
   });
 
-  // ── s4 — validate: the order review screen, where the order is checked
-  //   against the supplier's acceptance rules before it can be sent. The
-  //   standalone "Validate against profile" button was folded into automatic,
-  //   debounced revalidation on this screen (today's UI), so instead of
-  //   clicking a now-absent control we wait for the review to settle and dwell
-  //   on the all-clear / send-readiness state while the VO explains the check.
-  //   Same scene PURPOSE, ORDER and HOLD as v5/v6. ───────────────────────────
-  await soft("s4.review", async () => {
-    // The send CTA ("Send to supplier") only enables once the order passes the
-    // acceptance check (exceptionCount === 0) — its presence is our proof the
-    // order was checked against the supplier's rules.
-    await page.getByRole("button", { name: /send to supplier/i }).first().waitFor({ timeout: 12_000 }).catch(() => {});
-    // Bring the send-readiness / acceptance summary into view (element focus,
-    // not a page pan) so the "checked against their rules" state is on camera.
-    await page
-      .getByText(/acceptance|exception|ready|checks out|no exceptions/i)
-      .first()
-      .scrollIntoViewIfNeeded()
-      .catch(() => {});
+  // ── s4 — validate: check the order against the supplier's acceptance rules ─
+  await soft("s4.validate", async () => {
+    await page.getByRole("button", { name: /send to supplier/i }).first().waitFor({ timeout: 10_000 }).catch(() => {});
+    await click(page.getByRole("button", { name: /validate against profile|^validate$/i }).first(), 600);
     await page.waitForTimeout(1200);
   });
   await beat("s4-validate");
 
   // ── s5 — deliver: send → confirm → Generating… → (delivered during hold) ──
   await soft("s5.send", async () => {
-    // Open the confirm dialog from the primary send CTA.
     await click(page.getByRole("button", { name: /^send to supplier$/i }).first());
     await page.locator("#confirm-check").waitFor({ timeout: 5_000 }).catch(() => {});
     await page.waitForTimeout(2400); // let the "Send order to supplier?" confirm be read
     await page.locator("#confirm-check").check().catch(() => {});
     await page.waitForTimeout(900); // show the box checked
-    // Confirm — the LAST "send to supplier" control is the one inside the
-    // confirm panel ("Send to supplier →").
+    // confirm — the last "send to supplier" control is the one inside the confirm panel
     await page.getByRole("button", { name: /send to supplier/i }).last().click().catch(() => {});
-    // Wait until the "Generating…" feedback appears, then mark (delivery
-    // completes during the hold so the VO plays over the live send → delivered).
-    await page.getByText(/generating/i).waitFor({ timeout: 8_000 }).catch(() => {});
+    // wait until the "Generating…" feedback appears, then mark (delivery completes
+    // during the hold so the VO plays over the live send → delivered).
+    await page.getByText(/generating the supplier-ready output|generating/i).waitFor({ timeout: 6_000 }).catch(() => {});
   });
   await beat("s5-deliver");
 

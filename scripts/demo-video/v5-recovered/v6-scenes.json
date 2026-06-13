@@ -2,7 +2,7 @@
   {
     "id": "s1-intake",
     "holdMs": 17000,
-    "vo": "Every supplier wants your purchase orders a different way — a PDF, a CSV, cXML, even EDI. Instead of reformatting by hand, you drop it into ProcuLink, which detects the format automatically."
+    "vo": "Every supplier wants your purchase orders a different way. A PDF, a CSV, an Excel sheet, cXML, even EDI. Instead of reformatting each one by hand, you drop the order into ProcuLink, and it detects the format automatically."
   },
   {
     "id": "s2-parse",

@@ -55,6 +55,12 @@ export default defineConfig({
       PROCULINK_QA_BYPASS_AUTH: "true",
       NEXT_PUBLIC_USE_MOCK: "true",
       NEXT_PUBLIC_API_BASE_URL: process.env.PLAYWRIGHT_API_URL ?? "http://localhost:5223",
+      // Without a Clerk publishable key, @clerk/nextjs v7 enters "keyless" dev
+      // mode and paints "Organizations feature required" / "Configure your
+      // application" popups over the UI, which block + corrupt the capture
+      // (a ~66s hang at the validate step). Same placeholder-key trick as CI
+      // and the tools capture config.
+      NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: "pk_test_ci_placeholder_not_real",
     },
   },
 });
