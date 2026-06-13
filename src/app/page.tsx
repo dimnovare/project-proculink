@@ -126,7 +126,7 @@ const FEATURES: Array<{
   {
     icon: "layers",
     title: "Universal ingestion",
-    desc: "CSV, XLSX, PDF, cXML, UBL, EDIFACT or X12 — drop a file straight in. JSON orders come in via the REST API. ProcuLink parses all of it into one canonical structure.",
+    desc: "CSV, XLSX, PDF, cXML, UBL or X12 — drop a file straight in. JSON arrives via the REST API; EDIFACT and SAP IDoc we switch on with you. ProcuLink parses all of it into one canonical structure.",
     color: BLUE_DEEP,
     bg: BLUE_SOFT,
   },
@@ -293,9 +293,9 @@ export default function RootPage() {
               margin: "0 0 30px",
             }}
           >
-            ProcuLink transforms unstructured purchase orders into structured
-            supplier transactions — automatically, with a full audit trail behind
-            every order.
+            Stop reformatting purchase orders by hand. Drop in an order in any
+            format, and ProcuLink delivers it in exactly the format and channel
+            each supplier needs — with a full audit trail behind every order.
           </p>
 
           {/* CTAs */}
@@ -322,7 +322,7 @@ export default function RootPage() {
                 boxShadow: "0 8px 24px rgba(30,102,201,0.32)",
               }}
             >
-              Start for free →
+              Start free →
             </Link>
             <Link
               href="/how-it-works"
@@ -487,6 +487,14 @@ export default function RootPage() {
               {name}
             </span>
           ))}
+        </div>
+        <div style={{ textAlign: "center", marginTop: 22 }}>
+          <Link
+            href="/formats"
+            style={{ fontSize: 13, fontWeight: 600, color: BLUE_DEEP, textDecoration: "none" }}
+          >
+            See every format and method, honestly tagged →
+          </Link>
         </div>
       </section>
 

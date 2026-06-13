@@ -6,12 +6,12 @@ import type { Metadata } from "next";
 export const metadata: Metadata = {
   title: "Pricing — ProcuLink",
   description:
-    "Plans for outbound purchase-order automation: a free pilot, an Operations anchor, and contact-sales tiers. Orders are never blocked — predictable per-order overage above your plan.",
+    "Plans for purchase-order automation: a free 14-day pilot, self-serve paid tiers from €149/mo, and custom Enterprise. Orders are never blocked — predictable €0.50 per-order overage above your plan.",
   alternates: { canonical: "/pricing" },
   openGraph: {
     title: "Pricing — ProcuLink",
     description:
-      "Free pilot, Operations anchor, and contact-sales tiers for outbound PO automation. Pick the plan that fits your order volume.",
+      "Free pilot, self-serve paid tiers, and custom Enterprise for PO automation. Tell us your order volume and we'll point you at the right plan.",
     url: "/pricing",
   },
 };

@@ -23,7 +23,7 @@ export function MarketingNav() {
 
   return (
     <nav
-      className="sticky top-0 z-40 w-full"
+      className="on-navy sticky top-0 z-40 w-full"
       style={{ background: "#0B1A2F", borderBottom: "1px solid #1B2D49" }}
     >
       <div className="flex items-center gap-3 px-4 sm:gap-6 sm:px-8" style={{ height: 58 }}>
@@ -48,8 +48,10 @@ export function MarketingNav() {
               <Link
                 key={href}
                 href={href}
-                className="px-3 py-1.5 rounded-[5px] text-[13.5px] font-medium transition-colors"
-                style={{ color: active ? "#FFFFFF" : "#9DB2CE" }}
+                aria-current={active ? "page" : undefined}
+                className={`px-3 py-1.5 rounded-[5px] text-[13.5px] font-medium transition-colors ${
+                  active ? "text-white" : "text-[#9DB2CE] hover:text-white"
+                }`}
               >
                 {label}
               </Link>
@@ -65,8 +67,9 @@ export function MarketingNav() {
         <button
           onClick={() => setOpen((o) => !o)}
           aria-label="Menu"
-          className="sm:hidden flex items-center justify-center"
-          style={{ width: 34, height: 34, color: "#FFFFFF", background: "transparent", border: 0 }}
+          aria-expanded={open}
+          className="sm:hidden flex items-center justify-center text-[20px]"
+          style={{ width: 44, height: 44, color: "#FFFFFF", background: "transparent", border: 0 }}
         >
           {open ? "✕" : "☰"}
         </button>
@@ -97,7 +100,7 @@ export function MarketingNav() {
             <button
               onClick={() => setOpen(false)}
               aria-label="Close menu"
-              style={{ width: 34, height: 34, color: "#FFFFFF", background: "transparent", border: 0 }}
+              style={{ width: 44, height: 44, color: "#FFFFFF", background: "transparent", border: 0 }}
               className="flex items-center justify-center text-xl"
             >
               ✕

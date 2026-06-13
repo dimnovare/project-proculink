@@ -17,6 +17,26 @@ export default function WatchPage() {
 
   return (
     <div style={{ maxWidth: 880, margin: "0 auto", padding: "72px 32px 80px" }}>
+      <span
+        style={{
+          display: "inline-flex",
+          alignItems: "center",
+          gap: 7,
+          height: 26,
+          padding: "0 12px",
+          borderRadius: 13,
+          background: "var(--brand-blue-soft)",
+          color: "var(--brand-blue-deep)",
+          fontSize: 11,
+          fontWeight: 700,
+          letterSpacing: "0.07em",
+          textTransform: "uppercase",
+          marginBottom: 16,
+        }}
+      >
+        <span style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--brand-blue)", display: "inline-block" }} />
+        Walkthrough
+      </span>
       <h1 style={{ fontFamily: "'Bricolage Grotesque', Inter, sans-serif", fontSize: "clamp(30px, 4vw, 44px)", fontWeight: 700, color: "#0B1A2F", marginBottom: 12, letterSpacing: "-0.025em" }}>
         Watch the walkthrough
       </h1>
