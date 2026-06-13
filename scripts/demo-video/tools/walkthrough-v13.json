@@ -1,0 +1,90 @@
+{
+  "id": "walkthrough-v13",
+  "toolName": "ProcuLink walkthrough",
+  "route": "/upload",
+  "kicker": "How ProcuLink works",
+  "introTagline": "The missing link between buyers and suppliers.",
+  "outroHeadline": "Connecting procurement.",
+  "outroCta": "Start free at proculink.eu",
+  "outroLine": "",
+  "beats": [
+    {
+      "id": "s1-upload",
+      "shot": "Open on /upload. The cursor appears, clicks Browse, a CSV arrives, and the screen settles STILL on the auto-detect result: 'Detected: CSV', the PO number and line count. Real file drop only.",
+      "actionLeadMs": 0,
+      "extraMs": 1600,
+      "vo": "Every supplier wants purchase orders in their own format. With ProcuLink you drop the file as it is — a CSV, a spreadsheet, a PDF, even EDI — and it detects the format and reads every line."
+    },
+    {
+      "id": "s2-review",
+      "shot": "Cut to /inbox/ord-002 (PO-2024-005678 to ElectroSupply Co), settled and STILL on the parsed order with its fix queue. Cursor hidden.",
+      "actionLeadMs": 0,
+      "extraMs": 0,
+      "vo": "It opens in review, surfacing only the lines that need a decision — not the whole order."
+    },
+    {
+      "id": "s3-accept",
+      "shot": "Cursor appears, moves to the Accept button on the AI suggestion for line 2, clicks (pulse), the line resolves, then the cursor parks.",
+      "actionLeadMs": 0,
+      "extraMs": 300,
+      "vo": "When a supplier uses different item codes, ProcuLink suggests the match from that supplier's own catalog, with a confidence score and the reason. Accept it, and move on."
+    },
+    {
+      "id": "s4-type",
+      "shot": "Cursor opens manual entry on line 4, TYPES the supplier code, clicks Save. Real typing and a real save. Cursor parks.",
+      "actionLeadMs": 0,
+      "extraMs": 700,
+      "vo": "Prefer to decide yourself? Enter the code and save — and ProcuLink remembers it, so next time it won't ask."
+    },
+    {
+      "id": "s5-validate",
+      "shot": "Back in Triage, settle STILL on the send-readiness card: every line resolved, the acceptance rules, conformance, and delivery channel — all in one place before anything goes out.",
+      "actionLeadMs": 0,
+      "extraMs": 0,
+      "vo": "Before anything is sent, the order is checked against this supplier's acceptance rules and format profile, so it isn't rejected at the other end."
+    },
+    {
+      "id": "s6-convert",
+      "shot": "Click the Full document toggle: the view changes to source file, normalized order, and supplier output side by side. A real UI change, then the cursor parks.",
+      "actionLeadMs": 0,
+      "extraMs": 400,
+      "vo": "Then ProcuLink converts the order into the exact format the supplier requires — with no template for you to maintain."
+    },
+    {
+      "id": "s7-deliver",
+      "shot": "Back to Triage, Send to supplier, confirm in the dialog, and the status ticks Generating then Sent then Delivered. Settle STILL on Delivered with the audit-trail banner. Real state changes only.",
+      "actionLeadMs": 0,
+      "extraMs": 1800,
+      "vo": "It delivers on the supplier's own channel — HTTP, SFTP, email, or straight into their ERP — then tracks it: generating, sent, delivered. Every step is recorded, so you can prove what went where, on every order."
+    },
+    {
+      "id": "s8-integrations",
+      "shot": "Cut to /settings, API Keys tab. Cursor clicks Create key, types a name, creates it; settle STILL on the one-time plk_ key and 'cannot be retrieved again'. The ingress endpoint is visible above.",
+      "actionLeadMs": 0,
+      "extraMs": 900,
+      "vo": "And it fits your stack — bring orders in over a secure REST API with keys you manage, or push delivery events out with signed webhooks."
+    },
+    {
+      "id": "s9-security",
+      "shot": "Client-side switch to the SFTP-pull tab on /settings, which shows the real 'secrets are encrypted' copy. A clean brand lower-third reads 'AES-GCM encrypted credentials · Self-hosted, no-egress option'. Settle STILL.",
+      "actionLeadMs": 0,
+      "extraMs": 0,
+      "vo": "Credentials are encrypted, and for sensitive data, ProcuLink can run entirely inside your own environment."
+    },
+    {
+      "id": "s10-versioned",
+      "shot": "Cut to /connections. The list shows versioned revisions (Published / Draft). Cursor clicks into FastParts to reveal the live revision, revision history, and the 'roll back to this' affordance. Settle STILL.",
+      "actionLeadMs": 0,
+      "extraMs": 600,
+      "vo": "And every supplier connection is versioned — test a change safely, publish it, and roll back if you ever need to."
+    },
+    {
+      "id": "s11-close",
+      "shot": "The branded outro card — logo, 'Connecting procurement.', green 'Start free at proculink.eu' pill. This beat's VO plays OVER the outro card (overOutro:true).",
+      "overOutro": true,
+      "actionLeadMs": 0,
+      "extraMs": 0,
+      "vo": "ProcuLink speaks every supplier's language, so your team doesn't have to. Try it free today."
+    }
+  ]
+}
