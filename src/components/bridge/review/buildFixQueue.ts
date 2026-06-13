@@ -13,6 +13,7 @@
 //   • Initial order (no prevQueue): severity rank, then line number, then key.
 
 import type { Order, OrderValidationResult } from "@/types/procurement";
+import { effectiveConfidence } from "./calibrationDisplay";
 
 export type FixCardKind = "ai-suggestion" | "manual-code" | "review-flag" | "rule-failure";
 
@@ -182,13 +183,19 @@ export interface BulkAcceptStats {
  * Count the open AI suggestions on the order against the bulk-accept threshold.
  * "Open" = needsReview, no supplier code yet, and an AI suggestion present —
  * the same predicate the bulk-accept endpoint applies.
+ *
+ * V9: the ≥threshold test uses the EFFECTIVE confidence (calibrated when the
+ * backend calibrated the suggestion, raw otherwise — see effectiveConfidence),
+ * so an over-confident raw 0.92 that empirically accepts at 0.6 no longer
+ * auto-qualifies for one-click bulk accept. Reality, not the model's estimate,
+ * drives the count. Non-calibrated suggestions are unchanged (raw confidence).
  */
 export function bulkAcceptStats(order: Order, threshold = 0.9): BulkAcceptStats {
   let eligible = 0;
   let belowThreshold = 0;
   for (const l of order.lines) {
     if (!l.needsReview || l.supplierItemCode || !l.aiSuggestion) continue;
-    if (l.aiSuggestion.confidence >= threshold) eligible++;
+    if (effectiveConfidence(l.aiSuggestion) >= threshold) eligible++;
     else belowThreshold++;
   }
   return { eligible, belowThreshold };

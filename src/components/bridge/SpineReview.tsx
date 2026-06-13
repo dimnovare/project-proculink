@@ -33,6 +33,7 @@ import { useOrderDirection, type PartyLabels } from "@/hooks/useOrderDirection";
 import { Kbd } from "./review/Kbd";
 import { ManualCodeRow, type LineEditApi } from "./review/ManualCodeRow";
 import { AiSuggestionContent } from "./review/AiSuggestionContent";
+import { confidenceDisplay } from "./review/calibrationDisplay";
 import { HeaderInlineEditField } from "./review/HeaderInlineEditField";
 import { ConfirmDialog } from "./review/ConfirmDialog";
 import { FixQueueTriage } from "./review/FixQueueTriage";
@@ -68,6 +69,13 @@ type SubNode = {
   aiSuggestedCode?: string;
   /** Short AI reason / provenance line. */
   aiReason?: string;
+  // ── V9 confidence calibration (display-only; from the backend overlay) ──────
+  /** True only when the backend calibrated this suggestion (drives the chip + `pct`). */
+  aiCalibrated?: boolean;
+  /** Raw model confidence 0–100, for the "raw → calibrated" detail in the card. */
+  aiRawPct?: number;
+  /** Backend's honest basis string, shown verbatim. */
+  aiCalibrationBasis?: string | null;
   // ── Phase 4 enrichment (per line) — each shown only when non-null ──────────
   /** Currency for formatting the line amount. */
   currency?: string;
@@ -138,18 +146,25 @@ function buildNodesFromOrder(order: Order, labels: PartyLabels): SpineNodeData[]
   });
   const subnodes: SpineNodeData["subnodes"] = orderedLines.map((l) => {
     const isAi = !!l.aiSuggestion && !l.supplierItemCode;
+    // V9: for an AI line the DISPLAYED confidence is the EFFECTIVE one
+    // (calibrated when the backend calibrated it, raw otherwise). The chip,
+    // the wire colour and the bulk threshold all read the same number.
+    const cd = isAi ? confidenceDisplay(l.aiSuggestion!) : null;
     return {
       id: l.id,
       sku: l.supplierItemCode ?? l.buyerItemCode,
       qty: l.quantity,
       ai: isAi,
-      pct: isAi ? Math.round(l.aiSuggestion!.confidence * 100) : Math.round(l.confidence * 100),
+      pct: cd ? Math.round(cd.effective * 100) : Math.round(l.confidence * 100),
       err: l.needsReview && !l.supplierItemCode && !l.aiSuggestion,
       lineNo: l.lineNumber,
       desc: l.description ?? l.buyerItemCode,
       buyerCode: l.buyerItemCode,
       aiSuggestedCode: l.aiSuggestion?.supplierItemCode,
       aiReason: l.aiSuggestion?.reason,
+      aiCalibrated: cd?.calibrated ?? false,
+      aiRawPct: cd ? Math.round(cd.raw * 100) : undefined,
+      aiCalibrationBasis: cd?.basis ?? null,
       hint: l.needsReview && !l.supplierItemCode && !l.aiSuggestion ? "Needs a supplier code" : undefined,
       // Phase 4 enrichment — passed through only; rendered when non-null.
       currency: order.currency,
@@ -688,7 +703,13 @@ function SpineNodeCard({
                       is gone, replaced by "Enter manually" through the server path). */}
                   {showAiCard && (
                     <AiSuggestionContent
-                      sn={sn}
+                      sn={{
+                        ...sn,
+                        // Map SubNode's ai* calibration fields onto the card's contract.
+                        calibrated: sn.aiCalibrated,
+                        rawPct: sn.aiRawPct,
+                        calibrationBasis: sn.aiCalibrationBasis,
+                      }}
                       showAcceptKbd={si === 0}
                       accepting={acceptingLineId === sn.id}
                       onAccept={onAcceptSubnode}

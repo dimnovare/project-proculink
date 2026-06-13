@@ -34,6 +34,8 @@ import type { Order, OrderLine } from "@/types/procurement";
 import type { PartyLabels } from "@/hooks/useOrderDirection";
 import type { ConformanceFormat } from "@/lib/api-client";
 import { buildFixQueue, openCardCount, adjacentOpenKey, bulkAcceptStats, bulkAcceptDisabledReason, type FixQueueCard, type FixCardKind } from "./buildFixQueue";
+import { confidenceDisplay } from "./calibrationDisplay";
+import { CalibrationInsightCard } from "./CalibrationInsightCard";
 import { ContextStage } from "./ContextStage";
 import { SendReadinessCard } from "./SendReadinessCard";
 import { useBreakpointBand } from "./useBreakpointBand";
@@ -486,7 +488,7 @@ export function FixQueueTriage({ order, orderId, labels, lineEdit, resolve, vali
                 <div style={{ marginTop: 3, display: "flex", alignItems: "center", gap: 6, fontSize: 10.5, color: "#56627A" }}>
                   <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", minWidth: 0 }}>
                     {card.kind === "ai-suggestion" && line?.aiSuggestion
-                      ? <>Suggests <span style={{ fontFamily: "'JetBrains Mono',monospace", fontWeight: 700, color: "#5E3DB0" }}>{line.aiSuggestion.supplierItemCode}</span> · {Math.round(line.aiSuggestion.confidence * 100)}%</>
+                      ? <>Suggests <span style={{ fontFamily: "'JetBrains Mono',monospace", fontWeight: 700, color: "#5E3DB0" }}>{line.aiSuggestion.supplierItemCode}</span> · {Math.round(confidenceDisplay(line.aiSuggestion).effective * 100)}%</>
                       : card.kind === "review-flag" && line?.supplierItemCode
                       ? <>Has code <span style={{ fontFamily: "'JetBrains Mono',monospace", fontWeight: 700, color: "#C97A14" }}>{line.supplierItemCode}</span> — flagged for review</>
                       : card.kind === "rule-failure"
@@ -584,6 +586,12 @@ export function FixQueueTriage({ order, orderId, labels, lineEdit, resolve, vali
     />
   );
 
+  // V9 calibration insight — only worth showing when this order actually carries
+  // open AI suggestions; the card itself further self-gates on isActive=true, so
+  // it stays invisible during cold-start and on AI-free orders.
+  const hasOpenAiSuggestions = bulkStats.eligible + bulkStats.belowThreshold > 0;
+  const insightNode = hasOpenAiSuggestions ? <CalibrationInsightCard /> : null;
+
   // ── Responsive compositions (exactly ONE stage instance per band) ───────────
 
   let composition: ReactNode;
@@ -595,6 +603,7 @@ export function FixQueueTriage({ order, orderId, labels, lineEdit, resolve, vali
         {queueCard}
         {!hasOpenSelection && <div style={{ marginTop: 12 }}>{stageNode}</div>}
         {acceptanceStrip}
+        {insightNode}
         {readinessCard}
       </div>
     );
@@ -609,6 +618,7 @@ export function FixQueueTriage({ order, orderId, labels, lineEdit, resolve, vali
           {stageNode}
         </DisclosureStage>
         {acceptanceStrip}
+        {insightNode}
         {readinessCard}
       </div>
     );
@@ -625,6 +635,7 @@ export function FixQueueTriage({ order, orderId, labels, lineEdit, resolve, vali
         <div style={{ minWidth: 0 }}>
           {queueCard}
           {acceptanceStrip}
+          {insightNode}
           {readinessCard}
         </div>
         <div className="lg:sticky lg:top-2 self-start" style={{ minWidth: 0 }}>

@@ -332,6 +332,42 @@ describe("bulkAcceptStats / bulkAcceptDisabledReason — 'Accept all ≥90%' (G8
   });
 });
 
+describe("bulkAcceptStats — V9 calibrated vs raw threshold", () => {
+  // An over-confident RAW 0.92 that the backend calibrated DOWN to 0.6 must NOT
+  // auto-qualify for ≥0.9 bulk accept — reality, not the model's estimate, drives it.
+  it("thresholds calibrated suggestions on the CALIBRATED confidence", () => {
+    const order = makeOrder([
+      // raw 0.92 ≥ 0.9 but calibrated 0.60 < 0.9 → below threshold
+      makeLine({
+        id: "l1", lineNumber: 1, needsReview: true,
+        aiSuggestion: { supplierItemCode: "S-1", confidence: 0.92, reason: "r", provenance: "p", calibratedConfidence: 0.6, isCalibrated: true },
+      }),
+      // raw 0.80 < 0.9 but calibrated 0.95 ≥ 0.9 → eligible (calibration can also raise it)
+      makeLine({
+        id: "l2", lineNumber: 2, needsReview: true,
+        aiSuggestion: { supplierItemCode: "S-2", confidence: 0.80, reason: "r", provenance: "p", calibratedConfidence: 0.95, isCalibrated: true },
+      }),
+    ]);
+    expect(bulkAcceptStats(order, 0.9)).toEqual({ eligible: 1, belowThreshold: 1 });
+  });
+
+  it("uses RAW confidence when a suggestion is not calibrated (isCalibrated false / absent)", () => {
+    const order = makeOrder([
+      // isCalibrated false → ignore the calibrated number, use raw 0.92 → eligible
+      makeLine({
+        id: "l1", lineNumber: 1, needsReview: true,
+        aiSuggestion: { supplierItemCode: "S-1", confidence: 0.92, reason: "r", provenance: "p", calibratedConfidence: 0.4, isCalibrated: false },
+      }),
+      // pre-V9 order: no calibration fields → raw 0.7 → below threshold
+      makeLine({
+        id: "l2", lineNumber: 2, needsReview: true,
+        aiSuggestion: { supplierItemCode: "S-2", confidence: 0.7, reason: "r", provenance: "p" },
+      }),
+    ]);
+    expect(bulkAcceptStats(order, 0.9)).toEqual({ eligible: 1, belowThreshold: 1 });
+  });
+});
+
 describe("buildFixQueue — purity", () => {
   it("does not mutate the previous queue", () => {
     const order = makeOrder(standardLines());

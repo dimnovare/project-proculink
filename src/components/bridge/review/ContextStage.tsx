@@ -24,6 +24,7 @@ import type { Order, OrderLine } from "@/types/procurement";
 import type { PartyLabels } from "@/hooks/useOrderDirection";
 import { StandardsFieldPopover } from "../StandardsFieldPopover";
 import { AiSuggestionContent } from "./AiSuggestionContent";
+import { confidenceDisplay } from "./calibrationDisplay";
 import { ManualCodeRow, type LineEditApi } from "./ManualCodeRow";
 import { KbdLight } from "./Kbd";
 import { OutputPreview } from "./OutputPreview";
@@ -384,15 +385,22 @@ export function ContextStage({
 
         {/* Controls — the SAME extracted components the classic spine binds. */}
         <div style={{ marginTop: 12 }}>
-          {selected.kind === "ai-suggestion" && selectedLine.aiSuggestion && (
+          {selected.kind === "ai-suggestion" && selectedLine.aiSuggestion && (() => {
+            // V9: effective (calibrated-aware) confidence drives the displayed
+            // number; the card surfaces the honest basis + raw→calibrated detail.
+            const cd = confidenceDisplay(selectedLine.aiSuggestion);
+            return (
             <AiSuggestionContent
               sn={{
                 id: selectedLine.id,
                 lineNo: selectedLine.lineNumber,
                 sku: selectedLine.buyerItemCode,
-                pct: Math.round(selectedLine.aiSuggestion.confidence * 100),
+                pct: Math.round(cd.effective * 100),
                 aiSuggestedCode: selectedLine.aiSuggestion.supplierItemCode,
                 aiReason: selectedLine.aiSuggestion.reason,
+                calibrated: cd.calibrated,
+                rawPct: Math.round(cd.raw * 100),
+                calibrationBasis: cd.basis,
               }}
               showAcceptKbd
               showManualKbd
@@ -401,7 +409,8 @@ export function ContextStage({
               lineEdit={lineEdit}
               acceptButtonRef={setPrimaryControl}
             />
-          )}
+            );
+          })()}
 
           {selected.kind === "manual-code" && (
             lineEdit.editId === selectedLine.id ? (

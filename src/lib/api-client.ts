@@ -19,6 +19,7 @@ import type {
   PassportDto,
   SupplierConfirmation,
   OrdersSummary,
+  CalibrationSummary,
 } from "@/types/procurement";
 
 // Shared API-layer primitives now live in a single source of truth (./api/core)
@@ -391,6 +392,36 @@ async function realGetOrdersSummary(): Promise<OrdersSummary> {
   const res = await fetchWithTimeout(`${API_BASE_URL}/api/orders/summary`, { headers: await authHeader() });
   if (!res.ok) throw new Error(`Failed to fetch orders summary: ${res.statusText}`);
   return res.json() as Promise<OrdersSummary>;
+}
+
+// ── V9 AI confidence calibration insight ────────────────────────────────────
+// GET /api/ai/calibration → the org's empirical reliability curve. Read-only,
+// org-scoped. `isActive` is false during cold-start — callers must render the
+// honest "not enough history yet" state rather than a misleading empty curve.
+
+async function mockGetAiCalibration(): Promise<CalibrationSummary> {
+  await delay(120);
+  // A representative ACTIVE curve so the insight surface is demoable in mock
+  // mode: high buckets accept more often than low ones, top bucket trusted.
+  return {
+    isActive: true,
+    totalDecisions: 47,
+    minBucketSamples: 8,
+    minOrgSamples: 20,
+    buckets: [
+      { label: "[0, 0.5)",     lowerInclusive: 0,    upperExclusive: 0.5,  accepted: 1,  rejected: 6, total: 7,  smoothedAcceptRate: 0.22, isTrusted: false },
+      { label: "[0.5, 0.75)",  lowerInclusive: 0.5,  upperExclusive: 0.75, accepted: 5,  rejected: 5, total: 10, smoothedAcceptRate: 0.50, isTrusted: true },
+      { label: "[0.75, 0.85)", lowerInclusive: 0.75, upperExclusive: 0.85, accepted: 8,  rejected: 3, total: 11, smoothedAcceptRate: 0.69, isTrusted: true },
+      { label: "[0.85, 0.95)", lowerInclusive: 0.85, upperExclusive: 0.95, accepted: 9,  rejected: 2, total: 11, smoothedAcceptRate: 0.77, isTrusted: true },
+      { label: "[0.95, 1]",    lowerInclusive: 0.95, upperExclusive: 1,    accepted: 7,  rejected: 1, total: 8,  smoothedAcceptRate: 0.80, isTrusted: true },
+    ],
+  };
+}
+
+async function realGetAiCalibration(): Promise<CalibrationSummary> {
+  const res = await fetchWithTimeout(`${API_BASE_URL}/api/ai/calibration`, { headers: await authHeader() });
+  if (!res.ok) throw new Error(`Failed to fetch AI calibration: ${res.statusText}`);
+  return res.json() as Promise<CalibrationSummary>;
 }
 
 async function mockGetOrderById(id: string): Promise<Order | null> {
@@ -1314,6 +1345,9 @@ export const apiClient = {
 
   // ─── Format detection ───
   detectFormat:           USE_MOCK ? mockDetectFormat          : realDetectFormat,
+
+  // ─── V9 AI confidence calibration insight ───
+  getAiCalibration:       USE_MOCK ? mockGetAiCalibration      : realGetAiCalibration,
 
   // ─── Magic Mapping Preview ───
   getMappingPreview:      USE_MOCK ? mockGetMappingPreview     : realGetMappingPreview,

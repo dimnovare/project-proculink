@@ -91,9 +91,54 @@ export interface OrderLine {
 
 export interface AiMappingSuggestion {
   supplierItemCode: string;
+  /**
+   * RAW model confidence (0–1) — never mutated by the V9 calibration layer.
+   * The durable decision history keeps recording this raw value so the
+   * empirical curve stays sound.
+   */
   confidence: number;
   reason: string;
   provenance: string;
+  // ── V9 confidence calibration (display-only overlay; backend OrderLineDto →
+  // AiMappingSuggestionDto). All three are OPTIONAL so that an order fetched
+  // before V9 was deployed degrades gracefully to "not calibrated". The
+  // calibrated number is computed by the BACKEND from this org's accept/reject
+  // history — it is NEVER recomputed client-side.
+  /** Empirically-adjusted confidence (0–1). Equals `confidence` exactly when `isCalibrated` is false. */
+  calibratedConfidence?: number;
+  /** True only when a sufficiently-sampled empirical bucket backed the number; false during cold-start / thin buckets / AI off. */
+  isCalibrated?: boolean;
+  /** Truthful explanation, e.g. "calibrated from 23 of your past decisions" vs "model estimate — not enough history yet". */
+  calibrationBasis?: string;
+}
+
+/**
+ * The org-wide confidence-calibration summary from `GET /api/ai/calibration`
+ * (backend CalibrationSummaryDto). Drives the "how reliable are our AI
+ * suggestions" insight surface. `isActive` is false during cold-start — render
+ * the honest "not enough history yet" state, not a misleading empty curve.
+ */
+export interface CalibrationSummary {
+  isActive: boolean;
+  totalDecisions: number;
+  minBucketSamples: number;
+  minOrgSamples: number;
+  buckets: CalibrationBucket[];
+}
+
+/** One confidence bucket's empirical statistics (backend CalibrationBucketDto). */
+export interface CalibrationBucket {
+  /** Human-readable interval, e.g. "[0.85, 0.95)". */
+  label: string;
+  lowerInclusive: number;
+  upperExclusive: number;
+  accepted: number;
+  rejected: number;
+  total: number;
+  /** Beta(1,1)-smoothed accept rate (accepted+1)/(total+2). */
+  smoothedAcceptRate: number;
+  /** True when the bucket has enough samples to drive a calibrated number. */
+  isTrusted: boolean;
 }
 
 export interface Artifact {
