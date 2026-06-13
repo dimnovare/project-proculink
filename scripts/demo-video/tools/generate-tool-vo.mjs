@@ -49,9 +49,21 @@ const FFPROBE = process.env.FFPROBE ?? "ffprobe";
 // For a CALM, measured, teacherly delivery (the v10 explainer), raise stability
 // (less expressive jitter) and keep style at 0 — set via env, e.g.
 //   ELEVENLABS_STABILITY=0.72 node generate-tool-vo.mjs walkthrough-v10
+//
+// v11 PACING FIX: the founder said v10's calm read was TOO SLOW. The
+// ElevenLabs `speed` voice-setting (range 0.7–1.2 on eleven_multilingual_v2,
+// default 1.0) raises the delivery rate WITHOUT pitch-shifting; v11 ships at
+// ELEVENLABS_SPEED=1.12 (~12% faster) with stability dropped back to 0.55 for a
+// more confident, less-draggy read. After TTS we also HARD-TRIM leading/
+// trailing silence (silenceremove) so no inter-clip padding survives.
 const VS_STABILITY = parseFloat(process.env.ELEVENLABS_STABILITY ?? "0.5");
 const VS_SIMILARITY = parseFloat(process.env.ELEVENLABS_SIMILARITY ?? "0.8");
 const VS_STYLE = parseFloat(process.env.ELEVENLABS_STYLE ?? "0.0");
+const VS_SPEED = parseFloat(process.env.ELEVENLABS_SPEED ?? "1.0");
+// Hard silence trim of the rendered mp3 (kills any leading/trailing pad the
+// model adds). Disable with ELEVENLABS_TRIM_SILENCE=0.
+const TRIM_SILENCE = (process.env.ELEVENLABS_TRIM_SILENCE ?? "1") !== "0";
+const FFMPEG = process.env.FFMPEG ?? "ffmpeg";
 
 for (const tool of tools) {
   const spec = JSON.parse(readFileSync(resolve(here, `${tool}.json`), "utf8"));
@@ -87,7 +99,7 @@ for (const tool of tools) {
       body: JSON.stringify({
         text: b.vo,
         model_id: MODEL,
-        voice_settings: { stability: VS_STABILITY, similarity_boost: VS_SIMILARITY, style: VS_STYLE, use_speaker_boost: true },
+        voice_settings: { stability: VS_STABILITY, similarity_boost: VS_SIMILARITY, style: VS_STYLE, use_speaker_boost: true, speed: VS_SPEED },
       }),
     });
     if (!res.ok) {
@@ -95,6 +107,28 @@ for (const tool of tools) {
       process.exit(1);
     }
     writeFileSync(file, Buffer.from(await res.arrayBuffer()));
+
+    // Trim leading + trailing dead air so beats butt up with no inter-beat
+    // padding (the v10 "stale screens / too slow" complaint), but KEEP the
+    // natural sentence breathing inside each clip — over-trimming internal
+    // pauses makes the read feel rushed/robotic. start_periods=1 trims only the
+    // head; the single tail stop_periods=1 trims only the very end.
+    if (TRIM_SILENCE) {
+      const trimmed = `${file}.trim.mp3`;
+      try {
+        execFileSync(FFMPEG, ["-y", "-i", file, "-af",
+          "silenceremove=start_periods=1:start_threshold=-50dB:start_silence=0.04," +
+          "areverse,silenceremove=start_periods=1:start_threshold=-50dB:start_silence=0.10,areverse",
+          "-c:a", "libmp3lame", "-q:a", "2", trimmed], { stdio: ["ignore", "ignore", "ignore"] });
+        writeFileSync(file, readFileSync(trimmed));
+        execFileSync(process.platform === "win32" ? "cmd" : "rm",
+          process.platform === "win32" ? ["/c", "del", "/q", trimmed] : ["-f", trimmed],
+          { stdio: ["ignore", "ignore", "ignore"] });
+      } catch (e) {
+        console.log(` (trim skipped: ${(e?.message ?? e).toString().split("\n")[0]})`);
+      }
+    }
+
     const dur = parseFloat(
       execFileSync(FFPROBE, ["-v", "error", "-show_entries", "format=duration", "-of", "default=nw=1:nk=1", file])
         .toString()

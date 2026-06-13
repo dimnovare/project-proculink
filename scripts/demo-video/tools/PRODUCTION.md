@@ -1,5 +1,47 @@
 # Per-tool walkthrough videos — production record
 
+> **FULL WALKTHROUGH v11 (2026-06-13, DRAFT — founder review pending):** a
+> PACING RE-CUT of v10. The founder approved v10's SCRIPT ("the text itself is
+> GOOD") but rejected its PACING: "too slow, too much talking, too many stale
+> screens without doing much." v11 keeps the v10 8-beat script **VERBATIM**
+> (`walkthrough-v11.json` — byte-identical VO lines to v10) and changes ONLY the
+> choreography + timing. Three fixes:
+> 1. **Faster, tighter VO.** New `ELEVENLABS_SPEED` knob in `generate-tool-vo.mjs`
+>    (ElevenLabs `voice_settings.speed`, `eleven_multilingual_v2`) — v11 ships at
+>    **speed 1.06** + stability **0.55** (vs v10's calm 1.0 / 0.72). Plus a
+>    leading/trailing **silence trim** (`silenceremove`, keeps natural sentence
+>    breathing, drops dead air). Total VO **112.8 s** (v10 was 119.5 s) and, more
+>    importantly, the inter-beat dead pauses are gone.
+> 2. **No stale screens — constant motion.** New `capture-walkthrough-v11.spec.ts`:
+>    per-beat hold pad cut **900→120 ms**, all `extraMs`/`actionLeadMs` → 0, and
+>    every beat is choreographed so the UI is DOING something the whole narration
+>    (inbox scroll under the hook; brisk 5-step map reveal in `map-card-v11.html`
+>    — line draw 4.2→2.4 s, step gap 760→400 ms; upload drop→detect→route glide;
+>    accept-animate + live typing on the heart; triptych sweep; send-state ticks;
+>    closing scroll). A `beat()` drift-filler keeps the cursor moving in any
+>    residual budget (threshold 180 ms) so there is never a frozen frame. Page
+>    navs switched `networkidle`→`domcontentloaded` (mock long-polls never go
+>    idle — `networkidle` hung ~23 s on a static upload screen between the map and
+>    s3). A `settlePage()` helper re-seeds cookie consent and WAITS OUT the
+>    first-paint flashes (consent banner, "Loading…" workspace, "Checking plan
+>    limits…") before every cut, so no cut lands on a spinner.
+> 3. **Tighter overall.** Output **2:08 (128.5 s)** — 45 s shorter than v10's
+>    2:53, in the 2:00–2:20 target. 1080p30 H.264+AAC, **9.6 MB**, mean
+>    **−22.3 dB** / max −3.7 dB, **0 decode errors**. Every beat frame-checked
+>    (`out/walkthrough-v11/check/`) AND motion-verified: within-beat SSIM < 1.0 on
+>    all 8 beats (min 0.728 on deliver, 0.996 on the close scroll = real motion,
+>    no static stretch); cut-boundary frames confirmed spinner-free. Kept from
+>    v10: Daniel voice, music bed, brand intro/outro cards, the 5-step MAP card,
+>    the same real-UI mock pipeline (port 8090, placeholder Clerk key). Staged at
+>    `scripts/demo-video/out/walkthrough-v11.mp4` (+ `tools/out/…`) — **NOT
+>    uploaded to R2, no env/registry change**; review copy at
+>    `C:\Users\Dmitri.MARKIT\Videos\ProcuLink\walkthrough-v11-DRAFT.mp4`.
+> Produce: `ELEVENLABS_SPEED=1.06 ELEVENLABS_STABILITY=0.55 node tools/generate-tool-vo.mjs walkthrough-v11` →
+> `bun run demo:tools:capture capture-walkthrough-v11` →
+> `DEMO_INTRO_SEC=2.6 DEMO_OUTRO_SEC=3.6 node tools/assemble-tool.mjs walkthrough-v11`.
+> Same mock-mode notes as v10 (inbox = generic problem hook, cut to
+> `/inbox/ord-002`; map card is a self-contained brand graphic via `setContent`).
+
 > **FULL WALKTHROUGH v10 (2026-06-13, DRAFT — founder review pending):** a
 > FROM-SCRATCH EXPLAINER after v7, v8 AND v9 were all rejected. The founder
 > diagnosed the issue as STORY & STRUCTURE — not the AI voice, not the
