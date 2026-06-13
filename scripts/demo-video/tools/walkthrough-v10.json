@@ -1,0 +1,65 @@
+{
+  "id": "walkthrough-v10",
+  "toolName": "ProcuLink walkthrough",
+  "route": "/inbox",
+  "kicker": "How ProcuLink works",
+  "introTagline": "The missing link between buyers and suppliers.",
+  "outroHeadline": "Connecting procurement.",
+  "outroCta": "Start free at proculink.eu",
+  "outroLine": "",
+  "beats": [
+    {
+      "id": "s1-problem",
+      "shot": "Open IN the product on the Inbox — the live queue of incoming purchase orders. Calm, no rush. The cursor settles, the queue just sits there as context for the problem statement.",
+      "extraMs": 1400,
+      "vo": "If your team sends purchase orders to suppliers, you know the problem. Every supplier wants them a different way — their format, their channel, their item codes — so someone reformats every order by hand. ProcuLink does that for you. Let me show you how it works."
+    },
+    {
+      "id": "s2-map",
+      "shot": "Cut to the clean 5-step pipeline graphic (Read, Check, Resolve, Convert, Deliver) — an on-brand HTML/CSS motion card on the navy backdrop, served via page.setContent and captured in-take. The five steps reveal one at a time, left to right, with the connecting line drawing through them. Calm, unhurried.",
+      "extraMs": 1200,
+      "vo": "Every order takes the same five steps. ProcuLink reads it, checks it, asks you about anything unclear, converts it to the supplier's format, and delivers it. We'll walk through one order, one step at a time."
+    },
+    {
+      "id": "s3-read",
+      "shot": "Cut to /upload. A CSV file arrives in the dropzone; the format is auto-detected (Detected: CSV), the PO number and line count appear. Patient pause on the detect pill.",
+      "actionLeadMs": 400,
+      "extraMs": 1400,
+      "vo": "You don't tell it the format. Drop in a CSV, an Excel file, a PDF, even EDI — it detects the format, finds the PO number, and pulls out every line."
+    },
+    {
+      "id": "s4-check",
+      "shot": "Cut to the order in review (PO-2024-005678 → ElectroSupply Co). The Fix Queue shows only the two lines that need a decision. Accept the AI suggestion on line 2 (confidence + reason on screen), then on line 4 type one supplier code manually and Save. This is the heart — slow and clear.",
+      "actionLeadMs": 700,
+      "extraMs": 2000,
+      "vo": "Most lines are fine, so ProcuLink stays quiet about them. It only asks about the few it isn't sure of. Here, it suggests this supplier's code — drawn from their own catalog — and tells you how confident it is and why. You agree, so accept. The last one you'd rather decide yourself: type the code, and ProcuLink remembers it for next time."
+    },
+    {
+      "id": "s5-convert",
+      "shot": "Toggle to Full document — the source file, the normalized canonical order, and the supplier's output format side by side, with the connecting wires. Rest on the supplier-output column building.",
+      "actionLeadMs": 600,
+      "extraMs": 1200,
+      "vo": "Now it builds the exact file this supplier needs — their layout, their codes — without you touching a template."
+    },
+    {
+      "id": "s6-deliver",
+      "shot": "Back to Triage; click Send to supplier → confirm dialog → final send. The status runs Generating → Sent → Delivered, and the audit-trail banner lands. Rest on the Delivered state.",
+      "actionLeadMs": 600,
+      "extraMs": 2000,
+      "vo": "Send, and it goes out on the channel this supplier uses. Generating, sent, delivered — and every step is recorded, so you can prove what went where."
+    },
+    {
+      "id": "s7-payoff",
+      "shot": "Rest on the resolved/delivered order, or glance at the dashboard order-flow. Calm. The learning point lands here.",
+      "actionLeadMs": 500,
+      "extraMs": 1400,
+      "vo": "And it learns. Every code you confirm, it keeps — so the next order from this supplier needs even less from you. That's the whole point: less reformatting every week, not more."
+    },
+    {
+      "id": "s8-close",
+      "shot": "The branded outro card — logo, 'Connecting procurement.', green 'Start free at proculink.eu' pill. (This beat's VO plays over the outro card, which the assembler appends.)",
+      "extraMs": 600,
+      "vo": "That's ProcuLink — it sits between you and your suppliers and speaks each one's language. The missing link between buyers and suppliers. Try it free today."
+    }
+  ]
+}
