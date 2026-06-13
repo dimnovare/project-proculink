@@ -23,7 +23,7 @@ test.describe("MagicMappingPreview — /upload/preview/[orderId]", () => {
 
     // Page heading
     await expect(
-      page.getByRole("heading", { level: 1, name: /review mapping/i }),
+      page.getByRole("heading", { level: 1, name: /map codes/i }),
     ).toBeVisible({ timeout: 10_000 });
 
     // Breadcrumb: "Upload" link within main content (not the sidebar nav link)
@@ -163,7 +163,7 @@ test.describe("UploadWorkbench — post-upload routes to preview", () => {
 
     // Confirm the preview page rendered
     await expect(
-      page.getByRole("heading", { level: 1, name: /review mapping/i }),
+      page.getByRole("heading", { level: 1, name: /map codes/i }),
     ).toBeVisible({ timeout: 10_000 });
 
     // The preview component should load and show the mapping header
