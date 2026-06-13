@@ -163,7 +163,7 @@ export default function HelpIndex() {
               className="font-semibold hover:underline"
               style={{ color: "var(--brand-blue-deep)" }}
             >
-              3-minute walkthrough →
+              Watch the walkthrough →
             </Link>
           </p>
         )}

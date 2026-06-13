@@ -509,7 +509,7 @@ export function HelpSlideover({ open, onClose }: Props) {
                   }}
                 >
                   <span aria-hidden style={{ color: "var(--brand-green-deep)" }}>▷</span>
-                  Watch the 3-minute walkthrough
+                  Watch the walkthrough
                   <span aria-hidden style={{ marginLeft: "auto", color: "var(--ink-faint)", fontSize: 12 }}>↗</span>
                 </a>
               )}
