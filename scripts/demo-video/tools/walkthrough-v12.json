@@ -1,0 +1,62 @@
+{
+  "id": "walkthrough-v12",
+  "toolName": "ProcuLink walkthrough",
+  "route": "/inbox/ord-002",
+  "kicker": "How ProcuLink works",
+  "introTagline": "The missing link between buyers and suppliers.",
+  "outroHeadline": "Connecting procurement.",
+  "outroCta": "Start free at proculink.eu",
+  "outroLine": "",
+  "beats": [
+    {
+      "id": "s1-open",
+      "shot": "Cut straight into the order in review (PO-2024-005678 → ElectroSupply Co). The screen is settled and STILL — the parsed order with its fix queue. The cursor is hidden; nothing moves. Brief, static-but-relevant.",
+      "actionLeadMs": 0,
+      "extraMs": 0,
+      "vo": "Here's a purchase order, already parsed. Every line is read except two, which need a supplier code before it can go out."
+    },
+    {
+      "id": "s2-accept",
+      "shot": "The cursor appears, moves directly to the Accept button on the AI suggestion for line 2, clicks (small pulse), the line resolves, then the cursor STOPS. No drift before or after.",
+      "actionLeadMs": 0,
+      "extraMs": 0,
+      "vo": "For this one, ProcuLink suggests a code from the supplier's own catalog, and tells you why. It looks right, so accept it."
+    },
+    {
+      "id": "s3-type",
+      "shot": "The cursor moves to the second unresolved line, opens the manual entry, TYPES the supplier code, then clicks Save — real typing and a real save. The cursor stops when done.",
+      "actionLeadMs": 0,
+      "extraMs": 0,
+      "vo": "The last one, you'd rather decide yourself. Type the supplier's code, and save. ProcuLink remembers it, so next time it won't ask."
+    },
+    {
+      "id": "s4-convert",
+      "shot": "The cursor moves to the Full document toggle and clicks. The view changes to show the source file, the normalized order, and the supplier's output format. A real UI change — then the cursor parks.",
+      "actionLeadMs": 0,
+      "extraMs": 0,
+      "vo": "Now every line is mapped. ProcuLink turns your file into the exact format this supplier needs, with no template to maintain."
+    },
+    {
+      "id": "s5-send",
+      "shot": "The cursor moves to Send to supplier, confirms in the dialog, and the status ticks Generating then Sent then Delivered — real state changes only.",
+      "actionLeadMs": 0,
+      "extraMs": 0,
+      "vo": "Send it, and ProcuLink delivers it on this supplier's channel. Generating, sent, delivered."
+    },
+    {
+      "id": "s6-delivered",
+      "shot": "Settle on the Delivered state — the completed order with its audit trail. STILL frame, cursor hidden. The proof.",
+      "actionLeadMs": 0,
+      "extraMs": 0,
+      "vo": "Delivered, and every step is recorded, so you can prove what went where. No reformatting by hand, on any order."
+    },
+    {
+      "id": "s7-close",
+      "shot": "The branded outro card — logo, 'Connecting procurement.', green 'Start free at proculink.eu' pill. This beat's VO plays OVER the outro card (overOutro:true), so the closing line is never over a stale product frame.",
+      "overOutro": true,
+      "actionLeadMs": 0,
+      "extraMs": 0,
+      "vo": "That's ProcuLink — it speaks each supplier's language, so you don't have to. Try it free today."
+    }
+  ]
+}
