@@ -25,20 +25,16 @@ import {
 import { resolve, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { execFileSync } from "node:child_process";
-import { makeLogos } from "./make-logo.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const out = resolve(here, "out");
 mkdirSync(out, { recursive: true });
 
-// Rasterise the navy-card logo (gradient mark + white wordmark) → out/logo-lockup.png.
-const logos = await makeLogos(out);
-
 const FFMPEG = process.env.FFMPEG ?? "ffmpeg";
 const FFPROBE = process.env.FFPROBE ?? "ffprobe";
 const GAP = parseFloat(process.env.DEMO_GAP_SEC ?? "0.6");
 const MUSIC_VOL = parseFloat(process.env.DEMO_MUSIC_VOL ?? "0.22");
-const INTRO = parseFloat(process.env.DEMO_INTRO_SEC ?? "4.5");
+const INTRO = parseFloat(process.env.DEMO_INTRO_SEC ?? "4");
 const OUTRO = parseFloat(process.env.DEMO_OUTRO_SEC ?? "5");
 // Fonts for the title cards (escaped colon for the ffmpeg drawtext filter).
 const FONT_BOLD = "C\\:/Windows/Fonts/arialbd.ttf";
@@ -108,44 +104,26 @@ run(["-y", ...(trimStart > 0 ? ["-ss", trimStart.toFixed(3)] : []), "-i", videoI
   "-map", "[v]", "-map", "1:a", "-t", coreDur.toFixed(2),
   "-c:v", "libx264", "-preset", "medium", "-crf", "19", "-pix_fmt", "yuv420p", "-ar", "44100", "-ac", "2", "-c:a", "aac", "-b:a", "192k", core]);
 
-// 6/7. Branded title cards: navy bg + the real ProcuLink logo (gradient mark +
-// white wordmark) overlaid, + centered drawtext lines, fade in/out, silent
-// stereo track (music is mixed over the whole timeline in step 8).
-function makeCard(outPath, dur, opts) {
-  const { lines, fadeOut = false, logo, logoW = 640, logoY = 350 } = opts;
+// 6/7. Title cards (navy + wordmark + line) with a silent stereo track.
+function makeCard(outPath, dur, lines, fadeOut) {
   const draws = lines.map((l) => `drawtext=fontfile='${l.font}':text='${l.text}':fontcolor=${l.color}:fontsize=${l.size}:x=(w-text_w)/2:y=${l.y}`).join(",");
-  const fadeOutF = fadeOut ? `,fade=t=out:st=${(dur - 0.6).toFixed(2)}:d=0.6` : "";
-  const filter =
-    `[2:v]scale=${logoW}:-1[lg];` +
-    `[0:v][lg]overlay=(W-w)/2:${logoY}[bg];` +
-    `[bg]${draws},fade=t=in:d=0.6${fadeOutF}[v]`;
+  const fades = `fade=t=in:d=0.6${fadeOut ? `,fade=t=out:st=${(dur - 0.6).toFixed(2)}:d=0.6` : ""}`;
   run(["-y",
     "-f", "lavfi", "-i", `color=c=0x0B1A2F:s=1920x1080:d=${dur}:r=30`,
     "-f", "lavfi", "-i", "anullsrc=r=44100:cl=stereo",
-    "-i", logo,
-    "-filter_complex", filter,
-    "-map", "[v]", "-map", "1:a", "-t", String(dur),
+    "-vf", `${draws},${fades}`, "-t", String(dur),
     "-c:v", "libx264", "-preset", "medium", "-crf", "20", "-pix_fmt", "yuv420p", "-c:a", "aac", "-b:a", "192k", "-shortest", outPath]);
 }
 const intro = resolve(out, "intro.mp4");
 const outro = resolve(out, "outro.mp4");
-// Intro: logo + tagline.
-makeCard(intro, INTRO, {
-  logo: logos.lockup, logoW: 700, logoY: 400,
-  lines: [
-    { text: "The missing link between buyers and suppliers.", font: FONT_REG, size: 50, color: "0xC9D5E6", y: 625 },
-  ],
-  fadeOut: true,
-});
-// Outro: logo + statement + CTA.
-makeCard(outro, OUTRO, {
-  logo: logos.lockup, logoW: 660, logoY: 340,
-  lines: [
-    { text: "Connecting procurement.", font: FONT_BOLD, size: 58, color: "white", y: 560 },
-    { text: "Start free at proculink.eu", font: FONT_BOLD, size: 44, color: "0x3DBE6B", y: 672 },
-  ],
-  fadeOut: true,
-});
+makeCard(intro, INTRO, [
+  { text: "ProcuLink", font: FONT_BOLD, size: 120, color: "white", y: "(h/2)-90" },
+  { text: "From any purchase order to supplier-ready delivery", font: FONT_REG, size: 42, color: "0x9FB0C7", y: "(h/2)+55" },
+], true);
+makeCard(outro, OUTRO, [
+  { text: "ProcuLink", font: FONT_BOLD, size: 112, color: "white", y: "(h/2)-95" },
+  { text: "Start free at proculink.eu", font: FONT_BOLD, size: 48, color: "0x28C55E", y: "(h/2)+45" },
+], false);
 
 // 8. Final: concat intro+core+outro, overlay the music bed (audible).
 const music = arg("music", existsSync(resolve(here, "assets", "music.mp3")) ? resolve(here, "assets", "music.mp3") : "");
