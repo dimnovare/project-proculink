@@ -7,7 +7,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { ChevronLeft, Trash2, Info, Clock, Link2, Truck, Plus, ShieldCheck, GitBranch } from "lucide-react";
+import { ChevronLeft, ChevronRight, Trash2, Info, Clock, Link2, Truck, Plus, ShieldCheck, GitBranch } from "lucide-react";
 import { PoMappingEditor } from "./PoMappingEditor";
 import { DeliveryConfigEditor } from "./DeliveryConfigEditor";
 import { CatalogSourceEditor } from "./CatalogSourceEditor";
@@ -1004,9 +1004,10 @@ function CatalogTab({ supplierId }: { supplierId: string }) {
 
       {/* ── Automatic import sources (additive — manual upload above stays primary) ── */}
       <details style={{ marginTop: 18, border: "1px solid #E2E6EE", borderRadius: 8, background: "#FBFCFE" }}>
-        <summary style={{ cursor: "pointer", listStyle: "none", padding: "11px 14px", fontSize: 13, fontWeight: 700, color: INK }}>
+        <summary style={{ cursor: "pointer", listStyle: "none", padding: "11px 14px", fontSize: 13, fontWeight: 700, color: INK, display: "flex", alignItems: "center", gap: 8 }}>
+          <ChevronRight size={15} data-disclosure-chevron style={{ color: MUTED }} aria-hidden />
           Automatic import
-          <span style={{ fontSize: 11.5, fontWeight: 500, color: MUTED, marginLeft: 8 }}>
+          <span style={{ fontSize: 11.5, fontWeight: 500, color: MUTED }}>
             Pull on a schedule, or let the supplier push to you
           </span>
         </summary>
@@ -1575,6 +1576,18 @@ export function SupplierDockProfile({ id }: { id: string }) {
 
         {tab === "po-mapping" && (
           <>
+          {/* Sub-label: distinguishes "PO Mapping" (column → field layout of the
+              order file) from the "Mappings" tab (per-SKU code lookups). */}
+          <div className="mb-3 flex items-start gap-2.5">
+            <GitBranch size={16} strokeWidth={2} color={MUTED} className="mt-0.5 flex-shrink-0" />
+            <div className="min-w-0">
+              <h3 className="text-[14px] font-semibold" style={{ color: INK }}>Order file layout</h3>
+              <p className="mt-0.5 text-[12px]" style={{ color: MUTED }}>
+                Map this {partyNounLower}&apos;s columns to ProcuLink fields (PO number, line, quantity, price).
+                For per-item code lookups, use the Mappings tab.
+              </p>
+            </div>
+          </div>
           <LiveEditNotice connectionId={connectionId} nounLower={partyNounLower} />
           <PoMappingEditor
             supplierId={id}

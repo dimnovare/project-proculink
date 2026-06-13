@@ -101,12 +101,15 @@
   border-radius: 3px;
 }
 
-/* On dark navy chrome (topbar, sidebar) use a lighter blue ring */
+/* On dark navy chrome (topbar, sidebar) use a lighter blue ring.
+   Scoped to the explicit navy-chrome classes only — the bare `aside` /
+   `header` element selectors were applied to every aside/header in the app,
+   including white-surface ones (e.g. the Help slideover header, marketing
+   page headers), where the light #6BA5F0 ring is nearly invisible. Navy
+   chrome carries `on-navy`; everything else keeps the high-contrast default. */
 .on-navy :focus-visible,
 .topbar :focus-visible,
-.sidebar :focus-visible,
-aside :focus-visible,
-header :focus-visible {
+.sidebar :focus-visible {
   outline-color: #6BA5F0;
   outline-offset: 2px;
 }
@@ -701,6 +704,19 @@ header :focus-visible {
    while keeping the row scrollable. */
 .no-scrollbar { scrollbar-width: none; -ms-overflow-style: none; }
 .no-scrollbar::-webkit-scrollbar { display: none; }
+
+/* ── Disclosure chevron ────────────────────────────────────────────────────
+   For <details> whose <summary> sets list-style:none (removing the native
+   triangle). Add [data-disclosure-chevron] to a child icon; it points right
+   when collapsed and rotates down when the parent <details> is open, restoring
+   the expand/collapse affordance. */
+[data-disclosure-chevron] {
+  transition: transform 150ms var(--ease-out, ease-out);
+  flex-shrink: 0;
+}
+details[open] > summary [data-disclosure-chevron] {
+  transform: rotate(90deg);
+}
 
 /* ── AI card + tag ─────────────────────────────────────────────────────── */
 .ai-card {

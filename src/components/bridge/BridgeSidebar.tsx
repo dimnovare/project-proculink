@@ -248,7 +248,7 @@ export function BridgeSidebar({
 
   return (
     <aside
-      className="flex h-full flex-shrink-0 flex-col overflow-hidden transition-[width] duration-200"
+      className="on-navy flex h-full flex-shrink-0 flex-col overflow-hidden transition-[width] duration-200"
       style={{ width: fullWidth ? "100%" : (isCollapsed ? 66 : 220), background: "#0B1A2F", borderRight: fullWidth ? "none" : "1px solid #1C2F49" }}
     >
       {/* ── Logo + collapse toggle ────────────────────────────────── */}

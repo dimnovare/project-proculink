@@ -1130,10 +1130,10 @@ export function UploadWorkbench() {
                     Buyer
                   </label>
                   <div
-                    className="w-full rounded-[6px] px-3 py-2 text-[13px]"
-                    style={{ border: "1px solid #E2E6EE", background: "#F6F7FA", color: "#56627A" }}
+                    className="w-full rounded-[6px] px-3 py-2 text-[13px] italic"
+                    style={{ border: "1px dashed #D5DAEA", background: "#F6F7FA", color: "var(--ink-faint)" }}
                   >
-                    Detected from the uploaded document
+                    Filled in automatically once the document is parsed
                   </div>
                 </div>
 

@@ -194,7 +194,7 @@ export function SupplierDockList() {
           sub={
             isLoading
               ? "Loading…"
-              : `${suppliers.length} active ${nounLower}${suppliers.length === 1 ? "" : "s"}`
+              : `Your ${pluralLower} directory — each one's versioned integration lives in Connections. ${suppliers.length} active ${nounLower}${suppliers.length === 1 ? "" : "s"}.`
           }
           actions={
             <div className="w-full sm:w-auto">

@@ -2541,6 +2541,19 @@ export function SpineReview({ orderId }: { orderId: string }) {
         className="xl:hidden flex-shrink-0 flex gap-2 px-4 py-3"
         style={{ background: "#FFFFFF", borderTop: "1px solid #E2E6EE", boxShadow: "0 -4px 12px rgba(11,26,47,0.08)" }}
       >
+        {/* Save-mappings promote — also reachable below xl (was xl-only before).
+            The promote saves whatever mapping state already exists; it does not
+            require the xl-only drag canvas to be visible. */}
+        <button
+          type="button"
+          onClick={() => promoteMutation.mutate()}
+          disabled={promoteMutation.isPending}
+          title={`Save mappings for ${order.supplierName} — applies to their next order automatically.`}
+          aria-label={`Save these field mappings for ${order.supplierName}`}
+          style={{ height: 44, padding: "0 14px", borderRadius: 8, fontSize: 12.5, fontWeight: 600, background: "#FFFFFF", color: "#5E3DB0", border: "1px solid #C4ABE8", cursor: promoteMutation.isPending ? "default" : "pointer", opacity: promoteMutation.isPending ? 0.6 : 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, whiteSpace: "nowrap", flexShrink: 0 }}
+        >
+          {promoteMutation.isPending ? "Saving…" : "Save mappings"}
+        </button>
         <button
           onClick={() => !crossed && exceptionCount === 0 && sendState === "idle" && setShowConfirm(true)}
           disabled={sendState !== "idle" || (!crossed && exceptionCount > 0)}

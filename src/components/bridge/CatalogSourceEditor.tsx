@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { ReactNode } from "react";
+import type { KeyboardEvent, ReactNode } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { KeyRound, Save, Trash2, Zap, AlertTriangle } from "lucide-react";
 import {
@@ -16,6 +16,7 @@ import type {
   CatalogSourceProtocol,
   CatalogSourceTestResult,
 } from "@/lib/api/catalogSources";
+import { isArrowKey, rovingRadioNext } from "@/lib/roving-radio";
 import {
   buildAuthConfigPayload,
   defaultPortForProtocol,
@@ -139,6 +140,27 @@ export function CatalogSourceEditor({ supplierId }: CatalogSourceEditorProps) {
 
   const isUrlProtocol = protocolUsesUrl(protocol);
   const hasPassword = savedSource?.hasPassword ?? false;
+
+  // Shared by the click handler and the arrow-key radiogroup navigation.
+  function selectProtocol(id: CatalogSourceProtocol) {
+    setProtocol(id);
+    if (!protocolUsesUrl(id)) {
+      setPort((prev) => (prev === "" || prev === 0 ? defaultPortForProtocol(id) : prev));
+    }
+    markEdited();
+  }
+
+  // Roving-tabindex + arrow-key navigation so the protocol picker is keyboard
+  // operable like a native radio group (only the checked option is tabbable;
+  // Arrow keys move + select between protocols).
+  function handleProtocolKeyDown(event: KeyboardEvent<HTMLDivElement>) {
+    if (!isArrowKey(event.key)) return;
+    event.preventDefault();
+    const nextId = rovingRadioNext(event.key, protocol, PROTOCOLS.map((p) => p.id));
+    if (nextId === null) return;
+    selectProtocol(nextId);
+    requestAnimationFrame(() => document.getElementById(`catalog-protocol-${nextId}`)?.focus());
+  }
   const usernameRequired = protocol === "sftp" || protocol === "ftps";
   const passwordRequired = protocol === "sftp" || protocol === "ftps";
 
@@ -312,29 +334,31 @@ export function CatalogSourceEditor({ supplierId }: CatalogSourceEditorProps) {
 
       <div className="grid gap-0 lg:grid-cols-[200px_minmax(0,1fr)]">
         <div className="p-4" style={{ borderRight: "1px solid #E2E6EE", background: "#FBFCFE" }}>
-          <p className="mb-2 text-[11px] font-semibold uppercase" style={{ color: "var(--ink-faint)" }}>Protocol</p>
-          <div className="grid gap-2">
-            {PROTOCOLS.map((item) => (
-              <button
-                key={item.id}
-                onClick={() => {
-                  setProtocol(item.id);
-                  if (!protocolUsesUrl(item.id)) {
-                    setPort((prev) => (prev === "" || prev === 0 ? defaultPortForProtocol(item.id) : prev));
-                  }
-                  markEdited();
-                }}
-                className="flex h-9 items-center justify-between rounded-[6px] px-3 text-[12px] font-semibold"
-                style={{
-                  border: protocol === item.id ? "1px solid #2E8E3A" : "1px solid #D5DAEA",
-                  background: protocol === item.id ? "#E2F1E2" : "#FFFFFF",
-                  color: "#0B1A2F",
-                  cursor: "pointer",
-                }}
-              >
-                {item.label}
-              </button>
-            ))}
+          <p id="catalog-protocol-label" className="mb-2 text-[11px] font-semibold uppercase" style={{ color: "var(--ink-faint)" }}>Protocol</p>
+          <div className="grid gap-2" role="radiogroup" aria-labelledby="catalog-protocol-label" onKeyDown={handleProtocolKeyDown}>
+            {PROTOCOLS.map((item) => {
+              const selected = protocol === item.id;
+              return (
+                <button
+                  key={item.id}
+                  id={`catalog-protocol-${item.id}`}
+                  type="button"
+                  role="radio"
+                  aria-checked={selected}
+                  tabIndex={selected ? 0 : -1}
+                  onClick={() => selectProtocol(item.id)}
+                  className="flex min-h-[44px] items-center justify-between rounded-[6px] px-3 text-[12px] font-semibold"
+                  style={{
+                    border: selected ? "1px solid #2E8E3A" : "1px solid #D5DAEA",
+                    background: selected ? "#E2F1E2" : "#FFFFFF",
+                    color: "#0B1A2F",
+                    cursor: "pointer",
+                  }}
+                >
+                  {item.label}
+                </button>
+              );
+            })}
           </div>
 
           <div className="mt-4 rounded-[6px] p-3" style={{ background: "#F0F7F1", border: "1px solid #CBE8CE" }}>

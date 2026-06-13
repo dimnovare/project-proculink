@@ -116,8 +116,13 @@ function OverageNotice({ status }: { status: BillingStatus }) {
         <strong style={{ color: "#0F4FA8" }}>You&apos;re over your monthly order allowance.</strong>
         <span>
           Extra orders still process and bill at €0.50 each —{" "}
-          <strong>{status.overageOrders.toLocaleString()}</strong> this period (={" "}
-          <strong>{eur}</strong>). Upgrade for more included volume if this keeps up.
+          <strong>{status.overageOrders.toLocaleString()}</strong> this period (≈{" "}
+          <strong>{eur}</strong>{" "}
+          <span style={{ color: "var(--ink-faint)", fontWeight: 400 }}>estimate</span>). Upgrade for more
+          included volume if this keeps up.
+        </span>
+        <span style={{ fontSize: 11.5, color: "var(--ink-faint)" }}>
+          A running estimate — your Stripe invoice for the period is the final amount.
         </span>
       </div>
     );

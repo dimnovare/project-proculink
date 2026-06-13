@@ -170,10 +170,12 @@ function timeAgo(iso: string): string {
   return `${Math.floor(h / 24)}d ago`;
 }
 
+// Status dot colors use the canonical semantic tokens (danger/amber/brand-green)
+// rather than literal hex, so they stay in sync with UnifiedStatusBadge.
 const NOTIF_META: Record<"review" | "failed" | "delivered", { dot: string; label: string }> = {
-  failed:    { dot: "#C53A3A", label: "Delivery failed" },
-  review:    { dot: "#C97A14", label: "Needs review" },
-  delivered: { dot: "#2E8E3A", label: "Delivered" },
+  failed:    { dot: "var(--danger)", label: "Delivery failed" },
+  review:    { dot: "var(--amber)", label: "Needs review" },
+  delivered: { dot: "var(--brand-green)", label: "Delivered" },
 };
 
 function NotificationsBell() {
@@ -343,7 +345,7 @@ export function BridgeTopbar({ crumb, onMenuClick }: BridgeTopbarProps) {
 
   return (
     <header
-      className="flex-shrink-0 relative"
+      className="on-navy flex-shrink-0 relative"
       style={{ height: 56, background: "#0B1A2F" }}
     >
       {/* Content row */}

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { ReactNode } from "react";
+import type { KeyboardEvent, ReactNode } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { KeyRound, Save, Send, Trash2 } from "lucide-react";
 import { ConnectorRequirementsPanel } from "@/components/bridge/ConnectorRequirementsPanel";
@@ -12,6 +12,7 @@ import {
   upsertDeliveryConfig,
 } from "@/lib/api/delivery";
 import { invalidateOnboardingStatus } from "@/hooks/useOnboardingStatus";
+import { isArrowKey, rovingRadioNext } from "@/lib/roving-radio";
 import type { DeliveryConfig, DeliveryProtocol, DeliveryTestResult } from "@/lib/api/types";
 
 type AuthType = "none" | "apikey" | "bearer" | "basic" | "oauth2";
@@ -136,6 +137,28 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
 
   const hasSavedCredentials = savedConfig?.hasCredentials ?? false;
   const isUrlProtocol = URL_PROTOCOLS.includes(protocol);
+
+  // Shared by the click handler and the arrow-key radiogroup navigation.
+  function selectProtocol(id: DeliveryProtocol) {
+    setProtocol(id);
+    if (id === "erp_erply" && authType === "basic") setAuthType("bearer");
+    if (id === "erp_directo") setAuthType("basic");
+    if (HOST_PROTOCOLS.includes(id)) setPort((prev) => (prev === "" ? defaultPortFor(id) : prev));
+    markEdited();
+  }
+
+  // Roving-tabindex + arrow-key navigation so the protocol picker is keyboard
+  // operable like a native radio group (only the checked option is tabbable;
+  // Arrow keys move + select, skipping disabled "later" protocols).
+  function handleProtocolKeyDown(event: KeyboardEvent<HTMLDivElement>) {
+    if (!isArrowKey(event.key)) return;
+    event.preventDefault();
+    const enabledIds = PROTOCOLS.filter((p) => p.enabled).map((p) => p.id);
+    const nextId = rovingRadioNext(event.key, protocol, enabledIds);
+    if (nextId === null) return;
+    selectProtocol(nextId);
+    requestAnimationFrame(() => document.getElementById(`delivery-protocol-${nextId}`)?.focus());
+  }
 
   const configPreview = JSON.stringify(buildConfigObject(), null, 2);
 
@@ -376,31 +399,33 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
 
       <div className="grid gap-0 lg:grid-cols-[220px_minmax(0,1fr)]">
         <div className="p-4" style={{ borderRight: "1px solid #E2E6EE", background: "#FBFCFE" }}>
-          <p className="mb-2 text-[11px] font-semibold uppercase" style={{ color: "var(--ink-faint)" }}>Protocol</p>
-          <div className="grid gap-2">
-            {PROTOCOLS.map((item) => (
-              <button
-                key={item.id}
-                disabled={!item.enabled}
-                onClick={() => {
-                  setProtocol(item.id);
-                  if (item.id === "erp_erply" && authType === "basic") setAuthType("bearer");
-                  if (item.id === "erp_directo") setAuthType("basic");
-                  if (HOST_PROTOCOLS.includes(item.id)) setPort((prev) => (prev === "" ? defaultPortFor(item.id) : prev));
-                  markEdited();
-                }}
-                className="flex h-9 items-center justify-between rounded-[6px] px-3 text-[12px] font-semibold"
-                style={{
-                  border: protocol === item.id ? "1px solid #2E8E3A" : "1px solid #D5DAEA",
-                  background: protocol === item.id ? "#E2F1E2" : "#FFFFFF",
-                  color: item.enabled ? "#0B1A2F" : "var(--ink-faint)",
-                  cursor: item.enabled ? "pointer" : "not-allowed",
-                }}
-              >
-                {item.label}
-                {!item.enabled && <span className="text-[10px] font-medium">later</span>}
-              </button>
-            ))}
+          <p id="delivery-protocol-label" className="mb-2 text-[11px] font-semibold uppercase" style={{ color: "var(--ink-faint)" }}>Protocol</p>
+          <div className="grid gap-2" role="radiogroup" aria-labelledby="delivery-protocol-label" onKeyDown={handleProtocolKeyDown}>
+            {PROTOCOLS.map((item) => {
+              const selected = protocol === item.id;
+              return (
+                <button
+                  key={item.id}
+                  id={`delivery-protocol-${item.id}`}
+                  type="button"
+                  role="radio"
+                  aria-checked={selected}
+                  tabIndex={selected ? 0 : -1}
+                  disabled={!item.enabled}
+                  onClick={() => selectProtocol(item.id)}
+                  className="flex min-h-[44px] items-center justify-between rounded-[6px] px-3 text-[12px] font-semibold"
+                  style={{
+                    border: selected ? "1px solid #2E8E3A" : "1px solid #D5DAEA",
+                    background: selected ? "#E2F1E2" : "#FFFFFF",
+                    color: item.enabled ? "#0B1A2F" : "var(--ink-faint)",
+                    cursor: item.enabled ? "pointer" : "not-allowed",
+                  }}
+                >
+                  {item.label}
+                  {!item.enabled && <span className="text-[10px] font-medium">later</span>}
+                </button>
+              );
+            })}
           </div>
 
           <div className="mt-4 rounded-[6px] p-3" style={{ background: "#F0F7F1", border: "1px solid #CBE8CE" }}>

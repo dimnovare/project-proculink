@@ -354,6 +354,7 @@ export default function ExceptionsPage() {
                                   size="sm"
                                   disabled={busy}
                                   onClick={() => resolveMut.mutate(exc.id)}
+                                  title="Mark this exception resolved. Only available when it isn't tied to an order — order-linked exceptions clear automatically once you fix the cause."
                                 >
                                   Resolve
                                 </Button>
@@ -363,6 +364,7 @@ export default function ExceptionsPage() {
                                   size="sm"
                                   disabled={busy || !exc.orderId}
                                   onClick={() => { if (exc.orderId) router.push(orderHref(exc.orderId)); }}
+                                  title="Open the order to fix the cause. This exception clears itself on the next pipeline pass once the cause is gone."
                                 >
                                   Open order
                                 </Button>
@@ -450,6 +452,7 @@ function ExceptionCard({
               size="sm"
               disabled={busy}
               onClick={onResolve}
+              title="Mark this exception resolved. Only available when it isn't tied to an order — order-linked exceptions clear automatically once you fix the cause."
             >
               Resolve
             </Button>
@@ -459,6 +462,7 @@ function ExceptionCard({
               size="sm"
               disabled={busy || !exc.orderId}
               onClick={onOpen}
+              title="Open the order to fix the cause. This exception clears itself on the next pipeline pass once the cause is gone."
             >
               Open order
             </Button>

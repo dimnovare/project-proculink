@@ -28,7 +28,8 @@ export default function MappingPreviewPage() {
 
   return (
     <PageShell>
-      {/* Breadcrumb */}
+      {/* Breadcrumb — surfaces the two-step review flow so the handoff to the
+          order screen (step 2) doesn't feel abrupt. */}
       <nav className="flex items-center gap-1.5 pb-1 text-[12px]" style={{ color: "var(--ink-faint)" }}>
         <Link
           href="/upload"
@@ -38,13 +39,15 @@ export default function MappingPreviewPage() {
           Upload
         </Link>
         <span aria-hidden>›</span>
-        <span style={{ color: "#56627A" }}>Review mapping</span>
+        <span style={{ color: "#0B1A2F", fontWeight: 600 }}>Map codes</span>
+        <span aria-hidden>›</span>
+        <span style={{ color: "var(--ink-faint)" }}>Review &amp; send</span>
       </nav>
 
       {/* Page header — canonical PageHeader */}
       <PageHeader
-        title="Review mapping"
-        sub="Confirm how your order lines map to supplier codes before processing."
+        title="Map codes — step 1 of 2"
+        sub="Confirm how your order lines map to supplier codes. Next, you'll review the full order and send it."
       />
 
       {/* Body */}
