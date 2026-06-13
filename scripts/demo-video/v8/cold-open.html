@@ -1,0 +1,269 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>ProcuLink cold open</title>
+<style>
+  /* ───────────────────────────────────────────────────────────────────────
+     ProcuLink walkthrough v8 — COLD OPEN motion scene.
+
+     A deterministic, all-CSS-keyframe animation (no rAF, no randomness) so the
+     Playwright capture is byte-stable. Total scene = 12.2s, three acts:
+
+       ACT 1  0.0–3.0s   navy void · the brand MARK draws + pulses · tension line
+       ACT 2  3.0–7.4s   format chips stack & clash into overload
+       ACT 3  7.4–12.2s  the clutter funnels → resolves to the lockup + tagline
+
+     Brand tokens mirror src/app/globals.css + the make-cards.mjs deck:
+       navy #0B1A2F · blue #1E66C9 · green #2E8E3A · violet accent #6E59F2
+       (the locked "violet is canonical" accent) · CTA green #3DBE6B.
+     Font: Segoe UI (the same family the cards rasterise with on this box).
+  ─────────────────────────────────────────────────────────────────────────── */
+
+  :root {
+    --navy:        #0B1A2F;
+    --navy-2:      #0A1626;
+    --blue:        #1E66C9;
+    --green:       #2E8E3A;
+    --violet:      #6E59F2;
+    --violet-soft: #8B7BF7;
+    --ink:         #C5D2E4;
+    --muted:       #7C8DA6;
+    --cta:         #3DBE6B;
+    --w: 1920px; --h: 1080px;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: var(--w); height: var(--h); overflow: hidden; background: var(--navy); }
+
+  .stage {
+    position: relative;
+    width: var(--w); height: var(--h);
+    background:
+      radial-gradient(64% 58% at 50% 38%, #16365C66 0%, #0B1A2F00 62%),
+      linear-gradient(160deg, #0C1D33 0%, var(--navy) 46%, var(--navy-2) 100%);
+    font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+    color: #fff;
+    overflow: hidden;
+  }
+
+  /* top brand rail (matches the cards) */
+  .deck {
+    position: absolute; top: 0; left: 0; width: 100%; height: 6px;
+    background: linear-gradient(90deg, var(--blue), var(--violet) 52%, var(--green));
+    transform: scaleX(0); transform-origin: left center;
+    animation: deck-in 1.1s cubic-bezier(.2,.7,.2,1) .15s forwards;
+  }
+  @keyframes deck-in { to { transform: scaleX(1); } }
+
+  /* faint moving grid for depth (very subtle) */
+  .grid {
+    position: absolute; inset: -2%;
+    background-image:
+      linear-gradient(#ffffff07 1px, transparent 1px),
+      linear-gradient(90deg, #ffffff07 1px, transparent 1px);
+    background-size: 64px 64px;
+    mask-image: radial-gradient(58% 58% at 50% 42%, #000 0%, transparent 78%);
+    opacity: 0; animation: grid-in 2.2s ease-out .3s forwards;
+  }
+  @keyframes grid-in { to { opacity: .5; } }
+
+  /* ── ACT 1 — the mark draws ─────────────────────────────────────────────── */
+  .markwrap {
+    position: absolute; left: 50%; top: 50%;
+    transform: translate(-50%, -50%) scale(1);
+    width: 360px; height: 360px;
+    filter: drop-shadow(0 18px 60px #1e66c955);
+    /* the mark gently rises, then in act3 it docks left to form the lockup */
+    animation:
+      mark-settle 1.0s cubic-bezier(.2,.7,.2,1) .2s both,
+      mark-dock   1.0s cubic-bezier(.6,.0,.2,1) 7.6s both;
+  }
+  @keyframes mark-settle {
+    from { transform: translate(-50%, -42%) scale(.86); opacity: 0; }
+    to   { transform: translate(-50%, -50%) scale(1);   opacity: 1; }
+  }
+  /* dock: slide left + shrink so the wordmark can land beside it */
+  @keyframes mark-dock {
+    from { transform: translate(-50%, -50%) scale(1); }
+    to   { transform: translate(calc(-50% - 360px), -50%) scale(.62); }
+  }
+
+  .mark { width: 360px; height: 360px; display: block; }
+  .mark .arc {
+    fill: none; stroke: url(#g-mark); stroke-width: 13; stroke-linecap: round;
+    stroke-dasharray: 240; stroke-dashoffset: 240;
+    animation: draw 1.25s cubic-bezier(.6,.0,.2,1) .45s forwards;
+  }
+  @keyframes draw { to { stroke-dashoffset: 0; } }
+  .mark .node { opacity: 0; }
+  .mark .node.top { animation: pop 0.5s cubic-bezier(.2,.8,.2,1) 1.45s forwards, pulse 2.4s ease-in-out 2.0s infinite; }
+  .mark .node.bot { animation: pop 0.5s cubic-bezier(.2,.8,.2,1) 1.65s forwards, pulse 2.4s ease-in-out 2.2s infinite; }
+  @keyframes pop   { 0% { opacity:0; transform: scale(.2);} 100% { opacity:1; transform: scale(1);} }
+  @keyframes pulse { 0%,100% { filter: drop-shadow(0 0 0 transparent);} 50% { filter: drop-shadow(0 0 14px #3dbe6bcc);} }
+
+  /* energy ring that fires when the arc closes */
+  .ring {
+    position: absolute; left: 50%; top: 50%; width: 60px; height: 60px;
+    border: 3px solid var(--violet-soft); border-radius: 50%;
+    transform: translate(-50%,-50%) scale(.4); opacity: 0;
+    animation: ring 1.0s cubic-bezier(.1,.6,.2,1) 1.55s forwards;
+  }
+  @keyframes ring {
+    0%   { opacity:.0; transform: translate(-50%,-50%) scale(.4); }
+    18%  { opacity:.55; }
+    100% { opacity:0;  transform: translate(-50%,-50%) scale(7); border-width:.5px; }
+  }
+
+  /* ── tension line (act 1) + subline (act 2) ─────────────────────────────── */
+  .line {
+    position: absolute; left: 50%; bottom: 200px; transform: translateX(-50%);
+    text-align: center; width: 1400px;
+    font-size: 58px; font-weight: 600; letter-spacing: -.5px; color: var(--ink);
+    opacity: 0;
+  }
+  .tension {
+    animation:
+      fade-up .7s cubic-bezier(.2,.7,.2,1) 1.7s forwards,
+      fade-out .5s ease-in 4.6s forwards;
+  }
+  .sub {
+    bottom: 196px;
+    font-size: 50px; font-weight: 500; color: var(--muted);
+    animation:
+      fade-up .6s cubic-bezier(.2,.7,.2,1) 4.9s forwards,
+      fade-out .5s ease-in 7.2s forwards;
+  }
+  @keyframes fade-up  { from { opacity:0; transform: translateX(-50%) translateY(22px);} to { opacity:1; transform: translateX(-50%) translateY(0);} }
+  @keyframes fade-out { to { opacity:0; } }
+
+  /* ── ACT 2 — the format chips clash ─────────────────────────────────────── */
+  .chips { position: absolute; inset: 0; }
+  .chip {
+    position: absolute; left: 50%; top: 46%;
+    padding: 20px 34px; border-radius: 16px;
+    font-size: 38px; font-weight: 700; letter-spacing: .2px;
+    font-family: "Cascadia Code","Consolas","Segoe UI",monospace;
+    color: #E8EEF8;
+    background: linear-gradient(180deg, #16335a 0%, #0f2342 100%);
+    border: 1.5px solid #2a5da8aa;
+    box-shadow: 0 14px 40px #00000066, inset 0 1px 0 #ffffff12;
+    transform: translate(-50%,-50%) scale(.6); opacity: 0;
+    white-space: nowrap;
+  }
+  /* each chip flies in from its own angle, jitters, then gets sucked to center */
+  .chip .tag { display:inline-block; font-size:24px; opacity:.66; margin-left:14px; font-weight:600; }
+
+  /* fly-in (stagger) → settle with a tiny jitter → funnel to center in act3 */
+  @keyframes chip-life {
+    0%   { opacity:0; transform: translate(var(--fx), var(--fy)) scale(.5) rotate(var(--fr)); }
+    14%  { opacity:1; }
+    22%  { transform: translate(var(--x), var(--y)) scale(1.04) rotate(var(--r)); }
+    30%  { transform: translate(calc(var(--x) + 6px), var(--y)) scale(1) rotate(calc(var(--r) + .6deg)); }
+    38%  { transform: translate(calc(var(--x) - 6px), calc(var(--y) + 4px)) scale(1) rotate(calc(var(--r) - .6deg)); }
+    46%  { transform: translate(var(--x), var(--y)) scale(1) rotate(var(--r)); opacity:1; }
+    70%  { transform: translate(var(--x), var(--y)) scale(1) rotate(var(--r)); opacity:1; }
+    100% { opacity:0; transform: translate(-50%,-50%) scale(.18) rotate(0deg); }
+  }
+
+  /* ── ACT 3 — the wordmark resolves beside the docked mark ───────────────── */
+  .lockup-word {
+    position: absolute; left: 50%; top: 50%;
+    transform: translate(-46%, -50%) translateX(40px);
+    font-size: 132px; font-weight: 800; letter-spacing: -2.5px; color: #fff;
+    opacity: 0;
+    animation: word-in 1.0s cubic-bezier(.2,.7,.2,1) 8.5s forwards;
+  }
+  @keyframes word-in {
+    from { opacity:0; transform: translate(-46%,-50%) translateX(64px); filter: blur(8px); }
+    to   { opacity:1; transform: translate(-46%,-50%) translateX(40px); filter: blur(0); }
+  }
+  .tagline {
+    position: absolute; left: 50%; top: 50%; transform: translate(-50%, 110px);
+    text-align: center; width: 1500px;
+    font-size: 52px; font-weight: 500; letter-spacing: -.5px; color: var(--ink);
+    opacity: 0;
+    animation: fade-up2 .8s cubic-bezier(.2,.7,.2,1) 9.3s forwards;
+  }
+  @keyframes fade-up2 { from { opacity:0; transform: translate(-50%, 134px);} to { opacity:1; transform: translate(-50%, 110px);} }
+
+  /* a clean settle vignette for the hard-cut handoff */
+  .settle {
+    position: absolute; inset: 0; background: var(--navy); opacity: 0;
+    pointer-events: none;
+  }
+</style>
+</head>
+<body>
+  <div class="stage" id="stage">
+    <div class="deck"></div>
+    <div class="grid"></div>
+
+    <!-- energy ring on arc-close -->
+    <div class="ring"></div>
+
+    <!-- ACT 2 chips (positions/angles are fixed, set inline → deterministic) -->
+    <div class="chips" id="chips"></div>
+
+    <!-- ACT 1/3 mark -->
+    <div class="markwrap">
+      <svg class="mark" viewBox="0 0 100 100" aria-label="ProcuLink mark">
+        <defs>
+          <linearGradient id="g-mark" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%"  stop-color="#1E66C9"/>
+            <stop offset="52%" stop-color="#6E59F2"/>
+            <stop offset="100%" stop-color="#2E8E3A"/>
+          </linearGradient>
+        </defs>
+        <!-- the "link" arc: open bracket that bridges top node → bottom node -->
+        <path class="arc" d="M30 25 H56 a24 24 0 0 1 0 50 H30" />
+        <circle class="node top" cx="30" cy="25" r="6.6" fill="#1E66C9"/>
+        <circle class="node bot" cx="30" cy="75" r="6.6" fill="#2E8E3A"/>
+      </svg>
+    </div>
+
+    <!-- ACT 3 wordmark + tagline -->
+    <div class="lockup-word">ProcuLink</div>
+    <div class="tagline">The missing link between buyers and suppliers.</div>
+
+    <!-- ACT 1 tension + ACT 2 subline -->
+    <div class="line tension">Your suppliers don&rsquo;t agree on anything.</div>
+    <div class="line sub">Every supplier wants purchase orders a different way.</div>
+
+    <div class="settle"></div>
+  </div>
+
+  <script>
+    // Deterministic chip layout. Each chip has: label, optional tag, a fly-in
+    // origin (fx,fy,fr) and a settled clash position (x,y,r). All fixed — no
+    // Math.random — so two captures are identical. Staggered via delay.
+    const CHIPS = [
+      { t:"PDF",          tag:"",        x:-560, y:-150, r:-7,  fx:-1100, fy:-360, fr:-22, d:3.05 },
+      { t:"CSV",          tag:"",        x: 470, y:-200, r:  6, fx: 1150, fy:-380, fr: 20, d:3.20 },
+      { t:"EDIFACT",      tag:"D96A",    x:-360, y:  30, r:  4, fx:-1180, fy: 120, fr:-16, d:3.38 },
+      { t:"X12",          tag:"850",     x: 360, y:  60, r: -5, fx: 1180, fy: 200, fr: 18, d:3.55 },
+      { t:"cXML",         tag:"",        x:-150, y:-260, r:  9, fx:-300,  fy:-620, fr:-12, d:3.72 },
+      { t:"UBL",          tag:"2.1",     x: 150, y: 250, r: -8, fx: 360,  fy: 640, fr: 14, d:3.90 },
+      { t:"custom XML",   tag:"",        x:-470, y: 240, r: -4, fx:-980,  fy: 560, fr:-18, d:4.08 },
+      { t:"XLSX",         tag:"",        x: 560, y:-30,  r:  7, fx: 1220, fy:-60,  fr: 16, d:4.24 },
+    ];
+    const host = document.getElementById("chips");
+    for (const c of CHIPS) {
+      const el = document.createElement("div");
+      el.className = "chip";
+      el.style.setProperty("--x",  c.x + "px");
+      el.style.setProperty("--y",  c.y + "px");
+      el.style.setProperty("--r",  c.r + "deg");
+      el.style.setProperty("--fx", c.fx + "px");
+      el.style.setProperty("--fy", c.fy + "px");
+      el.style.setProperty("--fr", c.fr + "deg");
+      // life span: fly-in at d, hold, funnel out by ~7.6s. Duration chosen so
+      // the keyframe 100% (funnel-to-center) lands ~7.5–7.7s for all chips.
+      const dur = (7.62 - c.d);
+      el.style.animation = `chip-life ${dur.toFixed(2)}s cubic-bezier(.5,.05,.2,1) ${c.d.toFixed(2)}s forwards`;
+      el.innerHTML = c.t + (c.tag ? `<span class="tag">${c.tag}</span>` : "");
+      host.appendChild(el);
+    }
+  </script>
+</body>
+</html>

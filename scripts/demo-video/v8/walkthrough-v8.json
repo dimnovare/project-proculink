@@ -1,0 +1,55 @@
+{
+  "id": "walkthrough-v8",
+  "toolName": "ProcuLink walkthrough",
+  "note": "v8 = a NEW premium motion cold open (v8/cold-open.html, captured deterministically) + the v7 real-UI body footage (tools/out/walkthrough/capture.webm) reused from the u1-upload beat onward, under ONE cohesive ElevenLabs VO and a continuous music bed. The weak v7 /how-it-works opening (the p1-problem beat) is dropped entirely and replaced by the cold open.",
+
+  "outroHeadline": "Connecting procurement.",
+  "outroCta": "Start free at proculink.eu",
+
+  "coldOpen": {
+    "source": "out/cold-open.webm",
+    "trimSec": 12.1,
+    "vo": [
+      {
+        "id": "o1-tension",
+        "atSec": 1.7,
+        "vo": "Your suppliers don't agree on anything."
+      },
+      {
+        "id": "o2-overload",
+        "atSec": 4.6,
+        "vo": "Every supplier wants purchase orders a different way."
+      },
+      {
+        "id": "o3-bridge",
+        "atSec": 8.5,
+        "vo": "ProcuLink is the one bridge between all of them."
+      }
+    ]
+  },
+
+  "body": {
+    "source": "../tools/out/walkthrough/capture.webm",
+    "markers": "../tools/out/walkthrough/markers.json",
+    "startBeat": "u1-upload",
+    "tailPadSec": 0.8,
+    "reuseVoFrom": "../tools/out/walkthrough/vo",
+    "beats": [
+      { "id": "u1-upload",     "vo": "It starts at upload — CSV, Excel, PDF, or EDI formats like EDIFACT and X12. ProcuLink detects the format, the PO number, and the lines." },
+      { "id": "u2-supplier",   "vo": "Each upload routes to one supplier — their format, their channel, their codes." },
+      { "id": "u3-go",         "vo": "Then upload: parse, normalize, validate — and into review." },
+      { "id": "r1-review",     "vo": "Review is where an order becomes supplier-ready. The fix queue holds only the lines that need a decision." },
+      { "id": "r2-accept",     "vo": "The AI suggests the supplier's code, with a confidence score and the reason. If it's right — accept, and the queue moves on." },
+      { "id": "r3-manual",     "vo": "Or type the code yourself — ProcuLink remembers it for next time." },
+      { "id": "r4-readiness",  "vo": "The readiness card is the honest pre-send check — lines, acceptance rules, conformance, delivery." },
+      { "id": "d1-send",       "vo": "When everything is green, send. One confirmation — the exact format this supplier requires." },
+      { "id": "d2-delivered",  "vo": "Generating. Sent. Delivered. Every step lands in the audit trail — proof for every order." },
+      { "id": "m1-catalog",    "vo": "Load the supplier's own catalog so suggestions only use real codes — import a file, pull on a schedule, or take an HTTP push." },
+      { "id": "m2-connections","vo": "Every integration is a versioned connection: changes happen in drafts, and tests replay your own recent orders." },
+      { "id": "m3-publish",    "vo": "Publishing is explicit — in-flight orders keep their revision — and rollback is one click away." },
+      { "id": "m4-ops",        "vo": "Nothing fails silently. Exceptions explain problems in plain language; system health shows the pipeline at a glance — requeue included." },
+      { "id": "m5-help",       "vo": "And every screen explains itself — its guide is behind the help button." },
+      { "id": "c1-close",      "vo": "ProcuLink. The missing link between buyers and suppliers. Start free — with a sample order — today." }
+    ]
+  }
+}
