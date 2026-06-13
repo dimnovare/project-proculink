@@ -1,5 +1,39 @@
 # Per-tool walkthrough videos — production record
 
+> **FULL WALKTHROUGH v9 (2026-06-13, DRAFT — founder review pending):** a
+> FROM-SCRATCH rewrite after v7 + v8 were both rejected ("rewrite the whole
+> video, start from scratch, much better"). v9 DROPS the feature-tour structure
+> and tells ONE concrete story: **follow a single purchase order
+> (PO-2024-005678, Nordic Electronics → ElectroSupply Co) from arrival to
+> delivered**, the way a coordinator works it. Catalog-grounded AI, manual
+> override + learning, the readiness check, the audit trail, and the
+> exceptions/health safety net appear as natural BEATS INSIDE that one order's
+> journey — not as separate "and also…" screens. Fresh script + fresh VO (no v7/
+> v8 lines reused) + a fresh full re-record (`capture-walkthrough-v9.spec.ts`,
+> spec `walkthrough-v9.json`, tool id `walkthrough-v9`). Reuses ONLY: the BRAND
+> intro/outro card style, the `assets/music.mp3` bed, and the Daniel ElevenLabs
+> voice. Opens IN the product on the Inbox (1-line hook over the live queue),
+> then cuts to the order in review. Output 2:39 (159.5s), 1080p30 H.264+AAC,
+> 9.9 MB, mean −22.6 dB / max −1.9 dB, 0 decode errors; every beat frame-checked
+> (stills in `out/walkthrough-v9/check/`), no "Loading…" spinner at any cut.
+> Staged at `scripts/demo-video/tools/out/walkthrough-v9.mp4` (+ poster) — **NOT
+> uploaded to R2, no env/registry change**; review copy at
+> `C:\Users\Dmitri.MARKIT\Videos\ProcuLink\walkthrough-v9-DRAFT.mp4`.
+> Produce: `node tools/generate-tool-vo.mjs walkthrough-v9` →
+> `bun run demo:tools:capture capture-walkthrough-v9` →
+> `DEMO_INTRO_SEC=3.2 DEMO_OUTRO_SEC=4.5 node tools/assemble-tool.mjs walkthrough-v9`.
+>
+> **Mock-mode gap that shaped the cut:** the Inbox LIST renders the 50-row MSW
+> seed dataset (`src/mocks/data.ts` `ORDERS`), which does NOT contain ord-002,
+> and its rows route to ids the 3-order detail store (`api-client.ts`
+> `mockOrders`) returns null for. So a list-row click would land on a
+> blank/altered order. v9 therefore uses the inbox only as the opening hook
+> (generic VO over the queue, no claim that any row IS our order) and CUTS to
+> `/inbox/ord-002` via a page load. One honesty fix vs the first draft: the
+> readiness card shows Acceptance "Not validated yet" / Conformance "No named
+> profile for XML" in mock, so the s6 VO says the checks are "all in one place
+> before anything goes out" rather than claiming they already passed.
+
 > **FULL WALKTHROUGH v7 (2026-06-13, DRAFT — founder review pending):** the
 > refreshed ~3-minute successor to v5 is produced with THIS per-tool pipeline
 > (not the card pipeline) as tool id **`walkthrough`** — real-UI footage of the
