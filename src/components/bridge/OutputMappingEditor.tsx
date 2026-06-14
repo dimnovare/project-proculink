@@ -439,7 +439,7 @@ export function OutputMappingEditor({
     [customFields, headerRows, lineRows, templateMode, template, templateContentType, existing],
   );
 
-  const [preview, setPreview] = useState<{ content: string | null; warning?: string; error?: string } | null>(null);
+  const [preview, setPreview] = useState<{ content: string | null; warning?: string; error?: string; format?: string } | null>(null);
   const [previewing, setPreviewing] = useState(false);
   // In template mode preview renders the chosen content type, not a CSV/JSON/… format.
   const previewFormat = templateMode ? templateContentType.replace(/^.*\//, "") : format;
@@ -454,7 +454,11 @@ export function OutputMappingEditor({
       setPreviewing(true);
       try {
         const r = await previewMappingOverride(orderId, draft, templateMode ? "json" : format);
-        setPreview({ content: r.content, warning: r.warning, error: r.error ?? undefined });
+        // Capture the format the server ACTUALLY rendered. For a revision-pinned order the
+        // backend deliberately renders the connection's published output format (so
+        // "preview == delivered bytes"), which can differ from the toggle the user picked —
+        // label from r.format, not the requested one, so the header never lies.
+        setPreview({ content: r.content, warning: r.warning, error: r.error ?? undefined, format: r.format });
       } catch (e) {
         setPreview({ content: null, error: e instanceof Error ? e.message : "Preview failed" });
       } finally { setPreviewing(false); }
@@ -587,10 +591,20 @@ export function OutputMappingEditor({
           <section>
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
               <span style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "#56627A" }}>
-                Live preview{templateMode ? ` · ${previewFormat}` : ` · ${previewFormat.toUpperCase()}`}
+                Live preview{(() => {
+                  // Label from the format the server actually rendered (preview?.format) when known,
+                  // so a JSON connection never shows a "CSV" header over JSON bytes.
+                  const shown = preview?.format ?? previewFormat;
+                  return templateMode ? ` · ${previewFormat}` : ` · ${String(shown).toUpperCase()}`;
+                })()}
               </span>
               {previewing && <span style={{ fontSize: 10.5, color: "var(--ink-faint)" }}>updating…</span>}
             </div>
+            {!templateMode && preview?.format && preview.format.toLowerCase() !== previewFormat.toLowerCase() && (
+              <div style={{ fontSize: 11, color: "#56627A", marginBottom: 6 }}>
+                This connection delivers <strong>{preview.format.toUpperCase()}</strong> — the output format is set by the published revision, so the preview shows {preview.format.toUpperCase()} regardless of the toggle.
+              </div>
+            )}
             {preview?.warning && <div style={{ fontSize: 11.5, color: "#C97A14", marginBottom: 6 }}>⚠ {preview.warning}</div>}
             {preview?.error && <div role="alert" style={{ fontSize: 11.5, color: "#C97A14", background: "#FBF3E4", border: "1px solid #F0DCAE", borderRadius: 6, padding: "7px 9px", marginBottom: 6, whiteSpace: "pre-wrap" }}>{preview.error}</div>}
             <pre style={{ margin: 0, background: "#0B1A2F", color: "#C5D2E4", borderRadius: 8, padding: 12, fontSize: 11.5, fontFamily: "'JetBrains Mono',monospace", overflowX: "auto", maxHeight: 240, whiteSpace: "pre-wrap" }}>

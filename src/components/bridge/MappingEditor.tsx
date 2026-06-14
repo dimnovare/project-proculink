@@ -887,6 +887,28 @@ function MappingPanel({
         )}
 
         <div className="flex flex-col-reverse gap-2 border-t bg-white px-5 py-4 sm:flex-row sm:justify-end" style={{ borderColor: BORDER }}>
+          {panel.kind === "edit" && panel.row && (
+            <button
+              onClick={async () => {
+                if (!panel.row) return;
+                setSaving(true);
+                setError(null);
+                try {
+                  await apiClient.deleteSupplierMapping(supplierId, panel.row.id);
+                  await queryClient.invalidateQueries({ queryKey: ["supplier-mappings", supplierId] });
+                  onDone("Mapping deleted.");
+                } catch (e: unknown) {
+                  setError(e instanceof Error ? e.message : "Delete failed");
+                  setSaving(false);
+                }
+              }}
+              disabled={saving}
+              className="flex h-10 items-center justify-center rounded-[7px] px-4 text-[13px] font-semibold transition-colors sm:mr-auto"
+              style={{ border: "1px solid #F0C0C0", background: "#FFFFFF", color: "#C53A3A", opacity: saving ? 0.6 : 1 }}
+            >
+              Delete
+            </button>
+          )}
           <button
             onClick={onClose}
             className="flex h-10 items-center justify-center rounded-[7px] px-4 text-[13px] font-semibold transition-colors hover:bg-[#F6F7FA]"
