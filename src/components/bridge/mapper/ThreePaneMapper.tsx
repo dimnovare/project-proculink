@@ -18,15 +18,15 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable";
 import { Button } from "../DSPrimitives";
-import { previewMappingOverride } from "@/lib/api-client";
 import { SourceUniverse } from "./SourceUniverse";
 import { CanonicalLane } from "./CanonicalLane";
 import { TargetLane } from "./TargetLane";
+import { FieldBadges } from "./FieldBadges";
+import { MapperPreviewPane } from "./MapperPreviewPane";
 import { useMapperWireLayer } from "./MapperWireLayer";
-import { useMapperModel } from "./useMapperModel";
-import type { FieldFilter } from "./types";
-import type { OrderMappingOverride, OutputFormatId } from "@/lib/api/types";
-import { PREVIEW_FORMATS } from "@/lib/api/types";
+import { useMapperModel, fieldManipulatorsOf } from "./useMapperModel";
+import type { FieldFilter, TargetField } from "./types";
+import type { OrderMappingOverride } from "@/lib/api/types";
 
 export interface ThreePaneMapperProps {
   variant: "order" | "connection";
@@ -116,10 +116,36 @@ export function ThreePaneMapper(props: ThreePaneMapperProps) {
     signature: model.signature,
   });
 
-  // Deliver is gated on validation being clean. Task 9 feeds real blocking badges; until
-  // then nothing blocks (no validation client wired yet) — honest "no blockers known".
-  const blockingCount = 0;
+  // Deliver is gated on validation being clean — Task 9 feeds real BLOCKING review badges
+  // (getFieldValidation; mock/404 → 0, so nothing blocks before Phase 2 lands — honest
+  // "no blockers known").
+  const blockingCount = model.blockingCount;
   const canDeliver = !readOnly && blockingCount === 0 && !deliverDisabled;
+
+  // ── Per-row enrichment badges (catalog/validation + manipulator pills) ─────
+  const badgeSlot = useCallback((field: TargetField) => {
+    const validation =
+      model.validationByKey.get(field.outputPath) ??
+      (model.outputConnections[field.outputPath]
+        ? model.validationByKey.get(model.outputConnections[field.outputPath]) ?? null
+        : null);
+    const catalogHint =
+      model.catalogHintByLine.get(field.outputPath) ??
+      (model.outputConnections[field.outputPath]
+        ? model.catalogHintByLine.get(model.outputConnections[field.outputPath]) ?? null
+        : null);
+    const manipulators = fieldManipulatorsOf(model.override, field.outputPath);
+    return (
+      <FieldBadges
+        validation={validation}
+        catalogHint={catalogHint}
+        manipulators={manipulators}
+        onManipulatorsChange={(next) => model.onFieldManipulatorsChange(field.outputPath, next, field.scope)}
+        onUseCatalogPrice={(hint) => model.onUseCatalogPrice(field.outputPath, hint, field.scope)}
+        readOnly={readOnly}
+      />
+    );
+  }, [model, readOnly]);
 
   // ── Mobile read-only summary ────────────────────────────────────────────────
   const mobileSummary = (
@@ -157,6 +183,14 @@ export function ThreePaneMapper(props: ThreePaneMapperProps) {
           {model.error && <span style={{ fontSize: 10.5, color: "var(--danger,#C0392B)" }}>{model.error}</span>}
         </div>
         <div className="flex items-center gap-2">
+          {blockingCount > 0 && (
+            <span
+              title="Resolve the flagged fields before delivering"
+              style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 10.5, fontWeight: 700, color: "#9A6B00", background: "#FFF7E6", border: "1px solid #F1E2BE", borderRadius: 5, padding: "2px 8px" }}
+            >
+              ⚠ {blockingCount} {blockingCount === 1 ? "field needs" : "fields need"} review
+            </span>
+          )}
           {variant === "order" && <PreviewToggle open={previewOpen} onToggle={() => setPreviewOpen((o) => !o)} />}
           {onDeliver && (
             <Button variant="primary" size="sm" disabled={!canDeliver} onClick={onDeliver}>
@@ -220,6 +254,7 @@ export function ThreePaneMapper(props: ThreePaneMapperProps) {
                 hoveredId={hoveredId}
                 onDisconnect={model.onTargetDisconnect}
                 onSetFixedValue={model.onSetFixedValue}
+                badgeSlot={badgeSlot}
                 readOnly={readOnly}
               />
             </div>
@@ -233,7 +268,11 @@ export function ThreePaneMapper(props: ThreePaneMapperProps) {
       {/* ── Collapsible live preview ────────────────────────────────────── */}
       {previewOpen && variant === "order" && props.orderId && (
         <div className="hidden lg:block mt-4">
-          <InlinePreview orderId={props.orderId} override={model.override} lastTouched={model.lastTouched} />
+          <MapperPreviewPane
+            previewOrderId={props.orderId}
+            override={model.override}
+            lastTouched={model.lastTouched}
+          />
         </div>
       )}
     </div>
@@ -245,77 +284,6 @@ function PreviewToggle({ open, onToggle }: { open: boolean; onToggle: () => void
     <Button variant="secondary" size="sm" onClick={onToggle} aria-pressed={open}>
       {open ? "Hide preview" : "Show preview"}
     </Button>
-  );
-}
-
-// ── Inline live preview (Task 10 swaps this for the richer MapperPreviewPane) ─
-function InlinePreview({ orderId, override, lastTouched }: { orderId: string; override: OrderMappingOverride; lastTouched: string | null }) {
-  const [format, setFormat] = useState<OutputFormatId>("csv");
-  const [content, setContent] = useState<string | null>(null);
-  const [err, setErr] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
-
-  // ~400ms debounce on (override, format) — mirrors OutputMappingEditor's preview cadence.
-  useEffect(() => {
-    let cancelled = false;
-    setBusy(true);
-    const t = setTimeout(async () => {
-      try {
-        const res = await previewMappingOverride(orderId, override, format);
-        if (cancelled) return;
-        setContent(res.content);
-        setErr(res.error ?? res.warning ?? null);
-      } catch (e) {
-        if (!cancelled) { setContent(null); setErr(e instanceof Error ? e.message : "Preview failed"); }
-      } finally {
-        if (!cancelled) setBusy(false);
-      }
-    }, 400);
-    return () => { cancelled = true; clearTimeout(t); };
-  }, [orderId, override, format]);
-
-  return (
-    <div style={{ border: "1px solid #E2E6EE", borderRadius: 10, background: "#FBFBFD", overflow: "hidden" }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", borderBottom: "1px solid #EEF0F4" }}>
-        <span style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--ink-faint)" }}>
-          Live preview
-        </span>
-        {lastTouched && <span style={{ fontSize: 10, color: "#5E3DB0" }}>edited {lastTouched}</span>}
-        <div style={{ marginLeft: "auto", display: "flex", gap: 4 }}>
-          {PREVIEW_FORMATS.map((f) => (
-            <button
-              key={f.value}
-              type="button"
-              onClick={() => setFormat(f.value)}
-              aria-pressed={format === f.value}
-              style={{
-                padding: "2px 8px", borderRadius: 999, cursor: "pointer", fontSize: 10, fontWeight: 700,
-                border: `1px solid ${format === f.value ? "#2E8E3A" : "#DCE0E8"}`,
-                background: format === f.value ? "#EAF6EC" : "#FFFFFF",
-                color: format === f.value ? "#1E6D29" : "var(--ink-faint)",
-              }}
-            >
-              {f.label}
-            </button>
-          ))}
-        </div>
-      </div>
-      {err && (
-        <div style={{ padding: "8px 12px", fontSize: 11, color: "#9A6B00", background: "#FFF7E6", borderBottom: "1px solid #F1E2BE" }}>
-          {err}
-        </div>
-      )}
-      <pre
-        style={{
-          margin: 0, padding: "10px 12px", maxHeight: 220, overflow: "auto",
-          fontFamily: "'JetBrains Mono',monospace", fontSize: 11, lineHeight: 1.5,
-          color: "#0B1A2F", whiteSpace: "pre-wrap", wordBreak: "break-word",
-          opacity: busy ? 0.55 : 1, transition: "opacity 150ms",
-        }}
-      >
-        {content ?? (busy ? "Rendering…" : "(no preview)")}
-      </pre>
-    </div>
   );
 }
 

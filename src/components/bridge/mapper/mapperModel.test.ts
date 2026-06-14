@@ -9,6 +9,8 @@ import {
   withTargetConnect,
   withTargetDisconnect,
   withFixedValue,
+  withFieldManipulators,
+  withCatalogPrice,
 } from "./mapperModel";
 import type { OrderMappingOverride } from "@/lib/api/types";
 
@@ -111,5 +113,35 @@ describe("fixed values", () => {
   it("clearing a plain fixed value drops the rule", () => {
     const set = withFixedValue(emptyOverride(), "Region", "EU");
     expect(withFixedValue(set, "Region", null).output).toBeNull();
+  });
+});
+
+describe("manipulator chain (Task 9 fx pills, sourceMap preserved)", () => {
+  const withSrc: OrderMappingOverride = withSourceConnect(emptyOverride(), "PoNumber", "cell:r1c1");
+
+  it("withFieldManipulators adds an fx chain to a wired output rule and keeps its source", () => {
+    const wired = withTargetConnect(withSrc, "SupplierItemCode", "ItemCode");
+    const next = withFieldManipulators(wired, "ItemCode", [{ type: "Trim", params: [] }]);
+    expect(next.output?.lines.ItemCode?.fieldManipulators).toEqual([{ type: "Trim", params: [] }]);
+    expect(next.output?.lines.ItemCode?.canonicalField).toBe("SupplierItemCode");
+    expect(next.sourceMap).toEqual({ PoNumber: { sourceToken: "cell:r1c1", fixedValue: null, manipulators: [] } });
+  });
+
+  it("withFieldManipulators on a fresh path creates a pass-through rule carrying the chain", () => {
+    const next = withFieldManipulators(emptyOverride(), "Notes", [{ type: "Fallback", params: ["n/a"] }]);
+    expect(next.output?.header.Notes?.fieldManipulators).toEqual([{ type: "Fallback", params: ["n/a"] }]);
+    expect(next.output?.header.Notes?.canonicalField).toBeNull();
+  });
+
+  it("withFieldManipulators with an empty chain on an otherwise-default rule drops it", () => {
+    const set = withFieldManipulators(emptyOverride(), "Notes", [{ type: "Trim", params: [] }]);
+    expect(withFieldManipulators(set, "Notes", []).output).toBeNull();
+  });
+});
+
+describe("catalog price action (Task 9)", () => {
+  it("withCatalogPrice writes the price as a fixed value in the line scope", () => {
+    const next = withCatalogPrice(emptyOverride(), "UnitPrice", 12.5);
+    expect(next.output?.lines.UnitPrice).toEqual({ outputPath: "UnitPrice", canonicalField: null, fixedValue: "12.5", fieldManipulators: [] });
   });
 });

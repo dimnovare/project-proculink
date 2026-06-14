@@ -30,6 +30,7 @@ import {
 import { useDragAutoScroll } from "../useDragAutoScroll";
 import { useScrollResync } from "../useScrollResync";
 import { bezier } from "./wireMath";
+import { GhostWire } from "./GhostWire";
 import type { CanonicalNode, TargetField, MappingSuggestion } from "./types";
 
 interface Pt { id: string; x: number; y: number; }
@@ -464,29 +465,18 @@ export function useMapperWireLayer({
             );
           })}
 
-        {/* ── AI ghost wires (dashed + faint, accept/reject) ─────────────────── */}
+        {/* ── AI ghost wires (dashed + faint, confidence ring, accept/reject) ── */}
         {!dimmed && ghostWires.map((g, i) => (
-          <g key={`gw-${g.s.targetKey}-${g.s.sourceId}-${i}`} style={{ opacity: 0.9 }}>
-            <path d={bezier(g.hx, g.hy, g.zx, g.zy)} fill="none" stroke={VIOLET} strokeWidth={1.8} strokeDasharray="4 4" style={{ pointerEvents: "none", opacity: 0.55 }} />
-            {/* accept ✓ */}
-            <g role="button" tabIndex={0}
-              aria-label={`Accept AI suggestion: ${g.s.reason}`}
-              style={{ pointerEvents: "auto", cursor: "pointer" }}
-              onClick={() => onAcceptSuggestion?.(g.s)}
-              onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onAcceptSuggestion?.(g.s); } }}>
-              <circle cx={g.zx - 9} cy={g.zy - 9} r={6.5} fill="#FFFFFF" stroke={GREEN} strokeWidth={1.3} />
-              <text x={g.zx - 9} y={g.zy - 6} textAnchor="middle" fontSize={8.5} fontWeight={800} fill={GREEN} style={{ pointerEvents: "none", userSelect: "none" }}>✓</text>
-            </g>
-            {/* reject ✕ */}
-            <g role="button" tabIndex={0}
-              aria-label={`Dismiss AI suggestion: ${g.s.reason}`}
-              style={{ pointerEvents: "auto", cursor: "pointer" }}
-              onClick={() => onRejectSuggestion?.(g.s)}
-              onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onRejectSuggestion?.(g.s); } }}>
-              <circle cx={g.zx + 9} cy={g.zy - 9} r={6.5} fill="#FFFFFF" stroke="#C0392B" strokeWidth={1.3} />
-              <text x={g.zx + 9} y={g.zy - 6} textAnchor="middle" fontSize={8.5} fontWeight={800} fill="#C0392B" style={{ pointerEvents: "none", userSelect: "none" }}>✕</text>
-            </g>
-          </g>
+          <GhostWire
+            key={`gw-${g.s.targetKey}-${g.s.sourceId}-${i}`}
+            suggestion={g.s}
+            hx={g.hx}
+            hy={g.hy}
+            zx={g.zx}
+            zy={g.zy}
+            onAccept={(s) => onAcceptSuggestion?.(s)}
+            onReject={(s) => onRejectSuggestion?.(s)}
+          />
         ))}
 
         {/* ── Live drag ghost ────────────────────────────────────────────────── */}

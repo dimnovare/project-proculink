@@ -143,6 +143,52 @@ export function withTargetDisconnect(
   return { ...base, customFields: base.customFields ?? [], output: empty ? null : cfg };
 }
 
+/**
+ * Set the manipulator (fx) chain on an output path's rule (Task 9 manipulator pills).
+ * Preserves the rule's source (canonicalField / fixedValue); creates a pass-through rule
+ * (canonicalField === outputPath default) when none exists yet so the chain has somewhere
+ * to live. An empty chain on an otherwise-default rule drops the rule (back to byte-identical).
+ */
+export function withFieldManipulators(
+  o: OrderMappingOverride | null | undefined,
+  outputPath: string,
+  manipulators: OutputFieldRule["fieldManipulators"],
+  scopeHint: "header" | "line" = "header",
+): OrderMappingOverride {
+  const base = o ?? emptyOverride();
+  const cfg = cloneOutput(base.output);
+  const existing = findRule(cfg, outputPath);
+  const scope = existing?.scope ?? (scopeHint === "line" || LINE_KEYS.has(outputPath) ? "lines" : "header");
+  delete cfg.header[outputPath];
+  delete cfg.lines[outputPath];
+  const prev = existing?.rule;
+  const next: OutputFieldRule = {
+    outputPath,
+    canonicalField: prev?.canonicalField ?? null,
+    fixedValue: prev?.fixedValue ?? null,
+    fieldManipulators: manipulators ?? [],
+  };
+  // Drop a rule that now carries nothing actionable (no source, no fixed, no fx).
+  const inert = !next.canonicalField && (next.fixedValue == null || next.fixedValue === "") && (next.fieldManipulators?.length ?? 0) === 0;
+  if (!inert) cfg[scope][outputPath] = next;
+  const empty = Object.keys(cfg.header).length === 0 && Object.keys(cfg.lines).length === 0;
+  return { ...base, customFields: base.customFields ?? [], output: empty ? null : cfg };
+}
+
+/**
+ * Apply a catalog price to an output path as a fixed-value override (Task 9's "Use catalog €X"
+ * action). A suggestion the user clicked — never silent. Reuses withFixedValue so the rule
+ * carries the literal and the engine stamps it. The line scope is used for line price fields.
+ */
+export function withCatalogPrice(
+  o: OrderMappingOverride | null | undefined,
+  outputPath: string,
+  catalogPrice: number,
+  scopeHint: "header" | "line" = "line",
+): OrderMappingOverride {
+  return withFixedValue(o, outputPath, String(catalogPrice), scopeHint);
+}
+
 /** Set (or clear, value=null) a fixed literal for an output path. */
 export function withFixedValue(
   o: OrderMappingOverride | null | undefined,

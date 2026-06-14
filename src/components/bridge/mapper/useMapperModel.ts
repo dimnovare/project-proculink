@@ -29,15 +29,25 @@ import {
   updateConnectionDraft,
 } from "@/lib/api-client";
 import { getCanonicalFields } from "@/lib/api/canonical-fields";
-import { getMappingSuggestions } from "@/lib/api/mapper-ai";
+import {
+  getMappingSuggestions,
+  recordSuggestionDecision,
+  getFieldValidation,
+  getCatalogHints,
+} from "@/lib/api/mapper-ai";
 import { buildOverrideDraft } from "../OutputMappingEditor";
 import type {
   OrderMappingOverride,
+  OutputFieldRule,
+  ManipulatorEntry,
   SourceToken,
   CanonicalFieldDef,
   MappingSuggestion,
+  FieldValidationState,
+  CatalogPriceHint,
 } from "@/lib/api/types";
 import type { CanonicalNode, SourceField, TargetField } from "./types";
+import { indexValidation, indexCatalogHints, blockingReviewCount } from "./fieldBadgesModel";
 import { systemCanonicalNodes, mergeCanonicalNodes } from "./canonicalFieldsModel";
 import { deriveTargetFields } from "./targetLaneModel";
 import {
@@ -50,6 +60,8 @@ import {
   withTargetConnect,
   withTargetDisconnect,
   withFixedValue,
+  withFieldManipulators,
+  withCatalogPrice,
 } from "./mapperModel";
 
 export interface UseMapperModelArgs {
@@ -81,6 +93,12 @@ export interface MapperModel {
   fixedValues: Record<string, string>;
   knownSourceTokenIds: Set<string>;
   suggestions: MappingSuggestion[];
+  /** Per-field validation lookup (output path / canonical key → state). */
+  validationByKey: Map<string, FieldValidationState>;
+  /** Per-line catalog price/code variance lookup (lineKey → hint). */
+  catalogHintByLine: Map<string, CatalogPriceHint>;
+  /** Count of BLOCKING review badges — the Deliver button gate. */
+  blockingCount: number;
   /** Bumped on every change → re-measures the wires. */
   signature: string;
   /** The last field key the user touched (drives preview's just-touched highlight). */
@@ -94,6 +112,10 @@ export interface MapperModel {
   onSetFixedValue: (outputPath: string, value: string | null, scope?: "header" | "line") => void;
   onAcceptSuggestion: (s: MappingSuggestion) => void;
   onRejectSuggestion: (s: MappingSuggestion) => void;
+  /** Replace an output field's manipulator (fx) chain (Task 9 pills). */
+  onFieldManipulatorsChange: (outputPath: string, next: ManipulatorEntry[], scope?: "header" | "line") => void;
+  /** Apply a catalog price as a fixed-value override on an output path (Task 9 action). */
+  onUseCatalogPrice: (outputPath: string, hint: CatalogPriceHint, scope?: "header" | "line") => void;
 }
 
 /** Map a backend SourceToken into a discovery SourceField (group-bucketed). */
@@ -173,6 +195,25 @@ export function useMapperModel({
     enabled: enabled && variant === "order",
   });
   const rawSuggestions = useMemo(() => suggestionsQuery.data ?? [], [suggestionsQuery.data]);
+
+  // ── Validation badges (mock-fallback returns []) ───────────────────────────
+  const validationQuery = useQuery({
+    queryKey: ["mapper-validation", variant, scopeId],
+    queryFn: () => getFieldValidation(scopeId),
+    enabled: enabled && variant === "order",
+  });
+  const validationStates = useMemo(() => validationQuery.data ?? [], [validationQuery.data]);
+  const validationByKey = useMemo(() => indexValidation(validationStates), [validationStates]);
+  const blockingCount = useMemo(() => blockingReviewCount(validationStates), [validationStates]);
+
+  // ── Catalog price/code hints (mock-fallback returns []) ────────────────────
+  const catalogQuery = useQuery({
+    queryKey: ["mapper-catalog-hints", variant, scopeId],
+    queryFn: () => getCatalogHints(scopeId),
+    enabled: enabled && variant === "order",
+  });
+  const catalogHints = useMemo(() => catalogQuery.data ?? [], [catalogQuery.data]);
+  const catalogHintByLine = useMemo(() => indexCatalogHints(catalogHints), [catalogHints]);
 
   // ── Derived lane props ─────────────────────────────────────────────────────
   const canonicalNodes = useMemo(
@@ -268,6 +309,15 @@ export function useMapperModel({
     apply(withFixedValue(override, outputPath, value, scope), outputPath);
   }, [apply, override]);
 
+  const onFieldManipulatorsChange = useCallback((outputPath: string, next: ManipulatorEntry[], scope: "header" | "line" = "header") => {
+    apply(withFieldManipulators(override, outputPath, next, scope), outputPath);
+  }, [apply, override]);
+
+  const onUseCatalogPrice = useCallback((outputPath: string, hint: CatalogPriceHint, scope: "header" | "line" = "line") => {
+    if (hint.catalogPrice == null) return;
+    apply(withCatalogPrice(override, outputPath, hint.catalogPrice, scope), outputPath);
+  }, [apply, override]);
+
   // Promote a ghost wire to a real wire (decide the side by sourceKind), then drop it locally.
   const [dismissed, setDismissed] = useState<Set<string>>(() => new Set());
   const sKey = (s: MappingSuggestion) => `${s.targetKey}<-${s.sourceId}`;
@@ -281,11 +331,18 @@ export function useMapperModel({
       onSourceConnect(s.sourceId, s.targetKey);
     }
     setDismissed((d) => new Set(d).add(sKey(s)));
-  }, [onSourceConnect, onTargetConnect]);
+    // Feed the V9 calibration loop (best-effort, non-throwing telemetry).
+    if (variant === "order") {
+      void recordSuggestionDecision(scopeId, { targetKey: s.targetKey, sourceId: s.sourceId, accepted: true, confidence: s.confidence });
+    }
+  }, [onSourceConnect, onTargetConnect, variant, scopeId]);
 
   const onRejectSuggestion = useCallback((s: MappingSuggestion) => {
     setDismissed((d) => new Set(d).add(sKey(s)));
-  }, []);
+    if (variant === "order") {
+      void recordSuggestionDecision(scopeId, { targetKey: s.targetKey, sourceId: s.sourceId, accepted: false, confidence: s.confidence });
+    }
+  }, [variant, scopeId]);
 
   const suggestions = useMemo(
     () => rawSuggestions.filter((s) => !dismissed.has(sKey(s))),
@@ -315,6 +372,9 @@ export function useMapperModel({
     fixedValues,
     knownSourceTokenIds,
     suggestions,
+    validationByKey,
+    catalogHintByLine,
+    blockingCount,
     signature,
     lastTouched,
     readOnly: !!readOnly,
@@ -325,5 +385,15 @@ export function useMapperModel({
     onSetFixedValue,
     onAcceptSuggestion,
     onRejectSuggestion,
+    onFieldManipulatorsChange,
+    onUseCatalogPrice,
   };
+}
+
+/** Read an output path's current manipulator (fx) chain from an override (per-row badge feed). */
+export function fieldManipulatorsOf(override: OrderMappingOverride, outputPath: string): ManipulatorEntry[] {
+  const cfg = override.output;
+  if (!cfg) return [];
+  const rule: OutputFieldRule | undefined = cfg.header?.[outputPath] ?? cfg.lines?.[outputPath];
+  return rule?.fieldManipulators ?? [];
 }
