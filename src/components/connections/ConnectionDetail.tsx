@@ -573,6 +573,7 @@ export function ConnectionDetail({ connectionId }: { connectionId: string }) {
                     connectionId={connectionId}
                     revisionId={mapperRevisionId}
                     supplierId={supplierId ?? undefined}
+                    supplierName={connection?.name ?? undefined}
                     previewOrderId={sampleOrderId}
                     readOnly={mapperReadOnly}
                   />

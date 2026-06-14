@@ -21,9 +21,11 @@
 // Presentational + prop-driven. No data fetch here.
 
 import { useState } from "react";
+import type { ManipulatorEntry } from "@/lib/api/types";
 import type { TargetField } from "./types";
 import { isTargetWired, isRenameAffordanceShown } from "./targetLaneModel";
 import { computeOutgoingStatus, type OutgoingStatusInput, type OutgoingFieldStatus } from "./outgoingStatusModel";
+import { TransformPopover } from "./TransformPopover";
 
 export interface OutgoingPaneProps {
   variant: "order" | "connection";
@@ -49,10 +51,12 @@ export interface OutgoingPaneProps {
   /** Per-row enrichment (badges + manipulator pills) rendered by the host. */
   badgeSlot?: (field: TargetField) => React.ReactNode;
   /**
-   * SEAM (interaction agent): open the transform editor for an output row. When absent the
-   * "+ transform" control renders DISABLED with a "coming soon" reason — never dead-but-enabled.
+   * The field's current transform (manipulator) chain — feeds the "+ Transform" popover.
+   * Absent → the "+ Transform" control renders DISABLED with a reason (never dead-but-enabled).
    */
-  onEditTransform?: (outputPath: string) => void;
+  manipulatorsOf?: (field: TargetField) => ManipulatorEntry[];
+  /** Replace a field's transform chain (persists via the model). Required to enable "+ Transform". */
+  onFieldManipulatorsChange?: (outputPath: string, next: ManipulatorEntry[], scope: "header" | "line") => void;
   readOnly?: boolean;
 }
 
@@ -80,7 +84,8 @@ export function OutgoingPane({
   onRenamePath,
   onAddField,
   badgeSlot,
-  onEditTransform,
+  manipulatorsOf,
+  onFieldManipulatorsChange,
   readOnly,
 }: OutgoingPaneProps) {
   const editable = variant === "connection" && !readOnly;
@@ -119,7 +124,8 @@ export function OutgoingPane({
               onDisconnect={onDisconnect}
               onSetFixedValue={onSetFixedValue}
               onRenamePath={onRenamePath}
-              onEditTransform={onEditTransform}
+              manipulators={manipulatorsOf?.(field)}
+              onFieldManipulatorsChange={onFieldManipulatorsChange}
               badgeSlot={badgeSlot}
             />
           ))}
@@ -132,7 +138,7 @@ export function OutgoingPane({
 // ── A single output-field row (the drop zone + honest status) ─────────────────
 function OutgoingRow({
   field, status, wired, fixedValue, hovered, canRename, readOnly,
-  zoneRef, onHover, onSelect, onDisconnect, onSetFixedValue, onRenamePath, onEditTransform, badgeSlot,
+  zoneRef, onHover, onSelect, onDisconnect, onSetFixedValue, onRenamePath, manipulators, onFieldManipulatorsChange, badgeSlot,
 }: {
   field: TargetField;
   status: OutgoingFieldStatus;
@@ -147,13 +153,17 @@ function OutgoingRow({
   onDisconnect?: (outputPath: string) => void;
   onSetFixedValue?: (outputPath: string, value: string | null) => void;
   onRenamePath?: (oldPath: string, newPath: string) => void;
-  onEditTransform?: (outputPath: string) => void;
+  manipulators?: ManipulatorEntry[];
+  onFieldManipulatorsChange?: (outputPath: string, next: ManipulatorEntry[], scope: "header" | "line") => void;
   badgeSlot?: (field: TargetField) => React.ReactNode;
 }) {
   const [renaming, setRenaming] = useState(false);
   const [draftPath, setDraftPath] = useState(field.outputPath);
   const [fixedEditing, setFixedEditing] = useState(false);
   const [draftFixed, setDraftFixed] = useState(fixedValue ?? "");
+  const [transformOpen, setTransformOpen] = useState(false);
+  const chain = manipulators ?? [];
+  const canEditTransform = !!onFieldManipulatorsChange;
 
   const accent = field.scope === "line" ? "#2E8E3A" : "#1E66C9";
   // Loud ONLY when required AND genuinely unmapped (no value resolves). Optional unmapped = quiet.
@@ -288,11 +298,23 @@ function OutgoingRow({
             )
           )}
 
-          {/* Transform — real handler when wired; disabled-with-reason otherwise. */}
-          {onEditTransform ? (
-            <PowerLink onClick={() => onEditTransform(field.outputPath)}>+ Transform</PowerLink>
+          {/* Transform — opens the manipulator-chain popover (real handler) or disabled-with-reason. */}
+          {canEditTransform ? (
+            <div style={{ position: "relative" }}>
+              <PowerLink onClick={() => setTransformOpen((o) => !o)}>
+                {chain.length > 0 ? `Transforms · ${chain.length}` : "+ Transform"}
+              </PowerLink>
+              {transformOpen && (
+                <TransformPopover
+                  outputPath={field.outputPath}
+                  manipulators={chain}
+                  onChange={(next) => onFieldManipulatorsChange?.(field.outputPath, next, field.scope)}
+                  onClose={() => setTransformOpen(false)}
+                />
+              )}
+            </div>
           ) : (
-            <PowerLink disabled reason="Transforms land with the interaction pass">+ Transform</PowerLink>
+            <PowerLink disabled reason="Transforms need an editable mapping (open the order or a draft revision)">+ Transform</PowerLink>
           )}
         </div>
       )}

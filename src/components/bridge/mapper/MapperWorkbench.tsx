@@ -19,12 +19,17 @@
 // wire gutter — the engine snaps source→canonical and canonical→output wires to it. The preview
 // is a co-equal docked region, not a hidden/bottom-buried strip.
 //
-// This is the STRUCTURAL pass. It owns: data → the two value panes, the honest status model, the
-// layout + docking. It deliberately leaves clean SEAMS for the interaction agent:
-//   • IncomingPane anchorRef + OutgoingPane zoneRef + CanonicalLane dotRef → wire anchors.
-//   • the `<MapperPreviewPane/>` slot in the docked region.
-//   • OutgoingPane onEditTransform / IncomingPane onChangeSource → control handlers (rendered
-//     disabled-with-reason until wired).
+// The INTERACTION + POLISH pass wires the seams the structural pass left:
+//   • IncomingPane anchorRef + OutgoingPane zoneRef + CanonicalLane dotRef → live drag wires
+//     (MapperWireLayer): grip handles, snap zones, land-pulse, hover-emphasis, keyboard path.
+//   • the docked `<MapperPreviewPane/>` renders the real output ("what {name} receives"),
+//     debounced ~300ms, with working format toggle + copy + download + change-flash.
+//   • OutgoingPane "+ Transform" opens the manipulator-chain popover (TransformPopover);
+//     IncomingPane "Change source" opens the re-derive popover (ChangeSourcePopover, writes
+//     sourceMap / fixed value). Toolbar Validate · Enrich from catalog · Save mappings are
+//     each wired to a real handler or honestly disabled with a reason.
+//   • AI suggestions render as dashed ghost wires with inline ✓/✗ + a "N suggestions" banner —
+//     never auto-applied.
 // The save contract (sourceMap + output via buildOverrideDraft, inside useMapperModel) is
 // UNCHANGED — this only changes the VIEW + adds incoming values + the status overlay.
 
@@ -50,6 +55,8 @@ export interface MapperWorkbenchProps {
   connectionId?: string;
   revisionId?: string;
   supplierId?: string;
+  /** The supplier/connection display name — drives the "what {name} receives" preview header. */
+  supplierName?: string;
   previewOrderId?: string | null;
   initialOverride?: OrderMappingOverride | null;
   readOnly?: boolean;
@@ -57,10 +64,19 @@ export interface MapperWorkbenchProps {
   onDeliver?: () => void;
   deliverDisabled?: boolean;
   deliverLabel?: string;
+  /** Host "Save mappings" — promote the per-order mapping to the supplier (inbox owns the real one). */
+  onSaveMappings?: () => void;
+  saveMappingsLabel?: string;
+  savingMappings?: boolean;
+  /** Host "Validate" — open the standards-profile validation flow. */
+  onValidate?: () => void;
 }
 
 export function MapperWorkbench(props: MapperWorkbenchProps) {
-  const { variant, readOnly, onDeliver, deliverDisabled, deliverLabel, extractionFailed } = props;
+  const {
+    variant, readOnly, onDeliver, deliverDisabled, deliverLabel, extractionFailed,
+    supplierName, onSaveMappings, saveMappingsLabel, savingMappings, onValidate,
+  } = props;
   const scopeId = (variant === "order" ? props.orderId : props.connectionId) ?? "";
 
   const model = useMapperModel({
@@ -215,6 +231,24 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
     );
   }, [model, readOnly]);
 
+  // ── Catalog enrich: count hinted lines + a scroll-to-first action (real, never dead) ──
+  const catalogHintCount = model.catalogHintByLine.size;
+  const scrollToFirstCatalogHint = useCallback(() => {
+    // Find the first OUTPUT row whose line has a catalog hint and bring it into view so the
+    // per-row "Use catalog €X" action (rendered in its FieldBadges) is reachable.
+    const target = model.targetFields.find((f) =>
+      model.catalogHintByLine.has(f.outputPath) ||
+      (model.outputConnections[f.outputPath]
+        ? model.catalogHintByLine.has(model.outputConnections[f.outputPath])
+        : false),
+    );
+    const el = target ? targetEls.current[target.outputPath] : null;
+    if (el) {
+      el.scrollIntoView?.({ block: "center", behavior: "smooth" });
+      setHoveredId(target!.outputPath);
+    }
+  }, [model.targetFields, model.catalogHintByLine, model.outputConnections]);
+
   if (model.loading) {
     return <WorkbenchSkeleton />;
   }
@@ -233,6 +267,11 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
       extractionFailed={extractionFailed}
       focusSearchSignal={focusSearchSignal}
       anchorRef={(id, el) => { sourceEls.current[id] = el; }}
+      canonicalNodes={model.canonicalNodes}
+      sourceConnections={model.sourceConnections}
+      onSourceConnect={model.onSourceConnect}
+      onSourceDisconnect={model.onSourceDisconnect}
+      onSetFixedValue={model.onSetFixedValue}
       hoveredId={hoveredId}
       onHover={setHoveredId}
       onSelect={setSelectedId}
@@ -269,6 +308,8 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
       onDisconnect={model.onTargetDisconnect}
       onSetFixedValue={model.onSetFixedValue}
       badgeSlot={badgeSlot}
+      manipulatorsOf={(field) => fieldManipulatorsOf(model.override, field.outputPath)}
+      onFieldManipulatorsChange={model.onFieldManipulatorsChange}
       readOnly={readOnly}
     />
   );
@@ -279,6 +320,7 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
       override={model.override}
       lastTouched={model.lastTouched}
       cycleFormatSignal={cycleFormatSignal}
+      supplierName={supplierName}
       emptyHint={
         variant === "connection"
           ? "No sample order yet for this supplier — upload or receive one order to preview the live output of this mapping."
@@ -317,6 +359,34 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
               ⚠ {summary.requiredUnmapped} {summary.requiredUnmapped === 1 ? "field needs" : "fields need"} a source
             </span>
           )}
+          {/* Enrich from catalog — when the catalog overlay has hints, it scrolls the first
+              hinted output row into view so the per-line "Use catalog €X" action is reachable;
+              otherwise honestly disabled with the reason (no hints / no catalog configured). */}
+          <ToolbarButton
+            label={catalogHintCount > 0 ? `Enrich from catalog · ${catalogHintCount}` : "Enrich from catalog"}
+            title={
+              catalogHintCount > 0
+                ? "Jump to the lines with catalog price/code hints — apply each per line"
+                : "No catalog hints for this order. Add a supplier catalog, or no lines differ from it."
+            }
+            onClick={catalogHintCount > 0 ? scrollToFirstCatalogHint : undefined}
+          />
+          {/* Validate — opens the host's standards-profile validation flow, or honestly disabled. */}
+          <ToolbarButton
+            label="Validate"
+            title={onValidate ? "Validate the outbound document against a standards profile" : "Validation runs from the order review header"}
+            onClick={onValidate}
+          />
+          {/* Save mappings — promotes this mapping to the supplier so the next order auto-applies. */}
+          {onSaveMappings && (
+            <ToolbarButton
+              label={savingMappings ? "Saving…" : (saveMappingsLabel ?? "Save mappings")}
+              title="Save these field mappings for this supplier — applies to their next order automatically"
+              onClick={onSaveMappings}
+              disabled={savingMappings || readOnly}
+              variant="violet"
+            />
+          )}
           {onDeliver && (
             <Button variant="primary" size="sm" disabled={!canDeliver} onClick={onDeliver}>
               {deliverLabel ?? "Send to supplier"}
@@ -324,6 +394,34 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
           )}
         </div>
       </div>
+
+      {/* ── AI suggestions banner — N suggestions to review (never auto-applied) ────────
+          Each suggestion renders as a dashed ghost wire with inline ✓ accept / ✗ reject; this
+          banner just surfaces the count + the honest framing so a bad suggestion reads as an
+          easy reject, not a committed mapping. Hidden when there are none. */}
+      {!readOnly && model.suggestions.length > 0 && (
+        <div
+          role="status"
+          className="hidden lg:flex"
+          style={{ alignItems: "center", gap: 8, marginBottom: 12, padding: "8px 12px", borderRadius: 8, background: "#F4EFFC", border: "1px solid #E2D6F6", color: "#5E3DB0", fontSize: 12 }}
+        >
+          <span aria-hidden style={{ fontSize: 13 }}>✦</span>
+          <span style={{ fontWeight: 700 }}>
+            {model.suggestions.length} AI {model.suggestions.length === 1 ? "suggestion" : "suggestions"} to review
+          </span>
+          <span style={{ color: "#7A6AA8", fontWeight: 500 }}>
+            Shown as dashed wires — accept (✓) or dismiss (✗) each. Nothing is applied automatically.
+          </span>
+          <button
+            type="button"
+            onClick={() => model.suggestions.forEach((s) => model.onRejectSuggestion(s))}
+            title="Dismiss every AI suggestion"
+            style={{ marginLeft: "auto", border: "1px solid #D6C7F0", background: "#FFFFFF", color: "#5E3DB0", borderRadius: 6, padding: "3px 10px", fontSize: 10.5, fontWeight: 700, cursor: "pointer" }}
+          >
+            Dismiss all
+          </button>
+        </div>
+      )}
 
       {/* ── Mobile read-only summary ────────────────────────────────────── */}
       <div className="lg:hidden">
@@ -380,6 +478,39 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
         </div>
       </div>
     </div>
+  );
+}
+
+// ── Toolbar button — real handler, or honestly disabled with a reason tooltip ──
+function ToolbarButton({
+  label, title, onClick, disabled, variant = "ghost",
+}: {
+  label: string;
+  title?: string;
+  onClick?: () => void;
+  disabled?: boolean;
+  variant?: "ghost" | "violet";
+}) {
+  // No handler → render disabled-with-reason (never a dead-but-enabled button).
+  const isDisabled = disabled || !onClick;
+  const violet = variant === "violet";
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={isDisabled}
+      title={title}
+      style={{
+        height: 30, padding: "0 11px", borderRadius: 7, fontSize: 11.5, fontWeight: 700,
+        border: `1px solid ${violet ? "#C4ABE8" : "#DCE0E8"}`,
+        background: isDisabled ? "#F6F7FA" : violet ? "#FFFFFF" : "#FFFFFF",
+        color: isDisabled ? "#AEB6C4" : violet ? "#5E3DB0" : "#345470",
+        cursor: isDisabled ? "not-allowed" : "pointer",
+        whiteSpace: "nowrap",
+      }}
+    >
+      {label}
+    </button>
   );
 }
 

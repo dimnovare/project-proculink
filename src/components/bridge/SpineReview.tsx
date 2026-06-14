@@ -2347,7 +2347,12 @@ export function SpineReview({ orderId }: { orderId: string }) {
             variant="order"
             orderId={orderId}
             supplierId={order.supplierId}
+            supplierName={order.supplierName}
             initialOverride={mappingOverride}
+            onSaveMappings={() => promoteMutation.mutate()}
+            saveMappingsLabel="Save mappings"
+            savingMappings={promoteMutation.isPending}
+            onValidate={() => setTab("conformance")}
           />
         </div>
 

@@ -21,7 +21,8 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { SourceWireDragChipProps } from "../SourceWireDragLayer";
-import type { SourceField, FieldFilter } from "./types";
+import type { SourceField, FieldFilter, CanonicalNode } from "./types";
+import { ChangeSourcePopover } from "./ChangeSourcePopover";
 import {
   buildIncomingGroups,
   incomingFilterCounts,
@@ -57,16 +58,30 @@ export interface IncomingPaneProps {
    */
   anchorRef?: (id: string, el: HTMLElement | null) => void;
   /**
-   * SEAM (interaction agent): the advanced "Change source" affordance per row. When wired, a
-   * subtle control renders; clicking it calls this with the row id so the agent can open its
-   * popover (re-derive the canonical value from a different raw token). Absent → no control.
+   * The "Change source" advanced affordance per row opens a popover to re-derive a canonical
+   * field from THIS raw token or pin a fixed value (writes sourceMap / fixed value via the
+   * model). It renders only when ALL of canonicalNodes + the three mutators are supplied AND
+   * the pane is editable — otherwise the "⋯" control is hidden (never dead-but-enabled).
    */
-  onChangeSource?: (id: string) => void;
+  canonicalNodes?: CanonicalNode[];
+  sourceConnections?: Record<string, string>;
+  onSourceConnect?: (tokenId: string, canonicalField: string) => void;
+  onSourceDisconnect?: (canonicalField: string) => void;
+  onSetFixedValue?: (outputPath: string, value: string | null, scope: "header" | "line") => void;
   /** Selection/hover plumbing (kept parallel to the old lanes for the wire engine). */
   hoveredId?: string | null;
   onHover?: (id: string | null) => void;
   onSelect?: (id: string) => void;
   readOnly?: boolean;
+}
+
+/** The wired contract the change-source popover needs (null when not editable / not supplied). */
+interface ChangeSourceCtx {
+  canonicalNodes: CanonicalNode[];
+  sourceConnections: Record<string, string>;
+  onSourceConnect: (tokenId: string, canonicalField: string) => void;
+  onSourceDisconnect: (canonicalField: string) => void;
+  onSetFixedValue: (outputPath: string, value: string | null, scope: "header" | "line") => void;
 }
 
 const FILTERS: { id: FieldFilter; label: string }[] = [
@@ -89,12 +104,23 @@ export function IncomingPane({
   extractionFailed,
   focusSearchSignal,
   anchorRef,
-  onChangeSource,
+  canonicalNodes,
+  sourceConnections,
+  onSourceConnect,
+  onSourceDisconnect,
+  onSetFixedValue,
   hoveredId,
   onHover,
   onSelect,
   readOnly,
 }: IncomingPaneProps) {
+  // Change-source is available only when the host wired the full popover contract + editable.
+  const changeSourceCtx =
+    !readOnly && canonicalNodes && sourceConnections && onSourceConnect && onSourceDisconnect && onSetFixedValue
+      ? { canonicalNodes, sourceConnections, onSourceConnect, onSourceDisconnect, onSetFixedValue }
+      : null;
+  // Which row currently has its change-source popover open (token id).
+  const [changeSourceFor, setChangeSourceFor] = useState<string | null>(null);
   // 150ms debounce so the controlled query upstream doesn't thrash on every keystroke.
   const [local, setLocal] = useState(query);
   useEffect(() => setLocal(query), [query]);
@@ -206,7 +232,9 @@ export function IncomingPane({
               forceOpen={q.length > 0}
               chipProps={chipProps}
               anchorRef={anchorRef}
-              onChangeSource={onChangeSource}
+              changeSourceCtx={changeSourceCtx}
+              changeSourceFor={changeSourceFor}
+              onOpenChangeSource={setChangeSourceFor}
               hoveredId={hoveredId}
               onHover={onHover}
               onSelect={onSelect}
@@ -234,7 +262,7 @@ function PaneFrame({ title, subtitle, children }: { title: string; subtitle?: st
 
 // ── A collapsible group of incoming rows ──────────────────────────────────────
 function IncomingGroup({
-  group, fields, open, onToggle, forceOpen, chipProps, anchorRef, onChangeSource, hoveredId, onHover, onSelect, readOnly,
+  group, fields, open, onToggle, forceOpen, chipProps, anchorRef, changeSourceCtx, changeSourceFor, onOpenChangeSource, hoveredId, onHover, onSelect, readOnly,
 }: {
   group: SourceGroup;
   fields: SourceField[];
@@ -243,7 +271,9 @@ function IncomingGroup({
   forceOpen: boolean;
   chipProps: (id: string) => SourceWireDragChipProps;
   anchorRef?: (id: string, el: HTMLElement | null) => void;
-  onChangeSource?: (id: string) => void;
+  changeSourceCtx: ChangeSourceCtx | null;
+  changeSourceFor: string | null;
+  onOpenChangeSource: (id: string | null) => void;
   hoveredId?: string | null;
   onHover?: (id: string | null) => void;
   onSelect?: (id: string) => void;
@@ -293,7 +323,7 @@ function IncomingGroup({
             <div style={{ height: fields.length * ROW_H, position: "relative" }}>
               <div style={{ position: "absolute", top: Math.max(0, winStart) * ROW_H, left: 0, right: 0, display: "flex", flexDirection: "column", gap: 6 }}>
                 {visible.map((f) => (
-                  <IncomingRow key={f.id} field={f} props={chipProps(f.id)} anchorRef={anchorRef} onChangeSource={onChangeSource} hovered={hoveredId === f.id} onHover={onHover} onSelect={onSelect} readOnly={readOnly} />
+                  <IncomingRow key={f.id} field={f} props={chipProps(f.id)} anchorRef={anchorRef} changeSourceCtx={changeSourceCtx} changeSourceOpen={changeSourceFor === f.id} onOpenChangeSource={onOpenChangeSource} hovered={hoveredId === f.id} onHover={onHover} onSelect={onSelect} readOnly={readOnly} />
                 ))}
               </div>
             </div>
@@ -301,7 +331,7 @@ function IncomingGroup({
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
             {fields.map((f) => (
-              <IncomingRow key={f.id} field={f} props={chipProps(f.id)} anchorRef={anchorRef} onChangeSource={onChangeSource} hovered={hoveredId === f.id} onHover={onHover} onSelect={onSelect} readOnly={readOnly} />
+              <IncomingRow key={f.id} field={f} props={chipProps(f.id)} anchorRef={anchorRef} changeSourceCtx={changeSourceCtx} changeSourceOpen={changeSourceFor === f.id} onOpenChangeSource={onOpenChangeSource} hovered={hoveredId === f.id} onHover={onHover} onSelect={onSelect} readOnly={readOnly} />
             ))}
           </div>
         ))}
@@ -313,12 +343,14 @@ function IncomingGroup({
 // Module-level (not nested) so React keeps its identity across re-renders (focus/drag
 // stability — same discipline as the old SourceFieldChip).
 function IncomingRow({
-  field, props, anchorRef, onChangeSource, hovered, onHover, onSelect, readOnly,
+  field, props, anchorRef, changeSourceCtx, changeSourceOpen, onOpenChangeSource, hovered, onHover, onSelect, readOnly,
 }: {
   field: SourceField;
   props: SourceWireDragChipProps;
   anchorRef?: (id: string, el: HTMLElement | null) => void;
-  onChangeSource?: (id: string) => void;
+  changeSourceCtx: ChangeSourceCtx | null;
+  changeSourceOpen?: boolean;
+  onOpenChangeSource?: (id: string | null) => void;
   hovered?: boolean;
   onHover?: (id: string | null) => void;
   onSelect?: (id: string) => void;
@@ -327,6 +359,7 @@ function IncomingRow({
   const wired = props["data-wired"] || field.mapped;
   const connecting = props["data-connecting"];
   const suggested = field.suggestedFor != null;
+  const canChangeSource = !!changeSourceCtx;
 
   // Compose the wire-layer ref (from chipProps) with our anchor ref so BOTH get the node.
   // The interaction agent's drag layer relies on props.ref; the redesign's wire engine
@@ -340,19 +373,24 @@ function IncomingRow({
   return (
     <div
       {...restProps}
+      className="mapper-row"
       // The interaction agent measures this element to anchor a wire on the incoming side.
       ref={setRef}
       onMouseEnter={() => onHover?.(field.id)}
       onMouseLeave={() => onHover?.(null)}
       onClick={() => onSelect?.(field.id)}
-      title={`${field.label}: ${field.value}${suggested ? `\nAI suggests → ${field.suggestedFor}` : ""}`}
+      title={
+        readOnly
+          ? `${field.label}: ${field.value}`
+          : `${field.label}: ${field.value}\nDrag onto a canonical field to map it (or focus + Enter, then arrow keys)${suggested ? `\nAI suggests → ${field.suggestedFor}` : ""}`
+      }
       style={{
         display: "flex", alignItems: "center", gap: 8, minWidth: 0,
         padding: "7px 9px", borderRadius: 8,
         border: `1px solid ${connecting ? "#6F4FCE" : hovered ? "#C4ABE8" : wired ? "#D9CEF2" : "var(--line, #E2E6EE)"}`,
         borderLeft: `3px solid ${wired ? "#6F4FCE" : suggested ? "#C4ABE8" : "transparent"}`,
         background: connecting ? "#EEE7FB" : hovered ? "#F7F4FD" : "#FFFFFF",
-        cursor: readOnly ? "default" : "grab",
+        cursor: readOnly ? "default" : connecting ? "grabbing" : "grab",
         touchAction: "pan-y",
         userSelect: "none",
         boxShadow: connecting ? "0 0 0 2px rgba(111,79,206,0.18)" : undefined,
@@ -360,7 +398,13 @@ function IncomingRow({
       }}
     >
       {!readOnly && (
-        <span aria-hidden style={{ color: wired ? "#6F4FCE" : "#A8B0BF", fontSize: 11, flexShrink: 0, cursor: "grab" }}>⠿</span>
+        <span
+          aria-hidden
+          className="mapper-grip"
+          style={{ color: wired ? "#6F4FCE" : hovered ? "#6F4FCE" : "#A8B0BF", fontSize: 11, flexShrink: 0, cursor: connecting ? "grabbing" : "grab" }}
+        >
+          ⠿
+        </span>
       )}
       <span style={{ display: "flex", flexDirection: "column", gap: 1, minWidth: 0, flex: 1 }}>
         <span style={{ display: "flex", alignItems: "center", gap: 5, minWidth: 0 }}>
@@ -378,20 +422,46 @@ function IncomingRow({
         </span>
       </span>
 
-      {wired && <span aria-hidden style={{ fontSize: 9, fontWeight: 700, color: "#5E3DB0", flexShrink: 0 }}>wired →</span>}
-
-      {/* Advanced "Change source" affordance — only when the host wires it (interaction agent
-          opens the re-derive popover). Subtle, never a permanent extra column. */}
-      {!readOnly && onChangeSource && (
-        <button
-          type="button"
-          aria-label={`Change source for ${field.label}`}
-          title="Change which raw value feeds this field"
-          onClick={(e) => { e.stopPropagation(); onChangeSource(field.id); }}
-          style={{ flexShrink: 0, border: "none", background: "none", cursor: "pointer", color: "var(--ink-faint)", fontSize: 11, lineHeight: 1, padding: "0 2px", opacity: 0.65 }}
+      {wired ? (
+        <span aria-hidden style={{ fontSize: 9, fontWeight: 700, color: "#5E3DB0", flexShrink: 0 }}>wired →</span>
+      ) : !readOnly ? (
+        // Hover-only "drag to map" hint — makes the draggable affordance impossible to miss.
+        <span
+          aria-hidden
+          className="mapper-drag-hint"
+          style={{ fontSize: 8.5, fontWeight: 700, letterSpacing: "0.03em", color: "#6F4FCE", background: "#F4EFFC", border: "1px solid #E2D6F6", borderRadius: 4, padding: "1px 5px", flexShrink: 0, whiteSpace: "nowrap" }}
         >
-          ⋯
-        </button>
+          drag to map →
+        </span>
+      ) : null}
+
+      {/* Advanced "Change source" affordance — re-derive a canonical field from THIS value or
+          pin a fixed value (writes sourceMap). Only when the full popover contract is wired. */}
+      {canChangeSource && (
+        <div style={{ position: "relative", flexShrink: 0 }}>
+          <button
+            type="button"
+            aria-label={`Change source for ${field.label}`}
+            aria-haspopup="dialog"
+            aria-expanded={!!changeSourceOpen}
+            title="Re-derive a field from this value, or pin a fixed value"
+            onClick={(e) => { e.stopPropagation(); onOpenChangeSource?.(changeSourceOpen ? null : field.id); }}
+            style={{ border: "none", background: "none", cursor: "pointer", color: changeSourceOpen ? "#5E3DB0" : "var(--ink-faint)", fontSize: 13, lineHeight: 1, padding: "0 2px", opacity: changeSourceOpen ? 1 : 0.65 }}
+          >
+            ⋯
+          </button>
+          {changeSourceOpen && changeSourceCtx && (
+            <ChangeSourcePopover
+              token={field}
+              canonicalNodes={changeSourceCtx.canonicalNodes}
+              sourceConnections={changeSourceCtx.sourceConnections}
+              onConnect={changeSourceCtx.onSourceConnect}
+              onDisconnect={changeSourceCtx.onSourceDisconnect}
+              onSetFixedValue={changeSourceCtx.onSetFixedValue}
+              onClose={() => onOpenChangeSource?.(null)}
+            />
+          )}
+        </div>
       )}
     </div>
   );

@@ -30,6 +30,13 @@ import {
 import { useDragAutoScroll } from "../useDragAutoScroll";
 import { useScrollResync } from "../useScrollResync";
 import { bezier } from "./wireMath";
+import {
+  wireDrawDelayMs,
+  estimatePathLength,
+  isSourceWireEmphasised,
+  isTargetWireEmphasised,
+  wireOpacity,
+} from "./wireRenderModel";
 import { GhostWire } from "./GhostWire";
 import type { CanonicalNode, TargetField, MappingSuggestion } from "./types";
 
@@ -122,6 +129,10 @@ export function useMapperWireLayer({
   const [kbTarget, setKbTarget] = useState(0);
   const [focusedId, setFocusedId] = useState<string | null>(null);
   const [shown, setShown] = useState(false);
+  // Connection keys (canonical field / output path) that LANDED since the last render — each
+  // fires a one-shot land-pulse ring at its target end so a fresh connection is unmissable.
+  const [landed, setLanded] = useState<Set<string>>(() => new Set());
+  const prevConnKeysRef = useRef<Set<string> | null>(null);
   const announcerRef = useRef<HTMLDivElement>(null);
   const rafRef = useRef<number | null>(null);
   // Last-committed position signatures — measure commits state only when an anchor set
@@ -249,6 +260,30 @@ export function useMapperWireLayer({
     }
     return out;
   }, [targetZones, outputConnections, canonById]);
+
+  // ── Land-pulse: detect connection keys that became wired since the last render ──
+  // The set of "live" connection keys is the explicit user maps (sourceConnections keys =
+  // canonical fields with a re-pointed source; outputConnections keys = overridden output
+  // paths). When a NEW key appears, fire a one-shot pulse ring at its target end. We diff on
+  // the SET, not on geometry, so a scroll/resize re-measure never re-pulses an old wire.
+  const connKeys = useMemo(() => {
+    const s = new Set<string>();
+    for (const k of Object.keys(sourceConnections)) if (sourceConnections[k]) s.add(`s:${k}`);
+    for (const k of Object.keys(outputConnections)) if (outputConnections[k]) s.add(`t:${k}`);
+    return s;
+  }, [sourceConnections, outputConnections]);
+
+  useEffect(() => {
+    const prev = prevConnKeysRef.current;
+    prevConnKeysRef.current = connKeys;
+    if (prev === null) return; // first render — no pulse (those wires draw-in instead)
+    const fresh = new Set<string>();
+    connKeys.forEach((k) => { if (!prev.has(k)) fresh.add(k); });
+    if (fresh.size === 0) return;
+    setLanded(fresh);
+    const t = setTimeout(() => setLanded(new Set()), 700);
+    return () => clearTimeout(t);
+  }, [connKeys]);
 
   // ── Pointer helpers ───────────────────────────────────────────────────────────
   const ptToGrid = useCallback((e: { clientX: number; clientY: number }) => {
@@ -397,6 +432,15 @@ export function useMapperWireLayer({
 
   const dimmed = drag != null || kbSource != null;
   const hov = hoveredId != null;
+  // Draw-in is a ONE-SHOT on first reveal: persistent wires animate their stroke-dashoffset
+  // top-to-bottom. After the reveal window it is off, so a scroll/resize re-measure never
+  // re-animates and a freshly-landed wire pulses (not re-draws).
+  const [drawIn, setDrawIn] = useState(true);
+  useEffect(() => {
+    if (!shown) return;
+    const t = setTimeout(() => setDrawIn(false), 900);
+    return () => clearTimeout(t);
+  }, [shown]);
 
   const svg = (
     <>
@@ -414,14 +458,24 @@ export function useMapperWireLayer({
         onPointerCancel={() => { stopAutoScroll(); setDrag(null); setHoverZone(null); }}
       >
         {/* ── SOURCE → CANONICAL wires (violet) ──────────────────────────────── */}
-        {sourceWires.map((w) => {
-          const isHovered = hov && w.canonicalField === hoveredId;
-          const opacity = dimmed ? 0.45 : hov ? (isHovered ? 1 : 0.14) : 1;
+        {sourceWires.map((w, i) => {
+          const isHovered = isSourceWireEmphasised(w, hoveredId ?? null);
+          const opacity = wireOpacity({ dragging: dimmed, hovering: hov, emphasised: isHovered });
+          const len = estimatePathLength(w.hx, w.hy, w.zx, w.zy);
+          const landing = landed.has(`s:${w.canonicalField}`);
           return (
             <g key={`sw-${w.canonicalField}`} style={{ opacity, transition: "opacity 160ms" }}>
-              <path d={bezier(w.hx, w.hy, w.zx, w.zy)} fill="none" stroke={VIOLET} strokeWidth={2.4} style={{ pointerEvents: "none" }} />
+              <path
+                d={bezier(w.hx, w.hy, w.zx, w.zy)} fill="none" stroke={VIOLET}
+                strokeWidth={isHovered ? 3 : 2.4}
+                className={drawIn ? "mapper-wire-draw" : undefined}
+                style={{ pointerEvents: "none", ["--wire-len" as string]: len, animationDelay: `${wireDrawDelayMs(i)}ms`, transition: "stroke-width 140ms" }}
+              />
               <circle cx={w.hx} cy={w.hy} r={2.6} fill={VIOLET} style={{ pointerEvents: "none" }} />
               <circle cx={w.zx} cy={w.zy} r={2.6} fill={BLUE} style={{ pointerEvents: "none" }} />
+              {landing && (
+                <circle cx={w.zx} cy={w.zy} r={3} fill="none" stroke={VIOLET} strokeWidth={2} className="mapper-land-pulse" style={{ pointerEvents: "none" }} />
+              )}
               {!dimmed && (
                 <g role="button" tabIndex={0}
                   aria-label={`Remove the wire feeding ${w.canonicalField}`}
@@ -438,19 +492,31 @@ export function useMapperWireLayer({
 
         {/* ── CANONICAL → TARGET wires (blue override / green default) ────────── */}
         {[...targetWires]
+          .map((w, i) => ({ w, i }))
           .sort((a, b) => {
-            const ah = hov && (a.canonicalField === hoveredId || a.outputPath === hoveredId);
-            const bh = hov && (b.canonicalField === hoveredId || b.outputPath === hoveredId);
+            const ah = isTargetWireEmphasised(a.w, hoveredId ?? null);
+            const bh = isTargetWireEmphasised(b.w, hoveredId ?? null);
             return (ah ? 1 : 0) - (bh ? 1 : 0); // hovered painted last
           })
-          .map((w) => {
-            const isHovered = hov && (w.canonicalField === hoveredId || w.outputPath === hoveredId);
-            const opacity = dimmed ? 0.45 : hov ? (isHovered ? 1 : 0.14) : 1;
+          .map(({ w, i }) => {
+            const isHovered = isTargetWireEmphasised(w, hoveredId ?? null);
+            const opacity = wireOpacity({ dragging: dimmed, hovering: hov, emphasised: isHovered });
             const stroke = w.isOverride ? BLUE : GREEN;
+            const len = estimatePathLength(w.hx, w.hy, w.zx, w.zy);
+            const landing = landed.has(`t:${w.outputPath}`);
+            const baseW = w.isOverride ? 2.4 : 1.8;
             return (
               <g key={`tw-${w.outputPath}`} style={{ opacity, transition: "opacity 160ms" }}>
-                <path d={bezier(w.hx, w.hy, w.zx, w.zy)} fill="none" stroke={stroke} strokeWidth={w.isOverride ? 2.4 : 1.8} style={{ pointerEvents: "none" }} />
+                <path
+                  d={bezier(w.hx, w.hy, w.zx, w.zy)} fill="none" stroke={stroke}
+                  strokeWidth={isHovered ? baseW + 0.7 : baseW}
+                  className={drawIn ? "mapper-wire-draw" : undefined}
+                  style={{ pointerEvents: "none", ["--wire-len" as string]: len, animationDelay: `${wireDrawDelayMs(i)}ms`, transition: "stroke-width 140ms" }}
+                />
                 <circle cx={w.zx} cy={w.zy} r={2.6} fill={stroke} style={{ pointerEvents: "none" }} />
+                {landing && (
+                  <circle cx={w.zx} cy={w.zy} r={3} fill="none" stroke={stroke} strokeWidth={2} className="mapper-land-pulse" style={{ pointerEvents: "none" }} />
+                )}
                 {w.isOverride && !dimmed && (
                   <g role="button" tabIndex={0}
                     aria-label={`Reset ${w.outputPath} to its default source`}

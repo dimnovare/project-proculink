@@ -17,11 +17,12 @@
 // at a sample/recent order via previewOrderId; when none exists we show the empty state
 // (not an error) — offer⇔works.
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { previewMappingOverride } from "@/lib/api-client";
 import type { OrderMappingOverride, OutputFormatId } from "@/lib/api/types";
 import { PREVIEW_FORMATS } from "@/lib/api/types";
 import { nextOutputFormat } from "./mapperCommands";
+import { splitForHighlight } from "./previewHighlightModel";
 
 export interface MapperPreviewPaneProps {
   /** The order to preview against (order variant: the order; connection variant: a sample). */
@@ -30,6 +31,8 @@ export interface MapperPreviewPaneProps {
   override: OrderMappingOverride;
   /** The last field key the user touched — highlighted in the rendered output. */
   lastTouched: string | null;
+  /** Supplier/connection display name — drives the "what {name} receives" header. */
+  supplierName?: string;
   /** connection variant with no sample order → show the honest empty state, not an error. */
   emptyHint?: string;
   /**
@@ -48,7 +51,7 @@ const FORMAT_MIME: Record<OutputFormatId, string> = {
   cxml: "application/xml", ubl: "application/xml", x12: "text/plain",
 };
 
-export function MapperPreviewPane({ previewOrderId, override, lastTouched, emptyHint, cycleFormatSignal }: MapperPreviewPaneProps) {
+export function MapperPreviewPane({ previewOrderId, override, lastTouched, supplierName, emptyHint, cycleFormatSignal }: MapperPreviewPaneProps) {
   const [format, setFormat] = useState<OutputFormatId>("csv");
   const [content, setContent] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
@@ -62,7 +65,7 @@ export function MapperPreviewPane({ previewOrderId, override, lastTouched, empty
     setFormat((f) => nextOutputFormat(f));
   }, [cycleFormatSignal]);
 
-  // ~400ms debounce on (override, format) — mirrors OutputMappingEditor's preview cadence.
+  // ~300ms debounce on (override, format) — fast enough to feel live as the user wires.
   useEffect(() => {
     if (!previewOrderId) { setContent(null); setErr(null); setBusy(false); return; }
     let cancelled = false;
@@ -78,7 +81,7 @@ export function MapperPreviewPane({ previewOrderId, override, lastTouched, empty
       } finally {
         if (!cancelled) setBusy(false);
       }
-    }, 400);
+    }, 300);
     return () => { cancelled = true; clearTimeout(t); };
   }, [previewOrderId, override, format]);
 
@@ -106,20 +109,39 @@ export function MapperPreviewPane({ previewOrderId, override, lastTouched, empty
     URL.revokeObjectURL(url);
   }, [content, format]);
 
-  // Build the highlighted render: split the content around the last-touched token so the
-  // user's most recent edit is visible. Plain string match (the rendered value of the field).
+  // Build the highlighted render: isolate the OUTPUT LINE mentioning the last-touched field
+  // (by key/path or its resolved value) so the user's most recent edit visibly lands.
   const highlighted = useMemo(
     () => renderWithHighlight(content, lastTouched),
     [content, lastTouched],
   );
 
+  // One-shot flash whenever the rendered content changes — a calm "it updated" pulse.
+  const [flash, setFlash] = useState(false);
+  const prevContentRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (content == null) return;
+    if (prevContentRef.current !== null && prevContentRef.current !== content) {
+      setFlash(true);
+      const t = setTimeout(() => setFlash(false), 480);
+      prevContentRef.current = content;
+      return () => clearTimeout(t);
+    }
+    prevContentRef.current = content;
+  }, [content]);
+
   return (
     <div style={{ border: "1px solid #E2E6EE", borderRadius: 10, background: "#FBFBFD", overflow: "hidden" }}>
       <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", borderBottom: "1px solid #EEF0F4" }}>
-        <span style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--ink-faint)" }}>
-          Live preview
+        <span style={{ display: "flex", flexDirection: "column", gap: 1, minWidth: 0 }}>
+          <span style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "#1E6D29" }}>
+            Live preview
+          </span>
+          <span style={{ fontSize: 10, color: "var(--ink-faint)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            {supplierName ? `What ${supplierName} receives` : "What the supplier receives"}
+          </span>
         </span>
-        {lastTouched && <span style={{ fontSize: 10, color: "#5E3DB0" }}>edited {lastTouched}</span>}
+        {lastTouched && <span style={{ fontSize: 10, color: "#5E3DB0", flexShrink: 0 }}>edited {lastTouched}</span>}
         <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 4 }}>
           {PREVIEW_FORMATS.map((f) => (
             <button
@@ -171,6 +193,8 @@ export function MapperPreviewPane({ previewOrderId, override, lastTouched, empty
         </div>
       ) : (
         <pre
+          aria-live="polite"
+          className={flash ? "mapper-preview-flash" : undefined}
           style={{
             margin: 0, padding: "10px 12px", maxHeight: 240, overflow: "auto",
             fontFamily: "'JetBrains Mono',monospace", fontSize: 11, lineHeight: 1.5,
@@ -188,22 +212,19 @@ export function MapperPreviewPane({ previewOrderId, override, lastTouched, empty
 }
 
 /**
- * Render `content` as React nodes, wrapping the first occurrence of the last-touched value
- * in a violet highlight. When `lastTouched` is null or not found, returns the plain string.
- * Pure presentation — string-split, no regex injection risk.
+ * Render `content` as React nodes, wrapping the OUTPUT LINE that mentions the last-touched
+ * field (by key/path or its resolved value) in a violet highlight so the user's most recent
+ * edit visibly lands. When `lastTouched` is null or not found, returns the plain string. Pure
+ * presentation — string-split (no regex injection risk).
  */
 function renderWithHighlight(content: string | null, lastTouched: string | null): React.ReactNode {
   if (content == null) return null;
-  if (!lastTouched) return content;
-  const idx = content.indexOf(lastTouched);
-  if (idx < 0) return content;
-  const before = content.slice(0, idx);
-  const match = content.slice(idx, idx + lastTouched.length);
-  const after = content.slice(idx + lastTouched.length);
+  const { before, match, after } = splitForHighlight(content, lastTouched);
+  if (!match) return content;
   return (
     <>
       {before}
-      <mark style={{ background: "#EEE7FB", color: "#5E3DB0", borderRadius: 3, padding: "0 2px" }}>{match}</mark>
+      <mark style={{ background: "#EEE7FB", color: "#5E3DB0", borderRadius: 3, padding: "0 2px", display: "inline" }}>{match}</mark>
       {after}
     </>
   );
