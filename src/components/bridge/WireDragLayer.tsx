@@ -27,6 +27,7 @@ import {
 import type { ConnectorNode } from "./SpineConnectors";
 import { useDragAutoScroll } from "./useDragAutoScroll";
 import { useScrollResync } from "./useScrollResync";
+import { bezier, resolveWireSource as resolveWireSourceBase } from "./mapper/wireMath";
 
 // Output lines that can be re-sourced (match the ids in OutputPreview's onLine refs).
 export const OUTPUT_LINE_IDS = ["po", "date", "supplier", "buyer", "currency", "totals", "lines"] as const;
@@ -42,21 +43,21 @@ const NODE_TO_CANONICAL: Record<string, string> = {
   lines:    "LineNumber",
   totals:   "LineTotal",
 };
-const CANONICAL_TO_NODE: Record<string, string> =
-  Object.fromEntries(Object.entries(NODE_TO_CANONICAL).map(([n, c]) => [c, n]));
-
 /**
  * Resolve the canonical SOURCE node that currently feeds an output line.
  * Default is identity (output "totals" ← node "totals"); a per-order override
  * canonicalField re-points it (e.g. "Currency" → node "currency"). Pure + exported
  * so the wire-routing logic is unit-tested independently of the SVG.
+ *
+ * Thin wrapper over the shared `mapper/wireMath.resolveWireSource`, feeding this
+ * layer's fixed `NODE_TO_CANONICAL` map so the existing 2-arg call sites + tests are
+ * unchanged. The shared math is the single source of truth (used by the unified mapper).
  */
 export function resolveWireSource(
   lineId: string,
   overrideField: string | undefined | null,
 ): { sourceNode: string; isOverride: boolean } {
-  const sourceNode = overrideField ? (CANONICAL_TO_NODE[overrideField] ?? lineId) : lineId;
-  return { sourceNode, isOverride: overrideField != null && sourceNode !== lineId };
+  return resolveWireSourceBase(lineId, overrideField, NODE_TO_CANONICAL);
 }
 
 // Human labels for the SR announcer.
@@ -95,14 +96,6 @@ const HANDLE_R = 6;
 const ZONE_W = 22;
 const ZONE_H = 16;
 const SNAP_PX = 36;
-
-function bezier(x1: number, y1: number, x2: number, y2: number): string {
-  // Clamp the horizontal control-point offset → tidy S-curve, no giant bulge over
-  // large vertical spans (matches SpineConnectors.curve).
-  const dx = x2 - x1;
-  const off = Math.sign(dx || 1) * Math.max(24, Math.min(Math.abs(dx) * 0.5, 80));
-  return `M ${x1} ${y1} C ${x1 + off} ${y1} ${x2 - off} ${y2} ${x2} ${y2}`;
-}
 
 export function WireDragLayer({
   gridRef, nodeEls, outLineEls, nodes, onConnect, onDisconnect, existingConnections, signature,

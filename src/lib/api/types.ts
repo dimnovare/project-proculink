@@ -108,6 +108,74 @@ export interface OrderMappingOverride {
   outputTemplateContentType?: string | null;
 }
 
+// ── Phase 3 — unified mapper view-model + Phase-2 engine contracts ────────────
+// Additive. The mapper renders three lanes (source universe / canonical spine /
+// target schema) and wires between them via the EXISTING OrderMappingOverride
+// (sourceMap = source→canonical; output = canonical→target). These types describe
+// the spine's extensibility (Tier-2 custom fields), AI suggestions, catalog
+// enrichment, and validation — surfaced as the badges/ghost-wires in the UI.
+
+/** "header" | "line" — which scope a custom canonical field lives in. */
+export type CanonicalFieldScope = "header" | "line";
+
+/**
+ * A Tier-2 user-defined canonical field (Phase-2 `CanonicalFieldDef`). Added inline
+ * in the mapper's "+ Add field"; removal soft-deletes. Scoped to org/connection.
+ */
+export interface CanonicalFieldDef {
+  /** Stable key used as the canonical field NAME in OrderMappingOverride.sourceMap/output. */
+  key: string;
+  label: string;
+  scope: CanonicalFieldScope;
+  type: "string" | "number" | "date" | "bool";
+  /** Optional standards reference shown on demand (e.g. "UBL cbc:ID"). */
+  standardsRef?: string | null;
+  order?: number;
+  /** True for the built-in spine fields (not removable). */
+  system?: boolean;
+}
+
+/**
+ * An AI-proposed source→target (or source→canonical) mapping, rendered as a ghost
+ * wire the user accepts/rejects. Reuses the catalog allow-list discipline (never
+ * an invented value). `sourceId` is a SourceToken id or a canonical field key.
+ */
+export interface MappingSuggestion {
+  /** Target/output field path OR canonical field key being suggested a source for. */
+  targetKey: string;
+  /** Suggested source: a SourceToken id (raw/structured) or a canonical field key. */
+  sourceId: string;
+  /** 0..1. Rendered as a confidence ring; coloring reuses confidenceTier(). */
+  confidence: number;
+  /** Short human reason ("label 'Ihre Materialnr' ~ manufacturerPartNumber"). */
+  reason: string;
+  /** "canonical" | "raw" | "custom" — provenance of the source. */
+  sourceKind: "canonical" | "raw" | "custom";
+}
+
+/** Per-field validation outcome surfaced as a green/amber badge. */
+export interface FieldValidationState {
+  /** Field key/path this applies to (canonical key or output path). */
+  key: string;
+  state: "valid" | "review";
+  /** Tooltip reason when state="review" (e.g. "City looks like a label: 'UIDNr'"). */
+  reason?: string | null;
+  /** True = blocks delivery; false = advisory only. */
+  blocking?: boolean;
+}
+
+/** A catalog price/code suggestion for a resolved line (Phase-2 `catalog.*`). */
+export interface CatalogPriceHint {
+  /** Line key this applies to. */
+  lineKey: string;
+  catalogCode: string;
+  catalogPrice: number | null;
+  poPrice: number | null;
+  /** (catalog - po)/po as a percentage; null when either price is missing. */
+  variancePercent: number | null;
+  currency?: string | null;
+}
+
 /**
  * A single addressable value from the order's source file (backend `SourceToken`).
  * The `id` is the stable lookup key written into `SourceFieldRule.sourceToken`.

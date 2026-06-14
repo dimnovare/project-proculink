@@ -35,6 +35,7 @@ import {
 import type { ConnectorNode } from "./SpineConnectors";
 import { useDragAutoScroll } from "./useDragAutoScroll";
 import { useScrollResync } from "./useScrollResync";
+import { bezier, resolveSourceWires as resolveSourceWiresByCanonical } from "./mapper/wireMath";
 
 // nodeId → canonical field name (the SourceMap dictionary key the backend reads).
 // Mirrors WireDragLayer.NODE_TO_CANONICAL exactly so both sides agree on field names.
@@ -72,20 +73,24 @@ export function resolveSourceWires(
   knownTokenIds: ReadonlySet<string>,
 ): { nodeId: string; canonicalField: string; tokenId: string }[] {
   if (!sourceMap) return [];
-  const out: { nodeId: string; canonicalField: string; tokenId: string }[] = [];
+  // This layer keys the SourceMap by CANONICAL FIELD NAME (PoNumber, …) while the screen
+  // works in node ids (po, …). Translate node ids → the canonical keys this triptych
+  // recognises, run the shared stale-token-safe resolver from mapper/wireMath over those
+  // keys, then re-map each result back to its node id. A stale token (file re-parsed to a
+  // different shape) draws no wire rather than a dangling one — handled by the shared math.
+  const canonicalFields: string[] = [];
+  const fieldToNode: Record<string, string> = {};
   for (const nodeId of nodeIds) {
     const canonicalField = NODE_TO_CANONICAL_FIELD[nodeId];
     if (!canonicalField) continue;
-    const rule = sourceMap[canonicalField];
-    const tokenId = rule?.sourceToken;
-    // A wire is shown only when the rule points at a token that still exists in the
-    // current file — a stale token id (file re-parsed to a different shape) draws no
-    // wire rather than a dangling one.
-    if (tokenId && knownTokenIds.has(tokenId)) {
-      out.push({ nodeId, canonicalField, tokenId });
-    }
+    canonicalFields.push(canonicalField);
+    fieldToNode[canonicalField] = nodeId;
   }
-  return out;
+  return resolveSourceWiresByCanonical(canonicalFields, sourceMap, knownTokenIds).map((w) => ({
+    nodeId: fieldToNode[w.canonicalField],
+    canonicalField: w.canonicalField,
+    tokenId: w.tokenId,
+  }));
 }
 
 // Human labels for the SR announcer.
@@ -100,14 +105,6 @@ interface DragState { tokenId: string; x: number; y: number; }
 const ZONE_W = 26;
 const ZONE_H = 18;
 const SNAP_PX = 40;
-
-function bezier(x1: number, y1: number, x2: number, y2: number): string {
-  // Clamp the horizontal control-point offset → tidy S-curve, no giant bulge over
-  // large vertical spans (matches SpineConnectors.curve).
-  const dx = x2 - x1;
-  const off = Math.sign(dx || 1) * Math.max(24, Math.min(Math.abs(dx) * 0.5, 80));
-  return `M ${x1} ${y1} C ${x1 + off} ${y1} ${x2 - off} ${y2} ${x2} ${y2}`;
-}
 
 export interface UseSourceWireDragArgs {
   gridRef: React.RefObject<HTMLElement | null>;
