@@ -17,10 +17,11 @@
 // at a sample/recent order via previewOrderId; when none exists we show the empty state
 // (not an error) — offer⇔works.
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { previewMappingOverride } from "@/lib/api-client";
 import type { OrderMappingOverride, OutputFormatId } from "@/lib/api/types";
 import { PREVIEW_FORMATS } from "@/lib/api/types";
+import { nextOutputFormat } from "./mapperCommands";
 
 export interface MapperPreviewPaneProps {
   /** The order to preview against (order variant: the order; connection variant: a sample). */
@@ -31,6 +32,11 @@ export interface MapperPreviewPaneProps {
   lastTouched: string | null;
   /** connection variant with no sample order → show the honest empty state, not an error. */
   emptyHint?: string;
+  /**
+   * Bumped by the command palette "Switch output format" command — cycles the format
+   * through PREVIEW_FORMATS. A counter so each invocation advances once.
+   */
+  cycleFormatSignal?: number;
 }
 
 const FORMAT_EXT: Record<OutputFormatId, string> = {
@@ -42,12 +48,19 @@ const FORMAT_MIME: Record<OutputFormatId, string> = {
   cxml: "application/xml", ubl: "application/xml", x12: "text/plain",
 };
 
-export function MapperPreviewPane({ previewOrderId, override, lastTouched, emptyHint }: MapperPreviewPaneProps) {
+export function MapperPreviewPane({ previewOrderId, override, lastTouched, emptyHint, cycleFormatSignal }: MapperPreviewPaneProps) {
   const [format, setFormat] = useState<OutputFormatId>("csv");
   const [content, setContent] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [copied, setCopied] = useState(false);
+
+  // Command-palette "Switch output format" → advance through PREVIEW_FORMATS. Skip the
+  // initial mount (signal undefined/0) so the default CSV view isn't immediately bumped.
+  useEffect(() => {
+    if (!cycleFormatSignal) return;
+    setFormat((f) => nextOutputFormat(f));
+  }, [cycleFormatSignal]);
 
   // ~400ms debounce on (override, format) — mirrors OutputMappingEditor's preview cadence.
   useEffect(() => {

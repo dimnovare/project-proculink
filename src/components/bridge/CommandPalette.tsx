@@ -8,6 +8,7 @@ import { useEffect, useState, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { apiClient, getBuyers, isApiMockMode } from "@/lib/api-client";
+import { buildMapperCommands, dispatchMapper } from "./mapper/mapperCommands";
 import type {
   OrderSummary,
   OrderStatus,
@@ -105,6 +106,20 @@ function buildIndex(
     // onSuccess navigation mid-flight (TanStack observer teardown).
     { id: "a11", group: "Actions", icon: "▶", label: "Run a sample order",   sub: "Practice with an example order — opens Upload", action: () => router.push("/upload"), color: "#2E8E3A" },
     { id: "a12", group: "Actions", icon: "?", label: "Open help",            sub: "Help docs",              action: () => router.push("/help"),             color: "#0F4FA8" },
+    // ── Mapper power commands (a13..a17) ────────────────────
+    // These dispatch onto the window "plk:mapper" bus; the mounted ThreePaneMapper
+    // (inbox order review / connection editor) listens and acts on its focused field.
+    // They show always (progressive disclosure — discoverable for anyone who needs them);
+    // outside the mapper the dispatch is a harmless no-op (no listener attached).
+    ...buildMapperCommands(dispatchMapper).map((c) => ({
+      id: c.id,
+      group: c.group,
+      icon: c.icon,
+      label: c.label,
+      sub: c.sub,
+      action: c.run,
+      color: c.color,
+    })),
   ];
 }
 

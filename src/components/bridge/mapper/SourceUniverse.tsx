@@ -46,6 +46,14 @@ interface SourceUniverseProps {
   loading?: boolean;
   /** Phrases the honest no-tokens empty state (API-ingress orders have no source doc). */
   sourceFileKey?: string | null;
+  /**
+   * Bumped by the command palette "Jump to field" command — focuses + selects the search
+   * input so the user can immediately type a field name. A counter, not a boolean, so each
+   * invocation re-triggers even without an intervening change.
+   */
+  focusSearchSignal?: number;
+  /** True when extraction fell back to the deterministic parser — softens the empty copy. */
+  extractionFailed?: boolean;
 }
 
 // ── Chip ─────────────────────────────────────────────────────────────────────
@@ -238,6 +246,8 @@ export function SourceUniverse({
   chipProps,
   loading,
   sourceFileKey,
+  focusSearchSignal,
+  extractionFailed,
 }: SourceUniverseProps) {
   // 150ms debounce so the controlled query upstream doesn't thrash on every keystroke.
   const [local, setLocal] = useState(query);
@@ -247,6 +257,15 @@ export function SourceUniverse({
     const t = setTimeout(() => onQuery(local), SEARCH_DEBOUNCE_MS);
     return () => clearTimeout(t);
   }, [local, query, onQuery]);
+
+  // "Jump to field" (command palette) → focus + select the search box. Skip the very first
+  // mount (signal undefined/0) so we don't steal focus on load.
+  const searchRef = useRef<HTMLInputElement | null>(null);
+  useEffect(() => {
+    if (!focusSearchSignal) return;
+    searchRef.current?.focus();
+    searchRef.current?.select();
+  }, [focusSearchSignal]);
 
   // Per-group collapse state, seeded from GROUP_META (Raw + Line collapsed).
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
@@ -271,7 +290,10 @@ export function SourceUniverse({
 
   if (fields.length === 0) {
     // HONEST empty state (mirrors SourceTokenPanel) — API-ingress orders have no source doc.
-    const message = !sourceFileKey
+    // Extraction-failed: the deterministic parser ran instead of AI, so wire/fix manually.
+    const message = extractionFailed
+      ? "We couldn't auto-extract source fields from this document, so it fell back to the deterministic parser. Map the canonical and output fields manually below — everything still works."
+      : !sourceFileKey
       ? "This order arrived via the API — there's no source document to wire from."
       : "No draggable source fields for this document type — the parsed values are the source of truth.";
     return (
@@ -292,6 +314,7 @@ export function SourceUniverse({
       {/* Search — finds any field/value across groups (collapsed groups auto-reveal). */}
       <div style={{ padding: "7px 10px 0" }}>
         <input
+          ref={searchRef}
           type="text"
           value={local}
           onChange={(e) => setLocal(e.target.value)}

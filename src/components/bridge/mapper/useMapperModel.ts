@@ -105,6 +105,12 @@ export interface MapperModel {
   fixedValues: Record<string, string>;
   knownSourceTokenIds: Set<string>;
   suggestions: MappingSuggestion[];
+  /**
+   * True when the AI suggestion endpoint errored (not a 404/mock — those return []
+   * silently). Drives the honest "AI suggestions unavailable" note; manual wiring is
+   * unaffected, there are simply no ghost wires.
+   */
+  aiUnavailable: boolean;
   /** Per-field validation lookup (output path / canonical key → state). */
   validationByKey: Map<string, FieldValidationState>;
   /** Per-line catalog price/code variance lookup (lineKey → hint). */
@@ -206,6 +212,9 @@ export function useMapperModel({
     enabled: enabled && !!effectivePreviewOrderId,
   });
   const rawSuggestions = useMemo(() => suggestionsQuery.data ?? [], [suggestionsQuery.data]);
+  // AI is "unavailable" only on a genuine error (the client swallows mock/404 → []). When
+  // unavailable: no ghost wires, an honest note in the shell, manual wiring fully works.
+  const aiUnavailable = suggestionsQuery.isError;
 
   // ── Validation badges (mock-fallback returns []) ───────────────────────────
   const validationQuery = useQuery({
@@ -400,6 +409,7 @@ export function useMapperModel({
     fixedValues,
     knownSourceTokenIds,
     suggestions,
+    aiUnavailable,
     validationByKey,
     catalogHintByLine,
     blockingCount,

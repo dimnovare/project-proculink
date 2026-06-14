@@ -18,7 +18,7 @@
 // (Task 6) can snap canonical→target / source→canonical wires to the dot centre. The lane
 // itself draws no SVG — the engine owns wires. Presentational + self-contained CRUD.
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useQueriesEnabled } from "@/hooks/useQueriesEnabled";
 import {
@@ -52,6 +52,11 @@ interface CanonicalLaneProps {
   hoveredId?: string | null;
   /** Read-only (published connection revision) — hides add/remove affordances. */
   readOnly?: boolean;
+  /**
+   * Bumped by the command palette "Add a custom field" command — opens + focuses the inline
+   * "+ Add field" form. A counter so each invocation re-triggers.
+   */
+  openAddFieldSignal?: number;
 }
 
 const SCOPES: { id: CanonicalFieldScope; label: string }[] = [
@@ -68,6 +73,7 @@ export function CanonicalLane({
   onHover,
   hoveredId,
   readOnly,
+  openAddFieldSignal,
 }: CanonicalLaneProps) {
   const qc = useQueryClient();
   const queriesEnabled = useQueriesEnabled();
@@ -140,6 +146,7 @@ export function CanonicalLane({
           busy={addMut.isPending}
           error={addMut.isError ? "Couldn’t add the field. Try again." : null}
           onAdd={(def) => addMut.mutate(def)}
+          openSignal={openAddFieldSignal}
         />
       )}
     </div>
@@ -344,17 +351,25 @@ function AddFieldForm({
   busy,
   error,
   onAdd,
+  openSignal,
 }: {
   existingKeys: Set<string>;
   busy?: boolean;
   error?: string | null;
   onAdd: (def: Omit<CanonicalFieldDef, "system">) => void;
+  openSignal?: number;
 }) {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [scope, setScope] = useState<CanonicalFieldScope>("header");
   const [type, setType] = useState<CanonicalFieldDef["type"]>("string");
   const [standardsRef, setStandardsRef] = useState("");
+
+  // Command-palette "Add a custom field" → open the form (its name input autoFocuses).
+  useEffect(() => {
+    if (!openSignal) return;
+    setOpen(true);
+  }, [openSignal]);
 
   const validation = useMemo(
     () => validateNewFieldName(name, existingKeys),

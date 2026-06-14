@@ -25,6 +25,7 @@ import { FieldBadges } from "./FieldBadges";
 import { MapperPreviewPane } from "./MapperPreviewPane";
 import { useMapperWireLayer } from "./MapperWireLayer";
 import { useMapperModel, fieldManipulatorsOf } from "./useMapperModel";
+import { MAPPER_EVENT, type MapperCommandEvent } from "./mapperCommands";
 import type { FieldFilter, TargetField } from "./types";
 import type { OrderMappingOverride } from "@/lib/api/types";
 
@@ -46,6 +47,12 @@ export interface ThreePaneMapperProps {
   initialOverride?: OrderMappingOverride | null;
   /** Published revision → read-only. */
   readOnly?: boolean;
+  /**
+   * The host detected that AI extraction failed and the deterministic parser ran instead.
+   * Surfaces an honest banner + softens the source-pane empty copy; manual mapping is
+   * unaffected (everything still works).
+   */
+  extractionFailed?: boolean;
   /** Optional: the host's deliver action (gated on validation by the shell). */
   onDeliver?: () => void;
   /** Disable the deliver button (host-controlled, e.g. order not in a deliverable state). */
@@ -54,7 +61,7 @@ export interface ThreePaneMapperProps {
 }
 
 export function ThreePaneMapper(props: ThreePaneMapperProps) {
-  const { variant, readOnly, onDeliver, deliverDisabled, deliverLabel } = props;
+  const { variant, readOnly, onDeliver, deliverDisabled, deliverLabel, extractionFailed } = props;
   const scopeId = (variant === "order" ? props.orderId : props.connectionId) ?? "";
 
   const model = useMapperModel({
@@ -93,13 +100,70 @@ export function ThreePaneMapper(props: ThreePaneMapperProps) {
     el?.scrollIntoView?.({ block: "center", behavior: "smooth" });
   }, [deepField]);
 
-  const selectField = useCallback((key: string) => {
-    setHoveredId(key);
-    // Shallow URL update so the selection is shareable + restores on reload.
-    const sp = new URLSearchParams(Array.from(searchParams.entries()));
-    sp.set("field", key);
-    router.replace(`?${sp.toString()}`, { scroll: false });
-  }, [router, searchParams]);
+  // Reflect the selected field into the URL (?field=<key>) so a selection is shareable and
+  // restores on reload — shallow via router.replace (next/navigation). Debounced + skips the
+  // value that arrived FROM the URL so we don't fight the deep-link effect or spam history on
+  // hover. null (nothing focused) leaves the param as-is rather than thrashing it off/on.
+  useEffect(() => {
+    if (!hoveredId || hoveredId === deepField) return;
+    const t = setTimeout(() => {
+      const sp = new URLSearchParams(Array.from(searchParams.entries()));
+      sp.set("field", hoveredId);
+      router.replace(`?${sp.toString()}`, { scroll: false });
+    }, 250);
+    return () => clearTimeout(t);
+  }, [hoveredId, deepField, router, searchParams]);
+
+  // ── Command-palette power commands (plk:mapper event bus) ───────────────────
+  // The palette can't reach this React tree, so it dispatches a window CustomEvent and we
+  // act here on the currently-focused field (hoveredId). Counter signals re-trigger the
+  // child effects (focus search / open add-field form / cycle preview format) on each call.
+  const [focusSearchSignal, setFocusSearchSignal] = useState(0);
+  const [addFieldSignal, setAddFieldSignal] = useState(0);
+  const [cycleFormatSignal, setCycleFormatSignal] = useState(0);
+
+  useEffect(() => {
+    function onCommand(ev: Event) {
+      const detail = (ev as CustomEvent<MapperCommandEvent>).detail;
+      if (!detail) return;
+      switch (detail.kind) {
+        case "jump-to-field":
+          setFocusSearchSignal((n) => n + 1);
+          break;
+        case "add-field":
+          if (!readOnly) setAddFieldSignal((n) => n + 1);
+          break;
+        case "switch-format":
+          setPreviewOpen(true);
+          setCycleFormatSignal((n) => n + 1);
+          break;
+        case "add-transform": {
+          // Focus the "+ transform" dropdown on the focused output row (DOM — the badge
+          // lives several layers down; this is a one-shot imperative, not state we own).
+          if (readOnly || !hoveredId) break;
+          const row = targetEls.current[hoveredId];
+          row?.scrollIntoView?.({ block: "center", behavior: "smooth" });
+          const sel = row?.querySelector<HTMLSelectElement>('select[aria-label="Add a transform"]');
+          sel?.focus();
+          break;
+        }
+        case "show-standards": {
+          // Open the standards popover for the focused canonical node (DOM — the trigger
+          // is inside CanonicalNodeCard).
+          if (!hoveredId) break;
+          const node = canonicalEls.current[hoveredId];
+          // The dot ref is the snap target; the standards trigger sits in the same card.
+          const card = node?.closest<HTMLElement>(".relative") ?? node?.parentElement ?? null;
+          const trigger = card?.querySelector<HTMLButtonElement>('[aria-label^="Standards"], [aria-label*="standards"]');
+          card?.scrollIntoView?.({ block: "center", behavior: "smooth" });
+          trigger?.click();
+          break;
+        }
+      }
+    }
+    window.addEventListener(MAPPER_EVENT, onCommand);
+    return () => window.removeEventListener(MAPPER_EVENT, onCommand);
+  }, [readOnly, hoveredId]);
 
   // ── Wire engine ────────────────────────────────────────────────────────────
   const { sourceChipProps, svg } = useMapperWireLayer({
@@ -188,6 +252,15 @@ export function ThreePaneMapper(props: ThreePaneMapperProps) {
           </span>
           {model.saving && <span style={{ fontSize: 10.5, color: "var(--ink-faint)" }}>Saving…</span>}
           {model.error && <span style={{ fontSize: 10.5, color: "var(--danger,#C0392B)" }}>{model.error}</span>}
+          {model.aiUnavailable && (
+            <span
+              title="AI mapping suggestions are unavailable right now — map fields manually; everything still works."
+              style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 10, color: "#56627A", background: "#F3F4F7", border: "1px solid #E2E6EE", borderRadius: 5, padding: "1px 7px" }}
+            >
+              <span aria-hidden style={{ color: "#A8B0BF" }}>✦</span>
+              AI suggestions unavailable
+            </span>
+          )}
         </div>
         <div className="flex items-center gap-2">
           {blockingCount > 0 && (
@@ -209,6 +282,21 @@ export function ThreePaneMapper(props: ThreePaneMapperProps) {
 
       {mobileSummary}
 
+      {/* Extraction-failed banner — honest, non-blocking: the deterministic parser ran,
+          map manually. Shown on both mobile + desktop above the canvas. */}
+      {extractionFailed && (
+        <div
+          role="status"
+          style={{ display: "flex", alignItems: "flex-start", gap: 8, marginBottom: 12, padding: "9px 12px", borderRadius: 8, background: "#FFF7E6", border: "1px solid #F1E2BE", color: "#9A6B00", fontSize: 12, lineHeight: 1.45 }}
+        >
+          <span aria-hidden style={{ fontSize: 13, lineHeight: 1.2 }}>⚠</span>
+          <span>
+            We couldn&rsquo;t auto-extract this document, so it fell back to the deterministic parser.
+            Map the fields manually below — wiring, transforms, preview and delivery all still work.
+          </span>
+        </div>
+      )}
+
       {/* ── Desktop three-pane canvas ───────────────────────────────────── */}
       <div
         ref={gridRef}
@@ -227,6 +315,8 @@ export function ThreePaneMapper(props: ThreePaneMapperProps) {
                 chipProps={sourceChipProps}
                 loading={model.loading}
                 sourceFileKey={model.sourceFileKey}
+                focusSearchSignal={focusSearchSignal}
+                extractionFailed={extractionFailed}
               />
             </div>
           </ResizablePanel>
@@ -243,6 +333,7 @@ export function ThreePaneMapper(props: ThreePaneMapperProps) {
                 onHover={(id) => setHoveredId(id)}
                 hoveredId={hoveredId}
                 readOnly={readOnly}
+                openAddFieldSignal={addFieldSignal}
               />
             </div>
           </ResizablePanel>
@@ -282,6 +373,7 @@ export function ThreePaneMapper(props: ThreePaneMapperProps) {
             previewOrderId={model.previewOrderId}
             override={model.override}
             lastTouched={model.lastTouched}
+            cycleFormatSignal={cycleFormatSignal}
             emptyHint={
               variant === "connection"
                 ? "No sample order yet for this supplier — upload or receive one order to preview the live output of this mapping."
