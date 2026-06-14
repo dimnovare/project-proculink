@@ -196,10 +196,16 @@ export function useMapperModel({
   const tokens = useMemo(() => tokensQuery.data ?? [], [tokensQuery.data]);
 
   // ── Tier-2 custom canonical fields ─────────────────────────────────────────
+  // Custom canonical fields are authored at the CONNECTION; their CRUD route is
+  // connection-scoped (`/api/connections/{connectionId}/canonical-fields`). In ORDER mode
+  // scopeId is an orderId, which is NOT a valid connection route — fetching it would
+  // mismatch once the real CanonicalFieldsController lands. Per-order custom fields are a
+  // different concept (OrderMappingOverride.CustomFields). So only the connection variant
+  // queries this route; order mode uses just the system spine (custom fields = []).
   const fieldsQuery = useQuery({
     queryKey: ["canonical-fields", scopeId],
     queryFn: () => getCanonicalFields(scopeId),
-    enabled,
+    enabled: enabled && variant === "connection",
   });
   const customFields = useMemo(() => fieldsQuery.data ?? [], [fieldsQuery.data]);
 

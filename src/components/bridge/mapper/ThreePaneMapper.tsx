@@ -80,7 +80,12 @@ export function ThreePaneMapper(props: ThreePaneMapperProps) {
   const canonicalEls = useRef<Record<string, HTMLElement | null>>({});
   const targetEls = useRef<Record<string, HTMLElement | null>>({});
 
+  // hoveredId — transient mouse-hover (drives wire emphasis only; NOT reflected to the URL).
+  // selectedId — the explicitly CHOSEN field (set on click); this is what we reflect into
+  // ?field= so a selection is shareable. Separating them stops hover from rewriting the URL
+  // every ~250ms as the pointer crosses the spine.
   const [hoveredId, setHoveredId] = useState<string | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
 
   // ── Discovery controls (SourceUniverse) ────────────────────────────────────
   const [query, setQuery] = useState("");
@@ -95,24 +100,28 @@ export function ThreePaneMapper(props: ThreePaneMapperProps) {
   const deepField = searchParams.get("field");
   useEffect(() => {
     if (!deepField) return;
+    // Restore the deep-linked field as the current SELECTION (not just a hover) so the URL
+    // round-trips on reload, and emphasize it visually. Then scroll it into view.
+    setSelectedId(deepField);
     setHoveredId(deepField);
     const el = canonicalEls.current[deepField] ?? targetEls.current[deepField];
     el?.scrollIntoView?.({ block: "center", behavior: "smooth" });
   }, [deepField]);
 
-  // Reflect the selected field into the URL (?field=<key>) so a selection is shareable and
-  // restores on reload — shallow via router.replace (next/navigation). Debounced + skips the
-  // value that arrived FROM the URL so we don't fight the deep-link effect or spam history on
-  // hover. null (nothing focused) leaves the param as-is rather than thrashing it off/on.
+  // Reflect the SELECTED field into the URL (?field=<key>) so a selection is shareable and
+  // restores on reload — shallow via router.replace (next/navigation). Selection is set on an
+  // explicit click, NOT on hover, so crossing the spine no longer rewrites the URL ~every
+  // 250ms. Debounced + skips the value that arrived FROM the URL so we don't fight the
+  // deep-link effect or spam history. null (nothing selected) leaves the param as-is.
   useEffect(() => {
-    if (!hoveredId || hoveredId === deepField) return;
+    if (!selectedId || selectedId === deepField) return;
     const t = setTimeout(() => {
       const sp = new URLSearchParams(Array.from(searchParams.entries()));
-      sp.set("field", hoveredId);
+      sp.set("field", selectedId);
       router.replace(`?${sp.toString()}`, { scroll: false });
     }, 250);
     return () => clearTimeout(t);
-  }, [hoveredId, deepField, router, searchParams]);
+  }, [selectedId, deepField, router, searchParams]);
 
   // ── Command-palette power commands (plk:mapper event bus) ───────────────────
   // The palette can't reach this React tree, so it dispatches a window CustomEvent and we
@@ -331,8 +340,13 @@ export function ThreePaneMapper(props: ThreePaneMapperProps) {
                 sourceConnections={model.sourceConnections}
                 dotRef={(id, el) => { canonicalEls.current[id] = el; }}
                 onHover={(id) => setHoveredId(id)}
+                onSelect={(id) => setSelectedId(id)}
                 hoveredId={hoveredId}
                 readOnly={readOnly}
+                /* Custom canonical fields are authored at the CONNECTION (their route is
+                   connection-scoped). In order mode scopeId is an orderId — never route it
+                   into the connection canonical-fields endpoint. */
+                allowCustomFields={variant === "connection"}
                 openAddFieldSignal={addFieldSignal}
               />
             </div>
@@ -349,6 +363,7 @@ export function ThreePaneMapper(props: ThreePaneMapperProps) {
                 fixedValues={model.fixedValues}
                 zoneRef={(path, el) => { targetEls.current[path] = el; }}
                 onHover={(id) => setHoveredId(id)}
+                onSelect={(id) => setSelectedId(id)}
                 hoveredId={hoveredId}
                 onDisconnect={model.onTargetDisconnect}
                 onSetFixedValue={model.onSetFixedValue}

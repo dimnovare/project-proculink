@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { deriveTargetFields, isTargetWired } from "./targetLaneModel";
+import { deriveTargetFields, isTargetWired, isRenameAffordanceShown } from "./targetLaneModel";
 import type { OutputMappingConfig, OutputFieldRule } from "@/lib/api/types";
 
 const rule = (outputPath: string): OutputFieldRule => ({ outputPath, fieldManipulators: [] });
@@ -73,5 +73,26 @@ describe("isTargetWired", () => {
   it("false when unmapped or connections absent", () => {
     expect(isTargetWired("ItemCode", { Other: "X" })).toBe(false);
     expect(isTargetWired("ItemCode", undefined)).toBe(false);
+  });
+});
+
+describe("isRenameAffordanceShown", () => {
+  const handler = (_old: string, _next: string) => {};
+
+  it("true only when editable AND a real onRenamePath handler is wired", () => {
+    expect(isRenameAffordanceShown(true, handler)).toBe(true);
+  });
+
+  it("false when onRenamePath is undefined even if editable (the dead-control case)", () => {
+    // ThreePaneMapper mounts TargetLane without onRenamePath — the control must not render.
+    expect(isRenameAffordanceShown(true, undefined)).toBe(false);
+  });
+
+  it("false when not editable even if a handler is wired (read-only / order variant)", () => {
+    expect(isRenameAffordanceShown(false, handler)).toBe(false);
+  });
+
+  it("false when neither editable nor wired", () => {
+    expect(isRenameAffordanceShown(false, undefined)).toBe(false);
   });
 });

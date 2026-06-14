@@ -47,14 +47,28 @@ interface CanonicalLaneProps {
   sourceConnections?: Partial<Record<string, string>>;
   /** Register a node's circle-dot element for the wire engine to snap to. */
   dotRef?: (id: string, el: HTMLDivElement | null) => void;
-  /** Hover a node (wire emphasis). */
+  /** Hover a node (transient wire emphasis only). */
   onHover?: (id: string | null) => void;
+  /** Explicitly SELECT a node (click) — the host reflects this into the ?field= URL. */
+  onSelect?: (id: string) => void;
   hoveredId?: string | null;
   /** Read-only (published connection revision) — hides add/remove affordances. */
   readOnly?: boolean;
   /**
+   * Whether Tier-2 custom canonical fields can be authored from this lane. ONLY connection
+   * mode (variant="connection") may — custom canonical fields are authored at the CONNECTION
+   * and target `/api/connections/{connectionId}/canonical-fields`. In ORDER mode the scopeId
+   * is an orderId, which is NOT a valid connection-scoped route, so the add/remove affordances
+   * are hidden AND the self-fetch is suppressed (per-order custom fields are a different
+   * concept — OrderMappingOverride.CustomFields — authored elsewhere). Defaults to false so a
+   * caller that forgets to set it can never accidentally route an orderId into the connection
+   * canonical-fields endpoint.
+   */
+  allowCustomFields?: boolean;
+  /**
    * Bumped by the command palette "Add a custom field" command — opens + focuses the inline
-   * "+ Add field" form. A counter so each invocation re-triggers.
+   * "+ Add field" form. A counter so each invocation re-triggers. Ignored unless
+   * allowCustomFields is true.
    */
   openAddFieldSignal?: number;
 }
@@ -71,16 +85,19 @@ export function CanonicalLane({
   sourceConnections,
   dotRef,
   onHover,
+  onSelect,
   hoveredId,
   readOnly,
+  allowCustomFields = false,
   openAddFieldSignal,
 }: CanonicalLaneProps) {
   const qc = useQueryClient();
   const queriesEnabled = useQueriesEnabled();
 
-  // Fetch custom defs only when the shell didn't inject them. Gated like every other
-  // query (mock mode short-circuits; otherwise wait for Clerk so the token is present).
-  const selfFetch = customFields === undefined;
+  // Fetch custom defs only when the shell didn't inject them AND this lane is allowed to use
+  // custom canonical fields (connection mode). In order mode the scopeId is an orderId, which
+  // is NOT a connection-scoped route, so we must never self-fetch from it — gate the query.
+  const selfFetch = customFields === undefined && allowCustomFields;
   const fieldsQuery = useQuery({
     queryKey: ["canonical-fields", scopeId],
     queryFn: () => getCanonicalFields(scopeId),
@@ -130,8 +147,9 @@ export function CanonicalLane({
             hovered={hoveredId === node.id}
             dotRef={dotRef}
             onHover={onHover}
+            onSelect={onSelect}
             onRemove={
-              !readOnly && !node.system
+              allowCustomFields && !readOnly && !node.system
                 ? () => removeMut.mutate(node.id)
                 : undefined
             }
@@ -140,7 +158,7 @@ export function CanonicalLane({
         ))}
       </div>
 
-      {!readOnly && (
+      {allowCustomFields && !readOnly && (
         <AddFieldForm
           existingKeys={existingKeys}
           busy={addMut.isPending}
@@ -160,6 +178,7 @@ function CanonicalNodeCard({
   hovered,
   dotRef,
   onHover,
+  onSelect,
   onRemove,
   removing,
 }: {
@@ -168,6 +187,7 @@ function CanonicalNodeCard({
   hovered: boolean;
   dotRef?: (id: string, el: HTMLDivElement | null) => void;
   onHover?: (id: string | null) => void;
+  onSelect?: (id: string) => void;
   onRemove?: () => void;
   removing?: boolean;
 }) {
@@ -180,6 +200,7 @@ function CanonicalNodeCard({
       className="relative mb-1.5 pl-9"
       onMouseEnter={() => onHover?.(node.id)}
       onMouseLeave={() => onHover?.(null)}
+      onClick={() => onSelect?.(node.id)}
     >
       {/* Node dot — the wire snap target. */}
       <div

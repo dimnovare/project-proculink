@@ -11,8 +11,9 @@
 // Each row is a wire DROP ZONE (a canonical node drags onto it). The lane registers each
 // row's anchor element via `zoneRef(outputPath, el)` so the Task-6 engine can snap the
 // canonical→target wire to it; the lane draws no SVG itself. Each row also exposes:
-//   • the output-path label — read-only on the order path, inline-editable on the
-//     connection path (rename a declared output column).
+//   • the output-path label — read-only unless the host wires `onRenamePath` (connection
+//     path), in which case it becomes inline-editable (rename a declared output column).
+//     A rename control is NEVER shown when onRenamePath is absent (it would no-op).
 //   • a slot for FieldBadges (Task 9) + manipulator pills (Task 9) — rendered by `badgeSlot`.
 //   • a "Fixed value" affordance (a literal instead of a wired source).
 //
@@ -24,7 +25,7 @@
 
 import { useState } from "react";
 import type { TargetField } from "./types";
-import { isTargetWired } from "./targetLaneModel";
+import { isTargetWired, isRenameAffordanceShown } from "./targetLaneModel";
 
 export interface TargetLaneProps {
   variant: "order" | "connection";
@@ -35,7 +36,10 @@ export interface TargetLaneProps {
   fixedValues?: Partial<Record<string, string>>;
   /** Register a row's drop-zone anchor for the wire engine. */
   zoneRef?: (outputPath: string, el: HTMLDivElement | null) => void;
+  /** Hover a row (transient wire emphasis only). */
   onHover?: (outputPath: string | null) => void;
+  /** Explicitly SELECT a row (click) — the host reflects this into the ?field= URL. */
+  onSelect?: (outputPath: string) => void;
   hoveredId?: string | null;
   /** Disconnect the wired source on a row. */
   onDisconnect?: (outputPath: string) => void;
@@ -67,6 +71,7 @@ export function TargetLane({
   fixedValues,
   zoneRef,
   onHover,
+  onSelect,
   hoveredId,
   onDisconnect,
   onSetFixedValue,
@@ -76,6 +81,12 @@ export function TargetLane({
   readOnly,
 }: TargetLaneProps) {
   const editable = variant === "connection" && !readOnly;
+  // The rename control only renders when it's actually wired. The host (ThreePaneMapper)
+  // currently mounts TargetLane WITHOUT onRenamePath, so an `editable`-only gate would show
+  // a rename button that accepts input then silently reverts on Enter (onRenamePath?.() is a
+  // no-op). Gate it on onRenamePath being a real function so a dead control never renders —
+  // mirrors how "+ Add output field" already hides on `editable && onAddField`.
+  const canRename = isRenameAffordanceShown(editable, onRenamePath);
 
   return (
     <div style={{ position: "relative", paddingRight: 2 }}>
@@ -103,9 +114,11 @@ export function TargetLane({
               fixedValue={fixedValues?.[field.outputPath] ?? null}
               hovered={hoveredId === field.outputPath}
               editable={editable}
+              canRename={canRename}
               readOnly={readOnly}
               zoneRef={zoneRef}
               onHover={onHover}
+              onSelect={onSelect}
               onDisconnect={onDisconnect}
               onSetFixedValue={onSetFixedValue}
               onRenamePath={onRenamePath}
@@ -126,9 +139,11 @@ function TargetFieldRow({
   fixedValue,
   hovered,
   editable,
+  canRename,
   readOnly,
   zoneRef,
   onHover,
+  onSelect,
   onDisconnect,
   onSetFixedValue,
   onRenamePath,
@@ -140,9 +155,12 @@ function TargetFieldRow({
   fixedValue: string | null;
   hovered: boolean;
   editable: boolean;
+  /** The output-path rename control only renders when this is true (editable AND onRenamePath wired). */
+  canRename: boolean;
   readOnly?: boolean;
   zoneRef?: (outputPath: string, el: HTMLDivElement | null) => void;
   onHover?: (outputPath: string | null) => void;
+  onSelect?: (outputPath: string) => void;
   onDisconnect?: (outputPath: string) => void;
   onSetFixedValue?: (outputPath: string, value: string | null) => void;
   onRenamePath?: (oldPath: string, newPath: string) => void;
@@ -167,6 +185,7 @@ function TargetFieldRow({
     <div
       onMouseEnter={() => onHover?.(field.outputPath)}
       onMouseLeave={() => onHover?.(null)}
+      onClick={() => onSelect?.(field.outputPath)}
       style={{
         borderRadius: 7,
         border: `1px solid ${hovered ? "#A9D3AF" : wired ? "#CDE7D1" : "#E2E6EE"}`,
@@ -206,12 +225,12 @@ function TargetFieldRow({
         ) : (
           <button
             type="button"
-            disabled={!editable}
-            onClick={() => editable && setRenaming(true)}
-            title={editable ? "Rename output field" : field.outputPath}
+            disabled={!canRename}
+            onClick={() => canRename && setRenaming(true)}
+            title={canRename ? "Rename output field" : field.outputPath}
             style={{
               flex: 1, minWidth: 0, textAlign: "left", border: "none", background: "none",
-              cursor: editable ? "text" : "default", padding: 0,
+              cursor: canRename ? "text" : "default", padding: 0,
               display: "flex", flexDirection: "column", gap: 1,
             }}
           >

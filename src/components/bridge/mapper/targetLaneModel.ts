@@ -57,3 +57,18 @@ export function isTargetWired(
 ): boolean {
   return Boolean(outputConnections?.[outputPath]);
 }
+
+/**
+ * Whether the output-path RENAME affordance should render. It requires BOTH:
+ *   • the lane being editable (connection variant + not a published/read-only revision), and
+ *   • a real onRenamePath handler wired by the host.
+ * The second clause matters: ThreePaneMapper mounts TargetLane WITHOUT onRenamePath, so an
+ * `editable`-only gate would show a rename button that accepts input then silently reverts on
+ * Enter (onRenamePath?.() is a no-op). Never render a control that does nothing.
+ */
+export function isRenameAffordanceShown(
+  editable: boolean,
+  onRenamePath: ((oldPath: string, newPath: string) => void) | undefined,
+): boolean {
+  return editable && typeof onRenamePath === "function";
+}
