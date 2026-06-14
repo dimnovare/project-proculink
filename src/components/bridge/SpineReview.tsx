@@ -2349,6 +2349,9 @@ export function SpineReview({ orderId }: { orderId: string }) {
             supplierId={order.supplierId}
             supplierName={order.supplierName}
             initialOverride={mappingOverride}
+            /* Feed the parsed Order DIRECTLY so the incoming column shows real values for
+               EVERY order type — including PDF/XLSX that never tokenize (the empty-pane bug). */
+            order={order}
             onSaveMappings={() => promoteMutation.mutate()}
             saveMappingsLabel="Save mappings"
             savingMappings={promoteMutation.isPending}

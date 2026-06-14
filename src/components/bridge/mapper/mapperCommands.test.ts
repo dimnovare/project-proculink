@@ -23,8 +23,8 @@ describe("buildMapperCommands — palette → mapper event bus", () => {
   const dispatch = (e: MapperCommandEvent) => dispatched.push(e);
   const cmds = buildMapperCommands(dispatch);
 
-  it("exposes the five mapper power commands with stable ids a13..a17", () => {
-    expect(cmds.map((c) => c.id)).toEqual(["a13", "a14", "a15", "a16", "a17"]);
+  it("exposes the four mapper power commands with stable ids a13..a16", () => {
+    expect(cmds.map((c) => c.id)).toEqual(["a13", "a14", "a15", "a16"]);
     for (const c of cmds) {
       expect(c.group).toBe("Mapper");
       expect(c.label.trim().length).toBeGreaterThan(0);
@@ -43,7 +43,6 @@ describe("buildMapperCommands — palette → mapper event bus", () => {
       "add-transform",
       "switch-format",
       "show-standards",
-      "add-field",
     ]);
   });
 

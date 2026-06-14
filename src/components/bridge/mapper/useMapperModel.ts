@@ -52,6 +52,11 @@ import { indexValidation, indexCatalogHints, blockingReviewCount } from "./field
 import { systemCanonicalNodes, mergeCanonicalNodes } from "./canonicalFieldsModel";
 import { deriveTargetFields } from "./targetLaneModel";
 import {
+  buildIncomingFromOrder,
+  rawExtraFieldsFromTokens,
+  type IncomingOrderShape,
+} from "./incomingFromOrder";
+import {
   overrideFromConnectionBundle,
   inputMappingJsonFromOverride,
   outputMappingJsonFromOverride,
@@ -86,6 +91,14 @@ export interface UseMapperModelArgs {
   previewOrderId?: string | null;
   /** When the host already loaded the override (SpineReview does), seed from it. */
   initialOverride?: OrderMappingOverride | null;
+  /**
+   * The parsed Order the incoming column is built from (order variant — SpineReview already
+   * has it). The canonical Order values (poNumber/buyerName/lines/…) become the incoming
+   * fields DIRECTLY, so a PDF/XLSX order is just as populated as a CSV one. When absent the
+   * model falls back to the tokenized SourceToken set (the old behaviour, only meaningful for
+   * CSV/XML). getSourceTokens then contributes ONLY the optional "Extra raw fields" group.
+   */
+  incomingOrder?: IncomingOrderShape | null;
   /** Connection variant: published revision → read-only. */
   readOnly?: boolean;
 }
@@ -160,7 +173,7 @@ function toSourceField(t: SourceToken, mapped: boolean, suggestedFor: string | n
 }
 
 export function useMapperModel({
-  variant, scopeId, revisionId, previewOrderId, initialOverride, readOnly,
+  variant, scopeId, revisionId, previewOrderId, initialOverride, incomingOrder, readOnly,
 }: UseMapperModelArgs): MapperModel {
   const qc = useQueryClient();
   const enabled = useQueriesEnabled();
@@ -261,7 +274,15 @@ export function useMapperModel({
   const outputConnections = useMemo(() => projectOutputConnections(override), [override]);
   const fixedValues = useMemo(() => projectFixedValues(override), [override]);
   const knownSourceTokenIds = useMemo(() => new Set(tokens.map((t) => t.id)), [tokens]);
-  const wiredTokenIds = useMemo(() => new Set(Object.values(sourceConnections)), [sourceConnections]);
+  // Incoming row ids that currently feed SOMETHING: a canonical key feeds an output when an
+  // output path is wired from it (outputConnections value); a raw token feeds a canonical via
+  // sourceMap (sourceConnections value). Union covers both incoming kinds in the 2-col model.
+  const wiredFromIds = useMemo(() => {
+    const s = new Set<string>();
+    for (const v of Object.values(outputConnections)) if (v) s.add(v);
+    for (const v of Object.values(sourceConnections)) if (v) s.add(v);
+    return s;
+  }, [outputConnections, sourceConnections]);
 
   // A token is "suggested" when a suggestion proposes it as a source.
   const suggestionByToken = useMemo(() => {
@@ -270,47 +291,74 @@ export function useMapperModel({
     return m;
   }, [rawSuggestions]);
 
+  // ── INCOMING fields — values from the parsed Order DIRECTLY (root-cause fix #1) ──
+  // The canonical Order values (poNumber / buyerName / lines / …) build the incoming
+  // column for EVERY order regardless of tokenization (PDF/XLSX never tokenize). The
+  // tokenized SourceToken bag contributes ONLY the optional "Extra raw fields" group,
+  // de-duped against the canonical rows. When no Order is supplied (legacy / connection
+  // sample with no order object) we fall back to the tokenized set so nothing regresses.
+  const canonicalIncoming = useMemo<SourceField[]>(
+    () => buildIncomingFromOrder(incomingOrder ?? null),
+    [incomingOrder],
+  );
+
   const sourceFields = useMemo<SourceField[]>(() => {
-    return tokens.map((t) => {
-      const sug = suggestionByToken.get(t.id);
-      return toSourceField(t, wiredTokenIds.has(t.id), sug?.targetKey ?? null, sug?.confidence ?? null);
+    const base = canonicalIncoming.length > 0
+      ? [...canonicalIncoming, ...rawExtraFieldsFromTokens(tokens, canonicalIncoming)]
+      : tokens.map((t) => toSourceField(t, false, null, null));
+    // Overlay wired + AI-suggestion state by row id (canonical key OR raw token id).
+    return base.map((f) => {
+      const sug = suggestionByToken.get(f.id);
+      // A canonical row is "mapped" when an output path is wired FROM it; a raw token is
+      // "mapped" when it feeds a canonical via sourceMap. Both are covered by wiredFromIds.
+      return {
+        ...f,
+        mapped: wiredFromIds.has(f.id),
+        suggestedFor: sug?.targetKey ?? f.suggestedFor ?? null,
+        suggestionConfidence: sug?.confidence ?? f.suggestionConfidence ?? null,
+      };
     });
-  }, [tokens, suggestionByToken, wiredTokenIds]);
+  }, [canonicalIncoming, tokens, suggestionByToken, wiredFromIds]);
 
   const targetFields = useMemo(() => deriveTargetFields(override.output), [override.output]);
 
   // ── Value lookups for the OutgoingPane's honest value preview ───────────────
-  // tokenValueById: a wired source-token's raw value.
-  const tokenValueById = useMemo(() => {
-    const m = new Map<string, string>();
-    for (const t of tokens) m.set(t.id, t.value);
-    return m;
-  }, [tokens]);
-
   // canonicalValueByKey: the order's effective parsed value per canonical key, used for the
-  // auto 1:1 preview (output path === canonical key, no override). The backend SourceToken
-  // labels mirror the canonical field labels (PoNumber→"PO number", …), so we match a token to
-  // a canonical key by label (via the standards catalog) or by the key/label directly. For line
-  // fields we take the FIRST line token's value as a representative preview (the row is a single
-  // summary row in the mapper, not per-line). Best-effort, never throws, empty when unknown.
+  // 1:1 auto preview AND the value behind a canonical→output wire. Built DIRECTLY from the
+  // Order's canonical incoming fields (whose id IS the canonical key) so every order type —
+  // including PDF/XLSX that never tokenize — gets real value previews. When no Order was
+  // supplied we fall back to matching tokenized labels against canonical keys (legacy path).
   const canonicalValueByKey = useMemo(() => {
+    const out = new Map<string, string>();
+    if (canonicalIncoming.length > 0) {
+      for (const f of canonicalIncoming) if (f.value !== "" && !out.has(f.id)) out.set(f.id, f.value);
+      return out;
+    }
     const byLabel = new Map<string, string>();
     for (const t of tokens) {
       const key = (t.label ?? "").trim().toLowerCase();
       if (key && !byLabel.has(key)) byLabel.set(key, t.value);
     }
-    const out = new Map<string, string>();
-    const allKeys = [...canonicalNodes.map((n) => n.id)];
-    for (const key of allKeys) {
-      const std = getFieldStandards(key);
-      const candidates = [std?.label?.toLowerCase(), key.toLowerCase()].filter(Boolean) as string[];
+    for (const node of canonicalNodes) {
+      const std = getFieldStandards(node.id);
+      const candidates = [std?.label?.toLowerCase(), node.id.toLowerCase()].filter(Boolean) as string[];
       for (const c of candidates) {
         const v = byLabel.get(c);
-        if (v != null && v !== "") { out.set(key, v); break; }
+        if (v != null && v !== "") { out.set(node.id, v); break; }
       }
     }
     return out;
-  }, [tokens, canonicalNodes]);
+  }, [canonicalIncoming, tokens, canonicalNodes]);
+
+  // tokenValueById: id → value for BOTH raw tokens AND canonical incoming rows. The outgoing
+  // status model resolves a canonical→output wire by looking up the wired source's value here
+  // when it isn't a raw token, so canonical rows must be present too.
+  const tokenValueById = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const t of tokens) m.set(t.id, t.value);
+    for (const [k, v] of canonicalValueByKey) m.set(k, v);
+    return m;
+  }, [tokens, canonicalValueByKey]);
 
   const labelForCanonical = useCallback(
     (key: string) => getFieldStandards(key)?.label ?? canonicalNodes.find((n) => n.id === key)?.label ?? key,
@@ -446,7 +494,10 @@ export function useMapperModel({
   const loading =
     overrideQuery.isLoading ||
     (variant === "connection" && !!revisionId && revisionQuery.isLoading) ||
-    (!!effectivePreviewOrderId && tokensQuery.isLoading);
+    // Tokens are now OPTIONAL extras (the incoming column comes from the Order). Only block
+    // on the token fetch when we have NO Order to build incoming fields from, so a PDF order
+    // (tokens=[]) never shows a stuck skeleton waiting on a fetch that returns empty.
+    (canonicalIncoming.length === 0 && !!effectivePreviewOrderId && tokensQuery.isLoading);
 
   return {
     loading,
@@ -454,7 +505,9 @@ export function useMapperModel({
     error: saveErrRef.current,
     override,
     sourceFields,
-    sourceFileKey: tokens.length > 0 ? scopeId : null,
+    // Truthy when there IS incoming data (canonical from the Order or tokenized) — drives the
+    // honest empty state. No longer keyed on tokens alone (a PDF order has 0 tokens but data).
+    sourceFileKey: (canonicalIncoming.length > 0 || tokens.length > 0) ? scopeId : null,
     canonicalNodes,
     customFields,
     targetFields,

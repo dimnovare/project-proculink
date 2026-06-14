@@ -66,6 +66,10 @@ export function MapperPreviewPane({ previewOrderId, override, lastTouched, suppl
   }, [cycleFormatSignal]);
 
   // ~300ms debounce on (override, format) — fast enough to feel live as the user wires.
+  // FIX F (format toggle): we pass the SELECTED format to the endpoint and verify the body we
+  // got back is actually that format. If the backend returns a different format than requested
+  // (e.g. it can't render the chosen one for this mapping), we surface an honest
+  // "preview unavailable in {FORMAT}" rather than silently showing JSON for a CSV request.
   useEffect(() => {
     if (!previewOrderId) { setContent(null); setErr(null); setBusy(false); return; }
     let cancelled = false;
@@ -74,8 +78,15 @@ export function MapperPreviewPane({ previewOrderId, override, lastTouched, suppl
       try {
         const res = await previewMappingOverride(previewOrderId, override, format);
         if (cancelled) return;
-        setContent(res.content);
-        setErr(res.error ?? res.warning ?? null);
+        const returned = (res.format ?? "").toLowerCase();
+        if (returned && returned !== format && !res.error) {
+          // The server rendered a DIFFERENT format than we asked for → don't show the wrong body.
+          setContent(null);
+          setErr(`Preview unavailable in ${format.toUpperCase()} for this mapping — the server returned ${returned.toUpperCase()}. Pick another format or adjust the mapping.`);
+        } else {
+          setContent(res.content);
+          setErr(res.error ?? res.warning ?? null);
+        }
       } catch (e) {
         if (!cancelled) { setContent(null); setErr(e instanceof Error ? e.message : "Preview failed"); }
       } finally {

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { bezier, nearestZone, resolveWireSource, resolveSourceWires } from "./wireMath";
+import { bezier, nearestZone, resolveWireSource, resolveSourceWires, resolveMapperWires } from "./wireMath";
 
 const NODE_TO_CANONICAL = { po: "PoNumber", currency: "Currency" } as const;
 
@@ -34,6 +34,40 @@ describe("resolveSourceWires (stale-token-safe)", () => {
   it("ignores a rule with no source token (fixed-value/pass-through)", () => {
     const sourceMap = { PoNumber: { sourceToken: null, manipulators: [] }, Currency: { manipulators: [] } };
     expect(resolveSourceWires(["PoNumber", "Currency"], sourceMap, new Set(["cell:r1c1"]))).toEqual([]);
+  });
+});
+
+describe("resolveMapperWires (2-bank incoming→output)", () => {
+  const known = new Set(["PoNumber", "Quantity", "UnitPrice", "BuyerName"]);
+
+  it("draws a faint 1:1 default when output path === an existing incoming canonical id", () => {
+    const wires = resolveMapperWires(["PoNumber", "Quantity"], {}, known);
+    expect(wires).toEqual([
+      { sourceId: "PoNumber", outputPath: "PoNumber", canonicalField: "PoNumber", isOverride: false },
+      { sourceId: "Quantity", outputPath: "Quantity", canonicalField: "Quantity", isOverride: false },
+    ]);
+  });
+
+  it("marks an explicit re-point to a DIFFERENT canonical as an override", () => {
+    const wires = resolveMapperWires(["ItemCode"], { ItemCode: "BuyerName" }, known);
+    expect(wires).toEqual([
+      { sourceId: "BuyerName", outputPath: "ItemCode", canonicalField: "BuyerName", isOverride: true },
+    ]);
+  });
+
+  it("an explicit wire back to the SAME path is not an override", () => {
+    const wires = resolveMapperWires(["PoNumber"], { PoNumber: "PoNumber" }, known);
+    expect(wires[0].isOverride).toBe(false);
+  });
+
+  it("draws NO wire for an output with no explicit wire and no matching incoming row", () => {
+    // A supplier-specific column with no canonical default + no override → unmapped (no anchor).
+    expect(resolveMapperWires(["SupplierSku"], {}, known)).toEqual([]);
+  });
+
+  it("preserves output order", () => {
+    const wires = resolveMapperWires(["UnitPrice", "PoNumber"], {}, known);
+    expect(wires.map((w) => w.outputPath)).toEqual(["UnitPrice", "PoNumber"]);
   });
 });
 

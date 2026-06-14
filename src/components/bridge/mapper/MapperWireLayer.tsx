@@ -1,92 +1,86 @@
 "use client";
 
-// MapperWireLayer — the GENERALIZED, prop-driven drag/keyboard wire engine for the
-// unified three-pane mapper. It is `WireDragLayer` + `SourceWireDragLayer` folded into
-// ONE component that draws BOTH sides:
+// MapperWireLayer — the TRUE 2-bank drag/keyboard wire engine for the rebuilt mapper.
 //
-//   • SOURCE → CANONICAL (left)  — drag a source-token chip onto a canonical node.
-//       violet wires. onSourceConnect(tokenId, canonicalField).
-//   • CANONICAL → TARGET (right) — drag a canonical node handle onto an output field.
-//       blue (override) / green (default) wires. onTargetConnect(canonicalField, outputPath).
+// REBUILD (2026-06-14): the previous engine drew THREE banks (source → canonical dot → target)
+// with the canonical dot far-left, so output wires crossed the canonical LABEL TEXT, and the
+// columns were `position:sticky` while the SVG was container-relative — every scroll frame the
+// anchors drifted and a `useScrollResync` rAF poll fought to keep up (the "wires not there
+// until you scroll / wires jump while scrolling" complaint). This is a clean 2-bank engine:
 //
-// The whole measure/scroll/pointer/keyboard machinery is LIFTED VERBATIM from the two
-// shipped layers (sigRef/nodesRef-stable measure(); double-rAF scheduleMeasure;
-// useScrollResync; useDragAutoScroll; ResizeObserver; capture-phase document scroll;
-// the "never blank to empty on a transient null-ref pass" guard; the SR announcer; the
-// halo/focus handling). Only the SOURCES of the id lists change: node list, target list,
-// and the node↔canonical map are PROPS instead of module constants. Because the unified
-// mapper's canonical nodes ARE the canonical field keys, the node↔canonical map is the
-// identity { [n.id]: n.id } — which is exactly why `resolveWireSource`'s param was
-// generalized in wireMath.
+//   INCOMING row (RIGHT-edge port)  ──wire──▶  OUTGOING row (LEFT-edge port)
 //
-// The source-token chips live in the SourceUniverse pane (left lane); this layer hands the
-// host a `sourceChipProps(tokenId)` to spread onto each chip (drag handle + keyboard
-// connect). The canonical node handles + target drop-zones are drawn by this layer's SVG.
+// The canonical join is METADATA on the wire (the incoming row's id IS its canonical key), not
+// a third value-less column. Wires flow strictly left→right in the gutter — never over text.
+//
+// THE MAKE-OR-BREAK FIX — the overlay is GLUED with ZERO per-scroll JS:
+//   • Both columns + the SVG live in ONE relatively-positioned CANVAS div. NOTHING is sticky.
+//     The page scrolls the canvas as one unit, so the SVG (a child of the canvas) scrolls WITH
+//     the columns — anchors never drift, no re-measure needed on scroll.
+//   • Coordinates are measured RELATIVE TO THE CANVAS: el.getBoundingClientRect() minus the
+//     canvas rect. Stable because nothing is sticky.
+//   • Measure runs in useLayoutEffect, SYNCHRONOUSLY, and commits on the FIRST paint — no 80ms
+//     timeout, no "wait for a scroll" gate. Wires are visible immediately, correctly placed.
+//   • Re-measure ONLY on real layout change: a single ResizeObserver on the canvas + the port
+//     elements, debounced with one rAF. There is NO scroll poll (useScrollResync is gone).
 
 import type React from "react";
 import {
   useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState,
 } from "react";
 import { useDragAutoScroll } from "../useDragAutoScroll";
-import { useScrollResync } from "../useScrollResync";
-import { bezier } from "./wireMath";
-import {
-  wireDrawDelayMs,
-  estimatePathLength,
-  isSourceWireEmphasised,
-  isTargetWireEmphasised,
-  wireOpacity,
-} from "./wireRenderModel";
+import { bezier, resolveMapperWires, type ResolvedMapperWire } from "./wireMath";
+import { wireDrawDelayMs, estimatePathLength, wireOpacity } from "./wireRenderModel";
 import { GhostWire } from "./GhostWire";
-import type { CanonicalNode, TargetField, MappingSuggestion } from "./types";
+import type { TargetField, MappingSuggestion } from "./types";
 
 interface Pt { id: string; x: number; y: number; }
 
-/** Which lane a pointer/keyboard drag started in. */
-type Bank = "source" | "canonical";
-interface DragState { bank: Bank; sourceId: string; x: number; y: number; }
+interface DragState { sourceId: string; x: number; y: number; }
 
-const HANDLE_R = 6;
-const ZONE_W = 24;
-const ZONE_H = 18;
-const SNAP_PX = 36;
+const SNAP_PX = 40;
+const ZONE_W = 26;
+const ZONE_H = 20;
 
-const VIOLET = "#6F4FCE";   // source→canonical (explicit re-wire)
-const BLUE = "#1E66C9";     // canonical→target override
-const GREEN = "#2E8E3A";    // canonical→target default
+const MUTED = "#9AA8C0";    // auto / default 1:1 pass-through (thin)
+const VIOLET = "#6F4FCE";   // user override (bold)
+const GREEN = "#2E8E3A";    // landed target marker
+
+/** A resolved persistent wire (incoming id → output path) with its canonical metadata. */
+export type MapperWire = ResolvedMapperWire;
 
 export interface MapperWireLayerProps {
-  gridRef: React.RefObject<HTMLElement | null>;
-  /** Source-token chip elements, keyed by token id (registered by sourceChipProps.ref). */
+  /** The single canvas element wires are measured relative to. */
+  canvasRef: React.RefObject<HTMLElement | null>;
+  /** Incoming-row RIGHT-edge port elements, keyed by incoming id (canonical key or token id). */
   sourceEls: React.MutableRefObject<Record<string, HTMLElement | null>>;
-  /** Canonical node circle-dot elements, keyed by canonical field key. */
-  canonicalEls: React.MutableRefObject<Record<string, HTMLElement | null>>;
-  /** Target/output row drop-zone anchors, keyed by output path. */
+  /** Outgoing-row LEFT-edge port elements, keyed by output path. */
   targetEls: React.MutableRefObject<Record<string, HTMLElement | null>>;
-  canonicalNodes: CanonicalNode[];
+  /** Incoming ids in render order (drives the keyboard target order + measure list). */
+  sourceIds: string[];
+  /** Output schema rows. */
   targetFields: TargetField[];
-  /** outputPath → canonicalField (OrderMappingOverride.output rule). */
+  /** outputPath → incoming id (an explicit user wire). */
   outputConnections: Partial<Record<string, string>>;
-  /** canonicalField → sourceToken id (OrderMappingOverride.sourceMap). */
-  sourceConnections: Partial<Record<string, string>>;
-  knownSourceTokenIds: Set<string>;
-  /** Dispatch: a source token dropped on a canonical node. */
-  onSourceConnect: (tokenId: string, canonicalField: string) => void;
-  /** Dispatch: a canonical node dropped on a target field. */
-  onTargetConnect: (canonicalField: string, outputPath: string) => void;
-  onSourceDisconnect: (canonicalField: string) => void;
-  onTargetDisconnect: (outputPath: string) => void;
-  /** AI ghost wires to overlay (Task 8). Rendered dashed + faint with accept/reject. */
+  /** Incoming ids that exist as rows (a 1:1 default only draws when the source row is present). */
+  knownSourceIds: Set<string>;
+  /** Dispatch: an incoming row dropped on an output row. */
+  onConnect: (sourceId: string, outputPath: string) => void;
+  /** Dispatch: remove an output path's explicit wire (revert to default / unmapped). */
+  onDisconnect: (outputPath: string) => void;
+  /** AI ghost wires (dashed + faint, accept/reject). */
   suggestions?: MappingSuggestion[];
   onAcceptSuggestion?: (s: MappingSuggestion) => void;
   onRejectSuggestion?: (s: MappingSuggestion) => void;
   hoveredId?: string | null;
+  readOnly?: boolean;
   hidden?: boolean;
+  /** Bumped on every model change → re-measure (covers row add/remove the RO can't see fast). */
   signature: string;
 }
 
-/** Props the host spreads onto each source-token chip to make it a drag handle. */
-export interface MapperSourceChipProps {
+/** Props the host spreads onto each incoming-row RIGHT-edge port to make it a drag handle. */
+export interface MapperSourcePortProps {
   ref: (el: HTMLElement | null) => void;
   onPointerDown: (e: React.PointerEvent) => void;
   onPointerMove: (e: React.PointerEvent) => void;
@@ -101,203 +95,164 @@ export interface MapperSourceChipProps {
 }
 
 export interface MapperWireLayer {
-  /** Spread onto each source-token chip in SourceUniverse. */
-  sourceChipProps: (tokenId: string) => MapperSourceChipProps;
-  /** The SVG overlay — render absolutely positioned over the grid. */
+  /** Spread onto each incoming-row RIGHT-edge port. */
+  sourcePortProps: (sourceId: string) => MapperSourcePortProps;
+  /** The SVG overlay — render absolutely positioned over the canvas. */
   svg: React.ReactElement;
+  /** True while a drag is in flight (host can dim non-targets / set crosshair cursor). */
+  dragging: boolean;
+  /** The output path currently snap-highlighted under the pointer (host highlights its row). */
+  hoverTarget: string | null;
 }
 
 export function useMapperWireLayer({
-  gridRef, sourceEls, canonicalEls, targetEls,
-  canonicalNodes, targetFields, outputConnections, sourceConnections, knownSourceTokenIds,
-  onSourceConnect, onTargetConnect, onSourceDisconnect, onTargetDisconnect,
+  canvasRef, sourceEls, targetEls, sourceIds, targetFields,
+  outputConnections, knownSourceIds, onConnect, onDisconnect,
   suggestions, onAcceptSuggestion, onRejectSuggestion,
-  signature, hoveredId, hidden,
+  hoveredId, readOnly, hidden, signature,
 }: MapperWireLayerProps): MapperWireLayer {
-  // Anchors. sourceHandles = token chip right-edges; canonDots = canonical node dots
-  // (BOTH a drop zone for source wires AND a drag handle for target wires); targetZones
-  // = output row left-edges.
-  const [sourceHandles, setSourceHandles] = useState<Pt[]>([]);
-  const [canonDots, setCanonDots] = useState<Pt[]>([]);
-  const [targetZones, setTargetZones] = useState<Pt[]>([]);
+  const [sourcePorts, setSourcePorts] = useState<Pt[]>([]);
+  const [targetPorts, setTargetPorts] = useState<Pt[]>([]);
 
   const [drag, setDrag] = useState<DragState | null>(null);
-  const [hoverZone, setHoverZone] = useState<string | null>(null);
-  // Keyboard connect mode (works in either bank): the handle id + the target index.
-  const [kbBank, setKbBank] = useState<Bank | null>(null);
+  const [hoverTarget, setHoverTarget] = useState<string | null>(null);
+  // Keyboard connect mode: the source id + the chosen target index.
   const [kbSource, setKbSource] = useState<string | null>(null);
   const [kbTarget, setKbTarget] = useState(0);
-  const [focusedId, setFocusedId] = useState<string | null>(null);
-  const [shown, setShown] = useState(false);
-  // Connection keys (canonical field / output path) that LANDED since the last render — each
-  // fires a one-shot land-pulse ring at its target end so a fresh connection is unmissable.
+  // Output paths that LANDED a new wire since last render — each fires a one-shot pulse.
   const [landed, setLanded] = useState<Set<string>>(() => new Set());
-  const prevConnKeysRef = useRef<Set<string> | null>(null);
+  const prevConnRef = useRef<Set<string> | null>(null);
+
   const announcerRef = useRef<HTMLDivElement>(null);
   const rafRef = useRef<number | null>(null);
-  // Last-committed position signatures — measure commits state only when an anchor set
-  // ACTUALLY moved, so a repeated measure can never drive setState→render→measure (React #185).
-  const sigRef = useRef<{ s: string; c: string; t: string }>({ s: "", c: "", t: "" });
+  // Last-committed position signatures — commit setState only when an anchor actually MOVED so a
+  // repeated measure can never drive setState→render→measure (React #185).
+  const sigRef = useRef<{ s: string; t: string }>({ s: "", t: "" });
 
-  const { onDragPointer, stopAutoScroll } = useDragAutoScroll(gridRef);
+  const { onDragPointer, stopAutoScroll } = useDragAutoScroll(canvasRef);
 
-  const sourceById = useMemo(() => new Map(sourceHandles.map((h) => [h.id, h])), [sourceHandles]);
-  const canonById = useMemo(() => new Map(canonDots.map((d) => [d.id, d])), [canonDots]);
-  const targetById = useMemo(() => new Map(targetZones.map((z) => [z.id, z])), [targetZones]);
+  const sourceById = useMemo(() => new Map(sourcePorts.map((p) => [p.id, p])), [sourcePorts]);
+  const targetById = useMemo(() => new Map(targetPorts.map((p) => [p.id, p])), [targetPorts]);
 
-  // Stable id lists for the keyboard target order.
-  const canonIds = useMemo(() => canonicalNodes.map((n) => n.id), [canonicalNodes]);
   const targetIds = useMemo(() => targetFields.map((f) => f.outputPath), [targetFields]);
 
-  // Read tokens/nodes/targets from refs so measure() identity stays STABLE across renders
-  // (each gets a new identity when the order/source memo recomputes — an unstable measure
-  // re-ran the layout/observer effects every render, a React #185 contributor).
-  const tokenIdsRef = useRef<string[]>([]);
-  tokenIdsRef.current = Array.from(knownSourceTokenIds);
-  const canonNodesRef = useRef(canonicalNodes);
-  canonNodesRef.current = canonicalNodes;
+  // Read id lists from refs so measure() identity stays STABLE across renders (a fresh array
+  // identity every render re-ran the layout/observer effects — a React #185 contributor).
+  const sourceIdsRef = useRef<string[]>([]);
+  sourceIdsRef.current = sourceIds;
   const targetFieldsRef = useRef(targetFields);
   targetFieldsRef.current = targetFields;
 
+  // ── Measure: port centres RELATIVE TO THE CANVAS (no sticky → stable) ─────────
   const measure = useCallback(() => {
-    const grid = gridRef.current;
-    if (!grid) return;
-    const g = grid.getBoundingClientRect();
-    if (g.width < 60) { setSourceHandles([]); setCanonDots([]); setTargetZones([]); return; }
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const c = canvas.getBoundingClientRect();
+    if (c.width < 60) return; // not laid out yet — keep last good anchors
 
-    // Source token chip RIGHT edges.
     const s: Pt[] = [];
-    tokenIdsRef.current.forEach((id) => {
+    sourceIdsRef.current.forEach((id) => {
       const el = sourceEls.current[id];
       if (!el) return;
       const r = el.getBoundingClientRect();
-      s.push({ id, x: r.right - g.left, y: r.top - g.top + r.height / 2 });
+      // RIGHT edge of the incoming port, vertically centred.
+      s.push({ id, x: r.right - c.left, y: r.top - c.top + r.height / 2 });
     });
-    // Canonical node dot CENTRES.
-    const c: Pt[] = [];
-    canonNodesRef.current.forEach((node) => {
-      const el = canonicalEls.current[node.id];
-      if (!el) return;
-      const r = el.getBoundingClientRect();
-      c.push({ id: node.id, x: r.left - g.left + r.width / 2, y: r.top - g.top + r.height / 2 });
-    });
-    // Target row LEFT edges.
     const t: Pt[] = [];
     targetFieldsRef.current.forEach((field) => {
       const el = targetEls.current[field.outputPath];
       if (!el) return;
       const r = el.getBoundingClientRect();
-      t.push({ id: field.outputPath, x: r.left - g.left + r.width / 2, y: r.top - g.top + r.height / 2 });
+      // LEFT edge of the outgoing port, vertically centred.
+      t.push({ id: field.outputPath, x: r.left - c.left, y: r.top - c.top + r.height / 2 });
     });
 
     const sig = (a: Pt[]) => a.map((p) => `${p.id}:${Math.round(p.x)}:${Math.round(p.y)}`).join("|");
-    const sSig = sig(s), cSig = sig(c), tSig = sig(t);
-    // Never blank to empty on a transient null-ref pass while items still exist.
-    if (!(s.length === 0 && sigRef.current.s.length > 0) && sSig !== sigRef.current.s) { sigRef.current.s = sSig; setSourceHandles(s); }
-    if (!(c.length === 0 && sigRef.current.c.length > 0) && cSig !== sigRef.current.c) { sigRef.current.c = cSig; setCanonDots(c); }
-    if (!(t.length === 0 && sigRef.current.t.length > 0) && tSig !== sigRef.current.t) { sigRef.current.t = tSig; setTargetZones(t); }
-  }, [gridRef, sourceEls, canonicalEls, targetEls]);
+    const sSig = sig(s), tSig = sig(t);
+    // Never blank to empty on a transient null-ref pass while rows still exist.
+    if (!(s.length === 0 && sigRef.current.s.length > 0) && sSig !== sigRef.current.s) { sigRef.current.s = sSig; setSourcePorts(s); }
+    if (!(t.length === 0 && sigRef.current.t.length > 0) && tSig !== sigRef.current.t) { sigRef.current.t = tSig; setTargetPorts(t); }
+  }, [canvasRef, sourceEls, targetEls]);
 
+  // Debounce a re-measure into ONE rAF (the ResizeObserver may fire many times per frame).
   const scheduleMeasure = useCallback(() => {
     if (rafRef.current) cancelAnimationFrame(rafRef.current);
-    rafRef.current = requestAnimationFrame(() => { rafRef.current = requestAnimationFrame(measure); });
+    rafRef.current = requestAnimationFrame(measure);
   }, [measure]);
 
-  // Event-independent scroll tracking — DIRECT measure (not scheduleMeasure) so wires
-  // track the sticky columns every frame instead of snapping when scroll stops.
-  useScrollResync(gridRef, measure);
-
+  // MEASURE ON LAYOUT, synchronously, committing on the first paint. Re-runs whenever the model
+  // signature changes (rows added/removed/reordered) so we never wait for the RO to notice.
   useLayoutEffect(() => { measure(); }, [measure, signature]);
 
+  // Observe ONLY real layout changes — the canvas + every port. No scroll listener, no poll:
+  // because nothing is sticky, scrolling moves the canvas and its SVG together, so the
+  // canvas-relative coordinates stay correct with zero JS per scroll frame.
   useEffect(() => {
-    measure();
-    const t = setTimeout(() => { measure(); setShown(true); }, 80);
     const ro = new ResizeObserver(scheduleMeasure);
     const seen = new Set<Element>();
     const obs = (el: Element | null | undefined) => { if (el && !seen.has(el)) { seen.add(el); ro.observe(el); } };
-    obs(gridRef.current);
+    obs(canvasRef.current);
     Object.values(sourceEls.current).forEach(obs);
-    Object.values(canonicalEls.current).forEach(obs);
     Object.values(targetEls.current).forEach(obs);
-    // Capture-phase document scroll catches every scroll container (page / review wrapper
-    // / source panel inner scroll) so wires track on any scroll.
-    document.addEventListener("scroll", scheduleMeasure, { capture: true, passive: true });
     window.addEventListener("resize", scheduleMeasure);
+    // One more measure after fonts/layout settle (covers async row-height shifts).
+    const raf = requestAnimationFrame(measure);
     return () => {
-      clearTimeout(t);
+      cancelAnimationFrame(raf);
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
       ro.disconnect();
-      document.removeEventListener("scroll", scheduleMeasure, { capture: true } as EventListenerOptions);
       window.removeEventListener("resize", scheduleMeasure);
     };
-  }, [measure, scheduleMeasure, gridRef, sourceEls, canonicalEls, targetEls]);
+    // Re-bind when the signature changes so newly-added port elements get observed.
+  }, [measure, scheduleMeasure, canvasRef, sourceEls, targetEls, signature]);
 
-  // ── Persistent SOURCE → CANONICAL wires (violet) ──────────────────────────────
-  const sourceWires = useMemo(() => {
-    const out: { canonicalField: string; tokenId: string; hx: number; hy: number; zx: number; zy: number }[] = [];
-    for (const node of canonIds) {
-      const tokenId = sourceConnections[node];
-      if (!tokenId || !knownSourceTokenIds.has(tokenId)) continue;
-      const h = sourceById.get(tokenId);
-      const z = canonById.get(node);
-      if (h && z) out.push({ canonicalField: node, tokenId, hx: h.x, hy: h.y, zx: z.x, zy: z.y });
-    }
-    return out;
-  }, [canonIds, sourceConnections, knownSourceTokenIds, sourceById, canonById]);
+  // ── Persistent wires (incoming → output) ──────────────────────────────────────
+  // Precedence per output path:
+  //   1. explicit user wire   → outputConnections[path] is the incoming canonical id (override).
+  //   2. implicit 1:1 default → an incoming row whose id === the output path (canonical match).
+  // A raw-token fixed value carries no incoming anchor → no wire (the row shows a fixed badge).
+  const wires = useMemo<MapperWire[]>(
+    () => resolveMapperWires(targetIds, outputConnections, knownSourceIds),
+    [targetIds, outputConnections, knownSourceIds],
+  );
 
-  // ── Persistent CANONICAL → TARGET wires (blue override / green default) ───────
-  // Default is identity: output path "X" ← canonical "X" when a node of that key exists.
-  const targetWires = useMemo(() => {
-    const out: { outputPath: string; canonicalField: string; isOverride: boolean; hx: number; hy: number; zx: number; zy: number }[] = [];
-    for (const z of targetZones) {
-      const override = outputConnections[z.id];
-      const canonicalField = override ?? (canonById.has(z.id) ? z.id : undefined);
-      if (!canonicalField) continue;
-      const h = canonById.get(canonicalField);
-      if (!h) continue;
-      const isOverride = override != null && override !== z.id;
-      out.push({ outputPath: z.id, canonicalField, isOverride, hx: h.x, hy: h.y, zx: z.x, zy: z.y });
-    }
-    return out;
-  }, [targetZones, outputConnections, canonById]);
+  const drawableWires = useMemo(
+    () => wires
+      .map((w) => ({ w, h: sourceById.get(w.sourceId), z: targetById.get(w.outputPath) }))
+      .filter((x): x is { w: MapperWire; h: Pt; z: Pt } => !!x.h && !!x.z),
+    [wires, sourceById, targetById],
+  );
 
-  // ── Land-pulse: detect connection keys that became wired since the last render ──
-  // The set of "live" connection keys is the explicit user maps (sourceConnections keys =
-  // canonical fields with a re-pointed source; outputConnections keys = overridden output
-  // paths). When a NEW key appears, fire a one-shot pulse ring at its target end. We diff on
-  // the SET, not on geometry, so a scroll/resize re-measure never re-pulses an old wire.
-  const connKeys = useMemo(() => {
+  // ── Land-pulse: pulse an output that GAINED an explicit wire since last render ──
+  const explicitKeys = useMemo(() => {
     const s = new Set<string>();
-    for (const k of Object.keys(sourceConnections)) if (sourceConnections[k]) s.add(`s:${k}`);
-    for (const k of Object.keys(outputConnections)) if (outputConnections[k]) s.add(`t:${k}`);
+    for (const [path, src] of Object.entries(outputConnections)) if (src) s.add(path);
     return s;
-  }, [sourceConnections, outputConnections]);
+  }, [outputConnections]);
 
   useEffect(() => {
-    const prev = prevConnKeysRef.current;
-    prevConnKeysRef.current = connKeys;
-    if (prev === null) return; // first render — no pulse (those wires draw-in instead)
+    const prev = prevConnRef.current;
+    prevConnRef.current = explicitKeys;
+    if (prev === null) return; // first render — wires draw-in, don't pulse
     const fresh = new Set<string>();
-    connKeys.forEach((k) => { if (!prev.has(k)) fresh.add(k); });
+    explicitKeys.forEach((k) => { if (!prev.has(k)) fresh.add(k); });
     if (fresh.size === 0) return;
     setLanded(fresh);
     const t = setTimeout(() => setLanded(new Set()), 700);
     return () => clearTimeout(t);
-  }, [connKeys]);
+  }, [explicitKeys]);
 
-  // ── Pointer helpers ───────────────────────────────────────────────────────────
-  const ptToGrid = useCallback((e: { clientX: number; clientY: number }) => {
-    const g = gridRef.current?.getBoundingClientRect();
-    return g ? { x: e.clientX - g.left, y: e.clientY - g.top } : null;
-  }, [gridRef]);
+  // ── Pointer helpers (canvas-relative) ─────────────────────────────────────────
+  const ptToCanvas = useCallback((e: { clientX: number; clientY: number }) => {
+    const c = canvasRef.current?.getBoundingClientRect();
+    return c ? { x: e.clientX - c.left, y: e.clientY - c.top } : null;
+  }, [canvasRef]);
 
-  // Snap against the OTHER bank's zones only (source→canonical, canonical→target).
-  const nearestForBank = useCallback((bank: Bank, x: number, y: number): string | null => {
-    const zones = bank === "source" ? canonDots : targetZones;
+  const nearestTarget = useCallback((x: number, y: number): string | null => {
     let best: string | null = null, bestD = SNAP_PX;
-    zones.forEach((z) => { const d = Math.hypot(z.x - x, z.y - y); if (d < bestD) { bestD = d; best = z.id; } });
+    for (const z of targetPorts) { const d = Math.hypot(z.x - x, z.y - y); if (d < bestD) { bestD = d; best = z.id; } }
     return best;
-  }, [canonDots, targetZones]);
+  }, [targetPorts]);
 
   function announce(msg: string) {
     const el = announcerRef.current;
@@ -306,141 +261,124 @@ export function useMapperWireLayer({
     requestAnimationFrame(() => { if (announcerRef.current) announcerRef.current.textContent = msg; });
   }
 
-  const fireConnect = useCallback((bank: Bank, fromId: string, zoneId: string) => {
-    if (bank === "source") {
-      onSourceConnect(fromId, zoneId);
-      announce(`Wired source field to canonical ${zoneId}`);
-    } else {
-      onTargetConnect(fromId, zoneId);
-      announce(`Wired canonical ${fromId} to output ${zoneId}`);
-    }
-  }, [onSourceConnect, onTargetConnect]);
+  const fireConnect = useCallback((sourceId: string, outputPath: string) => {
+    onConnect(sourceId, outputPath);
+    announce(`Wired ${sourceId} to ${outputPath}`);
+  }, [onConnect]);
 
-  // ── Pointer drag (shared by both banks) ───────────────────────────────────────
-  const onHandleDown = useCallback((e: React.PointerEvent, bank: Bank, id: string) => {
+  // ── Pointer drag ───────────────────────────────────────────────────────────────
+  const onHandleDown = useCallback((e: React.PointerEvent, id: string) => {
+    if (readOnly) return;
     e.preventDefault(); e.stopPropagation();
     (e.currentTarget as Element).setPointerCapture?.(e.pointerId);
-    const p = ptToGrid(e);
-    if (p) setDrag({ bank, sourceId: id, x: p.x, y: p.y });
-  }, [ptToGrid]);
+    const p = ptToCanvas(e);
+    if (p) setDrag({ sourceId: id, x: p.x, y: p.y });
+  }, [ptToCanvas, readOnly]);
 
   const onMove = useCallback((e: React.PointerEvent) => {
     if (!drag) return;
-    const p = ptToGrid(e);
+    const p = ptToCanvas(e);
     if (!p) return;
-    onDragPointer(e.clientY); // edge auto-scroll so bottom drop targets stay reachable
+    onDragPointer(e.clientY);
     setDrag((d) => d ? { ...d, x: p.x, y: p.y } : null);
-    setHoverZone(nearestForBank(drag.bank, p.x, p.y));
-  }, [drag, ptToGrid, nearestForBank, onDragPointer]);
+    setHoverTarget(nearestTarget(p.x, p.y));
+  }, [drag, ptToCanvas, nearestTarget, onDragPointer]);
 
   const onUp = useCallback((e: React.PointerEvent) => {
     if (!drag) return;
     stopAutoScroll();
-    const p = ptToGrid(e);
-    const target = p ? nearestForBank(drag.bank, p.x, p.y) : null;
-    if (target) fireConnect(drag.bank, drag.sourceId, target);
-    setDrag(null); setHoverZone(null);
-  }, [drag, ptToGrid, nearestForBank, stopAutoScroll, fireConnect]);
+    const p = ptToCanvas(e);
+    const target = p ? nearestTarget(p.x, p.y) : null;
+    if (target) fireConnect(drag.sourceId, target);
+    setDrag(null); setHoverTarget(null);
+  }, [drag, ptToCanvas, nearestTarget, stopAutoScroll, fireConnect]);
 
-  // ── Keyboard connect mode (both banks) ────────────────────────────────────────
-  const onHandleKey = useCallback((e: React.KeyboardEvent, bank: Bank, id: string) => {
-    const targets = bank === "source" ? canonIds : targetIds;
-    const len = Math.max(1, targets.length);
+  // ── Keyboard connect ─────────────────────────────────────────────────────────
+  const onHandleKey = useCallback((e: React.KeyboardEvent, id: string) => {
+    if (readOnly) return;
+    const len = Math.max(1, targetIds.length);
     if (e.key === "Enter" || e.key === " ") {
       e.preventDefault();
-      if (kbSource === id && kbBank === bank) {
-        const target = targets[kbTarget];
-        if (target) fireConnect(bank, id, target);
-        setKbSource(null); setKbBank(null);
+      if (kbSource === id) {
+        const target = targetIds[kbTarget];
+        if (target) fireConnect(id, target);
+        setKbSource(null);
       } else {
-        setKbSource(id); setKbBank(bank); setKbTarget(0);
-        announce("Connect mode. Arrow keys choose the destination, Enter confirms, Escape cancels.");
+        setKbSource(id); setKbTarget(0);
+        announce("Connect mode. Arrow keys choose the output field, Enter confirms, Escape cancels.");
       }
-    } else if (kbSource === id && kbBank === bank && (e.key === "ArrowDown" || e.key === "ArrowRight")) {
+    } else if (kbSource === id && (e.key === "ArrowDown" || e.key === "ArrowRight")) {
       e.preventDefault(); setKbTarget((p) => (p + 1) % len);
-    } else if (kbSource === id && kbBank === bank && (e.key === "ArrowUp" || e.key === "ArrowLeft")) {
+    } else if (kbSource === id && (e.key === "ArrowUp" || e.key === "ArrowLeft")) {
       e.preventDefault(); setKbTarget((p) => (p - 1 + len) % len);
     } else if (e.key === "Escape") {
-      setKbSource(null); setKbBank(null);
+      setKbSource(null);
     }
-  }, [kbSource, kbBank, kbTarget, canonIds, targetIds, fireConnect]);
+  }, [kbSource, kbTarget, targetIds, fireConnect, readOnly]);
 
   useEffect(() => {
-    const onEsc = (e: KeyboardEvent) => { if (e.key === "Escape") { setKbSource(null); setKbBank(null); } };
+    const onEsc = (e: KeyboardEvent) => { if (e.key === "Escape") setKbSource(null); };
     window.addEventListener("keydown", onEsc);
     return () => window.removeEventListener("keydown", onEsc);
   }, []);
 
-  // tokenId → canonical field it currently feeds (for chip aria-label / styling).
-  const tokenWiredField = useMemo(() => {
-    const m = new Map<string, string>();
-    sourceWires.forEach((w) => m.set(w.tokenId, w.canonicalField));
+  // incoming id → the output paths it currently feeds (for chip aria-label / "wired" styling).
+  const sourceWiredCount = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const w of wires) if (w.isOverride) m.set(w.sourceId, (m.get(w.sourceId) ?? 0) + 1);
     return m;
-  }, [sourceWires]);
+  }, [wires]);
 
-  const sourceChipProps = useCallback((tokenId: string): MapperSourceChipProps => {
-    const wiredTo = tokenWiredField.get(tokenId);
-    const connecting = (kbSource === tokenId && kbBank === "source") || (drag?.bank === "source" && drag.sourceId === tokenId);
+  const sourcePortProps = useCallback((sourceId: string): MapperSourcePortProps => {
+    const wiredCount = sourceWiredCount.get(sourceId) ?? 0;
+    const connecting = kbSource === sourceId || (drag?.sourceId === sourceId);
     return {
-      ref: (el: HTMLElement | null) => { sourceEls.current[tokenId] = el; },
-      onPointerDown: (e) => onHandleDown(e, "source", tokenId),
+      ref: (el: HTMLElement | null) => { sourceEls.current[sourceId] = el; },
+      onPointerDown: (e) => onHandleDown(e, sourceId),
       onPointerMove: onMove,
       onPointerUp: onUp,
-      onPointerCancel: () => { stopAutoScroll(); setDrag(null); setHoverZone(null); },
-      onKeyDown: (e) => onHandleKey(e, "source", tokenId),
+      onPointerCancel: () => { stopAutoScroll(); setDrag(null); setHoverTarget(null); },
+      onKeyDown: (e) => onHandleKey(e, sourceId),
       tabIndex: 0,
       role: "button",
-      "aria-label": `Source field. Drag onto a canonical field to wire it${wiredTo ? `; currently wired to ${wiredTo}` : ""}${connecting ? " — connect mode active, use arrow keys then Enter" : ""}`,
-      "data-wired": !!wiredTo,
+      "aria-label": `Map this field. Drag onto an output field to wire it${wiredCount ? `; currently feeding ${wiredCount} output${wiredCount === 1 ? "" : "s"}` : ""}${connecting ? " — connect mode active, use arrow keys then Enter" : ""}`,
+      "data-wired": wiredCount > 0,
       "data-connecting": connecting,
     };
-  }, [tokenWiredField, kbSource, kbBank, drag, sourceEls, onHandleDown, onMove, onUp, onHandleKey, stopAutoScroll]);
+  }, [sourceWiredCount, kbSource, drag, sourceEls, onHandleDown, onMove, onUp, onHandleKey, stopAutoScroll]);
 
-  // ── Ghost wires (AI suggestions) — resolve endpoints for the SVG ──────────────
+  // ── Ghost wires (AI suggestions) — only canonical→output ones have both anchors here ──
   const ghostWires = useMemo(() => {
     if (!suggestions?.length) return [];
     const out: { s: MappingSuggestion; hx: number; hy: number; zx: number; zy: number }[] = [];
     for (const s of suggestions) {
-      // A suggestion either proposes a source for a canonical key (sourceKind raw/custom →
-      // source handle → canonical dot) or a canonical for an output path (canonical dot →
-      // target zone). We infer the side from which anchors resolve.
-      const srcHandle = sourceById.get(s.sourceId);
-      const canonDotSrc = canonById.get(s.sourceId);
-      const canonDotTgt = canonById.get(s.targetKey);
-      const targetZone = targetById.get(s.targetKey);
-      if (srcHandle && canonDotTgt) {
-        out.push({ s, hx: srcHandle.x, hy: srcHandle.y, zx: canonDotTgt.x, zy: canonDotTgt.y });
-      } else if (canonDotSrc && targetZone) {
-        out.push({ s, hx: canonDotSrc.x, hy: canonDotSrc.y, zx: targetZone.x, zy: targetZone.y });
-      }
+      // canonical→output suggestion: sourceId = incoming canonical id, targetKey = output path.
+      const h = sourceById.get(s.sourceId);
+      const z = targetById.get(s.targetKey);
+      if (h && z) out.push({ s, hx: h.x, hy: h.y, zx: z.x, zy: z.y });
     }
     return out;
-  }, [suggestions, sourceById, canonById, targetById]);
+  }, [suggestions, sourceById, targetById]);
 
-  // ── Live drag / keyboard ghosts ───────────────────────────────────────────────
-  const dragHandle = drag
-    ? (drag.bank === "source" ? sourceById.get(drag.sourceId) : canonById.get(drag.sourceId))
-    : undefined;
-  const dragStroke = drag?.bank === "source" ? VIOLET : BLUE;
-  const kbHandle = kbSource
-    ? (kbBank === "source" ? sourceById.get(kbSource) : canonById.get(kbSource))
-    : undefined;
-  const kbZone = kbSource
-    ? (kbBank === "source" ? canonById.get(canonIds[kbTarget]) : targetById.get(targetIds[kbTarget]))
-    : undefined;
-  const kbStroke = kbBank === "source" ? VIOLET : BLUE;
+  const dragHandle = drag ? sourceById.get(drag.sourceId) : undefined;
+  const kbHandle = kbSource ? sourceById.get(kbSource) : undefined;
+  const kbZone = kbSource ? targetById.get(targetIds[kbTarget]) : undefined;
 
-  const dimmed = drag != null || kbSource != null;
+  const isDragging = drag != null || kbSource != null;
   const hov = hoveredId != null;
-  // Draw-in is a ONE-SHOT on first reveal: persistent wires animate their stroke-dashoffset
-  // top-to-bottom. After the reveal window it is off, so a scroll/resize re-measure never
-  // re-animates and a freshly-landed wire pulses (not re-draws).
+
+  // Draw-in one-shot on first reveal; off afterward so a re-measure never re-animates.
   const [drawIn, setDrawIn] = useState(true);
   useEffect(() => {
-    if (!shown) return;
     const t = setTimeout(() => setDrawIn(false), 900);
     return () => clearTimeout(t);
-  }, [shown]);
+  }, []);
+
+  // Emphasis: a wire lights when the hovered id is its source id OR its output path.
+  const isEmph = useCallback(
+    (w: MapperWire) => hoveredId != null && (w.sourceId === hoveredId || w.outputPath === hoveredId),
+    [hoveredId],
+  );
 
   const svg = (
     <>
@@ -451,95 +389,57 @@ export function useMapperWireLayer({
         style={{
           position: "absolute", inset: 0, width: "100%", height: "100%",
           pointerEvents: hidden ? "none" : (drag ? "auto" : "none"), zIndex: 4,
-          opacity: hidden ? 0 : (shown ? 1 : 0), transition: "opacity 200ms ease-out",
+          opacity: hidden ? 0 : 1,
         }}
         onPointerMove={drag ? onMove : undefined}
         onPointerUp={drag ? onUp : undefined}
-        onPointerCancel={() => { stopAutoScroll(); setDrag(null); setHoverZone(null); }}
+        onPointerCancel={() => { stopAutoScroll(); setDrag(null); setHoverTarget(null); }}
       >
-        {/* ── SOURCE → CANONICAL wires (violet) ──────────────────────────────── */}
-        {sourceWires.map((w, i) => {
-          const isHovered = isSourceWireEmphasised(w, hoveredId ?? null);
-          const opacity = wireOpacity({ dragging: dimmed, hovering: hov, emphasised: isHovered });
-          const len = estimatePathLength(w.hx, w.hy, w.zx, w.zy);
-          const landing = landed.has(`s:${w.canonicalField}`);
-          return (
-            <g key={`sw-${w.canonicalField}`} style={{ opacity, transition: "opacity 160ms" }}>
-              <path
-                d={bezier(w.hx, w.hy, w.zx, w.zy)} fill="none" stroke={VIOLET}
-                strokeWidth={isHovered ? 3 : 2.4}
-                className={drawIn ? "mapper-wire-draw" : undefined}
-                style={{ pointerEvents: "none", ["--wire-len" as string]: len, animationDelay: `${wireDrawDelayMs(i)}ms`, transition: "stroke-width 140ms" }}
-              />
-              <circle cx={w.hx} cy={w.hy} r={2.6} fill={VIOLET} style={{ pointerEvents: "none" }} />
-              <circle cx={w.zx} cy={w.zy} r={2.6} fill={BLUE} style={{ pointerEvents: "none" }} />
-              {landing && (
-                <circle cx={w.zx} cy={w.zy} r={3} fill="none" stroke={VIOLET} strokeWidth={2} className="mapper-land-pulse" style={{ pointerEvents: "none" }} />
-              )}
-              {!dimmed && (
-                <g role="button" tabIndex={0}
-                  aria-label={`Remove the wire feeding ${w.canonicalField}`}
-                  style={{ pointerEvents: "auto", cursor: "pointer" }}
-                  onClick={() => onSourceDisconnect(w.canonicalField)}
-                  onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onSourceDisconnect(w.canonicalField); } }}>
-                  <circle cx={w.zx - 12} cy={w.zy} r={6.5} fill="#FFFFFF" stroke={VIOLET} strokeWidth={1.3} />
-                  <text x={w.zx - 12} y={w.zy + 3} textAnchor="middle" fontSize={8.5} fontWeight={700} fill={VIOLET} style={{ pointerEvents: "none", userSelect: "none" }}>✕</text>
-                </g>
-              )}
-            </g>
-          );
-        })}
-
-        {/* ── CANONICAL → TARGET wires (blue override / green default) ────────── */}
-        {[...targetWires]
-          .map((w, i) => ({ w, i }))
-          .sort((a, b) => {
-            const ah = isTargetWireEmphasised(a.w, hoveredId ?? null);
-            const bh = isTargetWireEmphasised(b.w, hoveredId ?? null);
-            return (ah ? 1 : 0) - (bh ? 1 : 0); // hovered painted last
-          })
-          .map(({ w, i }) => {
-            const isHovered = isTargetWireEmphasised(w, hoveredId ?? null);
-            const opacity = wireOpacity({ dragging: dimmed, hovering: hov, emphasised: isHovered });
-            const stroke = w.isOverride ? BLUE : GREEN;
-            const len = estimatePathLength(w.hx, w.hy, w.zx, w.zy);
-            const landing = landed.has(`t:${w.outputPath}`);
-            const baseW = w.isOverride ? 2.4 : 1.8;
+        {/* ── Persistent wires (hovered painted last so it sits on top) ──────────── */}
+        {[...drawableWires]
+          .map((x, i) => ({ ...x, i }))
+          .sort((a, b) => (isEmph(a.w) ? 1 : 0) - (isEmph(b.w) ? 1 : 0))
+          .map(({ w, h, z, i }) => {
+            const emph = isEmph(w);
+            const opacity = wireOpacity({ dragging: isDragging, hovering: hov, emphasised: emph });
+            const stroke = w.isOverride ? VIOLET : MUTED;
+            const baseW = w.isOverride ? 2.4 : 1.5;
+            const len = estimatePathLength(h.x, h.y, z.x, z.y);
+            const landing = landed.has(w.outputPath);
             return (
-              <g key={`tw-${w.outputPath}`} style={{ opacity, transition: "opacity 160ms" }}>
+              <g key={`w-${w.outputPath}`} style={{ opacity, transition: "opacity 160ms" }}>
                 <path
-                  d={bezier(w.hx, w.hy, w.zx, w.zy)} fill="none" stroke={stroke}
-                  strokeWidth={isHovered ? baseW + 0.7 : baseW}
+                  d={bezier(h.x, h.y, z.x, z.y)} fill="none" stroke={stroke}
+                  strokeWidth={emph ? baseW + 0.8 : baseW}
+                  strokeLinecap="round"
                   className={drawIn ? "mapper-wire-draw" : undefined}
                   style={{ pointerEvents: "none", ["--wire-len" as string]: len, animationDelay: `${wireDrawDelayMs(i)}ms`, transition: "stroke-width 140ms" }}
                 />
-                <circle cx={w.zx} cy={w.zy} r={2.6} fill={stroke} style={{ pointerEvents: "none" }} />
+                <circle cx={h.x} cy={h.y} r={2.6} fill={stroke} style={{ pointerEvents: "none" }} />
+                <circle cx={z.x} cy={z.y} r={2.6} fill={w.isOverride ? VIOLET : GREEN} style={{ pointerEvents: "none" }} />
                 {landing && (
-                  <circle cx={w.zx} cy={w.zy} r={3} fill="none" stroke={stroke} strokeWidth={2} className="mapper-land-pulse" style={{ pointerEvents: "none" }} />
+                  <circle cx={z.x} cy={z.y} r={3} fill="none" stroke={VIOLET} strokeWidth={2} className="mapper-land-pulse" style={{ pointerEvents: "none" }} />
                 )}
-                {w.isOverride && !dimmed && (
+                {/* Remove button on an EXPLICIT wire (a 1:1 default has nothing to remove). */}
+                {w.isOverride && !isDragging && !readOnly && (
                   <g role="button" tabIndex={0}
-                    aria-label={`Reset ${w.outputPath} to its default source`}
+                    aria-label={`Remove the wire feeding ${w.outputPath}`}
                     style={{ pointerEvents: "auto", cursor: "pointer" }}
-                    onClick={() => onTargetDisconnect(w.outputPath)}
-                    onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onTargetDisconnect(w.outputPath); } }}>
-                    <circle cx={w.zx + 12} cy={w.zy} r={6.5} fill="#FFFFFF" stroke={BLUE} strokeWidth={1.3} />
-                    <text x={w.zx + 12} y={w.zy + 3} textAnchor="middle" fontSize={8.5} fontWeight={700} fill={BLUE} style={{ pointerEvents: "none", userSelect: "none" }}>✕</text>
+                    onClick={() => onDisconnect(w.outputPath)}
+                    onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onDisconnect(w.outputPath); } }}>
+                    <circle cx={(h.x + z.x) / 2} cy={(h.y + z.y) / 2} r={7} fill="#FFFFFF" stroke={VIOLET} strokeWidth={1.3} />
+                    <text x={(h.x + z.x) / 2} y={(h.y + z.y) / 2 + 3} textAnchor="middle" fontSize={9} fontWeight={700} fill={VIOLET} style={{ pointerEvents: "none", userSelect: "none" }}>✕</text>
                   </g>
                 )}
               </g>
             );
           })}
 
-        {/* ── AI ghost wires (dashed + faint, confidence ring, accept/reject) ── */}
-        {!dimmed && ghostWires.map((g, i) => (
+        {/* ── AI ghost wires ─────────────────────────────────────────────────── */}
+        {!isDragging && ghostWires.map((g, i) => (
           <GhostWire
             key={`gw-${g.s.targetKey}-${g.s.sourceId}-${i}`}
-            suggestion={g.s}
-            hx={g.hx}
-            hy={g.hy}
-            zx={g.zx}
-            zy={g.zy}
+            suggestion={g.s} hx={g.hx} hy={g.hy} zx={g.zx} zy={g.zy}
             onAccept={(s) => onAcceptSuggestion?.(s)}
             onReject={(s) => onRejectSuggestion?.(s)}
           />
@@ -548,59 +448,24 @@ export function useMapperWireLayer({
         {/* ── Live drag ghost ────────────────────────────────────────────────── */}
         {drag && dragHandle && (
           <path d={bezier(dragHandle.x, dragHandle.y, drag.x, drag.y)} fill="none"
-            stroke={dragStroke} strokeWidth={2.4} strokeDasharray="5 3" style={{ pointerEvents: "none", opacity: 0.85 }} />
+            stroke={VIOLET} strokeWidth={2.4} strokeDasharray="5 3" strokeLinecap="round" style={{ pointerEvents: "none", opacity: 0.9 }} />
         )}
         {/* ── Keyboard preview ───────────────────────────────────────────────── */}
         {kbSource && kbHandle && kbZone && (
           <path d={bezier(kbHandle.x, kbHandle.y, kbZone.x, kbZone.y)} fill="none"
-            stroke={kbStroke} strokeWidth={2.4} strokeDasharray="5 3" style={{ pointerEvents: "none", opacity: 0.7 }} />
+            stroke={VIOLET} strokeWidth={2.4} strokeDasharray="5 3" strokeLinecap="round" style={{ pointerEvents: "none", opacity: 0.7 }} />
         )}
 
-        {/* ── Canonical dots: drop zone (source bank) + drag handle (target bank) ── */}
-        {canonDots.map((d) => {
-          const active = (drag?.bank === "source" && hoverZone === d.id) || (kbBank === "source" && canonIds[kbTarget] === d.id);
-          const isDragSrc = drag?.bank === "canonical" && drag.sourceId === d.id;
-          const isKbSrc = kbBank === "canonical" && kbSource === d.id;
-          const feedsTarget = targetWires.some((w) => w.canonicalField === d.id);
-          const overrides = targetWires.some((w) => w.canonicalField === d.id && w.isOverride);
-          const fill = isDragSrc || isKbSrc || overrides ? BLUE : feedsTarget ? GREEN : "#FFFFFF";
-          const stroke = isDragSrc || isKbSrc || overrides ? BLUE : feedsTarget ? GREEN : "#8A93A5";
-          return (
-            <g key={`cd-${d.id}`}>
-              {/* Snap ring when a source-bank drag/keyboard is hovering this dot. */}
-              {active && (
-                <circle cx={d.x} cy={d.y} r={9} fill="rgba(111,79,206,0.18)" stroke={VIOLET} strokeWidth={1.5} style={{ pointerEvents: "none" }} />
-              )}
-              {/* The dot doubles as a CANONICAL→TARGET drag handle (right-side gesture). */}
-              <g tabIndex={0} role="button"
-                aria-label={`Drag canonical ${d.id} onto an output field to wire it${isKbSrc ? " — connect mode active, use arrow keys" : ""}`}
-                style={{ pointerEvents: "auto", cursor: "grab" }}
-                onPointerDown={(e) => onHandleDown(e, "canonical", d.id)}
-                onKeyDown={(e) => onHandleKey(e, "canonical", d.id)}
-                onFocus={() => setFocusedId(d.id)}
-                onBlur={() => setFocusedId(null)}>
-                <circle cx={d.x} cy={d.y} r={HANDLE_R + 4}
-                  fill={isDragSrc || isKbSrc || focusedId === d.id ? "rgba(30,102,201,0.15)" : "transparent"}
-                  stroke={focusedId === d.id ? BLUE : "none"} strokeWidth={1.5} style={{ transition: "fill 150ms" }} />
-                <circle cx={d.x} cy={d.y} r={HANDLE_R} fill={fill} stroke={stroke} strokeWidth={1.8} style={{ transition: "fill 150ms, stroke 150ms" }} />
-                <text x={d.x} y={d.y + 3.2} textAnchor="middle" fontSize={7.5} fontWeight={700}
-                  fill={fill === "#FFFFFF" ? "#8A93A5" : "#FFFFFF"}
-                  style={{ pointerEvents: "none", userSelect: "none", fontFamily: "monospace" }}>→</text>
-              </g>
-            </g>
-          );
-        })}
-
-        {/* ── Target drop zones (hit targets + snap ring for canonical-bank drag) ── */}
-        {targetZones.map((z) => {
-          const active = (drag?.bank === "canonical" && hoverZone === z.id) || (kbBank === "canonical" && targetIds[kbTarget] === z.id);
+        {/* ── Target snap rings + hit zones (only while dragging) ─────────────── */}
+        {isDragging && targetPorts.map((z) => {
+          const active = hoverTarget === z.id || (kbSource && targetIds[kbTarget] === z.id);
           return (
             <g key={`tz-${z.id}`} style={{ pointerEvents: "auto" }}>
               {active && (
-                <circle cx={z.x} cy={z.y} r={9} fill="rgba(30,102,201,0.18)" stroke={BLUE} strokeWidth={1.5} style={{ pointerEvents: "none" }} />
+                <circle cx={z.x} cy={z.y} r={10} fill="rgba(111,79,206,0.18)" stroke={VIOLET} strokeWidth={1.6} style={{ pointerEvents: "none" }} />
               )}
               <rect x={z.x - ZONE_W / 2} y={z.y - ZONE_H / 2} width={ZONE_W} height={ZONE_H}
-                fill="transparent" style={{ cursor: drag ? "crosshair" : "default" }} />
+                fill="transparent" style={{ cursor: "crosshair" }} />
             </g>
           );
         })}
@@ -608,5 +473,5 @@ export function useMapperWireLayer({
     </>
   );
 
-  return { sourceChipProps, svg };
+  return { sourcePortProps, svg, dragging: drag != null, hoverTarget };
 }

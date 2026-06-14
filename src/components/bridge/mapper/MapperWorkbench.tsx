@@ -1,48 +1,37 @@
 "use client";
 
-// MapperWorkbench — the REDESIGNED mapper shell. It replaces ThreePaneMapper's three equal
-// lanes with a structure the founder asked for:
+// MapperWorkbench — the RE-ARCHITECTED mapper shell (2026-06-14 rebuild).
 //
-//   ┌──────────────────────────┬──────────────┬──────────────────────────┐
-//   │  IncomingPane            │ canonical    │  OutgoingPane             │
-//   │  (order's ACTUAL fields  │ spine        │  (output fields with an   │
-//   │   WITH VALUES — never     │ (wire gutter)│   HONEST per-field status:│
-//   │   empty, even for API)    │              │   value preview + source  │
-//   │                          │              │   tag / quiet unmapped)   │
-//   └──────────────────────────┴──────────────┴──────────────────────────┘
-//   ┌───────────────────────────────────────────────────────────────────┐
-//   │  DOCKED LIVE PREVIEW  — ALWAYS PRESENT, prominent (right rail ≥1280,│
-//   │  docked bottom-third otherwise). Filled by the interaction agent.   │
-//   └───────────────────────────────────────────────────────────────────┘
+// The previous redesign failed in production. Root causes (now fixed):
+//   1. Incoming values came ONLY from getSourceTokens(orderId), which is [] for PDF/XLSX → an
+//      empty left pane + a false "arrived already-structured" message. → Values now come from
+//      the parsed Order DIRECTLY (useMapperModel.incomingOrder); tokens are optional extras.
+//   2. It was THREE physical columns (Incoming | value-less CanonicalLane | Outgoing) with the
+//      canonical dot far-left, so output wires crossed the canonical LABEL TEXT. → TRUE 2
+//      COLUMNS: Incoming | gutter | Outgoing. The canonical join is wire METADATA, not a column.
+//   3. Columns were position:sticky while the wire SVG was container-relative → anchors drifted
+//      every scroll frame and a rAF scroll-poll fought to keep up. → ONE relatively-positioned
+//      CANVAS wraps both columns + the SVG; NOTHING is sticky; the page scrolls the canvas as
+//      one unit so the overlay stays glued with ZERO per-scroll JS (see MapperWireLayer).
+//   4. Wires only appeared after a scroll (80ms gate + scroll-poll). → measure-on-layout
+//      (useLayoutEffect, synchronous, commit on first paint); a single ResizeObserver; no poll.
+//   5. Duplicate transform editors (FieldBadges in badgeSlot AND OutgoingPane's own). → ONE
+//      inline transform per outgoing row; badgeSlot keeps only catalog/validation badges.
+//   6. The format toggle showed the server body verbatim. → the preview pane passes the chosen
+//      format and shows an honest "unavailable in {format}" rather than silently showing JSON.
 //
-// Two co-equal VALUE columns (Incoming | Outgoing) flank a slimmer canonical spine that IS the
-// wire gutter — the engine snaps source→canonical and canonical→output wires to it. The preview
-// is a co-equal docked region, not a hidden/bottom-buried strip.
-//
-// The INTERACTION + POLISH pass wires the seams the structural pass left:
-//   • IncomingPane anchorRef + OutgoingPane zoneRef + CanonicalLane dotRef → live drag wires
-//     (MapperWireLayer): grip handles, snap zones, land-pulse, hover-emphasis, keyboard path.
-//   • the docked `<MapperPreviewPane/>` renders the real output ("what {name} receives"),
-//     debounced ~300ms, with working format toggle + copy + download + change-flash.
-//   • OutgoingPane "+ Transform" opens the manipulator-chain popover (TransformPopover);
-//     IncomingPane "Change source" opens the re-derive popover (ChangeSourcePopover, writes
-//     sourceMap / fixed value). Toolbar Validate · Enrich from catalog · Save mappings are
-//     each wired to a real handler or honestly disabled with a reason.
-//   • AI suggestions render as dashed ghost wires with inline ✓/✗ + a "N suggestions" banner —
-//     never auto-applied.
 // The save contract (sourceMap + output via buildOverrideDraft, inside useMapperModel) is
-// UNCHANGED — this only changes the VIEW + adds incoming values + the status overlay.
+// UNCHANGED — this only changes the VIEW + adds incoming values + the robust overlay.
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "../DSPrimitives";
 import { IncomingPane } from "./IncomingPane";
 import { OutgoingPane } from "./OutgoingPane";
-import { CanonicalLane } from "./CanonicalLane";
-import { FieldBadges } from "./FieldBadges";
 import { MapperPreviewPane } from "./MapperPreviewPane";
 import { useMapperWireLayer } from "./MapperWireLayer";
-import { useMapperModel, fieldManipulatorsOf } from "./useMapperModel";
+import { useMapperModel } from "./useMapperModel";
+import type { IncomingOrderShape } from "./incomingFromOrder";
 import { MAPPER_EVENT, type MapperCommandEvent } from "./mapperCommands";
 import type { OutgoingStatusInput } from "./outgoingStatusModel";
 import { computeOutgoingStatuses } from "./outgoingStatusModel";
@@ -59,6 +48,11 @@ export interface MapperWorkbenchProps {
   supplierName?: string;
   previewOrderId?: string | null;
   initialOverride?: OrderMappingOverride | null;
+  /**
+   * The parsed Order the incoming column is built from (order variant). Passing this is what
+   * makes the left pane work for PDF/XLSX orders. SpineReview already has it.
+   */
+  order?: IncomingOrderShape | null;
   readOnly?: boolean;
   extractionFailed?: boolean;
   onDeliver?: () => void;
@@ -86,13 +80,13 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
     supplierId: props.supplierId,
     previewOrderId: props.previewOrderId,
     initialOverride: props.initialOverride,
+    incomingOrder: props.order ?? null,
     readOnly,
   });
 
-  // ── Wire anchor refs (the engine measures these) ───────────────────────────
-  const gridRef = useRef<HTMLDivElement>(null);
+  // ── Wire anchor refs — ONE canvas (relative), two port maps. Nothing is sticky. ──
+  const canvasRef = useRef<HTMLDivElement>(null);
   const sourceEls = useRef<Record<string, HTMLElement | null>>({});
-  const canonicalEls = useRef<Record<string, HTMLElement | null>>({});
   const targetEls = useRef<Record<string, HTMLElement | null>>({});
 
   const [hoveredId, setHoveredId] = useState<string | null>(null);
@@ -101,7 +95,7 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<FieldFilter>("all");
 
-  // ── Deep-link: ?field=<key> selects + scrolls to a node ────────────────────
+  // ── Deep-link: ?field=<key> selects + scrolls to a row ─────────────────────
   const router = useRouter();
   const searchParams = useSearchParams();
   const deepField = searchParams.get("field");
@@ -109,7 +103,7 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
     if (!deepField) return;
     setSelectedId(deepField);
     setHoveredId(deepField);
-    const el = canonicalEls.current[deepField] ?? targetEls.current[deepField] ?? sourceEls.current[deepField];
+    const el = targetEls.current[deepField] ?? sourceEls.current[deepField];
     el?.scrollIntoView?.({ block: "center", behavior: "smooth" });
   }, [deepField]);
 
@@ -125,7 +119,6 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
 
   // ── Command-palette power commands (plk:mapper event bus) ───────────────────
   const [focusSearchSignal, setFocusSearchSignal] = useState(0);
-  const [addFieldSignal, setAddFieldSignal] = useState(0);
   const [cycleFormatSignal, setCycleFormatSignal] = useState(0);
 
   useEffect(() => {
@@ -136,22 +129,18 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
         case "jump-to-field":
           setFocusSearchSignal((n) => n + 1);
           break;
-        case "add-field":
-          if (!readOnly) setAddFieldSignal((n) => n + 1);
-          break;
         case "switch-format":
           setCycleFormatSignal((n) => n + 1);
           break;
         case "add-transform": {
           if (readOnly || !hoveredId) break;
-          const row = targetEls.current[hoveredId];
-          row?.scrollIntoView?.({ block: "center", behavior: "smooth" });
+          targetEls.current[hoveredId]?.scrollIntoView?.({ block: "center", behavior: "smooth" });
           break;
         }
         case "show-standards": {
           if (!hoveredId) break;
-          const node = canonicalEls.current[hoveredId];
-          const card = node?.closest<HTMLElement>(".relative") ?? node?.parentElement ?? null;
+          const row = targetEls.current[hoveredId] ?? sourceEls.current[hoveredId];
+          const card = row?.closest<HTMLElement>("[data-mapper-row]") ?? row?.parentElement ?? null;
           const trigger = card?.querySelector<HTMLButtonElement>('[aria-label^="Standards"], [aria-label*="standards"]');
           card?.scrollIntoView?.({ block: "center", behavior: "smooth" });
           trigger?.click();
@@ -163,25 +152,47 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
     return () => window.removeEventListener(MAPPER_EVENT, onCommand);
   }, [readOnly, hoveredId]);
 
-  // ── Wire engine (interaction agent refines drag/preview; structural pass keeps it live) ──
-  const { sourceChipProps, svg } = useMapperWireLayer({
-    gridRef,
+  // ── Source ids in render order (drives the wire engine's measure list + kb order) ──
+  const sourceIds = useMemo(() => model.sourceFields.map((f) => f.id), [model.sourceFields]);
+  const knownSourceIds = useMemo(() => new Set(sourceIds), [sourceIds]);
+
+  // Canonical keys = the spine node ids (so a wired raw token is distinguishable from a re-point).
+  const knownCanonical = useMemo(
+    () => new Set(model.canonicalNodes.map((n) => n.id)),
+    [model.canonicalNodes],
+  );
+
+  // An incoming row dropped on an output. A canonical row (id is a canonical key) re-points the
+  // output's source; a raw token (id is a token id, NOT a canonical key) pins the output's value
+  // to the token's literal (lossless + keeps the output-only save contract).
+  const onWireConnect = useCallback((sourceId: string, outputPath: string) => {
+    if (knownCanonical.has(sourceId)) {
+      model.onTargetConnect(sourceId, outputPath);
+    } else {
+      const literal = model.tokenValueById.get(sourceId) ?? "";
+      const field = model.targetFields.find((f) => f.outputPath === outputPath);
+      model.onSetFixedValue(outputPath, literal || null, field?.scope ?? "header");
+    }
+    setSelectedId(outputPath);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [knownCanonical, model.onTargetConnect, model.onSetFixedValue, model.tokenValueById, model.targetFields]);
+
+  // ── Wire engine (2-bank, robust in-content overlay) ─────────────────────────
+  const wire = useMapperWireLayer({
+    canvasRef,
     sourceEls,
-    canonicalEls,
     targetEls,
-    canonicalNodes: model.canonicalNodes,
+    sourceIds,
     targetFields: model.targetFields,
     outputConnections: model.outputConnections,
-    sourceConnections: model.sourceConnections,
-    knownSourceTokenIds: model.knownSourceTokenIds,
-    onSourceConnect: model.onSourceConnect,
-    onTargetConnect: model.onTargetConnect,
-    onSourceDisconnect: model.onSourceDisconnect,
-    onTargetDisconnect: model.onTargetDisconnect,
+    knownSourceIds,
+    onConnect: onWireConnect,
+    onDisconnect: model.onTargetDisconnect,
     suggestions: model.suggestions,
     onAcceptSuggestion: model.onAcceptSuggestion,
     onRejectSuggestion: model.onRejectSuggestion,
     hoveredId,
+    readOnly,
     signature: model.signature,
   });
 
@@ -203,10 +214,9 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
     () => computeOutgoingStatuses(model.targetFields, statusInput),
     [model.targetFields, statusInput],
   );
-  // Deliver is gated on validation being clean AND no required output left without a source.
   const canDeliver = !readOnly && blockingCount === 0 && summary.requiredUnmapped === 0 && !deliverDisabled;
 
-  // ── Per-row enrichment badges ───────────────────────────────────────────────
+  // ── Per-row enrichment badges (catalog/validation ONLY — no 2nd transform editor) ──
   const badgeSlot = useCallback((field: TargetField) => {
     const validation =
       model.validationByKey.get(field.outputPath) ??
@@ -218,24 +228,23 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
       (model.outputConnections[field.outputPath]
         ? model.catalogHintByLine.get(model.outputConnections[field.outputPath]) ?? null
         : null);
-    const manipulators = fieldManipulatorsOf(model.override, field.outputPath);
+    if (!validation && !catalogHint) return null;
     return (
-      <FieldBadges
-        validation={validation}
-        catalogHint={catalogHint}
-        manipulators={manipulators}
-        onManipulatorsChange={(next) => model.onFieldManipulatorsChange(field.outputPath, next, field.scope)}
-        onUseCatalogPrice={(hint) => model.onUseCatalogPrice(field.outputPath, hint, field.scope)}
-        readOnly={readOnly}
-      />
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+        {validation && <ValidationBadge state={validation.state} blocking={validation.blocking} reason={validation.reason} />}
+        {catalogHint && (
+          <CatalogBadge
+            hint={catalogHint}
+            onUse={readOnly ? undefined : () => model.onUseCatalogPrice(field.outputPath, catalogHint, field.scope)}
+          />
+        )}
+      </div>
     );
   }, [model, readOnly]);
 
-  // ── Catalog enrich: count hinted lines + a scroll-to-first action (real, never dead) ──
+  // ── Catalog enrich: count hinted lines + a scroll-to-first action ──────────
   const catalogHintCount = model.catalogHintByLine.size;
   const scrollToFirstCatalogHint = useCallback(() => {
-    // Find the first OUTPUT row whose line has a catalog hint and bring it into view so the
-    // per-row "Use catalog €X" action (rendered in its FieldBadges) is reachable.
     const target = model.targetFields.find((f) =>
       model.catalogHintByLine.has(f.outputPath) ||
       (model.outputConnections[f.outputPath]
@@ -253,7 +262,7 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
     return <WorkbenchSkeleton />;
   }
 
-  // ── Shared incoming/outgoing column nodes (reused by both layouts) ──────────
+  // ── The two value columns (shared by both layouts) ──────────────────────────
   const incomingNode = (
     <IncomingPane
       fields={model.sourceFields}
@@ -261,36 +270,17 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
       onQuery={setQuery}
       filter={filter}
       onFilter={setFilter}
-      chipProps={sourceChipProps}
+      portProps={wire.sourcePortProps}
       loading={model.loading}
       sourceFileKey={model.sourceFileKey}
       extractionFailed={extractionFailed}
       focusSearchSignal={focusSearchSignal}
       anchorRef={(id, el) => { sourceEls.current[id] = el; }}
-      canonicalNodes={model.canonicalNodes}
-      sourceConnections={model.sourceConnections}
-      onSourceConnect={model.onSourceConnect}
-      onSourceDisconnect={model.onSourceDisconnect}
-      onSetFixedValue={model.onSetFixedValue}
       hoveredId={hoveredId}
       onHover={setHoveredId}
       onSelect={setSelectedId}
+      dragging={wire.dragging}
       readOnly={readOnly}
-    />
-  );
-
-  const canonicalNode = (
-    <CanonicalLane
-      scopeId={scopeId}
-      customFields={model.customFields}
-      sourceConnections={model.sourceConnections}
-      dotRef={(id, el) => { canonicalEls.current[id] = el; }}
-      onHover={setHoveredId}
-      onSelect={setSelectedId}
-      hoveredId={hoveredId}
-      readOnly={readOnly}
-      allowCustomFields={variant === "connection"}
-      openAddFieldSignal={addFieldSignal}
     />
   );
 
@@ -301,10 +291,11 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
       outputConnections={model.outputConnections}
       fixedValues={model.fixedValues}
       statusInput={statusInput}
-      zoneRef={(path, el) => { targetEls.current[path] = el; }}
+      portRef={(path, el) => { targetEls.current[path] = el; }}
       onHover={setHoveredId}
       onSelect={setSelectedId}
       hoveredId={hoveredId}
+      snapTarget={wire.hoverTarget}
       onDisconnect={model.onTargetDisconnect}
       onSetFixedValue={model.onSetFixedValue}
       badgeSlot={badgeSlot}
@@ -359,9 +350,6 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
               ⚠ {summary.requiredUnmapped} {summary.requiredUnmapped === 1 ? "field needs" : "fields need"} a source
             </span>
           )}
-          {/* Enrich from catalog — when the catalog overlay has hints, it scrolls the first
-              hinted output row into view so the per-line "Use catalog €X" action is reachable;
-              otherwise honestly disabled with the reason (no hints / no catalog configured). */}
           <ToolbarButton
             label={catalogHintCount > 0 ? `Enrich from catalog · ${catalogHintCount}` : "Enrich from catalog"}
             title={
@@ -371,13 +359,11 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
             }
             onClick={catalogHintCount > 0 ? scrollToFirstCatalogHint : undefined}
           />
-          {/* Validate — opens the host's standards-profile validation flow, or honestly disabled. */}
           <ToolbarButton
             label="Validate"
             title={onValidate ? "Validate the outbound document against a standards profile" : "Validation runs from the order review header"}
             onClick={onValidate}
           />
-          {/* Save mappings — promotes this mapping to the supplier so the next order auto-applies. */}
           {onSaveMappings && (
             <ToolbarButton
               label={savingMappings ? "Saving…" : (saveMappingsLabel ?? "Save mappings")}
@@ -395,10 +381,7 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
         </div>
       </div>
 
-      {/* ── AI suggestions banner — N suggestions to review (never auto-applied) ────────
-          Each suggestion renders as a dashed ghost wire with inline ✓ accept / ✗ reject; this
-          banner just surfaces the count + the honest framing so a bad suggestion reads as an
-          easy reject, not a committed mapping. Hidden when there are none. */}
+      {/* ── AI suggestions banner ───────────────────────────────────────── */}
       {!readOnly && model.suggestions.length > 0 && (
         <div
           role="status"
@@ -455,30 +438,40 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
       )}
 
       {/* ── Desktop (lg+) canvas + docked preview ─────────────────────────────
-          ONE canvas (so the wire engine has exactly one gridRef to measure). The preview is
-          ALWAYS PRESENT and prominent — a flex row that wraps: at ≥1280 the canvas + preview
-          sit side-by-side (preview = docked right rail); at 1024–1279 the preview wraps to a
-          full-width docked region below (the bottom-third). CSS reflow only — no duplicate
-          ref. The canvas is `flex: 1 1 720px`; the preview is `flex: 1 1 340px`, so the row
-          breaks to two rows once both can't fit, docking the preview underneath. */}
+          A flex row that wraps. The CANVAS holds the two value columns + the wire SVG as ONE
+          relatively-positioned unit (NOTHING sticky → the overlay scrolls with the columns).
+          The preview docks to the right when it fits (≥~1440 total) and wraps to a full-width
+          region below otherwise. */}
       <div className="hidden lg:flex" style={{ flexWrap: "wrap", gap: 16, alignItems: "flex-start" }}>
-        <div ref={gridRef} style={{ position: "relative", flex: "1 1 720px", minWidth: 0 }}>
-          <div style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr) 184px minmax(0,1fr)", gap: 12, alignItems: "start" }}>
-            <div style={{ position: "sticky", top: 8 }}>{incomingNode}</div>
-            <div style={{ position: "sticky", top: 8 }} aria-label="Canonical spine (wire gutter)">{canonicalNode}</div>
-            <div style={{ position: "sticky", top: 8 }}>{outgoingNode}</div>
+        <div
+          ref={canvasRef}
+          data-mapper-canvas
+          style={{ position: "relative", flex: "1 1 680px", minWidth: 0 }}
+        >
+          {/* TRUE 2 columns: Incoming | gutter | Outgoing. The gutter is where wires live. */}
+          <div style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr) 64px minmax(0,1fr)", alignItems: "start" }}>
+            <div style={{ minWidth: 0 }}>{incomingNode}</div>
+            <div aria-hidden /> {/* wire gutter — empty, the SVG draws here */}
+            <div style={{ minWidth: 0 }}>{outgoingNode}</div>
           </div>
-          {/* The engine SVG overlays the whole value grid. */}
-          {svg}
+          {/* The engine SVG overlays the whole canvas (measured relative to it). */}
+          {wire.svg}
         </div>
-        {/* Docked preview — always present, prominent. Right rail when it fits beside the
-            canvas; wraps to a full-width docked region below otherwise. */}
-        <div style={{ flex: "1 1 340px", minWidth: 320, position: "sticky", top: 8, alignSelf: "stretch" }}>
+        {/* Docked preview — always present. */}
+        <div style={{ flex: "1 1 360px", minWidth: 340 }}>
           {previewNode}
         </div>
       </div>
     </div>
   );
+}
+
+// ── Read an output path's current manipulator (fx) chain from an override (per-row feed) ──
+function fieldManipulatorsOf(override: OrderMappingOverride, outputPath: string) {
+  const cfg = override.output;
+  if (!cfg) return [];
+  const rule = cfg.header?.[outputPath] ?? cfg.lines?.[outputPath];
+  return rule?.fieldManipulators ?? [];
 }
 
 // ── Toolbar button — real handler, or honestly disabled with a reason tooltip ──
@@ -491,7 +484,6 @@ function ToolbarButton({
   disabled?: boolean;
   variant?: "ghost" | "violet";
 }) {
-  // No handler → render disabled-with-reason (never a dead-but-enabled button).
   const isDisabled = disabled || !onClick;
   const violet = variant === "violet";
   return (
@@ -503,7 +495,7 @@ function ToolbarButton({
       style={{
         height: 30, padding: "0 11px", borderRadius: 7, fontSize: 11.5, fontWeight: 700,
         border: `1px solid ${violet ? "#C4ABE8" : "#DCE0E8"}`,
-        background: isDisabled ? "#F6F7FA" : violet ? "#FFFFFF" : "#FFFFFF",
+        background: isDisabled ? "#F6F7FA" : "#FFFFFF",
         color: isDisabled ? "#AEB6C4" : violet ? "#5E3DB0" : "#345470",
         cursor: isDisabled ? "not-allowed" : "pointer",
         whiteSpace: "nowrap",
@@ -531,6 +523,33 @@ function MappedSummaryChip({ mapped, total }: { mapped: number; total: number })
     >
       {mapped} of {total} mapped
     </span>
+  );
+}
+
+// ── Per-row validation badge (catalog/validation only — NOT a transform editor) ──
+function ValidationBadge({ state, blocking, reason }: { state: "valid" | "review"; blocking?: boolean; reason?: string | null }) {
+  if (state === "valid") return null; // a clean field needs no badge
+  const tone = blocking
+    ? { bg: "#FBE3E3", color: "#C53A3A", border: "#F0C8C8", label: "needs review" }
+    : { bg: "#FFF7E6", color: "#9A6B00", border: "#F1E2BE", label: "review" };
+  return (
+    <span title={reason ?? undefined} style={{ fontSize: 9, fontWeight: 700, color: tone.color, background: tone.bg, border: `1px solid ${tone.border}`, borderRadius: 4, padding: "1px 6px" }}>
+      {tone.label}
+    </span>
+  );
+}
+
+function CatalogBadge({ hint, onUse }: { hint: { catalogPrice?: number | null; currency?: string | null }; onUse?: () => void }) {
+  if (hint.catalogPrice == null) return null;
+  const label = `Catalog ${hint.currency ?? ""}${hint.catalogPrice}`.trim();
+  if (!onUse) {
+    return <span style={{ fontSize: 9, fontWeight: 700, color: "#5E3DB0", background: "#F4EFFC", border: "1px solid #E2D6F6", borderRadius: 4, padding: "1px 6px" }}>{label}</span>;
+  }
+  return (
+    <button type="button" onClick={onUse} title="Apply the catalog price as a fixed value for this line"
+      style={{ fontSize: 9, fontWeight: 700, color: "#5E3DB0", background: "#F4EFFC", border: "1px solid #E2D6F6", borderRadius: 4, padding: "1px 6px", cursor: "pointer" }}>
+      Use {label}
+    </button>
   );
 }
 
@@ -567,7 +586,7 @@ function MapperMobileSummary({
 // ── Loading skeleton ─────────────────────────────────────────────────────────
 function WorkbenchSkeleton() {
   return (
-    <div className="grid gap-4" style={{ gridTemplateColumns: "1fr 0.5fr 1fr" }}>
+    <div className="grid gap-4" style={{ gridTemplateColumns: "1fr 64px 1fr" }}>
       {[0, 1, 2].map((i) => (
         <div key={i} style={{ display: "flex", flexDirection: "column", gap: 8 }}>
           {[0, 1, 2, 3, 4].map((j) => (

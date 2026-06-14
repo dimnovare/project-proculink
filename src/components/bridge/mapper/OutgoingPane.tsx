@@ -36,11 +36,13 @@ export interface OutgoingPaneProps {
   fixedValues?: Partial<Record<string, string>>;
   /** Inputs for the honest value-preview computation (built by the host from the model). */
   statusInput: OutgoingStatusInput;
-  /** Register a row's drop-zone anchor for the wire engine. */
-  zoneRef?: (outputPath: string, el: HTMLDivElement | null) => void;
+  /** Register a row's LEFT-edge drop PORT element for the wire engine. */
+  portRef?: (outputPath: string, el: HTMLDivElement | null) => void;
   onHover?: (outputPath: string | null) => void;
   onSelect?: (outputPath: string) => void;
   hoveredId?: string | null;
+  /** Output path currently snap-highlighted under a drag (drives the drop-target glow). */
+  snapTarget?: string | null;
   onDisconnect?: (outputPath: string) => void;
   /** Set/clear a fixed literal (real control; disabled-with-reason when absent). */
   onSetFixedValue?: (outputPath: string, value: string | null) => void;
@@ -75,10 +77,11 @@ export function OutgoingPane({
   outputConnections,
   fixedValues,
   statusInput,
-  zoneRef,
+  portRef,
   onHover,
   onSelect,
   hoveredId,
+  snapTarget,
   onDisconnect,
   onSetFixedValue,
   onRenamePath,
@@ -116,9 +119,10 @@ export function OutgoingPane({
               wired={isTargetWired(field.outputPath, outputConnections)}
               fixedValue={fixedValues?.[field.outputPath] ?? null}
               hovered={hoveredId === field.outputPath}
+              snapped={snapTarget === field.outputPath}
               canRename={canRename}
               readOnly={readOnly}
-              zoneRef={zoneRef}
+              portRef={portRef}
               onHover={onHover}
               onSelect={onSelect}
               onDisconnect={onDisconnect}
@@ -135,19 +139,20 @@ export function OutgoingPane({
   );
 }
 
-// ── A single output-field row (the drop zone + honest status) ─────────────────
+// ── A single output-field row (the LEFT-edge drop PORT + honest status) ───────
 function OutgoingRow({
-  field, status, wired, fixedValue, hovered, canRename, readOnly,
-  zoneRef, onHover, onSelect, onDisconnect, onSetFixedValue, onRenamePath, manipulators, onFieldManipulatorsChange, badgeSlot,
+  field, status, wired, fixedValue, hovered, snapped, canRename, readOnly,
+  portRef, onHover, onSelect, onDisconnect, onSetFixedValue, onRenamePath, manipulators, onFieldManipulatorsChange, badgeSlot,
 }: {
   field: TargetField;
   status: OutgoingFieldStatus;
   wired: boolean;
   fixedValue: string | null;
   hovered: boolean;
+  snapped?: boolean;
   canRename: boolean;
   readOnly?: boolean;
-  zoneRef?: (outputPath: string, el: HTMLDivElement | null) => void;
+  portRef?: (outputPath: string, el: HTMLDivElement | null) => void;
   onHover?: (outputPath: string | null) => void;
   onSelect?: (outputPath: string) => void;
   onDisconnect?: (outputPath: string) => void;
@@ -178,25 +183,36 @@ function OutgoingRow({
 
   return (
     <div
+      data-mapper-row
       onMouseEnter={() => onHover?.(field.outputPath)}
       onMouseLeave={() => onHover?.(null)}
       onClick={() => onSelect?.(field.outputPath)}
       style={{
+        position: "relative",
         borderRadius: 8,
-        border: `1px solid ${needsSource ? "#F1E2BE" : hovered ? "#A9D3AF" : status.mapped ? "#D7E7DA" : "var(--line, #E2E6EE)"}`,
+        border: `1px solid ${snapped ? "#6F4FCE" : needsSource ? "#F1E2BE" : hovered ? "#A9D3AF" : status.mapped ? "#D7E7DA" : "var(--line, #E2E6EE)"}`,
         borderRight: `3px solid ${status.mapped ? "#2E8E3A" : needsSource ? "#E0B23C" : accent}`,
-        background: needsSource ? "#FFFCF4" : hovered ? "rgba(46,142,58,0.05)" : "#FFFFFF",
-        padding: "8px 10px",
-        transition: "background 120ms, border-color 120ms",
+        background: snapped ? "#F4EFFC" : needsSource ? "#FFFCF4" : hovered ? "rgba(46,142,58,0.05)" : "#FFFFFF",
+        padding: "8px 10px 8px 16px",
+        boxShadow: snapped ? "0 0 0 2px rgba(111,79,206,0.18)" : undefined,
+        transition: "background 120ms, border-color 120ms, box-shadow 120ms",
       }}
     >
       <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
-        {/* Drop-zone anchor — the wire engine snaps the canonical→target wire here. */}
+        {/* LEFT-edge drop PORT — the wire engine snaps the incoming→output wire here. Sits on the
+            row's left edge facing the gutter so wires land on the left, never over the text. */}
         <div
-          ref={(el) => zoneRef?.(field.outputPath, el)}
+          ref={(el) => portRef?.(field.outputPath, el)}
           aria-hidden
-          className="rounded-full bg-white"
-          style={{ width: 11, height: 11, border: `2.5px solid ${status.mapped ? "#2E8E3A" : accent}`, flexShrink: 0 }}
+          className="rounded-full"
+          style={{
+            position: "absolute", left: -6, top: "50%", transform: "translateY(-50%)",
+            width: 12, height: 12, borderRadius: 999,
+            background: status.mapped ? (status.kind === "fixed" ? "#FFFFFF" : "#FFFFFF") : "#FFFFFF",
+            border: `2.5px solid ${snapped ? "#6F4FCE" : status.mapped ? "#2E8E3A" : accent}`,
+            boxShadow: snapped ? "0 0 0 3px rgba(111,79,206,0.18)" : undefined,
+            flexShrink: 0, transition: "border-color 120ms, box-shadow 120ms",
+          }}
         />
 
         {renaming ? (
@@ -245,7 +261,7 @@ function OutgoingRow({
 
       {/* Resolved value preview (mono) — the real delivered value as far as it's known. */}
       {status.mapped && (
-        <div style={{ marginTop: 5, marginLeft: 19, display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
+        <div style={{ marginTop: 5, display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
           <span style={{ fontSize: 8.5, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--ink-faint)", flexShrink: 0 }}>
             →
           </span>
@@ -255,13 +271,14 @@ function OutgoingRow({
         </div>
       )}
 
-      {/* Enrichment slot: catalog/validation badges + manipulator pills (Task 9). */}
-      {badgeSlot && <div style={{ marginTop: 5 }}>{badgeSlot(field)}</div>}
+      {/* Enrichment slot: catalog/validation badges ONLY (the single transform editor lives in
+          the inline controls row below — no second manipulator editor here). */}
+      {badgeSlot && (() => { const b = badgeSlot(field); return b ? <div style={{ marginTop: 5 }}>{b}</div> : null; })()}
 
-      {/* Power controls row — fixed value + transform. Real controls; disabled-with-reason when
-          the host hasn't wired the handler yet (never dead-but-enabled). */}
+      {/* ONE inline controls row — source tag is already shown above; here: Transform + Fixed
+          value, tight + inline (not floating far below). Real handlers, or disabled-with-reason. */}
       {!readOnly && (
-        <div style={{ marginTop: 6, display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+        <div style={{ marginTop: 6, display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
           {/* Fixed value — only meaningful when not wired to a canonical source. */}
           {!wired && (
             onSetFixedValue ? (

@@ -17,8 +17,7 @@ export type MapperCommandKind =
   | "jump-to-field"   // focus the source-field search so the user can jump to any field
   | "add-transform"   // open the manipulator dropdown on the focused output field
   | "switch-format"   // cycle the live-preview output format
-  | "show-standards"  // open the standards-mapping popover for the focused field
-  | "add-field";      // focus the CanonicalLane "+ Add field" form
+  | "show-standards"; // open the standards-mapping popover for the focused field
 
 export interface MapperCommandEvent {
   kind: MapperCommandKind;
@@ -47,9 +46,12 @@ export function nextOutputFormat(current: OutputFormatId): OutputFormatId {
 }
 
 /**
- * Build the five mapper power commands. `dispatch` is injected so this is pure + testable;
- * the live caller passes a thin wrapper that emits a window CustomEvent (see dispatchMapper).
- * ids a13..a17 continue the CommandPalette's hardcoded action numbering (a1..a12).
+ * Build the mapper power commands. `dispatch` is injected so this is pure + testable; the live
+ * caller passes a thin wrapper that emits a window CustomEvent (see dispatchMapper). ids
+ * a13..a16 continue the CommandPalette's hardcoded action numbering (a1..a12). (The old
+ * "Add a custom field" command was dropped with the 2-column rebuild — the value-less
+ * canonical spine column it targeted no longer exists; output fields are added from the
+ * Outgoing pane's "+ Add output field" in the connection editor.)
  */
 export function buildMapperCommands(dispatch: (e: MapperCommandEvent) => void): MapperCommand[] {
   const cmd = (
@@ -73,7 +75,6 @@ export function buildMapperCommands(dispatch: (e: MapperCommandEvent) => void): 
     cmd("a14", "Add a transform",          "Add a manipulator to the focused field",   "ƒ", "add-transform"),
     cmd("a15", "Switch output format",     "Cycle the live-preview format",            "⇄", "switch-format"),
     cmd("a16", "Show standards mapping",   "UBL / EDIFACT / X12 / cXML for this field", "≣", "show-standards"),
-    cmd("a17", "Add a custom field",       "Add a Tier-2 canonical field to the spine", "＋", "add-field"),
   ];
 }
 

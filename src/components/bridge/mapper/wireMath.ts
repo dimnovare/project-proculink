@@ -81,3 +81,40 @@ export function nearestZone(zones: Pt[], x: number, y: number, snapPx: number): 
   }
   return best;
 }
+
+/** A resolved 2-bank wire (incoming id → output path) with its canonical metadata. */
+export interface ResolvedMapperWire {
+  sourceId: string;
+  outputPath: string;
+  canonicalField: string;
+  isOverride: boolean;
+}
+
+/**
+ * Resolve the persistent INCOMING→OUTPUT wires for the rebuilt 2-column mapper. Pure so the
+ * engine's wire set is unit-testable without mounting React. Precedence per output path:
+ *   1. explicit user wire   — outputConnections[path] names the incoming canonical id; an
+ *      override iff that id differs from the path itself.
+ *   2. implicit 1:1 default — the output path equals a canonical key AND an incoming row of
+ *      that id exists (knownSourceIds) → a faint default wire (never an override).
+ * A raw-token fixed value carries no incoming anchor, so it produces no wire here (the row
+ * shows a fixed badge instead). Output order is preserved.
+ */
+export function resolveMapperWires(
+  outputPaths: string[],
+  outputConnections: Partial<Record<string, string>>,
+  knownSourceIds: ReadonlySet<string>,
+): ResolvedMapperWire[] {
+  const out: ResolvedMapperWire[] = [];
+  for (const path of outputPaths) {
+    const explicit = outputConnections[path];
+    if (explicit) {
+      out.push({ sourceId: explicit, outputPath: path, canonicalField: explicit, isOverride: explicit !== path });
+      continue;
+    }
+    if (knownSourceIds.has(path)) {
+      out.push({ sourceId: path, outputPath: path, canonicalField: path, isOverride: false });
+    }
+  }
+  return out;
+}

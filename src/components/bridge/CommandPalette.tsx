@@ -106,8 +106,8 @@ function buildIndex(
     // onSuccess navigation mid-flight (TanStack observer teardown).
     { id: "a11", group: "Actions", icon: "▶", label: "Run a sample order",   sub: "Practice with an example order — opens Upload", action: () => router.push("/upload"), color: "#2E8E3A" },
     { id: "a12", group: "Actions", icon: "?", label: "Open help",            sub: "Help docs",              action: () => router.push("/help"),             color: "#0F4FA8" },
-    // ── Mapper power commands (a13..a17) ────────────────────
-    // These dispatch onto the window "plk:mapper" bus; the mounted ThreePaneMapper
+    // ── Mapper power commands (a13..a16) ────────────────────
+    // These dispatch onto the window "plk:mapper" bus; the mounted MapperWorkbench
     // (inbox order review / connection editor) listens and acts on its focused field.
     // They show always (progressive disclosure — discoverable for anyone who needs them);
     // outside the mapper the dispatch is a harmless no-op (no listener attached).
