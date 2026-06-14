@@ -22,6 +22,12 @@ import { SpineConnectors } from "./SpineConnectors";
 import { WireDragLayer } from "./WireDragLayer";
 import { useSourceWireDrag } from "./SourceWireDragLayer";
 import { SourceTokenPanel } from "./SourceTokenPanel";
+// Phase 3 — the unified three-pane mapper replaces the hand-wired xl triptych as the
+// "Full document" review surface. variant="order"; it owns its own wiring/preview and
+// persists through buildOverrideDraft (carries sourceMap). The tablet/mobile fallbacks
+// below stay; the old SpineConnectors/WireDragLayer/SourceTokenPanel triptych is removed
+// from this host (kept in-tree for now via the Task-2 back-compat wrappers).
+import { ThreePaneMapper } from "./mapper/ThreePaneMapper";
 import { OrderPassport } from "./OrderPassport";
 import { SupplierResponsePanel } from "./SupplierResponsePanel";
 import { ConformancePanel } from "./ConformancePanel";
@@ -2320,166 +2326,29 @@ export function SpineReview({ orderId }: { orderId: string }) {
           />
         )}
 
-        {/* FULL DOCUMENT sub-view — today's triptych body, mounted unchanged. */}
+        {/* FULL DOCUMENT sub-view — the unified three-pane mapper (xl) + the
+            tablet/mobile fallbacks below. */}
         {subView === "classic" && (
         <>
-        {/* Desktop 3-column triptych (with edge rails). The grid needs ~1120px, so
-            it only turns on at xl (1280px); below xl the stacked accordion renders
-            instead. This keeps tablets (768–1279px) from getting a clipped/scrolling
-            three-column review. */}
-        <div className="hidden xl:block min-w-[1120px]">
-          <EdgeRails>
-          {/* NOTE: no overflow here. The real scroll container is the SpineReview Body
-              (flex:1, overflow:auto). An overflow-y-auto here was a full-height FROZEN
-              scroll context that blocked position:sticky on the columns — removing it
-              lets the source + output columns stick to the Body scroller so they follow
-              the user while the tall canonical column scrolls. */}
-          <div className="h-full">
-            {/* Desktop 3-column grid */}
-            <div
-              ref={gridRef}
-              className="grid gap-[40px] px-6 py-[18px]"
-              style={{ gridTemplateColumns: "1fr 1.05fr 1.15fr", alignItems: "start", position: "relative" }}
-            >
-              {/* Bridge connectors — Source → Spine → Output, drawn as live wires.
-                  Skipped entirely while the output-mapping editor slideover is open so
-                  the decorative source→canonical wires don't bleed through the editor. */}
-              {!mapEditorOpen && (
-                <SpineConnectors
-                  gridRef={gridRef}
-                  sourceColRef={sourceColRef}
-                  outputColRef={outputColRef}
-                  nodeEls={nodeEls}
-                  dotEls={dotEls}
-                  srcSectionEls={srcSectionEls}
-                  outLineEls={outLineEls}
-                  nodes={connectorNodes}
-                  hoveredId={hoveredId}
-                  crossed={crossed}
-                  signature={`${nodes.length}|${editingId ?? ""}|${lineStateSig}|${hoveredId ?? ""}|${activeZone ?? ""}|${crossed ? 1 : 0}|${Object.entries(fieldValues).map(([k, v]) => k + v).join(",")}|${wireSig}|${parsedDocCollapsed ? "c" : ""}`}
-                  // WireDragLayer owns the canonical→output (right) wires so they can be
-                  // override-aware + re-routable; SpineConnectors draws only source→canonical.
-                  drawOutput={false}
-                  // Source→canonical wires draw in BOTH collapsed and expanded states.
-                  // The collapsed summary card (DocumentAnatomy) now carries the SAME
-                  // onSection zone anchors as the expanded body on REAL VISIBLE elements,
-                  // so srcSectionEls[zone] resolves to a laid-out rect either way — the
-                  // wires anchor to the visible PO#/date line, parties, and line rows
-                  // instead of flying to the top-left when collapsed. The signature below
-                  // still carries the collapse flag so a toggle forces a re-measure.
-                  drawSource
-                />
-              )}
-
-              {/* Interactive drag-to-wire layer — canonical → output only, xl desktop.
-                  Sits above the decorative SpineConnectors (z-index:3 vs 2).
-                  Uses native pointer events; decorative SVG pointerEvents:none is unchanged.
-                  hidden while the editor slideover is open (opacity 0 + no pointer events). */}
-              <WireDragLayer
-                gridRef={gridRef}
-                nodeEls={nodeEls}
-                outLineEls={outLineEls}
-                nodes={connectorNodes}
-                onConnect={handleWireConnect}
-                onDisconnect={handleWireDisconnect}
-                existingConnections={existingWireConnections}
-                hoveredId={hoveredId}
-                hidden={mapEditorOpen}
-                signature={`${nodes.length}|${wireSig}|${hoveredId ?? ""}`}
-              />
-
-              {/* Interactive drag-to-wire layer — SOURCE TOKEN → canonical only, xl desktop.
-                  Persistent override-aware violet wires drawn from useSourceWireDrag; sits
-                  above SpineConnectors (z2) + WireDragLayer (z3) at z4. The chips that drive
-                  it live in the source column below (sourceChipProps). */}
-              {sourceWireSvg}
-
-              {/* Left — SOURCE DOCUMENT. Sticky so it follows the user as the tall
-                  canonical column scrolls (founder: "the left and right should follow
-                  me"). Pure sticky (no internal overflow) keeps wire endpoints clean;
-                  the source column is kept short by the tamed source-field panel. */}
-              <div ref={sourceColRef} style={{ position: "sticky", top: 8, alignSelf: "start" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 10, height: 18, minWidth: 0 }}>
-                  <span style={{ fontSize: 10.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "#1E66C9", flexShrink: 0 }}>Source document</span>
-                  <FileChip type={sourceFileType(order.sourceFileKey)} />
-                  <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10, color: "#A8B0BF", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", minWidth: 0 }}>{sourceFileLabel(order.sourceFileKey)}</span>
-                </div>
-                <DocumentAnatomy
-                  order={order}
-                  onSection={(id, el) => { srcSectionEls.current[id] = el; }}
-                  activeZone={activeZone}
-                  onZoneHover={handleZoneHover}
-                  collapsed={parsedDocCollapsed}
-                  onToggleCollapse={() => setParsedDocCollapsed(c => !c)}
-                />
-                {/* Draggable source-field chips — the addressable values to wire FROM. */}
-                <SourceTokenPanel
-                  tokens={sourceTokens}
-                  chipProps={sourceChipProps}
-                  loading={sourceTokensLoading}
-                  sourceFileKey={order.sourceFileKey}
-                />
-              </div>
-
-              {/* Center — CANONICAL ORDER (ProcuLink model) */}
-              <div style={{ position: "relative" }}>
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginBottom: 10, height: 18 }}>
-                  <span style={{ fontSize: 10.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "#0B1A2F" }}>Canonical order</span>
-                  <span style={{ fontSize: 9.5, color: "#B4BBC8" }}>ProcuLink model</span>
-                </div>
-                {/* Canonical spine line */}
-                <div style={{ position: "absolute", top: 36, bottom: 0, left: 22, width: 3, background: "linear-gradient(180deg,#1E66C9,#2E8E3A)", borderRadius: 2 }} />
-                <div style={{ position: "relative", paddingTop: 4 }}>
-                  {nodes.map((node, i) => (
-                    <SpineNodeCard
-                      key={node.id}
-                      node={node}
-                      idx={i}
-                      editingId={editingId}
-                      fieldValues={fieldValues}
-                      onStartEdit={resolve.startEdit}
-                      onChangeValue={resolve.changeValue}
-                      onCommitEdit={resolve.commitEdit}
-                      onAcceptSubnode={resolve.acceptSuggestion}
-                      onKeyDown={resolve.handleEditKeyDown}
-                      inputRef={resolve.inputRefCallback}
-                      cardRef={(el) => { nodeEls.current[node.id] = el; }}
-                      dotRef={(el) => { dotEls.current[node.id] = el; }}
-                      onHover={handleNodeHover}
-                      onZoneHover={handleZoneHover}
-                      activeZone={activeZone}
-                      acceptingLineId={acceptingLineId}
-                      lineEdit={lineEditApi}
-                    />
-                  ))}
-                  {/* Phase 4 — document totals (renders only when enriched) */}
-                  <TotalsSummary order={order} />
-                </div>
-              </div>
-
-              {/* Right — SUPPLIER OUTPUT. Sticky, mirrors the source column so it
-                  stays in view while the canonical column scrolls. */}
-              <div ref={outputColRef} style={{ position: "sticky", top: 8, alignSelf: "start" }}>
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginBottom: 10, height: 18 }}>
-                  <span style={{ fontSize: 9.5, color: "#B4BBC8" }}>canonical → supplier</span>
-                  <span style={{ fontSize: 10.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "#1E6D29" }}>Supplier output</span>
-                  <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10, color: "#A8B0BF", whiteSpace: "nowrap" }}>{outputArtifactType(order.artifacts)}</span>
-                </div>
-                <OutputPreview
-                  order={order}
-                  crossed={crossed}
-                  fieldValues={fieldValues}
-                  onOutputAction={setFlow}
-                  orderId={orderId}
-                  artifacts={order.artifacts}
-                  deliveryProtocol={deliveryProtocol}
-                  onLine={(id, el) => { outLineEls.current[id] = el; }}
-                  onMappingEditorOpenChange={setMapEditorOpen}
-                />
-              </div>
-            </div>
-          </div>
-          </EdgeRails>
+        {/* Desktop "Full document" review — the unified three-pane mapper (Phase 3,
+            Task 11). It REPLACES the hand-wired triptych (SpineConnectors + WireDragLayer +
+            SourceTokenPanel) that previously lived here. Like the old triptych it needs
+            ~1120px, so it only turns on at xl (1280px); below xl the TabletSpineLayout +
+            MobileSpineAccordion fallbacks below render instead. The mapper owns its own
+            three lanes (SourceUniverse │ CanonicalLane │ TargetLane), the prop-driven wire
+            engine (both source→canonical and canonical→output), and the live preview pane;
+            it persists through buildOverrideDraft (carries sourceMap — the documented
+            data-loss guard). Send/deliver stays owned by the SpineReview chrome (header CTA
+            + the sticky bars below), so the mapper is mounted WITHOUT its own deliver button
+            to keep ONE send path. The ManualCodeRow per-line code entry remains reachable
+            via the Triage sub-view and the mapper's canonical line nodes. */}
+        <div className="hidden xl:block min-w-[1120px] px-6 py-[18px]">
+          <ThreePaneMapper
+            variant="order"
+            orderId={orderId}
+            supplierId={order.supplierId}
+            initialOverride={mappingOverride}
+          />
         </div>
 
         {/* Tablet (md–xl, 768–1279px) — two-column layout: canonical spine | source+output.

@@ -51,6 +51,11 @@ import { indexValidation, indexCatalogHints, blockingReviewCount } from "./field
 import { systemCanonicalNodes, mergeCanonicalNodes } from "./canonicalFieldsModel";
 import { deriveTargetFields } from "./targetLaneModel";
 import {
+  overrideFromConnectionBundle,
+  inputMappingJsonFromOverride,
+  outputMappingJsonFromOverride,
+} from "./connectionBundleModel";
+import {
   emptyOverride,
   sourceConnections as projectSourceConnections,
   outputConnections as projectOutputConnections,
@@ -71,6 +76,13 @@ export interface UseMapperModelArgs {
   /** Required for the connection variant — the DRAFT revision being authored. */
   revisionId?: string;
   supplierId?: string;
+  /**
+   * Connection variant only: a sample/recent order for this supplier the author wires +
+   * previews against (there is no single order on the author-once connection path). The
+   * source tokens and the live preview both run against this order. Null/undefined → the
+   * source lane shows its empty state and the preview shows its honest "no sample" hint.
+   */
+  previewOrderId?: string | null;
   /** When the host already loaded the override (SpineReview does), seed from it. */
   initialOverride?: OrderMappingOverride | null;
   /** Connection variant: published revision → read-only. */
@@ -103,6 +115,8 @@ export interface MapperModel {
   signature: string;
   /** The last field key the user touched (drives preview's just-touched highlight). */
   lastTouched: string | null;
+  /** The order id the live preview runs against (order: the order; connection: the sample). */
+  previewOrderId: string | null;
   readOnly: boolean;
   // Mutators (each persists through buildOverrideDraft).
   onSourceConnect: (tokenId: string, canonicalField: string) => void;
@@ -129,40 +143,35 @@ function toSourceField(t: SourceToken, mapped: boolean, suggestedFor: string | n
   return { id: t.id, label: t.label, value: t.value, group, mapped, suggestedFor, suggestionConfidence: confidence };
 }
 
-/** Parse a connection draft's outputMappingJson into the internal override shape (output side). */
-function overrideFromConnectionJson(outputMappingJson: string | null | undefined): OrderMappingOverride {
-  const base = emptyOverride();
-  if (!outputMappingJson) return base;
-  try {
-    const parsed = JSON.parse(outputMappingJson);
-    // Accept either a bare OutputMappingConfig or a full OrderMappingOverride-ish doc.
-    if (parsed && (parsed.header || parsed.lines)) {
-      return { ...base, output: { header: parsed.header ?? {}, lines: parsed.lines ?? {} } };
-    }
-    if (parsed && typeof parsed === "object") {
-      return { customFields: parsed.customFields ?? [], output: parsed.output ?? null, sourceMap: parsed.sourceMap ?? null, outputTemplate: parsed.outputTemplate ?? null, outputTemplateContentType: parsed.outputTemplateContentType ?? null };
-    }
-  } catch {
-    // Malformed JSON → start clean rather than crash (the editor re-authors it).
-  }
-  return base;
-}
-
 export function useMapperModel({
-  variant, scopeId, revisionId, initialOverride, readOnly,
+  variant, scopeId, revisionId, previewOrderId, initialOverride, readOnly,
 }: UseMapperModelArgs): MapperModel {
   const qc = useQueryClient();
   const enabled = useQueriesEnabled();
+
+  // The order id the source lane + preview run against. Order variant: the order itself.
+  // Connection variant (author-once): a sample/recent order for this supplier (no single order).
+  const effectivePreviewOrderId = variant === "order" ? scopeId : (previewOrderId ?? null);
+
+  // ── Connection revision (full bundle) — retained so a save can carry EVERY bundle
+  //    field through unchanged (deliveryProtocol/itemMappings/acceptance/…). The PUT
+  //    replaces the WHOLE bundle, so writing only outputMappingJson would wipe the rest. ──
+  const revisionQuery = useQuery({
+    queryKey: ["mapper-connection-revision", scopeId, revisionId ?? null],
+    queryFn: () => getConnectionRevision(scopeId, revisionId as string),
+    enabled: enabled && variant === "connection" && !!revisionId,
+  });
 
   // ── Load the draft override ────────────────────────────────────────────────
   const overrideQuery = useQuery({
     queryKey: ["mapper-override", variant, scopeId, revisionId ?? null],
     queryFn: async (): Promise<OrderMappingOverride> => {
       if (variant === "order") return (await getMappingOverride(scopeId)) ?? emptyOverride();
-      // connection
+      // connection — both sides live in the bundle: inputMappingJson (source→canonical)
+      // + outputMappingJson (canonical→target). Merge them into one internal override.
       if (!revisionId) return emptyOverride();
       const rev = await getConnectionRevision(scopeId, revisionId);
-      return overrideFromConnectionJson(rev?.outputMappingJson ?? null);
+      return overrideFromConnectionBundle(rev?.inputMappingJson ?? null, rev?.outputMappingJson ?? null);
     },
     enabled: enabled && (variant === "order" || !!revisionId),
     initialData: variant === "order" && initialOverride !== undefined ? (initialOverride ?? emptyOverride()) : undefined,
@@ -172,11 +181,11 @@ export function useMapperModel({
   const [draft, setDraft] = useState<OrderMappingOverride | null>(null);
   const override = draft ?? overrideQuery.data ?? emptyOverride();
 
-  // ── Source tokens (order path; the connection path wires against a sample later) ──
+  // ── Source tokens — order: the order; connection: the sample/recent order. ──
   const tokensQuery = useQuery({
-    queryKey: ["mapper-source-tokens", variant, scopeId],
-    queryFn: () => getSourceTokens(scopeId),
-    enabled: enabled && variant === "order",
+    queryKey: ["mapper-source-tokens", variant, scopeId, effectivePreviewOrderId],
+    queryFn: () => getSourceTokens(effectivePreviewOrderId as string),
+    enabled: enabled && !!effectivePreviewOrderId,
   });
   const tokens = useMemo(() => tokensQuery.data ?? [], [tokensQuery.data]);
 
@@ -189,18 +198,20 @@ export function useMapperModel({
   const customFields = useMemo(() => fieldsQuery.data ?? [], [fieldsQuery.data]);
 
   // ── AI suggestions (mock-fallback returns []) ──────────────────────────────
+  // Order-scoped: keyed on the order we wire against (order: the order; connection: the
+  // sample order). No sample order on a connection → no suggestions, manual wiring works.
   const suggestionsQuery = useQuery({
-    queryKey: ["mapper-suggestions", variant, scopeId],
-    queryFn: () => getMappingSuggestions(scopeId),
-    enabled: enabled && variant === "order",
+    queryKey: ["mapper-suggestions", effectivePreviewOrderId],
+    queryFn: () => getMappingSuggestions(effectivePreviewOrderId as string),
+    enabled: enabled && !!effectivePreviewOrderId,
   });
   const rawSuggestions = useMemo(() => suggestionsQuery.data ?? [], [suggestionsQuery.data]);
 
   // ── Validation badges (mock-fallback returns []) ───────────────────────────
   const validationQuery = useQuery({
-    queryKey: ["mapper-validation", variant, scopeId],
-    queryFn: () => getFieldValidation(scopeId),
-    enabled: enabled && variant === "order",
+    queryKey: ["mapper-validation", effectivePreviewOrderId],
+    queryFn: () => getFieldValidation(effectivePreviewOrderId as string),
+    enabled: enabled && !!effectivePreviewOrderId,
   });
   const validationStates = useMemo(() => validationQuery.data ?? [], [validationQuery.data]);
   const validationByKey = useMemo(() => indexValidation(validationStates), [validationStates]);
@@ -208,9 +219,9 @@ export function useMapperModel({
 
   // ── Catalog price/code hints (mock-fallback returns []) ────────────────────
   const catalogQuery = useQuery({
-    queryKey: ["mapper-catalog-hints", variant, scopeId],
-    queryFn: () => getCatalogHints(scopeId),
-    enabled: enabled && variant === "order",
+    queryKey: ["mapper-catalog-hints", effectivePreviewOrderId],
+    queryFn: () => getCatalogHints(effectivePreviewOrderId as string),
+    enabled: enabled && !!effectivePreviewOrderId,
   });
   const catalogHints = useMemo(() => catalogQuery.data ?? [], [catalogQuery.data]);
   const catalogHintByLine = useMemo(() => indexCatalogHints(catalogHints), [catalogHints]);
@@ -263,13 +274,26 @@ export function useMapperModel({
       if (variant === "order") {
         return upsertMappingOverride(scopeId, doc);
       }
-      // connection: persist the OUTPUT side into the draft revision's outputMappingJson,
-      // leaving the other bundle fields to the host's own draft editor.
+      // connection: persist BOTH sides into the draft revision —
+      //   • inputMappingJson  ← the source→canonical map (doc.sourceMap),
+      //   • outputMappingJson ← the canonical→target config (doc.output).
+      // The PUT replaces the WHOLE bundle, so we carry EVERY other bundle field through
+      // unchanged from the loaded revision (deliveryProtocol/itemMappings/acceptance/…) —
+      // the same data-loss guard as buildOverrideDraft, one level up. Without this, saving a
+      // mapping would silently wipe the draft's delivery channel + item codes.
       if (!revisionId) return doc;
+      const rev = revisionQuery.data ?? null;
       await updateConnectionDraft(scopeId, revisionId, {
-        outputMappingJson: JSON.stringify(doc.output ?? null),
-        deliveryAutoDeliver: false,
-        catalogMode: "live",
+        inputMappingJson: inputMappingJsonFromOverride(doc),
+        outputMappingJson: outputMappingJsonFromOverride(doc),
+        outputFormat: rev?.outputFormat ?? null,
+        deliveryProtocol: rev?.deliveryProtocol ?? null,
+        deliveryConfigJson: rev?.deliveryConfigJson ?? null,
+        deliveryAutoDeliver: rev?.deliveryAutoDeliver ?? false,
+        acceptanceProfileId: rev?.acceptanceProfileId ?? null,
+        acceptanceVersionNo: rev?.acceptanceVersionNo ?? null,
+        catalogMode: rev?.catalogMode ?? "live",
+        itemMappings: rev?.itemMappings ?? null,
       });
       return doc;
     },
@@ -331,18 +355,19 @@ export function useMapperModel({
       onSourceConnect(s.sourceId, s.targetKey);
     }
     setDismissed((d) => new Set(d).add(sKey(s)));
-    // Feed the V9 calibration loop (best-effort, non-throwing telemetry).
-    if (variant === "order") {
-      void recordSuggestionDecision(scopeId, { targetKey: s.targetKey, sourceId: s.sourceId, accepted: true, confidence: s.confidence });
+    // Feed the V9 calibration loop (best-effort, non-throwing telemetry). Keyed on the
+    // order we wired against (order: the order; connection: the sample order).
+    if (effectivePreviewOrderId) {
+      void recordSuggestionDecision(effectivePreviewOrderId, { targetKey: s.targetKey, sourceId: s.sourceId, accepted: true, confidence: s.confidence });
     }
-  }, [onSourceConnect, onTargetConnect, variant, scopeId]);
+  }, [onSourceConnect, onTargetConnect, effectivePreviewOrderId]);
 
   const onRejectSuggestion = useCallback((s: MappingSuggestion) => {
     setDismissed((d) => new Set(d).add(sKey(s)));
-    if (variant === "order") {
-      void recordSuggestionDecision(scopeId, { targetKey: s.targetKey, sourceId: s.sourceId, accepted: false, confidence: s.confidence });
+    if (effectivePreviewOrderId) {
+      void recordSuggestionDecision(effectivePreviewOrderId, { targetKey: s.targetKey, sourceId: s.sourceId, accepted: false, confidence: s.confidence });
     }
-  }, [variant, scopeId]);
+  }, [effectivePreviewOrderId]);
 
   const suggestions = useMemo(
     () => rawSuggestions.filter((s) => !dismissed.has(sKey(s))),
@@ -355,7 +380,10 @@ export function useMapperModel({
     return `${canonicalNodes.length}|${targetFields.length}|${tokens.length}|${sc}|${oc}`;
   }, [canonicalNodes.length, targetFields.length, tokens.length, sourceConnections, outputConnections]);
 
-  const loading = overrideQuery.isLoading || (variant === "order" && tokensQuery.isLoading);
+  const loading =
+    overrideQuery.isLoading ||
+    (variant === "connection" && !!revisionId && revisionQuery.isLoading) ||
+    (!!effectivePreviewOrderId && tokensQuery.isLoading);
 
   return {
     loading,
@@ -377,6 +405,7 @@ export function useMapperModel({
     blockingCount,
     signature,
     lastTouched,
+    previewOrderId: effectivePreviewOrderId,
     readOnly: !!readOnly,
     onSourceConnect,
     onSourceDisconnect,

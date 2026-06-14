@@ -34,7 +34,9 @@ import { Card } from "@/components/bridge/layout/Card";
 import { Button } from "@/components/bridge/DSPrimitives";
 import { RevisionStatusBadge } from "@/components/connections/RevisionStatusBadge";
 import { ReplayPanel } from "@/components/connections/ReplayPanel";
+import { ThreePaneMapper } from "@/components/bridge/mapper/ThreePaneMapper";
 import {
+  apiClient,
   getConnection,
   getConnectionRevision,
   createConnectionDraft,
@@ -250,6 +252,31 @@ export function ConnectionDetail({ connectionId }: { connectionId: string }) {
     () => connection?.revisions ?? [],
     [connection],
   );
+
+  // ── Phase 3 mapper mount ────────────────────────────────────────────────────
+  // Author the mapping ONCE here, on the draft revision. Published revisions are
+  // immutable → the mapper renders read-only against the live revision and points the
+  // user at "Create draft from live" to edit. The newest draft (status === "draft") is the
+  // editable target; fall back to the active published revision for a read-only view.
+  const draftRevision = useMemo(
+    () => revisions.find((r) => (r.status ?? "").toLowerCase() === "draft") ?? null,
+    [revisions],
+  );
+  const mapperRevisionId = draftRevision?.id ?? activeRevisionId ?? null;
+  const mapperReadOnly = !draftRevision; // only the draft is editable
+
+  // A sample/recent order for THIS supplier — the connection (author-once) path has no
+  // single order, so the mapper wires + previews against the most recent real order for the
+  // supplier. None yet → the mapper's source lane + preview show their honest empty states.
+  const supplierId = connection?.supplierId ?? null;
+  const { data: sampleOrderPage } = useQuery({
+    queryKey: ["connection-sample-order", supplierId],
+    queryFn: () => apiClient.getOrders({ supplierId: supplierId as string, pageSize: 1 }),
+    enabled: queriesEnabled && !!supplierId,
+    staleTime: 60_000,
+    retry: 1,
+  });
+  const sampleOrderId = sampleOrderPage?.items[0]?.id ?? null;
 
   return (
     <PageShell variant="wide">
@@ -508,6 +535,71 @@ export function ConnectionDetail({ connectionId }: { connectionId: string }) {
               </ul>
             )}
           </Card>
+
+          {/* ── Mapping — author once (Phase 3 three-pane mapper) ─────── */}
+          <div className="lg:col-span-2">
+            <Card
+              title="Mapping"
+              sub={
+                mapperReadOnly
+                  ? "The live mapping for this connection — create a draft from live to edit it"
+                  : "Wire incoming fields → canonical → the supplier's output. Saved to the draft; publish to make it live."
+              }
+            >
+              {mapperRevisionId ? (
+                <>
+                  {mapperReadOnly && (
+                    <div
+                      className="mb-3 rounded-[6px] px-3 py-2 text-[12px] leading-[1.5] flex flex-wrap items-center gap-2"
+                      style={{ background: "var(--bg)", border: "1px solid var(--border)", color: "var(--ink-muted)" }}
+                    >
+                      <span>
+                        Published revisions are immutable. Create a draft (it clones the live
+                        version) to change the mapping.
+                      </span>
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={() => { setNotice(null); createDraftMutation.mutate(); }}
+                        disabled={busy}
+                        loading={createDraftMutation.isPending}
+                      >
+                        Create draft from live
+                      </Button>
+                    </div>
+                  )}
+                  <ThreePaneMapper
+                    variant="connection"
+                    connectionId={connectionId}
+                    revisionId={mapperRevisionId}
+                    supplierId={supplierId ?? undefined}
+                    previewOrderId={sampleOrderId}
+                    readOnly={mapperReadOnly}
+                  />
+                </>
+              ) : (
+                <div className="py-4">
+                  <p className="text-[13px] font-semibold" style={{ color: "var(--ink)" }}>
+                    No revision to map yet
+                  </p>
+                  <p className="text-[12.5px] mt-1.5 leading-[1.55]" style={{ color: "var(--ink-muted)" }}>
+                    Create a draft to start authoring the mapping for this connection, then run
+                    its tests and publish it.
+                  </p>
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    className="mt-3"
+                    onClick={() => { setNotice(null); createDraftMutation.mutate(); }}
+                    disabled={busy}
+                    loading={createDraftMutation.isPending}
+                  >
+                    Create draft
+                  </Button>
+                </div>
+              )}
+            </Card>
+          </div>
 
           {/* ── Replay / impact preview — V2 (live) ───────────────────── */}
           <div className="lg:col-span-2">

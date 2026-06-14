@@ -36,6 +36,12 @@ export interface ThreePaneMapperProps {
   /** Connection variant: the draft revision being authored. */
   revisionId?: string;
   supplierId?: string;
+  /**
+   * Connection variant only: the sample/recent order this author-once mapping is wired +
+   * previewed against (there is no single order on the connection path). Null → the source
+   * lane + preview show their honest empty states.
+   */
+  previewOrderId?: string | null;
   /** SpineReview already loaded the override — seed it to avoid a refetch flash. */
   initialOverride?: OrderMappingOverride | null;
   /** Published revision → read-only. */
@@ -56,6 +62,7 @@ export function ThreePaneMapper(props: ThreePaneMapperProps) {
     scopeId,
     revisionId: props.revisionId,
     supplierId: props.supplierId,
+    previewOrderId: props.previewOrderId,
     initialOverride: props.initialOverride,
     readOnly,
   });
@@ -266,12 +273,20 @@ export function ThreePaneMapper(props: ThreePaneMapperProps) {
       </div>
 
       {/* ── Collapsible live preview ────────────────────────────────────── */}
-      {previewOpen && variant === "order" && props.orderId && (
+      {/* Order variant: preview against the order. Connection variant (author-once):
+          preview against the chosen sample/recent order (model.previewOrderId); when none
+          exists the pane shows its honest empty hint, not an error (offer⇔works). */}
+      {(previewOpen || variant === "connection") && (
         <div className="hidden lg:block mt-4">
           <MapperPreviewPane
-            previewOrderId={props.orderId}
+            previewOrderId={model.previewOrderId}
             override={model.override}
             lastTouched={model.lastTouched}
+            emptyHint={
+              variant === "connection"
+                ? "No sample order yet for this supplier — upload or receive one order to preview the live output of this mapping."
+                : undefined
+            }
           />
         </div>
       )}
