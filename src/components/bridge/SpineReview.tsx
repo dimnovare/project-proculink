@@ -27,7 +27,7 @@ import { SourceTokenPanel } from "./SourceTokenPanel";
 // persists through buildOverrideDraft (carries sourceMap). The tablet/mobile fallbacks
 // below stay; the old SpineConnectors/WireDragLayer/SourceTokenPanel triptych is removed
 // from this host (kept in-tree for now via the Task-2 back-compat wrappers).
-import { ThreePaneMapper } from "./mapper/ThreePaneMapper";
+import { MapperWorkbench } from "./mapper/MapperWorkbench";
 import { OrderPassport } from "./OrderPassport";
 import { SupplierResponsePanel } from "./SupplierResponsePanel";
 import { ConformancePanel } from "./ConformancePanel";
@@ -2343,7 +2343,7 @@ export function SpineReview({ orderId }: { orderId: string }) {
             to keep ONE send path. The ManualCodeRow per-line code entry remains reachable
             via the Triage sub-view and the mapper's canonical line nodes. */}
         <div className="hidden xl:block min-w-[1120px] px-6 py-[18px]">
-          <ThreePaneMapper
+          <MapperWorkbench
             variant="order"
             orderId={orderId}
             supplierId={order.supplierId}

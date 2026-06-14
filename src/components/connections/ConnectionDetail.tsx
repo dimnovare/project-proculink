@@ -34,7 +34,7 @@ import { Card } from "@/components/bridge/layout/Card";
 import { Button } from "@/components/bridge/DSPrimitives";
 import { RevisionStatusBadge } from "@/components/connections/RevisionStatusBadge";
 import { ReplayPanel } from "@/components/connections/ReplayPanel";
-import { ThreePaneMapper } from "@/components/bridge/mapper/ThreePaneMapper";
+import { MapperWorkbench } from "@/components/bridge/mapper/MapperWorkbench";
 import {
   apiClient,
   getConnection,
@@ -568,7 +568,7 @@ export function ConnectionDetail({ connectionId }: { connectionId: string }) {
                       </Button>
                     </div>
                   )}
-                  <ThreePaneMapper
+                  <MapperWorkbench
                     variant="connection"
                     connectionId={connectionId}
                     revisionId={mapperRevisionId}

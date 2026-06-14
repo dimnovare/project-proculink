@@ -29,6 +29,7 @@ import {
   updateConnectionDraft,
 } from "@/lib/api-client";
 import { getCanonicalFields } from "@/lib/api/canonical-fields";
+import { getFieldStandards } from "@/lib/standards/catalog";
 import {
   getMappingSuggestions,
   recordSuggestionDecision,
@@ -117,6 +118,15 @@ export interface MapperModel {
   catalogHintByLine: Map<string, CatalogPriceHint>;
   /** Count of BLOCKING review badges — the Deliver button gate. */
   blockingCount: number;
+  /** sourceTokenId → its raw value (drives the OutgoingPane value preview). */
+  tokenValueById: Map<string, string>;
+  /**
+   * canonicalField key → the order's effective parsed value, for the auto 1:1 preview. Built
+   * from the source tokens whose group hint matches a canonical key (best-effort, never throws).
+   */
+  canonicalValueByKey: Map<string, string>;
+  /** Human label for a canonical field key (for the "← PO number" outgoing source tag). */
+  labelForCanonical: (key: string) => string;
   /** Bumped on every change → re-measures the wires. */
   signature: string;
   /** The last field key the user touched (drives preview's just-touched highlight). */
@@ -269,6 +279,44 @@ export function useMapperModel({
 
   const targetFields = useMemo(() => deriveTargetFields(override.output), [override.output]);
 
+  // ── Value lookups for the OutgoingPane's honest value preview ───────────────
+  // tokenValueById: a wired source-token's raw value.
+  const tokenValueById = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const t of tokens) m.set(t.id, t.value);
+    return m;
+  }, [tokens]);
+
+  // canonicalValueByKey: the order's effective parsed value per canonical key, used for the
+  // auto 1:1 preview (output path === canonical key, no override). The backend SourceToken
+  // labels mirror the canonical field labels (PoNumber→"PO number", …), so we match a token to
+  // a canonical key by label (via the standards catalog) or by the key/label directly. For line
+  // fields we take the FIRST line token's value as a representative preview (the row is a single
+  // summary row in the mapper, not per-line). Best-effort, never throws, empty when unknown.
+  const canonicalValueByKey = useMemo(() => {
+    const byLabel = new Map<string, string>();
+    for (const t of tokens) {
+      const key = (t.label ?? "").trim().toLowerCase();
+      if (key && !byLabel.has(key)) byLabel.set(key, t.value);
+    }
+    const out = new Map<string, string>();
+    const allKeys = [...canonicalNodes.map((n) => n.id)];
+    for (const key of allKeys) {
+      const std = getFieldStandards(key);
+      const candidates = [std?.label?.toLowerCase(), key.toLowerCase()].filter(Boolean) as string[];
+      for (const c of candidates) {
+        const v = byLabel.get(c);
+        if (v != null && v !== "") { out.set(key, v); break; }
+      }
+    }
+    return out;
+  }, [tokens, canonicalNodes]);
+
+  const labelForCanonical = useCallback(
+    (key: string) => getFieldStandards(key)?.label ?? canonicalNodes.find((n) => n.id === key)?.label ?? key,
+    [canonicalNodes],
+  );
+
   // ── Persistence ────────────────────────────────────────────────────────────
   const [lastTouched, setLastTouched] = useState<string | null>(null);
   const saveErrRef = useRef<string | null>(null);
@@ -419,6 +467,9 @@ export function useMapperModel({
     validationByKey,
     catalogHintByLine,
     blockingCount,
+    tokenValueById,
+    canonicalValueByKey,
+    labelForCanonical,
     signature,
     lastTouched,
     previewOrderId: effectivePreviewOrderId,
