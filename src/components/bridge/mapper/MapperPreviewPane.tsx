@@ -207,8 +207,11 @@ export function MapperPreviewPane({ previewOrderId, override, lastTouched, suppl
           aria-live="polite"
           className={flash ? "mapper-preview-flash" : undefined}
           style={{
-            margin: 0, padding: "10px 12px", maxHeight: 240, overflow: "auto",
-            fontFamily: "'JetBrains Mono',monospace", fontSize: 11, lineHeight: 1.5,
+            // T7 — the docked live preview is the document operators read most.
+            // Bumped body 11→13 + taller (240→420) now that the pane is wider, so
+            // the delivered output is comfortably legible, not a cramped 11px strip.
+            margin: 0, padding: "12px 14px", maxHeight: 420, overflow: "auto",
+            fontFamily: "'JetBrains Mono',monospace", fontSize: 13, lineHeight: 1.55,
             color: "#0B1A2F", whiteSpace: "pre-wrap", wordBreak: "break-word",
             opacity: busy ? 0.55 : 1, transition: "opacity 150ms",
           }}

@@ -446,7 +446,7 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
         <div
           ref={canvasRef}
           data-mapper-canvas
-          style={{ position: "relative", flex: "1 1 680px", minWidth: 0 }}
+          style={{ position: "relative", flex: "1 1 560px", minWidth: 0 }}
         >
           {/* TRUE 2 columns: Incoming | gutter | Outgoing. The gutter is where wires live. */}
           <div style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr) 64px minmax(0,1fr)", alignItems: "start" }}>
@@ -457,8 +457,10 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
           {/* The engine SVG overlays the whole canvas (measured relative to it). */}
           {wire.svg}
         </div>
-        {/* Docked preview — always present. */}
-        <div style={{ flex: "1 1 360px", minWidth: 340 }}>
+        {/* Docked preview — always present. Widened (T7): the live output is the
+            thing operators read most, so it gets a near-equal share of the row
+            instead of the old ~35%. Still flex-wraps to full width when narrow. */}
+        <div style={{ flex: "1 1 480px", minWidth: 420 }}>
           {previewNode}
         </div>
       </div>

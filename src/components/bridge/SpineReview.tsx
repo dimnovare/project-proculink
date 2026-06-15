@@ -1745,6 +1745,24 @@ export function SpineReview({ orderId }: { orderId: string }) {
     router.replace(`?${params.toString()}`, { scroll: false });
   }, [searchParams, router]);
 
+  // ── Auto-route Triage → Full document once every exception clears (T6) ───────
+  // A PDF / needs-review order lands in Triage (work to do), so the Full-document
+  // drag-to-connect mapper never mounts. When the operator clears the LAST
+  // exception/rule AND hasn't explicitly picked a view, flow them on to the
+  // mapper — the natural next surface — exactly once. One-directional + sticky:
+  // it never yanks back to Triage if a new flag later appears, and an explicit
+  // toggle choice (viewOverride) always wins.
+  const autoRoutedToClassicRef = useRef(false);
+  useEffect(() => {
+    if (autoRoutedToClassicRef.current) return;
+    if (viewOverride !== null) return;
+    if (!order) return;
+    if (defaultViewRef.current === "triage" && exceptionCount === 0 && failingRuleCount === 0) {
+      autoRoutedToClassicRef.current = true;
+      switchSubView("classic");
+    }
+  }, [order, viewOverride, exceptionCount, failingRuleCount, switchSubView]);
+
   // g-d / g-b destination (Phase C, stolen from Queue & Bench): jump to the
   // Review tab AND the named sub-view in one keystroke pair, syncing BOTH URL
   // params in a single replace (two replaces in one tick would race and drop
@@ -2239,6 +2257,27 @@ export function SpineReview({ orderId }: { orderId: string }) {
             );
           })}
         </div>
+        {/* T6 — obvious one-click escape hatch to the drag-to-connect mapper.
+            PDF/needs-review orders default to Triage (no drag surface); without an
+            explicit affordance the visual mapper behind "Full document" is easy to
+            miss. xl-only because the drag canvas itself only mounts at xl. The
+            responsive class owns display — no inline `display` (it would defeat
+            `hidden xl:inline-flex`). */}
+        {subView === "triage" && (
+          <button
+            type="button"
+            onClick={() => switchSubView("classic")}
+            title="Open the full-document view to drag-and-drop map source fields onto the supplier's output"
+            className="hidden xl:inline-flex"
+            style={{
+              alignItems: "center", gap: 6, fontSize: 11.5, fontWeight: 700,
+              padding: "5px 12px", borderRadius: 7, cursor: "pointer",
+              background: "#F4EFFC", color: "#5E3DB0", border: "1px solid #D6C7F0",
+            }}
+          >
+            <span aria-hidden>↔</span> Map fields by dragging
+          </button>
+        )}
         {validation.isStale && (
           <span aria-live="polite" style={{ fontSize: 11, color: "#C97A14" }}>Re-checking acceptance…</span>
         )}
