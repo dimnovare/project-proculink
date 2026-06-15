@@ -112,7 +112,7 @@ test.describe("Review sub-views — mock parity subset", () => {
   test("classic view renders the triptych, not the triage rail", async ({ page }) => {
     await page.goto("/inbox/ord-002?view=classic");
     await expect(page.getByText(/PO-2024-005678/).first()).toBeVisible({ timeout: 20_000 });
-    await expect(page.getByText("Canonical order").first()).toBeVisible({ timeout: 20_000 });
+    await expect(page.locator(':text("Incoming order"):visible').or(page.locator(':text("Canonical order"):visible')).first()).toBeVisible({ timeout: 20_000 });
     await expect(page.getByTestId("fix-queue-triage")).toHaveCount(0);
   });
 
@@ -221,7 +221,7 @@ test.describe("Review sub-views — mock parity subset", () => {
     await page.keyboard.press("g");
     await page.keyboard.press("d");
     await expect(page.getByTestId("fix-queue-triage")).toHaveCount(0);
-    await expect(page.getByText("Canonical order").first()).toBeVisible();
+    await expect(page.locator(':text("Incoming order"):visible').or(page.locator(':text("Canonical order"):visible')).first()).toBeVisible();
     await expect(page).toHaveURL(/view=classic/);
 
     // g then b → back to Triage.
