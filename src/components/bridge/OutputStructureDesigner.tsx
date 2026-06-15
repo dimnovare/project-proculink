@@ -15,14 +15,15 @@ import {
   type OutputNodeType, type OutputFormat,
 } from "@/lib/api/types";
 
-// Only the formats the backend OutputTemplateEmitter can actually render (offer⇔works).
-// JSON / XML / CSV are first-class; cXML + UBL render through the XML emitter (the tree carries
-// their element shape). X12 is intentionally NOT offered here yet — it is a positional segment
-// format with no tree emitter, so the emitter would fail loud; X12 suppliers still deliver via the
-// legacy X12 transform. (Adding an X12 segment emitter + EnvelopeConfig is the tracked next build.)
+// Only the formats the backend OutputTemplateEmitter produces VALIDLY from a generic node tree
+// (offer⇔works). JSON / XML / CSV are first-class. cXML, UBL, and X12 are intentionally NOT offered:
+// cXML needs its DOCTYPE + From/To/Sender envelope, Peppol UBL needs mandatory UBLVersionID/
+// CustomizationID/ProfileID, and X12 is positional segments — none expressible as a generic tree, so
+// a tree-emitted document would be well-formed but receiver-REJECTED. Those formats deliver through
+// their dedicated, valid transforms (CxmlTransformService / UblOrderTransformService / X12TransformService).
+// A namespaced XML supplier is served by "XML" here (the emitter binds cbc:/cac: prefixes).
 const FORMATS: { id: OutputFormat; label: string }[] = [
   { id: "json", label: "JSON" }, { id: "xml", label: "XML" }, { id: "csv", label: "CSV" },
-  { id: "cXml", label: "cXML" }, { id: "ubl", label: "UBL" },
 ];
 
 // Bridge Layer tokens: navy chrome, green = primary/"supplier out" action, blue = incoming accent.
