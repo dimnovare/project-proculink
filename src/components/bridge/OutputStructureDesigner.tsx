@@ -8,7 +8,7 @@
 // polish is a follow-up.
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { previewMappingOverride, upsertMappingOverride } from "@/lib/api-client";
+import { previewMappingOverride, upsertMappingOverride, inferOutputStructure } from "@/lib/api-client";
 import {
   CANONICAL_HEADER_FIELDS, CANONICAL_LINE_FIELDS,
   type OrderMappingOverride, type OutputNode, type OutputNodeTemplate,
@@ -80,6 +80,29 @@ export function OutputStructureDesigner({
   const [preview, setPreview] = useState<{ content: string | null; error?: string; loading: boolean }>({ content: null, loading: false });
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [showInfer, setShowInfer] = useState(initialTree == null);
+  const [sample, setSample] = useState("");
+  const [inferring, setInferring] = useState(false);
+  const [inferError, setInferError] = useState<string | null>(null);
+
+  const infer = useCallback(async () => {
+    const s = sample.trim();
+    if (!s) return;
+    setInferring(true);
+    setInferError(null);
+    try {
+      // Auto-detect JSON vs CSV from the sample's first character.
+      const fmt = s.startsWith("{") || s.startsWith("[") ? "json" : "csv";
+      const inferred = await inferOutputStructure(orderId, s, fmt);
+      setTree(inferred);
+      setSaved(false);
+      setShowInfer(false);
+    } catch (e) {
+      setInferError(e instanceof Error ? e.message : "Could not read that sample.");
+    } finally {
+      setInferring(false);
+    }
+  }, [sample, orderId]);
 
   const setRoot = useCallback((fn: (n: OutputNode) => OutputNode) => {
     setTree((t) => ({ ...t, root: fn(t.root) }));
@@ -139,6 +162,30 @@ export function OutputStructureDesigner({
         <div style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr) minmax(0,1fr)", minHeight: 0, flex: 1 }}>
           <div style={{ overflow: "auto", padding: 16, borderRight: `1px solid ${BORDER}` }}>
             <div style={{ fontSize: 11, color: "#5A6B82", marginBottom: 8, textTransform: "uppercase", letterSpacing: 0.4 }}>Structure</div>
+
+            {/* Phase D — paste the supplier's required sample and infer the shape */}
+            <div style={{ marginBottom: 12 }}>
+              <button onClick={() => setShowInfer((v) => !v)}
+                style={{ width: "100%", textAlign: "left", height: 30, padding: "0 10px", borderRadius: 6, border: `1px dashed ${BORDER}`, background: "#F7F9FC", color: NAVY, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
+                ⧉ Paste a supplier sample to start {showInfer ? "▾" : "▸"}
+              </button>
+              {showInfer && (
+                <div style={{ marginTop: 8, border: `1px solid ${BORDER}`, borderRadius: 8, padding: 10, background: "#F7F9FC" }}>
+                  <textarea value={sample} onChange={(e) => setSample(e.target.value)}
+                    placeholder="Paste the file your supplier requires (JSON or CSV)…"
+                    style={{ width: "100%", minHeight: 92, fontFamily: "ui-monospace, Menlo, monospace", fontSize: 11.5, border: `1px solid ${BORDER}`, borderRadius: 6, padding: 8, resize: "vertical", boxSizing: "border-box" }} />
+                  <div style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 8 }}>
+                    <span style={{ fontSize: 11, color: SLATE }}>Detects JSON or CSV automatically.</span>
+                    <button onClick={() => void infer()} disabled={inferring || !sample.trim()}
+                      style={{ marginLeft: "auto", height: 30, padding: "0 14px", borderRadius: 6, border: "none", background: NAVY, color: "#FFF", fontSize: 12, fontWeight: 600, cursor: inferring || !sample.trim() ? "default" : "pointer", opacity: inferring || !sample.trim() ? 0.6 : 1 }}>
+                      {inferring ? "Reading…" : "Infer structure"}
+                    </button>
+                  </div>
+                  {inferError && <div style={{ color: "#C53A3A", fontSize: 11.5, marginTop: 6 }}>{inferError}</div>}
+                </div>
+              )}
+            </div>
+
             <NodeEditor node={tree.root} path={[]} lineScope={false} onUpdate={setRoot} isRoot />
           </div>
           <div style={{ overflow: "auto", padding: 16, background: "#0B1626" }}>

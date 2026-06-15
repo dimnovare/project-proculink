@@ -1518,6 +1518,28 @@ export async function previewMappingOverride(
   return normalizeMappingPreview(raw, format);
 }
 
+/**
+ * Phase D — infer an output-structure template from a pasted sample of the file the supplier
+ * requires. Deterministic backend (JSON/CSV); returns a tree the designer opens shaped to match.
+ */
+export async function inferOutputStructure(
+  orderId: string,
+  sample: string,
+  format: string,
+): Promise<import("@/lib/api/types").OutputNodeTemplate> {
+  const headers = await authHeader();
+  const res = await fetchWithTimeout(
+    `${API_BASE_URL}/api/orders/${orderId}/infer-output-structure`,
+    { method: "POST", headers: { ...headers, "Content-Type": "application/json" }, body: JSON.stringify({ sample, format }) },
+    30000,
+  );
+  if (!res.ok) {
+    const b = await res.json().catch(() => null) as { error?: string } | null;
+    throw new Error(b?.error || `Infer failed: ${res.status}`);
+  }
+  return res.json() as Promise<import("@/lib/api/types").OutputNodeTemplate>;
+}
+
 // ── Source→canonical mapping (drag-to-wire on the order review heart-piece) ──
 
 /**
