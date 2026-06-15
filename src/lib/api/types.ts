@@ -347,6 +347,35 @@ export type DeliveryProtocol = "http" | "sftp" | "ftps" | "smtp" | "erp_erply" |
 
 export type OutputFormatId = "xml" | "csv" | "cxml" | "json" | "ubl" | "x12";
 
+/**
+ * cXML network identities returned by the API (cleartext) plus a flag for the write-only Sender
+ * shared secret. The secret value itself is never returned. Null on DeliveryConfig when the
+ * supplier has no cXML credentials configured.
+ */
+export interface CxmlCredentials {
+  fromDomain?: string | null;
+  fromIdentity?: string | null;
+  toDomain?: string | null;
+  toIdentity?: string | null;
+  senderDomain?: string | null;
+  senderIdentity?: string | null;
+  hasSharedSecret: boolean;
+}
+
+/**
+ * cXML network credentials sent on upsert. Identities are cleartext; `senderSharedSecret` is
+ * write-only — omit to keep the saved secret, send a value to replace it.
+ */
+export interface CxmlCredentialsInput {
+  fromDomain?: string | null;
+  fromIdentity?: string | null;
+  toDomain?: string | null;
+  toIdentity?: string | null;
+  senderDomain?: string | null;
+  senderIdentity?: string | null;
+  senderSharedSecret?: string | null;
+}
+
 export interface DeliveryConfig {
   supplierId: string;
   protocol: DeliveryProtocol;
@@ -357,6 +386,7 @@ export interface DeliveryConfig {
   credentialsDisplay?: string | null;
   createdAt: string;
   updatedAt: string;
+  cxmlCredentials?: CxmlCredentials | null;
 }
 
 export interface UpsertDeliveryConfigRequest {
@@ -365,6 +395,7 @@ export interface UpsertDeliveryConfigRequest {
   configJson: string;
   credentialsJson?: string | null;
   outputFormat?: string | null;
+  cxmlCredentials?: CxmlCredentialsInput;
 }
 
 export interface DeliveryTestResult {

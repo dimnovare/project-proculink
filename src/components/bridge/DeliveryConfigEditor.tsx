@@ -13,6 +13,7 @@ import {
 } from "@/lib/api/delivery";
 import { invalidateOnboardingStatus } from "@/hooks/useOnboardingStatus";
 import { isArrowKey, rovingRadioNext } from "@/lib/roving-radio";
+import { buildCxmlCredentials } from "@/lib/cxml-credentials";
 import type { DeliveryConfig, DeliveryProtocol, DeliveryTestResult } from "@/lib/api/types";
 
 type AuthType = "none" | "apikey" | "bearer" | "basic" | "oauth2";
@@ -55,6 +56,16 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
   const [protocol, setProtocol] = useState<DeliveryProtocol>("http");
   const [autoDeliver, setAutoDeliver] = useState(false);
   const [outputFormat, setOutputFormat] = useState(""); // "" = not set (defaults to xml at transform time)
+
+  // cXML network credentials (only meaningful when outputFormat === "cxml"). senderSharedSecret is
+  // write-only: blank = keep the saved secret.
+  const [cxmlFromDomain, setCxmlFromDomain] = useState("");
+  const [cxmlFromIdentity, setCxmlFromIdentity] = useState("");
+  const [cxmlToDomain, setCxmlToDomain] = useState("");
+  const [cxmlToIdentity, setCxmlToIdentity] = useState("");
+  const [cxmlSenderDomain, setCxmlSenderDomain] = useState("");
+  const [cxmlSenderIdentity, setCxmlSenderIdentity] = useState("");
+  const [cxmlSenderSharedSecret, setCxmlSenderSharedSecret] = useState("");
 
   // URL-based (http / erp_*)
   const [url, setUrl] = useState("");
@@ -121,6 +132,14 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
           setOutputFormat(config.outputFormat ?? "");
           if (config.protocol === "erp_directo") setAuthType("basic");
           hydrateConfig(config.protocol, config.configJson);
+          const cx = config.cxmlCredentials;
+          setCxmlFromDomain(cx?.fromDomain ?? "");
+          setCxmlFromIdentity(cx?.fromIdentity ?? "");
+          setCxmlToDomain(cx?.toDomain ?? "");
+          setCxmlToIdentity(cx?.toIdentity ?? "");
+          setCxmlSenderDomain(cx?.senderDomain ?? "");
+          setCxmlSenderIdentity(cx?.senderIdentity ?? "");
+          setCxmlSenderSharedSecret(""); // write-only — never prefilled
         }
       } catch (err) {
         if (!cancelled) setError(err instanceof Error ? err.message : "Could not load delivery config.");
@@ -136,6 +155,7 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
   }, [supplierId]);
 
   const hasSavedCredentials = savedConfig?.hasCredentials ?? false;
+  const hasCxmlSharedSecret = savedConfig?.cxmlCredentials?.hasSharedSecret ?? false;
   const isUrlProtocol = URL_PROTOCOLS.includes(protocol);
 
   // Shared by the click handler and the arrow-key radiogroup navigation.
@@ -302,6 +322,15 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
         configJson: JSON.stringify(buildConfigObject()),
         credentialsJson: buildCredentialsJson(),
         outputFormat: outputFormat || null,
+        cxmlCredentials: buildCxmlCredentials(outputFormat, {
+          fromDomain: cxmlFromDomain,
+          fromIdentity: cxmlFromIdentity,
+          toDomain: cxmlToDomain,
+          toIdentity: cxmlToIdentity,
+          senderDomain: cxmlSenderDomain,
+          senderIdentity: cxmlSenderIdentity,
+          senderSharedSecret: cxmlSenderSharedSecret,
+        }),
       });
       setSavedConfig(saved);
       setApiKeyValue("");
@@ -311,6 +340,7 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
       setPrivateKey("");
       setPrivateKeyPassphrase("");
       setOauthClientSecret("");
+      setCxmlSenderSharedSecret(""); // clear the write-only secret after save
       setTestResult(null);
       setJustSaved(true);
       // hasDeliveryConfig just flipped — refresh the checklist/chip surfaces.
@@ -341,6 +371,13 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
       setToAddresses("");
       setBasicPassword("");
       setOauthClientSecret("");
+      setCxmlFromDomain("");
+      setCxmlFromIdentity("");
+      setCxmlToDomain("");
+      setCxmlToIdentity("");
+      setCxmlSenderDomain("");
+      setCxmlSenderIdentity("");
+      setCxmlSenderSharedSecret("");
       setAuthType("none");
       setTestResult(null);
       setJustSaved(false);
@@ -466,6 +503,59 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
                   When set, sending an order to this supplier auto-transforms it into this format.
                 </p>
               </div>
+
+              {/* ── cXML network credentials (only for cXML output) ────────── */}
+              {outputFormat === "cxml" && (
+                <div className="rounded-[7px]" style={{ border: "1px solid #E2E6EE" }}>
+                  <div className="flex items-center gap-2 px-3 py-2" style={{ borderBottom: "1px solid #E2E6EE" }}>
+                    <KeyRound size={14} color="#2E8E3A" />
+                    <span className="text-[12px] font-semibold" style={{ color: "#0B1A2F" }}>cXML network credentials</span>
+                    {hasCxmlSharedSecret && (
+                      <span className="ml-auto text-[11px]" style={{ color: "#2E8E3A" }}>shared secret saved</span>
+                    )}
+                  </div>
+                  <div className="grid gap-3 p-3">
+                    <p className="text-[11px]" style={{ color: "#56627A" }}>
+                      Written into the cXML <code>&lt;Header&gt;</code>. Leave blank to fall back to
+                      ProcuLink&apos;s internal IDs. Example (Coupa): From <code>NetworkId</code> /{" "}
+                      <code>Nasdaq_SE</code>, To <code>NetworkId</code> / <code>Markit_SE</code>.
+                    </p>
+                    <div className="grid gap-3 lg:grid-cols-[160px_minmax(0,1fr)]">
+                      <Field label="From domain">
+                        <input value={cxmlFromDomain} onChange={(e) => { setCxmlFromDomain(e.target.value); markEdited(); }} placeholder="NetworkId" className="h-9 w-full rounded-[5px] px-2.5 text-[12px]" style={INPUT_STYLE} />
+                      </Field>
+                      <Field label="From identity (your sender ID)">
+                        <input value={cxmlFromIdentity} onChange={(e) => { setCxmlFromIdentity(e.target.value); markEdited(); }} placeholder="Nasdaq_SE" className="h-9 w-full rounded-[5px] px-2.5 text-[12px]" style={INPUT_STYLE} />
+                      </Field>
+                    </div>
+                    <div className="grid gap-3 lg:grid-cols-[160px_minmax(0,1fr)]">
+                      <Field label="To domain">
+                        <input value={cxmlToDomain} onChange={(e) => { setCxmlToDomain(e.target.value); markEdited(); }} placeholder="NetworkId" className="h-9 w-full rounded-[5px] px-2.5 text-[12px]" style={INPUT_STYLE} />
+                      </Field>
+                      <Field label="To identity (supplier network ID)">
+                        <input value={cxmlToIdentity} onChange={(e) => { setCxmlToIdentity(e.target.value); markEdited(); }} placeholder="Markit_SE" className="h-9 w-full rounded-[5px] px-2.5 text-[12px]" style={INPUT_STYLE} />
+                      </Field>
+                    </div>
+                    <div className="grid gap-3 lg:grid-cols-[160px_minmax(0,1fr)]">
+                      <Field label="Sender domain">
+                        <input value={cxmlSenderDomain} onChange={(e) => { setCxmlSenderDomain(e.target.value); markEdited(); }} placeholder="NetworkId" className="h-9 w-full rounded-[5px] px-2.5 text-[12px]" style={INPUT_STYLE} />
+                      </Field>
+                      <Field label="Sender identity">
+                        <input value={cxmlSenderIdentity} onChange={(e) => { setCxmlSenderIdentity(e.target.value); markEdited(); }} placeholder="Nasdaq_SE" className="h-9 w-full rounded-[5px] px-2.5 text-[12px]" style={INPUT_STYLE} />
+                      </Field>
+                    </div>
+                    <Field label="Sender shared secret">
+                      <input
+                        value={cxmlSenderSharedSecret}
+                        onChange={(e) => { setCxmlSenderSharedSecret(e.target.value); markEdited(); }}
+                        placeholder={hasCxmlSharedSecret ? "******** (leave blank to keep saved secret)" : "Optional — supplier-issued shared secret"}
+                        className="h-9 w-full rounded-[5px] px-2.5 text-[12px]"
+                        style={INPUT_STYLE}
+                      />
+                    </Field>
+                  </div>
+                </div>
+              )}
 
               {/* ── Connection ─────────────────────────────────────────────── */}
               {isUrlProtocol && (
