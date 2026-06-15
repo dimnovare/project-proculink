@@ -91,8 +91,8 @@ export function OutputStructureDesigner({
     setInferring(true);
     setInferError(null);
     try {
-      // Auto-detect JSON vs CSV from the sample's first character.
-      const fmt = s.startsWith("{") || s.startsWith("[") ? "json" : "csv";
+      // Auto-detect the sample's format from its first character.
+      const fmt = s.startsWith("<") ? "xml" : (s.startsWith("{") || s.startsWith("[")) ? "json" : "csv";
       const inferred = await inferOutputStructure(orderId, s, fmt);
       setTree(inferred);
       setSaved(false);
@@ -172,10 +172,10 @@ export function OutputStructureDesigner({
               {showInfer && (
                 <div style={{ marginTop: 8, border: `1px solid ${BORDER}`, borderRadius: 8, padding: 10, background: "#F7F9FC" }}>
                   <textarea value={sample} onChange={(e) => setSample(e.target.value)}
-                    placeholder="Paste the file your supplier requires (JSON or CSV)…"
+                    placeholder="Paste the file your supplier requires (JSON, CSV, or XML)…"
                     style={{ width: "100%", minHeight: 92, fontFamily: "ui-monospace, Menlo, monospace", fontSize: 11.5, border: `1px solid ${BORDER}`, borderRadius: 6, padding: 8, resize: "vertical", boxSizing: "border-box" }} />
                   <div style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 8 }}>
-                    <span style={{ fontSize: 11, color: SLATE }}>Detects JSON or CSV automatically.</span>
+                    <span style={{ fontSize: 11, color: SLATE }}>Detects JSON, CSV, or XML automatically.</span>
                     <button onClick={() => void infer()} disabled={inferring || !sample.trim()}
                       style={{ marginLeft: "auto", height: 30, padding: "0 14px", borderRadius: 6, border: "none", background: NAVY, color: "#FFF", fontSize: 12, fontWeight: 600, cursor: inferring || !sample.trim() ? "default" : "pointer", opacity: inferring || !sample.trim() ? 0.6 : 1 }}>
                       {inferring ? "Reading…" : "Infer structure"}
