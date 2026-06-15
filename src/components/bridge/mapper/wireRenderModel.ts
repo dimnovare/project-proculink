@@ -68,9 +68,15 @@ export function isTargetWireEmphasised(wire: TargetWireLite, hoveredId: string |
 
 /**
  * Opacity for a wire given the global hover/drag state. The de-clutter rule: when the user
- * hovers any field, the pointed-at wire is full strength and every other wire dims hard so a
- * single wire reads cleanly out of a dense bundle; during a drag everything dims uniformly so
- * the live drag ghost is the only bright line. No hover, no drag → full strength.
+ * hovers any field, the pointed-at wire is full strength and every other wire DE-EMPHASISES
+ * (but stays clearly visible) so a single wire reads cleanly out of a dense bundle without the
+ * rest "disappearing"; during a drag everything dims uniformly so the live drag ghost is the
+ * only bright line. No hover, no drag → full strength.
+ *
+ * `hoverDimOpacity` was 0.12 — so aggressive that reaching for a row's controls made every
+ * other wire read as GONE (the founder's "wires vanish after connecting" complaint). 0.32 keeps
+ * the de-emphasis legible: the focused wire still stands out, but a connected mapping never
+ * looks like it was lost just because the pointer moved.
  */
 export function wireOpacity(opts: {
   dragging: boolean;
@@ -79,7 +85,7 @@ export function wireOpacity(opts: {
   dimmedOpacity?: number;
   hoverDimOpacity?: number;
 }): number {
-  const { dragging, hovering, emphasised, dimmedOpacity = 0.45, hoverDimOpacity = 0.12 } = opts;
+  const { dragging, hovering, emphasised, dimmedOpacity = 0.45, hoverDimOpacity = 0.32 } = opts;
   if (dragging) return dimmedOpacity;
   if (hovering) return emphasised ? 1 : hoverDimOpacity;
   return 1;

@@ -307,6 +307,7 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
       onDisconnect={model.onTargetDisconnect}
       onSetFixedValue={model.onSetFixedValue}
       onAddField={model.onAddField}
+      canonicalOptions={model.canonicalNodes}
       badgeSlot={badgeSlot}
       manipulatorsOf={(field) => fieldManipulatorsOf(model.override, field.outputPath)}
       onFieldManipulatorsChange={model.onFieldManipulatorsChange}

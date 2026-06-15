@@ -84,9 +84,10 @@ describe("wireOpacity", () => {
     expect(wireOpacity({ dragging: true, hovering: true, emphasised: false })).toBe(0.45);
   });
 
-  it("lights the emphasised wire and dims the rest hard on hover", () => {
+  it("lights the emphasised wire and de-emphasises the rest on hover (but keeps them visible)", () => {
     expect(wireOpacity({ dragging: false, hovering: true, emphasised: true })).toBe(1);
-    expect(wireOpacity({ dragging: false, hovering: true, emphasised: false })).toBe(0.12);
+    // De-emphasised, NOT vanished — reaching for a row control must never read as "wire lost".
+    expect(wireOpacity({ dragging: false, hovering: true, emphasised: false })).toBe(0.32);
   });
 
   it("honours custom dim levels", () => {

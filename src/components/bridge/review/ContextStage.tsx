@@ -161,7 +161,7 @@ function LineRulesStrip({ validation, lineNumber }: {
 }) {
   const rows = rulesAffectingLine(validation.validationResult, lineNumber);
   return (
-    <div data-testid="line-rules-strip" style={{ marginTop: 12, borderTop: "1px dashed #E2E6EE", paddingTop: 9 }}>
+    <div data-testid="line-rules-strip" style={{ marginTop: 10, borderTop: "1px dashed #E2E6EE", paddingTop: 8 }}>
       <div style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--ink-faint)", marginBottom: 6 }}>
         Acceptance rules affecting this line
       </div>
@@ -384,7 +384,7 @@ export function ContextStage({
         </div>
 
         {/* Controls — the SAME extracted components the classic spine binds. */}
-        <div style={{ marginTop: 12 }}>
+        <div style={{ marginTop: 9 }}>
           {selected.kind === "ai-suggestion" && selectedLine.aiSuggestion && (() => {
             // V9: effective (calibrated-aware) confidence drives the displayed
             // number; the card surfaces the honest basis + raw→calibrated detail.
@@ -541,8 +541,8 @@ export function ContextStage({
       ref={containerRef}
       style={
         wide
-          ? { position: "relative", display: "grid", gridTemplateColumns: "minmax(0,0.95fr) minmax(0,1.1fr) minmax(0,1fr)", gap: 30, alignItems: "start" }
-          : { position: "relative", display: "flex", flexDirection: "column", gap: 16, paddingLeft: 24 }
+          ? { position: "relative", display: "grid", gridTemplateColumns: "minmax(0,0.95fr) minmax(0,1.1fr) minmax(0,1fr)", gap: 24, alignItems: "start" }
+          : { position: "relative", display: "flex", flexDirection: "column", gap: 12, paddingLeft: 20 }
       }
     >
       <StageWireSvg wires={wires} wide={wide} />
@@ -557,8 +557,8 @@ export function ContextStage({
           Output so the three zones read as a clear left→middle→right progression
           and the controls (Set supplier code etc.) sit in a calm framed panel. */}
       <div ref={canonicalRef} style={{ position: "relative", zIndex: 2, minWidth: 0 }}>
-        <div style={{ borderRadius: 9, padding: 11, background: "#FBFCFD", border: "1px solid #E2E6EE", minWidth: 0 }}>
-          <div style={{ fontSize: 9.5, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em", color: "var(--ink-faint)", marginBottom: 8 }}>
+        <div style={{ borderRadius: 9, padding: "9px 11px", background: "#FBFCFD", border: "1px solid #E2E6EE", minWidth: 0 }}>
+          <div style={{ fontSize: 9.5, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em", color: "var(--ink-faint)", marginBottom: 6 }}>
             Canonical line
           </div>
           {canonicalContent}
@@ -583,7 +583,7 @@ export function ContextStage({
   const body = (
     <>
       {breadcrumb}
-      <div style={{ padding: "12px 14px" }}>
+      <div style={{ padding: "10px 14px 12px" }}>
         {panels}
         {/* Rules strip — line-scoped cards only (rule cards ARE the rule). */}
         {selected.lineId != null && selected.kind !== "rule-failure" && (

@@ -9,20 +9,25 @@
 //   • UNMAPPED → quiet. Loud amber "needs a source" ONLY on REQUIRED outputs; optional
 //                unmapped outputs stay neutral/silent.
 //
-// The per-row status is computed by the pure computeOutgoingStatus (vitest-tested); the value
-// preview chases the override projections the engine already builds. The fixed-value + transform
-// affordances are kept but rendered as REAL controls: when the host doesn't wire a handler yet,
-// the control renders DISABLED with a reason tooltip — never dead-but-enabled (the interaction
-// agent wires the handlers).
+// VISUAL REDESIGN (2026-06-15): the "Edit fixed value" and "+ Transform" controls used to sit on
+// a SEPARATE second line below each row, reading as disconnected — the founder flagged it twice.
+// They now live INLINE in the row's right-hand action cluster, next to the status tag (revealed
+// quietly at rest, full on hover/focus/active so they're discoverable but calm). The fixed-value
+// status chip is itself the "edit" affordance (click the value to edit it — direct manipulation).
 //
-// Drop-zone anchors (zoneRef) + the connection-variant "+ Add output field" menu carry over from
-// TargetLane unchanged so the wire engine + schema authoring keep working.
+// "Add output field" is now a REAL, fully usable combobox (offer⇔works): a searchable canonical-
+// field picker (system + custom, grouped header/line, already-present fields filtered out) PLUS
+// an "create custom field" footer for an arbitrary name + scope. The dead "soon" schema-source
+// menu (sample / import / clone / AI-infer — none backed by anything) is gone.
+//
+// The per-row status is computed by the pure computeOutgoingStatus (vitest-tested); the value
+// preview chases the override projections the engine already builds.
 //
 // Presentational + prop-driven. No data fetch here.
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import type { ManipulatorEntry } from "@/lib/api/types";
-import type { TargetField } from "./types";
+import type { CanonicalNode, TargetField } from "./types";
 import { isTargetWired, isRenameAffordanceShown } from "./targetLaneModel";
 import { computeOutgoingStatus, type OutgoingStatusInput, type OutgoingFieldStatus } from "./outgoingStatusModel";
 import { TransformPopover } from "./TransformPopover";
@@ -48,28 +53,24 @@ export interface OutgoingPaneProps {
   onSetFixedValue?: (outputPath: string, value: string | null) => void;
   /** Rename a declared output path (connection editor only; hidden when absent). */
   onRenamePath?: (oldPath: string, newPath: string) => void;
-  /** Add a new declared output field (connection editor "Standard" source). */
+  /** Add a new declared output field (both variants). */
   onAddField?: (outputPath: string, scope: TargetField["scope"]) => void;
+  /**
+   * The canonical fields the add-field picker offers (system spine + custom). The picker filters
+   * out fields already present in the output so it only ever offers something new.
+   */
+  canonicalOptions?: CanonicalNode[];
   /** Per-row enrichment (badges + manipulator pills) rendered by the host. */
   badgeSlot?: (field: TargetField) => React.ReactNode;
   /**
-   * The field's current transform (manipulator) chain — feeds the "+ Transform" popover.
-   * Absent → the "+ Transform" control renders DISABLED with a reason (never dead-but-enabled).
+   * The field's current transform (manipulator) chain — feeds the "Transform" popover.
+   * Absent → the transform control renders DISABLED with a reason (never dead-but-enabled).
    */
   manipulatorsOf?: (field: TargetField) => ManipulatorEntry[];
-  /** Replace a field's transform chain (persists via the model). Required to enable "+ Transform". */
+  /** Replace a field's transform chain (persists via the model). Required to enable transforms. */
   onFieldManipulatorsChange?: (outputPath: string, next: ManipulatorEntry[], scope: "header" | "line") => void;
   readOnly?: boolean;
 }
-
-/** Non-"Standard" schema sources are wired but disabled until Phase-2 lands (offer⇔works). */
-const SCHEMA_SOURCES: { id: string; label: string; ready: boolean; note: string }[] = [
-  { id: "standard", label: "Standard fields", ready: true, note: "Add a canonical output field" },
-  { id: "sample", label: "From a sample file", ready: false, note: "Coming soon" },
-  { id: "import", label: "Import a schema", ready: false, note: "Coming soon" },
-  { id: "clone", label: "Clone another supplier", ready: false, note: "Coming soon" },
-  { id: "ai", label: "AI-infer from a doc", ready: false, note: "Coming soon" },
-];
 
 export function OutgoingPane({
   variant,
@@ -86,6 +87,7 @@ export function OutgoingPane({
   onSetFixedValue,
   onRenamePath,
   onAddField,
+  canonicalOptions,
   badgeSlot,
   manipulatorsOf,
   onFieldManipulatorsChange,
@@ -99,13 +101,25 @@ export function OutgoingPane({
   const canRename = isRenameAffordanceShown(editable, onRenamePath);
   const canAddField = !readOnly && typeof onAddField === "function";
 
+  // The output paths already present — the picker only ever offers something NEW.
+  const existingPaths = useMemo(
+    () => new Set(targetFields.map((f) => f.outputPath.toLowerCase())),
+    [targetFields],
+  );
+
   return (
     <div style={{ borderRadius: 12, border: "1px solid var(--line, #E2E6EE)", background: "#FBFBFD", overflow: "hidden" }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, padding: "9px 12px", borderBottom: "1px solid #EEF0F4" }}>
         <span style={{ fontSize: 10.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em", color: "#1E6D29" }}>
           Outgoing document
         </span>
-        {canAddField && onAddField && <AddOutputFieldMenu onAddField={onAddField} />}
+        {canAddField && onAddField && (
+          <AddOutputFieldMenu
+            onAddField={onAddField}
+            canonicalOptions={canonicalOptions ?? []}
+            existingPaths={existingPaths}
+          />
+        )}
       </div>
 
       {targetFields.length === 0 ? (
@@ -144,7 +158,7 @@ export function OutgoingPane({
   );
 }
 
-// ── A single output-field row (the LEFT-edge drop PORT + honest status) ───────
+// ── A single output-field row (the LEFT-edge drop PORT + honest status + INLINE controls) ──
 function OutgoingRow({
   field, status, wired, fixedValue, hovered, snapped, canRename, readOnly,
   portRef, onHover, onSelect, onDisconnect, onSetFixedValue, onRenamePath, manipulators, onFieldManipulatorsChange, badgeSlot,
@@ -172,12 +186,16 @@ function OutgoingRow({
   const [fixedEditing, setFixedEditing] = useState(false);
   const [draftFixed, setDraftFixed] = useState(fixedValue ?? "");
   const [transformOpen, setTransformOpen] = useState(false);
+  const [focusWithin, setFocusWithin] = useState(false);
   const chain = manipulators ?? [];
   const canEditTransform = !!onFieldManipulatorsChange;
 
   const accent = field.scope === "line" ? "#2E8E3A" : "#1E66C9";
   // Loud ONLY when required AND genuinely unmapped (no value resolves). Optional unmapped = quiet.
   const needsSource = status.required && !status.mapped;
+  // The inline action affordances are quiet at rest, full on hover / keyboard focus / when active,
+  // so they're always discoverable (never hover-ONLY) but don't clutter a dense column.
+  const actionsLit = hovered || focusWithin || transformOpen || fixedEditing || chain.length > 0;
 
   function commitRename() {
     const next = draftPath.trim();
@@ -186,11 +204,22 @@ function OutgoingRow({
     setRenaming(false);
   }
 
+  function startFixedEdit() {
+    setDraftFixed(fixedValue ?? "");
+    setFixedEditing(true);
+  }
+  function commitFixedEdit() {
+    onSetFixedValue?.(field.outputPath, draftFixed.trim() || null);
+    setFixedEditing(false);
+  }
+
   return (
     <div
       data-mapper-row
       onMouseEnter={() => onHover?.(field.outputPath)}
       onMouseLeave={() => onHover?.(null)}
+      onFocusCapture={() => setFocusWithin(true)}
+      onBlurCapture={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setFocusWithin(false); }}
       onClick={() => onSelect?.(field.outputPath)}
       style={{
         position: "relative",
@@ -203,23 +232,24 @@ function OutgoingRow({
         transition: "background 120ms, border-color 120ms, box-shadow 120ms",
       }}
     >
-      <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
-        {/* LEFT-edge drop PORT — the wire engine snaps the incoming→output wire here. Sits on the
-            row's left edge facing the gutter so wires land on the left, never over the text. */}
-        <div
-          ref={(el) => portRef?.(field.outputPath, el)}
-          aria-hidden
-          className="rounded-full"
-          style={{
-            position: "absolute", left: -6, top: "50%", transform: "translateY(-50%)",
-            width: 12, height: 12, borderRadius: 999,
-            background: status.mapped ? (status.kind === "fixed" ? "#FFFFFF" : "#FFFFFF") : "#FFFFFF",
-            border: `2.5px solid ${snapped ? "#6F4FCE" : status.mapped ? "#2E8E3A" : accent}`,
-            boxShadow: snapped ? "0 0 0 3px rgba(111,79,206,0.18)" : undefined,
-            flexShrink: 0, transition: "border-color 120ms, box-shadow 120ms",
-          }}
-        />
+      {/* LEFT-edge drop PORT — the wire engine snaps the incoming→output wire here. Sits on the
+          row's left edge facing the gutter so wires land on the left, never over the text. */}
+      <div
+        ref={(el) => portRef?.(field.outputPath, el)}
+        aria-hidden
+        className="rounded-full"
+        style={{
+          position: "absolute", left: -6, top: "50%", transform: "translateY(-50%)",
+          width: 12, height: 12, borderRadius: 999,
+          background: "#FFFFFF",
+          border: `2.5px solid ${snapped ? "#6F4FCE" : status.mapped ? "#2E8E3A" : accent}`,
+          boxShadow: snapped ? "0 0 0 3px rgba(111,79,206,0.18)" : undefined,
+          flexShrink: 0, transition: "border-color 120ms, box-shadow 120ms",
+        }}
+      />
 
+      {/* HEADER ROW — field identity (left) + inline action cluster (right). */}
+      <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
         {renaming ? (
           <input
             type="text"
@@ -227,6 +257,7 @@ function OutgoingRow({
             autoFocus
             onChange={(e) => setDraftPath(e.target.value)}
             onBlur={commitRename}
+            onClick={(e) => e.stopPropagation()}
             onKeyDown={(e) => {
               if (e.key === "Enter") commitRename();
               if (e.key === "Escape") { setDraftPath(field.outputPath); setRenaming(false); }
@@ -242,7 +273,7 @@ function OutgoingRow({
           <button
             type="button"
             disabled={!canRename}
-            onClick={() => canRename && setRenaming(true)}
+            onClick={(e) => { if (canRename) { e.stopPropagation(); setRenaming(true); } }}
             title={canRename ? "Rename output field" : field.outputPath}
             style={{
               flex: 1, minWidth: 0, textAlign: "left", border: "none", background: "none",
@@ -260,72 +291,44 @@ function OutgoingRow({
           </button>
         )}
 
-        {/* Honest right-side status. */}
-        <OutgoingStatusTag status={status} onDisconnect={!readOnly && wired ? onDisconnect : undefined} />
-      </div>
+        {/* INLINE action cluster: status tag + (Fixed) + (Transform). nowrap so the controls
+            never spill onto a disconnected second line; the field name shrinks first. */}
+        <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0, minWidth: 0 }}>
+          <OutgoingStatusTag
+            status={status}
+            onDisconnect={!readOnly && wired ? onDisconnect : undefined}
+            onEditFixed={!readOnly && status.kind === "fixed" && onSetFixedValue ? startFixedEdit : undefined}
+          />
 
-      {/* Resolved value preview (mono) — the real delivered value as far as it's known. */}
-      {status.mapped && (
-        <div style={{ marginTop: 5, display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
-          <span style={{ fontSize: 8.5, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--ink-faint)", flexShrink: 0 }}>
-            →
-          </span>
-          <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11, color: status.valuePreview ? "var(--ink, #0B1A2F)" : "#AEB6C4", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-            {status.valuePreview ?? "—"}
-          </span>
-        </div>
-      )}
-
-      {/* Enrichment slot: catalog/validation badges ONLY (the single transform editor lives in
-          the inline controls row below — no second manipulator editor here). */}
-      {badgeSlot && (() => { const b = badgeSlot(field); return b ? <div style={{ marginTop: 5 }}>{b}</div> : null; })()}
-
-      {/* ONE inline controls row — source tag is already shown above; here: Transform + Fixed
-          value, tight + inline (not floating far below). Real handlers, or disabled-with-reason. */}
-      {!readOnly && (
-        <div style={{ marginTop: 6, display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-          {/* Fixed value — only meaningful when not wired to a canonical source. */}
-          {!wired && (
+          {/* Fixed value — meaningful only when not wired and not already a fixed chip (that chip
+              is itself the edit affordance). Real control, or disabled-with-reason. */}
+          {!readOnly && !wired && status.kind !== "fixed" && (
             onSetFixedValue ? (
-              fixedEditing ? (
-                <div style={{ display: "flex", gap: 5, flex: 1, minWidth: 160 }}>
-                  <input
-                    type="text"
-                    value={draftFixed}
-                    autoFocus
-                    onChange={(e) => setDraftFixed(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") { onSetFixedValue(field.outputPath, draftFixed || null); setFixedEditing(false); }
-                      if (e.key === "Escape") { setDraftFixed(fixedValue ?? ""); setFixedEditing(false); }
-                    }}
-                    placeholder="Fixed value"
-                    aria-label={`Fixed value for ${field.outputPath}`}
-                    style={{ flex: 1, minWidth: 0, boxSizing: "border-box", padding: "3px 6px", borderRadius: 5, border: "1px solid var(--line, #DCE0E8)", fontSize: 11, color: "var(--ink, #0B1A2F)" }}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => { onSetFixedValue(field.outputPath, draftFixed || null); setFixedEditing(false); }}
-                    style={{ border: "1px solid #6F4FCE", background: "#6F4FCE", color: "#FFFFFF", borderRadius: 5, padding: "0 9px", fontSize: 10, fontWeight: 700, cursor: "pointer" }}
-                  >
-                    Set
-                  </button>
-                </div>
-              ) : (
-                <PowerLink onClick={() => { setDraftFixed(fixedValue ?? ""); setFixedEditing(true); }}>
-                  {status.kind === "fixed" ? "Edit fixed value" : "+ Fixed value"}
-                </PowerLink>
-              )
+              <RowChipButton
+                label="= value"
+                title="Set a fixed value to send for this field"
+                lit={actionsLit}
+                onClick={(e) => { e.stopPropagation(); startFixedEdit(); }}
+              />
             ) : (
-              <PowerLink disabled reason="Fixed values land with the interaction pass">+ Fixed value</PowerLink>
+              <RowChipButton label="= value" lit={actionsLit} disabled reason="Fixed values need an editable mapping" />
             )
           )}
 
           {/* Transform — opens the manipulator-chain popover (real handler) or disabled-with-reason. */}
-          {canEditTransform ? (
-            <div style={{ position: "relative" }}>
-              <PowerLink onClick={() => setTransformOpen((o) => !o)}>
-                {chain.length > 0 ? `Transforms · ${chain.length}` : "+ Transform"}
-              </PowerLink>
+          {!readOnly && (
+            <div style={{ position: "relative", flexShrink: 0 }}>
+              {canEditTransform ? (
+                <RowChipButton
+                  label={chain.length > 0 ? `ƒx · ${chain.length}` : "ƒx"}
+                  title={chain.length > 0 ? `${chain.length} transform${chain.length === 1 ? "" : "s"} applied — clean, reformat or compute this value before delivery` : "Add a transform — clean, reformat or compute this value before delivery"}
+                  lit={actionsLit}
+                  active={chain.length > 0}
+                  onClick={(e) => { e.stopPropagation(); setTransformOpen((o) => !o); }}
+                />
+              ) : (
+                <RowChipButton label="ƒx" lit={actionsLit} disabled reason="Transforms need an editable mapping (open the order or a draft revision)" />
+              )}
               {transformOpen && (
                 <TransformPopover
                   outputPath={field.outputPath}
@@ -335,26 +338,78 @@ function OutgoingRow({
                 />
               )}
             </div>
-          ) : (
-            <PowerLink disabled reason="Transforms need an editable mapping (open the order or a draft revision)">+ Transform</PowerLink>
+          )}
+        </div>
+      </div>
+
+      {/* Resolved value preview (mono) — the real delivered value as far as it's known. */}
+      {status.mapped && !fixedEditing && (
+        <div style={{ marginTop: 5, display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
+          <span aria-hidden style={{ fontSize: 8.5, fontWeight: 800, color: "#9AA3B2", flexShrink: 0 }}>
+            →
+          </span>
+          <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11, color: status.valuePreview ? "var(--ink, #0B1A2F)" : "#AEB6C4", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            {status.valuePreview ?? "—"}
+          </span>
+        </div>
+      )}
+
+      {/* Inline fixed-value editor (transient) — appears under the header while editing, never as a
+          permanent disconnected control. */}
+      {fixedEditing && (
+        <div style={{ marginTop: 6, display: "flex", gap: 5, alignItems: "center" }} onClick={(e) => e.stopPropagation()}>
+          <input
+            type="text"
+            value={draftFixed}
+            autoFocus
+            onChange={(e) => setDraftFixed(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") commitFixedEdit();
+              if (e.key === "Escape") { setDraftFixed(fixedValue ?? ""); setFixedEditing(false); }
+            }}
+            placeholder="Fixed value sent for this field"
+            aria-label={`Fixed value for ${field.outputPath}`}
+            style={{ flex: 1, minWidth: 0, boxSizing: "border-box", padding: "4px 7px", borderRadius: 5, border: "1px solid #C4ABE8", fontSize: 11, color: "var(--ink, #0B1A2F)" }}
+          />
+          <button
+            type="button"
+            onClick={commitFixedEdit}
+            style={{ border: "1px solid #6F4FCE", background: "#6F4FCE", color: "#FFFFFF", borderRadius: 5, padding: "0 10px", minHeight: 26, fontSize: 10, fontWeight: 700, cursor: "pointer" }}
+          >
+            Set
+          </button>
+          {fixedValue != null && (
+            <button
+              type="button"
+              onClick={() => { onSetFixedValue?.(field.outputPath, null); setFixedEditing(false); }}
+              title="Clear the fixed value"
+              style={{ border: "1px solid #DCE0E8", background: "#FFFFFF", color: "var(--ink-faint)", borderRadius: 5, padding: "0 9px", minHeight: 26, fontSize: 10, fontWeight: 700, cursor: "pointer" }}
+            >
+              Clear
+            </button>
           )}
         </div>
       )}
+
+      {/* Enrichment slot: catalog/validation badges. */}
+      {badgeSlot && (() => { const b = badgeSlot(field); return b ? <div style={{ marginTop: 5 }}>{b}</div> : null; })()}
     </div>
   );
 }
 
 // ── The honest right-side status tag ──────────────────────────────────────────
 function OutgoingStatusTag({
-  status, onDisconnect,
+  status, onDisconnect, onEditFixed,
 }: {
   status: OutgoingFieldStatus;
   onDisconnect?: (outputPath: string) => void;
+  /** When set, the fixed-value chip becomes a click-to-edit affordance (direct manipulation). */
+  onEditFixed?: () => void;
 }) {
   if (status.kind === "wired") {
     return (
-      <span style={{ display: "inline-flex", alignItems: "center", gap: 4, flexShrink: 0 }}>
-        <span style={{ fontSize: 9.5, fontWeight: 700, color: "#1E6D29", maxWidth: 130, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+      <span style={{ display: "inline-flex", alignItems: "center", gap: 4, flexShrink: 0, minWidth: 0 }}>
+        <span style={{ fontSize: 9.5, fontWeight: 700, color: "#1E6D29", maxWidth: 110, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
           {status.source}
         </span>
         {onDisconnect && (
@@ -372,9 +427,20 @@ function OutgoingStatusTag({
   }
   if (status.kind === "fixed") {
     return (
-      <span title={`Fixed value`} style={{ fontSize: 9, fontWeight: 700, color: "#5E3DB0", background: "#F4EFFC", border: "1px solid #E2D6F6", borderRadius: 4, padding: "1px 6px", flexShrink: 0, maxWidth: 130, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+      <button
+        type="button"
+        onClick={onEditFixed ? (e) => { e.stopPropagation(); onEditFixed(); } : undefined}
+        title={onEditFixed ? "Click to edit the fixed value" : "Fixed value"}
+        style={{
+          display: "inline-flex", alignItems: "center", gap: 4, fontSize: 9, fontWeight: 700, color: "#5E3DB0",
+          background: "#F4EFFC", border: "1px solid #E2D6F6", borderRadius: 4, padding: "1px 6px",
+          flexShrink: 0, maxWidth: 130, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+          cursor: onEditFixed ? "pointer" : "default",
+        }}
+      >
         {status.source}
-      </span>
+        {onEditFixed && <span aria-hidden style={{ fontSize: 8, opacity: 0.7 }}>✎</span>}
+      </button>
     );
   }
   if (status.kind === "auto") {
@@ -397,61 +463,99 @@ function OutgoingStatusTag({
   );
 }
 
-// ── Small power-link (fixed value / transform) ────────────────────────────────
-function PowerLink({
-  children, onClick, disabled, reason,
+// ── Small inline row-action chip (fixed value / transform) ────────────────────
+function RowChipButton({
+  label, title, onClick, lit, active, disabled, reason,
 }: {
-  children: React.ReactNode;
-  onClick?: () => void;
+  label: string;
+  title?: string;
+  onClick?: (e: React.MouseEvent) => void;
+  /** Quiet at rest, full when the row is hovered/focused or the control is active. */
+  lit?: boolean;
+  active?: boolean;
   disabled?: boolean;
   reason?: string;
 }) {
+  const isDisabled = disabled || !onClick;
   return (
     <button
       type="button"
       onClick={onClick}
-      disabled={disabled}
-      title={disabled ? reason : undefined}
+      disabled={isDisabled}
+      title={isDisabled ? reason : title}
       style={{
-        border: "none", background: "none", padding: 0,
-        cursor: disabled ? "not-allowed" : "pointer",
-        color: disabled ? "#AEB6C4" : "#5E3DB0",
-        fontSize: 10, fontWeight: 700,
-        opacity: disabled ? 0.7 : 1,
+        display: "inline-flex", alignItems: "center", gap: 3, height: 20, padding: "0 7px",
+        borderRadius: 6, fontSize: 9.5, fontWeight: 700, letterSpacing: "0.01em",
+        whiteSpace: "nowrap", flexShrink: 0,
+        border: `1px solid ${active ? "#C4ABE8" : "#E7DEF6"}`,
+        background: active ? "#F4EFFC" : "transparent",
+        color: isDisabled ? "#C2C8D2" : "#5E3DB0",
+        opacity: isDisabled ? 0.7 : lit || active ? 1 : 0.55,
+        cursor: isDisabled ? "not-allowed" : "pointer",
+        transition: "opacity 120ms, background 120ms, border-color 120ms",
       }}
     >
-      {children}
+      {label}
     </button>
   );
 }
 
-// ── "+ Add output field" with the schema-source picker (carried from TargetLane) ──
+// ── "+ Add output field" — a REAL combobox: searchable canonical picker + custom-field create ──
 function AddOutputFieldMenu({
-  onAddField,
+  onAddField, canonicalOptions, existingPaths,
 }: {
   onAddField: (outputPath: string, scope: TargetField["scope"]) => void;
+  canonicalOptions: CanonicalNode[];
+  existingPaths: Set<string>;
 }) {
   const [open, setOpen] = useState(false);
-  const [adding, setAdding] = useState(false);
-  const [name, setName] = useState("");
-  const [scope, setScope] = useState<TargetField["scope"]>("header");
+  const [query, setQuery] = useState("");
+  const [customScope, setCustomScope] = useState<TargetField["scope"]>("header");
 
-  function submit() {
-    const path = name.trim();
-    if (!path) return;
-    onAddField(path, scope);
-    setName("");
-    setAdding(false);
+  // Canonical fields not yet in the output, filtered by the query, grouped header → line.
+  const available = useMemo(
+    () => canonicalOptions.filter((n) => !existingPaths.has(n.id.toLowerCase())),
+    [canonicalOptions, existingPaths],
+  );
+  const q = query.trim().toLowerCase();
+  const matches = useMemo(() => {
+    const filtered = q
+      ? available.filter((n) => n.id.toLowerCase().includes(q) || n.label.toLowerCase().includes(q))
+      : available;
+    return {
+      header: filtered.filter((n) => n.scope === "header"),
+      line: filtered.filter((n) => n.scope === "line"),
+    };
+  }, [available, q]);
+
+  const trimmed = query.trim();
+  // Offer "create custom" only when the typed name isn't already an exact canonical/existing key.
+  const exactExists =
+    !!trimmed &&
+    (existingPaths.has(trimmed.toLowerCase()) || canonicalOptions.some((n) => n.id.toLowerCase() === trimmed.toLowerCase()));
+  const canCreateCustom = !!trimmed && !exactExists;
+
+  function close() {
     setOpen(false);
+    setQuery("");
+  }
+  function addCanonical(node: CanonicalNode) {
+    onAddField(node.id, node.scope);
+    close();
+  }
+  function addCustom() {
+    if (!canCreateCustom) return;
+    onAddField(trimmed, customScope);
+    close();
   }
 
   return (
     <div style={{ position: "relative" }}>
       <button
         type="button"
-        aria-haspopup="menu"
+        aria-haspopup="dialog"
         aria-expanded={open}
-        onClick={() => { setOpen((o) => !o); setAdding(false); }}
+        onClick={() => { setOpen((o) => !o); setQuery(""); }}
         style={{
           display: "inline-flex", alignItems: "center", gap: 4,
           border: "1px dashed #A9D3AF", background: "#F4FBF5", color: "#1E6D29",
@@ -463,84 +567,148 @@ function AddOutputFieldMenu({
       </button>
 
       {open && (
-        <div
-          role="menu"
-          style={{
-            position: "absolute", right: 0, top: "100%", marginTop: 4, zIndex: 20, width: 220,
-            background: "#FFFFFF", border: "1px solid #E2E6EE", borderRadius: 8,
-            boxShadow: "0 6px 18px rgba(11,26,47,0.14)", padding: 6,
-          }}
-        >
-          {adding ? (
-            <div style={{ display: "flex", flexDirection: "column", gap: 6, padding: 2 }}>
+        <>
+          {/* Click-away scrim (transparent) so the panel closes on outside click. */}
+          <div style={{ position: "fixed", inset: 0, zIndex: 30 }} onClick={close} aria-hidden />
+          <div
+            role="dialog"
+            aria-label="Add an output field"
+            style={{
+              position: "absolute", right: 0, top: "100%", marginTop: 6, zIndex: 31, width: 280,
+              background: "#FFFFFF", border: "1px solid #E2E6EE", borderRadius: 10,
+              boxShadow: "0 12px 30px rgba(11,26,47,0.16)", overflow: "hidden",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ padding: 8, borderBottom: "1px solid #EEF0F4" }}>
               <input
                 type="text"
-                value={name}
+                value={query}
                 autoFocus
-                onChange={(e) => setName(e.target.value)}
+                onChange={(e) => setQuery(e.target.value)}
                 onKeyDown={(e) => {
-                  if (e.key === "Enter") submit();
-                  if (e.key === "Escape") { setAdding(false); }
+                  if (e.key === "Escape") close();
+                  if (e.key === "Enter") {
+                    // Enter adds the single canonical match if there's exactly one, else creates custom.
+                    const only = [...matches.header, ...matches.line];
+                    if (only.length === 1) addCanonical(only[0]);
+                    else if (canCreateCustom) addCustom();
+                  }
                 }}
-                placeholder="Output field name"
-                aria-label="New output field name"
-                style={{ boxSizing: "border-box", padding: "5px 7px", borderRadius: 6, border: "1px solid #DCE0E8", fontSize: 11, color: "#0B1A2F" }}
+                placeholder="Search fields, or type a new name…"
+                aria-label="Search output fields or type a new field name"
+                style={{ width: "100%", boxSizing: "border-box", padding: "6px 9px", borderRadius: 7, border: "1px solid #DCE0E8", fontSize: 11.5, color: "#0B1A2F" }}
               />
-              <select
-                value={scope}
-                onChange={(e) => setScope(e.target.value as TargetField["scope"])}
-                aria-label="New output field scope"
-                style={{ boxSizing: "border-box", padding: "5px 7px", borderRadius: 6, border: "1px solid #DCE0E8", fontSize: 11, color: "#0B1A2F", background: "#FFFFFF" }}
-              >
-                <option value="header">Header</option>
-                <option value="line">Line</option>
-              </select>
-              <div style={{ display: "flex", gap: 5, justifyContent: "flex-end" }}>
-                <button
-                  type="button"
-                  onClick={() => setAdding(false)}
-                  style={{ border: "1px solid #DCE0E8", background: "#FFFFFF", color: "var(--ink-faint)", borderRadius: 5, padding: "4px 8px", fontSize: 10.5, fontWeight: 700, cursor: "pointer" }}
-                >
-                  Back
-                </button>
-                <button
-                  type="button"
-                  onClick={submit}
-                  disabled={!name.trim()}
-                  style={{ border: "1px solid #2E8E3A", background: name.trim() ? "#2E8E3A" : "#A9D3AF", color: "#FFFFFF", borderRadius: 5, padding: "4px 10px", fontSize: 10.5, fontWeight: 700, cursor: name.trim() ? "pointer" : "default" }}
-                >
-                  Add
-                </button>
-              </div>
             </div>
-          ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
-              <div style={{ fontSize: 9, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--ink-faint)", padding: "2px 6px 4px" }}>
-                Where from?
-              </div>
-              {SCHEMA_SOURCES.map((s) => (
+
+            <div style={{ maxHeight: 260, overflowY: "auto", padding: 6 }}>
+              {matches.header.length === 0 && matches.line.length === 0 ? (
+                <div style={{ padding: "8px 6px", fontSize: 10.5, color: "var(--ink-faint)", lineHeight: 1.5 }}>
+                  {available.length === 0
+                    ? "Every standard field is already in the output. Type a name below to add a custom field."
+                    : "No standard field matches. Add it as a custom field below."}
+                </div>
+              ) : (
+                <>
+                  {matches.header.length > 0 && (
+                    <PickerGroup label="Header fields">
+                      {matches.header.map((n) => <PickerItem key={n.id} node={n} onPick={() => addCanonical(n)} />)}
+                    </PickerGroup>
+                  )}
+                  {matches.line.length > 0 && (
+                    <PickerGroup label="Line fields">
+                      {matches.line.map((n) => <PickerItem key={n.id} node={n} onPick={() => addCanonical(n)} />)}
+                    </PickerGroup>
+                  )}
+                </>
+              )}
+            </div>
+
+            {/* Custom-create footer — an arbitrary field name + scope (header/line). */}
+            {canCreateCustom && (
+              <div style={{ borderTop: "1px solid #EEF0F4", padding: 8, display: "flex", flexDirection: "column", gap: 7, background: "#FBFBFD" }}>
+                <ScopeToggle scope={customScope} onChange={setCustomScope} />
                 <button
-                  key={s.id}
                   type="button"
-                  role="menuitem"
-                  disabled={!s.ready}
-                  title={s.note}
-                  onClick={() => { if (s.ready) setAdding(true); }}
+                  onClick={addCustom}
                   style={{
-                    display: "flex", alignItems: "center", justifyContent: "space-between",
-                    width: "100%", textAlign: "left", border: "none", background: "none",
-                    cursor: s.ready ? "pointer" : "not-allowed", opacity: s.ready ? 1 : 0.5,
-                    fontSize: 11, fontWeight: 600, color: "#0B1A2F", padding: "5px 6px", borderRadius: 5,
+                    display: "flex", alignItems: "center", gap: 6, width: "100%", justifyContent: "center",
+                    border: "1px solid #2E8E3A", background: "#2E8E3A", color: "#FFFFFF",
+                    borderRadius: 6, padding: "6px 10px", fontSize: 11, fontWeight: 700, cursor: "pointer",
                   }}
                 >
-                  {s.label}
-                  {!s.ready && <span style={{ fontSize: 8.5, fontWeight: 700, color: "var(--ink-faint)", textTransform: "uppercase", letterSpacing: "0.04em" }}>soon</span>}
+                  <span aria-hidden style={{ fontSize: 12, lineHeight: 1 }}>+</span>
+                  Add custom field “{trimmed}”
                 </button>
-              ))}
-            </div>
-          )}
-        </div>
+              </div>
+            )}
+          </div>
+        </>
       )}
+    </div>
+  );
+}
+
+function PickerGroup({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div style={{ marginBottom: 4 }}>
+      <div style={{ fontSize: 9, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--ink-faint)", padding: "4px 6px 3px" }}>
+        {label}
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>{children}</div>
+    </div>
+  );
+}
+
+function PickerItem({ node, onPick }: { node: CanonicalNode; onPick: () => void }) {
+  return (
+    <button
+      type="button"
+      role="menuitem"
+      onClick={onPick}
+      title={node.standardsRef ? `Maps to ${node.standardsRef}` : `Add ${node.label}`}
+      style={{
+        display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8,
+        width: "100%", textAlign: "left", border: "none", background: "none", cursor: "pointer",
+        padding: "5px 6px", borderRadius: 6,
+      }}
+      onMouseEnter={(e) => { e.currentTarget.style.background = "#F4FBF5"; }}
+      onMouseLeave={(e) => { e.currentTarget.style.background = "none"; }}
+    >
+      <span style={{ display: "flex", flexDirection: "column", gap: 1, minWidth: 0 }}>
+        <span style={{ fontSize: 11.5, fontWeight: 600, color: "#0B1A2F", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+          {node.label}
+        </span>
+        <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 9.5, color: "var(--ink-faint)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+          {node.id}
+        </span>
+      </span>
+      <span aria-hidden style={{ fontSize: 13, fontWeight: 700, color: "#2E8E3A", flexShrink: 0 }}>+</span>
+    </button>
+  );
+}
+
+function ScopeToggle({ scope, onChange }: { scope: TargetField["scope"]; onChange: (s: TargetField["scope"]) => void }) {
+  return (
+    <div role="group" aria-label="New field scope" style={{ display: "inline-flex", alignSelf: "flex-start", borderRadius: 6, border: "1px solid #E2E6EE", overflow: "hidden" }}>
+      {(["header", "line"] as const).map((s) => {
+        const active = scope === s;
+        return (
+          <button
+            key={s}
+            type="button"
+            onClick={() => onChange(s)}
+            aria-pressed={active}
+            style={{
+              fontSize: 10, fontWeight: 700, textTransform: "capitalize", padding: "3px 10px",
+              border: "none", cursor: "pointer",
+              background: active ? "#0B1A2F" : "#FFFFFF", color: active ? "#FFFFFF" : "#56627A",
+            }}
+          >
+            {s}
+          </button>
+        );
+      })}
     </div>
   );
 }
