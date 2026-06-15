@@ -332,17 +332,37 @@ describe("bulkAcceptStats / bulkAcceptDisabledReason — 'Accept all ≥90%' (G8
   });
 });
 
-describe("bulkAcceptStats — V9 calibrated vs raw threshold", () => {
-  // An over-confident RAW 0.92 that the backend calibrated DOWN to 0.6 must NOT
-  // auto-qualify for ≥0.9 bulk accept — reality, not the model's estimate, drives it.
-  it("thresholds calibrated suggestions on the CALIBRATED confidence", () => {
+describe("bulkAcceptStats — COUNT⇔ACTION parity on RAW confidence (count-vs-action mismatch regression)", () => {
+  // The accept endpoint (OrderResolutionService.AcceptAiSuggestionsAsync AND the
+  // mock) filters on the RAW model confidence with an INCLUSIVE `>=`. The button
+  // COUNT must mirror that EXACTLY, or the operator sees "Accept all ≥90% (1)" and
+  // then "No AI suggestions at ≥90% confidence to accept". Calibration is a
+  // DISPLAY overlay only — it must NOT move the bulk-accept bar.
+
+  it("counts an exactly-0.9 suggestion as eligible (>= threshold, inclusive — the YUBI-500 bug)", () => {
+    // The exact reproduction: a single line whose RAW confidence is exactly 0.9.
+    // It MUST be counted (button shows "(1)") AND accepted by the endpoint.
     const order = makeOrder([
-      // raw 0.92 ≥ 0.9 but calibrated 0.60 < 0.9 → below threshold
+      makeLine({
+        id: "l1", lineNumber: 1, needsReview: true, buyerItemCode: "24931630",
+        aiSuggestion: { supplierItemCode: "YUBI-500", confidence: 0.9, reason: "Direct mapping exists for buyerItemCode 24931630", provenance: "mappings" },
+      }),
+    ]);
+    expect(bulkAcceptStats(order, 0.9)).toEqual({ eligible: 1, belowThreshold: 0 });
+    expect(bulkAcceptDisabledReason(bulkAcceptStats(order, 0.9))).toBeNull();
+  });
+
+  it("counts on RAW confidence even when the backend calibrated the number (ignores calibratedConfidence)", () => {
+    const order = makeOrder([
+      // raw 0.92 ≥ 0.9 → eligible, regardless of a calibrated 0.60 overlay
+      // (the endpoint accepts it on raw, so the count MUST agree).
       makeLine({
         id: "l1", lineNumber: 1, needsReview: true,
         aiSuggestion: { supplierItemCode: "S-1", confidence: 0.92, reason: "r", provenance: "p", calibratedConfidence: 0.6, isCalibrated: true },
       }),
-      // raw 0.80 < 0.9 but calibrated 0.95 ≥ 0.9 → eligible (calibration can also raise it)
+      // raw 0.80 < 0.9 → below threshold, regardless of a calibrated 0.95 overlay
+      // (the endpoint would NOT accept it on raw — counting it produced the
+      // "(1)" → "No AI suggestions at ≥90%" mismatch).
       makeLine({
         id: "l2", lineNumber: 2, needsReview: true,
         aiSuggestion: { supplierItemCode: "S-2", confidence: 0.80, reason: "r", provenance: "p", calibratedConfidence: 0.95, isCalibrated: true },
@@ -351,14 +371,12 @@ describe("bulkAcceptStats — V9 calibrated vs raw threshold", () => {
     expect(bulkAcceptStats(order, 0.9)).toEqual({ eligible: 1, belowThreshold: 1 });
   });
 
-  it("uses RAW confidence when a suggestion is not calibrated (isCalibrated false / absent)", () => {
+  it("uses RAW confidence for pre-V9 orders with no calibration fields", () => {
     const order = makeOrder([
-      // isCalibrated false → ignore the calibrated number, use raw 0.92 → eligible
       makeLine({
         id: "l1", lineNumber: 1, needsReview: true,
-        aiSuggestion: { supplierItemCode: "S-1", confidence: 0.92, reason: "r", provenance: "p", calibratedConfidence: 0.4, isCalibrated: false },
+        aiSuggestion: { supplierItemCode: "S-1", confidence: 0.92, reason: "r", provenance: "p" },
       }),
-      // pre-V9 order: no calibration fields → raw 0.7 → below threshold
       makeLine({
         id: "l2", lineNumber: 2, needsReview: true,
         aiSuggestion: { supplierItemCode: "S-2", confidence: 0.7, reason: "r", provenance: "p" },

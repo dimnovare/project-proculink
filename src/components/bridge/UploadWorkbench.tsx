@@ -1033,7 +1033,12 @@ export function UploadWorkbench() {
                   </div>
 
                   {/* Per-file status list. Before upload: the picked file names; during/after:
-                      live pending → uploading → done/failed, with a link to each created order. */}
+                      live pending → uploading → done/failed, with a link to each created order.
+                      "done" here means the UPLOAD landed and an order STUB was created — the
+                      backend then parses asynchronously (POST /upload returns status "parsing"),
+                      so the order's buyer/lines/total are still being EXTRACTED. We say
+                      "Extracting…" (not "✓ Ready") so opening the order and seeing an empty
+                      buyer / 0 lines for a moment isn't a surprise (offer↔works). */}
                   <ul className="flex flex-col gap-1" style={{ margin: 0, padding: 0, listStyle: "none" }}>
                     {(batchResults.length > 0
                       ? batchResults
@@ -1051,10 +1056,15 @@ export function UploadWorkbench() {
                           <button
                             type="button"
                             onClick={() => openOrder(r.orderId!)}
-                            className="shrink-0 text-[11px] font-semibold"
-                            style={{ color: "#1E6D29", background: "none", border: "none", cursor: "pointer" }}
+                            className="inline-flex shrink-0 items-center gap-1.5 text-[11px] font-semibold"
+                            style={{ color: "#6F4FCE", background: "none", border: "none", cursor: "pointer" }}
+                            title="Order created — we're still extracting its contents. Open to follow along."
                           >
-                            ✓ Open order →
+                            <span
+                              aria-hidden
+                              style={{ display: "inline-block", width: 9, height: 9, border: "1.5px solid #C9BCE8", borderTopColor: "#6F4FCE", borderRadius: "50%", animation: "spin 0.7s linear infinite" }}
+                            />
+                            Extracting… · Open →
                           </button>
                         ) : r.status === "failed" ? (
                           <span className="shrink-0 text-[11px] font-medium" style={{ color: "#C53A3A" }} title={r.error}>
@@ -1068,11 +1078,18 @@ export function UploadWorkbench() {
                       </li>
                     ))}
                   </ul>
+                  <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
 
                   {batchResults.length > 0 && !uploading && batchResults.some((r) => r.status === "done") && (
-                    <Link href="/inbox" className="text-[12px] font-semibold" style={{ color: "#1E6D29" }}>
-                      View all in inbox ↗
-                    </Link>
+                    <div className="flex flex-col gap-1.5">
+                      <p className="text-[11.5px]" style={{ color: "#56627A", margin: 0 }}>
+                        Orders created. We&apos;re extracting each document now — the buyer, line
+                        items and totals fill in automatically once extraction finishes.
+                      </p>
+                      <Link href="/inbox" className="text-[12px] font-semibold" style={{ color: "#1E6D29" }}>
+                        View all in inbox ↗
+                      </Link>
+                    </div>
                   )}
                 </div>
               </XCard>

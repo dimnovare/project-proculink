@@ -13,7 +13,6 @@
 //   • Initial order (no prevQueue): severity rank, then line number, then key.
 
 import type { Order, OrderValidationResult } from "@/types/procurement";
-import { effectiveConfidence } from "./calibrationDisplay";
 
 export type FixCardKind = "ai-suggestion" | "manual-code" | "review-flag" | "rule-failure";
 
@@ -184,18 +183,28 @@ export interface BulkAcceptStats {
  * "Open" = needsReview, no supplier code yet, and an AI suggestion present —
  * the same predicate the bulk-accept endpoint applies.
  *
- * V9: the ≥threshold test uses the EFFECTIVE confidence (calibrated when the
- * backend calibrated the suggestion, raw otherwise — see effectiveConfidence),
- * so an over-confident raw 0.92 that empirically accepts at 0.6 no longer
- * auto-qualifies for one-click bulk accept. Reality, not the model's estimate,
- * drives the count. Non-calibrated suggestions are unchanged (raw confidence).
+ * COUNT⇔ACTION PARITY (the bug this comment used to cause): the button's count
+ * MUST match what the accept endpoint actually does, or the operator sees
+ * "Accept all ≥90% (1)" and then "No AI suggestions at ≥90% confidence to
+ * accept". The accept endpoint (OrderResolutionService.AcceptAiSuggestionsAsync
+ * AND the mock) filters on the RAW model confidence with an INCLUSIVE `>=`
+ * comparison: `AiSuggestionConfidence < minConfidence` → skip, i.e. accept
+ * when `raw >= threshold`. So the count tests the SAME raw `confidence` with the
+ * SAME inclusive `>=`. A suggestion at exactly 0.9 is therefore BOTH counted
+ * and accepted.
+ *
+ * (V9 calibration intentionally does NOT gate bulk accept: the earlier version
+ * counted on the calibrated `effectiveConfidence` while the endpoint accepted on
+ * raw, so a line whose calibrated value crossed 0.9 but whose raw value did not
+ * was counted-but-never-accepted. Calibration remains a DISPLAY overlay on the
+ * per-suggestion chip; it does not move the bulk-accept bar.)
  */
 export function bulkAcceptStats(order: Order, threshold = 0.9): BulkAcceptStats {
   let eligible = 0;
   let belowThreshold = 0;
   for (const l of order.lines) {
     if (!l.needsReview || l.supplierItemCode || !l.aiSuggestion) continue;
-    if (effectiveConfidence(l.aiSuggestion) >= threshold) eligible++;
+    if (l.aiSuggestion.confidence >= threshold) eligible++;
     else belowThreshold++;
   }
   return { eligible, belowThreshold };
