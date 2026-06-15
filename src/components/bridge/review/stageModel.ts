@@ -123,14 +123,41 @@ export function rulesAffectingLine(
     .map(r => ({ fieldPath: r.rule.fieldPath, message: r.message, passed: r.passed, severity: r.severity }));
 }
 
-/** Passed/failed/total counts across the whole last validation run (readiness row). */
+/**
+ * Counts across the last validation run, separating the mandatory SAFETY INVARIANTS
+ * (qty/price/currency/identifier — code prefix `invariant.`, surfaced as fieldPath "invariant")
+ * from the supplier's own ACCEPTANCE RULES. The separation is what lets the UI say "Not checked —
+ * no supplier rules configured" (neutral) instead of a vacuous green "meets all acceptance rules".
+ *
+ * - `checked` is true only when the SUPPLIER configured ≥1 acceptance rule.
+ * - `invariantFailed` counts failing error-severity invariants (hard problems, e.g. negative qty).
+ * - `invariantWarned` counts failing warning-severity invariants (e.g. a zero unit price).
+ * `passed`/`failed`/`total` keep their original whole-run meaning for existing callers.
+ */
 export function acceptanceSummary(
   validationResult: OrderValidationResult | null | undefined,
-): { passed: number; failed: number; total: number } | null {
+): {
+  passed: number; failed: number; total: number;
+  supplierTotal: number; supplierFailed: number;
+  invariantFailed: number; invariantWarned: number; checked: boolean;
+} | null {
   if (!validationResult) return null;
-  const total = validationResult.results.length;
-  const failed = validationResult.results.filter(r => !r.passed).length;
-  return { passed: total - failed, failed, total };
+  const rows = validationResult.results;
+  const isInvariant = (r: typeof rows[number]) => r.rule.fieldPath === "invariant";
+  const total = rows.length;
+  const failed = rows.filter(r => !r.passed).length;
+  const supplierRows = rows.filter(r => !isInvariant(r));
+  const invariantRows = rows.filter(isInvariant);
+  return {
+    passed: total - failed,
+    failed,
+    total,
+    supplierTotal: supplierRows.length,
+    supplierFailed: supplierRows.filter(r => !r.passed).length,
+    invariantFailed: invariantRows.filter(r => !r.passed && r.severity === "error").length,
+    invariantWarned: invariantRows.filter(r => !r.passed && r.severity === "warning").length,
+    checked: supplierRows.length > 0,
+  };
 }
 
 // ── Mini-wire geometry (consumes the EXPORTED SpineConnectors fns only) ──────

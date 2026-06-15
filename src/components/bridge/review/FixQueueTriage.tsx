@@ -39,7 +39,7 @@ import { CalibrationInsightCard } from "./CalibrationInsightCard";
 import { ContextStage } from "./ContextStage";
 import { SendReadinessCard } from "./SendReadinessCard";
 import { useBreakpointBand } from "./useBreakpointBand";
-import { parseFixLineParam } from "./stageModel";
+import { parseFixLineParam, acceptanceSummary } from "./stageModel";
 import { type LineEditApi } from "./ManualCodeRow";
 import { KbdLight } from "./Kbd";
 import type { ResolveActionsApi } from "./hooks/useResolveActions";
@@ -557,15 +557,38 @@ export function FixQueueTriage({ order, orderId, labels, lineEdit, resolve, vali
           </span>
         ) : validation.isStale ? (
           <span style={{ color: "#C97A14" }}>Re-checking after your change…</span>
-        ) : validation.validationResult ? (
-          validation.validationResult.passed ? (
-            <span style={{ color: "#1E6D29", fontWeight: 600 }}>✓ Passed — order meets all acceptance rules</span>
-          ) : (
-            <span style={{ color: "#C53A3A", fontWeight: 600 }}>
-              ✗ {validation.failingRuleCount} rule{validation.failingRuleCount !== 1 ? "s" : ""} failing — see the Rules cards above
+        ) : validation.validationResult ? (() => {
+          // Separate mandatory SAFETY invariants from the supplier's ACCEPTANCE rules, so an order
+          // with no supplier rules reads "Not checked" — never a vacuous green "meets all rules".
+          const s = acceptanceSummary(validation.validationResult)!;
+          const counterparty = labels.counterpartyNoun.toLowerCase();
+          if (s.invariantFailed > 0) {
+            return (
+              <span style={{ color: "#C53A3A", fontWeight: 600 }}>
+                ✗ {s.invariantFailed} safety check{s.invariantFailed !== 1 ? "s" : ""} failed — fix quantity / price / currency / PO number before sending
+              </span>
+            );
+          }
+          if (s.supplierFailed > 0) {
+            return (
+              <span style={{ color: "#C53A3A", fontWeight: 600 }}>
+                ✗ {s.supplierFailed} rule{s.supplierFailed !== 1 ? "s" : ""} failing — see the Rules cards above
+              </span>
+            );
+          }
+          if (!s.checked) {
+            return (
+              <span style={{ color: "#C97A14", fontWeight: 600 }}>
+                Safety checks passed. No {counterparty} acceptance rules configured — not checked against {counterparty} rules.
+              </span>
+            );
+          }
+          return (
+            <span style={{ color: "#1E6D29", fontWeight: 600 }}>
+              ✓ Passed — meets all {s.supplierTotal} {counterparty} acceptance rule{s.supplierTotal !== 1 ? "s" : ""}
             </span>
-          )
-        ) : (
+          );
+        })() : (
           <span style={{ color: "var(--ink-faint)" }}>Run validation to check this order against the supplier&apos;s acceptance rules.</span>
         )}
       </div>

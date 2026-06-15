@@ -184,7 +184,41 @@ describe("acceptanceSummary", () => {
       { fieldPath: "b", passed: false },
       { fieldPath: "c", passed: false },
     ]);
-    expect(acceptanceSummary(v)).toEqual({ passed: 1, failed: 2, total: 3 });
+    expect(acceptanceSummary(v)).toEqual({
+      passed: 1, failed: 2, total: 3,
+      supplierTotal: 3, supplierFailed: 2,
+      invariantFailed: 0, invariantWarned: 0, checked: true,
+    });
+  });
+
+  it("separates safety invariants from supplier rules; no supplier rules → not checked", () => {
+    const v = validation([
+      { fieldPath: "invariant", passed: false, severity: "error" }, // e.g. negative quantity
+      { fieldPath: "invariant", passed: true },
+    ]);
+    const s = acceptanceSummary(v)!;
+    expect(s.checked).toBe(false);      // the supplier configured no acceptance rules
+    expect(s.supplierTotal).toBe(0);
+    expect(s.invariantFailed).toBe(1);
+  });
+
+  it("a zero-price (warning) invariant is a warning, not an error", () => {
+    const v = validation([{ fieldPath: "invariant", passed: false, severity: "warning" }]);
+    const s = acceptanceSummary(v)!;
+    expect(s.invariantFailed).toBe(0);
+    expect(s.invariantWarned).toBe(1);
+    expect(s.checked).toBe(false);
+  });
+
+  it("supplier rules present and all passing → checked and clean", () => {
+    const v = validation([
+      { fieldPath: "invariant", passed: true },
+      { fieldPath: "supplierItemCode", passed: true },
+    ]);
+    const s = acceptanceSummary(v)!;
+    expect(s.checked).toBe(true);
+    expect(s.supplierTotal).toBe(1);
+    expect(s.supplierFailed).toBe(0);
   });
 });
 

@@ -88,9 +88,22 @@ export function SendReadinessCard({ orderId, order, validation, deliveryProtocol
     acceptanceValue = "Re-checking…";
     acceptanceTone = "warn";
   } else if (acceptance) {
-    acceptanceValue = `${acceptance.passed} of ${acceptance.total} rules passing`;
-    acceptanceTone = acceptance.failed === 0 ? "good" : "bad";
-    if (acceptance.total === 0) { acceptanceValue = "Passed — no rules configured"; acceptanceTone = "good"; }
+    if (acceptance.invariantFailed > 0) {
+      // Mandatory safety checks (qty/price/currency/identifier) failed — always blocking, red.
+      acceptanceValue = `${acceptance.invariantFailed} safety check${acceptance.invariantFailed !== 1 ? "s" : ""} failed`;
+      acceptanceTone = "bad";
+    } else if (acceptance.supplierFailed > 0) {
+      acceptanceValue = `${acceptance.supplierTotal - acceptance.supplierFailed} of ${acceptance.supplierTotal} rules passing`;
+      acceptanceTone = "bad";
+    } else if (!acceptance.checked) {
+      // Safety checks passed but the supplier configured NO acceptance rules — "Not checked", never
+      // a green "Passed". A zero-price (warning) invariant nudges it to amber.
+      acceptanceValue = acceptance.invariantWarned > 0 ? "Safety checks: review warnings" : "Not checked — no rules configured";
+      acceptanceTone = acceptance.invariantWarned > 0 ? "warn" : "muted";
+    } else {
+      acceptanceValue = `${acceptance.supplierTotal} of ${acceptance.supplierTotal} rules passing`;
+      acceptanceTone = acceptance.invariantWarned > 0 ? "warn" : "good";
+    }
   } else {
     acceptanceValue = "Not validated yet";
   }

@@ -2420,7 +2420,10 @@ async function realValidateOrder(orderId: string): Promise<OrderValidationResult
       : [];
   return {
     orderId,
-    passed: rows.every((r) => r.status === "pass"),
+    // An EMPTY result set is NOT a pass. Validation always emits mandatory invariant rows now, so
+    // this is defensive: `[].every()` is vacuously true, which previously reported a green "Passed"
+    // for an order that was never actually checked.
+    passed: rows.length > 0 && rows.every((r) => r.status === "pass"),
     results: rows.map((r) => {
       const severity: "error" | "warning" = r.severity === "warning" ? "warning" : "error";
       const code = r.code ?? "";
