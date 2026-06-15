@@ -15,9 +15,14 @@ import {
   type OutputNodeType, type OutputFormat,
 } from "@/lib/api/types";
 
+// Only the formats the backend OutputTemplateEmitter can actually render (offer⇔works).
+// JSON / XML / CSV are first-class; cXML + UBL render through the XML emitter (the tree carries
+// their element shape). X12 is intentionally NOT offered here yet — it is a positional segment
+// format with no tree emitter, so the emitter would fail loud; X12 suppliers still deliver via the
+// legacy X12 transform. (Adding an X12 segment emitter + EnvelopeConfig is the tracked next build.)
 const FORMATS: { id: OutputFormat; label: string }[] = [
   { id: "json", label: "JSON" }, { id: "xml", label: "XML" }, { id: "csv", label: "CSV" },
-  { id: "cXml", label: "cXML" }, { id: "ubl", label: "UBL" }, { id: "x12", label: "X12" },
+  { id: "cXml", label: "cXML" }, { id: "ubl", label: "UBL" },
 ];
 
 // Bridge Layer tokens: navy chrome, green = primary/"supplier out" action, blue = incoming accent.

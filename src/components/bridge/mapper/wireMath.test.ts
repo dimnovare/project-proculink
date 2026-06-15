@@ -32,7 +32,7 @@ describe("resolveSourceWires (stale-token-safe)", () => {
     expect(resolveSourceWires(["PoNumber"], undefined, new Set(["cell:r1c1"]))).toEqual([]);
   });
   it("ignores a rule with no source token (fixed-value/pass-through)", () => {
-    const sourceMap = { PoNumber: { sourceToken: null, manipulators: [] }, Currency: { manipulators: [] } };
+    const sourceMap: Record<string, { sourceToken?: string | null }> = { PoNumber: { sourceToken: null }, Currency: {} };
     expect(resolveSourceWires(["PoNumber", "Currency"], sourceMap, new Set(["cell:r1c1"]))).toEqual([]);
   });
 });

@@ -57,7 +57,7 @@ describe("overrideFromConnectionBundle + serializers — round-trip", () => {
     const o: OrderMappingOverride = {
       customFields: [],
       sourceMap: { PoNumber: { sourceToken: "cell:r1c1", manipulators: [] } },
-      output: { header: { ItemCode: { outputPath: "ItemCode", canonicalField: "Sku" } }, lines: {} },
+      output: { header: { ItemCode: { outputPath: "ItemCode", canonicalField: "Sku", fieldManipulators: [] } }, lines: {} },
     };
     const back = overrideFromConnectionBundle(
       inputMappingJsonFromOverride(o),
