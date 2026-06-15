@@ -22,6 +22,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   getMappingOverride, upsertMappingOverride, previewMappingOverride,
 } from "@/lib/api-client";
+import { OutputStructureDesigner } from "./OutputStructureDesigner";
 import {
   MANIPULATOR_TYPES, CANONICAL_HEADER_FIELDS, CANONICAL_LINE_FIELDS,
   SCRIBAN_TEMPLATE_GROUPS, TEMPLATE_CONTENT_TYPES, PREVIEW_FORMATS, SCRIBAN_STARTER_TEMPLATE,
@@ -374,6 +375,7 @@ export function OutputMappingEditor({
   const [templateMode, setTemplateMode]   = useState(false);
   const [template, setTemplate]           = useState("");
   const [templateContentType, setTemplateContentType] = useState(DEFAULT_TEMPLATE_CONTENT_TYPE);
+  const [showDesigner, setShowDesigner]   = useState(false);
   const templateRef = useRef<HTMLTextAreaElement | null>(null);
 
   useEffect(() => {
@@ -436,9 +438,11 @@ export function OutputMappingEditor({
       templateMode,
       template,
       templateContentType,
-      // Preserve the drag-wired source mappings (PUT replaces the whole
-      // override document — see buildOverrideDraft).
+      // Preserve the drag-wired source mappings AND the visual output tree (PUT replaces the
+      // whole override document — see buildOverrideDraft). Dropping outputTree here would wipe a
+      // structure designed in the visual editor the moment the flat editor saves.
       existingSourceMap: existing?.sourceMap ?? null,
+      existingOutputTree: existing?.outputTree ?? null,
     }),
     [customFields, headerRows, lineRows, templateMode, template, templateContentType, existing],
   );
@@ -504,6 +508,19 @@ export function OutputMappingEditor({
 
   return createPortal(
     <div role="dialog" aria-label="Edit output mapping" style={{ position: "fixed", inset: 0, zIndex: 60, display: "flex", justifyContent: "flex-end" }}>
+      {showDesigner && (
+        <OutputStructureDesigner
+          orderId={orderId}
+          baseOverride={draft}
+          initialTree={draft.outputTree ?? null}
+          onClose={() => setShowDesigner(false)}
+          onSaved={() => {
+            setShowDesigner(false);
+            void qc.invalidateQueries({ queryKey: ["mapping-override", orderId] });
+            void qc.invalidateQueries({ queryKey: ["order", orderId] });
+          }}
+        />
+      )}
       {/* Opaque + blurred enough that the triptych wires behind don't bleed through. */}
       <div onClick={onClose} aria-hidden style={{ position: "absolute", inset: 0, background: "rgba(11,26,47,0.62)", backdropFilter: "blur(2px)" }} />
       <aside style={{ position: "relative", width: "min(720px, 96vw)", height: "100%", background: "#F6F7FA", boxShadow: "-8px 0 24px rgba(0,0,0,0.18)", display: "flex", flexDirection: "column" }}>
@@ -525,6 +542,11 @@ export function OutputMappingEditor({
               </select>
             </label>
           )}
+          <button type="button" onClick={() => setShowDesigner(true)}
+            title="Design the output structure visually (nesting, lists, attributes)"
+            style={{ minHeight: 34, padding: "0 12px", border: "1px solid #6F4FCE", borderRadius: 7, background: "#FFFFFF", color: "#5E3DB0", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
+            ⚄ Design structure
+          </button>
           <button type="button" onClick={onClose} aria-label="Close" style={{ minHeight: 34, minWidth: 34, border: "none", background: "transparent", fontSize: 18, color: "#56627A", cursor: "pointer" }}>✕</button>
         </div>
 
