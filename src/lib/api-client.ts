@@ -1473,10 +1473,20 @@ function normalizeMappingPreview(
   return { format, content: null };
 }
 
+/**
+ * Live mapping-override preview.
+ *
+ * `honorFormat` is the EXPLORATORY opt-in: by default (false) a revision-pinned order's preview
+ * swaps to the pinned revision's snapshotted output format so "preview == delivered bytes". Passing
+ * `honorFormat=true` tells the backend to skip that swap and render the requested `format` from the
+ * canonical order — a "what would this order look like as X" view. It is read-only and NEVER changes
+ * delivery (still governed by the pinned revision).
+ */
 export async function previewMappingOverride(
   orderId: string,
   override: import("@/lib/api/types").OrderMappingOverride,
   format = "csv",
+  honorFormat = false,
 ): Promise<import("@/lib/api/types").MappingOverridePreview> {
   if (USE_MOCK) {
     await delay(150);
@@ -1491,8 +1501,9 @@ export async function previewMappingOverride(
     return { format, contentType: "text/csv", content: override.output ? "code,qty\n(mapped preview)" : "(default transform)" };
   }
   const headers = await authHeader();
+  const qs = `format=${encodeURIComponent(format)}${honorFormat ? "&honorFormat=true" : ""}`;
   const res = await fetchWithTimeout(
-    `${API_BASE_URL}/api/orders/${orderId}/mapping-override/preview?format=${encodeURIComponent(format)}`,
+    `${API_BASE_URL}/api/orders/${orderId}/mapping-override/preview?${qs}`,
     { method: "POST", headers: { ...headers, "Content-Type": "application/json" }, body: JSON.stringify(override) },
     30000,
   );

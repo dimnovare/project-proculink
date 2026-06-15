@@ -23,6 +23,7 @@ import type { OrderMappingOverride, OutputFormatId } from "@/lib/api/types";
 import { PREVIEW_FORMATS } from "@/lib/api/types";
 import { nextOutputFormat } from "./mapperCommands";
 import { splitForHighlight } from "./previewHighlightModel";
+import { shouldHonorFormat, previewInfoNote } from "./previewFormatModel";
 
 export interface MapperPreviewPaneProps {
   /** The order to preview against (order variant: the order; connection variant: a sample). */
@@ -62,13 +63,22 @@ export function MapperPreviewPane({ previewOrderId, override, lastTouched, suppl
   // deliveredFormat tracks what it actually rendered, and the header/copy/download follow that.
   const [format, setFormat] = useState<OutputFormatId>(defaultFormat ?? "csv");
   // The format the SERVER actually rendered (res.format). Drives the header label, copy/download
-  // extension+mime, and the "this connection delivers X regardless of the toggle" info note.
+  // extension+mime, and the info note. In the DEFAULT (delivered-bytes) mode this is the connection's
+  // real delivered format; in EXPLORATORY mode it equals the toggle.
   const [deliveredFormat, setDeliveredFormat] = useState<OutputFormatId>(defaultFormat ?? "csv");
   const [content, setContent] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [copied, setCopied] = useState(false);
+
+  // The connection's REAL delivered format, learned authoritatively from a DEFAULT-mode (honorFormat
+  // off) server response. We seed it from defaultFormat and refine it the first time the server tells
+  // us what it actually delivers — so the exploratory label can honestly say "the supplier receives Y".
+  const connectionFormatRef = useRef<OutputFormatId | null>(defaultFormat ?? null);
+  // What the supplier actually receives, for the honest exploratory label. Kept in state so the label
+  // re-renders when we learn it. Null until we know (no pinned/delivered format to diverge from).
+  const [connectionFormat, setConnectionFormat] = useState<OutputFormatId | null>(defaultFormat ?? null);
 
   // Command-palette "Switch output format" → advance through PREVIEW_FORMATS. Skip the
   // initial mount (signal undefined/0) so the default CSV view isn't immediately bumped.
@@ -79,33 +89,48 @@ export function MapperPreviewPane({ previewOrderId, override, lastTouched, suppl
 
   // ~300ms debounce on (override, format) — fast enough to feel live as the user wires.
   //
-  // Revision authority: the backend deliberately swaps the requested format to the pinned
-  // connection's snapshotted output so "preview == delivered bytes" (a JSON connection always
-  // previews JSON, whatever the toggle says). The OLD code DISCARDED that valid content on a
-  // format mismatch and showed "(no preview)" — the bug this fix removes (mirrors the same fix
-  // already shipped in OutputMappingEditor). We now ALWAYS show what the server rendered, track
-  // the format it actually delivered, and surface a CALM info note (not an amber error) when it
-  // differs from the toggle. Genuine warnings/errors (e.g. "lines still need review") pass
-  // through honestly as the warning.
+  // TWO MODES:
+  //   • DEFAULT (delivered bytes) — the toggle is on the connection's real delivered format (or we
+  //     don't yet know it). honorFormat=false; the backend, under revision authority, renders exactly
+  //     the bytes the supplier receives. We capture the server's reported format as the authoritative
+  //     "connection delivered format" so the exploratory label can be honest.
+  //   • EXPLORATORY ("what would this look like as X") — the user picked a format different from the
+  //     connection's delivered one. honorFormat=true; the backend SKIPS the pinned-revision swap and
+  //     renders the requested format from the canonical order. Delivery is unaffected; we label it
+  //     clearly as "not the delivered format".
+  //
+  // We ALWAYS show what the server rendered and track the format it actually delivered, so the
+  // header/copy/download follow the real bytes. Genuine warnings/errors (e.g. "lines still need
+  // review") pass through honestly as the warning, with content=null handled below.
   useEffect(() => {
     if (!previewOrderId) { setContent(null); setErr(null); setInfo(null); setBusy(false); return; }
     let cancelled = false;
     setBusy(true);
+    // Opt into exploratory rendering only when we KNOW a delivered format to diverge from.
+    const known = connectionFormatRef.current;
+    const honor = shouldHonorFormat(format, known);
     const t = setTimeout(async () => {
       try {
-        const res = await previewMappingOverride(previewOrderId, override, format);
+        const res = await previewMappingOverride(previewOrderId, override, format, honor);
         if (cancelled) return;
         const delivered = ((res.format ?? format) as string).toLowerCase() as OutputFormatId;
+        const hardMessage = res.error ?? res.warning ?? null;
         setDeliveredFormat(delivered);
         setContent(res.content);
-        setErr(res.error ?? res.warning ?? null);
-        // Calm info note: the published revision fixes the delivered format, so the preview
-        // shows that regardless of the toggle. Only when there's no harder error/warning to show.
-        setInfo(
-          delivered !== format && !res.error && !res.warning
-            ? `This connection delivers ${delivered.toUpperCase()} — the output format is set by the published revision, so the preview shows ${delivered.toUpperCase()} regardless of the toggle.`
-            : null,
-        );
+        setErr(hardMessage);
+        // In DEFAULT mode the server's reported format IS the connection's real delivered format —
+        // learn it authoritatively so the exploratory label can name what the supplier receives.
+        if (!honor) {
+          connectionFormatRef.current = delivered;
+          setConnectionFormat(delivered);
+        }
+        setInfo(previewInfoNote({
+          honored: honor,
+          selected: format,
+          delivered,
+          connectionFormat: known,
+          hasHarderMessage: hardMessage != null,
+        }));
       } catch (e) {
         if (!cancelled) { setContent(null); setErr(e instanceof Error ? e.message : "Preview failed"); setInfo(null); }
       } finally {
@@ -113,7 +138,7 @@ export function MapperPreviewPane({ previewOrderId, override, lastTouched, suppl
       }
     }, 300);
     return () => { cancelled = true; clearTimeout(t); };
-  }, [previewOrderId, override, format]);
+  }, [previewOrderId, override, format, connectionFormat]);
 
   const onCopy = useCallback(async () => {
     if (!content) return;
