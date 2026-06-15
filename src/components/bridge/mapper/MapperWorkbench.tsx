@@ -25,10 +25,12 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "../DSPrimitives";
 import { IncomingPane } from "./IncomingPane";
 import { OutgoingPane } from "./OutgoingPane";
 import { MapperPreviewPane } from "./MapperPreviewPane";
+import { OutputStructureDesigner } from "../OutputStructureDesigner";
 import { useMapperWireLayer } from "./MapperWireLayer";
 import { useMapperModel } from "./useMapperModel";
 import type { IncomingOrderShape } from "./incomingFromOrder";
@@ -100,6 +102,8 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
 
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<FieldFilter>("all");
+  const [showDesigner, setShowDesigner] = useState(false);
+  const qc = useQueryClient();
 
   // ── Deep-link: ?field=<key> selects + scrolls to a row ─────────────────────
   const router = useRouter();
@@ -333,6 +337,19 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
 
   return (
     <div>
+      {showDesigner && variant === "order" && scopeId && (
+        <OutputStructureDesigner
+          orderId={scopeId}
+          baseOverride={model.override}
+          initialTree={model.override.outputTree ?? null}
+          onClose={() => setShowDesigner(false)}
+          onSaved={() => {
+            setShowDesigner(false);
+            void qc.invalidateQueries({ queryKey: ["mapping-override", scopeId] });
+            void qc.invalidateQueries({ queryKey: ["order", scopeId] });
+          }}
+        />
+      )}
       {/* ── Top action bar (desktop) ────────────────────────────────────── */}
       <div className="hidden lg:flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
@@ -360,6 +377,13 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
             >
               ⚠ {summary.requiredUnmapped} {summary.requiredUnmapped === 1 ? "field needs" : "fields need"} a source
             </span>
+          )}
+          {variant === "order" && (
+            <ToolbarButton
+              label="⚄ Design structure"
+              title="Design the exact output structure (nesting, lists, attributes) — paste a supplier sample to start"
+              onClick={() => setShowDesigner(true)}
+            />
           )}
           <ToolbarButton
             label={catalogHintCount > 0 ? `Enrich from catalog · ${catalogHintCount}` : "Enrich from catalog"}
