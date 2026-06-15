@@ -1,7 +1,7 @@
 "use client";
 
-// Upload Workbench — XCard dropzone + pipeline picker + recent uploads.
-// Translated from Bridge_Upload in v2-prototype.jsx.
+// Upload Workbench — stepped intake: ① choose supplier → ② add file(s) → ③ upload.
+// Two-column "bridge" card (supplier left, dropzone right) + full-width action footer.
 
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
@@ -144,6 +144,74 @@ function XCard({
       }}
     >
       {children}
+    </div>
+  );
+}
+
+/**
+ * StepBadge — the numbered "1 · 2 · 3" circle that anchors each intake step.
+ * Decorative (the step heading carries the real label) so it's aria-hidden.
+ * Tone maps to the Bridge palette: supplier=green, intake=buyer-blue.
+ */
+function StepBadge({ n, tone }: { n: number; tone: "blue" | "green" }) {
+  const bg = tone === "green" ? "#1E6D29" : "#1E66C9";
+  return (
+    <span
+      aria-hidden="true"
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+        width: 26,
+        height: 26,
+        flexShrink: 0,
+        borderRadius: "50%",
+        background: bg,
+        color: "#FFFFFF",
+        fontSize: 13,
+        fontWeight: 700,
+        lineHeight: 1,
+        fontFamily: "'Bricolage Grotesque', Inter, sans-serif",
+      }}
+    >
+      {n}
+    </span>
+  );
+}
+
+/** StepHeading — numbered badge + title + optional one-line hint. */
+function StepHeading({
+  n,
+  tone,
+  title,
+  hint,
+}: {
+  n: number;
+  tone: "blue" | "green";
+  title: string;
+  hint?: string;
+}) {
+  return (
+    <div className="flex items-center gap-2.5">
+      <StepBadge n={n} tone={tone} />
+      <div className="min-w-0">
+        <h2
+          className="text-[14px] font-semibold"
+          style={{
+            color: "#0B1A2F",
+            margin: 0,
+            lineHeight: 1.2,
+            fontFamily: "'Bricolage Grotesque', Inter, sans-serif",
+          }}
+        >
+          {title}
+        </h2>
+        {hint && (
+          <p className="text-[11.5px]" style={{ color: "#56627A", margin: "2px 0 0" }}>
+            {hint}
+          </p>
+        )}
+      </div>
     </div>
   );
 }
@@ -371,6 +439,7 @@ export function UploadWorkbench() {
   const isMulti = extraFiles.length > 0;
   const allSelectedFiles = selectedFile ? [selectedFile, ...extraFiles] : [];
   const selectedCount = allSelectedFiles.length;
+  const counterpartyNoun = labels.counterpartyNoun.toLowerCase();
 
   async function handleUpload() {
     if (uploading) return;
@@ -582,7 +651,7 @@ export function UploadWorkbench() {
   // above the dropzone for a first-run org, below it otherwise (see isEmptyOrg).
   const sampleCard = (
     <XCard edge="left" edgeColor="#2E8E3A">
-      <div className="flex flex-col gap-3 px-4 py-4">
+      <div className="flex flex-col gap-3 px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
         <div style={{ minWidth: 0 }}>
           <p className="text-[13px] font-semibold" style={{ color: "#0B1A2F" }}>
             New here? Start with a sample order
@@ -600,7 +669,7 @@ export function UploadWorkbench() {
           type="button"
           onClick={() => { if (!uploading) sample.runSample(); }}
           disabled={sample.isPending || uploading}
-          className="w-full rounded-[6px] py-2.5 text-[13px] font-semibold transition-all"
+          className="w-full rounded-[6px] px-4 py-2.5 text-[13px] font-semibold transition-all sm:w-auto sm:flex-shrink-0"
           style={{
             background: sample.isPending || uploading ? "#E2E6EE" : "#0B1A2F",
             color: sample.isPending || uploading ? "var(--ink-faint)" : "#FFFFFF",
@@ -615,95 +684,288 @@ export function UploadWorkbench() {
     </XCard>
   );
 
-  // The primary submit action. ONE element rendered in TWO places: the
-  // quick-action bar directly under the dropzone (visible the moment a file is
-  // selected — founder G8 bug G: the CTA sat below the fold) and the bottom of
-  // the Pipeline configuration card (the natural end-of-page flow).
-  const uploadButton = (
+  // The single primary submit action (Step 3). Branches multi vs single file:
+  // the multi-file batch path fans the same supplier across N sequential uploads
+  // (handleBatchUpload); the single/no-file path runs handleUpload (which opens
+  // the picker when nothing is selected). Rendered ONCE in the footer so there is
+  // never a duplicate CTA in the DOM.
+  const primaryCta = (
     <button
-      onClick={handleUpload}
+      onClick={() => { if (isMulti) handleBatchUpload(allSelectedFiles); else handleUpload(); }}
       disabled={isUploadDisabled}
-      className="w-full rounded-[6px] py-2.5 text-[13px] font-semibold transition-all"
+      className="w-full rounded-[7px] py-3 text-[14px] font-semibold transition-all min-h-[48px]"
       style={{
         background: isUploadDisabled
           ? "#E2E6EE"
           : "linear-gradient(90deg, #2E8E3A 0%, #1E6D29 100%)",
         color: isUploadDisabled ? "var(--ink-faint)" : "#FFFFFF",
         border: "none",
-        boxShadow: isUploadDisabled ? "none" : "0 2px 8px rgba(46,142,58,0.25)",
+        boxShadow: isUploadDisabled ? "none" : "0 2px 10px rgba(46,142,58,0.28)",
         cursor: isUploadDisabled ? "not-allowed" : "pointer",
       }}
     >
       {uploading ? (
         <span style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
-          <span style={{ display: "inline-block", width: 12, height: 12, border: "2px solid #C6CDDA", borderTopColor: "#2E8E3A", borderRadius: "50%", animation: "spin 0.7s linear infinite" }} />
-          <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-          Sending…
+          <span style={{ display: "inline-block", width: 13, height: 13, border: "2px solid #C6CDDA", borderTopColor: "#2E8E3A", borderRadius: "50%", animation: "spin 0.7s linear infinite" }} />
+          {isMulti ? "Uploading…" : "Sending…"}
         </span>
-      ) : isReadOnly ? "Processing paused" : selectedFile ? "↑ Upload & review" : "Choose a file to upload"}
+      ) : isReadOnly
+        ? "Processing paused"
+        : isMulti
+        ? `↑ Upload ${selectedCount} files`
+        : selectedFile
+        ? "↑ Upload & review"
+        : "Choose a file to upload"}
     </button>
   );
 
   return (
     <PageShell>
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } } @keyframes pipeline-shimmer { 0%{transform:translateX(-100%)} 100%{transform:translateX(200%)} }`}</style>
+
       {/* Page header — canonical PageHeader on the grey canvas (no white bar, no divider) */}
       <PageHeader
         title="Upload an order"
-        sub={"Upload an order in any shape — we parse, normalize, and prepare it for review."}
+        sub={"Three steps: choose who it goes to, add the file(s), send for review. We parse and normalize any shape."}
       />
 
-      {/* Body */}
-      <div className="mx-auto flex w-full min-w-0 max-w-[860px] flex-col gap-4">
-          {/* Centered single column: dropzone hero → sample → config → recent → tip */}
-          {/* Phase 10.3 — Pilot Book-a-demo CTA */}
-            {billing?.plan === "pilot" && process.env.NEXT_PUBLIC_BOOK_DEMO_URL && (
-              <div
-                style={{
-                  background: "#F6F7FA",
-                  border: "1px solid #E2E6EE",
-                  borderLeft: "3px solid #2E8E3A",
-                  borderRadius: 8,
-                  padding: "12px 16px",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  gap: 12,
-                  flexWrap: "wrap",
-                }}
-              >
-                <p style={{ margin: 0, fontSize: 13.5, color: "#3D4A5C" }}>
-                  On Pilot? Get a guided 15-minute walkthrough with the team.
-                </p>
-                <a
-                  href={process.env.NEXT_PUBLIC_BOOK_DEMO_URL}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  onClick={() => capture("book_demo_clicked", { from_route: "/upload", plan: "pilot" })}
+      {/* Body — wider centered column so the two-step card fills the desktop
+          viewport instead of leaving large empty gutters. */}
+      <div className="mx-auto flex w-full min-w-0 max-w-[1040px] flex-col gap-4">
+
+        {/* Phase 10.3 — Pilot Book-a-demo CTA */}
+        {billing?.plan === "pilot" && process.env.NEXT_PUBLIC_BOOK_DEMO_URL && (
+          <div
+            style={{
+              background: "#F6F7FA",
+              border: "1px solid #E2E6EE",
+              borderLeft: "3px solid #2E8E3A",
+              borderRadius: 8,
+              padding: "12px 16px",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: 12,
+              flexWrap: "wrap",
+            }}
+          >
+            <p style={{ margin: 0, fontSize: 13.5, color: "#3D4A5C" }}>
+              On Pilot? Get a guided 15-minute walkthrough with the team.
+            </p>
+            <a
+              href={process.env.NEXT_PUBLIC_BOOK_DEMO_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={() => capture("book_demo_clicked", { from_route: "/upload", plan: "pilot" })}
+              style={{
+                background: "#0B1A2F",
+                color: "#FFFFFF",
+                padding: "8px 14px",
+                borderRadius: 6,
+                fontSize: 13,
+                fontWeight: 600,
+                textDecoration: "none",
+                whiteSpace: "nowrap",
+              }}
+            >
+              Book a 15-min demo →
+            </a>
+          </div>
+        )}
+
+        {/* First-run org: lead with the zero-friction sample path. */}
+        {isEmptyOrg && sampleCard}
+
+        {/* ===== Stepped intake card: ① supplier (left) · ② files (right) · ③ send (footer) ===== */}
+        <div
+          style={{
+            background: "#FFFFFF",
+            border: "1px solid #E2E6EE",
+            borderRadius: 12,
+            boxShadow: "0 1px 3px rgba(11,26,47,0.05)",
+            overflow: "hidden",
+            minWidth: 0,
+          }}
+        >
+          {/* Bridge edge — buyer-blue → supplier-green, the locked Bridge Layer signature. */}
+          <div style={{ height: 3, background: "linear-gradient(90deg, #1E66C9 0%, #2E8E3A 100%)" }} />
+
+          <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,340px)_minmax(0,1fr)]">
+            {/* ── LEFT · Step ① Choose supplier + plan usage ── */}
+            <aside
+              className="flex flex-col gap-4 p-5"
+              style={{ background: "#FAFBFD", borderBottom: "1px solid #E2E6EE" }}
+            >
+              <div className="upload-step-rail flex flex-col gap-3">
+                <StepHeading
+                  n={1}
+                  tone="green"
+                  title={`Choose a ${counterpartyNoun}`}
+                  hint="Where these orders are sent"
+                />
+
+                <div>
+                  <label htmlFor="upload-supplier" className="sr-only">
+                    Choose a {counterpartyNoun}
+                  </label>
+
+                  {suppliersLoading && (
+                    <div
+                      className="rounded-[8px] px-3 text-[13px] flex items-center min-h-[48px]"
+                      style={{ border: "1px solid #E2E6EE", background: "#FFFFFF", color: "#56627A" }}
+                    >
+                      Loading {labels.counterpartyPlural.toLowerCase()}…
+                    </div>
+                  )}
+
+                  {suppliersError && !suppliersLoading && (
+                    <div
+                      className="rounded-[8px] px-3 py-2.5 text-[12px] leading-5"
+                      style={{ border: "1px solid #F0D39A", background: "#FFF8EA", color: "#7A4D0B" }}
+                    >
+                      Could not load {labels.counterpartyPlural.toLowerCase()}. Check the API connection and try again.
+                    </div>
+                  )}
+
+                  {!suppliersLoading && !suppliersError && suppliers.length === 0 && (
+                    <div
+                      className="rounded-[8px] px-3 py-3 text-[12.5px] leading-5"
+                      style={{ border: "1px dashed #C6CDDA", background: "#FFFFFF", color: "#56627A" }}
+                    >
+                      No {labels.counterpartyPlural.toLowerCase()} yet.{" "}
+                      <Link href="/library/suppliers" className="font-semibold underline" style={{ color: "#1E6D29" }}>
+                        Add a {counterpartyNoun}
+                      </Link>{" "}
+                      to send orders to.
+                    </div>
+                  )}
+
+                  {!suppliersLoading && suppliers.length > 0 && (
+                    <div style={{ position: "relative" }}>
+                      <select
+                        id="upload-supplier"
+                        value={supplierId}
+                        onChange={(e) => setSupplierId(e.target.value)}
+                        className="w-full rounded-[8px] pl-3 pr-10 text-[14px] appearance-none min-h-[48px] transition-colors"
+                        style={{
+                          border: `1.5px solid ${hasSupplier ? "#1E6D29" : "#C6CDDA"}`,
+                          background: "#FFFFFF",
+                          color: "#0B1A2F",
+                          fontWeight: 600,
+                          cursor: "pointer",
+                        }}
+                      >
+                        {suppliers.map((s) => (
+                          <option key={s.id} value={s.id}>{s.name}</option>
+                        ))}
+                      </select>
+                      <svg
+                        width="16"
+                        height="16"
+                        viewBox="0 0 16 16"
+                        fill="none"
+                        aria-hidden="true"
+                        style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }}
+                      >
+                        <path d="M4 6l4 4 4-4" stroke="#56627A" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    </div>
+                  )}
+                </div>
+
+                {/* Route confirmation + buyer note — keeps the "bridge" mental model
+                    visible the moment a supplier is chosen. */}
+                {hasSupplier && (
+                  <div
+                    className="rounded-[8px] px-3 py-2.5"
+                    style={{ background: "#FFFFFF", border: "1px solid #E2E6EE" }}
+                  >
+                    <div className="flex items-center gap-2 text-[12px]">
+                      <span style={{ color: "#56627A" }}>Routes to</span>
+                      <span
+                        className="min-w-0 flex-1 truncate text-right font-semibold"
+                        style={{ color: "#1E6D29" }}
+                        title={selectedSupplier?.name}
+                      >
+                        {selectedSupplier?.name}
+                      </span>
+                    </div>
+                    <div className="mt-2 flex items-center gap-2 text-[11px]" style={{ color: "var(--ink-faint)" }}>
+                      <svg width="12" height="12" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+                        <circle cx="7" cy="7" r="6" stroke="#C6CDDA" strokeWidth="1.2" />
+                        <path d="M7 4.2v3.2l2 1.2" stroke="#99A1C5" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                      Buyer fills in automatically once the document is parsed.
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Plan usage — moved up from the old bottom card so limits are
+                  visible while choosing, not buried below the fold. */}
+              {(billing || billingLoading || billingError) && (
+                <div style={{ height: 1, background: "#E2E6EE" }} />
+              )}
+
+              {billing && (
+                <div
+                  className="rounded-[8px] px-3 py-3"
                   style={{
-                    background: "#0B1A2F",
-                    color: "#FFFFFF",
-                    padding: "8px 14px",
-                    borderRadius: 6,
-                    fontSize: 13,
-                    fontWeight: 600,
-                    textDecoration: "none",
-                    whiteSpace: "nowrap",
+                    background: isReadOnly ? "#FFF8EA" : "#FFFFFF",
+                    border: `1px solid ${isReadOnly ? "#F0D39A" : "#E2E6EE"}`,
                   }}
                 >
-                  Book a 15-min demo →
-                </a>
-              </div>
-            )}
-            {/* First-run org: lead with the zero-friction sample path. */}
-            {isEmptyOrg && sampleCard}
+                  <div className="mb-1 flex items-center justify-between gap-3">
+                    <span className="text-[11px] font-semibold uppercase tracking-[0.06em]" style={{ color: "#56627A" }}>
+                      {billing.plan} plan
+                    </span>
+                    <span className="rounded px-2 py-0.5 text-[10.5px] font-semibold" style={{ background: isReadOnly ? "#FAEFD6" : "#E2F1E2", color: isReadOnly ? "#9A5F0A" : "#1E6D29" }}>
+                      {isReadOnly ? "Processing paused" : "Ready"}
+                    </span>
+                  </div>
+                  <UsageLine label="Orders" used={billing.ordersThisMonth} limit={billing.orderLimit} />
+                  <UsageLine label={labels.counterpartyPlural} used={billing.suppliersUsed} limit={billing.supplierLimit} />
+                  {billing.trialEndsAt && billing.plan === "pilot" && (
+                    <p className="mt-2 text-[11.5px]" style={{ color: "#56627A" }}>
+                      Pilot ends {new Date(billing.trialEndsAt).toLocaleDateString()}.
+                    </p>
+                  )}
+                  {isReadOnly && (
+                    <p className="mt-2 text-[11.5px] leading-5" style={{ color: "#7A4D0B" }}>
+                      You can still view previous orders, but new order processing is paused until the plan is upgraded.
+                    </p>
+                  )}
+                </div>
+              )}
 
-            {/* Drop zone — single dashed-border card (matches design render exactly).
-                Focusable button so keyboard users can open the picker with
-                Enter/Space, not just mouse-click. */}
-            <div
+              {billingLoading && (
+                <div className="rounded-[8px] px-3 py-3 text-[12px]" style={{ border: "1px solid #E2E6EE", background: "#FFFFFF", color: "#56627A" }}>
+                  Checking plan limits…
+                </div>
+              )}
+
+              {billingError && (
+                <div className="rounded-[8px] px-3 py-3 text-[12px]" style={{ border: "1px solid #F0D39A", background: "#FFF8EA", color: "#7A4D0B" }}>
+                  Plan status is unavailable. Uploads may fail if the API cannot be reached.
+                </div>
+              )}
+            </aside>
+
+            {/* ── RIGHT · Step ② Add file(s) ── */}
+            <section className="flex flex-col gap-3 p-5">
+              <StepHeading
+                n={2}
+                tone="blue"
+                title="Add your order file(s)"
+                hint="Drop one or more — each file becomes its own order"
+              />
+
+              {/* Drop zone — single dashed-border card. Focusable button so keyboard
+                  users can open the picker with Enter/Space, not just mouse-click. */}
+              <div
                 role="button"
                 tabIndex={isReadOnly ? -1 : 0}
-                aria-label="Upload a purchase order — drop a file or press Enter to browse"
+                aria-label="Upload a purchase order — drop one or more files or press Enter to browse"
                 aria-disabled={isReadOnly || undefined}
                 onDragOver={(e) => { e.preventDefault(); if (!isReadOnly) setDragging(true); }}
                 onDragLeave={() => setDragging(false)}
@@ -721,12 +983,11 @@ export function UploadWorkbench() {
                     fileInputRef.current?.click();
                   }
                 }}
-                className="flex flex-col items-center gap-4 px-6 py-8 sm:px-8 sm:py-10"
+                className="flex flex-1 flex-col items-center justify-center gap-4 px-6 py-10 sm:px-8 sm:py-12"
                 style={{
                   border: `1.5px dashed ${dragging ? "#1E66C9" : "#C6CDDA"}`,
                   borderRadius: 10,
-                  background: dragging ? "#EFF4FC" : "#FFFFFF",
-                  boxShadow: "0 1px 3px rgba(11,26,47,0.05)",
+                  background: dragging ? "#EFF4FC" : "#FBFCFE",
                   opacity: isReadOnly ? 0.62 : 1,
                   transition: "all 0.15s",
                   cursor: isReadOnly ? "not-allowed" : "pointer",
@@ -763,7 +1024,7 @@ export function UploadWorkbench() {
                   }}
                 />
                 {/* Upload icon — buyer-blue outline (matches design render exactly) */}
-                <svg width="38" height="38" viewBox="0 0 22 22" fill="none" aria-hidden="true">
+                <svg width="40" height="40" viewBox="0 0 22 22" fill="none" aria-hidden="true">
                   <path
                     d="M11 14V4M11 4L7 8M11 4l4 4"
                     stroke={dragging ? "#1A5DBF" : "#1E66C9"}
@@ -791,14 +1052,14 @@ export function UploadWorkbench() {
                       ? `${selectedCount} files selected`
                       : selectedFile
                       ? selectedFile.name
-                      : "Drop a purchase order here"}
+                      : "Drop your order files here"}
                   </p>
                   <p className="text-[12.5px] mt-2" style={{ color: "#56627A" }}>
                     {isMulti
                       ? "One order will be created per file"
                       : selectedFile
                       ? `${Math.max(1, Math.round(selectedFile.size / 1024))} KB ready to send`
-                      : `${ACCEPTED_UPLOAD_FORMATS.humanList} — up to 10 MB`}
+                      : `One or more files · ${ACCEPTED_UPLOAD_FORMATS.humanList} · up to 10 MB each`}
                   </p>
                 </div>
 
@@ -810,7 +1071,7 @@ export function UploadWorkbench() {
                     event.stopPropagation();
                     fileInputRef.current?.click();
                   }}
-                  className="inline-flex min-h-[40px] items-center gap-2 rounded-[6px] px-4 py-2 text-[13px] font-semibold transition-colors"
+                  className="inline-flex min-h-[44px] items-center gap-2 rounded-[6px] px-4 py-2 text-[13px] font-semibold transition-colors"
                   style={{
                     background: isReadOnly || uploading ? "#E2E6EE" : "#1E66C9",
                     color: isReadOnly || uploading ? "var(--ink-faint)" : "#FFFFFF",
@@ -830,7 +1091,7 @@ export function UploadWorkbench() {
                     />
                     <path d="M9 1.5V5.5H13" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" />
                   </svg>
-                  {selectedFile ? "Change file" : "Browse files"}
+                  {selectedFile ? "Change file(s)" : "Browse files"}
                 </button>
 
                 {/* Inline unsupported-file-type error — set at drop/pick time,
@@ -850,12 +1111,12 @@ export function UploadWorkbench() {
                   <p className="text-[11.5px] italic" style={{ color: "#99A1C5" }}>
                     {isApiMockMode
                       ? "(Demo: click anywhere to simulate a parsed PDF)"
-                      : "or drop a file anywhere in this area"}
+                      : "or drop files anywhere in this area"}
                   </p>
                 )}
 
-                {/* Format detection pill — shown once a file is selected */}
-                {selectedFile && (detectionLoading || detection) && (
+                {/* Format detection pill — shown once a single file is selected */}
+                {selectedFile && !isMulti && (detectionLoading || detection) && (
                   <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
                     {detectionLoading && !detection ? (
                       <span
@@ -976,69 +1237,16 @@ export function UploadWorkbench() {
                     ) : null}
                   </div>
                 )}
+              </div>
 
-            </div>
-
-            {/* Quick-action bar — appears the moment a file is selected, so the
-                primary "Upload & review" CTA is visible without scrolling to the
-                Pipeline configuration card at the bottom of the page. */}
-            {selectedFile && !isMulti && (
-              <XCard edge="left" edgeColor="#2E8E3A">
-                <div className="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center">
-                  <p className="min-w-0 flex-1 truncate text-[12.5px]" style={{ color: "#56627A", margin: 0 }}>
-                    <span className="font-mono text-[11.5px]" style={{ color: "#0B1A2F" }}>{selectedFile.name}</span>
-                    {selectedSupplier && (
-                      <>
-                        {" "}· routes to{" "}
-                        <span style={{ color: "#1E6D29", fontWeight: 600 }}>{selectedSupplier.name}</span>
-                      </>
-                    )}
-                  </p>
-                  <div className="w-full sm:w-[240px] sm:flex-shrink-0">{uploadButton}</div>
-                </div>
-              </XCard>
-            )}
-
-            {/* Multi-file batch bar — N files → N orders, uploaded sequentially with
-                per-file status. Replaces the single-file quick-action bar in multi mode. */}
-            {isMulti && (
-              <XCard edge="left" edgeColor="#2E8E3A">
-                <div className="flex flex-col gap-3 px-4 py-3">
-                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-                    <p className="min-w-0 flex-1 text-[12.5px]" style={{ color: "#56627A", margin: 0 }}>
-                      <span style={{ color: "#0B1A2F", fontWeight: 600 }}>{selectedCount} files</span>
-                      {selectedSupplier && (
-                        <>
-                          {" "}· one order each, routed to{" "}
-                          <span style={{ color: "#1E6D29", fontWeight: 600 }}>{selectedSupplier.name}</span>
-                        </>
-                      )}
-                    </p>
-                    <div className="w-full sm:w-[240px] sm:flex-shrink-0">
-                      <button
-                        onClick={() => handleBatchUpload(allSelectedFiles)}
-                        disabled={isUploadDisabled}
-                        className="w-full rounded-[6px] py-2.5 text-[13px] font-semibold transition-all"
-                        style={{
-                          background: isUploadDisabled ? "#E2E6EE" : "linear-gradient(90deg, #2E8E3A 0%, #1E6D29 100%)",
-                          color: isUploadDisabled ? "var(--ink-faint)" : "#FFFFFF",
-                          border: "none",
-                          boxShadow: isUploadDisabled ? "none" : "0 2px 8px rgba(46,142,58,0.25)",
-                          cursor: isUploadDisabled ? "not-allowed" : "pointer",
-                        }}
-                      >
-                        {uploading ? "Uploading…" : isReadOnly ? "Processing paused" : `↑ Upload ${selectedCount} files`}
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Per-file status list. Before upload: the picked file names; during/after:
-                      live pending → uploading → done/failed, with a link to each created order.
-                      "done" here means the UPLOAD landed and an order STUB was created — the
-                      backend then parses asynchronously (POST /upload returns status "parsing"),
-                      so the order's buyer/lines/total are still being EXTRACTED. We say
-                      "Extracting…" (not "✓ Ready") so opening the order and seeing an empty
-                      buyer / 0 lines for a moment isn't a surprise (offer↔works). */}
+              {/* Multi-file batch list — N files → N orders. The action button lives
+                  in the Step ③ footer; here we surface the per-file pending →
+                  uploading → done/failed status with a link to each created order.
+                  "done" means the UPLOAD landed and an order STUB was created — the
+                  backend then parses asynchronously, so we say "Extracting…" (not
+                  "✓ Ready") so an empty buyer / 0 lines for a moment isn't a surprise. */}
+              {isMulti && (
+                <div className="flex flex-col gap-2">
                   <ul className="flex flex-col gap-1" style={{ margin: 0, padding: 0, listStyle: "none" }}>
                     {(batchResults.length > 0
                       ? batchResults
@@ -1046,7 +1254,7 @@ export function UploadWorkbench() {
                     ).map((r, i) => (
                       <li
                         key={`${r.name}-${i}`}
-                        className="flex items-center justify-between gap-3 rounded-[5px] px-2.5 py-1.5"
+                        className="flex items-center justify-between gap-3 rounded-[6px] px-2.5 py-2"
                         style={{ background: "#F6F7FA", border: "1px solid #EEF0F4" }}
                       >
                         <span className="min-w-0 flex-1 truncate font-mono text-[11px]" style={{ color: "#0B1A2F" }}>
@@ -1078,7 +1286,6 @@ export function UploadWorkbench() {
                       </li>
                     ))}
                   </ul>
-                  <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
 
                   {batchResults.length > 0 && !uploading && batchResults.some((r) => r.status === "done") && (
                     <div className="flex flex-col gap-1.5">
@@ -1092,444 +1299,295 @@ export function UploadWorkbench() {
                     </div>
                   )}
                 </div>
-              </XCard>
+              )}
+            </section>
+          </div>
+
+          {/* ── FOOTER · Step ③ Send for review (full width) ── */}
+          <div
+            className="flex flex-col gap-3 p-5"
+            style={{ borderTop: "1px solid #E2E6EE", background: "#FFFFFF" }}
+          >
+            {/* 429 / supplier-required / upload-failed error banner */}
+            {uploadError && (
+              <div
+                role="alert"
+                style={{
+                  borderRadius: 7,
+                  padding: "10px 14px",
+                  background: "#FAEFD6",
+                  border: "1px solid #C97A14",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: 12,
+                  fontSize: 12.5,
+                  color: "#7A4A0A",
+                }}
+              >
+                <span>
+                  <strong style={{ display: "block", color: "#7A4A0A" }}>{uploadError.title}</strong>
+                  <span>{uploadError.message}</span>
+                </span>
+                <a
+                  href="/settings"
+                  style={{ fontWeight: 600, color: "#C97A14", textDecoration: "none", whiteSpace: "nowrap" }}
+                >
+                  {uploadError.cta} →
+                </a>
+              </div>
             )}
 
-            {/* Established org: keep the sample path below the dropzone. */}
-            {!isEmptyOrg && sampleCard}
+            <div className="flex items-center gap-3">
+              <StepBadge n={3} tone="green" />
+              <div className="min-w-0 flex-1">{primaryCta}</div>
+            </div>
 
-            {/* Recent uploads — hidden entirely when there is nothing recent */}
-            {recentRows.length > 0 && (
-            <XCard edge="left" edgeColor="#E2E6EE">
-              <div
-                className="flex items-center px-4 py-3"
-                style={{ borderBottom: "1px solid #E2E6EE" }}
-              >
-                <span
-                  className="text-[13px] font-semibold"
-                  style={{ color: "#0B1A2F" }}
-                >
-                  Recent uploads
-                </span>
-                <div className="flex-1" />
-                <Link
-                  href="/inbox"
-                  className="text-[12px] font-medium"
-                  style={{ color: "#1E6D29" }}
-                >
-                  View all ↗
-                </Link>
-              </div>
-
-              <div className="flex flex-col gap-2 p-3 lg:hidden">
-                {recentRows.map((row) => {
-                  const pill = STATUS_PILL[row.status];
-                  return (
-                    <button
-                      key={row.id}
-                      onClick={() => openOrder(row.id)}
-                      className="block w-full px-4 py-3.5 text-left transition-colors active:bg-[#F6F7FA]"
-                      style={{
-                        background: "var(--surface)",
-                        border: "1px solid var(--border)",
-                        borderRadius: "var(--radius-md)",
-                        boxShadow: "var(--shadow-card)",
-                        minHeight: 44,
-                      }}
-                    >
-                      <div className="mb-2 flex items-start justify-between gap-3">
-                        <span
-                          className="min-w-0 truncate font-mono text-[11.5px]"
-                          style={{ color: "#0B1A2F" }}
-                        >
-                          {row.name}
-                        </span>
-                        <span
-                          className="inline-flex shrink-0 items-center gap-1 rounded px-2 py-0.5 text-[11px] font-medium"
-                          style={{ background: pill.bg, color: pill.color }}
-                        >
-                          {pill.label}
-                        </span>
-                      </div>
-                      <div className="mb-2 flex items-center gap-2">
-                        <FileChip type={row.fmt} />
-                        <span className="text-[11.5px]" style={{ color: "var(--ink-faint)" }}>
-                          {row.size === "—" ? row.age : `${row.size} · ${row.age}`}
-                        </span>
-                      </div>
-                      <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 text-[12px]">
-                        <span className="truncate" style={{ color: "#2E8E3A" }}>
-                          {row.buyer}
-                        </span>
-                        <span className="h-px w-5" style={{ background: "linear-gradient(90deg, #2E8E3A, #1E6D29)" }} />
-                        <span className="truncate text-right" style={{ color: "#1E6D29" }}>
-                          {row.supplier}
-                        </span>
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-
-              <div className="hidden overflow-x-auto lg:block">
-                <table
-                  className="w-full min-w-[760px] border-collapse"
-                  style={{ fontSize: 12.5 }}
-                >
-                  <thead>
-                    <tr style={{ borderBottom: "1px solid #E2E6EE" }}>
-                      {["File", "Format", "Route", "Size", "Age", "Status"].map(
-                        (h) => (
-                          <th
-                            key={h}
-                            className="text-left px-4 py-2 text-[10.5px] font-semibold uppercase tracking-[0.06em]"
-                            style={{ color: "var(--ink-faint)" }}
-                          >
-                            {h}
-                          </th>
-                        )
-                      )}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {recentRows.map((row) => {
-                      const pill = STATUS_PILL[row.status];
-                      return (
-                        <tr
-                          key={row.id}
-                          onClick={() => openOrder(row.id)}
-                          className="transition-colors cursor-pointer"
-                          style={{ borderBottom: "1px solid #F0F2F6" }}
-                          onMouseEnter={(e) =>
-                            ((e.currentTarget as HTMLElement).style.background =
-                              "#F6F7FA")
-                          }
-                          onMouseLeave={(e) =>
-                            ((e.currentTarget as HTMLElement).style.background =
-                              "transparent")
-                          }
-                        >
-                          <td className="px-4 py-2.5">
-                            <span
-                              className="font-mono text-[11.5px]"
-                              style={{ color: "#0B1A2F" }}
-                            >
-                              {row.name}
-                            </span>
-                          </td>
-                          <td className="px-4 py-2.5">
-                            <FileChip type={row.fmt} />
-                          </td>
-                          <td className="px-4 py-2.5 min-w-[250px]">
-                            <span
-                              className="text-[12px]"
-                              style={{ color: "#2E8E3A" }}
-                            >
-                              {row.buyer}
-                            </span>
-                            <span
-                              className="mx-1 text-[11px]"
-                              style={{ color: "#C6CDDA" }}
-                            >
-                              →
-                            </span>
-                            <span
-                              className="text-[12px]"
-                              style={{ color: "#1E6D29" }}
-                            >
-                              {row.supplier}
-                            </span>
-                          </td>
-                          <td
-                            className="px-4 py-2.5 text-[12px]"
-                            style={{ color: "#56627A" }}
-                          >
-                            {row.size}
-                          </td>
-                          <td
-                            className="px-4 py-2.5 text-[12px]"
-                            style={{ color: "var(--ink-faint)" }}
-                          >
-                            {row.age}
-                          </td>
-                          <td className="px-4 py-2.5">
-                            <span
-                              className="inline-flex items-center gap-1 rounded px-2 py-0.5 text-[11px] font-medium"
-                              style={{ background: pill.bg, color: pill.color }}
-                            >
-                              {pill.label}
-                            </span>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            </XCard>
+            {/* Honest gating hint — the CTA is disabled until a supplier is chosen. */}
+            {selectedCount > 0 && !hasSupplier && !suppliersLoading && (
+              <p className="text-[11.5px]" style={{ color: "#9A5F0A", margin: 0 }}>
+                Choose a {counterpartyNoun} in step 1 to enable the upload.
+              </p>
             )}
 
-            {/* Pipeline configuration — plan usage, buyer (auto-detected), supplier */}
-            <XCard edge="left" edgeColor="#2E8E3A">
-              <div
-                className="px-4 py-3"
-                style={{ borderBottom: "1px solid #E2E6EE" }}
-              >
-                <span
-                  className="text-[13px] font-semibold"
-                  style={{ color: "#0B1A2F" }}
-                >
-                  Pipeline configuration
-                </span>
-              </div>
-
-              <div className="px-4 py-4 flex flex-col gap-4">
-                {billing && (
-                  <div
-                    className="rounded-[7px] px-3 py-3"
-                    style={{
-                      background: isReadOnly ? "#FFF8EA" : "#F6F7FA",
-                      border: `1px solid ${isReadOnly ? "#F0D39A" : "#E2E6EE"}`,
-                    }}
-                  >
-                    <div className="mb-2 flex items-center justify-between gap-3">
-                      <span className="text-[11px] font-semibold uppercase tracking-[0.06em]" style={{ color: "#56627A" }}>
-                        {billing.plan} plan
-                      </span>
-                      <span className="rounded px-2 py-0.5 text-[10.5px] font-semibold" style={{ background: isReadOnly ? "#FAEFD6" : "#E2F1E2", color: isReadOnly ? "#9A5F0A" : "#1E6D29" }}>
-                        {isReadOnly ? "Processing paused" : "Ready"}
-                      </span>
-                    </div>
-                    <UsageLine label="Orders" used={billing.ordersThisMonth} limit={billing.orderLimit} />
-                    <UsageLine label="Suppliers" used={billing.suppliersUsed} limit={billing.supplierLimit} />
-                    {billing.trialEndsAt && billing.plan === "pilot" && (
-                      <p className="mt-2 text-[11.5px]" style={{ color: "#56627A" }}>
-                        Pilot ends {new Date(billing.trialEndsAt).toLocaleDateString()}.
-                      </p>
-                    )}
-                    {isReadOnly && (
-                      <p className="mt-2 text-[11.5px] leading-5" style={{ color: "#7A4D0B" }}>
-                        You can still view previous orders, but new order processing is paused until the plan is upgraded.
-                      </p>
-                    )}
-                  </div>
-                )}
-
-                {billingLoading && (
-                  <div className="rounded-[7px] px-3 py-3 text-[12px]" style={{ border: "1px solid #E2E6EE", background: "#F6F7FA", color: "#56627A" }}>
-                    Checking plan limits...
-                  </div>
-                )}
-
-                {billingError && (
-                  <div className="rounded-[7px] px-3 py-3 text-[12px]" style={{ border: "1px solid #F0D39A", background: "#FFF8EA", color: "#7A4D0B" }}>
-                    Plan status is unavailable. Uploads may fail if the API cannot be reached.
-                  </div>
-                )}
-
-                {/* Buyer — auto-detected from the document during parsing (not a manual choice). */}
-                <div>
-                  <label
-                    className="block text-[11px] font-semibold uppercase tracking-[0.06em] mb-1.5"
-                    style={{ color: "#56627A" }}
-                  >
-                    Buyer
-                  </label>
-                  <div
-                    className="w-full rounded-[6px] px-3 py-2 text-[13px] italic"
-                    style={{ border: "1px dashed #D5DAEA", background: "#F6F7FA", color: "var(--ink-faint)" }}
-                  >
-                    Filled in automatically once the document is parsed
-                  </div>
-                </div>
-
-                {/* Route arrow */}
-                <div className="flex items-center gap-2">
-                  <div
-                    style={{
-                      flex: 1,
-                      height: 1,
-                      background:
-                        "linear-gradient(90deg, #E2E6EE 0%, rgba(46,142,58,0.5) 100%)",
-                    }}
-                  />
-                  <span
-                    className="text-[11px] font-mono"
-                    style={{ color: "var(--ink-faint)" }}
-                  >
-                    routes to
-                  </span>
-                  <div
-                    style={{
-                      flex: 1,
-                      height: 1,
-                      background:
-                        "linear-gradient(90deg, rgba(46,142,58,0.5) 0%, #E2E6EE 100%)",
-                    }}
-                  />
-                </div>
-
-                {/* Supplier (or Customer in inbound mode) */}
-                <div>
-                  <label
-                    className="block text-[11px] font-semibold uppercase tracking-[0.06em] mb-1.5"
-                    style={{ color: "#56627A" }}
-                  >
-                    {labels.counterpartyNoun}
-                  </label>
-                  {suppliersLoading && (
-                    <div
-                      className="rounded-[6px] px-3 py-2 text-[12px]"
-                      style={{ border: "1px solid #E2E6EE", background: "#F6F7FA", color: "#56627A" }}
-                    >
-                      Loading suppliers...
-                    </div>
-                  )}
-                  {suppliersError && !suppliersLoading && (
-                    <div
-                      className="rounded-[6px] px-3 py-2 text-[12px]"
-                      style={{ border: "1px solid #F0D39A", background: "#FFF8EA", color: "#7A4D0B" }}
-                    >
-                      Could not load suppliers. Check the API connection and try again.
-                    </div>
-                  )}
-                  {!suppliersLoading && !suppliersError && suppliers.length === 0 && (
-                    <div
-                      className="rounded-[6px] px-3 py-2.5 text-[12px] leading-5"
-                      style={{ border: "1px solid #E2E6EE", background: "#F6F7FA", color: "#56627A" }}
-                    >
-                      No {labels.counterpartyPlural.toLowerCase()} yet.{" "}
-                      <Link href="/library/suppliers" className="font-medium underline" style={{ color: "#1E6D29" }}>
-                        Add a {labels.counterpartyNoun.toLowerCase()}
-                      </Link>{" "}
-                      before uploading.
-                    </div>
-                  )}
-                  {!suppliersLoading && suppliers.length > 0 && (
-                    <select
-                      value={supplierId}
-                      onChange={(e) => setSupplierId(e.target.value)}
-                      className="w-full rounded-[6px] px-3 py-2 text-[13px] appearance-none min-h-[44px] md:min-h-0"
-                      style={{
-                        border: "1px solid #E2E6EE",
-                        background: "#FFFFFF",
-                        color: "#0B1A2F",
-                      }}
-                    >
-                      {suppliers.map((s) => (
-                        <option key={s.id} value={s.id}>{s.name}</option>
-                      ))}
-                    </select>
-                  )}
-                </div>
-
-                {/* Every upload goes to review before any delivery, so there is
-                    no "output template" / "processing mode" choice here — those
-                    were dead local state never sent to the upload call, and the
-                    "auto-process sends without review" warning was false. The
-                    output format is chosen per supplier; review is always on. */}
-
-                {/* 429 billing error banner */}
-                {uploadError && (
-                  <div style={{
-                    borderRadius: 7,
-                    padding: "10px 14px",
-                    background: "#FAEFD6",
-                    border: "1px solid #C97A14",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    gap: 12,
-                    fontSize: 12.5,
-                    color: "#7A4A0A",
-                  }}>
-                    <span>
-                      <strong style={{ display: "block", color: "#7A4A0A" }}>{uploadError.title}</strong>
-                      <span>{uploadError.message}</span>
-                    </span>
-                    <a
-                      href="/settings"
-                      style={{ fontWeight: 600, color: "#C97A14", textDecoration: "none", whiteSpace: "nowrap" }}
-                    >
-                      {uploadError.cta} →
-                    </a>
-                  </div>
-                )}
-
-                {/* Pipeline progress (shown while uploading) */}
-                {uploading && (
-                  <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                    <div style={{ display: "flex", gap: 4, alignItems: "center", justifyContent: "space-between" }}>
-                      {PIPELINE_STAGES.map((stage, i) => {
-                        const done    = i < pipelineStage;
-                        const active  = i === pipelineStage;
-                        const pending = i > pipelineStage;
-                        return (
-                          <div key={stage} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
+            {/* Pipeline progress (single-file path, shown while uploading) */}
+            {uploading && !isMulti && (
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                <div style={{ display: "flex", gap: 4, alignItems: "center", justifyContent: "space-between" }}>
+                  {PIPELINE_STAGES.map((stage, i) => {
+                    const done    = i < pipelineStage;
+                    const active  = i === pipelineStage;
+                    return (
+                      <div key={stage} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
+                        <div style={{
+                          height: 3,
+                          borderRadius: 99,
+                          width: "100%",
+                          background: done    ? "#1E6D29"
+                                    : active  ? "#2E8E3A"
+                                    : "#E2E6EE",
+                          transition: "background 0.3s",
+                          position: "relative",
+                          overflow: "hidden",
+                        }}>
+                          {active && (
                             <div style={{
-                              height: 3,
-                              borderRadius: 99,
-                              width: "100%",
-                              background: done    ? "#1E6D29"
-                                        : active  ? "#2E8E3A"
-                                        : "#E2E6EE",
-                              transition: "background 0.3s",
-                              position: "relative",
-                              overflow: "hidden",
-                            }}>
-                              {active && (
-                                <div style={{
-                                  position: "absolute",
-                                  inset: 0,
-                                  background: "linear-gradient(90deg, transparent, rgba(255,255,255,0.6), transparent)",
-                                  animation: "pipeline-shimmer 0.8s linear infinite",
-                                }} />
-                              )}
-                            </div>
-                            <span style={{
-                              fontSize: 9.5,
-                              fontWeight: 600,
-                              letterSpacing: "0.04em",
-                              color: done ? "#1E6D29" : active ? "#2E8E3A" : "#C6CDDA",
-                              transition: "color 0.2s",
-                            }}>
-                              {done ? "✓ " : ""}{stage}
-                            </span>
-                          </div>
-                        );
-                      })}
-                    </div>
-                    <style>{`@keyframes pipeline-shimmer { 0%{transform:translateX(-100%)} 100%{transform:translateX(200%)} }`}</style>
-                  </div>
-                )}
-
-                {/* Send button — only when NO file is selected. Once a file is
-                    chosen the quick-action bar under the dropzone renders the
-                    SAME primary CTA, so rendering it here too would put two
-                    "↑ Upload & review" buttons in the DOM (strict-mode
-                    violation + confusing double CTA). The no-file state shows
-                    "Choose a file to upload" here as the page-bottom prompt. */}
-                {!selectedFile && uploadButton}
+                              position: "absolute",
+                              inset: 0,
+                              background: "linear-gradient(90deg, transparent, rgba(255,255,255,0.6), transparent)",
+                              animation: "pipeline-shimmer 0.8s linear infinite",
+                            }} />
+                          )}
+                        </div>
+                        <span style={{
+                          fontSize: 9.5,
+                          fontWeight: 600,
+                          letterSpacing: "0.04em",
+                          color: done ? "#1E6D29" : active ? "#2E8E3A" : "#C6CDDA",
+                          transition: "color 0.2s",
+                        }}>
+                          {done ? "✓ " : ""}{stage}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
-            </XCard>
-
-            {/* Tip card */}
-            <XCard>
-              <div className="px-4 py-3">
-                <p
-                  className="text-[11.5px] font-semibold mb-1"
-                  style={{ color: "#6F4FCE" }}
-                >
-                  ✦ AI extraction
-                </p>
-                <p className="text-[11.5px] leading-relaxed" style={{ color: "#56627A" }}>
-                  Text-based PDFs are read and structured by our AI extraction
-                  engine. Every number is checked against the source text, and
-                  anything that doesn't reconcile is flagged for review.
-                </p>
-              </div>
-            </XCard>
+            )}
+          </div>
         </div>
+
+        {/* Established org: keep the sample path below the intake card. */}
+        {!isEmptyOrg && sampleCard}
+
+        {/* Recent uploads — hidden entirely when there is nothing recent */}
+        {recentRows.length > 0 && (
+          <XCard edge="left" edgeColor="#E2E6EE">
+            <div
+              className="flex items-center px-4 py-3"
+              style={{ borderBottom: "1px solid #E2E6EE" }}
+            >
+              <span
+                className="text-[13px] font-semibold"
+                style={{ color: "#0B1A2F" }}
+              >
+                Recent uploads
+              </span>
+              <div className="flex-1" />
+              <Link
+                href="/inbox"
+                className="text-[12px] font-medium"
+                style={{ color: "#1E6D29" }}
+              >
+                View all ↗
+              </Link>
+            </div>
+
+            <div className="flex flex-col gap-2 p-3 lg:hidden">
+              {recentRows.map((row) => {
+                const pill = STATUS_PILL[row.status];
+                return (
+                  <button
+                    key={row.id}
+                    onClick={() => openOrder(row.id)}
+                    className="block w-full px-4 py-3.5 text-left transition-colors active:bg-[#F6F7FA]"
+                    style={{
+                      background: "var(--surface)",
+                      border: "1px solid var(--border)",
+                      borderRadius: "var(--radius-md)",
+                      boxShadow: "var(--shadow-card)",
+                      minHeight: 44,
+                    }}
+                  >
+                    <div className="mb-2 flex items-start justify-between gap-3">
+                      <span
+                        className="min-w-0 truncate font-mono text-[11.5px]"
+                        style={{ color: "#0B1A2F" }}
+                      >
+                        {row.name}
+                      </span>
+                      <span
+                        className="inline-flex shrink-0 items-center gap-1 rounded px-2 py-0.5 text-[11px] font-medium"
+                        style={{ background: pill.bg, color: pill.color }}
+                      >
+                        {pill.label}
+                      </span>
+                    </div>
+                    <div className="mb-2 flex items-center gap-2">
+                      <FileChip type={row.fmt} />
+                      <span className="text-[11.5px]" style={{ color: "var(--ink-faint)" }}>
+                        {row.size === "—" ? row.age : `${row.size} · ${row.age}`}
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 text-[12px]">
+                      <span className="truncate" style={{ color: "#2E8E3A" }}>
+                        {row.buyer}
+                      </span>
+                      <span className="h-px w-5" style={{ background: "linear-gradient(90deg, #2E8E3A, #1E6D29)" }} />
+                      <span className="truncate text-right" style={{ color: "#1E6D29" }}>
+                        {row.supplier}
+                      </span>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className="hidden overflow-x-auto lg:block">
+              <table
+                className="w-full min-w-[760px] border-collapse"
+                style={{ fontSize: 12.5 }}
+              >
+                <thead>
+                  <tr style={{ borderBottom: "1px solid #E2E6EE" }}>
+                    {["File", "Format", "Route", "Size", "Age", "Status"].map(
+                      (h) => (
+                        <th
+                          key={h}
+                          className="text-left px-4 py-2 text-[10.5px] font-semibold uppercase tracking-[0.06em]"
+                          style={{ color: "var(--ink-faint)" }}
+                        >
+                          {h}
+                        </th>
+                      )
+                    )}
+                  </tr>
+                </thead>
+                <tbody>
+                  {recentRows.map((row) => {
+                    const pill = STATUS_PILL[row.status];
+                    return (
+                      <tr
+                        key={row.id}
+                        onClick={() => openOrder(row.id)}
+                        className="transition-colors cursor-pointer"
+                        style={{ borderBottom: "1px solid #F0F2F6" }}
+                        onMouseEnter={(e) =>
+                          ((e.currentTarget as HTMLElement).style.background =
+                            "#F6F7FA")
+                        }
+                        onMouseLeave={(e) =>
+                          ((e.currentTarget as HTMLElement).style.background =
+                            "transparent")
+                        }
+                      >
+                        <td className="px-4 py-2.5">
+                          <span
+                            className="font-mono text-[11.5px]"
+                            style={{ color: "#0B1A2F" }}
+                          >
+                            {row.name}
+                          </span>
+                        </td>
+                        <td className="px-4 py-2.5">
+                          <FileChip type={row.fmt} />
+                        </td>
+                        <td className="px-4 py-2.5 min-w-[250px]">
+                          <span
+                            className="text-[12px]"
+                            style={{ color: "#2E8E3A" }}
+                          >
+                            {row.buyer}
+                          </span>
+                          <span
+                            className="mx-1 text-[11px]"
+                            style={{ color: "#C6CDDA" }}
+                          >
+                            →
+                          </span>
+                          <span
+                            className="text-[12px]"
+                            style={{ color: "#1E6D29" }}
+                          >
+                            {row.supplier}
+                          </span>
+                        </td>
+                        <td
+                          className="px-4 py-2.5 text-[12px]"
+                          style={{ color: "#56627A" }}
+                        >
+                          {row.size}
+                        </td>
+                        <td
+                          className="px-4 py-2.5 text-[12px]"
+                          style={{ color: "var(--ink-faint)" }}
+                        >
+                          {row.age}
+                        </td>
+                        <td className="px-4 py-2.5">
+                          <span
+                            className="inline-flex items-center gap-1 rounded px-2 py-0.5 text-[11px] font-medium"
+                            style={{ background: pill.bg, color: pill.color }}
+                          >
+                            {pill.label}
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </XCard>
+        )}
+
+        {/* Tip card */}
+        <XCard>
+          <div className="px-4 py-3">
+            <p
+              className="text-[11.5px] font-semibold mb-1"
+              style={{ color: "#6F4FCE" }}
+            >
+              ✦ AI extraction
+            </p>
+            <p className="text-[11.5px] leading-relaxed" style={{ color: "#56627A" }}>
+              Text-based PDFs are read and structured by our AI extraction
+              engine. Every number is checked against the source text, and
+              anything that doesn't reconcile is flagged for review.
+            </p>
+          </div>
+        </XCard>
+      </div>
     </PageShell>
   );
 }
