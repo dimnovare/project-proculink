@@ -399,6 +399,7 @@ export function useMapperModel({
         template: next.outputTemplate ?? "",
         templateContentType: next.outputTemplateContentType ?? "application/json",
         existingSourceMap: next.sourceMap ?? null,
+        existingOutputTree: next.outputTree ?? null,
       });
       if (variant === "order") {
         return upsertMappingOverride(scopeId, doc);

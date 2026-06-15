@@ -84,9 +84,66 @@ export interface SourceFieldRule {
   manipulators: ManipulatorEntry[];
 }
 
+// ── OutputNode tree (Phase B/C — the structured output designer) ─────────────
+// A recursive output template: build ARBITRARY structure (nesting, repeating groups,
+// attributes, custom names) instead of a flat field list. Mirrors the backend
+// OutputNodeTemplate / OutputNode. Node types are camelCase strings on the wire.
+
+/** Output serialization format. NOTE cXML is "cXml" (the enum's camelCase name), not "cxml". */
+export type OutputFormat = "csv" | "json" | "xml" | "cXml" | "ubl" | "x12";
+
+export type OutputNodeType = "object" | "array" | "field" | "attribute";
+
+export interface OutputNode {
+  /** Element / JSON property / CSV column / EDI segment id. */
+  name: string;
+  nodeType: OutputNodeType;
+  /** Children of an object/array node. */
+  children?: OutputNode[];
+  /** Leaf value recipe (field/attribute nodes) — reuses OutputFieldRule. */
+  rule?: OutputFieldRule | null;
+  /** For an array node: the collection to repeat over (v1: "lines", the default). */
+  collection?: string | null;
+}
+
+export interface X12Envelope {
+  isaSenderQualifier?: string | null;
+  isaSenderId?: string | null;
+  isaReceiverQualifier?: string | null;
+  isaReceiverId?: string | null;
+  version?: string | null;
+  usageIndicator?: string | null;
+}
+
+export interface CxmlEnvelope {
+  fromDomain?: string | null; fromIdentity?: string | null;
+  toDomain?: string | null; toIdentity?: string | null;
+  senderDomain?: string | null; senderIdentity?: string | null;
+}
+
+export interface EnvelopeConfig {
+  x12?: X12Envelope | null;
+  cxml?: CxmlEnvelope | null;
+}
+
+export interface OutputNodeTemplate {
+  format: OutputFormat;
+  root: OutputNode;
+  /** Optional XML root namespaces (prefix → uri). Ignored by JSON/CSV. */
+  namespaces?: Record<string, string> | null;
+  /** EDI/cXML identity as data (WS-12). */
+  envelope?: EnvelopeConfig | null;
+}
+
 export interface OrderMappingOverride {
   customFields: CustomField[];
   output?: OutputMappingConfig | null;
+  /**
+   * Optional STRUCTURED output template (Phase B — the OutputNode tree). HIGHEST precedence:
+   * when present, the whole document is rendered from this tree, letting a supplier's exact
+   * required structure be designed visually. Null = off (byte-identical to today).
+   */
+  outputTree?: OutputNodeTemplate | null;
   /**
    * Optional source→canonical remapping, keyed by canonical field NAME
    * (header: PoNumber/OrderDate/BuyerName/Currency/SupplierName;

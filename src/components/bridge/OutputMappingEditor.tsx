@@ -26,7 +26,7 @@ import {
   MANIPULATOR_TYPES, CANONICAL_HEADER_FIELDS, CANONICAL_LINE_FIELDS,
   SCRIBAN_TEMPLATE_GROUPS, TEMPLATE_CONTENT_TYPES, PREVIEW_FORMATS, SCRIBAN_STARTER_TEMPLATE,
   type OrderMappingOverride, type OutputFieldRule, type ManipulatorEntry, type CustomField,
-  type OutputFormatId, type SourceFieldRule,
+  type OutputFormatId, type SourceFieldRule, type OutputNodeTemplate,
 } from "@/lib/api/types";
 
 type Scope = "header" | "lines";
@@ -72,6 +72,7 @@ export function buildOverrideDraft(opts: {
   template: string;
   templateContentType: string;
   existingSourceMap?: Record<string, SourceFieldRule> | null;
+  existingOutputTree?: OutputNodeTemplate | null;
 }): OrderMappingOverride {
   const base: OrderMappingOverride = {
     customFields: opts.customFields,
@@ -79,6 +80,9 @@ export function buildOverrideDraft(opts: {
     // Carry the drag-wired source mappings through unchanged — this editor
     // only edits the OUTPUT side.
     sourceMap: opts.existingSourceMap ?? null,
+    // Carry the structured output tree (the visual designer's output) through unchanged — dropping
+    // it on a flat-editor save would destroy a designed structure (same data-loss class as sourceMap).
+    outputTree: opts.existingOutputTree ?? null,
   };
   // Template mode takes precedence on the backend; only send the template when
   // the toggle is on AND it's non-blank, so flipping the toggle off clears it.
