@@ -544,7 +544,7 @@ export function OutputMappingEditor({
           )}
           <button type="button" onClick={() => setShowDesigner(true)}
             title="Design the output structure visually (nesting, lists, attributes)"
-            style={{ minHeight: 34, padding: "0 12px", border: "1px solid #6F4FCE", borderRadius: 7, background: "#FFFFFF", color: "#5E3DB0", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
+            style={{ minHeight: 34, padding: "0 12px", border: "1px solid #0B1A2F", borderRadius: 7, background: "#FFFFFF", color: "#0B1A2F", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
             ⚄ Design structure
           </button>
           <button type="button" onClick={onClose} aria-label="Close" style={{ minHeight: 34, minWidth: 34, border: "none", background: "transparent", fontSize: 18, color: "#56627A", cursor: "pointer" }}>✕</button>

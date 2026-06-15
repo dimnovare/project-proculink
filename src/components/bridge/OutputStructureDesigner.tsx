@@ -20,12 +20,16 @@ const FORMATS: { id: OutputFormat; label: string }[] = [
   { id: "cXml", label: "cXML" }, { id: "ubl", label: "UBL" }, { id: "x12", label: "X12" },
 ];
 
+// Bridge Layer tokens: navy chrome, green = primary/"supplier out" action, blue = incoming accent.
+// Violet is reserved for AI only (design system 09-trust-rules) — not used as decoration here.
 const NAVY = "#0B1A2F";
-const VIOLET = "#6D5BD0";
+const GREEN = "#1E6D29";
+const BLUE = "#2D6BD4";
 const BORDER = "#C6CDDA";
+const SLATE = "#56627A";
 
 const TYPE_LABEL: Record<OutputNodeType, string> = {
-  object: "{ } object", array: "[ ] list", field: "value", attribute: "@attr",
+  object: "{ } group", array: "[ ] list", field: "value", attribute: "@attr",
 };
 
 function newField(name: string, canonicalField?: string): OutputNode {
@@ -115,6 +119,8 @@ export function OutputStructureDesigner({
     <div role="dialog" aria-label="Design output structure"
       style={{ position: "fixed", inset: 0, zIndex: 100, background: "rgba(8,16,28,0.55)", display: "flex", justifyContent: "center", alignItems: "stretch", padding: "3vh 2vw" }}>
       <div style={{ background: "#FFFFFF", borderRadius: 12, width: "100%", maxWidth: 1100, display: "flex", flexDirection: "column", overflow: "hidden", boxShadow: "0 24px 64px rgba(8,16,28,0.4)" }}>
+        {/* Bridge edge (buyer blue → supplier green) — design system signature #5 */}
+        <div style={{ height: 3, background: `linear-gradient(90deg, ${BLUE}, ${GREEN})` }} />
         {/* Header */}
         <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px 18px", borderBottom: `1px solid ${BORDER}`, background: NAVY, color: "#FFFFFF" }}>
           <strong style={{ fontSize: 14 }}>Design the output structure</strong>
@@ -137,7 +143,7 @@ export function OutputStructureDesigner({
           </div>
           <div style={{ overflow: "auto", padding: 16, background: "#0B1626" }}>
             <div style={{ fontSize: 11, color: "#8FA3BF", marginBottom: 8, textTransform: "uppercase", letterSpacing: 0.4 }}>
-              Live output {preview.loading ? "· updating…" : ""}
+              What the supplier receives {preview.loading ? "· updating…" : "· live"}
             </div>
             {preview.error
               ? <div style={{ color: "#FF9B9B", fontSize: 12.5, whiteSpace: "pre-wrap" }}>{preview.error}</div>
@@ -151,7 +157,7 @@ export function OutputStructureDesigner({
           <div style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
             <button onClick={onClose} style={{ height: 34, padding: "0 14px", borderRadius: 7, border: `1px solid ${BORDER}`, background: "#FFF", fontSize: 12.5, cursor: "pointer" }}>Cancel</button>
             <button onClick={() => void save()} disabled={saving}
-              style={{ height: 34, padding: "0 18px", borderRadius: 7, border: "none", background: saved ? "#1E6D29" : VIOLET, color: "#FFF", fontSize: 12.5, fontWeight: 600, cursor: saving ? "default" : "pointer", opacity: saving ? 0.7 : 1 }}>
+              style={{ height: 34, padding: "0 18px", borderRadius: 7, border: "none", background: GREEN, color: "#FFF", fontSize: 12.5, fontWeight: 600, cursor: saving ? "default" : "pointer", opacity: saving ? 0.7 : 1 }}>
               {saving ? "Saving…" : saved ? "✓ Saved" : "Save structure"}
             </button>
           </div>
@@ -197,7 +203,7 @@ function NodeEditor({
   return (
     <div style={{ borderLeft: isRoot ? "none" : `2px solid #E5E9F1`, paddingLeft: isRoot ? 0 : 12, marginBottom: 6 }}>
       <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
-        <span title={node.nodeType} style={{ fontSize: 10, fontWeight: 600, color: VIOLET, background: "#EEEBFA", borderRadius: 4, padding: "2px 6px", minWidth: 64, textAlign: "center" }}>
+        <span title={node.nodeType} style={{ fontSize: 10, fontWeight: 600, color: SLATE, background: "#EEF1F6", borderRadius: 4, padding: "2px 6px", minWidth: 60, textAlign: "center" }}>
           {TYPE_LABEL[node.nodeType]}
         </span>
         <input value={node.name} onChange={(e) => updateName(e.target.value)} aria-label="Node name"
