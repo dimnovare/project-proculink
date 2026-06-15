@@ -40,6 +40,11 @@ export interface MapperPreviewPaneProps {
    * through PREVIEW_FORMATS. A counter so each invocation advances once.
    */
   cycleFormatSignal?: number;
+  /**
+   * The connection's REAL output format (model.outputFormat). The toggle seeds from this so a
+   * JSON supplier doesn't default to a CSV mismatch. Null/undefined → CSV (legacy default).
+   */
+  defaultFormat?: OutputFormatId | null;
 }
 
 const FORMAT_EXT: Record<OutputFormatId, string> = {
@@ -51,10 +56,17 @@ const FORMAT_MIME: Record<OutputFormatId, string> = {
   cxml: "application/xml", ubl: "application/xml", x12: "text/plain",
 };
 
-export function MapperPreviewPane({ previewOrderId, override, lastTouched, supplierName, emptyHint, cycleFormatSignal }: MapperPreviewPaneProps) {
-  const [format, setFormat] = useState<OutputFormatId>("csv");
+export function MapperPreviewPane({ previewOrderId, override, lastTouched, supplierName, emptyHint, cycleFormatSignal, defaultFormat }: MapperPreviewPaneProps) {
+  // Seed the toggle from the connection's REAL output format so a JSON supplier doesn't open
+  // on a CSV mismatch. The backend (revision authority) may still swap to the pinned format —
+  // deliveredFormat tracks what it actually rendered, and the header/copy/download follow that.
+  const [format, setFormat] = useState<OutputFormatId>(defaultFormat ?? "csv");
+  // The format the SERVER actually rendered (res.format). Drives the header label, copy/download
+  // extension+mime, and the "this connection delivers X regardless of the toggle" info note.
+  const [deliveredFormat, setDeliveredFormat] = useState<OutputFormatId>(defaultFormat ?? "csv");
   const [content, setContent] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
+  const [info, setInfo] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [copied, setCopied] = useState(false);
 
@@ -66,29 +78,36 @@ export function MapperPreviewPane({ previewOrderId, override, lastTouched, suppl
   }, [cycleFormatSignal]);
 
   // ~300ms debounce on (override, format) — fast enough to feel live as the user wires.
-  // FIX F (format toggle): we pass the SELECTED format to the endpoint and verify the body we
-  // got back is actually that format. If the backend returns a different format than requested
-  // (e.g. it can't render the chosen one for this mapping), we surface an honest
-  // "preview unavailable in {FORMAT}" rather than silently showing JSON for a CSV request.
+  //
+  // Revision authority: the backend deliberately swaps the requested format to the pinned
+  // connection's snapshotted output so "preview == delivered bytes" (a JSON connection always
+  // previews JSON, whatever the toggle says). The OLD code DISCARDED that valid content on a
+  // format mismatch and showed "(no preview)" — the bug this fix removes (mirrors the same fix
+  // already shipped in OutputMappingEditor). We now ALWAYS show what the server rendered, track
+  // the format it actually delivered, and surface a CALM info note (not an amber error) when it
+  // differs from the toggle. Genuine warnings/errors (e.g. "lines still need review") pass
+  // through honestly as the warning.
   useEffect(() => {
-    if (!previewOrderId) { setContent(null); setErr(null); setBusy(false); return; }
+    if (!previewOrderId) { setContent(null); setErr(null); setInfo(null); setBusy(false); return; }
     let cancelled = false;
     setBusy(true);
     const t = setTimeout(async () => {
       try {
         const res = await previewMappingOverride(previewOrderId, override, format);
         if (cancelled) return;
-        const returned = (res.format ?? "").toLowerCase();
-        if (returned && returned !== format && !res.error) {
-          // The server rendered a DIFFERENT format than we asked for → don't show the wrong body.
-          setContent(null);
-          setErr(`Preview unavailable in ${format.toUpperCase()} for this mapping — the server returned ${returned.toUpperCase()}. Pick another format or adjust the mapping.`);
-        } else {
-          setContent(res.content);
-          setErr(res.error ?? res.warning ?? null);
-        }
+        const delivered = ((res.format ?? format) as string).toLowerCase() as OutputFormatId;
+        setDeliveredFormat(delivered);
+        setContent(res.content);
+        setErr(res.error ?? res.warning ?? null);
+        // Calm info note: the published revision fixes the delivered format, so the preview
+        // shows that regardless of the toggle. Only when there's no harder error/warning to show.
+        setInfo(
+          delivered !== format && !res.error && !res.warning
+            ? `This connection delivers ${delivered.toUpperCase()} — the output format is set by the published revision, so the preview shows ${delivered.toUpperCase()} regardless of the toggle.`
+            : null,
+        );
       } catch (e) {
-        if (!cancelled) { setContent(null); setErr(e instanceof Error ? e.message : "Preview failed"); }
+        if (!cancelled) { setContent(null); setErr(e instanceof Error ? e.message : "Preview failed"); setInfo(null); }
       } finally {
         if (!cancelled) setBusy(false);
       }
@@ -109,16 +128,18 @@ export function MapperPreviewPane({ previewOrderId, override, lastTouched, suppl
 
   const onDownload = useCallback(() => {
     if (!content) return;
-    const blob = new Blob([content], { type: FORMAT_MIME[format] });
+    // Use the format the server actually rendered (deliveredFormat) so the file extension+mime
+    // match the bytes — never label JSON bytes as .csv just because the toggle still reads CSV.
+    const blob = new Blob([content], { type: FORMAT_MIME[deliveredFormat] });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `preview.${FORMAT_EXT[format]}`;
+    a.download = `preview.${FORMAT_EXT[deliveredFormat]}`;
     document.body.appendChild(a);
     a.click();
     a.remove();
     URL.revokeObjectURL(url);
-  }, [content, format]);
+  }, [content, deliveredFormat]);
 
   // Build the highlighted render: isolate the OUTPUT LINE mentioning the last-touched field
   // (by key/path or its resolved value) so the user's most recent edit visibly lands.
@@ -146,7 +167,7 @@ export function MapperPreviewPane({ previewOrderId, override, lastTouched, suppl
       <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", borderBottom: "1px solid #EEF0F4" }}>
         <span style={{ display: "flex", flexDirection: "column", gap: 1, minWidth: 0 }}>
           <span style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "#1E6D29" }}>
-            Live preview
+            Live preview · {deliveredFormat.toUpperCase()}
           </span>
           <span style={{ fontSize: 10, color: "var(--ink-faint)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
             {supplierName ? `What ${supplierName} receives` : "What the supplier receives"}
@@ -192,6 +213,12 @@ export function MapperPreviewPane({ previewOrderId, override, lastTouched, suppl
         </div>
       </div>
 
+      {info && (
+        <div style={{ padding: "8px 12px", fontSize: 11, color: "#56627A", background: "#EEF3FB", borderBottom: "1px solid #D5E3F6", lineHeight: 1.5 }}>
+          {info}
+        </div>
+      )}
+
       {err && (
         <div style={{ padding: "8px 12px", fontSize: 11, color: "#9A6B00", background: "#FFF7E6", borderBottom: "1px solid #F1E2BE" }}>
           {err}
@@ -207,11 +234,11 @@ export function MapperPreviewPane({ previewOrderId, override, lastTouched, suppl
           aria-live="polite"
           className={flash ? "mapper-preview-flash" : undefined}
           style={{
-            // T7 — the docked live preview is the document operators read most.
-            // Bumped body 11→13 + taller (240→420) now that the pane is wider, so
-            // the delivered output is comfortably legible, not a cramped 11px strip.
-            margin: 0, padding: "12px 14px", maxHeight: 420, overflow: "auto",
-            fontFamily: "'JetBrains Mono',monospace", fontSize: 13, lineHeight: 1.55,
+            // The docked live preview is the document operators read most, but the T7 sizing
+            // (13px / 420 tall) made it over-prominent for a side-dock; right-sized to a calm
+            // 12px / 300 so it reads as a companion, not a second hero column.
+            margin: 0, padding: "12px 14px", maxHeight: 300, overflow: "auto",
+            fontFamily: "'JetBrains Mono',monospace", fontSize: 12, lineHeight: 1.55,
             color: "#0B1A2F", whiteSpace: "pre-wrap", wordBreak: "break-word",
             opacity: busy ? 0.55 : 1, transition: "opacity 150ms",
           }}

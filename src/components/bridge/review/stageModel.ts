@@ -178,7 +178,14 @@ export function computeStageWires(
   }
 
   if (!isDegenerate(canonical) && !isDegenerate(output)) {
-    const anchorY = (output.top + output.bottom) / 2;
+    // Unify the out-wire on the SAME canonical-row anchorY as the src-wire so the flow reads
+    // source → canonical-row → output at ONE height. The old code anchored this wire to the
+    // OUTPUT panel's vertical centre, which (with alignItems:"start" and a tall OutputPreview)
+    // sat far below the canonical row → the two wires met the canonical box at different heights
+    // with dead vertical space. Fall back to the output centre only when no canonical anchor is
+    // known (canonicalAnchorY null AND a degenerate canonical box — already excluded here, so
+    // the canonical-centre is the safe fallback).
+    const anchorY = canonicalAnchorY ?? (canonical.top + canonical.bottom) / 2;
     const a = fallbackSourceAnchor(
       { top: canonical.top, bottom: canonical.bottom, right: canonical.right },
       anchorY,

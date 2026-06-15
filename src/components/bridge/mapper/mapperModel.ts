@@ -189,6 +189,56 @@ export function withCatalogPrice(
   return withFixedValue(o, outputPath, String(catalogPrice), scopeHint);
 }
 
+/**
+ * Add a NEW declared output field to the override.
+ *
+ * Subtlety: deriveTargetFields shows the canonical spine ONLY while the override's output is
+ * empty (null/{}). The instant ANY rule exists it switches to "declared keys only". So naively
+ * adding one rule would COLLAPSE the lane to just that field on an order that was showing the
+ * default spine. To keep every currently-visible field, when the output is still empty we first
+ * MATERIALIZE the current effective target paths (the spine fallback the user sees) as inert
+ * pass-through rules, then add the new path. Each materialized/added rule is a pass-through
+ * (canonicalField === its own outputPath) so the transform stays byte-identical for the
+ * pre-existing fields and the new field renders as an unmapped target the user can then wire or
+ * give a fixed value. Persists through buildOverrideDraft like every other mutation.
+ *
+ * `currentPaths` is the set of paths the lane is currently showing (model.targetFields), used
+ * only to seed the materialization when the override was previously empty. A no-op if the path
+ * already exists.
+ */
+export function withAddOutputField(
+  o: OrderMappingOverride | null | undefined,
+  outputPath: string,
+  scopeHint: "header" | "line",
+  currentPaths: { outputPath: string; scope: "header" | "line" }[],
+): OrderMappingOverride {
+  const path = outputPath.trim();
+  if (!path) return o ?? emptyOverride();
+  const base = o ?? emptyOverride();
+  const wasEmpty = !base.output || (Object.keys(base.output.header ?? {}).length === 0 && Object.keys(base.output.lines ?? {}).length === 0);
+  const cfg = cloneOutput(base.output);
+
+  // Seed the spine the user currently sees as explicit pass-through rules, so adding one field
+  // doesn't drop the rest (deriveTargetFields would otherwise switch to declared-keys-only).
+  if (wasEmpty) {
+    for (const p of currentPaths) {
+      if (cfg.header[p.outputPath] || cfg.lines[p.outputPath]) continue;
+      const scope = p.scope === "line" ? "lines" : "header";
+      cfg[scope][p.outputPath] = { outputPath: p.outputPath, canonicalField: p.outputPath, fixedValue: null, fieldManipulators: [] };
+    }
+  }
+
+  // Already declared anywhere → no-op (don't duplicate / move scope).
+  if (cfg.header[path] || cfg.lines[path]) {
+    return { ...base, customFields: base.customFields ?? [], output: cfg };
+  }
+  const scope = scopeHint === "line" || LINE_KEYS.has(path) ? "lines" : "header";
+  // A new unmapped field: pass-through rule (canonicalField === outputPath) so it renders as a
+  // declared target. The user then wires a source or sets a fixed value from the row.
+  cfg[scope][path] = { outputPath: path, canonicalField: path, fixedValue: null, fieldManipulators: [] };
+  return { ...base, customFields: base.customFields ?? [], output: cfg };
+}
+
 /** Set (or clear, value=null) a fixed literal for an output path. */
 export function withFixedValue(
   o: OrderMappingOverride | null | undefined,

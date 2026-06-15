@@ -22,8 +22,15 @@ import type { TargetField } from "./types";
  * first-scope-wins, so a wire/drop-zone id is unique.
  */
 export function deriveTargetFields(output: OutputMappingConfig | null | undefined): TargetField[] {
-  const headerPaths = output?.header ? Object.keys(output.header) : [...CANONICAL_HEADER_FIELDS];
-  const linePaths = output?.lines ? Object.keys(output.lines) : [...CANONICAL_LINE_FIELDS];
+  // Fall back to the canonical spine when a scope is null/undefined OR a present-but-EMPTY
+  // object. A persisted override can carry an empty `{}` header/lines (e.g. after a wire that
+  // promoted no fields); `{}` is truthy, so a truthy-only guard would yield ZERO target rows
+  // and the OutgoingPane would show the false "This output has no declared fields." A non-empty
+  // guard restores the default canonical output fields in that case.
+  const headerKeys = output?.header ? Object.keys(output.header) : [];
+  const lineKeys = output?.lines ? Object.keys(output.lines) : [];
+  const headerPaths = headerKeys.length > 0 ? headerKeys : [...CANONICAL_HEADER_FIELDS];
+  const linePaths = lineKeys.length > 0 ? lineKeys : [...CANONICAL_LINE_FIELDS];
 
   const seen = new Set<string>();
   const out: TargetField[] = [];

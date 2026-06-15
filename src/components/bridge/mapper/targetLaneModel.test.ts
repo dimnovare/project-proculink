@@ -58,11 +58,27 @@ describe("deriveTargetFields", () => {
     expect(fields[0].scope).toBe("header");
   });
 
-  it("uses canonical line fields when only the header is declared", () => {
+  it("falls back to canonical line fields when the line scope is an empty {} (non-empty guard)", () => {
+    // An empty declared scope {} is truthy but yields zero keys. A truthy-only guard would drop
+    // the whole scope (the outgoing_empty bug); the non-empty guard falls back to the canonical
+    // spine so the line targets are never silently empty. The declared header path is kept.
     const output: OutputMappingConfig = { header: { OrderRef: rule("OrderRef") }, lines: {} };
-    const fields = deriveTargetFields(output);
-    // lines:{} is an empty (declared) object → no line targets; header has the one declared path
-    expect(fields.map((f) => f.outputPath)).toEqual(["OrderRef"]);
+    const paths = deriveTargetFields(output).map((f) => f.outputPath);
+    expect(paths).toContain("OrderRef"); // declared header path preserved
+    expect(paths).toContain("SupplierItemCode"); // empty lines:{} → canonical line fields
+    // the OrderRef header precedes the fallback line fields
+    expect(paths.indexOf("OrderRef")).toBeLessThan(paths.indexOf("SupplierItemCode"));
+  });
+
+  it("falls back to the FULL canonical spine when BOTH scopes are empty {} (intermittent bug case)", () => {
+    // The persisted override can carry empty header AND lines; both must fall back so the
+    // OutgoingPane never shows the false "This output has no declared fields."
+    const output: OutputMappingConfig = { header: {}, lines: {} };
+    const paths = deriveTargetFields(output).map((f) => f.outputPath);
+    expect(paths).toContain("PoNumber"); // canonical header
+    expect(paths).toContain("SupplierItemCode"); // canonical line
+    // equivalent to a null output (full default spine)
+    expect(paths).toEqual(deriveTargetFields(null).map((f) => f.outputPath));
   });
 });
 

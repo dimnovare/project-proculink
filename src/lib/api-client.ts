@@ -613,7 +613,18 @@ async function realResolvePurchaseOrder(
     headers: { "Content-Type": "application/json", ...await authHeader() },
     body: JSON.stringify(payload),
   }, 30000);
-  if (!res.ok) { const t = await res.text(); throw new Error(`Resolution failed: ${t || res.statusText}`); }
+  if (!res.ok) {
+    const t = await res.text();
+    // The backend returns 400 with a JSON body `{ "error": "<sentence>" }` for validation
+    // failures (e.g. "At least one line resolution or header correction is required."). Surface
+    // the clean sentence rather than dumping the raw `{error: …}` JSON into the toast.
+    if (res.status === 400 && t) {
+      let cleanError: string | null = null;
+      try { cleanError = (JSON.parse(t) as { error?: string })?.error ?? null; } catch { /* not JSON → use raw text */ }
+      if (cleanError) throw new Error(cleanError);
+    }
+    throw new Error(`Resolution failed: ${t || res.statusText}`);
+  }
   // Backend returns OrderDto directly (not wrapped)
   const order = await res.json() as Order;
   return { order, validationMessages: [] };

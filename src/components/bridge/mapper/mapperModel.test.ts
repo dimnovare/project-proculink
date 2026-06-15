@@ -11,6 +11,7 @@ import {
   withFixedValue,
   withFieldManipulators,
   withCatalogPrice,
+  withAddOutputField,
 } from "./mapperModel";
 import type { OrderMappingOverride } from "@/lib/api/types";
 
@@ -143,5 +144,42 @@ describe("catalog price action (Task 9)", () => {
   it("withCatalogPrice writes the price as a fixed value in the line scope", () => {
     const next = withCatalogPrice(emptyOverride(), "UnitPrice", 12.5);
     expect(next.output?.lines.UnitPrice).toEqual({ outputPath: "UnitPrice", canonicalField: null, fixedValue: "12.5", fieldManipulators: [] });
+  });
+});
+
+describe("withAddOutputField (order can add an output field — outgoing_empty fix)", () => {
+  it("materializes the current spine as pass-through rules then adds the new field when output was empty", () => {
+    const current = [
+      { outputPath: "PoNumber", scope: "header" as const },
+      { outputPath: "SupplierItemCode", scope: "line" as const },
+    ];
+    const next = withAddOutputField(emptyOverride(), "Credentials", "header", current);
+    // existing spine paths kept as pass-through rules so the lane doesn't collapse to one field
+    expect(next.output?.header.PoNumber).toEqual({ outputPath: "PoNumber", canonicalField: "PoNumber", fixedValue: null, fieldManipulators: [] });
+    expect(next.output?.lines.SupplierItemCode).toEqual({ outputPath: "SupplierItemCode", canonicalField: "SupplierItemCode", fixedValue: null, fieldManipulators: [] });
+    // the new field is added as a declared pass-through target
+    expect(next.output?.header.Credentials).toEqual({ outputPath: "Credentials", canonicalField: "Credentials", fixedValue: null, fieldManipulators: [] });
+  });
+
+  it("does NOT re-materialize the spine when the override already has declared rules", () => {
+    const seeded = withTargetConnect(emptyOverride(), "SupplierItemCode", "ItemCode");
+    const next = withAddOutputField(seeded, "Notes", "header", [{ outputPath: "ItemCode", scope: "line" }]);
+    // only the existing declared rule + the new field — no spine flood
+    expect(Object.keys(next.output?.header ?? {})).toEqual(["Notes"]);
+    expect(Object.keys(next.output?.lines ?? {})).toEqual(["ItemCode"]);
+    expect(next.output?.header.Notes?.outputPath).toBe("Notes");
+  });
+
+  it("routes a canonical line-named field into the line scope", () => {
+    const next = withAddOutputField(emptyOverride(), "UnitPrice", "header", []);
+    expect(next.output?.lines.UnitPrice?.outputPath).toBe("UnitPrice");
+    expect(next.output?.header.UnitPrice).toBeUndefined();
+  });
+
+  it("is a no-op for a blank path and for a duplicate path", () => {
+    expect(withAddOutputField(emptyOverride(), "   ", "header", []).output).toBeNull();
+    const seeded = withAddOutputField(emptyOverride(), "Foo", "header", []);
+    const again = withAddOutputField(seeded, "Foo", "header", []);
+    expect(Object.keys(again.output?.header ?? {})).toEqual(["Foo"]);
   });
 });

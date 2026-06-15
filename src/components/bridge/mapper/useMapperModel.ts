@@ -73,6 +73,7 @@ import {
   withFixedValue,
   withFieldManipulators,
   withCatalogPrice,
+  withAddOutputField,
 } from "./mapperModel";
 
 export interface UseMapperModelArgs {
@@ -146,6 +147,12 @@ export interface MapperModel {
   lastTouched: string | null;
   /** The order id the live preview runs against (order: the order; connection: the sample). */
   previewOrderId: string | null;
+  /**
+   * The connection's resolved output format (from the loaded revision), normalized to a valid
+   * OutputFormatId, or null when unknown (order variant with no revision in scope). The preview
+   * pane seeds its format toggle from this so a JSON supplier doesn't open on a CSV mismatch.
+   */
+  outputFormat: import("@/lib/api/types").OutputFormatId | null;
   readOnly: boolean;
   // Mutators (each persists through buildOverrideDraft).
   onSourceConnect: (tokenId: string, canonicalField: string) => void;
@@ -159,6 +166,12 @@ export interface MapperModel {
   onFieldManipulatorsChange: (outputPath: string, next: ManipulatorEntry[], scope?: "header" | "line") => void;
   /** Apply a catalog price as a fixed-value override on an output path (Task 9 action). */
   onUseCatalogPrice: (outputPath: string, hint: CatalogPriceHint, scope?: "header" | "line") => void;
+  /**
+   * Add a NEW declared output field (both variants). Persists a pass-through rule so the field
+   * shows in the outgoing lane; materializes the current spine first so existing fields don't
+   * collapse. No-op for a duplicate path. Read-only → ignored.
+   */
+  onAddField: (outputPath: string, scope: "header" | "line") => void;
 }
 
 /** Map a backend SourceToken into a discovery SourceField (group-bucketed). */
@@ -453,6 +466,14 @@ export function useMapperModel({
     apply(withCatalogPrice(override, outputPath, hint.catalogPrice, scope), outputPath);
   }, [apply, override]);
 
+  const onAddField = useCallback((outputPath: string, scope: "header" | "line") => {
+    // Seed with the paths the lane is currently showing so adding one field doesn't collapse the
+    // visible spine (see withAddOutputField). targetFields is the effective list (spine fallback
+    // included), each tagged with its scope.
+    const currentPaths = targetFields.map((f) => ({ outputPath: f.outputPath, scope: f.scope }));
+    apply(withAddOutputField(override, outputPath, scope, currentPaths), outputPath);
+  }, [apply, override, targetFields]);
+
   // Promote a ghost wire to a real wire (decide the side by sourceKind), then drop it locally.
   const [dismissed, setDismissed] = useState<Set<string>>(() => new Set());
   const sKey = (s: MappingSuggestion) => `${s.targetKey}<-${s.sourceId}`;
@@ -491,6 +512,11 @@ export function useMapperModel({
     return `${canonicalNodes.length}|${targetFields.length}|${tokens.length}|${sc}|${oc}`;
   }, [canonicalNodes.length, targetFields.length, tokens.length, sourceConnections, outputConnections]);
 
+  // The connection's resolved output format (only known on the connection variant, where the
+  // revision is loaded). Normalize the loose string ('Json'/'CSV'/…) to a valid OutputFormatId
+  // so the preview toggle can seed from it; null when unknown so the pane falls back to CSV.
+  const outputFormat = useMemo(() => normalizeOutputFormat(revisionQuery.data?.outputFormat ?? null), [revisionQuery.data?.outputFormat]);
+
   const loading =
     overrideQuery.isLoading ||
     (variant === "connection" && !!revisionId && revisionQuery.isLoading) ||
@@ -526,6 +552,7 @@ export function useMapperModel({
     signature,
     lastTouched,
     previewOrderId: effectivePreviewOrderId,
+    outputFormat,
     readOnly: !!readOnly,
     onSourceConnect,
     onSourceDisconnect,
@@ -536,7 +563,14 @@ export function useMapperModel({
     onRejectSuggestion,
     onFieldManipulatorsChange,
     onUseCatalogPrice,
+    onAddField,
   };
+}
+
+/** Normalize a loose output-format string ('Json'/'CSV'/'cXML'/…) to a valid OutputFormatId, or null. */
+function normalizeOutputFormat(raw: string | null | undefined): import("@/lib/api/types").OutputFormatId | null {
+  const v = (raw ?? "").trim().toLowerCase();
+  return v === "csv" || v === "json" || v === "xml" || v === "cxml" || v === "ubl" || v === "x12" ? v : null;
 }
 
 /** Read an output path's current manipulator (fx) chain from an override (per-row badge feed). */

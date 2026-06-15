@@ -92,7 +92,12 @@ export function OutgoingPane({
   readOnly,
 }: OutgoingPaneProps) {
   const editable = variant === "connection" && !readOnly;
+  // RENAME stays connection-only (an order can't rename a supplier's declared schema), but ADDING
+  // an output field is allowed in BOTH variants — an order may need to inject a field the default
+  // schema lacks (e.g. credentials). Gate "add" on a real onAddField handler + not-read-only, not
+  // on the variant. Without this the order mapper could never add an output field at all.
   const canRename = isRenameAffordanceShown(editable, onRenamePath);
+  const canAddField = !readOnly && typeof onAddField === "function";
 
   return (
     <div style={{ borderRadius: 12, border: "1px solid var(--line, #E2E6EE)", background: "#FBFBFD", overflow: "hidden" }}>
@@ -100,12 +105,12 @@ export function OutgoingPane({
         <span style={{ fontSize: 10.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em", color: "#1E6D29" }}>
           Outgoing document
         </span>
-        {editable && onAddField && <AddOutputFieldMenu onAddField={onAddField} />}
+        {canAddField && onAddField && <AddOutputFieldMenu onAddField={onAddField} />}
       </div>
 
       {targetFields.length === 0 ? (
         <div style={{ padding: "12px", fontSize: 11.5, color: "var(--ink-faint)", lineHeight: 1.5 }}>
-          {editable
+          {canAddField
             ? "No output fields yet — add one to start shaping the delivered document."
             : "This output has no declared fields."}
         </div>

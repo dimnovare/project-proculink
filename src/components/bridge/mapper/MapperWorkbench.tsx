@@ -306,6 +306,7 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
       snapTarget={wire.hoverTarget}
       onDisconnect={model.onTargetDisconnect}
       onSetFixedValue={model.onSetFixedValue}
+      onAddField={model.onAddField}
       badgeSlot={badgeSlot}
       manipulatorsOf={(field) => fieldManipulatorsOf(model.override, field.outputPath)}
       onFieldManipulatorsChange={model.onFieldManipulatorsChange}
@@ -319,6 +320,7 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
       override={model.override}
       lastTouched={model.lastTouched}
       cycleFormatSignal={cycleFormatSignal}
+      defaultFormat={model.outputFormat}
       supplierName={supplierName}
       emptyHint={
         variant === "connection"
@@ -465,10 +467,10 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
           {/* The engine SVG overlays the whole canvas (measured relative to it). */}
           {wire.svg}
         </div>
-        {/* Docked preview — always present. Widened (T7): the live output is the
-            thing operators read most, so it gets a near-equal share of the row
-            instead of the old ~35%. Still flex-wraps to full width when narrow. */}
-        <div style={{ flex: "1 1 480px", minWidth: 420 }}>
+        {/* Docked preview — always present. Right-sized: T7 over-widened it to a near-equal
+            share, crowding the wiring columns. It's a companion, not a second hero column, so
+            it takes a calmer share and still flex-wraps to full width when narrow. */}
+        <div style={{ flex: "1 1 360px", minWidth: 340 }}>
           {previewNode}
         </div>
       </div>

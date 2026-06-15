@@ -561,6 +561,19 @@ export function MagicMappingPreview({ orderId, onCommitted, onParseFailed }: Pro
   const resolved = resolvedCount();
   const unresolved = unresolvedCount();
 
+  // The exact payload the Continue button would POST. Computed ONCE here (not twice via two
+  // buildResolutions() calls) so the disabled gate and the onClick handler can never disagree.
+  // buildResolutions() SKIPS lines already resolved server-side, so it returns [] when the user
+  // has made no in-session decision — including the dominant case where EVERY line is already
+  // auto-resolved. Posting [] hits the backend's "At least one line resolution required" 400,
+  // which surfaced as the founder's "Resolution failed: {error: …}" toast. We guard both ends.
+  const toResolve = buildResolutions();
+  // Genuinely fully mapped server-side with nothing new to send → advancing must NOT POST.
+  const allAlreadyResolved = toResolve.length === 0 && unresolved === 0;
+  // Lines remain unmapped AND the user has acted on none of them → there's nothing valid to send;
+  // show an inline hint instead of letting the request 400.
+  const nothingToSubmitYet = toResolve.length === 0 && unresolved > 0;
+
   // While the Worker is still parsing the uploaded file the preview legitimately
   // has 0 lines yet — show an honest in-progress state (the 1.5s poll above keeps
   // refetching until parsing finishes) instead of the alarming "no lines / upload
@@ -1319,6 +1332,11 @@ export function MagicMappingPreview({ orderId, onCommitted, onParseFailed }: Pro
           {commitError && (
             <span style={{ fontSize: 12, color: "#C53A3A" }}>{commitError}</span>
           )}
+          {!commitError && !commitSuccess && nothingToSubmitYet && (
+            <span style={{ fontSize: 12, color: "#C97A14" }}>
+              Map at least one line — accept a suggestion or enter a {counterpartyLower} code — to continue.
+            </span>
+          )}
           {commitSuccess && (
             <span style={{ fontSize: 12, color: "#2E8E3A", fontWeight: 600 }}>
               ✓ Mappings committed — order is ready for processing.
@@ -1327,10 +1345,18 @@ export function MagicMappingPreview({ orderId, onCommitted, onParseFailed }: Pro
         </div>
 
         <button
-          disabled={isCommitting || commitSuccess}
+          disabled={isCommitting || commitSuccess || nothingToSubmitYet}
           onClick={() => {
             setCommitError(null);
-            commit(buildResolutions());
+            // Everything is already resolved server-side — there is nothing new to POST. Posting
+            // an empty payload would 400 ("At least one line resolution required"); instead just
+            // advance to review (the order is already fully mapped).
+            if (allAlreadyResolved) {
+              setCommitSuccess(true);
+              onCommitted?.(orderId);
+              return;
+            }
+            commit(toResolve);
           }}
           style={{
             display: "inline-flex",
@@ -1340,15 +1366,13 @@ export function MagicMappingPreview({ orderId, onCommitted, onParseFailed }: Pro
             borderRadius: 6,
             border: "none",
             background:
-              isCommitting || commitSuccess
+              isCommitting || commitSuccess || nothingToSubmitYet
                 ? "#EFF2F7"
-                : unresolved > 0
-                ? "#0B1A2F"
                 : "#0B1A2F",
-            color: isCommitting || commitSuccess ? "var(--ink-faint)" : "#FFFFFF",
+            color: isCommitting || commitSuccess || nothingToSubmitYet ? "var(--ink-faint)" : "#FFFFFF",
             fontSize: 13,
             fontWeight: 600,
-            cursor: isCommitting || commitSuccess ? "default" : "pointer",
+            cursor: isCommitting || commitSuccess || nothingToSubmitYet ? "default" : "pointer",
             fontFamily: "'Inter', sans-serif",
             whiteSpace: "nowrap",
           }}

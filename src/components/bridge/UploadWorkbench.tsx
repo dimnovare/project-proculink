@@ -6,7 +6,7 @@
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { FileChip } from "./FileChip";
 import { PageHeader } from "./layout/PageHeader";
 import { PageShell } from "./layout/PageShell";
@@ -256,10 +256,18 @@ export function UploadWorkbench() {
   // useQueriesEnabled (mock OR qa-bypass OR signed-in) so they still load
   // suppliers/billing (otherwise the upload button stays disabled).
   const queryEnabled = useQueriesEnabled();
+  const queryClient = useQueryClient();
 
   const [dragging, setDragging]     = useState(false);
   const [supplierId, setSupplierId] = useState("");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  // Multi-file selection: the backend is one-order-per-file, so N files become N sequential
+  // uploads. selectedFile stays the FIRST file (drives the single-file detection pill + dropzone
+  // name) so the rich single-file flow is unchanged when exactly one file is picked. extraFiles
+  // holds files #2..N; when non-empty we switch to the multi-file batch path.
+  const [extraFiles, setExtraFiles] = useState<File[]>([]);
+  // Per-file batch upload results (multi-file path): one row per file, surfaced in order.
+  const [batchResults, setBatchResults] = useState<{ name: string; status: "pending" | "uploading" | "done" | "failed"; orderId?: string; error?: string }[]>([]);
   // Inline "unsupported file type" error shown at the dropzone, set the moment
   // a disallowed file is dropped or picked (before any upload round-trip).
   const [fileError, setFileError] = useState<string | null>(null);
@@ -359,6 +367,10 @@ export function UploadWorkbench() {
   const isReadOnly = billing ? !billing.canProcessOrders : false;
   const hasSupplier = Boolean(selectedSupplier?.id);
   const isUploadDisabled = uploading || isReadOnly || !hasSupplier || suppliersLoading;
+  // Multi-file mode: the full batch (first file + extras) and a count for the UI.
+  const isMulti = extraFiles.length > 0;
+  const allSelectedFiles = selectedFile ? [selectedFile, ...extraFiles] : [];
+  const selectedCount = allSelectedFiles.length;
 
   async function handleUpload() {
     if (uploading) return;
@@ -453,8 +465,93 @@ export function UploadWorkbench() {
     }
     setFileError(null);
     setSelectedFile(file);
+    setExtraFiles([]);
+    setBatchResults([]);
     setUploadError(null);
     triggerDetection(file);
+  }
+
+  /**
+   * Accept a SET of dropped/picked files (multi-upload). The backend creates one order per
+   * file, so we split the list into the first accepted file (drives the existing single-file
+   * detection UI) + the rest (extraFiles → the batch path). Unsupported files are reported,
+   * not silently dropped. A single file falls straight through to the rich single-file flow.
+   */
+  function acceptFiles(files: File[]) {
+    const accepted = files.filter((f) => hasAcceptedUploadExtension(f.name));
+    const rejected = files.filter((f) => !hasAcceptedUploadExtension(f.name));
+    if (accepted.length === 0) {
+      setSelectedFile(null);
+      setExtraFiles([]);
+      setUploadError(null);
+      setFileError(
+        `${rejected[0]?.name ?? "That file"} isn't a supported file type. Upload one of: ${ACCEPTED_UPLOAD_FORMATS.extensions.join(", ")}.`,
+      );
+      return;
+    }
+    if (accepted.length === 1) {
+      // Single accepted file → the unchanged rich single-file path (detection pill etc.).
+      acceptFile(accepted[0]);
+      if (rejected.length > 0) setFileError(`Skipped ${rejected.length} unsupported file${rejected.length === 1 ? "" : "s"}.`);
+      return;
+    }
+    setSelectedFile(accepted[0]);
+    setExtraFiles(accepted.slice(1));
+    setBatchResults([]);
+    setUploadError(null);
+    setDetection(null);
+    setDetectionLoading(false);
+    setFileError(rejected.length > 0 ? `Skipped ${rejected.length} unsupported file${rejected.length === 1 ? "" : "s"}.` : null);
+  }
+
+  /** Upload a batch (selectedFile + extraFiles) sequentially: one order per file. */
+  async function handleBatchUpload(allFiles: File[]) {
+    if (uploading) return;
+    if (isReadOnly) {
+      setUploadError(getLimitMessage(billing?.isTrialExpired ? "pilot_expired" : "order_limit_reached"));
+      return;
+    }
+    if (!selectedSupplier?.id) {
+      const noun = labels.counterpartyNoun.toLowerCase();
+      setUploadError({
+        code: "supplier_required",
+        title: `Choose a ${noun} first.`,
+        message: `Add a ${noun} in the library before uploading a purchase order.`,
+        cta: `Open ${labels.counterpartyPlural.toLowerCase()}`,
+      });
+      return;
+    }
+    setUploadError(null);
+    setUploading(true);
+    setBatchResults(allFiles.map((f) => ({ name: f.name, status: "pending" as const })));
+
+    let anySucceeded = false;
+    for (let i = 0; i < allFiles.length; i++) {
+      const file = allFiles[i];
+      setBatchResults((prev) => prev.map((r, idx) => (idx === i ? { ...r, status: "uploading" } : r)));
+      try {
+        const result = await apiClient.uploadPurchaseOrder(file, selectedSupplier.id);
+        anySucceeded = true;
+        setBatchResults((prev) => prev.map((r, idx) => (idx === i ? { ...r, status: "done", orderId: result.order.id } : r)));
+      } catch (error) {
+        // A 429 limit hit aborts the rest of the batch (every subsequent file would also 429).
+        if (error instanceof ApiHttpError && error.status === 429) {
+          setBatchResults((prev) => prev.map((r, idx) => (idx >= i ? { ...r, status: "failed", error: "Plan limit reached" } : r)));
+          setUploadError(getLimitMessage(getLimitCode(error.body)));
+          break;
+        }
+        const message = error instanceof Error ? error.message : "Upload failed";
+        setBatchResults((prev) => prev.map((r, idx) => (idx === i ? { ...r, status: "failed", error: message } : r)));
+        // A per-file failure does NOT abort the rest — keep going so one bad file doesn't sink the batch.
+      }
+    }
+
+    setUploading(false);
+    // Refresh the recent-orders list so the new orders appear without a manual reload.
+    if (anySucceeded) {
+      capture("multi_upload_batch_completed", { file_count: allFiles.length });
+      queryClient.invalidateQueries({ queryKey: ["orders"] });
+    }
   }
 
   function triggerDetection(file: File) {
@@ -614,8 +711,8 @@ export function UploadWorkbench() {
                   e.preventDefault();
                   setDragging(false);
                   if (isReadOnly || uploading) return;
-                  const file = e.dataTransfer.files.item(0);
-                  if (file) acceptFile(file);
+                  const files = Array.from(e.dataTransfer.files);
+                  if (files.length > 0) acceptFiles(files);
                 }}
                 onClick={() => { if (!isReadOnly && !uploading) fileInputRef.current?.click(); }}
                 onKeyDown={(e) => {
@@ -645,17 +742,24 @@ export function UploadWorkbench() {
                   // .xls / .json are NOT accepted server-side, so the lib
                   // omits them to avoid offering a dead format.
                   accept={ACCEPTED_UPLOAD_FORMATS.dropzoneAccept}
+                  // Multi-file: the backend is one-order-per-file, so picking N files
+                  // creates N orders via N sequential uploads (see handleBatchUpload).
+                  multiple
                   className="hidden"
                   disabled={isReadOnly || uploading}
                   onChange={(event) => {
-                    const file = event.target.files?.[0] ?? null;
-                    if (file) {
-                      acceptFile(file);
+                    const files = Array.from(event.target.files ?? []);
+                    if (files.length > 0) {
+                      acceptFiles(files);
                     } else {
                       setSelectedFile(null);
+                      setExtraFiles([]);
+                      setBatchResults([]);
                       setFileError(null);
                       setUploadError(null);
                     }
+                    // Reset the input so re-picking the same file(s) fires onChange again.
+                    event.target.value = "";
                   }}
                 />
                 {/* Upload icon — buyer-blue outline (matches design render exactly) */}
@@ -683,10 +787,16 @@ export function UploadWorkbench() {
                       fontFamily: "'Bricolage Grotesque', Inter, sans-serif",
                     }}
                   >
-                    {selectedFile ? selectedFile.name : "Drop a purchase order here"}
+                    {isMulti
+                      ? `${selectedCount} files selected`
+                      : selectedFile
+                      ? selectedFile.name
+                      : "Drop a purchase order here"}
                   </p>
                   <p className="text-[12.5px] mt-2" style={{ color: "#56627A" }}>
-                    {selectedFile
+                    {isMulti
+                      ? "One order will be created per file"
+                      : selectedFile
                       ? `${Math.max(1, Math.round(selectedFile.size / 1024))} KB ready to send`
                       : `${ACCEPTED_UPLOAD_FORMATS.humanList} — up to 10 MB`}
                   </p>
@@ -872,7 +982,7 @@ export function UploadWorkbench() {
             {/* Quick-action bar — appears the moment a file is selected, so the
                 primary "Upload & review" CTA is visible without scrolling to the
                 Pipeline configuration card at the bottom of the page. */}
-            {selectedFile && (
+            {selectedFile && !isMulti && (
               <XCard edge="left" edgeColor="#2E8E3A">
                 <div className="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center">
                   <p className="min-w-0 flex-1 truncate text-[12.5px]" style={{ color: "#56627A", margin: 0 }}>
@@ -885,6 +995,85 @@ export function UploadWorkbench() {
                     )}
                   </p>
                   <div className="w-full sm:w-[240px] sm:flex-shrink-0">{uploadButton}</div>
+                </div>
+              </XCard>
+            )}
+
+            {/* Multi-file batch bar — N files → N orders, uploaded sequentially with
+                per-file status. Replaces the single-file quick-action bar in multi mode. */}
+            {isMulti && (
+              <XCard edge="left" edgeColor="#2E8E3A">
+                <div className="flex flex-col gap-3 px-4 py-3">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                    <p className="min-w-0 flex-1 text-[12.5px]" style={{ color: "#56627A", margin: 0 }}>
+                      <span style={{ color: "#0B1A2F", fontWeight: 600 }}>{selectedCount} files</span>
+                      {selectedSupplier && (
+                        <>
+                          {" "}· one order each, routed to{" "}
+                          <span style={{ color: "#1E6D29", fontWeight: 600 }}>{selectedSupplier.name}</span>
+                        </>
+                      )}
+                    </p>
+                    <div className="w-full sm:w-[240px] sm:flex-shrink-0">
+                      <button
+                        onClick={() => handleBatchUpload(allSelectedFiles)}
+                        disabled={isUploadDisabled}
+                        className="w-full rounded-[6px] py-2.5 text-[13px] font-semibold transition-all"
+                        style={{
+                          background: isUploadDisabled ? "#E2E6EE" : "linear-gradient(90deg, #2E8E3A 0%, #1E6D29 100%)",
+                          color: isUploadDisabled ? "var(--ink-faint)" : "#FFFFFF",
+                          border: "none",
+                          boxShadow: isUploadDisabled ? "none" : "0 2px 8px rgba(46,142,58,0.25)",
+                          cursor: isUploadDisabled ? "not-allowed" : "pointer",
+                        }}
+                      >
+                        {uploading ? "Uploading…" : isReadOnly ? "Processing paused" : `↑ Upload ${selectedCount} files`}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Per-file status list. Before upload: the picked file names; during/after:
+                      live pending → uploading → done/failed, with a link to each created order. */}
+                  <ul className="flex flex-col gap-1" style={{ margin: 0, padding: 0, listStyle: "none" }}>
+                    {(batchResults.length > 0
+                      ? batchResults
+                      : allSelectedFiles.map((f) => ({ name: f.name, status: "pending" as const, orderId: undefined, error: undefined }))
+                    ).map((r, i) => (
+                      <li
+                        key={`${r.name}-${i}`}
+                        className="flex items-center justify-between gap-3 rounded-[5px] px-2.5 py-1.5"
+                        style={{ background: "#F6F7FA", border: "1px solid #EEF0F4" }}
+                      >
+                        <span className="min-w-0 flex-1 truncate font-mono text-[11px]" style={{ color: "#0B1A2F" }}>
+                          {r.name}
+                        </span>
+                        {r.status === "done" && r.orderId ? (
+                          <button
+                            type="button"
+                            onClick={() => openOrder(r.orderId!)}
+                            className="shrink-0 text-[11px] font-semibold"
+                            style={{ color: "#1E6D29", background: "none", border: "none", cursor: "pointer" }}
+                          >
+                            ✓ Open order →
+                          </button>
+                        ) : r.status === "failed" ? (
+                          <span className="shrink-0 text-[11px] font-medium" style={{ color: "#C53A3A" }} title={r.error}>
+                            ✕ {r.error ?? "Failed"}
+                          </span>
+                        ) : r.status === "uploading" ? (
+                          <span className="shrink-0 text-[11px]" style={{ color: "#6F4FCE" }}>Uploading…</span>
+                        ) : (
+                          <span className="shrink-0 text-[11px]" style={{ color: "var(--ink-faint)" }}>Pending</span>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+
+                  {batchResults.length > 0 && !uploading && batchResults.some((r) => r.status === "done") && (
+                    <Link href="/inbox" className="text-[12px] font-semibold" style={{ color: "#1E6D29" }}>
+                      View all in inbox ↗
+                    </Link>
+                  )}
                 </div>
               </XCard>
             )}

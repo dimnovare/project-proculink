@@ -211,10 +211,13 @@ describe("computeStageWires", () => {
 
     const out = wires[1].wire;
     expect(out.sx).toBe(450);
-    // output mid-y = (10+130)/2 = 70, inside the canonical panel → level hop.
-    expect(out.sy).toBe(70);
+    // The out-wire now shares the canonical-row anchorY (26) with the src-wire, NOT the output
+    // panel's centre (70) — so source → canonical-row → output reads at a single height.
+    expect(out.sy).toBe(26);
     expect(out.tx).toBe(500);
-    expect(out.ty).toBe(70);
+    expect(out.ty).toBe(26);
+    // Both wires meet the canonical box at exactly ONE height (no dead vertical space).
+    expect(out.sy).toBe(src.ty);
   });
 
   it("clamps the anchor to the panel edge when the target y is outside it (stacked)", () => {
