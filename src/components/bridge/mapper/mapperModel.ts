@@ -215,18 +215,14 @@ export function withAddOutputField(
   const path = outputPath.trim();
   if (!path) return o ?? emptyOverride();
   const base = o ?? emptyOverride();
-  const wasEmpty = !base.output || (Object.keys(base.output.header ?? {}).length === 0 && Object.keys(base.output.lines ?? {}).length === 0);
   const cfg = cloneOutput(base.output);
 
-  // Seed the spine the user currently sees as explicit pass-through rules, so adding one field
-  // doesn't drop the rest (deriveTargetFields would otherwise switch to declared-keys-only).
-  if (wasEmpty) {
-    for (const p of currentPaths) {
-      if (cfg.header[p.outputPath] || cfg.lines[p.outputPath]) continue;
-      const scope = p.scope === "line" ? "lines" : "header";
-      cfg[scope][p.outputPath] = { outputPath: p.outputPath, canonicalField: p.outputPath, fixedValue: null, fieldManipulators: [] };
-    }
-  }
+  // NOTE: no spine materialization needed. deriveTargetFields MERGES the canonical spine with
+  // the authored output paths, so the canonical fields stay visible no matter what — adding one
+  // field just appends that single new path. (The old code seeded every canonical field as a
+  // pass-through rule to dodge the replace-the-spine behaviour, which is gone.) currentPaths is
+  // retained for signature compatibility but no longer consumed.
+  void currentPaths;
 
   // Already declared anywhere → no-op (don't duplicate / move scope).
   if (cfg.header[path] || cfg.lines[path]) {

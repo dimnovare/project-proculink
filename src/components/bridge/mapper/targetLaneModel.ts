@@ -21,16 +21,29 @@ import type { TargetField } from "./types";
  * Order is preserved as authored; duplicates (same path in both scopes) are de-duped,
  * first-scope-wins, so a wire/drop-zone id is unique.
  */
-export function deriveTargetFields(output: OutputMappingConfig | null | undefined): TargetField[] {
-  // Fall back to the canonical spine when a scope is null/undefined OR a present-but-EMPTY
-  // object. A persisted override can carry an empty `{}` header/lines (e.g. after a wire that
-  // promoted no fields); `{}` is truthy, so a truthy-only guard would yield ZERO target rows
-  // and the OutgoingPane would show the false "This output has no declared fields." A non-empty
-  // guard restores the default canonical output fields in that case.
-  const headerKeys = output?.header ? Object.keys(output.header) : [];
-  const lineKeys = output?.lines ? Object.keys(output.lines) : [];
-  const headerPaths = headerKeys.length > 0 ? headerKeys : [...CANONICAL_HEADER_FIELDS];
-  const linePaths = lineKeys.length > 0 ? lineKeys : [...CANONICAL_LINE_FIELDS];
+export function deriveTargetFields(
+  output: OutputMappingConfig | null | undefined,
+  mergeCanonical = false,
+): TargetField[] {
+  // ORDER path (mergeCanonical=true): the canonical spine is ALWAYS shown and authored paths
+  // (a wired field, a fixed value, an added custom column like "Identity") are LAYERED on top —
+  // so wiring or adding ONE field never collapses the OUTGOING DOCUMENT. The previous
+  // "authored keys REPLACE the spine" logic made the whole document vanish the instant a single
+  // wire/field was added (the "outgoing document disappears" regression).
+  // CONNECTION path (mergeCanonical=false): the supplier's DECLARED output schema IS the output
+  // (replace), so a connection that declares exactly {OrderRef, ItemCode, Qty} gets exactly
+  // those columns; falls back to the canonical spine only when nothing is declared.
+  let headerPaths: string[];
+  let linePaths: string[];
+  if (mergeCanonical) {
+    headerPaths = mergeCanonicalPaths(CANONICAL_HEADER_FIELDS, output?.header);
+    linePaths = mergeCanonicalPaths(CANONICAL_LINE_FIELDS, output?.lines);
+  } else {
+    const headerKeys = output?.header ? Object.keys(output.header) : [];
+    const lineKeys = output?.lines ? Object.keys(output.lines) : [];
+    headerPaths = headerKeys.length > 0 ? headerKeys : [...CANONICAL_HEADER_FIELDS];
+    linePaths = lineKeys.length > 0 ? lineKeys : [...CANONICAL_LINE_FIELDS];
+  }
 
   const seen = new Set<string>();
   const out: TargetField[] = [];
@@ -43,6 +56,28 @@ export function deriveTargetFields(output: OutputMappingConfig | null | undefine
     if (seen.has(path)) continue;
     seen.add(path);
     out.push(toTargetField(path, "line"));
+  }
+  return out;
+}
+
+/**
+ * Canonical spine first (always shown), then any EXTRA authored output paths the user added
+ * that aren't canonical fields. De-dupes so a canonical field that's been wired/fixed appears
+ * once, in its canonical position — never collapsing the lane.
+ */
+function mergeCanonicalPaths(
+  canonical: readonly string[],
+  authored: Record<string, unknown> | null | undefined,
+): string[] {
+  const out: string[] = [...canonical];
+  const known = new Set<string>(canonical);
+  if (authored) {
+    for (const path of Object.keys(authored)) {
+      if (!known.has(path)) {
+        out.push(path);
+        known.add(path);
+      }
+    }
   }
   return out;
 }

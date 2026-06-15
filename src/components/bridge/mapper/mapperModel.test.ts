@@ -148,17 +148,19 @@ describe("catalog price action (Task 9)", () => {
 });
 
 describe("withAddOutputField (order can add an output field — outgoing_empty fix)", () => {
-  it("materializes the current spine as pass-through rules then adds the new field when output was empty", () => {
+  it("adds ONLY the new field — does NOT materialize the spine (merge handles the canonical fields)", () => {
     const current = [
       { outputPath: "PoNumber", scope: "header" as const },
       { outputPath: "SupplierItemCode", scope: "line" as const },
     ];
     const next = withAddOutputField(emptyOverride(), "Credentials", "header", current);
-    // existing spine paths kept as pass-through rules so the lane doesn't collapse to one field
-    expect(next.output?.header.PoNumber).toEqual({ outputPath: "PoNumber", canonicalField: "PoNumber", fixedValue: null, fieldManipulators: [] });
-    expect(next.output?.lines.SupplierItemCode).toEqual({ outputPath: "SupplierItemCode", canonicalField: "SupplierItemCode", fixedValue: null, fieldManipulators: [] });
-    // the new field is added as a declared pass-through target
+    // The new field is added as a declared pass-through target…
     expect(next.output?.header.Credentials).toEqual({ outputPath: "Credentials", canonicalField: "Credentials", fixedValue: null, fieldManipulators: [] });
+    // …and the canonical spine is NOT materialized into the override (deriveTargetFields(merge)
+    // keeps it visible). Only the one added field lands; the rest stay AUTO/byte-identical.
+    expect(next.output?.header.PoNumber).toBeUndefined();
+    expect(next.output?.lines.SupplierItemCode).toBeUndefined();
+    expect(Object.keys(next.output?.header ?? {})).toEqual(["Credentials"]);
   });
 
   it("does NOT re-materialize the spine when the override already has declared rules", () => {

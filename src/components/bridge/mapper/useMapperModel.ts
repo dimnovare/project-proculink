@@ -333,7 +333,12 @@ export function useMapperModel({
     });
   }, [canonicalIncoming, tokens, suggestionByToken, wiredFromIds]);
 
-  const targetFields = useMemo(() => deriveTargetFields(override.output), [override.output]);
+  // Order path MERGES canonical + authored (wiring/adding never collapses the document);
+  // connection path uses the declared schema as-is.
+  const targetFields = useMemo(
+    () => deriveTargetFields(override.output, variant === "order"),
+    [override.output, variant],
+  );
 
   // ── Value lookups for the OutgoingPane's honest value preview ───────────────
   // canonicalValueByKey: the order's effective parsed value per canonical key, used for the

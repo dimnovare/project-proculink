@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { deriveTargetFields, isTargetWired, isRenameAffordanceShown } from "./targetLaneModel";
 import type { OutputMappingConfig, OutputFieldRule } from "@/lib/api/types";
+import { CANONICAL_HEADER_FIELDS, CANONICAL_LINE_FIELDS } from "@/lib/api/types";
 
 const rule = (outputPath: string): OutputFieldRule => ({ outputPath, fieldManipulators: [] });
 
@@ -110,5 +111,21 @@ describe("isRenameAffordanceShown", () => {
 
   it("false when neither editable nor wired", () => {
     expect(isRenameAffordanceShown(false, undefined)).toBe(false);
+  });
+});
+
+describe("deriveTargetFields — order path merges canonical + authored", () => {
+  it("keeps the full canonical spine and appends extra authored paths (no collapse on wire/add)", () => {
+    const output = {
+      header: { PoNumber: rule("PoNumber"), Identity: rule("Identity") },
+      lines: {},
+    } as never;
+    const paths = deriveTargetFields(output, true).map((f) => f.outputPath);
+    // every canonical header field is still present (not collapsed to just PoNumber)…
+    for (const f of CANONICAL_HEADER_FIELDS) expect(paths).toContain(f);
+    for (const f of CANONICAL_LINE_FIELDS) expect(paths).toContain(f);
+    // …plus the extra authored "Identity" column, appended once.
+    expect(paths.filter((p) => p === "Identity")).toHaveLength(1);
+    expect(paths.filter((p) => p === "PoNumber")).toHaveLength(1);
   });
 });
