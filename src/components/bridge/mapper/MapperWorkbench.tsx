@@ -86,7 +86,13 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
 
   // ── Wire anchor refs — ONE canvas (relative), two port maps. Nothing is sticky. ──
   const canvasRef = useRef<HTMLDivElement>(null);
+  // The wire engine MEASURES from `sourceEls` — it must hold the incoming row's RIGHT-edge PORT
+  // (the 22px grip), written by wire.sourcePortProps(id).ref. `sourceRowEls` is a SEPARATE map for
+  // the incoming row <div> (command-palette scroll-to only). They must NOT share a key: React
+  // resolves the child port ref before the parent row ref, so a shared map would let the row
+  // clobber the port and the engine would anchor wires at the full-width row edge, not the grip.
   const sourceEls = useRef<Record<string, HTMLElement | null>>({});
+  const sourceRowEls = useRef<Record<string, HTMLElement | null>>({});
   const targetEls = useRef<Record<string, HTMLElement | null>>({});
 
   const [hoveredId, setHoveredId] = useState<string | null>(null);
@@ -103,7 +109,8 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
     if (!deepField) return;
     setSelectedId(deepField);
     setHoveredId(deepField);
-    const el = targetEls.current[deepField] ?? sourceEls.current[deepField];
+    // Scroll to the ROW (sourceRowEls), not the grip — sourceEls now holds the wire-engine port.
+    const el = targetEls.current[deepField] ?? sourceRowEls.current[deepField];
     el?.scrollIntoView?.({ block: "center", behavior: "smooth" });
   }, [deepField]);
 
@@ -139,7 +146,8 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
         }
         case "show-standards": {
           if (!hoveredId) break;
-          const row = targetEls.current[hoveredId] ?? sourceEls.current[hoveredId];
+          // Resolve the ROW element (sourceRowEls), not the grip — see the ref-map split above.
+          const row = targetEls.current[hoveredId] ?? sourceRowEls.current[hoveredId];
           const card = row?.closest<HTMLElement>("[data-mapper-row]") ?? row?.parentElement ?? null;
           const trigger = card?.querySelector<HTMLButtonElement>('[aria-label^="Standards"], [aria-label*="standards"]');
           card?.scrollIntoView?.({ block: "center", behavior: "smooth" });
@@ -275,7 +283,7 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
       sourceFileKey={model.sourceFileKey}
       extractionFailed={extractionFailed}
       focusSearchSignal={focusSearchSignal}
-      anchorRef={(id, el) => { sourceEls.current[id] = el; }}
+      anchorRef={(id, el) => { sourceRowEls.current[id] = el; }}
       hoveredId={hoveredId}
       onHover={setHoveredId}
       onSelect={setSelectedId}
