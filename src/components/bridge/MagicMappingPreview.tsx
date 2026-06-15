@@ -1333,8 +1333,8 @@ export function MagicMappingPreview({ orderId, onCommitted, onParseFailed }: Pro
             <span style={{ fontSize: 12, color: "#C53A3A" }}>{commitError}</span>
           )}
           {!commitError && !commitSuccess && nothingToSubmitYet && (
-            <span style={{ fontSize: 12, color: "#C97A14" }}>
-              Map at least one line — accept a suggestion or enter a {counterpartyLower} code — to continue.
+            <span style={{ fontSize: 12, color: "var(--ink-faint)" }}>
+              Unmapped lines will stay flagged in review — or accept a suggestion / enter a {counterpartyLower} code to resolve them now.
             </span>
           )}
           {commitSuccess && (
@@ -1345,14 +1345,16 @@ export function MagicMappingPreview({ orderId, onCommitted, onParseFailed }: Pro
         </div>
 
         <button
-          disabled={isCommitting || commitSuccess || nothingToSubmitYet}
+          disabled={isCommitting || commitSuccess}
           onClick={() => {
             setCommitError(null);
-            // Everything is already resolved server-side — there is nothing new to POST. Posting
-            // an empty payload would 400 ("At least one line resolution required"); instead just
-            // advance to review (the order is already fully mapped).
-            if (allAlreadyResolved) {
-              setCommitSuccess(true);
+            // Nothing new to POST — either the order is already fully resolved server-side, OR the
+            // user is choosing to proceed to the full review with some lines still flagged
+            // ("Continue to review (N unmapped)"). An empty resolve POST would 400 ("At least one
+            // line resolution required"); just advance to review instead. Only mark "committed"
+            // when everything was already resolved.
+            if (toResolve.length === 0) {
+              if (allAlreadyResolved) setCommitSuccess(true);
               onCommitted?.(orderId);
               return;
             }
@@ -1366,13 +1368,13 @@ export function MagicMappingPreview({ orderId, onCommitted, onParseFailed }: Pro
             borderRadius: 6,
             border: "none",
             background:
-              isCommitting || commitSuccess || nothingToSubmitYet
+              isCommitting || commitSuccess
                 ? "#EFF2F7"
                 : "#0B1A2F",
-            color: isCommitting || commitSuccess || nothingToSubmitYet ? "var(--ink-faint)" : "#FFFFFF",
+            color: isCommitting || commitSuccess ? "var(--ink-faint)" : "#FFFFFF",
             fontSize: 13,
             fontWeight: 600,
-            cursor: isCommitting || commitSuccess || nothingToSubmitYet ? "default" : "pointer",
+            cursor: isCommitting || commitSuccess ? "default" : "pointer",
             fontFamily: "'Inter', sans-serif",
             whiteSpace: "nowrap",
           }}
