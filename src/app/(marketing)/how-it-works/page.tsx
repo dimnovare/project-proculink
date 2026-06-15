@@ -148,7 +148,7 @@ export default function HowItWorksPage() {
             margin: "18px auto 0",
           }}
         >
-          Five stages, one workflow. Here&apos;s exactly what happens when an
+          Six stages, one workflow. Here&apos;s exactly what happens when an
           order is sent to the supplier.
         </p>
 

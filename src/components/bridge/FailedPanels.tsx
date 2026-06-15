@@ -378,7 +378,9 @@ export function FailedPanel({
                 </Link>
                 <button
                   onClick={() => void handleRedeliver()}
-                  disabled={isRetrying}
+                  // Retry can NEVER succeed while delivery config is missing — keep it visible (so the
+                  // path is discoverable) but disabled, so the user can't fire a guaranteed-to-fail retry.
+                  disabled={isRetrying || configMissing}
                   style={{
                     display: "inline-flex",
                     alignItems: "center",
@@ -391,9 +393,9 @@ export function FailedPanel({
                     color: T.inkMuted,
                     fontSize: 12.5,
                     fontWeight: 500,
-                    cursor: isRetrying ? "not-allowed" : "pointer",
+                    cursor: "not-allowed",
                     fontFamily: T.ui,
-                    opacity: isRetrying ? 0.6 : 1,
+                    opacity: 0.6,
                   }}
                 >
                   {isRetrying ? "Retrying…" : "Retry delivery"}
