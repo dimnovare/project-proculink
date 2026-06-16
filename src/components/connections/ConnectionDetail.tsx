@@ -450,20 +450,16 @@ export function ConnectionDetail({ connectionId }: { connectionId: string }) {
                           <span className="text-[13px] font-mono font-semibold" style={{ color: "var(--ink)" }}>
                             v{r.versionNo}
                           </span>
+                          {/* The "Live" badge already marks the active version (published === active),
+                              so no separate "Live" pill — it read as a duplicate "Live Live". */}
                           <RevisionStatusBadge status={r.status} size="sm" />
-                          {isActive && (
-                            <span
-                              className="inline-flex items-center rounded-[4px] text-[10.5px] font-semibold px-1.5 h-[18px]"
-                              style={{ background: "var(--brand-green-soft)", color: "var(--brand-green-deep)" }}
-                            >
-                              Live
-                            </span>
-                          )}
                         </div>
                         <span className="text-[11px]" style={{ color: "var(--ink-faint)" }}>
-                          {status === "published" || status === "archived"
-                            ? `Published ${formatDateTime(r.publishedAt)}`
-                            : `Created ${formatDateTime(r.createdAt)}`}
+                          {status === "published"
+                            ? `Live since ${formatDateTime(r.publishedAt)}`
+                            : status === "archived"
+                              ? `Published ${formatDateTime(r.publishedAt)}`
+                              : `Created ${formatDateTime(r.createdAt)}`}
                         </span>
                       </div>
 
