@@ -613,7 +613,7 @@ function EmailSettingsSection() {
       <div style={{ borderRadius: 12, background: "var(--surface)", padding: "20px 22px", border: "1px solid var(--danger-soft)", borderLeft: "3px solid var(--danger)", boxShadow: "var(--shadow-card)" }}>
         <h2 style={{ fontSize: 17, fontWeight: 600, color: "var(--ink)", margin: "0 0 4px" }}>Email settings are unavailable</h2>
         <p style={{ margin: 0, maxWidth: 560, fontSize: 12.5, lineHeight: 1.55, color: "var(--ink-muted)" }}>
-          The UI is working, but the API did not answer the email settings request. This prevents saving or loading IMAP polling configuration.
+          Your saved settings are safe — this is a temporary connection issue, so email polling settings can&rsquo;t be loaded or changed right now. Retry in a moment.
         </p>
         <button
           onClick={() => refetch()}
@@ -632,7 +632,7 @@ function EmailSettingsSection() {
         {/* Enable row + billing gate notice */}
         {!canEnable && (
           <div style={{ marginBottom: 16, borderRadius: 8, padding: "12px 14px", fontSize: 12.5, lineHeight: 1.5, border: "1px solid var(--amber-soft)", background: "var(--amber-soft)", color: "var(--amber)" }}>
-            Email ingestion is included from any paid plan. You can prepare the configuration here, but enabling polling requires upgrading from Pilot.
+            Email ingestion is included on any paid plan. You can set it up here, but turning on polling needs a paid plan — your current plan doesn&rsquo;t include it.
           </div>
         )}
 

@@ -103,7 +103,7 @@ export function ExceptionDetail({ exc }: { exc: OrderException }) {
         <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px]" style={{ color: "var(--ink-faint)" }}>
           {exc.code && <span className="font-mono">{exc.code}</span>}
           {exc.code && exc.stage && <span>·</span>}
-          {exc.stage && <span>stage: {exc.stage}</span>}
+          {exc.stage && <span>Step: {exc.stage}</span>}
         </div>
       </Section>
 

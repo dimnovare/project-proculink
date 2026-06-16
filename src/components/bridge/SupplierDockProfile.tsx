@@ -336,17 +336,17 @@ function LiveEditNotice({ connectionId, nounLower }: { connectionId: string | nu
     >
       <Info size={13} strokeWidth={2} color={MUTED} style={{ flexShrink: 0, marginTop: 2 }} aria-hidden />
       <span>
-        Edits here apply immediately to live processing.
+        Edits here take effect right away.
         {connectionId && (
           <>
-            {" "}Versioned snapshots live in this {nounLower}&rsquo;s{" "}
+            {" "}Every saved version is kept in this {nounLower}&rsquo;s{" "}
             <Link
               href={`/connections/${connectionId}`}
               style={{ color: BLUE_DEEP, fontWeight: 600 }}
             >
               Connection
             </Link>
-            .
+            , where you can review or roll back.
           </>
         )}
       </span>
@@ -1006,9 +1006,9 @@ function CatalogTab({ supplierId }: { supplierId: string }) {
       <details style={{ marginTop: 18, border: "1px solid #E2E6EE", borderRadius: 8, background: "#FBFCFE" }}>
         <summary style={{ cursor: "pointer", listStyle: "none", padding: "11px 14px", fontSize: 13, fontWeight: 700, color: INK, display: "flex", alignItems: "center", gap: 8 }}>
           <ChevronRight size={15} data-disclosure-chevron style={{ color: MUTED }} aria-hidden />
-          Automatic import
+          Keep the catalog in sync automatically
           <span style={{ fontSize: 11.5, fontWeight: 500, color: MUTED }}>
-            Pull on a schedule, or let the supplier push to you
+            Pull on a schedule or let the supplier push — instead of uploading by hand
           </span>
         </summary>
         <div style={{ display: "grid", gap: 14, padding: "0 14px 14px" }}>

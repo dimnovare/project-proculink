@@ -109,7 +109,7 @@ export function ReplayPanel({
   const canRun = !!effectiveRevisionId && !replay.isPending;
 
   return (
-    <Card edge="blue" title="Replay & impact preview" sub="Test a revision against recent orders before you publish — nothing is delivered or saved">
+    <Card edge="blue" title="Replay & impact preview" sub="Test a version against recent orders before you make it live — nothing is delivered or saved">
       {/* ── Controls ─────────────────────────────────────────────────── */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:flex-wrap">
         <div className="flex flex-col gap-1.5">
@@ -345,7 +345,7 @@ function OrderDiffRow({ order }: { order: ReplayOrderDiff }) {
                 className="rounded-[6px] px-3 py-2.5 text-[12px] leading-[1.5]"
                 style={{ border: "1px solid var(--amber)", background: "var(--amber-soft)", color: "var(--amber)" }}
               >
-                This revision could not produce output for this order: {order.outputError}
+                This version could not produce output for this order: {order.outputError}
               </div>
             </div>
           )}

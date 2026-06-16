@@ -240,7 +240,7 @@ export default function AdminPage() {
   // Reconcile note: stripeMrr null → unavailable; present & differs → highlight mismatch.
   const reconcile =
     o.stripeMrr == null
-      ? { tone: "muted" as const, text: "Stripe reconcile unavailable" }
+      ? { tone: "muted" as const, text: "Stripe MRR unavailable — check Stripe is connected" }
       : o.reconciled
         ? { tone: "ok" as const, text: `Reconciled with Stripe (${eur(o.stripeMrr)})` }
         : { tone: "warn" as const, text: `DB ${eur(o.mrr)} vs Stripe ${eur(o.stripeMrr)} — mismatch` };
@@ -275,7 +275,7 @@ export default function AdminPage() {
           value={String(counts.trialing ?? 0)}
           sub={`${counts.past_due ?? 0} past due · ${counts.cancelled ?? 0} cancelled`}
         />
-        <MetricCard label="Trial expired" value={String(counts.trial_expired ?? 0)} sub="read-only soon" />
+        <MetricCard label="Trial expired" value={String(counts.trial_expired ?? 0)} sub="pending read-only" />
         <MetricCard label="Read-only" value={String(counts.read_only ?? 0)} sub="expired trials" />
         <MetricCard label="New orgs (mo)" value={String(o.newOrgsThisMonth)} sub="this month" />
         <MetricCard label="Trial → paid" value={pct(o.trialToPaidConversion)} sub="conversion" />

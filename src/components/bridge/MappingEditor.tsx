@@ -672,8 +672,8 @@ function MappingPanel({
   const title =
     panel.kind === "import" ? "Import mappings" :
     panel.kind === "export" ? "Export mappings" :
-    panel.kind === "add" ? "Add SKU mapping" :
-    "Edit SKU mapping";
+    panel.kind === "add" ? "Add item code mapping" :
+    "Edit item code mapping";
 
   const subtitle =
     panel.kind === "import" ? `Bulk upload a buyer → ${partyNounLower} code list` :

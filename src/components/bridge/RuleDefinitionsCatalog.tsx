@@ -160,7 +160,7 @@ export function RuleDefinitionsCatalog() {
         className="mb-4 flex flex-col gap-1.5 rounded-[8px] px-3.5 py-2.5 text-[12px] sm:flex-row sm:items-center sm:gap-2.5"
         style={{ border: "1px solid #D6E2F4", background: "var(--brand-blue-soft)", color: "var(--ink)" }}
       >
-        <span className="font-semibold" style={{ color: "var(--brand-blue-deep)" }}>Reusable definitions.</span>
+        <span className="font-semibold" style={{ color: "var(--brand-blue-deep)" }}>Built-in rule definitions.</span>
         <span style={{ color: "var(--ink-muted)" }}>
           These are the building blocks for acceptance rules. Bind and enforce them on each{" "}
           <Link href="/library/suppliers" className="font-semibold underline" style={{ color: "var(--brand-blue)" }}>supplier&apos;s Validation rules tab</Link>.

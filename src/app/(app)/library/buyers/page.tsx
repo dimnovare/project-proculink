@@ -21,9 +21,9 @@ const BORDER_STRONG = "#C6CDDA";
 const CHEVRON      = "#A4ADBD";
 
 const MOCK_BUYERS: BuyerDto[] = [
-  { id: "b1", name: "Heinrich Industries GmbH", code: "HEI", orderCount: 1820, lastOrderAge: "2m",  formats: ["PDF", "XLSX"] },
-  { id: "b2", name: "Nordmark Logistics A/S",   code: "NRD", orderCount: 1104, lastOrderAge: "14m", formats: ["cXML", "EDI"] },
-  { id: "b3", name: "Steelhouse Construction",  code: "SHC", orderCount: 812,  lastOrderAge: "1h",  formats: ["XLSX", "CSV"] },
+  { id: "b1", name: "Example Buyer 1", code: "HEI", orderCount: 1820, lastOrderAge: "2m",  formats: ["PDF", "XLSX"] },
+  { id: "b2", name: "Example Buyer 2", code: "NRD", orderCount: 1104, lastOrderAge: "14m", formats: ["cXML", "EDI"] },
+  { id: "b3", name: "Example Buyer 3", code: "SHC", orderCount: 812,  lastOrderAge: "1h",  formats: ["XLSX", "CSV"] },
 ];
 
 // ── Shared cell content (reused by desktop table + mobile cards) ──────────
@@ -231,7 +231,7 @@ export default function BuyersPage() {
                   color: "var(--ink)",
                   transition: "border-color 150ms, box-shadow 150ms",
                 }}
-                placeholder="e.g. Heinrich Industries"
+                placeholder="e.g. Example Buyer Co."
                 value={addName}
                 onChange={(e) => setAddName(e.target.value)}
                 onFocus={(e) => { e.currentTarget.style.borderColor = "var(--brand-blue)"; e.currentTarget.style.boxShadow = "0 0 0 3px var(--brand-blue-soft)"; }}

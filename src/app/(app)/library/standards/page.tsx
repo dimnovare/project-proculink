@@ -92,7 +92,7 @@ export default function StandardsPage() {
     <PageShell variant="wide">
       <PageHeader
         title="Standards reference"
-        sub="How every canonical field maps across formats — always visible, never hidden"
+        sub="How every order field maps across formats — always visible, never hidden"
         actions={searchInput}
       />
 

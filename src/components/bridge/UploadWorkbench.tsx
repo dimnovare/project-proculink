@@ -21,7 +21,7 @@ import { ACCEPTED_UPLOAD_FORMATS, hasAcceptedUploadExtension } from "@/lib/uploa
 // Pipeline stages for the pre-redirect upload animation. "Transform" is NOT
 // shown here: nothing is transformed before the review step, so claiming it
 // would be dishonest (offer↔works). The real transform happens after review.
-const PIPELINE_STAGES = ["Parse", "Normalize", "Validate"] as const;
+const PIPELINE_STAGES = ["Reading file", "Checking format", "Preparing review"] as const;
 const STAGE_MS = 600;
 
 // Accepted upload formats live in @/lib/upload-formats (the ONE frontend

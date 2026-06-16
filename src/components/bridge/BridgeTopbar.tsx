@@ -237,7 +237,6 @@ function NotificationsBell() {
         style={{ width: 32, height: 32, background: open ? "#10243E" : "transparent", border: "1px solid transparent", color: open ? "#FFFFFF" : "#C5D2E4", cursor: "pointer", transition: "background 150ms, color 150ms" }}
         onMouseEnter={(e) => { if (!open) { (e.currentTarget as HTMLElement).style.background = "#10243E"; } }}
         onMouseLeave={(e) => { if (!open) { (e.currentTarget as HTMLElement).style.background = "transparent"; } }}
-        title="Notifications"
       >
         <Bell size={17} strokeWidth={1.9} />
         {unread > 0 && (

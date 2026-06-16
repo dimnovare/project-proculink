@@ -153,7 +153,7 @@ export default function ExceptionsPage() {
 
       {/* Instructional note */}
       <p className="text-[12px] mb-4 -mt-3" style={{ color: "var(--ink-faint)" }}>
-        Expand a row to see what&apos;s wrong, why, how to fix it, and its real delivery status. Fixing the cause clears the exception on the next pipeline pass.
+        Expand a row to see what&apos;s wrong, why, how to fix it, and its real delivery status. Fixing the cause clears the exception the next time the order is reprocessed.
       </p>
 
       {/* State filter tabs */}

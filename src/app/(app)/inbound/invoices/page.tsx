@@ -185,6 +185,7 @@ export default function InvoicesPage() {
       <input
         ref={fileInputRef}
         type="file"
+        aria-label="Upload invoice file (XML or EDI)"
         accept=".xml,.edi"
         className="hidden"
         onChange={(e) => { const f = e.target.files?.[0]; if (f) { setNotice(null); uploadMut.mutate(f); } }}

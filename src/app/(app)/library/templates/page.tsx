@@ -20,9 +20,9 @@ import {
 } from "@/lib/api-client";
 
 const MOCK_TEMPLATES = [
-  { id: "t1", name: "cXML 1.2.045 — OrderRequest", fmt: "cXML", suppliers: 2, supplierNames: ["Acme Components", "MedicaSupply"], lastUsed: "2m",  version: "1.2.045", isDefault: true },
-  { id: "t2", name: "UBL 2.1 — Order",             fmt: "UBL",  suppliers: 1, supplierNames: ["BoltWorks BV"],                    lastUsed: "1h",  version: "2.1" },
-  { id: "t3", name: "EDIFACT D.96A — ORDERS",      fmt: "EDI",  suppliers: 1, supplierNames: ["VanderBerg Metaal"],              lastUsed: "3h",  version: "D.96A" },
+  { id: "t1", name: "cXML 1.2.045 — OrderRequest", fmt: "cXML", suppliers: 2, supplierNames: ["Example Supplier 1", "Example Supplier 2"], lastUsed: "2m",  version: "1.2.045", isDefault: true },
+  { id: "t2", name: "UBL 2.1 — Order",             fmt: "UBL",  suppliers: 1, supplierNames: ["Example Supplier 3"],                    lastUsed: "1h",  version: "2.1" },
+  { id: "t3", name: "EDIFACT D.96A — ORDERS",      fmt: "EDI",  suppliers: 1, supplierNames: ["Example Supplier 4"],              lastUsed: "3h",  version: "D.96A" },
   { id: "t4", name: "X12 850 — Purchase Order",    fmt: "X12",  suppliers: 0, supplierNames: [],                                 lastUsed: "1d",  version: "004010" },
 ];
 
@@ -166,7 +166,7 @@ export default function TemplatesPage() {
     <PageShell variant="wide">
       <PageHeader
         title="Output templates"
-        sub={`The envelope each supplier receives · ${templates.length} template${templates.length !== 1 ? "s" : ""}`}
+        sub={`The format each supplier receives · ${templates.length} template${templates.length !== 1 ? "s" : ""}`}
         actions={
           // In-app primary CTA = brand-green per the unified design system.
           <button
@@ -220,7 +220,7 @@ export default function TemplatesPage() {
             <EmptyState
               icon="⊟"
               title="No output templates"
-              sub="Templates define the envelope each supplier receives when an order is sent to them."
+              sub="Templates define the format each supplier receives when an order is sent to them."
               action={{ label: "+ New template", onClick: newTemplate }}
             />
           ) : (
@@ -250,7 +250,7 @@ export default function TemplatesPage() {
                         )}
                       </div>
                       <div className="text-[13px] font-semibold tracking-[-0.005em]" style={{ color: "var(--ink)", marginTop: 8 }}>{t.name}</div>
-                      <div className="text-[11.5px] leading-[1.45]" style={{ color: "var(--ink-muted)", marginTop: 3 }}>{FMT_DESC[t.fmt] ?? `${t.fmt} output envelope.`}</div>
+                      <div className="text-[11.5px] leading-[1.45]" style={{ color: "var(--ink-muted)", marginTop: 3 }}>{FMT_DESC[t.fmt] ?? `${t.fmt} output format.`}</div>
                       <div className="text-[11px]" style={{ color: "var(--ink-faint)", marginTop: 9 }}>
                         {t.suppliers > 0 ? (
                           <>
@@ -298,7 +298,7 @@ export default function TemplatesPage() {
                   </pre>
                   <div className="flex flex-col items-stretch gap-2.5 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-2" style={{ borderTop: "1px solid var(--border)" }}>
                     <span className="text-[12px] leading-[1.45] sm:text-[11px]" style={{ color: "var(--ink-faint)" }}>
-                      <span style={{ color: "#6F4FCE", fontWeight: 600 }}>{"{tokens}"}</span> are filled from the canonical order at delivery time.
+                      <span style={{ color: "#6F4FCE", fontWeight: 600 }}>{"{tokens}"}</span> are filled from the order at delivery time.
                     </span>
                     <Button
                       variant="secondary"
@@ -396,14 +396,14 @@ function TemplatePanel({
             </span>
             <div className="min-w-0">
               <h2 className="text-[18px] font-semibold leading-tight truncate" style={{ color: "var(--ink)" }}>{isNew ? "New output template" : template.name}</h2>
-              <p className="mt-0.5 text-[12.5px]" style={{ color: "var(--ink-muted)" }}>The envelope a supplier receives</p>
+              <p className="mt-0.5 text-[12.5px]" style={{ color: "var(--ink-muted)" }}>The format a supplier receives</p>
             </div>
           </div>
           <button onClick={onClose} aria-label="Close" className="h-8 w-8 flex-shrink-0 rounded-[6px] text-[16px] transition-colors" style={{ border: "1px solid var(--border)", background: "var(--surface)", color: "var(--ink-muted)" }} onMouseEnter={(e) => { e.currentTarget.style.background = "var(--surface-2)"; }} onMouseLeave={(e) => { e.currentTarget.style.background = "var(--surface)"; }}>×</button>
         </div>
         <div className="grid gap-4 p-5">
           <p className="text-[12.5px] leading-[1.5]" style={{ color: "var(--ink-muted)" }}>
-            Choose the standard and starting point. You&rsquo;ll map canonical order fields into the envelope after creating.
+            Choose the standard and starting point. You&rsquo;ll map order fields into the format after creating.
           </p>
           <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_130px_110px]">
             <Field label="Template name">

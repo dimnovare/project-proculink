@@ -354,7 +354,7 @@ function TotalsSummary({ order }: { order: Order }) {
   return (
     <div style={{ marginTop: 12, borderRadius: 8, border: "1px solid #E2E6EE", background: "#FFFFFF", overflow: "hidden" }}>
       <div style={{ padding: "8px 12px", borderBottom: "1px solid #EEF0F4", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--ink-faint)" }}>
-        Document totals
+        Order totals
       </div>
       <div style={{ padding: "4px 0" }}>
         {rows.map((r, i) => (
@@ -872,13 +872,13 @@ function DocumentAnatomy({
           style={{ display: "flex", width: "100%", alignItems: "center", justifyContent: "space-between", gap: 8, marginBottom: collapsed ? 0 : 8, border: "none", background: "transparent", padding: 0, cursor: "pointer" }}>
           <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 9.5, color: "var(--ink-faint)" }}>
             <span style={{ display: "inline-block", transition: "transform 150ms", transform: collapsed ? "rotate(-90deg)" : "none", fontSize: 8 }}>▾</span>
-            Reconstructed from parsed fields
+            Built from your file
           </span>
           {confBadge}
         </button>
       ) : (
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginBottom: 8 }}>
-          <span style={{ fontSize: 9.5, color: "var(--ink-faint)" }}>Reconstructed from parsed fields</span>
+          <span style={{ fontSize: 9.5, color: "var(--ink-faint)" }}>Built from your file</span>
           {confBadge}
         </div>
       )}

@@ -31,7 +31,7 @@ const TILES: Array<{ key: keyof OpsHealth; label: string; href: string }> = [
   { key: "transformFailed",    label: "Transform failed",  href: "/inbox?status=failed" },
   { key: "deliveryFailed",     label: "Delivery failed",   href: "/inbox?status=failed" },
   { key: "deliveryDeadLetter", label: "Dead-letter",       href: "/operations/health" },
-  { key: "rejectedBySupplier", label: "Supplier rejected", href: "/inbox?status=failed" },
+  { key: "rejectedBySupplier", label: "Rejected by supplier", href: "/inbox?status=failed" },
   { key: "slaBreached",        label: "SLA breached",      href: "/inbox" },
   { key: "openExceptions",     label: "Open exceptions",   href: "/operations/exceptions" },
 ];
@@ -192,7 +192,7 @@ export default function OperationsHealthPage() {
       )}
 
       <div style={{ marginTop: 10, fontSize: 11.5, color: "var(--ink-faint)" }}>
-        Stuck threshold: {h.stuckThresholdMinutes} min · auto-refreshes every 45s
+        Flagged as stuck after {h.stuckThresholdMinutes} min · auto-refreshes every 45s
       </div>
 
       {/* ── Dead-letter queue ──────────────────────────────────────────────── */}

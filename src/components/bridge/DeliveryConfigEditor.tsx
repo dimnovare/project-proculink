@@ -466,9 +466,9 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
           </div>
 
           <div className="mt-4 rounded-[6px] p-3" style={{ background: "#F0F7F1", border: "1px solid #CBE8CE" }}>
-            <p className="text-[11px] font-semibold" style={{ color: "#1F6F2A" }}>Delivery state boundary</p>
+            <p className="text-[11px] font-semibold" style={{ color: "#1F6F2A" }}>How sending works</p>
             <p className="mt-1 text-[11px]" style={{ color: "#2E5F35" }}>
-              Transform creates an artifact. Only this delivery workflow can mark it delivered.
+              Once an order is transformed, only this delivery setup can mark it as sent.
             </p>
           </div>
         </div>
@@ -500,7 +500,7 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
                   </select>
                 </Field>
                 <p className="mt-1.5 text-[11px]" style={{ color: "var(--ink-faint)" }}>
-                  When set, sending an order to this supplier auto-transforms it into this format.
+                  When set, an order is converted to this format right before it&rsquo;s sent to this supplier.
                 </p>
               </div>
 
@@ -830,7 +830,7 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
                             setAttachmentFileName(e.target.value);
                             markEdited();
                           }}
-                          placeholder="(defaults to the generated artifact name)"
+                          placeholder="(defaults to the generated file name)"
                           className="h-9 w-full rounded-[5px] px-2.5 text-[12px]"
                           style={INPUT_STYLE}
                         />
@@ -1081,10 +1081,10 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
           </button>
         )}
         <div className="hidden flex-1 sm:block" />
-        <button onClick={testFire} disabled={!savedConfig || testing} className="inline-flex h-8 items-center justify-center gap-1.5 rounded-[6px] px-3 text-[12px] font-semibold" style={{ border: "1px solid #D5DAEA", color: "#0B1A2F", background: "#FFF", opacity: !savedConfig ? 0.55 : 1 }}>
+        <button onClick={testFire} disabled={!savedConfig || testing} title={!savedConfig ? "Save the delivery setup first, then you can test it." : "Send a small test to check the connection."} className="inline-flex h-8 items-center justify-center gap-1.5 rounded-[6px] px-3 text-[12px] font-semibold" style={{ border: "1px solid #D5DAEA", color: "#0B1A2F", background: "#FFF", opacity: !savedConfig ? 0.55 : 1 }}>
           <Send size={13} /> {testing ? "Testing..." : "Test-fire"}
         </button>
-        <button onClick={save} disabled={saving || !canSave} className="inline-flex h-8 items-center justify-center gap-1.5 rounded-[6px] px-3 text-[12px] font-semibold" style={{ border: "none", color: "#FFF", background: saving || !canSave ? "var(--ink-faint)" : "#0B1A2F" }}>
+        <button onClick={save} disabled={saving || !canSave} title={!canSave ? "Fill in the required fields first (e.g. Host for SFTP/FTPS, URL for HTTP, or SMTP host + sender for email)." : undefined} className="inline-flex h-8 items-center justify-center gap-1.5 rounded-[6px] px-3 text-[12px] font-semibold" style={{ border: "none", color: "#FFF", background: saving || !canSave ? "var(--ink-faint)" : "#0B1A2F" }}>
           <Save size={13} /> {saving ? "Saving..." : "Save delivery"}
         </button>
       </div>

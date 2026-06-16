@@ -106,7 +106,7 @@ function toRow(sub: IntegrationSubscription): WebhookRow {
 // ── Backend-accepted event types ──────────────────────────────────────────────
 
 const WEBHOOK_EVENT_TYPES: ReadonlyArray<{ value: string; label: string }> = [
-  { value: "order.created",   label: "Order created — a new PO was ingested" },
+  { value: "order.created",   label: "Order created — a new order was received" },
   { value: "order.delivered", label: "Order delivered — sent to the supplier" },
   { value: "order.failed",    label: "Order failed — delivery or processing error" },
 ];

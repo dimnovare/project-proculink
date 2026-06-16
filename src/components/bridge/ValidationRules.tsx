@@ -81,7 +81,7 @@ function dtoToRule(dto: RuleDto): Rule {
     enabled:       dto.enabled,
     autoBlock:     dto.autoBlock,
     lastTriggered: dto.lastTriggered ?? "—",
-    supplier:      "Global",
+    supplier:      "All suppliers",
     code:          codeFor(dto.name, dto.entity),
     condition:     dto.description,
   };
@@ -413,11 +413,11 @@ export function ValidationRules() {
                     <span
                       className="text-[12px]"
                       style={{
-                        color: r.supplier === "Global" ? "#0F4FA8" : "#647089",
-                        fontWeight: r.supplier === "Global" ? 600 : 400,
+                        color: r.supplier === "All suppliers" ? "#0F4FA8" : "#647089",
+                        fontWeight: r.supplier === "All suppliers" ? 600 : 400,
                       }}
                     >
-                      {r.supplier === "Global" ? "Global route rule" : r.supplier}
+                      {r.supplier}
                     </span>
                   </div>
                   <p className="mt-2 text-[12px] leading-snug" style={{ color: "#56627A" }}>

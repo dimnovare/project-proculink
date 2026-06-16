@@ -39,14 +39,14 @@ export default function MappingPreviewPage() {
           Upload
         </Link>
         <span aria-hidden>›</span>
-        <span style={{ color: "#0B1A2F", fontWeight: 600 }}>Map codes</span>
+        <span style={{ color: "#0B1A2F", fontWeight: 600 }}>Confirm codes</span>
         <span aria-hidden>›</span>
         <span style={{ color: "var(--ink-faint)" }}>Review &amp; send</span>
       </nav>
 
       {/* Page header — canonical PageHeader */}
       <PageHeader
-        title="Map codes — step 1 of 2"
+        title="Confirm item codes"
         sub="Confirm how your order lines map to supplier codes. Next, you'll review the full order and send it."
       />
 

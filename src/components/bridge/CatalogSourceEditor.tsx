@@ -698,7 +698,7 @@ export function CatalogSourceEditor({ supplierId }: CatalogSourceEditorProps) {
           </button>
         )}
         <div className="hidden flex-1 sm:block" />
-        <button onClick={testFetch} disabled={!savedSource || testing} className="inline-flex h-8 items-center justify-center gap-1.5 rounded-[6px] px-3 text-[12px] font-semibold" style={{ border: "1px solid #D5DAEA", color: "#0B1A2F", background: "#FFF", opacity: !savedSource ? 0.55 : 1 }}>
+        <button onClick={testFetch} disabled={!savedSource || testing} title={!savedSource ? "Save the source first, then you can test the connection." : "Fetch a preview to check the connection."} className="inline-flex h-8 items-center justify-center gap-1.5 rounded-[6px] px-3 text-[12px] font-semibold" style={{ border: "1px solid #D5DAEA", color: "#0B1A2F", background: "#FFF", opacity: !savedSource ? 0.55 : 1 }}>
           <Zap size={13} /> {testing ? "Testing..." : "Test connection & preview"}
         </button>
         <button onClick={save} disabled={saving || !canSave} className="inline-flex h-8 items-center justify-center gap-1.5 rounded-[6px] px-3 text-[12px] font-semibold" style={{ border: "none", color: "#FFF", background: saving || !canSave ? "var(--ink-faint)" : "#0B1A2F" }}>

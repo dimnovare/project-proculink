@@ -3,7 +3,7 @@ import { ConnectionDetail } from "@/components/connections/ConnectionDetail";
 
 export const metadata: Metadata = {
   title: "Connection — ProcuLink",
-  description: "The versioned bundle this supplier receives, with revision lifecycle controls.",
+  description: "How this supplier's orders are mapped, validated and delivered — with version history.",
 };
 
 interface Props {

@@ -12,8 +12,8 @@ import { Button } from "@/components/bridge/DSPrimitives";
 // users (NEXT_PUBLIC_USE_MOCK=false) see an honest empty state instead of
 // fabricated rows that would 404 against the live API.
 const DEMO_DRAFTS = [
-  { id: "d1", po: "PO-2026-008422", buyer: "Heinrich Industries", supplier: "Acme Components", savedAt: "3m", stage: "Validate", issues: 2 },
-  { id: "d2", po: "AR-2026-1110",   buyer: "Atlas Reseller AG",   supplier: "Nordix Distribution", savedAt: "2h",  stage: "Normalize", issues: 0 },
+  { id: "d1", po: "PO-2026-008422", buyer: "Example Buyer Co.", supplier: "Example Supplier Co.", savedAt: "3m", stage: "Needs review", issues: 2 },
+  { id: "d2", po: "AR-2026-1110",   buyer: "Sample Buyer Ltd.",   supplier: "Sample Supplier Ltd.", savedAt: "2h",  stage: "Ready", issues: 0 },
 ];
 
 const DRAFTS = isApiMockMode ? DEMO_DRAFTS : [];
@@ -25,7 +25,7 @@ export default function DraftsPage() {
     <PageShell variant="wide">
       <PageHeader
         title="Drafts"
-        sub="Orders saved but not yet sent"
+        sub="Orders you've saved to finish later"
         actions={
           <Button
             variant="blue"

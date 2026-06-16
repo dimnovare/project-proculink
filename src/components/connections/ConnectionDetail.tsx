@@ -363,7 +363,7 @@ export function ConnectionDetail({ connectionId }: { connectionId: string }) {
       {!isLoading && !isError && connection && (
         <div className="grid gap-4 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)] lg:items-start">
           {/* ── Left: the live (published) bundle summary ─────────────── */}
-          <Card edge="green" title="Live revision" sub="What this supplier receives for new orders today">
+          <Card edge="green" title="Live version" sub="What this supplier receives for new orders today">
             {activeRevisionId ? (
               <>
                 <div className="flex items-center gap-2 mb-3">

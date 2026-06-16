@@ -104,6 +104,7 @@ export default function AsnsPage() {
             <input
               ref={fileInputRef}
               type="file"
+              aria-label="Upload ASN file (XML or CSV)"
               accept=".xml,.csv"
               className="hidden"
               onChange={(e) => { const f = e.target.files?.[0]; if (f) { setNotice(null); uploadMut.mutate(f); } }}

@@ -179,8 +179,8 @@ function UpgradeNotice({ label }: { label: string }) {
       className="rounded-[8px] px-3.5 py-3 text-[12.5px]"
       style={{ border: "1px solid #F0D39A", background: "#FFF8EA", color: "#7A4D0B", lineHeight: 1.5 }}
     >
-      {label} ingestion is included from any paid plan. You can prepare the configuration here,
-      but enabling polling requires upgrading from Pilot.
+      {label} ingestion is included on any paid plan. You can set it up here,
+      but turning on polling needs a paid plan — your current plan doesn&rsquo;t include it.
     </div>
   );
 }
