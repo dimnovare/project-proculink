@@ -122,6 +122,21 @@ export default function AppShellLayout({
           queries: {
             staleTime: 60 * 1000,
             retry: 1,
+            // networkMode "always": run queryFns regardless of React Query's
+            // onlineManager. Its navigator.onLine heuristic can latch "offline"
+            // in production — observed live on /bridge: navigator.onLine === true,
+            // yet every query was stuck fetchStatus:"paused" (status "pending",
+            // data undefined, isLoading false), so the dashboard and every data
+            // screen silently rendered their empty state ("No deliveries yet",
+            // 0 connections/orders) even though the API had 206 orders. This app
+            // has no offline mode; always attempt the fetch and surface real
+            // fetch errors instead of trusting the heuristic.
+            networkMode: "always",
+          },
+          mutations: {
+            // Same rationale: otherwise a save/send mutation can pause
+            // indefinitely instead of reaching the API.
+            networkMode: "always",
           },
         },
       })
