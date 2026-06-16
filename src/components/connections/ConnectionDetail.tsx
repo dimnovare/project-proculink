@@ -542,32 +542,15 @@ export function ConnectionDetail({ connectionId }: { connectionId: string }) {
               title="Mapping"
               sub={
                 mapperReadOnly
-                  ? "The live mapping for this connection — create a draft from live to edit it"
-                  : "Wire incoming fields → canonical → the supplier's output. Saved to the draft; publish to make it live."
+                  ? "How this supplier's orders are mapped to their output. Click to edit."
+                  : "Wire incoming fields → the supplier's output. Saved automatically; “Make live” to publish."
               }
             >
               {mapperRevisionId ? (
-                <>
-                  {mapperReadOnly && (
-                    <div
-                      className="mb-3 rounded-[6px] px-3 py-2 text-[12px] leading-[1.5] flex flex-wrap items-center gap-2"
-                      style={{ background: "var(--bg)", border: "1px solid var(--border)", color: "var(--ink-muted)" }}
-                    >
-                      <span>
-                        Published revisions are immutable. Create a draft (it clones the live
-                        version) to change the mapping.
-                      </span>
-                      <Button
-                        variant="secondary"
-                        size="sm"
-                        onClick={() => { setNotice(null); createDraftMutation.mutate(); }}
-                        disabled={busy}
-                        loading={createDraftMutation.isPending}
-                      >
-                        Create draft from live
-                      </Button>
-                    </div>
-                  )}
+                // The mapper renders the LIVE mapping. When it's the published (read-only) version we
+                // overlay an unmistakable one-click "Edit" — clicking transparently opens an editable
+                // draft (the revision lifecycle stays hidden; the user just edits, then "Make live").
+                <div className="relative">
                   <MapperWorkbench
                     variant="connection"
                     connectionId={connectionId}
@@ -577,7 +560,29 @@ export function ConnectionDetail({ connectionId }: { connectionId: string }) {
                     previewOrderId={sampleOrderId}
                     readOnly={mapperReadOnly}
                   />
-                </>
+                  {mapperReadOnly && (
+                    <button
+                      type="button"
+                      onClick={() => { setNotice(null); createDraftMutation.mutate(); }}
+                      disabled={busy}
+                      aria-label="Edit this mapping — opens an editable draft you can publish"
+                      className="absolute inset-0 z-10 flex items-center justify-center transition-colors"
+                      style={{ background: "rgba(247,248,250,0.5)", cursor: busy ? "wait" : "pointer", border: "none" }}
+                    >
+                      <span
+                        className="rounded-[10px] px-4 py-3 text-center"
+                        style={{ background: "#fff", border: "1px solid var(--border)", boxShadow: "0 4px 16px rgba(11,26,47,0.12)" }}
+                      >
+                        <span className="block text-[13px] font-semibold" style={{ color: "var(--ink)" }}>
+                          {createDraftMutation.isPending ? "Opening an editable copy…" : "✎ Edit this mapping"}
+                        </span>
+                        <span className="block text-[11.5px] font-normal mt-1" style={{ color: "var(--ink-muted)" }}>
+                          You're viewing the live version. Editing opens a draft you can publish.
+                        </span>
+                      </span>
+                    </button>
+                  )}
+                </div>
               ) : (
                 <div className="py-4">
                   <p className="text-[13px] font-semibold" style={{ color: "var(--ink)" }}>
