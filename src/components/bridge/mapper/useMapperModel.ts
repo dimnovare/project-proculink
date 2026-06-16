@@ -18,7 +18,7 @@
 // pure mapperModel helpers never blank the other side, and buildOverrideDraft re-attaches
 // the current sourceMap explicitly. Never hand-roll the saved document.
 
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useQueriesEnabled } from "@/hooks/useQueriesEnabled";
 import {
@@ -221,6 +221,7 @@ export function useMapperModel({
 
   // Local draft mirrors the server override but is mutated optimistically + persisted.
   const [draft, setDraft] = useState<OrderMappingOverride | null>(null);
+  useEffect(() => { setDraft(null); }, [scopeId, revisionId]);
   const override = draft ?? overrideQuery.data ?? emptyOverride();
 
   // ── Source tokens — order: the order; connection: the sample/recent order. ──

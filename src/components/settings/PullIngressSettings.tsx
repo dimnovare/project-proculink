@@ -271,6 +271,8 @@ export function SftpPullSettings() {
     queryFn: getSftpSettings,
     staleTime: 30_000,
     retry: false,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
   });
   const { data: billing } = useBilling();
   const { data: suppliers, isLoading: suppliersLoading } = useSuppliers();
@@ -363,6 +365,8 @@ export function S3PullSettings() {
     queryFn: getS3Settings,
     staleTime: 30_000,
     retry: false,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
   });
   const { data: billing } = useBilling();
   const { data: suppliers, isLoading: suppliersLoading } = useSuppliers();

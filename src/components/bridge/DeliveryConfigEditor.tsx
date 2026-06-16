@@ -353,6 +353,7 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
   }
 
   async function remove() {
+    if (typeof window !== "undefined" && !window.confirm("Delete this supplier's delivery configuration and saved credentials? This cannot be undone.")) return;
     setSaving(true);
     setError(null);
     try {

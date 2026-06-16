@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState, type CSSProperties, type ReactNode } from "react";
+import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useOrganization } from "@clerk/nextjs";
@@ -508,6 +508,8 @@ function EmailSettingsSection() {
     queryKey: ["email-settings"],
     queryFn: getEmailSettings,
     retry: false,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
   });
   const { data: billing } = useQuery({
     queryKey: ["billing-status"],
@@ -541,8 +543,10 @@ function EmailSettingsSection() {
   const [saved, setSaved] = useState(false);
   const [validationError, setValidationError] = useState<string | null>(null);
 
+  const seededRef = useRef(false);
   useEffect(() => {
-    if (!settings) return;
+    if (!settings || seededRef.current) return;
+    seededRef.current = true;
     setForm(settings);
     setPassword("");
     setPasswordTouched(false);

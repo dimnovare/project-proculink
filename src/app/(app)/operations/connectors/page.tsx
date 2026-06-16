@@ -634,7 +634,7 @@ function ConnectorPanel({
 
   const handleTestFire = async () => {
     if (connector.id === "new") {
-      setTestResult("Save the connector first before test-firing.");
+      setTestResult("Connectors are set up per supplier — open the supplier's Delivery tab to configure and test-fire delivery.");
       return;
     }
     setFiring(true);
@@ -851,7 +851,7 @@ function ConnectorPanel({
             {firing ? "Firing…" : "Test fire"}
           </button>
           <Link
-            href={isNew || connector.id === "new" ? "/library/suppliers" : `/library/suppliers/${connector.id}`}
+            href={isNew || connector.id === "new" ? "/library/suppliers" : `/library/suppliers/${connector.id}?tab=delivery`}
             onClick={onClose}
             style={{ height: 32, padding: "0 14px", borderRadius: "var(--radius,6px)", border: "1px solid transparent", background: "var(--brand-green,#2E8E3A)", color: "var(--surface,#FFFFFF)", fontSize: 12.5, fontWeight: 600, cursor: "pointer", display: "inline-flex", alignItems: "center", textDecoration: "none" }}
           >

@@ -1329,12 +1329,20 @@ export function UploadWorkbench() {
                   <strong style={{ display: "block", color: "#7A4A0A" }}>{uploadError.title}</strong>
                   <span>{uploadError.message}</span>
                 </span>
-                <a
-                  href="/settings"
-                  style={{ fontWeight: 600, color: "#C97A14", textDecoration: "none", whiteSpace: "nowrap" }}
-                >
-                  {uploadError.cta} →
-                </a>
+                {(() => {
+                  const ctaHref =
+                    uploadError.code === "supplier_required" ? "/library/suppliers"
+                    : uploadError.code === "upload_failed"   ? "/settings"
+                    : "/settings?tab=billing";
+                  return (
+                    <a
+                      href={ctaHref}
+                      style={{ fontWeight: 600, color: "#C97A14", textDecoration: "none", whiteSpace: "nowrap" }}
+                    >
+                      {uploadError.cta} →
+                    </a>
+                  );
+                })()}
               </div>
             )}
 

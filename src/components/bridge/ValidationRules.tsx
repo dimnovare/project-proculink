@@ -163,12 +163,20 @@ export function ValidationRules() {
   const saveMutation = useMutation({
     mutationFn: (args: { id: string | null; payload: Omit<RuleDto, "id"|"triggerCount"|"lastTriggered"|"createdAt"> }) =>
       args.id ? updateRule(args.id, args.payload) : createRule(args.payload),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["rules"] }),
+    onSuccess: (_data, args) => {
+      queryClient.invalidateQueries({ queryKey: ["rules"] });
+      setNotice(args.id ? "Rule saved." : "Rule created.");
+    },
+    onError: () => setNotice("Couldn't save the rule — try again."),
   });
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => deleteRule(id),
-    onSuccess:  () => { queryClient.invalidateQueries({ queryKey: ["rules"] }); },
+    onSuccess:  () => {
+      queryClient.invalidateQueries({ queryKey: ["rules"] });
+      setNotice("Rule deleted.");
+    },
+    onError: () => setNotice("Couldn't delete the rule — try again."),
   });
 
   const rules: Rule[] = isApiMockMode ? mockRules : (liveData ?? []).map(dtoToRule);
@@ -224,21 +232,25 @@ export function ValidationRules() {
       }
       setNotice(rule.id === "new" ? "Rule created." : "Rule saved.");
     } else {
+      // Notice is set in saveMutation's onSuccess/onError — not synchronously here,
+      // so a failed API call no longer shows a false success.
       saveMutation.mutate({ id: rule.id === "new" ? null : rule.id, payload });
-      setNotice(rule.id === "new" ? "Rule created." : "Rule saved.");
     }
     // Dismiss the mobile bottom-sheet on save; no-op on desktop (flag unused there).
     setEditorOpen(false);
   }
 
   function handleDelete(id: string) {
+    if (typeof window !== "undefined" && !window.confirm("Delete this validation rule? This cannot be undone.")) return;
     if (isApiMockMode) {
       setMockRules((prev) => prev.filter((r) => r.id !== id));
+      setNotice("Rule deleted.");
     } else {
+      // Notice is set in deleteMutation's onSuccess/onError — not synchronously here,
+      // so a failed API call no longer shows a false success.
       deleteMutation.mutate(id);
     }
     setSelId(null);
-    setNotice("Rule deleted.");
     // Dismiss the mobile bottom-sheet on delete; no-op on desktop (flag unused there).
     setEditorOpen(false);
   }

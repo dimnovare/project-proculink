@@ -3,14 +3,7 @@ import type {
   DeliveryTestResult,
   UpsertDeliveryConfigRequest,
 } from "./types";
-
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:5223";
-
-async function authHeader(): Promise<Record<string, string>> {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const token = await (window as any).Clerk?.session?.getToken();
-  return token ? { Authorization: `Bearer ${token}` } : {};
-}
+import { API_BASE_URL, authHeader } from "./core";
 
 async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   const auth = await authHeader();

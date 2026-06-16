@@ -722,8 +722,11 @@ function MappingPanel({
         a.href = url; a.download = "mappings.csv"; a.click();
         URL.revokeObjectURL(url);
         onDone("Export downloaded.");
+      } else if (panel.kind === "import" && !importFile) {
+        setError("Choose a CSV file first.");
+        setSaving(false);
       } else {
-        // No file selected for import, or other edge case
+        // Other edge case
         setSaving(false);
       }
     } catch (e: unknown) {
@@ -918,7 +921,7 @@ function MappingPanel({
           </button>
           <button
             onClick={handleAction}
-            disabled={saving}
+            disabled={saving || (panel.kind === "import" && !importFile)}
             className="flex h-10 items-center justify-center gap-1.5 rounded-[7px] px-4 text-[13px] font-semibold transition-colors"
             style={{ border: 0, background: saving ? "var(--ink-faint)" : GREEN, color: "#FFFFFF" }}
             onMouseEnter={(e) => { if (!saving) (e.currentTarget as HTMLElement).style.background = GREEN_DEEP; }}
