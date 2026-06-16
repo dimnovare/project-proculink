@@ -418,7 +418,7 @@ export function ConnectionDetail({ connectionId }: { connectionId: string }) {
           </Card>
 
           {/* ── Right: version history + lifecycle controls ──────────── */}
-          <Card title="Version history" sub="Every version, newest first">
+          <Card title="Version history" sub="Each version, newest first">
             {revisions.length === 0 ? (
               <p className="text-[12.5px] py-4" style={{ color: "var(--ink-muted)" }}>
                 No versions yet. Edit the mapping below to begin.

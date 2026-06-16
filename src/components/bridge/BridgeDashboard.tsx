@@ -80,12 +80,16 @@ const EXCEPTION_STATUSES = new Set([
 /** Orders that have reached a "processed" milestone, used for the auto-rate. */
 const ELIGIBLE_STATUSES = new Set(["ready", "ready_to_deliver", "delivered"]);
 
-/** Maps a raw API status to a short human label for the in-transit stage badge. */
+/** Maps a raw API status to a short human label for the in-transit stage badge.
+ *  Per-order labels match the inbox status badge (UnifiedStatusBadge is the source
+ *  of truth) so the SAME order never reads differently across screens — e.g.
+ *  pending_review is "Needs review" everywhere, not "Validate" here and
+ *  "Needs review" in the inbox. (The Parse→…→Deliver rail track names are separate.) */
 function stageLabel(status: string): string {
   switch (status) {
     case "parsing":         return "Parse";
     case "pending_parse":   return "Parse";
-    case "pending_review":  return "Validate";
+    case "pending_review":  return "Needs review";
     // Canonical pipeline vocabulary: "Transform" (not "Extract") and "Delivering"
     // (not "Ready") — a green "Ready" badge on an actively-delivering order
     // contradicted the per-row stepper.
@@ -98,7 +102,7 @@ function stageLabel(status: string): string {
 
 const STAGE_COLOR: Record<string, string> = {
   // Canonical human labels (live rows via stageLabel)
-  Parse: "#1E66C9", Validate: "#C97A14", Transform: "#6F4FCE", Delivering: "#2E8E3A", Failed: "#C53A3A",
+  Parse: "#1E66C9", "Needs review": "#C97A14", Validate: "#C97A14", Transform: "#6F4FCE", Delivering: "#2E8E3A", Failed: "#C53A3A",
   // Legacy human labels still emitted by the mock fallback rows
   Extract: "#6F4FCE", Ready: "#2E8E3A",
   // Raw API status values (defensive — if an unmapped status is shown verbatim)
@@ -119,6 +123,7 @@ function journeyStageFor(stage: string): OrderStage {
     case "Parse":          return 0;
     case "Normalize":      return 1;
     case "pending_review":
+    case "Needs review":
     case "Validate":       return 2;
     case "transforming":
     case "Extract":
