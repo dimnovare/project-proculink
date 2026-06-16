@@ -104,6 +104,12 @@ export interface OutputNode {
   rule?: OutputFieldRule | null;
   /** For an array node: the collection to repeat over (v1: "lines", the default). */
   collection?: string | null;
+  /**
+   * Optional CONDITIONAL inclusion — a bare Scriban boolean condition (no `{{ }}`), e.g.
+   * `line.Quantity > 0` or `order.Currency == "EUR"`. Falsy → this node is skipped (a field is
+   * omitted; on a list's item template, that line is dropped). Null/blank → always included.
+   */
+  includeWhen?: string | null;
 }
 
 export interface X12Envelope {

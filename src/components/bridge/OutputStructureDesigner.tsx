@@ -38,6 +38,31 @@ const TYPE_LABEL: Record<OutputNodeType, string> = {
   object: "{ } group", array: "[ ] list", field: "value", attribute: "@attr",
 };
 
+// Value-format presets — append a DateFormat / NumberFormat manipulator so a non-technical user gets
+// "Date" / "Number" / "Currency" formatting without hand-writing Scriban. The canonical date fields
+// arrive as ISO ("yyyy-MM-dd"), so DateFormat's input is fixed to that. NumberFormat parses the
+// invariant machine decimal and renders with a .NET format + culture.
+type Preset = { key: string; label: string; mani: { type: string; params: string[] } | null };
+const FORMAT_PRESETS: Preset[] = [
+  { key: "",        label: "No formatting",        mani: null },
+  { key: "date-iso", label: "Date · 2026-06-15",   mani: { type: "DateFormat",   params: ["yyyy-MM-dd", "yyyy-MM-dd"] } },
+  { key: "date-eu",  label: "Date · 15/06/2026",   mani: { type: "DateFormat",   params: ["yyyy-MM-dd", "dd/MM/yyyy"] } },
+  { key: "date-us",  label: "Date · 06/15/2026",   mani: { type: "DateFormat",   params: ["yyyy-MM-dd", "MM/dd/yyyy"] } },
+  { key: "num-us",   label: "Number · 1,234.50",   mani: { type: "NumberFormat", params: ["N2"] } },
+  { key: "num-eu",   label: "Number · 1.234,50",   mani: { type: "NumberFormat", params: ["N2", "de-DE"] } },
+  { key: "cur-eur",  label: "Currency · €1.234,50", mani: { type: "NumberFormat", params: ["C2", "de-DE"] } },
+  { key: "cur-usd",  label: "Currency · $1,234.50", mani: { type: "NumberFormat", params: ["C2", "en-US"] } },
+];
+const FORMAT_TYPES = new Set(["DateFormat", "NumberFormat"]);
+/** Which preset (if any) the node's manipulators currently match — by type + params. */
+function currentPreset(manis: { type: string; params: string[] }[] | undefined): string {
+  const fmt = (manis ?? []).find((m) => FORMAT_TYPES.has(m.type));
+  if (!fmt) return "";
+  const hit = FORMAT_PRESETS.find(
+    (p) => p.mani && p.mani.type === fmt.type && JSON.stringify(p.mani.params) === JSON.stringify(fmt.params));
+  return hit?.key ?? "";
+}
+
 function newField(name: string, canonicalField?: string): OutputNode {
   return { name, nodeType: "field", rule: { outputPath: name, canonicalField: canonicalField ?? null, fixedValue: null, fieldManipulators: [] } };
 }
@@ -206,7 +231,7 @@ export function OutputStructureDesigner({
 
         {/* Footer */}
         <div style={{ display: "flex", gap: 10, alignItems: "center", padding: "12px 18px", borderTop: `1px solid ${BORDER}` }}>
-          <span style={{ fontSize: 11.5, color: "#5A6B82" }}>Bind each value to an incoming field, a fixed value, or leave a list to repeat per order line.</span>
+          <span style={{ fontSize: 11.5, color: "#5A6B82" }}>Bind each value to a field or fixed value · format dates/numbers · &ldquo;only include when&rdquo; to add a field or drop lines conditionally.</span>
           <div style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
             <button onClick={onClose} style={{ height: 34, padding: "0 14px", borderRadius: 7, border: `1px solid ${BORDER}`, background: "#FFF", fontSize: 12.5, cursor: "pointer" }}>Cancel</button>
             <button onClick={() => void save()} disabled={saving}
@@ -249,9 +274,24 @@ function NodeEditor({
       },
     })));
 
+  const updateIncludeWhen = (value: string) =>
+    onUpdate((n) => updateAt(n, path, (x) => ({ ...x, includeWhen: value === "" ? null : value })));
+
+  // Set/clear a value-format preset: keep any non-format manipulators, swap the single format one.
+  const setFormatPreset = (key: string) =>
+    onUpdate((n) => updateAt(n, path, (x) => {
+      const others = (x.rule?.fieldManipulators ?? []).filter((m) => !FORMAT_TYPES.has(m.type));
+      const preset = FORMAT_PRESETS.find((p) => p.key === key);
+      const manis = preset?.mani ? [...others, preset.mani] : others;
+      return { ...x, rule: { outputPath: x.name, canonicalField: x.rule?.canonicalField ?? null, fixedValue: x.rule?.fixedValue ?? null, fieldManipulators: manis } };
+    }));
+
   const canonicalOptions = childScope ? CANONICAL_LINE_FIELDS : CANONICAL_HEADER_FIELDS;
   const boundCanonical = node.rule?.canonicalField ?? "";
   const usingFixed = node.rule?.fixedValue != null && node.rule?.canonicalField == null;
+  const presetKey = currentPreset(node.rule?.fieldManipulators);
+  // "Only include when…" is meaningful on any non-root node (a list ITEM uses it to drop lines).
+  const scopeHint = childScope ? "line" : "order";
 
   return (
     <div style={{ borderLeft: isRoot ? "none" : `2px solid #E5E9F1`, paddingLeft: isRoot ? 0 : 12, marginBottom: 6 }}>
@@ -277,6 +317,13 @@ function NodeEditor({
                 placeholder="value" aria-label="Fixed value"
                 style={{ width: 110, height: 30, border: `1px solid ${BORDER}`, borderRadius: 6, padding: "0 8px", fontSize: 12 }} />
             )}
+            {(boundCanonical || usingFixed) && (
+              <select value={presetKey} onChange={(e) => setFormatPreset(e.target.value)} aria-label="Value format"
+                title="Format this value (date / number / currency)"
+                style={{ height: 30, border: `1px solid ${BORDER}`, borderRadius: 6, padding: "0 6px", fontSize: 12, color: presetKey ? NAVY : SLATE }}>
+                {FORMAT_PRESETS.map((p) => <option key={p.key} value={p.key}>{p.label}</option>)}
+              </select>
+            )}
           </>
         )}
 
@@ -285,6 +332,18 @@ function NodeEditor({
             style={{ height: 30, width: 30, borderRadius: 6, border: `1px solid ${BORDER}`, background: "#FFF", color: "#C53A3A", cursor: "pointer" }}>✕</button>
         )}
       </div>
+
+      {/* Conditional inclusion (OutputNode.includeWhen) — a bare condition; the node/line is skipped
+          when it's false. Subtle by default; meaningful on any non-root node. */}
+      {!isRoot && (
+        <div style={{ display: "flex", gap: 6, alignItems: "center", marginTop: 4, marginLeft: 2 }}>
+          <span style={{ fontSize: 10.5, color: SLATE, whiteSpace: "nowrap" }}>only include when</span>
+          <input value={node.includeWhen ?? ""} onChange={(e) => updateIncludeWhen(e.target.value)}
+            placeholder={`always — e.g. ${scopeHint}.Quantity > 0`} aria-label="Only include when (condition)"
+            spellCheck={false}
+            style={{ flex: "1 1 160px", minWidth: 0, height: 26, border: `1px solid ${node.includeWhen ? BLUE : BORDER}`, borderRadius: 6, padding: "0 8px", fontSize: 11.5, fontFamily: "ui-monospace, Menlo, monospace", color: node.includeWhen ? NAVY : SLATE }} />
+        </div>
+      )}
 
       {isContainer && (
         <>
