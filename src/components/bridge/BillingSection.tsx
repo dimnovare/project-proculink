@@ -260,7 +260,7 @@ export function BillingSection() {
   const checkoutMutation = useMutation({
     mutationFn: ({ plan, interval }: { plan: BillingPlan; interval: BillingInterval }) =>
       createCheckoutSession(plan, interval),
-    onSuccess: (url) => { window.location.href = url; },
+    onSuccess: (url) => { if (url) window.location.href = url; },
   });
 
   const portalMutation = useMutation({
@@ -377,6 +377,11 @@ export function BillingSection() {
               </button>
             ))}
           </div>
+          {checkoutMutation.isError && (
+            <p style={{ margin: 0, fontSize: 12, color: "#C53A3A" }}>
+              {(checkoutMutation.error as Error)?.message || "Could not start checkout. Please try again."}
+            </p>
+          )}
           <a href="mailto:sales@proculink.eu" style={{ fontSize: 12, color: "var(--ink-faint)" }}>
             Need Enterprise? Contact sales
           </a>

@@ -36,6 +36,8 @@ type CardTemplate = {
   lastUsed: string;
   version: string;
   isDefault?: boolean;
+  /** Persisted template body, round-tripped into the editor textarea. */
+  config?: { body?: string } | null;
 };
 
 // Accent strip + chip routing per standard family.
@@ -85,6 +87,7 @@ function dtoToCard(t: TemplateDto): CardTemplate {
     suppliers: t.suppliersCount,
     lastUsed:  t.lastUsed,
     version:   t.version,
+    config:    (t.config ?? null) as { body?: string } | null,
   };
 }
 
@@ -360,6 +363,7 @@ function TemplatePanel({
     const name    = nameRef.current?.value.trim()    ?? "";
     const format  = fmtRef.current?.value            ?? "cXML";
     const version = versionRef.current?.value.trim() ?? "1.0";
+    const body    = bodyRef.current?.value;
 
     if (!name) {
       setValidation("Template name is required.");
@@ -369,10 +373,10 @@ function TemplatePanel({
     setSaving(true);
     try {
       if (isNew) {
-        await createTemplate({ name, format, version });
+        await createTemplate({ name, format, version, config: { body } });
         onSaved("Template created.", "ok");
       } else {
-        await updateTemplate(template.id, { name, format, version });
+        await updateTemplate(template.id, { name, format, version, config: { body } });
         onSaved("Template updated.", "ok");
       }
     } catch {
@@ -426,7 +430,7 @@ function TemplatePanel({
           <Field label="Template body">
             <textarea
               ref={bodyRef}
-              defaultValue={'<OrderRequest orderID="{po}">\n  <ItemOut sku="{item}" quantity="{qty}" />\n</OrderRequest>'}
+              defaultValue={template.config?.body ?? '<OrderRequest orderID="{po}">\n  <ItemOut sku="{item}" quantity="{qty}" />\n</OrderRequest>'}
               className="min-h-[180px] w-full rounded-[5px] border border-[#D5DAEA] bg-[#0B1A2F] px-3 py-3 font-mono text-[11.5px] leading-5 text-[#C5D2E4]"
             />
           </Field>

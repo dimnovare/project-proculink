@@ -199,7 +199,7 @@ function NotificationsBell() {
   const items = (ordersPage?.items ?? [])
     .map((o) => {
       let kind: "review" | "failed" | "delivered" | null = null;
-      if (o.status === "failed" || o.status === "delivery_failed" || o.status === "transform_failed") kind = "failed";
+      if (o.status === "failed" || o.status === "delivery_failed" || o.status === "transform_failed" || o.status === "delivery_dead_letter" || o.status === "rejected_by_supplier") kind = "failed";
       else if (o.status === "pending_review" || (o.unresolvedCount ?? 0) > 0) kind = "review";
       else if (o.status === "delivered") kind = "delivered";
       return kind ? { o, kind } : null;
@@ -454,9 +454,29 @@ export function BridgeTopbar({ crumb, onMenuClick }: BridgeTopbarProps) {
           </kbd>
         </button>
 
-        {/* Notifications — live popover (needs-review / failed / delivered).
-            ml-auto on mobile (search hidden) pushes the icon cluster right; reset on desktop. */}
-        <div className="ml-auto sm:ml-0 flex-shrink-0">
+        {/* Mobile search — icon-only trigger for the command palette (the full
+            search field and ⌘K are unreachable below sm). ml-auto here pushes the
+            whole icon cluster right on mobile; hidden from sm up where the field shows. */}
+        <button
+          type="button"
+          aria-label="Search"
+          onClick={() => setPaletteOpen(true)}
+          className="ml-auto flex sm:hidden items-center justify-center rounded-[6px] flex-shrink-0"
+          style={{
+            width: 32,
+            height: 32,
+            background: "transparent",
+            border: "1px solid transparent",
+            color: "#C5D2E4",
+            cursor: "pointer",
+            transition: "background 150ms, color 150ms",
+          }}
+        >
+          <Search size={17} strokeWidth={1.9} />
+        </button>
+
+        {/* Notifications — live popover (needs-review / failed / delivered). */}
+        <div className="flex-shrink-0">
           <NotificationsBell />
         </div>
 

@@ -605,7 +605,15 @@ export function BridgeDashboard() {
         o.createdAt,
       ].map(esc).join(","),
     );
-    const csv = [header.map(esc).join(","), ...body].join("\r\n");
+    // Make the 100-row working-set cap visible inside the file itself, not just
+    // on the button's hover title: a truncated export must say so.
+    const windowTotal = windowedReceivedPage?.totalCount ?? 0;
+    const truncated = windowTotal > allOrders.length;
+    const rows = [header.map(esc).join(","), ...body];
+    if (truncated) {
+      rows.unshift(`# Most recent ${allOrders.length} of ${windowTotal} orders in this window`);
+    }
+    const csv = rows.join("\r\n");
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -996,8 +1004,11 @@ export function BridgeDashboard() {
                     <div className="text-[13px] font-semibold" style={{ color: "#0B1A2F" }}>{noun} health</div>
                     {/* "Delivery success rate" (not "Acceptance rate"): this figure
                         measures successful pipeline delivery, not supplier acceptance.
-                        "last 30 days" is a real 30-day window (backend-filtered) — keep it. */}
-                    <div className="text-[11.5px]" style={{ color: "var(--ink-faint)" }}>Delivery success rate, last 30 days</div>
+                        The "last 30 days" qualifier is only honest on the server
+                        topology path (endpointHasData — backend 30-day window). On the
+                        client-derived fallback (and transiently before the topology
+                        query resolves) the figure is all-time, so drop the window. */}
+                    <div className="text-[11.5px]" style={{ color: "var(--ink-faint)" }}>Delivery success rate{endpointHasData ? ", last 30 days" : ""}</div>
                   </div>
                 </div>
                 <Link

@@ -72,9 +72,8 @@ export function buildMapperCommands(dispatch: (e: MapperCommandEvent) => void): 
 
   return [
     cmd("a13", "Jump to field",            "Search and focus a field in the mapper",   "⌖", "jump-to-field"),
-    cmd("a14", "Add a transform",          "Add a manipulator to the focused field",   "ƒ", "add-transform"),
+    cmd("a14", "Jump to a field's transform", "Scroll to the focused output field",    "ƒ", "add-transform"),
     cmd("a15", "Switch output format",     "Cycle the live-preview format",            "⇄", "switch-format"),
-    cmd("a16", "Show standards mapping",   "UBL / EDIFACT / X12 / cXML for this field", "≣", "show-standards"),
   ];
 }
 
