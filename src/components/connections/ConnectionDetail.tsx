@@ -458,7 +458,9 @@ export function ConnectionDetail({ connectionId }: { connectionId: string }) {
                           {status === "published"
                             ? `Live since ${formatDateTime(r.publishedAt)}`
                             : status === "archived"
-                              ? `Published ${formatDateTime(r.publishedAt)}`
+                              // Archived = either a superseded once-live version, or a discarded
+                              // draft that was never live (no publishedAt → don't claim "was live").
+                              ? (r.publishedAt ? `Was live · ${formatDateTime(r.publishedAt)}` : `Discarded`)
                               : `Created ${formatDateTime(r.createdAt)}`}
                         </span>
                       </div>
