@@ -2230,14 +2230,16 @@ export function SpineReview({ orderId }: { orderId: string }) {
 
       {tab === "review" && (
       <>
-      {/* Sub-view toggle — [Triage | Full document]. One-experience rule: the
-          default is deterministic (work to do → Triage), latched per order load;
-          ?view=classic|triage overrides. No localStorage. */}
+      {/* Sub-view toggle — [Fix issues (N) | Map fields]. Plain labels that name
+          what each view DOES (was "Triage | Full document" — jargon, and the second
+          view had a different name from its own CTA, reading as three views for two).
+          One-experience rule: the default is deterministic (work to do → Fix issues),
+          latched per order load; ?view=classic|triage overrides. No localStorage. */}
       <div className="flex-shrink-0 flex flex-wrap items-center gap-2 px-4 lg:px-6" style={{ background: "#FFFFFF", borderBottom: "1px solid #EEF0F4", paddingTop: 6, paddingBottom: 6 }}>
-        <div role="group" aria-label="Review layout" style={{ display: "inline-flex", borderRadius: 7, border: "1px solid #E2E6EE", overflow: "hidden" }}>
+        <div role="group" aria-label="Review view" style={{ display: "inline-flex", borderRadius: 7, border: "1px solid #E2E6EE", overflow: "hidden" }}>
           {([
-            { id: "triage" as const,  label: `Triage${exceptionCount + failingRuleCount > 0 ? ` (${exceptionCount + failingRuleCount})` : ""}` },
-            { id: "classic" as const, label: "Full document" },
+            { id: "triage" as const,  label: `Fix issues${exceptionCount + failingRuleCount > 0 ? ` (${exceptionCount + failingRuleCount})` : ""}` },
+            { id: "classic" as const, label: "Map fields" },
           ]).map((v) => {
             const active = subView === v.id;
             return (
@@ -2257,17 +2259,17 @@ export function SpineReview({ orderId }: { orderId: string }) {
             );
           })}
         </div>
-        {/* T6 — obvious one-click escape hatch to the drag-to-connect mapper.
-            PDF/needs-review orders default to Triage (no drag surface); without an
-            explicit affordance the visual mapper behind "Full document" is easy to
-            miss. xl-only because the drag canvas itself only mounts at xl. The
-            responsive class owns display — no inline `display` (it would defeat
-            `hidden xl:inline-flex`). */}
+        {/* Obvious one-click jump to the drag-to-connect mapper. PDF/needs-review
+            orders default to Fix issues (no drag surface); without an explicit
+            affordance the visual mapper behind "Map fields" is easy to miss. The
+            label MATCHES the pill word so it's plainly the same destination. xl-only
+            because the drag canvas itself only mounts at xl. The responsive class owns
+            display — no inline `display` (it would defeat `hidden xl:inline-flex`). */}
         {subView === "triage" && (
           <button
             type="button"
             onClick={() => switchSubView("classic")}
-            title="Open the full-document view to drag-and-drop map source fields onto the supplier's output"
+            title="Switch to Map fields — drag the supplier's incoming fields onto their output"
             className="hidden xl:inline-flex"
             style={{
               alignItems: "center", gap: 6, fontSize: 11.5, fontWeight: 700,
@@ -2275,7 +2277,7 @@ export function SpineReview({ orderId }: { orderId: string }) {
               background: "#F4EFFC", color: "#5E3DB0", border: "1px solid #D6C7F0",
             }}
           >
-            <span aria-hidden>↔</span> Map fields by dragging
+            <span aria-hidden>↔</span> Map fields
           </button>
         )}
         {validation.isStale && (

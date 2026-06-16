@@ -323,8 +323,8 @@ export function FixQueueTriage({ order, orderId, labels, lineEdit, resolve, vali
         </div>
         <p style={{ margin: 0, fontSize: 12, color: "#56627A", lineHeight: 1.5 }}>
           {total === 0
-            ? "This order has no open issues. Use Full document to inspect the source, canonical and output views."
-            : `Every blocker is cleared — ${labels.primaryCta.toLowerCase()} when ready, or switch to Full document to inspect the mapping.`}
+            ? "This order has no open issues. Open Map fields to see how the incoming fields map to the output."
+            : `Every blocker is cleared — ${labels.primaryCta.toLowerCase()} when ready, or open Map fields to check the mapping.`}
         </p>
       </div>
     </div>
@@ -717,8 +717,8 @@ const SHORTCUTS: Array<{ keys: string[]; label: string }> = [
   { keys: ["Enter"], label: "Commit the open code input" },
   { keys: ["↑", "↓"], label: "Move between open issues" },
   { keys: ["C"],     label: "Send (when nothing blocks)" },
-  { keys: ["G", "D"], label: "Go to the Full document view" },
-  { keys: ["G", "B"], label: "Go to the Triage (fix queue) view" },
+  { keys: ["G", "D"], label: "Go to the Map fields view" },
+  { keys: ["G", "B"], label: "Go to the Fix issues view" },
   { keys: ["?"],     label: "Show / hide this overlay" },
   { keys: ["Esc"],   label: "Close" },
 ];

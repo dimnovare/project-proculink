@@ -103,7 +103,7 @@ export const SECTION_GUIDES: SectionGuideEntry[] = [
     purpose: "Review one order — fix item codes and header details — before sending it on.",
     bullets: [
       { text: "Accept AI code suggestions or enter {supplier} codes manually" },
-      { text: "Work issues in the fix queue or the full document view" },
+      { text: "Switch between “Fix issues” and “Map fields” at the top" },
       { text: "Save field fixes as a reusable {supplier} mapping (desktop view)" },
       { text: "Validate the output against cXML 1.2, UBL 2.1, or X12 850 profiles" },
       { text: "Download or copy the output after the order is transformed" },

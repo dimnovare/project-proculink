@@ -243,7 +243,7 @@ export function OutputPreview({ order, crossed, fieldValues, onOutputAction, ord
               </div>
             )
           ) : (
-            <div style={{ color: C.cmt }}>{`// no output fragment for this issue — see the full preview in Full document`}</div>
+            <div style={{ color: C.cmt }}>{`// no output fragment for this issue — see the full preview in Map fields`}</div>
           )}
         </div>
       </div>
