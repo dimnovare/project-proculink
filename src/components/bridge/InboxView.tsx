@@ -343,16 +343,26 @@ function buildColumns(labels: PartyLabels) {
   columnHelper.display({
     id: "select",
     enableHiding: false,
-    header: ({ table }) => (
-      <input
-        type="checkbox"
-        style={{ accentColor: BLUE, cursor: "pointer", width: 13, height: 13 }}
-        checked={table.getIsAllPageRowsSelected()}
-        onChange={table.getToggleAllPageRowsSelectedHandler()}
-        aria-label="Select all sendable orders"
-        title="Selects orders that can be sent (Ready to send or Failed delivery)"
-      />
-    ),
+    header: ({ table }) => {
+      // Only ready_to_deliver / delivery_failed rows are selectable (enableRowSelection gate). On a
+      // view with none (e.g. "All orders" showing only Normalized / Needs review), select-all would
+      // select nothing and look DEAD. Disable it + say why, so the click isn't a silent no-op.
+      const selectable = table.getRowModel().rows.filter((r) => r.getCanSelect()).length;
+      const none = selectable === 0;
+      return (
+        <input
+          type="checkbox"
+          disabled={none}
+          style={{ accentColor: BLUE, cursor: none ? "not-allowed" : "pointer", width: 13, height: 13, opacity: none ? 0.4 : 1 }}
+          checked={!none && table.getIsAllPageRowsSelected()}
+          onChange={table.getToggleAllPageRowsSelectedHandler()}
+          aria-label={none ? "No sendable orders on this view" : "Select all sendable orders"}
+          title={none
+            ? "No orders here can be sent. Switch to the “Ready to send” or “Failed” tab to select orders to deliver."
+            : "Selects orders that can be sent (Ready to send or Failed delivery)"}
+        />
+      );
+    },
     cell: ({ row }) => {
       const canSelect = row.getCanSelect();
       return (
