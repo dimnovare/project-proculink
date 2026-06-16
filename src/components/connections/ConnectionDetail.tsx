@@ -167,8 +167,8 @@ export function ConnectionDetail({ connectionId }: { connectionId: string }) {
       invalidate();
       setNotice({
         text: rev
-          ? `Draft v${rev.versionNo} created${activeRevisionId ? " (cloned from the live version)" : ""}.`
-          : "Draft created.",
+          ? `Editing v${rev.versionNo}${activeRevisionId ? " (a copy of the live version)" : ""} — make your changes below, then make it live.`
+          : "Editable copy ready — make your changes below.",
         kind: "ok",
       });
     },
@@ -187,8 +187,8 @@ export function ConnectionDetail({ connectionId }: { connectionId: string }) {
       });
       setNotice(
         evidence.passed
-          ? { text: "Test pack passed — revision marked as test.", kind: "ok" }
-          : { text: "Test pack ran but FAILED — see the evidence below. Fix the issues before publishing.", kind: "err" },
+          ? { text: "Checks passed — this version is ready to make live.", kind: "ok" }
+          : { text: "Checks ran but FAILED — see the details below. Fix these before making it live.", kind: "err" },
       );
     },
     onError: onMutationError,
@@ -199,7 +199,7 @@ export function ConnectionDetail({ connectionId }: { connectionId: string }) {
     onSuccess: () => {
       invalidate();
       setConfirm(null);
-      setNotice({ text: "Published — this is now the live revision for new orders.", kind: "ok" });
+      setNotice({ text: "Live — new orders for this supplier use this version now.", kind: "ok" });
     },
     onError: (e) => {
       setConfirm(null);
@@ -217,8 +217,8 @@ export function ConnectionDetail({ connectionId }: { connectionId: string }) {
       setConfirm(null);
       setNotice({
         text: rev
-          ? `Rolled back — v${rev.versionNo} (a clone of the archived version) is now live for new orders.`
-          : "Rolled back.",
+          ? `Restored — v${rev.versionNo} is live for new orders now.`
+          : "Restored.",
         kind: "ok",
       });
     },
@@ -233,7 +233,7 @@ export function ConnectionDetail({ connectionId }: { connectionId: string }) {
     onSuccess: () => {
       invalidate();
       setConfirm(null);
-      setNotice({ text: "Revision archived.", kind: "ok" });
+      setNotice({ text: "Draft discarded.", kind: "ok" });
     },
     onError: (e) => {
       setConfirm(null);
@@ -282,7 +282,7 @@ export function ConnectionDetail({ connectionId }: { connectionId: string }) {
     <PageShell variant="wide">
       <PageHeader
         title={connection?.name ?? "Connection"}
-        sub="The versioned bundle this supplier receives — input mapping, output template, delivery and item codes"
+        sub="How this supplier's orders are mapped, validated and delivered"
         actions={
           <>
             <Link
@@ -296,18 +296,23 @@ export function ConnectionDetail({ connectionId }: { connectionId: string }) {
             >
               ← All connections
             </Link>
-            <Button
-              variant="primary"
-              size="md"
-              onClick={() => {
-                setNotice(null);
-                createDraftMutation.mutate();
-              }}
-              disabled={busy || isLoading || isError || !connection}
-              loading={createDraftMutation.isPending}
-            >
-              {activeRevisionId ? "Create draft from live" : "Create draft"}
-            </Button>
+            {/* Single context-aware action. While a draft is open the user is already
+                editing inline (no overlay) and "Make live" lives on the draft row, so the
+                header button steps aside to avoid a second-draft footgun + duplicate actions. */}
+            {!draftRevision && (
+              <Button
+                variant="primary"
+                size="md"
+                onClick={() => {
+                  setNotice(null);
+                  createDraftMutation.mutate();
+                }}
+                disabled={busy || isLoading || isError || !connection}
+                loading={createDraftMutation.isPending}
+              >
+                {activeRevisionId ? "Edit mapping" : "Create mapping"}
+              </Button>
+            )}
           </>
         }
       />
@@ -382,14 +387,7 @@ export function ConnectionDetail({ connectionId }: { connectionId: string }) {
                   catalogMode={activeRevision?.catalogMode ?? "live"}
                   loading={!activeRevision}
                 />
-                <div
-                  className="mt-4 pt-3 text-[12px] leading-[1.5]"
-                  style={{ borderTop: "1px solid var(--border)", color: "var(--ink-faint)" }}
-                >
-                  Published revisions are immutable — to change the live bundle, create a draft
-                  (it clones the live version), edit it, then publish.
-                </div>
-                <div className="mt-3 flex flex-wrap gap-2">
+                <div className="mt-4 pt-3 flex flex-wrap gap-2" style={{ borderTop: "1px solid var(--border)" }}>
                   <Link
                     href={`/library/suppliers/${connection.supplierId}`}
                     className="inline-flex h-[44px] sm:h-[32px] items-center rounded px-3 text-[12.5px] font-medium no-underline"
@@ -402,11 +400,11 @@ export function ConnectionDetail({ connectionId }: { connectionId: string }) {
             ) : (
               <div className="py-4">
                 <p className="text-[13px] font-semibold" style={{ color: "var(--ink)" }}>
-                  No published revision yet
+                  Nothing live yet
                 </p>
                 <p className="text-[12.5px] mt-1.5 leading-[1.55]" style={{ color: "var(--ink-muted)" }}>
-                  This connection only has drafts. Configure a draft using the supplier editors,
-                  run its tests, then publish it to make it live for new orders.
+                  Set up the mapping below, then make it live so new orders for this supplier
+                  start using it.
                 </p>
                 <Link
                   href={`/library/suppliers/${connection.supplierId}`}
@@ -419,11 +417,11 @@ export function ConnectionDetail({ connectionId }: { connectionId: string }) {
             )}
           </Card>
 
-          {/* ── Right: revision history + lifecycle controls ──────────── */}
-          <Card title="Revision history" sub="Every version of this connection and its lifecycle">
+          {/* ── Right: version history + lifecycle controls ──────────── */}
+          <Card title="Version history" sub="Every version, newest first">
             {revisions.length === 0 ? (
               <p className="text-[12.5px] py-4" style={{ color: "var(--ink-muted)" }}>
-                No revisions yet. Create a draft to begin.
+                No versions yet. Edit the mapping below to begin.
               </p>
             ) : (
               <ul className="flex flex-col gap-2 list-none p-0 m-0">
@@ -478,7 +476,7 @@ export function ConnectionDetail({ connectionId }: { connectionId: string }) {
                             loading={testMutation.isPending && testMutation.variables === r.id}
                             onClick={() => { setNotice(null); testMutation.mutate(r.id); }}
                           >
-                            Run tests
+                            Test
                           </Button>
                         )}
                         {canPublish && (
@@ -490,7 +488,7 @@ export function ConnectionDetail({ connectionId }: { connectionId: string }) {
                               setConfirm({ kind: "publish", revisionId: r.id, versionNo: r.versionNo })
                             }
                           >
-                            Publish
+                            Make live
                           </Button>
                         )}
                         {canRollback && (
@@ -503,7 +501,7 @@ export function ConnectionDetail({ connectionId }: { connectionId: string }) {
                               setConfirm({ kind: "rollback", revisionId: r.id, versionNo: r.versionNo })
                             }
                           >
-                            Roll back to this
+                            Restore this version
                           </Button>
                         )}
                         {canArchive && (
@@ -516,13 +514,8 @@ export function ConnectionDetail({ connectionId }: { connectionId: string }) {
                               setConfirm({ kind: "archive", revisionId: r.id, versionNo: r.versionNo })
                             }
                           >
-                            Archive
+                            Discard
                           </Button>
-                        )}
-                        {status === "published" && (
-                          <span className="text-[11.5px] self-center" style={{ color: "var(--ink-faint)" }}>
-                            Immutable — create a draft to change it
-                          </span>
                         )}
                       </div>
 
@@ -586,11 +579,11 @@ export function ConnectionDetail({ connectionId }: { connectionId: string }) {
               ) : (
                 <div className="py-4">
                   <p className="text-[13px] font-semibold" style={{ color: "var(--ink)" }}>
-                    No revision to map yet
+                    No mapping yet
                   </p>
                   <p className="text-[12.5px] mt-1.5 leading-[1.55]" style={{ color: "var(--ink-muted)" }}>
-                    Create a draft to start authoring the mapping for this connection, then run
-                    its tests and publish it.
+                    Start a mapping for this supplier — wire their incoming fields to the output,
+                    then make it live.
                   </p>
                   <Button
                     variant="primary"
@@ -600,7 +593,7 @@ export function ConnectionDetail({ connectionId }: { connectionId: string }) {
                     disabled={busy}
                     loading={createDraftMutation.isPending}
                   >
-                    Create draft
+                    Start mapping
                   </Button>
                 </div>
               )}
@@ -654,7 +647,7 @@ function TestEvidenceSummary({ evidence }: { evidence: RevisionTestEvidence }) {
       role="status"
     >
       <span className="font-semibold">
-        Test pack {passed ? "passed" : "failed"}
+        Checks {passed ? "passed" : "failed"}
       </span>
       <span> · {formatDateTime(testedAt)}</span>
       {(replay || conformance) && (
@@ -793,16 +786,16 @@ function ConfirmDialog({
   const isPublish = state.kind === "publish";
   const isRollback = state.kind === "rollback";
   const title = isPublish
-    ? `Publish v${state.versionNo}?`
+    ? `Make v${state.versionNo} live?`
     : isRollback
-      ? `Roll back to v${state.versionNo}?`
-      : `Archive v${state.versionNo}?`;
+      ? `Restore v${state.versionNo}?`
+      : `Discard v${state.versionNo}?`;
   const body = isPublish
-    ? "This becomes the live revision for new orders. The currently-published revision is archived. Orders already in flight keep the revision they were created with."
+    ? "New orders for this supplier will use this version from now on. Orders already in progress keep the version they started with."
     : isRollback
-      ? "Clones this revision as a new published version. The clone becomes the live revision for new orders and the currently-published revision is archived. This archived original stays unchanged, and orders pinned to it are unaffected."
-      : "Archiving removes this revision from the working set. Published revisions stay retained for orders that pinned them.";
-  const confirmLabel = isPublish ? "Publish" : isRollback ? "Roll back" : "Archive";
+      ? "Brings this older version back as the live one for new orders. Orders already in progress are unaffected."
+      : "Throws away this draft. Versions that are live (or were used by past orders) are kept.";
+  const confirmLabel = isPublish ? "Make live" : isRollback ? "Restore" : "Discard";
 
   return (
     <div

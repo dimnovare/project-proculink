@@ -25,11 +25,14 @@ const TONE_STYLE: Record<RevisionTone, ToneStyle> = {
 
 type Meta = { label: string; tone: RevisionTone };
 
+// Plain-language labels for the lifecycle states. The internal status strings
+// (draft/test/published/archived) stay unchanged on the wire — only what the
+// user reads changes: "published" → "Live", "archived" → "Previous".
 const META: Record<string, Meta> = {
   draft: { label: "Draft", tone: "neutral" },
-  test: { label: "Test", tone: "info" },
-  published: { label: "Published", tone: "success" },
-  archived: { label: "Archived", tone: "neutral" },
+  test: { label: "Tested", tone: "info" },
+  published: { label: "Live", tone: "success" },
+  archived: { label: "Previous", tone: "neutral" },
 };
 
 function humanize(status: string): string {

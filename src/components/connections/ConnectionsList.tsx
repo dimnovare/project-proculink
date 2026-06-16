@@ -128,11 +128,11 @@ export function ConnectionsList() {
                       <>
                         Live version{" "}
                         <span style={{ fontWeight: 600, color: "var(--ink)" }}>v{c.activeVersionNo}</span>
-                        {" · published "}
+                        {" · since "}
                         {formatDate(c.updatedAt)}
                       </>
                     ) : (
-                      <span style={{ fontStyle: "italic" }}>No published version yet</span>
+                      <span style={{ fontStyle: "italic" }}>Not live yet</span>
                     )}
                   </p>
                 </div>

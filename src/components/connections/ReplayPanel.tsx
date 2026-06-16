@@ -124,7 +124,7 @@ export function ReplayPanel({
             className="h-[44px] sm:h-[34px] rounded px-2.5 text-[12.5px]"
             style={{ background: "var(--surface)", border: "1px solid var(--border)", color: "var(--ink)", minWidth: 220 }}
           >
-            {revisions.length === 0 && <option value="">No revisions yet</option>}
+            {revisions.length === 0 && <option value="">No versions yet</option>}
             {revisions.map((r) => {
               const s = (r.status ?? "").toLowerCase();
               const live = r.id === activeRevisionId;
@@ -462,7 +462,7 @@ function FieldChangeTable({ changes }: { changes: ReplayFieldChange[] }) {
           <tr style={{ background: "var(--surface-2)" }}>
             <Th>Field</Th>
             <Th>Current</Th>
-            <Th>This revision</Th>
+            <Th>This version</Th>
           </tr>
         </thead>
         <tbody>
