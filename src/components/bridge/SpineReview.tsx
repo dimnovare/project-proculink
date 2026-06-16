@@ -18,10 +18,6 @@ import { FailedPanel, ParseFailedPanel } from "./FailedPanels";
 import { StatusJourney, type OrderStage } from "./StatusJourney";
 import { SpineReviewSkeleton } from "./Skeletons";
 import { StandardsFieldPopover } from "./StandardsFieldPopover";
-import { SpineConnectors } from "./SpineConnectors";
-import { WireDragLayer } from "./WireDragLayer";
-import { useSourceWireDrag } from "./SourceWireDragLayer";
-import { SourceTokenPanel } from "./SourceTokenPanel";
 // Phase 3 — the unified three-pane mapper replaces the hand-wired xl triptych as the
 // "Full document" review surface. variant="order"; it owns its own wiring/preview and
 // persists through buildOverrideDraft (carries sourceMap). The tablet/mobile fallbacks
@@ -1835,32 +1831,6 @@ export function SpineReview({ orderId }: { orderId: string }) {
       setActiveZone(node?.srcRef ?? null);
     }
   }, [nodes]);
-
-  // ── Source→canonical interactive wiring (desktop xl triptych) ────────────────
-  // Owns drag/keyboard/measure state for the LEFT side, mirroring WireDragLayer for
-  // the RIGHT side. chipProps() makes each source-token chip a drag handle; svg is
-  // the persistent-wire + drop-zone overlay rendered inside the grid. Only the token
-  // id + label are needed for the chip/keyboard ordering.
-  const sourceTokenList = useMemo(
-    () => sourceTokens.map((t) => ({ id: t.id, label: t.label })),
-    [sourceTokens],
-  );
-  const { chipProps: sourceChipProps, svg: sourceWireSvg } = useSourceWireDrag({
-    gridRef,
-    nodeEls,
-    dotEls,
-    tokenEls,
-    nodes: connectorNodes,
-    tokens: sourceTokenList,
-    onConnect: handleSourceWireConnect,
-    onDisconnect: handleSourceWireDisconnect,
-    sourceMap: mappingOverride?.sourceMap,
-    hoveredId,
-    // Hide the persistent source→canonical wires while the output-mapping editor
-    // slideover is open (render/opacity only — NOT in the signature/measure deps).
-    hidden: mapEditorOpen,
-    signature: `${connectorNodes.length}|${sourceTokenList.length}|${wireSig}|${hoveredId ?? ""}`,
-  });
 
   // exceptionCount comes from useOrderReview — SERVER truth only (gate G1).
 

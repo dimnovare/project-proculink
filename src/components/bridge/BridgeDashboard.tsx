@@ -485,10 +485,16 @@ export function BridgeDashboard() {
       value: !isApiMockMode
         ? (summaryLoading ? "…" : summaryError ? "—" : openExceptionsAll.toLocaleString())
         : fmt(openExceptionsAll),
-      label: "Urgent exceptions",
+      label: "Needs attention",
+      // NOTE: this count comes from GET /api/orders/summary, which is the live
+      // open backlog across ALL time — it is NOT filtered by the time-window
+      // selector (unlike "Orders received/delivered"). Labelling it with the
+      // window sub (e.g. "Last 30 days") falsely implied a windowed figure and
+      // let it read as contradictory next to a windowed "100% auto-processed".
+      // Say "open now" so the all-time open backlog can't be misread.
       sub: !isApiMockMode
-        ? (summaryLoading ? "…" : summaryError ? "Live data unavailable" : exceptionsBad ? "Needs review now" : "All clear")
-        : (ordersError ? "Live data unavailable" : exceptionsBad ? "Needs review now" : "All clear"),
+        ? (summaryLoading ? "…" : summaryError ? "Live data unavailable" : exceptionsBad ? "Open now — review needed" : "All clear")
+        : (ordersError ? "Live data unavailable" : exceptionsBad ? "Open now — review needed" : "All clear"),
       subColor: (!isApiMockMode ? (summaryLoading || summaryError) : (ordersLoading || ordersError))
         ? "#56627A"
         : exceptionsBad ? "#C97A14" : GREEN_DEEP,
