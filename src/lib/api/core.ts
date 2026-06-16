@@ -40,12 +40,47 @@ export const USE_MOCK =
 export const isApiMockMode = USE_MOCK;
 
 /**
+ * True in builds that have NO Clerk at all — in-memory mock mode or the live
+ * QA-bypass e2e harness. Used to skip the "wait for Clerk to load" step below,
+ * which would otherwise stall every request for the full timeout (window.Clerk
+ * never appears in these modes). Build-time inlined, so prod keeps the wait.
+ */
+const NO_CLERK_AUTH =
+  process.env.NEXT_PUBLIC_USE_MOCK === "true" ||
+  process.env.NEXT_PUBLIC_QA_BYPASS_AUTH === "true";
+
+/**
  * Returns an Authorization header with the current Clerk session JWT.
  * Uses window.Clerk (set by ClerkProvider) so this works outside React components.
+ *
+ * Cold-mount race: the (app) data queries can fire before Clerk has finished
+ * loading its session. Reading the token then yields undefined → the request
+ * goes out UNAUTHENTICATED → the API returns 401 → the query fails and parks
+ * itself, leaving the landing dashboard (and any screen loaded on a cold/hard
+ * page load) stuck on its empty state ("No deliveries yet", 0 orders) even
+ * though the API has data. Observed live on prod 2026-06-16: same request
+ * returned 200 with a token and 401 without. Fix: wait — hard-capped at 5s — for
+ * Clerk to finish loading before reading the token, so the very first request
+ * already carries a valid JWT. Skipped in mock / QA-bypass builds (no Clerk).
  */
 export async function authHeader(): Promise<Record<string, string>> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const token = await (window as any).Clerk?.session?.getToken();
+  const w = window as any;
+  if (!NO_CLERK_AUTH && typeof window !== "undefined") {
+    const start = Date.now();
+    // Clerk.loaded flips true once Clerk.load() resolves; once loaded, .session
+    // is either present (signed in → token) or null (signed out → no header).
+    while (Date.now() - start < 5000) {
+      if (w.Clerk?.loaded) break;
+      await new Promise((r) => setTimeout(r, 50));
+    }
+  }
+  let token: string | null | undefined;
+  try {
+    token = await w.Clerk?.session?.getToken?.();
+  } catch {
+    token = null;
+  }
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
