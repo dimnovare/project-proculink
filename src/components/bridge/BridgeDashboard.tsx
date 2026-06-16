@@ -507,9 +507,9 @@ export function BridgeDashboard() {
       sub: ordersError
         ? "Live data unavailable"
         : eligibleInWindow.length >= 3
-        ? autoSampled
-          ? "Based on latest 100"
-          : "No manual mapping needed"
+        // Make the denominator explicit so "100%" can't read as "everything is fine" while orders
+        // still need review — this is the % of COMPLETED orders that needed no manual mapping.
+        ? `${autoCount} of ${eligibleInWindow.length} completed orders${autoSampled ? " (latest 100)" : ""}`
         : "Needs 3+ completed orders",
       subColor: ordersError ? "#56627A" : eligibleInWindow.length >= 3 ? GREEN_DEEP : "#56627A",
       subIcon: ordersError ? undefined : eligibleInWindow.length >= 3 ? CheckCircle2 : Clock,
