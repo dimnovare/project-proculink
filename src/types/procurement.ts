@@ -646,6 +646,8 @@ export interface OrderValidationResult {
     rule: AcceptanceRule;
     passed: boolean;
     message?: string;
+    /** Plain-language headline from the rule catalog (e.g. "Unit price at most"); message is the why+fix. */
+    title?: string;
     lineNumber?: number;
     severity: "error" | "warning";
   }>;

@@ -2433,7 +2433,7 @@ async function realValidateOrder(orderId: string): Promise<OrderValidationResult
   // { orderId, passed, results } envelope. Normalise BOTH into the envelope shape
   // the UI expects, so an empty result (e.g. a supplier with no acceptance profile
   // → []) renders cleanly instead of crashing on `.results.length`.
-  type Row = { lineNumber?: number | null; severity?: string; status?: string; code?: string; message?: string };
+  type Row = { lineNumber?: number | null; severity?: string; status?: string; code?: string; message?: string; title?: string | null };
   const raw: unknown = await res.json();
   const rows: Row[] = Array.isArray(raw)
     ? (raw as Row[])
@@ -2459,6 +2459,7 @@ async function realValidateOrder(orderId: string): Promise<OrderValidationResult
         },
         passed: r.status === "pass",
         message: r.message ?? undefined,
+        title: r.title ?? undefined,
         lineNumber: r.lineNumber ?? undefined,
         severity,
       };

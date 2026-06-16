@@ -105,7 +105,8 @@ function freshCards(order: Order, validationResult: OrderValidationResult | null
         headerLevel: r.lineNumber == null,
         lineNumber: r.lineNumber,
         severity: KIND_SEVERITY["rule-failure"] + (r.severity === "warning" ? 1 : 0),
-        title: r.rule.fieldPath,
+        // Plain-language headline from the rule catalog; fall back to the field name.
+        title: r.title ?? r.rule.fieldPath,
         detail: r.message,
         resolved: false,
       });
