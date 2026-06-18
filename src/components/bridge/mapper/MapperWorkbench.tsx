@@ -23,7 +23,7 @@
 // The save contract (sourceMap + output via buildOverrideDraft, inside useMapperModel) is
 // UNCHANGED — this only changes the VIEW + adds incoming values + the robust overlay.
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "../DSPrimitives";
@@ -36,9 +36,28 @@ import { useMapperModel } from "./useMapperModel";
 import type { IncomingOrderShape } from "./incomingFromOrder";
 import { MAPPER_EVENT, type MapperCommandEvent } from "./mapperCommands";
 import type { OutgoingStatusInput } from "./outgoingStatusModel";
-import { computeOutgoingStatuses } from "./outgoingStatusModel";
+import { computeOutgoingStatus, computeOutgoingStatuses } from "./outgoingStatusModel";
 import type { FieldFilter, TargetField } from "./types";
 import type { OrderMappingOverride } from "@/lib/api/types";
+
+/**
+ * Optional collapse/focus state for the workbench's incoming + preview panes,
+ * driven by the Order Workshop's `useWorkshopLayout` (Task 12). PURELY additive:
+ * when `undefined` (every non-workshop host), both panes render at full width —
+ * byte-identical to the pre-workshop behavior.
+ *
+ *   • `incoming: "rail"` → the incoming column collapses to a thin chevron rail.
+ *   • `preview: "rail"`  → the docked preview collapses to a thin chevron rail.
+ * Any other value (`"auto"` | `"1fr"`) renders the pane in full (today's behavior).
+ */
+export interface MapperWorkbenchLayout {
+  incoming?: "rail" | "auto" | "1fr";
+  preview?: "rail" | "auto" | "1fr";
+  /** Expand the incoming rail back out (chevron click). */
+  onExpandIncoming?: () => void;
+  /** Expand the preview rail back out (chevron click). */
+  onExpandPreview?: () => void;
+}
 
 export interface MapperWorkbenchProps {
   variant: "order" | "connection";
@@ -66,12 +85,47 @@ export interface MapperWorkbenchProps {
   savingMappings?: boolean;
   /** Host "Validate" — open the standards-profile validation flow. */
   onValidate?: () => void;
+
+  // ── Order Workshop (Task 12) — ALL optional + additive; omitting them keeps
+  //    today's exact rendering (flag-off = byte-identical). ────────────────────
+  /**
+   * Rendered ABOVE the two value columns (the IssuesPanel, in the workshop). When
+   * absent nothing extra renders. Desktop region only — the mapper's mobile
+   * summary is unchanged.
+   */
+  issuesSlot?: ReactNode;
+  /**
+   * Collapse/focus the incoming + preview panes (driven by `useWorkshopLayout`).
+   * When absent both panes render full-width (today's behavior).
+   */
+  layout?: MapperWorkbenchLayout;
+  /**
+   * "Attention-first" default for the outgoing column: collapse the
+   * already-mapped (auto/wired/fixed) rows behind an "N mapped · review" chip and
+   * show only the rows that need attention (unmapped, required-unmapped). When
+   * absent or false, every output row renders (today's behavior). Uses the pure
+   * `splitMappings` boundary via the per-field outgoing status.
+   */
+  attentionFirstOutput?: boolean;
+  /**
+   * The trust threshold (0..1) from AI calibration. Only consulted when
+   * `attentionFirstOutput` is on. Defaults to 0.85 (mappingListModel's default).
+   */
+  trustedThreshold?: number;
+  /**
+   * External "focus this field" signal (the IssuesPanel "Where →" affordance).
+   * Bumping `focusFieldSignal` with a new `focusFieldId` selects + scrolls to that
+   * row, reusing the SAME mechanism as the `?field=` deep-link. Absent → no-op.
+   */
+  focusFieldId?: string | null;
+  focusFieldSignal?: number;
 }
 
 export function MapperWorkbench(props: MapperWorkbenchProps) {
   const {
     variant, readOnly, onDeliver, deliverDisabled, deliverLabel, extractionFailed,
     supplierName, onSaveMappings, saveMappingsLabel, savingMappings, onValidate,
+    issuesSlot, layout, attentionFirstOutput, trustedThreshold, focusFieldId, focusFieldSignal,
   } = props;
   const scopeId = (variant === "order" ? props.orderId : props.connectionId) ?? "";
 
@@ -127,6 +181,19 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
     }, 250);
     return () => clearTimeout(t);
   }, [selectedId, deepField, router, searchParams]);
+
+  // ── External focus signal (Order Workshop IssuesPanel "Where →") ───────────
+  // Reuses the SAME select + scroll mechanism as the ?field= deep-link, driven by
+  // a bumped signal so the SAME ref can be re-focused (a plain value-equality dep
+  // would no-op on a repeat click of the same issue). No-op when unused.
+  useEffect(() => {
+    if (focusFieldSignal == null || focusFieldSignal === 0 || !focusFieldId) return;
+    setSelectedId(focusFieldId);
+    setHoveredId(focusFieldId);
+    const el = targetEls.current[focusFieldId] ?? sourceRowEls.current[focusFieldId];
+    el?.scrollIntoView?.({ block: "center", behavior: "smooth" });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [focusFieldSignal]);
 
   // ── Command-palette power commands (plk:mapper event bus) ───────────────────
   const [focusSearchSignal, setFocusSearchSignal] = useState(0);
@@ -228,6 +295,44 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
   );
   const canDeliver = !readOnly && blockingCount === 0 && summary.requiredUnmapped === 0 && !deliverDisabled;
 
+  // ── Attention-first output split (Order Workshop, Task 12c) ──────────────────
+  // OFF by default → `attentionFields` === every field → identical to today. When
+  // ON, a row is "already mapped" (collapsed behind a chip) when it resolves to a
+  // value AND is not a required-unmapped field; "attention" = the rest the operator
+  // must still touch. The trust threshold is the AI calibration bound; auto/wired/
+  // fixed rows that resolve to a value are mapped regardless of a per-field
+  // confidence (the outgoing status, not a suggestion, is the source of truth here).
+  const [outputExpanded, setOutputExpanded] = useState(false);
+  const attentionSplit = useMemo(() => {
+    if (!attentionFirstOutput) {
+      return { attention: model.targetFields, mappedCount: 0 };
+    }
+    const attention: TargetField[] = [];
+    let mappedCount = 0;
+    for (const f of model.targetFields) {
+      const st = computeOutgoingStatus(f, statusInput);
+      // Needs attention: genuinely unmapped, OR required without a resolved value.
+      const needsAttention = !st.mapped || (st.required && !st.mapped);
+      if (needsAttention) attention.push(f);
+      else mappedCount++;
+    }
+    // Never hide everything: if a clean order has zero attention rows, fall back to
+    // the full list so the pane is never an empty box (the operator can still edit).
+    if (attention.length === 0) return { attention: model.targetFields, mappedCount: 0 };
+    return { attention, mappedCount };
+  }, [attentionFirstOutput, model.targetFields, statusInput]);
+  // The fields the outgoing pane actually renders: the attention subset by default,
+  // the full list once the operator expands the "N mapped · review" chip.
+  const outgoingFields =
+    attentionFirstOutput && !outputExpanded ? attentionSplit.attention : model.targetFields;
+  const collapsedMappedCount =
+    attentionFirstOutput && !outputExpanded ? attentionSplit.mappedCount : 0;
+
+  // ── Collapse state for the incoming + preview panes (Order Workshop, Task 12a).
+  //    `undefined` layout → never collapsed → today's full-width rendering. ──────
+  const incomingCollapsed = layout?.incoming === "rail";
+  const previewCollapsed = layout?.preview === "rail";
+
   // ── Per-row enrichment badges (catalog/validation ONLY — no 2nd transform editor) ──
   const badgeSlot = useCallback((field: TargetField) => {
     const validation =
@@ -297,9 +402,32 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
   );
 
   const outgoingNode = (
+    <>
+      {/* Attention-first chip — collapses the AI-/auto-mapped rows so only the rows
+          needing a human are shown by default. Workshop-only (off → not rendered). */}
+      {attentionFirstOutput && (collapsedMappedCount > 0 || outputExpanded) && (
+        <button
+          type="button"
+          onClick={() => setOutputExpanded((v) => !v)}
+          aria-expanded={outputExpanded}
+          title={outputExpanded
+            ? "Hide the already-mapped fields and show only what needs attention"
+            : "Show every output field, including the ones already mapped"}
+          style={{
+            display: "inline-flex", alignItems: "center", gap: 6, marginBottom: 8,
+            padding: "5px 11px", borderRadius: 999, fontSize: 11, fontWeight: 700,
+            border: "1px solid #E2D6F6", background: "#F4EFFC", color: "#5E3DB0", cursor: "pointer",
+          }}
+        >
+          <span aria-hidden style={{ display: "inline-block", transform: outputExpanded ? "rotate(90deg)" : "none", transition: "transform 150ms", fontSize: 9 }}>▸</span>
+          {outputExpanded
+            ? "Showing all fields — collapse the mapped ones"
+            : `${attentionSplit.mappedCount} mapped${model.suggestions.length > 0 ? " by AI" : ""} · review`}
+        </button>
+      )}
     <OutgoingPane
       variant={variant}
-      targetFields={model.targetFields}
+      targetFields={outgoingFields}
       outputConnections={model.outputConnections}
       fixedValues={model.fixedValues}
       statusInput={statusInput}
@@ -317,6 +445,7 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
       onFieldManipulatorsChange={model.onFieldManipulatorsChange}
       readOnly={readOnly}
     />
+    </>
   );
 
   const previewNode = (
@@ -350,6 +479,9 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
           }}
         />
       )}
+      {/* ── Issues slot (Order Workshop) — the IssuesPanel sits above the columns.
+          Absent for every non-workshop host → nothing extra renders. ───────── */}
+      {issuesSlot && <div className="mb-3">{issuesSlot}</div>}
       {/* ── Top action bar (desktop) ────────────────────────────────────── */}
       <div className="hidden lg:flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
@@ -476,30 +608,72 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
           A flex row that wraps. The CANVAS holds the two value columns + the wire SVG as ONE
           relatively-positioned unit (NOTHING sticky → the overlay scrolls with the columns).
           The preview docks to the right when it fits (≥~1440 total) and wraps to a full-width
-          region below otherwise. */}
+          region below otherwise.
+
+          Order Workshop collapse (Task 12a): when `layout.incoming === "rail"` the incoming
+          column becomes a thin chevron rail (the grid drops its first track), and when
+          `layout.preview === "rail"` the docked preview becomes a thin chevron rail. Both
+          default to the full pane when `layout` is absent — byte-identical to today. */}
       <div className="hidden lg:flex" style={{ flexWrap: "wrap", gap: 16, alignItems: "flex-start" }}>
         <div
           ref={canvasRef}
           data-mapper-canvas
           style={{ position: "relative", flex: "1 1 560px", minWidth: 0 }}
         >
-          {/* TRUE 2 columns: Incoming | gutter | Outgoing. The gutter is where wires live. */}
-          <div style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr) 64px minmax(0,1fr)", alignItems: "start" }}>
-            <div style={{ minWidth: 0 }}>{incomingNode}</div>
-            <div aria-hidden /> {/* wire gutter — empty, the SVG draws here */}
-            <div style={{ minWidth: 0 }}>{outgoingNode}</div>
-          </div>
+          {incomingCollapsed ? (
+            // Incoming collapsed to a rail — the wire source anchors aren't registered, so the
+            // engine simply draws no incoming wires (graceful). One click expands it back.
+            <div style={{ display: "grid", gridTemplateColumns: "40px 64px minmax(0,1fr)", alignItems: "start" }}>
+              <CollapsedRail label="Incoming" color="#1E66C9" onExpand={layout?.onExpandIncoming} />
+              <div aria-hidden />
+              <div style={{ minWidth: 0 }}>{outgoingNode}</div>
+            </div>
+          ) : (
+            // TRUE 2 columns: Incoming | gutter | Outgoing. The gutter is where wires live.
+            <div style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr) 64px minmax(0,1fr)", alignItems: "start" }}>
+              <div style={{ minWidth: 0 }}>{incomingNode}</div>
+              <div aria-hidden /> {/* wire gutter — empty, the SVG draws here */}
+              <div style={{ minWidth: 0 }}>{outgoingNode}</div>
+            </div>
+          )}
           {/* The engine SVG overlays the whole canvas (measured relative to it). */}
           {wire.svg}
         </div>
-        {/* Docked preview — always present. Right-sized: T7 over-widened it to a near-equal
-            share, crowding the wiring columns. It's a companion, not a second hero column, so
-            it takes a calmer share and still flex-wraps to full width when narrow. */}
-        <div style={{ flex: "1 1 360px", minWidth: 340 }}>
-          {previewNode}
-        </div>
+        {/* Docked preview — always present (a companion, not a second hero column). In the
+            workshop it can collapse to a rail to give the columns the full width. */}
+        {previewCollapsed ? (
+          <CollapsedRail label="Preview" color="#2E8E3A" onExpand={layout?.onExpandPreview} />
+        ) : (
+          <div style={{ flex: "1 1 360px", minWidth: 340 }}>
+            {previewNode}
+          </div>
+        )}
       </div>
     </div>
+  );
+}
+
+// ── A thin collapsed-zone rail with a chevron to expand it (Order Workshop) ───
+function CollapsedRail({ label, color, onExpand }: { label: string; color: string; onExpand?: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onExpand}
+      disabled={!onExpand}
+      aria-label={`Expand ${label}`}
+      title={`Expand ${label}`}
+      style={{
+        width: 40, minHeight: 220, alignSelf: "stretch",
+        display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 10,
+        borderRadius: 10, border: `1px solid ${color}33`, background: `${color}0D`,
+        color, cursor: onExpand ? "pointer" : "default", padding: "12px 0",
+      }}
+    >
+      <span aria-hidden style={{ fontSize: 13, fontWeight: 800 }}>›</span>
+      <span style={{ writingMode: "vertical-rl", transform: "rotate(180deg)", fontSize: 10.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em" }}>
+        {label}
+      </span>
+    </button>
   );
 }
 

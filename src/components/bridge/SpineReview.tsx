@@ -50,6 +50,11 @@ import { useOrderReview } from "./review/hooks/useOrderReview";
 import { useResolveActions } from "./review/hooks/useResolveActions";
 import { useAcceptanceValidation } from "./review/hooks/useAcceptanceValidation";
 import { useSendFlow } from "./review/hooks/useSendFlow";
+// Order Workshop V2 (flag-gated) — when on, the whole review screen is replaced by
+// the unified OrderWorkshop (IssuesPanel + the enhanced MapperWorkbench). Flag off =
+// the existing two-mode screen below, completely unchanged.
+import { OrderWorkshop } from "./workshop/OrderWorkshop";
+import { isOrderWorkshopEnabled } from "@/lib/flags";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -1989,6 +1994,15 @@ export function SpineReview({ orderId }: { orderId: string }) {
   }
   if (order.status === "delivery_failed") {
     return <FailedPanel order={order} stage="delivery" />;
+  }
+
+  // ── Order Workshop V2 (flag-gated) ──────────────────────────────────────────
+  // When NEXT_PUBLIC_ORDER_WORKSHOP_V2 is "true" OR the URL carries ?workshop=1,
+  // the unified OrderWorkshop replaces the two-mode screen below. Flag OFF → the
+  // existing screen renders unchanged (the branch below is never touched). All of
+  // this component's hooks have already run above, so the early return is safe.
+  if (isOrderWorkshopEnabled(searchParams)) {
+    return <OrderWorkshop orderId={orderId} />;
   }
 
   return (
