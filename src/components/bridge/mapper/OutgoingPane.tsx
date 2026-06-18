@@ -27,10 +27,11 @@
 
 import { useMemo, useState } from "react";
 import type { ManipulatorEntry } from "@/lib/api/types";
-import type { CanonicalNode, TargetField } from "./types";
+import type { CanonicalNode, SourceField, TargetField } from "./types";
 import { isTargetWired, isRenameAffordanceShown } from "./targetLaneModel";
 import { computeOutgoingStatus, type OutgoingStatusInput, type OutgoingFieldStatus } from "./outgoingStatusModel";
 import { TransformPopover } from "./TransformPopover";
+import { SourcePickerChip } from "./SourcePickerChip";
 
 export interface OutgoingPaneProps {
   variant: "order" | "connection";
@@ -69,6 +70,21 @@ export interface OutgoingPaneProps {
   manipulatorsOf?: (field: TargetField) => ManipulatorEntry[];
   /** Replace a field's transform chain (persists via the model). Required to enable transforms. */
   onFieldManipulatorsChange?: (outputPath: string, next: ManipulatorEntry[], scope: "header" | "line") => void;
+  /**
+   * Mapping interaction mode. "wires" (default) = today's drag-to-connect behavior, UNCHANGED.
+   * "picker" = each row's source is an inline searchable dropdown (no dragging) — the founder's
+   * simpler alternative, used by the Order Workshop. Workshop-gated, so the classic screen and the
+   * connection editor stay on "wires".
+   */
+  mappingMode?: "picker" | "wires";
+  /** The incoming fields offered as sources in picker mode (the model's sourceFields). */
+  incomingFields?: ReadonlyArray<SourceField>;
+  /**
+   * Picker mode: bind an output path to an incoming source id. The host routes this through the
+   * SAME wire-connect dispatch the drag path uses (onWireConnect → onTargetConnect/onSetFixedValue),
+   * so the save contract is identical.
+   */
+  onPickSource?: (outputPath: string, sourceId: string) => void;
   readOnly?: boolean;
 }
 
@@ -91,9 +107,13 @@ export function OutgoingPane({
   badgeSlot,
   manipulatorsOf,
   onFieldManipulatorsChange,
+  mappingMode = "wires",
+  incomingFields,
+  onPickSource,
   readOnly,
 }: OutgoingPaneProps) {
   const editable = variant === "connection" && !readOnly;
+  const pickerMode = mappingMode === "picker" && !readOnly && typeof onPickSource === "function";
   // RENAME stays connection-only (an order can't rename a supplier's declared schema), but ADDING
   // an output field is allowed in BOTH variants — an order may need to inject a field the default
   // schema lacks (e.g. credentials). Gate "add" on a real onAddField handler + not-read-only, not
@@ -150,6 +170,9 @@ export function OutgoingPane({
               manipulators={manipulatorsOf?.(field)}
               onFieldManipulatorsChange={onFieldManipulatorsChange}
               badgeSlot={badgeSlot}
+              pickerMode={pickerMode}
+              incomingFields={incomingFields}
+              onPickSource={onPickSource}
             />
           ))}
         </div>
@@ -162,6 +185,7 @@ export function OutgoingPane({
 function OutgoingRow({
   field, status, wired, fixedValue, hovered, snapped, canRename, readOnly,
   portRef, onHover, onSelect, onDisconnect, onSetFixedValue, onRenamePath, manipulators, onFieldManipulatorsChange, badgeSlot,
+  pickerMode, incomingFields, onPickSource,
 }: {
   field: TargetField;
   status: OutgoingFieldStatus;
@@ -180,6 +204,9 @@ function OutgoingRow({
   manipulators?: ManipulatorEntry[];
   onFieldManipulatorsChange?: (outputPath: string, next: ManipulatorEntry[], scope: "header" | "line") => void;
   badgeSlot?: (field: TargetField) => React.ReactNode;
+  pickerMode?: boolean;
+  incomingFields?: ReadonlyArray<SourceField>;
+  onPickSource?: (outputPath: string, sourceId: string) => void;
 }) {
   const [renaming, setRenaming] = useState(false);
   const [draftPath, setDraftPath] = useState(field.outputPath);
@@ -294,18 +321,36 @@ function OutgoingRow({
           </button>
         )}
 
-        {/* INLINE action cluster: status tag + (Fixed) + (Transform). nowrap so the controls
-            never spill onto a disconnected second line; the field name shrinks first. */}
+        {/* INLINE action cluster: source picker / status tag + (Fixed) + (Transform). nowrap so the
+            controls never spill onto a disconnected second line; the field name shrinks first. */}
         <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0, minWidth: 0 }}>
-          <OutgoingStatusTag
-            status={status}
-            onDisconnect={!readOnly && wired ? onDisconnect : undefined}
-            onEditFixed={!readOnly && status.kind === "fixed" && onSetFixedValue ? startFixedEdit : undefined}
-          />
+          {pickerMode && onPickSource ? (
+            // PICKER mode — the row's source is an inline searchable dropdown (no dragging). Picking
+            // routes through the host's onPickSource (→ the same wire-connect dispatch).
+            <SourcePickerChip
+              outputPath={field.outputPath}
+              status={status}
+              incomingFields={incomingFields ?? []}
+              onPickSource={(sourceId) => onPickSource(field.outputPath, sourceId)}
+              onPickFixed={startFixedEdit}
+              onClear={() => {
+                if (wired) onDisconnect?.(field.outputPath);
+                else if (status.kind === "fixed") onSetFixedValue?.(field.outputPath, null);
+              }}
+              readOnly={readOnly}
+            />
+          ) : (
+            <OutgoingStatusTag
+              status={status}
+              onDisconnect={!readOnly && wired ? onDisconnect : undefined}
+              onEditFixed={!readOnly && status.kind === "fixed" && onSetFixedValue ? startFixedEdit : undefined}
+            />
+          )}
 
           {/* Fixed value — meaningful only when not wired and not already a fixed chip (that chip
-              is itself the edit affordance). Real control, or disabled-with-reason. */}
-          {!readOnly && !wired && status.kind !== "fixed" && (
+              is itself the edit affordance). In picker mode the chip's footer owns "= Fixed value…",
+              so the inline chip is hidden there. Real control, or disabled-with-reason. */}
+          {!readOnly && !pickerMode && !wired && status.kind !== "fixed" && (
             onSetFixedValue ? (
               <RowChipButton
                 label="= value"

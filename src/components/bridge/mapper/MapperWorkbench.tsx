@@ -92,6 +92,13 @@ export interface MapperWorkbenchProps {
    * behavior (model.outputFormat, then CSV).
    */
   previewDefaultFormat?: OutputFormatId | null;
+  /**
+   * The mapping interaction mode. "wires" (default) keeps today's drag-to-connect mapper — the
+   * classic /inbox screen and the connection editor are UNCHANGED. "picker" turns each output row's
+   * source into an inline searchable dropdown (no dragging) and HIDES the wires by default (a "Show
+   * connections" toggle reveals the existing wire layer). The Order Workshop passes "picker".
+   */
+  mappingMode?: "picker" | "wires";
 
   // ── Order Workshop (Task 12) — ALL optional + additive; omitting them keeps
   //    today's exact rendering (flag-off = byte-identical). ────────────────────
@@ -133,8 +140,9 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
     variant, readOnly, onDeliver, deliverDisabled, deliverLabel, extractionFailed,
     supplierName, onSaveMappings, saveMappingsLabel, savingMappings, onValidate,
     issuesSlot, layout, attentionFirstOutput, trustedThreshold, focusFieldId, focusFieldSignal,
-    previewDefaultFormat,
+    previewDefaultFormat, mappingMode = "wires",
   } = props;
+  const pickerMode = mappingMode === "picker";
   const scopeId = (variant === "order" ? props.orderId : props.connectionId) ?? "";
 
   const model = useMapperModel({
@@ -165,6 +173,9 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<FieldFilter>("all");
   const [showDesigner, setShowDesigner] = useState(false);
+  // Picker mode hides the wires by default; this toggle reveals the existing wire layer. In "wires"
+  // mode the wires always show (this is ignored), so the classic screen is unchanged.
+  const [showConnections, setShowConnections] = useState(false);
   const qc = useQueryClient();
 
   // ── Deep-link: ?field=<key> selects + scrolls to a row ─────────────────────
@@ -270,12 +281,16 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
   const incomingCollapsed = layout?.incoming === "rail";
   const previewCollapsed = layout?.preview === "rail";
 
+  // Suppress the wire SVG when:
+  //   • the INCOMING column is collapsed to a rail (bug 8) — its source anchors are no longer
+  //     rendered, but the engine keeps last-good positions, so wires would draw into the void; or
+  //   • we're in PICKER mode and the operator hasn't opted into "Show connections" — picker mode
+  //     maps via the inline dropdown, so wires are off by default.
+  // Collapsing the PREVIEW doesn't touch the wire span, so it doesn't gate the SVG. "wires" mode
+  // never collapses and isn't picker → wires always show, the old screen is unchanged.
+  const wiresHidden = incomingCollapsed || (pickerMode && !showConnections);
+
   // ── Wire engine (2-bank, robust in-content overlay) ─────────────────────────
-  // Suppress the wire SVG when the INCOMING column is collapsed to a rail (bug 8): its source
-  // anchors are no longer rendered, but the engine keeps the last-good positions, so without this
-  // wires would draw from where the column USED to be — into the void. (Collapsing the PREVIEW
-  // doesn't touch the wire span, so it doesn't gate the SVG.) "wires" mode never collapses → wires
-  // always show, the old screen is unchanged.
   const wire = useMapperWireLayer({
     canvasRef,
     sourceEls,
@@ -291,7 +306,7 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
     onRejectSuggestion: model.onRejectSuggestion,
     hoveredId,
     readOnly,
-    hidden: incomingCollapsed,
+    hidden: wiresHidden,
     signature: model.signature,
   });
 
@@ -458,6 +473,9 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
       badgeSlot={badgeSlot}
       manipulatorsOf={(field) => fieldManipulatorsOf(model.override, field.outputPath)}
       onFieldManipulatorsChange={model.onFieldManipulatorsChange}
+      mappingMode={mappingMode}
+      incomingFields={model.sourceFields}
+      onPickSource={(outputPath, sourceId) => onWireConnect(sourceId, outputPath)}
       readOnly={readOnly}
     />
     </>
@@ -517,6 +535,26 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
           )}
         </div>
         <div className="flex items-center gap-2">
+          {pickerMode && (
+            // Picker mode hides the drag-wires by default (you map via the inline source dropdown).
+            // This toggle reveals the existing wire layer for anyone who wants the visual connections.
+            <button
+              type="button"
+              onClick={() => setShowConnections((v) => !v)}
+              aria-pressed={showConnections}
+              title={showConnections ? "Hide the connection wires" : "Show the connection wires between received and output fields"}
+              style={{
+                display: "inline-flex", alignItems: "center", gap: 5, fontSize: 10.5, fontWeight: 700,
+                color: showConnections ? "#185FA5" : "#56627A",
+                background: showConnections ? "#E6F1FB" : "#F3F4F7",
+                border: `1px solid ${showConnections ? "#B5D4F4" : "#E2E6EE"}`,
+                borderRadius: 5, padding: "2px 9px", cursor: "pointer",
+              }}
+            >
+              <span aria-hidden>{showConnections ? "◉" : "○"}</span>
+              {showConnections ? "Hide connections" : "Show connections"}
+            </button>
+          )}
           {summary.requiredUnmapped > 0 && (
             <span
               title="A required output field still has no source — wire one or set a fixed value"
