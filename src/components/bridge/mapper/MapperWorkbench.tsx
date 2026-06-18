@@ -202,10 +202,14 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
       el = at(bare);
       if (el) return { key: bare, el };
     }
-    if (bare) {
+    // Whole-segment match only (split on path punctuation) so a short ref can't
+    // substring-collide with an unrelated key — e.g. "PoNumber" must not match
+    // "PoNumberRef"; a line GUID matches `lines[{guid}].itemCode` as one segment.
+    if (bare && bare.length >= 4) {
+      const seg = (k: string) => k.split(/[^A-Za-z0-9_-]+/);
       for (const map of [targetEls.current, sourceRowEls.current]) {
         for (const [k, v] of Object.entries(map)) {
-          if (v && k.includes(bare)) return { key: k, el: v };
+          if (v && seg(k).includes(bare)) return { key: k, el: v };
         }
       }
     }
@@ -772,9 +776,10 @@ function CollapsedRail({ label, color, onExpand }: { label: string; color: strin
   );
 }
 
-// ── In-header collapse caret — rails a full pane to its CollapsedRail. Sits at the
-//    pane's top-right (the design's collapse-caret slot), chevron pointing toward the
-//    screen edge the pane will fold to. Only rendered when a collapse handler exists. ──
+// ── Collapse caret — rails a full pane to its CollapsedRail. Rendered as a slim
+//    mid-height tab in the INTER-PANE GUTTER (not over the pane header) so it never
+//    overlaps a pane's own header controls (preview Copy/Download/format pills etc.).
+//    Chevron points the way the pane folds. Only rendered when a handler exists. ──
 function PaneCollapseCaret({ side, label, onClick }: { side: "left" | "right"; label: string; onClick: () => void }) {
   return (
     <button
@@ -783,15 +788,17 @@ function PaneCollapseCaret({ side, label, onClick }: { side: "left" | "right"; l
       aria-label={`Collapse ${label}`}
       title={`Collapse ${label}`}
       style={{
-        position: "absolute", top: 12, right: 12, zIndex: 5,
-        width: 22, height: 22, borderRadius: 6, border: "1px solid #E2E6EE",
+        position: "absolute", top: 64, zIndex: 6,
+        ...(side === "left" ? { right: -13 } : { left: -13 }),
+        width: 22, height: 30, borderRadius: 6, border: "1px solid #E2E6EE",
         background: "#FFFFFF", color: "#56627A", cursor: "pointer",
         display: "inline-flex", alignItems: "center", justifyContent: "center",
-        fontSize: 12, fontWeight: 800, lineHeight: 1, padding: 0,
-        transition: "background .12s, border-color .12s",
+        fontSize: 13, fontWeight: 800, lineHeight: 1, padding: 0,
+        boxShadow: "0 1px 3px rgba(11,26,47,.10)",
+        transition: "background .12s, border-color .12s, color .12s",
       }}
-      onMouseEnter={(e) => { e.currentTarget.style.background = "#EFF2F7"; e.currentTarget.style.borderColor = "#C6CDDA"; }}
-      onMouseLeave={(e) => { e.currentTarget.style.background = "#FFFFFF"; e.currentTarget.style.borderColor = "#E2E6EE"; }}
+      onMouseEnter={(e) => { e.currentTarget.style.background = "#EFF2F7"; e.currentTarget.style.borderColor = "#1E66C9"; e.currentTarget.style.color = "#0B1A2F"; }}
+      onMouseLeave={(e) => { e.currentTarget.style.background = "#FFFFFF"; e.currentTarget.style.borderColor = "#E2E6EE"; e.currentTarget.style.color = "#56627A"; }}
     >
       {side === "left" ? "‹" : "›"}
     </button>
