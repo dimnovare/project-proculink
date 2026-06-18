@@ -28,7 +28,6 @@ import { useOrderDirection } from "@/hooks/useOrderDirection";
 import type { OrderMappingOverride } from "@/lib/api/types";
 import type { CalibrationSummary } from "@/types/procurement";
 import { MapperWorkbench, type MapperWorkbenchLayout } from "../mapper/MapperWorkbench";
-import { SpineReviewSkeleton } from "../Skeletons";
 import { UnifiedStatusBadge } from "../UnifiedStatusBadge";
 import { ConfirmDialog } from "../review/ConfirmDialog";
 import { buildFixQueue, type FixQueueCard } from "../review/buildFixQueue";
@@ -39,6 +38,9 @@ import { useAcceptanceValidation } from "../review/hooks/useAcceptanceValidation
 import { useSendFlow } from "../review/hooks/useSendFlow";
 import { useWorkshopLayout, type WorkshopFocus } from "./useWorkshopLayout";
 import { IssuesPanel, type WorkshopIssue } from "./IssuesPanel";
+import { WorkshopStepper } from "./WorkshopStepper";
+import { SendReadinessStrip, type BlockerChip } from "./SendReadinessStrip";
+import { WorkshopBrandLoader } from "./WorkshopBrandLoader";
 
 /** The default trust threshold when no calibration history exists (mirrors mappingListModel). */
 const DEFAULT_TRUSTED_THRESHOLD = 0.85;
@@ -144,6 +146,7 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
   //    same field can be re-focused on a repeat click. ─────────────────────────
   const [focusFieldId, setFocusFieldId] = useState<string | null>(null);
   const [focusSignal, setFocusSignal] = useState(0);
+  const [sendTip, setSendTip] = useState(false);
   const onFocusField = useCallback((ref: string) => {
     setFocusFieldId(ref);
     setFocusSignal((n) => n + 1);
@@ -160,13 +163,25 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
   // ── Send gate: zero issues AND server-truth exceptionCount clear. ───────────
   const blockingIssues = issues.filter((i) => i.severity === "blocking").length;
   const canSend = !crossed && sendState === "idle" && blockingIssues === 0 && exceptionCount === 0;
+  const sendReady = blockingIssues === 0 && exceptionCount === 0;
+
+  // ── v3 chrome derivations (pipeline stepper + send-readiness strip) ──────────
+  // Parse + Normalize are always done (the order is parsed); the active stage walks
+  // forward as work clears: needs-work → Validate, ready → Transform, sending →
+  // Transform/Deliver, delivered → complete (5).
+  const stepperStage = crossed ? 5 : sendState === "delivering" ? 4 : sendState === "transforming" ? 4 : sendReady ? 3 : 2;
+  const stepperFailed = flowSeverity === "error";
+  const blockerChips: BlockerChip[] = issues
+    .filter((i) => i.severity === "blocking")
+    .map((i) => ({ id: i.ref, name: i.title }));
+  const noteCount = issues.filter((i) => i.severity === "warning").length;
 
   // ── Display helpers for the header + confirm dialog ──────────────────────────
   const grandTotalLabel = order ? formatMoney(order.currency, resolvedGrandTotal(order)) : "";
   const outputFormatLabel = order ? outputArtifactType(order.artifacts) : "";
 
   // ── Loading / error gates (after all hooks) ─────────────────────────────────
-  if (!queryEnabled || isLoading || order === undefined) return <SpineReviewSkeleton />;
+  if (!queryEnabled || isLoading || order === undefined) return <WorkshopBrandLoader />;
   if (isError || order === null) {
     return (
       <div className="flex flex-col items-center justify-center h-full gap-4" style={{ background: "#F6F7FA" }}>
@@ -191,11 +206,14 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
       {/* ── Header: back · PO · status · buyer→supplier · focus control · Send ── */}
       <div className="flex-shrink-0" style={{ background: "#FFFFFF", borderBottom: "1px solid #E2E6EE" }}>
         <div className="flex flex-wrap items-center gap-x-4 gap-y-3 px-4 pt-3.5 pb-3.5 lg:px-6">
-          <div className="flex min-w-0 items-center gap-3 lg:flex-1">
+          <div className="flex min-w-0 items-center gap-3 flex-shrink-0">
             <button
               onClick={() => router.push("/inbox")}
               aria-label="Back to inbox"
-              style={{ width: 30, height: 30, border: "1px solid #E2E6EE", borderRadius: 7, background: "#FFFFFF", color: "#56627A", cursor: "pointer", fontSize: 14, flexShrink: 0 }}
+              className="plk-back"
+              style={{ width: 30, height: 30, border: "1px solid #E2E6EE", borderRadius: 7, background: "#FFFFFF", color: "#56627A", cursor: "pointer", fontSize: 14, flexShrink: 0, display: "inline-flex", alignItems: "center", justifyContent: "center" }}
+              onMouseEnter={(e) => { e.currentTarget.style.borderColor = "#1E66C9"; e.currentTarget.style.background = "#E3EDFB"; }}
+              onMouseLeave={(e) => { e.currentTarget.style.borderColor = "#E2E6EE"; e.currentTarget.style.background = "#FFFFFF"; }}
             >
               ←
             </button>
@@ -216,31 +234,55 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
             </div>
           </div>
 
-          {/* Focus: All / Mapping / Output — the progressive-disclosure control. */}
-          <FocusControl focus={lay.focus} onFocus={lay.setFocus} />
+          {/* Pipeline stepper — fills the header center on xl+. */}
+          <WorkshopStepper stage={stepperStage} failed={stepperFailed} />
 
-          {/* Send — gated by canSend (issues clear + server-truth exceptions clear). */}
-          <button
-            type="button"
-            onClick={() => canSend && setShowConfirm(true)}
-            disabled={!canSend}
-            aria-label={labels.primaryCta}
-            style={{
-              height: 36, padding: "0 18px", borderRadius: 8, fontSize: 13, fontWeight: 700,
-              background: canSend ? "#2E8E3A" : "#96C69C", color: "#FFFFFF", border: "none",
-              cursor: canSend ? "pointer" : "default", whiteSpace: "nowrap", flexShrink: 0,
-            }}
-          >
-            {crossed
-              ? labels.doneLabel
-              : sendState === "transforming"
-                ? "Generating…"
-                : sendState === "delivering"
-                  ? labels.primaryCtaProgress
-                  : blockingIssues > 0 || exceptionCount > 0
-                    ? `Fix ${Math.max(blockingIssues, exceptionCount)} to send`
-                    : labels.primaryCta}
-          </button>
+          {/* Focus + Send — right-aligned (the stepper fills the gap on xl). */}
+          <div className="flex items-center gap-3.5 flex-shrink-0 ml-auto xl:ml-0">
+            {/* Focus: All / Mapping / Output — the progressive-disclosure control. */}
+            <FocusControl focus={lay.focus} onFocus={lay.setFocus} />
+
+            {/* Send — gated by canSend (issues clear + server-truth exceptions clear). */}
+            <div style={{ position: "relative" }} onMouseEnter={() => setSendTip(true)} onMouseLeave={() => setSendTip(false)}>
+              <button
+                type="button"
+                onClick={() => canSend && setShowConfirm(true)}
+                disabled={!canSend}
+                aria-label={labels.primaryCta}
+                style={{
+                  height: 36, padding: "0 18px", borderRadius: 8, fontSize: 13, fontWeight: 700,
+                  background: canSend ? "#2E8E3A" : "#A9CDAD", color: "#FFFFFF",
+                  border: `1px solid ${canSend ? "#1E6D29" : "#A9CDAD"}`,
+                  cursor: canSend ? "pointer" : "not-allowed", whiteSpace: "nowrap", flexShrink: 0,
+                  display: "inline-flex", alignItems: "center", gap: 8, transition: "filter .12s",
+                }}
+                onMouseEnter={(e) => { if (canSend) e.currentTarget.style.filter = "brightness(1.07)"; }}
+                onMouseLeave={(e) => { e.currentTarget.style.filter = "none"; }}
+              >
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden>
+                  <path d="M14.5 1.5 7.2 8.8M14.5 1.5 9.8 14.5 7.2 8.8 1.5 6.2 14.5 1.5Z" stroke="#FFFFFF" strokeWidth="1.3" strokeLinejoin="round" />
+                </svg>
+                {crossed
+                  ? labels.doneLabel
+                  : sendState === "transforming"
+                    ? "Generating…"
+                    : sendState === "delivering"
+                      ? labels.primaryCtaProgress
+                      : blockingIssues > 0 || exceptionCount > 0
+                        ? `Fix ${Math.max(blockingIssues, exceptionCount)} to send`
+                        : labels.primaryCta}
+              </button>
+              {sendTip && !canSend && !crossed && sendState === "idle" && (blockingIssues > 0 || exceptionCount > 0) && (
+                <div
+                  role="tooltip"
+                  style={{ position: "absolute", top: "calc(100% + 8px)", right: 0, width: 230, background: "#0B1A2F", color: "#FFFFFF", borderRadius: 8, padding: "9px 12px", fontSize: 11.5, lineHeight: 1.5, boxShadow: "0 12px 30px rgba(11,26,47,.28)", zIndex: 60 }}
+                >
+                  Fill {Math.max(blockingIssues, exceptionCount)} required field{Math.max(blockingIssues, exceptionCount) > 1 ? "s" : ""} below first — they&apos;re highlighted in <b>what we send</b>.
+                  <span style={{ position: "absolute", top: -5, right: 24, width: 10, height: 10, background: "#0B1A2F", transform: "rotate(45deg)" }} />
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       </div>
 
@@ -262,6 +304,12 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
         </div>
       )}
 
+      {/* ── Send-readiness strip — slim, full-width; replaces the old issues card.
+          Desktop only; the mobile view keeps the full IssuesPanel list below. ──── */}
+      <div className="hidden xl:block flex-shrink-0">
+        <SendReadinessStrip blockers={blockerChips} notes={noteCount} ready={sendReady} onJump={onFocusField} />
+      </div>
+
       {/* ── Body ─────────────────────────────────────────────────────────────── */}
       <div style={{ flex: 1, position: "relative", overflow: "auto" }}>
         {/* Desktop (xl): the enhanced MapperWorkbench with the IssuesPanel on top. */}
@@ -273,14 +321,6 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
             supplierName={order.supplierName}
             initialOverride={mappingOverride}
             order={order}
-            issuesSlot={
-              <IssuesPanel
-                issues={issues}
-                onFocusField={onFocusField}
-                onFix={onFix}
-                readyLabel={`Every blocker is cleared — ready to send to ${order.supplierName}.`}
-              />
-            }
             layout={mapperLayout}
             attentionFirstOutput
             mappingMode="picker"
@@ -336,7 +376,7 @@ function FocusControl({ focus, onFocus }: { focus: WorkshopFocus; onFocus: (f: W
     { id: "output", label: "Output" },
   ];
   return (
-    <div role="group" aria-label="Focus" style={{ display: "inline-flex", borderRadius: 7, border: "1px solid #E2E6EE", overflow: "hidden", flexShrink: 0 }}>
+    <div role="group" aria-label="Focus" style={{ display: "inline-flex", borderRadius: 8, background: "#EFF2F7", padding: 3, gap: 2, flexShrink: 0 }}>
       {items.map((it) => {
         const active = focus === it.id;
         return (
@@ -346,9 +386,10 @@ function FocusControl({ focus, onFocus }: { focus: WorkshopFocus; onFocus: (f: W
             onClick={() => onFocus(it.id)}
             aria-pressed={active}
             style={{
-              fontSize: 11.5, fontWeight: active ? 700 : 500, padding: "5px 12px",
-              background: active ? "#0B1A2F" : "#FFFFFF", color: active ? "#FFFFFF" : "#56627A",
-              border: "none", cursor: "pointer",
+              fontSize: 11.5, fontWeight: active ? 650 : 500, padding: "5px 14px", borderRadius: 6,
+              background: active ? "#FFFFFF" : "transparent", color: active ? "#0B1A2F" : "#56627A",
+              border: "none", cursor: "pointer", transition: "all .12s",
+              boxShadow: active ? "0 1px 2px rgba(11,26,47,.08)" : "none",
             }}
           >
             {it.label}
