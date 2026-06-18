@@ -4,7 +4,7 @@
 // labels / delivery channels identically. Pure functions, no React.
 
 import type { Order } from "@/types/procurement";
-import type { DeliveryProtocol } from "@/lib/api/types";
+import type { DeliveryProtocol, OutputFormatId } from "@/lib/api/types";
 
 /** Sum of unitPrice × quantity across all order lines. */
 export function orderTotal(order: Order): number {
@@ -26,6 +26,18 @@ export function formatMoney(currency: string, amount: number): string {
   return `${prefix} ${amount.toLocaleString("en-IE", { minimumFractionDigits: 2 })}`;
 }
 
+/**
+ * The buyer name to show in the order header. Only says "(parsing…)" while the order is
+ * GENUINELY still parsing — once it reaches a terminal/ready state but carries no buyer name
+ * (e.g. the document never named a buyer), it shows a neutral "Buyer not detected" instead of
+ * implying the pipeline is still running (founder bug 9: header read "(parsing…)" on a `ready`
+ * order). A present buyerName always wins.
+ */
+export function buyerLabel(order: Pick<Order, "buyerName" | "status">): string {
+  if (order.buyerName) return order.buyerName;
+  return order.status === "parsing" ? "(parsing…)" : "Buyer not detected";
+}
+
 /** Generate a display label for the supplier output file. */
 export function outputArtifactLabel(artifacts: Order["artifacts"], supplierName: string): string {
   const fmt = artifacts[0]?.format;
@@ -40,6 +52,23 @@ export function outputArtifactType(artifacts: Order["artifacts"]): string {
   if (fmt === "cxml") return "cXML";
   if (fmt === "csv")  return "CSV";
   return fmt.toUpperCase();
+}
+
+/**
+ * The output format the supplier actually RECEIVES for this order, as an OutputFormatId — derived
+ * from the latest generated artifact's format. Drives the mapper preview's DEFAULT format so it
+ * opens on what's delivered, not a hard-coded CSV (founder bug 4). Null when no artifact exists yet
+ * (the preview then falls back to its own default). Normalizes the loose artifact string
+ * ("Json"/"cXML"/…) and maps any non-previewable value to null so the caller falls back cleanly.
+ */
+export function orderDeliveryFormat(order: Pick<Order, "artifacts">): OutputFormatId | null {
+  const raw = (order.artifacts?.[0]?.format ?? "").trim().toLowerCase();
+  switch (raw) {
+    case "csv": case "json": case "xml": case "cxml": case "ubl": case "x12":
+      return raw as OutputFormatId;
+    default:
+      return null;
+  }
 }
 
 // Friendly channel labels for the raw delivery protocol ids (mirrors

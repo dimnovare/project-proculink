@@ -32,7 +32,7 @@ import { SpineReviewSkeleton } from "../Skeletons";
 import { UnifiedStatusBadge } from "../UnifiedStatusBadge";
 import { ConfirmDialog } from "../review/ConfirmDialog";
 import { buildFixQueue, type FixQueueCard } from "../review/buildFixQueue";
-import { formatMoney, resolvedGrandTotal, outputArtifactType } from "../review/orderDisplay";
+import { formatMoney, resolvedGrandTotal, outputArtifactType, buyerLabel, orderDeliveryFormat } from "../review/orderDisplay";
 import { useOrderReview } from "../review/hooks/useOrderReview";
 import { useResolveActions } from "../review/hooks/useResolveActions";
 import { useAcceptanceValidation } from "../review/hooks/useAcceptanceValidation";
@@ -207,7 +207,7 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
                 <UnifiedStatusBadge size="md" status={crossed ? "delivered" : exceptionCount > 0 ? "pending_review" : order.status} />
               </div>
               <div className="mt-1 flex flex-wrap items-center gap-x-1.5" style={{ fontSize: 13 }}>
-                <span style={{ fontWeight: 600, color: "#0F4FAB", whiteSpace: "nowrap" }}>{order.buyerName ?? "(parsing…)"}</span>
+                <span style={{ fontWeight: 600, color: "#0F4FAB", whiteSpace: "nowrap" }}>{buyerLabel(order)}</span>
                 <span style={{ color: "#C6CDDA" }}>→</span>
                 <span style={{ fontWeight: 600, color: "#1E6D29", whiteSpace: "nowrap" }}>{order.supplierName}</span>
                 <span style={{ color: "#C6CDDA" }}>·</span>
@@ -283,6 +283,7 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
             }
             layout={mapperLayout}
             attentionFirstOutput
+            previewDefaultFormat={orderDeliveryFormat(order)}
             trustedThreshold={trustedThreshold}
             focusFieldId={focusFieldId}
             focusFieldSignal={focusSignal}

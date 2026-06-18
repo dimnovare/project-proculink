@@ -26,6 +26,22 @@ const FORMATS: { id: OutputFormat; label: string }[] = [
   { id: "json", label: "JSON" }, { id: "xml", label: "XML" }, { id: "csv", label: "CSV" },
 ];
 
+/**
+ * Coerce a tree's format to one the designer can OFFER + emit (json/xml/csv). A saved override or
+ * an inferred tree may carry a format outside that set (cXml / ubl / x12, or a casing variant like
+ * "JSON"/"cXml"); without this the `<select value={tree.format}>` matches no `<option>` and the
+ * Format control renders BLANK (founder bug 6). cXML/UBL/X12 are namespaced/positional documents
+ * the generic node tree serializes as XML, so they collapse to "xml" here; anything unknown → json.
+ */
+function designerFormat(raw: OutputFormat | string | null | undefined): OutputFormat {
+  const v = (raw ?? "").toString().trim().toLowerCase();
+  if (v === "json") return "json";
+  if (v === "csv") return "csv";
+  // xml + the XML-family standards (cxml/cXml, ubl, x12) all author as a generic XML tree here.
+  if (v === "xml" || v === "cxml" || v === "ubl" || v === "x12") return "xml";
+  return "json";
+}
+
 // Bridge Layer tokens: navy chrome, green = primary/"supplier out" action, blue = incoming accent.
 // Violet is reserved for AI only (design system 09-trust-rules) — not used as decoration here.
 const NAVY = "#0B1A2F";
@@ -107,7 +123,11 @@ export function OutputStructureDesigner({
   onClose: () => void;
   onSaved?: () => void;
 }) {
-  const [tree, setTree] = useState<OutputNodeTemplate>(initialTree ?? defaultTree("json"));
+  // Seed from the saved/passed tree, but force its format into the offered set so the Format
+  // control always has a matching <option> (a tree saved as cXml/ubl/x12 → "xml" here).
+  const [tree, setTree] = useState<OutputNodeTemplate>(
+    initialTree ? { ...initialTree, format: designerFormat(initialTree.format) } : defaultTree("json"),
+  );
   const [preview, setPreview] = useState<{ content: string | null; error?: string; loading: boolean }>({ content: null, loading: false });
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -125,7 +145,8 @@ export function OutputStructureDesigner({
       // Auto-detect the sample's format from its first character.
       const fmt = s.startsWith("<") ? "xml" : (s.startsWith("{") || s.startsWith("[")) ? "json" : "csv";
       const inferred = await inferOutputStructure(orderId, s, fmt);
-      setTree(inferred);
+      // Keep the Format control populated even if the inferred tree reports a non-offered format.
+      setTree({ ...inferred, format: designerFormat(inferred.format) });
       setSaved(false);
       setShowInfer(false);
     } catch (e) {
@@ -181,7 +202,7 @@ export function OutputStructureDesigner({
           <span style={{ fontSize: 11.5, opacity: 0.8 }}>What the supplier receives — live preview on the right</span>
           <div style={{ marginLeft: "auto", display: "flex", gap: 8, alignItems: "center" }}>
             <label style={{ fontSize: 11.5, opacity: 0.85 }}>Format</label>
-            <select value={tree.format} onChange={(e) => { setTree((t) => ({ ...t, format: e.target.value as OutputFormat })); setSaved(false); }}
+            <select value={designerFormat(tree.format)} onChange={(e) => { setTree((t) => ({ ...t, format: e.target.value as OutputFormat })); setSaved(false); }}
               style={{ height: 30, borderRadius: 6, border: "none", padding: "0 8px", fontSize: 12.5 }}>
               {FORMATS.map((f) => <option key={f.id} value={f.id}>{f.label}</option>)}
             </select>

@@ -38,7 +38,7 @@ import { MAPPER_EVENT, type MapperCommandEvent } from "./mapperCommands";
 import type { OutgoingStatusInput } from "./outgoingStatusModel";
 import { computeOutgoingStatus, computeOutgoingStatuses } from "./outgoingStatusModel";
 import type { FieldFilter, TargetField } from "./types";
-import type { OrderMappingOverride } from "@/lib/api/types";
+import type { OrderMappingOverride, OutputFormatId } from "@/lib/api/types";
 
 /**
  * Optional collapse/focus state for the workbench's incoming + preview panes,
@@ -85,6 +85,13 @@ export interface MapperWorkbenchProps {
   savingMappings?: boolean;
   /** Host "Validate" — open the standards-profile validation flow. */
   onValidate?: () => void;
+  /**
+   * The format the supplier actually RECEIVES for this order (order variant). Seeds the preview
+   * pane's DEFAULT format so it opens on the delivered format, not a hard-coded CSV (founder bug 4).
+   * Takes precedence over the connection-only `model.outputFormat` when set. Absent → today's
+   * behavior (model.outputFormat, then CSV).
+   */
+  previewDefaultFormat?: OutputFormatId | null;
 
   // ── Order Workshop (Task 12) — ALL optional + additive; omitting them keeps
   //    today's exact rendering (flag-off = byte-identical). ────────────────────
@@ -126,6 +133,7 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
     variant, readOnly, onDeliver, deliverDisabled, deliverLabel, extractionFailed,
     supplierName, onSaveMappings, saveMappingsLabel, savingMappings, onValidate,
     issuesSlot, layout, attentionFirstOutput, trustedThreshold, focusFieldId, focusFieldSignal,
+    previewDefaultFormat,
   } = props;
   const scopeId = (variant === "order" ? props.orderId : props.connectionId) ?? "";
 
@@ -454,7 +462,7 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
       override={model.override}
       lastTouched={model.lastTouched}
       cycleFormatSignal={cycleFormatSignal}
-      defaultFormat={model.outputFormat}
+      defaultFormat={previewDefaultFormat ?? model.outputFormat}
       supplierName={supplierName}
       emptyHint={
         variant === "connection"

@@ -44,7 +44,7 @@ import { CatalogHintCard } from "./review/CatalogHintCard";
 // stage's fragment mode), the shared display helpers and NODE_TO_FIELD.
 // Pure moves — the classic render is unchanged.
 import { OutputPreview } from "./review/OutputPreview";
-import { formatMoney, resolvedGrandTotal, outputArtifactType } from "./review/orderDisplay";
+import { formatMoney, resolvedGrandTotal, outputArtifactType, buyerLabel, orderDeliveryFormat } from "./review/orderDisplay";
 import { NODE_TO_FIELD } from "./review/stageModel";
 import { useOrderReview } from "./review/hooks/useOrderReview";
 import { useResolveActions } from "./review/hooks/useResolveActions";
@@ -911,7 +911,7 @@ function DocumentAnatomy({
             onMouseLeave={() => onZoneHover?.(null)}
           >
             <span style={{ fontFamily: "Inter,sans-serif", fontSize: 12, fontWeight: 800, letterSpacing: "0.03em", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "55%" }}>
-              {order.buyerName ?? "Buyer (parsing…)"}
+              {buyerLabel(order)}
             </span>
             <span
               ref={(el) => onSection?.("header-meta", el)}
@@ -1016,7 +1016,7 @@ function DocumentAnatomy({
             onMouseLeave={() => onZoneHover?.(null)}
           >
             <div style={{ fontFamily: "Inter,sans-serif", fontSize: 13, fontWeight: 800, letterSpacing: "0.04em", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "60%" }}>
-              {order.buyerName ?? "Buyer (parsing…)"}
+              {buyerLabel(order)}
             </div>
             <div style={{ textAlign: "right", flexShrink: 0 }}>
               <div style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase" }}>Purchase Order</div>
@@ -2033,7 +2033,7 @@ export function SpineReview({ orderId }: { orderId: string }) {
                 <InvoiceBadge documentType={order.documentType} />
               </div>
               <div className="mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-0.5" style={{ fontSize: 13 }}>
-                <span style={{ fontWeight: 600, color: "#0F4FAB", whiteSpace: "nowrap" }}>{order.buyerName ?? "(parsing…)"}</span>
+                <span style={{ fontWeight: 600, color: "#0F4FAB", whiteSpace: "nowrap" }}>{buyerLabel(order)}</span>
                 <span style={{ color: "#C6CDDA" }}>→</span>
                 <span style={{ fontWeight: 600, color: "#1E6D29", whiteSpace: "nowrap" }}>{order.supplierName}</span>
                 <span style={{ color: "#C6CDDA" }}>·</span>
@@ -2377,6 +2377,7 @@ export function SpineReview({ orderId }: { orderId: string }) {
             /* Feed the parsed Order DIRECTLY so the incoming column shows real values for
                EVERY order type — including PDF/XLSX that never tokenize (the empty-pane bug). */
             order={order}
+            previewDefaultFormat={orderDeliveryFormat(order)}
             onSaveMappings={() => promoteMutation.mutate()}
             saveMappingsLabel="Save mappings"
             savingMappings={promoteMutation.isPending}
