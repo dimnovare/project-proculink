@@ -283,6 +283,7 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
             }
             layout={mapperLayout}
             attentionFirstOutput
+            mappingMode="picker"
             previewDefaultFormat={orderDeliveryFormat(order)}
             trustedThreshold={trustedThreshold}
             focusFieldId={focusFieldId}
