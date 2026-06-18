@@ -5,18 +5,18 @@ import { computeGrid, useWorkshopLayout, type WorkshopFocus } from "./useWorksho
 // ── computeGrid — the pure derivation (focus overrides, else per-zone collapse) ──
 
 describe("computeGrid", () => {
-  test("mapping focus collapses both sides", () => {
+  test("mapping focus shows received + outgoing, rails only the preview", () => {
     expect(computeGrid({ focus: "mapping", leftCollapsed: false, rightCollapsed: false })).toEqual({
-      left: "rail",
+      left: "auto",
       center: "1fr",
       right: "rail",
     });
   });
 
-  test("output focus gives output the width", () => {
+  test("output focus shows outgoing + preview, rails only the received", () => {
     expect(computeGrid({ focus: "output", leftCollapsed: false, rightCollapsed: false })).toEqual({
       left: "rail",
-      center: "rail",
+      center: "1fr",
       right: "1fr",
     });
   });
@@ -37,9 +37,9 @@ describe("computeGrid", () => {
     });
   });
 
-  test("focus overrides manual collapses (mapping focus ignores leftCollapsed:false)", () => {
-    expect(computeGrid({ focus: "mapping", leftCollapsed: false, rightCollapsed: true })).toEqual({
-      left: "rail",
+  test("focus overrides manual collapses (mapping focus forces received visible despite leftCollapsed:true)", () => {
+    expect(computeGrid({ focus: "mapping", leftCollapsed: true, rightCollapsed: false })).toEqual({
+      left: "auto",
       center: "1fr",
       right: "rail",
     });
@@ -65,7 +65,7 @@ describe("useWorkshopLayout", () => {
     const { result } = renderHook(() => useWorkshopLayout());
     act(() => result.current.setFocus("mapping"));
     expect(result.current.focus).toBe("mapping");
-    expect(result.current.grid).toEqual({ left: "rail", center: "1fr", right: "rail" });
+    expect(result.current.grid).toEqual({ left: "auto", center: "1fr", right: "rail" });
   });
 
   test("toggleLeft / toggleRight flip the per-zone collapse flags", () => {

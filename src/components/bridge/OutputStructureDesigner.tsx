@@ -54,10 +54,6 @@ const BLUE = "#1E66C9";        // buyer-blue — incoming accent (active include
 const BORDER = "#C6CDDA";
 const SLATE = "#56627A";
 
-const TYPE_LABEL: Record<OutputNodeType, string> = {
-  object: "{ } group", array: "[ ] list", field: "value", attribute: "@attr",
-};
-
 // Value-format presets — append a DateFormat / NumberFormat manipulator so a non-technical user gets
 // "Date" / "Number" / "Currency" formatting without hand-writing Scriban. The canonical date fields
 // arrive as ISO ("yyyy-MM-dd"), so DateFormat's input is fixed to that. NumberFormat parses the
@@ -226,20 +222,41 @@ export function OutputStructureDesigner({
         // Full-screen on narrow viewports (no breathing-room padding) so the single-column stack
         // has the whole screen; comfortable inset on desktop.
         padding: isNarrow ? 0 : "3vh 2vw" }}>
-      <div style={{ background: "#FFFFFF", borderRadius: isNarrow ? 0 : 12, width: "100%", maxWidth: isNarrow ? "none" : 1100, display: "flex", flexDirection: "column", overflow: "hidden", boxShadow: isNarrow ? "none" : "0 24px 64px rgba(8,16,28,0.4)" }}>
-        {/* Bridge edge (buyer blue → supplier green) — design system signature #5 */}
-        <div style={{ height: 3, background: `linear-gradient(90deg, ${BLUE}, ${GREEN})` }} />
+      <div style={{ position: "relative", background: "#FFFFFF", borderRadius: isNarrow ? 0 : 12, width: "100%", maxWidth: isNarrow ? "none" : 1100, display: "flex", flexDirection: "column", overflow: "hidden", boxShadow: isNarrow ? "none" : "0 24px 64px rgba(8,16,28,0.4)" }}>
+        {/* Bridge edge — design system signature. Spec §9.3: a 2px gradient LEFT edge
+            (buyer blue #2D6BD4 → supplier green #1E6D29), full height of the dialog. */}
+        <div style={{ position: "absolute", top: 0, left: 0, bottom: 0, width: 2, background: "linear-gradient(180deg, #2D6BD4, #1E6D29)", zIndex: 1 }} />
         {/* Header */}
         <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px 18px", borderBottom: `1px solid ${BORDER}`, background: NAVY, color: "#FFFFFF" }}>
           <strong style={{ fontSize: 15 }}>Design the output structure</strong>
           {/* The subtitle is a desktop nicety — hide it on narrow where horizontal room is scarce. */}
           {!isNarrow && <span style={{ fontSize: 12, opacity: 0.8 }}>What the supplier receives — live preview on the right</span>}
-          <div style={{ marginLeft: "auto", display: "flex", gap: 8, alignItems: "center" }}>
-            <label htmlFor="osd-format" style={{ fontSize: 12, opacity: 0.85 }}>Format</label>
-            <select id="osd-format" aria-label="Output format" value={designerFormat(tree.format)} onChange={(e) => { setTree((t) => ({ ...t, format: e.target.value as OutputFormat })); setSaved(false); }}
-              style={{ height: 30, borderRadius: 6, border: "none", padding: "0 8px", fontSize: 12 }}>
-              {FORMATS.map((f) => <option key={f.id} value={f.id}>{f.label}</option>)}
-            </select>
+          <div style={{ marginLeft: "auto", display: "flex", gap: 10, alignItems: "center" }}>
+            <span id="osd-format-label" style={{ fontSize: 12, opacity: 0.85 }}>Format</span>
+            {/* Styled segmented format selector (§7.5 format pills) — replaces the raw OS <select>.
+                Selected pill = green text/border on a soft-green fill; unselected = muted slate on a
+                faint navy field. Same OutputFormat set the emitter can render (json/xml/csv) and the
+                same onChange (set tree.format + mark unsaved). */}
+            <div role="radiogroup" aria-labelledby="osd-format-label"
+              style={{ display: "inline-flex", gap: 2, padding: 2, borderRadius: 8, background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.14)" }}>
+              {FORMATS.map((f) => {
+                const selected = designerFormat(tree.format) === f.id;
+                return (
+                  <button key={f.id} role="radio" aria-checked={selected} aria-label={`${f.label} format`}
+                    onClick={() => { setTree((t) => ({ ...t, format: f.id })); setSaved(false); }}
+                    style={{
+                      height: 24, padding: "0 11px", borderRadius: 6, cursor: "pointer",
+                      fontFamily: "'JetBrains Mono', ui-monospace, Menlo, monospace", fontSize: 10, fontWeight: 700,
+                      letterSpacing: 0.2, transition: "all 120ms ease",
+                      border: `1px solid ${selected ? GREEN : "transparent"}`,
+                      background: selected ? "#EAF6EC" : "transparent",
+                      color: selected ? GREEN_DEEP : "rgba(255,255,255,0.7)",
+                    }}>
+                    {f.label}
+                  </button>
+                );
+              })}
+            </div>
             <button onClick={onClose} aria-label="Close" style={{ minWidth: "var(--tap-min)", minHeight: "var(--tap-min)", display: "flex", alignItems: "center", justifyContent: "center", border: "none", background: "transparent", padding: 0, cursor: "pointer" }}>
               <span style={{ height: 30, width: 30, borderRadius: 6, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(255,255,255,0.15)", color: "#FFF", fontSize: 16 }}>✕</span>
             </button>
@@ -335,6 +352,24 @@ export function OutputStructureDesigner({
   );
 }
 
+// ── Node-row presentation tokens ────────────────────────────────────────────────
+// A type "pill" identifies what kind of node this is at a glance (image 07): object = blue,
+// list = blue-grey, value = grey, attr = grey. Short symbol + tooltip, mono.
+const TYPE_PILL: Record<OutputNodeType, { glyph: string; fg: string; bg: string; border: string }> = {
+  object:    { glyph: "{ }", fg: "#1E66C9", bg: "#EAF1FC", border: "#CFE0F7" },
+  array:     { glyph: "[ ]", fg: "#3A4A60", bg: "#EEF1F6", border: "#D8DEE9" },
+  field:     { glyph: "val", fg: "#56627A", bg: "#EEF1F6", border: "#D8DEE9" },
+  attribute: { glyph: "@",   fg: "#56627A", bg: "#EEF1F6", border: "#D8DEE9" },
+};
+
+const MONO = "'JetBrains Mono', ui-monospace, Menlo, monospace";
+
+// Short human label for a format preset, shown inside the compact format pill (e.g. "Date · EU").
+const PRESET_SHORT: Record<string, string> = {
+  "date-iso": "Date · ISO", "date-eu": "Date · EU", "date-us": "Date · US",
+  "num-us": "Number", "num-eu": "Number · EU", "cur-eur": "Currency · €", "cur-usd": "Currency · $",
+};
+
 // ── Recursive node editor ──────────────────────────────────────────────────────
 
 function NodeEditor({
@@ -348,6 +383,10 @@ function NodeEditor({
 }) {
   const isContainer = node.nodeType === "object" || node.nodeType === "array";
   const childScope = lineScope || node.nodeType === "array";
+
+  // Which inline editor (if any) is open for THIS row. Only one open at a time keeps the row clean.
+  const [editing, setEditing] = useState<null | "name" | "bind" | "format" | "condition">(null);
+  const [hover, setHover] = useState(false);
 
   const updateName = (name: string) => onUpdate((n) => updateAt(n, path, (x) => ({ ...x, name })));
   const remove = () => onUpdate((n) => removeAt(n, path));
@@ -379,72 +418,154 @@ function NodeEditor({
   const canonicalOptions = childScope ? CANONICAL_LINE_FIELDS : CANONICAL_HEADER_FIELDS;
   const boundCanonical = node.rule?.canonicalField ?? "";
   const usingFixed = node.rule?.fixedValue != null && node.rule?.canonicalField == null;
+  const bound = !!boundCanonical || usingFixed;
   const presetKey = currentPreset(node.rule?.fieldManipulators);
+  const hasCondition = !!node.includeWhen;
   // "Only include when…" is meaningful on any non-root node (a list ITEM uses it to drop lines).
   const scopeHint = childScope ? "line" : "order";
+  const pill = TYPE_PILL[node.nodeType];
+
+  // The binding pill text: the bound canonical field, the fixed value, or a "needs source" prompt.
+  const bindLabel = boundCanonical
+    ? boundCanonical
+    : usingFixed
+      ? `"${node.rule?.fixedValue ?? ""}"`
+      : null;
 
   return (
-    <div style={{ borderLeft: isRoot ? "none" : `2px solid #E5E9F1`, paddingLeft: isRoot ? 0 : 12, marginBottom: 6 }}>
-      <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
-        <span title={node.nodeType} style={{ fontSize: 11, fontWeight: 600, color: SLATE, background: "#EEF1F6", borderRadius: 4, height: 22, display: "inline-flex", alignItems: "center", justifyContent: "center", padding: "0 6px", minWidth: 60, textAlign: "center" }}>
-          {TYPE_LABEL[node.nodeType]}
+    <div style={{ paddingLeft: isRoot ? 0 : 18, marginTop: isRoot ? 0 : 4 }}>
+      {/* ── The clean single-line row: type pill · name · binding pill · (format/condition pills) · × ── */}
+      <div
+        onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)}
+        style={{
+          display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", minHeight: 38,
+          padding: "5px 8px 5px 10px", borderRadius: 9,
+          border: `1px solid ${isContainer ? "#E6EAF1" : "#ECEFF4"}`,
+          background: isContainer ? "#FBFCFE" : "#FFFFFF",
+          // Left status bar (§7.2): green=mapped / violet=fixed / grey=unset/container.
+          boxShadow: `inset 3px 0 0 0 ${isContainer ? "#D8DEE9" : usingFixed ? "#6F4FCE" : boundCanonical ? GREEN : "#E2E6EE"}`,
+        }}>
+        {/* Type pill */}
+        <span title={node.nodeType} style={{ flex: "0 0 auto", fontFamily: MONO, fontSize: 11, fontWeight: 700, color: pill.fg, background: pill.bg, border: `1px solid ${pill.border}`, borderRadius: 5, height: 22, display: "inline-flex", alignItems: "center", justifyContent: "center", padding: "0 7px", minWidth: 34 }}>
+          {pill.glyph}
         </span>
-        <input value={node.name} onChange={(e) => updateName(e.target.value)} aria-label="Node name"
-          style={{ flex: "1 1 120px", minWidth: 0, height: 30, border: `1px solid ${BORDER}`, borderRadius: 6, padding: "0 8px", fontSize: 13, fontWeight: 600 }} />
 
-        {!isContainer && (
-          <>
-            <select value={usingFixed ? "__fixed__" : boundCanonical}
-              onChange={(e) => e.target.value === "__fixed__" ? updateRuleField("fixedValue", "") : updateRuleField("canonicalField", e.target.value)}
-              aria-label="Source field"
-              style={{ height: 30, border: `1px solid ${BORDER}`, borderRadius: 6, padding: "0 6px", fontSize: 12 }}>
-              <option value="">— pick field —</option>
-              {canonicalOptions.map((f) => <option key={f} value={f}>{f}</option>)}
-              <option value="__fixed__">Fixed value…</option>
-            </select>
-            {usingFixed && (
-              <input value={node.rule?.fixedValue ?? ""} onChange={(e) => updateRuleField("fixedValue", e.target.value)}
-                placeholder="value" aria-label="Fixed value"
-                style={{ width: 110, height: 30, border: `1px solid ${BORDER}`, borderRadius: 6, padding: "0 8px", fontSize: 12 }} />
-            )}
-            {(boundCanonical || usingFixed) && (
-              <select value={presetKey} onChange={(e) => setFormatPreset(e.target.value)} aria-label="Value format"
-                title="Format this value (date / number / currency)"
-                style={{ height: 30, border: `1px solid ${BORDER}`, borderRadius: 6, padding: "0 6px", fontSize: 12, color: presetKey ? NAVY : SLATE }}>
-                {FORMAT_PRESETS.map((p) => <option key={p.key} value={p.key}>{p.label}</option>)}
-              </select>
-            )}
-          </>
+        {/* Node name — read-only mono text by default; click to edit inline. */}
+        {editing === "name" ? (
+          <input autoFocus value={node.name} onChange={(e) => updateName(e.target.value)}
+            onBlur={() => setEditing(null)} onKeyDown={(e) => { if (e.key === "Enter" || e.key === "Escape") setEditing(null); }}
+            aria-label="Node name"
+            style={{ flex: "1 1 110px", minWidth: 0, height: 26, border: `1px solid ${BLUE}`, borderRadius: 6, padding: "0 7px", fontSize: 13, fontWeight: 700, fontFamily: MONO }} />
+        ) : (
+          <button onClick={() => setEditing("name")} aria-label={`Edit name (${node.name})`} title="Click to rename"
+            style={{ flex: "0 1 auto", minWidth: 0, maxWidth: "100%", textAlign: "left", border: "1px solid transparent", background: "transparent", borderRadius: 6, padding: "2px 4px", cursor: "pointer", fontFamily: MONO, fontSize: 13, fontWeight: 700, color: NAVY, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+            {node.name}
+          </button>
         )}
 
+        {/* Binding (value nodes + attributes only — containers carry no value). */}
+        {!isContainer && (
+          editing === "bind" ? (
+            <span style={{ display: "inline-flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
+              <select autoFocus value={usingFixed ? "__fixed__" : boundCanonical}
+                onChange={(e) => e.target.value === "__fixed__" ? updateRuleField("fixedValue", "") : updateRuleField("canonicalField", e.target.value)}
+                onBlur={() => { if (!usingFixed) setEditing(null); }}
+                aria-label="Source field"
+                style={{ height: 26, border: `1px solid ${BLUE}`, borderRadius: 6, padding: "0 6px", fontSize: 12 }}>
+                <option value="">— pick field —</option>
+                {canonicalOptions.map((f) => <option key={f} value={f}>{f}</option>)}
+                <option value="__fixed__">Fixed value…</option>
+              </select>
+              {usingFixed && (
+                <input value={node.rule?.fixedValue ?? ""} onChange={(e) => updateRuleField("fixedValue", e.target.value)}
+                  onBlur={() => setEditing(null)} onKeyDown={(e) => { if (e.key === "Enter") setEditing(null); }}
+                  placeholder="value" aria-label="Fixed value"
+                  style={{ width: 110, height: 26, border: `1px solid ${BORDER}`, borderRadius: 6, padding: "0 8px", fontSize: 12, fontFamily: MONO }} />
+              )}
+              <button onClick={() => setEditing(null)} aria-label="Done editing source" style={{ height: 26, padding: "0 8px", borderRadius: 6, border: `1px solid ${BORDER}`, background: "#FFF", color: SLATE, fontSize: 11, cursor: "pointer" }}>done</button>
+            </span>
+          ) : bound ? (
+            // Inline GREEN binding pill (image 07): "← <field>" / fixed value, mono, click to rebind.
+            <button onClick={() => setEditing("bind")} title="Click to change the source"
+              aria-label={`Source: ${bindLabel}. Click to change.`}
+              style={{ flex: "0 0 auto", display: "inline-flex", alignItems: "center", gap: 5, height: 22, padding: "0 9px", borderRadius: 999, border: `1px solid #CDE7D1`, background: "#F1F8F2", color: GREEN_DEEP, fontFamily: MONO, fontSize: 11, fontWeight: 600, cursor: "pointer", maxWidth: 240, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+              <span aria-hidden style={{ opacity: 0.8 }}>←</span>{bindLabel}
+            </button>
+          ) : (
+            // Unset — a low-emphasis dashed "+ pick a field" affordance (§7.2 needs-source button).
+            <button onClick={() => setEditing("bind")} aria-label="Pick a source field"
+              style={{ flex: "0 0 auto", display: "inline-flex", alignItems: "center", height: 22, padding: "0 10px", borderRadius: 999, border: "1.5px dashed #C9A86A", background: "#FFF", color: "#8A5A0E", fontSize: 10, fontWeight: 700, cursor: "pointer" }}>
+              + pick a field
+            </button>
+          )
+        )}
+
+        {/* Compact pills (only render when SET) — format + condition. Each is click-to-edit with a ×. */}
+        {!isContainer && bound && presetKey && (
+          <SetPill tone="green" label={PRESET_SHORT[presetKey] ?? "Format"}
+            title="Click to change formatting" onClick={() => setEditing("format")} onClear={() => setFormatPreset("")} clearLabel="Remove formatting" />
+        )}
+        {!isRoot && hasCondition && (
+          <SetPill tone="blue" mono label={`only when · ${node.includeWhen}`}
+            title="Click to edit the condition" onClick={() => setEditing("condition")} onClear={() => updateIncludeWhen("")} clearLabel="Remove condition" />
+        )}
+
+        {/* Spacer pushes add-affordances + delete to the right edge. */}
+        <span style={{ flex: "1 1 auto" }} />
+
+        {/* Discoverable "+ format" / "+ condition" when UNSET — small, low-emphasis, hover/focus-revealed. */}
+        {!isContainer && bound && !presetKey && (
+          <GhostAdd label="+ format" title="Format this value as a date, number, or currency"
+            visible={hover || editing === "format"} onClick={() => setEditing("format")} />
+        )}
+        {!isRoot && !hasCondition && (
+          <GhostAdd label="+ condition" title="Only include this when a rule is true"
+            visible={hover || editing === "condition"} onClick={() => setEditing("condition")} />
+        )}
+
+        {/* Inline delete — a small ghost ×, hover/focus-revealed (not a permanent full-width line). */}
         {!isRoot && (
-          <button onClick={remove} aria-label="Remove node"
-            style={{ minWidth: "var(--tap-min)", minHeight: "var(--tap-min)", display: "flex", alignItems: "center", justifyContent: "center", border: "none", background: "transparent", padding: 0, cursor: "pointer" }}>
-            <span style={{ height: 30, width: 30, borderRadius: 6, display: "flex", alignItems: "center", justifyContent: "center", border: `1px solid ${BORDER}`, background: "#FFF", color: "#C53A3A" }}>✕</span>
+          <button onClick={remove} aria-label="Remove node" title="Remove"
+            onFocus={() => setHover(true)} onBlur={() => setHover(false)}
+            style={{ flex: "0 0 auto", height: 24, width: 24, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 6, border: "1px solid transparent", background: "transparent", color: "var(--danger, #C53A3A)", fontSize: 13, cursor: "pointer", opacity: hover ? 1 : 0.35, transition: "opacity 120ms ease" }}>
+            ✕
           </button>
         )}
       </div>
 
-      {/* Conditional inclusion (OutputNode.includeWhen) — a bare condition; the node/line is skipped
-          when it's false. Subtle by default; meaningful on any non-root node. */}
-      {!isRoot && (
-        <div style={{ display: "flex", gap: 6, alignItems: "center", marginTop: 4, marginLeft: 2, flexWrap: "wrap" }}>
+      {/* Inline format picker (popover row) — opens under the row only while editing. */}
+      {!isContainer && editing === "format" && (
+        <div style={{ display: "flex", gap: 6, alignItems: "center", marginTop: 4, marginLeft: 18, flexWrap: "wrap" }}>
+          <span style={{ fontSize: 11, color: SLATE }}>Format as</span>
+          <select autoFocus value={presetKey} onChange={(e) => setFormatPreset(e.target.value)}
+            onBlur={() => setEditing(null)} aria-label="Value format"
+            style={{ height: 28, border: `1px solid ${BLUE}`, borderRadius: 6, padding: "0 6px", fontSize: 12, color: presetKey ? NAVY : SLATE }}>
+            {FORMAT_PRESETS.map((p) => <option key={p.key} value={p.key}>{p.label}</option>)}
+          </select>
+          <button onClick={() => setEditing(null)} style={{ height: 28, padding: "0 8px", borderRadius: 6, border: `1px solid ${BORDER}`, background: "#FFF", color: SLATE, fontSize: 11, cursor: "pointer" }}>done</button>
+        </div>
+      )}
+
+      {/* Inline condition editor — OutputNode.includeWhen (a bare predicate; node/line skipped when false). */}
+      {!isRoot && editing === "condition" && (
+        <div style={{ display: "flex", gap: 6, alignItems: "center", marginTop: 4, marginLeft: 18, flexWrap: "wrap" }}>
           <span style={{ fontSize: 11, color: SLATE, whiteSpace: "nowrap" }}>only include when</span>
-          <input value={node.includeWhen ?? ""} onChange={(e) => updateIncludeWhen(e.target.value)}
-            placeholder={`always — e.g. ${scopeHint}.Quantity > 0`} aria-label="Only include when (condition)"
+          <input autoFocus value={node.includeWhen ?? ""} onChange={(e) => updateIncludeWhen(e.target.value)}
+            onBlur={() => setEditing(null)} onKeyDown={(e) => { if (e.key === "Enter" || e.key === "Escape") setEditing(null); }}
+            placeholder={`e.g. ${scopeHint}.Quantity > 0`} aria-label="Only include when (condition)"
             spellCheck={false}
-            style={{ flex: "1 1 160px", minWidth: 0, height: 30, border: `1px solid ${node.includeWhen ? BLUE : BORDER}`, borderRadius: 6, padding: "0 8px", fontSize: 12, fontFamily: "ui-monospace, Menlo, monospace", color: node.includeWhen ? NAVY : SLATE }} />
+            style={{ flex: "1 1 200px", minWidth: 0, height: 28, border: `1px solid ${node.includeWhen ? BLUE : BORDER}`, borderRadius: 6, padding: "0 8px", fontSize: 12, fontFamily: MONO, color: node.includeWhen ? NAVY : SLATE }} />
         </div>
       )}
 
       {isContainer && (
         <>
-          <div style={{ marginTop: 6 }}>
+          <div style={{ marginTop: 4, borderLeft: isRoot ? "none" : "2px solid #ECEFF4", marginLeft: isRoot ? 0 : 4, paddingLeft: isRoot ? 0 : 2 }}>
             {(node.children ?? []).map((c, i) => (
               <NodeEditor key={i} node={c} path={[...path, i]} lineScope={childScope} onUpdate={onUpdate} />
             ))}
           </div>
-          <div style={{ display: "flex", gap: 6, marginTop: 4, marginLeft: 4, flexWrap: "wrap" }}>
+          <div style={{ display: "flex", gap: 6, marginTop: 5, marginLeft: isRoot ? 0 : 18, flexWrap: "wrap" }}>
             <AddBtn label="+ value" onClick={() => addChild(newField("value"))} />
             <AddBtn label="+ object" onClick={() => addChild({ name: "group", nodeType: "object", children: [] })} />
             <AddBtn label="+ list" onClick={() => addChild({ name: "items", nodeType: "array", collection: "lines", children: [{ name: "item", nodeType: "object", children: [] }] })} />
@@ -456,9 +577,41 @@ function NodeEditor({
   );
 }
 
+// A compact "this is set" pill: a colored label + a tiny × to clear. Clicking the label edits inline.
+function SetPill({ tone, label, mono, title, onClick, onClear, clearLabel }: {
+  tone: "green" | "blue"; label: string; mono?: boolean; title: string;
+  onClick: () => void; onClear: () => void; clearLabel: string;
+}) {
+  const c = tone === "green"
+    ? { fg: GREEN_DEEP, bg: "#F1F8F2", border: "#CDE7D1" }
+    : { fg: "#0F4FA8", bg: "#EEF3FB", border: "#D5E3F6" };
+  return (
+    <span style={{ flex: "0 0 auto", display: "inline-flex", alignItems: "center", height: 22, borderRadius: 999, border: `1px solid ${c.border}`, background: c.bg, maxWidth: 280, overflow: "hidden" }}>
+      <button onClick={onClick} title={title} aria-label={`${label}. ${title}.`}
+        style={{ display: "inline-flex", alignItems: "center", height: "100%", padding: "0 4px 0 9px", border: "none", background: "transparent", color: c.fg, fontFamily: mono ? MONO : "inherit", fontSize: mono ? 10.5 : 11, fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+        {label}
+      </button>
+      <button onClick={onClear} aria-label={clearLabel} title={clearLabel}
+        style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", height: "100%", width: 20, border: "none", background: "transparent", color: c.fg, fontSize: 11, cursor: "pointer", opacity: 0.65 }}>
+        ✕
+      </button>
+    </span>
+  );
+}
+
+// Low-emphasis "add this capability" ghost button — revealed on row hover/focus so the row stays clean.
+function GhostAdd({ label, title, visible, onClick }: { label: string; title: string; visible: boolean; onClick: () => void }) {
+  return (
+    <button onClick={onClick} title={title} aria-label={title}
+      style={{ flex: "0 0 auto", height: 22, padding: "0 8px", borderRadius: 6, border: "1px dashed #D8DEE9", background: "transparent", color: SLATE, fontSize: 10.5, fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap", opacity: visible ? 1 : 0, transition: "opacity 120ms ease", pointerEvents: visible ? "auto" : "none" }}>
+      {label}
+    </button>
+  );
+}
+
 function AddBtn({ label, onClick }: { label: string; onClick: () => void }) {
   // Chip height (22) matches the mapper's add-field chips; the row wraps so these never scroll sideways.
   return (
-    <button onClick={onClick} style={{ height: 22, padding: "0 10px", borderRadius: 6, border: `1px dashed ${BORDER}`, background: "#F7F9FC", color: "#3A4A60", fontSize: 11, fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap" }}>{label}</button>
+    <button onClick={onClick} style={{ height: 24, padding: "0 11px", borderRadius: 6, border: `1px dashed ${BORDER}`, background: "#F7F9FC", color: "#3A4A60", fontSize: 11, fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap" }}>{label}</button>
   );
 }

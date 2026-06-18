@@ -57,6 +57,10 @@ export interface MapperWorkbenchLayout {
   onExpandIncoming?: () => void;
   /** Expand the preview rail back out (chevron click). */
   onExpandPreview?: () => void;
+  /** Collapse the (full) incoming pane to a rail — the in-header caret. */
+  onCollapseIncoming?: () => void;
+  /** Collapse the (full) preview pane to a rail — the in-header caret. */
+  onCollapsePreview?: () => void;
 }
 
 export interface MapperWorkbenchProps {
@@ -182,14 +186,40 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const deepField = searchParams.get("field");
+
+  // Resolve a focus/deep-link ref to a REGISTERED row element. Refs coming from the
+  // issue queue / send-readiness blockers are PREFIXED (`line:{lineId}` / `rule:{path}:…`)
+  // and a raw `?field={lineId}` deep-link is a bare line GUID — none of these match the
+  // targetEls/sourceRowEls keys (which are OUTPUT PATHS / anchor ids). Resolve resiliently
+  // (exact → strip prefix → fuzzy contains) so a blocker-chip or deep-link jump always
+  // lands on a real row instead of silently doing nothing (founder bug #1).
+  const resolveRowRef = useCallback((rawId: string): { key: string; el: HTMLElement } | null => {
+    const at = (k: string): HTMLElement | null => (targetEls.current[k] ?? sourceRowEls.current[k]) ?? null;
+    let el = at(rawId);
+    if (el) return { key: rawId, el };
+    const bare = rawId.replace(/^(line|rule):/, "").split(":")[0];
+    if (bare && bare !== rawId) {
+      el = at(bare);
+      if (el) return { key: bare, el };
+    }
+    if (bare) {
+      for (const map of [targetEls.current, sourceRowEls.current]) {
+        for (const [k, v] of Object.entries(map)) {
+          if (v && k.includes(bare)) return { key: k, el: v };
+        }
+      }
+    }
+    return null;
+  }, []);
+
   useEffect(() => {
     if (!deepField) return;
-    setSelectedId(deepField);
-    setHoveredId(deepField);
-    // Scroll to the ROW (sourceRowEls), not the grip — sourceEls now holds the wire-engine port.
-    const el = targetEls.current[deepField] ?? sourceRowEls.current[deepField];
-    el?.scrollIntoView?.({ block: "center", behavior: "smooth" });
-  }, [deepField]);
+    const hit = resolveRowRef(deepField);
+    const key = hit?.key ?? deepField;
+    setSelectedId(key);
+    setHoveredId(key);
+    hit?.el?.scrollIntoView?.({ block: "center", behavior: "smooth" });
+  }, [deepField, resolveRowRef]);
 
   useEffect(() => {
     if (!selectedId || selectedId === deepField) return;
@@ -207,10 +237,11 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
   // would no-op on a repeat click of the same issue). No-op when unused.
   useEffect(() => {
     if (focusFieldSignal == null || focusFieldSignal === 0 || !focusFieldId) return;
-    setSelectedId(focusFieldId);
-    setHoveredId(focusFieldId);
-    const el = targetEls.current[focusFieldId] ?? sourceRowEls.current[focusFieldId];
-    el?.scrollIntoView?.({ block: "center", behavior: "smooth" });
+    const hit = resolveRowRef(focusFieldId);
+    const key = hit?.key ?? focusFieldId;
+    setSelectedId(key);
+    setHoveredId(key);
+    hit?.el?.scrollIntoView?.({ block: "center", behavior: "smooth" });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [focusFieldSignal]);
 
@@ -688,7 +719,10 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
             // TRUE 2 columns: Incoming | gutter | Outgoing. Incoming is fixed-narrow and Outgoing
             // flexes wide (the v3 inline-fix rows need the room — handoff resolveLayout 336/flex).
             <div style={{ display: "grid", gridTemplateColumns: "minmax(300px,360px) 56px minmax(0,1fr)", alignItems: "start" }}>
-              <div style={{ minWidth: 0 }}>{incomingNode}</div>
+              <div style={{ minWidth: 0, position: "relative" }}>
+                {layout?.onCollapseIncoming && <PaneCollapseCaret side="left" label="Received" onClick={layout.onCollapseIncoming} />}
+                {incomingNode}
+              </div>
               <div aria-hidden /> {/* wire gutter — empty, the SVG draws here */}
               <div style={{ minWidth: 0 }}>{outgoingNode}</div>
             </div>
@@ -701,7 +735,8 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
         {previewCollapsed ? (
           <CollapsedRail label="Preview" color="#2E8E3A" onExpand={layout?.onExpandPreview} />
         ) : (
-          <div style={{ flex: "1 1 400px", minWidth: 380 }}>
+          <div style={{ flex: "1 1 400px", minWidth: 380, position: "relative" }}>
+            {layout?.onCollapsePreview && <PaneCollapseCaret side="right" label="Live preview" onClick={layout.onCollapsePreview} />}
             {previewNode}
           </div>
         )}
@@ -733,6 +768,32 @@ function CollapsedRail({ label, color, onExpand }: { label: string; color: strin
       <span style={{ writingMode: "vertical-rl", transform: "rotate(180deg)", fontSize: 10.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", marginTop: 2 }}>
         {label}
       </span>
+    </button>
+  );
+}
+
+// ── In-header collapse caret — rails a full pane to its CollapsedRail. Sits at the
+//    pane's top-right (the design's collapse-caret slot), chevron pointing toward the
+//    screen edge the pane will fold to. Only rendered when a collapse handler exists. ──
+function PaneCollapseCaret({ side, label, onClick }: { side: "left" | "right"; label: string; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={`Collapse ${label}`}
+      title={`Collapse ${label}`}
+      style={{
+        position: "absolute", top: 12, right: 12, zIndex: 5,
+        width: 22, height: 22, borderRadius: 6, border: "1px solid #E2E6EE",
+        background: "#FFFFFF", color: "#56627A", cursor: "pointer",
+        display: "inline-flex", alignItems: "center", justifyContent: "center",
+        fontSize: 12, fontWeight: 800, lineHeight: 1, padding: 0,
+        transition: "background .12s, border-color .12s",
+      }}
+      onMouseEnter={(e) => { e.currentTarget.style.background = "#EFF2F7"; e.currentTarget.style.borderColor = "#C6CDDA"; }}
+      onMouseLeave={(e) => { e.currentTarget.style.background = "#FFFFFF"; e.currentTarget.style.borderColor = "#E2E6EE"; }}
+    >
+      {side === "left" ? "‹" : "›"}
     </button>
   );
 }

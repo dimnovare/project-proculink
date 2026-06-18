@@ -42,18 +42,19 @@ const DEFAULT_STATE: WorkshopLayoutState = {
 /**
  * Derive the three grid tracks from the layout state.
  *
- * `focus` OVERRIDES per-zone collapse:
- *   • mapping → both sides become rails, the center (mapper) takes 1fr.
- *   • output  → left + center become rails, the right (output) takes 1fr.
+ * `focus` OVERRIDES per-zone collapse (rail map — PIXEL-SPEC §5):
+ *   • mapping → Received + Outgoing visible; only the Preview rails. (You map, so you
+ *               want the source reference AND the outgoing document side by side.)
+ *   • output  → Outgoing + Preview visible; the Received rails.
  *   • all     → the center is always the 1fr hero; the two sides are `auto`
  *               unless manually collapsed to a `rail`.
  */
 export function computeGrid(state: WorkshopLayoutState): WorkshopGrid {
   switch (state.focus) {
     case "mapping":
-      return { left: "rail", center: "1fr", right: "rail" };
+      return { left: "auto", center: "1fr", right: "rail" };
     case "output":
-      return { left: "rail", center: "rail", right: "1fr" };
+      return { left: "rail", center: "1fr", right: "1fr" };
     case "all":
     default:
       return {

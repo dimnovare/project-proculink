@@ -178,6 +178,8 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
     preview: lay.grid.right,
     onExpandIncoming: () => { lay.setFocus("all"); if (lay.leftCollapsed) lay.toggleLeft(); },
     onExpandPreview: () => { lay.setFocus("all"); if (lay.rightCollapsed) lay.toggleRight(); },
+    onCollapseIncoming: () => { lay.setFocus("all"); if (!lay.leftCollapsed) lay.toggleLeft(); },
+    onCollapsePreview: () => { lay.setFocus("all"); if (!lay.rightCollapsed) lay.toggleRight(); },
   }), [lay]);
 
   // ── Focus a field in the mapper (IssuesPanel "Where →") — bumped signal so the

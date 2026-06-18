@@ -393,8 +393,14 @@ function OutgoingRow({
         }}
       />
 
-      {/* HEADER ROW — field identity (left) + inline action cluster (right). */}
-      <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
+      {/* HEADER ROW — the §7.2 TOP LINE: ONE inline flex row of three columns —
+          (a) field path [flex-basis ~38%]  ·  (b) source/value [flex 1, shrinks first]  ·
+          (c) toggle chips group [rigid, right]. The source/value column is its OWN flex child
+          (NOT bundled into the rigid chip cluster), so when the picker pill + value get wide they
+          absorb the slack / ellipsize instead of shoving the chips onto a disconnected second
+          line (bug 7). align-items center keeps everything on the single baseline; gap 12 per §7.2. */}
+      <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0 }}>
+        {/* (a) Field path — flex-basis ~38%, shrinkable; the name itself ellipsizes. */}
         {renaming ? (
           <input
             type="text"
@@ -409,7 +415,7 @@ function OutgoingRow({
             }}
             aria-label={`Rename output field ${field.outputPath}`}
             style={{
-              flex: 1, minWidth: 0, boxSizing: "border-box", padding: "3px 6px",
+              flex: "0 1 38%", minWidth: 0, boxSizing: "border-box", padding: "3px 6px",
               borderRadius: 5, border: "1px solid #A9D3AF", fontSize: 11.5,
               fontFamily: "'JetBrains Mono',monospace", color: "var(--ink, #0B1A2F)",
             }}
@@ -421,7 +427,7 @@ function OutgoingRow({
             onClick={(e) => { if (canRename) { e.stopPropagation(); setRenaming(true); } }}
             title={canRename ? "Rename output field" : field.outputPath}
             style={{
-              flex: 1, minWidth: 0, textAlign: "left", border: "none", background: "none",
+              flex: "0 1 38%", minWidth: 0, textAlign: "left", border: "none", background: "none",
               cursor: canRename ? "text" : "default", padding: 0, display: "flex", flexDirection: "column", gap: 1,
             }}
           >
@@ -436,9 +442,15 @@ function OutgoingRow({
           </button>
         )}
 
-        {/* INLINE action cluster: source picker / status tag + (Fixed) + (Transform). nowrap so the
-            controls never spill onto a disconnected second line; the field name shrinks first. */}
-        <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0, minWidth: 0 }}>
+        {/* (b) SOURCE / VALUE column. PICKER mode: flex 1 so the wide source picker pill absorbs the
+            row's slack and ellipsizes instead of shoving the chips onto a second line (bug 7 — §7.2
+            column b is flex 1). WIRES mode (classic /inbox): shrink-to-content + margin-left:auto so
+            the short status tag stays clustered immediately left of the chips, RIGHT-aligned, exactly
+            as before — the classic screen is visually unchanged. */}
+        <div style={pickerMode
+          ? { display: "flex", alignItems: "center", flex: "1 1 0", minWidth: 0 }
+          : { display: "flex", alignItems: "center", marginLeft: "auto", minWidth: 0 }}>
+
           {pickerMode && onPickSource ? (
             // PICKER mode — the row's source is an inline searchable dropdown (no dragging). Picking
             // routes through the host's onPickSource (→ the same wire-connect dispatch).
@@ -461,7 +473,12 @@ function OutgoingRow({
               onEditFixed={!readOnly && status.kind === "fixed" && onSetFixedValue ? startFixedEdit : undefined}
             />
           )}
+        </div>
 
+        {/* (c) TOGGLE CHIPS group — "= value" + "ƒx", gap 5px, rigid + right-aligned on the SAME top
+            line. flexShrink:0 keeps them intact; the source/value column (b) absorbs the slack so
+            the chips never wrap to a disconnected second line (bug 7). */}
+        <div style={{ display: "flex", alignItems: "center", gap: 5, flexShrink: 0 }}>
           {/* Fixed value — meaningful only when not wired and not already a fixed chip (that chip
               is itself the edit affordance). In picker mode the chip's footer owns "= Fixed value…",
               so the inline chip is hidden there. Real control, or disabled-with-reason. */}
