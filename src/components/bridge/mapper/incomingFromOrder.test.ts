@@ -2,10 +2,11 @@ import { describe, it, expect } from "vitest";
 import {
   buildIncomingFromOrder,
   rawExtraFieldsFromTokens,
+  cleanSuggestionsAgainstDedup,
   incomingValueIndex,
   type IncomingOrderShape,
 } from "./incomingFromOrder";
-import type { SourceToken } from "@/lib/api/types";
+import type { SourceToken, MappingSuggestion } from "@/lib/api/types";
 
 const FULL_ORDER: IncomingOrderShape = {
   poNumber: "PO-2026-001",
@@ -109,9 +110,68 @@ describe("rawExtraFieldsFromTokens", () => {
     expect(extras.map((e) => e.label)).toEqual(["Warehouse"]);
   });
 
+  // ── Founder bug 2 — raw extras duplicating PROMOTED fields bloated the pane ──
+  it("drops a raw token whose name differs only by separators/case (po_number ≡ PoNumber)", () => {
+    const tokens: SourceToken[] = [
+      { id: "cell:a", label: "po_number", value: "PO-2026-001", group: "header" },
+      { id: "cell:b", label: "PO_NUMBER", value: "PO-2026-001", group: "header" },
+      { id: "cell:c", label: "Cost Centre", value: "CC-42", group: "header" },
+    ];
+    const extras = rawExtraFieldsFromTokens(tokens, canonical);
+    // Both po_number variants drop (normalized name === "ponumber" ≡ the promoted PoNumber);
+    // only the genuine extra survives.
+    expect(extras.map((e) => e.label)).toEqual(["Cost Centre"]);
+  });
+
+  it("drops a raw token whose VALUE mirrors a promoted field even under a different header", () => {
+    const tokens: SourceToken[] = [
+      // Same value as the promoted PoNumber, but an unrelated header — still a duplicate.
+      { id: "cell:m", label: "Reference", value: "PO-2026-001", group: "header" },
+      { id: "cell:n", label: "Notes", value: "Fragile", group: "header" },
+    ];
+    const extras = rawExtraFieldsFromTokens(tokens, canonical);
+    expect(extras.map((e) => e.label)).toEqual(["Notes"]);
+  });
+
+  it("collapses repeated raw tokens with the same normalized name to one row", () => {
+    const tokens: SourceToken[] = [
+      { id: "cell:p", label: "Project Ref", value: "PR-1", group: "header" },
+      { id: "cell:q", label: "project-ref", value: "PR-2", group: "header" },
+    ];
+    const extras = rawExtraFieldsFromTokens(tokens, canonical);
+    expect(extras.map((e) => e.id)).toEqual(["cell:p"]);
+  });
+
   it("returns [] when there are no tokens", () => {
     expect(rawExtraFieldsFromTokens([], canonical)).toEqual([]);
     expect(rawExtraFieldsFromTokens(null, canonical)).toEqual([]);
+  });
+});
+
+// ── Founder bug 1 — a deduped raw duplicate must never seed an AI suggestion ──
+describe("cleanSuggestionsAgainstDedup", () => {
+  const keptRawExtraIds = new Set<string>(["cell:keep"]);
+
+  it("drops a raw-source suggestion whose token was deduped (the po_number → BuyerName bug)", () => {
+    const suggestions: MappingSuggestion[] = [
+      // The exact founder bug: a raw `po_number` duplicate proposed for the BuyerName output.
+      { targetKey: "BuyerName", sourceId: "cell:po_number", confidence: 0.6, reason: "label match", sourceKind: "raw" },
+      // A genuine extra that survived dedup → keep.
+      { targetKey: "CostCentre", sourceId: "cell:keep", confidence: 0.8, reason: "kept", sourceKind: "raw" },
+      // A canonical-source suggestion is always kept (it IS the promoted source).
+      { targetKey: "ItemCode", sourceId: "SupplierItemCode", confidence: 0.9, reason: "canonical", sourceKind: "canonical" },
+    ];
+    const cleaned = cleanSuggestionsAgainstDedup(suggestions, keptRawExtraIds, true);
+    expect(cleaned.map((s) => s.sourceId).sort()).toEqual(["SupplierItemCode", "cell:keep"]);
+    // The bad raw→BuyerName suggestion is gone.
+    expect(cleaned.some((s) => s.sourceId === "cell:po_number")).toBe(false);
+  });
+
+  it("filters nothing on the legacy token-only path (no promoted spine)", () => {
+    const suggestions: MappingSuggestion[] = [
+      { targetKey: "BuyerName", sourceId: "cell:anything", confidence: 0.6, reason: "x", sourceKind: "raw" },
+    ];
+    expect(cleanSuggestionsAgainstDedup(suggestions, new Set(), false)).toHaveLength(1);
   });
 });
 

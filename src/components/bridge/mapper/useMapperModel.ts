@@ -54,6 +54,7 @@ import { deriveTargetFields } from "./targetLaneModel";
 import {
   buildIncomingFromOrder,
   rawExtraFieldsFromTokens,
+  cleanSuggestionsAgainstDedup,
   type IncomingOrderShape,
 } from "./incomingFromOrder";
 import {
@@ -298,13 +299,6 @@ export function useMapperModel({
     return s;
   }, [outputConnections, sourceConnections]);
 
-  // A token is "suggested" when a suggestion proposes it as a source.
-  const suggestionByToken = useMemo(() => {
-    const m = new Map<string, MappingSuggestion>();
-    for (const s of rawSuggestions) if (s.sourceKind !== "canonical") m.set(s.sourceId, s);
-    return m;
-  }, [rawSuggestions]);
-
   // ── INCOMING fields — values from the parsed Order DIRECTLY (root-cause fix #1) ──
   // The canonical Order values (poNumber / buyerName / lines / …) build the incoming
   // column for EVERY order regardless of tokenization (PDF/XLSX never tokenize). The
@@ -316,30 +310,77 @@ export function useMapperModel({
     [incomingOrder],
   );
 
-  const sourceFields = useMemo<SourceField[]>(() => {
-    const base = canonicalIncoming.length > 0
-      ? [...canonicalIncoming, ...rawExtraFieldsFromTokens(tokens, canonicalIncoming)]
-      : tokens.map((t) => toSourceField(t, false, null, null));
-    // Overlay wired + AI-suggestion state by row id (canonical key OR raw token id).
-    return base.map((f) => {
-      const sug = suggestionByToken.get(f.id);
-      // A canonical row is "mapped" when an output path is wired FROM it; a raw token is
-      // "mapped" when it feeds a canonical via sourceMap. Both are covered by wiredFromIds.
-      return {
-        ...f,
-        mapped: wiredFromIds.has(f.id),
-        suggestedFor: sug?.targetKey ?? f.suggestedFor ?? null,
-        suggestionConfidence: sug?.confidence ?? f.suggestionConfidence ?? null,
-      };
-    });
-  }, [canonicalIncoming, tokens, suggestionByToken, wiredFromIds]);
+  // The raw-extra rows that SURVIVED dedup (genuine extras, not a promoted-field duplicate). Only
+  // these are legitimate AI suggestion sources — a deduped duplicate (e.g. a raw `po_number` that
+  // mirrors the promoted PoNumber) must never seed a suggestion (founder bug 1: a raw `po_number`
+  // got proposed for the BuyerName output). Empty when there's no Order to promote against (legacy
+  // token-only path), in which case every token is a valid source and we don't filter.
+  const keptRawExtras = useMemo<SourceField[]>(
+    () => (canonicalIncoming.length > 0 ? rawExtraFieldsFromTokens(tokens, canonicalIncoming) : []),
+    [canonicalIncoming, tokens],
+  );
+  const keptRawExtraIds = useMemo(() => new Set(keptRawExtras.map((f) => f.id)), [keptRawExtras]);
+  const hasPromotedSpine = canonicalIncoming.length > 0;
+
+  // AI suggestions, cleaned of duplicate-source noise BEFORE they become ghost wires (bug 1):
+  //   • a raw-source suggestion whose token was DEDUPED (duplicates a promoted canonical field) is
+  //     dropped — the promoted field is already the source; binding the raw duplicate (often to an
+  //     UNRELATED output like BuyerName) is exactly the bad auto-map the founder hit.
+  // Canonical-source suggestions are always kept (they ARE the promoted source). When there's no
+  // promoted spine (token-only legacy path) nothing is filtered.
+  const cleanSuggestions = useMemo<MappingSuggestion[]>(
+    () => cleanSuggestionsAgainstDedup(rawSuggestions, keptRawExtraIds, hasPromotedSpine),
+    [rawSuggestions, hasPromotedSpine, keptRawExtraIds],
+  );
+
+  // A token is "suggested" when a (cleaned) suggestion proposes it as a source.
+  const suggestionByToken = useMemo(() => {
+    const m = new Map<string, MappingSuggestion>();
+    for (const s of cleanSuggestions) if (s.sourceKind !== "canonical") m.set(s.sourceId, s);
+    return m;
+  }, [cleanSuggestions]);
 
   // Order path MERGES canonical + authored (wiring/adding never collapses the document);
-  // connection path uses the declared schema as-is.
+  // connection path uses the declared schema as-is. Declared FIRST so the "used as a source"
+  // calc below (bug 3) can see which output paths exist for the 1:1 auto default.
   const targetFields = useMemo(
     () => deriveTargetFields(override.output, variant === "order"),
     [override.output, variant],
   );
+
+  // Incoming ids that are ACTUALLY USED as a mapping source. The old code keyed "mapped" only on
+  // EXPLICIT wires (wiredFromIds), so an order whose 13 outputs all resolve via the 1:1 auto
+  // default showed "Mapped 0 / Unmapped 34" in the incoming pills while the header said
+  // "13 of 13 mapped" — contradictory (founder bug 3). An incoming canonical field is used when:
+  //   • it's explicitly wired (wiredFromIds), OR
+  //   • an output path equals its canonical id (the 1:1 auto carries it) and that output isn't
+  //     re-pointed to a different source. Raw extras are "used" only via an explicit wire.
+  const usedAsSourceIds = useMemo(() => {
+    const s = new Set(wiredFromIds);
+    const declaredOutputPaths = new Set(targetFields.map((f) => f.outputPath));
+    for (const f of canonicalIncoming) {
+      // A canonical incoming field feeds the matching output via the auto 1:1 default, unless that
+      // output has been explicitly re-pointed to another source.
+      if (declaredOutputPaths.has(f.id) && !outputConnections[f.id]) s.add(f.id);
+    }
+    return s;
+  }, [wiredFromIds, targetFields, canonicalIncoming, outputConnections]);
+
+  const sourceFields = useMemo<SourceField[]>(() => {
+    const base = canonicalIncoming.length > 0
+      ? [...canonicalIncoming, ...keptRawExtras]
+      : tokens.map((t) => toSourceField(t, false, null, null));
+    // Overlay used-as-source + AI-suggestion state by row id (canonical key OR raw token id).
+    return base.map((f) => {
+      const sug = suggestionByToken.get(f.id);
+      return {
+        ...f,
+        mapped: usedAsSourceIds.has(f.id),
+        suggestedFor: sug?.targetKey ?? f.suggestedFor ?? null,
+        suggestionConfidence: sug?.confidence ?? f.suggestionConfidence ?? null,
+      };
+    });
+  }, [canonicalIncoming, keptRawExtras, tokens, suggestionByToken, usedAsSourceIds]);
 
   // ── Value lookups for the OutgoingPane's honest value preview ───────────────
   // canonicalValueByKey: the order's effective parsed value per canonical key, used for the
@@ -509,8 +550,8 @@ export function useMapperModel({
   }, [effectivePreviewOrderId]);
 
   const suggestions = useMemo(
-    () => rawSuggestions.filter((s) => !dismissed.has(sKey(s))),
-    [rawSuggestions, dismissed],
+    () => cleanSuggestions.filter((s) => !dismissed.has(sKey(s))),
+    [cleanSuggestions, dismissed],
   );
 
   const signature = useMemo(() => {

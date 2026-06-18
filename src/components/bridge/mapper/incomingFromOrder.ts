@@ -18,6 +18,7 @@ import {
   CANONICAL_HEADER_FIELDS,
   CANONICAL_LINE_FIELDS,
   type SourceToken,
+  type MappingSuggestion,
 } from "@/lib/api/types";
 import { getFieldStandards } from "@/lib/standards/catalog";
 import type { SourceField } from "./types";
@@ -146,25 +147,67 @@ export function buildIncomingFromOrder(order: IncomingOrderShape | null | undefi
 }
 
 /**
+ * Normalize a field name for dedupe: lowercase, strip every non-alphanumeric character. So
+ * "PO Number", "po_number", "PO_NUMBER" and "po-number" all collapse to "ponumber". This is what
+ * lets a raw extra `po_number` be recognised as a duplicate of the promoted `PoNumber` /
+ * "PO Number" canonical field (founder bug 2: `PO_NUMBER/po_number` was showing next to the real
+ * `PO NUMBER`, bloating the pane to 34 rows). Also normalizes a raw token id like `cell:po_number`.
+ */
+function normName(s: string | null | undefined): string {
+  return (s ?? "").toLowerCase().replace(/[^a-z0-9]/g, "");
+}
+
+/** Normalize a value for dedupe (trim + lowercase) — a raw extra whose VALUE equals a promoted
+ *  field's value is a duplicate even when its label differs. */
+function normValue(s: string | null | undefined): string {
+  return (s ?? "").trim().toLowerCase();
+}
+
+/**
  * Map the optional raw-extra SourceToken bag (the Phase-1 SourceCapture overflow) into
  * SourceFields, EXCLUDING any token that duplicates a canonical field we already built from
- * the Order (by group/label heuristic). These render under a collapsed "Extra raw fields"
- * group and are NEVER the sole source. A raw token keeps its own stable id.
+ * the Order. These render under a collapsed "Extra raw fields" group and are NEVER the sole
+ * source. A raw token keeps its own stable id.
  *
- * The dedupe is conservative: we only drop a token when its label case-insensitively matches a
- * canonical label we already have AND it sits in the same scope — so genuine extra columns
- * always survive.
+ * Dedupe (founder bug 2 — raw extras duplicating promoted fields bloated the pane):
+ *   • NAME match — the token's NORMALIZED name (label or id; non-alphanumerics stripped) equals a
+ *     promoted field's normalized id OR label. Catches `po_number`/`PO_NUMBER`/`po-number` ≡
+ *     `PoNumber` / "PO Number", which the old exact-lowercase compare missed.
+ *   • VALUE match — the token's non-empty value equals a promoted field's value (a raw mirror of a
+ *     promoted column under a different header).
+ * Either match drops the token. Genuine extra columns (a name AND value the spine doesn't carry)
+ * always survive — lossless for real extras, dedup for duplicates.
  */
 export function rawExtraFieldsFromTokens(
   tokens: ReadonlyArray<SourceToken> | null | undefined,
   canonicalFields: ReadonlyArray<SourceField>,
 ): SourceField[] {
   if (!tokens || tokens.length === 0) return [];
-  const haveLabels = new Set(canonicalFields.map((f) => f.label.trim().toLowerCase()));
+  const haveNames = new Set<string>();
+  const haveValues = new Set<string>();
+  for (const f of canonicalFields) {
+    const nl = normName(f.label);
+    const ni = normName(f.id);
+    if (nl) haveNames.add(nl);
+    if (ni) haveNames.add(ni);
+    const nv = normValue(f.value);
+    if (nv) haveValues.add(nv);
+  }
   const out: SourceField[] = [];
+  const seenNames = new Set<string>();
   for (const t of tokens) {
     const label = (t.label ?? "").trim();
-    if (label && haveLabels.has(label.toLowerCase())) continue; // already represented canonically
+    const name = normName(label) || normName(t.id);
+    // Duplicate of a promoted canonical field (by name) → drop.
+    if (name && haveNames.has(name)) continue;
+    // Duplicate of a promoted field's value → drop (a raw mirror under a different header).
+    const nv = normValue(t.value);
+    if (nv && haveValues.has(nv)) continue;
+    // Duplicate of an earlier raw token in THIS bag (same normalized name) → drop the repeat.
+    if (name) {
+      if (seenNames.has(name)) continue;
+      seenNames.add(name);
+    }
     out.push({
       id: t.id,
       label: label || t.id,
@@ -176,6 +219,26 @@ export function rawExtraFieldsFromTokens(
     });
   }
   return out;
+}
+
+/**
+ * Drop AI suggestions whose RAW source was deduped away (it duplicates a promoted canonical field),
+ * so a duplicate raw token can never seed a ghost wire — least of all to an unrelated output
+ * (founder bug 1: a raw `po_number`, a duplicate of the promoted PoNumber, was proposed for the
+ * BuyerName output). The canonical/promoted field is already the source; suggesting its raw mirror
+ * is pure noise. Canonical-source suggestions always survive (they ARE the promoted source).
+ *
+ *   • `keptRawExtraIds` — the raw-extra token ids that SURVIVED rawExtraFieldsFromTokens.
+ *   • `hasPromotedSpine` — false on the legacy token-only path (no Order to promote against); then
+ *     every token is a legitimate source and nothing is filtered.
+ */
+export function cleanSuggestionsAgainstDedup(
+  suggestions: ReadonlyArray<MappingSuggestion>,
+  keptRawExtraIds: ReadonlySet<string>,
+  hasPromotedSpine: boolean,
+): MappingSuggestion[] {
+  if (!hasPromotedSpine) return [...suggestions];
+  return suggestions.filter((s) => s.sourceKind === "canonical" || keptRawExtraIds.has(s.sourceId));
 }
 
 /** sourceTokenId/canonicalKey → value, for the OutgoingPane preview (built once, never throws). */
