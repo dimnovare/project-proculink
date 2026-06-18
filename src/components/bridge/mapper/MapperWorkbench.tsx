@@ -358,10 +358,12 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
   }, [attentionFirstOutput, model.targetFields, statusInput]);
   // The fields the outgoing pane actually renders: the attention subset by default,
   // the full list once the operator expands the "N mapped · review" chip.
+  // In picker mode the OutgoingPane owns the v3 needs/auto split + "N fields ready" summary, so the
+  // workbench passes the FULL field list and suppresses its own attention-first chip below.
   const outgoingFields =
-    attentionFirstOutput && !outputExpanded ? attentionSplit.attention : model.targetFields;
+    attentionFirstOutput && !pickerMode && !outputExpanded ? attentionSplit.attention : model.targetFields;
   const collapsedMappedCount =
-    attentionFirstOutput && !outputExpanded ? attentionSplit.mappedCount : 0;
+    attentionFirstOutput && !pickerMode && !outputExpanded ? attentionSplit.mappedCount : 0;
 
   // ── Per-row enrichment badges (catalog/validation ONLY — no 2nd transform editor) ──
   const badgeSlot = useCallback((field: TargetField) => {
@@ -420,6 +422,7 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
       portProps={wire.sourcePortProps}
       loading={model.loading}
       sourceFileKey={model.sourceFileKey}
+      sourceType={sourceTypeFromKey(model.sourceFileKey)}
       extractionFailed={extractionFailed}
       focusSearchSignal={focusSearchSignal}
       anchorRef={(id, el) => { sourceRowEls.current[id] = el; }}
@@ -435,7 +438,7 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
     <>
       {/* Attention-first chip — collapses the AI-/auto-mapped rows so only the rows
           needing a human are shown by default. Workshop-only (off → not rendered). */}
-      {attentionFirstOutput && (collapsedMappedCount > 0 || outputExpanded) && (
+      {attentionFirstOutput && !pickerMode && (collapsedMappedCount > 0 || outputExpanded) && (
         <button
           type="button"
           onClick={() => setOutputExpanded((v) => !v)}
@@ -676,14 +679,15 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
           {incomingCollapsed ? (
             // Incoming collapsed to a rail — the wire source anchors aren't registered, so the
             // engine simply draws no incoming wires (graceful). One click expands it back.
-            <div style={{ display: "grid", gridTemplateColumns: "40px 64px minmax(0,1fr)", alignItems: "start" }}>
+            <div style={{ display: "grid", gridTemplateColumns: "44px 56px minmax(0,1fr)", alignItems: "start" }}>
               <CollapsedRail label="Incoming" color="#1E66C9" onExpand={layout?.onExpandIncoming} />
               <div aria-hidden />
               <div style={{ minWidth: 0 }}>{outgoingNode}</div>
             </div>
           ) : (
-            // TRUE 2 columns: Incoming | gutter | Outgoing. The gutter is where wires live.
-            <div style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr) 64px minmax(0,1fr)", alignItems: "start" }}>
+            // TRUE 2 columns: Incoming | gutter | Outgoing. Incoming is fixed-narrow and Outgoing
+            // flexes wide (the v3 inline-fix rows need the room — handoff resolveLayout 336/flex).
+            <div style={{ display: "grid", gridTemplateColumns: "minmax(300px,360px) 56px minmax(0,1fr)", alignItems: "start" }}>
               <div style={{ minWidth: 0 }}>{incomingNode}</div>
               <div aria-hidden /> {/* wire gutter — empty, the SVG draws here */}
               <div style={{ minWidth: 0 }}>{outgoingNode}</div>
@@ -697,7 +701,7 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
         {previewCollapsed ? (
           <CollapsedRail label="Preview" color="#2E8E3A" onExpand={layout?.onExpandPreview} />
         ) : (
-          <div style={{ flex: "1 1 360px", minWidth: 340 }}>
+          <div style={{ flex: "1 1 400px", minWidth: 380 }}>
             {previewNode}
           </div>
         )}
@@ -706,8 +710,10 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
   );
 }
 
-// ── A thin collapsed-zone rail with a chevron to expand it (Order Workshop) ───
+// ── A thin collapsed-zone rail with a chevron to expand it (Order Workshop, v3) ─
+//    44px strip with a buyer/supplier TONE-GRADIENT spine + rotated label.
 function CollapsedRail({ label, color, onExpand }: { label: string; color: string; onExpand?: () => void }) {
+  const grad = `linear-gradient(180deg, ${color}33, ${color} 50%, ${color}33)`;
   return (
     <button
       type="button"
@@ -716,18 +722,35 @@ function CollapsedRail({ label, color, onExpand }: { label: string; color: strin
       aria-label={`Expand ${label}`}
       title={`Expand ${label}`}
       style={{
-        width: 40, minHeight: 220, alignSelf: "stretch",
-        display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 10,
-        borderRadius: 10, border: `1px solid ${color}33`, background: `${color}0D`,
-        color, cursor: onExpand ? "pointer" : "default", padding: "12px 0",
+        width: 44, minHeight: 240, alignSelf: "stretch", position: "relative",
+        display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-start", gap: 12,
+        borderRadius: 12, border: `1px solid ${color}33`, background: "#FBFBFD",
+        color, cursor: onExpand ? "pointer" : "default", padding: "12px 0", overflow: "hidden",
       }}
     >
-      <span aria-hidden style={{ fontSize: 13, fontWeight: 800 }}>›</span>
-      <span style={{ writingMode: "vertical-rl", transform: "rotate(180deg)", fontSize: 10.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em" }}>
+      <span aria-hidden style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: 3, background: grad }} />
+      <span aria-hidden style={{ width: 22, height: 22, borderRadius: 6, border: `1px solid ${color}40`, display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 800 }}>›</span>
+      <span style={{ writingMode: "vertical-rl", transform: "rotate(180deg)", fontSize: 10.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", marginTop: 2 }}>
         {label}
       </span>
     </button>
   );
+}
+
+// ── Derive the received document type from the stored file key's extension (drives the
+//    "What we received" PDF/CSV/… chip). Unknown / no key → undefined → no chip. ──
+function sourceTypeFromKey(key?: string | null): string | undefined {
+  if (!key) return undefined;
+  const ext = key.split("?")[0].split("#")[0].split(".").pop()?.toLowerCase();
+  switch (ext) {
+    case "pdf": return "PDF";
+    case "csv": return "CSV";
+    case "xlsx": case "xls": return "XLSX";
+    case "xml": return "XML";
+    case "json": return "JSON";
+    case "edi": case "txt": return ext.toUpperCase();
+    default: return undefined;
+  }
 }
 
 // ── Read an output path's current manipulator (fx) chain from an override (per-row feed) ──

@@ -25,13 +25,15 @@
 //
 // Presentational + prop-driven. No data fetch here.
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { ManipulatorEntry } from "@/lib/api/types";
 import type { CanonicalNode, SourceField, TargetField } from "./types";
 import { isTargetWired, isRenameAffordanceShown } from "./targetLaneModel";
 import { computeOutgoingStatus, type OutgoingStatusInput, type OutgoingFieldStatus } from "./outgoingStatusModel";
 import { TransformPopover } from "./TransformPopover";
 import { SourcePickerChip } from "./SourcePickerChip";
+import { suggestedSourceFor } from "./sourcePickerModel";
+import { ConfidenceChip } from "./ConfidenceChip";
 
 export interface OutgoingPaneProps {
   variant: "order" | "connection";
@@ -127,6 +129,53 @@ export function OutgoingPane({
     [targetFields],
   );
 
+  // Split the rows into NEEDS-ATTENTION (required + genuinely unmapped — the loud blockers the
+  // honest status model already flags) shown at the top, and the AUTO-MAPPED rest folded behind a
+  // collapsible summary. "Needs attention" is derived from the SAME per-row status the row renders
+  // (status.required && !status.mapped) — never a fabricated status. Optional unmapped outputs stay
+  // quiet/inline with the auto group, exactly as before.
+  const rows = useMemo(
+    () => targetFields.map((field) => ({ field, status: computeOutgoingStatus(field, statusInput) })),
+    [targetFields, statusInput],
+  );
+  const needsRows = useMemo(() => rows.filter((r) => r.status.required && !r.status.mapped), [rows]);
+  const autoRows = useMemo(() => rows.filter((r) => !(r.status.required && !r.status.mapped)), [rows]);
+  const allReady = needsRows.length === 0;
+
+  // The auto-mapped group is COLLAPSED while any row needs attention; it AUTO-EXPANDS once nothing
+  // is blocking so the pane never reads as empty. Seeded from allReady + re-synced when readiness
+  // flips (e.g. the operator applies the last fix and clears the final blocker).
+  const [showAuto, setShowAuto] = useState(allReady);
+  useEffect(() => { if (allReady) setShowAuto(true); }, [allReady]);
+
+  // One row renderer reused by both layouts (the v3 needs/auto split in picker mode, and the
+  // classic flat list everywhere else) so the row markup + wiring lives in ONE place.
+  const renderRow = (field: TargetField, status: ReturnType<typeof computeOutgoingStatus>) => (
+    <OutgoingRow
+      key={field.outputPath}
+      field={field}
+      status={status}
+      wired={isTargetWired(field.outputPath, outputConnections)}
+      fixedValue={fixedValues?.[field.outputPath] ?? null}
+      hovered={hoveredId === field.outputPath}
+      snapped={snapTarget === field.outputPath}
+      canRename={canRename}
+      readOnly={readOnly}
+      portRef={portRef}
+      onHover={onHover}
+      onSelect={onSelect}
+      onDisconnect={onDisconnect}
+      onSetFixedValue={onSetFixedValue}
+      onRenamePath={onRenamePath}
+      manipulators={manipulatorsOf?.(field)}
+      onFieldManipulatorsChange={onFieldManipulatorsChange}
+      badgeSlot={badgeSlot}
+      pickerMode={pickerMode}
+      incomingFields={incomingFields}
+      onPickSource={onPickSource}
+    />
+  );
+
   return (
     <div style={{ borderRadius: 12, border: "1px solid var(--line, #E2E6EE)", background: "#FBFBFD", overflow: "hidden" }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, padding: "9px 12px", borderBottom: "1px solid #EEF0F4" }}>
@@ -148,13 +197,14 @@ export function OutgoingPane({
             ? "No output fields yet — add one to start shaping the delivered document."
             : "This output has no declared fields."}
         </div>
-      ) : (
+      ) : pickerMode ? (
         <div style={{ padding: "10px", display: "flex", flexDirection: "column", gap: 6 }}>
-          {targetFields.map((field) => (
+          {/* Rows that NEED ATTENTION first (required + unmapped), each carrying its own inline AI fix. */}
+          {needsRows.map(({ field, status }) => (
             <OutgoingRow
               key={field.outputPath}
               field={field}
-              status={computeOutgoingStatus(field, statusInput)}
+              status={status}
               wired={isTargetWired(field.outputPath, outputConnections)}
               fixedValue={fixedValues?.[field.outputPath] ?? null}
               hovered={hoveredId === field.outputPath}
@@ -175,6 +225,48 @@ export function OutgoingPane({
               onPickSource={onPickSource}
             />
           ))}
+
+          {/* The auto-mapped group: a full-width collapsible summary, then the rows when open.
+              Hidden entirely when there's nothing auto-mapped (e.g. every field needs attention). */}
+          {autoRows.length > 0 && (
+            <>
+              <AutoMappedSummary count={autoRows.length} open={showAuto} onToggle={() => setShowAuto((o) => !o)} />
+              {showAuto && (
+                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                  {autoRows.map(({ field, status }) => (
+                    <OutgoingRow
+                      key={field.outputPath}
+                      field={field}
+                      status={status}
+                      wired={isTargetWired(field.outputPath, outputConnections)}
+                      fixedValue={fixedValues?.[field.outputPath] ?? null}
+                      hovered={hoveredId === field.outputPath}
+                      snapped={snapTarget === field.outputPath}
+                      canRename={canRename}
+                      readOnly={readOnly}
+                      portRef={portRef}
+                      onHover={onHover}
+                      onSelect={onSelect}
+                      onDisconnect={onDisconnect}
+                      onSetFixedValue={onSetFixedValue}
+                      onRenamePath={onRenamePath}
+                      manipulators={manipulatorsOf?.(field)}
+                      onFieldManipulatorsChange={onFieldManipulatorsChange}
+                      badgeSlot={badgeSlot}
+                      pickerMode={pickerMode}
+                      incomingFields={incomingFields}
+                      onPickSource={onPickSource}
+                    />
+                  ))}
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      ) : (
+        // Classic (wires): every output row, flat, in declared order — unchanged from before v3.
+        <div style={{ padding: "10px", display: "flex", flexDirection: "column", gap: 6 }}>
+          {rows.map(({ field, status }) => renderRow(field, status))}
         </div>
       )}
     </div>
@@ -223,6 +315,24 @@ function OutgoingRow({
   const accent = field.scope === "line" ? "#2E8E3A" : "#1E66C9";
   // Loud ONLY when required AND genuinely unmapped (no value resolves). Optional unmapped = quiet.
   const needsSource = status.required && !status.mapped;
+
+  // INLINE AI FIX — reuse the EXISTING suggestion model (suggestedSourceFor). The suggested VALUE is
+  // the suggested incoming field's own value (looked up by id); the rationale is "from {label}"
+  // (SourceField carries no richer reason field, so we degrade gracefully — never fabricate one).
+  // Apply routes through the SAME onPickSource dispatch the picker uses, so it actually maps the
+  // field and clears the blocker. Rendered ONLY on a needs-source row that HAS a suggestion.
+  const aiFix = useMemo(() => {
+    if (!needsSource) return null;
+    const sug = suggestedSourceFor(field.outputPath, incomingFields ?? []);
+    if (!sug || !onPickSource || readOnly) return null;
+    const src = (incomingFields ?? []).find((f) => f.id === sug.id);
+    return {
+      sourceId: sug.id,
+      value: src?.value ?? "",
+      rationale: `from ${sug.label}`,
+      confidence: sug.confidence,
+    };
+  }, [needsSource, field.outputPath, incomingFields, onPickSource, readOnly]);
   // The inline action affordances are quiet at rest, full on hover / keyboard focus / when active,
   // so they're always discoverable (never hover-ONLY) but don't clutter a dense column.
   const actionsLit = hovered || focusWithin || transformOpen || fixedEditing || chain.length > 0;
@@ -441,9 +551,84 @@ function OutgoingRow({
         </div>
       )}
 
+      {/* INLINE AI-FIX STRIP — a second line inside this same card. Only on a needs-source row that
+          has an AI suggestion; otherwise the row keeps just its "pick a field" trigger. */}
+      {aiFix && pickerMode && !fixedEditing && (
+        <div
+          onClick={(e) => e.stopPropagation()}
+          style={{
+            marginTop: 8,
+            marginLeft: -16, marginRight: -10, marginBottom: -8,
+            borderTop: "1px solid #F0E7D1",
+            background: "#FCFAF4",
+            padding: "9px 13px 11px 15px",
+            display: "flex", alignItems: "center", gap: 10, minWidth: 0,
+            borderBottomLeftRadius: 8, borderBottomRightRadius: 8,
+          }}
+        >
+          <span style={{ display: "inline-flex", alignItems: "center", gap: 3, fontSize: 9, fontWeight: 800, letterSpacing: "0.03em", color: "#6F4FCE", flexShrink: 0 }}>
+            <span aria-hidden style={{ fontSize: 9, lineHeight: 1 }}>✦</span>
+            SUGGESTED
+          </span>
+          {aiFix.value && (
+            <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11.5, fontWeight: 700, color: "#0B1A2F", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", flexShrink: 0, maxWidth: 140 }}>
+              {aiFix.value}
+            </span>
+          )}
+          <span title={aiFix.rationale} style={{ fontSize: 10.5, color: "#56627A", flex: 1, minWidth: 0, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+            {aiFix.rationale}
+          </span>
+          {aiFix.confidence != null && <ConfidenceChip value={aiFix.confidence} sm />}
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); onPickSource?.(field.outputPath, aiFix.sourceId); }}
+            style={{
+              height: 26, padding: "0 12px", borderRadius: 6, fontSize: 11, fontWeight: 700,
+              color: "#FFFFFF", background: "#2E8E3A", border: "1px solid #1E6D29",
+              cursor: "pointer", flexShrink: 0, transition: "background 120ms",
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.background = "#1E6E1F"; }}
+            onMouseLeave={(e) => { e.currentTarget.style.background = "#2E8E3A"; }}
+          >
+            Apply
+          </button>
+        </div>
+      )}
+
       {/* Enrichment slot: catalog/validation badges. */}
       {badgeSlot && (() => { const b = badgeSlot(field); return b ? <div style={{ marginTop: 5 }}>{b}</div> : null; })()}
     </div>
+  );
+}
+
+// ── Full-width "N fields ready · mapped automatically" collapsible summary ─────
+function AutoMappedSummary({ count, open, onToggle }: { count: number; open: boolean; onToggle: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      aria-expanded={open}
+      style={{
+        width: "100%", display: "flex", alignItems: "center", gap: 9, padding: "9px 12px",
+        borderRadius: 9, border: "none", background: "#EFF2F7", color: "#56627A", cursor: "pointer",
+        textAlign: "left",
+      }}
+    >
+      <span style={{ width: 18, height: 18, borderRadius: "50%", background: "#E7F0E8", display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+        <svg width="10" height="10" viewBox="0 0 12 12" fill="none" aria-hidden>
+          <path d="M2.5 6.2 5 8.7l4.5-5" stroke="#1E6D29" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      </span>
+      <span style={{ fontSize: 12, fontWeight: 600, color: "#0B1A2F" }}>
+        {count} field{count === 1 ? "" : "s"} ready
+      </span>
+      <span style={{ fontSize: 11.5 }}>· mapped automatically</span>
+      <span aria-hidden style={{ marginLeft: "auto", display: "inline-flex", transform: open ? "rotate(90deg)" : "none", transition: "transform 120ms", color: "#8A93A5" }}>
+        <svg width="11" height="11" viewBox="0 0 12 12" fill="none">
+          <path d="M4.5 2.5 8 6l-3.5 3.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      </span>
+    </button>
   );
 }
 

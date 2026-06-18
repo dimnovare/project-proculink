@@ -22,6 +22,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { MapperSourcePortProps } from "./MapperWireLayer";
 import type { SourceField, FieldFilter } from "./types";
+import { ConfidenceChip } from "./ConfidenceChip";
+import { SourceTypeChip } from "./SourceTypeChip";
 import {
   buildIncomingGroups,
   incomingFilterCounts,
@@ -59,6 +61,13 @@ export interface IncomingPaneProps {
   /** True while a wire drag is in flight — softens the "drag to map" hint into "drop on a field". */
   dragging?: boolean;
   readOnly?: boolean;
+  /**
+   * The source document type the order arrived as (PDF / CSV / XLSX / XML / cXML / UBL / X12 /
+   * JSON / EMAIL). Renders a SourceTypeChip in the pane header — only when provided. Optional so
+   * existing call sites keep compiling; default-undefined → no chip. Thread it from
+   * MapperWorkbench (e.g. the order's detected source format) when available.
+   */
+  sourceType?: string;
 }
 
 const FILTERS: { id: FieldFilter; label: string }[] = [
@@ -86,6 +95,7 @@ export function IncomingPane({
   onSelect,
   dragging,
   readOnly,
+  sourceType,
 }: IncomingPaneProps) {
   // 150ms debounce so the controlled query upstream doesn't thrash on every keystroke.
   const [local, setLocal] = useState(query);
@@ -118,7 +128,7 @@ export function IncomingPane({
 
   if (loading) {
     return (
-      <PaneFrame title="Incoming order">
+      <PaneFrame title="Incoming order" sourceType={sourceType}>
         <div style={{ padding: "10px 12px", fontSize: 11, color: "var(--ink-faint)" }}>Loading incoming data…</div>
       </PaneFrame>
     );
@@ -131,14 +141,14 @@ export function IncomingPane({
       ? "This order arrived already-structured — there are no extra raw fields to remap. The canonical values flow straight to the output."
       : "No extra incoming fields for this document type — the parsed values are the source of truth.";
     return (
-      <PaneFrame title="Incoming order">
+      <PaneFrame title="Incoming order" sourceType={sourceType}>
         <div style={{ padding: "12px", fontSize: 11.5, color: "var(--ink-faint)", lineHeight: 1.5 }}>{message}</div>
       </PaneFrame>
     );
   }
 
   return (
-    <PaneFrame title="Incoming order" subtitle={`${counts.all} field${counts.all === 1 ? "" : "s"}`}>
+    <PaneFrame title="Incoming order" subtitle={`${counts.all} field${counts.all === 1 ? "" : "s"}`} sourceType={sourceType}>
       {/* Search — finds any field/value across groups (collapsed groups auto-reveal). */}
       <div style={{ padding: "8px 10px 0" }}>
         <input
@@ -215,12 +225,26 @@ export function IncomingPane({
 }
 
 // ── Pane frame (shared chrome) ────────────────────────────────────────────────
-function PaneFrame({ title, subtitle, children }: { title: string; subtitle?: string; children: React.ReactNode }) {
+// `sourceType` (optional) renders a SourceTypeChip on the right of the header showing the
+// order's source document type (PDF/CSV/XLSX/…). Default-undefined → no chip rendered.
+function PaneFrame({
+  title, subtitle, sourceType, children,
+}: {
+  title: string;
+  subtitle?: string;
+  sourceType?: string;
+  children: React.ReactNode;
+}) {
   return (
     <div style={{ borderRadius: 12, border: "1px solid var(--line, #E2E6EE)", background: "#FBFBFD", overflow: "hidden" }}>
-      <div style={{ display: "flex", alignItems: "baseline", gap: 8, padding: "9px 12px", borderBottom: "1px solid #EEF0F4" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "9px 12px", borderBottom: "1px solid #EEF0F4" }}>
         <span style={{ fontSize: 10.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em", color: "#5E3DB0" }}>{title}</span>
         {subtitle && <span style={{ fontSize: 10.5, color: "var(--ink-faint)" }}>{subtitle}</span>}
+        {sourceType && (
+          <span style={{ marginLeft: "auto" }}>
+            <SourceTypeChip kind={sourceType} />
+          </span>
+        )}
       </div>
       {children}
     </div>
@@ -310,6 +334,16 @@ function IncomingRow({
   const wired = port["data-wired"] || field.mapped;
   const connecting = port["data-connecting"];
   const suggested = field.suggestedFor != null;
+  const valueMissing = !field.value || field.value.trim().length === 0;
+  // §6 field-row left accent (3px): violet if AI-wired/AI-suggested, amber if the value is
+  // missing/not-found, else light grey. AI accent wins over the missing-value accent.
+  const accentColor =
+    wired || suggested ? "#6F4FCE" : valueMissing ? "#C97A14" : "#E2E6EE";
+  // Per-field AI confidence — render a small chip only when the datum actually exists.
+  const confidence =
+    field.suggestionConfidence != null && Number.isFinite(field.suggestionConfidence)
+      ? field.suggestionConfidence
+      : null;
   const { ref: portRef, ...portHandlers } = port;
 
   return (
@@ -325,7 +359,7 @@ function IncomingRow({
         display: "flex", alignItems: "center", gap: 8, minWidth: 0,
         padding: "7px 9px 7px 10px", borderRadius: 8,
         border: `1px solid ${connecting ? "#6F4FCE" : hovered ? "#C4ABE8" : wired ? "#D9CEF2" : "var(--line, #E2E6EE)"}`,
-        borderLeft: `3px solid ${wired ? "#6F4FCE" : suggested ? "#C4ABE8" : "transparent"}`,
+        borderLeft: `3px solid ${accentColor}`,
         background: connecting ? "#EEE7FB" : hovered ? "#F7F4FD" : "#FFFFFF",
         userSelect: "none",
         transition: "border-color 120ms, background 120ms, box-shadow 120ms",
@@ -346,6 +380,10 @@ function IncomingRow({
           {field.value || <span style={{ color: "#C6CDDA" }}>(empty)</span>}
         </span>
       </span>
+
+      {/* Per-field AI confidence chip (§6 "Right column") — only when an AI suggestion confidence
+          exists for this field. Never fabricated. */}
+      {confidence != null && <ConfidenceChip value={confidence} sm />}
 
       {/* RIGHT-edge drag PORT — the wire emerges from here. Grab it (or focus + Enter, then
           arrows) to wire this field to an output. The whole port is the drag handle. */}

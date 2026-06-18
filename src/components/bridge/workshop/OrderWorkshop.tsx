@@ -184,16 +184,26 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
   if (!queryEnabled || isLoading || order === undefined) return <WorkshopBrandLoader />;
   if (isError || order === null) {
     return (
-      <div className="flex flex-col items-center justify-center h-full gap-4" style={{ background: "#F6F7FA" }}>
-        <div style={{ fontSize: 28, color: "#C6CDDA" }}>⊘</div>
-        <p className="text-[14px] font-semibold" style={{ color: "#0B1A2F" }}>
+      <div className="flex flex-col items-center justify-center h-full gap-3.5 px-6 text-center" style={{ background: "#F6F7FA" }}>
+        <span style={{ width: 56, height: 56, borderRadius: "50%", background: "#FFFFFF", border: "1px solid #E2E6EE", display: "inline-flex", alignItems: "center", justifyContent: "center" }}>
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" aria-hidden>
+            <circle cx="12" cy="12" r="9" stroke="#C6CDDA" strokeWidth="1.6" />
+            <path d="M6 6 18 18" stroke="#C6CDDA" strokeWidth="1.6" strokeLinecap="round" />
+          </svg>
+        </span>
+        <p className="text-[15px] font-semibold" style={{ color: "#0B1A2F" }}>
           {order === null ? "Order not found" : "Failed to load order"}
+        </p>
+        <p className="text-[12.5px]" style={{ color: "#56627A", maxWidth: 340, lineHeight: 1.5 }}>
+          {order === null
+            ? "This order may have been delivered and archived, or the link is out of date."
+            : "Something went wrong loading this order. Try again in a moment."}
         </p>
         <button
           type="button"
           onClick={() => router.push("/inbox")}
-          className="rounded-[6px] px-4 text-[12.5px] font-semibold"
-          style={{ height: 34, background: "#0B1A2F", color: "#FFFFFF", border: 0 }}
+          className="rounded-[7px] px-4 text-[12.5px] font-semibold"
+          style={{ height: 36, background: "#0B1A2F", color: "#FFFFFF", border: 0, marginTop: 4 }}
         >
           ← Back to inbox
         </button>
