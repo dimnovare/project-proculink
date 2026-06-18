@@ -1,19 +1,26 @@
 "use client";
 
-// TransformPopover — the manipulator-chain editor opened from an OUTPUT row's "+ Transform"
-// control (Fix 5). It reuses the EXACT manipulator semantics shipped in OutputMappingEditor /
-// FieldBadges: the canonical MANIPULATOR_TYPES list, per-type param inputs, add via a dropdown,
-// remove via the pill ✕. The chain is the field's `fieldManipulators` — the transforms applied
-// to the resolved value before the delivered document is rendered (Trim, Replace, DateFormat,
-// Multiply, …). Edits flow straight to model.onFieldManipulatorsChange → buildOverrideDraft, so
-// the same persistence path + data-loss guard as everywhere else; the live preview re-renders.
+// TransformPopover — the manipulator-chain editor opened from an OUTPUT row's "ƒx" control
+// (founder bug 7: the in-flow absolute popover overlapped/clipped adjacent rows — the OutgoingPane
+// column has overflow:hidden and dense, gap:6 rows, so a 300px panel anchored top:100% was both
+// clipped by the column and drawn OVER the next rows). It now renders via createPortal to
+// document.body with position:fixed, measured from the trigger button's viewport rect and FLIPPED
+// above the trigger when it would overflow the viewport bottom. So it always floats cleanly above
+// everything, never clipped, never overlapping a sibling row.
 //
-// Popover, not a modal: anchored to the row, dismissed on outside-click / Escape. A "live"
-// editor — every change persists immediately (no Save button) so the docked preview updates as
-// you tune the chain. ManipRow is MODULE scope (stable identity → param inputs keep focus, the
-// documented remount-on-keystroke bug).
+// It reuses the EXACT manipulator semantics shipped in OutputMappingEditor / FieldBadges: the
+// canonical MANIPULATOR_TYPES list, per-type param inputs, add via a dropdown, remove via the pill
+// ✕. The chain is the field's `fieldManipulators` — the transforms applied to the resolved value
+// before the delivered document is rendered (Trim, Replace, DateFormat, Multiply, …). Edits flow
+// straight to model.onFieldManipulatorsChange → buildOverrideDraft, so the same persistence path +
+// data-loss guard as everywhere else; the live preview re-renders.
+//
+// Dismissed on outside-click / Escape. A "live" editor — every change persists immediately (no Save
+// button) so the docked preview updates as you tune the chain. ManipRow is MODULE scope (stable
+// identity → param inputs keep focus, the documented remount-on-keystroke bug).
 
-import { useEffect, useRef } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import type { ManipulatorEntry } from "@/lib/api/types";
 import { MANIPULATOR_TYPES } from "@/lib/api/types";
 
@@ -24,7 +31,15 @@ export interface TransformPopoverProps {
   /** Replace the chain (persists via the model). */
   onChange: (next: ManipulatorEntry[]) => void;
   onClose: () => void;
+  /**
+   * The trigger element the popover anchors to (the row's ƒx button). When supplied the popover
+   * renders in a body portal at fixed coordinates derived from this rect — clip-proof. When absent
+   * (legacy/test) it falls back to an in-flow absolute panel so existing callers don't break.
+   */
+  anchorEl?: HTMLElement | null;
 }
+
+const POPOVER_W = 300;
 
 // ── Module-scope row so its <input>s keep focus across re-renders ───────────────
 function ManipRow({ entry, onUpdate, onRemove }: {
@@ -59,27 +74,74 @@ function ManipRow({ entry, onUpdate, onRemove }: {
   );
 }
 
-export function TransformPopover({ outputPath, manipulators, onChange, onClose }: TransformPopoverProps) {
+export function TransformPopover({ outputPath, manipulators, onChange, onClose, anchorEl }: TransformPopoverProps) {
   const ref = useRef<HTMLDivElement | null>(null);
+  // Fixed-position coordinates measured from the trigger rect (portal mode). Null until measured.
+  const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
+
+  // Measure the trigger and place the panel: right-aligned to the trigger, flipped above it when it
+  // would overflow the viewport bottom. Re-measured on scroll/resize so it tracks the trigger.
+  useLayoutEffect(() => {
+    if (!anchorEl) return;
+    function place() {
+      const r = anchorEl!.getBoundingClientRect();
+      const margin = 8;
+      const estHeight = ref.current?.offsetHeight ?? 280;
+      // Right edge of the panel aligns with the trigger's right edge; clamp to the viewport.
+      let left = r.right - POPOVER_W;
+      left = Math.max(margin, Math.min(left, window.innerWidth - POPOVER_W - margin));
+      // Default below the trigger; flip above when there isn't room below.
+      const below = r.bottom + 6;
+      const wouldOverflow = below + estHeight > window.innerHeight - margin;
+      const top = wouldOverflow ? Math.max(margin, r.top - estHeight - 6) : below;
+      setPos({ top, left });
+    }
+    place();
+    window.addEventListener("scroll", place, true);
+    window.addEventListener("resize", place);
+    return () => {
+      window.removeEventListener("scroll", place, true);
+      window.removeEventListener("resize", place);
+    };
+  }, [anchorEl, manipulators.length]);
+
   useEffect(() => {
-    function onDoc(e: MouseEvent) { if (ref.current && !ref.current.contains(e.target as Node)) onClose(); }
+    function onDoc(e: MouseEvent) {
+      if (ref.current && ref.current.contains(e.target as Node)) return;
+      if (anchorEl && anchorEl.contains(e.target as Node)) return; // a click on the trigger toggles via the host
+      onClose();
+    }
     function onKey(e: KeyboardEvent) { if (e.key === "Escape") onClose(); }
     document.addEventListener("mousedown", onDoc);
     document.addEventListener("keydown", onKey);
     return () => { document.removeEventListener("mousedown", onDoc); document.removeEventListener("keydown", onKey); };
-  }, [onClose]);
+  }, [onClose, anchorEl]);
 
-  return (
+  // Portal mode is fixed-position (clip-proof); legacy mode keeps the in-flow absolute anchor so
+  // callers that don't pass anchorEl (and the unit tests) keep working unchanged.
+  const portaled = anchorEl != null;
+  const panelStyle: React.CSSProperties = portaled
+    ? {
+        position: "fixed", top: pos?.top ?? -9999, left: pos?.left ?? -9999, zIndex: 1000, width: POPOVER_W,
+        background: "#FFFFFF", border: "1px solid #E2E6EE", borderRadius: 10,
+        boxShadow: "0 10px 28px rgba(11,26,47,0.18)", padding: 12,
+        display: "flex", flexDirection: "column", gap: 8,
+        // Hidden until measured so it never flashes at the wrong place.
+        visibility: pos ? "visible" : "hidden",
+      }
+    : {
+        position: "absolute", left: 0, top: "100%", marginTop: 6, zIndex: 40, width: POPOVER_W,
+        background: "#FFFFFF", border: "1px solid #E2E6EE", borderRadius: 10,
+        boxShadow: "0 10px 28px rgba(11,26,47,0.18)", padding: 12,
+        display: "flex", flexDirection: "column", gap: 8,
+      };
+
+  const panel = (
     <div
       ref={ref}
       role="dialog"
       aria-label={`Transforms for ${outputPath}`}
-      style={{
-        position: "absolute", left: 0, top: "100%", marginTop: 6, zIndex: 40, width: 300,
-        background: "#FFFFFF", border: "1px solid #E2E6EE", borderRadius: 10,
-        boxShadow: "0 10px 28px rgba(11,26,47,0.18)", padding: 12,
-        display: "flex", flexDirection: "column", gap: 8,
-      }}
+      style={panelStyle}
       onClick={(e) => e.stopPropagation()}
     >
       <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 8 }}>
@@ -136,4 +198,9 @@ export function TransformPopover({ outputPath, manipulators, onChange, onClose }
       </div>
     </div>
   );
+
+  if (portaled && typeof document !== "undefined") {
+    return createPortal(panel, document.body);
+  }
+  return panel;
 }

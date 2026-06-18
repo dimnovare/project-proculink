@@ -264,7 +264,18 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [knownCanonical, model.onTargetConnect, model.onSetFixedValue, model.tokenValueById, model.targetFields]);
 
+  // ── Collapse state for the incoming + preview panes (Order Workshop, Task 12a).
+  //    `undefined` layout → never collapsed → today's full-width rendering. ──────
+  //    Hoisted above the wire engine so it can suppress wires when a wired pane is a rail.
+  const incomingCollapsed = layout?.incoming === "rail";
+  const previewCollapsed = layout?.preview === "rail";
+
   // ── Wire engine (2-bank, robust in-content overlay) ─────────────────────────
+  // Suppress the wire SVG when the INCOMING column is collapsed to a rail (bug 8): its source
+  // anchors are no longer rendered, but the engine keeps the last-good positions, so without this
+  // wires would draw from where the column USED to be — into the void. (Collapsing the PREVIEW
+  // doesn't touch the wire span, so it doesn't gate the SVG.) "wires" mode never collapses → wires
+  // always show, the old screen is unchanged.
   const wire = useMapperWireLayer({
     canvasRef,
     sourceEls,
@@ -280,6 +291,7 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
     onRejectSuggestion: model.onRejectSuggestion,
     hoveredId,
     readOnly,
+    hidden: incomingCollapsed,
     signature: model.signature,
   });
 
@@ -335,11 +347,6 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
     attentionFirstOutput && !outputExpanded ? attentionSplit.attention : model.targetFields;
   const collapsedMappedCount =
     attentionFirstOutput && !outputExpanded ? attentionSplit.mappedCount : 0;
-
-  // ── Collapse state for the incoming + preview panes (Order Workshop, Task 12a).
-  //    `undefined` layout → never collapsed → today's full-width rendering. ──────
-  const incomingCollapsed = layout?.incoming === "rail";
-  const previewCollapsed = layout?.preview === "rail";
 
   // ── Per-row enrichment badges (catalog/validation ONLY — no 2nd transform editor) ──
   const badgeSlot = useCallback((field: TargetField) => {

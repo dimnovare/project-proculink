@@ -186,6 +186,9 @@ function OutgoingRow({
   const [fixedEditing, setFixedEditing] = useState(false);
   const [draftFixed, setDraftFixed] = useState(fixedValue ?? "");
   const [transformOpen, setTransformOpen] = useState(false);
+  // The ƒx trigger element — the transform popover anchors to it (portal + fixed position) so it
+  // floats clean above the dense column instead of clipping/overlapping sibling rows (bug 7).
+  const [fxAnchor, setFxAnchor] = useState<HTMLButtonElement | null>(null);
   const [focusWithin, setFocusWithin] = useState(false);
   const chain = manipulators ?? [];
   const canEditTransform = !!onFieldManipulatorsChange;
@@ -320,6 +323,7 @@ function OutgoingRow({
             <div style={{ position: "relative", flexShrink: 0 }}>
               {canEditTransform ? (
                 <RowChipButton
+                  buttonRef={setFxAnchor}
                   label={chain.length > 0 ? `ƒx · ${chain.length}` : "ƒx"}
                   title={chain.length > 0 ? `${chain.length} transform${chain.length === 1 ? "" : "s"} applied — clean, reformat or compute this value before delivery` : "Add a transform — clean, reformat or compute this value before delivery"}
                   lit={actionsLit}
@@ -335,6 +339,7 @@ function OutgoingRow({
                   manipulators={chain}
                   onChange={(next) => onFieldManipulatorsChange?.(field.outputPath, next, field.scope)}
                   onClose={() => setTransformOpen(false)}
+                  anchorEl={fxAnchor}
                 />
               )}
             </div>
@@ -465,7 +470,7 @@ function OutgoingStatusTag({
 
 // ── Small inline row-action chip (fixed value / transform) ────────────────────
 function RowChipButton({
-  label, title, onClick, lit, active, disabled, reason,
+  label, title, onClick, lit, active, disabled, reason, buttonRef,
 }: {
   label: string;
   title?: string;
@@ -475,10 +480,13 @@ function RowChipButton({
   active?: boolean;
   disabled?: boolean;
   reason?: string;
+  /** Receives the underlying <button> element — used to anchor the portaled transform popover. */
+  buttonRef?: (el: HTMLButtonElement | null) => void;
 }) {
   const isDisabled = disabled || !onClick;
   return (
     <button
+      ref={buttonRef}
       type="button"
       onClick={onClick}
       disabled={isDisabled}
