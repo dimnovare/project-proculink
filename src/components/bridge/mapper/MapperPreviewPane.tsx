@@ -79,11 +79,16 @@ export function MapperPreviewPane({ previewOrderId, override, lastTouched, suppl
   // What the supplier actually receives, for the honest exploratory label. Kept in state so the label
   // re-renders when we learn it. Null until we know (no pinned/delivered format to diverge from).
   const [connectionFormat, setConnectionFormat] = useState<OutputFormatId | null>(defaultFormat ?? null);
+  // Has the user manually chosen a preview format (toggle / palette cycle)? Until they do, we snap the
+  // toggle to the connection's REAL delivered format once the server tells us what it is — so a JSON
+  // supplier doesn't sit on a highlighted CSV toggle just because the client-side guess defaulted to CSV.
+  const userPickedFormatRef = useRef(false);
 
   // Command-palette "Switch output format" → advance through PREVIEW_FORMATS. Skip the
   // initial mount (signal undefined/0) so the default CSV view isn't immediately bumped.
   useEffect(() => {
     if (!cycleFormatSignal) return;
+    userPickedFormatRef.current = true;
     setFormat((f) => nextOutputFormat(f));
   }, [cycleFormatSignal]);
 
@@ -123,6 +128,12 @@ export function MapperPreviewPane({ previewOrderId, override, lastTouched, suppl
         if (!honor) {
           connectionFormatRef.current = delivered;
           setConnectionFormat(delivered);
+          // First time we learn the supplier's real delivered format, snap the toggle to it (unless the
+          // user has already picked a format to explore) so the highlighted toggle matches the bytes.
+          if (!userPickedFormatRef.current && delivered !== format) {
+            setFormat(delivered);
+            setDeliveredFormat(delivered);
+          }
         }
         setInfo(previewInfoNote({
           honored: honor,
@@ -204,7 +215,7 @@ export function MapperPreviewPane({ previewOrderId, override, lastTouched, suppl
             <button
               key={f.value}
               type="button"
-              onClick={() => setFormat(f.value)}
+              onClick={() => { userPickedFormatRef.current = true; setFormat(f.value); }}
               aria-pressed={format === f.value}
               style={{
                 padding: "2px 8px", borderRadius: 999, cursor: "pointer", fontSize: 10, fontWeight: 700,
