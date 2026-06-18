@@ -7,7 +7,7 @@
 // preview == the delivered bytes). Functional first version — form-based tree editing; drag/reorder
 // polish is a follow-up.
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { previewMappingOverride, upsertMappingOverride, inferOutputStructure } from "@/lib/api-client";
 import {
   CANONICAL_HEADER_FIELDS, CANONICAL_LINE_FIELDS,
@@ -44,9 +44,13 @@ function designerFormat(raw: OutputFormat | string | null | undefined): OutputFo
 
 // Bridge Layer tokens: navy chrome, green = primary/"supplier out" action, blue = incoming accent.
 // Violet is reserved for AI only (design system 09-trust-rules) — not used as decoration here.
+// These are the LOCKED canonical palette used everywhere else in the mapper (DSPrimitives,
+// OutgoingPane, SendReadinessStrip, the signature blue→green bridge edge): buyer-blue #1E66C9,
+// supplier-green #2E8E3A (fill), green-deep #1E6D29 (hover/active). Do NOT diverge.
 const NAVY = "#0B1A2F";
-const GREEN = "#1E6D29";
-const BLUE = "#2D6BD4";
+const GREEN = "#2E8E3A";       // brand-green — modal's single primary action (Save)
+const GREEN_DEEP = "#1E6D29";  // brand-green-deep — primary hover, green text/borders
+const BLUE = "#1E66C9";        // buyer-blue — incoming accent (active includeWhen)
 const BORDER = "#C6CDDA";
 const SLATE = "#56627A";
 
@@ -114,6 +118,26 @@ function removeAt(node: OutputNode, path: number[]): OutputNode {
   return { ...node, children };
 }
 
+// ── Responsive switch ───────────────────────────────────────────────────────
+// The body is a 50/50 two-column grid (tree | dark live-output). Below ~860px that's unusable,
+// so we collapse to a single column (tree on top, output below) and go full-screen. A matchMedia
+// listener reflows on resize/rotate (no poll). SSR-safe: defaults to wide so the desktop layout
+// is the server/first-paint shape, then corrects on mount.
+const NARROW_QUERY = "(max-width: 860px)";
+function useIsNarrow(): boolean {
+  const [narrow, setNarrow] = useState(false);
+  useEffect(() => {
+    if (typeof window === "undefined" || !window.matchMedia) return;
+    const mql = window.matchMedia(NARROW_QUERY);
+    const apply = () => setNarrow(mql.matches);
+    apply();
+    // addEventListener("change") is the modern API; both fire on viewport resize across the bound.
+    mql.addEventListener("change", apply);
+    return () => mql.removeEventListener("change", apply);
+  }, []);
+  return narrow;
+}
+
 export function OutputStructureDesigner({
   orderId, baseOverride, initialTree, onClose, onSaved,
 }: {
@@ -135,6 +159,11 @@ export function OutputStructureDesigner({
   const [sample, setSample] = useState("");
   const [inferring, setInferring] = useState(false);
   const [inferError, setInferError] = useState<string | null>(null);
+  const isNarrow = useIsNarrow();
+  // First-run empty state: when there's no saved tree, the infer panel IS the screen — the default
+  // tree stays hidden until the user either infers a sample or explicitly chooses "start blank".
+  // This avoids showing a populated tree + a paste-a-sample prompt at once (two competing affordances).
+  const [firstRun, setFirstRun] = useState(initialTree == null);
 
   const infer = useCallback(async () => {
     const s = sample.trim();
@@ -149,6 +178,7 @@ export function OutputStructureDesigner({
       setTree({ ...inferred, format: designerFormat(inferred.format) });
       setSaved(false);
       setShowInfer(false);
+      setFirstRun(false); // sample inferred → reveal the editable tree
     } catch (e) {
       setInferError(e instanceof Error ? e.message : "Could not read that sample.");
     } finally {
@@ -192,18 +222,22 @@ export function OutputStructureDesigner({
 
   return (
     <div role="dialog" aria-label="Design output structure"
-      style={{ position: "fixed", inset: 0, zIndex: 100, background: "rgba(8,16,28,0.55)", display: "flex", justifyContent: "center", alignItems: "stretch", padding: "3vh 2vw" }}>
-      <div style={{ background: "#FFFFFF", borderRadius: 12, width: "100%", maxWidth: 1100, display: "flex", flexDirection: "column", overflow: "hidden", boxShadow: "0 24px 64px rgba(8,16,28,0.4)" }}>
+      style={{ position: "fixed", inset: 0, zIndex: 100, background: "rgba(8,16,28,0.55)", display: "flex", justifyContent: "center", alignItems: "stretch",
+        // Full-screen on narrow viewports (no breathing-room padding) so the single-column stack
+        // has the whole screen; comfortable inset on desktop.
+        padding: isNarrow ? 0 : "3vh 2vw" }}>
+      <div style={{ background: "#FFFFFF", borderRadius: isNarrow ? 0 : 12, width: "100%", maxWidth: isNarrow ? "none" : 1100, display: "flex", flexDirection: "column", overflow: "hidden", boxShadow: isNarrow ? "none" : "0 24px 64px rgba(8,16,28,0.4)" }}>
         {/* Bridge edge (buyer blue → supplier green) — design system signature #5 */}
         <div style={{ height: 3, background: `linear-gradient(90deg, ${BLUE}, ${GREEN})` }} />
         {/* Header */}
         <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px 18px", borderBottom: `1px solid ${BORDER}`, background: NAVY, color: "#FFFFFF" }}>
-          <strong style={{ fontSize: 14 }}>Design the output structure</strong>
-          <span style={{ fontSize: 11.5, opacity: 0.8 }}>What the supplier receives — live preview on the right</span>
+          <strong style={{ fontSize: 15 }}>Design the output structure</strong>
+          {/* The subtitle is a desktop nicety — hide it on narrow where horizontal room is scarce. */}
+          {!isNarrow && <span style={{ fontSize: 12, opacity: 0.8 }}>What the supplier receives — live preview on the right</span>}
           <div style={{ marginLeft: "auto", display: "flex", gap: 8, alignItems: "center" }}>
-            <label htmlFor="osd-format" style={{ fontSize: 11.5, opacity: 0.85 }}>Format</label>
+            <label htmlFor="osd-format" style={{ fontSize: 12, opacity: 0.85 }}>Format</label>
             <select id="osd-format" aria-label="Output format" value={designerFormat(tree.format)} onChange={(e) => { setTree((t) => ({ ...t, format: e.target.value as OutputFormat })); setSaved(false); }}
-              style={{ height: 30, borderRadius: 6, border: "none", padding: "0 8px", fontSize: 12.5 }}>
+              style={{ height: 30, borderRadius: 6, border: "none", padding: "0 8px", fontSize: 12 }}>
               {FORMATS.map((f) => <option key={f.id} value={f.id}>{f.label}</option>)}
             </select>
             <button onClick={onClose} aria-label="Close" style={{ minWidth: "var(--tap-min)", minHeight: "var(--tap-min)", display: "flex", alignItems: "center", justifyContent: "center", border: "none", background: "transparent", padding: 0, cursor: "pointer" }}>
@@ -212,54 +246,86 @@ export function OutputStructureDesigner({
           </div>
         </div>
 
-        {/* Body: tree | preview */}
-        <div style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr) minmax(0,1fr)", minHeight: 0, flex: 1 }}>
-          <div style={{ overflow: "auto", padding: 16, borderRight: `1px solid ${BORDER}` }}>
+        {/* Body: tree | preview. Two columns on desktop; a single stacked column (tree on top,
+            dark live-output below) below ~860px. The narrow stack scrolls as one region so the
+            per-node rows never need a horizontal scrollbar. */}
+        <div style={{ display: isNarrow ? "flex" : "grid", flexDirection: isNarrow ? "column" : undefined,
+          gridTemplateColumns: isNarrow ? undefined : "minmax(0,1fr) minmax(0,1fr)", minHeight: 0, flex: 1,
+          overflowY: isNarrow ? "auto" : undefined }}>
+          <div style={{ overflow: isNarrow ? "visible" : "auto", padding: 16, borderRight: isNarrow ? "none" : `1px solid ${BORDER}`, borderBottom: isNarrow ? `1px solid ${BORDER}` : "none" }}>
             <div style={{ fontSize: 11, color: "#5A6B82", marginBottom: 8, textTransform: "uppercase", letterSpacing: 0.4 }}>Structure</div>
 
-            {/* Phase D — paste the supplier's required sample and infer the shape */}
+            {/* Phase D — paste the supplier's required sample and infer the shape.
+                On first run this IS the empty state (firstRun), so the toggle/collapse chrome and the
+                default tree are suppressed until the user infers a sample or chooses "start blank". */}
             <div style={{ marginBottom: 12 }}>
-              <button onClick={() => setShowInfer((v) => !v)}
-                style={{ width: "100%", textAlign: "left", height: 30, padding: "0 10px", borderRadius: 6, border: `1px dashed ${BORDER}`, background: "#F7F9FC", color: NAVY, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
-                ⧉ Paste a supplier sample to start {showInfer ? "▾" : "▸"}
-              </button>
-              {showInfer && (
-                <div style={{ marginTop: 8, border: `1px solid ${BORDER}`, borderRadius: 8, padding: 10, background: "#F7F9FC" }}>
+              {!firstRun && (
+                <button onClick={() => setShowInfer((v) => !v)}
+                  style={{ width: "100%", textAlign: "left", height: 30, padding: "0 10px", borderRadius: 6, border: `1px dashed ${BORDER}`, background: "#F7F9FC", color: NAVY, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
+                  ⧉ Paste a supplier sample to start {showInfer ? "▾" : "▸"}
+                </button>
+              )}
+              {(showInfer || firstRun) && (
+                <div style={{ marginTop: firstRun ? 0 : 8, border: `1px solid ${BORDER}`, borderRadius: 8, padding: firstRun ? 14 : 10, background: "#F7F9FC" }}>
+                  {firstRun && (
+                    <div style={{ marginBottom: 10 }}>
+                      <div style={{ fontSize: 14, fontWeight: 700, color: NAVY }}>Start from a supplier sample</div>
+                      <div style={{ fontSize: 12, color: SLATE, marginTop: 3, lineHeight: 1.5 }}>
+                        Paste the exact file your supplier requires and we&rsquo;ll match its structure — or start from a blank shape.
+                      </div>
+                    </div>
+                  )}
                   <textarea value={sample} onChange={(e) => setSample(e.target.value)}
                     aria-label="Supplier sample file"
                     placeholder="Paste the file your supplier requires (JSON, CSV, or XML)…"
-                    style={{ width: "100%", minHeight: 92, fontFamily: "ui-monospace, Menlo, monospace", fontSize: 11.5, border: `1px solid ${BORDER}`, borderRadius: 6, padding: 8, resize: "vertical", boxSizing: "border-box" }} />
-                  <div style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 8 }}>
+                    style={{ width: "100%", minHeight: firstRun ? 132 : 92, fontFamily: "ui-monospace, Menlo, monospace", fontSize: 12, lineHeight: 1.5, border: `1px solid ${BORDER}`, borderRadius: 6, padding: 8, resize: "vertical", boxSizing: "border-box" }} />
+                  <div style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 8, flexWrap: "wrap" }}>
                     <span style={{ fontSize: 11, color: SLATE }}>Detects JSON, CSV, or XML automatically.</span>
-                    <button onClick={() => void infer()} disabled={inferring || !sample.trim()}
-                      style={{ marginLeft: "auto", height: 30, padding: "0 14px", borderRadius: 6, border: "none", background: NAVY, color: "#FFF", fontSize: 12, fontWeight: 600, cursor: inferring || !sample.trim() ? "default" : "pointer", opacity: inferring || !sample.trim() ? 0.6 : 1 }}>
-                      {inferring ? "Reading…" : "Infer structure"}
-                    </button>
+                    <div style={{ marginLeft: "auto", display: "flex", gap: 8, alignItems: "center" }}>
+                      {firstRun && (
+                        // Secondary escape hatch — keep editing the default starting shape. Neutral
+                        // styling so the single primary (green Save) is never rivalled by a 2nd accent.
+                        <button onClick={() => { setFirstRun(false); setShowInfer(false); }}
+                          style={{ height: 30, padding: "0 12px", borderRadius: 6, border: `1px solid ${BORDER}`, background: "#FFF", color: NAVY, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
+                          Start blank
+                        </button>
+                      )}
+                      <button onClick={() => void infer()} disabled={inferring || !sample.trim()}
+                        style={{ height: 30, padding: "0 14px", borderRadius: 6, border: `1px solid ${GREEN_DEEP}`, background: GREEN, color: "#FFF", fontSize: 12, fontWeight: 600, cursor: inferring || !sample.trim() ? "default" : "pointer", opacity: inferring || !sample.trim() ? 0.6 : 1 }}>
+                        {inferring ? "Reading…" : "Infer structure"}
+                      </button>
+                    </div>
                   </div>
-                  {inferError && <div style={{ color: "#C53A3A", fontSize: 11.5, marginTop: 6 }}>{inferError}</div>}
+                  {inferError && <div style={{ color: "#C53A3A", fontSize: 12, marginTop: 6 }}>{inferError}</div>}
                 </div>
               )}
             </div>
 
-            <NodeEditor node={tree.root} path={[]} lineScope={false} onUpdate={setRoot} isRoot />
+            {/* The editable tree is hidden during first-run (the infer panel owns the screen). */}
+            {!firstRun && <NodeEditor node={tree.root} path={[]} lineScope={false} onUpdate={setRoot} isRoot />}
           </div>
-          <div style={{ overflow: "auto", padding: 16, background: "#0B1626" }}>
+          <div style={{ overflow: isNarrow ? "visible" : "auto", padding: 16, background: "#0B1626" }}>
             <div style={{ fontSize: 11, color: "#8FA3BF", marginBottom: 8, textTransform: "uppercase", letterSpacing: 0.4 }}>
               What the supplier receives {preview.loading ? "· updating…" : "· live"}
             </div>
             {preview.error
-              ? <div style={{ color: "#FF9B9B", fontSize: 12.5, whiteSpace: "pre-wrap" }}>{preview.error}</div>
-              : <pre style={{ margin: 0, color: "#D7E2F2", fontSize: 12, lineHeight: 1.5, whiteSpace: "pre-wrap", wordBreak: "break-word", fontFamily: "ui-monospace, Menlo, monospace" }}>{preview.content ?? "—"}</pre>}
+              ? <div style={{ color: "#FF9B9B", fontSize: 13, whiteSpace: "pre-wrap" }}>{preview.error}</div>
+              : <pre style={{ margin: 0, color: "#D7E2F2", fontSize: 12, lineHeight: 1.55, whiteSpace: "pre-wrap", wordBreak: "break-word", fontVariantNumeric: "tabular-nums", fontFamily: "'JetBrains Mono', ui-monospace, Menlo, monospace" }}>{preview.content ?? "—"}</pre>}
           </div>
         </div>
 
         {/* Footer */}
-        <div style={{ display: "flex", gap: 10, alignItems: "center", padding: "12px 18px", borderTop: `1px solid ${BORDER}` }}>
-          <span style={{ fontSize: 11.5, color: "#5A6B82" }}>Bind each value to a field or fixed value · format dates/numbers · &ldquo;only include when&rdquo; to add a field or drop lines conditionally.</span>
+        <div style={{ display: "flex", gap: 10, alignItems: "center", padding: "12px 18px", borderTop: `1px solid ${BORDER}`, flexWrap: "wrap" }}>
+          {/* The helper line is desktop-only — on narrow it would push the action buttons off-screen. */}
+          {!isNarrow && <span style={{ fontSize: 12, color: "#5A6B82" }}>Bind each value to a field or fixed value · format dates/numbers · &ldquo;only include when&rdquo; to add a field or drop lines conditionally.</span>}
           <div style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
-            <button onClick={onClose} style={{ height: 34, padding: "0 14px", borderRadius: 7, border: `1px solid ${BORDER}`, background: "#FFF", fontSize: 12.5, cursor: "pointer" }}>Cancel</button>
+            {/* DS Button md sizing: 44px tap target on narrow, dense 32px on desktop. */}
+            <button onClick={onClose}
+              style={{ height: isNarrow ? 44 : 32, padding: "0 14px", borderRadius: 6, border: `1px solid ${BORDER}`, background: "#FFF", color: NAVY, fontSize: 13, fontWeight: 500, cursor: "pointer" }}>Cancel</button>
             <button onClick={() => void save()} disabled={saving}
-              style={{ height: 34, padding: "0 18px", borderRadius: 7, border: "none", background: GREEN, color: "#FFF", fontSize: 12.5, fontWeight: 600, cursor: saving ? "default" : "pointer", opacity: saving ? 0.7 : 1 }}>
+              onMouseEnter={(e) => { if (!saving) e.currentTarget.style.background = GREEN_DEEP; }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = GREEN; }}
+              style={{ height: isNarrow ? 44 : 32, padding: "0 18px", borderRadius: 6, border: "none", background: GREEN, color: "#FFF", fontSize: 13, fontWeight: 600, cursor: saving ? "default" : "pointer", opacity: saving ? 0.7 : 1, transition: "background 150ms ease" }}>
               {saving ? "Saving…" : saved ? "✓ Saved" : "Save structure"}
             </button>
           </div>
@@ -320,11 +386,11 @@ function NodeEditor({
   return (
     <div style={{ borderLeft: isRoot ? "none" : `2px solid #E5E9F1`, paddingLeft: isRoot ? 0 : 12, marginBottom: 6 }}>
       <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
-        <span title={node.nodeType} style={{ fontSize: 10, fontWeight: 600, color: SLATE, background: "#EEF1F6", borderRadius: 4, padding: "2px 6px", minWidth: 60, textAlign: "center" }}>
+        <span title={node.nodeType} style={{ fontSize: 11, fontWeight: 600, color: SLATE, background: "#EEF1F6", borderRadius: 4, height: 22, display: "inline-flex", alignItems: "center", justifyContent: "center", padding: "0 6px", minWidth: 60, textAlign: "center" }}>
           {TYPE_LABEL[node.nodeType]}
         </span>
         <input value={node.name} onChange={(e) => updateName(e.target.value)} aria-label="Node name"
-          style={{ flex: "1 1 120px", minWidth: 0, height: 30, border: `1px solid ${BORDER}`, borderRadius: 6, padding: "0 8px", fontSize: 12.5, fontWeight: 600 }} />
+          style={{ flex: "1 1 120px", minWidth: 0, height: 30, border: `1px solid ${BORDER}`, borderRadius: 6, padding: "0 8px", fontSize: 13, fontWeight: 600 }} />
 
         {!isContainer && (
           <>
@@ -362,12 +428,12 @@ function NodeEditor({
       {/* Conditional inclusion (OutputNode.includeWhen) — a bare condition; the node/line is skipped
           when it's false. Subtle by default; meaningful on any non-root node. */}
       {!isRoot && (
-        <div style={{ display: "flex", gap: 6, alignItems: "center", marginTop: 4, marginLeft: 2 }}>
-          <span style={{ fontSize: 10.5, color: SLATE, whiteSpace: "nowrap" }}>only include when</span>
+        <div style={{ display: "flex", gap: 6, alignItems: "center", marginTop: 4, marginLeft: 2, flexWrap: "wrap" }}>
+          <span style={{ fontSize: 11, color: SLATE, whiteSpace: "nowrap" }}>only include when</span>
           <input value={node.includeWhen ?? ""} onChange={(e) => updateIncludeWhen(e.target.value)}
             placeholder={`always — e.g. ${scopeHint}.Quantity > 0`} aria-label="Only include when (condition)"
             spellCheck={false}
-            style={{ flex: "1 1 160px", minWidth: 0, height: 26, border: `1px solid ${node.includeWhen ? BLUE : BORDER}`, borderRadius: 6, padding: "0 8px", fontSize: 11.5, fontFamily: "ui-monospace, Menlo, monospace", color: node.includeWhen ? NAVY : SLATE }} />
+            style={{ flex: "1 1 160px", minWidth: 0, height: 30, border: `1px solid ${node.includeWhen ? BLUE : BORDER}`, borderRadius: 6, padding: "0 8px", fontSize: 12, fontFamily: "ui-monospace, Menlo, monospace", color: node.includeWhen ? NAVY : SLATE }} />
         </div>
       )}
 
@@ -378,7 +444,7 @@ function NodeEditor({
               <NodeEditor key={i} node={c} path={[...path, i]} lineScope={childScope} onUpdate={onUpdate} />
             ))}
           </div>
-          <div style={{ display: "flex", gap: 6, marginTop: 4, marginLeft: 4 }}>
+          <div style={{ display: "flex", gap: 6, marginTop: 4, marginLeft: 4, flexWrap: "wrap" }}>
             <AddBtn label="+ value" onClick={() => addChild(newField("value"))} />
             <AddBtn label="+ object" onClick={() => addChild({ name: "group", nodeType: "object", children: [] })} />
             <AddBtn label="+ list" onClick={() => addChild({ name: "items", nodeType: "array", collection: "lines", children: [{ name: "item", nodeType: "object", children: [] }] })} />
@@ -391,7 +457,8 @@ function NodeEditor({
 }
 
 function AddBtn({ label, onClick }: { label: string; onClick: () => void }) {
+  // Chip height (22) matches the mapper's add-field chips; the row wraps so these never scroll sideways.
   return (
-    <button onClick={onClick} style={{ height: 26, padding: "0 10px", borderRadius: 6, border: `1px dashed ${BORDER}`, background: "#F7F9FC", color: "#3A4A60", fontSize: 11.5, cursor: "pointer" }}>{label}</button>
+    <button onClick={onClick} style={{ height: 22, padding: "0 10px", borderRadius: 6, border: `1px dashed ${BORDER}`, background: "#F7F9FC", color: "#3A4A60", fontSize: 11, fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap" }}>{label}</button>
   );
 }

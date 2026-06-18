@@ -178,6 +178,11 @@ export function OutgoingPane({
 
   return (
     <div style={{ borderRadius: 12, border: "1px solid var(--line, #E2E6EE)", background: "#FBFBFD", overflow: "hidden" }}>
+      {/* CSS-driven hovers (replaces imperative onMouseEnter/Leave style toggles) — same visible result. */}
+      <style>{`
+        .mapper-aifix-apply:hover { background: #1E6D29; }
+        .mapper-add-field-item:hover { background: #F4FBF5; }
+      `}</style>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, padding: "9px 12px", borderBottom: "1px solid #EEF0F4" }}>
         <span style={{ fontSize: 10.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em", color: "#1E6D29" }}>
           Outgoing document
@@ -508,7 +513,7 @@ function OutgoingRow({
           <span aria-hidden style={{ fontSize: 8.5, fontWeight: 800, color: "#9AA3B2", flexShrink: 0 }}>
             →
           </span>
-          <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11, color: status.valuePreview ? "var(--ink, #0B1A2F)" : "#AEB6C4", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+          <span style={{ fontFamily: "'JetBrains Mono',monospace", fontVariantNumeric: "tabular-nums", fontSize: 11, color: status.valuePreview ? "var(--ink, #0B1A2F)" : "#AEB6C4", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
             {status.valuePreview ?? "—"}
           </span>
         </div>
@@ -571,7 +576,7 @@ function OutgoingRow({
             SUGGESTED
           </span>
           {aiFix.value && (
-            <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11.5, fontWeight: 700, color: "#0B1A2F", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", flexShrink: 0, maxWidth: 140 }}>
+            <span style={{ fontFamily: "'JetBrains Mono',monospace", fontVariantNumeric: "tabular-nums", fontSize: 11.5, fontWeight: 700, color: "#0B1A2F", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", flexShrink: 0, maxWidth: 140 }}>
               {aiFix.value}
             </span>
           )}
@@ -581,14 +586,13 @@ function OutgoingRow({
           {aiFix.confidence != null && <ConfidenceChip value={aiFix.confidence} sm />}
           <button
             type="button"
+            className="mapper-aifix-apply"
             onClick={(e) => { e.stopPropagation(); onPickSource?.(field.outputPath, aiFix.sourceId); }}
             style={{
               height: 26, padding: "0 12px", borderRadius: 6, fontSize: 11, fontWeight: 700,
               color: "#FFFFFF", background: "#2E8E3A", border: "1px solid #1E6D29",
               cursor: "pointer", flexShrink: 0, transition: "background 120ms",
             }}
-            onMouseEnter={(e) => { e.currentTarget.style.background = "#1E6E1F"; }}
-            onMouseLeave={(e) => { e.currentTarget.style.background = "#2E8E3A"; }}
           >
             Apply
           </button>
@@ -903,6 +907,7 @@ function PickerItem({ node, onPick }: { node: CanonicalNode; onPick: () => void 
     <button
       type="button"
       role="menuitem"
+      className="mapper-add-field-item"
       onClick={onPick}
       title={node.standardsRef ? `Maps to ${node.standardsRef}` : `Add ${node.label}`}
       style={{
@@ -910,8 +915,6 @@ function PickerItem({ node, onPick }: { node: CanonicalNode; onPick: () => void 
         width: "100%", textAlign: "left", border: "none", background: "none", cursor: "pointer",
         padding: "5px 6px", borderRadius: 6,
       }}
-      onMouseEnter={(e) => { e.currentTarget.style.background = "#F4FBF5"; }}
-      onMouseLeave={(e) => { e.currentTarget.style.background = "none"; }}
     >
       <span style={{ display: "flex", flexDirection: "column", gap: 1, minWidth: 0 }}>
         <span style={{ fontSize: 11.5, fontWeight: 600, color: "#0B1A2F", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>

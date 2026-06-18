@@ -224,7 +224,7 @@ export function SourcePickerChip({
                               </span>
                             )}
                           </span>
-                          <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 9.5, color: "var(--ink-faint)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                          <span style={{ fontFamily: "'JetBrains Mono',monospace", fontVariantNumeric: "tabular-nums", fontSize: 9.5, color: "var(--ink-faint)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                             {o.value || "(empty)"}
                           </span>
                         </span>

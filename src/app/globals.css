@@ -187,6 +187,20 @@
   ::-webkit-scrollbar-track { background: transparent; }
 }
 
+/* ── Global reduced-motion reset ───────────────────────────────────────────
+   When the user has requested reduced motion at the OS level, neutralize all
+   animations and transitions app-wide. The other prefers-reduced-motion blocks
+   below are scoped to specific component classes; this is the universal safety
+   net so any future animated element honours the preference by default. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
 @layer components {
   /* ── Bridge shell ──────────────────────────────────────────────── */
   .bridge-app {

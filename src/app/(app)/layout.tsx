@@ -148,7 +148,7 @@ export default function AppShellLayout({
       <AutoActivateOrg />
       <TooltipProvider>
         {/* Bridge shell — full viewport, no scroll on the wrapper */}
-        <div className="flex h-screen overflow-hidden" style={{ background: "#F6F7FA" }}>
+        <div className="flex h-dvh overflow-hidden" style={{ background: "#F6F7FA" }}>
           {/* Left: 220px navy sidebar (compact rail in the md→lg band) */}
           <div className="hidden md:block">
             <BridgeSidebar collapsible collapseBelowLg />

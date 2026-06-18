@@ -274,7 +274,7 @@ export function MapperPreviewPane({ previewOrderId, override, lastTouched, suppl
             // (13px / 420 tall) made it over-prominent for a side-dock; right-sized to a calm
             // 12px / 300 so it reads as a companion, not a second hero column.
             margin: 0, padding: "12px 14px", maxHeight: 300, overflow: "auto",
-            fontFamily: "'JetBrains Mono',monospace", fontSize: 12, lineHeight: 1.55,
+            fontFamily: "'JetBrains Mono',monospace", fontVariantNumeric: "tabular-nums", fontSize: 12, lineHeight: 1.55,
             color: "#0B1A2F", whiteSpace: "pre-wrap", wordBreak: "break-word",
             opacity: busy ? 0.55 : 1, transition: "opacity 150ms",
           }}
