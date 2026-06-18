@@ -327,8 +327,10 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
           {/* Pipeline stepper — fills the header center on xl+. */}
           <WorkshopStepper stage={stepperStage} failed={stepperFailed} />
 
-          {/* Focus + Send — right-aligned (the stepper fills the gap on xl). */}
-          <div className="flex items-center gap-3.5 flex-shrink-0 ml-auto xl:ml-0">
+          {/* Focus + Send — right-aligned (the stepper fills the gap on xl).
+              flex-wrap so the Details/Focus/Send controls reflow instead of
+              overflowing on the narrowest headers; no effect once they fit. */}
+          <div className="flex flex-wrap items-center justify-end gap-3.5 flex-shrink-0 ml-auto xl:ml-0">
             {/* Order details (audit · standards · response) — quiet secondary trigger
                 that opens the relocated Passport/Conformance/Response surfaces. */}
             <button
