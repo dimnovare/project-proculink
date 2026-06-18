@@ -91,6 +91,7 @@ export function CatalogHintCard({
           display: "inline-flex",
           alignItems: "center",
           gap: 6,
+          minHeight: "var(--tap-min)",
           height: 30,
           padding: "0 12px",
           borderRadius: 7,

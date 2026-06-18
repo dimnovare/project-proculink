@@ -17,7 +17,7 @@ const STATUS_BADGE: Record<string, { label: string; bg: string; color: string; b
   accepted:              { label: "Accepted",              bg: "#E2F1E2", color: "#1E6D29", border: "#BDE0C1" },
   accepted_with_changes: { label: "Accepted with changes", bg: "#FAEFD6", color: "#9A5F0A", border: "#F0D39A" },
   needs_review:          { label: "Needs review",          bg: "#FAEFD6", color: "#9A5F0A", border: "#F0D39A" },
-  rejected:              { label: "Rejected",              bg: "#FBE3E3", color: "#C53A3A", border: "#F0D2D2" },
+  rejected:              { label: "Rejected",              bg: "#FBE3E3", color: "#C53A3A", border: "var(--danger-soft)" },
   no_response:           { label: "No response",           bg: "#EFF2F7", color: "#56627A", border: "#E2E6EE" },
 };
 
@@ -176,15 +176,19 @@ export function SupplierResponsePanel({ orderId, currency }: { orderId: string; 
 
   if (isError) {
     return (
-      <div style={{ border: "1px solid #F0D2D2", borderLeft: "3px solid #C53A3A", borderRadius: 8, background: "#FFFFFF", padding: 16 }}>
+      <div style={{ border: "1px solid var(--danger-soft)", borderLeft: "3px solid var(--danger)", borderRadius: 8, background: "#FFFFFF", padding: 16 }}>
         <div style={{ fontSize: 13, fontWeight: 700, color: "#0B1A2F", marginBottom: 4 }}>Couldn&apos;t load the supplier response</div>
         <p style={{ margin: "0 0 12px", fontSize: 12.5, color: "#56627A", lineHeight: 1.5 }}>The confirmation feed is temporarily unavailable.</p>
         <button
           type="button"
           onClick={() => refetch()}
-          style={{ height: 30, padding: "0 12px", borderRadius: 6, border: "1px solid #E2E6EE", background: "#FFFFFF", color: "#0B1A2F", fontSize: 12, fontWeight: 600, cursor: "pointer" }}
+          aria-label="Retry loading the supplier response"
+          style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", minHeight: "var(--tap-min)", minWidth: "var(--tap-min)", padding: 0, border: "none", background: "transparent", cursor: "pointer" }}
         >
-          ↻ Retry
+          {/* Visible chip stays 30px; the button above provides the ≥44px hit area. */}
+          <span style={{ display: "inline-flex", alignItems: "center", height: 30, padding: "0 12px", borderRadius: 6, border: "1px solid #E2E6EE", background: "#FFFFFF", color: "#0B1A2F", fontSize: 12, fontWeight: 600 }}>
+            ↻ Retry
+          </span>
         </button>
       </div>
     );

@@ -324,7 +324,7 @@ export function ConnectionDetail({ connectionId }: { connectionId: string }) {
           style={
             notice.kind === "ok"
               ? { border: "1px solid var(--brand-green-soft)", borderLeft: "3px solid var(--brand-green)", background: "var(--brand-green-soft)", color: "var(--brand-green-deep)" }
-              : { border: "1px solid #F5C6CB", borderLeft: "3px solid var(--danger)", background: "var(--danger-soft)", color: "var(--danger)" }
+              : { border: "1px solid var(--danger-soft)", borderLeft: "3px solid var(--danger)", background: "var(--danger-soft)", color: "var(--danger)" }
           }
         >
           {notice.text}
@@ -477,18 +477,34 @@ export function ConnectionDetail({ connectionId }: { connectionId: string }) {
                             Test
                           </Button>
                         )}
-                        {canPublish && (
-                          <Button
-                            variant="primary"
-                            size="sm"
-                            disabled={busy}
-                            onClick={() =>
-                              setConfirm({ kind: "publish", revisionId: r.id, versionNo: r.versionNo })
-                            }
-                          >
-                            Make live
-                          </Button>
-                        )}
+                        {canPublish && (() => {
+                          // Evidence-gate "Make live": the backend 409s with
+                          // "Run tests on this revision before publishing." unless the test
+                          // pack has PASSED for THIS revision since the last edit. Mirror that
+                          // here so the user can't click into a guaranteed 409. The only
+                          // per-revision evidence this view holds is `testEvidence` (set by the
+                          // "Test" action) — so absent/failed evidence → disabled; passed → enabled.
+                          const evidenceForThisRevision =
+                            testEvidence && testEvidence.revisionId === r.id ? testEvidence : null;
+                          const testsPassed = evidenceForThisRevision?.passed === true;
+                          return (
+                            <Button
+                              variant="primary"
+                              size="sm"
+                              disabled={busy || !testsPassed}
+                              title={
+                                testsPassed
+                                  ? undefined
+                                  : "Run tests — checks must pass before going live."
+                              }
+                              onClick={() =>
+                                setConfirm({ kind: "publish", revisionId: r.id, versionNo: r.versionNo })
+                              }
+                            >
+                              Make live
+                            </Button>
+                          );
+                        })()}
                         {canRollback && (
                           <Button
                             variant="secondary"
@@ -640,7 +656,7 @@ function TestEvidenceSummary({ evidence }: { evidence: RevisionTestEvidence }) {
       style={
         passed
           ? { background: "var(--brand-green-soft)", border: "1px solid var(--brand-green-soft)", color: "var(--brand-green-deep)" }
-          : { background: "var(--danger-soft)", border: "1px solid #F5C6CB", color: "var(--danger)" }
+          : { background: "var(--danger-soft)", border: "1px solid var(--danger-soft)", color: "var(--danger)" }
       }
       role="status"
     >

@@ -206,7 +206,9 @@ export function OutputStructureDesigner({
               style={{ height: 30, borderRadius: 6, border: "none", padding: "0 8px", fontSize: 12.5 }}>
               {FORMATS.map((f) => <option key={f.id} value={f.id}>{f.label}</option>)}
             </select>
-            <button onClick={onClose} aria-label="Close" style={{ height: 30, width: 30, borderRadius: 6, border: "none", background: "rgba(255,255,255,0.15)", color: "#FFF", cursor: "pointer", fontSize: 16 }}>✕</button>
+            <button onClick={onClose} aria-label="Close" style={{ minWidth: "var(--tap-min)", minHeight: "var(--tap-min)", display: "flex", alignItems: "center", justifyContent: "center", border: "none", background: "transparent", padding: 0, cursor: "pointer" }}>
+              <span style={{ height: 30, width: 30, borderRadius: 6, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(255,255,255,0.15)", color: "#FFF", fontSize: 16 }}>✕</span>
+            </button>
           </div>
         </div>
 
@@ -350,7 +352,9 @@ function NodeEditor({
 
         {!isRoot && (
           <button onClick={remove} aria-label="Remove node"
-            style={{ height: 30, width: 30, borderRadius: 6, border: `1px solid ${BORDER}`, background: "#FFF", color: "#C53A3A", cursor: "pointer" }}>✕</button>
+            style={{ minWidth: "var(--tap-min)", minHeight: "var(--tap-min)", display: "flex", alignItems: "center", justifyContent: "center", border: "none", background: "transparent", padding: 0, cursor: "pointer" }}>
+            <span style={{ height: 30, width: 30, borderRadius: 6, display: "flex", alignItems: "center", justifyContent: "center", border: `1px solid ${BORDER}`, background: "#FFF", color: "#C53A3A" }}>✕</span>
+          </button>
         )}
       </div>
 

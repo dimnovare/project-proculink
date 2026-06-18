@@ -32,13 +32,15 @@ export interface Plan {
   /** Numeric monthly price in EUR. 0 for Pilot; null for Enterprise (custom). */
   priceMonthly: number | null;
   /**
-   * Numeric YEARLY price in EUR (the amount billed once per year on annual
-   * billing). null when the plan has no annual price (Pilot, Enterprise).
+   * Intended numeric YEARLY price in EUR (the amount that WOULD be billed once
+   * per year on annual billing). null when the plan has no annual price (Pilot,
+   * Enterprise).
    *
-   * Verified against Stripe test mode 2026-06-11 (founder-confirmed). The real
-   * Stripe `*YearlyPriceId` amounts were not visible from the frontend —
-   * verify each against a test-mode Checkout session and correct any drift
-   * BEFORE trusting this number in production copy.
+   * NOTE: this is only a display figure. Annual billing is NOT live until the
+   * backend Stripe `*YearlyPriceId`s are populated — see ANNUAL_BILLING_ENABLED
+   * below. Do not advertise these amounts (or show the annual toggle) until that
+   * flag is on and each amount has been verified against a real test-mode
+   * Checkout session.
    */
   priceYearly: number | null;
   /** Big price label for pricing cards: "Free" / "€149" / "Custom". */
@@ -84,9 +86,26 @@ export interface Plan {
 const SIGN_UP = "/sign-up";
 const SALES = "mailto:sales@proculink.eu";
 
-// Annual pricing VERIFIED against Stripe test mode 2026-06-11 (founder-confirmed):
-// Growth 1488 / Operations 3972 / Integration 9948 / Distributor 14928 (~17% off).
-// pricing page advertised before the toggle was removed (2026-06-11).
+// ─── Annual billing availability gate (offer⇔works) ──────────────────────────
+// The numeric `priceYearly` amounts below describe the *intended* annual list
+// price, but advertising annual is only HONEST once the backend Stripe yearly
+// price IDs are actually populated. Right now the backend `*YearlyPriceId`s are
+// empty, so an annual Checkout would fail with "price not configured". Until the
+// founder populates the Stripe yearly price IDs (backend appsettings + Railway
+// env) and the backend `/api/billing/checkout` can resolve them, annual billing
+// must NOT be offered — the UI defaults to monthly-only.
+//
+// To enable annual once Stripe yearly prices are live:
+//   1. Populate Growth/Operations/Integration/Distributor `*YearlyPriceId` in the
+//      backend config (appsettings.Production.json + matching Railway env vars).
+//   2. Flip this flag to `true` (or wire it to NEXT_PUBLIC_ANNUAL_BILLING_ENABLED
+//      so it can be toggled without a code change).
+//   3. Verify each annual amount against a real test-mode Checkout session.
+//
+// Kept as an env-overridable constant so the founder can switch annual on without
+// editing this list; absent/unset env ⇒ annual stays OFF (the safe default).
+export const ANNUAL_BILLING_ENABLED =
+  process.env.NEXT_PUBLIC_ANNUAL_BILLING_ENABLED === "true";
 
 
 export const PLANS: Plan[] = [
@@ -123,7 +142,7 @@ export const PLANS: Plan[] = [
     id: "growth",
     name: "Growth",
     priceMonthly: 149,
-    priceYearly: 1488, // €1,488/yr — Stripe-verified 2026-06-11
+    priceYearly: 1488, // €1,488/yr intended — NOT live until Stripe yearly price id is set (see ANNUAL_BILLING_ENABLED)
     priceLabel: "€149",
     priceCadence: "per month",
     billingPriceLabel: "€149/mo",
@@ -153,7 +172,7 @@ export const PLANS: Plan[] = [
     id: "operations",
     name: "Operations",
     priceMonthly: 399,
-    priceYearly: 3972, // €3,972/yr — Stripe-verified 2026-06-11
+    priceYearly: 3972, // €3,972/yr intended — NOT live until Stripe yearly price id is set (see ANNUAL_BILLING_ENABLED)
     priceLabel: "€399",
     priceCadence: "per month",
     billingPriceLabel: "€399/mo",
@@ -183,7 +202,7 @@ export const PLANS: Plan[] = [
     id: "integration",
     name: "Integration",
     priceMonthly: 999,
-    priceYearly: 9948, // €9,948/yr — Stripe-verified 2026-06-11
+    priceYearly: 9948, // €9,948/yr intended — NOT live until Stripe yearly price id is set (see ANNUAL_BILLING_ENABLED)
     priceLabel: "€999",
     priceCadence: "per month",
     billingPriceLabel: "€999/mo",
@@ -215,7 +234,7 @@ export const PLANS: Plan[] = [
     id: "distributor",
     name: "Distributor",
     priceMonthly: 1499,
-    priceYearly: 14928, // €14,928/yr — Stripe-verified 2026-06-11
+    priceYearly: 14928, // €14,928/yr intended — NOT live until Stripe yearly price id is set (see ANNUAL_BILLING_ENABLED)
     priceLabel: "€1,499",
     priceCadence: "per month",
     billingPriceLabel: "€1,499/mo",
@@ -297,8 +316,8 @@ export const CHECKOUT_PLAN_IDS: PlanId[] = PLANS.filter((p) => p.isCheckout && !
  * Derived annual savings for a plan, in whole percent (e.g. 17), comparing the
  * yearly price to 12× the monthly price. null when the plan has no yearly
  * price. ALWAYS derive the advertised save-% from this — never hardcode it —
- * so the copy self-corrects when the placeholder yearly amounts are replaced
- * with the verified Stripe ones (see TODO-verify-stripe-amounts above).
+ * so the copy self-corrects when the intended yearly amounts are replaced with
+ * the verified Stripe ones once annual goes live (see ANNUAL_BILLING_ENABLED).
  */
 export function yearlySavePercent(plan: Plan): number | null {
   if (plan.priceYearly == null || plan.priceMonthly == null || plan.priceMonthly <= 0) return null;

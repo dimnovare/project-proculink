@@ -1467,7 +1467,7 @@ function ConnectorsSection() {
               <div style={{ display: "flex", gap: 4, flexShrink: 0, alignItems: "center" }}>
                 <button
                   onClick={() => toggle.mutate(sub.id)}
-                  style={{ height: 28, padding: "0 10px", border: "1px solid var(--border)", borderRadius: 5, background: "var(--surface)", color: "var(--ink-muted)", fontSize: 11.5, fontWeight: 600, cursor: "pointer" }}
+                  style={{ minHeight: "var(--tap-min)", height: 28, padding: "0 10px", border: "1px solid var(--border)", borderRadius: 5, background: "var(--surface)", color: "var(--ink-muted)", fontSize: 11.5, fontWeight: 600, cursor: "pointer" }}
                 >
                   {sub.isActive ? "Pause" : "Resume"}
                 </button>
@@ -1480,7 +1480,7 @@ function ConnectorsSection() {
                       onClick={open}
                       aria-label="Delete webhook subscription"
                       title="Delete webhook subscription"
-                      style={{ width: 28, height: 28, display: "flex", alignItems: "center", justifyContent: "center", border: "none", background: "none", cursor: "pointer", color: "var(--ink-faint)" }}
+                      style={{ minWidth: "var(--tap-min)", minHeight: "var(--tap-min)", width: 28, height: 28, display: "flex", alignItems: "center", justifyContent: "center", border: "none", background: "none", cursor: "pointer", color: "var(--ink-faint)" }}
                     >
                       <Trash2 size={14} />
                     </button>

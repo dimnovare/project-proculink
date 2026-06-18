@@ -1,10 +1,8 @@
 "use client";
 
-import { useRef, useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   getAsns,
-  uploadAsn,
   isApiMockMode,
   type AsnDto,
 } from "@/lib/api-client";
@@ -71,8 +69,6 @@ function SkeletonCard() {
 
 export default function AsnsPage() {
   const queryClient = useQueryClient();
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const [notice, setNotice] = useState<string | null>(null);
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ["asns"],
@@ -82,70 +78,37 @@ export default function AsnsPage() {
 
   const asns: AsnDto[] = data ?? [];
 
-  const uploadMut = useMutation({
-    mutationFn: (file: File) => uploadAsn(file),
-    onSuccess: (asn) => {
-      queryClient.invalidateQueries({ queryKey: ["asns"] });
-      setNotice(`ASN ${asn.asnNumber ?? asn.id} uploaded successfully.`);
-      if (fileInputRef.current) fileInputRef.current.value = "";
-    },
-    onError: (err: Error) => setNotice(`Upload failed — ${err.message}`),
-  });
-
-  const isError_ = notice?.includes("failed") || notice?.includes("Failed");
-
   return (
     <PageShell variant="wide">
       <PageHeader
         title="Advance Shipping Notices"
         sub={isLoading && !isApiMockMode ? "Loading…" : `${asns.length} notice${asns.length !== 1 ? "s" : ""}`}
-        actions={
-          <>
-            <input
-              ref={fileInputRef}
-              type="file"
-              aria-label="Upload ASN file (XML or CSV)"
-              accept=".xml,.csv"
-              className="hidden"
-              onChange={(e) => { const f = e.target.files?.[0]; if (f) { setNotice(null); uploadMut.mutate(f); } }}
-              disabled={uploadMut.isPending}
-            />
-            {uploadMut.isPending && (
-              <span className="text-[12px]" style={{ color: "var(--ink-muted)" }}>Uploading…</span>
-            )}
-            {/* Header Upload button only when list is non-empty; empty state carries its own CTA */}
-            {asns.length > 0 && (
-              <Button
-                variant="primary"
-                size="md"
-                onClick={() => fileInputRef.current?.click()}
-                disabled={uploadMut.isPending}
-                title="Upload an ASN file (XML or CSV). EDIFACT DESADV on request."
-              >
-                Upload ASN
-              </Button>
-            )}
-          </>
-        }
       />
 
-      {/* Notice */}
-      {notice && (
-        <div
-          className="mb-4 rounded-[8px] px-4 py-3 text-[12.5px]"
-          style={{
-            border: isError_ ? "1px solid var(--danger-soft)" : "1px solid var(--brand-green-soft)",
-            borderLeft: isError_ ? "3px solid var(--danger)" : "3px solid var(--brand-green)",
-            background: isError_ ? "var(--danger-soft)" : "var(--brand-green-soft)",
-            color: isError_ ? "var(--danger)" : "var(--brand-green-deep)",
-          }}
-        >
-          <div className="flex items-center justify-between gap-3">
-            <span>{notice}</span>
-            <button onClick={() => setNotice(null)} aria-label="Dismiss notice" style={{ color: "inherit", background: "none", border: "none", cursor: "pointer", fontSize: 14 }}>✕</button>
-          </div>
+      {/* ASN / EDIFACT DESADV ingestion is not built yet (DESADV parsing requires a
+          commercial EDI licence — DesadvController POST /api/asns/upload returns 501).
+          We do NOT render an upload control that always fails. The list of any ASNs
+          created by other means still renders below; the not-available notice carries
+          the honest "coming soon" message. */}
+      <div
+        className="mb-4 rounded-[8px] px-4 py-3 text-[12.5px]"
+        style={{
+          border: "1px solid var(--amber-soft, #FFF4D6)",
+          borderLeft: "3px solid var(--amber, #D4900A)",
+          background: "var(--amber-soft, #FFF4D6)",
+          color: "var(--amber-deep, #7A5700)",
+        }}
+      >
+        <div className="flex items-center gap-2">
+          <span
+            style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--amber, #D4900A)", flexShrink: 0, display: "inline-block" }}
+          />
+          <span>
+            <strong>Coming soon.</strong> ASN / EDIFACT DESADV ingestion isn't available
+            yet. We'll let you know when you can upload advance shipping notices.
+          </span>
         </div>
-      )}
+      </div>
 
       {/* Loading */}
       {isLoading && !isApiMockMode ? (
@@ -179,22 +142,14 @@ export default function AsnsPage() {
           </div>
         </Card>
       ) : asns.length === 0 ? (
-        /* Empty */
+        /* Empty — ASN ingestion is not built yet, so no upload CTA here. */
         <Card>
           <div className="flex flex-col items-center justify-center gap-3 p-10 text-center">
             <p className="text-[15px] font-semibold" style={{ color: "var(--ink)" }}>No advance shipping notices yet</p>
-            <p className="text-[13px] max-w-[340px]" style={{ color: "var(--ink-muted)" }}>
-              ASNs are sent by suppliers to confirm upcoming deliveries. Upload an XML or CSV file to get started — EDIFACT DESADV is available on request.
+            <p className="text-[13px] max-w-[360px]" style={{ color: "var(--ink-muted)" }}>
+              ASNs are sent by suppliers to confirm upcoming deliveries. Inbound ASN /
+              EDIFACT DESADV ingestion is coming soon — there's nothing to upload here yet.
             </p>
-            <Button
-              variant="primary"
-              size="md"
-              className="mt-1"
-              onClick={() => fileInputRef.current?.click()}
-              disabled={uploadMut.isPending}
-            >
-              Upload ASN
-            </Button>
           </div>
         </Card>
       ) : (

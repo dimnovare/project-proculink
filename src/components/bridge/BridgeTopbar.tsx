@@ -233,20 +233,26 @@ function NotificationsBell() {
         type="button"
         aria-label={unread > 0 ? `Notifications, ${unread} need action` : "Notifications"}
         onClick={() => setOpen((v) => !v)}
-        className="flex items-center justify-center rounded-[6px] relative"
-        style={{ width: 32, height: 32, background: open ? "#10243E" : "transparent", border: "1px solid transparent", color: open ? "#FFFFFF" : "#C5D2E4", cursor: "pointer", transition: "background 150ms, color 150ms" }}
-        onMouseEnter={(e) => { if (!open) { (e.currentTarget as HTMLElement).style.background = "#10243E"; } }}
-        onMouseLeave={(e) => { if (!open) { (e.currentTarget as HTMLElement).style.background = "transparent"; } }}
+        className="flex items-center justify-center relative"
+        style={{ minWidth: "var(--tap-min)", minHeight: "var(--tap-min)", background: "transparent", border: "none", padding: 0, cursor: "pointer" }}
       >
-        <Bell size={17} strokeWidth={1.9} />
-        {unread > 0 && (
-          <span
-            className="absolute flex items-center justify-center"
-            style={{ top: 4, right: 4, minWidth: 15, height: 15, padding: "0 3.5px", borderRadius: 8, background: "#C97A14", color: "#FFFFFF", fontSize: 9.5, fontWeight: 700, border: "1.5px solid #0B1A2F", lineHeight: 1 }}
-          >
-            {unread > 9 ? "9+" : unread}
-          </span>
-        )}
+        {/* Visible 32x32 chip; the button itself is a 44x44 transparent hit area. */}
+        <span
+          className="flex items-center justify-center rounded-[6px] relative"
+          style={{ width: 32, height: 32, background: open ? "#10243E" : "transparent", border: "1px solid transparent", color: open ? "#FFFFFF" : "#C5D2E4", transition: "background 150ms, color 150ms" }}
+          onMouseEnter={(e) => { if (!open) { (e.currentTarget as HTMLElement).style.background = "#10243E"; } }}
+          onMouseLeave={(e) => { if (!open) { (e.currentTarget as HTMLElement).style.background = "transparent"; } }}
+        >
+          <Bell size={17} strokeWidth={1.9} />
+          {unread > 0 && (
+            <span
+              className="absolute flex items-center justify-center"
+              style={{ top: 4, right: 4, minWidth: 15, height: 15, padding: "0 3.5px", borderRadius: 8, background: "#C97A14", color: "#FFFFFF", fontSize: 9.5, fontWeight: 700, border: "1.5px solid #0B1A2F", lineHeight: 1 }}
+            >
+              {unread > 9 ? "9+" : unread}
+            </span>
+          )}
+        </span>
       </button>
 
       {open && (

@@ -221,11 +221,17 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
               onClick={() => router.push("/inbox")}
               aria-label="Back to inbox"
               className="plk-back"
-              style={{ width: 30, height: 30, border: "1px solid #E2E6EE", borderRadius: 7, background: "#FFFFFF", color: "#56627A", cursor: "pointer", fontSize: 14, flexShrink: 0, display: "inline-flex", alignItems: "center", justifyContent: "center" }}
-              onMouseEnter={(e) => { e.currentTarget.style.borderColor = "#1E66C9"; e.currentTarget.style.background = "#E3EDFB"; }}
-              onMouseLeave={(e) => { e.currentTarget.style.borderColor = "#E2E6EE"; e.currentTarget.style.background = "#FFFFFF"; }}
+              style={{ width: 30, height: 30, minWidth: 44, minHeight: 44, padding: 0, marginInline: -7, border: 0, background: "transparent", color: "#56627A", cursor: "pointer", fontSize: 14, flexShrink: 0, display: "inline-flex", alignItems: "center", justifyContent: "center" }}
             >
-              ←
+              <span
+                aria-hidden
+                className="plk-back-box"
+                style={{ width: 30, height: 30, border: "1px solid #E2E6EE", borderRadius: 7, background: "#FFFFFF", display: "inline-flex", alignItems: "center", justifyContent: "center", transition: "border-color .12s, background .12s" }}
+                onMouseEnter={(e) => { e.currentTarget.style.borderColor = "#1E66C9"; e.currentTarget.style.background = "#E3EDFB"; }}
+                onMouseLeave={(e) => { e.currentTarget.style.borderColor = "#E2E6EE"; e.currentTarget.style.background = "#FFFFFF"; }}
+              >
+                ←
+              </span>
             </button>
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2.5">
@@ -261,8 +267,8 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
                 aria-label={labels.primaryCta}
                 style={{
                   height: 36, padding: "0 18px", borderRadius: 8, fontSize: 13, fontWeight: 700,
-                  background: canSend ? "#2E8E3A" : "#A9CDAD", color: "#FFFFFF",
-                  border: `1px solid ${canSend ? "#1E6D29" : "#A9CDAD"}`,
+                  background: canSend ? "#2E8E3A" : "#5A7660", color: "#FFFFFF",
+                  border: `1px solid ${canSend ? "#1E6D29" : "#5A7660"}`,
                   cursor: canSend ? "pointer" : "not-allowed", whiteSpace: "nowrap", flexShrink: 0,
                   display: "inline-flex", alignItems: "center", gap: 8, transition: "filter .12s",
                 }}
@@ -352,7 +358,7 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
             type="button"
             onClick={() => canSend && setShowConfirm(true)}
             disabled={!canSend}
-            style={{ height: 44, borderRadius: 8, fontSize: 13.5, fontWeight: 700, background: canSend ? "#2E8E3A" : "#96C69C", color: "#FFFFFF", border: "none", cursor: canSend ? "pointer" : "default" }}
+            style={{ height: 44, borderRadius: 8, fontSize: 13.5, fontWeight: 700, background: canSend ? "#2E8E3A" : "#5A7660", color: "#FFFFFF", border: "none", cursor: canSend ? "pointer" : "not-allowed" }}
           >
             {crossed ? labels.doneLabel : blockingIssues > 0 || exceptionCount > 0 ? `Fix ${Math.max(blockingIssues, exceptionCount)} to send` : labels.primaryCta}
           </button>

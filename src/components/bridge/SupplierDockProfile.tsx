@@ -298,7 +298,7 @@ function SupplierRuleBindingsPanel({ supplierId }: { supplierId: string }) {
                       aria-expanded={open}
                       aria-label={open ? "Hide standards mapping" : "Show standards mapping"}
                       className="inline-flex flex-shrink-0 items-center gap-1 rounded-[6px] px-2 text-[11.5px] font-medium"
-                      style={{ height: 28, border: `1px solid ${LINE}`, background: open ? SURFACE_2 : SURFACE, color: MUTED, cursor: "pointer" }}
+                      style={{ minHeight: "var(--tap-min)", height: 28, border: `1px solid ${LINE}`, background: open ? SURFACE_2 : SURFACE, color: MUTED, cursor: "pointer" }}
                     >
                       <Info size={12} strokeWidth={2} />
                       Standards
@@ -672,7 +672,7 @@ function AcceptanceTab({ supplierId }: { supplierId: string }) {
                   type="button"
                   onClick={() => removeRule(idx)}
                   className="w-full rounded-[5px] px-2 text-[11px] font-medium sm:col-span-2 sm:w-auto sm:justify-self-end md:col-span-3"
-                  style={{ height: 28, background: "#FBE3E3", color: DANGER, border: "none", cursor: "pointer" }}
+                  style={{ minHeight: "var(--tap-min)", height: 28, background: "#FBE3E3", color: DANGER, border: "none", cursor: "pointer" }}
                 >
                   Remove
                 </button>
@@ -1320,7 +1320,7 @@ export function SupplierDockProfile({ id }: { id: string }) {
             <button
               onClick={() => setConfirmDelete(true)}
               className="inline-flex items-center gap-1.5 rounded-[7px] px-3 text-[12.5px] font-medium"
-              style={{ height: 34, border: "1px solid #E9C4C4", background: SURFACE, color: DANGER, cursor: "pointer" }}
+              style={{ minHeight: "var(--tap-min)", height: 34, border: "1px solid #E9C4C4", background: SURFACE, color: DANGER, cursor: "pointer" }}
             >
               <Trash2 size={14} strokeWidth={2} color={DANGER} />
               Delete {partyNounLower}

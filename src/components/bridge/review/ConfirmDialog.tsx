@@ -53,26 +53,41 @@ export function ConfirmDialog({ exceptionCount, onConfirm, onCancel, supplierNam
     return () => previouslyFocused?.focus?.();
   }, []);
 
-  function handleKeyDown(e: globalThis.KeyboardEvent) {
-    if (e.key === "Escape") { onCancel(); return; }
-    if (e.key === "Enter" && canConfirm) { onConfirm(); return; }
-    // Focus trap — keep Tab within the dialog's focusable elements.
-    if (e.key === "Tab" && dialogRef.current) {
-      const focusables = dialogRef.current.querySelectorAll<HTMLElement>(
-        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
-      );
-      if (focusables.length === 0) return;
-      const first = focusables[0];
-      const last = focusables[focusables.length - 1];
-      const active = document.activeElement;
-      if (e.shiftKey && active === first) { e.preventDefault(); last.focus(); }
-      else if (!e.shiftKey && active === last) { e.preventDefault(); first.focus(); }
-    }
-  }
+  // Keep the latest values for the keydown handler without re-registering the
+  // listener on every render. canConfirm/onConfirm/onCancel can change between
+  // renders (checkbox toggles), so read them through a ref inside a stable
+  // listener registered once.
+  const keyHandlerState = useRef({ canConfirm, onConfirm, onCancel });
+  keyHandlerState.current = { canConfirm, onConfirm, onCancel };
+
+  // Focus trap scoped to the DIALOG element (not document): Tab/Shift-Tab cycle
+  // within the dialog's focusable elements, Escape closes, Enter confirms.
+  // Registered once on mount; cleanup removes the listener (WCAG-compliant modal).
   useEffect(() => {
-    document.addEventListener("keydown", handleKeyDown);
-    return () => document.removeEventListener("keydown", handleKeyDown);
-  });
+    const dialog = dialogRef.current;
+    if (!dialog) return;
+
+    function handleKeyDown(e: KeyboardEvent) {
+      const { canConfirm, onConfirm, onCancel } = keyHandlerState.current;
+      if (e.key === "Escape") { onCancel(); return; }
+      if (e.key === "Enter" && canConfirm) { onConfirm(); return; }
+      // Focus trap — keep Tab within the dialog's focusable elements.
+      if (e.key === "Tab") {
+        const focusables = dialog.querySelectorAll<HTMLElement>(
+          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
+        );
+        if (focusables.length === 0) return;
+        const first = focusables[0];
+        const last = focusables[focusables.length - 1];
+        const active = document.activeElement;
+        if (e.shiftKey && active === first) { e.preventDefault(); last.focus(); }
+        else if (!e.shiftKey && active === last) { e.preventDefault(); first.focus(); }
+      }
+    }
+
+    dialog.addEventListener("keydown", handleKeyDown);
+    return () => dialog.removeEventListener("keydown", handleKeyDown);
+  }, []);
 
   return (
     <>
@@ -142,8 +157,8 @@ export function ConfirmDialog({ exceptionCount, onConfirm, onCancel, supplierNam
             against profile" run found failing acceptance rules. Doesn't hard-block
             (the supplier may still accept), but requires an explicit ack. */}
         {failingRuleCount > 0 && (
-          <div style={{ margin: "0 24px 20px", padding: "10px 12px", background: "#FFF7F7", border: "1px solid #F0D2D2", borderRadius: 6 }}>
-            <div style={{ fontSize: 11.5, fontWeight: 700, color: "#C53A3A", marginBottom: 6 }}>
+          <div style={{ margin: "0 24px 20px", padding: "10px 12px", background: "#FFF7F7", border: "1px solid var(--danger-soft)", borderRadius: 6 }}>
+            <div style={{ fontSize: 11.5, fontWeight: 700, color: "var(--danger)", marginBottom: 6 }}>
               ⚠ {failingRuleCount} acceptance rule{failingRuleCount !== 1 ? "s" : ""} failed validation
             </div>
             <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>

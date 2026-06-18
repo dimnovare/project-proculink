@@ -268,12 +268,18 @@ export function BridgeSidebar({
             onClick={toggle}
             aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
             title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-            className={`flex items-center justify-center rounded-[6px] flex-shrink-0 ${isCollapsed ? "mx-auto" : "ml-auto"}`}
-            style={{ width: 28, height: 28, color: "#7C8DA6", background: "transparent", border: "1px solid transparent", cursor: "pointer", transition: "background 150ms, color 150ms" }}
-            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "#10243E"; (e.currentTarget as HTMLElement).style.color = "#FFFFFF"; }}
-            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "transparent"; (e.currentTarget as HTMLElement).style.color = "#7C8DA6"; }}
+            className={`flex items-center justify-center flex-shrink-0 ${isCollapsed ? "mx-auto" : "ml-auto"}`}
+            style={{ minWidth: "var(--tap-min)", minHeight: "var(--tap-min)", background: "transparent", border: "none", padding: 0, cursor: "pointer" }}
           >
-            {isCollapsed ? <ChevronsRight size={16} /> : <ChevronsLeft size={16} />}
+            {/* Visible 28x28 chip; button is a 44x44 transparent hit area. */}
+            <span
+              className="flex items-center justify-center rounded-[6px]"
+              style={{ width: 28, height: 28, color: "#7C8DA6", background: "transparent", border: "1px solid transparent", transition: "background 150ms, color 150ms" }}
+              onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "#10243E"; (e.currentTarget as HTMLElement).style.color = "#FFFFFF"; }}
+              onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "transparent"; (e.currentTarget as HTMLElement).style.color = "#7C8DA6"; }}
+            >
+              {isCollapsed ? <ChevronsRight size={16} /> : <ChevronsLeft size={16} />}
+            </span>
           </button>
         )}
         {showClose && (
@@ -282,12 +288,18 @@ export function BridgeSidebar({
             onClick={onClose}
             aria-label="Close navigation"
             title="Close navigation"
-            className="flex items-center justify-center rounded-[6px] flex-shrink-0 ml-auto"
-            style={{ width: 28, height: 28, color: "#7C8DA6", background: "transparent", border: "1px solid transparent", cursor: "pointer", transition: "background 150ms, color 150ms" }}
-            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "#10243E"; (e.currentTarget as HTMLElement).style.color = "#FFFFFF"; }}
-            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "transparent"; (e.currentTarget as HTMLElement).style.color = "#7C8DA6"; }}
+            className="flex items-center justify-center flex-shrink-0 ml-auto"
+            style={{ minWidth: "var(--tap-min)", minHeight: "var(--tap-min)", background: "transparent", border: "none", padding: 0, cursor: "pointer" }}
           >
-            <X size={18} />
+            {/* Visible 28x28 chip; button is a 44x44 transparent hit area. */}
+            <span
+              className="flex items-center justify-center rounded-[6px]"
+              style={{ width: 28, height: 28, color: "#7C8DA6", background: "transparent", border: "1px solid transparent", transition: "background 150ms, color 150ms" }}
+              onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "#10243E"; (e.currentTarget as HTMLElement).style.color = "#FFFFFF"; }}
+              onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "transparent"; (e.currentTarget as HTMLElement).style.color = "#7C8DA6"; }}
+            >
+              <X size={18} />
+            </span>
           </button>
         )}
       </div>

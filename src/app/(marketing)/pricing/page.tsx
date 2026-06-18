@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import {
+  ANNUAL_BILLING_ENABLED,
   OVERAGE_PER_ORDER_EUR,
   PLANS,
   PLAN_BY_ID,
@@ -81,7 +82,8 @@ const ALL_TIERS = PLANS.filter((p) => !p.hidden).map((p) => ({
   /** Plans whose price is a real recurring monthly amount get a "/mo" tag. */
   isMonthly: p.orderLimitIsMonthly && p.priceMonthly != null && p.priceMonthly > 0,
   priceMonthly: p.priceMonthly,
-  /** Annual price billed once per year (placeholder until Stripe amounts verified — see plans.ts). */
+  /** Intended annual price billed once per year. Only shown when annual billing
+   *  is actually live (ANNUAL_BILLING_ENABLED) — see plans.ts. */
   priceYearly: p.priceYearly,
   yearlyMonthlyEq: yearlyMonthlyEquivalent(p),
   savePercent: yearlySavePercent(p),
@@ -137,14 +139,16 @@ const FAQ: Array<[string, string]> = [
 ];
 
 export default function PricingPage() {
-  // Monthly/Annual toggle — RESTORED (2026-06-11, batch 8/9). The backend now
-  // accepts billingInterval on /api/billing/checkout and maps yearly plans to
-  // the Stripe `*YearlyPriceId`s, and the in-app upgrade flow passes the chosen
-  // interval through createCheckoutSession — so annual is purchasable
-  // (offer⇔works holds again). Annual amounts are placeholders pending Stripe
-  // verification (see TODO-verify-stripe-amounts in plans.ts).
+  // Monthly/Annual toggle — GATED behind ANNUAL_BILLING_ENABLED (offer⇔works).
+  // Annual checkout maps a plan to its Stripe `*YearlyPriceId`, but those price
+  // ids are not yet populated in the backend, so offering annual would route the
+  // buyer into a Checkout that fails with "price not configured". Until the
+  // founder populates the Stripe yearly price ids (backend + Railway env) and
+  // flips ANNUAL_BILLING_ENABLED, we show the monthly path only and never render
+  // the annual toggle — so the page never offers something that doesn't work.
   const [billing, setBilling] = useState<"monthly" | "yearly">("monthly");
-  const yearly = billing === "yearly";
+  // Force monthly whenever annual is not live, regardless of the toggle state.
+  const yearly = ANNUAL_BILLING_ENABLED && billing === "yearly";
 
   // Volume recommender — reuses the SAME helper the landing-page ROICalculator
   // uses (recommendPlanByOrders), so the pricing page and ROI calculator can
@@ -235,28 +239,33 @@ export default function PricingPage() {
       <section className="plk-section" style={{ paddingTop: 48 }}>
         <div className="plk-wrap">
           {/* Billing cadence toggle — the design's .billing-toggle pill.
-              Annual is REAL self-serve now (backend billingInterval + yearly
-              Stripe prices); the save-% is derived from the plan ladder. */}
-          <div className="plk-toggle-wrap">
-            <div className="plk-billing-toggle" role="group" aria-label="Billing period">
-              <button
-                type="button"
-                className={!yearly ? "on" : ""}
-                aria-pressed={!yearly}
-                onClick={() => setBilling("monthly")}
-              >
-                Monthly
-              </button>
-              <button
-                type="button"
-                className={yearly ? "on" : ""}
-                aria-pressed={yearly}
-                onClick={() => setBilling("yearly")}
-              >
-                Annual{TOGGLE_SAVE_PERCENT != null ? ` · save ${TOGGLE_SAVE_PERCENT}%` : ""}
-              </button>
+              Only rendered when annual billing is actually live
+              (ANNUAL_BILLING_ENABLED). The Stripe yearly price ids are not yet
+              populated in the backend, so annual checkout would fail; rather
+              than show a toggle that routes into a broken Checkout, we omit it
+              and show monthly only until the founder enables annual. */}
+          {ANNUAL_BILLING_ENABLED && (
+            <div className="plk-toggle-wrap">
+              <div className="plk-billing-toggle" role="group" aria-label="Billing period">
+                <button
+                  type="button"
+                  className={!yearly ? "on" : ""}
+                  aria-pressed={!yearly}
+                  onClick={() => setBilling("monthly")}
+                >
+                  Monthly
+                </button>
+                <button
+                  type="button"
+                  className={yearly ? "on" : ""}
+                  aria-pressed={yearly}
+                  onClick={() => setBilling("yearly")}
+                >
+                  Annual{TOGGLE_SAVE_PERCENT != null ? ` · save ${TOGGLE_SAVE_PERCENT}%` : ""}
+                </button>
+              </div>
             </div>
-          </div>
+          )}
 
           <div className="plk-pricing-grid plk-primary-grid">
             {PRIMARY_TIERS.map((tier) => (

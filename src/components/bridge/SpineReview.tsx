@@ -465,7 +465,7 @@ function SpineNodeCard({
   // Border emphasis when the linked zone is active
   const borderColor =
     isActiveZone ? "#2E8E3A" :
-    err   ? "#F0D2D2" :
+    err   ? "var(--danger-soft)" :
     issue ? "#F0E0BD" :
     "#E2E6EE";
 
@@ -2018,9 +2018,17 @@ export function SpineReview({ orderId }: { orderId: string }) {
             <button
               onClick={() => router.push("/inbox")}
               aria-label="Back to inbox"
-              style={{ width: 30, height: 30, border: "1px solid #E2E6EE", borderRadius: 7, background: "#FFFFFF", color: "#56627A", cursor: "pointer", fontSize: 14, flexShrink: 0, marginTop: 1 }}
+              // >=44x44 hit area for touch (--tap-min) without enlarging the visible
+              // 30x30 chip: transparent flex box centers an inner glyph chip; negative
+              // margins (-7px = half the 14px growth) keep the visible chip's footprint.
+              style={{ minWidth: "var(--tap-min)", minHeight: "var(--tap-min)", display: "inline-flex", alignItems: "center", justifyContent: "center", border: "none", background: "transparent", padding: 0, cursor: "pointer", flexShrink: 0, margin: "-7px", marginTop: -6 }}
             >
-              ←
+              <span
+                aria-hidden="true"
+                style={{ width: 30, height: 30, display: "inline-flex", alignItems: "center", justifyContent: "center", border: "1px solid #E2E6EE", borderRadius: 7, background: "#FFFFFF", color: "#56627A", fontSize: 14 }}
+              >
+                ←
+              </span>
             </button>
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2.5">
@@ -2057,7 +2065,7 @@ export function SpineReview({ orderId }: { orderId: string }) {
             <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:justify-end">
               {order.status === "delivery_dead_letter" && (
                 <span
-                  style={{ height: 34, display: "inline-flex", alignItems: "center", padding: "0 12px", borderRadius: 7, fontSize: 12, fontWeight: 600, background: "#FBE3E3", color: "#C53A3A", border: "1px solid #F0D2D2" }}
+                  style={{ height: 34, display: "inline-flex", alignItems: "center", padding: "0 12px", borderRadius: 7, fontSize: 12, fontWeight: 600, background: "var(--danger-soft)", color: "var(--danger)", border: "1px solid var(--danger-soft)" }}
                 >
                   ⚠ Dead-lettered · retries exhausted
                 </span>
@@ -2150,7 +2158,7 @@ export function SpineReview({ orderId }: { orderId: string }) {
           const sev = order.status === "rejected_by_supplier" ? "error" : flowSeverity;
           const spec =
             sev === "error"
-              ? { border: "1px solid #F0D2D2", background: "#FFF7F7", color: "#C53A3A" }
+              ? { border: "1px solid var(--danger-soft)", background: "#FFF7F7", color: "var(--danger)" }
               : sev === "success"
               ? { border: "1px solid #A6E9BE", background: "#ECFDF3", color: "#1E6D29" }
               : { border: "1px solid #BFD7F5", background: "#EFF5FE", color: "#0F4FAB" };
@@ -2534,7 +2542,7 @@ export function SpineReview({ orderId }: { orderId: string }) {
               What {order.supplierName} confirmed back for <span className="font-mono" style={{ color: "#1E6D29" }}>{order.poNumber}</span>.
             </p>
             {order.status === "rejected_by_supplier" && (
-              <div className="mb-4 rounded-[8px] px-4 py-3" style={{ border: "1px solid #F0D2D2", borderLeft: "3px solid #C53A3A", background: "#FFF7F7" }}>
+              <div className="mb-4 rounded-[8px] px-4 py-3" style={{ border: "1px solid var(--danger-soft)", borderLeft: "3px solid var(--danger)", background: "#FFF7F7" }}>
                 <div style={{ fontSize: 13, fontWeight: 700, color: "#0B1A2F", marginBottom: 4 }}>
                   {labels.counterpartyNoun} rejected this order
                 </div>
