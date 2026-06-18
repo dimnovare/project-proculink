@@ -688,7 +688,7 @@ function OutgoingStatusTag({
   // Unmapped: loud amber ONLY when required; otherwise neutral + quiet.
   if (status.required) {
     return (
-      <span title="This field is required by the supplier — wire a source or set a fixed value" style={{ display: "inline-flex", alignItems: "center", gap: 3, fontSize: 9, fontWeight: 700, color: "#9A6B00", background: "#FFF7E6", border: "1px solid #F1E2BE", borderRadius: 4, padding: "1px 6px", flexShrink: 0 }}>
+      <span title="This field is required by the supplier — map a source or set a fixed value" style={{ display: "inline-flex", alignItems: "center", gap: 3, fontSize: 9, fontWeight: 700, color: "#9A6B00", background: "#FFF7E6", border: "1px solid #F1E2BE", borderRadius: 4, padding: "1px 6px", flexShrink: 0 }}>
         needs a source
       </span>
     );

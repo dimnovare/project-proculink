@@ -33,7 +33,7 @@ import { PageHeader } from "@/components/bridge/layout/PageHeader";
 import { Card } from "@/components/bridge/layout/Card";
 import { Button } from "@/components/bridge/DSPrimitives";
 import { RevisionStatusBadge } from "@/components/connections/RevisionStatusBadge";
-import { ReplayPanel } from "@/components/connections/ReplayPanel";
+import { HistoryDrawer, type BundleSummaryData } from "@/components/connections/HistoryDrawer";
 import { MapperWorkbench } from "@/components/bridge/mapper/MapperWorkbench";
 import {
   apiClient,
@@ -114,14 +114,6 @@ function parseTestSummary(summaryJson: string): TestPackSummary | null {
   }
 }
 
-/** Non-null notes carried by the evidence (replay note, conformance note, pack error). */
-function evidenceNotes(summary: TestPackSummary | null): string[] {
-  if (!summary) return [];
-  return [summary.replay?.note, summary.conformance?.note, summary.error].filter(
-    (n): n is string => typeof n === "string" && n.length > 0,
-  );
-}
-
 export function ConnectionDetail({ connectionId }: { connectionId: string }) {
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -130,6 +122,9 @@ export function ConnectionDetail({ connectionId }: { connectionId: string }) {
   const [confirm, setConfirm] = useState<ConfirmState>(null);
   // Evidence from the most recent "Run tests" call, rendered inline under its revision row.
   const [testEvidence, setTestEvidence] = useState<RevisionTestEvidence | null>(null);
+  // WS-8: all secondary/power actions (version history, checks, restore, discard,
+  // replay, config summary) live behind this single right-side drawer.
+  const [historyOpen, setHistoryOpen] = useState(false);
 
   const {
     data: connection,
@@ -278,6 +273,25 @@ export function ConnectionDetail({ connectionId }: { connectionId: string }) {
   });
   const sampleOrderId = sampleOrderPage?.items[0]?.id ?? null;
 
+  // Read-only live-version config summary, shared by the on-page "Live version"
+  // card (via BundleSummary) and the History & advanced drawer. Null until the
+  // active revision's bundle has loaded; null when nothing is live.
+  const liveSummary: BundleSummaryData | null = useMemo(() => {
+    if (!activeRevisionId || !activeRevision) return null;
+    return {
+      inputConfigured: !!activeRevision.inputMappingJson,
+      outputTemplateConfigured: !!activeRevision.outputMappingJson,
+      outputFormat: activeRevision.outputFormat ?? null,
+      deliveryProtocol: activeRevision.deliveryProtocol ?? null,
+      deliveryAutoDeliver: activeRevision.deliveryAutoDeliver ?? false,
+      hasCredentials: activeRevision.hasCredentials ?? false,
+      itemMappingCount: activeRevision.itemMappings.length,
+      acceptanceBound: activeRevision.acceptanceProfileId != null,
+      acceptanceVersionNo: activeRevision.acceptanceVersionNo ?? null,
+      catalogMode: activeRevision.catalogMode ?? "live",
+    };
+  }, [activeRevisionId, activeRevision]);
+
   return (
     <PageShell variant="wide">
       <PageHeader
@@ -296,6 +310,28 @@ export function ConnectionDetail({ connectionId }: { connectionId: string }) {
             >
               ← All connections
             </Link>
+            {/* Quiet secondary trigger — opens the History & advanced drawer (version
+                history, checks, restore, discard, replay, config summary). Kept low-key
+                next to the primary action so the everyday surface stays simple. */}
+            {connection && (
+              <button
+                type="button"
+                onClick={() => setHistoryOpen(true)}
+                aria-haspopup="dialog"
+                aria-expanded={historyOpen}
+                className="inline-flex h-[44px] sm:h-[32px] items-center gap-1.5 rounded px-3 text-[12.5px] font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-blue)]"
+                style={{
+                  background: "var(--surface)",
+                  border: "1px solid var(--border)",
+                  color: "var(--ink)",
+                  cursor: "pointer",
+                }}
+              >
+                <span aria-hidden>↺</span>
+                History &amp; advanced
+                <span aria-hidden style={{ color: "var(--ink-faint)" }}>⌄</span>
+              </button>
+            )}
             {/* Single context-aware action. While a draft is open the user is already
                 editing inline (no overlay) and "Make live" lives on the draft row, so the
                 header button steps aside to avoid a second-draft footgun + duplicate actions. */}
@@ -361,8 +397,8 @@ export function ConnectionDetail({ connectionId }: { connectionId: string }) {
       )}
 
       {!isLoading && !isError && connection && (
-        <div className="grid gap-4 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)] lg:items-start">
-          {/* ── Left: the live (published) bundle summary ─────────────── */}
+        <div className="grid gap-4 lg:items-start">
+          {/* ── The live (published) bundle summary ───────────────────── */}
           <Card edge="green" title="Live version" sub="What this supplier receives for new orders today">
             {activeRevisionId ? (
               <>
@@ -417,140 +453,14 @@ export function ConnectionDetail({ connectionId }: { connectionId: string }) {
             )}
           </Card>
 
-          {/* ── Right: version history + lifecycle controls ──────────── */}
-          <Card title="Version history" sub="Each version, newest first">
-            {revisions.length === 0 ? (
-              <p className="text-[12.5px] py-4" style={{ color: "var(--ink-muted)" }}>
-                No versions yet. Edit the mapping below to begin.
-              </p>
-            ) : (
-              <ul className="flex flex-col gap-2 list-none p-0 m-0">
-                {revisions.map((r) => {
-                  const isActive = r.id === activeRevisionId;
-                  const status = (r.status ?? "").toLowerCase();
-                  const canTest = status === "draft" || status === "test";
-                  const canPublish = status === "draft" || status === "test";
-                  // Rollback = re-publish a previously published (now archived) revision.
-                  const canRollback = status === "archived";
-                  const canArchive = status === "draft" || status === "test";
-
-                  return (
-                    <li
-                      key={r.id}
-                      className="rounded-[8px]"
-                      style={{
-                        border: `1px solid ${isActive ? "var(--brand-green)" : "var(--border)"}`,
-                        boxShadow: isActive ? "0 0 0 1px var(--brand-green)" : "none",
-                        padding: "12px 14px",
-                        background: "var(--surface)",
-                      }}
-                    >
-                      <div className="flex items-center justify-between gap-3 flex-wrap">
-                        <div className="flex items-center gap-2.5 min-w-0">
-                          <span className="text-[13px] font-mono font-semibold" style={{ color: "var(--ink)" }}>
-                            v{r.versionNo}
-                          </span>
-                          {/* The "Live" badge already marks the active version (published === active),
-                              so no separate "Live" pill — it read as a duplicate "Live Live". */}
-                          <RevisionStatusBadge status={r.status} size="sm" />
-                        </div>
-                        <span className="text-[11px]" style={{ color: "var(--ink-faint)" }}>
-                          {status === "published"
-                            ? `Live since ${formatDateTime(r.publishedAt)}`
-                            : status === "archived"
-                              // Archived = either a superseded once-live version, or a discarded
-                              // draft that was never live (no publishedAt → don't claim "was live").
-                              ? (r.publishedAt ? `Was live · ${formatDateTime(r.publishedAt)}` : `Discarded`)
-                              : `Created ${formatDateTime(r.createdAt)}`}
-                        </span>
-                      </div>
-
-                      <div className="mt-2.5 flex flex-wrap gap-2">
-                        {canTest && (
-                          <Button
-                            variant="secondary"
-                            size="sm"
-                            disabled={busy}
-                            loading={testMutation.isPending && testMutation.variables === r.id}
-                            onClick={() => { setNotice(null); testMutation.mutate(r.id); }}
-                          >
-                            Test
-                          </Button>
-                        )}
-                        {canPublish && (() => {
-                          // Evidence-gate "Make live": the backend 409s with
-                          // "Run tests on this revision before publishing." unless the test
-                          // pack has PASSED for THIS revision since the last edit. Mirror that
-                          // here so the user can't click into a guaranteed 409. The only
-                          // per-revision evidence this view holds is `testEvidence` (set by the
-                          // "Test" action) — so absent/failed evidence → disabled; passed → enabled.
-                          const evidenceForThisRevision =
-                            testEvidence && testEvidence.revisionId === r.id ? testEvidence : null;
-                          const testsPassed = evidenceForThisRevision?.passed === true;
-                          return (
-                            <Button
-                              variant="primary"
-                              size="sm"
-                              disabled={busy || !testsPassed}
-                              title={
-                                testsPassed
-                                  ? undefined
-                                  : "Run tests — checks must pass before going live."
-                              }
-                              onClick={() =>
-                                setConfirm({ kind: "publish", revisionId: r.id, versionNo: r.versionNo })
-                              }
-                            >
-                              Make live
-                            </Button>
-                          );
-                        })()}
-                        {canRollback && (
-                          <Button
-                            variant="secondary"
-                            size="sm"
-                            disabled={busy}
-                            loading={rollbackMutation.isPending && rollbackMutation.variables === r.id}
-                            onClick={() =>
-                              setConfirm({ kind: "rollback", revisionId: r.id, versionNo: r.versionNo })
-                            }
-                          >
-                            Restore this version
-                          </Button>
-                        )}
-                        {canArchive && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            disabled={busy}
-                            loading={archiveMutation.isPending && archiveMutation.variables === r.id}
-                            onClick={() =>
-                              setConfirm({ kind: "archive", revisionId: r.id, versionNo: r.versionNo })
-                            }
-                          >
-                            Discard
-                          </Button>
-                        )}
-                      </div>
-
-                      {testEvidence && testEvidence.revisionId === r.id && (
-                        <TestEvidenceSummary evidence={testEvidence} />
-                      )}
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
-          </Card>
-
           {/* ── Mapping — author once (Phase 3 three-pane mapper) ─────── */}
-          <div className="lg:col-span-2">
+          <div>
             <Card
               title="Mapping"
               sub={
                 mapperReadOnly
                   ? "How this supplier's orders are mapped to their output. Click to edit."
-                  : "Wire incoming fields → the supplier's output. Saved automatically; “Make live” to publish."
+                  : "Map incoming fields → the supplier's output. Saved automatically; “Make live” to publish."
               }
             >
               {mapperRevisionId ? (
@@ -596,7 +506,7 @@ export function ConnectionDetail({ connectionId }: { connectionId: string }) {
                     No mapping yet
                   </p>
                   <p className="text-[12.5px] mt-1.5 leading-[1.55]" style={{ color: "var(--ink-muted)" }}>
-                    Start a mapping for this supplier — wire their incoming fields to the output,
+                    Start a mapping for this supplier — map their incoming fields to the output,
                     then make it live.
                   </p>
                   <Button
@@ -612,15 +522,6 @@ export function ConnectionDetail({ connectionId }: { connectionId: string }) {
                 </div>
               )}
             </Card>
-          </div>
-
-          {/* ── Replay / impact preview — V2 (live) ───────────────────── */}
-          <div className="lg:col-span-2">
-            <ReplayPanel
-              connectionId={connectionId}
-              revisions={revisions}
-              activeRevisionId={activeRevisionId}
-            />
           </div>
         </div>
       )}
@@ -638,59 +539,30 @@ export function ConnectionDetail({ connectionId }: { connectionId: string }) {
           }}
         />
       )}
+
+      {/* ── History & advanced drawer (WS-8) ──────────────────────────────
+          All secondary/power actions live here. The triggers below call the
+          SAME mutation handlers used by the (now relocated) version-history
+          rows — nothing is reimplemented; the drawer only relocates them. */}
+      <HistoryDrawer
+        open={historyOpen}
+        onClose={() => setHistoryOpen(false)}
+        connectionId={connectionId}
+        revisions={revisions}
+        activeRevisionId={activeRevisionId}
+        liveSummary={liveSummary}
+        liveVersionNo={activeRevision?.versionNo ?? null}
+        testEvidence={testEvidence}
+        busy={busy}
+        testingRevisionId={testMutation.isPending ? (testMutation.variables ?? null) : null}
+        rollingBackRevisionId={rollbackMutation.isPending ? (rollbackMutation.variables ?? null) : null}
+        discardingRevisionId={archiveMutation.isPending ? (archiveMutation.variables ?? null) : null}
+        onTest={(revisionId) => { setNotice(null); testMutation.mutate(revisionId); }}
+        onRequestPublish={(revisionId, versionNo) => setConfirm({ kind: "publish", revisionId, versionNo })}
+        onRequestRollback={(revisionId, versionNo) => setConfirm({ kind: "rollback", revisionId, versionNo })}
+        onRequestArchive={(revisionId, versionNo) => setConfirm({ kind: "archive", revisionId, versionNo })}
+      />
     </PageShell>
-  );
-}
-
-// ── Test-pack evidence summary (inline under the tested revision row) ─────────
-
-function TestEvidenceSummary({ evidence }: { evidence: RevisionTestEvidence }) {
-  const { passed, testedAt, summary } = evidence;
-  const notes = evidenceNotes(summary);
-  const replay = summary?.replay ?? null;
-  const conformance = summary?.conformance ?? null;
-
-  return (
-    <div
-      className="mt-2.5 rounded-[6px] px-3 py-2.5 text-[11.5px] leading-[1.55]"
-      style={
-        passed
-          ? { background: "var(--brand-green-soft)", border: "1px solid var(--brand-green-soft)", color: "var(--brand-green-deep)" }
-          : { background: "var(--danger-soft)", border: "1px solid var(--danger-soft)", color: "var(--danger)" }
-      }
-      role="status"
-    >
-      <span className="font-semibold">
-        Checks {passed ? "passed" : "failed"}
-      </span>
-      <span> · {formatDateTime(testedAt)}</span>
-      {(replay || conformance) && (
-        <div className="mt-1" style={{ opacity: 0.92 }}>
-          {replay && (
-            <span>
-              Replay: {replay.orderCount} order{replay.orderCount === 1 ? "" : "s"}
-              {replay.outputErrors > 0 ? `, ${replay.outputErrors} render error${replay.outputErrors === 1 ? "" : "s"}` : ""}
-            </span>
-          )}
-          {replay && conformance && <span> · </span>}
-          {conformance && (
-            <span>
-              Conformance:{" "}
-              {conformance.skipped
-                ? "skipped"
-                : `${conformance.passed ? "passed" : "failed"}${conformance.profile ? ` (${conformance.profile})` : ""}`}
-            </span>
-          )}
-        </div>
-      )}
-      {notes.length > 0 && (
-        <ul className="mt-1 list-disc pl-4 m-0">
-          {notes.map((n, i) => (
-            <li key={i}>{n}</li>
-          ))}
-        </ul>
-      )}
-    </div>
   );
 }
 
@@ -833,7 +705,7 @@ function ConfirmDialog({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end bg-[#0B1A2F66] p-0 sm:items-center sm:justify-center sm:p-6"
+      className="fixed inset-0 z-[80] flex items-end bg-[#0B1A2F66] p-0 sm:items-center sm:justify-center sm:p-6"
       role="dialog"
       aria-modal="true"
       aria-labelledby="connection-confirm-title"

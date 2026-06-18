@@ -21,7 +21,8 @@
     "demo:tools:vo": "node scripts/demo-video/tools/generate-tool-vo.mjs",
     "demo:tools:capture": "playwright test --config=playwright.tools.config.ts",
     "demo:tools:assemble": "node scripts/demo-video/tools/assemble-tool.mjs",
-    "check:pageshell": "node scripts/check-pageshell.mjs"
+    "check:pageshell": "node scripts/check-pageshell.mjs",
+    "lint:vocab": "node scripts/check-vocabulary.mjs"
   },
   "dependencies": {
     "@clerk/nextjs": "^7.4.1",

@@ -240,7 +240,7 @@ function WireTopologyCanvas({
         preserveAspectRatio="xMidYMid meet"
         className="min-w-[760px] w-full"
         style={{ height }}
-        aria-label="Order wire topology"
+        aria-label="Order routing map"
       >
         <defs>
           {wires.map((w, wi) => {
@@ -346,7 +346,7 @@ function WireTopologyCanvas({
               {alertAnchor && w.alert && (
                 <g
                   transform={`translate(${alertAnchor.x}, ${alertAnchor.y - 14})`}
-                  aria-label={`${w.alert} exceptions on this wire`}
+                  aria-label={`${w.alert} exceptions on this connection`}
                 >
                   <circle r={9} fill="#FFFFFF" stroke="#C97A14" strokeWidth={1.5} />
                   <text

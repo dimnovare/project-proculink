@@ -263,7 +263,7 @@ export function useMapperWireLayer({
 
   const fireConnect = useCallback((sourceId: string, outputPath: string) => {
     onConnect(sourceId, outputPath);
-    announce(`Wired ${sourceId} to ${outputPath}`);
+    announce(`Mapped ${sourceId} to ${outputPath}`);
   }, [onConnect]);
 
   // ── Pointer drag ───────────────────────────────────────────────────────────────
@@ -341,7 +341,7 @@ export function useMapperWireLayer({
       onKeyDown: (e) => onHandleKey(e, sourceId),
       tabIndex: 0,
       role: "button",
-      "aria-label": `Map this field. Drag onto an output field to wire it${wiredCount ? `; currently feeding ${wiredCount} output${wiredCount === 1 ? "" : "s"}` : ""}${connecting ? " — connect mode active, use arrow keys then Enter" : ""}`,
+      "aria-label": `Map this field. Drag onto an output field to map it${wiredCount ? `; currently feeding ${wiredCount} output${wiredCount === 1 ? "" : "s"}` : ""}${connecting ? " — connect mode active, use arrow keys then Enter" : ""}`,
       "data-wired": wiredCount > 0,
       "data-connecting": connecting,
     };
@@ -423,7 +423,7 @@ export function useMapperWireLayer({
                 {/* Remove button on an EXPLICIT wire (a 1:1 default has nothing to remove). */}
                 {w.isOverride && !isDragging && !readOnly && (
                   <g role="button" tabIndex={0}
-                    aria-label={`Remove the wire feeding ${w.outputPath}`}
+                    aria-label={`Remove the mapping feeding ${w.outputPath}`}
                     style={{ pointerEvents: "auto", cursor: "pointer" }}
                     onClick={() => onDisconnect(w.outputPath)}
                     onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onDisconnect(w.outputPath); } }}>

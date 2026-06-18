@@ -560,7 +560,7 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
           )}
           {summary.requiredUnmapped > 0 && (
             <span
-              title="A required output field still has no source — wire one or set a fixed value"
+              title="A required output field still has no source — map one or set a fixed value"
               style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 10.5, fontWeight: 700, color: "#9A6B00", background: "#FFF7E6", border: "1px solid #F1E2BE", borderRadius: 5, padding: "2px 8px" }}
             >
               ⚠ {summary.requiredUnmapped} {summary.requiredUnmapped === 1 ? "field needs" : "fields need"} a source
@@ -799,7 +799,7 @@ function MappedSummaryChip({ mapped, total }: { mapped: number; total: number })
   const allMapped = mapped >= total;
   return (
     <span
-      title="Output fields with a resolved value (wired, fixed, or auto)"
+      title="Output fields with a resolved value (mapped, fixed, or auto)"
       style={{
         display: "inline-flex", alignItems: "center", gap: 4, fontSize: 10.5, fontWeight: 700,
         borderRadius: 999, padding: "2px 9px",

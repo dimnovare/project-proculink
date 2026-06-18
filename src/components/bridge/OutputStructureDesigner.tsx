@@ -201,8 +201,8 @@ export function OutputStructureDesigner({
           <strong style={{ fontSize: 14 }}>Design the output structure</strong>
           <span style={{ fontSize: 11.5, opacity: 0.8 }}>What the supplier receives — live preview on the right</span>
           <div style={{ marginLeft: "auto", display: "flex", gap: 8, alignItems: "center" }}>
-            <label style={{ fontSize: 11.5, opacity: 0.85 }}>Format</label>
-            <select value={designerFormat(tree.format)} onChange={(e) => { setTree((t) => ({ ...t, format: e.target.value as OutputFormat })); setSaved(false); }}
+            <label htmlFor="osd-format" style={{ fontSize: 11.5, opacity: 0.85 }}>Format</label>
+            <select id="osd-format" aria-label="Output format" value={designerFormat(tree.format)} onChange={(e) => { setTree((t) => ({ ...t, format: e.target.value as OutputFormat })); setSaved(false); }}
               style={{ height: 30, borderRadius: 6, border: "none", padding: "0 8px", fontSize: 12.5 }}>
               {FORMATS.map((f) => <option key={f.id} value={f.id}>{f.label}</option>)}
             </select>
@@ -226,6 +226,7 @@ export function OutputStructureDesigner({
               {showInfer && (
                 <div style={{ marginTop: 8, border: `1px solid ${BORDER}`, borderRadius: 8, padding: 10, background: "#F7F9FC" }}>
                   <textarea value={sample} onChange={(e) => setSample(e.target.value)}
+                    aria-label="Supplier sample file"
                     placeholder="Paste the file your supplier requires (JSON, CSV, or XML)…"
                     style={{ width: "100%", minHeight: 92, fontFamily: "ui-monospace, Menlo, monospace", fontSize: 11.5, border: `1px solid ${BORDER}`, borderRadius: 6, padding: 8, resize: "vertical", boxSizing: "border-box" }} />
                   <div style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 8 }}>

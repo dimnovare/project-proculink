@@ -240,7 +240,7 @@ function AttentionRow({
         <span
           aria-hidden
           data-testid="drag-handle"
-          title="Drag to wire this field manually"
+          title="Drag to map this field manually"
           style={{ flexShrink: 0, cursor: readOnly ? "default" : "grab", color: "#A8B0BF", fontSize: 13, lineHeight: 1 }}
         >
           ⠿

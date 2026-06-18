@@ -251,14 +251,15 @@ describe("invariant 2 — issues === send-gate; -3 qty is not green, Send disabl
 
     render(<OrderWorkshop orderId="ord-1" />);
 
-    // The IssuesPanel (in the issuesSlot) is NOT the green "ready" bar.
-    const panel = screen.getAllByTestId("issues-panel")[0];
-    expect(panel.getAttribute("data-issues")).not.toBe("0");
+    // The send-readiness strip reflects open work — NOT the green "ready" bar.
+    expect(screen.queryByText(/Ready to send/i)).toBeNull();
+    expect(screen.getByText(/field(?:s)? to fill before sending/i)).toBeTruthy();
 
-    // Send is gated: clicking it must NOT open the confirm dialog.
+    // Send is gated: EVERY Send button (desktop header + mobile bar) is disabled, and
+    // clicking must NOT open the confirm dialog.
     const sendBtns = screen.getAllByRole("button", { name: /send to supplier|fix \d+ to send/i });
-    const send = sendBtns.find((b) => (b as HTMLButtonElement).disabled !== undefined);
-    expect((send as HTMLButtonElement).disabled).toBe(true);
+    expect(sendBtns.length).toBeGreaterThan(0);
+    expect(sendBtns.every((b) => (b as HTMLButtonElement).disabled)).toBe(true);
     expect(mockState.setShowConfirm).not.toHaveBeenCalled();
   });
 
@@ -278,8 +279,9 @@ describe("invariant 2 — issues === send-gate; -3 qty is not green, Send disabl
 
     render(<OrderWorkshop orderId="ord-1" />);
 
-    const panel = screen.getAllByTestId("issues-panel")[0];
-    expect(panel.getAttribute("data-issues")).toBe("0");
+    // The green ready bar (send-readiness strip) appears; no "fields to fill" warning.
+    expect(screen.getAllByText(/Ready to send/i).length).toBeGreaterThan(0);
+    expect(screen.queryByText(/field(?:s)? to fill before sending/i)).toBeNull();
 
     const send = screen
       .getAllByRole("button")

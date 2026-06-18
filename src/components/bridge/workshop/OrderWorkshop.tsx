@@ -16,13 +16,14 @@
 // send path and ONE server-truth send guard — the workshop is a new VIEW over the same
 // engine, not a second engine. Send is gated on issues.length === 0 && invariants.
 //
-// Desktop only (the drag mapper is xl). Reduced-mobile is P2, not here — below xl we
-// render an honest "open on desktop" note plus the issue list + send.
+// The drag mapper is desktop-only (xl). Below xl we render <MobileTriage/> — an honest
+// reduced REVIEW-AND-SEND surface (order summaries + the full issue list + one-click
+// fixes + a sticky Send bar); field-by-field mapping stays on a larger screen.
 
 import { useCallback, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
-import { apiClient, getMappingOverride } from "@/lib/api-client";
+import { apiClient, getMappingOverride, previewMappingOverride } from "@/lib/api-client";
 import { useQueriesEnabled } from "@/hooks/useQueriesEnabled";
 import { useOrderDirection } from "@/hooks/useOrderDirection";
 import type { OrderMappingOverride } from "@/lib/api/types";
@@ -37,7 +38,8 @@ import { useResolveActions } from "../review/hooks/useResolveActions";
 import { useAcceptanceValidation } from "../review/hooks/useAcceptanceValidation";
 import { useSendFlow } from "../review/hooks/useSendFlow";
 import { useWorkshopLayout, type WorkshopFocus } from "./useWorkshopLayout";
-import { IssuesPanel, type WorkshopIssue } from "./IssuesPanel";
+import { type WorkshopIssue } from "./IssuesPanel";
+import { MobileTriage } from "./MobileTriage";
 import { WorkshopStepper } from "./WorkshopStepper";
 import { SendReadinessStrip, type BlockerChip } from "./SendReadinessStrip";
 import { WorkshopBrandLoader } from "./WorkshopBrandLoader";
@@ -132,6 +134,41 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
     return next;
   }, [order, validationResult]);
   const issues = useMemo(() => fixQueueToIssues(fixQueue), [fixQueue]);
+
+  // ── Mobile triage summary counts ("What we received") — distinct populated
+  //    header fields + the per-line fields that carry a value, from the SAME order
+  //    object. Never fabricated: a field counts only when it actually has data. ──
+  const receivedFieldCount = useMemo(() => {
+    if (!order) return 0;
+    const headerFields = [
+      order.poNumber, order.orderDate, order.buyerName, order.supplierName,
+      order.currency, order.grandTotal, order.subTotal, order.taxTotal, order.paymentTerms,
+    ];
+    let count = headerFields.filter((v) => v !== null && v !== undefined && v !== "").length;
+    for (const l of order.lines) {
+      const lineFields = [l.buyerItemCode, l.supplierItemCode, l.description, l.quantity, l.unit, l.unitPrice];
+      count += lineFields.filter((v) => v !== null && v !== undefined && v !== "").length;
+    }
+    return count;
+  }, [order]);
+
+  // ── Live "What we will send" preview for the mobile card — the SAME read-only
+  //    render the desktop preview uses, seeded with the persisted override and the
+  //    order's actual delivery format. Read-only; never changes delivery. ────────
+  const mobilePreviewFormat = order ? orderDeliveryFormat(order) : null;
+  const { data: mobilePreview } = useQuery({
+    queryKey: ["mobile-send-preview", orderId, mobilePreviewFormat ?? "csv"],
+    queryFn: () => previewMappingOverride(
+      orderId,
+      mappingOverride ?? { customFields: [] },
+      mobilePreviewFormat ?? "csv",
+      mobilePreviewFormat != null,
+    ),
+    enabled: queryEnabled && order != null,
+    staleTime: 30_000,
+    retry: 0,
+  });
+  const mobilePreviewContent = mobilePreview?.error ? null : (mobilePreview?.content ?? null);
 
   // ── Layout (collapse/focus) ─────────────────────────────────────────────────
   const lay = useWorkshopLayout();
@@ -321,7 +358,7 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
       )}
 
       {/* ── Send-readiness strip — slim, full-width; replaces the old issues card.
-          Desktop only; the mobile view keeps the full IssuesPanel list below. ──── */}
+          Desktop only; the mobile MobileTriage view carries its own issue list. ── */}
       <div className="hidden xl:block flex-shrink-0">
         <SendReadinessStrip blockers={blockerChips} notes={noteCount} ready={sendReady} onJump={onFocusField} />
       </div>
@@ -347,22 +384,32 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
           />
         </div>
 
-        {/* Below xl — reduced (P2 will flesh this out). The issue list + an honest
-            "open on desktop to map fields" note + the Send affordance still work. */}
-        <div className="xl:hidden px-4 py-4 flex flex-col gap-4">
-          <IssuesPanel issues={issues} onFocusField={onFocusField} onFix={onFix} />
-          <div style={{ borderRadius: 10, border: "1px solid #E2E6EE", background: "#FFFFFF", padding: "14px 16px", fontSize: 12.5, color: "#56627A", lineHeight: 1.5 }}>
-            Open this order on a larger screen to drag-wire fields. You can still review issues and send from here.
-          </div>
-          <button
-            type="button"
-            onClick={() => canSend && setShowConfirm(true)}
-            disabled={!canSend}
-            style={{ height: 44, borderRadius: 8, fontSize: 13.5, fontWeight: 700, background: canSend ? "#2E8E3A" : "#5A7660", color: "#FFFFFF", border: "none", cursor: canSend ? "pointer" : "not-allowed" }}
-          >
-            {crossed ? labels.doneLabel : blockingIssues > 0 || exceptionCount > 0 ? `Fix ${Math.max(blockingIssues, exceptionCount)} to send` : labels.primaryCta}
-          </button>
-        </div>
+        {/* Below xl — the v3 reduced MOBILE TRIAGE: review summaries, clear issues
+            with a one-click fix, and send. Field mapping stays on the desktop
+            mapper (above); this is an honest review-and-send-only surface. */}
+        <MobileTriage
+          poNumber={order.poNumber}
+          buyerName={buyerLabel(order)}
+          supplierName={order.supplierName}
+          grandTotalLabel={grandTotalLabel}
+          status={order.status}
+          receivedFieldCount={receivedFieldCount}
+          lineCount={order.lines.length}
+          outputFormatLabel={outputFormatLabel}
+          previewContent={mobilePreviewContent}
+          issues={issues}
+          blockingIssues={blockingIssues}
+          exceptionCount={exceptionCount}
+          canSend={canSend}
+          crossed={crossed}
+          sendState={sendState}
+          primaryCta={labels.primaryCta}
+          primaryCtaProgress={labels.primaryCtaProgress}
+          doneLabel={labels.doneLabel}
+          onFix={onFix}
+          onFocusField={onFocusField}
+          onSend={() => setShowConfirm(true)}
+        />
       </div>
 
       {/* ── Confirm dialog — the SAME one the classic screen uses (one send path). */}

@@ -1597,9 +1597,9 @@ export function SpineReview({ orderId }: { orderId: string }) {
         // Bump wireSig → gets included in the SpineConnectors signature →
         // SpineConnectors schedules a re-measure via its useLayoutEffect.
         setWireSig(s => s + 1);
-        setFlow(`Wire set: ${nodeId} → ${outputLineId}`, "success");
+        setFlow(`Mapping set: ${nodeId} → ${outputLineId}`, "success");
       } catch (err) {
-        setFlow(err instanceof Error ? err.message : "Couldn't save wire connection.", "error");
+        setFlow(err instanceof Error ? err.message : "Couldn't save the mapping.", "error");
       }
     }, 120); // short debounce — rapid drags shouldn't stack
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1628,7 +1628,7 @@ export function SpineReview({ orderId }: { orderId: string }) {
         setWireSig(s => s + 1);
         setFlow(`Reset ${outputLineId} to its default source`, "info");
       } catch (err) {
-        setFlow(err instanceof Error ? err.message : "Couldn't remove the wire.", "error");
+        setFlow(err instanceof Error ? err.message : "Couldn't remove the mapping.", "error");
       }
     }, 60);
   }, [mappingOverride, orderId, qc, refetchOverride, setFlow]);
@@ -1663,9 +1663,9 @@ export function SpineReview({ orderId }: { orderId: string }) {
         await qc.invalidateQueries({ queryKey: ["mapping-override", orderId] });
         await refetchOverride();
         setWireSig(s => s + 1);
-        setFlow(`Source field wired → ${canonicalField}`, "success");
+        setFlow(`Source field mapped → ${canonicalField}`, "success");
       } catch (err) {
-        setFlow(err instanceof Error ? err.message : "Couldn't save the source wire.", "error");
+        setFlow(err instanceof Error ? err.message : "Couldn't save the source mapping.", "error");
       }
     }, 120);
   }, [mappingOverride, orderId, qc, refetchOverride, setFlow]);
@@ -1687,9 +1687,9 @@ export function SpineReview({ orderId }: { orderId: string }) {
         await qc.invalidateQueries({ queryKey: ["mapping-override", orderId] });
         await refetchOverride();
         setWireSig(s => s + 1);
-        setFlow(`Removed the source wire for ${canonicalField}`, "info");
+        setFlow(`Removed the source mapping for ${canonicalField}`, "info");
       } catch (err) {
-        setFlow(err instanceof Error ? err.message : "Couldn't remove the source wire.", "error");
+        setFlow(err instanceof Error ? err.message : "Couldn't remove the source mapping.", "error");
       }
     }, 60);
   }, [mappingOverride, orderId, qc, refetchOverride, setFlow]);
@@ -1710,7 +1710,7 @@ export function SpineReview({ orderId }: { orderId: string }) {
       // backend batch 4A (precedence: per-order override > promoted > fixed),
       // so the success copy can honestly promise auto-apply now.
       const msg = nothing
-        ? (r.message ?? "Nothing to save yet — wire a source field or add an output mapping first.")
+        ? (r.message ?? "Nothing to save yet — map a source field or add an output mapping first.")
         : `Saved ${total} field mapping${total !== 1 ? "s" : ""} for ${order?.supplierName ?? "this supplier"} — applies to their next order automatically.`;
       setFlow(msg, nothing ? "info" : "success");
     },
