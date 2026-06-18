@@ -21,7 +21,7 @@
 // fixes + a sticky Send bar); field-by-field mapping stays on a larger screen.
 
 import { useCallback, useMemo, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { apiClient, getMappingOverride, previewMappingOverride } from "@/lib/api-client";
 import { useQueriesEnabled } from "@/hooks/useQueriesEnabled";
@@ -43,6 +43,7 @@ import { MobileTriage } from "./MobileTriage";
 import { WorkshopStepper } from "./WorkshopStepper";
 import { SendReadinessStrip, type BlockerChip } from "./SendReadinessStrip";
 import { WorkshopBrandLoader } from "./WorkshopBrandLoader";
+import { OrderDetailsDrawer, type OrderDetailsTab } from "./OrderDetailsDrawer";
 
 /** The default trust threshold when no calibration history exists (mirrors mappingListModel). */
 const DEFAULT_TRUSTED_THRESHOLD = 0.85;
@@ -191,6 +192,42 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
     lay.setFocus("all");
   }, [lay]);
 
+  // ── Order details drawer (audit / standards / supplier response) ────────────
+  //    Secondary, lower-frequency trust surfaces relocated from the old screen's
+  //    Passport/Conformance/Response tabs. Opened from a quiet header trigger and
+  //    deep-linkable via ?tab= (so the Exceptions "Check conformance" link works).
+  const searchParams = useSearchParams();
+  const [detailsTab, setDetailsTab] = useState<OrderDetailsTab | null>(() => {
+    const t = searchParams?.get("tab");
+    return t === "passport" || t === "conformance" || t === "response" ? t : null;
+  });
+  // Read the live query string at call time (not the searchParams snapshot) so these
+  // stay referentially stable — otherwise every ?tab= write would re-identify them and
+  // needlessly re-attach the drawer's Esc/focus-trap listeners while it is open.
+  const openDetails = useCallback((t: OrderDetailsTab) => {
+    setDetailsTab(t);
+    const params = new URLSearchParams(window.location.search);
+    params.set("tab", t);
+    router.replace(`${window.location.pathname}?${params.toString()}`, { scroll: false });
+  }, [router]);
+  const closeDetails = useCallback(() => {
+    setDetailsTab(null);
+    const params = new URLSearchParams(window.location.search);
+    params.delete("tab");
+    const qs = params.toString();
+    router.replace(qs ? `${window.location.pathname}?${qs}` : window.location.pathname, { scroll: false });
+  }, [router]);
+
+  // Seed the conformance profile from the supplier's delivered format when it maps to
+  // a named standard (cXML / UBL / X12); otherwise leave it for the panel to default.
+  const defaultConformanceFormat = useMemo<"cxml" | "ubl" | "x12" | undefined>(() => {
+    const f = (order ? orderDeliveryFormat(order) : null)?.toLowerCase() ?? "";
+    if (f.includes("cxml")) return "cxml";
+    if (f.includes("ubl") || f === "peppol") return "ubl";
+    if (f.includes("x12") || f.includes("850")) return "x12";
+    return undefined;
+  }, [order]);
+
   // ── One-click fix for an AI-suggestion issue → the real server-path accept ──
   const onFix = useCallback((issue: WorkshopIssue) => {
     // ref is the line id for line-scoped cards (acceptSuggestion resolves it).
@@ -292,6 +329,22 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
 
           {/* Focus + Send — right-aligned (the stepper fills the gap on xl). */}
           <div className="flex items-center gap-3.5 flex-shrink-0 ml-auto xl:ml-0">
+            {/* Order details (audit · standards · response) — quiet secondary trigger
+                that opens the relocated Passport/Conformance/Response surfaces. */}
+            <button
+              type="button"
+              onClick={() => openDetails("passport")}
+              aria-label="Order details — audit trail, standards check, and response"
+              style={{ height: 34, padding: "0 11px", borderRadius: 7, border: "1px solid #E2E6EE", background: "#FFFFFF", color: "#56627A", fontSize: 12.5, fontWeight: 600, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 6, whiteSpace: "nowrap", flexShrink: 0, transition: "border-color .12s, color .12s" }}
+              onMouseEnter={(e) => { e.currentTarget.style.borderColor = "#1E66C9"; e.currentTarget.style.color = "#0B1A2F"; }}
+              onMouseLeave={(e) => { e.currentTarget.style.borderColor = "#E2E6EE"; e.currentTarget.style.color = "#56627A"; }}
+            >
+              <svg width="13" height="13" viewBox="0 0 16 16" fill="none" aria-hidden>
+                <path d="M3 4h10M3 8h10M3 12h6" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+              </svg>
+              Details
+            </button>
+
             {/* Focus: All / Mapping / Output — the progressive-disclosure control. */}
             <FocusControl focus={lay.focus} onFocus={lay.setFocus} />
 
@@ -427,6 +480,23 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
           validationStale={validation.isStale}
         />
       )}
+
+      {/* ── Order details (audit · standards · response) — relocated from the old
+           Passport/Conformance/Response tabs; deep-linkable via ?tab=. ───────── */}
+      <OrderDetailsDrawer
+        open={detailsTab !== null}
+        onClose={closeDetails}
+        tab={detailsTab ?? "passport"}
+        onTab={openDetails}
+        orderId={orderId}
+        poNumber={order.poNumber}
+        supplierName={order.supplierName}
+        currency={order.currency}
+        status={order.status}
+        errorMessage={order.errorMessage}
+        counterpartyNoun={labels.counterpartyNoun}
+        defaultConformanceFormat={defaultConformanceFormat}
+      />
     </div>
   );
 }
