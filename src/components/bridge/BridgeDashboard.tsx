@@ -32,7 +32,7 @@ import { apiClient, isApiMockMode } from "@/lib/api-client";
 import { useOnboardingStatus } from "@/hooks/useOnboardingStatus";
 import { useOrderDirection } from "@/hooks/useOrderDirection";
 import type { OrderSummary, Supplier } from "@/types/procurement";
-import { ArrowRight, ArrowUpRight, Clock, AlertTriangle, CheckCircle2, Send, Activity, Download } from "lucide-react";
+import { ArrowRight, ArrowUpRight, Clock, AlertTriangle, CheckCircle2, Send, Activity, Download, Inbox, PackageCheck, XCircle, BarChart3, Network } from "lucide-react";
 
 // ─── Brand accent (supplier green) ────────────────────────────────────────
 // The supplier accent is the calm forest green from the design tokens
@@ -305,6 +305,9 @@ export function BridgeDashboard() {
     try { return window.sessionStorage.getItem(WIZARD_DISMISSED_KEY) === "1"; } catch { return false; }
   });
   const [windowKey, setWindowKey] = useState<WindowKey>("30d");
+  // Hero view: the operational funnel is primary; the system map (WireTopology)
+  // is a secondary, power-user view kept one click away.
+  const [heroTab, setHeroTab] = useState<"funnel" | "map">("funnel");
 
   const dismissWizard = useCallback(() => {
     setWizardDismissed(true);
@@ -426,6 +429,52 @@ export function BridgeDashboard() {
        (ordersSummary?.byStatus?.["rejected_by_supplier"] ?? 0))
     : allOrders.filter((o) => EXCEPTION_STATUSES.has(o.status)).length;
 
+  // ── Operational funnel (the hero) ─────────────────────────────────────────
+  // Received → Blocked (needs review) → Ready → Delivered → Failed.
+  //
+  // Source: the SAME live GET /api/orders/summary aggregation already fetched
+  // for the exception count (ordersSummary.byStatus). This is the org's true,
+  // all-time, full-population status histogram — NOT capped at the 100-order
+  // working set — so the funnel never under-reports for a busy org. In mock
+  // mode the summary is derived from the same mockOrders, so the fallback
+  // counts the loaded working set instead. We never fabricate numbers.
+  const byStatus = ordersSummary?.byStatus ?? {};
+  const sumStatuses = (...keys: string[]) =>
+    keys.reduce((acc, k) => acc + ((byStatus as Record<string, number>)[k] ?? 0), 0);
+
+  // The funnel reads from the same source as the exception count: the live
+  // summary when authed, the loaded working set in mock mode. Keeping ONE base
+  // means the funnel stages reconcile with the "Needs attention" KPI.
+  const funnelLoading = !isApiMockMode ? summaryLoading : ordersLoading;
+  const funnelError = !isApiMockMode ? summaryError : ordersError;
+  const countBlocked = !isApiMockMode
+    ? sumStatuses("pending_review")
+    : allOrders.filter((o) => o.status === "pending_review").length;
+  const countReady = !isApiMockMode
+    ? sumStatuses("ready", "ready_to_deliver")
+    : allOrders.filter((o) => o.status === "ready" || o.status === "ready_to_deliver").length;
+  const countDelivered = !isApiMockMode
+    ? sumStatuses("delivered")
+    : allOrders.filter((o) => o.status === "delivered").length;
+  const countFailed = !isApiMockMode
+    ? sumStatuses("failed", "transform_failed", "delivery_failed", "delivery_dead_letter", "rejected_by_supplier")
+    : allOrders.filter((o) => FAILED_STATUSES.has(o.status) || o.status === "rejected_by_supplier").length;
+  const countReceived = !isApiMockMode
+    ? (ordersSummary?.total ?? 0)
+    : allOrders.length;
+
+  // Funnel stages share ONE temporal base (all time) so the counts are directly
+  // comparable. Colours: buyer-blue (received) → amber (blocked) → neutral
+  // (ready) → supplier-green (delivered) → red (failed).
+  const funnelStages: Array<{ key: string; label: string; value: number; color: string; tint: string; href?: string }> = [
+    { key: "received",  label: "Received",     value: countReceived,  color: BLUE,       tint: "#EAF1FC" },
+    { key: "blocked",   label: "Needs review", value: countBlocked,   color: "#C97A14",  tint: "#FFF6E6", href: "/operations/exceptions" },
+    { key: "ready",     label: "Ready",        value: countReady,     color: "#56627A",  tint: "#F1F3F7" },
+    { key: "delivered", label: "Delivered",    value: countDelivered, color: GREEN,      tint: "#E9F4EB" },
+    { key: "failed",    label: "Failed",       value: countFailed,    color: "#C53A3A",  tint: "#FCEDED", href: "/operations/exceptions" },
+  ];
+  const funnelMax = Math.max(countReceived, 1);
+
   // ── KPIs — real counts, windowed where it makes sense, honestly labelled ──
   const windowSub = WINDOWS.find((w) => w.key === windowKey)!.sub;
   const fmt = (n: number) => (ordersLoading ? "…" : ordersError ? "—" : n.toLocaleString());
@@ -491,15 +540,15 @@ export function BridgeDashboard() {
         ? (summaryLoading ? "…" : summaryError ? "—" : openExceptionsAll.toLocaleString())
         : fmt(openExceptionsAll),
       label: "Needs attention",
-      // NOTE: this count comes from GET /api/orders/summary, which is the live
-      // open backlog across ALL time — it is NOT filtered by the time-window
-      // selector (unlike "Orders received/delivered"). Labelling it with the
-      // window sub (e.g. "Last 30 days") falsely implied a windowed figure and
-      // let it read as contradictory next to a windowed "100% auto-processed".
-      // Say "open now" so the all-time open backlog can't be misread.
+      // TEMPORAL SCOPE: this count comes from GET /api/orders/summary — the live
+      // open backlog across ALL time — and is NOT filtered by the time-window
+      // selector (unlike "Orders received/delivered/Auto-processed", which are
+      // windowed). To keep every headline KPI on a comparable, explicitly-labelled
+      // base, this card's sub LEADS WITH ITS SCOPE ("All time") so it can never be
+      // misread as a windowed figure next to the windowed cards.
       sub: !isApiMockMode
-        ? (summaryLoading ? "…" : summaryError ? "Live data unavailable" : exceptionsBad ? "Open now — review needed" : "All clear")
-        : (ordersError ? "Live data unavailable" : exceptionsBad ? "Open now — review needed" : "All clear"),
+        ? (summaryLoading ? "…" : summaryError ? "Live data unavailable" : exceptionsBad ? "All time · review needed" : "All time · all clear")
+        : (ordersError ? "Live data unavailable" : exceptionsBad ? "All time · review needed" : "All time · all clear"),
       subColor: (!isApiMockMode ? (summaryLoading || summaryError) : (ordersLoading || ordersError))
         ? "#56627A"
         : exceptionsBad ? "#C97A14" : GREEN_DEEP,
@@ -515,13 +564,17 @@ export function BridgeDashboard() {
     {
       value: ordersLoading ? "…" : ordersError ? "—" : eligibleInWindow.length >= 3 ? `${autoPct}%` : "—",
       label: "Auto-processed",
+      // TEMPORAL SCOPE: windowed (same selector as Received/Delivered). Lead the
+      // sub with the window so all four headline KPIs declare their base — three
+      // windowed ("Last 30 days"), one all-time ("Needs attention") — and no two
+      // numbers silently compute on different bases without saying so.
       sub: ordersError
         ? "Live data unavailable"
         : eligibleInWindow.length >= 3
         // Make the denominator explicit so "100%" can't read as "everything is fine" while orders
         // still need review — this is the % of COMPLETED orders that needed no manual mapping.
-        ? `${autoCount} of ${eligibleInWindow.length} completed orders${autoSampled ? " (latest 100)" : ""}`
-        : "Needs 3+ completed orders",
+        ? `${windowSub} · ${autoCount} of ${eligibleInWindow.length} completed${autoSampled ? " (latest 100)" : ""}`
+        : `${windowSub} · needs 3+ completed orders`,
       subColor: ordersError ? "#56627A" : eligibleInWindow.length >= 3 ? GREEN_DEEP : "#56627A",
       subIcon: ordersError ? undefined : eligibleInWindow.length >= 3 ? CheckCircle2 : Clock,
       edge: GREEN_BAR,
@@ -692,6 +745,104 @@ export function BridgeDashboard() {
     );
   }
 
+  /** Operational funnel hero — the org's order pipeline as ordered, comparable
+   *  counts on ONE temporal base (all time). Reuses the live summary aggregation;
+   *  fabricates nothing. */
+  function renderFunnel() {
+    if (funnelLoading) {
+      return (
+        <div className="grid grid-cols-2 gap-3 p-4 sm:grid-cols-3 lg:grid-cols-5">
+          {[0, 1, 2, 3, 4].map((i) => (
+            <div key={i} className="animate-pulse rounded-[10px]" style={{ height: 104, background: "#EFF2F7", border: "1px solid #E2E6EE" }} />
+          ))}
+        </div>
+      );
+    }
+    if (funnelError) {
+      return (
+        <div className="flex flex-col items-center justify-center px-4 py-10 text-center" role="alert">
+          <div className="text-[15px] font-semibold" style={{ color: "#0B1A2F" }}>Couldn&apos;t load your pipeline</div>
+          <div className="mt-1 max-w-[420px] text-[13px]" style={{ color: "#56627A" }}>
+            We hit a problem fetching your live order counts. This is a temporary loading error.
+          </div>
+          <button
+            type="button"
+            onClick={() => refetchOrders()}
+            className="mt-4 inline-flex items-center gap-1 rounded-[6px] px-3 py-1.5 text-[12.5px] font-medium transition-colors hover:bg-[#F6F7FA]"
+            style={{ border: "1px solid #E2E6EE", background: "#FFFFFF", color: "#0B1A2F" }}
+          >
+            Retry
+          </button>
+        </div>
+      );
+    }
+    return (
+      <div className="p-4">
+        {/* Five stage tiles — Received → Needs review → Ready → Delivered → Failed.
+            Each shows a real count and a proportional bar (share of total received),
+            so the relative scale of each stage is visible at a glance. */}
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+          {funnelStages.map((s, idx) => {
+            const pct = Math.min(100, Math.round((100 * s.value) / funnelMax));
+            const tile = (
+              <>
+                <div className="flex items-center gap-1.5">
+                  {(() => {
+                    const Icon = [Inbox, AlertTriangle, Clock, PackageCheck, XCircle][idx];
+                    return <Icon size={13} strokeWidth={2.25} style={{ color: s.color, flexShrink: 0 }} aria-hidden />;
+                  })()}
+                  <span className="text-[10.5px] font-semibold uppercase" style={{ color: "#56627A", letterSpacing: "0.05em" }}>
+                    {s.label}
+                  </span>
+                </div>
+                <div
+                  className="monument mt-1 tabular-nums"
+                  style={{ fontSize: "clamp(24px, 3.4vw, 32px)", lineHeight: 1.05, color: "#0B1A2F" }}
+                >
+                  {s.value.toLocaleString()}
+                </div>
+                <div className="mt-2.5 overflow-hidden rounded-full" style={{ height: 5, background: "#EFF2F7" }}>
+                  <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, background: s.color }} />
+                </div>
+              </>
+            );
+            const tileClass = "relative rounded-[10px] p-3.5";
+            const tileStyle = { background: s.tint, border: `1px solid ${s.color}22` } as const;
+            return s.href && s.value > 0 ? (
+              <Link
+                key={s.key}
+                href={s.href}
+                className={`${tileClass} no-underline transition-shadow hover:shadow-md`}
+                style={tileStyle}
+                title={`Open ${s.label.toLowerCase()}`}
+              >
+                {tile}
+              </Link>
+            ) : (
+              <div key={s.key} className={tileClass} style={tileStyle}>
+                {tile}
+              </div>
+            );
+          })}
+        </div>
+        {/* Flow connector caption — names the pipeline order in plain language. */}
+        <div className="mt-3 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[11.5px]" style={{ color: "var(--ink-faint)" }}>
+          <span>Order pipeline</span>
+          <span style={{ color: "#C6CDDA" }}>·</span>
+          <span>Received</span>
+          <ArrowRight size={11} aria-hidden />
+          <span>Needs review</span>
+          <ArrowRight size={11} aria-hidden />
+          <span>Ready</span>
+          <ArrowRight size={11} aria-hidden />
+          <span>Delivered</span>
+          <span style={{ color: "#C6CDDA" }}>·</span>
+          <span>All time</span>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <PageShell variant="wide" className="flex flex-col">
       {/* Page header — canonical PageHeader, sits directly on the grey canvas
@@ -808,51 +959,99 @@ export function BridgeDashboard() {
             </Link>
           )}
 
-          {/* ── Wire Topology — the hero ─────────────────────────────────── */}
-          {/* Single framed canvas with a cross-section top edge (buyer-blue →
-              supplier-green) and a slim legend header, matching the design. */}
-          <section aria-label="Order topology">
-            <div
-              className="relative overflow-hidden rounded-card"
-              style={{ background: "#FFFFFF", border: "1px solid #E2E6EE", boxShadow: "0 1px 2px rgba(11,26,47,0.04)" }}
-            >
-              {/* Cross-section accent — buyer side (blue) flows to supplier side (green). */}
+          {/* ── Hero — operational funnel (primary) + system map (secondary) ── */}
+          {/* The order pipeline funnel is the headline content; the wire topology
+              ("System map") is demoted to a secondary tab so power users keep it
+              one click away without it dominating the screen. */}
+          <section aria-label="Order pipeline">
+            {/* Tab strip — Pipeline (default) | System map */}
+            <div className="mb-3 flex items-center gap-1.5">
               <div
-                aria-hidden
-                style={{ position: "absolute", top: 0, left: 0, right: 0, height: 3, background: `linear-gradient(90deg, #1E66C9 0%, ${GREEN} 70%)` }}
-              />
-              {/* Legend header — right-aligned key; lane/supplier counts live in the page title. */}
-              <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 px-4 pt-3.5 pb-2 text-[11.5px]" style={{ color: "#56627A" }}>
-                <span className="flex items-center gap-1.5">
-                  <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#1E66C9", display: "inline-block" }} />
-                  Buyer
-                </span>
-                <span className="flex items-center gap-1.5">
-                  <span style={{ width: 7, height: 7, borderRadius: "50%", background: GREEN, display: "inline-block" }} />
-                  {noun}
-                </span>
-                <span className="flex items-center gap-1.5">
-                  <span style={{ width: 12, height: 2.5, borderRadius: 2, background: "#C97A14", display: "inline-block" }} />
-                  At-risk connection
-                </span>
-
-                {openExceptionsAll > 0 && (
-                  <Link
-                    href="/operations/exceptions"
-                    className="ml-auto inline-flex items-center gap-1 rounded-[5px] px-2 py-0.5 text-[11.5px] font-semibold no-underline transition-opacity hover:opacity-80"
-                    style={{ background: "#FAEFD6", color: "#C97A14" }}
-                    title="Review exceptions"
-                  >
-                    ⚠ {openExceptionsAll} open exception{openExceptionsAll === 1 ? "" : "s"}
-                  </Link>
-                )}
-              </div>
-              {/* Canvas sits flush inside the frame — strip the inner card chrome so
-                  the surrounding wrapper is the single visible card (no double border). */}
-              <div className="[&_.rounded-card]:!rounded-none [&_.rounded-card]:!border-0 [&_.rounded-card]:!shadow-none">
-                {renderTopologyArea(topoHeight)}
+                className="flex items-center gap-0.5 rounded-[8px] p-[3px] text-[12.5px]"
+                style={{ border: "1px solid #E2E6EE", background: "#FFFFFF" }}
+                role="tablist"
+                aria-label="Dashboard view"
+              >
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={heroTab === "funnel"}
+                  onClick={() => setHeroTab("funnel")}
+                  className="flex min-h-[28px] items-center gap-1.5 rounded-[6px] px-3 py-1 font-medium transition-colors"
+                  style={{ background: heroTab === "funnel" ? "#0B1A2F" : "transparent", color: heroTab === "funnel" ? "#FFFFFF" : "#56627A" }}
+                >
+                  <BarChart3 size={13} strokeWidth={2.25} aria-hidden />
+                  Pipeline
+                </button>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={heroTab === "map"}
+                  onClick={() => setHeroTab("map")}
+                  className="flex min-h-[28px] items-center gap-1.5 rounded-[6px] px-3 py-1 font-medium transition-colors"
+                  style={{ background: heroTab === "map" ? "#0B1A2F" : "transparent", color: heroTab === "map" ? "#FFFFFF" : "#56627A" }}
+                >
+                  <Network size={13} strokeWidth={2.25} aria-hidden />
+                  System map
+                </button>
               </div>
             </div>
+
+            {heroTab === "funnel" ? (
+              <div
+                className="relative overflow-hidden rounded-card"
+                style={{ background: "#FFFFFF", border: "1px solid #E2E6EE", boxShadow: "0 1px 2px rgba(11,26,47,0.04)" }}
+              >
+                {/* Cross-section accent — received (blue) flows to delivered (green). */}
+                <div
+                  aria-hidden
+                  style={{ position: "absolute", top: 0, left: 0, right: 0, height: 3, background: `linear-gradient(90deg, ${BLUE} 0%, ${GREEN} 100%)` }}
+                />
+                {renderFunnel()}
+              </div>
+            ) : (
+              <div
+                className="relative overflow-hidden rounded-card"
+                style={{ background: "#FFFFFF", border: "1px solid #E2E6EE", boxShadow: "0 1px 2px rgba(11,26,47,0.04)" }}
+              >
+                {/* Cross-section accent — buyer side (blue) flows to supplier side (green). */}
+                <div
+                  aria-hidden
+                  style={{ position: "absolute", top: 0, left: 0, right: 0, height: 3, background: `linear-gradient(90deg, #1E66C9 0%, ${GREEN} 70%)` }}
+                />
+                {/* Legend header — right-aligned key; connection counts live in the page title. */}
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 px-4 pt-3.5 pb-2 text-[11.5px]" style={{ color: "#56627A" }}>
+                  <span className="flex items-center gap-1.5">
+                    <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#1E66C9", display: "inline-block" }} />
+                    Buyer
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <span style={{ width: 7, height: 7, borderRadius: "50%", background: GREEN, display: "inline-block" }} />
+                    {noun}
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <span style={{ width: 12, height: 2.5, borderRadius: 2, background: "#C97A14", display: "inline-block" }} />
+                    At-risk connection
+                  </span>
+
+                  {openExceptionsAll > 0 && (
+                    <Link
+                      href="/operations/exceptions"
+                      className="ml-auto inline-flex items-center gap-1 rounded-[5px] px-2 py-0.5 text-[11.5px] font-semibold no-underline transition-opacity hover:opacity-80"
+                      style={{ background: "#FAEFD6", color: "#C97A14" }}
+                      title="Review exceptions"
+                    >
+                      ⚠ {openExceptionsAll} open exception{openExceptionsAll === 1 ? "" : "s"}
+                    </Link>
+                  )}
+                </div>
+                {/* Canvas sits flush inside the frame — strip the inner card chrome so
+                    the surrounding wrapper is the single visible card (no double border). */}
+                <div className="[&_.rounded-card]:!rounded-none [&_.rounded-card]:!border-0 [&_.rounded-card]:!shadow-none">
+                  {renderTopologyArea(topoHeight)}
+                </div>
+              </div>
+            )}
           </section>
 
           {/* ── Finish-setup band (recedes as steps complete; self-nulls when

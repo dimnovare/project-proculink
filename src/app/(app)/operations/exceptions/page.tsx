@@ -75,6 +75,15 @@ function orderHref(orderId: string): string {
   return `/inbox/${orderId}`;
 }
 
+// GET /api/exceptions returns the whole list (no server paging), so we paginate
+// the already-loaded array client-side to keep the rendered table bounded.
+const PAGE_SIZE = 25;
+
+// Why "Open order" is disabled when an exception has no owning order. Shown as a
+// tooltip on the disabled button so the dead control explains itself.
+const NO_ORDER_TITLE =
+  "This exception isn't tied to an order, so there's no order to open.";
+
 // Whether a manual "Resolve" actually clears this exception. Every status-derived
 // code is re-opened by the backend Reconcile pass until the order's cause is
 // fixed, so an exception that belongs to an order is NOT list-clearable — the
@@ -90,6 +99,11 @@ export default function ExceptionsPage() {
   const qc = useQueryClient();
   const [activeTab, setActiveTab] = useState(0);
   const activeState = STATE_TABS[activeTab].state;
+  // 1-based client-side page index (the API returns the whole list at once).
+  const [page, setPage] = useState(1);
+  // Switching the state filter resets to the first page so the indicator never
+  // points past the end of the now-shorter list.
+  const selectTab = (i: number) => { setActiveTab(i); setPage(1); setExpandedId(null); };
   // Progressive disclosure: rows are collapsed by default; expanding one reveals
   // the what/why/how-to-fix/status breakdown (lazy-fetches the owning order).
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -122,6 +136,17 @@ export default function ExceptionsPage() {
     (ignoreMut.isPending ? ignoreMut.variables : undefined);
 
   const exceptions = useMemo<OrderException[]>(() => data ?? [], [data]);
+
+  // Client-side pagination over the full list. currentPage is clamped so a
+  // shrinking list (e.g. after resolving/ignoring rows) can't strand the view
+  // on an empty page.
+  const totalCount = exceptions.length;
+  const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
+  const currentPage = Math.min(page, totalPages);
+  const pagedExceptions = useMemo(
+    () => exceptions.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE),
+    [exceptions, currentPage],
+  );
 
   // A disabled query reports undefined `data` with isLoading=true; treat the
   // not-yet-ready state as loading, never as an error (known repo gotcha).
@@ -163,7 +188,7 @@ export default function ExceptionsPage() {
           return (
             <button
               key={label}
-              onClick={() => setActiveTab(i)}
+              onClick={() => selectTab(i)}
               className="flex items-center rounded-[6px] px-3 text-[12px] font-medium transition-colors flex-shrink-0"
               style={{
                 height: 28,
@@ -249,7 +274,7 @@ export default function ExceptionsPage() {
         {!showLoading && !isError && exceptions.length > 0 && (
           <>
             <div className="flex flex-col gap-2 p-3 md:hidden">
-              {exceptions.map((exc) => (
+              {pagedExceptions.map((exc) => (
                 <ExceptionCard
                   key={exc.id}
                   exc={exc}
@@ -298,7 +323,7 @@ export default function ExceptionsPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {exceptions.map((exc) => {
+                  {pagedExceptions.map((exc) => {
                     const busy = pendingId === exc.id;
                     const expanded = expandedId === exc.id;
                     return (
@@ -359,15 +384,22 @@ export default function ExceptionsPage() {
                                   Resolve
                                 </Button>
                               ) : (
-                                <Button
-                                  variant="blue"
-                                  size="sm"
-                                  disabled={busy || !exc.orderId}
-                                  onClick={() => { if (exc.orderId) router.push(orderHref(exc.orderId)); }}
-                                  title="Open the order to fix the cause. This exception clears itself on the next pipeline pass once the cause is gone."
-                                >
-                                  Open order
-                                </Button>
+                                // A disabled <button> swallows hover events, so a
+                                // bare title= wouldn't surface. Wrap in a span that
+                                // carries the why-tooltip when there's no order to open.
+                                <span title={exc.orderId ? undefined : NO_ORDER_TITLE} style={{ display: "inline-flex" }}>
+                                  <Button
+                                    variant="blue"
+                                    size="sm"
+                                    disabled={busy || !exc.orderId}
+                                    onClick={() => { if (exc.orderId) router.push(orderHref(exc.orderId)); }}
+                                    title={exc.orderId
+                                      ? "Open the order to fix the cause. This exception clears itself on the next pipeline pass once the cause is gone."
+                                      : undefined}
+                                  >
+                                    Open order
+                                  </Button>
+                                </span>
                               )}
                               <Button
                                 variant="secondary"
@@ -401,6 +433,41 @@ export default function ExceptionsPage() {
           </>
         )}
       </div>
+
+      {/* Footer: total + client-side pagination controls (the API returns the
+          whole list at once, so paging is over the loaded array). */}
+      {!showLoading && !isError && totalCount > 0 && (
+        <div className="flex-shrink-0 flex flex-wrap items-center gap-3 pt-0.5">
+          <span className="text-[11px]" style={{ color: "var(--ink-faint)" }}>
+            {totalCount.toLocaleString()} exception{totalCount !== 1 ? "s" : ""}
+          </span>
+          {totalPages > 1 && (
+            <div className="ml-auto flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setPage(Math.max(1, currentPage - 1))}
+                disabled={currentPage <= 1}
+                className="rounded-[6px] px-2.5 text-[12px] font-medium"
+                style={{ height: 28, border: "1px solid var(--border)", background: "var(--surface)", color: currentPage <= 1 ? "var(--ink-faint)" : "var(--ink)", cursor: currentPage <= 1 ? "default" : "pointer" }}
+              >
+                ← Prev
+              </button>
+              <span className="text-[11px] font-mono" style={{ color: "var(--ink-muted)", minWidth: 92, textAlign: "center" }}>
+                Page {currentPage} of {totalPages}
+              </span>
+              <button
+                type="button"
+                onClick={() => setPage(currentPage + 1)}
+                disabled={currentPage >= totalPages}
+                className="rounded-[6px] px-2.5 text-[12px] font-medium"
+                style={{ height: 28, border: "1px solid var(--border)", background: "var(--surface)", color: currentPage >= totalPages ? "var(--ink-faint)" : "var(--ink)", cursor: currentPage >= totalPages ? "default" : "pointer" }}
+              >
+                Next →
+              </button>
+            </div>
+          )}
+        </div>
+      )}
     </PageShell>
   );
 }
@@ -457,15 +524,21 @@ function ExceptionCard({
               Resolve
             </Button>
           ) : (
-            <Button
-              variant="blue"
-              size="sm"
-              disabled={busy || !exc.orderId}
-              onClick={onOpen}
-              title="Open the order to fix the cause. This exception clears itself on the next pipeline pass once the cause is gone."
-            >
-              Open order
-            </Button>
+            // Disabled buttons don't fire hover, so wrap in a title-bearing span
+            // to surface the why-tooltip when no order is attached.
+            <span title={exc.orderId ? undefined : NO_ORDER_TITLE} style={{ display: "inline-flex" }}>
+              <Button
+                variant="blue"
+                size="sm"
+                disabled={busy || !exc.orderId}
+                onClick={onOpen}
+                title={exc.orderId
+                  ? "Open the order to fix the cause. This exception clears itself on the next pipeline pass once the cause is gone."
+                  : undefined}
+              >
+                Open order
+              </Button>
+            </span>
           )}
           <Button
             variant="secondary"

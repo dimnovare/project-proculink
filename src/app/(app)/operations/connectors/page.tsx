@@ -189,8 +189,34 @@ function ConnectorCard({
           <span />
         )}
         {comingSoon ? (
-          /* offer<=>works: connector is not built — no actionable button */
-          <span style={{ fontSize: 11.5, color: "var(--ink-faint,#5B6980)", fontStyle: "italic" }}>Not available yet</span>
+          /* offer<=>works: connector is not built. Don't present a "Connect"
+             button (it would imply it's connectable). Instead give a real,
+             honest CTA — a mailto that registers interest and names the
+             connector — so the tile isn't a dead end. */
+          <a
+            href={`mailto:sales@proculink.eu?subject=${encodeURIComponent(
+              `Connector request: ${connector.name}`,
+            )}&body=${encodeURIComponent(
+              `I'd like to be notified when the ${connector.name} connector is available.`,
+            )}`}
+            className="connector-action"
+            style={{
+              height: 27,
+              padding: "0 10px",
+              borderRadius: "var(--radius,6px)",
+              border: "1px solid var(--border-strong,#C6CDDA)",
+              background: "var(--surface,#FFFFFF)",
+              color: "var(--ink-muted,#56627A)",
+              fontSize: 12.5,
+              fontWeight: 600,
+              whiteSpace: "nowrap",
+              textDecoration: "none",
+              display: "inline-flex",
+              alignItems: "center",
+            }}
+          >
+            Request access
+          </a>
         ) : connected ? (
           <button
             className="connector-action btn-ghost"

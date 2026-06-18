@@ -99,11 +99,23 @@ export function ReplayPanel({
     return [...result.orders].sort((a, b) => rank(a) - rank(b));
   }, [result]);
 
-  const errorMessage =
+  // Distinguish a 4xx validation/request rejection (the request itself was bad —
+  // retrying unchanged won't help; surface the backend's reason) from a network
+  // / 5xx / timeout failure (transient — a retry may succeed).
+  const errorKind: "validation" | "network" | null =
     replay.error instanceof ApiHttpError
-      ? replay.error.message
+      ? replay.error.status >= 400 && replay.error.status < 500
+        ? "validation"
+        : "network"
       : replay.error
-        ? "Replay failed — please retry."
+        ? "network"
+        : null;
+
+  const errorMessage =
+    errorKind === "validation" && replay.error instanceof ApiHttpError
+      ? replay.error.message
+      : errorKind === "network"
+        ? "Couldn't reach the server to run this replay. Check your connection and try again."
         : null;
 
   const canRun = !!effectiveRevisionId && !replay.isPending;
@@ -176,12 +188,31 @@ export function ReplayPanel({
       )}
 
       {/* ── Error ────────────────────────────────────────────────────── */}
+      {/* Validation (4xx) → danger: the request was rejected, the reason matters. */}
+      {/* Network/5xx/timeout → amber: transient, a retry may succeed. */}
       {errorMessage && (
         <div
           role="alert"
-          className="mt-4 rounded-[8px] px-4 py-3 text-[12.5px]"
-          style={{ border: "1px solid #F5C6CB", borderLeft: "3px solid var(--danger)", background: "var(--danger-soft)", color: "var(--danger)" }}
+          className="mt-4 rounded-[8px] px-4 py-3 text-[12.5px] leading-[1.5]"
+          style={
+            errorKind === "validation"
+              ? {
+                  border: "1px solid var(--danger)",
+                  borderLeft: "3px solid var(--danger)",
+                  background: "var(--danger-soft)",
+                  color: "var(--danger)",
+                }
+              : {
+                  border: "1px solid var(--amber)",
+                  borderLeft: "3px solid var(--amber)",
+                  background: "var(--amber-soft)",
+                  color: "var(--amber)",
+                }
+          }
         >
+          <span className="font-semibold">
+            {errorKind === "validation" ? "Replay rejected: " : "Connection problem: "}
+          </span>
           {errorMessage}
         </div>
       )}
@@ -610,10 +641,14 @@ function clampLimit(n: number): number {
 }
 
 function parseLimit(raw: string): number {
-  const n = Number(raw);
+  const trimmed = raw.trim();
+  // Empty/non-numeric input falls back to the default rather than NaN.
+  if (trimmed === "") return RECENT_LIMIT_DEFAULT;
+  const n = Number(trimmed);
   if (!Number.isFinite(n)) return RECENT_LIMIT_DEFAULT;
-  // Keep the raw-ish value while typing; clamp at run time.
-  return Math.trunc(n);
+  // Clamp to the valid 1..50 range immediately on input (not just at run time),
+  // so the field can never hold an out-of-range value the backend would reject.
+  return clampLimit(n);
 }
 
 function revisionStatusText(status: string): string {

@@ -736,7 +736,11 @@ function BundleSummary(props: {
 
   return (
     <dl className="flex flex-col gap-px m-0">
-      <SummaryRow label="Input mapping" value={props.inputConfigured ? "Configured" : "Default / none"} ok={props.inputConfigured} />
+      <SummaryRow
+        label="Input mapping"
+        value={props.inputConfigured ? "Configured" : "Default / none"}
+        unconfigured={!props.inputConfigured}
+      />
       <SummaryRow
         label="Output template"
         value={props.outputTemplateConfigured ? "Custom template" : "Fixed transformer"}
@@ -749,11 +753,12 @@ function BundleSummary(props: {
             ? `${deliveryLabel}${props.deliveryAutoDeliver ? " · auto-send" : ""}${props.hasCredentials ? " · credentials set" : ""}`
             : deliveryLabel
         }
-        ok={!!props.deliveryProtocol}
+        unconfigured={!props.deliveryProtocol}
       />
       <SummaryRow
         label="Item mappings"
         value={`${props.itemMappingCount} code${props.itemMappingCount === 1 ? "" : "s"}`}
+        unconfigured={props.itemMappingCount === 0}
       />
       <SummaryRow
         label="Acceptance rules"
@@ -762,24 +767,39 @@ function BundleSummary(props: {
             ? `Bound${props.acceptanceVersionNo != null ? ` · v${props.acceptanceVersionNo}` : ""}`
             : "Not bound"
         }
+        unconfigured={!props.acceptanceBound}
       />
       <SummaryRow label="Catalog" value={props.catalogMode === "live" ? "Live (read at send time)" : props.catalogMode} />
     </dl>
   );
 }
 
-function SummaryRow({ label, value, ok }: { label: string; value: string; ok?: boolean }) {
+/**
+ * One label/value row in the bundle summary. When `unconfigured` is true the
+ * value reads as a muted amber "not configured" chip so an unset part of the
+ * bundle is visually distinct from a real, configured value (rather than both
+ * rendering as the same bold ink text).
+ */
+function SummaryRow({ label, value, unconfigured }: { label: string; value: string; unconfigured?: boolean }) {
   return (
     <div className="flex items-center justify-between gap-3 py-2" style={{ borderBottom: "1px solid var(--border)" }}>
       <dt className="text-[12px] font-medium" style={{ color: "var(--ink-muted)" }}>
         {label}
       </dt>
-      <dd
-        className="text-[12.5px] font-semibold text-right m-0"
-        style={{ color: ok === false ? "var(--ink-faint)" : "var(--ink)" }}
-      >
-        {value}
-      </dd>
+      {unconfigured ? (
+        <dd className="text-right m-0">
+          <span
+            className="inline-flex items-center rounded-full text-[11px] font-semibold px-2 h-[20px] whitespace-nowrap"
+            style={{ background: "var(--amber-soft)", color: "var(--amber)" }}
+          >
+            {value}
+          </span>
+        </dd>
+      ) : (
+        <dd className="text-[12.5px] font-semibold text-right m-0" style={{ color: "var(--ink)" }}>
+          {value}
+        </dd>
+      )}
     </div>
   );
 }

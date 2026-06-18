@@ -16,7 +16,7 @@ import { useOrderDirection } from "@/hooks/useOrderDirection";
 import { useQueriesEnabled } from "@/hooks/useQueriesEnabled";
 import { useOnboardingStatus } from "@/hooks/useOnboardingStatus";
 import { useSampleOrder } from "@/hooks/useSampleOrder";
-import { ACCEPTED_UPLOAD_FORMATS, hasAcceptedUploadExtension } from "@/lib/upload-formats";
+import { ACCEPTED_UPLOAD_FORMATS, hasAcceptedUploadExtension, isClearlyUnsupportedDragType } from "@/lib/upload-formats";
 
 // Pipeline stages for the pre-redirect upload animation. "Transform" is NOT
 // shown here: nothing is transformed before the review step, so claiming it
@@ -327,6 +327,12 @@ export function UploadWorkbench() {
   const queryClient = useQueryClient();
 
   const [dragging, setDragging]     = useState(false);
+  // True while a drag is over the dropzone AND the dragged item is an
+  // unambiguously-unsupported type (image/audio/video). Drives the red
+  // "this file type isn't supported" drag affordance. Only clearly-wrong types
+  // flip this — empty/ambiguous MIME types stay in the neutral `dragging` state
+  // so a real PO is never wrongly rejected mid-drag (see isClearlyUnsupportedDragType).
+  const [dragReject, setDragReject] = useState(false);
   const [supplierId, setSupplierId] = useState("");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   // Multi-file selection: the backend is one-order-per-file, so N files become N sequential
@@ -528,7 +534,7 @@ export function UploadWorkbench() {
       setSelectedFile(null);
       setUploadError(null);
       setFileError(
-        `${file.name} isn't a supported file type. Upload one of: ${ACCEPTED_UPLOAD_FORMATS.extensions.join(", ")}.`,
+        `${file.name} isn't a supported file type. We accept ${ACCEPTED_UPLOAD_FORMATS.humanList}.`,
       );
       return;
     }
@@ -554,7 +560,7 @@ export function UploadWorkbench() {
       setExtraFiles([]);
       setUploadError(null);
       setFileError(
-        `${rejected[0]?.name ?? "That file"} isn't a supported file type. Upload one of: ${ACCEPTED_UPLOAD_FORMATS.extensions.join(", ")}.`,
+        `${rejected[0]?.name ?? "That file"} isn't a supported file type. We accept ${ACCEPTED_UPLOAD_FORMATS.humanList}.`,
       );
       return;
     }
@@ -967,13 +973,28 @@ export function UploadWorkbench() {
                 tabIndex={isReadOnly ? -1 : 0}
                 aria-label="Upload a purchase order — drop one or more files or press Enter to browse"
                 aria-disabled={isReadOnly || undefined}
-                onDragOver={(e) => { e.preventDefault(); if (!isReadOnly) setDragging(true); }}
-                onDragLeave={() => setDragging(false)}
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  if (isReadOnly) return;
+                  setDragging(true);
+                  // Inspect dragged items' MIME types. If EVERY item is an
+                  // unambiguously-unsupported type (image/audio/video), surface
+                  // the rejection affordance before the user drops. Empty /
+                  // ambiguous types (EDI/XML/CSV often report "") never trip it.
+                  const items = Array.from(e.dataTransfer.items ?? []).filter((i) => i.kind === "file");
+                  const allBad = items.length > 0 && items.every((i) => isClearlyUnsupportedDragType(i.type));
+                  setDragReject(allBad);
+                }}
+                onDragLeave={() => { setDragging(false); setDragReject(false); }}
                 onDrop={(e) => {
                   e.preventDefault();
                   setDragging(false);
+                  setDragReject(false);
                   if (isReadOnly || uploading) return;
                   const files = Array.from(e.dataTransfer.files);
+                  // acceptFiles re-validates by real extension and sets the
+                  // inline error for anything the backend would reject — the
+                  // dragover check is a fast hint, not the authoritative gate.
                   if (files.length > 0) acceptFiles(files);
                 }}
                 onClick={() => { if (!isReadOnly && !uploading) fileInputRef.current?.click(); }}
@@ -985,9 +1006,9 @@ export function UploadWorkbench() {
                 }}
                 className="flex flex-1 flex-col items-center justify-center gap-4 px-6 py-10 sm:px-8 sm:py-12"
                 style={{
-                  border: `1.5px dashed ${dragging ? "#1E66C9" : "#C6CDDA"}`,
+                  border: `1.5px dashed ${dragReject ? "#C53A3A" : dragging ? "#1E66C9" : "#C6CDDA"}`,
                   borderRadius: 10,
-                  background: dragging ? "#EFF4FC" : "#FBFCFE",
+                  background: dragReject ? "#FCEDED" : dragging ? "#EFF4FC" : "#FBFCFE",
                   opacity: isReadOnly ? 0.62 : 1,
                   transition: "all 0.15s",
                   cursor: isReadOnly ? "not-allowed" : "pointer",
@@ -1044,18 +1065,22 @@ export function UploadWorkbench() {
                   <p
                     className="text-[18px] font-bold tracking-[-0.01em] break-words"
                     style={{
-                      color: "#0B1A2F",
+                      color: dragReject ? "#C53A3A" : "#0B1A2F",
                       fontFamily: "'Bricolage Grotesque', Inter, sans-serif",
                     }}
                   >
-                    {isMulti
+                    {dragReject
+                      ? "This file type isn't supported"
+                      : isMulti
                       ? `${selectedCount} files selected`
                       : selectedFile
                       ? selectedFile.name
                       : "Drop your order files here"}
                   </p>
-                  <p className="text-[12.5px] mt-2" style={{ color: "#56627A" }}>
-                    {isMulti
+                  <p className="text-[12.5px] mt-2" style={{ color: dragReject ? "#C53A3A" : "#56627A" }}>
+                    {dragReject
+                      ? `We accept ${ACCEPTED_UPLOAD_FORMATS.humanList}`
+                      : isMulti
                       ? "One order will be created per file"
                       : selectedFile
                       ? `${Math.max(1, Math.round(selectedFile.size / 1024))} KB ready to send`
@@ -1243,8 +1268,8 @@ export function UploadWorkbench() {
                   in the Step ③ footer; here we surface the per-file pending →
                   uploading → done/failed status with a link to each created order.
                   "done" means the UPLOAD landed and an order STUB was created — the
-                  backend then parses asynchronously, so we say "Extracting…" (not
-                  "✓ Ready") so an empty buyer / 0 lines for a moment isn't a surprise. */}
+                  backend then parses asynchronously, so we say "Reading document…"
+                  (not "✓ Ready") so an empty buyer / 0 lines for a moment isn't a surprise. */}
               {isMulti && (
                 <div className="flex flex-col gap-2">
                   <ul className="flex flex-col gap-1" style={{ margin: 0, padding: 0, listStyle: "none" }}>
@@ -1266,13 +1291,13 @@ export function UploadWorkbench() {
                             onClick={() => openOrder(r.orderId!)}
                             className="inline-flex shrink-0 items-center gap-1.5 text-[11px] font-semibold"
                             style={{ color: "#6F4FCE", background: "none", border: "none", cursor: "pointer" }}
-                            title="Order created — we're still extracting its contents. Open to follow along."
+                            title="Order created — we're reading the document and pulling out the buyer, lines and totals now. Open to follow along."
                           >
                             <span
                               aria-hidden
                               style={{ display: "inline-block", width: 9, height: 9, border: "1.5px solid #C9BCE8", borderTopColor: "#6F4FCE", borderRadius: "50%", animation: "spin 0.7s linear infinite" }}
                             />
-                            Extracting… · Open →
+                            Reading document… · Open →
                           </button>
                         ) : r.status === "failed" ? (
                           <span className="shrink-0 text-[11px] font-medium" style={{ color: "#C53A3A" }} title={r.error}>

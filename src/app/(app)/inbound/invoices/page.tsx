@@ -159,13 +159,28 @@ export default function InvoicesPage() {
     setDownloadingId(id);
     try {
       const data = await downloadInvoice(id, "csv");
-      if (data.url.startsWith("#")) {
-        setNotice("Download ready (mock mode — no real file).");
-      } else {
-        window.open(data.url, "_blank");
-        // Release the object URL once the browser has had a chance to open it.
-        setTimeout(() => URL.revokeObjectURL(data.url), 60_000);
+      // Mock / empty state: the client returns a sentinel "#..." URL (no real
+      // blob exists). Never hand that to the browser — it would produce a
+      // broken download. Tell the user plainly instead.
+      if (!data.url || data.url.startsWith("#")) {
+        setNotice("Download isn't available in this preview (no file to export yet).");
+        return;
       }
+      // Trigger a real file save via a download anchor rather than
+      // window.open(blobUrl): an object URL opened in a new tab is unreliable
+      // (popup-blocked → blank tab, or rendered inline instead of downloaded).
+      // An <a download> click downloads consistently across browsers.
+      const inv = invoices.find((x) => x.id === id);
+      const safeName = (inv?.invoiceNumber ?? id).replace(/[^a-zA-Z0-9._-]+/g, "-");
+      const a = document.createElement("a");
+      a.href = data.url;
+      a.download = `invoice-${safeName}.csv`;
+      a.rel = "noopener";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      // Release the object URL once the browser has started the download.
+      setTimeout(() => URL.revokeObjectURL(data.url), 60_000);
     } catch (err) {
       setNotice(`Download failed — ${(err as Error).message}`);
     } finally {

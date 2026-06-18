@@ -634,9 +634,18 @@ function EmailSettingsSection() {
     <div>
       <SettingsGroup title="Email intake" sub="Ingest orders that arrive by email — IMAP polling every 5 minutes.">
         {/* Enable row + billing gate notice */}
+        {/* Name the EXACT unlock: Growth (€149/mo) is the cheapest paid tier that
+            includes email ingestion, so a Pilot user upgrades to Growth. */}
         {!canEnable && (
           <div style={{ marginBottom: 16, borderRadius: 8, padding: "12px 14px", fontSize: 12.5, lineHeight: 1.5, border: "1px solid var(--amber-soft)", background: "var(--amber-soft)", color: "var(--amber)" }}>
-            Email ingestion is included on any paid plan. You can set it up here, but turning on polling needs a paid plan — your current plan doesn&rsquo;t include it.
+            Email ingestion is included on every paid plan. You can set it up here, but turning on polling needs a paid plan — the Pilot plan doesn&rsquo;t include it.{" "}
+            <Link
+              href="/settings?tab=billing"
+              style={{ color: "inherit", fontWeight: 600, textDecoration: "underline" }}
+            >
+              Upgrade to Growth (€149/mo)
+            </Link>{" "}
+            to switch it on.
           </div>
         )}
 

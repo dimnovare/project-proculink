@@ -37,3 +37,21 @@ export function hasAcceptedUploadExtension(fileName: string): boolean {
   const lower = fileName.toLowerCase();
   return ACCEPTED_UPLOAD_EXTENSIONS.some((ext) => lower.endsWith(ext));
 }
+
+/**
+ * Whether a MIME type seen during a drag-over is UNAMBIGUOUSLY unsupported.
+ *
+ * Drag events only expose `DataTransferItem.type` (a MIME type) — the filename
+ * (and thus the real extension) isn't available until drop. Many valid order
+ * files report an empty or ambiguous MIME type (.edi / .x12 / .cxml / .xml
+ * often come through as "" or "text/plain", and CSV varies by OS), so we must
+ * NOT reject on an allow-list — that would false-flag genuine POs.
+ *
+ * Instead we only flag the obviously-wrong drops: images, audio, and video.
+ * Empty / unknown / document MIME types fall through to the neutral drag state
+ * so a real order file is never wrongly rejected mid-drag.
+ */
+export function isClearlyUnsupportedDragType(mimeType: string): boolean {
+  const t = mimeType.toLowerCase();
+  return t.startsWith("image/") || t.startsWith("audio/") || t.startsWith("video/");
+}
