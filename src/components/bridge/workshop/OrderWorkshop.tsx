@@ -438,6 +438,7 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
             trustedThreshold={trustedThreshold}
             focusFieldId={focusFieldId}
             focusFieldSignal={focusSignal}
+            onValidate={() => openDetails("conformance")}
           />
         </div>
 
