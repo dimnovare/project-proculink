@@ -341,7 +341,7 @@ export function UploadWorkbench() {
   // holds files #2..N; when non-empty we switch to the multi-file batch path.
   const [extraFiles, setExtraFiles] = useState<File[]>([]);
   // Per-file batch upload results (multi-file path): one row per file, surfaced in order.
-  const [batchResults, setBatchResults] = useState<{ name: string; status: "pending" | "uploading" | "done" | "failed"; orderId?: string; error?: string }[]>([]);
+  const [batchResults, setBatchResults] = useState<{ name: string; status: "pending" | "uploading" | "waiting" | "done" | "failed"; orderId?: string; error?: string }[]>([]);
   // Inline "unsupported file type" error shown at the dropzone, set the moment
   // a disallowed file is dropped or picked (before any upload round-trip).
   const [fileError, setFileError] = useState<string | null>(null);
@@ -601,18 +601,37 @@ export function UploadWorkbench() {
     setBatchResults(allFiles.map((f) => ({ name: f.name, status: "pending" as const })));
 
     let anySucceeded = false;
+    const attempts = new Array(allFiles.length).fill(0);
     for (let i = 0; i < allFiles.length; i++) {
       const file = allFiles[i];
       setBatchResults((prev) => prev.map((r, idx) => (idx === i ? { ...r, status: "uploading" } : r)));
       try {
         const result = await apiClient.uploadPurchaseOrder(file, selectedSupplier.id);
         anySucceeded = true;
+        setUploadError(null); // recovered — clear any "pacing" banner shown while throttled
         setBatchResults((prev) => prev.map((r, idx) => (idx === i ? { ...r, status: "done", orderId: result.order.id } : r)));
       } catch (error) {
-        // A 429 limit hit aborts the rest of the batch (every subsequent file would also 429).
         if (error instanceof ApiHttpError && error.status === 429) {
-          setBatchResults((prev) => prev.map((r, idx) => (idx >= i ? { ...r, status: "failed", error: "Plan limit reached" } : r)));
-          setUploadError(getLimitMessage(getLimitCode(error.body)));
+          const code = getLimitCode(error.body);
+          // A SPEED throttle (per-minute upload limiter) is NOT a plan cap. Pace THIS
+          // file and retry it — don't mislabel it "Plan limit reached" or fail the rest.
+          if (code === "rate_limited") {
+            attempts[i] += 1;
+            if (attempts[i] <= RATE_LIMIT_MAX_RETRIES) {
+              setUploadError(getLimitMessage(code));
+              setBatchResults((prev) => prev.map((r, idx) => (idx === i ? { ...r, status: "waiting", error: undefined } : r)));
+              await sleep(RATE_LIMIT_BACKOFF_MS[Math.min(attempts[i] - 1, RATE_LIMIT_BACKOFF_MS.length - 1)]);
+              i--; // retry the same file once the window clears
+              continue;
+            }
+            // Retries exhausted — honest per-file failure, but keep going with the rest.
+            setBatchResults((prev) => prev.map((r, idx) => (idx === i ? { ...r, status: "failed", error: "Upload throttled — retry this file in a minute." } : r)));
+            continue;
+          }
+          // A genuine plan/quota cap — every subsequent file would also be rejected, so abort.
+          const capMsg = getLimitMessage(code);
+          setBatchResults((prev) => prev.map((r, idx) => (idx >= i ? { ...r, status: "failed", error: capMsg.title } : r)));
+          setUploadError(capMsg);
           break;
         }
         const message = error instanceof Error ? error.message : "Upload failed";
@@ -1305,6 +1324,10 @@ export function UploadWorkbench() {
                           </span>
                         ) : r.status === "uploading" ? (
                           <span className="shrink-0 text-[11px]" style={{ color: "#6F4FCE" }}>Uploading…</span>
+                        ) : r.status === "waiting" ? (
+                          <span className="shrink-0 text-[11px]" style={{ color: "#C97A14" }} title="Pacing uploads to stay within the per-minute limit — this file retries automatically.">
+                            Pacing… retries shortly
+                          </span>
                         ) : (
                           <span className="shrink-0 text-[11px]" style={{ color: "var(--ink-faint)" }}>Pending</span>
                         )}
@@ -1645,18 +1668,42 @@ function UsageLine({ label, used, limit }: { label: string; used: number; limit:
   );
 }
 
+/** Per-file retry budget when the upload SPEED limiter (not a plan cap) rejects a batch file. */
+const RATE_LIMIT_MAX_RETRIES = 3;
+/** Backoff before retrying a throttled file. The server limiter is a 60s fixed window, so the
+ *  waits escalate toward a full window to land in a fresh one without failing the batch. */
+const RATE_LIMIT_BACKOFF_MS = [15000, 35000, 61000];
+const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+
 function getLimitCode(body: unknown): string {
   const rawError =
     body && typeof body === "object" && "error" in body
       ? String((body as { error?: unknown }).error).toLowerCase()
       : "order_limit_reached";
 
+  // A SPEED throttle (the per-minute upload limiter) is NOT a plan/quota cap. The
+  // backend's rate-limiter rejection body is { error: "Rate limit exceeded. Please
+  // slow down and retry shortly." } — historically this fell through to the
+  // "order_limit_reached" default and was shown to users as "Plan limit reached",
+  // which is alarming and wrong (their plan is fine; they just uploaded too fast).
+  if (rawError.includes("rate limit") || rawError.includes("slow down") || rawError.includes("too many"))
+    return "rate_limited";
   if (rawError.includes("pilot") && rawError.includes("expired")) return "pilot_expired";
   if (rawError.includes("supplier")) return "supplier_limit_reached";
   return "order_limit_reached";
 }
 
 function getLimitMessage(code: string): { code: string; title: string; message: string; cta: string } {
+  if (code === "rate_limited") {
+    return {
+      code,
+      title: "Uploading a little fast.",
+      message:
+        "To keep processing reliable, ProcuLink paces uploads. Your plan and the other files are unaffected — each one retries automatically in a moment.",
+      cta: "Got it",
+    };
+  }
+
   if (code === "pilot_expired") {
     return {
       code,
