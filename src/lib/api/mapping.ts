@@ -1,13 +1,10 @@
 import type { PoMappingConfig } from "./types";
 import { isApiMockMode } from "@/lib/api-client";
-
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:5223";
-
-async function authHeader(): Promise<Record<string, string>> {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const token = await (window as any).Clerk?.session?.getToken();
-  return token ? { Authorization: `Bearer ${token}` } : {};
-}
+// D-2 fix: use the canonical authHeader (it waits up to 5s for Clerk.loaded — the
+// 48cea6e cold-mount fix) + the normalized base URL, instead of a local copy that
+// read the token BEFORE Clerk finished loading → unauthenticated request → 401 on a
+// cold/hard page load (the magic auto-map then silently degraded to empty).
+import { authHeader, API_BASE_URL } from "./core";
 
 async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   const auth = await authHeader();

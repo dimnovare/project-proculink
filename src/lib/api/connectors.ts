@@ -17,20 +17,12 @@ import type {
   ValidateConnectorConfigResult,
 } from "./types";
 import type { DeliveryProtocol } from "./types";
+// D-2 fix: canonical authHeader (waits up to 5s for Clerk.loaded — the 48cea6e
+// cold-mount fix) + base URL + USE_MOCK from core, replacing local copies whose
+// authHeader read the token BEFORE Clerk loaded → 401 on a cold/hard page load.
+import { authHeader, API_BASE_URL, USE_MOCK } from "./core";
 
 // ── Internal helpers ──────────────────────────────────────────────────────────
-
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:5223";
-
-const USE_MOCK =
-  process.env.NEXT_PUBLIC_USE_MOCK === "true" &&
-  process.env.NODE_ENV !== "production";
-
-async function authHeader(): Promise<Record<string, string>> {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const token = await (window as any).Clerk?.session?.getToken();
-  return token ? { Authorization: `Bearer ${token}` } : {};
-}
 
 async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   const auth = await authHeader();
