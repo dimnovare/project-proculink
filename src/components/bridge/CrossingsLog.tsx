@@ -840,8 +840,10 @@ export function CrossingsLog() {
                                   View order
                                 </button>
 
-                                {/* Retry delivery — secondary, only for failed events.
-                                    No retry API exists yet; navigate to the order for manual retry. */}
+                                {/* Open to resend — secondary, only for failed events. There is no
+                                    retry-from-here API; this navigates to the order, where the resend
+                                    action lives. Labelled honestly so it doesn't promise a retry it
+                                    can't perform (audit: dead "Retry delivery" control). */}
                                 {c.event === "failed" && (
                                   <button
                                     className="btn btn-secondary sm"
@@ -852,7 +854,7 @@ export function CrossingsLog() {
                                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
                                       <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8M21 3v5h-5M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16M8 16H3v5" />
                                     </svg>
-                                    Retry delivery
+                                    Open to resend
                                   </button>
                                 )}
 

@@ -30,7 +30,7 @@ const TILES: Array<{ key: keyof OpsHealth; label: string; href: string }> = [
   { key: "deliveringStuck",    label: "Stuck delivering",  href: "/inbox?status=delivering" },
   { key: "transformFailed",    label: "Transform failed",  href: "/inbox?status=failed" },
   { key: "deliveryFailed",     label: "Delivery failed",   href: "/inbox?status=failed" },
-  { key: "deliveryDeadLetter", label: "Dead-letter",       href: "/operations/health" },
+  { key: "deliveryDeadLetter", label: "Out of retries",    href: "/inbox?status=failed" },
   { key: "rejectedBySupplier", label: "Rejected by supplier", href: "/inbox?status=failed" },
   { key: "slaBreached",        label: "SLA breached",      href: "/inbox" },
   { key: "openExceptions",     label: "Open exceptions",   href: "/operations/exceptions" },
