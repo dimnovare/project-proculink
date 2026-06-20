@@ -19,9 +19,10 @@
 // 150–250ms transitions that respect prefers-reduced-motion, and aria-labels on icon
 // controls. Plain vocabulary only (no bridge/dock/lane words).
 
-import { useState, type ReactNode } from "react";
+import { useState, type KeyboardEvent, type ReactNode } from "react";
 import { UnifiedStatusBadge } from "../UnifiedStatusBadge";
-import type { WorkshopIssue } from "./IssuesPanel";
+import type { WorkshopIssue, IssuesResolveApi } from "./IssuesPanel";
+import type { OrderLine } from "@/types/procurement";
 
 // ── Semantic color tokens (mirrors the rest of the workshop) ──────────────────
 const NAVY = "#0B1A2F";
@@ -85,6 +86,10 @@ export interface MobileTriageProps {
   onFocusField: (ref: string) => void;
   /** Open the send confirm dialog (→ setShowConfirm(true)). */
   onSend: () => void;
+  /** Inline per-line resolution actions (same server-truth path as desktop). */
+  resolve?: IssuesResolveApi;
+  /** The order lines, to read each card's current code / AI suggestion by lineId. */
+  lines?: OrderLine[];
 }
 
 export function MobileTriage(props: MobileTriageProps) {
@@ -93,7 +98,7 @@ export function MobileTriage(props: MobileTriageProps) {
     receivedFieldCount, lineCount, outputFormatLabel, previewContent,
     issues, blockingIssues, exceptionCount, canSend, crossed, sendState,
     primaryCta, primaryCtaProgress, doneLabel,
-    onFix, onFocusField, onSend,
+    onFix, onFocusField, onSend, resolve, lines,
   } = props;
 
   const sendBlockCount = Math.max(blockingIssues, exceptionCount);
@@ -275,7 +280,14 @@ export function MobileTriage(props: MobileTriageProps) {
               </span>
             </div>
             {issues.map((issue) => (
-              <IssueCard key={issue.code} issue={issue} onFix={onFix} onFocusField={onFocusField} />
+              <IssueCard
+                key={issue.code}
+                issue={issue}
+                onFix={onFix}
+                onFocusField={onFocusField}
+                resolve={resolve}
+                line={issue.lineId && lines ? lines.find((l) => l.id === issue.lineId) : undefined}
+              />
             ))}
           </section>
         )}
@@ -416,20 +428,28 @@ function SummaryRow({ label, value, mono }: { label: string; value: string; mono
 
 // ── One issue card ────────────────────────────────────────────────────────────
 function IssueCard({
-  issue, onFix, onFocusField,
+  issue, onFix, onFocusField, resolve, line,
 }: {
   issue: WorkshopIssue;
   onFix: (i: WorkshopIssue) => void;
   onFocusField: (ref: string) => void;
+  resolve?: IssuesResolveApi;
+  line?: OrderLine;
 }) {
   const blocking = issue.severity === "blocking";
   const tone = blocking
     ? { wash: DANGER_WASH, border: DANGER_BORDER, color: DANGER, label: "Blocking" }
     : { wash: AMBER_WASH, border: AMBER_BORDER, color: AMBER, label: "Warning" };
 
+  const lineId = issue.lineId;
+  const canResolveLine = resolve != null && lineId != null && line != null;
+  const editing = canResolveLine && resolve!.lineEditId === lineId;
+  const busy = canResolveLine && resolve!.acceptingLineId === lineId;
+
   return (
     <div
       data-testid="mobile-issue-card"
+      data-issue-ref={issue.code}
       style={{
         borderRadius: 10,
         background: "#FFFFFF",
@@ -465,40 +485,36 @@ function IssueCard({
           <div style={{ marginTop: 3, fontSize: 13, color: INK, lineHeight: 1.45 }}>{issue.why}</div>
         )}
 
-        {/* Where-to-fix affordance — mapping is desktop-only, so this targets the
-            field for the desktop mapper (honest framing) rather than implying it
-            can be mapped here. Touch target is a full 44px row. */}
-        <button
-          type="button"
-          onClick={() => onFocusField(issue.ref)}
-          aria-label={`Show ${issue.title} on a larger screen`}
-          className="inline-flex items-center gap-1.5"
-          style={{
-            marginTop: 5,
-            marginInline: -6,
-            minHeight: 44,
-            padding: "0 6px",
-            fontSize: 12.5,
-            color: INK_FAINT,
-            background: "transparent",
-            border: "none",
-            cursor: "pointer",
-            textAlign: "left",
-          }}
-        >
-          <svg width="13" height="13" viewBox="0 0 16 16" fill="none" aria-hidden style={{ flexShrink: 0 }}>
-            <rect x="1.5" y="3" width="13" height="9.5" rx="1.5" stroke="currentColor" strokeWidth="1.2" />
-            <path d="M5.5 14.5h5M8 12.5v2" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
-          </svg>
-          Map this field on a larger screen
-        </button>
+        {/* Inline supplier-code editor (open) — the same server-truth path as
+            desktop. On a phone this is the primary way to resolve a line. */}
+        {editing ? (
+          <MobileLineCodeInput
+            title={issue.title}
+            value={resolve!.lineDraft}
+            busy={busy}
+            onChange={resolve!.setLineDraft}
+            onSave={() => resolve!.commitLineCode(lineId!)}
+            onCancel={resolve!.cancelLineEdit}
+          />
+        ) : (
+          <MobileIssueControls
+            issue={issue}
+            line={line}
+            canResolveLine={canResolveLine}
+            busy={busy}
+            resolve={resolve}
+            onFocusField={onFocusField}
+          />
+        )}
       </div>
 
-      {/* Full-width Accept — only for issues with a deterministic one-click fix. */}
-      {issue.fixAction && (
+      {/* Full-width Accept — only for AI-suggestion cards with a one-click fix and
+          not while inline edit is open. */}
+      {!editing && issue.fixAction && (
         <button
           type="button"
           onClick={() => onFix(issue)}
+          disabled={busy}
           aria-label={`${issue.fixAction.label} for ${issue.title}`}
           className="plk-mobile-accept"
           style={{
@@ -510,16 +526,203 @@ function IssueCard({
             color: "#FFFFFF",
             fontSize: 15,
             fontWeight: 700,
-            cursor: "pointer",
+            cursor: busy ? "wait" : "pointer",
+            opacity: busy ? 0.6 : 1,
             transition: "filter 150ms ease",
           }}
         >
-          {issue.fixAction.label}
+          {busy ? "Saving…" : issue.fixAction.label}
         </button>
       )}
     </div>
   );
 }
+
+// ── Mobile inline controls (not-editing state) ────────────────────────────────
+function MobileIssueControls({
+  issue, line, canResolveLine, busy, resolve, onFocusField,
+}: {
+  issue: WorkshopIssue;
+  line?: OrderLine;
+  canResolveLine: boolean;
+  busy: boolean;
+  resolve?: IssuesResolveApi;
+  onFocusField: (ref: string) => void;
+}) {
+  const lineId = issue.lineId;
+
+  // No inline resolution (header rule-failure / missing API) → the honest
+  // "view on a larger screen" affordance (unchanged).
+  if (!canResolveLine || issue.kind === "rule-failure") {
+    return (
+      <button
+        type="button"
+        onClick={() => onFocusField(issue.ref)}
+        aria-label={`Show ${issue.title} on a larger screen`}
+        className="inline-flex items-center gap-1.5"
+        style={{
+          marginTop: 5,
+          marginInline: -6,
+          minHeight: 44,
+          padding: "0 6px",
+          fontSize: 12.5,
+          color: INK_FAINT,
+          background: "transparent",
+          border: "none",
+          cursor: "pointer",
+          textAlign: "left",
+        }}
+      >
+        <svg width="13" height="13" viewBox="0 0 16 16" fill="none" aria-hidden style={{ flexShrink: 0 }}>
+          <rect x="1.5" y="3" width="13" height="9.5" rx="1.5" stroke="currentColor" strokeWidth="1.2" />
+          <path d="M5.5 14.5h5M8 12.5v2" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+        </svg>
+        Map this field on a larger screen
+      </button>
+    );
+  }
+
+  // review-flag → Confirm (re-commit existing code) + Change code.
+  if (issue.kind === "review-flag") {
+    return (
+      <div className="flex items-center gap-2" style={{ marginTop: 10 }}>
+        <button
+          type="button"
+          onClick={() => resolve!.confirmFlaggedLine({ id: line!.id, lineNumber: line!.lineNumber, supplierItemCode: line!.supplierItemCode })}
+          disabled={busy || !line!.supplierItemCode}
+          className="plk-mobile-accept"
+          style={{ ...mobilePrimaryBtn, opacity: busy || !line!.supplierItemCode ? 0.6 : 1, cursor: busy ? "wait" : "pointer" }}
+        >
+          {busy ? "Saving…" : "Confirm"}
+        </button>
+        <button
+          type="button"
+          onClick={() => resolve!.startLineEdit(lineId!, line!.supplierItemCode ?? "")}
+          disabled={busy}
+          style={mobileGhostBtn}
+        >
+          Change code
+        </button>
+      </div>
+    );
+  }
+
+  // ai-suggestion → "Enter manually" (the green Accept is rendered full-width below).
+  if (issue.kind === "ai-suggestion") {
+    return (
+      <button
+        type="button"
+        onClick={() => resolve!.startLineEdit(lineId!, line!.aiSuggestion?.supplierItemCode ?? line!.supplierItemCode ?? "")}
+        disabled={busy}
+        style={{ ...mobileGhostBtn, marginTop: 10 }}
+      >
+        Enter manually
+      </button>
+    );
+  }
+
+  // manual-code (default) → open the inline code input.
+  return (
+    <button
+      type="button"
+      onClick={() => resolve!.startLineEdit(lineId!, line!.supplierItemCode ?? "")}
+      disabled={busy}
+      style={{ ...mobilePrimaryBtn, background: BLUE_DEEP, marginTop: 10, width: "auto", opacity: busy ? 0.6 : 1, cursor: busy ? "wait" : "pointer" }}
+    >
+      {busy ? "Saving…" : "Enter code"}
+    </button>
+  );
+}
+
+// ── Mobile inline supplier-code editor ────────────────────────────────────────
+function MobileLineCodeInput({
+  title, value, busy, onChange, onSave, onCancel,
+}: {
+  title: string;
+  value: string;
+  busy: boolean;
+  onChange: (v: string) => void;
+  onSave: () => void;
+  onCancel: () => void;
+}) {
+  const onKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      onSave();
+    } else if (e.key === "Escape") {
+      e.preventDefault();
+      onCancel();
+    }
+  };
+  return (
+    <div className="flex items-center gap-2" style={{ marginTop: 10 }}>
+      {/* autoFocus: the operator tapped to open this inline editor, so focusing it is the intent. */}
+      <input
+        type="text"
+        autoFocus
+        value={value}
+        disabled={busy}
+        onChange={(e) => onChange(e.target.value)}
+        onKeyDown={onKeyDown}
+        aria-label={`Supplier code for ${title}`}
+        placeholder="supplier code"
+        style={{
+          flex: 1,
+          minWidth: 0,
+          minHeight: 44,
+          padding: "0 11px",
+          borderRadius: 8,
+          fontSize: 16, // 16px to avoid iOS zoom-on-focus
+          fontFamily: "'JetBrains Mono',monospace",
+          border: `1px solid ${BLUE_BORDER}`,
+          background: busy ? "#F3F5F9" : "#FFFFFF",
+          color: NAVY,
+          outline: "none",
+        }}
+      />
+      <button
+        type="button"
+        onClick={onSave}
+        disabled={busy}
+        className="plk-mobile-accept"
+        style={{ ...mobilePrimaryBtn, opacity: busy ? 0.6 : 1, cursor: busy ? "wait" : "pointer" }}
+      >
+        {busy ? "Saving…" : "Save"}
+      </button>
+      <button type="button" onClick={onCancel} disabled={busy} aria-label="Cancel" style={mobileGhostBtn}>
+        Cancel
+      </button>
+    </div>
+  );
+}
+
+const mobilePrimaryBtn = {
+  minHeight: 44,
+  padding: "0 16px",
+  borderRadius: 8,
+  border: "none",
+  background: GREEN,
+  color: "#FFFFFF",
+  fontSize: 15,
+  fontWeight: 700,
+  cursor: "pointer",
+  whiteSpace: "nowrap" as const,
+  flexShrink: 0,
+  transition: "filter 150ms ease",
+};
+const mobileGhostBtn = {
+  minHeight: 44,
+  padding: "0 14px",
+  borderRadius: 8,
+  border: `1px solid ${HAIRLINE}`,
+  background: "#FFFFFF",
+  color: INK,
+  fontSize: 14,
+  fontWeight: 600,
+  cursor: "pointer",
+  whiteSpace: "nowrap" as const,
+  flexShrink: 0,
+};
 
 // ── Tiny inline icons ─────────────────────────────────────────────────────────
 function SeverityIcon({ blocking, color }: { blocking: boolean; color: string }) {

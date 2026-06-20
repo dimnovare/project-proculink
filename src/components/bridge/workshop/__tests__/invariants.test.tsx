@@ -1,5 +1,5 @@
 import { describe, test, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, cleanup } from "@testing-library/react";
+import { render, screen, cleanup, fireEvent } from "@testing-library/react";
 import { renderHook, act } from "@testing-library/react";
 import type { Order, OrderValidationResult } from "@/types/procurement";
 
@@ -28,6 +28,10 @@ const mockState: {
   setShowConfirm: ReturnType<typeof vi.fn>;
   confirmSend: ReturnType<typeof vi.fn>;
   acceptSuggestion: ReturnType<typeof vi.fn>;
+  startLineEdit: ReturnType<typeof vi.fn>;
+  commitLineCode: ReturnType<typeof vi.fn>;
+  confirmFlaggedLine: ReturnType<typeof vi.fn>;
+  lineEditId: string | null;
   lastMapperProps: Record<string, unknown> | null;
 } = {
   order: null,
@@ -36,6 +40,10 @@ const mockState: {
   setShowConfirm: vi.fn(),
   confirmSend: vi.fn(),
   acceptSuggestion: vi.fn(),
+  startLineEdit: vi.fn(),
+  commitLineCode: vi.fn(),
+  confirmFlaggedLine: vi.fn(),
+  lineEditId: null,
   lastMapperProps: null,
 };
 
@@ -93,7 +101,19 @@ vi.mock("../../review/hooks/useSendFlow", () => ({
 }));
 
 vi.mock("../../review/hooks/useResolveActions", () => ({
-  useResolveActions: () => ({ acceptSuggestion: mockState.acceptSuggestion, commitVersion: 0 }),
+  useResolveActions: () => ({
+    acceptSuggestion: mockState.acceptSuggestion,
+    commitVersion: 0,
+    // Inline per-line resolution subset (consumed by the IssuesPanel cards).
+    lineEditId: mockState.lineEditId,
+    lineDraft: "",
+    setLineDraft: vi.fn(),
+    startLineEdit: mockState.startLineEdit,
+    commitLineCode: mockState.commitLineCode,
+    cancelLineEdit: vi.fn(),
+    confirmFlaggedLine: mockState.confirmFlaggedLine,
+    acceptingLineId: null,
+  }),
 }));
 
 vi.mock("../../review/hooks/useAcceptanceValidation", () => ({
@@ -155,6 +175,10 @@ beforeEach(() => {
   mockState.setShowConfirm = vi.fn();
   mockState.confirmSend = vi.fn();
   mockState.acceptSuggestion = vi.fn();
+  mockState.startLineEdit = vi.fn();
+  mockState.commitLineCode = vi.fn();
+  mockState.confirmFlaggedLine = vi.fn();
+  mockState.lineEditId = null;
   mockState.lastMapperProps = null;
 });
 afterEach(cleanup);
@@ -312,11 +336,18 @@ describe("invariant 2b — fixQueueToIssues maps the validator faithfully", () =
     const warn = issues.find((i) => i.code === "rule:Note:h");
     expect(warn?.severity).toBe("warning");
     expect(issues.filter((i) => i.severity === "blocking")).toHaveLength(3);
-    // AI suggestion card gets a deterministic one-click fix; manual-code does not.
+    // AI suggestion card gets a deterministic one-click fix; manual-code does NOT
+    // (manual-code now renders an inline code input, keyed off `kind`, not fixAction).
     expect(issues.find((i) => i.code === "line:l1")?.fixAction).toBeTruthy();
     expect(issues.find((i) => i.code === "line:l2")?.fixAction).toBeUndefined();
     // ref deep-links to the owning line where present.
     expect(issues.find((i) => i.code === "line:l1")?.ref).toBe("l1");
+    // The card's kind + owning lineId are carried through so the panel can pick the
+    // right inline resolution control (input / accept / confirm).
+    expect(issues.find((i) => i.code === "line:l2")?.kind).toBe("manual-code");
+    expect(issues.find((i) => i.code === "line:l2")?.lineId).toBe("l2");
+    expect(issues.find((i) => i.code === "line:l1")?.kind).toBe("ai-suggestion");
+    expect(issues.find((i) => i.code === "line:l1")?.lineId).toBe("l1");
   });
 });
 
@@ -428,6 +459,54 @@ describe("invariant 5 — preview == delivery (single preview path, referenced)"
     // workshop never mounts a parallel OutputPreview, so there is one preview path
     // and it is the delivery path (parity is covered by the mapper preview suite).
     expect(screen.getAllByTestId("mock-mapper-workbench")).toHaveLength(1);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Phase 0 / Task 1 — inline line resolution is REACHABLE on the prod screen.
+//   (a) a manual-code blocker renders a real, focusable supplier-code path (the
+//       "Enter code" affordance) — not just a dead jump;
+//   (b) the SendReadinessStrip blocker chip's jump target ACTUALLY EXISTS in the
+//       DOM (the card is anchored data-issue-ref={code}) — the node is found, not
+//       null. This is the exact regression that left 78/83 prod orders stuck.
+// ─────────────────────────────────────────────────────────────────────────────
+describe("Task 1 — inline resolution is reachable + the chip jump target exists", () => {
+  function mountUnresolvedManualCodeOrder() {
+    mockState.order = makeOrder({
+      lines: [
+        {
+          id: "l1", lineNumber: 1, buyerItemCode: "B-1", supplierItemCode: null,
+          description: "Widget", quantity: 2, unitPrice: 10, confidence: 0,
+          needsReview: true, aiSuggestion: null,
+        } as Order["lines"][number],
+      ],
+    });
+    mockState.exceptionCount = 1;           // server truth: a needs-review line
+    mockState.validationResult = { passed: true, results: [] } as OrderValidationResult;
+    render(<OrderWorkshop orderId="ord-1" />);
+  }
+
+  test("a manual-code blocker exposes the inline 'Enter code' affordance (not a dead jump)", () => {
+    mountUnresolvedManualCodeOrder();
+    // The IssuesPanel renders the card with the inline code-entry control.
+    const enter = screen.getAllByRole("button", { name: /enter code/i });
+    expect(enter.length).toBeGreaterThan(0);
+    fireEvent.click(enter[0]);
+    // The real resolution API is invoked (server-truth path), seeded with the empty code.
+    expect(mockState.startLineEdit).toHaveBeenCalledWith("l1", "");
+  });
+
+  test("the SendReadinessStrip blocker chip jumps to a card that EXISTS in the DOM", () => {
+    mountUnresolvedManualCodeOrder();
+    // The blocker chip uses the issue CODE as its id ("line:l1") → the card anchor.
+    // (The chip's tooltip is "Jump to {title}".)
+    const chip = screen.getByTitle("Jump to Needs a supplier code");
+    // The chip click handler scrolls to [data-issue-ref="line:l1"]; that node MUST exist
+    // (the old bug pointed at a line GUID the mapper had no element for → null).
+    const target = document.querySelector('[data-issue-ref="line:l1"]');
+    expect(target).not.toBeNull();
+    // Clicking does not throw (the scroll target resolves).
+    expect(() => fireEvent.click(chip)).not.toThrow();
   });
 });
 

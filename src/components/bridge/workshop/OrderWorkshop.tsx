@@ -38,7 +38,7 @@ import { useResolveActions } from "../review/hooks/useResolveActions";
 import { useAcceptanceValidation } from "../review/hooks/useAcceptanceValidation";
 import { useSendFlow } from "../review/hooks/useSendFlow";
 import { useWorkshopLayout, type WorkshopFocus } from "./useWorkshopLayout";
-import { type WorkshopIssue } from "./IssuesPanel";
+import { IssuesPanel, type WorkshopIssue, type IssuesResolveApi } from "./IssuesPanel";
 import { MobileTriage } from "./MobileTriage";
 import { WorkshopStepper } from "./WorkshopStepper";
 import { SendReadinessStrip, type BlockerChip } from "./SendReadinessStrip";
@@ -82,6 +82,10 @@ export function fixQueueToIssues(queue: FixQueueCard[]): WorkshopIssue[] {
         why: c.detail,
         // Only the AI-suggestion card has a deterministic one-click fix.
         fixAction: c.kind === "ai-suggestion" ? { label: "Accept suggestion" } : undefined,
+        // Carry the kind + owning line so the IssuesPanel can render the right
+        // inline resolution control (manual-code input / accept / confirm).
+        kind: c.kind,
+        lineId: c.lineId,
       } satisfies WorkshopIssue;
     });
 }
@@ -236,6 +240,38 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
     resolve.acceptSuggestion(issue.ref);
   }, [resolve]);
 
+  // ── The inline per-line resolution subset handed to the IssuesPanel cards.
+  //    SAME server-truth path (commit → refetch) as the classic screen — the
+  //    panel never resolves a line in local state. ─────────────────────────────
+  const issuesResolve = useMemo<IssuesResolveApi>(() => ({
+    lineEditId: resolve.lineEditId,
+    lineDraft: resolve.lineDraft,
+    setLineDraft: resolve.setLineDraft,
+    startLineEdit: resolve.startLineEdit,
+    commitLineCode: resolve.commitLineCode,
+    cancelLineEdit: resolve.cancelLineEdit,
+    confirmFlaggedLine: resolve.confirmFlaggedLine,
+    acceptingLineId: resolve.acceptingLineId,
+  }), [
+    resolve.lineEditId, resolve.lineDraft, resolve.setLineDraft, resolve.startLineEdit,
+    resolve.commitLineCode, resolve.cancelLineEdit, resolve.confirmFlaggedLine, resolve.acceptingLineId,
+  ]);
+
+  // The chip jump now targets the issue CARD (anchored data-issue-ref={code} in
+  // the IssuesPanel) — that is where the fix lives — instead of the dead mapper
+  // jump (the ref was a line GUID; the mapper keys rows by output path).
+  const onJumpToIssueCard = useCallback((code: string) => {
+    if (typeof document === "undefined") return;
+    const el = document.querySelector(`[data-issue-ref="${CSS.escape(code)}"]`);
+    if (el) {
+      el.scrollIntoView?.({ behavior: "smooth", block: "center" });
+      (el as HTMLElement).animate?.(
+        [{ background: "#FFF6E0" }, { background: "transparent" }],
+        { duration: 1100, easing: "ease-out" },
+      );
+    }
+  }, []);
+
   // ── Send gate: zero issues AND server-truth exceptionCount clear. ───────────
   const blockingIssues = issues.filter((i) => i.severity === "blocking").length;
   const canSend = !crossed && sendState === "idle" && blockingIssues === 0 && exceptionCount === 0;
@@ -247,9 +283,11 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
   // Transform/Deliver, delivered → complete (5).
   const stepperStage = crossed ? 5 : sendState === "delivering" ? 4 : sendState === "transforming" ? 4 : sendReady ? 3 : 2;
   const stepperFailed = flowSeverity === "error";
+  // The chip id is the issue CODE (the card's data-issue-ref anchor), so the strip
+  // chip scrolls to the actionable card — not the dead line-GUID mapper jump.
   const blockerChips: BlockerChip[] = issues
     .filter((i) => i.severity === "blocking")
-    .map((i) => ({ id: i.ref, name: i.title }));
+    .map((i) => ({ id: i.code, name: i.title }));
   const noteCount = issues.filter((i) => i.severity === "warning").length;
 
   // ── Display helpers for the header + confirm dialog ──────────────────────────
@@ -414,16 +452,31 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
         </div>
       )}
 
-      {/* ── Send-readiness strip — slim, full-width; replaces the old issues card.
-          Desktop only; the mobile MobileTriage view carries its own issue list. ── */}
+      {/* ── Send-readiness strip — slim, full-width summary. Its chips now scroll to
+          the actionable issue CARD below (data-issue-ref) — where the inline fix
+          lives — not the dead line-GUID mapper jump. Desktop only; the mobile
+          MobileTriage view carries its own issue list. ── */}
       <div className="hidden xl:block flex-shrink-0">
-        <SendReadinessStrip blockers={blockerChips} notes={noteCount} ready={sendReady} onJump={onFocusField} />
+        <SendReadinessStrip blockers={blockerChips} notes={noteCount} ready={sendReady} onJump={onJumpToIssueCard} />
       </div>
 
       {/* ── Body ─────────────────────────────────────────────────────────────── */}
       <div style={{ flex: 1, position: "relative", overflow: "auto" }}>
         {/* Desktop (xl): the enhanced MapperWorkbench with the IssuesPanel on top. */}
         <div className="hidden xl:block min-w-[1120px] px-6 py-[18px]">
+          {/* The actionable issue list — inline supplier-code entry per line lives
+              here (the strip above is only a summary that scrolls to these cards). */}
+          {issues.length > 0 && (
+            <div style={{ marginBottom: 14 }}>
+              <IssuesPanel
+                issues={issues}
+                onFocusField={onFocusField}
+                onFix={onFix}
+                resolve={issuesResolve}
+                lines={order.lines}
+              />
+            </div>
+          )}
           <MapperWorkbench
             variant="order"
             orderId={orderId}
@@ -467,6 +520,8 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
           onFix={onFix}
           onFocusField={onFocusField}
           onSend={() => setShowConfirm(true)}
+          resolve={issuesResolve}
+          lines={order.lines}
         />
       </div>
 

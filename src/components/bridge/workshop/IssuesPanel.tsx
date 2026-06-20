@@ -18,7 +18,9 @@
 // blocking vs warning; AI violet is intentionally NOT used here (this is the
 // validator's voice, not an AI suggestion).
 
-import type { CSSProperties } from "react";
+import type { CSSProperties, KeyboardEvent } from "react";
+import type { FixCardKind } from "../review/buildFixQueue";
+import type { OrderLine } from "@/types/procurement";
 
 /** Severity drives row coloring + send-gating (orchestrator gates Send on blocking issues). */
 export type IssueSeverity = "blocking" | "warning";
@@ -36,6 +38,34 @@ export interface WorkshopIssue {
   why?: string;
   /** Present only for deterministically-fixable issues → renders a one-click button. */
   fixAction?: { label: string };
+  /** The FixQueueCard kind — drives which inline resolution control renders. */
+  kind?: FixCardKind;
+  /** The owning order line id (line-scoped cards) — keys the inline code editor. */
+  lineId?: string;
+}
+
+/**
+ * The subset of `ResolveActionsApi` the inline issue-card resolution needs. Kept
+ * narrow on purpose so the panel stays a thin view over the SAME server-truth
+ * resolution path (commit → refetch) the classic screen uses — it never resolves
+ * a line in local state.
+ */
+export interface IssuesResolveApi {
+  /** The line id currently in inline-edit mode (null = none). */
+  lineEditId: string | null;
+  /** The draft supplier code being typed. */
+  lineDraft: string;
+  setLineDraft: (v: string) => void;
+  /** Open inline edit for a line, seeded with `initial`. */
+  startLineEdit: (id: string, initial: string) => void;
+  /** Persist the typed code for a line (commit → refetch). */
+  commitLineCode: (id: string) => void;
+  /** Close inline edit without saving. */
+  cancelLineEdit: () => void;
+  /** Clear a flagged-but-coded line by re-committing its existing code. */
+  confirmFlaggedLine: (line: Pick<OrderLine, "id" | "lineNumber" | "supplierItemCode">) => void;
+  /** The line id whose Accept/Save/Confirm is in flight (drives the spinner + disable). */
+  acceptingLineId: string | null;
 }
 
 export interface IssuesPanelProps {
@@ -46,6 +76,10 @@ export interface IssuesPanelProps {
   onFix?: (issue: WorkshopIssue) => void;
   /** Optional label for the green ready bar's Send affordance context (display only). */
   readyLabel?: string;
+  /** Inline per-line resolution actions (omitted → the panel renders read-only "Where →" jumps only). */
+  resolve?: IssuesResolveApi;
+  /** The order lines, to read each card's current code / AI suggestion by lineId. */
+  lines?: OrderLine[];
 }
 
 const SEVERITY_STYLE: Record<IssueSeverity, { bg: string; border: string; chipBg: string; chipColor: string; label: string }> = {
@@ -60,7 +94,7 @@ const cardStyle: CSSProperties = {
   overflow: "hidden",
 };
 
-export function IssuesPanel({ issues, onFocusField, onFix, readyLabel }: IssuesPanelProps) {
+export function IssuesPanel({ issues, onFocusField, onFix, readyLabel, resolve, lines }: IssuesPanelProps) {
   // ── 0 issues → the green "ready to send" bar (the list collapses) ──
   if (issues.length === 0) {
     return (
@@ -123,11 +157,13 @@ export function IssuesPanel({ issues, onFocusField, onFix, readyLabel }: IssuesP
       <ul role="list" aria-label="Open issues" style={{ listStyle: "none", margin: 0, padding: 0 }}>
         {issues.map((issue) => {
           const tone = SEVERITY_STYLE[issue.severity];
+          const line = issue.lineId && lines ? lines.find((l) => l.id === issue.lineId) : undefined;
           return (
             <li
               key={issue.code}
               role="listitem"
               data-testid="issue-row"
+              data-issue-ref={issue.code}
               style={{
                 display: "flex",
                 alignItems: "flex-start",
@@ -166,52 +202,249 @@ export function IssuesPanel({ issues, onFocusField, onFix, readyLabel }: IssuesP
                 )}
               </div>
 
-              <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
-                {issue.fixAction && onFix && (
-                  <button
-                    type="button"
-                    onClick={() => onFix(issue)}
-                    style={{
-                      height: 26,
-                      padding: "0 10px",
-                      borderRadius: 6,
-                      fontSize: 11,
-                      fontWeight: 700,
-                      border: "none",
-                      background: "#2E8E3A",
-                      color: "#FFFFFF",
-                      cursor: "pointer",
-                      whiteSpace: "nowrap",
-                    }}
-                  >
-                    {issue.fixAction.label}
-                  </button>
-                )}
-                <button
-                  type="button"
-                  onClick={() => onFocusField(issue.ref)}
-                  aria-label={`Show ${issue.title} in the mapper`}
-                  title="Scroll to this field in the mapper below"
-                  style={{
-                    height: 26,
-                    padding: "0 9px",
-                    borderRadius: 6,
-                    fontSize: 11,
-                    fontWeight: 600,
-                    border: "1px solid #DCE0E8",
-                    background: "#FFFFFF",
-                    color: "#345470",
-                    cursor: "pointer",
-                    whiteSpace: "nowrap",
-                  }}
-                >
-                  Where →
-                </button>
-              </div>
+              <IssueActions
+                issue={issue}
+                line={line}
+                onFocusField={onFocusField}
+                onFix={onFix}
+                resolve={resolve}
+              />
             </li>
           );
         })}
       </ul>
+    </div>
+  );
+}
+
+// ── Shared inline button styles ───────────────────────────────────────────────
+const primaryBtn: CSSProperties = {
+  height: 26,
+  padding: "0 10px",
+  borderRadius: 6,
+  fontSize: 11,
+  fontWeight: 700,
+  border: "none",
+  background: "#2E8E3A",
+  color: "#FFFFFF",
+  cursor: "pointer",
+  whiteSpace: "nowrap",
+};
+const ghostBtn: CSSProperties = {
+  height: 26,
+  padding: "0 9px",
+  borderRadius: 6,
+  fontSize: 11,
+  fontWeight: 600,
+  border: "1px solid #DCE0E8",
+  background: "#FFFFFF",
+  color: "#345470",
+  cursor: "pointer",
+  whiteSpace: "nowrap",
+};
+
+/**
+ * The right-hand action cluster for one issue, chosen by `kind`:
+ *   • manual-code → the inline supplier-code input (the #1 review action) — REPLACES
+ *     the dead "Where →" as the primary affordance. When in edit mode it renders the
+ *     input + Save; otherwise an "Enter code" button opens it.
+ *   • ai-suggestion → keep the green one-click "Accept suggestion" (onFix) + "Enter manually".
+ *   • review-flag → "Confirm" (re-commit existing code) + "Change code".
+ *   • rule-failure (header) / no resolve API → the read-only "Where →" jump (unchanged).
+ *
+ * Without a `resolve` API (or without `lines`), it degrades to the read-only "Where →"
+ * so the panel is still usable as a pure view (and existing tests keep passing).
+ */
+function IssueActions({
+  issue,
+  line,
+  onFocusField,
+  onFix,
+  resolve,
+}: {
+  issue: WorkshopIssue;
+  line: OrderLine | undefined;
+  onFocusField: (ref: string) => void;
+  onFix?: (issue: WorkshopIssue) => void;
+  resolve?: IssuesResolveApi;
+}) {
+  const lineId = issue.lineId;
+  const canResolveLine = resolve != null && lineId != null && line != null;
+  const editing = canResolveLine && resolve!.lineEditId === lineId;
+  const busy = canResolveLine && resolve!.acceptingLineId === lineId;
+
+  // While an inline code editor is open, it OWNS the row's action area.
+  if (editing) {
+    return (
+      <LineCodeInput
+        title={issue.title}
+        value={resolve!.lineDraft}
+        busy={busy}
+        onChange={resolve!.setLineDraft}
+        onSave={() => resolve!.commitLineCode(lineId!)}
+        onCancel={resolve!.cancelLineEdit}
+      />
+    );
+  }
+
+  const whereButton = (
+    <button
+      type="button"
+      onClick={() => onFocusField(issue.ref)}
+      aria-label={`Show ${issue.title} in the mapper`}
+      title="Scroll to this field in the mapper below"
+      style={ghostBtn}
+    >
+      Where →
+    </button>
+  );
+
+  // No inline resolution available → the read-only jump (header rule-failures + the
+  // pure-view fallback used by the panel's own unit tests). A deterministic
+  // one-click fixAction (e.g. an AI accept) still renders here so a pure-view
+  // caller keeps that button.
+  if (!canResolveLine || issue.kind === "rule-failure") {
+    return (
+      <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
+        {issue.fixAction && onFix && (
+          <button type="button" onClick={() => onFix(issue)} style={primaryBtn}>
+            {issue.fixAction.label}
+          </button>
+        )}
+        {whereButton}
+      </div>
+    );
+  }
+
+  if (issue.kind === "manual-code") {
+    // Primary, inline: open the code input. (Replaces the dead "Where →".)
+    return (
+      <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
+        <button
+          type="button"
+          onClick={() => resolve!.startLineEdit(lineId!, line!.supplierItemCode ?? "")}
+          disabled={busy}
+          style={{ ...primaryBtn, background: "#0F4FAB", opacity: busy ? 0.6 : 1, cursor: busy ? "wait" : "pointer" }}
+        >
+          {busy ? "Saving…" : "Enter code"}
+        </button>
+      </div>
+    );
+  }
+
+  if (issue.kind === "ai-suggestion") {
+    return (
+      <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
+        {issue.fixAction && onFix && (
+          <button type="button" onClick={() => onFix(issue)} disabled={busy} style={{ ...primaryBtn, opacity: busy ? 0.6 : 1, cursor: busy ? "wait" : "pointer" }}>
+            {busy ? "Saving…" : issue.fixAction.label}
+          </button>
+        )}
+        <button
+          type="button"
+          onClick={() => resolve!.startLineEdit(lineId!, line!.aiSuggestion?.supplierItemCode ?? line!.supplierItemCode ?? "")}
+          disabled={busy}
+          style={ghostBtn}
+        >
+          Enter manually
+        </button>
+      </div>
+    );
+  }
+
+  if (issue.kind === "review-flag") {
+    return (
+      <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
+        <button
+          type="button"
+          onClick={() => resolve!.confirmFlaggedLine({ id: line!.id, lineNumber: line!.lineNumber, supplierItemCode: line!.supplierItemCode })}
+          disabled={busy || !line!.supplierItemCode}
+          style={{ ...primaryBtn, opacity: busy || !line!.supplierItemCode ? 0.6 : 1, cursor: busy ? "wait" : "pointer" }}
+        >
+          {busy ? "Saving…" : "Confirm"}
+        </button>
+        <button
+          type="button"
+          onClick={() => resolve!.startLineEdit(lineId!, line!.supplierItemCode ?? "")}
+          disabled={busy}
+          style={ghostBtn}
+        >
+          Change code
+        </button>
+      </div>
+    );
+  }
+
+  // Unknown kind → the read-only jump.
+  return <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>{whereButton}</div>;
+}
+
+/**
+ * The inline supplier-code editor — a focusable text input + Save. Enter commits,
+ * Esc cancels; disabled + "Saving…" while the commit is in flight. The same control
+ * is reused by manual-code, ai-suggestion ("Enter manually"), and review-flag
+ * ("Change code") cards.
+ */
+function LineCodeInput({
+  title,
+  value,
+  busy,
+  onChange,
+  onSave,
+  onCancel,
+}: {
+  title: string;
+  value: string;
+  busy: boolean;
+  onChange: (v: string) => void;
+  onSave: () => void;
+  onCancel: () => void;
+}) {
+  const onKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      onSave();
+    } else if (e.key === "Escape") {
+      e.preventDefault();
+      onCancel();
+    }
+  };
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
+      {/* autoFocus: the operator clicked to open this inline editor, so focusing it is the intent. */}
+      <input
+        type="text"
+        autoFocus
+        value={value}
+        disabled={busy}
+        onChange={(e) => onChange(e.target.value)}
+        onKeyDown={onKeyDown}
+        aria-label={`Supplier code for ${title}`}
+        placeholder="supplier code"
+        style={{
+          height: 26,
+          width: 132,
+          padding: "0 8px",
+          borderRadius: 6,
+          fontSize: 11.5,
+          fontFamily: "'JetBrains Mono',monospace",
+          border: "1px solid #BFD0E8",
+          background: busy ? "#F3F5F9" : "#FFFFFF",
+          color: "#0B1A2F",
+          outline: "none",
+        }}
+      />
+      <button
+        type="button"
+        onClick={onSave}
+        disabled={busy}
+        style={{ ...primaryBtn, opacity: busy ? 0.6 : 1, cursor: busy ? "wait" : "pointer" }}
+      >
+        {busy ? "Saving…" : "Save"}
+      </button>
+      <button type="button" onClick={onCancel} disabled={busy} aria-label="Cancel" style={ghostBtn}>
+        Esc
+      </button>
     </div>
   );
 }
