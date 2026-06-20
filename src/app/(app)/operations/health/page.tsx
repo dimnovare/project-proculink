@@ -26,13 +26,13 @@ import { UnifiedStatusBadge } from "@/components/bridge/UnifiedStatusBadge";
 
 // Each tile: which OpsHealth field, label, and which inbox filter it links to.
 const TILES: Array<{ key: keyof OpsHealth; label: string; href: string }> = [
-  { key: "parsingStuck",       label: "Stuck parsing",     href: "/inbox" },
+  { key: "parsingStuck",       label: "Stuck reading the file", href: "/inbox" },
   { key: "deliveringStuck",    label: "Stuck delivering",  href: "/inbox?status=delivering" },
   { key: "transformFailed",    label: "Transform failed",  href: "/inbox?status=failed" },
   { key: "deliveryFailed",     label: "Delivery failed",   href: "/inbox?status=failed" },
   { key: "deliveryDeadLetter", label: "Out of retries",    href: "/inbox?status=failed" },
   { key: "rejectedBySupplier", label: "Rejected by supplier", href: "/inbox?status=failed" },
-  { key: "slaBreached",        label: "SLA breached",      href: "/inbox" },
+  { key: "slaBreached",        label: "Overdue",           href: "/inbox" },
   { key: "openExceptions",     label: "Open exceptions",   href: "/operations/exceptions" },
 ];
 
@@ -99,7 +99,7 @@ export default function OperationsHealthPage() {
     // order id, which read as gibberish (e.g. "mock-dl-…") in the notice.
     mutationFn: (order: DeadLetterOrder) => requeueDelivery(order.orderId),
     onSuccess: (_res, order) => {
-      setNotice(`Re-queued delivery for ${order.poNumber}. It will move back to "delivering".`);
+      setNotice(`Trying to send ${order.poNumber} again. It will move back to "sending".`);
       qc.invalidateQueries({ queryKey: ["ops-health"] });
       qc.invalidateQueries({ queryKey: ["ops-dead-letter"] });
     },
@@ -110,7 +110,7 @@ export default function OperationsHealthPage() {
   if (!queryEnabled || healthQ.isLoading) {
     return (
       <PageShell variant="wide">
-        <PageHeader title="Operations health" sub="Pipeline trouble at a glance — stuck, failed, and dead-lettered orders." />
+        <PageHeader title="Operations health" sub="Orders that are stuck, failed, or couldn't be delivered, at a glance." />
         <div style={{ color: "var(--ink-muted)", fontSize: 14 }}>Loading pipeline health…</div>
       </PageShell>
     );
@@ -118,7 +118,7 @@ export default function OperationsHealthPage() {
   if (healthQ.isError || healthQ.data === undefined) {
     return (
       <PageShell variant="wide">
-        <PageHeader title="Operations health" sub="Pipeline trouble at a glance — stuck, failed, and dead-lettered orders." />
+        <PageHeader title="Operations health" sub="Orders that are stuck, failed, or couldn't be delivered, at a glance." />
         <Card edge="none">
           <div style={{ color: "var(--danger)", fontSize: 14 }}>
             Could not load operations health. The API may be unavailable — retry shortly.
@@ -136,7 +136,7 @@ export default function OperationsHealthPage() {
     <PageShell variant="wide">
       <PageHeader
         title="Operations health"
-        sub="Pipeline trouble at a glance — stuck, failed, and dead-lettered orders."
+        sub="Orders that are stuck, failed, or couldn't be delivered, at a glance."
       />
 
       {/* Worker / pipeline-engine status — a dead Worker stalls the whole pipeline. */}
@@ -150,13 +150,13 @@ export default function OperationsHealthPage() {
         }}
       >
         <span style={{ width: 9, height: 9, borderRadius: "50%", flexShrink: 0, background: h.workerHealthy ? "var(--brand-green)" : "var(--danger)" }} />
-        <span style={{ fontWeight: 700 }}>{h.workerHealthy ? "Worker online" : "Worker OFFLINE"}</span>
+        <span style={{ fontWeight: 700 }}>{h.workerHealthy ? "Order processing is running" : "Order processing is paused"}</span>
         <span style={{ opacity: 0.9 }}>
           {h.workerHealthy
-            ? `${h.activeWorkers} active · last heartbeat ${formatHeartbeat(h.secondsSinceWorkerHeartbeat)}`
+            ? `Last checked ${formatHeartbeat(h.secondsSinceWorkerHeartbeat)}`
             : h.lastWorkerHeartbeatUtc
-              ? `No heartbeat in ${formatHeartbeat(h.secondsSinceWorkerHeartbeat)} — new uploads will stall until it recovers.`
-              : "No worker has reported in — uploads will stall at 'parsing' until a worker starts."}
+              ? `New uploads may wait until it recovers. (last checked ${formatHeartbeat(h.secondsSinceWorkerHeartbeat)})`
+              : "New uploads may wait until processing restarts. (no recent activity)"}
         </span>
       </div>
       {allClear ? (
@@ -199,7 +199,7 @@ export default function OperationsHealthPage() {
       <section style={{ marginTop: 28 }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 10, marginBottom: 12 }}>
           <h2 style={{ fontFamily: "var(--font-display)", fontSize: 18, fontWeight: 600, color: "var(--ink)", margin: 0 }}>
-            Dead-letter queue
+            Orders we couldn&apos;t deliver
           </h2>
           <label style={{ display: "inline-flex", alignItems: "center", gap: 7, fontSize: 12.5, color: "var(--ink-muted)", cursor: "pointer" }}>
             <input type="checkbox" checked={includeFailed} onChange={(e) => setIncludeFailed(e.target.checked)} />
@@ -259,7 +259,7 @@ export default function OperationsHealthPage() {
                           onClick={() => requeue.mutate(o)}
                           disabled={requeue.isPending}
                         >
-                          {requeue.isPending ? "Requeuing…" : "Requeue delivery"}
+                          {requeue.isPending ? "Sending…" : "Try sending again"}
                         </Button>
                       </td>
                     </tr>
@@ -298,7 +298,7 @@ export default function OperationsHealthPage() {
                       disabled={requeue.isPending}
                       style={{ width: "100%" }}
                     >
-                      {requeue.isPending ? "Requeuing…" : "Requeue delivery"}
+                      {requeue.isPending ? "Sending…" : "Try sending again"}
                     </Button>
                   </div>
                 </MobileListRow>

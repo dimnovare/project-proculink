@@ -126,7 +126,7 @@ const FEATURES: Array<{
   {
     icon: "layers",
     title: "Universal ingestion",
-    desc: "CSV, XLSX, PDF, cXML, UBL or X12 — drop a file straight in. JSON arrives via the REST API; EDIFACT and SAP IDoc we switch on with you. ProcuLink parses all of it into one canonical structure.",
+    desc: "CSV, XLSX, PDF, cXML, UBL or X12 — drop a file straight in. JSON arrives via the REST API; EDIFACT and SAP IDoc we switch on with you. ProcuLink parses all of it into one consistent order.",
     color: BLUE_DEEP,
     bg: BLUE_SOFT,
   },
@@ -146,7 +146,7 @@ const FEATURES: Array<{
   {
     icon: "code",
     title: "Order review workbench",
-    desc: "Side by side: source document, canonical view and the exact outbound payload. Resolve every exception before anything leaves your system.",
+    desc: "Side by side: source document, cleaned-up order and the exact outbound file. Resolve every exception before anything leaves your system.",
     color: AMBER,
     bg: AMBER_SOFT,
   },
@@ -174,7 +174,7 @@ const FEATURES: Array<{
   {
     icon: "layers",
     title: "Standards, on demand",
-    desc: "Every canonical field maps to UBL, EDIFACT, X12, cXML and Peppol BIS paths — always visible, never hidden behind a mode. Built for 30-year procurement veterans.",
+    desc: "Every order field maps to UBL, EDIFACT, X12, cXML and Peppol BIS paths — always visible, never hidden behind a mode. Built for 30-year procurement veterans.",
     color: BLUE_DEEP,
     bg: BLUE_SOFT,
   },
@@ -427,7 +427,7 @@ export default function RootPage() {
                     border: 0,
                   }}
                 >
-                  Canonical view
+                  Clean order
                 </button>
               </div>
             </div>
@@ -943,7 +943,7 @@ function CanonicalPreview() {
           ))}
         </div>
       </HeroPane>
-      <HeroPane title="Canonical order" accent="#FFFFFF">
+      <HeroPane title="Clean order" accent="#FFFFFF">
         <div style={{ display: "grid", gap: 8 }}>
           {rows.map(([label, value]) => (
             <div key={label} style={{ display: "flex", justifyContent: "space-between", gap: 14, padding: "10px 12px", borderRadius: 7, background: "#0F233C", border: `1px solid ${NAVY_BORDER}` }}>

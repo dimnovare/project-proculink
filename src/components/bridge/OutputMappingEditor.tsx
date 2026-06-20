@@ -331,8 +331,8 @@ function TemplateEditor({
         value={template}
         onChange={(e) => onTemplateChange(e.target.value)}
         spellCheck={false}
-        aria-label="Scriban output template"
-        placeholder={'Write a Scriban template that renders the whole document, e.g.\n{ "po": "{{ OrderNr }}", "lines": [{{ for Line in Lines }}…{{ end }}] }'}
+        aria-label="Custom output template"
+        placeholder={'Write a custom template that renders the whole document, e.g.\n{ "po": "{{ OrderNr }}", "lines": [{{ for Line in Lines }}…{{ end }}] }'}
         style={{
           width: "100%", minHeight: 280, resize: "vertical",
           border: "1px solid #C6CDDA", borderRadius: 8, padding: 12,
@@ -529,7 +529,7 @@ export function OutputMappingEditor({
             <div style={{ fontSize: 15, fontWeight: 700, color: "#0B1A2F" }}>Edit output mapping</div>
             <div style={{ fontSize: 11.5, color: "var(--ink-faint)" }}>
               {templateMode
-                ? "Render the whole document from one Scriban template."
+                ? "Render the whole document from one custom template."
                 : "Choose how each delivered field is built. Empty = the default transform."}
             </div>
           </div>
@@ -573,7 +573,7 @@ export function OutputMappingEditor({
           </button>
           <span style={{ fontSize: 11, color: "var(--ink-faint)" }}>
             {templateMode
-              ? "One Scriban template renders the entire output document (overrides field rules)."
+              ? "One custom template renders the entire output document (overrides field rules)."
               : "Map each delivered field one-by-one. Turn on to write a whole-document template instead."}
           </span>
         </div>

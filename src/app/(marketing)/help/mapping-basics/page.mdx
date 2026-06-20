@@ -40,9 +40,9 @@ When a source column doesn't match the canonical shape directly, attach manipula
 
 Manipulators run in order, each transforming the previous result. They're forgiving by design: one that can't apply (a date that doesn't match the input format, a non-numeric value in `Multiply`) passes the value through unchanged rather than destroying it.
 
-## Beyond manipulators: Scriban expressions (advanced)
+## Beyond manipulators: custom expressions (advanced)
 
-For logic a manipulator chain can't express — calculated values like `{{ line.Quantity * line.UnitPrice }}`, or combining order and line fields — the [output mapping editor](/help/output-mapping-editor) accepts free-form Scriban expressions and even a whole-document template. That's the escape hatch for a supplier's exact required structure; most mappings never need it.
+For logic a manipulator chain can't express — calculated values like `{{ line.Quantity * line.UnitPrice }}`, or combining order and line fields — the [output mapping editor](/help/output-mapping-editor) accepts free-form custom expressions and even a whole-document template. That's the escape hatch for a supplier's exact required structure; most mappings never need it.
 
 ## Testing a mapping
 

@@ -1,6 +1,6 @@
 export const metadata = {
   title: "Editing the output your supplier receives — ProcuLink Help",
-  description: "The per-order output mapping editor: sources, manipulator chains, Scriban expressions, whole-document templates, and live preview.",
+  description: "The per-order output mapping editor: sources, manipulator chains, custom expressions, whole-document templates, and live preview.",
 };
 
 # Editing the output your supplier receives
@@ -13,7 +13,7 @@ Open an order from the **Inbox** and choose **Edit output mapping** on the revie
 
 1. **Field rules** — one row per output field.
 2. **Custom fields** — extra values that don't exist in the parsed order.
-3. **Template mode** — one Scriban template that renders the whole document.
+3. **Template mode** — one custom template that renders the whole document.
 
 ## The default is "change nothing"
 
@@ -29,9 +29,9 @@ Each output field rule picks where its value comes from:
 
 Then an optional **manipulator chain** transforms it — the same eight manipulators as supplier-level mapping (Trim, Replace, DateFormat, Concat, Fallback, Split, Multiply, Divide; see [mapping basics](/help/mapping-basics)).
 
-## Scriban expressions (advanced)
+## Custom expressions (advanced)
 
-When a source-plus-manipulators recipe isn't enough, a rule can carry a free-form **Scriban expression** instead — it then takes precedence over the chosen source. Examples:
+When a source-plus-manipulators recipe isn't enough, a rule can carry a free-form **custom expression** instead — it then takes precedence over the chosen source. Examples:
 
 ```
 {{ order.PoNumber }}
@@ -47,7 +47,7 @@ Add header-scoped (one value per order) or line-scoped (one value per line) cust
 
 ## Template mode: the whole document as one template
 
-For suppliers with an exact required structure (say, a nested JSON with a `lines` array), switch to **template mode** and write the entire output document as one Scriban template:
+For suppliers with an exact required structure (say, a nested JSON with a `lines` array), switch to **template mode** and write the entire output document as one custom template:
 
 ```
 {"customerOrderNumber":"{{ OrderNr }}",

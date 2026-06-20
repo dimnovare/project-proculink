@@ -130,7 +130,7 @@ export const HELP_ARTICLES: HelpArticle[] = [
   {
     slug: "output-mapping-editor",
     title: "Editing the output your supplier receives",
-    blurb: "Per-order output overrides: pick sources, chain manipulators, write Scriban expressions or a whole-document template, and preview live.",
+    blurb: "Per-order output overrides: pick sources, chain manipulators, write custom expressions or a whole-document template, and preview live.",
     category: "Mapping",
     keywords: ["output mapping", "override", "scriban", "template", "manipulators", "preview", "custom field", "promote", "expression"],
     readMin: 6,
