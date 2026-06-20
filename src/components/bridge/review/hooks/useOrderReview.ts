@@ -54,12 +54,15 @@ export function useOrderReview(orderId: string) {
     retry: 2,
     retryDelay: 600,
     staleTime: 30_000,
-    // Auto-refresh while the pipeline is mid-flight so the screen updates on its
-    // own (parse → transform → deliver) instead of looking stuck until the 2-min
-    // banner fires. Stops polling once the order reaches a terminal state.
+    // Auto-refresh ONLY while the pipeline is auto-progressing (parse → transform)
+    // so the screen updates on its own instead of looking stuck until the 2-min
+    // banner fires. `ready_to_deliver` is a RESTING state that waits for the user
+    // to click Send — it never changes on its own, so polling it every 3s forever
+    // is pure waste (and ran indefinitely on every ready order). The send action
+    // owns its own delivering→delivered refresh via useSendFlow.
     refetchInterval: (query) => {
       const s = query.state.data?.status;
-      return s === "parsing" || s === "transforming" || s === "ready_to_deliver" ? 3_000 : false;
+      return s === "parsing" || s === "transforming" ? 3_000 : false;
     },
   });
 
