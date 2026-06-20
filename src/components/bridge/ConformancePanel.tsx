@@ -183,14 +183,14 @@ export function ConformancePanel({ orderId, supplierName, defaultFormat }: {
               ? "No standards profile for this format"
               : httpStatus === 422
                 ? "Resolve the order first"
-                : "Couldn't run the conformance check"}
+                : "Couldn't run the standards check"}
           </div>
           <p className="text-[12.5px] leading-relaxed mb-3" style={{ color: "var(--ink-muted)" }}>
             {errorBody?.error
               ? errorBody.error
               : httpStatus === 404
                 ? "This order was not found."
-                : "The conformance service didn't respond. Your order is safe — this is usually transient."}
+                : "The standards check didn't respond. Your order is safe — this is usually transient."}
             {errorBody?.detail ? <span className="block mt-1" style={{ color: "var(--ink-faint)" }}>{errorBody.detail}</span> : null}
           </p>
           <button
@@ -220,7 +220,7 @@ export function ConformancePanel({ orderId, supplierName, defaultFormat }: {
               <div className="flex items-center gap-2">
                 <UnifiedStatusBadge status={report.overallPass ? "delivered" : "rejected"} size="md" />
                 <span className="text-[13px] font-semibold" style={{ color: "var(--ink)" }}>
-                  {report.overallPass ? "Conformant" : "Not conformant"}
+                  {report.overallPass ? "Matches the standard" : "Doesn't match the standard"}
                 </span>
               </div>
               <p className="mt-1.5 text-[12px]" style={{ color: "var(--ink-muted)" }}>

@@ -302,8 +302,8 @@ export function OrderPassport({ orderId }: { orderId: string }) {
     return (
       <div className="flex flex-col items-center justify-center gap-3 py-16 px-6 text-center">
         <div style={{ fontSize: 26, color: "#C6CDDA" }}>⊘</div>
-        <p className="text-[14px] font-semibold" style={{ color: "#0B1A2F" }}>Couldn&apos;t load the passport</p>
-        <p className="text-[13px]" style={{ color: "#56627A" }}>The provenance record for this order is temporarily unavailable.</p>
+        <p className="text-[14px] font-semibold" style={{ color: "#0B1A2F" }}>Couldn&apos;t load the order history</p>
+        <p className="text-[13px]" style={{ color: "#56627A" }}>The history for this order is temporarily unavailable.</p>
         <button
           type="button"
           onClick={() => refetch()}
@@ -325,10 +325,10 @@ export function OrderPassport({ orderId }: { orderId: string }) {
       <div className="flex flex-wrap items-start justify-between gap-3 mb-5">
         <div className="min-w-0">
           <h2 style={{ fontFamily: "'Bricolage Grotesque', Inter, sans-serif", fontSize: 20, fontWeight: 700, letterSpacing: "-0.02em", color: "#0B1A2F" }}>
-            Order passport
+            Order history
           </h2>
           <p className="text-[12.5px] mt-1" style={{ color: "#56627A" }}>
-            Full provenance for <span className="font-mono" style={{ color: "#0F4FA8" }}>{passport.order.poNumber}</span> — every stage, decision, and delivery attempt, with the supplier&apos;s response.
+            Full history for <span className="font-mono" style={{ color: "#0F4FA8" }}>{passport.order.poNumber}</span> — every stage, decision, and delivery attempt, with the supplier&apos;s response.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -338,7 +338,7 @@ export function OrderPassport({ orderId }: { orderId: string }) {
             className="rounded-[6px] px-3 text-[12.5px] font-semibold"
             style={{ height: 32, background: "#0B1A2F", color: "#FFFFFF", border: "none", cursor: "pointer" }}
           >
-            {exported ? "✓ Downloaded" : "↓ Download acceptance proof"}
+            {exported ? "✓ Downloaded" : "↓ Download order record"}
           </button>
         </div>
       </div>
