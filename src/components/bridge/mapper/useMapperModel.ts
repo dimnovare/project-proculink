@@ -473,6 +473,18 @@ export function useMapperModel({
       saveErrRef.current = null;
       // Reflect the server's canonical copy into the cache + local draft.
       qc.setQueryData(["mapper-override", variant, scopeId, revisionId ?? null], doc);
+      // MV-1 / D-3 / D-4: for a per-ORDER override, the saved mapping changes what
+      // will be delivered. (1) Invalidate ["order", id] so status/artifact recompute
+      // from server truth — the backend resets a transformed order back to `ready` on
+      // an override change, and without this refetch the workshop keeps the stale
+      // ready_to_deliver status and Send redelivers the PRE-EDIT artifact. (2)
+      // Invalidate the host's ["mapping-override", id] read key — the workshop's
+      // "what we'll send" preview reads THAT, not the engine's ["mapper-override"] key,
+      // so it would otherwise show a stale preview until staleTime.
+      if (variant === "order") {
+        qc.invalidateQueries({ queryKey: ["order", scopeId] });
+        qc.invalidateQueries({ queryKey: ["mapping-override", scopeId] });
+      }
     },
     onError: (e) => { saveErrRef.current = e instanceof Error ? e.message : "Couldn’t save the mapping."; },
   });
