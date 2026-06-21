@@ -506,6 +506,14 @@ export function OutputMappingEditor({
 
   const isEmpty = headerRows.length === 0 && lineRows.length === 0 && customRows.length === 0;
 
+  // A structured OUTPUT TREE (built in the visual designer) governs this order's
+  // output. When one exists, the backend emitter renders the tree as the
+  // highest-precedence output mode — the field-by-field rules AND template-mode
+  // edits in THIS panel are silently ignored (see OutputStructureDesigner header
+  // + buildOverrideDraft, which carries `outputTree` through unchanged). Surface
+  // that honestly so a user can't edit, save, and see nothing change.
+  const treeGovernsOutput = existing?.outputTree != null;
+
   return createPortal(
     <div role="dialog" aria-label="Edit output mapping" style={{ position: "fixed", inset: 0, zIndex: 60, display: "flex", justifyContent: "flex-end" }}>
       {showDesigner && (
@@ -579,6 +587,38 @@ export function OutputMappingEditor({
         </div>
 
         <div style={{ flex: 1, overflowY: "auto", padding: 18, display: "flex", flexDirection: "column", gap: 18 }}>
+          {seeded && treeGovernsOutput && (
+            <div
+              role="alert"
+              style={{
+                display: "flex", gap: 12, alignItems: "flex-start",
+                fontSize: 12.5, lineHeight: 1.5, color: "#5E3DB0",
+                background: "#EEE7FB", border: "1px solid #DACEF3", borderRadius: 8,
+                padding: "11px 13px",
+              }}
+            >
+              <span aria-hidden style={{ fontSize: 15, lineHeight: 1.1 }}>⚄</span>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontWeight: 700, marginBottom: 2 }}>This output&apos;s structure is built in the visual designer.</div>
+                <div>
+                  Changes you make here are <strong>not applied</strong> while a designed structure governs this order&apos;s
+                  output — open the designer to edit it.
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowDesigner(true)}
+                style={{
+                  flexShrink: 0, minHeight: 32, padding: "0 12px",
+                  border: "1px solid #6F4FCE", borderRadius: 7,
+                  background: "#6F4FCE", color: "#FFFFFF",
+                  fontSize: 12, fontWeight: 600, cursor: "pointer",
+                }}
+              >
+                Open designer
+              </button>
+            </div>
+          )}
           {!seeded && (
             <div style={{ fontSize: 12.5, color: "#56627A", padding: "10px 12px", background: "#EEF3FB", border: "1px solid #D5E3F6", borderRadius: 8 }}>
               Loading the saved mapping…
