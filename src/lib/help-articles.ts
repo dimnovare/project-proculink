@@ -110,7 +110,7 @@ export const HELP_ARTICLES: HelpArticle[] = [
   {
     slug: "mapping-basics",
     title: "PO field mapping basics",
-    blurb: "Map your CSV columns to the canonical purchase-order fields ProcuLink expects.",
+    blurb: "Map your CSV columns to the standard purchase-order fields ProcuLink expects.",
     category: "Mapping",
     keywords: ["mapping", "columns", "fields", "manipulators", "starter template", "scriban", "erply", "directo", "expression", "auto-map"],
     readMin: 6,
@@ -211,7 +211,7 @@ export const HELP_ARTICLES: HelpArticle[] = [
   {
     slug: "exceptions-and-stuck-orders",
     title: "Working the exceptions queue",
-    blurb: "What lands in Exceptions, what Resolve and Ignore really do, and how to requeue a dead-lettered delivery.",
+    blurb: "What lands in Exceptions, what Resolve and Ignore really do, and how to requeue a failed delivery.",
     category: "Troubleshooting",
     keywords: ["exceptions", "stuck", "dead-letter", "requeue", "ignore", "resolve", "worker", "health", "delivery failed"],
     readMin: 5,

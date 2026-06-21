@@ -1,15 +1,15 @@
 export const metadata = {
   title: "PO field mapping basics — ProcuLink Help",
-  description: "Map your CSV columns to the canonical purchase-order fields ProcuLink expects.",
+  description: "Map your CSV columns to the standard purchase-order fields ProcuLink expects.",
 };
 
 # PO field mapping basics
 
-A mapping tells ProcuLink which column in your source file corresponds to each canonical purchase-order field. You build one mapping per buyer file shape.
+A mapping tells ProcuLink which column in your source file corresponds to each standard purchase-order field. You build one mapping per buyer file shape.
 
 ## Required fields
 
-Every order must resolve these five canonical fields:
+Every order must resolve these five standard fields:
 
 - `po_number` — the unique order identifier from the buyer.
 - `line_no` — the line index within the order, starting at 1.
@@ -28,7 +28,7 @@ You rarely have to build a mapping from a blank form:
 
 ## Manipulators
 
-When a source column doesn't match the canonical shape directly, attach manipulators. All eight:
+When a source column doesn't match the standard shape directly, attach manipulators. All eight:
 
 - `Trim` — drop leading/trailing whitespace introduced by Excel exports.
 - `Replace` — substitute text, e.g. strip a `SUP-` prefix from item codes.

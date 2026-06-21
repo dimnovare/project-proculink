@@ -13,7 +13,7 @@ You don't create connections by hand: one appears automatically under **Connecti
 
 Each revision is a complete snapshot of how orders for that supplier are processed:
 
-- the **input mapping** (how your file's columns become canonical order fields),
+- the **input mapping** (how your file's columns become standard order fields),
 - the **output mapping and output format** (what the supplier receives),
 - the **delivery setup** (protocol, configuration, auto-deliver on/off),
 - the **validation profile** (which acceptance rules check orders),
@@ -24,7 +24,7 @@ The day-to-day editing still happens in the supplier's own editors (mapping, del
 ## The lifecycle: draft → test → publish → archive
 
 1. **Draft** — create a draft revision, usually cloned from the live one. Drafts are the only editable state.
-2. **Test** — run the test pack. ProcuLink replays recent real orders through the draft and runs a conformance check. **Nothing is delivered** during a test. The result is stored honestly: a failed pack is recorded as failed, not hidden.
+2. **Test** — run the test pack. ProcuLink replays recent real orders through the draft and runs a standards check. **Nothing is delivered** during a test. The result is stored honestly: a failed pack is recorded as failed, not hidden.
 3. **Publish** — flips the draft live. Publishing requires a **passing** test run that is at least as new as your last edit — editing a draft clears its old test evidence, so you re-test after changes. Publishing archives the previously live revision; one revision is live per connection at a time.
 4. **Archive** — published revisions that get replaced become archived. Archived and published revisions are immutable — they can't be edited, only cloned into a new draft.
 

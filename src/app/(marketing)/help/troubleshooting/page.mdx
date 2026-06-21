@@ -9,7 +9,7 @@ Five issues account for most parse failures. Each one is fixable in your mapping
 
 ## Missing required column
 
-The file is missing one of the five required canonical fields (`po_number`, `line_no`, `item_code`, `quantity`, `unit_price`). Fix by renaming the source column in your mapping, or by adding a `Concat` manipulator to build the canonical field from two source columns.
+The file is missing one of the five required standard fields (`po_number`, `line_no`, `item_code`, `quantity`, `unit_price`). Fix by renaming the source column in your mapping, or by adding a `Concat` manipulator to build the standard field from two source columns.
 
 ## Ambiguous date format
 

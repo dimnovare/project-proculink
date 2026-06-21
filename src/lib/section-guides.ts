@@ -269,7 +269,7 @@ export const SECTION_GUIDES: SectionGuideEntry[] = [
   {
     route: "/library/standards",
     title: "Standards reference",
-    purpose: "A read-only table showing how each canonical PO field maps to cXML, UBL, EDIFACT, X12, and Peppol BIS.",
+    purpose: "A read-only table showing how each standard PO field maps to cXML, UBL, EDIFACT, X12, and Peppol BIS.",
     bullets: [
       { text: "Search fields or paths across all five standards" },
       { text: "Look up the exact reference for any field" },
@@ -300,7 +300,7 @@ export const SECTION_GUIDES: SectionGuideEntry[] = [
     bullets: [
       { text: "Check the worker banner — an offline worker stalls every upload" },
       { text: "Most count tiles link straight to the affected orders", href: "/inbox" },
-      { text: "Requeue failed deliveries from the dead-letter table" },
+      { text: "Requeue failed deliveries from the failed deliveries queue" },
       { text: "Open exceptions for anything needing a decision", href: "/operations/exceptions" },
       { text: "Counts refresh automatically every 45 seconds" },
     ],

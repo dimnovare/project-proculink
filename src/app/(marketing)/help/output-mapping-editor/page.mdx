@@ -23,7 +23,7 @@ An order with no override produces **byte-identical output** to your supplier-le
 
 Each output field rule picks where its value comes from:
 
-- a **canonical field** (PO number, order date, buyer, currency, supplier; per line: line number, buyer/supplier item code, description, quantity, unit, unit price, line total),
+- a **standard field** (PO number, order date, buyer, currency, supplier; per line: line number, buyer/supplier item code, description, quantity, unit, unit price, line total),
 - a **custom field** you added,
 - a **fixed value** — the same literal on every order or line.
 
@@ -43,7 +43,7 @@ Expressions run in a sandbox: a broken expression never crashes the transform �
 
 ## Custom fields
 
-Add header-scoped (one value per order) or line-scoped (one value per line) custom fields, then reference them from output rules. Custom fields live only on this order — they never alter the parsed canonical data.
+Add header-scoped (one value per order) or line-scoped (one value per line) custom fields, then reference them from output rules. Custom fields live only on this order — they never alter the parsed standard data.
 
 ## Template mode: the whole document as one template
 
