@@ -12,8 +12,8 @@ export interface Pt { id: string; x: number; y: number; }
 /**
  * Cubic-bezier path string for a wire from (x1,y1) to (x2,y2). The horizontal
  * control-point offset is clamped to [24, 80] of |dx|*0.5 → a tidy S-curve with no
- * giant bulge over large vertical spans (matches SpineConnectors.curve). Verbatim
- * from WireDragLayer.bezier / SourceWireDragLayer.bezier.
+ * giant bulge over large vertical spans. Verbatim from WireDragLayer.bezier /
+ * SourceWireDragLayer.bezier.
  */
 export function bezier(x1: number, y1: number, x2: number, y2: number): string {
   const dx = x2 - x1;
