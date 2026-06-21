@@ -20,14 +20,15 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
-  getMappingOverride, upsertMappingOverride, previewMappingOverride,
+  getMappingOverride, upsertMappingOverride, previewMappingOverride, getSourceTokens,
 } from "@/lib/api-client";
 import { OutputStructureDesigner } from "./OutputStructureDesigner";
+import { OutputSourcePicker } from "./OutputSourcePicker";
 import {
   MANIPULATOR_TYPES, CANONICAL_HEADER_FIELDS, CANONICAL_LINE_FIELDS,
   SCRIBAN_TEMPLATE_GROUPS, TEMPLATE_CONTENT_TYPES, PREVIEW_FORMATS, SCRIBAN_STARTER_TEMPLATE,
   type OrderMappingOverride, type OutputFieldRule, type ManipulatorEntry, type CustomField,
-  type OutputFormatId, type SourceFieldRule, type OutputNodeTemplate,
+  type OutputFormatId, type SourceFieldRule, type OutputNodeTemplate, type SourceToken,
 } from "@/lib/api/types";
 
 type Scope = "header" | "lines";
@@ -36,8 +37,6 @@ type CustomRow = { id: string; field: CustomField };
 
 let _rid = 0;
 const newId = () => `r${++_rid}`;
-
-const FIXED = "__fixed__";
 
 function toRows(rec: Record<string, OutputFieldRule> | undefined): Row[] {
   return Object.entries(rec ?? {}).map(([, rule]) => ({ id: newId(), rule: { fieldManipulators: [], ...rule } }));
@@ -121,14 +120,18 @@ function ManipChip({ entry, onChange, onRemove }: {
   );
 }
 
-function RuleRow({ row, sources, onChange, onRemove }: {
+function RuleRow({ row, sources, sourceTokens, onChange, onRemove }: {
   row: Row;
   sources: string[];
+  sourceTokens: ReadonlyArray<SourceToken>;
   onChange: (patch: Partial<OutputFieldRule>) => void;
   onRemove: () => void;
 }) {
   const rule = row.rule;
-  const usingFixed = rule.fixedValue != null && (rule.canonicalField == null || rule.canonicalField === "");
+  const usingFixed =
+    rule.fixedValue != null &&
+    (rule.canonicalField == null || rule.canonicalField === "") &&
+    (rule.sourceToken == null || rule.sourceToken === "");
   return (
     <div style={{ border: "1px solid #E2E6EE", borderRadius: 8, padding: 10, background: "#FFFFFF" }}>
       <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
@@ -140,22 +143,19 @@ function RuleRow({ row, sources, onChange, onRemove }: {
           style={{ ...inputStyle, flex: "1 1 140px", minWidth: 120, fontFamily: "'JetBrains Mono',monospace" }}
         />
         <span style={{ color: "var(--ink-faint)", fontSize: 13 }} aria-hidden>=</span>
-        <select
-          value={usingFixed ? FIXED : (rule.canonicalField ?? "")}
-          onChange={(e) => {
-            const v = e.target.value;
-            if (v === FIXED) onChange({ canonicalField: null, fixedValue: rule.fixedValue ?? "" });
-            else onChange({ canonicalField: v || null, fixedValue: null });
-          }}
-          aria-label="Source field"
-          style={{ ...inputStyle, flex: "1 1 150px", minWidth: 140, background: "#FFFFFF" }}
-        >
-          <option value="">— pick a source —</option>
-          <optgroup label="Order/line fields">
-            {sources.map((s) => <option key={s} value={s}>{s}</option>)}
-          </optgroup>
-          <option value={FIXED}>Fixed value…</option>
-        </select>
+        <OutputSourcePicker
+          outputPath={rule.outputPath || "this field"}
+          binding={rule}
+          canonicalFields={sources}
+          sourceTokens={sourceTokens}
+          // Picking a canonical field clears the source-token + fixed-value bindings (they are
+          // alternative bindings; precedence is SourceToken over CanonicalField on the backend).
+          onPickCanonical={(f) => onChange({ canonicalField: f, sourceToken: null, fixedValue: null })}
+          // Picking a SOURCE token writes the BARE id and clears canonicalField + fixedValue.
+          onPickSourceToken={(id) => onChange({ sourceToken: id, canonicalField: null, fixedValue: null })}
+          onPickFixed={() => onChange({ fixedValue: rule.fixedValue ?? "", canonicalField: null, sourceToken: null })}
+          onClear={() => onChange({ canonicalField: null, sourceToken: null, fixedValue: null })}
+        />
         {usingFixed && (
           <input
             value={rule.fixedValue ?? ""}
@@ -191,11 +191,12 @@ function RuleRow({ row, sources, onChange, onRemove }: {
   );
 }
 
-function RuleSection({ title, scope, rows, sources, setRows }: {
+function RuleSection({ title, scope, rows, sources, sourceTokens, setRows }: {
   title: string;
   scope: Scope;
   rows: Row[];
   sources: string[];
+  sourceTokens: ReadonlyArray<SourceToken>;
   setRows: (r: Row[]) => void;
 }) {
   return (
@@ -206,7 +207,7 @@ function RuleSection({ title, scope, rows, sources, setRows }: {
           <div style={{ fontSize: 12, color: "var(--ink-faint)", padding: "2px 0" }}>None — the default transform is used for {scope === "header" ? "header" : "line"} fields. Add one to override it.</div>
         )}
         {rows.map((r) => (
-          <RuleRow key={r.id} row={r} sources={sources}
+          <RuleRow key={r.id} row={r} sources={sources} sourceTokens={sourceTokens}
             onChange={(patch) => setRows(rows.map((x) => x.id === r.id ? { ...x, rule: { ...x.rule, ...patch } } : x))}
             onRemove={() => setRows(rows.filter((x) => x.id !== r.id))}
           />
@@ -359,6 +360,17 @@ export function OutputMappingEditor({
     queryFn: () => getMappingOverride(orderId),
     enabled: open,
     staleTime: 10_000,
+  });
+
+  // F-1: the FULL source-field universe for this order (CSV cells / XML leaves+attrs / EDI / JSON
+  // leaves / PDF-email raw_fields), each with a sample value. Feeds the binding picker so an output
+  // node can bind to ANY incoming field, not just the ~13 canonical names. Returns [] for formats
+  // with no token capture, in which case the picker shows only the canonical/custom fields.
+  const { data: sourceTokens } = useQuery({
+    queryKey: ["source-tokens", orderId],
+    queryFn: () => getSourceTokens(orderId),
+    enabled: open,
+    staleTime: 30_000,
   });
 
   // Portal mount guard — document.body only exists client-side after mount.
@@ -650,8 +662,8 @@ export function OutputMappingEditor({
                 </div>
               )}
               <CustomFieldsSection rows={customRows} setRows={setCustomRows} />
-              <RuleSection title="Header fields" scope="header" rows={headerRows} sources={headerSources} setRows={setHeaderRows} />
-              <RuleSection title="Line fields" scope="lines" rows={lineRows} sources={lineSources} setRows={setLineRows} />
+              <RuleSection title="Header fields" scope="header" rows={headerRows} sources={headerSources} sourceTokens={sourceTokens ?? []} setRows={setHeaderRows} />
+              <RuleSection title="Line fields" scope="lines" rows={lineRows} sources={lineSources} sourceTokens={sourceTokens ?? []} setRows={setLineRows} />
             </>
           ))}
           <section>

@@ -8,11 +8,13 @@
 // polish is a follow-up.
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { previewMappingOverride, upsertMappingOverride, inferOutputStructure } from "@/lib/api-client";
+import { useQuery } from "@tanstack/react-query";
+import { previewMappingOverride, upsertMappingOverride, inferOutputStructure, getSourceTokens } from "@/lib/api-client";
+import { OutputSourcePicker } from "./OutputSourcePicker";
 import {
   CANONICAL_HEADER_FIELDS, CANONICAL_LINE_FIELDS,
   type OrderMappingOverride, type OutputNode, type OutputNodeTemplate,
-  type OutputNodeType, type OutputFormat,
+  type OutputNodeType, type OutputFormat, type SourceToken,
 } from "@/lib/api/types";
 
 // Only the formats the backend OutputTemplateEmitter produces VALIDLY from a generic node tree
@@ -160,6 +162,15 @@ export function OutputStructureDesigner({
   // tree stays hidden until the user either infers a sample or explicitly chooses "start blank".
   // This avoids showing a populated tree + a paste-a-sample prompt at once (two competing affordances).
   const [firstRun, setFirstRun] = useState(initialTree == null);
+
+  // F-1: the full source-field universe for this order, so a node can bind to ANY incoming field
+  // (CSV cell / XML leaf+attr / EDI / JSON leaf / PDF-email raw_field), each with a sample value —
+  // not just the ~13 canonical names. [] for formats with no token capture.
+  const { data: sourceTokens } = useQuery({
+    queryKey: ["source-tokens", orderId],
+    queryFn: () => getSourceTokens(orderId),
+    staleTime: 30_000,
+  });
 
   const infer = useCallback(async () => {
     const s = sample.trim();
@@ -319,7 +330,7 @@ export function OutputStructureDesigner({
             </div>
 
             {/* The editable tree is hidden during first-run (the infer panel owns the screen). */}
-            {!firstRun && <NodeEditor node={tree.root} path={[]} lineScope={false} onUpdate={setRoot} isRoot />}
+            {!firstRun && <NodeEditor node={tree.root} path={[]} lineScope={false} onUpdate={setRoot} sourceTokens={sourceTokens ?? []} isRoot />}
           </div>
           <div style={{ overflow: isNarrow ? "visible" : "auto", padding: 16, background: "#0B1626" }}>
             <div style={{ fontSize: 11, color: "#8FA3BF", marginBottom: 8, textTransform: "uppercase", letterSpacing: 0.4 }}>
@@ -373,31 +384,36 @@ const PRESET_SHORT: Record<string, string> = {
 // ── Recursive node editor ──────────────────────────────────────────────────────
 
 function NodeEditor({
-  node, path, lineScope, onUpdate, isRoot,
+  node, path, lineScope, onUpdate, sourceTokens, isRoot,
 }: {
   node: OutputNode;
   path: number[];
   lineScope: boolean;
   onUpdate: (fn: (n: OutputNode) => OutputNode) => void;
+  sourceTokens: ReadonlyArray<SourceToken>;
   isRoot?: boolean;
 }) {
   const isContainer = node.nodeType === "object" || node.nodeType === "array";
   const childScope = lineScope || node.nodeType === "array";
 
   // Which inline editor (if any) is open for THIS row. Only one open at a time keeps the row clean.
-  const [editing, setEditing] = useState<null | "name" | "bind" | "format" | "condition">(null);
+  const [editing, setEditing] = useState<null | "name" | "format" | "condition">(null);
   const [hover, setHover] = useState(false);
 
   const updateName = (name: string) => onUpdate((n) => updateAt(n, path, (x) => ({ ...x, name })));
   const remove = () => onUpdate((n) => removeAt(n, path));
   const addChild = (child: OutputNode) =>
     onUpdate((n) => updateAt(n, path, (x) => ({ ...x, children: [...(x.children ?? []), child] })));
-  const updateRuleField = (key: "canonicalField" | "fixedValue", value: string | null) =>
+  // Bind a node to ONE source: a canonical field, a SOURCE token (bare id), or a fixed value — the
+  // three are mutually exclusive, so setting one nulls the other two. The format manipulators are
+  // preserved across a rebind.
+  const setBinding = (key: "canonicalField" | "sourceToken" | "fixedValue", value: string | null) =>
     onUpdate((n) => updateAt(n, path, (x) => ({
       ...x,
       rule: {
         outputPath: x.name,
         canonicalField: key === "canonicalField" ? value : null,
+        sourceToken: key === "sourceToken" ? value : null,
         fixedValue: key === "fixedValue" ? value : null,
         fieldManipulators: x.rule?.fieldManipulators ?? [],
       },
@@ -412,25 +428,19 @@ function NodeEditor({
       const others = (x.rule?.fieldManipulators ?? []).filter((m) => !FORMAT_TYPES.has(m.type));
       const preset = FORMAT_PRESETS.find((p) => p.key === key);
       const manis = preset?.mani ? [...others, preset.mani] : others;
-      return { ...x, rule: { outputPath: x.name, canonicalField: x.rule?.canonicalField ?? null, fixedValue: x.rule?.fixedValue ?? null, fieldManipulators: manis } };
+      return { ...x, rule: { outputPath: x.name, canonicalField: x.rule?.canonicalField ?? null, sourceToken: x.rule?.sourceToken ?? null, fixedValue: x.rule?.fixedValue ?? null, fieldManipulators: manis } };
     }));
 
   const canonicalOptions = childScope ? CANONICAL_LINE_FIELDS : CANONICAL_HEADER_FIELDS;
   const boundCanonical = node.rule?.canonicalField ?? "";
-  const usingFixed = node.rule?.fixedValue != null && node.rule?.canonicalField == null;
-  const bound = !!boundCanonical || usingFixed;
+  const boundToken = node.rule?.sourceToken ?? "";
+  const usingFixed = node.rule?.fixedValue != null && !boundCanonical && !boundToken;
+  const bound = !!boundCanonical || !!boundToken || usingFixed;
   const presetKey = currentPreset(node.rule?.fieldManipulators);
   const hasCondition = !!node.includeWhen;
   // "Only include when…" is meaningful on any non-root node (a list ITEM uses it to drop lines).
   const scopeHint = childScope ? "line" : "order";
   const pill = TYPE_PILL[node.nodeType];
-
-  // The binding pill text: the bound canonical field, the fixed value, or a "needs source" prompt.
-  const bindLabel = boundCanonical
-    ? boundCanonical
-    : usingFixed
-      ? `"${node.rule?.fixedValue ?? ""}"`
-      : null;
 
   return (
     <div style={{ paddingLeft: isRoot ? 0 : 18, marginTop: isRoot ? 0 : 4 }}>
@@ -443,7 +453,7 @@ function NodeEditor({
           border: `1px solid ${isContainer ? "#E6EAF1" : "#ECEFF4"}`,
           background: isContainer ? "#FBFCFE" : "#FFFFFF",
           // Left status bar (§7.2): green=mapped / violet=fixed / grey=unset/container.
-          boxShadow: `inset 3px 0 0 0 ${isContainer ? "#D8DEE9" : usingFixed ? "#6F4FCE" : boundCanonical ? GREEN : "#E2E6EE"}`,
+          boxShadow: `inset 3px 0 0 0 ${isContainer ? "#D8DEE9" : usingFixed ? "#6F4FCE" : (boundCanonical || boundToken) ? GREEN : "#E2E6EE"}`,
         }}>
         {/* Type pill */}
         <span title={node.nodeType} style={{ flex: "0 0 auto", fontFamily: MONO, fontSize: 11, fontWeight: 700, color: pill.fg, background: pill.bg, border: `1px solid ${pill.border}`, borderRadius: 5, height: 22, display: "inline-flex", alignItems: "center", justifyContent: "center", padding: "0 7px", minWidth: 34 }}>
@@ -463,41 +473,21 @@ function NodeEditor({
           </button>
         )}
 
-        {/* Binding (value nodes + attributes only — containers carry no value). */}
+        {/* Binding (value nodes + attributes only — containers carry no value). The picker offers
+            EVERY source field (canonical first, then "More source fields…" for the raw token
+            universe — F-1) plus a fixed value, and reports the chosen binding inline. */}
         {!isContainer && (
-          editing === "bind" ? (
-            <span style={{ display: "inline-flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
-              <select autoFocus value={usingFixed ? "__fixed__" : boundCanonical}
-                onChange={(e) => e.target.value === "__fixed__" ? updateRuleField("fixedValue", "") : updateRuleField("canonicalField", e.target.value)}
-                onBlur={() => { if (!usingFixed) setEditing(null); }}
-                aria-label="Source field"
-                style={{ height: 26, border: `1px solid ${BLUE}`, borderRadius: 6, padding: "0 6px", fontSize: 12 }}>
-                <option value="">— pick field —</option>
-                {canonicalOptions.map((f) => <option key={f} value={f}>{f}</option>)}
-                <option value="__fixed__">Fixed value…</option>
-              </select>
-              {usingFixed && (
-                <input value={node.rule?.fixedValue ?? ""} onChange={(e) => updateRuleField("fixedValue", e.target.value)}
-                  onBlur={() => setEditing(null)} onKeyDown={(e) => { if (e.key === "Enter") setEditing(null); }}
-                  placeholder="value" aria-label="Fixed value"
-                  style={{ width: 110, height: 26, border: `1px solid ${BORDER}`, borderRadius: 6, padding: "0 8px", fontSize: 12, fontFamily: MONO }} />
-              )}
-              <button onClick={() => setEditing(null)} aria-label="Done editing source" style={{ height: 26, padding: "0 8px", borderRadius: 6, border: `1px solid ${BORDER}`, background: "#FFF", color: SLATE, fontSize: 11, cursor: "pointer" }}>done</button>
-            </span>
-          ) : bound ? (
-            // Inline GREEN binding pill (image 07): "← <field>" / fixed value, mono, click to rebind.
-            <button onClick={() => setEditing("bind")} title="Click to change the source"
-              aria-label={`Source: ${bindLabel}. Click to change.`}
-              style={{ flex: "0 0 auto", display: "inline-flex", alignItems: "center", gap: 5, height: 22, padding: "0 9px", borderRadius: 999, border: `1px solid #CDE7D1`, background: "#F1F8F2", color: GREEN_DEEP, fontFamily: MONO, fontSize: 11, fontWeight: 600, cursor: "pointer", maxWidth: 240, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-              <span aria-hidden style={{ opacity: 0.8 }}>←</span>{bindLabel}
-            </button>
-          ) : (
-            // Unset — a low-emphasis dashed "+ pick a field" affordance (§7.2 needs-source button).
-            <button onClick={() => setEditing("bind")} aria-label="Pick a source field"
-              style={{ flex: "0 0 auto", display: "inline-flex", alignItems: "center", height: 22, padding: "0 10px", borderRadius: 999, border: "1.5px dashed #C9A86A", background: "#FFF", color: "#8A5A0E", fontSize: 10, fontWeight: 700, cursor: "pointer" }}>
-              + pick a field
-            </button>
-          )
+          <FixedValueOrPicker
+            node={node}
+            usingFixed={usingFixed}
+            canonicalOptions={canonicalOptions}
+            sourceTokens={sourceTokens}
+            onPickCanonical={(f) => setBinding("canonicalField", f)}
+            onPickSourceToken={(id) => setBinding("sourceToken", id)}
+            onPickFixed={() => setBinding("fixedValue", node.rule?.fixedValue ?? "")}
+            onChangeFixed={(v) => setBinding("fixedValue", v)}
+            onClear={() => setBinding("canonicalField", null)}
+          />
         )}
 
         {/* Compact pills (only render when SET) — format + condition. Each is click-to-edit with a ×. */}
@@ -562,7 +552,7 @@ function NodeEditor({
         <>
           <div style={{ marginTop: 4, borderLeft: isRoot ? "none" : "2px solid #ECEFF4", marginLeft: isRoot ? 0 : 4, paddingLeft: isRoot ? 0 : 2 }}>
             {(node.children ?? []).map((c, i) => (
-              <NodeEditor key={i} node={c} path={[...path, i]} lineScope={childScope} onUpdate={onUpdate} />
+              <NodeEditor key={i} node={c} path={[...path, i]} lineScope={childScope} onUpdate={onUpdate} sourceTokens={sourceTokens} />
             ))}
           </div>
           <div style={{ display: "flex", gap: 6, marginTop: 5, marginLeft: isRoot ? 0 : 18, flexWrap: "wrap" }}>
@@ -574,6 +564,45 @@ function NodeEditor({
         </>
       )}
     </div>
+  );
+}
+
+// The node's source binding: the F-1 OutputSourcePicker (canonical first, then "More source
+// fields…" for the raw token universe + "= Fixed value…") rendered as a compact green pill, plus an
+// inline fixed-value text input shown only while the node is bound to a fixed value.
+function FixedValueOrPicker({
+  node, usingFixed, canonicalOptions, sourceTokens,
+  onPickCanonical, onPickSourceToken, onPickFixed, onChangeFixed, onClear,
+}: {
+  node: OutputNode;
+  usingFixed: boolean;
+  canonicalOptions: ReadonlyArray<string>;
+  sourceTokens: ReadonlyArray<SourceToken>;
+  onPickCanonical: (f: string) => void;
+  onPickSourceToken: (id: string) => void;
+  onPickFixed: () => void;
+  onChangeFixed: (v: string) => void;
+  onClear: () => void;
+}) {
+  return (
+    <span style={{ display: "inline-flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
+      <OutputSourcePicker
+        outputPath={node.name}
+        binding={node.rule ?? {}}
+        canonicalFields={canonicalOptions}
+        sourceTokens={sourceTokens}
+        onPickCanonical={onPickCanonical}
+        onPickSourceToken={onPickSourceToken}
+        onPickFixed={onPickFixed}
+        onClear={onClear}
+        compact
+      />
+      {usingFixed && (
+        <input value={node.rule?.fixedValue ?? ""} onChange={(e) => onChangeFixed(e.target.value)}
+          placeholder="value" aria-label="Fixed value"
+          style={{ width: 110, height: 26, border: `1px solid ${BORDER}`, borderRadius: 6, padding: "0 8px", fontSize: 12, fontFamily: MONO }} />
+      )}
+    </span>
   );
 }
 

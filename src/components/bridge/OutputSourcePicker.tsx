@@ -1,0 +1,392 @@
+"use client";
+
+// OutputSourcePicker — F-1 "bind ANY incoming source field" for the OUTPUT side.
+//
+// Replaces the hard-coded 13-canonical-name <select> in OutputMappingEditor and
+// OutputStructureDesigner with a grouped, typeahead picker fed by getSourceTokens(orderId).
+// It lets an output node bind to:
+//   • a canonical field   → writes rule.canonicalField, clears rule.sourceToken
+//   • ANY source token     → writes rule.sourceToken (the BARE token id), clears rule.canonicalField
+//   • a fixed value        → host handles via onPickFixed
+//
+// PROGRESSIVE DISCLOSURE (design §6): a wide XML/UBL file yields hundreds of tokens, so the
+// canonical fields show FIRST. The raw source tokens are hidden behind a "More source fields…"
+// disclosure (also auto-revealed when the user types a query, so search reaches them). This reuses
+// the grouping + typeahead-on-label-AND-value pattern from mapper/SourcePickerChip.tsx.
+//
+// Pure presentation: it never mutates the override; it calls back to the host which patches the
+// OutputFieldRule. Keyboard-accessible: trigger is a button, the panel is a listbox, Escape closes,
+// ArrowUp/Down move, Enter selects.
+
+import { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
+import type { SourceToken } from "@/lib/api/types";
+
+const PANEL_W = 300;
+
+/** What the picker currently shows on its trigger chip. */
+export interface OutputBinding {
+  /** A canonical field name, or null. */
+  canonicalField?: string | null;
+  /** A bare SourceToken id, or null. */
+  sourceToken?: string | null;
+  /** A fixed literal value, or null. */
+  fixedValue?: string | null;
+}
+
+export interface OutputSourcePickerProps {
+  /** Stable id for aria wiring (the output field name is fine). */
+  outputPath: string;
+  /** The current binding shown on the chip. */
+  binding: OutputBinding;
+  /** Canonical field names offered first (header or line scope, + custom keys). */
+  canonicalFields: ReadonlyArray<string>;
+  /** Every source field for this order (CSV cells / XML leaves+attrs / EDI / JSON / raw). */
+  sourceTokens: ReadonlyArray<SourceToken>;
+  /** Pick a canonical field: host sets canonicalField, clears sourceToken + fixedValue. */
+  onPickCanonical: (canonicalField: string) => void;
+  /** Pick a source token (bare id): host sets sourceToken, clears canonicalField + fixedValue. */
+  onPickSourceToken: (tokenId: string) => void;
+  /** Switch the row to a fixed value (host shows/uses its own fixed-value input). */
+  onPickFixed: () => void;
+  /** Clear the binding back to "— pick a source —". */
+  onClear?: () => void;
+  /** Compact (designer pill) vs default (editor select-width) trigger. */
+  compact?: boolean;
+}
+
+/** The label + sample value to show for the current binding (so the chosen binding is legible). */
+function describeBinding(
+  binding: OutputBinding,
+  sourceTokens: ReadonlyArray<SourceToken>,
+): { label: string; sample: string | null; unset: boolean } {
+  if (binding.fixedValue != null && !binding.canonicalField && !binding.sourceToken) {
+    return { label: `"${binding.fixedValue}"`, sample: null, unset: false };
+  }
+  if (binding.sourceToken) {
+    const t = sourceTokens.find((x) => x.id === binding.sourceToken);
+    return { label: t?.label ?? binding.sourceToken, sample: t?.value ?? null, unset: false };
+  }
+  if (binding.canonicalField) {
+    return { label: binding.canonicalField, sample: null, unset: false };
+  }
+  return { label: "pick a source", sample: null, unset: true };
+}
+
+type Option =
+  | { kind: "canonical"; id: string; label: string; value: string | null }
+  | { kind: "token"; id: string; label: string; value: string; group: SourceToken["group"] };
+
+const GROUP_LABEL: Record<string, string> = {
+  header: "Header fields", line: "Line items", parties: "Parties", raw: "Raw extras",
+};
+const GROUP_ORDER = ["header", "line", "parties", "raw"];
+
+export function OutputSourcePicker({
+  outputPath, binding, canonicalFields, sourceTokens,
+  onPickCanonical, onPickSourceToken, onPickFixed, onClear, compact,
+}: OutputSourcePickerProps) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  // Progressive disclosure: the raw source tokens are collapsed until the user expands them
+  // (or types a query, which auto-reveals so search can reach them).
+  const [showMore, setShowMore] = useState(false);
+  const [active, setActive] = useState(0);
+  const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
+  const triggerRef = useRef<HTMLButtonElement | null>(null);
+  const panelRef = useRef<HTMLDivElement | null>(null);
+  const inputRef = useRef<HTMLInputElement | null>(null);
+
+  const q = query.trim().toLowerCase();
+  const tokensExpanded = showMore || q.length > 0;
+
+  const canonicalOptions = useMemo<Option[]>(
+    () => canonicalFields
+      .filter((f) => !q || f.toLowerCase().includes(q))
+      .map((f) => ({ kind: "canonical" as const, id: f, label: f, value: null })),
+    [canonicalFields, q],
+  );
+
+  const tokenOptions = useMemo<Option[]>(
+    () => sourceTokens
+      .filter((t) => !q || t.label.toLowerCase().includes(q) || t.value.toLowerCase().includes(q))
+      .map((t) => ({ kind: "token" as const, id: t.id, label: t.label, value: t.value, group: t.group })),
+    [sourceTokens, q],
+  );
+
+  // Flat list that keyboard nav walks: canonical first, then (when expanded) the grouped tokens.
+  const flat = useMemo<Option[]>(
+    () => (tokensExpanded ? [...canonicalOptions, ...tokenOptions] : canonicalOptions),
+    [canonicalOptions, tokenOptions, tokensExpanded],
+  );
+
+  const desc = describeBinding(binding, sourceTokens);
+  const canClear = !!onClear && (!!binding.canonicalField || !!binding.sourceToken || binding.fixedValue != null);
+
+  // Position the portaled panel under the trigger, flipped above when it would overflow.
+  useEffect(() => {
+    if (!open) return;
+    function place() {
+      const r = triggerRef.current?.getBoundingClientRect();
+      if (!r) return;
+      const margin = 8;
+      const estH = panelRef.current?.offsetHeight ?? 320;
+      let left = Math.min(r.left, window.innerWidth - PANEL_W - margin);
+      left = Math.max(margin, left);
+      const below = r.bottom + 6;
+      const flip = below + estH > window.innerHeight - margin;
+      const top = flip ? Math.max(margin, r.top - estH - 6) : below;
+      setPos({ top, left });
+    }
+    place();
+    window.addEventListener("scroll", place, true);
+    window.addEventListener("resize", place);
+    return () => {
+      window.removeEventListener("scroll", place, true);
+      window.removeEventListener("resize", place);
+    };
+  }, [open, flat.length, tokensExpanded]);
+
+  useEffect(() => { if (open) inputRef.current?.focus(); }, [open]);
+  useEffect(() => { setActive(0); }, [query, open, tokensExpanded]);
+
+  useEffect(() => {
+    if (!open) return;
+    function onDoc(e: MouseEvent) {
+      if (panelRef.current?.contains(e.target as Node)) return;
+      if (triggerRef.current?.contains(e.target as Node)) return;
+      close();
+    }
+    document.addEventListener("mousedown", onDoc);
+    return () => document.removeEventListener("mousedown", onDoc);
+  }, [open]);
+
+  function close() { setOpen(false); setQuery(""); setShowMore(false); }
+  function pick(opt: Option) {
+    if (opt.kind === "canonical") onPickCanonical(opt.id);
+    else onPickSourceToken(opt.id);
+    close();
+  }
+
+  function onKeyDown(e: React.KeyboardEvent) {
+    if (e.key === "Escape") { e.preventDefault(); close(); return; }
+    if (e.key === "ArrowDown") { e.preventDefault(); setActive((a) => Math.min(a + 1, flat.length - 1)); return; }
+    if (e.key === "ArrowUp") { e.preventDefault(); setActive((a) => Math.max(a - 1, 0)); return; }
+    if (e.key === "Enter") {
+      e.preventDefault();
+      const opt = flat[active];
+      if (opt) pick(opt);
+    }
+  }
+
+  // Group the (filtered) token options for display, preserving GROUP_ORDER.
+  const tokenGroups = useMemo(() => {
+    const buckets = new Map<string, Option[]>();
+    for (const o of tokenOptions) {
+      const g = (o.kind === "token" ? o.group : null) ?? "raw";
+      if (!buckets.has(g)) buckets.set(g, []);
+      buckets.get(g)!.push(o);
+    }
+    return GROUP_ORDER
+      .filter((g) => buckets.has(g))
+      .map((g) => ({ group: g, items: buckets.get(g)! }));
+  }, [tokenOptions]);
+
+  const triggerStyle: React.CSSProperties = compact
+    ? {
+        display: "inline-flex", alignItems: "center", gap: 5, maxWidth: 220, height: 22,
+        padding: "0 9px", borderRadius: 999,
+        border: `1px ${desc.unset ? "dashed" : "solid"} ${desc.unset ? "#C9D0DC" : "#CDE7D1"}`,
+        background: desc.unset ? "#FFFFFF" : "#F1F8F2",
+        color: desc.unset ? "#56627A" : "#1E6D29",
+        fontFamily: "'JetBrains Mono', ui-monospace, Menlo, monospace",
+        fontSize: 11, fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap",
+      }
+    : {
+        display: "inline-flex", alignItems: "center", gap: 6, flex: "1 1 150px", minWidth: 140,
+        minHeight: 36, padding: "5px 10px", borderRadius: 6, justifyContent: "space-between",
+        border: "1px solid #C6CDDA", background: "#FFFFFF",
+        color: desc.unset ? "#56627A" : "#0B1A2F",
+        fontSize: 12.5, cursor: "pointer", whiteSpace: "nowrap",
+      };
+
+  return (
+    <span style={{ display: "inline-flex", alignItems: "center", gap: 4, flexShrink: 0 }}>
+      {compact && <span aria-hidden style={{ fontSize: 9, fontWeight: 800, color: "#9AA3B2" }}>←</span>}
+      <button
+        ref={triggerRef}
+        type="button"
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        aria-label={`Source for ${outputPath}${desc.unset ? "" : ` — ${desc.label}`}`}
+        onClick={(e) => { e.stopPropagation(); setOpen((o) => !o); }}
+        title={desc.unset ? "Pick the field that fills this output" : `Source: ${desc.label}${desc.sample ? ` — ${desc.sample}` : ""}`}
+        style={triggerStyle}
+      >
+        <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: compact ? 180 : "100%" }}>
+          {desc.unset ? "— pick a source —" : desc.label}
+        </span>
+        <span aria-hidden style={{ fontSize: 8, opacity: 0.7 }}>▾</span>
+      </button>
+
+      {canClear && (
+        <button
+          type="button"
+          aria-label={`Clear the source for ${outputPath}`}
+          onClick={(e) => { e.stopPropagation(); onClear?.(); }}
+          title="Clear this source"
+          style={{ border: "none", background: "none", cursor: "pointer", color: "var(--ink-faint)", fontSize: 11, lineHeight: 1, padding: "0 1px" }}
+        >
+          ✕
+        </button>
+      )}
+
+      {open && typeof document !== "undefined" && createPortal(
+        <div
+          ref={panelRef}
+          role="listbox"
+          aria-label={`Source for ${outputPath}`}
+          onClick={(e) => e.stopPropagation()}
+          style={{
+            position: "fixed", top: pos?.top ?? -9999, left: pos?.left ?? -9999, zIndex: 1000, width: PANEL_W,
+            background: "#FFFFFF", border: "1px solid #E2E6EE", borderRadius: 10,
+            boxShadow: "0 12px 30px rgba(11,26,47,0.16)", overflow: "hidden",
+            visibility: pos ? "visible" : "hidden",
+            display: "flex", flexDirection: "column",
+          }}
+        >
+          <div style={{ padding: 8, borderBottom: "1px solid #EEF0F4" }}>
+            <input
+              ref={inputRef}
+              type="text"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              onKeyDown={onKeyDown}
+              placeholder="Search fields…"
+              aria-label="Search source fields"
+              style={{ width: "100%", boxSizing: "border-box", padding: "6px 9px", borderRadius: 7, border: "1px solid #DCE0E8", fontSize: 11.5, color: "#0B1A2F" }}
+            />
+          </div>
+
+          <div style={{ maxHeight: 260, overflowY: "auto", padding: 6 }}>
+            {/* Canonical fields — shown first (progressive disclosure: the common case up top). */}
+            {canonicalOptions.length > 0 && (
+              <div style={{ marginBottom: 4 }}>
+                <div style={groupHeadStyle}>Standard fields</div>
+                {canonicalOptions.map((o) => (
+                  <OptionRow key={`c:${o.id}`} option={o}
+                    active={flat.indexOf(o) === active}
+                    onHover={() => setActive(flat.indexOf(o))} onPick={() => pick(o)} />
+                ))}
+              </div>
+            )}
+
+            {/* "More source fields…" disclosure — reveals the raw source-token universe. */}
+            {sourceTokens.length > 0 && (
+              tokensExpanded ? (
+                tokenGroups.length === 0 ? (
+                  q.length > 0 && (
+                    <div style={{ padding: "8px 6px", fontSize: 10.5, color: "var(--ink-faint)" }}>
+                      No source field matches “{query}”.
+                    </div>
+                  )
+                ) : (
+                  tokenGroups.map((g) => (
+                    <div key={g.group} style={{ marginBottom: 4 }}>
+                      <div style={groupHeadStyle}>{GROUP_LABEL[g.group] ?? g.group}</div>
+                      {g.items.map((o) => (
+                        <OptionRow key={`t:${o.id}`} option={o}
+                          active={flat.indexOf(o) === active}
+                          onHover={() => setActive(flat.indexOf(o))} onPick={() => pick(o)} />
+                      ))}
+                    </div>
+                  ))
+                )
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setShowMore(true)}
+                  style={{
+                    width: "100%", textAlign: "left", border: "1px dashed #D8DEE9", background: "#F7F9FC",
+                    color: "#1E66C9", borderRadius: 7, padding: "8px 9px", marginTop: 2,
+                    fontSize: 11.5, fontWeight: 600, cursor: "pointer",
+                  }}
+                >
+                  More source fields… <span style={{ color: "var(--ink-faint)", fontWeight: 500 }}>({sourceTokens.length})</span>
+                </button>
+              )
+            )}
+
+            {canonicalOptions.length === 0 && !tokensExpanded && sourceTokens.length === 0 && (
+              <div style={{ padding: "8px 6px", fontSize: 10.5, color: "var(--ink-faint)" }}>
+                No source fields available for this order.
+              </div>
+            )}
+            {canonicalOptions.length === 0 && q.length > 0 && tokenOptions.length === 0 && sourceTokens.length > 0 && (
+              <div style={{ padding: "8px 6px", fontSize: 10.5, color: "var(--ink-faint)" }}>
+                No field matches “{query}”.
+              </div>
+            )}
+          </div>
+
+          {/* Footer actions: a fixed value + (when bound) clear. */}
+          <div style={{ borderTop: "1px solid #EEF0F4", padding: 6, display: "flex", gap: 6, background: "#FBFBFD" }}>
+            <button
+              type="button"
+              onClick={() => { onPickFixed(); close(); }}
+              style={{ flex: 1, border: "1px solid #C4ABE8", background: "#FFFFFF", color: "#5E3DB0", borderRadius: 6, padding: "5px 8px", fontSize: 10.5, fontWeight: 700, cursor: "pointer" }}
+            >
+              = Fixed value…
+            </button>
+            {canClear && (
+              <button
+                type="button"
+                onClick={() => { onClear?.(); close(); }}
+                style={{ border: "1px solid #DCE0E8", background: "#FFFFFF", color: "var(--ink-faint)", borderRadius: 6, padding: "5px 10px", fontSize: 10.5, fontWeight: 700, cursor: "pointer" }}
+              >
+                Clear
+              </button>
+            )}
+          </div>
+        </div>,
+        document.body,
+      )}
+    </span>
+  );
+}
+
+const groupHeadStyle: React.CSSProperties = {
+  fontSize: 9, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.05em",
+  color: "var(--ink-faint)", padding: "4px 6px 3px",
+};
+
+function OptionRow({ option, active, onHover, onPick }: {
+  option: Option; active: boolean; onHover: () => void; onPick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      role="option"
+      aria-selected={active}
+      onMouseEnter={onHover}
+      onClick={onPick}
+      style={{
+        display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8,
+        width: "100%", textAlign: "left", border: "none", cursor: "pointer",
+        padding: "5px 6px", borderRadius: 6,
+        background: active ? "#F1F8F2" : "none",
+      }}
+    >
+      <span style={{ display: "flex", flexDirection: "column", gap: 1, minWidth: 0 }}>
+        <span style={{ fontSize: 11, fontWeight: 600, color: "#0B1A2F", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+          {option.label}
+        </span>
+        {option.value != null && (
+          <span style={{ fontFamily: "'JetBrains Mono',monospace", fontVariantNumeric: "tabular-nums", fontSize: 9.5, color: "var(--ink-faint)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            {option.value || "(empty)"}
+          </span>
+        )}
+      </span>
+    </button>
+  );
+}

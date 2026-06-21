@@ -50,6 +50,14 @@ export interface OutputFieldRule {
   outputPath: string;
   /** Canonical field name (PoNumber/SupplierItemCode/…) or a customFields key. */
   canonicalField?: string | null;
+  /**
+   * Bind this output node DIRECTLY to a source field (F-1). Holds the BARE SourceToken id
+   * (e.g. "cell:r2c5", "/Order/Header/VatId", "raw:VAT number") — NOT prefixed with `src::`;
+   * the backend prefixes `src::` on lookup. Twin of SourceFieldRule.sourceToken. Resolution
+   * precedence is SourceToken OVER CanonicalField, so the two are alternative bindings: setting
+   * one clears the other. Null/absent = bind by canonicalField (the original behaviour).
+   */
+  sourceToken?: string | null;
   /** A literal value instead of a source field. */
   fixedValue?: string | null;
   /** Ordered manipulators applied to the resolved value (Trim/Replace/Concat/…). */
