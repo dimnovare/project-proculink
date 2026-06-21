@@ -90,44 +90,6 @@ export function InboxSkeleton() {
   );
 }
 
-// ─── Spine Review (order detail) skeleton ─────────────────────────────────────
-
-export function SpineReviewSkeleton() {
-  return (
-    <div className="flex flex-col h-full overflow-hidden" style={{ background: "#F6F7FA" }} role="status" aria-busy="true">
-      <span className="sr-only">Loading…</span>
-      {/* Header */}
-      <div className="px-6 py-4 flex items-center gap-4" style={{ borderBottom: "1px solid #E2E6EE", background: "#FFFFFF" }}>
-        <Bone w={28} h={28} radius={6} />
-        <div className="flex flex-col gap-2">
-          <Bone w={180} h={16} />
-          <Bone w={300} h={11} />
-        </div>
-        <div className="ml-auto flex gap-2">
-          <Bone w={88} h={30} radius={6} />
-          <Bone w={88} h={30} radius={6} />
-        </div>
-      </div>
-      {/* 3 columns */}
-      <div className="flex flex-1 min-h-0 gap-3 p-4">
-        {[0, 1, 2].map((col) => (
-          <div key={col} className="flex-1 flex flex-col gap-3" style={{ background: "#FFFFFF", borderRadius: 8, border: "1px solid #E2E6EE", padding: 16 }}>
-            <Bone w={120} h={13} />
-            <Bone w="90%" h={11} />
-            {Array.from({ length: 8 }).map((_, i) => (
-              <div key={i} className="flex justify-between items-center">
-                <Bone w={`${50 + (i * 13) % 30}%`} h={11} />
-                <Bone w={`${20 + (i * 7) % 25}%`} h={11} />
-              </div>
-            ))}
-            <Bone w="100%" h={80} radius={6} className="mt-2" />
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
 // ─── Dashboard skeleton ───────────────────────────────────────────────────────
 
 export function DashboardSkeleton() {

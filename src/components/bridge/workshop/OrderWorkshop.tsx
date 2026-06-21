@@ -30,6 +30,7 @@ import type { OrderMappingOverride } from "@/lib/api/types";
 import type { CalibrationSummary } from "@/types/procurement";
 import { MapperWorkbench, type MapperWorkbenchLayout } from "../mapper/MapperWorkbench";
 import { UnifiedStatusBadge } from "../UnifiedStatusBadge";
+import { FailedPanel, ParseFailedPanel } from "../FailedPanels";
 import { ConfirmDialog } from "../review/ConfirmDialog";
 import { buildFixQueue, type FixQueueCard } from "../review/buildFixQueue";
 import { formatMoney, resolvedGrandTotal, outputArtifactType, buyerLabel, orderDeliveryFormat } from "../review/orderDisplay";
@@ -90,6 +91,26 @@ export function fixQueueToIssues(queue: FixQueueCard[]): WorkshopIssue[] {
     });
 }
 
+/**
+ * Phase 4 — amber pill shown when the document classifier detected an invoice
+ * (these orders are force-held to pending_review server-side). Ported from the
+ * legacy SpineReview so the *visible explanation* survives the workshop swap.
+ * Renders nothing for non-invoice documents.
+ */
+function InvoiceBadge({ documentType }: { documentType?: string | null }) {
+  if (documentType !== "invoice") return null;
+  return (
+    <span
+      className="inline-flex items-center gap-1.5 rounded-full"
+      title="Detected as an invoice and held for review."
+      style={{ fontSize: 12, fontWeight: 600, padding: "3px 11px", background: "#FAEFD6", color: "#C97A14", whiteSpace: "nowrap" }}
+    >
+      <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#C97A14", flexShrink: 0 }} />
+      Looks like an invoice
+    </span>
+  );
+}
+
 export function OrderWorkshop({ orderId }: { orderId: string }) {
   const router = useRouter();
   const queryEnabled = useQueriesEnabled();
@@ -97,6 +118,16 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
 
   // ── Live order + the same hooks the classic screen uses (ONE send path) ─────
   const { order, isLoading, isError, refetchOrder, exceptionCount } = useOrderReview(orderId);
+
+  // ── Audit events — only fetched for a failed order, to seed the ParseFailedPanel
+  //    error copy. Ported from the legacy SpineReview (same query key + gate). ──
+  const { data: auditEvents = [] } = useQuery({
+    queryKey: ["order-audit", orderId],
+    queryFn: () => apiClient.getOrderAudit(orderId),
+    enabled: queryEnabled && order?.status === "failed",
+    retry: 1,
+    staleTime: 60_000,
+  });
 
   const {
     flowNotice, flowSeverity, setFlow,
@@ -325,6 +356,20 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
     );
   }
 
+  // ── Failure gates — render before the main mapper so a failed order shows the
+  //    honest recovery panel (parse / transform / delivery) instead of falling
+  //    through to the normal mapper. Ported from the legacy SpineReview; reuses
+  //    the KEPT FailedPanels.tsx. All hooks above have already run. ────────────
+  if (order.status === "failed") {
+    return <ParseFailedPanel order={order} auditEvents={auditEvents} />;
+  }
+  if (order.status === "transform_failed") {
+    return <FailedPanel order={order} stage="transform" />;
+  }
+  if (order.status === "delivery_failed") {
+    return <FailedPanel order={order} stage="delivery" />;
+  }
+
   return (
     <div className="flex flex-col h-full min-h-0 overflow-hidden" style={{ background: "#F6F7FA" }} data-testid="order-workshop">
       {/* ── Header: back · PO · status · buyer→supplier · focus control · Send ── */}
@@ -353,6 +398,15 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
                   {order.poNumber}
                 </h1>
                 <UnifiedStatusBadge size="md" status={crossed ? "delivered" : exceptionCount > 0 ? "pending_review" : order.status} />
+                <InvoiceBadge documentType={order.documentType} />
+                {order.status === "delivery_dead_letter" && (
+                  <span
+                    title="Delivery retries are exhausted. The order is in the dead-letter queue for operator review."
+                    style={{ display: "inline-flex", alignItems: "center", padding: "3px 11px", borderRadius: 999, fontSize: 12, fontWeight: 600, background: "var(--danger-soft)", color: "var(--danger)", whiteSpace: "nowrap" }}
+                  >
+                    ⚠ Dead-lettered · retries exhausted
+                  </span>
+                )}
               </div>
               <div className="mt-1 flex flex-wrap items-center gap-x-1.5" style={{ fontSize: 13 }}>
                 <span style={{ fontWeight: 600, color: "#0F4FAB", whiteSpace: "nowrap" }}>{buyerLabel(order)}</span>
