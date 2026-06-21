@@ -9,6 +9,8 @@ const state = (overrides: Partial<CxmlCredentialsState> = {}): CxmlCredentialsSt
   senderDomain: "NetworkId",
   senderIdentity: "Nasdaq_SE",
   senderSharedSecret: "",
+  dtdSystemId: "",
+  dtdPublicId: "",
   ...overrides,
 });
 
@@ -50,5 +52,34 @@ describe("buildCxmlCredentials", () => {
     expect(result!.fromDomain).toBeNull();
     expect(result!.fromIdentity).toBe("Nasdaq_SE");
     expect(result!.toIdentity).toBeNull();
+  });
+
+  // T7 — configurable cXML <!DOCTYPE> DTD. Persists into the SAME cXML config payload (→ backend
+  // CxmlConfigJson) under the camelCase keys dtdSystemId / dtdPublicId.
+  it("persists a custom DTD URI into the cxml config payload as dtdSystemId", () => {
+    const result = buildCxmlCredentials(
+      "cxml",
+      state({ dtdSystemId: "http://supplier.example/custom/cXML.dtd" }),
+    );
+    expect(result!.dtdSystemId).toBe("http://supplier.example/custom/cXML.dtd");
+    expect(result!.dtdPublicId).toBeNull();
+  });
+
+  it("carries both DTD ids when both are set (PUBLIC form)", () => {
+    const result = buildCxmlCredentials(
+      "cxml",
+      state({
+        dtdSystemId: "http://xml.cxml.org/schemas/cXML/1.2.024/cXML.dtd",
+        dtdPublicId: "-//CXML//DTD cXML 1.2.024//EN",
+      }),
+    );
+    expect(result!.dtdSystemId).toBe("http://xml.cxml.org/schemas/cXML/1.2.024/cXML.dtd");
+    expect(result!.dtdPublicId).toBe("-//CXML//DTD cXML 1.2.024//EN");
+  });
+
+  it("nulls the DTD ids when blank (no DOCTYPE — byte-identical to today)", () => {
+    const result = buildCxmlCredentials("cxml", state({ dtdSystemId: "   ", dtdPublicId: "" }));
+    expect(result!.dtdSystemId).toBeNull();
+    expect(result!.dtdPublicId).toBeNull();
   });
 });

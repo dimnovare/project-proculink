@@ -9,6 +9,10 @@ export interface CxmlCredentialsState {
   senderDomain: string;
   senderIdentity: string;
   senderSharedSecret: string;
+  /** Configurable cXML <!DOCTYPE> DTD (T7) — free-text SYSTEM id / URI; blank = no DOCTYPE. */
+  dtdSystemId: string;
+  /** Optional cXML DTD PUBLIC id (T7) — blank = SYSTEM form / no DOCTYPE. */
+  dtdPublicId: string;
 }
 
 const trimmedOrNull = (s: string): string | null => (s.trim() === "" ? null : s.trim());
@@ -38,5 +42,10 @@ export function buildCxmlCredentials(
     senderIdentity: trimmedOrNull(state.senderIdentity),
     // Omit when blank → JSON.stringify drops the key → backend keeps the saved secret.
     senderSharedSecret: secret === "" ? undefined : secret,
+    // Configurable cXML <!DOCTYPE> DTD (T7). Blank → null → backend emits NO DOCTYPE
+    // (byte-identical to today). Persisted into the same cXML config (→ CxmlConfigJson)
+    // the backend reads as dtdSystemId / dtdPublicId (camelCase).
+    dtdSystemId: trimmedOrNull(state.dtdSystemId),
+    dtdPublicId: trimmedOrNull(state.dtdPublicId),
   };
 }

@@ -66,6 +66,9 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
   const [cxmlSenderDomain, setCxmlSenderDomain] = useState("");
   const [cxmlSenderIdentity, setCxmlSenderIdentity] = useState("");
   const [cxmlSenderSharedSecret, setCxmlSenderSharedSecret] = useState("");
+  // Configurable cXML <!DOCTYPE> DTD (T7) — free-text per supplier. Blank = no DOCTYPE.
+  const [cxmlDtdSystemId, setCxmlDtdSystemId] = useState("");
+  const [cxmlDtdPublicId, setCxmlDtdPublicId] = useState("");
 
   // URL-based (http / erp_*)
   const [url, setUrl] = useState("");
@@ -140,6 +143,8 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
           setCxmlSenderDomain(cx?.senderDomain ?? "");
           setCxmlSenderIdentity(cx?.senderIdentity ?? "");
           setCxmlSenderSharedSecret(""); // write-only — never prefilled
+          setCxmlDtdSystemId(cx?.dtdSystemId ?? "");
+          setCxmlDtdPublicId(cx?.dtdPublicId ?? "");
         }
       } catch (err) {
         if (!cancelled) setError(err instanceof Error ? err.message : "Could not load delivery config.");
@@ -330,6 +335,8 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
           senderDomain: cxmlSenderDomain,
           senderIdentity: cxmlSenderIdentity,
           senderSharedSecret: cxmlSenderSharedSecret,
+          dtdSystemId: cxmlDtdSystemId,
+          dtdPublicId: cxmlDtdPublicId,
         }),
       });
       setSavedConfig(saved);
@@ -379,6 +386,8 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
       setCxmlSenderDomain("");
       setCxmlSenderIdentity("");
       setCxmlSenderSharedSecret("");
+      setCxmlDtdSystemId("");
+      setCxmlDtdPublicId("");
       setAuthType("none");
       setTestResult(null);
       setJustSaved(false);
@@ -554,6 +563,39 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
                         style={INPUT_STYLE}
                       />
                     </Field>
+
+                    {/* cXML DOCTYPE / DTD (T7) — free-text per supplier so any cXML version works.
+                        Persisted into the same cXML config (→ CxmlConfigJson) as dtdSystemId /
+                        dtdPublicId. Blank = no DOCTYPE = byte-identical to today. */}
+                    <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_220px]">
+                      <Field label="cXML DTD (SYSTEM id / URI)">
+                        <input
+                          value={cxmlDtdSystemId}
+                          onChange={(e) => { setCxmlDtdSystemId(e.target.value); markEdited(); }}
+                          list="cxml-dtd-suggestions"
+                          placeholder="http://xml.cxml.org/schemas/cXML/1.2.024/cXML.dtd"
+                          className="h-9 w-full rounded-[5px] px-2.5 text-[12px]"
+                          style={INPUT_STYLE}
+                        />
+                      </Field>
+                      <Field label="Public id (optional)">
+                        <input
+                          value={cxmlDtdPublicId}
+                          onChange={(e) => { setCxmlDtdPublicId(e.target.value); markEdited(); }}
+                          placeholder="Optional — for the PUBLIC DOCTYPE form"
+                          className="h-9 w-full rounded-[5px] px-2.5 text-[12px]"
+                          style={INPUT_STYLE}
+                        />
+                      </Field>
+                    </div>
+                    <datalist id="cxml-dtd-suggestions">
+                      <option value="http://xml.cxml.org/schemas/cXML/1.2.024/cXML.dtd" />
+                      <option value="http://xml.cxml.org/schemas/cXML/1.2.014/cXML.dtd" />
+                      <option value="http://xml.cxml.org/schemas/cXML/1.2.040/cXML.dtd" />
+                    </datalist>
+                    <p className="text-[11px]" style={{ color: "var(--ink-faint)" }}>
+                      Leave blank for no DOCTYPE. Set the exact DTD URI your supplier&apos;s cXML requires.
+                    </p>
                   </div>
                 </div>
               )}

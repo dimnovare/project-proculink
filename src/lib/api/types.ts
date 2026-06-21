@@ -440,6 +440,13 @@ export interface CxmlCredentials {
   senderDomain?: string | null;
   senderIdentity?: string | null;
   hasSharedSecret: boolean;
+  /**
+   * Configurable cXML `<!DOCTYPE>` DTD (T7). Free-text per supplier so any cXML version works.
+   * `dtdSystemId` = the SYSTEM id / URI; `dtdPublicId` = optional PUBLIC id. Both unset = no DOCTYPE
+   * (byte-identical to today). Optional — degrade gracefully if the API omits them.
+   */
+  dtdSystemId?: string | null;
+  dtdPublicId?: string | null;
 }
 
 /**
@@ -454,6 +461,13 @@ export interface CxmlCredentialsInput {
   senderDomain?: string | null;
   senderIdentity?: string | null;
   senderSharedSecret?: string | null;
+  /**
+   * Configurable cXML `<!DOCTYPE>` DTD (T7). Persisted into the same cXML config the backend reads
+   * as `CxmlConfigJson`. `dtdSystemId` = SYSTEM id / URI; `dtdPublicId` = optional PUBLIC id. Both
+   * blank → omitted → no DOCTYPE (byte-identical to today).
+   */
+  dtdSystemId?: string | null;
+  dtdPublicId?: string | null;
 }
 
 export interface DeliveryConfig {
