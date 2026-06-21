@@ -30,6 +30,12 @@ export interface OpsHealth {
   failed: number;
   slaBreached: number;
   openExceptions: number;
+  /**
+   * Orders sitting in `pending_review` awaiting an operator decision. INFORMATIONAL —
+   * NOT a system fault and NOT counted in `totalProblemOrders`. Optional because the
+   * backend field may not be deployed yet; treat undefined as 0 (forward/backward compatible).
+   */
+  pendingReview?: number;
   stuckThresholdMinutes: number;
   totalProblemOrders: number;
   workerHealthy: boolean;
@@ -58,7 +64,7 @@ async function mockGetOpsHealth(): Promise<OpsHealth> {
   return {
     parsingStuck: 0, deliveringStuck: 0, transformFailed: 0, deliveryFailed: 1,
     deliveryDeadLetter: 1, rejectedBySupplier: 0, failed: 0, slaBreached: 0,
-    openExceptions: 2, stuckThresholdMinutes: 30, totalProblemOrders: 2,
+    openExceptions: 2, pendingReview: 3, stuckThresholdMinutes: 30, totalProblemOrders: 2,
     workerHealthy: true, activeWorkers: 1,
     lastWorkerHeartbeatUtc: new Date(Date.now() - 6000).toISOString(),
     secondsSinceWorkerHeartbeat: 6,

@@ -159,6 +159,25 @@ export default function OperationsHealthPage() {
               : "New uploads may wait until processing restarts. (no recent activity)"}
         </span>
       </div>
+      {/* Manual-review backlog — INFORMATIONAL, not a system fault. Orders in
+          pending_review are waiting on an operator decision, not stuck/failed, so
+          this is shown as neutral info (blue, not red) and is NOT part of
+          totalProblemOrders / the all-clear check. The BE `pendingReview` field
+          may not be deployed yet → default to 0 (tile renders 0 until it ships). */}
+      <Link
+        href="/inbox?status=pending_review"
+        className="mb-4 flex items-center gap-3 rounded-[10px] px-4 py-3 transition-shadow hover:shadow-md"
+        style={{ background: "var(--brand-blue-soft)", border: "1px solid #D6E3F2", textDecoration: "none" }}
+      >
+        <span style={{ fontSize: 26, fontWeight: 700, color: "var(--brand-blue-deep)", lineHeight: 1.1, fontVariantNumeric: "tabular-nums" }}>
+          {(h.pendingReview ?? 0).toLocaleString()}
+        </span>
+        <span style={{ display: "flex", flexDirection: "column" }}>
+          <span style={{ fontSize: 13.5, fontWeight: 600, color: "var(--brand-blue-deep)" }}>Awaiting your review</span>
+          <span style={{ fontSize: 11.5, color: "var(--ink-muted)" }}>Orders paused for a person to check — not a system problem.</span>
+        </span>
+      </Link>
+
       {allClear ? (
         <div style={{ background: "var(--brand-green-soft)", border: "1px solid #BFE3BF", borderRadius: "var(--radius-md)", padding: "16px 18px", color: "var(--brand-green-deep)", fontSize: 14, fontWeight: 600 }}>
           ✓ All clear — no orders in a problem state and no open exceptions.
