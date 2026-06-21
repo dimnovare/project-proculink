@@ -12,6 +12,11 @@ import { useQuery } from "@tanstack/react-query";
 import { previewMappingOverride, upsertMappingOverride, inferOutputStructure, getSourceTokens } from "@/lib/api-client";
 import { OutputSourcePicker } from "./OutputSourcePicker";
 import {
+  updateAt, removeAt, setNodeNamespace,
+  namespacesToRows, rowsToNamespaces, templateHasRootNamespaces, treeHasPerNodeNamespaces,
+  type NamespaceRow,
+} from "./outputNamespaceModel";
+import {
   CANONICAL_HEADER_FIELDS, CANONICAL_LINE_FIELDS,
   type OrderMappingOverride, type OutputNode, type OutputNodeTemplate,
   type OutputNodeType, type OutputFormat, type SourceToken,
@@ -102,19 +107,8 @@ function defaultTree(format: OutputFormat): OutputNodeTemplate {
   };
 }
 
-/** Immutably update the node at `path` (array of child indices from the root). */
-function updateAt(node: OutputNode, path: number[], fn: (n: OutputNode) => OutputNode): OutputNode {
-  if (path.length === 0) return fn(node);
-  const [i, ...rest] = path;
-  const children = (node.children ?? []).map((c, idx) => (idx === i ? updateAt(c, rest, fn) : c));
-  return { ...node, children };
-}
-function removeAt(node: OutputNode, path: number[]): OutputNode {
-  if (path.length === 1) return { ...node, children: (node.children ?? []).filter((_, idx) => idx !== path[0]) };
-  const [i, ...rest] = path;
-  const children = (node.children ?? []).map((c, idx) => (idx === i ? removeAt(c, rest) : c));
-  return { ...node, children };
-}
+// (updateAt / removeAt now live in ./outputNamespaceModel so they're unit-testable for namespace
+// round-trip preservation; imported above.)
 
 // ── Responsive switch ───────────────────────────────────────────────────────
 // The body is a 50/50 two-column grid (tree | dark live-output). Below ~860px that's unusable,
@@ -197,6 +191,18 @@ export function OutputStructureDesigner({
     setTree((t) => ({ ...t, root: fn(t.root) }));
     setSaved(false);
   }, []);
+
+  // Root namespaces (prefix → uri). Only meaningful for XML; the LEGACY root-map mode where nodes
+  // stay unprefixed and the xmlns:* declarations live on the root. Mutually exclusive with per-node
+  // namespaces (the emitter throws if both are set) — the UI gates which editor is shown.
+  const setRootNamespaces = useCallback((rows: NamespaceRow[]) => {
+    setTree((t) => ({ ...t, namespaces: rowsToNamespaces(rows) }));
+    setSaved(false);
+  }, []);
+
+  const isXml = designerFormat(tree.format) === "xml";
+  const hasPerNodeNs = treeHasPerNodeNamespaces(tree.root);
+  const hasRootNs = templateHasRootNamespaces(tree);
 
   // ── Live preview (debounced) — exactly what will be delivered ───────────────
   const debounce = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -329,8 +335,26 @@ export function OutputStructureDesigner({
               )}
             </div>
 
+            {/* Root XML namespaces (prefix → uri) — the LEGACY root-map mode: declare xmlns:cbc=… on
+                the root, nodes stay unprefixed. XML-only, hidden during first-run. Hidden when the
+                tree already uses PER-NODE namespaces (the two modes are mutually exclusive — the
+                emitter throws if both are set), with an inline hint so the user knows why. */}
+            {!firstRun && isXml && !hasPerNodeNs && (
+              <RootNamespacesEditor rows={namespacesToRows(tree.namespaces)} onChange={setRootNamespaces} />
+            )}
+            {!firstRun && isXml && hasPerNodeNs && hasRootNs && (
+              <div style={{ marginBottom: 12, fontSize: 11, color: "#9A6B1E", background: "#FFF7E8", border: "1px solid #F2DBA8", borderRadius: 6, padding: "7px 10px" }}>
+                This structure declares namespaces on individual elements, so root-level namespaces
+                are not used. Clear the per-element namespaces to declare them on the root instead.
+              </div>
+            )}
+
             {/* The editable tree is hidden during first-run (the infer panel owns the screen). */}
-            {!firstRun && <NodeEditor node={tree.root} path={[]} lineScope={false} onUpdate={setRoot} sourceTokens={sourceTokens ?? []} isRoot />}
+            {!firstRun && (
+              <NodeEditor node={tree.root} path={[]} lineScope={false} onUpdate={setRoot}
+                sourceTokens={sourceTokens ?? []} isRoot
+                xml={isXml} rootHasNamespaces={hasRootNs} />
+            )}
           </div>
           <div style={{ overflow: isNarrow ? "visible" : "auto", padding: 16, background: "#0B1626" }}>
             <div style={{ fontSize: 11, color: "#8FA3BF", marginBottom: 8, textTransform: "uppercase", letterSpacing: 0.4 }}>
@@ -384,7 +408,7 @@ const PRESET_SHORT: Record<string, string> = {
 // ── Recursive node editor ──────────────────────────────────────────────────────
 
 function NodeEditor({
-  node, path, lineScope, onUpdate, sourceTokens, isRoot,
+  node, path, lineScope, onUpdate, sourceTokens, isRoot, xml, rootHasNamespaces,
 }: {
   node: OutputNode;
   path: number[];
@@ -392,12 +416,17 @@ function NodeEditor({
   onUpdate: (fn: (n: OutputNode) => OutputNode) => void;
   sourceTokens: ReadonlyArray<SourceToken>;
   isRoot?: boolean;
+  /** True when the tree's format is XML — gates the per-node namespace/prefix authoring. */
+  xml?: boolean;
+  /** True when the template carries root-level namespaces — per-node authoring is hidden then
+   *  (the two modes are mutually exclusive; the emitter throws if both are set). */
+  rootHasNamespaces?: boolean;
 }) {
   const isContainer = node.nodeType === "object" || node.nodeType === "array";
   const childScope = lineScope || node.nodeType === "array";
 
   // Which inline editor (if any) is open for THIS row. Only one open at a time keeps the row clean.
-  const [editing, setEditing] = useState<null | "name" | "format" | "condition">(null);
+  const [editing, setEditing] = useState<null | "name" | "format" | "condition" | "namespace">(null);
   const [hover, setHover] = useState(false);
 
   const updateName = (name: string) => onUpdate((n) => updateAt(n, path, (x) => ({ ...x, name })));
@@ -431,6 +460,10 @@ function NodeEditor({
       return { ...x, rule: { outputPath: x.name, canonicalField: x.rule?.canonicalField ?? null, sourceToken: x.rule?.sourceToken ?? null, fixedValue: x.rule?.fixedValue ?? null, fieldManipulators: manis } };
     }));
 
+  // Set/clear this node's XML namespace + prefix (delegates the prefix-without-uri guard to the model).
+  const setNamespace = (namespace: string, prefix: string) =>
+    onUpdate((n) => updateAt(n, path, (x) => setNodeNamespace(x, namespace, prefix)));
+
   const canonicalOptions = childScope ? CANONICAL_LINE_FIELDS : CANONICAL_HEADER_FIELDS;
   const boundCanonical = node.rule?.canonicalField ?? "";
   const boundToken = node.rule?.sourceToken ?? "";
@@ -438,6 +471,14 @@ function NodeEditor({
   const bound = !!boundCanonical || !!boundToken || usingFixed;
   const presetKey = currentPreset(node.rule?.fieldManipulators);
   const hasCondition = !!node.includeWhen;
+  // Per-node XML namespace authoring is offered only for XML trees, on element/attribute nodes, and
+  // only when the LEGACY root-map mode is NOT in use (mutually exclusive — the emitter throws if both).
+  const nsAllowed = !!xml && !rootHasNamespaces && node.nodeType !== "array";
+  const nsUri = node.namespace ?? "";
+  const nsPrefix = node.prefix ?? "";
+  const hasNamespace = nsUri !== "" || nsPrefix !== "";
+  // The pill shows the prefix when set (cbc:), else "default ns" for an unprefixed default namespace.
+  const nsPillLabel = nsPrefix !== "" ? `xmlns · ${nsPrefix}` : "default ns";
   // "Only include when…" is meaningful on any non-root node (a list ITEM uses it to drop lines).
   const scopeHint = childScope ? "line" : "order";
   const pill = TYPE_PILL[node.nodeType];
@@ -499,11 +540,17 @@ function NodeEditor({
           <SetPill tone="blue" mono label={`only when · ${node.includeWhen}`}
             title="Click to edit the condition" onClick={() => setEditing("condition")} onClear={() => updateIncludeWhen("")} clearLabel="Remove condition" />
         )}
+        {/* XML namespace pill (element/attribute nodes only) — shown when a namespace is bound. */}
+        {nsAllowed && hasNamespace && (
+          <SetPill tone="blue" mono label={nsPillLabel}
+            title="Click to edit this element's XML namespace" onClick={() => setEditing("namespace")}
+            onClear={() => setNamespace("", "")} clearLabel="Remove namespace" />
+        )}
 
         {/* Spacer pushes add-affordances + delete to the right edge. */}
         <span style={{ flex: "1 1 auto" }} />
 
-        {/* Discoverable "+ format" / "+ condition" when UNSET — small, low-emphasis, hover/focus-revealed. */}
+        {/* Discoverable "+ format" / "+ condition" / "+ namespace" when UNSET — hover/focus-revealed. */}
         {!isContainer && bound && !presetKey && (
           <GhostAdd label="+ format" title="Format this value as a date, number, or currency"
             visible={hover || editing === "format"} onClick={() => setEditing("format")} />
@@ -511,6 +558,10 @@ function NodeEditor({
         {!isRoot && !hasCondition && (
           <GhostAdd label="+ condition" title="Only include this when a rule is true"
             visible={hover || editing === "condition"} onClick={() => setEditing("condition")} />
+        )}
+        {nsAllowed && !hasNamespace && (
+          <GhostAdd label="+ namespace" title="Put this element in an XML namespace (e.g. cbc:)"
+            visible={hover || editing === "namespace"} onClick={() => setEditing("namespace")} />
         )}
 
         {/* Inline delete — a small ghost ×, hover/focus-revealed (not a permanent full-width line). */}
@@ -548,11 +599,21 @@ function NodeEditor({
         </div>
       )}
 
+      {/* Inline XML namespace editor — author prefix + namespace URI so this element emits e.g. <cbc:ID>
+          (prefix "cbc") or sits in a default namespace (blank prefix). Local draft so a half-typed
+          prefix survives until the URI is entered (the model clears a prefix-without-URI on persist —
+          a prefix needs a namespace). XML-only. */}
+      {nsAllowed && editing === "namespace" && (
+        <NamespaceEditorRow prefix={nsPrefix} uri={nsUri}
+          onChange={(uri, prefix) => setNamespace(uri, prefix)} onDone={() => setEditing(null)} />
+      )}
+
       {isContainer && (
         <>
           <div style={{ marginTop: 4, borderLeft: isRoot ? "none" : "2px solid #ECEFF4", marginLeft: isRoot ? 0 : 4, paddingLeft: isRoot ? 0 : 2 }}>
             {(node.children ?? []).map((c, i) => (
-              <NodeEditor key={i} node={c} path={[...path, i]} lineScope={childScope} onUpdate={onUpdate} sourceTokens={sourceTokens} />
+              <NodeEditor key={i} node={c} path={[...path, i]} lineScope={childScope} onUpdate={onUpdate}
+                sourceTokens={sourceTokens} xml={xml} rootHasNamespaces={rootHasNamespaces} />
             ))}
           </div>
           <div style={{ display: "flex", gap: 6, marginTop: 5, marginLeft: isRoot ? 0 : 18, flexWrap: "wrap" }}>
@@ -642,5 +703,107 @@ function AddBtn({ label, onClick }: { label: string; onClick: () => void }) {
   // Chip height (22) matches the mapper's add-field chips; the row wraps so these never scroll sideways.
   return (
     <button onClick={onClick} style={{ height: 24, padding: "0 11px", borderRadius: 6, border: `1px dashed ${BORDER}`, background: "#F7F9FC", color: "#3A4A60", fontSize: 11, fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap" }}>{label}</button>
+  );
+}
+
+// ── Inline per-node namespace editor ────────────────────────────────────────────
+// Local draft so a half-typed prefix isn't discarded before the URI is entered: setNodeNamespace
+// clears a prefix-without-URI on the persisted node (the emitter rejects that half-state), but the
+// user must still be able to type the prefix first. We hold prefix+uri locally and push (uri, prefix)
+// to the node on every keystroke; the node persists only a valid pair, the draft keeps the typed
+// prefix visible. Seeded once — the row remounts each time the editor is opened.
+function NamespaceEditorRow({ prefix, uri, onChange, onDone }: {
+  prefix: string; uri: string;
+  onChange: (uri: string, prefix: string) => void;
+  onDone: () => void;
+}) {
+  // Seeded once — the row remounts each time the editor opens, so no re-sync effect is needed.
+  const [p, setP] = useState(prefix);
+  const [u, setU] = useState(uri);
+  const change = (nextPrefix: string, nextUri: string) => {
+    setP(nextPrefix); setU(nextUri);
+    onChange(nextUri, nextPrefix);
+  };
+
+  return (
+    <div style={{ display: "flex", gap: 6, alignItems: "center", marginTop: 4, marginLeft: 18, flexWrap: "wrap" }}>
+      <span style={{ fontSize: 11, color: SLATE, whiteSpace: "nowrap" }}>prefix</span>
+      <input autoFocus value={p} onChange={(e) => change(e.target.value, u)}
+        placeholder="cbc" aria-label="XML namespace prefix" spellCheck={false}
+        style={{ width: 70, height: 28, border: `1px solid ${p ? BLUE : BORDER}`, borderRadius: 6, padding: "0 8px", fontSize: 12, fontFamily: MONO, color: p ? NAVY : SLATE }} />
+      <span style={{ fontSize: 11, color: SLATE, whiteSpace: "nowrap" }}>namespace URI</span>
+      <input value={u} onChange={(e) => change(p, e.target.value)}
+        onKeyDown={(e) => { if (e.key === "Enter" || e.key === "Escape") onDone(); }}
+        placeholder="urn:oasis:names:…:CommonBasicComponents-2" aria-label="XML namespace URI" spellCheck={false}
+        style={{ flex: "1 1 220px", minWidth: 0, height: 28, border: `1px solid ${u ? BLUE : BORDER}`, borderRadius: 6, padding: "0 8px", fontSize: 12, fontFamily: MONO, color: u ? NAVY : SLATE }} />
+      <button onClick={onDone} style={{ height: 28, padding: "0 8px", borderRadius: 6, border: `1px solid ${BORDER}`, background: "#FFF", color: SLATE, fontSize: 11, cursor: "pointer" }}>done</button>
+    </div>
+  );
+}
+
+// ── Root XML namespaces (prefix → uri) editor ───────────────────────────────────
+// Authors template.namespaces — the LEGACY root-map mode: each row becomes an xmlns:{prefix}="{uri}"
+// declaration on the root element while the element names stay unprefixed. Local row state keeps
+// typing smooth; every change commits up via onChange (which drops incomplete rows + nulls an empty
+// map, so a cleared editor saves byte-identical). Collapsed by default so it doesn't clutter the
+// common non-namespaced case.
+function RootNamespacesEditor({ rows, onChange }: {
+  rows: NamespaceRow[];
+  onChange: (rows: NamespaceRow[]) => void;
+}) {
+  // `draft` is the editing source of truth so in-progress (still-blank) rows survive — the parent
+  // commit drops incomplete rows + nulls an empty map (byte-identical clear), so a freshly-added
+  // blank row would round-trip back as `[]` and vanish if we mirrored the parent blindly. We re-sync
+  // from upstream ONLY when its COMPLETED projection differs from ours (a genuine external change,
+  // e.g. a sample was inferred), comparing on the same blank-dropping rule the parent uses.
+  const [open, setOpen] = useState(rows.length > 0);
+  const [draft, setDraft] = useState<NamespaceRow[]>(rows);
+  const committedSig = (rs: NamespaceRow[]) => JSON.stringify(rowsToNamespaces(rs));
+  const ours = useRef<string>(committedSig(rows));
+  useEffect(() => {
+    if (committedSig(rows) !== ours.current) {
+      ours.current = committedSig(rows);
+      setDraft(rows);
+      if (rows.length > 0) setOpen(true);
+    }
+  }, [rows]);
+
+  const commit = (next: NamespaceRow[]) => { setDraft(next); ours.current = committedSig(next); onChange(next); };
+  const setRow = (i: number, patch: Partial<NamespaceRow>) =>
+    commit(draft.map((r, idx) => (idx === i ? { ...r, ...patch } : r)));
+  const addRow = () => { setOpen(true); commit([...draft, { prefix: "", uri: "" }]); };
+  const removeRow = (i: number) => commit(draft.filter((_, idx) => idx !== i));
+
+  return (
+    <div style={{ marginBottom: 12 }}>
+      <button onClick={() => setOpen((v) => !v)}
+        style={{ width: "100%", textAlign: "left", height: 30, padding: "0 10px", borderRadius: 6, border: `1px dashed ${BORDER}`, background: "#F7F9FC", color: NAVY, fontSize: 12, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}>
+        <span>XML namespaces{draft.length > 0 ? ` · ${draft.length}` : ""}</span>
+        <span style={{ marginLeft: "auto", fontSize: 11, color: SLATE, fontWeight: 500 }}>{open ? "▾" : "▸"}</span>
+      </button>
+      {open && (
+        <div style={{ marginTop: 8, border: `1px solid ${BORDER}`, borderRadius: 8, padding: 10, background: "#F7F9FC" }}>
+          <div style={{ fontSize: 11, color: SLATE, marginBottom: 8, lineHeight: 1.5 }}>
+            Declare <code style={{ fontFamily: MONO }}>xmlns:</code> prefixes on the root element (e.g.{" "}
+            <code style={{ fontFamily: MONO }}>cbc</code> →{" "}
+            <code style={{ fontFamily: MONO }}>urn:oasis:names:…:CommonBasicComponents-2</code>).
+          </div>
+          {draft.map((r, i) => (
+            <div key={i} style={{ display: "flex", gap: 6, alignItems: "center", marginBottom: 6, flexWrap: "wrap" }}>
+              <input value={r.prefix} onChange={(e) => setRow(i, { prefix: e.target.value })}
+                placeholder="cbc" aria-label={`Namespace prefix ${i + 1}`} spellCheck={false}
+                style={{ width: 70, height: 28, border: `1px solid ${BORDER}`, borderRadius: 6, padding: "0 8px", fontSize: 12, fontFamily: MONO }} />
+              <input value={r.uri} onChange={(e) => setRow(i, { uri: e.target.value })}
+                placeholder="urn:oasis:names:…:CommonBasicComponents-2" aria-label={`Namespace URI ${i + 1}`} spellCheck={false}
+                style={{ flex: "1 1 200px", minWidth: 0, height: 28, border: `1px solid ${BORDER}`, borderRadius: 6, padding: "0 8px", fontSize: 12, fontFamily: MONO }} />
+              <button onClick={() => removeRow(i)} aria-label={`Remove namespace ${i + 1}`} title="Remove"
+                style={{ height: 28, width: 28, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 6, border: `1px solid ${BORDER}`, background: "#FFF", color: "var(--danger, #C53A3A)", fontSize: 12, cursor: "pointer" }}>✕</button>
+            </div>
+          ))}
+          <button onClick={addRow}
+            style={{ height: 24, padding: "0 11px", borderRadius: 6, border: `1px dashed ${BORDER}`, background: "#FFF", color: "#3A4A60", fontSize: 11, fontWeight: 600, cursor: "pointer" }}>+ namespace</button>
+        </div>
+      )}
+    </div>
   );
 }

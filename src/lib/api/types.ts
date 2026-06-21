@@ -113,6 +113,20 @@ export interface OutputNode {
   /** For an array node: the collection to repeat over (v1: "lines", the default). */
   collection?: string | null;
   /**
+   * Optional XML namespace URI bound to this element/attribute (e.g. the UBL CommonBasicComponents-2
+   * URI for a `cbc:` element). Null → the legacy no-namespace emit (byte-identical). JSON/CSV ignore
+   * it. MUST be carried through every tree edit unchanged or an inferred namespaced tree silently
+   * loses its namespaces on save (data loss). Pairs with `prefix`.
+   */
+  namespace?: string | null;
+  /**
+   * Optional XML prefix (e.g. "cac"/"cbc") bound to `namespace`. Null prefix + non-null `namespace` →
+   * a default namespace (no prefix). A prefix with NO `namespace` is an unrenderable half-state the
+   * backend emitter rejects — always set/clear the two together (see setNodeNamespace). JSON/CSV
+   * ignore it.
+   */
+  prefix?: string | null;
+  /**
    * Optional CONDITIONAL inclusion — a bare Scriban boolean condition (no `{{ }}`), e.g.
    * `line.Quantity > 0` or `order.Currency == "EUR"`. Falsy → this node is skipped (a field is
    * omitted; on a list's item template, that line is dropped). Null/blank → always included.
