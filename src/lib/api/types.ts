@@ -260,6 +260,15 @@ export interface SourceToken {
   value: string;
   /** "header" | "line" grouping hint, or null when the format has no distinction. */
   group?: string | null;
+  /**
+   * F-1 Phase 4: the ordinal-stripped RELATIVE address of a line-group token, identical across
+   * every line (CSV "cell:c{c}", XML "/Order/Lines/Line/Qty", EDI "seg:LIN.el1", JSON the array
+   * index replaced with a star, e.g. "json:/lines/N/sku" without N). Binding
+   * `sourceToken = relativeId` makes ONE output rule emit EACH line's own value. Null for
+   * header/non-line tokens (they fill all lines via the header bag); undefined when the backend
+   * hasn't deployed the field yet (back-compat).
+   */
+  relativeId?: string | null;
 }
 
 /** Summary returned by POST /api/orders/{id}/mapping-override/promote. */
