@@ -1,18 +1,26 @@
 "use client";
 
 /**
- * BridgeLoader — the canonical loading state for ProcuLink.
- * The mark completes its link arc via stroke-dashoffset animation.
- * "Never a generic spinner." — §7 identity system.
+ * BridgeLoader — the single canonical loading state for ProcuLink.
+ * The ProcuLink "wire" mark (the link/bridge between buyer and supplier) animates:
+ * a blue→green gradient dash flows continuously along a curved path joining two
+ * pulsing nodes (top blue = buyer, bottom green = supplier). "Never a generic
+ * spinner." — §7 identity system. Keyframes are scoped + frozen under
+ * prefers-reduced-motion. Tokens per handoff §13.
  *
- * Used by all loading.tsx files and any suspense fallback.
+ * Used by every loading.tsx (via BridgePageLoader) and any suspense fallback.
  */
 
 import { type CSSProperties } from "react";
 
+// Path drawn in a 76×72 viewBox — the buyer→supplier wire.
+const PATH = "M14 16h28a20 20 0 0 1 20 20v0a20 20 0 0 1-20 20H14";
+
 interface BridgeLoaderProps {
   /** Optional label below the mark */
   label?: string;
+  /** Optional secondary line below the label */
+  sub?: string;
   /** Size of the mark in px (default 48) */
   size?: number;
   /** Full-screen centering (default true) */
@@ -21,6 +29,7 @@ interface BridgeLoaderProps {
 
 export function BridgeLoader({
   label,
+  sub,
   size = 48,
   fullScreen = true,
 }: BridgeLoaderProps) {
@@ -39,96 +48,104 @@ export function BridgeLoader({
         display: "inline-flex",
         flexDirection: "column",
         alignItems: "center",
-        gap: 8,
+        gap: 14,
       };
 
-  // The mark path length for a 40×40 viewBox:
-  // "M8 10h14a10 10 0 0 1 10 10v0a10 10 0 0 1-10 10H8"
-  // Measured ≈ 88.5. We use 90 as dasharray.
-  const DASH = 90;
+  // The mark keeps its 76×72 aspect ratio; scale height from the size prop.
+  const width = size;
+  const height = Math.round(size * (72 / 76));
 
   return (
     <div style={wrapStyle}>
       <svg
         className="bridge-loader-svg"
-        width={size}
-        height={size}
-        viewBox="0 0 40 40"
+        width={width}
+        height={height}
+        viewBox="0 0 76 72"
         fill="none"
-        aria-label="Loading…"
+        aria-label={label ?? "Loading…"}
         role="status"
       >
         <defs>
           <linearGradient id="bl-grad" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0%"   stopColor="#1E66C9" />
+            <stop offset="0%" stopColor="#1E66C9" />
             <stop offset="100%" stopColor="#2E8E3A" />
           </linearGradient>
         </defs>
 
-        {/* The arc — draws itself left-to-right */}
+        {/* Static rail */}
         <path
-          d="M8 10h14a10 10 0 0 1 10 10v0a10 10 0 0 1-10 10H8"
-          stroke="url(#bl-grad)"
-          strokeWidth="3.6"
+          d={PATH}
+          stroke="#DCE2EC"
+          strokeWidth="5"
           strokeLinecap="round"
           fill="none"
-          strokeDasharray={DASH}
-          strokeDashoffset={DASH}
+        />
+
+        {/* The flowing gradient dash — runs continuously buyer→supplier */}
+        <path
+          className="plk-wire"
+          d={PATH}
+          stroke="url(#bl-grad)"
+          strokeWidth="5"
+          strokeLinecap="round"
+          fill="none"
           style={{
-            animation: `bridge-draw 1.1s cubic-bezier(0.16,1,0.3,1) infinite`,
+            strokeDasharray: "26 74",
+            animation: "plkWire 1.9s cubic-bezier(.5,0,.5,1) infinite",
           }}
         />
 
-        {/* Buyer endpoint — fades in with the start of the arc */}
+        {/* Buyer endpoint — pulses */}
         <circle
-          cx="8"
-          cy="10"
-          r="2.5"
+          className="plk-node"
+          cx="14"
+          cy="16"
+          r="5"
           fill="#1E66C9"
           style={{
-            animation: `bridge-dot-a 1.1s cubic-bezier(0.16,1,0.3,1) infinite`,
+            transformOrigin: "14px 16px",
+            animation: "plkNode 1.9s ease-in-out infinite",
           }}
         />
 
-        {/* Supplier endpoint — fades in as arc completes */}
+        {/* Supplier endpoint — pulses (offset half a cycle) */}
         <circle
-          cx="8"
-          cy="30"
-          r="2.5"
+          className="plk-node"
+          cx="14"
+          cy="56"
+          r="5"
           fill="#2E8E3A"
           style={{
-            animation: `bridge-dot-b 1.1s cubic-bezier(0.16,1,0.3,1) infinite`,
+            transformOrigin: "14px 56px",
+            animation: "plkNode 1.9s ease-in-out infinite",
+            animationDelay: ".95s",
           }}
         />
       </svg>
 
-      {label && (
-        <span style={{ fontSize: 12.5, color: "var(--ink-faint)", letterSpacing: "0.01em" }}>
-          {label}
-        </span>
+      {(label || sub) && (
+        <div style={{ textAlign: "center" }}>
+          {label && (
+            <div style={{ fontSize: 13, fontWeight: 600, color: "#0B1A2F" }}>
+              {label}
+            </div>
+          )}
+          {sub && (
+            <div style={{ fontSize: 11.5, color: "#8A93A5", marginTop: 3 }}>
+              {sub}
+            </div>
+          )}
+        </div>
       )}
 
       {/* Keyframes injected inline — avoids CSS module dependency */}
       <style>{`
-        @keyframes bridge-draw {
-          0%   { stroke-dashoffset: ${DASH}; opacity: 0.3; }
-          20%  { opacity: 1; }
-          70%  { stroke-dashoffset: 0; opacity: 1; }
-          100% { stroke-dashoffset: 0; opacity: 0; }
-        }
-        @keyframes bridge-dot-a {
-          0%, 10% { opacity: 0; }
-          25%     { opacity: 1; }
-          80%     { opacity: 1; }
-          100%    { opacity: 0; }
-        }
-        @keyframes bridge-dot-b {
-          0%, 60%  { opacity: 0; }
-          80%      { opacity: 1; }
-          100%     { opacity: 0; }
-        }
+        @keyframes plkWire { 0% { stroke-dashoffset: 100; } 100% { stroke-dashoffset: -100; } }
+        @keyframes plkNode { 0%,100% { opacity: 0.5; transform: scale(1); } 50% { opacity: 1; transform: scale(1.18); } }
         @media (prefers-reduced-motion: reduce) {
-          .bridge-loader-svg * { animation: none !important; stroke-dashoffset: 0 !important; opacity: 1 !important; }
+          .bridge-loader-svg .plk-wire { animation: none !important; stroke-dashoffset: 0 !important; }
+          .bridge-loader-svg .plk-node { animation: none !important; opacity: 0.9 !important; }
         }
       `}</style>
     </div>
@@ -137,9 +154,15 @@ export function BridgeLoader({
 
 /**
  * Full-page loading screen — used by loading.tsx files.
- * Shows the mark completing its link over a neutral background.
+ * Renders the unified continuous-flow mark over a neutral background.
  */
-export function BridgePageLoader({ label = "Loading…" }: { label?: string }) {
+export function BridgePageLoader({
+  label = "Loading…",
+  sub,
+}: {
+  label?: string;
+  sub?: string;
+}) {
   return (
     <div
       style={{
@@ -148,21 +171,10 @@ export function BridgePageLoader({ label = "Loading…" }: { label?: string }) {
         alignItems: "center",
         justifyContent: "center",
         height: "100%",
-        gap: 20,
         background: "#F6F7FA",
       }}
     >
-      <BridgeLoader size={56} fullScreen={false} />
-      <span
-        style={{
-          fontFamily: "'Bricolage Grotesque', Inter, sans-serif",
-          fontSize: 15,
-          fontWeight: 600,
-          color: "#0B1A2F",
-        }}
-      >
-        {label}
-      </span>
+      <BridgeLoader size={88} fullScreen={false} label={label} sub={sub} />
     </div>
   );
 }

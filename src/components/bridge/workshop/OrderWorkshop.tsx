@@ -43,7 +43,7 @@ import { IssuesPanel, type WorkshopIssue, type IssuesResolveApi } from "./Issues
 import { MobileTriage } from "./MobileTriage";
 import { WorkshopStepper } from "./WorkshopStepper";
 import { SendReadinessStrip, type BlockerChip } from "./SendReadinessStrip";
-import { WorkshopBrandLoader } from "./WorkshopBrandLoader";
+import { BridgePageLoader } from "../BridgeLoader";
 import { OrderDetailsDrawer, type OrderDetailsTab } from "./OrderDetailsDrawer";
 
 /** The default trust threshold when no calibration history exists (mirrors mappingListModel). */
@@ -326,7 +326,13 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
   const outputFormatLabel = order ? outputArtifactType(order.artifacts) : "";
 
   // ── Loading / error gates (after all hooks) ─────────────────────────────────
-  if (!queryEnabled || isLoading || order === undefined) return <WorkshopBrandLoader />;
+  if (!queryEnabled || isLoading || order === undefined)
+    return (
+      <BridgePageLoader
+        label="Preparing your order…"
+        sub="Parsing the document and matching the supplier's fields."
+      />
+    );
   if (isError || order === null) {
     return (
       <div className="flex flex-col items-center justify-center h-full gap-3.5 px-6 text-center" style={{ background: "#F6F7FA" }}>
