@@ -618,7 +618,7 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
             onClick={catalogHintCount > 0 ? scrollToFirstCatalogHint : undefined}
           />
           <ToolbarButton
-            label="Validate"
+            label="Standards check"
             title={onValidate ? "Validate the outbound document against a standards profile" : "Validation runs from the order review header"}
             onClick={onValidate}
           />

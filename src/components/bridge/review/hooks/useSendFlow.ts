@@ -8,7 +8,7 @@
 //   • severity-tracked flow notices (info/success/error) with severity inferred
 //     from failure keywords when omitted, so failure messages never render green.
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { apiClient } from "@/lib/api-client";
 import type { Order } from "@/types/procurement";
 import type { PartyLabels } from "@/hooks/useOrderDirection";
@@ -43,6 +43,43 @@ export function useSendFlow({ orderId, order, labels, refetchOrder }: {
   const [crossed, setCrossed] = useState(false);
   const [showToast, setShowToast] = useState(false);
 
+  // ── Finding-1: remount resilience ───────────────────────────────────────────
+  // If the operator navigates away mid-generation and back, the freshly-loaded
+  // order can be in an in-flight server state (transforming) even though local
+  // sendState reset to "idle" on mount. Reflect the in-flight server status so the
+  // header shows "Generating…" instead of an idle/ready CTA — and clear it back to
+  // idle once the server transform settles (ready_to_deliver / terminal), so the
+  // button never sticks on "Generating…".
+  //
+  // `serverDrivenSend` flags that the effect (not the user's confirmSend) owns the
+  // current non-idle state. confirmSend sets sendState synchronously to
+  // "transforming"/"delivering" WITHOUT setting this flag, so the effect treats a
+  // user-initiated send as foreign and never overwrites it. The order query
+  // auto-refetches while mid-flight (useOrderReview), so this re-runs on each status
+  // change and converges.
+  const serverDrivenSend = useRef(false);
+  useEffect(() => {
+    if (!order) return; // order not loaded yet
+    // A user-initiated send is running (sendState non-idle but not ours) — hands off.
+    if (sendState !== "idle" && !serverDrivenSend.current) return;
+
+    if (order.status === "transforming") {
+      // Server is mid-transform — reflect it (idempotent: re-setting the same value
+      // is a no-op for React state).
+      serverDrivenSend.current = true;
+      setSendState("transforming");
+    } else if (serverDrivenSend.current) {
+      // We had adopted an in-flight status, but the order has since settled (the
+      // transform finished server-side, or it failed). Release back to idle so the
+      // real CTA (green Send for ready_to_deliver, the failure panel for *_failed)
+      // takes over — the button never sticks on "Generating…".
+      serverDrivenSend.current = false;
+      setSendState("idle");
+    }
+    // parsing / pending_review / ready / ready_to_deliver / delivered / *_failed with
+    // no adopted state → leave sendState untouched (the resting CTA is already right).
+  }, [order, sendState]);
+
   const pollOrderUntil = useCallback(async (
     predicate: (next: Order) => boolean,
     timeoutMs: number,
@@ -51,7 +88,16 @@ export function useSendFlow({ orderId, order, labels, refetchOrder }: {
     let latest: Order | null = null;
 
     while (Date.now() - started < timeoutMs) {
-      latest = await apiClient.getOrderById(orderId);
+      // A single transient rejection (cold-auth 401, a network blip, or the per-call
+      // fetch timeout) must NOT abort the whole send — the Worker job is enqueued
+      // server-side with CancellationToken.None and is mid-transform/deliver. Swallow
+      // the error and try again on the next tick; we only give up after the timeout
+      // with ZERO successful reads (latest === null).
+      try {
+        latest = await apiClient.getOrderById(orderId);
+      } catch {
+        // not refreshed yet — fall through to the next 900ms tick.
+      }
       if (latest && predicate(latest)) {
         return latest;
       }
@@ -148,7 +194,30 @@ export function useSendFlow({ orderId, order, labels, refetchOrder }: {
       }
       await refetchOrder();
     } catch (err) {
-      setFlow(err instanceof Error ? err.message : "Send failed. Check the Delivery Log and try again.", "error");
+      // Before painting a red "Send failed", re-read SERVER truth once. The browser
+      // poll can throw on a navigation-away / cold-auth / network blip while the
+      // Worker job (enqueued with CancellationToken.None) is still healthily mid-flight
+      // or already done — so a thrown poll error does NOT mean the order failed.
+      let live: Order | null = null;
+      try {
+        live = await apiClient.getOrderById(orderId);
+      } catch {
+        // The re-read itself failed too — fall through to the honest error below.
+      }
+
+      if (live && live.status === "delivered") {
+        // Already delivered — reflect success, not failure.
+        setCrossed(true);
+        setShowToast(true);
+        setFlow(finalDeliveryMessage("delivered", null, labels), "success");
+      } else if (live && (live.status === "transforming" || live.status === "ready_to_deliver")) {
+        // Still in-flight server-side — show a neutral "still processing" note, NOT red.
+        setFlow("Still processing — generating and sending the output. This page will update when it finishes.", "info");
+      } else {
+        // The re-read confirms a genuinely failed/terminal state, or the re-read also
+        // failed — surface the honest error.
+        setFlow(err instanceof Error ? err.message : "Send failed. Check the Delivery Log and try again.", "error");
+      }
       await refetchOrder();
     } finally {
       setSendState("idle");

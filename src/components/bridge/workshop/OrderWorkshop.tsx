@@ -231,8 +231,10 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
 
   // ── Order details drawer (audit / standards / supplier response) ────────────
   //    Secondary, lower-frequency trust surfaces relocated from the old screen's
-  //    Passport/Conformance/Response tabs. Opened from a quiet header trigger and
-  //    deep-linkable via ?tab= (so the Exceptions "Check conformance" link works).
+  //    Passport/Conformance/Response tabs. Opened from a quiet header trigger.
+  //    detailsTab is seeded from the ?tab= query param so a deep link
+  //    (e.g. ExceptionDetail's "Check conformance" → ?tab=conformance) opens the
+  //    matching drawer tab on first paint.
   const searchParams = useSearchParams();
   const [detailsTab, setDetailsTab] = useState<OrderDetailsTab | null>(() => {
     const t = searchParams?.get("tab");
@@ -432,23 +434,31 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
               overflowing on the narrowest headers; no effect once they fit. */}
           <div className="flex flex-wrap items-center justify-end gap-3.5 flex-shrink-0 ml-auto xl:ml-0">
             {/* Order details (audit · standards · response) — quiet secondary trigger
-                that opens the relocated Passport/Conformance/Response surfaces. */}
-            <button
-              type="button"
-              onClick={() => openDetails("passport")}
-              aria-label="Order details — audit trail, standards check, and response"
-              style={{ height: 34, padding: "0 11px", borderRadius: 7, border: "1px solid #E2E6EE", background: "#FFFFFF", color: "#56627A", fontSize: 12.5, fontWeight: 600, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 6, whiteSpace: "nowrap", flexShrink: 0, transition: "border-color .12s, color .12s" }}
-              onMouseEnter={(e) => { e.currentTarget.style.borderColor = "#1E66C9"; e.currentTarget.style.color = "#0B1A2F"; }}
-              onMouseLeave={(e) => { e.currentTarget.style.borderColor = "#E2E6EE"; e.currentTarget.style.color = "#56627A"; }}
-            >
-              <svg width="13" height="13" viewBox="0 0 16 16" fill="none" aria-hidden>
-                <path d="M3 4h10M3 8h10M3 12h6" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
-              </svg>
-              Details
-            </button>
+                that opens the relocated Passport/Conformance/Response surfaces.
+                Desktop-only (xl): below xl the body is <MobileTriage> (review-and-send
+                only), and these controls would only eat the 360px header and clip Send. */}
+            <div className="hidden xl:inline-flex">
+              <button
+                type="button"
+                onClick={() => openDetails("passport")}
+                aria-label="Order details — audit trail, standards check, and response"
+                style={{ height: 34, padding: "0 11px", borderRadius: 7, border: "1px solid #E2E6EE", background: "#FFFFFF", color: "#56627A", fontSize: 12.5, fontWeight: 600, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 6, whiteSpace: "nowrap", flexShrink: 0, transition: "border-color .12s, color .12s" }}
+                onMouseEnter={(e) => { e.currentTarget.style.borderColor = "#1E66C9"; e.currentTarget.style.color = "#0B1A2F"; }}
+                onMouseLeave={(e) => { e.currentTarget.style.borderColor = "#E2E6EE"; e.currentTarget.style.color = "#56627A"; }}
+              >
+                <svg width="13" height="13" viewBox="0 0 16 16" fill="none" aria-hidden>
+                  <path d="M3 4h10M3 8h10M3 12h6" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+                </svg>
+                Details
+              </button>
+            </div>
 
-            {/* Focus: All / Mapping / Output — the progressive-disclosure control. */}
-            <FocusControl focus={lay.focus} onFocus={lay.setFocus} />
+            {/* Focus: All / Mapping / Output — the progressive-disclosure control.
+                Desktop-only (xl): the tabs drive the desktop MapperWorkbench, which is
+                itself hidden below xl, so on mobile they are inert AND overflow the header. */}
+            <div className="hidden xl:flex">
+              <FocusControl focus={lay.focus} onFocus={lay.setFocus} />
+            </div>
 
             {/* Send — gated by canSend (issues clear + server-truth exceptions clear). */}
             <div style={{ position: "relative" }} onMouseEnter={() => setSendTip(true)} onMouseLeave={() => setSendTip(false)}>

@@ -1056,37 +1056,49 @@ export function PoMappingEditor({
 
       {/* ── Source options ─────────────────────────────────────────────────── */}
       <div
-        className="flex flex-wrap items-center gap-4 px-4 py-2.5 sm:px-5"
+        className="px-4 py-2.5 sm:px-5"
         style={{ borderTop: `1px solid ${BORDER}`, background: BG }}
       >
-        <label className="flex items-center gap-1.5 text-[12px]" style={{ color: MUTED }}>
-          Separator
-          <select
-            value={sourceOpts.separator}
-            onChange={(e) => {
-              setSourceOpts((p) => ({ ...p, separator: e.target.value }));
-              setSaveState({ status: "idle" });
-            }}
-            className="rounded-[5px] px-2 py-1 text-[12px]"
-            style={{ border: `1px solid ${INPUT_BDR}`, background: SURFACE, color: NAVY }}
-          >
-            <option value=",">, (comma)</option>
-            <option value=";">; (semicolon)</option>
-            <option value={"\t"}>tab</option>
-            <option value="|">| (pipe)</option>
-          </select>
-        </label>
-        <label className="flex items-center gap-1.5 text-[12px]" style={{ color: MUTED }}>
-          <input
-            type="checkbox"
-            checked={sourceOpts.hasHeaderRecord}
-            onChange={(e) => {
-              setSourceOpts((p) => ({ ...p, hasHeaderRecord: e.target.checked }));
-              setSaveState({ status: "idle" });
-            }}
-          />
-          Has header row
-        </label>
+        <div
+          className="text-[10.5px] font-semibold uppercase tracking-wide"
+          style={{ color: MUTED, marginBottom: 6 }}
+        >
+          How we read the source file
+        </div>
+        <div className="flex flex-wrap items-center gap-4">
+          <label className="flex items-center gap-1.5 text-[12px]" style={{ color: MUTED }}>
+            Column separator (CSV/text)
+            <select
+              value={sourceOpts.separator}
+              onChange={(e) => {
+                setSourceOpts((p) => ({ ...p, separator: e.target.value }));
+                setSaveState({ status: "idle" });
+              }}
+              className="rounded-[5px] px-2 py-1 text-[12px]"
+              style={{ border: `1px solid ${INPUT_BDR}`, background: SURFACE, color: NAVY }}
+            >
+              <option value=",">, (comma)</option>
+              <option value=";">; (semicolon)</option>
+              <option value={"\t"}>tab</option>
+              <option value="|">| (pipe)</option>
+            </select>
+          </label>
+          <label className="flex items-center gap-1.5 text-[12px]" style={{ color: MUTED }}>
+            <input
+              type="checkbox"
+              checked={sourceOpts.hasHeaderRecord}
+              onChange={(e) => {
+                setSourceOpts((p) => ({ ...p, hasHeaderRecord: e.target.checked }));
+                setSaveState({ status: "idle" });
+              }}
+            />
+            Has header row
+          </label>
+        </div>
+        <div style={{ fontSize: 11, color: FAINT, marginTop: 6 }}>
+          How columns are split in the file {supplierName ? <>{supplierName} sends you</> : "you receive"}
+          {" "}— usually a comma. Ignored for XML / EDIFACT / cXML sources.
+        </div>
       </div>
 
       {/* ── Footer ─────────────────────────────────────────────────────────── */}
@@ -1310,8 +1322,9 @@ function TemplatePicker({
             right: 0,
             marginTop: 4,
             minWidth: 260,
-            maxHeight: 300,
+            maxHeight: "min(300px, 60vh)",
             overflowY: "auto",
+            WebkitOverflowScrolling: "touch",
             background: SURFACE,
             border: `1px solid ${INPUT_BDR}`,
             borderRadius: 8,

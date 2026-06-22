@@ -11,7 +11,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { OrderMappingOverride, OutputNode, OutputNodeTemplate } from "@/lib/api/types";
 
 // Capture what the designer saves. previewMappingOverride is a harmless no-op (the live preview).
-const upsertMappingOverride = vi.fn<[string, OrderMappingOverride], Promise<OrderMappingOverride>>(
+const upsertMappingOverride = vi.fn<(id: string, o: OrderMappingOverride) => Promise<OrderMappingOverride>>(
   (_id, o) => Promise.resolve(o),
 );
 vi.mock("@/lib/api-client", () => ({

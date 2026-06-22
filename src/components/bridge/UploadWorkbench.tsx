@@ -1368,12 +1368,13 @@ export function UploadWorkbench() {
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "space-between",
+                  flexWrap: "wrap",
                   gap: 12,
                   fontSize: 12.5,
                   color: "#7A4A0A",
                 }}
               >
-                <span>
+                <span style={{ minWidth: 0 }}>
                   <strong style={{ display: "block", color: "#7A4A0A" }}>{uploadError.title}</strong>
                   <span>{uploadError.message}</span>
                 </span>

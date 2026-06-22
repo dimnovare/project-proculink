@@ -116,7 +116,7 @@ function WireTopologyLaneList({ buyers, suppliers, wires, onWireClick }: WireTop
         return (
           <div
             key={i}
-            className="bg-white border border-[#E2E6EE] rounded-[10px] flex items-center gap-[10px] p-[10px_12px]"
+            className="bg-white border border-[#E2E6EE] rounded-[10px] flex items-center gap-2 sm:gap-[10px] p-[10px_12px]"
             style={{ cursor: onWireClick ? "pointer" : undefined }}
             onClick={() => onWireClick?.(wire, buyer, supplier)}
           >
@@ -132,8 +132,14 @@ function WireTopologyLaneList({ buyers, suppliers, wires, onWireClick }: WireTop
             </div>
 
             {/* Mini arc */}
-            <div className="flex-[0_0_76px] relative">
-              <svg width={76} height={38} viewBox="0 0 76 38" aria-hidden>
+            <div className="flex-[0_0_44px] sm:flex-[0_0_76px] relative">
+              <svg
+                className="w-[44px] sm:w-[76px]"
+                height={38}
+                viewBox="0 0 76 38"
+                preserveAspectRatio="xMidYMid meet"
+                aria-hidden
+              >
                 <defs>
                   <linearGradient id={gradId} x1="0" x2="1" y1="0" y2="0">
                     <stop offset="0%" stopColor="#1E66C9" />

@@ -31,8 +31,8 @@ const INPUT_STYLE = { border: "1px solid #D5DAEA", color: "#0B1A2F" } as const;
 
 // HTTPS + FTPS/SFTP first to default-discourage plaintext FTP / cleartext HTTP.
 const PROTOCOLS: Array<{ id: CatalogSourceProtocol; label: string }> = [
-  { id: "https", label: "HTTPS API" },
-  { id: "http", label: "HTTP API" },
+  { id: "https", label: "HTTPS API (encrypted)" },
+  { id: "http", label: "HTTP API (not encrypted)" },
   { id: "sftp", label: "SFTP" },
   { id: "ftps", label: "FTPS" },
   { id: "ftp", label: "FTP" },
