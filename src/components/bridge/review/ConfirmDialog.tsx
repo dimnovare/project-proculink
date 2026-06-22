@@ -97,7 +97,7 @@ export function ConfirmDialog({ exceptionCount, onConfirm, onCancel, supplierNam
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
-        style={{ position: "fixed", top: "50%", left: "50%", transform: "translate(-50%,-50%)", width: 440, background: "#FFFFFF", borderRadius: 12, boxShadow: "0 24px 64px rgba(11,26,47,0.22)", border: "1px solid #E2E6EE", zIndex: 9991, overflow: "hidden" }}
+        style={{ position: "fixed", top: "50%", left: "50%", transform: "translate(-50%,-50%)", width: 440, maxWidth: "calc(100vw - 32px)", background: "#FFFFFF", borderRadius: 12, boxShadow: "0 24px 64px rgba(11,26,47,0.22)", border: "1px solid #E2E6EE", zIndex: 9991, overflow: "hidden" }}
       >
         {/* Header */}
         <div style={{ padding: "20px 24px 0" }}>
