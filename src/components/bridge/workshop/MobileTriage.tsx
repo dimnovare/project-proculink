@@ -166,12 +166,12 @@ export function MobileTriage(props: MobileTriageProps) {
               <UnifiedStatusBadge size="sm" status={crossed ? "delivered" : exceptionCount > 0 ? "pending_review" : status} />
             </span>
           </div>
-          <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5" style={{ fontSize: 13 }}>
-            <span style={{ fontWeight: 600, color: BLUE_DEEP }}>{buyerName}</span>
-            <span aria-hidden style={{ color: "#C6CDDA" }}>→</span>
-            <span style={{ fontWeight: 600, color: GREEN_DEEP }}>{supplierName}</span>
-            <span aria-hidden style={{ color: "#C6CDDA" }}>·</span>
-            <span style={{ fontFamily: "'JetBrains Mono',monospace", color: INK }}>{grandTotalLabel}</span>
+          <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5" style={{ minWidth: 0, fontSize: 13 }}>
+            <span style={{ fontWeight: 600, color: BLUE_DEEP, minWidth: 0, overflowWrap: "anywhere" }}>{buyerName}</span>
+            <span aria-hidden style={{ flexShrink: 0, color: "#C6CDDA" }}>→</span>
+            <span style={{ fontWeight: 600, color: GREEN_DEEP, minWidth: 0, overflowWrap: "anywhere" }}>{supplierName}</span>
+            <span aria-hidden style={{ flexShrink: 0, color: "#C6CDDA" }}>·</span>
+            <span style={{ fontFamily: "'JetBrains Mono',monospace", color: INK, minWidth: 0, overflowWrap: "anywhere" }}>{grandTotalLabel}</span>
           </div>
         </div>
 
@@ -244,7 +244,7 @@ export function MobileTriage(props: MobileTriageProps) {
               {previewContent}
             </pre>
           ) : (
-            <p style={{ fontSize: 13, lineHeight: 1.5, color: INK, margin: 0 }}>
+            <p style={{ fontSize: 13, lineHeight: 1.5, color: INK, margin: 0, overflowWrap: "anywhere" }}>
               A <b>{outputFormatLabel}</b> file is generated for {supplierName} when you send. Open this order on a larger
               screen to see a live preview.
             </p>
@@ -416,6 +416,7 @@ function SummaryRow({ label, value, mono }: { label: string; value: string; mono
           fontWeight: 600,
           textAlign: "right",
           minWidth: 0,
+          overflowWrap: "anywhere",
           wordBreak: "break-word",
           ...(mono ? { fontFamily: "'JetBrains Mono',monospace", fontWeight: 500 } : {}),
         }}
@@ -478,11 +479,11 @@ function IssueCard({
           {tone.label}
         </span>
 
-        <div style={{ marginTop: 8, fontSize: 14, fontWeight: 600, color: NAVY, lineHeight: 1.35 }}>
+        <div style={{ marginTop: 8, fontSize: 14, fontWeight: 600, color: NAVY, lineHeight: 1.35, overflowWrap: "anywhere" }}>
           {issue.title}
         </div>
         {issue.why && (
-          <div style={{ marginTop: 3, fontSize: 13, color: INK, lineHeight: 1.45 }}>{issue.why}</div>
+          <div style={{ marginTop: 3, fontSize: 13, color: INK, lineHeight: 1.45, overflowWrap: "anywhere" }}>{issue.why}</div>
         )}
 
         {/* Inline supplier-code editor (open) — the same server-truth path as

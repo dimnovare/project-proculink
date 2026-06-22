@@ -400,7 +400,7 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
             </button>
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2.5">
-                <h1 style={{ fontFamily: "'Bricolage Grotesque',Inter,sans-serif", fontSize: 22, fontWeight: 700, letterSpacing: "-0.02em", color: "#0B1A2F", lineHeight: 1.1, whiteSpace: "nowrap" }}>
+                <h1 style={{ fontFamily: "'Bricolage Grotesque',Inter,sans-serif", fontSize: 22, fontWeight: 700, letterSpacing: "-0.02em", color: "#0B1A2F", lineHeight: 1.1, minWidth: 0, overflowWrap: "anywhere" }}>
                   {order.poNumber}
                 </h1>
                 <UnifiedStatusBadge size="md" status={crossed ? "delivered" : exceptionCount > 0 ? "pending_review" : order.status} />
@@ -414,12 +414,12 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
                   </span>
                 )}
               </div>
-              <div className="mt-1 flex flex-wrap items-center gap-x-1.5" style={{ fontSize: 13 }}>
-                <span style={{ fontWeight: 600, color: "#0F4FAB", whiteSpace: "nowrap" }}>{buyerLabel(order)}</span>
-                <span style={{ color: "#C6CDDA" }}>→</span>
-                <span style={{ fontWeight: 600, color: "#1E6D29", whiteSpace: "nowrap" }}>{order.supplierName}</span>
-                <span style={{ color: "#C6CDDA" }}>·</span>
-                <span style={{ fontFamily: "'JetBrains Mono',monospace", color: "#566982", whiteSpace: "nowrap" }}>{grandTotalLabel}</span>
+              <div className="mt-1 flex flex-wrap items-center gap-x-1.5" style={{ minWidth: 0, fontSize: 13 }}>
+                <span style={{ fontWeight: 600, color: "#0F4FAB", minWidth: 0, overflowWrap: "anywhere" }}>{buyerLabel(order)}</span>
+                <span aria-hidden style={{ flexShrink: 0, color: "#C6CDDA" }}>→</span>
+                <span style={{ fontWeight: 600, color: "#1E6D29", minWidth: 0, overflowWrap: "anywhere" }}>{order.supplierName}</span>
+                <span aria-hidden style={{ flexShrink: 0, color: "#C6CDDA" }}>·</span>
+                <span style={{ fontFamily: "'JetBrains Mono',monospace", color: "#566982", minWidth: 0, overflowWrap: "anywhere" }}>{grandTotalLabel}</span>
               </div>
             </div>
           </div>
