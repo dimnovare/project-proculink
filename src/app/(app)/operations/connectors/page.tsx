@@ -18,9 +18,9 @@ import type { DeliveryProtocol, ConnectorConfigField } from "@/lib/api/types";
 // Generic SFTP and Email (IMAP) are real, implemented channels.
 // Erply is a real delivery adapter (erp_erply protocol).
 const MOCK_CONNECTORS = [
-  { id: "c1", type: "cXML PunchOut", name: "SAP Ariba",             status: "coming_soon", desc: "ERP connector · cXML in/out — not yet available", docks: 0,  direction: "out" },
-  { id: "c2", type: "ERP (REST)",    name: "Coupa",                  status: "coming_soon", desc: "ERP connector · cXML — not yet available",         docks: 0,  direction: "out" },
-  { id: "c3", type: "ERP (REST)",    name: "Microsoft Dynamics 365", status: "coming_soon", desc: "ERP connector · OData — not yet available",        docks: 0,  direction: "out" },
+  { id: "c1", type: "cXML PunchOut", name: "SAP Ariba",             status: "coming_soon", desc: "ERP connector · cXML in/out", docks: 0,  direction: "out" },
+  { id: "c2", type: "ERP (REST)",    name: "Coupa",                  status: "coming_soon", desc: "ERP connector · cXML",         docks: 0,  direction: "out" },
+  { id: "c3", type: "ERP (REST)",    name: "Microsoft Dynamics 365", status: "coming_soon", desc: "ERP connector · OData",        docks: 0,  direction: "out" },
   { id: "c4", type: "EDI (SFTP)",    name: "Generic SFTP",           status: "connected",   desc: "File delivery",                                    docks: 3,  direction: "out" },
   { id: "c5", type: "Email (IMAP)",  name: "Email (IMAP)",           status: "connected",   desc: "Inbound order polling",                            docks: 1,  direction: "in"  },
   { id: "c6", type: "ERP — Erply",   name: "Erply",                  status: "available",   desc: "Retail ERP",                                       docks: 0,  direction: "out" },

@@ -233,6 +233,13 @@ export function OutputStructureDesigner({
     }
   }, [tree, orderId, baseOverride, onSaved]);
 
+  // Guarded close — the X and Cancel both discard in-modal edits, so confirm first when the tree
+  // has unsaved changes. `onClose` itself stays unchanged so the save-then-close path is untouched.
+  const requestClose = useCallback(() => {
+    if (!saved && !window.confirm("Discard unsaved changes to this output structure?")) return;
+    onClose();
+  }, [saved, onClose]);
+
   return (
     <div role="dialog" aria-label="Design output structure"
       style={{ position: "fixed", inset: 0, zIndex: 100, background: "rgba(8,16,28,0.55)", display: "flex", justifyContent: "center", alignItems: "stretch",
@@ -274,7 +281,7 @@ export function OutputStructureDesigner({
                 );
               })}
             </div>
-            <button onClick={onClose} aria-label="Close" style={{ minWidth: "var(--tap-min)", minHeight: "var(--tap-min)", display: "flex", alignItems: "center", justifyContent: "center", border: "none", background: "transparent", padding: 0, cursor: "pointer" }}>
+            <button onClick={requestClose} aria-label="Close" style={{ minWidth: "var(--tap-min)", minHeight: "var(--tap-min)", display: "flex", alignItems: "center", justifyContent: "center", border: "none", background: "transparent", padding: 0, cursor: "pointer" }}>
               <span style={{ height: 30, width: 30, borderRadius: 6, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(255,255,255,0.15)", color: "#FFF", fontSize: 16 }}>✕</span>
             </button>
           </div>
@@ -372,7 +379,7 @@ export function OutputStructureDesigner({
           {!isNarrow && <span style={{ fontSize: 12, color: "#5A6B82" }}>Bind each value to a field or fixed value · format dates/numbers · &ldquo;only include when&rdquo; to add a field or drop lines conditionally.</span>}
           <div style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
             {/* DS Button md sizing: 44px tap target on narrow, dense 32px on desktop. */}
-            <button onClick={onClose}
+            <button onClick={requestClose}
               style={{ height: isNarrow ? 44 : 32, padding: "0 14px", borderRadius: 6, border: `1px solid ${BORDER}`, background: "#FFF", color: NAVY, fontSize: 13, fontWeight: 500, cursor: "pointer" }}>Cancel</button>
             <button onClick={() => void save()} disabled={saving}
               onMouseEnter={(e) => { if (!saving) e.currentTarget.style.background = GREEN_DEEP; }}

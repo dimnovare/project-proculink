@@ -29,11 +29,11 @@ beforeEach(() => upsertMappingOverride.mockClear());
 const CBC = "urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2";
 const ORDER2 = "urn:oasis:names:specification:ubl:schema:xsd:Order-2";
 
-function renderDesigner(initialTree: OutputNodeTemplate) {
+function renderDesigner(initialTree: OutputNodeTemplate, onClose: () => void = () => {}) {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   render(
     <QueryClientProvider client={qc}>
-      <OutputStructureDesigner orderId="o-1" baseOverride={{ customFields: [] }} initialTree={initialTree} onClose={() => {}} />
+      <OutputStructureDesigner orderId="o-1" baseOverride={{ customFields: [] }} initialTree={initialTree} onClose={onClose} />
     </QueryClientProvider>,
   );
 }
@@ -126,5 +126,54 @@ describe("OutputStructureDesigner — inferred-tree round-trip (no namespace los
   it("does NOT show the root-namespaces editor while the tree uses per-node namespaces", () => {
     renderDesigner(inferredUblTree());
     expect(screen.queryByRole("button", { name: /XML namespaces/i })).toBeNull();
+  });
+});
+
+describe("OutputStructureDesigner — guarded close (unsaved-edit footgun)", () => {
+  // Both the header X and the footer Cancel discard in-modal edits, so each must confirm before
+  // closing when the tree has unsaved changes. The tree starts unsaved (saved === false) until a
+  // successful save, so a close before saving always confirms.
+  afterEach(() => vi.restoreAllMocks());
+
+  it("X (Close) confirms before discarding, and only closes when confirmed", () => {
+    const confirm = vi.spyOn(window, "confirm").mockReturnValue(true);
+    const onClose = vi.fn();
+    renderDesigner(plainXmlTree(), onClose);
+
+    fireEvent.click(screen.getByRole("button", { name: /^Close$/i }));
+
+    expect(confirm).toHaveBeenCalledWith("Discard unsaved changes to this output structure?");
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it("X (Close) keeps the modal open when the user cancels the confirm", () => {
+    vi.spyOn(window, "confirm").mockReturnValue(false);
+    const onClose = vi.fn();
+    renderDesigner(plainXmlTree(), onClose);
+
+    fireEvent.click(screen.getByRole("button", { name: /^Close$/i }));
+
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it("Cancel confirms before discarding, and only closes when confirmed", () => {
+    const confirm = vi.spyOn(window, "confirm").mockReturnValue(true);
+    const onClose = vi.fn();
+    renderDesigner(plainXmlTree(), onClose);
+
+    fireEvent.click(screen.getByRole("button", { name: /^Cancel$/i }));
+
+    expect(confirm).toHaveBeenCalledWith("Discard unsaved changes to this output structure?");
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it("Cancel keeps the modal open when the user cancels the confirm", () => {
+    vi.spyOn(window, "confirm").mockReturnValue(false);
+    const onClose = vi.fn();
+    renderDesigner(plainXmlTree(), onClose);
+
+    fireEvent.click(screen.getByRole("button", { name: /^Cancel$/i }));
+
+    expect(onClose).not.toHaveBeenCalled();
   });
 });

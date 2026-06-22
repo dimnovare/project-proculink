@@ -435,7 +435,7 @@ function TemplatePanel({
             />
           </Field>
           <div className="rounded-[7px] p-3 text-[13px] leading-5 sm:text-[12px]" style={{ border: "1px solid var(--border)", background: "var(--bg)", color: "var(--ink-muted)" }}>
-            Canonical {"{tokens}"} are filled from the order at delivery time. Keep placeholders explicit and supplier-scoped before assigning a supplier.
+            {"{Like_this}"} values are filled in from the order when you send it. Keep them generic until you assign this template to a supplier.
           </div>
           {validation && (
             <div className="rounded-[7px] p-3 text-[13px] leading-5 sm:text-[12px]" style={{ border: "1px solid var(--brand-blue-soft)", background: "var(--brand-blue-soft)", color: "var(--brand-blue-deep)" }}>
