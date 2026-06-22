@@ -131,14 +131,32 @@ describe("OutputStructureDesigner — inferred-tree round-trip (no namespace los
 
 describe("OutputStructureDesigner — guarded close (unsaved-edit footgun)", () => {
   // Both the header X and the footer Cancel discard in-modal edits, so each must confirm before
-  // closing when the tree has unsaved changes. The tree starts unsaved (saved === false) until a
-  // successful save, so a close before saving always confirms.
+  // closing WHEN THE USER HAS ACTUALLY EDITED. A freshly-opened, UNEDITED designer closes with no
+  // prompt (the `dirty` flag only flips true on a real edit — not merely because nothing is saved yet).
   afterEach(() => vi.restoreAllMocks());
 
-  it("X (Close) confirms before discarding, and only closes when confirmed", () => {
+  // Make one real edit (rename a node), which sets the designer dirty.
+  function editTree() {
+    fireEvent.click(screen.getByRole("button", { name: /Edit name \(ID\)/i }));
+    fireEvent.change(screen.getByLabelText("Node name"), { target: { value: "Changed" } });
+  }
+
+  it("a freshly-opened, UNEDITED designer closes via X with NO confirm", () => {
     const confirm = vi.spyOn(window, "confirm").mockReturnValue(true);
     const onClose = vi.fn();
     renderDesigner(plainXmlTree(), onClose);
+
+    fireEvent.click(screen.getByRole("button", { name: /^Close$/i }));
+
+    expect(confirm).not.toHaveBeenCalled();
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it("X (Close) confirms after an edit, and only closes when confirmed", () => {
+    const confirm = vi.spyOn(window, "confirm").mockReturnValue(true);
+    const onClose = vi.fn();
+    renderDesigner(plainXmlTree(), onClose);
+    editTree();
 
     fireEvent.click(screen.getByRole("button", { name: /^Close$/i }));
 
@@ -150,16 +168,18 @@ describe("OutputStructureDesigner — guarded close (unsaved-edit footgun)", () 
     vi.spyOn(window, "confirm").mockReturnValue(false);
     const onClose = vi.fn();
     renderDesigner(plainXmlTree(), onClose);
+    editTree();
 
     fireEvent.click(screen.getByRole("button", { name: /^Close$/i }));
 
     expect(onClose).not.toHaveBeenCalled();
   });
 
-  it("Cancel confirms before discarding, and only closes when confirmed", () => {
+  it("Cancel confirms after an edit, and only closes when confirmed", () => {
     const confirm = vi.spyOn(window, "confirm").mockReturnValue(true);
     const onClose = vi.fn();
     renderDesigner(plainXmlTree(), onClose);
+    editTree();
 
     fireEvent.click(screen.getByRole("button", { name: /^Cancel$/i }));
 
@@ -171,6 +191,7 @@ describe("OutputStructureDesigner — guarded close (unsaved-edit footgun)", () 
     vi.spyOn(window, "confirm").mockReturnValue(false);
     const onClose = vi.fn();
     renderDesigner(plainXmlTree(), onClose);
+    editTree();
 
     fireEvent.click(screen.getByRole("button", { name: /^Cancel$/i }));
 

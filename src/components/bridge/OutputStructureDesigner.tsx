@@ -147,6 +147,10 @@ export function OutputStructureDesigner({
   const [preview, setPreview] = useState<{ content: string | null; error?: string; loading: boolean }>({ content: null, loading: false });
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  // Tracks whether the user has made an EDIT since open / last save — drives the close confirm.
+  // (`saved` starts false on a fresh open, so guarding the close on `!saved` would wrongly prompt
+  // when closing an UNEDITED designer; `dirty` only flips true on a real edit.)
+  const [dirty, setDirty] = useState(false);
   const [showInfer, setShowInfer] = useState(initialTree == null);
   const [sample, setSample] = useState("");
   const [inferring, setInferring] = useState(false);
@@ -177,7 +181,7 @@ export function OutputStructureDesigner({
       const inferred = await inferOutputStructure(orderId, s, fmt);
       // Keep the Format control populated even if the inferred tree reports a non-offered format.
       setTree({ ...inferred, format: designerFormat(inferred.format) });
-      setSaved(false);
+      setSaved(false); setDirty(true);
       setShowInfer(false);
       setFirstRun(false); // sample inferred → reveal the editable tree
     } catch (e) {
@@ -189,7 +193,7 @@ export function OutputStructureDesigner({
 
   const setRoot = useCallback((fn: (n: OutputNode) => OutputNode) => {
     setTree((t) => ({ ...t, root: fn(t.root) }));
-    setSaved(false);
+    setSaved(false); setDirty(true);
   }, []);
 
   // Root namespaces (prefix → uri). Only meaningful for XML; the LEGACY root-map mode where nodes
@@ -197,7 +201,7 @@ export function OutputStructureDesigner({
   // namespaces (the emitter throws if both are set) — the UI gates which editor is shown.
   const setRootNamespaces = useCallback((rows: NamespaceRow[]) => {
     setTree((t) => ({ ...t, namespaces: rowsToNamespaces(rows) }));
-    setSaved(false);
+    setSaved(false); setDirty(true);
   }, []);
 
   const isXml = designerFormat(tree.format) === "xml";
@@ -226,7 +230,7 @@ export function OutputStructureDesigner({
     try {
       const override: OrderMappingOverride = { ...(baseOverride ?? { customFields: [] }), outputTree: tree };
       await upsertMappingOverride(orderId, override);
-      setSaved(true);
+      setSaved(true); setDirty(false);
       onSaved?.();
     } finally {
       setSaving(false);
@@ -236,9 +240,9 @@ export function OutputStructureDesigner({
   // Guarded close — the X and Cancel both discard in-modal edits, so confirm first when the tree
   // has unsaved changes. `onClose` itself stays unchanged so the save-then-close path is untouched.
   const requestClose = useCallback(() => {
-    if (!saved && !window.confirm("Discard unsaved changes to this output structure?")) return;
+    if (dirty && !window.confirm("Discard unsaved changes to this output structure?")) return;
     onClose();
-  }, [saved, onClose]);
+  }, [dirty, onClose]);
 
   return (
     <div role="dialog" aria-label="Design output structure"
@@ -267,7 +271,7 @@ export function OutputStructureDesigner({
                 const selected = designerFormat(tree.format) === f.id;
                 return (
                   <button key={f.id} role="radio" aria-checked={selected} aria-label={`${f.label} format`}
-                    onClick={() => { setTree((t) => ({ ...t, format: f.id })); setSaved(false); }}
+                    onClick={() => { setTree((t) => ({ ...t, format: f.id })); setSaved(false); setDirty(true); }}
                     style={{
                       height: 24, padding: "0 11px", borderRadius: 6, cursor: "pointer",
                       fontFamily: "'JetBrains Mono', ui-monospace, Menlo, monospace", fontSize: 10, fontWeight: 700,
