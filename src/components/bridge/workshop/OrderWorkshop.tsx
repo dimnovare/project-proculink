@@ -409,10 +409,10 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
                 <InvoiceBadge documentType={order.documentType} />
                 {order.status === "delivery_dead_letter" && (
                   <span
-                    title="Delivery retries are exhausted. The order is in the dead-letter queue for operator review."
+                    title="We tried delivering this several times automatically and it didn't go through. Open the order to resend it."
                     style={{ display: "inline-flex", alignItems: "center", padding: "3px 11px", borderRadius: 999, fontSize: 12, fontWeight: 600, background: "var(--danger-soft)", color: "var(--danger)", whiteSpace: "nowrap" }}
                   >
-                    ⚠ Dead-lettered · retries exhausted
+                    ⚠ Delivery failed — automatic retries used up. Open to resend.
                   </span>
                 )}
               </div>

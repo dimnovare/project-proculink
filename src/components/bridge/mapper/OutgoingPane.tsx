@@ -501,14 +501,14 @@ function OutgoingRow({
               {canEditTransform ? (
                 <RowChipButton
                   buttonRef={setFxAnchor}
-                  label={chain.length > 0 ? `ƒx · ${chain.length}` : "ƒx"}
-                  title={chain.length > 0 ? `${chain.length} transform${chain.length === 1 ? "" : "s"} applied — clean, reformat or compute this value before delivery` : "Add a transform — clean, reformat or compute this value before delivery"}
+                  label={chain.length > 0 ? `Edit value · ${chain.length}` : "Edit value"}
+                  title={chain.length > 0 ? `${chain.length} adjustment${chain.length === 1 ? "" : "s"} applied — clean up, reformat or recalculate this value before sending` : "Adjust this value — clean up, reformat or recalculate it before sending"}
                   lit={actionsLit}
                   active={chain.length > 0}
                   onClick={(e) => { e.stopPropagation(); setTransformOpen((o) => !o); }}
                 />
               ) : (
-                <RowChipButton label="ƒx" lit={actionsLit} disabled reason="Transforms need an editable mapping (open the order or a draft revision)" />
+                <RowChipButton label="Edit value" lit={actionsLit} disabled reason="Editing the value needs an editable mapping (open the order or a draft revision)" />
               )}
               {transformOpen && (
                 <TransformPopover

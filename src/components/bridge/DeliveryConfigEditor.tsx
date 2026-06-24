@@ -14,6 +14,7 @@ import {
 import { invalidateOnboardingStatus } from "@/hooks/useOnboardingStatus";
 import { isArrowKey, rovingRadioNext } from "@/lib/roving-radio";
 import { buildCxmlCredentials } from "@/lib/cxml-credentials";
+import { decideSftpCredentialAction, type SftpAuthMode } from "@/components/bridge/deliveryCredentialAction";
 import type { DeliveryConfig, DeliveryProtocol, DeliveryTestResult } from "@/lib/api/types";
 
 type AuthType = "none" | "apikey" | "bearer" | "basic" | "oauth2";
@@ -82,7 +83,14 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
   const [port, setPort] = useState<number | "">("");
   const [remotePath, setRemotePath] = useState("");
   const [makeDirectories, setMakeDirectories] = useState(true);
-  const [sftpAuthMode, setSftpAuthMode] = useState<"password" | "key">("password");
+  const [sftpAuthMode, setSftpAuthMode] = useState<SftpAuthMode>("password");
+  // B8: the SFTP auth method the editor LOADED with for a saved config — the shape the
+  // stored secret corresponds to. The backend never returns the saved auth shape (only a
+  // protocol-agnostic hasCredentials), and the editor never hydrates sftpAuthMode, so a
+  // saved SFTP config always presents in "password" mode. Recording this lets us detect a
+  // cross-shape switch (password→key) and refuse to silently keep the wrong-shape secret.
+  // Null = no saved SFTP config yet (brand-new supplier).
+  const [loadedSftpAuthMode, setLoadedSftpAuthMode] = useState<SftpAuthMode | null>(null);
   const [privateKey, setPrivateKey] = useState("");
   const [privateKeyPassphrase, setPrivateKeyPassphrase] = useState("");
   const [allowInvalidCertificate, setAllowInvalidCertificate] = useState(false);
@@ -134,6 +142,13 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
           setAutoDeliver(config.autoDeliver);
           setOutputFormat(config.outputFormat ?? "");
           if (config.protocol === "erp_directo") setAuthType("basic");
+          // B8: the saved SFTP secret's shape. The backend can't tell us password-vs-key, and
+          // the editor opens a saved SFTP config in "password" mode (sftpAuthMode is never
+          // hydrated), so the loaded shape IS "password" when a saved SFTP credential exists.
+          // Anything else (no saved credential / non-SFTP) → null = nothing to protect.
+          setLoadedSftpAuthMode(
+            config.protocol === "sftp" && config.hasCredentials ? "password" : null,
+          );
           hydrateConfig(config.protocol, config.configJson);
           const cx = config.cxmlCredentials;
           setCxmlFromDomain(cx?.fromDomain ?? "");
@@ -186,6 +201,10 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
   }
 
   const configPreview = JSON.stringify(buildConfigObject(), null, 2);
+
+  // B8: non-null when the SFTP auth method was switched away from the saved shape without a
+  // new secret. Gates the Save button + drives an inline message in the auth section.
+  const credentialBlock = sftpCredentialBlockMessage();
 
   const canSave =
     protocol === "sftp" || protocol === "ftps"
@@ -269,13 +288,41 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
     return { url, method, timeoutSeconds }; // http
   }
 
+  // B8: the new secret the SELECTED SFTP auth method needs (key text vs password).
+  function sftpNewSecret(): string {
+    return sftpAuthMode === "key" ? privateKey : basicPassword;
+  }
+
+  // B8: blocking message when the SFTP auth method was switched away from the saved shape
+  // (e.g. password → private key) without entering the new secret. Null when there's nothing
+  // to block. Drives the save gate + an inline message so the stale wrong-shape secret is
+  // never silently kept.
+  function sftpCredentialBlockMessage(): string | null {
+    if (protocol !== "sftp") return null;
+    const decision = decideSftpCredentialAction({
+      selected: sftpAuthMode,
+      loaded: loadedSftpAuthMode,
+      hasNewSecret: sftpNewSecret().trim() !== "",
+      hasSavedCredentials,
+    });
+    return decision.kind === "block" ? decision.message : null;
+  }
+
   function buildCredentialsJson(): string | null {
     if (protocol === "sftp") {
+      const decision = decideSftpCredentialAction({
+        selected: sftpAuthMode,
+        loaded: loadedSftpAuthMode,
+        hasNewSecret: sftpNewSecret().trim() !== "",
+        hasSavedCredentials,
+      });
+      // "keep" → null (preserve the stored secret of the SAME shape). "block" also returns
+      // null defensively, but save() refuses to call upsert in that case so it never reaches
+      // the backend (the stale wrong-shape secret is not kept silently).
+      if (decision.kind === "keep" || decision.kind === "block") return null;
       if (sftpAuthMode === "key") {
-        if (!privateKey && hasSavedCredentials) return null;
         return JSON.stringify({ username: basicUsername, privateKey, privateKeyPassphrase });
       }
-      if (!basicPassword && hasSavedCredentials) return null;
       return JSON.stringify({ username: basicUsername, password: basicPassword });
     }
 
@@ -318,6 +365,15 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
   }
 
   async function save() {
+    // B8: refuse to save when the SFTP auth method was switched away from the saved shape
+    // without a new secret — otherwise the backend would keep the stale wrong-shape secret
+    // and silently discard the auth-mode change. Surface the message; don't show "saved".
+    const block = sftpCredentialBlockMessage();
+    if (block) {
+      setError(block);
+      setJustSaved(false);
+      return;
+    }
     setSaving(true);
     setError(null);
     try {
@@ -340,6 +396,9 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
         }),
       });
       setSavedConfig(saved);
+      // B8: the just-saved SFTP shape becomes the new baseline so a later switch is detected
+      // against what's now stored. Only meaningful when the saved config has a credential.
+      setLoadedSftpAuthMode(saved.protocol === "sftp" && saved.hasCredentials ? sftpAuthMode : null);
       setApiKeyValue("");
       setBearerToken("");
       setBasicPassword("");
@@ -389,6 +448,7 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
       setCxmlDtdSystemId("");
       setCxmlDtdPublicId("");
       setAuthType("none");
+      setLoadedSftpAuthMode(null); // B8: no saved credential anymore → nothing to protect.
       setTestResult(null);
       setJustSaved(false);
       // hasDeliveryConfig may have flipped back — refresh checklist surfaces.
@@ -1041,6 +1101,13 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
                         <input value={basicPassword} onChange={(e) => { setBasicPassword(e.target.value); markEdited(); }} placeholder={hasSavedCredentials ? "********" : "Password"} className="h-9 w-full rounded-[5px] px-2.5 text-[12px]" style={INPUT_STYLE} />
                       </Field>
                     )}
+                    {/* B8: switched auth method away from the saved shape without a new secret —
+                        we won't silently keep the old (wrong-shape) secret. Ask for the new one. */}
+                    {credentialBlock && (
+                      <p className="rounded-[6px] px-3 py-2 text-[12px]" role="alert" style={{ background: "#FFF6E5", color: "#8A4B00", border: "1px solid #F0D39A" }}>
+                        {credentialBlock}
+                      </p>
+                    )}
                   </div>
                 )}
               </div>
@@ -1127,7 +1194,7 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
         <button onClick={testFire} disabled={!savedConfig || testing} title={!savedConfig ? "Save the delivery setup first, then you can test it." : "Send a small test to check the connection."} className="inline-flex h-8 items-center justify-center gap-1.5 rounded-[6px] px-3 text-[12px] font-semibold" style={{ border: "1px solid #D5DAEA", color: "#0B1A2F", background: "#FFF", opacity: !savedConfig ? 0.55 : 1 }}>
           <Send size={13} /> {testing ? "Testing..." : "Test-fire"}
         </button>
-        <button onClick={save} disabled={saving || !canSave} title={!canSave ? "Fill in the required fields first (e.g. Host for SFTP/FTPS, URL for HTTP, or SMTP host + sender for email)." : undefined} className="inline-flex h-8 items-center justify-center gap-1.5 rounded-[6px] px-3 text-[12px] font-semibold" style={{ border: "none", color: "#FFF", background: saving || !canSave ? "var(--ink-faint)" : "#0B1A2F" }}>
+        <button onClick={save} disabled={saving || !canSave || credentialBlock !== null} title={credentialBlock ?? (!canSave ? "Fill in the required fields first (e.g. Host for SFTP/FTPS, URL for HTTP, or SMTP host + sender for email)." : undefined)} className="inline-flex h-8 items-center justify-center gap-1.5 rounded-[6px] px-3 text-[12px] font-semibold" style={{ border: "none", color: "#FFF", background: saving || !canSave || credentialBlock !== null ? "var(--ink-faint)" : "#0B1A2F" }}>
           <Save size={13} /> {saving ? "Saving..." : "Save delivery"}
         </button>
       </div>

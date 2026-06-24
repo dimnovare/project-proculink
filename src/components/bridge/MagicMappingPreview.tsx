@@ -25,6 +25,7 @@ import type { MappingPreviewLine } from "@/lib/api-client";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useOrderDirection } from "@/hooks/useOrderDirection";
 import { isParseStalled } from "./parseStall";
+import { bulkAcceptCount, bulkAcceptResolutions } from "./magicBulkAcceptSelection";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -360,6 +361,14 @@ export function MagicMappingPreview({ orderId, onCommitted, onParseFailed }: Pro
   // ── Per-row state ─────────────────────────────────────────────────────────
   const [rows, dispatch] = useReducer(rowReducer, new Map<number, RowState>());
 
+  // B11: line numbers the user locally REJECTED this session. A rejection never changes the
+  // server `status`, so without this set the bulk-accept count + action still included them and
+  // re-accepted exactly what the user just rejected. Both the badge and the action filter on it.
+  const rejectedLineNumbers = new Set<number>();
+  for (const [lineNumber, state] of rows) {
+    if (state.mode === "rejected") rejectedLineNumbers.add(lineNumber);
+  }
+
   // ── Commit mutation ───────────────────────────────────────────────────────
   const [commitError, setCommitError] = useState<string | null>(null);
   const [commitSuccess, setCommitSuccess] = useState(false);
@@ -404,6 +413,30 @@ export function MagicMappingPreview({ orderId, onCommitted, onParseFailed }: Pro
     mutationFn: async (minConfidence: number) => {
       const local = buildResolutions();
       if (local.length > 0) await apiClient.commitMappings(orderId, local);
+
+      // B11: the broad accept-all endpoint has no per-line exclusion, so if the user locally
+      // REJECTED any suggested line it would re-accept exactly that line. When there ARE such
+      // rejections, accept the SURVIVING suggested lines explicitly via commitMappings (an
+      // existing route, no API change) so rejected lines are skipped. With no rejections, keep
+      // the cheaper server-side accept-all (unchanged behaviour).
+      const lines = preview?.lines ?? [];
+      const wouldReAcceptRejected = lines.some(
+        (l) =>
+          l.status !== "resolved" &&
+          l.aiSuggestedSupplierCode !== null &&
+          (l.confidence ?? 0) >= minConfidence &&
+          rejectedLineNumbers.has(l.lineNumber),
+      );
+
+      if (wouldReAcceptRejected) {
+        const resolutions = bulkAcceptResolutions({ lines, minConfidence, rejectedLineNumbers });
+        // A code the user already set by hand (in `local`) overrides the AI code for that line.
+        const localByLine = new Map(local.map((r) => [r.lineNumber, r]));
+        const toAccept = resolutions.filter((r) => !localByLine.has(r.lineNumber));
+        if (toAccept.length > 0) await apiClient.commitMappings(orderId, toAccept);
+        return { accepted: toAccept.length, committed: local.length };
+      }
+
       const result = await apiClient.acceptAiSuggestions(orderId, minConfidence);
       return { accepted: result.accepted, committed: local.length };
     },
@@ -421,21 +454,14 @@ export function MagicMappingPreview({ orderId, onCommitted, onParseFailed }: Pro
     onError: (err: Error) => setBulkNotice(`Accept failed: ${err.message}`),
   });
 
-  // Counts for the two bulk actions, both measured against SERVER state
-  // (preview line status), so the badge always matches what the endpoint
-  // will act on — the old client-side count drifted from the server one.
+  // Counts for the two bulk actions, measured against SERVER state (preview line status) MINUS
+  // any line the user locally rejected (B11) — so the badge always matches what the action will
+  // actually accept. The selection helper is shared with the action so they can never drift.
   const suggestedUnresolved = preview
-    ? preview.lines.filter(
-        l => l.status !== "resolved" && l.aiSuggestedSupplierCode !== null,
-      ).length
+    ? bulkAcceptCount({ lines: preview.lines, minConfidence: 0, rejectedLineNumbers })
     : 0;
   const highConf = preview
-    ? preview.lines.filter(
-        l =>
-          l.status !== "resolved" &&
-          l.aiSuggestedSupplierCode !== null &&
-          (l.confidence ?? 0) >= 0.85,
-      ).length
+    ? bulkAcceptCount({ lines: preview.lines, minConfidence: 0.85, rejectedLineNumbers })
     : 0;
 
   // ── Derived resolution map for commit ─────────────────────────────────────

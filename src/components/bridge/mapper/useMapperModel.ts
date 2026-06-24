@@ -18,7 +18,7 @@
 // pure mapperModel helpers never blank the other side, and buildOverrideDraft re-attaches
 // the current sourceMap explicitly. Never hand-roll the saved document.
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useQueriesEnabled } from "@/hooks/useQueriesEnabled";
 import {
@@ -224,6 +224,11 @@ export function useMapperModel({
   const [draft, setDraft] = useState<OrderMappingOverride | null>(null);
   useEffect(() => { setDraft(null); }, [scopeId, revisionId]);
   const override = draft ?? overrideQuery.data ?? emptyOverride();
+  // B9: the draft value REPLACED by the in-flight optimistic edit. apply() records it right
+  // before setDraft(next) so a failed save can roll the draft back to exactly what it was
+  // (null = fall back to server data). A ref, not state — it must hold the pre-edit value at
+  // mutate time without itself triggering a render.
+  const rollbackDraftRef = useRef<OrderMappingOverride | null>(null);
 
   // ── Source tokens — order: the order; connection: the sample/recent order. ──
   const tokensQuery = useQuery({
@@ -490,16 +495,24 @@ export function useMapperModel({
         qc.invalidateQueries({ queryKey: ["mapping-override", scopeId] });
       }
     },
-    onError: (e) => { setSaveErr(e instanceof Error ? e.message : "Couldn’t save the mapping."); },
+    // B9: roll the optimistic edit back on failure so the wires + "what we'll send" preview
+    // reflect the REAL saved state, not the edit the server rejected. Restore the exact draft
+    // value apply() snapshotted before mutating (null → fall back to server override data).
+    onError: (e) => {
+      setDraft(rollbackDraftRef.current);
+      setSaveErr(e instanceof Error ? e.message : "Couldn’t save the mapping.");
+    },
   });
 
   // Apply a pure transform → optimistic local draft + bump signature + persist.
   const apply = useCallback((next: OrderMappingOverride, touched: string | null) => {
     if (readOnly) return;
+    // B9: capture the draft we're about to replace so onError can restore it verbatim.
+    rollbackDraftRef.current = draft;
     setDraft(next);
     setLastTouched(touched);
     saveMut.mutate(next);
-  }, [readOnly, saveMut]);
+  }, [readOnly, saveMut, draft]);
 
   const onSourceConnect = useCallback((tokenId: string, canonicalField: string) => {
     apply(withSourceConnect(override, canonicalField, tokenId), canonicalField);

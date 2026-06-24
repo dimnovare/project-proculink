@@ -409,7 +409,7 @@ function buildColumns(labels: PartyLabels) {
           className="text-[11px]"
           style={{ color: "#56627A" }}
         >
-          {info.row.original.lines} lines{info.row.original.issues > 0 ? ` · ${info.row.original.issues} exceptions` : ""}
+          {info.row.original.lines} lines{info.row.original.issues > 0 ? ` · ${info.row.original.issues} to review` : ""}
         </div>
       </div>
     ),
@@ -1248,7 +1248,7 @@ export function InboxView() {
                 <FileChip type={row.original.fmt} />
                 {row.original.issues > 0 && (
                   <span className="rounded px-1.5 py-0.5 text-[10.5px] font-semibold" style={{ background: "#FBE3E3", color: "#C53A3A" }}>
-                    {row.original.issues} exceptions
+                    {row.original.issues} to review
                   </span>
                 )}
               </div>

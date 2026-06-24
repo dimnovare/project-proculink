@@ -557,7 +557,7 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
       <div className="hidden lg:flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
           <span style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--ink-faint)" }}>
-            {variant === "order" ? "Map this order" : "Author the mapping"}
+            {variant === "order" ? "Map this order" : "Map fields"}
           </span>
           <MappedSummaryChip mapped={summary.mappedCount} total={summary.total} />
           {model.saving && <span style={{ fontSize: 10.5, color: "var(--ink-faint)" }}>Saving…</span>}
@@ -603,13 +603,13 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
           )}
           {variant === "order" && (
             <ToolbarButton
-              label="⚄ Design structure"
-              title="Design the exact output structure (nesting, lists, attributes) — paste a supplier sample to start"
+              label="⚄ Customize output layout"
+              title="Change how the output file is structured for this supplier — paste a supplier sample to start"
               onClick={() => setShowDesigner(true)}
             />
           )}
           <ToolbarButton
-            label={catalogHintCount > 0 ? `Enrich from catalog · ${catalogHintCount}` : "Enrich from catalog"}
+            label={catalogHintCount > 0 ? `Fill from catalog · ${catalogHintCount}` : "Fill from catalog"}
             title={
               catalogHintCount > 0
                 ? "Jump to the lines with catalog price/code hints — apply each per line"

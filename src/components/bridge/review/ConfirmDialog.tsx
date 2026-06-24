@@ -113,7 +113,7 @@ export function ConfirmDialog({ exceptionCount, onConfirm, onCancel, supplierNam
             {[
               { label: "Grand total",    value: grandTotal },
               { label: "Lines",          value: `${lineCount} item${lineCount !== 1 ? "s" : ""}` },
-              { label: "Exceptions",     value: `${exceptionCount}`, color: exceptionCount > 0 ? "#C97A14" : "#1E6D29" },
+              { label: "Issues to review", value: `${exceptionCount}`, color: exceptionCount > 0 ? "#C97A14" : "#1E6D29" },
               { label: "Format",         value: outputFormat.toUpperCase() },
             ].map(({ label, value, color }) => (
               <div key={label} style={{ flex: 1, minWidth: 0 }}>
@@ -139,7 +139,7 @@ export function ConfirmDialog({ exceptionCount, onConfirm, onCancel, supplierNam
             <label htmlFor="confirm-check" style={{ fontSize: 13, color: "#0B1A2F", lineHeight: 1.5, cursor: "pointer" }}>
               {exceptionCount === 0
                 ? <>Everything checks out. {inbound ? `Confirm for ${supplierName}` : `Send to ${supplierName}`}.</>
-                : <>I&apos;ve reviewed the {exceptionCount} exception{exceptionCount !== 1 ? "s" : ""}. {inbound ? `Confirm for ${supplierName}` : `Send to ${supplierName}`}.</>}
+                : <>I&apos;ve reviewed the {exceptionCount} issue{exceptionCount !== 1 ? "s" : ""}. {inbound ? `Confirm for ${supplierName}` : `Send to ${supplierName}`}.</>}
             </label>
           </div>
         )}

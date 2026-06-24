@@ -41,6 +41,21 @@ export interface TransformPopoverProps {
 
 const POPOVER_W = 300;
 
+// Plain-English labels shown to the coordinator for each manipulator. The KEYS are the
+// canonical MANIPULATOR_TYPES `type` values (sent verbatim to the backend) — never renamed.
+// Only the displayed wording changes here. Falls back to the raw type for any future type.
+const MANIPULATOR_LABELS: Record<string, string> = {
+  Trim: "Remove extra spaces",
+  Replace: "Find & replace text",
+  DateFormat: "Reformat the date",
+  Concat: "Add text to the end",
+  Fallback: "Use a default when empty",
+  Split: "Split & take one part",
+  Multiply: "Multiply the number",
+  Divide: "Divide the number",
+};
+const manipulatorLabel = (type: string) => MANIPULATOR_LABELS[type] ?? type;
+
 // ── Module-scope row so its <input>s keep focus across re-renders ───────────────
 function ManipRow({ entry, onUpdate, onRemove }: {
   entry: ManipulatorEntry; onUpdate: (e: ManipulatorEntry) => void; onRemove: () => void;
@@ -48,7 +63,7 @@ function ManipRow({ entry, onUpdate, onRemove }: {
   const spec = MANIPULATOR_TYPES.find((t) => t.type === entry.type);
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", background: "#FBF9FE", border: "1px solid #E2D6F6", borderRadius: 7, padding: "6px 7px" }}>
-      <span title={spec?.hint} style={{ fontSize: 11, fontWeight: 800, color: "#5E3DB0", minWidth: 64 }}>{entry.type}</span>
+      <span title={spec?.hint} style={{ fontSize: 11, fontWeight: 800, color: "#5E3DB0", minWidth: 64 }}>{manipulatorLabel(entry.type)}</span>
       {(spec?.params ?? []).length === 0 && (
         <span style={{ fontSize: 10, color: "var(--ink-faint)" }}>no parameters</span>
       )}
@@ -58,14 +73,14 @@ function ManipRow({ entry, onUpdate, onRemove }: {
           value={entry.params[i] ?? ""}
           onChange={(e) => { const params = [...entry.params]; params[i] = e.target.value; onUpdate({ ...entry, params }); }}
           placeholder={p}
-          aria-label={`${entry.type} ${p}`}
+          aria-label={`${manipulatorLabel(entry.type)} ${p}`}
           style={{ width: 70, minHeight: 24, border: "1px solid #C4ABE8", borderRadius: 5, padding: "2px 5px", fontSize: 10.5, fontFamily: "'JetBrains Mono',monospace" }}
         />
       ))}
       <button
         type="button"
         onClick={onRemove}
-        aria-label={`Remove ${entry.type}`}
+        aria-label={`Remove ${manipulatorLabel(entry.type)}`}
         style={{ marginLeft: "auto", border: "none", background: "transparent", color: "#8E7CB8", cursor: "pointer", fontSize: 13, lineHeight: 1 }}
       >
         ✕
@@ -140,24 +155,24 @@ export function TransformPopover({ outputPath, manipulators, onChange, onClose, 
     <div
       ref={ref}
       role="dialog"
-      aria-label={`Transforms for ${outputPath}`}
+      aria-label={`Adjust this value for ${outputPath}`}
       style={panelStyle}
       onClick={(e) => e.stopPropagation()}
     >
       <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 8 }}>
         <span style={{ fontSize: 10, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.05em", color: "#5E3DB0" }}>
-          Transforms
+          Adjust this value
         </span>
         <span style={{ fontSize: 10, fontFamily: "'JetBrains Mono',monospace", color: "var(--ink-faint)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 150 }}>
           {outputPath}
         </span>
       </div>
       <div style={{ fontSize: 10.5, color: "var(--ink-faint)", lineHeight: 1.4 }}>
-        Applied in order to the resolved value before delivery. Changes save + preview live.
+        Applied in order to this value before it&apos;s sent. Changes save + preview live.
       </div>
 
       {manipulators.length === 0 ? (
-        <div style={{ fontSize: 11, color: "var(--ink-faint)", padding: "4px 0" }}>No transforms yet.</div>
+        <div style={{ fontSize: 11, color: "var(--ink-faint)", padding: "4px 0" }}>No adjustments yet.</div>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
           {manipulators.map((m, mi) => (
@@ -173,7 +188,7 @@ export function TransformPopover({ outputPath, manipulators, onChange, onClose, 
 
       <select
         value=""
-        aria-label="Add a transform"
+        aria-label="Add an adjustment"
         onChange={(e) => {
           const t = MANIPULATOR_TYPES.find((x) => x.type === e.target.value);
           if (!t) return;
@@ -181,9 +196,9 @@ export function TransformPopover({ outputPath, manipulators, onChange, onClose, 
         }}
         style={{ minHeight: 30, border: "1px dashed #C6CDDA", borderRadius: 7, padding: "3px 7px", fontSize: 11.5, color: "#56627A", background: "#F6F7FA" }}
       >
-        <option value="">+ Add transform…</option>
+        <option value="">+ Add an adjustment…</option>
         {MANIPULATOR_TYPES.map((t) => (
-          <option key={t.type} value={t.type} title={t.hint}>{t.type} — {t.hint}</option>
+          <option key={t.type} value={t.type} title={t.hint}>{manipulatorLabel(t.type)} — {t.hint}</option>
         ))}
       </select>
 
