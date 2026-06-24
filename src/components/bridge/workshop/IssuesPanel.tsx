@@ -66,6 +66,18 @@ export interface IssuesResolveApi {
   confirmFlaggedLine: (line: Pick<OrderLine, "id" | "lineNumber" | "supplierItemCode">) => void;
   /** The line id whose Accept/Save/Confirm is in flight (drives the spinner + disable). */
   acceptingLineId: string | null;
+  /**
+   * Accept EVERY AI suggestion at/above `minConfidence` in ONE server call (the
+   * SAME POST /accept-ai-suggestions endpoint MagicMappingPreview's bulk button
+   * uses). This is server-truth only — there is no local "rejected" set in the
+   * workshop's resolution model (useResolveActions deliberately removed it), so a
+   * plain accept-all is correct here (no reject-aware commitMappings branch). The
+   * panel's parent (OrderWorkshop) routes the feedback through setFlow. Optional so
+   * pure-view callers and the existing tests render no bulk-accept header.
+   */
+  bulkAcceptSuggestions?: (minConfidence: number) => void;
+  /** True while a bulk accept is in flight (disables both bulk-accept buttons). */
+  bulkAccepting?: boolean;
 }
 
 export interface IssuesPanelProps {
@@ -80,6 +92,14 @@ export interface IssuesPanelProps {
   resolve?: IssuesResolveApi;
   /** The order lines, to read each card's current code / AI suggestion by lineId. */
   lines?: OrderLine[];
+  /**
+   * Count of unresolved lines that carry an AI suggestion (the "Accept all AI
+   * suggestions" scope). The bulk-accept header renders only when this is > 0 AND
+   * `resolve?.bulkAcceptSuggestions` is present. Optional → pure-view callers omit it.
+   */
+  suggestableCount?: number;
+  /** The ≥0.85-confidence subset of `suggestableCount` (the "Accept ≥85% only" scope). */
+  highConfCount?: number;
 }
 
 const SEVERITY_STYLE: Record<IssueSeverity, { bg: string; border: string; chipBg: string; chipColor: string; label: string }> = {
@@ -94,7 +114,7 @@ const cardStyle: CSSProperties = {
   overflow: "hidden",
 };
 
-export function IssuesPanel({ issues, onFocusField, onFix, readyLabel, resolve, lines }: IssuesPanelProps) {
+export function IssuesPanel({ issues, onFocusField, onFix, readyLabel, resolve, lines, suggestableCount = 0, highConfCount = 0 }: IssuesPanelProps) {
   // ── 0 issues → the green "ready to send" bar (the list collapses) ──
   if (issues.length === 0) {
     return (
@@ -152,6 +172,71 @@ export function IssuesPanel({ issues, onFocusField, onFix, readyLabel, resolve, 
           {blocking > 0 ? ` · ${blocking} blocking` : ""}
         </span>
       </div>
+
+      {/* Bulk-accept parity with the /upload/preview "Confirm item codes" step — the
+          SAME server-side POST /accept-ai-suggestions endpoint, surfaced here so the
+          workshop is a strict superset. Shown only when there's a bulk handler AND at
+          least one suggestable line. No local "rejected" set exists in the workshop's
+          resolution model (useResolveActions removed it), so the plain accept-all is
+          correct (no reject-aware commitMappings branch). Feedback flows through the
+          parent's setFlow, so no separate notice is rendered here. */}
+      {resolve?.bulkAcceptSuggestions && suggestableCount > 0 && (
+        <div
+          data-testid="issues-bulk-accept"
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            flexWrap: "wrap",
+            padding: "9px 12px",
+            borderBottom: "1px solid #EEF0F4",
+            background: "#FAFBFD",
+          }}
+        >
+          <button
+            type="button"
+            onClick={() => resolve.bulkAcceptSuggestions!(0)}
+            disabled={resolve.bulkAccepting}
+            style={{ ...primaryBtn, opacity: resolve.bulkAccepting ? 0.6 : 1, cursor: resolve.bulkAccepting ? "wait" : "pointer" }}
+          >
+            {resolve.bulkAccepting ? "Accepting…" : "Accept all AI suggestions"}
+            <span
+              style={{
+                marginLeft: 6,
+                background: "rgba(255,255,255,0.28)",
+                borderRadius: 8,
+                padding: "0 5px",
+                fontSize: 10,
+                fontWeight: 700,
+              }}
+            >
+              {suggestableCount}
+            </span>
+          </button>
+          {highConfCount > 0 && highConfCount < suggestableCount && (
+            <button
+              type="button"
+              onClick={() => resolve.bulkAcceptSuggestions!(0.85)}
+              disabled={resolve.bulkAccepting}
+              style={{ ...ghostBtn, opacity: resolve.bulkAccepting ? 0.6 : 1, cursor: resolve.bulkAccepting ? "wait" : "pointer" }}
+            >
+              {resolve.bulkAccepting ? "Accepting…" : "Accept ≥85% only"}
+              <span
+                style={{
+                  marginLeft: 6,
+                  background: "#EFF2F7",
+                  borderRadius: 8,
+                  padding: "0 5px",
+                  fontSize: 10,
+                  fontWeight: 700,
+                }}
+              >
+                {highConfCount}
+              </span>
+            </button>
+          )}
+        </div>
+      )}
 
       {/* The one ordered issue list */}
       <ul role="list" aria-label="Open issues" style={{ listStyle: "none", margin: 0, padding: 0 }}>

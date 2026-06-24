@@ -126,15 +126,18 @@ test.describe("MagicMappingPreview — /upload/preview/[orderId]", () => {
   });
 });
 
-test.describe("UploadWorkbench — post-upload routes to preview", () => {
+test.describe("UploadWorkbench — post-upload routes to the Order Workshop", () => {
   /**
-   * This test drives the upload form to confirm the post-upload navigation
-   * lands on /upload/preview/<id> rather than /inbox/<id>.
+   * STRUCT-2: the post-upload navigation now lands on /inbox/<id> (the Order
+   * Workshop), NOT /upload/preview/<id>. The workshop is a strict superset of the
+   * old "Confirm item codes" preview step — same issues list + the same bulk-accept
+   * parity — so upload routes straight to it. The /upload/preview route stays
+   * resolvable as a fallback (the first describe block above still tests it directly).
    *
    * The mock uploadPurchaseOrder has a 1500ms delay; the pipeline animation
    * adds 4×600ms + 200ms = 2.6s. Total wait budget: 15 s.
    */
-  test("upload a file and land on the mapping preview route", async ({ page }) => {
+  test("upload a file and land on the Order Workshop (/inbox/<id>)", async ({ page }) => {
     await page.goto("/upload");
 
     await expect(
@@ -158,17 +161,38 @@ test.describe("UploadWorkbench — post-upload routes to preview", () => {
     await expect(uploadBtn).toBeEnabled();
     await uploadBtn.click();
 
-    // Wait for navigation to /upload/preview/<dynamic-id>
-    await page.waitForURL(/\/upload\/preview\//i, { timeout: 15_000 });
+    // Wait for navigation to the Order Workshop at /inbox/<dynamic-id>
+    // (NOT /upload/preview — STRUCT-2 routes upload straight to the superset workshop).
+    await page.waitForURL(/\/inbox\/[^/]+$/i, { timeout: 15_000 });
+    expect(page.url()).not.toMatch(/\/upload\/preview\//i);
+  });
+});
 
-    // Confirm the preview page rendered
-    await expect(
-      page.getByRole("heading", { level: 1, name: /map codes/i }),
-    ).toBeVisible({ timeout: 10_000 });
+test.describe("Order Workshop — bulk-accept parity (the /upload/preview superset)", () => {
+  /**
+   * STRUCT-2 acceptance: at /inbox/<id> (the Order Workshop), an order with
+   * unresolved AI-suggested lines surfaces the SAME "Accept all AI suggestions"
+   * bulk control the /upload/preview step had, and accepting clears those issues.
+   *
+   * ord-002 is seeded with 2 lines carrying pending AI suggestions (84% + 72%),
+   * so the workshop's IssuesPanel renders the bulk-accept header.
+   */
+  test("the workshop exposes 'Accept all AI suggestions' and clicking it clears issues", async ({ page }) => {
+    await page.goto("/inbox/ord-002");
 
-    // The preview component should load and show the mapping header
+    // The workshop shell renders (desktop mapper view).
+    await expect(page.getByTestId("order-workshop")).toBeVisible({ timeout: 15_000 });
+
+    // The bulk-accept control (parity with /upload/preview) is present for the
+    // unresolved AI-suggested lines.
+    const acceptAll = page.getByRole("button", { name: /accept all ai suggestions/i }).first();
+    await expect(acceptAll).toBeVisible({ timeout: 10_000 });
+    await acceptAll.click();
+
+    // After accepting, the AI-suggestion issues clear — the bulk-accept control
+    // (which only renders while suggestable lines remain) disappears.
     await expect(
-      page.getByText(/review your order mapping/i),
-    ).toBeVisible({ timeout: 10_000 });
+      page.getByRole("button", { name: /accept all ai suggestions/i }),
+    ).toHaveCount(0, { timeout: 15_000 });
   });
 });

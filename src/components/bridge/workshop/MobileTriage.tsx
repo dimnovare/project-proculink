@@ -90,6 +90,15 @@ export interface MobileTriageProps {
   resolve?: IssuesResolveApi;
   /** The order lines, to read each card's current code / AI suggestion by lineId. */
   lines?: OrderLine[];
+  /**
+   * Count of unresolved lines that carry an AI suggestion — the "Accept all AI
+   * suggestions" scope (bulk-accept parity with the /upload/preview step). The
+   * bulk control renders only when this is > 0 AND `resolve?.bulkAcceptSuggestions`
+   * is present. Optional → callers without bulk support render no control.
+   */
+  suggestableCount?: number;
+  /** The ≥0.85-confidence subset of `suggestableCount` ("Accept ≥85% only"). */
+  highConfCount?: number;
 }
 
 export function MobileTriage(props: MobileTriageProps) {
@@ -99,6 +108,7 @@ export function MobileTriage(props: MobileTriageProps) {
     issues, blockingIssues, exceptionCount, canSend, crossed, sendState,
     primaryCta, primaryCtaProgress, doneLabel,
     onFix, onFocusField, onSend, resolve, lines,
+    suggestableCount = 0, highConfCount = 0,
   } = props;
 
   const sendBlockCount = Math.max(blockingIssues, exceptionCount);
@@ -279,6 +289,36 @@ export function MobileTriage(props: MobileTriageProps) {
                 {blockingIssues > 0 ? ` · ${blockingIssues} blocking` : ""}
               </span>
             </div>
+
+            {/* Bulk-accept parity with the /upload/preview "Confirm item codes" step
+                (handoff: the workshop is a strict superset). Same server endpoint
+                (POST /accept-ai-suggestions) as desktop; shown only when there's a
+                bulk handler AND a suggestable line. Feedback flows through the
+                parent's setFlow, so no separate notice here. */}
+            {resolve?.bulkAcceptSuggestions && suggestableCount > 0 && (
+              <div data-testid="mobile-bulk-accept" className="flex flex-col gap-2">
+                <button
+                  type="button"
+                  onClick={() => resolve.bulkAcceptSuggestions!(0)}
+                  disabled={resolve.bulkAccepting}
+                  className="plk-mobile-accept"
+                  style={{ ...mobilePrimaryBtn, width: "100%", justifyContent: "center", display: "inline-flex", alignItems: "center", gap: 8, opacity: resolve.bulkAccepting ? 0.6 : 1, cursor: resolve.bulkAccepting ? "wait" : "pointer" }}
+                >
+                  {resolve.bulkAccepting ? "Accepting…" : `Accept all AI suggestions (${suggestableCount})`}
+                </button>
+                {highConfCount > 0 && highConfCount < suggestableCount && (
+                  <button
+                    type="button"
+                    onClick={() => resolve.bulkAcceptSuggestions!(0.85)}
+                    disabled={resolve.bulkAccepting}
+                    style={{ ...mobileGhostBtn, width: "100%", justifyContent: "center", display: "inline-flex", alignItems: "center", gap: 8, opacity: resolve.bulkAccepting ? 0.6 : 1, cursor: resolve.bulkAccepting ? "wait" : "pointer" }}
+                  >
+                    {resolve.bulkAccepting ? "Accepting…" : `Accept ≥85% only (${highConfCount})`}
+                  </button>
+                )}
+              </div>
+            )}
+
             {issues.map((issue) => (
               <IssueCard
                 key={issue.code}

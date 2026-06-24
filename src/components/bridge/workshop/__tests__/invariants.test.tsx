@@ -31,6 +31,7 @@ const mockState: {
   startLineEdit: ReturnType<typeof vi.fn>;
   commitLineCode: ReturnType<typeof vi.fn>;
   confirmFlaggedLine: ReturnType<typeof vi.fn>;
+  bulkAcceptSuggestions: ReturnType<typeof vi.fn>;
   lineEditId: string | null;
   lastMapperProps: Record<string, unknown> | null;
 } = {
@@ -43,6 +44,7 @@ const mockState: {
   startLineEdit: vi.fn(),
   commitLineCode: vi.fn(),
   confirmFlaggedLine: vi.fn(),
+  bulkAcceptSuggestions: vi.fn(),
   lineEditId: null,
   lastMapperProps: null,
 };
@@ -113,6 +115,9 @@ vi.mock("../../review/hooks/useResolveActions", () => ({
     cancelLineEdit: vi.fn(),
     confirmFlaggedLine: mockState.confirmFlaggedLine,
     acceptingLineId: null,
+    // STRUCT-2 — bulk-accept parity (server-side accept-all).
+    bulkAcceptSuggestions: mockState.bulkAcceptSuggestions,
+    bulkAccepting: false,
   }),
 }));
 
@@ -148,6 +153,8 @@ import { splitMappings } from "../mappingListModel";
 import type { TargetField } from "../../mapper/types";
 import type { FixQueueCard } from "../../review/buildFixQueue";
 import type { SourceToken } from "@/lib/api/types";
+import { bulkAcceptCount, type BulkSelectableLine } from "../../magicBulkAcceptSelection";
+import type { OrderLine } from "@/types/procurement";
 
 // ── Fixtures ─────────────────────────────────────────────────────────────────
 function makeOrder(over: Partial<Order> = {}): Order {
@@ -178,6 +185,7 @@ beforeEach(() => {
   mockState.startLineEdit = vi.fn();
   mockState.commitLineCode = vi.fn();
   mockState.confirmFlaggedLine = vi.fn();
+  mockState.bulkAcceptSuggestions = vi.fn();
   mockState.lineEditId = null;
   mockState.lastMapperProps = null;
 });
@@ -528,5 +536,84 @@ describe("deriveTrustedThreshold", () => {
       ],
     };
     expect(deriveTrustedThreshold(cal)).toBe(0.5);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// STRUCT-2 — bulk-accept parity in the workshop.
+//   (a) the order.lines → BulkSelectableLine adapter produces counts that match
+//       bulkAcceptCount (the SAME selection MagicMappingPreview uses), so the
+//       workshop's "Accept all" / "Accept ≥85%" badges can't drift from the
+//       /upload/preview step's semantics;
+//   (b) the wired count reaches the IssuesPanel's bulk-accept header, and clicking
+//       it calls the server-truth bulkAcceptSuggestions(0).
+// ─────────────────────────────────────────────────────────────────────────────
+describe("STRUCT-2 — order.lines → BulkSelectableLine adapter parity", () => {
+  // Mirrors the adapter inside OrderWorkshop's suggestableCount/highConfCount memo:
+  // suggestable = needsReview (unresolved) AND has an AI-suggested supplier code;
+  // ≥85% uses aiSuggestion.confidence ?? line.confidence. Empty rejection set (the
+  // workshop has no local "rejected" state).
+  const adapt = (lines: OrderLine[]): BulkSelectableLine[] =>
+    lines.map((l) => ({
+      lineNumber: l.lineNumber,
+      status: l.needsReview ? "suggested" : "resolved",
+      aiSuggestedSupplierCode: l.aiSuggestion?.supplierItemCode ?? null,
+      confidence: l.aiSuggestion?.confidence ?? l.confidence ?? null,
+    }));
+
+  const line = (over: Partial<OrderLine> & { lineNumber: number }): OrderLine => ({
+    id: `l${over.lineNumber}`,
+    buyerItemCode: `B-${over.lineNumber}`,
+    supplierItemCode: null,
+    description: "Widget",
+    quantity: 1,
+    unitPrice: 10,
+    confidence: 0,
+    needsReview: true,
+    ...over,
+  });
+
+  test("counts match bulkAcceptCount across resolved / suggested / high-vs-low confidence", () => {
+    const lines: OrderLine[] = [
+      // resolved (not needsReview) — excluded even though it has a suggestion
+      line({ lineNumber: 1, needsReview: false, aiSuggestion: { supplierItemCode: "AI-1", confidence: 0.95, reason: "", provenance: "ai" } }),
+      // suggested, high confidence (≥0.85)
+      line({ lineNumber: 2, aiSuggestion: { supplierItemCode: "AI-2", confidence: 0.9, reason: "", provenance: "ai" } }),
+      // suggested, low confidence (<0.85)
+      line({ lineNumber: 3, aiSuggestion: { supplierItemCode: "AI-3", confidence: 0.5, reason: "", provenance: "ai" } }),
+      // suggested but no AI code — excluded (manual-code line)
+      line({ lineNumber: 4, aiSuggestion: null }),
+    ];
+    const selectable = adapt(lines);
+    const empty: ReadonlySet<number> = new Set();
+
+    // suggestableCount (minConfidence 0): lines 2 + 3 → 2.
+    expect(bulkAcceptCount({ lines: selectable, minConfidence: 0, rejectedLineNumbers: empty })).toBe(2);
+    // highConfCount (minConfidence 0.85): line 2 only → 1.
+    expect(bulkAcceptCount({ lines: selectable, minConfidence: 0.85, rejectedLineNumbers: empty })).toBe(1);
+  });
+});
+
+describe("STRUCT-2 — the workshop wires the bulk-accept header to the IssuesPanel", () => {
+  test("an order with an unresolved AI-suggested line renders 'Accept all AI suggestions' → bulkAcceptSuggestions(0)", () => {
+    mockState.order = makeOrder({
+      lines: [
+        {
+          id: "l1", lineNumber: 1, buyerItemCode: "B-1", supplierItemCode: null,
+          description: "Widget", quantity: 1, unitPrice: 10, confidence: 0,
+          needsReview: true,
+          aiSuggestion: { supplierItemCode: "AI-1", confidence: 0.9, reason: "", provenance: "ai" },
+        } as Order["lines"][number],
+      ],
+    });
+    mockState.exceptionCount = 1; // server truth: a needs-review line
+    mockState.validationResult = { passed: true, results: [] } as OrderValidationResult;
+
+    render(<OrderWorkshop orderId="ord-1" />);
+
+    const bulkBtns = screen.getAllByRole("button", { name: /accept all ai suggestions/i });
+    expect(bulkBtns.length).toBeGreaterThan(0);
+    fireEvent.click(bulkBtns[0]);
+    expect(mockState.bulkAcceptSuggestions).toHaveBeenCalledWith(0);
   });
 });

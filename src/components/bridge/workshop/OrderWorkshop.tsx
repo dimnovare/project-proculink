@@ -40,6 +40,7 @@ import { useAcceptanceValidation } from "../review/hooks/useAcceptanceValidation
 import { useSendFlow } from "../review/hooks/useSendFlow";
 import { useWorkshopLayout, type WorkshopFocus } from "./useWorkshopLayout";
 import { IssuesPanel, type WorkshopIssue, type IssuesResolveApi } from "./IssuesPanel";
+import { bulkAcceptCount, type BulkSelectableLine } from "../magicBulkAcceptSelection";
 import { MobileTriage } from "./MobileTriage";
 import { WorkshopStepper } from "./WorkshopStepper";
 import { SendReadinessStrip, type BlockerChip } from "./SendReadinessStrip";
@@ -285,10 +286,38 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
     cancelLineEdit: resolve.cancelLineEdit,
     confirmFlaggedLine: resolve.confirmFlaggedLine,
     acceptingLineId: resolve.acceptingLineId,
+    // Bulk-accept parity with the /upload/preview step — the same server endpoint
+    // (POST /accept-ai-suggestions) the MagicMappingPreview bulk button uses.
+    bulkAcceptSuggestions: resolve.bulkAcceptSuggestions,
+    bulkAccepting: resolve.bulkAccepting,
   }), [
     resolve.lineEditId, resolve.lineDraft, resolve.setLineDraft, resolve.startLineEdit,
     resolve.commitLineCode, resolve.cancelLineEdit, resolve.confirmFlaggedLine, resolve.acceptingLineId,
+    resolve.bulkAcceptSuggestions, resolve.bulkAccepting,
   ]);
+
+  // ── Bulk-accept scope counts — derived from order.lines, mapped to the SAME
+  //    BulkSelectableLine shape MagicMappingPreview feeds bulkAcceptCount, so the
+  //    workshop's "Accept all"/"Accept ≥85%" badges match the preview's semantics
+  //    exactly. A line is suggestable when it's still unresolved (needsReview) AND
+  //    carries an AI-suggested supplier code; the ≥85% subset uses the suggestion's
+  //    own confidence (falling back to the line confidence). The workshop has no
+  //    local "rejected" set (useResolveActions removed it) → empty rejection set. ─
+  const { suggestableCount, highConfCount } = useMemo(() => {
+    const selectable: BulkSelectableLine[] = order
+      ? order.lines.map((l) => ({
+          lineNumber: l.lineNumber,
+          status: l.needsReview ? "suggested" : "resolved",
+          aiSuggestedSupplierCode: l.aiSuggestion?.supplierItemCode ?? null,
+          confidence: l.aiSuggestion?.confidence ?? l.confidence ?? null,
+        }))
+      : [];
+    const empty: ReadonlySet<number> = new Set();
+    return {
+      suggestableCount: bulkAcceptCount({ lines: selectable, minConfidence: 0, rejectedLineNumbers: empty }),
+      highConfCount: bulkAcceptCount({ lines: selectable, minConfidence: 0.85, rejectedLineNumbers: empty }),
+    };
+  }, [order]);
 
   // The chip jump now targets the issue CARD (anchored data-issue-ref={code} in
   // the IssuesPanel) — that is where the fix lives — instead of the dead mapper
@@ -544,6 +573,8 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
                 onFix={onFix}
                 resolve={issuesResolve}
                 lines={order.lines}
+                suggestableCount={suggestableCount}
+                highConfCount={highConfCount}
               />
             </div>
           )}
@@ -592,6 +623,8 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
           onSend={() => setShowConfirm(true)}
           resolve={issuesResolve}
           lines={order.lines}
+          suggestableCount={suggestableCount}
+          highConfCount={highConfCount}
         />
       </div>
 

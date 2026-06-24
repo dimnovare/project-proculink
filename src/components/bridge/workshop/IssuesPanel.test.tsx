@@ -217,3 +217,92 @@ describe("IssuesPanel — inline line resolution", () => {
     expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// STRUCT-2 — bulk-accept parity with the /upload/preview "Confirm item codes"
+// step. The workshop's IssuesPanel surfaces the SAME server-side accept-all
+// (POST /accept-ai-suggestions, via resolve.bulkAcceptSuggestions). The header
+// renders only when there's a bulk handler AND suggestableCount > 0; the ≥85%
+// secondary is hidden when its scope equals the primary's.
+// ─────────────────────────────────────────────────────────────────────────────
+describe("IssuesPanel — bulk-accept header (STRUCT-2)", () => {
+  test("renders 'Accept all AI suggestions' with the suggestable count and calls bulkAcceptSuggestions(0)", () => {
+    const bulkAcceptSuggestions = vi.fn();
+    render(
+      <IssuesPanel
+        issues={[issue({ code: "line:l1", kind: "ai-suggestion", lineId: "l1", fixAction: { label: "Accept suggestion" } })]}
+        onFocusField={vi.fn()}
+        resolve={makeResolve({ bulkAcceptSuggestions, bulkAccepting: false })}
+        lines={[makeLine({ id: "l1", aiSuggestion: { supplierItemCode: "AI-1", confidence: 0.9, reason: "", provenance: "ai" } })]}
+        suggestableCount={3}
+        highConfCount={3}
+      />,
+    );
+    const bulkBtn = screen.getByRole("button", { name: /accept all ai suggestions/i });
+    expect(bulkBtn).toBeInTheDocument();
+    // The badge shows the suggestable count.
+    expect(bulkBtn).toHaveTextContent("3");
+    fireEvent.click(bulkBtn);
+    expect(bulkAcceptSuggestions).toHaveBeenCalledWith(0);
+  });
+
+  test("hides 'Accept ≥85% only' when highConfCount === suggestableCount (identical scope)", () => {
+    render(
+      <IssuesPanel
+        issues={[issue({ code: "line:l1", kind: "ai-suggestion", lineId: "l1", fixAction: { label: "Accept suggestion" } })]}
+        onFocusField={vi.fn()}
+        resolve={makeResolve({ bulkAcceptSuggestions: vi.fn() })}
+        lines={[makeLine({ id: "l1", aiSuggestion: { supplierItemCode: "AI-1", confidence: 0.9, reason: "", provenance: "ai" } })]}
+        suggestableCount={3}
+        highConfCount={3}
+      />,
+    );
+    expect(screen.queryByRole("button", { name: /accept ≥85% only/i })).not.toBeInTheDocument();
+  });
+
+  test("shows 'Accept ≥85% only' (calling bulkAcceptSuggestions(0.85)) when its scope is a strict subset", () => {
+    const bulkAcceptSuggestions = vi.fn();
+    render(
+      <IssuesPanel
+        issues={[issue({ code: "line:l1", kind: "ai-suggestion", lineId: "l1", fixAction: { label: "Accept suggestion" } })]}
+        onFocusField={vi.fn()}
+        resolve={makeResolve({ bulkAcceptSuggestions })}
+        lines={[makeLine({ id: "l1", aiSuggestion: { supplierItemCode: "AI-1", confidence: 0.9, reason: "", provenance: "ai" } })]}
+        suggestableCount={3}
+        highConfCount={1}
+      />,
+    );
+    const highBtn = screen.getByRole("button", { name: /accept ≥85% only/i });
+    expect(highBtn).toHaveTextContent("1");
+    fireEvent.click(highBtn);
+    expect(bulkAcceptSuggestions).toHaveBeenCalledWith(0.85);
+  });
+
+  test("no bulk-accept header when there is no bulk handler (pure-view / unchanged callers)", () => {
+    render(
+      <IssuesPanel
+        issues={[issue({ code: "line:l1", kind: "ai-suggestion", lineId: "l1", fixAction: { label: "Accept suggestion" } })]}
+        onFocusField={vi.fn()}
+        resolve={makeResolve()} // no bulkAcceptSuggestions
+        lines={[makeLine({ id: "l1", aiSuggestion: { supplierItemCode: "AI-1", confidence: 0.9, reason: "", provenance: "ai" } })]}
+        suggestableCount={3}
+        highConfCount={1}
+      />,
+    );
+    expect(screen.queryByTestId("issues-bulk-accept")).not.toBeInTheDocument();
+  });
+
+  test("no bulk-accept header when suggestableCount is 0", () => {
+    render(
+      <IssuesPanel
+        issues={[issue({ code: "line:l1", kind: "manual-code", lineId: "l1" })]}
+        onFocusField={vi.fn()}
+        resolve={makeResolve({ bulkAcceptSuggestions: vi.fn() })}
+        lines={[makeLine({ id: "l1" })]}
+        suggestableCount={0}
+        highConfCount={0}
+      />,
+    );
+    expect(screen.queryByTestId("issues-bulk-accept")).not.toBeInTheDocument();
+  });
+});

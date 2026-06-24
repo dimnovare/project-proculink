@@ -513,9 +513,13 @@ export function UploadWorkbench() {
       const t = setTimeout(() => setPipelineStage(i), i * STAGE_MS);
       timerRefs.current.push(t);
     });
-    const previewPath = `/upload/preview/${encodeURIComponent(uploadedOrderId)}`;
+    // STRUCT-2: route straight to the Order Workshop (/inbox/{id}). The workshop is
+    // now a strict superset of the old /upload/preview "Confirm item codes" step —
+    // it carries the same issues list AND the same bulk-accept parity (Accept all /
+    // ≥85%). The /upload/preview route stays resolvable as a fallback (untouched).
+    const reviewPath = `/inbox/${encodeURIComponent(uploadedOrderId)}`;
     const total = setTimeout(() => {
-      router.push(previewPath);
+      router.push(reviewPath);
     }, PIPELINE_STAGES.length * STAGE_MS + 200);
     timerRefs.current.push(total);
   }
