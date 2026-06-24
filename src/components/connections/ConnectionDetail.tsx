@@ -27,226 +27,57 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { PageShell } from "@/components/bridge/layout/PageShell";
 import { PageHeader } from "@/components/bridge/layout/PageHeader";
 import { Card } from "@/components/bridge/layout/Card";
 import { Button } from "@/components/bridge/DSPrimitives";
 import { RevisionStatusBadge } from "@/components/connections/RevisionStatusBadge";
-import { HistoryDrawer, type BundleSummaryData } from "@/components/connections/HistoryDrawer";
+import { HistoryDrawer } from "@/components/connections/HistoryDrawer";
+import { useConnectionRevisions } from "@/components/connections/useConnectionRevisions";
+import { ConnectionNotice, ConnectionConfirmDialog } from "@/components/connections/ConnectionLifecycleUI";
 import { MapperWorkbench } from "@/components/bridge/mapper/MapperWorkbench";
-import {
-  apiClient,
-  getConnection,
-  getConnectionRevision,
-  createConnectionDraft,
-  publishConnectionRevision,
-  markConnectionRevisionTest,
-  archiveConnectionRevision,
-  rollbackConnectionRevision,
-  ApiHttpError,
-} from "@/lib/api-client";
-import type { ConnectionRevisionSummary, ConnectionTestEvidence } from "@/lib/api/types";
+import { apiClient } from "@/lib/api-client";
 import { useQueriesEnabled } from "@/hooks/useQueriesEnabled";
-
-function formatDateTime(iso: string | null): string {
-  if (!iso) return "—";
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "—";
-  return d.toLocaleString(undefined, {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
-
-type Notice = { text: string; kind: "ok" | "err" } | null;
-
-type ConfirmState =
-  | { kind: "publish"; revisionId: string; versionNo: number }
-  | { kind: "rollback"; revisionId: string; versionNo: number }
-  | { kind: "archive"; revisionId: string; versionNo: number }
-  | null;
-
-// ── Test-pack evidence (returned by POST .../test) ───────────────────────────
-// Mirrors the backend's stored TestPackSummary JSON (camelCase):
-//   { replay: {...} | null, conformance: {...} | null, error: string | null }
-
-interface TestPackReplayLeg {
-  passed: boolean;
-  orderCount: number;
-  outputErrors: number;
-  outputChanged: number;
-  validationChanged: number;
-  note: string | null;
-}
-
-interface TestPackConformanceLeg {
-  skipped: boolean;
-  passed: boolean | null;
-  profile: string | null;
-  errors: number;
-  warnings: number;
-  note: string | null;
-}
-
-interface TestPackSummary {
-  replay: TestPackReplayLeg | null;
-  conformance: TestPackConformanceLeg | null;
-  error: string | null;
-}
-
-interface RevisionTestEvidence {
-  revisionId: string;
-  passed: boolean;
-  testedAt: string;
-  summary: TestPackSummary | null;
-}
-
-function parseTestSummary(summaryJson: string): TestPackSummary | null {
-  try {
-    const parsed = JSON.parse(summaryJson) as TestPackSummary;
-    return parsed && typeof parsed === "object" ? parsed : null;
-  } catch {
-    return null;
-  }
-}
 
 export function ConnectionDetail({ connectionId }: { connectionId: string }) {
   const router = useRouter();
-  const queryClient = useQueryClient();
   const queriesEnabled = useQueriesEnabled();
-  const [notice, setNotice] = useState<Notice>(null);
-  const [confirm, setConfirm] = useState<ConfirmState>(null);
-  // Evidence from the most recent "Run tests" call, rendered inline under its revision row.
-  const [testEvidence, setTestEvidence] = useState<RevisionTestEvidence | null>(null);
   // WS-8: all secondary/power actions (version history, checks, restore, discard,
   // replay, config summary) live behind this single right-side drawer.
   const [historyOpen, setHistoryOpen] = useState(false);
 
+  // The connection revision machinery (queries + lifecycle mutations + live
+  // summary + notice/confirm state) is shared with SupplierHistoryTab via this
+  // hook (STRUCT-1). Consumed here so this page renders identically to before.
   const {
-    data: connection,
+    connection,
     isLoading,
     isError,
     refetch,
-  } = useQuery({
-    queryKey: ["connection", connectionId],
-    queryFn: () => getConnection(connectionId),
-    enabled: queriesEnabled,
-  });
-
-  const activeRevisionId = connection?.activeRevisionId ?? null;
-
-  // Bundle of the live (published) revision — drives the "what's live now" summary.
-  const { data: activeRevision } = useQuery({
-    queryKey: ["connection-revision", connectionId, activeRevisionId],
-    queryFn: () => getConnectionRevision(connectionId, activeRevisionId as string),
-    enabled: queriesEnabled && !!activeRevisionId,
-  });
-
-  const invalidate = () => {
-    queryClient.invalidateQueries({ queryKey: ["connection", connectionId] });
-    queryClient.invalidateQueries({ queryKey: ["connections"] });
-  };
-
-  const onMutationError = (e: unknown) => {
-    const msg = e instanceof ApiHttpError ? e.message : "Action failed — please retry.";
-    setNotice({ text: msg, kind: "err" });
-  };
-
-  const createDraftMutation = useMutation({
-    mutationFn: () => createConnectionDraft(connectionId, { cloneFromActive: true }),
-    onSuccess: (rev) => {
-      invalidate();
-      setNotice({
-        text: rev
-          ? `Editing v${rev.versionNo}${activeRevisionId ? " (a copy of the live version)" : ""} — make your changes below, then make it live.`
-          : "Editable copy ready — make your changes below.",
-        kind: "ok",
-      });
-    },
-    onError: onMutationError,
-  });
-
-  const testMutation = useMutation({
-    mutationFn: (revisionId: string) => markConnectionRevisionTest(connectionId, revisionId),
-    onSuccess: (evidence: ConnectionTestEvidence, revisionId: string) => {
-      invalidate();
-      setTestEvidence({
-        revisionId,
-        passed: evidence.passed,
-        testedAt: evidence.testedAt,
-        summary: parseTestSummary(evidence.summaryJson),
-      });
-      setNotice(
-        evidence.passed
-          ? { text: "Checks passed — this version is ready to make live.", kind: "ok" }
-          : { text: "Checks ran but FAILED — see the details below. Fix these before making it live.", kind: "err" },
-      );
-    },
-    onError: onMutationError,
-  });
-
-  const publishMutation = useMutation({
-    mutationFn: (revisionId: string) => publishConnectionRevision(connectionId, revisionId),
-    onSuccess: () => {
-      invalidate();
-      setConfirm(null);
-      setNotice({ text: "Live — new orders for this supplier use this version now.", kind: "ok" });
-    },
-    onError: (e) => {
-      setConfirm(null);
-      onMutationError(e);
-    },
-  });
-
-  // Rollback = clone a previously-published (archived) revision into a NEW
-  // published revision via POST .../rollback. The target stays archived;
-  // orders pinned to it are unaffected.
-  const rollbackMutation = useMutation({
-    mutationFn: (revisionId: string) => rollbackConnectionRevision(connectionId, revisionId),
-    onSuccess: (rev) => {
-      invalidate();
-      setConfirm(null);
-      setNotice({
-        text: rev
-          ? `Restored — v${rev.versionNo} is live for new orders now.`
-          : "Restored.",
-        kind: "ok",
-      });
-    },
-    onError: (e) => {
-      setConfirm(null);
-      onMutationError(e);
-    },
-  });
-
-  const archiveMutation = useMutation({
-    mutationFn: (revisionId: string) => archiveConnectionRevision(connectionId, revisionId),
-    onSuccess: () => {
-      invalidate();
-      setConfirm(null);
-      setNotice({ text: "Draft discarded.", kind: "ok" });
-    },
-    onError: (e) => {
-      setConfirm(null);
-      onMutationError(e);
-    },
-  });
-
-  const busy =
-    createDraftMutation.isPending ||
-    testMutation.isPending ||
-    publishMutation.isPending ||
-    rollbackMutation.isPending ||
-    archiveMutation.isPending;
-
-  const revisions: ConnectionRevisionSummary[] = useMemo(
-    () => connection?.revisions ?? [],
-    [connection],
-  );
+    activeRevision,
+    activeRevisionId,
+    revisions,
+    liveSummary,
+    liveVersionNo,
+    testEvidence,
+    busy,
+    testingRevisionId,
+    rollingBackRevisionId,
+    discardingRevisionId,
+    notice,
+    setNotice,
+    confirm,
+    setConfirm,
+    onTest,
+    onRequestPublish,
+    onRequestRollback,
+    onRequestArchive,
+    createDraftMutation,
+    publishMutation,
+    rollbackMutation,
+    archiveMutation,
+  } = useConnectionRevisions(connectionId);
 
   // ── Phase 3 mapper mount ────────────────────────────────────────────────────
   // Author the mapping ONCE here, on the draft revision. Published revisions are
@@ -272,25 +103,6 @@ export function ConnectionDetail({ connectionId }: { connectionId: string }) {
     retry: 1,
   });
   const sampleOrderId = sampleOrderPage?.items[0]?.id ?? null;
-
-  // Read-only live-version config summary, shared by the on-page "Live version"
-  // card (via BundleSummary) and the History & advanced drawer. Null until the
-  // active revision's bundle has loaded; null when nothing is live.
-  const liveSummary: BundleSummaryData | null = useMemo(() => {
-    if (!activeRevisionId || !activeRevision) return null;
-    return {
-      inputConfigured: !!activeRevision.inputMappingJson,
-      outputTemplateConfigured: !!activeRevision.outputMappingJson,
-      outputFormat: activeRevision.outputFormat ?? null,
-      deliveryProtocol: activeRevision.deliveryProtocol ?? null,
-      deliveryAutoDeliver: activeRevision.deliveryAutoDeliver ?? false,
-      hasCredentials: activeRevision.hasCredentials ?? false,
-      itemMappingCount: activeRevision.itemMappings.length,
-      acceptanceBound: activeRevision.acceptanceProfileId != null,
-      acceptanceVersionNo: activeRevision.acceptanceVersionNo ?? null,
-      catalogMode: activeRevision.catalogMode ?? "live",
-    };
-  }, [activeRevisionId, activeRevision]);
 
   return (
     <PageShell variant="wide">
@@ -353,19 +165,7 @@ export function ConnectionDetail({ connectionId }: { connectionId: string }) {
         }
       />
 
-      {notice && (
-        <div
-          role="status"
-          className="mb-4 rounded-[8px] px-4 py-3 text-[12.5px]"
-          style={
-            notice.kind === "ok"
-              ? { border: "1px solid var(--brand-green-soft)", borderLeft: "3px solid var(--brand-green)", background: "var(--brand-green-soft)", color: "var(--brand-green-deep)" }
-              : { border: "1px solid var(--danger-soft)", borderLeft: "3px solid var(--danger)", background: "var(--danger-soft)", color: "var(--danger)" }
-          }
-        >
-          {notice.text}
-        </div>
-      )}
+      <ConnectionNotice notice={notice} />
 
       {isLoading && (
         <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]" aria-busy="true" aria-label="Loading connection">
@@ -527,7 +327,7 @@ export function ConnectionDetail({ connectionId }: { connectionId: string }) {
       )}
 
       {confirm && (
-        <ConfirmDialog
+        <ConnectionConfirmDialog
           state={confirm}
           busy={publishMutation.isPending || rollbackMutation.isPending || archiveMutation.isPending}
           onCancel={() => setConfirm(null)}
@@ -551,16 +351,16 @@ export function ConnectionDetail({ connectionId }: { connectionId: string }) {
         revisions={revisions}
         activeRevisionId={activeRevisionId}
         liveSummary={liveSummary}
-        liveVersionNo={activeRevision?.versionNo ?? null}
+        liveVersionNo={liveVersionNo}
         testEvidence={testEvidence}
         busy={busy}
-        testingRevisionId={testMutation.isPending ? (testMutation.variables ?? null) : null}
-        rollingBackRevisionId={rollbackMutation.isPending ? (rollbackMutation.variables ?? null) : null}
-        discardingRevisionId={archiveMutation.isPending ? (archiveMutation.variables ?? null) : null}
-        onTest={(revisionId) => { setNotice(null); testMutation.mutate(revisionId); }}
-        onRequestPublish={(revisionId, versionNo) => setConfirm({ kind: "publish", revisionId, versionNo })}
-        onRequestRollback={(revisionId, versionNo) => setConfirm({ kind: "rollback", revisionId, versionNo })}
-        onRequestArchive={(revisionId, versionNo) => setConfirm({ kind: "archive", revisionId, versionNo })}
+        testingRevisionId={testingRevisionId}
+        rollingBackRevisionId={rollingBackRevisionId}
+        discardingRevisionId={discardingRevisionId}
+        onTest={onTest}
+        onRequestPublish={onRequestPublish}
+        onRequestRollback={onRequestRollback}
+        onRequestArchive={onRequestArchive}
       />
     </PageShell>
   );
@@ -672,76 +472,6 @@ function SummaryRow({ label, value, unconfigured }: { label: string; value: stri
           {value}
         </dd>
       )}
-    </div>
-  );
-}
-
-// ── Confirm dialog (publish / archive) ────────────────────────────────────────
-
-function ConfirmDialog({
-  state,
-  busy,
-  onCancel,
-  onConfirm,
-}: {
-  state: NonNullable<ConfirmState>;
-  busy: boolean;
-  onCancel: () => void;
-  onConfirm: () => void;
-}) {
-  const isPublish = state.kind === "publish";
-  const isRollback = state.kind === "rollback";
-  const title = isPublish
-    ? `Make v${state.versionNo} live?`
-    : isRollback
-      ? `Restore v${state.versionNo}?`
-      : `Discard v${state.versionNo}?`;
-  const body = isPublish
-    ? "New orders for this supplier will use this version from now on. Orders already in progress keep the version they started with."
-    : isRollback
-      ? "Brings this older version back as the live one for new orders. Orders already in progress are unaffected."
-      : "Throws away this draft. Versions that are live (or were used by past orders) are kept.";
-  const confirmLabel = isPublish ? "Make live" : isRollback ? "Restore" : "Discard";
-
-  return (
-    <div
-      className="fixed inset-0 z-[80] flex items-end bg-[#0B1A2F66] p-0 sm:items-center sm:justify-center sm:p-6"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="connection-confirm-title"
-    >
-      <div
-        className="w-full overflow-auto rounded-t-[10px] bg-white shadow-2xl sm:max-w-[440px] sm:rounded-[10px]"
-        style={{ border: "1px solid var(--border)" }}
-      >
-        <div className="px-5 py-4" style={{ borderBottom: "1px solid var(--border)" }}>
-          <h2 id="connection-confirm-title" className="text-[17px] font-semibold leading-tight" style={{ color: "var(--ink)" }}>
-            {title}
-          </h2>
-        </div>
-        <div className="px-5 py-4">
-          <p className="text-[13px] leading-[1.55] m-0" style={{ color: "var(--ink-muted)" }}>
-            {body}
-          </p>
-        </div>
-        <div
-          className="flex flex-col gap-2 px-5 py-4 sm:flex-row sm:justify-end"
-          style={{ borderTop: "1px solid var(--border)", background: "var(--bg)" }}
-        >
-          <Button variant="secondary" size="md" onClick={onCancel} disabled={busy}>
-            Cancel
-          </Button>
-          <Button
-            variant={isPublish || isRollback ? "primary" : "danger"}
-            size="md"
-            onClick={onConfirm}
-            disabled={busy}
-            loading={busy}
-          >
-            {confirmLabel}
-          </Button>
-        </div>
-      </div>
     </div>
   );
 }

@@ -668,17 +668,19 @@ function SupplierTableRow({
         )}
       </td>
 
-      {/* Connection — compact link to the versioned Connection (hidden when none exists) */}
+      {/* History — compact link to this supplier's version-history tab (hidden when
+          no connection exists yet). STRUCT-1: the version history now lives on the
+          supplier page (?tab=history), not the standalone /connections route. */}
       <td style={{ padding: "14px 8px", borderBottom: cellBorder, textAlign: "right", verticalAlign: "middle", whiteSpace: "nowrap" }}>
         {connectionId && (
           <Link
-            href={`/connections/${connectionId}`}
+            href={`/library/suppliers/${id}?tab=history`}
             onClick={(e) => e.stopPropagation()}
-            title={`Open this ${nounLower}'s versioned connection`}
+            title={`Open this ${nounLower}'s version history`}
             className="text-[11.5px] font-medium"
             style={{ color: isHover ? GREEN_DEEP : TEXT_MUTED, textDecoration: "none", transition: "color 120ms" }}
           >
-            Connection ›
+            History ›
           </Link>
         )}
       </td>
@@ -770,15 +772,16 @@ function SupplierMobileCard({
           </div>
         </dl>
       </button>
-      {/* Versioned Connection link — sits OUTSIDE the card button (no nested
-          interactive elements); hidden when no connection exists yet. */}
+      {/* Version-history link — sits OUTSIDE the card button (no nested
+          interactive elements); hidden when no connection exists yet. STRUCT-1:
+          the history view now lives on the supplier page (?tab=history). */}
       {connectionId && (
         <Link
-          href={`/connections/${connectionId}`}
+          href={`/library/suppliers/${id}?tab=history`}
           className="mt-1.5 inline-flex items-center px-1 py-1 text-[12px] font-medium"
           style={{ color: TEXT_MUTED, textDecoration: "none" }}
         >
-          View connection ›
+          History ›
         </Link>
       )}
     </li>

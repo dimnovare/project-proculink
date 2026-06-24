@@ -11,6 +11,7 @@ import { ChevronLeft, ChevronRight, Trash2, Info, Clock, Link2, Truck, Plus, Shi
 import { PoMappingEditor } from "./PoMappingEditor";
 import { DeliveryConfigEditor } from "./DeliveryConfigEditor";
 import { CatalogSourceEditor } from "./CatalogSourceEditor";
+import { SupplierHistoryTab } from "@/components/connections/SupplierHistoryTab";
 import { upsertPoMapping, deletePoMapping } from "@/lib/api/mapping";
 import { getOrgSettings } from "@/lib/api/settings";
 import { API_BASE_URL } from "@/lib/api/core";
@@ -25,7 +26,7 @@ import { useTabParamSync } from "@/lib/tab-param-sync";
 import type { PoMappingConfig } from "@/lib/api/types";
 import type { AcceptanceRule, AcceptanceProfile, SupplierMapping } from "@/types/procurement";
 
-type Tab = "overview" | "mappings" | "catalog" | "po-mapping" | "delivery" | "acceptance";
+type Tab = "overview" | "mappings" | "catalog" | "po-mapping" | "delivery" | "acceptance" | "history";
 
 // ── Design tokens (ported from tokens.css / globals.css) ─────────────────────
 // Buyer side = blue (#1E66C9, also the ACTIVE accent), supplier side = forest green.
@@ -105,6 +106,9 @@ const TABS: Array<{ id: Tab; label: string }> = [
   { id: "po-mapping",  label: "PO Mapping"        },
   { id: "delivery",    label: "Delivery"          },
   { id: "acceptance",  label: "Validation rules"  },
+  // STRUCT-1: the versioned-connection history view (was the standalone
+  // /connections page; that route still resolves) now lives as a supplier tab.
+  { id: "history",     label: "History"           },
 ];
 
 // Module-scope so useTabParamSync's effect deps stay referentially stable.
@@ -328,7 +332,17 @@ function SupplierRuleBindingsPanel({ supplierId }: { supplierId: string }) {
 // directly — they do NOT edit a connection revision — so say exactly that, and
 // point at the versioned Connection when one exists (link hidden otherwise).
 
-function LiveEditNotice({ connectionId, nounLower }: { connectionId: string | null; nounLower: string }) {
+function LiveEditNotice({
+  connectionId,
+  nounLower,
+  onOpenHistory,
+}: {
+  connectionId: string | null;
+  nounLower: string;
+  // STRUCT-1: switch to the in-page History tab instead of routing to the
+  // standalone /connections page (still resolvable, just out of the launch nav).
+  onOpenHistory: () => void;
+}) {
   return (
     <div
       className="mb-4 flex items-start gap-2 rounded-[7px] px-3 py-2.5 text-[12px] leading-relaxed"
@@ -340,12 +354,13 @@ function LiveEditNotice({ connectionId, nounLower }: { connectionId: string | nu
         {connectionId && (
           <>
             {" "}Every saved version is kept in this {nounLower}&rsquo;s{" "}
-            <Link
-              href={`/connections/${connectionId}`}
-              style={{ color: BLUE_DEEP, fontWeight: 600 }}
+            <button
+              type="button"
+              onClick={onOpenHistory}
+              style={{ color: BLUE_DEEP, fontWeight: 600, background: "none", border: "none", padding: 0, cursor: "pointer", font: "inherit", textDecoration: "underline" }}
             >
-              Connection
-            </Link>
+              version history
+            </button>
             , where you can review or roll back.
           </>
         )}
@@ -1304,17 +1319,20 @@ export function SupplierDockProfile({ id }: { id: string }) {
           </div>
 
           <div className="flex flex-wrap items-center gap-2 self-start sm:ml-auto sm:self-center">
-            {/* Versioned Connection — draft → test → publish snapshots for this supplier.
-                Hidden when no connection exists yet. */}
+            {/* Versioned history — draft → test → publish snapshots for this supplier.
+                STRUCT-1: switches to the in-page History tab (was a link to the
+                standalone /connections page, still resolvable but out of the launch
+                nav). Hidden when no connection exists yet. */}
             {connectionId && (
-              <Link
-                href={`/connections/${connectionId}`}
-                className="inline-flex items-center gap-1.5 rounded-[7px] px-3 text-[12.5px] font-medium no-underline"
-                style={{ height: 34, border: `1px solid ${BORDER_STRONG}`, background: SURFACE, color: INK }}
+              <button
+                type="button"
+                onClick={() => setTab("history")}
+                className="inline-flex items-center gap-1.5 rounded-[7px] px-3 text-[12.5px] font-medium"
+                style={{ minHeight: "var(--tap-min)", height: 34, border: `1px solid ${BORDER_STRONG}`, background: SURFACE, color: INK, cursor: "pointer" }}
               >
                 <GitBranch size={14} strokeWidth={2} color={MUTED} />
-                Connection
-              </Link>
+                History
+              </button>
             )}
             {/* Destructive action — soft-deletes the supplier (past orders retained for audit) */}
             <button
@@ -1588,7 +1606,7 @@ export function SupplierDockProfile({ id }: { id: string }) {
               </p>
             </div>
           </div>
-          <LiveEditNotice connectionId={connectionId} nounLower={partyNounLower} />
+          <LiveEditNotice connectionId={connectionId} nounLower={partyNounLower} onOpenHistory={() => setTab("history")} />
           <PoMappingEditor
             supplierId={id}
             initialConfig={poMappingConfig}
@@ -1627,21 +1645,43 @@ export function SupplierDockProfile({ id }: { id: string }) {
 
         {tab === "delivery" && (
           <>
-            <LiveEditNotice connectionId={connectionId} nounLower={partyNounLower} />
+            <LiveEditNotice connectionId={connectionId} nounLower={partyNounLower} onOpenHistory={() => setTab("history")} />
             <DeliveryConfigEditor supplierId={id} />
           </>
         )}
 
         {tab === "acceptance" && (
           <>
-            <LiveEditNotice connectionId={connectionId} nounLower={partyNounLower} />
+            <LiveEditNotice connectionId={connectionId} nounLower={partyNounLower} onOpenHistory={() => setTab("history")} />
             <AcceptanceTab supplierId={id} />
           </>
         )}
 
-        {/* Rules / Output templates / Connectors / History are managed globally (Library +
-            Operations); supplier-scoped versions aren't built yet, so we don't surface empty
-            placeholder tabs here. Re-add a tab once its supplier-scoped feature ships. */}
+        {/* STRUCT-1: the versioned-connection history view, relocated here from
+            the standalone /connections page. Renders the IDENTICAL view (version
+            list + lifecycle controls + live config + replay). A connection is
+            created the first time a supplier is configured, so until then we show
+            an honest empty state rather than an empty tab. */}
+        {tab === "history" && (
+          connectionId ? (
+            <SupplierHistoryTab connectionId={connectionId} />
+          ) : (
+            <div
+              className="rounded-[10px] px-6 py-12 text-center"
+              style={{ border: "1px dashed #C6CDDA", background: SURFACE }}
+            >
+              <p className="text-[14px] font-semibold" style={{ color: INK }}>No versions yet</p>
+              <p className="mx-auto mt-1 max-w-[420px] text-[12.5px] leading-5" style={{ color: MUTED }}>
+                Configure this {partyNounLower}&rsquo;s mapping and delivery and a versioned connection is created automatically.
+              </p>
+            </div>
+          )
+        )}
+
+        {/* Rules / Output templates / Connectors are managed globally (Library +
+            Operations); supplier-scoped versions aren't built yet, so we don't
+            surface empty placeholder tabs here. Re-add a tab once its
+            supplier-scoped feature ships. */}
       </div>
     </PageShell>
   );

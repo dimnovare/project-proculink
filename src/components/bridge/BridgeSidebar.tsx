@@ -10,7 +10,7 @@ import {
   ShieldCheck, FileCode, BookOpen, FileText, Package, ScrollText,
   Plug, Webhook, Settings, ChevronsLeft, ChevronsRight, ExternalLink,
   Files, HelpCircle, X, ShieldHalf, AlertTriangle, Activity, MessageCircle,
-  Link2, ListChecks,
+  ListChecks,
   type LucideIcon,
 } from "lucide-react";
 import { apiClient, getBillingStatus, checkAdminAccess } from "@/lib/api-client";
@@ -35,13 +35,11 @@ const NAV: Array<{ group?: string; items: NavItem[] }> = [
     ],
   },
   {
-    // Versioned supplier connections are the core product object (draft → test →
-    // publish → archive), not library reference material — so Connections gets a
-    // standalone top-level entry next to the Workbench rather than living inside
-    // the Library group. Route + label unchanged.
-    items: [{ label: "Connections", href: "/connections", icon: Link2 }],
-  },
-  {
+    // STRUCT-1: the standalone "Connections" nav entry was removed. A supplier's
+    // versioned connection (draft → test → publish → archive) now lives as the
+    // "History" tab on its supplier page (/library/suppliers/[id]?tab=history).
+    // The /connections routes still resolve if navigated to directly — they are
+    // just no longer surfaced in the nav.
     group: "Library",
     items: [
       { label: "Suppliers",   href: "/library/suppliers",   icon: Truck },

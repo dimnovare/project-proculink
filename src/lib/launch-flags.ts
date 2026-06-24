@@ -2,10 +2,12 @@
 //
 // For the initial commercial launch we deliberately show a narrow, calm shell —
 // the hrefs in LAUNCH_CORE_HREFS below (dashboard, upload, inbox, suppliers,
-// connections, exceptions, system health, admin, settings, help). Every other
-// route still exists and resolves if navigated to directly — it is just kept
-// out of the primary navigation so the first-run product feels focused rather
-// than like a broad integration toolkit.
+// exceptions, system health, admin, settings, help). Every other route still
+// exists and resolves if navigated to directly — it is just kept out of the
+// primary navigation so the first-run product feels focused rather than like a
+// broad integration toolkit. (STRUCT-1: "/connections" was dropped from the nav;
+// a supplier's versioned connection now lives as the History tab on its supplier
+// page — the /connections routes still resolve directly.)
 //
 // To reveal the full product surface (drafts, buyers, rules, templates,
 // standards, operations, inbound docs), set NEXT_PUBLIC_LAUNCH_FULL_NAV=true.
@@ -28,7 +30,6 @@ export const LAUNCH_CORE_HREFS: ReadonlySet<string> = new Set([
   "/upload",
   "/inbox",
   "/library/suppliers",
-  "/connections",
   "/operations/exceptions",
   "/operations/health",
   "/admin",

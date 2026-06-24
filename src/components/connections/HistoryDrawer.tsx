@@ -64,10 +64,15 @@ export interface BundleSummaryData {
   catalogMode: string;
 }
 
-export interface HistoryDrawerProps {
-  open: boolean;
-  onClose: () => void;
-
+/**
+ * The version-history view itself — every revision row + lifecycle controls, the
+ * read-only live-configuration summary, and the replay panel. Owns NO mutation
+ * logic (handlers + state are passed in). Rendered BOTH inside the drawer chrome
+ * (HistoryDrawer) and inline inside a Card on the supplier page
+ * (SupplierHistoryTab, STRUCT-1) — so the two surfaces render LITERALLY the same
+ * code.
+ */
+export interface HistoryContentProps {
   // Connection context.
   connectionId: string;
   revisions: ConnectionRevisionSummary[];
@@ -90,11 +95,214 @@ export interface HistoryDrawerProps {
   rollingBackRevisionId: string | null;
   discardingRevisionId: string | null;
 
-  // Relocated triggers — these call ConnectionDetail's existing handlers.
+  // Relocated triggers — these call the upstream handlers.
   onTest: (revisionId: string) => void;
   onRequestPublish: (revisionId: string, versionNo: number) => void;
   onRequestRollback: (revisionId: string, versionNo: number) => void;
   onRequestArchive: (revisionId: string, versionNo: number) => void;
+}
+
+export interface HistoryDrawerProps extends HistoryContentProps {
+  open: boolean;
+  onClose: () => void;
+}
+
+// Shared card chrome for the three sections inside HistoryContent.
+const HISTORY_SECTION_LABEL_STYLE: React.CSSProperties = {
+  margin: 0,
+  fontSize: 11,
+  fontWeight: 600,
+  color: "var(--ink-faint)",
+  textTransform: "uppercase",
+  letterSpacing: "0.05em",
+};
+
+const HISTORY_CARD_STYLE: React.CSSProperties = {
+  background: "var(--surface)",
+  border: "1px solid var(--border)",
+  borderRadius: 8,
+  padding: "12px 14px",
+  marginBottom: 16,
+};
+
+/**
+ * Version history + live-config summary + replay, sans dialog chrome. Extracted
+ * from HistoryDrawer's scrollable body so the supplier History tab renders the
+ * IDENTICAL view inline (STRUCT-1). The drawer wraps this in its slide-over.
+ */
+export function HistoryContent(props: HistoryContentProps) {
+  const {
+    connectionId,
+    revisions,
+    activeRevisionId,
+    liveSummary,
+    liveVersionNo,
+    testEvidence,
+    busy,
+    testingRevisionId,
+    rollingBackRevisionId,
+    discardingRevisionId,
+    onTest,
+    onRequestPublish,
+    onRequestRollback,
+    onRequestArchive,
+  } = props;
+
+  const sectionLabelStyle = HISTORY_SECTION_LABEL_STYLE;
+  const cardStyle = HISTORY_CARD_STYLE;
+
+  return (
+    <>
+      {/* ── Version history + lifecycle controls ─────────────────── */}
+      <section style={cardStyle} aria-label="Version history">
+        <p style={sectionLabelStyle}>Version history</p>
+        {revisions.length === 0 ? (
+          <p
+            style={{
+              margin: "8px 0 2px",
+              fontSize: 12.5,
+              lineHeight: 1.5,
+              color: "var(--ink-muted)",
+            }}
+          >
+            No versions yet. Edit the mapping to begin.
+          </p>
+        ) : (
+          <ul className="flex flex-col gap-2 list-none p-0 m-0" style={{ marginTop: 8 }}>
+            {revisions.map((r) => {
+              const isActive = r.id === activeRevisionId;
+              const status = (r.status ?? "").toLowerCase();
+              const canTest = status === "draft" || status === "test";
+              const canPublish = status === "draft" || status === "test";
+              const canRollback = status === "archived";
+              const canArchive = status === "draft" || status === "test";
+
+              const evidenceForThisRevision =
+                testEvidence && testEvidence.revisionId === r.id ? testEvidence : null;
+              const testsPassed = evidenceForThisRevision?.passed === true;
+
+              return (
+                <li
+                  key={r.id}
+                  className="rounded-[8px]"
+                  style={{
+                    border: `1px solid ${isActive ? "var(--brand-green)" : "var(--border)"}`,
+                    boxShadow: isActive ? "0 0 0 1px var(--brand-green)" : "none",
+                    padding: "12px 14px",
+                    background: "var(--surface)",
+                  }}
+                >
+                  <div className="flex items-center justify-between gap-3 flex-wrap">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <span className="text-[13px] font-mono font-semibold" style={{ color: "var(--ink)" }}>
+                        v{r.versionNo}
+                      </span>
+                      <RevisionStatusBadge status={r.status} size="sm" />
+                    </div>
+                    <span className="text-[11px]" style={{ color: "var(--ink-faint)" }}>
+                      {status === "published"
+                        ? `Live since ${formatDateTime(r.publishedAt)}`
+                        : status === "archived"
+                          ? (r.publishedAt ? `Was live · ${formatDateTime(r.publishedAt)}` : `Discarded`)
+                          : `Created ${formatDateTime(r.createdAt)}`}
+                    </span>
+                  </div>
+
+                  <div className="mt-2.5 flex flex-wrap gap-2">
+                    {canTest && (
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        disabled={busy}
+                        loading={testingRevisionId === r.id}
+                        onClick={() => onTest(r.id)}
+                      >
+                        Test
+                      </Button>
+                    )}
+                    {canPublish && (
+                      <Button
+                        variant="primary"
+                        size="sm"
+                        disabled={busy || !testsPassed}
+                        title={
+                          testsPassed
+                            ? undefined
+                            : "Run tests — checks must pass before going live."
+                        }
+                        onClick={() => onRequestPublish(r.id, r.versionNo)}
+                      >
+                        Make live
+                      </Button>
+                    )}
+                    {canRollback && (
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        disabled={busy}
+                        loading={rollingBackRevisionId === r.id}
+                        onClick={() => onRequestRollback(r.id, r.versionNo)}
+                      >
+                        Restore this version
+                      </Button>
+                    )}
+                    {canArchive && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        disabled={busy}
+                        loading={discardingRevisionId === r.id}
+                        onClick={() => onRequestArchive(r.id, r.versionNo)}
+                      >
+                        Discard
+                      </Button>
+                    )}
+                  </div>
+
+                  {evidenceForThisRevision && (
+                    <TestEvidenceSummary evidence={evidenceForThisRevision} />
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </section>
+
+      {/* ── Configuration summary (read-only) ────────────────────── */}
+      <section style={cardStyle} aria-label="Live configuration summary">
+        <p style={sectionLabelStyle}>
+          Live configuration{liveVersionNo != null ? ` · v${liveVersionNo}` : ""}
+        </p>
+        <p
+          style={{
+            margin: "6px 0 8px",
+            fontSize: 12,
+            lineHeight: 1.45,
+            color: "var(--ink-muted)",
+          }}
+        >
+          What this supplier receives for new orders today.
+        </p>
+        {liveSummary ? (
+          <ConfigSummary data={liveSummary} />
+        ) : (
+          <p style={{ margin: 0, fontSize: 12.5, color: "var(--ink-faint)" }}>
+            Nothing live yet.
+          </p>
+        )}
+      </section>
+
+      {/* ── Replay (impact preview) — reused verbatim ────────────── */}
+      <section aria-label="Replay">
+        <ReplayPanel
+          connectionId={connectionId}
+          revisions={revisions}
+          activeRevisionId={activeRevisionId}
+        />
+      </section>
+    </>
+  );
 }
 
 function formatDateTime(iso: string | null): string {
@@ -194,23 +402,6 @@ export function HistoryDrawer(props: HistoryDrawerProps) {
 
   if (!open) return null;
 
-  const sectionLabelStyle: React.CSSProperties = {
-    margin: 0,
-    fontSize: 11,
-    fontWeight: 600,
-    color: "var(--ink-faint)",
-    textTransform: "uppercase",
-    letterSpacing: "0.05em",
-  };
-
-  const cardStyle: React.CSSProperties = {
-    background: "var(--surface)",
-    border: "1px solid var(--border)",
-    borderRadius: 8,
-    padding: "12px 14px",
-    marginBottom: 16,
-  };
-
   return (
     <div
       role="dialog"
@@ -309,156 +500,25 @@ export function HistoryDrawer(props: HistoryDrawerProps) {
           </button>
         </header>
 
-        {/* Scrollable body */}
+        {/* Scrollable body — the IDENTICAL view rendered inline on the supplier
+            History tab (SupplierHistoryTab), so the two surfaces never drift. */}
         <div style={{ flex: 1, overflowY: "auto", padding: "16px 22px" }}>
-          {/* ── Version history + lifecycle controls ─────────────────── */}
-          <section style={cardStyle} aria-label="Version history">
-            <p style={sectionLabelStyle}>Version history</p>
-            {revisions.length === 0 ? (
-              <p
-                style={{
-                  margin: "8px 0 2px",
-                  fontSize: 12.5,
-                  lineHeight: 1.5,
-                  color: "var(--ink-muted)",
-                }}
-              >
-                No versions yet. Edit the mapping to begin.
-              </p>
-            ) : (
-              <ul className="flex flex-col gap-2 list-none p-0 m-0" style={{ marginTop: 8 }}>
-                {revisions.map((r) => {
-                  const isActive = r.id === activeRevisionId;
-                  const status = (r.status ?? "").toLowerCase();
-                  const canTest = status === "draft" || status === "test";
-                  const canPublish = status === "draft" || status === "test";
-                  const canRollback = status === "archived";
-                  const canArchive = status === "draft" || status === "test";
-
-                  const evidenceForThisRevision =
-                    testEvidence && testEvidence.revisionId === r.id ? testEvidence : null;
-                  const testsPassed = evidenceForThisRevision?.passed === true;
-
-                  return (
-                    <li
-                      key={r.id}
-                      className="rounded-[8px]"
-                      style={{
-                        border: `1px solid ${isActive ? "var(--brand-green)" : "var(--border)"}`,
-                        boxShadow: isActive ? "0 0 0 1px var(--brand-green)" : "none",
-                        padding: "12px 14px",
-                        background: "var(--surface)",
-                      }}
-                    >
-                      <div className="flex items-center justify-between gap-3 flex-wrap">
-                        <div className="flex items-center gap-2.5 min-w-0">
-                          <span className="text-[13px] font-mono font-semibold" style={{ color: "var(--ink)" }}>
-                            v{r.versionNo}
-                          </span>
-                          <RevisionStatusBadge status={r.status} size="sm" />
-                        </div>
-                        <span className="text-[11px]" style={{ color: "var(--ink-faint)" }}>
-                          {status === "published"
-                            ? `Live since ${formatDateTime(r.publishedAt)}`
-                            : status === "archived"
-                              ? (r.publishedAt ? `Was live · ${formatDateTime(r.publishedAt)}` : `Discarded`)
-                              : `Created ${formatDateTime(r.createdAt)}`}
-                        </span>
-                      </div>
-
-                      <div className="mt-2.5 flex flex-wrap gap-2">
-                        {canTest && (
-                          <Button
-                            variant="secondary"
-                            size="sm"
-                            disabled={busy}
-                            loading={testingRevisionId === r.id}
-                            onClick={() => onTest(r.id)}
-                          >
-                            Test
-                          </Button>
-                        )}
-                        {canPublish && (
-                          <Button
-                            variant="primary"
-                            size="sm"
-                            disabled={busy || !testsPassed}
-                            title={
-                              testsPassed
-                                ? undefined
-                                : "Run tests — checks must pass before going live."
-                            }
-                            onClick={() => onRequestPublish(r.id, r.versionNo)}
-                          >
-                            Make live
-                          </Button>
-                        )}
-                        {canRollback && (
-                          <Button
-                            variant="secondary"
-                            size="sm"
-                            disabled={busy}
-                            loading={rollingBackRevisionId === r.id}
-                            onClick={() => onRequestRollback(r.id, r.versionNo)}
-                          >
-                            Restore this version
-                          </Button>
-                        )}
-                        {canArchive && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            disabled={busy}
-                            loading={discardingRevisionId === r.id}
-                            onClick={() => onRequestArchive(r.id, r.versionNo)}
-                          >
-                            Discard
-                          </Button>
-                        )}
-                      </div>
-
-                      {evidenceForThisRevision && (
-                        <TestEvidenceSummary evidence={evidenceForThisRevision} />
-                      )}
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
-          </section>
-
-          {/* ── Configuration summary (read-only) ────────────────────── */}
-          <section style={cardStyle} aria-label="Live configuration summary">
-            <p style={sectionLabelStyle}>
-              Live configuration{liveVersionNo != null ? ` · v${liveVersionNo}` : ""}
-            </p>
-            <p
-              style={{
-                margin: "6px 0 8px",
-                fontSize: 12,
-                lineHeight: 1.45,
-                color: "var(--ink-muted)",
-              }}
-            >
-              What this supplier receives for new orders today.
-            </p>
-            {liveSummary ? (
-              <ConfigSummary data={liveSummary} />
-            ) : (
-              <p style={{ margin: 0, fontSize: 12.5, color: "var(--ink-faint)" }}>
-                Nothing live yet.
-              </p>
-            )}
-          </section>
-
-          {/* ── Replay (impact preview) — reused verbatim ────────────── */}
-          <section aria-label="Replay">
-            <ReplayPanel
-              connectionId={connectionId}
-              revisions={revisions}
-              activeRevisionId={activeRevisionId}
-            />
-          </section>
+          <HistoryContent
+            connectionId={connectionId}
+            revisions={revisions}
+            activeRevisionId={activeRevisionId}
+            liveSummary={liveSummary}
+            liveVersionNo={liveVersionNo}
+            testEvidence={testEvidence}
+            busy={busy}
+            testingRevisionId={testingRevisionId}
+            rollingBackRevisionId={rollingBackRevisionId}
+            discardingRevisionId={discardingRevisionId}
+            onTest={onTest}
+            onRequestPublish={onRequestPublish}
+            onRequestRollback={onRequestRollback}
+            onRequestArchive={onRequestArchive}
+          />
         </div>
       </aside>
     </div>
