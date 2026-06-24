@@ -23,7 +23,7 @@
 //   Peppol BIS Order 3.0  partial both — rides the UBL pipeline; full BIS 3.0 conformance still hardening
 //   SAP IDoc ORDERS05 ... parse supported · transform none       (IDocOrders05Parser registered; hand-rolled XML, no EdiFabric; INBOUND only — no IDoc output; live-verified on prod 2026-06-08)
 //   EDIFACT ORDERS ...... parse partial · transform planned     (EdifactOrderParser registered; EdiFabric library decision pending; NO output transformer)
-//   ANSI X12 850 ........ parse planned · transform planned      (X12OrderParser/X12TransformService scaffolding on main but in active Group M development — not production-certified)
+//   ANSI X12 850 ........ parse supported · transform supported  (X12OrderParser / X12TransformService, registered; 004010/005010 header + line-item fidelity, output selectable per supplier)
 //   JSON / REST payload . parse partial · transform supported    (inline parse in OrderService; JsonTransformService registered)
 //   CSV (buyer template)  parse supported · transform supported  (CsvOrderParser / CsvTransformService, registered)
 //   XLSX (buyer template) parse supported · transform none       (XlsxOrderParser registered; no XLSX output)

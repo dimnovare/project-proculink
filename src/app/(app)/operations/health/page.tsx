@@ -276,9 +276,11 @@ export default function OperationsHealthPage() {
                           variant="blue"
                           size="sm"
                           onClick={() => requeue.mutate(o)}
-                          disabled={requeue.isPending}
+                          /* Gate on THIS row's id so requeuing one order doesn't
+                             disable + spin every row's button (shared isPending). */
+                          disabled={requeue.isPending && requeue.variables?.orderId === o.orderId}
                         >
-                          {requeue.isPending ? "Sending…" : "Try sending again"}
+                          {requeue.isPending && requeue.variables?.orderId === o.orderId ? "Sending…" : "Try sending again"}
                         </Button>
                       </td>
                     </tr>
@@ -314,10 +316,11 @@ export default function OperationsHealthPage() {
                       variant="blue"
                       size="md"
                       onClick={() => requeue.mutate(o)}
-                      disabled={requeue.isPending}
+                      /* Per-row guard — see desktop table above. */
+                      disabled={requeue.isPending && requeue.variables?.orderId === o.orderId}
                       style={{ width: "100%" }}
                     >
-                      {requeue.isPending ? "Sending…" : "Try sending again"}
+                      {requeue.isPending && requeue.variables?.orderId === o.orderId ? "Sending…" : "Try sending again"}
                     </Button>
                   </div>
                 </MobileListRow>

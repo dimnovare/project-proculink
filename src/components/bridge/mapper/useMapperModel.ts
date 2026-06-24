@@ -18,7 +18,7 @@
 // pure mapperModel helpers never blank the other side, and buildOverrideDraft re-attaches
 // the current sourceMap explicitly. Never hand-roll the saved document.
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useQueriesEnabled } from "@/hooks/useQueriesEnabled";
 import {
@@ -427,7 +427,10 @@ export function useMapperModel({
 
   // ── Persistence ────────────────────────────────────────────────────────────
   const [lastTouched, setLastTouched] = useState<string | null>(null);
-  const saveErrRef = useRef<string | null>(null);
+  // Save error promoted from a ref to state so a failed save repaints reliably (a ref
+  // mutation doesn't trigger a render — it previously only painted because saveMut.isPending
+  // flipped on settle). Cleared on mutate/success, set on error.
+  const [saveErr, setSaveErr] = useState<string | null>(null);
 
   const saveMut = useMutation({
     mutationFn: async (next: OrderMappingOverride) => {
@@ -469,8 +472,9 @@ export function useMapperModel({
       });
       return doc;
     },
+    onMutate: () => { setSaveErr(null); },
     onSuccess: (doc) => {
-      saveErrRef.current = null;
+      setSaveErr(null);
       // Reflect the server's canonical copy into the cache + local draft.
       qc.setQueryData(["mapper-override", variant, scopeId, revisionId ?? null], doc);
       // MV-1 / D-3 / D-4: for a per-ORDER override, the saved mapping changes what
@@ -486,7 +490,7 @@ export function useMapperModel({
         qc.invalidateQueries({ queryKey: ["mapping-override", scopeId] });
       }
     },
-    onError: (e) => { saveErrRef.current = e instanceof Error ? e.message : "Couldn’t save the mapping."; },
+    onError: (e) => { setSaveErr(e instanceof Error ? e.message : "Couldn’t save the mapping."); },
   });
 
   // Apply a pure transform → optimistic local draft + bump signature + persist.
@@ -588,7 +592,7 @@ export function useMapperModel({
   return {
     loading,
     saving: saveMut.isPending,
-    error: saveErrRef.current,
+    error: saveErr,
     override,
     sourceFields,
     // Truthy when there IS incoming data (canonical from the Order or tokenized) — drives the

@@ -18,6 +18,7 @@ import {
   isApiMockMode,
   type TemplateDto,
 } from "@/lib/api-client";
+import { bodyForPreview } from "./previewModel";
 
 const MOCK_TEMPLATES = [
   { id: "t1", name: "cXML 1.2.045 — OrderRequest", fmt: "cXML", suppliers: 2, supplierNames: ["Example Supplier 1", "Example Supplier 2"], lastUsed: "2m",  version: "1.2.045", isDefault: true },
@@ -62,22 +63,6 @@ const FMT_DESC: Record<string, string> = {
   JSON:    "Generic JSON order payload for REST endpoints.",
   CSV:     "Flat CSV row export for tabular suppliers.",
 };
-
-// Illustrative envelope previews — {tokens} are filled from the canonical order
-// at delivery time. Keyed by uppercased format.
-const PREVIEW_BY_FORMAT: Record<string, string[]> = {
-  CXML: ['<cXML payloadID="..." xml:lang="en-US">', "  <Request>", "    <OrderRequest>", '      <OrderRequestHeader orderID="{po}"', '          orderDate="{date}" type="new">', '        <Total><Money currency="{cur}">{total}</Money></Total>', "      </OrderRequestHeader>", '      <ItemOut quantity="{qty}">…</ItemOut>', "    </OrderRequest>", "  </Request>", "</cXML>"],
-  UBL:  ['<Order xmlns="urn:oasis:...:Order-2">', "  <cbc:ID>{po}</cbc:ID>", "  <cbc:IssueDate>{date}</cbc:IssueDate>", "  <cac:OrderLine>", "    <cac:LineItem>", '      <cbc:Quantity unitCode="{uom}">{qty}</cbc:Quantity>', '      <cbc:LineExtensionAmount currencyID="{cur}">{amt}</cbc:LineExtensionAmount>', "    </cac:LineItem>", "  </cac:OrderLine>", "</Order>"],
-  EDI:  ["UNH+1+ORDERS:D:96A:UN'", "BGM+220+{po}+9'", "DTM+137:{date}:102'", "NAD+BY+{buyer}'", "NAD+SU+{supplier}'", "LIN+1++{item}:VP'", "QTY+21:{qty}'", "UNS+S'", "UNT+12+1'"],
-  EDIFACT: ["UNH+1+ORDERS:D:96A:UN'", "BGM+220+{po}+9'", "DTM+137:{date}:102'", "NAD+BY+{buyer}'", "NAD+SU+{supplier}'", "LIN+1++{item}:VP'", "QTY+21:{qty}'", "UNS+S'", "UNT+12+1'"],
-  X12:  ["ST*850*0001~", "BEG*00*NE*{po}**{date}~", "REF*DP*DEPT~", "PO1*1*{qty}*EA*{price}**VP*{item}~", "CTT*1~", "SE*6*0001~"],
-  JSON: ["{", '  "orderId": "{po}",', '  "orderDate": "{date}",', '  "currency": "{cur}",', '  "lines": [', '    { "item": "{item}", "qty": {qty}, "price": "{price}" }', "  ]", "}"],
-  CSV:  ["po_number,order_date,supplier,currency", "{po},{date},{supplier},{cur}", "line,item,qty,unit_price", "1,{item},{qty},{price}"],
-};
-
-function previewFor(fmt: string): string[] {
-  return PREVIEW_BY_FORMAT[fmt.toUpperCase()] ?? PREVIEW_BY_FORMAT.JSON;
-}
 
 function dtoToCard(t: TemplateDto): CardTemplate {
   return {
@@ -151,7 +136,7 @@ export default function TemplatesPage() {
     const ext = (
       { CXML: "xml", UBL: "xml", EDI: "edi", EDIFACT: "edi", X12: "x12", JSON: "json", CSV: "csv" } as Record<string, string>
     )[t.fmt.toUpperCase()] ?? "txt";
-    const body = previewFor(t.fmt).join("\n");
+    const body = bodyForPreview(t).join("\n");
     const safeName = t.name.replace(/[^A-Za-z0-9._-]+/g, "-").replace(/^-+|-+$/g, "") || "template";
     const blob = new Blob([body], { type: "text/plain;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
@@ -297,7 +282,7 @@ export default function TemplatesPage() {
                     className="m-0 overflow-x-auto"
                     style={{ padding: "14px 16px", fontFamily: "'JetBrains Mono', monospace", fontSize: 11.5, lineHeight: 1.7, background: "#FCFCFD", color: "#345470" }}
                   >
-                    {previewFor(selected.fmt).map((line, i) => <PreviewLine key={i} line={line} />)}
+                    {bodyForPreview(selected).map((line, i) => <PreviewLine key={i} line={line} />)}
                   </pre>
                   <div className="flex flex-col items-stretch gap-2.5 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-2" style={{ borderTop: "1px solid var(--border)" }}>
                     <span className="text-[12px] leading-[1.45] sm:text-[11px]" style={{ color: "var(--ink-faint)" }}>

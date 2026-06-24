@@ -389,7 +389,7 @@ export function CrossingsLog() {
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--ink-faint)" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
               <path d="M15.5 7.5 21 2" /><path d="m18 5 1.5 1.5" /><circle cx="9" cy="15" r="6" /><path d="m13.2 10.8 3.3-3.3" />
             </svg>
-            Append-only · immutable · every parse, edit, validation and delivery
+            Append-only audit log · every parse, edit, validation and delivery recorded
           </span>
         }
         actions={

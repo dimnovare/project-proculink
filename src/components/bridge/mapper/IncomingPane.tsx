@@ -128,7 +128,7 @@ export function IncomingPane({
 
   if (loading) {
     return (
-      <PaneFrame title="Incoming order" sourceType={sourceType}>
+      <PaneFrame title="What we received" sourceType={sourceType}>
         <div style={{ padding: "10px 12px", fontSize: 11, color: "var(--ink-faint)" }}>Loading incoming data…</div>
       </PaneFrame>
     );
@@ -141,14 +141,14 @@ export function IncomingPane({
       ? "This order arrived already-structured — there are no extra raw fields to remap. The canonical values flow straight to the output."
       : "No extra incoming fields for this document type — the parsed values are the source of truth.";
     return (
-      <PaneFrame title="Incoming order" sourceType={sourceType}>
+      <PaneFrame title="What we received" sourceType={sourceType}>
         <div style={{ padding: "12px", fontSize: 11.5, color: "var(--ink-faint)", lineHeight: 1.5 }}>{message}</div>
       </PaneFrame>
     );
   }
 
   return (
-    <PaneFrame title="Incoming order" subtitle={`${counts.all} field${counts.all === 1 ? "" : "s"}`} sourceType={sourceType}>
+    <PaneFrame title="What we received" subtitle={`${counts.all} field${counts.all === 1 ? "" : "s"}`} sourceType={sourceType}>
       {/* Search — finds any field/value across groups (collapsed groups auto-reveal). */}
       <div style={{ padding: "8px 10px 0" }}>
         <input

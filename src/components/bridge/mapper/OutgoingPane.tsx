@@ -185,7 +185,7 @@ export function OutgoingPane({
       `}</style>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, padding: "9px 12px", borderBottom: "1px solid #EEF0F4" }}>
         <span style={{ fontSize: 10.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em", color: "#1E6D29" }}>
-          Outgoing document
+          What we&rsquo;ll send
         </span>
         {canAddField && onAddField && (
           <AddOutputFieldMenu

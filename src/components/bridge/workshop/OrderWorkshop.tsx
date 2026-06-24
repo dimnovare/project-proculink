@@ -483,7 +483,7 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
                 {crossed
                   ? labels.doneLabel
                   : sendState === "transforming"
-                    ? "Generating…"
+                    ? "Preparing the file…"
                     : sendState === "delivering"
                       ? labels.primaryCtaProgress
                       : blockingIssues > 0 || exceptionCount > 0

@@ -334,7 +334,11 @@ export default function ConnectorsPage() {
       <PageShell variant="wide">
         <PageHeader
           title="Connectors"
-          sub={`ERP and channel integrations · ${connectedCount} connected`}
+          /* offer⇔works: the live suppliers list carries no delivery-config signal,
+             so a real "N connected" count is not derivable — it was always 0. Drop
+             the misleading suffix in live mode (same honesty reason the per-card
+             usage line is hidden); keep it only where a real count exists (mock). */
+          sub={isApiMockMode ? `ERP and channel integrations · ${connectedCount} connected` : "ERP and channel integrations"}
           actions={
             <button
               className="connectors-addbtn"
@@ -416,7 +420,7 @@ export default function ConnectorsPage() {
         ) : connectors.length === 0 ? (
           <EmptyState
             title="No connectors configured"
-            sub="Add a connector to start routing purchase orders to suppliers via API, SFTP, email, ERP, or cXML PunchOut."
+            sub="Add a connector to start routing purchase orders to suppliers via API, SFTP, email, or ERP."
             action={{ label: "Add connector", onClick: () => setSelected({ id: "new", type: "API (REST)", name: "", status: "available", desc: "", docks: 0, direction: "out" }) }}
           />
         ) : (
@@ -652,7 +656,10 @@ function ConnectorPanel({
   onClose: () => void;
 }) {
   const isNew = connector.id === "new";
-  const [testResult, setTestResult] = useState<string | null>(null);
+  // Carry an explicit success flag so the banner can style failure as danger,
+  // not the hardcoded green that made a failed test-fire read as success. `ok:null`
+  // = informational (the "configure per supplier" guidance) → neutral styling.
+  const [testResult, setTestResult] = useState<{ ok: boolean | null; message: string } | null>(null);
   const [firing, setFiring] = useState(false);
 
   // Derive the manifest key from the connector's type string (null = no manifest shown)
@@ -660,16 +667,16 @@ function ConnectorPanel({
 
   const handleTestFire = async () => {
     if (connector.id === "new") {
-      setTestResult("Connectors are set up per supplier — open the supplier's Delivery tab to configure and test-fire delivery.");
+      setTestResult({ ok: null, message: "Connectors are set up per supplier — open the supplier's Delivery tab to configure and test-fire delivery." });
       return;
     }
     setFiring(true);
     setTestResult(null);
     try {
       const result = await testFireDeliveryConfig(connector.id);
-      setTestResult(result.success ? `${result.message}` : `Failed — ${result.message}`);
+      setTestResult({ ok: result.success, message: result.success ? result.message : `Failed — ${result.message}` });
     } catch (err) {
-      setTestResult(`Test fire failed — ${(err as Error).message}`);
+      setTestResult({ ok: false, message: `Test fire failed — ${(err as Error).message}` });
     } finally {
       setFiring(false);
     }
@@ -833,18 +840,37 @@ function ConnectorPanel({
 
           {testResult && (
             <div
+              role="status"
+              aria-live="polite"
               style={{
                 borderRadius: "var(--radius,6px)",
                 border: "1px solid var(--border,#E2E6EE)",
-                borderLeft: "3px solid var(--brand-green,#2E8E3A)",
-                background: "var(--brand-green-soft,#E2F1E2)",
-                color: "var(--brand-green-deep,#1E6D29)",
+                // Failure → danger; success → green; informational (ok:null) → neutral blue.
+                borderLeft: `3px solid ${
+                  testResult.ok === false
+                    ? "var(--danger,#C53A3A)"
+                    : testResult.ok === true
+                      ? "var(--brand-green,#2E8E3A)"
+                      : "var(--brand-blue,#1E66C9)"
+                }`,
+                background:
+                  testResult.ok === false
+                    ? "var(--danger-soft,#FBE3E3)"
+                    : testResult.ok === true
+                      ? "var(--brand-green-soft,#E2F1E2)"
+                      : "var(--surface-2,#EFF2F7)",
+                color:
+                  testResult.ok === false
+                    ? "var(--danger,#C53A3A)"
+                    : testResult.ok === true
+                      ? "var(--brand-green-deep,#1E6D29)"
+                      : "var(--ink-muted,#56627A)",
                 padding: "10px 12px",
                 fontSize: 12,
                 lineHeight: 1.5,
               }}
             >
-              {testResult}
+              {testResult.message}
             </div>
           )}
         </div>

@@ -874,7 +874,7 @@ export function MagicMappingPreview({ orderId, onCommitted, onParseFailed }: Pro
           </span>
           <span />
           <span style={{ fontSize: 11, fontWeight: 700, color: "#56627A", textTransform: "uppercase", letterSpacing: "0.04em", textAlign: "center" }}>
-            Canonical
+            Order field
           </span>
           <span />
           <span style={{ fontSize: 11, fontWeight: 700, color: "#56627A", textTransform: "uppercase", letterSpacing: "0.04em" }}>

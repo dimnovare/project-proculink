@@ -107,7 +107,7 @@ export function MobileTriage(props: MobileTriageProps) {
   const sendLabel = crossed
     ? doneLabel
     : sendState === "transforming"
-      ? "Generating…"
+      ? "Preparing the file…"
       : sendState === "delivering"
         ? primaryCtaProgress
         : sendBlockCount > 0

@@ -407,7 +407,7 @@ export function OrderPassport({ orderId }: { orderId: string }) {
 
           {/* Canonical summary */}
           {passport.canonical && (
-            <Section title="Canonical model">
+            <Section title="Order summary">
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
                 <Ref label="Lines" value={String(passport.canonical.lineCount)} />
                 <Ref label="Total quantity" value={passport.canonical.totalQuantity != null ? String(passport.canonical.totalQuantity) : "—"} />

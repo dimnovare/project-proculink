@@ -14,6 +14,7 @@ import {
   isApiMockMode,
   type IntegrationSubscription,
 } from "@/lib/api-client";
+import { deriveWebhookStatus } from "./webhookStatus";
 
 // Buyer-blue is the primary accent on this screen (sampled from the design render:
 // header button, modal CTA, modal icon-chip + info banner, and the order column in the
@@ -27,8 +28,12 @@ type WebhookRow = {
   id: string;
   url: string;
   events: string[];
-  // "paused" = operator-disabled (isActive:false); NOT a delivery failure.
+  // "paused" = operator-disabled (isActive:false) OR auto-deactivated after
+  // 3 failures; "failing" = active but with recent failures. NOT all "off".
   status: "healthy" | "failing" | "paused";
+  // Recent consecutive failures (drives the "Failing — N recent failures" label).
+  // Optional: mock rows omit it.
+  failureCount?: number;
   lastDelivery: string;
 };
 
@@ -91,14 +96,18 @@ function relativeTime(iso: string): string {
   return `${Math.floor(d / 7)}w ago`;
 }
 
+// Status derivation lives in ./webhookStatus (pure, unit-tested). It mirrors the
+// Settings page: active+failures → "failing", active+clean → "healthy",
+// inactive (operator-disabled OR auto-killed after 3 failures) → "paused". The
+// old mapper used isActive alone and DROPPED failureCount, so a failing endpoint
+// read "Healthy".
 function toRow(sub: IntegrationSubscription): WebhookRow {
   return {
     id: sub.id,
     url: sub.targetUrl,
     events: [sub.eventType],
-    // Active integration → "healthy"; operator-disabled (isActive:false) → "paused".
-    // A paused endpoint is intentionally off, not failing — don't show a red error pill.
-    status: sub.isActive ? "healthy" : "paused",
+    status: deriveWebhookStatus(sub.isActive, sub.failureCount),
+    failureCount: sub.failureCount,
     lastDelivery: relativeTime(sub.updatedAt),
   };
 }
@@ -197,9 +206,16 @@ function CardHead({ title, sub, icon }: { title: string; sub?: string; icon: "we
 // "Paused" (operator-disabled) uses the neutral .pill-new (surface-2 / ink-muted /
 // ink-faint dot) — same neutral idiom the connectors screen uses for off states.
 
-function EndpointPill({ status }: { status: "healthy" | "failing" | "paused" }) {
+function EndpointPill({ status, failureCount }: { status: "healthy" | "failing" | "paused"; failureCount?: number }) {
   const cls = status === "healthy" ? "pill-ready" : status === "paused" ? "pill-new" : "pill-failed";
-  const label = status === "healthy" ? "Healthy" : status === "paused" ? "Paused" : "Failing";
+  const label =
+    status === "healthy"
+      ? "Healthy"
+      : status === "paused"
+        ? "Paused"
+        : failureCount && failureCount > 0
+          ? `Failing — ${failureCount} recent failure${failureCount === 1 ? "" : "s"}`
+          : "Failing";
   return (
     <span className={`pill ${cls}`} style={{ flexShrink: 0 }}>
       <span className="dot" />
@@ -277,7 +293,7 @@ function EndpointsCard({
               >
                 {w.url}
               </span>
-              <EndpointPill status={w.status} />
+              <EndpointPill status={w.status} failureCount={w.failureCount} />
             </div>
 
             {/* Event chips — canonical .chip (surface-2 / ink-muted / mono 10px) */}
@@ -337,7 +353,10 @@ function EndpointsCard({
                     cursor: togglingId === w.id ? "default" : "pointer",
                   }}
                 >
-                  {togglingId === w.id ? "…" : w.status === "healthy" ? "Disable" : "Enable"}
+                  {/* Active (healthy OR failing) → "Disable"; paused → "Enable".
+                      Keying off "healthy" alone wrongly offered "Enable" on an
+                      active-but-failing endpoint. */}
+                  {togglingId === w.id ? "…" : w.status === "paused" ? "Enable" : "Disable"}
                 </button>
                 <button
                   className="wh-actionbtn"
@@ -707,7 +726,7 @@ function WebhookPanel({
               <circle cx="12" cy="12" r="10"/>
               <path d="M12 16v-4"/><path d="M12 8h.01"/>
             </svg>
-            We'll send a test ping on save and mark the endpoint healthy once it returns 2xx.
+            We'll send a test ping on save. The endpoint's status then reflects your real deliveries — it reads as failing if recent attempts don't succeed.
           </div>
         </div>
 

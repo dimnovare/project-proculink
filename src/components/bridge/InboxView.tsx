@@ -857,7 +857,7 @@ export function InboxView() {
             Couldn't load the queue
           </div>
           <div className="muted" style={{ fontSize: "13px", maxWidth: 380, margin: "6px auto 14px", color: "#56627A" }}>
-            The order service returned <span className="font-mono" style={{ fontSize: "12px" }}>503</span> — your orders are safe and nothing was lost. This is usually transient.
+            We couldn&apos;t load your orders right now — your data is safe. Try again in a moment.
           </div>
           <button
             onClick={() => refetch()}
@@ -936,7 +936,14 @@ export function InboxView() {
         >
           <div className="flex items-center gap-3">
             <span style={{ fontSize: "12.5px", fontWeight: 600 }}>
-              {selectedCount > 0 ? `${selectedCount} selected` : "Send complete"}
+              {/* Drive the headline from the real result: a fully-failed bulk
+                  must not read "Send complete". Falls back to a neutral
+                  "Send finished" if a result is on display without a flag. */}
+              {selectedCount > 0
+                ? `${selectedCount} selected`
+                : bulkResult
+                  ? (bulkResult.ok ? "Sent" : "Some failed to send")
+                  : "Send finished"}
             </span>
             <button
               onClick={() => { setRowSelection({}); setBulkResult(null); }}

@@ -41,7 +41,6 @@ export function useSendFlow({ orderId, order, labels, refetchOrder }: {
   const [sendState, setSendState] = useState<"idle" | "transforming" | "delivering">("idle");
   const [showConfirm, setShowConfirm] = useState(false);
   const [crossed, setCrossed] = useState(false);
-  const [showToast, setShowToast] = useState(false);
 
   // ── Finding-1: remount resilience ───────────────────────────────────────────
   // If the operator navigates away mid-generation and back, the freshly-loaded
@@ -123,7 +122,6 @@ export function useSendFlow({ orderId, order, labels, refetchOrder }: {
 
       if (current.status === "delivered") {
         setCrossed(true);
-        setShowToast(true);
         setFlow(finalDeliveryMessage("delivered", null, labels), "success");
         return;
       }
@@ -150,7 +148,6 @@ export function useSendFlow({ orderId, order, labels, refetchOrder }: {
 
       if (current.status === "delivered") {
         setCrossed(true);
-        setShowToast(true);
         setFlow(finalDeliveryMessage("delivered", null, labels), "success");
         await refetchOrder();
         return;
@@ -187,7 +184,6 @@ export function useSendFlow({ orderId, order, labels, refetchOrder }: {
 
       if (current.status === "delivered") {
         setCrossed(true);
-        setShowToast(true);
         setFlow(finalDeliveryMessage(current.status, current.errorMessage, labels), "success");
       } else {
         setFlow(finalDeliveryMessage(current.status, current.errorMessage, labels), "error");
@@ -208,7 +204,6 @@ export function useSendFlow({ orderId, order, labels, refetchOrder }: {
       if (live && live.status === "delivered") {
         // Already delivered — reflect success, not failure.
         setCrossed(true);
-        setShowToast(true);
         setFlow(finalDeliveryMessage("delivered", null, labels), "success");
       } else if (live && (live.status === "transforming" || live.status === "ready_to_deliver")) {
         // Still in-flight server-side — show a neutral "still processing" note, NOT red.
@@ -230,8 +225,6 @@ export function useSendFlow({ orderId, order, labels, refetchOrder }: {
     setFlow,
     sendState,
     crossed,
-    showToast,
-    setShowToast,
     showConfirm,
     setShowConfirm,
     confirmSend,

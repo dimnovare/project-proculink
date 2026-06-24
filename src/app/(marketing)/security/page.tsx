@@ -40,7 +40,7 @@ const POSTURE: Array<{ title: string; body: string; icon: React.ReactNode }> = [
   },
   {
     title: "Append-only audit trail",
-    body: "Every parse, edit, validation and delivery attempt is recorded immutably. Export the full delivery log for any order at any time.",
+    body: "Every parse, edit, validation and delivery attempt is recorded in an append-only audit log. Export the full delivery log for any order at any time.",
     icon: <ClockIcon />,
   },
   {
@@ -50,7 +50,7 @@ const POSTURE: Array<{ title: string; body: string; icon: React.ReactNode }> = [
   },
   {
     title: "Access control",
-    body: "Role-based access, SAML/OIDC SSO available on Enterprise, and scoped API keys you can revoke instantly. Sessions are short-lived by default.",
+    body: "Org-scoped data isolation on every query, scoped API keys you can revoke instantly, and short-lived sessions by default. Role-based access and SAML/OIDC SSO are available on Enterprise — we set them up with you during onboarding.",
     icon: <UserIcon />,
   },
   {
