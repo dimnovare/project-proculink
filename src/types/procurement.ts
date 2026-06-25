@@ -180,6 +180,34 @@ export interface Order {
   documentType?: string | null;
   /** Supplier name AS PRINTED ON THE DOCUMENT (extracted) — NOT the resolved supplier. */
   documentSupplierName?: string | null;
+  // ── Auto-filled address / contact (structured-format writers emit these) ────
+  // For structured formats (cXML / X12 / UBL) the backend writer fills the
+  // address + contact blocks automatically from the order's canonical fields.
+  // They appear in the live preview but are NOT editable in the mapper, so we
+  // surface them READ-ONLY in "What we'll send" so the user can verify them.
+  // ALL optional + `string | null` — the backend that supplies them may not be
+  // deployed yet; consumers MUST optional-chain and render nothing when absent.
+  /** Ship-to party name. */
+  shipToName?: string | null;
+  shipToStreet?: string | null;
+  shipToCity?: string | null;
+  shipToPostalCode?: string | null;
+  shipToCountry?: string | null;
+  /** Free-text "deliver to" / attention line for each party. */
+  shipToDeliverTo?: string | null;
+  /** Bill-to party name. */
+  billToName?: string | null;
+  billToDeliverTo?: string | null;
+  billToStreet?: string | null;
+  billToCity?: string | null;
+  billToPostalCode?: string | null;
+  billToCountry?: string | null;
+  /** Primary contact for the order. */
+  contactName?: string | null;
+  contactEmail?: string | null;
+  contactPhone?: string | null;
+  /** Buyer tax / VAT registration id. */
+  buyerTaxId?: string | null;
 }
 
 export interface OrderSummary {

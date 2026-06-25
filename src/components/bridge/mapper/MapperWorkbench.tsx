@@ -28,7 +28,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "../DSPrimitives";
 import { IncomingPane } from "./IncomingPane";
-import { OutgoingPane } from "./OutgoingPane";
+import { OutgoingPane, type AutoFilledFields } from "./OutgoingPane";
 import { MapperPreviewPane } from "./MapperPreviewPane";
 import { OutputStructureDesigner } from "../OutputStructureDesigner";
 import { useMapperWireLayer } from "./MapperWireLayer";
@@ -97,6 +97,13 @@ export interface MapperWorkbenchProps {
    */
   previewDefaultFormat?: OutputFormatId | null;
   /**
+   * The order's auto-filled address + contact fields (order variant). For structured formats
+   * (cXML / X12 / UBL) the OutgoingPane surfaces these READ-ONLY so the user can see what the
+   * backend writer emits automatically. Optional + every field nullable — omitted/empty renders
+   * nothing. Forwarded straight to OutgoingPane; flat formats ignore it.
+   */
+  autoFilledFields?: AutoFilledFields | null;
+  /**
    * The mapping interaction mode. "wires" (default) keeps today's drag-to-connect mapper — the
    * classic /inbox screen and the connection editor are UNCHANGED. "picker" turns each output row's
    * source into an inline searchable dropdown (no dragging) and HIDES the wires by default (a "Show
@@ -144,7 +151,7 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
     variant, readOnly, onDeliver, deliverDisabled, deliverLabel, extractionFailed,
     supplierName, onSaveMappings, saveMappingsLabel, savingMappings, onValidate,
     issuesSlot, layout, attentionFirstOutput, trustedThreshold, focusFieldId, focusFieldSignal,
-    previewDefaultFormat, mappingMode = "wires",
+    previewDefaultFormat, autoFilledFields, mappingMode = "wires",
   } = props;
   const pickerMode = mappingMode === "picker";
   const scopeId = (variant === "order" ? props.orderId : props.connectionId) ?? "";
@@ -537,6 +544,7 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
       incomingFields={model.sourceFields}
       onPickSource={(outputPath, sourceId) => onWireConnect(sourceId, outputPath)}
       outputFormat={previewDefaultFormat ?? model.outputFormat}
+      autoFilledFields={autoFilledFields}
       readOnly={readOnly}
     />
     </>

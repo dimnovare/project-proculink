@@ -96,7 +96,39 @@ export interface OutgoingPaneProps {
    * pane from implying that adding a field changes what's sent. Absent/flat formats → unchanged.
    */
   outputFormat?: OutputFormatId | null;
+  /**
+   * The order's auto-filled address + contact fields. For structured formats (cXML / X12 / UBL) the
+   * backend writer emits these blocks automatically from the order's canonical fields — they appear
+   * in the live preview but are NOT editable here. When present (and the format is structured) we
+   * render them as a READ-ONLY "Filled automatically from the order" section so the user can SEE and
+   * verify what's being sent. Optional + every field nullable — render nothing when absent (graceful
+   * before the backend that supplies them is deployed). Flat formats ignore this entirely.
+   */
+  autoFilledFields?: AutoFilledFields | null;
   readOnly?: boolean;
+}
+
+/**
+ * The auto-filled address/contact values surfaced read-only for structured formats. Every field is
+ * optional + nullable — the component omits any that are null/empty and shows nothing if all absent.
+ */
+export interface AutoFilledFields {
+  shipToName?: string | null;
+  shipToStreet?: string | null;
+  shipToCity?: string | null;
+  shipToPostalCode?: string | null;
+  shipToCountry?: string | null;
+  shipToDeliverTo?: string | null;
+  billToName?: string | null;
+  billToDeliverTo?: string | null;
+  billToStreet?: string | null;
+  billToCity?: string | null;
+  billToPostalCode?: string | null;
+  billToCountry?: string | null;
+  contactName?: string | null;
+  contactEmail?: string | null;
+  contactPhone?: string | null;
+  buyerTaxId?: string | null;
 }
 
 export function OutgoingPane({
@@ -122,6 +154,7 @@ export function OutgoingPane({
   incomingFields,
   onPickSource,
   outputFormat,
+  autoFilledFields,
   readOnly,
 }: OutgoingPaneProps) {
   const editable = variant === "connection" && !readOnly;
@@ -235,6 +268,12 @@ export function OutgoingPane({
         </div>
       )}
 
+      {/* Read-only "what's filled automatically" — for structured formats only, listing the order's
+          auto-emitted address + contact values so the user can SEE/verify what's being sent (they're
+          not editable here; the note above explains why). Renders nothing when no fields are present
+          (e.g. the backend that supplies them isn't deployed yet) — graceful, never crashes. */}
+      {structuredFixedFormat && <AutoFilledSection fields={autoFilledFields} />}
+
       {targetFields.length === 0 ? (
         <div style={{ padding: "12px", fontSize: 11.5, color: "var(--ink-faint)", lineHeight: 1.5 }}>
           {canAddField
@@ -313,6 +352,83 @@ export function OutgoingPane({
           {rows.map(({ field, status }) => renderRow(field, status))}
         </div>
       )}
+    </div>
+  );
+}
+
+// ── Read-only "Filled automatically from the order" — address + contact blocks ──
+// For structured formats the backend writer emits these from the order's canonical fields; they
+// show in the live preview but aren't editable here. We list the PRESENT ones (muted, no controls)
+// so the user can see exactly what's being sent. Renders nothing when nothing is present.
+function AutoFilledSection({ fields }: { fields?: AutoFilledFields | null }) {
+  // Join a party's name + address lines into the non-empty parts only (optional-chain everything so
+  // an absent DTO can never crash). A trailing city/postcode/country line is collapsed to one row.
+  const present = (v?: string | null) => typeof v === "string" && v.trim().length > 0;
+
+  const shipLines = [
+    fields?.shipToName,
+    fields?.shipToDeliverTo,
+    fields?.shipToStreet,
+    [fields?.shipToPostalCode, fields?.shipToCity].filter(present).join(" ") || null,
+    fields?.shipToCountry,
+  ].filter(present) as string[];
+
+  const billLines = [
+    fields?.billToName,
+    fields?.billToDeliverTo,
+    fields?.billToStreet,
+    [fields?.billToPostalCode, fields?.billToCity].filter(present).join(" ") || null,
+    fields?.billToCountry,
+  ].filter(present) as string[];
+
+  const contactLines = [
+    fields?.contactName,
+    fields?.contactEmail,
+    fields?.contactPhone,
+  ].filter(present) as string[];
+
+  const taxId = present(fields?.buyerTaxId) ? fields!.buyerTaxId! : null;
+
+  const blocks: { label: string; lines: string[] }[] = [];
+  if (shipLines.length) blocks.push({ label: "Ship to", lines: shipLines });
+  if (billLines.length) blocks.push({ label: "Bill to", lines: billLines });
+  if (contactLines.length) blocks.push({ label: "Contact", lines: contactLines });
+  if (taxId) blocks.push({ label: "Buyer tax ID", lines: [taxId] });
+
+  // Nothing extracted (or the backend doesn't supply these yet) → render nothing; the note above
+  // already explains that these fields are filled automatically.
+  if (blocks.length === 0) return null;
+
+  return (
+    <div style={{ padding: "10px 12px", borderBottom: "1px solid #EEF0F4", background: "#FBFBFD" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
+        <span style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "#56627A" }}>
+          Filled automatically from the order
+        </span>
+        <span
+          title="These come straight from the order and can't be edited here."
+          style={{ fontSize: 9.5, fontWeight: 700, color: "#6B7585", background: "#EFF2F7", border: "1px solid #E2E6EE", borderRadius: 4, padding: "1px 6px", letterSpacing: "0.02em" }}
+        >
+          read-only
+        </span>
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 12 }}>
+        {blocks.map((b) => (
+          <div key={b.label} style={{ minWidth: 0 }}>
+            <div style={{ fontSize: 10, fontWeight: 700, color: "#7A8395", marginBottom: 3, textTransform: "uppercase", letterSpacing: "0.04em" }}>
+              {b.label}
+            </div>
+            {b.lines.map((line, i) => (
+              <div
+                key={i}
+                style={{ fontSize: 11.5, color: "#3C4658", lineHeight: 1.45, overflowWrap: "anywhere" }}
+              >
+                {line}
+              </div>
+            ))}
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

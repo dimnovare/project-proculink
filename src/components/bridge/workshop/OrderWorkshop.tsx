@@ -45,7 +45,7 @@ import { bulkAcceptCount, type BulkSelectableLine } from "../magicBulkAcceptSele
 import { MobileTriage } from "./MobileTriage";
 import { WorkshopStepper } from "./WorkshopStepper";
 import { SendReadinessStrip, type BlockerChip } from "./SendReadinessStrip";
-import { BridgePageLoader } from "../BridgeLoader";
+import { BridgeLoader, BridgePageLoader } from "../BridgeLoader";
 import { OrderDetailsDrawer, type OrderDetailsTab } from "./OrderDetailsDrawer";
 
 /** The default trust threshold when no calibration history exists (mirrors mappingListModel). */
@@ -408,6 +408,42 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
     return <FailedPanel order={order} stage="delivery" />;
   }
 
+  // ── Parsing gate — the order page is opened the instant the upload redirects,
+  //    while the document is still being read server-side. Until parsing finishes
+  //    the header/lines are empty (zeros / blanks), so rendering the mapper +
+  //    issues here would show a half-populated, confusing screen. Show a calm,
+  //    dedicated "we're reading your order" state instead. useOrderReview already
+  //    polls every 3s while status === "parsing", so this auto-advances to the
+  //    real review the moment the parse completes — no manual refresh needed. ──
+  if (order.status === "parsing") {
+    return (
+      <div
+        className="flex flex-col items-center justify-center h-full gap-5 px-6 text-center"
+        style={{ background: "#F6F7FA" }}
+        data-testid="order-parsing"
+      >
+        <BridgeLoader size={92} fullScreen={false} />
+        <div style={{ maxWidth: 400 }}>
+          <p className="text-[16px] font-semibold" style={{ color: "#0B1A2F", letterSpacing: "-0.01em" }}>
+            We&rsquo;re reading your order…
+          </p>
+          <p className="text-[13px]" style={{ color: "#56627A", marginTop: 7, lineHeight: 1.55 }}>
+            We&rsquo;re extracting the line items and matching them to {order.supplierName || "the supplier"}.
+            This usually takes a few seconds — the page will update on its own when it&rsquo;s ready.
+          </p>
+          {order.poNumber && (
+            <p
+              className="text-[12px]"
+              style={{ color: "#8A93A5", marginTop: 12, fontFamily: "'JetBrains Mono',monospace" }}
+            >
+              {order.poNumber}
+            </p>
+          )}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col h-full min-h-0 overflow-hidden" style={{ background: "#F6F7FA" }} data-testid="order-workshop">
       {/* ── Header: back · PO · status · buyer→supplier · focus control · Send ── */}
@@ -596,6 +632,7 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
             attentionFirstOutput
             mappingMode="picker"
             previewDefaultFormat={orderDeliveryFormat(order)}
+            autoFilledFields={order}
             trustedThreshold={trustedThreshold}
             focusFieldId={focusFieldId}
             focusFieldSignal={focusSignal}
