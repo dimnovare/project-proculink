@@ -103,7 +103,7 @@ type Option =
   | { kind: "token"; id: string; label: string; value: string; group: SourceToken["group"] };
 
 const GROUP_LABEL: Record<string, string> = {
-  header: "Header fields", line: "Line items", parties: "Parties", raw: "Raw extras",
+  header: "Header fields", line: "Line items", parties: "Parties", raw: "Other fields",
 };
 const GROUP_ORDER = ["header", "line", "parties", "raw"];
 

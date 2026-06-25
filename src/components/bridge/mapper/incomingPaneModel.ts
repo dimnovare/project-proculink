@@ -27,7 +27,7 @@ export const INCOMING_GROUP_META: Record<SourceGroup, { label: string; defaultCo
   header: { label: "Header", defaultCollapsed: false },
   parties: { label: "Parties", defaultCollapsed: false },
   line: { label: "Line items", defaultCollapsed: false },
-  raw: { label: "Raw extras", defaultCollapsed: true },
+  raw: { label: "Other fields", defaultCollapsed: true },
 };
 
 export type { SourceGroup, GroupedSource };

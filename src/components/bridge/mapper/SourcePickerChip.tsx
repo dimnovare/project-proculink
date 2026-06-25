@@ -18,7 +18,7 @@ import { buildSourceOptions, currentSourceLabel, isUnsourced, suggestedSourceFor
 
 const PANEL_W = 280;
 const GROUP_LABEL: Record<SourceField["group"], string> = {
-  header: "Header", parties: "Parties", line: "Line items", raw: "Raw extras",
+  header: "Header", parties: "Parties", line: "Line items", raw: "Other fields",
 };
 
 export interface SourcePickerChipProps {

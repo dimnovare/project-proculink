@@ -160,6 +160,28 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
     readOnly,
   });
 
+  // ── "✓ Saved" confirmation — display-only. When an auto-save (model.saving) settles
+  //    with NO error, flash a calm "✓ Saved" for ~2s, then fade back to idle. This reads
+  //    existing state ONLY (saving + error); it never changes when or what saves.
+  const wasSavingRef = useRef(false);
+  const [justSaved, setJustSaved] = useState(false);
+  useEffect(() => {
+    if (model.saving) {
+      wasSavingRef.current = true;
+      if (justSaved) setJustSaved(false); // a new save started — clear the old tick
+      return;
+    }
+    // saving just flipped true → false. Only celebrate a clean settle (no error).
+    if (wasSavingRef.current) {
+      wasSavingRef.current = false;
+      if (!model.error) {
+        setJustSaved(true);
+        const t = setTimeout(() => setJustSaved(false), 2000);
+        return () => clearTimeout(t);
+      }
+    }
+  }, [model.saving, model.error, justSaved]);
+
   // ── Wire anchor refs — ONE canvas (relative), two port maps. Nothing is sticky. ──
   const canvasRef = useRef<HTMLDivElement>(null);
   // The wire engine MEASURES from `sourceEls` — it must hold the incoming row's RIGHT-edge PORT
@@ -561,6 +583,9 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
           </span>
           <MappedSummaryChip mapped={summary.mappedCount} total={summary.total} />
           {model.saving && <span style={{ fontSize: 10.5, color: "var(--ink-faint)" }}>Saving…</span>}
+          {!model.saving && !model.error && justSaved && (
+            <span role="status" style={{ fontSize: 10.5, color: "#1E6D29" }}>✓ Saved</span>
+          )}
           {model.error && <span style={{ fontSize: 10.5, color: "var(--danger,#C0392B)" }}>{model.error}</span>}
           {model.aiUnavailable && (
             <span
@@ -603,7 +628,7 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
           )}
           {variant === "order" && (
             <ToolbarButton
-              label="⚄ Customize output layout"
+              label="Customize output layout"
               title="Change how the output file is structured for this supplier — paste a supplier sample to start"
               onClick={() => setShowDesigner(true)}
             />

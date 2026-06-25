@@ -84,7 +84,7 @@ describe("OutputSourcePicker — progressive disclosure", () => {
     expect(within(panel).getByText("Header fields")).toBeInTheDocument();
     expect(within(panel).getByText("Line items")).toBeInTheDocument();
     expect(within(panel).getByText("Parties")).toBeInTheDocument();
-    expect(within(panel).getByText("Raw extras")).toBeInTheDocument();
+    expect(within(panel).getByText("Other fields")).toBeInTheDocument();
 
     // Each token option carries its label AND its sample value.
     const vatOption = within(panel).getByRole("option", { name: /VAT number/ });

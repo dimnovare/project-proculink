@@ -431,12 +431,17 @@ function OutgoingRow({
               cursor: canRename ? "text" : "default", padding: 0, display: "flex", flexDirection: "column", gap: 1,
             }}
           >
+            {/* M1: lead with the HUMAN label (readable to a coordinator); the machine
+                output path (cbc:ID / BEG03 / OrderRequestHeader@orderID) drops to a quiet,
+                smaller monospace second line. Fall back to the path as primary when there is
+                no human label, so the headline is never blank. Display only — outputPath is
+                still the row key / wire anchor / what gets written. */}
             <span style={{ fontSize: 11.5, fontWeight: 700, color: "var(--ink, #0B1A2F)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-              {field.outputPath}
+              {field.label || field.outputPath}
             </span>
-            {field.label !== field.outputPath && (
-              <span style={{ fontSize: 9.5, color: "var(--ink-faint)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                {field.label}
+            {field.label && field.label !== field.outputPath && (
+              <span style={{ fontSize: 10.5, fontFamily: "'JetBrains Mono',monospace", color: "#7A8395", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                {field.outputPath}
               </span>
             )}
           </button>
@@ -665,7 +670,7 @@ function OutgoingStatusTag({
   if (status.kind === "wired") {
     return (
       <span style={{ display: "inline-flex", alignItems: "center", gap: 4, flexShrink: 0, minWidth: 0 }}>
-        <span style={{ fontSize: 9.5, fontWeight: 700, color: "#1E6D29", maxWidth: 110, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+        <span style={{ fontSize: 11, fontWeight: 700, color: "#1E6D29", maxWidth: 130, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
           {status.source}
         </span>
         {onDisconnect && (
@@ -688,20 +693,20 @@ function OutgoingStatusTag({
         onClick={onEditFixed ? (e) => { e.stopPropagation(); onEditFixed(); } : undefined}
         title={onEditFixed ? "Click to edit the fixed value" : "Fixed value"}
         style={{
-          display: "inline-flex", alignItems: "center", gap: 4, fontSize: 9, fontWeight: 700, color: "#5E3DB0",
+          display: "inline-flex", alignItems: "center", gap: 4, fontSize: 11, fontWeight: 700, color: "#5E3DB0",
           background: "#F4EFFC", border: "1px solid #E2D6F6", borderRadius: 4, padding: "1px 6px",
-          flexShrink: 0, maxWidth: 130, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+          flexShrink: 0, maxWidth: 140, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
           cursor: onEditFixed ? "pointer" : "default",
         }}
       >
         {status.source}
-        {onEditFixed && <span aria-hidden style={{ fontSize: 8, opacity: 0.7 }}>✎</span>}
+        {onEditFixed && <span aria-hidden style={{ fontSize: 9, opacity: 0.7 }}>✎</span>}
       </button>
     );
   }
   if (status.kind === "auto") {
     return (
-      <span title="Carried straight through by the default transform" style={{ fontSize: 8.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", color: "#9AA3B2", flexShrink: 0 }}>
+      <span title="Filled automatically — carried straight through by the default transform" style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", color: "#6B7585", flexShrink: 0 }}>
         auto
       </span>
     );
@@ -709,13 +714,13 @@ function OutgoingStatusTag({
   // Unmapped: loud amber ONLY when required; otherwise neutral + quiet.
   if (status.required) {
     return (
-      <span title="This field is required by the supplier — map a source or set a fixed value" style={{ display: "inline-flex", alignItems: "center", gap: 3, fontSize: 9, fontWeight: 700, color: "#9A6B00", background: "#FFF7E6", border: "1px solid #F1E2BE", borderRadius: 4, padding: "1px 6px", flexShrink: 0 }}>
-        needs a source
+      <span title="This field is required by the supplier — map a source or set a fixed value" style={{ display: "inline-flex", alignItems: "center", gap: 3, fontSize: 11, fontWeight: 700, color: "#8A6000", background: "#FFF7E6", border: "1px solid #F1E2BE", borderRadius: 4, padding: "1px 6px", flexShrink: 0 }}>
+        needs a value
       </span>
     );
   }
   return (
-    <span style={{ fontSize: 9, fontWeight: 600, color: "#AEB6C4", flexShrink: 0 }}>not set</span>
+    <span style={{ fontSize: 11, fontWeight: 600, color: "#6B7585", flexShrink: 0 }}>not set</span>
   );
 }
 
@@ -744,7 +749,7 @@ function RowChipButton({
       title={isDisabled ? reason : title}
       style={{
         display: "inline-flex", alignItems: "center", gap: 3, height: 20, padding: "0 7px",
-        borderRadius: 6, fontSize: 9.5, fontWeight: 700, letterSpacing: "0.01em",
+        borderRadius: 6, fontSize: 11, fontWeight: 700, letterSpacing: "0.01em",
         whiteSpace: "nowrap", flexShrink: 0,
         border: `1px solid ${active ? "#C4ABE8" : "#E7DEF6"}`,
         background: active ? "#F4EFFC" : "transparent",

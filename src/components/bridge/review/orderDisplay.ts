@@ -1,7 +1,6 @@
 // orderDisplay — tiny shared display helpers for the order-review surfaces.
-// Moved VERBATIM from SpineReview.tsx (batch 9 Phase C) so the classic triptych,
-// the extracted OutputPreview and the Triage context stage format money / output
-// labels / delivery channels identically. Pure functions, no React.
+// Moved VERBATIM from SpineReview.tsx (batch 9 Phase C) so the order-review surfaces
+// format money / output labels / delivery channels identically. Pure functions, no React.
 
 import type { Order } from "@/types/procurement";
 import type { DeliveryProtocol, OutputFormatId } from "@/lib/api/types";

@@ -103,7 +103,7 @@ export interface IssuesPanelProps {
 }
 
 const SEVERITY_STYLE: Record<IssueSeverity, { bg: string; border: string; chipBg: string; chipColor: string; label: string }> = {
-  blocking: { bg: "#FFFFFF", border: "#F0C8C8", chipBg: "#FBE3E3", chipColor: "#C53A3A", label: "Blocking" },
+  blocking: { bg: "#FFFFFF", border: "#F0C8C8", chipBg: "#FBE3E3", chipColor: "#C53A3A", label: "Must fix" },
   warning: { bg: "#FFFFFF", border: "#F1E2BE", chipBg: "#FAEFD6", chipColor: "#C97A14", label: "Warning" },
 };
 

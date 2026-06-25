@@ -204,7 +204,7 @@ export function OrderDetailsDrawer(props: OrderDetailsDrawerProps) {
           {tab === "conformance" && (
             <div className="px-4 py-5 sm:px-6">
               <h3 style={{ fontFamily: "'Bricolage Grotesque', Inter, sans-serif", fontSize: 18, fontWeight: 700, letterSpacing: "-0.02em", color: "#0B1A2F", marginBottom: 4 }}>
-                Standards conformance
+                Supplier rules check
               </h3>
               <p className="text-[12.5px]" style={{ color: "#56627A", marginBottom: 16 }}>
                 Validate the outbound document for{" "}

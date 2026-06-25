@@ -56,6 +56,13 @@ const MANIPULATOR_LABELS: Record<string, string> = {
 };
 const manipulatorLabel = (type: string) => MANIPULATOR_LABELS[type] ?? type;
 
+// Plain-English example shown UNDER a manipulator's inputs when its parameters are raw
+// .NET format codes the coordinator wouldn't otherwise recognise. Copy only — explains
+// what to type, never changes the manipulator behaviour. Types without a hint show nothing.
+const PARAM_HELP: Record<string, string> = {
+  DateFormat: "e.g. 2026-01-31 → type yyyy-MM-dd · 31/01/2026 → type dd/MM/yyyy",
+};
+
 // ── Module-scope row so its <input>s keep focus across re-renders ───────────────
 function ManipRow({ entry, onUpdate, onRemove }: {
   entry: ManipulatorEntry; onUpdate: (e: ManipulatorEntry) => void; onRemove: () => void;
@@ -85,6 +92,11 @@ function ManipRow({ entry, onUpdate, onRemove }: {
       >
         ✕
       </button>
+      {PARAM_HELP[entry.type] && (
+        <div style={{ flexBasis: "100%", fontSize: 9.5, color: "var(--ink-faint)", lineHeight: 1.4, marginTop: 1 }}>
+          {PARAM_HELP[entry.type]}
+        </div>
+      )}
     </div>
   );
 }

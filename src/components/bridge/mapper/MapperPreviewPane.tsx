@@ -205,28 +205,40 @@ export function MapperPreviewPane({ previewOrderId, override, lastTouched, suppl
           <span style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "#1E6D29" }}>
             Live preview · {deliveredFormat.toUpperCase()}
           </span>
-          <span style={{ fontSize: 10, color: "var(--ink-faint)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-            {supplierName ? `What ${supplierName} receives` : "What the supplier receives"}
+          {/* T1: the single most reassuring statement on the screen — make it LOUD.
+              Stronger weight, larger, darker so it reads as a promise, not a caption. */}
+          <span style={{ fontSize: 12.5, fontWeight: 600, color: "#0B1A2F", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            {supplierName ? `This is exactly what ${supplierName} receives` : "This is exactly what the supplier receives"}
           </span>
         </span>
         {lastTouched && <span style={{ fontSize: 10, color: "#5E3DB0", flexShrink: 0 }}>edited {lastTouched}</span>}
         <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 4 }}>
-          {PREVIEW_FORMATS.map((f) => (
-            <button
-              key={f.value}
-              type="button"
-              onClick={() => { userPickedFormatRef.current = true; setFormat(f.value); }}
-              aria-pressed={format === f.value}
-              style={{
-                padding: "2px 8px", borderRadius: 999, cursor: "pointer", fontSize: 10, fontWeight: 700,
-                border: `1px solid ${format === f.value ? "#2E8E3A" : "#DCE0E8"}`,
-                background: format === f.value ? "#EAF6EC" : "#FFFFFF",
-                color: format === f.value ? "#1E6D29" : "var(--ink-faint)",
-              }}
-            >
-              {f.label}
-            </button>
-          ))}
+          {/* P-2: the ACTIVE/delivered format is the primary, bordered, filled pill; the others
+              are quieter, smaller, borderless "preview-as" options so the row reads "this is your
+              format — the rest just let you peek". De-emphasis only; clicking still previews and
+              does NOT change what is delivered. */}
+          {PREVIEW_FORMATS.map((f) => {
+            const active = format === f.value;
+            return (
+              <button
+                key={f.value}
+                type="button"
+                onClick={() => { userPickedFormatRef.current = true; setFormat(f.value); }}
+                aria-pressed={active}
+                title={active ? `Delivered as ${f.label}` : `Preview as ${f.label}`}
+                style={{
+                  padding: active ? "2px 9px" : "2px 7px", borderRadius: 999, cursor: "pointer",
+                  fontSize: active ? 10.5 : 9.5, fontWeight: 700,
+                  border: `1px solid ${active ? "#2E8E3A" : "transparent"}`,
+                  background: active ? "#EAF6EC" : "transparent",
+                  color: active ? "#1E6D29" : "#8A93A5",
+                  opacity: active ? 1 : 0.85,
+                }}
+              >
+                {f.label}
+              </button>
+            );
+          })}
           <span style={{ width: 1, height: 16, background: "#E2E6EE", margin: "0 2px" }} aria-hidden />
           <button
             type="button"

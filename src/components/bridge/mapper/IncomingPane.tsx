@@ -74,7 +74,7 @@ const FILTERS: { id: FieldFilter; label: string }[] = [
   { id: "all", label: "All" },
   { id: "unmapped", label: "Unmapped" },
   { id: "mapped", label: "Mapped" },
-  { id: "ai", label: "AI" },
+  { id: "ai", label: "Has AI suggestion" },
   { id: "hasValue", label: "Has value" },
 ];
 
@@ -367,7 +367,7 @@ function IncomingRow({
     >
       <span style={{ display: "flex", flexDirection: "column", gap: 1, minWidth: 0, flex: 1 }}>
         <span style={{ display: "flex", alignItems: "center", gap: 5, minWidth: 0 }}>
-          <span style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em", color: wired ? "#5E3DB0" : "var(--ink-faint)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+          <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.04em", color: wired ? "#5E3DB0" : "var(--ink-faint)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
             {field.label}
           </span>
           {suggested && !wired && (

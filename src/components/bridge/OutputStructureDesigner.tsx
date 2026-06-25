@@ -256,7 +256,7 @@ export function OutputStructureDesigner({
         <div style={{ position: "absolute", top: 0, left: 0, bottom: 0, width: 2, background: "linear-gradient(180deg, #2D6BD4, #1E6D29)", zIndex: 1 }} />
         {/* Header */}
         <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px 18px", borderBottom: `1px solid ${BORDER}`, background: NAVY, color: "#FFFFFF" }}>
-          <strong style={{ fontSize: 15 }}>Design the output structure</strong>
+          <strong style={{ fontSize: 15 }}>Design the output</strong>
           {/* The subtitle is a desktop nicety — hide it on narrow where horizontal room is scarce. */}
           {!isNarrow && <span style={{ fontSize: 12, opacity: 0.8 }}>What the supplier receives — live preview on the right</span>}
           <div style={{ marginLeft: "auto", display: "flex", gap: 10, alignItems: "center" }}>
@@ -337,7 +337,7 @@ export function OutputStructureDesigner({
                       )}
                       <button onClick={() => void infer()} disabled={inferring || !sample.trim()}
                         style={{ height: 30, padding: "0 14px", borderRadius: 6, border: `1px solid ${GREEN_DEEP}`, background: GREEN, color: "#FFF", fontSize: 12, fontWeight: 600, cursor: inferring || !sample.trim() ? "default" : "pointer", opacity: inferring || !sample.trim() ? 0.6 : 1 }}>
-                        {inferring ? "Reading…" : "Infer structure"}
+                        {inferring ? "Reading…" : "Build from a sample"}
                       </button>
                     </div>
                   </div>

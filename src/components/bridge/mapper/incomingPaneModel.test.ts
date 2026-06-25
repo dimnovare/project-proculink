@@ -77,7 +77,7 @@ describe("incomingAnchorId", () => {
 describe("INCOMING_GROUP_META", () => {
   it("labels groups for the incoming framing and collapses raw extras by default", () => {
     expect(INCOMING_GROUP_META.line.label).toBe("Line items");
-    expect(INCOMING_GROUP_META.raw.label).toBe("Raw extras");
+    expect(INCOMING_GROUP_META.raw.label).toBe("Other fields");
     expect(INCOMING_GROUP_META.raw.defaultCollapsed).toBe(true);
     expect(INCOMING_GROUP_META.header.defaultCollapsed).toBe(false);
   });
