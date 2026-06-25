@@ -26,9 +26,10 @@
 // Presentational + prop-driven. No data fetch here.
 
 import { useEffect, useMemo, useState } from "react";
-import type { ManipulatorEntry } from "@/lib/api/types";
+import type { ManipulatorEntry, OutputFormatId } from "@/lib/api/types";
 import type { CanonicalNode, SourceField, TargetField } from "./types";
 import { isTargetWired, isRenameAffordanceShown } from "./targetLaneModel";
+import { ignoresManualOutputFields, structuredFormatLabel } from "./previewFormatModel";
 import { computeOutgoingStatus, type OutgoingStatusInput, type OutgoingFieldStatus } from "./outgoingStatusModel";
 import { TransformPopover } from "./TransformPopover";
 import { SourcePickerChip } from "./SourcePickerChip";
@@ -87,6 +88,14 @@ export interface OutgoingPaneProps {
    * so the save contract is identical.
    */
   onPickSource?: (outputPath: string, sourceId: string) => void;
+  /**
+   * The format the supplier actually RECEIVES for this output (same source the preview pane uses:
+   * the order's delivered format, then the connection's outputFormat). When it's a structured-
+   * standard format (cXML / X12 / UBL) the delivered document is produced by a dedicated fixed
+   * transformer that IGNORES manually-added output fields — so we show a calm notice and stop the
+   * pane from implying that adding a field changes what's sent. Absent/flat formats → unchanged.
+   */
+  outputFormat?: OutputFormatId | null;
   readOnly?: boolean;
 }
 
@@ -112,16 +121,25 @@ export function OutgoingPane({
   mappingMode = "wires",
   incomingFields,
   onPickSource,
+  outputFormat,
   readOnly,
 }: OutgoingPaneProps) {
   const editable = variant === "connection" && !readOnly;
   const pickerMode = mappingMode === "picker" && !readOnly && typeof onPickSource === "function";
+  // Structured-standard formats (cXML / X12 / UBL) are produced by a dedicated FIXED transformer
+  // that ignores manually-added output fields — contact/addresses/structure come automatically from
+  // the extracted order. We surface a calm notice and suppress the "+ Add output field" control so
+  // the pane never implies a manual field edit changes what's delivered. Flat formats are unaffected.
+  const structuredFixedFormat = ignoresManualOutputFields(outputFormat);
   // RENAME stays connection-only (an order can't rename a supplier's declared schema), but ADDING
   // an output field is allowed in BOTH variants — an order may need to inject a field the default
   // schema lacks (e.g. credentials). Gate "add" on a real onAddField handler + not-read-only, not
   // on the variant. Without this the order mapper could never add an output field at all.
   const canRename = isRenameAffordanceShown(editable, onRenamePath);
-  const canAddField = !readOnly && typeof onAddField === "function";
+  // Adding an output field is meaningless for a structured-standard format (the fixed transformer
+  // ignores it), so hide the control there — the notice below explains why — rather than offer a
+  // dead action (offer⇔works). Flat formats keep the real combobox.
+  const canAddField = !readOnly && !structuredFixedFormat && typeof onAddField === "function";
 
   // The output paths already present — the picker only ever offers something NEW.
   const existingPaths = useMemo(
@@ -195,6 +213,27 @@ export function OutgoingPane({
           />
         )}
       </div>
+
+      {/* Structured-standard formats (cXML / X12 / UBL) are built by a fixed transformer that fills
+          contact + addresses + structure automatically from the order — manual field edits here
+          don't change the delivered document. A calm, single-sentence explanation + a soft hint;
+          uses the pane's existing muted-note styling. Flat formats never render this. */}
+      {structuredFixedFormat && outputFormat && (
+        <div
+          role="note"
+          style={{
+            padding: "9px 12px", borderBottom: "1px solid #EEF0F4",
+            background: "#F6F8FC", color: "#56627A", fontSize: 11.5, lineHeight: 1.5,
+          }}
+        >
+          This supplier uses a structured format ({structuredFormatLabel(outputFormat)}). Fields like
+          contact and addresses are filled in automatically from the order — adding or editing fields
+          here won&rsquo;t change what&rsquo;s sent.{" "}
+          <span style={{ color: "#7A8395" }}>
+            To change the structure, edit the supplier&rsquo;s output setup.
+          </span>
+        </div>
+      )}
 
       {targetFields.length === 0 ? (
         <div style={{ padding: "12px", fontSize: 11.5, color: "var(--ink-faint)", lineHeight: 1.5 }}>

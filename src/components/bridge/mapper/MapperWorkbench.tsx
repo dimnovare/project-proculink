@@ -536,6 +536,7 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
       mappingMode={mappingMode}
       incomingFields={model.sourceFields}
       onPickSource={(outputPath, sourceId) => onWireConnect(sourceId, outputPath)}
+      outputFormat={previewDefaultFormat ?? model.outputFormat}
       readOnly={readOnly}
     />
     </>
