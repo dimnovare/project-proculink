@@ -747,7 +747,10 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
           ) : (
             // TRUE 2 columns: Incoming | gutter | Outgoing. Incoming is fixed-narrow and Outgoing
             // flexes wide (the v3 inline-fix rows need the room — handoff resolveLayout 336/flex).
-            <div style={{ display: "grid", gridTemplateColumns: "minmax(300px,360px) 56px minmax(0,1fr)", alignItems: "start" }}>
+            // Incoming min lowered to 260 so the whole canvas (260 + 56 gutter + outgoing) fits
+            // within ~1000px of content — a 13"/14" laptop at 1024px gets the mapper with no
+            // horizontal scroll; on wider screens it still grows to 340.
+            <div style={{ display: "grid", gridTemplateColumns: "minmax(260px,340px) 56px minmax(0,1fr)", alignItems: "start" }}>
               <div style={{ minWidth: 0, position: "relative" }}>
                 {layout?.onCollapseIncoming && <PaneCollapseCaret side="left" label="Received" onClick={layout.onCollapseIncoming} />}
                 {incomingNode}
@@ -764,7 +767,7 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
         {previewCollapsed ? (
           <CollapsedRail label="Preview" color="#2E8E3A" onExpand={layout?.onExpandPreview} />
         ) : (
-          <div style={{ flex: "1 1 400px", minWidth: 380, position: "relative" }}>
+          <div style={{ flex: "1 1 460px", minWidth: 460, position: "relative" }}>
             {layout?.onCollapsePreview && <PaneCollapseCaret side="right" label="Live preview" onClick={layout.onCollapsePreview} />}
             {previewNode}
           </div>

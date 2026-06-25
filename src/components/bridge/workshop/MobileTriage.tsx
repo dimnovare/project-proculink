@@ -1,10 +1,11 @@
 "use client";
 
-// MobileTriage — the v3 Order Workshop reduced MOBILE view (below xl). The full
-// drag-wire mapper is desktop-only, so on a phone we ship an honest REVIEW-AND-SEND
-// surface (handoff §15): you can read what came in, see what will go out, clear the
-// open issues that have a one-click fix, and send — but field-by-field mapping stays
-// on a larger screen.
+// MobileTriage — the v3 Order Workshop reduced view (below lg, < 1024px). The full
+// drag-wire mapper renders on a laptop (lg+, ≥1024) so a 13"/14" screen keeps it;
+// below lg there isn't room for the 2-column canvas, so we ship an honest
+// REVIEW-AND-SEND surface (handoff §15): you can read what came in, see what will go
+// out, clear the open issues that have a one-click fix, and send — but field-by-field
+// mapping stays on a wider screen.
 //
 // This is a PURE PRESENTATIONAL component: every value (order summary, issues,
 // preview, send state) arrives as a prop from OrderWorkshop. It does NO data
@@ -126,7 +127,7 @@ export function MobileTriage(props: MobileTriageProps) {
 
   return (
     <div
-      className="xl:hidden flex flex-col plk-mobile-triage"
+      className="lg:hidden flex flex-col plk-mobile-triage"
       data-testid="mobile-triage"
       style={{ minHeight: "100%" }}
     >
@@ -185,7 +186,7 @@ export function MobileTriage(props: MobileTriageProps) {
           </div>
         </div>
 
-        {/* ── Blue info note: desktop-only mapping ───────────────────────── */}
+        {/* ── Blue info note: full field-mapping needs a wider screen ─────── */}
         <div
           role="note"
           className="flex items-start gap-2.5"
@@ -202,7 +203,7 @@ export function MobileTriage(props: MobileTriageProps) {
             <circle cx="8" cy="5.1" r="0.9" fill={BLUE} />
           </svg>
           <p style={{ fontSize: 13, lineHeight: 1.5, color: BLUE_DEEP, margin: 0 }}>
-            Open this order on a larger screen to map fields. You can review and clear issues, then send, from here.
+            You can review and send here. To map output fields, open this order on a wider screen (laptop).
           </p>
         </div>
 

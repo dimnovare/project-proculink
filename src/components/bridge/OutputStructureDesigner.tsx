@@ -160,6 +160,13 @@ export function OutputStructureDesigner({
   // tree stays hidden until the user either infers a sample or explicitly chooses "start blank".
   // This avoids showing a populated tree + a paste-a-sample prompt at once (two competing affordances).
   const [firstRun, setFirstRun] = useState(initialTree == null);
+  // P-1: paste-to-infer replaces the whole tree while the modal stays mounted. NodeEditor lazily
+  // initializes its per-node "Advanced" open-state from the node's data, so position-reconciled
+  // editors would NOT re-run that initializer — a node that GAINS a namespace/condition from infer
+  // could render with Advanced collapsed (data still reachable via its pill, but the affordance is
+  // hidden). Bump this revision on infer and key the editor subtree by it so the editors remount and
+  // re-initialize. Normal edits never bump it, so an in-progress edit is preserved.
+  const [treeRevision, setTreeRevision] = useState(0);
 
   // F-1: the full source-field universe for this order, so a node can bind to ANY incoming field
   // (CSV cell / XML leaf+attr / EDI / JSON leaf / PDF-email raw_field), each with a sample value —
@@ -184,6 +191,7 @@ export function OutputStructureDesigner({
       setSaved(false); setDirty(true);
       setShowInfer(false);
       setFirstRun(false); // sample inferred → reveal the editable tree
+      setTreeRevision((r) => r + 1); // remount the editors so Advanced re-initializes for the new tree
     } catch (e) {
       setInferError(e instanceof Error ? e.message : "Could not read that sample.");
     } finally {
@@ -362,7 +370,7 @@ export function OutputStructureDesigner({
 
             {/* The editable tree is hidden during first-run (the infer panel owns the screen). */}
             {!firstRun && (
-              <NodeEditor node={tree.root} path={[]} lineScope={false} onUpdate={setRoot}
+              <NodeEditor key={treeRevision} node={tree.root} path={[]} lineScope={false} onUpdate={setRoot}
                 sourceTokens={sourceTokens ?? []} isRoot
                 xml={isXml} rootHasNamespaces={hasRootNs} />
             )}
@@ -439,6 +447,15 @@ function NodeEditor({
   // Which inline editor (if any) is open for THIS row. Only one open at a time keeps the row clean.
   const [editing, setEditing] = useState<null | "name" | "format" | "condition" | "namespace">(null);
   const [hover, setHover] = useState(false);
+  // P-1 progressive disclosure: the developer-grade controls (a hand-typed "only include when"
+  // predicate + XML namespace prefix/URI) are collapsed behind a per-node "Advanced" toggle so a
+  // procurement coordinator sees only name + source + format by default. Default collapsed, BUT
+  // auto-expanded (lazy initializer) when this node ALREADY carries advanced data — a non-empty
+  // includeWhen or a bound namespace/prefix — so editing an existing config never hides data out
+  // from under the user. Local row state; one toggle per node.
+  const [advancedOpen, setAdvancedOpen] = useState(
+    () => !!node.includeWhen || (node.namespace ?? "") !== "" || (node.prefix ?? "") !== "",
+  );
 
   const updateName = (name: string) => onUpdate((n) => updateAt(n, path, (x) => ({ ...x, name })));
   const remove = () => onUpdate((n) => removeAt(n, path));
@@ -547,32 +564,57 @@ function NodeEditor({
           <SetPill tone="green" label={PRESET_SHORT[presetKey] ?? "Format"}
             title="Click to change formatting" onClick={() => setEditing("format")} onClear={() => setFormatPreset("")} clearLabel="Remove formatting" />
         )}
+        {/* Condition + namespace SetPills stay visible whenever SET (so set data is always glanceable),
+            but editing them lives behind Advanced — clicking the pill opens Advanced first. */}
         {!isRoot && hasCondition && (
           <SetPill tone="blue" mono label={`only when · ${node.includeWhen}`}
-            title="Click to edit the condition" onClick={() => setEditing("condition")} onClear={() => updateIncludeWhen("")} clearLabel="Remove condition" />
+            title="Click to edit the condition" onClick={() => { setAdvancedOpen(true); setEditing("condition"); }} onClear={() => updateIncludeWhen("")} clearLabel="Remove condition" />
         )}
         {/* XML namespace pill (element/attribute nodes only) — shown when a namespace is bound. */}
         {nsAllowed && hasNamespace && (
           <SetPill tone="blue" mono label={nsPillLabel}
-            title="Click to edit this element's XML namespace" onClick={() => setEditing("namespace")}
+            title="Click to edit this element's XML namespace" onClick={() => { setAdvancedOpen(true); setEditing("namespace"); }}
             onClear={() => setNamespace("", "")} clearLabel="Remove namespace" />
         )}
 
         {/* Spacer pushes add-affordances + delete to the right edge. */}
         <span style={{ flex: "1 1 auto" }} />
 
-        {/* Discoverable "+ format" / "+ condition" / "+ namespace" when UNSET — hover/focus-revealed. */}
+        {/* Discoverable "+ format" when UNSET — hover/focus-revealed. Format stays an EVERYDAY
+            control (not behind Advanced): a coordinator routinely formats dates/numbers/currency. */}
         {!isContainer && bound && !presetKey && (
           <GhostAdd label="+ format" title="Format this value as a date, number, or currency"
             visible={hover || editing === "format"} onClick={() => setEditing("format")} />
         )}
-        {!isRoot && !hasCondition && (
-          <GhostAdd label="+ condition" title="Only include this when a rule is true"
-            visible={hover || editing === "condition"} onClick={() => setEditing("condition")} />
-        )}
-        {nsAllowed && !hasNamespace && (
-          <GhostAdd label="+ namespace" title="Put this element in an XML namespace (e.g. cbc:)"
-            visible={hover || editing === "namespace"} onClick={() => setEditing("namespace")} />
+
+        {/* P-1 Advanced disclosure (per node, collapsed by default). Only rendered when this node
+            actually has an advanced control available — a condition (any non-root node) or an XML
+            namespace (XML element/attribute nodes). The developer-grade "+ condition" / "+ namespace"
+            authoring affordances live INSIDE it; the inline editors render below the row when open. */}
+        {(!isRoot || nsAllowed) && (
+          advancedOpen ? (
+            <span style={{ flex: "0 0 auto", display: "inline-flex", alignItems: "center", gap: 6 }}>
+              {!isRoot && !hasCondition && (
+                <GhostAdd label="+ condition" title="Only include this when a rule is true"
+                  visible onClick={() => setEditing("condition")} />
+              )}
+              {nsAllowed && !hasNamespace && (
+                <GhostAdd label="+ namespace" title="Put this element in an XML namespace (e.g. cbc:)"
+                  visible onClick={() => setEditing("namespace")} />
+              )}
+              <button onClick={() => { setAdvancedOpen(false); if (editing === "condition" || editing === "namespace") setEditing(null); }}
+                title="Hide advanced options" aria-label="Hide advanced options" aria-expanded
+                style={{ flex: "0 0 auto", height: 22, padding: "0 8px", borderRadius: 6, border: "1px solid transparent", background: "transparent", color: SLATE, fontSize: 10.5, fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap" }}>
+                Advanced ▾
+              </button>
+            </span>
+          ) : (
+            <button onClick={() => setAdvancedOpen(true)}
+              title="Conditions and XML namespaces" aria-label="Show advanced options" aria-expanded={false}
+              style={{ flex: "0 0 auto", height: 22, padding: "0 8px", borderRadius: 6, border: "1px dashed #D8DEE9", background: "transparent", color: SLATE, fontSize: 10.5, fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap", opacity: hover ? 1 : 0, transition: "opacity 120ms ease", pointerEvents: hover ? "auto" : "none" }}>
+              Advanced ▸
+            </button>
+          )
         )}
 
         {/* Inline delete — a small ghost ×, hover/focus-revealed (not a permanent full-width line). */}
@@ -598,15 +640,23 @@ function NodeEditor({
         </div>
       )}
 
-      {/* Inline condition editor — OutputNode.includeWhen (a bare predicate; node/line skipped when false). */}
+      {/* Inline condition editor — OutputNode.includeWhen (a bare predicate; node/line skipped when false).
+          The raw predicate is the power-user escape hatch; a one-line plain example sits under it so a
+          non-technical user knows what to type (not a full query builder — out of scope here). */}
       {!isRoot && editing === "condition" && (
-        <div style={{ display: "flex", gap: 6, alignItems: "center", marginTop: 4, marginLeft: 18, flexWrap: "wrap" }}>
-          <span style={{ fontSize: 11, color: SLATE, whiteSpace: "nowrap" }}>only include when</span>
-          <input autoFocus value={node.includeWhen ?? ""} onChange={(e) => updateIncludeWhen(e.target.value)}
-            onBlur={() => setEditing(null)} onKeyDown={(e) => { if (e.key === "Enter" || e.key === "Escape") setEditing(null); }}
-            placeholder={`e.g. ${scopeHint}.Quantity > 0`} aria-label="Only include when (condition)"
-            spellCheck={false}
-            style={{ flex: "1 1 200px", minWidth: 0, height: 28, border: `1px solid ${node.includeWhen ? BLUE : BORDER}`, borderRadius: 6, padding: "0 8px", fontSize: 12, fontFamily: MONO, color: node.includeWhen ? NAVY : SLATE }} />
+        <div style={{ marginTop: 4, marginLeft: 18 }}>
+          <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
+            <span style={{ fontSize: 11, color: SLATE, whiteSpace: "nowrap" }}>only include when</span>
+            <input autoFocus value={node.includeWhen ?? ""} onChange={(e) => updateIncludeWhen(e.target.value)}
+              onBlur={() => setEditing(null)} onKeyDown={(e) => { if (e.key === "Enter" || e.key === "Escape") setEditing(null); }}
+              placeholder={`e.g. ${scopeHint}.Quantity > 0`} aria-label="Only include when (condition)"
+              spellCheck={false}
+              style={{ flex: "1 1 200px", minWidth: 0, height: 28, border: `1px solid ${node.includeWhen ? BLUE : BORDER}`, borderRadius: 6, padding: "0 8px", fontSize: 12, fontFamily: MONO, color: node.includeWhen ? NAVY : SLATE }} />
+          </div>
+          <div style={{ fontSize: 11, color: SLATE, marginTop: 4, lineHeight: 1.5 }}>
+            Only include this when a condition is true — e.g. include the {scopeHint} only when quantity is above zero:{" "}
+            <code style={{ fontFamily: MONO, color: NAVY }}>{scopeHint}.Quantity &gt; 0</code>
+          </div>
         </div>
       )}
 

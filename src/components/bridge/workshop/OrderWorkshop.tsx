@@ -16,9 +16,10 @@
 // send path and ONE server-truth send guard — the workshop is a new VIEW over the same
 // engine, not a second engine. Send is gated on issues.length === 0 && invariants.
 //
-// The drag mapper is desktop-only (xl). Below xl we render <MobileTriage/> — an honest
-// reduced REVIEW-AND-SEND surface (order summaries + the full issue list + one-click
-// fixes + a sticky Send bar); field-by-field mapping stays on a larger screen.
+// The drag mapper shows on a real laptop (lg, ≥1024) so a 13"/14" screen (or a split
+// window down to 1024) keeps the full field mapper. Below lg we render <MobileTriage/>
+// — an honest reduced REVIEW-AND-SEND surface (order summaries + the full issue list +
+// one-click fixes + a sticky Send bar); field-by-field mapping stays on a wider screen.
 
 import { useCallback, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -464,9 +465,9 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
           <div className="flex flex-wrap items-center justify-end gap-3.5 flex-shrink-0 ml-auto xl:ml-0">
             {/* Order details (audit · standards · response) — quiet secondary trigger
                 that opens the relocated Passport/Conformance/Response surfaces.
-                Desktop-only (xl): below xl the body is <MobileTriage> (review-and-send
-                only), and these controls would only eat the 360px header and clip Send. */}
-            <div className="hidden xl:inline-flex">
+                Desktop mapper (lg+): below lg the body is <MobileTriage> (review-and-send
+                only), and these controls would only eat the header and clip Send. */}
+            <div className="hidden lg:inline-flex">
               <button
                 type="button"
                 onClick={() => openDetails("passport")}
@@ -483,9 +484,11 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
             </div>
 
             {/* Focus: All / Mapping / Output — the progressive-disclosure control.
-                Desktop-only (xl): the tabs drive the desktop MapperWorkbench, which is
-                itself hidden below xl, so on mobile they are inert AND overflow the header. */}
-            <div className="hidden xl:flex">
+                Desktop mapper (lg+): the tabs drive the desktop MapperWorkbench, which
+                is itself hidden below lg, so below that they would be inert AND overflow
+                the header. Tied to the same lg gate as the mapper so the SAME toolset is
+                available at 1024–1279. */}
+            <div className="hidden lg:flex">
               <FocusControl focus={lay.focus} onFocus={lay.setFocus} />
             </div>
 
@@ -553,16 +556,20 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
 
       {/* ── Send-readiness strip — slim, full-width summary. Its chips now scroll to
           the actionable issue CARD below (data-issue-ref) — where the inline fix
-          lives — not the dead line-GUID mapper jump. Desktop only; the mobile
-          MobileTriage view carries its own issue list. ── */}
-      <div className="hidden xl:block flex-shrink-0">
+          lives — not the dead line-GUID mapper jump. Pairs with the desktop mapper
+          (lg+); below lg the MobileTriage view carries its own issue list. ── */}
+      <div className="hidden lg:block flex-shrink-0">
         <SendReadinessStrip blockers={blockerChips} notes={noteCount} ready={sendReady} onJump={onJumpToIssueCard} />
       </div>
 
       {/* ── Body ─────────────────────────────────────────────────────────────── */}
       <div style={{ flex: 1, position: "relative", overflow: "auto" }}>
-        {/* Desktop (xl): the enhanced MapperWorkbench with the IssuesPanel on top. */}
-        <div className="hidden xl:block min-w-[1120px] px-6 py-[18px]">
+        {/* Desktop mapper (lg+, ≥1024): the enhanced MapperWorkbench with the
+            IssuesPanel on top. No min-width clamp — the canvas tracks (incoming
+            minmax + 56px gutter + flex outgoing) fit within ~1000px so a 13"/14"
+            laptop at 1024 gets the full field mapper with no horizontal scroll;
+            the docked preview wraps below it until ~1440 (2-pane canvas). */}
+        <div className="hidden lg:block px-6 py-[18px]">
           {/* The actionable issue list — inline supplier-code entry per line lives
               here (the strip above is only a summary that scrolls to these cards). */}
           {issues.length > 0 && (

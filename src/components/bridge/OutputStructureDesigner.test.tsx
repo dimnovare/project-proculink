@@ -60,7 +60,10 @@ describe("OutputStructureDesigner — per-node namespace authoring (XML)", () =>
     renderDesigner(plainXmlTree());
 
     // Both the root <Order> and the <ID> element offer "+ namespace"; target the ID field row.
+    // P-1: namespace authoring now lives behind the per-node "Advanced" disclosure (collapsed by
+    // default on a fresh node), so open Advanced on the ID row before reaching for "+ namespace".
     const idRow = screen.getByRole("button", { name: /Edit name \(ID\)/i }).closest("div")!;
+    fireEvent.click(within(idRow).getByRole("button", { name: /Show advanced options/i }));
     fireEvent.click(within(idRow).getByRole("button", { name: /Put this element in an XML namespace/i }));
 
     fireEvent.change(screen.getByLabelText("XML namespace prefix"), { target: { value: "cbc" } });
