@@ -11,7 +11,7 @@ import { confidenceTier } from "@/lib/ds-tokens";
    ===================================================================== */
 
 /* -------- Button -------- */
-type ButtonVariant = "primary" | "secondary" | "ghost" | "danger" | "ai" | "blue" | "green";
+type ButtonVariant = "primary" | "secondary" | "ghost" | "danger" | "ai" | "blue" | "green" | "send" | "navy";
 type ButtonSize = "sm" | "md" | "lg";
 
 type ButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement> & {
@@ -35,6 +35,9 @@ const BUTTON_VARIANT: Record<ButtonVariant, string> = {
   // tokens.css .btn-blue / .btn-green — both now use the canonical brand-green
   blue:      "[background:#2E8E3A] text-white border-transparent hover:[background:#1E6D29]",
   green:     "[background:#2E8E3A] text-white border-transparent hover:[background:#1E6D29]",
+  // Design-system v1 named variants: `send` = the green supplier CTA, `navy` = neutral dark CTA.
+  send:      "bg-brand-green text-white border-transparent hover:bg-brand-green-deep",
+  navy:      "bg-navy text-white border-transparent hover:[background:#14253D]",
 };
 
 // Mobile-first hit area: every size is >=44px tall on small screens (--tap-min)
@@ -64,6 +67,54 @@ export function Button({
       {loading && <span className="w-3 h-3 rounded-full border-2 border-current border-t-transparent animate-spin"/>}
       {children}
     </button>
+  );
+}
+
+/* -------- Pill — generic tone-based status chip --------
+   For inline chips (toolbar "13 of 13 mapped", header "Setup 5/6", "Normalized",
+   filter chips, format badges). Status-specific badges still live in
+   UnifiedStatusBadge / RevisionStatusBadge; this is the neutral primitive. */
+type PillTone = "neutral" | "blue" | "green" | "amber" | "danger" | "ai";
+
+const PILL_TONE: Record<PillTone, { bg: string; fg: string }> = {
+  neutral: { bg: "var(--surface-2)",        fg: "var(--ink-muted)" },
+  blue:    { bg: "var(--brand-blue-soft)",  fg: "var(--brand-blue-deep)" },
+  green:   { bg: "var(--brand-green-soft)", fg: "var(--brand-green-deep)" },
+  amber:   { bg: "var(--amber-soft)",       fg: "var(--amber)" },
+  danger:  { bg: "var(--danger-soft)",      fg: "var(--danger)" },
+  ai:      { bg: "var(--ai-soft)",          fg: "var(--ai)" },
+};
+
+export function Pill({
+  tone = "neutral",
+  sm = false,
+  icon,
+  children,
+  className,
+}: {
+  tone?: PillTone;
+  sm?: boolean;
+  icon?: React.ReactNode;
+  children: React.ReactNode;
+  className?: string;
+}) {
+  const t = PILL_TONE[tone];
+  return (
+    <span
+      className={["inline-flex items-center gap-1 rounded-full font-semibold whitespace-nowrap", className]
+        .filter(Boolean)
+        .join(" ")}
+      style={{
+        background: t.bg,
+        color: t.fg,
+        fontSize: sm ? 10.5 : 11.5,
+        padding: sm ? "1.5px 7px" : "2.5px 9px",
+        lineHeight: 1.3,
+      }}
+    >
+      {icon}
+      {children}
+    </span>
   );
 }
 
