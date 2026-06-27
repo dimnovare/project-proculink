@@ -150,7 +150,7 @@ export function IncomingPane({
   return (
     <PaneFrame title="What we received" subtitle={`${counts.all} field${counts.all === 1 ? "" : "s"}`} sourceType={sourceType}>
       {/* Search — finds any field/value across groups (collapsed groups auto-reveal). */}
-      <div style={{ padding: "8px 10px 0" }}>
+      <div style={{ padding: "12px 18px 10px" }}>
         <input
           ref={searchRef}
           type="text"
@@ -159,14 +159,14 @@ export function IncomingPane({
           placeholder="Search incoming fields…"
           aria-label="Search incoming fields"
           style={{
-            width: "100%", boxSizing: "border-box", padding: "6px 9px", borderRadius: 7,
-            border: "1px solid var(--line, #DCE0E8)", fontSize: 11.5, color: "var(--ink, #0B1A2F)", background: "#FFFFFF",
+            width: "100%", boxSizing: "border-box", padding: "6px 9px", borderRadius: 8,
+            border: "1px solid var(--line, #DCE0E8)", fontSize: 11.5, color: "var(--ink, #0B1A2F)", background: "#EFF2F7",
           }}
         />
       </div>
 
       {/* Filter chips. */}
-      <div role="group" aria-label="Filter incoming fields" style={{ display: "flex", flexWrap: "wrap", gap: 5, padding: "8px 10px 0" }}>
+      <div role="group" aria-label="Filter incoming fields" style={{ display: "flex", flexWrap: "wrap", gap: 6, padding: "12px 18px 10px" }}>
         {FILTERS.map((f) => {
           const active = filter === f.id;
           return (
@@ -177,16 +177,16 @@ export function IncomingPane({
               aria-pressed={active}
               style={{
                 display: "inline-flex", alignItems: "center", gap: 4,
-                padding: "3px 9px", borderRadius: 999, cursor: "pointer",
-                fontSize: 10, fontWeight: 700, letterSpacing: "0.02em",
-                border: `1px solid ${active ? "#6F4FCE" : "var(--line, #DCE0E8)"}`,
-                background: active ? "#EEE7FB" : "#FFFFFF",
-                color: active ? "#5E3DB0" : "var(--ink-faint)",
+                padding: "4px 9px", borderRadius: 999, cursor: "pointer",
+                fontSize: 11, fontWeight: 600, letterSpacing: "0.02em",
+                border: `1px solid ${active ? "#1E66C9" : "var(--line, #DCE0E8)"}`,
+                background: active ? "#E3EDFB" : "#FFFFFF",
+                color: active ? "#0F4FA8" : "#56627A",
                 transition: "border-color 120ms, background 120ms, color 120ms",
               }}
             >
               {f.label}
-              <span style={{ fontSize: 9, fontWeight: 800, opacity: 0.7 }}>{counts[f.id]}</span>
+              <span style={{ fontSize: 9, fontFamily: "'JetBrains Mono',monospace", fontWeight: 400, opacity: 0.7 }}>{counts[f.id]}</span>
             </button>
           );
         })}
@@ -236,9 +236,10 @@ function PaneFrame({
   children: React.ReactNode;
 }) {
   return (
-    <div style={{ borderRadius: 12, border: "1px solid var(--line, #E2E6EE)", background: "#FBFBFD", overflow: "hidden" }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "9px 12px", borderBottom: "1px solid #EEF0F4" }}>
-        <span style={{ fontSize: 10.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em", color: "#5E3DB0" }}>{title}</span>
+    <div style={{ borderRadius: 12, border: "1px solid var(--line, #E2E6EE)", background: "rgba(227,237,251,0.45)", overflow: "hidden" }}>
+      <div style={{ display: "flex", alignItems: "center", height: 52, gap: 8, padding: "0 18px", borderBottom: "1px solid #E2E6EE" }}>
+        <span aria-hidden style={{ flexShrink: 0, width: 9, height: 9, borderRadius: "50%", background: "#1E66C9", boxShadow: "0 0 0 3px #E3EDFB" }} />
+        <span style={{ fontSize: 13.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em", color: "#0B1A2F" }}>{title}</span>
         {subtitle && <span style={{ fontSize: 10.5, color: "var(--ink-faint)" }}>{subtitle}</span>}
         {sourceType && (
           <span style={{ marginLeft: "auto" }}>
@@ -283,7 +284,7 @@ function IncomingGroup({
           background: "none", border: "none", cursor: forceOpen ? "default" : "pointer", padding: "0 0 6px", margin: 0,
         }}
       >
-        <span style={{ fontSize: 10.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--ink-faint)" }}>
+        <span style={{ fontSize: 10, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--ink-faint)" }}>
           {meta.label} · {fields.length}
         </span>
         {!forceOpen && (
@@ -295,7 +296,7 @@ function IncomingGroup({
 
       {expanded && (
         // No inner scroll — the canvas scrolls as one unit (keeps wires glued).
-        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
           {fields.map((f) => (
             <IncomingRow
               key={f.id}
@@ -356,18 +357,18 @@ function IncomingRow({
       onClick={() => onSelect?.(field.id)}
       title={`${field.label}: ${field.value}`}
       style={{
-        display: "flex", alignItems: "center", gap: 8, minWidth: 0,
-        padding: "7px 9px 7px 10px", borderRadius: 8,
-        border: `1px solid ${connecting ? "#6F4FCE" : hovered ? "#C4ABE8" : wired ? "#D9CEF2" : "var(--line, #E2E6EE)"}`,
+        display: "flex", alignItems: "center", gap: 10, minWidth: 0,
+        padding: "9px 11px", borderRadius: 9,
+        border: `1px solid ${connecting ? "#1E66C9" : hovered ? "#1E66C9" : wired ? "#BFD6F4" : "var(--line, #E2E6EE)"}`,
         borderLeft: `3px solid ${accentColor}`,
-        background: connecting ? "#EEE7FB" : hovered ? "#F7F4FD" : "#FFFFFF",
+        background: connecting ? "#E3EDFB" : hovered ? "#E3EDFB" : "#FFFFFF",
         userSelect: "none",
         transition: "border-color 120ms, background 120ms, box-shadow 120ms",
       }}
     >
       <span style={{ display: "flex", flexDirection: "column", gap: 1, minWidth: 0, flex: 1 }}>
         <span style={{ display: "flex", alignItems: "center", gap: 5, minWidth: 0 }}>
-          <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.04em", color: wired ? "#5E3DB0" : "var(--ink-faint)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+          <span style={{ fontSize: 12.5, fontWeight: 600, letterSpacing: "0.04em", color: wired ? "#0F4FA8" : "var(--ink-faint)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
             {field.label}
           </span>
           {suggested && !wired && (
@@ -395,20 +396,20 @@ function IncomingRow({
           title={`Drag onto an output field to map ${field.label}${suggested ? ` (AI suggests → ${field.suggestedFor})` : ""}`}
           style={{
             flexShrink: 0, display: "inline-flex", alignItems: "center", justifyContent: "center",
-            width: 22, height: 22, borderRadius: 999,
-            border: `1.5px solid ${connecting ? "#6F4FCE" : wired ? "#6F4FCE" : "#C9D0DC"}`,
-            background: connecting ? "#EEE7FB" : wired ? "#F4EFFC" : "#FFFFFF",
-            color: wired || hovered ? "#6F4FCE" : "#8A93A5",
+            width: 22, height: 22, borderRadius: 6,
+            border: `1.5px solid ${connecting ? "#1E66C9" : wired ? "#1E66C9" : "#C9D0DC"}`,
+            background: connecting ? "#E3EDFB" : wired ? "#EAF2FC" : "#FFFFFF",
+            color: wired || hovered ? "#1E66C9" : "#8A93A5",
             cursor: connecting ? "grabbing" : "grab",
             touchAction: "none",
-            boxShadow: connecting ? "0 0 0 3px rgba(111,79,206,0.18)" : (hovered ? "0 0 0 2px rgba(111,79,206,0.12)" : undefined),
+            boxShadow: connecting ? "0 0 0 3px rgba(30,102,201,0.18)" : (hovered ? "0 0 0 2px rgba(30,102,201,0.12)" : undefined),
             transition: "border-color 120ms, background 120ms, box-shadow 120ms",
           }}
         >
           <span aria-hidden style={{ fontSize: 11, lineHeight: 1 }}>{dragging ? "→" : "⠿"}</span>
         </span>
       ) : wired ? (
-        <span aria-hidden style={{ fontSize: 9, fontWeight: 700, color: "#5E3DB0", flexShrink: 0 }}>wired →</span>
+        <span aria-hidden style={{ fontSize: 9, fontWeight: 700, color: "#0F4FA8", flexShrink: 0 }}>wired →</span>
       ) : null}
     </div>
   );

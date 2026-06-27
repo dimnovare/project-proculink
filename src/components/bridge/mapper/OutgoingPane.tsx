@@ -235,7 +235,7 @@ export function OutgoingPane({
         .mapper-add-field-item:hover { background: #F4FBF5; }
       `}</style>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, padding: "9px 12px", borderBottom: "1px solid #EEF0F4" }}>
-        <span style={{ fontSize: 10.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em", color: "#1E6D29" }}>
+        <span style={{ fontSize: 10.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em", color: "#0B1A2F" }}>
           What we&rsquo;ll send
         </span>
         {canAddField && onAddField && (
@@ -523,7 +523,7 @@ function OutgoingRow({
       onClick={() => onSelect?.(field.outputPath)}
       style={{
         position: "relative",
-        borderRadius: 8,
+        borderRadius: 10,
         border: `1px solid ${snapped ? "#6F4FCE" : needsSource ? "#F1E2BE" : hovered ? "#A9D3AF" : status.mapped ? "#D7E7DA" : "var(--line, #E2E6EE)"}`,
         borderRight: `3px solid ${status.mapped ? "#2E8E3A" : needsSource ? "#E0B23C" : accent}`,
         background: snapped ? "#F4EFFC" : needsSource ? "#FFFCF4" : hovered ? "rgba(46,142,58,0.05)" : "#FFFFFF",
@@ -539,10 +539,10 @@ function OutgoingRow({
         aria-hidden
         className="rounded-full"
         style={{
-          position: "absolute", left: -6, top: "50%", transform: "translateY(-50%)",
-          width: 12, height: 12, borderRadius: 999,
+          position: "absolute", left: -7, top: "50%", transform: "translateY(-50%)",
+          width: 13, height: 13, borderRadius: 999,
           background: "#FFFFFF",
-          border: `2.5px solid ${snapped ? "#6F4FCE" : status.mapped ? "#2E8E3A" : accent}`,
+          border: `2px solid ${snapped ? "#6F4FCE" : status.mapped ? "#2E8E3A" : accent}`,
           boxShadow: snapped ? "0 0 0 3px rgba(111,79,206,0.18)" : undefined,
           flexShrink: 0, transition: "border-color 120ms, box-shadow 120ms",
         }}
@@ -904,11 +904,11 @@ function RowChipButton({
       title={isDisabled ? reason : title}
       style={{
         display: "inline-flex", alignItems: "center", gap: 3, height: 20, padding: "0 7px",
-        borderRadius: 6, fontSize: 11, fontWeight: 700, letterSpacing: "0.01em",
+        borderRadius: 6, fontSize: 11.5, fontWeight: 700, letterSpacing: "0.01em",
         whiteSpace: "nowrap", flexShrink: 0,
         border: `1px solid ${active ? "#C4ABE8" : "#E7DEF6"}`,
         background: active ? "#F4EFFC" : "transparent",
-        color: isDisabled ? "#C2C8D2" : "#5E3DB0",
+        color: isDisabled ? "#C2C8D2" : "#1E66C9",
         opacity: isDisabled ? 0.7 : lit || active ? 1 : 0.55,
         cursor: isDisabled ? "not-allowed" : "pointer",
         transition: "opacity 120ms, background 120ms, border-color 120ms",

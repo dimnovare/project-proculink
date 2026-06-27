@@ -46,6 +46,10 @@ export interface MapperPreviewPaneProps {
    * JSON supplier doesn't default to a CSV mismatch. Null/undefined → CSV (legacy default).
    */
   defaultFormat?: OutputFormatId | null;
+  /** The hovered/active field id (cross-column highlight) — its matching output line lights green. */
+  hot?: string | null;
+  /** Hovering a preview line re-asserts the hot field (bidirectional cross-highlight). */
+  onHotChange?: (id: string | null) => void;
 }
 
 const FORMAT_EXT: Record<OutputFormatId, string> = {
@@ -57,7 +61,7 @@ const FORMAT_MIME: Record<OutputFormatId, string> = {
   cxml: "application/xml", ubl: "application/xml", x12: "text/plain",
 };
 
-export function MapperPreviewPane({ previewOrderId, override, lastTouched, supplierName, emptyHint, cycleFormatSignal, defaultFormat }: MapperPreviewPaneProps) {
+export function MapperPreviewPane({ previewOrderId, override, lastTouched, supplierName, emptyHint, cycleFormatSignal, defaultFormat, hot, onHotChange }: MapperPreviewPaneProps) {
   // Seed the toggle from the connection's REAL output format so a JSON supplier doesn't open
   // on a CSV mismatch. The backend (revision authority) may still swap to the pinned format —
   // deliveredFormat tracks what it actually rendered, and the header/copy/download follow that.
@@ -156,7 +160,7 @@ export function MapperPreviewPane({ previewOrderId, override, lastTouched, suppl
     try {
       await navigator.clipboard.writeText(content);
       setCopied(true);
-      setTimeout(() => setCopied(false), 1400);
+      setTimeout(() => setCopied(false), 1200);
     } catch {
       // Clipboard blocked (insecure context / permission) — silently ignore; download still works.
     }
@@ -179,9 +183,12 @@ export function MapperPreviewPane({ previewOrderId, override, lastTouched, suppl
 
   // Build the highlighted render: isolate the OUTPUT LINE mentioning the last-touched field
   // (by key/path or its resolved value) so the user's most recent edit visibly lands.
+  // Handoff §7 cross-highlight: the hovered field (hot, from any column) lights its matching
+  // output line green; falls back to the last-edited field so an edit still visibly lands.
+  const crossKey = hot ?? lastTouched;
   const highlighted = useMemo(
-    () => renderWithHighlight(content, lastTouched),
-    [content, lastTouched],
+    () => renderWithHighlight(content, crossKey, onHotChange),
+    [content, crossKey, onHotChange],
   );
 
   // One-shot flash whenever the rendered content changes — a calm "it updated" pulse.
@@ -200,7 +207,7 @@ export function MapperPreviewPane({ previewOrderId, override, lastTouched, suppl
 
   return (
     <div style={{ border: "1px solid #E2E6EE", borderRadius: 10, background: "#FBFBFD", overflow: "hidden" }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", borderBottom: "1px solid #EEF0F4" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 16px", borderBottom: "1px solid #E2E6EE" }}>
         <span style={{ display: "flex", flexDirection: "column", gap: 1, minWidth: 0 }}>
           <span style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "#1E6D29" }}>
             Live preview · {deliveredFormat.toUpperCase()}
@@ -211,7 +218,13 @@ export function MapperPreviewPane({ previewOrderId, override, lastTouched, suppl
             {supplierName ? `This is exactly what ${supplierName} receives` : "This is exactly what the supplier receives"}
           </span>
         </span>
-        {lastTouched && <span style={{ fontSize: 10, color: "#5E3DB0", flexShrink: 0 }}>edited {lastTouched}</span>}
+        {content && !err && (
+          <span style={{ display: "inline-flex", alignItems: "center", gap: 4, padding: "2px 8px", borderRadius: 999, background: "#E2F1E2", color: "#1E6D29", fontSize: 10.5, fontWeight: 600, flexShrink: 0 }}>
+            <svg width="11" height="11" viewBox="0 0 16 16" fill="none" aria-hidden><path d="M13.5 4.5 6.5 11.5 3 8" stroke="#1E6D29" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>
+            Valid
+          </span>
+        )}
+        {lastTouched && <span style={{ fontSize: 10, color: "#8A93A5", flexShrink: 0 }}>edited {lastTouched}</span>}
         <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 4 }}>
           {/* Design-system v1 (handoff §7): segmented format control — surface-2 track, the
               delivered/active format filled greenDeep + white. Clicking previews-as; it does NOT
@@ -244,9 +257,9 @@ export function MapperPreviewPane({ previewOrderId, override, lastTouched, suppl
             onClick={onCopy}
             disabled={!content}
             aria-label="Copy preview"
-            style={{ padding: "2px 8px", borderRadius: 6, cursor: content ? "pointer" : "default", fontSize: 10, fontWeight: 700, border: "1px solid #DCE0E8", background: "#FFFFFF", color: content ? "#345470" : "#AEB6C4" }}
+            style={{ padding: "2px 8px", borderRadius: 6, cursor: content ? "pointer" : "default", fontSize: 11.5, fontWeight: 700, border: "1px solid #DCE0E8", background: "#FFFFFF", color: content ? "#345470" : "#AEB6C4" }}
           >
-            {copied ? "Copied" : "Copy"}
+            {copied ? "✓ Copied" : "Copy"}
           </button>
           <button
             type="button"
@@ -286,7 +299,7 @@ export function MapperPreviewPane({ previewOrderId, override, lastTouched, suppl
             // 12px / 300 so it reads as a companion, not a second hero column.
             // Design-system v1 (handoff §7): the code body is the signature dark "this is what
             // the supplier receives" surface — light mono on navy, the same navy as the sidebar.
-            margin: 0, padding: "14px 14px 24px", maxHeight: 300, overflow: "auto",
+            margin: 0, padding: "14px 4px 24px", maxHeight: 300, overflow: "auto",
             fontFamily: "'JetBrains Mono',monospace", fontVariantNumeric: "tabular-nums", fontSize: 11.5, lineHeight: 1.95,
             background: "#0B1A2F", color: "#C8D1E0", whiteSpace: "pre-wrap", wordBreak: "break-word",
             borderTop: "1px solid #1C2F49",
@@ -308,14 +321,26 @@ export function MapperPreviewPane({ previewOrderId, override, lastTouched, suppl
  * edit visibly lands. When `lastTouched` is null or not found, returns the plain string. Pure
  * presentation — string-split (no regex injection risk).
  */
-function renderWithHighlight(content: string | null, lastTouched: string | null): React.ReactNode {
+function renderWithHighlight(content: string | null, activeKey: string | null, onHotChange?: (id: string | null) => void): React.ReactNode {
   if (content == null) return null;
-  const { before, match, after } = splitForHighlight(content, lastTouched);
+  const { before, match, after } = splitForHighlight(content, activeKey);
   if (!match) return content;
+  // Handoff §7 cross-highlight: the matching output line gets a green line-level wash with an
+  // inset 2px green left bar + brighter text on the navy code body. Hovering the line re-asserts
+  // `hot` so the highlight is bidirectional with the received card, output row, and wire.
   return (
     <>
       {before}
-      <mark style={{ background: "#EEE7FB", color: "#5E3DB0", borderRadius: 3, padding: "0 2px", display: "inline" }}>{match}</mark>
+      <mark
+        onMouseEnter={() => onHotChange?.(activeKey)}
+        style={{
+          background: "rgba(46,142,58,0.22)", color: "#EAF6EC",
+          borderLeft: "2px solid #1E6D29", paddingLeft: 4, marginLeft: -6,
+          borderRadius: 0, display: "inline",
+        }}
+      >
+        {match}
+      </mark>
       {after}
     </>
   );

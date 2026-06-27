@@ -388,7 +388,7 @@ export function useMapperWireLayer({
       <svg aria-hidden
         style={{
           position: "absolute", inset: 0, width: "100%", height: "100%",
-          pointerEvents: hidden ? "none" : (drag ? "auto" : "none"), zIndex: 4,
+          pointerEvents: hidden ? "none" : (drag ? "auto" : "none"), zIndex: 2,
           opacity: hidden ? 0 : 1,
         }}
         onPointerMove={drag ? onMove : undefined}

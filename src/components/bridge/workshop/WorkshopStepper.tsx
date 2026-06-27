@@ -38,7 +38,7 @@ export function WorkshopStepper({ stage, failed = false }: { stage: number; fail
         const active = i === stage;
         const isFail = active && failed;
         const fill = done ? "#2E8E3A" : isFail ? "#C53A3A" : active ? "#1E66C9" : "#FFFFFF";
-        const bd = done ? "#2E8E3A" : isFail ? "#C53A3A" : active ? "#1E66C9" : "#CDD4DF";
+        const bd = done ? "#2E8E3A" : isFail ? "#C53A3A" : active ? "#1E66C9" : "#C6CDDA";
         return (
           <Fragment key={s}>
             <div style={{ display: "flex", alignItems: "center", gap: 7, flexShrink: 0 }}>
@@ -55,12 +55,12 @@ export function WorkshopStepper({ stage, failed = false }: { stage: number; fail
                   </span>
                 )}
               </span>
-              <span style={{ fontSize: 11.5, fontWeight: active ? 650 : 500, color: active ? "#0B1A2F" : done ? "#1E6D29" : "#8A93A5", whiteSpace: "nowrap" }}>
+              <span style={{ fontSize: 12, fontWeight: active ? 650 : 500, color: active ? "#0B1A2F" : done ? "#1E6D29" : "#8A93A5", whiteSpace: "nowrap" }}>
                 {s}
               </span>
             </div>
             {i < STEPS.length - 1 && (
-              <div style={{ flex: 1, height: 2, margin: "0 12px", borderRadius: 2, background: i < stage ? "#2E8E3A" : "#E4E8EF", minWidth: 16 }} />
+              <div style={{ flex: 1, height: 2, margin: "0 8px", borderRadius: 2, background: i < stage ? "#2E8E3A" : "#E2E6EE", minWidth: 16 }} />
             )}
           </Fragment>
         );

@@ -88,5 +88,5 @@ export function wireOpacity(opts: {
   const { dragging, hovering, emphasised, dimmedOpacity = 0.45, hoverDimOpacity = 0.32 } = opts;
   if (dragging) return dimmedOpacity;
   if (hovering) return emphasised ? 1 : hoverDimOpacity;
-  return 1;
+  return 0.9;
 }

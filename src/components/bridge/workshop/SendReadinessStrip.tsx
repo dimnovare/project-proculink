@@ -49,13 +49,13 @@ export function SendReadinessStrip({
         role="status"
         aria-live="polite"
         className="flex-shrink-0"
-        style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 24px", background: "#F3F9F4", borderBottom: "1px solid #DDEEDF" }}
+        style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 22px", background: "#E2F1E2", borderBottom: "1px solid #E2E6EE" }}
       >
-        <span style={{ width: 18, height: 18, borderRadius: "50%", background: "#2E8E3A", display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+        <span style={{ width: 16, height: 16, borderRadius: "50%", background: "#2E8E3A", display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
           <CheckGlyph />
         </span>
-        <span style={{ fontSize: 12.5, fontWeight: 600, color: "#1E6D29" }}>Ready to send</span>
-        <span style={{ fontSize: 12, color: "#3C7A45" }}>— every required field is filled and validated.</span>
+        <span style={{ fontSize: 13, fontWeight: 650, color: "#1E6D29" }}>Ready to send</span>
+        <span style={{ fontSize: 12, color: "#56627A" }}>— every required field is filled and validated.</span>
       </div>
     );
   }

@@ -555,6 +555,8 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
       previewOrderId={model.previewOrderId}
       override={model.override}
       lastTouched={model.lastTouched}
+      hot={hoveredId}
+      onHotChange={setHoveredId}
       cycleFormatSignal={cycleFormatSignal}
       defaultFormat={previewDefaultFormat ?? model.outputFormat}
       supplierName={supplierName}
@@ -587,7 +589,7 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
       {/* ── Top action bar (desktop) ────────────────────────────────────── */}
       <div className="hidden lg:flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
-          <span style={{ fontFamily: "var(--font-display, 'Bricolage Grotesque', Inter, sans-serif)", fontSize: 13, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em", color: "var(--ink)" }}>
+          <span style={{ fontFamily: "var(--font-display, 'Bricolage Grotesque', Inter, sans-serif)", fontSize: 13, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.02em", color: "var(--ink)" }}>
             {variant === "order" ? "Map this order" : "Map fields"}
           </span>
           <MappedSummaryChip mapped={summary.mappedCount} total={summary.total} />
@@ -798,7 +800,7 @@ function CollapsedRail({ label, color, onExpand }: { label: string; color: strin
       aria-label={`Expand ${label}`}
       title={`Expand ${label}`}
       style={{
-        width: 44, minHeight: 240, alignSelf: "stretch", position: "relative",
+        width: 46, minHeight: 240, alignSelf: "stretch", position: "relative",
         display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-start", gap: 12,
         borderRadius: 12, border: `1px solid ${color}33`, background: "#FBFBFD",
         color, cursor: onExpand ? "pointer" : "default", padding: "12px 0", overflow: "hidden",
@@ -806,7 +808,7 @@ function CollapsedRail({ label, color, onExpand }: { label: string; color: strin
     >
       <span aria-hidden style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: 3, background: grad }} />
       <span aria-hidden style={{ width: 22, height: 22, borderRadius: 6, border: `1px solid ${color}40`, display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 800 }}>›</span>
-      <span style={{ writingMode: "vertical-rl", transform: "rotate(180deg)", fontSize: 10.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", marginTop: 2 }}>
+      <span style={{ writingMode: "vertical-rl", transform: "rotate(180deg)", fontSize: 11, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.18em", marginTop: 2 }}>
         {label}
       </span>
     </button>
@@ -825,13 +827,13 @@ function PaneCollapseCaret({ side, label, onClick }: { side: "left" | "right"; l
       aria-label={`Collapse ${label}`}
       title={`Collapse ${label}`}
       style={{
-        position: "absolute", top: 64, zIndex: 6,
+        position: "absolute", top: 60, zIndex: 6,
         ...(side === "left" ? { right: -13 } : { left: -13 }),
-        width: 22, height: 30, borderRadius: 6, border: "1px solid #E2E6EE",
+        width: 26, height: 26, borderRadius: 6, border: "1px solid #E2E6EE",
         background: "#FFFFFF", color: "#56627A", cursor: "pointer",
         display: "inline-flex", alignItems: "center", justifyContent: "center",
         fontSize: 13, fontWeight: 800, lineHeight: 1, padding: 0,
-        boxShadow: "0 1px 3px rgba(11,26,47,.10)",
+        boxShadow: "0 2px 8px rgba(11,26,47,0.12)",
         transition: "background .12s, border-color .12s, color .12s",
       }}
       onMouseEnter={(e) => { e.currentTarget.style.background = "#EFF2F7"; e.currentTarget.style.borderColor = "#1E66C9"; e.currentTarget.style.color = "#0B1A2F"; }}
@@ -913,6 +915,9 @@ function MappedSummaryChip({ mapped, total }: { mapped: number; total: number })
         border: `1px solid ${allMapped ? "#CDE7D1" : "#E2E6EE"}`,
       }}
     >
+      <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true" style={{ flexShrink: 0 }}>
+        <path d="M2.5 6.2 L5 8.6 L9.5 3.6" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
       {mapped} of {total} mapped
     </span>
   );

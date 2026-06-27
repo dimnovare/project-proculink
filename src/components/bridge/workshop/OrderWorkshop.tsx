@@ -448,7 +448,7 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
     <div className="flex flex-col h-full min-h-0 overflow-hidden" style={{ background: "#F6F7FA" }} data-testid="order-workshop">
       {/* ── Header: back · PO · status · buyer→supplier · focus control · Send ── */}
       <div className="flex-shrink-0" style={{ background: "#FFFFFF", borderBottom: "1px solid #E2E6EE" }}>
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-3 px-4 pt-3.5 pb-3.5 lg:px-6">
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-3 px-4 pt-2.5 pb-2.5 lg:px-6">
           <div className="flex min-w-0 items-center gap-3 flex-shrink-0">
             <button
               onClick={() => router.push("/inbox")}
@@ -468,7 +468,7 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
             </button>
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2.5">
-                <h1 style={{ fontFamily: "'Bricolage Grotesque',Inter,sans-serif", fontSize: 22, fontWeight: 700, letterSpacing: "-0.02em", color: "#0B1A2F", lineHeight: 1.1, minWidth: 0, overflowWrap: "anywhere" }}>
+                <h1 style={{ fontFamily: "'Bricolage Grotesque',Inter,sans-serif", fontSize: 22, fontWeight: 800, letterSpacing: "-0.02em", color: "#0B1A2F", lineHeight: 1.1, minWidth: 0, overflowWrap: "anywhere" }}>
                   {order.poNumber}
                 </h1>
                 <UnifiedStatusBadge size="md" status={crossed ? "delivered" : exceptionCount > 0 ? "pending_review" : order.status} />
@@ -482,10 +482,10 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
                   </span>
                 )}
               </div>
-              <div className="mt-1 flex flex-wrap items-center gap-x-1.5" style={{ minWidth: 0, fontSize: 13 }}>
-                <span style={{ fontWeight: 600, color: "#0F4FAB", minWidth: 0, overflowWrap: "anywhere" }}>{buyerLabel(order)}</span>
+              <div className="mt-1 flex flex-wrap items-center" style={{ minWidth: 0, fontSize: 12.5, columnGap: 7 }}>
+                <span style={{ fontWeight: 600, color: "#1E66C9", minWidth: 0, overflowWrap: "anywhere" }}>{buyerLabel(order)}</span>
                 <span aria-hidden style={{ flexShrink: 0, color: "#C6CDDA" }}>→</span>
-                <span style={{ fontWeight: 600, color: "#1E6D29", minWidth: 0, overflowWrap: "anywhere" }}>{order.supplierName}</span>
+                <span style={{ fontWeight: 600, color: "#2E8E3A", minWidth: 0, overflowWrap: "anywhere" }}>{order.supplierName}</span>
                 <span aria-hidden style={{ flexShrink: 0, color: "#C6CDDA" }}>·</span>
                 <span style={{ fontFamily: "'JetBrains Mono',monospace", color: "#566982", minWidth: 0, overflowWrap: "anywhere" }}>{grandTotalLabel}</span>
               </div>
@@ -508,7 +508,7 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
                 type="button"
                 onClick={() => openDetails("passport")}
                 aria-label="Order details — audit trail, standards check, and response"
-                style={{ height: 34, padding: "0 11px", borderRadius: 7, border: "1px solid #E2E6EE", background: "#FFFFFF", color: "#56627A", fontSize: 12.5, fontWeight: 600, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 6, whiteSpace: "nowrap", flexShrink: 0, transition: "border-color .12s, color .12s" }}
+                style={{ height: 33, padding: "0 13px", borderRadius: 8, border: "1px solid #E2E6EE", background: "#FFFFFF", color: "#56627A", fontSize: 12.5, fontWeight: 600, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 6, whiteSpace: "nowrap", flexShrink: 0, transition: "border-color .12s, color .12s" }}
                 onMouseEnter={(e) => { e.currentTarget.style.borderColor = "#1E66C9"; e.currentTarget.style.color = "#0B1A2F"; }}
                 onMouseLeave={(e) => { e.currentTarget.style.borderColor = "#E2E6EE"; e.currentTarget.style.color = "#56627A"; }}
               >
@@ -716,7 +716,7 @@ function FocusControl({ focus, onFocus }: { focus: WorkshopFocus; onFocus: (f: W
     { id: "output", label: "Output" },
   ];
   return (
-    <div role="group" aria-label="Focus" style={{ display: "inline-flex", borderRadius: 8, background: "#EFF2F7", padding: 3, gap: 2, flexShrink: 0 }}>
+    <div role="group" aria-label="Focus" style={{ display: "inline-flex", borderRadius: 8, background: "#EFF2F7", padding: 2, gap: 2, flexShrink: 0 }}>
       {items.map((it) => {
         const active = focus === it.id;
         return (
@@ -726,10 +726,10 @@ function FocusControl({ focus, onFocus }: { focus: WorkshopFocus; onFocus: (f: W
             onClick={() => onFocus(it.id)}
             aria-pressed={active}
             style={{
-              fontSize: 11.5, fontWeight: active ? 650 : 500, padding: "5px 14px", borderRadius: 6,
+              fontSize: 12.5, fontWeight: active ? 600 : 500, padding: "6px 13px", borderRadius: 6,
               background: active ? "#FFFFFF" : "transparent", color: active ? "#0B1A2F" : "#56627A",
               border: "none", cursor: "pointer", transition: "all .12s",
-              boxShadow: active ? "0 1px 2px rgba(11,26,47,.08)" : "none",
+              boxShadow: active ? "0 1px 2px rgba(11,26,47,0.1)" : "none",
             }}
           >
             {it.label}
