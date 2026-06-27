@@ -285,9 +285,12 @@ export function MapperPreviewPane({ previewOrderId, override, lastTouched, suppl
             // The docked live preview is the document operators read most, but the T7 sizing
             // (13px / 420 tall) made it over-prominent for a side-dock; right-sized to a calm
             // 12px / 300 so it reads as a companion, not a second hero column.
-            margin: 0, padding: "12px 14px", maxHeight: 300, overflow: "auto",
-            fontFamily: "'JetBrains Mono',monospace", fontVariantNumeric: "tabular-nums", fontSize: 12, lineHeight: 1.55,
-            color: "#0B1A2F", whiteSpace: "pre-wrap", wordBreak: "break-word",
+            // Design-system v1 (handoff §7): the code body is the signature dark "this is what
+            // the supplier receives" surface — light mono on navy, the same navy as the sidebar.
+            margin: 0, padding: "14px 14px 24px", maxHeight: 300, overflow: "auto",
+            fontFamily: "'JetBrains Mono',monospace", fontVariantNumeric: "tabular-nums", fontSize: 11.5, lineHeight: 1.95,
+            background: "#0B1A2F", color: "#C8D1E0", whiteSpace: "pre-wrap", wordBreak: "break-word",
+            borderTop: "1px solid #1C2F49",
             opacity: busy ? 0.55 : 1, transition: "opacity 150ms",
           }}
         >

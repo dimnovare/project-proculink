@@ -112,7 +112,7 @@ export function OrderDetailsDrawer(props: OrderDetailsDrawerProps) {
         position: "fixed",
         inset: 0,
         zIndex: 70,
-        background: "rgba(11,26,47,0.32)",
+        background: "rgba(11,26,47,0.18)",
         display: "flex",
         justifyContent: "flex-end",
         animation: "plk-odd-scrim 180ms ease-out",
@@ -130,7 +130,7 @@ export function OrderDetailsDrawer(props: OrderDetailsDrawerProps) {
         onClick={(e) => e.stopPropagation()}
         className="plk-odd-panel"
         style={{
-          width: "min(820px, 100%)",
+          width: "min(760px, 64vw)",
           background: "#FFFFFF",
           height: "100%",
           display: "flex",
