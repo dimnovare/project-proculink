@@ -213,32 +213,31 @@ export function MapperPreviewPane({ previewOrderId, override, lastTouched, suppl
         </span>
         {lastTouched && <span style={{ fontSize: 10, color: "#5E3DB0", flexShrink: 0 }}>edited {lastTouched}</span>}
         <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 4 }}>
-          {/* P-2: the ACTIVE/delivered format is the primary, bordered, filled pill; the others
-              are quieter, smaller, borderless "preview-as" options so the row reads "this is your
-              format — the rest just let you peek". De-emphasis only; clicking still previews and
-              does NOT change what is delivered. */}
-          {PREVIEW_FORMATS.map((f) => {
-            const active = format === f.value;
-            return (
-              <button
-                key={f.value}
-                type="button"
-                onClick={() => { userPickedFormatRef.current = true; setFormat(f.value); }}
-                aria-pressed={active}
-                title={active ? `Delivered as ${f.label}` : `Preview as ${f.label}`}
-                style={{
-                  padding: active ? "2px 9px" : "2px 7px", borderRadius: 999, cursor: "pointer",
-                  fontSize: active ? 10.5 : 9.5, fontWeight: 700,
-                  border: `1px solid ${active ? "#2E8E3A" : "transparent"}`,
-                  background: active ? "#EAF6EC" : "transparent",
-                  color: active ? "#1E6D29" : "#8A93A5",
-                  opacity: active ? 1 : 0.85,
-                }}
-              >
-                {f.label}
-              </button>
-            );
-          })}
+          {/* Design-system v1 (handoff §7): segmented format control — surface-2 track, the
+              delivered/active format filled greenDeep + white. Clicking previews-as; it does NOT
+              change what is delivered (the supplier's format stays the default). */}
+          <div style={{ display: "inline-flex", gap: 2, padding: 3, background: "#EFF2F7", borderRadius: 8 }}>
+            {PREVIEW_FORMATS.map((f) => {
+              const active = format === f.value;
+              return (
+                <button
+                  key={f.value}
+                  type="button"
+                  onClick={() => { userPickedFormatRef.current = true; setFormat(f.value); }}
+                  aria-pressed={active}
+                  title={active ? `Delivered as ${f.label}` : `Preview as ${f.label}`}
+                  style={{
+                    padding: "4px 9px", borderRadius: 6, cursor: "pointer",
+                    fontSize: 11, fontWeight: 600, border: "1px solid transparent",
+                    background: active ? "#1E6D29" : "transparent",
+                    color: active ? "#FFFFFF" : "#8A93A5",
+                  }}
+                >
+                  {f.label}
+                </button>
+              );
+            })}
+          </div>
           <span style={{ width: 1, height: 16, background: "#E2E6EE", margin: "0 2px" }} aria-hidden />
           <button
             type="button"

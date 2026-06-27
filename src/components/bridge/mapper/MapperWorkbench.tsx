@@ -587,7 +587,7 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
       {/* ── Top action bar (desktop) ────────────────────────────────────── */}
       <div className="hidden lg:flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
-          <span style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--ink-faint)" }}>
+          <span style={{ fontFamily: "var(--font-display, 'Bricolage Grotesque', Inter, sans-serif)", fontSize: 13, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em", color: "var(--ink)" }}>
             {variant === "order" ? "Map this order" : "Map fields"}
           </span>
           <MappedSummaryChip mapped={summary.mappedCount} total={summary.total} />
@@ -616,14 +616,14 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
               aria-pressed={showConnections}
               title={showConnections ? "Hide the connection wires" : "Show the connection wires between received and output fields"}
               style={{
-                display: "inline-flex", alignItems: "center", gap: 5, fontSize: 10.5, fontWeight: 700,
-                color: showConnections ? "#185FA5" : "#56627A",
-                background: showConnections ? "#E6F1FB" : "#F3F4F7",
-                border: `1px solid ${showConnections ? "#B5D4F4" : "#E2E6EE"}`,
-                borderRadius: 5, padding: "2px 9px", cursor: "pointer",
+                display: "inline-flex", alignItems: "center", gap: 6, height: 32, fontSize: 11.5, fontWeight: 600,
+                color: showConnections ? "#0F4FA8" : "#56627A",
+                background: showConnections ? "#E3EDFB" : "#F3F4F7",
+                border: `1px solid ${showConnections ? "#1E66C9" : "#E2E6EE"}`,
+                borderRadius: 8, padding: "0 12px", cursor: "pointer",
               }}
             >
-              <span aria-hidden>{showConnections ? "◉" : "○"}</span>
+              <span aria-hidden style={{ fontSize: 14, lineHeight: 1, color: showConnections ? "#1E66C9" : "#9AA8C0" }}>{showConnections ? "◉" : "○"}</span>
               {showConnections ? "Hide connections" : "Show connections"}
             </button>
           )}

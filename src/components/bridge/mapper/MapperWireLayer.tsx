@@ -42,9 +42,9 @@ const SNAP_PX = 40;
 const ZONE_W = 26;
 const ZONE_H = 20;
 
-const MUTED = "#9AA8C0";    // auto / default 1:1 pass-through (thin)
-const VIOLET = "#6F4FCE";   // user override (bold)
-const GREEN = "#2E8E3A";    // landed target marker
+const MUTED = "#7C99B4";    // handoff §8 at-rest wire color (default 1:1 pass-through)
+const VIOLET = "#6F4FCE";   // user override (a real F-1 signal the spec's static demo lacked)
+const GREEN = "#2E8E3A";    // handoff §8 hot/emphasised wire + landed target marker
 
 /** A resolved persistent wire (incoming id → output path) with its canonical metadata. */
 export type MapperWire = ResolvedMapperWire;
@@ -402,15 +402,16 @@ export function useMapperWireLayer({
           .map(({ w, h, z, i }) => {
             const emph = isEmph(w);
             const opacity = wireOpacity({ dragging: isDragging, hovering: hov, emphasised: emph });
-            const stroke = w.isOverride ? VIOLET : MUTED;
-            const baseW = w.isOverride ? 2.4 : 1.5;
+            // Handoff §8: hot/emphasised wire = green/3; at rest = #7C99B4/2 (override keeps violet).
+            const stroke = emph ? GREEN : (w.isOverride ? VIOLET : MUTED);
+            const baseW = w.isOverride ? 2.4 : 2;
             const len = estimatePathLength(h.x, h.y, z.x, z.y);
             const landing = landed.has(w.outputPath);
             return (
               <g key={`w-${w.outputPath}`} style={{ opacity, transition: "opacity 160ms" }}>
                 <path
                   d={bezier(h.x, h.y, z.x, z.y)} fill="none" stroke={stroke}
-                  strokeWidth={emph ? baseW + 0.8 : baseW}
+                  strokeWidth={emph ? 3 : baseW}
                   strokeLinecap="round"
                   className={drawIn ? "mapper-wire-draw" : undefined}
                   style={{ pointerEvents: "none", ["--wire-len" as string]: len, animationDelay: `${wireDrawDelayMs(i)}ms`, transition: "stroke-width 140ms" }}
@@ -448,12 +449,12 @@ export function useMapperWireLayer({
         {/* ── Live drag ghost ────────────────────────────────────────────────── */}
         {drag && dragHandle && (
           <path d={bezier(dragHandle.x, dragHandle.y, drag.x, drag.y)} fill="none"
-            stroke={VIOLET} strokeWidth={2.4} strokeDasharray="5 3" strokeLinecap="round" style={{ pointerEvents: "none", opacity: 0.9 }} />
+            stroke="#1E66C9" strokeWidth={2.5} strokeDasharray="5 4" strokeLinecap="round" style={{ pointerEvents: "none", opacity: 0.9 }} />
         )}
         {/* ── Keyboard preview ───────────────────────────────────────────────── */}
         {kbSource && kbHandle && kbZone && (
           <path d={bezier(kbHandle.x, kbHandle.y, kbZone.x, kbZone.y)} fill="none"
-            stroke={VIOLET} strokeWidth={2.4} strokeDasharray="5 3" strokeLinecap="round" style={{ pointerEvents: "none", opacity: 0.7 }} />
+            stroke="#1E66C9" strokeWidth={2.5} strokeDasharray="5 4" strokeLinecap="round" style={{ pointerEvents: "none", opacity: 0.7 }} />
         )}
 
         {/* ── Target snap rings + hit zones (only while dragging) ─────────────── */}

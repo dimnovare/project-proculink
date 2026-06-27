@@ -459,7 +459,7 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
               <span
                 aria-hidden
                 className="plk-back-box"
-                style={{ width: 30, height: 30, border: "1px solid #E2E6EE", borderRadius: 7, background: "#FFFFFF", display: "inline-flex", alignItems: "center", justifyContent: "center", transition: "border-color .12s, background .12s" }}
+                style={{ width: 30, height: 30, border: "1px solid #E2E6EE", borderRadius: 8, background: "#FFFFFF", display: "inline-flex", alignItems: "center", justifyContent: "center", transition: "border-color .12s, background .12s" }}
                 onMouseEnter={(e) => { e.currentTarget.style.borderColor = "#1E66C9"; e.currentTarget.style.background = "#E3EDFB"; }}
                 onMouseLeave={(e) => { e.currentTarget.style.borderColor = "#E2E6EE"; e.currentTarget.style.background = "#FFFFFF"; }}
               >
