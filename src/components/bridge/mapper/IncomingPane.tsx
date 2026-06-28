@@ -235,9 +235,9 @@ function PaneFrame({
   sourceType?: string;
   children: React.ReactNode;
 }) {
+  // app.jsx ColHead: plain white column, faint buyer tint on the 52px header only (NOT a blue
+  // pane wash), title-case display title + 9px dot.
   return (
-    {/* app.jsx ColHead: plain white column, faint buyer tint on the 52px header only (NOT a blue
-        pane wash), title-case display title + 9px dot. */}
     <div style={{ border: "1px solid var(--line, #E5E8EE)", background: "var(--surface, #FFFFFF)", overflow: "hidden", height: "100%", display: "flex", flexDirection: "column" }}>
       <div style={{ flexShrink: 0, display: "flex", alignItems: "center", height: 52, gap: 10, padding: "0 18px", borderBottom: "1px solid #E5E8EE", background: "#EAF0F844" }}>
         <span aria-hidden style={{ flexShrink: 0, width: 9, height: 9, borderRadius: "50%", background: "#1E66C9", boxShadow: "0 0 0 3px #EAF0F8" }} />
