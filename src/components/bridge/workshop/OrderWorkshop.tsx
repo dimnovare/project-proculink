@@ -492,13 +492,11 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
             </div>
           </div>
 
-          {/* Pipeline stepper — fills the header center on xl+. */}
-          <WorkshopStepper stage={stepperStage} failed={stepperFailed} />
-
-          {/* Focus + Send — right-aligned (the stepper fills the gap on xl).
+          {/* Focus + Send — right-aligned. The pipeline stepper now lives at the right end of
+              the ready-banner below (app.jsx structure), not the header center.
               flex-wrap so the Details/Focus/Send controls reflow instead of
               overflowing on the narrowest headers; no effect once they fit. */}
-          <div className="flex flex-wrap items-center justify-end gap-3.5 flex-shrink-0 ml-auto xl:ml-0">
+          <div className="flex flex-wrap items-center justify-end gap-3.5 flex-shrink-0 ml-auto">
             {/* Order details (audit · standards · response) — quiet secondary trigger
                 that opens the relocated Passport/Conformance/Response surfaces.
                 Desktop mapper (lg+): below lg the body is <MobileTriage> (review-and-send
@@ -595,7 +593,7 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
           lives — not the dead line-GUID mapper jump. Pairs with the desktop mapper
           (lg+); below lg the MobileTriage view carries its own issue list. ── */}
       <div className="hidden lg:block flex-shrink-0">
-        <SendReadinessStrip blockers={blockerChips} notes={noteCount} ready={sendReady} onJump={onJumpToIssueCard} />
+        <SendReadinessStrip blockers={blockerChips} notes={noteCount} ready={sendReady} onJump={onJumpToIssueCard} pipeline={<WorkshopStepper stage={stepperStage} failed={stepperFailed} />} />
       </div>
 
       {/* ── Body ─────────────────────────────────────────────────────────────── */}

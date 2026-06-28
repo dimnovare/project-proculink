@@ -8,6 +8,8 @@
 //                            blocker; clicking a chip jumps to + flashes that field in the mapper.
 // Tokens are lifted verbatim from the design handoff (§4).
 
+import type { ReactNode } from "react";
+
 export interface BlockerChip {
   /** Stable id (the field / line ref) — passed to onJump to focus the mapper. */
   id: string;
@@ -37,11 +39,14 @@ export function SendReadinessStrip({
   notes = 0,
   ready,
   onJump,
+  pipeline,
 }: {
   blockers: BlockerChip[];
   notes?: number;
   ready: boolean;
   onJump: (id: string) => void;
+  /** The InlinePipeline stepper — rendered at the banner's right end (app.jsx structure). */
+  pipeline?: ReactNode;
 }) {
   if (ready) {
     return (
@@ -56,6 +61,7 @@ export function SendReadinessStrip({
         </span>
         <span style={{ fontSize: 13, fontWeight: 650, color: "#1E6D29" }}>Ready to send</span>
         <span style={{ fontSize: 12, color: "#5E6779" }}>— every required field is filled and validated.</span>
+        {pipeline && <span style={{ marginLeft: "auto", flexShrink: 0 }}>{pipeline}</span>}
       </div>
     );
   }
@@ -95,12 +101,15 @@ export function SendReadinessStrip({
           </button>
         ))}
       </span>
-      {notes > 0 && (
-        <span style={{ marginLeft: "auto", fontSize: 11.5, color: "#5E6779", display: "inline-flex", alignItems: "center", gap: 5 }}>
-          <span style={{ width: 5, height: 5, borderRadius: "50%", background: "#A9B2C2" }} />
-          {notes} {notes === 1 ? "note" : "notes"} · optional
-        </span>
-      )}
+      <span style={{ marginLeft: "auto", display: "inline-flex", alignItems: "center", gap: 14, flexShrink: 0 }}>
+        {notes > 0 && (
+          <span style={{ fontSize: 11.5, color: "#5E6779", display: "inline-flex", alignItems: "center", gap: 5 }}>
+            <span style={{ width: 5, height: 5, borderRadius: "50%", background: "#A9B2C2" }} />
+            {notes} {notes === 1 ? "note" : "notes"} · optional
+          </span>
+        )}
+        {pipeline}
+      </span>
     </div>
   );
 }
