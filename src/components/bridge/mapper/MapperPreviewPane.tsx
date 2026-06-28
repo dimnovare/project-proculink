@@ -301,7 +301,7 @@ export function MapperPreviewPane({ previewOrderId, override, lastTouched, suppl
             // 12px / 300 so it reads as a companion, not a second hero column.
             // Design-system v1 (handoff §7): the code body is the signature dark "this is what
             // the supplier receives" surface — light mono on navy, the same navy as the sidebar.
-            margin: 0, padding: "14px 4px 24px", maxHeight: 300, overflow: "auto",
+            margin: 0, padding: "14px 4px 24px", flex: 1, minHeight: 0, overflow: "auto",
             fontFamily: "'JetBrains Mono',monospace", fontVariantNumeric: "tabular-nums", fontSize: 11.5, lineHeight: 1.95,
             background: "#0B1A2F", color: "#C8D1E0", whiteSpace: "pre-wrap", wordBreak: "break-word",
             borderTop: "1px solid #1F3252",

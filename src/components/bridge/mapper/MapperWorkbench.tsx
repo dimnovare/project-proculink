@@ -653,11 +653,8 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
             }
             onClick={catalogHintCount > 0 ? scrollToFirstCatalogHint : undefined}
           />
-          <ToolbarButton
-            label="Standards check"
-            title={onValidate ? "Validate the outbound document against a standards profile" : "Validation runs from the order review header"}
-            onClick={onValidate}
-          />
+          {/* Standards check is NOT a toolbar button — it lives in the Details drawer
+              (Standards-check tab), per the app.jsx reference + founder. */}
           {onSaveMappings && (
             <ToolbarButton
               label={savingMappings ? "Saving…" : (saveMappingsLabel ?? "Save mappings")}
@@ -741,44 +738,48 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
           column becomes a thin chevron rail (the grid drops its first track), and when
           `layout.preview === "rail"` the docked preview becomes a thin chevron rail. Both
           default to the full pane when `layout` is absent — byte-identical to today. */}
-      <div className="hidden lg:flex" style={{ flexWrap: "wrap", gap: 16, alignItems: "flex-start" }}>
+      {/* app.jsx 2-level grid — OUTER [ received+output wrap | preview ] · INNER [ received | output ].
+          NO gaps (the three areas share borders as one connected strip) + align-items:stretch (all
+          three are equal, full height). The wire SVG overlays ONLY the inner received↔output wrap,
+          so the wires are short clean curves at the column boundary (no 56px gutter to span). */}
+      <div
+        className="hidden lg:grid"
+        style={{
+          minHeight: 0, alignItems: "stretch",
+          gridTemplateColumns: previewCollapsed
+            ? "minmax(0,1fr) 46px"
+            : incomingCollapsed
+              ? "minmax(0,1fr) minmax(400px,1fr)"
+              : "minmax(0,1.85fr) minmax(380px,1.05fr)",
+        }}
+      >
+        {/* INNER wrap — received | output, the wire overlay's host (canvasRef). */}
         <div
           ref={canvasRef}
           data-mapper-canvas
-          style={{ position: "relative", flex: "1 1 560px", minWidth: 0 }}
+          style={{
+            position: "relative", minWidth: 0, display: "grid", alignItems: "stretch",
+            gridTemplateColumns: incomingCollapsed
+              ? "46px minmax(360px,1fr)"
+              : "minmax(300px,0.92fr) minmax(360px,1fr)",
+          }}
         >
           {incomingCollapsed ? (
-            // Incoming collapsed to a rail — the wire source anchors aren't registered, so the
-            // engine simply draws no incoming wires (graceful). One click expands it back.
-            <div style={{ display: "grid", gridTemplateColumns: "44px 56px minmax(0,1fr)", alignItems: "start" }}>
-              <CollapsedRail label="Incoming" color="#1E66C9" onExpand={layout?.onExpandIncoming} />
-              <div aria-hidden />
-              <div style={{ minWidth: 0 }}>{outgoingNode}</div>
-            </div>
+            <CollapsedRail label="Incoming" color="#1E66C9" onExpand={layout?.onExpandIncoming} />
           ) : (
-            // TRUE 2 columns: Incoming | gutter | Outgoing. Incoming is fixed-narrow and Outgoing
-            // flexes wide (the v3 inline-fix rows need the room — handoff resolveLayout 336/flex).
-            // Incoming min lowered to 260 so the whole canvas (260 + 56 gutter + outgoing) fits
-            // within ~1000px of content — a 13"/14" laptop at 1024px gets the mapper with no
-            // horizontal scroll; on wider screens it still grows to 340.
-            <div style={{ display: "grid", gridTemplateColumns: "minmax(260px,340px) 56px minmax(0,1fr)", alignItems: "start" }}>
-              <div style={{ minWidth: 0, position: "relative" }}>
-                {layout?.onCollapseIncoming && <PaneCollapseCaret side="left" label="Received" onClick={layout.onCollapseIncoming} />}
-                {incomingNode}
-              </div>
-              <div aria-hidden /> {/* wire gutter — empty, the SVG draws here */}
-              <div style={{ minWidth: 0 }}>{outgoingNode}</div>
+            <div style={{ minWidth: 0, position: "relative" }}>
+              {layout?.onCollapseIncoming && <PaneCollapseCaret side="left" label="Received" onClick={layout.onCollapseIncoming} />}
+              {incomingNode}
             </div>
           )}
-          {/* The engine SVG overlays the whole canvas (measured relative to it). */}
+          <div style={{ minWidth: 0 }}>{outgoingNode}</div>
           {wire.svg}
         </div>
-        {/* Docked preview — always present (a companion, not a second hero column). In the
-            workshop it can collapse to a rail to give the columns the full width. */}
+        {/* Live preview — fills its column to full height (a connected third pane, not a short box). */}
         {previewCollapsed ? (
           <CollapsedRail label="Preview" color="#2E8E3A" onExpand={layout?.onExpandPreview} />
         ) : (
-          <div style={{ flex: "1 1 460px", minWidth: 460, position: "relative" }}>
+          <div style={{ minWidth: 0, position: "relative" }}>
             {layout?.onCollapsePreview && <PaneCollapseCaret side="right" label="Live preview" onClick={layout.onCollapsePreview} />}
             {previewNode}
           </div>
