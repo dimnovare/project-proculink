@@ -228,15 +228,19 @@ export function OutgoingPane({
   );
 
   return (
-    <div style={{ borderRadius: 12, border: "1px solid var(--line, #E5E8EE)", background: "#FBFBFD", overflow: "hidden" }}>
+    <div style={{ border: "1px solid var(--line, #E5E8EE)", background: "linear-gradient(180deg,#F1F3F755,#F6F7FA)", overflow: "hidden", height: "100%", display: "flex", flexDirection: "column" }}>
       {/* CSS-driven hovers (replaces imperative onMouseEnter/Leave style toggles) — same visible result. */}
       <style>{`
         .mapper-aifix-apply:hover { background: #1E6D29; }
         .mapper-add-field-item:hover { background: #F4FBF5; }
       `}</style>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, padding: "9px 12px", borderBottom: "1px solid #EEF0F4" }}>
-        <span style={{ fontSize: 10.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em", color: "#0B1A2F" }}>
-          What we&rsquo;ll send
+      {/* app.jsx ColHead (supplier): 52px, faint green tint, 9px dot, title-case display title. */}
+      <div style={{ flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "space-between", height: 52, gap: 10, padding: "0 18px", borderBottom: "1px solid #E5E8EE", background: "#E9F1EA44" }}>
+        <span style={{ display: "inline-flex", alignItems: "center", gap: 10, minWidth: 0 }}>
+          <span aria-hidden style={{ flexShrink: 0, width: 9, height: 9, borderRadius: "50%", background: "#2E8E3A", boxShadow: "0 0 0 3px #E9F1EA" }} />
+          <span style={{ fontFamily: "var(--font-display, 'Bricolage Grotesque', Inter, sans-serif)", fontSize: 13.5, fontWeight: 700, letterSpacing: "-0.01em", color: "#0B1A2F" }}>
+            What we&rsquo;ll send
+          </span>
         </span>
         {canAddField && onAddField && (
           <AddOutputFieldMenu

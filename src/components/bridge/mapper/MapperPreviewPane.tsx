@@ -206,58 +206,60 @@ export function MapperPreviewPane({ previewOrderId, override, lastTouched, suppl
   }, [content]);
 
   return (
-    <div style={{ border: "1px solid #E5E8EE", borderRadius: 10, background: "#FBFBFD", overflow: "hidden" }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 16px", borderBottom: "1px solid #E5E8EE" }}>
+    <div style={{ border: "1px solid #E5E8EE", background: "#FBFBFD", overflow: "hidden", height: "100%", display: "flex", flexDirection: "column" }}>
+      {/* ColHead (supplier) — identical 52px header to the received/output panes so the three
+          column heads form ONE connected strip (app.jsx §5.5/§5.8). */}
+      <div style={{ flexShrink: 0, display: "flex", alignItems: "center", gap: 10, height: 52, padding: "0 18px", borderBottom: "1px solid #E5E8EE", background: "#E9F1EA44" }}>
+        <span aria-hidden style={{ flexShrink: 0, width: 9, height: 9, borderRadius: "50%", background: "#2E8E3A", boxShadow: "0 0 0 3px #E9F1EA" }} />
         <span style={{ display: "flex", flexDirection: "column", gap: 1, minWidth: 0 }}>
-          <span style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "#1E6D29" }}>
+          <span style={{ fontFamily: "var(--font-display, 'Bricolage Grotesque', Inter, sans-serif)", fontSize: 13.5, fontWeight: 700, letterSpacing: "-0.01em", color: "#0B1A2F", whiteSpace: "nowrap" }}>
             Live preview · {deliveredFormat.toUpperCase()}
           </span>
-          {/* T1: the single most reassuring statement on the screen — make it LOUD.
-              Stronger weight, larger, darker so it reads as a promise, not a caption. */}
-          <span style={{ fontSize: 12.5, fontWeight: 600, color: "#0B1A2F", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-            {supplierName ? `This is exactly what ${supplierName} receives` : "This is exactly what the supplier receives"}
+          <span style={{ fontSize: 10.5, color: "#5E6779", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            {supplierName ? `exactly what ${supplierName} receives` : "exactly what the supplier receives"}
           </span>
         </span>
-        {content && !err && (
-          <span style={{ display: "inline-flex", alignItems: "center", gap: 4, padding: "2px 8px", borderRadius: 999, background: "#E9F1EA", color: "#1E6D29", fontSize: 10.5, fontWeight: 600, flexShrink: 0 }}>
-            <svg width="11" height="11" viewBox="0 0 16 16" fill="none" aria-hidden><path d="M13.5 4.5 6.5 11.5 3 8" stroke="#1E6D29" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>
-            Valid
-          </span>
-        )}
-        {lastTouched && <span style={{ fontSize: 10, color: "#98A0AE", flexShrink: 0 }}>edited {lastTouched}</span>}
-        <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 4 }}>
-          {/* Design-system v1 (handoff §7): segmented format control — surface-2 track, the
-              delivered/active format filled greenDeep + white. Clicking previews-as; it does NOT
-              change what is delivered (the supplier's format stays the default). */}
-          <div style={{ display: "inline-flex", gap: 2, padding: 3, background: "#F1F3F7", borderRadius: 8 }}>
-            {PREVIEW_FORMATS.map((f) => {
-              const active = format === f.value;
-              return (
-                <button
-                  key={f.value}
-                  type="button"
-                  onClick={() => { userPickedFormatRef.current = true; setFormat(f.value); }}
-                  aria-pressed={active}
-                  title={active ? `Delivered as ${f.label}` : `Preview as ${f.label}`}
-                  style={{
-                    padding: "4px 9px", borderRadius: 6, cursor: "pointer",
-                    fontSize: 11, fontWeight: 600, border: "1px solid transparent",
-                    background: active ? "#1E6D29" : "transparent",
-                    color: active ? "#FFFFFF" : "#98A0AE",
-                  }}
-                >
-                  {f.label}
-                </button>
-              );
-            })}
-          </div>
-          <span style={{ width: 1, height: 16, background: "#E5E8EE", margin: "0 2px" }} aria-hidden />
+        <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+          {content && !err && (
+            <span style={{ display: "inline-flex", alignItems: "center", gap: 4, padding: "2px 8px", borderRadius: 999, background: "#E9F1EA", color: "#1E6D29", fontSize: 10.5, fontWeight: 600 }}>
+              <svg width="11" height="11" viewBox="0 0 16 16" fill="none" aria-hidden><path d="M13.5 4.5 6.5 11.5 3 8" stroke="#1E6D29" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>
+              Valid
+            </span>
+          )}
+          {lastTouched && <span style={{ fontSize: 10, color: "#98A0AE" }}>edited {lastTouched}</span>}
+        </div>
+      </div>
+      {/* Format + actions bar (46px) — app.jsx §7.1: segmented control left, Copy/Download right. */}
+      <div style={{ flexShrink: 0, display: "flex", alignItems: "center", gap: 8, height: 46, padding: "0 16px", borderBottom: "1px solid #E5E8EE" }}>
+        <div style={{ display: "inline-flex", gap: 2, padding: 3, background: "#F1F3F7", borderRadius: 8 }}>
+          {PREVIEW_FORMATS.map((f) => {
+            const active = format === f.value;
+            return (
+              <button
+                key={f.value}
+                type="button"
+                onClick={() => { userPickedFormatRef.current = true; setFormat(f.value); }}
+                aria-pressed={active}
+                title={active ? `Delivered as ${f.label}` : `Preview as ${f.label}`}
+                style={{
+                  padding: "4px 9px", borderRadius: 6, cursor: "pointer",
+                  fontSize: 11, fontWeight: 600, border: "1px solid transparent",
+                  background: active ? "#1E6D29" : "transparent",
+                  color: active ? "#FFFFFF" : "#98A0AE",
+                }}
+              >
+                {f.label}
+              </button>
+            );
+          })}
+        </div>
+        <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 12 }}>
           <button
             type="button"
             onClick={onCopy}
             disabled={!content}
             aria-label="Copy preview"
-            style={{ padding: "2px 8px", borderRadius: 6, cursor: content ? "pointer" : "default", fontSize: 11.5, fontWeight: 700, border: "1px solid #DCE0E8", background: "#FFFFFF", color: content ? "#345470" : "#AEB6C4" }}
+            style={{ display: "inline-flex", alignItems: "center", gap: 5, cursor: content ? "pointer" : "default", fontSize: 11.5, fontWeight: 600, border: 0, background: "transparent", color: copied ? "#1E6D29" : content ? "#5E6779" : "#AEB6C4" }}
           >
             {copied ? "✓ Copied" : "Copy"}
           </button>
@@ -266,7 +268,7 @@ export function MapperPreviewPane({ previewOrderId, override, lastTouched, suppl
             onClick={onDownload}
             disabled={!content}
             aria-label="Download preview"
-            style={{ padding: "2px 8px", borderRadius: 6, cursor: content ? "pointer" : "default", fontSize: 10, fontWeight: 700, border: "1px solid #DCE0E8", background: "#FFFFFF", color: content ? "#345470" : "#AEB6C4" }}
+            style={{ display: "inline-flex", alignItems: "center", gap: 5, cursor: content ? "pointer" : "default", fontSize: 11.5, fontWeight: 600, border: 0, background: "transparent", color: content ? "#5E6779" : "#AEB6C4" }}
           >
             Download
           </button>
