@@ -55,10 +55,10 @@ function confidencePill(confidence: number | null): React.ReactNode {
   const pct = Math.round(confidence * 100);
   const [bg, text, dot] =
     confidence >= 0.8
-      ? ["#E2F1E2", "#1E6D29", "#2E8E3A"]
+      ? ["#E9F1EA", "#1E6D29", "#2E8E3A"]
       : confidence >= 0.5
-      ? ["#FAEFD6", "#7A4A00", "#C97A14"]
-      : ["#EFF2F7", "#56627A", "var(--ink-faint)"];
+      ? ["#FAF1DD", "#7A4A00", "#B36D14"]
+      : ["#F1F3F7", "#5E6779", "var(--ink-faint)"];
 
   return (
     <span
@@ -104,7 +104,7 @@ function SourceCell({ line }: { line: MappingPreviewLine }) {
         {line.buyerItemCode ?? "(no code)"}
       </span>
       {sf.description && (
-        <span style={{ fontSize: 11.5, color: "#56627A", lineHeight: 1.35 }}>
+        <span style={{ fontSize: 11.5, color: "#5E6779", lineHeight: 1.35 }}>
           {sf.description}
         </span>
       )}
@@ -191,7 +191,7 @@ function InfoDisclosure({ label, text }: { label: string; text: string }) {
           padding: 0,
           borderRadius: "50%",
           border: "1px solid #C5B8F0",
-          background: open ? "#EEE7FB" : "transparent",
+          background: open ? "#F0EAFB" : "transparent",
           fontSize: 9,
           color: "#6F4FCE",
           fontWeight: 700,
@@ -214,7 +214,7 @@ function InfoDisclosure({ label, text }: { label: string; text: string }) {
             padding: "8px 10px",
             borderRadius: 6,
             background: "#FFFFFF",
-            border: "1px solid #E2E6EE",
+            border: "1px solid #E5E8EE",
             boxShadow: "0 4px 14px rgba(11,26,47,0.12)",
             fontSize: 11.5,
             fontWeight: 400,
@@ -512,7 +512,7 @@ export function MagicMappingPreview({ orderId, onCommitted, onParseFailed }: Pro
           flexDirection: "column",
           alignItems: "center",
           gap: 16,
-          color: "#56627A",
+          color: "#5E6779",
           fontSize: 13,
         }}
       >
@@ -525,7 +525,7 @@ export function MagicMappingPreview({ orderId, onCommitted, onParseFailed }: Pro
           style={{ animation: "spin 1s linear infinite" }}
         >
           <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-          <circle cx="14" cy="14" r="11" stroke="#E2E6EE" strokeWidth="2.5" />
+          <circle cx="14" cy="14" r="11" stroke="#E5E8EE" strokeWidth="2.5" />
           <path
             d="M14 3 A11 11 0 0 1 25 14"
             stroke="url(#spin-grad)"
@@ -557,10 +557,10 @@ export function MagicMappingPreview({ orderId, onCommitted, onParseFailed }: Pro
           textAlign: "center",
         }}
       >
-        <p style={{ fontSize: 13, color: "#C53A3A", fontWeight: 600 }}>
+        <p style={{ fontSize: 13, color: "#B43838", fontWeight: 600 }}>
           Could not load mapping preview
         </p>
-        <p style={{ fontSize: 12, color: "#56627A", maxWidth: 340 }}>
+        <p style={{ fontSize: 12, color: "#5E6779", maxWidth: 340 }}>
           {error instanceof Error ? error.message : "An unexpected error occurred."}
         </p>
         <button
@@ -569,7 +569,7 @@ export function MagicMappingPreview({ orderId, onCommitted, onParseFailed }: Pro
             marginTop: 4,
             padding: "6px 16px",
             borderRadius: 6,
-            border: "1px solid #C6CDDA",
+            border: "1px solid #CBD0DA",
             background: "#FFFFFF",
             color: "#0B1A2F",
             fontSize: 12,
@@ -616,13 +616,13 @@ export function MagicMappingPreview({ orderId, onCommitted, onParseFailed }: Pro
           gap: 14,
           textAlign: "center",
           background: "#FFFFFF",
-          border: "1px solid #E2E6EE",
+          border: "1px solid #E5E8EE",
           borderRadius: 8,
         }}
       >
         <svg width="28" height="28" viewBox="0 0 28 28" fill="none" aria-hidden style={{ animation: "spin 1s linear infinite" }}>
           <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-          <circle cx="14" cy="14" r="11" stroke="#E2E6EE" strokeWidth="2.5" />
+          <circle cx="14" cy="14" r="11" stroke="#E5E8EE" strokeWidth="2.5" />
           <path d="M14 3 A11 11 0 0 1 25 14" stroke="url(#spin-grad-parsing)" strokeWidth="2.5" strokeLinecap="round" />
           <defs>
             <linearGradient id="spin-grad-parsing" x1="14" y1="3" x2="25" y2="14" gradientUnits="userSpaceOnUse">
@@ -634,7 +634,7 @@ export function MagicMappingPreview({ orderId, onCommitted, onParseFailed }: Pro
         <p style={{ fontSize: 13.5, color: "#0B1A2F", fontWeight: 600, margin: 0 }}>
           Parsing your order…
         </p>
-        <p style={{ fontSize: 12, color: "#56627A", maxWidth: 340, margin: 0, lineHeight: 1.45 }}>
+        <p style={{ fontSize: 12, color: "#5E6779", maxWidth: 340, margin: 0, lineHeight: 1.45 }}>
           We&apos;re reading your file and extracting its order lines. This usually takes a
           few seconds — the mapping preview will appear automatically when it&apos;s ready.
         </p>
@@ -646,7 +646,7 @@ export function MagicMappingPreview({ orderId, onCommitted, onParseFailed }: Pro
             style={{
               fontSize: 12,
               color: "#7A4D0A",
-              background: "#FAEFD6",
+              background: "#FAF1DD",
               border: "1px solid #F0D39A",
               borderRadius: 6,
               padding: "8px 12px",
@@ -681,14 +681,14 @@ export function MagicMappingPreview({ orderId, onCommitted, onParseFailed }: Pro
           gap: 12,
           textAlign: "center",
           background: "#FFFFFF",
-          border: "1px solid #E2E6EE",
+          border: "1px solid #E5E8EE",
           borderRadius: 8,
         }}
       >
-        <p style={{ fontSize: 13, color: "#C53A3A", fontWeight: 600 }}>
+        <p style={{ fontSize: 13, color: "#B43838", fontWeight: 600 }}>
           No order lines were found
         </p>
-        <p style={{ fontSize: 12, color: "#56627A", maxWidth: 360 }}>
+        <p style={{ fontSize: 12, color: "#5E6779", maxWidth: 360 }}>
           Upload a corrected file with at least one purchase-order line.
         </p>
       </div>
@@ -704,7 +704,7 @@ export function MagicMappingPreview({ orderId, onCommitted, onParseFailed }: Pro
         background: "#F6F7FA",
         borderRadius: 8,
         overflow: "hidden",
-        border: "1px solid #E2E6EE",
+        border: "1px solid #E5E8EE",
       }}
     >
       {/* Header */}
@@ -712,7 +712,7 @@ export function MagicMappingPreview({ orderId, onCommitted, onParseFailed }: Pro
         style={{
           padding: "16px 20px 14px",
           background: "#FFFFFF",
-          borderBottom: "1px solid #E2E6EE",
+          borderBottom: "1px solid #E5E8EE",
         }}
       >
         <h2
@@ -726,7 +726,7 @@ export function MagicMappingPreview({ orderId, onCommitted, onParseFailed }: Pro
         >
           Review your order mapping
         </h2>
-        <p style={{ fontSize: 12.5, color: "#56627A", margin: "4px 0 0" }}>
+        <p style={{ fontSize: 12.5, color: "#5E6779", margin: "4px 0 0" }}>
           Here&apos;s exactly how we&apos;ll map your order to{" "}
           <strong style={{ color: "#0B1A2F" }}>
             {preview.lines.length > 0 ? `your ${counterpartyLower}` : `the ${counterpartyLower}`}
@@ -740,8 +740,8 @@ export function MagicMappingPreview({ orderId, onCommitted, onParseFailed }: Pro
                 borderRadius: 10,
                 fontSize: 11,
                 fontWeight: 600,
-                background: "#EFF2F7",
-                color: "#56627A",
+                background: "#F1F3F7",
+                color: "#5E6779",
               }}
             >
               {preview.sourceFormat.toUpperCase()}
@@ -775,7 +775,7 @@ export function MagicMappingPreview({ orderId, onCommitted, onParseFailed }: Pro
                 padding: "5px 12px",
                 borderRadius: 6,
                 border: "1px solid #C5B8F0",
-                background: "#EEE7FB",
+                background: "#F0EAFB",
                 color: "#6F4FCE",
                 fontSize: 12,
                 fontWeight: 600,
@@ -821,9 +821,9 @@ export function MagicMappingPreview({ orderId, onCommitted, onParseFailed }: Pro
                 gap: 6,
                 padding: "5px 12px",
                 borderRadius: 6,
-                border: "1px solid #C6CDDA",
+                border: "1px solid #CBD0DA",
                 background: "#FFFFFF",
-                color: "#56627A",
+                color: "#5E6779",
                 fontSize: 12,
                 fontWeight: 600,
                 cursor: isBulkAccepting ? "wait" : "pointer",
@@ -835,8 +835,8 @@ export function MagicMappingPreview({ orderId, onCommitted, onParseFailed }: Pro
                 : "Accept ≥85% only"}
               <span
                 style={{
-                  background: "#EFF2F7",
-                  color: "#56627A",
+                  background: "#F1F3F7",
+                  color: "#5E6779",
                   borderRadius: 8,
                   padding: "0 5px",
                   fontSize: 10,
@@ -852,7 +852,7 @@ export function MagicMappingPreview({ orderId, onCommitted, onParseFailed }: Pro
               role="status"
               style={{
                 fontSize: 12,
-                color: bulkNotice.startsWith("Accept failed") ? "#C53A3A" : "#1E6D29",
+                color: bulkNotice.startsWith("Accept failed") ? "#B43838" : "#1E6D29",
                 fontWeight: 500,
               }}
             >
@@ -863,7 +863,7 @@ export function MagicMappingPreview({ orderId, onCommitted, onParseFailed }: Pro
           <span style={{ fontSize: 12, color: "var(--ink-faint)" }}>
             {resolved}/{totalLines} mapped
             {unresolved > 0 && (
-              <span style={{ color: "#C97A14", fontWeight: 600 }}>
+              <span style={{ color: "#B36D14", fontWeight: 600 }}>
                 {" "}· {unresolved} need attention
               </span>
             )}
@@ -876,11 +876,11 @@ export function MagicMappingPreview({ orderId, onCommitted, onParseFailed }: Pro
         <div
           style={{
             padding: "8px 16px",
-            background: "#EFF2F7",
-            borderBottom: "1px solid #E2E6EE",
+            background: "#F1F3F7",
+            borderBottom: "1px solid #E5E8EE",
           }}
         >
-          <span style={{ fontSize: 11, fontWeight: 700, color: "#56627A", textTransform: "uppercase", letterSpacing: "0.04em" }}>
+          <span style={{ fontSize: 11, fontWeight: 700, color: "#5E6779", textTransform: "uppercase", letterSpacing: "0.04em" }}>
             Order lines
           </span>
         </div>
@@ -891,19 +891,19 @@ export function MagicMappingPreview({ orderId, onCommitted, onParseFailed }: Pro
             gridTemplateColumns: "1fr 36px 120px 36px 1fr",
             gap: 0,
             padding: "8px 16px",
-            background: "#EFF2F7",
-            borderBottom: "1px solid #E2E6EE",
+            background: "#F1F3F7",
+            borderBottom: "1px solid #E5E8EE",
           }}
         >
-          <span style={{ fontSize: 11, fontWeight: 700, color: "#56627A", textTransform: "uppercase", letterSpacing: "0.04em" }}>
+          <span style={{ fontSize: 11, fontWeight: 700, color: "#5E6779", textTransform: "uppercase", letterSpacing: "0.04em" }}>
             Source field &amp; value
           </span>
           <span />
-          <span style={{ fontSize: 11, fontWeight: 700, color: "#56627A", textTransform: "uppercase", letterSpacing: "0.04em", textAlign: "center" }}>
+          <span style={{ fontSize: 11, fontWeight: 700, color: "#5E6779", textTransform: "uppercase", letterSpacing: "0.04em", textAlign: "center" }}>
             Order field
           </span>
           <span />
-          <span style={{ fontSize: 11, fontWeight: 700, color: "#56627A", textTransform: "uppercase", letterSpacing: "0.04em" }}>
+          <span style={{ fontSize: 11, fontWeight: 700, color: "#5E6779", textTransform: "uppercase", letterSpacing: "0.04em" }}>
             {counterpartyNoun} code
           </span>
         </div>
@@ -943,7 +943,7 @@ export function MagicMappingPreview({ orderId, onCommitted, onParseFailed }: Pro
             isAlreadyResolved || rowIsResolved
               ? "#C8E6C9"
               : line.aiSuggestedSupplierCode
-              ? "#E2E6EE"
+              ? "#E5E8EE"
               : "#F0D9A0";
 
           return (
@@ -1035,7 +1035,7 @@ export function MagicMappingPreview({ orderId, onCommitted, onParseFailed }: Pro
                         fontSize: 12,
                         fontWeight: 600,
                         color: "#1E6D29",
-                        background: "#E2F1E2",
+                        background: "#E9F1EA",
                         padding: "2px 8px",
                         borderRadius: 4,
                       }}
@@ -1065,7 +1065,7 @@ export function MagicMappingPreview({ orderId, onCommitted, onParseFailed }: Pro
                           fontSize: 9.5,
                           fontWeight: 700,
                           color: "#6F4FCE",
-                          background: "#EEE7FB",
+                          background: "#F0EAFB",
                           padding: "1px 5px",
                           borderRadius: 4,
                           letterSpacing: "0.04em",
@@ -1109,7 +1109,7 @@ export function MagicMappingPreview({ orderId, onCommitted, onParseFailed }: Pro
                             minHeight: isMobile ? 40 : undefined,
                             borderRadius: 4,
                             border: "1px solid #2E8E3A",
-                            background: "#E2F1E2",
+                            background: "#E9F1EA",
                             color: "#1E6D29",
                             fontSize: 11,
                             fontWeight: 600,
@@ -1130,9 +1130,9 @@ export function MagicMappingPreview({ orderId, onCommitted, onParseFailed }: Pro
                             padding: isMobile ? "9px 14px" : "2px 9px",
                             minHeight: isMobile ? 40 : undefined,
                             borderRadius: 4,
-                            border: "1px solid #C6CDDA",
+                            border: "1px solid #CBD0DA",
                             background: "#FFFFFF",
-                            color: "#56627A",
+                            color: "#5E6779",
                             fontSize: 11,
                             fontWeight: 600,
                             cursor: "pointer",
@@ -1150,7 +1150,7 @@ export function MagicMappingPreview({ orderId, onCommitted, onParseFailed }: Pro
                             borderRadius: 4,
                             border: "1px solid #EDBBBB",
                             background: "#FBE3E3",
-                            color: "#C53A3A",
+                            color: "#B43838",
                             fontSize: 11,
                             fontWeight: 600,
                             cursor: "pointer",
@@ -1172,7 +1172,7 @@ export function MagicMappingPreview({ orderId, onCommitted, onParseFailed }: Pro
                         fontSize: 12,
                         fontWeight: 600,
                         color: "#1E6D29",
-                        background: "#E2F1E2",
+                        background: "#E9F1EA",
                         padding: "2px 8px",
                         borderRadius: 4,
                       }}
@@ -1191,7 +1191,7 @@ export function MagicMappingPreview({ orderId, onCommitted, onParseFailed }: Pro
                       style={{
                         padding: "1px 7px",
                         borderRadius: 4,
-                        border: "1px solid #C6CDDA",
+                        border: "1px solid #CBD0DA",
                         background: "transparent",
                         color: "var(--ink-faint)",
                         fontSize: 10.5,
@@ -1247,7 +1247,7 @@ export function MagicMappingPreview({ orderId, onCommitted, onParseFailed }: Pro
                         padding: "3px 10px",
                         borderRadius: 4,
                         border: "1px solid #2E8E3A",
-                        background: rowState.draft.trim() ? "#E2F1E2" : "#EFF2F7",
+                        background: rowState.draft.trim() ? "#E9F1EA" : "#F1F3F7",
                         color: rowState.draft.trim() ? "#1E6D29" : "var(--ink-faint)",
                         fontSize: 11,
                         fontWeight: 600,
@@ -1263,7 +1263,7 @@ export function MagicMappingPreview({ orderId, onCommitted, onParseFailed }: Pro
                       style={{
                         padding: "3px 7px",
                         borderRadius: 4,
-                        border: "1px solid #E2E6EE",
+                        border: "1px solid #E5E8EE",
                         background: "transparent",
                         color: "var(--ink-faint)",
                         fontSize: 11,
@@ -1282,7 +1282,7 @@ export function MagicMappingPreview({ orderId, onCommitted, onParseFailed }: Pro
                   rowState.mode !== "editing" && (
                     <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                       {rowState.mode === "rejected" && (
-                        <span style={{ fontSize: 11, color: "#C53A3A", fontWeight: 500 }}>
+                        <span style={{ fontSize: 11, color: "#B43838", fontWeight: 500 }}>
                           Rejected ·{" "}
                         </span>
                       )}
@@ -1298,9 +1298,9 @@ export function MagicMappingPreview({ orderId, onCommitted, onParseFailed }: Pro
                           padding: isMobile ? "10px 14px" : "3px 10px",
                           minHeight: isMobile ? 40 : undefined,
                           borderRadius: 4,
-                          border: "1px dashed #C6CDDA",
+                          border: "1px dashed #CBD0DA",
                           background: "transparent",
-                          color: "#56627A",
+                          color: "#5E6779",
                           fontSize: 11.5,
                           cursor: "pointer",
                         }}
@@ -1319,7 +1319,7 @@ export function MagicMappingPreview({ orderId, onCommitted, onParseFailed }: Pro
                       style={{
                         fontFamily: "'JetBrains Mono', monospace",
                         fontSize: 11,
-                        color: "#56627A",
+                        color: "#5E6779",
                       }}
                     >
                       → {effectiveCode}
@@ -1336,7 +1336,7 @@ export function MagicMappingPreview({ orderId, onCommitted, onParseFailed }: Pro
         style={{
           padding: "14px 20px",
           background: "#FFFFFF",
-          borderTop: "1px solid #E2E6EE",
+          borderTop: "1px solid #E5E8EE",
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
@@ -1350,13 +1350,13 @@ export function MagicMappingPreview({ orderId, onCommitted, onParseFailed }: Pro
           <span style={{ fontSize: 12.5, color: "#0B1A2F", fontWeight: 500 }}>
             {resolved} of {totalLines} lines mapped
             {unresolved > 0 && (
-              <span style={{ color: "#C97A14" }}>
+              <span style={{ color: "#B36D14" }}>
                 {" "}— {unresolved} still need a {counterpartyLower} code
               </span>
             )}
           </span>
           {commitError && (
-            <span style={{ fontSize: 12, color: "#C53A3A" }}>{commitError}</span>
+            <span style={{ fontSize: 12, color: "#B43838" }}>{commitError}</span>
           )}
           {!commitError && !commitSuccess && nothingToSubmitYet && (
             <span style={{ fontSize: 12, color: "var(--ink-faint)" }}>
@@ -1395,7 +1395,7 @@ export function MagicMappingPreview({ orderId, onCommitted, onParseFailed }: Pro
             border: "none",
             background:
               isCommitting || commitSuccess
-                ? "#EFF2F7"
+                ? "#F1F3F7"
                 : "#0B1A2F",
             color: isCommitting || commitSuccess ? "var(--ink-faint)" : "#FFFFFF",
             fontSize: 13,
@@ -1415,7 +1415,7 @@ export function MagicMappingPreview({ orderId, onCommitted, onParseFailed }: Pro
                 aria-hidden
                 style={{ animation: "spin 1s linear infinite" }}
               >
-                <circle cx="7" cy="7" r="5.5" stroke="#C6CDDA" strokeWidth="2" />
+                <circle cx="7" cy="7" r="5.5" stroke="#CBD0DA" strokeWidth="2" />
                 <path d="M7 1.5 A5.5 5.5 0 0 1 12.5 7" stroke="#5B6980" strokeWidth="2" strokeLinecap="round" />
               </svg>
               Committing…

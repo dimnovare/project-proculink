@@ -150,7 +150,7 @@ export function TransformPopover({ outputPath, manipulators, onChange, onClose, 
   const panelStyle: React.CSSProperties = portaled
     ? {
         position: "fixed", top: pos?.top ?? -9999, left: pos?.left ?? -9999, zIndex: 1000, width: POPOVER_W,
-        background: "#FFFFFF", border: "1px solid #E2E6EE", borderRadius: 10,
+        background: "#FFFFFF", border: "1px solid #E5E8EE", borderRadius: 10,
         boxShadow: "0 10px 28px rgba(11,26,47,0.18)", padding: 12,
         display: "flex", flexDirection: "column", gap: 8,
         // Hidden until measured so it never flashes at the wrong place.
@@ -158,7 +158,7 @@ export function TransformPopover({ outputPath, manipulators, onChange, onClose, 
       }
     : {
         position: "absolute", left: 0, top: "100%", marginTop: 6, zIndex: 40, width: POPOVER_W,
-        background: "#FFFFFF", border: "1px solid #E2E6EE", borderRadius: 10,
+        background: "#FFFFFF", border: "1px solid #E5E8EE", borderRadius: 10,
         boxShadow: "0 10px 28px rgba(11,26,47,0.18)", padding: 12,
         display: "flex", flexDirection: "column", gap: 8,
       };
@@ -206,7 +206,7 @@ export function TransformPopover({ outputPath, manipulators, onChange, onClose, 
           if (!t) return;
           onChange([...manipulators, { type: t.type, params: t.params.map(() => "") }]);
         }}
-        style={{ minHeight: 30, border: "1px dashed #C6CDDA", borderRadius: 7, padding: "3px 7px", fontSize: 11.5, color: "#56627A", background: "#F6F7FA" }}
+        style={{ minHeight: 30, border: "1px dashed #CBD0DA", borderRadius: 7, padding: "3px 7px", fontSize: 11.5, color: "#5E6779", background: "#F6F7FA" }}
       >
         <option value="">+ Add an adjustment…</option>
         {MANIPULATOR_TYPES.map((t) => (

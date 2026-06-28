@@ -97,23 +97,23 @@ export function ConfirmDialog({ exceptionCount, onConfirm, onCancel, supplierNam
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
-        style={{ position: "fixed", top: "50%", left: "50%", transform: "translate(-50%,-50%)", width: 440, maxWidth: "calc(100vw - 32px)", background: "#FFFFFF", borderRadius: 12, boxShadow: "0 24px 64px rgba(11,26,47,0.22)", border: "1px solid #E2E6EE", zIndex: 9991, overflow: "hidden" }}
+        style={{ position: "fixed", top: "50%", left: "50%", transform: "translate(-50%,-50%)", width: 440, maxWidth: "calc(100vw - 32px)", background: "#FFFFFF", borderRadius: 12, boxShadow: "0 24px 64px rgba(11,26,47,0.22)", border: "1px solid #E5E8EE", zIndex: 9991, overflow: "hidden" }}
       >
         {/* Header */}
         <div style={{ padding: "20px 24px 0" }}>
           <div id={titleId} style={{ fontFamily: "'Bricolage Grotesque',Inter,sans-serif", fontSize: 18, fontWeight: 700, color: "#0B1A2F", marginBottom: 6 }}>{inbound ? "Confirm this order?" : "Send order to supplier?"}</div>
-          <p style={{ fontSize: 13, color: "#56627A", lineHeight: 1.55, margin: 0 }}>
+          <p style={{ fontSize: 13, color: "#5E6779", lineHeight: 1.55, margin: 0 }}>
             This will {inbound ? "confirm" : "deliver"} the transformed {outputFormat.toUpperCase()} order {inbound ? "for" : "to"} <strong style={{ color: "#0B1A2F" }}>{supplierName}</strong>
           </p>
         </div>
 
         {/* Summary */}
-        <div style={{ margin: "16px 24px", padding: "12px 14px", background: "#F6F7FA", borderRadius: 8, border: "1px solid #E2E6EE" }}>
+        <div style={{ margin: "16px 24px", padding: "12px 14px", background: "#F6F7FA", borderRadius: 8, border: "1px solid #E5E8EE" }}>
           <div style={{ display: "flex", gap: 20 }}>
             {[
               { label: "Grand total",    value: grandTotal },
               { label: "Lines",          value: `${lineCount} item${lineCount !== 1 ? "s" : ""}` },
-              { label: "Issues to review", value: `${exceptionCount}`, color: exceptionCount > 0 ? "#C97A14" : "#1E6D29" },
+              { label: "Issues to review", value: `${exceptionCount}`, color: exceptionCount > 0 ? "#B36D14" : "#1E6D29" },
               { label: "Format",         value: outputFormat.toUpperCase() },
             ].map(({ label, value, color }) => (
               <div key={label} style={{ flex: 1, minWidth: 0 }}>
@@ -167,7 +167,7 @@ export function ConfirmDialog({ exceptionCount, onConfirm, onCancel, supplierNam
                 id="confirm-ack-validation"
                 checked={ackValidation}
                 onChange={(e) => setAckValidation(e.target.checked)}
-                style={{ marginTop: 2, width: 15, height: 15, accentColor: "#C53A3A", cursor: "pointer", flexShrink: 0 }}
+                style={{ marginTop: 2, width: 15, height: 15, accentColor: "#B43838", cursor: "pointer", flexShrink: 0 }}
               />
               <label htmlFor="confirm-ack-validation" style={{ fontSize: 12.5, color: "#0B1A2F", lineHeight: 1.5, cursor: "pointer" }}>
                 Send anyway — I understand this order doesn&apos;t meet {supplierName}&apos;s acceptance rules and may be rejected.
@@ -182,15 +182,15 @@ export function ConfirmDialog({ exceptionCount, onConfirm, onCancel, supplierNam
         </div>
 
         {/* Actions */}
-        <div style={{ padding: "14px 24px", borderTop: "1px solid #E2E6EE", display: "flex", gap: 10, justifyContent: "flex-end" }}>
-          <button onClick={onCancel} style={{ padding: "9px 18px", borderRadius: 7, fontSize: 13, fontWeight: 500, background: "#FFFFFF", color: "#56627A", border: "1px solid #E2E6EE", cursor: "pointer" }}>
+        <div style={{ padding: "14px 24px", borderTop: "1px solid #E5E8EE", display: "flex", gap: 10, justifyContent: "flex-end" }}>
+          <button onClick={onCancel} style={{ padding: "9px 18px", borderRadius: 7, fontSize: 13, fontWeight: 500, background: "#FFFFFF", color: "#5E6779", border: "1px solid #E5E8EE", cursor: "pointer" }}>
             Cancel
           </button>
           <button
             ref={confirmBtnRef}
             onClick={() => canConfirm && onConfirm()}
             disabled={!canConfirm}
-            style={{ padding: "9px 24px", borderRadius: 7, fontSize: 13, fontWeight: 600, background: canConfirm ? "#0B1A2F" : "#C6CDDA", color: "#FFFFFF", border: "none", cursor: canConfirm ? "pointer" : "not-allowed", display: "flex", alignItems: "center", gap: 8, transition: "background 150ms" }}
+            style={{ padding: "9px 24px", borderRadius: 7, fontSize: 13, fontWeight: 600, background: canConfirm ? "#0B1A2F" : "#CBD0DA", color: "#FFFFFF", border: "none", cursor: canConfirm ? "pointer" : "not-allowed", display: "flex", alignItems: "center", gap: 8, transition: "background 150ms" }}
           >
             {labels.primaryCta} →
             <span style={{ width: 10, height: 10, borderRadius: 2, background: "linear-gradient(90deg,#1E6D29,#2E8E3A)", display: "inline-block" }} />

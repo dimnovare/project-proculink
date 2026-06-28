@@ -36,28 +36,28 @@ type Tab = "overview" | "mappings" | "catalog" | "po-mapping" | "delivery" | "ac
 // (Solid --brand-green #2E8E3A is supplied by the ported .pill/.toggle/.conf classes, so it
 // isn't declared here; this component only needs the deep-text + soft-tile tones.)
 const GREEN_DEEP  = "#1E6D29";  // --brand-green-deep (supplier code + deep-green text)
-const GREEN_SOFT  = "#E2F1E2";  // --brand-green-soft (avatar tile + confidence/imported pill bg)
+const GREEN_SOFT  = "#E9F1EA";  // --brand-green-soft (avatar tile + confidence/imported pill bg)
 const GREEN_TEXT  = GREEN_DEEP; // alias retained for readability at call sites
 
 // Buyer blue — the ACTIVE affordance (tab underline), record-id links, "inherited" provenance.
 const BLUE        = "#1E66C9";  // --brand-blue       (ACTIVE accent + record-id links)
 const BLUE_DEEP   = "#0F4FA8";  // --brand-blue-deep
-const BLUE_SOFT   = "#E3EDFB";  // --brand-blue-soft  (inherited pill bg / selected row)
+const BLUE_SOFT   = "#EAF0F8";  // --brand-blue-soft  (inherited pill bg / selected row)
 
 // Ink + chrome.
 const INK         = "#0B1A2F";  // --ink
-const MUTED       = "#56627A";  // --ink-muted  (body labels, card-header glyphs)
+const MUTED       = "#5E6779";  // --ink-muted  (body labels, card-header glyphs)
 const FAINT       = "var(--ink-faint)";  // --ink-faint  (eyebrows, secondary mono)
-const LINE        = "#E2E6EE";  // --border     (one hairline for every divider/border)
-const BORDER_STRONG = "#C6CDDA";// --border-strong (button outlines)
+const LINE        = "#E5E8EE";  // --border     (one hairline for every divider/border)
+const BORDER_STRONG = "#CBD0DA";// --border-strong (button outlines)
 const SURFACE     = "#FFFFFF";  // --surface
-const SURFACE_2   = "#EFF2F7";  // --surface-2  (neutral chip bg)
+const SURFACE_2   = "#F1F3F7";  // --surface-2  (neutral chip bg)
 const BG          = "#F6F7FA";  // --bg
 
 // Semantic. (Amber tones are carried by the ported .conf-mid / .pill-review classes.)
-const DANGER      = "#C53A3A";  // --danger
+const DANGER      = "#B43838";  // --danger
 const AI          = "#6F4FCE";  // --ai      (AI provenance pill fg)
-const AI_SOFT     = "#EEE7FB";  // --ai-soft (AI provenance pill bg)
+const AI_SOFT     = "#F0EAFB";  // --ai-soft (AI provenance pill bg)
 
 const DISPLAY = "'Bricolage Grotesque', Inter, sans-serif";
 const MONO    = "'JetBrains Mono', ui-monospace, monospace";
@@ -153,8 +153,8 @@ const OPERATOR_LABELS: Record<AcceptanceRule["operator"], string> = {
 };
 
 const SEVERITY_DOT: Record<AcceptanceRule["severity"], string> = {
-  error:   "#C53A3A",
-  warning: "#C97A14",
+  error:   "#B43838",
+  warning: "#B36D14",
 };
 
 // Field options are constrained PER SCOPE to only the paths the backend acceptance
@@ -200,7 +200,7 @@ const QUICK_RULES: Array<{ label: string; rule: AcceptanceRule }> = [
 function bindingSeverityColor(severity: string): string {
   const s = (severity ?? "").toLowerCase();
   if (s === "error") return DANGER;
-  if (s === "warning") return "#C97A14";
+  if (s === "warning") return "#B36D14";
   return BLUE;
 }
 
@@ -492,8 +492,8 @@ function AcceptanceTab({ supplierId }: { supplierId: string }) {
               <span
                 className="rounded-full px-2.5 py-0.5 text-[11px] font-semibold"
                 style={{
-                  background: profile.status === "active" ? "#E2F1E2" : "#FAEFD6",
-                  color: profile.status === "active" ? GREEN_DEEP : "#C97A14",
+                  background: profile.status === "active" ? "#E9F1EA" : "#FAF1DD",
+                  color: profile.status === "active" ? GREEN_DEEP : "#B36D14",
                 }}
               >
                 v{profile.versionNo} · {profile.status === "active" ? "live" : profile.status === "draft" ? "draft — not live yet" : profile.status}
@@ -574,7 +574,7 @@ function AcceptanceTab({ supplierId }: { supplierId: string }) {
           <span className="font-semibold">How validation works.</span>{" "}
           Before an order is sent to this supplier, ProcuLink checks it against these rules.{" "}
           <strong style={{ color: DANGER }}>Error</strong> rules block delivery until they’re fixed;{" "}
-          <strong style={{ color: "#C97A14" }}>Warning</strong> rules only flag and never block.{" "}
+          <strong style={{ color: "#B36D14" }}>Warning</strong> rules only flag and never block.{" "}
           Validation never changes the order — it’s a gate.
           <span className="mt-1 block" style={{ color: MUTED }}>
             e.g. <em>Currency must be EUR</em> (error) · <em>Every line needs a supplier code</em> (error).
@@ -968,27 +968,27 @@ function CatalogTab({ supplierId }: { supplierId: string }) {
         </button>
         {!!data?.total && (
           <button type="button" onClick={() => { if (confirm("Clear the entire catalog for this supplier?")) clearMut.mutate(); }} disabled={clearMut.isPending}
-            style={{ minHeight: 36, padding: "0 12px", border: "1px solid #E2E6EE", background: "#FFFFFF", color: "#C53A3A", borderRadius: 6, fontSize: 12.5, cursor: "pointer" }}>
+            style={{ minHeight: 36, padding: "0 12px", border: "1px solid #E5E8EE", background: "#FFFFFF", color: "#B43838", borderRadius: 6, fontSize: 12.5, cursor: "pointer" }}>
             Clear
           </button>
         )}
       </div>
 
-      {notice && <div style={{ fontSize: 12, color: MUTED, marginBottom: 10, padding: "8px 10px", background: "#F6F7FA", border: "1px solid #E2E6EE", borderRadius: 6 }}>{notice}</div>}
+      {notice && <div style={{ fontSize: 12, color: MUTED, marginBottom: 10, padding: "8px 10px", background: "#F6F7FA", border: "1px solid #E5E8EE", borderRadius: 6 }}>{notice}</div>}
 
       {(data?.total ?? 0) > 0 && (
         <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search code / name / barcode"
-          style={{ width: "100%", maxWidth: 360, minHeight: 36, border: "1px solid #C6CDDA", borderRadius: 6, padding: "5px 10px", fontSize: 12.5, marginBottom: 10 }} />
+          style={{ width: "100%", maxWidth: 360, minHeight: 36, border: "1px solid #CBD0DA", borderRadius: 6, padding: "5px 10px", fontSize: 12.5, marginBottom: 10 }} />
       )}
 
       {isLoading ? (
         <div style={{ fontSize: 12, color: MUTED }}>Loading catalog…</div>
       ) : items.length === 0 ? (
-        <div style={{ fontSize: 12.5, color: MUTED, padding: "18px 14px", background: "#F6F7FA", border: "1px dashed #C6CDDA", borderRadius: 8, textAlign: "center" }}>
+        <div style={{ fontSize: 12.5, color: MUTED, padding: "18px 14px", background: "#F6F7FA", border: "1px dashed #CBD0DA", borderRadius: 8, textAlign: "center" }}>
           {q ? "No products match." : "No products yet. Import a CSV/XLSX (columns: code, name, unit, price, barcode) so the AI suggests only real supplier codes."}
         </div>
       ) : (
-        <div style={{ border: "1px solid #E2E6EE", borderRadius: 8, overflow: "hidden" }}>
+        <div style={{ border: "1px solid #E5E8EE", borderRadius: 8, overflow: "hidden" }}>
           <table className="w-full border-collapse" style={{ fontSize: 12 }}>
             <thead>
               <tr style={{ background: "#F6F7FA", color: MUTED, textAlign: "left" }}>
@@ -1018,7 +1018,7 @@ function CatalogTab({ supplierId }: { supplierId: string }) {
       )}
 
       {/* ── Automatic import sources (additive — manual upload above stays primary) ── */}
-      <details style={{ marginTop: 18, border: "1px solid #E2E6EE", borderRadius: 8, background: "#FBFCFE" }}>
+      <details style={{ marginTop: 18, border: "1px solid #E5E8EE", borderRadius: 8, background: "#FBFCFE" }}>
         <summary style={{ cursor: "pointer", listStyle: "none", padding: "11px 14px", fontSize: 13, fontWeight: 700, color: INK, display: "flex", alignItems: "center", gap: 8 }}>
           <ChevronRight size={15} data-disclosure-chevron style={{ color: MUTED }} aria-hidden />
           Keep the catalog in sync automatically
@@ -1065,8 +1065,8 @@ function CatalogPushCard({ supplierId }: { supplierId: string }) {
   }
 
   return (
-    <div style={{ border: "1px solid #E2E6EE", borderRadius: 8, background: "#FFFFFF" }}>
-      <div style={{ padding: "11px 14px", borderBottom: "1px solid #E2E6EE", background: "#F6F7FA" }}>
+    <div style={{ border: "1px solid #E5E8EE", borderRadius: 8, background: "#FFFFFF" }}>
+      <div style={{ padding: "11px 14px", borderBottom: "1px solid #E5E8EE", background: "#F6F7FA" }}>
         <div style={{ fontSize: 13, fontWeight: 600, color: INK }}>Push from your system</div>
         <div style={{ fontSize: 11.5, color: MUTED, marginTop: 2 }}>
           POST a CSV or XLSX to this endpoint with your API key — products upsert by code.
@@ -1074,11 +1074,11 @@ function CatalogPushCard({ supplierId }: { supplierId: string }) {
       </div>
       <div style={{ padding: 14, display: "grid", gap: 10 }}>
         <div style={{ display: "flex", alignItems: "stretch", gap: 8, flexWrap: "wrap" }}>
-          <code style={{ flex: 1, minWidth: 220, fontFamily: MONO, fontSize: 11.5, color: INK, background: "#0B1A2F0A", border: "1px solid #E2E6EE", borderRadius: 6, padding: "8px 10px", wordBreak: "break-all", display: "flex", alignItems: "center" }}>
+          <code style={{ flex: 1, minWidth: 220, fontFamily: MONO, fontSize: 11.5, color: INK, background: "#0B1A2F0A", border: "1px solid #E5E8EE", borderRadius: 6, padding: "8px 10px", wordBreak: "break-all", display: "flex", alignItems: "center" }}>
             POST {url}
           </code>
           <button type="button" onClick={copy}
-            style={{ minHeight: 36, padding: "0 14px", border: "1px solid #C6CDDA", background: "#FFFFFF", color: INK, borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
+            style={{ minHeight: 36, padding: "0 14px", border: "1px solid #CBD0DA", background: "#FFFFFF", color: INK, borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
             {copied ? "Copied" : "Copy"}
           </button>
         </div>
@@ -1668,7 +1668,7 @@ export function SupplierDockProfile({ id }: { id: string }) {
           ) : (
             <div
               className="rounded-[10px] px-6 py-12 text-center"
-              style={{ border: "1px dashed #C6CDDA", background: SURFACE }}
+              style={{ border: "1px dashed #CBD0DA", background: SURFACE }}
             >
               <p className="text-[14px] font-semibold" style={{ color: INK }}>No versions yet</p>
               <p className="mx-auto mt-1 max-w-[420px] text-[12.5px] leading-5" style={{ color: MUTED }}>

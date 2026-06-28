@@ -307,15 +307,15 @@ export function CatalogSourceEditor({ supplierId }: CatalogSourceEditorProps) {
   const cleartextHttp = isUrlProtocol && url.trim().toLowerCase().startsWith("http://");
 
   return (
-    <div className="overflow-hidden rounded-[8px]" style={{ border: "1px solid #E2E6EE", background: "#FFFFFF" }}>
+    <div className="overflow-hidden rounded-[8px]" style={{ border: "1px solid #E5E8EE", background: "#FFFFFF" }}>
       <div
         className="flex flex-col items-start gap-3 px-4 py-3 sm:flex-row sm:items-center"
-        style={{ borderBottom: "1px solid #E2E6EE", background: "#F6F7FA" }}
+        style={{ borderBottom: "1px solid #E5E8EE", background: "#F6F7FA" }}
       >
         <span className="h-2.5 w-2.5 rounded-full" style={{ background: isEnabled ? "#2E8E3A" : "var(--ink-faint)" }} />
         <div className="min-w-0 flex-1">
           <h3 className="text-[13px] font-semibold" style={{ color: "#0B1A2F" }}>Pull from a file server or API</h3>
-          <p className="text-[11px]" style={{ color: "#56627A" }}>
+          <p className="text-[11px]" style={{ color: "#5E6779" }}>
             ProcuLink fetches the supplier&apos;s catalog on a schedule and upserts products by code.
           </p>
         </div>
@@ -333,7 +333,7 @@ export function CatalogSourceEditor({ supplierId }: CatalogSourceEditorProps) {
       </div>
 
       <div className="grid gap-0 lg:grid-cols-[200px_minmax(0,1fr)]">
-        <div className="p-4" style={{ borderRight: "1px solid #E2E6EE", background: "#FBFCFE" }}>
+        <div className="p-4" style={{ borderRight: "1px solid #E5E8EE", background: "#FBFCFE" }}>
           <p id="catalog-protocol-label" className="mb-2 text-[11px] font-semibold uppercase" style={{ color: "var(--ink-faint)" }}>Protocol</p>
           <div className="grid gap-2" role="radiogroup" aria-labelledby="catalog-protocol-label" onKeyDown={handleProtocolKeyDown}>
             {PROTOCOLS.map((item) => {
@@ -350,7 +350,7 @@ export function CatalogSourceEditor({ supplierId }: CatalogSourceEditorProps) {
                   className="flex min-h-[44px] items-center justify-between rounded-[6px] px-3 text-[12px] font-semibold"
                   style={{
                     border: selected ? "1px solid #2E8E3A" : "1px solid #D5DAEA",
-                    background: selected ? "#E2F1E2" : "#FFFFFF",
+                    background: selected ? "#E9F1EA" : "#FFFFFF",
                     color: "#0B1A2F",
                     cursor: "pointer",
                   }}
@@ -371,7 +371,7 @@ export function CatalogSourceEditor({ supplierId }: CatalogSourceEditorProps) {
 
         <div className="p-4">
           {loading ? (
-            <p className="text-[13px]" style={{ color: "#56627A" }}>Loading import source...</p>
+            <p className="text-[13px]" style={{ color: "#5E6779" }}>Loading import source...</p>
           ) : (
             <div className="grid gap-4">
               {protocol === "ftp" && (
@@ -481,8 +481,8 @@ export function CatalogSourceEditor({ supplierId }: CatalogSourceEditorProps) {
 
               {/* ── Credentials: file-server password OR HTTP auth ─────────── */}
               {isUrlProtocol ? (
-                <div className="rounded-[7px]" style={{ border: "1px solid #E2E6EE" }}>
-                  <div className="flex items-center gap-2 px-3 py-2" style={{ borderBottom: "1px solid #E2E6EE" }}>
+                <div className="rounded-[7px]" style={{ border: "1px solid #E5E8EE" }}>
+                  <div className="flex items-center gap-2 px-3 py-2" style={{ borderBottom: "1px solid #E5E8EE" }}>
                     <KeyRound size={14} color="#2E8E3A" />
                     <span className="text-[12px] font-semibold" style={{ color: "#0B1A2F" }}>Authentication</span>
                     {savedAuthSecretForMethod && (
@@ -556,7 +556,7 @@ export function CatalogSourceEditor({ supplierId }: CatalogSourceEditorProps) {
 
                     {authMethod === "oauth2_client_credentials" && (
                       <div className="grid gap-3">
-                        <p className="text-[11px]" style={{ color: "#56627A" }}>
+                        <p className="text-[11px]" style={{ color: "#5E6779" }}>
                           Before each fetch, ProcuLink calls the token URL with the client credentials, then
                           sends the returned token as <code>Authorization: Bearer</code>. The client secret is
                           stored encrypted; the token is fetched fresh and never stored.
@@ -595,8 +595,8 @@ export function CatalogSourceEditor({ supplierId }: CatalogSourceEditorProps) {
                   </div>
                 </div>
               ) : (
-                <div className="rounded-[7px]" style={{ border: "1px solid #E2E6EE" }}>
-                  <div className="flex items-center gap-2 px-3 py-2" style={{ borderBottom: "1px solid #E2E6EE" }}>
+                <div className="rounded-[7px]" style={{ border: "1px solid #E5E8EE" }}>
+                  <div className="flex items-center gap-2 px-3 py-2" style={{ borderBottom: "1px solid #E5E8EE" }}>
                     <KeyRound size={14} color="#2E8E3A" />
                     <span className="text-[12px] font-semibold" style={{ color: "#0B1A2F" }}>Credentials</span>
                     {hasPassword && (
@@ -652,8 +652,8 @@ export function CatalogSourceEditor({ supplierId }: CatalogSourceEditorProps) {
                   className="flex items-center gap-2 rounded-[6px] px-3 py-2 text-[12px]"
                   style={{
                     background: lastSync.tone === "failed" ? "#FCEBEB" : "#F6F7FA",
-                    border: `1px solid ${lastSync.tone === "failed" ? "#F5C5C5" : "#E2E6EE"}`,
-                    color: lastSync.tone === "failed" ? "#A52E2E" : "#56627A",
+                    border: `1px solid ${lastSync.tone === "failed" ? "#F5C5C5" : "#E5E8EE"}`,
+                    color: lastSync.tone === "failed" ? "#A52E2E" : "#5E6779",
                   }}
                 >
                   <span
@@ -663,7 +663,7 @@ export function CatalogSourceEditor({ supplierId }: CatalogSourceEditorProps) {
                         lastSync.tone === "ok"
                           ? "#2E8E3A"
                           : lastSync.tone === "failed"
-                            ? "#C53A3A"
+                            ? "#B43838"
                             : lastSync.tone === "running"
                               ? "#1E66C9"
                               : "var(--ink-faint)",
@@ -691,7 +691,7 @@ export function CatalogSourceEditor({ supplierId }: CatalogSourceEditorProps) {
         </div>
       </div>
 
-      <div className="flex flex-col items-stretch gap-2 px-4 py-3 sm:flex-row sm:items-center" style={{ borderTop: "1px solid #E2E6EE", background: "#F6F7FA" }}>
+      <div className="flex flex-col items-stretch gap-2 px-4 py-3 sm:flex-row sm:items-center" style={{ borderTop: "1px solid #E5E8EE", background: "#F6F7FA" }}>
         {savedSource && (
           <button onClick={remove} disabled={saving} className="inline-flex h-8 items-center justify-center gap-1.5 rounded-[6px] px-3 text-[12px] font-semibold" style={{ border: "1px solid #E9B8B8", color: "#A52E2E", background: "#FFF" }}>
             <Trash2 size={13} /> Delete
@@ -732,10 +732,10 @@ function TestReport({ result }: { result: CatalogSourceTestResult }) {
         {result.mappedFields.length > 0 && (
           <div>
             <p className="mb-1 text-[11px] font-semibold uppercase" style={{ color: "var(--ink-faint)" }}>Mapped columns</p>
-            <div className="overflow-hidden rounded-[6px]" style={{ border: "1px solid #E2E6EE" }}>
+            <div className="overflow-hidden rounded-[6px]" style={{ border: "1px solid #E5E8EE" }}>
               <table className="w-full border-collapse" style={{ fontSize: 12 }}>
                 <thead>
-                  <tr style={{ background: "#F6F7FA", color: "#56627A", textAlign: "left" }}>
+                  <tr style={{ background: "#F6F7FA", color: "#5E6779", textAlign: "left" }}>
                     <th style={{ padding: "5px 9px", fontWeight: 700 }}>Their column</th>
                     <th style={{ padding: "5px 9px", fontWeight: 700 }}>Maps to</th>
                   </tr>
@@ -758,7 +758,7 @@ function TestReport({ result }: { result: CatalogSourceTestResult }) {
             <p className="mb-1 text-[11px] font-semibold uppercase" style={{ color: "var(--ink-faint)" }}>Ignored columns</p>
             <div className="flex flex-wrap gap-1.5">
               {result.unmappedColumns.map((c) => (
-                <span key={c} className="rounded-[4px] px-2 py-0.5 text-[11px]" style={{ background: "#EFF2F7", color: "#56627A", fontFamily: "'JetBrains Mono',monospace" }}>{c}</span>
+                <span key={c} className="rounded-[4px] px-2 py-0.5 text-[11px]" style={{ background: "#F1F3F7", color: "#5E6779", fontFamily: "'JetBrains Mono',monospace" }}>{c}</span>
               ))}
             </div>
             <p className="mt-1 text-[11px]" style={{ color: "var(--ink-faint)" }}>ProcuLink reads only the mapped columns above.</p>
@@ -770,10 +770,10 @@ function TestReport({ result }: { result: CatalogSourceTestResult }) {
             <p className="mb-1 text-[11px] font-semibold uppercase" style={{ color: "var(--ink-faint)" }}>
               Sample rows (first {result.sampleRows.length})
             </p>
-            <div className="overflow-x-auto rounded-[6px]" style={{ border: "1px solid #E2E6EE" }}>
+            <div className="overflow-x-auto rounded-[6px]" style={{ border: "1px solid #E5E8EE" }}>
               <table className="w-full border-collapse" style={{ fontSize: 11.5 }}>
                 <thead>
-                  <tr style={{ background: "#F6F7FA", color: "#56627A", textAlign: "left" }}>
+                  <tr style={{ background: "#F6F7FA", color: "#5E6779", textAlign: "left" }}>
                     {result.headerColumns.map((h) => (
                       <th key={h} style={{ padding: "5px 9px", fontWeight: 700, whiteSpace: "nowrap" }}>{h}</th>
                     ))}

@@ -247,12 +247,12 @@ export function BridgeSidebar({
   return (
     <aside
       className="on-navy flex h-full flex-shrink-0 flex-col overflow-hidden transition-[width] duration-200"
-      style={{ width: fullWidth ? "100%" : (isCollapsed ? 66 : 220), background: "#0B1A2F", borderRight: fullWidth ? "none" : "1px solid #1C2F49" }}
+      style={{ width: fullWidth ? "100%" : (isCollapsed ? 66 : 220), background: "#0B1A2F", borderRight: fullWidth ? "none" : "1px solid #1F3252" }}
     >
       {/* ── Logo + collapse toggle ────────────────────────────────── */}
       <div
         className="flex items-center flex-shrink-0"
-        style={{ height: 56, gap: isCollapsed ? 0 : 9, padding: isCollapsed ? "0 14px" : "0 18px", borderBottom: "1px solid #1C2F49", color: "#FFFFFF" }}
+        style={{ height: 56, gap: isCollapsed ? 0 : 9, padding: isCollapsed ? "0 14px" : "0 18px", borderBottom: "1px solid #1F3252", color: "#FFFFFF" }}
       >
         <ProcuLinkMark size={24} mono />
         {!isCollapsed && (
@@ -273,7 +273,7 @@ export function BridgeSidebar({
             <span
               className="flex items-center justify-center rounded-[6px]"
               style={{ width: 28, height: 28, color: "#7C8DA6", background: "transparent", border: "1px solid transparent", transition: "background 150ms, color 150ms" }}
-              onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "#10243E"; (e.currentTarget as HTMLElement).style.color = "#FFFFFF"; }}
+              onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "#14253D"; (e.currentTarget as HTMLElement).style.color = "#FFFFFF"; }}
               onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "transparent"; (e.currentTarget as HTMLElement).style.color = "#7C8DA6"; }}
             >
               {isCollapsed ? <ChevronsRight size={16} /> : <ChevronsLeft size={16} />}
@@ -293,7 +293,7 @@ export function BridgeSidebar({
             <span
               className="flex items-center justify-center rounded-[6px]"
               style={{ width: 28, height: 28, color: "#7C8DA6", background: "transparent", border: "1px solid transparent", transition: "background 150ms, color 150ms" }}
-              onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "#10243E"; (e.currentTarget as HTMLElement).style.color = "#FFFFFF"; }}
+              onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "#14253D"; (e.currentTarget as HTMLElement).style.color = "#FFFFFF"; }}
               onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "transparent"; (e.currentTarget as HTMLElement).style.color = "#7C8DA6"; }}
             >
               <X size={18} />
@@ -310,7 +310,7 @@ export function BridgeSidebar({
       <div
         title={isCollapsed ? `${orgName} · ${planLabel}` : undefined}
         className={`flex items-center rounded-[6px] text-left ${isCollapsed ? "mx-auto justify-center w-[44px] py-[9px]" : "gap-2.5 w-[calc(100%-28px)]"}`}
-        style={{ background: "#10243E", border: "1px solid #1C2F49", margin: isCollapsed ? "12px auto 6px" : "12px 14px 6px", padding: isCollapsed ? undefined : "9px 11px" }}
+        style={{ background: "#14253D", border: "1px solid #1F3252", margin: isCollapsed ? "12px auto 6px" : "12px 14px 6px", padding: isCollapsed ? undefined : "9px 11px" }}
       >
         <div className="flex items-center justify-center rounded-[4px] text-[10.5px] font-bold text-white flex-shrink-0" style={{ width: 26, height: 26, background: "#1E66C9" }}>{initials}</div>
         {!isCollapsed && (
@@ -329,7 +329,7 @@ export function BridgeSidebar({
               <div className="px-[10px] pt-1.5 pb-1 text-[10px] font-semibold uppercase tracking-[0.08em]" style={{ color: "#7C8DA6" }}>{section.group}</div>
             )}
             {section.group && isCollapsed && si > 0 && (
-              <div className="mx-3 mb-1.5" style={{ height: 1, background: "#1C2F49" }} aria-hidden />
+              <div className="mx-3 mb-1.5" style={{ height: 1, background: "#1F3252" }} aria-hidden />
             )}
             {section.items.map((item) => {
               const active = isActive(item.href);
@@ -344,17 +344,17 @@ export function BridgeSidebar({
                   rel={item.newTab ? "noopener noreferrer" : undefined}
                   title={isCollapsed ? item.label : undefined}
                   className={`flex items-center rounded-[6px] text-[12.5px] font-medium transition-colors duration-75 relative ${isCollapsed ? "justify-center py-[9px]" : "gap-2.5 px-[10px] py-[7px]"}`}
-                  style={{ color: active ? "#FFFFFF" : "#C5D2E4", background: active ? "#1E66C9" : "transparent" }}
-                  onMouseEnter={(e) => { if (!active) { (e.currentTarget as HTMLElement).style.background = "#10243E"; (e.currentTarget as HTMLElement).style.color = "#FFFFFF"; } }}
-                  onMouseLeave={(e) => { if (!active) { (e.currentTarget as HTMLElement).style.background = "transparent"; (e.currentTarget as HTMLElement).style.color = "#C5D2E4"; } }}
+                  style={{ color: active ? "#FFFFFF" : "#C8D1E0", background: active ? "#1E66C9" : "transparent" }}
+                  onMouseEnter={(e) => { if (!active) { (e.currentTarget as HTMLElement).style.background = "#14253D"; (e.currentTarget as HTMLElement).style.color = "#FFFFFF"; } }}
+                  onMouseLeave={(e) => { if (!active) { (e.currentTarget as HTMLElement).style.background = "transparent"; (e.currentTarget as HTMLElement).style.color = "#C8D1E0"; } }}
                 >
                   <Ico size={16} strokeWidth={1.9} style={{ flexShrink: 0, color: active ? "#FFFFFF" : "#7C8DA6" }} />
                   {!isCollapsed && <span className="flex-1">{item.label}</span>}
                   {!isCollapsed && badge && (
-                    <span className="flex items-center justify-center rounded-full text-[10.5px] font-semibold" style={{ minWidth: 18, height: 18, padding: "0 5px", background: "#C97A14", color: "#FFFFFF" }}>{badge}</span>
+                    <span className="flex items-center justify-center rounded-full text-[10.5px] font-semibold" style={{ minWidth: 18, height: 18, padding: "0 5px", background: "#B36D14", color: "#FFFFFF" }}>{badge}</span>
                   )}
                   {isCollapsed && badge && (
-                    <span className="absolute rounded-full" style={{ top: 5, right: 11, width: 7, height: 7, background: "#C97A14" }} aria-hidden />
+                    <span className="absolute rounded-full" style={{ top: 5, right: 11, width: 7, height: 7, background: "#B36D14" }} aria-hidden />
                   )}
                 </Link>
               );
@@ -371,7 +371,7 @@ export function BridgeSidebar({
           support-form SMTP state — the ICP is high-touch (audit "reach a human"). */}
       <div
         className={`flex flex-col ${isCollapsed ? "items-center" : ""}`}
-        style={{ borderTop: "1px solid #1C2F49", flexShrink: 0, padding: "10px 18px", gap: 4 }}
+        style={{ borderTop: "1px solid #1F3252", flexShrink: 0, padding: "10px 18px", gap: 4 }}
       >
         <a
           href="mailto:sales@proculink.eu?subject=ProcuLink%20support"

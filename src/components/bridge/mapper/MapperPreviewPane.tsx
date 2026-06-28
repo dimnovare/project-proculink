@@ -206,8 +206,8 @@ export function MapperPreviewPane({ previewOrderId, override, lastTouched, suppl
   }, [content]);
 
   return (
-    <div style={{ border: "1px solid #E2E6EE", borderRadius: 10, background: "#FBFBFD", overflow: "hidden" }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 16px", borderBottom: "1px solid #E2E6EE" }}>
+    <div style={{ border: "1px solid #E5E8EE", borderRadius: 10, background: "#FBFBFD", overflow: "hidden" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 16px", borderBottom: "1px solid #E5E8EE" }}>
         <span style={{ display: "flex", flexDirection: "column", gap: 1, minWidth: 0 }}>
           <span style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "#1E6D29" }}>
             Live preview · {deliveredFormat.toUpperCase()}
@@ -219,17 +219,17 @@ export function MapperPreviewPane({ previewOrderId, override, lastTouched, suppl
           </span>
         </span>
         {content && !err && (
-          <span style={{ display: "inline-flex", alignItems: "center", gap: 4, padding: "2px 8px", borderRadius: 999, background: "#E2F1E2", color: "#1E6D29", fontSize: 10.5, fontWeight: 600, flexShrink: 0 }}>
+          <span style={{ display: "inline-flex", alignItems: "center", gap: 4, padding: "2px 8px", borderRadius: 999, background: "#E9F1EA", color: "#1E6D29", fontSize: 10.5, fontWeight: 600, flexShrink: 0 }}>
             <svg width="11" height="11" viewBox="0 0 16 16" fill="none" aria-hidden><path d="M13.5 4.5 6.5 11.5 3 8" stroke="#1E6D29" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>
             Valid
           </span>
         )}
-        {lastTouched && <span style={{ fontSize: 10, color: "#8A93A5", flexShrink: 0 }}>edited {lastTouched}</span>}
+        {lastTouched && <span style={{ fontSize: 10, color: "#98A0AE", flexShrink: 0 }}>edited {lastTouched}</span>}
         <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 4 }}>
           {/* Design-system v1 (handoff §7): segmented format control — surface-2 track, the
               delivered/active format filled greenDeep + white. Clicking previews-as; it does NOT
               change what is delivered (the supplier's format stays the default). */}
-          <div style={{ display: "inline-flex", gap: 2, padding: 3, background: "#EFF2F7", borderRadius: 8 }}>
+          <div style={{ display: "inline-flex", gap: 2, padding: 3, background: "#F1F3F7", borderRadius: 8 }}>
             {PREVIEW_FORMATS.map((f) => {
               const active = format === f.value;
               return (
@@ -243,7 +243,7 @@ export function MapperPreviewPane({ previewOrderId, override, lastTouched, suppl
                     padding: "4px 9px", borderRadius: 6, cursor: "pointer",
                     fontSize: 11, fontWeight: 600, border: "1px solid transparent",
                     background: active ? "#1E6D29" : "transparent",
-                    color: active ? "#FFFFFF" : "#8A93A5",
+                    color: active ? "#FFFFFF" : "#98A0AE",
                   }}
                 >
                   {f.label}
@@ -251,7 +251,7 @@ export function MapperPreviewPane({ previewOrderId, override, lastTouched, suppl
               );
             })}
           </div>
-          <span style={{ width: 1, height: 16, background: "#E2E6EE", margin: "0 2px" }} aria-hidden />
+          <span style={{ width: 1, height: 16, background: "#E5E8EE", margin: "0 2px" }} aria-hidden />
           <button
             type="button"
             onClick={onCopy}
@@ -274,7 +274,7 @@ export function MapperPreviewPane({ previewOrderId, override, lastTouched, suppl
       </div>
 
       {info && (
-        <div style={{ padding: "8px 12px", fontSize: 11, color: "#56627A", background: "#EEF3FB", borderBottom: "1px solid #D5E3F6", lineHeight: 1.5 }}>
+        <div style={{ padding: "8px 12px", fontSize: 11, color: "#5E6779", background: "#EEF3FB", borderBottom: "1px solid #D5E3F6", lineHeight: 1.5 }}>
           {info}
         </div>
       )}
@@ -302,7 +302,7 @@ export function MapperPreviewPane({ previewOrderId, override, lastTouched, suppl
             margin: 0, padding: "14px 4px 24px", maxHeight: 300, overflow: "auto",
             fontFamily: "'JetBrains Mono',monospace", fontVariantNumeric: "tabular-nums", fontSize: 11.5, lineHeight: 1.95,
             background: "#0B1A2F", color: "#C8D1E0", whiteSpace: "pre-wrap", wordBreak: "break-word",
-            borderTop: "1px solid #1C2F49",
+            borderTop: "1px solid #1F3252",
             opacity: busy ? 0.55 : 1, transition: "opacity 150ms",
           }}
         >

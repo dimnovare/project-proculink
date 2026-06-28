@@ -479,15 +479,15 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
   }
 
   return (
-    <div className="overflow-hidden rounded-[8px]" style={{ border: "1px solid #E2E6EE", background: "#FFFFFF" }}>
+    <div className="overflow-hidden rounded-[8px]" style={{ border: "1px solid #E5E8EE", background: "#FFFFFF" }}>
       <div
         className="flex flex-col items-start gap-3 px-4 py-3 sm:flex-row sm:items-center"
-        style={{ borderBottom: "1px solid #E2E6EE", background: "#F6F7FA" }}
+        style={{ borderBottom: "1px solid #E5E8EE", background: "#F6F7FA" }}
       >
         <span className="h-2.5 w-2.5 rounded-full" style={{ background: autoDeliver ? "#2E8E3A" : "var(--ink-faint)" }} />
         <div className="min-w-0 flex-1">
           <h3 className="text-[13px] font-semibold" style={{ color: "#0B1A2F" }}>Supplier delivery</h3>
-          <p className="text-[11px]" style={{ color: "#56627A" }}>
+          <p className="text-[11px]" style={{ color: "#5E6779" }}>
             Configure the channel used once an order is ready to send.
           </p>
         </div>
@@ -505,7 +505,7 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
       </div>
 
       <div className="grid gap-0 lg:grid-cols-[220px_minmax(0,1fr)]">
-        <div className="p-4" style={{ borderRight: "1px solid #E2E6EE", background: "#FBFCFE" }}>
+        <div className="p-4" style={{ borderRight: "1px solid #E5E8EE", background: "#FBFCFE" }}>
           <p id="delivery-protocol-label" className="mb-2 text-[11px] font-semibold uppercase" style={{ color: "var(--ink-faint)" }}>Protocol</p>
           <div className="grid gap-2" role="radiogroup" aria-labelledby="delivery-protocol-label" onKeyDown={handleProtocolKeyDown}>
             {PROTOCOLS.map((item) => {
@@ -523,7 +523,7 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
                   className="flex min-h-[44px] items-center justify-between rounded-[6px] px-3 text-[12px] font-semibold"
                   style={{
                     border: selected ? "1px solid #2E8E3A" : "1px solid #D5DAEA",
-                    background: selected ? "#E2F1E2" : "#FFFFFF",
+                    background: selected ? "#E9F1EA" : "#FFFFFF",
                     color: item.enabled ? "#0B1A2F" : "var(--ink-faint)",
                     cursor: item.enabled ? "pointer" : "not-allowed",
                   }}
@@ -545,11 +545,11 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
 
         <div className="p-4">
           {loading ? (
-            <p className="text-[13px]" style={{ color: "#56627A" }}>Loading delivery config...</p>
+            <p className="text-[13px]" style={{ color: "#5E6779" }}>Loading delivery config...</p>
           ) : (
             <div className="grid gap-4">
               {/* ── Output format (what this supplier requires) ────────────── */}
-              <div className="rounded-[7px] p-3" style={{ border: "1px solid #E2E6EE", background: "#FBFCFE" }}>
+              <div className="rounded-[7px] p-3" style={{ border: "1px solid #E5E8EE", background: "#FBFCFE" }}>
                 <Field label="Output format — the format this supplier requires">
                   <select
                     value={outputFormat}
@@ -576,8 +576,8 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
 
               {/* ── cXML network credentials (only for cXML output) ────────── */}
               {outputFormat === "cxml" && (
-                <div className="rounded-[7px]" style={{ border: "1px solid #E2E6EE" }}>
-                  <div className="flex items-center gap-2 px-3 py-2" style={{ borderBottom: "1px solid #E2E6EE" }}>
+                <div className="rounded-[7px]" style={{ border: "1px solid #E5E8EE" }}>
+                  <div className="flex items-center gap-2 px-3 py-2" style={{ borderBottom: "1px solid #E5E8EE" }}>
                     <KeyRound size={14} color="#2E8E3A" />
                     <span className="text-[12px] font-semibold" style={{ color: "#0B1A2F" }}>cXML network credentials</span>
                     {hasCxmlSharedSecret && (
@@ -585,7 +585,7 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
                     )}
                   </div>
                   <div className="grid gap-3 p-3">
-                    <p className="text-[11px]" style={{ color: "#56627A" }}>
+                    <p className="text-[11px]" style={{ color: "#5E6779" }}>
                       Written into the cXML <code>&lt;Header&gt;</code>. Leave blank to fall back to
                       ProcuLink&apos;s internal IDs. Example (Coupa): From <code>NetworkId</code> /{" "}
                       <code>Nasdaq_SE</code>, To <code>NetworkId</code> / <code>Markit_SE</code>.
@@ -897,7 +897,7 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
                     Use SSL on connect (implicit TLS, e.g. port 465). Otherwise STARTTLS is used when available.
                   </label>
                   <details>
-                    <summary className="cursor-pointer text-[11px] font-semibold" style={{ color: "#56627A" }}>
+                    <summary className="cursor-pointer text-[11px] font-semibold" style={{ color: "#5E6779" }}>
                       Advanced — subject / body / attachment
                     </summary>
                     <div className="mt-3 grid gap-3">
@@ -947,8 +947,8 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
               )}
 
               {/* ── Authentication ─────────────────────────────────────────── */}
-              <div className="rounded-[7px]" style={{ border: "1px solid #E2E6EE" }}>
-                <div className="flex items-center gap-2 px-3 py-2" style={{ borderBottom: "1px solid #E2E6EE" }}>
+              <div className="rounded-[7px]" style={{ border: "1px solid #E5E8EE" }}>
+                <div className="flex items-center gap-2 px-3 py-2" style={{ borderBottom: "1px solid #E5E8EE" }}>
                   <KeyRound size={14} color="#2E8E3A" />
                   <span className="text-[12px] font-semibold" style={{ color: "#0B1A2F" }}>Authentication</span>
                   {hasSavedCredentials && (
@@ -1001,7 +1001,7 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
 
                     {authType === "oauth2" && protocol === "http" && (
                       <div className="grid gap-3">
-                        <p className="text-[11px]" style={{ color: "#56627A" }}>
+                        <p className="text-[11px]" style={{ color: "#5E6779" }}>
                           Before each delivery, ProcuLink calls the token URL with the client credentials, then
                           sends the returned token as <code>Authorization: Bearer</code>. The token is fetched
                           fresh each time and never stored.
@@ -1023,7 +1023,7 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
                           </Field>
                         </div>
                         <details>
-                          <summary className="cursor-pointer text-[11px] font-semibold" style={{ color: "#56627A" }}>
+                          <summary className="cursor-pointer text-[11px] font-semibold" style={{ color: "#5E6779" }}>
                             Advanced — grant type / request format / token field
                           </summary>
                           <div className="mt-3 grid gap-3 lg:grid-cols-2">
@@ -1184,7 +1184,7 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
         </div>
       </div>
 
-      <div className="flex flex-col items-stretch gap-2 px-4 py-3 sm:flex-row sm:items-center" style={{ borderTop: "1px solid #E2E6EE", background: "#F6F7FA" }}>
+      <div className="flex flex-col items-stretch gap-2 px-4 py-3 sm:flex-row sm:items-center" style={{ borderTop: "1px solid #E5E8EE", background: "#F6F7FA" }}>
         {savedConfig && (
           <button onClick={remove} disabled={saving} className="inline-flex h-8 items-center justify-center gap-1.5 rounded-[6px] px-3 text-[12px] font-semibold" style={{ border: "1px solid #E9B8B8", color: "#A52E2E", background: "#FFF" }}>
             <Trash2 size={13} /> Delete

@@ -23,8 +23,8 @@ export type Lane = {
 
 const HEALTH_COLOR: Record<string, string> = {
   ok:   "#2E8E3A",
-  risk: "#C97A14",
-  down: "#C53A3A",
+  risk: "#B36D14",
+  down: "#B43838",
 };
 
 const HEALTH_LABEL: Record<string, string> = {
@@ -43,9 +43,9 @@ const MOCK_CROSSINGS = [
 ];
 
 const STATUS_DOT: Record<string, string> = {
-  review: "#C97A14",
+  review: "#B36D14",
   sent:   "#2E8E3A",
-  failed: "#C53A3A",
+  failed: "#B43838",
   new:    "#1E66C9",
 };
 
@@ -55,13 +55,13 @@ function liveStatusDot(status: OrderStatus | string): string {
     case "delivered":
       return "#2E8E3A";
     case "pending_review":
-      return "#C97A14";
+      return "#B36D14";
     case "failed":
     case "transform_failed":
     case "delivery_failed":
     case "delivery_dead_letter":
     case "rejected_by_supplier":
-      return "#C53A3A";
+      return "#B43838";
     default:
       return "#1E66C9";
   }
@@ -163,7 +163,7 @@ export function LaneDrawer({ lane, onClose }: LaneDrawerProps) {
         <div
           style={{
             padding: "20px 20px 16px",
-            borderBottom: "1px solid #E2E6EE",
+            borderBottom: "1px solid #E5E8EE",
             flexShrink: 0,
           }}
         >
@@ -211,7 +211,7 @@ export function LaneDrawer({ lane, onClose }: LaneDrawerProps) {
               padding: "12px 14px",
               background: "#F6F7FA",
               borderRadius: 8,
-              border: "1px solid #E2E6EE",
+              border: "1px solid #E5E8EE",
             }}
           >
             {/* Buyer */}
@@ -327,7 +327,7 @@ export function LaneDrawer({ lane, onClose }: LaneDrawerProps) {
               display: "flex",
               gap: 0,
               marginTop: 12,
-              border: "1px solid #E2E6EE",
+              border: "1px solid #E5E8EE",
               borderRadius: 8,
               overflow: "hidden",
             }}
@@ -335,7 +335,7 @@ export function LaneDrawer({ lane, onClose }: LaneDrawerProps) {
             {[
               { label: "Volume",  value: lane.volume },
               { label: "Health",  value: HEALTH_LABEL[lane.health], color: hc },
-              { label: "Alerts",  value: lane.alert ? `${lane.alert}` : "—", color: lane.alert ? "#C97A14" : undefined },
+              { label: "Alerts",  value: lane.alert ? `${lane.alert}` : "—", color: lane.alert ? "#B36D14" : undefined },
             ].map(({ label, value, color }, i) => (
               <div
                 key={i}
@@ -343,7 +343,7 @@ export function LaneDrawer({ lane, onClose }: LaneDrawerProps) {
                   flex: 1,
                   padding: "10px 12px",
                   textAlign: "center",
-                  borderRight: i < 2 ? "1px solid #E2E6EE" : undefined,
+                  borderRight: i < 2 ? "1px solid #E5E8EE" : undefined,
                   background: "#FAFBFC",
                 }}
               >
@@ -449,7 +449,7 @@ export function LaneDrawer({ lane, onClose }: LaneDrawerProps) {
                   style={{
                     fontFamily: "'JetBrains Mono', monospace",
                     fontSize: 11.5,
-                    color: "#56627A",
+                    color: "#5E6779",
                   }}
                 >
                   {o.totalValue.toLocaleString(undefined, {
@@ -477,7 +477,7 @@ export function LaneDrawer({ lane, onClose }: LaneDrawerProps) {
                   fontWeight: 600,
                   background: "#FFFFFF",
                   color: "#0F4FA8",
-                  border: "1px solid #E2E6EE",
+                  border: "1px solid #E5E8EE",
                   cursor: "pointer",
                 }}
               >
@@ -533,7 +533,7 @@ export function LaneDrawer({ lane, onClose }: LaneDrawerProps) {
                 style={{
                   fontFamily: "'JetBrains Mono', monospace",
                   fontSize: 11.5,
-                  color: "#56627A",
+                  color: "#5E6779",
                 }}
               >
                 {c.value}
@@ -547,7 +547,7 @@ export function LaneDrawer({ lane, onClose }: LaneDrawerProps) {
         <div
           style={{
             padding: "14px 20px",
-            borderTop: "1px solid #E2E6EE",
+            borderTop: "1px solid #E5E8EE",
             display: "flex",
             gap: 8,
             flexShrink: 0,
@@ -582,8 +582,8 @@ export function LaneDrawer({ lane, onClose }: LaneDrawerProps) {
               fontSize: 13,
               fontWeight: 500,
               background: "#FFFFFF",
-              color: "#56627A",
-              border: "1px solid #E2E6EE",
+              color: "#5E6779",
+              border: "1px solid #E5E8EE",
               cursor: "pointer",
             }}
           >

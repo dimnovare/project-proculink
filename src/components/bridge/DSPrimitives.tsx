@@ -138,13 +138,13 @@ type SrcType = "PDF" | "XLSX" | "CSV" | "XML" | "cXML" | "EDI" | "EMAIL" | "API"
 
 const SRC_PALETTE: Record<SrcType, { bg: string; fg: string }> = {
   PDF:   { bg: "#FBEEEE", fg: "#B53F3F" },
-  XLSX:  { bg: "#E2F1E2", fg: "#2E8E3A" },   // brand-green-soft / brand-green
+  XLSX:  { bg: "#E9F1EA", fg: "#2E8E3A" },   // brand-green-soft / brand-green
   CSV:   { bg: "#EEF3F8", fg: "#345470" },
-  XML:   { bg: "#EEE7FB", fg: "#5E3DB0" },   // ai-soft / #5E3DB0
-  cXML:  { bg: "#EEE7FB", fg: "#5E3DB0" },
-  EDI:   { bg: "#FAEFD6", fg: "#C97A14" },   // amber-soft / amber
+  XML:   { bg: "#F0EAFB", fg: "#5E3DB0" },   // ai-soft / #5E3DB0
+  cXML:  { bg: "#F0EAFB", fg: "#5E3DB0" },
+  EDI:   { bg: "#FAF1DD", fg: "#B36D14" },   // amber-soft / amber
   EMAIL: { bg: "#E9EDF3", fg: "#4A5568" },
-  API:   { bg: "#E2F1E2", fg: "#2E8E3A" },   // brand-green-soft / brand-green
+  API:   { bg: "#E9F1EA", fg: "#2E8E3A" },   // brand-green-soft / brand-green
   JSON:  { bg: "#FFF4D6", fg: "#846100" },
   UBL:   { bg: "#EEF3F8", fg: "#345470" },   // same as CSV per tokens.css .src-UBL
 };
@@ -181,7 +181,7 @@ export function AiSuggestion({ confidence, title, description, provenance, actio
     <div
       className="relative rounded-md overflow-hidden"
       style={{
-        background: "#EEE7FB",
+        background: "#F0EAFB",
         border: "1px solid #ddd0f5",
         padding: "13px 14px 13px 16px",
       }}
@@ -218,7 +218,7 @@ export function AiSuggestion({ confidence, title, description, provenance, actio
       <div style={{ fontSize: 13, fontWeight: 600, color: "#0B1A2F" }}>{title}</div>
       {/* Optional description */}
       {description && (
-        <div style={{ fontSize: 12, color: "#56627A", marginTop: 3 }}>{description}</div>
+        <div style={{ fontSize: 12, color: "#5E6779", marginTop: 3 }}>{description}</div>
       )}
       {/* Actions row */}
       {actionRow && (

@@ -108,15 +108,15 @@ const NEW_RULE: Rule = {
 
 // ─── Visual maps ─────────────────────────────────────────────────────────────
 
-// Exact ported tokens: danger #C53A3A / danger-soft #FBE3E3 (Critical),
-// amber #C97A14 / amber-soft #FAEFD6 (Warning), blue #1E66C9 / blue-soft #E3EDFB (Info).
+// Exact ported tokens: danger #B43838 / danger-soft #FBE3E3 (Critical),
+// amber #B36D14 / amber-soft #FAF1DD (Warning), blue #1E66C9 / blue-soft #EAF0F8 (Info).
 // `label` is a DESCRIPTIVE severity classification, not a gating action — this
 // catalog does not block delivery (see header note). `banner` documents what the
 // rule represents; enforcement happens in the supplier Acceptance tab.
 const SEV: Record<Severity, { bg: string; color: string; bannerBg: string; bannerText: string; label: string; banner: string }> = {
-  error:   { bg: "#FBE3E3", color: "#C53A3A", bannerBg: "#FBE3E3", bannerText: "#C53A3A", label: "Critical", banner: "Critical — recommended to enforce as a blocking acceptance rule per supplier" },
-  warning: { bg: "#FAEFD6", color: "#C97A14", bannerBg: "#FAEFD6", bannerText: "#C97A14", label: "Warning",  banner: "Warning — recommended to enforce as a review/notify rule per supplier" },
-  info:    { bg: "#E3EDFB", color: "#1E66C9", bannerBg: "#E3EDFB", bannerText: "#0F4FA8", label: "Info",      banner: "Informational — for reporting and classification" },
+  error:   { bg: "#FBE3E3", color: "#B43838", bannerBg: "#FBE3E3", bannerText: "#B43838", label: "Critical", banner: "Critical — recommended to enforce as a blocking acceptance rule per supplier" },
+  warning: { bg: "#FAF1DD", color: "#B36D14", bannerBg: "#FAF1DD", bannerText: "#B36D14", label: "Warning",  banner: "Warning — recommended to enforce as a review/notify rule per supplier" },
+  info:    { bg: "#EAF0F8", color: "#1E66C9", bannerBg: "#EAF0F8", bannerText: "#0F4FA8", label: "Info",      banner: "Informational — for reporting and classification" },
 };
 
 const ENTITIES: Entity[] = ["Line item", "Header", "Supplier", "Buyer", "Amount"];
@@ -260,10 +260,10 @@ export function ValidationRules() {
     return (
       <PageShell variant="wide" className="flex flex-col">
         <div className="mb-5 flex-shrink-0">
-          <div style={{ height: 28, width: 200, borderRadius: 6, background: "#E2E6EE" }} className="animate-pulse" />
+          <div style={{ height: 28, width: 200, borderRadius: 6, background: "#E5E8EE" }} className="animate-pulse" />
         </div>
         <div className="flex-1 overflow-auto">
-          <div className="rounded-[12px] animate-pulse" style={{ height: 360, background: "#FFFFFF", border: "1px solid #E2E6EE" }} />
+          <div className="rounded-[12px] animate-pulse" style={{ height: 360, background: "#FFFFFF", border: "1px solid #E5E8EE" }} />
         </div>
       </PageShell>
     );
@@ -272,9 +272,9 @@ export function ValidationRules() {
   if (!isApiMockMode && isError) {
     return (
       <PageShell variant="wide" className="flex flex-col items-center justify-center">
-        <div className="rounded-[12px] p-8 text-center max-w-sm" style={{ background: "#FFFFFF", border: "1px solid #E2E6EE", boxShadow: "0 1px 3px rgba(16,24,40,0.06)" }}>
-          <p className="text-[14px] font-semibold mb-1" style={{ color: "#C53A3A" }}>Could not load validation rules</p>
-          <p className="text-[12px] mb-4" style={{ color: "#56627A" }}>Check your connection and try again.</p>
+        <div className="rounded-[12px] p-8 text-center max-w-sm" style={{ background: "#FFFFFF", border: "1px solid #E5E8EE", boxShadow: "0 1px 3px rgba(16,24,40,0.06)" }}>
+          <p className="text-[14px] font-semibold mb-1" style={{ color: "#B43838" }}>Could not load validation rules</p>
+          <p className="text-[12px] mb-4" style={{ color: "#5E6779" }}>Check your connection and try again.</p>
           <button onClick={() => refetch()} className="rounded-[8px] px-4 py-2 text-[12px] font-semibold" style={{ background: "#0B1A2F", color: "#FFFFFF", border: 0 }}>Retry</button>
         </div>
       </PageShell>
@@ -312,7 +312,7 @@ export function ValidationRules() {
       <div className="hidden sm:block pb-3 flex-shrink-0">
         <div className="flex flex-col items-start gap-1.5 rounded-[8px] px-3.5 py-2.5 text-[12px] sm:flex-row sm:items-center sm:gap-2.5" style={{ border: "1px solid #D6E2F4", background: "#F2F7FE", color: "#37425A" }}>
           <span className="font-semibold" style={{ color: "#0F4FA8" }}>This is a catalog, not a gate.</span>
-          <span style={{ color: "#56627A" }}>
+          <span style={{ color: "#5E6779" }}>
             Rules here describe and classify the checks you care about. They are not enforced automatically — set up the checks that actually hold or block an order on each{" "}
             <Link href="/library/suppliers" className="font-semibold underline" style={{ color: "#1E66C9" }}>{partyNounLower}&apos;s Validation rules tab</Link>.
           </span>
@@ -332,11 +332,11 @@ export function ValidationRules() {
       <div className="flex-1 min-h-0 overflow-auto">
         <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(340px,400px)]">
           {/* Rules table — desktop */}
-          <div className="hidden rounded-[12px] overflow-hidden self-start lg:block" style={{ background: "#FFFFFF", border: "1px solid #E2E6EE", boxShadow: "0 1px 3px rgba(16,24,40,0.05)" }}>
+          <div className="hidden rounded-[12px] overflow-hidden self-start lg:block" style={{ background: "#FFFFFF", border: "1px solid #E5E8EE", boxShadow: "0 1px 3px rgba(16,24,40,0.05)" }}>
             <div className="overflow-x-auto">
               <table className="w-full border-collapse" style={{ fontSize: 13 }}>
                 <thead>
-                  <tr style={{ borderBottom: "1px solid #E2E6EE" }}>
+                  <tr style={{ borderBottom: "1px solid #E5E8EE" }}>
                     {["Rule", "Scope", partyNoun, "Severity", "Triggered 30d", "Active"].map((h, i) => (
                       <th key={h} className="px-5 py-3 text-[10.5px] font-semibold uppercase tracking-[0.07em]" style={{ color: "#9AA3B5", textAlign: i === 5 ? "right" : "left", whiteSpace: "nowrap" }}>{h}</th>
                     ))}
@@ -351,7 +351,7 @@ export function ValidationRules() {
                         key={r.id}
                         onClick={() => { setNotice(null); setSelId(r.id); }}
                         className="cursor-pointer transition-colors"
-                        style={{ borderBottom: "1px solid #F1F3F7", background: active ? "#E3EDFB" : "transparent", opacity: r.enabled ? 1 : 0.62 }}
+                        style={{ borderBottom: "1px solid #F1F3F7", background: active ? "#EAF0F8" : "transparent", opacity: r.enabled ? 1 : 0.62 }}
                         onMouseEnter={(e) => { if (!active) e.currentTarget.style.background = "#F6F8FB"; }}
                         onMouseLeave={(e) => { if (!active) e.currentTarget.style.background = "transparent"; }}
                       >
@@ -360,7 +360,7 @@ export function ValidationRules() {
                           <div className="text-[11px] mt-0.5 tracking-[0.02em]" style={{ color: "#9AA3B5", fontFamily: "'JetBrains Mono', ui-monospace, SFMono-Regular, monospace" }}>{r.code}</div>
                         </td>
                         <td className="px-5 py-3.5">
-                          <span className="inline-flex items-center rounded-[6px] px-2 py-0.5 text-[11.5px] font-medium" style={{ background: "#EFF2F7", color: "#5B6577" }}>{r.entity}</span>
+                          <span className="inline-flex items-center rounded-[6px] px-2 py-0.5 text-[11.5px] font-medium" style={{ background: "#F1F3F7", color: "#5B6577" }}>{r.entity}</span>
                         </td>
                         <td className="px-5 py-3.5 text-[12.5px]" style={{ color: "#3C4658" }}>{r.supplier}</td>
                         <td className="px-5 py-3.5">
@@ -369,7 +369,7 @@ export function ValidationRules() {
                             {sev.label}
                           </span>
                         </td>
-                        <td className="px-5 py-3.5 text-[13px] font-semibold" style={{ fontFamily: "'JetBrains Mono', ui-monospace, SFMono-Regular, monospace", color: r.triggers > 0 ? "#0B1A2F" : "#C6CDDA" }}>{r.triggers}</td>
+                        <td className="px-5 py-3.5 text-[13px] font-semibold" style={{ fontFamily: "'JetBrains Mono', ui-monospace, SFMono-Regular, monospace", color: r.triggers > 0 ? "#0B1A2F" : "#CBD0DA" }}>{r.triggers}</td>
                         <td className="px-5 py-3.5" style={{ textAlign: "right" }} onClick={(e) => e.stopPropagation()}>
                           <Toggle on={r.enabled} onChange={() => handleToggle(r.id)} />
                         </td>
@@ -396,7 +396,7 @@ export function ValidationRules() {
                   className="cursor-pointer rounded-[12px] p-3.5 transition-colors"
                   style={{
                     background: "#FFFFFF",
-                    border: active ? "1px solid #1E66C9" : "1px solid #E2E6EE",
+                    border: active ? "1px solid #1E66C9" : "1px solid #E5E8EE",
                     boxShadow: active ? "0 0 0 3px rgba(30,102,201,0.12)" : "0 1px 2px rgba(16,24,40,0.04)",
                     opacity: r.enabled ? 1 : 0.62,
                   }}
@@ -421,7 +421,7 @@ export function ValidationRules() {
                       <span style={{ width: 6, height: 6, borderRadius: "50%", background: sev.color }} />
                       {sev.label}
                     </span>
-                    <span className="inline-flex items-center rounded-[6px] px-2 h-[22px] text-[11.5px] font-medium" style={{ background: "#EFF2F7", color: "#5B6577" }}>{r.entity}</span>
+                    <span className="inline-flex items-center rounded-[6px] px-2 h-[22px] text-[11.5px] font-medium" style={{ background: "#F1F3F7", color: "#5B6577" }}>{r.entity}</span>
                     <span
                       className="text-[12px]"
                       style={{
@@ -432,18 +432,18 @@ export function ValidationRules() {
                       {r.supplier}
                     </span>
                   </div>
-                  <p className="mt-2 text-[12px] leading-snug" style={{ color: "#56627A" }}>
+                  <p className="mt-2 text-[12px] leading-snug" style={{ color: "#5E6779" }}>
                     {r.description}
                   </p>
                   <div className="mt-2.5 pt-2.5 text-[12px]" style={{ borderTop: "1px solid #F1F3F7", color: "#9AA3B5" }}>
-                    Triggered <span className="font-semibold" style={{ color: r.triggers > 0 ? "#0B1A2F" : "#C6CDDA", fontFamily: "'JetBrains Mono', ui-monospace, SFMono-Regular, monospace" }}>{r.triggers}</span>
+                    Triggered <span className="font-semibold" style={{ color: r.triggers > 0 ? "#0B1A2F" : "#CBD0DA", fontFamily: "'JetBrains Mono', ui-monospace, SFMono-Regular, monospace" }}>{r.triggers}</span>
                     <span> in the last 30 days</span>
                   </div>
                 </div>
               );
             })}
             {rules.length === 0 && (
-              <div className="rounded-[12px] px-5 py-12 text-center text-[12.5px]" style={{ background: "#FFFFFF", border: "1px solid #E2E6EE", color: "#647089" }}>
+              <div className="rounded-[12px] px-5 py-12 text-center text-[12.5px]" style={{ background: "#FFFFFF", border: "1px solid #E5E8EE", color: "#647089" }}>
                 No rules in your catalog yet. Create one to document a check you want to run.
               </div>
             )}
@@ -493,7 +493,7 @@ export function ValidationRules() {
                 onClick={() => setEditorOpen(false)}
                 aria-label="Close"
                 className="inline-flex items-center justify-center flex-shrink-0 rounded-[10px] transition-colors"
-                style={{ width: 44, height: 44, border: "1px solid #E2E6EE", background: "#FFFFFF", color: "#56627A" }}
+                style={{ width: 44, height: 44, border: "1px solid #E5E8EE", background: "#FFFFFF", color: "#5E6779" }}
                 onMouseEnter={(e) => (e.currentTarget.style.background = "#F6F8FB")}
                 onMouseLeave={(e) => (e.currentTarget.style.background = "#FFFFFF")}
               >
@@ -566,7 +566,7 @@ function RuleEditor({
   return (
     <div
       className={`${isSheet ? "" : "rounded-[12px] border self-start lg:sticky lg:top-0"} overflow-hidden${className ? ` ${className}` : ""}`}
-      style={isSheet ? { background: "#FFFFFF" } : { background: "#FFFFFF", borderColor: "#E2E6EE", boxShadow: "0 1px 3px rgba(16,24,40,0.05)" }}
+      style={isSheet ? { background: "#FFFFFF" } : { background: "#FFFFFF", borderColor: "#E5E8EE", boxShadow: "0 1px 3px rgba(16,24,40,0.05)" }}
     >
       {/* Panel header — desktop card only; the mobile sheet supplies its own header. */}
       {!isSheet && (
@@ -583,13 +583,13 @@ function RuleEditor({
 
       <div className="p-5 grid gap-4">
         <Field label="Rule name">
-          <input ref={nameRef} defaultValue={rule.name} placeholder="e.g. Currency must be EUR" className="h-[44px] sm:h-[38px] w-full rounded-[8px] px-3 text-[15px] sm:text-[13px] text-[#0B1A2F] outline-none transition-colors" style={{ border: "1px solid #C6CDDA", background: "#FFFFFF" }} onFocus={(e) => (e.currentTarget.style.borderColor = "var(--brand-green)")} onBlur={(e) => (e.currentTarget.style.borderColor = "#C6CDDA")} />
+          <input ref={nameRef} defaultValue={rule.name} placeholder="e.g. Currency must be EUR" className="h-[44px] sm:h-[38px] w-full rounded-[8px] px-3 text-[15px] sm:text-[13px] text-[#0B1A2F] outline-none transition-colors" style={{ border: "1px solid #CBD0DA", background: "#FFFFFF" }} onFocus={(e) => (e.currentTarget.style.borderColor = "var(--brand-green)")} onBlur={(e) => (e.currentTarget.style.borderColor = "#CBD0DA")} />
         </Field>
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <Field label="Applies to">
             <div className="relative">
-              <select ref={entityRef} defaultValue={rule.entity} className="h-[44px] sm:h-[38px] w-full appearance-none rounded-[8px] pl-3 pr-8 text-[15px] sm:text-[13px] text-[#0B1A2F] outline-none cursor-pointer" style={{ border: "1px solid #C6CDDA", background: "#FFFFFF" }}>
+              <select ref={entityRef} defaultValue={rule.entity} className="h-[44px] sm:h-[38px] w-full appearance-none rounded-[8px] pl-3 pr-8 text-[15px] sm:text-[13px] text-[#0B1A2F] outline-none cursor-pointer" style={{ border: "1px solid #CBD0DA", background: "#FFFFFF" }}>
                 {ENTITIES.map((e) => <option key={e}>{e}</option>)}
               </select>
               <svg className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#9AA3B5" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6" /></svg>
@@ -603,7 +603,7 @@ function RuleEditor({
         {/* Condition (WHEN) */}
         <div className="grid gap-1.5">
           <span className="text-[12px] font-semibold tracking-[0]" style={{ color: "#5C6280" }}>Condition <span style={{ color: "#9AA3B5", fontWeight: 500 }}>(WHEN)</span></span>
-          <div className="rounded-[8px] px-3.5 py-2.5 text-[12.5px]" style={{ background: "#EFF2F7", border: "1px solid #E2E6EE", color: "#37425A", fontFamily: "'JetBrains Mono', ui-monospace, SFMono-Regular, monospace" }}>
+          <div className="rounded-[8px] px-3.5 py-2.5 text-[12.5px]" style={{ background: "#F1F3F7", border: "1px solid #E5E8EE", color: "#37425A", fontFamily: "'JetBrains Mono', ui-monospace, SFMono-Regular, monospace" }}>
             {rule.condition || rule.description || <span style={{ color: "#9AA3B5" }}>Describe when this rule triggers below.</span>}
           </div>
         </div>
@@ -620,7 +620,7 @@ function RuleEditor({
 
         {/* Description (editable detail) */}
         <Field label="Description">
-          <textarea ref={descRef} defaultValue={rule.description} placeholder="Explain when this rule should trigger" className="min-h-[64px] w-full rounded-[8px] px-3 py-2 text-[12.5px] text-[#0B1A2F] outline-none transition-colors" style={{ border: "1px solid #C6CDDA", background: "#FFFFFF" }} onFocus={(e) => (e.currentTarget.style.borderColor = "var(--brand-green)")} onBlur={(e) => (e.currentTarget.style.borderColor = "#C6CDDA")} />
+          <textarea ref={descRef} defaultValue={rule.description} placeholder="Explain when this rule should trigger" className="min-h-[64px] w-full rounded-[8px] px-3 py-2 text-[12.5px] text-[#0B1A2F] outline-none transition-colors" style={{ border: "1px solid #CBD0DA", background: "#FFFFFF" }} onFocus={(e) => (e.currentTarget.style.borderColor = "var(--brand-green)")} onBlur={(e) => (e.currentTarget.style.borderColor = "#CBD0DA")} />
         </Field>
 
         <div className="grid gap-2">
@@ -655,7 +655,7 @@ function RuleEditor({
             view, so the control had no onClick and did nothing. Reinstate it once a
             real flagged-orders view exists. */}
         {onDelete && (
-          <button onClick={onDelete} aria-label="Delete rule" className="inline-flex items-center justify-center rounded-[8px] h-[44px] w-[44px] sm:h-[36px] sm:w-[36px] ml-auto transition-colors" style={{ border: "1px solid #EFD4D4", background: "#FFFFFF", color: "#C53A3A" }} onMouseEnter={(e) => (e.currentTarget.style.background = "#FCF1F1")} onMouseLeave={(e) => (e.currentTarget.style.background = "#FFFFFF")} title="Delete rule">
+          <button onClick={onDelete} aria-label="Delete rule" className="inline-flex items-center justify-center rounded-[8px] h-[44px] w-[44px] sm:h-[36px] sm:w-[36px] ml-auto transition-colors" style={{ border: "1px solid #EFD4D4", background: "#FFFFFF", color: "#B43838" }} onMouseEnter={(e) => (e.currentTarget.style.background = "#FCF1F1")} onMouseLeave={(e) => (e.currentTarget.style.background = "#FFFFFF")} title="Delete rule">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18" /><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /><path d="m19 6-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" /></svg>
           </button>
         )}
@@ -669,12 +669,12 @@ function SeveritySegment({ value, onChange }: { value: Severity; onChange: (s: S
   const isBlock = value === "error";
   const isWarn  = value === "warning" || value === "info";
   return (
-    <div className="grid grid-cols-2 rounded-[8px] p-0.5 h-[44px] sm:h-[38px]" style={{ background: "#EFF2F7", border: "1px solid #E2E6EE" }}>
+    <div className="grid grid-cols-2 rounded-[8px] p-0.5 h-[44px] sm:h-[38px]" style={{ background: "#F1F3F7", border: "1px solid #E5E8EE" }}>
       <button
         type="button"
         onClick={() => onChange("warning")}
         className="rounded-[6px] text-[15px] sm:text-[12.5px] font-semibold transition-colors"
-        style={{ background: isWarn ? "#FFFFFF" : "transparent", color: isWarn ? "#C97A14" : "#7B8597", boxShadow: isWarn ? "0 1px 2px rgba(16,24,40,0.10)" : "none" }}
+        style={{ background: isWarn ? "#FFFFFF" : "transparent", color: isWarn ? "#B36D14" : "#7B8597", boxShadow: isWarn ? "0 1px 2px rgba(16,24,40,0.10)" : "none" }}
       >
         Warning
       </button>
@@ -682,7 +682,7 @@ function SeveritySegment({ value, onChange }: { value: Severity; onChange: (s: S
         type="button"
         onClick={() => onChange("error")}
         className="rounded-[6px] text-[15px] sm:text-[12.5px] font-semibold transition-colors"
-        style={{ background: isBlock ? "#FFFFFF" : "transparent", color: isBlock ? "#C53A3A" : "#7B8597", boxShadow: isBlock ? "0 1px 2px rgba(16,24,40,0.10)" : "none" }}
+        style={{ background: isBlock ? "#FFFFFF" : "transparent", color: isBlock ? "#B43838" : "#7B8597", boxShadow: isBlock ? "0 1px 2px rgba(16,24,40,0.10)" : "none" }}
       >
         Critical
       </button>
@@ -692,7 +692,7 @@ function SeveritySegment({ value, onChange }: { value: Severity; onChange: (s: S
 
 function CheckRow({ inputRef, defaultChecked, label, title }: { inputRef: React.RefObject<HTMLInputElement | null>; defaultChecked: boolean; label: string; title?: string }) {
   return (
-    <label className="flex items-center gap-2.5 rounded-[8px] px-3 h-[42px] sm:h-[38px] text-[12.5px] cursor-pointer transition-colors" style={{ border: "1px solid #C6CDDA", background: "#FFFFFF", color: "#0B1A2F" }} title={title}>
+    <label className="flex items-center gap-2.5 rounded-[8px] px-3 h-[42px] sm:h-[38px] text-[12.5px] cursor-pointer transition-colors" style={{ border: "1px solid #CBD0DA", background: "#FFFFFF", color: "#0B1A2F" }} title={title}>
       <input ref={inputRef} type="checkbox" defaultChecked={defaultChecked} className="h-[16px] w-[16px] cursor-pointer" style={{ accentColor: "var(--brand-green)" }} />
       {label}
     </label>

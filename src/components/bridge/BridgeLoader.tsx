@@ -132,7 +132,7 @@ export function BridgeLoader({
             </div>
           )}
           {sub && (
-            <div style={{ fontSize: 11.5, color: "#8A93A5", marginTop: 3 }}>
+            <div style={{ fontSize: 11.5, color: "#98A0AE", marginTop: 3 }}>
               {sub}
             </div>
           )}

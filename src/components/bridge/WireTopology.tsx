@@ -67,14 +67,14 @@ export function strokeFromWeight(weight: 1 | 2 | 3 | 4 | 5 | 6): number {
 
 const HEALTH_COLORS: Record<Wire["health"], [string, string]> = {
   ok:   ["#1E66C9", "#2E8E3A"],
-  risk: ["#1E66C9", "#C97A14"],
-  down: ["#C53A3A", "#C53A3A"],
+  risk: ["#1E66C9", "#B36D14"],
+  down: ["#B43838", "#B43838"],
 };
 
 const PULSE_COLOR: Record<Wire["health"], string> = {
   ok:   "#2E8E3A",
-  risk: "#C97A14",
-  down: "#C53A3A",
+  risk: "#B36D14",
+  down: "#B43838",
 };
 
 function cubicPoint(
@@ -97,7 +97,7 @@ function WireTopologyLaneList({ buyers, suppliers, wires, onWireClick }: WireTop
   return (
     <div className="flex flex-col gap-2 p-2 bg-[#F6F7FA] rounded-card">
       {wires.length === 0 && (
-        <div className="bg-white border border-[#E2E6EE] rounded-[10px] px-3 py-6 text-center text-[12.5px] text-[color:var(--ink-faint)]">
+        <div className="bg-white border border-[#E5E8EE] rounded-[10px] px-3 py-6 text-center text-[12.5px] text-[color:var(--ink-faint)]">
           No connections to show yet.
         </div>
       )}
@@ -110,13 +110,13 @@ function WireTopologyLaneList({ buyers, suppliers, wires, onWireClick }: WireTop
         const isWarn = wire.health === "risk" || wire.health === "down";
         // Shared health thresholds with BridgeDashboard.healthColor (>=90 green, >=80 amber).
         const supplierColor =
-          supplier.health >= 90 ? "#2E8E3A" : supplier.health >= 80 ? "#C97A14" : "#C53A3A";
+          supplier.health >= 90 ? "#2E8E3A" : supplier.health >= 80 ? "#B36D14" : "#B43838";
         const gradId = `m-wire-${i}`;
 
         return (
           <div
             key={i}
-            className="bg-white border border-[#E2E6EE] rounded-[10px] flex items-center gap-2 sm:gap-[10px] p-[10px_12px]"
+            className="bg-white border border-[#E5E8EE] rounded-[10px] flex items-center gap-2 sm:gap-[10px] p-[10px_12px]"
             style={{ cursor: onWireClick ? "pointer" : undefined }}
             onClick={() => onWireClick?.(wire, buyer, supplier)}
           >
@@ -145,8 +145,8 @@ function WireTopologyLaneList({ buyers, suppliers, wires, onWireClick }: WireTop
                     <stop offset="0%" stopColor="#1E66C9" />
                     {isWarn ? (
                       <>
-                        <stop offset="60%" stopColor="#C97A14" />
-                        <stop offset="100%" stopColor="#C97A14" />
+                        <stop offset="60%" stopColor="#B36D14" />
+                        <stop offset="100%" stopColor="#B36D14" />
                       </>
                     ) : (
                       <stop offset="100%" stopColor="#2E8E3A" />
@@ -166,14 +166,14 @@ function WireTopologyLaneList({ buyers, suppliers, wires, onWireClick }: WireTop
                   cy={19}
                   r={3}
                   fill="#FFFFFF"
-                  stroke={isWarn ? "#C97A14" : "#2E8E3A"}
+                  stroke={isWarn ? "#B36D14" : "#2E8E3A"}
                   strokeWidth={1.5}
                 />
               </svg>
               {wire.alert && wire.alert > 0 && (
                 <div
                   className="absolute top-[3px] left-1/2 -translate-x-1/2 w-4 h-4 rounded-full bg-white flex items-center justify-center text-[9px] font-bold"
-                  style={{ border: "1.5px solid #C97A14", color: "#C97A14" }}
+                  style={{ border: "1.5px solid #B36D14", color: "#B36D14" }}
                 >
                   {wire.alert}
                 </div>
@@ -184,7 +184,7 @@ function WireTopologyLaneList({ buyers, suppliers, wires, onWireClick }: WireTop
             <div className="flex-[1_1_38%] min-w-0 text-right">
               <div
                 className="text-[9px] font-bold tracking-[0.08em] font-mono"
-                style={{ color: isWarn ? "#C97A14" : "#1E6D29" }}
+                style={{ color: isWarn ? "#B36D14" : "#1E6D29" }}
               >
                 {supplier.code}
               </div>
@@ -237,7 +237,7 @@ function WireTopologyCanvas({
       className="relative w-full overflow-x-auto overflow-y-hidden rounded-card"
       style={{
         background: "#FFFFFF",
-        border: "1px solid #E2E6EE",
+        border: "1px solid #E5E8EE",
         boxShadow: "0 1px 2px rgba(11,26,47,0.04)",
       }}
     >
@@ -354,11 +354,11 @@ function WireTopologyCanvas({
                   transform={`translate(${alertAnchor.x}, ${alertAnchor.y - 14})`}
                   aria-label={`${w.alert} exceptions on this connection`}
                 >
-                  <circle r={9} fill="#FFFFFF" stroke="#C97A14" strokeWidth={1.5} />
+                  <circle r={9} fill="#FFFFFF" stroke="#B36D14" strokeWidth={1.5} />
                   <text
                     textAnchor="middle"
                     y={3}
-                    fill="#C97A14"
+                    fill="#B36D14"
                     fontSize={10}
                     fontWeight={700}
                     fontFamily="Inter, sans-serif"
@@ -382,7 +382,7 @@ function WireTopologyCanvas({
                 width={LEFT_X - 8}
                 height={36}
                 rx={6}
-                fill="#E3EDFB"
+                fill="#EAF0F8"
                 stroke="#1E66C9"
                 strokeWidth={1.25}
               />
@@ -402,7 +402,7 @@ function WireTopologyCanvas({
               <text
                 x={12}
                 y={9}
-                fill="#56627A"
+                fill="#5E6779"
                 fontSize={9.5}
                 fontFamily="JetBrains Mono, monospace"
               >
@@ -420,10 +420,10 @@ function WireTopologyCanvas({
           const y = supplierY(i);
           // Shared health thresholds with BridgeDashboard.healthColor (>=90 green, >=80 amber).
           const isHealthy = s.health >= 80;
-          const borderColor = isHealthy ? "#2E8E3A" : "#C97A14";
-          const bgColor     = isHealthy ? "#E2F1E2"  : "#FAEFD6";
+          const borderColor = isHealthy ? "#2E8E3A" : "#B36D14";
+          const bgColor     = isHealthy ? "#E9F1EA"  : "#FAF1DD";
           const healthColor =
-            s.health >= 90 ? "#1E6D29" : s.health >= 80 ? "#C97A14" : "#C53A3A";
+            s.health >= 90 ? "#1E6D29" : s.health >= 80 ? "#B36D14" : "#B43838";
           return (
             <g key={s.id} transform={`translate(0, ${y})`}>
               <rect
@@ -452,7 +452,7 @@ function WireTopologyCanvas({
               <text
                 x={RIGHT_X + 14}
                 y={9}
-                fill="#56627A"
+                fill="#5E6779"
                 fontSize={9.5}
                 fontFamily="JetBrains Mono, monospace"
               >
@@ -467,7 +467,7 @@ function WireTopologyCanvas({
 
         {/* ── Legend (top-right) ───────────────────────────────── */}
         <g transform={`translate(${W - 232}, 8)`}>
-          <rect x={0} y={0} width={192} height={22} rx={4} fill="#F6F7FA" stroke="#E2E6EE" />
+          <rect x={0} y={0} width={192} height={22} rx={4} fill="#F6F7FA" stroke="#E5E8EE" />
           {([1, 2, 4, 6] as const).map((w, i) => (
             <g key={w} transform={`translate(${6 + i * 46}, 11)`}>
               <line

@@ -178,16 +178,16 @@ function deriveTimeline(p: PassportDto): DerivedTimeline {
 const STATE_STYLE: Record<StageState, { ring: string; fill: string; text: string; glyph: string }> = {
   done:    { ring: "#2E8E3A", fill: "#2E8E3A", text: "#1E6D29", glyph: "✓" },
   current: { ring: "#1E66C9", fill: "#FFFFFF", text: "#0F4FA8", glyph: "●" },
-  pending: { ring: "#C6CDDA", fill: "#FFFFFF", text: "var(--ink-faint)", glyph: "" },
-  failed:  { ring: "#C53A3A", fill: "#C53A3A", text: "#C53A3A", glyph: "✕" },
+  pending: { ring: "#CBD0DA", fill: "#FFFFFF", text: "var(--ink-faint)", glyph: "" },
+  failed:  { ring: "#B43838", fill: "#B43838", text: "#B43838", glyph: "✕" },
 };
 
 function Pct({ value }: { value: number }) {
   const pct = Math.round(value);
   const { bg, color } =
-    pct >= 90 ? { bg: "#E2F1E2", color: "#1E6D29" } :
-    pct >= 75 ? { bg: "#FAEFD6", color: "#C97A14" } :
-                { bg: "#FBE3E3", color: "#C53A3A" };
+    pct >= 90 ? { bg: "#E9F1EA", color: "#1E6D29" } :
+    pct >= 75 ? { bg: "#FAF1DD", color: "#B36D14" } :
+                { bg: "#FBE3E3", color: "#B43838" };
   return (
     <span style={{ fontSize: 9.5, fontWeight: 700, fontFamily: "'JetBrains Mono',monospace", background: bg, color, borderRadius: 3, padding: "2px 5px" }}>
       {pct}%
@@ -197,9 +197,9 @@ function Pct({ value }: { value: number }) {
 
 function Section({ title, count, children }: { title: string; count?: number; children: ReactNode }) {
   return (
-    <section style={{ border: "1px solid #E2E6EE", borderRadius: 8, background: "#FFFFFF", overflow: "hidden" }}>
-      <div style={{ padding: "10px 14px", borderBottom: "1px solid #E2E6EE", display: "flex", alignItems: "center", gap: 8 }}>
-        <h3 style={{ fontSize: 11, fontWeight: 800, letterSpacing: "0.07em", textTransform: "uppercase", color: "#56627A", margin: 0 }}>{title}</h3>
+    <section style={{ border: "1px solid #E5E8EE", borderRadius: 8, background: "#FFFFFF", overflow: "hidden" }}>
+      <div style={{ padding: "10px 14px", borderBottom: "1px solid #E5E8EE", display: "flex", alignItems: "center", gap: 8 }}>
+        <h3 style={{ fontSize: 11, fontWeight: 800, letterSpacing: "0.07em", textTransform: "uppercase", color: "#5E6779", margin: 0 }}>{title}</h3>
         {count != null && (
           <span style={{ fontSize: 10.5, fontFamily: "'JetBrains Mono',monospace", color: "var(--ink-faint)" }}>{count}</span>
         )}
@@ -219,19 +219,19 @@ function Ref({ label, value }: { label: string; value: string | null | undefined
 }
 
 const SOURCE_BADGE: Record<string, { bg: string; color: string }> = {
-  deterministic: { bg: "#E2F1E2", color: "#1E6D29" },
-  ai:            { bg: "#EEE7FB", color: "#5E3DB0" },
-  unresolved:    { bg: "#FBE3E3", color: "#C53A3A" },
+  deterministic: { bg: "#E9F1EA", color: "#1E6D29" },
+  ai:            { bg: "#F0EAFB", color: "#5E3DB0" },
+  unresolved:    { bg: "#FBE3E3", color: "#B43838" },
 };
 
 function MappingRow({ d }: { d: PassportMappingDecision }) {
-  const badge = SOURCE_BADGE[lc(d.source)] ?? { bg: "#EFF2F7", color: "#56627A" };
+  const badge = SOURCE_BADGE[lc(d.source)] ?? { bg: "#F1F3F7", color: "#5E6779" };
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 0", borderTop: "1px solid #F0F2F6", fontSize: 11.5 }}>
       <span style={{ width: 22, flexShrink: 0, color: "var(--ink-faint)", fontFamily: "'JetBrains Mono',monospace" }}>{d.lineNumber}</span>
       <span style={{ fontFamily: "'JetBrains Mono',monospace", color: "#1E66C9", flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis" }}>{d.buyerCode || "—"}</span>
       <span style={{ color: "var(--ink-faint)", flexShrink: 0 }}>→</span>
-      <span style={{ fontFamily: "'JetBrains Mono',monospace", color: d.supplierCode ? "#2E8E3A" : "#C53A3A", flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis" }}>{d.supplierCode || "unresolved"}</span>
+      <span style={{ fontFamily: "'JetBrains Mono',monospace", color: d.supplierCode ? "#2E8E3A" : "#B43838", flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis" }}>{d.supplierCode || "unresolved"}</span>
       <span style={{ flexShrink: 0, fontSize: 9.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em", background: badge.bg, color: badge.color, borderRadius: 3, padding: "2px 6px" }}>{d.source}</span>
       {d.confidence != null && <Pct value={d.confidence <= 1 ? d.confidence * 100 : d.confidence} />}
     </div>
@@ -240,19 +240,19 @@ function MappingRow({ d }: { d: PassportMappingDecision }) {
 
 function DeliveryRow({ a }: { a: PassportDeliveryAttempt }) {
   const ok = lc(a.status).includes("deliver") || lc(a.status).includes("success") || lc(a.status).includes("acknowled") || lc(a.status) === "ok";
-  const color = ok ? "#1E6D29" : lc(a.status).includes("fail") || lc(a.status).includes("reject") ? "#C53A3A" : "#C97A14";
+  const color = ok ? "#1E6D29" : lc(a.status).includes("fail") || lc(a.status).includes("reject") ? "#B43838" : "#B36D14";
   return (
     <div style={{ padding: "8px 0", borderTop: "1px solid #F0F2F6", display: "flex", flexDirection: "column", gap: 3 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-        <span style={{ fontSize: 10.5, fontWeight: 700, color: "#56627A", fontFamily: "'JetBrains Mono',monospace" }}>#{a.attemptNumber}</span>
+        <span style={{ fontSize: 10.5, fontWeight: 700, color: "#5E6779", fontFamily: "'JetBrains Mono',monospace" }}>#{a.attemptNumber}</span>
         <span style={{ fontSize: 11, fontWeight: 700, color, textTransform: "capitalize" }}>{a.status || "—"}</span>
         {a.channel && <span style={{ fontSize: 10.5, color: "var(--ink-faint)" }}>· {a.channel}</span>}
         {a.responseCode != null && <span style={{ fontSize: 10.5, fontFamily: "'JetBrains Mono',monospace", color: "var(--ink-faint)" }}>· {a.responseCode}</span>}
         <span style={{ marginLeft: "auto", fontSize: 10.5, color: "var(--ink-faint)" }}>{fmtDateTime(a.attemptedAt)}</span>
       </div>
-      {a.destination && <div style={{ fontSize: 10.5, fontFamily: "'JetBrains Mono',monospace", color: "#56627A", wordBreak: "break-all" }}>{a.destination}</div>}
+      {a.destination && <div style={{ fontSize: 10.5, fontFamily: "'JetBrains Mono',monospace", color: "#5E6779", wordBreak: "break-all" }}>{a.destination}</div>}
       {(a.errorMessage || a.rejectionReason) && (
-        <div style={{ fontSize: 11, color: "#C53A3A" }}>{a.errorMessage || a.rejectionReason}</div>
+        <div style={{ fontSize: 11, color: "#B43838" }}>{a.errorMessage || a.rejectionReason}</div>
       )}
     </div>
   );
@@ -288,10 +288,10 @@ export function OrderPassport({ orderId }: { orderId: string }) {
   if (isLoading) {
     return (
       <div style={{ padding: 24 }}>
-        <div style={{ height: 18, width: 220, background: "#E2E6EE", borderRadius: 4, marginBottom: 16 }} />
+        <div style={{ height: 18, width: 220, background: "#E5E8EE", borderRadius: 4, marginBottom: 16 }} />
         <div style={{ display: "grid", gap: 10 }}>
           {Array.from({ length: 5 }).map((_, i) => (
-            <div key={i} style={{ height: 40, background: "#EFF2F7", borderRadius: 8 }} />
+            <div key={i} style={{ height: 40, background: "#F1F3F7", borderRadius: 8 }} />
           ))}
         </div>
       </div>
@@ -301,14 +301,14 @@ export function OrderPassport({ orderId }: { orderId: string }) {
   if (isError || !passport) {
     return (
       <div className="flex flex-col items-center justify-center gap-3 py-16 px-6 text-center">
-        <div style={{ fontSize: 26, color: "#C6CDDA" }}>⊘</div>
+        <div style={{ fontSize: 26, color: "#CBD0DA" }}>⊘</div>
         <p className="text-[14px] font-semibold" style={{ color: "#0B1A2F" }}>Couldn&apos;t load the order history</p>
-        <p className="text-[13px]" style={{ color: "#56627A" }}>The history for this order is temporarily unavailable.</p>
+        <p className="text-[13px]" style={{ color: "#5E6779" }}>The history for this order is temporarily unavailable.</p>
         <button
           type="button"
           onClick={() => refetch()}
           className="rounded-[6px] px-4 text-[12.5px] font-semibold"
-          style={{ height: 32, border: "1px solid #E2E6EE", background: "#FFFFFF", color: "#0B1A2F" }}
+          style={{ height: 32, border: "1px solid #E5E8EE", background: "#FFFFFF", color: "#0B1A2F" }}
         >
           ↻ Retry
         </button>
@@ -327,7 +327,7 @@ export function OrderPassport({ orderId }: { orderId: string }) {
           <h2 style={{ fontFamily: "'Bricolage Grotesque', Inter, sans-serif", fontSize: 20, fontWeight: 700, letterSpacing: "-0.02em", color: "#0B1A2F" }}>
             Order history
           </h2>
-          <p className="text-[12.5px] mt-1" style={{ color: "#56627A" }}>
+          <p className="text-[12.5px] mt-1" style={{ color: "#5E6779" }}>
             Full history for <span className="font-mono" style={{ color: "#0F4FA8" }}>{passport.order.poNumber}</span> — every stage, decision, and delivery attempt, with the supplier&apos;s response.
           </p>
         </div>
@@ -370,7 +370,7 @@ export function OrderPassport({ orderId }: { orderId: string }) {
                       <span style={{ fontSize: 12.5, fontWeight: 600, color: n.state === "pending" ? "var(--ink-faint)" : "#0B1A2F" }}>{n.label}</span>
                       {n.state === "current" && <span style={{ fontSize: 9.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", color: s.text }}>in progress</span>}
                     </div>
-                    {n.detail && <div style={{ fontSize: 11, color: n.state === "failed" ? "#C53A3A" : "#56627A", marginTop: 1 }}>{n.detail}</div>}
+                    {n.detail && <div style={{ fontSize: 11, color: n.state === "failed" ? "#B43838" : "#5E6779", marginTop: 1 }}>{n.detail}</div>}
                     {n.at && <div style={{ fontSize: 10.5, color: "var(--ink-faint)", marginTop: 1 }}>{fmtDateTime(n.at)}</div>}
                   </div>
                 );
@@ -394,7 +394,7 @@ export function OrderPassport({ orderId }: { orderId: string }) {
               </div>
             </div>
             {passport.supplierProfile && (
-              <div style={{ marginTop: 12, paddingTop: 12, borderTop: "1px dashed #E2E6EE", display: "flex", flexWrap: "wrap", gap: 16, fontSize: 11.5, color: "#56627A" }}>
+              <div style={{ marginTop: 12, paddingTop: 12, borderTop: "1px dashed #E5E8EE", display: "flex", flexWrap: "wrap", gap: 16, fontSize: 11.5, color: "#5E6779" }}>
                 <span>Protocol: <strong style={{ color: "#0B1A2F" }}>{passport.supplierProfile.protocol || "—"}</strong></span>
                 <span>Profile output: <strong style={{ color: "#0B1A2F" }}>{passport.supplierProfile.outputFormat || "—"}</strong></span>
                 {passport.supplierProfile.acceptedFormats?.length ? (
@@ -436,13 +436,13 @@ export function OrderPassport({ orderId }: { orderId: string }) {
           {/* Supplier response */}
           <Section title="Supplier response">
             {passport.supplierResponse ? (
-              <div className="flex flex-col gap-2 text-[12.5px]" style={{ color: "#56627A" }}>
+              <div className="flex flex-col gap-2 text-[12.5px]" style={{ color: "#5E6779" }}>
                 <div>
-                  Outcome: <strong style={{ color: lc(passport.supplierResponse.outcome) === "acknowledged" ? "#1E6D29" : lc(passport.supplierResponse.outcome) === "rejected" ? "#C53A3A" : "#0B1A2F", textTransform: "capitalize" }}>{passport.supplierResponse.outcome}</strong>
+                  Outcome: <strong style={{ color: lc(passport.supplierResponse.outcome) === "acknowledged" ? "#1E6D29" : lc(passport.supplierResponse.outcome) === "rejected" ? "#B43838" : "#0B1A2F", textTransform: "capitalize" }}>{passport.supplierResponse.outcome}</strong>
                   {passport.supplierResponse.responseCode != null && <span className="font-mono"> · {passport.supplierResponse.responseCode}</span>}
                 </div>
                 {passport.supplierResponse.acknowledgedAt && <div>Acknowledged: {fmtDateTime(passport.supplierResponse.acknowledgedAt)}</div>}
-                {passport.supplierResponse.rejectionReason && <div style={{ color: "#C53A3A" }}>{passport.supplierResponse.rejectionReason}</div>}
+                {passport.supplierResponse.rejectionReason && <div style={{ color: "#B43838" }}>{passport.supplierResponse.rejectionReason}</div>}
               </div>
             ) : (
               <p className="text-[12.5px]" style={{ color: "var(--ink-faint)", margin: 0 }}>No supplier response recorded yet.</p>

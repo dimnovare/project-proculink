@@ -42,7 +42,7 @@ function humanStatus(status: OrderStatus): string {
 }
 
 function orderColor(status: OrderStatus): string {
-  if (status === "pending_review" || status === "delivery_failed") return "#C97A14";
+  if (status === "pending_review" || status === "delivery_failed") return "#B36D14";
   if (status === "delivered") return "#2E8E3A";
   return "#2E8E3A";
 }
@@ -94,7 +94,7 @@ function buildIndex(
     { id: "a2",  group: "Actions", icon: "⊞", label: "View order inbox",     sub: "Go to inbox",            action: () => router.push("/inbox"),            color: "#0F4FA8" },
     { id: "a3",  group: "Actions", icon: "⇄", label: "Manage mappings",      sub: "Open mapping editor",    action: () => router.push("/library/mappings"), color: "#0F4FA8" },
     { id: "a4",  group: "Actions", icon: "✓", label: "Validation rules",     sub: "Open rule library",      action: () => router.push("/library/rules"),    color: "#0F4FA8" },
-    { id: "a5",  group: "Actions", icon: "⚠", label: "Exceptions",           sub: "Open exception dashboard", action: () => router.push("/operations/exceptions"), color: "#C97A14" },
+    { id: "a5",  group: "Actions", icon: "⚠", label: "Exceptions",           sub: "Open exception dashboard", action: () => router.push("/operations/exceptions"), color: "#B36D14" },
     { id: "a6",  group: "Actions", icon: "❤", label: "System health",        sub: "Open operator health view", action: () => router.push("/operations/health"),     color: "#0F4FA8" },
     { id: "a9",  group: "Actions", icon: "▤", label: "Delivery log",         sub: "Open delivery log",      action: () => router.push("/operations/log"),   color: "#0F4FA8" },
     { id: "a7",  group: "Actions", icon: "⚙", label: "Settings",             sub: "Workspace settings",     action: () => router.push("/settings"),         color: "#0F4FA8" },
@@ -264,7 +264,7 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
           background: "#FFFFFF",
           borderRadius: 12,
           boxShadow: "0 24px 64px rgba(11,26,47,0.22), 0 4px 12px rgba(11,26,47,0.12)",
-          border: "1px solid #E2E6EE",
+          border: "1px solid #E5E8EE",
           overflow: "hidden",
           zIndex: 9999,
         }}
@@ -276,7 +276,7 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
             alignItems: "center",
             gap: 10,
             padding: "14px 16px",
-            borderBottom: "1px solid #E2E6EE",
+            borderBottom: "1px solid #E5E8EE",
           }}
         >
           <span style={{ fontSize: 16, color: "var(--ink-faint)" }}>⌕</span>
@@ -300,7 +300,7 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
               fontFamily: "'JetBrains Mono', monospace",
               color: "var(--ink-faint)",
               background: "#F6F7FA",
-              border: "1px solid #E2E6EE",
+              border: "1px solid #E5E8EE",
               borderRadius: 4,
               padding: "2px 6px",
             }}
@@ -408,7 +408,7 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
                     </div>
 
                     {/* Arrow */}
-                    <span style={{ fontSize: 11, color: "#C6CDDA" }}>↵</span>
+                    <span style={{ fontSize: 11, color: "#CBD0DA" }}>↵</span>
                   </button>
                   );
                 })}
@@ -423,7 +423,7 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
             display: "flex",
             gap: 16,
             padding: "8px 16px",
-            borderTop: "1px solid #E2E6EE",
+            borderTop: "1px solid #E5E8EE",
             background: "#F6F7FA",
           }}
         >
@@ -437,9 +437,9 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
                   style={{
                     fontSize: 10,
                     fontFamily: "'JetBrains Mono', monospace",
-                    color: "#56627A",
+                    color: "#5E6779",
                     background: "#FFFFFF",
-                    border: "1px solid #E2E6EE",
+                    border: "1px solid #E5E8EE",
                     borderRadius: 3,
                     padding: "1px 5px",
                   }}

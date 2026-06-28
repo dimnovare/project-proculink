@@ -37,7 +37,7 @@ export function InboxSkeleton() {
     <div className="flex flex-col h-full overflow-hidden" style={{ background: "#F6F7FA" }} role="status" aria-busy="true">
       <span className="sr-only">Loading…</span>
       {/* Header */}
-      <div className="px-6 py-4 flex items-end gap-4" style={{ borderBottom: "1px solid #E2E6EE", background: "#FFFFFF" }}>
+      <div className="px-6 py-4 flex items-end gap-4" style={{ borderBottom: "1px solid #E5E8EE", background: "#FFFFFF" }}>
         <div className="flex flex-col gap-2">
           <Bone w={100} h={22} />
           <Bone w={220} h={12} />
@@ -49,17 +49,17 @@ export function InboxSkeleton() {
         </div>
       </div>
       {/* Filter bar */}
-      <div className="flex items-center gap-2 px-5" style={{ height: 44, borderBottom: "1px solid #E2E6EE", background: "#FFFFFF" }}>
+      <div className="flex items-center gap-2 px-5" style={{ height: 44, borderBottom: "1px solid #E5E8EE", background: "#FFFFFF" }}>
         {[48, 40, 90, 56, 52, 48, 52].map((w, i) => <Bone key={i} w={w} h={24} radius={5} />)}
       </div>
       {/* Time strip */}
-      <div className="flex items-center gap-3 px-6" style={{ height: 52, borderBottom: "1px solid #E2E6EE", background: "#FFFFFF" }}>
+      <div className="flex items-center gap-3 px-6" style={{ height: 52, borderBottom: "1px solid #E5E8EE", background: "#FFFFFF" }}>
         <Bone w={80} h={10} />
         <Bone w="100%" h={24} radius={3} />
         <Bone w={100} h={10} />
       </div>
       {/* Table header */}
-      <div className="flex gap-4 px-3 py-2" style={{ borderBottom: "2px solid #E2E6EE", background: "#FFFFFF" }}>
+      <div className="flex gap-4 px-3 py-2" style={{ borderBottom: "2px solid #E5E8EE", background: "#FFFFFF" }}>
         {[36, 100, 56, 56, 180, 160, 130, 44, 90, 52, 64].map((w, i) => (
           <Bone key={i} w={w} h={10} />
         ))}
@@ -96,7 +96,7 @@ export function DashboardSkeleton() {
   return (
     <div className="flex flex-col h-full overflow-hidden" style={{ background: "#F6F7FA" }} role="status" aria-busy="true">
       <span className="sr-only">Loading…</span>
-      <div className="px-6 py-4" style={{ borderBottom: "1px solid #E2E6EE", background: "#FFFFFF" }}>
+      <div className="px-6 py-4" style={{ borderBottom: "1px solid #E5E8EE", background: "#FFFFFF" }}>
         <Bone w={140} h={22} />
         <Bone w={260} h={12} className="mt-2" />
       </div>
@@ -104,7 +104,7 @@ export function DashboardSkeleton() {
         {/* KPI strip */}
         <div className="grid grid-cols-4 gap-3">
           {[0, 1, 2, 3].map((i) => (
-            <div key={i} style={{ background: "#FFFFFF", border: "1px solid #E2E6EE", borderRadius: 8, padding: 16 }}>
+            <div key={i} style={{ background: "#FFFFFF", border: "1px solid #E5E8EE", borderRadius: 8, padding: 16 }}>
               <Bone w={80} h={10} className="mb-3" />
               <Bone w={60} h={28} />
               <Bone w={100} h={10} className="mt-2" />
@@ -112,14 +112,14 @@ export function DashboardSkeleton() {
           ))}
         </div>
         {/* Wire topology */}
-        <div style={{ background: "#FFFFFF", border: "1px solid #E2E6EE", borderRadius: 8, padding: 20 }}>
+        <div style={{ background: "#FFFFFF", border: "1px solid #E5E8EE", borderRadius: 8, padding: 20 }}>
           <Bone w={120} h={13} className="mb-4" />
           <Bone w="100%" h={200} radius={6} />
         </div>
         {/* Bottom row */}
         <div className="grid grid-cols-2 gap-3 flex-1">
           {[0, 1].map((i) => (
-            <div key={i} style={{ background: "#FFFFFF", border: "1px solid #E2E6EE", borderRadius: 8, padding: 16 }}>
+            <div key={i} style={{ background: "#FFFFFF", border: "1px solid #E5E8EE", borderRadius: 8, padding: 16 }}>
               <Bone w={100} h={13} className="mb-4" />
               {Array.from({ length: 4 }).map((_, j) => (
                 <div key={j} className="flex justify-between items-center mb-3">
@@ -141,7 +141,7 @@ export function SupplierProfileSkeleton() {
   return (
     <div className="flex flex-col h-full overflow-hidden" style={{ background: "#F6F7FA" }} role="status" aria-busy="true">
       <span className="sr-only">Loading…</span>
-      <div className="px-6 py-4 flex items-center gap-3" style={{ borderBottom: "1px solid #E2E6EE", background: "#FFFFFF" }}>
+      <div className="px-6 py-4 flex items-center gap-3" style={{ borderBottom: "1px solid #E5E8EE", background: "#FFFFFF" }}>
         <Bone w={28} h={28} radius={6} />
         <div className="flex flex-col gap-2">
           <Bone w={200} h={18} />
@@ -149,7 +149,7 @@ export function SupplierProfileSkeleton() {
         </div>
         <div className="ml-auto flex gap-2">
           {[0, 1, 2, 3].map((i) => (
-            <div key={i} style={{ padding: "12px 20px", background: "#FFFFFF", border: "1px solid #E2E6EE", borderRadius: 8 }}>
+            <div key={i} style={{ padding: "12px 20px", background: "#FFFFFF", border: "1px solid #E5E8EE", borderRadius: 8 }}>
               <Bone w={32} h={24} className="mb-1" />
               <Bone w={60} h={10} />
             </div>
@@ -157,11 +157,11 @@ export function SupplierProfileSkeleton() {
         </div>
       </div>
       {/* Tab bar */}
-      <div className="flex gap-4 px-6" style={{ borderBottom: "1px solid #E2E6EE", background: "#FFFFFF", height: 44 }}>
+      <div className="flex gap-4 px-6" style={{ borderBottom: "1px solid #E5E8EE", background: "#FFFFFF", height: 44 }}>
         {[0, 1, 2, 3, 4, 5].map((i) => <Bone key={i} w={72} h={14} className="self-center" />)}
       </div>
       <div className="p-5 flex gap-4">
-        <div className="flex-1 flex flex-col gap-3" style={{ background: "#FFFFFF", border: "1px solid #E2E6EE", borderRadius: 8, padding: 16 }}>
+        <div className="flex-1 flex flex-col gap-3" style={{ background: "#FFFFFF", border: "1px solid #E5E8EE", borderRadius: 8, padding: 16 }}>
           <Bone w={130} h={13} />
           {Array.from({ length: 5 }).map((_, i) => (
             <div key={i} className="flex justify-between items-center py-1" style={{ borderBottom: "1px solid #F0F2F6" }}>
@@ -170,7 +170,7 @@ export function SupplierProfileSkeleton() {
             </div>
           ))}
         </div>
-        <div className="w-72 flex flex-col gap-3" style={{ background: "#FFFFFF", border: "1px solid #E2E6EE", borderRadius: 8, padding: 16 }}>
+        <div className="w-72 flex flex-col gap-3" style={{ background: "#FFFFFF", border: "1px solid #E5E8EE", borderRadius: 8, padding: 16 }}>
           <Bone w={100} h={13} />
           <Bone w="100%" h={120} radius={4} />
         </div>
@@ -183,10 +183,10 @@ export function SupplierProfileSkeleton() {
 
 export function TableSkeleton({ rows = 10, cols = 6 }: { rows?: number; cols?: number }) {
   return (
-    <div style={{ background: "#FFFFFF", border: "1px solid #E2E6EE", borderRadius: 8, overflow: "hidden" }} role="status" aria-busy="true">
+    <div style={{ background: "#FFFFFF", border: "1px solid #E5E8EE", borderRadius: 8, overflow: "hidden" }} role="status" aria-busy="true">
       <span className="sr-only">Loading…</span>
       {/* Header */}
-      <div className="flex gap-4 px-4 py-3" style={{ borderBottom: "2px solid #E2E6EE" }}>
+      <div className="flex gap-4 px-4 py-3" style={{ borderBottom: "2px solid #E5E8EE" }}>
         {Array.from({ length: cols }).map((_, i) => <Bone key={i} w={60 + (i * 17) % 60} h={10} />)}
       </div>
       {/* Rows */}

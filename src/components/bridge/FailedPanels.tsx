@@ -10,17 +10,17 @@ import type { AuditEvent, Order } from "@/types/procurement";
 // ─── Design tokens (Bridge Layer) ────────────────────────────────────────────
 
 const T = {
-  danger:      "#C53A3A",
+  danger:      "#B43838",
   dangerSoft:  "#FBE3E3",
-  amber:       "#C97A14",
-  amberSoft:   "#FAEFD6",
+  amber:       "#B36D14",
+  amberSoft:   "#FAF1DD",
   navy:        "#0B1A2F",
   ink:         "#0B1A2F",
-  inkMuted:    "#56627A",
+  inkMuted:    "#5E6779",
   inkFaint:    "var(--ink-faint)",
   surface:     "#FFFFFF",
   surface2:    "#F1F3F7",
-  border:      "#E2E6EE",
+  border:      "#E5E8EE",
   bg:          "#F6F7FA",
   ui:          '"Inter", system-ui, sans-serif',
   mono:        '"JetBrains Mono", ui-monospace, monospace',
@@ -29,7 +29,7 @@ const T = {
 const SRC_META: Record<string, { bg: string; color: string; label: string }> = {
   pdf:   { bg: "#FEE2E2", color: "#B91C1C", label: "PDF"   },
   csv:   { bg: "#DBEAFE", color: "#1D4ED8", label: "CSV"   },
-  xlsx:  { bg: "#E2F1E2", color: "#15803D", label: "XLSX"  },
+  xlsx:  { bg: "#E9F1EA", color: "#15803D", label: "XLSX"  },
   cxml:  { bg: "#CCFBF1", color: "#0F766E", label: "cXML"  },
   edi:   { bg: "#FEF3C7", color: "#B45309", label: "EDI"   },
   ubl:   { bg: "#CCFBF1", color: "#0F766E", label: "UBL"   },

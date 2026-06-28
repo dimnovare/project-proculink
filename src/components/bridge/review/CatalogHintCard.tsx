@@ -72,7 +72,7 @@ export function CatalogHintCard({
         padding: "10px 12px",
         borderRadius: 10,
         background: "#FFFFFF",
-        border: "1px solid #E2E6EE",
+        border: "1px solid #E5E8EE",
         borderLeft: "3px solid #2E8E3A",
       }}
     >
@@ -80,7 +80,7 @@ export function CatalogHintCard({
         <p style={{ margin: 0, fontSize: 12.5, fontWeight: 600, color: "#0B1A2F" }}>
           No item codes for {name} yet.
         </p>
-        <p style={{ margin: "2px 0 0", fontSize: 11.5, color: "#56627A", lineHeight: 1.45 }}>
+        <p style={{ margin: "2px 0 0", fontSize: 11.5, color: "#5E6779", lineHeight: 1.45 }}>
           Upload their catalog once and ProcuLink auto-matches future orders.
         </p>
       </div>

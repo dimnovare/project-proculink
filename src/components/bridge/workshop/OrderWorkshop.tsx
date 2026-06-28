@@ -105,9 +105,9 @@ function InvoiceBadge({ documentType }: { documentType?: string | null }) {
     <span
       className="inline-flex items-center gap-1.5 rounded-full"
       title="Detected as an invoice and held for review."
-      style={{ fontSize: 12, fontWeight: 600, padding: "3px 11px", background: "#FAEFD6", color: "#C97A14", whiteSpace: "nowrap" }}
+      style={{ fontSize: 12, fontWeight: 600, padding: "3px 11px", background: "#FAF1DD", color: "#B36D14", whiteSpace: "nowrap" }}
     >
-      <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#C97A14", flexShrink: 0 }} />
+      <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#B36D14", flexShrink: 0 }} />
       Looks like an invoice
     </span>
   );
@@ -368,16 +368,16 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
   if (isError || order === null) {
     return (
       <div className="flex flex-col items-center justify-center h-full gap-3.5 px-6 text-center" style={{ background: "#F6F7FA" }}>
-        <span style={{ width: 56, height: 56, borderRadius: "50%", background: "#FFFFFF", border: "1px solid #E2E6EE", display: "inline-flex", alignItems: "center", justifyContent: "center" }}>
+        <span style={{ width: 56, height: 56, borderRadius: "50%", background: "#FFFFFF", border: "1px solid #E5E8EE", display: "inline-flex", alignItems: "center", justifyContent: "center" }}>
           <svg width="26" height="26" viewBox="0 0 24 24" fill="none" aria-hidden>
-            <circle cx="12" cy="12" r="9" stroke="#C6CDDA" strokeWidth="1.6" />
-            <path d="M6 6 18 18" stroke="#C6CDDA" strokeWidth="1.6" strokeLinecap="round" />
+            <circle cx="12" cy="12" r="9" stroke="#CBD0DA" strokeWidth="1.6" />
+            <path d="M6 6 18 18" stroke="#CBD0DA" strokeWidth="1.6" strokeLinecap="round" />
           </svg>
         </span>
         <p className="text-[15px] font-semibold" style={{ color: "#0B1A2F" }}>
           {order === null ? "Order not found" : "Failed to load order"}
         </p>
-        <p className="text-[12.5px]" style={{ color: "#56627A", maxWidth: 340, lineHeight: 1.5 }}>
+        <p className="text-[12.5px]" style={{ color: "#5E6779", maxWidth: 340, lineHeight: 1.5 }}>
           {order === null
             ? "This order may have been delivered and archived, or the link is out of date."
             : "Something went wrong loading this order. Try again in a moment."}
@@ -427,14 +427,14 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
           <p className="text-[16px] font-semibold" style={{ color: "#0B1A2F", letterSpacing: "-0.01em" }}>
             We&rsquo;re reading your order…
           </p>
-          <p className="text-[13px]" style={{ color: "#56627A", marginTop: 7, lineHeight: 1.55 }}>
+          <p className="text-[13px]" style={{ color: "#5E6779", marginTop: 7, lineHeight: 1.55 }}>
             We&rsquo;re extracting the line items and matching them to {order.supplierName || "the supplier"}.
             This usually takes a few seconds — the page will update on its own when it&rsquo;s ready.
           </p>
           {order.poNumber && (
             <p
               className="text-[12px]"
-              style={{ color: "#8A93A5", marginTop: 12, fontFamily: "'JetBrains Mono',monospace" }}
+              style={{ color: "#98A0AE", marginTop: 12, fontFamily: "'JetBrains Mono',monospace" }}
             >
               {order.poNumber}
             </p>
@@ -447,21 +447,21 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
   return (
     <div className="flex flex-col h-full min-h-0 overflow-hidden" style={{ background: "#F6F7FA" }} data-testid="order-workshop">
       {/* ── Header: back · PO · status · buyer→supplier · focus control · Send ── */}
-      <div className="flex-shrink-0" style={{ background: "#FFFFFF", borderBottom: "1px solid #E2E6EE" }}>
+      <div className="flex-shrink-0" style={{ background: "#FFFFFF", borderBottom: "1px solid #E5E8EE" }}>
         <div className="flex flex-wrap items-center gap-x-4 gap-y-3 px-4 pt-2.5 pb-2.5 lg:px-6">
           <div className="flex min-w-0 items-center gap-3 flex-shrink-0">
             <button
               onClick={() => router.push("/inbox")}
               aria-label="Back to inbox"
               className="plk-back"
-              style={{ width: 30, height: 30, minWidth: 44, minHeight: 44, padding: 0, marginInline: -7, border: 0, background: "transparent", color: "#56627A", cursor: "pointer", fontSize: 14, flexShrink: 0, display: "inline-flex", alignItems: "center", justifyContent: "center" }}
+              style={{ width: 30, height: 30, minWidth: 44, minHeight: 44, padding: 0, marginInline: -7, border: 0, background: "transparent", color: "#5E6779", cursor: "pointer", fontSize: 14, flexShrink: 0, display: "inline-flex", alignItems: "center", justifyContent: "center" }}
             >
               <span
                 aria-hidden
                 className="plk-back-box"
-                style={{ width: 30, height: 30, border: "1px solid #E2E6EE", borderRadius: 8, background: "#FFFFFF", display: "inline-flex", alignItems: "center", justifyContent: "center", transition: "border-color .12s, background .12s" }}
-                onMouseEnter={(e) => { e.currentTarget.style.borderColor = "#1E66C9"; e.currentTarget.style.background = "#E3EDFB"; }}
-                onMouseLeave={(e) => { e.currentTarget.style.borderColor = "#E2E6EE"; e.currentTarget.style.background = "#FFFFFF"; }}
+                style={{ width: 30, height: 30, border: "1px solid #E5E8EE", borderRadius: 8, background: "#FFFFFF", display: "inline-flex", alignItems: "center", justifyContent: "center", transition: "border-color .12s, background .12s" }}
+                onMouseEnter={(e) => { e.currentTarget.style.borderColor = "#1E66C9"; e.currentTarget.style.background = "#EAF0F8"; }}
+                onMouseLeave={(e) => { e.currentTarget.style.borderColor = "#E5E8EE"; e.currentTarget.style.background = "#FFFFFF"; }}
               >
                 ←
               </span>
@@ -484,9 +484,9 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
               </div>
               <div className="mt-1 flex flex-wrap items-center" style={{ minWidth: 0, fontSize: 12.5, columnGap: 7 }}>
                 <span style={{ fontWeight: 600, color: "#1E66C9", minWidth: 0, overflowWrap: "anywhere" }}>{buyerLabel(order)}</span>
-                <span aria-hidden style={{ flexShrink: 0, color: "#C6CDDA" }}>→</span>
+                <span aria-hidden style={{ flexShrink: 0, color: "#CBD0DA" }}>→</span>
                 <span style={{ fontWeight: 600, color: "#2E8E3A", minWidth: 0, overflowWrap: "anywhere" }}>{order.supplierName}</span>
-                <span aria-hidden style={{ flexShrink: 0, color: "#C6CDDA" }}>·</span>
+                <span aria-hidden style={{ flexShrink: 0, color: "#CBD0DA" }}>·</span>
                 <span style={{ fontFamily: "'JetBrains Mono',monospace", color: "#566982", minWidth: 0, overflowWrap: "anywhere" }}>{grandTotalLabel}</span>
               </div>
             </div>
@@ -508,9 +508,9 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
                 type="button"
                 onClick={() => openDetails("passport")}
                 aria-label="Order details — audit trail, standards check, and response"
-                style={{ height: 33, padding: "0 13px", borderRadius: 8, border: "1px solid #E2E6EE", background: "#FFFFFF", color: "#56627A", fontSize: 12.5, fontWeight: 600, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 6, whiteSpace: "nowrap", flexShrink: 0, transition: "border-color .12s, color .12s" }}
+                style={{ height: 33, padding: "0 13px", borderRadius: 8, border: "1px solid #E5E8EE", background: "#FFFFFF", color: "#5E6779", fontSize: 12.5, fontWeight: 600, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 6, whiteSpace: "nowrap", flexShrink: 0, transition: "border-color .12s, color .12s" }}
                 onMouseEnter={(e) => { e.currentTarget.style.borderColor = "#1E66C9"; e.currentTarget.style.color = "#0B1A2F"; }}
-                onMouseLeave={(e) => { e.currentTarget.style.borderColor = "#E2E6EE"; e.currentTarget.style.color = "#56627A"; }}
+                onMouseLeave={(e) => { e.currentTarget.style.borderColor = "#E5E8EE"; e.currentTarget.style.color = "#5E6779"; }}
               >
                 <svg width="13" height="13" viewBox="0 0 16 16" fill="none" aria-hidden>
                   <path d="M3 4h10M3 8h10M3 12h6" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
@@ -580,8 +580,8 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
           className="flex-shrink-0 px-4 lg:px-6"
           style={{
             padding: "8px 16px",
-            background: flowSeverity === "error" ? "#FBE3E3" : flowSeverity === "success" ? "#E2F1E2" : "#EFF4FB",
-            color: flowSeverity === "error" ? "#C53A3A" : flowSeverity === "success" ? "#1E6D29" : "#0F4FAB",
+            background: flowSeverity === "error" ? "#FBE3E3" : flowSeverity === "success" ? "#E9F1EA" : "#EFF4FB",
+            color: flowSeverity === "error" ? "#B43838" : flowSeverity === "success" ? "#1E6D29" : "#0F4FAB",
             fontSize: 12.5, fontWeight: 600,
             borderBottom: "1px solid #EEF0F4",
           }}
@@ -716,7 +716,7 @@ function FocusControl({ focus, onFocus }: { focus: WorkshopFocus; onFocus: (f: W
     { id: "output", label: "Output" },
   ];
   return (
-    <div role="group" aria-label="Focus" style={{ display: "inline-flex", borderRadius: 8, background: "#EFF2F7", padding: 2, gap: 2, flexShrink: 0 }}>
+    <div role="group" aria-label="Focus" style={{ display: "inline-flex", borderRadius: 8, background: "#F1F3F7", padding: 2, gap: 2, flexShrink: 0 }}>
       {items.map((it) => {
         const active = focus === it.id;
         return (
@@ -727,7 +727,7 @@ function FocusControl({ focus, onFocus }: { focus: WorkshopFocus; onFocus: (f: W
             aria-pressed={active}
             style={{
               fontSize: 12.5, fontWeight: active ? 600 : 500, padding: "6px 13px", borderRadius: 6,
-              background: active ? "#FFFFFF" : "transparent", color: active ? "#0B1A2F" : "#56627A",
+              background: active ? "#FFFFFF" : "transparent", color: active ? "#0B1A2F" : "#5E6779",
               border: "none", cursor: "pointer", transition: "all .12s",
               boxShadow: active ? "0 1px 2px rgba(11,26,47,0.1)" : "none",
             }}

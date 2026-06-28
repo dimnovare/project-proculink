@@ -61,7 +61,7 @@ export function EmptyState({ title, sub, action, compact = false }: EmptyStatePr
         <div
           style={{
             fontSize: 13,
-            color: "var(--ink-muted, #56627A)",
+            color: "var(--ink-muted, #5E6779)",
             maxWidth: 360,
             lineHeight: 1.6,
             marginTop: 6,

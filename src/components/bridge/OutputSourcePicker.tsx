@@ -274,15 +274,15 @@ export function OutputSourcePicker({
         padding: "0 9px", borderRadius: 999,
         border: `1px ${desc.unset ? "dashed" : "solid"} ${desc.unset ? "#C9D0DC" : "#CDE7D1"}`,
         background: desc.unset ? "#FFFFFF" : "#F1F8F2",
-        color: desc.unset ? "#56627A" : "#1E6D29",
+        color: desc.unset ? "#5E6779" : "#1E6D29",
         fontFamily: "'JetBrains Mono', ui-monospace, Menlo, monospace",
         fontSize: 11, fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap",
       }
     : {
         display: "inline-flex", alignItems: "center", gap: 6, flex: "1 1 150px", minWidth: 140,
         minHeight: 36, padding: "5px 10px", borderRadius: 6, justifyContent: "space-between",
-        border: "1px solid #C6CDDA", background: "#FFFFFF",
-        color: desc.unset ? "#56627A" : "#0B1A2F",
+        border: "1px solid #CBD0DA", background: "#FFFFFF",
+        color: desc.unset ? "#5E6779" : "#0B1A2F",
         fontSize: 12.5, cursor: "pointer", whiteSpace: "nowrap",
       };
 
@@ -325,7 +325,7 @@ export function OutputSourcePicker({
           onClick={(e) => e.stopPropagation()}
           style={{
             position: "fixed", top: pos?.top ?? -9999, left: pos?.left ?? -9999, zIndex: 1000, width: PANEL_W,
-            background: "#FFFFFF", border: "1px solid #E2E6EE", borderRadius: 10,
+            background: "#FFFFFF", border: "1px solid #E5E8EE", borderRadius: 10,
             boxShadow: "0 12px 30px rgba(11,26,47,0.16)", overflow: "hidden",
             visibility: pos ? "visible" : "hidden",
             display: "flex", flexDirection: "column",

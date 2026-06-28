@@ -57,12 +57,12 @@ const DEMO_RECENT: RecentRow[] = [
 ];
 
 const STATUS_PILL: Record<RecentStatus, { bg: string; color: string; label: string }> = {
-  processing: { bg: "#EEE7FB", color: "#6F4FCE", label: "Processing" },
-  done:       { bg: "#E2F1E2", color: "#1E6D29", label: "Delivered"  },
-  failed:     { bg: "#FBE3E3", color: "#C53A3A", label: "Failed"     },
-  review:     { bg: "#FAEFD6", color: "#9A5F0A", label: "Needs review" },
-  ready:      { bg: "#E2F1E2", color: "#1E6D29", label: "Ready"      },
-  draft:      { bg: "#EFF2F7", color: "#56627A", label: "Draft"      },
+  processing: { bg: "#F0EAFB", color: "#6F4FCE", label: "Processing" },
+  done:       { bg: "#E9F1EA", color: "#1E6D29", label: "Delivered"  },
+  failed:     { bg: "#FBE3E3", color: "#B43838", label: "Failed"     },
+  review:     { bg: "#FAF1DD", color: "#9A5F0A", label: "Needs review" },
+  ready:      { bg: "#E9F1EA", color: "#1E6D29", label: "Ready"      },
+  draft:      { bg: "#F1F3F7", color: "#5E6779", label: "Draft"      },
 };
 
 /** Map source format string from the orders API → a FileChip format key. */
@@ -134,7 +134,7 @@ function XCard({
     <div
       style={{
         background: "#FFFFFF",
-        border: "1px solid #E2E6EE",
+        border: "1px solid #E5E8EE",
         borderRadius: 8,
         boxShadow: "0 1px 3px rgba(11,26,47,0.05)",
         overflow: "hidden",
@@ -207,7 +207,7 @@ function StepHeading({
           {title}
         </h2>
         {hint && (
-          <p className="text-[11.5px]" style={{ color: "#56627A", margin: "2px 0 0" }}>
+          <p className="text-[11.5px]" style={{ color: "#5E6779", margin: "2px 0 0" }}>
             {hint}
           </p>
         )}
@@ -253,7 +253,7 @@ function InfoDisclosure({
     };
   }, [open]);
 
-  const border = tone === "ai" ? "#C5B8F0" : "#C6CDDA";
+  const border = tone === "ai" ? "#C5B8F0" : "#CBD0DA";
   const color = tone === "ai" ? "#6F4FCE" : "var(--ink-faint)";
 
   return (
@@ -275,7 +275,7 @@ function InfoDisclosure({
           padding: 0,
           borderRadius: "50%",
           border: `1px solid ${border}`,
-          background: open ? (tone === "ai" ? "#EEE7FB" : "#EFF2F7") : "transparent",
+          background: open ? (tone === "ai" ? "#F0EAFB" : "#F1F3F7") : "transparent",
           fontSize: 9,
           color,
           fontWeight: 700,
@@ -298,7 +298,7 @@ function InfoDisclosure({
             padding: "8px 10px",
             borderRadius: 6,
             background: "#FFFFFF",
-            border: "1px solid #E2E6EE",
+            border: "1px solid #E5E8EE",
             boxShadow: "0 4px 14px rgba(11,26,47,0.12)",
             fontSize: 11.5,
             fontWeight: 400,
@@ -685,11 +685,11 @@ export function UploadWorkbench() {
           <p className="text-[13px] font-semibold" style={{ color: "#0B1A2F" }}>
             New here? Start with a sample order
           </p>
-          <p className="text-[12px] mt-1" style={{ color: "#56627A" }}>
+          <p className="text-[12px] mt-1" style={{ color: "#5E6779" }}>
             No purchase order handy? Run one with an example CSV in seconds — it won&apos;t count toward your monthly quota.
           </p>
           {sample.error && (
-            <p className="mt-2 text-[12px]" style={{ color: "#C53A3A" }}>
+            <p className="mt-2 text-[12px]" style={{ color: "#B43838" }}>
               {sample.error.message}
             </p>
           )}
@@ -700,7 +700,7 @@ export function UploadWorkbench() {
           disabled={sample.isPending || uploading}
           className="w-full rounded-[6px] px-4 py-2.5 text-[13px] font-semibold transition-all sm:w-auto sm:flex-shrink-0"
           style={{
-            background: sample.isPending || uploading ? "#E2E6EE" : "#0B1A2F",
+            background: sample.isPending || uploading ? "#E5E8EE" : "#0B1A2F",
             color: sample.isPending || uploading ? "var(--ink-faint)" : "#FFFFFF",
             border: "none",
             boxShadow: sample.isPending || uploading ? "none" : "0 2px 8px rgba(11,26,47,0.18)",
@@ -725,7 +725,7 @@ export function UploadWorkbench() {
       className="w-full rounded-[7px] py-3 text-[14px] font-semibold transition-all min-h-[48px]"
       style={{
         background: isUploadDisabled
-          ? "#E2E6EE"
+          ? "#E5E8EE"
           : "linear-gradient(90deg, #2E8E3A 0%, #1E6D29 100%)",
         color: isUploadDisabled ? "var(--ink-faint)" : "#FFFFFF",
         border: "none",
@@ -735,7 +735,7 @@ export function UploadWorkbench() {
     >
       {uploading ? (
         <span style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
-          <span style={{ display: "inline-block", width: 13, height: 13, border: "2px solid #C6CDDA", borderTopColor: "#2E8E3A", borderRadius: "50%", animation: "spin 0.7s linear infinite" }} />
+          <span style={{ display: "inline-block", width: 13, height: 13, border: "2px solid #CBD0DA", borderTopColor: "#2E8E3A", borderRadius: "50%", animation: "spin 0.7s linear infinite" }} />
           {isMulti ? "Uploading…" : "Sending…"}
         </span>
       ) : isReadOnly
@@ -767,7 +767,7 @@ export function UploadWorkbench() {
           <div
             style={{
               background: "#F6F7FA",
-              border: "1px solid #E2E6EE",
+              border: "1px solid #E5E8EE",
               borderLeft: "3px solid #2E8E3A",
               borderRadius: 8,
               padding: "12px 16px",
@@ -809,7 +809,7 @@ export function UploadWorkbench() {
         <div
           style={{
             background: "#FFFFFF",
-            border: "1px solid #E2E6EE",
+            border: "1px solid #E5E8EE",
             borderRadius: 12,
             boxShadow: "0 1px 3px rgba(11,26,47,0.05)",
             overflow: "hidden",
@@ -823,7 +823,7 @@ export function UploadWorkbench() {
             {/* ── LEFT · Step ① Choose supplier + plan usage ── */}
             <aside
               className="flex flex-col gap-4 p-5"
-              style={{ background: "#FAFBFD", borderBottom: "1px solid #E2E6EE" }}
+              style={{ background: "#FAFBFD", borderBottom: "1px solid #E5E8EE" }}
             >
               <div className="upload-step-rail flex flex-col gap-3">
                 <StepHeading
@@ -841,7 +841,7 @@ export function UploadWorkbench() {
                   {suppliersLoading && (
                     <div
                       className="rounded-[8px] px-3 text-[13px] flex items-center min-h-[48px]"
-                      style={{ border: "1px solid #E2E6EE", background: "#FFFFFF", color: "#56627A" }}
+                      style={{ border: "1px solid #E5E8EE", background: "#FFFFFF", color: "#5E6779" }}
                     >
                       Loading {labels.counterpartyPlural.toLowerCase()}…
                     </div>
@@ -859,7 +859,7 @@ export function UploadWorkbench() {
                   {!suppliersLoading && !suppliersError && suppliers.length === 0 && (
                     <div
                       className="rounded-[8px] px-3 py-3 text-[12.5px] leading-5"
-                      style={{ border: "1px dashed #C6CDDA", background: "#FFFFFF", color: "#56627A" }}
+                      style={{ border: "1px dashed #CBD0DA", background: "#FFFFFF", color: "#5E6779" }}
                     >
                       No {labels.counterpartyPlural.toLowerCase()} yet.{" "}
                       <Link href="/library/suppliers" className="font-semibold underline" style={{ color: "#1E6D29" }}>
@@ -877,7 +877,7 @@ export function UploadWorkbench() {
                         onChange={(e) => setSupplierId(e.target.value)}
                         className="w-full rounded-[8px] pl-3 pr-10 text-[14px] appearance-none min-h-[48px] transition-colors"
                         style={{
-                          border: `1.5px solid ${hasSupplier ? "#1E6D29" : "#C6CDDA"}`,
+                          border: `1.5px solid ${hasSupplier ? "#1E6D29" : "#CBD0DA"}`,
                           background: "#FFFFFF",
                           color: "#0B1A2F",
                           fontWeight: 600,
@@ -896,7 +896,7 @@ export function UploadWorkbench() {
                         aria-hidden="true"
                         style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }}
                       >
-                        <path d="M4 6l4 4 4-4" stroke="#56627A" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+                        <path d="M4 6l4 4 4-4" stroke="#5E6779" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
                       </svg>
                     </div>
                   )}
@@ -907,10 +907,10 @@ export function UploadWorkbench() {
                 {hasSupplier && (
                   <div
                     className="rounded-[8px] px-3 py-2.5"
-                    style={{ background: "#FFFFFF", border: "1px solid #E2E6EE" }}
+                    style={{ background: "#FFFFFF", border: "1px solid #E5E8EE" }}
                   >
                     <div className="flex items-center gap-2 text-[12px]">
-                      <span style={{ color: "#56627A" }}>Routes to</span>
+                      <span style={{ color: "#5E6779" }}>Routes to</span>
                       <span
                         className="min-w-0 flex-1 truncate text-right font-semibold"
                         style={{ color: "#1E6D29" }}
@@ -921,7 +921,7 @@ export function UploadWorkbench() {
                     </div>
                     <div className="mt-2 flex items-center gap-2 text-[11px]" style={{ color: "var(--ink-faint)" }}>
                       <svg width="12" height="12" viewBox="0 0 14 14" fill="none" aria-hidden="true">
-                        <circle cx="7" cy="7" r="6" stroke="#C6CDDA" strokeWidth="1.2" />
+                        <circle cx="7" cy="7" r="6" stroke="#CBD0DA" strokeWidth="1.2" />
                         <path d="M7 4.2v3.2l2 1.2" stroke="#99A1C5" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
                       </svg>
                       Buyer fills in automatically once the document is parsed.
@@ -933,7 +933,7 @@ export function UploadWorkbench() {
               {/* Plan usage — moved up from the old bottom card so limits are
                   visible while choosing, not buried below the fold. */}
               {(billing || billingLoading || billingError) && (
-                <div style={{ height: 1, background: "#E2E6EE" }} />
+                <div style={{ height: 1, background: "#E5E8EE" }} />
               )}
 
               {billing && (
@@ -941,21 +941,21 @@ export function UploadWorkbench() {
                   className="rounded-[8px] px-3 py-3"
                   style={{
                     background: isReadOnly ? "#FFF8EA" : "#FFFFFF",
-                    border: `1px solid ${isReadOnly ? "#F0D39A" : "#E2E6EE"}`,
+                    border: `1px solid ${isReadOnly ? "#F0D39A" : "#E5E8EE"}`,
                   }}
                 >
                   <div className="mb-1 flex items-center justify-between gap-3">
-                    <span className="text-[11px] font-semibold uppercase tracking-[0.06em]" style={{ color: "#56627A" }}>
+                    <span className="text-[11px] font-semibold uppercase tracking-[0.06em]" style={{ color: "#5E6779" }}>
                       {billing.plan} plan
                     </span>
-                    <span className="rounded px-2 py-0.5 text-[10.5px] font-semibold" style={{ background: isReadOnly ? "#FAEFD6" : "#E2F1E2", color: isReadOnly ? "#9A5F0A" : "#1E6D29" }}>
+                    <span className="rounded px-2 py-0.5 text-[10.5px] font-semibold" style={{ background: isReadOnly ? "#FAF1DD" : "#E9F1EA", color: isReadOnly ? "#9A5F0A" : "#1E6D29" }}>
                       {isReadOnly ? "Processing paused" : "Ready"}
                     </span>
                   </div>
                   <UsageLine label="Orders" used={billing.ordersThisMonth} limit={billing.orderLimit} />
                   <UsageLine label={labels.counterpartyPlural} used={billing.suppliersUsed} limit={billing.supplierLimit} />
                   {billing.trialEndsAt && billing.plan === "pilot" && (
-                    <p className="mt-2 text-[11.5px]" style={{ color: "#56627A" }}>
+                    <p className="mt-2 text-[11.5px]" style={{ color: "#5E6779" }}>
                       Pilot ends {new Date(billing.trialEndsAt).toLocaleDateString()}.
                     </p>
                   )}
@@ -968,7 +968,7 @@ export function UploadWorkbench() {
               )}
 
               {billingLoading && (
-                <div className="rounded-[8px] px-3 py-3 text-[12px]" style={{ border: "1px solid #E2E6EE", background: "#FFFFFF", color: "#56627A" }}>
+                <div className="rounded-[8px] px-3 py-3 text-[12px]" style={{ border: "1px solid #E5E8EE", background: "#FFFFFF", color: "#5E6779" }}>
                   Checking plan limits…
                 </div>
               )}
@@ -1029,7 +1029,7 @@ export function UploadWorkbench() {
                 }}
                 className="flex flex-1 flex-col items-center justify-center gap-4 px-6 py-10 sm:px-8 sm:py-12"
                 style={{
-                  border: `1.5px dashed ${dragReject ? "#C53A3A" : dragging ? "#1E66C9" : "#C6CDDA"}`,
+                  border: `1.5px dashed ${dragReject ? "#B43838" : dragging ? "#1E66C9" : "#CBD0DA"}`,
                   borderRadius: 10,
                   background: dragReject ? "#FCEDED" : dragging ? "#EFF4FC" : "#FBFCFE",
                   opacity: isReadOnly ? 0.62 : 1,
@@ -1088,7 +1088,7 @@ export function UploadWorkbench() {
                   <p
                     className="text-[18px] font-bold tracking-[-0.01em] break-words"
                     style={{
-                      color: dragReject ? "#C53A3A" : "#0B1A2F",
+                      color: dragReject ? "#B43838" : "#0B1A2F",
                       fontFamily: "'Bricolage Grotesque', Inter, sans-serif",
                     }}
                   >
@@ -1100,7 +1100,7 @@ export function UploadWorkbench() {
                       ? selectedFile.name
                       : "Drop your order files here"}
                   </p>
-                  <p className="text-[12.5px] mt-2" style={{ color: dragReject ? "#C53A3A" : "#56627A" }}>
+                  <p className="text-[12.5px] mt-2" style={{ color: dragReject ? "#B43838" : "#5E6779" }}>
                     {dragReject
                       ? `We accept ${ACCEPTED_UPLOAD_FORMATS.humanList}`
                       : isMulti
@@ -1121,7 +1121,7 @@ export function UploadWorkbench() {
                   }}
                   className="inline-flex min-h-[44px] items-center gap-2 rounded-[6px] px-4 py-2 text-[13px] font-semibold transition-colors"
                   style={{
-                    background: isReadOnly || uploading ? "#E2E6EE" : "#1E66C9",
+                    background: isReadOnly || uploading ? "#E5E8EE" : "#1E66C9",
                     color: isReadOnly || uploading ? "var(--ink-faint)" : "#FFFFFF",
                     border: "none",
                     boxShadow: isReadOnly || uploading ? "none" : "0 2px 8px rgba(30,102,201,0.25)",
@@ -1148,7 +1148,7 @@ export function UploadWorkbench() {
                   <p
                     role="alert"
                     className="text-[12px] text-center max-w-[420px]"
-                    style={{ color: "#C53A3A" }}
+                    style={{ color: "#B43838" }}
                   >
                     {fileError}
                   </p>
@@ -1173,7 +1173,7 @@ export function UploadWorkbench() {
                           padding: "6px 10px",
                           borderRadius: 99,
                           background: "#FFFFFF",
-                          border: "1px solid #E2E6EE",
+                          border: "1px solid #E5E8EE",
                           color: "var(--ink-faint)",
                           userSelect: "none",
                         }}
@@ -1188,7 +1188,7 @@ export function UploadWorkbench() {
                             padding: "6px 10px",
                             borderRadius: 99,
                             background: "#FFFFFF",
-                            border: "1px solid #E2E6EE",
+                            border: "1px solid #E5E8EE",
                             color: "#0B1A2F",
                             display: "inline-flex",
                             alignItems: "center",
@@ -1207,7 +1207,7 @@ export function UploadWorkbench() {
                                 detection.confidence >= 0.8
                                   ? "#1E6D29"
                                   : detection.confidence >= 0.5
-                                  ? "#C97A14"
+                                  ? "#B36D14"
                                   : "var(--ink-faint)",
                             }}
                           />
@@ -1241,7 +1241,7 @@ export function UploadWorkbench() {
                             style={{
                               fontFamily: "'JetBrains Mono', monospace",
                               fontSize: 11,
-                              color: "#56627A",
+                              color: "#5E6779",
                             }}
                           >
                             PO {detection.detectedPoNumber} · {detection.estimatedLineCount ?? 0} lines
@@ -1257,7 +1257,7 @@ export function UploadWorkbench() {
                               fontSize: 11.5,
                               padding: "4px 9px",
                               borderRadius: 99,
-                              background: "#E2F1E2",
+                              background: "#E9F1EA",
                               border: "1px solid #A6E9BC",
                               color: "#1E6D29",
                               fontWeight: 600,
@@ -1323,13 +1323,13 @@ export function UploadWorkbench() {
                             Reading document… · Open →
                           </button>
                         ) : r.status === "failed" ? (
-                          <span className="shrink-0 text-[11px] font-medium" style={{ color: "#C53A3A" }} title={r.error}>
+                          <span className="shrink-0 text-[11px] font-medium" style={{ color: "#B43838" }} title={r.error}>
                             ✕ {r.error ?? "Failed"}
                           </span>
                         ) : r.status === "uploading" ? (
                           <span className="shrink-0 text-[11px]" style={{ color: "#6F4FCE" }}>Uploading…</span>
                         ) : r.status === "waiting" ? (
-                          <span className="shrink-0 text-[11px]" style={{ color: "#C97A14" }} title="Pacing uploads to stay within the per-minute limit — this file retries automatically.">
+                          <span className="shrink-0 text-[11px]" style={{ color: "#B36D14" }} title="Pacing uploads to stay within the per-minute limit — this file retries automatically.">
                             Pacing… retries shortly
                           </span>
                         ) : (
@@ -1341,7 +1341,7 @@ export function UploadWorkbench() {
 
                   {batchResults.length > 0 && !uploading && batchResults.some((r) => r.status === "done") && (
                     <div className="flex flex-col gap-1.5">
-                      <p className="text-[11.5px]" style={{ color: "#56627A", margin: 0 }}>
+                      <p className="text-[11.5px]" style={{ color: "#5E6779", margin: 0 }}>
                         Orders created. We&apos;re extracting each document now — the buyer, line
                         items and totals fill in automatically once extraction finishes.
                       </p>
@@ -1358,7 +1358,7 @@ export function UploadWorkbench() {
           {/* ── FOOTER · Step ③ Send for review (full width) ── */}
           <div
             className="flex flex-col gap-3 p-5"
-            style={{ borderTop: "1px solid #E2E6EE", background: "#FFFFFF" }}
+            style={{ borderTop: "1px solid #E5E8EE", background: "#FFFFFF" }}
           >
             {/* 429 / supplier-required / upload-failed error banner */}
             {uploadError && (
@@ -1367,8 +1367,8 @@ export function UploadWorkbench() {
                 style={{
                   borderRadius: 7,
                   padding: "10px 14px",
-                  background: "#FAEFD6",
-                  border: "1px solid #C97A14",
+                  background: "#FAF1DD",
+                  border: "1px solid #B36D14",
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "space-between",
@@ -1390,7 +1390,7 @@ export function UploadWorkbench() {
                   return (
                     <a
                       href={ctaHref}
-                      style={{ fontWeight: 600, color: "#C97A14", textDecoration: "none", whiteSpace: "nowrap" }}
+                      style={{ fontWeight: 600, color: "#B36D14", textDecoration: "none", whiteSpace: "nowrap" }}
                     >
                       {uploadError.cta} →
                     </a>
@@ -1426,7 +1426,7 @@ export function UploadWorkbench() {
                           width: "100%",
                           background: done    ? "#1E6D29"
                                     : active  ? "#2E8E3A"
-                                    : "#E2E6EE",
+                                    : "#E5E8EE",
                           transition: "background 0.3s",
                           position: "relative",
                           overflow: "hidden",
@@ -1444,7 +1444,7 @@ export function UploadWorkbench() {
                           fontSize: 9.5,
                           fontWeight: 600,
                           letterSpacing: "0.04em",
-                          color: done ? "#1E6D29" : active ? "#2E8E3A" : "#C6CDDA",
+                          color: done ? "#1E6D29" : active ? "#2E8E3A" : "#CBD0DA",
                           transition: "color 0.2s",
                         }}>
                           {done ? "✓ " : ""}{stage}
@@ -1463,10 +1463,10 @@ export function UploadWorkbench() {
 
         {/* Recent uploads — hidden entirely when there is nothing recent */}
         {recentRows.length > 0 && (
-          <XCard edge="left" edgeColor="#E2E6EE">
+          <XCard edge="left" edgeColor="#E5E8EE">
             <div
               className="flex items-center px-4 py-3"
-              style={{ borderBottom: "1px solid #E2E6EE" }}
+              style={{ borderBottom: "1px solid #E5E8EE" }}
             >
               <span
                 className="text-[13px] font-semibold"
@@ -1540,7 +1540,7 @@ export function UploadWorkbench() {
                 style={{ fontSize: 12.5 }}
               >
                 <thead>
-                  <tr style={{ borderBottom: "1px solid #E2E6EE" }}>
+                  <tr style={{ borderBottom: "1px solid #E5E8EE" }}>
                     {["File", "Format", "Route", "Size", "Age", "Status"].map(
                       (h) => (
                         <th
@@ -1592,7 +1592,7 @@ export function UploadWorkbench() {
                           </span>
                           <span
                             className="mx-1 text-[11px]"
-                            style={{ color: "#C6CDDA" }}
+                            style={{ color: "#CBD0DA" }}
                           >
                             →
                           </span>
@@ -1605,7 +1605,7 @@ export function UploadWorkbench() {
                         </td>
                         <td
                           className="px-4 py-2.5 text-[12px]"
-                          style={{ color: "#56627A" }}
+                          style={{ color: "#5E6779" }}
                         >
                           {row.size}
                         </td>
@@ -1641,7 +1641,7 @@ export function UploadWorkbench() {
             >
               ✦ AI extraction
             </p>
-            <p className="text-[11.5px] leading-relaxed" style={{ color: "#56627A" }}>
+            <p className="text-[11.5px] leading-relaxed" style={{ color: "#5E6779" }}>
               Text-based PDFs are read and structured by our AI extraction
               engine. Every number is checked against the source text, and
               anything that doesn't reconcile is flagged for review.
@@ -1656,17 +1656,17 @@ export function UploadWorkbench() {
 function UsageLine({ label, used, limit }: { label: string; used: number; limit: number }) {
   const unlimited = limit >= 2_000_000_000;
   const pct = unlimited || limit === 0 ? 100 : Math.min(100, Math.round((used / limit) * 100));
-  const color = unlimited || pct < 75 ? "#1E6D29" : pct < 95 ? "#C97A14" : "#C53A3A";
+  const color = unlimited || pct < 75 ? "#1E6D29" : pct < 95 ? "#B36D14" : "#B43838";
 
   return (
     <div className="mt-2">
       <div className="mb-1 flex items-center justify-between text-[11.5px]">
-        <span style={{ color: "#56627A" }}>{label}</span>
+        <span style={{ color: "#5E6779" }}>{label}</span>
         <span style={{ color: "#0B1A2F", fontFamily: "'JetBrains Mono', monospace", fontWeight: 700 }}>
           {used} / {unlimited ? "Custom" : limit}
         </span>
       </div>
-      <div className="h-1.5 overflow-hidden rounded-full" style={{ background: "#E2E6EE" }}>
+      <div className="h-1.5 overflow-hidden rounded-full" style={{ background: "#E5E8EE" }}>
         <div className="h-full rounded-full" style={{ width: `${unlimited ? 100 : pct}%`, background: color }} />
       </div>
     </div>

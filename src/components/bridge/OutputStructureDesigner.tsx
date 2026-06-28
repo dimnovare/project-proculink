@@ -58,8 +58,8 @@ const NAVY = "#0B1A2F";
 const GREEN = "#2E8E3A";       // brand-green — modal's single primary action (Save)
 const GREEN_DEEP = "#1E6D29";  // brand-green-deep — primary hover, green text/borders
 const BLUE = "#1E66C9";        // buyer-blue — incoming accent (active includeWhen)
-const BORDER = "#C6CDDA";
-const SLATE = "#56627A";
+const BORDER = "#CBD0DA";
+const SLATE = "#5E6779";
 
 // Value-format presets — append a DateFormat / NumberFormat manipulator so a non-technical user gets
 // "Date" / "Number" / "Currency" formatting without hand-writing Scriban. The canonical date fields
@@ -349,7 +349,7 @@ export function OutputStructureDesigner({
                       </button>
                     </div>
                   </div>
-                  {inferError && <div style={{ color: "#C53A3A", fontSize: 12, marginTop: 6 }}>{inferError}</div>}
+                  {inferError && <div style={{ color: "#B43838", fontSize: 12, marginTop: 6 }}>{inferError}</div>}
                 </div>
               )}
             </div>
@@ -412,8 +412,8 @@ export function OutputStructureDesigner({
 const TYPE_PILL: Record<OutputNodeType, { glyph: string; fg: string; bg: string; border: string }> = {
   object:    { glyph: "{ }", fg: "#1E66C9", bg: "#EAF1FC", border: "#CFE0F7" },
   array:     { glyph: "[ ]", fg: "#3A4A60", bg: "#EEF1F6", border: "#D8DEE9" },
-  field:     { glyph: "val", fg: "#56627A", bg: "#EEF1F6", border: "#D8DEE9" },
-  attribute: { glyph: "@",   fg: "#56627A", bg: "#EEF1F6", border: "#D8DEE9" },
+  field:     { glyph: "val", fg: "#5E6779", bg: "#EEF1F6", border: "#D8DEE9" },
+  attribute: { glyph: "@",   fg: "#5E6779", bg: "#EEF1F6", border: "#D8DEE9" },
 };
 
 const MONO = "'JetBrains Mono', ui-monospace, Menlo, monospace";
@@ -522,7 +522,7 @@ function NodeEditor({
           border: `1px solid ${isContainer ? "#E6EAF1" : "#ECEFF4"}`,
           background: isContainer ? "#FBFCFE" : "#FFFFFF",
           // Left status bar (§7.2): green=mapped / violet=fixed / grey=unset/container.
-          boxShadow: `inset 3px 0 0 0 ${isContainer ? "#D8DEE9" : usingFixed ? "#6F4FCE" : (boundCanonical || boundToken) ? GREEN : "#E2E6EE"}`,
+          boxShadow: `inset 3px 0 0 0 ${isContainer ? "#D8DEE9" : usingFixed ? "#6F4FCE" : (boundCanonical || boundToken) ? GREEN : "#E5E8EE"}`,
         }}>
         {/* Type pill */}
         <span title={node.nodeType} style={{ flex: "0 0 auto", fontFamily: MONO, fontSize: 11, fontWeight: 700, color: pill.fg, background: pill.bg, border: `1px solid ${pill.border}`, borderRadius: 5, height: 22, display: "inline-flex", alignItems: "center", justifyContent: "center", padding: "0 7px", minWidth: 34 }}>
@@ -621,7 +621,7 @@ function NodeEditor({
         {!isRoot && (
           <button onClick={remove} aria-label="Remove node" title="Remove"
             onFocus={() => setHover(true)} onBlur={() => setHover(false)}
-            style={{ flex: "0 0 auto", height: 24, width: 24, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 6, border: "1px solid transparent", background: "transparent", color: "var(--danger, #C53A3A)", fontSize: 13, cursor: "pointer", opacity: hover ? 1 : 0.35, transition: "opacity 120ms ease" }}>
+            style={{ flex: "0 0 auto", height: 24, width: 24, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 6, border: "1px solid transparent", background: "transparent", color: "var(--danger, #B43838)", fontSize: 13, cursor: "pointer", opacity: hover ? 1 : 0.35, transition: "opacity 120ms ease" }}>
             ✕
           </button>
         )}
@@ -858,7 +858,7 @@ function RootNamespacesEditor({ rows, onChange }: {
                 placeholder="urn:oasis:names:…:CommonBasicComponents-2" aria-label={`Namespace URI ${i + 1}`} spellCheck={false}
                 style={{ flex: "1 1 200px", minWidth: 0, height: 28, border: `1px solid ${BORDER}`, borderRadius: 6, padding: "0 8px", fontSize: 12, fontFamily: MONO }} />
               <button onClick={() => removeRow(i)} aria-label={`Remove namespace ${i + 1}`} title="Remove"
-                style={{ height: 28, width: 28, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 6, border: `1px solid ${BORDER}`, background: "#FFF", color: "var(--danger, #C53A3A)", fontSize: 12, cursor: "pointer" }}>✕</button>
+                style={{ height: 28, width: 28, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 6, border: `1px solid ${BORDER}`, background: "#FFF", color: "var(--danger, #B43838)", fontSize: 12, cursor: "pointer" }}>✕</button>
             </div>
           ))}
           <button onClick={addRow}

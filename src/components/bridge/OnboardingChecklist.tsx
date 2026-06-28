@@ -34,16 +34,16 @@ const T = {
   navy:      "#0B1A2F",
   blue:      "#1E66C9",
   blueDeep:  "#0F4FA8",
-  blueSoft:  "#E3EDFB",
+  blueSoft:  "#EAF0F8",
   green:     "#2E8E3A",
   greenDeep: "#1E6D29",
   surface:   "#FFFFFF",
-  surface2:  "#EFF2F7",
-  border:    "#E2E6EE",
+  surface2:  "#F1F3F7",
+  border:    "#E5E8EE",
   ink:       "#0B1A2F",
-  muted:     "#56627A",
+  muted:     "#5E6779",
   faint:     "var(--ink-faint)",
-  amber:     "#C97A14",
+  amber:     "#B36D14",
   amberSoft: "#FFF8EA",
 };
 
@@ -386,7 +386,7 @@ export function OnboardingChecklist({ onResumeSetup }: OnboardingChecklistProps)
                   &quot;delivery not set up&quot;, which is expected for the practice {nounLower}.
                 </p>
                 {sampleError && (
-                  <p className="mt-1 text-[11.5px]" style={{ color: "#C53A3A" }}>
+                  <p className="mt-1 text-[11.5px]" style={{ color: "#B43838" }}>
                     {sampleError.message || "Could not start the practice order."}
                   </p>
                 )}
@@ -445,7 +445,7 @@ export function OnboardingChecklist({ onResumeSetup }: OnboardingChecklistProps)
                     {intermediate && (
                       <span
                         className="rounded-[4px] px-1.5 py-0.5 text-[10px] font-bold uppercase"
-                        style={{ background: "#FAEFD6", color: T.amber, letterSpacing: "0.05em" }}
+                        style={{ background: "#FAF1DD", color: T.amber, letterSpacing: "0.05em" }}
                       >
                         Almost there
                       </span>

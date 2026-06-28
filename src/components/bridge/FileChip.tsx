@@ -7,11 +7,11 @@ type FileFormat = "PDF" | "XLSX" | "CSV" | "XML" | "cXML" | "EDI" | "JSON" | "EM
 // Canonical palette from tokens.css .src-*
 const CHIP_COLORS: Record<string, { bg: string; color: string }> = {
   PDF:   { bg: "#FBEEEE", color: "#B53F3F" },        // .src-PDF
-  XLSX:  { bg: "#E2F1E2", color: "#1E6D29" },         // .src-XLSX  (brand-green-soft / brand-green-deep)
+  XLSX:  { bg: "#E9F1EA", color: "#1E6D29" },         // .src-XLSX  (brand-green-soft / brand-green-deep)
   CSV:   { bg: "#EEF3F8", color: "#345470" },          // .src-CSV
-  XML:   { bg: "#EEE7FB", color: "#5E3DB0" },          // .src-XML   (ai-soft / #5E3DB0)
-  cXML:  { bg: "#EEE7FB", color: "#5E3DB0" },          // .src-cXML
-  EDI:   { bg: "#FAEFD6", color: "#C97A14" },          // .src-EDI   (amber-soft / amber)
+  XML:   { bg: "#F0EAFB", color: "#5E3DB0" },          // .src-XML   (ai-soft / #5E3DB0)
+  cXML:  { bg: "#F0EAFB", color: "#5E3DB0" },          // .src-cXML
+  EDI:   { bg: "#FAF1DD", color: "#B36D14" },          // .src-EDI   (amber-soft / amber)
   EMAIL: { bg: "#E9EDF3", color: "#4A5568" },          // .src-EMAIL
   API:   { bg: "#E3F0E3", color: "#1E6D29" },          // .src-API   (brand-green-deep)
   JSON:  { bg: "#FFF4D6", color: "#846100" },          // .src-JSON

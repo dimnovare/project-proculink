@@ -30,7 +30,7 @@ function AccountMenu() {
           height: 30,
           background: "linear-gradient(135deg,#2a4b73,#1a3050)",
           color: "#FFFFFF",
-          border: "1px solid #1C2F49",
+          border: "1px solid #1F3252",
         }}
         title="Clerk is not configured"
       >
@@ -116,7 +116,7 @@ function useAutoCrumb(): ReactNode {
                 title={crumb.label}
                 className="truncate transition-colors hover:underline"
                 style={{ color: "#7C8DA6", maxWidth: 220 }}
-                onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = "#C5D2E4"; }}
+                onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = "#C8D1E0"; }}
                 onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = "#7C8DA6"; }}
               >
                 {display}
@@ -126,7 +126,7 @@ function useAutoCrumb(): ReactNode {
                 aria-current="page"
                 title={crumb.label}
                 className="truncate"
-                style={{ color: "#C5D2E4", fontWeight: 500, maxWidth: 260 }}
+                style={{ color: "#C8D1E0", fontWeight: 500, maxWidth: 260 }}
               >
                 {display}
               </span>
@@ -239,15 +239,15 @@ function NotificationsBell() {
         {/* Visible 32x32 chip; the button itself is a 44x44 transparent hit area. */}
         <span
           className="flex items-center justify-center rounded-[6px] relative"
-          style={{ width: 32, height: 32, background: open ? "#10243E" : "transparent", border: "1px solid transparent", color: open ? "#FFFFFF" : "#C5D2E4", transition: "background 150ms, color 150ms" }}
-          onMouseEnter={(e) => { if (!open) { (e.currentTarget as HTMLElement).style.background = "#10243E"; } }}
+          style={{ width: 32, height: 32, background: open ? "#14253D" : "transparent", border: "1px solid transparent", color: open ? "#FFFFFF" : "#C8D1E0", transition: "background 150ms, color 150ms" }}
+          onMouseEnter={(e) => { if (!open) { (e.currentTarget as HTMLElement).style.background = "#14253D"; } }}
           onMouseLeave={(e) => { if (!open) { (e.currentTarget as HTMLElement).style.background = "transparent"; } }}
         >
           <Bell size={17} strokeWidth={1.9} />
           {unread > 0 && (
             <span
               className="absolute flex items-center justify-center"
-              style={{ top: 4, right: 4, minWidth: 15, height: 15, padding: "0 3.5px", borderRadius: 8, background: "#C97A14", color: "#FFFFFF", fontSize: 9.5, fontWeight: 700, border: "1.5px solid #0B1A2F", lineHeight: 1 }}
+              style={{ top: 4, right: 4, minWidth: 15, height: 15, padding: "0 3.5px", borderRadius: 8, background: "#B36D14", color: "#FFFFFF", fontSize: 9.5, fontWeight: 700, border: "1.5px solid #0B1A2F", lineHeight: 1 }}
             >
               {unread > 9 ? "9+" : unread}
             </span>
@@ -258,11 +258,11 @@ function NotificationsBell() {
       {open && (
         <div
           className="fixed inset-x-2 top-14 z-50 w-auto sm:absolute sm:inset-x-auto sm:right-0 sm:top-8 sm:w-80"
-          style={{ background: "#FFFFFF", border: "1px solid #E2E6EE", borderRadius: 10, boxShadow: "0 8px 24px rgba(11,26,47,.12)", overflow: "hidden" }}
+          style={{ background: "#FFFFFF", border: "1px solid #E5E8EE", borderRadius: 10, boxShadow: "0 8px 24px rgba(11,26,47,.12)", overflow: "hidden" }}
         >
-          <div className="flex items-center justify-between" style={{ padding: "10px 12px", borderBottom: "1px solid #E2E6EE" }}>
+          <div className="flex items-center justify-between" style={{ padding: "10px 12px", borderBottom: "1px solid #E5E8EE" }}>
             <span style={{ fontSize: 12.5, fontWeight: 700, color: "#0B1A2F" }}>Notifications</span>
-            {unread > 0 && <span style={{ fontSize: 10.5, fontWeight: 600, color: "#C97A14" }}>{unread} need action</span>}
+            {unread > 0 && <span style={{ fontSize: 10.5, fontWeight: 600, color: "#B36D14" }}>{unread} need action</span>}
           </div>
           <div className="max-h-[60vh] sm:max-h-[360px]" style={{ overflowY: "auto" }}>
             {top.length === 0 ? (
@@ -283,7 +283,7 @@ function NotificationsBell() {
                     <span style={{ width: 7, height: 7, borderRadius: "50%", background: meta.dot, marginTop: 5, flexShrink: 0 }} />
                     <span className="min-w-0 flex-1">
                       <span style={{ display: "block", fontSize: 12, fontWeight: 600, color: "#0B1A2F" }}>{meta.label}</span>
-                      <span style={{ display: "block", fontSize: 11, color: "#56627A", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      <span style={{ display: "block", fontSize: 11, color: "#5E6779", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                         <span style={{ fontFamily: "'JetBrains Mono',monospace" }}>{o.poNumber}</span> · {o.supplierName}
                       </span>
                     </span>
@@ -297,7 +297,7 @@ function NotificationsBell() {
             type="button"
             onClick={() => { setOpen(false); router.push("/inbox"); }}
             className="w-full text-center"
-            style={{ padding: "9px 12px", fontSize: 12, fontWeight: 600, color: "#1E6D29", background: "#FFFFFF", cursor: "pointer", borderTop: "1px solid #E2E6EE" }}
+            style={{ padding: "9px 12px", fontSize: 12, fontWeight: 600, color: "#1E6D29", background: "#FFFFFF", cursor: "pointer", borderTop: "1px solid #E5E8EE" }}
           >
             View all in inbox →
           </button>
@@ -360,9 +360,9 @@ export function BridgeTopbar({ crumb, onMenuClick }: BridgeTopbarProps) {
           onClick={onMenuClick}
           className="flex h-9 w-9 items-center justify-center rounded-[7px] md:hidden"
           style={{
-            background: "#10243E",
-            border: "1px solid #1C2F49",
-            color: "#C5D2E4",
+            background: "#14253D",
+            border: "1px solid #1F3252",
+            color: "#C8D1E0",
           }}
           aria-label="Open navigation"
         >
@@ -380,7 +380,7 @@ export function BridgeTopbar({ crumb, onMenuClick }: BridgeTopbarProps) {
               height: 22,
               padding: "0 10px",
               borderRadius: 99,
-              background: "#FAEFD6",
+              background: "#FAF1DD",
               border: "1px solid #F0D39A",
               color: "#7A4D0B",
               fontSize: 11,
@@ -395,7 +395,7 @@ export function BridgeTopbar({ crumb, onMenuClick }: BridgeTopbarProps) {
                 width: 6,
                 height: 6,
                 borderRadius: "50%",
-                background: "#C97A14",
+                background: "#B36D14",
                 display: "inline-block",
               }}
             />
@@ -408,7 +408,7 @@ export function BridgeTopbar({ crumb, onMenuClick }: BridgeTopbarProps) {
             single-segment page title so the user always knows where they are. */}
         <div
           className="hidden sm:flex min-w-0 items-center gap-2 text-[12.5px] flex-shrink-0"
-          style={{ color: "#C5D2E4" }}
+          style={{ color: "#C8D1E0" }}
         >
           {crumb ?? autoCrumb}
         </div>
@@ -435,17 +435,17 @@ export function BridgeTopbar({ crumb, onMenuClick }: BridgeTopbarProps) {
             height: 34,
             width: 320,
             maxWidth: "38vw",
-            background: "#10243E",
-            border: "1px solid #1C2F49",
+            background: "#14253D",
+            border: "1px solid #1F3252",
             color: "#7C8DA6",
             fontSize: 12.5,
           }}
           onMouseEnter={(e) => {
             (e.currentTarget as HTMLElement).style.borderColor = "#294063";
-            (e.currentTarget as HTMLElement).style.color = "#C5D2E4";
+            (e.currentTarget as HTMLElement).style.color = "#C8D1E0";
           }}
           onMouseLeave={(e) => {
-            (e.currentTarget as HTMLElement).style.borderColor = "#1C2F49";
+            (e.currentTarget as HTMLElement).style.borderColor = "#1F3252";
             (e.currentTarget as HTMLElement).style.color = "#7C8DA6";
           }}
         >
@@ -454,7 +454,7 @@ export function BridgeTopbar({ crumb, onMenuClick }: BridgeTopbarProps) {
           <span className="flex-1 text-left truncate">Search orders, suppliers, buyers…</span>
           <kbd
             className="flex items-center gap-0.5 rounded text-[10.5px] font-medium"
-            style={{ background: "#0a1626", border: "1px solid #1C2F49", padding: "1px 5px", color: "#7C8DA6", fontFamily: "'JetBrains Mono', ui-monospace, monospace" }}
+            style={{ background: "#0a1626", border: "1px solid #1F3252", padding: "1px 5px", color: "#7C8DA6", fontFamily: "'JetBrains Mono', ui-monospace, monospace" }}
           >
             ⌘K
           </kbd>
@@ -473,7 +473,7 @@ export function BridgeTopbar({ crumb, onMenuClick }: BridgeTopbarProps) {
             height: 32,
             background: "transparent",
             border: "1px solid transparent",
-            color: "#C5D2E4",
+            color: "#C8D1E0",
             cursor: "pointer",
             transition: "background 150ms, color 150ms",
           }}
@@ -508,11 +508,11 @@ export function BridgeTopbar({ crumb, onMenuClick }: BridgeTopbarProps) {
             height: 32,
             background: "transparent",
             border: "1px solid transparent",
-            color: "#C5D2E4",
+            color: "#C8D1E0",
             cursor: "pointer",
             transition: "background 150ms, color 150ms",
           }}
-          onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "#10243E"; }}
+          onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "#14253D"; }}
           onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "transparent"; }}
           title="Help"
         >
@@ -527,7 +527,7 @@ export function BridgeTopbar({ crumb, onMenuClick }: BridgeTopbarProps) {
                 width: 8,
                 height: 8,
                 borderRadius: "50%",
-                background: "#C97A14",
+                background: "#B36D14",
                 border: "1.5px solid #0B1A2F",
               }}
             />

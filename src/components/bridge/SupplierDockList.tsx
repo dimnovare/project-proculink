@@ -58,20 +58,20 @@ function formatLabel(outputFormat?: string | null): string | null {
 // ── Palette (CSS-var first; hexes mirror tokens for inline-only styles) ──────
 // Supplier-green is the supplier ENTITY colour across the product (badge tile,
 // hover row band, acceptance). Forest #2E8E3A reads crisp on white; deep #1E6D29
-// is the icon stroke / accepted text; soft #E2F1E2 is the tile / hover fill.
+// is the icon stroke / accepted text; soft #E9F1EA is the tile / hover fill.
 const GREEN        = "#2E8E3A"; // brand supplier green (markers, focus ring)
 const GREEN_DEEP   = "#1E6D29"; // deep green — icon stroke, accepted text
-const GREEN_SOFT   = "#E2F1E2"; // soft green — badge tile, hovered row band
+const GREEN_SOFT   = "#E9F1EA"; // soft green — badge tile, hovered row band
 // Blue is the primary-action colour (buttons), per the design source.
 const BLUE         = "#1E66C9";
 const BLUE_DEEP    = "#0F4FA8";
 // Neutrals (sampled from the design render / tokens.css).
 const INK          = "#0B1A2F"; // primary text
-const TEXT_MUTED   = "#56627A"; // subtitle / pill text
+const TEXT_MUTED   = "#5E6779"; // subtitle / pill text
 const TEXT_FAINT   = "var(--ink-faint)"; // header labels / codes
 const PLACEHOLDER  = "#A2AAB9"; // faint "—" for not-yet-configured cells
-const BORDER       = "#E2E6EE"; // card border + row dividers
-const PILL_BG      = "#EFF2F7"; // neutral "Not set" pill fill
+const BORDER       = "#E5E8EE"; // card border + row dividers
+const PILL_BG      = "#F1F3F7"; // neutral "Not set" pill fill
 // Shared monospace stack for codes / numeric cells (matches the Buyers table).
 const MONO         = "'JetBrains Mono', ui-monospace, monospace";
 
@@ -203,7 +203,7 @@ export function SupplierDockList() {
                 onClick={() => { setShowAddPanel(true); setAddError(null); }}
                 className="inline-flex h-[34px] w-full items-center justify-center gap-[7px] rounded-[7px] px-4 text-[12.5px] font-semibold tracking-[-0.005em] transition-colors sm:w-auto"
                 style={{
-                  background: limitReached ? "#EFF2F7" : BLUE,
+                  background: limitReached ? "#F1F3F7" : BLUE,
                   color: limitReached ? "var(--ink-faint)" : "#FFFFFF",
                   border: "none",
                   cursor: !canAddSupplier ? "not-allowed" : "pointer",
@@ -228,7 +228,7 @@ export function SupplierDockList() {
         {billing && !billing.canAddSupplier && (
           <div
             className="mb-4 rounded-[10px] px-4 py-3"
-            style={{ border: "1px solid #F0D39A", borderLeft: "3px solid #C97A14", background: "#FFF8EA" }}
+            style={{ border: "1px solid #F0D39A", borderLeft: "3px solid #B36D14", background: "#FFF8EA" }}
           >
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
               <div>
@@ -242,7 +242,7 @@ export function SupplierDockList() {
               <button
                 onClick={() => router.push("/settings")}
                 className="h-8 rounded-[6px] px-3 text-[12px] font-semibold"
-                style={{ border: "1px solid #C97A14", background: "#FFFFFF", color: "#9A5F0A" }}
+                style={{ border: "1px solid #B36D14", background: "#FFFFFF", color: "#9A5F0A" }}
               >
                 View billing
               </button>
@@ -264,7 +264,7 @@ export function SupplierDockList() {
         {showAddPanel && canAddSupplier && (
           <div
             className="mb-4 overflow-hidden rounded-[10px]"
-            style={{ border: "1px solid #E2E6EE", background: "#FFFFFF", boxShadow: "0 1px 2px rgba(11,26,47,0.04)" }}
+            style={{ border: "1px solid #E5E8EE", background: "#FFFFFF", boxShadow: "0 1px 2px rgba(11,26,47,0.04)" }}
           >
             <div className="flex items-start justify-between gap-3 px-[18px] pt-[18px]">
               <div className="flex items-start gap-3">
@@ -283,7 +283,7 @@ export function SupplierDockList() {
                 onClick={() => { setShowAddPanel(false); setNewName(""); setAddError(null); }}
                 aria-label="Close add supplier panel"
                 className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-[6px]"
-                style={{ border: "1px solid #E2E6EE", background: "#FFFFFF", color: "var(--ink-faint)" }}
+                style={{ border: "1px solid #E5E8EE", background: "#FFFFFF", color: "var(--ink-faint)" }}
               >
                 <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
                   <path d="M2 10L10 2M2 2l8 8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
@@ -292,7 +292,7 @@ export function SupplierDockList() {
             </div>
             <div className="flex flex-col gap-2 px-[18px] pb-[18px] pt-3">
               <label className="text-[11.5px] font-semibold" style={{ color: TEXT_MUTED }}>
-                {noun} name <span style={{ color: "#C53A3A", marginLeft: 3 }}>*</span>
+                {noun} name <span style={{ color: "#B43838", marginLeft: 3 }}>*</span>
               </label>
               <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto]">
                 <input
@@ -302,9 +302,9 @@ export function SupplierDockList() {
                   onChange={(e) => setNewName(e.target.value)}
                   onKeyDown={(e) => { if (e.key === "Enter") handleSave(); }}
                   className="h-[34px] rounded-[6px] px-3 text-[12.5px]"
-                  style={{ border: "1px solid #C6CDDA", color: INK, transition: "border-color 150ms, box-shadow 150ms" }}
+                  style={{ border: "1px solid #CBD0DA", color: INK, transition: "border-color 150ms, box-shadow 150ms" }}
                   onFocus={(e) => { e.currentTarget.style.borderColor = GREEN; e.currentTarget.style.boxShadow = `0 0 0 3px ${GREEN_SOFT}`; }}
-                  onBlur={(e) => { e.currentTarget.style.borderColor = "#C6CDDA"; e.currentTarget.style.boxShadow = "none"; }}
+                  onBlur={(e) => { e.currentTarget.style.borderColor = "#CBD0DA"; e.currentTarget.style.boxShadow = "none"; }}
                   autoFocus
                 />
                 {/* Save — confirmation CTA stays green (matches design ctaVariant) */}
@@ -339,7 +339,7 @@ export function SupplierDockList() {
                 Auto-process means orders are sent to this {nounLower} automatically once they pass checks. It stays off until you set up delivery and turn it on.
               </div>
               {addError && (
-                <p className="text-[12px]" style={{ color: "#C53A3A" }}>{addError}</p>
+                <p className="text-[12px]" style={{ color: "#B43838" }}>{addError}</p>
               )}
             </div>
           </div>
@@ -349,7 +349,7 @@ export function SupplierDockList() {
         {isLoading && (
           <div
             className="overflow-hidden rounded-[10px]"
-            style={{ border: "1px solid #E2E6EE", background: "#FFFFFF", boxShadow: "0 1px 2px rgba(11,26,47,0.04)" }}
+            style={{ border: "1px solid #E5E8EE", background: "#FFFFFF", boxShadow: "0 1px 2px rgba(11,26,47,0.04)" }}
             role="status"
             aria-busy="true"
           >
@@ -359,11 +359,11 @@ export function SupplierDockList() {
               <div
                 key={i}
                 className="flex items-center gap-[13px] px-[18px] py-[14px]"
-                style={{ borderTop: idx === 0 ? "none" : "1px solid #E2E6EE" }}
+                style={{ borderTop: idx === 0 ? "none" : "1px solid #E5E8EE" }}
               >
-                <div className="h-8 w-8 flex-shrink-0 rounded-[7px] animate-pulse" style={{ background: "#EFF2F7" }} />
+                <div className="h-8 w-8 flex-shrink-0 rounded-[7px] animate-pulse" style={{ background: "#F1F3F7" }} />
                 <div className="flex flex-col gap-1.5">
-                  <div className="h-3.5 w-32 rounded animate-pulse" style={{ background: "#EFF2F7" }} />
+                  <div className="h-3.5 w-32 rounded animate-pulse" style={{ background: "#F1F3F7" }} />
                   <div className="h-2.5 w-14 rounded animate-pulse" style={{ background: "#F2F4F9" }} />
                 </div>
               </div>
@@ -375,7 +375,7 @@ export function SupplierDockList() {
         {suppliersError && !isLoading && (
           <div
             className="rounded-[10px] px-4 py-3 text-[13px]"
-            style={{ border: "1px solid #F1C9C9", background: "#FEF2F2", color: "#C53A3A" }}
+            style={{ border: "1px solid #F1C9C9", background: "#FEF2F2", color: "#B43838" }}
           >
             Could not load suppliers. Check your connection and try refreshing.
           </div>
@@ -385,7 +385,7 @@ export function SupplierDockList() {
         {!isLoading && !suppliersError && suppliers.length === 0 && (
           <div
             className="rounded-[10px] px-6 py-12 text-center"
-            style={{ border: "1px dashed #C6CDDA", background: "#FFFFFF" }}
+            style={{ border: "1px dashed #CBD0DA", background: "#FFFFFF" }}
           >
             <div
               className="mx-auto mb-3 flex items-center justify-center"
@@ -418,7 +418,7 @@ export function SupplierDockList() {
         {hasRows && (
           <div
             className="hidden overflow-hidden rounded-[10px] sm:block"
-            style={{ border: "1px solid #E2E6EE", background: "#FFFFFF", boxShadow: "0 1px 2px rgba(11,26,47,0.04)" }}
+            style={{ border: "1px solid #E5E8EE", background: "#FFFFFF", boxShadow: "0 1px 2px rgba(11,26,47,0.04)" }}
           >
             <table style={{ width: "100%", borderCollapse: "collapse" }}>
               <colgroup>
@@ -505,7 +505,7 @@ function SupplierTableHeader({ counterpartyNoun = "Supplier" }: { counterpartyNo
   return (
     <div
       className="hidden grid-cols-[minmax(0,2.4fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.1fr)_18px] items-center gap-4 px-[18px] py-[11px] sm:grid"
-      style={{ background: "#FFFFFF", borderBottom: "1px solid #E2E6EE" }}
+      style={{ background: "#FFFFFF", borderBottom: "1px solid #E5E8EE" }}
     >
       <span className={cls} style={{ color }}>{counterpartyNoun}</span>
       <span className={cls} style={{ color }}>Format</span>
@@ -553,7 +553,7 @@ function AutoProcessPill({ state, onHoverRow }: { state: "on" | "off" | "unset";
         transition: "background 150ms",
       }}
     >
-      <span className="inline-block h-1.5 w-1.5 rounded-full" style={{ background: isOn ? GREEN : "#C6CDDA" }} />
+      <span className="inline-block h-1.5 w-1.5 rounded-full" style={{ background: isOn ? GREEN : "#CBD0DA" }} />
       {isOn ? "On" : "Off"}
     </span>
   );
@@ -568,7 +568,7 @@ function CellValue({
   value: string | null;
 }) {
   if (isLoading) {
-    return <span className="inline-block h-3 w-12 rounded animate-pulse align-middle" style={{ background: "#EFF2F7" }} />;
+    return <span className="inline-block h-3 w-12 rounded animate-pulse align-middle" style={{ background: "#F1F3F7" }} />;
   }
   if (value == null) {
     return <span className="text-[12.5px]" style={{ color: PLACEHOLDER }}>—</span>;
@@ -662,7 +662,7 @@ function SupplierTableRow({
       {/* Auto-process — from delivery config autoDeliver */}
       <td style={{ padding: "14px 18px", borderBottom: cellBorder, verticalAlign: "middle" }}>
         {loading ? (
-          <span className="inline-block h-4 w-14 rounded-full animate-pulse align-middle" style={{ background: "#EFF2F7" }} />
+          <span className="inline-block h-4 w-14 rounded-full animate-pulse align-middle" style={{ background: "#F1F3F7" }} />
         ) : (
           <AutoProcessPill state={autoState} onHoverRow={isHover} />
         )}
@@ -724,7 +724,7 @@ function SupplierMobileCard({
         type="button"
         onClick={onOpen}
         className="block w-full rounded-[12px] p-4 text-left transition-colors active:opacity-95"
-        style={{ border: "1px solid #E2E6EE", background: "#FFFFFF", boxShadow: "0 1px 2px rgba(11,26,47,0.04)" }}
+        style={{ border: "1px solid #E5E8EE", background: "#FFFFFF", boxShadow: "0 1px 2px rgba(11,26,47,0.04)" }}
       >
         {/* Card head: badge + name + code, chevron on the right */}
         <div className="flex items-center gap-3">
@@ -764,7 +764,7 @@ function SupplierMobileCard({
             </dt>
             <dd className="m-0">
               {loading ? (
-                <span className="inline-block h-4 w-14 rounded-full animate-pulse" style={{ background: "#EFF2F7" }} />
+                <span className="inline-block h-4 w-14 rounded-full animate-pulse" style={{ background: "#F1F3F7" }} />
               ) : (
                 <AutoProcessPill state={autoState} onHoverRow={false} />
               )}
@@ -790,7 +790,7 @@ function SupplierMobileCard({
 
 /**
  * Neutral "Not set" status pill — mirrors the design's grey scope/status pill
- * (bg #EFF2F7, text #56627A, leading dot). Turns its fill white on a hovered
+ * (bg #F1F3F7, text #5E6779, leading dot). Turns its fill white on a hovered
  * desktop row so it reads against the green row tint.
  */
 function NotSetPill({ onHoverRow }: { onHoverRow: boolean }) {
@@ -799,7 +799,7 @@ function NotSetPill({ onHoverRow }: { onHoverRow: boolean }) {
       className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-[3px] text-[11px] font-medium"
       style={{ background: onHoverRow ? "#FFFFFF" : PILL_BG, color: TEXT_MUTED, transition: "background 150ms" }}
     >
-      <span className="inline-block h-1.5 w-1.5 rounded-full" style={{ background: "#C6CDDA" }} />
+      <span className="inline-block h-1.5 w-1.5 rounded-full" style={{ background: "#CBD0DA" }} />
       Not set
     </span>
   );
@@ -818,7 +818,7 @@ function MobileStat({ label, value, loading = false }: { label: string; value: s
       </dt>
       <dd className="m-0 text-[13px]" style={{ color: value == null ? PLACEHOLDER : INK }}>
         {loading ? (
-          <span className="inline-block h-3 w-12 rounded animate-pulse" style={{ background: "#EFF2F7" }} />
+          <span className="inline-block h-3 w-12 rounded animate-pulse" style={{ background: "#F1F3F7" }} />
         ) : (
           value ?? "—"
         )}

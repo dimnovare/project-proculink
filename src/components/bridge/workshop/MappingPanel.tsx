@@ -143,7 +143,7 @@ export function MappingPanel({
       )}
 
       {/* ── Attention rows — the only thing the operator must touch ──────────── */}
-      <div style={{ borderRadius: 10, background: "#FFFFFF", border: "1px solid #E2E6EE", overflow: "hidden" }}>
+      <div style={{ borderRadius: 10, background: "#FFFFFF", border: "1px solid #E5E8EE", overflow: "hidden" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 12px", borderBottom: "1px solid #EEF0F4" }}>
           <span style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "#0B1A2F" }}>
             Needs you
@@ -253,7 +253,7 @@ function AttentionRow({
           style={{
             fontFamily: "'JetBrains Mono',monospace",
             fontSize: 10.5,
-            color: hasSuggestion ? "#345470" : "#C97A14",
+            color: hasSuggestion ? "#345470" : "#B36D14",
             minWidth: 0,
             overflow: "hidden",
             textOverflow: "ellipsis",
@@ -299,7 +299,7 @@ function AttentionRow({
         >
           Accept
         </button>
-        <label style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 11, color: "#56627A" }}>
+        <label style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 11, color: "#5E6779" }}>
           <span>or use</span>
           <select
             aria-label={`Source for ${row.label ?? row.outputField}`}

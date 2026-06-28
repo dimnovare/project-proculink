@@ -21,8 +21,8 @@ import * as React from "react";
 
    Tones map to the canonical semantic tokens:
      success  → brand-green (soft bg)
-     warning  → amber  #C97A14 / soft #FAEFD6
-     danger   → #C53A3A / soft #FBE3E3
+     warning  → amber  #B36D14 / soft #FAF1DD
+     danger   → #B43838 / soft #FBE3E3
      info     → brand-blue (in-progress)
      neutral  → ink-muted
 

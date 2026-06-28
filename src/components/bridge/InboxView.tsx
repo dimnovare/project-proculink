@@ -407,7 +407,7 @@ function buildColumns(labels: PartyLabels) {
         </div>
         <div
           className="text-[11px]"
-          style={{ color: "#56627A" }}
+          style={{ color: "#5E6779" }}
         >
           {info.row.original.lines} lines{info.row.original.issues > 0 ? ` · ${info.row.original.issues} to review` : ""}
         </div>
@@ -474,7 +474,7 @@ function buildColumns(labels: PartyLabels) {
   }),
   columnHelper.accessor("ageMin", {
     header: "Updated",
-    cell: (info) => <span style={{ color: "#56627A", fontSize: "12px" }}>{info.row.original.age} ago</span>,
+    cell: (info) => <span style={{ color: "#5E6779", fontSize: "12px" }}>{info.row.original.age} ago</span>,
     meta: { label: "Updated" },
     size: 72,
   }),
@@ -493,7 +493,7 @@ function buildColumns(labels: PartyLabels) {
 
 function SortIcon({ state }: { state: "asc" | "desc" | false }) {
   return (
-    <span style={{ fontSize: 10, color: state ? BLUE_DEEP : "#C6CDDA", marginLeft: 4, userSelect: "none" }}>
+    <span style={{ fontSize: 10, color: state ? BLUE_DEEP : "#CBD0DA", marginLeft: 4, userSelect: "none" }}>
       {state === "asc" ? "↑" : state === "desc" ? "↓" : "⇅"}
     </span>
   );
@@ -851,18 +851,18 @@ export function InboxView() {
               margin: "0 auto 14px",
             }}
           >
-            <span style={{ fontSize: "22px", color: "#C53A3A" }}>⚠</span>
+            <span style={{ fontSize: "22px", color: "#B43838" }}>⚠</span>
           </div>
           <div style={{ fontWeight: 600, fontSize: "16px", color: "#0B1A2F" }}>
             Couldn't load the queue
           </div>
-          <div className="muted" style={{ fontSize: "13px", maxWidth: 380, margin: "6px auto 14px", color: "#56627A" }}>
+          <div className="muted" style={{ fontSize: "13px", maxWidth: 380, margin: "6px auto 14px", color: "#5E6779" }}>
             We couldn&apos;t load your orders right now — your data is safe. Try again in a moment.
           </div>
           <button
             onClick={() => refetch()}
             className="rounded-[6px] px-4 text-[12.5px] font-medium"
-            style={{ height: 32, border: "1px solid #E2E6EE", background: "#FFFFFF", color: "#0B1A2F" }}
+            style={{ height: 32, border: "1px solid #E5E8EE", background: "#FFFFFF", color: "#0B1A2F" }}
           >
             ↻ Retry
           </button>
@@ -891,7 +891,7 @@ export function InboxView() {
                 className="flex items-center gap-1.5 rounded-[6px] px-3 text-[12.5px] font-medium transition-colors"
                 style={{
                   height: 32,
-                  border: "1px solid #E2E6EE",
+                  border: "1px solid #E5E8EE",
                   background: "#FFFFFF",
                   color: isFetching ? "var(--ink-faint)" : "#0B1A2F",
                   cursor: isFetching ? "default" : "pointer",
@@ -1002,9 +1002,9 @@ export function InboxView() {
                 className="flex items-center gap-1.5 rounded-[6px] pl-2.5 pr-2 text-[12px] font-medium transition-colors flex-shrink-0"
                 style={{
                   height: 28,
-                  border: `1px solid ${active ? INK : "#E2E6EE"}`,
+                  border: `1px solid ${active ? INK : "#E5E8EE"}`,
                   background: active ? INK : "#FFFFFF",
-                  color: active ? "#FFFFFF" : "#56627A",
+                  color: active ? "#FFFFFF" : "#5E6779",
                   cursor: "pointer",
                 }}
               >
@@ -1015,8 +1015,8 @@ export function InboxView() {
                     minWidth: 18,
                     height: 17,
                     padding: "0 5px",
-                    background: active ? "rgba(255,255,255,0.16)" : "#EFF2F7",
-                    color: active ? "#FFFFFF" : "#56627A",
+                    background: active ? "rgba(255,255,255,0.16)" : "#F1F3F7",
+                    color: active ? "#FFFFFF" : "#5E6779",
                   }}
                 >
                   {chipCounts[i]?.toLocaleString() ?? 0}
@@ -1029,7 +1029,7 @@ export function InboxView() {
         {/* Search input — full width on its own row on mobile, capped on sm+ */}
         <div
           className="flex items-center gap-1.5 rounded-[6px] px-3 w-full sm:w-auto sm:min-w-[160px] sm:max-w-[240px] sm:flex-shrink-0"
-          style={{ background: "#FFFFFF", border: "1px solid #E2E6EE", height: 32 }}
+          style={{ background: "#FFFFFF", border: "1px solid #E5E8EE", height: 32 }}
         >
           <span aria-hidden="true" style={{ fontSize: "14px", color: "var(--ink-faint)", flexShrink: 0 }}>🔍</span>
           <input
@@ -1062,9 +1062,9 @@ export function InboxView() {
             className="flex items-center gap-1.5 rounded-[6px] px-3 text-[12.5px] font-medium transition-colors"
             style={{
               height: 32,
-              border: `1px solid ${columnsMenuOpen ? INK : "#E2E6EE"}`,
+              border: `1px solid ${columnsMenuOpen ? INK : "#E5E8EE"}`,
               background: "#FFFFFF",
-              color: "#56627A",
+              color: "#5E6779",
               cursor: "pointer",
             }}
           >
@@ -1080,7 +1080,7 @@ export function InboxView() {
                 top: "100%",
                 minWidth: 168,
                 background: "#FFFFFF",
-                border: "1px solid #E2E6EE",
+                border: "1px solid #E5E8EE",
                 boxShadow: "0 8px 24px rgba(11,26,47,0.12)",
               }}
             >
@@ -1124,7 +1124,7 @@ export function InboxView() {
       {/* ── Queue table / mobile route cards — floating white card on grey canvas ── */}
       <div
         className="flex-1 min-h-0 overflow-auto mb-3"
-        style={{ background: "#FFFFFF", border: "1px solid #E2E6EE", borderRadius: 12 }}
+        style={{ background: "#FFFFFF", border: "1px solid #E5E8EE", borderRadius: 12 }}
       >
         <div className="flex flex-col gap-2.5 p-3 lg:hidden">
           {/* Mobile loading skeleton — card-shaped, matching the route cards below
@@ -1134,11 +1134,11 @@ export function InboxView() {
               <div
                 key={`sk-${i}`}
                 className="rounded-[10px] px-4 py-3.5"
-                style={{ background: "#FFFFFF", border: "1px solid #E2E6EE", boxShadow: "0 1px 2px rgba(11,26,47,0.05)" }}
+                style={{ background: "#FFFFFF", border: "1px solid #E5E8EE", boxShadow: "0 1px 2px rgba(11,26,47,0.05)" }}
               >
                 <div className="mb-2 flex items-start justify-between gap-3">
                   <div className="min-w-0 flex-1">
-                    <div className="mb-1.5 h-[15px] w-32 rounded bg-[#E2E6EE] animate-pulse" />
+                    <div className="mb-1.5 h-[15px] w-32 rounded bg-[#E5E8EE] animate-pulse" />
                     <div className="h-[13px] w-44 rounded bg-[#EEF1F6] animate-pulse" />
                   </div>
                   <div className="h-[18px] w-20 rounded-full bg-[#EEF1F6] animate-pulse" />
@@ -1149,11 +1149,11 @@ export function InboxView() {
             ))}
           {!isInitialLoading && pagedRows.length === 0 && (
             <div className="flex flex-col items-center justify-center py-16 px-6 text-center gap-3">
-              <div style={{ fontSize: 28, color: "#C6CDDA" }}>⊘</div>
+              <div style={{ fontSize: 28, color: "#CBD0DA" }}>⊘</div>
               {isFiltered ? (
                 <>
                   <p className="text-[14px] font-semibold" style={{ color: "#0B1A2F" }}>No matching orders</p>
-                  <p className="text-[13px]" style={{ color: "#56627A" }}>
+                  <p className="text-[13px]" style={{ color: "#5E6779" }}>
                     No orders match the current filter or search. Try a different filter, or clear them to see everything.
                   </p>
                   <button
@@ -1165,7 +1165,7 @@ export function InboxView() {
                       borderRadius: 6,
                       background: "#FFFFFF",
                       color: "#0B1A2F",
-                      border: "1px solid #E2E6EE",
+                      border: "1px solid #E5E8EE",
                       fontSize: "12.5px",
                       fontWeight: 600,
                       cursor: "pointer",
@@ -1177,7 +1177,7 @@ export function InboxView() {
               ) : (
                 <>
                   <p className="text-[14px] font-semibold" style={{ color: "#0B1A2F" }}>Your inbox is clear</p>
-                  <p className="text-[13px]" style={{ color: "#56627A" }}>{emptyStateCopy}</p>
+                  <p className="text-[13px]" style={{ color: "#5E6779" }}>{emptyStateCopy}</p>
                   <button
                     onClick={() => router.push("/upload")}
                     style={{
@@ -1206,7 +1206,7 @@ export function InboxView() {
                       borderRadius: 6,
                       background: "#FFFFFF",
                       color: "#0B1A2F",
-                      border: "1px solid #E2E6EE",
+                      border: "1px solid #E5E8EE",
                       fontSize: "12.5px",
                       fontWeight: 600,
                       cursor: sample.isPending ? "default" : "pointer",
@@ -1216,7 +1216,7 @@ export function InboxView() {
                     {sample.isPending ? "Starting practice order…" : "Try a practice order"}
                   </button>
                   {sample.error && (
-                    <p className="text-[12px]" style={{ color: "#C53A3A" }}>{sample.error.message}</p>
+                    <p className="text-[12px]" style={{ color: "#B43838" }}>{sample.error.message}</p>
                   )}
                 </>
               )}
@@ -1226,7 +1226,7 @@ export function InboxView() {
             <button
               key={row.id}
               className="block w-full rounded-[10px] px-4 py-3.5 text-left transition-colors active:bg-[#F6F7FA]"
-              style={{ background: "#FFFFFF", border: "1px solid #E2E6EE", boxShadow: "0 1px 2px rgba(11,26,47,0.05)", minHeight: 44 }}
+              style={{ background: "#FFFFFF", border: "1px solid #E5E8EE", boxShadow: "0 1px 2px rgba(11,26,47,0.05)", minHeight: 44 }}
               onClick={() => router.push(`/inbox/${row.original.id}`)}
             >
               <div className="mb-2 flex items-start justify-between gap-3">
@@ -1247,7 +1247,7 @@ export function InboxView() {
               <div className="mb-2 flex items-center gap-2">
                 <FileChip type={row.original.fmt} />
                 {row.original.issues > 0 && (
-                  <span className="rounded px-1.5 py-0.5 text-[10.5px] font-semibold" style={{ background: "#FBE3E3", color: "#C53A3A" }}>
+                  <span className="rounded px-1.5 py-0.5 text-[10.5px] font-semibold" style={{ background: "#FBE3E3", color: "#B43838" }}>
                     {row.original.issues} to review
                   </span>
                 )}
@@ -1262,7 +1262,7 @@ export function InboxView() {
                   return (
                     <div className="flex items-center gap-1.5 text-[13px]">
                       <span className="text-[11.5px]" style={{ color: "var(--ink-faint)" }}>{labels.unknownBuyer}</span>
-                      <span aria-hidden style={{ color: "#C6CDDA" }}>→</span>
+                      <span aria-hidden style={{ color: "#CBD0DA" }}>→</span>
                       <span className="truncate font-medium" style={{ color: GREEN_DEEP }}>{row.original.supplier}</span>
                     </div>
                   );
@@ -1275,7 +1275,7 @@ export function InboxView() {
                       className="h-px w-5 flex-shrink-0 hidden sm:block"
                       style={{ background: "linear-gradient(90deg, #1E66C9, #2E8E3A)" }}
                     />
-                    <span aria-hidden className="text-[11px] leading-none sm:hidden" style={{ color: "#C6CDDA" }}>↓</span>
+                    <span aria-hidden className="text-[11px] leading-none sm:hidden" style={{ color: "#CBD0DA" }}>↓</span>
                     <span className="truncate font-medium" style={{ color: GREEN_DEEP }}>{row.original.supplier}</span>
                   </div>
                 );
@@ -1306,7 +1306,7 @@ export function InboxView() {
           {/* Sticky header */}
           <thead style={{ position: "sticky", top: 0, zIndex: 4 }}>
             {table.getHeaderGroups().map((hg) => (
-              <tr key={hg.id} style={{ borderBottom: "1px solid #E2E6EE", background: "#FFFFFF" }}>
+              <tr key={hg.id} style={{ borderBottom: "1px solid #E5E8EE", background: "#FFFFFF" }}>
                 {hg.headers.map((header, hi) => {
                   const sorted = header.column.getIsSorted();
                   const canSort = header.column.getCanSort();
@@ -1393,11 +1393,11 @@ export function InboxView() {
                     borderBottom: "1px solid #F0F2F6",
                     cursor: "pointer",
                     background: isSelected
-                      ? "#E3EDFB"
+                      ? "#EAF0F8"
                       : isActive
                       ? "#EEF4FE"
                       : row.original.status === "review"
-                      ? "#FAEFD608"
+                      ? "#FAF1DD08"
                       : row.original.status === "failed"
                       ? "#FBE3E308"
                       : "#FFFFFF",
@@ -1411,7 +1411,7 @@ export function InboxView() {
                     if (!isSelected && !isActive) {
                       const s = row.original.status;
                       (e.currentTarget as HTMLElement).style.background =
-                        s === "review" ? "#FAEFD608" : s === "failed" ? "#FBE3E308" : "#FFFFFF";
+                        s === "review" ? "#FAF1DD08" : s === "failed" ? "#FBE3E308" : "#FFFFFF";
                     }
                   }}
                 >
@@ -1439,7 +1439,7 @@ export function InboxView() {
             {!isInitialLoading && pagedRows.length === 0 && (
               <tr>
                 <td colSpan={table.getVisibleLeafColumns().length} style={{ textAlign: "center", padding: "64px 0" }}>
-                  <div style={{ fontSize: 32, marginBottom: 16, color: "#C6CDDA" }}>⊘</div>
+                  <div style={{ fontSize: 32, marginBottom: 16, color: "#CBD0DA" }}>⊘</div>
                   {isFiltered ? (
                     <>
                       <p
@@ -1453,7 +1453,7 @@ export function InboxView() {
                       >
                         No matching orders
                       </p>
-                      <p style={{ fontSize: 13, marginTop: 4, color: "#56627A", maxWidth: 380, margin: "8px auto 0" }}>
+                      <p style={{ fontSize: 13, marginTop: 4, color: "#5E6779", maxWidth: 380, margin: "8px auto 0" }}>
                         No orders match the current filter or search. Try a different filter, or clear them to see everything.
                       </p>
                       <button
@@ -1465,7 +1465,7 @@ export function InboxView() {
                           borderRadius: 6,
                           background: "#FFFFFF",
                           color: "#0B1A2F",
-                          border: "1px solid #E2E6EE",
+                          border: "1px solid #E5E8EE",
                           fontSize: "12.5px",
                           fontWeight: 600,
                           cursor: "pointer",
@@ -1487,7 +1487,7 @@ export function InboxView() {
                       >
                         Your inbox is clear
                       </p>
-                      <p style={{ fontSize: 13, marginTop: 4, color: "#56627A", maxWidth: 380, margin: "8px auto 0" }}>
+                      <p style={{ fontSize: 13, marginTop: 4, color: "#5E6779", maxWidth: 380, margin: "8px auto 0" }}>
                         {emptyStateCopy}
                       </p>
                       <button
@@ -1520,7 +1520,7 @@ export function InboxView() {
                           borderRadius: 6,
                           background: "#FFFFFF",
                           color: "#0B1A2F",
-                          border: "1px solid #E2E6EE",
+                          border: "1px solid #E5E8EE",
                           fontSize: "12.5px",
                           fontWeight: 600,
                           cursor: sample.isPending ? "default" : "pointer",
@@ -1530,7 +1530,7 @@ export function InboxView() {
                         {sample.isPending ? "Starting practice order…" : "Try a practice order"}
                       </button>
                       {sample.error && (
-                        <p style={{ fontSize: 12, marginTop: 8, color: "#C53A3A" }}>{sample.error.message}</p>
+                        <p style={{ fontSize: 12, marginTop: 8, color: "#B43838" }}>{sample.error.message}</p>
                       )}
                     </>
                   )}
@@ -1557,11 +1557,11 @@ export function InboxView() {
             onClick={() => setPage(Math.max(1, currentPage - 1))}
             disabled={currentPage <= 1}
             className="rounded-[6px] px-2.5 text-[12px] font-medium"
-            style={{ height: 28, border: "1px solid #E2E6EE", background: "#FFFFFF", color: currentPage <= 1 ? "#C6CDDA" : "#0B1A2F", cursor: currentPage <= 1 ? "default" : "pointer" }}
+            style={{ height: 28, border: "1px solid #E5E8EE", background: "#FFFFFF", color: currentPage <= 1 ? "#CBD0DA" : "#0B1A2F", cursor: currentPage <= 1 ? "default" : "pointer" }}
           >
             ← Prev
           </button>
-          <span className="text-[11px] font-mono" style={{ color: "#56627A", minWidth: 92, textAlign: "center" }}>
+          <span className="text-[11px] font-mono" style={{ color: "#5E6779", minWidth: 92, textAlign: "center" }}>
             Page {currentPage} of {totalPages}
           </span>
           <button
@@ -1569,7 +1569,7 @@ export function InboxView() {
             onClick={() => setPage(currentPage + 1)}
             disabled={currentPage >= totalPages}
             className="rounded-[6px] px-2.5 text-[12px] font-medium"
-            style={{ height: 28, border: "1px solid #E2E6EE", background: "#FFFFFF", color: currentPage >= totalPages ? "#C6CDDA" : "#0B1A2F", cursor: currentPage >= totalPages ? "default" : "pointer" }}
+            style={{ height: 28, border: "1px solid #E5E8EE", background: "#FFFFFF", color: currentPage >= totalPages ? "#CBD0DA" : "#0B1A2F", cursor: currentPage >= totalPages ? "default" : "pointer" }}
           >
             Next →
           </button>

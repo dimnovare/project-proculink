@@ -160,7 +160,7 @@ export function IncomingPane({
           aria-label="Search incoming fields"
           style={{
             width: "100%", boxSizing: "border-box", padding: "6px 9px", borderRadius: 8,
-            border: "1px solid var(--line, #DCE0E8)", fontSize: 11.5, color: "var(--ink, #0B1A2F)", background: "#EFF2F7",
+            border: "1px solid var(--line, #DCE0E8)", fontSize: 11.5, color: "var(--ink, #0B1A2F)", background: "#F1F3F7",
           }}
         />
       </div>
@@ -180,8 +180,8 @@ export function IncomingPane({
                 padding: "4px 9px", borderRadius: 999, cursor: "pointer",
                 fontSize: 11, fontWeight: 600, letterSpacing: "0.02em",
                 border: `1px solid ${active ? "#1E66C9" : "var(--line, #DCE0E8)"}`,
-                background: active ? "#E3EDFB" : "#FFFFFF",
-                color: active ? "#0F4FA8" : "#56627A",
+                background: active ? "#EAF0F8" : "#FFFFFF",
+                color: active ? "#0F4FA8" : "#5E6779",
                 transition: "border-color 120ms, background 120ms, color 120ms",
               }}
             >
@@ -236,9 +236,9 @@ function PaneFrame({
   children: React.ReactNode;
 }) {
   return (
-    <div style={{ borderRadius: 12, border: "1px solid var(--line, #E2E6EE)", background: "rgba(227,237,251,0.45)", overflow: "hidden" }}>
-      <div style={{ display: "flex", alignItems: "center", height: 52, gap: 8, padding: "0 18px", borderBottom: "1px solid #E2E6EE" }}>
-        <span aria-hidden style={{ flexShrink: 0, width: 9, height: 9, borderRadius: "50%", background: "#1E66C9", boxShadow: "0 0 0 3px #E3EDFB" }} />
+    <div style={{ borderRadius: 12, border: "1px solid var(--line, #E5E8EE)", background: "rgba(227,237,251,0.45)", overflow: "hidden" }}>
+      <div style={{ display: "flex", alignItems: "center", height: 52, gap: 8, padding: "0 18px", borderBottom: "1px solid #E5E8EE" }}>
+        <span aria-hidden style={{ flexShrink: 0, width: 9, height: 9, borderRadius: "50%", background: "#1E66C9", boxShadow: "0 0 0 3px #EAF0F8" }} />
         <span style={{ fontSize: 13.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em", color: "#0B1A2F" }}>{title}</span>
         {subtitle && <span style={{ fontSize: 10.5, color: "var(--ink-faint)" }}>{subtitle}</span>}
         {sourceType && (
@@ -354,8 +354,8 @@ function IncomingRow({
       style={{
         display: "flex", alignItems: "center", gap: 10, minWidth: 0,
         padding: "9px 11px", borderRadius: 9,
-        border: `1px solid ${connecting ? "#1E66C9" : hovered ? "#1E66C9" : wired ? "#BFD6F4" : "var(--line, #E2E6EE)"}`,
-        background: connecting ? "#E3EDFB" : hovered ? "#E3EDFB" : "#FFFFFF",
+        border: `1px solid ${connecting ? "#1E66C9" : hovered ? "#1E66C9" : wired ? "#BFD6F4" : "var(--line, #E5E8EE)"}`,
+        background: connecting ? "#EAF0F8" : hovered ? "#EAF0F8" : "#FFFFFF",
         userSelect: "none",
         transition: "border-color 120ms, background 120ms, box-shadow 120ms",
       }}
@@ -372,7 +372,7 @@ function IncomingRow({
           )}
         </span>
         <span style={{ fontFamily: "'JetBrains Mono',monospace", fontVariantNumeric: "tabular-nums", fontSize: 11.5, color: "var(--ink, #0B1A2F)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-          {field.value || <span style={{ color: "#C6CDDA" }}>(empty)</span>}
+          {field.value || <span style={{ color: "#CBD0DA" }}>(empty)</span>}
         </span>
       </span>
 
@@ -392,8 +392,8 @@ function IncomingRow({
             flexShrink: 0, display: "inline-flex", alignItems: "center", justifyContent: "center",
             width: 22, height: 22, borderRadius: 6,
             border: `1.5px solid ${connecting ? "#1E66C9" : wired ? "#1E66C9" : "#C9D0DC"}`,
-            background: connecting ? "#E3EDFB" : wired ? "#EAF2FC" : "#FFFFFF",
-            color: wired || hovered ? "#1E66C9" : "#8A93A5",
+            background: connecting ? "#EAF0F8" : wired ? "#EAF2FC" : "#FFFFFF",
+            color: wired || hovered ? "#1E66C9" : "#98A0AE",
             cursor: connecting ? "grabbing" : "grab",
             touchAction: "none",
             boxShadow: connecting ? "0 0 0 3px rgba(30,102,201,0.18)" : (hovered ? "0 0 0 2px rgba(30,102,201,0.12)" : undefined),

@@ -17,9 +17,9 @@ export function SourceTypeChip({ kind }: { kind: string }) {
         display: "inline-flex", alignItems: "center", fontFamily: "'JetBrains Mono',monospace",
         fontSize: 9, fontWeight: 700, letterSpacing: "0.03em",
         padding: "2px 7px", borderRadius: 4, flexShrink: 0,
-        color: warm ? "#8A5A0E" : "#56627A",
-        background: warm ? "#FAEFD6" : "#EFF2F7",
-        border: `1px solid ${warm ? "#EAD9AE" : "#E2E6EE"}`,
+        color: warm ? "#8A5A0E" : "#5E6779",
+        background: warm ? "#FAF1DD" : "#F1F3F7",
+        border: `1px solid ${warm ? "#EAD9AE" : "#E5E8EE"}`,
       }}
     >
       {label}

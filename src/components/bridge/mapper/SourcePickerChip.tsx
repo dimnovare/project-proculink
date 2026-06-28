@@ -135,7 +135,7 @@ export function SourcePickerChip({
           height: 22, padding: "0 8px", borderRadius: 999,
           border: `1px ${unsourced ? "dashed" : "solid"} ${unsourced ? "#C9D0DC" : "#CDE7D1"}`,
           background: unsourced ? "#FFFFFF" : "#F1F8F2",
-          color: unsourced ? "#56627A" : "#1E6D29",
+          color: unsourced ? "#5E6779" : "#1E6D29",
           fontSize: 9.5, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap",
         }}
       >
@@ -165,7 +165,7 @@ export function SourcePickerChip({
           onClick={(e) => e.stopPropagation()}
           style={{
             position: "fixed", top: pos?.top ?? -9999, left: pos?.left ?? -9999, zIndex: 1000, width: PANEL_W,
-            background: "#FFFFFF", border: "1px solid #E2E6EE", borderRadius: 10,
+            background: "#FFFFFF", border: "1px solid #E5E8EE", borderRadius: 10,
             boxShadow: "0 12px 30px rgba(11,26,47,0.16)", overflow: "hidden",
             visibility: pos ? "visible" : "hidden",
             display: "flex", flexDirection: "column",

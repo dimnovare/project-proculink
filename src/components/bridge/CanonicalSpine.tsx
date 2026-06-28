@@ -69,9 +69,9 @@ export function SpineNode(props: SpineNodeProps) {
   const isErr  = confidence < 75;
 
   const conf =
-    confidence >= 90 ? { bg: "#E2F1E2", fg: "#1E6D29" } :
-    confidence >= 75 ? { bg: "#FAEFD6", fg: "#C97A14" } :
-                       { bg: "#FBE3E3", fg: "#C53A3A" };
+    confidence >= 90 ? { bg: "#E9F1EA", fg: "#1E6D29" } :
+    confidence >= 75 ? { bg: "#FAF1DD", fg: "#B36D14" } :
+                       { bg: "#FBE3E3", fg: "#B43838" };
 
   const bg =
     isErr  ? "bg-danger-soft" :
@@ -140,7 +140,7 @@ export function SpineNode(props: SpineNodeProps) {
                 ].join(" ")}
                 style={
                   sn.ai ? { borderLeft: "3px solid #6F4FCE" } :
-                  sn.err ? { borderLeft: "3px solid #C53A3A" } : undefined
+                  sn.err ? { borderLeft: "3px solid #B43838" } : undefined
                 }
               >
                 {sn.ai && <span className="text-[8.5px] font-extrabold tracking-[0.04em]" style={{ color: "#5E3DB0" }}>AI</span>}

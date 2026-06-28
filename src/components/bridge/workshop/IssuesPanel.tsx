@@ -103,14 +103,14 @@ export interface IssuesPanelProps {
 }
 
 const SEVERITY_STYLE: Record<IssueSeverity, { bg: string; border: string; chipBg: string; chipColor: string; label: string }> = {
-  blocking: { bg: "#FFFFFF", border: "#F0C8C8", chipBg: "#FBE3E3", chipColor: "#C53A3A", label: "Must fix" },
-  warning: { bg: "#FFFFFF", border: "#F1E2BE", chipBg: "#FAEFD6", chipColor: "#C97A14", label: "Warning" },
+  blocking: { bg: "#FFFFFF", border: "#F0C8C8", chipBg: "#FBE3E3", chipColor: "#B43838", label: "Must fix" },
+  warning: { bg: "#FFFFFF", border: "#F1E2BE", chipBg: "#FAF1DD", chipColor: "#B36D14", label: "Warning" },
 };
 
 const cardStyle: CSSProperties = {
   borderRadius: 10,
   background: "#FFFFFF",
-  border: "1px solid #E2E6EE",
+  border: "1px solid #E5E8EE",
   overflow: "hidden",
 };
 
@@ -127,7 +127,7 @@ export function IssuesPanel({ issues, onFocusField, onFix, readyLabel, resolve, 
           alignItems: "center",
           gap: 9,
           borderRadius: 10,
-          background: "#E2F1E2",
+          background: "#E9F1EA",
           border: "1px solid #BFE0C2",
           color: "#1E6D29",
           padding: "11px 14px",
@@ -224,7 +224,7 @@ export function IssuesPanel({ issues, onFocusField, onFix, readyLabel, resolve, 
               <span
                 style={{
                   marginLeft: 6,
-                  background: "#EFF2F7",
+                  background: "#F1F3F7",
                   borderRadius: 8,
                   padding: "0 5px",
                   fontSize: 10,
@@ -281,7 +281,7 @@ export function IssuesPanel({ issues, onFocusField, onFix, readyLabel, resolve, 
                   {issue.title}
                 </div>
                 {issue.why && (
-                  <div style={{ marginTop: 2, fontSize: 11.5, color: "#56627A", lineHeight: 1.45 }}>
+                  <div style={{ marginTop: 2, fontSize: 11.5, color: "#5E6779", lineHeight: 1.45 }}>
                     {issue.why}
                   </div>
                 )}

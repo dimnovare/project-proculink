@@ -62,7 +62,7 @@ export function MarkSystem({ size = 24, white = false, className }: MarkSystemPr
 // Rail port marker — same construction, smaller, used at top of EdgeRails
 export function RailPort({ color }: { color: "buyer" | "supplier" }) {
   const fill = color === "buyer" ? "#1E66C9" : "#2E8E3A";
-  const soft = color === "buyer" ? "#E3EDFB" : "#E2F1E2";
+  const soft = color === "buyer" ? "#EAF0F8" : "#E9F1EA";
   return (
     <div
       className="flex items-center justify-center rounded-full flex-shrink-0"

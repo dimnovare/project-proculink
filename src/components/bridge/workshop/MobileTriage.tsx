@@ -27,21 +27,21 @@ import type { OrderLine } from "@/types/procurement";
 
 // ── Semantic color tokens (mirrors the rest of the workshop) ──────────────────
 const NAVY = "#0B1A2F";
-const INK = "#56627A";
+const INK = "#5E6779";
 const INK_FAINT = "#8893A6";
-const HAIRLINE = "#E2E6EE";
+const HAIRLINE = "#E5E8EE";
 const BLUE = "#1E66C9";
 const BLUE_DEEP = "#0F4FAB";
 const BLUE_WASH = "#EFF4FB";
 const BLUE_BORDER = "#CFE0F6";
 const GREEN = "#2E8E3A";
 const GREEN_DEEP = "#1E6D29";
-const GREEN_WASH = "#E2F1E2";
+const GREEN_WASH = "#E9F1EA";
 const GREEN_BORDER = "#BFE0C2";
-const AMBER = "#C97A14";
-const AMBER_WASH = "#FAEFD6";
+const AMBER = "#B36D14";
+const AMBER_WASH = "#FAF1DD";
 const AMBER_BORDER = "#F1E2BE";
-const DANGER = "#C53A3A";
+const DANGER = "#B43838";
 const DANGER_WASH = "#FBE3E3";
 const DANGER_BORDER = "#F0C8C8";
 
@@ -179,9 +179,9 @@ export function MobileTriage(props: MobileTriageProps) {
           </div>
           <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5" style={{ minWidth: 0, fontSize: 13 }}>
             <span style={{ fontWeight: 600, color: BLUE_DEEP, minWidth: 0, overflowWrap: "anywhere" }}>{buyerName}</span>
-            <span aria-hidden style={{ flexShrink: 0, color: "#C6CDDA" }}>→</span>
+            <span aria-hidden style={{ flexShrink: 0, color: "#CBD0DA" }}>→</span>
             <span style={{ fontWeight: 600, color: GREEN_DEEP, minWidth: 0, overflowWrap: "anywhere" }}>{supplierName}</span>
-            <span aria-hidden style={{ flexShrink: 0, color: "#C6CDDA" }}>·</span>
+            <span aria-hidden style={{ flexShrink: 0, color: "#CBD0DA" }}>·</span>
             <span style={{ fontFamily: "'JetBrains Mono',monospace", color: INK, minWidth: 0, overflowWrap: "anywhere" }}>{grandTotalLabel}</span>
           </div>
         </div>

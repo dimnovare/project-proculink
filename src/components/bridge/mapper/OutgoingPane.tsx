@@ -228,7 +228,7 @@ export function OutgoingPane({
   );
 
   return (
-    <div style={{ borderRadius: 12, border: "1px solid var(--line, #E2E6EE)", background: "#FBFBFD", overflow: "hidden" }}>
+    <div style={{ borderRadius: 12, border: "1px solid var(--line, #E5E8EE)", background: "#FBFBFD", overflow: "hidden" }}>
       {/* CSS-driven hovers (replaces imperative onMouseEnter/Leave style toggles) — same visible result. */}
       <style>{`
         .mapper-aifix-apply:hover { background: #1E6D29; }
@@ -256,7 +256,7 @@ export function OutgoingPane({
           role="note"
           style={{
             padding: "9px 12px", borderBottom: "1px solid #EEF0F4",
-            background: "#F6F8FC", color: "#56627A", fontSize: 11.5, lineHeight: 1.5,
+            background: "#F6F8FC", color: "#5E6779", fontSize: 11.5, lineHeight: 1.5,
           }}
         >
           This supplier uses a structured format ({structuredFormatLabel(outputFormat)}). Fields like
@@ -402,12 +402,12 @@ function AutoFilledSection({ fields }: { fields?: AutoFilledFields | null }) {
   return (
     <div style={{ padding: "10px 12px", borderBottom: "1px solid #EEF0F4", background: "#FBFBFD" }}>
       <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
-        <span style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "#56627A" }}>
+        <span style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "#5E6779" }}>
           Filled automatically from the order
         </span>
         <span
           title="These come straight from the order and can't be edited here."
-          style={{ fontSize: 9.5, fontWeight: 700, color: "#6B7585", background: "#EFF2F7", border: "1px solid #E2E6EE", borderRadius: 4, padding: "1px 6px", letterSpacing: "0.02em" }}
+          style={{ fontSize: 9.5, fontWeight: 700, color: "#6B7585", background: "#F1F3F7", border: "1px solid #E5E8EE", borderRadius: 4, padding: "1px 6px", letterSpacing: "0.02em" }}
         >
           read-only
         </span>
@@ -524,7 +524,7 @@ function OutgoingRow({
       style={{
         position: "relative",
         borderRadius: 10,
-        border: `1px solid ${snapped ? "#6F4FCE" : needsSource ? "#F1E2BE" : hovered ? "#A9D3AF" : status.mapped ? "#D7E7DA" : "var(--line, #E2E6EE)"}`,
+        border: `1px solid ${snapped ? "#6F4FCE" : needsSource ? "#F1E2BE" : hovered ? "#A9D3AF" : status.mapped ? "#D7E7DA" : "var(--line, #E5E8EE)"}`,
         borderRight: `3px solid ${status.mapped ? "#2E8E3A" : needsSource ? "#E0B23C" : accent}`,
         background: snapped ? "#F4EFFC" : needsSource ? "#FFFCF4" : hovered ? "rgba(46,142,58,0.05)" : "#FFFFFF",
         padding: "8px 10px 8px 16px",
@@ -757,7 +757,7 @@ function OutgoingRow({
               {aiFix.value}
             </span>
           )}
-          <span title={aiFix.rationale} style={{ fontSize: 10.5, color: "#56627A", flex: 1, minWidth: 0, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+          <span title={aiFix.rationale} style={{ fontSize: 10.5, color: "#5E6779", flex: 1, minWidth: 0, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
             {aiFix.rationale}
           </span>
           {aiFix.confidence != null && <ConfidenceChip value={aiFix.confidence} sm />}
@@ -791,7 +791,7 @@ function AutoMappedSummary({ count, open, onToggle }: { count: number; open: boo
       aria-expanded={open}
       style={{
         width: "100%", display: "flex", alignItems: "center", gap: 9, padding: "9px 12px",
-        borderRadius: 9, border: "none", background: "#EFF2F7", color: "#56627A", cursor: "pointer",
+        borderRadius: 9, border: "none", background: "#F1F3F7", color: "#5E6779", cursor: "pointer",
         textAlign: "left",
       }}
     >
@@ -804,7 +804,7 @@ function AutoMappedSummary({ count, open, onToggle }: { count: number; open: boo
         {count} field{count === 1 ? "" : "s"} ready
       </span>
       <span style={{ fontSize: 11.5 }}>· mapped automatically</span>
-      <span aria-hidden style={{ marginLeft: "auto", display: "inline-flex", transform: open ? "rotate(90deg)" : "none", transition: "transform 120ms", color: "#8A93A5" }}>
+      <span aria-hidden style={{ marginLeft: "auto", display: "inline-flex", transform: open ? "rotate(90deg)" : "none", transition: "transform 120ms", color: "#98A0AE" }}>
         <svg width="11" height="11" viewBox="0 0 12 12" fill="none">
           <path d="M4.5 2.5 8 6l-3.5 3.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
@@ -994,7 +994,7 @@ function AddOutputFieldMenu({
             aria-label="Add an output field"
             style={{
               position: "absolute", right: 0, top: "100%", marginTop: 6, zIndex: 31, width: 280,
-              background: "#FFFFFF", border: "1px solid #E2E6EE", borderRadius: 10,
+              background: "#FFFFFF", border: "1px solid #E5E8EE", borderRadius: 10,
               boxShadow: "0 12px 30px rgba(11,26,47,0.16)", overflow: "hidden",
             }}
             onClick={(e) => e.stopPropagation()}
@@ -1108,7 +1108,7 @@ function PickerItem({ node, onPick }: { node: CanonicalNode; onPick: () => void 
 
 function ScopeToggle({ scope, onChange }: { scope: TargetField["scope"]; onChange: (s: TargetField["scope"]) => void }) {
   return (
-    <div role="group" aria-label="New field scope" style={{ display: "inline-flex", alignSelf: "flex-start", borderRadius: 6, border: "1px solid #E2E6EE", overflow: "hidden" }}>
+    <div role="group" aria-label="New field scope" style={{ display: "inline-flex", alignSelf: "flex-start", borderRadius: 6, border: "1px solid #E5E8EE", overflow: "hidden" }}>
       {(["header", "line"] as const).map((s) => {
         const active = scope === s;
         return (
@@ -1120,7 +1120,7 @@ function ScopeToggle({ scope, onChange }: { scope: TargetField["scope"]; onChang
             style={{
               fontSize: 10, fontWeight: 700, textTransform: "capitalize", padding: "3px 10px",
               border: "none", cursor: "pointer",
-              background: active ? "#0B1A2F" : "#FFFFFF", color: active ? "#FFFFFF" : "#56627A",
+              background: active ? "#0B1A2F" : "#FFFFFF", color: active ? "#FFFFFF" : "#5E6779",
             }}
           >
             {s}

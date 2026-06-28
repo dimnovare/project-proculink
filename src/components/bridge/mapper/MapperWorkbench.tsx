@@ -601,7 +601,7 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
           {model.aiUnavailable && (
             <span
               title="AI mapping suggestions are unavailable right now — map fields manually; everything still works."
-              style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 10, color: "#56627A", background: "#F3F4F7", border: "1px solid #E2E6EE", borderRadius: 5, padding: "1px 7px" }}
+              style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 10, color: "#5E6779", background: "#F3F4F7", border: "1px solid #E5E8EE", borderRadius: 5, padding: "1px 7px" }}
             >
               <span aria-hidden style={{ color: "#A8B0BF" }}>✦</span>
               AI suggestions unavailable
@@ -619,9 +619,9 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
               title={showConnections ? "Hide the connection wires" : "Show the connection wires between received and output fields"}
               style={{
                 display: "inline-flex", alignItems: "center", gap: 6, height: 32, fontSize: 11.5, fontWeight: 600,
-                color: showConnections ? "#0F4FA8" : "#56627A",
-                background: showConnections ? "#E3EDFB" : "#F3F4F7",
-                border: `1px solid ${showConnections ? "#1E66C9" : "#E2E6EE"}`,
+                color: showConnections ? "#0F4FA8" : "#5E6779",
+                background: showConnections ? "#EAF0F8" : "#F3F4F7",
+                border: `1px solid ${showConnections ? "#1E66C9" : "#E5E8EE"}`,
                 borderRadius: 8, padding: "0 12px", cursor: "pointer",
               }}
             >
@@ -829,15 +829,15 @@ function PaneCollapseCaret({ side, label, onClick }: { side: "left" | "right"; l
       style={{
         position: "absolute", top: 60, zIndex: 6,
         ...(side === "left" ? { right: -13 } : { left: -13 }),
-        width: 26, height: 26, borderRadius: 6, border: "1px solid #E2E6EE",
-        background: "#FFFFFF", color: "#56627A", cursor: "pointer",
+        width: 26, height: 26, borderRadius: 6, border: "1px solid #E5E8EE",
+        background: "#FFFFFF", color: "#5E6779", cursor: "pointer",
         display: "inline-flex", alignItems: "center", justifyContent: "center",
         fontSize: 13, fontWeight: 800, lineHeight: 1, padding: 0,
         boxShadow: "0 2px 8px rgba(11,26,47,0.12)",
         transition: "background .12s, border-color .12s, color .12s",
       }}
-      onMouseEnter={(e) => { e.currentTarget.style.background = "#EFF2F7"; e.currentTarget.style.borderColor = "#1E66C9"; e.currentTarget.style.color = "#0B1A2F"; }}
-      onMouseLeave={(e) => { e.currentTarget.style.background = "#FFFFFF"; e.currentTarget.style.borderColor = "#E2E6EE"; e.currentTarget.style.color = "#56627A"; }}
+      onMouseEnter={(e) => { e.currentTarget.style.background = "#F1F3F7"; e.currentTarget.style.borderColor = "#1E66C9"; e.currentTarget.style.color = "#0B1A2F"; }}
+      onMouseLeave={(e) => { e.currentTarget.style.background = "#FFFFFF"; e.currentTarget.style.borderColor = "#E5E8EE"; e.currentTarget.style.color = "#5E6779"; }}
     >
       {side === "left" ? "‹" : "›"}
     </button>
@@ -910,9 +910,9 @@ function MappedSummaryChip({ mapped, total }: { mapped: number; total: number })
       style={{
         display: "inline-flex", alignItems: "center", gap: 4, fontSize: 10.5, fontWeight: 700,
         borderRadius: 999, padding: "2px 9px",
-        color: allMapped ? "#1E6D29" : "#56627A",
+        color: allMapped ? "#1E6D29" : "#5E6779",
         background: allMapped ? "#EAF6EC" : "#F3F4F7",
-        border: `1px solid ${allMapped ? "#CDE7D1" : "#E2E6EE"}`,
+        border: `1px solid ${allMapped ? "#CDE7D1" : "#E5E8EE"}`,
       }}
     >
       <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true" style={{ flexShrink: 0 }}>
@@ -927,7 +927,7 @@ function MappedSummaryChip({ mapped, total }: { mapped: number; total: number })
 function ValidationBadge({ state, blocking, reason }: { state: "valid" | "review"; blocking?: boolean; reason?: string | null }) {
   if (state === "valid") return null; // a clean field needs no badge
   const tone = blocking
-    ? { bg: "#FBE3E3", color: "#C53A3A", border: "#F0C8C8", label: "needs review" }
+    ? { bg: "#FBE3E3", color: "#B43838", border: "#F0C8C8", label: "needs review" }
     : { bg: "#FFF7E6", color: "#9A6B00", border: "#F1E2BE", label: "review" };
   return (
     <span title={reason ?? undefined} style={{ fontSize: 9, fontWeight: 700, color: tone.color, background: tone.bg, border: `1px solid ${tone.border}`, borderRadius: 4, padding: "1px 6px" }}>
@@ -963,13 +963,13 @@ function MapperMobileSummary({
     { label: "Required without a source", value: `${requiredUnmapped}` },
   ];
   return (
-    <div style={{ border: "1px solid #E2E6EE", borderRadius: 10, background: "#FFFFFF", overflow: "hidden" }}>
+    <div style={{ border: "1px solid #E5E8EE", borderRadius: 10, background: "#FFFFFF", overflow: "hidden" }}>
       <div style={{ padding: "10px 12px", borderBottom: "1px solid #EEF0F4", fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--ink-faint)" }}>
         Mapping summary
       </div>
       {rows.map((r) => (
         <div key={r.label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "11px 12px", borderBottom: "1px solid #F2F4F8", minHeight: 44 }}>
-          <span style={{ fontSize: 12, color: "#56627A" }}>{r.label}</span>
+          <span style={{ fontSize: 12, color: "#5E6779" }}>{r.label}</span>
           <span style={{ fontSize: 13, fontWeight: 700, color: "#0B1A2F" }}>{r.value}</span>
         </div>
       ))}

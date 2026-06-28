@@ -21,7 +21,7 @@ export function ProvenanceBadge({ location }: { location: string }) {
       style={{
         display: "inline-flex", alignItems: "center", gap: 4, maxWidth: 140,
         fontFamily: "'JetBrains Mono',monospace", fontSize: 9.5, fontWeight: 600,
-        color: "#0F4FA8", background: "#E3EDFB", border: "1px solid #D2E0F6",
+        color: "#0F4FA8", background: "#EAF0F8", border: "1px solid #D2E0F6",
         padding: "1px 6px 1px 5px", borderRadius: 4, flexShrink: 0,
       }}
     >

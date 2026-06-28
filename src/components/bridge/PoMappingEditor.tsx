@@ -31,24 +31,24 @@ import { StandardsFieldPopover } from "./StandardsFieldPopover";
 const NAVY       = "#0B1A2F";
 const BLUE       = "#2E8E3A";
 const BLUE_DEEP  = "#1E6D29";
-const BLUE_SOFT  = "#E2F1E2";
+const BLUE_SOFT  = "#E9F1EA";
 const GREEN      = "#2E8E3A";
 const GREEN_DEEP = "#1E6D29";
-const GREEN_SOFT = "#E2F1E2";
+const GREEN_SOFT = "#E9F1EA";
 // topology-only: buyer endpoint / gradient start (blue=buyer, green=supplier)
 const BUYER_BLUE  = "#1E66C9";
-const BORDER     = "#E2E6EE";
+const BORDER     = "#E5E8EE";
 const INPUT_BDR  = "#D5DAEA";
-const MUTED      = "#56627A";
+const MUTED      = "#5E6779";
 const FAINT      = "var(--ink-faint)";
 const BG         = "#F6F7FA";
 const SURFACE    = "#FFFFFF";
-const SURFACE2   = "#EFF2F7";
-const AMBER      = "#C97A14";
-const AMBER_SOFT = "#FAEFD6";
+const SURFACE2   = "#F1F3F7";
+const AMBER      = "#B36D14";
+const AMBER_SOFT = "#FAF1DD";
 const AI         = "#6F4FCE";
-const AI_SOFT    = "#EEE7FB";
-const DANGER     = "#C53A3A";
+const AI_SOFT    = "#F0EAFB";
+const DANGER     = "#B43838";
 
 const AUTO_ACCEPT_THRESHOLD = 0.85; // auto-accept on load when no saved config
 const ADOPT_THRESHOLD       = 0.50; // minimum confidence to surface as a pending suggestion

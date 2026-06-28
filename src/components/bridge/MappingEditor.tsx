@@ -20,19 +20,19 @@ import { PageHeader } from "./layout/PageHeader";
 //   Add-mapping button fill ........ #1E66C9   (buyer-blue)
 //   Buyer name link ................ #0F4FA8
 //   Supplier name + supplier code .. #1E6D29   (supplier-green)
-//   Card border / row divider ...... #E2E6EE
-//   Modal eyebrow / info banner bg . #E3EDFB
+//   Card border / row divider ...... #E5E8EE
+//   Modal eyebrow / info banner bg . #EAF0F8
 const BLUE        = "#1E66C9"; // buyer-side primary (header button)
 const BLUE_DEEP   = "#1A57AD"; // hover / active for blue button
 const BLUE_LINK   = "#0F4FA8"; // buyer name link text
-const BLUE_SOFT   = "#E3EDFB"; // light-blue tint: eyebrow square, info banner, Inherited badge
+const BLUE_SOFT   = "#EAF0F8"; // light-blue tint: eyebrow square, info banner, Inherited badge
 const GREEN       = "#2E8E3A"; // supplier-side commit accent (modal Save) — canonical forest green
 const GREEN_DEEP  = "#1E6D29"; // hover / active for green; also supplier name + supplier code text
-const GREEN_SOFT  = "#E2F1E2"; // soft green tint for active chips / focus rings (brand-green-soft)
+const GREEN_SOFT  = "#E9F1EA"; // soft green tint for active chips / focus rings (brand-green-soft)
 const GREEN_CODE  = "#1E6D29"; // supplier name + supplier code text (sampled)
-const GREEN_CHIP  = "#E2F1E2"; // Imported badge fill (sampled, brand-green-soft)
+const GREEN_CHIP  = "#E9F1EA"; // Imported badge fill (sampled, brand-green-soft)
 const INK         = "#0B1A2F"; // buyer item code (near-black mono) + headings
-const BORDER      = "#E2E6EE"; // card border + header rule + row divider (sampled)
+const BORDER      = "#E5E8EE"; // card border + header rule + row divider (sampled)
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -72,10 +72,10 @@ function apiMappingToRow(m: SupplierMapping, supplierName: string): MappingRow {
 // Manual=neutral grey, Imported=green tint, Inherited=blue tint. No sparkle.
 
 const SOURCE_STYLE: Record<Source, { bg: string; color: string }> = {
-  AI:        { bg: "#EEE7FB", color: "#6F4FCE" },   // violet — AI provenance (sampled)
-  Manual:    { bg: "#EFF2F7", color: "#56627A" },   // neutral grey (sampled)
-  Imported:  { bg: GREEN_CHIP, color: GREEN_CODE }, // green tint (sampled #E2F1E2/#1E6D29)
-  Inherited: { bg: BLUE_SOFT,  color: BLUE_LINK },  // blue tint (sampled #E3EDFB/#0F4FA8)
+  AI:        { bg: "#F0EAFB", color: "#6F4FCE" },   // violet — AI provenance (sampled)
+  Manual:    { bg: "#F1F3F7", color: "#5E6779" },   // neutral grey (sampled)
+  Imported:  { bg: GREEN_CHIP, color: GREEN_CODE }, // green tint (sampled #E9F1EA/#1E6D29)
+  Inherited: { bg: BLUE_SOFT,  color: BLUE_LINK },  // blue tint (sampled #EAF0F8/#0F4FA8)
 };
 
 function SourceTag({ src }: { src: Source }) {
@@ -212,7 +212,7 @@ export function MappingEditor() {
             onClick={() => openPanelForSupplier("import")}
             className="flex h-10 items-center justify-center gap-1.5 rounded-[7px] px-3.5 text-[13px] font-medium transition-colors lg:h-[34px] lg:text-[12.5px]"
             style={{
-              border: "1px solid #E2E6EE",
+              border: "1px solid #E5E8EE",
               background: "#FFFFFF",
               color: INK,
               boxShadow: "0 1px 2px rgba(11,26,47,0.04)",
@@ -250,7 +250,7 @@ export function MappingEditor() {
 
       {/* Result count + search — on the grey canvas, above the table card */}
       <div className="flex flex-col items-stretch gap-2 pb-3 lg:flex-row lg:items-center lg:gap-3 flex-shrink-0">
-        <p className="text-[12.5px] flex-shrink-0" style={{ color: "#56627A" }}>
+        <p className="text-[12.5px] flex-shrink-0" style={{ color: "#5E6779" }}>
           {needsSupplierSelection ? (
             <span style={{ color: "var(--ink-faint)" }}>No {partyNounLower} selected</span>
           ) : (
@@ -277,9 +277,9 @@ export function MappingEditor() {
                 onClick={() => setSrc(s)}
                 className="h-9 flex-shrink-0 rounded-[7px] px-3 text-[12.5px] font-medium transition-colors lg:h-[30px] lg:px-2.5 lg:text-[12px]"
                 style={{
-                  border: `1px solid ${active ? "#2E8E3A55" : "#E2E6EE"}`,
+                  border: `1px solid ${active ? "#2E8E3A55" : "#E5E8EE"}`,
                   background: active ? GREEN_SOFT : "#FFFFFF",
-                  color: active ? GREEN_DEEP : "#56627A",
+                  color: active ? GREEN_DEEP : "#5E6779",
                 }}
               >
                 {s}
@@ -298,7 +298,7 @@ export function MappingEditor() {
           }}
           className="h-10 w-full flex-shrink-0 appearance-none rounded-[7px] px-3 text-[13px] lg:h-[34px] lg:w-auto lg:text-[12.5px]"
           style={{
-            border: "1px solid #E2E6EE",
+            border: "1px solid #E5E8EE",
             background: "#FFFFFF",
             color: INK,
           }}
@@ -326,7 +326,7 @@ export function MappingEditor() {
             onChange={(e) => setSearch(e.target.value)}
             className="h-10 w-full rounded-[7px] pl-8 pr-3 text-[13px] transition-shadow lg:h-[34px] lg:text-[12.5px]"
             style={{
-              border: "1px solid #E2E6EE",
+              border: "1px solid #E5E8EE",
               background: "#FFFFFF",
               color: INK,
             }}
@@ -335,7 +335,7 @@ export function MappingEditor() {
               e.currentTarget.style.boxShadow = `0 0 0 3px ${GREEN_SOFT}`;
             }}
             onBlur={(e) => {
-              e.currentTarget.style.borderColor = "#E2E6EE";
+              e.currentTarget.style.borderColor = "#E5E8EE";
               e.currentTarget.style.boxShadow = "none";
             }}
           />
@@ -346,9 +346,9 @@ export function MappingEditor() {
           onClick={() => openPanelForSupplier("export")}
           className="flex h-10 w-full flex-shrink-0 items-center justify-center gap-1 rounded-[7px] px-3 text-[13px] font-medium transition-colors lg:h-[34px] lg:w-auto lg:text-[12px]"
           style={{
-            border: "1px solid #E2E6EE",
+            border: "1px solid #E5E8EE",
             background: "#FFFFFF",
-            color: "#56627A",
+            color: "#5E6779",
           }}
           onMouseEnter={(e) => ((e.currentTarget as HTMLElement).style.background = "#F6F7FA")}
           onMouseLeave={(e) => ((e.currentTarget as HTMLElement).style.background = "#FFFFFF")}
@@ -369,7 +369,7 @@ export function MappingEditor() {
       <div className="flex-1 min-h-0 overflow-auto">
         <div
           className="overflow-hidden rounded-[10px]"
-          style={{ background: "#FFFFFF", border: "1px solid #E2E6EE", boxShadow: "0 1px 2px rgba(11,26,47,0.04)" }}
+          style={{ background: "#FFFFFF", border: "1px solid #E5E8EE", boxShadow: "0 1px 2px rgba(11,26,47,0.04)" }}
         >
 
           {/* Live mode, no supplier chosen yet — prompt for selection instead of
@@ -434,7 +434,7 @@ export function MappingEditor() {
                     </div>
                     {/* supplier name + used */}
                     <div className="flex items-center justify-between gap-3">
-                      <p className="min-w-0 flex-1 truncate text-[12.5px]" style={{ color: "#56627A" }}>
+                      <p className="min-w-0 flex-1 truncate text-[12.5px]" style={{ color: "#5E6779" }}>
                         {row.supplier ? (
                           <span style={{ color: GREEN_CODE, fontWeight: 500 }}>{row.supplier}</span>
                         ) : (
@@ -764,14 +764,14 @@ function MappingPanel({
             </span>
             <div>
               <h2 id="mapping-panel-title" className="text-[18px] font-semibold leading-tight" style={{ color: INK }}>{title}</h2>
-              <p className="mt-0.5 text-[12.5px]" style={{ color: "#56627A" }}>{subtitle}</p>
+              <p className="mt-0.5 text-[12.5px]" style={{ color: "#5E6779" }}>{subtitle}</p>
             </div>
           </div>
           <button
             onClick={onClose}
             aria-label="Close"
             className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-[7px] text-[18px] leading-none transition-colors hover:bg-[#F6F7FA]"
-            style={{ border: `1px solid ${BORDER}`, background: "#FFFFFF", color: "#56627A" }}
+            style={{ border: `1px solid ${BORDER}`, background: "#FFFFFF", color: "#5E6779" }}
           >
             ×
           </button>
@@ -781,7 +781,7 @@ function MappingPanel({
           <div className="grid gap-4 p-5">
             <div className="rounded-[8px] border border-dashed p-5 text-center" style={{ borderColor: "#BBD9BD", background: "#F2F9F3" }}>
               <div className="text-[13px] font-semibold" style={{ color: INK }}>Drop CSV here</div>
-              <p className="mx-auto mt-1 max-w-[420px] text-[12px] leading-5" style={{ color: "#56627A" }}>
+              <p className="mx-auto mt-1 max-w-[420px] text-[12px] leading-5" style={{ color: "#5E6779" }}>
                 Expected columns: buyer_code, supplier_code. Existing buyer codes are updated, new rows are added.
               </p>
               <label className="mt-4 inline-flex h-10 cursor-pointer items-center rounded-[7px] px-4 text-[13px] font-semibold" style={{ border: `1px solid ${BORDER}`, background: "#FFFFFF", color: INK }}>
@@ -789,7 +789,7 @@ function MappingPanel({
                 <input type="file" accept=".csv" className="sr-only" onChange={(e) => setImportFile(e.target.files?.[0] ?? null)} />
               </label>
             </div>
-            <div className="rounded-[7px] border border-[#E2E6EE] bg-[#F6F7FA] p-3 text-[12px] leading-5" style={{ color: "#56627A" }}>
+            <div className="rounded-[7px] border border-[#E5E8EE] bg-[#F6F7FA] p-3 text-[12px] leading-5" style={{ color: "#5E6779" }}>
               {isApiMockMode || !supplierId
                 ? "Import runs on the backend import endpoint. Connect an API session to upsert mappings from your CSV."
                 : "Select a CSV file with buyer_code and supplier_code columns. Existing mappings will be updated; new codes will be added."}
@@ -884,7 +884,7 @@ function MappingPanel({
         )}
 
         {error && (
-          <div className="mx-5 mb-3 rounded-[7px] px-3 py-2 text-[12px]" style={{ border: "1px solid #F5B8B8", background: "#FBE3E3", color: "#C53A3A" }}>
+          <div className="mx-5 mb-3 rounded-[7px] px-3 py-2 text-[12px]" style={{ border: "1px solid #F5B8B8", background: "#FBE3E3", color: "#B43838" }}>
             {error}
           </div>
         )}
@@ -907,7 +907,7 @@ function MappingPanel({
               }}
               disabled={saving}
               className="flex h-10 items-center justify-center rounded-[7px] px-4 text-[13px] font-semibold transition-colors sm:mr-auto"
-              style={{ border: "1px solid #F0C0C0", background: "#FFFFFF", color: "#C53A3A", opacity: saving ? 0.6 : 1 }}
+              style={{ border: "1px solid #F0C0C0", background: "#FFFFFF", color: "#B43838", opacity: saving ? 0.6 : 1 }}
             >
               Delete
             </button>
@@ -915,7 +915,7 @@ function MappingPanel({
           <button
             onClick={onClose}
             className="flex h-10 items-center justify-center rounded-[7px] px-4 text-[13px] font-semibold transition-colors hover:bg-[#F6F7FA]"
-            style={{ border: 0, background: "transparent", color: "#56627A" }}
+            style={{ border: 0, background: "transparent", color: "#5E6779" }}
           >
             Cancel
           </button>

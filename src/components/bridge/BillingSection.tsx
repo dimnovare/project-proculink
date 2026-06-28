@@ -49,12 +49,12 @@ function UsageBar({ used, limit, label }: { used: number; limit: number; label: 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
       <div style={{ display: "flex", justifyContent: "space-between", gap: 16 }}>
-        <span style={{ fontSize: 12.5, color: "#56627A" }}>{label}</span>
-        <span style={{ fontSize: 12.5, fontWeight: 700, fontFamily: "'JetBrains Mono', monospace", color: atLimit ? "#C53A3A" : "#0B1A2F" }}>
+        <span style={{ fontSize: 12.5, color: "#5E6779" }}>{label}</span>
+        <span style={{ fontSize: 12.5, fontWeight: 700, fontFamily: "'JetBrains Mono', monospace", color: atLimit ? "#B43838" : "#0B1A2F" }}>
           {used.toLocaleString()} / {unlimited ? "Custom" : limit.toLocaleString()}
         </span>
       </div>
-      <div style={{ height: 8, borderRadius: 4, background: "#EFF2F7", overflow: "hidden" }}>
+      <div style={{ height: 8, borderRadius: 4, background: "#F1F3F7", overflow: "hidden" }}>
         <div style={{ width: unlimited ? "100%" : `${pct}%`, height: "100%", borderRadius: 4, ...barStyle }} />
       </div>
     </div>
@@ -64,7 +64,7 @@ function UsageBar({ used, limit, label }: { used: number; limit: number; label: 
 function TrialCountdown({ endsAt }: { endsAt: string }) {
   const days = Math.max(0, Math.ceil((new Date(endsAt).getTime() - Date.now()) / 86_400_000));
   return (
-    <span style={{ fontSize: 11.5, color: days <= 3 ? "#C97A14" : "#56627A" }}>
+    <span style={{ fontSize: 11.5, color: days <= 3 ? "#B36D14" : "#5E6779" }}>
       Trial: {days} day{days === 1 ? "" : "s"} left
     </span>
   );
@@ -148,8 +148,8 @@ function OverageNotice({ status }: { status: BillingStatus }) {
 const bannerStyle: React.CSSProperties = {
   borderRadius: 10,
   padding: "14px 18px",
-  background: "#FAEFD6",
-  border: "1px solid #C97A14",
+  background: "#FAF1DD",
+  border: "1px solid #B36D14",
   display: "flex",
   flexDirection: "column",
   gap: 4,
@@ -163,14 +163,14 @@ const warnNoticeStyle: React.CSSProperties = {
   borderRadius: 10,
   padding: "13px 16px",
   background: "#FFFFFF",
-  border: "1px solid #E2E6EE",
+  border: "1px solid #E5E8EE",
   borderLeft: "3px solid var(--amber)",
   display: "flex",
   flexDirection: "column",
   gap: 4,
   fontSize: 12.5,
   lineHeight: 1.55,
-  color: "#56627A",
+  color: "#5E6779",
 };
 
 // Neutral blue info (over cap → overage billing) — informational, not a warning.
@@ -178,14 +178,14 @@ const infoNoticeStyle: React.CSSProperties = {
   borderRadius: 10,
   padding: "13px 16px",
   background: "#FFFFFF",
-  border: "1px solid #E2E6EE",
+  border: "1px solid #E5E8EE",
   borderLeft: "3px solid var(--brand-blue)",
   display: "flex",
   flexDirection: "column",
   gap: 4,
   fontSize: 12.5,
   lineHeight: 1.55,
-  color: "#56627A",
+  color: "#5E6779",
 };
 
 // Large highlighted plan block — buyer-blue soft tint with a buyer-blue price,
@@ -195,9 +195,9 @@ function PlanCard({ status, action }: { status: BillingStatus; action?: React.Re
   const isExpired = status.plan === "pilot" && status.isTrialExpired;
   const displayLabel = isExpired ? "Pilot ended · Processing paused" : meta.label;
   // Expired pilot uses amber tint; an active plan uses the buyer-blue soft tint
-  // (sampled #E3EDFB) with a buyer-blue price — matches the design render.
-  const accent = isExpired ? "#C97A14" : "#1E66C9";
-  const softBg = isExpired ? "#FBF3E3" : "#E3EDFB";
+  // (sampled #EAF0F8) with a buyer-blue price — matches the design render.
+  const accent = isExpired ? "#B36D14" : "#1E66C9";
+  const softBg = isExpired ? "#FBF3E3" : "#EAF0F8";
   const borderCol = isExpired ? "#F0D8A8" : "#C9DCF6";
 
   return (
@@ -216,7 +216,7 @@ function PlanCard({ status, action }: { status: BillingStatus; action?: React.Re
         <div style={{ fontFamily: "'Bricolage Grotesque', Inter, sans-serif", fontSize: 19, fontWeight: 600, letterSpacing: "-0.02em", color: "#0B1A2F" }}>
           {displayLabel}
         </div>
-        <div style={{ fontSize: 12.5, color: "#56627A", marginTop: 4 }}>{meta.sub}</div>
+        <div style={{ fontSize: 12.5, color: "#5E6779", marginTop: 4 }}>{meta.sub}</div>
       </div>
       <div style={{ textAlign: "right", flexShrink: 0, display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 8 }}>
         <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 24, fontWeight: 700, color: accent, lineHeight: 1 }}>
@@ -225,7 +225,7 @@ function PlanCard({ status, action }: { status: BillingStatus; action?: React.Re
         {/* Payment interval — from billing-status billingInterval (server-derived
             from the Stripe price id). Hidden when null/absent (no subscription). */}
         {(status.billingInterval === "monthly" || status.billingInterval === "yearly") && (
-          <div style={{ fontSize: 11.5, fontWeight: 600, color: "#56627A" }}>
+          <div style={{ fontSize: 11.5, fontWeight: 600, color: "#5E6779" }}>
             {status.billingInterval === "yearly" ? "Billed annually" : "Billed monthly"}
           </div>
         )}
@@ -270,11 +270,11 @@ export function BillingSection() {
 
   if (isLoading) {
     return (
-      <div style={{ border: "1px solid #E2E6EE", borderRadius: 12, background: "#FFFFFF", padding: 22, boxShadow: "0 1px 2px rgba(11,26,47,0.04)" }}>
-        <div style={{ height: 18, width: 190, background: "#E2E6EE", borderRadius: 4, marginBottom: 18 }} />
+      <div style={{ border: "1px solid #E5E8EE", borderRadius: 12, background: "#FFFFFF", padding: 22, boxShadow: "0 1px 2px rgba(11,26,47,0.04)" }}>
+        <div style={{ height: 18, width: 190, background: "#E5E8EE", borderRadius: 4, marginBottom: 18 }} />
         <div style={{ display: "grid", gap: 10 }}>
-          <div style={{ height: 10, width: "100%", background: "#EFF2F7", borderRadius: 99 }} />
-          <div style={{ height: 10, width: "72%", background: "#EFF2F7", borderRadius: 99 }} />
+          <div style={{ height: 10, width: "100%", background: "#F1F3F7", borderRadius: 99 }} />
+          <div style={{ height: 10, width: "72%", background: "#F1F3F7", borderRadius: 99 }} />
         </div>
       </div>
     );
@@ -282,15 +282,15 @@ export function BillingSection() {
 
   if (error || !status) {
     return (
-      <div style={{ border: "1px solid #F0D2D2", borderLeft: "3px solid #C53A3A", borderRadius: 12, background: "#FFFFFF", padding: 22, boxShadow: "0 1px 2px rgba(11,26,47,0.04)" }}>
+      <div style={{ border: "1px solid #F0D2D2", borderLeft: "3px solid #B43838", borderRadius: 12, background: "#FFFFFF", padding: 22, boxShadow: "0 1px 2px rgba(11,26,47,0.04)" }}>
         <div style={{ fontSize: 13, fontWeight: 700, color: "#0B1A2F", marginBottom: 4 }}>Billing is temporarily unavailable</div>
-        <p style={{ margin: 0, fontSize: 12.5, lineHeight: 1.55, color: "#56627A" }}>
+        <p style={{ margin: 0, fontSize: 12.5, lineHeight: 1.55, color: "#5E6779" }}>
           We could not reach the billing service. Your workspace data is still available; plan changes and usage limits need the API connection.
         </p>
         <button
           onClick={() => refetch()}
           disabled={isFetching}
-          style={{ marginTop: 14, borderRadius: 6, border: "1px solid #E2E6EE", background: "#FFFFFF", color: "#0B1A2F", height: 32, padding: "0 12px", fontSize: 12, fontWeight: 700, cursor: isFetching ? "not-allowed" : "pointer" }}
+          style={{ marginTop: 14, borderRadius: 6, border: "1px solid #E5E8EE", background: "#FFFFFF", color: "#0B1A2F", height: 32, padding: "0 12px", fontSize: 12, fontWeight: 700, cursor: isFetching ? "not-allowed" : "pointer" }}
         >
           {isFetching ? "Checking..." : "Retry"}
         </button>
@@ -353,7 +353,7 @@ export function BillingSection() {
       {/* ── Upgrade / change plan actions ── */}
       {isPilot && (
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-          <div style={{ borderRadius: 10, padding: "13px 15px", background: "#FFFFFF", border: "1px solid #E2E6EE", borderLeft: "3px solid var(--brand-green)", fontSize: 12.5, lineHeight: 1.55, color: "#56627A" }}>
+          <div style={{ borderRadius: 10, padding: "13px 15px", background: "#FFFFFF", border: "1px solid #E5E8EE", borderLeft: "3px solid var(--brand-green)", fontSize: 12.5, lineHeight: 1.55, color: "#5E6779" }}>
             <strong style={{ color: "#0B1A2F" }}>Upgrade when this is ready for daily orders.</strong>{" "}
             Growth keeps the same workflow but raises your monthly order volume, adds more suppliers, and keeps processing open after the Pilot window ends.
           </div>
@@ -378,7 +378,7 @@ export function BillingSection() {
             ))}
           </div>
           {checkoutMutation.isError && (
-            <p style={{ margin: 0, fontSize: 12, color: "#C53A3A" }}>
+            <p style={{ margin: 0, fontSize: 12, color: "#B43838" }}>
               {(checkoutMutation.error as Error)?.message || "Could not start checkout. Please try again."}
             </p>
           )}
@@ -396,7 +396,7 @@ export function BillingSection() {
                 alignSelf: "flex-start",
                 background: "#FFFFFF",
                 color: "#0B1A2F",
-                border: "1px solid #C6CDDA",
+                border: "1px solid #CBD0DA",
                 borderLeft: "3px solid var(--brand-green)",
                 borderRadius: 8,
                 padding: "9px 14px",
@@ -414,7 +414,7 @@ export function BillingSection() {
 
       {isPaid && (
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-          <div style={{ borderRadius: 10, padding: "13px 15px", background: "#FFFFFF", border: "1px solid #E2E6EE", fontSize: 12.5, lineHeight: 1.55, color: "#56627A" }}>
+          <div style={{ borderRadius: 10, padding: "13px 15px", background: "#FFFFFF", border: "1px solid #E5E8EE", fontSize: 12.5, lineHeight: 1.55, color: "#5E6779" }}>
             Plan changes update order and supplier limits immediately after Stripe confirms the subscription. Existing orders, mappings, and delivery logs stay available.
           </div>
           {nextPlan && (
@@ -430,7 +430,7 @@ export function BillingSection() {
             </>
           )}
           {checkoutMutation.isError && (
-            <p style={{ margin: 0, fontSize: 12, color: "#C53A3A" }}>
+            <p style={{ margin: 0, fontSize: 12, color: "#B43838" }}>
               {(checkoutMutation.error as Error)?.message || "Could not start checkout. Please try again."}
             </p>
           )}
@@ -438,7 +438,7 @@ export function BillingSection() {
       )}
 
       {isEnterprise && (
-        <p style={{ fontSize: 13, color: "#56627A", margin: 0 }}>
+        <p style={{ fontSize: 13, color: "#5E6779", margin: 0 }}>
           Enterprise plans use a manual agreement. Contact support to adjust volume, suppliers, SLA, or connector scope.
         </p>
       )}
@@ -480,7 +480,7 @@ export function BillingSection() {
                 style={{
                   height: 27, padding: "0 10px",
                   background: "transparent", border: "none",
-                  color: "#56627A", fontSize: 12, fontWeight: 600,
+                  color: "#5E6779", fontSize: 12, fontWeight: 600,
                   cursor: portalMutation.isPending ? "not-allowed" : "pointer",
                 }}
               >
@@ -490,7 +490,7 @@ export function BillingSection() {
           </div>
           {portalMutation.isError && (
             <div style={{ padding: "0 16px 12px" }}>
-              <p style={{ margin: 0, fontSize: 12, color: "#C53A3A", lineHeight: 1.5 }}>
+              <p style={{ margin: 0, fontSize: 12, color: "#B43838", lineHeight: 1.5 }}>
                 {portalMutation.error instanceof Error &&
                 portalMutation.error.message.toLowerCase().includes("customer")
                   ? "No billing customer on file. Contact support to link your account."
@@ -520,7 +520,7 @@ function IntervalToggle({ value, onChange, disabled }: {
   ];
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-      <div role="group" aria-label="Billing period" style={{ display: "inline-flex", background: "#EFF2F7", borderRadius: 8, padding: 3, gap: 2 }}>
+      <div role="group" aria-label="Billing period" style={{ display: "inline-flex", background: "#F1F3F7", borderRadius: 8, padding: 3, gap: 2 }}>
         {options.map((o) => {
           const on = value === o.id;
           return (
@@ -534,7 +534,7 @@ function IntervalToggle({ value, onChange, disabled }: {
                 border: "none", borderRadius: 6, padding: "6px 13px",
                 fontSize: 12, fontWeight: 600, cursor: disabled ? "not-allowed" : "pointer",
                 background: on ? "#FFFFFF" : "transparent",
-                color: on ? "#0B1A2F" : "#56627A",
+                color: on ? "#0B1A2F" : "#5E6779",
                 boxShadow: on ? "0 1px 2px rgba(11,26,47,0.08)" : "none",
               }}
             >

@@ -32,18 +32,20 @@ export default {
         brand: {
           blue:         "#1E66C9",   // buyer / incoming / structure / trust
           "blue-deep":  "#0F4FA8",
-          "blue-soft":  "#E3EDFB",
+          "blue-soft":  "#EAF0F8",
+          "blue-soft-2":"#DCE8F7",
           green:        "#2E8E3A",   // supplier / outgoing / completion
           "green-deep": "#1E6D29",
-          "green-soft": "#E2F1E2",
+          "green-soft": "#E9F1EA",
+          "green-soft-2":"#D8EBDA",
         },
 
         // Navy chrome (sidebar + topbar)
         navy: {
           DEFAULT: "#0B1A2F",
-          surface: "#10243E",
-          border:  "#1C2F49",
-          text:    "#C5D2E4",
+          surface: "#14253D",
+          border:  "#1F3252",
+          text:    "#C8D1E0",
           muted:   "#7C8DA6",
         },
 
@@ -52,35 +54,36 @@ export default {
         bgWarm: "#F8F6F1",
         surface: {
           DEFAULT: "#FFFFFF",
-          "2":     "#EFF2F7",
+          "2":     "#F1F3F7",
         },
 
         // Border — nested so `border-border-strong` works
         border: {
-          DEFAULT: "#E2E6EE",
-          strong:  "#C6CDDA",
+          DEFAULT: "#E5E8EE",
+          strong:  "#CBD0DA",
           faint:   "#EEF0F4",
         },
 
         // Ink (text)
         ink: {
           DEFAULT: "#0B1A2F",
-          muted:   "#56627A",
-          faint:   "#8A93A5",
+          muted:   "#5E6779",
+          faint:   "#98A0AE",
         },
 
         // Semantic — nested so `bg-amber-soft`, `bg-danger-soft`, `bg-ai-soft` work
         amber: {
-          DEFAULT: "#C97A14",
-          soft:    "#FAEFD6",
+          DEFAULT: "#B36D14",
+          soft:    "#FAF1DD",
         },
         danger: {
-          DEFAULT: "#C53A3A",
-          soft:    "#FBE3E3",
+          DEFAULT: "#B43838",
+          soft:    "#FAE6E6",
         },
         ai: {
           DEFAULT: "#6F4FCE",   // ONLY for AI-generated content
-          soft:    "#EEE7FB",
+          soft:    "#F0EAFB",
+          border:  "#D9CCF4",
         },
 
         // ─── shadcn/ui CSS-variable tokens (keep for primitives) ──────

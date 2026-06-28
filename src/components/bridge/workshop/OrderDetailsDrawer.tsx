@@ -145,7 +145,7 @@ export function OrderDetailsDrawer(props: OrderDetailsDrawerProps) {
             <h2 style={{ fontFamily: "'Bricolage Grotesque', Inter, sans-serif", fontSize: 18, fontWeight: 700, letterSpacing: "-0.02em", color: "#0B1A2F", margin: 0, lineHeight: 1.2 }}>
               Order details
             </h2>
-            <p style={{ margin: "3px 0 0", fontSize: 12, color: "#56627A", lineHeight: 1.4 }}>
+            <p style={{ margin: "3px 0 0", fontSize: 12, color: "#5E6779", lineHeight: 1.4 }}>
               Audit trail, standards check, and {counterpartyNoun} response for{" "}
               <span style={{ fontFamily: "'JetBrains Mono', monospace", color: "#1E6D29" }}>{poNumber}</span>
             </p>
@@ -163,7 +163,7 @@ export function OrderDetailsDrawer(props: OrderDetailsDrawerProps) {
         </header>
 
         {/* Sub-tab strip */}
-        <div role="tablist" aria-label="Order detail views" style={{ display: "flex", gap: 6, padding: "12px 22px 0", flexShrink: 0, borderBottom: "1px solid #E2E6EE" }}>
+        <div role="tablist" aria-label="Order detail views" style={{ display: "flex", gap: 6, padding: "12px 22px 0", flexShrink: 0, borderBottom: "1px solid #E5E8EE" }}>
           {TABS.map((t) => {
             const active = t.id === tab;
             return (
@@ -182,7 +182,7 @@ export function OrderDetailsDrawer(props: OrderDetailsDrawerProps) {
                   marginBottom: -1,
                   fontSize: 13,
                   fontWeight: active ? 700 : 600,
-                  color: active ? "#0B1A2F" : "#56627A",
+                  color: active ? "#0B1A2F" : "#5E6779",
                   borderBottom: `2px solid ${active ? "#1E66C9" : "transparent"}`,
                   minHeight: 36,
                 }}
@@ -206,7 +206,7 @@ export function OrderDetailsDrawer(props: OrderDetailsDrawerProps) {
               <h3 style={{ fontFamily: "'Bricolage Grotesque', Inter, sans-serif", fontSize: 18, fontWeight: 700, letterSpacing: "-0.02em", color: "#0B1A2F", marginBottom: 4 }}>
                 Supplier rules check
               </h3>
-              <p className="text-[12.5px]" style={{ color: "#56627A", marginBottom: 16 }}>
+              <p className="text-[12.5px]" style={{ color: "#5E6779", marginBottom: 16 }}>
                 Validate the outbound document for{" "}
                 <span className="font-mono" style={{ color: "#1E6D29" }}>{poNumber}</span> against a named standards profile.
               </p>
@@ -219,16 +219,16 @@ export function OrderDetailsDrawer(props: OrderDetailsDrawerProps) {
               <h3 style={{ fontFamily: "'Bricolage Grotesque', Inter, sans-serif", fontSize: 18, fontWeight: 700, letterSpacing: "-0.02em", color: "#0B1A2F", marginBottom: 4 }}>
                 {counterpartyNoun.charAt(0).toUpperCase() + counterpartyNoun.slice(1)} response
               </h3>
-              <p className="text-[12.5px]" style={{ color: "#56627A", marginBottom: 16 }}>
+              <p className="text-[12.5px]" style={{ color: "#5E6779", marginBottom: 16 }}>
                 What {supplierName} confirmed back for{" "}
                 <span className="font-mono" style={{ color: "#1E6D29" }}>{poNumber}</span>.
               </p>
               {status === "rejected_by_supplier" && (
-                <div className="mb-4 rounded-[8px] px-4 py-3" style={{ border: "1px solid var(--danger-soft, #FBE3E3)", borderLeft: "3px solid var(--danger, #C53A3A)", background: "#FFF7F7" }}>
+                <div className="mb-4 rounded-[8px] px-4 py-3" style={{ border: "1px solid var(--danger-soft, #FBE3E3)", borderLeft: "3px solid var(--danger, #B43838)", background: "#FFF7F7" }}>
                   <div style={{ fontSize: 13, fontWeight: 700, color: "#0B1A2F", marginBottom: 4 }}>
                     {counterpartyNoun.charAt(0).toUpperCase() + counterpartyNoun.slice(1)} rejected this order
                   </div>
-                  <p style={{ margin: 0, fontSize: 12.5, color: "#56627A", lineHeight: 1.5 }}>
+                  <p style={{ margin: 0, fontSize: 12.5, color: "#5E6779", lineHeight: 1.5 }}>
                     {errorMessage && errorMessage.trim().length > 0
                       ? errorMessage
                       : "The last delivery attempt came back as a rejection. Fix the order or delivery format, then resend."}

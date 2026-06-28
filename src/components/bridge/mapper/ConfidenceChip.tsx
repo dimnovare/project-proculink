@@ -7,9 +7,9 @@
 export function ConfidenceChip({ value, sm = false }: { value: number; sm?: boolean }) {
   const pct = Math.round(value <= 1 ? value * 100 : value);
   const tone =
-    pct >= 85 ? { fg: "#1E6D29", bg: "#E2F1E2", bd: "#CDE7D1" }
-    : pct >= 65 ? { fg: "#8A5A0E", bg: "#FAEFD6", bd: "#EAD9AE" }
-    : { fg: "#C53A3A", bg: "#FBE3E3", bd: "#F0C9C9" };
+    pct >= 85 ? { fg: "#1E6D29", bg: "#E9F1EA", bd: "#CDE7D1" }
+    : pct >= 65 ? { fg: "#8A5A0E", bg: "#FAF1DD", bd: "#EAD9AE" }
+    : { fg: "#B43838", bg: "#FBE3E3", bd: "#F0C9C9" };
   return (
     <span
       aria-label={`AI confidence ${pct}%`}

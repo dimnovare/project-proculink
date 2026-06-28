@@ -102,12 +102,12 @@ function stageLabel(status: string): string {
 
 const STAGE_COLOR: Record<string, string> = {
   // Canonical human labels (live rows via stageLabel)
-  Parse: "#1E66C9", "Needs review": "#C97A14", Validate: "#C97A14", Transform: "#6F4FCE", Delivering: "#2E8E3A", Failed: "#C53A3A",
+  Parse: "#1E66C9", "Needs review": "#B36D14", Validate: "#B36D14", Transform: "#6F4FCE", Delivering: "#2E8E3A", Failed: "#B43838",
   // Legacy human labels still emitted by the mock fallback rows
   Extract: "#6F4FCE", Ready: "#2E8E3A",
   // Raw API status values (defensive — if an unmapped status is shown verbatim)
-  parsing: "#1E66C9", pending_parse: "#1E66C9", pending_review: "#C97A14",
-  transforming: "#6F4FCE", delivering: "#2E8E3A", delivery_failed: "#C53A3A",
+  parsing: "#1E66C9", pending_parse: "#1E66C9", pending_review: "#B36D14",
+  transforming: "#6F4FCE", delivering: "#2E8E3A", delivery_failed: "#B43838",
 };
 
 /**
@@ -184,12 +184,12 @@ function codeFor(name: string): string {
  * Single source of truth for supplier/dock health → color, so every call site
  * uses identical thresholds (previously two divergent sets lived in this screen).
  * Design thresholds (screen-bridge.jsx): healthy ≥90 = forest green #2E8E3A,
- * at-risk ≥80 = amber #C97A14, poor = red #C53A3A.
+ * at-risk ≥80 = amber #B36D14, poor = red #B43838.
  */
 function healthColor(pct: number): string {
   if (pct >= 90) return GREEN_BAR;   // #2E8E3A
-  if (pct >= 80) return "#C97A14";   // amber
-  return "#C53A3A";                  // red
+  if (pct >= 80) return "#B36D14";   // amber
+  return "#B43838";                  // red
 }
 
 /** Order count → stroke-weight bucket (1–6). */
@@ -468,10 +468,10 @@ export function BridgeDashboard() {
   // (ready) → supplier-green (delivered) → red (failed).
   const funnelStages: Array<{ key: string; label: string; value: number; color: string; tint: string; href?: string }> = [
     { key: "received",  label: "Received",     value: countReceived,  color: BLUE,       tint: "#EAF1FC" },
-    { key: "blocked",   label: "Needs review", value: countBlocked,   color: "#C97A14",  tint: "#FFF6E6", href: "/operations/exceptions" },
-    { key: "ready",     label: "Ready",        value: countReady,     color: "#56627A",  tint: "#F1F3F7" },
+    { key: "blocked",   label: "Needs review", value: countBlocked,   color: "#B36D14",  tint: "#FFF6E6", href: "/operations/exceptions" },
+    { key: "ready",     label: "Ready",        value: countReady,     color: "#5E6779",  tint: "#F1F3F7" },
     { key: "delivered", label: "Delivered",    value: countDelivered, color: GREEN,      tint: "#E9F4EB" },
-    { key: "failed",    label: "Failed",       value: countFailed,    color: "#C53A3A",  tint: "#FCEDED", href: "/operations/exceptions" },
+    { key: "failed",    label: "Failed",       value: countFailed,    color: "#B43838",  tint: "#FCEDED", href: "/operations/exceptions" },
   ];
   const funnelMax = Math.max(countReceived, 1);
 
@@ -517,7 +517,7 @@ export function BridgeDashboard() {
         : fmt(windowedOrders.length),
       label: "Orders received",
       sub: windowSub,
-      subColor: "#56627A",
+      subColor: "#5E6779",
       subIcon: ArrowUpRight,
       // Headline throughput metric: buyer-blue flows to supplier-green, mirroring
       // the topology cross-section. Sampled #1E66C9 → #2E8E3A.
@@ -550,12 +550,12 @@ export function BridgeDashboard() {
         ? (summaryLoading ? "…" : summaryError ? "Live data unavailable" : exceptionsBad ? "All time · review needed" : "All time · all clear")
         : (ordersError ? "Live data unavailable" : exceptionsBad ? "All time · review needed" : "All time · all clear"),
       subColor: (!isApiMockMode ? (summaryLoading || summaryError) : (ordersLoading || ordersError))
-        ? "#56627A"
-        : exceptionsBad ? "#C97A14" : GREEN_DEEP,
+        ? "#5E6779"
+        : exceptionsBad ? "#B36D14" : GREEN_DEEP,
       subIcon: (!isApiMockMode ? (summaryLoading || summaryError) : (ordersLoading || ordersError))
         ? undefined
         : exceptionsBad ? AlertTriangle : CheckCircle2,
-      edge: exceptionsBad ? "#C97A14" : GREEN_BAR,
+      edge: exceptionsBad ? "#B36D14" : GREEN_BAR,
       loading: !isApiMockMode ? summaryLoading : ordersLoading,
       // The KPI is also the entry point to triage — the card links to the
       // exceptions view instead of being a dead number.
@@ -575,7 +575,7 @@ export function BridgeDashboard() {
         // still need review — this is the % of COMPLETED orders that needed no manual mapping.
         ? `${windowSub} · ${autoCount} of ${eligibleInWindow.length} completed${autoSampled ? " (latest 100)" : ""}`
         : `${windowSub} · needs 3+ completed orders`,
-      subColor: ordersError ? "#56627A" : eligibleInWindow.length >= 3 ? GREEN_DEEP : "#56627A",
+      subColor: ordersError ? "#5E6779" : eligibleInWindow.length >= 3 ? GREEN_DEEP : "#5E6779",
       subIcon: ordersError ? undefined : eligibleInWindow.length >= 3 ? CheckCircle2 : Clock,
       edge: GREEN_BAR,
       loading: ordersLoading,
@@ -685,7 +685,7 @@ export function BridgeDashboard() {
       return (
         <div
           className="animate-pulse rounded-card"
-          style={{ height, background: "#EFF2F7", border: "1px solid #E2E6EE", boxShadow: "0 1px 2px rgba(11,26,47,0.04)" }}
+          style={{ height, background: "#F1F3F7", border: "1px solid #E5E8EE", boxShadow: "0 1px 2px rgba(11,26,47,0.04)" }}
         />
       );
     }
@@ -696,18 +696,18 @@ export function BridgeDashboard() {
       return (
         <div
           className="flex flex-col items-center justify-center rounded-card text-center"
-          style={{ height, background: "#FFFFFF", border: "1px solid #E2E6EE", boxShadow: "0 1px 2px rgba(11,26,47,0.04)", padding: 24 }}
+          style={{ height, background: "#FFFFFF", border: "1px solid #E5E8EE", boxShadow: "0 1px 2px rgba(11,26,47,0.04)", padding: 24 }}
           role="alert"
         >
           <div className="text-[16px] font-semibold" style={{ color: "#0B1A2F" }}>Couldn&apos;t load your topology</div>
-          <div className="mt-1 max-w-[420px] text-[13px]" style={{ color: "#56627A" }}>
+          <div className="mt-1 max-w-[420px] text-[13px]" style={{ color: "#5E6779" }}>
             We hit a problem fetching your live order view. Your connections are safe — this is a temporary loading error.
           </div>
           <button
             type="button"
             onClick={() => refetchOrders()}
             className="mt-4 inline-flex items-center gap-1 rounded-[6px] px-3 py-1.5 text-[12.5px] font-medium transition-colors hover:bg-[#F6F7FA]"
-            style={{ border: "1px solid #E2E6EE", background: "#FFFFFF", color: "#0B1A2F" }}
+            style={{ border: "1px solid #E5E8EE", background: "#FFFFFF", color: "#0B1A2F" }}
           >
             Retry
           </button>
@@ -718,16 +718,16 @@ export function BridgeDashboard() {
       return (
         <div
           className="flex flex-col items-center justify-center rounded-card text-center"
-          style={{ height, background: "#FFFFFF", border: "1px solid #E2E6EE", boxShadow: "0 1px 2px rgba(11,26,47,0.04)", padding: 24 }}
+          style={{ height, background: "#FFFFFF", border: "1px solid #E5E8EE", boxShadow: "0 1px 2px rgba(11,26,47,0.04)", padding: 24 }}
         >
           <div className="text-[16px] font-semibold" style={{ color: "#0B1A2F" }}>No deliveries yet</div>
-          <div className="mt-1 max-w-[420px] text-[13px]" style={{ color: "#56627A" }}>
+          <div className="mt-1 max-w-[420px] text-[13px]" style={{ color: "#5E6779" }}>
             Add a {nounLower} and upload your first PO — your {labels.railHeader.toLowerCase()} connections appear here.
           </div>
           <Link
             href="/library/suppliers"
             className="mt-4 inline-flex items-center gap-1 rounded-[6px] px-3 py-1.5 text-[12.5px] font-medium transition-colors hover:bg-[#F6F7FA]"
-            style={{ border: "1px solid #E2E6EE", background: "#FFFFFF", color: "#0B1A2F" }}
+            style={{ border: "1px solid #E5E8EE", background: "#FFFFFF", color: "#0B1A2F" }}
           >
             Add a {nounLower} →
           </Link>
@@ -753,7 +753,7 @@ export function BridgeDashboard() {
       return (
         <div className="grid grid-cols-2 gap-3 p-4 sm:grid-cols-3 lg:grid-cols-5">
           {[0, 1, 2, 3, 4].map((i) => (
-            <div key={i} className="animate-pulse rounded-[10px]" style={{ height: 104, background: "#EFF2F7", border: "1px solid #E2E6EE" }} />
+            <div key={i} className="animate-pulse rounded-[10px]" style={{ height: 104, background: "#F1F3F7", border: "1px solid #E5E8EE" }} />
           ))}
         </div>
       );
@@ -762,14 +762,14 @@ export function BridgeDashboard() {
       return (
         <div className="flex flex-col items-center justify-center px-4 py-10 text-center" role="alert">
           <div className="text-[15px] font-semibold" style={{ color: "#0B1A2F" }}>Couldn&apos;t load your pipeline</div>
-          <div className="mt-1 max-w-[420px] text-[13px]" style={{ color: "#56627A" }}>
+          <div className="mt-1 max-w-[420px] text-[13px]" style={{ color: "#5E6779" }}>
             We hit a problem fetching your live order counts. This is a temporary loading error.
           </div>
           <button
             type="button"
             onClick={() => refetchOrders()}
             className="mt-4 inline-flex items-center gap-1 rounded-[6px] px-3 py-1.5 text-[12.5px] font-medium transition-colors hover:bg-[#F6F7FA]"
-            style={{ border: "1px solid #E2E6EE", background: "#FFFFFF", color: "#0B1A2F" }}
+            style={{ border: "1px solid #E5E8EE", background: "#FFFFFF", color: "#0B1A2F" }}
           >
             Retry
           </button>
@@ -791,7 +791,7 @@ export function BridgeDashboard() {
                     const Icon = [Inbox, AlertTriangle, Clock, PackageCheck, XCircle][idx];
                     return <Icon size={13} strokeWidth={2.25} style={{ color: s.color, flexShrink: 0 }} aria-hidden />;
                   })()}
-                  <span className="text-[10.5px] font-semibold uppercase" style={{ color: "#56627A", letterSpacing: "0.05em" }}>
+                  <span className="text-[10.5px] font-semibold uppercase" style={{ color: "#5E6779", letterSpacing: "0.05em" }}>
                     {s.label}
                   </span>
                 </div>
@@ -801,7 +801,7 @@ export function BridgeDashboard() {
                 >
                   {s.value.toLocaleString()}
                 </div>
-                <div className="mt-2.5 overflow-hidden rounded-full" style={{ height: 5, background: "#EFF2F7" }}>
+                <div className="mt-2.5 overflow-hidden rounded-full" style={{ height: 5, background: "#F1F3F7" }}>
                   <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, background: s.color }} />
                 </div>
               </>
@@ -828,7 +828,7 @@ export function BridgeDashboard() {
         {/* Flow connector caption — names the pipeline order in plain language. */}
         <div className="mt-3 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[11.5px]" style={{ color: "var(--ink-faint)" }}>
           <span>Order pipeline</span>
-          <span style={{ color: "#C6CDDA" }}>·</span>
+          <span style={{ color: "#CBD0DA" }}>·</span>
           <span>Received</span>
           <ArrowRight size={11} aria-hidden />
           <span>Needs review</span>
@@ -836,7 +836,7 @@ export function BridgeDashboard() {
           <span>Ready</span>
           <ArrowRight size={11} aria-hidden />
           <span>Delivered</span>
-          <span style={{ color: "#C6CDDA" }}>·</span>
+          <span style={{ color: "#CBD0DA" }}>·</span>
           <span>All time</span>
         </div>
       </div>
@@ -856,9 +856,9 @@ export function BridgeDashboard() {
                 style={{ width: 7, height: 7, borderRadius: "50%", background: GREEN, display: "inline-block" }}
               />
               Live order view
-              <span style={{ color: "#C6CDDA" }}>·</span>
+              <span style={{ color: "#CBD0DA" }}>·</span>
               {wireCount} connection{wireCount === 1 ? "" : "s"}
-              <span style={{ color: "#C6CDDA" }}>·</span>
+              <span style={{ color: "#CBD0DA" }}>·</span>
               {/* "active {plural}" — this counts only docks currently carrying orders
                   (derived topology), NOT the full roster on the Suppliers page, so it
                   must not be labelled a bare "{N} suppliers" count. */}
@@ -873,7 +873,7 @@ export function BridgeDashboard() {
                     Filters the data window the KPIs + export use. */}
                 <div
                   className="flex min-w-0 items-center gap-0.5 rounded-[8px] p-[3px] text-[12.5px]"
-                  style={{ border: "1px solid #E2E6EE", background: "#FFFFFF" }}
+                  style={{ border: "1px solid #E5E8EE", background: "#FFFFFF" }}
                   role="group"
                   aria-label="Time window"
                 >
@@ -889,7 +889,7 @@ export function BridgeDashboard() {
                         className="min-h-[28px] min-w-0 rounded-[6px] px-3 py-1 font-medium transition-colors"
                         style={{
                           background: active ? "#0B1A2F" : "transparent",
-                          color: active ? "#FFFFFF" : "#56627A",
+                          color: active ? "#FFFFFF" : "#5E6779",
                         }}
                       >
                         {w.label}
@@ -910,7 +910,7 @@ export function BridgeDashboard() {
                   }
                   className="flex min-h-[36px] items-center gap-2 rounded-[8px] px-3.5 py-1.5 text-[12.5px] font-medium transition-colors hover:bg-[#FCFCFD]"
                   style={{
-                    border: "1px solid #E2E6EE",
+                    border: "1px solid #E5E8EE",
                     background: "#FFFFFF",
                     color: windowedOrders.length === 0 ? "var(--ink-faint)" : "#0B1A2F",
                     cursor: windowedOrders.length === 0 ? "not-allowed" : "pointer",
@@ -932,7 +932,7 @@ export function BridgeDashboard() {
         // ── Onboarding hero: the card is the primary next step (no topology yet) ──
         <div className="flex flex-1 justify-center">
           <div className="w-full max-w-[980px]">
-            <p className="mb-4 text-[13px]" style={{ color: "#56627A" }}>
+            <p className="mb-4 text-[13px]" style={{ color: "#5E6779" }}>
               Your pipeline is ready. Create its first connection to start {direction === "inbound" ? "confirming orders from customers" : "routing orders to suppliers"}.
             </p>
             <OnboardingChecklist onResumeSetup={resumeWizard} />
@@ -947,10 +947,10 @@ export function BridgeDashboard() {
             <Link
               href="/operations/exceptions"
               className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1.5 rounded-[10px] px-4 py-3 no-underline transition-shadow hover:shadow-md"
-              style={{ border: "1px solid #F0D39A", borderLeft: "3px solid #C97A14", background: "#FFF8EA" }}
+              style={{ border: "1px solid #F0D39A", borderLeft: "3px solid #B36D14", background: "#FFF8EA" }}
             >
               <span className="flex min-w-0 items-center gap-2 text-[13px] font-semibold" style={{ color: "#7A4D0B" }}>
-                <AlertTriangle size={15} strokeWidth={2.25} style={{ color: "#C97A14", flexShrink: 0 }} aria-hidden />
+                <AlertTriangle size={15} strokeWidth={2.25} style={{ color: "#B36D14", flexShrink: 0 }} aria-hidden />
                 {openExceptionsAll} order{openExceptionsAll === 1 ? "" : "s"} need{openExceptionsAll === 1 ? "s" : ""} your attention
               </span>
               <span className="whitespace-nowrap text-[12.5px] font-semibold" style={{ color: "#9A5F0A" }}>
@@ -968,7 +968,7 @@ export function BridgeDashboard() {
             <div className="mb-3 flex items-center gap-1.5">
               <div
                 className="flex items-center gap-0.5 rounded-[8px] p-[3px] text-[12.5px]"
-                style={{ border: "1px solid #E2E6EE", background: "#FFFFFF" }}
+                style={{ border: "1px solid #E5E8EE", background: "#FFFFFF" }}
                 role="tablist"
                 aria-label="Dashboard view"
               >
@@ -978,7 +978,7 @@ export function BridgeDashboard() {
                   aria-selected={heroTab === "funnel"}
                   onClick={() => setHeroTab("funnel")}
                   className="flex min-h-[28px] items-center gap-1.5 rounded-[6px] px-3 py-1 font-medium transition-colors"
-                  style={{ background: heroTab === "funnel" ? "#0B1A2F" : "transparent", color: heroTab === "funnel" ? "#FFFFFF" : "#56627A" }}
+                  style={{ background: heroTab === "funnel" ? "#0B1A2F" : "transparent", color: heroTab === "funnel" ? "#FFFFFF" : "#5E6779" }}
                 >
                   <BarChart3 size={13} strokeWidth={2.25} aria-hidden />
                   Pipeline
@@ -989,7 +989,7 @@ export function BridgeDashboard() {
                   aria-selected={heroTab === "map"}
                   onClick={() => setHeroTab("map")}
                   className="flex min-h-[28px] items-center gap-1.5 rounded-[6px] px-3 py-1 font-medium transition-colors"
-                  style={{ background: heroTab === "map" ? "#0B1A2F" : "transparent", color: heroTab === "map" ? "#FFFFFF" : "#56627A" }}
+                  style={{ background: heroTab === "map" ? "#0B1A2F" : "transparent", color: heroTab === "map" ? "#FFFFFF" : "#5E6779" }}
                 >
                   <Network size={13} strokeWidth={2.25} aria-hidden />
                   System map
@@ -1000,7 +1000,7 @@ export function BridgeDashboard() {
             {heroTab === "funnel" ? (
               <div
                 className="relative overflow-hidden rounded-card"
-                style={{ background: "#FFFFFF", border: "1px solid #E2E6EE", boxShadow: "0 1px 2px rgba(11,26,47,0.04)" }}
+                style={{ background: "#FFFFFF", border: "1px solid #E5E8EE", boxShadow: "0 1px 2px rgba(11,26,47,0.04)" }}
               >
                 {/* Cross-section accent — received (blue) flows to delivered (green). */}
                 <div
@@ -1012,7 +1012,7 @@ export function BridgeDashboard() {
             ) : (
               <div
                 className="relative overflow-hidden rounded-card"
-                style={{ background: "#FFFFFF", border: "1px solid #E2E6EE", boxShadow: "0 1px 2px rgba(11,26,47,0.04)" }}
+                style={{ background: "#FFFFFF", border: "1px solid #E5E8EE", boxShadow: "0 1px 2px rgba(11,26,47,0.04)" }}
               >
                 {/* Cross-section accent — buyer side (blue) flows to supplier side (green). */}
                 <div
@@ -1020,7 +1020,7 @@ export function BridgeDashboard() {
                   style={{ position: "absolute", top: 0, left: 0, right: 0, height: 3, background: `linear-gradient(90deg, #1E66C9 0%, ${GREEN} 70%)` }}
                 />
                 {/* Legend header — right-aligned key; connection counts live in the page title. */}
-                <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 px-4 pt-3.5 pb-2 text-[11.5px]" style={{ color: "#56627A" }}>
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 px-4 pt-3.5 pb-2 text-[11.5px]" style={{ color: "#5E6779" }}>
                   <span className="flex items-center gap-1.5">
                     <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#1E66C9", display: "inline-block" }} />
                     Buyer
@@ -1030,7 +1030,7 @@ export function BridgeDashboard() {
                     {noun}
                   </span>
                   <span className="flex items-center gap-1.5">
-                    <span style={{ width: 12, height: 2.5, borderRadius: 2, background: "#C97A14", display: "inline-block" }} />
+                    <span style={{ width: 12, height: 2.5, borderRadius: 2, background: "#B36D14", display: "inline-block" }} />
                     At-risk connection
                   </span>
 
@@ -1038,7 +1038,7 @@ export function BridgeDashboard() {
                     <Link
                       href="/operations/exceptions"
                       className="ml-auto inline-flex items-center gap-1 rounded-[5px] px-2 py-0.5 text-[11.5px] font-semibold no-underline transition-opacity hover:opacity-80"
-                      style={{ background: "#FAEFD6", color: "#C97A14" }}
+                      style={{ background: "#FAF1DD", color: "#B36D14" }}
                       title="Review exceptions"
                     >
                       ⚠ {openExceptionsAll} open exception{openExceptionsAll === 1 ? "" : "s"}
@@ -1065,18 +1065,18 @@ export function BridgeDashboard() {
             {kpis.map((kpi, i) => {
               const SubIcon = kpi.subIcon;
               const cardClass = "relative overflow-hidden rounded-card p-4 pt-[18px]";
-              const cardStyle = { background: "#FFFFFF", border: "1px solid #E2E6EE", boxShadow: "0 1px 2px rgba(11,26,47,0.04)" } as const;
+              const cardStyle = { background: "#FFFFFF", border: "1px solid #E5E8EE", boxShadow: "0 1px 2px rgba(11,26,47,0.04)" } as const;
               const inner = (
                 <>
                   <div aria-hidden style={{ position: "absolute", top: 0, left: 0, right: 0, height: 3, background: kpi.edge }} />
                   <div
                     className="text-[10.5px] font-semibold uppercase"
-                    style={{ color: "#56627A", letterSpacing: "0.06em" }}
+                    style={{ color: "#5E6779", letterSpacing: "0.06em" }}
                   >
                     {kpi.label}
                   </div>
                   <div
-                    className={`monument mt-1.5${kpi.loading ? " animate-pulse text-[#C6CDDA]" : ""}`}
+                    className={`monument mt-1.5${kpi.loading ? " animate-pulse text-[#CBD0DA]" : ""}`}
                     style={{ fontSize: "clamp(28px, 4vw, 36px)", lineHeight: 1.05, color: "#0B1A2F" }}
                   >
                     {kpi.value}
@@ -1113,34 +1113,34 @@ export function BridgeDashboard() {
           {/* ── Bottom row: In transit + Dock health ─────────────────────── */}
           <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
             {/* In transit */}
-            <div className="overflow-hidden rounded-card" style={{ background: "#FFFFFF", border: "1px solid #E2E6EE", boxShadow: "0 1px 2px rgba(11,26,47,0.04)" }}>
-              <div className="flex items-center justify-between gap-2 px-4 py-3" style={{ borderBottom: "1px solid #E2E6EE" }}>
+            <div className="overflow-hidden rounded-card" style={{ background: "#FFFFFF", border: "1px solid #E5E8EE", boxShadow: "0 1px 2px rgba(11,26,47,0.04)" }}>
+              <div className="flex items-center justify-between gap-2 px-4 py-3" style={{ borderBottom: "1px solid #E5E8EE" }}>
                 <div className="flex min-w-0 items-center gap-2.5">
-                  <Send size={15} strokeWidth={2} style={{ color: "#56627A", flexShrink: 0 }} aria-hidden />
+                  <Send size={15} strokeWidth={2} style={{ color: "#5E6779", flexShrink: 0 }} aria-hidden />
                   <div className="min-w-0">
                     <div className="text-[13px] font-semibold" style={{ color: "#0B1A2F" }}>In transit</div>
                     <div className="text-[11.5px]" style={{ color: "var(--ink-faint)" }}>moving through the pipeline now</div>
                   </div>
                 </div>
               </div>
-              <div className="divide-y" style={{ borderColor: "#E2E6EE" }}>
+              <div className="divide-y" style={{ borderColor: "#E5E8EE" }}>
                 {ordersLoading ? (
                   [0, 1, 2].map((i) => (
                     <div key={i} className="flex items-center gap-3 px-4 py-2.5">
-                      <div className="h-3 flex-1 animate-pulse rounded" style={{ background: "#E2E6EE" }} />
-                      <div className="h-3 w-16 animate-pulse rounded" style={{ background: "#E2E6EE" }} />
-                      <div className="h-5 w-12 animate-pulse rounded" style={{ background: "#E2E6EE" }} />
+                      <div className="h-3 flex-1 animate-pulse rounded" style={{ background: "#E5E8EE" }} />
+                      <div className="h-3 w-16 animate-pulse rounded" style={{ background: "#E5E8EE" }} />
+                      <div className="h-5 w-12 animate-pulse rounded" style={{ background: "#E5E8EE" }} />
                     </div>
                   ))
                 ) : ordersError ? (
                   // Honest error state — never imply "nothing in flight" on a load failure.
                   <div className="flex flex-col items-center gap-2 px-4 py-6 text-center text-[12.5px]" style={{ color: "var(--ink-faint)" }} role="alert">
-                    <span style={{ color: "#56627A" }}>Couldn&apos;t load in-transit orders.</span>
+                    <span style={{ color: "#5E6779" }}>Couldn&apos;t load in-transit orders.</span>
                     <button
                       type="button"
                       onClick={() => refetchOrders()}
                       className="inline-flex items-center gap-1 rounded-[6px] px-3 py-1 text-[12px] font-medium transition-colors hover:bg-[#F6F7FA]"
-                      style={{ border: "1px solid #E2E6EE", background: "#FFFFFF", color: "#0B1A2F" }}
+                      style={{ border: "1px solid #E5E8EE", background: "#FFFFFF", color: "#0B1A2F" }}
                     >
                       Retry
                     </button>
@@ -1163,12 +1163,12 @@ export function BridgeDashboard() {
                             <span className="whitespace-nowrap font-mono text-[12px] font-semibold" style={{ color: BLUE_DEEP }}>
                               {row.po}
                             </span>
-                            <span className="max-w-full truncate text-[12px]" style={{ color: "#56627A" }}>{row.buyer}</span>
+                            <span className="max-w-full truncate text-[12px]" style={{ color: "#5E6779" }}>{row.buyer}</span>
                             <FileChip type={row.fmt} />
                           </div>
                           <span
                             className="flex-shrink-0 whitespace-nowrap text-[11px] font-semibold"
-                            style={{ color: STAGE_COLOR[row.stage] ?? "#56627A" }}
+                            style={{ color: STAGE_COLOR[row.stage] ?? "#5E6779" }}
                           >
                             {stageLabel(row.stage)}
                           </span>
@@ -1195,10 +1195,10 @@ export function BridgeDashboard() {
             </div>
 
             {/* Supplier health */}
-            <div className="overflow-hidden rounded-card" style={{ background: "#FFFFFF", border: "1px solid #E2E6EE", boxShadow: "0 1px 2px rgba(11,26,47,0.04)" }}>
-              <div className="flex items-center justify-between gap-2 px-4 py-3" style={{ borderBottom: "1px solid #E2E6EE" }}>
+            <div className="overflow-hidden rounded-card" style={{ background: "#FFFFFF", border: "1px solid #E5E8EE", boxShadow: "0 1px 2px rgba(11,26,47,0.04)" }}>
+              <div className="flex items-center justify-between gap-2 px-4 py-3" style={{ borderBottom: "1px solid #E5E8EE" }}>
                 <div className="flex min-w-0 items-center gap-2.5">
-                  <Activity size={15} strokeWidth={2} style={{ color: "#56627A", flexShrink: 0 }} aria-hidden />
+                  <Activity size={15} strokeWidth={2} style={{ color: "#5E6779", flexShrink: 0 }} aria-hidden />
                   <div className="min-w-0">
                     <div className="text-[13px] font-semibold" style={{ color: "#0B1A2F" }}>{noun} health</div>
                     {/* "Delivery success rate" (not "Acceptance rate"): this figure
@@ -1213,7 +1213,7 @@ export function BridgeDashboard() {
                 <Link
                   href="/library/suppliers"
                   className="inline-flex flex-shrink-0 items-center gap-1 text-[11.5px] font-medium transition-colors hover:text-[#1E6D29]"
-                  style={{ color: "#56627A" }}
+                  style={{ color: "#5E6779" }}
                 >
                   All {pluralLower} <ArrowRight size={12} />
                 </Link>
@@ -1239,7 +1239,7 @@ export function BridgeDashboard() {
                         </span>
                         <div
                           className="hidden overflow-hidden rounded-full sm:block"
-                          style={{ width: 160, height: 6, background: "#EFF2F7" }}
+                          style={{ width: 160, height: 6, background: "#F1F3F7" }}
                         >
                           <div className="h-full rounded-full transition-all" style={{ width: `${s.health}%`, background: color }} />
                         </div>

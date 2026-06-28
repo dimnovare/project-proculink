@@ -34,7 +34,7 @@ export function StatusJourney({ stage, compact = false, crossingRef }: StatusJou
                     height: 1.5,
                     minWidth: 12,
                     flex: 1,
-                    background: i <= (stage as number) && !failed ? "#2E8E3A" : "#C6CDDA",
+                    background: i <= (stage as number) && !failed ? "#2E8E3A" : "#CBD0DA",
                   }}
                 />
               )}
@@ -44,14 +44,14 @@ export function StatusJourney({ stage, compact = false, crossingRef }: StatusJou
                   width: 11,
                   height: 11,
                   background: errDot
-                    ? "#C53A3A"
+                    ? "#B43838"
                     : done
                     ? "#2E8E3A"
                     : active
                     ? "#1E66C9"
                     : "#FFFFFF",
                   border: `1.5px solid ${
-                    errDot ? "#C53A3A" : done ? "#2E8E3A" : active ? "#1E66C9" : "#C6CDDA"
+                    errDot ? "#B43838" : done ? "#2E8E3A" : active ? "#1E66C9" : "#CBD0DA"
                   }`,
                 }}
               />
@@ -68,9 +68,9 @@ export function StatusJourney({ stage, compact = false, crossingRef }: StatusJou
     <div className="w-full max-w-[720px] mx-auto">
       {/* Optional sub-label */}
       {crossingRef && (
-        <p className="text-center text-[11px] font-medium text-[#56627A] mb-3 tracking-wide">
+        <p className="text-center text-[11px] font-medium text-[#5E6779] mb-3 tracking-wide">
           Stage {stageNum} of 5
-          <span className="mx-1.5 text-[#C6CDDA]">·</span>
+          <span className="mx-1.5 text-[#CBD0DA]">·</span>
           {crossingRef}
         </p>
       )}
@@ -87,7 +87,7 @@ export function StatusJourney({ stage, compact = false, crossingRef }: StatusJou
                     flex: 1,
                     height: 1.5,
                     minWidth: 26,
-                    background: i <= (stage as number) && !failed ? "#2E8E3A" : "#C6CDDA",
+                    background: i <= (stage as number) && !failed ? "#2E8E3A" : "#CBD0DA",
                   }}
                 />
               )}
@@ -98,14 +98,14 @@ export function StatusJourney({ stage, compact = false, crossingRef }: StatusJou
                     width: 18,
                     height: 18,
                     background: err
-                      ? "#C53A3A"
+                      ? "#B43838"
                       : done
                       ? "#2E8E3A"
                       : active
                       ? "#1E66C9"
                       : "#FFFFFF",
                     border: `1.5px solid ${
-                      err ? "#C53A3A" : done ? "#2E8E3A" : active ? "#1E66C9" : "#C6CDDA"
+                      err ? "#B43838" : done ? "#2E8E3A" : active ? "#1E66C9" : "#CBD0DA"
                     }`,
                   }}
                   data-pulse={active ? "true" : "false"}
@@ -144,17 +144,17 @@ export function StatusJourney({ stage, compact = false, crossingRef }: StatusJou
 export type CrossingStatus = "new" | "extracting" | "review" | "ready" | "sent" | "delivering" | "failed";
 
 const STATUS_PILL: Record<CrossingStatus, { bg: string; color: string; dot: string; pulse?: boolean; label: string }> = {
-  // tokens.css .pill-new → surface-2 (#EFF2F7) / ink-muted (#56627A) / ink-faint (#5B6980)
-  new:        { bg: "#EFF2F7", color: "#56627A", dot: "var(--ink-faint)",  label: "New" },
+  // tokens.css .pill-new → surface-2 (#F1F3F7) / ink-muted (#5E6779) / ink-faint (#5B6980)
+  new:        { bg: "#F1F3F7", color: "#5E6779", dot: "var(--ink-faint)",  label: "New" },
   // tokens.css .pill-extracting → brand-blue-soft / brand-blue-deep / brand-blue (NOT violet)
-  extracting: { bg: "#E3EDFB", color: "#0F4FA8", dot: "#1E66C9",  label: "Extracting" },
-  review:     { bg: "#FAEFD6", color: "#C97A14", dot: "#C97A14",  label: "Needs review" },
-  ready:      { bg: "#E2F1E2", color: "#1E6D29", dot: "#2E8E3A",  label: "Ready" },
+  extracting: { bg: "#EAF0F8", color: "#0F4FA8", dot: "#1E66C9",  label: "Extracting" },
+  review:     { bg: "#FAF1DD", color: "#B36D14", dot: "#B36D14",  label: "Needs review" },
+  ready:      { bg: "#E9F1EA", color: "#1E6D29", dot: "#2E8E3A",  label: "Ready" },
   // tokens.css .pill-sent → brand-green-soft / brand-green-deep / brand-green
-  sent:       { bg: "#E2F1E2", color: "#1E6D29", dot: "#2E8E3A",  label: "Delivered" },
+  sent:       { bg: "#E9F1EA", color: "#1E6D29", dot: "#2E8E3A",  label: "Delivered" },
   // tokens.css .pill-delivering → brand-blue-soft / brand-blue-deep / brand-blue + pulse-dot
-  delivering: { bg: "#E3EDFB", color: "#0F4FA8", dot: "#1E66C9", pulse: true, label: "Delivering" },
-  failed:     { bg: "#FBE3E3", color: "#C53A3A", dot: "#C53A3A",  label: "Failed" },
+  delivering: { bg: "#EAF0F8", color: "#0F4FA8", dot: "#1E66C9", pulse: true, label: "Delivering" },
+  failed:     { bg: "#FBE3E3", color: "#B43838", dot: "#B43838",  label: "Failed" },
 };
 
 const STATUS_STAGE: Record<CrossingStatus, OrderStage> = {

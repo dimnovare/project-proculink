@@ -18,7 +18,7 @@ export function ghostConfidenceTier(confidence: number): GhostTier {
 
 /** Stroke color per tier (locked tokens: brand green / amber / danger). */
 export function ghostTierColor(tier: GhostTier): string {
-  return tier === "ok" ? "#2E8E3A" : tier === "warn" ? "#C97A14" : "#C0392B";
+  return tier === "ok" ? "#2E8E3A" : tier === "warn" ? "#B36D14" : "#C0392B";
 }
 
 /** Round a 0..1 confidence to a whole-percent for the ring label. */

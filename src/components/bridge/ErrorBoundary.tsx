@@ -104,7 +104,7 @@ function DefaultErrorPanel({
       </p>
 
       {/* Sub */}
-      <p style={{ fontSize: 13, color: "#56627A", maxWidth: 360, marginBottom: 24 }}>
+      <p style={{ fontSize: 13, color: "#5E6779", maxWidth: 360, marginBottom: 24 }}>
         An unexpected error occurred while rendering this screen. The error has been logged.
       </p>
 
@@ -116,7 +116,7 @@ function DefaultErrorPanel({
           maxWidth: 480,
           width: "100%",
           background: "#FFFFFF",
-          border: "1px solid #E2E6EE",
+          border: "1px solid #E5E8EE",
           borderRadius: 8,
           padding: "8px 12px",
         }}
@@ -131,7 +131,7 @@ function DefaultErrorPanel({
             marginTop: 8,
             fontSize: 11,
             fontFamily: "'JetBrains Mono', monospace",
-            color: "#C53A3A",
+            color: "#B43838",
             whiteSpace: "pre-wrap",
             wordBreak: "break-all",
           }}
@@ -166,7 +166,7 @@ function DefaultErrorPanel({
             fontWeight: 600,
             background: "#FFFFFF",
             color: "#0B1A2F",
-            border: "1px solid #E2E6EE",
+            border: "1px solid #E5E8EE",
             cursor: "pointer",
           }}
         >

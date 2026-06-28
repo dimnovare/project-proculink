@@ -8,41 +8,45 @@
 /* ── Design System CSS custom properties (tokens.css) ───────────────────── */
 :root {
   /* Brand — buyer side = blue, supplier side = forest green */
+  /* Aligned to the Claude Design handoff token set (source/redesign/core.jsx `T`). */
   --brand-blue:        #1E66C9;
   --brand-blue-deep:   #0F4FA8;
-  --brand-blue-soft:   #E3EDFB;
+  --brand-blue-soft:   #EAF0F8;
+  --brand-blue-soft-2: #DCE8F7;
   --brand-green:       #2E8E3A;
   --brand-green-deep:  #1E6D29;
-  --brand-green-soft:  #E2F1E2;
+  --brand-green-soft:  #E9F1EA;
+  --brand-green-soft-2:#D8EBDA;
 
   /* Navy chrome */
   --navy:              #0B1A2F;
-  --navy-surface:      #10243E;
-  --navy-border:       #1C2F49;
-  --navy-text:         #C5D2E4;
+  --navy-surface:      #14253D;
+  --navy-border:       #1F3252;
+  --navy-text:         #C8D1E0;
   --navy-muted:        #7C8DA6;
 
   /* Light surfaces */
   --bg:                #F6F7FA;
   --bg-warm:           #F8F6F1;
   --surface:           #FFFFFF;
-  --surface-2:         #EFF2F7;
-  --border:            #E2E6EE;
-  --border-strong:     #C6CDDA;
+  --surface-2:         #F1F3F7;
+  --border:            #E5E8EE;
+  --border-strong:     #CBD0DA;
   --border-faint:      #EEF0F4;
 
   /* Text */
   --ink:               #0B1A2F;
-  --ink-muted:         #56627A;
-  --ink-faint:         #5B6980;
+  --ink-muted:         #5E6779;
+  --ink-faint:         #98A0AE;
 
   /* Semantic */
-  --amber:             #C97A14;
-  --amber-soft:        #FAEFD6;
-  --danger:            #C53A3A;
-  --danger-soft:       #FBE3E3;
+  --amber:             #B36D14;
+  --amber-soft:        #FAF1DD;
+  --danger:            #B43838;
+  --danger-soft:       #FAE6E6;
   --ai:                #6F4FCE;
-  --ai-soft:           #EEE7FB;
+  --ai-soft:           #F0EAFB;
+  --ai-border:         #D9CCF4;
 
   /* Gradients */
   --gradient-link-spine:    linear-gradient(90deg, #1E66C9 0%, #1E66C9 35%, #2E8E3A 65%, #2E8E3A 100%);

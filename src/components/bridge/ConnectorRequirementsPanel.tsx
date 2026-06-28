@@ -142,7 +142,7 @@ export function ConnectorRequirementsPanel({
     return (
       <div
         className="rounded-[7px] px-3 py-2.5"
-        style={{ border: "1px solid #E2E6EE", background: "#FBFCFE" }}
+        style={{ border: "1px solid #E5E8EE", background: "#FBFCFE" }}
       >
         <p className="text-[11px]" style={{ color: "var(--ink-faint)" }}>
           Loading connector requirements...
@@ -175,7 +175,7 @@ export function ConnectorRequirementsPanel({
         {manifest.authType && (
           <span
             className="hidden text-[11px] sm:inline"
-            style={{ color: "#56627A" }}
+            style={{ color: "#5E6779" }}
           >
             {manifest.authType}
           </span>
@@ -192,7 +192,7 @@ export function ConnectorRequirementsPanel({
         <div id="connector-requirements-body" className="mt-3 grid gap-3">
           {/* Capabilities note */}
           {manifest.capabilities && (
-            <p className="text-[11px]" style={{ color: "#56627A" }}>
+            <p className="text-[11px]" style={{ color: "#5E6779" }}>
               {manifest.capabilities}
             </p>
           )}
@@ -216,7 +216,7 @@ export function ConnectorRequirementsPanel({
             <details>
               <summary
                 className="cursor-pointer select-none text-[11px] font-semibold"
-                style={{ color: "#56627A" }}
+                style={{ color: "#5E6779" }}
               >
                 Optional fields ({optionalFields.length})
               </summary>
@@ -309,7 +309,7 @@ export function ConnectorRequirementsPanel({
                 </p>
               )}
               {checkResult.unknown.length > 0 && (
-                <p className="mt-1 text-[11px]" style={{ color: "#56627A" }}>
+                <p className="mt-1 text-[11px]" style={{ color: "#5E6779" }}>
                   <span className="font-semibold">Not recognized: </span>
                   {checkResult.unknown.join(", ")}
                 </p>
@@ -358,12 +358,12 @@ function FieldRow({ field }: { field: import("@/lib/api/types").ConnectorConfigF
   return (
     <div
       className="flex flex-wrap items-start gap-x-2 gap-y-0.5 rounded-[5px] px-2 py-1.5"
-      style={{ background: "#F6F7FA", border: "1px solid #E2E6EE" }}
+      style={{ background: "#F6F7FA", border: "1px solid #E5E8EE" }}
     >
       <span className="font-mono text-[11px] font-semibold" style={{ color: "#0B1A2F" }}>
         {field.name}
       </span>
-      <span className="text-[11px]" style={{ color: "#56627A" }}>
+      <span className="text-[11px]" style={{ color: "#5E6779" }}>
         {field.label}
       </span>
       <div className="ml-auto flex items-center gap-1">

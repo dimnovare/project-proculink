@@ -25,10 +25,10 @@ const T = {
   green:   "#2E8E3A",
   surface: "#FFFFFF",
   bg:      "#F6F7FA",
-  border:  "#E2E6EE",
+  border:  "#E5E8EE",
   text:    "#0B1A2F",
-  muted:   "#56627A",
-  red:     "#C53A3A",
+  muted:   "#5E6779",
+  red:     "#B43838",
 };
 
 // ─── Step indicator ───────────────────────────────────────────────────────────
@@ -191,7 +191,7 @@ function Step0Direction({ onSuccess }: Step0Props) {
                   width: 18,
                   height: 18,
                   borderRadius: "50%",
-                  border: `2px solid ${isSelected ? T.blue : "#C6CDDA"}`,
+                  border: `2px solid ${isSelected ? T.blue : "#CBD0DA"}`,
                   flexShrink: 0,
                   display: "flex",
                   alignItems: "center",
@@ -339,7 +339,7 @@ function Step1AddSupplier({ onSuccess }: Step1Props) {
         disabled={loading || !name.trim()}
         style={{
           height: 44,
-          background: loading || !name.trim() ? "#C6CDDA" : T.green,
+          background: loading || !name.trim() ? "#CBD0DA" : T.green,
           color: "#fff",
           border: "none",
           borderRadius: 6,

@@ -97,7 +97,7 @@ export function buildOverrideDraft(opts: {
 }
 
 const inputStyle: React.CSSProperties = {
-  minHeight: 36, border: "1px solid #C6CDDA", borderRadius: 6, padding: "5px 8px", fontSize: 12.5,
+  minHeight: 36, border: "1px solid #CBD0DA", borderRadius: 6, padding: "5px 8px", fontSize: 12.5,
 };
 
 // ── Module-level sub-components (stable identity → inputs keep focus) ──────────
@@ -107,7 +107,7 @@ function ManipChip({ entry, onChange, onRemove }: {
 }) {
   const spec = MANIPULATOR_TYPES.find((t) => t.type === entry.type);
   return (
-    <span style={{ display: "inline-flex", alignItems: "center", gap: 4, background: "#EEE7FB", border: "1px solid #DACEF3", borderRadius: 6, padding: "3px 6px" }}>
+    <span style={{ display: "inline-flex", alignItems: "center", gap: 4, background: "#F0EAFB", border: "1px solid #DACEF3", borderRadius: 6, padding: "3px 6px" }}>
       <span title={spec?.hint} style={{ fontSize: 11, fontWeight: 700, color: "#5E3DB0" }}>{entry.type}</span>
       {(spec?.params ?? []).map((p, i) => (
         <input key={i} value={entry.params[i] ?? ""}
@@ -133,7 +133,7 @@ function RuleRow({ row, sources, sourceTokens, onChange, onRemove }: {
     (rule.canonicalField == null || rule.canonicalField === "") &&
     (rule.sourceToken == null || rule.sourceToken === "");
   return (
-    <div style={{ border: "1px solid #E2E6EE", borderRadius: 8, padding: 10, background: "#FFFFFF" }}>
+    <div style={{ border: "1px solid #E5E8EE", borderRadius: 8, padding: 10, background: "#FFFFFF" }}>
       <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
         <input
           value={rule.outputPath ?? ""}
@@ -166,7 +166,7 @@ function RuleRow({ row, sources, sourceTokens, onChange, onRemove }: {
           />
         )}
         <button type="button" onClick={onRemove} aria-label="Remove field"
-          style={{ minHeight: 36, padding: "0 10px", border: "none", background: "transparent", color: "#C53A3A", cursor: "pointer", fontSize: 13 }}>✕</button>
+          style={{ minHeight: 36, padding: "0 10px", border: "none", background: "transparent", color: "#B43838", cursor: "pointer", fontSize: 13 }}>✕</button>
       </div>
       <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap", marginTop: 8 }}>
         <span style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em", color: "var(--ink-faint)" }}>then</span>
@@ -182,7 +182,7 @@ function RuleRow({ row, sources, sourceTokens, onChange, onRemove }: {
             if (!t) return;
             onChange({ fieldManipulators: [...(rule.fieldManipulators ?? []), { type: t.type, params: t.params.map(() => "") }] });
           }}
-          style={{ minHeight: 28, border: "1px dashed #C6CDDA", borderRadius: 6, padding: "2px 6px", fontSize: 11.5, color: "#56627A", background: "#F6F7FA" }}>
+          style={{ minHeight: 28, border: "1px dashed #CBD0DA", borderRadius: 6, padding: "2px 6px", fontSize: 11.5, color: "#5E6779", background: "#F6F7FA" }}>
           <option value="">+ transform</option>
           {MANIPULATOR_TYPES.map((t) => <option key={t.type} value={t.type} title={t.hint}>{t.type}</option>)}
         </select>
@@ -201,7 +201,7 @@ function RuleSection({ title, scope, rows, sources, sourceTokens, setRows }: {
 }) {
   return (
     <section>
-      <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "#56627A", marginBottom: 8 }}>{title}</div>
+      <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "#5E6779", marginBottom: 8 }}>{title}</div>
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
         {rows.length === 0 && (
           <div style={{ fontSize: 12, color: "var(--ink-faint)", padding: "2px 0" }}>None — the default transform is used for {scope === "header" ? "header" : "line"} fields. Add one to override it.</div>
@@ -226,7 +226,7 @@ function CustomFieldsSection({ rows, setRows }: { rows: CustomRow[]; setRows: (r
   return (
     <section>
       <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 8 }}>
-        <span style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "#56627A" }}>Custom fields</span>
+        <span style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "#5E6779" }}>Custom fields</span>
         <span style={{ fontSize: 11, color: "var(--ink-faint)" }}>a value the file didn&apos;t carry — usable as a source below</span>
       </div>
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
@@ -243,14 +243,14 @@ function CustomFieldsSection({ rows, setRows }: { rows: CustomRow[]; setRows: (r
                 style={{ ...inputStyle, flex: "1 1 140px", minWidth: 110 }} />
               <input value={c.field.key} onChange={(e) => set({ key: e.target.value })}
                 placeholder="key" aria-label="Custom field key"
-                style={{ ...inputStyle, flex: "1 1 100px", minWidth: 80, fontFamily: "'JetBrains Mono',monospace", color: "#5E3DB0", borderColor: collides ? "#C53A3A" : "#C6CDDA" }} />
+                style={{ ...inputStyle, flex: "1 1 100px", minWidth: 80, fontFamily: "'JetBrains Mono',monospace", color: "#5E3DB0", borderColor: collides ? "#B43838" : "#CBD0DA" }} />
               <span style={{ color: "var(--ink-faint)", fontSize: 12 }}>=</span>
               <input value={c.field.value ?? ""} onChange={(e) => set({ value: e.target.value })}
                 placeholder="value" aria-label="Custom field value"
                 style={{ ...inputStyle, flex: "1 1 140px", minWidth: 110 }} />
               <button type="button" onClick={() => setRows(rows.filter((x) => x.id !== c.id))} aria-label="Remove custom field"
-                style={{ minHeight: 36, padding: "0 10px", border: "none", background: "transparent", color: "#C53A3A", cursor: "pointer", fontSize: 13 }}>✕</button>
-              {collides && <div style={{ flexBasis: "100%", fontSize: 10.5, color: "#C53A3A" }}>“{key}” clashes with a built-in field name — rename it.</div>}
+                style={{ minHeight: 36, padding: "0 10px", border: "none", background: "transparent", color: "#B43838", cursor: "pointer", fontSize: 13 }}>✕</button>
+              {collides && <div style={{ flexBasis: "100%", fontSize: 10.5, color: "#B43838" }}>“{key}” clashes with a built-in field name — rename it.</div>}
             </div>
           );
         })}
@@ -271,8 +271,8 @@ const DEFAULT_TEMPLATE_CONTENT_TYPE = "application/json";
 function TemplateReferencePanel({ onInsert }: { onInsert: (token: string) => void }) {
   return (
     <section aria-label="Available template fields"
-      style={{ border: "1px solid #E2E6EE", borderRadius: 8, background: "#FFFFFF", padding: 12 }}>
-      <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "#56627A", marginBottom: 4 }}>
+      style={{ border: "1px solid #E5E8EE", borderRadius: 8, background: "#FFFFFF", padding: 12 }}>
+      <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "#5E6779", marginBottom: 4 }}>
         Proposed structure / available fields
       </div>
       <div style={{ fontSize: 11, color: "var(--ink-faint)", marginBottom: 10 }}>
@@ -286,7 +286,7 @@ function TemplateReferencePanel({ onInsert }: { onInsert: (token: string) => voi
               {group.fields.map((f) => (
                 <button key={f.token} type="button" onClick={() => onInsert(f.token)}
                   title={f.hint || f.token}
-                  style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10.5, color: "#5E3DB0", background: "#EEE7FB", border: "1px solid #DACEF3", borderRadius: 6, padding: "3px 7px", cursor: "pointer", lineHeight: 1.3 }}>
+                  style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10.5, color: "#5E3DB0", background: "#F0EAFB", border: "1px solid #DACEF3", borderRadius: 6, padding: "3px 7px", cursor: "pointer", lineHeight: 1.3 }}>
                   {f.token}
                 </button>
               ))}
@@ -311,14 +311,14 @@ function TemplateEditor({
   return (
     <section>
       <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginBottom: 8 }}>
-        <span style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "#56627A" }}>
+        <span style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "#5E6779" }}>
           Document template
         </span>
         <div style={{ flex: 1 }} />
-        <label style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 11.5, color: "#56627A" }}>
+        <label style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 11.5, color: "#5E6779" }}>
           Content type
           <select value={contentType} onChange={(e) => onContentTypeChange(e.target.value)} aria-label="Template content type"
-            style={{ minHeight: 30, border: "1px solid #C6CDDA", borderRadius: 6, padding: "3px 8px", fontSize: 12, background: "#FFFFFF" }}>
+            style={{ minHeight: 30, border: "1px solid #CBD0DA", borderRadius: 6, padding: "3px 8px", fontSize: 12, background: "#FFFFFF" }}>
             {TEMPLATE_CONTENT_TYPES.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
           </select>
         </label>
@@ -336,7 +336,7 @@ function TemplateEditor({
         placeholder={'Write a custom template that renders the whole document, e.g.\n{ "po": "{{ OrderNr }}", "lines": [{{ for Line in Lines }}…{{ end }}] }'}
         style={{
           width: "100%", minHeight: 280, resize: "vertical",
-          border: "1px solid #C6CDDA", borderRadius: 8, padding: 12,
+          border: "1px solid #CBD0DA", borderRadius: 8, padding: 12,
           fontSize: 12, lineHeight: 1.5, fontFamily: "'JetBrains Mono',monospace",
           color: "#0B1A2F", background: "#FFFFFF", boxSizing: "border-box", whiteSpace: "pre", overflowWrap: "normal", overflowX: "auto",
         }}
@@ -544,7 +544,7 @@ export function OutputMappingEditor({
       {/* Opaque + blurred enough that the triptych wires behind don't bleed through. */}
       <div onClick={onClose} aria-hidden style={{ position: "absolute", inset: 0, background: "rgba(11,26,47,0.62)", backdropFilter: "blur(2px)" }} />
       <aside style={{ position: "relative", width: "min(720px, 96vw)", height: "100%", background: "#F6F7FA", boxShadow: "-8px 0 24px rgba(0,0,0,0.18)", display: "flex", flexDirection: "column" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "14px 18px", borderBottom: "1px solid #E2E6EE", background: "#FFFFFF" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "14px 18px", borderBottom: "1px solid #E5E8EE", background: "#FFFFFF" }}>
           <div style={{ flex: 1 }}>
             <div style={{ fontSize: 15, fontWeight: 700, color: "#0B1A2F" }}>Edit output mapping</div>
             <div style={{ fontSize: 11.5, color: "var(--ink-faint)" }}>
@@ -554,10 +554,10 @@ export function OutputMappingEditor({
             </div>
           </div>
           {!templateMode && (
-            <label style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 11.5, color: "#56627A" }}>
+            <label style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 11.5, color: "#5E6779" }}>
               <span className="sr-only" style={{ position: "absolute", width: 1, height: 1, overflow: "hidden", clip: "rect(0 0 0 0)" }}>Preview format</span>
               <select value={format} onChange={(e) => setFormat(e.target.value as OutputFormatId)} aria-label="Preview format"
-                style={{ minHeight: 34, border: "1px solid #C6CDDA", borderRadius: 6, padding: "4px 8px", fontSize: 12, background: "#FFFFFF" }}>
+                style={{ minHeight: 34, border: "1px solid #CBD0DA", borderRadius: 6, padding: "4px 8px", fontSize: 12, background: "#FFFFFF" }}>
                 {PREVIEW_FORMATS.map((f) => <option key={f.value} value={f.value}>{f.label}</option>)}
               </select>
             </label>
@@ -567,12 +567,12 @@ export function OutputMappingEditor({
             style={{ minHeight: 34, padding: "0 12px", border: "1px solid #0B1A2F", borderRadius: 7, background: "#FFFFFF", color: "#0B1A2F", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
             ⚄ Design structure
           </button>
-          <button type="button" onClick={onClose} aria-label="Close" style={{ minHeight: 34, minWidth: 34, border: "none", background: "transparent", fontSize: 18, color: "#56627A", cursor: "pointer" }}>✕</button>
+          <button type="button" onClick={onClose} aria-label="Close" style={{ minHeight: 34, minWidth: 34, border: "none", background: "transparent", fontSize: 18, color: "#5E6779", cursor: "pointer" }}>✕</button>
         </div>
 
         {/* Template-mode toggle — off (default) keeps the field-by-field UI. */}
-        <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 18px", borderBottom: "1px solid #E2E6EE", background: "#FFFFFF" }}>
-          <span style={{ fontSize: 12, fontWeight: 600, color: templateMode ? "#5E3DB0" : "#56627A" }}>Template mode</span>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 18px", borderBottom: "1px solid #E5E8EE", background: "#FFFFFF" }}>
+          <span style={{ fontSize: 12, fontWeight: 600, color: templateMode ? "#5E3DB0" : "#5E6779" }}>Template mode</span>
           <button
             type="button"
             role="switch"
@@ -582,7 +582,7 @@ export function OutputMappingEditor({
             style={{
               position: "relative", width: 42, height: 24, borderRadius: 12, cursor: "pointer",
               border: "none", padding: 0,
-              background: templateMode ? "#6F4FCE" : "#C6CDDA", transition: "background 120ms ease",
+              background: templateMode ? "#6F4FCE" : "#CBD0DA", transition: "background 120ms ease",
             }}
           >
             <span aria-hidden style={{
@@ -605,7 +605,7 @@ export function OutputMappingEditor({
               style={{
                 display: "flex", gap: 12, alignItems: "flex-start",
                 fontSize: 12.5, lineHeight: 1.5, color: "#5E3DB0",
-                background: "#EEE7FB", border: "1px solid #DACEF3", borderRadius: 8,
+                background: "#F0EAFB", border: "1px solid #DACEF3", borderRadius: 8,
                 padding: "11px 13px",
               }}
             >
@@ -632,7 +632,7 @@ export function OutputMappingEditor({
             </div>
           )}
           {!seeded && (
-            <div style={{ fontSize: 12.5, color: "#56627A", padding: "10px 12px", background: "#EEF3FB", border: "1px solid #D5E3F6", borderRadius: 8 }}>
+            <div style={{ fontSize: 12.5, color: "#5E6779", padding: "10px 12px", background: "#EEF3FB", border: "1px solid #D5E3F6", borderRadius: 8 }}>
               Loading the saved mapping…
             </div>
           )}
@@ -656,7 +656,7 @@ export function OutputMappingEditor({
           ) : (
             <>
               {isEmpty && (
-                <div style={{ fontSize: 12.5, color: "#56627A", background: "#EEF3FB", border: "1px solid #D5E3F6", borderRadius: 8, padding: "10px 12px", lineHeight: 1.5 }}>
+                <div style={{ fontSize: 12.5, color: "#5E6779", background: "#EEF3FB", border: "1px solid #D5E3F6", borderRadius: 8, padding: "10px 12px", lineHeight: 1.5 }}>
                   This order delivers with the supplier&apos;s <strong>default</strong> mapping. Add a field below to override one or
                   more columns just for this order — e.g. rename <code>po_number</code>, inject a fixed value, or reformat a date.
                 </div>
@@ -668,7 +668,7 @@ export function OutputMappingEditor({
           ))}
           <section>
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
-              <span style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "#56627A" }}>
+              <span style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "#5E6779" }}>
                 Live preview{(() => {
                   // Label from the format the server actually rendered (preview?.format) when known,
                   // so a JSON connection never shows a "CSV" header over JSON bytes.
@@ -679,26 +679,26 @@ export function OutputMappingEditor({
               {previewing && <span style={{ fontSize: 10.5, color: "var(--ink-faint)" }}>updating…</span>}
             </div>
             {!templateMode && preview?.format && preview.format.toLowerCase() !== previewFormat.toLowerCase() && (
-              <div style={{ fontSize: 11, color: "#56627A", marginBottom: 6 }}>
+              <div style={{ fontSize: 11, color: "#5E6779", marginBottom: 6 }}>
                 This connection delivers <strong>{preview.format.toUpperCase()}</strong> — the output format is set by the published revision, so the preview shows {preview.format.toUpperCase()} regardless of the toggle.
               </div>
             )}
-            {preview?.warning && <div style={{ fontSize: 11.5, color: "#C97A14", marginBottom: 6 }}>⚠ {preview.warning}</div>}
-            {preview?.error && <div role="alert" style={{ fontSize: 11.5, color: "#C97A14", background: "#FBF3E4", border: "1px solid #F0DCAE", borderRadius: 6, padding: "7px 9px", marginBottom: 6, whiteSpace: "pre-wrap" }}>{preview.error}</div>}
-            <pre style={{ margin: 0, background: "#0B1A2F", color: "#C5D2E4", borderRadius: 8, padding: 12, fontSize: 11.5, fontFamily: "'JetBrains Mono',monospace", overflowX: "auto", maxHeight: 240, whiteSpace: "pre-wrap" }}>
+            {preview?.warning && <div style={{ fontSize: 11.5, color: "#B36D14", marginBottom: 6 }}>⚠ {preview.warning}</div>}
+            {preview?.error && <div role="alert" style={{ fontSize: 11.5, color: "#B36D14", background: "#FBF3E4", border: "1px solid #F0DCAE", borderRadius: 6, padding: "7px 9px", marginBottom: 6, whiteSpace: "pre-wrap" }}>{preview.error}</div>}
+            <pre style={{ margin: 0, background: "#0B1A2F", color: "#C8D1E0", borderRadius: 8, padding: 12, fontSize: 11.5, fontFamily: "'JetBrains Mono',monospace", overflowX: "auto", maxHeight: 240, whiteSpace: "pre-wrap" }}>
 {preview?.content ?? (blankTemplate ? "(write a template to preview)" : previewing ? "…" : "(no preview)")}
             </pre>
           </section>
         </div>
 
-        <div style={{ display: "flex", gap: 10, padding: "12px 18px", borderTop: "1px solid #E2E6EE", background: "#FFFFFF" }}>
+        <div style={{ display: "flex", gap: 10, padding: "12px 18px", borderTop: "1px solid #E5E8EE", background: "#FFFFFF" }}>
           <button type="button" onClick={() => reset.mutate()} disabled={reset.isPending || !seeded}
-            style={{ minHeight: 38, padding: "0 14px", border: "1px solid #C6CDDA", background: "#FFFFFF", color: "#56627A", borderRadius: 6, cursor: "pointer", fontSize: 12.5, opacity: !seeded ? 0.6 : 1 }}>
+            style={{ minHeight: 38, padding: "0 14px", border: "1px solid #CBD0DA", background: "#FFFFFF", color: "#5E6779", borderRadius: 6, cursor: "pointer", fontSize: 12.5, opacity: !seeded ? 0.6 : 1 }}>
             {reset.isPending ? "Resetting…" : "Reset to default"}
           </button>
           <div style={{ flex: 1 }} />
-          {save.isError && <span style={{ alignSelf: "center", fontSize: 11.5, color: "#C53A3A" }}>{(save.error as Error)?.message}</span>}
-          <button type="button" onClick={onClose} style={{ minHeight: 38, padding: "0 14px", border: "1px solid #C6CDDA", background: "#FFFFFF", color: "#56627A", borderRadius: 6, cursor: "pointer", fontSize: 12.5 }}>Cancel</button>
+          {save.isError && <span style={{ alignSelf: "center", fontSize: 11.5, color: "#B43838" }}>{(save.error as Error)?.message}</span>}
+          <button type="button" onClick={onClose} style={{ minHeight: 38, padding: "0 14px", border: "1px solid #CBD0DA", background: "#FFFFFF", color: "#5E6779", borderRadius: 6, cursor: "pointer", fontSize: 12.5 }}>Cancel</button>
           <button type="button" onClick={() => save.mutate()} disabled={save.isPending || !seeded}
             title={!seeded ? "Wait for the saved mapping to load first" : undefined}
             style={{ minHeight: 38, padding: "0 18px", border: "none", background: "#2E8E3A", color: "#FFFFFF", borderRadius: 6, cursor: "pointer", fontSize: 12.5, fontWeight: 700, opacity: save.isPending || !seeded ? 0.6 : 1 }}>
