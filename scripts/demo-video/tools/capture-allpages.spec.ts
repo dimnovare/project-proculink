@@ -26,7 +26,7 @@ const SUP = "22222222-2222-2222-2222-222222222222"; // mock supplier id
 const DESKTOP: Array<[string, string, string]> = [
   ["01", "dashboard-bridge", "/bridge"],
   ["02", "inbox-order-list", "/inbox"],
-  ["03", "order-review-mapper", "/inbox/ord-002"],
+  ["03", "order-review-mapper", "/inbox/ord-001"],
   ["04", "upload-import", "/upload"],
   ["05", "suppliers-list", "/library/suppliers"],
   ["06", "supplier-detail", `/library/suppliers/${SUP}`],
@@ -59,7 +59,7 @@ const DESKTOP: Array<[string, string, string]> = [
 const MOBILE: Array<[string, string, string]> = [
   ["01", "dashboard-bridge", "/bridge"],
   ["02", "inbox-order-list", "/inbox"],
-  ["03", "order-review-mapper", "/inbox/ord-002"],
+  ["03", "order-review-mapper", "/inbox/ord-001"],
   ["04", "upload-import", "/upload"],
   ["07", "supplier-po-mapping", `/library/suppliers/${SUP}?tab=po-mapping`],
   ["24", "settings", "/settings"],

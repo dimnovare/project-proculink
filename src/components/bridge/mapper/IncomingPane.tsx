@@ -335,11 +335,6 @@ function IncomingRow({
   const wired = port["data-wired"] || field.mapped;
   const connecting = port["data-connecting"];
   const suggested = field.suggestedFor != null;
-  const valueMissing = !field.value || field.value.trim().length === 0;
-  // §6 field-row left accent (3px): violet if AI-wired/AI-suggested, amber if the value is
-  // missing/not-found, else light grey. AI accent wins over the missing-value accent.
-  const accentColor =
-    wired || suggested ? "#6F4FCE" : valueMissing ? "#C97A14" : "#E2E6EE";
   // Per-field AI confidence — render a small chip only when the datum actually exists.
   const confidence =
     field.suggestionConfidence != null && Number.isFinite(field.suggestionConfidence)
@@ -360,7 +355,6 @@ function IncomingRow({
         display: "flex", alignItems: "center", gap: 10, minWidth: 0,
         padding: "9px 11px", borderRadius: 9,
         border: `1px solid ${connecting ? "#1E66C9" : hovered ? "#1E66C9" : wired ? "#BFD6F4" : "var(--line, #E2E6EE)"}`,
-        borderLeft: `3px solid ${accentColor}`,
         background: connecting ? "#E3EDFB" : hovered ? "#E3EDFB" : "#FFFFFF",
         userSelect: "none",
         transition: "border-color 120ms, background 120ms, box-shadow 120ms",
@@ -368,7 +362,7 @@ function IncomingRow({
     >
       <span style={{ display: "flex", flexDirection: "column", gap: 1, minWidth: 0, flex: 1 }}>
         <span style={{ display: "flex", alignItems: "center", gap: 5, minWidth: 0 }}>
-          <span style={{ fontSize: 12.5, fontWeight: 600, letterSpacing: "0.04em", color: wired ? "#0F4FA8" : "var(--ink-faint)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+          <span style={{ fontSize: 12.5, fontWeight: 600, letterSpacing: "0.04em", color: wired ? "#0F4FA8" : "var(--ink, #0B1A2F)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
             {field.label}
           </span>
           {suggested && !wired && (

@@ -206,9 +206,9 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<FieldFilter>("all");
   const [showDesigner, setShowDesigner] = useState(false);
-  // Picker mode hides the wires by default; this toggle reveals the existing wire layer. In "wires"
-  // mode the wires always show (this is ignored), so the classic screen is unchanged.
-  const [showConnections, setShowConnections] = useState(false);
+  // Connections (wires) are ON by default so the order workbench opens on the signature
+  // received→output wire view (handoff reference). The toggle still hides them for dense orders.
+  const [showConnections, setShowConnections] = useState(true);
   const qc = useQueryClient();
 
   // ── Deep-link: ?field=<key> selects + scrolls to a row ─────────────────────
