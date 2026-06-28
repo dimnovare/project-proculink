@@ -128,6 +128,11 @@ export function useMapperWireLayer({
   // Last-committed position signatures — commit setState only when an anchor actually MOVED so a
   // repeated measure can never drive setState→render→measure (React #185).
   const sigRef = useRef<{ s: string; t: string }>({ s: "", t: "" });
+  // SVG overlay size — the canvas SCROLL-content size, so the overlay covers + scrolls WITH the
+  // full content when the canvas is the scroll host (the bounded-height mapper). Falls back to
+  // 100% (page-scroll hosts) until measured.
+  const [dims, setDims] = useState<{ w: number; h: number }>({ w: 0, h: 0 });
+  const dimsRef = useRef(dims);
 
   const { onDragPointer, stopAutoScroll } = useDragAutoScroll(canvasRef);
 
@@ -149,6 +154,11 @@ export function useMapperWireLayer({
     if (!canvas) return;
     const c = canvas.getBoundingClientRect();
     if (c.width < 60) return; // not laid out yet — keep last good anchors
+    // CONTENT-relative coords: add the canvas scroll offset so positions are invariant under
+    // scroll. The SVG (sized to the scroll content below, an absolute child of the canvas) scrolls
+    // WITH the rows, so wires stay glued with zero per-scroll JS — whether the canvas scrolls
+    // (bounded-height mapper) or the page scrolls it as one unit.
+    const sl = canvas.scrollLeft, st = canvas.scrollTop;
 
     const s: Pt[] = [];
     sourceIdsRef.current.forEach((id) => {
@@ -156,7 +166,7 @@ export function useMapperWireLayer({
       if (!el) return;
       const r = el.getBoundingClientRect();
       // RIGHT edge of the incoming port, vertically centred.
-      s.push({ id, x: r.right - c.left, y: r.top - c.top + r.height / 2 });
+      s.push({ id, x: r.right - c.left + sl, y: r.top - c.top + st + r.height / 2 });
     });
     const t: Pt[] = [];
     targetFieldsRef.current.forEach((field) => {
@@ -164,8 +174,13 @@ export function useMapperWireLayer({
       if (!el) return;
       const r = el.getBoundingClientRect();
       // LEFT edge of the outgoing port, vertically centred.
-      t.push({ id: field.outputPath, x: r.left - c.left, y: r.top - c.top + r.height / 2 });
+      t.push({ id: field.outputPath, x: r.left - c.left + sl, y: r.top - c.top + st + r.height / 2 });
     });
+
+    // Size the overlay to the full scroll content so it covers every wire even when scrolled.
+    const sw = Math.max(canvas.scrollWidth, Math.round(c.width));
+    const sh = Math.max(canvas.scrollHeight, Math.round(c.height));
+    if (sw !== dimsRef.current.w || sh !== dimsRef.current.h) { dimsRef.current = { w: sw, h: sh }; setDims({ w: sw, h: sh }); }
 
     const sig = (a: Pt[]) => a.map((p) => `${p.id}:${Math.round(p.x)}:${Math.round(p.y)}`).join("|");
     const sSig = sig(s), tSig = sig(t);
@@ -386,8 +401,10 @@ export function useMapperWireLayer({
         style={{ position: "absolute", width: 1, height: 1, overflow: "hidden", clip: "rect(0 0 0 0)", whiteSpace: "nowrap" }} />
 
       <svg aria-hidden
+        width={dims.w || undefined} height={dims.h || undefined}
         style={{
-          position: "absolute", inset: 0, width: "100%", height: "100%",
+          position: "absolute", top: 0, left: 0,
+          width: dims.w ? dims.w : "100%", height: dims.h ? dims.h : "100%",
           pointerEvents: hidden ? "none" : (drag ? "auto" : "none"), zIndex: 2,
           opacity: hidden ? 0 : 1,
         }}

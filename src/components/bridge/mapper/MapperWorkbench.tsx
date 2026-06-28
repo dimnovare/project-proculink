@@ -569,7 +569,7 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
   );
 
   return (
-    <div>
+    <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, minWidth: 0 }}>
       {showDesigner && variant === "order" && scopeId && (
         <OutputStructureDesigner
           orderId={scopeId}
@@ -745,7 +745,7 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
       <div
         className="hidden lg:grid"
         style={{
-          minHeight: 0, alignItems: "stretch",
+          flex: 1, minHeight: 0, alignItems: "stretch",
           gridTemplateColumns: previewCollapsed
             ? "minmax(0,1fr) 46px"
             : incomingCollapsed
@@ -758,7 +758,7 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
           ref={canvasRef}
           data-mapper-canvas
           style={{
-            position: "relative", minWidth: 0, display: "grid", alignItems: "stretch",
+            position: "relative", minWidth: 0, minHeight: 0, overflow: "auto", display: "grid", alignItems: "stretch",
             gridTemplateColumns: incomingCollapsed
               ? "46px minmax(360px,1fr)"
               : "minmax(300px,0.92fr) minmax(360px,1fr)",
