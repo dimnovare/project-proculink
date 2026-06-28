@@ -247,12 +247,12 @@ export function BridgeSidebar({
   return (
     <aside
       className="on-navy flex h-full flex-shrink-0 flex-col overflow-hidden transition-[width] duration-200"
-      style={{ width: fullWidth ? "100%" : (isCollapsed ? 66 : 220), background: "#0B1A2F", borderRight: fullWidth ? "none" : "1px solid #1F3252" }}
+      style={{ width: fullWidth ? "100%" : (isCollapsed ? 64 : 232), background: "#0B1A2F", borderRight: fullWidth ? "none" : "1px solid #1F3252" }}
     >
       {/* ── Logo + collapse toggle ────────────────────────────────── */}
       <div
         className="flex items-center flex-shrink-0"
-        style={{ height: 56, gap: isCollapsed ? 0 : 9, padding: isCollapsed ? "0 14px" : "0 18px", borderBottom: "1px solid #1F3252", color: "#FFFFFF" }}
+        style={{ height: 56, gap: isCollapsed ? 0 : 9, padding: isCollapsed ? "0 14px" : "16px 12px 12px 16px", borderBottom: "1px solid #1F3252", color: "#FFFFFF" }}
       >
         <ProcuLinkMark size={24} mono />
         {!isCollapsed && (
@@ -312,7 +312,7 @@ export function BridgeSidebar({
         className={`flex items-center rounded-[6px] text-left ${isCollapsed ? "mx-auto justify-center w-[44px] py-[9px]" : "gap-2.5 w-[calc(100%-28px)]"}`}
         style={{ background: "#14253D", border: "1px solid #1F3252", margin: isCollapsed ? "12px auto 6px" : "12px 14px 6px", padding: isCollapsed ? undefined : "9px 11px" }}
       >
-        <div className="flex items-center justify-center rounded-[4px] text-[10.5px] font-bold text-white flex-shrink-0" style={{ width: 26, height: 26, background: "#1E66C9" }}>{initials}</div>
+        <div className="flex items-center justify-center rounded-[6px] text-[10px] font-[700] text-white flex-shrink-0" style={{ width: 26, height: 26, background: "#1E66C9" }}>{initials}</div>
         {!isCollapsed && (
           <div className="flex-1 min-w-0">
             <div className="text-[12.5px] font-semibold text-white leading-none truncate">{orgName}</div>
@@ -343,18 +343,18 @@ export function BridgeSidebar({
                   target={item.newTab ? "_blank" : undefined}
                   rel={item.newTab ? "noopener noreferrer" : undefined}
                   title={isCollapsed ? item.label : undefined}
-                  className={`flex items-center rounded-[6px] text-[12.5px] font-medium transition-colors duration-75 relative ${isCollapsed ? "justify-center py-[9px]" : "gap-2.5 px-[10px] py-[7px]"}`}
-                  style={{ color: active ? "#FFFFFF" : "#C8D1E0", background: active ? "#1E66C9" : "transparent" }}
+                  className={`flex items-center rounded-[6px] text-[12.5px] ${active ? "font-[600]" : "font-medium"} transition-colors duration-75 relative ${isCollapsed ? "justify-center py-[9px]" : "gap-2.5 px-[10px] py-[7px]"}`}
+                  style={{ color: active ? "#FFFFFF" : "#C8D1E0", background: active ? "rgba(30,102,201,0.22)" : "transparent", boxShadow: active ? "inset 2px 0 0 #1E66C9" : "none" }}
                   onMouseEnter={(e) => { if (!active) { (e.currentTarget as HTMLElement).style.background = "#14253D"; (e.currentTarget as HTMLElement).style.color = "#FFFFFF"; } }}
                   onMouseLeave={(e) => { if (!active) { (e.currentTarget as HTMLElement).style.background = "transparent"; (e.currentTarget as HTMLElement).style.color = "#C8D1E0"; } }}
                 >
                   <Ico size={16} strokeWidth={1.9} style={{ flexShrink: 0, color: active ? "#FFFFFF" : "#7C8DA6" }} />
                   {!isCollapsed && <span className="flex-1">{item.label}</span>}
                   {!isCollapsed && badge && (
-                    <span className="flex items-center justify-center rounded-full text-[10.5px] font-semibold" style={{ minWidth: 18, height: 18, padding: "0 5px", background: "#B36D14", color: "#FFFFFF" }}>{badge}</span>
+                    <span className="flex items-center justify-center rounded-full text-[10.5px] font-semibold" style={{ minWidth: 18, height: 18, padding: "0 5px", background: "#1E66C9", color: "#FFFFFF", fontFamily: "'JetBrains Mono',monospace", borderRadius: 999, fontWeight: 700 }}>{badge}</span>
                   )}
                   {isCollapsed && badge && (
-                    <span className="absolute rounded-full" style={{ top: 5, right: 11, width: 7, height: 7, background: "#B36D14" }} aria-hidden />
+                    <span className="absolute rounded-full" style={{ top: 5, right: 12, width: 7, height: 7, background: "#1E66C9", border: "1.5px solid #0B1A2F" }} aria-hidden />
                   )}
                 </Link>
               );

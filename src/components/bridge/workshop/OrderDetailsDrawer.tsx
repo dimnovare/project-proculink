@@ -130,22 +130,23 @@ export function OrderDetailsDrawer(props: OrderDetailsDrawerProps) {
         onClick={(e) => e.stopPropagation()}
         className="plk-odd-panel"
         style={{
-          width: "min(760px, 64vw)",
+          width: 760,
+          maxWidth: "64%",
           background: "#FFFFFF",
           height: "100%",
           display: "flex",
           flexDirection: "column",
-          boxShadow: "-12px 0 30px rgba(11,26,47,0.12)",
-          animation: "plk-odd-slide 200ms cubic-bezier(0.16,1,0.3,1)",
+          boxShadow: "-16px 0 44px rgba(11,26,47,0.18)",
+          animation: "plk-odd-slide 0.22s ease",
         }}
       >
         {/* Header: title + close */}
         <header style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", padding: "18px 22px 0", flexShrink: 0 }}>
           <div style={{ minWidth: 0 }}>
-            <h2 style={{ fontFamily: "'Bricolage Grotesque', Inter, sans-serif", fontSize: 18, fontWeight: 700, letterSpacing: "-0.02em", color: "#0B1A2F", margin: 0, lineHeight: 1.2 }}>
+            <h2 style={{ fontFamily: "'Bricolage Grotesque', Inter, sans-serif", fontSize: 18, fontWeight: 800, letterSpacing: "-0.01em", color: "#0B1A2F", margin: 0, lineHeight: 1.2 }}>
               Order details
             </h2>
-            <p style={{ margin: "3px 0 0", fontSize: 12, color: "#5E6779", lineHeight: 1.4 }}>
+            <p style={{ marginTop: 2, fontSize: 12, color: "#5E6779", lineHeight: 1.4 }}>
               Audit trail, standards check, and {counterpartyNoun} response for{" "}
               <span style={{ fontFamily: "'JetBrains Mono', monospace", color: "#1E6D29" }}>{poNumber}</span>
             </p>
@@ -163,7 +164,7 @@ export function OrderDetailsDrawer(props: OrderDetailsDrawerProps) {
         </header>
 
         {/* Sub-tab strip */}
-        <div role="tablist" aria-label="Order detail views" style={{ display: "flex", gap: 6, padding: "12px 22px 0", flexShrink: 0, borderBottom: "1px solid #E5E8EE" }}>
+        <div role="tablist" aria-label="Order detail views" style={{ display: "flex", gap: 4, padding: "12px 22px 0", flexShrink: 0, borderBottom: "1px solid #E5E8EE" }}>
           {TABS.map((t) => {
             const active = t.id === tab;
             return (
@@ -178,13 +179,12 @@ export function OrderDetailsDrawer(props: OrderDetailsDrawerProps) {
                   border: "none",
                   background: "transparent",
                   cursor: "pointer",
-                  padding: "8px 4px",
+                  padding: "10px 14px",
                   marginBottom: -1,
                   fontSize: 13,
-                  fontWeight: active ? 700 : 600,
+                  fontWeight: active ? 650 : 500,
                   color: active ? "#0B1A2F" : "#5E6779",
                   borderBottom: `2px solid ${active ? "#1E66C9" : "transparent"}`,
-                  minHeight: 36,
                 }}
               >
                 {t.label(counterpartyNoun)}

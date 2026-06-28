@@ -357,14 +357,14 @@ function IncomingRow({
         display: "flex", alignItems: "center", gap: 10, minWidth: 0,
         padding: "9px 11px", borderRadius: 9,
         border: `1px solid ${connecting ? "#1E66C9" : hovered ? "#1E66C9" : wired ? "#BFD6F4" : "var(--line, #E5E8EE)"}`,
-        background: connecting ? "#EAF0F8" : hovered ? "#EAF0F8" : "#FFFFFF",
+        background: connecting ? "#EAF0F8" : hovered ? "#EAF0F899" : "#FFFFFF",
         userSelect: "none",
         transition: "border-color 120ms, background 120ms, box-shadow 120ms",
       }}
     >
       <span style={{ display: "flex", flexDirection: "column", gap: 1, minWidth: 0, flex: 1 }}>
         <span style={{ display: "flex", alignItems: "center", gap: 5, minWidth: 0 }}>
-          <span style={{ fontSize: 12.5, fontWeight: 600, letterSpacing: "0.04em", color: wired ? "#0F4FA8" : "var(--ink, #0B1A2F)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+          <span style={{ fontSize: 12.5, fontWeight: 600, letterSpacing: "0.04em", color: "var(--ink, #0B1A2F)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
             {field.label}
           </span>
           {suggested && !wired && (
@@ -373,8 +373,15 @@ function IncomingRow({
             </span>
           )}
         </span>
-        <span style={{ fontFamily: "'JetBrains Mono',monospace", fontVariantNumeric: "tabular-nums", fontSize: 11.5, color: "var(--ink, #0B1A2F)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-          {field.value || <span style={{ color: "#CBD0DA" }}>(empty)</span>}
+        <span style={{ display: "flex", alignItems: "center", gap: 5, minWidth: 0 }}>
+          <span style={{ fontFamily: "'JetBrains Mono',monospace", fontVariantNumeric: "tabular-nums", fontSize: 11.5, color: "var(--ink, #0B1A2F)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            {field.value || <span style={{ color: "#CBD0DA" }}>(empty)</span>}
+          </span>
+          {!wired && (
+            <span style={{ flexShrink: 0, fontSize: 9.5, fontWeight: 700, color: "#B36D14", background: "#FAF1DD", borderRadius: 4, padding: "2px 6px" }}>
+              unmapped
+            </span>
+          )}
         </span>
       </span>
 

@@ -531,7 +531,7 @@ function OutgoingRow({
         border: `1px solid ${snapped ? "#6F4FCE" : needsSource ? "#F1E2BE" : hovered ? "#A9D3AF" : status.mapped ? "#D7E7DA" : "var(--line, #E5E8EE)"}`,
         borderRight: `3px solid ${status.mapped ? "#2E8E3A" : needsSource ? "#E0B23C" : accent}`,
         background: snapped ? "#F4EFFC" : needsSource ? "#FFFCF4" : hovered ? "rgba(46,142,58,0.05)" : "#FFFFFF",
-        padding: "8px 10px 8px 16px",
+        padding: "11px 12px 11px 13px",
         boxShadow: snapped ? "0 0 0 2px rgba(111,79,206,0.18)" : undefined,
         transition: "background 120ms, border-color 120ms, box-shadow 120ms",
       }}
@@ -595,7 +595,7 @@ function OutgoingRow({
                 smaller monospace second line. Fall back to the path as primary when there is
                 no human label, so the headline is never blank. Display only — outputPath is
                 still the row key / wire anchor / what gets written. */}
-            <span style={{ fontSize: 11.5, fontWeight: 700, color: "var(--ink, #0B1A2F)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            <span style={{ fontSize: 12.5, fontWeight: 650, color: "var(--ink, #0B1A2F)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
               {field.label || field.outputPath}
             </span>
             {field.label && field.label !== field.outputPath && (
@@ -694,7 +694,7 @@ function OutgoingRow({
           <span aria-hidden style={{ fontSize: 8.5, fontWeight: 800, color: "#9AA3B2", flexShrink: 0 }}>
             →
           </span>
-          <span style={{ fontFamily: "'JetBrains Mono',monospace", fontVariantNumeric: "tabular-nums", fontSize: 11, color: status.valuePreview ? "var(--ink, #0B1A2F)" : "#AEB6C4", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+          <span style={{ fontFamily: "'JetBrains Mono',monospace", fontVariantNumeric: "tabular-nums", fontSize: 12, fontWeight: 600, color: status.valuePreview ? "#1E6D29" : "#AEB6C4", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
             {status.valuePreview ?? "—"}
           </span>
         </div>
