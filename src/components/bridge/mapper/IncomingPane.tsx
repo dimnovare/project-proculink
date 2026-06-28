@@ -400,9 +400,11 @@ function IncomingRow({
           style={{
             flexShrink: 0, display: "inline-flex", alignItems: "center", justifyContent: "center",
             width: 22, height: 22, borderRadius: 6,
-            border: `1.5px solid ${connecting ? "#1E66C9" : wired ? "#1E66C9" : "#C9D0DC"}`,
-            background: connecting ? "#EAF0F8" : wired ? "#EAF2FC" : "#FFFFFF",
-            color: wired || hovered ? "#1E66C9" : "#98A0AE",
+            // Drag-port: NEUTRAL grey at rest (a clear "grab me" handle, distinct from the
+            // blue/green wires), fills blue only while you're actively dragging a connection.
+            border: `1.5px solid ${connecting ? "#1E66C9" : "#C9D0DC"}`,
+            background: connecting ? "#EAF0F8" : "#FFFFFF",
+            color: connecting ? "#1E66C9" : "#98A0AE",
             cursor: connecting ? "grabbing" : "grab",
             touchAction: "none",
             boxShadow: connecting ? "0 0 0 3px rgba(30,102,201,0.18)" : (hovered ? "0 0 0 2px rgba(30,102,201,0.12)" : undefined),

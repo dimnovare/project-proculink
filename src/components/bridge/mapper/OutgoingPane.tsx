@@ -545,9 +545,11 @@ function OutgoingRow({
         style={{
           position: "absolute", left: -7, top: "50%", transform: "translateY(-50%)",
           width: 13, height: 13, borderRadius: 999,
-          background: "#FFFFFF",
-          border: `2px solid ${snapped ? "#6F4FCE" : status.mapped ? "#2E8E3A" : accent}`,
-          boxShadow: snapped ? "0 0 0 3px rgba(111,79,206,0.18)" : undefined,
+          // Drop-port: NEUTRAL grey at rest, fills GREEN only when a drag snaps onto it (the
+          // drop target) — distinct from the green wire it anchors.
+          background: snapped ? "#E9F1EA" : "#FFFFFF",
+          border: `2px solid ${snapped ? "#2E8E3A" : "#C9D0DC"}`,
+          boxShadow: snapped ? "0 0 0 3px rgba(46,142,58,0.18)" : undefined,
           flexShrink: 0, transition: "border-color 120ms, box-shadow 120ms",
         }}
       />
