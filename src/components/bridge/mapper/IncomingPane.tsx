@@ -400,11 +400,10 @@ function IncomingRow({
           style={{
             flexShrink: 0, display: "inline-flex", alignItems: "center", justifyContent: "center",
             width: 22, height: 22, borderRadius: 6,
-            // Drag-port: NEUTRAL grey at rest (a clear "grab me" handle, distinct from the
-            // blue/green wires), fills blue only while you're actively dragging a connection.
-            border: `1.5px solid ${connecting ? "#1E66C9" : "#C9D0DC"}`,
+            // Received connection port — BLUE ring (app.jsx); white fill, fills blueSoft on grab.
+            border: "1.5px solid #1E66C9",
             background: connecting ? "#EAF0F8" : "#FFFFFF",
-            color: connecting ? "#1E66C9" : "#98A0AE",
+            color: "#1E66C9",
             cursor: connecting ? "grabbing" : "grab",
             touchAction: "none",
             boxShadow: connecting ? "0 0 0 3px rgba(30,102,201,0.18)" : (hovered ? "0 0 0 2px rgba(30,102,201,0.12)" : undefined),

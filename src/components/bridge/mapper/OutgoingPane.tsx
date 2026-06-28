@@ -529,7 +529,7 @@ function OutgoingRow({
         position: "relative",
         borderRadius: 10,
         border: `1px solid ${snapped ? "#6F4FCE" : needsSource ? "#F1E2BE" : hovered ? "#A9D3AF" : status.mapped ? "#D7E7DA" : "var(--line, #E5E8EE)"}`,
-        borderRight: `3px solid ${status.mapped ? "#2E8E3A" : needsSource ? "#E0B23C" : accent}`,
+        borderLeft: `3px solid ${status.mapped ? "#2E8E3A" : needsSource ? "#E0B23C" : accent}`,
         background: snapped ? "#F4EFFC" : needsSource ? "#FFFCF4" : hovered ? "rgba(46,142,58,0.05)" : "#FFFFFF",
         padding: "11px 12px 11px 13px",
         boxShadow: snapped ? "0 0 0 2px rgba(111,79,206,0.18)" : undefined,
@@ -545,10 +545,9 @@ function OutgoingRow({
         style={{
           position: "absolute", left: -7, top: "50%", transform: "translateY(-50%)",
           width: 13, height: 13, borderRadius: 999,
-          // Drop-port: NEUTRAL grey at rest, fills GREEN only when a drag snaps onto it (the
-          // drop target) — distinct from the green wire it anchors.
+          // Output connection port — GREEN ring (app.jsx); white fill, fills greenSoft on snap.
           background: snapped ? "#E9F1EA" : "#FFFFFF",
-          border: `2px solid ${snapped ? "#2E8E3A" : "#C9D0DC"}`,
+          border: "2px solid #2E8E3A",
           boxShadow: snapped ? "0 0 0 3px rgba(46,142,58,0.18)" : undefined,
           flexShrink: 0, transition: "border-color 120ms, box-shadow 120ms",
         }}

@@ -812,11 +812,13 @@ details[open] > summary [data-disclosure-chevron] {
   100% { r: 17; opacity: 0; }
 }
 
-/* Live-preview "it updated" flash — a brief violet inset wash on content change. */
-.mapper-preview-flash { animation: mapper-preview-flash 460ms var(--ease-out, ease) 1; }
+/* Live-preview "it updated" flash — a brief subtle GREEN wash that resolves back to the navy
+   code-body bg (NOT transparent — transparent dropped the navy and read as a weird colour flicker
+   when switching format). */
+.mapper-preview-flash { animation: mapper-preview-flash 420ms var(--ease-out, ease) 1; }
 @keyframes mapper-preview-flash {
-  0%   { background: rgba(111, 79, 206, 0.10); }
-  100% { background: transparent; }
+  0%   { background: rgba(46, 142, 58, 0.20); }
+  100% { background: #0B1A2F; }
 }
 
 /* Incoming row grip: idle muted, nudges + brightens on row hover. */
