@@ -279,13 +279,13 @@ export function OutgoingPane({
       {structuredFixedFormat && <AutoFilledSection fields={autoFilledFields} />}
 
       {targetFields.length === 0 ? (
-        <div style={{ padding: "12px", fontSize: 11.5, color: "var(--ink-faint)", lineHeight: 1.5 }}>
+        <div style={{ flex: 1, minHeight: 0, overflow: "auto", padding: "12px", fontSize: 11.5, color: "var(--ink-faint)", lineHeight: 1.5 }}>
           {canAddField
             ? "No output fields yet — add one to start shaping the delivered document."
             : "This output has no declared fields."}
         </div>
       ) : pickerMode ? (
-        <div style={{ padding: "10px", display: "flex", flexDirection: "column", gap: 6 }}>
+        <div style={{ flex: 1, minHeight: 0, overflow: "auto", padding: "10px", display: "flex", flexDirection: "column", gap: 6 }}>
           {/* Rows that NEED ATTENTION first (required + unmapped), each carrying its own inline AI fix. */}
           {needsRows.map(({ field, status }) => (
             <OutgoingRow
@@ -352,7 +352,7 @@ export function OutgoingPane({
         </div>
       ) : (
         // Classic (wires): every output row, flat, in declared order — unchanged from before v3.
-        <div style={{ padding: "10px", display: "flex", flexDirection: "column", gap: 6 }}>
+        <div style={{ flex: 1, minHeight: 0, overflow: "auto", padding: "10px", display: "flex", flexDirection: "column", gap: 6 }}>
           {rows.map(({ field, status }) => renderRow(field, status))}
         </div>
       )}

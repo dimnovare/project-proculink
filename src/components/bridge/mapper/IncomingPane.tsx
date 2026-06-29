@@ -150,7 +150,7 @@ export function IncomingPane({
   return (
     <PaneFrame title="What we received" subtitle={`${counts.all} field${counts.all === 1 ? "" : "s"}`} sourceType={sourceType}>
       {/* Search — finds any field/value across groups (collapsed groups auto-reveal). */}
-      <div style={{ padding: "12px 18px 10px" }}>
+      <div style={{ flexShrink: 0, padding: "12px 18px 10px" }}>
         <input
           ref={searchRef}
           type="text"
@@ -166,7 +166,7 @@ export function IncomingPane({
       </div>
 
       {/* Filter chips. */}
-      <div role="group" aria-label="Filter incoming fields" style={{ display: "flex", flexWrap: "wrap", gap: 6, padding: "12px 18px 10px" }}>
+      <div role="group" aria-label="Filter incoming fields" style={{ flexShrink: 0, display: "flex", flexWrap: "wrap", gap: 6, padding: "12px 18px 10px" }}>
         {FILTERS.map((f) => {
           const active = filter === f.id;
           return (
@@ -192,10 +192,9 @@ export function IncomingPane({
         })}
       </div>
 
-      {/* NOTE: no inner-scroll container. The whole mapper CANVAS scrolls as one unit so the
-          wire overlay stays glued with zero JS — an independently-scrolling column would
-          decouple the rows from the canvas-relative SVG. Rows grow the column; the page scrolls. */}
-      <div style={{ padding: "10px", display: "flex", flexDirection: "column", gap: 12 }}>
+      {/* This column scrolls INDEPENDENTLY (app.jsx parity). The wire overlay re-measures on a
+          capturing scroll listener, so wires track this column's scroll. */}
+      <div style={{ flex: 1, minHeight: 0, overflow: "auto", padding: "10px", display: "flex", flexDirection: "column", gap: 12 }}>
         {groups.length === 0 ? (
           <div style={{ fontSize: 11, color: "var(--ink-faint)" }}>
             {q ? `No incoming field matches “${query}”.` : "No incoming fields match this filter."}

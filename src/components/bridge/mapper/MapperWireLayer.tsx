@@ -154,19 +154,17 @@ export function useMapperWireLayer({
     if (!canvas) return;
     const c = canvas.getBoundingClientRect();
     if (c.width < 60) return; // not laid out yet — keep last good anchors
-    // CONTENT-relative coords: add the canvas scroll offset so positions are invariant under
-    // scroll. The SVG (sized to the scroll content below, an absolute child of the canvas) scrolls
-    // WITH the rows, so wires stay glued with zero per-scroll JS — whether the canvas scrolls
-    // (bounded-height mapper) or the page scrolls it as one unit.
-    const sl = canvas.scrollLeft, st = canvas.scrollTop;
-
+    // CANVAS-VIEWPORT-relative coords. Each pane scrolls INSIDE the canvas (app.jsx parity); the
+    // canvas itself does not scroll. getBoundingClientRect is live, so a port scrolled within its
+    // own column reports its new viewport position here, and the scroll listener below re-measures
+    // — the wire tracks whichever column moved.
     const s: Pt[] = [];
     sourceIdsRef.current.forEach((id) => {
       const el = sourceEls.current[id];
       if (!el) return;
       const r = el.getBoundingClientRect();
       // RIGHT edge of the incoming port, vertically centred.
-      s.push({ id, x: r.right - c.left + sl, y: r.top - c.top + st + r.height / 2 });
+      s.push({ id, x: r.right - c.left, y: r.top - c.top + r.height / 2 });
     });
     const t: Pt[] = [];
     targetFieldsRef.current.forEach((field) => {
@@ -174,12 +172,13 @@ export function useMapperWireLayer({
       if (!el) return;
       const r = el.getBoundingClientRect();
       // LEFT edge of the outgoing port, vertically centred.
-      t.push({ id: field.outputPath, x: r.left - c.left + sl, y: r.top - c.top + st + r.height / 2 });
+      t.push({ id: field.outputPath, x: r.left - c.left, y: r.top - c.top + r.height / 2 });
     });
 
-    // Size the overlay to the full scroll content so it covers every wire even when scrolled.
-    const sw = Math.max(canvas.scrollWidth, Math.round(c.width));
-    const sh = Math.max(canvas.scrollHeight, Math.round(c.height));
+    // Size the overlay to the canvas CLIENT box; the SVG (overflow:hidden) clips wires whose ports
+    // have scrolled out of their column at the canvas edges.
+    const sw = Math.round(c.width);
+    const sh = Math.round(c.height);
     if (sw !== dimsRef.current.w || sh !== dimsRef.current.h) { dimsRef.current = { w: sw, h: sh }; setDims({ w: sw, h: sh }); }
 
     const sig = (a: Pt[]) => a.map((p) => `${p.id}:${Math.round(p.x)}:${Math.round(p.y)}`).join("|");
@@ -210,6 +209,11 @@ export function useMapperWireLayer({
     Object.values(sourceEls.current).forEach(obs);
     Object.values(targetEls.current).forEach(obs);
     window.addEventListener("resize", scheduleMeasure);
+    // Per-column scroll: each pane scrolls INSIDE the canvas. Scroll events don't bubble, so listen
+    // in the CAPTURE phase on the canvas — any descendant scroller (received OR output) triggers a
+    // re-measure and the wires track whichever column moved (app.jsx parity, no always-on rAF).
+    const canvasEl = canvasRef.current;
+    canvasEl?.addEventListener("scroll", scheduleMeasure, { capture: true, passive: true });
     // One more measure after fonts/layout settle (covers async row-height shifts).
     const raf = requestAnimationFrame(measure);
     return () => {
@@ -217,6 +221,7 @@ export function useMapperWireLayer({
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
       ro.disconnect();
       window.removeEventListener("resize", scheduleMeasure);
+      canvasEl?.removeEventListener("scroll", scheduleMeasure, { capture: true } as EventListenerOptions);
     };
     // Re-bind when the signature changes so newly-added port elements get observed.
   }, [measure, scheduleMeasure, canvasRef, sourceEls, targetEls, signature]);
@@ -403,7 +408,7 @@ export function useMapperWireLayer({
       <svg aria-hidden
         width={dims.w || undefined} height={dims.h || undefined}
         style={{
-          position: "absolute", top: 0, left: 0,
+          position: "absolute", top: 0, left: 0, overflow: "hidden",
           width: dims.w ? dims.w : "100%", height: dims.h ? dims.h : "100%",
           pointerEvents: hidden ? "none" : (drag ? "auto" : "none"), zIndex: 2,
           opacity: hidden ? 0 : 1,

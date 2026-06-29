@@ -745,7 +745,7 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
       <div
         className="hidden lg:grid"
         style={{
-          flex: 1, minHeight: 0, alignItems: "stretch",
+          flex: 1, minHeight: 0, alignItems: "stretch", gridTemplateRows: "minmax(0,1fr)",
           gridTemplateColumns: previewCollapsed
             ? "minmax(0,1fr) 46px"
             : incomingCollapsed
@@ -758,7 +758,7 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
           ref={canvasRef}
           data-mapper-canvas
           style={{
-            position: "relative", minWidth: 0, minHeight: 0, overflow: "auto", display: "grid", alignItems: "stretch",
+            position: "relative", minWidth: 0, minHeight: 0, display: "grid", alignItems: "stretch", gridTemplateRows: "minmax(0,1fr)",
             gridTemplateColumns: incomingCollapsed
               ? "46px minmax(360px,1fr)"
               : "minmax(300px,0.92fr) minmax(360px,1fr)",
