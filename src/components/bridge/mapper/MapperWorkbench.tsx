@@ -769,7 +769,7 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
           }}
         >
           {incomingCollapsed ? (
-            <CollapsedRail label="Incoming" color="#1E66C9" onExpand={layout?.onExpandIncoming} />
+            <CollapsedRail label="Incoming" color="#1E66C9" onExpand={layout?.onExpandIncoming} chevron="›" />
           ) : (
             <div style={{ minWidth: 0, position: "relative" }}>
               {layout?.onCollapseIncoming && <PaneCollapseCaret side="left" label="Received" onClick={layout.onCollapseIncoming} />}
@@ -781,7 +781,7 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
         </div>
         {/* Live preview — fills its column to full height (a connected third pane, not a short box). */}
         {previewCollapsed ? (
-          <CollapsedRail label="Preview" color="#2E8E3A" onExpand={layout?.onExpandPreview} />
+          <CollapsedRail label="Preview" color="#2E8E3A" onExpand={layout?.onExpandPreview} chevron="‹" />
         ) : (
           <div style={{ minWidth: 0, position: "relative" }}>
             {layout?.onCollapsePreview && <PaneCollapseCaret side="right" label="Live preview" onClick={layout.onCollapsePreview} />}
@@ -795,7 +795,7 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
 
 // ── A thin collapsed-zone rail with a chevron to expand it (Order Workshop, v3) ─
 //    44px strip with a buyer/supplier TONE-GRADIENT spine + rotated label.
-function CollapsedRail({ label, color, onExpand }: { label: string; color: string; onExpand?: () => void }) {
+function CollapsedRail({ label, color, onExpand, chevron }: { label: string; color: string; onExpand?: () => void; chevron: string }) {
   const grad = `linear-gradient(180deg, ${color}33, ${color} 50%, ${color}33)`;
   return (
     <button
@@ -812,7 +812,7 @@ function CollapsedRail({ label, color, onExpand }: { label: string; color: strin
       }}
     >
       <span aria-hidden style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: 3, background: grad }} />
-      <span aria-hidden style={{ width: 22, height: 22, borderRadius: 6, border: `1px solid ${color}40`, display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 800 }}>›</span>
+      <span aria-hidden style={{ width: 22, height: 22, borderRadius: 6, border: `1px solid ${color}40`, display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 800 }}>{chevron}</span>
       <span style={{ writingMode: "vertical-rl", transform: "rotate(180deg)", fontSize: 11, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.18em", marginTop: 2 }}>
         {label}
       </span>

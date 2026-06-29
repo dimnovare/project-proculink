@@ -213,10 +213,13 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
   const mapperLayout = useMemo<MapperWorkbenchLayout>(() => ({
     incoming: lay.grid.left,
     preview: lay.grid.right,
-    onExpandIncoming: () => { lay.setFocus("all"); if (lay.leftCollapsed) lay.toggleLeft(); },
-    onExpandPreview: () => { lay.setFocus("all"); if (lay.rightCollapsed) lay.toggleRight(); },
-    onCollapseIncoming: () => { lay.setFocus("all"); if (!lay.leftCollapsed) lay.toggleLeft(); },
-    onCollapsePreview: () => { lay.setFocus("all"); if (!lay.rightCollapsed) lay.toggleRight(); },
+    // The per-pane collapse carets drive the SAME focus the All/Mapping/Output tabs do, so the tab
+    // highlight always matches what's on screen: collapse the preview → Mapping (received+output);
+    // collapse received → Output (output+preview); expand either rail → All (all three).
+    onExpandIncoming: () => lay.setFocus("all"),
+    onExpandPreview: () => lay.setFocus("all"),
+    onCollapseIncoming: () => lay.setFocus("output"),
+    onCollapsePreview: () => lay.setFocus("mapping"),
   }), [lay]);
 
   // ── Focus a field in the mapper (IssuesPanel "Where →") — bumped signal so the
