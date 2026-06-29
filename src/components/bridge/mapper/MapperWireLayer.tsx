@@ -438,10 +438,8 @@ export function useMapperWireLayer({
                   className={drawIn ? "mapper-wire-draw" : undefined}
                   style={{ pointerEvents: "none", ["--wire-len" as string]: len, animationDelay: `${wireDrawDelayMs(i)}ms`, transition: "stroke-width 140ms" }}
                 />
-                {/* Wire-end circles: BLUE at the received end, GREEN at the output end (app.jsx) —
-                    "blue circles connecting to green circles". */}
-                <circle cx={h.x} cy={h.y} r={2.6} fill={w.isOverride ? VIOLET : "#1E66C9"} style={{ pointerEvents: "none" }} />
-                <circle cx={z.x} cy={z.y} r={2.6} fill={w.isOverride ? VIOLET : GREEN} style={{ pointerEvents: "none" }} />
+                {/* No wire-end dots — the wire runs straight into the big blue/green PORT circles
+                    the row renders (app.jsx: just a wire connecting the two circles). */}
                 {landing && (
                   <circle cx={z.x} cy={z.y} r={3} fill="none" stroke={VIOLET} strokeWidth={2} className="mapper-land-pulse" style={{ pointerEvents: "none" }} />
                 )}

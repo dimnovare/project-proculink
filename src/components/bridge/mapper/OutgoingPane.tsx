@@ -545,8 +545,8 @@ function OutgoingRow({
         style={{
           position: "absolute", left: -7, top: "50%", transform: "translateY(-50%)",
           width: 13, height: 13, borderRadius: 999,
-          // Output connection port — GREEN ring (app.jsx); white fill, fills greenSoft on snap.
-          background: snapped ? "#E9F1EA" : "#FFFFFF",
+          // Output connection port — GREEN ring (app.jsx); fills SOLID green on hover/snap.
+          background: (hovered || snapped) ? "#2E8E3A" : "#FFFFFF",
           border: "2px solid #2E8E3A",
           boxShadow: snapped ? "0 0 0 3px rgba(46,142,58,0.18)" : undefined,
           flexShrink: 0, transition: "border-color 120ms, box-shadow 120ms",

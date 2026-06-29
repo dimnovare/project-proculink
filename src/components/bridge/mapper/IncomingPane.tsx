@@ -410,7 +410,8 @@ function IncomingRow({
           <span ref={(el) => portRef(el)} aria-hidden style={{
             flexShrink: 0, display: "inline-block", boxSizing: "border-box",
             width: 14, height: 14, borderRadius: "50%",
-            background: connecting ? "#1E66C9" : "#FFFFFF", border: "2px solid #1E66C9",
+            // app.jsx: the port fills SOLID on hover/grab (a wire connecting two filled circles).
+            background: (connecting || hovered) ? "#1E66C9" : "#FFFFFF", border: "2px solid #1E66C9",
             boxShadow: connecting ? "0 0 0 3px rgba(30,102,201,0.18)" : (hovered ? "0 0 0 2px rgba(30,102,201,0.12)" : "0 1px 3px rgba(11,26,47,0.2)"),
             transition: "border-color 120ms, background 120ms, box-shadow 120ms",
           }}/>
