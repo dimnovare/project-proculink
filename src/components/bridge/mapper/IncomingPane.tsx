@@ -393,23 +393,27 @@ function IncomingRow({
       {!readOnly ? (
         <span
           {...portHandlers}
-          ref={(el) => portRef(el)}
-          className="mapper-grip"
           title={`Drag onto an output field to map ${field.label}${suggested ? ` (AI suggests → ${field.suggestedFor})` : ""}`}
           style={{
-            flexShrink: 0, display: "inline-flex", alignItems: "center", justifyContent: "center",
-            width: 22, height: 22, borderRadius: 6,
-            // Received connection port — BLUE ring (app.jsx); white fill, fills blueSoft on grab.
-            border: "1.5px solid #1E66C9",
-            background: connecting ? "#EAF0F8" : "#FFFFFF",
-            color: "#1E66C9",
-            cursor: connecting ? "grabbing" : "grab",
-            touchAction: "none",
-            boxShadow: connecting ? "0 0 0 3px rgba(30,102,201,0.18)" : (hovered ? "0 0 0 2px rgba(30,102,201,0.12)" : undefined),
-            transition: "border-color 120ms, background 120ms, box-shadow 120ms",
+            display: "inline-flex", alignItems: "center", gap: 7, flexShrink: 0,
+            cursor: connecting ? "grabbing" : "grab", touchAction: "none",
           }}
         >
-          <span aria-hidden style={{ fontSize: 11, lineHeight: 1 }}>{dragging ? "→" : "⠿"}</span>
+          {/* Drag-grip (dots) — a calm grey handle; app.jsx places the square NEXT TO the port. */}
+          <span aria-hidden className="mapper-grip" style={{
+            display: "inline-flex", alignItems: "center", justifyContent: "center",
+            width: 22, height: 22, borderRadius: 6, background: "#F1F3F7", border: "1px solid #DCE0E8",
+            color: "#9AA8C0", fontSize: 11, lineHeight: 1,
+          }}>{dragging ? "→" : "⠿"}</span>
+          {/* BLUE CIRCLE port — the wire anchor (app.jsx: 2px blue ring, fills on grab), mirroring
+              the green output circle it connects to. */}
+          <span ref={(el) => portRef(el)} aria-hidden style={{
+            flexShrink: 0, display: "inline-block", boxSizing: "border-box",
+            width: 14, height: 14, borderRadius: "50%",
+            background: connecting ? "#1E66C9" : "#FFFFFF", border: "2px solid #1E66C9",
+            boxShadow: connecting ? "0 0 0 3px rgba(30,102,201,0.18)" : (hovered ? "0 0 0 2px rgba(30,102,201,0.12)" : "0 1px 3px rgba(11,26,47,0.2)"),
+            transition: "border-color 120ms, background 120ms, box-shadow 120ms",
+          }}/>
         </span>
       ) : wired ? (
         <span aria-hidden style={{ fontSize: 9, fontWeight: 700, color: "#0F4FA8", flexShrink: 0 }}>wired →</span>
