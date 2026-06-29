@@ -124,7 +124,6 @@ export function useMapperWireLayer({
   const prevConnRef = useRef<Set<string> | null>(null);
 
   const announcerRef = useRef<HTMLDivElement>(null);
-  const rafRef = useRef<number | null>(null);
   // Last-committed position signatures — commit setState only when an anchor actually MOVED so a
   // repeated measure can never drive setState→render→measure (React #185).
   const sigRef = useRef<{ s: string; t: string }>({ s: "", t: "" });
@@ -192,61 +191,21 @@ export function useMapperWireLayer({
     if (!(t.length === 0 && sigRef.current.t.length > 0) && tSig !== sigRef.current.t) { sigRef.current.t = tSig; setTargetPorts(t); }
   }, [canvasRef, sourceEls, targetEls]);
 
-  // Debounce a re-measure into ONE rAF (the ResizeObserver may fire many times per frame).
-  const scheduleMeasure = useCallback(() => {
-    if (rafRef.current) cancelAnimationFrame(rafRef.current);
-    rafRef.current = requestAnimationFrame(measure);
-  }, [measure]);
-
-  // MEASURE ON LAYOUT, synchronously, committing on the first paint. Re-runs whenever the model
-  // signature changes (rows added/removed/reordered) so we never wait for the RO to notice.
-  useLayoutEffect(() => { measure(); }, [measure, signature]);
-
-  // Observe ONLY real layout changes — the canvas + every port. No scroll listener, no poll:
-  // because nothing is sticky, scrolling moves the canvas and its SVG together, so the
-  // canvas-relative coordinates stay correct with zero JS per scroll frame.
+  // ── UNIVERSAL re-measure — ONE requestAnimationFrame loop ─────────────────────
+  // Every frame, measure() reads the LIVE port positions and commits to state ONLY when an anchor
+  // actually moved (the sigRef key-diff above) — so it's cheap when static and can never loop into
+  // setState→render→measure. This SINGLE mechanism is robust to EVERY layout change: scroll, filter,
+  // collapse, resize, font load, row add/remove, sidebar/grid resize, tab switch — with no per-case
+  // observers or listeners that can drift out of sync. (This is app.jsx's Wires approach. It is also
+  // WHY each prior layout change kept breaking the wires — every change broke a different ad-hoc
+  // trigger; a continuous re-measure has none to break.)
+  useLayoutEffect(() => { measure(); }, [measure, signature]); // first paint, synchronous (no flash)
   useEffect(() => {
-    const ro = new ResizeObserver(scheduleMeasure);
-    const seen = new Set<Element>();
-    const obs = (el: Element | null | undefined) => { if (el && !seen.has(el)) { seen.add(el); ro.observe(el); } };
-    obs(canvasRef.current);
-    Object.values(sourceEls.current).forEach(obs);
-    Object.values(targetEls.current).forEach(obs);
-    window.addEventListener("resize", scheduleMeasure);
-    // Per-column scroll: each pane scrolls INSIDE the canvas. Scroll events don't bubble, so listen
-    // in the CAPTURE phase on the canvas — any descendant scroller (received OR output) triggers a
-    // re-measure and the wires track whichever column moved (app.jsx parity, no always-on rAF).
-    const canvasEl = canvasRef.current;
-    canvasEl?.addEventListener("scroll", scheduleMeasure, { capture: true, passive: true });
-    // Filtering / collapsing the received column adds or removes ROWS without changing the canvas
-    // size (per-column scroll keeps the pane height fixed), so neither the ResizeObserver nor the
-    // model signature fires. A childList MutationObserver re-measures when the rendered row set
-    // changes, so wires to filtered-out source rows disappear instead of dangling in the gutter.
-    const mo = new MutationObserver((muts) => {
-      // Re-measure ONLY when a ROW is actually added/removed (filter / collapse). Ignore the wire
-      // SVG's own path/circle churn — observing that would loop (measure → render → SVG mutates →
-      // measure → …) — and ignore all other incidental DOM noise, so this never thrashes the wires.
-      for (const m of muts) {
-        if (m.target instanceof Element && m.target.closest("svg")) continue; // skip SVG-internal
-        const rowChanged = [...m.addedNodes, ...m.removedNodes].some(
-          (n) => n instanceof Element && (n.matches?.("[data-mapper-row]") || !!n.querySelector?.("[data-mapper-row]")),
-        );
-        if (rowChanged) { scheduleMeasure(); return; }
-      }
-    });
-    if (canvasEl) mo.observe(canvasEl, { childList: true, subtree: true });
-    // One more measure after fonts/layout settle (covers async row-height shifts).
-    const raf = requestAnimationFrame(measure);
-    return () => {
-      cancelAnimationFrame(raf);
-      if (rafRef.current) cancelAnimationFrame(rafRef.current);
-      ro.disconnect();
-      mo.disconnect();
-      window.removeEventListener("resize", scheduleMeasure);
-      canvasEl?.removeEventListener("scroll", scheduleMeasure, { capture: true } as EventListenerOptions);
-    };
-    // Re-bind when the signature changes so newly-added port elements get observed.
-  }, [measure, scheduleMeasure, canvasRef, sourceEls, targetEls, signature]);
+    let raf = 0;
+    const tick = () => { measure(); raf = requestAnimationFrame(tick); };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [measure]);
 
   // ── Persistent wires (incoming → output) ──────────────────────────────────────
   // Precedence per output path:
