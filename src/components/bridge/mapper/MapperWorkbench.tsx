@@ -745,7 +745,11 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
       <div
         className="hidden lg:grid"
         style={{
+          // Chrome above (action bar, banners) keeps the wrapper's px-6 indent so it aligns with
+          // the page title; the column grid bleeds back out to the wrapper edges (flush to the
+          // sidebar + viewport) via a negative horizontal margin that cancels that px-6.
           flex: 1, minHeight: 0, alignItems: "stretch", gridTemplateRows: "minmax(0,1fr)",
+          marginLeft: -24, marginRight: -24,
           gridTemplateColumns: previewCollapsed
             ? "minmax(0,1fr) 46px"
             : incomingCollapsed
