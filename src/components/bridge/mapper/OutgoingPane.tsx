@@ -908,8 +908,8 @@ function RowChipButton({
       disabled={isDisabled}
       title={isDisabled ? reason : title}
       style={{
-        display: "inline-flex", alignItems: "center", gap: 3, height: 20, padding: "0 7px",
-        borderRadius: 6, fontSize: 11.5, fontWeight: 700, letterSpacing: "0.01em",
+        display: "inline-flex", alignItems: "center", gap: 3, height: 26, padding: "0 11px",
+        borderRadius: 7, fontSize: 13, fontWeight: 700, letterSpacing: "0.01em",
         whiteSpace: "nowrap", flexShrink: 0,
         border: `1px solid ${active ? "#C4ABE8" : "#E7DEF6"}`,
         background: active ? "#F4EFFC" : "transparent",

@@ -111,7 +111,7 @@ export function SourcePickerChip({
 
   if (readOnly) {
     return (
-      <span style={{ fontSize: 9.5, fontWeight: 700, color: unsourced ? "#AEB6C4" : "#1E6D29", maxWidth: 140, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+      <span style={{ fontSize: 12, fontWeight: 700, color: unsourced ? "#AEB6C4" : "#1E6D29", maxWidth: 200, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
         {currentLabel}
       </span>
     );
@@ -122,7 +122,7 @@ export function SourcePickerChip({
 
   return (
     <span style={{ display: "inline-flex", alignItems: "center", gap: 4, flexShrink: 0 }}>
-      <span aria-hidden style={{ fontSize: 9, fontWeight: 800, color: "#9AA3B2" }}>←</span>
+      <span aria-hidden style={{ fontSize: 11, fontWeight: 800, color: "#9AA3B2" }}>←</span>
       <button
         ref={triggerRef}
         type="button"
@@ -131,18 +131,18 @@ export function SourcePickerChip({
         onClick={(e) => { e.stopPropagation(); setOpen((o) => !o); }}
         title={unsourced ? "Pick the incoming field that fills this output" : `Source: ${currentLabel} — click to change`}
         style={{
-          display: "inline-flex", alignItems: "center", gap: 5, maxWidth: 150,
-          height: 22, padding: "0 8px", borderRadius: 999,
+          display: "inline-flex", alignItems: "center", gap: 5, maxWidth: 200,
+          height: 26, padding: "0 11px", borderRadius: 999,
           border: `1px ${unsourced ? "dashed" : "solid"} ${unsourced ? "#C9D0DC" : "#CDE7D1"}`,
           background: unsourced ? "#FFFFFF" : "#F1F8F2",
           color: unsourced ? "#5E6779" : "#1E6D29",
-          fontSize: 9.5, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap",
+          fontSize: 12, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap",
         }}
       >
         <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
           {unsourced ? "pick a field" : currentLabel}
         </span>
-        <span aria-hidden style={{ fontSize: 8, opacity: 0.7 }}>▾</span>
+        <span aria-hidden style={{ fontSize: 10, opacity: 0.7 }}>▾</span>
       </button>
 
       {canClear && (
