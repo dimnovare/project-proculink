@@ -603,7 +603,7 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
             minmax + 56px gutter + flex outgoing) fit within ~1000px so a 13"/14"
             laptop at 1024 gets the full field mapper with no horizontal scroll;
             the docked preview wraps below it until ~1440 (2-pane canvas). */}
-        <div className="hidden lg:block px-6 py-[18px]" style={{ flex: 1, display: "flex", flexDirection: "column", minHeight: 0, overflow: "hidden" }}>
+        <div className="hidden lg:block py-[18px]" style={{ flex: 1, display: "flex", flexDirection: "column", minHeight: 0, overflow: "hidden" }}>
           {/* The actionable issue list — inline supplier-code entry per line lives
               here (the strip above is only a summary that scrolls to these cards). */}
           {issues.length > 0 && (
