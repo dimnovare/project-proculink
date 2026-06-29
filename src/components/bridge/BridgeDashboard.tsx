@@ -29,6 +29,7 @@ import { buildChecklistSteps } from "./buildChecklistSteps";
 import { PageHeader } from "./layout/PageHeader";
 import { PageShell } from "./layout/PageShell";
 import { apiClient, isApiMockMode } from "@/lib/api-client";
+import { useQueriesEnabled } from "@/hooks/useQueriesEnabled";
 import { useOnboardingStatus } from "@/hooks/useOnboardingStatus";
 import { useOrderDirection } from "@/hooks/useOrderDirection";
 import type { OrderSummary, Supplier } from "@/types/procurement";
@@ -331,27 +332,37 @@ export function BridgeDashboard() {
   const nounLower = noun.toLowerCase();          // "supplier" | "customer"
   const pluralLower = labels.counterpartyPlural.toLowerCase(); // "suppliers" | "customers"
 
+  // Gate all data queries on auth readiness to prevent the cold-mount 401 race:
+  // on a hard refresh, queries fire before the Clerk token is ready → 401 →
+  // TanStack Query parks them (fetchStatus 'paused'), leaving the dashboard empty.
+  // useQueriesEnabled() resolves true for mock mode, QA-bypass, AND signed-in Clerk.
+  const queryEnabled = useQueriesEnabled();
+
   // Shared onboarding-status query (same cache the checklist + wizard read).
   const { data: onboardingStatus } = useOnboardingStatus();
   const { data: suppliers } = useQuery({
     queryKey: ["suppliers"],
     queryFn: () => apiClient.getSuppliers(),
     staleTime: 60_000,
+    enabled: queryEnabled,
   });
   const { data: ordersPage, isLoading: ordersLoading, isError: ordersError, refetch: refetchOrders } = useQuery({
     queryKey: ["orders"],
     queryFn: () => apiClient.getOrders({ pageSize: 100 }),
     staleTime: 60_000,
+    enabled: queryEnabled,
   });
   const { data: topology, isLoading: topologyLoading } = useQuery({
     queryKey: ["dashboard-topology"],
     queryFn: () => apiClient.getDashboardTopology(),
     staleTime: 60_000,
+    enabled: queryEnabled,
   });
   const { data: ordersSummary, isLoading: summaryLoading, isError: summaryError } = useQuery({
     queryKey: ["orders-summary"],
     queryFn: () => apiClient.getOrdersSummary(),
     staleTime: 30_000,
+    enabled: queryEnabled,
   });
 
   // ISO start of current window — undefined when window is "all" (no date filter).
