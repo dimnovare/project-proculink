@@ -180,8 +180,14 @@ const FEATURES: Array<{
   },
 ];
 
+// keep in sync with src/lib/standards/catalog.ts and
+// src/app/(marketing)/formats/page.tsx (IMPORT_FORMATS / OUTPUT_FORMATS / DELIVERY_METHODS).
+//
+// Inbound  = all IMPORT_FORMATS rows (live + configurable; 0 onRequest/planned) = 10
+// Outbound = OUTPUT_FORMATS rows with status "live" = 6  (EDIFACT is onRequest)
+// Channels = DELIVERY_METHODS rows with status "live" or "configurable" = 6
 const STATS = [
-  { value: "9",      label: "Inbound formats"    },
+  { value: "10",     label: "Inbound formats"    },
   { value: "6",      label: "Outbound formats"   },
   { value: "6",      label: "Delivery channels"  },
   { value: "EU",     label: "Data residency"     },
