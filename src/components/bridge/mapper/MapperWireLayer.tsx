@@ -183,8 +183,12 @@ export function useMapperWireLayer({
 
     const sig = (a: Pt[]) => a.map((p) => `${p.id}:${Math.round(p.x)}:${Math.round(p.y)}`).join("|");
     const sSig = sig(s), tSig = sig(t);
-    // Never blank to empty on a transient null-ref pass while rows still exist.
-    if (!(s.length === 0 && sigRef.current.s.length > 0) && sSig !== sigRef.current.s) { sigRef.current.s = sSig; setSourcePorts(s); }
+    // SOURCE: a filtered-out received row unmounts → its port leaves the list; commit that so the
+    // wire stops drawing. Do NOT keep stale source ports when the received column is filtered to
+    // fewer/zero rows (that left wires dangling to hidden fields). The MutationObserver below
+    // re-measures on the filter change.
+    if (sSig !== sigRef.current.s) { sigRef.current.s = sSig; setSourcePorts(s); }
+    // TARGET (output) rows are never filtered → keep the transient-blank guard.
     if (!(t.length === 0 && sigRef.current.t.length > 0) && tSig !== sigRef.current.t) { sigRef.current.t = tSig; setTargetPorts(t); }
   }, [canvasRef, sourceEls, targetEls]);
 
@@ -214,12 +218,19 @@ export function useMapperWireLayer({
     // re-measure and the wires track whichever column moved (app.jsx parity, no always-on rAF).
     const canvasEl = canvasRef.current;
     canvasEl?.addEventListener("scroll", scheduleMeasure, { capture: true, passive: true });
+    // Filtering / collapsing the received column adds or removes ROWS without changing the canvas
+    // size (per-column scroll keeps the pane height fixed), so neither the ResizeObserver nor the
+    // model signature fires. A childList MutationObserver re-measures when the rendered row set
+    // changes, so wires to filtered-out source rows disappear instead of dangling in the gutter.
+    const mo = new MutationObserver(scheduleMeasure);
+    if (canvasEl) mo.observe(canvasEl, { childList: true, subtree: true });
     // One more measure after fonts/layout settle (covers async row-height shifts).
     const raf = requestAnimationFrame(measure);
     return () => {
       cancelAnimationFrame(raf);
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
       ro.disconnect();
+      mo.disconnect();
       window.removeEventListener("resize", scheduleMeasure);
       canvasEl?.removeEventListener("scroll", scheduleMeasure, { capture: true } as EventListenerOptions);
     };
