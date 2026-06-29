@@ -613,7 +613,7 @@ function OutgoingRow({
             the short status tag stays clustered immediately left of the chips, RIGHT-aligned, exactly
             as before — the classic screen is visually unchanged. */}
         <div style={pickerMode
-          ? { display: "flex", alignItems: "center", flex: "1 1 0", minWidth: 0 }
+          ? { display: "flex", alignItems: "center", flex: "0 1 auto", minWidth: 0, marginLeft: "auto" }
           : { display: "flex", alignItems: "center", marginLeft: "auto", minWidth: 0 }}>
 
           {pickerMode && onPickSource ? (
@@ -981,12 +981,12 @@ function AddOutputFieldMenu({
         aria-expanded={open}
         onClick={() => { setOpen((o) => !o); setQuery(""); }}
         style={{
-          display: "inline-flex", alignItems: "center", gap: 4,
+          display: "inline-flex", alignItems: "center", gap: 6,
           border: "1px dashed #A9D3AF", background: "#F4FBF5", color: "#1E6D29",
-          borderRadius: 7, padding: "3px 9px", fontSize: 10.5, fontWeight: 700, cursor: "pointer",
+          borderRadius: 7, padding: "6px 14px", fontSize: 13, fontWeight: 700, cursor: "pointer",
         }}
       >
-        <span aria-hidden style={{ fontSize: 12, lineHeight: 1 }}>+</span>
+        <span aria-hidden style={{ fontSize: 17, lineHeight: 1, display: "inline-flex", alignItems: "center", justifyContent: "center", width: 14, height: 14, marginTop: -1 }}>+</span>
         Add output field
       </button>
 
