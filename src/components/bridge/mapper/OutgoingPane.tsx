@@ -349,11 +349,23 @@ export function OutgoingPane({
               )}
             </>
           )}
+          {/* Bottom "+ Add output field" — same affordance as the header, at the END of the list
+              (design parity). Full-width dashed; opens the same searchable picker. */}
+          {canAddField && onAddField && (
+            <div style={{ marginTop: 2 }}>
+              <AddOutputFieldMenu fullWidth onAddField={onAddField} canonicalOptions={canonicalOptions ?? []} existingPaths={existingPaths} />
+            </div>
+          )}
         </div>
       ) : (
         // Classic (wires): every output row, flat, in declared order — unchanged from before v3.
         <div style={{ flex: 1, minHeight: 0, overflow: "auto", padding: "10px", display: "flex", flexDirection: "column", gap: 6 }}>
           {rows.map(({ field, status }) => renderRow(field, status))}
+          {canAddField && onAddField && (
+            <div style={{ marginTop: 2 }}>
+              <AddOutputFieldMenu fullWidth onAddField={onAddField} canonicalOptions={canonicalOptions ?? []} existingPaths={existingPaths} />
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -926,11 +938,13 @@ function RowChipButton({
 
 // ── "+ Add output field" — a REAL combobox: searchable canonical picker + custom-field create ──
 function AddOutputFieldMenu({
-  onAddField, canonicalOptions, existingPaths,
+  onAddField, canonicalOptions, existingPaths, fullWidth,
 }: {
   onAddField: (outputPath: string, scope: TargetField["scope"]) => void;
   canonicalOptions: CanonicalNode[];
   existingPaths: Set<string>;
+  /** Render the trigger as a full-width dashed button (the bottom-of-list "add" affordance). */
+  fullWidth?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -974,16 +988,17 @@ function AddOutputFieldMenu({
   }
 
   return (
-    <div style={{ position: "relative" }}>
+    <div style={{ position: "relative", ...(fullWidth ? { width: "100%" } : {}) }}>
       <button
         type="button"
         aria-haspopup="dialog"
         aria-expanded={open}
         onClick={() => { setOpen((o) => !o); setQuery(""); }}
         style={{
-          display: "inline-flex", alignItems: "center", gap: 6,
+          display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6,
           border: "1px dashed #A9D3AF", background: "#F4FBF5", color: "#1E6D29",
           borderRadius: 7, padding: "6px 14px", fontSize: 13, fontWeight: 700, cursor: "pointer",
+          ...(fullWidth ? { width: "100%", padding: "11px 14px" } : {}),
         }}
       >
         <span aria-hidden style={{ fontSize: 17, lineHeight: 1, display: "inline-flex", alignItems: "center", justifyContent: "center", width: 14, height: 14, marginTop: -1 }}>+</span>
