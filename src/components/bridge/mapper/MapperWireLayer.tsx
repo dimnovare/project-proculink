@@ -1,5 +1,7 @@
 "use client";
 
+// build-marker: rAF wire engine v2 (forces a fresh chunk hash so a stale build/edge cache of this
+// file can't keep serving the old trigger-based engine).
 // MapperWireLayer — the TRUE 2-bank drag/keyboard wire engine for the rebuilt mapper.
 //
 // REBUILD (2026-06-14): the previous engine drew THREE banks (source → canonical dot → target)
