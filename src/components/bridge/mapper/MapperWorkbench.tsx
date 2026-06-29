@@ -807,7 +807,7 @@ function CollapsedRail({ label, color, onExpand, chevron }: { label: string; col
       style={{
         width: 46, minHeight: 240, alignSelf: "stretch", position: "relative",
         display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-start", gap: 12,
-        borderRadius: 12, border: `1px solid ${color}33`, background: "#FBFBFD",
+        borderRadius: 0, border: `1px solid ${color}33`, background: "#FBFBFD",
         color, cursor: onExpand ? "pointer" : "default", padding: "12px 0", overflow: "hidden",
       }}
     >
