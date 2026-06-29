@@ -1013,7 +1013,10 @@ function AddOutputFieldMenu({
             role="dialog"
             aria-label="Add an output field"
             style={{
-              position: "absolute", right: 0, top: "100%", marginTop: 6, zIndex: 31, width: 280,
+              position: "absolute", right: 0, zIndex: 31, width: 340,
+              // The bottom (full-width) button sits at the end of the scrollable list, so its panel
+              // opens UPWARD to stay in view instead of being clipped below the scroller.
+              ...(fullWidth ? { bottom: "100%", marginBottom: 6 } : { top: "100%", marginTop: 6 }),
               background: "#FFFFFF", border: "1px solid #E5E8EE", borderRadius: 10,
               boxShadow: "0 12px 30px rgba(11,26,47,0.16)", overflow: "hidden",
             }}
@@ -1040,7 +1043,7 @@ function AddOutputFieldMenu({
               />
             </div>
 
-            <div style={{ maxHeight: 260, overflowY: "auto", padding: 6 }}>
+            <div style={{ maxHeight: 360, overflowY: "auto", padding: 6 }}>
               {matches.header.length === 0 && matches.line.length === 0 ? (
                 <div style={{ padding: "8px 6px", fontSize: 10.5, color: "var(--ink-faint)", lineHeight: 1.5 }}>
                   {available.length === 0

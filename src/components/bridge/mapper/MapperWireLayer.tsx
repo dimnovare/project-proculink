@@ -222,7 +222,18 @@ export function useMapperWireLayer({
     // size (per-column scroll keeps the pane height fixed), so neither the ResizeObserver nor the
     // model signature fires. A childList MutationObserver re-measures when the rendered row set
     // changes, so wires to filtered-out source rows disappear instead of dangling in the gutter.
-    const mo = new MutationObserver(scheduleMeasure);
+    const mo = new MutationObserver((muts) => {
+      // Re-measure ONLY when a ROW is actually added/removed (filter / collapse). Ignore the wire
+      // SVG's own path/circle churn — observing that would loop (measure → render → SVG mutates →
+      // measure → …) — and ignore all other incidental DOM noise, so this never thrashes the wires.
+      for (const m of muts) {
+        if (m.target instanceof Element && m.target.closest("svg")) continue; // skip SVG-internal
+        const rowChanged = [...m.addedNodes, ...m.removedNodes].some(
+          (n) => n instanceof Element && (n.matches?.("[data-mapper-row]") || !!n.querySelector?.("[data-mapper-row]")),
+        );
+        if (rowChanged) { scheduleMeasure(); return; }
+      }
+    });
     if (canvasEl) mo.observe(canvasEl, { childList: true, subtree: true });
     // One more measure after fonts/layout settle (covers async row-height shifts).
     const raf = requestAnimationFrame(measure);
