@@ -340,7 +340,7 @@ export function BridgeDashboard() {
 
   // Shared onboarding-status query (same cache the checklist + wizard read).
   const { data: onboardingStatus } = useOnboardingStatus();
-  const { data: suppliers } = useQuery({
+  const { data: suppliers, isLoading: suppliersLoading } = useQuery({
     queryKey: ["suppliers"],
     queryFn: () => apiClient.getSuppliers(),
     staleTime: 60_000,
@@ -425,6 +425,18 @@ export function BridgeDashboard() {
   const topologyLoadingState = ordersLoading || topologyLoading;
   const topologyIsEmpty =
     !topologyLoadingState && effective.buyers.length === 0 && effective.suppliers.length === 0;
+
+  // Cold-mount gate: on a hard refresh the queries are still in-flight while
+  // `effective` is transiently empty. Without this, the page-header summary and
+  // the "{noun} health" card flash "0 connections", "0 active {plural}", and
+  // "No {plural} yet" before the data arrives. Only treat as loading when the
+  // queries are actually enabled (mock/QA/signed-out resolve instantly), so
+  // those modes still render their genuine (often empty) state immediately.
+  const isInitialLoading =
+    queryEnabled && (suppliersLoading || ordersLoading || summaryLoading || topologyLoading);
+  // The "{noun} health" card reads `effective.suppliers`, which is built from the
+  // suppliers + orders + topology queries — gate its empty state on all three.
+  const supplierHealthLoading = queryEnabled && (suppliersLoading || topologyLoadingState);
 
   // Adaptive height — tall enough to be the hero, compact when few ports.
   const maxPorts = Math.max(effective.buyers.length, effective.suppliers.length);
@@ -867,13 +879,24 @@ export function BridgeDashboard() {
                 style={{ width: 7, height: 7, borderRadius: "50%", background: GREEN, display: "inline-block" }}
               />
               Live order view
-              <span style={{ color: "#CBD0DA" }}>·</span>
-              {wireCount} connection{wireCount === 1 ? "" : "s"}
-              <span style={{ color: "#CBD0DA" }}>·</span>
-              {/* "active {plural}" — this counts only docks currently carrying orders
-                  (derived topology), NOT the full roster on the Suppliers page, so it
-                  must not be labelled a bare "{N} suppliers" count. */}
-              {effective.suppliers.length} active {pluralLower}
+              {/* On cold mount the counts are transiently 0 while the queries load —
+                  show a muted placeholder instead of flashing "0 connections · 0 active". */}
+              {isInitialLoading ? (
+                <>
+                  <span style={{ color: "#CBD0DA" }}>·</span>
+                  <span style={{ color: "var(--ink-faint)" }}>Loading…</span>
+                </>
+              ) : (
+                <>
+                  <span style={{ color: "#CBD0DA" }}>·</span>
+                  {wireCount} connection{wireCount === 1 ? "" : "s"}
+                  <span style={{ color: "#CBD0DA" }}>·</span>
+                  {/* "active {plural}" — this counts only docks currently carrying orders
+                      (derived topology), NOT the full roster on the Suppliers page, so it
+                      must not be labelled a bare "{N} suppliers" count. */}
+                  {effective.suppliers.length} active {pluralLower}
+                </>
+              )}
             </span>
           }
           actions={
@@ -1230,7 +1253,17 @@ export function BridgeDashboard() {
                 </Link>
               </div>
               <div className="divide-y" style={{ borderColor: "#EEF0F4" }}>
-                {effective.suppliers.length === 0 ? (
+                {supplierHealthLoading && effective.suppliers.length === 0 ? (
+                  // Cold-mount skeleton — never flash "No {plural} yet" while the
+                  // suppliers/topology queries are still resolving on first load.
+                  [0, 1, 2].map((i) => (
+                    <div key={i} className="flex items-center gap-2.5 px-3 py-2 sm:gap-3 sm:px-4 sm:py-2.5">
+                      <div className="h-3 flex-1 animate-pulse rounded" style={{ background: "#E5E8EE" }} />
+                      <div className="hidden h-1.5 w-[160px] animate-pulse rounded-full sm:block" style={{ background: "#E5E8EE" }} />
+                      <div className="h-3 w-[40px] animate-pulse rounded" style={{ background: "#E5E8EE" }} />
+                    </div>
+                  ))
+                ) : effective.suppliers.length === 0 ? (
                   <div className="text-center" style={{ color: "var(--ink-faint)", padding: 16, fontSize: 12.5 }}>
                     No {pluralLower} yet.
                   </div>
