@@ -27,7 +27,7 @@ const PROTOCOLS: Array<{ id: DeliveryProtocol; label: string; enabled: boolean }
   { id: "http", label: "HTTP", enabled: true },
   { id: "sftp", label: "SFTP", enabled: true },
   { id: "ftps", label: "FTPS", enabled: true },
-  { id: "smtp", label: "Email (SMTP)", enabled: true },
+  { id: "email", label: "Email", enabled: true },
   { id: "erp_erply", label: "Erply ERP", enabled: true },
   { id: "erp_directo", label: "Directo ERP", enabled: true },
 ];
@@ -99,6 +99,7 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
   const [useSsl, setUseSsl] = useState(false);
   const [fromAddress, setFromAddress] = useState("");
   const [toAddresses, setToAddresses] = useState("");
+  const [replyTo, setReplyTo] = useState("");
   const [subjectTemplate, setSubjectTemplate] = useState("");
   const [bodyTemplate, setBodyTemplate] = useState("");
   const [attachmentFileName, setAttachmentFileName] = useState("");
@@ -209,9 +210,11 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
   const canSave =
     protocol === "sftp" || protocol === "ftps"
       ? Boolean(host)
-      : protocol === "smtp"
-        ? Boolean(host) && Boolean(fromAddress) && Boolean(toAddresses.trim())
-        : Boolean(url) && (protocol !== "erp_directo" || Boolean(directoDatabase));
+      : protocol === "email"
+        ? Boolean(toAddresses.trim())
+        : protocol === "smtp"
+          ? Boolean(host) && Boolean(fromAddress) && Boolean(toAddresses.trim())
+          : Boolean(url) && (protocol !== "erp_directo" || Boolean(directoDatabase));
 
   function hydrateConfig(nextProtocol: DeliveryProtocol, configJson: string) {
     try {
@@ -238,6 +241,7 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
             ? p.toAddresses
             : "",
       );
+      setReplyTo(typeof p.replyTo === "string" ? p.replyTo : "");
       setSubjectTemplate(typeof p.subjectTemplate === "string" ? p.subjectTemplate : "");
       setBodyTemplate(typeof p.bodyTemplate === "string" ? p.bodyTemplate : "");
       setAttachmentFileName(typeof p.attachmentFileName === "string" ? p.attachmentFileName : "");
@@ -255,6 +259,7 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
       setUseSsl(false);
       setFromAddress("");
       setToAddresses("");
+      setReplyTo("");
       setSubjectTemplate("");
       setBodyTemplate("");
       setAttachmentFileName("");
@@ -273,6 +278,14 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
     if (protocol === "sftp") return { host, port: Number(port) || 22, remotePath, makeDirectories, timeoutSeconds };
     if (protocol === "ftps")
       return { host, port: Number(port) || 21, remotePath, makeDirectories, timeoutSeconds, allowInvalidCertificate };
+    if (protocol === "email")
+      return {
+        toAddresses,
+        ...(replyTo ? { replyTo } : {}),
+        ...(subjectTemplate ? { subjectTemplate } : {}),
+        ...(bodyTemplate ? { bodyTemplate } : {}),
+        ...(attachmentFileName ? { attachmentFileName } : {}),
+      };
     if (protocol === "smtp")
       return {
         host,
@@ -309,6 +322,7 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
   }
 
   function buildCredentialsJson(): string | null {
+    if (protocol === "email") return null; // HTTP email API — no credentials needed
     if (protocol === "sftp") {
       const decision = decideSftpCredentialAction({
         selected: sftpAuthMode,
@@ -436,6 +450,7 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
       setPrivateKeyPassphrase("");
       setFromAddress("");
       setToAddresses("");
+      setReplyTo("");
       setBasicPassword("");
       setOauthClientSecret("");
       setCxmlFromDomain("");
@@ -817,6 +832,85 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
                 </div>
               )}
 
+              {protocol === "email" && (
+                <div className="grid gap-3">
+                  <p className="text-[11px]" style={{ color: "#5E6779" }}>
+                    Sent from ProcuLink&apos;s mail servers over HTTPS — no SMTP server or credentials needed.
+                  </p>
+                  <Field label="Recipients (comma-separated)">
+                    <input
+                      value={toAddresses}
+                      onChange={(e) => {
+                        setToAddresses(e.target.value);
+                        markEdited();
+                      }}
+                      placeholder="po@supplier.example, sales@supplier.example"
+                      className="h-9 w-full rounded-[5px] px-2.5 text-[12px]"
+                      style={INPUT_STYLE}
+                    />
+                  </Field>
+                  <Field label="Reply-to (optional)">
+                    <input
+                      value={replyTo}
+                      onChange={(e) => {
+                        setReplyTo(e.target.value);
+                        markEdited();
+                      }}
+                      placeholder="purchasing@your-company.example"
+                      className="h-9 w-full rounded-[5px] px-2.5 text-[12px]"
+                      style={INPUT_STYLE}
+                    />
+                  </Field>
+                  <details>
+                    <summary className="cursor-pointer text-[11px] font-semibold" style={{ color: "#5E6779" }}>
+                      Advanced — subject / body / attachment
+                    </summary>
+                    <div className="mt-3 grid gap-3">
+                      <Field label="Subject template">
+                        <input
+                          value={subjectTemplate}
+                          onChange={(e) => {
+                            setSubjectTemplate(e.target.value);
+                            markEdited();
+                          }}
+                          placeholder="Purchase Order {poNumber}"
+                          className="h-9 w-full rounded-[5px] px-2.5 text-[12px]"
+                          style={INPUT_STYLE}
+                        />
+                      </Field>
+                      <Field label="Body template">
+                        <textarea
+                          value={bodyTemplate}
+                          onChange={(e) => {
+                            setBodyTemplate(e.target.value);
+                            markEdited();
+                          }}
+                          placeholder="Please find the attached purchase order ({fileName})."
+                          rows={2}
+                          className="w-full rounded-[5px] px-2.5 py-2 text-[12px]"
+                          style={INPUT_STYLE}
+                        />
+                      </Field>
+                      <Field label="Attachment file name">
+                        <input
+                          value={attachmentFileName}
+                          onChange={(e) => {
+                            setAttachmentFileName(e.target.value);
+                            markEdited();
+                          }}
+                          placeholder="(defaults to the generated file name)"
+                          className="h-9 w-full rounded-[5px] px-2.5 text-[12px]"
+                          style={INPUT_STYLE}
+                        />
+                      </Field>
+                      <p className="text-[11px]" style={{ color: "var(--ink-faint)" }}>
+                        Templates support <code>{"{poNumber}"}</code> and <code>{"{fileName}"}</code>.
+                      </p>
+                    </div>
+                  </details>
+                </div>
+              )}
+
               {protocol === "smtp" && (
                 <div className="grid gap-3">
                   <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_110px_110px]">
@@ -947,6 +1041,9 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
               )}
 
               {/* ── Authentication ─────────────────────────────────────────── */}
+              {/* Email (HTTP API) sends from ProcuLink's own mail servers — no per-supplier
+                  credentials, so the whole auth block is hidden for it. */}
+              {protocol !== "email" && (
               <div className="rounded-[7px]" style={{ border: "1px solid #E5E8EE" }}>
                 <div className="flex items-center gap-2 px-3 py-2" style={{ borderBottom: "1px solid #E5E8EE" }}>
                   <KeyRound size={14} color="#2E8E3A" />
@@ -1111,6 +1208,7 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
                   </div>
                 )}
               </div>
+              )}
 
               {/* ── Connector requirements (V7, additive) ────────────────── */}
               <ConnectorRequirementsPanel
