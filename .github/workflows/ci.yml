@@ -16,6 +16,11 @@ env:
   # all e2e tests use PROCULINK_QA_BYPASS_AUTH to bypass Clerk middleware.
   NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: pk_test_ci_placeholder_not_real
   CLERK_SECRET_KEY: sk_test_ci_placeholder_not_real
+  # Disable Clerk keyless mode in CI. With a placeholder/empty publishable key in
+  # development, @clerk/nextjs would otherwise auto-provision a throwaway Clerk app
+  # and redirect to its "claim your application" page on any protected-route nav,
+  # which breaks the e2e navigation tests. Keep Clerk dormant in mock/QA mode.
+  NEXT_PUBLIC_CLERK_KEYLESS_DISABLED: 'true'
   NEXT_PUBLIC_USE_MOCK: 'true'
   NEXT_PUBLIC_API_BASE_URL: http://localhost:5223
   SENTRY_SUPPRESS_GLOBAL_ERROR_HANDLER_FILE_WARNING: '1'

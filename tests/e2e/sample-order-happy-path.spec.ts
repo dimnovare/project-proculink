@@ -50,10 +50,10 @@ test("clicking Try with sample order routes to a sample order page with banner",
   }).toPass({ timeout: 45_000, intervals: [500, 1000, 2000] });
 
   // The non-quota sample banner should be visible on the destination page.
-  // The banner copy was changed to the honest pre-frame wording: it leads with
-  // "Practice order — free, doesn't count against your plan…" and pre-warns that
-  // sending stops at "delivery not set up" (expected for the practice order).
-  const banner = page.getByText(/practice order/i);
+  // The banner copy reads: "Practice order — free, doesn't count against your plan…"
+  // Use the aria role="note" container so we match the whole banner text, not just
+  // the <strong> inner element (which only contains "Practice order").
+  const banner = page.getByRole("note", { name: /practice order/i });
   await expect(banner).toBeVisible({ timeout: 15_000 });
   await expect(banner).toContainText(/free/i);
   await expect(banner).toContainText(/doesn'?t count against your plan/i);
