@@ -76,7 +76,8 @@ export const PROTOCOL_LABEL: Record<DeliveryProtocol, string> = {
   http: "HTTP",
   sftp: "SFTP",
   ftps: "FTPS",
-  smtp: "Email",
+  email: "Email",
+  smtp: "Email (SMTP)",
   erp_erply: "Erply ERP",
   erp_directo: "Directo ERP",
 };
