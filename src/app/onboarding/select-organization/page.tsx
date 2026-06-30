@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   useAuth,
@@ -61,6 +61,11 @@ function SelectOrganizationInner() {
     return () => clearTimeout(t);
   }, []);
 
+  // setActive is async; the effect below can re-run (re-render) before the org
+  // becomes active, which would fire setActive again. Latch it so the activate
+  // path invokes setActive at most once.
+  const activatingRef = useRef(false);
+
   const bypass = isApiMockMode || isQaBypass;
 
   const action = decideOrgGate({
@@ -83,7 +88,8 @@ function SelectOrganizationInner() {
       router.replace(appendOrgSetFlag(dest));
       return;
     }
-    if (action.kind === "activate" && setActive) {
+    if (action.kind === "activate" && setActive && !activatingRef.current) {
+      activatingRef.current = true;
       void setActive({ organization: action.orgId }).then(() => {
         router.replace(appendOrgSetFlag(dest));
       });

@@ -42,6 +42,27 @@ function AutoActivateOrg() {
   return null;
 }
 
+/**
+ * The org gate forwards into the app with a one-shot `?org_set=1` flag (consumed
+ * by middleware to skip one `!orgId` bounce during the cookie-lag window). Once
+ * we've landed, that flag has done its job and should not linger in the address
+ * bar. This strips ONLY `org_set` from the URL on mount, preserving the pathname
+ * and every other query param. Reads from `window.location` (not
+ * `useSearchParams`) so no extra Suspense boundary is needed.
+ */
+function StripOrgSetFlag() {
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const url = new URL(window.location.href);
+    if (!url.searchParams.has("org_set")) return;
+    url.searchParams.delete("org_set");
+    const next = `${url.pathname}${url.search}${url.hash}`;
+    window.history.replaceState(window.history.state, "", next);
+  }, []);
+
+  return null;
+}
+
 export default function AppShellLayout({
   children,
 }: {
@@ -146,6 +167,7 @@ export default function AppShellLayout({
     <MSWProvider>
     <QueryClientProvider client={queryClient}>
       <AutoActivateOrg />
+      <StripOrgSetFlag />
       <TooltipProvider>
         {/* Bridge shell — full viewport, no scroll on the wrapper */}
         <div className="flex h-dvh overflow-hidden" style={{ background: "#F6F7FA" }}>
