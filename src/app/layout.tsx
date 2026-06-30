@@ -47,14 +47,27 @@ export const metadata: Metadata = {
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
-  const publishableKey = process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY;
+  const rawPublishableKey = process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY;
+  const isMockMode = process.env.NEXT_PUBLIC_USE_MOCK === "true";
+  const isQaBypass = process.env.NEXT_PUBLIC_QA_BYPASS_AUTH === "true";
 
-  // ClerkProvider is ALWAYS mounted so that components calling Clerk hooks
-  // (useAuth/useUser/useOrganization/...) never run outside a provider —
-  // including during static prerender at build time when no publishable key
-  // is configured. @clerk/nextjs tolerates an absent publishableKey by
-  // rendering children in a degraded, no-session state (sign-in/sign-out are
-  // simply unavailable). When the key IS present, behaviour is unchanged.
+  // ClerkProvider is ALWAYS mounted so every Clerk hook (useUser / useAuth /
+  // useOrganization) has a provider in the tree — including during the production
+  // build's static prerender, where a missing provider throws
+  // "useX can only be used within <ClerkProvider>" and fails `next build`.
+  //
+  // In mock / QA-bypass mode we feed it an EMPTY publishable key so it renders
+  // children in a degraded no-session state (hooks return safe defaults).
+  //
+  // CRITICAL: an empty key alone is NOT enough. In `next dev` (development),
+  // @clerk/nextjs's KEYLESS mode auto-provisions a throwaway Clerk app and
+  // redirects to its "claim your application" page on any navigation to a
+  // protected route — which hijacks router.push and breaks every e2e nav test.
+  // Keyless is disabled via NEXT_PUBLIC_CLERK_KEYLESS_DISABLED=true (set in
+  // playwright.config.ts webServer.env and the CI workflow env). With keyless
+  // off + an empty key, Clerk stays fully dormant: no hosted JS, no router patch.
+  const publishableKey = (isMockMode || isQaBypass) ? "" : rawPublishableKey;
+
   return (
     <html lang="en">
       <head>

@@ -63,6 +63,15 @@ export default defineConfig({
       // HTTPS dev profile; override with PLAYWRIGHT_API_URL for HTTP.
       NEXT_PUBLIC_API_BASE_URL: process.env.PLAYWRIGHT_API_URL
         ?? (isLive ? "https://localhost:7230" : "http://localhost:5223"),
+      // In mock/QA mode there is no real Clerk session. Clear the publishable key
+      // so ClerkProvider runs in its graceful degraded (no-session) state.
+      // CRITICAL: also disable Clerk KEYLESS mode. In `next dev` (development) with
+      // no/empty publishable key, @clerk/nextjs auto-provisions a throwaway Clerk
+      // app and redirects to its "claim your application" page on any navigation to
+      // a protected route — which hijacks router.push and breaks every e2e nav test.
+      // NEXT_PUBLIC_CLERK_KEYLESS_DISABLED=true keeps Clerk fully dormant: hooks
+      // return safe no-session defaults and the router is NOT patched.
+      ...(isLive ? {} : { NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: "", NEXT_PUBLIC_CLERK_KEYLESS_DISABLED: "true" }),
     },
   },
 });

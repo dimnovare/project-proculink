@@ -21,9 +21,9 @@ test.describe("MagicMappingPreview — /upload/preview/[orderId]", () => {
   test("renders the page header breadcrumb and heading", async ({ page }) => {
     await page.goto(PREVIEW_URL);
 
-    // Page heading
+    // Page heading — title is "Confirm item codes"
     await expect(
-      page.getByRole("heading", { level: 1, name: /map codes/i }),
+      page.getByRole("heading", { level: 1, name: /item codes/i }),
     ).toBeVisible({ timeout: 10_000 });
 
     // Breadcrumb: "Upload" link within main content (not the sidebar nav link)
@@ -38,10 +38,12 @@ test.describe("MagicMappingPreview — /upload/preview/[orderId]", () => {
       page.getByText(/review your order mapping/i),
     ).toBeVisible({ timeout: 10_000 });
 
-    // Column headers — use exact column header text to avoid ambiguous matches
+    // Column headers — use exact column header text to avoid ambiguous matches.
+    // "Canonical" was renamed to "Order field"; the rightmost column is
+    // "{counterpartyNoun} code" (e.g. "Supplier code"), so we match loosely.
     await expect(page.getByText("Source field & value")).toBeVisible();
-    await expect(page.getByText("Canonical", { exact: true })).toBeVisible();
-    await expect(page.getByText("Supplier code", { exact: true })).toBeVisible();
+    await expect(page.getByText("Order field", { exact: true })).toBeVisible();
+    await expect(page.getByText(/supplier code/i).first()).toBeVisible();
 
     // ord-002 has 4 lines; confirm multiple rows rendered
     // Line 1: TB-CAP-100 (resolved), Line 2: TB-RES-220 (AI suggestion),
@@ -95,6 +97,7 @@ test.describe("MagicMappingPreview — /upload/preview/[orderId]", () => {
   });
 
   test("clicking 'Accept all' marks suggestions accepted then commit navigates to order detail", async ({ page }) => {
+    test.setTimeout(60_000); // cold-compile of /inbox/[orderId] can exceed 30s default under CI load
     await page.goto(PREVIEW_URL);
 
     await expect(
@@ -106,19 +109,24 @@ test.describe("MagicMappingPreview — /upload/preview/[orderId]", () => {
     await expect(acceptAll).toBeVisible();
     await acceptAll.click();
 
-    // After accepting all, the "Accept all" button should be gone (no more suggestable rows)
-    // OR the count badge should reach zero — either way the commit should now be clean.
-    // We don't assert its disappearance because one row may still show 72% (still suggestable).
-    // Instead, proceed to commit.
+    // Wait for the mock API call to complete (400ms mock delay) and the "accepted" notice to appear.
+    // This ensures the preview is re-fetched and all lines are shown as resolved before we commit.
+    await expect(page.getByText(/suggestions? accepted and saved/i)).toBeVisible({ timeout: 10_000 });
 
     const commitBtn = page.getByRole("button", { name: /continue to review|confirm mapping/i });
     await expect(commitBtn).toBeVisible();
     await expect(commitBtn).toBeEnabled();
 
-    // Click commit and wait for navigation to /inbox/ord-002 (mock mode)
+    // Dismiss any Clerk dev-mode tooltip that may have appeared (Clerk SDK renders a
+    // "Configure your application" tooltip in dev/QA-bypass mode; Escape closes it).
+    await page.keyboard.press("Escape");
+
+    // Click commit and wait for navigation to /inbox/ord-002 (mock mode).
+    // Use force:true to bypass any overlapping Clerk dev-mode panel.
+    // /inbox/[orderId] is cold-compiled on first navigation — generous timeout.
     await Promise.all([
-      page.waitForURL(/\/inbox\/ord-002/i, { timeout: 15_000 }),
-      commitBtn.click(),
+      page.waitForURL(/\/inbox\/ord-002/i, { timeout: 30_000 }),
+      commitBtn.click({ force: true }),
     ]);
 
     // Confirm we landed on the order detail page

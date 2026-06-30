@@ -241,6 +241,9 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
   //    (e.g. ExceptionDetail's "Check conformance" → ?tab=conformance) opens the
   //    matching drawer tab on first paint.
   const searchParams = useSearchParams();
+  // ?sample=1 is appended by useSampleOrder when navigating to a practice order.
+  // Reading it once on mount is sufficient — the param never changes during the session.
+  const isSampleOrder = searchParams?.get("sample") === "1";
   const [detailsTab, setDetailsTab] = useState<OrderDetailsTab | null>(() => {
     const t = searchParams?.get("tab");
     return t === "passport" || t === "conformance" || t === "response" ? t : null;
@@ -577,6 +580,37 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
           </div>
         </div>
       </div>
+
+      {/* ── Practice-order banner — shown when ?sample=1 is in the URL. Mirrors the
+          copy in OnboardingChecklist so the wording is consistent across all entry
+          points (upload page, checklist, inbox empty state, Cmd+K). Pre-warns that
+          delivery stops at "delivery not set up" — expected for the sample order,
+          and honest rather than surprising. Never shown on real orders. ──────── */}
+      {isSampleOrder && (
+        <div
+          role="note"
+          aria-label="Practice order"
+          className="flex-shrink-0"
+          style={{
+            padding: "9px 16px",
+            background: "#E9F1EA",
+            borderBottom: "1px solid #BFE0C2",
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            fontSize: 12.5,
+          }}
+        >
+          <span aria-hidden style={{ fontSize: 14 }}>🟢</span>
+          <span>
+            <strong style={{ color: "#1E6D29" }}>Practice order</strong>
+            <span style={{ color: "#2E7D38" }}>
+              {" "}— free, doesn&apos;t count against your plan.
+              Sending stops at &ldquo;delivery not set up&rdquo; (expected for a practice run).
+            </span>
+          </span>
+        </div>
+      )}
 
       {/* ── Flow notice (send progress / errors) ─────────────────────────────── */}
       {flowNotice && (

@@ -101,134 +101,89 @@ test.describe("Live PO loop — upload to delivery failure", () => {
 });
 
 // ── Mock-mode parity subset (runs in CI / `bun run test:e2e`, no backend) ─────
-// Exercises both review compositions against the seeded mock order ord-002
+// Exercises the Order Workshop against the seeded mock order ord-002
 // (PO-2024-005678, pending_review, 2 needs-review lines with AI suggestions).
 // Live mode skips these — ord-002 only exists in the in-memory mock client.
+//
+// NOTE: The old ?view=triage / ?view=classic sub-view architecture was replaced
+// by the unified OrderWorkshop in the Phase-6 output-restructuring. The workshop
+// renders a single view: IssuesPanel on top + MapperWorkbench on desktop (lg+),
+// or MobileTriage on smaller viewports. These tests verify the current behaviour.
 
-test.describe("Review sub-views — mock parity subset", () => {
+test.describe("Order Workshop — mock parity subset", () => {
   test.skip(process.env.PLAYWRIGHT_LIVE === "1", "Mock subset requires mock mode (ord-002 is a mock seed)");
   test.setTimeout(60_000);
 
-  test("classic view renders the triptych, not the triage rail", async ({ page }) => {
-    await page.goto("/inbox/ord-002?view=classic");
+  test("workshop renders the order header and issues panel for a pending-review order", async ({ page }) => {
+    await page.goto("/inbox/ord-002");
+    // The PO number from mock seed ord-002 must be visible.
     await expect(page.getByText(/PO-2024-005678/).first()).toBeVisible({ timeout: 20_000 });
-    await expect(page.locator(':text("Incoming order"):visible').or(page.locator(':text("Canonical order"):visible')).first()).toBeVisible({ timeout: 20_000 });
-    await expect(page.getByTestId("fix-queue-triage")).toHaveCount(0);
-  });
-
-  test("triage view resolves the queue keyboard-first and unblocks Send from server truth", async ({ page }) => {
-    await page.goto("/inbox/ord-002?view=triage");
-    await expect(page.getByTestId("fix-queue-triage")).toBeVisible({ timeout: 20_000 });
-
-    // Queue + readiness reflect SERVER truth: 2 open AI cards, 2 of 4 lines resolved.
-    await expect(page.getByText("0 of 2 resolved")).toBeVisible();
-    await expect(page.getByTestId("readiness-lines")).toContainText("2 / 4");
-    // Send is blocked while the server reports unresolved lines.
+    // The workshop shell itself.
+    await expect(page.getByTestId("order-workshop")).toBeVisible({ timeout: 20_000 });
+    // Send is blocked while unresolved lines exist.
     await expect(page.getByRole("button", { name: /^send to supplier$/i })).toBeDisabled();
-
-    // First open card (frozen order: severity, then line number) = line 2.
-    await expect(page.getByTestId("stage-breadcrumb")).toContainText("Line 2");
-    // Context Stage panels: source crop + output fragment + rules strip. The
-    // fragment honours the same provenance rules as the full preview: line 2
-    // is AI-suggested (not blank-unresolved), so it shows the violet AI state
-    // with the backend confidence — never a fabricated resolved/green state.
-    await expect(page.getByTestId("source-zone-crop")).toBeVisible();
-    await expect(page.getByTestId("output-fragment")).toBeVisible();
-    await expect(page.getByTestId("output-fragment")).toContainText("ES-RES-220R");
-    await expect(page.getByTestId("output-fragment")).toContainText("AI mapped 84%");
-    await expect(page.getByTestId("line-rules-strip")).toBeVisible();
-
-    // A = accept the selected AI suggestion → server resolve → card collapses
-    // ONLY after the refetch confirms, then selection auto-advances to line 4.
-    await page.keyboard.press("a");
-    await expect(page.getByText("1 of 2 resolved")).toBeVisible({ timeout: 15_000 });
-    await expect(page.getByTestId("stage-breadcrumb")).toContainText("Line 4", { timeout: 15_000 });
-    await expect(page.getByTestId("readiness-lines")).toContainText("3 / 4");
-
-    await page.keyboard.press("a");
-    await expect(page.getByText("2 of 2 resolved")).toBeVisible({ timeout: 15_000 });
-    await expect(page.getByText(/all issues resolved/i)).toBeVisible();
-    await expect(page.getByTestId("readiness-lines")).toContainText("4 / 4");
-
-    // Send unblocks from the refetched server state (gate G1).
-    await expect(page.getByRole("button", { name: /^send to supplier$/i })).toBeEnabled({ timeout: 15_000 });
   });
 
-  test("?fix= deep link selects that line's card (alias of &line=)", async ({ page }) => {
-    await page.goto("/inbox/ord-002?view=triage&fix=4");
-    await expect(page.getByTestId("fix-queue-triage")).toBeVisible({ timeout: 20_000 });
-    await expect(page.getByTestId("stage-breadcrumb")).toContainText("Line 4");
-  });
-
-  test("responsive compositions: zero overflow at 1280, lg band keeps the stage, md gets the disclosure, sm inlines the stage", async ({ page }) => {
-    // 1280×800 — xl band: rail + sticky stage, ZERO horizontal overflow with
-    // the expanded 220px sidebar.
+  test("issues panel shows unresolved AI-suggestion issues and blocks Send", async ({ page }) => {
+    // Desktop viewport so the full mapper + IssuesPanel render (lg+).
     await page.setViewportSize({ width: 1280, height: 800 });
-    await page.goto("/inbox/ord-002?view=triage");
-    const triage = page.getByTestId("fix-queue-triage");
-    await expect(triage).toBeVisible({ timeout: 20_000 });
-    await expect(triage).toHaveAttribute("data-band", "xl");
-    const overflowAt = async () => page.evaluate(() => {
-      let el = document.querySelector('[data-testid="fix-queue-triage"]')?.parentElement ?? null;
-      while (el) {
-        const s = getComputedStyle(el);
-        if (s.overflowX === "auto" || s.overflowX === "scroll" || s.overflow === "auto") {
-          return el.scrollWidth - el.clientWidth;
-        }
-        el = el.parentElement;
-      }
-      return 0;
-    });
-    expect(await overflowAt()).toBeLessThanOrEqual(1);
-    await expect(page.getByTestId("context-stage")).toBeVisible();
+    await page.goto("/inbox/ord-002");
+    await expect(page.getByTestId("order-workshop")).toBeVisible({ timeout: 20_000 });
 
-    // 1024×800 — lg band: 320px rail + slim stage. This RESTORES resolution
-    // workspace to the 1024–1279 band that previously lost all wiring.
-    await page.setViewportSize({ width: 1024, height: 800 });
-    await expect(triage).toHaveAttribute("data-band", "lg");
-    await expect(page.getByTestId("context-stage")).toBeVisible();
-    expect(await overflowAt()).toBeLessThanOrEqual(1);
+    // IssuesPanel: ord-002 has 2 open AI-suggestion issues.
+    const panel = page.getByTestId("issues-panel");
+    await expect(panel).toBeVisible({ timeout: 15_000 });
+    // Header counts blocking issues (both AI-suggestion lines are blocking).
+    await expect(panel).toContainText(/2 issues/i);
+    // The panel shows the AI suggested supplier codes from the mock seed.
+    // (Issue cards surface the suggestion.supplierItemCode: ES-RES-220R / ES-WIRE-22BK-100)
+    await expect(panel).toContainText(/ES-RES-220R|AI suggestion/i);
 
-    // 800×900 — md band: full-width queue + the stage behind a disclosure.
-    await page.setViewportSize({ width: 800, height: 900 });
-    await expect(triage).toHaveAttribute("data-band", "md");
-    const disclosure = page.getByRole("button", { name: /context — line 2/i });
-    await expect(disclosure).toBeVisible();
-    await expect(page.getByTestId("context-stage")).toBeVisible();
-    await disclosure.click();
-    await expect(page.getByTestId("context-stage")).toHaveCount(0);
-    await disclosure.click();
-    await expect(page.getByTestId("context-stage")).toBeVisible();
-
-    // 375×800 — sm band: accordion queue; the stage renders INLINE under the
-    // selected card with the same handlers.
-    await page.setViewportSize({ width: 375, height: 800 });
-    await expect(triage).toHaveAttribute("data-band", "sm");
-    await expect(page.getByTestId("context-stage")).toBeVisible();
-    await expect(page.getByTestId("stage-breadcrumb")).toContainText("Line 2");
-
-    // 1920×1000 — xxl band: stage panels side-by-side.
-    await page.setViewportSize({ width: 1920, height: 1000 });
-    await expect(triage).toHaveAttribute("data-band", "xxl");
-    await expect(page.getByTestId("context-stage")).toBeVisible();
+    // Send stays gated while the issues panel reports open blockers.
+    await expect(page.getByRole("button", { name: /^send to supplier$/i })).toBeDisabled();
   });
 
-  test("g-d / g-b hotkeys jump between Full document and Triage", async ({ page }) => {
-    await page.goto("/inbox/ord-002?view=triage");
-    await expect(page.getByTestId("fix-queue-triage")).toBeVisible({ timeout: 20_000 });
+  test("bulk-accept button is present on the issues panel for AI-suggestion lines", async ({ page }) => {
+    // Desktop viewport so the full mapper + IssuesPanel render (lg+).
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await page.goto("/inbox/ord-002");
+    await expect(page.getByTestId("order-workshop")).toBeVisible({ timeout: 20_000 });
 
-    // g then d → Full document (classic) sub-view.
-    await page.keyboard.press("g");
-    await page.keyboard.press("d");
-    await expect(page.getByTestId("fix-queue-triage")).toHaveCount(0);
-    await expect(page.locator(':text("Incoming order"):visible').or(page.locator(':text("Canonical order"):visible')).first()).toBeVisible();
-    await expect(page).toHaveURL(/view=classic/);
+    // The bulk-accept header renders when there are suggestable lines.
+    // It appears inside the issues-bulk-accept slot in the IssuesPanel.
+    await expect(page.getByTestId("issues-bulk-accept")).toBeVisible({ timeout: 15_000 });
+    // The actual button must be visible and enabled.
+    const acceptAll = page.getByRole("button", { name: /accept all ai suggestions/i }).first();
+    await expect(acceptAll).toBeVisible();
+    await expect(acceptAll).toBeEnabled();
+  });
 
-    // g then b → back to Triage.
-    await page.keyboard.press("g");
-    await page.keyboard.press("b");
-    await expect(page.getByTestId("fix-queue-triage")).toBeVisible();
-    await expect(page).toHaveURL(/view=triage/);
+  test("mobile view renders the mobile-triage surface with issues and Send bar", async ({ page }) => {
+    // Narrow viewport: the full mapper is hidden, MobileTriage renders instead.
+    await page.setViewportSize({ width: 375, height: 800 });
+    await page.goto("/inbox/ord-002");
+    await expect(page.getByTestId("order-workshop")).toBeVisible({ timeout: 20_000 });
+
+    // MobileTriage is the honest reduced view on small screens.
+    await expect(page.getByTestId("mobile-triage")).toBeVisible({ timeout: 15_000 });
+    // The sticky send bar should be present.
+    await expect(page.getByTestId("mobile-send-bar")).toBeVisible();
+    // The mobile issue list shows open issues.
+    await expect(page.getByTestId("mobile-issue-list")).toBeVisible();
+  });
+
+  test("zero overflow at 1280 wide viewport", async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await page.goto("/inbox/ord-002");
+    await expect(page.getByTestId("order-workshop")).toBeVisible({ timeout: 20_000 });
+
+    // No horizontal overflow on the workshop shell at 1280×800.
+    const overflow = await page.evaluate(() => {
+      const el = document.querySelector('[data-testid="order-workshop"]');
+      if (!el) return 0;
+      return el.scrollWidth - el.clientWidth;
+    });
+    expect(overflow).toBeLessThanOrEqual(1);
   });
 });
 
