@@ -1,4 +1,13 @@
-import "@testing-library/jest-dom";
+// Vitest global setup. `globals: true` in vitest.config.ts exposes describe/it/
+// expect without imports; this file wires Testing Library's jest-dom matchers
+// (toBeInTheDocument, etc.) and runs a DOM cleanup after each test.
+import "@testing-library/jest-dom/vitest";
+import { afterEach } from "vitest";
+import { cleanup } from "@testing-library/react";
+
+afterEach(() => {
+  cleanup();
+});
 
 Object.defineProperty(window, "matchMedia", {
   writable: true,
