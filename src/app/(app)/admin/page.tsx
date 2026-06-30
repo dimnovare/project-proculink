@@ -34,9 +34,12 @@ import { Card } from "@/components/bridge/layout/Card";
 import { MobileListRow } from "@/components/bridge/layout/MobileListRow";
 import { Button } from "@/components/bridge/DSPrimitives";
 
-// Stripe is currently in TEST mode — links go to the /test/ dashboard.
-// TODO: drop "/test" once the account is switched to live mode at go-live.
-const STRIPE_CUSTOMER_BASE = "https://dashboard.stripe.com/test/customers/";
+// Stripe dashboard base URL. Defaults to live mode at go-live.
+// Set NEXT_PUBLIC_STRIPE_DASHBOARD_BASE=https://dashboard.stripe.com/test to
+// point back at the test dashboard during local development / sandbox testing.
+const STRIPE_DASHBOARD_BASE =
+  process.env.NEXT_PUBLIC_STRIPE_DASHBOARD_BASE ?? "https://dashboard.stripe.com";
+const STRIPE_CUSTOMER_BASE = `${STRIPE_DASHBOARD_BASE}/customers/`;
 
 // ── Formatting ──────────────────────────────────────────────────────────────
 function eur(n: number): string {
