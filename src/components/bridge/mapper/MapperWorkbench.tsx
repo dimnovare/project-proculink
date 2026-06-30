@@ -144,6 +144,13 @@ export interface MapperWorkbenchProps {
    */
   focusFieldId?: string | null;
   focusFieldSignal?: number;
+  /**
+   * Bumped when the order's line-review state changes (last unresolved line resolved →
+   * status goes ready). Forwarded to MapperPreviewPane so the live preview re-fetches
+   * instead of sitting on the "Cannot transform: lines still need review" message until
+   * the user switches format tabs. Omitting this keeps today's behaviour (no-op).
+   */
+  reviewSignal?: number;
 }
 
 export function MapperWorkbench(props: MapperWorkbenchProps) {
@@ -151,7 +158,7 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
     variant, readOnly, onDeliver, deliverDisabled, deliverLabel, extractionFailed,
     supplierName, onSaveMappings, saveMappingsLabel, savingMappings, onValidate,
     issuesSlot, layout, attentionFirstOutput, trustedThreshold, focusFieldId, focusFieldSignal,
-    previewDefaultFormat, autoFilledFields, mappingMode = "wires",
+    previewDefaultFormat, autoFilledFields, mappingMode = "wires", reviewSignal,
   } = props;
   const pickerMode = mappingMode === "picker";
   const scopeId = (variant === "order" ? props.orderId : props.connectionId) ?? "";
@@ -560,6 +567,7 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
       cycleFormatSignal={cycleFormatSignal}
       defaultFormat={previewDefaultFormat ?? model.outputFormat}
       supplierName={supplierName}
+      reviewSignal={reviewSignal}
       emptyHint={
         variant === "connection"
           ? "No sample order yet for this supplier — upload or receive one order to preview the live output of this mapping."

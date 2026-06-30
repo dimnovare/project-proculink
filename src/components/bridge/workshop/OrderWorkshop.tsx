@@ -359,6 +359,11 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
   // ── Display helpers for the header + confirm dialog ──────────────────────────
   const grandTotalLabel = order ? formatMoney(order.currency, resolvedGrandTotal(order)) : "";
   const outputFormatLabel = order ? outputArtifactType(order.artifacts) : "";
+  // The supplier's ACTUAL delivery output format — used in the Send confirmation
+  // modal so it always reflects what will be delivered, not whichever format the
+  // user last previewed (exploratory previews set outputFormatLabel to that tab's
+  // format, which caused the modal to say "XML" when the supplier receives CSV).
+  const sendModalFormat = (order ? orderDeliveryFormat(order) : "") || outputFormatLabel;
 
   // ── Loading / error gates (after all hooks) ─────────────────────────────────
   if (!queryEnabled || isLoading || order === undefined)
@@ -638,6 +643,7 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
             focusFieldId={focusFieldId}
             focusFieldSignal={focusSignal}
             onValidate={() => openDetails("conformance")}
+            reviewSignal={order.lines.filter((l) => l.needsReview).length}
           />
         </div>
 
@@ -680,7 +686,7 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
           onConfirm={confirmSend}
           onCancel={() => setShowConfirm(false)}
           supplierName={order.supplierName}
-          outputFormat={outputFormatLabel}
+          outputFormat={sendModalFormat}
           grandTotal={grandTotalLabel}
           lineCount={order.lines.length}
           labels={labels}

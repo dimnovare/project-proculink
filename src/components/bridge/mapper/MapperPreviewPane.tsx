@@ -50,6 +50,13 @@ export interface MapperPreviewPaneProps {
   hot?: string | null;
   /** Hovering a preview line re-asserts the hot field (bidirectional cross-highlight). */
   onHotChange?: (id: string | null) => void;
+  /**
+   * Bumped when the order's line-review state changes (e.g. the last unresolved line is
+   * resolved and status flips to ready). Including this in the effect deps re-triggers the
+   * preview fetch so the pane doesn't sit on "Cannot transform: lines still need review"
+   * after the user finishes resolving — they no longer have to switch format tabs to refresh.
+   */
+  reviewSignal?: number;
 }
 
 const FORMAT_EXT: Record<OutputFormatId, string> = {
@@ -61,7 +68,7 @@ const FORMAT_MIME: Record<OutputFormatId, string> = {
   cxml: "application/xml", ubl: "application/xml", x12: "text/plain",
 };
 
-export function MapperPreviewPane({ previewOrderId, override, lastTouched, supplierName, emptyHint, cycleFormatSignal, defaultFormat, hot, onHotChange }: MapperPreviewPaneProps) {
+export function MapperPreviewPane({ previewOrderId, override, lastTouched, supplierName, emptyHint, cycleFormatSignal, defaultFormat, hot, onHotChange, reviewSignal }: MapperPreviewPaneProps) {
   // Seed the toggle from the connection's REAL output format so a JSON supplier doesn't open
   // on a CSV mismatch. The backend (revision authority) may still swap to the pinned format —
   // deliveredFormat tracks what it actually rendered, and the header/copy/download follow that.
@@ -153,7 +160,10 @@ export function MapperPreviewPane({ previewOrderId, override, lastTouched, suppl
       }
     }, 300);
     return () => { cancelled = true; clearTimeout(t); };
-  }, [previewOrderId, override, format, connectionFormat]);
+  // reviewSignal is bumped when line-review state changes (e.g. last unresolved line
+  // resolved → status flips ready). Without it the pane stays on "Cannot transform:
+  // lines still need review" until the user switches format tabs.
+  }, [previewOrderId, override, format, connectionFormat, reviewSignal]);
 
   const onCopy = useCallback(async () => {
     if (!content) return;
