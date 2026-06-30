@@ -278,8 +278,8 @@ export default function SignUpPage() {
 
       <SignUp
         appearance={clerkAppearance}
-        fallbackRedirectUrl="/bridge"
-        signInFallbackRedirectUrl="/bridge"
+        fallbackRedirectUrl="/onboarding/select-organization"
+        signInFallbackRedirectUrl="/onboarding/select-organization"
       />
     </AuthShell>
   );
