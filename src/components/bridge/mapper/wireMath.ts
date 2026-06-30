@@ -17,12 +17,8 @@ export interface Pt { id: string; x: number; y: number; }
  */
 export function bezier(x1: number, y1: number, x2: number, y2: number): string {
   const dx = x2 - x1;
-  // §8 horizontal control offset (max 34, |dx|·0.42), CLAMPED to |dx|/2 so the two control points
-  // can never cross over. Real orders map canonically-REORDERED rows, so most wires are diagonal
-  // (small |dx|, large |dy|); without the clamp the min-34 pushed cp1 past cp2 and the wire bulged
-  // sideways out of the gutter. The `|| 34` keeps a symmetric lens for the degenerate vertical case.
-  const mag = Math.min(Math.max(34, Math.abs(dx) * 0.42), Math.abs(dx) / 2 || 34);
-  const off = Math.sign(dx || 1) * mag;
+  // Handoff §8: dx = max(34, |x2-x1| * 0.42).
+  const off = Math.sign(dx || 1) * Math.max(34, Math.abs(dx) * 0.42);
   return `M ${x1} ${y1} C ${x1 + off} ${y1} ${x2 - off} ${y2} ${x2} ${y2}`;
 }
 

@@ -213,13 +213,10 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
   const mapperLayout = useMemo<MapperWorkbenchLayout>(() => ({
     incoming: lay.grid.left,
     preview: lay.grid.right,
-    // The per-pane collapse carets drive the SAME focus the All/Mapping/Output tabs do, so the tab
-    // highlight always matches what's on screen: collapse the preview → Mapping (received+output);
-    // collapse received → Output (output+preview); expand either rail → All (all three).
-    onExpandIncoming: () => lay.setFocus("all"),
-    onExpandPreview: () => lay.setFocus("all"),
-    onCollapseIncoming: () => lay.setFocus("output"),
-    onCollapsePreview: () => lay.setFocus("mapping"),
+    onExpandIncoming: () => { lay.setFocus("all"); if (lay.leftCollapsed) lay.toggleLeft(); },
+    onExpandPreview: () => { lay.setFocus("all"); if (lay.rightCollapsed) lay.toggleRight(); },
+    onCollapseIncoming: () => { lay.setFocus("all"); if (!lay.leftCollapsed) lay.toggleLeft(); },
+    onCollapsePreview: () => { lay.setFocus("all"); if (!lay.rightCollapsed) lay.toggleRight(); },
   }), [lay]);
 
   // ── Focus a field in the mapper (IssuesPanel "Where →") — bumped signal so the
@@ -600,13 +597,13 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
       </div>
 
       {/* ── Body ─────────────────────────────────────────────────────────────── */}
-      <div style={{ flex: 1, position: "relative", overflow: "hidden", display: "flex", flexDirection: "column", minHeight: 0 }}>
+      <div style={{ flex: 1, position: "relative", overflow: "auto" }}>
         {/* Desktop mapper (lg+, ≥1024): the enhanced MapperWorkbench with the
             IssuesPanel on top. No min-width clamp — the canvas tracks (incoming
             minmax + 56px gutter + flex outgoing) fit within ~1000px so a 13"/14"
             laptop at 1024 gets the full field mapper with no horizontal scroll;
             the docked preview wraps below it until ~1440 (2-pane canvas). */}
-        <div className="hidden lg:block px-6 py-[18px]" style={{ flex: 1, display: "flex", flexDirection: "column", minHeight: 0, overflow: "hidden" }}>
+        <div className="hidden lg:block px-6 py-[18px]">
           {/* The actionable issue list — inline supplier-code entry per line lives
               here (the strip above is only a summary that scrolls to these cards). */}
           {issues.length > 0 && (

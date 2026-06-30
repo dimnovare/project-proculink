@@ -108,9 +108,7 @@ export function useWorkshopLayout(): UseWorkshopLayout {
   }, [state]);
 
   const setFocus = useCallback((focus: WorkshopFocus) => {
-    // Focus is the single source of truth for the 3-zone layout (All / Mapping / Output), so
-    // selecting one clears any stale manual per-zone collapse — "All" always shows all three.
-    setState((s) => ({ ...s, focus, leftCollapsed: false, rightCollapsed: false }));
+    setState((s) => ({ ...s, focus }));
   }, []);
   const toggleLeft = useCallback(() => {
     setState((s) => ({ ...s, leftCollapsed: !s.leftCollapsed }));

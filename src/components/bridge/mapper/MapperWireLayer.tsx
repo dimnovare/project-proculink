@@ -1,7 +1,5 @@
 "use client";
 
-// build-marker: rAF wire engine v2 (forces a fresh chunk hash so a stale build/edge cache of this
-// file can't keep serving the old trigger-based engine).
 // MapperWireLayer — the TRUE 2-bank drag/keyboard wire engine for the rebuilt mapper.
 //
 // REBUILD (2026-06-14): the previous engine drew THREE banks (source → canonical dot → target)
@@ -126,14 +124,10 @@ export function useMapperWireLayer({
   const prevConnRef = useRef<Set<string> | null>(null);
 
   const announcerRef = useRef<HTMLDivElement>(null);
+  const rafRef = useRef<number | null>(null);
   // Last-committed position signatures — commit setState only when an anchor actually MOVED so a
   // repeated measure can never drive setState→render→measure (React #185).
   const sigRef = useRef<{ s: string; t: string }>({ s: "", t: "" });
-  // SVG overlay size — the canvas SCROLL-content size, so the overlay covers + scrolls WITH the
-  // full content when the canvas is the scroll host (the bounded-height mapper). Falls back to
-  // 100% (page-scroll hosts) until measured.
-  const [dims, setDims] = useState<{ w: number; h: number }>({ w: 0, h: 0 });
-  const dimsRef = useRef(dims);
 
   const { onDragPointer, stopAutoScroll } = useDragAutoScroll(canvasRef);
 
@@ -155,10 +149,7 @@ export function useMapperWireLayer({
     if (!canvas) return;
     const c = canvas.getBoundingClientRect();
     if (c.width < 60) return; // not laid out yet — keep last good anchors
-    // CANVAS-VIEWPORT-relative coords. Each pane scrolls INSIDE the canvas (app.jsx parity); the
-    // canvas itself does not scroll. getBoundingClientRect is live, so a port scrolled within its
-    // own column reports its new viewport position here, and the scroll listener below re-measures
-    // — the wire tracks whichever column moved.
+
     const s: Pt[] = [];
     sourceIdsRef.current.forEach((id) => {
       const el = sourceEls.current[id];
@@ -176,38 +167,44 @@ export function useMapperWireLayer({
       t.push({ id: field.outputPath, x: r.left - c.left, y: r.top - c.top + r.height / 2 });
     });
 
-    // Size the overlay to the canvas CLIENT box; the SVG (overflow:hidden) clips wires whose ports
-    // have scrolled out of their column at the canvas edges.
-    const sw = Math.round(c.width);
-    const sh = Math.round(c.height);
-    if (sw !== dimsRef.current.w || sh !== dimsRef.current.h) { dimsRef.current = { w: sw, h: sh }; setDims({ w: sw, h: sh }); }
-
     const sig = (a: Pt[]) => a.map((p) => `${p.id}:${Math.round(p.x)}:${Math.round(p.y)}`).join("|");
     const sSig = sig(s), tSig = sig(t);
-    // SOURCE: a filtered-out received row unmounts → its port leaves the list; commit that so the
-    // wire stops drawing. Do NOT keep stale source ports when the received column is filtered to
-    // fewer/zero rows (that left wires dangling to hidden fields). The MutationObserver below
-    // re-measures on the filter change.
-    if (sSig !== sigRef.current.s) { sigRef.current.s = sSig; setSourcePorts(s); }
-    // TARGET (output) rows are never filtered → keep the transient-blank guard.
+    // Never blank to empty on a transient null-ref pass while rows still exist.
+    if (!(s.length === 0 && sigRef.current.s.length > 0) && sSig !== sigRef.current.s) { sigRef.current.s = sSig; setSourcePorts(s); }
     if (!(t.length === 0 && sigRef.current.t.length > 0) && tSig !== sigRef.current.t) { sigRef.current.t = tSig; setTargetPorts(t); }
   }, [canvasRef, sourceEls, targetEls]);
 
-  // ── UNIVERSAL re-measure — ONE requestAnimationFrame loop ─────────────────────
-  // Every frame, measure() reads the LIVE port positions and commits to state ONLY when an anchor
-  // actually moved (the sigRef key-diff above) — so it's cheap when static and can never loop into
-  // setState→render→measure. This SINGLE mechanism is robust to EVERY layout change: scroll, filter,
-  // collapse, resize, font load, row add/remove, sidebar/grid resize, tab switch — with no per-case
-  // observers or listeners that can drift out of sync. (This is app.jsx's Wires approach. It is also
-  // WHY each prior layout change kept breaking the wires — every change broke a different ad-hoc
-  // trigger; a continuous re-measure has none to break.)
-  useLayoutEffect(() => { measure(); }, [measure, signature]); // first paint, synchronous (no flash)
-  useEffect(() => {
-    let raf = 0;
-    const tick = () => { measure(); raf = requestAnimationFrame(tick); };
-    raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
+  // Debounce a re-measure into ONE rAF (the ResizeObserver may fire many times per frame).
+  const scheduleMeasure = useCallback(() => {
+    if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    rafRef.current = requestAnimationFrame(measure);
   }, [measure]);
+
+  // MEASURE ON LAYOUT, synchronously, committing on the first paint. Re-runs whenever the model
+  // signature changes (rows added/removed/reordered) so we never wait for the RO to notice.
+  useLayoutEffect(() => { measure(); }, [measure, signature]);
+
+  // Observe ONLY real layout changes — the canvas + every port. No scroll listener, no poll:
+  // because nothing is sticky, scrolling moves the canvas and its SVG together, so the
+  // canvas-relative coordinates stay correct with zero JS per scroll frame.
+  useEffect(() => {
+    const ro = new ResizeObserver(scheduleMeasure);
+    const seen = new Set<Element>();
+    const obs = (el: Element | null | undefined) => { if (el && !seen.has(el)) { seen.add(el); ro.observe(el); } };
+    obs(canvasRef.current);
+    Object.values(sourceEls.current).forEach(obs);
+    Object.values(targetEls.current).forEach(obs);
+    window.addEventListener("resize", scheduleMeasure);
+    // One more measure after fonts/layout settle (covers async row-height shifts).
+    const raf = requestAnimationFrame(measure);
+    return () => {
+      cancelAnimationFrame(raf);
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+      ro.disconnect();
+      window.removeEventListener("resize", scheduleMeasure);
+    };
+    // Re-bind when the signature changes so newly-added port elements get observed.
+  }, [measure, scheduleMeasure, canvasRef, sourceEls, targetEls, signature]);
 
   // ── Persistent wires (incoming → output) ──────────────────────────────────────
   // Precedence per output path:
@@ -389,10 +386,8 @@ export function useMapperWireLayer({
         style={{ position: "absolute", width: 1, height: 1, overflow: "hidden", clip: "rect(0 0 0 0)", whiteSpace: "nowrap" }} />
 
       <svg aria-hidden
-        width={dims.w || undefined} height={dims.h || undefined}
         style={{
-          position: "absolute", top: 0, left: 0, overflow: "hidden",
-          width: dims.w ? dims.w : "100%", height: dims.h ? dims.h : "100%",
+          position: "absolute", inset: 0, width: "100%", height: "100%",
           pointerEvents: hidden ? "none" : (drag ? "auto" : "none"), zIndex: 2,
           opacity: hidden ? 0 : 1,
         }}
@@ -421,8 +416,10 @@ export function useMapperWireLayer({
                   className={drawIn ? "mapper-wire-draw" : undefined}
                   style={{ pointerEvents: "none", ["--wire-len" as string]: len, animationDelay: `${wireDrawDelayMs(i)}ms`, transition: "stroke-width 140ms" }}
                 />
-                {/* No wire-end dots — the wire runs straight into the big blue/green PORT circles
-                    the row renders (app.jsx: just a wire connecting the two circles). */}
+                {/* Wire-end circles: BLUE at the received end, GREEN at the output end (app.jsx) —
+                    "blue circles connecting to green circles". */}
+                <circle cx={h.x} cy={h.y} r={2.6} fill={w.isOverride ? VIOLET : "#1E66C9"} style={{ pointerEvents: "none" }} />
+                <circle cx={z.x} cy={z.y} r={2.6} fill={w.isOverride ? VIOLET : GREEN} style={{ pointerEvents: "none" }} />
                 {landing && (
                   <circle cx={z.x} cy={z.y} r={3} fill="none" stroke={VIOLET} strokeWidth={2} className="mapper-land-pulse" style={{ pointerEvents: "none" }} />
                 )}

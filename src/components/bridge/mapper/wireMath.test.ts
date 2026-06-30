@@ -88,20 +88,19 @@ describe("nearestZone (snap)", () => {
 });
 
 describe("bezier", () => {
-  it("emits a cubic path with the §8 horizontal offset", () => {
-    // |dx| = 200 → max(34, 200*0.42) = 84, ≤ |dx|/2 (100), so off = 84.
-    expect(bezier(0, 0, 200, 50)).toBe("M 0 0 C 84 0 116 50 200 50");
+  it("emits a cubic path with clamped horizontal offset", () => {
+    expect(bezier(0, 0, 200, 50)).toMatch(/^M 0 0 C 80 0 120 50 200 50$/);
   });
-  it("clamps the offset to |dx|/2 so control points never cross over (short span)", () => {
-    // |dx| = 10 → max(34, 4.2) = 34, clamped DOWN to |dx|/2 = 5. No sideways overshoot.
-    expect(bezier(0, 0, 10, 0)).toBe("M 0 0 C 5 0 5 0 10 0");
+  it("clamps the offset to a minimum of 24 for short spans", () => {
+    // |dx| = 10 → 0.5*10 = 5, clamped up to 24.
+    expect(bezier(0, 0, 10, 0)).toBe("M 0 0 C 24 0 -14 0 10 0");
   });
-  it("keeps the 0.42 ratio for long spans (below the |dx|/2 cap)", () => {
-    // |dx| = 400 → max(34, 168) = 168, ≤ |dx|/2 (200), so off = 168.
-    expect(bezier(0, 0, 400, 0)).toBe("M 0 0 C 168 0 232 0 400 0");
+  it("clamps the offset to a maximum of 80 for long spans", () => {
+    // |dx| = 400 → 0.5*400 = 200, clamped down to 80.
+    expect(bezier(0, 0, 400, 0)).toBe("M 0 0 C 80 0 320 0 400 0");
   });
   it("respects sign for a right-to-left span", () => {
-    // dx = -200 → sign -1, magnitude 84, off = -84.
-    expect(bezier(200, 0, 0, 0)).toBe("M 200 0 C 116 0 84 0 0 0");
+    // dx = -200 → sign -1, offset -80.
+    expect(bezier(200, 0, 0, 0)).toBe("M 200 0 C 120 0 80 0 0 0");
   });
 });

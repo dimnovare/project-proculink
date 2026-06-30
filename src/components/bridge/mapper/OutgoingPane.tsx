@@ -279,13 +279,13 @@ export function OutgoingPane({
       {structuredFixedFormat && <AutoFilledSection fields={autoFilledFields} />}
 
       {targetFields.length === 0 ? (
-        <div style={{ flex: 1, minHeight: 0, overflow: "auto", padding: "12px", fontSize: 11.5, color: "var(--ink-faint)", lineHeight: 1.5 }}>
+        <div style={{ padding: "12px", fontSize: 11.5, color: "var(--ink-faint)", lineHeight: 1.5 }}>
           {canAddField
             ? "No output fields yet — add one to start shaping the delivered document."
             : "This output has no declared fields."}
         </div>
       ) : pickerMode ? (
-        <div style={{ flex: 1, minHeight: 0, overflow: "auto", padding: "10px", display: "flex", flexDirection: "column", gap: 6 }}>
+        <div style={{ padding: "10px", display: "flex", flexDirection: "column", gap: 6 }}>
           {/* Rows that NEED ATTENTION first (required + unmapped), each carrying its own inline AI fix. */}
           {needsRows.map(({ field, status }) => (
             <OutgoingRow
@@ -349,23 +349,11 @@ export function OutgoingPane({
               )}
             </>
           )}
-          {/* Bottom "+ Add output field" — same affordance as the header, at the END of the list
-              (design parity). Full-width dashed; opens the same searchable picker. */}
-          {canAddField && onAddField && (
-            <div style={{ marginTop: 2 }}>
-              <AddOutputFieldMenu fullWidth onAddField={onAddField} canonicalOptions={canonicalOptions ?? []} existingPaths={existingPaths} />
-            </div>
-          )}
         </div>
       ) : (
         // Classic (wires): every output row, flat, in declared order — unchanged from before v3.
-        <div style={{ flex: 1, minHeight: 0, overflow: "auto", padding: "10px", display: "flex", flexDirection: "column", gap: 6 }}>
+        <div style={{ padding: "10px", display: "flex", flexDirection: "column", gap: 6 }}>
           {rows.map(({ field, status }) => renderRow(field, status))}
-          {canAddField && onAddField && (
-            <div style={{ marginTop: 2 }}>
-              <AddOutputFieldMenu fullWidth onAddField={onAddField} canonicalOptions={canonicalOptions ?? []} existingPaths={existingPaths} />
-            </div>
-          )}
         </div>
       )}
     </div>
@@ -557,8 +545,8 @@ function OutgoingRow({
         style={{
           position: "absolute", left: -7, top: "50%", transform: "translateY(-50%)",
           width: 13, height: 13, borderRadius: 999,
-          // Output connection port — GREEN ring (app.jsx); fills SOLID green on hover/snap.
-          background: (hovered || snapped) ? "#2E8E3A" : "#FFFFFF",
+          // Output connection port — GREEN ring (app.jsx); white fill, fills greenSoft on snap.
+          background: snapped ? "#E9F1EA" : "#FFFFFF",
           border: "2px solid #2E8E3A",
           boxShadow: snapped ? "0 0 0 3px rgba(46,142,58,0.18)" : undefined,
           flexShrink: 0, transition: "border-color 120ms, box-shadow 120ms",
@@ -625,7 +613,7 @@ function OutgoingRow({
             the short status tag stays clustered immediately left of the chips, RIGHT-aligned, exactly
             as before — the classic screen is visually unchanged. */}
         <div style={pickerMode
-          ? { display: "flex", alignItems: "center", flex: "0 1 auto", minWidth: 0, marginLeft: "auto" }
+          ? { display: "flex", alignItems: "center", flex: "1 1 0", minWidth: 0 }
           : { display: "flex", alignItems: "center", marginLeft: "auto", minWidth: 0 }}>
 
           {pickerMode && onPickSource ? (
@@ -920,8 +908,8 @@ function RowChipButton({
       disabled={isDisabled}
       title={isDisabled ? reason : title}
       style={{
-        display: "inline-flex", alignItems: "center", gap: 3, height: 26, padding: "0 11px",
-        borderRadius: 7, fontSize: 13, fontWeight: 700, letterSpacing: "0.01em",
+        display: "inline-flex", alignItems: "center", gap: 3, height: 20, padding: "0 7px",
+        borderRadius: 6, fontSize: 11.5, fontWeight: 700, letterSpacing: "0.01em",
         whiteSpace: "nowrap", flexShrink: 0,
         border: `1px solid ${active ? "#C4ABE8" : "#E7DEF6"}`,
         background: active ? "#F4EFFC" : "transparent",
@@ -938,13 +926,11 @@ function RowChipButton({
 
 // ── "+ Add output field" — a REAL combobox: searchable canonical picker + custom-field create ──
 function AddOutputFieldMenu({
-  onAddField, canonicalOptions, existingPaths, fullWidth,
+  onAddField, canonicalOptions, existingPaths,
 }: {
   onAddField: (outputPath: string, scope: TargetField["scope"]) => void;
   canonicalOptions: CanonicalNode[];
   existingPaths: Set<string>;
-  /** Render the trigger as a full-width dashed button (the bottom-of-list "add" affordance). */
-  fullWidth?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -988,20 +974,19 @@ function AddOutputFieldMenu({
   }
 
   return (
-    <div style={{ position: "relative", ...(fullWidth ? { width: "100%" } : {}) }}>
+    <div style={{ position: "relative" }}>
       <button
         type="button"
         aria-haspopup="dialog"
         aria-expanded={open}
         onClick={() => { setOpen((o) => !o); setQuery(""); }}
         style={{
-          display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6,
+          display: "inline-flex", alignItems: "center", gap: 4,
           border: "1px dashed #A9D3AF", background: "#F4FBF5", color: "#1E6D29",
-          borderRadius: 7, padding: "6px 14px", fontSize: 13, fontWeight: 700, cursor: "pointer",
-          ...(fullWidth ? { width: "100%", padding: "11px 14px" } : {}),
+          borderRadius: 7, padding: "3px 9px", fontSize: 10.5, fontWeight: 700, cursor: "pointer",
         }}
       >
-        <span aria-hidden style={{ fontSize: 17, lineHeight: 1, display: "inline-flex", alignItems: "center", justifyContent: "center", width: 14, height: 14, marginTop: -1 }}>+</span>
+        <span aria-hidden style={{ fontSize: 12, lineHeight: 1 }}>+</span>
         Add output field
       </button>
 
@@ -1013,10 +998,7 @@ function AddOutputFieldMenu({
             role="dialog"
             aria-label="Add an output field"
             style={{
-              position: "absolute", right: 0, zIndex: 31, width: 340,
-              // The bottom (full-width) button sits at the end of the scrollable list, so its panel
-              // opens UPWARD to stay in view instead of being clipped below the scroller.
-              ...(fullWidth ? { bottom: "100%", marginBottom: 6 } : { top: "100%", marginTop: 6 }),
+              position: "absolute", right: 0, top: "100%", marginTop: 6, zIndex: 31, width: 280,
               background: "#FFFFFF", border: "1px solid #E5E8EE", borderRadius: 10,
               boxShadow: "0 12px 30px rgba(11,26,47,0.16)", overflow: "hidden",
             }}
@@ -1043,7 +1025,7 @@ function AddOutputFieldMenu({
               />
             </div>
 
-            <div style={{ maxHeight: 360, overflowY: "auto", padding: 6 }}>
+            <div style={{ maxHeight: 260, overflowY: "auto", padding: 6 }}>
               {matches.header.length === 0 && matches.line.length === 0 ? (
                 <div style={{ padding: "8px 6px", fontSize: 10.5, color: "var(--ink-faint)", lineHeight: 1.5 }}>
                   {available.length === 0

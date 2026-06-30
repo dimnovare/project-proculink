@@ -150,7 +150,7 @@ export function IncomingPane({
   return (
     <PaneFrame title="What we received" subtitle={`${counts.all} field${counts.all === 1 ? "" : "s"}`} sourceType={sourceType}>
       {/* Search — finds any field/value across groups (collapsed groups auto-reveal). */}
-      <div style={{ flexShrink: 0, padding: "12px 18px 10px" }}>
+      <div style={{ padding: "12px 18px 10px" }}>
         <input
           ref={searchRef}
           type="text"
@@ -166,7 +166,7 @@ export function IncomingPane({
       </div>
 
       {/* Filter chips. */}
-      <div role="group" aria-label="Filter incoming fields" style={{ flexShrink: 0, display: "flex", flexWrap: "wrap", gap: 6, padding: "12px 18px 10px" }}>
+      <div role="group" aria-label="Filter incoming fields" style={{ display: "flex", flexWrap: "wrap", gap: 6, padding: "12px 18px 10px" }}>
         {FILTERS.map((f) => {
           const active = filter === f.id;
           return (
@@ -192,9 +192,10 @@ export function IncomingPane({
         })}
       </div>
 
-      {/* This column scrolls INDEPENDENTLY (app.jsx parity). The wire overlay re-measures on a
-          capturing scroll listener, so wires track this column's scroll. */}
-      <div style={{ flex: 1, minHeight: 0, overflow: "auto", padding: "10px", display: "flex", flexDirection: "column", gap: 12 }}>
+      {/* NOTE: no inner-scroll container. The whole mapper CANVAS scrolls as one unit so the
+          wire overlay stays glued with zero JS — an independently-scrolling column would
+          decouple the rows from the canvas-relative SVG. Rows grow the column; the page scrolls. */}
+      <div style={{ padding: "10px", display: "flex", flexDirection: "column", gap: 12 }}>
         {groups.length === 0 ? (
           <div style={{ fontSize: 11, color: "var(--ink-faint)" }}>
             {q ? `No incoming field matches “${query}”.` : "No incoming fields match this filter."}
@@ -393,28 +394,23 @@ function IncomingRow({
       {!readOnly ? (
         <span
           {...portHandlers}
+          ref={(el) => portRef(el)}
+          className="mapper-grip"
           title={`Drag onto an output field to map ${field.label}${suggested ? ` (AI suggests → ${field.suggestedFor})` : ""}`}
           style={{
-            display: "inline-flex", alignItems: "center", gap: 7, flexShrink: 0,
-            cursor: connecting ? "grabbing" : "grab", touchAction: "none",
+            flexShrink: 0, display: "inline-flex", alignItems: "center", justifyContent: "center",
+            width: 22, height: 22, borderRadius: 6,
+            // Received connection port — BLUE ring (app.jsx); white fill, fills blueSoft on grab.
+            border: "1.5px solid #1E66C9",
+            background: connecting ? "#EAF0F8" : "#FFFFFF",
+            color: "#1E66C9",
+            cursor: connecting ? "grabbing" : "grab",
+            touchAction: "none",
+            boxShadow: connecting ? "0 0 0 3px rgba(30,102,201,0.18)" : (hovered ? "0 0 0 2px rgba(30,102,201,0.12)" : undefined),
+            transition: "border-color 120ms, background 120ms, box-shadow 120ms",
           }}
         >
-          {/* Drag-grip (dots) — a calm grey handle; app.jsx places the square NEXT TO the port. */}
-          <span aria-hidden className="mapper-grip" style={{
-            display: "inline-flex", alignItems: "center", justifyContent: "center",
-            width: 22, height: 22, borderRadius: 6, background: "#F1F3F7", border: "1px solid #DCE0E8",
-            color: "#9AA8C0", fontSize: 11, lineHeight: 1,
-          }}>{dragging ? "→" : "⠿"}</span>
-          {/* BLUE CIRCLE port — the wire anchor (app.jsx: 2px blue ring, fills on grab), mirroring
-              the green output circle it connects to. */}
-          <span ref={(el) => portRef(el)} aria-hidden style={{
-            flexShrink: 0, display: "inline-block", boxSizing: "border-box",
-            width: 14, height: 14, borderRadius: "50%",
-            // app.jsx: the port fills SOLID on hover/grab (a wire connecting two filled circles).
-            background: (connecting || hovered) ? "#1E66C9" : "#FFFFFF", border: "2px solid #1E66C9",
-            boxShadow: connecting ? "0 0 0 3px rgba(30,102,201,0.18)" : (hovered ? "0 0 0 2px rgba(30,102,201,0.12)" : "0 1px 3px rgba(11,26,47,0.2)"),
-            transition: "border-color 120ms, background 120ms, box-shadow 120ms",
-          }}/>
+          <span aria-hidden style={{ fontSize: 11, lineHeight: 1 }}>{dragging ? "→" : "⠿"}</span>
         </span>
       ) : wired ? (
         <span aria-hidden style={{ fontSize: 9, fontWeight: 700, color: "#0F4FA8", flexShrink: 0 }}>wired →</span>
