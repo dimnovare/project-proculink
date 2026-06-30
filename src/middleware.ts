@@ -42,6 +42,12 @@ function redirectToLocalSignIn(req: NextRequest, configuration?: string) {
   return NextResponse.redirect(url);
 }
 
+function redirectToCreateOrg(req: NextRequest) {
+  const url = new URL("/onboarding/select-organization", req.url);
+  url.searchParams.set("redirect_url", req.nextUrl.pathname + req.nextUrl.search);
+  return NextResponse.redirect(url);
+}
+
 const middleware = isQaAuthBypass
   ? () => NextResponse.next()
   : isClerkConfigured
@@ -51,6 +57,21 @@ const middleware = isQaAuthBypass
 
         const session = await auth();
         if (!session.userId) return redirectToLocalSignIn(req);
+
+        // Signed in but no active Clerk organization → force org creation/selection
+        // before any tenant-scoped app route. The gate route (/onboarding/...) is not
+        // in isProtectedRoute, so this never self-loops. Two escape hatches that must
+        // NOT be bounced:
+        //  - org_set=1: one-shot flag the gate appends after setActive, for the window
+        //    where the client session has an org but the edge cookie hasn't caught up
+        //    (AutoActivateOrg in (app) finishes activation).
+        //  - /admin: allowlist-gated server-side, not org-scoped, so a platform admin
+        //    may operate without an org.
+        const justSetOrg = req.nextUrl.searchParams.has("org_set");
+        const isAdmin = req.nextUrl.pathname.startsWith("/admin");
+        if (!session.orgId && !justSetOrg && !isAdmin) {
+          return redirectToCreateOrg(req);
+        }
       })
     : fallbackMiddleware;
 
