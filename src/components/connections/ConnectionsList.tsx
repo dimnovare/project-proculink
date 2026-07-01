@@ -12,15 +12,30 @@ import { PageHeader } from "@/components/bridge/layout/PageHeader";
 import { Card } from "@/components/bridge/layout/Card";
 import { EmptyState } from "@/components/bridge/EmptyState";
 import { Button } from "@/components/bridge/DSPrimitives";
-import { RevisionStatusBadge } from "@/components/connections/RevisionStatusBadge";
+import { UnifiedStatusBadge, statusTone } from "@/components/ui/UnifiedStatusBadge";
 import { listConnections, isApiMockMode } from "@/lib/api-client";
 import type { ConnectionSummary } from "@/lib/api/types";
 import { useQueriesEnabled } from "@/hooks/useQueriesEnabled";
 import { formatDate } from "@/lib/format-date";
 
-/** The active published version's status when one is live, else the connection has only drafts. */
-function liveStatus(c: ConnectionSummary): "published" | "draft" {
-  return c.activeRevisionId ? "published" : "draft";
+/** Left-accent colour per semantic tone, mirroring UnifiedStatusBadge's token map. */
+const TONE_ACCENT: Record<string, string> = {
+  success: "var(--brand-green)",
+  warning: "var(--amber)",
+  danger: "var(--danger)",
+  info: "var(--brand-blue)",
+  neutral: "var(--ink-faint)",
+};
+
+/**
+ * Resolve a connection's real row status for UnifiedStatusBadge (no more all-green).
+ * Live (has an active published revision) -> success; draft-only -> neutral. The
+ * needs-attention -> warning branch is wired for when the summary DTO exposes such
+ * a signal; ConnectionSummary carries none today, so it never fires (no fake data).
+ */
+function badgeStatus(c: ConnectionSummary): { status: string; accent: string } {
+  const status = c.activeRevisionId ? "delivered" : "draft";
+  return { status, accent: TONE_ACCENT[statusTone(status)] ?? "var(--ink-faint)" };
 }
 
 export function ConnectionsList() {
@@ -89,7 +104,9 @@ export function ConnectionsList() {
 
       {!isLoading && !isError && connections.length > 0 && (
         <ul className="flex flex-col gap-2.5 list-none p-0 m-0">
-          {connections.map((c) => (
+          {connections.map((c) => {
+            const badge = badgeStatus(c);
+            return (
             <li key={c.id}>
               <Link
                 href={`/connections/${c.id}`}
@@ -97,7 +114,7 @@ export function ConnectionsList() {
                 style={{
                   background: "var(--surface)",
                   border: "1px solid var(--border)",
-                  borderLeft: "3px solid var(--brand-green)",
+                  borderLeft: `3px solid ${badge.accent}`,
                   borderRadius: "var(--radius-md)",
                   padding: "14px 16px",
                   boxShadow: "var(--shadow-card)",
@@ -133,14 +150,15 @@ export function ConnectionsList() {
 
                 {/* Meta cluster */}
                 <div className="flex items-center gap-3 flex-shrink-0 flex-wrap">
-                  <RevisionStatusBadge status={liveStatus(c)} size="md" />
+                  <UnifiedStatusBadge status={badge.status} />
                   <span aria-hidden style={{ color: "var(--ink-faint)", fontSize: 16 }}>
                     ›
                   </span>
                 </div>
               </Link>
             </li>
-          ))}
+            );
+          })}
         </ul>
       )}
     </PageShell>
