@@ -4,6 +4,7 @@ import { Suspense, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   useAuth,
+  useUser,
   useOrganization,
   useOrganizationList,
   CreateOrganization,
@@ -11,6 +12,7 @@ import {
 } from "@clerk/nextjs";
 import { isApiMockMode, isQaBypass } from "@/lib/api-client";
 import { decideOrgGate } from "@/components/onboarding/orgGate";
+import { deriveWorkspaceName } from "@/components/onboarding/workspaceName";
 
 function Shell({ children }: { children: React.ReactNode }) {
   return (
@@ -46,12 +48,14 @@ function SelectOrganizationInner() {
   const dest = params.get("redirect_url") || "/bridge";
 
   const { isLoaded: authLoaded, isSignedIn } = useAuth();
+  const { user } = useUser();
   const { organization } = useOrganization();
   // useOrganizationList returns a DISCRIMINATED UNION: in the not-loaded branch
-  // `setActive` is undefined and `userMemberships.data` is undefined. The
-  // `!setActive` / `?? []` / `data !== undefined` guards below are LOAD-BEARING —
-  // do not "simplify" them away (mirrors the shipped AutoActivateOrg precedent).
-  const { userMemberships, setActive } = useOrganizationList({
+  // `setActive`/`createOrganization` are undefined and `userMemberships.data` is
+  // undefined. The `!setActive` / `?? []` / `data !== undefined` guards below are
+  // LOAD-BEARING — do not "simplify" them away (mirrors the shipped
+  // AutoActivateOrg precedent).
+  const { userMemberships, setActive, createOrganization } = useOrganizationList({
     userMemberships: { infinite: true },
   });
 
@@ -65,6 +69,12 @@ function SelectOrganizationInner() {
   // becomes active, which would fire setActive again. Latch it so the activate
   // path invokes setActive at most once.
   const activatingRef = useRef(false);
+
+  // Same one-shot rationale for the auto-create path: createOrganization is
+  // async, so latch it so we create the workspace at most once. On failure we
+  // release the latch and fall back to the manual CreateOrganization form.
+  const creatingRef = useRef(false);
+  const [createError, setCreateError] = useState(false);
 
   const bypass = isApiMockMode || isQaBypass;
 
@@ -94,7 +104,34 @@ function SelectOrganizationInner() {
         router.replace(appendOrgSetFlag(dest));
       });
     }
-  }, [bypass, authLoaded, isSignedIn, action, dest, router, setActive]);
+    // Zero-org user: auto-create a workspace with a friendly derived name (no
+    // create-org form). createOrganization resolves to an OrganizationResource;
+    // activate it, mark it auto-named (so the rename nudge can surface), then
+    // forward into the app. On failure, release the latch and set createError
+    // so the render falls back to the manual CreateOrganization form — never a
+    // dead end.
+    if (
+      action.kind === "create" &&
+      createOrganization &&
+      setActive &&
+      !creatingRef.current &&
+      !createError
+    ) {
+      creatingRef.current = true;
+      const name = deriveWorkspaceName(user?.firstName, user?.primaryEmailAddress?.emailAddress);
+      void createOrganization({ name })
+        .then((org) =>
+          setActive({ organization: org.id }).then(() => {
+            try { localStorage.setItem("ws-autonamed", org.id); } catch { /* storage may be blocked */ }
+            router.replace(appendOrgSetFlag(dest));
+          }),
+        )
+        .catch(() => {
+          creatingRef.current = false;
+          setCreateError(true);
+        });
+    }
+  }, [bypass, authLoaded, isSignedIn, action, dest, router, setActive, createOrganization, createError, user]);
 
   if (timedOut && (action.kind === "loading" || action.kind === "activate")) {
     return (
@@ -108,11 +145,17 @@ function SelectOrganizationInner() {
   }
 
   if (action.kind === "create") {
-    return (
-      <Shell>
-        <CreateOrganization afterCreateOrganizationUrl={appendOrgSetFlag(dest)} skipInvitationScreen />
-      </Shell>
-    );
+    // Happy path: we auto-create the workspace in the effect above, so render
+    // the spinner (NOT the form) while that runs. Only if creation FAILED do we
+    // fall back to the manual CreateOrganization form so the user is never stuck.
+    if (createError) {
+      return (
+        <Shell>
+          <CreateOrganization afterCreateOrganizationUrl={appendOrgSetFlag(dest)} skipInvitationScreen />
+        </Shell>
+      );
+    }
+    return <Shell><GateSpinner /></Shell>;
   }
   if (action.kind === "select") {
     return (

@@ -262,6 +262,10 @@ function OrgSection() {
       ? "Loading members…"
       : `${memberCount} ${memberCount === 1 ? "person has" : "people have"} access.`;
 
+  const trimmedName = name.trim();
+  // Disable Save when there's nothing to save (empty / unchanged) or in-flight.
+  const canSave = !!organization && !saving && trimmedName.length > 0 && trimmedName !== orgName;
+
   async function handleSave() {
     if (!organization) return;
     const trimmed = name.trim();
@@ -271,6 +275,9 @@ function OrgSection() {
     setFeedback(null);
     try {
       await organization.update({ name: trimmed });
+      // The user has now taken ownership of the name — retire the auto-name
+      // nudge so it never reappears for this (or any) workspace.
+      try { localStorage.removeItem("ws-autonamed"); } catch { /* storage may be blocked */ }
       setFeedback({ text: "Workspace name updated.", kind: "ok" });
     } catch (err) {
       setFeedback({ text: (err as Error).message || "Could not save changes.", kind: "err" });
@@ -322,8 +329,8 @@ function OrgSection() {
         <div style={{ marginTop: 18, display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
           <button
             onClick={handleSave}
-            disabled={saving || !organization}
-            style={{ ...primaryGreenButton, background: saving || !organization ? "var(--ink-faint)" : "var(--brand-green)", cursor: saving || !organization ? "not-allowed" : "pointer" }}
+            disabled={!canSave}
+            style={{ ...primaryGreenButton, background: canSave ? "var(--brand-green)" : "var(--ink-faint)", cursor: canSave ? "pointer" : "not-allowed" }}
           >
             <Save size={14} strokeWidth={2} />
             {saving ? "Saving…" : "Save changes"}
