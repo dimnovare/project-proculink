@@ -642,9 +642,12 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
       {/* ── Top action bar (desktop) ────────────────────────────────────── */}
       <div className="hidden lg:flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
-          <span style={{ fontFamily: "var(--font-display, 'Bricolage Grotesque', Inter, sans-serif)", fontSize: 13, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.02em", color: "var(--ink)" }}>
-            {variant === "order" ? "Map this order" : "Map fields"}
-          </span>
+          {/* The order variant's H1 already says "Map this order" — don't repeat it here. */}
+          {variant !== "order" && (
+            <span style={{ fontFamily: "var(--font-display, 'Bricolage Grotesque', Inter, sans-serif)", fontSize: 13, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.02em", color: "var(--ink)" }}>
+              Map fields
+            </span>
+          )}
           <MappedSummaryChip mapped={summary.mappedCount} total={summary.total} />
           {model.saving && <span style={{ fontSize: 10.5, color: "var(--ink-faint)" }}>Saving…</span>}
           {!model.saving && !model.error && justSaved && (

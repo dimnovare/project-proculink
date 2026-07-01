@@ -495,9 +495,15 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
             </button>
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2.5">
-                <h1 style={{ fontFamily: "'Bricolage Grotesque',Inter,sans-serif", fontSize: 22, fontWeight: 800, letterSpacing: "-0.02em", color: "#0B1A2F", lineHeight: 1.1, minWidth: 0, overflowWrap: "anywhere" }}>
-                  {order.poNumber}
+                <h1 style={{ fontFamily: "'Bricolage Grotesque',Inter,sans-serif", fontSize: 22, fontWeight: 800, letterSpacing: "-0.02em", color: "#0B1A2F", lineHeight: 1.1, whiteSpace: "nowrap" }}>
+                  Map this order
                 </h1>
+                <span
+                  title={`Order ${order.poNumber}`}
+                  style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 12.5, fontWeight: 600, color: "#566982", background: "#F1F3F7", border: "1px solid #E5E8EE", borderRadius: 6, padding: "2px 8px", whiteSpace: "nowrap", minWidth: 0, overflow: "hidden", textOverflow: "ellipsis" }}
+                >
+                  {order.poNumber}
+                </span>
                 <UnifiedStatusBadge size="md" status={crossed ? "delivered" : exceptionCount > 0 ? "pending_review" : order.status} />
                 <InvoiceBadge documentType={order.documentType} />
                 {order.status === "delivery_dead_letter" && (
@@ -544,17 +550,16 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
               </button>
             </div>
 
-            {/* Focus: All / Mapping / Output — the progressive-disclosure control.
-                Desktop mapper (lg+): the tabs drive the desktop MapperWorkbench, which
-                is itself hidden below lg, so below that they would be inert AND overflow
-                the header. Tied to the same lg gate as the mapper so the SAME toolset is
-                available at 1024–1279. */}
-            <div className="hidden lg:flex">
-              <FocusControl focus={lay.focus} onFocus={lay.setFocus} />
+            {/* Pipeline stepper — Received → … → Sent — lives in the title row (app.jsx
+                structure), not the banner below. The All/Mapping/Output focus tabs were
+                removed: the per-pane collapse carets drive the identical focus, so the
+                tabs were redundant header clutter. */}
+            <div className="hidden xl:flex">
+              <WorkshopStepper stage={stepperStage} failed={stepperFailed} />
             </div>
 
             {/* Send — gated by canSend (issues clear + server-truth exceptions clear). */}
-            <div style={{ position: "relative" }} onMouseEnter={() => setSendTip(true)} onMouseLeave={() => setSendTip(false)}>
+            <div style={{ position: "relative", display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 3 }} onMouseEnter={() => setSendTip(true)} onMouseLeave={() => setSendTip(false)}>
               <button
                 type="button"
                 onClick={() => canSend && setShowConfirm(true)}
@@ -579,10 +584,13 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
                     ? "Preparing the file…"
                     : sendState === "delivering"
                       ? labels.primaryCtaProgress
-                      : blockingIssues > 0 || exceptionCount > 0
-                        ? `Fix ${Math.max(blockingIssues, exceptionCount)} to send`
-                        : labels.primaryCta}
+                      : labels.primaryCta}
               </button>
+              {!canSend && !crossed && sendState === "idle" && (blockingIssues > 0 || exceptionCount > 0) && (
+                <span style={{ fontSize: 10.5, fontWeight: 600, color: "#B36D14", whiteSpace: "nowrap" }}>
+                  Resolve blockers to send
+                </span>
+              )}
               {sendTip && !canSend && !crossed && sendState === "idle" && (blockingIssues > 0 || exceptionCount > 0) && (
                 <div
                   role="tooltip"
@@ -660,7 +668,6 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
           onResolveAll={issuesResolve.bulkAcceptSuggestions ? () => issuesResolve.bulkAcceptSuggestions!(0) : undefined}
           resolveAllCount={suggestableCount}
           resolving={issuesResolve.bulkAccepting}
-          pipeline={<WorkshopStepper stage={stepperStage} failed={stepperFailed} />}
         />
       </div>
 
