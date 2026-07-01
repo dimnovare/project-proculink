@@ -9,6 +9,7 @@ import { BridgeSidebar } from "@/components/bridge/BridgeSidebar";
 import { BridgeTopbar } from "@/components/bridge/BridgeTopbar";
 import { ErrorBoundary } from "@/components/bridge/ErrorBoundary";
 import { MSWProvider } from "@/mocks/MSWProvider";
+import { WorkspaceNameNudge } from "@/components/onboarding/WorkspaceNameNudge";
 
 /**
  * Auto-activates the user's first Clerk organization when they have one but
@@ -198,6 +199,7 @@ export default function AppShellLayout({
           <div className="flex flex-1 flex-col min-w-0 overflow-hidden">
             <BridgeTopbar onMenuClick={openSidebar} />
             <main className="flex-1 overflow-auto">
+              <WorkspaceNameNudge />
               <ErrorBoundary context="App">
                 {children}
               </ErrorBoundary>
