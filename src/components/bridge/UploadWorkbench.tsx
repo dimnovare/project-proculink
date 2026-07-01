@@ -1383,6 +1383,21 @@ export function UploadWorkbench() {
                   <span>{uploadError.message}</span>
                 </span>
                 {(() => {
+                  // "Got it" on the pacing/throttle banner is a pure acknowledgement
+                  // — the copy explicitly says the plan and the other files are
+                  // unaffected — so it dismisses the banner rather than deep-linking
+                  // to billing (which the else-branch below would wrongly do).
+                  if (uploadError.code === "rate_limited") {
+                    return (
+                      <button
+                        type="button"
+                        onClick={() => setUploadError(null)}
+                        style={{ fontWeight: 600, color: "#B36D14", background: "none", border: "none", cursor: "pointer", whiteSpace: "nowrap", padding: 0 }}
+                      >
+                        {uploadError.cta}
+                      </button>
+                    );
+                  }
                   const ctaHref =
                     uploadError.code === "supplier_required" ? "/library/suppliers"
                     : uploadError.code === "upload_failed"   ? "/settings"

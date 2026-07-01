@@ -369,10 +369,13 @@ export function BridgeTopbar({ crumb, onMenuClick }: BridgeTopbarProps) {
           <Menu size={18} strokeWidth={2.2} />
         </button>
 
-        {/* Demo-mode badge — visible only when NEXT_PUBLIC_USE_MOCK=true.
-            Full pill from sm up; a compact dot-only pill on mobile so the
-            honesty signal isn't lost on small screens. */}
-        {process.env.NEXT_PUBLIC_USE_MOCK === "true" && (
+        {/* Demo-mode badge — gated on the SAME isApiMockMode flag the data layer
+            uses (raw NEXT_PUBLIC_USE_MOCK && NODE_ENV !== "production"), so the
+            badge and the actual mock-data mode can never diverge. Reading the raw
+            env here would show "Demo data" over the user's REAL live orders in a
+            production build that still had the flag set. Full pill from sm up; a
+            compact dot-only pill on mobile so the honesty signal survives. */}
+        {isApiMockMode && (
           <span
             className="inline-flex items-center flex-shrink-0"
             style={{

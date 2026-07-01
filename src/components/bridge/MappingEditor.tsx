@@ -955,7 +955,10 @@ function MappingPanel({
                 <path d="M3.5 8.5l3 3 6-6.5" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
             )}
-            {panel.kind === "export" ? "Export CSV" : panel.kind === "import" ? "Validate import" : "Save mapping"}
+            {/* "Import mappings" (not "Validate import"): in a live API session this
+                upserts the rows for real (Imported: X created, Y updated) — the label
+                must match the write it performs, matching the panel title above. */}
+            {panel.kind === "export" ? "Export CSV" : panel.kind === "import" ? "Import mappings" : "Save mapping"}
           </button>
         </div>
       </div>

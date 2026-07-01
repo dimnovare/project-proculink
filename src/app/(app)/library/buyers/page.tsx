@@ -419,6 +419,18 @@ export default function BuyersPage() {
                 <tr
                   key={b.id}
                   onClick={() => router.push(`/inbox?buyer=${b.code}`)}
+                  // Keyboard-operable row: the whole row navigates on click, so give
+                  // it a button role + tab stop + Enter/Space handler, otherwise
+                  // keyboard-only users can't open a buyer at all.
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      router.push(`/inbox?buyer=${b.code}`);
+                    }
+                  }}
+                  aria-label={`Filter inbox to orders from ${b.name}`}
                   title="Filter inbox to orders from this buyer"
                   style={{
                     cursor: "pointer",
@@ -427,6 +439,8 @@ export default function BuyersPage() {
                   }}
                   onMouseEnter={() => setHoverRow(b.id)}
                   onMouseLeave={() => setHoverRow(null)}
+                  onFocus={() => setHoverRow(b.id)}
+                  onBlur={() => setHoverRow(null)}
                 >
                   {/* Buyer: icon tile + name + code */}
                   <td

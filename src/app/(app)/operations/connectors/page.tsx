@@ -241,6 +241,9 @@ function ConnectorCard({
           <button
             className="connector-action btn-ghost"
             onClick={() => onManage(connector)}
+            /* Opens the READ-ONLY review panel (per-supplier delivery is set up in
+               the supplier's Delivery tab), so the verb is "Review", not "Connect"
+               — the button never connects anything itself. */
             style={{
               height: 27,
               padding: "0 12px",
@@ -254,7 +257,7 @@ function ConnectorCard({
               whiteSpace: "nowrap",
             }}
           >
-            Connect
+            Review
           </button>
         )}
       </div>

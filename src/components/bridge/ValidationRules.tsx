@@ -124,14 +124,17 @@ const ENTITIES: Entity[] = ["Line item", "Header", "Supplier", "Buyer", "Amount"
 
 // ─── Toggle ───────────────────────────────────────────────────────────────────
 
-function Toggle({ on, onChange }: { on: boolean; onChange: (v: boolean) => void }) {
+function Toggle({ on, onChange, label }: { on: boolean; onChange: (v: boolean) => void; label?: string }) {
   // Ported design `.toggle` class (38×22, green-when-on knob). role/aria kept
-  // for accessibility + any switch-based selectors.
+  // for accessibility + any switch-based selectors. The switch is icon-only, so
+  // an aria-label (built from the row's rule name) gives a screen reader a name
+  // to announce — otherwise it reads only "switch, checked" with no context.
   return (
     <button
       onClick={() => onChange(!on)}
       role="switch"
       aria-checked={on}
+      aria-label={label ? `${on ? "Disable" : "Enable"} rule ${label}` : undefined}
       className={`toggle${on ? " on" : ""}`}
       style={{ cursor: "pointer" }}
     />
@@ -379,7 +382,7 @@ export function ValidationRules() {
                         </td>
                         <td className="px-5 py-3.5 text-[13px] font-semibold" style={{ fontFamily: "'JetBrains Mono', ui-monospace, SFMono-Regular, monospace", fontVariantNumeric: "tabular-nums", color: r.triggers > 0 ? "#0B1A2F" : "#CBD0DA" }}>{r.triggers}</td>
                         <td className="px-5 py-3.5" style={{ textAlign: "right" }} onClick={(e) => e.stopPropagation()}>
-                          <Toggle on={r.enabled} onChange={() => handleToggle(r.id)} />
+                          <Toggle on={r.enabled} onChange={() => handleToggle(r.id)} label={r.name} />
                         </td>
                       </tr>
                     );
@@ -421,7 +424,7 @@ export function ValidationRules() {
                       style={{ minWidth: 44, minHeight: 44 }}
                       onClick={(e) => e.stopPropagation()}
                     >
-                      <Toggle on={r.enabled} onChange={() => handleToggle(r.id)} />
+                      <Toggle on={r.enabled} onChange={() => handleToggle(r.id)} label={r.name} />
                     </div>
                   </div>
                   <div className="mt-3 flex flex-wrap items-center gap-x-2.5 gap-y-2">
