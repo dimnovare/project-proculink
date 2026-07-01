@@ -4,6 +4,7 @@
 import { EmptyState } from "@/components/bridge/EmptyState";
 import { PageShell } from "@/components/bridge/layout/PageShell";
 import { PageHeader } from "@/components/bridge/layout/PageHeader";
+import { X } from "lucide-react";
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
@@ -654,7 +655,7 @@ function WebhookPanel({
               flexShrink: 0,
             }}
           >
-            ×
+            <X size={18} aria-hidden />
           </button>
         </div>
 

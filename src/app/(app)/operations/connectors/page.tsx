@@ -5,6 +5,7 @@ import { EmptyState } from "@/components/bridge/EmptyState";
 import { PageShell } from "@/components/bridge/layout/PageShell";
 import { PageHeader } from "@/components/bridge/layout/PageHeader";
 import Link from "next/link";
+import { X } from "lucide-react";
 import { useState, useEffect, type ReactNode } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { getSuppliers, testFireDeliveryConfig, isApiMockMode } from "@/lib/api-client";
@@ -744,7 +745,7 @@ function ConnectorPanel({
               flexShrink: 0,
             }}
           >
-            ×
+            <X size={18} aria-hidden />
           </button>
         </div>
 

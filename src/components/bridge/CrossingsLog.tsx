@@ -14,6 +14,7 @@ import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { getAuditLog, isApiMockMode, type AuditLogEntry } from "@/lib/api-client";
 import { EmptyState } from "./EmptyState";
+import { UnifiedStatusBadge } from "./UnifiedStatusBadge";
 import { PageHeader } from "./layout/PageHeader";
 import { PageShell } from "./layout/PageShell";
 
@@ -319,6 +320,59 @@ function SkeletonRow() {
   );
 }
 
+// ─── Desktop column header ────────────────────────────────────────────────────
+// Gives the flat desktop row-list a real, sticky table head. Column widths match
+// the desktop CrossingRow exactly (Time 64 · icon 26 · Status 92 · PO 150 · Route
+// grow · Actor 110 · chevron 15) with the same gap-3 / 11px-16px padding. The log
+// is an append-only, time-descending feed, so Time carries a static
+// aria-sort="descending". Sticks to the PageShell scroll viewport; opaque --bg so
+// scrolled rows don't bleed through, single low-contrast --border gridline below.
+function DesktopColHeader() {
+  const cell = {
+    fontSize: 10.5,
+    fontWeight: 700 as const,
+    letterSpacing: "0.06em",
+    textTransform: "uppercase" as const,
+    color: "var(--ink-faint)",
+  };
+  return (
+    // role="table" wrapper so the columnheader + aria-sort roles below are valid
+    // (an orphaned role="row"/"columnheader" with no table/grid ancestor is dropped
+    // by assistive tech). Sticky + visual layout live on this container unchanged;
+    // the inner role="row" is display:contents so it adds no box.
+    <div
+      role="table"
+      aria-label="Delivery log columns"
+      className="row gap-3 items-center"
+      style={{
+        position: "sticky",
+        top: 0,
+        zIndex: 2,
+        padding: "9px 16px",
+        background: "var(--bg)",
+        borderBottom: "1px solid var(--border)",
+        marginBottom: 8,
+      }}
+    >
+      <div role="row" style={{ display: "contents" }}>
+        <span role="columnheader" aria-sort="descending" style={{ ...cell, width: 64, flexShrink: 0 }}>
+          Time
+        </span>
+        {/* icon circle column (26px) — no header text */}
+        <span aria-hidden style={{ width: 26, flexShrink: 0 }} />
+        <span role="columnheader" style={{ ...cell, width: 92, flexShrink: 0 }}>Status</span>
+        <span role="columnheader" style={{ ...cell, width: 150, flexShrink: 0 }}>PO</span>
+        <span role="columnheader" className="grow" style={{ ...cell, minWidth: 0 }}>Route</span>
+        <span role="columnheader" style={{ ...cell, width: 110, flexShrink: 0, textAlign: "right" }}>
+          Actor
+        </span>
+        {/* chevron column (15px) — no header text */}
+        <span aria-hidden style={{ width: 15, flexShrink: 0 }} />
+      </div>
+    </div>
+  );
+}
+
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export function CrossingsLog() {
@@ -495,7 +549,10 @@ export function CrossingsLog() {
               />
             </div>
           ) : (
-            Array.from(byDate.entries()).map(([key, { label, entries }]) => (
+            <>
+            {/* Sticky desktop table head — one head for the whole log (hidden on mobile stacked cards) */}
+            {!isMobile && <DesktopColHeader />}
+            {Array.from(byDate.entries()).map(([key, { label, entries }]) => (
               <div key={key} style={{ marginBottom: 18 }}>
                 {/* Date eyebrow */}
                 <div className="eyebrow" style={{ marginBottom: 8 }}>{label}</div>
@@ -556,9 +613,7 @@ export function CrossingsLog() {
                                   <path d={ev.iconPath} />
                                 </svg>
                               </span>
-                              <span style={{ fontSize: 13, fontWeight: 600, color: ev.color }}>
-                                {ev.label}
-                              </span>
+                              <UnifiedStatusBadge status={c.canonicalEvent} />
                               <span className="mono faint" style={{ marginLeft: "auto", fontSize: 11.5, flexShrink: 0 }}>
                                 {c.ts}
                               </span>
@@ -613,8 +668,8 @@ export function CrossingsLog() {
                             cursor: "pointer",
                           }}
                         >
-                          {/* Time */}
-                          <span className="mono faint" style={{ fontSize: 11.5, width: 64, flexShrink: 0 }}>
+                          {/* Time — tabular figures so timestamps stay column-aligned */}
+                          <span className="mono faint" style={{ fontSize: 11.5, width: 64, flexShrink: 0, fontVariantNumeric: "tabular-nums" }}>
                             {c.ts}
                           </span>
 
@@ -636,9 +691,9 @@ export function CrossingsLog() {
                             </svg>
                           </span>
 
-                          {/* Event label */}
-                          <span style={{ width: 92, flexShrink: 0, fontSize: 12.5, fontWeight: 600, color: ev.color }}>
-                            {ev.label}
+                          {/* Status pill — canonical UnifiedStatusBadge (one shape per row) */}
+                          <span style={{ width: 92, flexShrink: 0, display: "inline-flex" }}>
+                            <UnifiedStatusBadge status={c.canonicalEvent} />
                           </span>
 
                           {/* PO mono */}
@@ -890,7 +945,8 @@ export function CrossingsLog() {
                   })}
                 </div>
               </div>
-            ))
+            ))}
+            </>
           )}
         </>
       )}
