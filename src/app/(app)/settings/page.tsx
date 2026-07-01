@@ -6,7 +6,8 @@ import { useOrganization } from "@clerk/nextjs";
 import { PageHeader } from "@/components/bridge/layout/PageHeader";
 import { PageShell } from "@/components/bridge/layout/PageShell";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Building, Copy, Database, Euro, HardDrive, Key, Mail, Plug, Plus, Save, ShieldCheck, Trash2, Zap } from "lucide-react";
+import { AlertTriangle, Building, Copy, Database, Euro, HardDrive, Key, Mail, Plug, Plus, Save, ShieldCheck, Trash2, Zap } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { BillingSection } from "@/components/bridge/BillingSection";
 import { SettingsGroup, primaryGreenButton } from "@/components/settings/SettingsPrimitives";
 import {
@@ -1033,35 +1034,41 @@ function ApiKeysSection() {
         {/* Where to send orders — slug + endpoint + auth header */}
         <IngressEndpointRow slug={orgSettings?.slug} />
 
-        {/* New key banner */}
-        {newKey && (
-          <div style={{ border: "1px solid rgba(46,142,58,0.40)", background: "var(--brand-green-soft)", borderRadius: 8, padding: "14px 16px", marginBottom: 16 }}>
-            <p style={{ fontSize: 12.5, fontWeight: 600, color: "var(--brand-green-deep)", marginBottom: 4 }}>
-              API key created — copy it now
-            </p>
-            <p style={{ fontSize: 11.5, color: "var(--brand-green-deep)", marginBottom: 10 }}>
-              This key cannot be retrieved again after you dismiss this notice.
-            </p>
+        {/* One-time API key reveal — a focus-trapped modal (Esc / ✕ / backdrop close).
+            The secret is shown ONCE and cannot be retrieved again after dismissal. */}
+        <Dialog open={!!newKey} onOpenChange={(open) => { if (!open) setNewKey(null); }}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <AlertTriangle size={16} style={{ color: "var(--amber)" }} aria-hidden />
+                Copy your new API key now
+              </DialogTitle>
+              <DialogDescription>
+                This is the only time the full key is shown. It cannot be retrieved again after you close this dialog — store it somewhere safe.
+              </DialogDescription>
+            </DialogHeader>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <code style={{ flex: 1, fontSize: 12, fontFamily: "'JetBrains Mono', monospace", background: "var(--surface)", border: "1px solid rgba(46,142,58,0.40)", borderRadius: 5, padding: "8px 10px", color: "var(--brand-green-deep)", wordBreak: "break-all" }}>
+              <code style={{ flex: 1, fontSize: 12, fontFamily: "'JetBrains Mono', monospace", background: "var(--surface-2)", border: "1px solid var(--border)", borderRadius: 6, padding: "10px 12px", color: "var(--ink)", wordBreak: "break-all" }}>
                 {newKey}
               </code>
               <button
-                onClick={() => handleCopy(newKey)}
-                style={{ display: "flex", alignItems: "center", gap: 4, height: 34, padding: "0 12px", border: "1px solid var(--brand-green)", borderRadius: 6, background: "var(--surface)", color: "var(--brand-green-deep)", fontSize: 12, fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap" }}
+                onClick={() => newKey && handleCopy(newKey)}
+                style={{ display: "flex", alignItems: "center", gap: 5, height: 38, padding: "0 14px", border: "1px solid var(--brand-green)", borderRadius: 7, background: "var(--brand-green)", color: "#FFFFFF", fontSize: 12.5, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap" }}
               >
                 <Copy size={13} />
                 {copied ? "Copied!" : "Copy"}
               </button>
             </div>
-            <button
-              onClick={() => setNewKey(null)}
-              style={{ marginTop: 10, background: "none", border: "none", color: "var(--ink-muted)", fontSize: 12, cursor: "pointer", padding: 0 }}
-            >
-              I&apos;ve saved it, dismiss
-            </button>
-          </div>
-        )}
+            <DialogFooter>
+              <button
+                onClick={() => setNewKey(null)}
+                style={{ height: 36, padding: "0 14px", border: "1px solid var(--border-strong)", borderRadius: 7, background: "var(--surface)", color: "var(--ink)", fontSize: 12.5, fontWeight: 600, cursor: "pointer" }}
+              >
+                I&apos;ve saved it
+              </button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
         {/* Keys table */}
         {isLoading && (
