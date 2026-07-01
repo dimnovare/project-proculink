@@ -80,7 +80,12 @@ export function fixQueueToIssues(queue: FixQueueCard[]): WorkshopIssue[] {
       return {
         code: c.key,
         severity: isWarning ? "warning" : "blocking",
-        ref: c.lineId ?? c.key,
+        // A line card ("needs a supplier code") points onFocusField at the
+        // SupplierItemCode OUTPUT field so the cross-column highlight lands on a
+        // real mapper row — a bare lineId does not resolve for collapsed
+        // multi-line orders. Rule-failures keep their key (it carries the
+        // fieldPath, which resolveRowRef resolves directly).
+        ref: c.kind === "rule-failure" ? c.key : "SupplierItemCode",
         title: c.title,
         why: c.detail,
         // Only the AI-suggestion card has a deterministic one-click fix.

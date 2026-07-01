@@ -89,6 +89,10 @@ const STATUS_META: Record<string, StatusMeta> = {
   // Terminal / inactive
   cancelled: { label: "Cancelled", tone: "neutral" },
   archived: { label: "Archived", tone: "neutral" },
+
+  // Connection lifecycle (versioned supplier connections)
+  live: { label: "Live", tone: "success" },
+  draft: { label: "Draft", tone: "neutral" },
 };
 
 /** Humanize an unknown status key: "delivery_dead_letter" -> "Delivery dead letter". */

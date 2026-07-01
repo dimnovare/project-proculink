@@ -34,7 +34,7 @@ const TONE_ACCENT: Record<string, string> = {
  * a signal; ConnectionSummary carries none today, so it never fires (no fake data).
  */
 function badgeStatus(c: ConnectionSummary): { status: string; accent: string } {
-  const status = c.activeRevisionId ? "delivered" : "draft";
+  const status = c.activeRevisionId ? "live" : "draft";
   return { status, accent: TONE_ACCENT[statusTone(status)] ?? "var(--ink-faint)" };
 }
 
