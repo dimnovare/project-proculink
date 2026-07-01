@@ -665,7 +665,10 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
           )}
         </div>
         <div className="flex items-center gap-2">
-          {pickerMode && (
+          {/* Picker mode's "Show connections" toggle stays INLINE for the connection
+              editor (its own most-used control); the order variant folds it into the
+              "More" menu below so the order toolbar reads clean. */}
+          {pickerMode && variant !== "order" && (
             // Picker mode hides the drag-wires by default (you map via the inline source dropdown).
             // This toggle reveals the existing wire layer for anyone who wants the visual connections.
             <button
@@ -693,22 +696,46 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
               ⚠ {summary.requiredUnmapped} {summary.requiredUnmapped === 1 ? "field needs" : "fields need"} a source
             </span>
           )}
-          {variant === "order" && (
+          {/* ── Order variant: the secondary toggles collapse behind a single "More"
+              menu (progressive disclosure) so only Save + Send read inline. Each item
+              keeps its EXACT original handler; nothing about wiring / activeIds /
+              showConnections changes — the controls only relocated. ─────────────── */}
+          {variant === "order" ? (
+            <MoreMenu>
+              {pickerMode && (
+                <MoreMenuItem
+                  label={showConnections ? "Hide connections" : "Show connections"}
+                  title={showConnections ? "Hide the connection wires" : "Show the connection wires between received and output fields"}
+                  onClick={() => setShowConnections((v) => !v)}
+                  ariaPressed={showConnections}
+                />
+              )}
+              <MoreMenuItem
+                label="Customize output layout"
+                title="Change how the output file is structured for this supplier — paste a supplier sample to start"
+                onClick={() => setShowDesigner(true)}
+              />
+              <MoreMenuItem
+                label={catalogHintCount > 0 ? `Fill from catalog · ${catalogHintCount}` : "Fill from catalog"}
+                title={
+                  catalogHintCount > 0
+                    ? "Jump to the lines with catalog price/code hints — apply each per line"
+                    : "No catalog hints for this order. Add a supplier catalog, or no lines differ from it."
+                }
+                onClick={catalogHintCount > 0 ? scrollToFirstCatalogHint : undefined}
+              />
+            </MoreMenu>
+          ) : (
             <ToolbarButton
-              label="Customize output layout"
-              title="Change how the output file is structured for this supplier — paste a supplier sample to start"
-              onClick={() => setShowDesigner(true)}
+              label={catalogHintCount > 0 ? `Fill from catalog · ${catalogHintCount}` : "Fill from catalog"}
+              title={
+                catalogHintCount > 0
+                  ? "Jump to the lines with catalog price/code hints — apply each per line"
+                  : "No catalog hints for this order. Add a supplier catalog, or no lines differ from it."
+              }
+              onClick={catalogHintCount > 0 ? scrollToFirstCatalogHint : undefined}
             />
           )}
-          <ToolbarButton
-            label={catalogHintCount > 0 ? `Fill from catalog · ${catalogHintCount}` : "Fill from catalog"}
-            title={
-              catalogHintCount > 0
-                ? "Jump to the lines with catalog price/code hints — apply each per line"
-                : "No catalog hints for this order. Add a supplier catalog, or no lines differ from it."
-            }
-            onClick={catalogHintCount > 0 ? scrollToFirstCatalogHint : undefined}
-          />
           {/* Standards check is NOT a toolbar button — it lives in the Details drawer
               (Standards-check tab), per the app.jsx reference + founder. */}
           {onSaveMappings && (
@@ -1038,6 +1065,101 @@ function ToolbarButton({
         whiteSpace: "nowrap",
       }}
     >
+      {label}
+    </button>
+  );
+}
+
+// ── "More" overflow menu — folds the order toolbar's secondary toggles behind one
+//    button (progressive disclosure). Click to open; click-outside or Escape closes;
+//    visible focus ring inherits the app's global :focus-visible. Each child is a
+//    MoreMenuItem whose onClick fires the ORIGINAL handler unchanged. ──────────────
+function MoreMenu({ children }: { children: ReactNode }) {
+  const [open, setOpen] = useState(false);
+  const wrapRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    function onDown(e: MouseEvent) {
+      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) setOpen(false);
+    }
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") setOpen(false);
+    }
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+  return (
+    <div ref={wrapRef} style={{ position: "relative" }}>
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        title="More mapping tools"
+        style={{
+          display: "inline-flex", alignItems: "center", gap: 6, height: 30, padding: "0 11px",
+          borderRadius: 7, fontSize: 11.5, fontWeight: 700, whiteSpace: "nowrap",
+          border: `1px solid ${open ? "#1E66C9" : "#DCE0E8"}`,
+          background: open ? "#EAF0F8" : "#FFFFFF",
+          color: open ? "#0F4FA8" : "#345470", cursor: "pointer",
+        }}
+      >
+        More
+        <span aria-hidden style={{ fontSize: 9, lineHeight: 1, transform: open ? "rotate(180deg)" : "none", transition: "transform 150ms" }}>▾</span>
+      </button>
+      {open && (
+        <div
+          role="menu"
+          style={{
+            position: "absolute", top: "calc(100% + 6px)", right: 0, zIndex: 30, minWidth: 200,
+            display: "flex", flexDirection: "column", gap: 2, padding: 5,
+            background: "#FFFFFF", border: "1px solid #E5E8EE", borderRadius: 9,
+            boxShadow: "0 8px 24px rgba(11,26,47,0.14)",
+          }}
+          onClick={() => setOpen(false)}
+        >
+          {children}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── One row inside the "More" menu. Disabled (honest) when it has no handler,
+//    mirroring ToolbarButton's contract. `ariaPressed` marks a toggle item. ──────
+function MoreMenuItem({
+  label, title, onClick, ariaPressed,
+}: {
+  label: string;
+  title?: string;
+  onClick?: () => void;
+  ariaPressed?: boolean;
+}) {
+  const isDisabled = !onClick;
+  return (
+    <button
+      type="button"
+      role="menuitem"
+      onClick={onClick}
+      disabled={isDisabled}
+      title={title}
+      aria-pressed={ariaPressed}
+      style={{
+        display: "flex", alignItems: "center", gap: 8, width: "100%", textAlign: "left",
+        padding: "8px 10px", borderRadius: 6, border: "1px solid transparent", background: "transparent",
+        fontSize: 12, fontWeight: 600, whiteSpace: "nowrap",
+        color: isDisabled ? "#AEB6C4" : "#345470", cursor: isDisabled ? "not-allowed" : "pointer",
+      }}
+      onMouseEnter={(e) => { if (!isDisabled) { e.currentTarget.style.background = "#F1F3F7"; } }}
+      onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
+    >
+      {ariaPressed != null && (
+        <span aria-hidden style={{ fontSize: 13, lineHeight: 1, color: ariaPressed ? "#1E66C9" : "#9AA8C0" }}>{ariaPressed ? "◉" : "○"}</span>
+      )}
       {label}
     </button>
   );

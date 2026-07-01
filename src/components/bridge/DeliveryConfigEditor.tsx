@@ -16,6 +16,7 @@ import { isArrowKey, rovingRadioNext } from "@/lib/roving-radio";
 import { buildCxmlCredentials } from "@/lib/cxml-credentials";
 import { decideSftpCredentialAction, type SftpAuthMode } from "@/components/bridge/deliveryCredentialAction";
 import type { DeliveryConfig, DeliveryProtocol, DeliveryTestResult } from "@/lib/api/types";
+import { useConfirm } from "@/components/ui/confirm";
 
 type AuthType = "none" | "apikey" | "bearer" | "basic" | "oauth2";
 
@@ -46,6 +47,7 @@ const INPUT_STYLE = { border: "1px solid #D5DAEA", color: "#0B1A2F" } as const;
 
 export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) {
   const queryClient = useQueryClient();
+  const confirm = useConfirm();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
@@ -127,6 +129,12 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
 
   const [testResult, setTestResult] = useState<DeliveryTestResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // Distinguishes a FAILED INITIAL LOAD (getDeliveryConfig threw) from save/test
+  // errors that reuse `error`. On a load failure we must NOT drop into an empty
+  // form — the user could Save over an existing-but-unloaded config. reloadNonce
+  // lets the Retry button re-run the loader effect.
+  const [loadFailed, setLoadFailed] = useState(false);
+  const [reloadNonce, setReloadNonce] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -134,6 +142,7 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
     async function load() {
       setLoading(true);
       setError(null);
+      setLoadFailed(false);
       try {
         const config = await getDeliveryConfig(supplierId);
         if (cancelled) return;
@@ -163,7 +172,10 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
           setCxmlDtdPublicId(cx?.dtdPublicId ?? "");
         }
       } catch (err) {
-        if (!cancelled) setError(err instanceof Error ? err.message : "Could not load delivery config.");
+        if (!cancelled) {
+          setError(err instanceof Error ? err.message : "Could not load delivery config.");
+          setLoadFailed(true);
+        }
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -173,7 +185,7 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
     return () => {
       cancelled = true;
     };
-  }, [supplierId]);
+  }, [supplierId, reloadNonce]);
 
   const hasSavedCredentials = savedConfig?.hasCredentials ?? false;
   const hasCxmlSharedSecret = savedConfig?.cxmlCredentials?.hasSharedSecret ?? false;
@@ -433,7 +445,13 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
   }
 
   async function remove() {
-    if (typeof window !== "undefined" && !window.confirm("Delete this supplier's delivery configuration and saved credentials? This cannot be undone.")) return;
+    const ok = await confirm({
+      title: "Delete delivery configuration",
+      description: "Delete this supplier's delivery configuration and saved credentials? This cannot be undone.",
+      confirmLabel: "Delete",
+      danger: true,
+    });
+    if (!ok) return;
     setSaving(true);
     setError(null);
     try {
@@ -491,6 +509,30 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
     } finally {
       setTesting(false);
     }
+  }
+
+  // Initial-load failure — show a clear, blocking error state with a retry
+  // instead of an empty form (which would let the user overwrite a config that
+  // exists but failed to load). Save/test errors reuse `error` inside the form.
+  if (loadFailed && !loading) {
+    return (
+      <div className="overflow-hidden rounded-[8px]" style={{ border: "1px solid #E5E8EE", background: "#FFFFFF" }}>
+        <div className="flex flex-col items-center justify-center gap-3 px-4 py-12 text-center">
+          <p className="text-[13px] font-semibold" style={{ color: "#0B1A2F" }}>Couldn&apos;t load delivery config</p>
+          <p className="max-w-[380px] text-[12px] leading-5" style={{ color: "#5E6779" }}>
+            {error ?? "Something went wrong loading this supplier's delivery setup."} Check your connection and try again.
+          </p>
+          <button
+            type="button"
+            onClick={() => setReloadNonce((n) => n + 1)}
+            className="inline-flex items-center gap-1.5 rounded-[6px] px-3 text-[12px] font-medium"
+            style={{ minHeight: 36, border: "1px solid #CBD0DA", background: "#FFFFFF", color: "#0B1A2F", cursor: "pointer" }}
+          >
+            ↻ Retry
+          </button>
+        </div>
+      </div>
+    );
   }
 
   return (

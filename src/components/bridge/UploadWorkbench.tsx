@@ -689,7 +689,7 @@ export function UploadWorkbench() {
             No purchase order handy? Run one with an example CSV in seconds — it won&apos;t count toward your monthly quota.
           </p>
           {sample.error && (
-            <p className="mt-2 text-[12px]" style={{ color: "#B43838" }}>
+            <p className="mt-2 text-[12px]" style={{ color: "var(--danger)" }}>
               {sample.error.message}
             </p>
           )}
@@ -750,7 +750,7 @@ export function UploadWorkbench() {
 
   return (
     <PageShell>
-      <style>{`@keyframes spin { to { transform: rotate(360deg); } } @keyframes pipeline-shimmer { 0%{transform:translateX(-100%)} 100%{transform:translateX(200%)} }`}</style>
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } } @keyframes pipeline-shimmer { 0%{transform:translateX(-100%)} 100%{transform:translateX(200%)} } .upload-dropzone:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 3px; border-radius: 10px; }`}</style>
 
       {/* Page header — canonical PageHeader on the grey canvas (no white bar, no divider) */}
       <PageHeader
@@ -1027,7 +1027,7 @@ export function UploadWorkbench() {
                     fileInputRef.current?.click();
                   }
                 }}
-                className="flex flex-1 flex-col items-center justify-center gap-4 px-6 py-10 sm:px-8 sm:py-12"
+                className="upload-dropzone flex flex-1 flex-col items-center justify-center gap-4 px-6 py-10 sm:px-8 sm:py-12"
                 style={{
                   border: `1.5px dashed ${dragReject ? "#B43838" : dragging ? "#1E66C9" : "#CBD0DA"}`,
                   borderRadius: 10,
@@ -1148,7 +1148,7 @@ export function UploadWorkbench() {
                   <p
                     role="alert"
                     className="text-[12px] text-center max-w-[420px]"
-                    style={{ color: "#B43838" }}
+                    style={{ color: "var(--danger)" }}
                   >
                     {fileError}
                   </p>
@@ -1156,7 +1156,7 @@ export function UploadWorkbench() {
 
                 {/* Muted helper caption beneath the button (matches design) */}
                 {!selectedFile && !fileError && (
-                  <p className="text-[11.5px] italic" style={{ color: "#99A1C5" }}>
+                  <p className="text-[11.5px] italic" style={{ color: "var(--ink-faint)" }}>
                     {isApiMockMode
                       ? "(Demo: click anywhere to simulate a parsed PDF)"
                       : "or drop files anywhere in this area"}
