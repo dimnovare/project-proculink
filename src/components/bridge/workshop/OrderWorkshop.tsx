@@ -333,6 +333,11 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
   const [showIssuesSignal, setShowIssuesSignal] = useState(0);
   const onJumpToIssueCard = useCallback((code: string) => {
     if (typeof document === "undefined") return;
+    // Guide the user to the EXACT field: light where the data originates across all
+    // three columns (received / send / preview) via the mapper's focus→highlight,
+    // then open the Issues tab and scroll to the card that explains the issue.
+    const issue = issues.find((i) => i.code === code);
+    if (issue) onFocusField(issue.ref);
     setShowIssuesSignal((s) => s + 1);
     const scroll = () => {
       const el = document.querySelector(`[data-issue-ref="${CSS.escape(code)}"]`);
@@ -345,7 +350,7 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
       }
     };
     requestAnimationFrame(() => requestAnimationFrame(scroll));
-  }, []);
+  }, [issues, onFocusField]);
 
   // ── Send gate: zero issues AND server-truth exceptionCount clear. ───────────
   const blockingIssues = issues.filter((i) => i.severity === "blocking").length;
@@ -641,7 +646,17 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
           lives — not the dead line-GUID mapper jump. Pairs with the desktop mapper
           (lg+); below lg the MobileTriage view carries its own issue list. ── */}
       <div className="hidden lg:block flex-shrink-0">
-        <SendReadinessStrip blockers={blockerChips} notes={noteCount} ready={sendReady} onJump={onJumpToIssueCard} pipeline={<WorkshopStepper stage={stepperStage} failed={stepperFailed} />} />
+        <SendReadinessStrip
+          blockers={blockerChips}
+          notes={noteCount}
+          ready={sendReady}
+          onJump={onJumpToIssueCard}
+          onReviewIssues={() => setShowIssuesSignal((s) => s + 1)}
+          onResolveAll={issuesResolve.bulkAcceptSuggestions ? () => issuesResolve.bulkAcceptSuggestions!(0) : undefined}
+          resolveAllCount={suggestableCount}
+          resolving={issuesResolve.bulkAccepting}
+          pipeline={<WorkshopStepper stage={stepperStage} failed={stepperFailed} />}
+        />
       </div>
 
       {/* ── Body ─────────────────────────────────────────────────────────────── */}

@@ -595,7 +595,7 @@ describe("STRUCT-2 — order.lines → BulkSelectableLine adapter parity", () =>
 });
 
 describe("STRUCT-2 — the workshop wires the bulk-accept header to the IssuesPanel", () => {
-  test("an order with an unresolved AI-suggested line renders 'Accept all AI suggestions' → bulkAcceptSuggestions(0)", () => {
+  test("an order with an unresolved AI-suggested line renders 'Resolve all suggested' → bulkAcceptSuggestions(0)", () => {
     mockState.order = makeOrder({
       lines: [
         {
@@ -611,7 +611,7 @@ describe("STRUCT-2 — the workshop wires the bulk-accept header to the IssuesPa
 
     render(<OrderWorkshop orderId="ord-1" />);
 
-    const bulkBtns = screen.getAllByRole("button", { name: /accept all ai suggestions/i });
+    const bulkBtns = screen.getAllByRole("button", { name: /resolve all suggested/i });
     expect(bulkBtns.length).toBeGreaterThan(0);
     fireEvent.click(bulkBtns[0]);
     expect(mockState.bulkAcceptSuggestions).toHaveBeenCalledWith(0);

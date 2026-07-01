@@ -33,18 +33,37 @@ function WarnGlyph() {
     </svg>
   );
 }
+function SparkleGlyph() {
+  return (
+    <svg width="11" height="11" viewBox="0 0 12 12" fill="none" aria-hidden style={{ flexShrink: 0 }}>
+      <path d="M6 1.2l1.1 3.2 3.2 1.1-3.2 1.1L6 9.8 4.9 6.6 1.7 5.5l3.2-1.1z" fill="#FFFFFF" />
+    </svg>
+  );
+}
 
 export function SendReadinessStrip({
   blockers,
   notes = 0,
   ready,
   onJump,
+  onReviewIssues,
+  onResolveAll,
+  resolveAllCount = 0,
+  resolving = false,
   pipeline,
 }: {
   blockers: BlockerChip[];
   notes?: number;
   ready: boolean;
   onJump: (id: string) => void;
+  /** Open the Issues tab of the preview column (the "Review issues" affordance). */
+  onReviewIssues?: () => void;
+  /** Bulk-accept every AI suggestion (the "Resolve all suggested" affordance). */
+  onResolveAll?: () => void;
+  /** How many issues the bulk "Resolve all suggested" would resolve → its badge; hidden when 0. */
+  resolveAllCount?: number;
+  /** True while a bulk resolve is in flight → disables the button. */
+  resolving?: boolean;
   /** The InlinePipeline stepper — rendered at the banner's right end (app.jsx structure). */
   pipeline?: ReactNode;
 }) {
@@ -101,12 +120,33 @@ export function SendReadinessStrip({
           </button>
         ))}
       </span>
-      <span style={{ marginLeft: "auto", display: "inline-flex", alignItems: "center", gap: 14, flexShrink: 0 }}>
+      <span style={{ marginLeft: "auto", display: "inline-flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
         {notes > 0 && (
           <span style={{ fontSize: 11.5, color: "#5E6779", display: "inline-flex", alignItems: "center", gap: 5 }}>
             <span style={{ width: 5, height: 5, borderRadius: "50%", background: "#A9B2C2" }} />
             {notes} {notes === 1 ? "note" : "notes"} · optional
           </span>
+        )}
+        {onReviewIssues && (
+          <button
+            type="button"
+            onClick={onReviewIssues}
+            style={{ height: 28, padding: "0 11px", borderRadius: 7, fontSize: 11.5, fontWeight: 600, border: "1px solid #DCE0E8", background: "#FFFFFF", color: "#345470", cursor: "pointer", whiteSpace: "nowrap" }}
+          >
+            Review issues
+          </button>
+        )}
+        {onResolveAll && resolveAllCount > 0 && (
+          <button
+            type="button"
+            onClick={onResolveAll}
+            disabled={resolving}
+            style={{ height: 28, padding: "0 11px", borderRadius: 7, fontSize: 11.5, fontWeight: 700, border: "1px solid #0B1A2F", background: "#0B1A2F", color: "#FFFFFF", cursor: resolving ? "wait" : "pointer", opacity: resolving ? 0.6 : 1, display: "inline-flex", alignItems: "center", gap: 6, whiteSpace: "nowrap" }}
+          >
+            <SparkleGlyph />
+            {resolving ? "Resolving…" : "Resolve all suggested"}
+            <span style={{ marginLeft: 2, background: "rgba(255,255,255,0.28)", borderRadius: 8, padding: "0 6px", fontSize: 10, fontWeight: 700 }}>{resolveAllCount}</span>
+          </button>
         )}
         {pipeline}
       </span>

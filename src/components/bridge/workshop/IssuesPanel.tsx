@@ -193,7 +193,7 @@ export function IssuesPanel({ issues, onFocusField, onFix, readyLabel, resolve, 
               style={{ ...navyBtn, opacity: resolve!.bulkAccepting ? 0.6 : 1, cursor: resolve!.bulkAccepting ? "wait" : "pointer" }}
             >
               <SparkleGlyph />
-              {resolve!.bulkAccepting ? "Accepting…" : "Accept all AI suggestions"}
+              {resolve!.bulkAccepting ? "Resolving…" : "Resolve all suggested"}
               <span style={countBadge}>{suggestableCount}</span>
             </button>
             {showHigh && (

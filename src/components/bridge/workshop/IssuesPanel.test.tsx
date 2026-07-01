@@ -226,7 +226,7 @@ describe("IssuesPanel — inline line resolution", () => {
 // secondary is hidden when its scope equals the primary's.
 // ─────────────────────────────────────────────────────────────────────────────
 describe("IssuesPanel — bulk-accept header (STRUCT-2)", () => {
-  test("renders 'Accept all AI suggestions' with the suggestable count and calls bulkAcceptSuggestions(0)", () => {
+  test("renders 'Resolve all suggested' with the suggestable count and calls bulkAcceptSuggestions(0)", () => {
     const bulkAcceptSuggestions = vi.fn();
     render(
       <IssuesPanel
@@ -238,7 +238,7 @@ describe("IssuesPanel — bulk-accept header (STRUCT-2)", () => {
         highConfCount={3}
       />,
     );
-    const bulkBtn = screen.getByRole("button", { name: /accept all ai suggestions/i });
+    const bulkBtn = screen.getByRole("button", { name: /resolve all suggested/i });
     expect(bulkBtn).toBeInTheDocument();
     // The badge shows the suggestable count.
     expect(bulkBtn).toHaveTextContent("3");
