@@ -120,6 +120,16 @@ export interface MapperWorkbenchProps {
    */
   issuesSlot?: ReactNode;
   /**
+   * When `issuesSlot` is present it no longer sits above the columns — it becomes
+   * the "Issues" tab of the docked preview column (Issues | Preview). These drive
+   * that tab's badge + which tab opens first.
+   */
+  issuesOpenCount?: number;
+  /** Blocking subset of `issuesOpenCount` → the Issues-tab badge color (red vs amber). */
+  issuesBlockingCount?: number;
+  /** Bump to force the preview column onto its "Issues" tab (e.g. a send-readiness chip jump). */
+  showIssuesSignal?: number;
+  /**
    * Collapse/focus the incoming + preview panes (driven by `useWorkshopLayout`).
    * When absent both panes render full-width (today's behavior).
    */
@@ -157,7 +167,8 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
   const {
     variant, readOnly, onDeliver, deliverDisabled, deliverLabel, extractionFailed,
     supplierName, onSaveMappings, saveMappingsLabel, savingMappings, onValidate,
-    issuesSlot, layout, attentionFirstOutput, trustedThreshold, focusFieldId, focusFieldSignal,
+    issuesSlot, issuesOpenCount = 0, issuesBlockingCount = 0, showIssuesSignal,
+    layout, attentionFirstOutput, trustedThreshold, focusFieldId, focusFieldSignal,
     previewDefaultFormat, autoFilledFields, mappingMode = "wires", reviewSignal,
   } = props;
   const pickerMode = mappingMode === "picker";
@@ -591,9 +602,9 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
           }}
         />
       )}
-      {/* ── Issues slot (Order Workshop) — the IssuesPanel sits above the columns.
-          Absent for every non-workshop host → nothing extra renders. ───────── */}
-      {issuesSlot && <div className="mb-3">{issuesSlot}</div>}
+      {/* ── Issues slot (Order Workshop) no longer sits above the columns — it is
+          now the "Issues" tab of the docked preview column (see PreviewColumnTabs
+          in the desktop grid below). Absent for every non-workshop host. ─────── */}
       {/* ── Top action bar (desktop) ────────────────────────────────────── */}
       <div className="hidden lg:flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
@@ -793,9 +804,91 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
         ) : (
           <div style={{ minWidth: 0, position: "relative" }}>
             {layout?.onCollapsePreview && <PaneCollapseCaret side="right" label="Live preview" onClick={layout.onCollapsePreview} />}
-            {previewNode}
+            {issuesSlot ? (
+              <PreviewColumnTabs
+                issuesSlot={issuesSlot}
+                openCount={issuesOpenCount}
+                blockingCount={issuesBlockingCount}
+                showIssuesSignal={showIssuesSignal}
+                preview={previewNode}
+              />
+            ) : (
+              previewNode
+            )}
           </div>
         )}
+      </div>
+    </div>
+  );
+}
+
+// ── Preview column tabs (Order Workshop) — the third column is "Issues | Preview".
+//    The issue list (the IssuesPanel cards) is the Issues tab; the live output is
+//    the Preview tab. BOTH stay mounted (visibility toggled) so switching tabs
+//    never drops the preview's fetched body or its selected format. Opens on
+//    Issues when there are open blockers, else on Preview. `showIssuesSignal`
+//    (bumped by the send-readiness chip jump) forces it back to Issues. ────────
+function PreviewColumnTabs({
+  issuesSlot,
+  openCount,
+  blockingCount,
+  showIssuesSignal,
+  preview,
+}: {
+  issuesSlot: ReactNode;
+  openCount: number;
+  blockingCount: number;
+  showIssuesSignal?: number;
+  preview: ReactNode;
+}) {
+  const [tab, setTab] = useState<"issues" | "preview">(openCount > 0 ? "issues" : "preview");
+  // A send-readiness chip jump bumps the signal → surface the Issues tab so the
+  // card it scrolls to is actually visible.
+  useEffect(() => {
+    if (showIssuesSignal != null && showIssuesSignal > 0) setTab("issues");
+  }, [showIssuesSignal]);
+
+  const badge = blockingCount > 0 ? { bg: "#FAE6E6", fg: "#B43838" } : { bg: "#FAF1DD", fg: "#B36D14" };
+  const tabBtn = (k: "issues" | "preview", label: string) => {
+    const on = tab === k;
+    return (
+      <button
+        key={k}
+        type="button"
+        role="tab"
+        aria-selected={on}
+        onClick={() => setTab(k)}
+        style={{
+          position: "relative", padding: "11px 10px", fontSize: 12.5, fontWeight: on ? 700 : 500,
+          color: on ? "#0B1A2F" : "#5E6779", background: "transparent", cursor: "pointer",
+          borderBottom: `2px solid ${on ? "#1E66C9" : "transparent"}`, marginBottom: -1,
+          display: "inline-flex", alignItems: "center", gap: 7,
+        }}
+      >
+        {label}
+        {k === "issues" && openCount > 0 && (
+          <span style={{ fontSize: 10, fontWeight: 700, fontFamily: "'JetBrains Mono',monospace", padding: "1px 6px", borderRadius: 999, background: badge.bg, color: badge.fg }}>
+            {openCount}
+          </span>
+        )}
+        {k === "issues" && openCount === 0 && <span aria-hidden style={{ color: "#2E8E3A", fontWeight: 800, fontSize: 12, lineHeight: 1 }}>✓</span>}
+      </button>
+    );
+  };
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", height: "100%", minHeight: 0, background: "#FFFFFF" }}>
+      <div role="tablist" aria-label="Issues and preview" style={{ flexShrink: 0, display: "flex", alignItems: "center", gap: 2, padding: "0 12px", borderBottom: "1px solid #E5E8EE" }}>
+        {tabBtn("issues", "Issues")}
+        {tabBtn("preview", "Preview")}
+      </div>
+      {/* Issues body — its own scroll region on the workshop surface. */}
+      <div style={{ flex: 1, minHeight: 0, display: tab === "issues" ? "block" : "none", overflow: "auto", padding: 14, background: "#F6F7FA" }}>
+        {issuesSlot}
+      </div>
+      {/* Preview body — stays mounted (keeps fetched output + selected format). */}
+      <div style={{ flex: 1, minHeight: 0, display: tab === "preview" ? "flex" : "none", flexDirection: "column" }}>
+        {preview}
       </div>
     </div>
   );

@@ -326,19 +326,25 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
     };
   }, [order]);
 
-  // The chip jump now targets the issue CARD (anchored data-issue-ref={code} in
-  // the IssuesPanel) — that is where the fix lives — instead of the dead mapper
-  // jump (the ref was a line GUID; the mapper keys rows by output path).
+  // The IssuesPanel now lives in the preview column's "Issues" tab. A send-readiness
+  // chip jump (a) surfaces that tab via a bumped signal, then (b) — on the next
+  // frame, once the card is actually rendered/visible — scrolls to + flashes the
+  // card (anchored data-issue-ref={code}).
+  const [showIssuesSignal, setShowIssuesSignal] = useState(0);
   const onJumpToIssueCard = useCallback((code: string) => {
     if (typeof document === "undefined") return;
-    const el = document.querySelector(`[data-issue-ref="${CSS.escape(code)}"]`);
-    if (el) {
-      el.scrollIntoView?.({ behavior: "smooth", block: "center" });
-      (el as HTMLElement).animate?.(
-        [{ background: "#FFF6E0" }, { background: "transparent" }],
-        { duration: 1100, easing: "ease-out" },
-      );
-    }
+    setShowIssuesSignal((s) => s + 1);
+    const scroll = () => {
+      const el = document.querySelector(`[data-issue-ref="${CSS.escape(code)}"]`);
+      if (el) {
+        el.scrollIntoView?.({ behavior: "smooth", block: "center" });
+        (el as HTMLElement).animate?.(
+          [{ background: "#FFF6E0" }, { background: "transparent" }],
+          { duration: 1100, easing: "ease-out" },
+        );
+      }
+    };
+    requestAnimationFrame(() => requestAnimationFrame(scroll));
   }, []);
 
   // ── Send gate: zero issues AND server-truth exceptionCount clear. ───────────
@@ -646,21 +652,8 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
             laptop at 1024 gets the full field mapper with no horizontal scroll;
             the docked preview wraps below it until ~1440 (2-pane canvas). */}
         <div className="hidden lg:block px-6 py-[18px]" style={{ flex: 1, display: "flex", flexDirection: "column", minHeight: 0, overflow: "hidden" }}>
-          {/* The actionable issue list — inline supplier-code entry per line lives
-              here (the strip above is only a summary that scrolls to these cards). */}
-          {issues.length > 0 && (
-            <div style={{ marginBottom: 14 }}>
-              <IssuesPanel
-                issues={issues}
-                onFocusField={onFocusField}
-                onFix={onFix}
-                resolve={issuesResolve}
-                lines={order.lines}
-                suggestableCount={suggestableCount}
-                highConfCount={highConfCount}
-              />
-            </div>
-          )}
+          {/* The actionable issue list now lives in the preview column's "Issues"
+              tab (passed as issuesSlot below), not above the mapper. */}
           <MapperWorkbench
             variant="order"
             orderId={orderId}
@@ -678,6 +671,20 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
             focusFieldSignal={focusSignal}
             onValidate={() => openDetails("conformance")}
             reviewSignal={order.lines.filter((l) => l.needsReview).length}
+            issuesSlot={
+              <IssuesPanel
+                issues={issues}
+                onFocusField={onFocusField}
+                onFix={onFix}
+                resolve={issuesResolve}
+                lines={order.lines}
+                suggestableCount={suggestableCount}
+                highConfCount={highConfCount}
+              />
+            }
+            issuesOpenCount={issues.length}
+            issuesBlockingCount={blockingIssues}
+            showIssuesSignal={showIssuesSignal}
           />
         </div>
 

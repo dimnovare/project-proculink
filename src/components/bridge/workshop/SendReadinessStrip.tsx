@@ -27,9 +27,9 @@ function CheckGlyph() {
 function WarnGlyph() {
   return (
     <svg width="11" height="11" viewBox="0 0 14 14" fill="none" aria-hidden>
-      <path d="M7 1.5 13 12H1L7 1.5Z" stroke="#B36D14" strokeWidth="1.3" strokeLinejoin="round" />
-      <path d="M7 5.6v3" stroke="#B36D14" strokeWidth="1.3" strokeLinecap="round" />
-      <circle cx="7" cy="10.4" r="0.7" fill="#B36D14" />
+      <path d="M7 1.5 13 12H1L7 1.5Z" stroke="#B43838" strokeWidth="1.3" strokeLinejoin="round" />
+      <path d="M7 5.6v3" stroke="#B43838" strokeWidth="1.3" strokeLinecap="round" />
+      <circle cx="7" cy="10.4" r="0.7" fill="#B43838" />
     </svg>
   );
 }
@@ -71,13 +71,13 @@ export function SendReadinessStrip({
       role="status"
       aria-live="polite"
       className="flex-shrink-0"
-      style={{ display: "flex", alignItems: "center", gap: 12, padding: "9px 24px", background: "#FCFAF4", borderBottom: "1px solid #EFE6CE", flexWrap: "wrap" }}
+      style={{ display: "flex", alignItems: "center", gap: 12, padding: "9px 24px", background: "#FBEAEA", borderBottom: "1px solid #F0C8C8", flexWrap: "wrap" }}
     >
       <span style={{ display: "inline-flex", alignItems: "center", gap: 7 }}>
-        <span style={{ width: 18, height: 18, borderRadius: "50%", background: "#FBEFD0", display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+        <span style={{ width: 18, height: 18, borderRadius: "50%", background: "#FBE3E3", display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
           <WarnGlyph />
         </span>
-        <span style={{ fontSize: 12.5, fontWeight: 600, color: "#8A5A0E" }}>
+        <span style={{ fontSize: 12.5, fontWeight: 600, color: "#B43838" }}>
           {blockers.length} {blockers.length === 1 ? "field" : "fields"} to fill before sending
         </span>
       </span>
@@ -91,12 +91,12 @@ export function SendReadinessStrip({
             style={{
               display: "inline-flex", alignItems: "center", gap: 5, padding: "2px 9px 2px 7px",
               borderRadius: 999, fontFamily: "'JetBrains Mono',monospace", fontSize: 10.5, fontWeight: 600,
-              color: "#8A5A0E", background: "#FFFFFF", border: "1px solid #EAD9AE", cursor: "pointer", maxWidth: 220,
+              color: "#B43838", background: "#FFFFFF", border: "1px solid #F0C8C8", cursor: "pointer", maxWidth: 220,
             }}
-            onMouseEnter={(e) => { e.currentTarget.style.background = "#FBF4E3"; }}
+            onMouseEnter={(e) => { e.currentTarget.style.background = "#FBEAEA"; }}
             onMouseLeave={(e) => { e.currentTarget.style.background = "#FFFFFF"; }}
           >
-            <span style={{ width: 5, height: 5, borderRadius: "50%", background: "#B36D14", flexShrink: 0 }} />
+            <span style={{ width: 5, height: 5, borderRadius: "50%", background: "#B43838", flexShrink: 0 }} />
             <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{b.name}</span>
           </button>
         ))}

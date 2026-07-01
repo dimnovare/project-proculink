@@ -8,15 +8,18 @@
 // `FixQueueCard` set — see review/buildFixQueue.ts — onto `WorkshopIssue`). This
 // panel does NOT re-implement the validator and does NO data fetching.
 //
-//   • N issues → N plain-language rows (title + why), each with a "where →"
-//     affordance that calls onFocusField(ref) to scroll+highlight the field in
-//     the mapper below.
+//   • N issues → N plain-language CARDS (severity badge + title + why), each with
+//     its inline resolution control (Enter code / Accept / Confirm) and a
+//     "Where →" affordance that scroll-highlights the field in the mapper below.
 //   • A deterministic `fixAction` renders a one-click button → onFix(issue).
 //   • 0 issues → the green "ready to send" bar (the list collapses).
 //
-// Bridge Layer styling: green = the ready/supplier-out signal; danger/amber for
-// blocking vs warning; AI violet is intentionally NOT used here (this is the
-// validator's voice, not an AI suggestion).
+// VISUAL: v3 "issues to resolve" redesign — each issue is a card with a severity
+// icon box, a Blocker/Warning label + field locator, the title, the explanation,
+// and the resolution actions. Mirrors the Claude Design handoff. Bridge Layer
+// palette: danger = blocking, amber = warning, green = the ready/accept signal;
+// AI violet is intentionally NOT used here (this is the validator's voice).
+// The prop contract, test ids, roles, anchors and resolution wiring are unchanged.
 
 import type { CSSProperties, KeyboardEvent } from "react";
 import type { FixCardKind } from "../review/buildFixQueue";
@@ -102,16 +105,30 @@ export interface IssuesPanelProps {
   highConfCount?: number;
 }
 
-const SEVERITY_STYLE: Record<IssueSeverity, { bg: string; border: string; chipBg: string; chipColor: string; label: string }> = {
-  blocking: { bg: "#FFFFFF", border: "#F0C8C8", chipBg: "#FBE3E3", chipColor: "#B43838", label: "Must fix" },
-  warning: { bg: "#FFFFFF", border: "#F1E2BE", chipBg: "#FAF1DD", chipColor: "#B36D14", label: "Warning" },
+// ── Bridge Layer palette (verbatim from the design handoff) ───────────────────
+const C = {
+  ink: "#0B1A2F",
+  inkMuted: "#5E6779",
+  inkFaint: "#98A0AE",
+  border: "#E5E8EE",
+  borderFaint: "#EEF0F4",
+  surface: "#FFFFFF",
+  surface2: "#F1F3F7",
+  bg: "#F6F7FA",
+  navy: "#0B1A2F",
+  danger: "#B43838",
+  dangerSoft: "#FAE6E6",
+  amber: "#B36D14",
+  amberSoft: "#FAF1DD",
+  green: "#2E8E3A",
+  greenDeep: "#1E6D29",
+  greenSoft: "#E9F1EA",
+  mono: "'JetBrains Mono', ui-monospace, monospace",
 };
 
-const cardStyle: CSSProperties = {
-  borderRadius: 10,
-  background: "#FFFFFF",
-  border: "1px solid #E5E8EE",
-  overflow: "hidden",
+const SEVERITY: Record<IssueSeverity, { accent: string; soft: string; label: string }> = {
+  blocking: { accent: C.danger, soft: C.dangerSoft, label: "Blocker" },
+  warning: { accent: C.amber, soft: C.amberSoft, label: "Warning" },
 };
 
 export function IssuesPanel({ issues, onFocusField, onFix, readyLabel, resolve, lines, suggestableCount = 0, highConfCount = 0 }: IssuesPanelProps) {
@@ -125,15 +142,20 @@ export function IssuesPanel({ issues, onFocusField, onFix, readyLabel, resolve, 
         style={{
           display: "flex",
           alignItems: "center",
-          gap: 9,
-          borderRadius: 10,
-          background: "#E9F1EA",
-          border: "1px solid #BFE0C2",
-          color: "#1E6D29",
-          padding: "11px 14px",
+          gap: 10,
+          borderRadius: 11,
+          background: C.greenSoft,
+          border: `1px solid ${C.green}33`,
+          color: C.greenDeep,
+          padding: "12px 14px",
         }}
       >
-        <span aria-hidden style={{ fontSize: 14, fontWeight: 800 }}>✓</span>
+        <span
+          aria-hidden
+          style={{ width: 18, height: 18, borderRadius: "50%", background: C.green, display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}
+        >
+          <CheckGlyph />
+        </span>
         <span style={{ fontSize: 13, fontWeight: 700 }}>Ready to send</span>
         <span style={{ fontSize: 11.5, color: "#2E7D38", fontWeight: 500 }}>
           {readyLabel ?? "No open issues — every blocker is cleared."}
@@ -143,105 +165,56 @@ export function IssuesPanel({ issues, onFocusField, onFix, readyLabel, resolve, 
   }
 
   const blocking = issues.filter((i) => i.severity === "blocking").length;
+  const showBulk = !!resolve?.bulkAcceptSuggestions && suggestableCount > 0;
+  const showHigh = showBulk && highConfCount > 0 && highConfCount < suggestableCount;
 
   return (
-    <div data-testid="issues-panel" data-issues={issues.length} style={cardStyle}>
-      {/* Header — count + blocking summary */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 8,
-          padding: "10px 12px",
-          borderBottom: "1px solid #EEF0F4",
-        }}
-      >
-        <span
-          style={{
-            fontSize: 11,
-            fontWeight: 700,
-            textTransform: "uppercase",
-            letterSpacing: "0.06em",
-            color: "#0B1A2F",
-          }}
-        >
-          Fix these to send
-        </span>
-        <span role="status" aria-live="polite" style={{ fontSize: 11, color: "var(--ink-faint)" }}>
-          {issues.length} {issues.length === 1 ? "issue" : "issues"}
-          {blocking > 0 ? ` · ${blocking} blocking` : ""}
-        </span>
-      </div>
+    <div data-testid="issues-panel" data-issues={issues.length} style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+      {/* Header — title + count, with the bulk "resolve all" actions on the right */}
+      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+        <div style={{ minWidth: 0, flex: 1 }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: C.ink, letterSpacing: "-0.01em" }}>Issues to resolve</div>
+          <div role="status" aria-live="polite" style={{ fontSize: 11.5, color: C.inkMuted, marginTop: 1 }}>
+            {issues.length} {issues.length === 1 ? "issue" : "issues"}
+            {blocking > 0 ? ` · ${blocking} blocking` : ""}
+          </div>
+        </div>
 
-      {/* Bulk-accept parity with the /upload/preview "Confirm item codes" step — the
-          SAME server-side POST /accept-ai-suggestions endpoint, surfaced here so the
-          workshop is a strict superset. Shown only when there's a bulk handler AND at
-          least one suggestable line. No local "rejected" set exists in the workshop's
-          resolution model (useResolveActions removed it), so the plain accept-all is
-          correct (no reject-aware commitMappings branch). Feedback flows through the
-          parent's setFlow, so no separate notice is rendered here. */}
-      {resolve?.bulkAcceptSuggestions && suggestableCount > 0 && (
-        <div
-          data-testid="issues-bulk-accept"
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 8,
-            flexWrap: "wrap",
-            padding: "9px 12px",
-            borderBottom: "1px solid #EEF0F4",
-            background: "#FAFBFD",
-          }}
-        >
-          <button
-            type="button"
-            onClick={() => resolve.bulkAcceptSuggestions!(0)}
-            disabled={resolve.bulkAccepting}
-            style={{ ...primaryBtn, opacity: resolve.bulkAccepting ? 0.6 : 1, cursor: resolve.bulkAccepting ? "wait" : "pointer" }}
-          >
-            {resolve.bulkAccepting ? "Accepting…" : "Accept all AI suggestions"}
-            <span
-              style={{
-                marginLeft: 6,
-                background: "rgba(255,255,255,0.28)",
-                borderRadius: 8,
-                padding: "0 5px",
-                fontSize: 10,
-                fontWeight: 700,
-              }}
-            >
-              {suggestableCount}
-            </span>
-          </button>
-          {highConfCount > 0 && highConfCount < suggestableCount && (
+        {/* Bulk-accept parity with the /upload/preview "Confirm item codes" step — the
+            SAME server-side POST /accept-ai-suggestions endpoint, surfaced here so the
+            workshop is a strict superset. Shown only when there's a bulk handler AND at
+            least one suggestable line. Feedback flows through the parent's setFlow. */}
+        {showBulk && (
+          <div data-testid="issues-bulk-accept" style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
             <button
               type="button"
-              onClick={() => resolve.bulkAcceptSuggestions!(0.85)}
-              disabled={resolve.bulkAccepting}
-              style={{ ...ghostBtn, opacity: resolve.bulkAccepting ? 0.6 : 1, cursor: resolve.bulkAccepting ? "wait" : "pointer" }}
+              onClick={() => resolve!.bulkAcceptSuggestions!(0)}
+              disabled={resolve!.bulkAccepting}
+              style={{ ...navyBtn, opacity: resolve!.bulkAccepting ? 0.6 : 1, cursor: resolve!.bulkAccepting ? "wait" : "pointer" }}
             >
-              {resolve.bulkAccepting ? "Accepting…" : "Accept ≥85% only"}
-              <span
-                style={{
-                  marginLeft: 6,
-                  background: "#F1F3F7",
-                  borderRadius: 8,
-                  padding: "0 5px",
-                  fontSize: 10,
-                  fontWeight: 700,
-                }}
-              >
-                {highConfCount}
-              </span>
+              <SparkleGlyph />
+              {resolve!.bulkAccepting ? "Accepting…" : "Accept all AI suggestions"}
+              <span style={countBadge}>{suggestableCount}</span>
             </button>
-          )}
-        </div>
-      )}
+            {showHigh && (
+              <button
+                type="button"
+                onClick={() => resolve!.bulkAcceptSuggestions!(0.85)}
+                disabled={resolve!.bulkAccepting}
+                style={{ ...ghostBtn, opacity: resolve!.bulkAccepting ? 0.6 : 1, cursor: resolve!.bulkAccepting ? "wait" : "pointer" }}
+              >
+                {resolve!.bulkAccepting ? "Accepting…" : "Accept ≥85% only"}
+                <span style={{ ...countBadge, background: C.surface2, color: C.ink }}>{highConfCount}</span>
+              </button>
+            )}
+          </div>
+        )}
+      </div>
 
-      {/* The one ordered issue list */}
-      <ul role="list" aria-label="Open issues" style={{ listStyle: "none", margin: 0, padding: 0 }}>
+      {/* The one ordered issue list — one CARD per issue */}
+      <ul role="list" aria-label="Open issues" style={{ listStyle: "none", margin: 0, padding: 0, display: "flex", flexDirection: "column", gap: 10 }}>
         {issues.map((issue) => {
-          const tone = SEVERITY_STYLE[issue.severity];
+          const tone = SEVERITY[issue.severity];
           const line = issue.lineId && lines ? lines.find((l) => l.id === issue.lineId) : undefined;
           return (
             <li
@@ -250,50 +223,47 @@ export function IssuesPanel({ issues, onFocusField, onFix, readyLabel, resolve, 
               data-testid="issue-row"
               data-issue-ref={issue.code}
               style={{
-                display: "flex",
-                alignItems: "flex-start",
-                gap: 10,
-                padding: "10px 12px",
-                borderTop: "1px solid #F5F6F9",
-                borderLeft: `3px solid ${tone.chipColor}`,
-                background: tone.bg,
+                border: `1px solid ${tone.accent}55`,
+                borderRadius: 11,
+                background: C.surface,
+                overflow: "hidden",
+                boxShadow: "0 1px 3px rgba(11,26,47,0.05)",
               }}
             >
-              <span
-                style={{
-                  flexShrink: 0,
-                  marginTop: 1,
-                  fontSize: 9,
-                  fontWeight: 800,
-                  textTransform: "uppercase",
-                  letterSpacing: "0.03em",
-                  padding: "2px 6px",
-                  borderRadius: 4,
-                  background: tone.chipBg,
-                  color: tone.chipColor,
-                }}
-              >
-                {tone.label}
-              </span>
-
-              <div style={{ minWidth: 0, flex: 1 }}>
-                <div style={{ fontSize: 12.5, fontWeight: 600, color: "#0B1A2F", lineHeight: 1.35 }}>
-                  {issue.title}
-                </div>
-                {issue.why && (
-                  <div style={{ marginTop: 2, fontSize: 11.5, color: "#5E6779", lineHeight: 1.45 }}>
-                    {issue.why}
+              {/* Head: severity icon box + meta + title */}
+              <div style={{ display: "flex", alignItems: "flex-start", gap: 9, padding: "11px 12px 9px" }}>
+                <span
+                  aria-hidden
+                  style={{ width: 22, height: 22, borderRadius: 6, background: tone.soft, display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginTop: 1 }}
+                >
+                  <WarnGlyph color={tone.accent} />
+                </span>
+                <div style={{ minWidth: 0, flex: 1 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 2 }}>
+                    <span style={{ fontSize: 9.5, fontWeight: 800, letterSpacing: "0.05em", textTransform: "uppercase", color: tone.accent }}>
+                      {tone.label}
+                    </span>
+                    <span style={{ fontFamily: C.mono, fontSize: 10, color: C.inkFaint, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      {issue.ref}
+                    </span>
                   </div>
-                )}
+                  <div style={{ fontSize: 12.5, fontWeight: 650, color: C.ink, lineHeight: 1.35 }}>{issue.title}</div>
+                </div>
               </div>
 
-              <IssueActions
-                issue={issue}
-                line={line}
-                onFocusField={onFocusField}
-                onFix={onFix}
-                resolve={resolve}
-              />
+              {/* Body: explanation + the resolution actions, indented under the icon */}
+              <div style={{ padding: "0 12px 12px 43px" }}>
+                {issue.why && (
+                  <div style={{ fontSize: 11.5, color: C.inkMuted, lineHeight: 1.5, marginBottom: 10 }}>{issue.why}</div>
+                )}
+                <IssueActions
+                  issue={issue}
+                  line={line}
+                  onFocusField={onFocusField}
+                  onFix={onFix}
+                  resolve={resolve}
+                />
+              </div>
             </li>
           );
         })}
@@ -302,40 +272,67 @@ export function IssuesPanel({ issues, onFocusField, onFix, readyLabel, resolve, 
   );
 }
 
-// ── Shared inline button styles ───────────────────────────────────────────────
-const primaryBtn: CSSProperties = {
-  height: 26,
-  padding: "0 10px",
-  borderRadius: 6,
-  fontSize: 11,
-  fontWeight: 700,
-  border: "none",
-  background: "#2E8E3A",
-  color: "#FFFFFF",
+// ── Glyphs ────────────────────────────────────────────────────────────────────
+function CheckGlyph() {
+  return (
+    <svg width="11" height="11" viewBox="0 0 12 12" fill="none" aria-hidden>
+      <path d="M2.5 6.2 5 8.6 9.5 3.6" stroke="#FFFFFF" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+function WarnGlyph({ color }: { color: string }) {
+  return (
+    <svg width="13" height="13" viewBox="0 0 16 16" fill="none" aria-hidden>
+      <path d="M8 2.5l6 10.5H2z" stroke={color} strokeWidth="1.3" strokeLinejoin="round" />
+      <path d="M8 6.5V9M8 11v.4" stroke={color} strokeWidth="1.3" strokeLinecap="round" />
+    </svg>
+  );
+}
+function SparkleGlyph() {
+  return (
+    <svg width="11" height="11" viewBox="0 0 12 12" fill="none" aria-hidden style={{ flexShrink: 0 }}>
+      <path d="M6 1.2l1.1 3.2 3.2 1.1-3.2 1.1L6 9.8 4.9 6.6 1.7 5.5l3.2-1.1z" fill="#FFFFFF" />
+    </svg>
+  );
+}
+
+// ── Shared inline button styles (v3 redesign) ────────────────────────────────
+const baseBtn: CSSProperties = {
+  height: 28,
+  padding: "0 11px",
+  borderRadius: 7,
+  fontSize: 11.5,
+  fontWeight: 600,
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+  gap: 6,
   cursor: "pointer",
   whiteSpace: "nowrap",
 };
-const ghostBtn: CSSProperties = {
-  height: 26,
-  padding: "0 9px",
-  borderRadius: 6,
-  fontSize: 11,
-  fontWeight: 600,
-  border: "1px solid #DCE0E8",
-  background: "#FFFFFF",
-  color: "#345470",
-  cursor: "pointer",
-  whiteSpace: "nowrap",
+/** Navy = the dominant "do this" action (manual code / confirm / resolve-all). */
+const navyBtn: CSSProperties = { ...baseBtn, border: `1px solid ${C.navy}`, background: C.navy, color: "#FFFFFF", fontWeight: 700 };
+/** Green = accept / the supplier-out signal (AI suggestion accept, deterministic fix). */
+const greenBtn: CSSProperties = { ...baseBtn, border: `1px solid ${C.greenDeep}`, background: C.green, color: "#FFFFFF", fontWeight: 700 };
+/** Ghost = the subordinate alternative. */
+const ghostBtn: CSSProperties = { ...baseBtn, border: "1px solid #DCE0E8", background: C.surface, color: "#345470" };
+const countBadge: CSSProperties = {
+  marginLeft: 2,
+  background: "rgba(255,255,255,0.28)",
+  borderRadius: 8,
+  padding: "0 6px",
+  fontSize: 10,
+  fontWeight: 700,
 };
 
 /**
- * The right-hand action cluster for one issue, chosen by `kind`:
- *   • manual-code → the inline supplier-code input (the #1 review action) — REPLACES
- *     the dead "Where →" as the primary affordance. When in edit mode it renders the
- *     input + Save; otherwise an "Enter code" button opens it.
- *   • ai-suggestion → keep the green one-click "Accept suggestion" (onFix) + "Enter manually".
+ * The resolution action cluster for one issue, chosen by `kind`:
+ *   • manual-code → the inline supplier-code input (the #1 review action) — the
+ *     primary affordance. When in edit mode it renders the input + Save; otherwise
+ *     an "Enter code" button opens it.
+ *   • ai-suggestion → the green one-click "Accept suggestion" (onFix) + "Enter manually".
  *   • review-flag → "Confirm" (re-commit existing code) + "Change code".
- *   • rule-failure (header) / no resolve API → the read-only "Where →" jump (unchanged).
+ *   • rule-failure (header) / no resolve API → the read-only "Where →" jump.
  *
  * Without a `resolve` API (or without `lines`), it degrades to the read-only "Where →"
  * so the panel is still usable as a pure view (and existing tests keep passing).
@@ -384,15 +381,17 @@ function IssueActions({
     </button>
   );
 
+  const actionRow: CSSProperties = { display: "flex", flexWrap: "wrap", alignItems: "center", gap: 7 };
+
   // No inline resolution available → the read-only jump (header rule-failures + the
   // pure-view fallback used by the panel's own unit tests). A deterministic
   // one-click fixAction (e.g. an AI accept) still renders here so a pure-view
   // caller keeps that button.
   if (!canResolveLine || issue.kind === "rule-failure") {
     return (
-      <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
+      <div style={actionRow}>
         {issue.fixAction && onFix && (
-          <button type="button" onClick={() => onFix(issue)} style={primaryBtn}>
+          <button type="button" onClick={() => onFix(issue)} style={greenBtn}>
             {issue.fixAction.label}
           </button>
         )}
@@ -402,14 +401,13 @@ function IssueActions({
   }
 
   if (issue.kind === "manual-code") {
-    // Primary, inline: open the code input. (Replaces the dead "Where →".)
     return (
-      <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
+      <div style={actionRow}>
         <button
           type="button"
           onClick={() => resolve!.startLineEdit(lineId!, line!.supplierItemCode ?? "")}
           disabled={busy}
-          style={{ ...primaryBtn, background: "#0F4FAB", opacity: busy ? 0.6 : 1, cursor: busy ? "wait" : "pointer" }}
+          style={{ ...navyBtn, opacity: busy ? 0.6 : 1, cursor: busy ? "wait" : "pointer" }}
         >
           {busy ? "Saving…" : "Enter code"}
         </button>
@@ -419,9 +417,9 @@ function IssueActions({
 
   if (issue.kind === "ai-suggestion") {
     return (
-      <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
+      <div style={actionRow}>
         {issue.fixAction && onFix && (
-          <button type="button" onClick={() => onFix(issue)} disabled={busy} style={{ ...primaryBtn, opacity: busy ? 0.6 : 1, cursor: busy ? "wait" : "pointer" }}>
+          <button type="button" onClick={() => onFix(issue)} disabled={busy} style={{ ...greenBtn, opacity: busy ? 0.6 : 1, cursor: busy ? "wait" : "pointer" }}>
             {busy ? "Saving…" : issue.fixAction.label}
           </button>
         )}
@@ -439,12 +437,12 @@ function IssueActions({
 
   if (issue.kind === "review-flag") {
     return (
-      <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
+      <div style={actionRow}>
         <button
           type="button"
           onClick={() => resolve!.confirmFlaggedLine({ id: line!.id, lineNumber: line!.lineNumber, supplierItemCode: line!.supplierItemCode })}
           disabled={busy || !line!.supplierItemCode}
-          style={{ ...primaryBtn, opacity: busy || !line!.supplierItemCode ? 0.6 : 1, cursor: busy ? "wait" : "pointer" }}
+          style={{ ...navyBtn, opacity: busy || !line!.supplierItemCode ? 0.6 : 1, cursor: busy ? "wait" : "pointer" }}
         >
           {busy ? "Saving…" : "Confirm"}
         </button>
@@ -461,7 +459,7 @@ function IssueActions({
   }
 
   // Unknown kind → the read-only jump.
-  return <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>{whereButton}</div>;
+  return <div style={actionRow}>{whereButton}</div>;
 }
 
 /**
@@ -495,7 +493,7 @@ function LineCodeInput({
     }
   };
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
+    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
       {/* autoFocus: the operator clicked to open this inline editor, so focusing it is the intent. */}
       <input
         type="text"
@@ -507,15 +505,15 @@ function LineCodeInput({
         aria-label={`Supplier code for ${title}`}
         placeholder="supplier code"
         style={{
-          height: 26,
-          width: 132,
-          padding: "0 8px",
-          borderRadius: 6,
+          height: 28,
+          width: 150,
+          padding: "0 9px",
+          borderRadius: 7,
           fontSize: 11.5,
-          fontFamily: "'JetBrains Mono',monospace",
+          fontFamily: C.mono,
           border: "1px solid #BFD0E8",
-          background: busy ? "#F3F5F9" : "#FFFFFF",
-          color: "#0B1A2F",
+          background: busy ? "#F3F5F9" : C.surface,
+          color: C.ink,
           outline: "none",
         }}
       />
@@ -523,7 +521,7 @@ function LineCodeInput({
         type="button"
         onClick={onSave}
         disabled={busy}
-        style={{ ...primaryBtn, opacity: busy ? 0.6 : 1, cursor: busy ? "wait" : "pointer" }}
+        style={{ ...navyBtn, opacity: busy ? 0.6 : 1, cursor: busy ? "wait" : "pointer" }}
       >
         {busy ? "Saving…" : "Save"}
       </button>
