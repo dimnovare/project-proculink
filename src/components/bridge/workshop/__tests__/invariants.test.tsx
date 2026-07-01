@@ -518,6 +518,35 @@ describe("Task 1 — inline resolution is reachable + the chip jump target exist
     // Clicking does not throw (the scroll target resolves).
     expect(() => fireEvent.click(chip)).not.toThrow();
   });
+
+  // REGRESSION GUARD (a8babcc): the line-level chip-jump fix repointed a line
+  // card's `ref` at the "SupplierItemCode" OUTPUT field. onFix used to pass
+  // issue.ref straight into acceptSuggestion(id), which resolves the line by
+  // `order.lines.find(l => l.id === id)` — so "SupplierItemCode" matched nothing
+  // and the one-click "Accept suggestion" silently did nothing. onFix must pass
+  // the OWNING LINE id (issue.lineId), not the field ref.
+  test("the one-click 'Accept suggestion' resolves the owning LINE, not the field ref", () => {
+    mockState.order = makeOrder({
+      lines: [
+        {
+          id: "l1", lineNumber: 1, buyerItemCode: "B-1", supplierItemCode: null,
+          description: "Widget", quantity: 2, unitPrice: 10, confidence: 0.4,
+          needsReview: true,
+          aiSuggestion: { supplierItemCode: "S-9", confidence: 0.4, reason: "catalog match", source: "catalog" },
+        } as unknown as Order["lines"][number],
+      ],
+    });
+    mockState.exceptionCount = 1;
+    mockState.validationResult = { passed: true, results: [] } as OrderValidationResult;
+    render(<OrderWorkshop orderId="ord-1" />);
+
+    const acceptBtns = screen.getAllByRole("button", { name: /accept suggestion/i });
+    expect(acceptBtns.length).toBeGreaterThan(0);
+    fireEvent.click(acceptBtns[0]);
+
+    expect(mockState.acceptSuggestion).toHaveBeenCalledWith("l1");
+    expect(mockState.acceptSuggestion).not.toHaveBeenCalledWith("SupplierItemCode");
+  });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────

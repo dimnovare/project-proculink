@@ -282,8 +282,12 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
 
   // ── One-click fix for an AI-suggestion issue → the real server-path accept ──
   const onFix = useCallback((issue: WorkshopIssue) => {
-    // ref is the line id for line-scoped cards (acceptSuggestion resolves it).
-    resolve.acceptSuggestion(issue.ref);
+    // Resolve against the OWNING LINE. `issue.ref` is NOT the line id — it's the
+    // "SupplierItemCode" output-field ref used for the cross-column chip jump
+    // (see fixQueueToIssues). acceptSuggestion(id) looks the line up by id
+    // (order.lines.find(l => l.id === id)), so it must get issue.lineId; passing
+    // ref made the one-click "Accept suggestion" a silent no-op.
+    resolve.acceptSuggestion(issue.lineId ?? issue.ref);
   }, [resolve]);
 
   // ── The inline per-line resolution subset handed to the IssuesPanel cards.
