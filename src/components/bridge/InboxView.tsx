@@ -28,6 +28,7 @@ import { FileChip } from "./FileChip";
 import { PageHeader } from "./layout/PageHeader";
 import { PageShell } from "./layout/PageShell";
 import { StatusJourney, type CrossingStatus, type OrderStage } from "./StatusJourney";
+import { UnifiedStatusBadge } from "@/components/ui/UnifiedStatusBadge";
 import { useOrderDirection, type PartyLabels } from "@/hooks/useOrderDirection";
 import { formatBulkSendResult, isRedeliverable, shouldShowBulkBar, type BulkSendResult } from "./inboxSend";
 
@@ -469,7 +470,11 @@ function buildColumns(labels: PartyLabels) {
     id: "statusPill",
     enableHiding: false,
     header: "Status",
-    cell: ({ row }) => <StatusDotPill status={row.original.status} />,
+    // Canonical status pill — one shape/size/padding, Lucide icon + word per tone.
+    // Keyed on the RAW backend OrderStatus so it can tell `ready` ("Normalized")
+    // apart from `ready_to_deliver` ("Ready to send") — the collapsed display
+    // `status` can't (see UnifiedStatusBadge / STATUS_META).
+    cell: ({ row }) => <UnifiedStatusBadge status={row.original.rawStatus} />,
     size: 124,
   }),
   columnHelper.accessor("ageMin", {
