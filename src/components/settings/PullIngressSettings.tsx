@@ -14,17 +14,17 @@ import {
 } from "@/lib/api-client";
 import { SettingsGroup, primaryGreenButton } from "@/components/settings/SettingsPrimitives";
 
-const INK = "#0B1A2F";
-const MUTED = "#56627A";
+const INK = "var(--ink)";
+const MUTED = "var(--ink-muted)";
 const FAINT = "var(--ink-faint)";
-const DANGER = "#A52E2E";
+const DANGER = "var(--danger)";
 
 const PLAN_HINT = "Available on any paid plan. Secrets are encrypted and never shown again.";
 
 const inputStyle: React.CSSProperties = {
   height: 36,
   width: "100%",
-  border: `1px solid #D5DAEA`,
+  border: `1px solid var(--border-strong)`,
   borderRadius: 6,
   padding: "0 10px",
   fontSize: 13,
@@ -113,7 +113,7 @@ function SupplierSelect({
       <Field label="Default supplier" required>
         <div
           className="rounded-[6px] px-3 py-2.5 text-[12.5px]"
-          style={{ border: `1px dashed #C6CDDA`, background: "#F8FAFC", color: MUTED, lineHeight: 1.5 }}
+          style={{ border: `1px dashed var(--border-strong)`, background: "#F8FAFC", color: MUTED, lineHeight: 1.5 }}
         >
           No suppliers yet — orders need a supplier to attribute to.{" "}
           <Link href="/library/suppliers" style={{ color: "var(--brand-green-deep, #1B6E2A)", fontWeight: 600 }}>
@@ -162,9 +162,9 @@ function Notice({ msg }: { msg: { kind: "ok" | "err"; text: string } | null }) {
       role="status"
       className="rounded-[6px] px-3 py-2 text-[12.5px]"
       style={{
-        background: ok ? "#ECFDF3" : "#FCEBEB",
-        border: `1px solid ${ok ? "#A6E9BE" : "#F5C5C5"}`,
-        color: ok ? "#1DAF50" : DANGER,
+        background: ok ? "var(--brand-green-soft)" : "var(--danger-soft)",
+        border: `1px solid ${ok ? "var(--brand-green)" : "var(--danger)"}`,
+        color: ok ? "var(--brand-green-deep)" : DANGER,
       }}
     >
       {msg.text}
@@ -219,13 +219,13 @@ function LoadingShell({ title, subtitle }: { title: string; subtitle: string }) 
     <Shell title={title} subtitle={subtitle}>
       <div role="status" aria-busy="true" className="grid gap-3">
         <span className="sr-only">Loading…</span>
-        <div style={{ height: 16, width: 170, borderRadius: 4, background: "#E2E6EE" }} />
-        <div style={{ height: 36, borderRadius: 6, background: "#EFF2F7" }} />
+        <div style={{ height: 16, width: 170, borderRadius: 4, background: "var(--border)" }} />
+        <div style={{ height: 36, borderRadius: 6, background: "var(--surface-2)" }} />
         <div className="grid gap-3 sm:grid-cols-2">
-          <div style={{ height: 36, borderRadius: 6, background: "#EFF2F7" }} />
-          <div style={{ height: 36, borderRadius: 6, background: "#EFF2F7" }} />
+          <div style={{ height: 36, borderRadius: 6, background: "var(--surface-2)" }} />
+          <div style={{ height: 36, borderRadius: 6, background: "var(--surface-2)" }} />
         </div>
-        <div style={{ height: 36, borderRadius: 6, background: "#EFF2F7" }} />
+        <div style={{ height: 36, borderRadius: 6, background: "var(--surface-2)" }} />
       </div>
     </Shell>
   );
@@ -245,7 +245,7 @@ function ErrorShell({
   // left danger rule, card shadow) so error states are consistent too.
   return (
     <div
-      style={{ borderRadius: 12, background: "#FFFFFF", padding: "20px 22px", border: "1px solid #F0D2D2", borderLeft: "3px solid #C53A3A", boxShadow: "0 1px 2px rgba(11,26,47,0.04)" }}
+      style={{ borderRadius: 12, background: "var(--surface)", padding: "20px 22px", border: "1px solid #F0D2D2", borderLeft: "3px solid var(--danger)", boxShadow: "var(--shadow-card)" }}
     >
       <h2 style={{ fontSize: 17, fontWeight: 600, color: INK, margin: "0 0 4px" }}>{title} settings are unavailable</h2>
       <p style={{ margin: 0, maxWidth: 560, fontSize: 12.5, lineHeight: 1.55, color: MUTED }}>
@@ -254,7 +254,7 @@ function ErrorShell({
       <button
         onClick={onRetry}
         disabled={retrying}
-        style={{ marginTop: 14, height: 32, borderRadius: 6, border: "1px solid #E2E6EE", background: "#FFFFFF", color: INK, fontSize: 12, fontWeight: 600, padding: "0 12px", cursor: retrying ? "not-allowed" : "pointer" }}
+        style={{ marginTop: 14, height: 32, borderRadius: 6, border: "1px solid var(--border)", background: "var(--surface)", color: INK, fontSize: 12, fontWeight: 600, padding: "0 12px", cursor: retrying ? "not-allowed" : "pointer" }}
       >
         {retrying ? "Checking…" : "Retry connection"}
       </button>

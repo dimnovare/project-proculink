@@ -131,7 +131,7 @@ export function MappingEditor() {
     staleTime: 60_000,
   });
 
-  const { data: liveRows, isLoading: mappingsLoading } = useQuery({
+  const { data: liveRows, isLoading: mappingsLoading, isError: mappingsError, refetch: refetchMappings } = useQuery({
     queryKey: ["supplier-mappings", selectedSupplierId],
     queryFn: () => apiClient.getSupplierMappings(selectedSupplierId!),
     enabled: !!selectedSupplierId && !isApiMockMode,
@@ -394,12 +394,35 @@ export function MappingEditor() {
           {!isApiMockMode && selectedSupplierId && mappingsLoading && (
             <div className="px-5 py-4">
               {[1, 2, 3].map(i => (
-                <div key={i} className="mb-3 h-9 rounded-[6px]" style={{ background: "#F0F2F6" }} />
+                <div key={i} className="mb-3 h-9 rounded-[6px] animate-pulse" style={{ background: "#F0F2F6" }} />
               ))}
             </div>
           )}
 
-          {!needsSupplierSelection && (!(!isApiMockMode && selectedSupplierId && mappingsLoading)) && (
+          {/* Error state — a failed fetch must not read as an empty "0 saved" table */}
+          {!isApiMockMode && selectedSupplierId && !mappingsLoading && mappingsError && (
+            <div
+              className="flex flex-col items-center justify-center py-16 px-6 text-center"
+              style={{ color: "var(--ink-faint)" }}
+            >
+              <span style={{ fontSize: 30, marginBottom: 10 }} aria-hidden="true">⚠</span>
+              <p className="text-[13px] font-semibold" style={{ color: "#B43838", marginBottom: 4 }}>
+                Couldn't load mappings
+              </p>
+              <p className="text-[12.5px]" style={{ maxWidth: 380, marginBottom: 16 }}>
+                Check your connection and try again.
+              </p>
+              <button
+                onClick={() => refetchMappings()}
+                className="flex h-9 items-center justify-center rounded-[7px] px-4 text-[12.5px] font-semibold"
+                style={{ background: INK, color: "#FFFFFF", border: 0 }}
+              >
+                Retry
+              </button>
+            </div>
+          )}
+
+          {!needsSupplierSelection && !(!isApiMockMode && selectedSupplierId && mappingsLoading) && !(!isApiMockMode && selectedSupplierId && mappingsError) && (
             <>
               {/* Mobile card list — buyer (blue) → supplier (green) translation cards */}
               <div className="md:hidden" style={{ borderColor: BORDER }}>
