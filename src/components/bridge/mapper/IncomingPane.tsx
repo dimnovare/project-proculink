@@ -57,6 +57,8 @@ export interface IncomingPaneProps {
   /** Selection/hover plumbing for wire emphasis. */
   hoveredId?: string | null;
   onHover?: (id: string | null) => void;
+  /** Hovered id + its wire-linked counterparts → cross-column highlight. */
+  activeIds?: Set<string>;
   onSelect?: (id: string) => void;
   /** True while a wire drag is in flight — softens the "drag to map" hint into "drop on a field". */
   dragging?: boolean;
@@ -91,6 +93,7 @@ export function IncomingPane({
   focusSearchSignal,
   anchorRef,
   hoveredId,
+  activeIds,
   onHover,
   onSelect,
   dragging,
@@ -211,6 +214,7 @@ export function IncomingPane({
               portProps={portProps}
               anchorRef={anchorRef}
               hoveredId={hoveredId}
+              activeIds={activeIds}
               onHover={onHover}
               onSelect={onSelect}
               dragging={dragging}
@@ -255,7 +259,7 @@ function PaneFrame({
 
 // ── A collapsible group of incoming rows ──────────────────────────────────────
 function IncomingGroup({
-  group, fields, open, onToggle, forceOpen, portProps, anchorRef, hoveredId, onHover, onSelect, dragging, readOnly,
+  group, fields, open, onToggle, forceOpen, portProps, anchorRef, hoveredId, activeIds, onHover, onSelect, dragging, readOnly,
 }: {
   group: SourceGroup;
   fields: SourceField[];
@@ -266,6 +270,8 @@ function IncomingGroup({
   anchorRef?: (id: string, el: HTMLElement | null) => void;
   hoveredId?: string | null;
   onHover?: (id: string | null) => void;
+  /** Hovered id + its wire-linked counterparts → cross-column highlight. */
+  activeIds?: Set<string>;
   onSelect?: (id: string) => void;
   dragging?: boolean;
   readOnly?: boolean;
@@ -304,7 +310,7 @@ function IncomingGroup({
               field={f}
               port={portProps(f.id)}
               anchorRef={anchorRef}
-              hovered={hoveredId === f.id}
+              hovered={activeIds ? activeIds.has(f.id) : hoveredId === f.id}
               onHover={onHover}
               onSelect={onSelect}
               dragging={dragging}

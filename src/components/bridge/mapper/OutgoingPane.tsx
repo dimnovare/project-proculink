@@ -50,6 +50,9 @@ export interface OutgoingPaneProps {
   onHover?: (outputPath: string | null) => void;
   onSelect?: (outputPath: string) => void;
   hoveredId?: string | null;
+  /** The hovered id plus its wire-linked counterparts → cross-column highlight
+      (a row lights when it OR its linked source/target is hovered). */
+  activeIds?: Set<string>;
   /** Output path currently snap-highlighted under a drag (drives the drop-target glow). */
   snapTarget?: string | null;
   onDisconnect?: (outputPath: string) => void;
@@ -141,6 +144,7 @@ export function OutgoingPane({
   onHover,
   onSelect,
   hoveredId,
+  activeIds,
   snapTarget,
   onDisconnect,
   onSetFixedValue,
@@ -208,7 +212,7 @@ export function OutgoingPane({
       status={status}
       wired={isTargetWired(field.outputPath, outputConnections)}
       fixedValue={fixedValues?.[field.outputPath] ?? null}
-      hovered={hoveredId === field.outputPath}
+      hovered={activeIds ? activeIds.has(field.outputPath) : hoveredId === field.outputPath}
       snapped={snapTarget === field.outputPath}
       canRename={canRename}
       readOnly={readOnly}
@@ -294,7 +298,7 @@ export function OutgoingPane({
               status={status}
               wired={isTargetWired(field.outputPath, outputConnections)}
               fixedValue={fixedValues?.[field.outputPath] ?? null}
-              hovered={hoveredId === field.outputPath}
+              hovered={activeIds ? activeIds.has(field.outputPath) : hoveredId === field.outputPath}
               snapped={snapTarget === field.outputPath}
               canRename={canRename}
               readOnly={readOnly}
@@ -327,7 +331,7 @@ export function OutgoingPane({
                       status={status}
                       wired={isTargetWired(field.outputPath, outputConnections)}
                       fixedValue={fixedValues?.[field.outputPath] ?? null}
-                      hovered={hoveredId === field.outputPath}
+                      hovered={activeIds ? activeIds.has(field.outputPath) : hoveredId === field.outputPath}
                       snapped={snapTarget === field.outputPath}
                       canRename={canRename}
                       readOnly={readOnly}

@@ -336,6 +336,38 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
   const sourceIds = useMemo(() => model.sourceFields.map((f) => f.id), [model.sourceFields]);
   const knownSourceIds = useMemo(() => new Set(sourceIds), [sourceIds]);
 
+  // ── Bidirectional hover link — "what we received" ↔ "what we'll send" ↔ live
+  //    preview. `model.outputConnections` maps an output path → its wired source
+  //    id. From the raw hovered id (a received field id OR an output path) we light
+  //    BOTH ends of the wire; the panes read `activeIds` so the linked counterpart
+  //    lights, not just the element under the cursor. Cheap: it only grows the
+  //    existing single-hover set, so nothing else changes when nothing is hovered.
+  const activeHoverIds = useMemo<Set<string>>(() => {
+    const set = new Set<string>();
+    if (!hoveredId) return set;
+    set.add(hoveredId);
+    const conns = model.outputConnections;
+    if (knownSourceIds.has(hoveredId)) {
+      // received field hovered → light every output path wired from it
+      for (const path in conns) if (conns[path] === hoveredId) set.add(path);
+    } else {
+      // output path hovered → light its wired source
+      const src = conns[hoveredId];
+      if (src) set.add(src);
+    }
+    return set;
+  }, [hoveredId, model.outputConnections, knownSourceIds]);
+
+  // The live preview highlights an OUTPUT line, so a hovered RECEIVED field must be
+  // resolved to the output path it feeds; an output path passes straight through.
+  const previewHot = useMemo<string | null>(() => {
+    if (!hoveredId) return null;
+    if (!knownSourceIds.has(hoveredId)) return hoveredId; // already an output path
+    const conns = model.outputConnections;
+    for (const path in conns) if (conns[path] === hoveredId) return path;
+    return null;
+  }, [hoveredId, model.outputConnections, knownSourceIds]);
+
   // Canonical keys = the spine node ids (so a wired raw token is distinguishable from a re-point).
   const knownCanonical = useMemo(
     () => new Set(model.canonicalNodes.map((n) => n.id)),
@@ -509,6 +541,7 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
       focusSearchSignal={focusSearchSignal}
       anchorRef={(id, el) => { sourceRowEls.current[id] = el; }}
       hoveredId={hoveredId}
+      activeIds={activeHoverIds}
       onHover={setHoveredId}
       onSelect={setSelectedId}
       dragging={wire.dragging}
@@ -550,6 +583,7 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
       onHover={setHoveredId}
       onSelect={setSelectedId}
       hoveredId={hoveredId}
+      activeIds={activeHoverIds}
       snapTarget={wire.hoverTarget}
       onDisconnect={model.onTargetDisconnect}
       onSetFixedValue={model.onSetFixedValue}
@@ -573,7 +607,7 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
       previewOrderId={model.previewOrderId}
       override={model.override}
       lastTouched={model.lastTouched}
-      hot={hoveredId}
+      hot={previewHot}
       onHotChange={setHoveredId}
       cycleFormatSignal={cycleFormatSignal}
       defaultFormat={previewDefaultFormat ?? model.outputFormat}
