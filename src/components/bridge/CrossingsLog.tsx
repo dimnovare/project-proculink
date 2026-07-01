@@ -120,9 +120,9 @@ const MOCK_LOG: LogEntry[] = [
     buyer: "Westmark Tools", supplier: "Acme Components", fmt: "EMAIL",
     event: "crossed", canonicalEvent: "delivered",
     actor: { initials: "MK", name: "Marius Klein", type: "user" },
-    message: "Delivered successfully — cXML delivered to Acme ERP endpoint",
-    details: { channel: "HTTP", status: "HTTP 200", dur: "1.2s", size: "3.1 KB", attempt: "1" },
-    detail: "HTTP 200. Transmission time 1.2s. ACK received.",
+    message: "Sent — endpoint answered HTTP 200 (received; not the same as supplier acceptance)",
+    details: { channel: "HTTP", status: "HTTP 200 (received)", dur: "1.2s", size: "3.1 KB", attempt: "1" },
+    detail: "Endpoint answered HTTP 200 in 1.2s. A 200 means the endpoint received the file — it is not confirmation the supplier accepted the order.",
   },
   {
     id: "e5",

@@ -68,6 +68,17 @@ function normalizeDeadLetterStatus(status: string): string {
   return status;
 }
 
+// Split "failed" into redeliverable vs non-redeliverable. Redeliverable = a
+// transport/transient failure a blind requeue can legitimately retry
+// (delivery_failed / delivery_dead_letter). A supplier BUSINESS rejection is
+// NOT redeliverable — resending the same artifact will be rejected again — so
+// those rows must route to the order to fix the cause, not promise a retry.
+// Unknown statuses default to redeliverable (conservative; preserves prior behavior).
+function canRedeliver(status: string): boolean {
+  const s = (status ?? "").toLowerCase();
+  return s !== "rejected_by_supplier" && s !== "rejected";
+}
+
 export default function OperationsHealthPage() {
   const queryEnabled = useQueriesEnabled();
   const qc = useQueryClient();
@@ -129,7 +140,22 @@ export default function OperationsHealthPage() {
   }
 
   const h = healthQ.data;
-  const allClear = h.totalProblemOrders === 0 && h.openExceptions === 0;
+  // Truthfulness gate: NEVER show the green "All clear" banner while any hard
+  // failure, dead-letter, stuck, or SLA-breach count is non-zero — even if the
+  // backend-aggregated totalProblemOrders is stale or omits a category. The
+  // aggregate is an optimization; these direct checks are the source of truth for
+  // "is anything actually wrong right now".
+  const allClear =
+    h.totalProblemOrders === 0 &&
+    h.openExceptions === 0 &&
+    h.deliveryDeadLetter === 0 &&
+    h.deliveryFailed === 0 &&
+    h.transformFailed === 0 &&
+    h.rejectedBySupplier === 0 &&
+    h.failed === 0 &&
+    h.parsingStuck === 0 &&
+    h.deliveringStuck === 0 &&
+    h.slaBreached === 0;
   const deadLetters = deadLetterQ.data ?? [];
 
   return (
@@ -272,16 +298,28 @@ export default function OperationsHealthPage() {
                       </td>
                       <td style={{ ...td, color: "var(--ink-muted)", whiteSpace: "nowrap" }}>{relativeTime(o.lastAttemptAt)}</td>
                       <td style={{ ...td, textAlign: "right" }}>
-                        <Button
-                          variant="blue"
-                          size="sm"
-                          onClick={() => requeue.mutate(o)}
-                          /* Gate on THIS row's id so requeuing one order doesn't
-                             disable + spin every row's button (shared isPending). */
-                          disabled={requeue.isPending && requeue.variables?.orderId === o.orderId}
-                        >
-                          {requeue.isPending && requeue.variables?.orderId === o.orderId ? "Sending…" : "Try sending again"}
-                        </Button>
+                        {canRedeliver(o.status) ? (
+                          <Button
+                            variant="blue"
+                            size="sm"
+                            onClick={() => requeue.mutate(o)}
+                            /* Gate on THIS row's id so requeuing one order doesn't
+                               disable + spin every row's button (shared isPending). */
+                            disabled={requeue.isPending && requeue.variables?.orderId === o.orderId}
+                          >
+                            {requeue.isPending && requeue.variables?.orderId === o.orderId ? "Sending…" : "Try sending again"}
+                          </Button>
+                        ) : (
+                          /* Supplier BUSINESS-rejected the order — a blind requeue would
+                             re-send the same artifact and be rejected again. Route to the
+                             order to fix the cause instead of promising a retry. */
+                          <Link
+                            href={`/inbox/${o.orderId}`}
+                            style={{ fontSize: 12.5, fontWeight: 600, color: "var(--brand-blue-deep)", textDecoration: "none" }}
+                          >
+                            Open to fix & resend
+                          </Link>
+                        )}
                       </td>
                     </tr>
                   ))}
@@ -312,16 +350,26 @@ export default function OperationsHealthPage() {
                     </div>
                   )}
                   <div style={{ marginTop: 10 }}>
-                    <Button
-                      variant="blue"
-                      size="md"
-                      onClick={() => requeue.mutate(o)}
-                      /* Per-row guard — see desktop table above. */
-                      disabled={requeue.isPending && requeue.variables?.orderId === o.orderId}
-                      style={{ width: "100%" }}
-                    >
-                      {requeue.isPending && requeue.variables?.orderId === o.orderId ? "Sending…" : "Try sending again"}
-                    </Button>
+                    {canRedeliver(o.status) ? (
+                      <Button
+                        variant="blue"
+                        size="md"
+                        onClick={() => requeue.mutate(o)}
+                        /* Per-row guard — see desktop table above. */
+                        disabled={requeue.isPending && requeue.variables?.orderId === o.orderId}
+                        style={{ width: "100%" }}
+                      >
+                        {requeue.isPending && requeue.variables?.orderId === o.orderId ? "Sending…" : "Try sending again"}
+                      </Button>
+                    ) : (
+                      /* Supplier BUSINESS-rejected — see desktop table above. */
+                      <Link
+                        href={`/inbox/${o.orderId}`}
+                        style={{ display: "block", textAlign: "center", fontSize: 13, fontWeight: 600, color: "var(--brand-blue-deep)", textDecoration: "none", padding: "8px 0" }}
+                      >
+                        Open to fix & resend
+                      </Link>
+                    )}
                   </div>
                 </MobileListRow>
               ))}
