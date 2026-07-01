@@ -5,7 +5,6 @@ import { useOrganization, useOrganizationList } from "@clerk/nextjs";
 import { QueryClient, QueryClientProvider, useQueryClient } from "@tanstack/react-query";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Toaster } from "@/components/ui/toaster";
-import { Toaster as Sonner } from "@/components/ui/sonner";
 import { BridgeSidebar } from "@/components/bridge/BridgeSidebar";
 import { BridgeTopbar } from "@/components/bridge/BridgeTopbar";
 import { ErrorBoundary } from "@/components/bridge/ErrorBoundary";
@@ -207,7 +206,6 @@ export default function AppShellLayout({
         </div>
 
         <Toaster />
-        <Sonner />
       </TooltipProvider>
     </QueryClientProvider>
     </MSWProvider>
