@@ -16,13 +16,7 @@ import { RevisionStatusBadge } from "@/components/connections/RevisionStatusBadg
 import { listConnections, isApiMockMode } from "@/lib/api-client";
 import type { ConnectionSummary } from "@/lib/api/types";
 import { useQueriesEnabled } from "@/hooks/useQueriesEnabled";
-
-function formatDate(iso: string | null): string {
-  if (!iso) return "—";
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "—";
-  return d.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
-}
+import { formatDate } from "@/lib/format-date";
 
 /** The active published version's status when one is live, else the connection has only drafts. */
 function liveStatus(c: ConnectionSummary): "published" | "draft" {

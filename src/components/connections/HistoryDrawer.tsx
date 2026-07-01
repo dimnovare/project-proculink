@@ -18,6 +18,7 @@ import { useEffect, useRef } from "react";
 import { Button } from "@/components/bridge/DSPrimitives";
 import { RevisionStatusBadge } from "@/components/connections/RevisionStatusBadge";
 import { ReplayPanel } from "@/components/connections/ReplayPanel";
+import { formatDateTime } from "@/lib/format-date";
 import type { ConnectionRevisionSummary } from "@/lib/api/types";
 
 // Test-pack evidence shape, mirrored from ConnectionDetail (kept structurally
@@ -303,19 +304,6 @@ export function HistoryContent(props: HistoryContentProps) {
       </section>
     </>
   );
-}
-
-function formatDateTime(iso: string | null): string {
-  if (!iso) return "—";
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "—";
-  return d.toLocaleString(undefined, {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
 }
 
 function evidenceNotes(summary: TestPackSummary | null): string[] {
