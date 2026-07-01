@@ -348,8 +348,10 @@ describe("invariant 2b — fixQueueToIssues maps the validator faithfully", () =
     // (manual-code now renders an inline code input, keyed off `kind`, not fixAction).
     expect(issues.find((i) => i.code === "line:l1")?.fixAction).toBeTruthy();
     expect(issues.find((i) => i.code === "line:l2")?.fixAction).toBeUndefined();
-    // ref deep-links to the owning line where present.
-    expect(issues.find((i) => i.code === "line:l1")?.ref).toBe("l1");
+    // A line card's ref points at the SupplierItemCode OUTPUT field (a resolvable
+    // mapper row) so a chip jump highlights across columns; the owning line is still
+    // carried on `lineId` (asserted below).
+    expect(issues.find((i) => i.code === "line:l1")?.ref).toBe("SupplierItemCode");
     // The card's kind + owning lineId are carried through so the panel can pick the
     // right inline resolution control (input / accept / confirm).
     expect(issues.find((i) => i.code === "line:l2")?.kind).toBe("manual-code");
