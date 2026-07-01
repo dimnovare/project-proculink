@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { EmptyState } from "@/components/bridge/EmptyState";
+import { UnifiedStatusBadge } from "@/components/bridge/UnifiedStatusBadge";
 import { isApiMockMode } from "@/lib/api-client";
 import { PageShell } from "@/components/bridge/layout/PageShell";
 import { PageHeader } from "@/components/bridge/layout/PageHeader";
@@ -12,8 +13,8 @@ import { Button } from "@/components/bridge/DSPrimitives";
 // users (NEXT_PUBLIC_USE_MOCK=false) see an honest empty state instead of
 // fabricated rows that would 404 against the live API.
 const DEMO_DRAFTS = [
-  { id: "d1", po: "PO-2026-008422", buyer: "Example Buyer Co.", supplier: "Example Supplier Co.", savedAt: "3m", stage: "Needs review", issues: 2 },
-  { id: "d2", po: "AR-2026-1110",   buyer: "Sample Buyer Ltd.",   supplier: "Sample Supplier Ltd.", savedAt: "2h",  stage: "Ready", issues: 0 },
+  { id: "d1", po: "PO-2026-008422", buyer: "Example Buyer Co.", supplier: "Example Supplier Co.", savedAt: "3m", stage: "needs_review", issues: 2 },
+  { id: "d2", po: "AR-2026-1110",   buyer: "Sample Buyer Ltd.",   supplier: "Sample Supplier Ltd.", savedAt: "2h",  stage: "ready_to_deliver", issues: 0 },
 ];
 
 const DRAFTS = isApiMockMode ? DEMO_DRAFTS : [];
@@ -101,7 +102,7 @@ export default function DraftsPage() {
                   design classes (amber stage, red exceptions). On mobile it
                   wraps under the identity block, left-aligned. */}
               <div className="flex items-center gap-2 flex-shrink-0 flex-wrap">
-                <span className="pill pill-review"><span className="dot" />{d.stage}</span>
+                <UnifiedStatusBadge status={d.stage} />
                 {d.issues > 0 && (
                   <span className="pill pill-failed">
                     <span className="dot" />

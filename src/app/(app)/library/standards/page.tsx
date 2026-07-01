@@ -188,7 +188,14 @@ export default function StandardsPage() {
         </div>
 
         {rows.length === 0 && (
-          <EmptyState compact title="No fields match" sub={`Nothing for "${q}".`} />
+          FIELD_STANDARDS.length === 0 ? (
+            <EmptyState
+              title="No standards catalog"
+              sub="The canonical field reference isn't available. Reload the page, and if it stays empty, contact support."
+            />
+          ) : (
+            <EmptyState compact title="No fields match" sub={`Nothing for "${q}".`} />
+          )
         )}
       </div>
 

@@ -11,6 +11,7 @@
 // the backend multiplies by quantity. amountCents must be > 0.
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { X, Check, Plus, ExternalLink } from "lucide-react";
 import {
   createAdminInvoice,
   type AdminOrganisation,
@@ -194,7 +195,7 @@ export function CreateInvoiceModal({
             className="flex h-7 w-7 items-center justify-center rounded-[6px]"
             style={{ color: "var(--ink-faint)", border: "1px solid transparent", cursor: "pointer" }}
           >
-            ✕
+            <X size={16} strokeWidth={2} aria-hidden />
           </button>
         </div>
 
@@ -203,10 +204,11 @@ export function CreateInvoiceModal({
           {result ? (
             <div>
               <div
-                className="mb-3 rounded-[10px] px-4 py-3 text-[13px]"
+                className="mb-3 flex items-center gap-2 rounded-[10px] px-4 py-3 text-[13px]"
                 style={{ background: "#E2F1E2", border: "1px solid #BFE3BF", color: "#1E6D29" }}
               >
-                ✓ Invoice created — status <strong>{result.status}</strong>.
+                <Check size={15} strokeWidth={2.25} aria-hidden className="flex-shrink-0" />
+                <span>Invoice created — status <strong>{result.status}</strong>.</span>
               </div>
               <dl className="text-[13px]" style={{ color: NAVY }}>
                 <div className="flex gap-2 py-1">
@@ -222,7 +224,8 @@ export function CreateInvoiceModal({
                   className="mt-3 inline-flex items-center gap-1.5 rounded-[7px] px-4 py-2 text-[13px] font-semibold"
                   style={{ background: BLUE, color: "#FFFFFF", textDecoration: "none" }}
                 >
-                  Open hosted invoice ↗
+                  Open hosted invoice
+                  <ExternalLink size={14} strokeWidth={2} aria-hidden />
                 </a>
               ) : (
                 <p className="mt-3 text-[12.5px]" style={{ color: "var(--ink-faint)" }}>
@@ -292,7 +295,7 @@ export function CreateInvoiceModal({
                       onClick={() => removeLine(i)}
                       disabled={lines.length === 1}
                       aria-label={`Remove line ${i + 1}`}
-                      className="rounded-[8px] px-2 py-2 text-[13px] sm:w-[40px]"
+                      className="inline-flex items-center justify-center rounded-[8px] px-2 py-2 text-[13px] sm:w-[40px]"
                       style={{
                         border: "1px solid #E2E6EE",
                         background: "#FFFFFF",
@@ -302,17 +305,18 @@ export function CreateInvoiceModal({
                         cursor: lines.length === 1 ? "not-allowed" : "pointer",
                       }}
                     >
-                      ✕
+                      <X size={14} strokeWidth={2} aria-hidden />
                     </button>
                   </div>
                 ))}
               </div>
               <button
                 onClick={addLine}
-                className="mt-2 rounded-[7px] px-3 py-1.5 text-[12.5px] font-medium"
+                className="mt-2 inline-flex items-center gap-1 rounded-[7px] px-3 py-1.5 text-[12.5px] font-medium"
                 style={{ border: "1px dashed #C5D2E4", background: "#FFFFFF", color: BLUE_DEEP, cursor: "pointer" }}
               >
-                + Add line item
+                <Plus size={13} strokeWidth={2.25} aria-hidden />
+                Add line item
               </button>
 
               {/* Currency + total */}

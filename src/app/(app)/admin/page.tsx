@@ -18,6 +18,7 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { Lock, Plus, ExternalLink, ChevronUp, ChevronDown, ChevronsUpDown } from "lucide-react";
 import {
   getAdminOverview,
   getAdminOrganisations,
@@ -85,7 +86,7 @@ function StatusBadge({ status }: { status: string }) {
   const s = STATUS_STYLE[status] ?? { bg: "var(--surface-2)", fg: "var(--ink-muted)", label: orgStatusLabel(status) };
   return (
     <span
-      className="inline-flex items-center rounded-[4px] px-2 py-0.5 text-[10.5px] font-semibold uppercase tracking-[0.03em]"
+      className="inline-flex items-center rounded-full px-2 py-0.5 text-[10.5px] font-semibold uppercase tracking-[0.03em]"
       style={{ background: s.bg, color: s.fg }}
     >
       {s.label}
@@ -189,7 +190,7 @@ export default function AdminPage() {
             className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full"
             style={{ background: "var(--surface-2)" }}
           >
-            <span style={{ fontSize: 22 }}>🔒</span>
+            <Lock size={22} strokeWidth={1.75} aria-label="Restricted area" style={{ color: "var(--ink-muted)" }} />
           </div>
           <h2 className="text-[18px] font-semibold" style={{ color: "var(--ink)", fontFamily: "var(--font-display)" }}>
             {accessError.status === 401 ? "Please sign in" : "You don't have access to the admin area."}
@@ -263,7 +264,8 @@ export default function AdminPage() {
             }}
             disabled={orgsForModal.length === 0}
           >
-            + Create invoice
+            <Plus size={15} strokeWidth={2} aria-hidden style={{ marginRight: 4 }} />
+            Create invoice
           </Button>
         }
       />
@@ -360,9 +362,11 @@ export default function AdminPage() {
                             href={`${STRIPE_CUSTOMER_BASE}${org.stripeCustomerId}`}
                             target="_blank"
                             rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1"
                             style={{ color: "var(--brand-blue-deep)", fontWeight: 600, textDecoration: "none" }}
                           >
-                            View ↗
+                            View
+                            <ExternalLink size={12} strokeWidth={2} aria-hidden />
                           </a>
                         ) : (
                           <span style={{ color: "var(--ink-faint)" }}>—</span>
@@ -408,9 +412,11 @@ export default function AdminPage() {
                         href={`${STRIPE_CUSTOMER_BASE}${org.stripeCustomerId}`}
                         target="_blank"
                         rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1"
                         style={{ color: "var(--brand-blue-deep)", fontWeight: 600, fontSize: 12.5, textDecoration: "none" }}
                       >
-                        View in Stripe ↗
+                        View in Stripe
+                        <ExternalLink size={12} strokeWidth={2} aria-hidden />
                       </a>
                     )}
                   </div>
@@ -495,8 +501,12 @@ function SortableTh({
         aria-label={`Sort by ${label}`}
       >
         {label}
-        <span aria-hidden style={{ fontSize: 9, opacity: active ? 1 : 0.4 }}>
-          {active ? (sortDir === "asc" ? "▲" : "▼") : "↕"}
+        <span aria-hidden style={{ display: "inline-flex", opacity: active ? 1 : 0.4 }}>
+          {active
+            ? (sortDir === "asc"
+                ? <ChevronUp size={12} strokeWidth={2.25} />
+                : <ChevronDown size={12} strokeWidth={2.25} />)
+            : <ChevronsUpDown size={12} strokeWidth={2.25} />}
         </span>
       </button>
     </th>

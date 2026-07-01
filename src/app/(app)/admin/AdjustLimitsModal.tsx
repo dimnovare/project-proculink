@@ -15,6 +15,7 @@
 // tokens, same a11y: Escape-to-close, body-scroll lock, focus-in, mobile-safe).
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { X, Check } from "lucide-react";
 import {
   setOrgLimits,
   type AdminOrganisation,
@@ -178,7 +179,7 @@ export function AdjustLimitsModal({
             className="flex h-7 w-7 items-center justify-center rounded-[6px]"
             style={{ color: "var(--ink-faint)", border: "1px solid transparent", cursor: "pointer" }}
           >
-            ✕
+            <X size={16} strokeWidth={2} aria-hidden />
           </button>
         </div>
 
@@ -187,10 +188,11 @@ export function AdjustLimitsModal({
           {result ? (
             <div>
               <div
-                className="mb-3 rounded-[10px] px-4 py-3 text-[13px]"
+                className="mb-3 flex items-center gap-2 rounded-[10px] px-4 py-3 text-[13px]"
                 style={{ background: "#E2F1E2", border: "1px solid #BFE3BF", color: "#1E6D29" }}
               >
-                ✓ Limits updated for <strong>{result.name}</strong>.
+                <Check size={15} strokeWidth={2.25} aria-hidden className="flex-shrink-0" />
+                <span>Limits updated for <strong>{result.name}</strong>.</span>
               </div>
               <dl className="text-[13px]" style={{ color: NAVY }}>
                 <Row label="Effective orders" value={result.effectiveOrderLimit.toLocaleString()} />
