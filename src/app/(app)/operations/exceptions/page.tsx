@@ -27,6 +27,7 @@ import { PageHeader } from "@/components/bridge/layout/PageHeader";
 import { MobileListRow } from "@/components/bridge/layout/MobileListRow";
 import { Button } from "@/components/bridge/DSPrimitives";
 import { ExceptionDetail } from "@/components/bridge/ExceptionDetail";
+import { RefreshCw, AlertTriangle, CheckCircle2, ArrowLeft, ArrowRight } from "lucide-react";
 
 // ─── Severity presentation ───────────────────────────────────────────────────
 // Critical/error read in the alert-red family; warning amber; info blue-grey.
@@ -171,7 +172,8 @@ export default function ExceptionsPage() {
             size="sm"
             onClick={() => refetch()}
           >
-            {isFetching ? "↻ Syncing…" : "↻ Sync"}
+            <RefreshCw size={13} aria-hidden className={isFetching ? "animate-spin" : undefined} />
+            {isFetching ? "Syncing…" : "Sync"}
           </Button>
         }
       />
@@ -239,7 +241,7 @@ export default function ExceptionsPage() {
                 display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 14px",
               }}
             >
-              <span style={{ fontSize: "22px", color: "var(--danger)" }}>⚠</span>
+              <AlertTriangle size={22} style={{ color: "var(--danger)" }} aria-hidden />
             </div>
             <div style={{ fontWeight: 600, fontSize: "16px", color: "var(--ink)" }}>
               Couldn&apos;t load exceptions
@@ -248,7 +250,8 @@ export default function ExceptionsPage() {
               The exception service didn&apos;t respond. Your orders are safe — this is usually transient.
             </div>
             <Button variant="secondary" size="sm" onClick={() => refetch()}>
-              ↻ Retry
+              <RefreshCw size={13} aria-hidden />
+              Retry
             </Button>
           </div>
         )}
@@ -256,7 +259,7 @@ export default function ExceptionsPage() {
         {/* Empty state */}
         {!showLoading && !isError && exceptions.length === 0 && (
           <div className="flex flex-col items-center justify-center py-16 px-6 text-center gap-2">
-            <div style={{ fontSize: 32, color: "var(--brand-green)" }}>✓</div>
+            <CheckCircle2 size={32} style={{ color: "var(--brand-green)" }} aria-hidden />
             <p
               className="text-[20px] font-semibold"
               style={{ color: "var(--ink)", fontFamily: "'Bricolage Grotesque', Inter, sans-serif" }}
@@ -447,10 +450,11 @@ export default function ExceptionsPage() {
                 type="button"
                 onClick={() => setPage(Math.max(1, currentPage - 1))}
                 disabled={currentPage <= 1}
-                className="rounded-[6px] px-2.5 text-[12px] font-medium"
+                className="inline-flex items-center gap-1 rounded-[6px] px-2.5 text-[12px] font-medium"
                 style={{ height: 28, border: "1px solid var(--border)", background: "var(--surface)", color: currentPage <= 1 ? "var(--ink-faint)" : "var(--ink)", cursor: currentPage <= 1 ? "default" : "pointer" }}
               >
-                ← Prev
+                <ArrowLeft size={13} aria-hidden />
+                Prev
               </button>
               <span className="text-[11px] font-mono" style={{ color: "var(--ink-muted)", minWidth: 92, textAlign: "center" }}>
                 Page {currentPage} of {totalPages}
@@ -459,10 +463,11 @@ export default function ExceptionsPage() {
                 type="button"
                 onClick={() => setPage(currentPage + 1)}
                 disabled={currentPage >= totalPages}
-                className="rounded-[6px] px-2.5 text-[12px] font-medium"
+                className="inline-flex items-center gap-1 rounded-[6px] px-2.5 text-[12px] font-medium"
                 style={{ height: 28, border: "1px solid var(--border)", background: "var(--surface)", color: currentPage >= totalPages ? "var(--ink-faint)" : "var(--ink)", cursor: currentPage >= totalPages ? "default" : "pointer" }}
               >
-                Next →
+                Next
+                <ArrowRight size={13} aria-hidden />
               </button>
             </div>
           )}

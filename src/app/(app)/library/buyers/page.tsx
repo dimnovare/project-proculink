@@ -113,7 +113,7 @@ export default function BuyersPage() {
   const [addError, setAddError] = useState<string | null>(null);
   const [hoverRow, setHoverRow] = useState<string | null>(null);
 
-  const { data, isLoading, isError, refetch } = useQuery({
+  const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: ["buyers"],
     queryFn:  getBuyers,
     enabled:  !isApiMockMode,
@@ -394,6 +394,9 @@ export default function BuyersPage() {
                       Retry
                     </button>
                   </span>
+                  {error?.message && (
+                    <div style={{ marginTop: 6, fontSize: 12, color: "var(--ink-faint)" }}>{error.message}</div>
+                  )}
                 </td>
               </tr>
             )}
@@ -564,6 +567,9 @@ export default function BuyersPage() {
                   Retry
                 </button>
               </span>
+              {error?.message && (
+                <div style={{ marginTop: 6, fontSize: 12, color: "var(--ink-faint)" }}>{error.message}</div>
+              )}
             </div>
           )}
 

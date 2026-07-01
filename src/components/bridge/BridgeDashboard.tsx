@@ -954,6 +954,19 @@ export function BridgeDashboard() {
                   <Download size={14} strokeWidth={2} aria-hidden />
                   Export report
                 </button>
+                {/* Single dominant primary CTA — the dashboard's one primary action
+                    is starting a new order (the core Parse→Deliver entry). Filled
+                    navy #0B1A2F (the app-wide primary-button convention), so the
+                    secondary white "Export report" button and the neutral window
+                    selector recede below it. */}
+                <Link
+                  href="/upload"
+                  className="flex min-h-[36px] items-center gap-2 rounded-[8px] px-3.5 py-1.5 text-[12.5px] font-semibold no-underline transition-opacity hover:opacity-90"
+                  style={{ background: "#0B1A2F", color: "#FFFFFF", boxShadow: "0 1px 2px rgba(11,26,47,0.12)" }}
+                >
+                  <ArrowUpRight size={14} strokeWidth={2.25} aria-hidden />
+                  New order
+                </Link>
               </>
             ) : undefined
           }

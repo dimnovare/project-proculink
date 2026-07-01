@@ -336,9 +336,9 @@ export function ValidationRules() {
             <div className="overflow-x-auto">
               <table className="w-full border-collapse" style={{ fontSize: 13 }}>
                 <thead>
-                  <tr style={{ borderBottom: "1px solid #E5E8EE" }}>
+                  <tr style={{ borderBottom: "1px solid var(--border)" }}>
                     {["Rule", "Scope", partyNoun, "Severity", "Triggered 30d", "Active"].map((h, i) => (
-                      <th key={h} className="px-5 py-3 text-[10.5px] font-semibold uppercase tracking-[0.07em]" style={{ color: "#9AA3B5", textAlign: i === 5 ? "right" : "left", whiteSpace: "nowrap" }}>{h}</th>
+                      <th key={h} className="px-5 py-3 text-[10.5px] font-semibold uppercase tracking-[0.07em]" style={{ position: "sticky", top: 0, zIndex: 1, background: "#FFFFFF", color: "#9AA3B5", textAlign: i === 5 ? "right" : "left", whiteSpace: "nowrap", boxShadow: "inset 0 -1px 0 var(--border)" }}>{h}</th>
                     ))}
                   </tr>
                 </thead>
@@ -351,7 +351,7 @@ export function ValidationRules() {
                         key={r.id}
                         onClick={() => { setNotice(null); setSelId(r.id); }}
                         className="cursor-pointer transition-colors"
-                        style={{ borderBottom: "1px solid #F1F3F7", background: active ? "#EAF0F8" : "transparent", opacity: r.enabled ? 1 : 0.62 }}
+                        style={{ borderBottom: "1px solid var(--border)", background: active ? "#EAF0F8" : "transparent", opacity: r.enabled ? 1 : 0.62 }}
                         onMouseEnter={(e) => { if (!active) e.currentTarget.style.background = "#F6F8FB"; }}
                         onMouseLeave={(e) => { if (!active) e.currentTarget.style.background = "transparent"; }}
                       >
@@ -369,7 +369,7 @@ export function ValidationRules() {
                             {sev.label}
                           </span>
                         </td>
-                        <td className="px-5 py-3.5 text-[13px] font-semibold" style={{ fontFamily: "'JetBrains Mono', ui-monospace, SFMono-Regular, monospace", color: r.triggers > 0 ? "#0B1A2F" : "#CBD0DA" }}>{r.triggers}</td>
+                        <td className="px-5 py-3.5 text-[13px] font-semibold" style={{ fontFamily: "'JetBrains Mono', ui-monospace, SFMono-Regular, monospace", fontVariantNumeric: "tabular-nums", color: r.triggers > 0 ? "#0B1A2F" : "#CBD0DA" }}>{r.triggers}</td>
                         <td className="px-5 py-3.5" style={{ textAlign: "right" }} onClick={(e) => e.stopPropagation()}>
                           <Toggle on={r.enabled} onChange={() => handleToggle(r.id)} />
                         </td>

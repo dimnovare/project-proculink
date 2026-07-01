@@ -70,7 +70,7 @@ function SkeletonCard() {
 export default function AsnsPage() {
   const queryClient = useQueryClient();
 
-  const { data, isLoading, isError } = useQuery({
+  const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: ["asns"],
     queryFn: getAsns,
     staleTime: 30_000,
@@ -132,10 +132,13 @@ export default function AsnsPage() {
         <Card>
           <div className="flex flex-col items-center justify-center gap-3 p-10 text-center">
             <p className="text-[14px] font-semibold" style={{ color: "var(--ink)" }}>Failed to load advance shipping notices</p>
+            <p className="text-[12.5px] max-w-[360px]" style={{ color: "var(--ink-muted)" }}>
+              {error?.message ?? "We couldn't reach the server. Check your connection and try again."}
+            </p>
             <Button
               variant="primary"
               size="md"
-              onClick={() => queryClient.invalidateQueries({ queryKey: ["asns"] })}
+              onClick={() => refetch()}
             >
               Retry
             </Button>
