@@ -412,8 +412,10 @@ function IncomingRow({
             color: "#9AA8C0", fontSize: 11, lineHeight: 1,
           }}>{dragging ? "→" : "⠿"}</span>
           {/* BLUE CIRCLE port — the wire anchor (app.jsx: 2px blue ring, fills on grab), mirroring
-              the green output circle it connects to. */}
-          <span ref={(el) => portRef(el)} aria-hidden style={{
+              the green output circle it connects to. `mapper-port` marks the exact element the
+              wire engine measures (portRef → sourceEls), distinct from the row (`mapper-row`)
+              and the grey grip handle (`mapper-grip`). */}
+          <span ref={(el) => portRef(el)} className="mapper-port" aria-hidden style={{
             flexShrink: 0, display: "inline-block", boxSizing: "border-box",
             width: 14, height: 14, borderRadius: "50%",
             // app.jsx: the port fills SOLID on hover/grab (a wire connecting two filled circles).

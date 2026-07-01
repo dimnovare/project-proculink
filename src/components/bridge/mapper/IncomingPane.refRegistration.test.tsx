@@ -66,8 +66,8 @@ describe("IncomingPane wire-anchor ref registration", () => {
     expect(rowEl).toBeTruthy();
     expect(portEl).not.toBe(rowEl);
 
-    // The element the engine measures is the 22px grip — NOT the full-width row.
-    expect(portEl!).toHaveClass("mapper-grip");
+    // The element the engine measures is the blue-circle port — NOT the full-width row.
+    expect(portEl!).toHaveClass("mapper-port");
     expect(rowEl!).toHaveClass("mapper-row");
     expect(rowEl!).toHaveAttribute("data-mapper-row");
 

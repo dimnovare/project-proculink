@@ -24,7 +24,7 @@ describe("ghostConfidenceTier (0..1, plan thresholds .85/.60)", () => {
 describe("ghostTierColor", () => {
   it("maps each tier to a locked token color", () => {
     expect(ghostTierColor("ok")).toBe("#2E8E3A");
-    expect(ghostTierColor("warn")).toBe("#C97A14");
+    expect(ghostTierColor("warn")).toBe("#B36D14");
     expect(ghostTierColor("danger")).toBe("#C0392B");
   });
 });

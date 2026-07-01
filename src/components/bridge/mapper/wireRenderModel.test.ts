@@ -75,8 +75,10 @@ describe("isTargetWireEmphasised", () => {
 });
 
 describe("wireOpacity", () => {
-  it("is full strength with no hover and no drag", () => {
-    expect(wireOpacity({ dragging: false, hovering: false, emphasised: false })).toBe(1);
+  it("is resting strength with no hover and no drag", () => {
+    // Design-system Phase 2c pixel-spec: the idle wire bundle rests a hair below full so it
+    // reads as a calm layer rather than hard black lines. Hover lifts the pointed-at wire to 1.
+    expect(wireOpacity({ dragging: false, hovering: false, emphasised: false })).toBe(0.9);
   });
 
   it("dims everything uniformly during a drag", () => {
