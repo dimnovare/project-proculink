@@ -6,7 +6,7 @@
 // loading an inferred namespaced tree, editing an unrelated node, and saving preserves all namespaces.
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, fireEvent, cleanup, within } from "@testing-library/react";
+import { render, screen, fireEvent, cleanup, within, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { OrderMappingOverride, OutputNode, OutputNodeTemplate } from "@/lib/api/types";
 
@@ -155,7 +155,10 @@ describe("OutputStructureDesigner — guarded close (unsaved-edit footgun)", () 
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
-  it("X (Close) confirms after an edit, and only closes when confirmed", () => {
+  it("X (Close) confirms after an edit, and only closes when confirmed", async () => {
+    // The designer now routes through the shared useConfirm() dialog; with no
+    // ConfirmProvider in this isolated render it falls back to window.confirm
+    // (joining title + body with a blank line), so the existing spy still works.
     const confirm = vi.spyOn(window, "confirm").mockReturnValue(true);
     const onClose = vi.fn();
     renderDesigner(plainXmlTree(), onClose);
@@ -163,8 +166,11 @@ describe("OutputStructureDesigner — guarded close (unsaved-edit footgun)", () 
 
     fireEvent.click(screen.getByRole("button", { name: /^Close$/i }));
 
-    expect(confirm).toHaveBeenCalledWith("Discard unsaved changes to this output structure?");
-    expect(onClose).toHaveBeenCalledTimes(1);
+    expect(confirm).toHaveBeenCalledWith(
+      "Discard unsaved changes?\n\nYou have unsaved changes to this output structure. Discard them?",
+    );
+    // requestClose is async now — onClose fires after the confirm promise resolves.
+    await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1));
   });
 
   it("X (Close) keeps the modal open when the user cancels the confirm", () => {
@@ -178,7 +184,7 @@ describe("OutputStructureDesigner — guarded close (unsaved-edit footgun)", () 
     expect(onClose).not.toHaveBeenCalled();
   });
 
-  it("Cancel confirms after an edit, and only closes when confirmed", () => {
+  it("Cancel confirms after an edit, and only closes when confirmed", async () => {
     const confirm = vi.spyOn(window, "confirm").mockReturnValue(true);
     const onClose = vi.fn();
     renderDesigner(plainXmlTree(), onClose);
@@ -186,8 +192,10 @@ describe("OutputStructureDesigner — guarded close (unsaved-edit footgun)", () 
 
     fireEvent.click(screen.getByRole("button", { name: /^Cancel$/i }));
 
-    expect(confirm).toHaveBeenCalledWith("Discard unsaved changes to this output structure?");
-    expect(onClose).toHaveBeenCalledTimes(1);
+    expect(confirm).toHaveBeenCalledWith(
+      "Discard unsaved changes?\n\nYou have unsaved changes to this output structure. Discard them?",
+    );
+    await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1));
   });
 
   it("Cancel keeps the modal open when the user cancels the confirm", () => {

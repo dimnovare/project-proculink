@@ -21,6 +21,7 @@ import {
   type OrderMappingOverride, type OutputNode, type OutputNodeTemplate,
   type OutputNodeType, type OutputFormat, type SourceToken,
 } from "@/lib/api/types";
+import { useConfirm } from "@/components/ui/confirm";
 
 // Only the formats the backend OutputTemplateEmitter produces VALIDLY from a generic node tree
 // (offer⇔works). JSON / XML / CSV are first-class. cXML, UBL, and X12 are intentionally NOT offered:
@@ -144,6 +145,7 @@ export function OutputStructureDesigner({
   const [tree, setTree] = useState<OutputNodeTemplate>(
     initialTree ? { ...initialTree, format: designerFormat(initialTree.format) } : defaultTree("json"),
   );
+  const confirm = useConfirm();
   const [preview, setPreview] = useState<{ content: string | null; error?: string; loading: boolean }>({ content: null, loading: false });
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -247,10 +249,18 @@ export function OutputStructureDesigner({
 
   // Guarded close — the X and Cancel both discard in-modal edits, so confirm first when the tree
   // has unsaved changes. `onClose` itself stays unchanged so the save-then-close path is untouched.
-  const requestClose = useCallback(() => {
-    if (dirty && !window.confirm("Discard unsaved changes to this output structure?")) return;
+  const requestClose = useCallback(async () => {
+    if (dirty) {
+      const ok = await confirm({
+        title: "Discard unsaved changes?",
+        description: "You have unsaved changes to this output structure. Discard them?",
+        confirmLabel: "Discard",
+        cancelLabel: "Keep editing",
+      });
+      if (!ok) return;
+    }
     onClose();
-  }, [dirty, onClose]);
+  }, [dirty, onClose, confirm]);
 
   return (
     <div role="dialog" aria-label="Design output structure"

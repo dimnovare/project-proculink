@@ -23,6 +23,7 @@ import { useQueriesEnabled } from "@/hooks/useQueriesEnabled";
 import { invalidateOnboardingStatus } from "@/hooks/useOnboardingStatus";
 import { PageShell } from "./layout/PageShell";
 import { useTabParamSync } from "@/lib/tab-param-sync";
+import { useConfirm } from "@/components/ui/confirm";
 import type { PoMappingConfig } from "@/lib/api/types";
 import type { AcceptanceRule, AcceptanceProfile, SupplierMapping } from "@/types/procurement";
 
@@ -922,6 +923,7 @@ function LiveMappingsTab({ supplierId, supplierName }: { supplierId: string; sup
 // price, barcode, external_id — auto-detected).
 function CatalogTab({ supplierId }: { supplierId: string }) {
   const qc = useQueryClient();
+  const confirm = useConfirm();
   const queryEnabled = useQueriesEnabled();
   const [q, setQ] = useState("");
   const [notice, setNotice] = useState<string | null>(null);
@@ -967,7 +969,7 @@ function CatalogTab({ supplierId }: { supplierId: string }) {
           {importMut.isPending ? "Importing…" : "Import CSV / XLSX"}
         </button>
         {!!data?.total && (
-          <button type="button" onClick={() => { if (confirm("Clear the entire catalog for this supplier?")) clearMut.mutate(); }} disabled={clearMut.isPending}
+          <button type="button" onClick={async () => { const ok = await confirm({ title: "Clear catalog", description: "Clear the entire catalog for this supplier? This removes every imported product.", confirmLabel: "Clear catalog", danger: true }); if (ok) clearMut.mutate(); }} disabled={clearMut.isPending}
             style={{ minHeight: 36, padding: "0 12px", border: "1px solid #E5E8EE", background: "#FFFFFF", color: "#B43838", borderRadius: 6, fontSize: 12.5, cursor: "pointer" }}>
             Clear
           </button>

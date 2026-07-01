@@ -11,6 +11,7 @@ import { PageHeader } from "@/components/bridge/layout/PageHeader";
 import { Card } from "@/components/bridge/layout/Card";
 import { MobileListRow } from "@/components/bridge/layout/MobileListRow";
 import { Button } from "@/components/bridge/DSPrimitives";
+import { useConfirm } from "@/components/ui/confirm";
 
 // Residual constants without a 1:1 design token — kept as literals.
 // CODE_GREY (#9196A5) — buyer short-code mono; no exact token.
@@ -150,9 +151,17 @@ export default function BuyersPage() {
     createMut.mutate({ name: addName.trim(), code: addCode.trim() });
   }
 
-  function handleDelete(e: React.MouseEvent, buyer: BuyerDto) {
+  const confirm = useConfirm();
+
+  async function handleDelete(e: React.MouseEvent, buyer: BuyerDto) {
     e.stopPropagation();
-    if (!window.confirm(`Delete buyer "${buyer.name}"? This cannot be undone.`)) return;
+    const ok = await confirm({
+      title: "Delete buyer",
+      description: `Delete "${buyer.name}"? This cannot be undone.`,
+      confirmLabel: "Delete",
+      danger: true,
+    });
+    if (!ok) return;
     deleteMut.mutate(buyer.id);
   }
 

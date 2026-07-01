@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { useOrganization, useOrganizationList } from "@clerk/nextjs";
 import { QueryClient, QueryClientProvider, useQueryClient } from "@tanstack/react-query";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { ConfirmProvider } from "@/components/ui/confirm";
 import { Toaster } from "@/components/ui/toaster";
 import { BridgeSidebar } from "@/components/bridge/BridgeSidebar";
 import { BridgeTopbar } from "@/components/bridge/BridgeTopbar";
@@ -169,6 +170,7 @@ export default function AppShellLayout({
       <AutoActivateOrg />
       <StripOrgSetFlag />
       <TooltipProvider>
+       <ConfirmProvider>
         {/* Bridge shell — full viewport, no scroll on the wrapper */}
         <div className="flex h-dvh overflow-hidden" style={{ background: "#F6F7FA" }}>
           {/* Left: 220px navy sidebar (compact rail in the md→lg band) */}
@@ -208,6 +210,7 @@ export default function AppShellLayout({
         </div>
 
         <Toaster />
+       </ConfirmProvider>
       </TooltipProvider>
     </QueryClientProvider>
     </MSWProvider>

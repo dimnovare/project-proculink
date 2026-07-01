@@ -16,6 +16,7 @@ import {
   type IntegrationSubscription,
 } from "@/lib/api-client";
 import { deriveWebhookStatus } from "./webhookStatus";
+import { useConfirm } from "@/components/ui/confirm";
 
 // Buyer-blue is the primary accent on this screen (sampled from the design render:
 // header button, modal CTA, modal icon-chip + info banner, and the order column in the
@@ -248,6 +249,7 @@ function EndpointsCard({
   onToggle: (id: string) => void;
   onDelete: (id: string) => void;
 }) {
+  const confirm = useConfirm();
   return (
     <div
       style={{
@@ -361,8 +363,14 @@ function EndpointsCard({
                 </button>
                 <button
                   className="wh-actionbtn"
-                  onClick={() => {
-                    if (window.confirm(`Delete webhook for ${w.url}?`)) onDelete(w.id);
+                  onClick={async () => {
+                    const ok = await confirm({
+                      title: "Delete webhook",
+                      description: `Delete the webhook for ${w.url}? This stops all deliveries to it.`,
+                      confirmLabel: "Delete",
+                      danger: true,
+                    });
+                    if (ok) onDelete(w.id);
                   }}
                   disabled={deletingId === w.id}
                   style={{

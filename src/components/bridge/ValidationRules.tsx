@@ -27,6 +27,7 @@ import {
   type RuleDto,
 } from "@/lib/api-client";
 import { useOrderDirection } from "@/hooks/useOrderDirection";
+import { useConfirm } from "@/components/ui/confirm";
 import { PageShell } from "./layout/PageShell";
 import { PageHeader } from "./layout/PageHeader";
 
@@ -141,6 +142,7 @@ function Toggle({ on, onChange }: { on: boolean; onChange: (v: boolean) => void 
 
 export function ValidationRules() {
   const queryClient = useQueryClient();
+  const confirm = useConfirm();
 
   // Direction-aware copy: "Supplier" → "Customer" in inbound mode (route/types unchanged).
   const { labels } = useOrderDirection();
@@ -240,8 +242,14 @@ export function ValidationRules() {
     setEditorOpen(false);
   }
 
-  function handleDelete(id: string) {
-    if (typeof window !== "undefined" && !window.confirm("Delete this validation rule? This cannot be undone.")) return;
+  async function handleDelete(id: string) {
+    const ok = await confirm({
+      title: "Delete validation rule",
+      description: "Delete this validation rule? This cannot be undone.",
+      confirmLabel: "Delete",
+      danger: true,
+    });
+    if (!ok) return;
     if (isApiMockMode) {
       setMockRules((prev) => prev.filter((r) => r.id !== id));
       setNotice("Rule deleted.");

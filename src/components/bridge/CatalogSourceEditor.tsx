@@ -26,6 +26,7 @@ import {
   protocolUsesUrl,
   type CatalogAuthFormState,
 } from "./catalogSourceHelpers";
+import { useConfirm } from "@/components/ui/confirm";
 
 const INPUT_STYLE = { border: "1px solid #D5DAEA", color: "#0B1A2F" } as const;
 
@@ -53,6 +54,7 @@ interface CatalogSourceEditorProps {
 
 export function CatalogSourceEditor({ supplierId }: CatalogSourceEditorProps) {
   const queryClient = useQueryClient();
+  const confirm = useConfirm();
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -245,7 +247,13 @@ export function CatalogSourceEditor({ supplierId }: CatalogSourceEditorProps) {
   }
 
   async function remove() {
-    if (!confirm("Delete this import source? Manual catalog upload still works.")) return;
+    const ok = await confirm({
+      title: "Delete import source",
+      description: "Delete this import source? Manual catalog upload still works.",
+      confirmLabel: "Delete",
+      danger: true,
+    });
+    if (!ok) return;
     setSaving(true);
     setError(null);
     try {
