@@ -23,16 +23,18 @@ const TONE_STYLE: Record<RevisionTone, ToneStyle> = {
   neutral: { bg: "var(--surface-2)", fg: "var(--ink-muted)" },
 };
 
-type Meta = { label: string; tone: RevisionTone };
+type Meta = { label: string; tone: RevisionTone; title: string };
 
 // Plain-language labels for the lifecycle states. The internal status strings
 // (draft/test/published/archived) stay unchanged on the wire — only what the
-// user reads changes: "published" → "Live", "archived" → "Previous".
+// user reads changes: "published" → "Live", "archived" → "Previous". Each state
+// carries a plain-language `title` tooltip so a non-technical user can hover the
+// badge to learn what it means (wherever the badge is shown — drawer + list).
 const META: Record<string, Meta> = {
-  draft: { label: "Draft", tone: "neutral" },
-  test: { label: "Tested", tone: "info" },
-  published: { label: "Live", tone: "success" },
-  archived: { label: "Previous", tone: "neutral" },
+  draft: { label: "Draft", tone: "neutral", title: "A work-in-progress you're editing. Test it before making it live." },
+  test: { label: "Tested", tone: "info", title: "Passed its checks — ready to make live." },
+  published: { label: "Live", tone: "success", title: "Orders are using this version now." },
+  archived: { label: "Previous", tone: "neutral", title: "An older version you can restore if needed." },
 };
 
 function humanize(status: string): string {
@@ -63,11 +65,12 @@ const SIZE: Record<NonNullable<Props["size"]>, string> = {
 
 export function RevisionStatusBadge({ status, size = "sm", className }: Props) {
   const key = (status ?? "").toLowerCase();
-  const meta = META[key] ?? { label: humanize(status), tone: "neutral" as const };
+  const meta = META[key] ?? { label: humanize(status), tone: "neutral" as const, title: "" };
   const tone = TONE_STYLE[meta.tone];
 
   return (
     <span
+      title={meta.title || undefined}
       className={[
         "inline-flex items-center gap-1.5 rounded-full font-semibold whitespace-nowrap",
         SIZE[size],
@@ -75,7 +78,7 @@ export function RevisionStatusBadge({ status, size = "sm", className }: Props) {
       ]
         .filter(Boolean)
         .join(" ")}
-      style={{ background: tone.bg, color: tone.fg }}
+      style={{ background: tone.bg, color: tone.fg, cursor: meta.title ? "help" : undefined }}
     >
       <span
         aria-hidden

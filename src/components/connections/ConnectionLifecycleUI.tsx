@@ -48,12 +48,12 @@ export function ConnectionConfirmDialog({
     ? `Make v${state.versionNo} live?`
     : isRollback
       ? `Restore v${state.versionNo}?`
-      : `Discard v${state.versionNo}?`;
+      : "Delete this draft?";
   const body = isPublish
-    ? "New orders for this supplier will use this version from now on. Orders already in progress keep the version they started with."
+    ? "Orders from now on use this setup. Orders you've already sent keep their original format — they won't change mid-delivery. This is reversible: you can go back to a previous version anytime."
     : isRollback
-      ? "Brings this older version back as the live one for new orders. Orders already in progress are unaffected."
-      : "Throws away this draft. Versions that are live (or were used by past orders) are kept.";
+      ? "Go back to this older version for new orders — it becomes live again, exactly as it was. You can switch forward to a newer version later, so nothing is lost."
+      : "Removes this test copy and its unsaved changes. Your live version stays unchanged. You can start a new test copy anytime.";
   const confirmLabel = isPublish ? "Make live" : isRollback ? "Restore" : "Discard";
 
   return (

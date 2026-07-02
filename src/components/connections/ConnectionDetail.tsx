@@ -211,6 +211,7 @@ export function ConnectionDetail({ connectionId }: { connectionId: string }) {
                   )}
                 </div>
                 <BundleSummary
+                  supplierName={connection?.name ?? "supplier"}
                   inputConfigured={!!activeRevision?.inputMappingJson}
                   outputTemplateConfigured={!!activeRevision?.outputMappingJson}
                   outputFormat={activeRevision?.outputFormat ?? null}
@@ -294,7 +295,7 @@ export function ConnectionDetail({ connectionId }: { connectionId: string }) {
                           {createDraftMutation.isPending ? "Opening an editable copy…" : "✎ Edit this mapping"}
                         </span>
                         <span className="block text-[11.5px] font-normal mt-1" style={{ color: "var(--ink-muted)" }}>
-                          You're viewing the live version. Editing opens a draft you can publish.
+                          This is the live version, sending orders now. Editing makes a test copy — check it, then switch to it safely. Older versions are kept so you can go back anytime.
                         </span>
                       </span>
                     </button>
@@ -369,6 +370,7 @@ export function ConnectionDetail({ connectionId }: { connectionId: string }) {
 // ── Bundle summary rows ───────────────────────────────────────────────────────
 
 function BundleSummary(props: {
+  supplierName: string;
   inputConfigured: boolean;
   outputTemplateConfigured: boolean;
   outputFormat: string | null;
@@ -410,16 +412,23 @@ function BundleSummary(props: {
     <dl className="flex flex-col gap-px m-0">
       <SummaryRow
         label="Input mapping"
+        title="Whether the incoming order format is translated first (rare — usually not needed)."
         value={props.inputConfigured ? "Configured" : "Default / none"}
         unconfigured={!props.inputConfigured}
       />
       <SummaryRow
         label="Output template"
-        value={props.outputTemplateConfigured ? "Custom template" : "Fixed transformer"}
+        value={props.outputTemplateConfigured ? "Custom template" : "Standard format"}
+        valueTitle={
+          props.outputTemplateConfigured
+            ? undefined
+            : `The standard way we format this ${props.supplierName}'s orders — you rarely change this.`
+        }
       />
       <SummaryRow label="Output format" value={props.outputFormat ? props.outputFormat.toUpperCase() : "Default"} />
       <SummaryRow
         label="Delivery channel"
+        title="Where and how the finished order is sent."
         value={
           props.deliveryProtocol
             ? `${deliveryLabel}${props.deliveryAutoDeliver ? " · auto-send" : ""}${props.hasCredentials ? " · credentials set" : ""}`
@@ -434,6 +443,7 @@ function BundleSummary(props: {
       />
       <SummaryRow
         label="Acceptance rules"
+        title={'The checks run before sending. "Bound" means checks are active.'}
         value={
           props.acceptanceBound
             ? `Bound${props.acceptanceVersionNo != null ? ` · v${props.acceptanceVersionNo}` : ""}`
@@ -441,7 +451,15 @@ function BundleSummary(props: {
         }
         unconfigured={!props.acceptanceBound}
       />
-      <SummaryRow label="Catalog" value={props.catalogMode === "live" ? "Live (read at send time)" : props.catalogMode} />
+      <SummaryRow
+        label="Catalog"
+        value={props.catalogMode === "live" ? "Live (read at send time)" : props.catalogMode}
+        valueTitle={
+          props.catalogMode === "live"
+            ? `The ${props.supplierName}'s current product list is used each time an order is sent.`
+            : undefined
+        }
+      />
     </dl>
   );
 }
@@ -452,14 +470,30 @@ function BundleSummary(props: {
  * bundle is visually distinct from a real, configured value (rather than both
  * rendering as the same bold ink text).
  */
-function SummaryRow({ label, value, unconfigured }: { label: string; value: string; unconfigured?: boolean }) {
+function SummaryRow({
+  label,
+  value,
+  unconfigured,
+  title,
+  valueTitle,
+}: {
+  label: string;
+  value: string;
+  unconfigured?: boolean;
+  title?: string;
+  valueTitle?: string;
+}) {
   return (
     <div className="flex items-center justify-between gap-3 py-2" style={{ borderBottom: "1px solid var(--border)" }}>
-      <dt className="text-[12px] font-medium" style={{ color: "var(--ink-muted)" }}>
+      <dt
+        className="text-[12px] font-medium"
+        style={{ color: "var(--ink-muted)", cursor: title ? "help" : undefined }}
+        title={title}
+      >
         {label}
       </dt>
       {unconfigured ? (
-        <dd className="text-right m-0">
+        <dd className="text-right m-0" title={valueTitle}>
           <span
             className="inline-flex items-center rounded-full text-[11px] font-semibold px-2 h-[20px] whitespace-nowrap"
             style={{ background: "var(--amber-soft)", color: "var(--amber)" }}
@@ -468,7 +502,11 @@ function SummaryRow({ label, value, unconfigured }: { label: string; value: stri
           </span>
         </dd>
       ) : (
-        <dd className="text-[12.5px] font-semibold text-right m-0" style={{ color: "var(--ink)" }}>
+        <dd
+          className="text-[12.5px] font-semibold text-right m-0"
+          style={{ color: "var(--ink)", cursor: valueTitle ? "help" : undefined }}
+          title={valueTitle}
+        >
           {value}
         </dd>
       )}

@@ -54,7 +54,7 @@ export function ConnectionsList() {
     <PageShell variant="wide">
       <PageHeader
         title="Connections"
-        sub="Each supplier integration — input mapping, output template, delivery and item codes — bundled and versioned"
+        sub="Each supplier's complete setup — how their orders are mapped, checked and delivered — with safe version history."
         actions={
           <Button variant="secondary" size="md" onClick={() => router.push("/library/suppliers")}>
             Manage suppliers
@@ -150,7 +150,22 @@ export function ConnectionsList() {
 
                 {/* Meta cluster */}
                 <div className="flex items-center gap-3 flex-shrink-0 flex-wrap">
-                  <UnifiedStatusBadge status={badge.status} icon />
+                  <span
+                    className="inline-flex"
+                    style={{ cursor: "help" }}
+                    title={
+                      badge.status === "live"
+                        ? "New orders are using this version."
+                        : "A work-in-progress — not processing orders yet."
+                    }
+                    aria-label={
+                      badge.status === "live"
+                        ? "Live — new orders are using this version."
+                        : "Draft — a work-in-progress, not processing orders yet."
+                    }
+                  >
+                    <UnifiedStatusBadge status={badge.status} icon />
+                  </span>
                   <span aria-hidden style={{ color: "var(--ink-faint)", fontSize: 16 }}>
                     ›
                   </span>
