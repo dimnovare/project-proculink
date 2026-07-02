@@ -28,7 +28,7 @@ import { FileChip } from "./FileChip";
 import { PageHeader } from "./layout/PageHeader";
 import { PageShell } from "./layout/PageShell";
 import { StatusJourney, type CrossingStatus, type OrderStage } from "./StatusJourney";
-import { UnifiedStatusBadge } from "@/components/ui/UnifiedStatusBadge";
+import { UnifiedStatusBadge } from "@/components/bridge/UnifiedStatusBadge";
 import { useOrderDirection, type PartyLabels } from "@/hooks/useOrderDirection";
 import { formatBulkSendResult, isRedeliverable, shouldShowBulkBar, type BulkSendResult } from "./inboxSend";
 
@@ -474,7 +474,7 @@ function buildColumns(labels: PartyLabels) {
     // Keyed on the RAW backend OrderStatus so it can tell `ready` ("Normalized")
     // apart from `ready_to_deliver` ("Ready to send") — the collapsed display
     // `status` can't (see UnifiedStatusBadge / STATUS_META).
-    cell: ({ row }) => <UnifiedStatusBadge status={row.original.rawStatus} />,
+    cell: ({ row }) => <UnifiedStatusBadge status={row.original.rawStatus} icon />,
     size: 124,
   }),
   columnHelper.accessor("ageMin", {

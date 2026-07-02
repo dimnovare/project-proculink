@@ -12,7 +12,7 @@ import { PageHeader } from "@/components/bridge/layout/PageHeader";
 import { Card } from "@/components/bridge/layout/Card";
 import { EmptyState } from "@/components/bridge/EmptyState";
 import { Button } from "@/components/bridge/DSPrimitives";
-import { UnifiedStatusBadge, statusTone } from "@/components/ui/UnifiedStatusBadge";
+import { UnifiedStatusBadge, statusTone } from "@/components/bridge/UnifiedStatusBadge";
 import { listConnections, isApiMockMode } from "@/lib/api-client";
 import type { ConnectionSummary } from "@/lib/api/types";
 import { useQueriesEnabled } from "@/hooks/useQueriesEnabled";
@@ -150,7 +150,7 @@ export function ConnectionsList() {
 
                 {/* Meta cluster */}
                 <div className="flex items-center gap-3 flex-shrink-0 flex-wrap">
-                  <UnifiedStatusBadge status={badge.status} />
+                  <UnifiedStatusBadge status={badge.status} icon />
                   <span aria-hidden style={{ color: "var(--ink-faint)", fontSize: 16 }}>
                     ›
                   </span>
