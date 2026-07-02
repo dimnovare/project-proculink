@@ -37,40 +37,45 @@ function XGlyph() {
 }
 
 export function WorkshopStepper({ stage, failed = false }: { stage: number; failed?: boolean }) {
+  // Compact, right-aligned INLINE pipeline — sits on the ready-banner row next to the
+  // blocker/warning summary (app.jsx InlinePipeline: padding "0 4px", 16px nodes, 22px
+  // connectors, NO flex:1 / margin / minWidth so it stays hugged to the right end).
   return (
     <div
-      className="hidden xl:flex"
       aria-label="Pipeline progress"
-      style={{ flex: 1, alignItems: "center", margin: "0 26px", minWidth: 280 }}
+      style={{ display: "flex", alignItems: "center", padding: "0 4px", flexShrink: 0 }}
     >
       {STEPS.map((s, i) => {
         const done = i < stage;
         const active = i === stage;
         const isFail = active && failed;
-        const fill = done ? "#2E8E3A" : isFail ? "#B43838" : active ? "#1E66C9" : "#FFFFFF";
+        // app.jsx InlinePipeline: done → solid green, active → solid blue, else transparent
+        // (ring only). fail flips the active node to danger.
+        const fill = done ? "#2E8E3A" : isFail ? "#B43838" : active ? "#1E66C9" : "transparent";
         const bd = done ? "#2E8E3A" : isFail ? "#B43838" : active ? "#1E66C9" : "#CBD0DA";
+        const txt = done ? "#1E6D29" : isFail ? "#B43838" : active ? "#0B1A2F" : "#98A0AE";
         return (
           <Fragment key={s.label}>
-            <div title={s.title} style={{ display: "flex", alignItems: "center", gap: 7, flexShrink: 0 }}>
+            <div title={s.title} style={{ display: "inline-flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
               <span
                 style={{
                   width: 16, height: 16, borderRadius: "50%", background: fill,
                   border: `1.5px solid ${bd}`, display: "inline-flex", alignItems: "center",
-                  justifyContent: "center", boxShadow: active && !failed ? "0 0 0 3px #EAF0F8" : "none",
+                  justifyContent: "center",
                 }}
               >
                 {done ? <CheckGlyph /> : isFail ? <XGlyph /> : (
-                  <span style={{ fontSize: 8.5, fontWeight: 700, fontFamily: "'JetBrains Mono',monospace", color: active ? "#FFFFFF" : "#98A0AE" }}>
+                  <span style={{ fontSize: 8, fontWeight: 800, fontFamily: "'JetBrains Mono',monospace", color: active ? "#FFFFFF" : "#98A0AE" }}>
                     {i + 1}
                   </span>
                 )}
               </span>
-              <span style={{ fontSize: 12, fontWeight: active ? 650 : 500, color: active ? "#0B1A2F" : done ? "#1E6D29" : "#98A0AE", whiteSpace: "nowrap" }}>
+              <span style={{ fontSize: 12, fontWeight: active ? 650 : 500, color: txt, whiteSpace: "nowrap" }}>
                 {s.label}
               </span>
             </div>
             {i < STEPS.length - 1 && (
-              <div style={{ flex: 1, height: 2, margin: "0 8px", borderRadius: 2, background: i < stage ? "#2E8E3A" : "#E5E8EE", minWidth: 16 }} />
+              <span style={{ width: 22, height: 2, margin: "0 8px", borderRadius: 2, background: i < stage ? "#2E8E3A" : "#E5E8EE" }} />
             )}
           </Fragment>
         );

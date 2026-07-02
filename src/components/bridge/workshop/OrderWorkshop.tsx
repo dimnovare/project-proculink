@@ -569,13 +569,10 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
               <FocusControl focus={lay.focus} onFocus={lay.setFocus} />
             </div>
 
-            {/* Pipeline stepper — Received → … → Sent — lives in the title row (app.jsx
-                structure), not the banner below. */}
-            <div className="hidden xl:flex">
-              <WorkshopStepper stage={stepperStage} failed={stepperFailed} />
-            </div>
-
-            {/* Send — gated by canSend (issues clear + server-truth exceptions clear). */}
+            {/* Send — gated by canSend (issues clear + server-truth exceptions clear).
+                The pipeline stepper is NOT in this title row anymore — it lives at the
+                right end of the ready-banner below (app.jsx ReadyBanner structure), next
+                to the "N blockers · M warnings" summary. */}
             <div style={{ position: "relative", display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 3 }} onMouseEnter={() => setSendTip(true)} onMouseLeave={() => setSendTip(false)}>
               <button
                 type="button"
@@ -685,6 +682,11 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
           onResolveAll={issuesResolve.bulkAcceptSuggestions ? () => issuesResolve.bulkAcceptSuggestions!(0) : undefined}
           resolveAllCount={suggestableCount}
           resolving={issuesResolve.bulkAccepting}
+          pipeline={
+            <span className="hidden xl:inline-flex">
+              <WorkshopStepper stage={stepperStage} failed={stepperFailed} />
+            </span>
+          }
         />
       </div>
 

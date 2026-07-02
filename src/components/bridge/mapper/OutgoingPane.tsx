@@ -558,11 +558,22 @@ function OutgoingRow({
       style={{
         position: "relative",
         borderRadius: 10,
-        border: `1px solid ${snapped ? "#6F4FCE" : needsSource ? "#F1E2BE" : hovered ? "#A9D3AF" : status.mapped ? "#D7E7DA" : "var(--line, #E5E8EE)"}`,
-        borderLeft: `3px solid ${status.mapped ? "#2E8E3A" : needsSource ? "#E0B23C" : accent}`,
-        background: snapped ? "#F4EFFC" : needsSource ? "#FFFCF4" : hovered ? "rgba(46,142,58,0.05)" : "#FFFFFF",
+        // app.jsx OutputRow hover: a HOVERED "what we'll send" card lights with a CRISP green
+        // border (#2E8E3A, not the washed-out #A9D3AF), a clearly-visible greenSoft (#E9F1EA)
+        // fill, a green left bar, and a soft green shadow — mirroring the received card's blue
+        // hover so the whole received↔wire↔send↔preview chain visibly lights together. Issue
+        // states (needsSource amber / snapped violet) still take precedence.
+        // NB: per-side longhand (not the `border` shorthand + a separate `borderLeft`) so React
+        // never warns about mixing shorthand/longhand for the same value on the hover rerender.
+        borderStyle: "solid",
+        borderTopWidth: 1, borderRightWidth: 1, borderBottomWidth: 1, borderLeftWidth: 3,
+        borderTopColor: snapped ? "#6F4FCE" : needsSource ? "#F1E2BE" : hovered ? "#2E8E3A" : status.mapped ? "#D7E7DA" : "#E5E8EE",
+        borderRightColor: snapped ? "#6F4FCE" : needsSource ? "#F1E2BE" : hovered ? "#2E8E3A" : status.mapped ? "#D7E7DA" : "#E5E8EE",
+        borderBottomColor: snapped ? "#6F4FCE" : needsSource ? "#F1E2BE" : hovered ? "#2E8E3A" : status.mapped ? "#D7E7DA" : "#E5E8EE",
+        borderLeftColor: snapped ? "#6F4FCE" : needsSource ? "#E0B23C" : hovered ? "#2E8E3A" : status.mapped ? "#2E8E3A" : accent,
+        background: snapped ? "#F4EFFC" : needsSource ? "#FFFCF4" : hovered ? "#E9F1EA" : "#FFFFFF",
         padding: "11px 12px 11px 13px",
-        boxShadow: snapped ? "0 0 0 2px rgba(111,79,206,0.18)" : undefined,
+        boxShadow: snapped ? "0 0 0 2px rgba(111,79,206,0.18)" : hovered ? "0 2px 12px rgba(46,142,58,0.12)" : undefined,
         transition: "background 120ms, border-color 120ms, box-shadow 120ms",
       }}
     >
@@ -825,17 +836,19 @@ function AutoMappedSummary({ count, open, onToggle }: { count: number; open: boo
       onClick={onToggle}
       aria-expanded={open}
       style={{
-        width: "100%", display: "flex", alignItems: "center", gap: 9, padding: "9px 12px",
-        borderRadius: 9, border: "none", background: "#F1F3F7", color: "#5E6779", cursor: "pointer",
+        // app.jsx OutputColumn summary: white surface + crisp border (not a flat grey pill),
+        // greenSoft check chip, "N fields ready · mapped automatically".
+        width: "100%", display: "flex", alignItems: "center", gap: 10, padding: "10px 12px",
+        borderRadius: 10, border: "1px solid #E5E8EE", background: "#FFFFFF", color: "#5E6779", cursor: "pointer",
         textAlign: "left",
       }}
     >
-      <span style={{ width: 18, height: 18, borderRadius: "50%", background: "#E7F0E8", display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-        <svg width="10" height="10" viewBox="0 0 12 12" fill="none" aria-hidden>
+      <span style={{ width: 20, height: 20, borderRadius: "50%", background: "#E9F1EA", display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+        <svg width="11" height="11" viewBox="0 0 12 12" fill="none" aria-hidden>
           <path d="M2.5 6.2 5 8.7l4.5-5" stroke="#1E6D29" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
       </span>
-      <span style={{ fontSize: 12, fontWeight: 600, color: "#0B1A2F" }}>
+      <span style={{ fontSize: 12.5, fontWeight: 650, color: "#0B1A2F" }}>
         {count} field{count === 1 ? "" : "s"} ready
       </span>
       <span style={{ fontSize: 11.5 }}>· mapped automatically</span>
