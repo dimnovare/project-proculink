@@ -106,8 +106,13 @@ test.describe("Legal + trust pages", () => {
 
 test.describe("Legal entity", () => {
   test("legal pages identify Diip Solutions OÜ while retaining the ProcuLink brand", async ({ page }) => {
+    // Four sequential page visits share one test budget — give them headroom,
+    // and wait for DOMContentLoaded only: the assertions read server-rendered
+    // text, and the full "load" event (every dev-mode chunk/image) routinely
+    // blew the 30s default under parallel worker load.
+    test.setTimeout(60_000);
     for (const route of ["/privacy", "/terms", "/dpa", "/one-pager"]) {
-      await page.goto(route);
+      await page.goto(route, { waitUntil: "domcontentloaded" });
       const body = await page.locator("body").innerText();
       expect(body).not.toMatch(/estoria/i);
       expect(body).not.toMatch(/ProcuLink OÜ/i);

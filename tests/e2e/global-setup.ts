@@ -21,6 +21,18 @@ async function globalSetup() {
     "/how-it-works",
     "/help",
     "/pricing",
+    // Legal + trust pages (marketing.spec.ts navigates all of these; the
+    // legal-entity test visits four of them back-to-back and flaked on
+    // page.goto timeouts while they cold-compiled under parallel load).
+    "/privacy",
+    "/terms",
+    "/security",
+    "/dpa",
+    "/subprocessors",
+    "/aup",
+    "/support",
+    "/customers",
+    "/one-pager",
   ];
   await Promise.all(routes.map((p) => ctx.get(p, { timeout: 90_000 }).catch(() => {})));
   await ctx.dispose();

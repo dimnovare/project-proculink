@@ -179,13 +179,16 @@ test.describe("UploadWorkbench — post-upload routes to the Order Workshop", ()
 test.describe("Order Workshop — bulk-accept parity (the /upload/preview superset)", () => {
   /**
    * STRUCT-2 acceptance: at /inbox/<id> (the Order Workshop), an order with
-   * unresolved AI-suggested lines surfaces the SAME "Accept all AI suggestions"
-   * bulk control the /upload/preview step had, and accepting clears those issues.
+   * unresolved AI-suggested lines surfaces the SAME one-click bulk-accept
+   * control the /upload/preview step had, and accepting clears those issues.
+   * The workshop's control is labelled "Resolve all suggested" (renamed from
+   * "Accept all AI suggestions" in the issues banner-actions redesign,
+   * f365aa0); it still drives the same POST /accept-ai-suggestions path.
    *
    * ord-002 is seeded with 2 lines carrying pending AI suggestions (84% + 72%),
    * so the workshop's IssuesPanel renders the bulk-accept header.
    */
-  test("the workshop exposes 'Accept all AI suggestions' and clicking it clears issues", async ({ page }) => {
+  test("the workshop exposes 'Resolve all suggested' and clicking it clears issues", async ({ page }) => {
     await page.goto("/inbox/ord-002");
 
     // The workshop shell renders (desktop mapper view).
@@ -193,14 +196,14 @@ test.describe("Order Workshop — bulk-accept parity (the /upload/preview supers
 
     // The bulk-accept control (parity with /upload/preview) is present for the
     // unresolved AI-suggested lines.
-    const acceptAll = page.getByRole("button", { name: /accept all ai suggestions/i }).first();
+    const acceptAll = page.getByRole("button", { name: /resolve all suggested/i }).first();
     await expect(acceptAll).toBeVisible({ timeout: 10_000 });
     await acceptAll.click();
 
     // After accepting, the AI-suggestion issues clear — the bulk-accept control
     // (which only renders while suggestable lines remain) disappears.
     await expect(
-      page.getByRole("button", { name: /accept all ai suggestions/i }),
+      page.getByRole("button", { name: /resolve all suggested/i }),
     ).toHaveCount(0, { timeout: 15_000 });
   });
 });

@@ -141,11 +141,23 @@ export default function AdminPage() {
   const [sortKey, setSortKey] = useState<SortKey>("mrrContribution");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
 
+  // Access-error retry policy: a 403 is a CONFIRMED "not on the admin
+  // allowlist" — never retry it. A 401 on a signed-in client is almost always
+  // the cold-mount window where the Clerk token wasn't attached yet
+  // (authHeader waits at most 5s for Clerk.loaded, then sends no header), so
+  // retry it a few times (default backoff) before latching. Without this, one
+  // transient 401 permanently showed the "Please sign in" dead end to a real
+  // admin. Non-access errors keep the single retry.
+  const adminRetry = (count: number, err: Error) =>
+    err instanceof AdminAccessError
+      ? err.status === 401 && count < 3
+      : count < 1;
+
   const overviewQ = useQuery<AdminOverview>({
     queryKey: ["admin-overview"],
     queryFn: getAdminOverview,
     enabled: queryEnabled,
-    retry: (count, err) => !(err instanceof AdminAccessError) && count < 1,
+    retry: adminRetry,
     staleTime: 30_000,
   });
 
@@ -153,7 +165,7 @@ export default function AdminPage() {
     queryKey: ["admin-organisations"],
     queryFn: getAdminOrganisations,
     enabled: queryEnabled,
-    retry: (count, err) => !(err instanceof AdminAccessError) && count < 1,
+    retry: adminRetry,
     staleTime: 30_000,
   });
 
@@ -200,8 +212,12 @@ export default function AdminPage() {
               ? "Your session expired. Sign in again to continue."
               : "The admin area is restricted to platform owners. If you believe this is a mistake, contact the team."}
           </p>
+          {/* 401 → send the user through sign-in WITH a return path. Without
+              redirect_url, an already-signed-in user bounces through Clerk's
+              fallback (/onboarding/select-organization), whose default dest is
+              /bridge — i.e. "I went to /admin and landed on /bridge". */}
           <Link
-            href={accessError.status === 401 ? "/sign-in" : "/bridge"}
+            href={accessError.status === 401 ? "/sign-in?redirect_url=%2Fadmin" : "/bridge"}
             className="mt-5 inline-flex items-center rounded-[8px] px-4 py-2 text-[13px] font-semibold"
             style={{ background: "var(--brand-blue)", color: "white", textDecoration: "none" }}
           >
