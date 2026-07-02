@@ -305,7 +305,7 @@ export function MobileTriage(props: MobileTriageProps) {
                   className="plk-mobile-accept"
                   style={{ ...mobilePrimaryBtn, width: "100%", justifyContent: "center", display: "inline-flex", alignItems: "center", gap: 8, opacity: resolve.bulkAccepting ? 0.6 : 1, cursor: resolve.bulkAccepting ? "wait" : "pointer" }}
                 >
-                  {resolve.bulkAccepting ? "Accepting…" : `Accept all AI suggestions (${suggestableCount})`}
+                  {resolve.bulkAccepting ? "Resolving…" : `Resolve all suggested (${suggestableCount})`}
                 </button>
                 {highConfCount > 0 && highConfCount < suggestableCount && (
                   <button
