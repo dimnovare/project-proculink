@@ -19,6 +19,7 @@ import { useQuery } from "@tanstack/react-query";
 import { WireTopology } from "./WireTopology";
 import type { WireBuyer, WireSupplier, Wire } from "./WireTopology";
 import { FileChip } from "./FileChip";
+import { statusLabel } from "./UnifiedStatusBadge";
 import { StatusJourney } from "./StatusJourney";
 import type { OrderStage } from "./StatusJourney";
 import { LaneDrawer } from "./LaneDrawer";
@@ -33,7 +34,7 @@ import { useQueriesEnabled } from "@/hooks/useQueriesEnabled";
 import { useOnboardingStatus } from "@/hooks/useOnboardingStatus";
 import { useOrderDirection } from "@/hooks/useOrderDirection";
 import type { OrderSummary, Supplier } from "@/types/procurement";
-import { ArrowRight, ArrowUpRight, Clock, AlertTriangle, CheckCircle2, Send, Activity, Download, Inbox, PackageCheck, XCircle, BarChart3, Network } from "lucide-react";
+import { ArrowRight, ArrowUpRight, Clock, AlertTriangle, CheckCircle2, Send, Activity, Download, BarChart3, Network, ChevronRight } from "lucide-react";
 
 // ─── Brand accent (supplier green) ────────────────────────────────────────
 // The supplier accent is the calm forest green from the design tokens
@@ -47,6 +48,10 @@ const GREEN_BAR = "#2E8E3A";
 // green) and drives buyer-side accents. Sampled --brand-blue #1E66C9.
 const BLUE = "#1E66C9";
 const BLUE_DEEP = "#0F4FA8";    // --brand-blue-deep (PO mono text in transit)
+const BLUE_SOFT = "#EAF0F8";    // --brand-blue-soft (buyer avatar bg)
+const GREEN_SOFT = "#E9F1EA";   // --brand-green-soft (supplier avatar bg)
+const AMBER = "#B36D14";        // --amber (uncertain / needs-review)
+const AMBER_SOFT = "#FAF1DD";   // --amber-soft
 
 // ─── Status sets ──────────────────────────────────────────────────────────
 
@@ -179,6 +184,82 @@ function codeFor(name: string): string {
   const initials = words.map((w) => w[0]).join("").toUpperCase();
   const code = initials.length >= 3 ? initials : words.join("").toUpperCase();
   return code.slice(0, 3);
+}
+
+/** Two-letter monogram for an avatar tile, e.g. "Nordic Electronics" → "NE". */
+function initialsFor(name: string): string {
+  const words = (name ?? "").replace(/[^A-Za-z0-9 ]/g, " ").split(/\s+/).filter(Boolean);
+  if (words.length === 0) return "—";
+  if (words.length === 1) return words[0].slice(0, 2).toUpperCase();
+  return (words[0][0] + words[1][0]).toUpperCase();
+}
+
+/** Compact relative age from an ISO timestamp, e.g. "32 min", "2 h", "3 d". */
+function ageFrom(iso: string): string {
+  const t = new Date(iso).getTime();
+  if (!Number.isFinite(t)) return "";
+  const mins = Math.max(0, Math.round((Date.now() - t) / 60000));
+  if (mins < 1) return "just now";
+  if (mins < 60) return `${mins} min`;
+  const hours = Math.round(mins / 60);
+  if (hours < 24) return `${hours} h`;
+  return `${Math.round(hours / 24)} d`;
+}
+
+/** Square monogram tile — buyer (blue) or supplier (green), per the semantic law. */
+function Avatar({ name, tone = "buyer", size = 28 }: { name: string; tone?: "buyer" | "supplier"; size?: number }) {
+  const fg = tone === "buyer" ? BLUE : GREEN;
+  const bg = tone === "buyer" ? BLUE_SOFT : GREEN_SOFT;
+  return (
+    <span
+      aria-hidden
+      className="inline-flex flex-shrink-0 items-center justify-center font-bold"
+      style={{ width: size, height: size, borderRadius: 8, background: bg, color: fg, fontSize: Math.round(size * 0.34) }}
+    >
+      {initialsFor(name)}
+    </span>
+  );
+}
+
+/** Section header — display title + optional count pill + note + right-aligned action link. */
+function SectionHead({
+  title,
+  count,
+  note,
+  actionHref,
+  actionLabel,
+}: {
+  title: string;
+  count?: number;
+  note?: string;
+  actionHref?: string;
+  actionLabel?: string;
+}) {
+  return (
+    <div className="mb-3 flex items-center gap-2.5">
+      <h3
+        className="m-0 whitespace-nowrap"
+        style={{ fontFamily: "var(--font-display, 'Bricolage Grotesque', Inter, sans-serif)", fontWeight: 700, fontSize: 15.5, letterSpacing: "-0.01em", color: "#0B1A2F" }}
+      >
+        {title}
+      </h3>
+      {count != null && (
+        <span
+          className="tabular-nums"
+          style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 11.5, fontWeight: 700, color: "#5E6779", background: "#F1F3F7", border: "1px solid #E5E8EE", borderRadius: 999, padding: "1px 8px" }}
+        >
+          {count}
+        </span>
+      )}
+      {note && <span className="text-[12px]" style={{ color: "var(--ink-faint)" }}>{note}</span>}
+      {actionHref && actionLabel && (
+        <Link href={actionHref} className="ml-auto inline-flex items-center gap-1 text-[12.5px] font-semibold no-underline" style={{ color: BLUE }}>
+          {actionLabel}
+          <ArrowRight size={12} aria-hidden />
+        </Link>
+      )}
+    </div>
+  );
 }
 
 /**
@@ -405,6 +486,23 @@ export function BridgeDashboard() {
     });
   }, [allOrders, windowKey]);
 
+  // Throughput sparkline — real orders-received count per day over the last 7
+  // days (index 6 = today). Derived from the loaded working set; a busy org's
+  // true windowed total still shows as the big number below (windowedReceivedPage).
+  const weeklyBars = useMemo(() => {
+    const bins = [0, 0, 0, 0, 0, 0, 0];
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
+    const todayStart = startOfToday.getTime();
+    for (const o of allOrders) {
+      const t = new Date(o.createdAt).getTime();
+      if (!Number.isFinite(t)) continue;
+      const dayIdx = 6 - Math.floor((todayStart - t) / DAY_MS);
+      if (dayIdx >= 0 && dayIdx <= 6) bins[dayIdx]++;
+    }
+    return bins;
+  }, [allOrders]);
+
   // Topology: prefer the org's real data; fall back to the endpoint only when we
   // have nothing to derive (e.g. a future server-side aggregation). This is the
   // fix for "No supplier wires yet" showing even when suppliers + orders exist.
@@ -486,36 +584,21 @@ export function BridgeDashboard() {
     ? (ordersSummary?.total ?? 0)
     : allOrders.length;
 
-  // Funnel stages share ONE temporal base (all time) so the counts are directly
-  // comparable. Colours: buyer-blue (received) → amber (blocked) → neutral
-  // (ready) → supplier-green (delivered) → red (failed).
-  const funnelStages: Array<{ key: string; label: string; value: number; color: string; tint: string; href?: string }> = [
-    { key: "received",  label: "Received",     value: countReceived,  color: BLUE,       tint: "#EAF1FC" },
-    { key: "blocked",   label: "Needs review", value: countBlocked,   color: "#B36D14",  tint: "#FFF6E6", href: "/operations/exceptions" },
-    { key: "ready",     label: "Ready",        value: countReady,     color: "#5E6779",  tint: "#F1F3F7" },
-    { key: "delivered", label: "Delivered",    value: countDelivered, color: GREEN,      tint: "#E9F4EB" },
-    { key: "failed",    label: "Failed",       value: countFailed,    color: "#B43838",  tint: "#FCEDED", href: "/operations/exceptions" },
-  ];
-  const funnelMax = Math.max(countReceived, 1);
-
-  // ── KPIs — real counts, windowed where it makes sense, honestly labelled ──
+  // ── Windowed rail metrics — real counts, honestly labelled. Feed the health
+  // rail (throughput + auto-processed) and the export/window controls. ──────
   const windowSub = WINDOWS.find((w) => w.key === windowKey)!.sub;
-  const fmt = (n: number) => (ordersLoading ? "…" : ordersError ? "—" : n.toLocaleString());
 
-  const deliveredInWindow = windowedOrders.filter((o) => o.status === "delivered").length;
   const eligibleInWindow = windowedOrders.filter((o) => ELIGIBLE_STATUSES.has(o.status));
   const autoCount = eligibleInWindow.filter((o) => (o.unresolvedCount ?? 0) === 0).length;
   const autoPct = eligibleInWindow.length > 0 ? Math.round((100 * autoCount) / eligibleInWindow.length) : 0;
 
   // Auto-processed % is sampled over the loaded working set (capped at the
-  // 100-order page), whereas "Orders received" shows the true windowed total
+  // 100-order page), whereas "orders received" shows the true windowed total
   // (windowedReceivedPage.totalCount). When the true total exceeds the loaded
-  // sample, the two headline numbers compute on different bases — say so, so they
-  // don't look contradictory.
+  // sample, the two numbers compute on different bases — say so (autoSampled).
   const autoSampled =
     !isApiMockMode && (windowedReceivedPage?.totalCount ?? 0) > allOrders.length;
 
-  const exceptionsBad = openExceptionsAll > 0;
   // The exception count is only trustworthy once its source query has settled —
   // never flash an amber strip off a loading/error state (honest zero-state =
   // no banner at all).
@@ -523,87 +606,6 @@ export function BridgeDashboard() {
     ? !summaryLoading && !summaryError
     : !ordersLoading && !ordersError;
   const showExceptionStrip = exceptionsCountReliable && openExceptionsAll > 0;
-  const kpis: Array<{
-    value: string;
-    label: string;
-    sub: string;
-    subColor: string;
-    subIcon: typeof ArrowUpRight | undefined;
-    edge: string;
-    loading: boolean;
-    /** When set, the whole KPI card is a link (e.g. exceptions → triage view). */
-    href?: string;
-  }> = [
-    {
-      value: !isApiMockMode
-        ? (ordersLoading ? "…" : ordersError ? "—" : (windowedReceivedPage?.totalCount ?? windowedOrders.length).toLocaleString())
-        : fmt(windowedOrders.length),
-      label: "Orders received",
-      sub: windowSub,
-      subColor: "#5E6779",
-      subIcon: ArrowUpRight,
-      // Headline throughput metric: buyer-blue flows to supplier-green, mirroring
-      // the topology cross-section. Sampled #1E66C9 → #2E8E3A.
-      edge: `linear-gradient(90deg, ${BLUE} 0%, ${GREEN_BAR} 100%)`,
-      loading: ordersLoading,
-    },
-    {
-      value: !isApiMockMode
-        ? (ordersLoading ? "…" : ordersError ? "—" : (windowedDeliveredPage?.totalCount ?? deliveredInWindow).toLocaleString())
-        : fmt(deliveredInWindow),
-      label: "Orders delivered",
-      sub: windowSub,
-      subColor: GREEN_DEEP,
-      subIcon: CheckCircle2,
-      edge: GREEN_BAR,
-      loading: ordersLoading,
-    },
-    {
-      value: !isApiMockMode
-        ? (summaryLoading ? "…" : summaryError ? "—" : openExceptionsAll.toLocaleString())
-        : fmt(openExceptionsAll),
-      label: "Needs attention",
-      // TEMPORAL SCOPE: this count comes from GET /api/orders/summary — the live
-      // open backlog across ALL time — and is NOT filtered by the time-window
-      // selector (unlike "Orders received/delivered/Auto-processed", which are
-      // windowed). To keep every headline KPI on a comparable, explicitly-labelled
-      // base, this card's sub LEADS WITH ITS SCOPE ("All time") so it can never be
-      // misread as a windowed figure next to the windowed cards.
-      sub: !isApiMockMode
-        ? (summaryLoading ? "…" : summaryError ? "Live data unavailable" : exceptionsBad ? "All time · review needed" : "All time · all clear")
-        : (ordersError ? "Live data unavailable" : exceptionsBad ? "All time · review needed" : "All time · all clear"),
-      subColor: (!isApiMockMode ? (summaryLoading || summaryError) : (ordersLoading || ordersError))
-        ? "#5E6779"
-        : exceptionsBad ? "#B36D14" : GREEN_DEEP,
-      subIcon: (!isApiMockMode ? (summaryLoading || summaryError) : (ordersLoading || ordersError))
-        ? undefined
-        : exceptionsBad ? AlertTriangle : CheckCircle2,
-      edge: exceptionsBad ? "#B36D14" : GREEN_BAR,
-      loading: !isApiMockMode ? summaryLoading : ordersLoading,
-      // The KPI is also the entry point to triage — the card links to the
-      // exceptions view instead of being a dead number.
-      href: "/operations/exceptions",
-    },
-    {
-      value: ordersLoading ? "…" : ordersError ? "—" : eligibleInWindow.length >= 3 ? `${autoPct}%` : "—",
-      label: "Auto-processed",
-      // TEMPORAL SCOPE: windowed (same selector as Received/Delivered). Lead the
-      // sub with the window so all four headline KPIs declare their base — three
-      // windowed ("Last 30 days"), one all-time ("Needs attention") — and no two
-      // numbers silently compute on different bases without saying so.
-      sub: ordersError
-        ? "Live data unavailable"
-        : eligibleInWindow.length >= 3
-        // Make the denominator explicit so "100%" can't read as "everything is fine" while orders
-        // still need review — this is the % of COMPLETED orders that needed no manual mapping.
-        ? `${windowSub} · ${autoCount} of ${eligibleInWindow.length} completed${autoSampled ? " (latest 100)" : ""}`
-        : `${windowSub} · needs 3+ completed orders`,
-      subColor: ordersError ? "#5E6779" : eligibleInWindow.length >= 3 ? GREEN_DEEP : "#5E6779",
-      subIcon: ordersError ? undefined : eligibleInWindow.length >= 3 ? CheckCircle2 : Clock,
-      edge: GREEN_BAR,
-      loading: ordersLoading,
-    },
-  ];
 
   // ── In-transit rows (current pipeline activity; not windowed) ─────────────
   const inTransitRows = (() => {
@@ -623,6 +625,55 @@ export function BridgeDashboard() {
     }
     return liveRows;
   })();
+
+  // ── "Needs you" rows — the actionable hero (real orders in an open state) ──
+  // Built from the same live working set as the KPIs. An order needs a human
+  // when it's awaiting review, failed, or was rejected — the same
+  // EXCEPTION_STATUSES that feed the "Needs attention" count. We surface a plain
+  // "what's needed" line derived from the actual status + unresolved count, never
+  // a fabricated reason. Blocked (needs-review) rows sort first, then oldest-first.
+  function neededFor(o: OrderSummary): string {
+    const unresolved = o.unresolvedCount ?? 0;
+    if (o.status === "pending_review") {
+      return unresolved > 0
+        ? `${unresolved} item code${unresolved === 1 ? "" : "s"} to confirm`
+        : "Review before sending";
+    }
+    if (o.status === "rejected_by_supplier") return "Rejected — needs a fix";
+    if (o.status === "delivery_failed" || o.status === "delivery_dead_letter") return "Delivery failed — retry";
+    if (o.status === "transform_failed") return "Transform failed — check mapping";
+    if (o.status === "failed") return "Failed — needs attention";
+    return statusLabel(o.status);
+  }
+  const needsYouRows = allOrders
+    .filter((o) => EXCEPTION_STATUSES.has(o.status) || (o.unresolvedCount ?? 0) > 0)
+    .sort((a, b) => {
+      // Needs-review first (the primary blocker), then oldest (createdAt asc).
+      const ap = a.status === "pending_review" ? 0 : 1;
+      const bp = b.status === "pending_review" ? 0 : 1;
+      if (ap !== bp) return ap - bp;
+      return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+    })
+    .slice(0, 6);
+
+  // ── "Ready to send" rows — validated orders with nothing blocking ─────────
+  const readyRows = allOrders.filter((o) => o.status === "ready" || o.status === "ready_to_deliver");
+  const readyChips = readyRows.slice(0, 3);
+
+  // Money formatting for the ready-to-send preview chips (locale-aware, honest —
+  // omitted when the order carries no total).
+  const fmtMoney = (o: OrderSummary): string | null => {
+    if (o.totalValue == null) return null;
+    try {
+      return new Intl.NumberFormat(undefined, {
+        style: "currency",
+        currency: o.currency || "EUR",
+        maximumFractionDigits: 2,
+      }).format(o.totalValue);
+    } catch {
+      return `${o.totalValue.toFixed(2)} ${o.currency ?? ""}`.trim();
+    }
+  };
 
   // ── Onboarding state ──────────────────────────────────────────────────────
   // The checklist self-fetches its own data (no prop threading); the dashboard
@@ -799,68 +850,68 @@ export function BridgeDashboard() {
         </div>
       );
     }
+    // v2 pipeline: a quiet stat row (dot + label + big number, hairline dividers)
+    // over ONE honest proportion bar. Each stat opens the inbox; the bar shows the
+    // relative share of Needs review / Ready / Delivered / Failed within the
+    // post-intake population — the "of N received" caption keeps it truthful.
+    const statRow = [
+      { key: "received",  label: "Received",      value: countReceived,  color: BLUE },
+      { key: "review",    label: "Needs review",  value: countBlocked,   color: AMBER },
+      { key: "ready",     label: "Ready to send", value: countReady,     color: GREEN_DEEP },
+      { key: "delivered", label: "Delivered",     value: countDelivered, color: GREEN },
+    ];
+    const segs = [
+      { label: "Needs review", value: countBlocked,   color: AMBER },
+      { label: "Ready",        value: countReady,     color: BLUE },
+      { label: "Delivered",    value: countDelivered, color: GREEN },
+      { label: "Failed",       value: countFailed,    color: "#B43838" },
+    ];
+    const segTotal = Math.max(1, segs.reduce((a, s) => a + s.value, 0));
     return (
-      <div className="p-4">
-        {/* Five stage tiles — Received → Needs review → Ready → Delivered → Failed.
-            Each shows a real count and a proportional bar (share of total received),
-            so the relative scale of each stage is visible at a glance. */}
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-          {funnelStages.map((s, idx) => {
-            const pct = Math.min(100, Math.round((100 * s.value) / funnelMax));
-            const tile = (
-              <>
-                <div className="flex items-center gap-1.5">
-                  {(() => {
-                    const Icon = [Inbox, AlertTriangle, Clock, PackageCheck, XCircle][idx];
-                    return <Icon size={13} strokeWidth={2.25} style={{ color: s.color, flexShrink: 0 }} aria-hidden />;
-                  })()}
-                  <span className="text-[10.5px] font-semibold uppercase" style={{ color: "#5E6779", letterSpacing: "0.05em" }}>
-                    {s.label}
-                  </span>
-                </div>
-                <div
-                  className="monument mt-1 tabular-nums"
-                  style={{ fontSize: "clamp(24px, 3.4vw, 32px)", lineHeight: 1.05, color: "#0B1A2F" }}
-                >
-                  {s.value.toLocaleString()}
-                </div>
-                <div className="mt-2.5 overflow-hidden rounded-full" style={{ height: 5, background: "#F1F3F7" }}>
-                  <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, background: s.color }} />
-                </div>
-              </>
-            );
-            const tileClass = "relative rounded-[10px] p-3.5";
-            const tileStyle = { background: s.tint, border: `1px solid ${s.color}22` } as const;
-            return s.href && s.value > 0 ? (
-              <Link
-                key={s.key}
-                href={s.href}
-                className={`${tileClass} no-underline transition-shadow hover:shadow-md`}
-                style={tileStyle}
-                title={`Open ${s.label.toLowerCase()}`}
+      <div>
+        {/* Stat row */}
+        <div className="grid grid-cols-2 sm:grid-cols-4">
+          {statRow.map((s, i) => (
+            <Link
+              key={s.key}
+              href="/inbox"
+              className="flex flex-col gap-1.5 px-[18px] py-3.5 no-underline transition-colors hover:bg-[#F6F7FA]"
+              style={i % 4 !== 0 ? { borderLeft: "1px solid #EEF0F4" } : undefined}
+            >
+              <span className="inline-flex items-center gap-1.5 text-[11.5px] font-semibold" style={{ color: "#5E6779" }}>
+                <span aria-hidden style={{ width: 8, height: 8, borderRadius: "50%", background: s.color, display: "inline-block" }} />
+                {s.label}
+              </span>
+              <span
+                className="tabular-nums"
+                style={{ fontFamily: "var(--font-display, 'Bricolage Grotesque', Inter, sans-serif)", fontWeight: 800, fontSize: 30, lineHeight: 1, color: s.value === 0 ? "var(--ink-faint)" : "#0B1A2F" }}
               >
-                {tile}
-              </Link>
-            ) : (
-              <div key={s.key} className={tileClass} style={tileStyle}>
-                {tile}
-              </div>
-            );
-          })}
+                {s.value.toLocaleString()}
+              </span>
+            </Link>
+          ))}
         </div>
-        {/* Flow connector caption — names the pipeline order in plain language. */}
-        <div className="mt-3 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[11.5px]" style={{ color: "var(--ink-faint)" }}>
-          <span>Order pipeline</span>
-          <span style={{ color: "#CBD0DA" }}>·</span>
-          <span>Received</span>
-          <ArrowRight size={11} aria-hidden />
-          <span>Needs review</span>
-          <ArrowRight size={11} aria-hidden />
-          <span>Ready</span>
-          <ArrowRight size={11} aria-hidden />
-          <span>Delivered</span>
-          <span style={{ color: "#CBD0DA" }}>·</span>
-          <span>All time</span>
+        {/* One honest proportion bar */}
+        <div className="px-[18px] pb-4 pt-1">
+          <div className="flex overflow-hidden rounded-md" style={{ height: 10, background: "#F1F3F7" }}>
+            {segs
+              .filter((s) => s.value > 0)
+              .map((s) => (
+                <div key={s.label} title={`${s.label}: ${s.value}`} style={{ width: `${(s.value / segTotal) * 100}%`, background: s.color }} />
+              ))}
+          </div>
+          <div className="mt-2.5 flex flex-wrap items-center gap-x-4 gap-y-1">
+            {segs.map((s) => (
+              <span key={s.label} className="inline-flex items-center gap-1.5 text-[11px]" style={{ color: s.value === 0 ? "var(--ink-faint)" : "#5E6779" }}>
+                <span aria-hidden style={{ width: 8, height: 8, borderRadius: 2, background: s.value === 0 ? "#CBD0DA" : s.color, display: "inline-block" }} />
+                {s.label}{" "}
+                <b className="tabular-nums" style={{ color: s.value === 0 ? "var(--ink-faint)" : "#0B1A2F" }}>{s.value}</b>
+              </span>
+            ))}
+            <span className="ml-auto text-[11px]" style={{ color: "var(--ink-faint)" }}>
+              of {countReceived.toLocaleString()} received · all time
+            </span>
+          </div>
         </div>
       </div>
     );
@@ -987,6 +1038,11 @@ export function BridgeDashboard() {
         </div>
       ) : (
         <div className="flex flex-1 flex-col gap-4 sm:gap-5">
+          {/* ── Setup / onboarding strip (top) — the slim, receding finish-setup
+              band. Self-nulls when loading/errored or once all 6 steps are done
+              (shows a one-time completion card at 6/6, then graduates away). */}
+          <OnboardingChecklist onResumeSetup={resumeWizard} />
+
           {/* ── Exception strip — founder-approved triage entry (batch 4B) ──
               Shown only when open exceptions exist AND the count's source query
               has settled; zero exceptions = no banner (honest zero-state). */}
@@ -1101,66 +1157,165 @@ export function BridgeDashboard() {
             )}
           </section>
 
-          {/* ── Finish-setup band (recedes as steps complete; self-nulls when
-              loading/errored, and shows the one-time completion card at 6/6) ── */}
-          <OnboardingChecklist onResumeSetup={resumeWizard} />
-
           {activeLane && <LaneDrawer lane={activeLane} onClose={() => setActiveLane(null)} />}
 
-          {/* ── KPI strip ────────────────────────────────────────────────── */}
-          <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
-            {kpis.map((kpi, i) => {
-              const SubIcon = kpi.subIcon;
-              const cardClass = "relative overflow-hidden rounded-card p-4 pt-[18px]";
-              const cardStyle = { background: "#FFFFFF", border: "1px solid #E5E8EE", boxShadow: "0 1px 2px rgba(11,26,47,0.04)" } as const;
-              const inner = (
-                <>
-                  <div aria-hidden style={{ position: "absolute", top: 0, left: 0, right: 0, height: 3, background: kpi.edge }} />
-                  <div
-                    className="text-[10.5px] font-semibold uppercase"
-                    style={{ color: "#5E6779", letterSpacing: "0.06em" }}
-                  >
-                    {kpi.label}
-                  </div>
-                  <div
-                    className={`monument mt-1.5${kpi.loading ? " animate-pulse text-[#CBD0DA]" : ""}`}
-                    style={{ fontSize: "clamp(28px, 4vw, 36px)", lineHeight: 1.05, color: "#0B1A2F" }}
-                  >
-                    {kpi.value}
-                  </div>
-                  <div
-                    className="mt-2 flex items-center gap-1.5 text-[11.5px] font-medium"
-                    style={{ color: kpi.subColor }}
-                  >
-                    {SubIcon && <SubIcon size={13} strokeWidth={2.25} style={{ flexShrink: 0 }} />}
-                    <span className="truncate">{kpi.sub}</span>
-                  </div>
-                </>
-              );
-              // KPI cards with an href are real links (e.g. Urgent exceptions →
-              // the triage view) — same chrome, plus a hover affordance.
-              return kpi.href ? (
-                <Link
-                  key={i}
-                  href={kpi.href}
-                  className={`${cardClass} no-underline transition-shadow hover:shadow-md`}
-                  style={cardStyle}
-                  title={`Open ${kpi.label.toLowerCase()}`}
-                >
-                  {inner}
-                </Link>
-              ) : (
-                <div key={i} className={cardClass} style={cardStyle}>
-                  {inner}
+          {/* ── Action-first split — left: what needs you + what's ready to
+              send + what's moving; right: the health rail. On narrow screens
+              the rail stacks below the action column. ─────────────────────── */}
+          <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1.9fr)_minmax(300px,1fr)] xl:items-start xl:gap-5">
+            {/* LEFT — action column */}
+            <div className="flex flex-col gap-5">
+              {/* ── Needs you — the actionable hero table ─────────────────── */}
+              <section aria-label="Orders that need you">
+                <SectionHead
+                  title="Needs you"
+                  count={needsYouRows.length}
+                  note="blocking — clear these to send"
+                  actionHref="/operations/exceptions"
+                  actionLabel="Open inbox"
+                />
+                <div className="overflow-hidden rounded-card" style={{ background: "#FFFFFF", border: "1px solid #E5E8EE", boxShadow: "0 1px 2px rgba(11,26,47,0.04)" }}>
+                  {ordersLoading ? (
+                    [0, 1, 2].map((i) => (
+                      <div key={i} className="flex items-center gap-3 px-4 py-3" style={i ? { borderTop: "1px solid #EEF0F4" } : undefined}>
+                        <div className="h-7 w-7 flex-shrink-0 animate-pulse rounded-lg" style={{ background: "#E5E8EE" }} />
+                        <div className="h-3 flex-1 animate-pulse rounded" style={{ background: "#E5E8EE" }} />
+                        <div className="hidden h-3 w-40 animate-pulse rounded sm:block" style={{ background: "#E5E8EE" }} />
+                        <div className="h-3 w-12 animate-pulse rounded" style={{ background: "#E5E8EE" }} />
+                      </div>
+                    ))
+                  ) : ordersError ? (
+                    <div className="flex flex-col items-center gap-2 px-4 py-8 text-center text-[12.5px]" style={{ color: "var(--ink-faint)" }} role="alert">
+                      <span style={{ color: "#5E6779" }}>Couldn&apos;t load orders that need you.</span>
+                      <button
+                        type="button"
+                        onClick={() => refetchOrders()}
+                        className="inline-flex items-center gap-1 rounded-[6px] px-3 py-1 text-[12px] font-medium transition-colors hover:bg-[#F6F7FA]"
+                        style={{ border: "1px solid #E5E8EE", background: "#FFFFFF", color: "#0B1A2F" }}
+                      >
+                        Retry
+                      </button>
+                    </div>
+                  ) : needsYouRows.length === 0 ? (
+                    <div className="flex flex-col items-center gap-1.5 px-4 py-8 text-center">
+                      <CheckCircle2 size={22} strokeWidth={2} style={{ color: GREEN }} aria-hidden />
+                      <div className="text-[13.5px] font-semibold" style={{ color: "#0B1A2F" }}>Nothing needs you right now</div>
+                      <div className="max-w-[360px] text-[12.5px]" style={{ color: "var(--ink-faint)" }}>
+                        Orders that need review or fixing will appear here.
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      {/* Column header */}
+                      <div
+                        className="hidden grid-cols-[minmax(0,1.4fr)_minmax(0,1.4fr)_minmax(0,1.3fr)_84px] gap-3.5 px-4 py-2.5 sm:grid"
+                        style={{ background: "#F1F3F7", borderBottom: "1px solid #E5E8EE" }}
+                      >
+                        {["Order", "Route", "What's needed", ""].map((h, i) => (
+                          <span key={i} className="text-[9.5px] font-bold uppercase" style={{ letterSpacing: "0.07em", color: "#5E6779" }}>{h}</span>
+                        ))}
+                      </div>
+                      {needsYouRows.map((o, i) => (
+                        <Link
+                          key={o.id}
+                          href={`/inbox/${o.id}`}
+                          className="grid grid-cols-1 items-center gap-x-3.5 gap-y-1.5 px-4 py-3 no-underline transition-colors hover:bg-[#F6F7FA] sm:grid-cols-[minmax(0,1.4fr)_minmax(0,1.4fr)_minmax(0,1.3fr)_84px] sm:py-2.5"
+                          style={i ? { borderTop: "1px solid #EEF0F4" } : undefined}
+                        >
+                          {/* Order — amber dot + buyer avatar + PO */}
+                          <div className="flex min-w-0 items-center gap-2.5">
+                            <span aria-hidden style={{ width: 7, height: 7, borderRadius: "50%", background: AMBER, flexShrink: 0 }} />
+                            <Avatar name={o.buyerName ?? o.poNumber} tone="buyer" size={26} />
+                            <span className="truncate font-mono text-[12.5px] font-semibold" style={{ color: "#0B1A2F" }}>{o.poNumber}</span>
+                          </div>
+                          {/* Route — buyer → supplier */}
+                          <div className="flex min-w-0 items-center gap-1.5 text-[12.5px]">
+                            <span className="truncate font-semibold" style={{ color: BLUE }}>{o.buyerName ?? "Unknown buyer"}</span>
+                            <ArrowRight size={11} style={{ color: "var(--ink-faint)", flexShrink: 0 }} aria-hidden />
+                            <span className="truncate font-semibold" style={{ color: GREEN_DEEP }}>{o.supplierName}</span>
+                          </div>
+                          {/* What's needed */}
+                          <div className="flex min-w-0 items-center gap-1.5">
+                            <AlertTriangle size={12} strokeWidth={2.25} style={{ color: AMBER, flexShrink: 0 }} aria-hidden />
+                            <span className="truncate text-[12px]" style={{ color: "#0B1A2F" }}>{neededFor(o)}</span>
+                          </div>
+                          {/* Age + chevron */}
+                          <div className="flex items-center gap-1.5 sm:justify-end">
+                            <span className="text-[11px]" style={{ color: "var(--ink-faint)" }}>{ageFrom(o.createdAt)}</span>
+                            <ChevronRight size={13} style={{ color: "var(--ink-faint)", flexShrink: 0 }} aria-hidden />
+                          </div>
+                        </Link>
+                      ))}
+                    </>
+                  )}
                 </div>
-              );
-            })}
-          </div>
+              </section>
 
-          {/* ── Bottom row: In transit + Dock health ─────────────────────── */}
-          <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
-            {/* In transit */}
-            <div className="overflow-hidden rounded-card" style={{ background: "#FFFFFF", border: "1px solid #E5E8EE", boxShadow: "0 1px 2px rgba(11,26,47,0.04)" }}>
+              {/* ── Ready to send — compact, one CTA ──────────────────────── */}
+              {(readyRows.length > 0 || ordersLoading) && (
+                <section aria-label="Orders ready to send">
+                  <SectionHead
+                    title="Ready to send"
+                    count={ordersLoading ? undefined : readyRows.length}
+                    note="validated — nothing blocking"
+                    actionHref="/inbox"
+                    actionLabel="See all"
+                  />
+                  <div
+                    className="flex flex-col gap-3 rounded-card px-4 py-4 sm:flex-row sm:items-center sm:gap-4"
+                    style={{ background: "#FFFFFF", border: "1px solid #E5E8EE", boxShadow: "0 1px 2px rgba(11,26,47,0.04)" }}
+                  >
+                    <span
+                      className="inline-flex flex-shrink-0 items-center justify-center"
+                      style={{ width: 38, height: 38, borderRadius: 10, background: GREEN_SOFT }}
+                      aria-hidden
+                    >
+                      <CheckCircle2 size={20} strokeWidth={2} style={{ color: GREEN_DEEP }} />
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <div className="text-[13.5px] font-semibold" style={{ color: "#0B1A2F" }}>
+                        <span className="tabular-nums">{readyRows.length}</span> order{readyRows.length === 1 ? "" : "s"} validated and ready
+                      </div>
+                      <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                        {readyChips.map((o) => (
+                          <span
+                            key={o.id}
+                            className="inline-flex items-center gap-1.5 rounded-full py-0.5 pl-1 pr-2 text-[11px]"
+                            style={{ background: "#F1F3F7", border: "1px solid #E5E8EE", color: "#5E6779" }}
+                          >
+                            <Avatar name={o.buyerName ?? o.poNumber} tone="buyer" size={16} />
+                            <span className="font-mono">{o.poNumber}</span>
+                            {fmtMoney(o) && <span className="tabular-nums" style={{ color: "var(--ink-faint)" }}>· {fmtMoney(o)}</span>}
+                          </span>
+                        ))}
+                        {readyRows.length > readyChips.length && (
+                          <span className="text-[11px]" style={{ color: "var(--ink-faint)" }}>+{readyRows.length - readyChips.length} more</span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex flex-shrink-0 gap-2">
+                      <Link
+                        href="/inbox"
+                        className="inline-flex h-[36px] items-center justify-center rounded-[8px] px-3.5 text-[12.5px] font-semibold no-underline transition-colors hover:bg-[#F6F7FA]"
+                        style={{ border: "1px solid #E5E8EE", background: "#FFFFFF", color: "#0B1A2F" }}
+                      >
+                        Review
+                      </Link>
+                      <Link
+                        href="/inbox"
+                        className="inline-flex h-[36px] items-center justify-center gap-1.5 rounded-[8px] px-3.5 text-[12.5px] font-semibold text-white no-underline transition-colors"
+                        style={{ background: GREEN, boxShadow: "0 1px 2px rgba(11,26,47,0.12)" }}
+                      >
+                        <Send size={13} strokeWidth={2.25} aria-hidden />
+                        Review &amp; send
+                      </Link>
+                    </div>
+                  </div>
+                </section>
+              )}
+
+              {/* ── In transit — current pipeline activity ────────────────── */}
+              <div className="overflow-hidden rounded-card" style={{ background: "#FFFFFF", border: "1px solid #E5E8EE", boxShadow: "0 1px 2px rgba(11,26,47,0.04)" }}>
               <div className="flex items-center justify-between gap-2 px-4 py-3" style={{ borderBottom: "1px solid #E5E8EE" }}>
                 <div className="flex min-w-0 items-center gap-2.5">
                   <Send size={15} strokeWidth={2} style={{ color: "#5E6779", flexShrink: 0 }} aria-hidden />
@@ -1239,10 +1394,112 @@ export function BridgeDashboard() {
                   })
                 )}
               </div>
+              </div>
             </div>
 
-            {/* Supplier health */}
-            <div className="overflow-hidden rounded-card" style={{ background: "#FFFFFF", border: "1px solid #E5E8EE", boxShadow: "0 1px 2px rgba(11,26,47,0.04)" }}>
+            {/* RIGHT — health rail (throughput · delivery · {plural} health) */}
+            <div className="flex flex-col gap-4">
+              {/* Throughput — windowed received count + last-7-days bars */}
+              <div className="rounded-card px-4 py-4" style={{ background: "#FFFFFF", border: "1px solid #E5E8EE", boxShadow: "0 1px 2px rgba(11,26,47,0.04)" }}>
+                <div className="mb-3.5 flex items-center gap-2">
+                  <BarChart3 size={15} strokeWidth={2} style={{ color: "#5E6779", flexShrink: 0 }} aria-hidden />
+                  <span className="text-[13px] font-semibold" style={{ color: "#0B1A2F" }}>Throughput</span>
+                  <span className="ml-auto text-[11px]" style={{ color: "var(--ink-faint)" }}>{windowSub}</span>
+                </div>
+                {(() => {
+                  const barMax = Math.max(1, ...weeklyBars);
+                  return (
+                    <div className="mb-3 flex items-end gap-1.5" style={{ height: 52 }}>
+                      {weeklyBars.map((v, i) => (
+                        <div key={i} className="flex flex-1 flex-col items-center">
+                          <div
+                            className="w-full rounded-[3px]"
+                            style={{ height: `${(v / barMax) * 44 + 4}px`, background: i === weeklyBars.length - 1 ? BLUE : BLUE_SOFT }}
+                            title={`${v} received`}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })()}
+                <div className="flex items-baseline gap-2">
+                  <span
+                    className="tabular-nums"
+                    style={{ fontFamily: "var(--font-display, 'Bricolage Grotesque', Inter, sans-serif)", fontWeight: 800, fontSize: 22, color: "#0B1A2F" }}
+                  >
+                    {ordersLoading ? "…" : ordersError ? "—" : (windowedReceivedPage?.totalCount ?? windowedOrders.length).toLocaleString()}
+                  </span>
+                  <span className="text-[12px]" style={{ color: "#5E6779" }}>orders received · {windowSub.toLowerCase()}</span>
+                </div>
+                {/* Delivered in the same window (from the dedicated windowed count query). */}
+                <div className="mt-1 flex items-center gap-1.5 text-[11.5px]" style={{ color: "#5E6779" }}>
+                  <CheckCircle2 size={12} strokeWidth={2.25} style={{ color: GREEN_DEEP, flexShrink: 0 }} aria-hidden />
+                  <span className="tabular-nums font-semibold" style={{ color: GREEN_DEEP }}>
+                    {ordersLoading ? "…" : ordersError ? "—" : (windowedDeliveredPage?.totalCount ?? windowedOrders.filter((o) => o.status === "delivered").length).toLocaleString()}
+                  </span>
+                  <span>delivered · {windowSub.toLowerCase()}</span>
+                </div>
+                {/* Auto-processed line — sampled over completed orders, honestly qualified. */}
+                <div className="mt-2.5 flex items-center gap-1.5 border-t pt-2.5 text-[11.5px]" style={{ borderColor: "#EEF0F4", color: "#5E6779" }}>
+                  {eligibleInWindow.length >= 3 ? (
+                    <>
+                      <CheckCircle2 size={13} strokeWidth={2.25} style={{ color: GREEN_DEEP, flexShrink: 0 }} aria-hidden />
+                      <span className="tabular-nums font-semibold" style={{ color: GREEN_DEEP }}>{autoPct}%</span>
+                      <span>auto-processed · {autoCount} of {eligibleInWindow.length} completed{autoSampled ? " (latest 100)" : ""}</span>
+                    </>
+                  ) : (
+                    <>
+                      <Clock size={13} strokeWidth={2.25} style={{ color: "var(--ink-faint)", flexShrink: 0 }} aria-hidden />
+                      <span>Auto-processed rate needs 3+ completed orders</span>
+                    </>
+                  )}
+                </div>
+              </div>
+
+              {/* Delivery — delivered vs failed (all-time summary), success rate */}
+              <div className="rounded-card px-4 py-4" style={{ background: "#FFFFFF", border: "1px solid #E5E8EE", boxShadow: "0 1px 2px rgba(11,26,47,0.04)" }}>
+                <div className="mb-3 text-[13px] font-semibold" style={{ color: "#0B1A2F" }}>Delivery</div>
+                {(() => {
+                  const attempted = countDelivered + countFailed;
+                  const ratePct = attempted > 0 ? Math.round((100 * countDelivered) / attempted) : null;
+                  const rateStr = funnelLoading ? "…" : funnelError ? "—" : ratePct == null ? "—" : `${ratePct}%`;
+                  const rateColor = ratePct == null ? "var(--ink-faint)" : ratePct >= 90 ? GREEN_DEEP : ratePct >= 80 ? AMBER : "#B43838";
+                  const failedStr = funnelLoading ? "…" : funnelError ? "—" : countFailed.toLocaleString();
+                  return (
+                    <>
+                      <div className="flex items-center gap-3.5">
+                        <div className="flex-1">
+                          <div
+                            className="tabular-nums"
+                            style={{ fontFamily: "var(--font-display, 'Bricolage Grotesque', Inter, sans-serif)", fontWeight: 800, fontSize: 26, lineHeight: 1, color: rateColor }}
+                          >
+                            {rateStr}
+                          </div>
+                          <div className="mt-1 text-[11.5px]" style={{ color: "#5E6779" }}>success rate</div>
+                        </div>
+                        <div style={{ width: 1, height: 38, background: "#EEF0F4" }} />
+                        <div className="flex-1">
+                          <div
+                            className="tabular-nums"
+                            style={{ fontFamily: "var(--font-display, 'Bricolage Grotesque', Inter, sans-serif)", fontWeight: 800, fontSize: 26, lineHeight: 1, color: countFailed > 0 ? "#B43838" : "#0B1A2F" }}
+                          >
+                            {failedStr}
+                          </div>
+                          <div className="mt-1 text-[11.5px]" style={{ color: "#5E6779" }}>failed</div>
+                        </div>
+                      </div>
+                      {ratePct == null && !funnelLoading && !funnelError && (
+                        <div className="mt-3 rounded-[9px] px-3 py-2 text-[11.5px]" style={{ background: BLUE_SOFT, color: BLUE_DEEP, lineHeight: 1.45 }}>
+                          No deliveries yet — send your first order to start tracking delivery health.
+                        </div>
+                      )}
+                    </>
+                  );
+                })()}
+              </div>
+
+              {/* {plural} health */}
+              <div className="overflow-hidden rounded-card" style={{ background: "#FFFFFF", border: "1px solid #E5E8EE", boxShadow: "0 1px 2px rgba(11,26,47,0.04)" }}>
               <div className="flex items-center justify-between gap-2 px-4 py-3" style={{ borderBottom: "1px solid #E5E8EE" }}>
                 <div className="flex min-w-0 items-center gap-2.5">
                   <Activity size={15} strokeWidth={2} style={{ color: "#5E6779", flexShrink: 0 }} aria-hidden />
@@ -1310,6 +1567,7 @@ export function BridgeDashboard() {
                     );
                   })
                 )}
+              </div>
               </div>
             </div>
           </div>
