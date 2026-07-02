@@ -224,6 +224,29 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<FieldFilter>("all");
   const [showDesigner, setShowDesigner] = useState(false);
+
+  // ── B1 orientation helper — a thin, dismissible one-line explainer of the
+  //    Incoming | Output | Preview / "wires" / collapse-chevron model, for the
+  //    non-technical operator seeing the 3-column mapper for the first time.
+  //    ADDITIVE chrome above the grid (it does NOT touch gridTemplateColumns), so
+  //    the 3-column layout is unshifted. SSR-safe dismissal (mirrors
+  //    WorkspaceNameNudge): localStorage is read in an effect, never during render,
+  //    so the server + first client render agree (both hidden → no hydration flash).
+  const [showOrientation, setShowOrientation] = useState(false);
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      setShowOrientation(localStorage.getItem("plk-mapper-orient-seen") !== "1");
+    } catch {
+      setShowOrientation(true); // storage blocked — show it (harmless)
+    }
+  }, []);
+  const dismissOrientation = useCallback(() => {
+    try { localStorage.setItem("plk-mapper-orient-seen", "1"); } catch { /* ignore */ }
+    setShowOrientation(false);
+  }, []);
+  const orientationSupplier = supplierName?.trim() || "supplier";
+
   // Connections (wires) are ON by default so the order workbench opens on the signature
   // received→output wire view (handoff reference). The toggle still hides them for dense orders.
   const [showConnections, setShowConnections] = useState(true);
@@ -537,6 +560,7 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
       loading={model.loading}
       sourceFileKey={model.sourceFileKey}
       sourceType={sourceTypeFromKey(model.sourceFileKey)}
+      supplierName={supplierName}
       extractionFailed={extractionFailed}
       focusSearchSignal={focusSearchSignal}
       anchorRef={(id, el) => { sourceRowEls.current[id] = el; }}
@@ -597,6 +621,7 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
       onPickSource={(outputPath, sourceId) => onWireConnect(sourceId, outputPath)}
       outputFormat={previewDefaultFormat ?? model.outputFormat}
       autoFilledFields={autoFilledFields}
+      supplierName={supplierName}
       readOnly={readOnly}
     />
     </>
@@ -780,6 +805,41 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
         </div>
       )}
 
+      {/* ── B1 orientation helper (desktop) — one calm line explaining the
+          Incoming | Output | Preview model + wires + collapse chevrons, dismissible
+          and remembered. `hidden lg:flex` so it only shows where the columns render;
+          it lives in the chrome ABOVE the grid, so the 3-column layout is unshifted. */}
+      {showOrientation && (
+        <div
+          role="note"
+          className="hidden lg:flex"
+          style={{
+            alignItems: "flex-start", gap: 8, marginBottom: 12, padding: "8px 12px",
+            borderRadius: 8, background: "#F6F8FC", border: "1px solid #E1E7F0",
+            color: "#5E6779", fontSize: 12, lineHeight: 1.5,
+          }}
+        >
+          <span aria-hidden style={{ fontSize: 12, lineHeight: 1.3, color: "#8A93A5" }}>ⓘ</span>
+          <span style={{ flex: 1, minWidth: 0 }}>
+            <strong style={{ fontWeight: 700, color: "#3C4658" }}>Left</strong> = the fields in this {orientationSupplier}&rsquo;s order.{" "}
+            <strong style={{ fontWeight: 700, color: "#3C4658" }}>Middle</strong> = where each one goes in the output — drag a left field onto a middle field to connect it.{" "}
+            <strong style={{ fontWeight: 700, color: "#3C4658" }}>Right</strong> = a live preview of what the {orientationSupplier} receives. Use the ⌃ chevrons to collapse a column.
+          </span>
+          <button
+            type="button"
+            onClick={dismissOrientation}
+            aria-label="Dismiss this tip"
+            title="Dismiss this tip"
+            style={{
+              flexShrink: 0, border: "none", background: "none", cursor: "pointer",
+              color: "#98A0AE", fontSize: 13, lineHeight: 1, padding: "1px 3px",
+            }}
+          >
+            ✕
+          </button>
+        </div>
+      )}
+
       {/* ── Mobile read-only summary ────────────────────────────────────── */}
       <div className="lg:hidden">
         <MapperMobileSummary
@@ -810,6 +870,15 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
           </span>
         </div>
       )}
+
+      {/* ── Orientation helper (desktop) — plain-language guide to the three columns
+          for first-time users (B1). Additive copy ONLY: dismissible to a one-line
+          reopen link; nothing about the columns, wires, or save contract changes. ── */}
+      <MapperOrientationHelper
+        supplierName={supplierName}
+        pickerMode={pickerMode}
+        collapsibleColumns={!!layout}
+      />
 
       {/* ── Desktop (lg+) canvas + docked preview ─────────────────────────────
           A flex row that wraps. The CANVAS holds the two value columns + the wire SVG as ONE
