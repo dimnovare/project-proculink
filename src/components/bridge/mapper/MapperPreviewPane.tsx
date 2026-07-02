@@ -68,6 +68,16 @@ const FORMAT_MIME: Record<OutputFormatId, string> = {
   cxml: "application/xml", ubl: "application/xml", x12: "text/plain",
 };
 
+/**
+ * B4 plain-language copy for when a field the operator expected isn't emitted by the
+ * currently-selected output format (e.g. a cXML-only block while previewing CSV). Additive
+ * copy helper — states plainly that the field only belongs to other formats, so
+ * "unavailable in {format}" stops reading as an error.
+ */
+export function formatFieldUnavailableNote(format: OutputFormatId): string {
+  return `This field isn't part of ${format.toUpperCase()} output — it only applies to other formats.`;
+}
+
 export function MapperPreviewPane({ previewOrderId, override, lastTouched, supplierName, emptyHint, cycleFormatSignal, defaultFormat, hot, onHotChange, reviewSignal }: MapperPreviewPaneProps) {
   // Seed the toggle from the connection's REAL output format so a JSON supplier doesn't open
   // on a CSV mismatch. The backend (revision authority) may still swap to the pinned format —
@@ -283,6 +293,13 @@ export function MapperPreviewPane({ previewOrderId, override, lastTouched, suppl
             Download
           </button>
         </div>
+      </div>
+
+      {/* B4 format-toggle sub — one plain line explaining that this preview is the exact
+          delivered document, and that the format buttons above switch the previewed output
+          type. Calm + muted; sits directly under the segmented control it describes. */}
+      <div style={{ flexShrink: 0, padding: "8px 16px", fontSize: 11, color: "#5E6779", background: "#FBFBFD", borderBottom: "1px solid #EEF0F4", lineHeight: 1.5 }}>
+        This is exactly what {supplierName ? supplierName : "the supplier"} receives. Switch formats to preview a different output type.
       </div>
 
       {info && (

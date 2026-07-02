@@ -70,6 +70,12 @@ export interface IncomingPaneProps {
    * MapperWorkbench (e.g. the order's detected source format) when available.
    */
   sourceType?: string;
+  /**
+   * The supplier/connection display name — drives the B2 plain-language sub-header
+   * ("These are the fields in the {supplier}'s order…"). Falls back to "supplier"
+   * when absent, so the copy always reads sensibly.
+   */
+  supplierName?: string;
 }
 
 const FILTERS: { id: FieldFilter; label: string }[] = [
@@ -99,7 +105,10 @@ export function IncomingPane({
   dragging,
   readOnly,
   sourceType,
+  supplierName,
 }: IncomingPaneProps) {
+  // B2 sub-header: plain-language framing that incoming fields are read-only source data.
+  const supplierLabel = supplierName?.trim() || "supplier";
   // 150ms debounce so the controlled query upstream doesn't thrash on every keystroke.
   const [local, setLocal] = useState(query);
   useEffect(() => setLocal(query), [query]);
@@ -152,6 +161,11 @@ export function IncomingPane({
 
   return (
     <PaneFrame title="What we received" subtitle={`${counts.all} field${counts.all === 1 ? "" : "s"}`} sourceType={sourceType}>
+      {/* B2 sub-header — clarifies that these incoming fields are read-only source data
+          you map FROM (you don't edit them here). Plain-language, calm, muted. */}
+      <div style={{ flexShrink: 0, padding: "10px 18px 0", fontSize: 11.5, color: "var(--ink-faint)", lineHeight: 1.5 }}>
+        These are the fields in the {supplierLabel}&rsquo;s order. You don&rsquo;t edit them here — you map them to the output on the right.
+      </div>
       {/* Search — finds any field/value across groups (collapsed groups auto-reveal). */}
       <div style={{ flexShrink: 0, padding: "12px 18px 10px" }}>
         <input
