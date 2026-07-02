@@ -342,7 +342,9 @@ export default function ConnectorsPage() {
              so a real "N connected" count is not derivable — it was always 0. Drop
              the misleading suffix in live mode (same honesty reason the per-card
              usage line is hidden); keep it only where a real count exists (mock). */
-          sub={isApiMockMode ? `ERP and channel integrations · ${connectedCount} connected` : "ERP and channel integrations"}
+          sub={isApiMockMode
+            ? `ERP and channel integrations · ${connectedCount} connected — one delivery setup ("connector") per supplier. This page is read-only; set up the real endpoint on the supplier's Delivery tab, then test-fire here.`
+            : `ERP and channel integrations — one delivery setup ("connector") per supplier. This page is read-only; set up the real endpoint on the supplier's Delivery tab, then test-fire here.`}
           actions={
             <button
               className="connectors-addbtn"

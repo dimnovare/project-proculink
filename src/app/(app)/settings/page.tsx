@@ -694,7 +694,7 @@ function EmailSettingsSection() {
           >
             <FormField label="IMAP host" required>
               <input value={form.host} onChange={(event) => update("host", event.target.value)} placeholder="imap.company.com" style={inputStyle} />
-              <span style={{ fontSize: 11.5, color: "var(--ink-faint)", marginTop: 2 }}>e.g. imap.gmail.com for Gmail</span>
+              <span style={{ fontSize: 11.5, color: "var(--ink-faint)", marginTop: 2 }}>Your provider&apos;s IMAP server — imap.gmail.com (Gmail), imap-mail.outlook.com (Outlook), or ask your IT team.</span>
             </FormField>
             <FormField label="Port">
               <input type="number" value={form.port} onChange={(event) => update("port", Number(event.target.value))} style={inputStyle} />
@@ -738,12 +738,14 @@ function EmailSettingsSection() {
                   </button>
                 )}
               </div>
+              <span style={{ fontSize: 11.5, color: "var(--ink-faint)", marginTop: 2 }}>Gmail and Outlook need an app-specific password, not your normal login. Generate one in your email provider&apos;s security settings.</span>
             </FormField>
           </div>
 
           <div className="grid gap-4 md:grid-cols-2" style={{ marginBottom: 4 }}>
             <FormField label="Folder">
               <input value={form.folder} onChange={(event) => update("folder", event.target.value)} placeholder="INBOX" style={inputStyle} />
+              <span style={{ fontSize: 11.5, color: "var(--ink-faint)", marginTop: 2 }}>Usually INBOX. Enter another folder name to poll it instead.</span>
             </FormField>
             <FormField label="Default supplier" required>
               {suppliers.length === 0 ? (
