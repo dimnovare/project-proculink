@@ -871,15 +871,6 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
         </div>
       )}
 
-      {/* ── Orientation helper (desktop) — plain-language guide to the three columns
-          for first-time users (B1). Additive copy ONLY: dismissible to a one-line
-          reopen link; nothing about the columns, wires, or save contract changes. ── */}
-      <MapperOrientationHelper
-        supplierName={supplierName}
-        pickerMode={pickerMode}
-        collapsibleColumns={!!layout}
-      />
-
       {/* ── Desktop (lg+) canvas + docked preview ─────────────────────────────
           A flex row that wraps. The CANVAS holds the two value columns + the wire SVG as ONE
           relatively-positioned unit (NOTHING sticky → the overlay scrolls with the columns).
