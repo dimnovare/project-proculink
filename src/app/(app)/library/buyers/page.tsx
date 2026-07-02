@@ -78,7 +78,7 @@ function SkeletonTrow() {
         // 3 Last order (right), 4 chevron (right).
         const right = i >= 2;
         return (
-          <td key={i} style={{ padding: "14px 18px", borderBottom: "1px solid var(--border)", textAlign: right ? "right" : "left" }}>
+          <td key={i} style={{ padding: "0 18px", height: 44, borderBottom: "1px solid var(--border-faint)", textAlign: right ? "right" : "left" }}>
             <div
               className="animate-pulse rounded"
               style={{ background: "var(--surface-2)", height: 14, width: w, marginLeft: right ? "auto" : 0 }}
@@ -352,16 +352,21 @@ export default function BuyersPage() {
               ] as const).map((col, i) => (
                 <th
                   key={i}
+                  // v2 full-bleed table: tinted header band (surface-2) + muted
+                  // uppercase labels; 18px left gutter on the first column lines
+                  // the label up with the row's leading status dot.
                   style={{
                     textAlign: col.align,
                     fontSize: 10.5,
-                    fontWeight: 600,
-                    letterSpacing: "0.06em",
+                    fontWeight: 700,
+                    letterSpacing: "0.07em",
                     textTransform: "uppercase",
-                    color: "var(--ink-faint)",
-                    padding: "11px 18px",
+                    color: "var(--ink-muted)",
+                    background: "var(--surface-2)",
+                    padding: "10px 18px",
                     borderBottom: "1px solid var(--border)",
                     whiteSpace: "nowrap",
+                    userSelect: "none",
                   }}
                 >
                   {col.label}
@@ -414,7 +419,9 @@ export default function BuyersPage() {
             {showRows && buyers.map((b, idx) => {
               const isHover = hoverRow === b.id;
               const lastRow = idx === buyers.length - 1;
-              const cellBorder = lastRow ? "none" : "1px solid var(--border)";
+              // v2 row dividers use the faint border (surface separators), not
+              // the stronger card border.
+              const cellBorder = lastRow ? "none" : "1px solid var(--border-faint)";
               return (
                 <tr
                   key={b.id}
@@ -442,16 +449,21 @@ export default function BuyersPage() {
                   onFocus={() => setHoverRow(b.id)}
                   onBlur={() => setHoverRow(null)}
                 >
-                  {/* Buyer: icon tile + name + code */}
+                  {/* Buyer: leading blue entity dot + icon tile + name + code */}
                   <td
                     style={{
-                      padding: "14px 18px",
+                      padding: "0 18px",
+                      height: 44,
                       borderBottom: cellBorder,
                       fontSize: 12.5,
                       verticalAlign: "middle",
                     }}
                   >
-                    <div style={{ display: "flex", alignItems: "center", gap: 13 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 11 }}>
+                      <span
+                        aria-hidden
+                        style={{ width: 7, height: 7, borderRadius: "50%", background: "var(--brand-blue)", flexShrink: 0 }}
+                      />
                       <BuyerIcon />
                       <div>
                         <div style={{ fontWeight: 600, fontSize: 13.5, color: "var(--ink)", letterSpacing: "-0.005em" }}>{b.name}</div>
@@ -473,7 +485,8 @@ export default function BuyersPage() {
                   {/* Primary format — first parsed format, or em-dash if unknown */}
                   <td
                     style={{
-                      padding: "14px 18px",
+                      padding: "0 18px",
+                      height: 44,
                       borderBottom: cellBorder,
                       verticalAlign: "middle",
                     }}
@@ -483,13 +496,15 @@ export default function BuyersPage() {
                       : <span style={{ fontSize: 12.5, color: "var(--ink-faint)" }}>—</span>}
                   </td>
 
-                  {/* Orders (all time) — real backend count, right-aligned */}
+                  {/* Orders (all time) — real backend count, right-aligned, tabular */}
                   <td
                     style={{
-                      padding: "14px 18px",
+                      padding: "0 18px",
+                      height: 44,
                       borderBottom: cellBorder,
                       textAlign: "right",
                       fontFamily: "var(--font-mono, 'JetBrains Mono', ui-monospace, monospace)",
+                      fontVariantNumeric: "tabular-nums",
                       fontWeight: 600,
                       fontSize: 15,
                       color: "var(--ink)",
@@ -504,7 +519,8 @@ export default function BuyersPage() {
                   {/* Last order — relative age from backend, or em-dash */}
                   <td
                     style={{
-                      padding: "14px 18px",
+                      padding: "0 18px",
+                      height: 44,
                       borderBottom: cellBorder,
                       textAlign: "right",
                       fontSize: 12.5,
@@ -519,7 +535,8 @@ export default function BuyersPage() {
                   {/* Chevron (delete revealed on row hover) */}
                   <td
                     style={{
-                      padding: "14px 14px 14px 4px",
+                      padding: "0 14px 0 4px",
+                      height: 44,
                       borderBottom: cellBorder,
                       textAlign: "right",
                       verticalAlign: "middle",
