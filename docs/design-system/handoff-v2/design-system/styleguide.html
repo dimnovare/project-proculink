@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>ProcuLink Design System — Styleguide</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400..800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+<style>
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  body{background:#F6F7FA;font-family:"Inter",system-ui,sans-serif;color:#0B1A2F;-webkit-font-smoothing:antialiased;font-variant-numeric:tabular-nums}
+  :where(a,button,input,select,textarea,[tabindex]):focus-visible{outline:2px solid #1E66C9;outline-offset:2px;border-radius:6px;box-shadow:0 0 0 4px rgba(30,102,201,0.15)}
+  ::selection{background:#DCE8F7}
+  *{scrollbar-width:thin;scrollbar-color:#DCE0E7 transparent}
+  @media (prefers-reduced-motion: reduce){*,*::before,*::after{animation-duration:1ms!important;transition-duration:1ms!important}}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<template id="__bundler_thumbnail">
+  <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><rect width="100" height="100" fill="#0B1A2F"/><path d="M28 35h26a15 15 0 0 1 0 30H28" stroke="url(#g)" stroke-width="6" stroke-linecap="round" fill="none"/><circle cx="28" cy="35" r="4.5" fill="#1E66C9"/><circle cx="28" cy="65" r="4.5" fill="#2E8E3A"/><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#1E66C9"/><stop offset="100%" stop-color="#2E8E3A"/></linearGradient></defs></svg>
+</template>
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script type="text/babel" src="core.jsx"></script>
+<script type="text/babel" src="styleguide.jsx"></script>
+</body>
+</html>

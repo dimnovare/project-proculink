@@ -180,6 +180,7 @@ export default {
         md:        "8px",
         lg:        "10px",
         xl:        "12px",
+        "2xl":     "14px",
         full:      "9999px",
         // shadcn CSS-variable radius kept alongside:
         "card-sm": "6px",
@@ -188,10 +189,15 @@ export default {
       },
 
       // ─── Shadows ─────────────────────────────────────────────────────
+      // Named (card/pop/hero) kept; semantic elevation ramp (md/lg/xl) added
+      // from the Claude Design v2 handoff. Additive — existing classes unchanged.
       boxShadow: {
         card: "0 1px 2px rgba(11,26,47,0.04)",
         pop:  "0 8px 24px rgba(11,26,47,0.10)",
         hero: "0 50px 120px rgba(11,26,47,0.10), 0 8px 24px rgba(11,26,47,0.06)",
+        md:   "0 6px 16px rgba(11,26,47,0.09), 0 2px 5px rgba(11,26,47,0.05)",
+        lg:   "0 16px 40px rgba(11,26,47,0.14), 0 4px 12px rgba(11,26,47,0.07)",
+        xl:   "0 28px 68px rgba(11,26,47,0.20), 0 10px 24px rgba(11,26,47,0.10)",
       },
 
       // ─── Background gradients ─────────────────────────────────────────

@@ -60,16 +60,22 @@
   --font-mono:    "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
 
   /* Radii */
-  --radius-sm: 4px;
-  --radius:    6px;
-  --radius-md: 8px;
-  --radius-lg: 10px;
-  --radius-xl: 12px;
+  --radius-sm:  4px;
+  --radius:     6px;
+  --radius-md:  8px;
+  --radius-lg:  10px;
+  --radius-xl:  12px;
+  --radius-2xl: 14px; /* featured / hero cards (Claude Design v2 token) */
 
-  /* Shadows */
+  /* Shadows — named (card/pop/hero) kept as-is; the semantic elevation ramp
+     (md/lg/xl) is added from the Claude Design v2 handoff so components can
+     reach a level directly. Purely additive — nothing existing changes. */
   --shadow-card: 0 1px 2px rgba(11,26,47,0.04);
   --shadow-pop:  0 8px 24px rgba(11,26,47,0.10);
   --shadow-hero: 0 50px 120px rgba(11,26,47,0.10), 0 8px 24px rgba(11,26,47,0.06);
+  --shadow-md:   0 6px 16px rgba(11,26,47,0.09), 0 2px 5px rgba(11,26,47,0.05);
+  --shadow-lg:   0 16px 40px rgba(11,26,47,0.14), 0 4px 12px rgba(11,26,47,0.07);
+  --shadow-xl:   0 28px 68px rgba(11,26,47,0.20), 0 10px 24px rgba(11,26,47,0.10);
 
   /* Motion */
   --ease-out:           cubic-bezier(0.16, 1, 0.3, 1);
@@ -102,7 +108,8 @@
 :focus-visible {
   outline: 2px solid var(--brand-blue);
   outline-offset: 2px;
-  border-radius: 3px;
+  border-radius: var(--radius); /* 6px — Claude Design v2 */
+  box-shadow: 0 0 0 4px rgba(30, 102, 201, 0.15); /* soft halo — Claude Design v2 focus ring */
 }
 
 /* On dark navy chrome (topbar, sidebar) use a lighter blue ring.

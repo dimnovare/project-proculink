@@ -1,0 +1,52 @@
+/* ============================================================
+   ProcuLink × shadcn/ui — semantic theme mapping
+   Paste this :root block into your globals.css @layer base, OR keep it
+   as an import AFTER shadcn's default block so it overrides the defaults.
+   Values are HSL triplets (shadcn contract): utilities read hsl(var(--x)).
+   Requires tokens.css for the --pl-* primitives referenced in comments.
+   ============================================================ */
+@layer base {
+  :root {
+    --background:225 29% 97%;            /* pl-bg */
+    --foreground:215 62% 11%;           /* pl-ink */
+    --card:0 0% 100%;             /* pl-surface */
+    --card-foreground:215 62% 11%;
+    --popover:0 0% 100%;
+    --popover-foreground:215 62% 11%;
+    --primary:215 62% 11%;             /* pl-navy — primary buttons are navy */
+    --primary-foreground:0 0% 100%;
+    --secondary:220 27% 96%;       /* pl-surface-2 */
+    --secondary-foreground:215 62% 11%;
+    --muted:220 27% 96%;
+    --muted-foreground:220 13% 42%;/* pl-ink-muted */
+    --accent:214 50% 95%;          /* pl-blue-soft */
+    --accent-foreground:215 84% 36%;
+    --destructive:0 53% 46%;       /* pl-danger / blocker */
+    --destructive-foreground:0 0% 100%;
+    --border:220 21% 92%;            /* pl-border */
+    --input:220 17% 83%;       /* pl-border-strong — input outlines */
+    --ring:215 74% 45%;                /* pl-blue — focus ring */
+    --radius:0.5rem;                   /* 8px base; cards use --pl-radius-2xl (14px) */
+
+    /* ProcuLink semantic (available as HSL for custom utilities) */
+    --source:215 74% 45%; --source-foreground:0 0% 100%;
+    --output:128 51% 37%; --output-foreground:0 0% 100%;
+    --warn:34 80% 39%; --warn-foreground:0 0% 100%;
+    --ai:255 56% 56%; --ai-foreground:0 0% 100%;
+
+    /* Charts (delivery/throughput viz) */
+    --chart-1:215 74% 45%; --chart-2:128 51% 37%; --chart-3:34 80% 39%; --chart-4:255 56% 56%; --chart-5:0 53% 46%;
+  }
+
+  /* Optional dark surface for the app chrome / control-room panels */
+  .dark, [data-pl-chrome="navy"] {
+    --background:215 62% 11%; --foreground:218 28% 83%;
+    --card:215 51% 16%; --card-foreground:218 28% 83%;
+    --popover:215 51% 16%; --popover-foreground:218 28% 83%;
+    --primary:215 74% 45%; --primary-foreground:0 0% 100%;
+    --secondary:218 45% 22%; --secondary-foreground:218 28% 83%;
+    --muted:218 45% 22%; --muted-foreground:216 19% 57%;
+    --accent:218 45% 22%; --accent-foreground:0 0% 100%;
+    --border:218 45% 22%; --input:218 45% 22%; --ring:215 74% 45%;
+  }
+}

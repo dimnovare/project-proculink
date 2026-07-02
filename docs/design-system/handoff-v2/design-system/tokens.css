@@ -1,0 +1,84 @@
+/* ============================================================
+   ProcuLink Design System · v2 · "The Bridge Layer"
+   tokens.css — the single source of truth for every design value.
+   Import once at the app root (e.g. top of globals.css):
+       @import "./tokens.css";
+   Values are reconciled to the shipping product.
+   blue = buyer/source · green = supplier/output · amber = uncertain
+   red = blocker · violet = AI assist · navy = app chrome
+   ============================================================ */
+:root {
+  /* ---------- Brand: buyer / source (blue) ---------- */
+  --pl-blue:#1E66C9; --pl-blue-deep:#0F4FA8; --pl-blue-soft:#EAF0F8; --pl-blue-soft-2:#DCE8F7;
+  /* ---------- Brand: supplier / output (green) ---------- */
+  --pl-green:#2E8E3A; --pl-green-deep:#1E6D29; --pl-green-soft:#E9F1EA; --pl-green-soft-2:#D8EBDA;
+  /* ---------- App chrome (navy) ---------- */
+  --pl-navy:#0B1A2F; --pl-navy-surface:#14253D; --pl-navy-border:#1F3252;
+  --pl-navy-text:#C8D1E0; --pl-navy-muted:#7C8DA6;
+  /* ---------- Light surfaces ---------- */
+  --pl-bg:#F6F7FA; --pl-bg-warm:#F8F6F1; --pl-surface:#FFFFFF; --pl-surface-2:#F1F3F7;
+  --pl-border:#E5E8EE; --pl-border-strong:#CBD0DA; --pl-border-faint:#EEF0F4;
+  /* ---------- Ink ---------- */
+  --pl-ink:#0B1A2F; --pl-ink-muted:#5E6779; --pl-ink-faint:#98A0AE;
+  /* ---------- Status ---------- */
+  --pl-amber:#B36D14; --pl-amber-soft:#FAF1DD;
+  --pl-danger:#B43838; --pl-danger-soft:#FAE6E6;
+  --pl-ai:#6F4FCE; --pl-ai-soft:#F0EAFB; --pl-ai-border:#D9CCF4;
+
+  /* ---------- Semantic aliases (use these in product code) ---------- */
+  --pl-source:var(--pl-blue);        /* anything from the buyer / incoming */
+  --pl-output:var(--pl-green);       /* anything sent to the supplier */
+  --pl-warn:var(--pl-amber);         /* uncertain, needs a look */
+  --pl-blocker:var(--pl-danger);     /* will fail / hard stop */
+  --pl-assist:var(--pl-ai);          /* AI suggestion */
+
+  /* ---------- Gradients ---------- */
+  --pl-gradient-link: linear-gradient(90deg, var(--pl-blue) 0%, var(--pl-blue) 35%, var(--pl-green) 65%, var(--pl-green) 100%);
+  --pl-gradient-deck: linear-gradient(90deg, var(--pl-blue), var(--pl-green));
+
+  /* ---------- Type ---------- */
+  --pl-font-sans:"Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --pl-font-display:"Bricolage Grotesque", "Inter", system-ui, sans-serif;
+  --pl-font-mono:"JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --pl-text-xs:10px; --pl-text-sm:11.5px; --pl-text-body-s:12.5px; --pl-text-body:13px; --pl-text-body-l:14px;
+  --pl-text-h4:16px; --pl-text-h3:18px; --pl-text-h2:22px; --pl-text-h1:32px; --pl-text-display-s:36px; --pl-text-display:48px;
+  --pl-leading-tight:1.15; --pl-leading-snug:1.3; --pl-leading-body:1.5; --pl-leading-row:1.25;
+  --pl-tracking-display:-0.025em; --pl-tracking-h:-0.02em; --pl-tracking-body:0;
+
+  /* ---------- Spacing (4pt base) ---------- */
+  --pl-space-1:4px; --pl-space-2:8px; --pl-space-3:12px; --pl-space-4:16px; --pl-space-5:20px;
+  --pl-space-6:24px; --pl-space-8:32px; --pl-space-10:40px; --pl-space-12:48px; --pl-space-16:64px;
+
+  /* ---------- Radii ---------- */
+  --pl-radius-sm:4px; --pl-radius:6px; --pl-radius-md:8px; --pl-radius-lg:10px; --pl-radius-xl:12px; --pl-radius-2xl:14px; --pl-radius-full:9999px;
+
+  /* ---------- Elevation ramp (layered) ---------- */
+  --pl-shadow-sm:0 1px 2px rgba(11,26,47,0.05);
+  --pl-shadow:0 1px 3px rgba(11,26,47,0.05), 0 1px 2px rgba(11,26,47,0.04);
+  --pl-shadow-md:0 6px 16px rgba(11,26,47,0.09), 0 2px 5px rgba(11,26,47,0.05);
+  --pl-shadow-lg:0 16px 40px rgba(11,26,47,0.14), 0 4px 12px rgba(11,26,47,0.07);
+  --pl-shadow-xl:0 28px 68px rgba(11,26,47,0.20), 0 10px 24px rgba(11,26,47,0.10);
+
+  /* ---------- Motion ---------- */
+  --pl-ease:cubic-bezier(0.16,1,0.3,1); --pl-ease-inout:cubic-bezier(0.65,0,0.35,1);
+  --pl-dur-fast:130ms; --pl-dur:200ms; --pl-dur-slow:260ms;
+
+  /* ---------- Z-index ---------- */
+  --pl-z-rails:1; --pl-z-sticky:10; --pl-z-drawer:20; --pl-z-topbar:30; --pl-z-popover:40; --pl-z-modal:50; --pl-z-toast:60;
+}
+
+/* ---------- Focus ring (premium: outline + halo) ---------- */
+:where(a,button,input,select,textarea,[tabindex]):focus-visible{
+  outline:2px solid var(--pl-blue); outline-offset:2px; border-radius:var(--pl-radius);
+  box-shadow:0 0 0 4px rgba(30,102,201,0.15);
+}
+::selection{ background:var(--pl-blue-soft-2); color:var(--pl-ink); }
+
+@media (prefers-reduced-motion: reduce){
+  *,*::before,*::after{ animation-duration:1ms!important; animation-iteration-count:1!important; transition-duration:1ms!important; }
+}
+
+/* Signature motion — only where it communicates state */
+@keyframes pl-link-fill{ 0%{background-position:-100% 0} 100%{background-position:100% 0} }
+@keyframes pl-node-pulse{ 0%{box-shadow:0 0 0 0 rgba(30,102,201,.5)} 70%{box-shadow:0 0 0 12px rgba(30,102,201,0)} 100%{box-shadow:0 0 0 0 rgba(30,102,201,0)} }
+@keyframes pl-connector-draw{ from{stroke-dashoffset:200} to{stroke-dashoffset:0} }
