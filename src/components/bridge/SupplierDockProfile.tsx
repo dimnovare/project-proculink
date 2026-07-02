@@ -987,7 +987,7 @@ function CatalogTab({ supplierId }: { supplierId: string }) {
         <div style={{ fontSize: 12, color: MUTED }}>Loading catalog…</div>
       ) : items.length === 0 ? (
         <div style={{ fontSize: 12.5, color: MUTED, padding: "18px 14px", background: "#F6F7FA", border: "1px dashed #CBD0DA", borderRadius: 8, textAlign: "center" }}>
-          {q ? "No products match." : "No products yet. Import a CSV/XLSX (columns: code, name, unit, price, barcode) so the AI suggests only real supplier codes."}
+          {q ? "No products match." : "No products yet. Upload this supplier's product list (CSV or XLSX). ProcuLink uses it so AI only suggests real supplier codes and flags unknown ones. Only \"code\" is required; name, unit, price, barcode are optional. Example: ACM-PL-22, Hydraulic seal kit, box, 24.50."}
         </div>
       ) : (
         <div style={{ border: "1px solid #E5E8EE", borderRadius: 8, overflow: "hidden" }}>
@@ -1497,6 +1497,12 @@ export function SupplierDockProfile({ id }: { id: string }) {
         )}
 
         {tab === "mappings" && (
+          <>
+          {/* Helper eyebrow: explains what saved SKU mappings are and why they matter. */}
+          <p className="mb-3 max-w-[560px] text-[12px] leading-5" style={{ color: MUTED }}>
+            Saved translations between your buyer codes and this {partyNounLower}&apos;s codes. Once saved,
+            ProcuLink applies them automatically on every future order. Mappings are internal — never sent to the {partyNounLower}.
+          </p>
           <div style={{ background: SURFACE, border: `1px solid ${LINE}`, borderRadius: 10, overflow: "hidden" }}>
             {/* Card header */}
             <div className="flex flex-col items-start gap-3 px-4 py-4 sm:px-5 sm:flex-row sm:items-center" style={{ borderBottom: `1px solid ${LINE}` }}>
@@ -1592,6 +1598,7 @@ export function SupplierDockProfile({ id }: { id: string }) {
               <LiveMappingsTab supplierId={id} supplierName={name} />
             )}
           </div>
+          </>
         )}
 
         {tab === "po-mapping" && (
@@ -1603,8 +1610,9 @@ export function SupplierDockProfile({ id }: { id: string }) {
             <div className="min-w-0">
               <h3 className="text-[14px] font-semibold" style={{ color: INK }}>Order file layout</h3>
               <p className="mt-0.5 text-[12px]" style={{ color: MUTED }}>
-                Map this {partyNounLower}&apos;s columns to ProcuLink fields (PO number, line, quantity, price).
-                For per-item code lookups, use the Mappings tab.
+                Tell ProcuLink how to read this {partyNounLower}&apos;s order files — e.g. if column A is the PO number
+                and column C is quantity, connect each one. Set this up after uploading a sample order.
+                For per-item code translations, use the Mappings tab instead.
               </p>
             </div>
           </div>

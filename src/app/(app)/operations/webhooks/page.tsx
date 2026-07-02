@@ -218,8 +218,15 @@ function EndpointPill({ status, failureCount }: { status: "healthy" | "failing" 
         : failureCount && failureCount > 0
           ? `Failing — ${failureCount} recent failure${failureCount === 1 ? "" : "s"}`
           : "Failing";
+  // Plain-language hover explanation for each state.
+  const tooltip =
+    status === "healthy"
+      ? "Recent deliveries succeeded."
+      : status === "paused"
+        ? "You disabled it, or it auto-paused after 3 failures."
+        : "Recent attempts returned errors.";
   return (
-    <span className={`pill ${cls}`} style={{ flexShrink: 0 }}>
+    <span className={`pill ${cls}`} style={{ flexShrink: 0 }} title={tooltip}>
       <span className="dot" />
       {label}
     </span>
@@ -704,7 +711,7 @@ function WebhookPanel({
               }}
             />
             <div style={{ fontSize: 11, color: "var(--ink-faint,#5B6980)", marginTop: 4 }}>
-              We sign every payload with HMAC-SHA256 using this secret.
+              Optional but recommended. If you set a secret, we sign every message so your system can confirm it really came from ProcuLink.
             </div>
           </div>
 
