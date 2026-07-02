@@ -195,7 +195,7 @@ export function MappingEditor() {
         title="Mappings"
         sub={
           needsSupplierSelection ? (
-            `Buyer → ${partyNounLower} item code library · select a ${partyNounLower} to view its mappings`
+            `Buyer item codes (like HX-4410) are auto-translated to each ${partyNounLower}'s codes (like ACM-PL-22) on every order — set them up once and skip manual lookups. Pick a ${partyNounLower} above to start.`
           ) : (
             <>
               {isApiMockMode ? "Global buyer" : "Buyer"} → {partyNounLower} item code library ·{" "}
@@ -487,19 +487,29 @@ export function MappingEditor() {
                 >
                   <tr style={{ borderBottom: `1px solid ${BORDER}` }}>
                     {[
-                      { label: "Buyer",              align: "left"  as const },
-                      { label: "Buyer code",         align: "left"  as const },
-                      { label: partyNoun,            align: "left"  as const },
-                      { label: `${partyNoun} code`,  align: "left"  as const },
-                      { label: "Source",             align: "left"  as const },
-                      { label: "Used",               align: "right" as const },
-                    ].map(({ label, align }, i) => (
+                      { label: "Buyer",              align: "left"  as const, title: undefined as string | undefined },
+                      { label: "Buyer code",         align: "left"  as const, title: undefined as string | undefined },
+                      { label: partyNoun,            align: "left"  as const, title: undefined as string | undefined },
+                      { label: `${partyNoun} code`,  align: "left"  as const, title: undefined as string | undefined },
+                      { label: "Source",             align: "left"  as const, title: `How the mapping was made — AI (ProcuLink suggested it), Manual (you typed it), Imported (from a file), Inherited (reused from another ${partyNounLower}). For AI: 90%+ is high confidence.` },
+                      { label: "Used",               align: "right" as const, title: undefined as string | undefined },
+                    ].map(({ label, align, title }, i) => (
                       <th
                         key={i}
                         className="px-4 py-2.5 text-[10.5px] font-semibold uppercase tracking-[0.07em]"
                         style={{ color: "var(--ink-faint)", textAlign: align }}
+                        title={title}
                       >
                         {label}
+                        {title && (
+                          <span
+                            aria-hidden="true"
+                            className="ml-1 inline-flex h-[13px] w-[13px] items-center justify-center rounded-full text-[9px] font-bold normal-case"
+                            style={{ border: "1px solid #CBD0DA", color: "var(--ink-faint)", letterSpacing: 0 }}
+                          >
+                            i
+                          </span>
+                        )}
                       </th>
                     ))}
                   </tr>
@@ -701,7 +711,7 @@ function MappingPanel({
   const subtitle =
     panel.kind === "import" ? `Bulk upload a buyer → ${partyNounLower} code list` :
     panel.kind === "export" ? `Export this ${partyNounLower}'s mappings as CSV` :
-    `Connect a buyer code to a ${partyNounLower} code`;
+    `Connect a buyer item code to a ${partyNounLower} code. Once saved, ProcuLink applies it automatically on every future order for this ${partyNounLower}.`;
 
   const isCodePanel = panel.kind === "add" || panel.kind === "edit";
 
@@ -805,7 +815,16 @@ function MappingPanel({
             <div className="rounded-[8px] border border-dashed p-5 text-center" style={{ borderColor: "#BBD9BD", background: "#F2F9F3" }}>
               <div className="text-[13px] font-semibold" style={{ color: INK }}>Drop CSV here</div>
               <p className="mx-auto mt-1 max-w-[420px] text-[12px] leading-5" style={{ color: "#5E6779" }}>
-                Expected columns: buyer_code, supplier_code. Existing buyer codes are updated, new rows are added.
+                Two columns — your buyer code, then this {partyNounLower}&apos;s code. A header row is optional. Example:
+              </p>
+              <pre
+                className="mx-auto mt-2 max-w-[420px] rounded-[6px] px-3 py-2 text-left font-mono text-[12px] leading-5"
+                style={{ border: `1px solid ${BORDER}`, background: "#FFFFFF", color: INK }}
+              >
+                HX-4410,ACM-PL-22{"\n"}HX-4412,ACM-FL-08
+              </pre>
+              <p className="mx-auto mt-2 max-w-[420px] text-[12px] leading-5" style={{ color: "#5E6779" }}>
+                CSV or Excel (XLSX, first sheet). UTF-8 recommended. Extra columns and blank lines are ignored. New codes are added; a repeated buyer code replaces its old {partyNounLower} code.
               </p>
               <label className="mt-4 inline-flex h-10 cursor-pointer items-center rounded-[7px] px-4 text-[13px] font-semibold" style={{ border: `1px solid ${BORDER}`, background: "#FFFFFF", color: INK }}>
                 {importFile ? importFile.name : "Choose file"}
