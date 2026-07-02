@@ -247,7 +247,13 @@ export function BridgeSidebar({
   return (
     <aside
       className="on-navy flex h-full flex-shrink-0 flex-col overflow-hidden transition-[width] duration-200"
-      style={{ width: fullWidth ? "100%" : (isCollapsed ? 64 : 232), background: "#0B1A2F", borderRight: fullWidth ? "none" : "1px solid #1F3252" }}
+      style={{
+        width: fullWidth ? "100%" : (isCollapsed ? 64 : 240),
+        // v2 chrome: subtle vertical gradient (control-room depth) instead of a flat fill.
+        background: "linear-gradient(179deg, #0D2038 0%, #0A1727 62%, #091422 100%)",
+        borderRight: fullWidth ? "none" : "1px solid #1F3252",
+        boxShadow: fullWidth ? "18px 0 52px rgba(6,12,22,0.52)" : "inset -1px 0 0 rgba(255,255,255,0.03)",
+      }}
     >
       {/* ── Logo + collapse toggle ────────────────────────────────── */}
       <div
@@ -302,34 +308,75 @@ export function BridgeSidebar({
         )}
       </div>
 
-      {/* ── Workspace badge ───────────────────────────────────────────
-          Static workspace identity (org name + plan). There is no multi-org
-          switcher wired, so this is a read-only badge — no chevron, pointer,
-          or "Switch workspace" affordance that would imply a menu that doesn't
-          exist (offer↔works). */}
+      {/* ── Workspace card (v2 org-switcher look) ─────────────────────
+          Static workspace identity (org name + plan) styled as the v2
+          org-switcher card: a blue→green gradient identity tile + name + plan.
+          There is still NO multi-org switcher wired, so this stays read-only —
+          no chevron, pointer, or "Switch workspace" affordance that would imply
+          a menu that doesn't exist (offer↔works). It is the restyle only. */}
       <div
         title={isCollapsed ? `${orgName} · ${planLabel}` : undefined}
-        className={`flex items-center rounded-[6px] text-left ${isCollapsed ? "mx-auto justify-center w-[44px] py-[9px]" : "gap-2.5 w-[calc(100%-28px)]"}`}
-        style={{ background: "#14253D", border: "1px solid #1F3252", margin: isCollapsed ? "12px auto 6px" : "12px 14px 6px", padding: isCollapsed ? undefined : "9px 11px" }}
+        className={`flex items-center text-left rounded-[10px] ${isCollapsed ? "mx-auto justify-center w-[44px] py-[9px]" : "gap-2.5"}`}
+        style={{ background: "#14253D", border: "1px solid #1F3252", margin: isCollapsed ? "12px auto 6px" : "12px 12px 6px", padding: isCollapsed ? undefined : "9px 11px" }}
       >
-        <div className="flex items-center justify-center rounded-[6px] text-[10px] font-[700] text-white flex-shrink-0" style={{ width: 26, height: 26, background: "#1E66C9" }}>{initials}</div>
+        <div
+          className="flex items-center justify-center text-[10.5px] font-[700] text-white flex-shrink-0"
+          style={{ width: isCollapsed ? 26 : 28, height: isCollapsed ? 26 : 28, borderRadius: 7, background: "linear-gradient(135deg,#1E66C9,#2E8E3A)" }}
+        >
+          {initials}
+        </div>
         {!isCollapsed && (
-          <div className="flex-1 min-w-0">
-            <div className="text-[12.5px] font-semibold text-white leading-none truncate">{orgName}</div>
+          <div className="flex-1 min-w-0" style={{ lineHeight: 1.25 }}>
+            <div className="text-[12.5px] font-semibold text-white truncate">{orgName}</div>
             <div className="text-[10.5px] mt-0.5" style={{ color: "#7C8DA6" }}>{planLabel}</div>
           </div>
         )}
       </div>
 
+      {/* ── Pinned primary action — Upload order ──────────────────────
+          v2 shell pins the primary create action at the top of the rail. This
+          ADDS the button; the Upload entry stays in the nav below, so nothing
+          is re-routed. Blue = buyer/source action, matching the semantic law. */}
+      {!isCollapsed ? (
+        <div style={{ padding: "8px 12px 6px" }}>
+          <Link
+            href="/upload"
+            onClick={onNavigate}
+            className="flex w-full items-center justify-center gap-2 text-[13px] font-semibold text-white"
+            style={{ height: 38, borderRadius: 9, background: "#1E66C9", boxShadow: "0 1px 2px rgba(0,0,0,0.28), inset 0 1px 0 rgba(255,255,255,0.14)", transition: "background 140ms" }}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "#0F4FA8"; }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "#1E66C9"; }}
+          >
+            <Upload size={15} strokeWidth={2} />
+            Upload order
+          </Link>
+        </div>
+      ) : (
+        <div className="flex justify-center" style={{ padding: "6px 0 8px" }}>
+          <Link
+            href="/upload"
+            onClick={onNavigate}
+            title="Upload order"
+            aria-label="Upload order"
+            className="flex items-center justify-center text-white"
+            style={{ width: 40, height: 40, borderRadius: 10, background: "#1E66C9", boxShadow: "0 1px 2px rgba(0,0,0,0.28), inset 0 1px 0 rgba(255,255,255,0.14)", transition: "background 140ms" }}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "#0F4FA8"; }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "#1E66C9"; }}
+          >
+            <Upload size={17} strokeWidth={2} />
+          </Link>
+        </div>
+      )}
+
       {/* ── Navigation ───────────────────────────────────────────── */}
-      <nav className="flex-1 overflow-y-auto" style={{ scrollbarWidth: "none", padding: "8px 10px 20px" }}>
+      <nav className="flex-1 overflow-y-auto" style={{ scrollbarWidth: "none", padding: "4px 0 12px" }}>
         {VISIBLE_NAV.map((section, si) => (
-          <div key={si} className={si > 0 ? "mt-4" : ""}>
+          <div key={si}>
             {section.group && !isCollapsed && (
-              <div className="px-[10px] pt-1.5 pb-1 text-[10px] font-semibold uppercase tracking-[0.08em]" style={{ color: "#7C8DA6" }}>{section.group}</div>
+              <div className="text-[9.5px] font-[700] uppercase" style={{ letterSpacing: "0.15em", color: "#7C8DA6", padding: "17px 20px 7px" }}>{section.group}</div>
             )}
             {section.group && isCollapsed && si > 0 && (
-              <div className="mx-3 mb-1.5" style={{ height: 1, background: "#1F3252" }} aria-hidden />
+              <div style={{ height: 1, background: "#1F3252", margin: "11px 16px 10px", opacity: 0.7 }} aria-hidden />
             )}
             {section.items.map((item) => {
               const active = isActive(item.href);
@@ -343,18 +390,26 @@ export function BridgeSidebar({
                   target={item.newTab ? "_blank" : undefined}
                   rel={item.newTab ? "noopener noreferrer" : undefined}
                   title={isCollapsed ? item.label : undefined}
-                  className={`flex items-center rounded-[6px] text-[12.5px] ${active ? "font-[600]" : "font-medium"} transition-colors duration-75 relative ${isCollapsed ? "justify-center py-[9px]" : "gap-2.5 px-[10px] py-[7px]"}`}
-                  style={{ color: active ? "#FFFFFF" : "#C8D1E0", background: active ? "rgba(30,102,201,0.22)" : "transparent", boxShadow: active ? "inset 2px 0 0 #1E66C9" : "none" }}
-                  onMouseEnter={(e) => { if (!active) { (e.currentTarget as HTMLElement).style.background = "#14253D"; (e.currentTarget as HTMLElement).style.color = "#FFFFFF"; } }}
+                  className={`flex items-center text-[13.5px] ${active ? "font-[600]" : "font-medium"} transition-colors duration-[130ms] relative ${isCollapsed ? "justify-center py-[9px] mx-[10px]" : "gap-[11px] px-[11px] py-[8px] mx-3"} my-px rounded-[9px]`}
+                  style={{ color: active ? "#FFFFFF" : "#C8D1E0", background: active ? "rgba(30,102,201,0.20)" : "transparent" }}
+                  onMouseEnter={(e) => { if (!active) { (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.055)"; (e.currentTarget as HTMLElement).style.color = "#FFFFFF"; } }}
                   onMouseLeave={(e) => { if (!active) { (e.currentTarget as HTMLElement).style.background = "transparent"; (e.currentTarget as HTMLElement).style.color = "#C8D1E0"; } }}
                 >
-                  <Ico size={16} strokeWidth={1.9} style={{ flexShrink: 0, color: active ? "#FFFFFF" : "#7C8DA6" }} />
-                  {!isCollapsed && <span className="flex-1">{item.label}</span>}
+                  {/* v2 active marker: a crisp 3px blue bar straddling the inner edge. */}
+                  {active && (
+                    <span
+                      className="absolute"
+                      aria-hidden
+                      style={{ left: isCollapsed ? 5 : -2, top: "50%", transform: "translateY(-50%)", width: 3, height: 17, borderRadius: 3, background: "#1E66C9" }}
+                    />
+                  )}
+                  <Ico size={16} strokeWidth={1.9} style={{ flexShrink: 0, color: active ? "#FFFFFF" : "#7C8DA6", opacity: active ? 1 : 0.82 }} />
+                  {!isCollapsed && <span className="flex-1 truncate">{item.label}</span>}
                   {!isCollapsed && badge && (
-                    <span className="flex items-center justify-center rounded-full text-[10.5px] font-semibold" style={{ minWidth: 18, height: 18, padding: "0 5px", background: "#1E66C9", color: "#FFFFFF", fontFamily: "'JetBrains Mono',monospace", borderRadius: 999, fontWeight: 700 }}>{badge}</span>
+                    <span className="flex items-center justify-center rounded-full text-[10.5px]" style={{ minWidth: 18, height: 18, padding: "0 5px", background: "#1E66C9", color: "#FFFFFF", fontFamily: "'JetBrains Mono',monospace", borderRadius: 999, fontWeight: 700 }}>{badge}</span>
                   )}
                   {isCollapsed && badge && (
-                    <span className="absolute rounded-full" style={{ top: 5, right: 12, width: 7, height: 7, background: "#1E66C9", border: "1.5px solid #0B1A2F" }} aria-hidden />
+                    <span className="absolute rounded-full" style={{ top: 5, right: 12, width: 7, height: 7, background: "#1E66C9", border: "1.5px solid #0A1728" }} aria-hidden />
                   )}
                 </Link>
               );

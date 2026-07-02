@@ -350,11 +350,14 @@ export function BridgeTopbar({ crumb, onMenuClick }: BridgeTopbarProps) {
 
   return (
     <header
-      className="on-navy flex-shrink-0 relative"
-      style={{ height: 56, background: "#0B1A2F" }}
+      className="on-navy flex-shrink-0 relative flex flex-col"
+      style={{ background: "#0B1A2F" }}
     >
-      {/* Content row */}
-      <div className="flex h-full items-center gap-3 sm:gap-4 px-3 sm:px-5">
+      {/* ── Row 1 · Utility row ──────────────────────────────────────
+          Mobile menu · demo badge · setup chip · ⌘K search · notifications ·
+          help · avatar. This is the control cluster (matches the v2 pages.jsx
+          Topbar top utility row). */}
+      <div className="flex items-center gap-3 sm:gap-4 px-3 sm:px-5" style={{ height: 46 }}>
         <button
           type="button"
           onClick={onMenuClick}
@@ -404,23 +407,6 @@ export function BridgeTopbar({ crumb, onMenuClick }: BridgeTopbarProps) {
             />
             <span className="hidden sm:inline">Demo data</span>
             <span className="sm:hidden">Demo</span>
-          </span>
-        )}
-
-        {/* Breadcrumbs — full breadcrumb from sm up; on mobile show a compact
-            single-segment page title so the user always knows where they are. */}
-        <div
-          className="hidden sm:flex min-w-0 items-center gap-2 text-[12.5px] flex-shrink-0"
-          style={{ color: "#C8D1E0" }}
-        >
-          {crumb ?? autoCrumb}
-        </div>
-        {mobileLabel && (
-          <span
-            className="sm:hidden min-w-0 truncate text-[13px] font-semibold"
-            style={{ color: "#FFFFFF" }}
-          >
-            {mobileLabel}
           </span>
         )}
 
@@ -541,6 +527,35 @@ export function BridgeTopbar({ crumb, onMenuClick }: BridgeTopbarProps) {
         <div className="flex-shrink-0">
           <AccountMenu />
         </div>
+      </div>
+
+      {/* ── Row 2 · Context row ──────────────────────────────────────
+          The breadcrumb trail (desktop) / compact page label (mobile). Split
+          out below the utility row to give the v2 two-row rhythm. It shows the
+          navigation context — NOT a duplicate of the page's own H1 (pages render
+          their own heading), so the shell never double-titles. A faint top rule
+          separates the two rows. */}
+      <div
+        className="flex items-center px-3 sm:px-5"
+        style={{ height: 38, borderTop: "1px solid #14253D" }}
+      >
+        {/* Full breadcrumb from sm up */}
+        <div
+          className="hidden sm:flex min-w-0 items-center gap-2 text-[12.5px]"
+          style={{ color: "#C8D1E0" }}
+        >
+          {crumb ?? autoCrumb}
+        </div>
+        {/* Mobile: compact single-segment page title so the user always knows
+            where they are (the desktop breadcrumb is hidden below sm). */}
+        {mobileLabel && (
+          <span
+            className="sm:hidden min-w-0 truncate text-[13px] font-semibold"
+            style={{ color: "#FFFFFF" }}
+          >
+            {mobileLabel}
+          </span>
+        )}
       </div>
 
       {/* Command Palette */}
