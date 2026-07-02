@@ -29,6 +29,7 @@ import { PageHeader } from "./layout/PageHeader";
 import { PageShell } from "./layout/PageShell";
 import { StatusJourney, type CrossingStatus, type OrderStage } from "./StatusJourney";
 import { UnifiedStatusBadge } from "@/components/bridge/UnifiedStatusBadge";
+import { tv2DotColor } from "@/components/bridge/layout/listTableV2";
 import { useOrderDirection, type PartyLabels } from "@/hooks/useOrderDirection";
 import { formatBulkSendResult, isRedeliverable, shouldShowBulkBar, type BulkSendResult } from "./inboxSend";
 
@@ -399,22 +400,36 @@ function buildColumns(labels: PartyLabels) {
   columnHelper.accessor("po", {
     header: "Order",
     enableHiding: false,
+    // v2 leading status dot: a small dot coloured by the row's status tone
+    // (via tv2DotColor on the raw backend status) leads the PO# — dot + word,
+    // where the word is the Status column's UnifiedStatusBadge. Colour always
+    // agrees with that badge because both derive from the same status→tone map.
     cell: (info) => (
-      <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-          <span className="font-mono text-[12px] font-semibold" style={{ color: INK }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
+        <span
+          aria-hidden
+          style={{
+            width: 7,
+            height: 7,
+            borderRadius: "50%",
+            background: tv2DotColor(info.row.original.rawStatus),
+            flexShrink: 0,
+          }}
+        />
+        <div style={{ display: "flex", flexDirection: "column", gap: 4, minWidth: 0 }}>
+          <span
+            className="font-mono text-[12px] font-semibold tabular-nums"
+            style={{ color: INK, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
+          >
             {info.getValue()}
           </span>
-        </div>
-        <div
-          className="text-[11px]"
-          style={{ color: "#5E6779" }}
-        >
-          {info.row.original.lines} lines{info.row.original.issues > 0 ? ` · ${info.row.original.issues} to review` : ""}
+          <div className="text-[11px]" style={{ color: "#5E6779" }}>
+            {info.row.original.lines} lines{info.row.original.issues > 0 ? ` · ${info.row.original.issues} to review` : ""}
+          </div>
         </div>
       </div>
     ),
-    size: 180,
+    size: 188,
   }),
   // Buyer → Supplier (or Customer → You in inbound mode)
   columnHelper.display({
@@ -447,7 +462,7 @@ function buildColumns(labels: PartyLabels) {
   columnHelper.accessor("value", {
     header: "Value",
     cell: (info) => (
-      <span className="font-mono text-[12.5px] font-semibold" style={{ color: "#0B1A2F" }}>
+      <span className="font-mono text-[12.5px] font-semibold tabular-nums" style={{ color: "#0B1A2F" }}>
         {info.row.original.valueLabel}
       </span>
     ),
@@ -1311,7 +1326,8 @@ export function InboxView() {
           {/* Sticky header */}
           <thead style={{ position: "sticky", top: 0, zIndex: 4 }}>
             {table.getHeaderGroups().map((hg) => (
-              <tr key={hg.id} style={{ borderBottom: "1px solid #E5E8EE", background: "#FFFFFF" }}>
+              // v2 tinted header band (surface-2) — full-bleed table treatment.
+              <tr key={hg.id} style={{ borderBottom: "1px solid #E5E8EE", background: "#F1F3F7" }}>
                 {hg.headers.map((header, hi) => {
                   const sorted = header.column.getIsSorted();
                   const canSort = header.column.getCanSort();
@@ -1334,18 +1350,18 @@ export function InboxView() {
                           : undefined
                       }
                       style={{
-                        padding: "11px 10px",
+                        padding: "10px 10px",
                         paddingLeft: hi === 0 ? 16 : 10,
                         textAlign: "left",
                         fontSize: 10.5,
                         fontWeight: 700,
-                        letterSpacing: "0.06em",
+                        letterSpacing: "0.07em",
                         textTransform: "uppercase",
-                        color: "var(--ink-faint)",
+                        color: "var(--ink-muted)",
                         whiteSpace: "nowrap",
                         cursor: canSort ? "pointer" : "default",
                         userSelect: "none",
-                        background: "#FFFFFF",
+                        background: "#F1F3F7",
                       }}
                       onClick={canSort ? toggleSort : undefined}
                       onKeyDown={
@@ -1374,9 +1390,9 @@ export function InboxView() {
                 swapping to a bare card. */}
             {isInitialLoading &&
               Array.from({ length: 9 }).map((_, ri) => (
-                <tr key={`sk-row-${ri}`} style={{ height: 56, borderBottom: "1px solid #F0F2F6" }}>
+                <tr key={`sk-row-${ri}`} style={{ height: 44, borderBottom: "1px solid #EEF0F4" }}>
                   {table.getVisibleLeafColumns().map((col, ci) => (
-                    <td key={col.id} style={{ padding: "9px 10px", paddingLeft: ci === 0 ? 16 : 10 }}>
+                    <td key={col.id} style={{ padding: "0 10px", paddingLeft: ci === 0 ? 16 : 10 }}>
                       <div
                         className="h-[14px] rounded bg-[#EEF1F6] animate-pulse"
                         style={{ width: ci === 0 ? 24 : "70%" }}
@@ -1394,8 +1410,8 @@ export function InboxView() {
                   data-row
                   onClick={() => router.push(`/inbox/${row.original.id}`)}
                   style={{
-                    height: 56,
-                    borderBottom: "1px solid #F0F2F6",
+                    height: 44,
+                    borderBottom: "1px solid #EEF0F4",
                     cursor: "pointer",
                     background: isSelected
                       ? "#EAF0F8"
@@ -1424,7 +1440,7 @@ export function InboxView() {
                     <td
                       key={cell.id}
                       style={{
-                        padding: "9px 10px",
+                        padding: "0 10px",
                         paddingLeft: ci === 0 ? 16 : 10,
                         verticalAlign: "middle",
                         overflow: "hidden",

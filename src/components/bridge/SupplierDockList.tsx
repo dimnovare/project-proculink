@@ -442,16 +442,20 @@ export function SupplierDockList() {
                   ] as const).map((col, i) => (
                     <th
                       key={i}
+                      // v2 full-bleed table: tinted header band (surface-2) +
+                      // muted uppercase labels; 18px left gutter already applied.
                       style={{
                         textAlign: col.align,
                         fontSize: 10.5,
-                        fontWeight: 600,
-                        letterSpacing: "0.06em",
+                        fontWeight: 700,
+                        letterSpacing: "0.07em",
                         textTransform: "uppercase",
-                        color: TEXT_FAINT,
-                        padding: "11px 18px",
+                        color: TEXT_MUTED,
+                        background: PILL_BG,
+                        padding: "10px 18px",
                         borderBottom: `1px solid ${BORDER}`,
                         whiteSpace: "nowrap",
+                        userSelect: "none",
                       }}
                     >
                       {col.label}
@@ -501,12 +505,13 @@ export function SupplierDockList() {
 
 /** Column header row — used by the loading skeleton (desktop only). */
 function SupplierTableHeader({ counterpartyNoun = "Supplier" }: { counterpartyNoun?: string }) {
-  const cls = "text-[10.5px] font-semibold uppercase tracking-[0.06em]";
-  const color = "var(--ink-faint)";
+  // v2 tinted header band — matches the live table header (surface-2 + muted ink).
+  const cls = "text-[10.5px] font-bold uppercase tracking-[0.07em]";
+  const color = "var(--ink-muted)";
   return (
     <div
-      className="hidden grid-cols-[minmax(0,2.4fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.1fr)_18px] items-center gap-4 px-[18px] py-[11px] sm:grid"
-      style={{ background: "#FFFFFF", borderBottom: "1px solid #E5E8EE" }}
+      className="hidden grid-cols-[minmax(0,2.4fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.1fr)_18px] items-center gap-4 px-[18px] py-[10px] sm:grid"
+      style={{ background: "var(--surface-2)", borderBottom: "1px solid #E5E8EE" }}
     >
       <span className={cls} style={{ color }}>{counterpartyNoun}</span>
       <span className={cls} style={{ color }}>Format</span>
@@ -610,7 +615,8 @@ function SupplierTableRow({
   // Only show the loading shimmer while a fetch is genuinely in flight.
   const loading = fetchConfig && isLoading;
   const autoState: "on" | "off" | "unset" = !config ? "unset" : config.autoDeliver ? "on" : "off";
-  const cellBorder = isLast ? "none" : `1px solid ${BORDER}`;
+  // v2 row dividers use the faint border, not the stronger card border.
+  const cellBorder = isLast ? "none" : "1px solid #EEF0F4";
 
   return (
     <tr
@@ -624,9 +630,13 @@ function SupplierTableRow({
         background: isHover ? GREEN_SOFT : "transparent",
       }}
     >
-      {/* Supplier — green tile + name + code */}
-      <td style={{ padding: "14px 18px", borderBottom: cellBorder, verticalAlign: "middle" }}>
-        <div className="flex min-w-0 items-center gap-[13px]">
+      {/* Supplier — leading green entity dot + green tile + name + code */}
+      <td style={{ padding: "0 18px", height: 44, borderBottom: cellBorder, verticalAlign: "middle" }}>
+        <div className="flex min-w-0 items-center gap-[11px]">
+          <span
+            aria-hidden
+            style={{ width: 7, height: 7, borderRadius: "50%", background: GREEN, flexShrink: 0 }}
+          />
           <div
             className="flex flex-shrink-0 items-center justify-center"
             style={{
@@ -651,17 +661,17 @@ function SupplierTableRow({
       </td>
 
       {/* Format — from delivery config outputFormat */}
-      <td style={{ padding: "14px 18px", borderBottom: cellBorder, verticalAlign: "middle" }}>
+      <td style={{ padding: "0 18px", height: 44, borderBottom: cellBorder, verticalAlign: "middle" }}>
         <CellValue isLoading={loading} value={config ? formatLabel(config.outputFormat) : null} />
       </td>
 
       {/* Channel — from delivery config protocol */}
-      <td style={{ padding: "14px 18px", borderBottom: cellBorder, verticalAlign: "middle" }}>
+      <td style={{ padding: "0 18px", height: 44, borderBottom: cellBorder, verticalAlign: "middle" }}>
         <CellValue isLoading={loading} value={config ? channelLabel(config.protocol) : null} />
       </td>
 
       {/* Auto-process — from delivery config autoDeliver */}
-      <td style={{ padding: "14px 18px", borderBottom: cellBorder, verticalAlign: "middle" }}>
+      <td style={{ padding: "0 18px", height: 44, borderBottom: cellBorder, verticalAlign: "middle" }}>
         {loading ? (
           <span className="inline-block h-4 w-14 rounded-full animate-pulse align-middle" style={{ background: "#F1F3F7" }} />
         ) : (
@@ -672,7 +682,7 @@ function SupplierTableRow({
       {/* History — compact link to this supplier's version-history tab (hidden when
           no connection exists yet). STRUCT-1: the version history now lives on the
           supplier page (?tab=history), not the standalone /connections route. */}
-      <td style={{ padding: "14px 8px", borderBottom: cellBorder, textAlign: "right", verticalAlign: "middle", whiteSpace: "nowrap" }}>
+      <td style={{ padding: "0 8px", height: 44, borderBottom: cellBorder, textAlign: "right", verticalAlign: "middle", whiteSpace: "nowrap" }}>
         {connectionId && (
           <Link
             href={`/library/suppliers/${id}?tab=history`}
@@ -687,7 +697,7 @@ function SupplierTableRow({
       </td>
 
       {/* Chevron */}
-      <td style={{ padding: "14px 14px", borderBottom: cellBorder, textAlign: "right", verticalAlign: "middle" }}>
+      <td style={{ padding: "0 14px", height: 44, borderBottom: cellBorder, textAlign: "right", verticalAlign: "middle" }}>
         <svg
           width="16" height="16" viewBox="0 0 24 24" fill="none"
           stroke={isHover ? GREEN_DEEP : "#A4ADBD"} strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"
