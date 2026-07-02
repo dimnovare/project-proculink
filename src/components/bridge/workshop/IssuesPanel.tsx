@@ -45,6 +45,17 @@ export interface WorkshopIssue {
   kind?: FixCardKind;
   /** The owning order line id (line-scoped cards) — keys the inline code editor. */
   lineId?: string;
+  /**
+   * The REAL AI-suggested supplier code (ai-suggestion cards), so the card can show
+   * what "Accept suggestion" would apply WITHOUT needing the full `lines` array.
+   * Never fabricated — carried straight from the line's aiSuggestion.supplierItemCode.
+   */
+  suggestedCode?: string | null;
+  /**
+   * The REAL raw model confidence (0–1) for an AI suggestion, shown as "N% match"
+   * ONLY when present. Absent → no percentage rendered (never a fake number).
+   */
+  confidence?: number | null;
 }
 
 /**
@@ -417,21 +428,45 @@ function IssueActions({
   }
 
   if (issue.kind === "ai-suggestion") {
+    // The REAL suggested code + confidence from the line's AI suggestion — shown only
+    // when the data actually carries them. No fabricated "98% match": if there is no
+    // suggestion payload we fall through to a bare accept (offer⇔works). Confidence is
+    // rendered ONLY when the suggestion carries a number.
+    const suggestion = line?.aiSuggestion ?? null;
+    const suggestedCode = suggestion?.supplierItemCode ?? issue.suggestedCode ?? null;
+    const rawConfidence = issue.confidence ?? suggestion?.confidence ?? null;
+    const confidencePct =
+      typeof rawConfidence === "number" && rawConfidence > 0 && rawConfidence <= 1
+        ? Math.round(rawConfidence * 100)
+        : null;
     return (
-      <div style={actionRow}>
-        {issue.fixAction && onFix && (
-          <button type="button" onClick={() => onFix(issue)} disabled={busy} style={{ ...greenBtn, opacity: busy ? 0.6 : 1, cursor: busy ? "wait" : "pointer" }}>
-            {busy ? "Saving…" : issue.fixAction.label}
-          </button>
+      <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
+        {/* The real suggested value + its real confidence (both honest, from the data). */}
+        {suggestedCode && (
+          <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+            <span style={{ fontFamily: C.mono, fontSize: 11.5, fontWeight: 600, color: C.ink, background: C.greenSoft, border: `1px solid ${C.green}33`, borderRadius: 5, padding: "2px 7px" }}>
+              {suggestedCode}
+            </span>
+            {confidencePct != null && (
+              <span style={{ fontSize: 10.5, fontWeight: 600, color: C.greenDeep }}>{confidencePct}% match</span>
+            )}
+          </div>
         )}
-        <button
-          type="button"
-          onClick={() => resolve!.startLineEdit(lineId!, line!.aiSuggestion?.supplierItemCode ?? line!.supplierItemCode ?? "")}
-          disabled={busy}
-          style={ghostBtn}
-        >
-          Enter manually
-        </button>
+        <div style={actionRow}>
+          {issue.fixAction && onFix && (
+            <button type="button" onClick={() => onFix(issue)} disabled={busy} style={{ ...greenBtn, opacity: busy ? 0.6 : 1, cursor: busy ? "wait" : "pointer" }}>
+              {busy ? "Saving…" : issue.fixAction.label}
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={() => resolve!.startLineEdit(lineId!, line!.aiSuggestion?.supplierItemCode ?? line!.supplierItemCode ?? "")}
+            disabled={busy}
+            style={ghostBtn}
+          >
+            Enter manually
+          </button>
+        </div>
       </div>
     );
   }

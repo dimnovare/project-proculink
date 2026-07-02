@@ -94,6 +94,10 @@ export function fixQueueToIssues(queue: FixQueueCard[]): WorkshopIssue[] {
         // inline resolution control (manual-code input / accept / confirm).
         kind: c.kind,
         lineId: c.lineId,
+        // The real AI-suggested code (buildFixQueue puts it in `detail` for
+        // ai-suggestion cards). The card also reads it from `lines` when present;
+        // carrying it here keeps the value honest even for pure-view callers.
+        suggestedCode: c.kind === "ai-suggestion" ? c.detail ?? null : undefined,
       } satisfies WorkshopIssue;
     });
 }
@@ -554,10 +558,19 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
               </button>
             </div>
 
+            {/* All / Mapping / Output segmented control (app.jsx ViewTabs). It drives the
+                SAME collapse/focus the per-pane carets do (they're kept too), but as a
+                LABELLED control instead of an invisible chevron-only toggle:
+                  • All     → both side columns open (received + output + preview);
+                  • Mapping → received + output (preview rails);
+                  • Output  → output + preview (received rails).
+                Desktop mapper only (lg+): below lg the body is <MobileTriage>. */}
+            <div className="hidden lg:inline-flex">
+              <FocusControl focus={lay.focus} onFocus={lay.setFocus} />
+            </div>
+
             {/* Pipeline stepper — Received → … → Sent — lives in the title row (app.jsx
-                structure), not the banner below. The All/Mapping/Output focus tabs were
-                removed: the per-pane collapse carets drive the identical focus, so the
-                tabs were redundant header clutter. */}
+                structure), not the banner below. */}
             <div className="hidden xl:flex">
               <WorkshopStepper stage={stepperStage} failed={stepperFailed} />
             </div>

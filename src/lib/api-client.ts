@@ -1482,6 +1482,34 @@ function normalizeMappingPreview(
  * canonical order — a "what would this order look like as X" view. It is read-only and NEVER changes
  * delivery (still governed by the pinned revision).
  */
+/**
+ * Mock-only: render a realistic delivered document from an order's actual values so the
+ * mock live-preview mirrors the real backend (and the value-based hover highlight has real
+ * tokens to light). CSV → header + one row per line; XML/cXML/UBL/X12 → a compact element
+ * tree. Pure display; never used in real mode.
+ */
+function mockRenderPreview(order: Order, format: string): string {
+  const lines = order.lines;
+  if (format === "csv") {
+    const head = "PoNumber,SupplierItemCode,Description,Quantity,UnitPrice";
+    const rows = lines.map((l) =>
+      [order.poNumber, l.supplierItemCode ?? l.buyerItemCode ?? "", l.description ?? "", l.quantity ?? "", l.unitPrice ?? ""].join(","),
+    );
+    return [head, ...rows].join("\n");
+  }
+  if (format === "cxml") {
+    const items = lines.map((l) =>
+      `    <ItemOut quantity="${l.quantity ?? ""}" lineNumber="${l.lineNumber}">\n      <ItemID><SupplierPartID>${l.supplierItemCode ?? l.buyerItemCode ?? ""}</SupplierPartID></ItemID>\n      <ItemDetail><Description>${l.description ?? ""}</Description>\n        <UnitPrice><Money currency="${order.currency}">${l.unitPrice ?? ""}</Money></UnitPrice></ItemDetail>\n    </ItemOut>`,
+    ).join("\n");
+    return `<cXML>\n  <Request><OrderRequest>\n    <OrderRequestHeader orderID="${order.poNumber}" type="new"/>\n${items}\n  </OrderRequest></Request>\n</cXML>`;
+  }
+  // Generic XML / UBL / X12 fallback tree.
+  const items = lines.map((l) =>
+    `  <Line number="${l.lineNumber}">\n    <SupplierItemCode>${l.supplierItemCode ?? l.buyerItemCode ?? ""}</SupplierItemCode>\n    <Description>${l.description ?? ""}</Description>\n    <Quantity>${l.quantity ?? ""}</Quantity>\n    <UnitPrice>${l.unitPrice ?? ""}</UnitPrice>\n  </Line>`,
+  ).join("\n");
+  return `<Order>\n  <PoNumber>${order.poNumber}</PoNumber>\n  <SupplierName>${order.supplierName}</SupplierName>\n${items}\n</Order>`;
+}
+
 export async function previewMappingOverride(
   orderId: string,
   override: import("@/lib/api/types").OrderMappingOverride,
@@ -1497,6 +1525,19 @@ export async function previewMappingOverride(
         contentType: override.outputTemplateContentType ?? "application/json",
         content: `{ "preview": "rendered from template (${tmpl.length} chars)" }`,
       };
+    }
+    // Render a REALISTIC document from the order's actual values so the mock preview mirrors
+    // what the real backend returns — including the review-blocked state (content: null +
+    // "lines still need review") the real endpoint returns while any line is unresolved. This
+    // keeps the cross-column hover highlight (which matches on the field's resolved VALUE)
+    // exercisable in mock mode, and makes the honest "preview available once resolved" state real.
+    const ord = mockOrders.find((o) => o.id === orderId);
+    if (ord && ord.lines.some((l) => l.needsReview)) {
+      return { format, contentType: "text/plain", content: null, error: "Cannot transform: lines still need review." };
+    }
+    if (ord) {
+      const content = mockRenderPreview(ord, (format || "csv").toLowerCase());
+      return { format, contentType: format === "csv" ? "text/csv" : "application/xml", content };
     }
     return { format, contentType: "text/csv", content: override.output ? "code,qty\n(mapped preview)" : "(default transform)" };
   }

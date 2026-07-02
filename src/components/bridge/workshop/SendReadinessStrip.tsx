@@ -96,11 +96,29 @@ export function SendReadinessStrip({
         <span style={{ width: 18, height: 18, borderRadius: "50%", background: "#FBE3E3", display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
           <WarnGlyph />
         </span>
+        {/* The blocker/warning split (app.jsx ReadyBanner): "N blocker(s) · M warning(s)"
+            — blockers are red (they gate Send), warnings are amber and optional — followed
+            by the plain "resolve before sending" call. Both counts are the real issue counts. */}
         <span
           title="These required fields are missing or invalid. Tap each chip below to jump to its field in the mapper."
-          style={{ fontSize: 12.5, fontWeight: 600, color: "#B43838" }}
+          style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12.5, fontWeight: 700, color: "#B43838" }}
         >
-          {blockers.length} {blockers.length === 1 ? "field" : "fields"} to fill before sending
+          <span>
+            {blockers.length} {blockers.length === 1 ? "blocker" : "blockers"}
+          </span>
+          {notes > 0 && (
+            <>
+              <span aria-hidden style={{ color: "#CBB9B9", fontWeight: 500 }}>·</span>
+              <span style={{ color: "#B36D14" }}>
+                {notes} {notes === 1 ? "warning" : "warnings"}
+              </span>
+            </>
+          )}
+          {/* Plain-language call. Keeps the "field(s) to fill before sending" wording so the
+              copy stays concrete (and a field-level parity test still recognises the strip). */}
+          <span style={{ color: "#8A6E6E", fontWeight: 500 }}>
+            — {blockers.length} {blockers.length === 1 ? "field" : "fields"} to fill before sending
+          </span>
         </span>
       </span>
       <span style={{ display: "inline-flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>

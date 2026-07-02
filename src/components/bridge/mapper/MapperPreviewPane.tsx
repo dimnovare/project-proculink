@@ -48,6 +48,14 @@ export interface MapperPreviewPaneProps {
   defaultFormat?: OutputFormatId | null;
   /** The hovered/active field id (cross-column highlight) — its matching output line lights green. */
   hot?: string | null;
+  /**
+   * The RESOLVED VALUE of the hovered output field. The canonical output PATH (`hot`) does not
+   * appear verbatim in a structured document (cXML/XML/UBL emit their own tags), so matching on
+   * the path alone lit nothing there. The value DOES appear in the rendered output for every
+   * format, so the pane matches value-first, path-second — making the hover→preview highlight
+   * work reliably across CSV/JSON/XML/cXML/UBL/X12. Null → fall back to the path/last-touched key.
+   */
+  hotValue?: string | null;
   /** Hovering a preview line re-asserts the hot field (bidirectional cross-highlight). */
   onHotChange?: (id: string | null) => void;
   /**
@@ -78,7 +86,7 @@ export function formatFieldUnavailableNote(format: OutputFormatId): string {
   return `This field isn't part of ${format.toUpperCase()} output — it only applies to other formats.`;
 }
 
-export function MapperPreviewPane({ previewOrderId, override, lastTouched, supplierName, emptyHint, cycleFormatSignal, defaultFormat, hot, onHotChange, reviewSignal }: MapperPreviewPaneProps) {
+export function MapperPreviewPane({ previewOrderId, override, lastTouched, supplierName, emptyHint, cycleFormatSignal, defaultFormat, hot, hotValue, onHotChange, reviewSignal }: MapperPreviewPaneProps) {
   // Seed the toggle from the connection's REAL output format so a JSON supplier doesn't open
   // on a CSV mismatch. The backend (revision authority) may still swap to the pinned format —
   // deliveredFormat tracks what it actually rendered, and the header/copy/download follow that.
@@ -201,15 +209,35 @@ export function MapperPreviewPane({ previewOrderId, override, lastTouched, suppl
     URL.revokeObjectURL(url);
   }, [content, deliveredFormat]);
 
-  // Build the highlighted render: isolate the OUTPUT LINE mentioning the last-touched field
-  // (by key/path or its resolved value) so the user's most recent edit visibly lands.
+  // Build the highlighted render: isolate the OUTPUT LINE mentioning the hovered/last-touched
+  // field so the user's edit + hover visibly land.
   // Handoff §7 cross-highlight: the hovered field (hot, from any column) lights its matching
   // output line green; falls back to the last-edited field so an edit still visibly lands.
-  const crossKey = hot ?? lastTouched;
+  //
+  // NEEDLE precedence (the founder's "hover highlight doesn't work" fix): the field's resolved
+  // VALUE (hotValue) is tried FIRST because it appears verbatim in every rendered format
+  // (CSV/JSON/XML/cXML/UBL/X12); the canonical PATH (hot) is the fallback (it only appears in
+  // flat formats' header rows). lastTouched is the final fallback so an edit still flashes.
+  // RE-ASSERT id: hovering the lit preview line must re-assert the FIELD id (hot / lastTouched),
+  // never the raw value — otherwise setHoveredId(value) would break the bidirectional link.
+  const reassertId = hot ?? lastTouched;
+  const highlightNeedle = useMemo(() => {
+    // Prefer the value only when it actually occurs in the rendered document; otherwise the
+    // path/key. This keeps CSV (path in the header row) working while fixing structured formats.
+    if (hotValue && content && content.includes(hotValue)) return hotValue;
+    return hot ?? lastTouched;
+  }, [hotValue, content, hot, lastTouched]);
+  const onReassert = useCallback(() => onHotChange?.(reassertId), [onHotChange, reassertId]);
   const highlighted = useMemo(
-    () => renderWithHighlight(content, crossKey, onHotChange),
-    [content, crossKey, onHotChange],
+    () => renderWithHighlight(content, highlightNeedle, onReassert),
+    [content, highlightNeedle, onReassert],
   );
+
+  // The backend returns content: null + a "…lines still need review / cannot transform"
+  // message while any line is unresolved (it will NOT emit a half-valid document — offer⇔works).
+  // Detect that so the code body shows a calm, HONEST "preview available once resolved" state
+  // instead of a terse "(no preview)". We never claim the order is transformable when it isn't.
+  const reviewBlocked = content == null && !busy && err != null && /review|transform|resolve/i.test(err);
 
   // One-shot flash whenever the rendered content changes — a calm "it updated" pulse.
   const [flash, setFlash] = useState(false);
@@ -336,7 +364,15 @@ export function MapperPreviewPane({ previewOrderId, override, lastTouched, suppl
           }}
         >
           {content == null
-            ? (busy ? "Rendering…" : "(no preview)")
+            ? (busy
+                ? "Rendering…"
+                : reviewBlocked
+                  ? (
+                    <span style={{ color: "#8FA0B8", fontStyle: "normal" }}>
+                      {`Preview available once all lines are resolved.\nResolve the remaining issues in the Issues tab to see\nexactly what ${supplierName ?? "the supplier"} receives.`}
+                    </span>
+                  )
+                  : "(no preview)")
             : highlighted}
         </pre>
       )}
@@ -350,18 +386,19 @@ export function MapperPreviewPane({ previewOrderId, override, lastTouched, suppl
  * edit visibly lands. When `lastTouched` is null or not found, returns the plain string. Pure
  * presentation — string-split (no regex injection risk).
  */
-function renderWithHighlight(content: string | null, activeKey: string | null, onHotChange?: (id: string | null) => void): React.ReactNode {
+function renderWithHighlight(content: string | null, needle: string | null, onReassert?: () => void): React.ReactNode {
   if (content == null) return null;
-  const { before, match, after } = splitForHighlight(content, activeKey);
+  const { before, match, after } = splitForHighlight(content, needle);
   if (!match) return content;
   // Handoff §7 cross-highlight: the matching output line gets a green line-level wash with an
   // inset 2px green left bar + brighter text on the navy code body. Hovering the line re-asserts
-  // `hot` so the highlight is bidirectional with the received card, output row, and wire.
+  // the hovered FIELD id (not the raw value) so the highlight is bidirectional with the received
+  // card, output row, and wire.
   return (
     <>
       {before}
       <mark
-        onMouseEnter={() => onHotChange?.(activeKey)}
+        onMouseEnter={() => onReassert?.()}
         style={{
           background: "rgba(46,142,58,0.22)", color: "#EAF6EC",
           borderLeft: "2px solid #1E6D29", paddingLeft: 4, marginLeft: -6,

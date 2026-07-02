@@ -383,13 +383,21 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
 
   // The live preview highlights an OUTPUT line, so a hovered RECEIVED field must be
   // resolved to the output path it feeds; an output path passes straight through.
+  const targetPathSet = useMemo(() => new Set(model.targetFields.map((f) => f.outputPath)), [model.targetFields]);
   const previewHot = useMemo<string | null>(() => {
     if (!hoveredId) return null;
     if (!knownSourceIds.has(hoveredId)) return hoveredId; // already an output path
+    // Received field hovered → find the output path it feeds:
+    //   1. an EXPLICIT canonical→output wire (outputConnections value === the field id), or
+    //   2. the AUTO 1:1 default (the received field id IS a declared output path — the common
+    //      case, which the explicit-wire-only lookup missed, so hovering an auto-mapped field
+    //      like "PO number" lit nothing in the preview). Both resolve to the output path whose
+    //      resolved VALUE the preview highlights.
     const conns = model.outputConnections;
     for (const path in conns) if (conns[path] === hoveredId) return path;
+    if (targetPathSet.has(hoveredId)) return hoveredId;
     return null;
-  }, [hoveredId, model.outputConnections, knownSourceIds]);
+  }, [hoveredId, model.outputConnections, knownSourceIds, targetPathSet]);
 
   // Canonical keys = the spine node ids (so a wired raw token is distinguishable from a re-point).
   const knownCanonical = useMemo(
@@ -466,6 +474,23 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
     [model.targetFields, statusInput],
   );
   const canDeliver = !readOnly && blockingCount === 0 && summary.requiredUnmapped === 0 && !deliverDisabled;
+
+  // ── The RESOLVED VALUE of the hovered output field (founder bug: hover→preview
+  //    highlight didn't visibly work). The preview highlights by string match, but the
+  //    canonical output PATH (e.g. "SupplierItemCode") does NOT appear verbatim in a
+  //    structured document (cXML emits <SupplierPartID>, XML emits the mapped tag) — so
+  //    matching on the path alone lit nothing for XML/cXML/UBL. The field's resolved
+  //    VALUE (e.g. "SM-A576BZABEEE") DOES appear in the rendered output for EVERY format,
+  //    so we pass it and the pane matches value-first, path-second. Null when the hovered
+  //    field has no resolved value (nothing to light). ──────────────────────────────────
+  const previewHotValue = useMemo<string | null>(() => {
+    if (!previewHot) return null;
+    const field = model.targetFields.find((f) => f.outputPath === previewHot);
+    if (!field) return null;
+    const st = computeOutgoingStatus(field, statusInput);
+    const v = st.valuePreview;
+    return v != null && v !== "" ? v : null;
+  }, [previewHot, model.targetFields, statusInput]);
 
   // ── Attention-first output split (Order Workshop, Task 12c) ──────────────────
   // OFF by default → `attentionFields` === every field → identical to today. When
@@ -633,6 +658,7 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
       override={model.override}
       lastTouched={model.lastTouched}
       hot={previewHot}
+      hotValue={previewHotValue}
       onHotChange={setHoveredId}
       cycleFormatSignal={cycleFormatSignal}
       defaultFormat={previewDefaultFormat ?? model.outputFormat}
@@ -667,10 +693,23 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
       {/* ── Top action bar (desktop) ────────────────────────────────────── */}
       <div className="hidden lg:flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
-          {/* The order variant's H1 already says "Map this order" — don't repeat it here. */}
-          {variant !== "order" && (
+          {/* Section label above the 3 columns (app.jsx Toolbar). The connection editor
+              says "MAP FIELDS"; the order variant says "MAP THIS ORDER · N to resolve"
+              (N = open issue count) so the mapper region is labelled and the operator
+              sees how many issues remain right above the columns. When there are no open
+              issues it reads the calm "all mapped" state via the summary chip beside it. */}
+          {variant !== "order" ? (
             <span style={{ fontFamily: "var(--font-display, 'Bricolage Grotesque', Inter, sans-serif)", fontSize: 13, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.02em", color: "var(--ink)" }}>
               Map fields
+            </span>
+          ) : (
+            <span style={{ display: "inline-flex", alignItems: "baseline", gap: 6, fontFamily: "var(--font-display, 'Bricolage Grotesque', Inter, sans-serif)", fontSize: 13, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.02em", color: "var(--ink)" }}>
+              Map this order
+              {issuesOpenCount > 0 && (
+                <span style={{ fontSize: 11.5, fontWeight: 700, textTransform: "none", letterSpacing: 0, color: issuesBlockingCount > 0 ? "#B43838" : "#B36D14" }}>
+                  · {issuesOpenCount} to resolve
+                </span>
+              )}
             </span>
           )}
           <MappedSummaryChip mapped={summary.mappedCount} total={summary.total} />
@@ -721,26 +760,39 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
               ⚠ {summary.requiredUnmapped} {summary.requiredUnmapped === 1 ? "field needs" : "fields need"} a source
             </span>
           )}
-          {/* ── Order variant: the secondary toggles collapse behind a single "More"
-              menu (progressive disclosure) so only Save + Send read inline. Each item
+          {/* ── Order variant: the secondary tools are surfaced INLINE (app.jsx Toolbar) —
+              "Hide connections · Customize output layout · Fill from catalog" — instead of
+              behind a "More ▾" dropdown, so the operator can reach them in one click. Each
               keeps its EXACT original handler; nothing about wiring / activeIds /
-              showConnections changes — the controls only relocated. ─────────────── */}
+              showConnections changes — the controls only relocated out of the menu. ─── */}
           {variant === "order" ? (
-            <MoreMenu>
+            <>
               {pickerMode && (
-                <MoreMenuItem
-                  label={showConnections ? "Hide connections" : "Show connections"}
-                  title={showConnections ? "Hide the connection wires" : "Show the connection wires between received and output fields"}
+                // Picker mode hides the drag-wires by default (you map via the inline source
+                // dropdown). This pill toggle reveals the existing wire layer.
+                <button
+                  type="button"
                   onClick={() => setShowConnections((v) => !v)}
-                  ariaPressed={showConnections}
-                />
+                  aria-pressed={showConnections}
+                  title={showConnections ? "Hide the connection wires" : "Show the connection wires between received and output fields"}
+                  style={{
+                    display: "inline-flex", alignItems: "center", gap: 6, height: 30, fontSize: 11.5, fontWeight: 700,
+                    color: showConnections ? "#0F4FA8" : "#345470",
+                    background: showConnections ? "#EAF0F8" : "#FFFFFF",
+                    border: `1px solid ${showConnections ? "#1E66C9" : "#DCE0E8"}`,
+                    borderRadius: 7, padding: "0 11px", cursor: "pointer", whiteSpace: "nowrap",
+                  }}
+                >
+                  <span aria-hidden style={{ fontSize: 13, lineHeight: 1, color: showConnections ? "#1E66C9" : "#9AA8C0" }}>{showConnections ? "◉" : "○"}</span>
+                  {showConnections ? "Hide connections" : "Show connections"}
+                </button>
               )}
-              <MoreMenuItem
+              <ToolbarButton
                 label="Customize output layout"
                 title="Change how the output file is structured for this supplier — paste a supplier sample to start"
                 onClick={() => setShowDesigner(true)}
               />
-              <MoreMenuItem
+              <ToolbarButton
                 label={catalogHintCount > 0 ? `Fill from catalog · ${catalogHintCount}` : "Fill from catalog"}
                 title={
                   catalogHintCount > 0
@@ -749,7 +801,7 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
                 }
                 onClick={catalogHintCount > 0 ? scrollToFirstCatalogHint : undefined}
               />
-            </MoreMenu>
+            </>
           ) : (
             <ToolbarButton
               label={catalogHintCount > 0 ? `Fill from catalog · ${catalogHintCount}` : "Fill from catalog"}
@@ -1125,101 +1177,6 @@ function ToolbarButton({
         whiteSpace: "nowrap",
       }}
     >
-      {label}
-    </button>
-  );
-}
-
-// ── "More" overflow menu — folds the order toolbar's secondary toggles behind one
-//    button (progressive disclosure). Click to open; click-outside or Escape closes;
-//    visible focus ring inherits the app's global :focus-visible. Each child is a
-//    MoreMenuItem whose onClick fires the ORIGINAL handler unchanged. ──────────────
-function MoreMenu({ children }: { children: ReactNode }) {
-  const [open, setOpen] = useState(false);
-  const wrapRef = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (!open) return;
-    function onDown(e: MouseEvent) {
-      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) setOpen(false);
-    }
-    function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") setOpen(false);
-    }
-    document.addEventListener("mousedown", onDown);
-    document.addEventListener("keydown", onKey);
-    return () => {
-      document.removeEventListener("mousedown", onDown);
-      document.removeEventListener("keydown", onKey);
-    };
-  }, [open]);
-  return (
-    <div ref={wrapRef} style={{ position: "relative" }}>
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        aria-haspopup="menu"
-        aria-expanded={open}
-        title="More mapping tools"
-        style={{
-          display: "inline-flex", alignItems: "center", gap: 6, height: 30, padding: "0 11px",
-          borderRadius: 7, fontSize: 11.5, fontWeight: 700, whiteSpace: "nowrap",
-          border: `1px solid ${open ? "#1E66C9" : "#DCE0E8"}`,
-          background: open ? "#EAF0F8" : "#FFFFFF",
-          color: open ? "#0F4FA8" : "#345470", cursor: "pointer",
-        }}
-      >
-        More
-        <span aria-hidden style={{ fontSize: 9, lineHeight: 1, transform: open ? "rotate(180deg)" : "none", transition: "transform 150ms" }}>▾</span>
-      </button>
-      {open && (
-        <div
-          role="menu"
-          style={{
-            position: "absolute", top: "calc(100% + 6px)", right: 0, zIndex: 30, minWidth: 200,
-            display: "flex", flexDirection: "column", gap: 2, padding: 5,
-            background: "#FFFFFF", border: "1px solid #E5E8EE", borderRadius: 9,
-            boxShadow: "0 8px 24px rgba(11,26,47,0.14)",
-          }}
-          onClick={() => setOpen(false)}
-        >
-          {children}
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ── One row inside the "More" menu. Disabled (honest) when it has no handler,
-//    mirroring ToolbarButton's contract. `ariaPressed` marks a toggle item. ──────
-function MoreMenuItem({
-  label, title, onClick, ariaPressed,
-}: {
-  label: string;
-  title?: string;
-  onClick?: () => void;
-  ariaPressed?: boolean;
-}) {
-  const isDisabled = !onClick;
-  return (
-    <button
-      type="button"
-      role="menuitem"
-      onClick={onClick}
-      disabled={isDisabled}
-      title={title}
-      aria-pressed={ariaPressed}
-      style={{
-        display: "flex", alignItems: "center", gap: 8, width: "100%", textAlign: "left",
-        padding: "8px 10px", borderRadius: 6, border: "1px solid transparent", background: "transparent",
-        fontSize: 12, fontWeight: 600, whiteSpace: "nowrap",
-        color: isDisabled ? "#AEB6C4" : "#345470", cursor: isDisabled ? "not-allowed" : "pointer",
-      }}
-      onMouseEnter={(e) => { if (!isDisabled) { e.currentTarget.style.background = "#F1F3F7"; } }}
-      onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
-    >
-      {ariaPressed != null && (
-        <span aria-hidden style={{ fontSize: 13, lineHeight: 1, color: ariaPressed ? "#1E66C9" : "#9AA8C0" }}>{ariaPressed ? "◉" : "○"}</span>
-      )}
       {label}
     </button>
   );
