@@ -15,7 +15,9 @@ import type {
   CatalogSource,
   CatalogSourceProtocol,
   CatalogSourceTestResult,
+  CatalogCanonicalField,
 } from "@/lib/api/catalogSources";
+import { CATALOG_CANONICAL_FIELDS } from "@/lib/api/catalogSources";
 import { isArrowKey, rovingRadioNext } from "@/lib/roving-radio";
 import {
   buildAuthConfigPayload,
@@ -23,12 +25,40 @@ import {
   formatLastSync,
   hasSavedAuthSecretForMethod,
   httpAuthFormSatisfied,
+  protocolIsVendor,
   protocolUsesUrl,
   type CatalogAuthFormState,
 } from "./catalogSourceHelpers";
 import { useConfirm } from "@/components/ui/confirm";
 
 const INPUT_STYLE = { border: "1px solid #D5DAEA", color: "#0B1A2F" } as const;
+
+// Fixed canonical columns the test-fetch preview renders (matches CatalogSampleRow).
+const SAMPLE_COLUMNS: Array<{ key: keyof import("@/lib/api/catalogSources").CatalogSampleRow; label: string }> = [
+  { key: "code", label: "code" },
+  { key: "name", label: "name" },
+  { key: "unit", label: "unit" },
+  { key: "price", label: "price" },
+  { key: "currency", label: "currency" },
+  { key: "barcode", label: "barcode" },
+  { key: "externalId", label: "external_id" },
+];
+
+function formatSampleCell(value: string | number | null): string {
+  if (value === null || value === undefined) return "";
+  return String(value);
+}
+
+// Human labels for the canonical mapping targets.
+const CANONICAL_FIELD_LABELS: Record<CatalogCanonicalField, string> = {
+  code: "code (required)",
+  name: "name",
+  unit: "unit",
+  price: "price",
+  currency: "currency",
+  barcode: "barcode",
+  external_id: "external ID",
+};
 
 // HTTPS + FTPS/SFTP first to default-discourage plaintext FTP / cleartext HTTP.
 const PROTOCOLS: Array<{ id: CatalogSourceProtocol; label: string }> = [
@@ -37,6 +67,7 @@ const PROTOCOLS: Array<{ id: CatalogSourceProtocol; label: string }> = [
   { id: "sftp", label: "SFTP" },
   { id: "ftps", label: "FTPS" },
   { id: "ftp", label: "FTP" },
+  { id: "logicom", label: "Logicom QuickConnect" },
 ];
 
 // Only the five auth methods the backend implements. Labels mirror DeliveryConfigEditor.
@@ -83,6 +114,20 @@ export function CatalogSourceEditor({ supplierId }: CatalogSourceEditorProps) {
   const [clientId, setClientId] = useState("");
   const [clientSecret, setClientSecret] = useState("");
   const [scope, setScope] = useState("");
+
+  // Logicom QuickConnect vendor credentials (write-only).
+  const [logicomCustomerId, setLogicomCustomerId] = useState("");
+  const [logicomConsumerKey, setLogicomConsumerKey] = useState("");
+  const [logicomConsumerSecret, setLogicomConsumerSecret] = useState("");
+  const [logicomAccessTokenKey, setLogicomAccessTokenKey] = useState("");
+  const [logicomCurrency, setLogicomCurrency] = useState("EUR");
+
+  // Per-source column mapping (advanced, collapsed by default). Rows of source-column →
+  // canonical field. Directive rows (__noheader__/__encoding__) are edited via dedicated toggles.
+  const [showMapping, setShowMapping] = useState(false);
+  const [mappingRows, setMappingRows] = useState<Array<{ column: string; field: CatalogCanonicalField }>>([]);
+  const [noHeader, setNoHeader] = useState(false);
+  const [encodingHint, setEncodingHint] = useState("");
 
   const [testResult, setTestResult] = useState<CatalogSourceTestResult | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -132,6 +177,22 @@ export function CatalogSourceEditor({ supplierId }: CatalogSourceEditorProps) {
     setClientId("");
     setClientSecret("");
     setScope("");
+    // Logicom vendor creds are write-only — never hydrated; only "saved · masked" is shown.
+    setLogicomCustomerId("");
+    setLogicomConsumerKey("");
+    setLogicomConsumerSecret("");
+    setLogicomAccessTokenKey("");
+    setLogicomCurrency("EUR");
+    // Column mapping IS echoed back (not a secret) — hydrate the editable rows + directives.
+    const mapping = s.columnMapping ?? {};
+    setNoHeader(String(mapping["__noheader__"] ?? "").toLowerCase() === "true");
+    setEncodingHint(mapping["__encoding__"] ?? "");
+    const rows = Object.entries(mapping)
+      .filter(([k]) => k !== "__noheader__" && k !== "__encoding__")
+      .filter(([, v]) => (CATALOG_CANONICAL_FIELDS as readonly string[]).includes(v))
+      .map(([column, field]) => ({ column, field: field as CatalogCanonicalField }));
+    setMappingRows(rows);
+    setShowMapping(rows.length > 0);
   }
 
   function markEdited() {
@@ -141,7 +202,12 @@ export function CatalogSourceEditor({ supplierId }: CatalogSourceEditorProps) {
   }
 
   const isUrlProtocol = protocolUsesUrl(protocol);
+  const isVendorProtocol = protocolIsVendor(protocol);
+  const isHttpProtocol = protocol === "http" || protocol === "https";
   const hasPassword = savedSource?.hasPassword ?? false;
+  // Logicom creds saved (write-only) only counts when the SAVED source is also logicom.
+  const logicomHasSavedCreds =
+    isVendorProtocol && (savedSource?.hasAuthConfig ?? false) && savedSource?.protocol === "logicom";
 
   // Shared by the click handler and the arrow-key radiogroup navigation.
   function selectProtocol(id: CatalogSourceProtocol) {
@@ -197,12 +263,57 @@ export function CatalogSourceEditor({ supplierId }: CatalogSourceEditorProps) {
     authMethod !== "none" &&
     savedSource?.authMethod !== authMethod;
 
-  const canSave = isUrlProtocol
-    ? Boolean(url.trim()) && httpAuthFormSatisfied(authForm, savedAuthSecretForMethod)
-    : Boolean(host.trim()) &&
-      Boolean(remotePath.trim()) &&
-      (!usernameRequired || Boolean(username.trim())) &&
-      (!passwordRequired || password.length > 0 || hasPassword);
+  // Logicom: all four creds provided together, OR saved creds kept (all fields blank).
+  const logicomFormSatisfied = (() => {
+    const anyTyped =
+      logicomCustomerId.trim() || logicomConsumerKey.trim() ||
+      logicomConsumerSecret || logicomAccessTokenKey;
+    if (anyTyped) {
+      return Boolean(
+        logicomCustomerId.trim() && logicomConsumerKey.trim() &&
+        logicomConsumerSecret && logicomAccessTokenKey,
+      );
+    }
+    return logicomHasSavedCreds;
+  })();
+
+  const canSave = isVendorProtocol
+    ? Boolean(url.trim()) && logicomFormSatisfied
+    : isHttpProtocol
+      ? Boolean(url.trim()) && httpAuthFormSatisfied(authForm, savedAuthSecretForMethod)
+      : Boolean(host.trim()) &&
+        Boolean(remotePath.trim()) &&
+        (!usernameRequired || Boolean(username.trim())) &&
+        (!passwordRequired || password.length > 0 || hasPassword);
+
+  // Build the write-only vendorConfig payload (null = keep, object = set).
+  function vendorConfigPayload() {
+    if (!isVendorProtocol) return null;
+    const anyTyped =
+      logicomCustomerId.trim() || logicomConsumerKey.trim() ||
+      logicomConsumerSecret || logicomAccessTokenKey;
+    if (!anyTyped && logicomHasSavedCreds) return null; // keep stored
+    return {
+      customerId: logicomCustomerId.trim(),
+      consumerKey: logicomConsumerKey.trim(),
+      consumerSecret: logicomConsumerSecret,
+      accessTokenKey: logicomAccessTokenKey,
+      currency: logicomCurrency.trim() || "EUR",
+    };
+  }
+
+  // Build the columnMapping payload from the rows + directives. Always sent (not a secret) so
+  // clearing all rows clears the stored mapping ({} on the wire).
+  function columnMappingPayload(): Record<string, string> {
+    const out: Record<string, string> = {};
+    for (const r of mappingRows) {
+      const col = r.column.trim();
+      if (col) out[col] = r.field;
+    }
+    if (noHeader) out["__noheader__"] = "true";
+    if (encodingHint.trim()) out["__encoding__"] = encodingHint.trim();
+    return out;
+  }
 
   async function save() {
     setSaving(true);
@@ -219,11 +330,14 @@ export function CatalogSourceEditor({ supplierId }: CatalogSourceEditorProps) {
         fileFormat,
         syncIntervalHours: Number(schedule) || 24,
         isEnabled,
-        // http/https only:
+        // http/https/logicom (url) — auth method/config only for http; vendor config for logicom:
         url: isUrlProtocol ? url.trim() : null,
-        authMethod: isUrlProtocol ? authMethod : null,
-        authConfig: isUrlProtocol ? buildAuthConfigPayload(authForm, savedAuthSecretForMethod) : null,
+        authMethod: isHttpProtocol ? authMethod : null,
+        authConfig: isHttpProtocol ? buildAuthConfigPayload(authForm, savedAuthSecretForMethod) : null,
         httpMethod: isUrlProtocol ? "GET" : null,
+        vendorConfig: isVendorProtocol ? vendorConfigPayload() : null,
+        // Column mapping applies to every protocol (always sent so clearing rows clears it).
+        columnMapping: columnMappingPayload(),
       });
       setSavedSource(result.source);
       hydrate(result.source);
@@ -279,6 +393,15 @@ export function CatalogSourceEditor({ supplierId }: CatalogSourceEditorProps) {
       setClientId("");
       setClientSecret("");
       setScope("");
+      setLogicomCustomerId("");
+      setLogicomConsumerKey("");
+      setLogicomConsumerSecret("");
+      setLogicomAccessTokenKey("");
+      setLogicomCurrency("EUR");
+      setMappingRows([]);
+      setNoHeader(false);
+      setEncodingHint("");
+      setShowMapping(false);
       setTestResult(null);
       setNotice("Import source deleted.");
       invalidateCatalogCaches();
@@ -372,7 +495,9 @@ export function CatalogSourceEditor({ supplierId }: CatalogSourceEditorProps) {
           <div className="mt-4 rounded-[6px] p-3" style={{ background: "#F0F7F1", border: "1px solid #CBE8CE" }}>
             <p className="text-[11px] font-semibold" style={{ color: "#1F6F2A" }}>What gets imported</p>
             <p className="mt-1 text-[11px]" style={{ color: "#2E5F35" }}>
-              CSV/XLSX/JSON columns are auto-detected: code (required), name, unit, price, currency, barcode.
+              CSV / XLSX / JSON / XML / CIF columns are auto-detected: code (required), name, unit, price,
+              currency, barcode. ZIP archives are unpacked automatically. When a column isn&apos;t recognised,
+              map it below.
             </p>
           </div>
         </div>
@@ -417,14 +542,18 @@ export function CatalogSourceEditor({ supplierId }: CatalogSourceEditorProps) {
                     onChange={(e) => {
                       const next = e.target.value;
                       setUrl(next);
-                      // Keep the picker honest: the URL's scheme is what the fetch uses,
-                      // so the selected API protocol follows it.
-                      const lower = next.trim().toLowerCase();
-                      if (lower.startsWith("http://")) setProtocol("http");
-                      else if (lower.startsWith("https://")) setProtocol("https");
+                      // Keep the picker honest: for the plain http/https API the URL scheme is what
+                      // the fetch uses. Vendor connectors (logicom) keep their protocol regardless.
+                      if (!isVendorProtocol) {
+                        const lower = next.trim().toLowerCase();
+                        if (lower.startsWith("http://")) setProtocol("http");
+                        else if (lower.startsWith("https://")) setProtocol("https");
+                      }
                       markEdited();
                     }}
-                    placeholder="https://api.supplier.example/v1/catalog.csv"
+                    placeholder={isVendorProtocol
+                      ? "https://quickconnect.logicompartners.com/api"
+                      : "https://api.supplier.example/v1/catalog.csv"}
                     className="h-9 w-full rounded-[5px] px-2.5 text-[12px]"
                     style={INPUT_STYLE}
                   />
@@ -478,6 +607,8 @@ export function CatalogSourceEditor({ supplierId }: CatalogSourceEditorProps) {
                     <option value="csv">CSV</option>
                     <option value="xlsx">XLSX</option>
                     <option value="json">JSON</option>
+                    <option value="xml">XML (cXML Index / vendor XML)</option>
+                    <option value="cif">CIF (Ariba 3.0)</option>
                   </select>
                 </Field>
                 <div className="flex items-end">
@@ -487,8 +618,49 @@ export function CatalogSourceEditor({ supplierId }: CatalogSourceEditorProps) {
                 </div>
               </div>
 
-              {/* ── Credentials: file-server password OR HTTP auth ─────────── */}
-              {isUrlProtocol ? (
+              {/* ── Credentials: HTTP auth OR Logicom vendor creds OR file-server password ── */}
+              {isVendorProtocol ? (
+                <div className="rounded-[7px]" style={{ border: "1px solid #E5E8EE" }}>
+                  <div className="flex items-center gap-2 px-3 py-2" style={{ borderBottom: "1px solid #E5E8EE" }}>
+                    <KeyRound size={14} color="#2E8E3A" />
+                    <span className="text-[12px] font-semibold" style={{ color: "#0B1A2F" }}>Logicom credentials</span>
+                    {logicomHasSavedCreds && (
+                      <span className="ml-auto text-[11px]" style={{ color: "#2E8E3A" }}>saved · masked</span>
+                    )}
+                  </div>
+                  <div className="grid gap-3 p-3">
+                    <p className="text-[11px]" style={{ color: "#5E6779" }}>
+                      Logicom QuickConnect signs each request with your credentials (AES 2FA). Enter the
+                      four keys Logicom issued; they are stored encrypted and never shown again.
+                    </p>
+                    <div className="grid gap-3 lg:grid-cols-2">
+                      <Field label="Customer ID">
+                        <input value={logicomCustomerId} onChange={(e) => { setLogicomCustomerId(e.target.value); markEdited(); }} placeholder={logicomHasSavedCreds ? "•••• (leave blank to keep)" : "e.g. 2127"} className="h-9 w-full rounded-[5px] px-2.5 text-[12px]" style={INPUT_STYLE} />
+                      </Field>
+                      <Field label="Currency">
+                        <input value={logicomCurrency} onChange={(e) => { setLogicomCurrency(e.target.value); markEdited(); }} placeholder="EUR" className="h-9 w-full rounded-[5px] px-2.5 text-[12px]" style={INPUT_STYLE} />
+                      </Field>
+                    </div>
+                    <Field label="Consumer key">
+                      <input value={logicomConsumerKey} onChange={(e) => { setLogicomConsumerKey(e.target.value); markEdited(); }} placeholder={logicomHasSavedCreds ? "•••• (leave blank to keep)" : "ConsumerKey"} className="h-9 w-full rounded-[5px] px-2.5 text-[12px]" style={INPUT_STYLE} />
+                    </Field>
+                    <div className="grid gap-3 lg:grid-cols-2">
+                      <Field label="Consumer secret">
+                        <input type="password" value={logicomConsumerSecret} onChange={(e) => { setLogicomConsumerSecret(e.target.value); markEdited(); }} placeholder={logicomHasSavedCreds ? "••••" : "ConsumerSecret"} className="h-9 w-full rounded-[5px] px-2.5 text-[12px]" style={INPUT_STYLE} />
+                      </Field>
+                      <Field label="Access-token key">
+                        <input type="password" value={logicomAccessTokenKey} onChange={(e) => { setLogicomAccessTokenKey(e.target.value); markEdited(); }} placeholder={logicomHasSavedCreds ? "••••" : "AccessTokenKey (32 chars)"} className="h-9 w-full rounded-[5px] px-2.5 text-[12px]" style={INPUT_STYLE} />
+                      </Field>
+                    </div>
+                    {logicomHasSavedCreds && (
+                      <p className="m-0 text-[11px]" style={{ color: "var(--ink-faint)" }}>
+                        Leave all four blank to keep the saved credentials. To change any, re-enter all four —
+                        they are stored together.
+                      </p>
+                    )}
+                  </div>
+                </div>
+              ) : isHttpProtocol ? (
                 <div className="rounded-[7px]" style={{ border: "1px solid #E5E8EE" }}>
                   <div className="flex items-center gap-2 px-3 py-2" style={{ borderBottom: "1px solid #E5E8EE" }}>
                     <KeyRound size={14} color="#2E8E3A" />
@@ -635,6 +807,19 @@ export function CatalogSourceEditor({ supplierId }: CatalogSourceEditorProps) {
                 </div>
               )}
 
+              {/* ── Advanced: per-source column mapping (collapsed; opens when test-fetch found unmapped columns) ── */}
+              <ColumnMappingPanel
+                open={showMapping}
+                onToggle={() => setShowMapping((v) => !v)}
+                rows={mappingRows}
+                setRows={(r) => { setMappingRows(r); markEdited(); }}
+                noHeader={noHeader}
+                setNoHeader={(v) => { setNoHeader(v); markEdited(); }}
+                encodingHint={encodingHint}
+                setEncodingHint={(v) => { setEncodingHint(v); markEdited(); }}
+                unmappedColumns={testResult?.ok ? testResult.unmappedColumns : []}
+              />
+
               <div className="grid gap-3 lg:grid-cols-[150px_minmax(0,1fr)]">
                 <Field label="Every (hours)">
                   <input
@@ -737,7 +922,7 @@ function TestReport({ result }: { result: CatalogSourceTestResult }) {
         {result.rowsWithCode != null && <span>{result.rowsWithCode} with a code</span>}
       </div>
       <div className="grid gap-3 p-3">
-        {result.mappedFields.length > 0 && (
+        {Object.keys(result.mappedFields).length > 0 && (
           <div>
             <p className="mb-1 text-[11px] font-semibold uppercase" style={{ color: "var(--ink-faint)" }}>Mapped columns</p>
             <div className="overflow-hidden rounded-[6px]" style={{ border: "1px solid #E5E8EE" }}>
@@ -749,10 +934,10 @@ function TestReport({ result }: { result: CatalogSourceTestResult }) {
                   </tr>
                 </thead>
                 <tbody>
-                  {result.mappedFields.map((m) => (
-                    <tr key={m.field} style={{ borderTop: "1px solid #EEF0F4" }}>
-                      <td style={{ padding: "5px 9px", fontFamily: "'JetBrains Mono',monospace", color: "#0B1A2F" }}>{m.column}</td>
-                      <td style={{ padding: "5px 9px", color: "#0B1A2F" }}>{m.field}</td>
+                  {Object.entries(result.mappedFields).map(([column, field]) => (
+                    <tr key={column} style={{ borderTop: "1px solid #EEF0F4" }}>
+                      <td style={{ padding: "5px 9px", fontFamily: "'JetBrains Mono',monospace", color: "#0B1A2F" }}>{column}</td>
+                      <td style={{ padding: "5px 9px", color: "#0B1A2F" }}>{field}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -778,20 +963,24 @@ function TestReport({ result }: { result: CatalogSourceTestResult }) {
             <p className="mb-1 text-[11px] font-semibold uppercase" style={{ color: "var(--ink-faint)" }}>
               Sample rows (first {result.sampleRows.length})
             </p>
+            {/* Render the FIXED canonical columns the backend actually returns (CatalogSampleRow),
+                not the raw source headers — the previous row[header] lookup rendered blank cells. */}
             <div className="overflow-x-auto rounded-[6px]" style={{ border: "1px solid #E5E8EE" }}>
               <table className="w-full border-collapse" style={{ fontSize: 11.5 }}>
                 <thead>
                   <tr style={{ background: "#F6F7FA", color: "#5E6779", textAlign: "left" }}>
-                    {result.headerColumns.map((h) => (
-                      <th key={h} style={{ padding: "5px 9px", fontWeight: 700, whiteSpace: "nowrap" }}>{h}</th>
+                    {SAMPLE_COLUMNS.map((c) => (
+                      <th key={c.key} style={{ padding: "5px 9px", fontWeight: 700, whiteSpace: "nowrap" }}>{c.label}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
                   {result.sampleRows.map((row, i) => (
                     <tr key={i} style={{ borderTop: "1px solid #EEF0F4" }}>
-                      {result.headerColumns.map((h) => (
-                        <td key={h} style={{ padding: "5px 9px", color: "#0B1A2F", whiteSpace: "nowrap" }}>{row[h] ?? ""}</td>
+                      {SAMPLE_COLUMNS.map((c) => (
+                        <td key={c.key} style={{ padding: "5px 9px", color: "#0B1A2F", whiteSpace: "nowrap" }}>
+                          {formatSampleCell(row[c.key])}
+                        </td>
                       ))}
                     </tr>
                   ))}
@@ -816,5 +1005,153 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
       <span className="text-[11px] font-semibold uppercase" style={{ color: "var(--ink-faint)" }}>{label}</span>
       {children}
     </label>
+  );
+}
+
+/**
+ * Advanced per-source column mapping (plan 2026-07-02 7.3). Collapsed by default and kept off the
+ * happy path — the backend auto-detects common column names. When the last test-fetch reported
+ * unmapped columns, they are surfaced as one-click chips to prefill a mapping row. Supports the
+ * two directives for headerless / non-UTF-8 feeds (Ingram/Also): "first row is data" and encoding.
+ */
+function ColumnMappingPanel({
+  open,
+  onToggle,
+  rows,
+  setRows,
+  noHeader,
+  setNoHeader,
+  encodingHint,
+  setEncodingHint,
+  unmappedColumns,
+}: {
+  open: boolean;
+  onToggle: () => void;
+  rows: Array<{ column: string; field: CatalogCanonicalField }>;
+  setRows: (rows: Array<{ column: string; field: CatalogCanonicalField }>) => void;
+  noHeader: boolean;
+  setNoHeader: (v: boolean) => void;
+  encodingHint: string;
+  setEncodingHint: (v: string) => void;
+  unmappedColumns: string[];
+}) {
+  const hasUnmapped = unmappedColumns.length > 0;
+  const configured = rows.length > 0 || noHeader || encodingHint.trim().length > 0;
+
+  function addRow(column = "") {
+    setRows([...rows, { column, field: "code" }]);
+  }
+  function updateRow(i: number, patch: Partial<{ column: string; field: CatalogCanonicalField }>) {
+    setRows(rows.map((r, idx) => (idx === i ? { ...r, ...patch } : r)));
+  }
+  function removeRow(i: number) {
+    setRows(rows.filter((_, idx) => idx !== i));
+  }
+
+  return (
+    <div className="rounded-[7px]" style={{ border: "1px solid #E5E8EE" }}>
+      <button
+        type="button"
+        onClick={onToggle}
+        className="flex w-full items-center gap-2 px-3 py-2 text-left"
+        style={{ background: "#F6F7FA" }}
+        aria-expanded={open}
+      >
+        <span className="text-[12px] font-semibold" style={{ color: "#0B1A2F" }}>Map columns (advanced)</span>
+        {(hasUnmapped || configured) && (
+          <span className="ml-auto text-[11px]" style={{ color: hasUnmapped ? "#7A4D0B" : "#2E8E3A" }}>
+            {configured ? `${rows.length} mapped` : `${unmappedColumns.length} unmapped column${unmappedColumns.length === 1 ? "" : "s"}`}
+          </span>
+        )}
+      </button>
+
+      {open && (
+        <div className="grid gap-3 p-3">
+          <p className="m-0 text-[11px]" style={{ color: "#5E6779" }}>
+            Only needed when the supplier&apos;s column names aren&apos;t recognised. Map their column (or a
+            0-based position for a file with no header row) to a ProcuLink field.
+          </p>
+
+          {hasUnmapped && (
+            <div>
+              <p className="mb-1 text-[11px]" style={{ color: "var(--ink-faint)" }}>From the last preview — click to map:</p>
+              <div className="flex flex-wrap gap-1.5">
+                {unmappedColumns.map((c) => (
+                  <button
+                    key={c}
+                    type="button"
+                    onClick={() => addRow(c)}
+                    className="rounded-[4px] px-2 py-0.5 text-[11px]"
+                    style={{ background: "#FFF3E0", color: "#7A4D0B", border: "1px solid #F0D39A", fontFamily: "'JetBrains Mono',monospace" }}
+                  >
+                    + {c}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {rows.map((r, i) => (
+            <div key={i} className="grid gap-2 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] lg:items-end">
+              <Field label="Their column (or index)">
+                <input
+                  value={r.column}
+                  onChange={(e) => updateRow(i, { column: e.target.value })}
+                  placeholder='e.g. "Id" or 3'
+                  className="h-9 w-full rounded-[5px] px-2.5 text-[12px]"
+                  style={INPUT_STYLE}
+                />
+              </Field>
+              <Field label="ProcuLink field">
+                <select
+                  value={r.field}
+                  onChange={(e) => updateRow(i, { field: e.target.value as CatalogCanonicalField })}
+                  className="h-9 w-full rounded-[5px] px-2 text-[12px]"
+                  style={{ ...INPUT_STYLE, background: "#FFF" }}
+                >
+                  {CATALOG_CANONICAL_FIELDS.map((f) => (
+                    <option key={f} value={f}>{CANONICAL_FIELD_LABELS[f]}</option>
+                  ))}
+                </select>
+              </Field>
+              <button
+                type="button"
+                onClick={() => removeRow(i)}
+                className="inline-flex h-9 items-center justify-center rounded-[5px] px-2 text-[12px]"
+                style={{ border: "1px solid #E9B8B8", color: "#A52E2E", background: "#FFF" }}
+                aria-label="Remove mapping row"
+              >
+                <Trash2 size={13} />
+              </button>
+            </div>
+          ))}
+
+          <button
+            type="button"
+            onClick={() => addRow()}
+            className="inline-flex h-8 w-fit items-center gap-1.5 rounded-[6px] px-3 text-[12px] font-semibold"
+            style={{ border: "1px solid #D5DAEA", color: "#0B1A2F", background: "#FFF" }}
+          >
+            + Add column mapping
+          </button>
+
+          <div className="grid gap-2 rounded-[6px] p-3" style={{ background: "#FBFCFE", border: "1px solid #E5E8EE" }}>
+            <label className="flex items-center gap-2 text-[12px]" style={{ color: "#0B1A2F" }}>
+              <input type="checkbox" checked={noHeader} onChange={(e) => setNoHeader(e.target.checked)} />
+              This file has no header row (map by column position, starting at 0)
+            </label>
+            <Field label="File encoding (optional)">
+              <input
+                value={encodingHint}
+                onChange={(e) => setEncodingHint(e.target.value)}
+                placeholder="e.g. windows-1252 (leave blank for UTF-8)"
+                className="h-9 w-full rounded-[5px] px-2.5 text-[12px] lg:max-w-[280px]"
+                style={INPUT_STYLE}
+              />
+            </Field>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }

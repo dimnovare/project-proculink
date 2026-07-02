@@ -21,8 +21,20 @@
 
 import { API_BASE_URL, USE_MOCK, authHeader, fetchWithTimeout, delay } from "./core";
 
-export type CatalogSourceProtocol = "sftp" | "ftp" | "ftps" | "http" | "https";
+export type CatalogSourceProtocol = "sftp" | "ftp" | "ftps" | "http" | "https" | "logicom";
 export type CatalogSyncStatus = "running" | "ok" | "unchanged" | "failed";
+
+/** Canonical catalog fields a per-source column mapping may target (matches the backend). */
+export const CATALOG_CANONICAL_FIELDS = [
+  "code",
+  "name",
+  "unit",
+  "price",
+  "currency",
+  "barcode",
+  "external_id",
+] as const;
+export type CatalogCanonicalField = (typeof CATALOG_CANONICAL_FIELDS)[number];
 
 /**
  * HTTP auth methods. Only the five the backend implements — no POST, no extra
@@ -49,11 +61,27 @@ export interface CatalogSource {
   lastSyncAt: string | null;
   lastSyncStatus: CatalogSyncStatus | null;
   lastSyncError: string | null;
-  // http/https only — null for sftp/ftp. Secrets NEVER returned; only presence.
+  // http/https/logicom only — null for sftp/ftp. Secrets NEVER returned; only presence.
   url: string | null;
   authMethod: CatalogHttpAuthMethod | null;
   hasAuthConfig: boolean;
   httpMethod: string | null; // "GET" for v2 http sources
+  // Per-source column mapping — NOT a secret; echoed back. {sourceColumn: canonicalField}
+  // plus the "__noheader__"/"__encoding__" directives. null when none configured.
+  columnMapping: Record<string, string> | null;
+}
+
+/**
+ * Write-only Logicom QuickConnect vendor credentials (protocol "logicom"). Logicom's 2FA AES
+ * auth bypasses the generic http auth path via the backend vendor-fetcher seam. Same keep/set
+ * semantics as authConfig: the whole object null = keep stored, present = re-encrypt.
+ */
+export interface CatalogVendorConfig {
+  customerId?: string;
+  consumerKey?: string;
+  consumerSecret?: string;
+  accessTokenKey?: string;
+  currency?: string;
 }
 
 /**
@@ -93,11 +121,15 @@ export interface UpsertCatalogSourcePayload {
   fileFormat: string;
   syncIntervalHours: number;
   isEnabled: boolean;
-  // http/https only (null/ignored for sftp/ftp):
+  // http/https/logicom only (null/ignored for sftp/ftp):
   url?: string | null;
   authMethod?: CatalogHttpAuthMethod | null;
   authConfig?: CatalogHttpAuthConfig | null;
   httpMethod?: string | null;
+  // Per-source column mapping — null = keep stored, {} = clear, value = set. Not a secret.
+  columnMapping?: Record<string, string> | null;
+  // Logicom vendor credentials — write-only, same keep/set semantics as authConfig.
+  vendorConfig?: CatalogVendorConfig | null;
 }
 
 export interface UpsertCatalogSourceResult {
@@ -111,6 +143,22 @@ export interface CatalogMappedField {
   column: string;
 }
 
+/**
+ * One parsed catalog sample row (the backend CatalogSampleRow shape). The test-fetch response
+ * serializes MappedFields as a dictionary {theirColumn: canonicalField} and SampleRows as these
+ * canonical objects — NOT arbitrary column dictionaries, so the preview table renders the fixed
+ * canonical columns (fixes the pre-existing blank-cells bug, plan 2026-07-02 7.4).
+ */
+export interface CatalogSampleRow {
+  code: string;
+  name: string | null;
+  unit: string | null;
+  price: number | null;
+  currency: string | null;
+  barcode: string | null;
+  externalId: string | null;
+}
+
 /** Read-only honesty probe result. */
 export interface CatalogSourceTestResult {
   ok: boolean;
@@ -119,11 +167,12 @@ export interface CatalogSourceTestResult {
   bytes: number | null;
   detectedFormat: string | null;
   headerColumns: string[];
-  mappedFields: CatalogMappedField[];
+  // Backend serializes MappedFields as a dictionary {theirColumn: canonicalField}.
+  mappedFields: Record<string, string>;
   unmappedColumns: string[];
   parsedRows: number | null;
   rowsWithCode: number | null;
-  sampleRows: Array<Record<string, string>>;
+  sampleRows: CatalogSampleRow[];
 }
 
 // ── Mock state (dev only) ──────────────────────────────────────────────────
@@ -153,35 +202,48 @@ export async function upsertCatalogSource(
     await delay(250);
     const prev = _mockSources[supplierId] ?? null;
     const isHttp = payload.protocol === "http" || payload.protocol === "https";
+    const isVendor = payload.protocol === "logicom";
+    const isUrlBased = isHttp || isVendor;
     const hasPassword =
       payload.password === null ? (prev?.hasPassword ?? false) : payload.password !== "";
     const authMethod = (payload.authMethod ?? "none") as CatalogHttpAuthMethod;
-    // Mirror the backend's authConfig keep/clear/set + 'none' clears.
-    const hasAuthConfig = !isHttp
-      ? false
-      : authMethod === "none"
+    // Mirror the backend's authConfig/vendorConfig keep/clear/set + 'none' clears.
+    const hasAuthConfig = isVendor
+      ? payload.vendorConfig == null
+        ? (prev?.hasAuthConfig ?? false)
+        : Boolean(payload.vendorConfig.customerId && payload.vendorConfig.accessTokenKey)
+      : !isHttp
         ? false
-        : payload.authConfig == null
-          ? (prev?.hasAuthConfig ?? false)
-          : true;
+        : authMethod === "none"
+          ? false
+          : payload.authConfig == null
+            ? (prev?.hasAuthConfig ?? false)
+            : true;
+    // columnMapping: null = keep, present = set.
+    const columnMapping = payload.columnMapping === undefined || payload.columnMapping === null
+      ? (prev?.columnMapping ?? null)
+      : Object.keys(payload.columnMapping).length === 0
+        ? null
+        : payload.columnMapping;
     const wasEnabled = prev?.isEnabled ?? false;
     const source: CatalogSource = {
       protocol: payload.protocol,
-      host: isHttp ? "" : payload.host,
-      port: isHttp ? 0 : payload.port,
-      remotePath: isHttp ? "" : payload.remotePath,
-      username: isHttp ? null : payload.username,
-      hasPassword: isHttp ? false : hasPassword,
+      host: isUrlBased ? "" : payload.host,
+      port: isUrlBased ? 0 : payload.port,
+      remotePath: isUrlBased ? "" : payload.remotePath,
+      username: isUrlBased ? null : payload.username,
+      hasPassword: isUrlBased ? false : hasPassword,
       fileFormat: payload.fileFormat || "auto",
       syncIntervalHours: payload.syncIntervalHours,
       isEnabled: payload.isEnabled,
       lastSyncAt: prev?.lastSyncAt ?? null,
       lastSyncStatus: prev?.lastSyncStatus ?? null,
       lastSyncError: prev?.lastSyncError ?? null,
-      url: isHttp ? (payload.url ?? null) : null,
+      url: isUrlBased ? (payload.url ?? null) : null,
       authMethod: isHttp ? authMethod : null,
       hasAuthConfig,
-      httpMethod: isHttp ? "GET" : null,
+      httpMethod: isUrlBased ? "GET" : null,
+      columnMapping,
     };
     _mockSources[supplierId] = source;
     return { source, syncEnqueued: payload.isEnabled && !wasEnabled };
@@ -233,7 +295,7 @@ export async function testFetchCatalogSource(
         bytes: null,
         detectedFormat: null,
         headerColumns: [],
-        mappedFields: [],
+        mappedFields: {},
         unmappedColumns: [],
         parsedRows: null,
         rowsWithCode: null,
@@ -247,19 +309,14 @@ export async function testFetchCatalogSource(
       bytes: 4096,
       detectedFormat: "csv",
       headerColumns: ["sku", "description", "uom", "price", "notes"],
-      mappedFields: [
-        { field: "code", column: "sku" },
-        { field: "name", column: "description" },
-        { field: "unit", column: "uom" },
-        { field: "price", column: "price" },
-      ],
+      mappedFields: { sku: "code", description: "name", uom: "unit", price: "price" },
       unmappedColumns: ["notes"],
       parsedRows: 3,
       rowsWithCode: 3,
       sampleRows: [
-        { sku: "ABC-100", description: "Widget A", uom: "EA", price: "12.50", notes: "n/a" },
-        { sku: "ABC-200", description: "Widget B", uom: "EA", price: "9.00", notes: "n/a" },
-        { sku: "ABC-300", description: "Widget C", uom: "BOX", price: "44.20", notes: "n/a" },
+        { code: "ABC-100", name: "Widget A", unit: "EA", price: 12.5, currency: "EUR", barcode: null, externalId: null },
+        { code: "ABC-200", name: "Widget B", unit: "EA", price: 9.0, currency: "EUR", barcode: null, externalId: null },
+        { code: "ABC-300", name: "Widget C", unit: "BOX", price: 44.2, currency: "EUR", barcode: null, externalId: null },
       ],
     };
   }

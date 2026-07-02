@@ -24,12 +24,17 @@ import type {
 export function defaultPortForProtocol(protocol: CatalogSourceProtocol): number {
   if (protocol === "sftp") return 22;
   if (protocol === "ftp" || protocol === "ftps") return 21;
-  return 0; // http/https are URL-based — port lives in the URL.
+  return 0; // http/https/logicom are URL-based — port lives in the URL.
 }
 
-/** True for the URL-based protocols (http/https); false for the host-based file servers. */
+/** True for the URL-based protocols (http/https/logicom); false for the host-based file servers. */
 export function protocolUsesUrl(protocol: CatalogSourceProtocol): boolean {
-  return protocol === "http" || protocol === "https";
+  return protocol === "http" || protocol === "https" || protocol === "logicom";
+}
+
+/** True for a vendor-connector protocol (custom auth via the backend fetcher seam). */
+export function protocolIsVendor(protocol: CatalogSourceProtocol): boolean {
+  return protocol === "logicom";
 }
 
 /** Form-state inputs the auth-config builder reads (one field set per method). */
