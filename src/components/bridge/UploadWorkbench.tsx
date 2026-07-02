@@ -805,12 +805,14 @@ export function UploadWorkbench() {
         {/* First-run org: lead with the zero-friction sample path. */}
         {isEmptyOrg && sampleCard}
 
-        {/* ===== Stepped intake card: ① supplier (left) · ② files (right) · ③ send (footer) ===== */}
+        {/* ===== Intake card — one large dropzone is the hero; the route
+            (which supplier) rides quietly on top, plan usage is demoted to a
+            chip cluster, and the send action spans the footer. ===== */}
         <div
           style={{
             background: "#FFFFFF",
             border: "1px solid #E5E8EE",
-            borderRadius: 12,
+            borderRadius: 14,
             boxShadow: "0 1px 3px rgba(11,26,47,0.05)",
             overflow: "hidden",
             minWidth: 0,
@@ -819,168 +821,134 @@ export function UploadWorkbench() {
           {/* Bridge edge — buyer-blue → supplier-green, the locked Bridge Layer signature. */}
           <div style={{ height: 3, background: "linear-gradient(90deg, #1E66C9 0%, #2E8E3A 100%)" }} />
 
-          <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,340px)_minmax(0,1fr)]">
-            {/* ── LEFT · Step ① Choose supplier + plan usage ── */}
-            <aside
-              className="flex flex-col gap-4 p-5"
-              style={{ background: "#FAFBFD", borderBottom: "1px solid #E5E8EE" }}
-            >
-              <div className="upload-step-rail flex flex-col gap-3">
-                <StepHeading
-                  n={1}
-                  tone="green"
-                  title={`Choose a ${counterpartyNoun}`}
-                  hint="Where these orders are sent"
-                />
+          {/* ── Route bar · which supplier these orders are sent to (compact,
+              quiet — the dropzone is the hero). Plan usage demoted to chips. ── */}
+          <div
+            className="flex flex-col gap-3 px-5 pt-4 pb-3 sm:flex-row sm:items-center sm:gap-4"
+            style={{ borderBottom: "1px solid #EEF0F4", background: "#FAFBFD" }}
+          >
+            <div className="flex min-w-0 flex-1 items-center gap-2.5">
+              <StepBadge n={1} tone="green" />
+              <label htmlFor="upload-supplier" className="text-[12.5px] font-medium whitespace-nowrap" style={{ color: "#5E6779" }}>
+                Send to
+              </label>
 
-                <div>
-                  <label htmlFor="upload-supplier" className="sr-only">
-                    Choose a {counterpartyNoun}
-                  </label>
+              {suppliersLoading && (
+                <span className="text-[12.5px]" style={{ color: "#5E6779" }}>
+                  Loading {labels.counterpartyPlural.toLowerCase()}…
+                </span>
+              )}
 
-                  {suppliersLoading && (
-                    <div
-                      className="rounded-[8px] px-3 text-[13px] flex items-center min-h-[48px]"
-                      style={{ border: "1px solid #E5E8EE", background: "#FFFFFF", color: "#5E6779" }}
-                    >
-                      Loading {labels.counterpartyPlural.toLowerCase()}…
-                    </div>
-                  )}
+              {suppliersError && !suppliersLoading && (
+                <span className="text-[12px]" style={{ color: "#7A4D0B" }}>
+                  Could not load {labels.counterpartyPlural.toLowerCase()}. Check the API connection and try again.
+                </span>
+              )}
 
-                  {suppliersError && !suppliersLoading && (
-                    <div
-                      className="rounded-[8px] px-3 py-2.5 text-[12px] leading-5"
-                      style={{ border: "1px solid #F0D39A", background: "#FFF8EA", color: "#7A4D0B" }}
-                    >
-                      Could not load {labels.counterpartyPlural.toLowerCase()}. Check the API connection and try again.
-                    </div>
-                  )}
+              {!suppliersLoading && !suppliersError && suppliers.length === 0 && (
+                <span className="text-[12.5px]" style={{ color: "#5E6779" }}>
+                  No {labels.counterpartyPlural.toLowerCase()} yet.{" "}
+                  <Link href="/library/suppliers" className="font-semibold underline" style={{ color: "#1E6D29" }}>
+                    Add a {counterpartyNoun}
+                  </Link>{" "}
+                  to send orders to.
+                </span>
+              )}
 
-                  {!suppliersLoading && !suppliersError && suppliers.length === 0 && (
-                    <div
-                      className="rounded-[8px] px-3 py-3 text-[12.5px] leading-5"
-                      style={{ border: "1px dashed #CBD0DA", background: "#FFFFFF", color: "#5E6779" }}
-                    >
-                      No {labels.counterpartyPlural.toLowerCase()} yet.{" "}
-                      <Link href="/library/suppliers" className="font-semibold underline" style={{ color: "#1E6D29" }}>
-                        Add a {counterpartyNoun}
-                      </Link>{" "}
-                      to send orders to.
-                    </div>
-                  )}
-
-                  {!suppliersLoading && suppliers.length > 0 && (
-                    <div style={{ position: "relative" }}>
-                      <select
-                        id="upload-supplier"
-                        value={supplierId}
-                        onChange={(e) => setSupplierId(e.target.value)}
-                        className="w-full rounded-[8px] pl-3 pr-10 text-[14px] appearance-none min-h-[48px] transition-colors"
-                        style={{
-                          border: `1.5px solid ${hasSupplier ? "#1E6D29" : "#CBD0DA"}`,
-                          background: "#FFFFFF",
-                          color: "#0B1A2F",
-                          fontWeight: 600,
-                          cursor: "pointer",
-                        }}
-                      >
-                        {suppliers.map((s) => (
-                          <option key={s.id} value={s.id}>{s.name}</option>
-                        ))}
-                      </select>
-                      <svg
-                        width="16"
-                        height="16"
-                        viewBox="0 0 16 16"
-                        fill="none"
-                        aria-hidden="true"
-                        style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }}
-                      >
-                        <path d="M4 6l4 4 4-4" stroke="#5E6779" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-                      </svg>
-                    </div>
-                  )}
-                </div>
-
-                {/* Route confirmation + buyer note — keeps the "bridge" mental model
-                    visible the moment a supplier is chosen. */}
-                {hasSupplier && (
-                  <div
-                    className="rounded-[8px] px-3 py-2.5"
-                    style={{ background: "#FFFFFF", border: "1px solid #E5E8EE" }}
+              {!suppliersLoading && suppliers.length > 0 && (
+                <div className="relative min-w-0 flex-1 sm:max-w-[300px]">
+                  <select
+                    id="upload-supplier"
+                    value={supplierId}
+                    onChange={(e) => setSupplierId(e.target.value)}
+                    className="w-full appearance-none rounded-[9px] pl-3 pr-9 text-[13px] transition-colors min-h-[36px]"
+                    style={{
+                      border: `1px solid ${hasSupplier ? "#1E6D29" : "#CBD0DA"}`,
+                      background: "#FFFFFF",
+                      color: hasSupplier ? "#1E6D29" : "#0B1A2F",
+                      fontWeight: 600,
+                      cursor: "pointer",
+                    }}
                   >
-                    <div className="flex items-center gap-2 text-[12px]">
-                      <span style={{ color: "#5E6779" }}>Routes to</span>
-                      <span
-                        className="min-w-0 flex-1 truncate text-right font-semibold"
-                        style={{ color: "#1E6D29" }}
-                        title={selectedSupplier?.name}
-                      >
-                        {selectedSupplier?.name}
-                      </span>
-                    </div>
-                    <div className="mt-2 flex items-center gap-2 text-[11px]" style={{ color: "var(--ink-faint)" }}>
-                      <svg width="12" height="12" viewBox="0 0 14 14" fill="none" aria-hidden="true">
-                        <circle cx="7" cy="7" r="6" stroke="#CBD0DA" strokeWidth="1.2" />
-                        <path d="M7 4.2v3.2l2 1.2" stroke="#99A1C5" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
-                      </svg>
-                      Buyer fills in automatically once the document is parsed.
-                    </div>
-                  </div>
-                )}
+                    {suppliers.map((s) => (
+                      <option key={s.id} value={s.id}>{s.name}</option>
+                    ))}
+                  </select>
+                  <svg
+                    width="14"
+                    height="14"
+                    viewBox="0 0 16 16"
+                    fill="none"
+                    aria-hidden="true"
+                    style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }}
+                  >
+                    <path d="M4 6l4 4 4-4" stroke="#5E6779" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </div>
+              )}
+
+              {hasSupplier && (
+                <span className="hidden items-center gap-1.5 text-[11px] lg:inline-flex" style={{ color: "var(--ink-faint)" }}>
+                  <svg width="12" height="12" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+                    <circle cx="7" cy="7" r="6" stroke="#CBD0DA" strokeWidth="1.2" />
+                    <path d="M7 4.2v3.2l2 1.2" stroke="#99A1C5" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                  Buyer fills in automatically once the document is parsed.
+                </span>
+              )}
+            </div>
+
+            {/* Plan usage — demoted to a quiet chip cluster (was a full left card). */}
+            {billing && (
+              <div className="flex flex-shrink-0 flex-wrap items-center gap-2 text-[11.5px]" style={{ color: "#5E6779" }}>
+                <UsageChip
+                  label={`${billing.plan} plan`}
+                  tone={isReadOnly ? "amber" : "green"}
+                  value={isReadOnly ? "Processing paused" : "Ready"}
+                />
+                <UsageChip label="Orders" value={usageValue(billing.ordersThisMonth, billing.orderLimit)} />
+                <UsageChip label={labels.counterpartyPlural} value={usageValue(billing.suppliersUsed, billing.supplierLimit)} />
               </div>
+            )}
 
-              {/* Plan usage — moved up from the old bottom card so limits are
-                  visible while choosing, not buried below the fold. */}
-              {(billing || billingLoading || billingError) && (
-                <div style={{ height: 1, background: "#E5E8EE" }} />
-              )}
+            {billingLoading && !billing && (
+              <span className="flex-shrink-0 text-[11.5px]" style={{ color: "#5E6779" }}>Checking plan limits…</span>
+            )}
 
-              {billing && (
-                <div
-                  className="rounded-[8px] px-3 py-3"
-                  style={{
-                    background: isReadOnly ? "#FFF8EA" : "#FFFFFF",
-                    border: `1px solid ${isReadOnly ? "#F0D39A" : "#E5E8EE"}`,
-                  }}
-                >
-                  <div className="mb-1 flex items-center justify-between gap-3">
-                    <span className="text-[11px] font-semibold uppercase tracking-[0.06em]" style={{ color: "#5E6779" }}>
-                      {billing.plan} plan
-                    </span>
-                    <span className="rounded px-2 py-0.5 text-[10.5px] font-semibold" style={{ background: isReadOnly ? "#FAF1DD" : "#E9F1EA", color: isReadOnly ? "#9A5F0A" : "#1E6D29" }}>
-                      {isReadOnly ? "Processing paused" : "Ready"}
-                    </span>
-                  </div>
-                  <UsageLine label="Orders" used={billing.ordersThisMonth} limit={billing.orderLimit} />
-                  <UsageLine label={labels.counterpartyPlural} used={billing.suppliersUsed} limit={billing.supplierLimit} />
-                  {billing.trialEndsAt && billing.plan === "pilot" && (
-                    <p className="mt-2 text-[11.5px]" style={{ color: "#5E6779" }}>
-                      Pilot ends {new Date(billing.trialEndsAt).toLocaleDateString()}.
-                    </p>
-                  )}
-                  {isReadOnly && (
-                    <p className="mt-2 text-[11.5px] leading-5" style={{ color: "#7A4D0B" }}>
-                      You can still view previous orders, but new order processing is paused until the plan is upgraded.
-                    </p>
-                  )}
-                </div>
-              )}
+            {billingError && !billing && (
+              <span className="flex-shrink-0 text-[11.5px]" style={{ color: "#7A4D0B" }}>Plan status unavailable</span>
+            )}
+          </div>
 
-              {billingLoading && (
-                <div className="rounded-[8px] px-3 py-3 text-[12px]" style={{ border: "1px solid #E5E8EE", background: "#FFFFFF", color: "#5E6779" }}>
-                  Checking plan limits…
-                </div>
-              )}
+          {/* Read-only / trial-ended note (kept visible — it was in the left card). */}
+          {billing && isReadOnly && (
+            <div
+              className="px-5 py-2.5 text-[11.5px] leading-5"
+              style={{ background: "#FFF8EA", borderBottom: "1px solid #F0D39A", color: "#7A4D0B" }}
+            >
+              You can still view previous orders, but new order processing is paused until the plan is upgraded.
+            </div>
+          )}
+          {billing && !isReadOnly && billing.trialEndsAt && billing.plan === "pilot" && (
+            <div
+              className="px-5 py-2 text-[11.5px]"
+              style={{ background: "#FAFBFD", borderBottom: "1px solid #EEF0F4", color: "#5E6779" }}
+            >
+              Pilot ends {new Date(billing.trialEndsAt).toLocaleDateString()}.
+            </div>
+          )}
+          {billingError && !billing && (
+            <div
+              className="px-5 py-2 text-[11.5px]"
+              style={{ background: "#FFF8EA", borderBottom: "1px solid #F0D39A", color: "#7A4D0B" }}
+            >
+              Plan status is unavailable. Uploads may fail if the API cannot be reached.
+            </div>
+          )}
 
-              {billingError && (
-                <div className="rounded-[8px] px-3 py-3 text-[12px]" style={{ border: "1px solid #F0D39A", background: "#FFF8EA", color: "#7A4D0B" }}>
-                  Plan status is unavailable. Uploads may fail if the API cannot be reached.
-                </div>
-              )}
-            </aside>
-
-            {/* ── RIGHT · Step ② Add file(s) ── */}
+          {/* ── Step ② · the dropzone hero (full width) ── */}
+          <div className="grid grid-cols-1">
+            {/* ── Add file(s) ── */}
             <section className="flex flex-col gap-3 p-5">
               <StepHeading
                 n={2}
@@ -989,7 +957,7 @@ export function UploadWorkbench() {
                 hint="Drop one or more — each file becomes its own order"
               />
 
-              {/* Drop zone — single dashed-border card. Focusable button so keyboard
+              {/* Drop zone — one large dashed-border hero. Focusable button so keyboard
                   users can open the picker with Enter/Space, not just mouse-click. */}
               <div
                 role="button"
@@ -1027,11 +995,11 @@ export function UploadWorkbench() {
                     fileInputRef.current?.click();
                   }
                 }}
-                className="upload-dropzone flex flex-1 flex-col items-center justify-center gap-4 px-6 py-10 sm:px-8 sm:py-12"
+                className="upload-dropzone flex flex-1 flex-col items-center justify-center gap-4 px-6 py-12 sm:px-8 sm:py-14"
                 style={{
-                  border: `1.5px dashed ${dragReject ? "#B43838" : dragging ? "#1E66C9" : "#CBD0DA"}`,
-                  borderRadius: 10,
-                  background: dragReject ? "#FCEDED" : dragging ? "#EFF4FC" : "#FBFCFE",
+                  border: `2px dashed ${dragReject ? "#B43838" : dragging ? "#1E66C9" : "#CBD0DA"}`,
+                  borderRadius: 14,
+                  background: dragReject ? "#FCEDED" : dragging ? "#EFF4FC" : "#F6F7FA",
                   opacity: isReadOnly ? 0.62 : 1,
                   transition: "all 0.15s",
                   cursor: isReadOnly ? "not-allowed" : "pointer",
@@ -1067,26 +1035,38 @@ export function UploadWorkbench() {
                     event.target.value = "";
                   }}
                 />
-                {/* Upload icon — buyer-blue outline (matches design render exactly) */}
-                <svg width="40" height="40" viewBox="0 0 22 22" fill="none" aria-hidden="true">
-                  <path
-                    d="M11 14V4M11 4L7 8M11 4l4 4"
-                    stroke={dragging ? "#1A5DBF" : "#1E66C9"}
-                    strokeWidth="1.6"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                  <path
-                    d="M3 17v1a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-1"
-                    stroke={dragging ? "#1A5DBF" : "#1E66C9"}
-                    strokeWidth="1.6"
-                    strokeLinecap="round"
-                  />
-                </svg>
+                {/* Upload icon in a 60px tile — the tile fills buyer-blue on drag. */}
+                <span
+                  aria-hidden="true"
+                  className="inline-flex items-center justify-center"
+                  style={{
+                    width: 60,
+                    height: 60,
+                    borderRadius: 16,
+                    background: dragging ? "#1E66C9" : dragReject ? "#FBE3E3" : "#F1F3F7",
+                    transition: "background 0.15s",
+                  }}
+                >
+                  <svg width="26" height="26" viewBox="0 0 22 22" fill="none">
+                    <path
+                      d="M11 14V4M11 4L7 8M11 4l4 4"
+                      stroke={dragging ? "#FFFFFF" : dragReject ? "#B43838" : "#5E6779"}
+                      strokeWidth="1.6"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                    <path
+                      d="M3 17v1a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-1"
+                      stroke={dragging ? "#FFFFFF" : dragReject ? "#B43838" : "#5E6779"}
+                      strokeWidth="1.6"
+                      strokeLinecap="round"
+                    />
+                  </svg>
+                </span>
 
                 <div className="text-center" style={{ minWidth: 0, maxWidth: "100%" }}>
                   <p
-                    className="text-[18px] font-bold tracking-[-0.01em] break-words"
+                    className="text-[21px] font-bold tracking-[-0.01em] break-words"
                     style={{
                       color: dragReject ? "#B43838" : "#0B1A2F",
                       fontFamily: "'Bricolage Grotesque', Inter, sans-serif",
@@ -1100,16 +1080,30 @@ export function UploadWorkbench() {
                       ? selectedFile.name
                       : "Drop your order files here"}
                   </p>
-                  <p className="text-[12.5px] mt-2" style={{ color: dragReject ? "#B43838" : "#5E6779" }}>
+                  <p className="text-[13px] mt-2" style={{ color: dragReject ? "#B43838" : "#5E6779" }}>
                     {dragReject
                       ? `We accept ${ACCEPTED_UPLOAD_FORMATS.humanList}`
                       : isMulti
                       ? "One order will be created per file"
                       : selectedFile
                       ? `${Math.max(1, Math.round(selectedFile.size / 1024))} KB ready to send`
-                      : `One or more files · ${ACCEPTED_UPLOAD_FORMATS.humanList} · up to 10 MB each`}
+                      : "Each file becomes its own order — drag in, or browse below"}
                   </p>
                 </div>
+
+                {/* Accepted-format chips + size cap (only in the empty hero state). */}
+                {!selectedFile && !isMulti && !dragReject && (
+                  <>
+                    <div className="flex flex-wrap justify-center gap-1.5">
+                      {(["CSV", "XLSX", "PDF", "XML", "cXML", "UBL", "EDI"] as const).map((f) => (
+                        <FileChip key={f} type={f} />
+                      ))}
+                    </div>
+                    <p className="text-[11px]" style={{ color: "var(--ink-faint)" }}>
+                      cXML · UBL · Peppol · EDIFACT · X12 — up to 10 MB each
+                    </p>
+                  </>
+                )}
 
                 {/* Browse files — prominent accent CTA (also the file-picker trigger) */}
                 <button
@@ -1480,6 +1474,12 @@ export function UploadWorkbench() {
           </div>
         </div>
 
+        {/* ===== More ways to bring orders in — the quiet secondary intake rail.
+            Present, never in a first-timer's way. Honest per FABLE5 §6: email +
+            API are live (real backend + settings tabs); SFTP / S3 pull are marked
+            "Assisted setup" because they still need a human setup step. ===== */}
+        <MoreWaysToIngest />
+
         {/* Established org: keep the sample path below the intake card. */}
         {!isEmptyOrg && sampleCard}
 
@@ -1675,23 +1675,176 @@ export function UploadWorkbench() {
   );
 }
 
-function UsageLine({ label, used, limit }: { label: string; used: number; limit: number }) {
+/** "13 / 100k" style usage value, collapsing an effectively-unlimited cap to "Custom". */
+function usageValue(used: number, limit: number): string {
   const unlimited = limit >= 2_000_000_000;
-  const pct = unlimited || limit === 0 ? 100 : Math.min(100, Math.round((used / limit) * 100));
-  const color = unlimited || pct < 75 ? "#1E6D29" : pct < 95 ? "#B36D14" : "#B43838";
+  return `${used} / ${unlimited ? "Custom" : limit}`;
+}
+
+/**
+ * UsageChip — the quiet plan-usage chip shown in the route bar. Replaces the
+ * heavy full-width usage card; keeps the same numbers just demoted. `tone`
+ * green/amber colors the readiness chip; unset = neutral count chip.
+ */
+function UsageChip({ label, value, tone }: { label: string; value: string; tone?: "green" | "amber" }) {
+  const toneStyle =
+    tone === "green"
+      ? { background: "#E9F1EA", border: "1px solid #D8EBDA", color: "#1E6D29" }
+      : tone === "amber"
+      ? { background: "#FAF1DD", border: "1px solid #F0D39A", color: "#9A5F0A" }
+      : { background: "#F1F3F7", border: "1px solid #E5E8EE", color: "#5E6779" };
+  return (
+    <span
+      className="inline-flex items-center gap-1.5 rounded-[8px] px-2.5 py-1 text-[11.5px] capitalize"
+      style={toneStyle}
+    >
+      <span>{label}</span>
+      <b
+        className="font-semibold"
+        style={{ color: tone ? undefined : "#0B1A2F", fontFamily: "'JetBrains Mono', monospace", fontVariantNumeric: "tabular-nums" }}
+      >
+        {value}
+      </b>
+    </span>
+  );
+}
+
+/**
+ * MoreWaysToIngest — the "More ways to bring orders in" rail. A quiet secondary
+ * intake surface listing the automated channels that exist alongside browser
+ * upload. Each links to the real settings tab that configures it.
+ *
+ * Truthfulness (FABLE5 §6): email intake + the REST/webhook API are live and
+ * self-serve, so they carry a plain "Set up →" affordance. SFTP and S3/R2 pull
+ * still need a human setup step, so they are honestly badged "Assisted setup" —
+ * we never imply a pure one-click self-serve toggle for them.
+ */
+function MoreWaysToIngest() {
+  const channels: {
+    key: string;
+    title: string;
+    desc: string;
+    href: string;
+    assisted?: boolean;
+    icon: React.ReactNode;
+  }[] = [
+    {
+      key: "email",
+      title: "Email intake",
+      desc: "Forward orders to a private inbox — attachments are parsed automatically.",
+      href: "/settings?tab=email",
+      icon: (
+        <svg width="18" height="18" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+          <rect x="2.5" y="4.5" width="15" height="11" rx="1.5" stroke="#1E66C9" strokeWidth="1.4" />
+          <path d="M3 5.5l7 5 7-5" stroke="#1E66C9" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      ),
+    },
+    {
+      key: "api",
+      title: "REST API & webhooks",
+      desc: "Push orders straight from your ERP, Zapier, or Make with an API key.",
+      href: "/settings?tab=api",
+      icon: (
+        <svg width="18" height="18" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+          <path d="M7 5L3 10l4 5M13 5l4 5-4 5" stroke="#1E6D29" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      ),
+    },
+    {
+      key: "sftp",
+      title: "SFTP pull",
+      desc: "We poll an SFTP folder on a schedule and import new order files.",
+      href: "/settings?tab=sftp",
+      assisted: true,
+      icon: (
+        <svg width="18" height="18" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+          <rect x="3" y="11" width="14" height="6" rx="1.5" stroke="#5E6779" strokeWidth="1.4" />
+          <path d="M10 3v6M7.5 6.5L10 9l2.5-2.5" stroke="#5E6779" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      ),
+    },
+    {
+      key: "s3",
+      title: "S3 / R2 pull",
+      desc: "Point us at an object-storage bucket and we import new objects.",
+      href: "/settings?tab=s3",
+      assisted: true,
+      icon: (
+        <svg width="18" height="18" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+          <ellipse cx="10" cy="5" rx="6" ry="2.2" stroke="#5E6779" strokeWidth="1.4" />
+          <path d="M4 5v10c0 1.2 2.7 2.2 6 2.2s6-1 6-2.2V5" stroke="#5E6779" strokeWidth="1.4" strokeLinecap="round" />
+        </svg>
+      ),
+    },
+  ];
 
   return (
-    <div className="mt-2">
-      <div className="mb-1 flex items-center justify-between text-[11.5px]">
-        <span style={{ color: "#5E6779" }}>{label}</span>
-        <span style={{ color: "#0B1A2F", fontFamily: "'JetBrains Mono', monospace", fontWeight: 700 }}>
-          {used} / {unlimited ? "Custom" : limit}
+    <section
+      style={{
+        background: "#FFFFFF",
+        border: "1px solid #E5E8EE",
+        borderRadius: 14,
+        boxShadow: "0 1px 3px rgba(11,26,47,0.05)",
+        overflow: "hidden",
+      }}
+    >
+      <div className="flex items-baseline justify-between gap-3 px-5 pt-4 pb-1">
+        <h2
+          className="text-[14px] font-semibold"
+          style={{ color: "#0B1A2F", margin: 0, fontFamily: "'Bricolage Grotesque', Inter, sans-serif" }}
+        >
+          More ways to bring orders in
+        </h2>
+        <span className="text-[11.5px]" style={{ color: "var(--ink-faint)" }}>
+          Automate intake once you&apos;re past the first order
         </span>
       </div>
-      <div className="h-1.5 overflow-hidden rounded-full" style={{ background: "#E5E8EE" }}>
-        <div className="h-full rounded-full" style={{ width: `${unlimited ? 100 : pct}%`, background: color }} />
+
+      <div className="grid grid-cols-1 gap-px px-5 pb-5 pt-2 sm:grid-cols-2" style={{ background: "transparent" }}>
+        {channels.map((c) => (
+          <Link
+            key={c.key}
+            href={c.href}
+            className="group flex items-start gap-3 rounded-[10px] px-3.5 py-3 transition-colors"
+            style={{ border: "1px solid #EEF0F4", background: "#FAFBFD", margin: 3 }}
+          >
+            <span
+              aria-hidden="true"
+              className="mt-0.5 inline-flex flex-shrink-0 items-center justify-center"
+              style={{ width: 34, height: 34, borderRadius: 9, background: "#FFFFFF", border: "1px solid #E5E8EE" }}
+            >
+              {c.icon}
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="flex items-center gap-2">
+                <span className="text-[13px] font-semibold" style={{ color: "#0B1A2F" }}>
+                  {c.title}
+                </span>
+                {c.assisted && (
+                  <span
+                    className="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-semibold"
+                    style={{ background: "#FAF1DD", color: "#9A5F0A" }}
+                    title="Needs a one-time setup step with the team — not a pure one-click toggle."
+                  >
+                    Assisted setup
+                  </span>
+                )}
+              </span>
+              <span className="mt-0.5 block text-[11.5px] leading-[1.4]" style={{ color: "#5E6779" }}>
+                {c.desc}
+              </span>
+              <span
+                className="mt-1.5 inline-flex items-center gap-1 text-[11.5px] font-semibold"
+                style={{ color: c.assisted ? "#9A5F0A" : "#1E6D29" }}
+              >
+                {c.assisted ? "Set up with us" : "Set up"} →
+              </span>
+            </span>
+          </Link>
+        ))}
       </div>
-    </div>
+    </section>
   );
 }
 
