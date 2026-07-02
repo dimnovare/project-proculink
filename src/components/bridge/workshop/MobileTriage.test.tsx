@@ -1,7 +1,7 @@
 import { describe, test, expect, vi, afterEach } from "vitest";
 import { render, screen, cleanup, within, fireEvent } from "@testing-library/react";
 import { MobileTriage, type MobileTriageProps } from "./MobileTriage";
-import type { WorkshopIssue } from "./IssuesPanel";
+import type { WorkshopIssue, IssuesResolveApi } from "./IssuesPanel";
 import type { OrderLine } from "@/types/procurement";
 
 afterEach(cleanup);
@@ -60,6 +60,18 @@ const makeProps = (over: Partial<MobileTriageProps> = {}): MobileTriageProps => 
   onFix: vi.fn(),
   onFocusField: vi.fn(),
   onSend: vi.fn(),
+  ...over,
+});
+
+const makeResolve = (over: Partial<IssuesResolveApi> = {}): IssuesResolveApi => ({
+  lineEditId: null,
+  lineDraft: "",
+  setLineDraft: vi.fn(),
+  startLineEdit: vi.fn(),
+  commitLineCode: vi.fn(),
+  cancelLineEdit: vi.fn(),
+  confirmFlaggedLine: vi.fn(),
+  acceptingLineId: null,
   ...over,
 });
 
@@ -146,5 +158,33 @@ describe("MobileTriage — long real-data values wrap (no mobile overflow)", () 
     const sendCard = screen.getByTestId("mobile-card-send");
     const badge = within(sendCard).getByText("cXML");
     expect(badge.style.whiteSpace).toBe("nowrap");
+  });
+});
+
+// The bulk-accept affordance must carry the SAME label as the desktop workshop
+// (IssuesPanel / SendReadinessStrip renamed to "Resolve all suggested" in f365aa0;
+// mobile was missed). The /upload/preview MagicMappingPreview keeps its own
+// "Accept all AI suggestions" — that surface has no issues framing.
+describe("MobileTriage — bulk-accept label parity with the desktop workshop", () => {
+  test("renders 'Resolve all suggested (N)' and calls bulkAcceptSuggestions(0)", () => {
+    const bulkAcceptSuggestions = vi.fn();
+    render(
+      <MobileTriage
+        {...makeProps({
+          issues: [issue({ code: "line:l1", kind: "ai-suggestion", lineId: "l1" })],
+          blockingIssues: 1,
+          lines: [makeLine({ id: "l1" })],
+          resolve: makeResolve({ bulkAcceptSuggestions, bulkAccepting: false }),
+          suggestableCount: 3,
+          highConfCount: 3,
+        })}
+      />,
+    );
+    const bulk = screen.getByTestId("mobile-bulk-accept");
+    const btn = within(bulk).getByRole("button", { name: /resolve all suggested \(3\)/i });
+    fireEvent.click(btn);
+    expect(bulkAcceptSuggestions).toHaveBeenCalledWith(0);
+    // The pre-f365aa0 label must not reappear on this surface.
+    expect(screen.queryByRole("button", { name: /accept all ai suggestions/i })).not.toBeInTheDocument();
   });
 });
