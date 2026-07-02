@@ -259,6 +259,7 @@ function src(partial: Partial<CatalogSource>): CatalogSource {
     authMethod: null,
     hasAuthConfig: false,
     httpMethod: null,
+    columnMapping: null,
     ...partial,
   };
 }
