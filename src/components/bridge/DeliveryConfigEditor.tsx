@@ -592,6 +592,12 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
             })}
           </div>
 
+          {/* Plain-language "which one do I pick?" nudge for non-technical users. */}
+          <p className="mt-2 text-[11px] leading-[1.5]" style={{ color: "var(--ink-faint)" }}>
+            Not sure? Use HTTP if your supplier gave you a webhook/API URL, SFTP if they gave you a
+            server address + login, Email if they just receive an email.
+          </p>
+
           <div className="mt-4 rounded-[6px] p-3" style={{ background: "#F0F7F1", border: "1px solid #CBE8CE" }}>
             <p className="text-[11px] font-semibold" style={{ color: "#1F6F2A" }}>How sending works</p>
             <p className="mt-1 text-[11px]" style={{ color: "#2E5F35" }}>
@@ -628,6 +634,9 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
                 </Field>
                 <p className="mt-1.5 text-[11px]" style={{ color: "var(--ink-faint)" }}>
                   When set, an order is converted to this format right before it&rsquo;s sent to this supplier.
+                </p>
+                <p className="mt-1 text-[11px]" style={{ color: "var(--ink-faint)" }}>
+                  This is the file format your supplier&rsquo;s system expects. If unsure, ask them or leave as default.
                 </p>
               </div>
 
@@ -1124,17 +1133,17 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
                     {authType === "apikey" && (
                       <div className="grid gap-3 lg:grid-cols-[180px_minmax(0,1fr)]">
                         <Field label="Header">
-                          <input value={apiKeyHeader} onChange={(e) => setApiKeyHeader(e.target.value)} className="h-9 w-full rounded-[5px] px-2.5 text-[12px]" style={INPUT_STYLE} />
+                          <input value={apiKeyHeader} onChange={(e) => setApiKeyHeader(e.target.value)} placeholder="X-Api-Key" className="h-9 w-full rounded-[5px] px-2.5 text-[12px]" style={INPUT_STYLE} />
                         </Field>
                         <Field label="Value">
-                          <input value={apiKeyValue} onChange={(e) => setApiKeyValue(e.target.value)} placeholder={hasSavedCredentials ? "********" : "sk-..."} className="h-9 w-full rounded-[5px] px-2.5 text-[12px]" style={INPUT_STYLE} />
+                          <input value={apiKeyValue} onChange={(e) => setApiKeyValue(e.target.value)} placeholder={hasSavedCredentials ? "********" : "sk_live_… (paste the key your supplier gave you)"} className="h-9 w-full rounded-[5px] px-2.5 text-[12px]" style={INPUT_STYLE} />
                         </Field>
                       </div>
                     )}
 
                     {authType === "bearer" && (
                       <Field label="Token">
-                        <input value={bearerToken} onChange={(e) => setBearerToken(e.target.value)} placeholder={hasSavedCredentials ? "********" : "Bearer token"} className="h-9 w-full rounded-[5px] px-2.5 text-[12px]" style={INPUT_STYLE} />
+                        <input value={bearerToken} onChange={(e) => setBearerToken(e.target.value)} placeholder={hasSavedCredentials ? "********" : "paste the bearer token"} className="h-9 w-full rounded-[5px] px-2.5 text-[12px]" style={INPUT_STYLE} />
                       </Field>
                     )}
 
@@ -1192,10 +1201,10 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
                     {authType === "basic" && (
                       <div className={protocol === "erp_directo" ? "grid gap-3 lg:grid-cols-3" : "grid gap-3 lg:grid-cols-2"}>
                         <Field label="Username">
-                          <input value={basicUsername} onChange={(e) => setBasicUsername(e.target.value)} className="h-9 w-full rounded-[5px] px-2.5 text-[12px]" style={INPUT_STYLE} />
+                          <input value={basicUsername} onChange={(e) => setBasicUsername(e.target.value)} placeholder="supplier-username" className="h-9 w-full rounded-[5px] px-2.5 text-[12px]" style={INPUT_STYLE} />
                         </Field>
                         <Field label="Password">
-                          <input value={basicPassword} onChange={(e) => setBasicPassword(e.target.value)} placeholder={hasSavedCredentials ? "********" : "Password"} className="h-9 w-full rounded-[5px] px-2.5 text-[12px]" style={INPUT_STYLE} />
+                          <input value={basicPassword} onChange={(e) => setBasicPassword(e.target.value)} placeholder={hasSavedCredentials ? "********" : "supplier password"} className="h-9 w-full rounded-[5px] px-2.5 text-[12px]" style={INPUT_STYLE} />
                         </Field>
                         {protocol === "erp_directo" && (
                           <Field label="API key">
@@ -1259,9 +1268,16 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
                 buildConfig={buildConfigObject}
               />
 
-              <pre className="rounded-[6px] p-3 text-[11px]" style={{ background: "#0B1A2F", color: "#DDE7F7", overflow: "auto" }}>
-                {configPreview}
-              </pre>
+              {/* Raw config JSON is dev-facing detail — collapsed by default so it doesn't
+                  intimidate non-technical users, but kept one click away for power users. */}
+              <details>
+                <summary className="cursor-pointer text-[11px] font-semibold" style={{ color: "#5E6779" }}>
+                  Show raw config (advanced)
+                </summary>
+                <pre className="mt-2 rounded-[6px] p-3 text-[11px]" style={{ background: "#0B1A2F", color: "#DDE7F7", overflow: "auto" }}>
+                  {configPreview}
+                </pre>
+              </details>
 
               {error && (
                 <div className="rounded-[6px] px-3 py-2 text-[12px]" style={{ background: "#FCEBEB", color: "#A52E2E", border: "1px solid #F5C5C5" }}>

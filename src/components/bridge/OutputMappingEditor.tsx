@@ -18,6 +18,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import Link from "next/link";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   getMappingOverride, upsertMappingOverride, previewMappingOverride, getSourceTokens,
@@ -298,6 +299,60 @@ function TemplateReferencePanel({ onInsert }: { onInsert: (token: string) => voi
   );
 }
 
+// A few copyable Scriban expressions so a non-technical user can write a template
+// without leaving the screen. Collapsed by default; does not change editor behavior.
+const FORMULA_EXAMPLES: Array<{ code: string; label: string }> = [
+  { code: "{{ po_number }}", label: "insert a field" },
+  { code: '{{ order_date | date.to_string "yyyy-MM-dd" }}', label: "format a date" },
+  { code: "{{ buyer_name | string.upcase }}", label: "uppercase" },
+];
+
+function FormulaHelpRow({ code, label }: { code: string; label: string }) {
+  const [copied, setCopied] = useState(false);
+  async function copy() {
+    try {
+      await navigator.clipboard?.writeText(code);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1200);
+    } catch {
+      /* clipboard unavailable — the code is still visible to select manually */
+    }
+  }
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+      <code style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11, color: "#5E3DB0", background: "#F0EAFB", border: "1px solid #DACEF3", borderRadius: 5, padding: "2px 6px" }}>
+        {code}
+      </code>
+      <span style={{ fontSize: 11, color: "var(--ink-faint)" }}>{label}</span>
+      <button type="button" onClick={copy} aria-label={`Copy ${code}`}
+        style={{ marginLeft: "auto", fontSize: 10.5, fontWeight: 600, color: "#1E66C9", background: "#FFFFFF", border: "1px solid #CBD0DA", borderRadius: 5, padding: "2px 8px", cursor: "pointer", minHeight: 24 }}>
+        {copied ? "Copied" : "Copy"}
+      </button>
+    </div>
+  );
+}
+
+function FormulaHelp() {
+  return (
+    <details style={{ marginBottom: 8 }}>
+      <summary style={{ cursor: "pointer", fontSize: 11.5, fontWeight: 600, color: "#5E6779" }}>
+        Formula help
+      </summary>
+      <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 8, border: "1px solid #E5E8EE", borderRadius: 8, background: "#FFFFFF", padding: 12 }}>
+        {FORMULA_EXAMPLES.map((ex) => (
+          <FormulaHelpRow key={ex.code} code={ex.code} label={ex.label} />
+        ))}
+        <div style={{ fontSize: 11, color: "var(--ink-faint)", lineHeight: 1.5 }}>
+          Fields come from your order; <code style={{ fontFamily: "'JetBrains Mono',monospace" }}>|</code> applies a transform.{" "}
+          <Link href="/help/mapping-basics" style={{ color: "#1E66C9", fontWeight: 600 }}>
+            Mapping basics
+          </Link>
+        </div>
+      </div>
+    </details>
+  );
+}
+
 function TemplateEditor({
   template, contentType, onTemplateChange, onContentTypeChange, onInsertStarter, textareaRef,
 }: {
@@ -327,6 +382,7 @@ function TemplateEditor({
           Insert starter template
         </button>
       </div>
+      <FormulaHelp />
       <textarea
         ref={textareaRef}
         value={template}

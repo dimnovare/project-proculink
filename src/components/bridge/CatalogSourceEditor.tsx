@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import type { KeyboardEvent, ReactNode } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { KeyRound, Save, Trash2, Zap, AlertTriangle } from "lucide-react";
+import { KeyRound, Save, Trash2, Zap, AlertTriangle, Download } from "lucide-react";
 import {
   deleteCatalogSource,
   getCatalogSource,
@@ -47,6 +47,26 @@ const SAMPLE_COLUMNS: Array<{ key: keyof import("@/lib/api/catalogSources").Cata
 function formatSampleCell(value: string | number | null): string {
   if (value === null || value === undefined) return "";
   return String(value);
+}
+
+// Client-side canonical catalog CSV template — header + 2 example rows. Generated in the
+// browser (Blob + download), no backend. Lets a non-technical user see the exact shape
+// ProcuLink reads before they hunt for their supplier's export.
+const CATALOG_TEMPLATE_CSV =
+  "code,name,unit,price,currency,barcode\n" +
+  "ACME-001,Widget A,each,12.50,EUR,5901234123457\n" +
+  "ACME-002,Widget B,box,24.00,EUR,5901234123464\n";
+
+function downloadCatalogTemplate() {
+  const blob = new Blob([CATALOG_TEMPLATE_CSV], { type: "text/csv;charset=utf-8" });
+  const href = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = href;
+  a.download = "proculink-catalog-template.csv";
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(href);
 }
 
 // Human labels for the canonical mapping targets.
@@ -616,6 +636,22 @@ export function CatalogSourceEditor({ supplierId }: CatalogSourceEditorProps) {
                     Leave on auto-detect unless the supplier&apos;s file has no clear extension.
                   </p>
                 </div>
+              </div>
+
+              {/* ── What we read + a downloadable template (helps non-technical users) ── */}
+              <div className="flex flex-col gap-2 rounded-[6px] p-3 sm:flex-row sm:items-center sm:justify-between" style={{ background: "#FBFCFE", border: "1px solid #E5E8EE" }}>
+                <p className="m-0 min-w-0 flex-1 text-[11px] leading-[1.5]" style={{ color: "#5E6779" }}>
+                  These are the columns we read from your catalog. <code>code</code> is the supplier&apos;s own
+                  item number — we match your order lines to it. Only <code>code</code> is required.
+                </p>
+                <button
+                  type="button"
+                  onClick={downloadCatalogTemplate}
+                  className="inline-flex h-8 flex-shrink-0 items-center justify-center gap-1.5 rounded-[6px] px-3 text-[12px] font-semibold"
+                  style={{ border: "1px solid #D5DAEA", color: "#0B1A2F", background: "#FFF" }}
+                >
+                  <Download size={13} /> Download CSV template
+                </button>
               </div>
 
               {/* ── Credentials: HTTP auth OR Logicom vendor creds OR file-server password ── */}
