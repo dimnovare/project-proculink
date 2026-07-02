@@ -82,7 +82,7 @@ function SourceTag({ src }: { src: Source }) {
   const s = SOURCE_STYLE[src];
   return (
     <span
-      className="inline-flex items-center rounded-[6px] px-2 py-[3px] text-[11px] font-semibold"
+      className="inline-flex items-center rounded-full px-2.5 py-[3px] text-[11.5px] font-semibold"
       style={{ background: s.bg, color: s.color }}
     >
       {src}
@@ -267,7 +267,7 @@ export function MappingEditor() {
 
         <div className="hidden flex-1 lg:block" />
 
-        {/* Source filter chips */}
+        {/* Source filter chips — rounded-full pills, buyer-blue active (design v2) */}
         <div className="-mx-4 flex items-center gap-1.5 overflow-x-auto px-4 sm:mx-0 sm:px-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {(["All", "AI", "Manual", "Imported", "Inherited"] as const).map((s) => {
             const active = srcFilter === s;
@@ -275,11 +275,11 @@ export function MappingEditor() {
               <button
                 key={s}
                 onClick={() => setSrc(s)}
-                className="h-9 flex-shrink-0 rounded-[7px] px-3 text-[12.5px] font-medium transition-colors lg:h-[30px] lg:px-2.5 lg:text-[12px]"
+                className="h-9 flex-shrink-0 rounded-full px-3.5 text-[12.5px] font-semibold transition-colors lg:h-[28px] lg:px-3 lg:text-[11.5px]"
                 style={{
-                  border: `1px solid ${active ? "#2E8E3A55" : "#E5E8EE"}`,
-                  background: active ? GREEN_SOFT : "#FFFFFF",
-                  color: active ? GREEN_DEEP : "#5E6779",
+                  border: `1px solid ${active ? BLUE : "#E5E8EE"}`,
+                  background: active ? BLUE_SOFT : "#FFFFFF",
+                  color: active ? BLUE_LINK : "#5E6779",
                 }}
               >
                 {s}
@@ -365,11 +365,11 @@ export function MappingEditor() {
         </div>
       )}
 
-      {/* Table card — white rounded card floating on the grey canvas */}
+      {/* Table card — white rounded card floating on the grey canvas (design v2: 12px radius, layered shadow) */}
       <div className="flex-1 min-h-0 overflow-auto">
         <div
-          className="overflow-hidden rounded-[10px]"
-          style={{ background: "#FFFFFF", border: "1px solid #E5E8EE", boxShadow: "0 1px 2px rgba(11,26,47,0.04)" }}
+          className="overflow-hidden rounded-[12px]"
+          style={{ background: "#FFFFFF", border: "1px solid #E5E8EE", boxShadow: "0 1px 3px rgba(11,26,47,0.05), 0 1px 2px rgba(11,26,47,0.04)" }}
         >
 
           {/* Live mode, no supplier chosen yet — prompt for selection instead of
@@ -430,11 +430,11 @@ export function MappingEditor() {
                   <button
                     key={row.id}
                     onClick={() => { setNotice(null); setPanel({ kind: "edit", row }); }}
-                    className="block w-full px-4 py-3.5 text-left active:bg-[#F7FAFD]"
+                    className="block w-full px-[18px] py-3.5 text-left active:bg-[#F1F3F7]"
                     style={{
                       background: "#FFFFFF",
                       border: "none",
-                      borderTop: idx === 0 ? "none" : `1px solid ${BORDER}`,
+                      borderTop: idx === 0 ? "none" : `1px solid #EEF0F4`,
                     }}
                   >
                     <div className="mb-2 flex items-center justify-between gap-2">
@@ -474,14 +474,14 @@ export function MappingEditor() {
                 ))}
               </div>
 
-              {/* Desktop table */}
+              {/* Desktop table — design v2: tinted header band, 9.5px caps labels, trailing chevron */}
               <div className="hidden overflow-x-auto md:block">
               <table className="w-full min-w-[760px] border-collapse" style={{ fontSize: 12.5 }}>
                 <thead
                   style={{
                     position: "sticky",
                     top: 0,
-                    background: "#FFFFFF",
+                    background: "#F1F3F7",
                     zIndex: 10,
                   }}
                 >
@@ -496,8 +496,8 @@ export function MappingEditor() {
                     ].map(({ label, align, title }, i) => (
                       <th
                         key={i}
-                        className="px-4 py-2.5 text-[10.5px] font-semibold uppercase tracking-[0.07em]"
-                        style={{ color: "var(--ink-faint)", textAlign: align }}
+                        className="px-[18px] py-[10px] text-[9.5px] font-bold uppercase tracking-[0.07em]"
+                        style={{ color: "var(--ink-muted)", textAlign: align }}
                         title={title}
                       >
                         {label}
@@ -512,61 +512,70 @@ export function MappingEditor() {
                         )}
                       </th>
                     ))}
+                    {/* trailing chevron column (design v2 — row affordance) */}
+                    <th className="w-[40px] px-[18px] py-[10px]" aria-hidden="true" />
                   </tr>
                 </thead>
                 <tbody>
-                  {filtered.map((row) => (
+                  {filtered.map((row, ri) => (
                     <tr
                       key={row.id}
                       className="group transition-colors cursor-pointer"
-                      style={{ borderBottom: `1px solid ${BORDER}` }}
+                      style={{ borderTop: ri ? `1px solid #EEF0F4` : "none" }}
                       onClick={() => { setNotice(null); setPanel({ kind: "edit", row }); }}
                       onMouseEnter={(e) =>
-                        ((e.currentTarget as HTMLElement).style.background = "#F7FAFD")
+                        ((e.currentTarget as HTMLElement).style.background = "#F1F3F788")
                       }
                       onMouseLeave={(e) =>
                         ((e.currentTarget as HTMLElement).style.background = "transparent")
                       }
                     >
                       {/* Buyer name — buyer side is blue */}
-                      <td className="px-4 py-3.5">
+                      <td className="px-[18px] py-3">
                         <span className="text-[12.5px] font-medium" style={{ color: BLUE_LINK }}>
                           {row.buyer || "—"}
                         </span>
                       </td>
 
                       {/* Buyer code — dark mono */}
-                      <td className="px-4 py-3.5">
+                      <td className="px-[18px] py-3">
                         <span className="font-mono text-[12px] font-semibold tracking-[-0.01em]" style={{ color: INK }}>
                           {row.buyerCode}
                         </span>
                       </td>
 
                       {/* Supplier name — supplier side is green */}
-                      <td className="px-4 py-3.5">
+                      <td className="px-[18px] py-3">
                         <span className="text-[12.5px] font-medium" style={{ color: GREEN_CODE }}>
                           {row.supplier || "—"}
                         </span>
                       </td>
 
                       {/* Supplier code — green mono */}
-                      <td className="px-4 py-3.5">
+                      <td className="px-[18px] py-3">
                         <span className="font-mono text-[12px] font-semibold tracking-[-0.01em]" style={{ color: GREEN_CODE }}>
                           {row.supplierCode}
                         </span>
                       </td>
 
                       {/* Source */}
-                      <td className="px-4 py-3.5">
+                      <td className="px-[18px] py-3">
                         <SourceTag src={row.source} />
                       </td>
 
                       {/* Used */}
                       <td
-                        className="px-4 py-3.5 text-right font-mono text-[12px]"
+                        className="px-[18px] py-3 text-right font-mono text-[12px]"
                         style={{ color: "var(--ink-faint)" }}
                       >
                         {row.used != null ? `${row.used}×` : "—"}
+                      </td>
+
+                      {/* Trailing chevron — row-opens-editor affordance (design v2) */}
+                      <td className="w-[40px] px-[18px] py-3 text-right">
+                        <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true" className="inline-block">
+                          <path d="M4.5 2.5L8 6l-3.5 3.5" stroke="#98A0AE" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
                       </td>
                     </tr>
                   ))}
