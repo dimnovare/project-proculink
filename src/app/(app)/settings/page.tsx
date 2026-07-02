@@ -9,7 +9,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AlertTriangle, Building, Copy, Database, Euro, HardDrive, Key, Mail, Plug, Plus, Save, ShieldCheck, Trash2, Zap } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { BillingSection } from "@/components/bridge/BillingSection";
-import { SettingsGroup, primaryGreenButton } from "@/components/settings/SettingsPrimitives";
+import { SettingsGroup } from "@/components/settings/SettingsPrimitives";
+import { Button } from "@/components/bridge/DSPrimitives";
 import {
   apiClient,
   apiBaseUrl,
@@ -73,7 +74,10 @@ export default function SettingsPage() {
         {/* Page header */}
         <PageHeader title="Settings" sub={`${orgName} · ${planLabel}`} />
 
-        <div className="settings-grid" style={{ display: "grid", gridTemplateColumns: "200px minmax(0,1fr)", gap: 28, alignItems: "start" }}>
+        {/* Responsive grid as classes (1-col mobile / 200px nav + content ≥md) — the
+            previous inline gridTemplateColumns forced the media query below to use
+            !important to win over it. */}
+        <div className="settings-grid grid grid-cols-1 items-start gap-4 md:gap-7 md:[grid-template-columns:200px_minmax(0,1fr)]">
           {/* Left nav — active = white card + buyer-blue left accent bar + blue icon */}
           <nav
             className="settings-nav flex w-full overflow-x-auto gap-1 md:flex-col md:overflow-visible md:gap-1"
@@ -122,7 +126,6 @@ export default function SettingsPage() {
           color: var(--ink);
         }
         @media (max-width: 767px) {
-          .settings-grid { grid-template-columns: 1fr !important; gap: 16px !important; }
           /* Mobile uses a compact command grid instead of a horizontal scroller:
              every settings area is visible at once, which is faster for thumb use. */
           .settings-nav {
@@ -183,7 +186,7 @@ export default function SettingsPage() {
 
 // ── Settings group card — canonical section framing ────────────────────────
 
-// SettingsGroup + primaryGreenButton live in @/components/settings/SettingsPrimitives
+// SettingsGroup lives in @/components/settings/SettingsPrimitives
 // (shared; a Next page module may not export non-default symbols).
 
 // Row inside a settings group — canonical label/hint + right slot
@@ -328,14 +331,10 @@ function OrgSection() {
         </div>
 
         <div style={{ marginTop: 18, display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-          <button
-            onClick={handleSave}
-            disabled={!canSave}
-            style={{ ...primaryGreenButton, background: canSave ? "var(--brand-green)" : "var(--ink-faint)", cursor: canSave ? "pointer" : "not-allowed" }}
-          >
+          <Button variant="primary" size="lg" onClick={handleSave} disabled={!canSave}>
             <Save size={14} strokeWidth={2} />
             {saving ? "Saving…" : "Save changes"}
-          </button>
+          </Button>
           {feedback && (
             <span style={{ fontSize: 12.5, fontWeight: 500, color: feedback.kind === "ok" ? "var(--brand-green-deep)" : "var(--danger)" }}>
               {feedback.text}
@@ -477,8 +476,8 @@ function OrderDirectionSetting() {
   );
 }
 
-// Shared primary CTA — brand green (matches design "Save changes" / primary actions)
-// primaryGreenButton lives in @/components/settings/SettingsPrimitives.
+// Shared primary CTA — brand green (matches design "Save changes" / primary actions):
+// <Button variant="primary" size="lg"> from @/components/bridge/DSPrimitives.
 
 // Shared neutral secondary button — white, bordered (matches design "Manage" / "Change plan")
 const secondaryNeutralButton: CSSProperties = {
@@ -713,7 +712,9 @@ function EmailSettingsSection() {
               <input value={form.username} onChange={(event) => update("username", event.target.value)} placeholder="orders@company.com" style={inputStyle} />
             </FormField>
             <FormField label="Password">
-              <div style={{ display: "flex", flexDirection: "column", gap: 6 }} className="sm:flex-row">
+              {/* flex-col/sm:flex-row as classes — the previous inline flexDirection
+                  style overrode sm:flex-row at every width (inline beats class). */}
+              <div className="flex flex-col gap-1.5 sm:flex-row">
                 <input
                   value={password}
                   onChange={(event) => {
@@ -766,8 +767,9 @@ function EmailSettingsSection() {
           </div>
         </div>
 
-        {/* Footer: security note + save */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 16, paddingTop: 14, borderTop: "1px solid var(--border)" }} className="sm:flex-row sm:items-center">
+        {/* Footer: security note + save. flex-col/sm:flex-row as classes — the
+            previous inline flexDirection style overrode sm:flex-row at every width. */}
+        <div className="mt-4 flex flex-col gap-2.5 border-t border-border pt-3.5 sm:flex-row sm:items-center">
           <div style={{ display: "flex", alignItems: "center", gap: 8, flex: 1 }}>
             <ShieldCheck size={15} color="var(--brand-green)" strokeWidth={1.75} />
             <span style={{ fontSize: 11.5, color: "var(--ink-muted)" }}>
@@ -784,14 +786,10 @@ function EmailSettingsSection() {
           {saved && !mutation.error && !validationError && (
             <span role="status" style={{ fontSize: 12.5, fontWeight: 600, color: "var(--brand-green-deep)" }}>Email settings saved.</span>
           )}
-          <button
-            onClick={save}
-            disabled={mutation.isPending}
-            style={{ ...primaryGreenButton, background: mutation.isPending ? "var(--ink-faint)" : "var(--brand-green)", cursor: mutation.isPending ? "not-allowed" : "pointer" }}
-          >
+          <Button variant="primary" size="lg" onClick={save} disabled={mutation.isPending}>
             <Save size={14} strokeWidth={2} />
             {mutation.isPending ? "Saving..." : "Save email"}
-          </button>
+          </Button>
         </div>
       </SettingsGroup>
     </div>
@@ -1445,13 +1443,10 @@ function ConnectorsSection() {
               Add a webhook to receive real-time order events at any URL — your own backend, or a Zapier/Make.com
               webhook step.
             </p>
-            <button
-              onClick={() => setShowForm(true)}
-              style={{ ...primaryGreenButton, marginTop: 14 }}
-            >
+            <Button variant="primary" size="lg" className="mt-3.5" onClick={() => setShowForm(true)}>
               <Plus size={14} strokeWidth={2} />
               Add webhook
-            </button>
+            </Button>
           </div>
         )}
 

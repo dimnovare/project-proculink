@@ -12,7 +12,8 @@ import {
   getS3Settings,
   updateS3Settings,
 } from "@/lib/api-client";
-import { SettingsGroup, primaryGreenButton } from "@/components/settings/SettingsPrimitives";
+import { SettingsGroup } from "@/components/settings/SettingsPrimitives";
+import { Button } from "@/components/bridge/DSPrimitives";
 
 const INK = "var(--ink)";
 const MUTED = "var(--ink-muted)";
@@ -201,14 +202,10 @@ function SaveBar({
     >
       <span className="text-[11px]" style={{ color: FAINT }}>{hint}</span>
       {/* Shared brand-green Save button (matches Organization / Email "Save"). */}
-      <button
-        onClick={onSave}
-        disabled={saving}
-        style={{ ...primaryGreenButton, background: saving ? "var(--ink-faint)" : "var(--brand-green)", cursor: saving ? "not-allowed" : "pointer" }}
-      >
+      <Button variant="primary" size="lg" onClick={onSave} disabled={saving}>
         <Save size={14} strokeWidth={2} />
         {saving ? "Saving…" : "Save"}
-      </button>
+      </Button>
     </div>
   );
 }

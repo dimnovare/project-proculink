@@ -317,23 +317,22 @@ function EndpointsCard({
               ))}
             </div>
 
-            {/* Last delivery + actions (actions reveal on row hover/focus to match the clean design) */}
-            <div className="wh-metarow" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginTop: 7 }}>
+            {/* Last delivery + actions (actions reveal on row hover/focus to match the clean design).
+                Phone (≤560px) layout — stacked, stretched, ≥40px tap targets — is Tailwind
+                max-[560px]: utilities here; inline display styles previously defeated the
+                media-query rules that tried to do this (inline style beats non-!important CSS). */}
+            <div className="wh-metarow mt-[7px] flex items-center justify-between gap-2 max-[560px]:flex-col max-[560px]:items-stretch max-[560px]:gap-2.5">
               <div style={{ fontSize: 11, color: "var(--ink-faint,#5B6980)" }}>Last delivery: {w.lastDelivery}</div>
-              <div className="wh-actions" style={{ display: "flex", gap: 6 }}>
+              <div className="wh-actions flex gap-1.5 max-[560px]:gap-2">
                 {allowEdit && (
                   <button
-                    className="wh-actionbtn"
+                    className="wh-actionbtn h-[27px] px-2.5 text-[12px] font-semibold max-[560px]:h-10 max-[560px]:flex-1 max-[560px]:text-[13px]"
                     onClick={() => onEdit(w)}
                     style={{
-                      height: 27,
-                      padding: "0 10px",
                       borderRadius: "var(--radius,6px)",
                       border: "1px solid var(--border-strong,#C6CDDA)",
                       background: "var(--surface,#FFFFFF)",
                       color: "var(--ink-muted,#56627A)",
-                      fontSize: 12,
-                      fontWeight: 600,
                       cursor: "pointer",
                     }}
                   >
@@ -341,18 +340,14 @@ function EndpointsCard({
                   </button>
                 )}
                 <button
-                  className="wh-actionbtn"
+                  className="wh-actionbtn h-[27px] px-2.5 text-[12px] font-semibold max-[560px]:h-10 max-[560px]:flex-1 max-[560px]:text-[13px]"
                   onClick={() => onToggle(w.id)}
                   disabled={togglingId === w.id}
                   style={{
-                    height: 27,
-                    padding: "0 10px",
                     borderRadius: "var(--radius,6px)",
                     border: `1px solid ${BLUE}`,
                     background: "var(--surface,#FFFFFF)",
                     color: togglingId === w.id ? "var(--ink-faint,#5B6980)" : BLUE,
-                    fontSize: 12,
-                    fontWeight: 600,
                     cursor: togglingId === w.id ? "default" : "pointer",
                   }}
                 >
@@ -362,7 +357,7 @@ function EndpointsCard({
                   {togglingId === w.id ? "…" : w.status === "paused" ? "Enable" : "Disable"}
                 </button>
                 <button
-                  className="wh-actionbtn"
+                  className="wh-actionbtn h-[27px] px-2.5 text-[12px] font-semibold max-[560px]:h-10 max-[560px]:flex-1 max-[560px]:text-[13px]"
                   onClick={async () => {
                     const ok = await confirm({
                       title: "Delete webhook",
@@ -374,14 +369,10 @@ function EndpointsCard({
                   }}
                   disabled={deletingId === w.id}
                   style={{
-                    height: 27,
-                    padding: "0 10px",
                     borderRadius: "var(--radius,6px)",
                     border: "1px solid #F5B8B8",
                     background: "var(--surface,#FFFFFF)",
                     color: deletingId === w.id ? "var(--ink-faint,#5B6980)" : "var(--danger,#C53A3A)",
-                    fontSize: 12,
-                    fontWeight: 600,
                     cursor: deletingId === w.id ? "default" : "pointer",
                   }}
                 >
@@ -841,11 +832,11 @@ function WebhooksLayout({
           .wh-deliv-cards { display: block; }
           .wh-deliv-table { display: none; }
         }
-        /* Phone: actions always visible, stacked under the meta label, >=40px tap targets */
+        /* Phone: actions always visible (stacking / stretch / tap-target sizing now
+           lives on the elements as max-[560px]: Tailwind utilities — CSS rules here
+           could not beat the elements' styles without !important) */
         @media (max-width: 560px) {
-          .wh-metarow { flex-direction: column; align-items: stretch; gap: 10px; }
-          .wh-actions { opacity: 1 !important; transform: none !important; gap: 8px; }
-          .wh-actionbtn { flex: 1; height: 40px; font-size: 13px; }
+          .wh-actions { opacity: 1 !important; transform: none !important; }
         }
       `}</style>
 

@@ -1,4 +1,12 @@
 import * as React from "react";
+import {
+  CheckCircle2,
+  AlertTriangle,
+  XCircle,
+  Loader2,
+  Circle,
+  type LucideIcon,
+} from "lucide-react";
 
 /* =====================================================================
    UnifiedStatusBadge — the ONE canonical order/exception status badge.
@@ -11,6 +19,13 @@ import * as React from "react";
      - canonical human labels (STATUS_LABELS / statusLabel)
      - semantic tone → token colors (statusTone)
    so rows, filter chips, and detail panels all say the same thing.
+
+   This file absorbed the former src/components/ui/UnifiedStatusBadge.tsx
+   duplicate (2026-07-02): the optional `icon` prop below renders that
+   version's per-tone Lucide glyph (spinning Loader2 while in progress)
+   instead of the default leading dot. Dense scanning surfaces (inbox
+   table, connections list) opt in with `icon`; everywhere else keeps the
+   dot, pixel-unchanged.
 
    IMPORTANT vocabulary fix:
      ready             → "Normalized"        (parsed/validated, nothing to send yet)
@@ -34,15 +49,16 @@ import * as React from "react";
 
 export type StatusTone = "success" | "warning" | "danger" | "info" | "neutral";
 
-type ToneStyle = { bg: string; fg: string };
+type ToneStyle = { bg: string; fg: string; Icon: LucideIcon };
 
-/** Canonical tone → {bg, fg} using the locked semantic tokens. */
+/** Canonical tone → {bg, fg} using the locked semantic tokens, plus one
+    Lucide glyph per tone for the opt-in `icon` rendering mode. */
 const TONE_STYLE: Record<StatusTone, ToneStyle> = {
-  success: { bg: "var(--brand-green-soft)", fg: "var(--brand-green-deep)" },
-  warning: { bg: "var(--amber-soft)", fg: "var(--amber)" },
-  danger: { bg: "var(--danger-soft)", fg: "var(--danger)" },
-  info: { bg: "var(--brand-blue-soft)", fg: "var(--brand-blue-deep)" },
-  neutral: { bg: "var(--surface-2)", fg: "var(--ink-muted)" },
+  success: { bg: "var(--brand-green-soft)", fg: "var(--brand-green-deep)", Icon: CheckCircle2 },
+  warning: { bg: "var(--amber-soft)", fg: "var(--amber)", Icon: AlertTriangle },
+  danger: { bg: "var(--danger-soft)", fg: "var(--danger)", Icon: XCircle },
+  info: { bg: "var(--brand-blue-soft)", fg: "var(--brand-blue-deep)", Icon: Loader2 },
+  neutral: { bg: "var(--surface-2)", fg: "var(--ink-muted)", Icon: Circle },
 };
 
 type StatusMeta = { label: string; tone: StatusTone; pulse?: boolean };
@@ -56,7 +72,10 @@ const STATUS_META: Record<string, StatusMeta> = {
   // ── Intake / processing ──────────────────────────────────────────────
   new: { label: "New", tone: "neutral" },
   uploaded: { label: "Uploaded", tone: "neutral" },
-  parsing: { label: "Parsing", tone: "info", pulse: true },
+  pending_parse: { label: "Queued", tone: "neutral" },
+  // `parsing` is labelled "Extracting" to match the inbox stage vocabulary
+  // (InboxView STATUS_PRESENTATION) — one word for the extract stage app-wide.
+  parsing: { label: "Extracting", tone: "info", pulse: true },
   extracting: { label: "Extracting", tone: "info", pulse: true },
   normalizing: { label: "Normalizing", tone: "info", pulse: true },
 
@@ -93,6 +112,10 @@ const STATUS_META: Record<string, StatusMeta> = {
   // ── Terminal / inactive ──────────────────────────────────────────────
   cancelled: { label: "Cancelled", tone: "neutral" },
   archived: { label: "Archived", tone: "neutral" },
+
+  // ── Connection lifecycle (versioned supplier connections) ────────────
+  live: { label: "Live", tone: "success" },
+  draft: { label: "Draft", tone: "neutral" },
 };
 
 /** Humanize an unknown status key: "delivery_dead_letter" → "Delivery dead letter". */
@@ -134,6 +157,14 @@ export function statusTone(status: string): StatusTone {
 type UnifiedStatusBadgeProps = {
   status: string;
   size?: "sm" | "md";
+  /**
+   * Render the per-tone Lucide glyph (check / warning / x / spinner / circle)
+   * instead of the default leading dot. Ported from the retired
+   * components/ui duplicate for dense scanning surfaces (inbox table,
+   * connections list). Defaults to false — the dot — so existing call
+   * sites are unchanged.
+   */
+  icon?: boolean;
   className?: string;
 };
 
@@ -145,32 +176,44 @@ const SIZE: Record<NonNullable<UnifiedStatusBadgeProps["size"]>, string> = {
 export function UnifiedStatusBadge({
   status,
   size = "sm",
+  icon = false,
   className,
 }: UnifiedStatusBadgeProps) {
   const meta = statusMeta(status);
   const tone = TONE_STYLE[meta.tone];
+  const Icon = tone.Icon;
 
   return (
     <span
       className={[
         "inline-flex items-center gap-1.5 rounded-full font-semibold whitespace-nowrap",
         SIZE[size],
+        icon ? "tabular-nums" : "",
         className,
       ]
         .filter(Boolean)
         .join(" ")}
       style={{ background: tone.bg, color: tone.fg }}
     >
-      <span
-        aria-hidden
-        className={[
-          "w-[6px] h-[6px] rounded-full flex-shrink-0",
-          meta.pulse ? "animate-[pulse-dot_1.4s_ease-in-out_infinite]" : "",
-        ]
-          .join(" ")
-          .trim()}
-        style={{ background: "currentColor" }}
-      />
+      {icon ? (
+        <Icon
+          aria-hidden
+          size={12}
+          strokeWidth={2.25}
+          className={["flex-shrink-0", meta.pulse ? "animate-spin" : ""].join(" ").trim()}
+        />
+      ) : (
+        <span
+          aria-hidden
+          className={[
+            "w-[6px] h-[6px] rounded-full flex-shrink-0",
+            meta.pulse ? "animate-[pulse-dot_1.4s_ease-in-out_infinite]" : "",
+          ]
+            .join(" ")
+            .trim()}
+          style={{ background: "currentColor" }}
+        />
+      )}
       {meta.label}
     </span>
   );
