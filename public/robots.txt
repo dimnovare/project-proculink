@@ -6,7 +6,11 @@ Disallow: /upload
 Disallow: /drafts
 Disallow: /library
 Disallow: /operations
+Disallow: /connections
+Disallow: /inbound
+Disallow: /admin
 Disallow: /settings
+Disallow: /onboarding
 
 User-agent: Bingbot
 Allow: /
@@ -16,7 +20,11 @@ Disallow: /upload
 Disallow: /drafts
 Disallow: /library
 Disallow: /operations
+Disallow: /connections
+Disallow: /inbound
+Disallow: /admin
 Disallow: /settings
+Disallow: /onboarding
 
 User-agent: Twitterbot
 Allow: /
@@ -32,6 +40,10 @@ Disallow: /upload
 Disallow: /drafts
 Disallow: /library
 Disallow: /operations
+Disallow: /connections
+Disallow: /inbound
+Disallow: /admin
 Disallow: /settings
+Disallow: /onboarding
 
 Sitemap: https://proculink.eu/sitemap.xml

@@ -9,6 +9,10 @@ export default function WatchPage() {
   const videoUrl = process.env.NEXT_PUBLIC_WALKTHROUGH_VIDEO_URL ?? "";
   const posterUrl = process.env.NEXT_PUBLIC_WALKTHROUGH_VIDEO_POSTER ?? "";
   const loomUrl = process.env.NEXT_PUBLIC_WALKTHROUGH_LOOM_URL ?? "";
+  // Booking link is optional (offer⇔works): only promise a live/booked demo when
+  // a real scheduling URL is configured; otherwise degrade to the email fallback
+  // and drop any duration claim we can't guarantee.
+  const bookDemoUrl = process.env.NEXT_PUBLIC_BOOK_DEMO_URL ?? "";
 
   useEffect(() => {
     if (videoUrl) capture("watch_demo_started", { source: "r2" });
@@ -74,7 +78,23 @@ export default function WatchPage() {
       )}
 
       <p style={{ marginTop: 36, fontSize: 14, color: "#56627A" }}>
-        Prefer a live walkthrough? <Link href="/pricing" style={{ color: "#2E8E3A" }}>See pricing</Link> or book a 15-minute demo from inside the product.
+        Prefer a live walkthrough? <Link href="/pricing" style={{ color: "#2E8E3A" }}>See pricing</Link>
+        {bookDemoUrl ? (
+          <>
+            {" "}or{" "}
+            <a href={bookDemoUrl} target="_blank" rel="noopener noreferrer" style={{ color: "#2E8E3A" }}>
+              book a demo
+            </a>.
+          </>
+        ) : (
+          <>
+            {" "}or email{" "}
+            <a href="mailto:hello@proculink.eu?subject=ProcuLink%20demo" style={{ color: "#2E8E3A" }}>
+              hello@proculink.eu
+            </a>{" "}
+            to set up a walkthrough.
+          </>
+        )}
       </p>
     </div>
   );
