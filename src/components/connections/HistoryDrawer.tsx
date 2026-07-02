@@ -216,6 +216,7 @@ export function HistoryContent(props: HistoryContentProps) {
                         size="sm"
                         disabled={busy}
                         loading={testingRevisionId === r.id}
+                        title="Runs a safety check against your recent orders to catch problems. Nothing is actually sent."
                         onClick={() => onTest(r.id)}
                       >
                         Test
@@ -228,7 +229,7 @@ export function HistoryContent(props: HistoryContentProps) {
                         disabled={busy || !testsPassed}
                         title={
                           testsPassed
-                            ? undefined
+                            ? "Applies this version to new orders. Orders already sent keep their original format. You can revert anytime."
                             : "Run tests — checks must pass before going live."
                         }
                         onClick={() => onRequestPublish(r.id, r.versionNo)}
@@ -242,9 +243,10 @@ export function HistoryContent(props: HistoryContentProps) {
                         size="sm"
                         disabled={busy}
                         loading={rollingBackRevisionId === r.id}
+                        title={'Makes this older version live for new orders again — just like "Make live".'}
                         onClick={() => onRequestRollback(r.id, r.versionNo)}
                       >
-                        Restore this version
+                        Use this version
                       </Button>
                     )}
                     {canArchive && (
@@ -462,7 +464,7 @@ export function HistoryDrawer(props: HistoryDrawerProps) {
                 lineHeight: 1.4,
               }}
             >
-              Every version, checks, restore, and replay
+              See every saved version, test changes, or go back to an older one. Nothing here touches live orders — every change is reversible.
             </p>
           </div>
           <button

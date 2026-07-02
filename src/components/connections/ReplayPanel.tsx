@@ -179,6 +179,11 @@ export function ReplayPanel({
         </div>
       </div>
 
+      <p className="mt-3 text-[12px] leading-[1.5]" style={{ color: "var(--ink-muted)" }}>
+        Pick a version and how many recent orders to test against. More orders = more confidence but takes longer. Start
+        with 10 if unsure.
+      </p>
+
       {selectedRevision && (
         <p className="mt-2 text-[11.5px] leading-[1.5]" style={{ color: "var(--ink-faint)" }}>
           Replays the most recent {clampLimit(recentLimit)} order{clampLimit(recentLimit) === 1 ? "" : "s"} for this
@@ -245,7 +250,11 @@ export function ReplayPanel({
           ) : (
             <>
               <ReplaySummaryHeader summary={summary} revisionStatus={result.revisionStatus} versionNo={result.revisionVersionNo} />
-              <ul className="mt-3 flex flex-col gap-2 list-none p-0 m-0">
+              <p className="mt-3 text-[11.5px] leading-[1.5] m-0" style={{ color: "var(--ink-muted)" }}>
+                Red = an order that passes today would start failing. Yellow = its output would change. No colour = no
+                impact.
+              </p>
+              <ul className="mt-2 flex flex-col gap-2 list-none p-0 m-0">
                 {orderedOrders.map((o) => (
                   <OrderDiffRow key={o.orderId} order={o} />
                 ))}
@@ -291,6 +300,20 @@ function ReplaySummaryHeader({
         </span>
         <RevisionStatusBadge status={revisionStatus} size="sm" />
       </div>
+      {(() => {
+        const changedCount = summary.outputChanges + summary.validationChanges;
+        const noImpact = changedCount === 0 && summary.startFailing === 0;
+        return (
+          <p
+            className="mt-1.5 text-[12.5px] leading-[1.5] m-0"
+            style={{ color: summary.startFailing > 0 ? "var(--danger)" : "var(--ink-muted)" }}
+          >
+            {noImpact
+              ? "Good news: these recent orders would process the same way under this version — safe to go live."
+              : `This version changes the output for ${changedCount} order${changedCount === 1 ? "" : "s"}. Review the details below before going live.`}
+          </p>
+        );
+      })()}
       <p
         className="mt-1.5 text-[13px] font-semibold leading-[1.5] m-0"
         style={{ color: summary.startFailing > 0 ? "var(--danger)" : "var(--ink)" }}
