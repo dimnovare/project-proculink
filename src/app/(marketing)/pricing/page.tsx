@@ -82,8 +82,8 @@ const ALL_TIERS = PLANS.filter((p) => !p.hidden).map((p) => ({
   /** Plans whose price is a real recurring monthly amount get a "/mo" tag. */
   isMonthly: p.orderLimitIsMonthly && p.priceMonthly != null && p.priceMonthly > 0,
   priceMonthly: p.priceMonthly,
-  /** Intended annual price billed once per year. Only shown when annual billing
-   *  is actually live (ANNUAL_BILLING_ENABLED) — see plans.ts. */
+  /** Live Stripe annual price billed once per year. Shown when annual billing
+   *  is enabled (ANNUAL_BILLING_ENABLED) — see plans.ts. */
   priceYearly: p.priceYearly,
   yearlyMonthlyEq: yearlyMonthlyEquivalent(p),
   savePercent: yearlySavePercent(p),
@@ -92,8 +92,8 @@ const ALL_TIERS = PLANS.filter((p) => !p.hidden).map((p) => ({
 }));
 
 // Uniform advertised annual discount, DERIVED from the plan ladder (all paid
-// tiers share the same placeholder discount today; if the verified Stripe
-// amounts ever diverge per tier, the per-card save-% still renders its own).
+// tiers currently share the same ~17% annual discount; if a per-tier Stripe
+// yearly price ever diverges, the per-card save-% still renders its own).
 const TOGGLE_SAVE_PERCENT = yearlySavePercent(PLAN_BY_ID.growth);
 
 type Tier = (typeof ALL_TIERS)[number];
@@ -139,15 +139,14 @@ const FAQ: Array<[string, string]> = [
 ];
 
 export default function PricingPage() {
-  // Monthly/Annual toggle — GATED behind ANNUAL_BILLING_ENABLED (offer⇔works).
-  // Annual checkout maps a plan to its Stripe `*YearlyPriceId`, but those price
-  // ids are not yet populated in the backend, so offering annual would route the
-  // buyer into a Checkout that fails with "price not configured". Until the
-  // founder populates the Stripe yearly price ids (backend + Railway env) and
-  // flips ANNUAL_BILLING_ENABLED, we show the monthly path only and never render
-  // the annual toggle — so the page never offers something that doesn't work.
+  // Monthly/Annual toggle — annual billing is LIVE (offer⇔works). Selecting a
+  // yearly plan calls createCheckoutSession(plan, "yearly"), which the backend
+  // maps to the plan's live Stripe `*YearlyPriceId`, so the Checkout resolves a
+  // real price. ANNUAL_BILLING_ENABLED stays as an env-overridable kill switch
+  // (set NEXT_PUBLIC_ANNUAL_BILLING_ENABLED=false to hide the toggle) but
+  // defaults ON — see plans.ts.
   const [billing, setBilling] = useState<"monthly" | "yearly">("monthly");
-  // Force monthly whenever annual is not live, regardless of the toggle state.
+  // Only treat the selection as yearly when annual is enabled (kill-switch safe).
   const yearly = ANNUAL_BILLING_ENABLED && billing === "yearly";
 
   // Volume recommender — reuses the SAME helper the landing-page ROICalculator
@@ -239,11 +238,10 @@ export default function PricingPage() {
       <section className="plk-section" style={{ paddingTop: 48 }}>
         <div className="plk-wrap">
           {/* Billing cadence toggle — the design's .billing-toggle pill.
-              Only rendered when annual billing is actually live
-              (ANNUAL_BILLING_ENABLED). The Stripe yearly price ids are not yet
-              populated in the backend, so annual checkout would fail; rather
-              than show a toggle that routes into a broken Checkout, we omit it
-              and show monthly only until the founder enables annual. */}
+              Rendered when annual billing is enabled (ANNUAL_BILLING_ENABLED,
+              default ON). Annual routes to the plan's live Stripe yearly price,
+              so the toggle never offers a Checkout that can't resolve. The flag
+              stays as an env kill switch to hide the toggle if annual is paused. */}
           {ANNUAL_BILLING_ENABLED && (
             <div className="plk-toggle-wrap">
               <div className="plk-billing-toggle" role="group" aria-label="Billing period">
@@ -378,10 +376,10 @@ export default function PricingPage() {
 function PriceCard({ tier, yearly, recommended }: { tier: Tier; yearly: boolean; recommended: boolean }) {
   const featured = tier.featured;
 
-  // Annual display: the plan's REAL yearly price (plans.ts single source —
-  // placeholder until Stripe-verified), shown as a monthly equivalent with the
-  // billed-annually total + derived save-% underneath. Tiers without an annual
-  // price (Pilot, Enterprise) render their normal monthly/custom card.
+  // Annual display: the plan's live Stripe yearly price (plans.ts single
+  // source), shown as a monthly equivalent with the billed-annually total +
+  // derived save-% underneath. Tiers without an annual price (Pilot, Enterprise)
+  // render their normal monthly/custom card.
   const showYearly = yearly && tier.isMonthly && tier.priceYearly != null && tier.yearlyMonthlyEq != null;
   const bigPrice = showYearly ? `€${tier.yearlyMonthlyEq!.toLocaleString("en-IE")}` : tier.price;
   const priceTag = tier.isMonthly;

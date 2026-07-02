@@ -7,6 +7,11 @@ import { BridgeIllustration } from "@/components/marketing/BridgeIllustration";
 import { MarketingNav } from "@/components/marketing/MarketingNav";
 import { ROICalculator } from "@/components/marketing/ROICalculator";
 import { COPYRIGHT_NOTICE } from "@/lib/legal-entity";
+import {
+  INBOUND_FORMAT_COUNT,
+  OUTBOUND_FORMAT_COUNT,
+  DELIVERY_CHANNEL_COUNT,
+} from "@/lib/marketing/format-catalog";
 
 // ─── Brand tokens (Bridge Layer design system) ───────────────────────────────
 // Primary accent is BUYER-BLUE (#1E66C9); supplier side is forest green
@@ -180,17 +185,16 @@ const FEATURES: Array<{
   },
 ];
 
-// keep in sync with src/lib/standards/catalog.ts and
-// src/app/(marketing)/formats/page.tsx (IMPORT_FORMATS / OUTPUT_FORMATS / DELIVERY_METHODS).
-//
-// Inbound  = all IMPORT_FORMATS rows (live + configurable; 0 onRequest/planned) = 10
-// Outbound = OUTPUT_FORMATS rows with status "live" = 6  (EDIFACT is onRequest)
-// Channels = DELIVERY_METHODS rows with status "live" or "configurable" = 6
+// Counts are DERIVED from @/lib/marketing/format-catalog (the same rows the
+// /formats page renders), so the hero numbers can never drift from the table:
+//   Inbound  = import formats available today (live + configurable)
+//   Outbound = output formats that are LIVE (EDIFACT onRequest is excluded)
+//   Channels = delivery methods available today (live + configurable)
 const STATS = [
-  { value: "10",     label: "Inbound formats"    },
-  { value: "6",      label: "Outbound formats"   },
-  { value: "6",      label: "Delivery channels"  },
-  { value: "EU",     label: "Data residency"     },
+  { value: String(INBOUND_FORMAT_COUNT),   label: "Inbound formats"    },
+  { value: String(OUTBOUND_FORMAT_COUNT),  label: "Outbound formats"   },
+  { value: String(DELIVERY_CHANNEL_COUNT), label: "Delivery channels"  },
+  { value: "EU",                           label: "Data residency"     },
 ];
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
