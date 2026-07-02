@@ -538,7 +538,7 @@ export function UploadWorkbench() {
       setSelectedFile(null);
       setUploadError(null);
       setFileError(
-        `${file.name} isn't a supported file type. We accept ${ACCEPTED_UPLOAD_FORMATS.humanList}.`,
+        `${file.name} isn't supported. We read spreadsheets (Excel, CSV), PDFs, and order files (XML, EDI). Try a different file.`,
       );
       return;
     }
@@ -564,7 +564,7 @@ export function UploadWorkbench() {
       setExtraFiles([]);
       setUploadError(null);
       setFileError(
-        `${rejected[0]?.name ?? "That file"} isn't a supported file type. We accept ${ACCEPTED_UPLOAD_FORMATS.humanList}.`,
+        `${rejected[0]?.name ?? "That file"} isn't supported. We read spreadsheets (Excel, CSV), PDFs, and order files (XML, EDI). Try a different file.`,
       );
       return;
     }
@@ -686,7 +686,7 @@ export function UploadWorkbench() {
             New here? Start with a sample order
           </p>
           <p className="text-[12px] mt-1" style={{ color: "#5E6779" }}>
-            No purchase order handy? Run one with an example CSV in seconds — it won&apos;t count toward your monthly quota.
+            Try it free with a sample order. We give you an example purchase order to test the whole flow — no file of your own needed, and it won&apos;t use your quota.
           </p>
           {sample.error && (
             <p className="mt-2 text-[12px]" style={{ color: "var(--danger)" }}>
@@ -1160,6 +1160,13 @@ export function UploadWorkbench() {
                     {isApiMockMode
                       ? "(Demo: click anywhere to simulate a parsed PDF)"
                       : "or drop files anywhere in this area"}
+                  </p>
+                )}
+
+                {/* Multi-file guidance — one order per file, all routed to the chosen supplier */}
+                {!fileError && (
+                  <p className="text-[11.5px] text-center max-w-[420px]" style={{ color: "var(--ink-faint)" }}>
+                    Uploading several files? We create a separate order for each — all sent to the same {selectedSupplier?.name ?? counterpartyNoun}.
                   </p>
                 )}
 
