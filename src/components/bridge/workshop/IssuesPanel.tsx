@@ -158,7 +158,7 @@ export function IssuesPanel({ issues, onFocusField, onFix, readyLabel, resolve, 
         </span>
         <span style={{ fontSize: 13, fontWeight: 700 }}>Ready to send</span>
         <span style={{ fontSize: 11.5, color: "#2E7D38", fontWeight: 500 }}>
-          {readyLabel ?? "No open issues — every blocker is cleared."}
+          {readyLabel ?? "No open issues — every required field is filled and checked."}
         </span>
       </div>
     );
@@ -173,7 +173,7 @@ export function IssuesPanel({ issues, onFocusField, onFix, readyLabel, resolve, 
       {/* Header — title + count, with the bulk "resolve all" actions on the right */}
       <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
         <div style={{ minWidth: 0, flex: 1 }}>
-          <div style={{ fontSize: 13, fontWeight: 700, color: C.ink, letterSpacing: "-0.01em" }}>Issues to resolve</div>
+          <div style={{ fontSize: 13, fontWeight: 700, color: C.ink, letterSpacing: "-0.01em" }}>Before you send</div>
           <div role="status" aria-live="polite" style={{ fontSize: 11.5, color: C.inkMuted, marginTop: 1 }}>
             {issues.length} {issues.length === 1 ? "issue" : "issues"}
             {blocking > 0 ? ` · ${blocking} blocking` : ""}
@@ -190,6 +190,7 @@ export function IssuesPanel({ issues, onFocusField, onFix, readyLabel, resolve, 
               type="button"
               onClick={() => resolve!.bulkAcceptSuggestions!(0)}
               disabled={resolve!.bulkAccepting}
+              title="Auto-fills supplier codes for all items using AI. You can still edit any of them afterward."
               style={{ ...navyBtn, opacity: resolve!.bulkAccepting ? 0.6 : 1, cursor: resolve!.bulkAccepting ? "wait" : "pointer" }}
             >
               <SparkleGlyph />

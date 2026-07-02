@@ -1,15 +1,25 @@
 "use client";
 
 // WorkshopStepper — the pipeline progress stepper for the Order Workshop header
-// (v3 "calm workbench" redesign). Five fixed stages of the parse→deliver pipeline:
-//   Parse → Normalize → Validate → Transform → Deliver
+// (v3 "calm workbench" redesign). Five fixed stages of the parse→deliver pipeline,
+// shown with plain-language labels (Read · Check · Verify · Prepare · Send); the
+// technical stage name (Parse → Normalize → Validate → Transform → Deliver) is kept
+// as each step's hover tooltip.
 // `stage` is the index of the ACTIVE stage (0–5); everything before it reads "done".
 // At stage 5 the whole pipeline is complete (delivered). `failed` flips the active
 // stage to the danger tone. Tokens are lifted verbatim from the design handoff.
 
 import { Fragment } from "react";
 
-const STEPS = ["Parse", "Normalize", "Validate", "Transform", "Deliver"] as const;
+// Plain-language visible labels with the technical pipeline stage kept as a hover
+// tooltip (title). Order is unchanged: Parse → Normalize → Validate → Transform → Deliver.
+const STEPS = [
+  { label: "Read", title: "Parse — reading your file" },
+  { label: "Check", title: "Normalize — checking values" },
+  { label: "Verify", title: "Validate — running your rules" },
+  { label: "Prepare", title: "Transform — building the supplier's format" },
+  { label: "Send", title: "Deliver — delivering to supplier" },
+] as const;
 
 function CheckGlyph() {
   return (
@@ -40,8 +50,8 @@ export function WorkshopStepper({ stage, failed = false }: { stage: number; fail
         const fill = done ? "#2E8E3A" : isFail ? "#B43838" : active ? "#1E66C9" : "#FFFFFF";
         const bd = done ? "#2E8E3A" : isFail ? "#B43838" : active ? "#1E66C9" : "#CBD0DA";
         return (
-          <Fragment key={s}>
-            <div style={{ display: "flex", alignItems: "center", gap: 7, flexShrink: 0 }}>
+          <Fragment key={s.label}>
+            <div title={s.title} style={{ display: "flex", alignItems: "center", gap: 7, flexShrink: 0 }}>
               <span
                 style={{
                   width: 16, height: 16, borderRadius: "50%", background: fill,
@@ -56,7 +66,7 @@ export function WorkshopStepper({ stage, failed = false }: { stage: number; fail
                 )}
               </span>
               <span style={{ fontSize: 12, fontWeight: active ? 650 : 500, color: active ? "#0B1A2F" : done ? "#1E6D29" : "#98A0AE", whiteSpace: "nowrap" }}>
-                {s}
+                {s.label}
               </span>
             </div>
             {i < STEPS.length - 1 && (

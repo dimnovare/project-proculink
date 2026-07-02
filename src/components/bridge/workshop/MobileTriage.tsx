@@ -203,7 +203,7 @@ export function MobileTriage(props: MobileTriageProps) {
             <circle cx="8" cy="5.1" r="0.9" fill={BLUE} />
           </svg>
           <p style={{ fontSize: 13, lineHeight: 1.5, color: BLUE_DEEP, margin: 0 }}>
-            You can review and send here. To map output fields, open this order on a wider screen (laptop).
+            You can check and send the order here. For advanced editing (changing how data is sent to the supplier), open this on a laptop or desktop.
           </p>
         </div>
 
@@ -214,6 +214,7 @@ export function MobileTriage(props: MobileTriageProps) {
           accentWash={BLUE_WASH}
           accentBorder={BLUE_BORDER}
           title="What we received"
+          titleHint="From your file"
           badge={`${receivedFieldCount} ${receivedFieldCount === 1 ? "field" : "fields"}`}
           defaultOpen={false}
         >
@@ -231,6 +232,7 @@ export function MobileTriage(props: MobileTriageProps) {
           accentWash={GREEN_WASH}
           accentBorder={GREEN_BORDER}
           title="What we will send"
+          titleHint="To the supplier"
           badge={outputFormatLabel}
           defaultOpen={false}
         >
@@ -290,6 +292,9 @@ export function MobileTriage(props: MobileTriageProps) {
                 {blockingIssues > 0 ? ` · ${blockingIssues} blocking` : ""}
               </span>
             </div>
+            <p style={{ fontSize: 12.5, color: INK, margin: 0, lineHeight: 1.4 }}>
+              Tap each issue below to fix it.
+            </p>
 
             {/* Bulk-accept parity with the /upload/preview "Confirm item codes" step
                 (handoff: the workshop is a strict superset). Same server endpoint
@@ -384,13 +389,15 @@ export function MobileTriage(props: MobileTriageProps) {
 
 // ── Collapsible summary card (progressive disclosure) ─────────────────────────
 function SummaryCard({
-  testid, accent, accentWash, accentBorder, title, badge, defaultOpen, children,
+  testid, accent, accentWash, accentBorder, title, titleHint, badge, defaultOpen, children,
 }: {
   testid: string;
   accent: string;
   accentWash: string;
   accentBorder: string;
   title: string;
+  /** Optional plain-language framing shown as a hover tooltip (e.g. "From your file"). */
+  titleHint?: string;
   badge: string;
   defaultOpen: boolean;
   children: ReactNode;
@@ -411,6 +418,7 @@ function SummaryCard({
         type="button"
         onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
+        title={titleHint}
         className="flex items-center gap-2.5 w-full"
         style={{
           minHeight: 48,
