@@ -96,7 +96,10 @@ export function SendReadinessStrip({
         <span style={{ width: 18, height: 18, borderRadius: "50%", background: "#FBE3E3", display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
           <WarnGlyph />
         </span>
-        <span style={{ fontSize: 12.5, fontWeight: 600, color: "#B43838" }}>
+        <span
+          title="These required fields are missing or invalid. Tap each chip below to jump to its field in the mapper."
+          style={{ fontSize: 12.5, fontWeight: 600, color: "#B43838" }}
+        >
           {blockers.length} {blockers.length === 1 ? "field" : "fields"} to fill before sending
         </span>
       </span>

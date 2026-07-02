@@ -109,7 +109,7 @@ function InvoiceBadge({ documentType }: { documentType?: string | null }) {
   return (
     <span
       className="inline-flex items-center gap-1.5 rounded-full"
-      title="Detected as an invoice and held for review."
+      title="This looks like an invoice, not a purchase order. Review it carefully before sending — the supplier may reject it if they expect a PO."
       style={{ fontSize: 12, fontWeight: 600, padding: "3px 11px", background: "#FAF1DD", color: "#B36D14", whiteSpace: "nowrap" }}
     >
       <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#B36D14", flexShrink: 0 }} />
@@ -393,7 +393,7 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
     return (
       <BridgePageLoader
         label="Preparing your order…"
-        sub="Parsing the document and matching the supplier's fields."
+        sub="Reading your file and preparing it for review."
       />
     );
   if (isError || order === null) {
@@ -459,8 +459,8 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
             We&rsquo;re reading your order…
           </p>
           <p className="text-[13px]" style={{ color: "#5E6779", marginTop: 7, lineHeight: 1.55 }}>
-            We&rsquo;re extracting the line items and matching them to {order.supplierName || "the supplier"}.
-            This usually takes a few seconds — the page will update on its own when it&rsquo;s ready.
+            We&rsquo;re reading your file and preparing it for review.
+            This usually takes a few seconds — the page updates on its own.
           </p>
           {order.poNumber && (
             <p
@@ -500,7 +500,7 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2.5">
                 <h1 style={{ fontFamily: "'Bricolage Grotesque',Inter,sans-serif", fontSize: 22, fontWeight: 800, letterSpacing: "-0.02em", color: "#0B1A2F", lineHeight: 1.1, whiteSpace: "nowrap" }}>
-                  Map this order
+                  Review and send this order
                 </h1>
                 <span
                   title={`Order ${order.poNumber}`}
@@ -515,7 +515,7 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
                     title="We tried delivering this several times automatically and it didn't go through. Open the order to resend it."
                     style={{ display: "inline-flex", alignItems: "center", padding: "3px 11px", borderRadius: 999, fontSize: 12, fontWeight: 600, background: "var(--danger-soft)", color: "var(--danger)", whiteSpace: "nowrap" }}
                   >
-                    ⚠ Delivery failed — automatic retries used up. Open to resend.
+                    ⚠ Delivery didn&rsquo;t reach the supplier. Open the order and click &ldquo;Send again&rdquo; to retry.
                   </span>
                 )}
               </div>
@@ -600,7 +600,7 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
                   role="tooltip"
                   style={{ position: "absolute", top: "calc(100% + 8px)", right: 0, width: 230, background: "#0B1A2F", color: "#FFFFFF", borderRadius: 8, padding: "9px 12px", fontSize: 11.5, lineHeight: 1.5, boxShadow: "0 12px 30px rgba(11,26,47,.28)", zIndex: 60 }}
                 >
-                  Fill {Math.max(blockingIssues, exceptionCount)} required field{Math.max(blockingIssues, exceptionCount) > 1 ? "s" : ""} below first — they&apos;re highlighted in <b>what we send</b>.
+                  Fix the {Math.max(blockingIssues, exceptionCount)} issue{Math.max(blockingIssues, exceptionCount) > 1 ? "s" : ""} below — tap each one to jump to its field. Everything must be filled before you can send.
                   <span style={{ position: "absolute", top: -5, right: 24, width: 10, height: 10, background: "#0B1A2F", transform: "rotate(45deg)" }} />
                 </div>
               )}
