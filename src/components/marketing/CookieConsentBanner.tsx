@@ -1,12 +1,22 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import { useCookieConsent } from "@/lib/cookie-consent";
 
 export function CookieConsentBanner() {
   const [consent, setConsent] = useCookieConsent();
 
-  if (consent !== "unknown") return null;
+  // Render nothing until after hydration. The banner used to be SSR-rendered
+  // (initial consent state is "unknown" on the server), which caused two real
+  // bugs: (1) a click on "Accept analytics" during the hydration window hit a
+  // button with no React handler attached yet — a silent no-op, so the banner
+  // lingered after "accepting"; (2) returning visitors who had already chosen
+  // saw the banner flash on every page load until the localStorage effect ran.
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+
+  if (!mounted || consent !== "unknown") return null;
 
   return (
     <div
