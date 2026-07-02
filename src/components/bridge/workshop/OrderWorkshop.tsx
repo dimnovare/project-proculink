@@ -682,7 +682,7 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
             minmax + 56px gutter + flex outgoing) fit within ~1000px so a 13"/14"
             laptop at 1024 gets the full field mapper with no horizontal scroll;
             the docked preview wraps below it until ~1440 (2-pane canvas). */}
-        <div className="hidden lg:block px-6 py-[18px]" style={{ flex: 1, display: "flex", flexDirection: "column", minHeight: 0, overflow: "hidden" }}>
+        <div className="hidden lg:flex flex-col px-6 py-[18px]" style={{ flex: 1, minHeight: 0, overflow: "hidden" }}>
           {/* The actionable issue list now lives in the preview column's "Issues"
               tab (passed as issuesSlot below), not above the mapper. */}
           <MapperWorkbench
