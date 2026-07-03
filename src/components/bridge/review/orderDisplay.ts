@@ -5,24 +5,51 @@
 import type { Order } from "@/types/procurement";
 import type { DeliveryProtocol, OutputFormatId } from "@/lib/api/types";
 
-/** Sum of unitPrice × quantity across all order lines. */
+/**
+ * Sum of unitPrice × quantity across all order lines — the SAME derivation the
+ * inbox Value column shows (backend OrderQueryService: Sum(Quantity × UnitPrice)),
+ * so the workshop header never disagrees with the orders list.
+ */
 export function orderTotal(order: Order): number {
   return order.lines.reduce((sum, l) => sum + Number(l.unitPrice) * Number(l.quantity), 0);
 }
 
 /**
- * The grand total to display: prefer the backend-extracted `grandTotal`
- * (Phase 4 enrichment) when present, else fall back to the client-computed
- * sum so behaviour is unchanged when the field is absent (e.g. CSV orders).
+ * The grand total to display, or null when it is genuinely unknown.
+ *
+ * Prefer the backend-extracted `grandTotal` (Phase 4 enrichment) when it is a
+ * real positive amount. An extracted 0 means "not captured", NOT a zero-value
+ * order — founder bug: order 31f72daf (Rheinbahn) showed "€ 0.00" because
+ * `order.grandTotal ?? fallback` kept the stored 0 while its one line was
+ * qty 2 × 376.20 = 752.40 EUR — so 0/absent falls back to the client-computed
+ * line sum (the same number the inbox Value column shows). When the lines carry
+ * no value either (still parsing / nothing extracted), return null so callers
+ * HIDE the value instead of rendering a fake zero.
  */
-export function resolvedGrandTotal(order: Order): number {
-  return order.grandTotal ?? orderTotal(order);
+export function resolvedGrandTotal(order: Order): number | null {
+  const stated = order.grandTotal;
+  if (stated != null && Number.isFinite(stated) && stated > 0) return stated;
+  const computed = orderTotal(order);
+  return Number.isFinite(computed) && computed > 0 ? computed : null;
 }
 
-/** Format an amount with a currency symbol/code, e.g. "€ 4,436.73" or "USD 120.00". */
+/**
+ * Format an amount the way the inbox Value column does: currency CODE + amount,
+ * e.g. "EUR 752.40" or "PLN 1,469.00" — never a hardcoded symbol.
+ */
 export function formatMoney(currency: string, amount: number): string {
-  const prefix = currency === "EUR" ? "€" : currency === "USD" ? "$" : currency === "GBP" ? "£" : currency;
-  return `${prefix} ${amount.toLocaleString("en-IE", { minimumFractionDigits: 2 })}`;
+  const code = (currency ?? "").trim();
+  const formatted = amount.toLocaleString("en-IE", { minimumFractionDigits: 2 });
+  return code ? `${code} ${formatted}` : formatted;
+}
+
+/**
+ * The header total label for an order: "" when the total is genuinely unknown
+ * (callers render nothing — never "€ 0.00").
+ */
+export function orderGrandTotalLabel(order: Order): string {
+  const total = resolvedGrandTotal(order);
+  return total == null ? "" : formatMoney(order.currency, total);
 }
 
 /**
