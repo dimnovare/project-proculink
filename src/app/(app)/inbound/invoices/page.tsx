@@ -12,15 +12,35 @@ import {
 } from "@/lib/api-client";
 import { PageShell } from "@/components/bridge/layout/PageShell";
 import { PageHeader } from "@/components/bridge/layout/PageHeader";
+import { HubTabs } from "@/components/bridge/layout/HubTabs";
 import { Card } from "@/components/bridge/layout/Card";
 import { MobileListRow } from "@/components/bridge/layout/MobileListRow";
 import { Button } from "@/components/bridge/DSPrimitives";
+import {
+  TV2,
+  tv2CardStyle,
+  tv2HeaderCell,
+  tv2BodyCell,
+  tv2RowDivider,
+  tv2Num,
+} from "@/components/bridge/layout/listTableV2";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function fmt(amount: number | null, currency: string | null) {
   if (amount == null) return "—";
   return new Intl.NumberFormat("en-EU", { style: "currency", currency: currency ?? "EUR", minimumFractionDigits: 2 }).format(amount);
+}
+
+// Leading listTableV2 row-dot colour for an invoice status (pending/approved/
+// rejected). Kept local — invoice statuses are NOT order-lifecycle statuses, so
+// they don't route through the order status→tone map. Colour agrees with the
+// row's StatusBadge (amber pending / green approved / red rejected).
+function invoiceDotColor(status: string): string {
+  if (status === "approved") return TV2.dot.success;
+  if (status === "rejected") return TV2.dot.danger;
+  if (status === "pending") return TV2.dot.warning;
+  return TV2.dot.neutral;
 }
 
 // ── Status badge ──────────────────────────────────────────────────────────────
@@ -228,6 +248,14 @@ export default function InvoicesPage() {
         actions={uploadAction}
       />
 
+      {/* Hub tabs — Invoices | Shipping notices. Real invoice count keyed to the
+          tab; omitted while loading or errored (an errored query's [] is not a
+          real zero). */}
+      <HubTabs
+        hub="inbound"
+        counts={(!isLoading && !isError) || isApiMockMode ? { Invoices: invoices.length } : undefined}
+      />
+
       {/* Notice */}
       {notice && (
         <div
@@ -308,6 +336,30 @@ export default function InvoicesPage() {
         </Card>
       ) : (
         <>
+          {/* Status summary row — Claude Design v2 Inbound screen. The design's
+              vocabulary is 3-way-match states (Matched / Needs review / Mismatch),
+              but ProcuLink has no PO-match engine yet — the REAL, loaded invoice
+              statuses are pending / approved / rejected, so the row shows those
+              honestly instead (real counts, same visual idiom). */}
+          <div className="mb-4 grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))" }}>
+            {([
+              { label: "Approved", count: invoices.filter((x) => x.status === "approved").length, color: "var(--brand-green-deep)" },
+              { label: "Pending review", count: invoices.filter((x) => x.status === "pending").length, color: "var(--amber)" },
+              { label: "Rejected", count: invoices.filter((x) => x.status === "rejected").length, color: "var(--danger)" },
+            ] as const).map((s) => (
+              <div
+                key={s.label}
+                className="flex items-baseline gap-2.5 rounded-[10px] px-4 py-3"
+                style={{ background: "var(--surface)", border: "1px solid var(--border)", boxShadow: "var(--shadow-card)" }}
+              >
+                <span style={{ fontSize: 22, fontWeight: 700, lineHeight: 1.1, fontVariantNumeric: "tabular-nums", color: s.count > 0 ? s.color : "var(--ink-faint)" }}>
+                  {s.count}
+                </span>
+                <span style={{ fontSize: 12.5, fontWeight: 500, color: "var(--ink-muted)" }}>{s.label}</span>
+              </div>
+            ))}
+          </div>
+
           {/* Mobile cards */}
           <div className="flex flex-col gap-3 sm:hidden">
             {invoices.map((inv) => (
@@ -360,26 +412,40 @@ export default function InvoicesPage() {
             ))}
           </div>
 
-          {/* Desktop table */}
-          <Card className="hidden sm:block" dense>
-            <table className="w-full border-collapse text-left" style={{ fontSize: 12.5 }}>
+          {/* Desktop table — unified full-bleed listTableV2 treatment (tinted
+              header band, 44px rows, leading status dot, border-faint dividers,
+              tabular figures). */}
+          <div className="hidden sm:block" style={{ ...tv2CardStyle, overflowX: "auto" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12.5 }}>
               <thead>
-                <tr style={{ borderBottom: "2px solid var(--border)" }}>
-                  {["Invoice #","Supplier","Date","Amount","Lines","Status","Actions"].map((h, i) => (
-                    <th key={i} className="px-4 py-2.5 text-[10.5px] font-semibold uppercase tracking-[0.06em]" style={{ color: "var(--ink-faint)" }}>{h}</th>
-                  ))}
+                <tr>
+                  <th style={tv2HeaderCell("left", true)}>Invoice #</th>
+                  <th style={tv2HeaderCell()}>Supplier</th>
+                  <th style={tv2HeaderCell()}>Date</th>
+                  <th style={tv2HeaderCell("right")}>Amount</th>
+                  <th style={tv2HeaderCell("right")}>Lines</th>
+                  <th style={tv2HeaderCell()}>Status</th>
+                  <th style={tv2HeaderCell("right")}>Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {invoices.map((inv, i) => (
-                  <tr key={inv.id} style={{ borderBottom: i < invoices.length - 1 ? "1px solid var(--surface-2)" : "none" }}>
-                    <td className="px-4 py-3 font-mono font-semibold" style={{ color: "var(--ink)" }}>{inv.invoiceNumber ?? "—"}</td>
-                    <td className="px-4 py-3" style={{ color: "var(--ink-muted)" }}>{inv.supplierName ?? "—"}</td>
-                    <td className="px-4 py-3" style={{ color: "var(--ink-muted)" }}>{inv.invoiceDate ?? "—"}</td>
-                    <td className="px-4 py-3 font-semibold" style={{ color: "var(--ink)" }}>{fmt(inv.totalAmount, inv.currency)}</td>
-                    <td className="px-4 py-3" style={{ color: "var(--ink-faint)" }}>{inv.lineCount}</td>
-                    <td className="px-4 py-3"><StatusBadge status={inv.status} /></td>
-                    <td className="px-4 py-3">
+                  <tr key={inv.id} style={{ borderTop: i === 0 ? "none" : tv2RowDivider }}>
+                    <td style={tv2BodyCell("left", true)}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
+                        <span
+                          aria-hidden
+                          style={{ width: 7, height: 7, borderRadius: "50%", background: invoiceDotColor(inv.status), flexShrink: 0 }}
+                        />
+                        <span className="font-mono tabular-nums" style={{ color: TV2.ink, fontWeight: 600 }}>{inv.invoiceNumber ?? "—"}</span>
+                      </div>
+                    </td>
+                    <td style={{ ...tv2BodyCell(), color: TV2.inkMuted }}>{inv.supplierName ?? "—"}</td>
+                    <td style={{ ...tv2BodyCell(), color: TV2.inkMuted }}>{inv.invoiceDate ?? "—"}</td>
+                    <td style={{ ...tv2BodyCell("right"), ...tv2Num, color: TV2.ink, fontWeight: 600 }}>{fmt(inv.totalAmount, inv.currency)}</td>
+                    <td style={{ ...tv2BodyCell("right"), ...tv2Num, color: TV2.inkFaint }}>{inv.lineCount}</td>
+                    <td style={tv2BodyCell()}><StatusBadge status={inv.status} /></td>
+                    <td style={tv2BodyCell("right")}>
                       <InvoiceActions
                         inv={inv}
                         onApprove={(id) => approveMut.mutate(id)}
@@ -392,7 +458,7 @@ export default function InvoicesPage() {
                 ))}
               </tbody>
             </table>
-          </Card>
+          </div>
         </>
       )}
     </PageShell>

@@ -24,9 +24,11 @@ import { getExceptions, resolveException, ignoreException } from "@/lib/api-clie
 import type { OrderException, ExceptionState } from "@/types/procurement";
 import { PageShell } from "@/components/bridge/layout/PageShell";
 import { PageHeader } from "@/components/bridge/layout/PageHeader";
+import { HubTabs } from "@/components/bridge/layout/HubTabs";
 import { MobileListRow } from "@/components/bridge/layout/MobileListRow";
 import { Button } from "@/components/bridge/DSPrimitives";
 import { ExceptionDetail } from "@/components/bridge/ExceptionDetail";
+import { TV2, tv2HeaderCell } from "@/components/bridge/layout/listTableV2";
 import { RefreshCw, AlertTriangle, CheckCircle2, ArrowLeft, ArrowRight } from "lucide-react";
 
 // ─── Severity presentation ───────────────────────────────────────────────────
@@ -178,6 +180,14 @@ export default function ExceptionsPage() {
         }
       />
 
+      {/* Hub tabs — System health | Exceptions | Delivery log. The count is the
+          whole exceptions list; only trustworthy while the "All" filter is
+          active (other filters narrow the query), so it's passed only then. */}
+      <HubTabs
+        hub="operations"
+        counts={activeState === undefined && !showLoading && !isError ? { Exceptions: exceptions.length } : undefined}
+      />
+
       {/* Instructional note */}
       <p className="text-[12px] mb-4 -mt-3" style={{ color: "var(--ink-faint)" }}>
         Expand a row to see what&apos;s wrong, why, how to fix it, and its real delivery status. Fixing the cause clears the exception the next time the order is reprocessed.
@@ -306,18 +316,16 @@ export default function ExceptionsPage() {
                   <col style={{ width: 176 }} />
                 </colgroup>
                 <thead style={{ position: "sticky", top: 0, zIndex: 4 }}>
-                  <tr style={{ borderBottom: "1px solid var(--border)", background: "var(--surface)" }}>
+                  <tr>
                     {["", "Severity", "Stage", "Code", "Message", "Raised", ""].map((h, i) => (
                       <th
                         key={i}
                         style={{
-                          padding: "11px 10px",
-                          paddingLeft: i === 0 ? 16 : 10,
-                          textAlign: i === 6 ? "right" : "left",
-                          paddingRight: i === 6 ? 16 : 10,
-                          fontSize: 10.5, fontWeight: 700, letterSpacing: "0.06em",
-                          textTransform: "uppercase", color: "var(--ink-faint)", whiteSpace: "nowrap",
-                          background: "var(--surface)",
+                          // Unified listTableV2 tinted header band; first cell gets
+                          // the 16px chevron gutter, last cell right-aligns the action.
+                          ...tv2HeaderCell(i === 6 ? "right" : "left", i === 0),
+                          paddingLeft: i === 0 ? 16 : 12,
+                          paddingRight: i === 6 ? 16 : 12,
                         }}
                       >
                         {h}
@@ -331,7 +339,7 @@ export default function ExceptionsPage() {
                     const expanded = expandedId === exc.id;
                     return (
                       <Fragment key={exc.id}>
-                      <tr style={{ borderBottom: expanded ? "none" : "1px solid #F0F2F6", background: expanded ? "#FAFBFC" : "var(--surface)" }}>
+                      <tr style={{ borderBottom: expanded ? "none" : `1px solid ${TV2.borderFaint}`, background: expanded ? "#FAFBFC" : "var(--surface)", height: 44 }}>
                         <td style={{ padding: "9px 10px", paddingLeft: 16, verticalAlign: "middle" }}>
                           <button
                             type="button"
@@ -421,7 +429,7 @@ export default function ExceptionsPage() {
                         </td>
                       </tr>
                       {expanded && (
-                        <tr style={{ borderBottom: "1px solid #F0F2F6", background: "#FAFBFC" }}>
+                        <tr style={{ borderBottom: `1px solid ${TV2.borderFaint}`, background: "#FAFBFC" }}>
                           <td colSpan={7} style={{ padding: 0 }}>
                             <ExceptionDetail exc={exc} />
                           </td>

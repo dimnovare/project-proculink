@@ -8,9 +8,18 @@ import {
 } from "@/lib/api-client";
 import { PageShell } from "@/components/bridge/layout/PageShell";
 import { PageHeader } from "@/components/bridge/layout/PageHeader";
+import { HubTabs } from "@/components/bridge/layout/HubTabs";
 import { Card } from "@/components/bridge/layout/Card";
 import { MobileListRow } from "@/components/bridge/layout/MobileListRow";
 import { Button } from "@/components/bridge/DSPrimitives";
+import {
+  TV2,
+  tv2CardStyle,
+  tv2HeaderCell,
+  tv2BodyCell,
+  tv2RowDivider,
+  tv2Num,
+} from "@/components/bridge/layout/listTableV2";
 
 // ── Status badge (domain-specific: received/pending — not the order lifecycle)
 // Kept local; colors tokenized.
@@ -83,6 +92,13 @@ export default function AsnsPage() {
       <PageHeader
         title="Advance Shipping Notices"
         sub={isLoading && !isApiMockMode ? "Loading…" : `${asns.length} notice${asns.length !== 1 ? "s" : ""}`}
+      />
+
+      {/* Hub tabs — Invoices | Shipping notices. Only pass a count when real
+          notices exist (ingestion is still stubbed, so it's usually 0). */}
+      <HubTabs
+        hub="inbound"
+        counts={(!isLoading || isApiMockMode) && asns.length > 0 ? { "Shipping notices": asns.length } : undefined}
       />
 
       {/* ASN / EDIFACT DESADV ingestion is not built yet (DESADV parsing requires a
@@ -178,29 +194,41 @@ export default function AsnsPage() {
             ))}
           </div>
 
-          {/* Desktop table */}
-          <Card className="hidden sm:block overflow-hidden" dense>
-            <table className="w-full border-collapse text-left" style={{ fontSize: 12.5 }}>
+          {/* Desktop table — unified full-bleed listTableV2 treatment (tinted
+              header band, 44px rows, leading status dot, border-faint dividers,
+              tabular figures). */}
+          <div className="hidden sm:block" style={{ ...tv2CardStyle, overflowX: "auto" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12.5 }}>
               <thead>
-                <tr style={{ borderBottom: "2px solid var(--border)" }}>
-                  {["ASN #", "Supplier", "Ship date", "Packages", "Status"].map((h, i) => (
-                    <th key={i} className="px-4 py-2.5 text-[10.5px] font-semibold uppercase tracking-[0.06em]" style={{ color: "var(--ink-faint)" }}>{h}</th>
-                  ))}
+                <tr>
+                  <th style={tv2HeaderCell("left", true)}>ASN #</th>
+                  <th style={tv2HeaderCell()}>Supplier</th>
+                  <th style={tv2HeaderCell()}>Ship date</th>
+                  <th style={tv2HeaderCell("right")}>Packages</th>
+                  <th style={tv2HeaderCell()}>Status</th>
                 </tr>
               </thead>
               <tbody>
                 {asns.map((asn, i) => (
-                  <tr key={asn.id} style={{ borderBottom: i < asns.length - 1 ? "1px solid var(--surface-2)" : "none" }}>
-                    <td className="px-4 py-3 font-mono font-semibold" style={{ color: "var(--ink)" }}>{asn.asnNumber ?? "—"}</td>
-                    <td className="px-4 py-3" style={{ color: "var(--ink-muted)" }}>{asn.supplierName ?? "—"}</td>
-                    <td className="px-4 py-3" style={{ color: "var(--ink-muted)" }}>{asn.shipDate ?? "—"}</td>
-                    <td className="px-4 py-3 font-medium" style={{ color: "var(--ink)" }}>{asn.packageCount}</td>
-                    <td className="px-4 py-3"><StatusBadge status={asn.status} /></td>
+                  <tr key={asn.id} style={{ borderTop: i === 0 ? "none" : tv2RowDivider }}>
+                    <td style={tv2BodyCell("left", true)}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
+                        <span
+                          aria-hidden
+                          style={{ width: 7, height: 7, borderRadius: "50%", background: asn.status === "received" ? TV2.dot.success : TV2.dot.warning, flexShrink: 0 }}
+                        />
+                        <span className="font-mono tabular-nums" style={{ color: TV2.ink, fontWeight: 600 }}>{asn.asnNumber ?? "—"}</span>
+                      </div>
+                    </td>
+                    <td style={{ ...tv2BodyCell(), color: TV2.inkMuted }}>{asn.supplierName ?? "—"}</td>
+                    <td style={{ ...tv2BodyCell(), color: TV2.inkMuted }}>{asn.shipDate ?? "—"}</td>
+                    <td style={{ ...tv2BodyCell("right"), ...tv2Num, color: TV2.ink, fontWeight: 500 }}>{asn.packageCount}</td>
+                    <td style={tv2BodyCell()}><StatusBadge status={asn.status} /></td>
                   </tr>
                 ))}
               </tbody>
             </table>
-          </Card>
+          </div>
         </>
       )}
     </PageShell>
