@@ -73,11 +73,11 @@ type SrcType = "PDF" | "XLSX" | "CSV" | "XML" | "cXML" | "EDI" | "EMAIL" | "API"
 
 const SRC_PALETTE: Record<SrcType, { bg: string; fg: string }> = {
   PDF:   { bg: "#FBEEEE", fg: "#B53F3F" },
-  XLSX:  { bg: "#E2F1E2", fg: "#1E6D29" },
+  XLSX:  { bg: "#E9F1EA", fg: "#1E6D29" },
   CSV:   { bg: "#EEF3F8", fg: "#345470" },
-  XML:   { bg: "#EEE7FB", fg: "#5E3DB0" },
-  cXML:  { bg: "#EEE7FB", fg: "#5E3DB0" },
-  EDI:   { bg: "#FAEFD6", fg: "#C97A14" },
+  XML:   { bg: "#F0EAFB", fg: "#5E3DB0" },
+  cXML:  { bg: "#F0EAFB", fg: "#5E3DB0" },
+  EDI:   { bg: "#FAF1DD", fg: "#B36D14" },
   EMAIL: { bg: "#E9EDF3", fg: "#4A5568" },
   API:   { bg: "#E3F0E3", fg: "#1E6D29" },
   JSON:  { bg: "#FFF4D6", fg: "#846100" },

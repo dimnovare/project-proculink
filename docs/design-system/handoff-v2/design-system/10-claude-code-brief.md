@@ -57,35 +57,35 @@ The product *is* a bridge between two parties — and the UI structurally shows 
   brand: {
     blue:     "#1E66C9",   // buyer / incoming / structure / trust
     blueDeep: "#0F4FA8",
-    blueSoft: "#E3EDFB",
+    blueSoft: "#EAF0F8",
     green:    "#2E8E3A",   // supplier / outgoing / completion
     greenDeep:"#1E6D29",
-    greenSoft:"#E2F1E2",
+    greenSoft:"#E9F1EA",
   },
   navy: {
     DEFAULT: "#0B1A2F",    // sidebar + topbar
-    surface: "#10243E",    // raised within chrome
-    border:  "#1C2F49",
-    text:    "#C5D2E4",
+    surface: "#14253D",    // raised within chrome
+    border:  "#1F3252",
+    text:    "#C8D1E0",
     muted:   "#7C8DA6",
   },
   bg:        "#F6F7FA",     // app background
   bgWarm:    "#F8F6F1",     // marketing surfaces
   surface:   "#FFFFFF",
-  surface2:  "#EFF2F7",
-  border:    "#E2E6EE",
-  borderStrong: "#C6CDDA",
+  surface2:  "#F1F3F7",
+  border:    "#E5E8EE",
+  borderStrong: "#CBD0DA",
   ink: {
     DEFAULT: "#0B1A2F",
-    muted:   "#56627A",
-    faint:   "#8A93A5",
+    muted:   "#5E6779",
+    faint:   "#98A0AE",
   },
-  amber:     "#C97A14",
-  amberSoft: "#FAEFD6",
-  danger:    "#C53A3A",
-  dangerSoft:"#FBE3E3",
+  amber:     "#B36D14",
+  amberSoft: "#FAF1DD",
+  danger:    "#B43838",
+  dangerSoft:"#FAE6E6",
   ai:        "#6F4FCE",     // ONLY for AI-generated content
-  aiSoft:    "#EEE7FB",
+  aiSoft:    "#F0EAFB",
 }
 // theme.fontFamily
 {

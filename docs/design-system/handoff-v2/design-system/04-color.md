@@ -31,9 +31,9 @@ NAVY    →  the bridge frame itself (sidebar + topbar only)
 |---|---|---|---|
 | Default / informational | `brand-blue` | `brand-blue-soft` | `brand-blue-deep` |
 | Success / completed | `brand-green` | `brand-green-soft` | `brand-green-deep` |
-| Warning / needs review | `amber` | `amber-soft` (`#FAEFD6`) | `amber` (`#C97A14`) |
-| Error / failed | `danger` | `danger-soft` (`#FBE3E3`) | `danger` (`#C53A3A`) |
-| AI-generated | `ai` (`#6F4FCE`) | `ai-soft` (`#EEE7FB`) | `ai` |
+| Warning / needs review | `amber` | `amber-soft` (`#FAF1DD`) | `amber` (`#B36D14`) |
+| Error / failed | `danger` | `danger-soft` (`#FAE6E6`) | `danger` (`#B43838`) |
+| AI-generated | `ai` (`#6F4FCE`) | `ai-soft` (`#F0EAFB`) | `ai` |
 
 ### Confidence thresholds
 | Range | Color |
@@ -51,17 +51,17 @@ All text meets **WCAG AA** on its intended background. Contrast notes:
 | Pair | Ratio | Pass |
 |---|---|---|
 | `ink` (#0B1A2F) on `bg` (#F6F7FA) | 15.4 : 1 | AAA |
-| `ink-muted` (#56627A) on `bg` | 6.4 : 1 | AA |
-| `ink-faint` (#8A93A5) on `bg` | 3.6 : 1 | **AA only for text ≥ 18px / 14px bold** — never for body |
-| `navy-text` (#C5D2E4) on `navy` (#0B1A2F) | 9.8 : 1 | AAA |
+| `ink-muted` (#5E6779) on `bg` | 6.4 : 1 | AA |
+| `ink-faint` (#98A0AE) on `bg` | 3.6 : 1 | **AA only for text ≥ 18px / 14px bold** — never for body |
+| `navy-text` (#C8D1E0) on `navy` (#0B1A2F) | 9.8 : 1 | AAA |
 | `navy-muted` (#7C8DA6) on `navy` | 4.7 : 1 | AA |
 | `brand-blue` (#1E66C9) on white | 4.8 : 1 | AA |
 | `brand-green` (#2E8E3A) on white | 4.3 : 1 | AA |
-| `brand-blue-deep` (#0F4FA8) on `brand-blue-soft` (#E3EDFB) | 8.2 : 1 | AAA |
-| `brand-green-deep` (#1E6D29) on `brand-green-soft` (#E2F1E2) | 7.6 : 1 | AAA |
-| `amber` (#C97A14) on `amber-soft` (#FAEFD6) | 4.5 : 1 | AA |
-| `danger` (#C53A3A) on `danger-soft` (#FBE3E3) | 5.1 : 1 | AA |
-| `ai` (#6F4FCE) on `ai-soft` (#EEE7FB) | 5.4 : 1 | AA |
+| `brand-blue-deep` (#0F4FA8) on `brand-blue-soft` (#EAF0F8) | 8.2 : 1 | AAA |
+| `brand-green-deep` (#1E6D29) on `brand-green-soft` (#E9F1EA) | 7.6 : 1 | AAA |
+| `amber` (#B36D14) on `amber-soft` (#FAF1DD) | 4.5 : 1 | AA |
+| `danger` (#B43838) on `danger-soft` (#FAE6E6) | 5.1 : 1 | AA |
+| `ai` (#6F4FCE) on `ai-soft` (#F0EAFB) | 5.4 : 1 | AA |
 
 ### Color-only signaling is forbidden
 Color is paired with at least one of: icon, label, weight, position. So a "red row" also says "⚠ Failed" or has a 3px left bar. Critical for color-blind operators.
@@ -105,7 +105,7 @@ These are intentionally muted — chips should read as labels, not signage.
 
 | State | Treatment |
 |---|---|
-| Hover on a row | Background shifts to `surface-2` (#EFF2F7) |
+| Hover on a row | Background shifts to `surface-2` (#F1F3F7) |
 | Hover on a buyer-tinted row | Background shifts to `brand-blue-soft` |
 | Hover on a button-primary | Background `brand-blue-deep` |
 | Focus visible | 2px `brand-blue` outline at `--radius` offset 2px |

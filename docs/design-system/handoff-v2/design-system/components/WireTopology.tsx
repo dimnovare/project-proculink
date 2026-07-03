@@ -46,12 +46,12 @@ type WireTopologyProps = {
 const COLORS = {
   blue:        "#1E66C9",
   green:       "#2E8E3A",
-  amber:       "#C97A14",
+  amber:       "#B36D14",
   surface:     "#FFFFFF",
   ink:         "#0B1A2F",
-  inkMuted:    "#56627A",
-  inkFaint:    "#8A93A5",
-  borderStrong:"#C6CDDA",
+  inkMuted:    "#5E6779",
+  inkFaint:    "#98A0AE",
+  borderStrong:"#CBD0DA",
 };
 
 export function WireTopology({

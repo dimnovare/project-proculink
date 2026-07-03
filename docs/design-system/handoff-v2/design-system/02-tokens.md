@@ -14,18 +14,18 @@ Edit the JSON; regenerate the rest.
 |---|---|---|
 | `--brand-blue` | `#1E66C9` | Buyer side · structural accents · primary marketing CTA |
 | `--brand-blue-deep` | `#0F4FA8` | Hover / pressed state of brand-blue |
-| `--brand-blue-soft` | `#E3EDFB` | Buyer-tinted surfaces, blue chip backgrounds |
+| `--brand-blue-soft` | `#EAF0F8` | Buyer-tinted surfaces, blue chip backgrounds |
 | `--brand-green` | `#2E8E3A` | Supplier side · success · completion |
 | `--brand-green-deep` | `#1E6D29` | Hover / pressed state of brand-green |
-| `--brand-green-soft` | `#E2F1E2` | Supplier-tinted surfaces, green chip backgrounds |
+| `--brand-green-soft` | `#E9F1EA` | Supplier-tinted surfaces, green chip backgrounds |
 
 ### Navy chrome
 | Token | Value | Use |
 |---|---|---|
 | `--navy` | `#0B1A2F` | Sidebar + topbar background |
-| `--navy-surface` | `#10243E` | Raised surfaces inside chrome (workspace switcher, search) |
-| `--navy-border` | `#1C2F49` | Borders inside chrome |
-| `--navy-text` | `#C5D2E4` | Default text on navy |
+| `--navy-surface` | `#14253D` | Raised surfaces inside chrome (workspace switcher, search) |
+| `--navy-border` | `#1F3252` | Borders inside chrome |
+| `--navy-text` | `#C8D1E0` | Default text on navy |
 | `--navy-muted` | `#7C8DA6` | Secondary text on navy |
 
 ### Light surfaces
@@ -34,27 +34,27 @@ Edit the JSON; regenerate the rest.
 | `--bg` | `#F6F7FA` | App background |
 | `--bg-warm` | `#F8F6F1` | Marketing surfaces, auth page |
 | `--surface` | `#FFFFFF` | Card surfaces |
-| `--surface-2` | `#EFF2F7` | Subtle nested surfaces |
-| `--border` | `#E2E6EE` | Default border |
-| `--border-strong` | `#C6CDDA` | Active / focused border |
+| `--surface-2` | `#F1F3F7` | Subtle nested surfaces |
+| `--border` | `#E5E8EE` | Default border |
+| `--border-strong` | `#CBD0DA` | Active / focused border |
 
 ### Text
 | Token | Value | Use |
 |---|---|---|
 | `--ink` | `#0B1A2F` | Default body text |
-| `--ink-muted` | `#56627A` | Secondary text |
-| `--ink-faint` | `#8A93A5` | Tertiary text, placeholders |
+| `--ink-muted` | `#5E6779` | Secondary text |
+| `--ink-faint` | `#98A0AE` | Tertiary text, placeholders |
 
 ### Semantic
 | Token | Value | Use |
 |---|---|---|
-| `--amber` | `#C97A14` | Warning |
-| `--amber-soft` | `#FAEFD6` | Warning background |
-| `--danger` | `#C53A3A` | Error, destructive action |
-| `--danger-soft` | `#FBE3E3` | Error background |
+| `--amber` | `#B36D14` | Warning |
+| `--amber-soft` | `#FAF1DD` | Warning background |
+| `--danger` | `#B43838` | Error, destructive action |
+| `--danger-soft` | `#FAE6E6` | Error background |
 | `--success` | same as `--brand-green` | Success states |
 | `--ai` | `#6F4FCE` | **Only** for AI-generated content |
-| `--ai-soft` | `#EEE7FB` | AI surface background |
+| `--ai-soft` | `#F0EAFB` | AI surface background |
 
 ### Gradient tokens
 | Token | Value | Use |
@@ -123,8 +123,8 @@ Avoid heavy drop shadows. Borders carry depth, not shadows.
 
 ## Borders
 
-- Default: `1px solid var(--border)` (#E2E6EE)
-- Strong / focused: `1px solid var(--border-strong)` (#C6CDDA)
+- Default: `1px solid var(--border)` (#E5E8EE)
+- Strong / focused: `1px solid var(--border-strong)` (#CBD0DA)
 - Cross-section card edge: 3px strip on one edge (not all four) — see XCard component.
 
 ## Motion tokens
