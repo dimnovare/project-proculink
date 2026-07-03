@@ -10,7 +10,10 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { FileChip } from "./FileChip";
 import { PageHeader } from "./layout/PageHeader";
 import { PageShell } from "./layout/PageShell";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ApiHttpError, apiClient, getBillingStatus, isApiMockMode, type DetectFormatResult } from "@/lib/api-client";
+import type { Supplier } from "@/types/procurement";
 import { capture } from "@/lib/analytics";
 import { useOrderDirection } from "@/hooks/useOrderDirection";
 import { useQueriesEnabled } from "@/hooks/useQueriesEnabled";
@@ -823,11 +826,14 @@ export function UploadWorkbench() {
 
           {/* ── Route bar · which supplier these orders are sent to (compact,
               quiet — the dropzone is the hero). Plan usage demoted to chips. ── */}
+          {/* sm:flex-wrap: the picker claims 260–360px for real supplier names,
+              so the usage-chip cluster is allowed to wrap to its own line on
+              narrow desktop widths instead of squeezing the picker. */}
           <div
-            className="flex flex-col gap-3 px-5 pt-4 pb-3 sm:flex-row sm:items-center sm:gap-4"
+            className="flex flex-col gap-3 px-5 pt-4 pb-3 sm:flex-row sm:flex-wrap sm:items-center sm:gap-4"
             style={{ borderBottom: "1px solid #EEF0F4", background: "#FAFBFD" }}
           >
-            <div className="flex min-w-0 flex-1 items-center gap-2.5">
+            <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2.5">
               <StepBadge n={1} tone="green" />
               <label htmlFor="upload-supplier" className="text-[12.5px] font-medium whitespace-nowrap" style={{ color: "#5E6779" }}>
                 Send to
@@ -856,34 +862,18 @@ export function UploadWorkbench() {
               )}
 
               {!suppliersLoading && suppliers.length > 0 && (
-                <div className="relative min-w-0 flex-1 sm:max-w-[300px]">
-                  <select
-                    id="upload-supplier"
+                /* Sizing shell: full-width on mobile (wraps under the "Send to"
+                   label); from sm it takes the route bar's spare space between
+                   260–360px so real supplier names fit — the old narrow select
+                   clipped anything longer than ~20 characters. */
+                <div className="w-full min-w-0 sm:w-auto sm:min-w-[260px] sm:max-w-[360px] sm:flex-1">
+                  <SupplierPicker
+                    suppliers={suppliers}
                     value={supplierId}
-                    onChange={(e) => setSupplierId(e.target.value)}
-                    className="w-full appearance-none rounded-[9px] pl-3 pr-9 text-[13px] transition-colors min-h-[36px]"
-                    style={{
-                      border: `1px solid ${hasSupplier ? "#1E6D29" : "#CBD0DA"}`,
-                      background: "#FFFFFF",
-                      color: hasSupplier ? "#1E6D29" : "#0B1A2F",
-                      fontWeight: 600,
-                      cursor: "pointer",
-                    }}
-                  >
-                    {suppliers.map((s) => (
-                      <option key={s.id} value={s.id}>{s.name}</option>
-                    ))}
-                  </select>
-                  <svg
-                    width="14"
-                    height="14"
-                    viewBox="0 0 16 16"
-                    fill="none"
-                    aria-hidden="true"
-                    style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }}
-                  >
-                    <path d="M4 6l4 4 4-4" stroke="#5E6779" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
+                    onChange={setSupplierId}
+                    counterpartyNoun={counterpartyNoun}
+                    counterpartyPlural={labels.counterpartyPlural}
+                  />
                 </div>
               )}
 
@@ -1706,6 +1696,134 @@ function UsageChip({ label, value, tone }: { label: string; value: string; tone?
         {value}
       </b>
     </span>
+  );
+}
+
+/**
+ * SupplierPicker — the "Send to" combobox in the upload route bar.
+ *
+ * Replaces the old narrow native <select>, which clipped real supplier names
+ * ("Demo — …"). Built from the primitives the app already ships for the
+ * Command Palette (Radix Popover + cmdk Command — no new dependency): the
+ * trigger ellipsizes long names and carries `title` with the full name, and
+ * the panel lists suppliers alphabetically with type-to-filter search.
+ * Selection routes through the same setSupplierId state as the old select —
+ * default-selection logic and the supplierId handed to the upload call are
+ * untouched. Rows show the name only: the suppliers list endpoint returns
+ * id + name, and inventing a channel/format subtitle from data we don't have
+ * loaded would violate offer⇔works.
+ */
+function SupplierPicker({
+  suppliers,
+  value,
+  onChange,
+  counterpartyNoun,
+  counterpartyPlural,
+}: {
+  suppliers: Supplier[];
+  value: string;
+  onChange: (id: string) => void;
+  counterpartyNoun: string;
+  counterpartyPlural: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const selected = suppliers.find((s) => s.id === value) ?? null;
+  // Alphabetical, locale-aware — stable and scannable however the API orders them.
+  const sorted = [...suppliers].sort((a, b) => a.name.localeCompare(b.name));
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          id="upload-supplier"
+          role="combobox"
+          aria-haspopup="listbox"
+          title={selected?.name}
+          className="flex w-full items-center gap-2 rounded-[9px] pl-3 pr-2.5 text-left text-[13px] transition-colors min-h-[36px]"
+          style={{
+            border: `1px solid ${selected ? "#1E6D29" : "#CBD0DA"}`,
+            background: "#FFFFFF",
+            color: selected ? "#1E6D29" : "#0B1A2F",
+            fontWeight: 600,
+            cursor: "pointer",
+          }}
+        >
+          <span className="min-w-0 flex-1 truncate">
+            {selected ? selected.name : `Choose a ${counterpartyNoun}…`}
+          </span>
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true" style={{ flexShrink: 0 }}>
+            <path d="M4 6l4 4 4-4" stroke="#5E6779" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </button>
+      </PopoverTrigger>
+      <PopoverContent
+        align="start"
+        sideOffset={6}
+        className="p-0"
+        style={{
+          width: "var(--radix-popover-trigger-width)",
+          minWidth: 260,
+          borderColor: "#E5E8EE",
+          boxShadow: "0 8px 24px rgba(11,26,47,0.14)",
+        }}
+      >
+        <Command
+          loop
+          // Item values are supplier GUIDs (names may collide), so filter on
+          // the NAME (passed via keywords) with a plain substring match —
+          // fuzzy-scoring GUIDs would surface junk results.
+          filter={(_itemValue, search, keywords) => {
+            const name = (keywords ?? []).join(" ").toLowerCase();
+            return name.includes(search.trim().toLowerCase()) ? 1 : 0;
+          }}
+        >
+          <CommandInput placeholder={`Search ${counterpartyPlural.toLowerCase()}…`} className="h-10 text-[13px]" />
+          <CommandList>
+            <CommandEmpty className="py-4 text-center text-[12.5px]" style={{ color: "#5E6779" }}>
+              No {counterpartyPlural.toLowerCase()} match that search.
+            </CommandEmpty>
+            <CommandGroup>
+              {sorted.map((s) => {
+                const isSelected = s.id === value;
+                return (
+                  <CommandItem
+                    key={s.id}
+                    value={s.id}
+                    keywords={[s.name]}
+                    title={s.name}
+                    onSelect={() => {
+                      onChange(s.id);
+                      setOpen(false);
+                    }}
+                    className="cursor-pointer gap-2 rounded-[6px] px-2.5 py-2 text-[13px]"
+                    style={{ color: isSelected ? "#1E6D29" : "#0B1A2F", fontWeight: isSelected ? 600 : 400 }}
+                  >
+                    <span className="min-w-0 flex-1 truncate">{s.name}</span>
+                    {isSelected && (
+                      <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true" style={{ flexShrink: 0 }}>
+                        <path d="M2.5 6.2l2.2 2.2 4.8-5" stroke="#1E6D29" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    )}
+                  </CommandItem>
+                );
+              })}
+            </CommandGroup>
+          </CommandList>
+          {/* Quiet escape hatch to manage the list — mirrors the empty-state CTA. */}
+          <div className="px-2.5 py-2" style={{ borderTop: "1px solid #EEF0F4" }}>
+            <Link
+              href="/library/suppliers"
+              className="text-[12px] font-semibold"
+              style={{ color: "#1E6D29" }}
+              onClick={() => setOpen(false)}
+            >
+              Add a {counterpartyNoun} →
+            </Link>
+          </div>
+        </Command>
+      </PopoverContent>
+    </Popover>
   );
 }
 
