@@ -388,7 +388,12 @@ export function ValidationRules() {
                           style={{ borderLeft: active ? "2px solid #1E66C9" : "2px solid transparent", whiteSpace: "nowrap" }}
                           onClick={(e) => e.stopPropagation()}
                         >
-                          <Toggle on={r.enabled} onChange={() => handleToggle(r.id)} label={r.name} />
+                          {/* ≥44×44 hit area around the 38×22 toggle (negative margin
+                              keeps the row height unchanged) so a mis-tap near the
+                              switch still lands on it, not the neighbouring row. */}
+                          <span className="-m-[11px] inline-flex items-center justify-center p-[11px]">
+                            <Toggle on={r.enabled} onChange={() => handleToggle(r.id)} label={r.name} />
+                          </span>
                         </td>
                         <td className="px-3 py-3.5" style={{ maxWidth: 280 }}>
                           <div className="font-semibold text-[13px] leading-tight" style={{ color: "#0B1A2F" }}>{r.name || <span style={{ color: "#9AA3B5", fontStyle: "italic" }}>Untitled rule</span>}</div>

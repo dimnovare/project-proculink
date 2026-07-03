@@ -259,8 +259,11 @@ export default function OperationsHealthPage() {
           <h2 style={{ fontFamily: "var(--font-display)", fontSize: 18, fontWeight: 600, color: "var(--ink)", margin: 0 }}>
             Orders we couldn&apos;t deliver
           </h2>
-          <label style={{ display: "inline-flex", alignItems: "center", gap: 7, fontSize: 12.5, color: "var(--ink-muted)", cursor: "pointer" }}>
-            <input type="checkbox" checked={includeFailed} onChange={(e) => setIncludeFailed(e.target.checked)} />
+          {/* Tap target ≥44px: the label supplies vertical py-2.5 padding and the
+              input renders at h-5 w-5 (20px) inside it, so the whole strip is
+              finger-tappable on a phone while the visual stays compact. */}
+          <label className="py-2.5" style={{ display: "inline-flex", alignItems: "center", gap: 7, fontSize: 12.5, color: "var(--ink-muted)", cursor: "pointer", minHeight: 44 }}>
+            <input type="checkbox" className="h-5 w-5" style={{ cursor: "pointer" }} checked={includeFailed} onChange={(e) => setIncludeFailed(e.target.checked)} />
             Include delivery-failed
           </label>
         </div>
@@ -304,7 +307,7 @@ export default function OperationsHealthPage() {
                             aria-hidden
                             style={{ width: 7, height: 7, borderRadius: "50%", background: tv2DotColor(normalizeDeadLetterStatus(o.status)), flexShrink: 0 }}
                           />
-                          <Link href={`/inbox/${o.orderId}`} className="font-mono tabular-nums" style={{ color: "var(--brand-blue-deep)", fontWeight: 600, fontSize: 12, textDecoration: "none" }}>
+                          <Link href={`/inbox/${o.orderId}`} className="font-mono tabular-nums inline-flex items-center py-2.5" style={{ color: "var(--brand-blue-deep)", fontWeight: 600, fontSize: 12, textDecoration: "none" }}>
                             {o.poNumber || o.orderId.slice(0, 8)}
                           </Link>
                         </div>
@@ -357,7 +360,7 @@ export default function OperationsHealthPage() {
               {deadLetters.map((o) => (
                 <MobileListRow key={o.orderId}>
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
-                    <Link href={`/inbox/${o.orderId}`} style={{ color: "var(--brand-blue-deep)", fontWeight: 600, fontSize: 14, textDecoration: "none" }}>
+                    <Link href={`/inbox/${o.orderId}`} className="inline-flex items-center py-2.5 -my-2.5" style={{ color: "var(--brand-blue-deep)", fontWeight: 600, fontSize: 14, textDecoration: "none", minHeight: 44 }}>
                       {o.poNumber || o.orderId.slice(0, 8)}
                     </Link>
                     <UnifiedStatusBadge status={normalizeDeadLetterStatus(o.status)} />

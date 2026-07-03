@@ -512,7 +512,14 @@ function ExceptionCard({
         <span className="text-[13px] leading-snug" style={{ color: "var(--ink)" }}>{exc.message}</span>
       </button>
       {exc.code && (
-        <p className="mt-1 font-mono text-[11px]" style={{ color: "var(--ink-faint)" }}>{exc.code}</p>
+        // The human sentence above is primary. Keep the raw rule code for
+        // support/debugging, but label it and de-emphasize it (lowercased,
+        // 10.5px, faint) so it reads as a reference — not debug output on the
+        // card face. The unmodified code stays in the expanded ExceptionDetail.
+        <p className="mt-1 text-[10.5px]" style={{ color: "var(--ink-faint)" }}>
+          <span>Reference: </span>
+          <span className="font-mono lowercase" data-exception-code={exc.code}>{exc.code}</span>
+        </p>
       )}
       {expanded && (
         <div className="mt-2 -mx-3.5 -mb-3.5 overflow-hidden rounded-b-[var(--radius-md)]">
