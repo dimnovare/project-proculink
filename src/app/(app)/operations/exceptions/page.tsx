@@ -24,7 +24,6 @@ import { getExceptions, resolveException, ignoreException } from "@/lib/api-clie
 import type { OrderException, ExceptionState } from "@/types/procurement";
 import { PageShell } from "@/components/bridge/layout/PageShell";
 import { PageHeader } from "@/components/bridge/layout/PageHeader";
-import { HubTabs } from "@/components/bridge/layout/HubTabs";
 import { MobileListRow } from "@/components/bridge/layout/MobileListRow";
 import { Button } from "@/components/bridge/DSPrimitives";
 import { ExceptionDetail } from "@/components/bridge/ExceptionDetail";
@@ -180,14 +179,6 @@ export default function ExceptionsPage() {
         }
       />
 
-      {/* Hub tabs — System health | Exceptions | Delivery log. The count is the
-          whole exceptions list; only trustworthy while the "All" filter is
-          active (other filters narrow the query), so it's passed only then. */}
-      <HubTabs
-        hub="operations"
-        counts={activeState === undefined && !showLoading && !isError ? { Exceptions: exceptions.length } : undefined}
-      />
-
       {/* Instructional note */}
       <p className="text-[12px] mb-4 -mt-3" style={{ color: "var(--ink-faint)" }}>
         Expand a row to see what&apos;s wrong, why, how to fix it, and its real delivery status. Fixing the cause clears the exception the next time the order is reprocessed.
@@ -339,8 +330,12 @@ export default function ExceptionsPage() {
                     const expanded = expandedId === exc.id;
                     return (
                       <Fragment key={exc.id}>
+                      {/* Collapsed row is a TRUE 44px single line: the tr's fixed
+                          height governs; cells carry zero vertical padding so the
+                          27px action buttons can't stretch the row. Expansion
+                          behaviour below is unchanged. */}
                       <tr style={{ borderBottom: expanded ? "none" : `1px solid ${TV2.borderFaint}`, background: expanded ? "#FAFBFC" : "var(--surface)", height: 44 }}>
-                        <td style={{ padding: "9px 10px", paddingLeft: 16, verticalAlign: "middle" }}>
+                        <td style={{ padding: "0 10px", paddingLeft: 16, verticalAlign: "middle" }}>
                           <button
                             type="button"
                             onClick={() => toggleExpanded(exc.id)}
@@ -352,20 +347,20 @@ export default function ExceptionsPage() {
                             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden style={{ transform: expanded ? "rotate(90deg)" : "none", transition: "transform 120ms" }}><path d="m9 18 6-6-6-6" /></svg>
                           </button>
                         </td>
-                        <td style={{ padding: "11px 10px", verticalAlign: "middle" }}>
+                        <td style={{ padding: "0 10px", verticalAlign: "middle" }}>
                           <SeverityBadge severity={String(exc.severity)} />
                         </td>
-                        <td style={{ padding: "11px 10px", verticalAlign: "middle", color: "var(--ink-muted)" }}>
+                        <td style={{ padding: "0 10px", verticalAlign: "middle", color: "var(--ink-muted)" }}>
                           {exc.stage ?? "—"}
                         </td>
-                        <td style={{ padding: "11px 10px", verticalAlign: "middle" }}>
+                        <td style={{ padding: "0 10px", verticalAlign: "middle" }}>
                           <span className="font-mono text-[11.5px]" style={{ color: "var(--ink)" }}>
                             {exc.code ?? "—"}
                           </span>
                         </td>
                         <td
                           style={{
-                            padding: "11px 10px", verticalAlign: "middle", color: "var(--ink)",
+                            padding: "0 10px", verticalAlign: "middle", color: "var(--ink)",
                             overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
                           }}
                         >
@@ -378,10 +373,10 @@ export default function ExceptionsPage() {
                             {exc.message}
                           </button>
                         </td>
-                        <td style={{ padding: "11px 10px", verticalAlign: "middle", color: "var(--ink-muted)", whiteSpace: "nowrap" }}>
+                        <td style={{ padding: "0 10px", verticalAlign: "middle", color: "var(--ink-muted)", whiteSpace: "nowrap" }}>
                           {relativeTime(exc.createdAt)}
                         </td>
-                        <td style={{ padding: "9px 10px", paddingRight: 16, verticalAlign: "middle", textAlign: "right", whiteSpace: "nowrap" }}>
+                        <td style={{ padding: "0 10px", paddingRight: 16, verticalAlign: "middle", textAlign: "right", whiteSpace: "nowrap" }}>
                           {exc.state === "open" ? (
                             <div className="inline-flex items-center gap-1.5">
                               {canResolveFromList(exc) ? (

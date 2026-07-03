@@ -4,7 +4,6 @@
 import { EmptyState } from "@/components/bridge/EmptyState";
 import { PageShell } from "@/components/bridge/layout/PageShell";
 import { PageHeader } from "@/components/bridge/layout/PageHeader";
-import { HubTabs } from "@/components/bridge/layout/HubTabs";
 import { tv2HeaderCell, tv2BodyCell, tv2RowDivider } from "@/components/bridge/layout/listTableV2";
 import { X } from "lucide-react";
 import { useState } from "react";
@@ -858,9 +857,6 @@ function WebhooksLayout({
             </button>
           }
         />
-
-        {/* Hub tabs — Connectors | Webhooks */}
-        <HubTabs hub="integrations" />
 
         {/* Content */}
         <div>

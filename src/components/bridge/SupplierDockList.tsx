@@ -30,7 +30,6 @@ import type { DeliveryConfig, DeliveryProtocol } from "@/lib/api/types";
 import { useOrderDirection } from "@/hooks/useOrderDirection";
 import { PageHeader } from "./layout/PageHeader";
 import { PageShell } from "./layout/PageShell";
-import { HubTabs } from "./layout/HubTabs";
 import { tv2HeaderCell, tv2BodyCell, tv2RowDivider } from "./layout/listTableV2";
 
 // How many rows enrich themselves with a delivery-config fetch. Procurement
@@ -292,12 +291,6 @@ export function SupplierDockList() {
           }
         />
 
-        {/* Hub tab bar — Partners hub (Suppliers | Buyers | Connections) */}
-        <HubTabs
-          hub="partners"
-          counts={!isLoading && !suppliersError ? { Suppliers: suppliers.length } : undefined}
-        />
-
         {/* Partial-success notice (supplier created, channel not saved) */}
         {pageNotice && (
           <div
@@ -554,14 +547,11 @@ export function SupplierDockList() {
             {[1, 2, 3, 4].map((i, idx) => (
               <div
                 key={i}
-                className="flex items-center gap-[13px] px-[18px] py-[14px]"
-                style={{ borderTop: idx === 0 ? "none" : "1px solid #E5E8EE" }}
+                className="flex items-center gap-[13px] px-[18px]"
+                style={{ height: 44, borderTop: idx === 0 ? "none" : "1px solid #E5E8EE" }}
               >
                 <div className="h-8 w-8 flex-shrink-0 rounded-[7px] animate-pulse" style={{ background: "#F1F3F7" }} />
-                <div className="flex flex-col gap-1.5">
-                  <div className="h-3.5 w-32 rounded animate-pulse" style={{ background: "#F1F3F7" }} />
-                  <div className="h-2.5 w-14 rounded animate-pulse" style={{ background: "#F2F4F9" }} />
-                </div>
+                <div className="h-3.5 w-32 rounded animate-pulse" style={{ background: "#F1F3F7" }} />
               </div>
             ))}
           </div>
@@ -813,7 +803,8 @@ function SupplierTableRow({
         background: isHover ? GREEN_SOFT : "transparent",
       }}
     >
-      {/* Supplier — leading green entity dot + green tile + name + code */}
+      {/* Supplier — leading green entity dot + green tile + single-line name with
+          inline muted code suffix (44px single-line row per the v2 design). */}
       <td style={{ ...tv2BodyCell("left", true), borderBottom: cellBorder }}>
         <div className="flex min-w-0 items-center gap-[11px]">
           <span
@@ -832,14 +823,15 @@ function SupplierTableRow({
           >
             <SupplierGlyph color={GREEN_DEEP} size={16} />
           </div>
-          <div className="min-w-0">
-            <p className="truncate text-[13.5px] font-semibold leading-tight tracking-[-0.005em]" style={{ color: INK }}>
-              {name}
-            </p>
-            <p className="mt-[1px] truncate text-[10.5px] leading-tight tracking-[0.02em]" style={{ color: TEXT_FAINT, fontFamily: MONO }}>
+          <p className="truncate text-[13.5px] font-semibold leading-tight tracking-[-0.005em]" style={{ color: INK, margin: 0 }}>
+            {name}
+            <span
+              className="text-[10.5px] font-normal tracking-[0.02em]"
+              style={{ color: TEXT_FAINT, fontFamily: MONO, marginLeft: 8 }}
+            >
               {shortCode(name)}
-            </p>
-          </div>
+            </span>
+          </p>
         </div>
       </td>
 

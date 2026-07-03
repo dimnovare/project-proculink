@@ -17,7 +17,6 @@ import { EmptyState } from "./EmptyState";
 import { UnifiedStatusBadge } from "./UnifiedStatusBadge";
 import { PageHeader } from "./layout/PageHeader";
 import { PageShell } from "./layout/PageShell";
-import { HubTabs } from "./layout/HubTabs";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -313,7 +312,7 @@ function useIsMobile(maxWidth = 640): boolean {
 
 function SkeletonRow() {
   return (
-    <div className="row gap-3 items-center" style={{ padding: "11px 16px", borderBottom: "1px solid var(--border)" }}>
+    <div className="row gap-3 items-center" style={{ height: 44, padding: "0 16px", borderBottom: "1px solid var(--border)" }}>
       {[64, 26, 82, 150, 220, 110].map((w, i) => (
         <div key={i} className="skel" style={{ height: 13, width: w, flexShrink: 0 }} />
       ))}
@@ -466,9 +465,6 @@ export function CrossingsLog() {
           </button>
         }
       />
-
-      {/* Hub tabs — System health | Exceptions | Delivery log */}
-      <HubTabs hub="operations" />
 
       {/* Filter / search bar */}
       <div
@@ -669,7 +665,10 @@ export function CrossingsLog() {
                             textAlign: "left",
                             background: open ? "var(--surface-2)" : "none",
                             border: "none",
-                            padding: "11px 16px",
+                            // TRUE 44px single-line row (v2 unified list height);
+                            // the 26px icon circle centres inside it.
+                            height: 44,
+                            padding: "0 16px",
                             transition: "background var(--duration-fast)",
                             cursor: "pointer",
                           }}

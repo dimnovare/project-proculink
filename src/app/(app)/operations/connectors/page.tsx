@@ -4,7 +4,6 @@
 import { EmptyState } from "@/components/bridge/EmptyState";
 import { PageShell } from "@/components/bridge/layout/PageShell";
 import { PageHeader } from "@/components/bridge/layout/PageHeader";
-import { HubTabs } from "@/components/bridge/layout/HubTabs";
 import Link from "next/link";
 import { X } from "lucide-react";
 import { useState, useEffect, type ReactNode } from "react";
@@ -379,9 +378,6 @@ export default function ConnectorsPage() {
             </button>
           }
         />
-
-        {/* Hub tabs — Connectors | Webhooks */}
-        <HubTabs hub="integrations" />
 
         {/* Notice */}
         {notice && (
