@@ -153,8 +153,11 @@ test.describe("UploadWorkbench — post-upload routes to the Order Workshop", ()
     ).toBeVisible({ timeout: 10_000 });
 
     // Wait for the form to hydrate (supplier list loaded) before selecting a file,
-    // so the file input's React onChange is attached (hydration race).
+    // so the file input's React onChange is attached (hydration race). The "Send to"
+    // control is a searchable combobox: open it to confirm the list loaded, then close.
+    await page.locator("#upload-supplier").click();
     await expect(page.getByRole("option", { name: /FastParts Inc/i })).toBeAttached({ timeout: 10_000 });
+    await page.keyboard.press("Escape");
 
     // Attach a minimal CSV file
     await page.setInputFiles('input[type="file"]', {

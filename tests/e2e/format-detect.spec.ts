@@ -29,8 +29,11 @@ test("format detection pill appears after file selection", async ({ page }) => {
 
   // Wait for the form to hydrate (supplier list loaded) so the file input's
   // React onChange is attached before we set a file — otherwise the detection
-  // handler is missed and the pill never renders (hydration race).
+  // handler is missed and the pill never renders (hydration race). The "Send to"
+  // control is a searchable combobox: open it to confirm the list loaded, then close.
+  await page.locator("#upload-supplier").click();
   await expect(page.getByRole("option", { name: /FastParts Inc/i })).toBeAttached({ timeout: 10_000 });
+  await page.keyboard.press("Escape");
 
   // Select a minimal CSV file using the hidden file input.
   // The mock returns a fixed synthetic detection regardless of file content.
