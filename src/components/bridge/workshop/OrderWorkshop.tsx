@@ -486,7 +486,7 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
       {/* ── Header: back · PO · status · buyer→supplier · focus control · Send ── */}
       <div className="flex-shrink-0" style={{ background: "#FFFFFF", borderBottom: "1px solid #E5E8EE" }}>
         <div className="flex flex-wrap items-center gap-x-4 gap-y-3 px-4 pt-2.5 pb-2.5 lg:px-6">
-          <div className="flex min-w-0 items-center gap-3 flex-shrink-0">
+          <div className="flex min-w-0 items-center gap-3 flex-shrink-0 max-w-full">
             <button
               onClick={() => router.push("/inbox")}
               aria-label="Back to inbox"
