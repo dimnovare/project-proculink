@@ -146,3 +146,30 @@ describe("buildCrumbTrail", () => {
     expect(trail.map((c) => c.href)).toEqual(["/library", "/library/suppliers", null]);
   });
 });
+
+describe("buildCrumbTrail — Workbench group head (v2 nav)", () => {
+  it("prefixes /drafts with an UNLINKED Workbench head crumb", () => {
+    const trail = buildCrumbTrail("/drafts", {});
+    expect(trail).toEqual([
+      { label: "Workbench", href: null }, // no /workbench route — context, not a link
+      { label: "Drafts", href: null },
+    ]);
+  });
+
+  it("prefixes /inbound/* with the Workbench head crumb", () => {
+    const trail = buildCrumbTrail("/inbound/invoices", {});
+    expect(trail.map((c) => c.label)).toEqual(["Workbench", "Inbound", "Invoices"]);
+    expect(trail[0].href).toBeNull();
+  });
+
+  it("leaves /inbox bare — matches the design captures", () => {
+    expect(buildCrumbTrail("/inbox", {})).toEqual([{ label: "Inbox", href: null }]);
+  });
+
+  it("leaves Library/Operations trails untouched (already two-level)", () => {
+    expect(buildCrumbTrail("/operations/exceptions", {}).map((c) => c.label)).toEqual([
+      "Operations",
+      "Exceptions",
+    ]);
+  });
+});

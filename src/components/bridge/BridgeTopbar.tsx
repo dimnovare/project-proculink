@@ -122,11 +122,13 @@ function useAutoCrumb(): ReactNode {
                 {display}
               </Link>
             ) : (
+              // Unlinked crumb: the CURRENT page (last) — or an unrouted group
+              // head like "Workbench", which is context, not the current page.
               <span
-                aria-current="page"
+                aria-current={isLast ? "page" : undefined}
                 title={crumb.label}
                 className="truncate"
-                style={{ color: "#C8D1E0", fontWeight: 500, maxWidth: 260 }}
+                style={{ color: isLast ? "#C8D1E0" : "#7C8DA6", fontWeight: isLast ? 500 : 400, maxWidth: 260 }}
               >
                 {display}
               </span>
