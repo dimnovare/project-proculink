@@ -64,6 +64,7 @@ vi.mock("@/hooks/useQueriesEnabled", () => ({ useQueriesEnabled: () => true }));
 import {
   BridgeSidebar,
   buildVisibleNav,
+  hubTooltip,
   isItemActive,
   PINNED_ACTION_HREF,
   type SidebarNavItem,
@@ -108,11 +109,20 @@ describe("BridgeSidebar — launch nav (STRUCT-1)", () => {
     expect(screen.getByRole("link", { name: /Upload order/i })).toHaveAttribute("href", PINNED_ACTION_HREF);
   });
 
-  it("keeps non-core hubs, Drafts, Inbound and Admin out of the launch nav", () => {
+  it("surfaces all five announced hubs in the launch nav (core-mode hub first-tabs)", () => {
+    render(<BridgeSidebar />);
+    // The five hub words the sidebar teaches all render in core mode now.
+    expect(screen.getByRole("link", { name: /Partners/i })).toBeTruthy();
+    expect(screen.getByRole("link", { name: /Rules & formats/i })).toBeTruthy();
+    expect(screen.getByRole("link", { name: /^Operations/i })).toBeTruthy();
+    expect(screen.getByRole("link", { name: /Integrations/i })).toBeTruthy();
+  });
+
+  it("keeps Drafts, Inbound and Admin out of the launch nav", () => {
     render(<BridgeSidebar />);
     expect(screen.queryByText("Drafts")).toBeNull();
-    expect(screen.queryByText("Rules & formats")).toBeNull();
-    expect(screen.queryByText("Integrations")).toBeNull();
+    // Inbound is separately gated by INBOUND_ENABLED (default off), so it stays
+    // hidden even though its first-tab href is now a core href.
     expect(screen.queryByText("Inbound")).toBeNull();
     expect(screen.queryByText("Admin")).toBeNull(); // non-admin probe (mocked undefined)
   });
@@ -134,7 +144,9 @@ describe("BridgeSidebar — launch nav (STRUCT-1)", () => {
 describe("buildVisibleNav — consolidated structure (full nav)", () => {
   it("produces the v2 grouped structure in order", () => {
     const nav = buildVisibleNav("Suppliers", true, FULL);
-    expect(nav.main.map((s) => s.group ?? null)).toEqual([null, "Workbench", "Library", "Operations"]);
+    // The Operations GROUP header is displayed as "Monitor" (renamed so it no
+    // longer collides with the "Operations" ITEM below it); routes untouched.
+    expect(nav.main.map((s) => s.group ?? null)).toEqual([null, "Workbench", "Library", "Monitor"]);
     expect(nav.main.map((s) => s.items.map((i) => i.label))).toEqual([
       ["Dashboard"],
       ["Inbox", "Drafts", "Inbound"],
@@ -200,12 +212,48 @@ describe("buildVisibleNav — consolidated structure (full nav)", () => {
   });
 });
 
+describe("hubTooltip — lists a hub's tabs (derived from HUB_TABS, can't drift)", () => {
+  const byLabel = Object.fromEntries(
+    allItems(buildVisibleNav("Suppliers", true, FULL)).map((i) => [i.label, i]),
+  );
+  it("describes each hub with its tab labels", () => {
+    expect(hubTooltip(byLabel["Partners"])).toBe("Suppliers · Buyers · Connections");
+    expect(hubTooltip(byLabel["Rules & formats"])).toBe("Mappings · Rules · Output templates · Standards");
+    expect(hubTooltip(byLabel["Operations"])).toBe("System health · Exceptions · Delivery log");
+    expect(hubTooltip(byLabel["Integrations"])).toBe("Connectors · Webhooks");
+    expect(hubTooltip(byLabel["Inbound"])).toBe("Invoices · Shipping notices");
+  });
+  it("returns undefined for non-hub items", () => {
+    expect(hubTooltip(byLabel["Dashboard"])).toBeUndefined();
+    expect(hubTooltip(byLabel["Inbox"])).toBeUndefined();
+  });
+});
+
 describe("buildVisibleNav — gates", () => {
-  it("LAUNCH_CORE_ONLY keeps only core-href items", () => {
+  it("LAUNCH_CORE_ONLY keeps only core-href items (all five hub first-tabs + core)", () => {
     const items = allItems(buildVisibleNav("Suppliers", true, { coreOnly: true, inboundEnabled: false }));
+    // Inbound's first-tab is a core href too, but stays filtered here because
+    // inboundEnabled:false — so it is absent from this list.
     expect(items.map((i) => i.href).sort()).toEqual(
-      ["/admin", "/bridge", "/help", "/inbox", "/library/suppliers", "/operations/health", "/settings"].sort(),
+      [
+        "/admin",
+        "/bridge",
+        "/help",
+        "/inbox",
+        "/library/mappings",
+        "/library/suppliers",
+        "/operations/connectors",
+        "/operations/health",
+        "/settings",
+      ].sort(),
     );
+  });
+
+  it("reveals Inbound in core mode only when INBOUND_ENABLED (first-tab is a core href)", () => {
+    const withInbound = allItems(buildVisibleNav("Suppliers", true, { coreOnly: true, inboundEnabled: true }));
+    expect(withInbound.some((i) => i.href === "/inbound/invoices")).toBe(true);
+    const withoutInbound = allItems(buildVisibleNav("Suppliers", true, { coreOnly: true, inboundEnabled: false }));
+    expect(withoutInbound.some((i) => i.href.startsWith("/inbound"))).toBe(false);
   });
 
   it("hides Admin for non-admins", () => {

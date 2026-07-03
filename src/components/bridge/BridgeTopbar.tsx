@@ -13,7 +13,7 @@ import type { Order, OrderSummary, Supplier } from "@/types/procurement";
 import { buildCrumbTrail, formatCrumbLabel, truncateLabel, type Crumb, type CrumbContext } from "./breadcrumb";
 import { CommandPalette } from "./CommandPalette";
 import { HelpSlideover } from "./HelpSlideover";
-import { HUB_TABS, HubTabs, hubForPath, type HubKey } from "./layout/HubTabs";
+import { HUB_LABELS, HUB_TABS, HubTabs, hubForPath, type HubKey } from "./layout/HubTabs";
 import { SetupProgressChip } from "./SetupProgressChip";
 
 interface BridgeTopbarProps {
@@ -180,9 +180,16 @@ function useHubRow(): HubRow | null {
   // buildCrumbTrail may prepend an unrouted group-head crumb ("Workbench") that
   // has no path segment — offset keeps crumb indexes aligned with segments.
   const offset = trail.length - segments.length;
+  const rawPrefix = trail.slice(0, offset + ownerDepth - 1);
+  // The prefix leads with the HUB'S name ("Partners", "Rules & formats") — the
+  // exact word the sidebar teaches — not the group-root crumb ("Library") which
+  // links to a 404. Drop a leading unlinked group-root crumb and lead with the
+  // hub label (unlinked context) so the row reads "Partners / [tabs]".
+  const hubCrumb: Crumb = { label: HUB_LABELS[hub], href: null };
+  const deeperPrefix = rawPrefix.length > 0 && rawPrefix[0].href === null ? rawPrefix.slice(1) : rawPrefix;
   return {
     hub,
-    prefix: trail.slice(0, offset + ownerDepth - 1),
+    prefix: [hubCrumb, ...deeperPrefix],
     tail: trail.slice(offset + ownerDepth),
   };
 }
@@ -445,7 +452,7 @@ export function BridgeTopbar({ crumb, onMenuClick }: BridgeTopbarProps) {
         <button
           type="button"
           onClick={onMenuClick}
-          className="flex h-9 w-9 items-center justify-center rounded-[7px] md:hidden"
+          className="flex h-11 w-11 md:h-9 md:w-9 items-center justify-center rounded-[7px] md:hidden"
           style={{
             background: "#14253D",
             border: "1px solid #1F3252",
@@ -630,7 +637,7 @@ export function BridgeTopbar({ crumb, onMenuClick }: BridgeTopbarProps) {
             active tab's 2px underline rides the row's bottom edge. */}
         {!crumb && hubRow ? (
           <div
-            className="hidden sm:flex min-w-0 flex-1 items-stretch self-stretch text-[12.5px]"
+            className="flex min-w-0 flex-1 items-stretch self-stretch text-[12.5px]"
             style={{ color: "#C8D1E0", overflowX: "auto", overflowY: "hidden", scrollbarWidth: "none" }}
           >
             {hubRow.prefix.length > 0 && (
@@ -665,8 +672,10 @@ export function BridgeTopbar({ crumb, onMenuClick }: BridgeTopbarProps) {
           </div>
         )}
         {/* Mobile: compact single-segment page title so the user always knows
-            where they are (the desktop breadcrumb is hidden below sm). */}
-        {mobileLabel && (
+            where they are (the desktop breadcrumb is hidden below sm). Suppressed
+            on hub routes — the hub strip above now shows on mobile too, and it
+            already names the section, so a page label here would double up. */}
+        {mobileLabel && !(!crumb && hubRow) && (
           <span
             className="sm:hidden min-w-0 truncate text-[13px] font-semibold"
             style={{ color: "#FFFFFF" }}

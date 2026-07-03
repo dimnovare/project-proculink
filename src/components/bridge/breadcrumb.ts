@@ -146,17 +146,29 @@ export interface Crumb {
 const WORKBENCH_GROUP_ROOTS: ReadonlySet<string> = new Set(["drafts", "inbound"]);
 
 /**
+ * Top-level segments that name a NAV GROUP but have NO index route of their own —
+ * "/library", "/operations", "/inbound" all 404 live. Their crumb is CONTEXT
+ * (the hub the page belongs to), never a link, exactly like the "Workbench" head.
+ * Nulling the href here keeps every breadcrumb off a dead 404 target.
+ */
+const UNLINKED_GROUP_ROOTS: ReadonlySet<string> = new Set(["library", "operations", "inbound"]);
+
+/**
  * Build the full ordered crumb trail for a pathname.
- * The last segment is the current page (no href); all earlier segments link.
+ * The last segment is the current page (no href); all earlier segments link,
+ * EXCEPT group-root segments (library / operations / inbound) which have no
+ * index route — those stay unlinked context crumbs so no crumb points at a 404.
  * Workbench-group routes are prefixed with an unlinked "Workbench" head crumb.
  */
 export function buildCrumbTrail(pathname: string, ctx: CrumbContext = {}): Crumb[] {
   const segments = pathname.split("/").filter(Boolean);
   const trail = segments.map((segment, index) => {
     const isLast = index === segments.length - 1;
+    // A group-root at index 0 (e.g. "library") has no index route — never link it.
+    const isUnlinkedGroupRoot = index === 0 && UNLINKED_GROUP_ROOTS.has(segment);
     return {
       label: formatCrumbLabel(segment, index, segments, ctx),
-      href: isLast ? null : crumbHref(segments, index),
+      href: isLast || isUnlinkedGroupRoot ? null : crumbHref(segments, index),
     };
   });
   if (segments.length > 0 && WORKBENCH_GROUP_ROOTS.has(segments[0])) {

@@ -24,14 +24,29 @@ export const LAUNCH_CORE_ONLY =
 export const INBOUND_ENABLED =
   process.env.NEXT_PUBLIC_INBOUND_ENABLED === "true";
 
-/** hrefs that remain in the sidebar during the first launch. */
+/**
+ * hrefs that remain in the sidebar during the first launch.
+ *
+ * Includes the FIRST-TAB href of every announced hub so all five hubs the
+ * sidebar promises survive the core filter and stay reachable on mobile
+ * (Partners → /library/suppliers, Rules & formats → /library/mappings,
+ * Operations → /operations/health, Integrations → /operations/connectors,
+ * Inbound → /inbound/invoices). Inbound additionally stays behind INBOUND_ENABLED
+ * (its route is filtered out first in buildVisibleNav), so listing it here does
+ * NOT leak it — it only lets it survive the core filter once inbound is enabled.
+ * Sibling tabs inside each hub are reached via the HubTabs bar; their routes all
+ * resolve directly.
+ */
 export const LAUNCH_CORE_HREFS: ReadonlySet<string> = new Set([
   "/bridge",
   "/upload",
   "/inbox",
   "/library/suppliers",
+  "/library/mappings",
   "/operations/exceptions",
   "/operations/health",
+  "/operations/connectors",
+  "/inbound/invoices",
   "/admin",
   "/settings",
   "/help",

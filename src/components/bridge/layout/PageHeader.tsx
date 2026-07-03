@@ -1,4 +1,5 @@
 import * as React from "react";
+import { HubEyebrow } from "./HubEyebrow";
 
 /* =====================================================================
    PageHeader — the ONE canonical page-title row.
@@ -36,6 +37,10 @@ export function PageHeader({ title, sub, actions, className }: PageHeaderProps) 
         .join(" ")}
     >
       <div className="min-w-0">
+        {/* Hub eyebrow — names the hub this page belongs to (derived from the
+            route inside HubEyebrow, so no page file changes). Renders nothing
+            on non-hub routes. */}
+        <HubEyebrow />
         <h1
           className="text-[28px] sm:text-[30px]"
           style={{

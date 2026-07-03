@@ -140,10 +140,41 @@ describe("buildCrumbTrail", () => {
     expect(buildCrumbTrail("/", {})).toEqual([]);
   });
 
-  it("handles a three-level supplier detail trail", () => {
+  it("handles a three-level supplier detail trail (Library head is unlinked — /library 404s)", () => {
     const trail = buildCrumbTrail(`/library/suppliers/${UUID}`, { supplierName: "Northwind" });
     expect(trail.map((c) => c.label)).toEqual(["Library", "Suppliers", "Northwind"]);
-    expect(trail.map((c) => c.href)).toEqual(["/library", "/library/suppliers", null]);
+    // "/library" has no index route, so its crumb must NOT link (would 404).
+    expect(trail.map((c) => c.href)).toEqual([null, "/library/suppliers", null]);
+  });
+});
+
+describe("buildCrumbTrail — unlinked group-root heads (no index route → never a 404 link)", () => {
+  it("never links the /library group-root crumb", () => {
+    const trail = buildCrumbTrail("/library/suppliers", {});
+    expect(trail[0]).toEqual({ label: "Library", href: null });
+    expect(trail[1]).toEqual({ label: "Suppliers", href: null }); // current page
+  });
+
+  it("never links the /operations group-root crumb", () => {
+    const trail = buildCrumbTrail("/operations/health", {});
+    expect(trail[0]).toEqual({ label: "Operations", href: null });
+    expect(trail[1].label).toBe("System health");
+  });
+
+  it("never links the /inbound group-root crumb (Workbench head + unlinked Inbound)", () => {
+    const trail = buildCrumbTrail("/inbound/invoices", {});
+    // Workbench head (context) + Inbound group-root (no index route) + current page.
+    expect(trail.map((c) => c.href)).toEqual([null, null, null]);
+    expect(trail.map((c) => c.label)).toEqual(["Workbench", "Inbound", "Invoices"]);
+  });
+
+  it("no crumb in a hub trail ever points at a group-root 404", () => {
+    for (const path of ["/library/suppliers", "/library/mappings", "/operations/exceptions", "/operations/connectors"]) {
+      const trail = buildCrumbTrail(path, {});
+      expect(trail.some((c) => c.href === "/library")).toBe(false);
+      expect(trail.some((c) => c.href === "/operations")).toBe(false);
+      expect(trail.some((c) => c.href === "/inbound")).toBe(false);
+    }
   });
 });
 

@@ -17,4 +17,19 @@ describe("LAUNCH_CORE_HREFS (STRUCT-1)", () => {
       expect(LAUNCH_CORE_HREFS.has(href)).toBe(true);
     }
   });
+
+  it("includes every announced hub's first-tab href so all 5 hubs survive core mode", () => {
+    // Partners, Rules & formats, Operations, Integrations, Inbound (Inbound is
+    // additionally gated by INBOUND_ENABLED in buildVisibleNav, so listing it
+    // here does not leak it — it only lets it survive the core filter once on).
+    for (const href of [
+      "/library/suppliers",
+      "/library/mappings",
+      "/operations/health",
+      "/operations/connectors",
+      "/inbound/invoices",
+    ]) {
+      expect(LAUNCH_CORE_HREFS.has(href)).toBe(true);
+    }
+  });
 });

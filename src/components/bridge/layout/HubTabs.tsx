@@ -23,6 +23,20 @@ interface HubTab {
   match?: string[];
 }
 
+/**
+ * Human display name for each hub — the word the sidebar teaches ("Partners",
+ * "Rules & formats"). Used as the topbar prefix crumb and the in-page hub eyebrow
+ * so the destination visibly belongs to the hub the user clicked. Kept next to
+ * HUB_TABS so labels and tabs can't drift.
+ */
+export const HUB_LABELS: Record<HubKey, string> = {
+  partners: "Partners",
+  "rules-formats": "Rules & formats",
+  operations: "Operations",
+  integrations: "Integrations",
+  inbound: "Inbound",
+};
+
 export const HUB_TABS: Record<HubKey, HubTab[]> = {
   partners: [
     { label: "Suppliers", href: "/library/suppliers", match: ["/library/suppliers"] },
@@ -83,7 +97,9 @@ const barStyle: CSSProperties = {
 const topbarBarStyle: CSSProperties = {
   display: "flex",
   alignItems: "stretch",
-  gap: 18,
+  // Small gap only — each tab now carries its own 8px horizontal padding so the
+  // effective tap target is comfortable; a large gap on top would over-space them.
+  gap: 4,
   height: "100%",
   flexShrink: 0,
 };
@@ -118,8 +134,12 @@ export function HubTabs({
                 ? {
                     display: "inline-flex",
                     alignItems: "center",
+                    justifyContent: "center",
                     gap: 7,
-                    padding: "0 1px",
+                    // ≥38px tap target on touch: horizontal padding + full-row
+                    // height so tabs are comfortably swipe-tappable at 390px.
+                    padding: "0 8px",
+                    minHeight: 38,
                     fontSize: 13,
                     fontWeight: 600,
                     color: active ? "#FFFFFF" : "#7C8DA6",

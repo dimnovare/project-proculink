@@ -71,7 +71,10 @@ const NAV_MAIN: SidebarNavSection[] = [
     ],
   },
   {
-    group: "Operations",
+    // Group HEADER display string only — "Operations" here collided with the
+    // "Operations" ITEM directly below it (read like a rendering bug). Renamed
+    // to "Monitor"; the routes and the "Operations" item are untouched.
+    group: "Monitor",
     items: [
       { label: "Operations", href: HUB_TABS.operations[0].href, icon: Zap, hub: "operations" },
       { label: "Integrations", href: HUB_TABS.integrations[0].href, icon: Plug, hub: "integrations" },
@@ -135,6 +138,17 @@ export function buildVisibleNav(
     .filter((section) => section.items.length > 0);
 
   return { main, tail: filterItems(NAV_TAIL) };
+}
+
+/**
+ * Descriptive tooltip for a hub item — lists the tabs INSIDE the hub so a
+ * first-time user knows what a hub contains before clicking. Derived from
+ * HUB_TABS (middot-joined tab labels) so it can never drift from the actual tabs.
+ * Returns undefined for non-hub items.
+ */
+export function hubTooltip(item: SidebarNavItem): string | undefined {
+  if (!item.hub) return undefined;
+  return HUB_TABS[item.hub].map((t) => t.label).join(" · ");
 }
 
 /** Active state: hub items light for ANY route in their hub; plain items by prefix. */
@@ -262,6 +276,10 @@ export function BridgeSidebar({
     const active = isItemActive(pathname, item);
     const Ico = item.icon;
     const badge = badgeFor(item.badgeKey);
+    // Collapsed rail → the label (icons only). Expanded → an always-on tooltip
+    // listing a hub's tabs so a first-time user sees what's inside before
+    // clicking; plain items get no expanded tooltip (their label is visible).
+    const title = isCollapsed ? item.label : hubTooltip(item);
     return (
       <Link
         key={item.href}
@@ -269,9 +287,9 @@ export function BridgeSidebar({
         onClick={onNavigate}
         target={item.newTab ? "_blank" : undefined}
         rel={item.newTab ? "noopener noreferrer" : undefined}
-        title={isCollapsed ? item.label : undefined}
+        title={title}
         aria-current={active ? "page" : undefined}
-        className={`flex items-center text-[13.5px] ${active ? "font-[600]" : "font-medium"} transition-colors duration-[130ms] relative ${isCollapsed ? "justify-center py-[9px] mx-[10px]" : "gap-[11px] px-[11px] py-[8px] mx-3"} my-px rounded-[9px]`}
+        className={`flex items-center text-[13.5px] ${active ? "font-[600]" : "font-medium"} transition-colors duration-[130ms] relative ${isCollapsed ? "justify-center py-[9px] mx-[10px]" : `gap-[11px] px-[11px] ${fullWidth ? "py-[11px]" : "py-[8px]"} mx-3`} my-px rounded-[9px]`}
         style={{ color: active ? "#FFFFFF" : "#C8D1E0", background: active ? "rgba(30,102,201,0.20)" : "transparent" }}
         onMouseEnter={(e) => { if (!active) { (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.055)"; (e.currentTarget as HTMLElement).style.color = "#FFFFFF"; } }}
         onMouseLeave={(e) => { if (!active) { (e.currentTarget as HTMLElement).style.background = "transparent"; (e.currentTarget as HTMLElement).style.color = "#C8D1E0"; } }}
