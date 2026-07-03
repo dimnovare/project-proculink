@@ -177,7 +177,7 @@ export function IncomingPane({
           aria-label="Search incoming fields"
           style={{
             width: "100%", boxSizing: "border-box", padding: "6px 9px", borderRadius: 8,
-            border: "1px solid var(--line, #DCE0E8)", fontSize: 11.5, color: "var(--ink, #0B1A2F)", background: "#F1F3F7",
+            border: "1px solid #E5E8EE", fontSize: 11.5, color: "var(--ink, #0B1A2F)", background: "#F1F3F7",
           }}
         />
       </div>
@@ -196,14 +196,14 @@ export function IncomingPane({
                 display: "inline-flex", alignItems: "center", gap: 4,
                 padding: "4px 9px", borderRadius: 999, cursor: "pointer",
                 fontSize: 11, fontWeight: 600, letterSpacing: "0.02em",
-                border: `1px solid ${active ? "#1E66C9" : "var(--line, #DCE0E8)"}`,
+                border: `1px solid ${active ? "#1E66C9" : "#E5E8EE"}`,
                 background: active ? "#EAF0F8" : "#FFFFFF",
                 color: active ? "#0F4FA8" : "#5E6779",
                 transition: "border-color 120ms, background 120ms, color 120ms",
               }}
             >
               {f.label}
-              <span style={{ fontSize: 9, fontFamily: "'JetBrains Mono',monospace", fontWeight: 400, opacity: 0.7 }}>{counts[f.id]}</span>
+              <span style={{ fontSize: 10, fontFamily: "'JetBrains Mono',monospace", fontWeight: 400, opacity: 0.7 }}>{counts[f.id]}</span>
             </button>
           );
         })}
@@ -305,8 +305,9 @@ function IncomingGroup({
           background: "none", border: "none", cursor: forceOpen ? "default" : "pointer", padding: "0 0 6px", margin: 0,
         }}
       >
-        <span style={{ fontSize: 10, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--ink-faint)" }}>
-          {meta.label} · {fields.length}
+        <span style={{ fontSize: 10, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.09em", color: "#5E6779" }}>
+          {meta.label}{" "}
+          <span style={{ fontFamily: "'JetBrains Mono',monospace", fontWeight: 700, color: "#98A0AE" }}>· {fields.length}</span>
         </span>
         {!forceOpen && (
           <span aria-hidden style={{ fontSize: 9, fontWeight: 700, color: "#5E3DB0", transition: "transform 120ms", transform: expanded ? "rotate(0deg)" : "rotate(-90deg)" }}>
@@ -383,7 +384,7 @@ function IncomingRow({
     >
       <span style={{ display: "flex", flexDirection: "column", gap: 1, minWidth: 0, flex: 1 }}>
         <span style={{ display: "flex", alignItems: "center", gap: 5, minWidth: 0 }}>
-          <span style={{ fontSize: 12.5, fontWeight: 600, letterSpacing: "0.04em", color: "var(--ink, #0B1A2F)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+          <span style={{ fontSize: 12.5, fontWeight: 600, color: "var(--ink, #0B1A2F)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
             {field.label}
           </span>
           {suggested && !wired && (

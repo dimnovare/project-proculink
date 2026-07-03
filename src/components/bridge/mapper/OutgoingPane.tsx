@@ -284,7 +284,7 @@ export function OutgoingPane({
           This supplier uses a structured format ({structuredFormatLabel(outputFormat)}). Fields like
           contact and addresses are filled in automatically from the order — adding or editing fields
           here won&rsquo;t change what&rsquo;s sent.{" "}
-          <span style={{ color: "#7A8395" }}>
+          <span style={{ color: "#98A0AE" }}>
             To change the structure, edit the supplier&rsquo;s output setup.
           </span>
         </div>
@@ -441,7 +441,7 @@ function AutoFilledSection({ fields }: { fields?: AutoFilledFields | null }) {
         </span>
         <span
           title="These come straight from the order and can't be edited here."
-          style={{ fontSize: 9.5, fontWeight: 700, color: "#6B7585", background: "#F1F3F7", border: "1px solid #E5E8EE", borderRadius: 4, padding: "1px 6px", letterSpacing: "0.02em" }}
+          style={{ fontSize: 9.5, fontWeight: 700, color: "#5E6779", background: "#F1F3F7", border: "1px solid #E5E8EE", borderRadius: 4, padding: "1px 6px", letterSpacing: "0.02em" }}
         >
           read-only
         </span>
@@ -449,13 +449,13 @@ function AutoFilledSection({ fields }: { fields?: AutoFilledFields | null }) {
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 12 }}>
         {blocks.map((b) => (
           <div key={b.label} style={{ minWidth: 0 }}>
-            <div style={{ fontSize: 10, fontWeight: 700, color: "#7A8395", marginBottom: 3, textTransform: "uppercase", letterSpacing: "0.04em" }}>
+            <div style={{ fontSize: 10, fontWeight: 700, color: "#5E6779", marginBottom: 3, textTransform: "uppercase", letterSpacing: "0.04em" }}>
               {b.label}
             </div>
             {b.lines.map((line, i) => (
               <div
                 key={i}
-                style={{ fontSize: 11.5, color: "#3C4658", lineHeight: 1.45, overflowWrap: "anywhere" }}
+                style={{ fontSize: 11.5, color: "#5E6779", lineHeight: 1.45, overflowWrap: "anywhere" }}
               >
                 {line}
               </div>
@@ -641,7 +641,7 @@ function OutgoingRow({
               {field.label || field.outputPath}
             </span>
             {field.label && field.label !== field.outputPath && (
-              <span style={{ fontSize: 10.5, fontFamily: "'JetBrains Mono',monospace", color: "#7A8395", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              <span style={{ fontSize: 10.5, fontFamily: "'JetBrains Mono',monospace", color: "#98A0AE", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                 {field.outputPath}
               </span>
             )}
@@ -909,7 +909,7 @@ function OutgoingStatusTag({
   }
   if (status.kind === "auto") {
     return (
-      <span title="Filled automatically — carried straight through by the default transform" style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", color: "#6B7585", flexShrink: 0 }}>
+      <span title="Filled automatically — carried straight through by the default transform" style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", color: "#5E6779", flexShrink: 0 }}>
         auto
       </span>
     );
@@ -917,13 +917,13 @@ function OutgoingStatusTag({
   // Unmapped: loud amber ONLY when required; otherwise neutral + quiet.
   if (status.required) {
     return (
-      <span title="This field must be set before going live — map an incoming field to it or enter a fixed value." style={{ display: "inline-flex", alignItems: "center", gap: 3, fontSize: 11, fontWeight: 700, color: "#8A6000", background: "#FFF7E6", border: "1px solid #F1E2BE", borderRadius: 4, padding: "1px 6px", flexShrink: 0 }}>
+      <span title="This field must be set before going live — map an incoming field to it or enter a fixed value." style={{ display: "inline-flex", alignItems: "center", gap: 3, fontSize: 11, fontWeight: 700, color: "#B36D14", background: "#FAF1DD", border: "1px solid #F1E2BE", borderRadius: 4, padding: "1px 6px", flexShrink: 0 }}>
         needs a value
       </span>
     );
   }
   return (
-    <span style={{ fontSize: 11, fontWeight: 600, color: "#6B7585", flexShrink: 0 }}>not set</span>
+    <span style={{ fontSize: 11, fontWeight: 600, color: "#5E6779", flexShrink: 0 }}>not set</span>
   );
 }
 
@@ -952,7 +952,7 @@ function RowChipButton({
       title={isDisabled ? reason : title}
       style={{
         display: "inline-flex", alignItems: "center", gap: 3, height: 26, padding: "0 11px",
-        borderRadius: 7, fontSize: 13, fontWeight: 700, letterSpacing: "0.01em",
+        borderRadius: 7, fontSize: 11.5, fontWeight: 600, letterSpacing: "0.01em",
         whiteSpace: "nowrap", flexShrink: 0,
         border: `1px solid ${active ? "#C4ABE8" : "#E7DEF6"}`,
         background: active ? "#F4EFFC" : "transparent",
@@ -1028,11 +1028,11 @@ function AddOutputFieldMenu({
         style={{
           display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6,
           border: "1px dashed #A9D3AF", background: "#F4FBF5", color: "#1E6D29",
-          borderRadius: 7, padding: "6px 14px", fontSize: 13, fontWeight: 700, cursor: "pointer",
+          borderRadius: 7, padding: "6px 14px", fontSize: 11.5, fontWeight: 600, cursor: "pointer",
           ...(fullWidth ? { width: "100%", padding: "11px 14px" } : {}),
         }}
       >
-        <span aria-hidden style={{ fontSize: 17, lineHeight: 1, display: "inline-flex", alignItems: "center", justifyContent: "center", width: 14, height: 14, marginTop: -1 }}>+</span>
+        <span aria-hidden style={{ fontSize: 14, lineHeight: 1, display: "inline-flex", alignItems: "center", justifyContent: "center", width: 12, height: 12, marginTop: -1 }}>+</span>
         Add output field
       </button>
 
