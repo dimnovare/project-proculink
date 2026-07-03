@@ -30,6 +30,8 @@ import { useOrderDirection } from "@/hooks/useOrderDirection";
 import { useConfirm } from "@/components/ui/confirm";
 import { PageShell } from "./layout/PageShell";
 import { PageHeader } from "./layout/PageHeader";
+import { HubTabs } from "./layout/HubTabs";
+import { tv2HeaderCell, tv2RowDivider } from "./layout/listTableV2";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -273,6 +275,7 @@ export function ValidationRules() {
         <div className="mb-5 flex-shrink-0">
           <div style={{ height: 28, width: 200, borderRadius: 6, background: "#E5E8EE" }} className="animate-pulse" />
         </div>
+        <HubTabs hub="rules-formats" />
         <div className="flex-1 overflow-auto">
           <div className="rounded-[12px] animate-pulse" style={{ height: 360, background: "#FFFFFF", border: "1px solid #E5E8EE" }} />
         </div>
@@ -282,11 +285,14 @@ export function ValidationRules() {
 
   if (!isApiMockMode && isError) {
     return (
-      <PageShell variant="wide" className="flex flex-col items-center justify-center">
-        <div className="rounded-[12px] p-8 text-center max-w-sm" style={{ background: "#FFFFFF", border: "1px solid #E5E8EE", boxShadow: "0 1px 3px rgba(16,24,40,0.06)" }}>
-          <p className="text-[14px] font-semibold mb-1" style={{ color: "#B43838" }}>Could not load validation rules</p>
-          <p className="text-[12px] mb-4" style={{ color: "#5E6779" }}>Check your connection and try again.</p>
-          <button onClick={() => refetch()} className="rounded-[8px] px-4 py-2 text-[12px] font-semibold" style={{ background: "#0B1A2F", color: "#FFFFFF", border: 0 }}>Retry</button>
+      <PageShell variant="wide" className="flex flex-col">
+        <HubTabs hub="rules-formats" />
+        <div className="flex flex-1 flex-col items-center justify-center">
+          <div className="rounded-[12px] p-8 text-center max-w-sm" style={{ background: "#FFFFFF", border: "1px solid #E5E8EE", boxShadow: "0 1px 3px rgba(16,24,40,0.06)" }}>
+            <p className="text-[14px] font-semibold mb-1" style={{ color: "#B43838" }}>Could not load validation rules</p>
+            <p className="text-[12px] mb-4" style={{ color: "#5E6779" }}>Check your connection and try again.</p>
+            <button onClick={() => refetch()} className="rounded-[8px] px-4 py-2 text-[12px] font-semibold" style={{ background: "#0B1A2F", color: "#FFFFFF", border: 0 }}>Retry</button>
+          </div>
         </div>
       </PageShell>
     );
@@ -315,6 +321,9 @@ export function ValidationRules() {
           </button>
         }
       />
+
+      {/* Hub tab bar — Rules & formats hub (Mappings | Rules | Output templates | Standards) */}
+      <HubTabs hub="rules-formats" counts={{ Rules: rules.length }} />
 
       {/* Enforcement-location callout — this catalog documents checks; it does not
           gate delivery. Real blocking/validation runs per supplier. Hidden on mobile:
@@ -347,9 +356,22 @@ export function ValidationRules() {
             <div className="overflow-x-auto">
               <table className="w-full border-collapse" style={{ fontSize: 13 }}>
                 <thead>
-                  <tr style={{ borderBottom: "1px solid var(--border)" }}>
-                    {["Rule", "Scope", partyNoun, "Severity", "Triggered 30d", "Active"].map((h, i) => (
-                      <th key={h} className="px-5 py-3 text-[10.5px] font-semibold uppercase tracking-[0.07em]" style={{ position: "sticky", top: 0, zIndex: 1, background: "#FFFFFF", color: "#9AA3B5", textAlign: i === 5 ? "right" : "left", whiteSpace: "nowrap", boxShadow: "inset 0 -1px 0 var(--border)" }}>{h}</th>
+                  <tr>
+                    {/* v2 tinted header band (shared listTableV2), toggle leads the
+                        row per the design's toggle-list; numeric column right-aligned. */}
+                    {["Active", "Rule", "Scope", partyNoun, "Severity", "Triggered 30d"].map((h, i) => (
+                      <th
+                        key={h}
+                        style={{
+                          ...tv2HeaderCell(i === 5 ? "right" : "left", i === 0),
+                          position: "sticky",
+                          top: 0,
+                          zIndex: 1,
+                          boxShadow: "inset 0 -1px 0 #E5E8EE",
+                        }}
+                      >
+                        {h}
+                      </th>
                     ))}
                   </tr>
                 </thead>
@@ -362,28 +384,33 @@ export function ValidationRules() {
                         key={r.id}
                         onClick={() => { setNotice(null); setSelId(r.id); }}
                         className="cursor-pointer transition-colors"
-                        style={{ borderBottom: "1px solid var(--border)", background: active ? "#EAF0F8" : "transparent", opacity: r.enabled ? 1 : 0.62 }}
+                        style={{ borderBottom: tv2RowDivider, background: active ? "#EAF0F8" : "transparent", opacity: r.enabled ? 1 : 0.62 }}
                         onMouseEnter={(e) => { if (!active) e.currentTarget.style.background = "#F6F8FB"; }}
                         onMouseLeave={(e) => { if (!active) e.currentTarget.style.background = "transparent"; }}
                       >
-                        <td className="px-5 py-3.5" style={{ maxWidth: 280, borderLeft: active ? "2px solid #1E66C9" : "2px solid transparent" }}>
+                        {/* Leading toggle — the design's toggle-list affordance */}
+                        <td
+                          className="py-3.5 pl-[18px] pr-3"
+                          style={{ borderLeft: active ? "2px solid #1E66C9" : "2px solid transparent", whiteSpace: "nowrap" }}
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <Toggle on={r.enabled} onChange={() => handleToggle(r.id)} label={r.name} />
+                        </td>
+                        <td className="px-3 py-3.5" style={{ maxWidth: 280 }}>
                           <div className="font-semibold text-[13px] leading-tight" style={{ color: "#0B1A2F" }}>{r.name || <span style={{ color: "#9AA3B5", fontStyle: "italic" }}>Untitled rule</span>}</div>
                           <div className="text-[11px] mt-0.5 tracking-[0.02em]" style={{ color: "#9AA3B5", fontFamily: "'JetBrains Mono', ui-monospace, SFMono-Regular, monospace" }}>{r.code}</div>
                         </td>
-                        <td className="px-5 py-3.5">
+                        <td className="px-3 py-3.5">
                           <span className="inline-flex items-center rounded-[6px] px-2 py-0.5 text-[11.5px] font-medium" style={{ background: "#F1F3F7", color: "#5B6577" }}>{r.entity}</span>
                         </td>
-                        <td className="px-5 py-3.5 text-[12.5px]" style={{ color: "#3C4658" }}>{r.supplier}</td>
-                        <td className="px-5 py-3.5">
+                        <td className="px-3 py-3.5 text-[12.5px]" style={{ color: "#3C4658" }}>{r.supplier}</td>
+                        <td className="px-3 py-3.5">
                           <span className="inline-flex items-center gap-1.5 rounded-full px-2.5 h-[22px] text-[11.5px] font-semibold" style={{ background: sev.bg, color: sev.color }}>
                             <span style={{ width: 6, height: 6, borderRadius: "50%", background: sev.color }} />
                             {sev.label}
                           </span>
                         </td>
-                        <td className="px-5 py-3.5 text-[13px] font-semibold" style={{ fontFamily: "'JetBrains Mono', ui-monospace, SFMono-Regular, monospace", fontVariantNumeric: "tabular-nums", color: r.triggers > 0 ? "#0B1A2F" : "#CBD0DA" }}>{r.triggers}</td>
-                        <td className="px-5 py-3.5" style={{ textAlign: "right" }} onClick={(e) => e.stopPropagation()}>
-                          <Toggle on={r.enabled} onChange={() => handleToggle(r.id)} label={r.name} />
-                        </td>
+                        <td className="px-3 py-3.5 text-[13px] font-semibold" style={{ fontFamily: "'JetBrains Mono', ui-monospace, SFMono-Regular, monospace", fontVariantNumeric: "tabular-nums", textAlign: "right", color: r.triggers > 0 ? "#0B1A2F" : "#CBD0DA" }}>{r.triggers}</td>
                       </tr>
                     );
                   })}

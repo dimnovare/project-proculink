@@ -9,6 +9,14 @@ import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { PageShell } from "@/components/bridge/layout/PageShell";
 import { PageHeader } from "@/components/bridge/layout/PageHeader";
+import { HubTabs } from "@/components/bridge/layout/HubTabs";
+import {
+  tv2CardStyle,
+  tv2HeaderCell,
+  tv2BodyCell,
+  tv2RowDivider,
+  tv2DotForTone,
+} from "@/components/bridge/layout/listTableV2";
 import { Card } from "@/components/bridge/layout/Card";
 import { EmptyState } from "@/components/bridge/EmptyState";
 import { Button } from "@/components/bridge/DSPrimitives";
@@ -62,6 +70,12 @@ export function ConnectionsList() {
         }
       />
 
+      {/* Hub tab bar — Partners hub (Suppliers | Buyers | Connections) */}
+      <HubTabs
+        hub="partners"
+        counts={!isLoading && !isError ? { Connections: connections.length } : undefined}
+      />
+
       {isLoading && (
         <div className="flex flex-col gap-2.5" aria-busy="true" aria-label="Loading connections">
           {[1, 2, 3].map((i) => (
@@ -102,8 +116,148 @@ export function ConnectionsList() {
         </Card>
       )}
 
+      {/* ── Desktop (sm+): unified full-bleed v2 table ─────────────────────
+          Columns are REAL summary data only (name, status, live version,
+          updated). Output / channel / order-count columns from the design are
+          omitted rather than faked — the summary DTO does not carry them. */}
       {!isLoading && !isError && connections.length > 0 && (
-        <ul className="flex flex-col gap-2.5 list-none p-0 m-0">
+        <div className="hidden sm:block" style={tv2CardStyle}>
+          <table style={{ width: "100%", borderCollapse: "collapse" }}>
+            <colgroup>
+              <col />
+              <col style={{ width: 140 }} />
+              <col style={{ width: 130 }} />
+              <col style={{ width: 130 }} />
+              <col style={{ width: 44 }} />
+            </colgroup>
+            <thead>
+              <tr>
+                <th style={tv2HeaderCell("left", true)}>Connection</th>
+                <th style={tv2HeaderCell("left")}>Status</th>
+                <th style={tv2HeaderCell("right")}>Live version</th>
+                <th style={tv2HeaderCell("right")}>Updated</th>
+                <th style={tv2HeaderCell("right")} aria-hidden />
+              </tr>
+            </thead>
+            <tbody>
+              {connections.map((c, idx) => {
+                const badge = badgeStatus(c);
+                const divider = idx === connections.length - 1 ? "none" : tv2RowDivider;
+                const statusTitle =
+                  badge.status === "live"
+                    ? "New orders are using this version."
+                    : "A work-in-progress — not processing orders yet.";
+                return (
+                  <tr
+                    key={c.id}
+                    onClick={() => router.push(`/connections/${c.id}`)}
+                    role="link"
+                    tabIndex={0}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        router.push(`/connections/${c.id}`);
+                      }
+                    }}
+                    aria-label={`Open connection ${c.name}`}
+                    className="cursor-pointer transition-colors"
+                    style={{ background: "transparent" }}
+                    onMouseEnter={(e) => { e.currentTarget.style.background = "var(--surface-2)"; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
+                  >
+                    {/* Connection — leading status dot + name + version sub-line */}
+                    <td style={{ ...tv2BodyCell("left", true), borderBottom: divider, height: 52 }}>
+                      <div className="flex min-w-0 items-center gap-[11px]">
+                        <span
+                          aria-hidden
+                          style={{
+                            width: 7,
+                            height: 7,
+                            borderRadius: "50%",
+                            background: tv2DotForTone(statusTone(badge.status)),
+                            flexShrink: 0,
+                          }}
+                        />
+                        <div className="min-w-0">
+                          <p className="truncate text-[13.5px] font-semibold leading-tight tracking-[-0.005em]" style={{ color: "var(--ink)", margin: 0 }}>
+                            {c.name}
+                          </p>
+                          <p className="mt-[1px] truncate text-[11.5px] leading-tight" style={{ color: "var(--ink-muted)", margin: 0 }}>
+                            {c.activeVersionNo != null ? (
+                              <>
+                                Live version{" "}
+                                <span style={{ fontWeight: 600, color: "var(--ink)" }}>v{c.activeVersionNo}</span>
+                                {" · since "}
+                                {formatDate(c.updatedAt)}
+                              </>
+                            ) : (
+                              <span style={{ fontStyle: "italic" }}>Not live yet</span>
+                            )}
+                          </p>
+                        </div>
+                      </div>
+                    </td>
+
+                    {/* Status */}
+                    <td style={{ ...tv2BodyCell("left"), borderBottom: divider, height: 52 }}>
+                      <span
+                        className="inline-flex"
+                        style={{ cursor: "help" }}
+                        title={statusTitle}
+                        aria-label={
+                          badge.status === "live"
+                            ? "Live — new orders are using this version."
+                            : "Draft — a work-in-progress, not processing orders yet."
+                        }
+                      >
+                        <UnifiedStatusBadge status={badge.status} icon />
+                      </span>
+                    </td>
+
+                    {/* Live version — tabular figures, honest em-dash when none */}
+                    <td
+                      style={{
+                        ...tv2BodyCell("right"),
+                        borderBottom: divider,
+                        height: 52,
+                        fontFamily: "var(--font-mono, 'JetBrains Mono', ui-monospace, monospace)",
+                        fontVariantNumeric: "tabular-nums",
+                        fontSize: 12.5,
+                        fontWeight: 600,
+                        color: c.activeVersionNo != null ? "var(--ink)" : "var(--ink-faint)",
+                      }}
+                    >
+                      {c.activeVersionNo != null ? `v${c.activeVersionNo}` : "—"}
+                    </td>
+
+                    {/* Updated */}
+                    <td
+                      style={{
+                        ...tv2BodyCell("right"),
+                        borderBottom: divider,
+                        height: 52,
+                        fontSize: 12.5,
+                        color: "var(--ink-muted)",
+                      }}
+                    >
+                      {formatDate(c.updatedAt)}
+                    </td>
+
+                    {/* Chevron */}
+                    <td style={{ ...tv2BodyCell("right"), borderBottom: divider, height: 52, paddingRight: 14 }}>
+                      <span aria-hidden style={{ color: "var(--ink-faint)", fontSize: 16 }}>›</span>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* ── Mobile (below sm): existing accent-bar link cards ────────────── */}
+      {!isLoading && !isError && connections.length > 0 && (
+        <ul className="flex flex-col gap-2.5 list-none p-0 m-0 sm:hidden">
           {connections.map((c) => {
             const badge = badgeStatus(c);
             return (

@@ -21,15 +21,17 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getBillingStatus, apiClient, listConnections } from "@/lib/api-client";
-import { getDeliveryConfig } from "@/lib/api/delivery";
+import { getDeliveryConfig, upsertDeliveryConfig } from "@/lib/api/delivery";
 import { useQueriesEnabled } from "@/hooks/useQueriesEnabled";
 import type { DeliveryConfig, DeliveryProtocol } from "@/lib/api/types";
 import { useOrderDirection } from "@/hooks/useOrderDirection";
 import { PageHeader } from "./layout/PageHeader";
 import { PageShell } from "./layout/PageShell";
+import { HubTabs } from "./layout/HubTabs";
+import { tv2HeaderCell, tv2BodyCell, tv2RowDivider } from "./layout/listTableV2";
 
 // How many rows enrich themselves with a delivery-config fetch. Procurement
 // books are typically 3–20 suppliers (the ICP), so this comfortably covers a
@@ -46,6 +48,28 @@ const PROTOCOL_LABEL: Record<DeliveryProtocol, string> = {
   erp_erply: "Erply ERP",
   erp_directo: "Directo ERP",
 };
+
+// Channels offered in the New-supplier modal — the REAL protocols the delivery
+// pipeline supports today (smtp is retired; Postmark HTTPS "email" is canonical).
+const NEW_SUPPLIER_CHANNELS: ReadonlyArray<{ id: DeliveryProtocol; label: string }> = [
+  { id: "http", label: "HTTP" },
+  { id: "sftp", label: "SFTP" },
+  { id: "ftps", label: "FTPS" },
+  { id: "email", label: "Email" },
+  { id: "erp_erply", label: "Erply ERP" },
+  { id: "erp_directo", label: "Directo ERP" },
+];
+
+// Output formats offered in the New-supplier modal — exactly the backend's
+// allowed set (DeliveryConfigService: xml, csv, cxml, json, ubl, x12).
+const NEW_SUPPLIER_FORMATS: ReadonlyArray<{ id: string; label: string }> = [
+  { id: "cxml", label: "cXML" },
+  { id: "ubl", label: "UBL" },
+  { id: "x12", label: "X12" },
+  { id: "xml", label: "XML" },
+  { id: "csv", label: "CSV" },
+  { id: "json", label: "JSON" },
+];
 
 function channelLabel(protocol: string): string {
   return PROTOCOL_LABEL[protocol as DeliveryProtocol] ?? protocol.toUpperCase();
@@ -113,8 +137,23 @@ export function SupplierDockList() {
   const queryEnabled = useQueriesEnabled();
   const [showAddPanel, setShowAddPanel] = useState(false);
   const [newName, setNewName] = useState("");
+  // Optional initial delivery channel / output format — real fields stored on the
+  // supplier's delivery config (protocol + outputFormat); full connection details
+  // are still configured on the Delivery tab.
+  const [newProtocol, setNewProtocol] = useState<DeliveryProtocol | null>(null);
+  const [newFormat, setNewFormat] = useState<string | null>(null);
   const [addError, setAddError] = useState<string | null>(null);
+  // Page-level notice for the partial-success path (supplier created, channel not saved).
+  const [pageNotice, setPageNotice] = useState<string | null>(null);
   const [hoverRow, setHoverRow] = useState<string | null>(null);
+
+  // Close the New-supplier modal on Escape while it is open.
+  useEffect(() => {
+    if (!showAddPanel) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setShowAddPanel(false); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [showAddPanel]);
 
   // ── Billing check ──────────────────────────────────────────────────────────
   const { data: billing, isError: billingError } = useQuery({
@@ -159,13 +198,41 @@ export function SupplierDockList() {
   );
 
   // ── Create supplier ────────────────────────────────────────────────────────
+  // Two-step: create the supplier, then (only when a channel was chosen) store the
+  // initial delivery protocol + output format on its delivery config. A failed
+  // second step must NOT look like a failed create — the supplier exists — so it
+  // degrades to a page notice pointing at the Delivery tab instead of an error.
   const createMutation = useMutation({
-    mutationFn: (name: string) => apiClient.createSupplier({ name }),
-    onSuccess: () => {
+    mutationFn: async (input: { name: string; protocol: DeliveryProtocol | null; outputFormat: string | null }) => {
+      const supplier = await apiClient.createSupplier({ name: input.name });
+      let channelSaved = true;
+      if (input.protocol) {
+        try {
+          await upsertDeliveryConfig(supplier.id, {
+            protocol: input.protocol,
+            autoDeliver: false,
+            configJson: "{}",
+            outputFormat: input.outputFormat,
+          });
+        } catch {
+          channelSaved = false;
+        }
+      }
+      return { supplier, channelSaved, wantedChannel: input.protocol != null };
+    },
+    onSuccess: ({ supplier, channelSaved, wantedChannel }) => {
       void qc.invalidateQueries({ queryKey: ["suppliers"] });
+      void qc.invalidateQueries({ queryKey: ["supplier-delivery-config", supplier.id] });
       setShowAddPanel(false);
       setNewName("");
+      setNewProtocol(null);
+      setNewFormat(null);
       setAddError(null);
+      setPageNotice(
+        wantedChannel && !channelSaved
+          ? `${noun} created — but the delivery channel could not be saved. Open the ${nounLower} and set it on the Delivery tab.`
+          : null,
+      );
     },
     onError: (err: Error) => {
       try {
@@ -181,7 +248,7 @@ export function SupplierDockList() {
     const trimmed = newName.trim();
     if (!trimmed) { setAddError(`${noun} name is required.`); return; }
     setAddError(null);
-    createMutation.mutate(trimmed);
+    createMutation.mutate({ name: trimmed, protocol: newProtocol, outputFormat: newProtocol ? newFormat : null });
   }
 
   const limitReached = !billingError && billing && !billing.canAddSupplier;
@@ -225,6 +292,32 @@ export function SupplierDockList() {
           }
         />
 
+        {/* Hub tab bar — Partners hub (Suppliers | Buyers | Connections) */}
+        <HubTabs
+          hub="partners"
+          counts={!isLoading && !suppliersError ? { Suppliers: suppliers.length } : undefined}
+        />
+
+        {/* Partial-success notice (supplier created, channel not saved) */}
+        {pageNotice && (
+          <div
+            className="mb-4 flex items-start justify-between gap-3 rounded-[10px] px-4 py-3 text-[12.5px]"
+            style={{ border: "1px solid #F0D39A", background: "#FFF8EA", color: "#7A4D0B" }}
+          >
+            <span>{pageNotice}</span>
+            <button
+              onClick={() => setPageNotice(null)}
+              aria-label="Dismiss notice"
+              className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-[5px]"
+              style={{ border: "1px solid #F0D39A", background: "#FFFFFF", color: "#7A4D0B" }}
+            >
+              <svg width="10" height="10" viewBox="0 0 12 12" fill="none">
+                <path d="M2 10L10 2M2 2l8 8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+              </svg>
+            </button>
+          </div>
+        )}
+
         {/* Billing limit banner */}
         {billing && !billing.canAddSupplier && (
           <div
@@ -261,58 +354,172 @@ export function SupplierDockList() {
           </div>
         )}
 
-        {/* Add supplier panel */}
+        {/* New supplier — centered modal (Claude Design v2 anatomy: title + X,
+            subtitle, fields, footer divider + Cancel + green primary). Channel and
+            format are OPTIONAL real fields stored on the delivery config; the full
+            connection details are still configured on the Delivery tab. */}
         {showAddPanel && canAddSupplier && (
           <div
-            className="mb-4 overflow-hidden rounded-[10px]"
-            style={{ border: "1px solid #E5E8EE", background: "#FFFFFF", boxShadow: "0 1px 2px rgba(11,26,47,0.04)" }}
+            className="fixed inset-0 z-50 flex items-end bg-[#0B1A2F66] p-0 sm:items-center sm:justify-center sm:p-6"
+            onClick={() => setShowAddPanel(false)}
           >
-            <div className="flex items-start justify-between gap-3 px-[18px] pt-[18px]">
-              <div className="flex items-start gap-3">
-                <div
-                  className="flex flex-shrink-0 items-center justify-center"
-                  style={{ width: 34, height: 34, borderRadius: 7, background: GREEN_SOFT }}
+            <div
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="new-supplier-title"
+              onClick={(e) => e.stopPropagation()}
+              className="max-h-[92vh] w-full overflow-auto rounded-t-[12px] bg-white shadow-2xl sm:max-w-[520px] sm:rounded-[12px]"
+              style={{ border: "1px solid #E5E8EE" }}
+            >
+              {/* Header */}
+              <div className="flex items-start justify-between gap-3 px-5 py-4" style={{ borderBottom: "1px solid #E5E8EE" }}>
+                <div className="flex items-start gap-3">
+                  <div
+                    className="mt-0.5 flex flex-shrink-0 items-center justify-center"
+                    style={{ width: 34, height: 34, borderRadius: 8, background: GREEN_SOFT }}
+                    aria-hidden
+                  >
+                    <SupplierGlyph color={GREEN_DEEP} size={17} />
+                  </div>
+                  <div>
+                    <h2 id="new-supplier-title" className="text-[17px] font-semibold leading-tight tracking-[-0.01em]" style={{ color: INK }}>
+                      New {nounLower}
+                    </h2>
+                    <p className="mt-0.5 text-[12.5px] leading-5" style={{ color: TEXT_MUTED }}>
+                      Name the {nounLower}. You can configure mappings and delivery after.
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => { setShowAddPanel(false); setNewName(""); setNewProtocol(null); setNewFormat(null); setAddError(null); }}
+                  aria-label="Close add supplier panel"
+                  className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-[7px]"
+                  style={{ border: "1px solid #E5E8EE", background: "#FFFFFF", color: "var(--ink-faint)" }}
                 >
-                  <SupplierGlyph color={GREEN_DEEP} size={17} />
-                </div>
-                <div>
-                  <p className="text-[15px] font-semibold tracking-[-0.01em]" style={{ color: INK }}>New {nounLower}</p>
-                  <p className="mt-0.5 text-[12.5px]" style={{ color: TEXT_MUTED }}>Name the {nounLower}. You can configure mappings and delivery after.</p>
-                </div>
+                  <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                    <path d="M2 10L10 2M2 2l8 8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                  </svg>
+                </button>
               </div>
-              <button
-                onClick={() => { setShowAddPanel(false); setNewName(""); setAddError(null); }}
-                aria-label="Close add supplier panel"
-                className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-[6px]"
-                style={{ border: "1px solid #E5E8EE", background: "#FFFFFF", color: "var(--ink-faint)" }}
-              >
-                <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-                  <path d="M2 10L10 2M2 2l8 8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-                </svg>
-              </button>
-            </div>
-            <div className="flex flex-col gap-2 px-[18px] pb-[18px] pt-3">
-              <label className="text-[11.5px] font-semibold" style={{ color: TEXT_MUTED }}>
-                {noun} name <span style={{ color: "#B43838", marginLeft: 3 }}>*</span>
-              </label>
-              <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto]">
-                <input
-                  aria-label={`${noun} name`}
-                  placeholder="e.g. Acme Components"
-                  value={newName}
-                  onChange={(e) => setNewName(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === "Enter") handleSave(); }}
-                  className="h-[34px] rounded-[6px] px-3 text-[12.5px]"
-                  style={{ border: "1px solid #CBD0DA", color: INK, transition: "border-color 150ms, box-shadow 150ms" }}
-                  onFocus={(e) => { e.currentTarget.style.borderColor = GREEN; e.currentTarget.style.boxShadow = `0 0 0 3px ${GREEN_SOFT}`; }}
-                  onBlur={(e) => { e.currentTarget.style.borderColor = "#CBD0DA"; e.currentTarget.style.boxShadow = "none"; }}
-                  autoFocus
-                />
-                {/* Save — confirmation CTA stays green (matches design ctaVariant) */}
+
+              {/* Body */}
+              <div className="flex flex-col gap-4 px-5 py-4">
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[11.5px] font-semibold" style={{ color: TEXT_MUTED }}>
+                    {noun} name <span style={{ color: "#B43838", marginLeft: 3 }}>*</span>
+                  </label>
+                  <input
+                    aria-label={`${noun} name`}
+                    placeholder="e.g. Acme Components"
+                    value={newName}
+                    onChange={(e) => setNewName(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === "Enter") handleSave(); }}
+                    className="h-9 rounded-[6px] px-3 text-[12.5px]"
+                    style={{ border: "1px solid #CBD0DA", color: INK, transition: "border-color 150ms, box-shadow 150ms" }}
+                    onFocus={(e) => { e.currentTarget.style.borderColor = GREEN; e.currentTarget.style.boxShadow = `0 0 0 3px ${GREEN_SOFT}`; }}
+                    onBlur={(e) => { e.currentTarget.style.borderColor = "#CBD0DA"; e.currentTarget.style.boxShadow = "none"; }}
+                    autoFocus
+                  />
+                </div>
+
+                {/* Delivery channel — optional; stored as the initial protocol */}
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[11.5px] font-semibold" style={{ color: TEXT_MUTED }}>
+                    Delivery channel <span style={{ fontWeight: 500, color: "var(--ink-faint)" }}>(optional)</span>
+                  </label>
+                  <div className="flex flex-wrap gap-2" role="group" aria-label="Delivery channel">
+                    {NEW_SUPPLIER_CHANNELS.map((c) => {
+                      const active = newProtocol === c.id;
+                      return (
+                        <button
+                          key={c.id}
+                          type="button"
+                          aria-pressed={active}
+                          onClick={() => { setNewProtocol(active ? null : c.id); if (active) setNewFormat(null); }}
+                          className="h-8 rounded-[7px] px-3 text-[12px] font-semibold transition-colors"
+                          style={{
+                            border: `1px solid ${active ? GREEN : "#E5E8EE"}`,
+                            background: active ? GREEN_SOFT : "#FFFFFF",
+                            color: active ? GREEN_DEEP : TEXT_MUTED,
+                            cursor: "pointer",
+                          }}
+                        >
+                          {c.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <p className="text-[11.5px] leading-4" style={{ color: "var(--ink-faint)" }}>
+                    You&rsquo;ll configure the connection details next, on the {nounLower}&rsquo;s Delivery tab.
+                  </p>
+                </div>
+
+                {/* Output format — optional; saved with the delivery channel */}
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[11.5px] font-semibold" style={{ color: TEXT_MUTED }}>
+                    Output format <span style={{ fontWeight: 500, color: "var(--ink-faint)" }}>(optional)</span>
+                  </label>
+                  <div className="flex flex-wrap gap-2" role="group" aria-label="Output format">
+                    {NEW_SUPPLIER_FORMATS.map((f) => {
+                      const active = newFormat === f.id;
+                      const disabled = newProtocol == null;
+                      return (
+                        <button
+                          key={f.id}
+                          type="button"
+                          aria-pressed={active}
+                          disabled={disabled}
+                          onClick={() => setNewFormat(active ? null : f.id)}
+                          className="h-8 rounded-[7px] px-3 text-[12px] font-semibold transition-colors"
+                          style={{
+                            border: `1px solid ${active ? GREEN : "#E5E8EE"}`,
+                            background: active ? GREEN_SOFT : "#FFFFFF",
+                            color: active ? GREEN_DEEP : TEXT_MUTED,
+                            opacity: disabled ? 0.45 : 1,
+                            cursor: disabled ? "not-allowed" : "pointer",
+                          }}
+                        >
+                          {f.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  {newProtocol == null && (
+                    <p className="text-[11.5px] leading-4" style={{ color: "var(--ink-faint)" }}>
+                      The format is saved with the delivery channel — pick a channel first, or set both later on the Delivery tab.
+                    </p>
+                  )}
+                </div>
+
+                <div
+                  className="flex items-start gap-2 rounded-[6px] px-3 py-2.5 text-[12px] leading-5"
+                  style={{ background: GREEN_SOFT, color: GREEN_DEEP }}
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" style={{ marginTop: 1, flexShrink: 0 }}>
+                    <circle cx="12" cy="12" r="10" /><path d="M12 16v-4M12 8h.01" />
+                  </svg>
+                  Auto-process means orders are sent to this {nounLower} automatically once they pass checks. It stays off until you set up delivery and turn it on.
+                </div>
+
+                {addError && (
+                  <p className="text-[12px]" style={{ color: "#B43838" }}>{addError}</p>
+                )}
+              </div>
+
+              {/* Footer */}
+              <div className="flex flex-col-reverse gap-2 px-5 py-4 sm:flex-row sm:justify-end" style={{ borderTop: "1px solid #E5E8EE" }}>
+                <button
+                  onClick={() => { setShowAddPanel(false); setNewName(""); setNewProtocol(null); setNewFormat(null); setAddError(null); }}
+                  className="flex h-9 items-center justify-center rounded-[7px] px-4 text-[12.5px] font-semibold transition-colors hover:bg-[#F6F7FA]"
+                  style={{ border: "1px solid #E5E8EE", background: "#FFFFFF", color: TEXT_MUTED }}
+                >
+                  Cancel
+                </button>
+                {/* Confirmation CTA stays green (matches design ctaVariant) */}
                 <button
                   onClick={handleSave}
                   disabled={createMutation.isPending}
-                  className="inline-flex h-[34px] items-center justify-center gap-[6px] rounded-[7px] px-4 text-[12.5px] font-semibold transition-colors"
+                  className="inline-flex h-9 items-center justify-center gap-[6px] rounded-[7px] px-4 text-[12.5px] font-semibold transition-colors"
                   style={{
                     border: "none",
                     background: GREEN,
@@ -327,21 +534,9 @@ export function SupplierDockList() {
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M20 6 9 17l-5-5" />
                   </svg>
-                  {createMutation.isPending ? "Saving…" : `Save ${nounLower}`}
+                  {createMutation.isPending ? "Saving…" : `Add ${nounLower}`}
                 </button>
               </div>
-              <div
-                className="mt-1 flex items-start gap-2 rounded-[6px] px-3 py-2.5 text-[12px] leading-5"
-                style={{ background: GREEN_SOFT, color: GREEN_DEEP }}
-              >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" style={{ marginTop: 1, flexShrink: 0 }}>
-                  <circle cx="12" cy="12" r="10" /><path d="M12 16v-4M12 8h.01" />
-                </svg>
-                Auto-process means orders are sent to this {nounLower} automatically once they pass checks. It stays off until you set up delivery and turn it on.
-              </div>
-              {addError && (
-                <p className="text-[12px]" style={{ color: "#B43838" }}>{addError}</p>
-              )}
             </div>
           </div>
         )}
@@ -442,21 +637,9 @@ export function SupplierDockList() {
                   ] as const).map((col, i) => (
                     <th
                       key={i}
-                      // v2 full-bleed table: tinted header band (surface-2) +
-                      // muted uppercase labels; 18px left gutter already applied.
-                      style={{
-                        textAlign: col.align,
-                        fontSize: 10.5,
-                        fontWeight: 700,
-                        letterSpacing: "0.07em",
-                        textTransform: "uppercase",
-                        color: TEXT_MUTED,
-                        background: PILL_BG,
-                        padding: "10px 18px",
-                        borderBottom: `1px solid ${BORDER}`,
-                        whiteSpace: "nowrap",
-                        userSelect: "none",
-                      }}
+                      // v2 full-bleed table: shared listTableV2 header treatment
+                      // (tinted surface-2 band, muted uppercase caps, 18px gutter).
+                      style={tv2HeaderCell(col.align, i === 0)}
                     >
                       {col.label}
                     </th>
@@ -615,8 +798,8 @@ function SupplierTableRow({
   // Only show the loading shimmer while a fetch is genuinely in flight.
   const loading = fetchConfig && isLoading;
   const autoState: "on" | "off" | "unset" = !config ? "unset" : config.autoDeliver ? "on" : "off";
-  // v2 row dividers use the faint border, not the stronger card border.
-  const cellBorder = isLast ? "none" : "1px solid #EEF0F4";
+  // v2 row dividers use the faint border (shared listTableV2 token).
+  const cellBorder = isLast ? "none" : tv2RowDivider;
 
   return (
     <tr
@@ -631,7 +814,7 @@ function SupplierTableRow({
       }}
     >
       {/* Supplier — leading green entity dot + green tile + name + code */}
-      <td style={{ padding: "0 18px", height: 44, borderBottom: cellBorder, verticalAlign: "middle" }}>
+      <td style={{ ...tv2BodyCell("left", true), borderBottom: cellBorder }}>
         <div className="flex min-w-0 items-center gap-[11px]">
           <span
             aria-hidden
@@ -661,17 +844,17 @@ function SupplierTableRow({
       </td>
 
       {/* Format — from delivery config outputFormat */}
-      <td style={{ padding: "0 18px", height: 44, borderBottom: cellBorder, verticalAlign: "middle" }}>
+      <td style={{ ...tv2BodyCell("left", false), borderBottom: cellBorder }}>
         <CellValue isLoading={loading} value={config ? formatLabel(config.outputFormat) : null} />
       </td>
 
       {/* Channel — from delivery config protocol */}
-      <td style={{ padding: "0 18px", height: 44, borderBottom: cellBorder, verticalAlign: "middle" }}>
+      <td style={{ ...tv2BodyCell("left", false), borderBottom: cellBorder }}>
         <CellValue isLoading={loading} value={config ? channelLabel(config.protocol) : null} />
       </td>
 
       {/* Auto-process — from delivery config autoDeliver */}
-      <td style={{ padding: "0 18px", height: 44, borderBottom: cellBorder, verticalAlign: "middle" }}>
+      <td style={{ ...tv2BodyCell("left", false), borderBottom: cellBorder }}>
         {loading ? (
           <span className="inline-block h-4 w-14 rounded-full animate-pulse align-middle" style={{ background: "#F1F3F7" }} />
         ) : (

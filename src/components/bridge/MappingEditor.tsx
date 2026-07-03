@@ -10,6 +10,7 @@ import { useOrderDirection } from "@/hooks/useOrderDirection";
 import type { SupplierMapping } from "@/types/procurement";
 import { PageShell } from "./layout/PageShell";
 import { PageHeader } from "./layout/PageHeader";
+import { HubTabs } from "./layout/HubTabs";
 
 // ─── Palette (sampled pixel-exact from the design render 2026-05-30) ───────────
 // Topology semantics in this screen: the BUYER side is blue, the SUPPLIER side is
@@ -247,6 +248,9 @@ export function MappingEditor() {
         </div>
         }
       />
+
+      {/* Hub tab bar — Rules & formats hub (Mappings | Rules | Output templates | Standards) */}
+      <HubTabs hub="rules-formats" />
 
       {/* Result count + search — on the grey canvas, above the table card */}
       <div className="flex flex-col items-stretch gap-2 pb-3 lg:flex-row lg:items-center lg:gap-3 flex-shrink-0">
