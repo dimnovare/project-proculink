@@ -141,7 +141,7 @@ describe("SupplierHistoryTab", () => {
 
   it("the archived revision offers Restore, which requests rollback", () => {
     renderTab();
-    fireEvent.click(screen.getByRole("button", { name: "Restore this version" }));
+    fireEvent.click(screen.getByRole("button", { name: "Use this version" }));
     expect(onRequestRollback).toHaveBeenCalledWith("rev-1", 1);
   });
 
