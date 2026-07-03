@@ -1257,7 +1257,7 @@ export function InboxView() {
                     </p>
                   </div>
                   <p className="mt-0.5 text-[12.5px]" style={{ color: "var(--ink-faint)" }}>
-                    {row.original.age} ago · {row.original.lines} lines · {row.original.valueLabel}
+                    {row.original.age} ago · {row.original.lines} lines · <span className="whitespace-nowrap">{row.original.valueLabel}</span>
                   </p>
                 </div>
                 <span style={{ flexShrink: 0, marginLeft: 8 }}>

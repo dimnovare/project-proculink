@@ -22,6 +22,9 @@ export function CookieConsentBanner() {
     <div
       role="dialog"
       aria-label="Cookie consent"
+      // Compact on mobile (tighter padding, smaller gap) so the banner stays
+      // ~110px tall and doesn't cover sticky action bars; roomier on sm+.
+      className="plk-cookie-banner flex flex-wrap items-center justify-between gap-2.5 p-3.5 sm:gap-4 sm:p-[18px_20px]"
       style={{
         position: "fixed",
         bottom: 16,
@@ -34,15 +37,18 @@ export function CookieConsentBanner() {
         border: "1px solid #E2E6EE",
         borderRadius: 12,
         boxShadow: "0 10px 30px rgba(11,26,47,0.12)",
-        padding: "18px 20px",
-        display: "flex",
-        flexWrap: "wrap",
-        gap: 16,
-        alignItems: "center",
-        justifyContent: "space-between",
       }}
     >
+      {/* Compact copy on mobile — one short sentence + link. */}
       <p
+        className="m-0 flex-1 basis-full text-[12.5px] leading-snug text-[#3D4A5C] sm:hidden"
+      >
+        Functional cookies only — optional analytics.{" "}
+        <Link href="/privacy" style={{ color: "#2E8E3A" }}>Privacy Policy</Link>
+      </p>
+      {/* Full copy on sm+ (desktop variant unchanged). */}
+      <p
+        className="hidden sm:block"
         style={{
           margin: 0,
           fontSize: 13.5,
@@ -55,10 +61,11 @@ export function CookieConsentBanner() {
         cookies to improve the product. We don&apos;t use advertising or cross-site tracking.{" "}
         <Link href="/privacy" style={{ color: "#2E8E3A" }}>See our Privacy Policy</Link>.
       </p>
-      <div style={{ display: "flex", gap: 8 }}>
+      <div className="flex flex-1 gap-2 sm:flex-none">
         <button
           type="button"
           onClick={() => setConsent("functional-only")}
+          className="flex-1 sm:flex-none"
           style={{
             background: "#FFFFFF",
             color: "#0B1A2F",
@@ -75,6 +82,7 @@ export function CookieConsentBanner() {
         <button
           type="button"
           onClick={() => setConsent("analytics-allowed")}
+          className="flex-1 sm:flex-none"
           style={{
             background: "#0B1A2F",
             color: "#FFFFFF",
