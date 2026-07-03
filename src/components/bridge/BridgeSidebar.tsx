@@ -6,11 +6,8 @@ import { useEffect, useMemo, useState } from "react";
 import { useOrganization } from "@clerk/nextjs";
 import { useQuery } from "@tanstack/react-query";
 import {
-  Layers, Upload, Inbox, Truck, Building2, GitBranch,
-  ShieldCheck, FileCode, BookOpen, FileText, Package, ScrollText,
-  Plug, Webhook, Settings, ChevronsLeft, ChevronsRight, ExternalLink,
-  Files, HelpCircle, X, ShieldHalf, AlertTriangle, Activity, MessageCircle,
-  ListChecks,
+  Layers, Upload, Inbox, Files, Send, Users, CheckCircle2, Zap, Plug,
+  Lock, HelpCircle, Settings, ChevronsLeft, ChevronsRight, X,
   type LucideIcon,
 } from "lucide-react";
 import { apiClient, getBillingStatus, checkAdminAccess } from "@/lib/api-client";
@@ -19,108 +16,133 @@ import { LAUNCH_CORE_ONLY, LAUNCH_CORE_HREFS, INBOUND_ENABLED } from "@/lib/laun
 import { useOrderDirection } from "@/hooks/useOrderDirection";
 import { useQueriesEnabled } from "@/hooks/useQueriesEnabled";
 import { ProcuLinkMark } from "./DSPrimitives";
+import { HUB_TABS, hubForPath, type HubKey } from "./layout/HubTabs";
+import { OrgSwitcher } from "./OrgSwitcher";
+import { UserChipMenu } from "./UserChipMenu";
 
-// ─── Nav structure (matches the "Bridge Layer" design handoff) ─────────────────
+// ─── Nav structure (Claude Design v2 hub model — FABLE5 §3 consolidation) ─────
+//
+// The old flat list (Suppliers/Buyers/Mappings/Rules/…/Webhooks as separate
+// entries) is consolidated into HUB items. Each hub item links to its FIRST tab
+// route (derived from HUB_TABS so the two can never drift) and lights up for
+// ANY route inside the hub via hubForPath(). Sibling pages inside a hub are
+// reached through the HubTabs bar on the pages themselves — every old deep
+// route stays valid and reachable.
+//
+//   Partners        → /library/suppliers   (suppliers · buyers · connections)
+//   Rules & formats → /library/mappings    (mappings · rules · rule-definitions · templates · standards)
+//   Operations      → /operations/health   (health · exceptions · log)
+//   Integrations    → /operations/connectors (connectors · webhooks)
+//   Inbound         → /inbound/invoices    (invoices · asns)
 
-type NavItem = { label: string; href: string; icon: LucideIcon; badgeKey?: "review"; newTab?: boolean };
+export type SidebarNavItem = {
+  label: string;
+  href: string;
+  icon: LucideIcon;
+  badgeKey?: "review";
+  newTab?: boolean;
+  /** Hub items light up for any route in their hub (hubForPath). */
+  hub?: HubKey;
+};
+export type SidebarNavSection = { group?: string; items: SidebarNavItem[] };
 
-const NAV: Array<{ group?: string; items: NavItem[] }> = [
+/** The pinned primary action at the top of the rail (not a nav item). */
+export const PINNED_ACTION_HREF = "/upload";
+
+const NAV_MAIN: SidebarNavSection[] = [
   { items: [{ label: "Dashboard", href: "/bridge", icon: Layers }] },
   {
     group: "Workbench",
     items: [
-      { label: "Upload", href: "/upload", icon: Upload },
-      { label: "Inbox",  href: "/inbox",  icon: Inbox, badgeKey: "review" },
+      { label: "Inbox", href: "/inbox", icon: Inbox, badgeKey: "review" },
       { label: "Drafts", href: "/drafts", icon: Files },
+      // Inbound (Invoices/ASNs) is a real but pre-launch surface — gated below
+      // by INBOUND_ENABLED, never revealed by LAUNCH_FULL_NAV alone.
+      { label: "Inbound", href: HUB_TABS.inbound[0].href, icon: Send, hub: "inbound" },
     ],
   },
   {
-    // STRUCT-1: the standalone "Connections" nav entry was removed. A supplier's
-    // versioned connection (draft → test → publish → archive) now lives as the
-    // "History" tab on its supplier page (/library/suppliers/[id]?tab=history).
-    // The /connections routes still resolve if navigated to directly — they are
-    // just no longer surfaced in the nav.
     group: "Library",
     items: [
-      { label: "Suppliers",   href: "/library/suppliers",   icon: Truck },
-      { label: "Buyers",      href: "/library/buyers",      icon: Building2 },
-      { label: "Mappings",       href: "/library/mappings",  icon: GitBranch },
-      { label: "Rules",          href: "/library/rules",     icon: ShieldCheck },
-      { label: "Rule definitions", href: "/library/rule-definitions", icon: ListChecks },
-      { label: "Output templates", href: "/library/templates", icon: FileCode },
-      { label: "Standards",      href: "/library/standards", icon: BookOpen },
+      // STRUCT-1: no standalone "Connections" entry — /connections routes are
+      // covered by the Partners hub (tab) and stay fully routable.
+      { label: "Partners", href: HUB_TABS.partners[0].href, icon: Users, hub: "partners" },
+      { label: "Rules & formats", href: HUB_TABS["rules-formats"][0].href, icon: CheckCircle2, hub: "rules-formats" },
     ],
   },
   {
     group: "Operations",
     items: [
-      // Exceptions + System health pages existed but were URL-only (unreachable
-      // from the nav). Exceptions first — it's the daily triage surface.
-      { label: "Exceptions",    href: "/operations/exceptions", icon: AlertTriangle },
-      { label: "System health", href: "/operations/health",     icon: Activity },
-      { label: "Delivery log",  href: "/operations/log",        icon: ScrollText },
-      { label: "Connectors",    href: "/operations/connectors", icon: Plug },
-      { label: "Webhooks",      href: "/operations/webhooks",   icon: Webhook },
-    ],
-  },
-  {
-    // Inbound (Invoices/ASNs) are real features in this app; the design mock omitted them.
-    group: "Inbound",
-    items: [
-      { label: "Invoices", href: "/inbound/invoices", icon: FileText },
-      { label: "ASNs",     href: "/inbound/asns",     icon: Package },
-    ],
-  },
-  {
-    items: [
-      // Admin is shown only to allowlisted users (buildVisibleNav filters it via
-      // the /api/admin/access probe). Even if shown, the page + every /api/admin
-      // endpoint re-gate server-side (403), so the link never leaks access — the
-      // probe just spares non-admins a dead end.
-      { label: "Admin", href: "/admin", icon: ShieldHalf },
-      // Help lives in the marketing layout (no app shell). Open it in a new tab
-      // so the user doesn't lose the app shell mid-task.
-      { label: "Help", href: "/help", icon: HelpCircle, newTab: true },
-      { label: "Settings", href: "/settings", icon: Settings },
+      { label: "Operations", href: HUB_TABS.operations[0].href, icon: Zap, hub: "operations" },
+      { label: "Integrations", href: HUB_TABS.integrations[0].href, icon: Plug, hub: "integrations" },
     ],
   },
 ];
 
-// First-launch shell: filter NAV down to the core hrefs and drop now-empty
+// Pinned above the footer user chip (below the flexible spacer).
+const NAV_TAIL: SidebarNavItem[] = [
+  // Admin is shown only to allowlisted users (buildVisibleNav filters it via
+  // the /api/admin/access probe). Even if shown, the page + every /api/admin
+  // endpoint re-gate server-side (403), so the link never leaks access — the
+  // probe just spares non-admins a dead end.
+  { label: "Admin", href: "/admin", icon: Lock },
+  // Help lives in the marketing layout (no app shell). Open it in a new tab
+  // so the user doesn't lose the app shell mid-task.
+  { label: "Help & support", href: "/help", icon: HelpCircle, newTab: true },
+  { label: "Settings", href: "/settings", icon: Settings },
+];
+
+export interface VisibleNav {
+  main: SidebarNavSection[];
+  tail: SidebarNavItem[];
+}
+
+// First-launch shell: filter the nav down to the core hrefs and drop now-empty
 // group sections. The full nav is restored by setting NEXT_PUBLIC_LAUNCH_FULL_NAV=true.
-// `counterpartyPlural` relabels the "Suppliers" entry to "Customers" in inbound
-// mode (DISPLAY ONLY — the route stays /library/suppliers).
-function buildVisibleNav(
+// `counterpartyPlural` relabels the "Partners" entry (href /library/suppliers)
+// for inbound orgs (DISPLAY ONLY — the route stays /library/suppliers): outbound
+// orgs see the neutral "Partners"; inbound orgs see their counterparty word
+// ("Customers"), preserving the pre-hub relabel behavior.
+// `opts` exists so the STRUCT-1 guard test can assert both launch modes; the
+// component always calls with the real flag defaults.
+export function buildVisibleNav(
   counterpartyPlural: string,
   isAdmin: boolean,
-): Array<{ group?: string; items: NavItem[] }> {
-  // Inbound (Invoices/ASNs) stays hidden unless its OWN flag is set — revealing
-  // the full nav (NEXT_PUBLIC_LAUNCH_FULL_NAV=true) must NOT surface it, since
-  // it isn't part of the outbound-PO product we sell today. Routes still resolve
-  // if navigated to directly.
-  const scoped = INBOUND_ENABLED ? NAV : NAV.filter((section) => section.group !== "Inbound");
-  const relabelled = scoped.map((section) => ({
-    ...section,
-    items: section.items
+  opts: { coreOnly?: boolean; inboundEnabled?: boolean } = {},
+): VisibleNav {
+  const coreOnly = opts.coreOnly ?? LAUNCH_CORE_ONLY;
+  const inboundEnabled = opts.inboundEnabled ?? INBOUND_ENABLED;
+
+  const filterItems = (items: SidebarNavItem[]) =>
+    items
+      // Inbound stays hidden unless its OWN flag is set — revealing the full
+      // nav must NOT surface it (not part of the outbound-PO product we sell
+      // today). Routes still resolve if navigated to directly.
+      .filter((item) => inboundEnabled || !item.href.startsWith("/inbound"))
       // Hide the Admin link unless the server confirmed this user is on the
-      // admin allowlist. This is UX only — the /admin page and every /api/admin
-      // endpoint independently enforce the gate, so hiding the link removes a
-      // dead end for non-admins without weakening security. Default-hidden while
-      // the probe resolves: a real admin sees it appear; a non-admin never does.
+      // admin allowlist (UX only — the page + API re-gate server-side).
       .filter((item) => item.href !== "/admin" || isAdmin)
+      .filter((item) => !coreOnly || LAUNCH_CORE_HREFS.has(item.href))
       .map((item) =>
-        item.href === "/library/suppliers" ? { ...item, label: counterpartyPlural } : item,
-      ),
-  }));
-  const core = LAUNCH_CORE_ONLY
-    ? relabelled.map((section) => ({
-        ...section,
-        items: section.items.filter((item) => LAUNCH_CORE_HREFS.has(item.href)),
-      }))
-    : relabelled;
-  // Drop any section left empty by the filters above (e.g. a single-item group
-  // whose only entry was filtered out).
-  return core.filter((section) => section.items.length > 0);
+        item.href === "/library/suppliers" && counterpartyPlural !== "Suppliers"
+          ? { ...item, label: counterpartyPlural }
+          : item,
+      );
+
+  const main = NAV_MAIN
+    .map((section) => ({ ...section, items: filterItems(section.items) }))
+    // Drop any section left empty by the filters above.
+    .filter((section) => section.items.length > 0);
+
+  return { main, tail: filterItems(NAV_TAIL) };
+}
+
+/** Active state: hub items light for ANY route in their hub; plain items by prefix. */
+export function isItemActive(pathname: string, item: SidebarNavItem): boolean {
+  if (item.hub) return hubForPath(pathname) === item.hub;
+  const path = item.href.split("?")[0];
+  if (path === "/bridge") return pathname === "/bridge";
+  return pathname === path || pathname.startsWith(path + "/");
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -160,7 +182,7 @@ export function BridgeSidebar({
   const [autoCollapsed, setAutoCollapsed] = useState(false);
   const { organization } = useOrganization();
   const queryEnabled = useQueriesEnabled();
-  // Direction-aware nav: "Suppliers" → "Customers" in inbound mode (route unchanged).
+  // Direction-aware nav: "Partners" → "Customers" in inbound mode (route unchanged).
   const { labels } = useOrderDirection();
   // Admin-link visibility probe (UX hint only; the page + API re-gate server-side).
   const { data: adminAccess } = useQuery({
@@ -171,12 +193,12 @@ export function BridgeSidebar({
     retry: false,
   });
   const isAdmin = adminAccess === true;
-  const VISIBLE_NAV = useMemo(
+  const { main: NAV_VISIBLE, tail: TAIL_VISIBLE } = useMemo(
     () => buildVisibleNav(labels.counterpartyPlural, isAdmin),
     [labels.counterpartyPlural, isAdmin],
   );
 
-  // Live billing plan for workspace switcher display.
+  // Live billing plan for the workspace card + switcher (active org only).
   const { data: billing } = useQuery({
     queryKey: ["billing-status"],
     queryFn: getBillingStatus,
@@ -187,7 +209,6 @@ export function BridgeSidebar({
   });
   const planLabel = billing ? `${billing.plan.charAt(0).toUpperCase()}${billing.plan.slice(1)} plan` : "Loading…";
   const orgName = organization?.name ?? "Your workspace";
-  const initials = (orgName.match(/\b\p{L}/gu) ?? []).slice(0, 2).join("").toUpperCase() || "PL";
 
   // Live "needs review" count → Inbox badge via summary endpoint (accurate regardless of volume).
   const { data: ordersSummary } = useQuery({
@@ -237,12 +258,43 @@ export function BridgeSidebar({
   // otherwise honor the persisted preference.
   const isCollapsed = (collapseBelowLg && belowLg) || (collapsible && autoCollapsed) || (collapsible && collapsed);
 
-  function isActive(href: string) {
-    const path = href.split("?")[0];
-    if (path === "/bridge") return pathname === "/bridge";
-    if (path === "/inbox")  return pathname === "/inbox" || pathname.startsWith("/inbox/");
-    return pathname.startsWith(path);
-  }
+  const renderItem = (item: SidebarNavItem) => {
+    const active = isItemActive(pathname, item);
+    const Ico = item.icon;
+    const badge = badgeFor(item.badgeKey);
+    return (
+      <Link
+        key={item.href}
+        href={item.href}
+        onClick={onNavigate}
+        target={item.newTab ? "_blank" : undefined}
+        rel={item.newTab ? "noopener noreferrer" : undefined}
+        title={isCollapsed ? item.label : undefined}
+        aria-current={active ? "page" : undefined}
+        className={`flex items-center text-[13.5px] ${active ? "font-[600]" : "font-medium"} transition-colors duration-[130ms] relative ${isCollapsed ? "justify-center py-[9px] mx-[10px]" : "gap-[11px] px-[11px] py-[8px] mx-3"} my-px rounded-[9px]`}
+        style={{ color: active ? "#FFFFFF" : "#C8D1E0", background: active ? "rgba(30,102,201,0.20)" : "transparent" }}
+        onMouseEnter={(e) => { if (!active) { (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.055)"; (e.currentTarget as HTMLElement).style.color = "#FFFFFF"; } }}
+        onMouseLeave={(e) => { if (!active) { (e.currentTarget as HTMLElement).style.background = "transparent"; (e.currentTarget as HTMLElement).style.color = "#C8D1E0"; } }}
+      >
+        {/* v2 active marker: a crisp 3px blue bar straddling the inner edge. */}
+        {active && (
+          <span
+            className="absolute"
+            aria-hidden
+            style={{ left: isCollapsed ? 5 : -2, top: "50%", transform: "translateY(-50%)", width: 3, height: 17, borderRadius: 3, background: "#1E66C9" }}
+          />
+        )}
+        <Ico size={16} strokeWidth={1.9} style={{ flexShrink: 0, color: active ? "#FFFFFF" : "#7C8DA6", opacity: active ? 1 : 0.82 }} />
+        {!isCollapsed && <span className="flex-1 truncate">{item.label}</span>}
+        {!isCollapsed && badge && (
+          <span className="flex items-center justify-center rounded-full text-[10.5px]" style={{ minWidth: 18, height: 18, padding: "0 5px", background: "#1E66C9", color: "#FFFFFF", fontFamily: "'JetBrains Mono',monospace", borderRadius: 999, fontWeight: 700 }}>{badge}</span>
+        )}
+        {isCollapsed && badge && (
+          <span className="absolute rounded-full" style={{ top: 5, right: 12, width: 7, height: 7, background: "#1E66C9", border: "1.5px solid #0A1728" }} aria-hidden />
+        )}
+      </Link>
+    );
+  };
 
   return (
     <aside
@@ -308,39 +360,25 @@ export function BridgeSidebar({
         )}
       </div>
 
-      {/* ── Workspace card (v2 org-switcher look) ─────────────────────
-          Static workspace identity (org name + plan) styled as the v2
-          org-switcher card: a blue→green gradient identity tile + name + plan.
-          There is still NO multi-org switcher wired, so this stays read-only —
-          no chevron, pointer, or "Switch workspace" affordance that would imply
-          a menu that doesn't exist (offer↔works). It is the restyle only. */}
-      <div
-        title={isCollapsed ? `${orgName} · ${planLabel}` : undefined}
-        className={`flex items-center text-left rounded-[10px] ${isCollapsed ? "mx-auto justify-center w-[44px] py-[9px]" : "gap-2.5"}`}
-        style={{ background: "#14253D", border: "1px solid #1F3252", margin: isCollapsed ? "12px auto 6px" : "12px 12px 6px", padding: isCollapsed ? undefined : "9px 11px" }}
-      >
-        <div
-          className="flex items-center justify-center text-[10.5px] font-[700] text-white flex-shrink-0"
-          style={{ width: isCollapsed ? 26 : 28, height: isCollapsed ? 26 : 28, borderRadius: 7, background: "linear-gradient(135deg,#1E66C9,#2E8E3A)" }}
-        >
-          {initials}
-        </div>
-        {!isCollapsed && (
-          <div className="flex-1 min-w-0" style={{ lineHeight: 1.25 }}>
-            <div className="text-[12.5px] font-semibold text-white truncate">{orgName}</div>
-            <div className="text-[10.5px] mt-0.5" style={{ color: "#7C8DA6" }}>{planLabel}</div>
-          </div>
-        )}
-      </div>
+      {/* ── Workspace card + WORKSPACES switcher ──────────────────────
+          Real Clerk organizations only (useOrganizationList); the plan line is
+          the live billing query and renders for the ACTIVE org only. Falls back
+          to a static card when Clerk isn't configured (mock/QA shells). */}
+      <OrgSwitcher
+        collapsed={isCollapsed}
+        orgName={orgName}
+        planLabel={planLabel}
+        activePlan={billing ? planLabel : null}
+      />
 
       {/* ── Pinned primary action — Upload order ──────────────────────
-          v2 shell pins the primary create action at the top of the rail. This
-          ADDS the button; the Upload entry stays in the nav below, so nothing
-          is re-routed. Blue = buyer/source action, matching the semantic law. */}
+          v2 shell pins the primary create action at the top of the rail
+          (the Workbench group no longer carries a separate Upload entry).
+          Blue = buyer/source action, matching the semantic law. */}
       {!isCollapsed ? (
         <div style={{ padding: "8px 12px 6px" }}>
           <Link
-            href="/upload"
+            href={PINNED_ACTION_HREF}
             onClick={onNavigate}
             className="flex w-full items-center justify-center gap-2 text-[13px] font-semibold text-white"
             style={{ height: 38, borderRadius: 9, background: "#1E66C9", boxShadow: "0 1px 2px rgba(0,0,0,0.28), inset 0 1px 0 rgba(255,255,255,0.14)", transition: "background 140ms" }}
@@ -354,7 +392,7 @@ export function BridgeSidebar({
       ) : (
         <div className="flex justify-center" style={{ padding: "6px 0 8px" }}>
           <Link
-            href="/upload"
+            href={PINNED_ACTION_HREF}
             onClick={onNavigate}
             title="Upload order"
             aria-label="Upload order"
@@ -368,9 +406,9 @@ export function BridgeSidebar({
         </div>
       )}
 
-      {/* ── Navigation ───────────────────────────────────────────── */}
+      {/* ── Navigation (grouped hubs; flexible spacer pushes the tail down) ── */}
       <nav className="flex-1 overflow-y-auto" style={{ scrollbarWidth: "none", padding: "4px 0 12px" }}>
-        {VISIBLE_NAV.map((section, si) => (
+        {NAV_VISIBLE.map((section, si) => (
           <div key={si}>
             {section.group && !isCollapsed && (
               <div className="text-[9.5px] font-[700] uppercase" style={{ letterSpacing: "0.15em", color: "#7C8DA6", padding: "17px 20px 7px" }}>{section.group}</div>
@@ -378,79 +416,23 @@ export function BridgeSidebar({
             {section.group && isCollapsed && si > 0 && (
               <div style={{ height: 1, background: "#1F3252", margin: "11px 16px 10px", opacity: 0.7 }} aria-hidden />
             )}
-            {section.items.map((item) => {
-              const active = isActive(item.href);
-              const Ico = item.icon;
-              const badge = badgeFor(item.badgeKey);
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  onClick={onNavigate}
-                  target={item.newTab ? "_blank" : undefined}
-                  rel={item.newTab ? "noopener noreferrer" : undefined}
-                  title={isCollapsed ? item.label : undefined}
-                  className={`flex items-center text-[13.5px] ${active ? "font-[600]" : "font-medium"} transition-colors duration-[130ms] relative ${isCollapsed ? "justify-center py-[9px] mx-[10px]" : "gap-[11px] px-[11px] py-[8px] mx-3"} my-px rounded-[9px]`}
-                  style={{ color: active ? "#FFFFFF" : "#C8D1E0", background: active ? "rgba(30,102,201,0.20)" : "transparent" }}
-                  onMouseEnter={(e) => { if (!active) { (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.055)"; (e.currentTarget as HTMLElement).style.color = "#FFFFFF"; } }}
-                  onMouseLeave={(e) => { if (!active) { (e.currentTarget as HTMLElement).style.background = "transparent"; (e.currentTarget as HTMLElement).style.color = "#C8D1E0"; } }}
-                >
-                  {/* v2 active marker: a crisp 3px blue bar straddling the inner edge. */}
-                  {active && (
-                    <span
-                      className="absolute"
-                      aria-hidden
-                      style={{ left: isCollapsed ? 5 : -2, top: "50%", transform: "translateY(-50%)", width: 3, height: 17, borderRadius: 3, background: "#1E66C9" }}
-                    />
-                  )}
-                  <Ico size={16} strokeWidth={1.9} style={{ flexShrink: 0, color: active ? "#FFFFFF" : "#7C8DA6", opacity: active ? 1 : 0.82 }} />
-                  {!isCollapsed && <span className="flex-1 truncate">{item.label}</span>}
-                  {!isCollapsed && badge && (
-                    <span className="flex items-center justify-center rounded-full text-[10.5px]" style={{ minWidth: 18, height: 18, padding: "0 5px", background: "#1E66C9", color: "#FFFFFF", fontFamily: "'JetBrains Mono',monospace", borderRadius: 999, fontWeight: 700 }}>{badge}</span>
-                  )}
-                  {isCollapsed && badge && (
-                    <span className="absolute rounded-full" style={{ top: 5, right: 12, width: 7, height: 7, background: "#1E66C9", border: "1.5px solid #0A1728" }} aria-hidden />
-                  )}
-                </Link>
-              );
-            })}
+            {section.items.map(renderItem)}
           </div>
         ))}
       </nav>
 
-      {/* ── Footer — talk to a human + back to site ───────────────────
-          The old "Pipeline healthy · 12/min" line was a hardcoded literal, not
-          real telemetry, so it was removed (offer↔works). Live system status
-          now has its own nav entry (Operations → System health).
-          "Talk to a human" is a mailto so it always works regardless of the
-          support-form SMTP state — the ICP is high-touch (audit "reach a human"). */}
-      <div
-        className={`flex flex-col ${isCollapsed ? "items-center" : ""}`}
-        style={{ borderTop: "1px solid #1F3252", flexShrink: 0, padding: "10px 18px", gap: 4 }}
-      >
-        <a
-          href="mailto:sales@proculink.eu?subject=ProcuLink%20support"
-          title="Talk to a human"
-          aria-label="Talk to a human — email support"
-          className={`flex items-center text-[11.5px] ${isCollapsed ? "justify-center w-[44px] h-[28px]" : "gap-2"}`}
-          style={{ color: "#9DB0CC" }}
-          onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = "#FFFFFF"; }}
-          onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = "#9DB0CC"; }}
-        >
-          <MessageCircle size={13} className="flex-shrink-0" />
-          {!isCollapsed && <span className="flex-1">Talk to a human</span>}
-        </a>
-        <Link
-          href="/"
-          title="Back to site"
-          aria-label="Back to site"
-          className={`flex items-center text-[11.5px] ${isCollapsed ? "justify-center w-[44px] h-[28px]" : "gap-2"}`}
-          style={{ color: "#7C8DA6" }}
-        >
-          <ExternalLink size={13} className="flex-shrink-0" />
-          {!isCollapsed && <span className="flex-1">Back to site</span>}
-        </Link>
-      </div>
+      {/* ── Tail — Admin · Help & support · Settings (pinned above the chip) ── */}
+      {TAIL_VISIBLE.length > 0 && (
+        <div className="flex-shrink-0" style={{ padding: "6px 0 8px" }}>
+          {isCollapsed && (
+            <div style={{ height: 1, background: "#1F3252", margin: "0 16px 8px", opacity: 0.7 }} aria-hidden />
+          )}
+          {TAIL_VISIBLE.map(renderItem)}
+        </div>
+      )}
+
+      {/* ── Footer — user chip (real name + role; Profile/Settings/Sign out) ── */}
+      <UserChipMenu collapsed={isCollapsed} onNavigate={onNavigate} />
     </aside>
   );
 }

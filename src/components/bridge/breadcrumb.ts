@@ -137,16 +137,30 @@ export interface Crumb {
 }
 
 /**
+ * Top-level route roots that belong to the WORKBENCH group in the v2 nav
+ * (screenshots: "Workbench / Drafts", "Workbench / Inbound documents"). Their
+ * trail gets an UNLINKED "Workbench" head crumb — there is no /workbench route,
+ * so the head is context, not a link. /inbox intentionally stays bare ("Inbox"),
+ * matching the design captures.
+ */
+const WORKBENCH_GROUP_ROOTS: ReadonlySet<string> = new Set(["drafts", "inbound"]);
+
+/**
  * Build the full ordered crumb trail for a pathname.
  * The last segment is the current page (no href); all earlier segments link.
+ * Workbench-group routes are prefixed with an unlinked "Workbench" head crumb.
  */
 export function buildCrumbTrail(pathname: string, ctx: CrumbContext = {}): Crumb[] {
   const segments = pathname.split("/").filter(Boolean);
-  return segments.map((segment, index) => {
+  const trail = segments.map((segment, index) => {
     const isLast = index === segments.length - 1;
     return {
       label: formatCrumbLabel(segment, index, segments, ctx),
       href: isLast ? null : crumbHref(segments, index),
     };
   });
+  if (segments.length > 0 && WORKBENCH_GROUP_ROOTS.has(segments[0])) {
+    return [{ label: "Workbench", href: null }, ...trail];
+  }
+  return trail;
 }
