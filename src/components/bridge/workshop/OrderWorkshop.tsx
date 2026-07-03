@@ -34,7 +34,7 @@ import { UnifiedStatusBadge } from "../UnifiedStatusBadge";
 import { FailedPanel, ParseFailedPanel } from "../FailedPanels";
 import { ConfirmDialog } from "../review/ConfirmDialog";
 import { buildFixQueue, type FixQueueCard } from "../review/buildFixQueue";
-import { formatMoney, resolvedGrandTotal, outputArtifactType, buyerLabel, orderDeliveryFormat } from "../review/orderDisplay";
+import { orderGrandTotalLabel, outputArtifactType, buyerLabel, orderDeliveryFormat } from "../review/orderDisplay";
 import { useOrderReview } from "../review/hooks/useOrderReview";
 import { useResolveActions } from "../review/hooks/useResolveActions";
 import { useAcceptanceValidation } from "../review/hooks/useAcceptanceValidation";
@@ -384,7 +384,9 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
   const noteCount = issues.filter((i) => i.severity === "warning").length;
 
   // ── Display helpers for the header + confirm dialog ──────────────────────────
-  const grandTotalLabel = order ? formatMoney(order.currency, resolvedGrandTotal(order)) : "";
+  // "" when the total is genuinely unknown (nothing extracted AND no priced lines
+  // yet) — the header then hides the value entirely rather than showing "€ 0.00".
+  const grandTotalLabel = order ? orderGrandTotalLabel(order) : "";
   const outputFormatLabel = order ? outputArtifactType(order.artifacts) : "";
   // The supplier's ACTUAL delivery output format — used in the Send confirmation
   // modal so it always reflects what will be delivered, not whichever format the
@@ -527,8 +529,13 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
                 <span style={{ fontWeight: 600, color: "#1E66C9", minWidth: 0, overflowWrap: "anywhere" }}>{buyerLabel(order)}</span>
                 <span aria-hidden style={{ flexShrink: 0, color: "#CBD0DA" }}>→</span>
                 <span style={{ fontWeight: 600, color: "#2E8E3A", minWidth: 0, overflowWrap: "anywhere" }}>{order.supplierName}</span>
-                <span aria-hidden style={{ flexShrink: 0, color: "#CBD0DA" }}>·</span>
-                <span style={{ fontFamily: "'JetBrains Mono',monospace", color: "#566982", minWidth: 0, overflowWrap: "anywhere" }}>{grandTotalLabel}</span>
+                {/* Total slot renders ONLY when a real total is known — never a fake "€ 0.00". */}
+                {grandTotalLabel && (
+                  <>
+                    <span aria-hidden style={{ flexShrink: 0, color: "#CBD0DA" }}>·</span>
+                    <span style={{ fontFamily: "'JetBrains Mono',monospace", color: "#566982", minWidth: 0, overflowWrap: "anywhere" }}>{grandTotalLabel}</span>
+                  </>
+                )}
               </div>
             </div>
           </div>
@@ -774,7 +781,7 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
           onCancel={() => setShowConfirm(false)}
           supplierName={order.supplierName}
           outputFormat={sendModalFormat}
-          grandTotal={grandTotalLabel}
+          grandTotal={grandTotalLabel || "—"}
           lineCount={order.lines.length}
           labels={labels}
           failingRuleCount={failingRuleCount}

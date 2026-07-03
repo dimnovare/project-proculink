@@ -181,8 +181,13 @@ export function MobileTriage(props: MobileTriageProps) {
             <span style={{ fontWeight: 600, color: BLUE_DEEP, minWidth: 0, overflowWrap: "anywhere" }}>{buyerName}</span>
             <span aria-hidden style={{ flexShrink: 0, color: "#CBD0DA" }}>→</span>
             <span style={{ fontWeight: 600, color: GREEN_DEEP, minWidth: 0, overflowWrap: "anywhere" }}>{supplierName}</span>
-            <span aria-hidden style={{ flexShrink: 0, color: "#CBD0DA" }}>·</span>
-            <span style={{ fontFamily: "'JetBrains Mono',monospace", color: INK, minWidth: 0, overflowWrap: "anywhere" }}>{grandTotalLabel}</span>
+            {/* Total slot renders ONLY when a real total is known — never a fake "€ 0.00". */}
+            {grandTotalLabel && (
+              <>
+                <span aria-hidden style={{ flexShrink: 0, color: "#CBD0DA" }}>·</span>
+                <span style={{ fontFamily: "'JetBrains Mono',monospace", color: INK, minWidth: 0, overflowWrap: "anywhere" }}>{grandTotalLabel}</span>
+              </>
+            )}
           </div>
         </div>
 
@@ -222,7 +227,7 @@ export function MobileTriage(props: MobileTriageProps) {
             <SummaryRow label="Fields captured" value={String(receivedFieldCount)} />
             <SummaryRow label="Order lines" value={String(lineCount)} />
             <SummaryRow label="Buyer" value={buyerName} />
-            <SummaryRow label="Total" value={grandTotalLabel} mono />
+            <SummaryRow label="Total" value={grandTotalLabel || "—"} mono />
           </ul>
         </SummaryCard>
 

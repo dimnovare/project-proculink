@@ -188,3 +188,32 @@ describe("MobileTriage — bulk-accept label parity with the desktop workshop", 
     expect(screen.queryByRole("button", { name: /accept all ai suggestions/i })).not.toBeInTheDocument();
   });
 });
+
+// Founder bug 31f72daf: the header showed a fake "€ 0.00" when the order total was
+// unknown. The workshop now passes grandTotalLabel="" in that case — the mobile
+// header must render NO total slot (not an empty mono span with a dangling "·"),
+// and the "What we received" summary shows an honest "—".
+describe("MobileTriage — unknown order total is hidden, never a fake zero", () => {
+  test("empty grandTotalLabel renders no total slot in the header", () => {
+    const { container } = render(<MobileTriage {...makeProps({ grandTotalLabel: "" })} />);
+    const header = screen.getByTestId("mobile-triage-header");
+    // No mono total span and no dangling "·" separator remain in the header.
+    expect(header.querySelector("span[style*='JetBrains Mono']")).toBeNull();
+    expect(within(header).queryByText("·")).not.toBeInTheDocument();
+    expect(container.textContent).not.toContain("0.00");
+  });
+
+  test("a known total still renders in the header (regression guard)", () => {
+    render(<MobileTriage {...makeProps({ grandTotalLabel: "EUR 752.40" })} />);
+    const header = screen.getByTestId("mobile-triage-header");
+    expect(within(header).getByText("EUR 752.40")).toBeInTheDocument();
+  });
+
+  test("the 'What we received' Total row shows '—' when the total is unknown", () => {
+    render(<MobileTriage {...makeProps({ grandTotalLabel: "" })} />);
+    const card = screen.getByTestId("mobile-card-received");
+    fireEvent.click(within(card).getByRole("button", { name: /what we received/i }));
+    const totalRow = within(card).getByText("Total").closest("li") as HTMLElement;
+    expect(within(totalRow).getByText("—")).toBeInTheDocument();
+  });
+});
