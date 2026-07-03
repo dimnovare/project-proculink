@@ -4,6 +4,7 @@
 import { EmptyState } from "@/components/bridge/EmptyState";
 import { PageShell } from "@/components/bridge/layout/PageShell";
 import { PageHeader } from "@/components/bridge/layout/PageHeader";
+import { HubTabs } from "@/components/bridge/layout/HubTabs";
 import Link from "next/link";
 import { X } from "lucide-react";
 import { useState, useEffect, type ReactNode } from "react";
@@ -106,6 +107,7 @@ function SkeletonConnectorCard() {
         background: "var(--surface,#FFFFFF)",
         border: "1px solid var(--border,#E2E6EE)",
         borderRadius: "var(--radius-md,8px)",
+        boxShadow: "var(--shadow-card)",
         padding: 20,
         animation: "skel-pulse 1.4s ease-in-out infinite",
       }}
@@ -138,6 +140,8 @@ function ConnectorCard({
         background: "var(--surface,#FFFFFF)",
         border: "1px solid var(--border,#E2E6EE)",
         borderRadius: "var(--radius-md,8px)",
+        // v2 card alignment: same resting shadow as the canonical Card primitive.
+        boxShadow: "var(--shadow-card)",
         padding: 18,
         display: "flex",
         flexDirection: "column",
@@ -375,6 +379,9 @@ export default function ConnectorsPage() {
             </button>
           }
         />
+
+        {/* Hub tabs — Connectors | Webhooks */}
+        <HubTabs hub="integrations" />
 
         {/* Notice */}
         {notice && (

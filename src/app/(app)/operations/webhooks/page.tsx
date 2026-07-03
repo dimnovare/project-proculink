@@ -4,6 +4,8 @@
 import { EmptyState } from "@/components/bridge/EmptyState";
 import { PageShell } from "@/components/bridge/layout/PageShell";
 import { PageHeader } from "@/components/bridge/layout/PageHeader";
+import { HubTabs } from "@/components/bridge/layout/HubTabs";
+import { tv2HeaderCell, tv2BodyCell, tv2RowDivider } from "@/components/bridge/layout/listTableV2";
 import { X } from "lucide-react";
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -466,76 +468,56 @@ function DeliveriesCard({ deliveries }: { deliveries: DeliveryRow[] | null }) {
           <thead>
             <tr>
               {["Time", "Event", "Order", "Status", "Latency"].map((h, i) => (
-                <th
-                  key={h}
-                  style={{
-                    textAlign: i === 4 ? "right" : "left",
-                    fontSize: 10.5,
-                    fontWeight: 600,
-                    letterSpacing: "0.05em",
-                    textTransform: "uppercase",
-                    color: "var(--ink-faint,#5B6980)",
-                    padding: "9px 12px",
-                    borderBottom: "1px solid var(--border,#E2E6EE)",
-                    whiteSpace: "nowrap",
-                  }}
-                >
+                <th key={h} style={tv2HeaderCell(i === 4 ? "right" : "left", i === 0)}>
                   {h}
                 </th>
               ))}
             </tr>
           </thead>
           <tbody>
+            {/* Unified listTableV2 row rhythm: 44px rows, border-faint dividers,
+                18px first-cell gutter aligned with the tinted header band. */}
             {deliveries.map((d, i) => (
               <tr
                 key={i}
-                style={{ cursor: "default" }}
+                style={{ cursor: "default", borderTop: i === 0 ? "none" : tv2RowDivider }}
                 onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "var(--surface-2,#EFF2F7)"; }}
                 onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "transparent"; }}
               >
                 <td
                   style={{
-                    padding: "11px 12px",
-                    borderBottom: i < deliveries.length - 1 ? "1px solid var(--border,#E2E6EE)" : "none",
+                    ...tv2BodyCell("left", true),
                     fontFamily: "var(--font-mono,'JetBrains Mono',monospace)",
                     fontSize: 11.5,
+                    fontVariantNumeric: "tabular-nums",
                     color: "var(--ink-faint,#5B6980)",
-                    whiteSpace: "nowrap",
                   }}
                 >
                   {d.time}
                 </td>
                 <td
                   style={{
-                    padding: "11px 12px",
-                    borderBottom: i < deliveries.length - 1 ? "1px solid var(--border,#E2E6EE)" : "none",
+                    ...tv2BodyCell(),
                     fontFamily: "var(--font-mono,'JetBrains Mono',monospace)",
                     fontSize: 11,
                     color: "var(--ink,#0B1A2F)",
-                    whiteSpace: "nowrap",
                   }}
                 >
                   {d.event}
                 </td>
                 <td
                   style={{
-                    padding: "11px 12px",
-                    borderBottom: i < deliveries.length - 1 ? "1px solid var(--border,#E2E6EE)" : "none",
+                    ...tv2BodyCell(),
                     fontFamily: "var(--font-mono,'JetBrains Mono',monospace)",
                     fontSize: 11.5,
+                    fontVariantNumeric: "tabular-nums",
                     color: "var(--brand-blue-deep,#0F4FA8)",
                     fontWeight: 600,
-                    whiteSpace: "nowrap",
                   }}
                 >
                   {d.po}
                 </td>
-                <td
-                  style={{
-                    padding: "11px 12px",
-                    borderBottom: i < deliveries.length - 1 ? "1px solid var(--border,#E2E6EE)" : "none",
-                  }}
-                >
+                <td style={tv2BodyCell()}>
                   {/* HTTP status badge — canonical .conf (green-deep on green-soft / danger on danger-soft) */}
                   <span className={`conf ${d.fail ? "conf-lo" : "conf-hi"}`} style={{ whiteSpace: "nowrap" }}>
                     {d.status}
@@ -543,13 +525,11 @@ function DeliveriesCard({ deliveries }: { deliveries: DeliveryRow[] | null }) {
                 </td>
                 <td
                   style={{
-                    padding: "11px 12px",
-                    borderBottom: i < deliveries.length - 1 ? "1px solid var(--border,#E2E6EE)" : "none",
-                    textAlign: "right",
+                    ...tv2BodyCell("right"),
                     fontFamily: "var(--font-mono,'JetBrains Mono',monospace)",
                     fontSize: 11.5,
+                    fontVariantNumeric: "tabular-nums",
                     color: "var(--ink-faint,#5B6980)",
-                    whiteSpace: "nowrap",
                   }}
                 >
                   {d.dur}
@@ -878,6 +858,9 @@ function WebhooksLayout({
             </button>
           }
         />
+
+        {/* Hub tabs — Connectors | Webhooks */}
+        <HubTabs hub="integrations" />
 
         {/* Content */}
         <div>

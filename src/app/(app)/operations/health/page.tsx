@@ -19,10 +19,20 @@ import {
 import { useQueriesEnabled } from "@/hooks/useQueriesEnabled";
 import { PageShell } from "@/components/bridge/layout/PageShell";
 import { PageHeader } from "@/components/bridge/layout/PageHeader";
+import { HubTabs } from "@/components/bridge/layout/HubTabs";
 import { Card } from "@/components/bridge/layout/Card";
 import { MobileListRow } from "@/components/bridge/layout/MobileListRow";
 import { Button } from "@/components/bridge/DSPrimitives";
 import { UnifiedStatusBadge } from "@/components/bridge/UnifiedStatusBadge";
+import {
+  TV2,
+  tv2CardStyle,
+  tv2HeaderCell,
+  tv2BodyCell,
+  tv2RowDivider,
+  tv2Num,
+  tv2DotColor,
+} from "@/components/bridge/layout/listTableV2";
 
 // Each tile: which OpsHealth field, label, and which inbox filter it links to.
 const TILES: Array<{ key: keyof OpsHealth; label: string; href: string }> = [
@@ -122,6 +132,7 @@ export default function OperationsHealthPage() {
     return (
       <PageShell variant="wide">
         <PageHeader title="Operations health" sub="Orders that are stuck, failed, or couldn't be delivered, at a glance." />
+        <HubTabs hub="operations" />
         <div style={{ color: "var(--ink-muted)", fontSize: 14 }}>Loading pipeline health…</div>
       </PageShell>
     );
@@ -130,6 +141,7 @@ export default function OperationsHealthPage() {
     return (
       <PageShell variant="wide">
         <PageHeader title="Operations health" sub="Orders that are stuck, failed, or couldn't be delivered, at a glance." />
+        <HubTabs hub="operations" />
         <Card edge="none">
           <div style={{ color: "var(--danger)", fontSize: 14 }}>
             Could not load operations health. The API may be unavailable — retry shortly.
@@ -164,6 +176,8 @@ export default function OperationsHealthPage() {
         title="Operations health"
         sub="Orders that are stuck, failed, or couldn't be delivered, at a glance."
       />
+
+      <HubTabs hub="operations" counts={{ Exceptions: h.openExceptions }} />
 
       {/* Worker / pipeline-engine status — a dead Worker stalls the whole pipeline. */}
       <div
@@ -270,38 +284,46 @@ export default function OperationsHealthPage() {
           </Card>
         ) : (
           <>
-            {/* Desktop table */}
-            <div className="hidden md:block" style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "var(--radius-md)", overflowX: "auto" }}>
+            {/* Desktop table — unified full-bleed listTableV2 treatment
+                (tinted header band, 44px rows, leading status dots, border-faint
+                dividers, tabular figures). */}
+            <div className="hidden md:block" style={{ ...tv2CardStyle, overflowX: "auto" }}>
               <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
                 <thead>
-                  <tr style={{ background: "var(--bg)", color: "var(--ink-muted)", textAlign: "left" }}>
-                    <th style={th}>Order</th>
-                    <th style={th}>Supplier</th>
-                    <th style={th}>Status</th>
-                    <th style={{ ...th, textAlign: "right" }}>Attempts</th>
-                    <th style={th}>Last error</th>
-                    <th style={th}>Last attempt</th>
-                    <th style={{ ...th, textAlign: "right" }}>Action</th>
+                  <tr>
+                    <th style={tv2HeaderCell("left", true)}>Order</th>
+                    <th style={tv2HeaderCell()}>Supplier</th>
+                    <th style={tv2HeaderCell()}>Status</th>
+                    <th style={tv2HeaderCell("right")}>Attempts</th>
+                    <th style={tv2HeaderCell()}>Last error</th>
+                    <th style={tv2HeaderCell()}>Last attempt</th>
+                    <th style={tv2HeaderCell("right")}>Action</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {deadLetters.map((o) => (
-                    <tr key={o.orderId} style={{ borderTop: "1px solid var(--border)" }}>
-                      <td style={td}>
-                        <Link href={`/inbox/${o.orderId}`} style={{ color: "var(--brand-blue-deep)", fontWeight: 600, textDecoration: "none" }}>
-                          {o.poNumber || o.orderId.slice(0, 8)}
-                        </Link>
+                  {deadLetters.map((o, i) => (
+                    <tr key={o.orderId} style={{ borderTop: i === 0 ? "none" : tv2RowDivider }}>
+                      <td style={tv2BodyCell("left", true)}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
+                          <span
+                            aria-hidden
+                            style={{ width: 7, height: 7, borderRadius: "50%", background: tv2DotColor(normalizeDeadLetterStatus(o.status)), flexShrink: 0 }}
+                          />
+                          <Link href={`/inbox/${o.orderId}`} className="font-mono tabular-nums" style={{ color: "var(--brand-blue-deep)", fontWeight: 600, fontSize: 12, textDecoration: "none" }}>
+                            {o.poNumber || o.orderId.slice(0, 8)}
+                          </Link>
+                        </div>
                       </td>
-                      <td style={td}>{o.supplierName ?? "—"}</td>
-                      <td style={td}><UnifiedStatusBadge status={normalizeDeadLetterStatus(o.status)} /></td>
-                      <td style={{ ...td, textAlign: "right", fontVariantNumeric: "tabular-nums" }}>{o.deliveryAttempts}</td>
-                      <td style={{ ...td, maxWidth: 280, color: "var(--danger)" }}>
+                      <td style={{ ...tv2BodyCell(), color: TV2.ink }}>{o.supplierName ?? "—"}</td>
+                      <td style={tv2BodyCell()}><UnifiedStatusBadge status={normalizeDeadLetterStatus(o.status)} /></td>
+                      <td style={{ ...tv2BodyCell("right"), ...tv2Num, color: TV2.ink }}>{o.deliveryAttempts}</td>
+                      <td style={{ ...tv2BodyCell(), maxWidth: 280, color: "var(--danger)" }}>
                         <span title={o.lastError ?? ""} style={{ display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                           {o.lastError ?? "—"}{o.lastResponseCode ? ` (${o.lastResponseCode})` : ""}
                         </span>
                       </td>
-                      <td style={{ ...td, color: "var(--ink-muted)", whiteSpace: "nowrap" }}>{relativeTime(o.lastAttemptAt)}</td>
-                      <td style={{ ...td, textAlign: "right" }}>
+                      <td style={{ ...tv2BodyCell(), color: TV2.inkMuted }}>{relativeTime(o.lastAttemptAt)}</td>
+                      <td style={tv2BodyCell("right")}>
                         {canRedeliver(o.status) ? (
                           <Button
                             variant="blue"
@@ -384,6 +406,3 @@ export default function OperationsHealthPage() {
     </PageShell>
   );
 }
-
-const th: React.CSSProperties = { padding: "9px 14px", fontSize: 10.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" };
-const td: React.CSSProperties = { padding: "10px 14px", color: "var(--ink)", verticalAlign: "middle" };

@@ -17,6 +17,7 @@ import { EmptyState } from "./EmptyState";
 import { UnifiedStatusBadge } from "./UnifiedStatusBadge";
 import { PageHeader } from "./layout/PageHeader";
 import { PageShell } from "./layout/PageShell";
+import { HubTabs } from "./layout/HubTabs";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -325,15 +326,16 @@ function SkeletonRow() {
 // the desktop CrossingRow exactly (Time 64 · icon 26 · Status 92 · PO 150 · Route
 // grow · Actor 110 · chevron 15) with the same gap-3 / 11px-16px padding. The log
 // is an append-only, time-descending feed, so Time carries a static
-// aria-sort="descending". Sticks to the PageShell scroll viewport; opaque --bg so
-// scrolled rows don't bleed through, single low-contrast --border gridline below.
+// aria-sort="descending". Sticks to the PageShell scroll viewport; opaque
+// surface-2 (the unified listTableV2 tinted header band) so scrolled rows don't
+// bleed through, single low-contrast --border gridline below.
 function DesktopColHeader() {
   const cell = {
     fontSize: 10.5,
     fontWeight: 700 as const,
-    letterSpacing: "0.06em",
+    letterSpacing: "0.07em",
     textTransform: "uppercase" as const,
-    color: "var(--ink-faint)",
+    color: "var(--ink-muted)",
   };
   return (
     // role="table" wrapper so the columnheader + aria-sort roles below are valid
@@ -348,9 +350,10 @@ function DesktopColHeader() {
         position: "sticky",
         top: 0,
         zIndex: 2,
-        padding: "9px 16px",
-        background: "var(--bg)",
+        padding: "10px 16px",
+        background: "var(--surface-2)",
         borderBottom: "1px solid var(--border)",
+        borderRadius: "var(--radius) var(--radius) 0 0",
         marginBottom: 8,
       }}
     >
@@ -463,6 +466,9 @@ export function CrossingsLog() {
           </button>
         }
       />
+
+      {/* Hub tabs — System health | Exceptions | Delivery log */}
+      <HubTabs hub="operations" />
 
       {/* Filter / search bar */}
       <div
