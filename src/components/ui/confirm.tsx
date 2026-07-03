@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useCallback, useContext, useRef, useState, type ReactNode } from "react";
+import { AlertTriangle, HelpCircle } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -12,6 +13,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 /**
  * Imperative confirm dialog — one focus-trapped, token-styled modal that replaces
@@ -73,15 +75,31 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
       <AlertDialog open={open} onOpenChange={(next) => { if (!next) settle(false); }}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>{opts.title}</AlertDialogTitle>
-            {opts.description != null && (
-              <AlertDialogDescription>{opts.description}</AlertDialogDescription>
-            )}
+            <div className="flex items-start gap-3">
+              <span
+                className={cn(
+                  "mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg",
+                  opts.danger ? "bg-danger-soft text-danger" : "bg-brand-blue-soft text-brand-blue",
+                )}
+                aria-hidden
+              >
+                {opts.danger ? <AlertTriangle className="h-[18px] w-[18px]" /> : <HelpCircle className="h-[18px] w-[18px]" />}
+              </span>
+              <div className="flex min-w-0 flex-col gap-1.5 pr-4">
+                <AlertDialogTitle>{opts.title}</AlertDialogTitle>
+                {opts.description != null && (
+                  <AlertDialogDescription>{opts.description}</AlertDialogDescription>
+                )}
+              </div>
+            </div>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel onClick={() => settle(false)}>
               {opts.cancelLabel ?? "Cancel"}
             </AlertDialogCancel>
+            {/* v2 semantic law: green is reserved for supplier/outgoing actions
+                (send/publish); a generic confirm gets the blue primary, danger
+                gets the red destructive. */}
             <AlertDialogAction
               onClick={() => settle(true)}
               className={opts.danger ? buttonVariants({ variant: "destructive" }) : undefined}
