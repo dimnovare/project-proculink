@@ -96,13 +96,20 @@ export default function StandardsPage() {
         actions={searchInput}
       />
 
+      {/* Mobile-only swipe hint — the matrix h-scrolls but truncated cells give no
+          cue on a phone. Hidden on sm+ where all columns fit. */}
+      <p className="mb-2 flex items-center gap-1 text-[11.5px] sm:hidden" style={{ color: "var(--ink-faint)" }}>
+        Swipe the table sideways to see every format
+        <span aria-hidden>→</span>
+      </p>
+
       {/* Single white card — table scrolls horizontally with a sticky first column so
           the canonical field stays anchored while the reference codes scroll.
           <Card> is not used here because the table requires zero internal padding for
           its edge-to-edge layout; the Card primitive always applies a fixed pad value.
           The div is already fully token-clean (surface/border/radius-md). */}
       <div
-        className="overflow-hidden"
+        className="relative overflow-hidden"
         style={{
           background: "var(--surface)",
           border: "1px solid var(--border)",
@@ -110,6 +117,14 @@ export default function StandardsPage() {
           boxShadow: "var(--shadow-card)",
         }}
       >
+        {/* Right-edge fade — mobile-only visual cue that more columns lie off-screen.
+            Sits above the scroll area but is click-through (pointer-events-none) so it
+            never blocks scrolling/hover. Hidden on sm+ where the table fits. */}
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-y-0 right-0 z-20 w-10 sm:hidden"
+          style={{ background: "linear-gradient(to left, var(--surface), transparent)" }}
+        />
         <div className="overflow-x-auto">
           {/* min-width forces horizontal scroll on narrow viewports */}
           <table className="w-full min-w-[760px] border-collapse">
