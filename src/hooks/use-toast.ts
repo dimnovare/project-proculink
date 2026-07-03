@@ -10,6 +10,10 @@ type ToasterToast = ToastProps & {
   title?: React.ReactNode;
   description?: React.ReactNode;
   action?: ToastActionElement;
+  /** Show a spinning loader icon instead of the default status check (for in-progress messages). */
+  loading?: boolean;
+  /** Override the leading status icon entirely. */
+  icon?: React.ReactNode;
 };
 
 const actionTypes = {
