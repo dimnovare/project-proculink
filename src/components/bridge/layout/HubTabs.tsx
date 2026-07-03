@@ -61,6 +61,17 @@ export function hubForPath(pathname: string): HubKey | null {
   return null;
 }
 
+/**
+ * Visual variants:
+ *   • "page"   — the original on-white hub-page bar (own bottom rule + margin).
+ *   • "topbar" — compact on-navy strip for the BridgeTopbar context row (38px):
+ *     no bar rule/margin, the nav stretches to the row height and the active
+ *     2px blue underline rides the row's bottom edge. Same accent blue as the
+ *     sidebar's active rail (#1E66C9); label colors follow the breadcrumb
+ *     palette (inactive #7C8DA6 → hover #C8D1E0, active white).
+ */
+export type HubTabsVariant = "page" | "topbar";
+
 const barStyle: CSSProperties = {
   display: "flex",
   alignItems: "flex-end",
@@ -69,11 +80,28 @@ const barStyle: CSSProperties = {
   marginBottom: 18,
 };
 
-export function HubTabs({ hub, counts }: { hub: HubKey; counts?: Record<string, number> }) {
+const topbarBarStyle: CSSProperties = {
+  display: "flex",
+  alignItems: "stretch",
+  gap: 18,
+  height: "100%",
+  flexShrink: 0,
+};
+
+export function HubTabs({
+  hub,
+  counts,
+  variant = "page",
+}: {
+  hub: HubKey;
+  counts?: Record<string, number>;
+  variant?: HubTabsVariant;
+}) {
   const pathname = usePathname() ?? "";
   const tabs = HUB_TABS[hub];
+  const topbar = variant === "topbar";
   return (
-    <nav aria-label="Section" style={barStyle}>
+    <nav aria-label="Section" style={topbar ? topbarBarStyle : barStyle}>
       {tabs.map((t) => {
         const active =
           pathname === t.href ||
@@ -85,19 +113,45 @@ export function HubTabs({ hub, counts }: { hub: HubKey; counts?: Record<string, 
             key={t.href}
             href={t.href}
             aria-current={active ? "page" : undefined}
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 7,
-              padding: "0 2px 9px",
-              fontSize: 13,
-              fontWeight: 600,
-              color: active ? "#0B1A2F" : "#5E6779",
-              borderBottom: active ? "2px solid #1E66C9" : "2px solid transparent",
-              marginBottom: -1,
-              textDecoration: "none",
-              whiteSpace: "nowrap",
-            }}
+            style={
+              topbar
+                ? {
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 7,
+                    padding: "0 1px",
+                    fontSize: 13,
+                    fontWeight: 600,
+                    color: active ? "#FFFFFF" : "#7C8DA6",
+                    borderBottom: active ? "2px solid #1E66C9" : "2px solid transparent",
+                    textDecoration: "none",
+                    whiteSpace: "nowrap",
+                    transition: "color 130ms",
+                  }
+                : {
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 7,
+                    padding: "0 2px 9px",
+                    fontSize: 13,
+                    fontWeight: 600,
+                    color: active ? "#0B1A2F" : "#5E6779",
+                    borderBottom: active ? "2px solid #1E66C9" : "2px solid transparent",
+                    marginBottom: -1,
+                    textDecoration: "none",
+                    whiteSpace: "nowrap",
+                  }
+            }
+            onMouseEnter={
+              topbar && !active
+                ? (e) => { (e.currentTarget as HTMLElement).style.color = "#C8D1E0"; }
+                : undefined
+            }
+            onMouseLeave={
+              topbar && !active
+                ? (e) => { (e.currentTarget as HTMLElement).style.color = "#7C8DA6"; }
+                : undefined
+            }
           >
             {t.label}
             {typeof count === "number" && (
@@ -106,7 +160,7 @@ export function HubTabs({ hub, counts }: { hub: HubKey; counts?: Record<string, 
                   fontFamily: "var(--font-mono, ui-monospace)",
                   fontSize: 10.5,
                   fontWeight: 600,
-                  color: active ? "#1E66C9" : "#98A0AE",
+                  color: topbar ? (active ? "#7FA8E0" : "#5E6779") : active ? "#1E66C9" : "#98A0AE",
                 }}
               >
                 {count}

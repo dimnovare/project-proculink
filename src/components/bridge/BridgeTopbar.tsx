@@ -10,9 +10,10 @@ import type { ReactNode } from "react";
 import { apiClient, isApiMockMode } from "@/lib/api-client";
 import { guideSeenKey, matchGuide } from "@/lib/section-guides";
 import type { Order, OrderSummary, Supplier } from "@/types/procurement";
-import { buildCrumbTrail, formatCrumbLabel, truncateLabel, type CrumbContext } from "./breadcrumb";
+import { buildCrumbTrail, formatCrumbLabel, truncateLabel, type Crumb, type CrumbContext } from "./breadcrumb";
 import { CommandPalette } from "./CommandPalette";
 import { HelpSlideover } from "./HelpSlideover";
+import { HUB_TABS, HubTabs, hubForPath, type HubKey } from "./layout/HubTabs";
 import { SetupProgressChip } from "./SetupProgressChip";
 
 interface BridgeTopbarProps {
@@ -138,6 +139,86 @@ function useAutoCrumb(): ReactNode {
       })}
     </nav>
   );
+}
+
+// ─── Hub navigation in the context row ──────────────────────────────────────
+// Founder direction: the hub section tabs (Suppliers | Buyers | Connections …)
+// live in the TOPBAR, not under each page's header. On any route that belongs
+// to a hub (hubForPath), row 2 swaps the breadcrumb TAIL for the hub's tab bar:
+//   /library/suppliers      → Library / [Suppliers* | Buyers | Connections]
+//   /library/suppliers/[id] → Library / [tabs] / Acme GmbH
+//   /connections            → [Suppliers | Buyers | Connections*]
+// Non-hub routes keep the plain breadcrumb untouched.
+
+interface HubRow {
+  hub: HubKey;
+  /** Linked crumbs BEFORE the hub level (e.g. "Library", "Workbench / Inbound"). */
+  prefix: Crumb[];
+  /** Crumbs BELOW the active tab (detail pages) — rendered after the tabs. */
+  tail: Crumb[];
+}
+
+function useHubRow(): HubRow | null {
+  const pathname = usePathname();
+  const segments = pathname.split("/").filter(Boolean);
+  const ctx = useCrumbContext(segments);
+  const hub = hubForPath(pathname);
+  if (!hub) return null;
+
+  // The LONGEST tab route (href or match alias) that owns the current path —
+  // its depth marks where the breadcrumb prefix ends and the detail tail begins.
+  let owner = "";
+  for (const t of HUB_TABS[hub]) {
+    for (const route of [t.href, ...(t.match ?? [])]) {
+      if ((pathname === route || pathname.startsWith(route + "/")) && route.length > owner.length) {
+        owner = route;
+      }
+    }
+  }
+  const ownerDepth = owner.split("/").filter(Boolean).length;
+  const trail = buildCrumbTrail(pathname, ctx);
+  // buildCrumbTrail may prepend an unrouted group-head crumb ("Workbench") that
+  // has no path segment — offset keeps crumb indexes aligned with segments.
+  const offset = trail.length - segments.length;
+  return {
+    hub,
+    prefix: trail.slice(0, offset + ownerDepth - 1),
+    tail: trail.slice(offset + ownerDepth),
+  };
+}
+
+/** One breadcrumb piece in the hub row — same visual language as useAutoCrumb. */
+function HubRowCrumb({ crumb, isCurrent }: { crumb: Crumb; isCurrent: boolean }) {
+  const display = truncateLabel(crumb.label);
+  if (crumb.href) {
+    return (
+      <Link
+        href={crumb.href}
+        title={crumb.label}
+        className="truncate transition-colors hover:underline"
+        style={{ color: "#7C8DA6", maxWidth: 220 }}
+        onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = "#C8D1E0"; }}
+        onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = "#7C8DA6"; }}
+      >
+        {display}
+      </Link>
+    );
+  }
+  // Unlinked crumb — the current detail page, or an unrouted group head.
+  // aria-current stays on the active hub TAB (one per row), so none here.
+  return (
+    <span
+      title={crumb.label}
+      className="truncate"
+      style={{ color: isCurrent ? "#C8D1E0" : "#7C8DA6", fontWeight: isCurrent ? 500 : 400, maxWidth: 260 }}
+    >
+      {display}
+    </span>
+  );
+}
+
+function HubRowSeparator() {
+  return <span aria-hidden style={{ color: "#3A547A", margin: "0 7px", flexShrink: 0 }}>/</span>;
 }
 
 /**
@@ -313,6 +394,7 @@ export function BridgeTopbar({ crumb, onMenuClick }: BridgeTopbarProps) {
   const router = useRouter();
   const pathname = usePathname();
   const autoCrumb = useAutoCrumb();
+  const hubRow = useHubRow();
   const mobileLabel = useMobilePageLabel();
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
@@ -541,13 +623,47 @@ export function BridgeTopbar({ crumb, onMenuClick }: BridgeTopbarProps) {
         className="flex items-center px-3 sm:px-5"
         style={{ height: 38, borderTop: "1px solid #14253D" }}
       >
-        {/* Full breadcrumb from sm up */}
-        <div
-          className="hidden sm:flex min-w-0 items-center gap-2 text-[12.5px]"
-          style={{ color: "#C8D1E0" }}
-        >
-          {crumb ?? autoCrumb}
-        </div>
+        {/* Full breadcrumb from sm up. On hub routes (and unless the page passed
+            an explicit crumb) the trail's TAIL is replaced by the hub section
+            tabs — prefix crumbs, then [tabs], then any detail-page tail. The
+            strip scrolls horizontally when tight (narrow viewports) and the
+            active tab's 2px underline rides the row's bottom edge. */}
+        {!crumb && hubRow ? (
+          <div
+            className="hidden sm:flex min-w-0 flex-1 items-stretch self-stretch text-[12.5px]"
+            style={{ color: "#C8D1E0", overflowX: "auto", overflowY: "hidden", scrollbarWidth: "none" }}
+          >
+            {hubRow.prefix.length > 0 && (
+              <nav aria-label="Breadcrumb" className="flex items-center" style={{ flexShrink: 0 }}>
+                {hubRow.prefix.map((c, i) => (
+                  <span key={`${c.href ?? c.label}-${i}`} className="inline-flex items-center">
+                    {i > 0 && <HubRowSeparator />}
+                    <HubRowCrumb crumb={c} isCurrent={false} />
+                  </span>
+                ))}
+                <HubRowSeparator />
+              </nav>
+            )}
+            <HubTabs hub={hubRow.hub} variant="topbar" />
+            {hubRow.tail.length > 0 && (
+              <span className="flex min-w-0 items-center">
+                {hubRow.tail.map((c, i) => (
+                  <span key={`${c.href ?? c.label}-${i}`} className="inline-flex min-w-0 items-center">
+                    <HubRowSeparator />
+                    <HubRowCrumb crumb={c} isCurrent={i === hubRow.tail.length - 1} />
+                  </span>
+                ))}
+              </span>
+            )}
+          </div>
+        ) : (
+          <div
+            className="hidden sm:flex min-w-0 items-center gap-2 text-[12.5px]"
+            style={{ color: "#C8D1E0" }}
+          >
+            {crumb ?? autoCrumb}
+          </div>
+        )}
         {/* Mobile: compact single-segment page title so the user always knows
             where they are (the desktop breadcrumb is hidden below sm). */}
         {mobileLabel && (
