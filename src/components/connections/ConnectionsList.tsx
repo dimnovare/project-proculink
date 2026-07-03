@@ -9,7 +9,6 @@ import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { PageShell } from "@/components/bridge/layout/PageShell";
 import { PageHeader } from "@/components/bridge/layout/PageHeader";
-import { HubTabs } from "@/components/bridge/layout/HubTabs";
 import {
   tv2CardStyle,
   tv2HeaderCell,
@@ -68,12 +67,6 @@ export function ConnectionsList() {
             Manage suppliers
           </Button>
         }
-      />
-
-      {/* Hub tab bar — Partners hub (Suppliers | Buyers | Connections) */}
-      <HubTabs
-        hub="partners"
-        counts={!isLoading && !isError ? { Connections: connections.length } : undefined}
       />
 
       {isLoading && (
@@ -147,6 +140,13 @@ export function ConnectionsList() {
                   badge.status === "live"
                     ? "New orders are using this version."
                     : "A work-in-progress — not processing orders yet.";
+                // Former name-cell sub-line, relocated to a hover tooltip (the
+                // 44px single-line row keeps one text line; vN and the date also
+                // live in the Live version / Updated columns).
+                const nameTitle =
+                  c.activeVersionNo != null
+                    ? `Live version v${c.activeVersionNo} · since ${formatDate(c.updatedAt)}`
+                    : "Not live yet";
                 return (
                   <tr
                     key={c.id}
@@ -165,8 +165,10 @@ export function ConnectionsList() {
                     onMouseEnter={(e) => { e.currentTarget.style.background = "var(--surface-2)"; }}
                     onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
                   >
-                    {/* Connection — leading status dot + name + version sub-line */}
-                    <td style={{ ...tv2BodyCell("left", true), borderBottom: divider, height: 52 }}>
+                    {/* Connection — leading status dot + single-line name (44px row).
+                        The old version sub-line is a tooltip; vN / date stay visible
+                        in the Live version and Updated columns. */}
+                    <td style={{ ...tv2BodyCell("left", true), borderBottom: divider }} title={nameTitle}>
                       <div className="flex min-w-0 items-center gap-[11px]">
                         <span
                           aria-hidden
@@ -178,28 +180,14 @@ export function ConnectionsList() {
                             flexShrink: 0,
                           }}
                         />
-                        <div className="min-w-0">
-                          <p className="truncate text-[13.5px] font-semibold leading-tight tracking-[-0.005em]" style={{ color: "var(--ink)", margin: 0 }}>
-                            {c.name}
-                          </p>
-                          <p className="mt-[1px] truncate text-[11.5px] leading-tight" style={{ color: "var(--ink-muted)", margin: 0 }}>
-                            {c.activeVersionNo != null ? (
-                              <>
-                                Live version{" "}
-                                <span style={{ fontWeight: 600, color: "var(--ink)" }}>v{c.activeVersionNo}</span>
-                                {" · since "}
-                                {formatDate(c.updatedAt)}
-                              </>
-                            ) : (
-                              <span style={{ fontStyle: "italic" }}>Not live yet</span>
-                            )}
-                          </p>
-                        </div>
+                        <p className="truncate text-[13.5px] font-semibold leading-tight tracking-[-0.005em]" style={{ color: "var(--ink)", margin: 0 }}>
+                          {c.name}
+                        </p>
                       </div>
                     </td>
 
                     {/* Status */}
-                    <td style={{ ...tv2BodyCell("left"), borderBottom: divider, height: 52 }}>
+                    <td style={{ ...tv2BodyCell("left"), borderBottom: divider }}>
                       <span
                         className="inline-flex"
                         style={{ cursor: "help" }}
@@ -219,7 +207,6 @@ export function ConnectionsList() {
                       style={{
                         ...tv2BodyCell("right"),
                         borderBottom: divider,
-                        height: 52,
                         fontFamily: "var(--font-mono, 'JetBrains Mono', ui-monospace, monospace)",
                         fontVariantNumeric: "tabular-nums",
                         fontSize: 12.5,
@@ -235,7 +222,6 @@ export function ConnectionsList() {
                       style={{
                         ...tv2BodyCell("right"),
                         borderBottom: divider,
-                        height: 52,
                         fontSize: 12.5,
                         color: "var(--ink-muted)",
                       }}
@@ -244,7 +230,7 @@ export function ConnectionsList() {
                     </td>
 
                     {/* Chevron */}
-                    <td style={{ ...tv2BodyCell("right"), borderBottom: divider, height: 52, paddingRight: 14 }}>
+                    <td style={{ ...tv2BodyCell("right"), borderBottom: divider, paddingRight: 14 }}>
                       <span aria-hidden style={{ color: "var(--ink-faint)", fontSize: 16 }}>›</span>
                     </td>
                   </tr>

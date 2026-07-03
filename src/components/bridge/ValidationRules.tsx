@@ -30,7 +30,6 @@ import { useOrderDirection } from "@/hooks/useOrderDirection";
 import { useConfirm } from "@/components/ui/confirm";
 import { PageShell } from "./layout/PageShell";
 import { PageHeader } from "./layout/PageHeader";
-import { HubTabs } from "./layout/HubTabs";
 import { tv2HeaderCell, tv2RowDivider } from "./layout/listTableV2";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -275,7 +274,6 @@ export function ValidationRules() {
         <div className="mb-5 flex-shrink-0">
           <div style={{ height: 28, width: 200, borderRadius: 6, background: "#E5E8EE" }} className="animate-pulse" />
         </div>
-        <HubTabs hub="rules-formats" />
         <div className="flex-1 overflow-auto">
           <div className="rounded-[12px] animate-pulse" style={{ height: 360, background: "#FFFFFF", border: "1px solid #E5E8EE" }} />
         </div>
@@ -286,7 +284,6 @@ export function ValidationRules() {
   if (!isApiMockMode && isError) {
     return (
       <PageShell variant="wide" className="flex flex-col">
-        <HubTabs hub="rules-formats" />
         <div className="flex flex-1 flex-col items-center justify-center">
           <div className="rounded-[12px] p-8 text-center max-w-sm" style={{ background: "#FFFFFF", border: "1px solid #E5E8EE", boxShadow: "0 1px 3px rgba(16,24,40,0.06)" }}>
             <p className="text-[14px] font-semibold mb-1" style={{ color: "#B43838" }}>Could not load validation rules</p>
@@ -321,9 +318,6 @@ export function ValidationRules() {
           </button>
         }
       />
-
-      {/* Hub tab bar — Rules & formats hub (Mappings | Rules | Output templates | Standards) */}
-      <HubTabs hub="rules-formats" counts={{ Rules: rules.length }} />
 
       {/* Enforcement-location callout — this catalog documents checks; it does not
           gate delivery. Real blocking/validation runs per supplier. Hidden on mobile:

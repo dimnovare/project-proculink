@@ -8,7 +8,6 @@ import {
 } from "@/lib/api-client";
 import { PageShell } from "@/components/bridge/layout/PageShell";
 import { PageHeader } from "@/components/bridge/layout/PageHeader";
-import { HubTabs } from "@/components/bridge/layout/HubTabs";
 import { Card } from "@/components/bridge/layout/Card";
 import { MobileListRow } from "@/components/bridge/layout/MobileListRow";
 import { Button } from "@/components/bridge/DSPrimitives";
@@ -92,13 +91,6 @@ export default function AsnsPage() {
       <PageHeader
         title="Advance Shipping Notices"
         sub={isLoading && !isApiMockMode ? "Loading…" : `${asns.length} notice${asns.length !== 1 ? "s" : ""}`}
-      />
-
-      {/* Hub tabs — Invoices | Shipping notices. Only pass a count when real
-          notices exist (ingestion is still stubbed, so it's usually 0). */}
-      <HubTabs
-        hub="inbound"
-        counts={(!isLoading || isApiMockMode) && asns.length > 0 ? { "Shipping notices": asns.length } : undefined}
       />
 
       {/* ASN / EDIFACT DESADV ingestion is not built yet (DESADV parsing requires a

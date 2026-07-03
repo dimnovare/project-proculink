@@ -19,7 +19,6 @@ import {
 import { useQueriesEnabled } from "@/hooks/useQueriesEnabled";
 import { PageShell } from "@/components/bridge/layout/PageShell";
 import { PageHeader } from "@/components/bridge/layout/PageHeader";
-import { HubTabs } from "@/components/bridge/layout/HubTabs";
 import { Card } from "@/components/bridge/layout/Card";
 import { MobileListRow } from "@/components/bridge/layout/MobileListRow";
 import { Button } from "@/components/bridge/DSPrimitives";
@@ -132,7 +131,6 @@ export default function OperationsHealthPage() {
     return (
       <PageShell variant="wide">
         <PageHeader title="Operations health" sub="Orders that are stuck, failed, or couldn't be delivered, at a glance." />
-        <HubTabs hub="operations" />
         <div style={{ color: "var(--ink-muted)", fontSize: 14 }}>Loading pipeline health…</div>
       </PageShell>
     );
@@ -141,7 +139,6 @@ export default function OperationsHealthPage() {
     return (
       <PageShell variant="wide">
         <PageHeader title="Operations health" sub="Orders that are stuck, failed, or couldn't be delivered, at a glance." />
-        <HubTabs hub="operations" />
         <Card edge="none">
           <div style={{ color: "var(--danger)", fontSize: 14 }}>
             Could not load operations health. The API may be unavailable — retry shortly.
@@ -176,8 +173,6 @@ export default function OperationsHealthPage() {
         title="Operations health"
         sub="Orders that are stuck, failed, or couldn't be delivered, at a glance."
       />
-
-      <HubTabs hub="operations" counts={{ Exceptions: h.openExceptions }} />
 
       {/* Worker / pipeline-engine status — a dead Worker stalls the whole pipeline. */}
       <div

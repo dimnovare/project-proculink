@@ -21,7 +21,6 @@ import { FIELD_STANDARDS, type CanonicalFieldStandards } from "@/lib/standards/c
 import { EmptyState } from "@/components/bridge/EmptyState";
 import { PageShell } from "@/components/bridge/layout/PageShell";
 import { PageHeader } from "@/components/bridge/layout/PageHeader";
-import { HubTabs } from "@/components/bridge/layout/HubTabs";
 
 // ── Local presentation order — cXML first, versioned labels (design spec) ──────
 // key is a field on CanonicalFieldStandards. The header labels here are the exact
@@ -96,9 +95,6 @@ export default function StandardsPage() {
         sub="How every order field maps across formats — always visible, never hidden"
         actions={searchInput}
       />
-
-      {/* Hub tab bar — Rules & formats hub (Mappings | Rules | Output templates | Standards) */}
-      <HubTabs hub="rules-formats" />
 
       {/* Single white card — table scrolls horizontally with a sticky first column so
           the canonical field stays anchored while the reference codes scroll.

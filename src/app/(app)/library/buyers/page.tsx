@@ -8,7 +8,6 @@ import { getBuyers, createBuyer, deleteBuyer, isApiMockMode } from "@/lib/api-cl
 import type { BuyerDto } from "@/types/procurement";
 import { PageShell } from "@/components/bridge/layout/PageShell";
 import { PageHeader } from "@/components/bridge/layout/PageHeader";
-import { HubTabs } from "@/components/bridge/layout/HubTabs";
 import { Card } from "@/components/bridge/layout/Card";
 import { MobileListRow } from "@/components/bridge/layout/MobileListRow";
 import { Button } from "@/components/bridge/DSPrimitives";
@@ -202,9 +201,6 @@ export default function BuyersPage() {
           </Button>
         }
       />
-
-      {/* Hub tab bar — Partners hub (Suppliers | Buyers | Connections) */}
-      <HubTabs hub="partners" counts={showRows ? { Buyers: buyers.length } : undefined} />
 
       {/* New buyer — centered modal (Claude Design v2 anatomy: title + X, subtitle,
           fields, footer divider + Cancel + primary). The buyer entity has NO
@@ -520,25 +516,28 @@ export default function BuyersPage() {
                       verticalAlign: "middle",
                     }}
                   >
-                    <div style={{ display: "flex", alignItems: "center", gap: 11 }}>
+                    {/* Single-line identity: name + inline muted mono code suffix
+                        (44px single-line row per the v2 design — no stacked sub-line). */}
+                    <div style={{ display: "flex", alignItems: "center", gap: 11, minWidth: 0 }}>
                       <span
                         aria-hidden
                         style={{ width: 7, height: 7, borderRadius: "50%", background: "var(--brand-blue)", flexShrink: 0 }}
                       />
                       <BuyerIcon />
-                      <div>
-                        <div style={{ fontWeight: 600, fontSize: 13.5, color: "var(--ink)", letterSpacing: "-0.005em" }}>{b.name}</div>
-                        <div
+                      <div style={{ fontWeight: 600, fontSize: 13.5, color: "var(--ink)", letterSpacing: "-0.005em", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        {b.name}
+                        <span
                           style={{
                             fontSize: 10.5,
+                            fontWeight: 400,
                             fontFamily: "var(--font-mono, 'JetBrains Mono', ui-monospace, monospace)",
                             color: CODE_GREY,
-                            marginTop: 1,
+                            marginLeft: 8,
                             letterSpacing: "0.02em",
                           }}
                         >
                           {b.code}
-                        </div>
+                        </span>
                       </div>
                     </div>
                   </td>

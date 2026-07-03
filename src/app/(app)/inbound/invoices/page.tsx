@@ -12,7 +12,6 @@ import {
 } from "@/lib/api-client";
 import { PageShell } from "@/components/bridge/layout/PageShell";
 import { PageHeader } from "@/components/bridge/layout/PageHeader";
-import { HubTabs } from "@/components/bridge/layout/HubTabs";
 import { Card } from "@/components/bridge/layout/Card";
 import { MobileListRow } from "@/components/bridge/layout/MobileListRow";
 import { Button } from "@/components/bridge/DSPrimitives";
@@ -246,14 +245,6 @@ export default function InvoicesPage() {
         title="Invoices"
         sub={subText}
         actions={uploadAction}
-      />
-
-      {/* Hub tabs — Invoices | Shipping notices. Real invoice count keyed to the
-          tab; omitted while loading or errored (an errored query's [] is not a
-          real zero). */}
-      <HubTabs
-        hub="inbound"
-        counts={(!isLoading && !isError) || isApiMockMode ? { Invoices: invoices.length } : undefined}
       />
 
       {/* Notice */}

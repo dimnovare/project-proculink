@@ -16,7 +16,6 @@ import { useQueriesEnabled } from "@/hooks/useQueriesEnabled";
 import { listRuleDefinitions, type RuleDefinition } from "@/lib/api-client";
 import { PageShell } from "@/components/bridge/layout/PageShell";
 import { PageHeader } from "@/components/bridge/layout/PageHeader";
-import { HubTabs } from "@/components/bridge/layout/HubTabs";
 import { Card } from "@/components/bridge/layout/Card";
 import { StandardsRefList, hasStandardsRefs } from "@/components/bridge/StandardsRefList";
 
@@ -155,9 +154,6 @@ export function RuleDefinitionsCatalog() {
             .join("  ")
         }
       />
-
-      {/* Hub tab bar — Rules & formats hub (this sub-route lights the Rules tab) */}
-      <HubTabs hub="rules-formats" />
 
       {/* Read-only context — authoring is per supplier */}
       <div
