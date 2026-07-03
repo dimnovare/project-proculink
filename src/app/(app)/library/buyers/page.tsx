@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { EmptyState } from "@/components/bridge/EmptyState";
@@ -8,6 +8,7 @@ import { getBuyers, createBuyer, deleteBuyer, isApiMockMode } from "@/lib/api-cl
 import type { BuyerDto } from "@/types/procurement";
 import { PageShell } from "@/components/bridge/layout/PageShell";
 import { PageHeader } from "@/components/bridge/layout/PageHeader";
+import { HubTabs } from "@/components/bridge/layout/HubTabs";
 import { Card } from "@/components/bridge/layout/Card";
 import { MobileListRow } from "@/components/bridge/layout/MobileListRow";
 import { Button } from "@/components/bridge/DSPrimitives";
@@ -173,6 +174,14 @@ export default function BuyersPage() {
   const showError    = isError && !isApiMockMode;
   const showRows     = (!isLoading || isApiMockMode) && !isError;
 
+  // Close the New-buyer modal on Escape while it is open.
+  useEffect(() => {
+    if (!addOpen) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setAddOpen(false); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [addOpen]);
+
   return (
     <PageShell variant="wide">
       <PageHeader
@@ -183,37 +192,73 @@ export default function BuyersPage() {
           <Button
             variant="blue"
             size="md"
-            onClick={() => { setAddOpen((v) => !v); setAddError(null); }}
+            onClick={() => { setAddOpen(true); setAddError(null); }}
           >
             {/* plus icon */}
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
               <path d="M5 12h14M12 5v14" />
             </svg>
-            {addOpen ? "Cancel" : "New buyer"}
+            New buyer
           </Button>
         }
       />
 
-      {/* Create buyer panel */}
+      {/* Hub tab bar — Partners hub (Suppliers | Buyers | Connections) */}
+      <HubTabs hub="partners" counts={showRows ? { Buyers: buyers.length } : undefined} />
+
+      {/* New buyer — centered modal (Claude Design v2 anatomy: title + X, subtitle,
+          fields, footer divider + Cancel + primary). The buyer entity has NO
+          primary-format field on the API (formats are learned from parsed orders),
+          so the modal collects only the real fields: name + short code. */}
       {addOpen && (
-        <Card className="mb-[18px]">
-          {/* Panel header */}
-          <div style={{ marginBottom: 14 }}>
-            <div
-              style={{
-                fontWeight: 600,
-                fontSize: 15,
-                letterSpacing: "-0.01em",
-                color: "var(--ink)",
-              }}
+        <div
+          className="fixed inset-0 z-50 flex items-end bg-[#0B1A2F66] p-0 sm:items-center sm:justify-center sm:p-6"
+          onClick={() => setAddOpen(false)}
+        >
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="new-buyer-title"
+          onClick={(e) => e.stopPropagation()}
+          className="max-h-[92vh] w-full overflow-auto rounded-t-[12px] bg-white shadow-2xl sm:max-w-[520px] sm:rounded-[12px]"
+          style={{ border: "1px solid var(--border)" }}
+        >
+          {/* Modal header */}
+          <div
+            className="flex items-start justify-between gap-3 px-5 py-4"
+            style={{ borderBottom: "1px solid var(--border)" }}
+          >
+            <div className="flex items-start gap-3">
+              <div className="mt-0.5 flex-shrink-0" aria-hidden>
+                <BuyerIcon />
+              </div>
+              <div>
+                <h2
+                  id="new-buyer-title"
+                  className="text-[17px] font-semibold leading-tight tracking-[-0.01em]"
+                  style={{ color: "var(--ink)" }}
+                >
+                  New buyer
+                </h2>
+                <p className="mt-0.5 text-[12.5px] leading-5" style={{ color: "var(--ink-muted)" }}>
+                  A buyer that sends you purchase orders
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={() => { setAddOpen(false); setAddError(null); }}
+              aria-label="Close new buyer panel"
+              className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-[7px]"
+              style={{ border: "1px solid var(--border)", background: "var(--surface)", color: "var(--ink-faint)" }}
             >
-              New buyer
-            </div>
-            <div style={{ color: "var(--ink-muted)", fontSize: 12.5 }}>
-              A buyer that sends you purchase orders
-            </div>
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                <path d="M2 10L10 2M2 2l8 8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+              </svg>
+            </button>
           </div>
 
+          {/* Modal body */}
+          <div className="px-5 py-4">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
             {/* Buyer name */}
             <div style={{ flex: 1 }}>
@@ -285,22 +330,6 @@ export default function BuyersPage() {
               />
             </div>
 
-            <Button
-              variant="blue"
-              size="md"
-              onClick={handleSaveAdd}
-              disabled={createMut.isPending}
-              loading={createMut.isPending}
-              className="w-full sm:w-auto"
-            >
-              {/* check icon */}
-              {!createMut.isPending && (
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M20 6 9 17l-5-5" />
-                </svg>
-              )}
-              {createMut.isPending ? "Creating…" : "Create buyer"}
-            </Button>
           </div>
 
           {/* Intro note — buyer-blue info callout, matching the design's note style */}
@@ -327,7 +356,39 @@ export default function BuyersPage() {
           {addError && (
             <p style={{ marginTop: 8, fontSize: 12, color: "var(--danger)" }}>{addError}</p>
           )}
-        </Card>
+          </div>
+
+          {/* Modal footer — divider + Cancel + primary (buyer-blue) */}
+          <div
+            className="flex flex-col-reverse gap-2 px-5 py-4 sm:flex-row sm:justify-end"
+            style={{ borderTop: "1px solid var(--border)" }}
+          >
+            <button
+              onClick={() => { setAddOpen(false); setAddError(null); }}
+              className="flex h-9 items-center justify-center rounded-[7px] px-4 text-[12.5px] font-semibold transition-colors hover:bg-[var(--surface-2)]"
+              style={{ border: "1px solid var(--border)", background: "var(--surface)", color: "var(--ink-muted)" }}
+            >
+              Cancel
+            </button>
+            <Button
+              variant="blue"
+              size="md"
+              onClick={handleSaveAdd}
+              disabled={createMut.isPending}
+              loading={createMut.isPending}
+              className="w-full sm:w-auto"
+            >
+              {/* check icon */}
+              {!createMut.isPending && (
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M20 6 9 17l-5-5" />
+                </svg>
+              )}
+              {createMut.isPending ? "Creating…" : "Create buyer"}
+            </Button>
+          </div>
+        </div>
+        </div>
       )}
 
       {/* Table card */}

@@ -6,6 +6,7 @@
 
 import { PageShell } from "@/components/bridge/layout/PageShell";
 import { PageHeader } from "@/components/bridge/layout/PageHeader";
+import { HubTabs } from "@/components/bridge/layout/HubTabs";
 import { EmptyState } from "@/components/bridge/EmptyState";
 import { SrcChip, Button } from "@/components/bridge/DSPrimitives";
 import { useState, useRef, useEffect, type ReactNode } from "react";
@@ -167,6 +168,12 @@ export default function TemplatesPage() {
             <span aria-hidden style={{ fontSize: 15, lineHeight: 1, marginTop: -1 }}>+</span> New template
           </button>
         }
+      />
+
+      {/* Hub tab bar — Rules & formats hub (Mappings | Rules | Output templates | Standards) */}
+      <HubTabs
+        hub="rules-formats"
+        counts={!isLoading && !isError ? { "Output templates": templates.length } : undefined}
       />
 
         {notice && (
