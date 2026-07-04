@@ -282,6 +282,7 @@ export default function BuyersPage() {
                   transition: "border-color 150ms, box-shadow 150ms",
                 }}
                 placeholder="e.g. Example Buyer Co."
+                aria-label="Buyer name"
                 value={addName}
                 onChange={(e) => setAddName(e.target.value)}
                 onFocus={(e) => { e.currentTarget.style.borderColor = "var(--brand-blue)"; e.currentTarget.style.boxShadow = "0 0 0 3px var(--brand-blue-soft)"; }}
@@ -317,6 +318,7 @@ export default function BuyersPage() {
                   transition: "border-color 150ms, box-shadow 150ms",
                 }}
                 placeholder="HEIN"
+                aria-label="Short code"
                 value={addCode}
                 onChange={(e) => setAddCode(e.target.value.toUpperCase())}
                 maxLength={10}

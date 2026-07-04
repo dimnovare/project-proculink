@@ -270,6 +270,7 @@ export function CreateInvoiceModal({
                       value={l.description}
                       onChange={(e) => setLine(i, { description: e.target.value })}
                       placeholder="Description"
+                      aria-label={`Line ${i + 1} description`}
                       className="flex-1 rounded-[8px] px-3 py-2 text-[13px]"
                       style={{ border: "1px solid #D9DEE8", color: NAVY }}
                     />
@@ -328,6 +329,7 @@ export function CreateInvoiceModal({
                   <input
                     value={currency}
                     onChange={(e) => setCurrency(e.target.value)}
+                    aria-label="Currency"
                     className="w-[88px] rounded-[8px] px-3 py-2 text-[13px] uppercase"
                     style={{ border: "1px solid #D9DEE8", color: NAVY }}
                   />

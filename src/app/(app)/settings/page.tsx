@@ -299,6 +299,7 @@ function OrgSection() {
             value={name}
             onChange={(e) => setName(e.target.value)}
             disabled={!organization}
+            aria-label="Workspace name"
             style={{ ...inputStyle, maxWidth: 420 }}
           />
         </div>
