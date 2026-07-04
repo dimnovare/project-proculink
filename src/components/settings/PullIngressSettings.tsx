@@ -49,6 +49,22 @@ function humanizeError(message: string): string {
   return message || "Could not save settings. Please try again.";
 }
 
+// Small, quiet "Need help?" link to the matching /help article. Opens in a new
+// tab (the help centre is a marketing route). Muted to match the plan hint text.
+function HelpLink({ href, label }: { href: string; label: string }) {
+  return (
+    <Link
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="text-[11px]"
+      style={{ color: MUTED, textDecoration: "underline", textUnderlineOffset: 2 }}
+    >
+      Need help? See the {label} →
+    </Link>
+  );
+}
+
 function Field({ label, required, children }: { label: string; required?: boolean; children: ReactNode }) {
   return (
     <label className="grid gap-1">
@@ -347,6 +363,7 @@ export function SftpPullSettings() {
       </div>
       <Field label="Remote directory"><input value={remoteDirectory} onChange={(e) => setRemoteDirectory(e.target.value)} placeholder="/incoming/orders" style={inputStyle} /></Field>
       <SupplierSelect value={defaultSupplierId} onChange={setDefaultSupplierId} />
+      <HelpLink href="/help/sftp-polling-setup" label="SFTP polling guide" />
       <Notice msg={notice} />
       <SaveBar onSave={handleSave} saving={save.isPending} hint={PLAN_HINT} />
     </Shell>
@@ -439,6 +456,7 @@ export function S3PullSettings() {
       <Field label="Endpoint URL (required for Cloudflare R2 / MinIO — leave blank for AWS S3)"><input value={serviceUrl} onChange={(e) => setServiceUrl(e.target.value)} placeholder="https://<account-id>.r2.cloudflarestorage.com" style={inputStyle} /></Field>
       <Field label="Secret access key"><input type="password" value={secretKey} onChange={(e) => setSecretKey(e.target.value)} placeholder={data?.hasSecretKey ? "•••••••• (leave blank to keep)" : "Secret access key"} style={inputStyle} /></Field>
       <SupplierSelect value={defaultSupplierId} onChange={setDefaultSupplierId} />
+      <HelpLink href="/help/s3-polling-setup" label="S3 polling guide" />
       <Notice msg={notice} />
       <SaveBar onSave={handleSave} saving={save.isPending} hint={PLAN_HINT} />
     </Shell>

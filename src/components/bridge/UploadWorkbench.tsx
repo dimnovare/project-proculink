@@ -1092,6 +1092,17 @@ export function UploadWorkbench() {
                     <p className="text-[11px]" style={{ color: "var(--ink-faint)" }}>
                       cXML · UBL · Peppol · EDIFACT · X12 — up to 10 MB each
                     </p>
+                    {/* Quiet help link — stopPropagation so it doesn't trigger the dropzone picker. */}
+                    <Link
+                      href="/help/csv-xlsx-field-guide"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={(e) => e.stopPropagation()}
+                      className="text-[11px]"
+                      style={{ color: "var(--ink-muted)", textDecoration: "underline", textUnderlineOffset: 2 }}
+                    >
+                      Need help? See the file format guide →
+                    </Link>
                   </>
                 )}
 
