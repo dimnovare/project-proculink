@@ -655,6 +655,7 @@ function WebhookPanel({
               value={url}
               onChange={(e) => setUrl(e.target.value)}
               placeholder="https://erp.example/hooks/proculink"
+              aria-label="Endpoint URL"
               style={{ ...inputStyle, fontFamily: "var(--font-mono,'JetBrains Mono',monospace)" }}
             />
           </div>
@@ -667,6 +668,7 @@ function WebhookPanel({
             <select
               value={eventType}
               onChange={(e) => setEventType(e.target.value)}
+              aria-label="Events"
               style={inputStyle}
             >
               {WEBHOOK_EVENT_TYPES.map((evt) => (
@@ -684,6 +686,7 @@ function WebhookPanel({
               value={secret}
               onChange={(e) => setSecret(e.target.value)}
               placeholder="whsec_••••••••"
+              aria-label="Signing secret"
               style={{
                 ...inputStyle,
                 fontFamily: "var(--font-mono,'JetBrains Mono',monospace)",
