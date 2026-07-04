@@ -96,6 +96,36 @@ export default function StandardsPage() {
         actions={searchInput}
       />
 
+      {/* Progressive-disclosure "which format?" helper. Reference guidance about the
+          standards themselves — all five are real supported output formats, so this is
+          honest orientation, not a capability claim. Collapsed by default so it never
+          crowds the locked table layout. */}
+      <details className="mb-3 group">
+        <summary
+          className="inline-flex cursor-pointer list-none items-center gap-1.5 text-[12px] font-medium select-none"
+          style={{ color: "var(--ink-muted)" }}
+        >
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" aria-hidden className="transition-transform group-open:rotate-90" style={{ flexShrink: 0 }}>
+            <path d="m9 6 6 6-6 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+          Not sure which format to use?
+        </summary>
+        <div
+          className="mt-2 max-w-[680px] rounded-[var(--radius-md)] px-3.5 py-3 text-[12px] leading-relaxed"
+          style={{ background: "var(--surface)", border: "1px solid var(--border)", color: "var(--ink-muted)" }}
+        >
+          <ul className="space-y-1.5">
+            <li><strong style={{ color: "var(--ink)" }}>cXML 1.2</strong> — punchout &amp; marketplace orders (Ariba, Coupa and similar procurement platforms).</li>
+            <li><strong style={{ color: "var(--ink)" }}>UBL 2.1 / Peppol BIS</strong> — European e-procurement and public-sector networks (Peppol is common for EU government buyers).</li>
+            <li><strong style={{ color: "var(--ink)" }}>EDIFACT</strong> — long-established European and global EDI (retail, automotive, logistics).</li>
+            <li><strong style={{ color: "var(--ink)" }}>X12</strong> — North American EDI (ANSI ASC X12 850 purchase order).</li>
+          </ul>
+          <p className="mt-2.5" style={{ color: "var(--ink-faint)" }}>
+            Not sure? Ask your supplier which they accept — it&rsquo;s usually on their order or onboarding spec.
+          </p>
+        </div>
+      </details>
+
       {/* Mobile-only swipe hint — the matrix h-scrolls but truncated cells give no
           cue on a phone. Hidden on sm+ where all columns fit. */}
       <p className="mb-2 flex items-center gap-1 text-[11.5px] sm:hidden" style={{ color: "var(--ink-faint)" }}>
