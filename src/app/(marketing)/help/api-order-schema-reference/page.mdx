@@ -1,0 +1,86 @@
+export const metadata = {
+  title: "Inbound order API — schema reference — ProcuLink Help",
+  description: "The endpoint, header, JSON body shape, and success response for pushing a purchase order into ProcuLink over HTTPS.",
+};
+
+# Inbound order API — schema reference
+
+When another system can send structured order data, push it straight into ProcuLink over HTTPS. The inbound order endpoint is authenticated with a workspace API key and scoped to your workspace slug.
+
+## The endpoint
+
+Send a `POST` to your workspace slug, with your API key in the `X-ProcuLink-Key` header:
+
+```
+POST https://api.proculink.eu/api/ingress/{slug}/orders
+X-ProcuLink-Key: plk_your_key_here
+Content-Type: application/json
+```
+
+Replace `{slug}` with your workspace slug (the same slug used for your inbound email address). Create and copy the API key in the app under Settings, then keep it secret — it is a bearer credential.
+
+Before sending an order, you can confirm the key and slug work with a `GET` to `.../ping`, which returns a small OK payload.
+
+## When to use this
+
+Use the inbound order API when an ERP, procurement system, or automation tool already holds the order as structured data (a PO number, a supplier reference, and line items). If your source is instead a **file** — a CSV, an XLSX, a PDF, or an XML/EDI document — send it through browser upload, inbound email, or SFTP/S3 polling so ProcuLink can parse it. This JSON endpoint expects an already-structured order, not a raw file.
+
+## The request body
+
+The body is a JSON object with header fields and a `lines` array. `supplierId` (a supplier GUID or an exact supplier name) and at least one line are required; the rest are optional but strongly recommended.
+
+```json
+{
+  "orderNumber": "PO-10432",
+  "orderDate": "2026-07-04",
+  "currency": "EUR",
+  "supplierId": "Acme Components",
+  "lines": [
+    {
+      "buyerItemCode": "WIDGET-BLUE-M",
+      "description": "Blue widget, medium",
+      "quantity": 24,
+      "unit": "EA",
+      "unitPrice": 4.5
+    }
+  ]
+}
+```
+
+`quantity` and `unitPrice` are numbers, not strings. `orderDate` is an ISO date (`YYYY-MM-DD`). If `supplierId` does not match a supplier in your workspace, the call is rejected with a clear error — create the supplier first.
+
+## The success response
+
+On success the endpoint returns the created order id, its status, and the line count:
+
+```json
+{
+  "id": "6f2a1c9e-1b7a-4d0e-9f3a-2c5b8e0a1d44",
+  "status": "needs_review",
+  "linesCount": 1
+}
+```
+
+A `2xx` here means ProcuLink accepted and stored the order — not that a supplier accepted it. The order still flows through review and delivery like any other, and delivery has its own separate result.
+
+## Duplicate protection
+
+Zapier and Make deliver at-least-once, so the same order can arrive twice. Send an `Idempotency-Key` header with a stable value per order; a repeat within 24 hours returns the original order (with `idempotentReplay: true`) instead of creating a duplicate. If you omit the header, ProcuLink derives a key from the slug, PO number, and line shape, so a verbatim retry is still de-duplicated.
+
+## Wiring it from Zapier or Make
+
+Both tools can call this endpoint with their generic **Webhooks** action:
+
+- Method `POST`, URL `https://api.proculink.eu/api/ingress/{slug}/orders`.
+- Add a header `X-ProcuLink-Key` with your key.
+- Send the JSON body above as the raw/custom payload, mapping your trigger's fields into `orderNumber`, `supplierId`, and each line.
+
+## Common problems
+
+- **401 / 403** — the key is missing, wrong, or the slug does not belong to that key. Test with `.../ping` first.
+- **400 "Order must have at least one line."** — the `lines` array is empty or missing.
+- **400 "Supplier … not found."** — the `supplierId` GUID or name does not match a supplier in your workspace.
+
+---
+
+More intake paths are in [Ways to send orders to ProcuLink](/help/order-intake-options). Need help? Email [support@proculink.eu](mailto:support@proculink.eu).

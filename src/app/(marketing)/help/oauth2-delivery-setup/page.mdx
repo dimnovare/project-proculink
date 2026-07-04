@@ -1,0 +1,56 @@
+export const metadata = {
+  title: "OAuth2 client-credentials for HTTP delivery — ProcuLink Help",
+  description: "Fill in the OAuth2 fetch-token fields for HTTP delivery so ProcuLink gets a fresh access token before each send.",
+};
+
+# OAuth2 client-credentials for HTTP delivery
+
+Some supplier APIs don't accept a static API key or bearer token — they require you to exchange a client id and secret for a short-lived access token first. ProcuLink's **OAuth2 fetch-token** auth method (on the HTTP delivery channel) does that exchange for you before each send, using the **client-credentials** grant.
+
+## When to use this
+
+Choose OAuth2 fetch-token when the supplier's integration docs mention a "token endpoint", "client credentials", or "access token" — and when a plain bearer token would expire too quickly to hard-code. If the supplier just gives you one long-lived key, use the simpler `API key` or `bearer` method instead.
+
+## The fields
+
+Configure these under **Library → Suppliers → Delivery**, after picking HTTP and the OAuth2 fetch-token method. Each is one line; a concrete example follows.
+
+- **tokenUrl** — the supplier's token endpoint that mints the access token.
+- **clientId** — the client identifier the supplier issued you.
+- **clientSecret** — the matching secret. Encrypted at rest with AES-256-GCM.
+- **scope** — the space-separated permission scopes the token should carry (optional if the supplier doesn't require one).
+- **grantType** — the OAuth2 flow. For machine-to-machine delivery this is almost always `client_credentials`.
+- **authStyle** — how the client id/secret are presented to the token endpoint: `basic-header` sends them as an HTTP Basic `Authorization` header; `body` sends them as fields in the request body. The supplier's docs decide which.
+- **requestStyle** — how the token request is encoded: `form` sends `application/x-www-form-urlencoded`; `json` sends a JSON body. Most token endpoints expect `form`.
+- **tokenPath** — the JSON property in the token response that holds the token. The standard is `access_token`; set this only if the supplier nests it somewhere non-standard.
+
+```text
+tokenUrl:      https://auth.supplier.example/oauth/token
+clientId:      procu-buyer-4821
+clientSecret:  ••••••••••••••••  (write-only, kept encrypted)
+scope:         orders.write
+grantType:     client_credentials
+authStyle:     basic-header
+requestStyle:  form
+tokenPath:     access_token
+```
+
+## How the token is fetched, then used
+
+Before each delivery ProcuLink calls `tokenUrl` with your credentials in the style you chose, reads the token out of `tokenPath` in the response, and attaches it as a bearer token on the actual order POST to the supplier's webhook URL. The token is fetched fresh per send, so short expiry windows are not a problem — there's no stale-token state to manage.
+
+## How to tell if it worked
+
+Use **Send a test now** on the delivery tab. A green result means two things happened in order: the token endpoint returned a token, and the supplier's webhook answered the order POST. A failure message tells you which step broke — a token error (wrong `tokenUrl`, `clientId`/`clientSecret`, or `authStyle`) reads differently from a delivery error against the webhook.
+
+Be precise about what green means: **the endpoint answered — it does not mean the supplier accepted the order.** An HTTP 200 proves the connection and token exchange work; the supplier's system can still reject the order's contents later, which is why ProcuLink tracks a separate supplier-response stage.
+
+## Common problems
+
+- **`invalid_client` / 401 from the token endpoint** — usually the wrong `authStyle`. Flip between `basic-header` and `body`.
+- **Token fetched but delivery still fails** — the credentials are fine; check the webhook URL and any required headers on the same tab.
+- **Token not found in response** — the supplier nests it; set `tokenPath` to the correct property name.
+
+---
+
+Need help? Email [support@proculink.eu](mailto:support@proculink.eu) or see [Setting up delivery and test-fire](/help/delivery-setup).

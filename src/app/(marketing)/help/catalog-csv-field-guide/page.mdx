@@ -1,0 +1,68 @@
+export const metadata = {
+  title: "Supplier catalog CSV — field guide — ProcuLink Help",
+  description: "Which columns a supplier catalog CSV needs, how re-import updates existing products, and how to map a supplier's own headers.",
+};
+
+# Supplier catalog CSV — field guide
+
+A supplier catalog is the product list ProcuLink matches order lines against — so a buyer code or description can resolve to the supplier's real code, name, unit, and price. You import it per supplier from the app, or feed it automatically via API push, SFTP/FTP(S), or an HTTP pull. This guide covers the CSV shape; XLSX and JSON follow the same columns.
+
+## When to use this
+
+Import a catalog when you want ProcuLink to recognise a supplier's products and fill in missing details on order lines. It is optional — orders still parse and deliver without one — but it makes item matching far more reliable.
+
+## The only required column: `code`
+
+There is exactly one required column: the supplier product **code**. A row with a blank code is skipped. Everything else is optional:
+
+```csv
+code,name,unit,price,barcode
+ABC-100,Blue widget medium,EA,4.50,4006381333931
+ABC-101,Blue widget large,EA,5.20,4006381333948
+```
+
+ProcuLink recognises common header names automatically (case-insensitive), so you rarely need to rename anything:
+
+- **code** — also `sku`, `product_code`, `item_code`, `supplier_code`, `supplier part id`
+- **name** — also `description`, `product_name`, `title`, `item description`
+- **unit** — also `uom`, `unit_of_measure`
+- **price** — also `unit_price`, `list_price`
+- **barcode** — also `gtin`, `ean`, `upc`
+- plus optional `currency` and an `external_id` (`product_id`, `erp_id`, `manufacturer part id`)
+
+If your file has no column that maps to `code`, ProcuLink treats it as unusable and imports zero products — it will not guess a code from another column. Fix it by adding a header the importer recognises, or by mapping one yourself (below).
+
+## Encoding and decimal separators
+
+- **Encoding** defaults to UTF-8 (a byte-order mark is honoured). If a supplier ships a legacy encoding such as Windows-1252, set it in the per-source encoding option so accented names import cleanly.
+- **Decimal separators** are handled for you. Both `4.50` and `4,50` parse to 4.5, and grouped values like `1.234,56` or `1,234.56` parse to 1234.56 — the importer treats the last separator as the decimal point. A price it cannot read is stored empty rather than guessed wrong.
+- **Delimiters** — comma, semicolon, and tab are detected automatically, and quoted fields containing the delimiter are kept intact.
+
+## What happens on re-import
+
+Re-importing is an **upsert keyed on `code`**, scoped to that one supplier:
+
+- A code already present is **updated** in place — name, unit, price, barcode, currency, and external id are overwritten from the new row.
+- A new code is **created**.
+- A code that had been discontinued is **reactivated** when it reappears.
+
+So re-importing the same file is safe and idempotent — nothing is duplicated. Note that a re-import does **not** delete products missing from the new file; to remove products, clear the catalog for that supplier and import the current list.
+
+## Mapping a supplier's own headers
+
+Some supplier exports use headers the aliases above do not cover, or ship no header row at all. Set a **per-source column mapping** so those files import without editing the file:
+
+- **By header name** — map the supplier's column name to a canonical field (`code`, `name`, `unit`, `price`, `currency`, `barcode`, `external_id`).
+- **By position** — for a headerless export, map a zero-based column index (for example `0` → `code`, `2` → `price`).
+
+Only those seven canonical fields can be targeted, and each is mapped once. As long as one column maps to `code`, the file imports.
+
+## Common problems
+
+- **"0 products imported"** — no column mapped to `code`. Add a recognised header or set a per-source mapping.
+- **Prices look 100× off** — usually a decimal/grouping mix the source got wrong; check the raw values, not ProcuLink, since single values with three trailing digits after one separator are read as grouping.
+- **Garbled accented names** — the file is not UTF-8; set the source encoding.
+
+---
+
+Related: [Item codes and matching](/help/item-codes) and [Ways to send orders to ProcuLink](/help/order-intake-options). Need help? Email [support@proculink.eu](mailto:support@proculink.eu).

@@ -1,0 +1,65 @@
+export const metadata = {
+  title: "Setting up cXML delivery — ProcuLink Help",
+  description: "Parse inbound cXML orders and deliver cXML output, with a walkthrough of the From / To / Sender credential fields.",
+};
+
+# Setting up cXML delivery
+
+cXML 1.2 is the XML dialect used by supplier-network platforms — Coupa, SAP Ariba, Jaggaer and similar. If a supplier says "send us a punchout order" or "post to our cXML endpoint," this is the format they mean. ProcuLink parses inbound cXML orders and emits cXML output.
+
+## When to use this
+
+Use cXML when a supplier or procurement network asks you to deliver an `OrderRequest` to their cXML endpoint, or when your buyers send you orders as cXML. If the supplier only publishes a plain webhook or a file drop, you probably want HTTP, SFTP, or email instead — check what they actually require.
+
+## Inbound: parsing a cXML order
+
+ProcuLink ingests the cXML `OrderRequest` envelope into the canonical order model — the header (`orderID`, `orderDate`, buyer contact, currency) and each `ItemOut` line with its `BuyerPartID`, description, quantity, unit, and price. The `payloadID` and timestamp are read from the envelope. You can see the exact cXML element path for any field via the standards popover in the app or at [/library/standards](/library/standards).
+
+## Outbound: the delivery credential fields
+
+cXML authenticates with three party identities carried in the message header, plus a shared secret. On the supplier's **Delivery** tab, choose **cXML** as the output format and fill these in:
+
+- **From** — who is sending. A domain (the type of identifier) plus an identity (the value in that domain). This is usually *you*, the buyer.
+- **To** — the recipient. Same shape: domain + identity. This is the supplier / network.
+- **Sender** — the authenticated party, again domain + identity. Often the same as **From**.
+- **Sender shared secret** — the password the network issued you, carried in the `Sender/Credential/SharedSecret`. It is **write-only**: once saved it is encrypted at rest (AES-256-GCM) and never shown back. Leave it blank on edit to keep the stored value.
+
+The supplier or network gives you these values. They typically look like a Network ID with a matching domain — for example, on Ariba the domain is often `NetworkID` and on Coupa a `DUNS` or a supplier-assigned domain. The identities below are **fake samples** — use the exact values from your supplier:
+
+```xml
+<Header>
+  <From>
+    <Credential domain="DUNS">
+      <Identity>00-000-0000</Identity>
+    </Credential>
+  </From>
+  <To>
+    <Credential domain="NetworkID">
+      <Identity>AN99000000000</Identity>
+    </Credential>
+  </To>
+  <Sender>
+    <Credential domain="NetworkID">
+      <Identity>AN99000000000</Identity>
+      <SharedSecret>your-secret-here</SharedSecret>
+    </Credential>
+    <UserAgent>ProcuLink</UserAgent>
+  </Sender>
+</Header>
+```
+
+`domain` names the identifier scheme (`DUNS`, `NetworkID`, or one the network assigns); `Identity` is the value in it. Match both exactly to what the supplier gave you — a mismatched domain is the most common reason an endpoint rejects the credential.
+
+## Send a test before the first real order
+
+After saving, use **Send a test now**. ProcuLink posts a real cXML payload to the configured endpoint and shows you the verbatim result. A green test proves the URL, credentials, and network path — but **a successful test means the endpoint answered, not that the supplier accepted the order.** cXML networks return their own acceptance response, and an order can still be rejected downstream for unknown item codes or business rules.
+
+## Common problems
+
+- **`AuthenticationFailed`** — the `SharedSecret` or a `domain`/`Identity` pair is wrong; re-enter the shared secret (it is write-only, so a blank field keeps the old one).
+- **`Recipient unknown`** — the **To** domain/identity does not match the supplier's Network ID.
+- **200 but no order visible on the supplier side** — the endpoint accepted the HTTP POST; check the cXML `Response/Status` code the network returned for the real result.
+
+---
+
+Need help? Email [support@proculink.eu](mailto:support@proculink.eu) or see [Setting up delivery and test-fire](/help/delivery-setup).

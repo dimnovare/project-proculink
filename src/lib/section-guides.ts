@@ -68,7 +68,7 @@ export const SECTION_GUIDES: SectionGuideEntry[] = [
       { text: "Check your plan's order and {supplier} usage in the side panel" },
     ],
     firstStep: { text: "Click \"Try with a sample order\" — it needs no setup and is free." },
-    articleSlugs: ["first-upload", "order-intake-options"],
+    articleSlugs: ["first-upload", "csv-xlsx-field-guide", "order-intake-options"],
   },
   {
     route: "/upload/preview/[orderId]",
@@ -172,7 +172,7 @@ export const SECTION_GUIDES: SectionGuideEntry[] = [
       { text: "Edits on these tabs apply immediately to live processing" },
     ],
     firstStep: { text: "Import the {supplier}'s item catalog or set up delivery first — PO mapping only works after a sample order is uploaded.", href: "?tab=catalog" },
-    articleSlugs: ["managing-suppliers", "delivery-setup", "item-codes", "mapping-basics"],
+    articleSlugs: ["managing-suppliers", "delivery-setup", "catalog-csv-field-guide", "cxml-setup", "oauth2-delivery-setup", "sftp-ftps-delivery-keys", "erp-erply-and-directo", "item-codes", "mapping-basics"],
   },
   {
     route: "/library/buyers",
@@ -264,7 +264,7 @@ export const SECTION_GUIDES: SectionGuideEntry[] = [
       { text: "Actual delivery formats are set in each {supplier}'s delivery config", href: "/library/suppliers" },
     ],
     firstStep: { text: "Nothing here is required — to change what a {supplier} actually receives, edit its delivery config.", href: "/library/suppliers" },
-    articleSlugs: ["output-templates", "delivery-setup"],
+    articleSlugs: ["output-templates", "delivery-setup", "cxml-setup", "ubl-and-peppol", "x12-850"],
   },
   {
     route: "/library/standards",
@@ -277,7 +277,7 @@ export const SECTION_GUIDES: SectionGuideEntry[] = [
       { text: "Request a format that's missing", href: "/support" },
     ],
     firstStep: { text: "Search a field like \"PO number\" or \"currency\" to read its exact reference in each standard." },
-    articleSlugs: ["output-templates", "order-intake-options"],
+    articleSlugs: ["output-templates", "ubl-and-peppol", "x12-850", "edifact-orders", "sap-idoc-orders05", "cxml-setup", "order-intake-options"],
   },
   {
     route: "/operations/exceptions",
@@ -332,7 +332,7 @@ export const SECTION_GUIDES: SectionGuideEntry[] = [
       { text: "Configure real endpoints on the {supplier} profile's Delivery tab", href: "/library/suppliers" },
     ],
     firstStep: { text: "Open a card and jump to the {supplier}'s Delivery tab to set up the real endpoint, then come back and test fire." },
-    articleSlugs: ["delivery-setup", "api-and-integrations"],
+    articleSlugs: ["delivery-setup", "oauth2-delivery-setup", "api-and-integrations", "api-order-schema-reference"],
   },
   {
     route: "/operations/webhooks",
@@ -360,7 +360,7 @@ export const SECTION_GUIDES: SectionGuideEntry[] = [
       { text: "Add webhooks — failure counts show here too", href: "/settings?tab=connectors" },
     ],
     firstStep: { text: "Set your order direction on the Organization tab first — it relabels the whole app.", href: "/settings?tab=org" },
-    articleSlugs: ["billing-faq", "email-polling", "api-and-integrations", "inbound-mode"],
+    articleSlugs: ["email-polling", "sftp-polling-setup", "s3-polling-setup", "imap-provider-setup", "api-order-schema-reference", "billing-faq", "api-and-integrations", "inbound-mode"],
   },
 ];
 

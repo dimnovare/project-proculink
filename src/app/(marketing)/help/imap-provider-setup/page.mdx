@@ -1,0 +1,54 @@
+export const metadata = {
+  title: "Polling an existing mailbox with IMAP — ProcuLink Help",
+  description: "Connect ProcuLink to a mailbox you already own so it imports order attachments, with per-provider host/port settings and app-password notes.",
+};
+
+# Polling an existing mailbox with IMAP
+
+If buyers already email purchase orders as attachments to a mailbox you own, ProcuLink can check that mailbox on a schedule and import the supported attachments. Configure it in **Settings → Email intake**.
+
+## When to use this
+
+Use IMAP polling when orders already arrive in an existing inbox — a shared `orders@yourcompany.com`, a distribution mailbox, or a folder your team forwards to — and you would rather not change how senders address their email.
+
+If you do **not** already have a mailbox, or you would rather not share credentials, use the hosted inbound address instead: `{slug}@orders.proculink.eu`, where `{slug}` is your workspace slug. That address is a ProcuLink-run mailbox, so there is nothing to poll and no password to store — mail sent to it is imported automatically. IMAP polling is only for reading a mailbox you already run.
+
+## What you configure
+
+- **IMAP host and port** — see the table below.
+- **Username** — usually the full email address.
+- **Password** — for most business providers this must be an **app password**, not your normal login password (see below).
+- **TLS** — leave TLS on. Port `993` is IMAP over TLS and is the correct choice for every provider here; do not use the older plaintext port `143`.
+- **Folder** — the mailbox folder to read, typically `INBOX`.
+- **Default supplier** — the supplier imported messages are attributed to when the sender does not otherwise identify one.
+
+## Provider host and port
+
+```text
+Provider              IMAP host                Port   Notes
+--------------------  -----------------------  -----  ----------------------------
+Gmail / Google        imap.gmail.com           993    App password required (2FA)
+Office 365 / Outlook  outlook.office365.com     993    App password required (MFA)
+Proton (via Bridge)   127.0.0.1                1143    Local Proton Bridge only
+Generic / other       (from your provider)     993    Use the provider's IMAP host
+```
+
+## App passwords, not your login password
+
+Gmail and Office 365 block plain IMAP sign-in with your normal password when two-factor or MFA is on — which it usually is. Generate a dedicated **app password** in the provider's security settings and paste that into ProcuLink. It is scoped to mail access and can be revoked without changing your account password. The credential is encrypted at rest with AES-256-GCM.
+
+Proton mail is only reachable over IMAP through the local **Proton Bridge** app, which exposes `127.0.0.1:1143` on the machine running it — ProcuLink's hosted poller cannot reach a Bridge running on your laptop, so use Proton with IMAP only where Bridge runs on a reachable host.
+
+## How polling works
+
+ProcuLink checks the folder on a schedule, imports supported attachments from messages it has not seen before, and records each message so it is not re-imported. It does not delete or move your mail. One purchase order per email keeps routing clean.
+
+## Common problems
+
+- **Login rejected.** Almost always the login password was used where an app password is required. Regenerate an app password and retry.
+- **Connects but imports nothing.** The orders may be in a folder other than `INBOX`, or the messages carry no supported attachment. Point the folder setting at the right folder and confirm senders attach the PO file.
+- **Wrong mailbox.** IMAP polling reads a mailbox *you* run; it is not the same as the hosted `{slug}@orders.proculink.eu` address, which needs no mailbox and no password.
+
+---
+
+Need help? Email [support@proculink.eu](mailto:support@proculink.eu) or see [Ways to send orders to ProcuLink](/help/order-intake-options).

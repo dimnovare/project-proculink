@@ -1,0 +1,65 @@
+export const metadata = {
+  title: "Erply and Directo ERP delivery adapters — ProcuLink Help",
+  description: "Configure the Erply and Directo delivery adapters, and understand exactly what they do and don't guarantee.",
+};
+
+# Erply and Directo ERP delivery adapters
+
+For suppliers on **Erply** or **Directo**, ProcuLink has purpose-built delivery adapters that authenticate to the ERP and hand off the order. Configure them per supplier under **Library → Suppliers → Delivery** by picking the Erply or Directo channel.
+
+## What these adapters actually do
+
+Be precise about scope: each adapter delivers the **generated order artifact** — the same supplier-ready output the HTTP, SFTP, and email channels produce — into the ERP. It is **not** a native re-modelling of the order inside Erply or Directo, and it is not a certified turnkey integration. The adapters are validated with unit and mock tests, not against a live ERP sandbox.
+
+Because of that, two steps are on you before you rely on either adapter in production:
+
+1. **Confirm the field mapping with your ERP contact** — the person who administers your Erply or Directo tenant — so the delivered artifact lands where their system expects it.
+2. **Run a test-fire** and have your ERP contact confirm the order arrived and looks right on their side.
+
+## When to use this
+
+Use these adapters only when you (or your supplier) share an Erply or Directo tenant and have the credentials below. Otherwise deliver over HTTP, SFTP/FTPS, or email like any other supplier.
+
+## Erply fields
+
+- **Base URL** — the Erply API endpoint for the account.
+- **Client code** — the Erply account (client) code that identifies the tenant.
+
+```text
+baseUrl:     https://ACCOUNT.erply.com/api/
+clientCode:  123456
+```
+
+Any additional secret you enter is encrypted at rest with AES-256-GCM and is write-only — re-opening the config shows a "leave blank to keep" hint rather than the stored value.
+
+## Directo fields
+
+- **Base URL** — the Directo API endpoint.
+- **Database / company** — the Directo database (company) identifier the order belongs to.
+- **Basic auth user / password / key** — the credentials Directo issued for API access.
+
+```text
+baseUrl:   https://login.directo.ee/xmlcore/
+company:   your-company-db
+authUser:  api-user
+authPass:  ••••••••  (write-only, encrypted)
+authKey:   ••••••••  (write-only, encrypted)
+```
+
+Passwords and keys are encrypted at rest and never displayed back; leave those fields blank on a later edit to keep the saved values.
+
+## How to tell if it worked
+
+After saving, use **Send a test now**. ProcuLink authenticates to the ERP and delivers a test artifact, then shows you the verbatim result — success, or the error and response code.
+
+A green result means the ERP endpoint **answered** — it does not mean the order was accepted or correctly modelled inside the ERP. That is exactly why the "confirm with your ERP contact" step matters: only they can verify the delivered artifact became a usable order in Erply or Directo. ProcuLink tracks a separate supplier-response stage, so a delivered order can still come back rejected.
+
+## Common problems
+
+- **Auth error on test** — re-check the base URL, client code (Erply) or company/database (Directo), and the basic-auth credentials.
+- **Delivered but nothing appears in the ERP** — the endpoint answered but the artifact didn't map to a record; work through the field mapping with your ERP contact.
+- **Not sure which fields the ERP needs** — don't guess; the mapping is tenant-specific and only your ERP administrator can confirm it.
+
+---
+
+Need help? Email [support@proculink.eu](mailto:support@proculink.eu) or see [Setting up delivery and test-fire](/help/delivery-setup).

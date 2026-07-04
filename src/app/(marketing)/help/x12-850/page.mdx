@@ -1,0 +1,54 @@
+export const metadata = {
+  title: "ANSI X12 850 purchase orders — ProcuLink Help",
+  description: "What an X12 850 purchase order is, its ISA/GS/ST envelope and key segments, and how ProcuLink parses and emits X12 850.",
+};
+
+# ANSI X12 850 purchase orders
+
+ANSI ASC X12 850 is the North American EDI standard for a purchase order. It is the format most large US and Canadian retailers, distributors, and manufacturers expect when they exchange orders over EDI. ProcuLink both **reads inbound X12 850 orders** and **emits X12 850 output** for a supplier who requires it.
+
+## When to use this
+
+Use X12 850 when a North American trading partner runs classic EDI — typically over AS2, SFTP, or a VAN — and has sent you an implementation guide asking for an 850 transaction set at version `004010` or `005010`. If your counterparties are European and speak UBL, Peppol, or EDIFACT instead, X12 is probably not your format.
+
+## The envelope
+
+An X12 interchange wraps the order in three nested layers: the interchange (`ISA`/`IEA`), the functional group (`GS`/`GE`), and the transaction set (`ST`/`SE`). The 850 itself lives inside the `ST*850` / `SE` pair. A minimal interchange looks like this:
+
+```
+ISA*00*          *00*          *ZZ*SENDERID       *ZZ*RECEIVERID     *260704*1200*U*00401*000000001*0*P*>~
+GS*PO*SENDERID*RECEIVERID*20260704*1200*1*X*004010~
+ST*850*0001~
+BEG*00*NE*PO-10042**20260704~
+N1*BY*ACME BUYING CO*92*BUYER01~
+N1*ST*ACME WAREHOUSE 4*92*WH04~
+PO1*1*24*EA*12.50**BP*ABC-123*VP*SUP-9981~
+PID*F****Widget, blue, 20mm~
+PO1*2*6*EA*99.00**BP*DEF-456~
+CTT*2~
+SE*8*0001~
+GE*1*1~
+IEA*1*000000001~
+```
+
+## Key segments
+
+- `BEG` — beginning of the purchase order: `BEG03` carries the PO number, `BEG05` the order date. `BEG02` says whether it is a new order, change, or cancel.
+- `N1` loops — parties. `N1*BY` is the buyer, `N1*ST` the ship-to, `N1*SU` the supplier. ProcuLink maps `N1*BY` to the canonical buyer.
+- `PO1` — one line item per segment: quantity (`PO102`), unit of measure (`PO103`), unit price (`PO104`), and item identifiers such as buyer part (`BP`) and vendor part (`VP`) in the qualifier/value pairs.
+- `PID` — product description text attached to the line.
+- `CTT` — transaction totals, most commonly the line-item count, used as a control check.
+
+## What ProcuLink does with it
+
+Inbound, ProcuLink parses the 850 into the canonical order — PO number, date, parties, and every line — so you review it the same way as any other format. Outbound, you can select X12 850 as a supplier's delivery output and ProcuLink emits `004010`/`005010` with header and line-item fidelity. EDI here is hand-rolled and MIT-licensed open source, not a commercial EDI stack.
+
+## Common problems
+
+- **Delimiter and segment-terminator quirks.** X12 uses element (`*`), sub-element (`>`), and segment (`~`) separators declared in the `ISA`. Files that use non-standard terminators can fail to split cleanly — send us the raw sample.
+- **Version drift.** `004010` and `005010` differ in some segments. Confirm which your partner uses; put it in the `GS08`.
+- **A delivered 850 is not an accepted 850.** A successful send means the endpoint answered — validate acceptance against the partner's own EDI/functional-acknowledgement process before treating an order as confirmed.
+
+---
+
+Need help? Email [support@proculink.eu](mailto:support@proculink.eu) or see the in-app [standards library](/library/standards) for the field-by-field mapping.

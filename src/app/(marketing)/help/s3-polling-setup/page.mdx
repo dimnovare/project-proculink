@@ -1,0 +1,66 @@
+export const metadata = {
+  title: "Polling an S3 or R2 bucket for order files — ProcuLink Help",
+  description: "Set up ProcuLink to pull purchase-order files from an S3-compatible bucket on a schedule, with a minimal IAM policy and the failures to watch for.",
+};
+
+# Polling an S3 or R2 bucket for order files
+
+When purchase orders land in an Amazon S3 bucket (or an S3-compatible store such as Cloudflare R2), ProcuLink can list the bucket on a schedule and import new files. Configure it yourself in **Settings → S3 / R2 pull** (available on every paid plan — Growth and up).
+
+## When to use this
+
+Use S3/R2 polling when a source system already writes PO files to object storage on a schedule and you want them imported without manual upload. If the sender can push to an API instead, prefer the inbound API — polling suits sources that can only write to a bucket.
+
+## What you configure
+
+- **Bucket** — the bucket name, e.g. `acme-order-exports`.
+- **Region** — the bucket's region, e.g. `eu-central-1`. For Cloudflare R2, use `auto` and supply the R2 endpoint.
+- **Prefix** — the "folder" within the bucket ProcuLink lists, e.g. `orders/inbound/`. Leave blank to list the whole bucket; scoping to a prefix keeps polling fast and predictable.
+- **Access key + secret** — an access key ID and secret access key for an identity limited to reading this bucket and prefix. Credentials are encrypted at rest with AES-256-GCM.
+- **Default supplier** — the supplier imported files are attributed to, since a bucket drop carries no ProcuLink routing.
+
+## A minimal IAM policy
+
+Grant only what polling needs: list the bucket (scoped to the prefix) and read the objects under it. Replace the bucket name and prefix.
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "ProcuLinkListPrefix",
+      "Effect": "Allow",
+      "Action": "s3:ListBucket",
+      "Resource": "arn:aws:s3:::acme-order-exports",
+      "Condition": {
+        "StringLike": { "s3:prefix": "orders/inbound/*" }
+      }
+    },
+    {
+      "Sid": "ProcuLinkGetObjects",
+      "Effect": "Allow",
+      "Action": "s3:GetObject",
+      "Resource": "arn:aws:s3:::acme-order-exports/orders/inbound/*"
+    }
+  ]
+}
+```
+
+ProcuLink never needs write or delete permission — do not grant `s3:PutObject` or `s3:DeleteObject`. Cloudflare R2 uses S3-style access keys; scope the R2 API token to read-only on the same bucket.
+
+## How ProcuLink marks files processed
+
+Each poll lists the prefix, imports objects it has not seen before, and records each one so it is not re-imported. ProcuLink does **not** delete or move your objects — the record of what was processed lives on the ProcuLink side, so the bucket is left as the sender wrote it.
+
+## Common problems
+
+- **Wrong prefix picks up nothing, silently.** A misspelled prefix, or a leading slash the store does not expect, lists an empty result — ProcuLink connects fine and finds no files, with no error. If a schedule is running and the inbox stays empty, re-check the exact prefix against where objects actually land.
+- **`s3:ListBucket` missing.** With only `s3:GetObject`, ProcuLink can read a known key but cannot discover new files, so polling returns nothing. Both actions are required.
+- **Region or endpoint mismatch.** A wrong region (or a missing R2 endpoint) fails the connection outright.
+- **Fetched but not parsed.** Polling only retrieves the object — parsing is separate. An unsupported format lands the order in review, not as an error on the connection.
+
+A successful connection means ProcuLink listed the bucket — it does not guarantee any given file will parse. Check the inbox after the first scheduled run.
+
+---
+
+Need help? Email [support@proculink.eu](mailto:support@proculink.eu) or see [Ways to send orders to ProcuLink](/help/order-intake-options).
