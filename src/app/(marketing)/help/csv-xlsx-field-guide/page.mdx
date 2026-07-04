@@ -1,0 +1,84 @@
+export const metadata = {
+  title: "CSV and XLSX field guide — ProcuLink Help",
+  description: "Which columns a CSV or XLSX purchase order needs, what ProcuLink fills in for you, and the encoding and decimal-separator rules that keep numbers exact.",
+};
+
+# CSV and XLSX field guide
+
+CSV and XLSX are the two most common ways buyer teams hand over a purchase order, and both parse the same way in ProcuLink: row 1 is the header, every following row is a line item, and headers are matched by name rather than by position. This guide covers which columns you actually need, how ProcuLink reads your headers, and the encoding and number rules that keep totals from drifting.
+
+## When to use this
+
+Reach for CSV or XLSX when your source system exports a spreadsheet, when a buyer emails an order as an attachment, or when you are testing a new supplier mapping with a real file. If you can open it in a spreadsheet program, ProcuLink can read it — you do not need to match a fixed template.
+
+## Which columns are required
+
+Only one thing is truly required: at least one line item with a **quantity**. Everything else either has a sensible default or is treated as optional and left blank for you to fill during review.
+
+- **Line number** — optional. If there is no line-number column, ProcuLink numbers the rows for you, top to bottom.
+- **Buyer item code** — optional but strongly recommended; it is how the supplier knows what you ordered.
+- **Description, unit, unit price** — optional; blanks are carried through to review rather than guessed.
+- **PO number, order date, buyer name, currency** — header-level fields. ProcuLink takes the first non-empty value it finds in those columns across all rows, so you can put them on row 1 only.
+
+If a file is missing important fields, the order is routed to review instead of being sent as-is.
+
+## Header auto-detection
+
+You do not have to rename your columns. Before matching, ProcuLink lowercases each header and strips spaces and punctuation, so `Buyer Item Code`, `buyerItemCode`, and `BUYER_ITEM_CODE` all resolve to the same field. Several common names map to each field:
+
+- PO number: `PO Number`, `Purchase Order Number`, `Order Number`, `PO`
+- Line number: `Line Number`, `Line No`, `Line`
+- Buyer item code: `Buyer Item Code`, `Buyer Code`, `SKU`, `Item Code`, `Item`
+- Quantity: `Quantity`, `Qty`
+- Unit price: `Unit Price`, `Price`
+- Plus `Order Date`, `Buyer Name`, `Currency`, `Description`, `Unit`
+
+Any column whose header does not match one of these is ignored, so extra reference columns do no harm.
+
+## Encoding: UTF-8, BOM, and CP1252
+
+ProcuLink decodes CSV files as **UTF-8** and safely removes a UTF-8 byte-order mark (BOM) if your export added one. It also normalises Windows and Unix line endings, so a file saved on Windows and a file saved on a Linux server read identically.
+
+Save your CSV as UTF-8 whenever you can. Files saved in a legacy Windows codepage such as **CP1252 (Windows-1252)** can turn accented characters and the euro sign into garbled text, because those bytes are not valid UTF-8. Most spreadsheet programs offer a "CSV UTF-8" save option — prefer it. XLSX has no encoding question; text inside the workbook is already Unicode.
+
+## Decimal separators (dot vs comma)
+
+Numbers are read locale-aware, not with a single fixed rule. When both a dot and a comma appear, the **last one is treated as the decimal separator** — so `1,234.56` and `1.234,56` both read as one-thousand-two-hundred-thirty-four-and-a-half.
+
+A CSV saved with **semicolon (`;`) delimiters** is the reliable European signal: comma is the decimal mark there, so `73,22` reads as seventy-three-point-two-two rather than 7322. Many EU spreadsheet programs export semicolon-delimited CSV automatically. Tab-separated files are also detected.
+
+If a number cannot be read unambiguously — a stray letter, scientific notation like `1.5e2`, or a lone separator — ProcuLink refuses to guess and flags that line for review instead of shipping a silently wrong value.
+
+## A sample CSV
+
+```csv
+PoNumber,OrderDate,BuyerName,Currency,LineNumber,BuyerItemCode,Description,Quantity,Unit,UnitPrice
+PO-5567,2026-07-01,Northwind Trading,EUR,1,AB-1024,Steel bracket M8,120,EA,3.45
+PO-5567,,,,2,AB-2048,Hex bolt M8x40,500,EA,0.12
+```
+
+Header fields (`PoNumber`, `OrderDate`, `BuyerName`, `Currency`) only need a value on the first row. A semicolon-delimited European version would use `;` between columns and `3,45` for the price.
+
+## An XLSX layout
+
+XLSX follows the same shape, read from the **first worksheet only**:
+
+```text
+Row 1 (header):  PoNumber | OrderDate | BuyerName | Currency | LineNumber | BuyerItemCode | Description | Quantity | Unit | UnitPrice
+Row 2 (data):    PO-5567  | 2026-07-01| Northwind | EUR      | 1          | AB-1024       | Steel bracket | 120    | EA   | 3.45
+Row 3 (data):    PO-5567  |           |           |          | 2          | AB-2048       | Hex bolt      | 500    | EA   | 0.12
+```
+
+Numeric cells are read from the cell's stored value, so a quantity or price formatted as a number is exact regardless of the server's locale. XLSX is an **input format only** — ProcuLink reads it in, but delivers to your supplier in CSV, XML, cXML, UBL, X12, or JSON, whichever they require.
+
+## Common problems
+
+- **Merged cells** — a merged header or title cell shifts columns and breaks header matching. Keep row 1 to one plain header per column and no merges.
+- **Title or logo rows above the header** — ProcuLink expects the header on row 1. Delete banner rows so the column names are the very first row.
+- **Totals or subtotal rows** — a trailing "Total" row has no item code and often a text value in the price column; it can arrive as a stray line. Remove summary rows before uploading; ProcuLink derives totals itself.
+- **Comma thousands separators in a comma CSV** — writing `1,200` in a comma-delimited file splits the number across two columns. Use plain digits (`1200`), or export as a semicolon CSV where the comma is unambiguous.
+- **Numbers stored as text** — a leading apostrophe or a stray letter turns a number into text; if it cannot be read cleanly, that line goes to review.
+
+---
+
+Need help with a specific file? Email [support@proculink.eu](mailto:support@proculink.eu) or start with [your first purchase order upload](/help/first-upload).

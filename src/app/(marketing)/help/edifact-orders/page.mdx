@@ -1,0 +1,61 @@
+export const metadata = {
+  title: "EDIFACT ORDERS purchase orders — ProcuLink Help",
+  description: "How ProcuLink reads inbound UN/EDIFACT ORDERS messages, its envelope segments, and which related messages are not yet supported.",
+};
+
+# EDIFACT ORDERS purchase orders
+
+UN/EDIFACT is the international EDI standard used widely across Europe and global supply chains. The `ORDERS` message is its purchase order. ProcuLink reads **inbound EDIFACT ORDERS** messages at directories `D96A` and `D01B` and maps them into the canonical order for review. The parser is hand-rolled and built on MIT-licensed open source — there is no commercial EDI licence involved.
+
+## When to use this
+
+Use this when a trading partner sends purchase orders as EDIFACT `ORDERS` files, typically over AS2, SFTP, or a VAN, and their implementation guide names directory `D.96A` or `D.01B`. If your partner speaks the North American dialect instead, see [ANSI X12 850](/help/x12-850).
+
+## The envelope
+
+An EDIFACT interchange nests the message inside a service string advice (`UNA`, optional), an interchange envelope (`UNB`/`UNZ`), and a message envelope (`UNH`/`UNT`). The order content lives between `UNH` and `UNT`:
+
+```
+UNA:+.? '
+UNB+UNOC:3+SENDERGLN:14+RECEIVERGLN:14+260704:1200+000000001'
+UNH+1+ORDERS:D:96A:UN'
+BGM+220+PO-10042+9'
+DTM+137:20260704:102'
+NAD+BY+5412345000013::9'
+NAD+SU+4012345000094::9'
+LIN+1++ABC-123:BP'
+IMD+F++:::Widget, blue, 20mm'
+QTY+21:24'
+PRI+AAA:12.50'
+LIN+2++DEF-456:BP'
+QTY+21:6'
+UNT+11+1'
+UNZ+1+000000001'
+```
+
+## Key segments
+
+- `BGM` — beginning of message: the document/PO number (`BGM 1004`) and message function.
+- `DTM` — dates, including the order date qualified by `137`.
+- `NAD` — name and address of a party. `NAD+BY` is the buyer, `NAD+SU` the supplier.
+- `LIN` — one line item, carrying the item identifier and its qualifier.
+- `QTY` — ordered quantity for the preceding `LIN`.
+- `PRI` and `IMD` — price and item description for the line.
+
+## What ProcuLink does with it
+
+Inbound `ORDERS` messages are parsed into the canonical order — number, date, parties, and lines — so you review and route them like any other format. Outbound EDIFACT generation is not offered today; when a partner needs an EDIFACT order sent, that path is still in development.
+
+## Not yet supported: INVOIC and DESADV
+
+EDIFACT `INVOIC` (invoice) and `DESADV` (despatch advice) are **coming soon** — they are not supported yet. ProcuLink will not silently mis-handle them: they are simply not part of the ORDERS ingestion path. If a partner asks about them, treat them as on the roadmap rather than an available feature, and check the [standards library](/library/standards) for the current honest status.
+
+## Common problems
+
+- **Directory mismatch.** `D96A` and `D01B` differ in some composite structures. Confirm which your partner uses — it is declared in the `UNH`.
+- **Service characters.** The `UNA` segment can redefine the separators. A file that changes them without a `UNA` can fail to split — send us the raw sample.
+- **A delivered order is not an accepted order.** Validate business acceptance against the partner's own acknowledgement process.
+
+---
+
+Need help? Email [support@proculink.eu](mailto:support@proculink.eu) or see the in-app [standards library](/library/standards).

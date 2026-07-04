@@ -1,0 +1,61 @@
+export const metadata = {
+  title: "UBL and Peppol BIS Order — ProcuLink Help",
+  description: "Parse UBL 2.1 Order documents inbound and emit UBL / Peppol BIS Order 3 output for European e-procurement.",
+};
+
+# UBL and Peppol BIS Order
+
+UBL (Universal Business Language, OASIS 2.1) is the XML document standard behind most European e-procurement, and Peppol BIS Order 3 is the profile that constrains it for the Peppol network. ProcuLink parses inbound UBL orders and emits UBL / Peppol BIS output, so a buyer running UBL and a supplier that needs something else can still trade.
+
+## When to use this
+
+Reach for UBL or Peppol when:
+
+- Your buyers or public-sector customers send purchase orders as UBL 2.1 XML.
+- A supplier or trading network asks you to deliver in **Peppol BIS Order 3**.
+- You operate in a European market where Peppol is the expected e-procurement rail.
+
+If neither side has named UBL or Peppol, you probably don't need it — pick the format the supplier actually requires on the delivery tab.
+
+## Inbound: parsing a UBL Order
+
+ProcuLink ingests the UBL 2.1 `Order` document into the canonical order model — the mandatory `ID` and `IssueDate`, the buyer and supplier parties, and each `OrderLine` / `LineItem` with its item identification, quantity, unit, and price. The document is recognised by its root element and namespace:
+
+```xml
+<Order xmlns="urn:oasis:names:specification:ubl:schema:xsd:Order-2"
+       xmlns:cac="urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2"
+       xmlns:cbc="urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2">
+  <cbc:ID>PO-10432</cbc:ID>
+  <cbc:IssueDate>2026-07-04</cbc:IssueDate>
+  <cbc:DocumentCurrencyCode>EUR</cbc:DocumentCurrencyCode>
+  <cac:OrderLine>
+    <cac:LineItem>
+      <cbc:ID>1</cbc:ID>
+      <cbc:Quantity unitCode="EA">12</cbc:Quantity>
+      <cac:Item>
+        <cbc:Description>Steel bracket, 40mm</cbc:Description>
+      </cac:Item>
+    </cac:LineItem>
+  </cac:OrderLine>
+</Order>
+```
+
+Every parsed field can surface its exact UBL and Peppol element path in the app — open the standards popover on any mapping field, or browse the full matrix at [/library/standards](/library/standards).
+
+**UBL Invoice also parses** on the inbound side, so you can bring UBL invoices in as well as orders. UBL invoice *output* is not offered.
+
+## Outbound: emitting UBL / Peppol BIS Order 3
+
+On a supplier's **Delivery** tab, choose **UBL / Peppol** as the output format and sending auto-transforms the reviewed order into a UBL 2.1 `Order` document.
+
+A note on conformance, kept honest: Peppol BIS Order 3 rides the same UBL 2.1 pipeline, and full BIS 3.0 business-rule conformance (the EN 16931 / UBL-CR validation layer) is still being hardened. Delivery *onto* a Peppol Access Point is partner-wrapped — ProcuLink produces the document; the AS4 transport into the Peppol network is handled through an Access Point partner, not by ProcuLink directly. Validate the output against your recipient's or Access Point's rules before you rely on it in production.
+
+## Common problems
+
+- **Namespace not recognised** — the file must be a UBL 2.1 `Order` in the `Order-2` namespace shown above. A wrapped or profile-only variant may need a mapping review.
+- **Peppol validation warnings downstream** — because full BIS 3.0 rule conformance is still hardening, run the emitted file through your Access Point's validator first; treat any warnings as a to-fix list, not a ProcuLink failure.
+- **"Delivered" is not "accepted"** — a successful send means the endpoint answered, not that the supplier or network accepted the order's contents.
+
+---
+
+Need help? Email [support@proculink.eu](mailto:support@proculink.eu) or see the [standards catalog](/library/standards).

@@ -1,0 +1,62 @@
+export const metadata = {
+  title: "SFTP and FTPS delivery keys and credentials — ProcuLink Help",
+  description: "Choose password or private-key authentication for SFTP/FTPS delivery, convert PuTTY keys to OpenSSH, and understand directory and certificate behaviour.",
+};
+
+# SFTP and FTPS delivery keys and credentials
+
+When a supplier receives orders as files on their server rather than through an API, ProcuLink drops the transformed order file over **SFTP** or **FTPS**. Configure it per supplier under **Library → Suppliers → Delivery**. This article covers the two ways to authenticate and the file-placement settings that trip people up.
+
+## When to use this
+
+Use SFTP or FTPS for file-based suppliers who give you a host, a username, and either a password or a public/private key pair. Use HTTP delivery instead when the supplier publishes an API.
+
+## Password vs private-key authentication
+
+- **Password** — the simplest option. Enter the host, port, username, and password. The password is encrypted at rest with AES-256-GCM.
+- **Private key** — more secure and common for SFTP. The supplier registers your **public** key on their server; you paste the matching **private** key into ProcuLink. Use this when the supplier says "key-based auth only" or gives you a key to use.
+
+FTPS is TLS-over-FTP and is typically password-based. SFTP (SSH file transfer) supports either method.
+
+## Key formats: OpenSSH vs PuTTY (.ppk)
+
+ProcuLink expects an **OpenSSH-format** private key. An OpenSSH private key begins with a header like this:
+
+```text
+-----BEGIN OPENSSH PRIVATE KEY-----
+b3BlbnNzaC1rZXktdjEAAAAABG5vbmUAAAAEbm9uZQAAAAAAAAABAAAAMwAAAAtzc2gt
+...base64 key material across several lines...
+-----END OPENSSH PRIVATE KEY-----
+```
+
+If your key is a PuTTY `.ppk` file, it is **not** in OpenSSH format and must be converted first. Convert it with PuTTYgen:
+
+1. Open **PuTTYgen** and click **Load**, then select your `.ppk` file.
+2. Go to **Conversions → Export OpenSSH key** and save the exported file.
+3. Open that exported file and paste its full contents (including the `BEGIN`/`END` header lines) into the private-key field.
+
+Older RSA keys may instead start with `-----BEGIN RSA PRIVATE KEY-----`; that is also OpenSSH-compatible and works as-is. Keys starting with `PuTTY-User-Key-File-` are the un-converted `.ppk` format and will not authenticate — convert them.
+
+## Directory: auto-create vs must pre-exist
+
+Set the remote directory the file lands in. Whether ProcuLink can create a missing directory depends on the supplier's server permissions: if your account is allowed to create folders, a missing target directory is created on first delivery; if it is not, the directory **must already exist** and delivery fails with a path error until the supplier creates it. When in doubt, ask the supplier to pre-create the exact path and point ProcuLink at it — that removes the ambiguity.
+
+## FTPS certificate validation
+
+FTPS connections have a **certificate validation** toggle. Leave it **on** so ProcuLink verifies the server's TLS certificate — the safe default. Turn it off only for a supplier with a self-signed or internal certificate, and only after confirming the host with them, because disabling validation removes protection against a spoofed endpoint.
+
+## "Credentials already saved — leave blank to keep"
+
+When you re-open a delivery config that already has a saved password or private key, the secret field shows a "leave blank to keep" hint instead of the stored value. Secrets are write-only: ProcuLink never displays them back. Leave the field blank to keep the existing secret, or type a new value to replace it. Saving with the field blank does **not** wipe the stored credential.
+
+## Common problems
+
+- **"Auth failed" with a key** — the key is still in `.ppk` format; convert it with PuTTYgen as above.
+- **Path / "no such file" errors** — the remote directory must pre-exist on this server; ask the supplier to create it.
+- **TLS / certificate errors on FTPS** — the server uses a self-signed certificate; confirm the host, then decide on the validation toggle.
+
+After saving, always use **Send a test now**. A green test proves the login, path, and transport — but a delivered file is not a supplier-accepted order; their system can still reject the contents downstream.
+
+---
+
+Need help? Email [support@proculink.eu](mailto:support@proculink.eu) or see [Setting up delivery and test-fire](/help/delivery-setup).

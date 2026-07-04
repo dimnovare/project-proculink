@@ -1,0 +1,38 @@
+export const metadata = {
+  title: "Polling an SFTP folder for order files — ProcuLink Help",
+  description: "Set up ProcuLink to pull purchase-order files from an SFTP server on a schedule, and understand what fails silently.",
+};
+
+# Polling an SFTP folder for order files
+
+When a source system exports purchase orders to an SFTP server on a schedule, ProcuLink can log in, pick up the new files, and parse them for you. You configure this yourself in **Settings → SFTP pull** (available on every paid plan — Growth and up).
+
+## When to use this
+
+Use SFTP polling when an ERP, warehouse system, or older back office drops PO files into a folder on a fixed server and you want them imported without anyone uploading by hand. If the sender can push to an API instead, prefer the inbound API — polling is best when the source can only write files.
+
+## What you configure
+
+- **Host** — the SFTP server hostname, e.g. `sftp.supplier.example`.
+- **Port** — `22` unless the server was moved to a non-standard port.
+- **Path / folder** — the absolute directory ProcuLink lists, e.g. `/exports/orders`. This is the single most common thing to get wrong (see below).
+- **Credentials** — either a **username and password**, or a **username and private key**. Paste the private key in OpenSSH format when the server uses key-based auth. Credentials are encrypted at rest with AES-256-GCM.
+- **Polling schedule** — how often ProcuLink checks the folder. Choose the slowest cadence that still meets your turnaround; there is no benefit to polling faster than files actually arrive.
+- **Default supplier** — the supplier that imported files are attributed to, since a raw file drop carries no ProcuLink routing.
+
+## How ProcuLink marks files processed
+
+Each poll lists the folder, imports files it has not seen before, and records each one so it is not re-imported on the next run. ProcuLink does **not** delete or move your files — the record of what was processed lives on the ProcuLink side, so the source folder is left exactly as the sender left it. If you re-upload a file with a new name, it is treated as new.
+
+## Common problems
+
+- **Wrong path picks up nothing, silently.** If the folder is misspelled or the files land in a different directory, ProcuLink connects successfully and simply finds an empty list — no error, no orders. If a schedule has been running and nothing appears in the inbox, re-check the exact path against where the source system actually writes.
+- **Password vs. key mismatch.** If the server expects a key and you supplied a password (or vice versa), the connection is refused. Confirm which method the server requires before saving.
+- **Files still being written.** If the source writes directly into the polled folder, ProcuLink can pick up a half-written file. Ask the sender to write to a temp name and rename on completion, or write to a staging folder.
+- **A poll ran but the file did not parse.** Polling only fetches the file — parsing is a separate step. An unsupported format or a missing header lands the order in review, not in an error on the SFTP connection.
+
+A successful connection means ProcuLink reached the server and listed the folder — it does not guarantee any given file will parse cleanly. Check the inbox after the first scheduled run to confirm real files come through.
+
+---
+
+Need help? Email [support@proculink.eu](mailto:support@proculink.eu) or see [Ways to send orders to ProcuLink](/help/order-intake-options).

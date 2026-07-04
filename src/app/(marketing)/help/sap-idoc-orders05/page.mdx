@@ -1,0 +1,68 @@
+export const metadata = {
+  title: "SAP IDoc ORDERS05 purchase orders — ProcuLink Help",
+  description: "What a SAP IDoc ORDERS05 is, its control record and key segments, and how ProcuLink parses it inbound as XML.",
+};
+
+# SAP IDoc ORDERS05 purchase orders
+
+An IDoc (Intermediate Document) is SAP's structured container for exchanging business documents. `ORDERS05` is the basic type SAP uses for purchase orders. When SAP exports an IDoc as XML, ProcuLink reads it **inbound** and maps it into the canonical order for review — the same review flow as every other format.
+
+## When to use this
+
+Use this when a buyer running SAP exports purchase orders as `ORDERS05` IDocs in XML form and hands you the file over upload, email, or SFTP. It is a common mid-market pattern: the SAP team already produces IDocs internally, so exporting the XML is far less work than standing up a new integration. ProcuLink ingests that export directly — no SAP connector or middleware on our side.
+
+## What the file looks like
+
+An IDoc XML file has a control record followed by data segments. ProcuLink routes on the root `ORDERS05` element ahead of the other XML formats, then reads the header and line segments:
+
+```
+<ORDERS05>
+  <IDOC BEGIN="1">
+    <EDI_DC40 SEGMENT="1">
+      <MESTYP>ORDERS</MESTYP>
+      <IDOCTYP>ORDERS05</IDOCTYP>
+    </EDI_DC40>
+    <E1EDK01 SEGMENT="1">
+      <CURCY>EUR</CURCY>
+      <BELNR>PO-10042</BELNR>
+    </E1EDK01>
+    <E1EDK03 SEGMENT="1">
+      <IDDAT>012</IDDAT>
+      <DATUM>20260704</DATUM>
+    </E1EDK03>
+    <E1EDKA1 SEGMENT="1">
+      <PARVW>AG</PARVW>
+      <NAME1>Acme Buying Co</NAME1>
+    </E1EDKA1>
+    <E1EDP01 SEGMENT="1">
+      <MENGE>24</MENGE>
+      <MENEE>EA</MENEE>
+      <E1EDP19 SEGMENT="1">
+        <IDTNR>ABC-123</IDTNR>
+      </E1EDP19>
+    </E1EDP01>
+  </IDOC>
+</ORDERS05>
+```
+
+## Key parts
+
+- `EDI_DC40` — the control record: message type (`ORDERS`) and basic type (`ORDERS05`).
+- `E1EDK01` / `E1EDK02` — document header: the order number (`BELNR`) and currency.
+- `E1EDK03` — header dates, including the order date.
+- `E1EDKA1` — partners, qualified by `PARVW`: `AG` is the ordering party (buyer), `LF` the supplier.
+- `E1EDP01` — one purchase-order line: quantity and unit, with the item number carried in the nested `E1EDP19` (`IDTNR`) and long text in `E1EDPT1`.
+
+## What ProcuLink does with it
+
+The IDoc is parsed into the canonical order — number, date, parties, and lines — then you review it and deliver it in whatever format the supplier requires. Parsing is a hand-rolled XML reader; there is no commercial EDI library. Ingestion is **inbound only**: ProcuLink does not generate IDoc output back into SAP. If a supplier needs the order in another format, choose that format at delivery.
+
+## Common problems
+
+- **Mixed encodings.** IDoc exports vary in date and decimal conventions. Check the parsed order date and quantities before delivering.
+- **Segment coverage.** ProcuLink maps the common header and line segments above; if your export relies on a less common segment, send us a real sample so we can confirm coverage.
+- **A delivered order is not an accepted order.** Validate business acceptance against the receiving system's own process.
+
+---
+
+Need help? Email [support@proculink.eu](mailto:support@proculink.eu) or see the in-app [standards library](/library/standards).

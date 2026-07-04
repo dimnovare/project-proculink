@@ -11,7 +11,7 @@ A reviewed order still needs somewhere to go. Delivery is configured **per suppl
 
 - **HTTP webhook** — the supplier exposes an endpoint; ProcuLink posts the order there. Auth options: none, API key, bearer token, basic, or OAuth2 fetch-token.
 - **SFTP / FTPS** — the order file is dropped on the supplier's server (password or private-key authentication).
-- **Email (SMTP)** — the order goes out as an email attachment.
+- **Email** — the order goes out as an email attachment, sent over HTTPS from ProcuLink's mail servers (you don't run or configure an SMTP server).
 - **Erply / Directo** — purpose-built ERP adapters for those tenants. They authenticate and deliver the **generated order artifact** into the ERP — the same output the other channels send, not a native re-modelling of the order inside the ERP.
 
 Pick HTTP when the supplier publishes an API, SFTP/FTPS or email for file-based suppliers, or the ERP adapter when you share an Erply or Directo tenant.
