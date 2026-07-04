@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import type { KeyboardEvent, ReactNode } from "react";
+import Link from "next/link";
 import { useQueryClient } from "@tanstack/react-query";
 import { KeyRound, Save, Send, Trash2 } from "lucide-react";
 import { ConnectorRequirementsPanel } from "@/components/bridge/ConnectorRequirementsPanel";
@@ -722,6 +723,7 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
                     <p className="text-[11px]" style={{ color: "var(--ink-faint)" }}>
                       Leave blank for no DOCTYPE. Set the exact DTD URI your supplier&apos;s cXML requires.
                     </p>
+                    <HelpLink href="/help/cxml-setup" label="cXML setup guide" />
                   </div>
                 </div>
               )}
@@ -799,6 +801,11 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
                     />
                   </Field>
                 </div>
+              )}
+
+              {/* ERP adapter help — only for the Erply / Directo ERP endpoints. */}
+              {(protocol === "erp_erply" || protocol === "erp_directo") && (
+                <HelpLink href="/help/erp-erply-and-directo" label="ERP adapter guide" />
               )}
 
               {(protocol === "sftp" || protocol === "ftps") && (
@@ -880,6 +887,7 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
                       cert. Leave OFF for servers with a public CA certificate.
                     </label>
                   )}
+                  <HelpLink href="/help/sftp-ftps-delivery-keys" label="SFTP key guide" />
                 </div>
               )}
 
@@ -1195,6 +1203,7 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
                             </Field>
                           </div>
                         </details>
+                        <HelpLink href="/help/oauth2-delivery-setup" label="OAuth2 setup guide" />
                       </div>
                     )}
 
@@ -1364,5 +1373,21 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
       <span className="text-[11px] font-semibold uppercase" style={{ color: "var(--ink-faint)" }}>{label}</span>
       {children}
     </label>
+  );
+}
+
+// Small, quiet "Need help?" link to the matching /help article. Opens in a new
+// tab (the help centre is a marketing route). Muted to match nearby helper text.
+function HelpLink({ href, label }: { href: string; label: string }) {
+  return (
+    <Link
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="text-[11px]"
+      style={{ color: "var(--ink-muted)", textDecoration: "underline", textUnderlineOffset: 2 }}
+    >
+      Need help? See the {label} →
+    </Link>
   );
 }
