@@ -505,7 +505,10 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
             </button>
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2.5">
-                <h1 style={{ fontFamily: "'Bricolage Grotesque',Inter,sans-serif", fontSize: 22, fontWeight: 800, letterSpacing: "-0.02em", color: "#0B1A2F", lineHeight: 1.1, whiteSpace: "nowrap" }}>
+                {/* No whiteSpace:nowrap — on a narrow (≤375px) phone the title must be
+                    able to wrap instead of forcing horizontal overflow (was an 85px clip).
+                    On sm+ the header spans the full width so it stays on one line anyway. */}
+                <h1 style={{ fontFamily: "'Bricolage Grotesque',Inter,sans-serif", fontSize: 22, fontWeight: 800, letterSpacing: "-0.02em", color: "#0B1A2F", lineHeight: 1.1 }}>
                   Review and send this order
                 </h1>
                 <span
