@@ -627,6 +627,7 @@ function AcceptanceTab({ supplierId }: { supplierId: string }) {
             {rules.map((rule, idx) => (
               <div key={idx} className="grid grid-cols-1 gap-3 px-4 py-3 sm:grid-cols-2 md:grid-cols-3">
                 <select
+                  aria-label={`Rule ${idx + 1} scope`}
                   value={rule.scope}
                   onChange={e => {
                     const scope = e.target.value as AcceptanceRule["scope"];
@@ -639,6 +640,7 @@ function AcceptanceTab({ supplierId }: { supplierId: string }) {
                   <option value="line">Line</option>
                 </select>
                 <select
+                  aria-label={`Rule ${idx + 1} field`}
                   value={rule.fieldPath}
                   onChange={e => updateRule(idx, { fieldPath: e.target.value })}
                   className="w-full rounded-[5px] px-2 text-[12px]"
@@ -649,6 +651,7 @@ function AcceptanceTab({ supplierId }: { supplierId: string }) {
                   ))}
                 </select>
                 <select
+                  aria-label={`Rule ${idx + 1} operator`}
                   value={rule.operator}
                   onChange={e => updateRule(idx, { operator: e.target.value as AcceptanceRule["operator"] })}
                   className="w-full rounded-[5px] px-2 text-[12px]"
@@ -663,10 +666,12 @@ function AcceptanceTab({ supplierId }: { supplierId: string }) {
                   value={rule.expectedValue ?? ""}
                   onChange={e => updateRule(idx, { expectedValue: e.target.value })}
                   placeholder="value"
+                  aria-label={`Rule ${idx + 1} expected value`}
                   className="w-full rounded-[5px] px-2 text-[12px]"
                   style={{ height: 30, border: `1px solid ${LINE}`, color: INK, background: SURFACE }}
                 />
                 <select
+                  aria-label={`Rule ${idx + 1} severity`}
                   value={rule.severity}
                   onChange={e => updateRule(idx, { severity: e.target.value as AcceptanceRule["severity"] })}
                   className="w-full rounded-[5px] px-2 text-[12px]"
@@ -980,6 +985,7 @@ function CatalogTab({ supplierId }: { supplierId: string }) {
 
       {(data?.total ?? 0) > 0 && (
         <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search code / name / barcode"
+          aria-label="Search catalog"
           style={{ width: "100%", maxWidth: 360, minHeight: 36, border: "1px solid #CBD0DA", borderRadius: 6, padding: "5px 10px", fontSize: 12.5, marginBottom: 10 }} />
       )}
 

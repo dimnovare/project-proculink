@@ -290,6 +290,7 @@ export function MappingEditor() {
 
         {/* Supplier route selector */}
         <select
+          aria-label="Filter mappings by supplier"
           value={selectedSupplierId ?? ""}
           onChange={(e) => {
             const val = e.target.value;

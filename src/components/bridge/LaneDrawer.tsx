@@ -189,6 +189,7 @@ export function LaneDrawer({ lane, onClose }: LaneDrawerProps) {
             </h2>
             <button
               onClick={onClose}
+              aria-label="Close"
               style={{
                 border: "none",
                 background: "transparent",
