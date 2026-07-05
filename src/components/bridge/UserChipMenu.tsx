@@ -62,16 +62,26 @@ interface UserChipMenuProps {
   collapsed: boolean;
   /** Mobile drawer: close the drawer after an in-app navigation. */
   onNavigate?: () => void;
+  /**
+   * Where the dropdown opens relative to the trigger. The sidebar footer chip
+   * opens "up" (default — the chip sits at the bottom of the rail). The top
+   * navbar chip opens "down" (the chip sits at the top of the viewport, so an
+   * upward menu would clip off-screen).
+   */
+  placement?: "up" | "down";
 }
 
-export function UserChipMenu({ collapsed, onNavigate }: UserChipMenuProps) {
+export function UserChipMenu({ collapsed, onNavigate, placement = "up" }: UserChipMenuProps) {
   const clerkConfigured = Boolean(process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY);
   const { user } = useUser();
   const { membership } = useOrganization();
   const clerk = useClerk();
 
   const [open, setOpen] = useState(false);
-  const [anchor, setAnchor] = useState<{ bottom: number; left: number; width: number } | null>(null);
+  // "up" placement anchors by the menu's bottom edge (grows upward from the
+  // chip); "down" placement anchors by its top edge (grows downward). Right-
+  // aligned in both cases so a compact chip near the viewport edge stays on-screen.
+  const [anchor, setAnchor] = useState<{ top?: number; bottom?: number; right: number; width: number } | null>(null);
   const btnRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   useMenuDismiss(open, () => setOpen(false), btnRef, menuRef);
@@ -113,11 +123,16 @@ export function UserChipMenu({ collapsed, onNavigate }: UserChipMenuProps) {
     if (!open) {
       const r = btnRef.current?.getBoundingClientRect();
       if (r) {
-        setAnchor({
-          bottom: window.innerHeight - r.top + 8,
-          left: r.left,
-          width: Math.max(r.width, 216),
-        });
+        const width = Math.max(r.width, 216);
+        // Right-align the menu to the trigger's right edge (keeps a compact
+        // top-right chip's menu inside the viewport). Clamp so it never runs
+        // off the left edge on a very narrow trigger position.
+        const right = Math.max(8, window.innerWidth - r.right);
+        setAnchor(
+          placement === "down"
+            ? { top: r.bottom + 8, right, width }
+            : { bottom: window.innerHeight - r.top + 8, right, width },
+        );
       }
     }
     setOpen((v) => !v);
@@ -165,7 +180,7 @@ export function UserChipMenu({ collapsed, onNavigate }: UserChipMenuProps) {
           ref={menuRef}
           role="menu"
           aria-label="Account"
-          style={{ ...MENU_SURFACE, bottom: anchor.bottom, left: anchor.left, width: anchor.width }}
+          style={{ ...MENU_SURFACE, top: anchor.top, bottom: anchor.bottom, right: anchor.right, width: anchor.width }}
         >
           {/* Identity header — real name + primary email from Clerk. */}
           <div className="flex items-center gap-2.5" style={{ padding: "11px 12px", borderBottom: "1px solid #E5E8EE" }}>

@@ -1,54 +1,36 @@
 "use client";
 
-import { UserButton } from "@clerk/nextjs";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Bell, HelpCircle, Menu, Search } from "lucide-react";
+import { Bell, HelpCircle, Lock, Menu, Search, Upload } from "lucide-react";
 import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
-import { apiClient, isApiMockMode } from "@/lib/api-client";
+import { apiClient, checkAdminAccess, getBillingStatus, isApiMockMode } from "@/lib/api-client";
 import { guideSeenKey, matchGuide } from "@/lib/section-guides";
+import { useOrderDirection } from "@/hooks/useOrderDirection";
+import { useQueriesEnabled } from "@/hooks/useQueriesEnabled";
+import { useOrganization } from "@clerk/nextjs";
 import type { Order, OrderSummary, Supplier } from "@/types/procurement";
 import { buildCrumbTrail, formatCrumbLabel, truncateLabel, type Crumb, type CrumbContext } from "./breadcrumb";
 import { CommandPalette } from "./CommandPalette";
+import { ProcuLinkMark } from "./DSPrimitives";
 import { HelpSlideover } from "./HelpSlideover";
 import { HUB_LABELS, HUB_TABS, HubTabs, hubForPath, type HubKey } from "./layout/HubTabs";
+import { OrgSwitcher } from "./OrgSwitcher";
 import { SetupProgressChip } from "./SetupProgressChip";
+import { UserChipMenu } from "./UserChipMenu";
+import {
+  buildVisibleNav,
+  hubTooltip,
+  isItemActive,
+  PINNED_ACTION_HREF,
+  type SidebarNavItem,
+} from "./BridgeSidebar";
 
 interface BridgeTopbarProps {
   crumb?: ReactNode;
   onMenuClick?: () => void;
-}
-
-function AccountMenu() {
-  if (!process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY) {
-    return (
-      <div
-        className="flex items-center justify-center rounded-full text-[11px] font-semibold"
-        style={{
-          width: 30,
-          height: 30,
-          background: "linear-gradient(135deg,#2a4b73,#1a3050)",
-          color: "#FFFFFF",
-          border: "1px solid #1F3252",
-        }}
-        title="Clerk is not configured"
-      >
-        MK
-      </div>
-    );
-  }
-
-  return (
-    <UserButton
-      appearance={{
-        elements: {
-          userButtonAvatarBox: "w-7 h-7",
-        },
-      }}
-    />
-  );
 }
 
 /**
@@ -397,9 +379,130 @@ function NotificationsBell() {
   );
 }
 
+// ─── Desktop primary navigation (top navbar, md+) ───────────────────────────
+// The sidebar was removed on desktop; its primary nav now renders here as a
+// horizontal link row. Structure, gating, direction relabel and active-state
+// are REUSED wholesale from BridgeSidebar (buildVisibleNav / isItemActive /
+// hubTooltip) so the two can never drift — this row is the sidebar's nav,
+// re-laid-out horizontally. Hub items still light for ANY route in their hub;
+// the Inbox "review" badge is preserved.
+
+/** One horizontal nav link. Active = white + 2px blue underline; inactive =
+ *  #C8D1E0 → white on hover. Mirrors the sidebar's semantics, not its chrome. */
+function TopNavLink({
+  item,
+  active,
+  badge,
+  onNavigate,
+}: {
+  item: SidebarNavItem;
+  active: boolean;
+  badge?: number;
+  onNavigate?: () => void;
+}) {
+  const title = hubTooltip(item);
+  return (
+    <Link
+      href={item.href}
+      onClick={onNavigate}
+      target={item.newTab ? "_blank" : undefined}
+      rel={item.newTab ? "noopener noreferrer" : undefined}
+      title={title}
+      aria-current={active ? "page" : undefined}
+      className="relative inline-flex items-center gap-1.5 whitespace-nowrap transition-colors"
+      style={{
+        height: "100%",
+        padding: "0 10px",
+        fontSize: 13,
+        fontWeight: active ? 600 : 500,
+        color: active ? "#FFFFFF" : "#C8D1E0",
+        borderBottom: active ? "2px solid #1E66C9" : "2px solid transparent",
+        textDecoration: "none",
+      }}
+      onMouseEnter={(e) => { if (!active) (e.currentTarget as HTMLElement).style.color = "#FFFFFF"; }}
+      onMouseLeave={(e) => { if (!active) (e.currentTarget as HTMLElement).style.color = "#C8D1E0"; }}
+    >
+      {item.label}
+      {typeof badge === "number" && badge > 0 && (
+        <span
+          className="flex items-center justify-center rounded-full"
+          style={{ minWidth: 17, height: 17, padding: "0 5px", background: "#1E66C9", color: "#FFFFFF", fontFamily: "'JetBrains Mono',monospace", fontSize: 10, fontWeight: 700, borderRadius: 999 }}
+        >
+          {badge}
+        </span>
+      )}
+    </Link>
+  );
+}
+
+/**
+ * The horizontal primary nav for md+. Reuses buildVisibleNav (launch-flag +
+ * inbound + admin gating and the inbound "Partners → Customers" relabel) and
+ * isItemActive (hub-lights-for-any-hub-route). Groups are flattened to a single
+ * horizontal row (group headers belong to the vertical rail, not a top bar).
+ * Overflows scroll horizontally at the md→lg band so links never wrap or clip.
+ * Returns the admin-gated `tail` items so the caller can place them in the
+ * right cluster (Admin) / profile menu (Settings) without re-deriving the gate.
+ */
+function useTopNav() {
+  const pathname = usePathname();
+  const queryEnabled = useQueriesEnabled();
+  const { labels } = useOrderDirection();
+
+  const { data: adminAccess } = useQuery({
+    queryKey: ["admin-access"],
+    queryFn: checkAdminAccess,
+    enabled: queryEnabled,
+    staleTime: 300_000,
+    retry: false,
+  });
+  const isAdmin = adminAccess === true;
+
+  const { data: ordersSummary } = useQuery({
+    queryKey: ["orders-summary"],
+    queryFn: () => apiClient.getOrdersSummary(),
+    enabled: queryEnabled,
+    staleTime: 30_000,
+  });
+  const reviewCount = ordersSummary?.byStatus?.["pending_review"] ?? 0;
+
+  const { main, tail } = useMemo(
+    () => buildVisibleNav(labels.counterpartyPlural, isAdmin),
+    [labels.counterpartyPlural, isAdmin],
+  );
+  // Flatten grouped sections into a single ordered list for the horizontal row.
+  const items = useMemo(() => main.flatMap((s) => s.items), [main]);
+
+  return { items, tail, pathname, reviewCount };
+}
+
+// ─── Desktop brand + workspace switcher (top navbar left cluster) ────────────
+
+/** Live workspace name + billing plan for the compact OrgSwitcher. */
+function useWorkspaceCardData() {
+  const queryEnabled = useQueriesEnabled();
+  const { organization } = useOrganization();
+  const { data: billing } = useQuery({
+    queryKey: ["billing-status"],
+    queryFn: getBillingStatus,
+    enabled: queryEnabled,
+    retry: 1,
+    retryDelay: 800,
+    staleTime: 60_000,
+  });
+  const planLabel = billing
+    ? `${billing.plan.charAt(0).toUpperCase()}${billing.plan.slice(1)} plan`
+    : "Loading…";
+  const orgName = organization?.name ?? "Your workspace";
+  return { orgName, planLabel, activePlan: billing ? planLabel : null };
+}
+
 export function BridgeTopbar({ crumb, onMenuClick }: BridgeTopbarProps) {
   const router = useRouter();
   const pathname = usePathname();
+  const { items: navItems, tail: navTail, reviewCount } = useTopNav();
+  const { orgName, planLabel, activePlan } = useWorkspaceCardData();
+  const adminItem = navTail.find((t) => t.href === "/admin");
   const autoCrumb = useAutoCrumb();
   const hubRow = useHubRow();
   const mobileLabel = useMobilePageLabel();
@@ -444,15 +547,23 @@ export function BridgeTopbar({ crumb, onMenuClick }: BridgeTopbarProps) {
       className="on-navy flex-shrink-0 relative flex flex-col"
       style={{ background: "#0B1A2F" }}
     >
-      {/* ── Row 1 · Utility row ──────────────────────────────────────
-          Mobile menu · demo badge · setup chip · ⌘K search · notifications ·
-          help · avatar. This is the control cluster (matches the v2 pages.jsx
-          Topbar top utility row). */}
-      <div className="flex items-center gap-3 sm:gap-4 px-3 sm:px-5" style={{ height: 46 }}>
+      {/* ── Row 1 · Primary nav bar ──────────────────────────────────
+          The desktop sidebar was removed; its primary navigation lives here.
+          LEFT   = mobile hamburger · ProcuLink brand (→ /bridge) · compact
+                   OrgSwitcher.
+          CENTER = the primary nav as horizontal links (md+), built from the
+                   SAME buildVisibleNav/isItemActive the sidebar used; scrolls
+                   horizontally at the md→lg band so links never wrap or clip.
+          RIGHT  = Upload order · demo/setup chips · ⌘K search · notifications ·
+                   Admin (admin-gated) · Help · account chip.
+          Mobile (< md) collapses to hamburger + brand + the compact control
+          cluster; the full nav is reached through the drawer (onMenuClick). */}
+      <div className="flex items-center gap-2 sm:gap-3 px-3 sm:px-5" style={{ height: 52 }}>
+        {/* Mobile menu — opens the BridgeSidebar drawer (full nav on < md). */}
         <button
           type="button"
           onClick={onMenuClick}
-          className="flex h-11 w-11 md:h-9 md:w-9 items-center justify-center rounded-[7px] md:hidden"
+          className="flex h-11 w-11 items-center justify-center rounded-[7px] md:hidden flex-shrink-0"
           style={{
             background: "#14253D",
             border: "1px solid #1F3252",
@@ -463,15 +574,35 @@ export function BridgeTopbar({ crumb, onMenuClick }: BridgeTopbarProps) {
           <Menu size={18} strokeWidth={2.2} />
         </button>
 
-        {/* Demo-mode badge — gated on the SAME isApiMockMode flag the data layer
-            uses (raw NEXT_PUBLIC_USE_MOCK && NODE_ENV !== "production"), so the
-            badge and the actual mock-data mode can never diverge. Reading the raw
-            env here would show "Demo data" over the user's REAL live orders in a
-            production build that still had the flag set. Full pill from sm up; a
-            compact dot-only pill on mobile so the honesty signal survives. */}
-        {isApiMockMode && (
+        {/* Brand mark → dashboard. */}
+        <Link
+          href="/bridge"
+          aria-label="ProcuLink — go to dashboard"
+          className="flex items-center gap-2 flex-shrink-0"
+          style={{ color: "#FFFFFF", textDecoration: "none" }}
+        >
+          <ProcuLinkMark size={24} mono />
           <span
-            className="inline-flex items-center flex-shrink-0"
+            className="hidden sm:inline"
+            style={{ fontFamily: "'Bricolage Grotesque', Inter, system-ui, sans-serif", fontSize: 16, fontWeight: 700, letterSpacing: "-0.015em" }}
+          >
+            ProcuLink
+          </span>
+        </Link>
+
+        {/* Compact workspace switcher (opens a downward menu of real orgs). */}
+        <div className="hidden md:block flex-shrink-0">
+          <OrgSwitcher compact orgName={orgName} planLabel={planLabel} activePlan={activePlan} />
+        </div>
+
+        {/* Demo-mode badge — gated on the SAME isApiMockMode flag the data layer
+            uses, so the badge and the actual mock-data mode can never diverge.
+            Full pill from sm up; a compact dot-only pill on mobile. `ml-auto`
+            starts the right control cluster (also nudges controls right on
+            mobile where the nav is hidden). */}
+        {isApiMockMode ? (
+          <span
+            className="ml-auto inline-flex items-center flex-shrink-0"
             style={{
               gap: 6,
               height: 22,
@@ -499,55 +630,52 @@ export function BridgeTopbar({ crumb, onMenuClick }: BridgeTopbarProps) {
             <span className="hidden sm:inline">Demo data</span>
             <span className="sm:hidden">Demo</span>
           </span>
+        ) : (
+          // Anchor the right cluster to the row's end even when the demo badge
+          // is absent (keeps the nav left-of-center and controls flush right).
+          <span className="ml-auto" aria-hidden />
         )}
 
         {/* Setup progress chip — visible only while onboarding is genuinely
             incomplete (server-verified); hides itself at completion/unknown. */}
         <SetupProgressChip />
 
-        {/* cmd-K search field — right-aligned, opens the command palette */}
+        {/* Upload order — pinned primary create action (reuses the sidebar's
+            PINNED_ACTION_HREF). Blue = buyer/source action per the semantic law.
+            md+ shows the labelled button; mobile keeps it in the drawer. */}
+        <Link
+          href={PINNED_ACTION_HREF}
+          className="hidden md:flex items-center justify-center gap-2 flex-shrink-0 text-white"
+          style={{ height: 34, padding: "0 13px", borderRadius: 8, background: "#1E66C9", fontSize: 13, fontWeight: 600, boxShadow: "0 1px 2px rgba(0,0,0,0.28), inset 0 1px 0 rgba(255,255,255,0.14)", textDecoration: "none", transition: "background 140ms" }}
+          onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "#0F4FA8"; }}
+          onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "#1E66C9"; }}
+        >
+          <Upload size={15} strokeWidth={2} />
+          <span>Upload order</span>
+        </Link>
+
+        {/* Search — icon-only trigger for the ⌘K command palette (sm+). Icon-only
+            in the top nav so the primary nav keeps the row's width; the palette is
+            the real search. Kept a title with the ⌘K hint. */}
         <button
           type="button"
           aria-label="Search (⌘K)"
+          title="Search — ⌘K"
           onClick={() => setPaletteOpen(true)}
-          className="hidden items-center gap-2.5 rounded-[6px] px-[11px] transition-colors sm:flex ml-auto"
-          style={{
-            height: 34,
-            width: 320,
-            maxWidth: "38vw",
-            background: "#14253D",
-            border: "1px solid #1F3252",
-            color: "#7C8DA6",
-            fontSize: 12.5,
-          }}
-          onMouseEnter={(e) => {
-            (e.currentTarget as HTMLElement).style.borderColor = "#294063";
-            (e.currentTarget as HTMLElement).style.color = "#C8D1E0";
-          }}
-          onMouseLeave={(e) => {
-            (e.currentTarget as HTMLElement).style.borderColor = "#1F3252";
-            (e.currentTarget as HTMLElement).style.color = "#7C8DA6";
-          }}
+          className="hidden sm:flex items-center justify-center rounded-[6px] flex-shrink-0"
+          style={{ width: 32, height: 32, background: "transparent", border: "1px solid transparent", color: "#C8D1E0", cursor: "pointer", transition: "background 150ms, color 150ms" }}
+          onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "#14253D"; }}
+          onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "transparent"; }}
         >
-          <Search size={15} style={{ flexShrink: 0 }} />
-          {/* Claims only what the palette index actually searches (offer⇔works). */}
-          <span className="flex-1 text-left truncate">Search orders, suppliers, buyers…</span>
-          <kbd
-            className="flex items-center gap-0.5 rounded text-[10.5px] font-medium"
-            style={{ background: "#0a1626", border: "1px solid #1F3252", padding: "1px 5px", color: "#7C8DA6", fontFamily: "'JetBrains Mono', ui-monospace, monospace" }}
-          >
-            ⌘K
-          </kbd>
+          <Search size={17} strokeWidth={1.9} />
         </button>
 
-        {/* Mobile search — icon-only trigger for the command palette (the full
-            search field and ⌘K are unreachable below sm). ml-auto here pushes the
-            whole icon cluster right on mobile; hidden from sm up where the field shows. */}
+        {/* Mobile search — icon-only trigger for the command palette. */}
         <button
           type="button"
           aria-label="Search"
           onClick={() => setPaletteOpen(true)}
-          className="ml-auto flex sm:hidden items-center justify-center rounded-[6px] flex-shrink-0"
+          className="flex sm:hidden items-center justify-center rounded-[6px] flex-shrink-0"
           style={{
             width: 32,
             height: 32,
@@ -566,7 +694,35 @@ export function BridgeTopbar({ crumb, onMenuClick }: BridgeTopbarProps) {
           <NotificationsBell />
         </div>
 
-        {/* Help — dot badge while the current route's guide is unseen */}
+        {/* Admin — folded in from the sidebar TAIL. Admin-gated by
+            buildVisibleNav's /api/admin/access probe (adminItem is undefined
+            for non-admins); the page + every /api/admin endpoint re-gate
+            server-side, so this link never leaks access. */}
+        {adminItem && (
+          <Link
+            href={adminItem.href}
+            aria-label="Admin"
+            title="Admin"
+            className="hidden md:flex items-center justify-center rounded-[6px] relative flex-shrink-0"
+            style={{
+              width: 32,
+              height: 32,
+              background: "transparent",
+              border: "1px solid transparent",
+              color: "#C8D1E0",
+              textDecoration: "none",
+              transition: "background 150ms, color 150ms",
+            }}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "#14253D"; }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "transparent"; }}
+          >
+            <Lock size={16} strokeWidth={1.9} />
+          </Link>
+        )}
+
+        {/* Help — dot badge while the current route's guide is unseen. Opens the
+            help slideover (which itself links to /help + articles), so the
+            sidebar TAIL's "Help & support" destination stays reachable. */}
         <button
           ref={helpBtnRef}
           type="button"
@@ -582,7 +738,7 @@ export function BridgeTopbar({ crumb, onMenuClick }: BridgeTopbarProps) {
             setGuideUnseen(false);
             setHelpOpen(true);
           }}
-          className="hidden sm:flex items-center justify-center rounded-[6px] relative"
+          className="hidden sm:flex items-center justify-center rounded-[6px] relative flex-shrink-0"
           style={{
             width: 32,
             height: 32,
@@ -614,13 +770,41 @@ export function BridgeTopbar({ crumb, onMenuClick }: BridgeTopbarProps) {
           )}
         </button>
 
-        {/* Avatar / Clerk */}
+        {/* Account chip — real name/role, Profile · Settings · Sign out (Settings
+            folded in from the sidebar TAIL). Compact avatar-only trigger; the
+            menu opens downward from the top navbar. */}
         <div className="flex-shrink-0">
-          <AccountMenu />
+          <UserChipMenu collapsed placement="down" />
         </div>
       </div>
 
-      {/* ── Row 2 · Context row ──────────────────────────────────────
+      {/* ── Row 2 · Primary nav ──────────────────────────────────────
+          The top-level sections on their own row so they ALL stay visible at any
+          desktop width — they can't fit in the utility row above alongside the
+          org switcher, Upload, and account cluster (6 items + "Rules & formats"
+          need ~540px). md+ only; mobile uses the hamburger drawer. A right-edge
+          fade cues horizontal scroll on the rare narrow-desktop overflow. */}
+      <nav
+        aria-label="Primary"
+        className="hidden md:flex items-stretch px-3 sm:px-5"
+        style={{
+          height: 42,
+          borderTop: "1px solid #14253D",
+          overflowX: "auto",
+          overflowY: "hidden",
+          scrollbarWidth: "none",
+          WebkitMaskImage: "linear-gradient(to right, #000 calc(100% - 20px), transparent)",
+          maskImage: "linear-gradient(to right, #000 calc(100% - 20px), transparent)",
+        }}
+      >
+        {navItems.map((item) => {
+          const active = isItemActive(pathname, item);
+          const badge = item.badgeKey === "review" && reviewCount > 0 ? reviewCount : undefined;
+          return <TopNavLink key={item.href} item={item} active={active} badge={badge} />;
+        })}
+      </nav>
+
+      {/* ── Row 3 · Context row ──────────────────────────────────────
           The breadcrumb trail (desktop) / compact page label (mobile). Split
           out below the utility row to give the v2 two-row rhythm. It shows the
           navigation context — NOT a duplicate of the page's own H1 (pages render
