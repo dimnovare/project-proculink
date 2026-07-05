@@ -17,6 +17,23 @@ import { test, expect } from "@playwright/test";
 
 const PREVIEW_URL = "/upload/preview/ord-002";
 
+// Suppress the cookie-consent banner across this file. It's a fixed bottom-of-
+// viewport overlay; when a bottom-anchored CTA (the "Confirm mapping" commit
+// button) sits under it, a Playwright force-click dispatches at the button's
+// coordinates where the banner intercepts the pointer, so the commit never fires
+// and the navigation to /inbox/ord-002 times out. Pre-seed a decided consent so
+// the banner never renders (same key the app persists).
+test.beforeEach(async ({ page }) => {
+  await page.addInitScript(() => {
+    try {
+      window.localStorage.setItem("proculink_cookie_consent_v1", "functional-only");
+    } catch {
+      /* private mode — banner may still show; the tests that don't click a
+         bottom-anchored control are unaffected */
+    }
+  });
+});
+
 test.describe("MagicMappingPreview — /upload/preview/[orderId]", () => {
   test("renders the page header breadcrumb and heading", async ({ page }) => {
     await page.goto(PREVIEW_URL);
