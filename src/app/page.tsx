@@ -491,7 +491,10 @@ export default function RootPage() {
         <p style={{ textAlign: "center", fontSize: 12, fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: INK_MUTED, marginBottom: 26 }}>
           Speaks the formats your suppliers already use
         </p>
-        <div className="flex flex-wrap items-center justify-center gap-x-[38px] gap-y-4" style={{ maxWidth: 1180, margin: "0 auto", opacity: 0.8 }}>
+        {/* No opacity:0.8 — it blended the --ink-faint mono labels down to ~3.3:1
+            (WCAG fail). At full opacity the darkened --ink-faint token passes AA;
+            the labels are still visually "faint" via the token itself. */}
+        <div className="flex flex-wrap items-center justify-center gap-x-[38px] gap-y-4" style={{ maxWidth: 1180, margin: "0 auto" }}>
           {["PDF", "CSV", "Excel", "cXML", "UBL", "EDIFACT", "X12"].map((name) => (
             <span key={name} style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 15, fontWeight: 600, color: INK_FAINT, letterSpacing: "0.02em" }}>
               {name}
