@@ -607,8 +607,13 @@ export function BridgeDashboard() {
     : !ordersLoading && !ordersError;
   const showExceptionStrip = exceptionsCountReliable && openExceptionsAll > 0;
 
-  // ── In-transit rows (current pipeline activity; not windowed) ─────────────
-  const inTransitRows = (() => {
+  // ── In-transit rows (current pipeline activity) ───────────────────────────
+  // Capped to keep the card compact — each row is a two-line entry with a
+  // mini-stepper, so an unbounded list made the dashboard very tall. We show
+  // the first IN_TRANSIT_MAX and link the rest to the Inbox (honest — nothing
+  // is hidden, just paged).
+  const IN_TRANSIT_MAX = 6;
+  const inTransitAll = (() => {
     const liveRows = allOrders
       .filter((o) => ACTIVE_STATUSES.has(o.status))
       .map((o) => ({
@@ -625,6 +630,7 @@ export function BridgeDashboard() {
     }
     return liveRows;
   })();
+  const inTransitRows = inTransitAll.slice(0, IN_TRANSIT_MAX);
 
   // ── "Needs you" rows — the actionable hero (real orders in an open state) ──
   // Built from the same live working set as the KPIs. An order needs a human
@@ -1392,6 +1398,15 @@ export function BridgeDashboard() {
                       </div>
                     );
                   })
+                )}
+                {inTransitAll.length > IN_TRANSIT_MAX && (
+                  <Link
+                    href="/inbox"
+                    className="flex items-center justify-center px-4 py-2.5 text-[12px] font-medium transition-colors hover:bg-[#F6F7FA]"
+                    style={{ color: "#1E66C9" }}
+                  >
+                    See all {inTransitAll.length} in transit →
+                  </Link>
                 )}
               </div>
               </div>
