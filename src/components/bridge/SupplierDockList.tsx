@@ -905,12 +905,18 @@ function SupplierMobileCard({
   const autoState: "on" | "off" | "unset" = !config ? "unset" : config.autoDeliver ? "on" : "off";
 
   return (
-    <li>
+    // The card frame (border / white fill / shadow) lives on the <li> so the
+    // History link can sit in a real footer row INSIDE the same visual card
+    // while staying OUTSIDE the button (no nested interactive elements). This
+    // keeps the link tied to its card instead of floating orphaned in the gutter.
+    <li
+      className="overflow-hidden rounded-[12px]"
+      style={{ border: "1px solid #E5E8EE", background: "#FFFFFF", boxShadow: "0 1px 2px rgba(11,26,47,0.04)" }}
+    >
       <button
         type="button"
         onClick={onOpen}
-        className="block w-full rounded-[12px] p-4 text-left transition-colors active:opacity-95"
-        style={{ border: "1px solid #E5E8EE", background: "#FFFFFF", boxShadow: "0 1px 2px rgba(11,26,47,0.04)" }}
+        className="block w-full p-4 text-left transition-colors active:opacity-95"
       >
         {/* Card head: badge + name + code, chevron on the right */}
         <div className="flex items-center gap-3">
@@ -958,14 +964,17 @@ function SupplierMobileCard({
           </div>
         </dl>
       </button>
-      {/* Version-history link — sits OUTSIDE the card button (no nested
-          interactive elements); hidden when no connection exists yet. STRUCT-1:
-          the history view now lives on the supplier page (?tab=history). */}
+      {/* Version-history link — a card FOOTER row: still OUTSIDE the card button
+          (no nested interactive elements), but now inside the shared card frame
+          with a hairline top divider so it reads as part of this supplier's card
+          rather than floating orphaned in the gutter. Hidden when no connection
+          exists yet. STRUCT-1: the history view lives on the supplier page
+          (?tab=history). */}
       {connectionId && (
         <Link
           href={`/library/suppliers/${id}?tab=history`}
-          className="mt-1.5 inline-flex items-center px-1 py-1 text-[12px] font-medium"
-          style={{ color: TEXT_MUTED, textDecoration: "none" }}
+          className="flex items-center justify-end px-4 py-2.5 text-[12px] font-medium"
+          style={{ color: TEXT_MUTED, textDecoration: "none", borderTop: "1px solid #EEF1F6" }}
         >
           History ›
         </Link>
