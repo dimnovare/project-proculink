@@ -39,7 +39,10 @@ export default function MarketingLayout({
             </div>
             {FOOTER_COLS.map((col) => (
               <div key={col.h}>
-                <h4 style={{ color: "#FFFFFF", fontSize: 12.5, fontWeight: 600, marginBottom: 12 }}>{col.h}</h4>
+                {/* Footer column labels are nav-group headings, not part of the
+                    document outline — render as <p> so they don't create an
+                    h1→h4 heading-order jump (a11y). Visual is unchanged. */}
+                <p style={{ color: "#FFFFFF", fontSize: 12.5, fontWeight: 600, marginBottom: 12 }}>{col.h}</p>
                 <div className="flex flex-col gap-2.5">
                   {col.links.map(([label, href]) => (
                     <a key={label} href={href} style={{ color: "#9DB2CE", fontSize: 13, textDecoration: "none" }}>{label}</a>
