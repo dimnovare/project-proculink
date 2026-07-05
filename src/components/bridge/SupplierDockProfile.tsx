@@ -10,6 +10,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { ChevronLeft, ChevronRight, Trash2, Info, Clock, Link2, Truck, Plus, ShieldCheck, GitBranch } from "lucide-react";
 import { PoMappingEditor } from "./PoMappingEditor";
 import { DeliveryConfigEditor } from "./DeliveryConfigEditor";
+import { DeliveryGuidedSetup } from "./DeliveryGuidedSetup";
 import { CatalogSourceEditor } from "./CatalogSourceEditor";
 import { SupplierHistoryTab } from "@/components/connections/SupplierHistoryTab";
 import { upsertPoMapping, deletePoMapping } from "@/lib/api/mapping";
@@ -1131,6 +1132,9 @@ export function SupplierDockProfile({ id }: { id: string }) {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  // Bumped when the opt-in guided setup saves a config, so the DeliveryConfigEditor
+  // below remounts and reloads the freshly-saved delivery config from the API.
+  const [deliveryReloadNonce, setDeliveryReloadNonce] = useState(0);
   const tabRefs = useRef<Partial<Record<Tab, HTMLButtonElement | null>>>({});
 
   // Keep the active tab visible when the strip overflows horizontally (mobile).
@@ -1662,7 +1666,21 @@ export function SupplierDockProfile({ id }: { id: string }) {
         {tab === "delivery" && (
           <>
             <LiveEditNotice connectionId={connectionId} nounLower={partyNounLower} onOpenHistory={() => setTab("history")} />
-            <DeliveryConfigEditor supplierId={id} />
+            {/* Opt-in guided setup — an additive, on-brand stepper for non-technical
+                users. The single-form editor below stays the default; this is a quiet
+                entry point that produces the SAME saved config via the SAME APIs. On
+                save it bumps deliveryReloadNonce so the editor reloads what it wrote. */}
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-[8px] px-4 py-2.5" style={{ border: "1px solid #E5E8EE", background: "#FBFCFE" }}>
+              <p className="m-0 text-[12px]" style={{ color: "#5E6779" }}>
+                First time setting up delivery for this {partyNounLower}? We can walk you through it.
+              </p>
+              <DeliveryGuidedSetup
+                supplierId={id}
+                nounLower={partyNounLower}
+                onSaved={() => setDeliveryReloadNonce((n) => n + 1)}
+              />
+            </div>
+            <DeliveryConfigEditor key={deliveryReloadNonce} supplierId={id} />
           </>
         )}
 
