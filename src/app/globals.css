@@ -1,5 +1,6 @@
 /* Bridge Layer fonts */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&family=Bricolage+Grotesque:wght@500;600;700;800&display=swap');
+/* Google Fonts moved to a preconnected <link> in app/layout.tsx <head> — the
+   former @import here was render-blocking + serial (a big FCP/LCP cost). */
 
 @tailwind base;
 @tailwind components;
@@ -37,7 +38,11 @@
   /* Text */
   --ink:               #0B1A2F;
   --ink-muted:         #5E6779;
-  --ink-faint:         #98A0AE;
+  /* Faint text token. Darkened from #98A0AE (≈2.6:1 on white — failed WCAG for
+     text) to #667085 (≈5.2:1, passes AA) so faint labels/hints stay readable.
+     Used only on light surfaces; dark-chrome faint text uses its own hardcoded
+     light greys (#9DB2CE / #7C8DA6) and is unaffected. Founder-approved a11y fix. */
+  --ink-faint:         #667085;
 
   /* Semantic */
   --amber:             #B36D14;
