@@ -171,13 +171,11 @@ export default function AppShellLayout({
       <StripOrgSetFlag />
       <TooltipProvider>
        <ConfirmProvider>
-        {/* Bridge shell — full viewport, no scroll on the wrapper */}
+        {/* Bridge shell — full viewport, no scroll on the wrapper.
+            Desktop nav now lives in the top navbar (BridgeTopbar row 1); the
+            left sidebar was removed on md+. The mobile drawer below still
+            reuses BridgeSidebar for the full navigation on < md. */}
         <div className="flex h-dvh overflow-hidden" style={{ background: "#F6F7FA" }}>
-          {/* Left: 220px navy sidebar (compact rail in the md→lg band) */}
-          <div className="hidden md:block">
-            <BridgeSidebar collapsible collapseBelowLg />
-          </div>
-
           {sidebarOpen && (
             <div
               ref={drawerRef}

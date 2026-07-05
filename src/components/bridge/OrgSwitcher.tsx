@@ -76,7 +76,14 @@ const MENU_SURFACE: React.CSSProperties = {
 };
 
 interface OrgSwitcherProps {
-  collapsed: boolean;
+  /** Sidebar rail collapsed to the icon-only tile. Ignored when `compact`. */
+  collapsed?: boolean;
+  /**
+   * Top-navbar variant: a small inline chip (identity tile + name on lg+ +
+   * chevron) with no sidebar margins. The dropdown still opens downward and
+   * lists the same real orgs. Mutually exclusive with the sidebar card look.
+   */
+  compact?: boolean;
   /** Display name of the active workspace (falls back before Clerk resolves). */
   orgName: string;
   /** Card subline, e.g. "Growth plan" / "Loading…" (from the live billing query). */
@@ -85,7 +92,7 @@ interface OrgSwitcherProps {
   activePlan: string | null;
 }
 
-export function OrgSwitcher({ collapsed, orgName, planLabel, activePlan }: OrgSwitcherProps) {
+export function OrgSwitcher({ collapsed = false, compact = false, orgName, planLabel, activePlan }: OrgSwitcherProps) {
   const clerkConfigured = Boolean(process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY);
   const { organization: activeOrg } = useOrganization();
   const { userMemberships, setActive } = useOrganizationList({
@@ -127,6 +134,19 @@ export function OrgSwitcher({ collapsed, orgName, planLabel, activePlan }: OrgSw
   // ── Static card (Clerk not configured — mock/QA shells): no menu, no
   //    fabricated workspaces (offer ⇔ works). Same visual as the live card. ──
   if (!clerkConfigured) {
+    // Top-navbar compact chip (no menu when Clerk is absent).
+    if (compact) {
+      return (
+        <div
+          title={`${orgName} · ${planLabel}`}
+          className="flex items-center gap-2 rounded-[8px]"
+          style={{ background: "#14253D", border: "1px solid #1F3252", height: 34, padding: "0 9px" }}
+        >
+          <IdentityTile initials={initials} size={22} />
+          <span className="hidden lg:block text-[12.5px] font-semibold text-white truncate" style={{ maxWidth: 140 }}>{orgName}</span>
+        </div>
+      );
+    }
     return (
       <div
         title={collapsed ? `${orgName} · ${planLabel}` : undefined}
@@ -170,6 +190,121 @@ export function OrgSwitcher({ collapsed, orgName, planLabel, activePlan }: OrgSw
     setActive({ organization: orgId }).catch(() => setSwitchingId(null));
   };
 
+  // The dropdown surface — shared by the sidebar card and the compact top-navbar
+  // chip so the two triggers open an identical Workspaces menu (anchored downward).
+  const renderMenu = () =>
+    anchor && (
+      <div
+        ref={menuRef}
+        role="menu"
+        aria-label="Workspaces"
+        style={{ ...MENU_SURFACE, top: anchor.top, left: anchor.left, width: anchor.width }}
+      >
+        <div
+          className="uppercase"
+          style={{ fontSize: 9.5, fontWeight: 700, letterSpacing: "0.12em", color: "#98A0AE", padding: "10px 12px 5px" }}
+        >
+          Workspaces
+        </div>
+
+        {rows.map((org) => {
+          const isActiveRow = org.id === activeOrg?.id;
+          return (
+            <button
+              key={org.id}
+              type="button"
+              role="menuitem"
+              onClick={() => pick(org.id)}
+              disabled={switchingId !== null}
+              className="flex w-full items-center gap-2.5 text-left"
+              style={{ padding: "7px 12px", background: "#FFFFFF", border: "none", cursor: switchingId ? "wait" : "pointer" }}
+              onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "#F6F7FA"; }}
+              onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "#FFFFFF"; }}
+            >
+              <IdentityTile initials={orgInitials(org.name)} size={26} />
+              <span className="min-w-0 flex-1" style={{ lineHeight: 1.25 }}>
+                <span className="block truncate" style={{ fontSize: 12.5, fontWeight: 600, color: "#0B1A2F" }}>
+                  {org.name}
+                </span>
+                {/* Plan is only known (billing query) for the ACTIVE org — never
+                    fabricate a tier for the others. */}
+                {isActiveRow && activePlan && (
+                  <span className="block" style={{ fontSize: 10.5, color: "#98A0AE", marginTop: 1 }}>
+                    {activePlan}
+                  </span>
+                )}
+                {switchingId === org.id && (
+                  <span className="block" style={{ fontSize: 10.5, color: "#98A0AE", marginTop: 1 }}>
+                    Switching…
+                  </span>
+                )}
+              </span>
+              {isActiveRow && <Check size={15} strokeWidth={2.4} style={{ color: "#2E8E3A", flexShrink: 0 }} aria-label="Current workspace" />}
+            </button>
+          );
+        })}
+
+        <div style={{ height: 1, background: "#E5E8EE", margin: "4px 0" }} aria-hidden />
+
+        {/* Clerk's own modal enforces whether org creation is permitted for
+            this instance/user — it is the source of truth, not us. */}
+        <button
+          type="button"
+          role="menuitem"
+          onClick={() => {
+            setOpen(false);
+            clerk.openCreateOrganization({ afterCreateOrganizationUrl: "/bridge" });
+          }}
+          className="flex w-full items-center gap-2 text-left"
+          style={{ padding: "9px 12px", background: "#FFFFFF", border: "none", cursor: "pointer", fontSize: 12.5, fontWeight: 600, color: "#1E66C9" }}
+          onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "#F6F7FA"; }}
+          onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "#FFFFFF"; }}
+        >
+          <Plus size={14} strokeWidth={2.2} aria-hidden />
+          Add company…
+        </button>
+      </div>
+    );
+
+  // ── Compact top-navbar chip: identity tile + name (lg+) + chevron, no
+  //    sidebar margins, same downward menu. ──
+  if (compact) {
+    return (
+      <>
+        <button
+          ref={btnRef}
+          type="button"
+          onClick={toggle}
+          aria-haspopup="menu"
+          aria-expanded={open}
+          aria-label={`Workspace: ${orgName}. Switch workspace`}
+          title={`${orgName} · ${planLabel}`}
+          className="flex items-center gap-2 rounded-[8px]"
+          style={{
+            background: "#14253D",
+            border: "1px solid #1F3252",
+            height: 34,
+            padding: "0 9px",
+            cursor: "pointer",
+            transition: "border-color 140ms, background 140ms",
+          }}
+          onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.borderColor = "#294063"; }}
+          onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.borderColor = "#1F3252"; }}
+        >
+          <IdentityTile initials={initials} size={22} />
+          <span className="hidden lg:block text-[12.5px] font-semibold text-white truncate" style={{ maxWidth: 140 }}>{orgName}</span>
+          <ChevronDown
+            size={14}
+            strokeWidth={2}
+            style={{ color: "#7C8DA6", flexShrink: 0, transform: open ? "rotate(180deg)" : "none", transition: "transform 150ms" }}
+            aria-hidden
+          />
+        </button>
+        {open && anchor && renderMenu()}
+      </>
+    );
+  }
+
   return (
     <>
       <button
@@ -209,78 +344,7 @@ export function OrgSwitcher({ collapsed, orgName, planLabel, activePlan }: OrgSw
         )}
       </button>
 
-      {open && anchor && (
-        <div
-          ref={menuRef}
-          role="menu"
-          aria-label="Workspaces"
-          style={{ ...MENU_SURFACE, top: anchor.top, left: anchor.left, width: anchor.width }}
-        >
-          <div
-            className="uppercase"
-            style={{ fontSize: 9.5, fontWeight: 700, letterSpacing: "0.12em", color: "#98A0AE", padding: "10px 12px 5px" }}
-          >
-            Workspaces
-          </div>
-
-          {rows.map((org) => {
-            const isActiveRow = org.id === activeOrg?.id;
-            return (
-              <button
-                key={org.id}
-                type="button"
-                role="menuitem"
-                onClick={() => pick(org.id)}
-                disabled={switchingId !== null}
-                className="flex w-full items-center gap-2.5 text-left"
-                style={{ padding: "7px 12px", background: "#FFFFFF", border: "none", cursor: switchingId ? "wait" : "pointer" }}
-                onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "#F6F7FA"; }}
-                onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "#FFFFFF"; }}
-              >
-                <IdentityTile initials={orgInitials(org.name)} size={26} />
-                <span className="min-w-0 flex-1" style={{ lineHeight: 1.25 }}>
-                  <span className="block truncate" style={{ fontSize: 12.5, fontWeight: 600, color: "#0B1A2F" }}>
-                    {org.name}
-                  </span>
-                  {/* Plan is only known (billing query) for the ACTIVE org — never
-                      fabricate a tier for the others. */}
-                  {isActiveRow && activePlan && (
-                    <span className="block" style={{ fontSize: 10.5, color: "#98A0AE", marginTop: 1 }}>
-                      {activePlan}
-                    </span>
-                  )}
-                  {switchingId === org.id && (
-                    <span className="block" style={{ fontSize: 10.5, color: "#98A0AE", marginTop: 1 }}>
-                      Switching…
-                    </span>
-                  )}
-                </span>
-                {isActiveRow && <Check size={15} strokeWidth={2.4} style={{ color: "#2E8E3A", flexShrink: 0 }} aria-label="Current workspace" />}
-              </button>
-            );
-          })}
-
-          <div style={{ height: 1, background: "#E5E8EE", margin: "4px 0" }} aria-hidden />
-
-          {/* Clerk's own modal enforces whether org creation is permitted for
-              this instance/user — it is the source of truth, not us. */}
-          <button
-            type="button"
-            role="menuitem"
-            onClick={() => {
-              setOpen(false);
-              clerk.openCreateOrganization({ afterCreateOrganizationUrl: "/bridge" });
-            }}
-            className="flex w-full items-center gap-2 text-left"
-            style={{ padding: "9px 12px", background: "#FFFFFF", border: "none", cursor: "pointer", fontSize: 12.5, fontWeight: 600, color: "#1E66C9" }}
-            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "#F6F7FA"; }}
-            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "#FFFFFF"; }}
-          >
-            <Plus size={14} strokeWidth={2.2} aria-hidden />
-            Add company…
-          </button>
-        </div>
-      )}
+      {open && renderMenu()}
     </>
   );
 }
