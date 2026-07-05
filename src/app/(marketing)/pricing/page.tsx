@@ -667,7 +667,9 @@ const PRICING_CSS = `
 }
 @media (max-width: 760px) {
   .plk-pricing-grid { grid-template-columns: 1fr; }
-  .plk-reco-cta { margin-left: 0; width: 100%; }
+  /* On mobile the CTA wraps to its own full-width row beneath the plan readout;
+     add a clear gap so "≈ €X/mo" doesn't crowd the "Start with …" button. */
+  .plk-reco-cta { margin-left: 0; width: 100%; margin-top: 16px; }
 }
 @media (max-width: 560px) {
   .plk-wrap { padding: 0 18px; }

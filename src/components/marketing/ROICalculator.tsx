@@ -393,8 +393,13 @@ export function ROICalculator() {
             />
           </div>
 
-          {/* Outputs */}
-          <div style={{ display: "flex", flexDirection: "column", gap: 14, alignSelf: "start" }}>
+          {/* Outputs — the result rows sit a touch further apart on mobile (gap-5
+              = 20px) so the € figures don't crowd each other or the recommendation
+              panel; desktop keeps the tighter 14px rhythm (md:gap-[14px]). */}
+          <div
+            className="flex flex-col gap-5 md:gap-[14px]"
+            style={{ alignSelf: "start" }}
+          >
             {/* Net monthly savings — wide, NET of the plan's effective cost */}
             <StatCard
               label="Net monthly savings (after plan cost)"
@@ -438,8 +443,11 @@ export function ROICalculator() {
               />
             </div>
 
-            {/* Plan recommendation */}
+            {/* Plan recommendation — a hair more breathing room above it on mobile
+                (mt-1) so the dark panel reads as a distinct conclusion below the
+                stacked stat cards; desktop keeps the flex rhythm (md:mt-0). */}
             <div
+              className="mt-1 md:mt-0"
               style={{
                 background: T.ink,
                 color: "#FFFFFF",
