@@ -1,7 +1,11 @@
 import type { MDXComponents } from "mdx/types";
 import type { ReactNode } from "react";
 import Link from "next/link";
-import HelpArticleShell from "@/components/help/HelpArticleShell";
+// The MDX `wrapper` must be a Server Component so each page.mdx's
+// `export const metadata` reaches the rendered <title>/<meta>. This server
+// shell renders the client `HelpArticleShell` chrome inside it. See
+// HelpArticleShellServer.tsx for the full rationale (the help SEO fix).
+import HelpArticleShell from "@/components/help/HelpArticleShellServer";
 
 /**
  * MDX renderer for the Help center articles (the only `.mdx` pages in the app).
