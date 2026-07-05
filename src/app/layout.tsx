@@ -71,6 +71,17 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en">
       <head>
+        {/* Fonts as a preconnected <head> stylesheet instead of a CSS @import.
+            @import was render-blocking + serial (download globals.css → discover
+            the import → fetch Google CSS → fetch font files), a big FCP/LCP cost.
+            preconnect warms the connection and the <link> is discovered
+            immediately + loads in parallel. Same families, display=swap. */}
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link
+          rel="stylesheet"
+          href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&family=Bricolage+Grotesque:wght@500;600;700;800&display=swap"
+        />
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{
