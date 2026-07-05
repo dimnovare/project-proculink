@@ -200,7 +200,12 @@ export function useMDXComponents(components: MDXComponents): MDXComponents {
     ),
 
     pre: ({ children }) => (
+      // `help-scroll` gives the horizontally-scrollable code block a persistent
+      // slim scrollbar (globals.css) so a clipped-but-scrollable sample reads as
+      // "scroll for more" rather than "cut off" — the wide format samples (EDI/
+      // XML/JSON) overflow 390px on mobile and touch scrollbars otherwise hide.
       <pre
+        className="help-scroll"
         style={{
           background: "#F6F8FB",
           border: "1px solid #E2E6EE",

@@ -730,6 +730,17 @@
 .no-scrollbar { scrollbar-width: none; -ms-overflow-style: none; }
 .no-scrollbar::-webkit-scrollbar { display: none; }
 
+/* Help-centre code blocks (mdx `pre`): a subtle right-edge fade cues the
+   horizontal scroll on the wide format samples (EDI / XML / JSON) so a clipped
+   line reads as "scroll for more" rather than "cut off". The fade sits over the
+   right padding when the sample fits (invisible) and over content only when it
+   overflows — same affordance as the standards matrix. Touch scrollbars auto-
+   hide, so this is the discoverability cue on mobile. */
+.help-scroll {
+  -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 22px), transparent);
+          mask-image: linear-gradient(to right, #000 calc(100% - 22px), transparent);
+}
+
 /* ── Disclosure chevron ────────────────────────────────────────────────────
    For <details> whose <summary> sets list-style:none (removing the native
    triangle). Add [data-disclosure-chevron] to a child icon; it points right
