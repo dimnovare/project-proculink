@@ -97,7 +97,10 @@ test.describe("MagicMappingPreview — /upload/preview/[orderId]", () => {
   });
 
   test("clicking 'Accept all' marks suggestions accepted then commit navigates to order detail", async ({ page }) => {
-    test.setTimeout(60_000); // cold-compile of /inbox/[orderId] can exceed 30s default under CI load
+    // /inbox/[orderId] (the Order Workshop) is a heavy route; its first cold-compile
+    // under CI load can exceed 30s — verified live that the page loads, it's just
+    // slow to compile — so give both the test and the navigation generous budgets.
+    test.setTimeout(90_000);
     await page.goto(PREVIEW_URL);
 
     await expect(
@@ -125,7 +128,7 @@ test.describe("MagicMappingPreview — /upload/preview/[orderId]", () => {
     // Use force:true to bypass any overlapping Clerk dev-mode panel.
     // /inbox/[orderId] is cold-compiled on first navigation — generous timeout.
     await Promise.all([
-      page.waitForURL(/\/inbox\/ord-002/i, { timeout: 30_000 }),
+      page.waitForURL(/\/inbox\/ord-002/i, { timeout: 60_000 }),
       commitBtn.click({ force: true }),
     ]);
 
@@ -146,6 +149,9 @@ test.describe("UploadWorkbench — post-upload routes to the Order Workshop", ()
    * adds 4×600ms + 200ms = 2.6s. Total wait budget: 15 s.
    */
   test("upload a file and land on the Order Workshop (/inbox/<id>)", async ({ page }) => {
+    // Insurance for a cold /inbox/[orderId] compile if this runs before the
+    // warm-up test above (test order/sharding): give the navigation room.
+    test.setTimeout(90_000);
     await page.goto("/upload");
 
     await expect(
@@ -174,7 +180,7 @@ test.describe("UploadWorkbench — post-upload routes to the Order Workshop", ()
 
     // Wait for navigation to the Order Workshop at /inbox/<dynamic-id>
     // (NOT /upload/preview — STRUCT-2 routes upload straight to the superset workshop).
-    await page.waitForURL(/\/inbox\/[^/]+$/i, { timeout: 15_000 });
+    await page.waitForURL(/\/inbox\/[^/]+$/i, { timeout: 45_000 });
     expect(page.url()).not.toMatch(/\/upload\/preview\//i);
   });
 });
