@@ -703,7 +703,11 @@ export function MagicMappingPreview({ orderId, onCommitted, onParseFailed }: Pro
         flexDirection: "column",
         background: "#F6F7FA",
         borderRadius: 8,
-        overflow: "hidden",
+        // NOTE: intentionally NOT overflow:hidden. An overflow scrollport on this
+        // root would trap the sticky commit bar below (its stick context would
+        // become this non-scrolling box, so it never pins to the viewport and can
+        // slide under the fixed cookie-consent banner on tall/mobile content).
+        // Corner clipping is preserved by rounding the header top + footer bottom.
         border: "1px solid #E5E8EE",
       }}
     >
@@ -713,6 +717,8 @@ export function MagicMappingPreview({ orderId, onCommitted, onParseFailed }: Pro
           padding: "16px 20px 14px",
           background: "#FFFFFF",
           borderBottom: "1px solid #E5E8EE",
+          borderTopLeftRadius: 8,
+          borderTopRightRadius: 8,
         }}
       >
         <h2
@@ -1343,7 +1349,13 @@ export function MagicMappingPreview({ orderId, onCommitted, onParseFailed }: Pro
           gap: 12,
           flexWrap: "wrap",
           position: "sticky",
-          bottom: 0,
+          // Pins to the viewport bottom, lifted clear of the fixed cookie-consent
+          // banner while it's visible (--plk-bottom-inset); 0 once dismissed. The
+          // PageShell spacer reserves matching scroll room so the lift holds at
+          // max scroll. Rounded bottom corners restore the card's clipped look.
+          bottom: "var(--plk-bottom-inset, 0px)",
+          borderBottomLeftRadius: 8,
+          borderBottomRightRadius: 8,
         }}
       >
         <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>

@@ -349,7 +349,9 @@ export function MobileTriage(props: MobileTriageProps) {
         data-testid="mobile-send-bar"
         style={{
           position: "sticky",
-          bottom: 0,
+          // Lift above the fixed cookie-consent banner while it's visible
+          // (--plk-bottom-inset), else pin to the bottom as before.
+          bottom: "var(--plk-bottom-inset, 0px)",
           flexShrink: 0,
           background: "#FFFFFF",
           borderTop: `1px solid ${HAIRLINE}`,

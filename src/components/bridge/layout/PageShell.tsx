@@ -43,6 +43,12 @@ export function PageShell({ variant = "narrow", children, className }: PageShell
         style={{ maxWidth }}
       >
         {children}
+        {/* Reserves scroll room equal to the fixed cookie-consent banner's height
+            while it's visible (--plk-bottom-inset, set by CookieConsentBanner),
+            so bottom-anchored content and sticky CTAs on any PageShell page clear
+            the banner instead of hiding behind it. Collapses to 0 once consent is
+            chosen or when the banner never shows — no layout change otherwise. */}
+        <div aria-hidden style={{ height: "var(--plk-bottom-inset, 0px)", flex: "0 0 auto" }} />
       </div>
     </div>
   );
