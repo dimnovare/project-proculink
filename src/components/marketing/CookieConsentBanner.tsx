@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useCookieConsent } from "@/lib/cookie-consent";
 
 export function CookieConsentBanner() {
@@ -16,10 +16,44 @@ export function CookieConsentBanner() {
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
 
+  // Publish the banner's occupied height as --plk-bottom-inset so bottom-pinned
+  // primary action bars (upload/preview commit, mobile workshop send) can lift
+  // clear of the fixed banner while it's visible. The banner is out of flow
+  // (position: fixed) and reserves no layout space, so without this it overlaps
+  // those bars on first visit. Reset to 0 whenever the banner is not shown —
+  // no visual change once consent is chosen or when the banner never appears.
+  const bannerRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    const root = document.documentElement;
+    const reset = () => root.style.setProperty("--plk-bottom-inset", "0px");
+    const visible = mounted && consent === "unknown";
+    if (!visible) {
+      reset();
+      return;
+    }
+    const el = bannerRef.current;
+    if (!el) return;
+    const apply = () => {
+      // Occupied height from the viewport bottom = banner height + its 16px
+      // bottom offset + a small breathing gap, measured live so it stays correct
+      // across the compact-mobile / full-desktop variants and copy wrapping.
+      const h = el.getBoundingClientRect().height;
+      root.style.setProperty("--plk-bottom-inset", `${Math.ceil(h) + 16 + 10}px`);
+    };
+    apply();
+    const ro = new ResizeObserver(apply);
+    ro.observe(el);
+    return () => {
+      ro.disconnect();
+      reset();
+    };
+  }, [mounted, consent]);
+
   if (!mounted || consent !== "unknown") return null;
 
   return (
     <div
+      ref={bannerRef}
       role="dialog"
       aria-label="Cookie consent"
       // Compact on mobile (tighter padding, smaller gap) so the banner stays

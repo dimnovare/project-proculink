@@ -44,6 +44,14 @@
      light greys (#9DB2CE / #7C8DA6) and is unaffected. Founder-approved a11y fix. */
   --ink-faint:         #667085;
 
+  /* Bottom inset reserved for the fixed cookie-consent banner. Default 0; the
+     banner (src/components/marketing/CookieConsentBanner.tsx) sets this to its
+     measured occupied height while visible so bottom-pinned primary action bars
+     (upload/preview commit, mobile workshop send) lift clear of it. Resets to 0
+     the moment consent is chosen, so there is zero visual change once dismissed
+     and none at all when the banner never shows. */
+  --plk-bottom-inset:  0px;
+
   /* Semantic */
   --amber:             #B36D14;
   --amber-soft:        #FAF1DD;
