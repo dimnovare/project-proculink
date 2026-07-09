@@ -78,7 +78,7 @@ export function CookieConsentBanner() {
         className="m-0 flex-1 basis-full text-[12.5px] leading-snug text-[#3D4A5C] sm:hidden"
       >
         Functional cookies only — optional analytics.{" "}
-        <Link href="/privacy" style={{ color: "#2E8E3A" }}>Privacy Policy</Link>
+        <Link href="/privacy" style={{ color: "#1E6D29" }}>Privacy Policy</Link>
       </p>
       {/* Full copy on sm+ (desktop variant unchanged). */}
       <p
@@ -93,7 +93,7 @@ export function CookieConsentBanner() {
       >
         ProcuLink uses functional cookies to keep you signed in, and optional analytics
         cookies to improve the product. We don&apos;t use advertising or cross-site tracking.{" "}
-        <Link href="/privacy" style={{ color: "#2E8E3A" }}>See our Privacy Policy</Link>.
+        <Link href="/privacy" style={{ color: "#1E6D29" }}>See our Privacy Policy</Link>.
       </p>
       <div className="flex flex-1 gap-2 sm:flex-none">
         <button

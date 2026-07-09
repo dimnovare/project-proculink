@@ -43,7 +43,7 @@ function slugify(node: ReactNode): string {
 }
 
 const linkClass =
-  "font-medium underline underline-offset-2 transition-colors text-[#28C55E] hover:text-[#1DAF50] rounded-[2px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#28C55E] focus-visible:ring-offset-2";
+  "font-medium underline underline-offset-2 transition-colors text-[#1E6D29] hover:text-[#2E8E3A] rounded-[2px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#28C55E] focus-visible:ring-offset-2";
 
 function MdxLink({
   href = "",

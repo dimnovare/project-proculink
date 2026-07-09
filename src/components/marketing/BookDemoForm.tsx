@@ -89,7 +89,7 @@ export function BookDemoForm() {
         </div>
         <p style={{ ...S.hint, marginTop: 12, marginBottom: 0 }}>
           Want to add anything in the meantime? Email{" "}
-          <a href="mailto:hello@proculink.eu" style={{ color: "#2E8E3A" }}>hello@proculink.eu</a>.
+          <a href="mailto:hello@proculink.eu" style={{ color: "#1E6D29" }}>hello@proculink.eu</a>.
         </p>
       </div>
     );

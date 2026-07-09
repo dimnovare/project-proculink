@@ -147,7 +147,7 @@ function FeedbackPrompt({ slug, title }: { slug: string; title?: string }) {
           </button>
         </div>
       ) : (
-        <span className="text-[13px]" style={{ color: "#2E8E3A" }} role="status">
+        <span className="text-[13px]" style={{ color: "#1E6D29" }} role="status">
           {answer === "yes"
             ? "Thanks for the feedback."
             : "Thanks — we'll work on making this clearer."}

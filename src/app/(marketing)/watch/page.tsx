@@ -59,7 +59,7 @@ export default function WatchPage() {
           >
             <source src={videoUrl} type="video/mp4" />
             Your browser can&apos;t play embedded video.{" "}
-            <a href={videoUrl} style={{ color: "#2E8E3A" }}>Download the walkthrough</a>.
+            <a href={videoUrl} style={{ color: "#1E6D29" }}>Download the walkthrough</a>.
           </video>
         </div>
       ) : loomUrl ? (
@@ -73,19 +73,19 @@ export default function WatchPage() {
         </div>
       ) : (
         <div style={{ background: "#F6F7FA", border: "1px dashed #C6CDDA", borderRadius: 12, padding: 48, textAlign: "center", color: "var(--ink-faint)", fontSize: 14 }}>
-          The walkthrough is coming shortly. In the meantime, email <a href="mailto:hello@proculink.eu" style={{ color: "#2E8E3A" }}>hello@proculink.eu</a> for a guided demo.
+          The walkthrough is coming shortly. In the meantime, email <a href="mailto:hello@proculink.eu" style={{ color: "#1E6D29" }}>hello@proculink.eu</a> for a guided demo.
         </div>
       )}
 
       <p style={{ marginTop: 36, fontSize: 14, color: "#56627A" }}>
-        Prefer a live walkthrough? <Link href="/pricing" style={{ color: "#2E8E3A" }}>See pricing</Link>
+        Prefer a live walkthrough? <Link href="/pricing" style={{ color: "#1E6D29" }}>See pricing</Link>
         {" "}or{" "}
         {BOOK_DEMO_IS_EXTERNAL ? (
-          <a href={BOOK_DEMO_URL} target="_blank" rel="noopener noreferrer" style={{ color: "#2E8E3A" }}>
+          <a href={BOOK_DEMO_URL} target="_blank" rel="noopener noreferrer" style={{ color: "#1E6D29" }}>
             book a demo
           </a>
         ) : (
-          <Link href={BOOK_DEMO_URL} style={{ color: "#2E8E3A" }}>
+          <Link href={BOOK_DEMO_URL} style={{ color: "#1E6D29" }}>
             book a demo
           </Link>
         )}.
