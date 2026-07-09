@@ -61,7 +61,7 @@ export default function SubprocessorsPage() {
         <strong>30-day change notification.</strong> Before adding or replacing a subprocessor,
         we will give existing customers at least 30 days&apos; prior written notice. To
         subscribe to subprocessor change notifications, email{" "}
-        <a href="mailto:privacy@proculink.eu" style={{ color: "#2E8E3A" }}>privacy@proculink.eu</a>{" "}
+        <a href="mailto:privacy@proculink.eu" style={{ color: "#1E6D29" }}>privacy@proculink.eu</a>{" "}
         with the subject line &quot;Subprocessor notifications&quot;. We track the subscriber list
         manually and will email all subscribers when this page changes.
       </div>
@@ -74,9 +74,9 @@ export default function SubprocessorsPage() {
       </p>
 
       <p style={{ ...S.p, marginTop: 40, paddingTop: 24, borderTop: "1px solid #E2E6EE" }}>
-        <Link href="/dpa" style={{ color: "#2E8E3A", marginRight: 16 }}>Data Processing Addendum</Link>
-        <Link href="/privacy" style={{ color: "#2E8E3A", marginRight: 16 }}>Privacy Policy</Link>
-        <Link href="/security" style={{ color: "#2E8E3A" }}>Security</Link>
+        <Link href="/dpa" style={{ color: "#1E6D29", marginRight: 16 }}>Data Processing Addendum</Link>
+        <Link href="/privacy" style={{ color: "#1E6D29", marginRight: 16 }}>Privacy Policy</Link>
+        <Link href="/security" style={{ color: "#1E6D29" }}>Security</Link>
       </p>
     </div>
   );

@@ -35,7 +35,7 @@ export default function DpaPage() {
 
       <div style={S.callout}>
         <strong>For customers who need a counter-signed DPA:</strong> Email{" "}
-        <a href="mailto:legal@proculink.eu" style={{ color: "#2E8E3A" }}>legal@proculink.eu</a>{" "}
+        <a href="mailto:legal@proculink.eu" style={{ color: "#1E6D29" }}>legal@proculink.eu</a>{" "}
         and include your organisation legal name and contact for signature. We will return
         a counter-signed PDF within 5 business days.
       </div>
@@ -44,7 +44,7 @@ export default function DpaPage() {
       <p style={S.p}>
         Capitalised terms used but not defined here have the meaning given in the GDPR.
         &quot;Service&quot; means the ProcuLink procurement automation platform as described in
-        the <Link href="/terms" style={{ color: "#2E8E3A" }}>Terms of Service</Link>.
+        the <Link href="/terms" style={{ color: "#1E6D29" }}>Terms of Service</Link>.
       </p>
 
       <h2 style={S.h2}>2. Roles and scope</h2>
@@ -62,14 +62,14 @@ export default function DpaPage() {
         <li style={S.li}>Use sub-processors only as listed in <strong>Annex III</strong> and provide 30 days&apos; prior written notice of additions or replacements.</li>
         <li style={S.li}>Assist the Controller in responding to data-subject rights requests under GDPR Chapter III.</li>
         <li style={S.li}>Notify the Controller without undue delay (within 72 hours of awareness) of any personal data breach affecting the Controller&apos;s data.</li>
-        <li style={S.li}>On termination, delete or return all Controller personal data within the retention windows in the <Link href="/privacy" style={{ color: "#2E8E3A" }}>Privacy Policy</Link>.</li>
+        <li style={S.li}>On termination, delete or return all Controller personal data within the retention windows in the <Link href="/privacy" style={{ color: "#1E6D29" }}>Privacy Policy</Link>.</li>
         <li style={S.li}>Make available the information necessary to demonstrate compliance with GDPR Art. 28(3).</li>
       </ul>
 
       <h2 style={S.h2}>4. International transfers</h2>
       <p style={S.p}>
         All Controller personal data is processed in EU-region or EU-compliant infrastructure
-        as described in the <Link href="/subprocessors" style={{ color: "#2E8E3A" }}>Subprocessors</Link>{" "}
+        as described in the <Link href="/subprocessors" style={{ color: "#1E6D29" }}>Subprocessors</Link>{" "}
         page. Where any sub-processor processes data outside the EEA, the relevant Standard
         Contractual Clauses (Commission Implementing Decision 2021/914) apply.
       </p>
@@ -89,7 +89,7 @@ export default function DpaPage() {
       <h3 style={S.h3}>Processor</h3>
       <p style={S.p}>
         {LEGAL_ENTITY_REFERENCE} · Contact:{" "}
-        <a href="mailto:legal@proculink.eu" style={{ color: "#2E8E3A" }}>legal@proculink.eu</a>
+        <a href="mailto:legal@proculink.eu" style={{ color: "#1E6D29" }}>legal@proculink.eu</a>
       </p>
 
       <h3 style={S.h3}>Categories of data subjects</h3>
@@ -105,7 +105,7 @@ export default function DpaPage() {
       <h3 style={S.h3}>Purpose and duration</h3>
       <p style={S.p}>
         Processing is for the provision of the Service and runs for the term of the agreement
-        plus the retention windows described in the <Link href="/privacy" style={{ color: "#2E8E3A" }}>Privacy Policy</Link>.
+        plus the retention windows described in the <Link href="/privacy" style={{ color: "#1E6D29" }}>Privacy Policy</Link>.
       </p>
 
       <h2 style={S.h2}>Annex II — Technical and organisational measures</h2>
@@ -123,17 +123,17 @@ export default function DpaPage() {
       <h2 style={S.h2}>Annex III — Authorised sub-processors</h2>
       <p style={S.p}>
         The current list of authorised sub-processors is maintained at{" "}
-        <Link href="/subprocessors" style={{ color: "#2E8E3A" }}>/subprocessors</Link>. The
+        <Link href="/subprocessors" style={{ color: "#1E6D29" }}>/subprocessors</Link>. The
         Controller may subscribe to change notifications by emailing{" "}
-        <a href="mailto:privacy@proculink.eu" style={{ color: "#2E8E3A" }}>privacy@proculink.eu</a>{" "}
+        <a href="mailto:privacy@proculink.eu" style={{ color: "#1E6D29" }}>privacy@proculink.eu</a>{" "}
         with the subject line &quot;Subprocessor notifications&quot;.
       </p>
 
       <p style={{ ...S.p, marginTop: 40, paddingTop: 24, borderTop: "1px solid #E2E6EE" }}>
-        <Link href="/privacy" style={{ color: "#2E8E3A", marginRight: 16 }}>Privacy Policy</Link>
-        <Link href="/terms" style={{ color: "#2E8E3A", marginRight: 16 }}>Terms of Service</Link>
-        <Link href="/subprocessors" style={{ color: "#2E8E3A", marginRight: 16 }}>Subprocessors</Link>
-        <Link href="/security" style={{ color: "#2E8E3A" }}>Security</Link>
+        <Link href="/privacy" style={{ color: "#1E6D29", marginRight: 16 }}>Privacy Policy</Link>
+        <Link href="/terms" style={{ color: "#1E6D29", marginRight: 16 }}>Terms of Service</Link>
+        <Link href="/subprocessors" style={{ color: "#1E6D29", marginRight: 16 }}>Subprocessors</Link>
+        <Link href="/security" style={{ color: "#1E6D29" }}>Security</Link>
       </p>
     </div>
   );

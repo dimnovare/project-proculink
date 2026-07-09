@@ -183,7 +183,7 @@ export function BookDemoForm() {
 
       <div style={S.actions}>
         <p style={{ fontSize: 12.5, color: "var(--ink-faint)", margin: 0 }}>
-          Prefer email? <a href="mailto:hello@proculink.eu?subject=ProcuLink%20demo" style={{ color: "#2E8E3A" }}>hello@proculink.eu</a>
+          Prefer email? <a href="mailto:hello@proculink.eu?subject=ProcuLink%20demo" style={{ color: "#1E6D29" }}>hello@proculink.eu</a>
         </p>
         <button
           type="submit"
