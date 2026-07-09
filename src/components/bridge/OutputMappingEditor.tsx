@@ -97,6 +97,28 @@ export function buildOverrideDraft(opts: {
   return base;
 }
 
+/**
+ * Build the READ-ONLY draft the "try an expression" tester sends to the existing
+ * preview endpoint (which never persists a supplied draft). PURE — unit-tested.
+ *
+ * It reuses the CURRENT editor draft so custom fields resolve exactly as they will
+ * in the saved template, swaps in just the one expression as the whole-document
+ * template (text/plain), and NULLS outputTree: the preview endpoint renders a
+ * structured output tree at HIGHEST precedence, which would hijack the render and
+ * never evaluate the expression.
+ */
+export function buildExpressionTestDraft(
+  base: OrderMappingOverride,
+  expression: string,
+): OrderMappingOverride {
+  return {
+    ...base,
+    outputTemplate: expression,
+    outputTemplateContentType: "text/plain",
+    outputTree: null,
+  };
+}
+
 const inputStyle: React.CSSProperties = {
   minHeight: 36, border: "1px solid #CBD0DA", borderRadius: 6, padding: "5px 8px", fontSize: 12.5,
 };
@@ -301,10 +323,13 @@ function TemplateReferencePanel({ onInsert }: { onInsert: (token: string) => voi
 
 // A few copyable Scriban expressions so a non-technical user can write a template
 // without leaving the screen. Collapsed by default; does not change editor behavior.
+// Names are CASE-SENSITIVE and must match the template model's PascalCase keys
+// (identity member-renamer on the backend — snake_case like {{ po_number }} silently
+// renders EMPTY). Each example below is verified against the real render sandbox.
 const FORMULA_EXAMPLES: Array<{ code: string; label: string }> = [
-  { code: "{{ po_number }}", label: "insert a field" },
-  { code: '{{ order_date | date.to_string "yyyy-MM-dd" }}', label: "format a date" },
-  { code: "{{ buyer_name | string.upcase }}", label: "uppercase" },
+  { code: "{{ OrderNr }}", label: "insert a field" },
+  { code: '{{ OrderDate | date.parse | date.to_string "%d.%m.%Y" }}', label: "reformat the order date" },
+  { code: "{{ BuyerName | string.upcase }}", label: "uppercase" },
 ];
 
 function FormulaHelpRow({ code, label }: { code: string; label: string }) {
@@ -332,7 +357,80 @@ function FormulaHelpRow({ code, label }: { code: string; label: string }) {
   );
 }
 
-function FormulaHelp() {
+// "Try an expression" — evaluates ONE Scriban expression against THIS order via the
+// existing read-only preview endpoint (server-side render, real order data — never a
+// client-side approximation). Explicit click / Enter only; nothing fires per keystroke.
+// The whole-template live preview below already tests the FULL template as you type —
+// this box exists so a single expression can be tried in isolation before it's woven in.
+function ExpressionTester({ onTest }: {
+  onTest: (expression: string) => Promise<{ content: string | null; error?: string | null }>;
+}) {
+  const [expr, setExpr] = useState("");
+  const [testing, setTesting] = useState(false);
+  const [result, setResult] = useState<{ value: string | null; error: string | null } | null>(null);
+  const trimmed = expr.trim();
+
+  async function run() {
+    if (!trimmed || testing) return;
+    setTesting(true);
+    try {
+      const r = await onTest(trimmed);
+      // The endpoint returns render errors as data (HTTP 200 { ok:false, error }) —
+      // surface the backend's message verbatim, never swallow it.
+      setResult(r.error ? { value: null, error: r.error } : { value: r.content ?? "", error: null });
+    } catch (e) {
+      setResult({ value: null, error: e instanceof Error ? e.message : "Test failed" });
+    } finally {
+      setTesting(false);
+    }
+  }
+
+  return (
+    <div style={{ borderTop: "1px dashed #E5E8EE", paddingTop: 10, display: "flex", flexDirection: "column", gap: 6 }}>
+      <div style={{ fontSize: 10.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em", color: "#5E6779" }}>
+        Try an expression
+      </div>
+      <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+        <input
+          value={expr}
+          onChange={(e) => setExpr(e.target.value)}
+          onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); void run(); } }}
+          placeholder="{{ OrderNr }}"
+          aria-label="Expression to test"
+          spellCheck={false}
+          style={{ ...inputStyle, flex: "1 1 220px", minWidth: 160, fontFamily: "'JetBrains Mono',monospace" }}
+        />
+        <button type="button" onClick={() => void run()} disabled={!trimmed || testing}
+          style={{ minHeight: 36, padding: "0 12px", border: "1px solid #1E66C9", borderRadius: 6, background: "#FFFFFF", color: "#1E66C9", fontSize: 11.5, fontWeight: 600, cursor: !trimmed || testing ? "default" : "pointer", opacity: !trimmed || testing ? 0.6 : 1 }}>
+          {testing ? "Testing…" : "Test with this order"}
+        </button>
+      </div>
+      {result && (result.error != null ? (
+        <div role="alert" style={{ fontSize: 11.5, color: "#B36D14", background: "#FBF3E4", border: "1px solid #F0DCAE", borderRadius: 6, padding: "7px 9px", whiteSpace: "pre-wrap" }}>
+          {result.error}
+        </div>
+      ) : result.value === "" ? (
+        // Honest empty: unknown field names render BLANK (not an error) on the backend,
+        // so say so instead of showing a silent nothing.
+        <div style={{ fontSize: 11.5, color: "#5E6779", background: "#F6F7FA", border: "1px solid #E5E8EE", borderRadius: 6, padding: "7px 9px", lineHeight: 1.5 }}>
+          Rendered <strong>empty</strong> for this order — an unknown field name renders blank rather than
+          failing. Names are case-sensitive; check the available fields below.
+        </div>
+      ) : (
+        <div aria-label="Expression result" style={{ display: "flex", gap: 8, alignItems: "baseline" }}>
+          <span aria-hidden style={{ fontSize: 11.5, color: "var(--ink-faint)" }}>→</span>
+          <code style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11.5, color: "#0B1A2F", background: "#F6F7FA", border: "1px solid #E5E8EE", borderRadius: 6, padding: "4px 8px", whiteSpace: "pre-wrap", wordBreak: "break-word", flex: 1 }}>
+            {result.value}
+          </code>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function FormulaHelp({ onTestExpression }: {
+  onTestExpression: (expression: string) => Promise<{ content: string | null; error?: string | null }>;
+}) {
   return (
     <details style={{ marginBottom: 8 }}>
       <summary style={{ cursor: "pointer", fontSize: 11.5, fontWeight: 600, color: "#5E6779" }}>
@@ -348,19 +446,21 @@ function FormulaHelp() {
             Mapping basics
           </Link>
         </div>
+        <ExpressionTester onTest={onTestExpression} />
       </div>
     </details>
   );
 }
 
 function TemplateEditor({
-  template, contentType, onTemplateChange, onContentTypeChange, onInsertStarter, textareaRef,
+  template, contentType, onTemplateChange, onContentTypeChange, onInsertStarter, onTestExpression, textareaRef,
 }: {
   template: string;
   contentType: string;
   onTemplateChange: (v: string) => void;
   onContentTypeChange: (v: string) => void;
   onInsertStarter: () => void;
+  onTestExpression: (expression: string) => Promise<{ content: string | null; error?: string | null }>;
   textareaRef: React.RefObject<HTMLTextAreaElement | null>;
 }) {
   return (
@@ -382,7 +482,7 @@ function TemplateEditor({
           Insert starter template
         </button>
       </div>
-      <FormulaHelp />
+      <FormulaHelp onTestExpression={onTestExpression} />
       <textarea
         ref={textareaRef}
         value={template}
@@ -513,6 +613,19 @@ export function OutputMappingEditor({
       existingOutputTree: existing?.outputTree ?? null,
     }),
     [customFields, headerRows, lineRows, templateMode, template, templateContentType, existing],
+  );
+
+  // "Try an expression" — server-side render of ONE expression against THIS order via
+  // the existing read-only preview endpoint (a supplied draft is never persisted). Built
+  // from the CURRENT draft so custom fields resolve exactly as a saved template would;
+  // buildExpressionTestDraft nulls outputTree so a designed structure can't hijack the
+  // render. Explicit-click only — the tester component never calls this per keystroke.
+  // (A changed callback identity only re-renders the module-level children; it cannot
+  // remount them or steal focus.)
+  const testExpression = useCallback(
+    (expression: string) =>
+      previewMappingOverride(orderId, buildExpressionTestDraft(draft, expression), "json"),
+    [orderId, draft],
   );
 
   const [preview, setPreview] = useState<{ content: string | null; warning?: string; error?: string; format?: string } | null>(null);
@@ -705,6 +818,7 @@ export function OutputMappingEditor({
                 onTemplateChange={setTemplate}
                 onContentTypeChange={setTemplateContentType}
                 onInsertStarter={insertStarter}
+                onTestExpression={testExpression}
                 textareaRef={templateRef}
               />
               <TemplateReferencePanel onInsert={insertToken} />
