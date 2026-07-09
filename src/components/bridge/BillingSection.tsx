@@ -10,6 +10,7 @@ import { useState } from "react";
 import type { BillingPlan, BillingStatus } from "@/types/procurement";
 import { PLAN_BY_ID, CHECKOUT_PLAN_IDS, yearlySavePercent } from "@/lib/plans";
 import { capture } from "@/lib/analytics";
+import { BOOK_DEMO_URL, BOOK_DEMO_LINK_ATTRS } from "@/lib/book-demo";
 
 type BillingInterval = "monthly" | "yearly";
 
@@ -385,30 +386,27 @@ export function BillingSection() {
           <a href="mailto:sales@proculink.eu" style={{ fontSize: 12, color: "var(--ink-faint)" }}>
             Need Enterprise? Contact sales
           </a>
-          {process.env.NEXT_PUBLIC_BOOK_DEMO_URL && (
-            <a
-              href={process.env.NEXT_PUBLIC_BOOK_DEMO_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-              onClick={() => capture("book_demo_clicked", { from_route: "/settings", plan: "pilot" })}
-              style={{
-                marginTop: 4,
-                alignSelf: "flex-start",
-                background: "var(--surface)",
-                color: "var(--ink)",
-                border: "1px solid var(--border-strong)",
-                borderLeft: "3px solid var(--brand-green)",
-                borderRadius: 8,
-                padding: "9px 14px",
-                fontSize: 12.5,
-                fontWeight: 600,
-                textDecoration: "none",
-                display: "inline-block",
-              }}
-            >
-              Book a 15-min demo →
-            </a>
-          )}
+          <a
+            href={BOOK_DEMO_URL}
+            {...BOOK_DEMO_LINK_ATTRS}
+            onClick={() => capture("book_demo_clicked", { from_route: "/settings", plan: "pilot" })}
+            style={{
+              marginTop: 4,
+              alignSelf: "flex-start",
+              background: "var(--surface)",
+              color: "var(--ink)",
+              border: "1px solid var(--border-strong)",
+              borderLeft: "3px solid var(--brand-green)",
+              borderRadius: 8,
+              padding: "9px 14px",
+              fontSize: 12.5,
+              fontWeight: 600,
+              textDecoration: "none",
+              display: "inline-block",
+            }}
+          >
+            Book a demo →
+          </a>
         </div>
       )}
 

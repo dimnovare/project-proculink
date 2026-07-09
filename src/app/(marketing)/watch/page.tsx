@@ -3,16 +3,16 @@
 import { useEffect } from "react";
 import Link from "next/link";
 import { capture } from "@/lib/analytics";
+import { BOOK_DEMO_URL, BOOK_DEMO_IS_EXTERNAL } from "@/lib/book-demo";
 
 export default function WatchPage() {
   // Priority: a self-hosted MP4 (e.g. in R2) → a Loom embed → a quiet fallback.
   const videoUrl = process.env.NEXT_PUBLIC_WALKTHROUGH_VIDEO_URL ?? "";
   const posterUrl = process.env.NEXT_PUBLIC_WALKTHROUGH_VIDEO_POSTER ?? "";
   const loomUrl = process.env.NEXT_PUBLIC_WALKTHROUGH_LOOM_URL ?? "";
-  // Booking link is optional (offer⇔works): only promise a live/booked demo when
-  // a real scheduling URL is configured; otherwise degrade to the email fallback
-  // and drop any duration claim we can't guarantee.
-  const bookDemoUrl = process.env.NEXT_PUBLIC_BOOK_DEMO_URL ?? "";
+  // Booking link: defaults to our own /book-demo request page (honest — a form,
+  // not an instant calendar). NEXT_PUBLIC_BOOK_DEMO_URL stays as an escape hatch
+  // to point at an external scheduler; only external links open in a new tab.
 
   useEffect(() => {
     if (videoUrl) capture("watch_demo_started", { source: "r2" });
@@ -79,22 +79,16 @@ export default function WatchPage() {
 
       <p style={{ marginTop: 36, fontSize: 14, color: "#56627A" }}>
         Prefer a live walkthrough? <Link href="/pricing" style={{ color: "#2E8E3A" }}>See pricing</Link>
-        {bookDemoUrl ? (
-          <>
-            {" "}or{" "}
-            <a href={bookDemoUrl} target="_blank" rel="noopener noreferrer" style={{ color: "#2E8E3A" }}>
-              book a demo
-            </a>.
-          </>
+        {" "}or{" "}
+        {BOOK_DEMO_IS_EXTERNAL ? (
+          <a href={BOOK_DEMO_URL} target="_blank" rel="noopener noreferrer" style={{ color: "#2E8E3A" }}>
+            book a demo
+          </a>
         ) : (
-          <>
-            {" "}or email{" "}
-            <a href="mailto:hello@proculink.eu?subject=ProcuLink%20demo" style={{ color: "#2E8E3A" }}>
-              hello@proculink.eu
-            </a>{" "}
-            to set up a walkthrough.
-          </>
-        )}
+          <Link href={BOOK_DEMO_URL} style={{ color: "#2E8E3A" }}>
+            book a demo
+          </Link>
+        )}.
       </p>
     </div>
   );
