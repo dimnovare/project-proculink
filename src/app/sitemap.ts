@@ -13,6 +13,7 @@ const routes = [
   // Help articles come straight from the registry — a hand list can't drift.
   ...HELP_ARTICLES.map((a) => `/help/${a.slug}`),
   "/watch",
+  "/book-demo",
   "/support",
   "/privacy",
   "/terms",

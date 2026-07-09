@@ -50,7 +50,7 @@ export { ApiHttpError, isApiMockMode };
 // Placed near the top of api-client.ts so the support form chip doesn't
 // merge-conflict with the concurrent runSampleOrder chip landing at the bottom.
 export interface SupportContactPayload {
-  category: "general" | "bug" | "billing" | "security";
+  category: "general" | "bug" | "billing" | "security" | "demo";
   subject?: string;
   message: string;
   userEmail?: string;

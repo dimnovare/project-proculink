@@ -15,6 +15,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { ApiHttpError, apiClient, getBillingStatus, isApiMockMode, type DetectFormatResult } from "@/lib/api-client";
 import type { Supplier } from "@/types/procurement";
 import { capture } from "@/lib/analytics";
+import { BOOK_DEMO_URL, BOOK_DEMO_LINK_ATTRS } from "@/lib/book-demo";
 import { useOrderDirection } from "@/hooks/useOrderDirection";
 import { useQueriesEnabled } from "@/hooks/useQueriesEnabled";
 import { useOnboardingStatus } from "@/hooks/useOnboardingStatus";
@@ -766,7 +767,7 @@ export function UploadWorkbench() {
       <div className="mx-auto flex w-full min-w-0 max-w-[1040px] flex-col gap-4">
 
         {/* Phase 10.3 — Pilot Book-a-demo CTA */}
-        {billing?.plan === "pilot" && process.env.NEXT_PUBLIC_BOOK_DEMO_URL && (
+        {billing?.plan === "pilot" && (
           <div
             style={{
               background: "#F6F7FA",
@@ -782,12 +783,11 @@ export function UploadWorkbench() {
             }}
           >
             <p style={{ margin: 0, fontSize: 13.5, color: "#3D4A5C" }}>
-              On Pilot? Get a guided 15-minute walkthrough with the team.
+              On Pilot? Get a guided walkthrough with the team — on your own sample order.
             </p>
             <a
-              href={process.env.NEXT_PUBLIC_BOOK_DEMO_URL}
-              target="_blank"
-              rel="noopener noreferrer"
+              href={BOOK_DEMO_URL}
+              {...BOOK_DEMO_LINK_ATTRS}
               onClick={() => capture("book_demo_clicked", { from_route: "/upload", plan: "pilot" })}
               style={{
                 background: "#0B1A2F",
@@ -800,7 +800,7 @@ export function UploadWorkbench() {
                 whiteSpace: "nowrap",
               }}
             >
-              Book a 15-min demo →
+              Book a demo →
             </a>
           </div>
         )}
