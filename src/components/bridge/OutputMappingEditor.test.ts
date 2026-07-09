@@ -4,8 +4,8 @@
 // sourceMap through or every source→canonical wire is silently destroyed.
 
 import { describe, it, expect } from "vitest";
-import { buildOverrideDraft } from "./OutputMappingEditor";
-import type { OutputFieldRule, SourceFieldRule } from "@/lib/api/types";
+import { buildOverrideDraft, buildExpressionTestDraft } from "./OutputMappingEditor";
+import type { OutputFieldRule, OutputNodeTemplate, SourceFieldRule } from "@/lib/api/types";
 
 const baseOpts = {
   customFields: [],
@@ -64,5 +64,36 @@ describe("buildOverrideDraft — template-mode precedence (unchanged behaviour)"
     const off = buildOverrideDraft({ ...baseOpts, templateMode: false, template: "leftover" });
     expect(off.outputTemplate).toBeNull();
     expect(off.outputTemplateContentType).toBeNull();
+  });
+});
+
+describe("buildExpressionTestDraft — the 'try an expression' preview draft", () => {
+  const tree: OutputNodeTemplate = { format: "xml", root: { name: "Order", nodeType: "object" } };
+
+  it("swaps in the expression as a text/plain whole-document template", () => {
+    const base = buildOverrideDraft({ ...baseOpts, templateMode: true, template: '{ "po": "{{ OrderNr }}" }' });
+    const test = buildExpressionTestDraft(base, "{{ BuyerName | string.upcase }}");
+    expect(test.outputTemplate).toBe("{{ BuyerName | string.upcase }}");
+    expect(test.outputTemplateContentType).toBe("text/plain");
+    // The user's draft template itself is untouched.
+    expect(base.outputTemplate).toBe('{ "po": "{{ OrderNr }}" }');
+  });
+
+  it("NULLS outputTree — a designed structure renders at highest precedence and would hijack the test", () => {
+    const base = buildOverrideDraft({ ...baseOpts, existingOutputTree: tree });
+    expect(base.outputTree).toEqual(tree); // sanity: the save draft keeps the tree
+    const test = buildExpressionTestDraft(base, "{{ OrderNr }}");
+    expect(test.outputTree).toBeNull();
+  });
+
+  it("carries custom fields and sourceMap through so the expression sees the same model a saved template would", () => {
+    const base = buildOverrideDraft({
+      ...baseOpts,
+      customFields: [{ key: "contract_no", label: "Contract no.", scope: "header", value: "C-1" }],
+      existingSourceMap: wiredSourceMap,
+    });
+    const test = buildExpressionTestDraft(base, "{{ contract_no }}");
+    expect(test.customFields).toEqual(base.customFields);
+    expect(test.sourceMap).toEqual(wiredSourceMap);
   });
 });
