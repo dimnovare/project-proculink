@@ -364,14 +364,18 @@ export const CATEGORY_META: Record<
   HelpCategory,
   { color: string; soft: string; icon: HelpIconName }
 > = {
-  "Getting started": { color: "#28C55E", soft: "#DCFCE7", icon: "upload" },
-  Connections:       { color: "#1E66C9", soft: "#E3EDFB", icon: "connections" },
-  Mapping:           { color: "#C97A14", soft: "#FAEFD6", icon: "map" },
-  Delivery:          { color: "#2E8E3A", soft: "#E2F1E2", icon: "deliver" },
+  // Text colors are the DEEP member of each hue family so the 12px semibold
+  // eyebrow text passes WCAG AA (4.5:1) on its pastel `soft` background — the
+  // bright/mid variants (#28C55E, #2E8E3A, #C97A14, #C53A3A) measured 1.9–3.9:1
+  // there (Lighthouse color-contrast). Fills/illustrations keep the brand mids.
+  "Getting started": { color: "#1E6D29", soft: "#DCFCE7", icon: "upload" },
+  Connections:       { color: "#0F4FA8", soft: "#E3EDFB", icon: "connections" },
+  Mapping:           { color: "#7A4D0B", soft: "#FAEFD6", icon: "map" },
+  Delivery:          { color: "#1E6D29", soft: "#E2F1E2", icon: "deliver" },
   Integrations:      { color: "#56627A", soft: "#EFF2F7", icon: "integrations" },
   AI:                { color: "#6F4FCE", soft: "#EEE7FB", icon: "ai" },
   Billing:           { color: "#0F4FA8", soft: "#E3EDFB", icon: "billing" },
-  Troubleshooting:   { color: "#C53A3A", soft: "#FBE3E3", icon: "wrench" },
+  Troubleshooting:   { color: "#9E2B2B", soft: "#FBE3E3", icon: "wrench" },
 };
 
 /** Category render order for filter chips — mirrors the learning path. */
