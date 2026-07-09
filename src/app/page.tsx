@@ -1,11 +1,68 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useState, type ReactNode } from "react";
 import { ProcuLinkMark } from "@/components/bridge/DSPrimitives";
-import { BridgeIllustration } from "@/components/marketing/BridgeIllustration";
 import { MarketingNav } from "@/components/marketing/MarketingNav";
-import { ROICalculator } from "@/components/marketing/ROICalculator";
+
+// ─── Code-split heavy sections ────────────────────────────────────────────────
+// Both are ssr: true (the default): their markup stays in the prerendered HTML
+// (SEO copy + zero CLS on first load) while their JS moves out of the page's
+// main chunk and hydrates lazily. The loading fallbacks below only ever show
+// during CLIENT-SIDE navigations and reserve the same box to avoid layout shift.
+
+// Hero SVG topology (~9 kB source) — decorative but part of first paint, so it
+// must stay server-rendered. Fallback reserves the SVG's exact aspect-ratio box
+// (viewBox 800×340, width 100%).
+const BridgeIllustration = dynamic(
+  () => import("@/components/marketing/BridgeIllustration").then((m) => m.BridgeIllustration),
+  { loading: () => <div aria-hidden style={{ width: "100%", aspectRatio: "800 / 340" }} /> },
+);
+
+// ROI calculator (~22 kB source + plans lib) — below the fold, interactive, but
+// its headings/fine-print are real marketing copy, so keep ssr: true. Fallback
+// mirrors the section's shell (same paddings, card grid, min-heights) so a
+// client-side nav reserves the space instead of shifting the CTA band up.
+const ROICalculator = dynamic(
+  () => import("@/components/marketing/ROICalculator").then((m) => m.ROICalculator),
+  { loading: () => <ROICalculatorFallback /> },
+);
+
+function ROICalculatorFallback() {
+  const card = { background: "#FFFFFF", border: "1px solid #E2E6EE", borderRadius: 12 };
+  return (
+    <section
+      id="roi"
+      className="px-4 sm:px-8"
+      aria-hidden
+      style={{
+        background: "#F6F7FA",
+        borderTop: "1px solid #E2E6EE",
+        borderBottom: "1px solid #E2E6EE",
+        paddingTop: 64,
+        paddingBottom: 64,
+        scrollMarginTop: 70,
+      }}
+    >
+      <div style={{ maxWidth: 1100, margin: "0 auto" }}>
+        <div style={{ marginBottom: 40, minHeight: 152 }} />
+        <div className="grid grid-cols-1 md:grid-cols-2" style={{ gap: 28 }}>
+          <div style={{ ...card, minHeight: 556 }} />
+          <div className="flex flex-col gap-5 md:gap-[14px]" style={{ alignSelf: "start" }}>
+            <div style={{ ...card, minHeight: 150 }} />
+            <div className="grid grid-cols-1 sm:grid-cols-2" style={{ gap: 14 }}>
+              <div style={{ ...card, minHeight: 150 }} />
+              <div style={{ ...card, minHeight: 150 }} />
+            </div>
+            <div className="mt-1 md:mt-0" style={{ background: "#0B1A2F", borderRadius: 12, minHeight: 240 }} />
+          </div>
+        </div>
+        <div style={{ marginTop: 32, minHeight: 96 }} />
+      </div>
+    </section>
+  );
+}
 import { COPYRIGHT_NOTICE } from "@/lib/legal-entity";
 import {
   INBOUND_FORMAT_COUNT,
