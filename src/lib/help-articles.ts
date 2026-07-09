@@ -92,6 +92,8 @@ export const HELP_ARTICLES: HelpArticle[] = [
     category: "Getting started",
     keywords: ["csv", "xlsx", "excel", "columns", "headers", "encoding", "utf-8", "decimal separator", "delimiter", "purchase order upload"],
     readMin: 4,
+    videoUrl: `${TOOL_VIDEO_BASE}/csv-xlsx-field-guide.mp4`,
+    videoPosterUrl: `${TOOL_VIDEO_BASE}/csv-xlsx-field-guide-poster.jpg`,
   },
   // ── Connections ──────────────────────────────────────────────────────────
   {
@@ -185,6 +187,8 @@ export const HELP_ARTICLES: HelpArticle[] = [
     category: "Delivery",
     keywords: ["cxml", "coupa", "ariba", "OrderRequest", "network id", "shared secret", "punchout", "supplier network", "credential domain", "sap"],
     readMin: 4,
+    videoUrl: `${TOOL_VIDEO_BASE}/cxml-setup.mp4`,
+    videoPosterUrl: `${TOOL_VIDEO_BASE}/cxml-setup-poster.jpg`,
   },
   {
     slug: "oauth2-delivery-setup",
@@ -193,6 +197,8 @@ export const HELP_ARTICLES: HelpArticle[] = [
     category: "Delivery",
     keywords: ["oauth2", "client credentials", "access token", "token endpoint", "http delivery", "bearer", "authStyle", "tokenPath", "webhook auth"],
     readMin: 4,
+    videoUrl: `${TOOL_VIDEO_BASE}/oauth2-delivery-setup.mp4`,
+    videoPosterUrl: `${TOOL_VIDEO_BASE}/oauth2-delivery-setup-poster.jpg`,
   },
   {
     slug: "sftp-ftps-delivery-keys",
@@ -201,6 +207,8 @@ export const HELP_ARTICLES: HelpArticle[] = [
     category: "Delivery",
     keywords: ["sftp", "ftps", "private key", "openssh", "ppk", "puttygen", "certificate validation", "delivery credentials", "file delivery", "leave blank to keep"],
     readMin: 5,
+    videoUrl: `${TOOL_VIDEO_BASE}/sftp-ftps-delivery-keys.mp4`,
+    videoPosterUrl: `${TOOL_VIDEO_BASE}/sftp-ftps-delivery-keys-poster.jpg`,
   },
   {
     slug: "erp-erply-and-directo",
@@ -236,6 +244,8 @@ export const HELP_ARTICLES: HelpArticle[] = [
     category: "Integrations",
     keywords: ["inbound order api", "ingress endpoint", "X-ProcuLink-Key", "api key", "json order body", "zapier", "make webhooks", "idempotency key", "push order", "workspace slug"],
     readMin: 4,
+    videoUrl: `${TOOL_VIDEO_BASE}/api-order-schema-reference.mp4`,
+    videoPosterUrl: `${TOOL_VIDEO_BASE}/api-order-schema-reference-poster.jpg`,
   },
   {
     slug: "sftp-polling-setup",
@@ -244,6 +254,8 @@ export const HELP_ARTICLES: HelpArticle[] = [
     category: "Integrations",
     keywords: ["sftp", "polling", "pull", "order files", "host", "port 22", "private key", "password", "folder path", "schedule"],
     readMin: 3,
+    videoUrl: `${TOOL_VIDEO_BASE}/sftp-polling-setup.mp4`,
+    videoPosterUrl: `${TOOL_VIDEO_BASE}/sftp-polling-setup-poster.jpg`,
   },
   {
     slug: "s3-polling-setup",

@@ -1,0 +1,43 @@
+{
+  "id": "csv-xlsx-field-guide",
+  "toolName": "CSV & XLSX orders",
+  "route": "/upload",
+  "kicker": "Setup guide",
+  "outroLine": "Your columns, your format — parsed as-is.",
+  "beats": [
+    {
+      "id": "b1-open",
+      "shot": "Land on /upload; cursor traces the accepted-format line; a real CSV is dropped — 'Detected: CSV' appears.",
+      "actionLeadMs": 400,
+      "extraMs": 2000,
+      "vo": "C S V and X L S X are the two most common ways an order arrives, and both parse the same way. Row one is the header, every row after it is a line — and headers are matched by name, never by position."
+    },
+    {
+      "id": "b2-required",
+      "shot": "Code overlay: the dropped CSV's text with the header row highlighted; header fields read from the first row that carries a value.",
+      "vo": "There's no rigid template, and nothing in the file is strictly required — a recognisable header row and one line is enough. Anything missing is defaulted or left open for review, and header fields like P O number, date, buyer and currency are read from the first row that carries a value."
+    },
+    {
+      "id": "b3-headers",
+      "shot": "Code overlay: 'Buyer Item Code', 'buyerItemCode' and 'BUYER_ITEM_CODE' all normalising to the same field; an unknown column shown as ignored.",
+      "vo": "You don't have to rename your columns. ProcuLink lowercases each header and strips spaces and punctuation — so Buyer Item Code, written three different ways, resolves to the same field. And a column it doesn't recognise is simply ignored."
+    },
+    {
+      "id": "b4-encoding",
+      "shot": "Code overlay: encoding behaviour — UTF-8 decode, BOM stripped, line endings normalised; a legacy Windows-codepage file garbles accents/€ (no auto-detection).",
+      "vo": "Files decode as UTF-8. A byte-order mark is stripped and line endings are normalised automatically. There is no legacy-codepage detection though — a file saved in an old Windows encoding can garble accents and the euro sign, so choose C S V UTF-8 when you export."
+    },
+    {
+      "id": "b5-decimals",
+      "shot": "Code overlay: the number rules — both separators → last one is the decimal; semicolon-delimited = European signal; an ambiguous CSV number is flagged for review, never guessed.",
+      "vo": "Numbers are read locale-aware. When a value carries both a dot and a comma, the last one is the decimal separator — so European and U S styles both read correctly. A semicolon-delimited file is the reliable European signal. And when a C S V number is truly ambiguous, ProcuLink refuses to guess — that line is flagged for review instead of shipping a silently wrong value."
+    },
+    {
+      "id": "b6-review",
+      "shot": "Overlay dismissed; supplier picked; 'Upload & review' clicked — the parsed order opens for review.",
+      "actionLeadMs": 300,
+      "extraMs": 1500,
+      "vo": "Then the parsed order opens for review, line by line. X L S X follows the same shape, read from the first worksheet — and it's an input format only. ProcuLink delivers back out in whatever format the supplier requires."
+    }
+  ]
+}

@@ -1,0 +1,45 @@
+{
+  "id": "cxml-setup",
+  "toolName": "cXML setup",
+  "route": "/library/suppliers/22222222-2222-2222-2222-222222222222?tab=delivery",
+  "kicker": "Setup guide",
+  "outroLine": "Match the identities exactly — then prove the route.",
+  "beats": [
+    {
+      "id": "b1-open",
+      "shot": "Land on the supplier's Delivery tab (HTTP selected). Cursor touches the protocol rail, opens Output format and picks cXML — the network-credentials block reveals.",
+      "actionLeadMs": 400,
+      "extraMs": 800,
+      "vo": "cXML is the format supplier networks like Coupa, Ariba and Jaggaer speak. On this supplier's Delivery tab, pick cXML as the output format — and every order for this supplier is converted to cXML right before it's sent."
+    },
+    {
+      "id": "b2-parties",
+      "shot": "Cursor rests on the 'cXML network credentials' block and traces the three party rows — From, To, Sender — each a domain + identity pair.",
+      "vo": "cXML proves who you are with three party identities in the message header — From, To, and Sender. Each one is a domain, which names the identifier scheme, and an identity, the value inside it."
+    },
+    {
+      "id": "b3-from-to",
+      "shot": "Cursor fills From domain (DUNS) + From identity, then To domain (NetworkId) + To identity. Obviously-sample values only.",
+      "actionLeadMs": 300,
+      "extraMs": 2200,
+      "vo": "From is usually you, the buyer. To is the supplier, or their network. The supplier gives you these exact values — an identity with its matching domain. A mismatched domain is the most common reason an endpoint rejects the credential, so copy both exactly as issued."
+    },
+    {
+      "id": "b4-secret",
+      "shot": "Cursor fills Sender domain + identity, then types into 'Sender shared secret' (placeholder: Optional — supplier-issued shared secret).",
+      "actionLeadMs": 300,
+      "extraMs": 2000,
+      "vo": "Sender is the party that authenticates the connection — often the same as From — and it carries the shared secret the network issued you. That secret is write-only. Once saved, it's encrypted and never shown back — and when you edit later, leaving it blank keeps the stored one."
+    },
+    {
+      "id": "b5-test",
+      "shot": "Cursor moves to the footer Test-fire button and rests on it (dimmed until the setup is saved; never clicked — no mock backend).",
+      "vo": "Once the setup is saved, test-fire it. ProcuLink posts a real test payload to the endpoint and shows you the exact result it got back."
+    },
+    {
+      "id": "b6-outcome",
+      "shot": "Cursor rests on the green 'How sending works' card — the honest endpoint-answered-is-not-acceptance framing.",
+      "vo": "And be precise about what a green result means. The endpoint answered — that is not the same as the supplier accepting the order. A cXML network returns its own acceptance status, and an order can still be rejected downstream. ProcuLink never pretends otherwise."
+    }
+  ]
+}

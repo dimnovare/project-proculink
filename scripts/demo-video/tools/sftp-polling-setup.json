@@ -1,0 +1,46 @@
+{
+  "id": "sftp-polling-setup",
+  "toolName": "SFTP polling",
+  "route": "/settings?tab=sftp",
+  "kicker": "Setup guide",
+  "outroLine": "Set it once — new order files import themselves.",
+  "beats": [
+    {
+      "id": "b1-open",
+      "shot": "Land on Settings → SFTP pull (?tab=sftp deep-link). Cursor settles on the card title, sweeps the subtitle, rests on the paid-plan notice.",
+      "vo": "When a system exports purchase orders to an S F T P server, ProcuLink can log in, pick up new files, and parse them — automatically, every few minutes. You set it up yourself, under Settings, S F T P pull, and it's included on every paid plan."
+    },
+    {
+      "id": "b2-conn",
+      "shot": "Cursor clicks Host and types sftp.nordic-electronics.example, rests on Port (22 stays), then clicks Remote directory and types /exports/orders — a beat of emphasis on the path field.",
+      "actionLeadMs": 400,
+      "extraMs": 800,
+      "vo": "Give it the host, the port — 22 unless it was moved — and the absolute path to the folder to watch. That path is the single most common thing to get wrong."
+    },
+    {
+      "id": "b3-creds",
+      "shot": "Cursor types a username, then a password (rendered as dots), then rests on the 'Secrets are encrypted and never shown again' footer hint.",
+      "actionLeadMs": 300,
+      "extraMs": 800,
+      "vo": "Then the credentials — the username and password for that server. Like every secret in ProcuLink, the password is encrypted at rest and never shown back."
+    },
+    {
+      "id": "b4-supplier",
+      "shot": "Cursor touches the 'every few minutes' subtitle, then opens the Default supplier select and picks ElectroSupply Co; rests on the 'attributed to this supplier' helper line.",
+      "actionLeadMs": 400,
+      "extraMs": 800,
+      "vo": "There's no schedule to tune — ProcuLink checks every few minutes on its own. It does need a default supplier, though, because a raw file drop carries no routing — every imported order is attributed to the supplier you pick here."
+    },
+    {
+      "id": "b5-processed",
+      "shot": "Calm sweep of the finished form: the polling toggle, down to the Save button (rested on, never clicked — saving has no mock backend), then the plan-hint footer.",
+      "vo": "Each poll imports only the files it hasn't seen before and records them, so nothing is re-imported. And ProcuLink never deletes or moves your files — the source folder is left exactly as the sender left it."
+    },
+    {
+      "id": "b6-silent",
+      "shot": "The honest failure: cursor returns to the Remote directory field and traces the typed path, then rests on the 'Need help? See the SFTP polling guide' link.",
+      "actionLeadMs": 300,
+      "vo": "One thing to watch. A wrong path can still connect successfully — ProcuLink just finds an empty folder. No error, no orders. So if polling runs and nothing appears, re-check the exact path against where the source system actually writes. Reaching the server is not the same as finding files."
+    }
+  ]
+}

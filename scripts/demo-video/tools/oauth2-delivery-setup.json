@@ -1,0 +1,47 @@
+{
+  "id": "oauth2-delivery-setup",
+  "toolName": "OAuth2 delivery",
+  "route": "/library/suppliers/22222222-2222-2222-2222-222222222222?tab=delivery",
+  "kicker": "Setup guide",
+  "outroLine": "Fresh token, every send — automatically.",
+  "beats": [
+    {
+      "id": "b1-open",
+      "shot": "Delivery tab, HTTP selected. Cursor opens Auth type and picks 'OAuth2 — fetch token first'; the token fields reveal. The endpoint URL is typed.",
+      "actionLeadMs": 400,
+      "extraMs": 2200,
+      "vo": "Some supplier A P Is won't take a static key — they want you to trade a client id and secret for a short-lived access token first. On the H T T P delivery channel, point ProcuLink at their endpoint, and pick O Auth 2 — fetch token first — as the auth type. The token fields appear."
+    },
+    {
+      "id": "b2-token",
+      "shot": "Cursor fills Token URL, then Client ID, then Client secret (sample values).",
+      "actionLeadMs": 300,
+      "extraMs": 2000,
+      "vo": "Token U R L is where the supplier mints the token. Client id and client secret are the credentials they issued you — the secret is encrypted at rest and never shown back."
+    },
+    {
+      "id": "b3-scope-grant",
+      "shot": "Cursor fills Scope (orders.write), opens the Advanced disclosure, rests on Grant type (client_credentials default).",
+      "actionLeadMs": 300,
+      "extraMs": 1500,
+      "vo": "Scope is the space-separated permission list the token should carry — optional if their docs don't require one. And the grant type for machine-to-machine delivery is almost always client credentials, which is the default."
+    },
+    {
+      "id": "b4-styles",
+      "shot": "In Advanced: Client auth toggled (request body ↔ basic header), Request format toggled (form ↔ JSON), then rest on Token response field (access_token).",
+      "actionLeadMs": 300,
+      "extraMs": 1500,
+      "vo": "Two advanced fields decide the wire format. Client auth sends your credentials either in the request body or as a basic header. Request format encodes that request as form data or J S O N — their docs say which. And token response field names the property holding the token; the standard is access underscore token."
+    },
+    {
+      "id": "b5-flow",
+      "shot": "Cursor sweeps up to the endpoint URL field, then rests on the on-screen flow note: token fetched fresh before each delivery, sent as Authorization: Bearer, never stored.",
+      "vo": "Here's the flow, exactly as it runs. Before each delivery, ProcuLink calls the token U R L, reads the token out of the response, and sends it as a bearer on the order request. It's fetched fresh every time and never stored — so short expiry windows are never a problem."
+    },
+    {
+      "id": "b6-test",
+      "shot": "Cursor rests on the footer Test-fire button (dimmed until saved; never clicked — no mock backend).",
+      "vo": "Save, then test — and read a green result precisely. It means the token endpoint answered, and the supplier's endpoint answered. It still does not mean the supplier accepted an order — that can be rejected later, which is why ProcuLink tracks delivery and acceptance separately."
+    }
+  ]
+}

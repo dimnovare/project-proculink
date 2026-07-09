@@ -1,0 +1,47 @@
+{
+  "id": "sftp-ftps-delivery-keys",
+  "toolName": "SFTP & FTPS delivery",
+  "route": "/library/suppliers/22222222-2222-2222-2222-222222222222?tab=delivery",
+  "kicker": "Setup guide",
+  "outroLine": "Login, path, transport — proven before it matters.",
+  "beats": [
+    {
+      "id": "b1-open",
+      "shot": "Delivery tab with a SAVED SFTP config (host/port/path prefilled). Cursor touches the SFTP protocol card, rests on host + port, types the username.",
+      "actionLeadMs": 400,
+      "extraMs": 1200,
+      "vo": "When a supplier takes orders as files instead of over an A P I, ProcuLink drops the finished order file on their server over S F T P or F T P S. This supplier is already set up — host, port, and a username for the account they gave you."
+    },
+    {
+      "id": "b2-password",
+      "shot": "Cursor rests on the Auth method select (Password), the masked password field (********), and the 'saved credential masked' badge.",
+      "vo": "Authentication is a password, or a private key. This config has a saved password — notice it's shown only as a mask. Secrets are write-only: encrypted at rest, never displayed back, and saving with the field left blank keeps the stored one."
+    },
+    {
+      "id": "b3-key",
+      "shot": "Auth method switched to Private key: the key textarea reveals (with the product's own refuse-to-keep-a-wrong-shape-secret notice), and an OpenSSH-style sample key is typed in.",
+      "actionLeadMs": 300,
+      "extraMs": 2200,
+      "vo": "Private key is the stronger and more common choice for S F T P. The supplier registers your public key, and the matching private key is pasted here — in OpenSSH P E M form, the kind that begins BEGIN OPENSSH PRIVATE KEY — header lines and all."
+    },
+    {
+      "id": "b4-convert",
+      "shot": "A key-formats note card (overlay): OpenSSH PEM = the expected form; a PuTTY .ppk container is best exported to OpenSSH via PuTTYgen first. The passphrase field sits below in the real form.",
+      "vo": "If your key lives in PuTTY's dot p p k container, the safest route is to open it in PuTTYgen once and export an OpenSSH key, then paste that. And if the key is protected by a passphrase, it goes in the field right below."
+    },
+    {
+      "id": "b5-dir-cert",
+      "shot": "Cursor rests on Remote path, then the 'Create the remote directory if it does not exist' checkbox (ticked). Protocol switched to FTPS; rest on the 'Allow invalid TLS certificate' caution toggle (off).",
+      "actionLeadMs": 300,
+      "extraMs": 1500,
+      "vo": "The remote path is where the file lands. Leave create-directory ticked and ProcuLink makes the folder when it's missing — untick it if the server insists the path already exists. On F T P S, certificate checks stay on by default; allow an invalid certificate only for a supplier you've confirmed runs a self-signed host."
+    },
+    {
+      "id": "b6-test",
+      "shot": "Back on SFTP; cursor rests on the enabled Test-fire button (never clicked — no mock backend).",
+      "actionLeadMs": 300,
+      "extraMs": 800,
+      "vo": "Then prove the route with a test-fire. A green test means the login worked, the path resolved, and a test file was written. A delivered file is still not an accepted order — the supplier's system can reject the contents downstream, and ProcuLink reports those as separate steps."
+    }
+  ]
+}

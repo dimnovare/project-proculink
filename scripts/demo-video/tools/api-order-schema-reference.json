@@ -1,0 +1,41 @@
+{
+  "id": "api-order-schema-reference",
+  "toolName": "Inbound order API",
+  "route": "/settings?tab=api",
+  "kicker": "Setup guide",
+  "outroLine": "One POST — straight into review.",
+  "beats": [
+    {
+      "id": "b1-keys",
+      "shot": "Land on Settings → API keys. Cursor rests on 'Your ingress endpoint' + Copy, then creates a plk_ key on camera — the one-time reveal banner appears.",
+      "actionLeadMs": 400,
+      "extraMs": 3000,
+      "vo": "When another system already holds an order as structured data, push it straight into ProcuLink over H T T P S. This is your workspace's ingress endpoint — it's scoped to your workspace slug. And a P L K key created here authenticates it. The key is shown exactly once, at creation — copy it then, because it can't be retrieved again."
+    },
+    {
+      "id": "b2-header",
+      "shot": "Cursor rests on the on-screen auth line: 'Authenticate with the header X-ProcuLink-Key: <your key>'.",
+      "vo": "Every call is a POST to that U R L, with your key in the X ProcuLink Key header and a J S O N body. The key is a bearer credential — treat it like a password."
+    },
+    {
+      "id": "b3-ping",
+      "shot": "Code overlay: GET …/ping with the key header, and the real OK payload (message, slug, timestamp).",
+      "vo": "Before the first real order, confirm the key and the slug together with a GET to slash ping. A wrong key comes back unauthorized, the wrong workspace slug comes back forbidden — and a small OK payload means you're pointed at the right place."
+    },
+    {
+      "id": "b4-body",
+      "shot": "Code overlay: the JSON order body — orderNumber, orderDate, currency, supplierId, lines[] — with supplierId + at-least-one-line marked required and quantity/unitPrice as numbers.",
+      "vo": "The body is order header fields plus a lines array. Two things are required: supplier id — a supplier's GUID or its exact name — and at least one line. Everything else is optional but recommended. Send quantity and unit price as J S O N numbers, and the date as a plain I S O date."
+    },
+    {
+      "id": "b5-response",
+      "shot": "Code overlay: the success response — id, status (pending_review, or ready when every line auto-resolved), linesCount.",
+      "vo": "On success you get back the created order's id, its status — pending review, or ready when every line resolved on its own — and the line count. A two-hundred means ProcuLink stored the order. It is not supplier acceptance — the order still flows through review and delivery like any other."
+    },
+    {
+      "id": "b6-dedupe",
+      "shot": "Code overlay: the Idempotency-Key header — a repeat within 24 hours returns the original order (idempotentReplay: true), not a duplicate.",
+      "vo": "One more header worth sending: an idempotency key. Zapier and Make deliver at least once, so give each order a stable key — a repeat inside twenty-four hours returns the original order instead of creating a duplicate."
+    }
+  ]
+}
