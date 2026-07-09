@@ -3,11 +3,23 @@
 // Marketing nav — canonical navy bar: white wordmark, white links
 // (How it works / Pricing / Security), blue "Get started free" CTA.
 
-import { UserButton, useUser } from "@clerk/nextjs";
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { ProcuLinkMark } from "@/components/bridge/DSPrimitives";
+import { MarketingAuthLinks } from "@/components/marketing/MarketingAuthLinks";
+
+// Clerk UI (UserButton + useUser) is the single heaviest dependency of the
+// marketing pages (~140 kB chunk). Load it lazily, client-only: signed-out
+// visitors — the overwhelming majority on marketing pages — never pay for it
+// up front, and the static prerender shows MarketingAuthLinks either way
+// (useUser starts un-loaded during SSR). ssr: false with the SAME fallback the
+// server used to render keeps first paint pixel-identical (no CLS).
+const MarketingClerkLinks = dynamic(
+  () => import("@/components/marketing/MarketingClerkLinks").then((m) => m.MarketingClerkLinks),
+  { ssr: false, loading: () => <MarketingAuthLinks /> },
+);
 
 const LINKS = [
   { label: "How it works", href: "/how-it-works" },
@@ -147,36 +159,7 @@ export function MarketingNav() {
   );
 }
 
-function MarketingClerkLinks() {
-  const { isLoaded, isSignedIn } = useUser();
-  if (!isLoaded || !isSignedIn) return <MarketingAuthLinks />;
-  return (
-    <div className="flex shrink-0 items-center gap-3">
-      <Link href="/bridge" className="text-[13px] font-semibold" style={{ color: "#2E8E3A" }}>
-        <span className="hidden sm:inline">Open the dashboard →</span>
-        <span className="sm:hidden">Dashboard</span>
-      </Link>
-      <UserButton />
-    </div>
-  );
-}
-
-function MarketingAuthLinks() {
-  return (
-    <div className="flex shrink-0 items-center gap-3">
-      <Link href="/sign-in" className="hidden text-[13.5px] font-medium sm:inline" style={{ color: "#C5D2E4" }}>
-        Sign in
-      </Link>
-      <Link
-        href="/sign-up"
-        className="flex items-center gap-1.5 rounded-[6px] px-3 text-[12.5px] font-semibold sm:px-4 sm:text-[13px]"
-        style={{ height: 34, background: "#2E8E3A", color: "#FFFFFF", border: "none" }}
-        onMouseEnter={(e) => { (e.currentTarget as HTMLAnchorElement).style.background = "#1E6D29"; }}
-        onMouseLeave={(e) => { (e.currentTarget as HTMLAnchorElement).style.background = "#2E8E3A"; }}
-      >
-        <span className="hidden sm:inline">Start free</span>
-        <span className="sm:hidden">Start</span>
-      </Link>
-    </div>
-  );
-}
+// MarketingClerkLinks (signed-in links + UserButton) lives in its own module —
+// see the next/dynamic import at the top of this file. MarketingAuthLinks
+// (signed-out links) was extracted to ./MarketingAuthLinks so both this nav and
+// the lazy Clerk module can share it without a circular import.
