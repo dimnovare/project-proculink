@@ -132,6 +132,7 @@ const C = {
   amber: "#B36D14",
   amberSoft: "#FAF1DD",
   green: "#2E8E3A",
+  greenBtn: "#297F34", // solid fill under white text — ≈4.6:1 AA (green is 4.16:1)
   greenDeep: "#1E6D29",
   greenSoft: "#E9F1EA",
   mono: "'JetBrains Mono', ui-monospace, monospace",
@@ -325,7 +326,7 @@ const baseBtn: CSSProperties = {
 /** Navy = the dominant "do this" action (manual code / confirm / resolve-all). */
 const navyBtn: CSSProperties = { ...baseBtn, border: `1px solid ${C.navy}`, background: C.navy, color: "#FFFFFF", fontWeight: 700 };
 /** Green = accept / the supplier-out signal (AI suggestion accept, deterministic fix). */
-const greenBtn: CSSProperties = { ...baseBtn, border: `1px solid ${C.greenDeep}`, background: C.green, color: "#FFFFFF", fontWeight: 700 };
+const greenBtn: CSSProperties = { ...baseBtn, border: `1px solid ${C.greenDeep}`, background: C.greenBtn, color: "#FFFFFF", fontWeight: 700 };
 /** Ghost = the subordinate alternative. */
 const ghostBtn: CSSProperties = { ...baseBtn, border: "1px solid #DCE0E8", background: C.surface, color: "#345470" };
 const countBadge: CSSProperties = {

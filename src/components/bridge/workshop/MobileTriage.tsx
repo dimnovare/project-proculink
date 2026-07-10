@@ -34,7 +34,8 @@ const BLUE = "#1E66C9";
 const BLUE_DEEP = "#0F4FAB";
 const BLUE_WASH = "#EFF4FB";
 const BLUE_BORDER = "#CFE0F6";
-const GREEN = "#2E8E3A";
+const GREEN = "#2E8E3A";     // card accent / edges
+const GREEN_BTN = "#297F34"; // solid fill under white text — ≈4.6:1 AA (2E8E3A was 4.16:1)
 const GREEN_DEEP = "#1E6D29";
 const GREEN_WASH = "#E9F1EA";
 const GREEN_BORDER = "#BFE0C2";
@@ -375,7 +376,7 @@ export function MobileTriage(props: MobileTriageProps) {
             alignItems: "center",
             justifyContent: "center",
             gap: 9,
-            background: canSend ? GREEN : "#5A7660",
+            background: canSend ? GREEN_BTN : "#5A7660",
             color: "#FFFFFF",
             border: `1px solid ${canSend ? GREEN_DEEP : "#5A7660"}`,
             cursor: canSend ? "pointer" : "not-allowed",
@@ -579,7 +580,7 @@ function IssueCard({
             minHeight: 44,
             border: "none",
             borderTop: `1px solid ${HAIRLINE}`,
-            background: GREEN,
+            background: GREEN_BTN,
             color: "#FFFFFF",
             fontSize: 15,
             fontWeight: 700,
@@ -758,7 +759,7 @@ const mobilePrimaryBtn = {
   padding: "0 16px",
   borderRadius: 8,
   border: "none",
-  background: GREEN,
+  background: GREEN_BTN,
   color: "#FFFFFF",
   fontSize: 15,
   fontWeight: 700,

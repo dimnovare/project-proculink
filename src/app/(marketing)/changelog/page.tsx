@@ -133,7 +133,7 @@ export default function ChangelogPage() {
                 <span
                   style={{
                     display: "inline-block",
-                    background: entry.latest ? "#2E8E3A" : "#0B1A2F",
+                    background: entry.latest ? "#297F34" : "#0B1A2F",
                     color: "#FFFFFF",
                     fontSize: 11,
                     fontWeight: 800,

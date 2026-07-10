@@ -26,7 +26,8 @@ const BLUE        = "#1E66C9"; // buyer-side primary (header button)
 const BLUE_DEEP   = "#1A57AD"; // hover / active for blue button
 const BLUE_LINK   = "#0F4FA8"; // buyer name link text
 const BLUE_SOFT   = "#EAF0F8"; // light-blue tint: eyebrow square, info banner, Inherited badge
-const GREEN       = "#2E8E3A"; // supplier-side commit accent (modal Save) — canonical forest green
+const GREEN       = "#2E8E3A"; // supplier-side commit accent (borders/focus) — canonical forest green
+const GREEN_BTN   = "#297F34"; // solid fill under white text — ≈4.6:1 AA (2E8E3A was 4.16:1)
 const GREEN_DEEP  = "#1E6D29"; // hover / active for green; also supplier name + supplier code text
 const GREEN_SOFT  = "#E9F1EA"; // soft green tint for active chips / focus rings (brand-green-soft)
 const GREEN_CODE  = "#1E6D29"; // supplier name + supplier code text (sampled)
@@ -975,9 +976,9 @@ function MappingPanel({
             onClick={handleAction}
             disabled={saving || (panel.kind === "import" && !importFile)}
             className="flex h-10 items-center justify-center gap-1.5 rounded-[7px] px-4 text-[13px] font-semibold transition-colors"
-            style={{ border: 0, background: saving ? "var(--ink-faint)" : GREEN, color: "#FFFFFF" }}
+            style={{ border: 0, background: saving ? "var(--ink-faint)" : GREEN_BTN, color: "#FFFFFF" }}
             onMouseEnter={(e) => { if (!saving) (e.currentTarget as HTMLElement).style.background = GREEN_DEEP; }}
-            onMouseLeave={(e) => { if (!saving) (e.currentTarget as HTMLElement).style.background = GREEN; }}
+            onMouseLeave={(e) => { if (!saving) (e.currentTarget as HTMLElement).style.background = GREEN_BTN; }}
           >
             {isCodePanel && (
               <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true" className="flex-shrink-0">

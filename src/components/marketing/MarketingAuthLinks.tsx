@@ -16,9 +16,9 @@ export function MarketingAuthLinks() {
       <Link
         href="/sign-up"
         className="flex items-center gap-1.5 rounded-[6px] px-3 text-[12.5px] font-semibold sm:px-4 sm:text-[13px]"
-        style={{ height: 34, background: "#2E8E3A", color: "#FFFFFF", border: "none" }}
+        style={{ height: 34, background: "#297F34", color: "#FFFFFF", border: "none" }}
         onMouseEnter={(e) => { (e.currentTarget as HTMLAnchorElement).style.background = "#1E6D29"; }}
-        onMouseLeave={(e) => { (e.currentTarget as HTMLAnchorElement).style.background = "#2E8E3A"; }}
+        onMouseLeave={(e) => { (e.currentTarget as HTMLAnchorElement).style.background = "#297F34"; }}
       >
         <span className="hidden sm:inline">Start free</span>
         <span className="sm:hidden">Start</span>

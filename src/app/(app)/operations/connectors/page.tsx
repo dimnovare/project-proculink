@@ -365,7 +365,8 @@ export default function ConnectorsPage() {
                 borderRadius: "var(--radius,6px)",
                 border: "1px solid transparent",
                 // In-app primary CTA = brand-green per the unified design system (in-app primary = green).
-                background: "var(--brand-green,#2E8E3A)",
+                // Literal #297F34 (not var(--brand-green)): AA button fill under white text.
+                background: "#297F34",
                 color: "#fff",
                 fontSize: 12.5,
                 fontWeight: 600,
@@ -914,7 +915,7 @@ function ConnectorPanel({
           <Link
             href={isNew || connector.id === "new" ? "/library/suppliers" : `/library/suppliers/${connector.id}?tab=delivery`}
             onClick={onClose}
-            style={{ height: 32, padding: "0 14px", borderRadius: "var(--radius,6px)", border: "1px solid transparent", background: "var(--brand-green,#2E8E3A)", color: "var(--surface,#FFFFFF)", fontSize: 12.5, fontWeight: 600, cursor: "pointer", display: "inline-flex", alignItems: "center", textDecoration: "none" }}
+            style={{ height: 32, padding: "0 14px", borderRadius: "var(--radius,6px)", border: "1px solid transparent", background: "#297F34", color: "var(--surface,#FFFFFF)", fontSize: 12.5, fontWeight: 600, cursor: "pointer", display: "inline-flex", alignItems: "center", textDecoration: "none" }}
           >
             Open supplier Delivery tab
           </Link>

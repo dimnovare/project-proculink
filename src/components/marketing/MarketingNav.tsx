@@ -156,7 +156,7 @@ export function MarketingNav() {
               href="/sign-up"
               onClick={() => setOpen(false)}
               className="flex items-center justify-center rounded-[6px] py-3 text-[15px] font-semibold w-full"
-              style={{ background: "#2E8E3A", color: "#FFFFFF" }}
+              style={{ background: "#297F34", color: "#FFFFFF" }}
             >
               Start free
             </Link>

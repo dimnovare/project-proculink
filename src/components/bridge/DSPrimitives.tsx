@@ -24,19 +24,20 @@ const BUTTON_BASE =
   "inline-flex items-center justify-center gap-2 rounded font-medium border whitespace-nowrap transition-colors disabled:opacity-50 disabled:cursor-not-allowed";
 
 const BUTTON_VARIANT: Record<ButtonVariant, string> = {
-  // In-app PRIMARY action color = brand-green (#2E8E3A). See
+  // In-app PRIMARY action color = brand-green. See
   // docs/design-system/11-unified-page-rules.md. (Use variant="secondary" +
-  // bg-navy only for the rare neutral/navy CTA.)
-  primary:   "bg-brand-green text-white border-transparent hover:bg-brand-green-deep",
+  // bg-navy only for the rare neutral/navy CTA.) Solid fills under white text
+  // use brand-green-btn (#297F34, ≈4.6:1 AA) — #2E8E3A was 4.16:1 with white.
+  primary:   "bg-brand-green-btn text-white border-transparent hover:bg-brand-green-deep",
   secondary: "bg-surface text-ink border-border hover:bg-surface-2 hover:border-border-strong",
   ghost:     "bg-transparent text-ink-muted border-transparent hover:bg-surface-2 hover:text-ink",
   danger:    "bg-danger text-white border-transparent hover:opacity-90",
   ai:        "bg-ai text-white border-transparent hover:opacity-90",
-  // tokens.css .btn-blue / .btn-green — both now use the canonical brand-green
-  blue:      "[background:#2E8E3A] text-white border-transparent hover:[background:#1E6D29]",
-  green:     "[background:#2E8E3A] text-white border-transparent hover:[background:#1E6D29]",
+  // tokens.css .btn-blue / .btn-green — both now use the canonical brand-green (AA button fill)
+  blue:      "[background:#297F34] text-white border-transparent hover:[background:#1E6D29]",
+  green:     "[background:#297F34] text-white border-transparent hover:[background:#1E6D29]",
   // Design-system v1 named variants: `send` = the green supplier CTA, `navy` = neutral dark CTA.
-  send:      "bg-brand-green text-white border-transparent hover:bg-brand-green-deep",
+  send:      "bg-brand-green-btn text-white border-transparent hover:bg-brand-green-deep",
   navy:      "bg-navy text-white border-transparent hover:[background:#14253D]",
 };
 

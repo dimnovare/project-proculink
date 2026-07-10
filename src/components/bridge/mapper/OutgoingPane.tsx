@@ -813,7 +813,7 @@ function OutgoingRow({
             onClick={(e) => { e.stopPropagation(); onPickSource?.(field.outputPath, aiFix.sourceId); }}
             style={{
               height: 26, padding: "0 12px", borderRadius: 6, fontSize: 11, fontWeight: 700,
-              color: "#FFFFFF", background: "#2E8E3A", border: "1px solid #1E6D29",
+              color: "#FFFFFF", background: "#297F34", border: "1px solid #1E6D29",
               cursor: "pointer", flexShrink: 0, transition: "background 120ms",
             }}
           >
@@ -1106,7 +1106,7 @@ function AddOutputFieldMenu({
                   onClick={addCustom}
                   style={{
                     display: "flex", alignItems: "center", gap: 6, width: "100%", justifyContent: "center",
-                    border: "1px solid #2E8E3A", background: "#2E8E3A", color: "#FFFFFF",
+                    border: "1px solid #297F34", background: "#297F34", color: "#FFFFFF",
                     borderRadius: 6, padding: "6px 10px", fontSize: 11, fontWeight: 700, cursor: "pointer",
                   }}
                 >

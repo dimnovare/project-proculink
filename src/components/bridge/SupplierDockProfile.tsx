@@ -971,7 +971,7 @@ function CatalogTab({ supplierId }: { supplierId: string }) {
         <input ref={fileRef} type="file" accept=".csv,.xlsx" hidden
           onChange={(e) => { const f = e.target.files?.[0]; if (f) importMut.mutate(f); e.target.value = ""; }} />
         <button type="button" onClick={() => fileRef.current?.click()} disabled={importMut.isPending}
-          style={{ minHeight: 36, padding: "0 14px", border: "none", background: "#2E8E3A", color: "#FFFFFF", borderRadius: 6, fontSize: 12.5, fontWeight: 700, cursor: "pointer", opacity: importMut.isPending ? 0.6 : 1 }}>
+          style={{ minHeight: 36, padding: "0 14px", border: "none", background: "#297F34", color: "#FFFFFF", borderRadius: 6, fontSize: 12.5, fontWeight: 700, cursor: "pointer", opacity: importMut.isPending ? 0.6 : 1 }}>
           {importMut.isPending ? "Importing…" : "Import CSV / XLSX"}
         </button>
         {!!data?.total && (
