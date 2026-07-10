@@ -11,14 +11,16 @@ import { ProcuLinkMark } from "@/components/bridge/DSPrimitives";
 import { MarketingAuthLinks } from "@/components/marketing/MarketingAuthLinks";
 
 // Clerk UI (UserButton + useUser) is the single heaviest dependency of the
-// marketing pages (~140 kB chunk). Load it lazily, client-only: signed-out
-// visitors — the overwhelming majority on marketing pages — never pay for it
-// up front, and the static prerender shows MarketingAuthLinks either way
-// (useUser starts un-loaded during SSR). ssr: false with the SAME fallback the
-// server used to render keeps first paint pixel-identical (no CLS).
+// marketing pages (~140 kB chunk). It's code-split out of the first-load JS
+// (ssr:false → fetched async after hydration, off the critical path). FOCUS
+// SAFETY: the loading state is null and the static <MarketingAuthLinks /> is
+// rendered as a persistent SIBLING below — the dynamic module renders nothing
+// until a signed-in session is confirmed (then reports via onSignedInChange
+// and we unmount the static links). A signed-out keyboard user focused on
+// "Sign in"/"Start free" never has their DOM node swapped out from under them.
 const MarketingClerkLinks = dynamic(
   () => import("@/components/marketing/MarketingClerkLinks").then((m) => m.MarketingClerkLinks),
-  { ssr: false, loading: () => <MarketingAuthLinks /> },
+  { ssr: false, loading: () => null },
 );
 
 const LINKS = [
@@ -32,6 +34,9 @@ export function MarketingNav() {
   const pathname = usePathname();
   const clerkEnabled = Boolean(process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY);
   const [open, setOpen] = useState(false);
+  // True once the lazily-loaded Clerk module confirms a signed-in session —
+  // only then do the static signed-out links yield to the dashboard cluster.
+  const [signedIn, setSignedIn] = useState(false);
 
   return (
     <nav
@@ -73,7 +78,10 @@ export function MarketingNav() {
 
         <div className="min-w-2 flex-1" />
 
-        {clerkEnabled ? <MarketingClerkLinks /> : <MarketingAuthLinks />}
+        {/* Static signed-out links persist (focus-safe); the dynamic Clerk
+            module renders null until signed-in is confirmed, then swaps in. */}
+        {!signedIn && <MarketingAuthLinks />}
+        {clerkEnabled && <MarketingClerkLinks onSignedInChange={setSignedIn} />}
 
         {/* Mobile burger */}
         <button

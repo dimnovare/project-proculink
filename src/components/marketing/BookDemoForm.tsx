@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { apiClient } from "@/lib/api-client";
 import { capture } from "@/lib/analytics";
+import { friendlySubmitError } from "@/lib/friendly-submit-error";
 import { captureException } from "@/lib/sentry-context";
 
 // Same visual grammar as ContactForm (src/components/marketing/ContactForm.tsx)
@@ -76,15 +77,29 @@ export function BookDemoForm() {
         tags: { ui_surface: "book_demo_form" },
         extra: { has_formats: Boolean(formats.trim()), has_times: Boolean(times.trim()) },
       });
-      const msg = err instanceof Error ? err.message : "Something went wrong. Please email hello@proculink.eu instead.";
-      setState({ status: "error", message: msg });
+      // Never render the raw error string (JSON bodies, timeout internals) —
+      // map to a plain-language sentence a visitor can act on.
+      setState({ status: "error", message: friendlySubmitError(err, "hello@proculink.eu") });
     }
   }
+
+  // Move focus to the confirmation when the form unmounts on success — without
+  // this, keyboard focus (on the just-pressed submit button) silently drops to
+  // <body>, and screen readers get no reliable announcement of the outcome.
+  const successRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (state.status === "success") successRef.current?.focus();
+  }, [state.status]);
 
   if (state.status === "success") {
     return (
       <div style={S.wrap} aria-label="Demo request sent">
-        <div role="status" style={{ ...S.notice, ...S.success, marginTop: 0 }}>
+        <div
+          ref={successRef}
+          tabIndex={-1}
+          role="status"
+          style={{ ...S.notice, ...S.success, marginTop: 0, outline: "none" }}
+        >
           <strong>Request received.</strong> {state.message}
         </div>
         <p style={{ ...S.hint, marginTop: 12, marginBottom: 0 }}>
