@@ -29,7 +29,11 @@ export default defineConfig({
   expect: { timeout: 10_000 },
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
-  retries: process.env.CI ? 1 : 0,
+  // One retry everywhere. CI runs single-worker; local runs many workers against a
+  // single `next dev`, so a heavy route's first cold compile can still exceed a
+  // tight visibility timeout even after globalSetup warms it. A single retry absorbs
+  // that residual cold-compile jitter (a genuine product failure fails both attempts).
+  retries: 1,
   workers: process.env.CI ? 1 : undefined,
   reporter: process.env.CI ? "github" : "list",
 
