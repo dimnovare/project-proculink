@@ -338,7 +338,9 @@ function WizardModal({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="px-5 py-4" style={{ borderTop: "1px solid #E5E8EE", maxHeight: "60vh", overflowY: "auto" }}>
+        {/* Body scroll area gives up the cookie-banner inset (0 once dismissed) so
+            the step footer below stays visible instead of scrolling out of reach. */}
+        <div className="px-5 py-4" style={{ borderTop: "1px solid #E5E8EE", maxHeight: "calc(60vh - var(--plk-bottom-inset, 0px))", overflowY: "auto" }}>
           {step === 1 && <StepChannel onSelect={selectChannel} onClose={onClose} />}
 
           {step === 2 && spec && (
