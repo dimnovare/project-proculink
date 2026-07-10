@@ -8,8 +8,9 @@ import { test, expect } from "@playwright/test";
  *     focus behavior from the adversarial-review fixes (e792875 §4).
  *  2. Guided delivery setup — the opt-in "Set up step by step" wizard on the
  *     supplier delivery tab (DeliveryGuidedSetup).
- *  3. The Order Workshop's "Customize output layout" designer (the reachable
- *     output-editing surface; see the fixme below re the expression tester).
+ *  3. The Order Workshop's output-editing surfaces: the "Customize output layout"
+ *     designer AND the "Edit as template" OutputMappingEditor slideover (remounted
+ *     2026-07-10 — hosts the Formula-help disclosure + "Try an expression" tester).
  *  4. Marketing nav focus safety on /pricing (e792875 §2 — the fallback→loaded
  *     Suspense swap used to silently drop keyboard focus from "Sign in").
  *
@@ -154,25 +155,40 @@ test.describe("Guided delivery setup — /library/suppliers/[id]?tab=delivery", 
 // ─────────────────────────────────────────────────────────────────────────────
 
 test.describe("Order Workshop output surface — /inbox/ord-002", () => {
-  // HONESTY NOTE (investigated 2026-07-10): the "Try an expression" tester
-  // (d729a39) lives inside OutputMappingEditor's Formula-help disclosure — but
-  // OutputMappingEditor has had NO mount point since c424755 (2026-06-25)
-  // deleted the dead review/OutputPreview.tsx that hosted it. No route, palette
-  // entry, or workshop control renders it, so no e2e can reach the tester
-  // through the UI. Its draft-assembly logic is pinned by unit tests
-  // (OutputMappingEditor.test.ts). Re-enable this once the editor is remounted.
-  test.fixme(
-    "Formula-help discloses the 'Try an expression' tester (UNREACHABLE: OutputMappingEditor is unmounted since c424755)",
-    async ({ page }) => {
-      // Intended flow once a mount exists: open the editor surface at
-      // /inbox/ord-002, expand the "Formula help" disclosure, and assert the
-      // "Try an expression" box with its expression input is present.
-      await page.goto("/inbox/ord-002");
-      await page.getByText("Formula help").click();
-      await expect(page.getByText("Try an expression")).toBeVisible();
-      await expect(page.getByLabel("Expression to test")).toBeVisible();
-    },
-  );
+  // The "Try an expression" tester (d729a39) lives inside OutputMappingEditor's
+  // Formula-help disclosure. The editor lost its mount when c424755 deleted the
+  // dead review/OutputPreview.tsx; it is remounted from the workshop mapper
+  // toolbar ("Edit as template", template-first) + the Command Palette (a16).
+  // This guards the whole chain: mount → template editor → disclosure → tester.
+  test("'Edit as template' opens the output editor; Formula-help discloses the 'Try an expression' tester", async ({ page }) => {
+    // Same heavy-route budget as the designer test below.
+    test.setTimeout(90_000);
+    await page.goto("/inbox/ord-002");
+
+    await expect(page.getByTestId("order-workshop")).toBeVisible({ timeout: 30_000 });
+
+    const editAsTemplate = page.getByRole("button", { name: /edit as template/i });
+    await expect(editAsTemplate).toBeVisible({ timeout: 10_000 });
+    await editAsTemplate.click();
+
+    const editor = page.getByRole("dialog", { name: /edit output mapping/i });
+    await expect(editor).toBeVisible({ timeout: 10_000 });
+
+    // Mock getMappingOverride resolves null (~120ms) → the editor seeds empty and,
+    // because the entry passes initialTemplateMode, lands in the template editor.
+    await expect(editor.getByText("Document template")).toBeVisible({ timeout: 10_000 });
+
+    // The Formula-help disclosure hosts the tester (explicit-click evaluation only —
+    // merely opening it fires no request, so mock mode needs no preview stub here).
+    await editor.getByText("Formula help").click();
+    await expect(editor.getByText("Try an expression")).toBeVisible();
+    await expect(editor.getByLabel("Expression to test")).toBeVisible();
+
+    // Cancel closes the slideover; the workshop underneath is intact.
+    await editor.getByRole("button", { name: /^cancel$/i }).click();
+    await expect(editor).toBeHidden({ timeout: 5_000 });
+    await expect(page.getByTestId("order-workshop")).toBeVisible();
+  });
 
   test("'Customize output layout' opens the output designer and closes cleanly", async ({ page }) => {
     // /inbox/[orderId] is a heavy route; first cold-compile under CI load can

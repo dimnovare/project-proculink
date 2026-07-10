@@ -14,10 +14,11 @@ export const MAPPER_EVENT = "plk:mapper" as const;
 
 /** The kinds of action a palette command asks the mapper to perform. */
 export type MapperCommandKind =
-  | "jump-to-field"   // focus the source-field search so the user can jump to any field
-  | "add-transform"   // open the manipulator dropdown on the focused output field
-  | "switch-format"   // cycle the live-preview output format
-  | "show-standards"; // open the standards-mapping popover for the focused field
+  | "jump-to-field"          // focus the source-field search so the user can jump to any field
+  | "add-transform"          // open the manipulator dropdown on the focused output field
+  | "switch-format"          // cycle the live-preview output format
+  | "show-standards"         // open the standards-mapping popover for the focused field
+  | "edit-output-template";  // open the output mapping editor in template mode (order variant only)
 
 export interface MapperCommandEvent {
   kind: MapperCommandKind;
@@ -74,6 +75,10 @@ export function buildMapperCommands(dispatch: (e: MapperCommandEvent) => void): 
     cmd("a13", "Jump to field",            "Search and focus a field in the mapper",   "⌖", "jump-to-field"),
     cmd("a14", "Jump to a field's transform", "Scroll to the focused output field",    "ƒ", "add-transform"),
     cmd("a15", "Switch output format",     "Cycle the live-preview format",            "⇄", "switch-format"),
+    // Opens the OutputMappingEditor slideover in template mode — the Scriban escape
+    // hatch for outputs the layout designer can't express. Order review only; the
+    // connection editor has no per-order template, so its mapper ignores the event.
+    cmd("a16", "Edit output as a template", "Write one template that renders this order's whole output (advanced)", "{}", "edit-output-template"),
   ];
 }
 

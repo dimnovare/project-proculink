@@ -10,8 +10,11 @@
 // rendered with a stable key. Declaring them inside OutputMappingEditor remounts them on
 // each keystroke (new function identity) → inputs lose focus. Do NOT inline them again.
 //
-// Visual drag-to-connect lives in the ORDER-VIEW wires (SpineReview), not here — this panel
-// is the explicit, keyboard-friendly form. The saved draft must CARRY the existing
+// Visual drag-to-connect lives in the mapper wires (MapperWorkbench), not here — this panel
+// is the explicit, keyboard-friendly form AND the only authoring surface for whole-document
+// template mode (the Scriban escape hatch). It mounts from the order-variant MapperWorkbench
+// ("Edit as template" toolbar button + the Command Palette's "Edit output as a template",
+// via the plk:mapper bus). The saved draft must CARRY the existing
 // sourceMap through (PUT replaces the whole override document — see buildOverrideDraft),
 // and the dialog renders via createPortal to document.body because its inline mount sits
 // inside a `position: sticky` column whose stacking context would trap it under the rails.
@@ -504,11 +507,20 @@ function TemplateEditor({
 // ── Main panel ────────────────────────────────────────────────────────────────
 
 export function OutputMappingEditor({
-  orderId, open, onClose,
+  orderId, open, onClose, initialTemplateMode = false, onSaved,
 }: {
   orderId: string;
   open: boolean;
   onClose: () => void;
+  /** Open straight into template mode — the "Edit as template" entries pass true so the
+      user lands in the template editor even before any template is saved. The in-panel
+      toggle still switches back to the field-by-field view. */
+  initialTemplateMode?: boolean;
+  /** Fires after a successful Save or Reset, before onClose. The embedding mapper reads
+      the override under its OWN query key ("mapper-override", not "mapping-override"),
+      which the invalidations below cannot reach — the host must bust its own cache here
+      or its outgoing column + live preview keep rendering the pre-save mapping. */
+  onSaved?: () => void;
 }) {
   const qc = useQueryClient();
   const { data: existing, isSuccess: existingLoaded, isError: existingError } = useQuery({
@@ -559,9 +571,12 @@ export function OutputMappingEditor({
     const tmpl = existing?.outputTemplate ?? "";
     setTemplate(tmpl);
     setTemplateContentType(existing?.outputTemplateContentType ?? DEFAULT_TEMPLATE_CONTENT_TYPE);
-    setTemplateMode(tmpl.trim().length > 0);
+    // A saved template always opens in template mode; initialTemplateMode additionally
+    // forces it for the "Edit as template" entries so they land in the template editor
+    // even when nothing is saved yet (blank template on save still clears cleanly).
+    setTemplateMode(tmpl.trim().length > 0 || initialTemplateMode);
     setSeeded(true);
-  }, [open, seeded, existing, existingLoaded, existingError]);
+  }, [open, seeded, existing, existingLoaded, existingError, initialTemplateMode]);
 
   // Insert a token at the textarea caret (or append). Keeps focus + selection sane.
   const insertToken = useCallback((token: string) => {
@@ -660,6 +675,7 @@ export function OutputMappingEditor({
     onSuccess: async () => {
       await qc.invalidateQueries({ queryKey: ["mapping-override", orderId] });
       await qc.invalidateQueries({ queryKey: ["order", orderId] });
+      onSaved?.();
       onClose();
     },
   });
@@ -675,6 +691,7 @@ export function OutputMappingEditor({
       setTemplate(""); setTemplateContentType(DEFAULT_TEMPLATE_CONTENT_TYPE); setTemplateMode(false);
       await qc.invalidateQueries({ queryKey: ["mapping-override", orderId] });
       await qc.invalidateQueries({ queryKey: ["order", orderId] });
+      onSaved?.();
     },
   });
 

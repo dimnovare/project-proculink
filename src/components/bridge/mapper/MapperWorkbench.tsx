@@ -31,6 +31,7 @@ import { IncomingPane } from "./IncomingPane";
 import { OutgoingPane, type AutoFilledFields } from "./OutgoingPane";
 import { MapperPreviewPane } from "./MapperPreviewPane";
 import { OutputStructureDesigner } from "../OutputStructureDesigner";
+import { OutputMappingEditor } from "../OutputMappingEditor";
 import { useMapperWireLayer } from "./MapperWireLayer";
 import { useMapperModel } from "./useMapperModel";
 import type { IncomingOrderShape } from "./incomingFromOrder";
@@ -224,6 +225,9 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<FieldFilter>("all");
   const [showDesigner, setShowDesigner] = useState(false);
+  // The OutputMappingEditor slideover (template mode / explicit field rules) — the
+  // only surface where a whole-document output template is written. Order variant only.
+  const [showOutputEditor, setShowOutputEditor] = useState(false);
 
   // ── B1 orientation helper — a thin, dismissible one-line explainer of the
   //    Incoming | Output | Preview / "wires" / collapse-chevron model, for the
@@ -349,11 +353,23 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
           trigger?.click();
           break;
         }
+        case "edit-output-template": {
+          // Per-order templates only — the connection editor has no order to render
+          // against, so its mapper leaves the event alone (harmless palette no-op).
+          // Close the designer first: Cmd+K stays reachable over the open designer
+          // (z 9999 > 100), and the designer would otherwise fully occlude the
+          // editor slideover (z 60) — a second modal mounted invisibly behind it.
+          if (variant === "order" && scopeId) {
+            setShowDesigner(false);
+            setShowOutputEditor(true);
+          }
+          break;
+        }
       }
     }
     window.addEventListener(MAPPER_EVENT, onCommand);
     return () => window.removeEventListener(MAPPER_EVENT, onCommand);
-  }, [readOnly, hoveredId]);
+  }, [readOnly, hoveredId, variant, scopeId]);
 
   // ── Source ids in render order (drives the wire engine's measure list + kb order) ──
   const sourceIds = useMemo(() => model.sourceFields.map((f) => f.id), [model.sourceFields]);
@@ -684,6 +700,24 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
             setShowDesigner(false);
             void qc.invalidateQueries({ queryKey: ["mapping-override", scopeId] });
             void qc.invalidateQueries({ queryKey: ["order", scopeId] });
+            // This workbench reads the override under its OWN key (useMapperModel:
+            // ["mapper-override", variant, scopeId, …]) — without this the outgoing
+            // column + live preview keep rendering the pre-save mapping.
+            void qc.invalidateQueries({ queryKey: ["mapper-override", variant, scopeId] });
+          }}
+        />
+      )}
+      {/* The whole-document template escape hatch (+ explicit field-rule form). Portal
+          slideover — invalidates the shared override keys itself on save; onSaved busts
+          THIS workbench's own "mapper-override" cache (see the designer note above). */}
+      {showOutputEditor && variant === "order" && scopeId && (
+        <OutputMappingEditor
+          orderId={scopeId}
+          open
+          initialTemplateMode
+          onClose={() => setShowOutputEditor(false)}
+          onSaved={() => {
+            void qc.invalidateQueries({ queryKey: ["mapper-override", variant, scopeId] });
           }}
         />
       )}
@@ -787,10 +821,19 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
                   {showConnections ? "Hide connections" : "Show connections"}
                 </button>
               )}
+              {/* The designer and the template editor are both workbench-level portal
+                  modals over the same order override — opening one closes the other
+                  (independent flags would stack them, the higher-z designer fully
+                  occluding the editor slideover). */}
               <ToolbarButton
                 label="Customize output layout"
                 title="Change how the output file is structured for this supplier — paste a supplier sample to start"
-                onClick={() => setShowDesigner(true)}
+                onClick={() => { setShowOutputEditor(false); setShowDesigner(true); }}
+              />
+              <ToolbarButton
+                label="Edit as template"
+                title="Write one template that renders this order's whole output document — for outputs the layout designer can't express (advanced)"
+                onClick={() => { setShowDesigner(false); setShowOutputEditor(true); }}
               />
               <ToolbarButton
                 label={catalogHintCount > 0 ? `Fill from catalog · ${catalogHintCount}` : "Fill from catalog"}
