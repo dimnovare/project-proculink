@@ -3,6 +3,25 @@ import { ClerkProvider } from "@clerk/nextjs";
 import { AnalyticsBoot } from "@/components/analytics/AnalyticsBoot";
 import { CookieConsentBanner } from "@/components/marketing/CookieConsentBanner";
 import { ORGANIZATION_STRUCTURED_DATA } from "@/lib/legal-entity";
+// Self-hosted fonts (OFL, via @fontsource) — replaces the render-blocking
+// cross-origin Google Fonts stylesheet. Each package's @font-face registers
+// under the exact literal family name ('Inter', 'JetBrains Mono',
+// 'Bricolage Grotesque') with font-display: swap, so every literal
+// `fontFamily: "'Bricolage Grotesque'…"` reference keeps resolving to the real
+// face. Only the weights in use are imported. Files load from same-origin
+// /_next/static — no cross-origin round-trip on the FCP path.
+import "@fontsource/inter/400.css";
+import "@fontsource/inter/500.css";
+import "@fontsource/inter/600.css";
+import "@fontsource/inter/700.css";
+import "@fontsource/jetbrains-mono/400.css";
+import "@fontsource/jetbrains-mono/500.css";
+import "@fontsource/jetbrains-mono/600.css";
+import "@fontsource/jetbrains-mono/700.css";
+import "@fontsource/bricolage-grotesque/500.css";
+import "@fontsource/bricolage-grotesque/600.css";
+import "@fontsource/bricolage-grotesque/700.css";
+import "@fontsource/bricolage-grotesque/800.css";
 import "./globals.css";
 
 export const viewport: Viewport = {
@@ -71,17 +90,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en">
       <head>
-        {/* Fonts as a preconnected <head> stylesheet instead of a CSS @import.
-            @import was render-blocking + serial (download globals.css → discover
-            the import → fetch Google CSS → fetch font files), a big FCP/LCP cost.
-            preconnect warms the connection and the <link> is discovered
-            immediately + loads in parallel. Same families, display=swap. */}
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link
-          rel="stylesheet"
-          href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&family=Bricolage+Grotesque:wght@500;600;700;800&display=swap"
-        />
+        {/* Fonts are self-hosted via @fontsource (imported at the top of this
+            file) — same families and weights, font-display: swap, served from
+            same-origin /_next/static. No cross-origin Google Fonts round-trip
+            on the critical FCP path. */}
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{
