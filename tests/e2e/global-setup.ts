@@ -21,6 +21,9 @@ async function globalSetup() {
     "/how-it-works",
     "/help",
     "/pricing",
+    // new-surfaces.spec.ts targets (book-demo form + supplier delivery tab).
+    "/book-demo",
+    "/library/suppliers/s1",
     // Legal + trust pages (marketing.spec.ts navigates all of these; the
     // legal-entity test visits four of them back-to-back and flaked on
     // page.goto timeouts while they cold-compiled under parallel load).
