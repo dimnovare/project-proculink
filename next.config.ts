@@ -70,5 +70,16 @@ export default process.env.NODE_ENV === "production"
       // Only upload source maps when SENTRY_AUTH_TOKEN is set (CI/prod)
       silent: true,
       telemetry: false,
+      // Strip dead Sentry code from the client bundle. Session Replay is NOT
+      // registered in sentry.client.config.ts (no replayIntegration()), so the
+      // replay excludes are guaranteed no-ops functionally; debug statements
+      // are the SDK's internal logger, unused in production. Tracing is kept —
+      // tracesSampleRate: 0.1 is live functionality.
+      bundleSizeOptimizations: {
+        excludeDebugStatements: true,
+        excludeReplayIframe: true,
+        excludeReplayShadowDom: true,
+        excludeReplayWorker: true,
+      },
     })
   : configWithMdx;
