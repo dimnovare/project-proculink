@@ -6,6 +6,12 @@ const withMDX = createMDX({ extension: /\.mdx?$/ });
 
 const nextConfig: NextConfig = {
   pageExtensions: ["ts", "tsx", "mdx"],
+  // Tree-shake the lucide-react icon barrel into per-icon imports so a route
+  // that uses a handful of icons doesn't pull the whole set into its bundle.
+  // Zero behavior change — Next rewrites the imports at build time.
+  experimental: {
+    optimizePackageImports: ["lucide-react"],
+  },
   // API lives on a separate origin — no rewrites needed
   // Baseline security headers on every response. HSTS is already applied by the
   // Vercel edge, so we add the remaining hardening headers here. A full
