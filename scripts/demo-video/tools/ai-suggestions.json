@@ -1,0 +1,47 @@
+{
+  "id": "ai-suggestions",
+  "toolName": "AI suggestions",
+  "route": "/inbox/ord-002",
+  "kicker": "Feature guide",
+  "outroLine": "AI closes the gap — you stay in control.",
+  "beats": [
+    {
+      "id": "b1-open",
+      "shot": "Land on /inbox/ord-002 (2 unresolved lines). Cursor sweeps the header (PO, Needs review), then the red '2 blockers' banner and its 'AI suggestion to review' chips.",
+      "vo": "This order arrived with two lines the automatic pass couldn't finish. ProcuLink always tries your saved mappings and rules first — AI only steps in for the lines those leave unresolved, and it never overrides a match that already worked."
+    },
+    {
+      "id": "b2-anatomy",
+      "shot": "Glide to the Issues panel. First card: BLOCKER · AI suggestion to review · the suggested code chip ES-RES-220R · '84% match'. Rest on the two actions: Accept suggestion / Enter manually.",
+      "actionLeadMs": 300,
+      "extraMs": 600,
+      "vo": "Each open line becomes a card: the supplier code the model proposes, with its real match score — no rounding up. And nothing is ever applied by itself. Every suggestion waits here for a human decision."
+    },
+    {
+      "id": "b3-accept",
+      "shot": "Click 'Accept suggestion' on the 84% card → the card clears and the banner drops to '1 blocker'.",
+      "actionLeadMs": 500,
+      "extraMs": 900,
+      "vo": "If the suggestion is right, accept it. The code is written to the line, the blocker clears — and ProcuLink remembers the decision, so this supplier's next order resolves on its own."
+    },
+    {
+      "id": "b4-manual",
+      "shot": "On the remaining 72% card, click 'Enter manually' → the inline code field opens PRE-FILLED with the suggestion → Save. The order flips to 'Ready to send' with the green 'No open issues' state.",
+      "actionLeadMs": 400,
+      "extraMs": 1400,
+      "vo": "Prefer to decide yourself? Enter manually opens the code field, pre-filled with the suggestion, so you correct rather than retype. Save — and the order flips to ready, every required field filled and checked."
+    },
+    {
+      "id": "b5-grounding",
+      "shot": "Calm sweep over the resolved order — the mapped line codes in the output column; switch the right column to the Preview tab as the grounding narration runs.",
+      "actionLeadMs": 400,
+      "extraMs": 700,
+      "vo": "So where do suggestions come from? With a supplier catalog uploaded, the model must choose from their real item codes — an invented code is rejected before it ever reaches this screen. Without one, suggestions are best effort from the line's evidence — which is why uploading the catalog is the single best upgrade."
+    },
+    {
+      "id": "b6-budget",
+      "shot": "Rest near the green ready banner, then close on the header stepper — Send to supplier is never clicked.",
+      "vo": "All of this runs inside a monthly AI allowance. When it's spent, nothing breaks and nothing blocks — suggestions pause, lines wait for exactly this manual review, and the allowance resets next month. Either way, nothing is sent without review."
+    }
+  ]
+}

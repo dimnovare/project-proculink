@@ -1,0 +1,54 @@
+{
+  "id": "output-mapping-editor",
+  "toolName": "Editing the output",
+  "route": "/inbox/ord-001",
+  "kicker": "Feature guide",
+  "outroLine": "Exactly the file your supplier expects — shaped per order.",
+  "beats": [
+    {
+      "id": "b1-open",
+      "shot": "Land on /inbox/ord-001 (fully resolved order). Cursor settles by the title, then sweeps the three columns: What we received → What we'll send → Live preview.",
+      "vo": "Sometimes one supplier needs their file shaped differently — an extra field, a renamed column, a fixed value their system insists on. Order review is where you shape it: received fields on the left, the output in the middle, and a preview of exactly what this supplier gets."
+    },
+    {
+      "id": "b2-source",
+      "shot": "Click the Auto (1:1) source pill on the Buyer output row → the source picker opens (grouped received fields with values, search box, '= Fixed value…' at the bottom). Glide down the list, rest on the fixed-value button, then Escape without changing anything.",
+      "actionLeadMs": 400,
+      "extraMs": 900,
+      "vo": "Every output field knows where its value comes from. Auto, one to one, means it flows straight through. Click it, and you can point the field at any received field instead — or hand it a fixed value, the same on every order."
+    },
+    {
+      "id": "b3-adjust",
+      "shot": "On the Description output row, click 'Edit value' → the ADJUST THIS VALUE popover. Pick 'Remove extra spaces' from the adjustment select → the chip appears → Done. The row now shows 'Edit value · 1' and the header chip reads '✓ Saved'.",
+      "actionLeadMs": 400,
+      "extraMs": 1000,
+      "vo": "Values can be cleaned up on their way out — strip stray spaces, find and replace, reformat a date, recalculate a number. Adjustments run in order before sending, and every change saves automatically, on this order only."
+    },
+    {
+      "id": "b4-custom",
+      "shot": "Click '+ Add output field' → type InternalRef → 'Add custom field'. The new row appears. Open its source picker → '= Fixed value…' → type WEB-REF-01 → Enter. Row shows '= WEB-REF-01'; the chip reads '14 of 14 mapped · Saved'.",
+      "actionLeadMs": 400,
+      "extraMs": 1600,
+      "vo": "And when the supplier's format wants a field that isn't in the parsed order at all, add it. A custom field lives on this order only — point it at a received field, or give it a fixed value, like a reference their system requires."
+    },
+    {
+      "id": "b5-preview",
+      "shot": "Hover the received 'PO number' row — the wire and its value light up inside the preview document. Then click the cXML pill: the preview re-renders with the honest note 'not the delivered format (the supplier receives CSV)'. Back to CSV.",
+      "actionLeadMs": 400,
+      "extraMs": 900,
+      "vo": "The preview is the honest check — rendered from the order's real values. Rest on a field, and its value lights up in the file. You can preview other formats too, and ProcuLink says plainly when it's not the format this supplier actually gets."
+    },
+    {
+      "id": "b6-structure",
+      "shot": "Click 'Customize output layout' → the 'Design the output' dialog. Sweep: 'Start from a supplier sample' panel, the format pills, the footer line about binding values / formatting / conditional fields. Cancel. ('Build from a sample' is never clicked — no mock backend.)",
+      "actionLeadMs": 400,
+      "extraMs": 900,
+      "vo": "And when a supplier insists on one exact file shape, design the output layout itself: paste the file they require, and ProcuLink matches its structure — values bound to fields, formatted, or included conditionally."
+    },
+    {
+      "id": "b7-close",
+      "shot": "Calm close: glide across the preview's Valid badge, then rest near the Send to supplier button (never clicked).",
+      "vo": "Everything here changes only what this supplier receives — never the order you reviewed. And an order that still needs review doesn't get sent at all."
+    }
+  ]
+}

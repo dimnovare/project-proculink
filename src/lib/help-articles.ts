@@ -152,6 +152,8 @@ export const HELP_ARTICLES: HelpArticle[] = [
     category: "Mapping",
     keywords: ["output mapping", "override", "scriban", "template", "manipulators", "preview", "custom field", "promote", "expression"],
     readMin: 6,
+    videoUrl: `${TOOL_VIDEO_BASE}/output-mapping-editor.mp4`,
+    videoPosterUrl: `${TOOL_VIDEO_BASE}/output-mapping-editor-poster.jpg`,
   },
   {
     slug: "validation-rules",
@@ -160,6 +162,8 @@ export const HELP_ARTICLES: HelpArticle[] = [
     category: "Mapping",
     keywords: ["validation", "rules", "rule definitions", "severity", "acceptance", "operators", "required", "blocking"],
     readMin: 5,
+    videoUrl: `${TOOL_VIDEO_BASE}/validation-rules.mp4`,
+    videoPosterUrl: `${TOOL_VIDEO_BASE}/validation-rules-poster.jpg`,
   },
   // ── Delivery ─────────────────────────────────────────────────────────────
   {
@@ -226,6 +230,8 @@ export const HELP_ARTICLES: HelpArticle[] = [
     category: "Integrations",
     keywords: ["imap", "email", "mailbox", "attachments", "polling", "app password", "growth"],
     readMin: 5,
+    videoUrl: `${TOOL_VIDEO_BASE}/email-polling.mp4`,
+    videoPosterUrl: `${TOOL_VIDEO_BASE}/email-polling-poster.jpg`,
   },
   {
     slug: "api-and-integrations",
@@ -313,6 +319,8 @@ export const HELP_ARTICLES: HelpArticle[] = [
     category: "AI",
     keywords: ["ai", "openai", "confidence", "suggestions", "provenance", "catalog grounding", "token budget", "no-egress", "cap"],
     readMin: 5,
+    videoUrl: `${TOOL_VIDEO_BASE}/ai-suggestions.mp4`,
+    videoPosterUrl: `${TOOL_VIDEO_BASE}/ai-suggestions-poster.jpg`,
   },
   // ── Billing ──────────────────────────────────────────────────────────────
   {

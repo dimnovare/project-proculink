@@ -1,0 +1,54 @@
+{
+  "id": "validation-rules",
+  "toolName": "Validation rules",
+  "route": "/library/rules",
+  "kicker": "Feature guide",
+  "outroLine": "The catalog documents. The supplier tab enforces.",
+  "beats": [
+    {
+      "id": "b1-catalog",
+      "shot": "Land on /library/rules. Cursor settles by the 'Rule catalog' title, sweeps the subtitle, then glides down the rule list.",
+      "vo": "ProcuLink has three places that talk about rules — and only one of them actually stops an order. This is the first: the rule catalog, where your team documents the checks it cares about, each with a name and a severity."
+    },
+    {
+      "id": "b2-notgate",
+      "shot": "Glide the blue callout 'This is a catalog, not a gate.' Toggle the 'Missing GTIN' rule on, then off again. Then glide the right-hand rule editor: severity, condition, and the 'recommended enforcement' banner.",
+      "actionLeadMs": 400,
+      "extraMs": 900,
+      "vo": "The banner says it plainly: this is a catalog, not a gate. Toggling a rule changes your documentation, not enforcement — it's the shared vocabulary your team agrees on."
+    },
+    {
+      "id": "b3-supplier",
+      "shot": "Navigate to the supplier's Validation rules tab (Acme Components, ?tab=acceptance). Sweep the 'How validation works' box: Error blocks delivery, Warning only flags, validation never changes the order.",
+      "actionLeadMs": 400,
+      "extraMs": 1000,
+      "vo": "The rules that actually run live with each supplier, on their validation rules tab. Error rules hold delivery until they're fixed, warnings only flag — and validation never changes the order. It's a gate."
+    },
+    {
+      "id": "b4-author",
+      "shot": "Click 'Add profile' → the editor opens. Add two common rules via the quick-add select: 'Currency must be EUR', then 'Every line has a supplier code'. Glide across a row's controls (scope · field · condition · severity · Blocks delivery). Rest on 'Save rules' — never clicked (no mock backend).",
+      "actionLeadMs": 400,
+      "extraMs": 1400,
+      "vo": "Authoring is plain language: start from a common rule — currency must be euro, every line needs a supplier code — or build your own, down to whether failing blocks delivery. Every saved version lands in the supplier's history, ready to review or roll back."
+    },
+    {
+      "id": "b5-standards",
+      "shot": "Scroll to 'Active rule bindings' and click the Standards button on 'Order currency is present' → the MAPS TO panel expands: cXML 1.2, UBL 2.1, EDIFACT, X12 references. Glide down the four rows.",
+      "actionLeadMs": 400,
+      "extraMs": 900,
+      "vo": "Every check also knows its place in the standards. One click, and the same field is spelled out in c X M L, U B L, EDIFACT and X twelve — the language your suppliers' E D I teams already speak."
+    },
+    {
+      "id": "b6-definitions",
+      "shot": "Navigate to /library/rule-definitions. Sweep the 'Built-in rule definitions' banner and the grouped Order-level / Line-level cards (code, scope, field, operator, severity), rest on a Standards button.",
+      "actionLeadMs": 400,
+      "extraMs": 1000,
+      "vo": "Behind both sits the third surface: rule definitions — the reusable shapes supplier rules bind to, with the same standards references. A read-only reference that grows as you author — not another editor."
+    },
+    {
+      "id": "b7-close",
+      "shot": "Calm close: glide back up to the page title and rest on the banner line that points to each supplier's Validation rules tab.",
+      "vo": "So: the catalog documents, the supplier tab enforces, definitions keep it consistent — a clear gate in front of every send, never a mystery."
+    }
+  ]
+}
