@@ -1,0 +1,48 @@
+{
+  "id": "email-polling",
+  "toolName": "Email polling",
+  "route": "/settings?tab=email",
+  "kicker": "Setup guide",
+  "outroLine": "Point it at the mailbox — orders import themselves.",
+  "beats": [
+    {
+      "id": "b1-open",
+      "shot": "Land on Settings → Email intake (?tab=email deep-link). Cursor settles on the card title, sweeps the 'IMAP polling every 5 minutes' subtitle, rests on the paid-plan notice.",
+      "vo": "When purchase orders arrive as email attachments, ProcuLink can pick them up itself. It polls a mailbox over IMAP every five minutes and turns the attachments into orders. You set it up here, under Settings, Email intake — and it's included on every paid plan."
+    },
+    {
+      "id": "b2-conn",
+      "shot": "Click IMAP host and type imap.nordic-electronics.example, rest on Port (993 stays) and the SSL checkbox.",
+      "actionLeadMs": 400,
+      "extraMs": 900,
+      "vo": "Connecting is standard IMAP. The host — imap dot gmail dot com for Gmail, or your company's mail server — the port, usually nine nine three, and SSL on, which is how almost every provider ships."
+    },
+    {
+      "id": "b3-creds",
+      "shot": "Type the username, then the password (rendered as dots). Glide the helper: 'Gmail and Outlook need an app-specific password, not your normal login.'",
+      "actionLeadMs": 300,
+      "extraMs": 1000,
+      "vo": "Then the mailbox login. One thing matters here: Gmail and Outlook accounts need an app-specific password, generated in the provider's security settings — the normal login won't work. Like every secret in ProcuLink, it's stored encrypted."
+    },
+    {
+      "id": "b4-folder-supplier",
+      "shot": "Rest on Folder (INBOX stays), then open the Default supplier select and pick ElectroSupply Co.",
+      "actionLeadMs": 400,
+      "extraMs": 900,
+      "vo": "Point it at a folder — inbox by default, though a dedicated orders folder keeps unrelated mail out of the scan. And pick a default supplier: an email carries no routing of its own, so every imported order is attributed to the supplier you choose here."
+    },
+    {
+      "id": "b5-what",
+      "shot": "Glide the IMAP mailbox helper line — 'unseen messages with CSV, XLSX, or PDF attachments are imported' — then rest on the Save email button (never clicked — saving has no mock backend).",
+      "actionLeadMs": 300,
+      "extraMs": 700,
+      "vo": "What gets picked up? Unseen messages with CSV, spreadsheet, or PDF attachments — it says so right on the form. Each attachment becomes its own order, and the message is marked as read afterwards, so nothing is ever imported twice."
+    },
+    {
+      "id": "b6-lastpoll",
+      "shot": "Glide the footer — 'Passwords are stored encrypted. Last poll: not run yet.' — then rest on the polling toggle (disabled on the Pilot mock plan; never clicked).",
+      "actionLeadMs": 300,
+      "vo": "After the first run, the time of the last poll shows down here. If orders should be arriving and that time isn't moving, re-check the host and the app password — that's the usual fix. Then switch polling on, and the mailbox takes care of itself."
+    }
+  ]
+}
