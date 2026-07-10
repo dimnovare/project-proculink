@@ -1311,7 +1311,7 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
                     onClick={testFire}
                     disabled={testing}
                     className="inline-flex h-8 flex-shrink-0 items-center justify-center gap-1.5 rounded-[6px] px-3 text-[12px] font-semibold"
-                    style={{ border: "none", background: testing ? "var(--ink-faint)" : "#2E8E3A", color: "#FFF", cursor: testing ? "default" : "pointer" }}
+                    style={{ border: "none", background: testing ? "var(--ink-faint)" : "#297F34", color: "#FFF", cursor: testing ? "default" : "pointer" }}
                   >
                     <Send size={13} /> {testing ? "Testing..." : "Send a test now"}
                   </button>

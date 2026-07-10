@@ -33,7 +33,8 @@ import type { DeliveryProtocol, DeliveryTestResult, OutputFormatId } from "@/lib
 // The locked palette (mirrors DeliveryConfigEditor's inline hex so the wizard reads
 // as the same surface it opens over).
 const NAVY = "#0B1A2F";
-const GREEN = "#2E8E3A";
+const GREEN = "#2E8E3A";     // icons / borders / step-progress dots
+const GREEN_BTN = "#297F34"; // solid fill under white text — ≈4.6:1 AA (2E8E3A was 4.16:1)
 const GREEN_DEEP = "#1F6F2A";
 const BLUE = "#1E66C9";
 const MUTED = "#5E6779";
@@ -446,7 +447,7 @@ function WizardModal({
               type="button"
               onClick={finish}
               className="inline-flex items-center gap-1.5 rounded-[6px] px-3 py-1.5 text-[12px] font-semibold"
-              style={{ border: "none", background: GREEN, color: "#FFF", cursor: "pointer" }}
+              style={{ border: "none", background: GREEN_BTN, color: "#FFF", cursor: "pointer" }}
             >
               <Check size={13} /> Done
             </button>
@@ -815,7 +816,7 @@ function StepTest({
         onClick={onTestFire}
         disabled={testing}
         className="inline-flex items-center justify-center gap-1.5 self-start rounded-[6px] px-3.5 py-2 text-[12px] font-semibold"
-        style={{ border: "none", background: testing ? FAINT : GREEN, color: "#FFF", cursor: testing ? "default" : "pointer" }}
+        style={{ border: "none", background: testing ? FAINT : GREEN_BTN, color: "#FFF", cursor: testing ? "default" : "pointer" }}
       >
         <Send size={13} /> {testing ? "Testing..." : "Send a test"}
       </button>

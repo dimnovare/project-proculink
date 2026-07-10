@@ -36,6 +36,7 @@ const T = {
   blueDeep:  "#0F4FA8",
   blueSoft:  "#EAF0F8",
   green:     "#2E8E3A",
+  greenBtn:  "#297F34", // solid fill under white text — ≈4.6:1 AA (green is 4.16:1)
   greenDeep: "#1E6D29",
   surface:   "#FFFFFF",
   surface2:  "#F1F3F7",
@@ -332,7 +333,7 @@ export function OnboardingChecklist({ onResumeSetup }: OnboardingChecklistProps)
               href={activeStep.href}
               className="mt-5 inline-flex min-h-[44px] items-center gap-1.5 rounded-[6px] px-4 text-[13px] font-semibold transition-colors"
               style={{
-                background: `linear-gradient(90deg, ${T.green} 0%, ${T.greenDeep} 100%)`,
+                background: `linear-gradient(90deg, ${T.greenBtn} 0%, ${T.greenDeep} 100%)`,
                 color: "#fff",
                 letterSpacing: "0.01em",
                 boxShadow: "0 2px 8px rgba(46,142,58,0.25)",

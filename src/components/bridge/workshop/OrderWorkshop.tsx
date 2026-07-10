@@ -591,7 +591,7 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
                 aria-label={labels.primaryCta}
                 style={{
                   height: 36, padding: "0 18px", borderRadius: 8, fontSize: 13, fontWeight: 700,
-                  background: canSend ? "#2E8E3A" : "#5A7660", color: "#FFFFFF",
+                  background: canSend ? "#297F34" : "#5A7660", color: "#FFFFFF",
                   border: `1px solid ${canSend ? "#1E6D29" : "#5A7660"}`,
                   cursor: canSend ? "pointer" : "not-allowed", whiteSpace: "nowrap", flexShrink: 0,
                   display: "inline-flex", alignItems: "center", gap: 8, transition: "filter .12s",

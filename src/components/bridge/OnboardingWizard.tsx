@@ -23,6 +23,7 @@ const T = {
   navy:    "#0B1A2F",
   blue:    "#1E66C9",
   green:   "#2E8E3A",
+  greenBtn:"#297F34", // solid fill under white text — ≈4.6:1 AA (green is 4.16:1)
   surface: "#FFFFFF",
   bg:      "#F6F7FA",
   border:  "#E5E8EE",
@@ -339,7 +340,7 @@ function Step1AddSupplier({ onSuccess }: Step1Props) {
         disabled={loading || !name.trim()}
         style={{
           height: 44,
-          background: loading || !name.trim() ? "#CBD0DA" : T.green,
+          background: loading || !name.trim() ? "#CBD0DA" : T.greenBtn,
           color: "#fff",
           border: "none",
           borderRadius: 6,
@@ -388,7 +389,7 @@ function StepDone({ supplier, onClose }: { supplier: Supplier; onClose: () => vo
         onClick={onClose}
         style={{
           height: 44,
-          background: T.green,
+          background: T.greenBtn,
           color: "#fff",
           border: "none",
           borderRadius: 6,

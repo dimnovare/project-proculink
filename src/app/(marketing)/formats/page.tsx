@@ -114,7 +114,7 @@ export default function FormatsPage() {
           quick configuration away.
         </p>
         <div className="mt-5 flex flex-wrap items-center justify-center gap-3">
-          <Link href="/support" className="rounded-[7px] px-5 py-2.5 text-[14px] font-semibold" style={{ background: "#2E8E3A", color: "#FFFFFF" }}>
+          <Link href="/support" className="rounded-[7px] px-5 py-2.5 text-[14px] font-semibold" style={{ background: "#297F34", color: "#FFFFFF" }}>
             Ask about your format
           </Link>
           <Link href="/sign-up" className="rounded-[7px] px-5 py-2.5 text-[14px] font-semibold" style={{ background: "transparent", color: "#FFFFFF", border: "1px solid #2B3F5E" }}>

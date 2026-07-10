@@ -56,7 +56,8 @@ function designerFormat(raw: OutputFormat | string | null | undefined): OutputFo
 // OutgoingPane, SendReadinessStrip, the signature blue→green bridge edge): buyer-blue #1E66C9,
 // supplier-green #2E8E3A (fill), green-deep #1E6D29 (hover/active). Do NOT diverge.
 const NAVY = "#0B1A2F";
-const GREEN = "#2E8E3A";       // brand-green — modal's single primary action (Save)
+const GREEN = "#2E8E3A";       // brand-green — borders / bound-field accent
+const GREEN_BTN = "#297F34";   // solid fill under white text — ≈4.6:1 AA (2E8E3A was 4.16:1)
 const GREEN_DEEP = "#1E6D29";  // brand-green-deep — primary hover, green text/borders
 const BLUE = "#1E66C9";        // buyer-blue — incoming accent (active includeWhen)
 const BORDER = "#CBD0DA";
@@ -354,7 +355,7 @@ export function OutputStructureDesigner({
                         </button>
                       )}
                       <button onClick={() => void infer()} disabled={inferring || !sample.trim()}
-                        style={{ height: 30, padding: "0 14px", borderRadius: 6, border: `1px solid ${GREEN_DEEP}`, background: GREEN, color: "#FFF", fontSize: 12, fontWeight: 600, cursor: inferring || !sample.trim() ? "default" : "pointer", opacity: inferring || !sample.trim() ? 0.6 : 1 }}>
+                        style={{ height: 30, padding: "0 14px", borderRadius: 6, border: `1px solid ${GREEN_DEEP}`, background: GREEN_BTN, color: "#FFF", fontSize: 12, fontWeight: 600, cursor: inferring || !sample.trim() ? "default" : "pointer", opacity: inferring || !sample.trim() ? 0.6 : 1 }}>
                         {inferring ? "Reading…" : "Build from a sample"}
                       </button>
                     </div>
@@ -405,8 +406,8 @@ export function OutputStructureDesigner({
               style={{ height: isNarrow ? 44 : 32, padding: "0 14px", borderRadius: 6, border: `1px solid ${BORDER}`, background: "#FFF", color: NAVY, fontSize: 13, fontWeight: 500, cursor: "pointer" }}>Cancel</button>
             <button onClick={() => void save()} disabled={saving}
               onMouseEnter={(e) => { if (!saving) e.currentTarget.style.background = GREEN_DEEP; }}
-              onMouseLeave={(e) => { e.currentTarget.style.background = GREEN; }}
-              style={{ height: isNarrow ? 44 : 32, padding: "0 18px", borderRadius: 6, border: "none", background: GREEN, color: "#FFF", fontSize: 13, fontWeight: 600, cursor: saving ? "default" : "pointer", opacity: saving ? 0.7 : 1, transition: "background 150ms ease" }}>
+              onMouseLeave={(e) => { e.currentTarget.style.background = GREEN_BTN; }}
+              style={{ height: isNarrow ? 44 : 32, padding: "0 18px", borderRadius: 6, border: "none", background: GREEN_BTN, color: "#FFF", fontSize: 13, fontWeight: 600, cursor: saving ? "default" : "pointer", opacity: saving ? 0.7 : 1, transition: "background 150ms ease" }}>
               {saving ? "Saving…" : saved ? "✓ Saved" : "Save structure"}
             </button>
           </div>

@@ -871,7 +871,7 @@ export function OutputMappingEditor({
           <button type="button" onClick={onClose} style={{ minHeight: 38, padding: "0 14px", border: "1px solid #CBD0DA", background: "#FFFFFF", color: "#5E6779", borderRadius: 6, cursor: "pointer", fontSize: 12.5 }}>Cancel</button>
           <button type="button" onClick={() => save.mutate()} disabled={save.isPending || !seeded}
             title={!seeded ? "Wait for the saved mapping to load first" : undefined}
-            style={{ minHeight: 38, padding: "0 18px", border: "none", background: "#2E8E3A", color: "#FFFFFF", borderRadius: 6, cursor: "pointer", fontSize: 12.5, fontWeight: 700, opacity: save.isPending || !seeded ? 0.6 : 1 }}>
+            style={{ minHeight: 38, padding: "0 18px", border: "none", background: "#297F34", color: "#FFFFFF", borderRadius: 6, cursor: "pointer", fontSize: 12.5, fontWeight: 700, opacity: save.isPending || !seeded ? 0.6 : 1 }}>
             {save.isPending ? "Saving…" : "Save mapping"}
           </button>
         </div>

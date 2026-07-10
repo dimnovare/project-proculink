@@ -29,6 +29,7 @@ const T = {
   blueBg: "#E3EDFB",
   // Supplier accent = green
   green: "#2E8E3A",
+  greenBtn: "#297F34", // solid fill under white text — ≈4.6:1 AA (green is 4.16:1)
   greenDeep: "#1E6D29",
   greenBg: "#E2F1E2",
   amber: "#C97A14",
@@ -554,7 +555,7 @@ export function ROICalculator() {
                     fontWeight: 600,
                     background:
                       calc.netPositive || calc.plan.isCustom
-                        ? `linear-gradient(90deg, ${T.green}, ${T.greenDeep})`
+                        ? `linear-gradient(90deg, ${T.greenBtn}, ${T.greenDeep})`
                         : `linear-gradient(90deg, ${T.blue}, ${T.blueDeep})`,
                     color: "#FFFFFF",
                     textDecoration: "none",

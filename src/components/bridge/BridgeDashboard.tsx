@@ -41,6 +41,7 @@ import { ArrowRight, ArrowUpRight, Clock, AlertTriangle, CheckCircle2, Send, Act
 // (--brand-green #2E8E3A). These constants are for inline-styled
 // SVG/border/background values where the CSS var doesn't cascade.
 const GREEN = "#2E8E3A";        // --brand-green   (supplier dot, live dot)
+const GREEN_BTN = "#297F34";    // solid fill under white text — ≈4.6:1 AA (2E8E3A was 4.16:1)
 const GREEN_DEEP = "#1E6D29";   // --brand-green-deep (success text / % labels)
 // Same forest green for health bars + their % labels (design bar fill #2E8E3A).
 const GREEN_BAR = "#2E8E3A";
@@ -1310,7 +1311,7 @@ export function BridgeDashboard() {
                       <Link
                         href="/inbox"
                         className="inline-flex h-[36px] items-center justify-center gap-1.5 rounded-[8px] px-3.5 text-[12.5px] font-semibold text-white no-underline transition-colors"
-                        style={{ background: GREEN, boxShadow: "0 1px 2px rgba(11,26,47,0.12)" }}
+                        style={{ background: GREEN_BTN, boxShadow: "0 1px 2px rgba(11,26,47,0.12)" }}
                       >
                         <Send size={13} strokeWidth={2.25} aria-hidden />
                         Review &amp; send

@@ -730,7 +730,7 @@ export function UploadWorkbench() {
       style={{
         background: isUploadDisabled
           ? "#E5E8EE"
-          : "linear-gradient(90deg, #2E8E3A 0%, #1E6D29 100%)",
+          : "linear-gradient(90deg, #297F34 0%, #1E6D29 100%)",
         color: isUploadDisabled ? "var(--ink-faint)" : "#FFFFFF",
         border: "none",
         boxShadow: isUploadDisabled ? "none" : "0 2px 10px rgba(46,142,58,0.28)",
