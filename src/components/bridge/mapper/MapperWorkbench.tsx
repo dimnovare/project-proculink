@@ -31,6 +31,7 @@ import { IncomingPane } from "./IncomingPane";
 import { OutgoingPane, type AutoFilledFields } from "./OutgoingPane";
 import { MapperPreviewPane } from "./MapperPreviewPane";
 import { OutputStructureDesigner } from "../OutputStructureDesigner";
+import { OutputMappingEditor } from "../OutputMappingEditor";
 import { useMapperWireLayer } from "./MapperWireLayer";
 import { useMapperModel } from "./useMapperModel";
 import type { IncomingOrderShape } from "./incomingFromOrder";
@@ -224,6 +225,9 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<FieldFilter>("all");
   const [showDesigner, setShowDesigner] = useState(false);
+  // The OutputMappingEditor slideover (template mode / explicit field rules) — the
+  // only surface where a whole-document output template is written. Order variant only.
+  const [showOutputEditor, setShowOutputEditor] = useState(false);
 
   // ── B1 orientation helper — a thin, dismissible one-line explainer of the
   //    Incoming | Output | Preview / "wires" / collapse-chevron model, for the
@@ -349,11 +353,17 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
           trigger?.click();
           break;
         }
+        case "edit-output-template": {
+          // Per-order templates only — the connection editor has no order to render
+          // against, so its mapper leaves the event alone (harmless palette no-op).
+          if (variant === "order" && scopeId) setShowOutputEditor(true);
+          break;
+        }
       }
     }
     window.addEventListener(MAPPER_EVENT, onCommand);
     return () => window.removeEventListener(MAPPER_EVENT, onCommand);
-  }, [readOnly, hoveredId]);
+  }, [readOnly, hoveredId, variant, scopeId]);
 
   // ── Source ids in render order (drives the wire engine's measure list + kb order) ──
   const sourceIds = useMemo(() => model.sourceFields.map((f) => f.id), [model.sourceFields]);
@@ -687,6 +697,16 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
           }}
         />
       )}
+      {/* The whole-document template escape hatch (+ explicit field-rule form). Portal
+          slideover — invalidates its own queries on save; template-first entry. */}
+      {showOutputEditor && variant === "order" && scopeId && (
+        <OutputMappingEditor
+          orderId={scopeId}
+          open
+          initialTemplateMode
+          onClose={() => setShowOutputEditor(false)}
+        />
+      )}
       {/* ── Issues slot (Order Workshop) no longer sits above the columns — it is
           now the "Issues" tab of the docked preview column (see PreviewColumnTabs
           in the desktop grid below). Absent for every non-workshop host. ─────── */}
@@ -791,6 +811,11 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
                 label="Customize output layout"
                 title="Change how the output file is structured for this supplier — paste a supplier sample to start"
                 onClick={() => setShowDesigner(true)}
+              />
+              <ToolbarButton
+                label="Edit as template"
+                title="Write one template that renders this order's whole output document — for outputs the layout designer can't express (advanced)"
+                onClick={() => setShowOutputEditor(true)}
               />
               <ToolbarButton
                 label={catalogHintCount > 0 ? `Fill from catalog · ${catalogHintCount}` : "Fill from catalog"}
