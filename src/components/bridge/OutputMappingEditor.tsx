@@ -507,7 +507,7 @@ function TemplateEditor({
 // ── Main panel ────────────────────────────────────────────────────────────────
 
 export function OutputMappingEditor({
-  orderId, open, onClose, initialTemplateMode = false,
+  orderId, open, onClose, initialTemplateMode = false, onSaved,
 }: {
   orderId: string;
   open: boolean;
@@ -516,6 +516,11 @@ export function OutputMappingEditor({
       user lands in the template editor even before any template is saved. The in-panel
       toggle still switches back to the field-by-field view. */
   initialTemplateMode?: boolean;
+  /** Fires after a successful Save or Reset, before onClose. The embedding mapper reads
+      the override under its OWN query key ("mapper-override", not "mapping-override"),
+      which the invalidations below cannot reach — the host must bust its own cache here
+      or its outgoing column + live preview keep rendering the pre-save mapping. */
+  onSaved?: () => void;
 }) {
   const qc = useQueryClient();
   const { data: existing, isSuccess: existingLoaded, isError: existingError } = useQuery({
@@ -670,6 +675,7 @@ export function OutputMappingEditor({
     onSuccess: async () => {
       await qc.invalidateQueries({ queryKey: ["mapping-override", orderId] });
       await qc.invalidateQueries({ queryKey: ["order", orderId] });
+      onSaved?.();
       onClose();
     },
   });
@@ -685,6 +691,7 @@ export function OutputMappingEditor({
       setTemplate(""); setTemplateContentType(DEFAULT_TEMPLATE_CONTENT_TYPE); setTemplateMode(false);
       await qc.invalidateQueries({ queryKey: ["mapping-override", orderId] });
       await qc.invalidateQueries({ queryKey: ["order", orderId] });
+      onSaved?.();
     },
   });
 
