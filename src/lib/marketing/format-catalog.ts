@@ -76,7 +76,7 @@ export const DELIVERY_METHODS: FormatRow[] = [
   { name: "HTTPS webhook (POST / PUT)", status: "live", note: "Auth: API key, bearer, basic, or OAuth2 fetch-token." },
   { name: "SFTP", status: "configurable", note: "Password or private-key. Configure it yourself; we verify it with you on a real folder before go-live." },
   { name: "FTPS", status: "configurable", note: "Explicit TLS. Configure it yourself; we verify it with you on a real folder before go-live." },
-  { name: "Email (SMTP)", status: "configurable", note: "The order is sent as an attachment. Configure it yourself; we verify your mail server with you before go-live." },
+  { name: "Email (attachment)", status: "live", note: "The order is emailed as an attachment to the recipient addresses you enter — sent from ProcuLink over HTTPS. No mail server or credentials to set up." },
   { name: "Erply (ERP connector)", status: "configurable", note: "We switch it on with you against your Erply account before go-live." },
   { name: "Directo (ERP connector)", status: "configurable", note: "We switch it on with you against your Directo account before go-live." },
   { name: "More ERP connectors", status: "onRequest", note: "Fortnox, Visma, e-conomic, Dynamics 365 BC, NetSuite, SAP…" },

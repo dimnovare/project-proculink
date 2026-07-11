@@ -219,8 +219,8 @@ export default function InvoicesPage() {
       <input
         ref={fileInputRef}
         type="file"
-        aria-label="Upload invoice file (XML or EDI)"
-        accept=".xml,.edi"
+        aria-label="Upload invoice file (XML)"
+        accept=".xml"
         className="hidden"
         onChange={(e) => { const f = e.target.files?.[0]; if (f) { setNotice(null); uploadMut.mutate(f); } }}
         disabled={uploadMut.isPending}
@@ -231,7 +231,7 @@ export default function InvoicesPage() {
           size="md"
           onClick={() => fileInputRef.current?.click()}
           disabled={uploadMut.isPending}
-          title="Upload an XML or EDI invoice"
+          title="Upload an XML invoice"
         >
           Upload invoice
         </Button>

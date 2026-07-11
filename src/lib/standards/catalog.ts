@@ -92,7 +92,7 @@ export const STANDARDS: StandardSupport[] = [
     family: "xml",
     parse: "supported",
     transform: "supported",
-    transport: "HTTPS · Peppol Access Point · SMTP attachment",
+    transport: "HTTPS · Peppol Access Point · email attachment",
     conformance:
       "Parses and emits the UBL 2.1 Order document (namespace Order-2); mandatory ID, IssueDate, OrderLine/LineItem covered.",
     referenceUrl:

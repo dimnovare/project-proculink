@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
+import { usePathname } from "next/navigation";
 import { useUser } from "@clerk/nextjs";
 import { useCookieConsent } from "@/lib/cookie-consent";
 import { capture, identifyUser, onConsentChanged, setGroup } from "@/lib/analytics";
@@ -8,6 +9,11 @@ import { capture, identifyUser, onConsentChanged, setGroup } from "@/lib/analyti
 export function AnalyticsBoot() {
   const { user, isLoaded } = useUser();
   const [consent] = useCookieConsent();
+  const pathname = usePathname();
+  // Path of the last $pageview we actually emitted under consent — guards
+  // against double-counting a view when consent flips (or is already granted)
+  // for a path we've already captured.
+  const capturedPath = useRef<string | null>(null);
 
   // React to consent changes.
   useEffect(() => {
@@ -26,10 +32,18 @@ export function AnalyticsBoot() {
     if (orgId) setGroup(orgId, {});
   }, [isLoaded, user]);
 
-  // Manual pageview capture so we don't leak query strings.
+  // Pageview on every App Router navigation (and the initial load). Gated on
+  // consent so we never capture before consent is granted — and because this
+  // effect also re-runs when `consent` changes, the pre-consent first view is
+  // recovered the moment consent flips to "analytics-allowed". usePathname()
+  // yields the path WITHOUT the query string, so we still don't leak query
+  // params. The captured-path ref prevents double-counting the same view.
   useEffect(() => {
-    capture("$pageview", { path: typeof window !== "undefined" ? window.location.pathname : "" });
-  }, []);
+    if (consent !== "analytics-allowed") return;
+    if (!pathname || capturedPath.current === pathname) return;
+    capturedPath.current = pathname;
+    capture("$pageview", { path: pathname });
+  }, [pathname, consent]);
 
   return null;
 }
