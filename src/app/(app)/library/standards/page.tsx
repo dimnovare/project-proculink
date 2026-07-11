@@ -155,7 +155,12 @@ export default function StandardsPage() {
           className="pointer-events-none absolute inset-y-0 right-0 z-20 w-10 sm:hidden"
           style={{ background: "linear-gradient(to left, var(--surface), transparent)" }}
         />
-        <div className="overflow-x-auto">
+        <div
+          className="overflow-x-auto"
+          tabIndex={0}
+          role="region"
+          aria-label="Standards mapping matrix — scroll horizontally to see every format"
+        >
           {/* min-width forces horizontal scroll on narrow viewports */}
           <table className="w-full min-w-[760px] border-collapse">
             <thead>

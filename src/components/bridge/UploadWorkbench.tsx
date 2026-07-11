@@ -947,13 +947,12 @@ export function UploadWorkbench() {
                 hint="Drop one or more — each file becomes its own order"
               />
 
-              {/* Drop zone — one large dashed-border hero. Focusable button so keyboard
-                  users can open the picker with Enter/Space, not just mouse-click. */}
-              <div
-                role="button"
-                tabIndex={isReadOnly ? -1 : 0}
-                aria-label="Upload a purchase order — drop one or more files or press Enter to browse"
-                aria-disabled={isReadOnly || undefined}
+              {/* Drop zone — one large dashed-border hero, a labelled region (not a
+                  button) so it can safely CONTAIN interactive controls (the help link
+                  and the "Browse files" button). Keyboard users open the picker via the
+                  inner ≥44px "Browse files" button; mouse users can also click the zone. */}
+              <section
+                aria-label="Upload area"
                 onDragOver={(e) => {
                   e.preventDefault();
                   if (isReadOnly) return;
@@ -979,12 +978,6 @@ export function UploadWorkbench() {
                   if (files.length > 0) acceptFiles(files);
                 }}
                 onClick={() => { if (!isReadOnly && !uploading) fileInputRef.current?.click(); }}
-                onKeyDown={(e) => {
-                  if ((e.key === "Enter" || e.key === " ") && !isReadOnly && !uploading) {
-                    e.preventDefault();
-                    fileInputRef.current?.click();
-                  }
-                }}
                 className="upload-dropzone flex flex-1 flex-col items-center justify-center gap-4 px-6 py-12 sm:px-8 sm:py-14"
                 style={{
                   border: `2px dashed ${dragReject ? "#B43838" : dragging ? "#1E66C9" : "#CBD0DA"}`,
@@ -1287,7 +1280,7 @@ export function UploadWorkbench() {
                     ) : null}
                   </div>
                 )}
-              </div>
+              </section>
 
               {/* Multi-file batch list — N files → N orders. The action button lives
                   in the Step ③ footer; here we surface the per-file pending →

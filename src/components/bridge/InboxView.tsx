@@ -1332,14 +1332,17 @@ export function InboxView() {
                   const sorted = header.column.getIsSorted();
                   const canSort = header.column.getCanSort();
                   const toggleSort = header.column.getToggleSortingHandler();
+                  // Plain-text label for the sort button's accessible name.
+                  const headerDef = header.column.columnDef.header;
+                  const columnLabel =
+                    typeof headerDef === "string" && headerDef ? headerDef : header.column.id;
                   return (
+                    // Native columnheader: aria-sort lives on the <th> (valid here,
+                    // invalid on role=button), while the real <button> inside carries
+                    // the click/keyboard affordance. Veterans live on the keyboard.
                     <th
                       key={header.id}
-                      // Sortable headers are keyboard-operable: focusable, exposed
-                      // as a button to AT, and toggled with Enter/Space. aria-sort
-                      // announces the current direction. Veterans live on the keyboard.
-                      role={canSort ? "button" : undefined}
-                      tabIndex={canSort ? 0 : undefined}
+                      scope="col"
                       aria-sort={
                         canSort
                           ? sorted === "asc"
@@ -1359,24 +1362,37 @@ export function InboxView() {
                         textTransform: "uppercase",
                         color: "var(--ink-muted)",
                         whiteSpace: "nowrap",
-                        cursor: canSort ? "pointer" : "default",
                         userSelect: "none",
                         background: "#F1F3F7",
                       }}
-                      onClick={canSort ? toggleSort : undefined}
-                      onKeyDown={
-                        canSort
-                          ? (e) => {
-                              if (e.key === "Enter" || e.key === " ") {
-                                e.preventDefault();
-                                toggleSort?.(e);
-                              }
-                            }
-                          : undefined
-                      }
                     >
-                      {flexRender(header.column.columnDef.header, header.getContext())}
-                      {canSort && <SortIcon state={sorted} />}
+                      {canSort ? (
+                        <button
+                          type="button"
+                          onClick={toggleSort}
+                          aria-label={`Sort by ${columnLabel}`}
+                          style={{
+                            display: "inline-flex",
+                            alignItems: "center",
+                            background: "none",
+                            border: "none",
+                            padding: 0,
+                            margin: 0,
+                            font: "inherit",
+                            color: "inherit",
+                            letterSpacing: "inherit",
+                            textTransform: "inherit",
+                            whiteSpace: "nowrap",
+                            cursor: "pointer",
+                            userSelect: "none",
+                          }}
+                        >
+                          {flexRender(header.column.columnDef.header, header.getContext())}
+                          <SortIcon state={sorted} />
+                        </button>
+                      ) : (
+                        flexRender(header.column.columnDef.header, header.getContext())
+                      )}
                     </th>
                   );
                 })}

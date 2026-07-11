@@ -305,9 +305,11 @@ export function OnboardingChecklist({ onResumeSetup }: OnboardingChecklistProps)
               className="flex-1 overflow-hidden"
               style={{ height: 6, background: T.surface2, borderRadius: 3 }}
               role="progressbar"
+              aria-label="Setup progress"
               aria-valuenow={totalDone}
               aria-valuemin={0}
               aria-valuemax={totalSteps}
+              aria-valuetext={`${totalDone} of ${totalSteps} steps done`}
             >
               <div
                 style={{

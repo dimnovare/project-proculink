@@ -131,6 +131,7 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
   const router                   = useRouter();
   const listRef                  = useRef<HTMLDivElement>(null);
   const activeRef                = useRef<HTMLButtonElement>(null);
+  const paletteRef               = useRef<HTMLDivElement>(null);
 
   // Debounce the user's query before firing a server search — avoids a request per keystroke.
   const [debouncedQ, setDebouncedQ] = useState("");
@@ -215,6 +216,36 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [flatItems, activeIndex, onClose]);
 
+  // Focus trap — keep Tab / Shift+Tab within the modal so focus can't escape to
+  // the page behind. The input is the only real tab stop (result rows use
+  // aria-activedescendant, not roving tabindex), so this reliably parks focus
+  // on the search field; if focus ever escapes, it is pulled back in.
+  const handleTrapKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (e.key !== "Tab") return;
+    const container = paletteRef.current;
+    if (!container) return;
+    const focusable = Array.from(
+      container.querySelectorAll<HTMLElement>(
+        'a[href], button, input, select, textarea, [tabindex]',
+      ),
+    ).filter(
+      (el) => !el.hasAttribute("disabled") && el.getAttribute("tabindex") !== "-1",
+    );
+    if (focusable.length === 0) return;
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    const active = document.activeElement as HTMLElement | null;
+    if (e.shiftKey) {
+      if (active === first || !container.contains(active)) {
+        e.preventDefault();
+        last.focus();
+      }
+    } else if (active === last || !container.contains(active)) {
+      e.preventDefault();
+      first.focus();
+    }
+  }, []);
+
   // Global Escape still closes even if focus isn't on input
   useEffect(() => {
     function down(e: KeyboardEvent) {
@@ -254,6 +285,11 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
 
       {/* Palette */}
       <div
+        ref={paletteRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Command palette"
+        onKeyDown={handleTrapKeyDown}
         style={{
           position: "fixed",
           top: "20vh",
@@ -286,6 +322,12 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
             onChange={(e) => setQ(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder="Search orders, suppliers, buyers, actions…"
+            role="combobox"
+            aria-label="Search orders, suppliers, buyers, actions"
+            aria-autocomplete="list"
+            aria-expanded={hasResults}
+            aria-controls="cmd-listbox"
+            aria-activedescendant={hasResults ? `cmd-option-${activeIndex}` : undefined}
             style={{
               flex: 1,
               border: "none",
@@ -310,7 +352,13 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
         </div>
 
         {/* Results */}
-        <div ref={listRef} style={{ maxHeight: 420, overflowY: "auto" }}>
+        <div
+          ref={listRef}
+          id="cmd-listbox"
+          role={hasResults ? "listbox" : undefined}
+          aria-label={hasResults ? "Results" : undefined}
+          style={{ maxHeight: 420, overflowY: "auto" }}
+        >
           {!hasResults ? (
             <div
               style={{
@@ -324,8 +372,9 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
             </div>
           ) : (
             Object.entries(groups).map(([group, groupItems]) => (
-              <div key={group}>
+              <div key={group} role="group" aria-label={group}>
                 <div
+                  aria-hidden="true"
                   style={{
                     padding: "8px 16px 4px",
                     fontSize: 10.5,
@@ -343,6 +392,10 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
                   return (
                   <button
                     key={item.id}
+                    id={`cmd-option-${currentIdx}`}
+                    role="option"
+                    aria-selected={isActive}
+                    tabIndex={-1}
                     ref={isActive ? activeRef : undefined}
                     onClick={() => run(item)}
                     onMouseEnter={() => setActive(currentIdx)}

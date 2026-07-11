@@ -1393,7 +1393,12 @@ export function SupplierDockProfile({ id }: { id: string }) {
       </div>
 
       {/* Tab body */}
-      <div className="flex-1 min-h-0 overflow-auto pt-4">
+      <div
+        className="flex-1 min-h-0 overflow-auto pt-4"
+        tabIndex={0}
+        role="region"
+        aria-label="Supplier profile details"
+      >
         {tab === "overview" && (
           <div className="flex flex-col gap-4">
             {/* KPI stat cards */}
