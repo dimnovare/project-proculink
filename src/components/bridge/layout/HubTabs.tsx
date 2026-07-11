@@ -180,7 +180,7 @@ export function HubTabs({
                   fontFamily: "var(--font-mono, ui-monospace)",
                   fontSize: 10.5,
                   fontWeight: 600,
-                  color: topbar ? (active ? "#7FA8E0" : "#5E6779") : active ? "#1E66C9" : "#98A0AE",
+                  color: topbar ? (active ? "#7FA8E0" : "#5E6779") : active ? "#1E66C9" : "var(--ink-faint)",
                 }}
               >
                 {count}

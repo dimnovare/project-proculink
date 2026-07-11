@@ -307,7 +307,7 @@ function IncomingGroup({
       >
         <span style={{ fontSize: 10, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.09em", color: "#5E6779" }}>
           {meta.label}{" "}
-          <span style={{ fontFamily: "'JetBrains Mono',monospace", fontWeight: 700, color: "#98A0AE" }}>· {fields.length}</span>
+          <span style={{ fontFamily: "'JetBrains Mono',monospace", fontWeight: 700, color: "var(--ink-faint)" }}>· {fields.length}</span>
         </span>
         {!forceOpen && (
           <span aria-hidden style={{ fontSize: 9, fontWeight: 700, color: "#5E3DB0", transition: "transform 120ms", transform: expanded ? "rotate(0deg)" : "rotate(-90deg)" }}>

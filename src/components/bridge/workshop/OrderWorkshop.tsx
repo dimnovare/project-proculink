@@ -114,7 +114,7 @@ function InvoiceBadge({ documentType }: { documentType?: string | null }) {
     <span
       className="inline-flex items-center gap-1.5 rounded-full"
       title="This looks like an invoice, not a purchase order. Review it carefully before sending — the supplier may reject it if they expect a PO."
-      style={{ fontSize: 12, fontWeight: 600, padding: "3px 11px", background: "#FAF1DD", color: "#B36D14", whiteSpace: "nowrap" }}
+      style={{ fontSize: 12, fontWeight: 600, padding: "3px 11px", background: "#FAF1DD", color: "#8A5310", whiteSpace: "nowrap" }}
     >
       <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#B36D14", flexShrink: 0 }} />
       Looks like an invoice
@@ -471,7 +471,7 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
           {order.poNumber && (
             <p
               className="text-[12px]"
-              style={{ color: "#98A0AE", marginTop: 12, fontFamily: "'JetBrains Mono',monospace" }}
+              style={{ color: "var(--ink-faint)", marginTop: 12, fontFamily: "'JetBrains Mono',monospace" }}
             >
               {order.poNumber}
             </p>
@@ -611,7 +611,7 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
                       : labels.primaryCta}
               </button>
               {!canSend && !crossed && sendState === "idle" && (blockingIssues > 0 || exceptionCount > 0) && (
-                <span style={{ fontSize: 10.5, fontWeight: 600, color: "#B36D14", whiteSpace: "nowrap" }}>
+                <span style={{ fontSize: 10.5, fontWeight: 600, color: "#8A5310", whiteSpace: "nowrap" }}>
                   Resolve blockers to send
                 </span>
               )}

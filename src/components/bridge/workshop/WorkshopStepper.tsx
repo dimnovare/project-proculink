@@ -53,7 +53,7 @@ export function WorkshopStepper({ stage, failed = false }: { stage: number; fail
         // (ring only). fail flips the active node to danger.
         const fill = done ? "#2E8E3A" : isFail ? "#B43838" : active ? "#1E66C9" : "transparent";
         const bd = done ? "#2E8E3A" : isFail ? "#B43838" : active ? "#1E66C9" : "#CBD0DA";
-        const txt = done ? "#1E6D29" : isFail ? "#B43838" : active ? "#0B1A2F" : "#98A0AE";
+        const txt = done ? "#1E6D29" : isFail ? "#B43838" : active ? "#0B1A2F" : "var(--ink-faint)";
         return (
           <Fragment key={s.label}>
             <div title={s.title} style={{ display: "inline-flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
@@ -65,7 +65,7 @@ export function WorkshopStepper({ stage, failed = false }: { stage: number; fail
                 }}
               >
                 {done ? <CheckGlyph /> : isFail ? <XGlyph /> : (
-                  <span style={{ fontSize: 8, fontWeight: 800, fontFamily: "'JetBrains Mono',monospace", color: active ? "#FFFFFF" : "#98A0AE" }}>
+                  <span style={{ fontSize: 8, fontWeight: 800, fontFamily: "'JetBrains Mono',monospace", color: active ? "#FFFFFF" : "var(--ink-faint)" }}>
                     {i + 1}
                   </span>
                 )}

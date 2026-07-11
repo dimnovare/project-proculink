@@ -148,7 +148,7 @@ const STATUS_PILL: Record<CrossingStatus, { bg: string; color: string; dot: stri
   new:        { bg: "#F1F3F7", color: "#5E6779", dot: "var(--ink-faint)",  label: "New" },
   // tokens.css .pill-extracting → brand-blue-soft / brand-blue-deep / brand-blue (NOT violet)
   extracting: { bg: "#EAF0F8", color: "#0F4FA8", dot: "#1E66C9",  label: "Extracting" },
-  review:     { bg: "#FAF1DD", color: "#B36D14", dot: "#B36D14",  label: "Needs review" },
+  review:     { bg: "#FAF1DD", color: "#8A5310", dot: "#B36D14",  label: "Needs review" },
   ready:      { bg: "#E9F1EA", color: "#1E6D29", dot: "#2E8E3A",  label: "Ready" },
   // tokens.css .pill-sent → brand-green-soft / brand-green-deep / brand-green
   sent:       { bg: "#E9F1EA", color: "#1E6D29", dot: "#2E8E3A",  label: "Delivered" },

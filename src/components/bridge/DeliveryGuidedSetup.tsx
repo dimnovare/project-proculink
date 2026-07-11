@@ -38,7 +38,7 @@ const GREEN_BTN = "#297F34"; // solid fill under white text — ≈4.6:1 AA (2E8
 const GREEN_DEEP = "#1F6F2A";
 const BLUE = "#1E66C9";
 const MUTED = "#5E6779";
-const FAINT = "#98A0AE";
+const FAINT = "#667085";
 const BORDER = "#D5DAEA";
 const INPUT_STYLE = { border: `1px solid ${BORDER}`, color: NAVY } as const;
 

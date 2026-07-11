@@ -30,7 +30,7 @@ export const metadata: Metadata = {
 const STATUS: Record<StatusKey, { label: string; fg: string; bg: string; desc: string }> = {
   live:         { label: "Supported",    fg: "#1F6F2A", bg: "#E2F1E2", desc: "Works today — set it up yourself in the app." },
   configurable: { label: "Configurable", fg: "#0F4FA8", bg: "#E3EDFB", desc: "Works today; we switch it on with you in a quick setup." },
-  onRequest:    { label: "On request",   fg: "#C97A14", bg: "#FAEFD6", desc: "Not built yet, but straightforward — we'll add it for your rollout." },
+  onRequest:    { label: "On request",   fg: "#8A5310", bg: "#FAEFD6", desc: "Not built yet, but straightforward — we'll add it for your rollout." },
   planned:      { label: "Planned",      fg: "#56627A", bg: "#EEF1F6", desc: "On the roadmap." },
 };
 

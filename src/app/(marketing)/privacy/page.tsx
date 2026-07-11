@@ -83,7 +83,7 @@ export default function PrivacyPage() {
       </ul>
       <p style={S.p}>
         To exercise any of these rights, email{" "}
-        <a href="mailto:privacy@proculink.eu" style={{ color: "#1E6D29" }}>privacy@proculink.eu</a>.
+        <a href="mailto:privacy@proculink.eu" style={{ color: "#1E6D29", textDecoration: "underline" }}>privacy@proculink.eu</a>.
         We aim to respond within 30 days.
       </p>
 
@@ -96,7 +96,7 @@ export default function PrivacyPage() {
       <h2 style={S.h2}>Subprocessors</h2>
       <p style={S.p}>
         The authoritative list of subprocessors is maintained at{" "}
-        <Link href="/subprocessors" style={{ color: "#1E6D29" }}>/subprocessors</Link>{" "}
+        <Link href="/subprocessors" style={{ color: "#1E6D29", textDecoration: "underline" }}>/subprocessors</Link>{" "}
         with a 30-day change-notification commitment. The current snapshot:
       </p>
       <table style={S.table}>
@@ -121,9 +121,9 @@ export default function PrivacyPage() {
       <h2 style={S.h2}>Contact and DPO</h2>
       <p style={S.p}>
         For privacy questions or to exercise your rights:{" "}
-        <a href="mailto:privacy@proculink.eu" style={{ color: "#1E6D29" }}>privacy@proculink.eu</a>
+        <a href="mailto:privacy@proculink.eu" style={{ color: "#1E6D29", textDecoration: "underline" }}>privacy@proculink.eu</a>
         <br />
-        General support: <a href="mailto:support@proculink.eu" style={{ color: "#1E6D29" }}>support@proculink.eu</a>
+        General support: <a href="mailto:support@proculink.eu" style={{ color: "#1E6D29", textDecoration: "underline" }}>support@proculink.eu</a>
         <br />
         Registered address: {LEGAL_ENTITY.legalName}, {LEGAL_ENTITY.registeredAddress}
       </p>

@@ -396,8 +396,8 @@ export function ValidationRules() {
                           </span>
                         </td>
                         <td className="px-3 py-3.5" style={{ maxWidth: 280 }}>
-                          <div className="font-semibold text-[13px] leading-tight" style={{ color: "#0B1A2F" }}>{r.name || <span style={{ color: "#9AA3B5", fontStyle: "italic" }}>Untitled rule</span>}</div>
-                          <div className="text-[11px] mt-0.5 tracking-[0.02em]" style={{ color: "#9AA3B5", fontFamily: "'JetBrains Mono', ui-monospace, SFMono-Regular, monospace" }}>{r.code}</div>
+                          <div className="font-semibold text-[13px] leading-tight" style={{ color: "#0B1A2F" }}>{r.name || <span style={{ color: "var(--ink-faint)", fontStyle: "italic" }}>Untitled rule</span>}</div>
+                          <div className="text-[11px] mt-0.5 tracking-[0.02em]" style={{ color: "var(--ink-faint)", fontFamily: "'JetBrains Mono', ui-monospace, SFMono-Regular, monospace" }}>{r.code}</div>
                         </td>
                         <td className="px-3 py-3.5">
                           <span className="inline-flex items-center rounded-[6px] px-2 py-0.5 text-[11.5px] font-medium" style={{ background: "#F1F3F7", color: "#5B6577" }}>{r.entity}</span>
@@ -440,8 +440,8 @@ export function ValidationRules() {
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <div className="font-semibold text-[14px] leading-snug" style={{ color: "#0B1A2F" }}>{r.name || <span style={{ color: "#9AA3B5", fontStyle: "italic" }}>Untitled rule</span>}</div>
-                      <div className="text-[11px] mt-0.5 tracking-[0.02em]" style={{ color: "#9AA3B5", fontFamily: "'JetBrains Mono', ui-monospace, SFMono-Regular, monospace" }}>{r.code}</div>
+                      <div className="font-semibold text-[14px] leading-snug" style={{ color: "#0B1A2F" }}>{r.name || <span style={{ color: "var(--ink-faint)", fontStyle: "italic" }}>Untitled rule</span>}</div>
+                      <div className="text-[11px] mt-0.5 tracking-[0.02em]" style={{ color: "var(--ink-faint)", fontFamily: "'JetBrains Mono', ui-monospace, SFMono-Regular, monospace" }}>{r.code}</div>
                     </div>
                     {/* 44×44 hit area around the 38×22 toggle so a tap on/near it
                         toggles the rule (and does NOT open the editor sheet). */}
@@ -472,7 +472,7 @@ export function ValidationRules() {
                   <p className="mt-2 text-[12px] leading-snug" style={{ color: "#5E6779" }}>
                     {r.description}
                   </p>
-                  <div className="mt-2.5 pt-2.5 text-[12px]" style={{ borderTop: "1px solid #F1F3F7", color: "#9AA3B5" }}>
+                  <div className="mt-2.5 pt-2.5 text-[12px]" style={{ borderTop: "1px solid #F1F3F7", color: "var(--ink-faint)" }}>
                     Triggered <span className="font-semibold" style={{ color: r.triggers > 0 ? "#0B1A2F" : "#CBD0DA", fontFamily: "'JetBrains Mono', ui-monospace, SFMono-Regular, monospace" }}>{r.triggers}</span>
                     <span> in the last 30 days</span>
                   </div>
@@ -523,7 +523,7 @@ export function ValidationRules() {
             <div className="flex items-center gap-3 px-5 py-3.5 flex-shrink-0" style={{ borderBottom: "1px solid #EEF0F4", background: "#FFFFFF" }}>
               <div className="min-w-0 flex-1">
                 <div className="text-[15px] font-bold leading-tight" style={{ fontFamily: "'Bricolage Grotesque', Inter, sans-serif", color: "#0B1A2F" }}>{selected.id === "new" ? "New rule" : "Edit rule"}</div>
-                <div className="text-[11px] mt-0.5 tracking-[0.02em] truncate" style={{ color: "#9AA3B5", fontFamily: "'JetBrains Mono', ui-monospace, SFMono-Regular, monospace" }}>{selected.id === "new" ? "Document a check for your catalog" : selected.code}</div>
+                <div className="text-[11px] mt-0.5 tracking-[0.02em] truncate" style={{ color: "var(--ink-faint)", fontFamily: "'JetBrains Mono', ui-monospace, SFMono-Regular, monospace" }}>{selected.id === "new" ? "Document a check for your catalog" : selected.code}</div>
               </div>
               <button
                 type="button"
@@ -613,7 +613,7 @@ function RuleEditor({
           </span>
           <div className="min-w-0">
             <div className="text-[14.5px] font-bold leading-tight" style={{ fontFamily: "'Bricolage Grotesque', Inter, sans-serif", color: "#0B1A2F" }}>{isNew ? "New rule" : "Rule definition"}</div>
-            <div className="text-[11px] mt-0.5 tracking-[0.02em] truncate" style={{ color: "#9AA3B5", fontFamily: "'JetBrains Mono', ui-monospace, SFMono-Regular, monospace" }}>{isNew ? "Document a check for your catalog" : rule.code}</div>
+            <div className="text-[11px] mt-0.5 tracking-[0.02em] truncate" style={{ color: "var(--ink-faint)", fontFamily: "'JetBrains Mono', ui-monospace, SFMono-Regular, monospace" }}>{isNew ? "Document a check for your catalog" : rule.code}</div>
           </div>
         </div>
       )}
@@ -639,9 +639,9 @@ function RuleEditor({
 
         {/* Condition (WHEN) */}
         <div className="grid gap-1.5">
-          <span className="text-[12px] font-semibold tracking-[0]" style={{ color: "#5C6280" }}>Condition <span style={{ color: "#9AA3B5", fontWeight: 500 }}>(WHEN)</span></span>
+          <span className="text-[12px] font-semibold tracking-[0]" style={{ color: "#5C6280" }}>Condition <span style={{ color: "var(--ink-faint)", fontWeight: 500 }}>(WHEN)</span></span>
           <div className="rounded-[8px] px-3.5 py-2.5 text-[12.5px]" style={{ background: "#F1F3F7", border: "1px solid #E5E8EE", color: "#37425A", fontFamily: "'JetBrains Mono', ui-monospace, SFMono-Regular, monospace" }}>
-            {rule.condition || rule.description || <span style={{ color: "#9AA3B5" }}>Describe when this rule triggers below.</span>}
+            {rule.condition || rule.description || <span style={{ color: "var(--ink-faint)" }}>Describe when this rule triggers below.</span>}
           </div>
         </div>
 
@@ -649,7 +649,7 @@ function RuleEditor({
             orders; the recommendation tells you how to set the matching check up on
             the supplier Acceptance tab, where enforcement really runs. */}
         <div className="grid gap-1.5">
-          <span className="text-[12px] font-semibold tracking-[0]" style={{ color: "#5C6280" }}>Recommended enforcement <span style={{ color: "#9AA3B5", fontWeight: 500 }}>(per supplier)</span></span>
+          <span className="text-[12px] font-semibold tracking-[0]" style={{ color: "#5C6280" }}>Recommended enforcement <span style={{ color: "var(--ink-faint)", fontWeight: 500 }}>(per supplier)</span></span>
           <div className="rounded-[8px] px-3.5 py-2.5 text-[12.5px] font-medium" style={{ background: sev.bannerBg, color: sev.bannerText }}>
             {sev.banner}
           </div>
@@ -668,7 +668,7 @@ function RuleEditor({
         </div>
 
         {!isNew && (
-          <div className="text-[11.5px]" style={{ color: "#9AA3B5" }}>
+          <div className="text-[11.5px]" style={{ color: "var(--ink-faint)" }}>
             Triggered <span className="font-semibold" style={{ color: "#0B1A2F", fontFamily: "'JetBrains Mono', ui-monospace, SFMono-Regular, monospace" }}>{rule.triggers}</span> times in the last 30 days
             {rule.lastTriggered !== "—" && <> · last {rule.lastTriggered} ago</>}
           </div>

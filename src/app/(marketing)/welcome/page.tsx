@@ -43,7 +43,7 @@ function WelcomeBody() {
             You&apos;re on {upgraded.charAt(0).toUpperCase() + upgraded.slice(1)}.
           </h2>
           <p style={{ fontSize: 13.5, color: "#56627A", lineHeight: 1.55, margin: 0, textAlign: "left" }}>
-            Your subscription is active. Your billing portal is in <Link href="/settings" style={{ color: "#1E6D29" }}>Settings → Billing</Link>. Receipt was emailed to {user?.primaryEmailAddress?.emailAddress ?? "your inbox"}.
+            Your subscription is active. Your billing portal is in <Link href="/settings" style={{ color: "#1E6D29", textDecoration: "underline" }}>Settings → Billing</Link>. Receipt was emailed to {user?.primaryEmailAddress?.emailAddress ?? "your inbox"}.
           </p>
         </div>
       )}

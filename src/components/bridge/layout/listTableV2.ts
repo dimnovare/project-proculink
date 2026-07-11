@@ -24,7 +24,7 @@ export const TV2 = {
   borderFaint: "#EEF0F4", // --border-faint — row dividers
   ink: "#0B1A2F", // --ink
   inkMuted: "#5E6779", // --ink-muted — header label ink
-  inkFaint: "#98A0AE", // --ink-faint
+  inkFaint: "#667085", // --ink-faint
   // Row-tint hover fill (the reference's surface-2 @ ~53% over white).
   rowHover: "#F6F7FA", // --bg — calm hover band on white rows
   shadow: "0 1px 3px rgba(11,26,47,0.05), 0 1px 2px rgba(11,26,47,0.04)",

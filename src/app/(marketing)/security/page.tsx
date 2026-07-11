@@ -208,7 +208,7 @@ export default function SecurityPage() {
             <ListCard rows={SUBPROCESSOR_ROWS} />
             <p style={{ fontSize: 12.5, color: MUTE, margin: "12px 2px 0" }}>
               Full list with locations, contracts, and change notifications:{" "}
-              <Link href="/subprocessors" style={{ color: GREEN_DEEP }}>
+              <Link href="/subprocessors" style={{ color: GREEN_DEEP, textDecoration: "underline" }}>
                 /subprocessors
               </Link>
             </p>

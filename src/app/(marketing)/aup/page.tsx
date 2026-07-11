@@ -24,7 +24,7 @@ export default function AupPage() {
 
       <p style={S.intro}>
         This Acceptable Use Policy supplements the{" "}
-        <Link href="/terms" style={{ color: "#1E6D29" }}>Terms of Service</Link> and applies to
+        <Link href="/terms" style={{ color: "#1E6D29", textDecoration: "underline" }}>Terms of Service</Link> and applies to
         all use of the ProcuLink platform.
       </p>
 
@@ -51,7 +51,7 @@ export default function AupPage() {
       <h2 style={S.h2}>Reporting abuse</h2>
       <p style={S.p}>
         To report abuse of the ProcuLink platform, email{" "}
-        <a href="mailto:abuse@proculink.eu" style={{ color: "#1E6D29" }}>abuse@proculink.eu</a>.
+        <a href="mailto:abuse@proculink.eu" style={{ color: "#1E6D29", textDecoration: "underline" }}>abuse@proculink.eu</a>.
         Include the affected organisation, supplier, or delivery destination, and a description
         of the issue. We will respond within 2 business days.
       </p>

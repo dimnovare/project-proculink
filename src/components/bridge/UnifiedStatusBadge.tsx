@@ -55,7 +55,7 @@ type ToneStyle = { bg: string; fg: string; Icon: LucideIcon };
     Lucide glyph per tone for the opt-in `icon` rendering mode. */
 const TONE_STYLE: Record<StatusTone, ToneStyle> = {
   success: { bg: "var(--brand-green-soft)", fg: "var(--brand-green-deep)", Icon: CheckCircle2 },
-  warning: { bg: "var(--amber-soft)", fg: "var(--amber)", Icon: AlertTriangle },
+  warning: { bg: "var(--amber-soft)", fg: "var(--amber-text)", Icon: AlertTriangle },
   danger: { bg: "var(--danger-soft)", fg: "var(--danger)", Icon: XCircle },
   info: { bg: "var(--brand-blue-soft)", fg: "var(--brand-blue-deep)", Icon: Loader2 },
   neutral: { bg: "var(--surface-2)", fg: "var(--ink-muted)", Icon: Circle },

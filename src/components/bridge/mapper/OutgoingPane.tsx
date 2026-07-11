@@ -284,7 +284,7 @@ export function OutgoingPane({
           This supplier uses a structured format ({structuredFormatLabel(outputFormat)}). Fields like
           contact and addresses are filled in automatically from the order — adding or editing fields
           here won&rsquo;t change what&rsquo;s sent.{" "}
-          <span style={{ color: "#98A0AE" }}>
+          <span style={{ color: "var(--ink-faint)" }}>
             To change the structure, edit the supplier&rsquo;s output setup.
           </span>
         </div>
@@ -641,7 +641,7 @@ function OutgoingRow({
               {field.label || field.outputPath}
             </span>
             {field.label && field.label !== field.outputPath && (
-              <span style={{ fontSize: 10.5, fontFamily: "'JetBrains Mono',monospace", color: "#98A0AE", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              <span style={{ fontSize: 10.5, fontFamily: "'JetBrains Mono',monospace", color: "var(--ink-faint)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                 {field.outputPath}
               </span>
             )}

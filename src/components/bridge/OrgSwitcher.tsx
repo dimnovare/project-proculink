@@ -202,7 +202,7 @@ export function OrgSwitcher({ collapsed = false, compact = false, orgName, planL
       >
         <div
           className="uppercase"
-          style={{ fontSize: 9.5, fontWeight: 700, letterSpacing: "0.12em", color: "#98A0AE", padding: "10px 12px 5px" }}
+          style={{ fontSize: 9.5, fontWeight: 700, letterSpacing: "0.12em", color: "var(--ink-faint)", padding: "10px 12px 5px" }}
         >
           Workspaces
         </div>
@@ -229,12 +229,12 @@ export function OrgSwitcher({ collapsed = false, compact = false, orgName, planL
                 {/* Plan is only known (billing query) for the ACTIVE org — never
                     fabricate a tier for the others. */}
                 {isActiveRow && activePlan && (
-                  <span className="block" style={{ fontSize: 10.5, color: "#98A0AE", marginTop: 1 }}>
+                  <span className="block" style={{ fontSize: 10.5, color: "var(--ink-faint)", marginTop: 1 }}>
                     {activePlan}
                   </span>
                 )}
                 {switchingId === org.id && (
-                  <span className="block" style={{ fontSize: 10.5, color: "#98A0AE", marginTop: 1 }}>
+                  <span className="block" style={{ fontSize: 10.5, color: "var(--ink-faint)", marginTop: 1 }}>
                     Switching…
                   </span>
                 )}

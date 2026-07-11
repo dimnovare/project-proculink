@@ -72,7 +72,10 @@ export default {
         ink: {
           DEFAULT: "#0B1A2F",
           muted:   "#5E6779",
-          faint:   "#98A0AE",
+          // Mirror the darkened --ink-faint (globals.css): #98A0AE was ≈2.6:1 on
+          // white and failed WCAG AA; #667085 is ≈5.2:1. Keeps `text-ink-faint`
+          // in sync with the CSS variable so the utility passes AA too.
+          faint:   "#667085",
         },
 
         // Semantic — nested so `bg-amber-soft`, `bg-danger-soft`, `bg-ai-soft` work

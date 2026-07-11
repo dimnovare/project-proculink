@@ -927,7 +927,7 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
             title="Dismiss this tip"
             style={{
               flexShrink: 0, border: "none", background: "none", cursor: "pointer",
-              color: "#98A0AE", fontSize: 13, lineHeight: 1, padding: "1px 3px",
+              color: "var(--ink-faint)", fontSize: 13, lineHeight: 1, padding: "1px 3px",
             }}
           >
             ✕

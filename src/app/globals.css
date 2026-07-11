@@ -55,6 +55,12 @@
   /* Semantic */
   --amber:             #B36D14;
   --amber-soft:        #FAF1DD;
+  /* Amber TEXT token. #B36D14 on the soft-amber chip fills (#FAF1DD/#FAEFD6) is
+     only ≈3.65:1 — fails WCAG AA for normal text. This darker amber (#8A5310,
+     ≈5.6:1 on amber-soft, ≈6.3:1 on white) is used for amber chip/badge/label
+     TEXT so it stays readable; --amber itself stays for dots/borders/strokes
+     (non-text, ≥3:1). Mirrors the --ink-faint a11y darkening. Founder-approved. */
+  --amber-text:        #8A5310;
   --danger:            #B43838;
   --danger-soft:       #FAE6E6;
   --ai:                #6F4FCE;
@@ -274,7 +280,7 @@
 
   /* ── Confidence chip ─────────────────────────────────────────── */
   .conf-high   { @apply bg-brand-green-soft text-brand-green-deep; }
-  .conf-mid    { @apply bg-amber-soft text-amber; }
+  .conf-mid    { @apply bg-amber-soft text-[color:var(--amber-text)]; }
   .conf-low    { @apply bg-danger-soft text-danger; }
 
   /* ── Table density (inbox) ───────────────────────────────────── */
@@ -494,7 +500,7 @@
   display: inline-flex; align-items: center;
 }
 .conf-hi  { background: var(--brand-green-soft); color: var(--brand-green-deep); }
-.conf-mid { background: var(--amber-soft);        color: var(--amber); }
+.conf-mid { background: var(--amber-soft);        color: var(--amber-text); }
 .conf-lo  { background: var(--danger-soft);       color: var(--danger); }
 
 /* ── Pills ─────────────────────────────────────────────────────────────── */
@@ -508,7 +514,7 @@
 .pill-new .dot    { background: var(--ink-faint); }
 .pill-extracting  { background: var(--brand-blue-soft);   color: var(--brand-blue-deep); }
 .pill-extracting .dot { background: var(--brand-blue); }
-.pill-review      { background: var(--amber-soft);        color: var(--amber); }
+.pill-review      { background: var(--amber-soft);        color: var(--amber-text); }
 .pill-review .dot { background: var(--amber); }
 .pill-ready       { background: var(--brand-green-soft);  color: var(--brand-green-deep); }
 .pill-ready .dot  { background: var(--brand-green); }
@@ -531,7 +537,7 @@
 .src-CSV             { background:#EEF3F8; color:#345470; }
 .src-XML,
 .src-cXML            { background:var(--ai-soft); color:#5E3DB0; }
-.src-EDI             { background:var(--amber-soft); color:var(--amber); }
+.src-EDI             { background:var(--amber-soft); color:var(--amber-text); }
 .src-EMAIL           { background:#E9EDF3; color:#4A5568; }
 .src-API             { background:#E3F0E3; color:var(--brand-green-deep); }
 .src-JSON            { background:#FFF4D6; color:#846100; }
@@ -803,7 +809,7 @@ details[open] > summary [data-disclosure-chevron] {
 .monument .m-value { font-family: var(--font-display); font-weight: 600; letter-spacing: -0.035em; line-height: 1; margin-top: 8px; color: var(--ink); }
 .monument .m-sub   { font-size: 12px; font-weight: 500; margin-top: 8px; display: flex; align-items: center; gap: 5px; }
 .m-sub.success { color: var(--brand-green-deep); }
-.m-sub.warning { color: var(--amber); }
+.m-sub.warning { color: var(--amber-text); }
 .m-sub.danger  { color: var(--danger); }
 .m-sub.muted   { color: var(--ink-faint); }
 

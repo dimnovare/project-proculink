@@ -19,7 +19,7 @@ export const metadata: Metadata = {
 // The page follows a buyer → supplier topology:
 //   • buyer / process / primary-CTA elements use buyer-blue  (#1E66C9)
 //   • supplier-output / success elements use brand-green      (#28C55E family)
-//   • AI = violet (#6F4FCE), validation = amber (#C97A14)
+//   • AI = violet (#6F4FCE), validation = amber (#8A5310, AA-darkened)
 // Hexes below were sampled directly from the design render, not eyeballed.
 
 const NAVY = "#0B1A2F";
@@ -32,7 +32,7 @@ const BLUE = "#1E66C9"; // buyer-blue — CTA, early-stage chips, first pipeline
 const BLUE_SOFT = "#E3EDFB"; // pale blue chip / eyebrow background
 const BLUE_NODE = "#2D7AE0"; // used in Eyebrow dot
 const VIOLET = "#6F4FCE";
-const AMBER = "#C97A14";
+const AMBER = "#8A5310";
 
 // ─── Steps ────────────────────────────────────────────────────────────────────
 
@@ -59,7 +59,7 @@ const STEPS: Array<{
       { label: "PDF", fg: "#B4452B", bg: "#FBE7E1" },
       { label: "XLSX", fg: "#2E8E3A", bg: "#E2F1E2" },
       { label: "CXML", fg: "#6F4FCE", bg: "#EEE7FB" },
-      { label: "EDI", fg: "#C97A14", bg: "#FAEFD6" },
+      { label: "EDI", fg: "#8A5310", bg: "#FAEFD6" },
       { label: "CSV", fg: "#56627A", bg: "#EEF1F6" },
     ],
   },
@@ -102,7 +102,7 @@ const STEPS: Array<{
       { label: "CXML", fg: "#6F4FCE", bg: "#EEE7FB" },
       { label: "UBL", fg: "#56627A", bg: "#EEF1F6" },
       { label: "CSV", fg: "#2E8E3A", bg: "#E2F1E2" },
-      { label: "JSON", fg: "#C97A14", bg: "#FAEFD6" },
+      { label: "JSON", fg: "#8A5310", bg: "#FAEFD6" },
     ],
   },
 ];
@@ -212,7 +212,7 @@ export default function HowItWorksPage() {
                   fontFamily: "'Bricolage Grotesque', Inter, sans-serif",
                   fontWeight: 700,
                   lineHeight: 1,
-                  color: "#C6CDDA",
+                  color: "var(--ink-faint)",
                   letterSpacing: "-0.02em",
                 }}
               >

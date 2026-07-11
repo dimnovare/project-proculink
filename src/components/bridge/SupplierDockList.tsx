@@ -951,7 +951,7 @@ function SupplierMobileCard({
           <MobileStat label="Format" loading={loading} value={config ? formatLabel(config.outputFormat) : null} />
           <MobileStat label="Channel" loading={loading} value={config ? channelLabel(config.protocol) : null} />
           <div className="col-span-2 flex items-center justify-between">
-            <dt className="text-[10.5px] font-semibold uppercase tracking-[0.06em]" style={{ color: "#9AA3B2" }}>
+            <dt className="text-[10.5px] font-semibold uppercase tracking-[0.06em]" style={{ color: "var(--ink-faint)" }}>
               Auto-process
             </dt>
             <dd className="m-0">
@@ -1008,7 +1008,7 @@ function NotSetPill({ onHoverRow }: { onHoverRow: boolean }) {
 function MobileStat({ label, value, loading = false }: { label: string; value: string | null; loading?: boolean }) {
   return (
     <div className="flex flex-col gap-1">
-      <dt className="text-[10.5px] font-semibold uppercase tracking-[0.06em]" style={{ color: "#9AA3B2" }}>
+      <dt className="text-[10.5px] font-semibold uppercase tracking-[0.06em]" style={{ color: "var(--ink-faint)" }}>
         {label}
       </dt>
       <dd className="m-0 text-[13px]" style={{ color: value == null ? PLACEHOLDER : INK }}>

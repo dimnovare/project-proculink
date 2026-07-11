@@ -274,7 +274,7 @@ export function MapperPreviewPane({ previewOrderId, override, lastTouched, suppl
               Valid
             </span>
           )}
-          {lastTouched && <span style={{ fontSize: 10, color: "#98A0AE" }}>edited {lastTouched}</span>}
+          {lastTouched && <span style={{ fontSize: 10, color: "var(--ink-faint)" }}>edited {lastTouched}</span>}
         </div>
       </div>
       {/* Format + actions bar (46px) — app.jsx §7.1: segmented control left, Copy/Download right. */}
@@ -293,7 +293,7 @@ export function MapperPreviewPane({ previewOrderId, override, lastTouched, suppl
                   padding: "4px 9px", borderRadius: 6, cursor: "pointer",
                   fontSize: 11, fontWeight: 600, border: "1px solid transparent",
                   background: active ? "#1E6D29" : "transparent",
-                  color: active ? "#FFFFFF" : "#98A0AE",
+                  color: active ? "#FFFFFF" : "var(--ink-faint)",
                 }}
               >
                 {f.label}

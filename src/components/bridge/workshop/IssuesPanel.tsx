@@ -120,7 +120,7 @@ export interface IssuesPanelProps {
 const C = {
   ink: "#0B1A2F",
   inkMuted: "#5E6779",
-  inkFaint: "#98A0AE",
+  inkFaint: "#667085",
   border: "#E5E8EE",
   borderFaint: "#EEF0F4",
   surface: "#FFFFFF",

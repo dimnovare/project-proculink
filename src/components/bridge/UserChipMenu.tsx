@@ -193,7 +193,7 @@ export function UserChipMenu({ collapsed, onNavigate, placement = "up" }: UserCh
             </span>
             <span className="min-w-0 flex-1" style={{ lineHeight: 1.3 }}>
               <span className="block truncate" style={{ fontSize: 13, fontWeight: 700, color: "#0B1A2F" }}>{name}</span>
-              {email && <span className="block truncate" style={{ fontSize: 11, color: "#98A0AE" }}>{email}</span>}
+              {email && <span className="block truncate" style={{ fontSize: 11, color: "var(--ink-faint)" }}>{email}</span>}
             </span>
           </div>
 

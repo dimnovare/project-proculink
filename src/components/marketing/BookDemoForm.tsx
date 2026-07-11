@@ -104,7 +104,7 @@ export function BookDemoForm() {
         </div>
         <p style={{ ...S.hint, marginTop: 12, marginBottom: 0 }}>
           Want to add anything in the meantime? Email{" "}
-          <a href="mailto:hello@proculink.eu" style={{ color: "#1E6D29" }}>hello@proculink.eu</a>.
+          <a href="mailto:hello@proculink.eu" style={{ color: "#1E6D29", textDecoration: "underline" }}>hello@proculink.eu</a>.
         </p>
       </div>
     );
@@ -198,7 +198,7 @@ export function BookDemoForm() {
 
       <div style={S.actions}>
         <p style={{ fontSize: 12.5, color: "var(--ink-faint)", margin: 0 }}>
-          Prefer email? <a href="mailto:hello@proculink.eu?subject=ProcuLink%20demo" style={{ color: "#1E6D29" }}>hello@proculink.eu</a>
+          Prefer email? <a href="mailto:hello@proculink.eu?subject=ProcuLink%20demo" style={{ color: "#1E6D29", textDecoration: "underline" }}>hello@proculink.eu</a>
         </p>
         <button
           type="submit"
