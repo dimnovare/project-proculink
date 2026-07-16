@@ -1,5 +1,8 @@
 import Link from "next/link";
-import { BILLING_HELD_MESSAGE } from "@/components/bridge/review/hooks/useOrderReview";
+import {
+  BILLING_HELD_MESSAGE,
+  BILLING_HELD_MESSAGE_PLURAL,
+} from "@/components/bridge/review/hooks/useOrderReview";
 
 /**
  * Orders paused at the delivery step because the plan can't process orders right now.
@@ -19,29 +22,30 @@ export function DeliveryPausedCard({ count }: { count: number }) {
       className="mb-4 rounded-[10px] px-4 py-3"
       style={{ background: "var(--amber-soft)", border: "1px solid var(--amber)" }}
     >
-      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-        <Link
-          href="/inbox?status=delivery_held"
-          className="flex items-center gap-3 transition-opacity hover:opacity-80"
-          // minHeight 44: finger-tappable on a phone. The 26px numeral alone left the
-          // row at 29px, under the touch-target floor the rest of this page holds to.
-          style={{ textDecoration: "none", minHeight: 44 }}
+      <Link
+        href="/inbox?status=delivery_held"
+        className="inline-flex items-center gap-3 transition-opacity hover:opacity-80"
+        // minHeight 44: finger-tappable on a phone. The 26px numeral alone left the
+        // row at 29px, under the touch-target floor the rest of this page holds to.
+        style={{ textDecoration: "none", minHeight: 44 }}
+      >
+        <span
+          style={{
+            fontSize: 26, fontWeight: 700, color: "var(--amber-text)",
+            lineHeight: 1.1, fontVariantNumeric: "tabular-nums",
+          }}
         >
-          <span
-            style={{
-              fontSize: 26, fontWeight: 700, color: "var(--amber-text)",
-              lineHeight: 1.1, fontVariantNumeric: "tabular-nums",
-            }}
-          >
-            {count.toLocaleString()}
-          </span>
-          <span style={{ fontSize: 13.5, fontWeight: 600, color: "var(--amber-text)" }}>
-            {count === 1 ? "Delivery paused" : "Deliveries paused"}
-          </span>
-        </Link>
-      </div>
-      <p style={{ margin: "6px 0 0", fontSize: 11.5, color: "var(--ink-muted)", maxWidth: "72ch" }}>
-        {BILLING_HELD_MESSAGE}
+          {count.toLocaleString()}
+        </span>
+        <span style={{ fontSize: 13.5, fontWeight: 600, color: "var(--amber-text)" }}>
+          {count === 1 ? "Delivery paused" : "Deliveries paused"}
+        </span>
+      </Link>
+      <p
+        data-testid="paused-explanation"
+        style={{ margin: "6px 0 0", fontSize: 11.5, color: "var(--ink-muted)", maxWidth: "72ch" }}
+      >
+        {count === 1 ? BILLING_HELD_MESSAGE : BILLING_HELD_MESSAGE_PLURAL}
       </p>
       <Link
         href="/settings?tab=billing"

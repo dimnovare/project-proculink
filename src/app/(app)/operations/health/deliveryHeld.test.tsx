@@ -92,6 +92,22 @@ describe("the paused-delivery card reads as paused, not failed", () => {
     expect(screen.getByText(BILLING_HELD_MESSAGE)).toBeInTheDocument();
   });
 
+  it("does not claim a single supplier file when several orders are paused", () => {
+    // BILLING_HELD_MESSAGE was authored for BillingHeldPanel, which always renders
+    // exactly ONE order — hence "The supplier file is generated and waiting". This
+    // card aggregates N. Reusing the sentence verbatim under a plural "Deliveries
+    // paused" heading disagrees in number and undercounts what is waiting.
+    render(<DeliveryPausedCard count={3} />);
+    expect(screen.queryByText(/The supplier file is generated/)).not.toBeInTheDocument();
+    // The load-bearing claims must survive the rewording: billing cause, nothing
+    // lost, automatic resume.
+    const body = screen.getByTestId("paused-explanation").textContent ?? "";
+    expect(body).toMatch(/billing/i);
+    expect(body).toMatch(/automatically/i);
+    expect(body).toMatch(/nothing has been lost/i);
+    expect(body).not.toMatch(/failed/i);
+  });
+
   it("never calls the pause a failure", () => {
     render(<DeliveryPausedCard count={2} />);
     expect(screen.queryByText(/failed/i)).not.toBeInTheDocument();
@@ -118,6 +134,18 @@ describe("the paused-delivery card reads as paused, not failed", () => {
       "href",
       "/inbox?status=delivery_held",
     );
+  });
+
+  it("announces the count as words, not welded to the label", () => {
+    // The count and the label are separate elements with only a visual `gap` between
+    // them, so the link's textContent is the run-together "4Deliveries paused". The
+    // accessible name is NOT textContent — name computation separates element children —
+    // but that distinction is easy to lose in a refactor. Flattening these two spans
+    // into one interpolated string, or dropping the element boundary, would genuinely
+    // weld them. This pins the announced name so that regression is caught.
+    render(<DeliveryPausedCard count={4} />);
+    const link = screen.getByRole("link", { name: /paused/i });
+    expect(link).toHaveAccessibleName("4 Deliveries paused");
   });
 
   it("offers no retry or send action — the release is not a button", () => {
