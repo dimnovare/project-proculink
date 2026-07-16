@@ -63,6 +63,10 @@ export type OrderStatus =
   | "transforming"
   | "ready_to_deliver"
   | "delivered"
+  // Delivery paused because the plan can't process orders right now (billing).
+  // Not a failure: the supplier file is intact, and the backend releases the order
+  // back to ready_to_deliver automatically once billing is in good standing.
+  | "delivery_held"
   | "failed"
   | "transform_failed"
   | "delivery_failed"

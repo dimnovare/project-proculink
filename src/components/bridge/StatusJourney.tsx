@@ -141,7 +141,12 @@ export function StatusJourney({ stage, compact = false, crossingRef }: StatusJou
 
 // Status pill — semantic colors matching tokens.css .pill-* exactly.
 // Used sparingly (prefer StatusJourney for progress display).
-export type CrossingStatus = "new" | "extracting" | "review" | "ready" | "sent" | "delivering" | "failed";
+// `held` covers the backend `delivery_held` billing hold. It needs its own member
+// because none of the others is honest for it: `review` says "Needs review" (the
+// order is clean), `delivering` pulses blue "Ready to send" (it is blocked), and
+// `failed` is red (nothing failed — the supplier file is intact and the backend
+// releases the order automatically once billing is in good standing).
+export type CrossingStatus = "new" | "extracting" | "review" | "ready" | "sent" | "delivering" | "failed" | "held";
 
 const STATUS_PILL: Record<CrossingStatus, { bg: string; color: string; dot: string; pulse?: boolean; label: string }> = {
   // tokens.css .pill-new → surface-2 (#F1F3F7) / ink-muted (#5E6779) / ink-faint (#5B6980)
@@ -155,6 +160,9 @@ const STATUS_PILL: Record<CrossingStatus, { bg: string; color: string; dot: stri
   // tokens.css .pill-delivering → brand-blue-soft / brand-blue-deep / brand-blue + pulse-dot
   delivering: { bg: "#EAF0F8", color: "#0F4FA8", dot: "#1E66C9", pulse: true, label: "Delivering" },
   failed:     { bg: "#FBE3E3", color: "#B43838", dot: "#B43838",  label: "Failed" },
+  // tokens.css .pill-held → amber-soft / amber-text / amber, matching `review`.
+  // Deliberately no pulse: a paused delivery is not in flight.
+  held:       { bg: "#FAF1DD", color: "#8A5310", dot: "#B36D14",  label: "Delivery paused" },
 };
 
 const STATUS_STAGE: Record<CrossingStatus, OrderStage> = {
@@ -164,6 +172,9 @@ const STATUS_STAGE: Record<CrossingStatus, OrderStage> = {
   ready:      3,
   sent:       4,
   delivering: 4,
+  // Stage 4: a held order reached Deliver and stopped there — showing it earlier
+  // would understate how far it got (and how little is left to do).
+  held:       4,
   failed:     "failed",
 };
 

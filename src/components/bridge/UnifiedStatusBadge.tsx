@@ -100,6 +100,13 @@ const STATUS_META: Record<string, StatusMeta> = {
   delivered: { label: "Delivered", tone: "success" },
   sent: { label: "Delivered", tone: "success" },
 
+  // ── Paused (not delivery, not a failure) ─────────────────────────────
+  // Billing hold: the supplier file exists and is intact; we simply didn't send it
+  // because the plan can't process orders right now. It auto-releases on reactivation.
+  // "Delivery paused" is the honest label — never "failed" (nothing failed) and no
+  // `pulse` (nothing is in flight; it waits on an invoice, not on us).
+  delivery_held: { label: "Delivery paused", tone: "warning" },
+
   // ── Failures ─────────────────────────────────────────────────────────
   failed: { label: "Failed", tone: "danger" },
   parse_failed: { label: "Parse failed", tone: "danger" },

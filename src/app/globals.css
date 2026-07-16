@@ -516,6 +516,10 @@
 .pill-extracting .dot { background: var(--brand-blue); }
 .pill-review      { background: var(--amber-soft);        color: var(--amber-text); }
 .pill-review .dot { background: var(--amber); }
+/* delivery_held — paused for billing. Amber like .pill-review (needs a human), but
+   deliberately without .pill-delivering's pulse: nothing is in flight. */
+.pill-held        { background: var(--amber-soft);        color: var(--amber-text); }
+.pill-held .dot   { background: var(--amber); }
 .pill-ready       { background: var(--brand-green-soft);  color: var(--brand-green-deep); }
 .pill-ready .dot  { background: var(--brand-green); }
 .pill-sent        { background: var(--brand-green-soft);  color: var(--brand-green-deep); }

@@ -85,6 +85,7 @@ const STATUS_PRESENTATION: Record<
   ready:      { key: "ready",      label: "Normalized",     stage: 3 },
   sent:       { key: "sent",       label: "Delivered",      stage: 4 },
   delivering: { key: "delivering", label: "Ready to send",  stage: 4 },
+  held:       { key: "held",       label: "Delivery paused", stage: 4 },
   failed:     { key: "failed",     label: "Failed",         stage: "failed" },
 };
 
@@ -160,6 +161,9 @@ const MOCK_RAW_STATUS: Record<CrossingStatus, string> = {
   ready:      "ready",
   sent:       "delivered",
   delivering: "ready_to_deliver",
+  // Not redeliverable (see inboxSend.ts) — so a mock held row also demonstrates the
+  // disabled bulk-select, which is the behaviour a real held order has.
+  held:       "delivery_held",
   failed:     "delivery_failed",
 };
 
@@ -235,6 +239,9 @@ function mapStatus(s: string): CrossingStatus {
   if (s === "ready_to_deliver") return "delivering";
   if (s === "ready") return "ready";
   if (s === "delivered") return "sent";
+  // delivery_held reached Deliver and paused for billing. Without this it fell
+  // through to "new" (stage 0) — the opposite of the truth.
+  if (s === "delivery_held") return "held";
   if (s === "delivery_failed" || s === "failed" || s === "transform_failed") return "failed";
   return "new";
 }
