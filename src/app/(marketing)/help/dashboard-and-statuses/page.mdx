@@ -17,6 +17,7 @@ Every order carries one status at a time, and the same vocabulary is used everyw
 | **Transforming** | The supplier's output document is being generated. |
 | **Ready to send** | The output artifact exists and is waiting for delivery. |
 | **Sending** | A delivery attempt is in progress. |
+| **Delivery paused** | Your plan can't process orders right now, so we paused sending instead of delivering. The supplier file is generated and intact; sending resumes automatically once billing is up to date. |
 | **Delivered** | The supplier's endpoint accepted the transmission. |
 
 The distinction people trip on: **Normalized** means "clean order, nothing queued to send", while **Ready to send** means "the output file for the supplier has been generated and delivery is next". An order can sit in Normalized indefinitely — that's normal, not stuck.
