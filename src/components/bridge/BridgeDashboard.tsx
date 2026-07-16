@@ -78,7 +78,11 @@ const FAILED_STATUSES = new Set([
  *  `delivery_held` (billing hold) belongs here and NOT in FAILED_STATUSES: it needs a
  *  human — someone has to settle billing — but nothing failed, so counting it as a hard
  *  failure would drag down lane/dock health for an order whose output is intact.
- *  It is likewise absent from ACTIVE_STATUSES: a paused order is not moving. */
+ *  It is likewise absent from ACTIVE_STATUSES: a paused order is not moving.
+ *  `delivery_unconfirmed` (a crash lost the delivery outcome) belongs here for the
+ *  same reason, NOT in FAILED_STATUSES — we don't know that it failed, only that we
+ *  can't confirm what happened. It is also absent from ACTIVE_STATUSES: it is parked,
+ *  waiting on an operator decision, not progressing on its own. */
 const EXCEPTION_STATUSES = new Set([
   "pending_review",
   "failed",
@@ -87,6 +91,7 @@ const EXCEPTION_STATUSES = new Set([
   "delivery_dead_letter",
   "rejected_by_supplier",
   "delivery_held",
+  "delivery_unconfirmed",
 ]);
 
 /** Orders that have reached a "processed" milestone, used for the auto-rate. */

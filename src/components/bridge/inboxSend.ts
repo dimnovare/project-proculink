@@ -18,10 +18,17 @@
  * That is by design: a held order is released by settling billing (which auto-releases
  * every held order back to ready_to_deliver and re-drives delivery), not by a button.
  * Adding it here would enable a bulk-send checkbox that can only ever error.
+ *
+ * `delivery_unconfirmed` is INCLUDED ON PURPOSE — the opposite reasoning. A crash
+ * lost the delivery outcome, so the backend parks the order instead of guessing
+ * whether a retry would duplicate it. The park exists precisely so a HUMAN can
+ * choose to accept that duplicate risk and send again; excluding it here would
+ * strand the operator with no bulk path to that choice.
  */
 export const REDELIVERABLE_STATUSES: ReadonlySet<string> = new Set([
   "ready_to_deliver",
   "delivery_failed",
+  "delivery_unconfirmed",
 ]);
 
 /** True when the backend will accept a redeliver for this raw order status. */

@@ -7,9 +7,11 @@ import {
 } from "./inboxSend";
 
 describe("isRedeliverable — mirrors backend OrderStatusMachine.RedeliverableFrom", () => {
-  it("accepts exactly the two redeliverable raw statuses", () => {
+  it("accepts exactly the three redeliverable raw statuses", () => {
     expect(isRedeliverable("ready_to_deliver")).toBe(true);
     expect(isRedeliverable("delivery_failed")).toBe(true);
+    // A parked order IS redeliverable — unlike delivery_held, which stays excluded.
+    expect(isRedeliverable("delivery_unconfirmed")).toBe(true);
   });
 
   it("rejects every other raw backend status", () => {
@@ -32,11 +34,13 @@ describe("isRedeliverable — mirrors backend OrderStatusMachine.RedeliverableFr
     }
   });
 
-  it("exposes the canonical set with exactly two members", () => {
-    expect([...REDELIVERABLE_STATUSES].sort()).toEqual([
-      "delivery_failed",
-      "ready_to_deliver",
-    ]);
+  it("exposes the canonical set with exactly three members", () => {
+    // Mirrors backend OrderStatusMachine.RedeliverableFrom. A parked order IS redeliverable —
+    // the park exists so a HUMAN can choose to re-send, accepting a duplicate risk the automatic
+    // retry must never take for them. (delivery_held stays excluded: see inboxSend.ts.)
+    expect([...REDELIVERABLE_STATUSES].sort()).toEqual(
+      ["delivery_failed", "delivery_unconfirmed", "ready_to_deliver"],
+    );
   });
 });
 
