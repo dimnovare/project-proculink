@@ -32,6 +32,7 @@ import type { CalibrationSummary } from "@/types/procurement";
 import { MapperWorkbench, type MapperWorkbenchLayout } from "../mapper/MapperWorkbench";
 import { UnifiedStatusBadge } from "../UnifiedStatusBadge";
 import { FailedPanel, ParseFailedPanel } from "../FailedPanels";
+import { BillingHeldPanel } from "./BillingHeldPanel";
 import { ConfirmDialog } from "../review/ConfirmDialog";
 import { buildFixQueue, type FixQueueCard } from "../review/buildFixQueue";
 import { orderGrandTotalLabel, outputArtifactType, buyerLabel, orderDeliveryFormat } from "../review/orderDisplay";
@@ -443,6 +444,13 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
   }
   if (order.status === "delivery_failed") {
     return <FailedPanel order={order} stage="delivery" />;
+  }
+  // Not a failure gate — a PAUSE gate, kept in this chain because it has the same
+  // job: stop a status that the normal mapper would misrepresent. A held order
+  // would otherwise render a live Send button that answers 400 (delivery_held is
+  // not in the backend's RedeliverableFrom), with billing never mentioned.
+  if (order.status === "delivery_held") {
+    return <BillingHeldPanel order={order} />;
   }
 
   // ── Parsing gate — the order page is opened the instant the upload redirects,

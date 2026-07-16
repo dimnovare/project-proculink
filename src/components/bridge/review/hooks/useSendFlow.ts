@@ -178,13 +178,23 @@ export function useSendFlow({ orderId, order, labels, refetchOrder }: {
           next.status === "delivered" ||
           next.status === "delivery_failed" ||
           next.status === "rejected_by_supplier" ||
-          next.status === "delivery_dead_letter",
+          next.status === "delivery_dead_letter" ||
+          // A send by an org whose billing lapsed between transform and delivery is
+          // paused into delivery_held rather than delivered. That IS terminal for this
+          // poll — without it the poll burns its full 45s and paints a red "Send failed"
+          // for an order that was deliberately paused and will resume on its own.
+          next.status === "delivery_held",
         45_000,
       );
 
       if (current.status === "delivered") {
         setCrossed(true);
         setFlow(finalDeliveryMessage(current.status, current.errorMessage, labels), "success");
+      } else if (current.status === "delivery_held") {
+        // Explicitly "info", not the "error" the else branch would apply: billing paused
+        // the send, the output is intact, and it resumes on its own. Red would tell the
+        // operator to chase the supplier over what is actually an invoice.
+        setFlow(finalDeliveryMessage(current.status, current.errorMessage, labels), "info");
       } else {
         setFlow(finalDeliveryMessage(current.status, current.errorMessage, labels), "error");
       }

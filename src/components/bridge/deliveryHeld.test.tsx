@@ -1,0 +1,113 @@
+import { describe, it, expect, vi, afterEach } from "vitest";
+import { render, screen, cleanup } from "@testing-library/react";
+
+// delivery_held (the A5 billing hold) — truthfulness guard.
+//
+// The backend pauses a transform-ready order into `delivery_held` when the org can't
+// process orders at delivery time, and RELEASES it back to ready_to_deliver
+// automatically once billing is good again (DeliveryService.Hold/ReleaseBillingHeld).
+// Every assertion here exists because the surface previously said something FALSE or
+// unhelpful about that state:
+//   • the badge showed a humanized "Delivery held" with a neutral tone (no STATUS_META entry);
+//   • the review hook said "Delivery is still processing" — nothing is processing;
+//   • the workshop offered Send, which answers 400 (not in RedeliverableFrom).
+//
+// The negative assertions are the point: this status must never read as a failure.
+
+vi.mock("next/navigation", () => ({
+  usePathname: () => "/inbox",
+  useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
+  useSearchParams: () => new URLSearchParams(),
+}));
+
+import { UnifiedStatusBadge, statusLabel, statusTone } from "./UnifiedStatusBadge";
+import { finalDeliveryMessage, BILLING_HELD_MESSAGE } from "./review/hooks/useOrderReview";
+import { BillingHeldPanel } from "./workshop/BillingHeldPanel";
+import { isRedeliverable } from "./inboxSend";
+import type { Order } from "@/types/procurement";
+import type { PartyLabels } from "@/hooks/useOrderDirection";
+
+afterEach(cleanup);
+
+const LABELS: PartyLabels = {
+  counterpartyNoun: "Supplier",
+  deliveredLabel: "Delivered to supplier",
+} as PartyLabels;
+
+const HELD_ORDER = {
+  id: "ord-held-1",
+  poNumber: "PO-77120",
+  status: "delivery_held",
+  supplierId: "sup-1",
+  supplierName: "Nordmark",
+  errorMessage: null,
+} as unknown as Order;
+
+describe("delivery_held — the badge reads as paused, not failed", () => {
+  it("has a real label instead of the humanized fallback", () => {
+    expect(statusLabel("delivery_held")).toBe("Delivery paused");
+    // The old fallback. If this ever comes back, STATUS_META lost its entry.
+    expect(statusLabel("delivery_held")).not.toBe("Delivery held");
+  });
+
+  it("is amber (needs a human), never the red failure tone", () => {
+    expect(statusTone("delivery_held")).toBe("warning");
+    expect(statusTone("delivery_held")).not.toBe("danger");
+    // ...and not the neutral tone the unknown-status fallback would give it.
+    expect(statusTone("delivery_held")).not.toBe("neutral");
+  });
+
+  it("renders the paused label", () => {
+    render(<UnifiedStatusBadge status="delivery_held" />);
+    expect(screen.getByText("Delivery paused")).toBeInTheDocument();
+    expect(screen.queryByText(/failed/i)).not.toBeInTheDocument();
+  });
+});
+
+describe("delivery_held — the review message tells the truth", () => {
+  it("explains the billing pause and the automatic resume", () => {
+    const msg = finalDeliveryMessage("delivery_held", null, LABELS);
+    expect(msg).toBe(BILLING_HELD_MESSAGE);
+    expect(msg).toMatch(/billing/i);
+    expect(msg).toMatch(/automatically/i);
+  });
+
+  it("does not fall through to 'still processing' — nothing is processing", () => {
+    const msg = finalDeliveryMessage("delivery_held", null, LABELS);
+    expect(msg).not.toMatch(/still processing/i);
+    expect(msg).not.toMatch(/failed/i);
+  });
+
+  it("ignores a stale errorMessage left by an earlier failed attempt", () => {
+    // HoldForBillingAsync never sets ErrorMessage; a delivery_failed→delivery_held
+    // order still carries the OLD failure text, which explains the wrong problem.
+    const msg = finalDeliveryMessage("delivery_held", "Connection refused by supplier endpoint", LABELS);
+    expect(msg).toBe(BILLING_HELD_MESSAGE);
+    expect(msg).not.toMatch(/Connection refused/);
+  });
+});
+
+describe("delivery_held — the workshop panel", () => {
+  it("explains the pause and points at billing", () => {
+    render(<BillingHeldPanel order={HELD_ORDER} />);
+    expect(screen.getByText("Delivery paused")).toBeInTheDocument();
+    expect(screen.getByText(BILLING_HELD_MESSAGE)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /go to billing/i })).toHaveAttribute(
+      "href",
+      "/settings?tab=billing",
+    );
+  });
+
+  it("offers no Send action — the backend answers 400 and the release is automatic", () => {
+    render(<BillingHeldPanel order={HELD_ORDER} />);
+    expect(screen.queryByRole("button", { name: /send/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /send/i })).not.toBeInTheDocument();
+    expect(isRedeliverable("delivery_held")).toBe(false);
+  });
+
+  it("reassures that the mapping and upload survive", () => {
+    render(<BillingHeldPanel order={HELD_ORDER} />);
+    expect(screen.getByText(/don't need to re-upload/i)).toBeInTheDocument();
+    expect(screen.getByText("PO-77120")).toBeInTheDocument();
+  });
+});
