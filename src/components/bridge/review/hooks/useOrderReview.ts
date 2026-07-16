@@ -19,6 +19,16 @@ import type { PartyLabels } from "@/hooks/useOrderDirection";
 // before the backend job fires.)
 const STUCK_WARN_MS = 2 * 60 * 1000; // 2 minutes
 
+/**
+ * The one sentence explaining a `delivery_held` order, shared by the review screen
+ * and the workshop's BillingHeldPanel so the two can never drift. Says what is true:
+ * the pause is billing, the artifact survived, and the release is automatic (the
+ * backend's ReleaseBillingHeldOrdersAsync re-drives delivery on reactivation) —
+ * so the operator resolves the invoice rather than chasing the supplier.
+ */
+export const BILLING_HELD_MESSAGE =
+  "Delivery is paused because your plan can't process orders right now. The supplier file is generated and waiting — nothing has been lost. Sending resumes automatically once your billing is up to date.";
+
 export function finalDeliveryMessage(status: Order["status"], errorMessage: string | null | undefined, labels: PartyLabels): string {
   if (status === "delivered") {
     // Inbound: "Order confirmed." Outbound: "Delivered to supplier." (mechanism identical).
@@ -37,6 +47,14 @@ export function finalDeliveryMessage(status: Order["status"], errorMessage: stri
   }
   if (status === "delivery_dead_letter") {
     return "Delivery retries are exhausted. The order is in the dead-letter queue for operator review.";
+  }
+  if (status === "delivery_held") {
+    // Deliberately NOT `errorMessage ?? …` like the branches above: the backend
+    // never sets errorMessage when it pauses for billing, so any message present
+    // is left over from an earlier failed attempt and would explain the wrong
+    // problem. The generic fallback below is worse still — nothing is processing,
+    // refreshing changes nothing, and the Delivery Log has no attempt to show.
+    return BILLING_HELD_MESSAGE;
   }
   return "Delivery is still processing. Refresh the order or check the Delivery Log for the latest attempt.";
 }

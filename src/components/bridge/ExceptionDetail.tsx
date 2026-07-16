@@ -49,6 +49,11 @@ function deliveryStatusCopy(status: string): { label: string; detail: string; to
     return { label: "Delivery failed", detail: "The order has not reached the supplier. Open the order to retry.", tone: "bad" };
   if (s === "delivering")
     return { label: "Sending…", detail: "A delivery attempt is in progress.", tone: "neutral" };
+  // Billing hold — "warn", never "bad": nothing failed and nothing is lost. Kept
+  // above the fallback, which would give this a bare humanized label and the
+  // reason-free "has not been sent yet" line.
+  if (s === "delivery_held")
+    return { label: "Delivery paused — billing", detail: "The supplier file is generated and waiting, but sending is paused because the plan can't process orders right now. Delivery resumes automatically once billing is up to date.", tone: "warn" };
   return { label: statusLabel(status), detail: "This order has not been sent yet.", tone: "neutral" };
 }
 
