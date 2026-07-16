@@ -44,6 +44,15 @@ export interface OpsHealth {
    * reason as `pendingReview` — the backend field ships separately; treat undefined as 0.
    */
   deliveryHeld?: number;
+  /**
+   * Orders parked in `delivery_unconfirmed` — a crash lost the outcome on a channel
+   * that can't tell us whether it arrived. IS a fault (unlike `deliveryHeld`): the
+   * backend counts it inside `totalProblemOrders`, and it resolves only when an
+   * operator sends again or marks it delivered. Optional for the same forward/
+   * backward-compat reason as `deliveryHeld` — the backend field ships separately
+   * (PR #27); treat undefined as 0.
+   */
+  deliveryUnconfirmed?: number;
   stuckThresholdMinutes: number;
   totalProblemOrders: number;
   workerHealthy: boolean;
@@ -72,7 +81,10 @@ async function mockGetOpsHealth(): Promise<OpsHealth> {
   return {
     parsingStuck: 0, deliveringStuck: 0, transformFailed: 0, deliveryFailed: 1,
     deliveryDeadLetter: 1, rejectedBySupplier: 0, failed: 0, slaBreached: 0,
-    openExceptions: 2, pendingReview: 3, deliveryHeld: 2, stuckThresholdMinutes: 30, totalProblemOrders: 2,
+    openExceptions: 2, pendingReview: 3, deliveryHeld: 2, deliveryUnconfirmed: 1, stuckThresholdMinutes: 30,
+    // 3, not 2: deliveryFailed + deliveryDeadLetter + deliveryUnconfirmed. deliveryHeld
+    // stays excluded — the backend does not count a billing pause as a problem order.
+    totalProblemOrders: 3,
     workerHealthy: true, activeWorkers: 1,
     lastWorkerHeartbeatUtc: new Date(Date.now() - 6000).toISOString(),
     secondsSinceWorkerHeartbeat: 6,

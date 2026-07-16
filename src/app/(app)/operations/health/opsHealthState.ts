@@ -30,6 +30,11 @@ export function isAllClear(h: OpsHealth): boolean {
     // backend folds held into totalProblemOrders is its own call; this gate must hold
     // either way. `?? 0` because the backend field ships separately from this page —
     // an older API omits the key, and a missing count must not invent a paused order.
-    (h.deliveryHeld ?? 0) === 0
+    (h.deliveryHeld ?? 0) === 0 &&
+    // A parked order (delivery_unconfirmed) IS a fault — the backend already folds it
+    // into totalProblemOrders, so the backstop above already catches it. Checked
+    // directly anyway, for the same reason as deliveryHeld: once the frontend knows a
+    // category by name, it verifies it itself rather than trusting the aggregate alone.
+    (h.deliveryUnconfirmed ?? 0) === 0
   );
 }
