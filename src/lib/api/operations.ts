@@ -36,6 +36,14 @@ export interface OpsHealth {
    * backend field may not be deployed yet; treat undefined as 0 (forward/backward compatible).
    */
   pendingReview?: number;
+  /**
+   * Orders paused at the delivery step because the plan can't process orders right now
+   * (billing: past_due / read_only / trial_expired / cancelled). NOT a failure — the
+   * supplier file is intact and the backend releases these automatically on reactivation.
+   * Still breaks the "All clear" gate: the PO has not gone out. Optional for the same
+   * reason as `pendingReview` — the backend field ships separately; treat undefined as 0.
+   */
+  deliveryHeld?: number;
   stuckThresholdMinutes: number;
   totalProblemOrders: number;
   workerHealthy: boolean;
@@ -64,7 +72,7 @@ async function mockGetOpsHealth(): Promise<OpsHealth> {
   return {
     parsingStuck: 0, deliveringStuck: 0, transformFailed: 0, deliveryFailed: 1,
     deliveryDeadLetter: 1, rejectedBySupplier: 0, failed: 0, slaBreached: 0,
-    openExceptions: 2, pendingReview: 3, stuckThresholdMinutes: 30, totalProblemOrders: 2,
+    openExceptions: 2, pendingReview: 3, deliveryHeld: 2, stuckThresholdMinutes: 30, totalProblemOrders: 2,
     workerHealthy: true, activeWorkers: 1,
     lastWorkerHeartbeatUtc: new Date(Date.now() - 6000).toISOString(),
     secondsSinceWorkerHeartbeat: 6,

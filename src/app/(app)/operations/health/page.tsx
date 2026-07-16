@@ -17,6 +17,8 @@ import {
   type DeadLetterOrder,
 } from "@/lib/api-client";
 import { useQueriesEnabled } from "@/hooks/useQueriesEnabled";
+import { isAllClear } from "./opsHealthState";
+import { DeliveryPausedCard } from "./DeliveryPausedCard";
 import { PageShell } from "@/components/bridge/layout/PageShell";
 import { PageHeader } from "@/components/bridge/layout/PageHeader";
 import { Card } from "@/components/bridge/layout/Card";
@@ -150,21 +152,12 @@ export default function OperationsHealthPage() {
 
   const h = healthQ.data;
   // Truthfulness gate: NEVER show the green "All clear" banner while any hard
-  // failure, dead-letter, stuck, or SLA-breach count is non-zero — even if the
-  // backend-aggregated totalProblemOrders is stale or omits a category. The
-  // aggregate is an optimization; these direct checks are the source of truth for
-  // "is anything actually wrong right now".
-  const allClear =
-    h.totalProblemOrders === 0 &&
-    h.openExceptions === 0 &&
-    h.deliveryDeadLetter === 0 &&
-    h.deliveryFailed === 0 &&
-    h.transformFailed === 0 &&
-    h.rejectedBySupplier === 0 &&
-    h.failed === 0 &&
-    h.parsingStuck === 0 &&
-    h.deliveringStuck === 0 &&
-    h.slaBreached === 0;
+  // failure, dead-letter, stuck, SLA-breach, or billing-paused count is non-zero.
+  // Lives in opsHealthState.ts so the gate can be tested directly — see the
+  // reasoning there for why it reads the individual counts and not just the
+  // backend's aggregate.
+  const allClear = isAllClear(h);
+  const deliveryHeld = h.deliveryHeld ?? 0;
   const deadLetters = deadLetterQ.data ?? [];
 
   return (
@@ -216,6 +209,12 @@ export default function OperationsHealthPage() {
           </span>
         </Link>
       )}
+
+      {/* Deliveries paused on a billing hold — NOT a fault, so it sits outside the
+          problem-tile grid and reads amber, never red. It does gate the green banner
+          above: the PO has not gone out, so "All clear" would be false. Renders only
+          when non-zero, like the review-backlog card. */}
+      {deliveryHeld > 0 && <DeliveryPausedCard count={deliveryHeld} />}
 
       {allClear ? (
         <div style={{ background: "var(--brand-green-soft)", border: "1px solid #BFE3BF", borderRadius: "var(--radius-md)", padding: "16px 18px", color: "var(--brand-green-deep)", fontSize: 14, fontWeight: 600 }}>
