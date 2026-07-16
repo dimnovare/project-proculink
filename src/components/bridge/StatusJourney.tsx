@@ -146,7 +146,10 @@ export function StatusJourney({ stage, compact = false, crossingRef }: StatusJou
 // order is clean), `delivering` pulses blue "Ready to send" (it is blocked), and
 // `failed` is red (nothing failed — the supplier file is intact and the backend
 // releases the order automatically once billing is in good standing).
-export type CrossingStatus = "new" | "extracting" | "review" | "ready" | "sent" | "delivering" | "failed" | "held";
+// `unconfirmed` covers `delivery_unconfirmed`: a crash lost the outcome after we
+// sent. It needs its own member for the same reason as `held` — `failed` would
+// claim a failure we can't confirm, and `held`/`review` would misstate the cause.
+export type CrossingStatus = "new" | "extracting" | "review" | "ready" | "sent" | "delivering" | "failed" | "held" | "unconfirmed";
 
 const STATUS_PILL: Record<CrossingStatus, { bg: string; color: string; dot: string; pulse?: boolean; label: string }> = {
   // tokens.css .pill-new → surface-2 (#F1F3F7) / ink-muted (#5E6779) / ink-faint (#5B6980)
@@ -163,6 +166,10 @@ const STATUS_PILL: Record<CrossingStatus, { bg: string; color: string; dot: stri
   // tokens.css .pill-held → amber-soft / amber-text / amber, matching `review`.
   // Deliberately no pulse: a paused delivery is not in flight.
   held:       { bg: "#FAF1DD", color: "#8A5310", dot: "#B36D14",  label: "Delivery paused" },
+  // tokens.css .pill-unconfirmed → amber-soft / amber-text / amber, matching `held`:
+  // needs a human, is not a red failure. No pulse: nothing is in flight, it's
+  // waiting on an operator decision, not on the system.
+  unconfirmed: { bg: "#FAF1DD", color: "#8A5310", dot: "#B36D14",  label: "Delivery unknown" },
 };
 
 const STATUS_STAGE: Record<CrossingStatus, OrderStage> = {
@@ -175,6 +182,9 @@ const STATUS_STAGE: Record<CrossingStatus, OrderStage> = {
   // Stage 4: a held order reached Deliver and stopped there — showing it earlier
   // would understate how far it got (and how little is left to do).
   held:       4,
+  // Stage 4, same reasoning: an unconfirmed order also reached Deliver — it was
+  // (probably) sent — before the crash lost the outcome.
+  unconfirmed: 4,
   failed:     "failed",
 };
 

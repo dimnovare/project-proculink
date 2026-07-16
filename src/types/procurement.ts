@@ -67,6 +67,9 @@ export type OrderStatus =
   // Not a failure: the supplier file is intact, and the backend releases the order
   // back to ready_to_deliver automatically once billing is in good standing.
   | "delivery_held"
+  // Sent, but a crash lost the outcome on a channel that can't tell us whether it arrived.
+  // Waits for a human: send again, or mark delivered.
+  | "delivery_unconfirmed"
   | "failed"
   | "transform_failed"
   | "delivery_failed"
