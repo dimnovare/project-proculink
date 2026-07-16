@@ -29,6 +29,17 @@ const STUCK_WARN_MS = 2 * 60 * 1000; // 2 minutes
 export const BILLING_HELD_MESSAGE =
   "Delivery is paused because your plan can't process orders right now. The supplier file is generated and waiting — nothing has been lost. Sending resumes automatically once your billing is up to date.";
 
+/**
+ * The same explanation for a surface that aggregates SEVERAL held orders (the
+ * operations-health card). Kept beside the singular so the two can't drift, because
+ * the sentence above is about exactly one order — it is written for the workshop
+ * panel, which always renders one — and reading "The supplier file is generated"
+ * under a count of 12 both disagrees in number and undercounts what is waiting.
+ * Every load-bearing claim is identical: billing cause, nothing lost, automatic resume.
+ */
+export const BILLING_HELD_MESSAGE_PLURAL =
+  "Deliveries are paused because your plan can't process orders right now. The supplier files are generated and waiting — nothing has been lost. Sending resumes automatically once your billing is up to date.";
+
 export function finalDeliveryMessage(status: Order["status"], errorMessage: string | null | undefined, labels: PartyLabels): string {
   if (status === "delivered") {
     // Inbound: "Order confirmed." Outbound: "Delivered to supplier." (mechanism identical).
