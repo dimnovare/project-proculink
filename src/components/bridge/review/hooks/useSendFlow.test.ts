@@ -23,6 +23,7 @@ const api = {
   getOrderById: vi.fn(),
   transformOrder: vi.fn(),
   redeliverOrder: vi.fn(),
+  markDelivered: vi.fn(),
   getOrderAudit: vi.fn(),
 };
 
@@ -31,6 +32,7 @@ vi.mock("@/lib/api-client", () => ({
     getOrderById: (...a: unknown[]) => api.getOrderById(...a),
     transformOrder: (...a: unknown[]) => api.transformOrder(...a),
     redeliverOrder: (...a: unknown[]) => api.redeliverOrder(...a),
+    markDelivered: (...a: unknown[]) => api.markDelivered(...a),
     getOrderAudit: (...a: unknown[]) => api.getOrderAudit(...a),
   },
 }));
@@ -90,6 +92,7 @@ beforeEach(() => {
   api.getOrderById.mockReset();
   api.transformOrder.mockReset().mockResolvedValue(undefined);
   api.redeliverOrder.mockReset().mockResolvedValue(undefined);
+  api.markDelivered.mockReset().mockResolvedValue(undefined);
   api.getOrderAudit.mockReset().mockResolvedValue([]);
 });
 
@@ -139,6 +142,50 @@ describe("Fix 2a — a transient poll error is swallowed; the next tick wins", (
     // "Order did not refresh" error was never thrown.
     expect(result.current.flowNotice).not.toMatch(/did not refresh/i);
     expect(result.current.flowNotice).not.toMatch(/send failed/i);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// (4) A "Send again" that re-parks (a second crash) is TERMINAL for the poll —
+// without delivery_unconfirmed in the terminal set, this would burn the full
+// 45s timeout and show a false "Send failed" for an order that actually landed
+// in the correct (parked) state, waiting on the operator.
+// ─────────────────────────────────────────────────────────────────────────────
+describe("Fix 4 — a re-park on Send again is terminal for the poll, not a 45s timeout", () => {
+  test("redeliverOrder that re-parks resolves quickly with an error-severity notice, not a timeout", async () => {
+    // Already transformed — redeliverOrder() fires immediately, no transform step.
+    const order = makeOrder({
+      status: "ready_to_deliver",
+      artifacts: [{ id: "a1", format: "csv", fileKey: "k", createdAt: "" }],
+    });
+    api.getOrderById.mockResolvedValue(
+      makeOrder({ status: "delivery_unconfirmed", artifacts: [{ id: "a1", format: "csv", fileKey: "k", createdAt: "" }] }),
+    );
+
+    const refetchOrder = vi.fn().mockResolvedValue(undefined);
+    const { result } = renderHook(() =>
+      useSendFlow({ orderId: "ord-1", order, labels: LABELS, refetchOrder }),
+    );
+
+    let sendPromise!: Promise<void>;
+    act(() => {
+      sendPromise = result.current.confirmSend();
+    });
+
+    // A SINGLE poll tick is enough to see the re-park — nowhere near the 45s
+    // timeout the bug would otherwise burn.
+    await drainPoll(2);
+    await act(async () => {
+      await sendPromise;
+    });
+
+    // Terminal, not "did not refresh" (which is what a burned-out 45s timeout
+    // with zero terminal match would throw).
+    expect(result.current.flowNotice).not.toMatch(/did not refresh/i);
+    // Deliberately "error", not the "info" delivery_held gets — a re-park still
+    // needs the operator, unlike a self-resolving billing pause.
+    expect(result.current.flowSeverity).toBe("error");
+    expect(result.current.crossed).toBe(false);
   });
 });
 
