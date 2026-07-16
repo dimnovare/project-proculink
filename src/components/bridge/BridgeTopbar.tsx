@@ -244,8 +244,12 @@ function timeAgo(iso: string): string {
 
 // Status dot colors use the canonical semantic tokens (danger/amber/brand-green)
 // rather than literal hex, so they stay in sync with UnifiedStatusBadge.
-const NOTIF_META: Record<"review" | "failed" | "delivered", { dot: string; label: string }> = {
+type NotifKind = "review" | "failed" | "delivered" | "held";
+
+const NOTIF_META: Record<NotifKind, { dot: string; label: string }> = {
   failed:    { dot: "var(--danger)", label: "Delivery failed" },
+  // Billing hold: amber (needs a human) rather than red — nothing failed.
+  held:      { dot: "var(--amber)", label: "Delivery paused" },
   review:    { dot: "var(--amber)", label: "Needs review" },
   delivered: { dot: "var(--brand-green)", label: "Delivered" },
 };
@@ -270,15 +274,21 @@ function NotificationsBell() {
 
   const items = (ordersPage?.items ?? [])
     .map((o) => {
-      let kind: "review" | "failed" | "delivered" | null = null;
+      let kind: NotifKind | null = null;
       if (o.status === "failed" || o.status === "delivery_failed" || o.status === "transform_failed" || o.status === "delivery_dead_letter" || o.status === "rejected_by_supplier") kind = "failed";
+      // Billing hold: classified before `review` because a held order can also carry
+      // unresolved lines, and the billing pause is the reason it isn't moving.
+      // Without a kind it was dropped entirely and never notified.
+      else if (o.status === "delivery_held") kind = "held";
       else if (o.status === "pending_review" || (o.unresolvedCount ?? 0) > 0) kind = "review";
       else if (o.status === "delivered") kind = "delivered";
       return kind ? { o, kind } : null;
     })
-    .filter((x): x is { o: OrderSummary; kind: "review" | "failed" | "delivered" } => x !== null);
+    .filter((x): x is { o: OrderSummary; kind: NotifKind } => x !== null);
 
-  const rank = (k: string) => (k === "failed" ? 0 : k === "review" ? 1 : 2);
+  // Held ranks under failed but over review: it blocks every order in the workspace,
+  // not just this one.
+  const rank = (k: string) => (k === "failed" ? 0 : k === "held" ? 1 : k === "review" ? 2 : 3);
   items.sort((a, b) => rank(a.kind) - rank(b.kind) || new Date(b.o.createdAt).getTime() - new Date(a.o.createdAt).getTime());
   const top = items.slice(0, 7);
   const unread = !isApiMockMode
@@ -287,8 +297,9 @@ function NotificationsBell() {
        (ordersSummary?.byStatus?.["delivery_failed"] ?? 0) +
        (ordersSummary?.byStatus?.["transform_failed"] ?? 0) +
        (ordersSummary?.byStatus?.["delivery_dead_letter"] ?? 0) +
-       (ordersSummary?.byStatus?.["rejected_by_supplier"] ?? 0))
-    : items.filter((i) => i.kind === "failed" || i.kind === "review").length;
+       (ordersSummary?.byStatus?.["rejected_by_supplier"] ?? 0) +
+       (ordersSummary?.byStatus?.["delivery_held"] ?? 0))
+    : items.filter((i) => i.kind === "failed" || i.kind === "review" || i.kind === "held").length;
 
   useEffect(() => {
     if (!open) return;

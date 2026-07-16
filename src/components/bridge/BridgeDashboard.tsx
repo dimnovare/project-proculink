@@ -74,7 +74,11 @@ const FAILED_STATUSES = new Set([
   "delivery_dead_letter",
 ]);
 
-/** Anything that needs a human now (open exceptions). */
+/** Anything that needs a human now (open exceptions).
+ *  `delivery_held` (billing hold) belongs here and NOT in FAILED_STATUSES: it needs a
+ *  human — someone has to settle billing — but nothing failed, so counting it as a hard
+ *  failure would drag down lane/dock health for an order whose output is intact.
+ *  It is likewise absent from ACTIVE_STATUSES: a paused order is not moving. */
 const EXCEPTION_STATUSES = new Set([
   "pending_review",
   "failed",
@@ -82,6 +86,7 @@ const EXCEPTION_STATUSES = new Set([
   "delivery_failed",
   "delivery_dead_letter",
   "rejected_by_supplier",
+  "delivery_held",
 ]);
 
 /** Orders that have reached a "processed" milestone, used for the auto-rate. */

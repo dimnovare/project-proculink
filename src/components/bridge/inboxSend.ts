@@ -12,6 +12,12 @@
 /**
  * Raw backend statuses from which POST /redeliver succeeds.
  * Mirrors ProcuLink.Core's OrderStatusMachine.RedeliverableFrom exactly.
+ *
+ * `delivery_held` is EXCLUDED ON PURPOSE — do not "complete the set". The billing
+ * hold is not in the backend's RedeliverableFrom, so /redeliver answers 400 for it.
+ * That is by design: a held order is released by settling billing (which auto-releases
+ * every held order back to ready_to_deliver and re-drives delivery), not by a button.
+ * Adding it here would enable a bulk-send checkbox that can only ever error.
  */
 export const REDELIVERABLE_STATUSES: ReadonlySet<string> = new Set([
   "ready_to_deliver",

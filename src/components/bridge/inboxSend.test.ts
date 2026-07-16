@@ -23,6 +23,7 @@ describe("isRedeliverable — mirrors backend OrderStatusMachine.RedeliverableFr
       "failed", // parse failure — NOT redeliverable
       "transform_failed",
       "delivery_dead_letter", // rescued by ops requeue, not redeliver
+      "delivery_held", // billing hold — released by settling billing, not by /redeliver (400)
       "rejected_by_supplier",
       "",
     ];
