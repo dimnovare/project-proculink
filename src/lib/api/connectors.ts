@@ -96,6 +96,26 @@ const MOCK_MANIFESTS: ConnectorManifest[] = [
     ],
   },
   {
+    // The live, canonical email channel (Postmark over HTTPS) — "smtp" below is the
+    // retired path, kept only because DeliveryProtocol still allows it. Sends FROM
+    // ProcuLink's provider-verified sender, so there is no host/port/credentials to
+    // configure. Mirrors ConnectorManifestCatalog.Email exactly.
+    key: "email",
+    displayName: "Email",
+    transport: "email",
+    authType: "none",
+    capabilities: "Sends the artifact as an email attachment via a managed HTTP email API (HTTPS/443 — works where outbound SMTP is blocked); SPF/DKIM/DMARC handled by the provider; {poNumber} and {fileName} template placeholders; no SMTP server or credentials required.",
+    docsRef: "https://docs.proculink.eu/connectors/email",
+    fields: [
+      { name: "toAddresses",        label: "Recipient(s)",       type: "string", required: true,  secret: false, helpText: "Supplier email address(es) — JSON array or comma-separated string." },
+      { name: "replyTo",            label: "Reply-to",           type: "string", required: false, secret: false, helpText: "Buyer contact address set as Reply-To (optional)." },
+      { name: "fromAddress",        label: "From address",       type: "string", required: false, secret: false, helpText: "Override the sender (optional; must be a provider-verified domain — defaults to ProcuLink's verified sender)." },
+      { name: "subjectTemplate",    label: "Subject template",   type: "string", required: false, secret: false, helpText: "Email subject; supports {poNumber} and {fileName} placeholders." },
+      { name: "bodyTemplate",       label: "Body template",      type: "string", required: false, secret: false, helpText: "Plain-text email body; supports {poNumber} and {fileName} placeholders." },
+      { name: "attachmentFileName", label: "Attachment name",    type: "string", required: false, secret: false, helpText: "Override the attachment filename (default: the generated artifact filename)." },
+    ],
+  },
+  {
     key: "smtp",
     displayName: "Email (SMTP)",
     transport: "smtp",
@@ -151,6 +171,32 @@ const MOCK_BY_KEY = new Map<string, ConnectorManifest>(
   MOCK_MANIFESTS.map((m) => [m.key, m]),
 );
 
+// ── At-least-once resend caveat ──────────────────────────────────────────────
+// Mirrors the backend's per-dispatcher ResendSafety tier (ProcuLink.Core.Services.
+// Delivery.ResendSafety), which decides whether a crash-recovery re-drive with an
+// unknown outcome is safe to re-send or must park the order (delivery_unconfirmed)
+// instead. There is no wire field for this yet, so it is attached client-side to
+// every manifest — mock AND live — rather than only ever appearing in mock mode.
+const RESEND_CAVEATS: Partial<Record<DeliveryProtocol, string>> = {
+  // Safe: a deterministic remote filename means a repeat overwrites, never duplicates.
+  sftp: "A repeat send overwrites the same file on the server — it can't create a duplicate.",
+  ftps: "A repeat send overwrites the same file on the server — it can't create a duplicate.",
+  // BestEffort: a dedupe signal is sent (HTTP Idempotency-Key header), but honouring
+  // it is the endpoint's choice — worded plainly here since this text renders in the UI.
+  http: "We tag every request so an endpoint built to check for repeats can recognize and ignore one — but honouring that is the endpoint's choice, not something we control.",
+  // Unsafe: no dedupe signal reaches the counterparty, so an unknown outcome parks
+  // the order for a human instead of silently resending it.
+  email: "We can't tell whether a repeat would arrive twice, so if a send's outcome is ever unknown, we ask you instead of resending it automatically.",
+  smtp: "We can't tell whether a repeat would arrive twice, so if a send's outcome is ever unknown, we ask you instead of resending it automatically.",
+  erp_erply: "We can't tell whether a repeat would arrive twice, so if a send's outcome is ever unknown, we ask you instead of resending it automatically.",
+  erp_directo: "We can't tell whether a repeat would arrive twice, so if a send's outcome is ever unknown, we ask you instead of resending it automatically.",
+};
+
+/** Attaches the caveat above by protocol key. Applied to mock AND real manifests alike. */
+function withResendCaveat(m: ConnectorManifest): ConnectorManifest {
+  return { ...m, resendCaveat: RESEND_CAVEATS[m.key as DeliveryProtocol] ?? null };
+}
+
 /** Mock validate: checks that all required non-secret field names are present. */
 function mockValidate(
   manifest: ConnectorManifest,
@@ -179,13 +225,13 @@ function mockValidate(
 // ── Mock implementations ──────────────────────────────────────────────────────
 
 async function mockListConnectorManifests(): Promise<ConnectorManifest[]> {
-  return [...MOCK_MANIFESTS];
+  return MOCK_MANIFESTS.map(withResendCaveat);
 }
 
 async function mockGetConnectorManifest(key: DeliveryProtocol): Promise<ConnectorManifest> {
   const m = MOCK_BY_KEY.get(key);
   if (!m) throw new Error(`Connector manifest not found: ${key}`);
-  return { ...m };
+  return withResendCaveat(m);
 }
 
 async function mockValidateConnectorConfig(
@@ -200,11 +246,13 @@ async function mockValidateConnectorConfig(
 // ── Real implementations ──────────────────────────────────────────────────────
 
 async function realListConnectorManifests(): Promise<ConnectorManifest[]> {
-  return apiFetch<ConnectorManifest[]>("/connector-manifests");
+  const manifests = await apiFetch<ConnectorManifest[]>("/connector-manifests");
+  return manifests.map(withResendCaveat);
 }
 
 async function realGetConnectorManifest(key: DeliveryProtocol): Promise<ConnectorManifest> {
-  return apiFetch<ConnectorManifest>(`/connector-manifests/${encodeURIComponent(key)}`);
+  const manifest = await apiFetch<ConnectorManifest>(`/connector-manifests/${encodeURIComponent(key)}`);
+  return withResendCaveat(manifest);
 }
 
 async function realValidateConnectorConfig(

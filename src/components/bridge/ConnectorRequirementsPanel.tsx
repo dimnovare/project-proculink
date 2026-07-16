@@ -197,6 +197,16 @@ export function ConnectorRequirementsPanel({
             </p>
           )}
 
+          {/* Resend caveat — what happens if a send's outcome is ever unknown (a crash
+              mid-delivery). Channels that can't tell a repeat is a repeat park the order
+              for a human instead of silently resending it; see /help/exceptions-and-stuck-orders. */}
+          {manifest.resendCaveat && (
+            <p className="text-[11px]" style={{ color: "#5E6779" }}>
+              <span className="font-semibold">If a send&apos;s outcome is ever unknown: </span>
+              {manifest.resendCaveat}
+            </p>
+          )}
+
           {/* Required fields */}
           {requiredFields.length > 0 && (
             <FieldGroup title="Required fields" fields={requiredFields} />
