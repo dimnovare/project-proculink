@@ -1,5 +1,6 @@
 import { MarketingNav } from "@/components/marketing/MarketingNav";
 import { ProcuLinkMark } from "@/components/bridge/DSPrimitives";
+import { SkipToContent } from "@/components/a11y/SkipToContent";
 import { COPYRIGHT_NOTICE } from "@/lib/legal-entity";
 
 const FOOTER_COLS: { h: string; links: [string, string][] }[] = [
@@ -21,8 +22,9 @@ export default function MarketingLayout({
         fontFamily: "Inter, system-ui, sans-serif",
       }}
     >
+      <SkipToContent />
       <MarketingNav />
-      <main>{children}</main>
+      <main id="main-content" tabIndex={-1} className="outline-none">{children}</main>
 
       {/* Multi-column navy footer */}
       <footer style={{ background: "#0B1A2F", color: "#9DB2CE" }}>
@@ -43,12 +45,15 @@ export default function MarketingLayout({
                     document outline — render as <p> so they don't create an
                     h1→h4 heading-order jump (a11y). Visual is unchanged. */}
                 <p style={{ color: "#FFFFFF", fontSize: 12.5, fontWeight: 600, marginBottom: 12 }}>{col.h}</p>
-                <div className="flex flex-col gap-2.5">
+                {/* Links stacked as ≥44px-tall flex rows so each is a full touch
+                    target (WCAG 2.5.8). The container gap is dropped since the row
+                    height now supplies the spacing — visible text is unchanged. */}
+                <div className="flex flex-col">
                   {col.links.map(([label, href]) => (
-                    <a key={label} href={href} style={{ color: "#9DB2CE", fontSize: 13, textDecoration: "none" }}>{label}</a>
+                    <a key={label} href={href} className="flex items-center min-h-[44px]" style={{ color: "#9DB2CE", fontSize: 13, textDecoration: "none" }}>{label}</a>
                   ))}
                   {col.h === "Company" && process.env.NEXT_PUBLIC_STATUS_URL && (
-                    <a href={process.env.NEXT_PUBLIC_STATUS_URL} target="_blank" rel="noopener noreferrer" style={{ color: "#9DB2CE", fontSize: 13, textDecoration: "none" }}>Status</a>
+                    <a href={process.env.NEXT_PUBLIC_STATUS_URL} target="_blank" rel="noopener noreferrer" className="flex items-center min-h-[44px]" style={{ color: "#9DB2CE", fontSize: 13, textDecoration: "none" }}>Status</a>
                   )}
                 </div>
               </div>

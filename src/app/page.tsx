@@ -218,6 +218,11 @@ export default function RootPage() {
     >
       <MarketingNav />
 
+      {/* The home page renders through the ROOT layout (not the marketing
+          layout), so it must supply its own <main> landmark (WCAG 1.3.1). Wraps
+          the content sections only — nav + footer stay outside. */}
+      <main id="main-content" tabIndex={-1} className="outline-none">
+
       {/* ── Hero ──────────────────────────────────────────────────── */}
       <section
         className="px-4 sm:px-8"
@@ -894,6 +899,8 @@ export default function RootPage() {
         </div>
       </section>
 
+      </main>
+
       {/* Multi-column navy footer */}
       <footer style={{ background: "#0B1A2F", color: "#9DB2CE" }}>
         <div className="mx-auto max-w-[1100px] px-6 sm:px-8" style={{ padding: "48px 24px 0" }}>
@@ -915,12 +922,14 @@ export default function RootPage() {
             ].map((col) => (
               <div key={col.h}>
                 <h4 style={{ color: "#FFFFFF", fontSize: 12.5, fontWeight: 600, marginBottom: 12 }}>{col.h}</h4>
-                <div className="flex flex-col gap-2.5">
+                {/* ≥44px-tall flex rows so each footer link is a full touch target
+                    (WCAG 2.5.8); row height replaces the container gap. */}
+                <div className="flex flex-col">
                   {col.links.map(([label, href]) => (
-                    <a key={label} href={href} style={{ color: "#9DB2CE", fontSize: 13, textDecoration: "none" }}>{label}</a>
+                    <a key={label} href={href} className="flex items-center min-h-[44px]" style={{ color: "#9DB2CE", fontSize: 13, textDecoration: "none" }}>{label}</a>
                   ))}
                   {col.h === "Company" && process.env.NEXT_PUBLIC_STATUS_URL && (
-                    <a href={process.env.NEXT_PUBLIC_STATUS_URL} target="_blank" rel="noopener noreferrer" style={{ color: "#9DB2CE", fontSize: 13, textDecoration: "none" }}>Status</a>
+                    <a href={process.env.NEXT_PUBLIC_STATUS_URL} target="_blank" rel="noopener noreferrer" className="flex items-center min-h-[44px]" style={{ color: "#9DB2CE", fontSize: 13, textDecoration: "none" }}>Status</a>
                   )}
                 </div>
               </div>

@@ -11,6 +11,7 @@ import { BridgeTopbar } from "@/components/bridge/BridgeTopbar";
 import { ErrorBoundary } from "@/components/bridge/ErrorBoundary";
 import { MSWProvider } from "@/mocks/MSWProvider";
 import { WorkspaceNameNudge } from "@/components/onboarding/WorkspaceNameNudge";
+import { SkipToContent } from "@/components/a11y/SkipToContent";
 
 /**
  * Auto-activates the user's first Clerk organization when they have one but
@@ -176,6 +177,9 @@ export default function AppShellLayout({
             left sidebar was removed on md+. The mobile drawer below still
             reuses BridgeSidebar for the full navigation on < md. */}
         <div className="flex h-dvh overflow-hidden" style={{ background: "#F6F7FA" }}>
+          {/* First focusable element — jumps keyboard users past the topbar nav
+              straight to the page content (WCAG 2.4.1). */}
+          <SkipToContent />
           {sidebarOpen && (
             <div
               ref={drawerRef}
@@ -198,7 +202,7 @@ export default function AppShellLayout({
           {/* Right: topbar + scrollable main content */}
           <div className="flex flex-1 flex-col min-w-0 overflow-hidden">
             <BridgeTopbar onMenuClick={openSidebar} />
-            <main className="flex-1 overflow-auto">
+            <main id="main-content" tabIndex={-1} className="flex-1 overflow-auto outline-none">
               <WorkspaceNameNudge />
               <ErrorBoundary context="App">
                 {children}

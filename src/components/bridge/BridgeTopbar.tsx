@@ -662,12 +662,18 @@ export function BridgeTopbar({ crumb, onMenuClick }: BridgeTopbarProps) {
           aria-label="Search (⌘K)"
           title="Search — ⌘K"
           onClick={() => setPaletteOpen(true)}
-          className="hidden sm:flex items-center justify-center rounded-[6px] flex-shrink-0"
-          style={{ width: 32, height: 32, background: "transparent", border: "1px solid transparent", color: "#C8D1E0", cursor: "pointer", transition: "background 150ms, color 150ms" }}
-          onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "#14253D"; }}
-          onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "transparent"; }}
+          className="hidden sm:flex items-center justify-center flex-shrink-0"
+          style={{ minWidth: "var(--tap-min)", minHeight: "var(--tap-min)", background: "transparent", border: "none", padding: 0, cursor: "pointer" }}
         >
-          <Search size={17} strokeWidth={1.9} />
+          {/* Visible 32x32 chip inside a 44x44 hit area (WCAG 2.5.8). Same pattern as the bell. */}
+          <span
+            className="flex items-center justify-center rounded-[6px]"
+            style={{ width: 32, height: 32, background: "transparent", border: "1px solid transparent", color: "#C8D1E0", transition: "background 150ms, color 150ms" }}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "#14253D"; }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "transparent"; }}
+          >
+            <Search size={17} strokeWidth={1.9} />
+          </span>
         </button>
 
         {/* Mobile search — icon-only trigger for the command palette. */}
@@ -675,18 +681,16 @@ export function BridgeTopbar({ crumb, onMenuClick }: BridgeTopbarProps) {
           type="button"
           aria-label="Search"
           onClick={() => setPaletteOpen(true)}
-          className="flex sm:hidden items-center justify-center rounded-[6px] flex-shrink-0"
-          style={{
-            width: 32,
-            height: 32,
-            background: "transparent",
-            border: "1px solid transparent",
-            color: "#C8D1E0",
-            cursor: "pointer",
-            transition: "background 150ms, color 150ms",
-          }}
+          className="flex sm:hidden items-center justify-center flex-shrink-0"
+          style={{ minWidth: "var(--tap-min)", minHeight: "var(--tap-min)", background: "transparent", border: "none", padding: 0, cursor: "pointer" }}
         >
-          <Search size={17} strokeWidth={1.9} />
+          {/* 32x32 chip inside a 44x44 hit area (WCAG 2.5.8). */}
+          <span
+            className="flex items-center justify-center rounded-[6px]"
+            style={{ width: 32, height: 32, background: "transparent", border: "1px solid transparent", color: "#C8D1E0" }}
+          >
+            <Search size={17} strokeWidth={1.9} />
+          </span>
         </button>
 
         {/* Notifications — live popover (needs-review / failed / delivered). */}
@@ -703,20 +707,25 @@ export function BridgeTopbar({ crumb, onMenuClick }: BridgeTopbarProps) {
             href={adminItem.href}
             aria-label="Admin"
             title="Admin"
-            className="hidden md:flex items-center justify-center rounded-[6px] relative flex-shrink-0"
+            className="hidden md:flex items-center justify-center relative flex-shrink-0"
             style={{
-              width: 32,
-              height: 32,
+              minWidth: "var(--tap-min)",
+              minHeight: "var(--tap-min)",
               background: "transparent",
-              border: "1px solid transparent",
+              border: "none",
               color: "#C8D1E0",
               textDecoration: "none",
-              transition: "background 150ms, color 150ms",
             }}
-            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "#14253D"; }}
-            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "transparent"; }}
           >
-            <Lock size={16} strokeWidth={1.9} />
+            {/* 32x32 chip inside a 44x44 hit area (WCAG 2.5.8). */}
+            <span
+              className="flex items-center justify-center rounded-[6px]"
+              style={{ width: 32, height: 32, background: "transparent", border: "1px solid transparent", transition: "background 150ms, color 150ms" }}
+              onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "#14253D"; }}
+              onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "transparent"; }}
+            >
+              <Lock size={16} strokeWidth={1.9} />
+            </span>
           </Link>
         )}
 
@@ -738,36 +747,42 @@ export function BridgeTopbar({ crumb, onMenuClick }: BridgeTopbarProps) {
             setGuideUnseen(false);
             setHelpOpen(true);
           }}
-          className="hidden sm:flex items-center justify-center rounded-[6px] relative flex-shrink-0"
+          className="hidden sm:flex items-center justify-center flex-shrink-0"
           style={{
-            width: 32,
-            height: 32,
+            minWidth: "var(--tap-min)",
+            minHeight: "var(--tap-min)",
             background: "transparent",
-            border: "1px solid transparent",
-            color: "#C8D1E0",
+            border: "none",
+            padding: 0,
             cursor: "pointer",
-            transition: "background 150ms, color 150ms",
           }}
-          onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "#14253D"; }}
-          onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "transparent"; }}
           title="Help"
         >
-          <HelpCircle size={17} strokeWidth={1.9} />
-          {guideUnseen && (
-            <span
-              aria-hidden
-              style={{
-                position: "absolute",
-                top: 4,
-                right: 4,
-                width: 8,
-                height: 8,
-                borderRadius: "50%",
-                background: "#B36D14",
-                border: "1.5px solid #0B1A2F",
-              }}
-            />
-          )}
+          {/* 32x32 chip inside a 44x44 hit area (WCAG 2.5.8); the unseen-guide dot
+              rides the visible chip, not the larger hit area. */}
+          <span
+            className="flex items-center justify-center rounded-[6px] relative"
+            style={{ width: 32, height: 32, background: "transparent", border: "1px solid transparent", color: "#C8D1E0", transition: "background 150ms, color 150ms" }}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "#14253D"; }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "transparent"; }}
+          >
+            <HelpCircle size={17} strokeWidth={1.9} />
+            {guideUnseen && (
+              <span
+                aria-hidden
+                style={{
+                  position: "absolute",
+                  top: 4,
+                  right: 4,
+                  width: 8,
+                  height: 8,
+                  borderRadius: "50%",
+                  background: "#B36D14",
+                  border: "1.5px solid #0B1A2F",
+                }}
+              />
+            )}
+          </span>
         </button>
 
         {/* Account chip — real name/role, Profile · Settings · Sign out (Settings

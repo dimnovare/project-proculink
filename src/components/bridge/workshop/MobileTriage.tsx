@@ -159,7 +159,11 @@ export function MobileTriage(props: MobileTriageProps) {
         {/* ── Compact header ─────────────────────────────────────────────── */}
         <div className="flex flex-col gap-1.5" data-testid="mobile-triage-header">
           <div className="flex items-start justify-between gap-2.5">
-            <h1
+            {/* h2, not h1: the OrderWorkshop header above ("Review and send this
+                order") is the route's single h1 and stays mounted at this
+                (sub-lg) width, so the PO number is a sub-heading under it —
+                keeping exactly one h1 on the route (WCAG 1.3.1). Styles unchanged. */}
+            <h2
               style={{
                 fontFamily: "'Bricolage Grotesque',Inter,sans-serif",
                 fontSize: 18,
@@ -173,7 +177,7 @@ export function MobileTriage(props: MobileTriageProps) {
               }}
             >
               {poNumber}
-            </h1>
+            </h2>
             <span style={{ flexShrink: 0, marginTop: 1 }}>
               <UnifiedStatusBadge size="sm" status={crossed ? "delivered" : exceptionCount > 0 ? "pending_review" : status} />
             </span>

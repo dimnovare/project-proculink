@@ -126,19 +126,23 @@ const ENTITIES: Entity[] = ["Line item", "Header", "Supplier", "Buyer", "Amount"
 // ─── Toggle ───────────────────────────────────────────────────────────────────
 
 function Toggle({ on, onChange, label }: { on: boolean; onChange: (v: boolean) => void; label?: string }) {
-  // Ported design `.toggle` class (38×22, green-when-on knob). role/aria kept
-  // for accessibility + any switch-based selectors. The switch is icon-only, so
-  // an aria-label (built from the row's rule name) gives a screen reader a name
-  // to announce — otherwise it reads only "switch, checked" with no context.
+  // The visible switch is the ported design `.toggle` (38×22, green-when-on
+  // knob), but the INTERACTIVE element is a 44×44 hit area (WCAG 2.5.8) — same
+  // pattern as the topbar notifications bell: a transparent min-tap-sized button
+  // wrapping the small visual as an aria-hidden span. role/aria stay on the
+  // button. The icon-only switch gets an aria-label (from the rule name) so a
+  // screen reader announces context, not just "switch, checked".
   return (
     <button
       onClick={() => onChange(!on)}
       role="switch"
       aria-checked={on}
       aria-label={label ? `${on ? "Disable" : "Enable"} rule ${label}` : undefined}
-      className={`toggle${on ? " on" : ""}`}
-      style={{ cursor: "pointer" }}
-    />
+      className="inline-flex items-center justify-center flex-shrink-0"
+      style={{ minWidth: "var(--tap-min)", minHeight: "var(--tap-min)", background: "transparent", border: "none", padding: 0, cursor: "pointer" }}
+    >
+      <span aria-hidden className={`toggle${on ? " on" : ""}`} />
+    </button>
   );
 }
 
@@ -388,10 +392,9 @@ export function ValidationRules() {
                           style={{ borderLeft: active ? "2px solid #1E66C9" : "2px solid transparent", whiteSpace: "nowrap" }}
                           onClick={(e) => e.stopPropagation()}
                         >
-                          {/* ≥44×44 hit area around the 38×22 toggle (negative margin
-                              keeps the row height unchanged) so a mis-tap near the
-                              switch still lands on it, not the neighbouring row. */}
-                          <span className="-m-[11px] inline-flex items-center justify-center p-[11px]">
+                          {/* Toggle IS a 44×44 hit area now; the negative vertical
+                              margin folds it back into the row so height is unchanged. */}
+                          <span className="-my-[11px] inline-flex items-center">
                             <Toggle on={r.enabled} onChange={() => handleToggle(r.id)} label={r.name} />
                           </span>
                         </td>
@@ -443,11 +446,11 @@ export function ValidationRules() {
                       <div className="font-semibold text-[14px] leading-snug" style={{ color: "#0B1A2F" }}>{r.name || <span style={{ color: "var(--ink-faint)", fontStyle: "italic" }}>Untitled rule</span>}</div>
                       <div className="text-[11px] mt-0.5 tracking-[0.02em]" style={{ color: "var(--ink-faint)", fontFamily: "'JetBrains Mono', ui-monospace, SFMono-Regular, monospace" }}>{r.code}</div>
                     </div>
-                    {/* 44×44 hit area around the 38×22 toggle so a tap on/near it
-                        toggles the rule (and does NOT open the editor sheet). */}
+                    {/* Toggle IS a 44×44 hit area now; stop the tap from also
+                        opening the editor sheet. Negative margin keeps the card
+                        rhythm unchanged. */}
                     <div
                       className="-m-1 inline-flex flex-shrink-0 items-center justify-center"
-                      style={{ minWidth: 44, minHeight: 44 }}
                       onClick={(e) => e.stopPropagation()}
                     >
                       <Toggle on={r.enabled} onChange={() => handleToggle(r.id)} label={r.name} />
