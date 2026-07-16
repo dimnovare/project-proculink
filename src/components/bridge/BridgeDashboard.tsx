@@ -33,7 +33,7 @@ import { apiClient, isApiMockMode } from "@/lib/api-client";
 import { useQueriesEnabled } from "@/hooks/useQueriesEnabled";
 import { useOnboardingStatus } from "@/hooks/useOnboardingStatus";
 import { useOrderDirection } from "@/hooks/useOrderDirection";
-import type { OrderSummary, Supplier } from "@/types/procurement";
+import type { OrderStatus, OrderSummary, Supplier } from "@/types/procurement";
 import { ArrowRight, ArrowUpRight, Clock, AlertTriangle, CheckCircle2, Send, Activity, Download, BarChart3, Network, ChevronRight } from "lucide-react";
 
 // ─── Brand accent (supplier green) ────────────────────────────────────────
@@ -83,7 +83,7 @@ const FAILED_STATUSES = new Set([
  *  same reason, NOT in FAILED_STATUSES — we don't know that it failed, only that we
  *  can't confirm what happened. It is also absent from ACTIVE_STATUSES: it is parked,
  *  waiting on an operator decision, not progressing on its own. */
-const EXCEPTION_STATUSES = new Set([
+export const EXCEPTION_STATUSES = new Set<OrderStatus>([
   "pending_review",
   "failed",
   "transform_failed",
@@ -93,6 +93,21 @@ const EXCEPTION_STATUSES = new Set([
   "delivery_held",
   "delivery_unconfirmed",
 ]);
+
+/** Sums `byStatus` counts across a status set. This is the ONE place either
+ *  branch of `openExceptionsAll` may read status membership from — so a
+ *  status added to EXCEPTION_STATUSES is counted in mock mode AND live, never
+ *  one without the other. (Exported and unit-tested directly in
+ *  openExceptionsAll.test.ts — BridgeDashboard itself pulls in too much
+ *  — Clerk, TanStack Query, the topology canvas — to render in a unit test.) */
+export function sumByStatuses(
+  byStatus: Partial<Record<OrderStatus, number>> | null | undefined,
+  statuses: Set<OrderStatus>,
+): number {
+  let total = 0;
+  for (const status of statuses) total += byStatus?.[status] ?? 0;
+  return total;
+}
 
 /** Orders that have reached a "processed" milestone, used for the auto-rate. */
 const ELIGIBLE_STATUSES = new Set(["ready", "ready_to_deliver", "delivered"]);
@@ -552,13 +567,12 @@ export function BridgeDashboard() {
   const topoHeight = Math.min(520, Math.max(320, 150 + maxPorts * 74));
 
   const wireCount = effective.wires.length;
+  // Derived from EXCEPTION_STATUSES via sumByStatuses (not hand-listed status
+  // literals) so this can never silently diverge from the mock branch below —
+  // that divergence is exactly what let delivery_held and delivery_unconfirmed
+  // go uncounted here while EXCEPTION_STATUSES already had them.
   const openExceptionsAll = !isApiMockMode
-    ? ((ordersSummary?.byStatus?.["pending_review"] ?? 0) +
-       (ordersSummary?.byStatus?.["failed"] ?? 0) +
-       (ordersSummary?.byStatus?.["delivery_failed"] ?? 0) +
-       (ordersSummary?.byStatus?.["transform_failed"] ?? 0) +
-       (ordersSummary?.byStatus?.["delivery_dead_letter"] ?? 0) +
-       (ordersSummary?.byStatus?.["rejected_by_supplier"] ?? 0))
+    ? sumByStatuses(ordersSummary?.byStatus, EXCEPTION_STATUSES)
     : allOrders.filter((o) => EXCEPTION_STATUSES.has(o.status)).length;
 
   // ── Operational funnel (the hero) ─────────────────────────────────────────
