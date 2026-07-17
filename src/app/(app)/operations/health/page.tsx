@@ -41,6 +41,10 @@ const TILES: Array<{ key: keyof OpsHealth; label: string; href: string }> = [
   { key: "deliveringStuck",    label: "Stuck delivering",  href: "/inbox?status=delivering" },
   { key: "transformFailed",    label: "Transform failed",  href: "/inbox?status=failed" },
   { key: "deliveryFailed",     label: "Delivery failed",   href: "/inbox?status=failed" },
+  // Plain tile, not a bespoke card: unlike deliveryHeld (one global Settings→Billing
+  // fix), a parked order's fix is per-order in the workshop — so it belongs in the
+  // grid the operator already scans, routed to the filtered inbox like every other tile.
+  { key: "deliveryUnconfirmed", label: "Delivery unknown", href: "/inbox?status=delivery_unconfirmed" },
   { key: "deliveryDeadLetter", label: "Out of retries",    href: "/inbox?status=failed" },
   { key: "rejectedBySupplier", label: "Rejected by supplier", href: "/inbox?status=failed" },
   { key: "slaBreached",        label: "Overdue",           href: "/inbox" },
@@ -226,7 +230,11 @@ export default function OperationsHealthPage() {
           style={{ gridTemplateColumns: "repeat(auto-fill, minmax(168px, 1fr))" }}
         >
           {TILES.map(({ key, label, href }) => {
-            const count = h[key] as number; // TILES keys are all numeric count fields
+            // `?? 0`: every TILES key is a required numeric field except
+            // deliveryUnconfirmed, which ships separately (PR #27) and is optional for
+            // forward/backward compat — an older API omitting it must read as 0, not
+            // as a literal "undefined" tile.
+            const count = (h[key] as number | undefined) ?? 0;
             const t = tone(count, key);
             return (
               <Link

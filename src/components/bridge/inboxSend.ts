@@ -2,7 +2,8 @@
 // testing (vitest), mirroring the parseStall.ts pattern.
 //
 // WHY: POST /api/orders/{id}/redeliver is guarded server-side by
-// OrderStatusMachine.RedeliverableFrom = { delivery_failed, ready_to_deliver }.
+// OrderStatusMachine.RedeliverableFrom =
+// { delivery_failed, ready_to_deliver, delivery_unconfirmed }.
 // Any other status → 400. Row selection is therefore gated on these RAW
 // backend statuses — NOT the collapsed display CrossingStatus: the red
 // "Failed" pill also covers parse failures, transform failures, dead-letters
@@ -18,15 +19,80 @@
  * That is by design: a held order is released by settling billing (which auto-releases
  * every held order back to ready_to_deliver and re-drives delivery), not by a button.
  * Adding it here would enable a bulk-send checkbox that can only ever error.
+ *
+ * `delivery_unconfirmed` is INCLUDED ON PURPOSE — the opposite reasoning. A crash
+ * lost the delivery outcome, so the backend parks the order instead of guessing
+ * whether a retry would duplicate it. The park exists precisely so a HUMAN can
+ * choose to accept that duplicate risk and send again; excluding it here would
+ * strand the operator with no bulk path to that choice.
  */
 export const REDELIVERABLE_STATUSES: ReadonlySet<string> = new Set([
   "ready_to_deliver",
   "delivery_failed",
+  "delivery_unconfirmed",
 ]);
 
 /** True when the backend will accept a redeliver for this raw order status. */
 export function isRedeliverable(rawStatus: string): boolean {
   return REDELIVERABLE_STATUSES.has(rawStatus);
+}
+
+/** The parked status — sent, but the outcome was lost, so a resend may duplicate. */
+const DELIVERY_UNCONFIRMED = "delivery_unconfirmed";
+
+/**
+ * Whether the inbox's bulk "Send selected" must warn before it sends.
+ *
+ * WHY THIS EXISTS: `delivery_unconfirmed` is redeliverable, so parked rows are
+ * selectable and the header select-all sweeps them in with everything else. The
+ * workshop panel gates the SAME redeliverOrder call on the SAME status behind a
+ * confirm; without this the bulk bar was a loophole around that guard — one
+ * select-all could hand N suppliers a duplicate PO on the very channels (ERP
+ * connections, email) that de-duplicate nothing and are the reason the park exists.
+ *
+ * A selection of only non-parked rows returns false and sends straight through:
+ * ready_to_deliver / delivery_failed carry no duplicate risk the operator hasn't
+ * already accepted, and adding a dialog there would just train them to click past it.
+ *
+ * An id with NO known status also returns true. Paging does not clear the selection,
+ * so a row selected on page 1 stays selected while page 2 is loaded and its status is
+ * no longer in hand. We cannot prove such a row isn't parked — and an unnecessary
+ * dialog costs a click, while a missed one costs the supplier a duplicate order.
+ */
+export function bulkSendNeedsDuplicateConfirm(
+  ids: readonly string[],
+  rawStatusById: ReadonlyMap<string, string>,
+): boolean {
+  return ids.some((id) => {
+    const raw = rawStatusById.get(id);
+    return raw === undefined || raw === DELIVERY_UNCONFIRMED;
+  });
+}
+
+/**
+ * Confirm copy for a bulk send that includes (or may include) a parked order.
+ *
+ * Mirrors DeliveryUnconfirmedPanel's pinned CONFIRM_COPY.redeliver rather than
+ * inventing a second vocabulary for the same risk — the single-order and bulk paths
+ * must read identically, because they ARE the same decision. `count` is the whole
+ * selection: every selected order is sent, so that is the honest number to name.
+ *
+ * The claim stays conditional ("If … already received", "may give"): we never
+ * observed whether the supplier got it — that unknown IS the park.
+ */
+export function bulkSendConfirmCopy(count: number): {
+  title: string;
+  description: string;
+  confirmLabel: string;
+} {
+  return {
+    title: count === 1 ? "Send this order again?" : `Send ${count} orders again?`,
+    description:
+      count === 1
+        ? "If the supplier already received this order, sending again may give them a duplicate."
+        : "If the supplier already received them, sending again may give them duplicates.",
+    confirmLabel: "Send again",
+  };
 }
 
 export interface BulkSendFailure {

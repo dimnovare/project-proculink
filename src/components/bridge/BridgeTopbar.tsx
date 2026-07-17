@@ -244,14 +244,17 @@ function timeAgo(iso: string): string {
 
 // Status dot colors use the canonical semantic tokens (danger/amber/brand-green)
 // rather than literal hex, so they stay in sync with UnifiedStatusBadge.
-type NotifKind = "review" | "failed" | "delivered" | "held";
+type NotifKind = "review" | "failed" | "delivered" | "held" | "unconfirmed";
 
 const NOTIF_META: Record<NotifKind, { dot: string; label: string }> = {
-  failed:    { dot: "var(--danger)", label: "Delivery failed" },
+  failed:      { dot: "var(--danger)", label: "Delivery failed" },
   // Billing hold: amber (needs a human) rather than red — nothing failed.
-  held:      { dot: "var(--amber)", label: "Delivery paused" },
-  review:    { dot: "var(--amber)", label: "Needs review" },
-  delivered: { dot: "var(--brand-green)", label: "Delivered" },
+  held:        { dot: "var(--amber)", label: "Delivery paused" },
+  // Parked: a crash lost the outcome after we sent. Amber like `held` — needs a
+  // human, but we can't confirm a failure — never "Delivery failed".
+  unconfirmed: { dot: "var(--amber)", label: "Delivery unknown" },
+  review:      { dot: "var(--amber)", label: "Needs review" },
+  delivered:   { dot: "var(--brand-green)", label: "Delivered" },
 };
 
 function NotificationsBell() {
@@ -280,15 +283,19 @@ function NotificationsBell() {
       // unresolved lines, and the billing pause is the reason it isn't moving.
       // Without a kind it was dropped entirely and never notified.
       else if (o.status === "delivery_held") kind = "held";
+      // Parked: same reasoning as held — classify before `review` so it can't be
+      // masked by a leftover unresolvedCount from before it reached delivery.
+      else if (o.status === "delivery_unconfirmed") kind = "unconfirmed";
       else if (o.status === "pending_review" || (o.unresolvedCount ?? 0) > 0) kind = "review";
       else if (o.status === "delivered") kind = "delivered";
       return kind ? { o, kind } : null;
     })
     .filter((x): x is { o: OrderSummary; kind: NotifKind } => x !== null);
 
-  // Held ranks under failed but over review: it blocks every order in the workspace,
-  // not just this one.
-  const rank = (k: string) => (k === "failed" ? 0 : k === "held" ? 1 : k === "review" ? 2 : 3);
+  // Held and unconfirmed rank under failed but over review: both need a human before
+  // review even matters (held blocks every order in the workspace; unconfirmed risks
+  // a duplicate send if mishandled).
+  const rank = (k: string) => (k === "failed" ? 0 : k === "held" || k === "unconfirmed" ? 1 : k === "review" ? 2 : 3);
   items.sort((a, b) => rank(a.kind) - rank(b.kind) || new Date(b.o.createdAt).getTime() - new Date(a.o.createdAt).getTime());
   const top = items.slice(0, 7);
   const unread = !isApiMockMode
@@ -298,8 +305,9 @@ function NotificationsBell() {
        (ordersSummary?.byStatus?.["transform_failed"] ?? 0) +
        (ordersSummary?.byStatus?.["delivery_dead_letter"] ?? 0) +
        (ordersSummary?.byStatus?.["rejected_by_supplier"] ?? 0) +
-       (ordersSummary?.byStatus?.["delivery_held"] ?? 0))
-    : items.filter((i) => i.kind === "failed" || i.kind === "review" || i.kind === "held").length;
+       (ordersSummary?.byStatus?.["delivery_held"] ?? 0) +
+       (ordersSummary?.byStatus?.["delivery_unconfirmed"] ?? 0))
+    : items.filter((i) => i.kind === "failed" || i.kind === "review" || i.kind === "held" || i.kind === "unconfirmed").length;
 
   useEffect(() => {
     if (!open) return;

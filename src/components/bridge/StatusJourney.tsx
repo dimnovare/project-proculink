@@ -159,7 +159,14 @@ export function StatusJourney({ stage, compact = false, crossingRef }: StatusJou
 // ran (it did — that is why there are lines to look at), `review` says "Needs review"
 // (there is no supplier to resolve lines against yet), and `failed` is red (nothing
 // failed; assigning a supplier re-enters the parse flow).
-export type CrossingStatus = "new" | "extracting" | "unrouted" | "review" | "ready" | "sent" | "delivering" | "sending" | "failed" | "held";
+// `unconfirmed` covers `delivery_unconfirmed`: a crash lost the outcome after we sent,
+// on a channel that cannot tell us whether the file arrived, so it waits on a person to
+// choose "Send again" or "Mark as delivered". It needs its own member because every
+// neighbour states something we did not observe: `failed` is red and claims a failure we
+// cannot confirm, `sent` claims the supplier has the file, `sending` claims it is still
+// in flight (nothing is — the attempt is over, only its outcome is missing), and
+// `held`/`review` misstate the cause.
+export type CrossingStatus = "new" | "extracting" | "unrouted" | "review" | "ready" | "sent" | "delivering" | "sending" | "failed" | "held" | "unconfirmed";
 
 const STATUS_PILL: Record<CrossingStatus, { bg: string; color: string; dot: string; pulse?: boolean; label: string }> = {
   // tokens.css .pill-new → surface-2 (#F1F3F7) / ink-muted (#5E6779) / ink-faint (#5B6980)
@@ -183,6 +190,10 @@ const STATUS_PILL: Record<CrossingStatus, { bg: string; color: string; dot: stri
   // tokens.css .pill-held → amber-soft / amber-text / amber, matching `review`.
   // Deliberately no pulse: a paused delivery is not in flight.
   held:       { bg: "#FAF1DD", color: "#8A5310", dot: "#B36D14",  label: "Delivery paused" },
+  // tokens.css .pill-unconfirmed → amber-soft / amber-text / amber, matching `held`:
+  // needs a human, is not a red failure. No pulse: nothing is in flight, it's
+  // waiting on an operator decision, not on the system.
+  unconfirmed: { bg: "#FAF1DD", color: "#8A5310", dot: "#B36D14",  label: "Delivery unknown" },
 };
 
 const STATUS_STAGE: Record<CrossingStatus, OrderStage> = {
@@ -199,6 +210,9 @@ const STATUS_STAGE: Record<CrossingStatus, OrderStage> = {
   // Stage 4: a held order reached Deliver and stopped there — showing it earlier
   // would understate how far it got (and how little is left to do).
   held:       4,
+  // Stage 4, same reasoning: an unconfirmed order also reached Deliver — it was
+  // (probably) sent — before the crash lost the outcome.
+  unconfirmed: 4,
   failed:     "failed",
 };
 

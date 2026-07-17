@@ -524,6 +524,11 @@
    deliberately without .pill-delivering's pulse: nothing is in flight. */
 .pill-held        { background: var(--amber-soft);        color: var(--amber-text); }
 .pill-held .dot   { background: var(--amber); }
+/* delivery_unconfirmed — a crash lost the outcome after we sent. Amber like
+   .pill-held (needs a human, not a red failure), no pulse: it's waiting on an
+   operator decision, not on something in flight. */
+.pill-unconfirmed        { background: var(--amber-soft);        color: var(--amber-text); }
+.pill-unconfirmed .dot   { background: var(--amber); }
 .pill-ready       { background: var(--brand-green-soft);  color: var(--brand-green-deep); }
 .pill-ready .dot  { background: var(--brand-green); }
 .pill-sent        { background: var(--brand-green-soft);  color: var(--brand-green-deep); }

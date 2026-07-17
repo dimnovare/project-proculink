@@ -985,6 +985,11 @@ async function mockRedeliverOrder(_orderId: string): Promise<void> {
   // Mock always succeeds — live wiring verified by manual QA
 }
 
+async function mockMarkDelivered(_orderId: string): Promise<void> {
+  await delay(800);
+  // Mock always succeeds — live wiring verified by manual QA
+}
+
 async function mockGetOrderAudit(orderId: string): Promise<AuditEvent[]> {
   await delay(200);
   const order = mockOrders.find(o => o.id === orderId);
@@ -1012,6 +1017,23 @@ async function realRedeliverOrder(orderId: string): Promise<void> {
     const body = await res.json().catch(() => ({}) as Record<string, unknown>);
     throw new Error(
       (body as { error?: string }).error ?? `Redeliver failed: ${res.statusText}`,
+    );
+  }
+}
+
+// Valid ONLY from delivery_unconfirmed (backend PR #27) — the operator's other
+// resolution for a parked order, alongside redeliverOrder above. 202 on success;
+// the body ({ status: "delivered" }) isn't needed here — the caller re-fetches
+// the order (invalidating ["order", id] / ["orders"]) to pick up the new status.
+async function realMarkDelivered(orderId: string): Promise<void> {
+  const res = await fetchWithTimeout(
+    `${API_BASE_URL}/api/orders/${orderId}/mark-delivered`,
+    { method: "POST", headers: await authHeader() },
+  );
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}) as Record<string, unknown>);
+    throw new Error(
+      (body as { error?: string }).error ?? `Mark delivered failed: ${res.statusText}`,
     );
   }
 }
@@ -1378,6 +1400,7 @@ export const apiClient = {
   // Audit trail
   getOrderAudit:          USE_MOCK ? mockGetOrderAudit         : realGetOrderAudit,
   redeliverOrder:         USE_MOCK ? mockRedeliverOrder        : realRedeliverOrder,
+  markDelivered:          USE_MOCK ? mockMarkDelivered         : realMarkDelivered,
 
   // Onboarding + dashboard
   getOnboardingStatus:    USE_MOCK ? mockGetOnboardingStatus   : realGetOnboardingStatus,

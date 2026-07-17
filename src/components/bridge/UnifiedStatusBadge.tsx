@@ -112,6 +112,13 @@ const STATUS_META: Record<string, StatusMeta> = {
   // `pulse` (nothing is in flight; it waits on an invoice, not on us).
   delivery_held: { label: "Delivery paused", tone: "warning" },
 
+  // ── Unconfirmed delivery (a fault, but not a confirmed failure) ───────
+  // A crash lost the outcome after we sent — we can't tell whether the supplier
+  // received it. "Unknown", never "failed" — we don't know that it failed — and
+  // never "sent", which we also don't know. Warning tone: needs a human, but is
+  // not a red failure.
+  delivery_unconfirmed: { label: "Delivery unknown", tone: "warning" },
+
   // ── Failures ─────────────────────────────────────────────────────────
   failed: { label: "Failed", tone: "danger" },
   parse_failed: { label: "Parse failed", tone: "danger" },

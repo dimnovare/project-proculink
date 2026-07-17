@@ -22,6 +22,7 @@ import { useQueriesEnabled } from "@/hooks/useQueriesEnabled";
 import { apiClient } from "@/lib/api-client";
 import type { OrderException } from "@/types/procurement";
 import { UnifiedStatusBadge, statusLabel } from "@/components/bridge/UnifiedStatusBadge";
+import { DELIVERY_UNCONFIRMED_MESSAGE } from "@/components/bridge/review/hooks/useOrderReview";
 
 // Stage → plain-English "why". The exception code is machine-readable; this gives
 // the operator a human reason without pretending we have a field-level rule ref.
@@ -39,7 +40,7 @@ function stageReason(stage: string | null | undefined, code: string | null | und
 
 // Honest delivery status line. delivered ≠ accepted — there is no ACK field on
 // the Order DTO, so "delivered" is presented as "sent, acceptance unconfirmed".
-function deliveryStatusCopy(status: string): { label: string; detail: string; tone: "ok" | "warn" | "bad" | "neutral" } {
+function deliveryStatusCopy(status: string, errorMessage?: string | null): { label: string; detail: string; tone: "ok" | "warn" | "bad" | "neutral" } {
   const s = (status ?? "").toLowerCase();
   if (s === "delivered" || s === "sent")
     return { label: "Sent — acceptance unconfirmed", detail: "The document reached the supplier endpoint. A 2xx is not the same as business acceptance; check the supplier response tab for an acknowledgement.", tone: "warn" };
@@ -54,6 +55,11 @@ function deliveryStatusCopy(status: string): { label: string; detail: string; to
   // reason-free "has not been sent yet" line.
   if (s === "delivery_held")
     return { label: "Delivery paused — billing", detail: "The supplier file is generated and waiting, but sending is paused because the plan can't process orders right now. Delivery resumes automatically once billing is up to date.", tone: "warn" };
+  // Parked, not paused — a crash lost the outcome AFTER we sent. "Warn" like
+  // delivery_held (needs a human, not a red failure) — never "bad": we can't
+  // confirm a failure, only that the outcome is unknown.
+  if (s === "delivery_unconfirmed")
+    return { label: "Delivery unknown", detail: errorMessage && errorMessage.trim().length > 0 ? errorMessage : DELIVERY_UNCONFIRMED_MESSAGE, tone: "warn" };
   return { label: statusLabel(status), detail: "This order has not been sent yet.", tone: "neutral" };
 }
 
@@ -98,7 +104,7 @@ export function ExceptionDetail({ exc }: { exc: OrderException }) {
   const reviewHref = orderId ? `/inbox/${orderId}` : null;
   const conformanceHref = orderId ? `/inbox/${orderId}?tab=conformance` : null;
   const supplierHref = order?.supplierId ? `/library/suppliers/${order.supplierId}` : null;
-  const delivery = order ? deliveryStatusCopy(order.status) : null;
+  const delivery = order ? deliveryStatusCopy(order.status, order.errorMessage) : null;
 
   return (
     <div className="grid gap-4 px-4 py-4 sm:px-5" style={{ background: "#FAFBFC", borderTop: "1px solid #F0F2F6" }}>

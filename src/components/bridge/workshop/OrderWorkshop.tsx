@@ -33,6 +33,7 @@ import { MapperWorkbench, type MapperWorkbenchLayout } from "../mapper/MapperWor
 import { UnifiedStatusBadge } from "../UnifiedStatusBadge";
 import { FailedPanel, ParseFailedPanel } from "../FailedPanels";
 import { BillingHeldPanel } from "./BillingHeldPanel";
+import { DeliveryUnconfirmedPanel } from "./DeliveryUnconfirmedPanel";
 import { ConfirmDialog } from "../review/ConfirmDialog";
 import { buildFixQueue, type FixQueueCard } from "../review/buildFixQueue";
 import { orderGrandTotalLabel, outputArtifactType, buyerLabel, orderDeliveryFormat } from "../review/orderDisplay";
@@ -451,6 +452,13 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
   // not in the backend's RedeliverableFrom), with billing never mentioned.
   if (order.status === "delivery_held") {
     return <BillingHeldPanel order={order} />;
+  }
+  // Also a PAUSE gate, same reasoning as delivery_held directly above — but the
+  // resolution differs: a crash lost the outcome (not billing), so there is no
+  // single global fix to link to. The panel offers the two per-order actions
+  // (send again / mark delivered) instead of one "go fix this" link.
+  if (order.status === "delivery_unconfirmed") {
+    return <DeliveryUnconfirmedPanel order={order} />;
   }
 
   // ── Parsing gate — the order page is opened the instant the upload redirects,

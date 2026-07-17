@@ -54,10 +54,12 @@ function liveStatusDot(status: OrderStatus | string): string {
   switch (status) {
     case "delivered":
       return "#2E8E3A";
-    // Amber = waiting on a human. delivery_held (billing hold) is here rather than
-    // on the default blue "in progress" dot: a paused order is not progressing.
+    // Amber = waiting on a human. delivery_held (billing hold) and delivery_unconfirmed
+    // (a crash lost the outcome) are here rather than on the default blue "in progress"
+    // dot: neither is progressing — both are parked for an operator decision.
     case "pending_review":
     case "delivery_held":
+    case "delivery_unconfirmed":
       return "#B36D14";
     case "failed":
     case "transform_failed":

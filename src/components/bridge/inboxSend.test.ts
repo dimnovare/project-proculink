@@ -1,15 +1,19 @@
 import { describe, expect, it } from "vitest";
 import {
   REDELIVERABLE_STATUSES,
+  bulkSendConfirmCopy,
+  bulkSendNeedsDuplicateConfirm,
   formatBulkSendResult,
   isRedeliverable,
   shouldShowBulkBar,
 } from "./inboxSend";
 
 describe("isRedeliverable — mirrors backend OrderStatusMachine.RedeliverableFrom", () => {
-  it("accepts exactly the two redeliverable raw statuses", () => {
+  it("accepts exactly the three redeliverable raw statuses", () => {
     expect(isRedeliverable("ready_to_deliver")).toBe(true);
     expect(isRedeliverable("delivery_failed")).toBe(true);
+    // A parked order IS redeliverable — unlike delivery_held, which stays excluded.
+    expect(isRedeliverable("delivery_unconfirmed")).toBe(true);
   });
 
   it("rejects every other raw backend status", () => {
@@ -32,11 +36,69 @@ describe("isRedeliverable — mirrors backend OrderStatusMachine.RedeliverableFr
     }
   });
 
-  it("exposes the canonical set with exactly two members", () => {
-    expect([...REDELIVERABLE_STATUSES].sort()).toEqual([
-      "delivery_failed",
-      "ready_to_deliver",
-    ]);
+  it("exposes the canonical set with exactly three members", () => {
+    // Mirrors backend OrderStatusMachine.RedeliverableFrom. A parked order IS redeliverable —
+    // the park exists so a HUMAN can choose to re-send, accepting a duplicate risk the automatic
+    // retry must never take for them. (delivery_held stays excluded: see inboxSend.ts.)
+    expect([...REDELIVERABLE_STATUSES].sort()).toEqual(
+      ["delivery_failed", "delivery_unconfirmed", "ready_to_deliver"],
+    );
+  });
+});
+
+describe("bulkSendNeedsDuplicateConfirm — which bulk sends must warn first", () => {
+  const rawById = new Map<string, string>([
+    ["a", "ready_to_deliver"],
+    ["b", "delivery_failed"],
+    ["c", "delivery_unconfirmed"],
+  ]);
+
+  it("warns when the selection contains a parked order", () => {
+    expect(bulkSendNeedsDuplicateConfirm(["c"], rawById)).toBe(true);
+    expect(bulkSendNeedsDuplicateConfirm(["a", "b", "c"], rawById)).toBe(true);
+  });
+
+  it("does NOT warn for a selection of only non-parked rows (flow unchanged)", () => {
+    expect(bulkSendNeedsDuplicateConfirm(["a"], rawById)).toBe(false);
+    expect(bulkSendNeedsDuplicateConfirm(["a", "b"], rawById)).toBe(false);
+    expect(bulkSendNeedsDuplicateConfirm([], rawById)).toBe(false);
+  });
+
+  it("warns when a selected row's status is unknown — it cannot be ruled out", () => {
+    // Paging does NOT clear the selection, so a row selected on page 1 is still
+    // selected on page 2 while its status is no longer loaded. We cannot prove such
+    // a row isn't parked, so it gets the warning: an unnecessary dialog costs a
+    // click, a missed one costs the supplier a duplicate PO.
+    expect(bulkSendNeedsDuplicateConfirm(["gone"], rawById)).toBe(true);
+    expect(bulkSendNeedsDuplicateConfirm(["a", "gone"], rawById)).toBe(true);
+  });
+});
+
+describe("bulkSendConfirmCopy — states the risk and the count", () => {
+  it("mirrors the workshop panel's pinned wording for a single order", () => {
+    const copy = bulkSendConfirmCopy(1);
+    expect(copy.title).toBe("Send this order again?");
+    expect(copy.description).toBe(
+      "If the supplier already received this order, sending again may give them a duplicate.",
+    );
+    expect(copy.confirmLabel).toBe("Send again");
+  });
+
+  it("carries the count and the duplicate risk for a multi-order send", () => {
+    const copy = bulkSendConfirmCopy(3);
+    expect(copy.title).toBe("Send 3 orders again?");
+    expect(copy.description).toBe(
+      "If the supplier already received them, sending again may give them duplicates.",
+    );
+  });
+
+  it("never claims the supplier HAS received the order — only that it may have", () => {
+    for (const n of [1, 2, 9]) {
+      const { description } = bulkSendConfirmCopy(n);
+      expect(description).toMatch(/^If the supplier already received/);
+      expect(description).toMatch(/may give them/);
+      expect(description).not.toMatch(/will give them/);
+    }
   });
 });
 

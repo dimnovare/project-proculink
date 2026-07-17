@@ -40,6 +40,16 @@ export const BILLING_HELD_MESSAGE =
 export const BILLING_HELD_MESSAGE_PLURAL =
   "Deliveries are paused because your plan can't process orders right now. The supplier files are generated and waiting — nothing has been lost. Sending resumes automatically once your billing is up to date.";
 
+/**
+ * The one sentence explaining a `delivery_unconfirmed` order, shared by the review
+ * screen, ExceptionDetail, and the workshop's parked-order panel so the three can
+ * never drift. "May have sent" is the honest claim — a crash-recovery signal proves
+ * the send was attempted, not that it arrived — and the sentence hands the operator
+ * both resolutions rather than implying the system will resolve this on its own.
+ */
+export const DELIVERY_UNCONFIRMED_MESSAGE =
+  "We may have sent this order, but lost the connection before the supplier confirmed it — so we can't tell whether it arrived. Check with the supplier, then either send it again or mark it delivered.";
+
 export function finalDeliveryMessage(status: Order["status"], errorMessage: string | null | undefined, labels: PartyLabels): string {
   if (status === "delivered") {
     // Inbound: "Order confirmed." Outbound: "Delivered to supplier." (mechanism identical).
@@ -66,6 +76,14 @@ export function finalDeliveryMessage(status: Order["status"], errorMessage: stri
     // problem. The generic fallback below is worse still — nothing is processing,
     // refreshing changes nothing, and the Delivery Log has no attempt to show.
     return BILLING_HELD_MESSAGE;
+  }
+  if (status === "delivery_unconfirmed") {
+    // Prefer the backend's pinned park sentence (errorMessage) — it carries the
+    // same claim as DELIVERY_UNCONFIRMED_MESSAGE but may include order-specific
+    // detail. Fall back to the shared constant so the three surfaces never drift.
+    return errorMessage && errorMessage.trim().length > 0
+      ? errorMessage
+      : DELIVERY_UNCONFIRMED_MESSAGE;
   }
   return "Delivery is still processing. Refresh the order or check the Delivery Log for the latest attempt.";
 }

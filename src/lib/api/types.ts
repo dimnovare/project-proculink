@@ -577,6 +577,15 @@ export interface ConnectorManifest {
   capabilities: string | null;
   /** Optional documentation URL, or null. */
   docsRef: string | null;
+  /**
+   * At-least-once resend caveat, e.g. "a repeat send overwrites the same file; no
+   * duplicate" vs "we can't tell whether a repeat would arrive twice". Optional and
+   * NOT part of ConnectorManifestDto — the backend's per-dispatcher ResendSafety
+   * classification (ProcuLink.Core.Services.Delivery.ResendSafety) has no wire
+   * representation yet, so this is attached client-side (see connectors.ts) from a
+   * static, protocol-keyed lookup, for both mock AND live manifests.
+   */
+  resendCaveat?: string | null;
 }
 
 /**

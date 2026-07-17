@@ -191,7 +191,12 @@ export function useSendFlow({ orderId, order, labels, refetchOrder }: {
           // paused into delivery_held rather than delivered. That IS terminal for this
           // poll — without it the poll burns its full 45s and paints a red "Send failed"
           // for an order that was deliberately paused and will resume on its own.
-          next.status === "delivery_held",
+          next.status === "delivery_held" ||
+          // A "Send again" that hits a SECOND crash re-parks into delivery_unconfirmed
+          // rather than delivering. Also terminal for this poll — without it, a re-park
+          // burns the full 45s timeout and shows a false "Send failed" for an order that
+          // is actually sitting in the (correct) parked state, waiting on the operator.
+          next.status === "delivery_unconfirmed",
         45_000,
       );
 
@@ -204,6 +209,11 @@ export function useSendFlow({ orderId, order, labels, refetchOrder }: {
         // operator to chase the supplier over what is actually an invoice.
         setFlow(finalDeliveryMessage(current.status, current.errorMessage, labels), "info");
       } else {
+        // delivery_unconfirmed (a re-park on a second crash) deliberately falls through
+        // to here rather than getting its own "info" branch like delivery_held above:
+        // a billing hold resolves itself, but a re-park still needs the operator to act
+        // (send again or mark delivered) — the "error" severity below is the honest
+        // signal that this send did not reach a resolved state.
         setFlow(finalDeliveryMessage(current.status, current.errorMessage, labels), "error");
       }
       await refetchOrder();

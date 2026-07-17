@@ -34,6 +34,21 @@ Dead-lettered orders can't be retried from the order screen (that path is delibe
 
 One caveat to keep front of mind: a successful delivery means the supplier's endpoint answered — **HTTP 200 is not business acceptance**. A delivered order can still come back as Rejected by supplier; that creates its own exception.
 
+## When we don't know whether it arrived
+
+On some delivery channels — email and the ERP integrations — there's no reliable way to tell a repeat delivery apart from a first one. If we lose the connection partway through sending, before hearing back from the other side, we genuinely don't know whether the order got there.
+
+We could just retry, the way a failed delivery does. We don't, on purpose: on those channels a retry can land as a second, genuine purchase order, and a supplier who acts on a duplicate is worse than an order that waits an extra few minutes for a person to look at it. So instead of guessing, the order goes to **Delivery unknown** and stops there for you to decide.
+
+From the order page you get two ways to resolve it:
+
+- **Send again** — use this once you've confirmed with the supplier that they never received it (or you've decided the duplicate risk is acceptable). It delivers the order exactly as before.
+- **Mark as delivered** — use this once you've confirmed the supplier already has it. This closes the order out without sending anything further.
+
+Checking with the supplier first is the fastest way to know which one is right — that's the whole reason we ask instead of picking for you.
+
+SFTP, FTPS, and HTTP deliveries don't have this problem the same way: an SFTP/FTPS retry overwrites the same file rather than creating a second one, and HTTP deliveries carry a marker a well-built endpoint can use to recognize a repeat — so those channels retry automatically and never wait on you like this.
+
 ## "Is it slow, or is it dead?"
 
 When an order sits in Parsing or Sending longer than feels right, check **Operations → Health** before re-uploading:
