@@ -31,7 +31,15 @@ import { StatusJourney, type CrossingStatus, type OrderStage } from "./StatusJou
 import { UnifiedStatusBadge } from "@/components/bridge/UnifiedStatusBadge";
 import { tv2DotColor } from "@/components/bridge/layout/listTableV2";
 import { useOrderDirection, type PartyLabels } from "@/hooks/useOrderDirection";
-import { formatBulkSendResult, isRedeliverable, shouldShowBulkBar, type BulkSendResult } from "./inboxSend";
+import {
+  bulkSendConfirmCopy,
+  bulkSendNeedsDuplicateConfirm,
+  formatBulkSendResult,
+  isRedeliverable,
+  shouldShowBulkBar,
+  type BulkSendResult,
+} from "./inboxSend";
+import { useConfirm } from "@/components/ui/confirm";
 
 // Per-column metadata. `numeric` right-aligns value cells; `label` is the
 // human-readable name shown in the desktop "Columns" visibility menu (the raw
@@ -350,19 +358,25 @@ const columnHelper = createColumnHelper<OrderRow>();
 function buildColumns(labels: PartyLabels) {
   return [
   // Checkbox select — selection feeds ONLY the "Send selected" bulk action
-  // (POST /redeliver), which the backend accepts from ready_to_deliver /
-  // delivery_failed alone. Rows in any other status are NOT selectable
-  // (enableRowSelection gates on isRedeliverable in the table options), so
-  // "Send selected" can never fire a guaranteed-400 request. TanStack's
+  // (POST /redeliver), which the backend accepts from ready_to_deliver,
+  // delivery_failed and delivery_unconfirmed. Rows in any other status are NOT
+  // selectable (enableRowSelection gates on isRedeliverable in the table options),
+  // so "Send selected" can never fire a guaranteed-400 request. TanStack's
   // select-all helpers respect getCanSelect(), so the header checkbox keeps
   // working on filtered views and selects only the sendable rows.
+  //
+  // Parked (delivery_unconfirmed) rows are sendable and therefore selectable, so
+  // these labels must NAME them: a select-all that silently includes orders the
+  // supplier may already hold is a decision the operator can't see they're making.
+  // The send itself is confirmed separately (see handleSendSelected).
   columnHelper.display({
     id: "select",
     enableHiding: false,
     header: ({ table }) => {
-      // Only ready_to_deliver / delivery_failed rows are selectable (enableRowSelection gate). On a
-      // view with none (e.g. "All orders" showing only Normalized / Needs review), select-all would
-      // select nothing and look DEAD. Disable it + say why, so the click isn't a silent no-op.
+      // Only Ready to send / Failed delivery / Delivery unknown rows are selectable
+      // (enableRowSelection gate). On a view with none (e.g. "All orders" showing only
+      // Normalized / Needs review), select-all would select nothing and look DEAD.
+      // Disable it + say why, so the click isn't a silent no-op.
       const selectable = table.getRowModel().rows.filter((r) => r.getCanSelect()).length;
       const none = selectable === 0;
       return (
@@ -375,7 +389,7 @@ function buildColumns(labels: PartyLabels) {
           aria-label={none ? "No sendable orders on this view" : "Select all sendable orders"}
           title={none
             ? "No orders here can be sent. Switch to the “Ready to send” or “Failed” tab to select orders to deliver."
-            : "Selects orders that can be sent (Ready to send or Failed delivery)"}
+            : "Selects orders that can be sent (Ready to send, Failed delivery, or Delivery unknown — which the supplier may already have)"}
         />
       );
     },
@@ -398,12 +412,12 @@ function buildColumns(labels: PartyLabels) {
           aria-label={
             canSelect
               ? "Select row"
-              : "Can't select — only orders that are Ready to send or have a failed delivery can be sent"
+              : "Can't select — only orders that are Ready to send, have a failed delivery, or have an unknown delivery can be sent"
           }
           title={
             canSelect
               ? undefined
-              : "Only orders that are Ready to send or have a failed delivery can be sent"
+              : "Only orders that are Ready to send, have a failed delivery, or have an unknown delivery can be sent"
           }
         />
       );
@@ -543,6 +557,9 @@ const PAGE_SIZE = 25;
 export function InboxView() {
   const router = useRouter();
   const queryEnabled = useQueriesEnabled();
+  // Shared confirm dialog (ConfirmProvider is mounted in the (app) layout) — the
+  // duplicate guard on bulk sends that include a parked order.
+  const confirm = useConfirm();
   const { direction, labels } = useOrderDirection();
   // Columns depend only on direction labels — memoise so react-table receives a
   // stable reference (rebuilt only when the org's direction changes).
@@ -672,15 +689,29 @@ export function InboxView() {
   // server-side between render and click (or the request can fail), so each
   // re-deliver runs in parallel and failures are reported BY PO NUMBER with
   // the per-order reason instead of an opaque "N failed".
+  //
+  // A selection holding a parked (delivery_unconfirmed) row CONFIRMS FIRST: those
+  // orders may already be sitting with the supplier, and this bar can send N of them
+  // in one click. See bulkSendNeedsDuplicateConfirm — the bulk path must not be a way
+  // around the same guard the workshop panel puts on the single-order button.
   const handleSendSelected = useCallback(async () => {
     const ids = Object.keys(rowSelection);
     if (!ids.length || bulkSending) return;
-    setBulkSending(true);
-    setBulkResult(null);
     // PO labels for failure reporting. Selection can outlive the loaded page
     // (page changes don't clear it), so fall back to a shortened order id for
     // rows no longer in the current data set.
     const poById = new Map(ALL_ORDERS.map((r) => [r.id, r.po]));
+
+    // Ask BEFORE anything goes out — cancel must send nothing at all, so this sits
+    // ahead of the pending state and the requests.
+    const rawById = new Map(ALL_ORDERS.map((r) => [r.id, r.rawStatus]));
+    if (bulkSendNeedsDuplicateConfirm(ids, rawById)) {
+      const ok = await confirm(bulkSendConfirmCopy(ids.length));
+      if (!ok) return;
+    }
+
+    setBulkSending(true);
+    setBulkResult(null);
     try {
       // Route through apiClient.redeliverOrder so the Clerk auth header is
       // attached (a raw fetch here 401'd for real users). It resolves on
@@ -714,7 +745,7 @@ export function InboxView() {
     } finally {
       setBulkSending(false);
     }
-  }, [rowSelection, bulkSending, queryClient, ALL_ORDERS]);
+  }, [rowSelection, bulkSending, queryClient, ALL_ORDERS, confirm]);
 
   const table = useReactTable({
     data: ALL_ORDERS,
@@ -762,6 +793,16 @@ export function InboxView() {
     : filteredRows;
 
   const selectedCount = Object.keys(rowSelection).length;
+  // Parked rows currently in the selection. The confirm dialog is the hard gate, but
+  // the operator should see WHY it's coming before they reach for Send selected — a
+  // count of orders the supplier may already hold is the one thing that makes this
+  // selection different from any other.
+  const selectedUnconfirmedCount = useMemo(() => {
+    const rawById = new Map(ALL_ORDERS.map((r) => [r.id, r.rawStatus]));
+    return Object.keys(rowSelection).filter(
+      (id) => rawById.get(id) === "delivery_unconfirmed",
+    ).length;
+  }, [rowSelection, ALL_ORDERS]);
 
   // ─── Keyboard row navigation (desktop) ────────────────────────────────────
   // The visible set is what j/k traverses. Reset the highlight whenever it
@@ -979,6 +1020,15 @@ export function InboxView() {
                   ? (bulkResult.ok ? "Sent" : "Some failed to send")
                   : "Send finished"}
             </span>
+            {/* Names the parked rows swept into this selection — the operator is
+                about to be asked about a duplicate risk, so say what it's about. */}
+            {selectedCount > 0 && selectedUnconfirmedCount > 0 && (
+              <span style={{ fontSize: "12px", fontWeight: 600, color: "#F0C674" }}>
+                {selectedUnconfirmedCount === 1
+                  ? "1 with delivery unknown — the supplier may already have it"
+                  : `${selectedUnconfirmedCount} with delivery unknown — the supplier may already have them`}
+              </span>
+            )}
             <button
               onClick={() => { setRowSelection({}); setBulkResult(null); }}
               style={{ background: "none", border: "none", color: "var(--ink-faint)", fontSize: "12px", cursor: "pointer" }}
