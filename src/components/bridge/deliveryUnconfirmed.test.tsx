@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { render, screen, fireEvent, cleanup, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { ConfirmProvider } from "@/components/ui/confirm";
 
 // delivery_unconfirmed (the crash-recovery park) — truthfulness + action guard.
 //
@@ -59,12 +60,17 @@ const PARKED_ORDER = {
   errorMessage: null,
 } as unknown as Order;
 
+// Wrapped in the REAL ConfirmProvider (mounted app-wide in src/app/(app)/layout.tsx,
+// which is exactly where this panel renders) rather than mocking useConfirm — a
+// mocked confirm would prove nothing about the shared dialog actually appearing.
 function renderPanel(order: Order = PARKED_ORDER) {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   const invalidateSpy = vi.spyOn(qc, "invalidateQueries");
   render(
     <QueryClientProvider client={qc}>
-      <DeliveryUnconfirmedPanel order={order} />
+      <ConfirmProvider>
+        <DeliveryUnconfirmedPanel order={order} />
+      </ConfirmProvider>
     </QueryClientProvider>,
   );
   return { invalidateSpy };

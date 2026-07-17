@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api-client";
+import { useConfirm } from "@/components/ui/confirm";
 import type { Order } from "@/types/procurement";
 import { DELIVERY_UNCONFIRMED_MESSAGE } from "../review/hooks/useOrderReview";
 
@@ -71,7 +72,7 @@ const CONFIRM_COPY: Record<ParkAction, { title: string; description: string; con
 
 export function DeliveryUnconfirmedPanel({ order }: { order: Order }) {
   const queryClient = useQueryClient();
-  const [pendingAction, setPendingAction] = useState<ParkAction | null>(null);
+  const confirm = useConfirm();
   const [busy, setBusy] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
 
@@ -85,6 +86,15 @@ export function DeliveryUnconfirmedPanel({ order }: { order: Order }) {
       : DELIVERY_UNCONFIRMED_MESSAGE;
 
   async function runAction(action: ParkAction) {
+    const copy = CONFIRM_COPY[action];
+    const ok = await confirm({
+      title: copy.title,
+      description: copy.description,
+      confirmLabel: copy.confirmLabel,
+      danger: copy.danger,
+    });
+    if (!ok) return;
+
     setBusy(true);
     setActionError(null);
     try {
@@ -103,7 +113,6 @@ export function DeliveryUnconfirmedPanel({ order }: { order: Order }) {
       );
     } finally {
       setBusy(false);
-      setPendingAction(null);
     }
   }
 
@@ -180,7 +189,7 @@ export function DeliveryUnconfirmedPanel({ order }: { order: Order }) {
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
             <button
               type="button"
-              onClick={() => setPendingAction("redeliver")}
+              onClick={() => void runAction("redeliver")}
               disabled={busy}
               style={{
                 display: "inline-flex",
@@ -203,7 +212,7 @@ export function DeliveryUnconfirmedPanel({ order }: { order: Order }) {
             </button>
             <button
               type="button"
-              onClick={() => setPendingAction("markDelivered")}
+              onClick={() => void runAction("markDelivered")}
               disabled={busy}
               style={{
                 display: "inline-flex",
@@ -240,125 +249,7 @@ export function DeliveryUnconfirmedPanel({ order }: { order: Order }) {
       >
         ← Back to inbox
       </Link>
-
-      {pendingAction && (
-        <ParkConfirmDialog
-          {...CONFIRM_COPY[pendingAction]}
-          onConfirm={() => void runAction(pendingAction)}
-          onCancel={() => setPendingAction(null)}
-        />
-      )}
     </div>
-  );
-}
-
-/**
- * A small, generic confirm modal for this panel's two actions.
- *
- * NOT a reuse of `../review/ConfirmDialog` — that component's props
- * (exceptionCount / grandTotal / supplierName / outputFormat / lineCount /
- * failingRuleCount) are hardwired to the classic Send summary and have no
- * generic title/description/confirmLabel shape to give it the spec-pinned
- * copy above. NOT `useConfirm()` either (banned for this panel per the
- * plan, for visual consistency with the rest of the workshop's bespoke
- * gate panels) — though its `ConfirmOptions` shape is exactly what this
- * needs, which is why the props below mirror it. Visually this mirrors
- * `../review/ConfirmDialog`'s overlay/card/focus-trap conventions instead.
- */
-function ParkConfirmDialog({ title, description, confirmLabel, danger, onConfirm, onCancel }: {
-  title: string;
-  description: string;
-  confirmLabel: string;
-  danger?: boolean;
-  onConfirm: () => void;
-  onCancel: () => void;
-}) {
-  const dialogRef = useRef<HTMLDivElement>(null);
-  const confirmBtnRef = useRef<HTMLButtonElement>(null);
-  const titleId = "park-confirm-title";
-
-  useEffect(() => {
-    const previouslyFocused = document.activeElement as HTMLElement | null;
-    confirmBtnRef.current?.focus();
-    return () => previouslyFocused?.focus?.();
-  }, []);
-
-  // Keep the latest callbacks in a ref (mirrors ConfirmDialog.tsx's keyHandlerState) so
-  // the keydown listener is registered exactly once on mount, not re-bound every render.
-  const latest = useRef({ onConfirm, onCancel });
-  latest.current = { onConfirm, onCancel };
-
-  useEffect(() => {
-    const dialog = dialogRef.current;
-    if (!dialog) return;
-
-    function handleKeyDown(e: KeyboardEvent) {
-      const { onConfirm, onCancel } = latest.current;
-      if (e.key === "Escape") { onCancel(); return; }
-      if (e.key === "Enter") { onConfirm(); return; }
-      if (e.key === "Tab") {
-        const focusables = dialog!.querySelectorAll<HTMLElement>(
-          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
-        );
-        if (focusables.length === 0) return;
-        const first = focusables[0];
-        const last = focusables[focusables.length - 1];
-        const active = document.activeElement;
-        if (e.shiftKey && active === first) { e.preventDefault(); last.focus(); }
-        else if (!e.shiftKey && active === last) { e.preventDefault(); first.focus(); }
-      }
-    }
-
-    dialog.addEventListener("keydown", handleKeyDown);
-    return () => dialog.removeEventListener("keydown", handleKeyDown);
-  }, []);
-
-  return (
-    <>
-      <div
-        style={{ position: "fixed", inset: 0, background: "rgba(11,26,47,0.6)", backdropFilter: "blur(4px)", zIndex: 9990 }}
-        onClick={onCancel}
-      />
-      <div
-        ref={dialogRef}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby={titleId}
-        style={{
-          position: "fixed", top: "50%", left: "50%", transform: "translate(-50%,-50%)",
-          width: 420, maxWidth: "calc(100vw - 32px)", background: "#FFFFFF", borderRadius: 12,
-          boxShadow: "0 24px 64px rgba(11,26,47,0.22)", border: "1px solid #E5E8EE", zIndex: 9991, overflow: "hidden",
-        }}
-      >
-        <div style={{ padding: "20px 24px 0" }}>
-          <div id={titleId} style={{ fontFamily: "'Bricolage Grotesque',Inter,sans-serif", fontSize: 17, fontWeight: 700, color: T.ink, marginBottom: 8 }}>
-            {title}
-          </div>
-          <p style={{ fontSize: 13, color: T.inkMuted, lineHeight: 1.55, margin: "0 0 20px" }}>
-            {description}
-          </p>
-        </div>
-
-        <div style={{ padding: "14px 24px", borderTop: `1px solid ${T.border}`, display: "flex", gap: 10, justifyContent: "flex-end" }}>
-          <button
-            onClick={onCancel}
-            style={{ padding: "9px 18px", borderRadius: 7, fontSize: 13, fontWeight: 500, background: "#FFFFFF", color: T.inkMuted, border: `1px solid ${T.border}`, cursor: "pointer", fontFamily: T.ui }}
-          >
-            Cancel
-          </button>
-          <button
-            ref={confirmBtnRef}
-            onClick={onConfirm}
-            style={{
-              padding: "9px 24px", borderRadius: 7, fontSize: 13, fontWeight: 600,
-              background: danger ? T.danger : T.navy, color: "#FFFFFF", border: "none", cursor: "pointer", fontFamily: T.ui,
-            }}
-          >
-            {confirmLabel}
-          </button>
-        </div>
-      </div>
-    </>
   );
 }
 
