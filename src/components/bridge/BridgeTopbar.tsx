@@ -525,6 +525,11 @@ export function BridgeTopbar({ crumb, onMenuClick }: BridgeTopbarProps) {
   const autoCrumb = useAutoCrumb();
   const hubRow = useHubRow();
   const mobileLabel = useMobilePageLabel();
+  // The Order Workshop (/inbox/[orderId]) compresses its chrome: its own header
+  // row carries a "← Inbox" back chip + the PO number as the visible title
+  // (OrderWorkshop.tsx, Row 1), so this context row would only duplicate the
+  // same 2-level path — skip it there to give the mapper the vertical space.
+  const onOrderWorkshop = /^\/inbox\/[^/]+/.test(pathname);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
   // Focus management: the slideover moves focus to its search input on open;
@@ -843,7 +848,9 @@ export function BridgeTopbar({ crumb, onMenuClick }: BridgeTopbarProps) {
           out below the utility row to give the v2 two-row rhythm. It shows the
           navigation context — NOT a duplicate of the page's own H1 (pages render
           their own heading), so the shell never double-titles. A faint top rule
-          separates the two rows. */}
+          separates the two rows. Suppressed on the Order Workshop route, whose
+          own header already shows "← Inbox · PO …" (see onOrderWorkshop). */}
+      {!onOrderWorkshop && (
       <div
         className="flex items-center px-3 sm:px-5"
         style={{ height: 38, borderTop: "1px solid #14253D" }}
@@ -902,6 +909,7 @@ export function BridgeTopbar({ crumb, onMenuClick }: BridgeTopbarProps) {
           </span>
         )}
       </div>
+      )}
 
       {/* Command Palette */}
       {paletteOpen && <CommandPalette onClose={() => setPaletteOpen(false)} />}

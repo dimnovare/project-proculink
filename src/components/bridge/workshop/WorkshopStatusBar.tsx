@@ -1,0 +1,279 @@
+"use client";
+
+// WorkshopStatusBar — ONE consolidated status row under the workshop header
+// (order-chrome compression, founder-approved mock 2026-07-17). It replaces BOTH
+// of the previous full-width rows:
+//   • the red SendReadinessStrip (blockers + chips + resolve-all + stepper), and
+//   • the MapperWorkbench "MAP THIS ORDER" toolbar (mapped count + save state +
+//     layout / template / catalog / connections tools) — re-hosted here via
+//     MapperToolbarState. The handlers are the workbench's own, relocated not
+//     reimplemented (MapperWorkbench.tsx onToolbarState).
+//
+// Layout: [ red blockers segment — only as wide as its content, absent at zero
+// blockers ][ white segment: mapped chip · save state · stepper · ⋯ overflow ].
+
+import type { ReactNode } from "react";
+import { useMemo } from "react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import type { MapperToolbarState } from "../mapper/MapperWorkbench";
+
+export interface BlockerChip {
+  /** Stable id (the issue code) — passed to onJump to focus + open that card. */
+  id: string;
+  /** Short human label shown on the chip. */
+  name: string;
+}
+
+/**
+ * Collapse identical issue titles into one chip carrying a count ("Needs a
+ * supplier code ×2"). The chip keeps the FIRST occurrence's id so a click still
+ * jumps to a real card. Order of first appearance is preserved.
+ */
+export function dedupeBlockerChips(
+  blockers: BlockerChip[],
+): { id: string; name: string; count: number }[] {
+  const byName = new Map<string, { id: string; name: string; count: number }>();
+  for (const b of blockers) {
+    const hit = byName.get(b.name);
+    if (hit) hit.count += 1;
+    else byName.set(b.name, { id: b.id, name: b.name, count: 1 });
+  }
+  return [...byName.values()];
+}
+
+function SparkleGlyph() {
+  return (
+    <svg width="11" height="11" viewBox="0 0 12 12" fill="none" aria-hidden style={{ flexShrink: 0 }}>
+      <path d="M6 1.2l1.1 3.2 3.2 1.1-3.2 1.1L6 9.8 4.9 6.6 1.7 5.5l3.2-1.1z" fill="#FFFFFF" />
+    </svg>
+  );
+}
+
+export function WorkshopStatusBar({
+  blockers,
+  notes = 0,
+  onJump,
+  onReviewIssues,
+  onResolveAll,
+  resolveAllCount = 0,
+  resolving = false,
+  mapper,
+  pipeline,
+}: {
+  blockers: BlockerChip[];
+  /** Warning-level (non-blocking) issue count — shown as a quiet optional note. */
+  notes?: number;
+  /** Jump to + flash a blocker's issue card. */
+  onJump: (id: string) => void;
+  /** Open the Issues tab of the preview column (lives in the ⋯ overflow). */
+  onReviewIssues?: () => void;
+  /** Bulk-accept every AI suggestion (the "Resolve suggested (n)" button). */
+  onResolveAll?: () => void;
+  /** How many issues the bulk resolve would clear → its count; hidden when 0. */
+  resolveAllCount?: number;
+  /** True while a bulk resolve is in flight → disables the button. */
+  resolving?: boolean;
+  /** Live toolbar state re-hosted from MapperWorkbench (null until it registers). */
+  mapper: MapperToolbarState | null;
+  /** The pipeline stepper — rendered at the white segment's right end (xl+). */
+  pipeline?: ReactNode;
+}) {
+  const chips = useMemo(() => dedupeBlockerChips(blockers), [blockers]);
+  const allMapped = mapper != null && mapper.total > 0 && mapper.mapped >= mapper.total;
+
+  const catalogTitle = mapper?.fillFromCatalog
+    ? "Jump to the lines with catalog price/code hints — apply each per line"
+    : "No catalog hints for this order. Add a supplier catalog, or no lines differ from it.";
+
+  return (
+    <div
+      data-testid="workshop-status-bar"
+      className="flex flex-wrap items-stretch"
+      style={{ background: "#FFFFFF", borderBottom: "1px solid #E5E8EE", minHeight: 42 }}
+    >
+      {/* ── Red segment — only when blockers exist, only as wide as its content ── */}
+      {blockers.length > 0 && (
+        <div
+          data-testid="status-bar-blockers"
+          role="status"
+          aria-live="polite"
+          style={{
+            background: "#FDECEA", borderRight: "1px solid #F5C6BF",
+            display: "flex", alignItems: "center", flexWrap: "wrap",
+            gap: 9, padding: "4px 16px", minWidth: 0,
+          }}
+        >
+          <span
+            title="These required fields are missing or invalid. Use the chips to jump to each issue."
+            style={{ color: "#B3362A", fontWeight: 800, fontSize: 12.5, whiteSpace: "nowrap" }}
+          >
+            <span aria-hidden>⚠ </span>
+            {blockers.length} {blockers.length === 1 ? "blocker" : "blockers"}
+          </span>
+          {chips.map((c) => (
+            <button
+              key={c.id}
+              type="button"
+              onClick={() => onJump(c.id)}
+              title={`Jump to ${c.name}`}
+              style={{
+                display: "inline-flex", alignItems: "center", gap: 5, padding: "2px 9px 2px 7px",
+                borderRadius: 999, fontFamily: "'JetBrains Mono',monospace", fontSize: 11, fontWeight: 600,
+                color: "#B3362A", background: "#FFFFFF", border: "1px solid #F0CFCA", cursor: "pointer", maxWidth: 220,
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.background = "#FBEAEA"; }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = "#FFFFFF"; }}
+            >
+              <span aria-hidden style={{ width: 5, height: 5, borderRadius: "50%", background: "#B3362A", flexShrink: 0 }} />
+              <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                {c.count > 1 ? `${c.name} ×${c.count}` : c.name}
+              </span>
+            </button>
+          ))}
+          {onResolveAll && resolveAllCount > 0 && (
+            <button
+              type="button"
+              onClick={onResolveAll}
+              disabled={resolving}
+              style={{
+                height: 27, padding: "0 11px", borderRadius: 7, fontSize: 11.5, fontWeight: 700,
+                border: "1px solid #0B1A2F", background: "#0B1A2F", color: "#FFFFFF",
+                cursor: resolving ? "wait" : "pointer", opacity: resolving ? 0.6 : 1,
+                display: "inline-flex", alignItems: "center", gap: 6, whiteSpace: "nowrap",
+              }}
+            >
+              <SparkleGlyph />
+              {resolving ? "Resolving…" : `Resolve suggested (${resolveAllCount})`}
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* ── White segment — mapped count · save state · stepper · overflow ── */}
+      <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "4px 16px", flex: 1, minWidth: 0 }}>
+        {mapper != null && mapper.total > 0 && (
+          <span
+            title="Output fields with a resolved value (mapped, fixed, or auto)"
+            style={{
+              display: "inline-flex", alignItems: "center", gap: 4, fontSize: 11, fontWeight: 700,
+              borderRadius: 999, padding: "3px 10px", whiteSpace: "nowrap",
+              color: allMapped ? "#1E6D29" : "#5E6779",
+              background: allMapped ? "#E3F2E4" : "#F3F4F7",
+              border: `1px solid ${allMapped ? "#CDE7D1" : "#E5E8EE"}`,
+            }}
+          >
+            <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true" style={{ flexShrink: 0 }}>
+              <path d="M2.5 6.2 L5 8.6 L9.5 3.6" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+            {mapper.mapped}/{mapper.total} mapped
+          </span>
+        )}
+        {/* Save-state + rare warnings relocated from the old mapper toolbar row. */}
+        {mapper?.saving && <span style={{ fontSize: 10.5, color: "var(--ink-faint)", whiteSpace: "nowrap" }}>Saving…</span>}
+        {mapper && !mapper.saving && !mapper.error && mapper.justSaved && (
+          <span role="status" style={{ fontSize: 10.5, color: "#1E6D29", whiteSpace: "nowrap" }}>✓ Saved</span>
+        )}
+        {mapper?.error && <span style={{ fontSize: 10.5, color: "var(--danger,#C0392B)" }}>{mapper.error}</span>}
+        {mapper != null && mapper.requiredUnmapped > 0 && (
+          <span
+            title="A required output field still has no source — map one or set a fixed value"
+            style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 10.5, fontWeight: 700, color: "#9A6B00", background: "#FFF7E6", border: "1px solid #F1E2BE", borderRadius: 5, padding: "2px 8px", whiteSpace: "nowrap" }}
+          >
+            ⚠ {mapper.requiredUnmapped} {mapper.requiredUnmapped === 1 ? "field needs" : "fields need"} a source
+          </span>
+        )}
+        {mapper?.aiUnavailable && (
+          <span
+            title="AI mapping suggestions are unavailable right now — map fields manually; everything still works."
+            style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 10, color: "#5E6779", background: "#F3F4F7", border: "1px solid #E5E8EE", borderRadius: 5, padding: "1px 7px", whiteSpace: "nowrap" }}
+          >
+            <span aria-hidden style={{ color: "#A8B0BF" }}>✦</span>
+            AI suggestions unavailable
+          </span>
+        )}
+        {notes > 0 && (
+          <span style={{ fontSize: 11, color: "#5E6779", whiteSpace: "nowrap" }}>
+            {notes} optional {notes === 1 ? "note" : "notes"}
+          </span>
+        )}
+
+        <span style={{ marginLeft: "auto" }} aria-hidden />
+        {pipeline && <span className="hidden xl:inline-flex">{pipeline}</span>}
+
+        {/* ── ⋯ overflow — the four relocated mapper tools (+ Review issues). ── */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button
+              type="button"
+              aria-label="More order tools"
+              title="More order tools — customize output layout, edit as template, fill from catalog, show or hide connections"
+              style={{
+                // 44px hit area inside the 42px bar (negative vertical margin keeps
+                // the row height); the visible box is the compact 33×27 chip.
+                minWidth: 44, minHeight: 44, marginBlock: -2, marginInline: -6, padding: 0,
+                border: 0, background: "transparent", color: "#5E6779", cursor: "pointer",
+                display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+              }}
+            >
+              <span
+                aria-hidden
+                style={{
+                  width: 33, height: 27, border: "1px solid #E5E8EE", borderRadius: 8, background: "#FFFFFF",
+                  display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 15, lineHeight: 1,
+                }}
+              >
+                ⋯
+              </span>
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" style={{ minWidth: 230 }}>
+            {onReviewIssues && blockers.length > 0 && (
+              <>
+                <DropdownMenuItem onSelect={() => onReviewIssues()}>Review issues</DropdownMenuItem>
+                <DropdownMenuSeparator />
+              </>
+            )}
+            <DropdownMenuItem
+              disabled={mapper == null}
+              onSelect={() => mapper?.openLayoutDesigner()}
+              title="Change how the output file is structured for this supplier — paste a supplier sample to start"
+            >
+              Customize output layout
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              disabled={mapper == null}
+              onSelect={() => mapper?.openTemplateEditor()}
+              title="Write one template that renders this order's whole output document — for outputs the layout designer can't express (advanced)"
+            >
+              Edit as template
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              disabled={mapper?.fillFromCatalog == null}
+              onSelect={() => mapper?.fillFromCatalog?.()}
+              title={catalogTitle}
+            >
+              <span style={{ display: "flex", flexDirection: "column" }}>
+                <span>
+                  Fill from catalog
+                  {mapper != null && mapper.catalogHintCount > 0 ? ` · ${mapper.catalogHintCount}` : ""}
+                </span>
+                {mapper != null && mapper.fillFromCatalog == null && (
+                  <span style={{ fontSize: 11, color: "var(--ink-faint)" }}>No catalog hints for this order</span>
+                )}
+              </span>
+            </DropdownMenuItem>
+            <DropdownMenuItem disabled={mapper == null} onSelect={() => mapper?.toggleConnections()}>
+              {mapper?.showConnections ? "Hide connections" : "Show connections"}
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+    </div>
+  );
+}
