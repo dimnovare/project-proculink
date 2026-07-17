@@ -257,7 +257,27 @@ export function mapStatus(s: string): CrossingStatus {
   // delivery_held reached Deliver and paused for billing. Without this it fell
   // through to "new" (stage 0) — the opposite of the truth.
   if (s === "delivery_held") return "held";
-  if (s === "delivery_failed" || s === "failed" || s === "transform_failed") return "failed";
+  // Every status in FAILED_BUCKET must land here — that list is what the "Failed" chip
+  // counts, and the backend's OrderStatusConstants.FailureBucket states the contract:
+  // "Every status the UI renders as the single red 'Failed' pill." This arm honoured
+  // only three of the five: `rejected_by_supplier` and `delivery_dead_letter` fell
+  // through to "new" (stage 0), so the chip counted an order as Failed while its own
+  // row rendered it as untouched. See failureBucketPills.test.ts, which asserts the
+  // whole bucket rather than these five names, so the next status added to it cannot
+  // regress here silently.
+  if (
+    s === "delivery_failed" ||
+    s === "failed" ||
+    s === "transform_failed" ||
+    s === "delivery_dead_letter" ||
+    s === "rejected_by_supplier"
+  ) return "failed";
+  // Reached by `pending_parse` — queued, nothing run on it yet, which is what "New"
+  // (stage 0) genuinely means. This is the honest default, NOT the fall-through that
+  // produced the bugs above. Statuses that HAVE progressed need an explicit arm:
+  // landing here would claim the pipeline never started. `unrouted` (parsed but no
+  // supplier resolved) is the known open case — it is unreachable until the
+  // content-routing ingest paths ship, and that track owns its slot and its copy.
   return "new";
 }
 
@@ -298,7 +318,7 @@ function summaryToRow(o: OrderSummary): OrderRow {
 // the pill represents we must sum the whole failure bucket. "Needs review" maps to
 // the single backend `pending_review` status. Any status absent from byStatus is
 // treated as 0 (byStatus is Partial<Record<OrderStatus, number>>).
-const FAILED_BUCKET: OrderStatus[] = [
+export const FAILED_BUCKET: OrderStatus[] = [
   "failed",
   "transform_failed",
   "delivery_failed",
