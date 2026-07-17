@@ -83,15 +83,28 @@ export function useOrderReview(orderId: string) {
     retry: 2,
     retryDelay: 600,
     staleTime: 30_000,
-    // Auto-refresh ONLY while the pipeline is auto-progressing (parse → transform)
-    // so the screen updates on its own instead of looking stuck until the 2-min
-    // banner fires. `ready_to_deliver` is a RESTING state that waits for the user
-    // to click Send — it never changes on its own, so polling it every 3s forever
-    // is pure waste (and ran indefinitely on every ready order). The send action
-    // owns its own delivering→delivered refresh via useSendFlow.
+    // Auto-refresh ONLY while the pipeline is auto-progressing (parse → transform →
+    // deliver) so the screen updates on its own instead of looking stuck until the
+    // 2-min banner fires. `ready_to_deliver` is a RESTING state that waits for the
+    // user to click Send — it never changes on its own, so polling it every 3s
+    // forever is pure waste (and ran indefinitely on every ready order).
+    //
+    // `delivering` belongs here by that same rule and was only missing because it
+    // was missing from the OrderStatus union: the Worker's claim owns it, it settles
+    // to delivered / delivery_failed on its own within seconds, and NOTHING else
+    // refreshes it unless this tab happens to be the one that clicked Send
+    // (useSendFlow polls its own send). An order that reached `delivering` any other
+    // way — a retry the Worker just claimed, a send fired from another tab, a
+    // delivery this tab merely opened mid-flight — sat on "Sending…" until a manual
+    // reload. Resting/terminal states still return false.
+    //
+    // Note this is deliberately NOT `delivery_failed`: that IS a resting state, and
+    // polling every failed order forever would be the same waste. The retry action
+    // owns the short claim-window poll for the one order it just retried
+    // (useRetryDelivery), and hands over to this interval once the row moves.
     refetchInterval: (query) => {
       const s = query.state.data?.status;
-      return s === "parsing" || s === "transforming" ? 3_000 : false;
+      return s === "parsing" || s === "transforming" || s === "delivering" ? 3_000 : false;
     },
   });
 
