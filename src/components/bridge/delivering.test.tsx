@@ -63,7 +63,11 @@ describe("delivering — the pill tells the truth", () => {
     expect(statusTone("delivering")).not.toBe("danger");
   });
 
-  it("renders 'Sending' in the inbox status cell", () => {
+  // NB: StatusCell has no production call sites — the inbox renders via StatusDotPill
+  // (mobile) and UnifiedStatusBadge (desktop). So this covers the StatusJourney pill
+  // wiring only; it does NOT prove the inbox renders. The STATUS_PRESENTATION and
+  // statusLabel assertions above are what pin the inbox's real paths.
+  it("renders 'Sending' via StatusJourney's own pill", () => {
     render(<StatusCell status="sending" />);
     expect(screen.getByText("Sending")).toBeInTheDocument();
     expect(screen.queryByText("New")).not.toBeInTheDocument();

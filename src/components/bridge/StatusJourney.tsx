@@ -140,7 +140,10 @@ export function StatusJourney({ stage, compact = false, crossingRef }: StatusJou
 }
 
 // Status pill — semantic colors matching tokens.css .pill-* exactly.
-// Used sparingly (prefer StatusJourney for progress display).
+// NB: StatusCell below currently has NO production call sites (the inbox renders via
+// InboxView's StatusDotPill on mobile and UnifiedStatusBadge on desktop). STATUS_PILL is
+// therefore not the live pill source; keep it in step with InboxView's
+// STATUS_PRESENTATION and UnifiedStatusBadge's STATUS_META, which are.
 // `held` covers the backend `delivery_held` billing hold. It needs its own member
 // because none of the others is honest for it: `review` says "Needs review" (the
 // order is clean), `delivering` pulses blue "Ready to send" (it is blocked), and
@@ -151,13 +154,22 @@ export function StatusJourney({ stage, compact = false, crossingRef }: StatusJou
 // member is already spoken for: it is the display bucket for `ready_to_deliver`
 // ("Ready to send"). `sent` would claim the supplier already has the file, and
 // `extracting` is three stages too early.
-export type CrossingStatus = "new" | "extracting" | "review" | "ready" | "sent" | "delivering" | "sending" | "failed" | "held";
+// `unrouted` covers the backend `unrouted` routing hold — extracted, but no supplier was
+// resolved, so it waits for one. It needs its own member because `new` denies the parse
+// ran (it did — that is why there are lines to look at), `review` says "Needs review"
+// (there is no supplier to resolve lines against yet), and `failed` is red (nothing
+// failed; assigning a supplier re-enters the parse flow).
+export type CrossingStatus = "new" | "extracting" | "unrouted" | "review" | "ready" | "sent" | "delivering" | "sending" | "failed" | "held";
 
 const STATUS_PILL: Record<CrossingStatus, { bg: string; color: string; dot: string; pulse?: boolean; label: string }> = {
   // tokens.css .pill-new → surface-2 (#F1F3F7) / ink-muted (#5E6779) / ink-faint (#5B6980)
   new:        { bg: "#F1F3F7", color: "#5E6779", dot: "var(--ink-faint)",  label: "New" },
   // tokens.css .pill-extracting → brand-blue-soft / brand-blue-deep / brand-blue (NOT violet)
   extracting: { bg: "#EAF0F8", color: "#0F4FA8", dot: "#1E66C9",  label: "Extracting" },
+  // tokens.css .pill-unrouted → amber-soft / amber-text / amber, matching `review`: both
+  // are user-action backlogs. No pulse — it waits on a person, not on us. The label is
+  // the backend's own words for the unrouted_order exception ("Order needs a supplier").
+  unrouted:   { bg: "#FAF1DD", color: "#8A5310", dot: "#B36D14",  label: "Needs supplier" },
   review:     { bg: "#FAF1DD", color: "#8A5310", dot: "#B36D14",  label: "Needs review" },
   ready:      { bg: "#E9F1EA", color: "#1E6D29", dot: "#2E8E3A",  label: "Ready" },
   // tokens.css .pill-sent → brand-green-soft / brand-green-deep / brand-green
@@ -176,6 +188,9 @@ const STATUS_PILL: Record<CrossingStatus, { bg: string; color: string; dot: stri
 const STATUS_STAGE: Record<CrossingStatus, OrderStage> = {
   new:        0,
   extracting: 1,
+  // Stage 1: extraction finished, but normalisation cannot start without a supplier to
+  // resolve item codes against — so it is parked AT Normalize, not before Parse.
+  unrouted:   1,
   review:     2,
   ready:      3,
   sent:       4,

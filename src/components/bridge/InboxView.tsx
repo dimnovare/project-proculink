@@ -85,6 +85,7 @@ export const STATUS_PRESENTATION: Record<
 > = {
   new:        { key: "new",        label: "New",            stage: 0 },
   extracting: { key: "extracting", label: "Extracting",     stage: 1 },
+  unrouted:   { key: "unrouted",   label: "Needs supplier", stage: 1 },
   review:     { key: "review",     label: "Needs review",   stage: 2 },
   ready:      { key: "ready",      label: "Normalized",     stage: 3 },
   sent:       { key: "sent",       label: "Delivered",      stage: 4 },
@@ -162,6 +163,8 @@ function fmtAge(min: number) {
 const MOCK_RAW_STATUS: Record<CrossingStatus, string> = {
   new:        "pending_parse",
   extracting: "parsing",
+  // Not redeliverable either — the action an unrouted order needs is assign-supplier.
+  unrouted:   "unrouted",
   review:     "pending_review",
   ready:      "ready",
   sent:       "delivered",
@@ -246,6 +249,13 @@ function generateOrders(count: number): OrderRow[] {
 export function mapStatus(s: string): CrossingStatus {
   if (s === "pending_review") return "review";
   if (s === "parsing" || s === "transforming") return "extracting";
+  // Extracted, but no supplier resolved — parked awaiting one, which is the operator's
+  // job (POST /orders/{id}/assign-supplier). Reachable on the LIVE parse path today
+  // (OrderIngestionService: `if (entity.SupplierId is null) newStatus = Unrouted`) and via
+  // SFTP/S3/IMAP ingress when an org's default supplier is unset or soft-deleted. Without
+  // this it fell through to "new" (stage 0), so the one order that REQUIRED the operator
+  // to act was the one rendered as needing nothing.
+  if (s === "unrouted") return "unrouted";
   if (s === "ready_to_deliver") return "delivering";
   if (s === "ready") return "ready";
   // The Worker's atomic claim persists `delivering` while it dispatches, and settles it
@@ -274,10 +284,17 @@ export function mapStatus(s: string): CrossingStatus {
   ) return "failed";
   // Reached by `pending_parse` — queued, nothing run on it yet, which is what "New"
   // (stage 0) genuinely means. This is the honest default, NOT the fall-through that
-  // produced the bugs above. Statuses that HAVE progressed need an explicit arm:
-  // landing here would claim the pipeline never started. `unrouted` (parsed but no
-  // supplier resolved) is the known open case — it is unreachable until the
-  // content-routing ingest paths ship, and that track owns its slot and its copy.
+  // produced the bugs above. Any status that HAS progressed needs an explicit arm:
+  // landing here claims the pipeline never started.
+  //
+  // Before adding a status to this default, GREP THE PRODUCERS — do not trust a
+  // doc-comment. Every bug this function has had came from believing one. The
+  // `delivering` arm exists because a comment here swore no such status was persisted
+  // (DeliveryService writes it). The `unrouted` arm exists because the SECOND version of
+  // that same mistake was made in this very comment: it deferred unrouted as
+  // "unreachable until the content-routing ingest paths ship", echoing
+  // OrderStatusConstants' doc-comment, which is stale — Phase 1/1b shipped, the ingress
+  // code says so in its own comments, and OrderIngestionService parks live orders there.
   return "new";
 }
 
@@ -318,6 +335,13 @@ function summaryToRow(o: OrderSummary): OrderRow {
 // the pill represents we must sum the whole failure bucket. "Needs review" maps to
 // the single backend `pending_review` status. Any status absent from byStatus is
 // treated as 0 (byStatus is Partial<Record<OrderStatus, number>>).
+// MIRRORS the backend's OrderStatusConstants.FailureBucket, and the mirror is
+// hand-maintained. `?status=failed` is expanded SERVER-side against the backend's set
+// (OrderQueryService), so a sixth failure status added there without a matching entry
+// here would be returned under the Failed chip and render as "New" — and
+// failureBucketPills.test.ts, which iterates THIS array, would stay green. That test is a
+// class guard within the FE only; it is not a cross-repo contract guard. Keep in sync by
+// hand when the backend bucket changes.
 export const FAILED_BUCKET: OrderStatus[] = [
   "failed",
   "transform_failed",
