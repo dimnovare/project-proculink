@@ -62,6 +62,14 @@ export type OrderStatus =
   | "ready"
   | "transforming"
   | "ready_to_deliver"
+  // The Worker's atomic delivery claim owns this status: it flips the row here the
+  // moment it picks a dispatch up, and settles it to delivered / delivery_failed
+  // when the attempt finishes. Short-lived (seconds) but real, persisted, and
+  // observable — a claim whose process dies leaves the row here until the backend's
+  // 2-minute reclaim window makes it claimable again. It was missing from this union
+  // even though the API has always been able to return it, so every `status ===
+  // "delivering"` branch the UI needed was a type error nobody could write.
+  | "delivering"
   | "delivered"
   // Delivery paused because the plan can't process orders right now (billing).
   // Not a failure: the supplier file is intact, and the backend releases the order
