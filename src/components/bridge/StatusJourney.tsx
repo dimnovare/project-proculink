@@ -140,28 +140,52 @@ export function StatusJourney({ stage, compact = false, crossingRef }: StatusJou
 }
 
 // Status pill — semantic colors matching tokens.css .pill-* exactly.
-// Used sparingly (prefer StatusJourney for progress display).
+// NB: StatusCell below currently has NO production call sites (the inbox renders via
+// InboxView's StatusDotPill on mobile and UnifiedStatusBadge on desktop). STATUS_PILL is
+// therefore not the live pill source; keep it in step with InboxView's
+// STATUS_PRESENTATION and UnifiedStatusBadge's STATUS_META, which are.
 // `held` covers the backend `delivery_held` billing hold. It needs its own member
 // because none of the others is honest for it: `review` says "Needs review" (the
 // order is clean), `delivering` pulses blue "Ready to send" (it is blocked), and
 // `failed` is red (nothing failed — the supplier file is intact and the backend
 // releases the order automatically once billing is in good standing).
-// `unconfirmed` covers `delivery_unconfirmed`: a crash lost the outcome after we
-// sent. It needs its own member for the same reason as `held` — `failed` would
-// claim a failure we can't confirm, and `held`/`review` would misstate the cause.
-export type CrossingStatus = "new" | "extracting" | "review" | "ready" | "sent" | "delivering" | "failed" | "held" | "unconfirmed";
+// `sending` covers the backend `delivering` status — an order the Worker has claimed
+// and is dispatching right now. It needs its own member because the `delivering`
+// member is already spoken for: it is the display bucket for `ready_to_deliver`
+// ("Ready to send"). `sent` would claim the supplier already has the file, and
+// `extracting` is three stages too early.
+// `unrouted` covers the backend `unrouted` routing hold — extracted, but no supplier was
+// resolved, so it waits for one. It needs its own member because `new` denies the parse
+// ran (it did — that is why there are lines to look at), `review` says "Needs review"
+// (there is no supplier to resolve lines against yet), and `failed` is red (nothing
+// failed; assigning a supplier re-enters the parse flow).
+// `unconfirmed` covers `delivery_unconfirmed`: a crash lost the outcome after we sent,
+// on a channel that cannot tell us whether the file arrived, so it waits on a person to
+// choose "Send again" or "Mark as delivered". It needs its own member because every
+// neighbour states something we did not observe: `failed` is red and claims a failure we
+// cannot confirm, `sent` claims the supplier has the file, `sending` claims it is still
+// in flight (nothing is — the attempt is over, only its outcome is missing), and
+// `held`/`review` misstate the cause.
+export type CrossingStatus = "new" | "extracting" | "unrouted" | "review" | "ready" | "sent" | "delivering" | "sending" | "failed" | "held" | "unconfirmed";
 
 const STATUS_PILL: Record<CrossingStatus, { bg: string; color: string; dot: string; pulse?: boolean; label: string }> = {
   // tokens.css .pill-new → surface-2 (#F1F3F7) / ink-muted (#5E6779) / ink-faint (#5B6980)
   new:        { bg: "#F1F3F7", color: "#5E6779", dot: "var(--ink-faint)",  label: "New" },
   // tokens.css .pill-extracting → brand-blue-soft / brand-blue-deep / brand-blue (NOT violet)
   extracting: { bg: "#EAF0F8", color: "#0F4FA8", dot: "#1E66C9",  label: "Extracting" },
+  // tokens.css .pill-unrouted → amber-soft / amber-text / amber, matching `review`: both
+  // are user-action backlogs. No pulse — it waits on a person, not on us. The label is
+  // the backend's own words for the unrouted_order exception ("Order needs a supplier").
+  unrouted:   { bg: "#FAF1DD", color: "#8A5310", dot: "#B36D14",  label: "Needs supplier" },
   review:     { bg: "#FAF1DD", color: "#8A5310", dot: "#B36D14",  label: "Needs review" },
   ready:      { bg: "#E9F1EA", color: "#1E6D29", dot: "#2E8E3A",  label: "Ready" },
   // tokens.css .pill-sent → brand-green-soft / brand-green-deep / brand-green
   sent:       { bg: "#E9F1EA", color: "#1E6D29", dot: "#2E8E3A",  label: "Delivered" },
   // tokens.css .pill-delivering → brand-blue-soft / brand-blue-deep / brand-blue + pulse-dot
   delivering: { bg: "#EAF0F8", color: "#0F4FA8", dot: "#1E66C9", pulse: true, label: "Delivering" },
+  // tokens.css .pill-sending → same blue as `delivering`, and it pulses because this
+  // one really IS in flight. "Sending" matches UnifiedStatusBadge STATUS_META.delivering.
+  sending:    { bg: "#EAF0F8", color: "#0F4FA8", dot: "#1E66C9", pulse: true, label: "Sending" },
   failed:     { bg: "#FBE3E3", color: "#B43838", dot: "#B43838",  label: "Failed" },
   // tokens.css .pill-held → amber-soft / amber-text / amber, matching `review`.
   // Deliberately no pulse: a paused delivery is not in flight.
@@ -175,10 +199,14 @@ const STATUS_PILL: Record<CrossingStatus, { bg: string; color: string; dot: stri
 const STATUS_STAGE: Record<CrossingStatus, OrderStage> = {
   new:        0,
   extracting: 1,
+  // Stage 1: extraction finished, but normalisation cannot start without a supplier to
+  // resolve item codes against — so it is parked AT Normalize, not before Parse.
+  unrouted:   1,
   review:     2,
   ready:      3,
   sent:       4,
   delivering: 4,
+  sending:    4,
   // Stage 4: a held order reached Deliver and stopped there — showing it earlier
   // would understate how far it got (and how little is left to do).
   held:       4,

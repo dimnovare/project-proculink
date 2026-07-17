@@ -672,20 +672,53 @@ async function realTransformOrder(orderId: string, format?: TransformFormat): Pr
 
 // ── Retry delivery (operator replay + dead-letter) ────────────────────────
 
-async function mockRetryDelivery(orderId: string): Promise<{ status: string }> {
+/**
+ * The 202 body of POST /api/orders/{id}/retry-delivery.
+ *
+ * `status` is the status the ROW ACTUALLY HOLDS when the endpoint answers — i.e.
+ * still `delivery_failed`. The endpoint deliberately does NOT pre-flip the order to
+ * `delivering`: RetryDeliveryAsync's atomic claim rejects a FRESH `delivering`, so
+ * an optimistic pre-flip made the job reject the very row the controller had just
+ * written, and nothing was dispatched until the row went stale ~30 minutes later.
+ * The Worker's job claims the row and flips it to `delivering` within seconds.
+ *
+ * `retrying` is therefore the ONLY part of this body that says a retry is under way,
+ * and it is a fact about the REQUEST (a job is enqueued), not about the row.
+ */
+export interface RetryDeliveryResult {
+  status: string;
+  retrying: boolean;
+}
+
+async function mockRetryDelivery(orderId: string): Promise<RetryDeliveryResult> {
   await delay(400);
   const idx = mockOrders.findIndex(o => o.id === orderId);
+  const status = idx !== -1 ? mockOrders[idx].status : "delivery_failed";
+
   if (idx !== -1) {
-    // Simulate the retry succeeding shortly after enqueue.
+    // Mirror the real Worker's two-step settle instead of teleporting the order to
+    // `delivered`. The old mock jumped straight to delivered 2.5s after the POST and
+    // reported `{status:"delivering"}` the endpoint never writes — so mock mode was
+    // the one place the retry "worked", and it exercised a UI path that does not
+    // exist in production. Step 1: the job claims the row (delivery_failed →
+    // delivering). Step 2: the dispatch settles it (delivering → delivered).
+    setTimeout(() => {
+      const i = mockOrders.findIndex(o => o.id === orderId);
+      if (i !== -1 && mockOrders[i].status === "delivery_failed") {
+        mockOrders[i] = { ...mockOrders[i], status: "delivering", errorMessage: null, updatedAt: new Date().toISOString() };
+      }
+    }, 1_200);
     setTimeout(() => {
       const i = mockOrders.findIndex(o => o.id === orderId);
       if (i !== -1) mockOrders[i] = { ...mockOrders[i], status: "delivered", updatedAt: new Date().toISOString() };
-    }, 2_500);
+    }, 3_000);
   }
-  return { status: "delivering" };
+
+  // The row is untouched by the POST itself — report what it holds, like the API does.
+  return { status, retrying: true };
 }
 
-async function realRetryDelivery(orderId: string): Promise<{ status: string }> {
+async function realRetryDelivery(orderId: string): Promise<RetryDeliveryResult> {
   const res = await fetchWithTimeout(`${API_BASE_URL}/api/orders/${orderId}/retry-delivery`, {
     method: "POST",
     headers: await authHeader(),
@@ -698,7 +731,7 @@ async function realRetryDelivery(orderId: string): Promise<{ status: string }> {
         : res.statusText;
     throw new ApiHttpError(`retry-delivery failed: ${message || res.status}`, res.status, body);
   }
-  return res.json() as Promise<{ status: string }>;
+  return res.json() as Promise<RetryDeliveryResult>;
 }
 
 // ── Download ──────────────────────────────────────────────────────────────

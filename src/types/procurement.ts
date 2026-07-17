@@ -58,10 +58,28 @@ export interface UpsertSupplierProfilePayload {
 
 export type OrderStatus =
   | "parsing"
+  // Extracted, but no supplier could be resolved, so the order is parked awaiting one.
+  // NOT a failure and NOT idle: it is a user-action backlog — assigning a supplier
+  // re-enters the parse flow (POST /orders/{id}/assign-supplier). Reachable on the LIVE
+  // parse path today (OrderIngestionService: `if (entity.SupplierId is null) newStatus =
+  // Unrouted`), and via SFTP/S3/IMAP ingress when an org's default supplier is unset or
+  // soft-deleted — those channels import unrouted rather than blocking the poll.
+  // NB: OrderStatusConstants' doc-comment claims "No order reaches this state until the
+  // content-routing ingest paths are wired (Phase 1)". That is STALE — Phase 1/1b
+  // shipped, and the ingress code says so in its own comments. Trust the producers.
+  | "unrouted"
   | "pending_review"
   | "ready"
   | "transforming"
   | "ready_to_deliver"
+  // The Worker's atomic delivery claim owns this status: it flips the row here the
+  // moment it picks a dispatch up, and settles it to delivered / delivery_failed
+  // when the attempt finishes. Short-lived (seconds) but real, persisted, and
+  // observable — a claim whose process dies leaves the row here until the backend's
+  // 2-minute reclaim window makes it claimable again. It was missing from this union
+  // even though the API has always been able to return it, so every `status ===
+  // "delivering"` branch the UI needed was a type error nobody could write.
+  | "delivering"
   | "delivered"
   // Delivery paused because the plan can't process orders right now (billing).
   // Not a failure: the supplier file is intact, and the backend releases the order

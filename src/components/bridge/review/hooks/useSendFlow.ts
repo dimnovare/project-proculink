@@ -44,11 +44,19 @@ export function useSendFlow({ orderId, order, labels, refetchOrder }: {
 
   // ── Finding-1: remount resilience ───────────────────────────────────────────
   // If the operator navigates away mid-generation and back, the freshly-loaded
-  // order can be in an in-flight server state (transforming) even though local
-  // sendState reset to "idle" on mount. Reflect the in-flight server status so the
-  // header shows "Generating…" instead of an idle/ready CTA — and clear it back to
-  // idle once the server transform settles (ready_to_deliver / terminal), so the
-  // button never sticks on "Generating…".
+  // order can be in an in-flight server state (transforming / delivering) even
+  // though local sendState reset to "idle" on mount. Reflect the in-flight server
+  // status so the header shows "Generating…"/"Sending…" instead of an idle/ready
+  // CTA — and clear it back to idle once the server settles (ready_to_deliver /
+  // terminal), so the button never sticks on "Generating…".
+  //
+  // `delivering` is adopted for the same reason `transforming` is, and it is the
+  // state the retry action now lands on: the Worker's claim flips the row to
+  // `delivering` seconds after the retry POST, and without adopting it, canSend
+  // (which only requires sendState === "idle") re-armed the green Send button on an
+  // order with a dispatch already in flight. Clicking it fired /redeliver against a
+  // fresh `delivering` row, which the backend rejects — a red error on an order that
+  // was fine. Adopting it renders the existing "Sending…" progress CTA instead.
   //
   // `serverDrivenSend` flags that the effect (not the user's confirmSend) owns the
   // current non-idle state. confirmSend sets sendState synchronously to
@@ -62,16 +70,16 @@ export function useSendFlow({ orderId, order, labels, refetchOrder }: {
     // A user-initiated send is running (sendState non-idle but not ours) — hands off.
     if (sendState !== "idle" && !serverDrivenSend.current) return;
 
-    if (order.status === "transforming") {
-      // Server is mid-transform — reflect it (idempotent: re-setting the same value
-      // is a no-op for React state).
+    if (order.status === "transforming" || order.status === "delivering") {
+      // Server is mid-transform / mid-dispatch — reflect it (idempotent: re-setting
+      // the same value is a no-op for React state).
       serverDrivenSend.current = true;
-      setSendState("transforming");
+      setSendState(order.status === "delivering" ? "delivering" : "transforming");
     } else if (serverDrivenSend.current) {
       // We had adopted an in-flight status, but the order has since settled (the
-      // transform finished server-side, or it failed). Release back to idle so the
-      // real CTA (green Send for ready_to_deliver, the failure panel for *_failed)
-      // takes over — the button never sticks on "Generating…".
+      // transform finished server-side, the dispatch landed, or it failed). Release
+      // back to idle so the real CTA (green Send for ready_to_deliver, the failure
+      // panel for *_failed) takes over — the button never sticks on "Generating…".
       serverDrivenSend.current = false;
       setSendState("idle");
     }

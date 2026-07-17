@@ -2,10 +2,9 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { useQueryClient } from "@tanstack/react-query";
-import { apiClient } from "@/lib/api-client";
 import type { DetectFormatResult } from "@/lib/api-client";
 import type { AuditEvent, Order } from "@/types/procurement";
+import { useRetryDelivery } from "./review/hooks/useRetryDelivery";
 
 // ─── Design tokens (Bridge Layer) ────────────────────────────────────────────
 
@@ -14,6 +13,8 @@ const T = {
   dangerSoft:  "#FBE3E3",
   amber:       "#B36D14",
   amberSoft:   "#FAF1DD",
+  blueDeep:    "#0F4FA8",
+  blueSoft:    "#E3EDFB",
   navy:        "#0B1A2F",
   ink:         "#0B1A2F",
   inkMuted:    "#5E6779",
@@ -232,9 +233,12 @@ export function FailedPanel({
   order: Order;
   stage: "transform" | "delivery";
 }) {
-  const [isRetrying, setIsRetrying] = useState(false);
-  const [retryError, setRetryError] = useState<string | null>(null);
-  const queryClient = useQueryClient();
+  // The retry POST + the short poll that watches for the Worker's claim. Owning the
+  // poll is the difference between the operator seeing the retry take effect and the
+  // panel re-rendering "Delivery to supplier failed" a beat after the click — the
+  // endpoint answers 202 while the row is still delivery_failed BY DESIGN, so a bare
+  // refetch here just races the Worker and re-reads the failure. See useRetryDelivery.
+  const { phase: retryPhase, error: retryError, start: startRetry, isRetrying } = useRetryDelivery(order.id);
 
   const isTransform  = stage === "transform";
   // Config-missing is a SETUP gap, not a transient failure — Retry cannot
@@ -250,20 +254,15 @@ export function FailedPanel({
       ? "The transform step could not complete. Review the order and try again."
       : "The delivery attempt failed. Check the delivery config and try again.");
 
-  async function handleRedeliver() {
-    if (isRetrying) return;
-    setIsRetrying(true);
-    setRetryError(null);
-    try {
-      await apiClient.retryDelivery(order.id);
-      void queryClient.invalidateQueries({ queryKey: ["order", order.id] });
-      void queryClient.invalidateQueries({ queryKey: ["orders"] });
-    } catch (err) {
-      setRetryError(err instanceof Error ? err.message : "Retry failed. Check the delivery config.");
-    } finally {
-      setIsRetrying(false);
-    }
-  }
+  // The retry button's label. "Retry queued…" — not "Sending…" / "Retrying…" — is
+  // the honest word for what is true at that moment: a job is enqueued and the row
+  // has not moved yet. The panel unmounts the moment it does.
+  //
+  // `slow` keeps the SAME label (and stays disabled) because it is the same fact: our
+  // job is still queued. An earlier draft said "Retry again" here, which invited the
+  // one click that can dead-letter the order — a duplicate enqueue burns the retry
+  // budget when the supplier is down. See useRetryDelivery's inFlight guard.
+  const retryLabel = retryPhase === "idle" ? "Retry delivery" : "Retry queued…";
 
   return (
     <div
@@ -315,6 +314,46 @@ export function FailedPanel({
           <p style={{ fontSize: 13.5, color: T.ink, lineHeight: 1.6, margin: "0 0 12px" }}>
             {errorMessage}
           </p>
+
+          {/* Retry accepted, Worker hasn't claimed the row yet. Deliberately blue-
+              neutral and deliberately NOT a status: the header above still says the
+              delivery failed, because it did and the row still says so. This strip
+              reports the REQUEST — the 202 said `retrying: true` — and nothing more.
+              It clears by this panel unmounting when the status actually moves. */}
+          {retryPhase === "queued" && (
+            <p
+              role="status"
+              style={{
+                fontSize: 12, color: T.blueDeep, margin: "0 0 12px",
+                padding: "8px 12px", background: T.blueSoft, borderRadius: 6,
+                border: `1px solid ${T.blueDeep}22`, lineHeight: 1.5,
+              }}
+            >
+              Retry queued — waiting for the sender to pick it up. This page updates on its own; you don&apos;t need to click again.
+            </p>
+          )}
+
+          {/* The claim window elapsed. Still not a failure: the job is enqueued and
+              will run. Says so plainly rather than reverting to an untouched-looking
+              panel, which is what made the original click read as a no-op. The button
+              stays disabled — a second retry cannot make this start any sooner, and it
+              can dead-letter the order (see useRetryDelivery). So this copy explains
+              the wait instead of offering a click. */}
+          {retryPhase === "slow" && (
+            <p
+              role="status"
+              style={{
+                fontSize: 12, color: T.amber, margin: "0 0 12px",
+                padding: "8px 12px", background: T.amberSoft, borderRadius: 6,
+                border: `1px solid ${T.amber}30`, lineHeight: 1.5,
+              }}
+            >
+              Your retry is queued but hasn&apos;t started yet. It stays queued and will still run — sending it again won&apos;t make it start sooner. Check the{" "}
+              <Link href="/operations/log" style={{ color: T.amber, fontWeight: 600 }}>Delivery Log</Link>
+              {" "}if it hasn&apos;t sent shortly.
+            </p>
+          )}
+
           {retryError && (
             <p
               style={{
@@ -377,7 +416,7 @@ export function FailedPanel({
                   </svg>
                 </Link>
                 <button
-                  onClick={() => void handleRedeliver()}
+                  onClick={() => void startRetry()}
                   // Retry can NEVER succeed while delivery config is missing — keep it visible (so the
                   // path is discoverable) but disabled, so the user can't fire a guaranteed-to-fail retry.
                   disabled={isRetrying || configMissing}
@@ -398,7 +437,7 @@ export function FailedPanel({
                     opacity: 0.6,
                   }}
                 >
-                  {isRetrying ? "Retrying…" : "Retry delivery"}
+                  {retryLabel}
                 </button>
                 <p style={{ fontSize: 11.5, color: T.inkFaint, margin: 0, textAlign: "center" }}>
                   Retry won&apos;t succeed until delivery is set up.
@@ -406,7 +445,7 @@ export function FailedPanel({
               </>
             ) : (
               <button
-                onClick={() => void handleRedeliver()}
+                onClick={() => void startRetry()}
                 disabled={isRetrying}
                 style={{
                   display: "inline-flex",
@@ -422,9 +461,15 @@ export function FailedPanel({
                   border: "none",
                   cursor: isRetrying ? "not-allowed" : "pointer",
                   fontFamily: T.ui,
+                  // 390px: the panel is a 520-max column with 20px side padding, so the
+                  // button owns the full row and the longest label ("Retry queued…")
+                  // has ~300px to sit in. Wrap rather than push the card wide if the
+                  // viewport is narrower still.
+                  whiteSpace: "normal",
+                  textAlign: "center",
                 }}
               >
-                {isRetrying ? "Retrying…" : "Retry delivery"}
+                {retryLabel}
               </button>
             )}
             <Link
