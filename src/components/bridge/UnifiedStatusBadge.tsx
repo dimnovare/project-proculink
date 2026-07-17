@@ -80,6 +80,11 @@ const STATUS_META: Record<string, StatusMeta> = {
   normalizing: { label: "Normalizing", tone: "info", pulse: true },
 
   // ── Needs human attention ────────────────────────────────────────────
+  // `unrouted` = extracted, but no supplier resolved, so it waits for one. Warning, not
+  // neutral: it is a user-action backlog (assign a supplier), and the backend grades its
+  // `unrouted_order` exception "warning". Without this entry it fell to humanize() —
+  // a neutral "Unrouted" badge that disagreed with the inbox pipeline column's "New".
+  unrouted: { label: "Needs supplier", tone: "warning" },
   review: { label: "Needs review", tone: "warning" },
   needs_review: { label: "Needs review", tone: "warning" },
   pending_review: { label: "Needs review", tone: "warning" },

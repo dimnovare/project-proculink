@@ -75,16 +75,22 @@ const INK        = NAVY;      // alias kept for existing references
 //   - `delivering` → carries the post-transform backend `ready_to_deliver` status
 //                    (see mapStatus) and is labelled "Ready to send" — identical
 //                    vocabulary to the "Ready to send" chip, so badge and chip agree.
-const STATUS_PRESENTATION: Record<
+//   - `sending`    → carries the backend `delivering` status: claimed by the Worker
+//                    and in flight right now. Labelled "Sending" to match
+//                    STATUS_META.delivering, and NOT "Ready to send" (it is past
+//                    that) nor "Delivered" (the supplier does not have it yet).
+export const STATUS_PRESENTATION: Record<
   CrossingStatus,
   { key: string; label: string; stage: OrderStage }
 > = {
   new:        { key: "new",        label: "New",            stage: 0 },
   extracting: { key: "extracting", label: "Extracting",     stage: 1 },
+  unrouted:   { key: "unrouted",   label: "Needs supplier", stage: 1 },
   review:     { key: "review",     label: "Needs review",   stage: 2 },
   ready:      { key: "ready",      label: "Normalized",     stage: 3 },
   sent:       { key: "sent",       label: "Delivered",      stage: 4 },
   delivering: { key: "delivering", label: "Ready to send",  stage: 4 },
+  sending:    { key: "sending",    label: "Sending",        stage: 4 },
   held:       { key: "held",       label: "Delivery paused", stage: 4 },
   failed:     { key: "failed",     label: "Failed",         stage: "failed" },
 };
@@ -157,10 +163,15 @@ function fmtAge(min: number) {
 const MOCK_RAW_STATUS: Record<CrossingStatus, string> = {
   new:        "pending_parse",
   extracting: "parsing",
+  // Not redeliverable either — the action an unrouted order needs is assign-supplier.
+  unrouted:   "unrouted",
   review:     "pending_review",
   ready:      "ready",
   sent:       "delivered",
   delivering: "ready_to_deliver",
+  // Also not redeliverable — a real delivering row is already in flight, so its
+  // bulk-select is disabled too (there is nothing to re-fire).
+  sending:    "delivering",
   // Not redeliverable (see inboxSend.ts) — so a mock held row also demonstrates the
   // disabled bulk-select, which is the behaviour a real held order has.
   held:       "delivery_held",
@@ -231,18 +242,59 @@ function generateOrders(count: number): OrderRow[] {
 //                          Rendered as "Ready to send" — the SAME vocabulary as the
 //                          "Ready to send" filter chip (which counts ready_to_deliver).
 // We reuse the `delivering` CrossingStatus slot (stage 4, distinct blue pill) for
-// `ready_to_deliver`; no persisted `delivering` status exists upstream, so this slot
-// was otherwise unused. Counting logic / summaryKeys are unchanged — labels only.
-function mapStatus(s: string): CrossingStatus {
+// `ready_to_deliver`. That slot's NAME is a historical accident, not a claim about the
+// backend: a persisted `delivering` status DOES exist upstream (OrderStatusConstants),
+// and it maps to the separate `sending` slot below. Counting logic / summaryKeys are
+// unchanged — labels only.
+export function mapStatus(s: string): CrossingStatus {
   if (s === "pending_review") return "review";
   if (s === "parsing" || s === "transforming") return "extracting";
+  // Extracted, but no supplier resolved — parked awaiting one, which is the operator's
+  // job (POST /orders/{id}/assign-supplier). Reachable on the LIVE parse path today
+  // (OrderIngestionService: `if (entity.SupplierId is null) newStatus = Unrouted`) and via
+  // SFTP/S3/IMAP ingress when an org's default supplier is unset or soft-deleted. Without
+  // this it fell through to "new" (stage 0), so the one order that REQUIRED the operator
+  // to act was the one rendered as needing nothing.
+  if (s === "unrouted") return "unrouted";
   if (s === "ready_to_deliver") return "delivering";
   if (s === "ready") return "ready";
+  // The Worker's atomic claim persists `delivering` while it dispatches, and settles it
+  // to delivered/delivery_failed seconds later; a claim whose process dies holds the row
+  // until the 2-minute reclaim window. Without this it fell through to "new" (stage 0) —
+  // an order mid-dispatch rendered as if nothing had started, the opposite of the truth.
+  if (s === "delivering") return "sending";
   if (s === "delivered") return "sent";
   // delivery_held reached Deliver and paused for billing. Without this it fell
   // through to "new" (stage 0) — the opposite of the truth.
   if (s === "delivery_held") return "held";
-  if (s === "delivery_failed" || s === "failed" || s === "transform_failed") return "failed";
+  // Every status in FAILED_BUCKET must land here — that list is what the "Failed" chip
+  // counts, and the backend's OrderStatusConstants.FailureBucket states the contract:
+  // "Every status the UI renders as the single red 'Failed' pill." This arm honoured
+  // only three of the five: `rejected_by_supplier` and `delivery_dead_letter` fell
+  // through to "new" (stage 0), so the chip counted an order as Failed while its own
+  // row rendered it as untouched. See failureBucketPills.test.ts, which asserts the
+  // whole bucket rather than these five names, so the next status added to it cannot
+  // regress here silently.
+  if (
+    s === "delivery_failed" ||
+    s === "failed" ||
+    s === "transform_failed" ||
+    s === "delivery_dead_letter" ||
+    s === "rejected_by_supplier"
+  ) return "failed";
+  // Reached by `pending_parse` — queued, nothing run on it yet, which is what "New"
+  // (stage 0) genuinely means. This is the honest default, NOT the fall-through that
+  // produced the bugs above. Any status that HAS progressed needs an explicit arm:
+  // landing here claims the pipeline never started.
+  //
+  // Before adding a status to this default, GREP THE PRODUCERS — do not trust a
+  // doc-comment. Every bug this function has had came from believing one. The
+  // `delivering` arm exists because a comment here swore no such status was persisted
+  // (DeliveryService writes it). The `unrouted` arm exists because the SECOND version of
+  // that same mistake was made in this very comment: it deferred unrouted as
+  // "unreachable until the content-routing ingest paths ship", echoing
+  // OrderStatusConstants' doc-comment, which is stale — Phase 1/1b shipped, the ingress
+  // code says so in its own comments, and OrderIngestionService parks live orders there.
   return "new";
 }
 
@@ -283,7 +335,14 @@ function summaryToRow(o: OrderSummary): OrderRow {
 // the pill represents we must sum the whole failure bucket. "Needs review" maps to
 // the single backend `pending_review` status. Any status absent from byStatus is
 // treated as 0 (byStatus is Partial<Record<OrderStatus, number>>).
-const FAILED_BUCKET: OrderStatus[] = [
+// MIRRORS the backend's OrderStatusConstants.FailureBucket, and the mirror is
+// hand-maintained. `?status=failed` is expanded SERVER-side against the backend's set
+// (OrderQueryService), so a sixth failure status added there without a matching entry
+// here would be returned under the Failed chip and render as "New" — and
+// failureBucketPills.test.ts, which iterates THIS array, would stay green. That test is a
+// class guard within the FE only; it is not a cross-repo contract guard. Keep in sync by
+// hand when the backend bucket changes.
+export const FAILED_BUCKET: OrderStatus[] = [
   "failed",
   "transform_failed",
   "delivery_failed",

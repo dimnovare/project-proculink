@@ -58,6 +58,16 @@ export interface UpsertSupplierProfilePayload {
 
 export type OrderStatus =
   | "parsing"
+  // Extracted, but no supplier could be resolved, so the order is parked awaiting one.
+  // NOT a failure and NOT idle: it is a user-action backlog — assigning a supplier
+  // re-enters the parse flow (POST /orders/{id}/assign-supplier). Reachable on the LIVE
+  // parse path today (OrderIngestionService: `if (entity.SupplierId is null) newStatus =
+  // Unrouted`), and via SFTP/S3/IMAP ingress when an org's default supplier is unset or
+  // soft-deleted — those channels import unrouted rather than blocking the poll.
+  // NB: OrderStatusConstants' doc-comment claims "No order reaches this state until the
+  // content-routing ingest paths are wired (Phase 1)". That is STALE — Phase 1/1b
+  // shipped, and the ingress code says so in its own comments. Trust the producers.
+  | "unrouted"
   | "pending_review"
   | "ready"
   | "transforming"
