@@ -526,6 +526,10 @@
 .pill-sent .dot   { background: var(--brand-green); }
 .pill-delivering  { background: var(--brand-blue-soft);   color: var(--brand-blue-deep); }
 .pill-delivering .dot { background: var(--brand-blue); animation: pulse-dot 1.4s var(--ease-in-out) infinite; }
+/* delivering — the Worker has claimed the order and is dispatching it right now.
+   Pulses because it genuinely is in flight (contrast .pill-held, which does not). */
+.pill-sending     { background: var(--brand-blue-soft);   color: var(--brand-blue-deep); }
+.pill-sending .dot { background: var(--brand-blue); animation: pulse-dot 1.4s var(--ease-in-out) infinite; }
 .pill-failed      { background: var(--danger-soft);       color: var(--danger); }
 .pill-failed .dot { background: var(--danger); }
 @keyframes pulse-dot { 0%,100%{opacity:1;} 50%{opacity:0.3;} }

@@ -75,7 +75,11 @@ const INK        = NAVY;      // alias kept for existing references
 //   - `delivering` → carries the post-transform backend `ready_to_deliver` status
 //                    (see mapStatus) and is labelled "Ready to send" — identical
 //                    vocabulary to the "Ready to send" chip, so badge and chip agree.
-const STATUS_PRESENTATION: Record<
+//   - `sending`    → carries the backend `delivering` status: claimed by the Worker
+//                    and in flight right now. Labelled "Sending" to match
+//                    STATUS_META.delivering, and NOT "Ready to send" (it is past
+//                    that) nor "Delivered" (the supplier does not have it yet).
+export const STATUS_PRESENTATION: Record<
   CrossingStatus,
   { key: string; label: string; stage: OrderStage }
 > = {
@@ -85,6 +89,7 @@ const STATUS_PRESENTATION: Record<
   ready:      { key: "ready",      label: "Normalized",     stage: 3 },
   sent:       { key: "sent",       label: "Delivered",      stage: 4 },
   delivering: { key: "delivering", label: "Ready to send",  stage: 4 },
+  sending:    { key: "sending",    label: "Sending",        stage: 4 },
   held:       { key: "held",       label: "Delivery paused", stage: 4 },
   failed:     { key: "failed",     label: "Failed",         stage: "failed" },
 };
@@ -161,6 +166,9 @@ const MOCK_RAW_STATUS: Record<CrossingStatus, string> = {
   ready:      "ready",
   sent:       "delivered",
   delivering: "ready_to_deliver",
+  // Also not redeliverable — a real delivering row is already in flight, so its
+  // bulk-select is disabled too (there is nothing to re-fire).
+  sending:    "delivering",
   // Not redeliverable (see inboxSend.ts) — so a mock held row also demonstrates the
   // disabled bulk-select, which is the behaviour a real held order has.
   held:       "delivery_held",
@@ -231,13 +239,20 @@ function generateOrders(count: number): OrderRow[] {
 //                          Rendered as "Ready to send" — the SAME vocabulary as the
 //                          "Ready to send" filter chip (which counts ready_to_deliver).
 // We reuse the `delivering` CrossingStatus slot (stage 4, distinct blue pill) for
-// `ready_to_deliver`; no persisted `delivering` status exists upstream, so this slot
-// was otherwise unused. Counting logic / summaryKeys are unchanged — labels only.
-function mapStatus(s: string): CrossingStatus {
+// `ready_to_deliver`. That slot's NAME is a historical accident, not a claim about the
+// backend: a persisted `delivering` status DOES exist upstream (OrderStatusConstants),
+// and it maps to the separate `sending` slot below. Counting logic / summaryKeys are
+// unchanged — labels only.
+export function mapStatus(s: string): CrossingStatus {
   if (s === "pending_review") return "review";
   if (s === "parsing" || s === "transforming") return "extracting";
   if (s === "ready_to_deliver") return "delivering";
   if (s === "ready") return "ready";
+  // The Worker's atomic claim persists `delivering` while it dispatches, and settles it
+  // to delivered/delivery_failed seconds later; a claim whose process dies holds the row
+  // until the 2-minute reclaim window. Without this it fell through to "new" (stage 0) —
+  // an order mid-dispatch rendered as if nothing had started, the opposite of the truth.
+  if (s === "delivering") return "sending";
   if (s === "delivered") return "sent";
   // delivery_held reached Deliver and paused for billing. Without this it fell
   // through to "new" (stage 0) — the opposite of the truth.

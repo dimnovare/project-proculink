@@ -146,7 +146,12 @@ export function StatusJourney({ stage, compact = false, crossingRef }: StatusJou
 // order is clean), `delivering` pulses blue "Ready to send" (it is blocked), and
 // `failed` is red (nothing failed — the supplier file is intact and the backend
 // releases the order automatically once billing is in good standing).
-export type CrossingStatus = "new" | "extracting" | "review" | "ready" | "sent" | "delivering" | "failed" | "held";
+// `sending` covers the backend `delivering` status — an order the Worker has claimed
+// and is dispatching right now. It needs its own member because the `delivering`
+// member is already spoken for: it is the display bucket for `ready_to_deliver`
+// ("Ready to send"). `sent` would claim the supplier already has the file, and
+// `extracting` is three stages too early.
+export type CrossingStatus = "new" | "extracting" | "review" | "ready" | "sent" | "delivering" | "sending" | "failed" | "held";
 
 const STATUS_PILL: Record<CrossingStatus, { bg: string; color: string; dot: string; pulse?: boolean; label: string }> = {
   // tokens.css .pill-new → surface-2 (#F1F3F7) / ink-muted (#5E6779) / ink-faint (#5B6980)
@@ -159,6 +164,9 @@ const STATUS_PILL: Record<CrossingStatus, { bg: string; color: string; dot: stri
   sent:       { bg: "#E9F1EA", color: "#1E6D29", dot: "#2E8E3A",  label: "Delivered" },
   // tokens.css .pill-delivering → brand-blue-soft / brand-blue-deep / brand-blue + pulse-dot
   delivering: { bg: "#EAF0F8", color: "#0F4FA8", dot: "#1E66C9", pulse: true, label: "Delivering" },
+  // tokens.css .pill-sending → same blue as `delivering`, and it pulses because this
+  // one really IS in flight. "Sending" matches UnifiedStatusBadge STATUS_META.delivering.
+  sending:    { bg: "#EAF0F8", color: "#0F4FA8", dot: "#1E66C9", pulse: true, label: "Sending" },
   failed:     { bg: "#FBE3E3", color: "#B43838", dot: "#B43838",  label: "Failed" },
   // tokens.css .pill-held → amber-soft / amber-text / amber, matching `review`.
   // Deliberately no pulse: a paused delivery is not in flight.
@@ -172,6 +180,7 @@ const STATUS_STAGE: Record<CrossingStatus, OrderStage> = {
   ready:      3,
   sent:       4,
   delivering: 4,
+  sending:    4,
   // Stage 4: a held order reached Deliver and stopped there — showing it earlier
   // would understate how far it got (and how little is left to do).
   held:       4,
