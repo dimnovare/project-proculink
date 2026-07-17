@@ -191,8 +191,10 @@ export function MappingEditor() {
 
   return (
     <PageShell variant="wide" className="flex flex-col">
-      {/* Page header — canonical PageHeader on the grey canvas */}
+      {/* Page header — titleHidden: the topbar hub tab "Mappings" is the page
+          name (sr-only h1 kept); the live count/guidance line + actions stay. */}
       <PageHeader
+        titleHidden
         title="Mappings"
         sub={
           needsSupplierSelection ? (

@@ -27,6 +27,7 @@ import type { Lane } from "./LaneDrawer";
 import { OnboardingChecklist } from "./OnboardingChecklist";
 import { OnboardingWizard } from "./OnboardingWizard";
 import { buildChecklistSteps } from "./buildChecklistSteps";
+import { DashboardContextLine } from "./DashboardContextLine";
 import { PageHeader } from "./layout/PageHeader";
 import { PageShell } from "./layout/PageShell";
 import { apiClient, isApiMockMode } from "@/lib/api-client";
@@ -714,7 +715,7 @@ export function BridgeDashboard() {
     if (o.status === "failed") return "Failed — needs attention";
     return statusLabel(o.status);
   }
-  const needsYouRows = allOrders
+  const needsYouAll = allOrders
     .filter((o) => EXCEPTION_STATUSES.has(o.status) || (o.unresolvedCount ?? 0) > 0)
     .sort((a, b) => {
       // Needs-review first (the primary blocker), then oldest (createdAt asc).
@@ -722,8 +723,12 @@ export function BridgeDashboard() {
       const bp = b.status === "pending_review" ? 0 : 1;
       if (ap !== bp) return ap - bp;
       return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
-    })
-    .slice(0, 6);
+    });
+  const needsYouRows = needsYouAll.slice(0, 6);
+  // ONE blockers number feeds both the context line and the "Needs you" section
+  // head, so the two can never drift. null until the source query settles — the
+  // context line hides the segment rather than flashing "All clear" or a 0.
+  const blockersCount = !ordersLoading && !ordersError ? needsYouAll.length : null;
 
   // ── "Ready to send" rows — validated orders with nothing blocking ─────────
   const readyRows = allOrders.filter((o) => o.status === "ready" || o.status === "ready_to_deliver");
@@ -987,10 +992,23 @@ export function BridgeDashboard() {
   }
 
   return (
+    <div className="flex h-full min-h-0 flex-col">
+      {/* 36px context line (founder-approved mock): the "Dashboard" topbar tab
+          is the page name; this row says what the tab cannot — greeting, date,
+          and the blockers count with a jump link. Pinned above the scroll area. */}
+      <DashboardContextLine
+        blockers={blockersCount}
+        onJumpToBlockers={() =>
+          document.getElementById("needs-you")?.scrollIntoView({ behavior: "smooth", block: "start" })
+        }
+      />
+      <div className="min-h-0 flex-1">
     <PageShell variant="wide" className="flex flex-col">
-      {/* Page header — canonical PageHeader, sits directly on the grey canvas
-          (no white bar), floating title + muted meta line. */}
+      {/* Page header — titleHidden: the topbar tab already says "Dashboard"
+          (sr-only h1 kept); the live meta line + window/export/new-order
+          actions stay as a compact row at the top of the content. */}
       <PageHeader
+          titleHidden
           title="Dashboard"
           sub={
             <span className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
@@ -1234,11 +1252,14 @@ export function BridgeDashboard() {
           <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1.9fr)_minmax(300px,1fr)] xl:items-start xl:gap-5">
             {/* LEFT — action column */}
             <div className="flex flex-col gap-5">
-              {/* ── Needs you — the actionable hero table ─────────────────── */}
-              <section aria-label="Orders that need you">
+              {/* ── Needs you — the actionable hero table ───────────────────
+                  id="needs-you" is the context line's jump target. The count is
+                  needsYouAll.length (not the 6-row render cap) so it always
+                  equals the context line's blockers number. */}
+              <section id="needs-you" aria-label="Orders that need you">
                 <SectionHead
                   title="Needs you"
-                  count={needsYouRows.length}
+                  count={needsYouAll.length}
                   note="blocking — clear these to send"
                   actionHref="/operations/exceptions"
                   actionLabel="Open inbox"
@@ -1652,5 +1673,7 @@ export function BridgeDashboard() {
         </div>
       )}
     </PageShell>
+      </div>
+    </div>
   );
 }

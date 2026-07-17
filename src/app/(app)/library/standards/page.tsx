@@ -90,9 +90,12 @@ export default function StandardsPage() {
 
   return (
     <PageShell variant="wide">
+      {/* titleHidden: the topbar hub tab "Standards" already names this page
+          ("Standards reference" only re-announced it; sr-only h1 kept). The
+          descriptive subtitle is dropped; the search input stays. */}
       <PageHeader
+        titleHidden
         title="Standards reference"
-        sub="How every order field maps across formats — always visible, never hidden"
         actions={searchInput}
       />
 

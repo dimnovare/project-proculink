@@ -183,7 +183,9 @@ export default function BuyersPage() {
 
   return (
     <PageShell variant="wide">
+      {/* titleHidden: the topbar hub tab "Buyers" is the page name (sr-only h1 kept). */}
       <PageHeader
+        titleHidden
         title="Buyers"
         sub={countLabel}
         actions={

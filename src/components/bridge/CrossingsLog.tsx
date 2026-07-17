@@ -436,20 +436,12 @@ export function CrossingsLog() {
 
   return (
     <PageShell variant="wide">
-      {/* Page header — canonical PageHeader */}
+      {/* Page header — titleHidden: the topbar hub tab "Delivery log" is the
+          page name (sr-only h1 kept); the descriptive subtitle is dropped, the
+          Export action stays. */}
       <PageHeader
+        titleHidden
         title="Delivery log"
-        sub={
-          <span className="row gap-2 items-start">
-            {/* key icon — flex-shrink-0 + top-aligned so it stays inline with the
-                first line of the wrapped subtitle on narrow (mobile) widths instead
-                of wrapping to its own line and reading as a stray glyph. */}
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--ink-faint)" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, marginTop: 4 }}>
-              <path d="M15.5 7.5 21 2" /><path d="m18 5 1.5 1.5" /><circle cx="9" cy="15" r="6" /><path d="m13.2 10.8 3.3-3.3" />
-            </svg>
-            <span style={{ minWidth: 0 }}>Append-only audit log · every parse, edit, validation and delivery recorded</span>
-          </span>
-        }
         actions={
           /* Export log button — canonical: secondary */
           <button

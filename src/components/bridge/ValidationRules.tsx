@@ -301,8 +301,13 @@ export function ValidationRules() {
 
   return (
     <PageShell variant="wide" className="flex flex-col">
-      {/* Header — canonical PageHeader on the grey canvas */}
+      {/* Header — titleHidden: the topbar hub tab "Rules" already names this
+          page ("Rule catalog" only re-announced it; sr-only h1 kept). The
+          sibling /library/rule-definitions page KEEPS its visible title —
+          "Rule definitions" is not the tab label and is what tells the two
+          pages under the "Rules" tab apart. */}
       <PageHeader
+        titleHidden
         title="Rule catalog"
         sub={
           <>

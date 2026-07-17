@@ -152,7 +152,9 @@ export default function TemplatesPage() {
 
   return (
     <PageShell variant="wide">
+      {/* titleHidden: the topbar hub tab "Output templates" is the page name (sr-only h1 kept). */}
       <PageHeader
+        titleHidden
         title="Output templates"
         sub={`The format each supplier receives · ${templates.length} template${templates.length !== 1 ? "s" : ""}`}
         actions={
