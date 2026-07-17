@@ -2,7 +2,8 @@
 // testing (vitest), mirroring the parseStall.ts pattern.
 //
 // WHY: POST /api/orders/{id}/redeliver is guarded server-side by
-// OrderStatusMachine.RedeliverableFrom = { delivery_failed, ready_to_deliver }.
+// OrderStatusMachine.RedeliverableFrom =
+// { delivery_failed, ready_to_deliver, delivery_unconfirmed }.
 // Any other status → 400. Row selection is therefore gated on these RAW
 // backend statuses — NOT the collapsed display CrossingStatus: the red
 // "Failed" pill also covers parse failures, transform failures, dead-letters
