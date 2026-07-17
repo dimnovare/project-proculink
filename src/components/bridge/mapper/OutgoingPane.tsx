@@ -114,6 +114,18 @@ export interface OutgoingPaneProps {
    */
   supplierName?: string;
   readOnly?: boolean;
+  /**
+   * Extra control rendered at the right end of the pane header (the Order
+   * Workshop's Fields|Lines toggle). Absent → the header is unchanged.
+   */
+  headerExtra?: React.ReactNode;
+  /**
+   * When set, REPLACES everything below the pane header (sub-header, notices and
+   * the field list) with this node — the workshop's per-line "Lines" view. The
+   * header (dot + "What we'll send" + headerExtra) stays; the add-field control
+   * is hidden because it only edits the Fields view.
+   */
+  bodyOverride?: React.ReactNode;
 }
 
 /**
@@ -166,6 +178,8 @@ export function OutgoingPane({
   autoFilledFields,
   supplierName,
   readOnly,
+  headerExtra,
+  bodyOverride,
 }: OutgoingPaneProps) {
   const editable = variant === "connection" && !readOnly;
   // B3 sub-header: plain-language framing of the output column + the * required marker.
@@ -254,14 +268,24 @@ export function OutgoingPane({
             What we&rsquo;ll send
           </span>
         </span>
-        {canAddField && onAddField && (
-          <AddOutputFieldMenu
-            onAddField={onAddField}
-            canonicalOptions={canonicalOptions ?? []}
-            existingPaths={existingPaths}
-          />
-        )}
+        <span style={{ display: "inline-flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
+          {headerExtra}
+          {/* Add-field edits the Fields view only — hidden while a body override (Lines view) is shown. */}
+          {bodyOverride == null && canAddField && onAddField && (
+            <AddOutputFieldMenu
+              onAddField={onAddField}
+              canonicalOptions={canonicalOptions ?? []}
+              existingPaths={existingPaths}
+            />
+          )}
+        </span>
       </div>
+
+      {/* Body override (the workshop's per-line Lines view) replaces everything below the header. */}
+      {bodyOverride != null ? (
+        <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>{bodyOverride}</div>
+      ) : (
+      <>
 
       {/* B3 sub-header — plain-language framing of the output column: what it is, how to
           fill each field, and what the * marker means. Calm + muted, under the pane head. */}
@@ -385,6 +409,8 @@ export function OutgoingPane({
             </div>
           )}
         </div>
+      )}
+      </>
       )}
     </div>
   );

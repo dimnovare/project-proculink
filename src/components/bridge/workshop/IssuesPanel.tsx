@@ -114,6 +114,13 @@ export interface IssuesPanelProps {
   suggestableCount?: number;
   /** The ≥0.85-confidence subset of `suggestableCount` (the "Accept ≥85% only" scope). */
   highConfCount?: number;
+  /**
+   * Jump to a line in the workshop's Lines view (switch the middle column to
+   * Lines + scroll to + expand that row). When present, a line-scoped card's
+   * locator renders as "Line N →" and clicking it jumps; absent (mobile triage,
+   * pure-view tests) → the locator is plain text and nothing else changes.
+   */
+  onJumpToLine?: (lineId: string) => void;
 }
 
 // ── Bridge Layer palette (verbatim from the design handoff) ───────────────────
@@ -143,7 +150,7 @@ const SEVERITY: Record<IssueSeverity, { accent: string; soft: string; label: str
   warning: { accent: C.amber, soft: C.amberSoft, label: "Warning" },
 };
 
-export function IssuesPanel({ issues, onFocusField, onFix, readyLabel, resolve, lines, suggestableCount = 0, highConfCount = 0 }: IssuesPanelProps) {
+export function IssuesPanel({ issues, onFocusField, onFix, readyLabel, resolve, lines, suggestableCount = 0, highConfCount = 0, onJumpToLine }: IssuesPanelProps) {
   // ── 0 issues → the green "ready to send" bar (the list collapses) ──
   if (issues.length === 0) {
     return (
@@ -256,9 +263,30 @@ export function IssuesPanel({ issues, onFocusField, onFix, readyLabel, resolve, 
                     <span style={{ fontSize: 9.5, fontWeight: 800, letterSpacing: "0.05em", textTransform: "uppercase", color: tone.accent }}>
                       {tone.label}
                     </span>
-                    <span style={{ fontFamily: C.mono, fontSize: 10, color: C.inkFaint, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                      {issue.ref}
-                    </span>
+                    {/* A line-scoped card locates by its LINE ("Line 2"), not the raw
+                        output-field ref — and jumps to that row in the Lines view when
+                        the workshop provides the handler. Header cards keep the ref. */}
+                    {line != null ? (
+                      onJumpToLine ? (
+                        <button
+                          type="button"
+                          onClick={() => onJumpToLine(line.id)}
+                          aria-label={`Go to line ${line.lineNumber}`}
+                          title="Show this line in the Lines view"
+                          style={{ fontFamily: C.mono, fontSize: 10, fontWeight: 700, color: "#1E66C9", background: "none", border: "none", padding: 0, cursor: "pointer", whiteSpace: "nowrap", textDecoration: "underline", textUnderlineOffset: 2 }}
+                        >
+                          Line {line.lineNumber} →
+                        </button>
+                      ) : (
+                        <span style={{ fontFamily: C.mono, fontSize: 10, color: C.inkFaint, whiteSpace: "nowrap" }}>
+                          Line {line.lineNumber}
+                        </span>
+                      )
+                    ) : (
+                      <span style={{ fontFamily: C.mono, fontSize: 10, color: C.inkFaint, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        {issue.ref}
+                      </span>
+                    )}
                   </div>
                   <div style={{ fontSize: 12.5, fontWeight: 650, color: C.ink, lineHeight: 1.35 }}>{issue.title}</div>
                 </div>

@@ -43,6 +43,8 @@ import { useAcceptanceValidation } from "../review/hooks/useAcceptanceValidation
 import { useSendFlow } from "../review/hooks/useSendFlow";
 import { useWorkshopLayout, type WorkshopFocus } from "./useWorkshopLayout";
 import { IssuesPanel, type WorkshopIssue, type IssuesResolveApi } from "./IssuesPanel";
+import { WorkshopLinesView, WorkshopLinesToggle } from "./WorkshopLinesView";
+import { showLinesToggle } from "./workshopLinesModel";
 import { bulkAcceptCount, type BulkSelectableLine } from "../magicBulkAcceptSelection";
 import { MobileTriage } from "./MobileTriage";
 import { WorkshopStepper } from "./WorkshopStepper";
@@ -248,6 +250,18 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
     // Always show the mapper columns when jumping to a field.
     lay.setFocus("all");
   }, [lay]);
+
+  // ── Middle-column view: "Fields" (the existing mapper, default + unchanged) vs
+  //    "Lines" (per-line mapping visibility — one row per order line). The toggle
+  //    renders in the "What we'll send" pane header, only when the order has lines. ─
+  const [midView, setMidView] = useState<"fields" | "lines">("fields");
+  // An IssuesPanel line jump: switch to Lines and expand + scroll to that row.
+  // Bumped signal so the same line can be re-jumped on a repeat click.
+  const [lineJump, setLineJump] = useState<{ lineId: string; n: number } | null>(null);
+  const onJumpToLine = useCallback((lineId: string) => {
+    setMidView("lines");
+    setLineJump((prev) => ({ lineId, n: (prev?.n ?? 0) + 1 }));
+  }, []);
 
   // ── Order details drawer (audit / standards / supplier response) ────────────
   //    Secondary, lower-frequency trust surfaces relocated from the old screen's
@@ -745,6 +759,33 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
             reviewSignal={order.lines.filter((l) => l.needsReview).length}
             hideToolbar
             onToolbarState={setMapperToolbar}
+            outgoingHeaderExtra={
+              showLinesToggle(order.lines.length) ? (
+                <WorkshopLinesToggle
+                  view={midView}
+                  onView={setMidView}
+                  lineCount={order.lines.length}
+                  lines={order.lines}
+                />
+              ) : undefined
+            }
+            outgoingBodyOverride={
+              midView === "lines" && showLinesToggle(order.lines.length) ? (
+                <WorkshopLinesView
+                  order={order}
+                  onAcceptSuggestion={resolve.acceptSuggestion}
+                  onCommitCode={resolve.confirmFlaggedLine}
+                  acceptingLineId={resolve.acceptingLineId}
+                  onBulkApply={
+                    issuesResolve.bulkAcceptSuggestions
+                      ? () => issuesResolve.bulkAcceptSuggestions!(0)
+                      : undefined
+                  }
+                  bulkAccepting={issuesResolve.bulkAccepting}
+                  jumpSignal={lineJump}
+                />
+              ) : undefined
+            }
             issuesSlot={
               <IssuesPanel
                 issues={issues}
@@ -754,6 +795,7 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
                 lines={order.lines}
                 suggestableCount={suggestableCount}
                 highConfCount={highConfCount}
+                onJumpToLine={onJumpToLine}
               />
             }
             issuesOpenCount={issues.length}
