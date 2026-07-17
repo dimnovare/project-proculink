@@ -74,7 +74,12 @@ const FAILED_STATUSES = new Set([
   "delivery_dead_letter",
 ]);
 
-/** Anything that needs a human now (open exceptions).
+/** Anything that needs a human now — the dashboard's in-app grouping, used by the
+ *  supplier-health exception counts and the "Needs you" rows. Both render from the
+ *  loaded working set, so this set answers "does this order want attention?" and is
+ *  free to be broader than what the backend files an exception row for.
+ *  NOT for the amber strip's count — that links out to /operations/exceptions and must
+ *  use EXCEPTION_ROW_STATUSES (see there; delivery_held is the difference).
  *  `delivery_held` (billing hold) belongs here and NOT in FAILED_STATUSES: it needs a
  *  human — someone has to settle billing — but nothing failed, so counting it as a hard
  *  failure would drag down lane/dock health for an order whose output is intact.
@@ -94,12 +99,41 @@ export const EXCEPTION_STATUSES = new Set<OrderStatus>([
   "delivery_unconfirmed",
 ]);
 
+/** Statuses the BACKEND writes an OrderException row for — the count behind the amber
+ *  "N orders need your attention" strip.
+ *
+ *  THE CONSTRAINT: this set must track `OrderExceptionService.ProblemFor`
+ *  (ProcuLink.Infrastructure/Services/OrderExceptionService.cs). The strip is a link to
+ *  /operations/exceptions, and that page renders `getExceptions(...)` — OrderException
+ *  rows, nothing else. So a status counted here that ProblemFor has no case for sends
+ *  the operator to an EMPTY page: billing lapses → 3 orders go delivery_held → "3 orders
+ *  need your attention" → click → nothing there.
+ *
+ *  That is why this is NOT EXCEPTION_STATUSES, despite the overlap. That set is the
+ *  dashboard's broader "needs a human" grouping and includes `delivery_held`, which has
+ *  no ProblemFor case (a billing pause is released by settling billing, and no exception
+ *  row is ever written for it). `delivery_unconfirmed` IS here: ProblemFor gives it a
+ *  real case (severity `warning`), so the row exists and the page will show it.
+ *
+ *  Known and deliberate: ProblemFor also opens rows this status histogram cannot see
+ *  (unresolved lines in a non-pending_review status; `unrouted`, which this app's
+ *  OrderStatus doesn't model). So the count can UNDER-report. That direction is safe —
+ *  a missed nudge, not a promise with a dead end behind it. */
+export const EXCEPTION_ROW_STATUSES = new Set<OrderStatus>([
+  "pending_review",
+  "failed",
+  "transform_failed",
+  "delivery_failed",
+  "delivery_dead_letter",
+  "rejected_by_supplier",
+  "delivery_unconfirmed",
+]);
+
 /** Sums `byStatus` counts across a status set. This is the ONE place either
- *  branch of `openExceptionsAll` may read status membership from — so a
- *  status added to EXCEPTION_STATUSES is counted in mock mode AND live, never
- *  one without the other. (Exported and unit-tested directly in
- *  openExceptionsAll.test.ts — BridgeDashboard itself pulls in too much
- *  — Clerk, TanStack Query, the topology canvas — to render in a unit test.) */
+ *  branch of `openExceptionsAll` may read status membership from — so the live and
+ *  mock branches can never drift apart on which statuses count. (Exported and
+ *  unit-tested directly in openExceptionsAll.test.ts — BridgeDashboard itself pulls
+ *  in too much — Clerk, TanStack Query, the topology canvas — to render in a unit test.) */
 export function sumByStatuses(
   byStatus: Partial<Record<OrderStatus, number>> | null | undefined,
   statuses: Set<OrderStatus>,
@@ -567,13 +601,15 @@ export function BridgeDashboard() {
   const topoHeight = Math.min(520, Math.max(320, 150 + maxPorts * 74));
 
   const wireCount = effective.wires.length;
-  // Derived from EXCEPTION_STATUSES via sumByStatuses (not hand-listed status
-  // literals) so this can never silently diverge from the mock branch below —
-  // that divergence is exactly what let delivery_held and delivery_unconfirmed
-  // go uncounted here while EXCEPTION_STATUSES already had them.
+  // Both branches read EXCEPTION_ROW_STATUSES through sumByStatuses / .has, so live and
+  // mock can't drift — and the ONE set they read mirrors the backend's ProblemFor, which
+  // is what decides whether /operations/exceptions has anything to show when the strip
+  // is clicked. Do not point this at EXCEPTION_STATUSES: that set is the broader
+  // "needs a human" grouping and counting its delivery_held orders here promises rows
+  // the exceptions page will not have.
   const openExceptionsAll = !isApiMockMode
-    ? sumByStatuses(ordersSummary?.byStatus, EXCEPTION_STATUSES)
-    : allOrders.filter((o) => EXCEPTION_STATUSES.has(o.status)).length;
+    ? sumByStatuses(ordersSummary?.byStatus, EXCEPTION_ROW_STATUSES)
+    : allOrders.filter((o) => EXCEPTION_ROW_STATUSES.has(o.status)).length;
 
   // ── Operational funnel (the hero) ─────────────────────────────────────────
   // Received → Blocked (needs review) → Ready → Delivered → Failed.
@@ -658,9 +694,11 @@ export function BridgeDashboard() {
   const inTransitRows = inTransitAll.slice(0, IN_TRANSIT_MAX);
 
   // ── "Needs you" rows — the actionable hero (real orders in an open state) ──
-  // Built from the same live working set as the KPIs. An order needs a human
-  // when it's awaiting review, failed, or was rejected — the same
-  // EXCEPTION_STATUSES that feed the "Needs attention" count. We surface a plain
+  // Built from the same live working set as the KPIs. An order needs a human when it's
+  // awaiting review, failed, was rejected, or is paused/parked — EXCEPTION_STATUSES, the
+  // broader grouping. These rows render right here from orders we already hold, so
+  // (unlike the amber strip's count) they don't depend on a backend exception row
+  // existing, and a delivery_held order genuinely belongs in the list. We surface a plain
   // "what's needed" line derived from the actual status + unresolved count, never
   // a fabricated reason. Blocked (needs-review) rows sort first, then oldest-first.
   function neededFor(o: OrderSummary): string {
