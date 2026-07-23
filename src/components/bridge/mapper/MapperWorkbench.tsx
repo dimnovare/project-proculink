@@ -199,6 +199,18 @@ export interface MapperWorkbenchProps {
   hideToolbar?: boolean;
   /** Publishes the toolbar's live state + handlers (see MapperToolbarState). */
   onToolbarState?: (state: MapperToolbarState) => void;
+  /**
+   * Order Workshop "Lines" view — extra control rendered at the right end of the
+   * outgoing ("What we'll send") pane header: the Fields|Lines toggle. Optional +
+   * additive; absent → the pane header is unchanged.
+   */
+  outgoingHeaderExtra?: ReactNode;
+  /**
+   * When set, REPLACES the outgoing pane's field list with this node (the
+   * workshop's per-line Lines view). The pane header stays; the wire overlay is
+   * suppressed while active because the output anchors it draws to are unmounted.
+   */
+  outgoingBodyOverride?: ReactNode;
 }
 
 export function MapperWorkbench(props: MapperWorkbenchProps) {
@@ -209,6 +221,7 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
     layout, attentionFirstOutput, trustedThreshold, focusFieldId, focusFieldSignal,
     previewDefaultFormat, autoFilledFields, mappingMode = "wires", reviewSignal,
     hideToolbar, onToolbarState,
+    outgoingHeaderExtra, outgoingBodyOverride,
   } = props;
   const pickerMode = mappingMode === "picker";
   const scopeId = (variant === "order" ? props.orderId : props.connectionId) ?? "";
@@ -487,7 +500,9 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
   //     maps via the inline dropdown, so wires are off by default.
   // Collapsing the PREVIEW doesn't touch the wire span, so it doesn't gate the SVG. "wires" mode
   // never collapses and isn't picker → wires always show, the old screen is unchanged.
-  const wiresHidden = incomingCollapsed || (pickerMode && !showConnections);
+  // A body override (the workshop Lines view) unmounts every output-row anchor, so the SVG is
+  // suppressed there too — the engine would otherwise draw to last-good stale positions.
+  const wiresHidden = incomingCollapsed || (pickerMode && !showConnections) || outgoingBodyOverride != null;
 
   // ── Wire engine (2-bank, robust in-content overlay) ─────────────────────────
   const wire = useMapperWireLayer({
@@ -735,6 +750,8 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
       autoFilledFields={autoFilledFields}
       supplierName={supplierName}
       readOnly={readOnly}
+      headerExtra={outgoingHeaderExtra}
+      bodyOverride={outgoingBodyOverride}
     />
     </>
   );

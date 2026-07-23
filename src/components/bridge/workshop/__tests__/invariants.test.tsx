@@ -1,6 +1,6 @@
 import { describe, test, expect, vi, beforeEach, afterEach } from "vitest";
 import { useEffect } from "react";
-import { render, screen, cleanup, fireEvent, within } from "@testing-library/react";
+import { render, screen, cleanup, fireEvent, within, waitFor } from "@testing-library/react";
 import { renderHook, act } from "@testing-library/react";
 import type { Order, OrderValidationResult } from "@/types/procurement";
 
@@ -52,6 +52,9 @@ const mockState: {
   openLayoutDesigner: ReturnType<typeof vi.fn>;
   openTemplateEditor: ReturnType<typeof vi.fn>;
   toggleConnections: ReturnType<typeof vi.fn>;
+  // Published as the toolbar's fillFromCatalog. null (the default) = no catalog
+  // hints → the ⋯ item renders honestly disabled; a fn = enabled.
+  fillFromCatalog: ReturnType<typeof vi.fn> | null;
 } = {
   order: null,
   validationResult: null,
@@ -69,6 +72,7 @@ const mockState: {
   openLayoutDesigner: vi.fn(),
   openTemplateEditor: vi.fn(),
   toggleConnections: vi.fn(),
+  fillFromCatalog: null,
 };
 
 vi.mock("next/navigation", () => ({
@@ -170,12 +174,17 @@ vi.mock("../../mapper/MapperWorkbench", () => ({
         toggleConnections: mockState.toggleConnections,
         openLayoutDesigner: mockState.openLayoutDesigner,
         openTemplateEditor: mockState.openTemplateEditor,
-        catalogHintCount: 0,
-        fillFromCatalog: null,
+        catalogHintCount: mockState.fillFromCatalog ? 1 : 0,
+        fillFromCatalog: mockState.fillFromCatalog,
       });
     }, [onToolbarState]);
+    // The two Lines-view slots render like the real OutgoingPane renders them
+    // (header extra + body override), so the workshop-level tests can drive the
+    // REAL Fields|Lines toggle and observe the REAL override mount/unmount.
     return (
       <div data-testid="mock-mapper-workbench">
+        {props.outgoingHeaderExtra as React.ReactNode}
+        {props.outgoingBodyOverride as React.ReactNode}
         <div data-testid="issues-slot">{props.issuesSlot as React.ReactNode}</div>
       </div>
     );
@@ -230,6 +239,7 @@ beforeEach(() => {
   mockState.openLayoutDesigner = vi.fn();
   mockState.openTemplateEditor = vi.fn();
   mockState.toggleConnections = vi.fn();
+  mockState.fillFromCatalog = null;
 });
 afterEach(cleanup);
 
@@ -759,5 +769,152 @@ describe("chrome compression — Row 1 identity header + Row 2 status bar", () =
     // A menu item invokes the RELOCATED workbench handler (not a reimplementation).
     fireEvent.click(screen.getByRole("menuitem", { name: /customize output layout/i }));
     expect(mockState.openLayoutDesigner).toHaveBeenCalled();
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PR #23 wiring pin — the Fields|Lines view survives the #24 rebase. The SAME
+// MapperWorkbench call site carries #24's hideToolbar/onToolbarState AND #23's
+// outgoingHeaderExtra/outgoingBodyOverride; all four props are OPTIONAL, so a
+// one-sided conflict resolution (keeping only one PR's set) compiles clean and
+// stays green everywhere else while silently deleting the other feature. These
+// tests make that silent deletion fail the build, in either direction.
+// ─────────────────────────────────────────────────────────────────────────────
+describe("wiring pin — the #23 Lines props AND the #24 toolbar props coexist on the mapper", () => {
+  const LINES_LINE = {
+    id: "l1", lineNumber: 1, buyerItemCode: "B-1", supplierItemCode: "S-1",
+    description: "Widget", quantity: 2, unitPrice: 10, confidence: 1,
+    needsReview: false,
+  } as Order["lines"][number];
+
+  function mountLinesOrder() {
+    mockState.order = makeOrder({ status: "ready_to_deliver", lines: [LINES_LINE] });
+    mockState.validationResult = { passed: true, results: [] } as OrderValidationResult;
+    render(<OrderWorkshop orderId="ord-1" />);
+  }
+
+  test("a lines-bearing order passes BOTH prop sets: outgoingHeaderExtra + hideToolbar/onToolbarState", () => {
+    mountLinesOrder();
+    const p = mockState.lastMapperProps!;
+    // #23's side — the Fields|Lines toggle reaches the outgoing pane header.
+    expect(p.outgoingHeaderExtra != null).toBe(true);
+    // #24's side — the toolbar is hidden + re-hosted through the publish callback.
+    expect(p.hideToolbar).toBe(true);
+    expect(typeof p.onToolbarState).toBe("function");
+    // Fields is the default view — no body override until Lines is chosen.
+    expect(p.outgoingBodyOverride == null).toBe(true);
+  });
+
+  test("choosing Lines passes outgoingBodyOverride and it mounts the per-line view", () => {
+    mountLinesOrder();
+    fireEvent.click(screen.getByRole("button", { name: /Lines · 1/ }));
+    expect(mockState.lastMapperProps!.outgoingBodyOverride != null).toBe(true);
+    expect(screen.getByTestId("lines-view")).toBeTruthy();
+  });
+
+  test("a zero-line order passes NEITHER Lines prop (the toggle has nothing to show)", () => {
+    mockState.order = makeOrder({ status: "ready_to_deliver", lines: [] });
+    mockState.validationResult = { passed: true, results: [] } as OrderValidationResult;
+    render(<OrderWorkshop orderId="ord-1" />);
+    expect(mockState.lastMapperProps!.outgoingHeaderExtra == null).toBe(true);
+    expect(mockState.lastMapperProps!.outgoingBodyOverride == null).toBe(true);
+    expect(screen.queryByTestId("lines-toggle")).toBeNull();
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Lines-view escape hatches — actions whose scroll targets are OUTPUT-FIELD row
+// anchors (which the Lines body-override unmounts) must first route back to
+// Fields instead of silently no-opping:
+//   • the IssuesPanel "Where →" field jump (onFocusField);
+//   • the status bar's ⋯ "Fill from catalog" (the workbench's scroll-to-hint).
+// Plus the jump-signal lifecycle: a consumed line jump must NOT replay when the
+// Lines view is re-entered.
+// ─────────────────────────────────────────────────────────────────────────────
+describe("Lines view — field-anchored actions route back to Fields; a jump is consumed once", () => {
+  const CLEAN_LINE = {
+    id: "l1", lineNumber: 1, buyerItemCode: "B-1", supplierItemCode: "S-1",
+    description: "Widget", quantity: 2, unitPrice: 10, confidence: 1,
+    needsReview: false,
+  } as Order["lines"][number];
+
+  test("'Where →' while Lines is active switches the middle column back to Fields", () => {
+    mockState.order = makeOrder({ lines: [CLEAN_LINE] });
+    // A failing header-side rule → a blocking card whose only action is "Where →".
+    mockState.validationResult = {
+      passed: false,
+      results: [
+        {
+          passed: false, severity: "error", lineNumber: 1,
+          rule: { fieldPath: "Quantity" },
+          title: "Quantity must be positive",
+          message: "Quantity (-3) failed rule: greater than 0",
+        } as OrderValidationResult["results"][number],
+      ],
+    } as OrderValidationResult;
+    render(<OrderWorkshop orderId="ord-1" />);
+
+    fireEvent.click(screen.getByRole("button", { name: /Lines · 1/ }));
+    expect(screen.getByTestId("lines-view")).toBeTruthy();
+
+    fireEvent.click(
+      screen.getAllByRole("button", { name: /show quantity must be positive in the mapper/i })[0],
+    );
+    // The override is gone → the mapper's output-row anchors are mounted again,
+    // so the focus effect (post-commit) scrolls to a real element.
+    expect(screen.queryByTestId("lines-view")).toBeNull();
+    expect(mockState.lastMapperProps!.outgoingBodyOverride == null).toBe(true);
+  });
+
+  test("'Fill from catalog' while Lines is active returns to Fields, then runs the workbench scroll", async () => {
+    mockState.fillFromCatalog = vi.fn();
+    mockState.order = makeOrder({ status: "ready_to_deliver", lines: [CLEAN_LINE] });
+    mockState.validationResult = { passed: true, results: [] } as OrderValidationResult;
+    render(<OrderWorkshop orderId="ord-1" />);
+
+    fireEvent.click(screen.getByRole("button", { name: /Lines · 1/ }));
+    expect(screen.getByTestId("lines-view")).toBeTruthy();
+
+    fireEvent.keyDown(screen.getByRole("button", { name: "More order tools" }), { key: "Enter" });
+    fireEvent.click(await screen.findByRole("menuitem", { name: /fill from catalog/i }));
+
+    // Back on Fields immediately (the anchors remount)…
+    expect(screen.queryByTestId("lines-view")).toBeNull();
+    // …and the workbench's own scroll runs only after that view has painted
+    // (deferred past this synchronous click, then observed via waitFor).
+    expect(mockState.fillFromCatalog).not.toHaveBeenCalled();
+    await waitFor(() => expect(mockState.fillFromCatalog).toHaveBeenCalledTimes(1));
+  });
+
+  test("a consumed line jump does not replay when Lines is re-entered", async () => {
+    const scrollSpy = vi.spyOn(Element.prototype, "scrollIntoView");
+    mockState.order = makeOrder({
+      lines: [
+        {
+          id: "l1", lineNumber: 1, buyerItemCode: "B-1", supplierItemCode: null,
+          description: "Widget", quantity: 2, unitPrice: 10, confidence: 0,
+          needsReview: true, aiSuggestion: null,
+        } as Order["lines"][number],
+      ],
+    });
+    mockState.exceptionCount = 1;
+    mockState.validationResult = { passed: true, results: [] } as OrderValidationResult;
+    render(<OrderWorkshop orderId="ord-1" />);
+
+    // The issue card's "Go to line 1" → Lines view + one scroll to the row.
+    fireEvent.click(screen.getAllByRole("button", { name: "Go to line 1" })[0]);
+    expect(screen.getByTestId("lines-view")).toBeTruthy();
+    await waitFor(() => expect(scrollSpy).toHaveBeenCalledTimes(1));
+
+    // Leave Lines, re-enter Lines. The signal was consumed → NO replayed scroll.
+    fireEvent.click(screen.getByRole("button", { name: "Fields" }));
+    expect(screen.queryByTestId("lines-view")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: /Lines · 1/ }));
+    expect(screen.getByTestId("lines-view")).toBeTruthy();
+    // Give the (would-be) double-rAF chain ample time to fire before asserting
+    // the negative: still exactly the one original scroll.
+    await new Promise((r) => setTimeout(r, 80));
+    expect(scrollSpy).toHaveBeenCalledTimes(1);
+    scrollSpy.mockRestore();
   });
 });
