@@ -23,7 +23,7 @@ vi.mock("next/navigation", () => ({
   useSearchParams: () => new URLSearchParams(),
 }));
 
-import { mapStatus, FAILED_BUCKET, STATUS_PRESENTATION } from "./InboxView";
+import { mapStatus, FAILED_BUCKET, STATUS_PRESENTATION, journeyStage } from "./InboxView";
 
 describe("every status the Failed chip counts renders as the Failed pill", () => {
   it.each(FAILED_BUCKET)("%s maps to the failed pill, not the `new` fall-through", (status) => {
@@ -39,12 +39,17 @@ describe("every status the Failed chip counts renders as the Failed pill", () =>
     expect(FAILED_BUCKET).toHaveLength(5);
   });
 
-  it("renders them at the failed stage, never stage 0", () => {
-    // "new" is stage 0 — the specific lie: a supplier-rejected order looking untouched.
-    expect(STATUS_PRESENTATION.failed.stage).toBe("failed");
+  it("renders them at a failed stage, never plain stage 0", () => {
+    // "new" is plain stage 0 — the specific lie: a supplier-rejected order looking
+    // untouched. The failed slot has NO preset stage (null): the node is derived
+    // per-row from the raw status via journeyStage — statusJourneyFailedStage.test.tsx
+    // pins which node each raw failure gets.
+    expect(STATUS_PRESENTATION.failed.stage).toBe(null);
     expect(STATUS_PRESENTATION.new.stage).toBe(0);
     for (const status of FAILED_BUCKET) {
-      expect(STATUS_PRESENTATION[mapStatus(status)].stage).not.toBe(0);
+      const stage = journeyStage(mapStatus(status), status);
+      expect(typeof stage).toBe("object"); // { failed: n }, distinguishable from plain 0
+      expect(stage).not.toBe(0);
     }
   });
 });
