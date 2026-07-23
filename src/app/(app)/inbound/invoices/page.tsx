@@ -241,7 +241,9 @@ export default function InvoicesPage() {
 
   return (
     <PageShell variant="wide">
+      {/* titleHidden: the topbar hub tab "Invoices" is the page name (sr-only h1 kept). */}
       <PageHeader
+        titleHidden
         title="Invoices"
         sub={subText}
         actions={uploadAction}

@@ -156,8 +156,10 @@ export default function ExceptionsPage() {
 
   return (
     <PageShell variant="wide">
-      {/* Page header */}
+      {/* Page header — titleHidden: the topbar hub tab "Exceptions" is the page
+          name (sr-only h1 kept); the explainer + live "N shown" line stays. */}
       <PageHeader
+        titleHidden
         title="Exceptions"
         sub={
           [

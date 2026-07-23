@@ -88,7 +88,10 @@ export default function AsnsPage() {
 
   return (
     <PageShell variant="wide">
+      {/* titleHidden: the topbar hub tab "Shipping notices" already names this
+          page ("Advance Shipping Notices" only re-announced it; sr-only h1 kept). */}
       <PageHeader
+        titleHidden
         title="Advance Shipping Notices"
         sub={isLoading && !isApiMockMode ? "Loading…" : `${asns.length} notice${asns.length !== 1 ? "s" : ""}`}
       />

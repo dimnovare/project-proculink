@@ -23,9 +23,57 @@ type PageHeaderProps = {
   /** Right-aligned actions (buttons, filters). Wraps to a new line on mobile. */
   actions?: React.ReactNode;
   className?: string;
+  /**
+   * Founder rule (2026-07): the active tab in the navy topbar IS the page
+   * name — a page never re-announces its own title below it. Pages whose title
+   * repeats their active topbar label (primary nav row: BridgeTopbar
+   * `TopNavLink` with aria-current; hub routes: the HubTabs strip BridgeTopbar
+   * renders in its context row via useHubRow) set this to keep the h1 for
+   * screen readers / heading queries while removing the visual title block.
+   * The sub + actions survive as a compact row; the HubEyebrow is skipped
+   * because on every hub route the topbar context row already leads with the
+   * same hub label (BridgeTopbar useHubRow prefixes HUB_LABELS[hub]).
+   */
+  titleHidden?: boolean;
 };
 
-export function PageHeader({ title, sub, actions, className }: PageHeaderProps) {
+export function PageHeader({ title, sub, actions, className, titleHidden }: PageHeaderProps) {
+  if (titleHidden) {
+    return (
+      <>
+        <h1 className="sr-only">{title}</h1>
+        {(sub || actions) && (
+          <div
+            className={[
+              "flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-6",
+              "mb-4 sm:mb-5",
+              className,
+            ]
+              .filter(Boolean)
+              .join(" ")}
+          >
+            {sub ? (
+              <p
+                className="min-w-0"
+                style={{ fontSize: 13, lineHeight: 1.45, color: "var(--ink-muted)", margin: 0 }}
+              >
+                {sub}
+              </p>
+            ) : (
+              // Left spacer so justify-between keeps a lone actions cluster right-aligned.
+              <span aria-hidden />
+            )}
+            {actions && (
+              <div className="flex items-center gap-2 flex-wrap sm:flex-shrink-0 sm:justify-end">
+                {actions}
+              </div>
+            )}
+          </div>
+        )}
+      </>
+    );
+  }
+
   return (
     <div
       className={[

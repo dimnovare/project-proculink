@@ -339,7 +339,12 @@ export default function ConnectorsPage() {
       `}</style>
 
       <PageShell variant="wide">
+        {/* titleHidden: the topbar hub tab "Connectors" is the page name
+            (sr-only h1 kept); the sub survives because it carries the real
+            instruction (read-only page — configure on the supplier's Delivery
+            tab), not a title echo. */}
         <PageHeader
+          titleHidden
           title="Connectors"
           /* offer⇔works: the live suppliers list carries no delivery-config signal,
              so a real "N connected" count is not derivable — it was always 0. Drop

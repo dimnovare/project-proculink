@@ -255,8 +255,11 @@ export function SupplierDockList() {
 
   return (
     <PageShell variant="wide">
-        {/* Page header — canonical PageHeader; New supplier = primary action (blue, per design source) */}
+        {/* Page header — titleHidden: the topbar already names this page (hub
+            tab "Suppliers" outbound / primary nav "Customers" inbound); sr-only
+            h1 keeps {plural}. Count line + New-supplier action stay. */}
         <PageHeader
+          titleHidden
           title={plural}
           sub={
             isLoading

@@ -830,8 +830,10 @@ function WebhooksLayout({
       `}</style>
 
       <PageShell variant="wide">
-        {/* Page header — canonical PageHeader */}
+        {/* Page header — titleHidden: the topbar hub tab "Webhooks" is the page
+            name (sr-only h1 kept); the live endpoint count + action stay. */}
         <PageHeader
+          titleHidden
           title="Webhooks"
           sub={`Push order events to your systems · ${rows.length} endpoint${rows.length !== 1 ? "s" : ""}`}
           actions={

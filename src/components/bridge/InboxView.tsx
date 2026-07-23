@@ -1016,8 +1016,11 @@ export function InboxView() {
   return (
     <PageShell variant="wide" className="flex flex-col">
 
-      {/* Page header — canonical PageHeader on the grey canvas, table floats below in a white card */}
+      {/* Page header — titleHidden: the topbar "Inbox" tab is the page name
+          (sr-only h1 kept); the live "what needs me?" line + Sync/Upload
+          actions stay as a compact row. */}
       <PageHeader
+          titleHidden
           title="Inbox"
           /* Header summary = the live "what needs me?" line. The total order count
              is shown ONCE, in the footer next to pagination — not duplicated here. */

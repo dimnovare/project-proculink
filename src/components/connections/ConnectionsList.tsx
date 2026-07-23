@@ -59,9 +59,12 @@ export function ConnectionsList() {
 
   return (
     <PageShell variant="wide">
+      {/* titleHidden: the topbar hub tab "Connections" is the page name (sr-only
+          h1 kept); the descriptive subtitle was title-filler and is dropped —
+          the action button stays. */}
       <PageHeader
+        titleHidden
         title="Connections"
-        sub="Each supplier's complete setup — how their orders are mapped, checked and delivered — with safe version history."
         actions={
           <Button variant="secondary" size="md" onClick={() => router.push("/library/suppliers")}>
             Manage suppliers
