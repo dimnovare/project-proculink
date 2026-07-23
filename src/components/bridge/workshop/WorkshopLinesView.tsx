@@ -28,6 +28,7 @@ import { useQuery } from "@tanstack/react-query";
 import { getSupplierCatalog } from "@/lib/api-client";
 import { useQueriesEnabled } from "@/hooks/useQueriesEnabled";
 import { useConfirm } from "@/components/ui/confirm";
+import { formatMoney } from "../review/orderDisplay";
 import type { Order, OrderLine } from "@/types/procurement";
 import {
   blockedLineCount,
@@ -165,7 +166,20 @@ export interface WorkshopLinesViewProps {
   bulkAccepting?: boolean;
   /** Bumped by an IssuesPanel line jump — expands + scrolls to that row. */
   jumpSignal?: { lineId: string; n: number } | null;
+  /**
+   * Called once the jump's scroll has actually run, so the host can clear the
+   * signal — an uncleared signal replays the last jump every time this view is
+   * remounted (leave Lines, re-enter Lines → scroll+flash to a stale row).
+   */
+  onJumpConsumed?: () => void;
 }
+
+/**
+ * An unrouted order (no supplier assigned yet) serializes its supplierId as
+ * Guid.Empty — there IS no supplier, so nothing in this view may claim anything
+ * about "this supplier's catalog".
+ */
+const EMPTY_GUID = "00000000-0000-0000-0000-000000000000";
 
 export function WorkshopLinesView({
   order,
@@ -175,11 +189,13 @@ export function WorkshopLinesView({
   onBulkApply,
   bulkAccepting,
   jumpSignal,
+  onJumpConsumed,
 }: WorkshopLinesViewProps) {
   const confirm = useConfirm();
   const queryEnabled = useQueriesEnabled();
   const lines = order.lines;
   const sym = currencyMark(order.currency);
+  const hasSupplier = !!order.supplierId && order.supplierId !== EMPTY_GUID;
 
   // Expanded rows (line ids). Only non-ready rows are expandable.
   const [expanded, setExpanded] = useState<ReadonlySet<string>>(new Set());
@@ -210,24 +226,46 @@ export function WorkshopLinesView({
     const raf = requestAnimationFrame(() =>
       requestAnimationFrame(() => {
         const el = rowEls.current[lineId];
-        el?.scrollIntoView?.({ block: "center", behavior: "smooth" });
-        el?.animate?.(
-          [{ background: "#FFF6E0" }, { background: "transparent" }],
-          { duration: 1100, easing: "ease-out" },
-        );
+        // prefers-reduced-motion → instant jump, no flash animation.
+        const reduceMotion =
+          typeof window !== "undefined" &&
+          typeof window.matchMedia === "function" &&
+          window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+        el?.scrollIntoView?.({ block: "center", behavior: reduceMotion ? "auto" : "smooth" });
+        if (!reduceMotion) {
+          el?.animate?.(
+            [{ background: "#FFF6E0" }, { background: "transparent" }],
+            { duration: 1100, easing: "ease-out" },
+          );
+        }
+        // Consume the signal only AFTER the scroll ran — consuming synchronously
+        // in the effect body would re-render with a null signal and cancel the
+        // pending frame above before it ever scrolled.
+        onJumpConsumed?.();
       }),
     );
     return () => cancelAnimationFrame(raf);
-  }, [jumpSignal]);
+  }, [jumpSignal, onJumpConsumed]);
 
   // The catalog list — the SAME key + shape as CatalogHintCard's probe (shared cache).
-  const { data: catalog, isLoading: catalogLoading } = useQuery({
+  // Never fired for an unrouted order (no supplier → no catalog to ask about).
+  const {
+    data: catalog,
+    isLoading: catalogLoading,
+    isError: catalogErrored,
+    isSuccess: catalogLoaded,
+    refetch: refetchCatalog,
+  } = useQuery({
     queryKey: ["supplier-catalog-codes", order.supplierId],
+    // Fetches the FIRST 1000 items only. The client-side search below filters
+    // just this loaded subset — CatalogPickPanel's no-match copy states that
+    // bound whenever total > loaded, instead of overclaiming a full search.
     queryFn: () => getSupplierCatalog(order.supplierId, undefined, 1000),
-    enabled: queryEnabled && catalogFor != null,
+    enabled: queryEnabled && catalogFor != null && hasSupplier,
     staleTime: 60_000,
     retry: 1,
   });
+  const catalogItems = catalog?.items ?? [];
   const catalogMatches = useMemo(() => {
     const items = catalog?.items ?? [];
     const q = catalogQuery.trim().toLowerCase();
@@ -277,8 +315,14 @@ export function WorkshopLinesView({
           <tbody>
             {lines.map((line) => {
               const status = lineChipStatus(line);
-              const open = expanded.has(line.id);
               const expandable = status !== "ready";
+              // `open` is DERIVED (expandable && in the expanded set), never stored:
+              // when a line resolves, `expandable` flips false and its panel closes
+              // in the same render — an expanded-set entry alone would leave the
+              // panel stuck open with no collapse affordance. Deriving at render
+              // also cannot leak across order switches (stale line ids of a
+              // previous order simply never match).
+              const open = expandable && expanded.has(line.id);
               const busy = acceptingLineId === line.id;
               return (
                 <LineRow
@@ -288,6 +332,7 @@ export function WorkshopLinesView({
                   open={open}
                   expandable={expandable}
                   busy={busy}
+                  catalogAvailable={hasSupplier}
                   rowRef={(el) => { rowEls.current[line.id] = el; }}
                   onToggle={() => expandable && toggle(line.id)}
                   onAccept={() => onAcceptSuggestion(line.id)}
@@ -300,6 +345,10 @@ export function WorkshopLinesView({
                     catalogFor === line.id ? (
                       <CatalogPickPanel
                         loading={catalogLoading}
+                        errored={catalogErrored}
+                        onRetry={() => refetchCatalog()}
+                        loaded={catalogLoaded}
+                        loadedCount={catalogItems.length}
                         total={catalog?.total ?? 0}
                         matches={catalogMatches}
                         query={catalogQuery}
@@ -335,20 +384,23 @@ export function WorkshopLinesView({
           flexWrap: "wrap",
         }}
       >
+        {/* Footer amounts render through the header's own formatMoney ("EUR 1,469.00")
+            so the two can never disagree on the same screen. Rendering only — the
+            match/mismatch verdict compared raw decimals in reconcileTotals. */}
         {verdict === "match" && (
           <span style={{ ...chipBase, background: C.greenSoft, color: C.green }}>
-            Σ lines {formatAmount(sum)} = order total ✔
+            Σ lines {formatMoney(order.currency, sum)} = order total ✔
           </span>
         )}
         {verdict === "mismatch" && (
           <span style={{ ...chipBase, background: C.amberSoft, color: C.amber }}>
-            Σ lines {formatAmount(sum)} · order total {formatAmount(order.grandTotal!)}
+            Σ lines {formatMoney(order.currency, sum)} · order total {formatMoney(order.currency, order.grandTotal!)}
           </span>
         )}
         {/* No stated total → the Σ alone, no equality claim (never fake a total). */}
         {verdict === "no-total" && (
           <span style={{ ...chipBase, background: "#F1F3F7", color: C.muted }}>
-            Σ lines {formatAmount(sum)}
+            Σ lines {formatMoney(order.currency, sum)}
           </span>
         )}
         {blocked > 0 && (
@@ -397,6 +449,7 @@ function LineRow({
   open,
   expandable,
   busy,
+  catalogAvailable,
   rowRef,
   onToggle,
   onAccept,
@@ -409,6 +462,8 @@ function LineRow({
   open: boolean;
   expandable: boolean;
   busy: boolean;
+  /** False for an unrouted order — no supplier means no catalog to pick from. */
+  catalogAvailable: boolean;
   rowRef: (el: HTMLTableRowElement | null) => void;
   onToggle: () => void;
   onAccept: () => void;
@@ -566,12 +621,16 @@ function LineRow({
                 <button
                   type="button"
                   onClick={onToggleCatalog}
-                  disabled={busy}
+                  // An unrouted order has NO supplier — the affordance stays visible
+                  // but honestly disabled instead of opening a panel that would talk
+                  // about a supplier's catalog that cannot exist yet.
+                  disabled={busy || !catalogAvailable}
+                  title={catalogAvailable ? undefined : "Assign a supplier first — a catalog belongs to a supplier"}
                   aria-expanded={catalogOpen}
                   style={{
                     border: `1px solid ${C.border}`,
                     background: catalogOpen ? "#F1F3F7" : "#FFFFFF",
-                    color: "#5E6779",
+                    color: catalogAvailable ? "#5E6779" : "#AEB6C4",
                     borderRadius: 7,
                     fontSize: 11.5,
                     fontWeight: 600,
@@ -579,7 +638,7 @@ function LineRow({
                     display: "inline-flex",
                     gap: 6,
                     alignItems: "center",
-                    cursor: busy ? "wait" : "pointer",
+                    cursor: busy ? "wait" : catalogAvailable ? "pointer" : "not-allowed",
                     whiteSpace: "nowrap",
                   }}
                 >
@@ -612,6 +671,10 @@ function LineRow({
 // ── The inline catalog picker (search the supplier's imported catalog, pick a code) ──
 function CatalogPickPanel({
   loading,
+  errored,
+  onRetry,
+  loaded,
+  loadedCount,
   total,
   matches,
   query,
@@ -620,6 +683,13 @@ function CatalogPickPanel({
   onPick,
 }: {
   loading: boolean;
+  /** The catalog query FAILED — the panel must not claim the catalog is empty. */
+  errored: boolean;
+  onRetry: () => void;
+  /** The catalog query SUCCEEDED — only then may the panel claim what the catalog holds. */
+  loaded: boolean;
+  /** How many items were actually fetched (≤ total) — the search runs over these only. */
+  loadedCount: number;
   total: number;
   matches: ReadonlyArray<{ id: string; code: string; name?: string | null }>;
   query: string;
@@ -661,15 +731,40 @@ function CatalogPickPanel({
         {loading && (
           <span style={{ fontSize: 11, color: C.faint, padding: "4px 2px" }}>Loading catalog…</span>
         )}
-        {!loading && total === 0 && (
+        {/* A FAILED probe says so — it never claims the catalog is empty. */}
+        {errored && (
+          <span style={{ fontSize: 11, color: C.red, padding: "4px 2px", lineHeight: 1.5, display: "inline-flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+            Couldn&rsquo;t load the catalog — try again.
+            <button
+              type="button"
+              onClick={onRetry}
+              style={{ border: `1px solid ${C.border}`, background: "#FFFFFF", color: "#5E6779", borderRadius: 6, fontSize: 11, fontWeight: 600, padding: "3px 9px", cursor: "pointer" }}
+            >
+              Retry
+            </button>
+          </span>
+        )}
+        {/* "No catalog yet — import one" ONLY on a SUCCESSFUL probe returning 0
+            rows. On error the total defaults to 0 too — `loaded` keeps that case
+            out of this definitive claim. */}
+        {loaded && total === 0 && (
           <span style={{ fontSize: 11, color: C.faint, padding: "4px 2px", lineHeight: 1.5 }}>
             No catalog for this supplier yet — import one on the supplier&rsquo;s Catalog tab, or
             type the code manually from the issue card.
           </span>
         )}
-        {!loading && total > 0 && matches.length === 0 && (
-          <span style={{ fontSize: 11, color: C.faint, padding: "4px 2px" }}>
-            No product matches &ldquo;{query}&rdquo;.
+        {/* The search only saw the loaded subset (first 1000) — when the catalog
+            holds more, the no-match copy must say which part was searched. */}
+        {loaded && total > 0 && matches.length === 0 && (
+          <span style={{ fontSize: 11, color: C.faint, padding: "4px 2px", lineHeight: 1.5 }}>
+            {loadedCount < total ? (
+              <>
+                Searched only the first {loadedCount.toLocaleString("en-IE")} of{" "}
+                {total.toLocaleString("en-IE")} catalog items — no match. Refine the search.
+              </>
+            ) : (
+              <>No product matches &ldquo;{query}&rdquo;.</>
+            )}
           </span>
         )}
         {!loading &&

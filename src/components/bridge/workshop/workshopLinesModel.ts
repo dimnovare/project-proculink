@@ -95,9 +95,15 @@ export function bulkApplyEnabled(
   return bulkApplySuggestionCount(lines) > 0;
 }
 
-/** Fixed 2-decimal amount for the mono table cells (e.g. "89.90"). */
+/**
+ * Locale-grouped 2-decimal amount for the mono table cells and footer chips
+ * (e.g. "1,469.00") — the SAME en-IE grouping orderDisplay.formatMoney uses for
+ * the header total, so the header and the Lines view can never disagree on how
+ * the same number is grouped. Rendering only: the reconcile comparison
+ * (reconcileTotals) runs on raw decimals, never on formatted strings.
+ */
 export function formatAmount(n: number): string {
-  return n.toFixed(2);
+  return n.toLocaleString("en-IE", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
 /**

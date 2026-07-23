@@ -12,6 +12,7 @@ import {
   currencyMark,
   formatAmount,
 } from "./workshopLinesModel";
+import { formatMoney } from "../review/orderDisplay";
 import type { OrderLine } from "@/types/procurement";
 
 // Minimal line factory — only the fields the model reads.
@@ -134,9 +135,17 @@ describe("bulk apply — scope and disabled rule", () => {
 });
 
 describe("display helpers", () => {
-  it("formats amounts with two decimals", () => {
+  it("formats amounts with two decimals and en-IE thousand grouping", () => {
     expect(formatAmount(89.9)).toBe("89.90");
     expect(formatAmount(345.93)).toBe("345.93");
+    expect(formatAmount(1469)).toBe("1,469.00");
+    expect(formatAmount(12345.6)).toBe("12,345.60");
+  });
+
+  it("renders the same digits the header's formatMoney renders for the same amount", () => {
+    // The founder bug: footer "1469.00" vs header "EUR 1,469.00" on one screen.
+    // Pin the two formatters to identical grouping for a 2-decimal amount.
+    expect(formatMoney("EUR", 1469)).toBe(`EUR ${formatAmount(1469)}`);
   });
 
   it("marks common currencies with a symbol and falls back to the code", () => {

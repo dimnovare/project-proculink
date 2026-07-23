@@ -244,17 +244,24 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
   // (onToolbarState) so the consolidated status bar can re-host the same
   // controls (mapped count, save state, layout/template/catalog/connections).
   const [mapperToolbar, setMapperToolbar] = useState<MapperToolbarState | null>(null);
+
+  // ── Middle-column view: "Fields" (the existing mapper, default + unchanged) vs
+  //    "Lines" (per-line mapping visibility — one row per order line). The toggle
+  //    renders in the "What we'll send" pane header, only when the order has lines. ─
+  const [midView, setMidView] = useState<"fields" | "lines">("fields");
+
   const onFocusField = useCallback((ref: string) => {
+    // The Lines body-override unmounts every output-row anchor this jump scrolls
+    // to — route back to Fields first. Both setState calls batch into ONE commit,
+    // and the mapper consumes the signal in an effect (post-commit), so the
+    // anchors exist by the time it scrolls. No-op when Fields is already active.
+    setMidView("fields");
     setFocusFieldId(ref);
     setFocusSignal((n) => n + 1);
     // Always show the mapper columns when jumping to a field.
     lay.setFocus("all");
   }, [lay]);
 
-  // ── Middle-column view: "Fields" (the existing mapper, default + unchanged) vs
-  //    "Lines" (per-line mapping visibility — one row per order line). The toggle
-  //    renders in the "What we'll send" pane header, only when the order has lines. ─
-  const [midView, setMidView] = useState<"fields" | "lines">("fields");
   // An IssuesPanel line jump: switch to Lines and expand + scroll to that row.
   // Bumped signal so the same line can be re-jumped on a repeat click.
   const [lineJump, setLineJump] = useState<{ lineId: string; n: number } | null>(null);
@@ -262,6 +269,27 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
     setMidView("lines");
     setLineJump((prev) => ({ lineId, n: (prev?.n ?? 0) + 1 }));
   }, []);
+  // The Lines view reports the jump's scroll as done → clear the signal. Leaving
+  // it set replays the last jump (scroll + flash to a stale row) every time the
+  // Lines view is re-entered, because re-entering REMOUNTS the view.
+  const onLineJumpConsumed = useCallback(() => setLineJump(null), []);
+
+  // The status bar's "Fill from catalog" is the workbench's scroll-to-first-hint —
+  // another action whose output-row target the Lines override unmounts. Wrap it so
+  // it first returns to Fields, then runs the workbench's own scroll after that
+  // view has committed and painted (double rAF — the same deferral the Lines jump
+  // uses). When Fields is already active the wrap is just a deferred call.
+  const statusBarMapper = useMemo<MapperToolbarState | null>(() => {
+    if (!mapperToolbar?.fillFromCatalog) return mapperToolbar;
+    const fill = mapperToolbar.fillFromCatalog;
+    return {
+      ...mapperToolbar,
+      fillFromCatalog: () => {
+        setMidView("fields");
+        requestAnimationFrame(() => requestAnimationFrame(fill));
+      },
+    };
+  }, [mapperToolbar]);
 
   // ── Order details drawer (audit / standards / supplier response) ────────────
   //    Secondary, lower-frequency trust surfaces relocated from the old screen's
@@ -725,7 +753,7 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
           onResolveAll={issuesResolve.bulkAcceptSuggestions ? () => issuesResolve.bulkAcceptSuggestions!(0) : undefined}
           resolveAllCount={suggestableCount}
           resolving={issuesResolve.bulkAccepting}
-          mapper={mapperToolbar}
+          mapper={statusBarMapper}
           pipeline={<WorkshopStepper stage={stepperStage} failed={stepperFailed} />}
         />
       </div>
@@ -783,6 +811,7 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
                   }
                   bulkAccepting={issuesResolve.bulkAccepting}
                   jumpSignal={lineJump}
+                  onJumpConsumed={onLineJumpConsumed}
                 />
               ) : undefined
             }
