@@ -479,14 +479,6 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
             ? "This order may have been delivered and archived, or the link is out of date."
             : "Something went wrong loading this order. Try again in a moment."}
         </p>
-        <button
-          type="button"
-          onClick={() => router.push("/inbox")}
-          className="rounded-[7px] px-4 text-[12.5px] font-semibold"
-          style={{ height: 36, background: "#0B1A2F", color: "#FFFFFF", border: 0, marginTop: 4 }}
-        >
-          ← Back to inbox
-        </button>
       </div>
       </WorkshopGateShell>
     );
