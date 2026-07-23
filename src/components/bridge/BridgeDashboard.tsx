@@ -726,9 +726,16 @@ export function BridgeDashboard() {
     });
   const needsYouRows = needsYouAll.slice(0, 6);
   // ONE blockers number feeds both the context line and the "Needs you" section
-  // head, so the two can never drift. null until the source query settles — the
-  // context line hides the segment rather than flashing "All clear" or a 0.
-  const blockersCount = !ordersLoading && !ordersError ? needsYouAll.length : null;
+  // head, so the two can never drift. null until the source query has actually
+  // SETTLED WITH DATA — the context line hides the segment rather than flashing
+  // "All clear" or a 0. "!isLoading" alone is NOT settlement: a Clerk cold-mount
+  // disabled query reports isLoading=false with no data in TanStack v5
+  // (enabled:false never enters loading), so it must also require queryEnabled
+  // and a real ordersPage before trusting needsYouAll.length.
+  const blockersCount =
+    queryEnabled && ordersPage !== undefined && !ordersLoading && !ordersError
+      ? needsYouAll.length
+      : null;
 
   // ── "Ready to send" rows — validated orders with nothing blocking ─────────
   const readyRows = allOrders.filter((o) => o.status === "ready" || o.status === "ready_to_deliver");
