@@ -27,7 +27,7 @@ import {
 import { FileChip } from "./FileChip";
 import { PageHeader } from "./layout/PageHeader";
 import { PageShell } from "./layout/PageShell";
-import { StatusJourney, type CrossingStatus, type OrderStage } from "./StatusJourney";
+import { StatusJourney, failedStageFor, isFailureStatus, type CrossingStatus, type OrderStage } from "./StatusJourney";
 import { UnifiedStatusBadge } from "@/components/bridge/UnifiedStatusBadge";
 import { tv2DotColor } from "@/components/bridge/layout/listTableV2";
 import { useOrderDirection, type PartyLabels } from "@/hooks/useOrderDirection";
@@ -87,9 +87,13 @@ const INK        = NAVY;      // alias kept for existing references
 //                    and in flight right now. Labelled "Sending" to match
 //                    STATUS_META.delivering, and NOT "Ready to send" (it is past
 //                    that) nor "Delivered" (the supplier does not have it yet).
+// `stage: null` = "no single stage": the collapsed `failed` slot folds five raw
+// failure statuses that failed at DIFFERENT nodes, so its journey stage must be
+// derived per-row from rawStatus (journeyStage below) — a constant here could only
+// hardcode one node for all five, which is the bug this replaced.
 export const STATUS_PRESENTATION: Record<
   CrossingStatus,
-  { key: string; label: string; stage: OrderStage }
+  { key: string; label: string; stage: OrderStage | null }
 > = {
   new:        { key: "new",        label: "New",            stage: 0 },
   extracting: { key: "extracting", label: "Extracting",     stage: 1 },
@@ -101,8 +105,25 @@ export const STATUS_PRESENTATION: Record<
   sending:    { key: "sending",    label: "Sending",        stage: 4 },
   held:       { key: "held",       label: "Delivery paused", stage: 4 },
   unconfirmed: { key: "unconfirmed", label: "Delivery unknown", stage: 4 },
-  failed:     { key: "failed",     label: "Failed",         stage: "failed" },
+  failed:     { key: "failed",     label: "Failed",         stage: null },
 };
+
+/**
+ * Journey stage for one inbox row. Non-failed statuses have a fixed stage
+ * (STATUS_PRESENTATION); a failed row derives its node from the RAW status —
+ * `transform_failed` puts the X on Transform, the three delivery failures on
+ * Deliver, bare `failed` (the parse-terminal status) on Parse.
+ */
+export function journeyStage(status: CrossingStatus, rawStatus: string): OrderStage {
+  const preset = STATUS_PRESENTATION[status].stage;
+  if (preset !== null) return preset;
+  // status === "failed" here, and mapStatus only returns "failed" for the five
+  // FAILURE_JOURNEY_STAGE keys, so the guard passes for every reachable row. The
+  // fallback exists for an out-of-contract raw status (a sixth backend failure
+  // status this mirror hasn't learned): render it as failed-at-Deliver — where
+  // three of the five known failure classes live — rather than crash.
+  return isFailureStatus(rawStatus) ? failedStageFor(rawStatus) : { failed: 4 };
+}
 
 // Soft rounded pill with leading colored dot — renders the ported .pill / .pill-*
 // design classes so colours/spacing track tokens.css exactly.
@@ -569,7 +590,7 @@ function buildColumns(labels: PartyLabels) {
     header: "Pipeline",
     cell: (info) => (
       <div style={{ minWidth: 132, maxWidth: 176 }}>
-        <StatusJourney stage={STATUS_PRESENTATION[info.getValue()].stage} compact />
+        <StatusJourney stage={journeyStage(info.getValue(), info.row.original.rawStatus)} compact />
       </div>
     ),
     meta: { label: "Pipeline" },

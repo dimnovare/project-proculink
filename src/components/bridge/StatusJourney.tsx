@@ -4,9 +4,39 @@
 // full       = 18px nodes + labels (tokens.css .journey.full .jn)
 // crossingRef (optional) — adds "Stage N of 5 · {ref}" sub-label above full variant
 
-export type OrderStage = 0 | 1 | 2 | 3 | 4 | "failed";
+export type FailedStage = 0 | 1 | 2 | 3 | 4;
+// A failure carries the node it failed AT (`{ failed: 3 }` = failed at Transform).
+// The old bare `"failed"` variant carried no stage, so every renderer hardcoded the
+// red X to node 2 (Validate) — a delivery failure drew as a validation failure.
+export type OrderStage = FailedStage | { failed: FailedStage };
 
 const STAGES = ["Parse", "Normalize", "Validate", "Transform", "Deliver"] as const;
+
+// Which pipeline node each failure status points at — the backend producers, not a
+// FE guess: bare `failed` is the PARSE-terminal status (ParseOrderJob.cs:67-73 refuses
+// it as "Parse failed: … terminal status"; StuckOrderDetectionService.cs:193-195 writes
+// it only for a `parsing` strand, while a `transforming` strand recovers to `ready`,
+// never `failed`, :143-156; the transition table's own words are "Failed parse:
+// re-parse", OrderStatusTransitionObserver.cs:159). Keys mirror the backend's
+// OrderStatusConstants.FailureBucket — statusJourneyFailedStage.test.tsx pins this
+// map against InboxView's FAILED_BUCKET so the two cannot drift.
+export const FAILURE_JOURNEY_STAGE = {
+  failed: 0,
+  transform_failed: 3,
+  delivery_failed: 4,
+  delivery_dead_letter: 4,
+  rejected_by_supplier: 4,
+} as const satisfies Record<string, FailedStage>;
+
+export type FailureStatus = keyof typeof FAILURE_JOURNEY_STAGE;
+
+export function isFailureStatus(status: string): status is FailureStatus {
+  return status in FAILURE_JOURNEY_STAGE;
+}
+
+export function failedStageFor(status: FailureStatus): OrderStage {
+  return { failed: FAILURE_JOURNEY_STAGE[status] };
+}
 
 interface StatusJourneyProps {
   stage: OrderStage;
@@ -16,16 +46,19 @@ interface StatusJourneyProps {
 }
 
 export function StatusJourney({ stage, compact = false, crossingRef }: StatusJourneyProps) {
-  const failed = stage === "failed";
+  // failedAt: the node the failure sits on (null when the order is progressing).
+  // numericStage: -1 on a failed journey so no node reads done/active.
+  const failedAt = typeof stage === "object" ? stage.failed : null;
+  const numericStage = typeof stage === "number" ? stage : -1;
 
   if (compact) {
     // tokens.css .journey.compact .jn { width:11px; height:11px }
     return (
       <div className="flex items-center">
         {STAGES.map((_, i) => {
-          const done   = !failed && (stage as number) > i;
-          const active = !failed && (stage as number) === i;
-          const errDot = failed && i === 2;
+          const done   = numericStage > i;
+          const active = numericStage === i;
+          const errDot = failedAt === i;
           return (
             <div key={i} className="flex items-center">
               {i > 0 && (
@@ -34,7 +67,7 @@ export function StatusJourney({ stage, compact = false, crossingRef }: StatusJou
                     height: 1.5,
                     minWidth: 12,
                     flex: 1,
-                    background: i <= (stage as number) && !failed ? "#2E8E3A" : "#CBD0DA",
+                    background: i <= numericStage ? "#2E8E3A" : "#CBD0DA",
                   }}
                 />
               )}
@@ -63,7 +96,7 @@ export function StatusJourney({ stage, compact = false, crossingRef }: StatusJou
   }
 
   // Full — tokens.css .journey.full .jn { width:18px; height:18px }
-  const stageNum = failed ? 2 : (stage as number) + 1; // 1-indexed for display
+  const stageNum = (failedAt ?? numericStage) + 1; // 1-indexed for display
   return (
     <div className="w-full max-w-[720px] mx-auto">
       {/* Optional sub-label */}
@@ -76,9 +109,9 @@ export function StatusJourney({ stage, compact = false, crossingRef }: StatusJou
       )}
       <div className="flex items-center">
         {STAGES.map((label, i) => {
-          const done   = !failed && (stage as number) > i;
-          const active = !failed && (stage as number) === i;
-          const err    = failed && i === 2;
+          const done   = numericStage > i;
+          const active = numericStage === i;
+          const err    = failedAt === i;
           return (
             <div key={i} className="flex items-center flex-1 last:flex-none">
               {i > 0 && (
@@ -87,7 +120,7 @@ export function StatusJourney({ stage, compact = false, crossingRef }: StatusJou
                     flex: 1,
                     height: 1.5,
                     minWidth: 26,
-                    background: i <= (stage as number) && !failed ? "#2E8E3A" : "#CBD0DA",
+                    background: i <= numericStage ? "#2E8E3A" : "#CBD0DA",
                   }}
                 />
               )}
@@ -196,7 +229,10 @@ const STATUS_PILL: Record<CrossingStatus, { bg: string; color: string; dot: stri
   unconfirmed: { bg: "#FAF1DD", color: "#8A5310", dot: "#B36D14",  label: "Delivery unknown" },
 };
 
-const STATUS_STAGE: Record<CrossingStatus, OrderStage> = {
+// `failed` is deliberately absent: the collapsed CrossingStatus cannot know WHICH
+// node failed — that lives on the raw backend status (FAILURE_JOURNEY_STAGE), so
+// StatusCell demands `rawStatus` for failed rows instead of guessing a node.
+const STATUS_STAGE: Record<Exclude<CrossingStatus, "failed">, OrderStage> = {
   new:        0,
   extracting: 1,
   // Stage 1: extraction finished, but normalisation cannot start without a supplier to
@@ -213,16 +249,19 @@ const STATUS_STAGE: Record<CrossingStatus, OrderStage> = {
   // Stage 4, same reasoning: an unconfirmed order also reached Deliver — it was
   // (probably) sent — before the crash lost the outcome.
   unconfirmed: 4,
-  failed:     "failed",
 };
 
-interface StatusCellProps {
-  status: CrossingStatus;
-}
+// A failed row must say which raw failure status it carries — the collapsed pill
+// alone cannot place the X (see STATUS_STAGE above).
+type StatusCellProps =
+  | { status: Exclude<CrossingStatus, "failed">; rawStatus?: never }
+  | { status: "failed"; rawStatus: FailureStatus };
 
-export function StatusCell({ status }: StatusCellProps) {
-  const pill  = STATUS_PILL[status];
-  const stage = STATUS_STAGE[status];
+export function StatusCell(props: StatusCellProps) {
+  const pill  = STATUS_PILL[props.status];
+  const stage = props.status === "failed"
+    ? failedStageFor(props.rawStatus)
+    : STATUS_STAGE[props.status];
   return (
     <div className="flex items-center gap-2">
       <span

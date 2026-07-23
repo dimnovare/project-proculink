@@ -20,7 +20,7 @@ import { WireTopology } from "./WireTopology";
 import type { WireBuyer, WireSupplier, Wire } from "./WireTopology";
 import { FileChip } from "./FileChip";
 import { statusLabel } from "./UnifiedStatusBadge";
-import { StatusJourney } from "./StatusJourney";
+import { StatusJourney, failedStageFor, isFailureStatus } from "./StatusJourney";
 import type { OrderStage } from "./StatusJourney";
 import { LaneDrawer } from "./LaneDrawer";
 import type { Lane } from "./LaneDrawer";
@@ -179,11 +179,16 @@ const STAGE_COLOR: Record<string, string> = {
 
 /**
  * Maps an in-transit row to a {@link StatusJourney} stage on the
- * Parse → Normalize → Validate → Transform → Deliver track (0–4 | "failed").
+ * Parse → Normalize → Validate → Transform → Deliver track (0–4 | failed-at-node).
  * Accepts both raw API statuses (live rows) and the short stage labels used by
  * the mock-fallback rows, mirroring the design's per-row mini-stepper.
+ * Exported for statusJourneyFailedStage.test.tsx only.
  */
-function journeyStageFor(stage: string): OrderStage {
+export function journeyStageFor(stage: string): OrderStage {
+  // Any raw failure status gets its node from the shared map — today only
+  // delivery_failed is in ACTIVE_STATUSES, but an expansion of that set must
+  // not fall through to the `default: 0` (X at Parse) below.
+  if (isFailureStatus(stage)) return failedStageFor(stage);
   switch (stage) {
     case "parsing":
     case "pending_parse":
@@ -199,8 +204,9 @@ function journeyStageFor(stage: string): OrderStage {
     case "Delivering":
     case "Ready":
     case "Deliver":        return 4;
-    case "delivery_failed":
-    case "Failed":         return "failed";
+    // The "Failed" label reaches here only from delivery_failed — stageLabel's
+    // single "Failed" case — so the label pins to the Deliver node too.
+    case "Failed":         return failedStageFor("delivery_failed");
     default:               return 0;
   }
 }
