@@ -42,6 +42,7 @@ import { useResolveActions } from "../review/hooks/useResolveActions";
 import { useAcceptanceValidation } from "../review/hooks/useAcceptanceValidation";
 import { useSendFlow } from "../review/hooks/useSendFlow";
 import { useWorkshopLayout, type WorkshopFocus } from "./useWorkshopLayout";
+import { InboxBackChip, WorkshopGateShell, poTitleFrom } from "./WorkshopGateChrome";
 import { IssuesPanel, type WorkshopIssue, type IssuesResolveApi } from "./IssuesPanel";
 import { WorkshopLinesView, WorkshopLinesToggle } from "./WorkshopLinesView";
 import { showLinesToggle } from "./workshopLinesModel";
@@ -436,9 +437,9 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
   // yet) — the header then hides the value entirely rather than showing "€ 0.00".
   const grandTotalLabel = order ? orderGrandTotalLabel(order) : "";
   // Visible header title = the PO number ("PO 4091678643"). No double prefix when
-  // the extracted number already starts with "PO"; "Order" when it is empty.
-  const poNumber = order?.poNumber ?? "";
-  const poTitle = poNumber.trim() ? (/^\s*po\b/i.test(poNumber) ? poNumber : `PO ${poNumber}`) : "Order";
+  // the extracted number already starts with "PO" (including separator-less
+  // "PO12345"); "Order" when it is empty. Shared with the gate headers.
+  const poTitle = poTitleFrom(order?.poNumber);
   const outputFormatLabel = order ? outputArtifactType(order.artifacts) : "";
   // The supplier's ACTUAL delivery output format — used in the Send confirmation
   // modal so it always reflects what will be delivered, not whichever format the
@@ -447,15 +448,22 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
   const sendModalFormat = (order ? orderDeliveryFormat(order) : "") || outputFormatLabel;
 
   // ── Loading / error gates (after all hooks) ─────────────────────────────────
+  //    Every gate return below wraps itself in WorkshopGateShell: BridgeTopbar
+  //    suppresses its breadcrumb on this route, so the shell's compact header
+  //    (← Inbox · PO number · status badge where known) is the ONLY navigation
+  //    context these states have.
   if (!queryEnabled || isLoading || order === undefined)
     return (
-      <BridgePageLoader
-        label="Preparing your order…"
-        sub="Reading your file and preparing it for review."
-      />
+      <WorkshopGateShell>
+        <BridgePageLoader
+          label="Preparing your order…"
+          sub="Reading your file and preparing it for review."
+        />
+      </WorkshopGateShell>
     );
   if (isError || order === null) {
     return (
+      <WorkshopGateShell>
       <div className="flex flex-col items-center justify-center h-full gap-3.5 px-6 text-center" style={{ background: "#F6F7FA" }}>
         <span style={{ width: 56, height: 56, borderRadius: "50%", background: "#FFFFFF", border: "1px solid #E5E8EE", display: "inline-flex", alignItems: "center", justifyContent: "center" }}>
           <svg width="26" height="26" viewBox="0 0 24 24" fill="none" aria-hidden>
@@ -480,6 +488,7 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
           ← Back to inbox
         </button>
       </div>
+      </WorkshopGateShell>
     );
   }
 
@@ -488,27 +497,47 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
   //    through to the normal mapper. Ported from the legacy SpineReview; reuses
   //    the KEPT FailedPanels.tsx. All hooks above have already run. ────────────
   if (order.status === "failed") {
-    return <ParseFailedPanel order={order} auditEvents={auditEvents} />;
+    return (
+      <WorkshopGateShell poNumber={order.poNumber} status={order.status}>
+        <ParseFailedPanel order={order} auditEvents={auditEvents} />
+      </WorkshopGateShell>
+    );
   }
   if (order.status === "transform_failed") {
-    return <FailedPanel order={order} stage="transform" />;
+    return (
+      <WorkshopGateShell poNumber={order.poNumber} status={order.status}>
+        <FailedPanel order={order} stage="transform" />
+      </WorkshopGateShell>
+    );
   }
   if (order.status === "delivery_failed") {
-    return <FailedPanel order={order} stage="delivery" />;
+    return (
+      <WorkshopGateShell poNumber={order.poNumber} status={order.status}>
+        <FailedPanel order={order} stage="delivery" />
+      </WorkshopGateShell>
+    );
   }
   // Not a failure gate — a PAUSE gate, kept in this chain because it has the same
   // job: stop a status that the normal mapper would misrepresent. A held order
   // would otherwise render a live Send button that answers 400 (delivery_held is
   // not in the backend's RedeliverableFrom), with billing never mentioned.
   if (order.status === "delivery_held") {
-    return <BillingHeldPanel order={order} />;
+    return (
+      <WorkshopGateShell poNumber={order.poNumber} status={order.status}>
+        <BillingHeldPanel order={order} />
+      </WorkshopGateShell>
+    );
   }
   // Also a PAUSE gate, same reasoning as delivery_held directly above — but the
   // resolution differs: a crash lost the outcome (not billing), so there is no
   // single global fix to link to. The panel offers the two per-order actions
   // (send again / mark delivered) instead of one "go fix this" link.
   if (order.status === "delivery_unconfirmed") {
-    return <DeliveryUnconfirmedPanel order={order} />;
+    return (
+      <WorkshopGateShell poNumber={order.poNumber} status={order.status}>
+        <DeliveryUnconfirmedPanel order={order} />
+      </WorkshopGateShell>
+    );
   }
 
   // ── Parsing gate — the order page is opened the instant the upload redirects,
@@ -520,30 +549,26 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
   //    real review the moment the parse completes — no manual refresh needed. ──
   if (order.status === "parsing") {
     return (
-      <div
-        className="flex flex-col items-center justify-center h-full gap-5 px-6 text-center"
-        style={{ background: "#F6F7FA" }}
-        data-testid="order-parsing"
-      >
-        <BridgeLoader size={92} fullScreen={false} />
-        <div style={{ maxWidth: 400 }}>
-          <p className="text-[16px] font-semibold" style={{ color: "#0B1A2F", letterSpacing: "-0.01em" }}>
-            We&rsquo;re reading your order…
-          </p>
-          <p className="text-[13px]" style={{ color: "#5E6779", marginTop: 7, lineHeight: 1.55 }}>
-            We&rsquo;re reading your file and preparing it for review.
-            This usually takes a few seconds — the page updates on its own.
-          </p>
-          {order.poNumber && (
-            <p
-              className="text-[12px]"
-              style={{ color: "var(--ink-faint)", marginTop: 12, fontFamily: "'JetBrains Mono',monospace" }}
-            >
-              {order.poNumber}
+      <WorkshopGateShell poNumber={order.poNumber} status={order.status}>
+        <div
+          className="flex flex-col items-center justify-center h-full gap-5 px-6 text-center"
+          style={{ background: "#F6F7FA" }}
+          data-testid="order-parsing"
+        >
+          <BridgeLoader size={92} fullScreen={false} />
+          <div style={{ maxWidth: 400 }}>
+            <p className="text-[16px] font-semibold" style={{ color: "#0B1A2F", letterSpacing: "-0.01em" }}>
+              We&rsquo;re reading your order…
             </p>
-          )}
+            <p className="text-[13px]" style={{ color: "#5E6779", marginTop: 7, lineHeight: 1.55 }}>
+              We&rsquo;re reading your file and preparing it for review.
+              This usually takes a few seconds — the page updates on its own.
+            </p>
+            {/* The PO number that used to sit here in small mono now lives in the
+                gate header above — one identity surface, not two. */}
+          </div>
         </div>
-      </div>
+      </WorkshopGateShell>
     );
   }
 
@@ -557,29 +582,18 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
       <div className="flex-shrink-0" style={{ background: "#FFFFFF", borderBottom: "1px solid #E5E8EE" }}>
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 px-4 lg:px-6" style={{ minHeight: 54, paddingTop: 5, paddingBottom: 5 }}>
           {/* Back chip — same target + aria as the old icon-only button; ≥44px hit
-              area around the compact visible chip. */}
-          <button
-            onClick={() => router.push("/inbox")}
-            aria-label="Back to inbox"
-            className="plk-back"
-            style={{ minWidth: 44, minHeight: 44, padding: 0, marginInline: -6, border: 0, background: "transparent", color: "#5E6779", cursor: "pointer", flexShrink: 0, display: "inline-flex", alignItems: "center", justifyContent: "center" }}
-          >
-            <span
-              aria-hidden
-              className="plk-back-box"
-              style={{ height: 30, padding: "0 10px", border: "1px solid #E5E8EE", borderRadius: 8, background: "#FFFFFF", display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12, fontWeight: 600, whiteSpace: "nowrap", transition: "border-color .12s, background .12s" }}
-              onMouseEnter={(e) => { e.currentTarget.style.borderColor = "#1E66C9"; e.currentTarget.style.background = "#EAF0F8"; }}
-              onMouseLeave={(e) => { e.currentTarget.style.borderColor = "#E5E8EE"; e.currentTarget.style.background = "#FFFFFF"; }}
-            >
-              ← Inbox
-            </span>
-          </button>
+              area around the compact visible chip. Shared with the gate panels
+              (WorkshopGateChrome). */}
+          <InboxBackChip />
           {/* The page keeps ONE h1 — the old title sentence, screen-reader only. */}
           <h1 className="sr-only">Review and send this order</h1>
-          {/* Visible title = the PO number itself (full number; raw number on title). */}
+          {/* Visible title = the PO number itself (full number; raw number on title).
+              min-width 0 + ellipsis so a long PO number truncates gracefully in the
+              flex row at 390px instead of hard-clipping (restores the pre-compression
+              truncation contract). */}
           <span
             title={order.poNumber}
-            style={{ fontFamily: "'Bricolage Grotesque',Inter,sans-serif", fontSize: 18, fontWeight: 800, letterSpacing: "-0.02em", color: "#0B1A2F", lineHeight: 1.15, whiteSpace: "nowrap" }}
+            style={{ fontFamily: "'Bricolage Grotesque',Inter,sans-serif", fontSize: 18, fontWeight: 800, letterSpacing: "-0.02em", color: "#0B1A2F", lineHeight: 1.15, whiteSpace: "nowrap", minWidth: 0, maxWidth: "100%", overflow: "hidden", textOverflow: "ellipsis" }}
           >
             {poTitle}
           </span>

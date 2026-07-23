@@ -520,15 +520,23 @@ export function BridgeTopbar({ crumb, onMenuClick }: BridgeTopbarProps) {
   const router = useRouter();
   const pathname = usePathname();
   const { items: navItems, tail: navTail, reviewCount } = useTopNav();
+  // Direction-aware counterparty word for the hub strip's Suppliers tab —
+  // inbound orgs are relabeled "Customers" everywhere else (buildVisibleNav,
+  // the suppliers page's sr-only h1), and on mobile this strip is the ONLY
+  // surface naming the page, so it must carry the same word.
+  const { labels: directionLabels } = useOrderDirection();
   const { orgName, planLabel, activePlan } = useWorkspaceCardData();
   const adminItem = navTail.find((t) => t.href === "/admin");
   const autoCrumb = useAutoCrumb();
   const hubRow = useHubRow();
   const mobileLabel = useMobilePageLabel();
-  // The Order Workshop (/inbox/[orderId]) compresses its chrome: its own header
-  // row carries a "← Inbox" back chip + the PO number as the visible title
-  // (OrderWorkshop.tsx, Row 1), so this context row would only duplicate the
-  // same 2-level path — skip it there to give the mapper the vertical space.
+  // The Order Workshop (/inbox/[orderId]) compresses its chrome: EVERY state of
+  // that page carries its own "← Inbox" back chip + the PO number as the visible
+  // title — the healthy mapper via its Row 1 (OrderWorkshop.tsx) and the gate
+  // states (parse/transform/delivery failures, holds, parking, loading) via the
+  // shared WorkshopGateShell header (WorkshopGateChrome.tsx) — so this context
+  // row would only duplicate the same 2-level path. Skip it there to give the
+  // mapper the vertical space.
   const onOrderWorkshop = /^\/inbox\/[^/]+/.test(pathname);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
@@ -876,7 +884,7 @@ export function BridgeTopbar({ crumb, onMenuClick }: BridgeTopbarProps) {
                 <HubRowSeparator />
               </nav>
             )}
-            <HubTabs hub={hubRow.hub} variant="topbar" />
+            <HubTabs hub={hubRow.hub} variant="topbar" counterpartyPlural={directionLabels.counterpartyPlural} />
             {hubRow.tail.length > 0 && (
               <span className="flex min-w-0 items-center">
                 {hubRow.tail.map((c, i) => (

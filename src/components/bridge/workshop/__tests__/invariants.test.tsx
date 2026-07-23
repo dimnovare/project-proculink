@@ -735,6 +735,28 @@ describe("chrome compression — Row 1 identity header + Row 2 status bar", () =
     expect(screen.getByText("PO 4091678643").getAttribute("title")).toBe("4091678643");
   });
 
+  test("a separator-less 'PO12345' number is not double-prefixed", () => {
+    mountClean("PO12345");
+    // The number renders on more than one surface (Row 1 title + MobileTriage,
+    // which jsdom cannot hide) — every one must show the raw number, and no
+    // surface may show the doubled prefix.
+    expect(screen.getAllByText("PO12345").length).toBeGreaterThan(0);
+    expect(screen.queryByText("PO PO12345")).toBeNull();
+  });
+
+  // Honest scope: jsdom cannot lay out a 390px viewport, so this pins the
+  // STYLES that make the title truncate (nowrap + ellipsis + a shrinkable
+  // min-width-0 flex child), not a rendered clip.
+  test("the visible PO title carries the truncation styles (ellipsis + min-width 0)", () => {
+    mountClean("4091678643");
+    const title = screen.getByText("PO 4091678643") as HTMLElement;
+    expect(title.style.whiteSpace).toBe("nowrap");
+    expect(title.style.overflow).toBe("hidden");
+    expect(title.style.textOverflow).toBe("ellipsis");
+    expect(title.style.minWidth).toBe("0"); // React keeps 0 unitless
+    expect(title.getAttribute("title")).toBe("4091678643");
+  });
+
   test("the back control is the '← Inbox' chip: same aria-label, same /inbox target", () => {
     mountClean();
     const back = screen.getByRole("button", { name: "Back to inbox" });
