@@ -1,7 +1,19 @@
 import { describe, test, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, cleanup, fireEvent } from "@testing-library/react";
+import { useEffect } from "react";
+import { render, screen, cleanup, fireEvent, within } from "@testing-library/react";
 import { renderHook, act } from "@testing-library/react";
 import type { Order, OrderValidationResult } from "@/types/procurement";
+
+// Radix DropdownMenu (the status bar's ⋯ overflow) positions its content with a
+// ResizeObserver, which jsdom does not implement — stub it for these tests.
+class ResizeObserverStub {
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+}
+if (!("ResizeObserver" in globalThis)) {
+  (globalThis as unknown as { ResizeObserver: unknown }).ResizeObserver = ResizeObserverStub;
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Characterization tests for the Order Workshop's 5 invariants (Task 13). These
@@ -34,6 +46,12 @@ const mockState: {
   bulkAcceptSuggestions: ReturnType<typeof vi.fn>;
   lineEditId: string | null;
   lastMapperProps: Record<string, unknown> | null;
+  routerPush: ReturnType<typeof vi.fn>;
+  // Handlers the mocked MapperWorkbench publishes via onToolbarState (the
+  // re-hosted ⋯ overflow tools on the consolidated status bar).
+  openLayoutDesigner: ReturnType<typeof vi.fn>;
+  openTemplateEditor: ReturnType<typeof vi.fn>;
+  toggleConnections: ReturnType<typeof vi.fn>;
 } = {
   order: null,
   validationResult: null,
@@ -47,10 +65,14 @@ const mockState: {
   bulkAcceptSuggestions: vi.fn(),
   lineEditId: null,
   lastMapperProps: null,
+  routerPush: vi.fn(),
+  openLayoutDesigner: vi.fn(),
+  openTemplateEditor: vi.fn(),
+  toggleConnections: vi.fn(),
 };
 
 vi.mock("next/navigation", () => ({
-  useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
+  useRouter: () => ({ push: mockState.routerPush, replace: vi.fn() }),
   useSearchParams: () => new URLSearchParams(),
 }));
 
@@ -132,10 +154,26 @@ vi.mock("../../review/hooks/useAcceptanceValidation", () => ({
 }));
 
 // Capture the props the workshop passes to the (mocked) MapperWorkbench so we can
-// assert composition + the attention-first / issuesSlot / layout wiring.
+// assert composition + the attention-first / issuesSlot / layout wiring. The mock
+// also publishes a representative toolbar state through onToolbarState — exactly
+// what the real workbench's publish effect does — so the workshop's consolidated
+// status bar renders its re-hosted controls (mapped chip + ⋯ overflow) under test.
 vi.mock("../../mapper/MapperWorkbench", () => ({
   MapperWorkbench: (props: Record<string, unknown>) => {
     mockState.lastMapperProps = props;
+    const onToolbarState = props.onToolbarState as ((s: unknown) => void) | undefined;
+    useEffect(() => {
+      onToolbarState?.({
+        mapped: 13, total: 13, requiredUnmapped: 0,
+        saving: false, justSaved: false, error: null, aiUnavailable: false,
+        showConnections: true,
+        toggleConnections: mockState.toggleConnections,
+        openLayoutDesigner: mockState.openLayoutDesigner,
+        openTemplateEditor: mockState.openTemplateEditor,
+        catalogHintCount: 0,
+        fillFromCatalog: null,
+      });
+    }, [onToolbarState]);
     return (
       <div data-testid="mock-mapper-workbench">
         <div data-testid="issues-slot">{props.issuesSlot as React.ReactNode}</div>
@@ -188,6 +226,10 @@ beforeEach(() => {
   mockState.bulkAcceptSuggestions = vi.fn();
   mockState.lineEditId = null;
   mockState.lastMapperProps = null;
+  mockState.routerPush = vi.fn();
+  mockState.openLayoutDesigner = vi.fn();
+  mockState.openTemplateEditor = vi.fn();
+  mockState.toggleConnections = vi.fn();
 });
 afterEach(cleanup);
 
@@ -283,19 +325,22 @@ describe("invariant 2 — issues === send-gate; -3 qty is not green, Send disabl
 
     render(<OrderWorkshop orderId="ord-1" />);
 
-    // The send-readiness strip reflects open work — NOT the green "ready" bar.
-    expect(screen.queryByText(/Ready to send/i)).toBeNull();
-    expect(screen.getByText(/field(?:s)? to fill before sending/i)).toBeTruthy();
+    // The consolidated status bar shows the open work in its RED segment. The
+    // count is the two blocking issues: the flagged line + the failing rule.
+    const redSegment = screen.getByTestId("status-bar-blockers");
+    expect(within(redSegment).getByText(/2 blockers/)).toBeTruthy();
 
     // Send is gated: EVERY Send button (desktop header + mobile bar) is disabled, and
-    // clicking must NOT open the confirm dialog.
+    // clicking must NOT open the confirm dialog. While blocked the desktop button
+    // carries the blocker count in its own label (the old caption line is gone).
     const sendBtns = screen.getAllByRole("button", { name: /send to supplier|fix \d+ to send/i });
     expect(sendBtns.length).toBeGreaterThan(0);
     expect(sendBtns.every((b) => (b as HTMLButtonElement).disabled)).toBe(true);
+    expect(sendBtns.some((b) => /Send · 2 blockers/.test(b.textContent ?? ""))).toBe(true);
     expect(mockState.setShowConfirm).not.toHaveBeenCalled();
   });
 
-  test("a clean order shows the green ready bar and an enabled Send", () => {
+  test("a clean order renders NO red blocker segment and an enabled Send", () => {
     mockState.order = makeOrder({
       status: "ready_to_deliver",
       lines: [
@@ -311,9 +356,11 @@ describe("invariant 2 — issues === send-gate; -3 qty is not green, Send disabl
 
     render(<OrderWorkshop orderId="ord-1" />);
 
-    // The green ready bar (send-readiness strip) appears; no "fields to fill" warning.
-    expect(screen.getAllByText(/Ready to send/i).length).toBeGreaterThan(0);
-    expect(screen.queryByText(/field(?:s)? to fill before sending/i)).toBeNull();
+    // Zero blockers → the consolidated bar is a single white row: the red
+    // segment is entirely absent (not just empty).
+    expect(screen.getByTestId("workshop-status-bar")).toBeTruthy();
+    expect(screen.queryByTestId("status-bar-blockers")).toBeNull();
+    expect(screen.queryByText(/blockers/)).toBeNull();
 
     const send = screen
       .getAllByRole("button")
@@ -476,7 +523,7 @@ describe("invariant 5 — preview == delivery (single preview path, referenced)"
 // Phase 0 / Task 1 — inline line resolution is REACHABLE on the prod screen.
 //   (a) a manual-code blocker renders a real, focusable supplier-code path (the
 //       "Enter code" affordance) — not just a dead jump;
-//   (b) the SendReadinessStrip blocker chip's jump target ACTUALLY EXISTS in the
+//   (b) the status bar's blocker chip's jump target ACTUALLY EXISTS in the
 //       DOM (the card is anchored data-issue-ref={code}) — the node is found, not
 //       null. This is the exact regression that left 78/83 prod orders stuck.
 // ─────────────────────────────────────────────────────────────────────────────
@@ -506,7 +553,7 @@ describe("Task 1 — inline resolution is reachable + the chip jump target exist
     expect(mockState.startLineEdit).toHaveBeenCalledWith("l1", "");
   });
 
-  test("the SendReadinessStrip blocker chip jumps to a card that EXISTS in the DOM", () => {
+  test("the status-bar blocker chip jumps to a card that EXISTS in the DOM", () => {
     mountUnresolvedManualCodeOrder();
     // The blocker chip uses the issue CODE as its id ("line:l1") → the card anchor.
     // (The chip's tooltip is "Jump to {title}".)
@@ -642,9 +689,75 @@ describe("STRUCT-2 — the workshop wires the bulk-accept header to the IssuesPa
 
     render(<OrderWorkshop orderId="ord-1" />);
 
-    const bulkBtns = screen.getAllByRole("button", { name: /resolve all suggested/i });
+    // Two surfaces carry the bulk accept: the status bar's "Resolve suggested (n)"
+    // and the IssuesPanel header's "Resolve all suggested" — both hit the same
+    // server-truth bulkAcceptSuggestions(0).
+    const bulkBtns = screen.getAllByRole("button", { name: /resolve (all )?suggested/i });
     expect(bulkBtns.length).toBeGreaterThan(0);
     fireEvent.click(bulkBtns[0]);
     expect(mockState.bulkAcceptSuggestions).toHaveBeenCalledWith(0);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Chrome compression (founder-approved mock, 2026-07-17) — the order-page chrome
+// is two rows: Row 1 (← Inbox chip · PO-number title · badges · buyer→supplier ·
+// Details/Focus/Send) and Row 2 (the consolidated status bar). These freeze:
+//   • the page keeps exactly ONE h1 — the old title sentence, sr-only;
+//   • the back control keeps its aria-label + /inbox target;
+//   • the ⋯ overflow re-hosts the four mapper tools (relocated handlers);
+//   • the workshop hides the mapper's own toolbar row (hideToolbar).
+// ─────────────────────────────────────────────────────────────────────────────
+describe("chrome compression — Row 1 identity header + Row 2 status bar", () => {
+  function mountClean(poNumber = "4091678643") {
+    mockState.order = makeOrder({ status: "ready_to_deliver", poNumber });
+    mockState.validationResult = { passed: true, results: [] } as OrderValidationResult;
+    render(<OrderWorkshop orderId="ord-1" />);
+  }
+
+  test("the title sentence survives as the ONE sr-only h1; the PO number is the visible title", () => {
+    mountClean();
+    const h1 = screen.getByRole("heading", { level: 1, name: /review and send this order/i });
+    expect(h1.className).toContain("sr-only");
+    expect(screen.getAllByRole("heading", { level: 1 })).toHaveLength(1);
+    // Visible title = "PO <number>", with the raw number as its hover title.
+    expect(screen.getByText("PO 4091678643")).toBeTruthy();
+    expect(screen.getByText("PO 4091678643").getAttribute("title")).toBe("4091678643");
+  });
+
+  test("the back control is the '← Inbox' chip: same aria-label, same /inbox target", () => {
+    mountClean();
+    const back = screen.getByRole("button", { name: "Back to inbox" });
+    expect(back.textContent).toContain("Inbox");
+    fireEvent.click(back);
+    expect(mockState.routerPush).toHaveBeenCalledWith("/inbox");
+  });
+
+  test("the workshop hides the mapper toolbar and re-hosts its mapped count on the bar", () => {
+    mountClean();
+    expect(mockState.lastMapperProps).toBeTruthy();
+    expect(mockState.lastMapperProps!.hideToolbar).toBe(true);
+    // The mocked workbench published mapped 13/13 via onToolbarState → the chip.
+    expect(screen.getByText(/13\/13 mapped/)).toBeTruthy();
+  });
+
+  test("the ⋯ overflow carries the four relocated tools and drives the workbench's own handlers", async () => {
+    mountClean();
+    const trigger = screen.getByRole("button", { name: "More order tools" });
+    fireEvent.keyDown(trigger, { key: "Enter" });
+    const items = await screen.findAllByRole("menuitem");
+    // Zero blockers → no "Review issues" item; the menu is exactly the four tools.
+    expect(items).toHaveLength(4);
+    const text = items.map((i) => i.textContent ?? "");
+    expect(text.some((t) => t.includes("Customize output layout"))).toBe(true);
+    expect(text.some((t) => t.includes("Edit as template"))).toBe(true);
+    expect(text.some((t) => t.includes("Fill from catalog"))).toBe(true);
+    expect(text.some((t) => t.includes("Hide connections"))).toBe(true);
+    // No catalog hints in the published state → honestly disabled, not hidden.
+    const catalog = items.find((i) => (i.textContent ?? "").includes("Fill from catalog"))!;
+    expect(catalog.getAttribute("aria-disabled")).toBe("true");
+    // A menu item invokes the RELOCATED workbench handler (not a reimplementation).
+    fireEvent.click(screen.getByRole("menuitem", { name: /customize output layout/i }));
+    expect(mockState.openLayoutDesigner).toHaveBeenCalled();
   });
 });

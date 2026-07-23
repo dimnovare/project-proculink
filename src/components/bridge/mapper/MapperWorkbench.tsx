@@ -64,6 +64,35 @@ export interface MapperWorkbenchLayout {
   onCollapsePreview?: () => void;
 }
 
+/**
+ * The top toolbar's live state + handlers, published via `onToolbarState` so a host
+ * that hides the toolbar (`hideToolbar`) can re-host the SAME controls elsewhere
+ * (the Order Workshop's consolidated status bar). Handlers are the workbench's own
+ * — relocated, not reimplemented.
+ */
+export interface MapperToolbarState {
+  /** Output fields with a resolved value (same source as the "N of M mapped" chip). */
+  mapped: number;
+  total: number;
+  /** Required output fields still without a source (the amber toolbar warning). */
+  requiredUnmapped: number;
+  /** Auto-save status (the "Saving… / ✓ Saved / error" toolbar indicators). */
+  saving: boolean;
+  justSaved: boolean;
+  error: string | null;
+  aiUnavailable: boolean;
+  /** Picker mode's wire-layer toggle. */
+  showConnections: boolean;
+  toggleConnections: () => void;
+  /** Opens the OutputStructureDesigner (closes the template editor first). */
+  openLayoutDesigner: () => void;
+  /** Opens the OutputMappingEditor template slideover (closes the designer first). */
+  openTemplateEditor: () => void;
+  catalogHintCount: number;
+  /** Jump to the first catalog-hinted line; null when there are no hints (disabled). */
+  fillFromCatalog: (() => void) | null;
+}
+
 export interface MapperWorkbenchProps {
   variant: "order" | "connection";
   orderId?: string;
@@ -162,6 +191,14 @@ export interface MapperWorkbenchProps {
    * the user switches format tabs. Omitting this keeps today's behaviour (no-op).
    */
   reviewSignal?: number;
+  /**
+   * Hide the workbench's own top action bar (the "MAP THIS ORDER" row). The Order
+   * Workshop passes true and re-hosts the bar's controls in its consolidated
+   * status bar via `onToolbarState`. Absent/false → today's rendering.
+   */
+  hideToolbar?: boolean;
+  /** Publishes the toolbar's live state + handlers (see MapperToolbarState). */
+  onToolbarState?: (state: MapperToolbarState) => void;
 }
 
 export function MapperWorkbench(props: MapperWorkbenchProps) {
@@ -171,6 +208,7 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
     issuesSlot, issuesOpenCount = 0, issuesBlockingCount = 0, showIssuesSignal,
     layout, attentionFirstOutput, trustedThreshold, focusFieldId, focusFieldSignal,
     previewDefaultFormat, autoFilledFields, mappingMode = "wires", reviewSignal,
+    hideToolbar, onToolbarState,
   } = props;
   const pickerMode = mappingMode === "picker";
   const scopeId = (variant === "order" ? props.orderId : props.connectionId) ?? "";
@@ -585,6 +623,39 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
     }
   }, [model.targetFields, model.catalogHintByLine, model.outputConnections]);
 
+  // ── Re-hosted toolbar (Order Workshop chrome compression) ───────────────────
+  // Stable versions of the toolbar's handlers, published to the host via
+  // onToolbarState so it can render the SAME controls in its own status bar.
+  // The designer and the template editor are workbench-level portal modals over
+  // the same order override — opening one closes the other (independent flags
+  // would stack them; see the inline toolbar buttons below, which share these).
+  const toggleConnections = useCallback(() => setShowConnections((v) => !v), []);
+  const openLayoutDesigner = useCallback(() => { setShowOutputEditor(false); setShowDesigner(true); }, []);
+  const openTemplateEditor = useCallback(() => { setShowDesigner(false); setShowOutputEditor(true); }, []);
+  useEffect(() => {
+    if (!onToolbarState) return;
+    onToolbarState({
+      mapped: summary.mappedCount,
+      total: summary.total,
+      requiredUnmapped: summary.requiredUnmapped,
+      saving: model.saving,
+      justSaved,
+      error: model.error,
+      aiUnavailable: model.aiUnavailable,
+      showConnections,
+      toggleConnections,
+      openLayoutDesigner,
+      openTemplateEditor,
+      catalogHintCount,
+      fillFromCatalog: catalogHintCount > 0 ? scrollToFirstCatalogHint : null,
+    });
+  }, [
+    onToolbarState, summary.mappedCount, summary.total, summary.requiredUnmapped,
+    model.saving, justSaved, model.error, model.aiUnavailable, showConnections,
+    toggleConnections, openLayoutDesigner, openTemplateEditor, catalogHintCount,
+    scrollToFirstCatalogHint,
+  ]);
+
   if (model.loading) {
     return <WorkbenchSkeleton />;
   }
@@ -724,7 +795,10 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
       {/* ── Issues slot (Order Workshop) no longer sits above the columns — it is
           now the "Issues" tab of the docked preview column (see PreviewColumnTabs
           in the desktop grid below). Absent for every non-workshop host. ─────── */}
-      {/* ── Top action bar (desktop) ────────────────────────────────────── */}
+      {/* ── Top action bar (desktop). Hidden when the host re-hosts these
+          controls itself (hideToolbar + onToolbarState — the Order Workshop's
+          consolidated status bar). ─────────────────────────────────────── */}
+      {!hideToolbar && (
       <div className="hidden lg:flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
           {/* Section label above the 3 columns (app.jsx Toolbar). The connection editor
@@ -874,6 +948,7 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
           )}
         </div>
       </div>
+      )}
 
       {/* ── AI suggestions banner ───────────────────────────────────────── */}
       {!readOnly && model.suggestions.length > 0 && (

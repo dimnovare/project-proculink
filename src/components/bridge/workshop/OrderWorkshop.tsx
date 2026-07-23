@@ -29,7 +29,7 @@ import { useQueriesEnabled } from "@/hooks/useQueriesEnabled";
 import { useOrderDirection } from "@/hooks/useOrderDirection";
 import type { OrderMappingOverride } from "@/lib/api/types";
 import type { CalibrationSummary } from "@/types/procurement";
-import { MapperWorkbench, type MapperWorkbenchLayout } from "../mapper/MapperWorkbench";
+import { MapperWorkbench, type MapperWorkbenchLayout, type MapperToolbarState } from "../mapper/MapperWorkbench";
 import { UnifiedStatusBadge } from "../UnifiedStatusBadge";
 import { FailedPanel, ParseFailedPanel } from "../FailedPanels";
 import { BillingHeldPanel } from "./BillingHeldPanel";
@@ -46,7 +46,7 @@ import { IssuesPanel, type WorkshopIssue, type IssuesResolveApi } from "./Issues
 import { bulkAcceptCount, type BulkSelectableLine } from "../magicBulkAcceptSelection";
 import { MobileTriage } from "./MobileTriage";
 import { WorkshopStepper } from "./WorkshopStepper";
-import { SendReadinessStrip, type BlockerChip } from "./SendReadinessStrip";
+import { WorkshopStatusBar, type BlockerChip } from "./WorkshopStatusBar";
 import { BridgeLoader, BridgePageLoader } from "../BridgeLoader";
 import { OrderDetailsDrawer, type OrderDetailsTab } from "./OrderDetailsDrawer";
 
@@ -238,6 +238,10 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
   const [focusFieldId, setFocusFieldId] = useState<string | null>(null);
   const [focusSignal, setFocusSignal] = useState(0);
   const [sendTip, setSendTip] = useState(false);
+  // The mapper's toolbar state + handlers, published by MapperWorkbench
+  // (onToolbarState) so the consolidated status bar can re-host the same
+  // controls (mapped count, save state, layout/template/catalog/connections).
+  const [mapperToolbar, setMapperToolbar] = useState<MapperToolbarState | null>(null);
   const onFocusField = useCallback((ref: string) => {
     setFocusFieldId(ref);
     setFocusSignal((n) => n + 1);
@@ -389,6 +393,10 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
   // "" when the total is genuinely unknown (nothing extracted AND no priced lines
   // yet) — the header then hides the value entirely rather than showing "€ 0.00".
   const grandTotalLabel = order ? orderGrandTotalLabel(order) : "";
+  // Visible header title = the PO number ("PO 4091678643"). No double prefix when
+  // the extracted number already starts with "PO"; "Order" when it is empty.
+  const poNumber = order?.poNumber ?? "";
+  const poTitle = poNumber.trim() ? (/^\s*po\b/i.test(poNumber) ? poNumber : `PO ${poNumber}`) : "Order";
   const outputFormatLabel = order ? outputArtifactType(order.artifacts) : "";
   // The supplier's ACTUAL delivery output format — used in the Send confirmation
   // modal so it always reflects what will be delivered, not whichever format the
@@ -499,65 +507,63 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
 
   return (
     <div className="flex flex-col h-full min-h-0 overflow-hidden" style={{ background: "#F6F7FA" }} data-testid="order-workshop">
-      {/* ── Header: back · PO · status · buyer→supplier · focus control · Send ── */}
+      {/* ── Row 1 · identity + actions (~54px): ← Inbox chip · PO title · status ·
+          buyer → supplier · total — then Details / focus / Send. The topbar's
+          breadcrumb row is gone on this route (BridgeTopbar suppresses it — the
+          ← Inbox chip carries the 2-level path), and the old title sentence
+          lives on as the sr-only h1 so heading semantics + text queries survive. */}
       <div className="flex-shrink-0" style={{ background: "#FFFFFF", borderBottom: "1px solid #E5E8EE" }}>
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-3 px-4 pt-2.5 pb-2.5 lg:px-6">
-          <div className="flex min-w-0 items-center gap-3 flex-shrink-0 max-w-full">
-            <button
-              onClick={() => router.push("/inbox")}
-              aria-label="Back to inbox"
-              className="plk-back"
-              style={{ width: 30, height: 30, minWidth: 44, minHeight: 44, padding: 0, marginInline: -7, border: 0, background: "transparent", color: "#5E6779", cursor: "pointer", fontSize: 14, flexShrink: 0, display: "inline-flex", alignItems: "center", justifyContent: "center" }}
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 px-4 lg:px-6" style={{ minHeight: 54, paddingTop: 5, paddingBottom: 5 }}>
+          {/* Back chip — same target + aria as the old icon-only button; ≥44px hit
+              area around the compact visible chip. */}
+          <button
+            onClick={() => router.push("/inbox")}
+            aria-label="Back to inbox"
+            className="plk-back"
+            style={{ minWidth: 44, minHeight: 44, padding: 0, marginInline: -6, border: 0, background: "transparent", color: "#5E6779", cursor: "pointer", flexShrink: 0, display: "inline-flex", alignItems: "center", justifyContent: "center" }}
+          >
+            <span
+              aria-hidden
+              className="plk-back-box"
+              style={{ height: 30, padding: "0 10px", border: "1px solid #E5E8EE", borderRadius: 8, background: "#FFFFFF", display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12, fontWeight: 600, whiteSpace: "nowrap", transition: "border-color .12s, background .12s" }}
+              onMouseEnter={(e) => { e.currentTarget.style.borderColor = "#1E66C9"; e.currentTarget.style.background = "#EAF0F8"; }}
+              onMouseLeave={(e) => { e.currentTarget.style.borderColor = "#E5E8EE"; e.currentTarget.style.background = "#FFFFFF"; }}
             >
-              <span
-                aria-hidden
-                className="plk-back-box"
-                style={{ width: 30, height: 30, border: "1px solid #E5E8EE", borderRadius: 8, background: "#FFFFFF", display: "inline-flex", alignItems: "center", justifyContent: "center", transition: "border-color .12s, background .12s" }}
-                onMouseEnter={(e) => { e.currentTarget.style.borderColor = "#1E66C9"; e.currentTarget.style.background = "#EAF0F8"; }}
-                onMouseLeave={(e) => { e.currentTarget.style.borderColor = "#E5E8EE"; e.currentTarget.style.background = "#FFFFFF"; }}
-              >
-                ←
-              </span>
-            </button>
-            <div className="min-w-0">
-              <div className="flex flex-wrap items-center gap-2.5">
-                {/* No whiteSpace:nowrap — on a narrow (≤375px) phone the title must be
-                    able to wrap instead of forcing horizontal overflow (was an 85px clip).
-                    On sm+ the header spans the full width so it stays on one line anyway. */}
-                <h1 style={{ fontFamily: "'Bricolage Grotesque',Inter,sans-serif", fontSize: 22, fontWeight: 800, letterSpacing: "-0.02em", color: "#0B1A2F", lineHeight: 1.1 }}>
-                  Review and send this order
-                </h1>
-                <span
-                  title={`Order ${order.poNumber}`}
-                  style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 12.5, fontWeight: 600, color: "#566982", background: "#F1F3F7", border: "1px solid #E5E8EE", borderRadius: 6, padding: "2px 8px", whiteSpace: "nowrap", minWidth: 0, overflow: "hidden", textOverflow: "ellipsis" }}
-                >
-                  {order.poNumber}
-                </span>
-                <UnifiedStatusBadge size="md" status={crossed ? "delivered" : exceptionCount > 0 ? "pending_review" : order.status} />
-                <InvoiceBadge documentType={order.documentType} />
-                {order.status === "delivery_dead_letter" && (
-                  <span
-                    title="We tried delivering this several times automatically and it didn't go through. Open the order to resend it."
-                    style={{ display: "inline-flex", alignItems: "center", padding: "3px 11px", borderRadius: 999, fontSize: 12, fontWeight: 600, background: "var(--danger-soft)", color: "var(--danger)", whiteSpace: "nowrap" }}
-                  >
-                    ⚠ Delivery didn&rsquo;t reach the supplier. Open the order and click &ldquo;Send again&rdquo; to retry.
-                  </span>
-                )}
-              </div>
-              <div className="mt-1 flex flex-wrap items-center" style={{ minWidth: 0, fontSize: 12.5, columnGap: 7 }}>
-                <span style={{ fontWeight: 600, color: "#1E66C9", minWidth: 0, overflowWrap: "anywhere" }}>{buyerLabel(order)}</span>
-                <span aria-hidden style={{ flexShrink: 0, color: "#CBD0DA" }}>→</span>
-                <span style={{ fontWeight: 600, color: "#2E8E3A", minWidth: 0, overflowWrap: "anywhere" }}>{order.supplierName}</span>
-                {/* Total slot renders ONLY when a real total is known — never a fake "€ 0.00". */}
-                {grandTotalLabel && (
-                  <>
-                    <span aria-hidden style={{ flexShrink: 0, color: "#CBD0DA" }}>·</span>
-                    <span style={{ fontFamily: "'JetBrains Mono',monospace", color: "#566982", minWidth: 0, overflowWrap: "anywhere" }}>{grandTotalLabel}</span>
-                  </>
-                )}
-              </div>
-            </div>
-          </div>
+              ← Inbox
+            </span>
+          </button>
+          {/* The page keeps ONE h1 — the old title sentence, screen-reader only. */}
+          <h1 className="sr-only">Review and send this order</h1>
+          {/* Visible title = the PO number itself (full number; raw number on title). */}
+          <span
+            title={order.poNumber}
+            style={{ fontFamily: "'Bricolage Grotesque',Inter,sans-serif", fontSize: 18, fontWeight: 800, letterSpacing: "-0.02em", color: "#0B1A2F", lineHeight: 1.15, whiteSpace: "nowrap" }}
+          >
+            {poTitle}
+          </span>
+          <UnifiedStatusBadge size="md" status={crossed ? "delivered" : exceptionCount > 0 ? "pending_review" : order.status} />
+          <InvoiceBadge documentType={order.documentType} />
+          {order.status === "delivery_dead_letter" && (
+            <span
+              title="We tried delivering this several times automatically and it didn't go through. Open the order to resend it."
+              style={{ display: "inline-flex", alignItems: "center", padding: "3px 11px", borderRadius: 999, fontSize: 12, fontWeight: 600, background: "var(--danger-soft)", color: "var(--danger)", whiteSpace: "nowrap" }}
+            >
+              ⚠ Delivery didn&rsquo;t reach the supplier. Open the order and click &ldquo;Send again&rdquo; to retry.
+            </span>
+          )}
+          {/* Buyer → supplier · total — inline on the same row (the old second line). */}
+          <span className="flex items-center" style={{ minWidth: 0, fontSize: 12.5, columnGap: 7, overflow: "hidden" }}>
+            <span title={buyerLabel(order)} style={{ fontWeight: 600, color: "#1E66C9", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: 270 }}>{buyerLabel(order)}</span>
+            <span aria-hidden style={{ flexShrink: 0, color: "#CBD0DA" }}>→</span>
+            <span title={order.supplierName} style={{ fontWeight: 600, color: "#2E8E3A", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: 270 }}>{order.supplierName}</span>
+            {/* Total slot renders ONLY when a real total is known — never a fake "€ 0.00". */}
+            {grandTotalLabel && (
+              <>
+                <span aria-hidden style={{ flexShrink: 0, color: "#CBD0DA" }}>·</span>
+                <span style={{ fontFamily: "'JetBrains Mono',monospace", color: "#566982", whiteSpace: "nowrap" }}>{grandTotalLabel}</span>
+              </>
+            )}
+          </span>
 
           {/* Focus + Send — right-aligned. The pipeline stepper now lives at the right end of
               the ready-banner below (app.jsx structure), not the header center.
@@ -596,10 +602,9 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
             </div>
 
             {/* Send — gated by canSend (issues clear + server-truth exceptions clear).
-                The pipeline stepper is NOT in this title row anymore — it lives at the
-                right end of the ready-banner below (app.jsx ReadyBanner structure), next
-                to the "N blockers · M warnings" summary. */}
-            <div style={{ position: "relative", display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 3 }} onMouseEnter={() => setSendTip(true)} onMouseLeave={() => setSendTip(false)}>
+                While blocked the button label carries the count ("Send · N blockers")
+                — the old separate caption line is folded into the button itself. */}
+            <div style={{ position: "relative", display: "flex", alignItems: "center" }} onMouseEnter={() => setSendTip(true)} onMouseLeave={() => setSendTip(false)}>
               <button
                 type="button"
                 onClick={() => canSend && setShowConfirm(true)}
@@ -624,13 +629,10 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
                     ? "Preparing the file…"
                     : sendState === "delivering"
                       ? labels.primaryCtaProgress
-                      : labels.primaryCta}
+                      : !canSend && blockingIssues > 0
+                        ? `Send · ${blockingIssues} ${blockingIssues === 1 ? "blocker" : "blockers"}`
+                        : labels.primaryCta}
               </button>
-              {!canSend && !crossed && sendState === "idle" && (blockingIssues > 0 || exceptionCount > 0) && (
-                <span style={{ fontSize: 10.5, fontWeight: 600, color: "#8A5310", whiteSpace: "nowrap" }}>
-                  Resolve blockers to send
-                </span>
-              )}
               {sendTip && !canSend && !crossed && sendState === "idle" && (blockingIssues > 0 || exceptionCount > 0) && (
                 <div
                   role="tooltip"
@@ -694,25 +696,23 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
         </div>
       )}
 
-      {/* ── Send-readiness strip — slim, full-width summary. Its chips now scroll to
-          the actionable issue CARD below (data-issue-ref) — where the inline fix
-          lives — not the dead line-GUID mapper jump. Pairs with the desktop mapper
-          (lg+); below lg the MobileTriage view carries its own issue list. ── */}
+      {/* ── Row 2 · ONE consolidated status bar (~42px). Replaces the old red
+          SendReadinessStrip AND the mapper's "MAP THIS ORDER" toolbar row — the
+          mapper is passed hideToolbar and publishes its handlers via
+          onToolbarState (see mapperToolbar). Blocker chips still scroll to the
+          actionable issue CARD (data-issue-ref); zero blockers → single white
+          row. Desktop only — below lg MobileTriage carries its own issue list. */}
       <div className="hidden lg:block flex-shrink-0">
-        <SendReadinessStrip
+        <WorkshopStatusBar
           blockers={blockerChips}
           notes={noteCount}
-          ready={sendReady}
           onJump={onJumpToIssueCard}
           onReviewIssues={() => setShowIssuesSignal((s) => s + 1)}
           onResolveAll={issuesResolve.bulkAcceptSuggestions ? () => issuesResolve.bulkAcceptSuggestions!(0) : undefined}
           resolveAllCount={suggestableCount}
           resolving={issuesResolve.bulkAccepting}
-          pipeline={
-            <span className="hidden xl:inline-flex">
-              <WorkshopStepper stage={stepperStage} failed={stepperFailed} />
-            </span>
-          }
+          mapper={mapperToolbar}
+          pipeline={<WorkshopStepper stage={stepperStage} failed={stepperFailed} />}
         />
       </div>
 
@@ -743,6 +743,8 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
             focusFieldSignal={focusSignal}
             onValidate={() => openDetails("conformance")}
             reviewSignal={order.lines.filter((l) => l.needsReview).length}
+            hideToolbar
+            onToolbarState={setMapperToolbar}
             issuesSlot={
               <IssuesPanel
                 issues={issues}

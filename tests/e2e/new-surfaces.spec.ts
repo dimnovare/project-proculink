@@ -167,7 +167,13 @@ test.describe("Order Workshop output surface — /inbox/ord-002", () => {
 
     await expect(page.getByTestId("order-workshop")).toBeVisible({ timeout: 30_000 });
 
-    const editAsTemplate = page.getByRole("button", { name: /edit as template/i });
+    // The chrome-compression PR relocated the four mapper tools from the (deleted)
+    // "MAP THIS ORDER" toolbar into the status bar's "More order tools" overflow —
+    // open it first, then the action is a menuitem, not a toolbar button.
+    const moreTools = page.getByRole("button", { name: /more order tools/i });
+    await expect(moreTools).toBeVisible({ timeout: 10_000 });
+    await moreTools.click();
+    const editAsTemplate = page.getByRole("menuitem", { name: /edit as template/i });
     await expect(editAsTemplate).toBeVisible({ timeout: 10_000 });
     await editAsTemplate.click();
 
@@ -198,8 +204,12 @@ test.describe("Order Workshop output surface — /inbox/ord-002", () => {
 
     await expect(page.getByTestId("order-workshop")).toBeVisible({ timeout: 30_000 });
 
-    // The reachable output-editing surface on the workshop toolbar (desktop).
-    const customize = page.getByRole("button", { name: /customize output layout/i });
+    // The output designer now lives in the status bar's "More order tools" overflow
+    // (chrome-compression PR): open the menu, then click the menuitem.
+    const moreTools = page.getByRole("button", { name: /more order tools/i });
+    await expect(moreTools).toBeVisible({ timeout: 10_000 });
+    await moreTools.click();
+    const customize = page.getByRole("menuitem", { name: /customize output layout/i });
     await expect(customize).toBeVisible({ timeout: 10_000 });
     await customize.click();
 
