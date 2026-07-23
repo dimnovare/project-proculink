@@ -255,9 +255,12 @@ export function SupplierDockList() {
 
   return (
     <PageShell variant="wide">
-        {/* Page header — titleHidden: the topbar already names this page (hub
-            tab "Suppliers" outbound / primary nav "Customers" inbound); sr-only
-            h1 keeps {plural}. Count line + New-supplier action stay. */}
+        {/* Page header — titleHidden: the topbar already names this page on
+            every viewport — the Partners hub tab is direction-aware
+            ("Suppliers" outbound / "Customers" inbound; BridgeTopbar threads
+            counterpartyPlural into HubTabs), and that strip shows on mobile
+            too. sr-only h1 keeps {plural}. Count line + New-supplier action
+            stay. */}
         <PageHeader
           titleHidden
           title={plural}

@@ -108,10 +108,20 @@ export function HubTabs({
   hub,
   counts,
   variant = "page",
+  counterpartyPlural,
 }: {
   hub: HubKey;
   counts?: Record<string, number>;
   variant?: HubTabsVariant;
+  /**
+   * Direction-aware counterparty word ("Suppliers" | "Customers"). When an
+   * inbound org relabels it (≠ "Suppliers"), the /library/suppliers tab shows
+   * that word instead of the static "Suppliers" — the same display-only relabel
+   * buildVisibleNav applies to the Partners nav item, and on mobile this tab is
+   * the only surface naming the page (the page's own title is sr-only). Routes,
+   * hrefs, and count keys are unchanged.
+   */
+  counterpartyPlural?: string;
 }) {
   const pathname = usePathname() ?? "";
   const tabs = HUB_TABS[hub];
@@ -124,6 +134,10 @@ export function HubTabs({
           pathname.startsWith(t.href + "/") ||
           (t.match?.some((m) => pathname === m || pathname.startsWith(m + "/")) ?? false);
         const count = counts?.[t.label] ?? counts?.[t.href];
+        const label =
+          t.href === "/library/suppliers" && counterpartyPlural && counterpartyPlural !== "Suppliers"
+            ? counterpartyPlural
+            : t.label;
         return (
           <Link
             key={t.href}
@@ -173,7 +187,7 @@ export function HubTabs({
                 : undefined
             }
           >
-            {t.label}
+            {label}
             {typeof count === "number" && (
               <span
                 style={{
