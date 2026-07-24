@@ -154,6 +154,18 @@ const WORKBENCH_GROUP_ROOTS: ReadonlySet<string> = new Set(["drafts", "inbound"]
 const UNLINKED_GROUP_ROOTS: ReadonlySet<string> = new Set(["library", "operations", "inbound"]);
 
 /**
+ * True when a pathname's trail is a SINGLE crumb — the current page, which by
+ * definition carries no href. Such a trail offers nothing to navigate to; it
+ * only repeats the page name. The topbar uses this to drop its context row at
+ * the widths where the primary nav row is visible and already names the page
+ * (founder-reported "double navbar": "Dashboard" in the nav and again as a lone
+ * strip below it).
+ */
+export function isLonePageCrumb(pathname: string): boolean {
+  return buildCrumbTrail(pathname).length === 1;
+}
+
+/**
  * Build the full ordered crumb trail for a pathname.
  * The last segment is the current page (no href); all earlier segments link,
  * EXCEPT group-root segments (library / operations / inbound) which have no

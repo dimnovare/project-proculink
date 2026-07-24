@@ -12,11 +12,11 @@ import { useOrderDirection } from "@/hooks/useOrderDirection";
 import { useQueriesEnabled } from "@/hooks/useQueriesEnabled";
 import { useOrganization } from "@clerk/nextjs";
 import type { Order, OrderSummary, Supplier } from "@/types/procurement";
-import { buildCrumbTrail, formatCrumbLabel, truncateLabel, type Crumb, type CrumbContext } from "./breadcrumb";
+import { buildCrumbTrail, formatCrumbLabel, isLonePageCrumb, truncateLabel, type Crumb, type CrumbContext } from "./breadcrumb";
 import { CommandPalette } from "./CommandPalette";
 import { ProcuLinkMark } from "./DSPrimitives";
 import { HelpSlideover } from "./HelpSlideover";
-import { HUB_LABELS, HUB_TABS, HubTabs, hubForPath, type HubKey } from "./layout/HubTabs";
+import { HUB_LABELS, HUB_TABS, HubTabs, hubForPath, hubShowsTabs, type HubKey } from "./layout/HubTabs";
 import { OrgSwitcher } from "./OrgSwitcher";
 import { SetupProgressChip } from "./SetupProgressChip";
 import { UserChipMenu } from "./UserChipMenu";
@@ -145,7 +145,9 @@ function useHubRow(): HubRow | null {
   const segments = pathname.split("/").filter(Boolean);
   const ctx = useCrumbContext(segments);
   const hub = hubForPath(pathname);
-  if (!hub) return null;
+  // A hub with a single tab gets no strip (hubShowsTabs) — and therefore no hub
+  // row at all; the route falls back to the plain breadcrumb below.
+  if (!hub || !hubShowsTabs(hub)) return null;
 
   // The LONGEST tab route (href or match alias) that owns the current path —
   // its depth marks where the breadcrumb prefix ends and the detail tail begins.
@@ -538,6 +540,14 @@ export function BridgeTopbar({ crumb, onMenuClick }: BridgeTopbarProps) {
   // row would only duplicate the same 2-level path. Skip it there to give the
   // mapper the vertical space.
   const onOrderWorkshop = /^\/inbox\/[^/]+/.test(pathname);
+  // Double-navbar guard (founder screenshot, 2026-07-24): on a top-level page
+  // like Dashboard the context row's whole content was a lone unlinked crumb
+  // repeating the nav item directly above it. It links nowhere, so it is pure
+  // duplication wherever the primary nav row shows (md+, `hidden md:flex`) —
+  // hide the row there. Below md that row is hidden and this is the ONLY label
+  // naming the page (these pages render their h1 sr-only via PageHeader
+  // `titleHidden`), so the row is kept.
+  const loneCrumbRow = !crumb && !hubRow && isLonePageCrumb(pathname);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
   // Focus management: the slideover moves focus to its search input on open;
@@ -860,7 +870,7 @@ export function BridgeTopbar({ crumb, onMenuClick }: BridgeTopbarProps) {
           own header already shows "← Inbox · PO …" (see onOrderWorkshop). */}
       {!onOrderWorkshop && (
       <div
-        className="flex items-center px-3 sm:px-5"
+        className={`flex items-center px-3 sm:px-5${loneCrumbRow ? " md:hidden" : ""}`}
         style={{ height: 38, borderTop: "1px solid #14253D" }}
       >
         {/* Full breadcrumb from sm up. On hub routes (and unless the page passed

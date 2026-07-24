@@ -1,6 +1,6 @@
 import { describe, test, expect, vi, afterEach } from "vitest";
 import { render, screen, cleanup } from "@testing-library/react";
-import { HubTabs } from "./HubTabs";
+import { HubTabs, HUB_TABS } from "./HubTabs";
 
 // #22 follow-up: the suppliers page hides its visible title because "the topbar
 // names the page" — but the hub tab label was static "Suppliers", so an inbound
@@ -52,5 +52,30 @@ describe("HubTabs — direction-aware Suppliers tab relabel", () => {
     // The count badge renders inside the relabeled tab.
     const customers = screen.getByRole("link", { name: /Customers/ });
     expect(customers.textContent).toContain("4");
+  });
+});
+
+// FE-2 — a hub with a single tab has nowhere to switch TO. Rendering its strip
+// puts one tab under the top nav item that already names the same page (the
+// founder-reported double navbar). No shipped hub has one tab today; this pins
+// the guard so a future consolidation can't reintroduce the duplicate.
+describe("HubTabs — a hub with nothing to switch to renders no strip", () => {
+  const original = HUB_TABS.integrations;
+  afterEach(() => {
+    HUB_TABS.integrations = original;
+  });
+
+  test("renders nothing when the hub exposes a single tab", () => {
+    HUB_TABS.integrations = [original[0]];
+    const { container } = render(<HubTabs hub="integrations" variant="topbar" />);
+    expect(container.querySelector('nav[aria-label="Section"]')).toBeNull();
+    expect(container.querySelector("a")).toBeNull();
+  });
+
+  test("still renders the strip at two tabs", () => {
+    const { container } = render(<HubTabs hub="integrations" variant="topbar" />);
+    expect(container.querySelector('nav[aria-label="Section"]')).not.toBeNull();
+    expect(screen.getByRole("link", { name: "Connectors" })).toBeTruthy();
+    expect(screen.getByRole("link", { name: "Webhooks" })).toBeTruthy();
   });
 });
