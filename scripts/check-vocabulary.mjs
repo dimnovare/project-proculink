@@ -22,6 +22,8 @@
  *   - // and /* … *\/ and {/* … *\/} comments
  *   - the allowlisted component/identifier tokens (Bridge*, *Spine*, *Dock*,
  *     CrossingsLog, LaneDrawer, WireTopology, …) and a few known-safe phrases.
+ *   - third-party proper nouns that contain a retired word (PROPER_NOUN_MASKS,
+ *     e.g. Proton Bridge) — these are real product names, not our metaphor.
  *
  * Pragmatic by design: it favours FEW false positives over exhaustive coverage,
  * so it stays green in normal development and only trips on obvious regressions
@@ -77,6 +79,23 @@ const FILE_ALLOWLIST = new Set([
 const PHRASE_ALLOWLIST = [
   // none — Task-1 cleared the (app)+(marketing) render copy.
 ];
+
+// Third-party proper nouns that legitimately CONTAIN a retired word. These are
+// blanked out of a visible span BEFORE the retired-word check, so a real product
+// name survives the gate without weakening it for ordinary copy around it.
+// Keep this list SHORT and justify every entry.
+const PROPER_NOUN_MASKS = [
+  // "Proton Bridge" is Proton AG's local IMAP client application — the actual
+  // product a user must install to poll a Proton mailbox. It has no plain-word
+  // substitute, and renaming it would make the help article factually wrong.
+  /\bProton\s*\(via\s+Bridge\)/gi,
+  /\bProton\s+Bridge\b/gi,
+];
+
+/** Blank out allowlisted proper nouns so only genuine metaphor use is matched. */
+function maskProperNouns(text) {
+  return PROPER_NOUN_MASKS.reduce((acc, re) => acc.replace(re, " "), text);
+}
 
 /** Recursively collect candidate render files (.tsx / .mdx) under a dir. */
 function findFiles(dir) {
@@ -174,7 +193,7 @@ for (const file of files) {
     const spans = isMdx ? visibleSpansMdx(line) : visibleSpans(line);
     for (const span of spans) {
       if (PHRASE_ALLOWLIST.includes(span.trim())) continue;
-      const hit = span.match(RETIRED_RE);
+      const hit = maskProperNouns(span).match(RETIRED_RE);
       if (hit) {
         violations.push({
           file: rel,
@@ -207,6 +226,8 @@ console.error(
     `dock→supplier/connection, lane→row/field, spine→·, "wire fields"→"map fields").\n` +
     `Code identifiers, classNames, CSS vars, and comments are exempt — only\n` +
     `visible copy must change. If a match is a false positive, narrow the\n` +
-    `visibleSpans() heuristic or add the exact phrase to PHRASE_ALLOWLIST.\n`
+    `visibleSpans() heuristic or add the exact phrase to PHRASE_ALLOWLIST.\n` +
+    `If the match is a third-party product name (e.g. Proton Bridge), add it\n` +
+    `to PROPER_NOUN_MASKS instead of rewriting accurate copy.\n`
 );
 process.exit(1);
