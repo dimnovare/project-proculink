@@ -101,6 +101,12 @@ export interface MobileTriageProps {
   suggestableCount?: number;
   /** The ≥0.85-confidence subset of `suggestableCount` ("Accept ≥85% only"). */
   highConfCount?: number;
+  /**
+   * Teaching content rendered directly above the issue list — today the catalog
+   * hint. Kept a slot so this component stays purely presentational: the node
+   * decides its own visibility, this view only decides where it sits.
+   */
+  hintSlot?: ReactNode;
 }
 
 export function MobileTriage(props: MobileTriageProps) {
@@ -110,7 +116,7 @@ export function MobileTriage(props: MobileTriageProps) {
     issues, blockingIssues, exceptionCount, canSend, crossed, sendState,
     primaryCta, primaryCtaProgress, doneLabel,
     onFix, onFocusField, onSend, resolve, lines,
-    suggestableCount = 0, highConfCount = 0,
+    suggestableCount = 0, highConfCount = 0, hintSlot,
   } = props;
 
   const sendBlockCount = Math.max(blockingIssues, exceptionCount);
@@ -273,6 +279,11 @@ export function MobileTriage(props: MobileTriageProps) {
             </p>
           )}
         </SummaryCard>
+
+        {/* Teaching hint above the issue list (the catalog cliff). Optional and
+            self-hiding — the slot is empty on every screen that has nothing to
+            teach, so nothing shifts. */}
+        {hintSlot}
 
         {/* ── Issue list ─────────────────────────────────────────────────── */}
         {issues.length === 0 ? (

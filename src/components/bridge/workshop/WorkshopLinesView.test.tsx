@@ -9,9 +9,9 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 //   • the footer bulk-apply button is disabled when no blocked line has a
 //     suggestion, enabled when one does;
 //   • the footer never claims Σ = order total when no total was extracted;
-//   • the catalog picker only makes claims its probe actually proved
-//     (error ≠ empty; unrouted ≠ a supplier with no catalog; a partial load
-//     is a partial search);
+//   • the catalog picker searches SERVER-side (a 120k-row catalog is fully
+//     searchable) and only makes claims its probe actually proved (error ≠
+//     empty; unrouted ≠ a supplier with no catalog; a full page ≠ all matches);
 //   • a resolved row's expand panel closes instead of sticking open;
 //   • a line jump scrolls once, honors reduced motion, and reports consumption.
 
@@ -23,6 +23,7 @@ vi.mock("@/hooks/useQueriesEnabled", () => ({
 }));
 
 import { getSupplierCatalog } from "@/lib/api-client";
+import { CATALOG_CODES_TAKE } from "@/lib/catalogCodes";
 import { WorkshopLinesView, WorkshopLinesToggle } from "./WorkshopLinesView";
 import type { Order, OrderLine } from "@/types/procurement";
 
@@ -239,25 +240,80 @@ describe("catalog picker — the panel only claims what its probe proved", () =>
     expect(catalogMock).not.toHaveBeenCalled();
   });
 
-  it("a no-match search over a PARTIALLY loaded catalog states the searched bound", async () => {
-    // total > loaded: the client-side search saw 1 of 1,500 items.
-    catalogMock.mockResolvedValue({ total: 1500, items: [{ id: "p1", code: "TY-1", name: "Tyre" }] });
-    renderView(makeOrder([BLOCKED_LINE], null));
+  it("sends the search to the SERVER, so a code past the first page is findable", async () => {
+    // A real distributor catalog: 120,000 rows. The wanted code is nowhere near
+    // the first page, so the query text itself has to reach the API.
+    catalogMock.mockImplementation(async (_id: string, q?: string) =>
+      q === "TY-90112"
+        ? { total: 120_000, items: [{ id: "p9", code: "TY-90112", name: "CrossClimate 2" }] }
+        : { total: 120_000, items: [{ id: "p1", code: "AA-0001", name: "First row" }] },
+    );
+    const { onCommitCode } = renderView(makeOrder([BLOCKED_LINE], null));
     openCatalog();
     const input = await screen.findByLabelText("Search the supplier catalog");
-    fireEvent.change(input, { target: { value: "zzz" } });
-    expect(await screen.findByText(/Searched only the first 1 of 1,500 catalog items — no match/)).toBeTruthy();
-    expect(screen.queryByText(/No product matches/)).toBeNull();
+    fireEvent.change(input, { target: { value: "TY-90112" } });
+
+    await waitFor(
+      () => expect(catalogMock).toHaveBeenCalledWith("sup-1", "TY-90112", CATALOG_CODES_TAKE),
+      { timeout: 3000 },
+    );
+    const hit = await screen.findByText("TY-90112");
+    fireEvent.click(hit);
+    expect(onCommitCode).toHaveBeenCalledWith({
+      id: "line-2",
+      lineNumber: 2,
+      supplierItemCode: "TY-90112",
+    });
   });
 
-  it("a no-match search over a FULLY loaded catalog keeps the plain no-match copy", async () => {
-    catalogMock.mockResolvedValue({ total: 1, items: [{ id: "p1", code: "TY-1", name: "Tyre" }] });
+  it("a no-match search says exactly that — the server searched the WHOLE catalog", async () => {
+    // `total` is the whole-catalog count (the API's CountAsync ignores ?q=), so a
+    // stocked catalog with no match is a no-match, never "no catalog".
+    catalogMock.mockImplementation(async (_id: string, q?: string) =>
+      q ? { total: 120_000, items: [] } : { total: 120_000, items: [{ id: "p1", code: "AA-0001" }] },
+    );
     renderView(makeOrder([BLOCKED_LINE], null));
     openCatalog();
     const input = await screen.findByLabelText("Search the supplier catalog");
     fireEvent.change(input, { target: { value: "zzz" } });
-    expect(await screen.findByText(/No product matches “zzz”/)).toBeTruthy();
+    expect(
+      await screen.findByText(/No product matches “zzz”/, undefined, { timeout: 3000 }),
+    ).toBeTruthy();
+    expect(screen.queryByText(/No catalog for this supplier yet/)).toBeNull();
     expect(screen.queryByText(/Searched only the first/)).toBeNull();
+  });
+
+  it("a FULL page of matches says there may be more — it never implies these are all", async () => {
+    catalogMock.mockResolvedValue({
+      total: 120_000,
+      items: Array.from({ length: CATALOG_CODES_TAKE }, (_, i) => ({
+        id: `p${i}`,
+        code: `TY-${i}`,
+        name: null,
+      })),
+    });
+    renderView(makeOrder([BLOCKED_LINE], null));
+    openCatalog();
+    const input = await screen.findByLabelText("Search the supplier catalog");
+    fireEvent.change(input, { target: { value: "TY" } });
+    expect(
+      await screen.findByText(
+        new RegExp(`first ${CATALOG_CODES_TAKE} matches`),
+        undefined,
+        { timeout: 3000 },
+      ),
+    ).toBeTruthy();
+  });
+
+  it("a partial page of matches is the complete set — no 'refine' nag", async () => {
+    catalogMock.mockResolvedValue({
+      total: 120_000,
+      items: [{ id: "p1", code: "TY-90112", name: "CrossClimate 2" }],
+    });
+    renderView(makeOrder([BLOCKED_LINE], null));
+    openCatalog();
+    expect(await screen.findByText("TY-90112", undefined, { timeout: 3000 })).toBeTruthy();
+    expect(screen.queryByText(/matches/)).toBeNull();
   });
 });
 

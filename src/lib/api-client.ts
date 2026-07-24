@@ -953,9 +953,14 @@ export async function getSupplierCatalog(
 ): Promise<import("@/lib/api/types").SupplierCatalogPage> {
   if (USE_MOCK) {
     await delay(120);
-    let items = _mockCatalog[supplierId] ?? [];
+    const all = _mockCatalog[supplierId] ?? [];
+    let items = all;
     if (q) { const t = q.toLowerCase(); items = items.filter(p => `${p.code} ${p.name ?? ""} ${p.barcode ?? ""}`.toLowerCase().includes(t)); }
-    return { total: items.length, items: items.slice(0, take) };
+    // `total` is the WHOLE catalog count, matching the API (SuppliersController
+    // GetCatalog reads it from CountAsync, which ignores ?q=). Returning the match
+    // count here instead made mock mode disagree with production on the one number
+    // the pickers use to tell "no catalog yet" apart from "no match".
+    return { total: all.length, items: items.slice(0, take) };
   }
   const headers = await authHeader();
   const url = `${API_BASE_URL}/api/suppliers/${supplierId}/catalog?take=${take}${q ? `&q=${encodeURIComponent(q)}` : ""}`;

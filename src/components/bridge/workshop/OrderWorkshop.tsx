@@ -45,6 +45,7 @@ import { useSendFlow } from "../review/hooks/useSendFlow";
 import { useWorkshopLayout, type WorkshopFocus } from "./useWorkshopLayout";
 import { InboxBackChip, WorkshopGateShell, poTitleFrom } from "./WorkshopGateChrome";
 import { IssuesPanel, type WorkshopIssue, type IssuesResolveApi } from "./IssuesPanel";
+import { CatalogHintCard } from "../review/CatalogHintCard";
 import { WorkshopLinesView, WorkshopLinesToggle } from "./WorkshopLinesView";
 import { showLinesToggle } from "./workshopLinesModel";
 import { bulkAcceptCount, type BulkSelectableLine } from "../magicBulkAcceptSelection";
@@ -365,6 +366,23 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
     resolve.commitLineCode, resolve.cancelLineEdit, resolve.confirmFlaggedLine, resolve.acceptingLineId,
     resolve.bulkAcceptSuggestions, resolve.bulkAccepting,
   ]);
+
+  // ── The catalog hint's facts (server truth, not a guess). It teaches the
+  //    catalog cliff exactly when it bites: lines still need codes and NOTHING
+  //    resolved automatically. The card itself stays silent until its own probe
+  //    proves the supplier's catalog is empty. ────────────────────────────────
+  const anyLineResolved = useMemo(
+    () => !!order?.lines.some((l) => !!l.supplierItemCode),
+    [order],
+  );
+  const catalogHint = order ? (
+    <CatalogHintCard
+      supplierId={order.supplierId}
+      supplierName={order.supplierName}
+      hasUnresolvedLines={exceptionCount > 0}
+      anyLineResolved={anyLineResolved}
+    />
+  ) : null;
 
   // ── Bulk-accept scope counts — derived from order.lines, mapped to the SAME
   //    BulkSelectableLine shape MagicMappingPreview feeds bulkAcceptCount, so the
@@ -832,16 +850,19 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
               ) : undefined
             }
             issuesSlot={
-              <IssuesPanel
-                issues={issues}
-                onFocusField={onFocusField}
-                onFix={onFix}
-                resolve={issuesResolve}
-                lines={order.lines}
-                suggestableCount={suggestableCount}
-                highConfCount={highConfCount}
-                onJumpToLine={onJumpToLine}
-              />
+              <>
+                {catalogHint}
+                <IssuesPanel
+                  issues={issues}
+                  onFocusField={onFocusField}
+                  onFix={onFix}
+                  resolve={issuesResolve}
+                  lines={order.lines}
+                  suggestableCount={suggestableCount}
+                  highConfCount={highConfCount}
+                  onJumpToLine={onJumpToLine}
+                />
+              </>
             }
             issuesOpenCount={issues.length}
             issuesBlockingCount={blockingIssues}
@@ -878,6 +899,7 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
           lines={order.lines}
           suggestableCount={suggestableCount}
           highConfCount={highConfCount}
+          hintSlot={catalogHint}
         />
       </div>
 
