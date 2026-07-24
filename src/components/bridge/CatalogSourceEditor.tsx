@@ -82,6 +82,9 @@ const CANONICAL_FIELD_LABELS: Record<CatalogCanonicalField, string> = {
 };
 
 // HTTPS + FTPS/SFTP first to default-discourage plaintext FTP / cleartext HTTP.
+// "logicom" is a vendor connector, not a transport protocol — it is filtered out of
+// the picker for new setups (see visibleProtocols) and kept here only so a source
+// already saved with it stays renderable/editable.
 const PROTOCOLS: Array<{ id: CatalogSourceProtocol; label: string }> = [
   { id: "https", label: "HTTPS API (encrypted)" },
   { id: "http", label: "HTTP API (not encrypted)" },
@@ -230,6 +233,13 @@ export function CatalogSourceEditor({ supplierId }: CatalogSourceEditorProps) {
   const logicomHasSavedCreds =
     isVendorProtocol && (savedSource?.hasAuthConfig ?? false) && savedSource?.protocol === "logicom";
 
+  // Logicom QuickConnect is never OFFERED for a new setup — but a source already
+  // saved with it must not become invisible/uneditable, so the tile renders while
+  // the saved source (or the current, not-yet-saved selection) still uses it.
+  const visibleProtocols = PROTOCOLS.filter(
+    (p) => p.id !== "logicom" || protocol === "logicom" || savedSource?.protocol === "logicom",
+  );
+
   // Shared by the click handler and the arrow-key radiogroup navigation.
   function selectProtocol(id: CatalogSourceProtocol) {
     setProtocol(id);
@@ -245,7 +255,7 @@ export function CatalogSourceEditor({ supplierId }: CatalogSourceEditorProps) {
   function handleProtocolKeyDown(event: KeyboardEvent<HTMLDivElement>) {
     if (!isArrowKey(event.key)) return;
     event.preventDefault();
-    const nextId = rovingRadioNext(event.key, protocol, PROTOCOLS.map((p) => p.id));
+    const nextId = rovingRadioNext(event.key, protocol, visibleProtocols.map((p) => p.id));
     if (nextId === null) return;
     selectProtocol(nextId);
     requestAnimationFrame(() => document.getElementById(`catalog-protocol-${nextId}`)?.focus());
@@ -488,7 +498,7 @@ export function CatalogSourceEditor({ supplierId }: CatalogSourceEditorProps) {
         <div className="p-4" style={{ borderRight: "1px solid #E5E8EE", background: "#FBFCFE" }}>
           <p id="catalog-protocol-label" className="mb-2 text-[11px] font-semibold uppercase" style={{ color: "var(--ink-faint)" }}>Protocol</p>
           <div className="grid gap-2" role="radiogroup" aria-labelledby="catalog-protocol-label" onKeyDown={handleProtocolKeyDown}>
-            {PROTOCOLS.map((item) => {
+            {visibleProtocols.map((item) => {
               const selected = protocol === item.id;
               return (
                 <button
@@ -499,7 +509,7 @@ export function CatalogSourceEditor({ supplierId }: CatalogSourceEditorProps) {
                   aria-checked={selected}
                   tabIndex={selected ? 0 : -1}
                   onClick={() => selectProtocol(item.id)}
-                  className="flex min-h-[44px] items-center justify-between rounded-[6px] px-3 text-[12px] font-semibold"
+                  className="flex min-h-[44px] items-center rounded-[6px] px-3 text-left text-[12px] font-semibold"
                   style={{
                     border: selected ? "1px solid #2E8E3A" : "1px solid #D5DAEA",
                     background: selected ? "#E9F1EA" : "#FFFFFF",

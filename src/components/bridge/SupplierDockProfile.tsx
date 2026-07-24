@@ -993,7 +993,12 @@ function CatalogTab({ supplierId }: { supplierId: string }) {
       {isLoading ? (
         <div style={{ fontSize: 12, color: MUTED }}>Loading catalog…</div>
       ) : items.length === 0 ? (
-        <div style={{ fontSize: 12.5, color: MUTED, padding: "18px 14px", background: "#F6F7FA", border: "1px dashed #CBD0DA", borderRadius: 8, textAlign: "center" }}>
+        /* 2px dashed, not 1px: this box rendered with a missing TOP edge. Verified: no
+           element overlaps it (12px clear gap above), but at Windows 125% scaling
+           (dpr 1.25) Chromium computes the declared 1px as a 0.8px hairline — sub-device-
+           pixel edges can rasterize to zero rows at fractional offsets. 2px stays >=2
+           device pixels on every edge. Same weight as the UploadWorkbench drop zone. */
+        <div style={{ fontSize: 12.5, color: MUTED, padding: "18px 14px", background: "#F6F7FA", border: "2px dashed #CBD0DA", borderRadius: 8, textAlign: "center" }}>
           {q ? "No products match." : "No products yet. Upload this supplier's product list (CSV or XLSX). ProcuLink uses it so AI only suggests real supplier codes and flags unknown ones. Only \"code\" is required; name, unit, price, barcode are optional. Example: ACM-PL-22, Hydraulic seal kit, box, 24.50."}
         </div>
       ) : (
