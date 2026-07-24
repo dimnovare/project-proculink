@@ -32,6 +32,7 @@ import type { CalibrationSummary } from "@/types/procurement";
 import { MapperWorkbench, type MapperWorkbenchLayout, type MapperToolbarState } from "../mapper/MapperWorkbench";
 import { UnifiedStatusBadge } from "../UnifiedStatusBadge";
 import { FailedPanel, ParseFailedPanel } from "../FailedPanels";
+import { AssignSupplierBanner } from "./AssignSupplierBanner";
 import { BillingHeldPanel } from "./BillingHeldPanel";
 import { DeliveryUnconfirmedPanel } from "./DeliveryUnconfirmedPanel";
 import { ConfirmDialog } from "../review/ConfirmDialog";
@@ -694,6 +695,15 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
           </div>
         </div>
       </div>
+
+      {/* ── Needs-a-supplier banner — the resolver for an order parked `unrouted`.
+          Keyed on order.status and nothing else: the status badge a few lines above
+          reads "Needs review" for these orders (the line-level exception flag
+          outranks the routing one), so any signal derived from the issue count
+          would hide this banner exactly when it is needed. Deliberately NOT a gate
+          in the chain above — the extracted header and lines underneath are the
+          evidence the operator uses to answer "whose order is this?". ────────── */}
+      {order.status === "unrouted" && <AssignSupplierBanner order={order} />}
 
       {/* ── Practice-order banner — shown when ?sample=1 is in the URL. Mirrors the
           copy in OnboardingChecklist so the wording is consistent across all entry

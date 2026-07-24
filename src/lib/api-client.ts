@@ -182,6 +182,28 @@ const mockOrders: Order[] = [
       { id: "a-003-1", format: "xml", fileKey: "mock/ord-003/artifacts/a-003-1.xml", createdAt: "2024-01-14T12:30:00Z" },
     ],
   },
+  {
+    // Parked `unrouted`: arrived on a content-routed channel (SFTP/S3/IMAP) with no
+    // resolvable supplier, so it parsed and stopped. Lines exist and have no
+    // supplierItemCode — with no supplier there is nothing to resolve them against.
+    // Without this row, mock mode had no way to reach the assign-supplier flow at all.
+    id: "ord-004",
+    poNumber: "PO-2024-011145",
+    supplierId: null,
+    supplierName: "",
+    buyerName: "Acme Manufacturing",
+    orderDate: "2024-01-16",
+    currency: "EUR",
+    status: "unrouted",
+    sourceFileKey: "orgs/demo/orders/po-011145.pdf",
+    createdAt: "2024-01-16T08:05:00Z",
+    updatedAt: "2024-01-16T08:06:00Z",
+    lines: [
+      { id: "l-004-1", lineNumber: 1, buyerItemCode: "MM-VALVE-D12", description: "Ball valve DN12",       quantity: 8,  unit: "PCS", unitPrice: 41.20, confidence: 0.0, needsReview: true },
+      { id: "l-004-2", lineNumber: 2, buyerItemCode: "MM-GASKET-40", description: "Flange gasket 40mm",    quantity: 24, unit: "PCS", unitPrice: 3.15,  confidence: 0.0, needsReview: true },
+    ],
+    artifacts: [],
+  },
 ];
 
 // ── Suppliers ─────────────────────────────────────────────────────────────
@@ -732,6 +754,75 @@ async function realRetryDelivery(orderId: string): Promise<RetryDeliveryResult> 
     throw new ApiHttpError(`retry-delivery failed: ${message || res.status}`, res.status, body);
   }
   return res.json() as Promise<RetryDeliveryResult>;
+}
+
+// ── Assign supplier (routing) ─────────────────────────────────────────────
+
+/**
+ * POST /api/orders/{id}/assign-supplier — the only route out of `unrouted`.
+ *
+ * The API validates the supplier (org-scoped, not soft-deleted), pins that supplier's
+ * active connection revision, then ATOMICALLY claims the order `unrouted` → `parsing`
+ * and re-enqueues the parse — so the lines resolve against the chosen supplier through
+ * the normal path. The claim is a conditional UPDATE, which is why a second assignment
+ * (another operator, another tab) answers 409 rather than silently re-parsing: it
+ * matched no row. The response is the updated order, already holding `parsing`.
+ *
+ * Errors keep their status code (ApiHttpError) because 409 and 400 need DIFFERENT copy:
+ * 409 means "someone already routed this", 400 means "that supplier isn't usable".
+ */
+async function mockAssignSupplier(orderId: string, supplierId: string): Promise<Order> {
+  await delay(300);
+  const idx = mockOrders.findIndex(o => o.id === orderId);
+  if (idx === -1) throw new ApiHttpError("assign-supplier failed: Order not found.", 404, null);
+
+  const supplier = mockSupplierList.find(s => s.id === supplierId);
+  if (!supplier) throw new ApiHttpError("assign-supplier failed: Supplier not found.", 400, { error: "Supplier not found." });
+
+  // Mirror the backend's atomic claim: only an unrouted order can be assigned.
+  if (mockOrders[idx].status !== "unrouted") {
+    throw new ApiHttpError(
+      "assign-supplier failed: Order is not awaiting routing (it already has a supplier or is in another state).",
+      409,
+      { error: "Order is not awaiting routing (it already has a supplier or is in another state)." },
+    );
+  }
+
+  mockOrders[idx] = {
+    ...mockOrders[idx],
+    supplierId,
+    supplierName: supplier.name,
+    status: "parsing",
+    updatedAt: new Date().toISOString(),
+  };
+  // The re-enqueued parse settles the order the same way the upload path does.
+  setTimeout(() => {
+    const i = mockOrders.findIndex(o => o.id === orderId);
+    if (i !== -1 && mockOrders[i].status === "parsing") {
+      mockOrders[i] = { ...mockOrders[i], status: "pending_review", updatedAt: new Date().toISOString() };
+    }
+  }, 2_500);
+
+  return mockOrders[idx];
+}
+
+async function realAssignSupplier(orderId: string, supplierId: string): Promise<Order> {
+  const res = await fetchWithTimeout(`${API_BASE_URL}/api/orders/${orderId}/assign-supplier`, {
+    method: "POST",
+    // [FromBody] binding needs the JSON content-type; without it the request is
+    // rejected before the controller ever reads a supplier id.
+    headers: { ...(await authHeader()), "Content-Type": "application/json" },
+    body: JSON.stringify({ supplierId }),
+  }, 30000);
+  if (!res.ok) {
+    const body = await res.json().catch(() => null);
+    const message =
+      body && typeof body === "object" && "error" in body
+        ? String((body as { error?: unknown }).error)
+        : res.statusText;
+    throw new ApiHttpError(`assign-supplier failed: ${message || res.status}`, res.status, body);
+  }
+  return res.json() as Promise<Order>;
 }
 
 // ── Download ──────────────────────────────────────────────────────────────
@@ -1383,6 +1474,7 @@ export const apiClient = {
   resolvePurchaseOrder:   USE_MOCK ? mockResolvePurchaseOrder  : realResolvePurchaseOrder,
   transformOrder:         USE_MOCK ? mockTransformOrder        : realTransformOrder,
   retryDelivery:          USE_MOCK ? mockRetryDelivery         : realRetryDelivery,
+  assignSupplier:         USE_MOCK ? mockAssignSupplier        : realAssignSupplier,
   getDownloadUrl:         USE_MOCK ? mockGetDownloadUrl        : realGetDownloadUrl,
 
   // Supplier mappings
