@@ -64,6 +64,17 @@ export const HUB_TABS: Record<HubKey, HubTab[]> = {
   ],
 };
 
+/**
+ * A hub earns a tab strip only when it has somewhere to switch TO. With a
+ * single tab the strip is one tab sitting under the top-nav item that already
+ * names the same page — the founder-reported double navbar. Callers that build
+ * the surrounding chrome (BridgeTopbar's hub row) check this before rendering
+ * any of it; HubTabs itself also refuses, so no caller can reintroduce it.
+ */
+export function hubShowsTabs(hub: HubKey): boolean {
+  return HUB_TABS[hub].length >= 2;
+}
+
 /** Which hub (if any) a pathname belongs to — used by the sidebar for active state. */
 export function hubForPath(pathname: string): HubKey | null {
   for (const key of Object.keys(HUB_TABS) as HubKey[]) {
@@ -126,6 +137,8 @@ export function HubTabs({
   const pathname = usePathname() ?? "";
   const tabs = HUB_TABS[hub];
   const topbar = variant === "topbar";
+  // Nothing to switch to → no strip (see hubShowsTabs).
+  if (!hubShowsTabs(hub)) return null;
   return (
     <nav aria-label="Section" style={topbar ? topbarBarStyle : barStyle}>
       {tabs.map((t) => {

@@ -69,7 +69,7 @@ import {
   PINNED_ACTION_HREF,
   type SidebarNavItem,
 } from "./BridgeSidebar";
-import { hubForPath } from "./layout/HubTabs";
+import { HUB_TABS, hubForPath, type HubKey } from "./layout/HubTabs";
 import { LAUNCH_CORE_ONLY } from "@/lib/launch-flags";
 
 afterEach(() => {
@@ -166,6 +166,16 @@ describe("buildVisibleNav — consolidated structure (full nav)", () => {
     // …and each hub item's own href resolves back to its hub (no drift).
     for (const item of Object.values(byLabel)) {
       if (item.hub) expect(hubForPath(item.href)).toBe(item.hub);
+    }
+  });
+
+  // FE-2: a hub item promises siblings. If a hub ever shrank to one tab, its
+  // topbar strip would render a single tab directly under the nav item naming
+  // the same page — the founder-reported double navbar. HubTabs suppresses a
+  // lone-tab strip; this keeps the nav structure itself honest.
+  it("every hub exposes at least two tabs (a lone tab has nowhere to switch to)", () => {
+    for (const key of Object.keys(HUB_TABS) as HubKey[]) {
+      expect(HUB_TABS[key].length, `hub ${key}`).toBeGreaterThanOrEqual(2);
     }
   });
 

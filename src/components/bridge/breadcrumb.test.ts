@@ -10,6 +10,7 @@ import {
   formatCrumbLabel,
   crumbHref,
   buildCrumbTrail,
+  isLonePageCrumb,
   looksLikeId,
   shortId,
   truncateLabel,
@@ -202,5 +203,29 @@ describe("buildCrumbTrail — Workbench group head (v2 nav)", () => {
       "Operations",
       "Exceptions",
     ]);
+  });
+});
+
+// FE-2: a trail of exactly one crumb names the current page and links nowhere.
+// The topbar uses this to drop its context row wherever the primary nav row is
+// visible — that row already names the page, so the crumb was a second navbar.
+describe("isLonePageCrumb", () => {
+  it("is true for a top-level page (no ancestor to link to)", () => {
+    expect(isLonePageCrumb("/bridge")).toBe(true);
+    expect(isLonePageCrumb("/inbox")).toBe(true);
+    expect(isLonePageCrumb("/upload")).toBe(true);
+    expect(isLonePageCrumb("/settings")).toBe(true);
+  });
+
+  it("is false when the trail carries an ancestor crumb", () => {
+    // Workbench / Drafts — the head crumb is context the nav row does not show.
+    expect(isLonePageCrumb("/drafts")).toBe(false);
+    expect(isLonePageCrumb("/library/suppliers")).toBe(false);
+    expect(isLonePageCrumb("/operations/exceptions")).toBe(false);
+    expect(isLonePageCrumb("/inbox/a8c18df7-dec8-4a1b-9c2d-1f2e3a4b5c6d")).toBe(false);
+  });
+
+  it("is false for the root path (no trail at all)", () => {
+    expect(isLonePageCrumb("/")).toBe(false);
   });
 });
