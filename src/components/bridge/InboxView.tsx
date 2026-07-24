@@ -561,9 +561,13 @@ function buildColumns(labels: PartyLabels) {
             {hasBuyer ? buyer : labels.unknownBuyer}
           </span>
           <span style={{ color: "var(--ink-faint)", flexShrink: 0 }}>→</span>
-          <span style={{ color: GREEN_DEEP, fontWeight: 500, flex: 1, minWidth: 0, textOverflow: "ellipsis", whiteSpace: "nowrap", overflow: "hidden" }}>
-            {row.original.supplier}
-          </span>
+          {row.original.rawStatus === "unrouted" ? (
+            <AssignSupplierCell orderId={row.original.id} noun={labels.counterpartyNoun} />
+          ) : (
+            <span style={{ color: GREEN_DEEP, fontWeight: 500, flex: 1, minWidth: 0, textOverflow: "ellipsis", whiteSpace: "nowrap", overflow: "hidden" }}>
+              {row.original.supplier}
+            </span>
+          )}
         </div>
       );
     },
@@ -623,6 +627,46 @@ function buildColumns(labels: PartyLabels) {
     size: 30,
   }),
   ];
+}
+
+/**
+ * The supplier half of the rail for an order parked `unrouted`.
+ *
+ * That order has no supplier — the API has nothing to put in `supplierName` — so this
+ * cell used to render the buyer, an arrow, and a blank. The blank IS the thing to do,
+ * so it says so and routes to the order page, where AssignSupplierBanner holds the
+ * picker and the 409 handling. Deliberately not a second assign implementation: one
+ * atomic claim, one place that knows what its conflict means.
+ *
+ * The row itself already navigates here on click; this is the keyboard-reachable,
+ * NAMED version of that, and the only thing on the row that says what it needs.
+ */
+function AssignSupplierCell({ orderId, noun }: { orderId: string; noun: string }) {
+  const router = useRouter();
+  return (
+    <button
+      type="button"
+      // The row's own onClick would fire too and race this push to the same URL.
+      onClick={(e) => { e.stopPropagation(); router.push(`/inbox/${orderId}`); }}
+      className="text-[12px] font-semibold"
+      style={{
+        flex: 1,
+        minWidth: 0,
+        textAlign: "left",
+        padding: "3px 8px",
+        borderRadius: 5,
+        border: "1px solid #EBD7AE",
+        background: "#FAF1DD",
+        color: "#B36D14",
+        cursor: "pointer",
+        whiteSpace: "nowrap",
+        overflow: "hidden",
+        textOverflow: "ellipsis",
+      }}
+    >
+      Assign {noun.toLowerCase()} →
+    </button>
+  );
 }
 
 // ─── Sort indicator ───────────────────────────────────────────────────────────
@@ -1430,6 +1474,20 @@ export function InboxView() {
               {(() => {
                 const buyer = row.original.buyer;
                 const hasBuyer = buyer != null && buyer.trim() !== "" && buyer.trim() !== "—";
+                // An unrouted order has no supplier to print, so the supplier slot
+                // carries the action instead — same words as the desktop cell. It is
+                // NOT a button here: the whole card is already one (nesting is invalid),
+                // and tapping the card goes exactly where the words say.
+                const supplierSlot = row.original.rawStatus === "unrouted" ? (
+                  <span
+                    className="truncate font-semibold"
+                    style={{ color: "#B36D14", background: "#FAF1DD", border: "1px solid #EBD7AE", borderRadius: 5, padding: "1px 7px", fontSize: 12 }}
+                  >
+                    Assign {labels.counterpartyNoun.toLowerCase()} →
+                  </span>
+                ) : (
+                  <span className="truncate font-medium" style={{ color: GREEN_DEEP }}>{row.original.supplier}</span>
+                );
                 // Missing buyer → one honest line (supplier only) instead of two
                 // disconnected dashes. Present buyer → buyer → supplier rail that
                 // stacks vertically on mobile, horizontal from sm up.
@@ -1438,12 +1496,12 @@ export function InboxView() {
                     <div className="flex items-center gap-1.5 text-[13px]">
                       <span className="text-[11.5px]" style={{ color: "var(--ink-faint)" }}>{labels.unknownBuyer}</span>
                       <span aria-hidden style={{ color: "#CBD0DA" }}>→</span>
-                      <span className="truncate font-medium" style={{ color: GREEN_DEEP }}>{row.original.supplier}</span>
+                      {supplierSlot}
                     </div>
                   );
                 }
                 return (
-                  <div className="flex flex-col gap-1 text-[13px] sm:flex-row sm:items-center sm:gap-2">
+                  <div className="flex flex-col items-start gap-1 text-[13px] sm:flex-row sm:items-center sm:gap-2">
                     <span className="truncate font-medium" style={{ color: BLUE_DEEP }}>{buyer}</span>
                     <span
                       aria-hidden
@@ -1451,7 +1509,7 @@ export function InboxView() {
                       style={{ background: "linear-gradient(90deg, #1E66C9, #2E8E3A)" }}
                     />
                     <span aria-hidden className="text-[11px] leading-none sm:hidden" style={{ color: "#CBD0DA" }}>↓</span>
-                    <span className="truncate font-medium" style={{ color: GREEN_DEEP }}>{row.original.supplier}</span>
+                    {supplierSlot}
                   </div>
                 );
               })()}
