@@ -529,6 +529,13 @@ function EmailSettingsSection() {
     queryFn: apiClient.getSuppliers,
     retry: false,
   });
+  // Org slug → the hosted inbound address card at the top of this tab.
+  const { data: orgSettings } = useQuery({
+    queryKey: ["org-settings"],
+    queryFn: getOrgSettings,
+    staleTime: 300_000,
+    retry: false,
+  });
 
   // Derive initial form state from query data; avoid mirroring useEffect where possible.
   // We keep the useEffect here as the form is write-heavy and the sync is intentional;
@@ -641,6 +648,19 @@ function EmailSettingsSection() {
   return (
     <div>
       <SettingsGroup title="Email intake" sub="Ingest orders that arrive by email — IMAP polling every 5 minutes.">
+        {/* The zero-setup intake path first: the hosted address needs none of the
+            IMAP config below. Shown here as well as on the API-keys tab so the
+            Email tab answers "where do I send orders?" on its own. */}
+        <InboundEmailRow slug={orgSettings?.slug} />
+        <p style={{ fontSize: 12, color: "var(--ink-muted)", margin: "-6px 0 18px", lineHeight: 1.55 }}>
+          This address needs no setup — anything sent to it is imported automatically. Share it with
+          the people who email you orders, or add a forwarding rule in your own mailbox. The IMAP
+          polling below is only for reading a mailbox you already own.{" "}
+          <Link href="/help/order-intake-options" style={{ color: "inherit", fontWeight: 600, textDecoration: "underline" }}>
+            See all order intake options
+          </Link>.
+        </p>
+
         {/* Enable row + billing gate notice */}
         {/* Name the EXACT unlock: Growth (€149/mo) is the cheapest paid tier that
             includes email ingestion, so a Pilot user upgrades to Growth. */}
@@ -962,7 +982,8 @@ function IngressEndpointRow({ slug }: { slug: string | undefined }) {
 }
 
 // ── Inbound email row ──────────────────────────────────────────────────────
-// Read-only "email your orders here" block on the API-keys tab. Builds the
+// Read-only "email your orders here" block, rendered on BOTH the API-keys tab
+// and the Email-intake tab. Builds the
 // inbound address from the org slug (same source as IngressEndpointRow). Handles
 // the slug being absent (older API / still generating) with a "generating…"
 // placeholder rather than a broken "@orders.proculink.eu" with no slug.
