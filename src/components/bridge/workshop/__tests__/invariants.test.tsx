@@ -105,6 +105,27 @@ vi.mock("@/lib/api-client", () => ({
   getMappingOverride: vi.fn().mockResolvedValue(null),
 }));
 
+// The catalog hint owns its own visibility (it probes the supplier's catalog and
+// renders null until that probe proves the catalog is empty — see
+// CatalogHintCard.test.tsx). Stubbed here so these tests can assert the MOUNT and
+// the facts the workshop feeds it, without standing up a query client.
+vi.mock("../../review/CatalogHintCard", () => ({
+  CatalogHintCard: (p: {
+    supplierId: string;
+    supplierName: string;
+    hasUnresolvedLines: boolean;
+    anyLineResolved: boolean;
+  }) => (
+    <div
+      data-testid="catalog-hint-stub"
+      data-supplier-id={p.supplierId}
+      data-supplier-name={p.supplierName}
+      data-unresolved={String(p.hasUnresolvedLines)}
+      data-any-resolved={String(p.anyLineResolved)}
+    />
+  ),
+}));
+
 vi.mock("../../review/hooks/useOrderReview", () => ({
   useOrderReview: () => ({
     order: mockState.order,
@@ -938,5 +959,66 @@ describe("Lines view — field-anchored actions route back to Fields; a jump is 
     await new Promise((r) => setTimeout(r, 80));
     expect(scrollSpy).toHaveBeenCalledTimes(1);
     scrollSpy.mockRestore();
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// FE-3(c) — CatalogHintCard is MOUNTED, not orphaned.
+//
+// The card was exported and unit-modelled but rendered nowhere, so the catalog
+// cliff it exists to teach never got taught. It is fed server truth: unresolved
+// lines = exceptionCount, and "nothing resolved yet" = no line carries a code.
+// The card decides its own visibility from its probe (CatalogHintCard.test.tsx);
+// what this freezes is that the workshop mounts it with the right facts, on both
+// the desktop Issues tab and the mobile triage view.
+// ─────────────────────────────────────────────────────────────────────────────
+describe("the review screen mounts the catalog hint", () => {
+  test("passes server-truth resolution facts, on desktop AND mobile", () => {
+    mockState.order = makeOrder({
+      lines: [
+        {
+          id: "l1", lineNumber: 1, buyerItemCode: "B-1", supplierItemCode: null,
+          description: "Widget", quantity: 1, unitPrice: 10, confidence: 1,
+          needsReview: true, aiSuggestion: null,
+        } as Order["lines"][number],
+      ],
+    });
+    mockState.exceptionCount = 1;
+    mockState.validationResult = { passed: true, results: [] } as OrderValidationResult;
+    render(<OrderWorkshop orderId="ord-1" />);
+
+    const cards = screen.getAllByTestId("catalog-hint-stub");
+    // One in the desktop Issues tab, one in the mobile triage view.
+    expect(cards.length).toBe(2);
+    for (const card of cards) {
+      expect(card.getAttribute("data-supplier-id")).toBe("sup-1");
+      expect(card.getAttribute("data-supplier-name")).toBe("Acme");
+      expect(card.getAttribute("data-unresolved")).toBe("true");
+      expect(card.getAttribute("data-any-resolved")).toBe("false");
+    }
+  });
+
+  test("reports 'something already resolved' once a line carries a code", () => {
+    mockState.order = makeOrder({
+      lines: [
+        {
+          id: "l1", lineNumber: 1, buyerItemCode: "B-1", supplierItemCode: "S-1",
+          description: "Widget", quantity: 1, unitPrice: 10, confidence: 1,
+          needsReview: false, aiSuggestion: null,
+        } as Order["lines"][number],
+        {
+          id: "l2", lineNumber: 2, buyerItemCode: "B-2", supplierItemCode: null,
+          description: "Gadget", quantity: 1, unitPrice: 10, confidence: 1,
+          needsReview: true, aiSuggestion: null,
+        } as Order["lines"][number],
+      ],
+    });
+    mockState.exceptionCount = 1;
+    mockState.validationResult = { passed: true, results: [] } as OrderValidationResult;
+    render(<OrderWorkshop orderId="ord-1" />);
+
+    // A mapping DID resolve something — the cliff is not what is blocking here.
+    expect(screen.getAllByTestId("catalog-hint-stub")[0].getAttribute("data-any-resolved"))
+      .toBe("true");
   });
 });

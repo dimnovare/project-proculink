@@ -1,13 +1,14 @@
 "use client";
 
 // CatalogHintCard — review-screen hint for the catalog cliff (onboarding
-// overhaul task 7; design: 2026-06-12-onboarding-overhaul-design.md).
+// overhaul task 7; design: 2026-06-12-onboarding-overhaul-design.md). Mounted in
+// the Order Workshop's Issues tab and in the mobile triage view.
 //
-// PER-SUPPLIER probe via the existing GET /api/suppliers/{id}/catalog (shares
-// the ["supplier-catalog-codes", supplierId] cache entry SpineReview already
-// uses for the typeahead — zero extra requests). NOT the org-level
-// hasCatalog flag, so the hint re-teaches on every NEW supplier, not just the
-// first.
+// PER-SUPPLIER probe through useCatalogCodeSearch's empty-query entry — the SAME
+// ["supplier-catalog-codes", supplierId] cache entry the review screen's catalog
+// picker and the upload-preview typeahead use, so this costs zero extra
+// requests. NOT the org-level hasCatalog flag, so the hint re-teaches on every
+// NEW supplier, not just the first.
 //
 // Shows only when the order has unresolved lines, no item mapping resolved
 // anything, and the supplier's catalog is KNOWN empty (shouldShowCatalogHint).
@@ -16,9 +17,8 @@
 // behaviour is touched.
 
 import Link from "next/link";
-import { useQuery } from "@tanstack/react-query";
-import { getSupplierCatalog } from "@/lib/api-client";
-import { useQueriesEnabled } from "@/hooks/useQueriesEnabled";
+import { useCatalogCodeSearch } from "@/hooks/useCatalogCodeSearch";
+import { hasAssignedSupplier } from "@/lib/catalogCodes";
 import { shouldShowCatalogHint, type CatalogProbeState } from "./catalogHint";
 
 export function CatalogHintCard({
@@ -35,24 +35,21 @@ export function CatalogHintCard({
   /** At least one line already carries a supplier code. */
   anyLineResolved: boolean;
 }) {
-  const queryEnabled = useQueriesEnabled();
+  // An unrouted order carries Guid.Empty — there is no supplier, so the card must
+  // neither probe nor speak.
+  const routed = hasAssignedSupplier(supplierId);
 
-  // Same query key + shape as SpineReview's typeahead probe → shared cache.
-  const catalog = useQuery({
-    queryKey: ["supplier-catalog-codes", supplierId],
-    queryFn: () => getSupplierCatalog(supplierId, undefined, 1000),
-    enabled: queryEnabled && !!supplierId,
-    staleTime: 60_000,
-    retry: 1,
-  });
+  // The shared empty-query probe (same cache entry as the code pickers).
+  const catalog = useCatalogCodeSearch({ supplierId, query: "", enabled: routed });
 
-  const catalogState: CatalogProbeState = !catalog.isSuccess
-    ? "unknown"
-    : (catalog.data?.items?.length ?? 0) > 0 || (catalog.data?.total ?? 0) > 0
-      ? "has-rows"
-      : "known-empty";
+  const catalogState: CatalogProbeState =
+    catalog.claim.kind === "unknown"
+      ? "unknown"
+      : catalog.claim.kind === "no-catalog"
+        ? "known-empty"
+        : "has-rows";
 
-  if (!shouldShowCatalogHint({ hasUnresolvedLines, anyLineResolved, catalogState })) {
+  if (!routed || !shouldShowCatalogHint({ hasUnresolvedLines, anyLineResolved, catalogState })) {
     return null;
   }
 

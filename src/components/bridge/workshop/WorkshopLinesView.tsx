@@ -16,17 +16,19 @@
 //   • bulk apply            → onBulkApply         = the EXISTING bulk accept
 //     (POST /accept-ai-suggestions at minConfidence 0 — exactly the blocked
 //     lines that carry a suggestion), behind the shared useConfirm dialog.
-// The catalog picker reads the SAME ["supplier-catalog-codes", supplierId]
-// cache the review screen's CatalogHintCard uses (CatalogHintCard.tsx:42), so
-// opening it costs zero extra requests when that probe already ran.
+// The catalog picker searches SERVER-side through useCatalogCodeSearch; its
+// empty-query entry is the SAME ["supplier-catalog-codes", supplierId] cache
+// entry the review screen's CatalogHintCard probes, so opening the picker costs
+// zero extra requests when that probe already ran.
 //
 // All numbers come from workshopLinesModel (pure, unit-tested) so the table,
 // the footer reconcile chip, and the toggle badge can never disagree.
 
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { getSupplierCatalog } from "@/lib/api-client";
-import { useQueriesEnabled } from "@/hooks/useQueriesEnabled";
+import { useCatalogCodeSearch } from "@/hooks/useCatalogCodeSearch";
+import { hasAssignedSupplier, type CatalogPageClaim } from "@/lib/catalogCodes";
+import { CatalogCodeResults } from "../catalog/CatalogCodeResults";
+import type { SupplierProduct } from "@/lib/api/types";
 import { useConfirm } from "@/components/ui/confirm";
 import { formatMoney } from "../review/orderDisplay";
 import type { Order, OrderLine } from "@/types/procurement";
@@ -174,13 +176,6 @@ export interface WorkshopLinesViewProps {
   onJumpConsumed?: () => void;
 }
 
-/**
- * An unrouted order (no supplier assigned yet) serializes its supplierId as
- * Guid.Empty — there IS no supplier, so nothing in this view may claim anything
- * about "this supplier's catalog".
- */
-const EMPTY_GUID = "00000000-0000-0000-0000-000000000000";
-
 export function WorkshopLinesView({
   order,
   onAcceptSuggestion,
@@ -192,10 +187,9 @@ export function WorkshopLinesView({
   onJumpConsumed,
 }: WorkshopLinesViewProps) {
   const confirm = useConfirm();
-  const queryEnabled = useQueriesEnabled();
   const lines = order.lines;
   const sym = currencyMark(order.currency);
-  const hasSupplier = !!order.supplierId && order.supplierId !== EMPTY_GUID;
+  const hasSupplier = hasAssignedSupplier(order.supplierId);
 
   // Expanded rows (line ids). Only non-ready rows are expandable.
   const [expanded, setExpanded] = useState<ReadonlySet<string>>(new Set());
@@ -247,35 +241,16 @@ export function WorkshopLinesView({
     return () => cancelAnimationFrame(raf);
   }, [jumpSignal, onJumpConsumed]);
 
-  // The catalog list — the SAME key + shape as CatalogHintCard's probe (shared cache).
-  // Never fired for an unrouted order (no supplier → no catalog to ask about).
-  const {
-    data: catalog,
-    isLoading: catalogLoading,
-    isError: catalogErrored,
-    isSuccess: catalogLoaded,
-    refetch: refetchCatalog,
-  } = useQuery({
-    queryKey: ["supplier-catalog-codes", order.supplierId],
-    // Fetches the FIRST 1000 items only. The client-side search below filters
-    // just this loaded subset — CatalogPickPanel's no-match copy states that
-    // bound whenever total > loaded, instead of overclaiming a full search.
-    queryFn: () => getSupplierCatalog(order.supplierId, undefined, 1000),
-    enabled: queryEnabled && catalogFor != null && hasSupplier,
-    staleTime: 60_000,
-    retry: 1,
+  // The catalog lookup — SERVER-side search (a real distributor catalog is 100k+
+  // rows, so a client-side filter over one fetched page could only ever search
+  // the part it loaded). Its empty-query entry is the SAME cache entry
+  // CatalogHintCard probes. Never fired for an unrouted order (no supplier → no
+  // catalog to ask about).
+  const catalog = useCatalogCodeSearch({
+    supplierId: order.supplierId,
+    query: catalogQuery,
+    enabled: catalogFor != null && hasSupplier,
   });
-  const catalogItems = catalog?.items ?? [];
-  const catalogMatches = useMemo(() => {
-    const items = catalog?.items ?? [];
-    const q = catalogQuery.trim().toLowerCase();
-    const filtered = q
-      ? items.filter(
-          (p) => p.code.toLowerCase().includes(q) || (p.name ?? "").toLowerCase().includes(q),
-        )
-      : items;
-    return filtered.slice(0, 8);
-  }, [catalog, catalogQuery]);
 
   // Footer derivations (pure model).
   const { sum, verdict } = useMemo(
@@ -344,13 +319,12 @@ export function WorkshopLinesView({
                   catalogPanel={
                     catalogFor === line.id ? (
                       <CatalogPickPanel
-                        loading={catalogLoading}
-                        errored={catalogErrored}
-                        onRetry={() => refetchCatalog()}
-                        loaded={catalogLoaded}
-                        loadedCount={catalogItems.length}
-                        total={catalog?.total ?? 0}
-                        matches={catalogMatches}
+                        fetching={catalog.isFetching}
+                        errored={catalog.isError}
+                        onRetry={catalog.refetch}
+                        claim={catalog.claim}
+                        matches={catalog.items}
+                        settledQuery={catalog.settledQuery}
                         query={catalogQuery}
                         onQuery={setCatalogQuery}
                         busy={busy}
@@ -668,30 +642,31 @@ function LineRow({
   );
 }
 
-// ── The inline catalog picker (search the supplier's imported catalog, pick a code) ──
+// ── The inline catalog picker (search the supplier's catalog, pick a code) ────
+// Search is server-side; this panel is a pure view over the result. Every claim
+// it makes comes from `claim` (catalogPageClaim), never from the item count.
 function CatalogPickPanel({
-  loading,
+  fetching,
   errored,
   onRetry,
-  loaded,
-  loadedCount,
-  total,
+  claim,
   matches,
+  settledQuery,
   query,
   onQuery,
   busy,
   onPick,
 }: {
-  loading: boolean;
+  /** A request is in flight — the list below answers an older query, or nothing yet. */
+  fetching: boolean;
   /** The catalog query FAILED — the panel must not claim the catalog is empty. */
   errored: boolean;
   onRetry: () => void;
-  /** The catalog query SUCCEEDED — only then may the panel claim what the catalog holds. */
-  loaded: boolean;
-  /** How many items were actually fetched (≤ total) — the search runs over these only. */
-  loadedCount: number;
-  total: number;
-  matches: ReadonlyArray<{ id: string; code: string; name?: string | null }>;
+  /** What the current page proves. `unknown` → the panel states nothing. */
+  claim: CatalogPageClaim;
+  matches: ReadonlyArray<Pick<SupplierProduct, "id" | "code" | "name">>;
+  /** The query these matches answer (debounced) — may lag `query` by a keystroke. */
+  settledQuery: string;
   query: string;
   onQuery: (v: string) => void;
   busy: boolean;
@@ -727,89 +702,24 @@ function CatalogPickPanel({
           color: C.ink,
         }}
       />
-      <div style={{ marginTop: 6, display: "flex", flexDirection: "column", gap: 1 }}>
-        {loading && (
-          <span style={{ fontSize: 11, color: C.faint, padding: "4px 2px" }}>Loading catalog…</span>
-        )}
-        {/* A FAILED probe says so — it never claims the catalog is empty. */}
-        {errored && (
-          <span style={{ fontSize: 11, color: C.red, padding: "4px 2px", lineHeight: 1.5, display: "inline-flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-            Couldn&rsquo;t load the catalog — try again.
-            <button
-              type="button"
-              onClick={onRetry}
-              style={{ border: `1px solid ${C.border}`, background: "#FFFFFF", color: "#5E6779", borderRadius: 6, fontSize: 11, fontWeight: 600, padding: "3px 9px", cursor: "pointer" }}
-            >
-              Retry
-            </button>
-          </span>
-        )}
-        {/* "No catalog yet — import one" ONLY on a SUCCESSFUL probe returning 0
-            rows. On error the total defaults to 0 too — `loaded` keeps that case
-            out of this definitive claim. */}
-        {loaded && total === 0 && (
-          <span style={{ fontSize: 11, color: C.faint, padding: "4px 2px", lineHeight: 1.5 }}>
-            No catalog for this supplier yet — import one on the supplier&rsquo;s Catalog tab, or
-            type the code manually from the issue card.
-          </span>
-        )}
-        {/* The search only saw the loaded subset (first 1000) — when the catalog
-            holds more, the no-match copy must say which part was searched. */}
-        {loaded && total > 0 && matches.length === 0 && (
-          <span style={{ fontSize: 11, color: C.faint, padding: "4px 2px", lineHeight: 1.5 }}>
-            {loadedCount < total ? (
-              <>
-                Searched only the first {loadedCount.toLocaleString("en-IE")} of{" "}
-                {total.toLocaleString("en-IE")} catalog items — no match. Refine the search.
-              </>
-            ) : (
-              <>No product matches &ldquo;{query}&rdquo;.</>
-            )}
-          </span>
-        )}
-        {!loading &&
-          matches.map((p) => (
-            <button
-              key={p.id}
-              type="button"
-              disabled={busy}
-              onClick={() => onPick(p.code)}
-              title={`Use ${p.code} as this line's supplier code`}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 8,
-                width: "100%",
-                textAlign: "left",
-                border: "none",
-                background: "none",
-                cursor: busy ? "wait" : "pointer",
-                padding: "5px 6px",
-                borderRadius: 6,
-              }}
-            >
-              <span style={{ fontFamily: C.mono, fontSize: 11.5, fontWeight: 700, color: C.ink, flexShrink: 0 }}>
-                {p.code}
-              </span>
-              {p.name && (
-                <span
-                  style={{
-                    fontSize: 11,
-                    color: C.muted,
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                    whiteSpace: "nowrap",
-                    minWidth: 0,
-                  }}
-                >
-                  {p.name}
-                </span>
-              )}
-              <span aria-hidden style={{ marginLeft: "auto", fontSize: 12, fontWeight: 700, color: "#2E8E3A", flexShrink: 0 }}>
-                +
-              </span>
-            </button>
-          ))}
+      <div style={{ marginTop: 6, display: "flex", flexDirection: "column", gap: 1, maxHeight: 240, overflowY: "auto" }}>
+        <CatalogCodeResults
+          items={matches}
+          claim={claim}
+          settledQuery={settledQuery}
+          isFetching={fetching}
+          isError={errored}
+          onRetry={onRetry}
+          busy={busy}
+          onPick={onPick}
+          listLabel="Catalog products"
+          noCatalogNote={
+            <span style={{ fontSize: 11, color: C.faint, padding: "4px 2px", lineHeight: 1.5 }}>
+              No catalog for this supplier yet — import one on the supplier&rsquo;s Catalog tab, or
+              type the code manually from the issue card.
+            </span>
+          }
+        />
       </div>
     </div>
   );

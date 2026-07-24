@@ -24,6 +24,9 @@ import { apiClient } from "@/lib/api-client";
 import type { MappingPreviewLine } from "@/lib/api-client";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useOrderDirection } from "@/hooks/useOrderDirection";
+import { useCatalogCodeSearch } from "@/hooks/useCatalogCodeSearch";
+import { hasAssignedSupplier } from "@/lib/catalogCodes";
+import { CatalogCodeResults } from "./catalog/CatalogCodeResults";
 import { isParseStalled } from "./parseStall";
 import { bulkAcceptCount, bulkAcceptResolutions } from "./magicBulkAcceptSelection";
 
@@ -307,6 +310,64 @@ function rowReducer(
   return next;
 }
 
+/**
+ * CatalogTypeahead — the manual-entry dropdown under an editing row's input.
+ *
+ * Server-side search through the SAME hook + result renderer the review screen's
+ * catalog picker uses, so the two surfaces can never word the same verdict
+ * differently. Picking an option accepts that code for the line straight away
+ * (identical to typing it and pressing Confirm) — the value still isn't
+ * persisted until the commit at the bottom of the screen.
+ */
+function CatalogTypeahead({
+  id,
+  supplierId,
+  query,
+  onPick,
+}: {
+  /** The popup's id — the input points at it with aria-controls. */
+  id: string;
+  supplierId: string;
+  query: string;
+  onPick: (code: string) => void;
+}) {
+  const search = useCatalogCodeSearch({ supplierId, query, enabled: true });
+  return (
+    <div
+      id={id}
+      style={{
+        flexBasis: "100%",
+        display: "flex",
+        flexDirection: "column",
+        gap: 1,
+        maxHeight: 200,
+        overflowY: "auto",
+        border: "1px solid #E5E8EE",
+        borderRadius: 6,
+        background: "#FFFFFF",
+        padding: 6,
+      }}
+    >
+      <CatalogCodeResults
+        items={search.items}
+        claim={search.claim}
+        settledQuery={search.settledQuery}
+        isFetching={search.isFetching}
+        isError={search.isError}
+        onRetry={search.refetch}
+        onPick={onPick}
+        listLabel="Catalog products"
+        noCatalogNote={
+          <span style={{ fontSize: 11, color: "var(--ink-faint)", padding: "4px 2px", lineHeight: 1.5 }}>
+            No catalog for this supplier yet — import one on the supplier&rsquo;s Catalog tab, or
+            type the code by hand.
+          </span>
+        }
+      />
+    </div>
+  );
+}
+
 // ─── MagicMappingPreview ──────────────────────────────────────────────────────
 
 export function MagicMappingPreview({ orderId, onCommitted, onParseFailed }: Props) {
@@ -325,6 +386,19 @@ export function MagicMappingPreview({ orderId, onCommitted, onParseFailed }: Pro
     retry: 1,
     staleTime: 60_000,
   });
+
+  // The order itself, purely for the supplier the manual-entry typeahead searches.
+  // Same ["order", orderId] key + fetcher the review screen uses, so this is a
+  // shared cache entry rather than a second round trip. The mapping preview
+  // payload carries no supplier id, and adding one would be an API change.
+  const { data: order } = useQuery({
+    queryKey: ["order", orderId],
+    queryFn: () => apiClient.getOrderById(orderId),
+    staleTime: 60_000,
+    retry: 1,
+  });
+  const supplierId = order?.supplierId ?? "";
+  const catalogAvailable = hasAssignedSupplier(supplierId);
 
   // Worker-down honesty (task 10 / G9): if the order sits in `parsing` beyond
   // the 90s threshold, escalate the copy to "processing may be paused" with a
@@ -1209,12 +1283,21 @@ export function MagicMappingPreview({ orderId, onCommitted, onParseFailed }: Pro
                   </div>
                 )}
 
-                {/* Editing mode — inline text input */}
+                {/* Editing mode — inline text input, with the catalog typeahead the
+                    help pages promise ("manual entry gets a typeahead of codes that
+                    actually exist"). The lookup is server-side, so a code deep in a
+                    100k-row distributor catalog is reachable. */}
                 {!isAlreadyResolved && rowState.mode === "editing" && (
                   <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
                     <input
                       autoFocus
                       type="text"
+                      role={catalogAvailable ? "combobox" : undefined}
+                      // The popup is rendered for as long as this row is being
+                      // edited, so it is genuinely expanded the whole time.
+                      aria-expanded={catalogAvailable ? true : undefined}
+                      aria-controls={catalogAvailable ? `catalog-typeahead-${line.lineNumber}` : undefined}
+                      aria-autocomplete={catalogAvailable ? "list" : undefined}
                       value={rowState.draft}
                       placeholder={`${counterpartyNoun} item code…`}
                       onChange={e =>
@@ -1278,6 +1361,16 @@ export function MagicMappingPreview({ orderId, onCommitted, onParseFailed }: Pro
                     >
                       Cancel
                     </button>
+                    {catalogAvailable && (
+                      <CatalogTypeahead
+                        id={`catalog-typeahead-${line.lineNumber}`}
+                        supplierId={supplierId}
+                        query={rowState.draft}
+                        onPick={code =>
+                          dispatch({ lineNumber: line.lineNumber, type: "accept", code })
+                        }
+                      />
+                    )}
                   </div>
                 )}
 

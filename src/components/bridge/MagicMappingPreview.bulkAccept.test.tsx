@@ -11,13 +11,22 @@ const getMappingPreview = vi.fn();
 const acceptAiSuggestions = vi.fn();
 const commitMappings = vi.fn();
 
+const getOrderById = vi.fn();
+const getSupplierCatalog = vi.fn();
+
 vi.mock("@/lib/api-client", () => ({
   apiClient: {
     getMappingPreview: (...a: unknown[]) => getMappingPreview(...a),
     acceptAiSuggestions: (...a: unknown[]) => acceptAiSuggestions(...a),
     commitMappings: (...a: unknown[]) => commitMappings(...a),
+    getOrderById: (...a: unknown[]) => getOrderById(...a),
   },
+  // The manual-entry typeahead's lookup — unused here (every line has a
+  // suggestion), but the module must expose it or the import is undefined.
+  getSupplierCatalog: (...a: unknown[]) => getSupplierCatalog(...a),
 }));
+
+vi.mock("@/hooks/useQueriesEnabled", () => ({ useQueriesEnabled: () => true }));
 
 vi.mock("@/hooks/use-mobile", () => ({ useIsMobile: () => false }));
 vi.mock("@/hooks/useOrderDirection", () => ({
@@ -49,6 +58,8 @@ beforeEach(() => {
   getMappingPreview.mockReset().mockResolvedValue(PREVIEW);
   acceptAiSuggestions.mockReset().mockResolvedValue({ accepted: 2 });
   commitMappings.mockReset().mockResolvedValue({ order: { id: "ord-1" } });
+  getOrderById.mockReset().mockResolvedValue({ id: "ord-1", supplierId: "sup-1", lines: [] });
+  getSupplierCatalog.mockReset().mockResolvedValue({ total: 0, items: [] });
 });
 
 afterEach(cleanup);
