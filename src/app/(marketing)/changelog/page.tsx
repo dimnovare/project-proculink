@@ -1,17 +1,14 @@
-import type { Metadata } from "next";
+import { pageMetadata } from "@/lib/seo";
 import Link from "next/link";
 
-export const metadata: Metadata = {
+export const metadata = pageMetadata({
+  path: "/changelog",
   title: "Changelog — ProcuLink",
   description:
-    "A record of every improvement shipped to ProcuLink — new features, integrations, and platform changes.",
-  openGraph: {
-    title: "Changelog — ProcuLink",
-    description:
-      "A record of every improvement shipped to ProcuLink — new features, integrations, and platform changes.",
-    url: "https://proculink.eu/changelog",
-  },
-};
+    "A record of every improvement shipped to ProcuLink — new features, formats, integrations, and platform changes, newest first.",
+  ogDescription:
+    "Every improvement shipped to ProcuLink — new features, formats, integrations, and platform changes.",
+});
 
 const ENTRIES = [
   {

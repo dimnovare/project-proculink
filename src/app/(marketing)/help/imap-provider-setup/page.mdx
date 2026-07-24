@@ -1,7 +1,10 @@
-export const metadata = {
+import { helpArticleMetadata } from "@/lib/seo";
+
+export const metadata = helpArticleMetadata({
+  slug: "imap-provider-setup",
   title: "Polling an existing mailbox with IMAP — ProcuLink Help",
   description: "Connect ProcuLink to a mailbox you already own so it imports order attachments, with per-provider host/port settings and app-password notes.",
-};
+});
 
 # Polling an existing mailbox with IMAP
 

@@ -1,11 +1,13 @@
-import type { Metadata } from "next";
+import { pageMetadata } from "@/lib/seo";
 import Link from "next/link";
 import { SUBPROCESSORS, SUBPROCESSORS_UPDATED } from "@/lib/subprocessors";
 
-export const metadata: Metadata = {
+export const metadata = pageMetadata({
+  path: "/subprocessors",
   title: "Subprocessors — ProcuLink",
-  description: "Current list of ProcuLink subprocessors and how to subscribe to change notifications.",
-};
+  description:
+    "The current list of ProcuLink subprocessors and what each one processes, how to subscribe to change notifications, and how to object to a new subprocessor.",
+});
 
 const S = {
   page:    { maxWidth: 760, margin: "0 auto", padding: "56px 32px 80px" },

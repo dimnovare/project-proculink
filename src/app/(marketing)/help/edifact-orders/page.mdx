@@ -1,7 +1,10 @@
-export const metadata = {
+import { helpArticleMetadata } from "@/lib/seo";
+
+export const metadata = helpArticleMetadata({
+  slug: "edifact-orders",
   title: "EDIFACT ORDERS purchase orders — ProcuLink Help",
   description: "How ProcuLink reads inbound UN/EDIFACT ORDERS messages, its envelope segments, and which related messages are not yet supported.",
-};
+});
 
 # EDIFACT ORDERS purchase orders
 

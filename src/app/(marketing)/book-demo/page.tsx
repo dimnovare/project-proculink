@@ -1,13 +1,12 @@
-import type { Metadata } from "next";
+import { pageMetadata } from "@/lib/seo";
 import { BookDemoForm } from "@/components/marketing/BookDemoForm";
 
-export function generateMetadata(): Metadata {
-  return {
-    title: "Book a demo — ProcuLink",
-    description:
-      "Request a 30-minute walkthrough of ProcuLink on your own sample order — we'll reply within 1 business day to schedule.",
-  };
-}
+export const metadata = pageMetadata({
+  path: "/book-demo",
+  title: "Book a demo — ProcuLink",
+  description:
+    "Request a 30-minute walkthrough of ProcuLink on your own sample order — we'll reply within 1 business day to schedule.",
+});
 
 const S = {
   page:  { maxWidth: 720, margin: "0 auto", padding: "56px 32px 80px" },

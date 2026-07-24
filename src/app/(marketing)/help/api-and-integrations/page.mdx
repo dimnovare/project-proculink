@@ -1,7 +1,10 @@
-export const metadata = {
+import { helpArticleMetadata } from "@/lib/seo";
+
+export const metadata = helpArticleMetadata({
+  slug: "api-and-integrations",
   title: "API keys, inbound API, webhooks, and connectors — ProcuLink Help",
   description: "Create plk_ API keys, push orders in over the inbound REST API, and receive HMAC-signed webhooks when orders are created, delivered, or fail.",
-};
+});
 
 # API keys, inbound API, webhooks, and connectors
 

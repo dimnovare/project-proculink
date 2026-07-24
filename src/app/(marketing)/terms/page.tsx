@@ -1,12 +1,14 @@
-import type { Metadata } from "next";
+import { pageMetadata } from "@/lib/seo";
 import Link from "next/link";
 import { LEGAL_ENTITY, PRODUCT_OPERATOR_NOTICE } from "@/lib/legal-entity";
 import { OVERAGE_PER_ORDER_EUR, PLANS } from "@/lib/plans";
 
-export const metadata: Metadata = {
+export const metadata = pageMetadata({
+  path: "/terms",
   title: "Terms of Service — ProcuLink",
-  description: "Terms governing your use of the ProcuLink procurement automation platform.",
-};
+  description:
+    "The terms governing your use of the ProcuLink purchase-order automation platform, and how they sit alongside the Acceptable Use Policy and Privacy Policy.",
+});
 
 const S = {
   page:    { maxWidth: 720, margin: "0 auto", padding: "56px 32px 80px" },

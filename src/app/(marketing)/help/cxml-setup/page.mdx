@@ -1,7 +1,10 @@
-export const metadata = {
+import { helpArticleMetadata } from "@/lib/seo";
+
+export const metadata = helpArticleMetadata({
+  slug: "cxml-setup",
   title: "Setting up cXML delivery — ProcuLink Help",
   description: "Parse inbound cXML orders and deliver cXML output, with a walkthrough of the From / To / Sender credential fields.",
-};
+});
 
 # Setting up cXML delivery
 

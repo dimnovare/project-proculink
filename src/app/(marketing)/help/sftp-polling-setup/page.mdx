@@ -1,7 +1,10 @@
-export const metadata = {
+import { helpArticleMetadata } from "@/lib/seo";
+
+export const metadata = helpArticleMetadata({
+  slug: "sftp-polling-setup",
   title: "Polling an SFTP folder for order files — ProcuLink Help",
   description: "Set up ProcuLink to pull purchase-order files from an SFTP server on a schedule, and understand what fails silently.",
-};
+});
 
 # Polling an SFTP folder for order files
 

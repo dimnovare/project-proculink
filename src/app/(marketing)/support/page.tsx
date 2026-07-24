@@ -1,11 +1,15 @@
-import type { Metadata } from "next";
+import { pageMetadata } from "@/lib/seo";
 import Link from "next/link";
 import { ContactForm } from "@/components/marketing/ContactForm";
 
-export const metadata: Metadata = {
+export const metadata = pageMetadata({
+  path: "/support",
   title: "Support — ProcuLink",
-  description: "Get help with ProcuLink procurement automation.",
-};
+  description:
+    "Get help with ProcuLink: answers on billing and plans, data and privacy, and legal — plus how to report a problem and what to include so we can reproduce it.",
+  ogDescription:
+    "Answers on billing, data and privacy, and legal — plus how to report a problem to the ProcuLink team.",
+});
 
 const S = {
   page:   { maxWidth: 720, margin: "0 auto", padding: "56px 32px 80px" },

@@ -1,10 +1,12 @@
-import type { Metadata } from "next";
+import { pageMetadata } from "@/lib/seo";
 import Link from "next/link";
 
-export const metadata: Metadata = {
+export const metadata = pageMetadata({
+  path: "/aup",
   title: "Acceptable Use Policy — ProcuLink",
-  description: "How ProcuLink may and may not be used.",
-};
+  description:
+    "What ProcuLink may and may not be used for: permitted use, prohibited use, how to report abuse, and how the policy is enforced.",
+});
 
 const S = {
   page:    { maxWidth: 720, margin: "0 auto", padding: "56px 32px 80px" },

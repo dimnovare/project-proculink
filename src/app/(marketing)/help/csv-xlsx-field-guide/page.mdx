@@ -1,7 +1,10 @@
-export const metadata = {
+import { helpArticleMetadata } from "@/lib/seo";
+
+export const metadata = helpArticleMetadata({
+  slug: "csv-xlsx-field-guide",
   title: "CSV and XLSX field guide — ProcuLink Help",
   description: "Which columns a CSV or XLSX purchase order needs, what ProcuLink fills in for you, and the encoding and decimal-separator rules that keep numbers exact.",
-};
+});
 
 # CSV and XLSX field guide
 

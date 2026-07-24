@@ -1,10 +1,12 @@
-import type { Metadata } from "next";
+import { pageMetadata } from "@/lib/seo";
 import Link from "next/link";
 
-export const metadata: Metadata = {
+export const metadata = pageMetadata({
+  path: "/customers",
   title: "Customers — ProcuLink",
-  description: "Procurement teams using ProcuLink to deliver purchase orders to their suppliers.",
-};
+  description:
+    "Procurement teams using ProcuLink to deliver purchase orders to their suppliers, and what our early pilots run through it.",
+});
 
 const S = {
   page:   { maxWidth: 880, margin: "0 auto", padding: "72px 32px 80px" },

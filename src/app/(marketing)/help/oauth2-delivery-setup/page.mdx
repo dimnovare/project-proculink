@@ -1,7 +1,10 @@
-export const metadata = {
+import { helpArticleMetadata } from "@/lib/seo";
+
+export const metadata = helpArticleMetadata({
+  slug: "oauth2-delivery-setup",
   title: "OAuth2 client-credentials for HTTP delivery — ProcuLink Help",
   description: "Fill in the OAuth2 fetch-token fields for HTTP delivery so ProcuLink gets a fresh access token before each send.",
-};
+});
 
 # OAuth2 client-credentials for HTTP delivery
 
