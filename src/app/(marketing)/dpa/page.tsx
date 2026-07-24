@@ -27,10 +27,10 @@ export default function DpaPage() {
   return (
     <div style={S.page}>
       <h1 style={S.h1}>Data Processing Addendum</h1>
-      <p style={S.updated}>Effective: June 2026 · Version 1.1</p>
+      <p style={S.updated}>Effective: July 2026 · Version 1.2</p>
 
       <p style={S.intro}>
-        This Data Processing Addendum (&quot;DPA&quot;) forms part of the agreement between
+        This Data Processing Addendum (&quot;DPA&quot;) forms part of the agreement between{" "}
         {LEGAL_ENTITY.legalName}, operator of the ProcuLink service (the &quot;Processor&quot;),
         and the customer organisation (the &quot;Controller&quot;)
         for the processing of personal data under the EU General Data Protection
@@ -38,10 +38,13 @@ export default function DpaPage() {
       </p>
 
       <div style={S.callout}>
-        <strong>For customers who need a counter-signed DPA:</strong> Email{" "}
+        <strong>For customers who need a counter-signed DPA:</strong> email{" "}
         <a href="mailto:legal@proculink.eu" style={{ color: "#1E6D29", textDecoration: "underline" }}>legal@proculink.eu</a>{" "}
-        and include your organisation legal name and contact for signature. We will return
-        a counter-signed PDF within 5 business days.
+        with your organisation&apos;s legal name and the contact for signature. That inbox
+        reaches us directly. Counter-signing is done by hand rather than by a signing desk, so
+        treat the turnaround as a target and not a service level: we aim to return a
+        counter-signed PDF within 5 business days, and if a request will take longer we will
+        say so when we acknowledge it.
       </div>
 
       <h2 style={S.h2}>1. Definitions</h2>
@@ -63,7 +66,7 @@ export default function DpaPage() {
         <li style={S.li}>Process personal data only on documented instructions from the Controller.</li>
         <li style={S.li}>Ensure persons authorised to process personal data are under a duty of confidentiality.</li>
         <li style={S.li}>Implement the technical and organisational measures described in <strong>Annex II</strong>.</li>
-        <li style={S.li}>Use sub-processors only as listed in <strong>Annex III</strong> and provide 30 days&apos; prior written notice of additions or replacements.</li>
+        <li style={S.li}>Use sub-processors only as listed in <strong>Annex III</strong>, and publish any addition or replacement — with the date it takes effect — at least 30 days before it starts processing Controller data.</li>
         <li style={S.li}>Assist the Controller in responding to data-subject rights requests under GDPR Chapter III.</li>
         <li style={S.li}>Notify the Controller without undue delay (within 72 hours of awareness) of any personal data breach affecting the Controller&apos;s data.</li>
         <li style={S.li}>On termination, delete or return all Controller personal data within the retention windows in the <Link href="/privacy" style={{ color: "#1E6D29", textDecoration: "underline" }}>Privacy Policy</Link>.</li>
@@ -121,16 +124,18 @@ export default function DpaPage() {
         <li style={S.li}><strong>Backups</strong>: Daily automated PostgreSQL backups with point-in-time recovery.</li>
         <li style={S.li}><strong>Personnel</strong>: All personnel with access to production data are under written confidentiality obligations.</li>
         <li style={S.li}><strong>Incident response</strong>: Documented breach-notification process; target 72-hour Controller notification on confirmed personal-data breach.</li>
-        <li style={S.li}><strong>Sub-processor management</strong>: 30 days&apos; prior written notice for additions or replacements (see Annex III).</li>
+        <li style={S.li}><strong>Sub-processor management</strong>: additions and replacements are published with their effective date at least 30 days in advance (see Annex III).</li>
       </ul>
 
       <h2 style={S.h2}>Annex III — Authorised sub-processors</h2>
       <p style={S.p}>
         The current list of authorised sub-processors is maintained at{" "}
-        <Link href="/subprocessors" style={{ color: "#1E6D29", textDecoration: "underline" }}>/subprocessors</Link>. The
-        Controller may subscribe to change notifications by emailing{" "}
-        <a href="mailto:privacy@proculink.eu" style={{ color: "#1E6D29", textDecoration: "underline" }}>privacy@proculink.eu</a>{" "}
-        with the subject line &quot;Subprocessor notifications&quot;.
+        <Link href="/subprocessors" style={{ color: "#1E6D29", textDecoration: "underline" }}>/subprocessors</Link>.
+        That page is the notice channel for this Annex: it carries the date the list last
+        changed, any planned addition or replacement, the date that notice was published, and
+        the date it takes effect. The Controller may raise an objection to a planned
+        sub-processor within 14 days of the published notice date, in writing to{" "}
+        <a href="mailto:legal@proculink.eu" style={{ color: "#1E6D29", textDecoration: "underline" }}>legal@proculink.eu</a>.
       </p>
 
       <p style={{ ...S.p, marginTop: 40, paddingTop: 24, borderTop: "1px solid #E2E6EE" }}>

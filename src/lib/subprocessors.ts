@@ -24,6 +24,32 @@ export interface Subprocessor {
 /** Human-readable date this list last changed. Bump on every edit. */
 export const SUBPROCESSORS_UPDATED = "11 June 2026";
 
+/**
+ * A subprocessor addition or replacement that has been decided but has not
+ * started processing customer data yet.
+ *
+ * This array IS the 30-day advance-notice mechanism promised on /subprocessors
+ * and in the DPA. There is no notification mailing list, so the commitment is
+ * kept by publishing here first: add the entry with an `effective` date at
+ * least 30 days out, ship it, and only then move the vendor into
+ * SUBPROCESSORS (bumping SUBPROCESSORS_UPDATED) on or after that date.
+ *
+ * Empty is the normal state and renders as an explicit "nothing pending" line —
+ * silence would be indistinguishable from a forgotten notice.
+ */
+export interface PlannedSubprocessorChange {
+  name: string;
+  purpose: string;
+  /** What is happening: an addition, or which vendor it replaces. */
+  change: string;
+  /** Human-readable date it starts processing customer data. */
+  effective: string;
+  /** Human-readable date this notice was first published here. */
+  noticePublished: string;
+}
+
+export const SUBPROCESSOR_PLANNED_CHANGES: PlannedSubprocessorChange[] = [];
+
 export const SUBPROCESSORS: Subprocessor[] = [
   {
     name: "Railway",
