@@ -1,12 +1,14 @@
-import type { Metadata } from "next";
+import { pageMetadata } from "@/lib/seo";
 import "./print.css";
 import { LEGAL_ENTITY, LEGAL_ENTITY_REFERENCE } from "@/lib/legal-entity";
 import { OVERAGE_PER_ORDER_EUR, PLANS } from "@/lib/plans";
 
-export const metadata: Metadata = {
+export const metadata = pageMetadata({
+  path: "/one-pager",
   title: "ProcuLink — one-pager",
-  description: "Print-friendly one-page overview of ProcuLink for procurement teams.",
-};
+  description:
+    "Print-friendly one-page overview of ProcuLink for procurement teams: what it does, how an order moves through it, and what each plan includes.",
+});
 
 const S = {
   brand:   { fontFamily: "'Bricolage Grotesque', Inter, sans-serif", fontSize: 22, fontWeight: 700, color: "#0B1A2F", marginBottom: 24, letterSpacing: "-0.02em" },

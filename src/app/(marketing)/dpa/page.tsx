@@ -1,11 +1,15 @@
-import type { Metadata } from "next";
+import { pageMetadata } from "@/lib/seo";
 import Link from "next/link";
 import { LEGAL_ENTITY, LEGAL_ENTITY_REFERENCE } from "@/lib/legal-entity";
 
-export const metadata: Metadata = {
+export const metadata = pageMetadata({
+  path: "/dpa",
   title: "Data Processing Addendum — ProcuLink",
-  description: "GDPR Article 28 Data Processing Addendum for ProcuLink customers.",
-};
+  description:
+    "The GDPR Article 28 Data Processing Addendum for ProcuLink customers: controller and processor roles, categories of data and data subjects, sub-processors, and the security measures we commit to.",
+  ogDescription:
+    "GDPR Article 28 Data Processing Addendum for ProcuLink customers — roles, data categories, sub-processors, and security measures.",
+});
 
 const S = {
   page:    { maxWidth: 760, margin: "0 auto", padding: "56px 32px 80px" },

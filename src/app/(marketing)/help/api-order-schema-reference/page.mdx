@@ -1,7 +1,10 @@
-export const metadata = {
+import { helpArticleMetadata } from "@/lib/seo";
+
+export const metadata = helpArticleMetadata({
+  slug: "api-order-schema-reference",
   title: "Inbound order API — schema reference — ProcuLink Help",
   description: "The endpoint, header, JSON body shape, and success response for pushing a purchase order into ProcuLink over HTTPS.",
-};
+});
 
 # Inbound order API — schema reference
 

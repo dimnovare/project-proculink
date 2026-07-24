@@ -1,12 +1,15 @@
-import type { Metadata } from "next";
+import { pageMetadata } from "@/lib/seo";
 import Link from "next/link";
 import { SUBPROCESSORS } from "@/lib/subprocessors";
 
-export const metadata: Metadata = {
+export const metadata = pageMetadata({
+  path: "/security",
   title: "Security & trust — ProcuLink",
   description:
     "ProcuLink sits between your buyers and suppliers. How we protect that position — encryption, EU data residency, an append-only audit trail, and responsible AI.",
-};
+  ogDescription:
+    "Encryption, EU data residency, an append-only audit trail, access control, and responsible AI — how ProcuLink protects the orders passing through it.",
+});
 
 // ─── Palette (exact design tokens, sampled from tokens.css / globals.css) ──────
 // Security uses a green-accent topology over the canonical navy chrome:

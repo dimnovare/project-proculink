@@ -1,7 +1,10 @@
-export const metadata = {
+import { helpArticleMetadata } from "@/lib/seo";
+
+export const metadata = helpArticleMetadata({
+  slug: "exceptions-and-stuck-orders",
   title: "Working the exceptions queue — ProcuLink Help",
   description: "What lands in Exceptions, what Resolve and Ignore really do, how delivery retries and dead-letter work, and when to check system health.",
-};
+});
 
 # Working the exceptions queue
 

@@ -1,7 +1,10 @@
-export const metadata = {
+import { helpArticleMetadata } from "@/lib/seo";
+
+export const metadata = helpArticleMetadata({
+  slug: "ubl-and-peppol",
   title: "UBL and Peppol BIS Order — ProcuLink Help",
   description: "Parse UBL 2.1 Order documents inbound and emit UBL / Peppol BIS Order 3 output for European e-procurement.",
-};
+});
 
 # UBL and Peppol BIS Order
 

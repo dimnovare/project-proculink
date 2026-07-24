@@ -1,12 +1,15 @@
-import type { Metadata } from "next";
+import { pageMetadata } from "@/lib/seo";
 import Link from "next/link";
 import { LEGAL_ENTITY, PRODUCT_OPERATOR_NOTICE } from "@/lib/legal-entity";
 import { SUBPROCESSORS } from "@/lib/subprocessors";
 
-export const metadata: Metadata = {
+export const metadata = pageMetadata({
+  path: "/privacy",
   title: "Privacy Policy — ProcuLink",
-  description: "How ProcuLink collects, stores, and protects your data.",
-};
+  description:
+    "What ProcuLink collects — account, order, usage, billing, email configuration and delivery credentials — how each is used, and how it is stored and protected.",
+  ogDescription: "What data ProcuLink collects, how it is used, and how it is stored and protected.",
+});
 
 const S = {
   page:    { maxWidth: 720, margin: "0 auto", padding: "56px 32px 80px" },

@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import { pageMetadata } from "@/lib/seo";
 import Link from "next/link";
 import {
   IMPORT_METHODS,
@@ -9,18 +9,14 @@ import {
   type StatusKey,
 } from "@/lib/marketing/format-catalog";
 
-export const metadata: Metadata = {
+export const metadata = pageMetadata({
+  path: "/formats",
   title: "Formats & methods — ProcuLink",
   description:
     "Every way ProcuLink can import and deliver purchase orders, and every format it reads and produces — each tagged Supported, Configurable, On request, or Planned. Don't see yours? We likely support it or can add it.",
-  alternates: { canonical: "/formats" },
-  openGraph: {
-    title: "Formats & methods — ProcuLink",
-    description:
-      "Every import/delivery method and every PO format ProcuLink reads and produces — honestly tagged Supported / Configurable / On request / Planned.",
-    url: "/formats",
-  },
-};
+  ogDescription:
+    "Every import/delivery method and every PO format ProcuLink reads and produces — honestly tagged Supported / Configurable / On request / Planned.",
+});
 
 // ── Status vocabulary (display map) ─────────────────────────────────────────────
 // The row data + catalog-derived statuses live in @/lib/marketing/format-catalog

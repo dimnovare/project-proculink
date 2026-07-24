@@ -1,7 +1,10 @@
-export const metadata = {
+import { helpArticleMetadata } from "@/lib/seo";
+
+export const metadata = helpArticleMetadata({
+  slug: "connections",
   title: "Supplier connections: draft, test, publish, roll back — ProcuLink Help",
   description: "How versioned supplier connections work: what a revision bundles, the draft → test → publish lifecycle, replay, and rollback.",
-};
+});
 
 # Supplier connections: draft, test, publish, roll back
 

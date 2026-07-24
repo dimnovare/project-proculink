@@ -1,7 +1,10 @@
-export const metadata = {
+import { helpArticleMetadata } from "@/lib/seo";
+
+export const metadata = helpArticleMetadata({
+  slug: "s3-polling-setup",
   title: "Polling an S3 or R2 bucket for order files — ProcuLink Help",
   description: "Set up ProcuLink to pull purchase-order files from an S3-compatible bucket on a schedule, with a minimal IAM policy and the failures to watch for.",
-};
+});
 
 # Polling an S3 or R2 bucket for order files
 
