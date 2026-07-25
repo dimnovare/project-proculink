@@ -70,7 +70,7 @@ A `2xx` here means ProcuLink accepted and stored the order — not that a suppli
 
 Zapier and Make deliver at-least-once, so the same order can arrive twice. Send an `Idempotency-Key` header with a stable value per order; a repeat within 24 hours returns the original order (with `idempotentReplay: true`) instead of creating a duplicate. If you omit the header, ProcuLink derives a key from the slug, PO number, and line shape, so a verbatim retry is still de-duplicated.
 
-## Wiring it from Zapier or Make
+## Calling it from Zapier or Make
 
 Both tools can call this endpoint with their generic **Webhooks** action:
 

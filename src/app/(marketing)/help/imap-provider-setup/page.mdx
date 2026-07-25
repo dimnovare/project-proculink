@@ -40,7 +40,7 @@ Generic / other       (from your provider)     993    Use the provider's IMAP ho
 
 Gmail and Office 365 block plain IMAP sign-in with your normal password when two-factor or MFA is on — which it usually is. Generate a dedicated **app password** in the provider's security settings and paste that into ProcuLink. It is scoped to mail access and can be revoked without changing your account password. The credential is encrypted at rest with AES-256-GCM.
 
-Proton mail is only reachable over IMAP through the local **Proton Bridge** app, which exposes `127.0.0.1:1143` on the machine running it — ProcuLink's hosted poller cannot reach a Bridge running on your laptop, so use Proton with IMAP only where Bridge runs on a reachable host.
+Proton mail is only reachable over IMAP through the local **Proton Bridge** app, which exposes `127.0.0.1:1143` on the machine running it — ProcuLink's hosted poller cannot reach a Proton Bridge instance running on your laptop, so use Proton with IMAP only where Proton Bridge runs on a reachable host.
 
 ## How polling works
 
