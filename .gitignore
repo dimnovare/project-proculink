@@ -47,3 +47,7 @@ playwright-report/
 # clerk configuration (can include secrets)
 /.clerk/
 .vercel
+
+# Playwright scratch output from the guide screenshot rig (bun run guides:capture).
+# The screenshots themselves are committed under public/guides/.
+scripts/guide-shots/.playwright/

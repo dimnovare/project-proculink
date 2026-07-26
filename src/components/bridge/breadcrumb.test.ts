@@ -74,6 +74,30 @@ describe("formatCrumbLabel — static segments", () => {
   });
 });
 
+describe("formatCrumbLabel — guide slugs", () => {
+  const segs = ["admin", "guides", "onboard-a-new-client"];
+
+  it("uses the guide's real title instead of treating the slug as an id", () => {
+    expect(formatCrumbLabel("onboard-a-new-client", 2, segs)).toBe(
+      "Onboard a new client end-to-end",
+    );
+  });
+
+  it("falls back to the normal rules for an unregistered slug under /guides", () => {
+    expect(formatCrumbLabel("not-a-guide", 2, ["admin", "guides", "not-a-guide"])).toBe(
+      "Not A Guide",
+    );
+  });
+
+  it("only claims the segment when /guides is its immediate parent", () => {
+    // Same slug elsewhere in the tree keeps the generic id handling, which is
+    // what produced "Item onboard" before the registry lookup was added.
+    expect(formatCrumbLabel("onboard-a-new-client", 1, ["inbox", "onboard-a-new-client"])).toBe(
+      "Order onboard",
+    );
+  });
+});
+
 describe("formatCrumbLabel — order detail (the reported bug)", () => {
   const segs = ["inbox", UUID];
   it("uses the PO number from context when available", () => {

@@ -16,6 +16,7 @@
     "test:e2e:full": "cross-env PLAYWRIGHT_LIVE=1 PLAYWRIGHT_FULL=1 playwright test live-full-e2e.spec.ts",
     "test:e2e:ui": "playwright test --ui",
     "demo:capture": "playwright test --config=playwright.demo.config.ts",
+    "guides:capture": "playwright test --config=playwright.guides.config.ts",
     "demo:vo": "node scripts/demo-video/generate-vo.mjs",
     "demo:assemble": "node scripts/demo-video/assemble.mjs",
     "demo:tools:vo": "node scripts/demo-video/tools/generate-tool-vo.mjs",

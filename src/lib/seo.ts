@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { HELP_ARTICLES } from "./help-articles";
+import { GUIDES } from "./guides";
 
 /**
  * Per-page SEO metadata for the public marketing surface.
@@ -96,4 +97,32 @@ export function helpArticleMetadata({ slug, ...rest }: HelpArticleSeo): Metadata
     throw new Error(`No help article registered for slug "${slug}"`);
   }
   return pageMetadata({ ...rest, path: `/help/${slug}`, type: "article" });
+}
+
+export interface GuideSeo extends Omit<PageSeo, "path" | "type"> {
+  /** Registry slug — must exist in GUIDES with status "live". */
+  slug: string;
+}
+
+/**
+ * Metadata for a step-by-step guide.
+ *
+ * The canonical path comes from the registry entry, not from the caller, so a
+ * guide's URL, its index listing, and its sitemap row can never drift apart.
+ * Admin guides are forced `noindex` and are never emitted in the sitemap — the
+ * route already refuses to render for non-admins; this stops a crawler that
+ * somehow reaches the URL from indexing the title.
+ */
+export function guideMetadata({ slug, ...rest }: GuideSeo): Metadata {
+  const guide = GUIDES.find((g) => g.slug === slug);
+  if (!guide) throw new Error(`No guide registered for slug "${slug}"`);
+  if (guide.status !== "live") {
+    throw new Error(`Guide "${slug}" is registered as "planned" — set status: "live" to publish it`);
+  }
+  return pageMetadata({
+    ...rest,
+    path: guide.href,
+    type: "article",
+    noindex: rest.noindex ?? guide.audience === "admin",
+  });
 }

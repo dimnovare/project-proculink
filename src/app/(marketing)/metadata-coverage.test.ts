@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import { readdirSync, readFileSync, existsSync } from "fs";
 import { join } from "path";
 import sitemap from "../sitemap";
+import { getGuideBySlug } from "@/lib/guides";
 
 /**
  * SEO coverage gate for the public marketing surface.
@@ -62,10 +63,21 @@ const PAGES = PUBLIC_GROUPS.reduce<MarketingPage[]>(
   [],
 );
 
-/** The route each page's metadata call declares, or null when it declares none. */
+/**
+ * The route each page's metadata call declares, or null when it declares none.
+ *
+ * Three helpers can supply it, and two of them derive the canonical from a
+ * registry rather than stating it inline: `helpArticleMetadata` builds
+ * `/help/<slug>` and `guideMetadata` reads the guide's `href`. Resolving them
+ * here keeps the self-canonical assertion honest for those pages instead of
+ * exempting them.
+ */
 function declaredRoute(page: MarketingPage): string | null {
   const slug = page.source.match(/slug:\s*"([^"]+)"/);
   if (slug && /helpArticleMetadata\(/.test(page.source)) return `/help/${slug[1]}`;
+  if (slug && /guideMetadata\(/.test(page.source)) {
+    return getGuideBySlug(slug[1])?.href ?? null;
+  }
   const path = page.source.match(/path:\s*"([^"]+)"/);
   return path ? path[1] : null;
 }
@@ -84,7 +96,9 @@ describe("marketing SEO metadata", () => {
     "%s declares its own metadata through the shared SEO helper",
     (_route, page) => {
       expect(existsSync(page.metadataFile), `${page.metadataFile} is missing`).toBe(true);
-      expect(/pageMetadata\(|helpArticleMetadata\(/.test(page.source)).toBe(true);
+      expect(
+        /pageMetadata\(|helpArticleMetadata\(|guideMetadata\(/.test(page.source),
+      ).toBe(true);
     },
   );
 

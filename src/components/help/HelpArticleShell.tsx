@@ -15,6 +15,8 @@ import {
   getArticleBySlug,
   type HelpArticle,
 } from "@/lib/help-articles";
+import { getGuideByPath } from "@/lib/guides";
+import GuideLayout from "./guide/GuideLayout";
 import { HelpIcon } from "./HelpIcon";
 import { capture } from "@/lib/analytics";
 
@@ -24,6 +26,19 @@ export default function HelpArticleShell({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
+
+  // This component is the MDX `wrapper` for every .mdx page in the app, so it
+  // is also where a route decides which chrome it gets. A registered guide
+  // route (client under /help/guides, admin under /admin/guides) renders the
+  // step-by-step layout instead of article chrome — that is what keeps guides
+  // authorable as plain .mdx with no per-file layout boilerplate.
+  const guide = getGuideByPath(pathname);
+  if (guide) return <GuideLayout guide={guide}>{children}</GuideLayout>;
+
+  // Any other MDX outside /help/ is not a help article; give it no chrome
+  // rather than a breadcrumb into a help center it does not belong to.
+  if (pathname && !pathname.startsWith("/help/")) return <>{children}</>;
+
   const slug = pathname?.split("/").filter(Boolean).pop() ?? "";
   const article = getArticleBySlug(slug);
   const { prev, next } = getAdjacentArticles(slug);

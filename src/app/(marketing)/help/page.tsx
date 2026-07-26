@@ -153,6 +153,18 @@ export default function HelpIndex() {
           </span>
         </div>
 
+        {/* Guides entry point — the "do this now" layer above the reference articles. */}
+        <p className="mt-3.5 text-[13px]" style={{ color: "var(--ink-muted)" }}>
+          Setting something up for the first time?{" "}
+          <Link
+            href="/help/guides"
+            className="font-semibold hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-blue)] focus-visible:ring-offset-2"
+            style={{ color: "var(--brand-blue-deep)" }}
+          >
+            Follow a step-by-step guide →
+          </Link>
+        </p>
+
         {/* Walkthrough link — rendered only when the video is configured (offer⇔works). */}
         {walkthroughConfigured() && (
           <p className="mt-3 text-[13px]" style={{ color: "var(--ink-muted)" }}>

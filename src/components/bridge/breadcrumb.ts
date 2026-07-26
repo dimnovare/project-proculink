@@ -1,3 +1,5 @@
+import { getGuideBySlug } from "@/lib/guides";
+
 // breadcrumb.ts — pure helpers for the topbar auto-breadcrumb.
 //
 // Separated from BridgeTopbar so the label/href logic is unit-testable and the
@@ -96,6 +98,13 @@ export function formatCrumbLabel(
   // Static, mapped segment.
   const mapped = CRUMB_LABELS[segment];
   if (mapped) return mapped;
+
+  // /admin/guides/[slug] — a guide slug is hyphenated, so looksLikeId() below
+  // would claim it and render "Item onboard". The registry knows its real title.
+  if (index > 0 && segments[index - 1] === "guides") {
+    const guide = getGuideBySlug(segment);
+    if (guide) return guide.title;
+  }
 
   // Dynamic id segment — resolve a real name from context, else noun + short id.
   if (looksLikeId(segment)) {
