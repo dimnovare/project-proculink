@@ -398,6 +398,11 @@ user-facing heading.
 - ❌ `npm install` — use bun
 - ❌ Clerk secret keys in `.env` — only in `.env.local` (gitignored)
 - ❌ Lovable-generated code or Vite patterns — design and implementation stay in Claude Code/Codex
+- ❌ **Neon database branches** — never create one, and never re-enable an integration that
+  creates them per PR/preview (the Vercel↔Neon and Neon↔GitHub integrations were removed
+  2026-07-25 after 22 preview branches accumulated and billed compute). The Neon project has
+  exactly ONE branch, `production`. Test against local Postgres (`:5435`) or Testcontainers;
+  if a branch ever seems necessary, ask the founder first and delete it the same session.
 
 ---
 
