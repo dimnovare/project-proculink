@@ -1,5 +1,6 @@
 import type { MetadataRoute } from "next";
 import { HELP_ARTICLES } from "@/lib/help-articles";
+import { publicGuides } from "@/lib/guides";
 
 const BASE_URL = "https://proculink.eu";
 
@@ -12,6 +13,12 @@ const routes = [
   "/help",
   // Help articles come straight from the registry — a hand list can't drift.
   ...HELP_ARTICLES.map((a) => `/help/${a.slug}`),
+  "/help/guides",
+  // Only written client guides. "planned" entries have no route to crawl, and
+  // admin guides are excluded by `publicGuides()` — they are allowlist-gated.
+  ...publicGuides()
+    .filter((g) => g.status === "live")
+    .map((g) => g.href),
   "/watch",
   "/book-demo",
   "/support",

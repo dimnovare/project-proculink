@@ -1,0 +1,199 @@
+import { Step, Prereqs, IfThisFails, Outcome, GuideShot } from "@/components/help/guide";
+
+<Prereqs>
+- An admin account: the email or Clerk user id must be in `Admin__Emails` / `Admin__UserIds` on the API.
+- The client has signed up and created their own organisation. There is no "create org" action in the admin area, and there should not be — the org is created by the Clerk sign-up that owns it.
+- The supplier's catalog feed details (protocol, host, path, credentials, column meanings) if a catalog is part of the onboarding.
+- A real purchase order from the client to walk through at the end. A sample file proves the plumbing, not the mapping.
+</Prereqs>
+
+<Step n={1} title="Find the workspace and read its current state">
+
+Open the admin dashboard and find the organisation in the table. Sort by **Created** to bring a
+new sign-up to the top. Read four columns before doing anything: **Plan**, **Status**, **30d
+orders**, and **Suppliers**.
+
+Those four decide everything that follows. A `pilot` / `trialing` org with 0 orders is a clean
+start. A `pilot` / `read_only` org is already frozen and needs step 4 before anything else will
+work.
+
+<IfThisFails>
+No organisation in the list means the client has not finished sign-up, or signed up under a
+different email than the one they told you. Do not create anything on their behalf — have them
+complete sign-up.
+</IfThisFails>
+
+</Step>
+
+<Step n={2} title="Decide the plan before you touch any settings">
+
+This is the step that saves the afternoon. Two different mechanisms look identical from the
+outside and are not:
+
+- **Caps** — how many orders per month, how many suppliers. These are numbers, and an admin
+  override can change them.
+- **Feature tiers** — whether a capability exists on the plan at all. These are gates, and an
+  admin override does **not** open them.
+
+The one that catches people: **scheduled catalog sync needs Growth or higher.** On Pilot, saving
+the source config and running a test fetch both work, and enabling the schedule returns 403. The
+error code reads `catalog_sync_requires_integration`, which is misleading — the real requirement
+is Growth, not Integration. Lifting the order or supplier cap on a Pilot org does not help,
+because the feature check only ever looks at the plan name.
+
+So: if the onboarding includes a scheduled catalog pull, the org has to be on Growth or above
+before you start. Confirm the plan first; do not discover it at the enable step.
+
+<Outcome>
+You know which of the client's requirements need a paid plan and which will work on Pilot, before
+you have promised anything.
+</Outcome>
+
+</Step>
+
+<Step n={3} title="Lift caps or extend the pilot — when a cap is genuinely the blocker">
+
+Use **Adjust limits** on the org's row. It gives you an order limit override, a supplier limit
+override, and the pilot window: extend by a number of days, set an explicit end date, or clear
+the override and fall back to the plan default.
+
+Reach for this when a client needs headroom during onboarding — a bulk import that would burn
+their monthly order allowance, or a few more suppliers than the plan includes while they get set
+up.
+
+Do not reach for it to unlock a feature. It will appear to do nothing, because that is exactly
+what it does.
+
+<IfThisFails>
+If a saved override does not change behaviour, re-read the failing response. A 403 with a
+`_requires_` error code is a feature gate and needs a plan change. A 429 or a limit banner is a
+cap and is what this modal is for.
+</IfThisFails>
+
+</Step>
+
+<Step n={4} title="Bring a frozen Pilot workspace back">
+
+A Pilot goes read-only after 14 days or 20 orders. There is no button for reversing that yet — the
+API endpoint exists and the admin UI does not call it. Send the request directly:
+
+```bash
+curl -X POST \
+  "$API_BASE/api/admin/organisations/$ORG_ID/account-status" \
+  -H "Authorization: Bearer $ADMIN_JWT" \
+  -H "Content-Type: application/json" \
+  -d '{"accountStatus":"trialing"}'
+```
+
+It refuses in four situations, all with a 400, and all of them deliberate:
+
+- the requested status is anything other than `trialing`
+- the org is not currently `read_only`
+- the org is not on the `pilot` plan
+- the org already has a live Stripe subscription
+
+Read the response body rather than assuming success. The trial-window arbiter runs immediately
+after the change, so an org whose 14 days have already elapsed is re-frozen in the same request.
+You get `accountStatus` (the effective one), `revertedByTrialWindow: true`, and a note explaining
+why. Every call is written to the audit log as `admin.org.account_status_changed`.
+
+If the window has elapsed, extend it with **Adjust limits** first (step 3), then call this. In
+that order it sticks.
+
+</Step>
+
+<Step n={5} title="Create the first supplier and load their catalog">
+
+Work in the client's workspace, not the admin area. Add the supplier, then open its **Catalog**
+tab and expand **Keep the catalog in sync automatically**.
+
+The order of operations matters, because the UI enforces it: **Save source** first with
+**Enabled** left off, then **Test connection & preview**. The test button stays disabled until a
+source has been saved, and saving with the schedule off works on every plan — so a Pilot org can
+be fully configured and verified before anyone pays for the plan that turns the schedule on.
+
+The preview is the point. It returns sample rows, which is how you find out what the columns
+actually mean — vendor feeds are rarely self-describing. Two shapes show up:
+
+- **Named columns**, where a header row maps by name: `{"ReferenceNo":"code","EAN":"barcode"}`.
+- **Positional columns**, where there is no header and you map by index:
+  `{"3":"code","4":"name","8":"price"}`.
+
+Confirm the mapping against the sample rows the preview returns. A positional index taken from a
+vendor's documentation is a guess; the sample is the truth.
+
+<GuideShot
+  name="supplier-catalog-tab"
+  alt="A supplier's Catalog tab with the scheduled-pull section expanded, showing the protocol picker, catalog URL, and file format fields."
+  caption="Saving and previewing work on any plan. Ticking Enabled is the part that needs Growth."
+/>
+
+Per-vendor values that have already been probed against production — protocol, host, path, format
+quirks such as ZIP-wrapped tab-separated files or `cp1252` encoding, and the column mapping for
+each — live in the operations notes at
+`docs/qa/2026-07-fable5-push/2026-07-24-ops2-vendor-feed-prod-test.md` in the backend repo. Read
+that before configuring a vendor that appears there. Keep credentials in the vendor record and out
+of this page.
+
+Re-importing is safe. Rows upsert on the supplier's item code, so a second run of the same feed
+updates in place rather than duplicating: a proven production run created 14,675 rows, updated 38
+that a manual import had already loaded, and totalled 14,713.
+
+<IfThisFails>
+A 403 on enable is the plan gate from step 2. An import that lands far fewer rows than the vendor
+claims usually means the format was detected differently than expected — check the delimiter,
+encoding, and whether the feed is header-less before blaming the feed.
+</IfThisFails>
+
+</Step>
+
+<Step n={6} title="Set up how orders will actually arrive">
+
+Manual upload proves the mapping. It is not how the client should be working in a month.
+
+Pick the intake method with them and set it up together using the customer-facing guide for it:
+[receive orders by email](/help/guides/receive-orders-by-email) is the usual first answer, since
+most buyer teams already email purchase orders. The API and folder-polling options are the right
+call when a system on their side can export on a schedule.
+
+Two things to get right during onboarding rather than later: whether a default supplier is needed
+for the channel they chose, and who on their side owns the credential if one is involved.
+
+</Step>
+
+<Step n={7} title="Walk one real order end to end, with the client watching">
+
+One order, start to finish, on their data:
+
+1. Upload the real purchase order they sent you.
+2. Review it — resolve any item code the parse could not match, so they see how a resolution is
+   remembered.
+3. Send it to the supplier.
+4. Open the delivery log and show them the result, including the response the supplier's endpoint
+   returned.
+
+Do not skip step 4. A transform artifact existing is not the same as an order being delivered,
+and a client who has seen the delivery log once will read it themselves the next time instead of
+emailing you.
+
+<Outcome>
+The client has watched their own order go out and knows where to look when one does not.
+</Outcome>
+
+<IfThisFails>
+A delivery failure here is a good outcome, not a bad one — it is the cheapest time to find a wrong
+endpoint or a missing credential. Fix it, retry from the order, and let them watch that too.
+</IfThisFails>
+
+</Step>
+
+<Step n={8} title="Hand over and write down what is not standard">
+
+Tell them three things and nothing more: where orders land, what **Needs supplier** means, and how
+to reach support.
+
+Then record anything about this client that a future session cannot infer from the data — a
+non-obvious column mapping, a vendor feed quirk, an agreed limit override and why it exists. The
+org record holds state, not reasoning.
+
+</Step>

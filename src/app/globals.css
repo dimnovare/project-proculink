@@ -777,6 +777,22 @@
           mask-image: linear-gradient(to right, #000 calc(100% - 22px), transparent);
 }
 
+/* ── Step-by-step guides ───────────────────────────────────────────────────
+   Margin normalisation for MDX prose nested inside a guide's <Step> bodies and
+   callouts (Prereqs / IfThisFails / Outcome).
+
+   `!important` is load-bearing here, not laziness: the MDX element map in
+   src/mdx-components.tsx styles p/ul/ol with INLINE styles (including
+   `margin: 14px 0`), and an inline style beats any class selector. Only the
+   edge margins are overridden — font size, colour, and line height stay
+   exactly as the article typography defines them, so guide prose and article
+   prose read identically. */
+.guide-step-body > :first-child { margin-top: 10px !important; }
+.guide-step-body > :last-child  { margin-bottom: 0 !important; }
+.guide-callout-body > :first-child { margin-top: 6px !important; }
+.guide-callout-body > :last-child  { margin-bottom: 0 !important; }
+.guide-prose > :first-child { margin-top: 0 !important; }
+
 /* ── Disclosure chevron ────────────────────────────────────────────────────
    For <details> whose <summary> sets list-style:none (removing the native
    triangle). Add [data-disclosure-chevron] to a child icon; it points right
