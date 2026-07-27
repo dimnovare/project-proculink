@@ -68,9 +68,25 @@ export const isQaBypass = process.env.NEXT_PUBLIC_QA_BYPASS_AUTH === "true";
 
 // ── Mock data ─────────────────────────────────────────────────────────────
 
+// Identity fields are populated on two of the four so mock mode shows BOTH states
+// the profile form has: filled in, and not set yet.
 const MOCK_SUPPLIERS: Supplier[] = [
-  { id: "11111111-1111-1111-1111-111111111111", name: "FastParts Inc" },
-  { id: "22222222-2222-2222-2222-222222222222", name: "ElectroSupply Co" },
+  {
+    id: "11111111-1111-1111-1111-111111111111",
+    name: "FastParts Inc",
+    vatNumber: "DE811234567",
+    registrationNumber: "HRB 214455",
+    ediCode: "4012345000009",
+    primaryDomain: "fastparts.example",
+  },
+  {
+    id: "22222222-2222-2222-2222-222222222222",
+    name: "ElectroSupply Co",
+    vatNumber: null,
+    registrationNumber: null,
+    ediCode: "5412345000176",
+    primaryDomain: "electrosupply.example",
+  },
   { id: "33333333-3333-3333-3333-333333333333", name: "GlobalComponents" },
   { id: "44444444-4444-4444-4444-444444444444", name: "PrecisionMfg" },
 ];
@@ -203,6 +219,47 @@ const mockOrders: Order[] = [
       { id: "l-004-2", lineNumber: 2, buyerItemCode: "MM-GASKET-40", description: "Flange gasket 40mm",    quantity: 24, unit: "PCS", unitPrice: 3.15,  confidence: 0.0, needsReview: true },
     ],
     artifacts: [],
+    // Ranked candidates, exactly as GET /api/orders/{id} returns them. Advisory only:
+    // this order is still `unrouted` and nothing here has routed it. Without these,
+    // mock mode could reach the assign flow but never the suggestions on top of it.
+    // Scores stay under 0.99 because the backend clamps there — a heuristic does not
+    // get to claim certainty.
+    supplierSuggestions: [
+      {
+        id: "sug-004-1",
+        supplierId: "22222222-2222-2222-2222-222222222222",
+        supplierName: "ElectroSupply Co",
+        rank: 1,
+        score: 0.78,
+        reason: "ElectroSupply Co — the EDI code printed on the document is theirs, and this file's column layout has only ever been used by them.",
+        signals: [
+          { signal: "identity",           contribution: 0.45, detail: "the EDI code printed on the document is theirs" },
+          { signal: "layout_fingerprint", contribution: 0.33, detail: "this file's column layout has only ever been used by them" },
+        ],
+      },
+      {
+        id: "sug-004-2",
+        supplierId: "11111111-1111-1111-1111-111111111111",
+        supplierName: "FastParts Inc",
+        rank: 2,
+        score: 0.44,
+        reason: "FastParts Inc — 1 of 2 item codes is in their catalog.",
+        signals: [
+          { signal: "catalog_overlap", contribution: 0.44, detail: "1 of 2 item codes is in their catalog" },
+        ],
+      },
+      {
+        id: "sug-004-3",
+        supplierId: "33333333-3333-3333-3333-333333333333",
+        supplierName: "GlobalComponents",
+        rank: 3,
+        score: 0.21,
+        reason: "GlobalComponents — earlier orders from this sender were routed to them.",
+        signals: [
+          { signal: "sender_domain_history", contribution: 0.21, detail: "earlier orders from this sender were routed to them" },
+        ],
+      },
+    ],
   },
 ];
 
@@ -771,7 +828,7 @@ async function realRetryDelivery(orderId: string): Promise<RetryDeliveryResult> 
  * Errors keep their status code (ApiHttpError) because 409 and 400 need DIFFERENT copy:
  * 409 means "someone already routed this", 400 means "that supplier isn't usable".
  */
-async function mockAssignSupplier(orderId: string, supplierId: string): Promise<Order> {
+async function mockAssignSupplier(orderId: string, supplierId: string, _suggestionId?: string): Promise<Order> {
   await delay(300);
   const idx = mockOrders.findIndex(o => o.id === orderId);
   if (idx === -1) throw new ApiHttpError("assign-supplier failed: Order not found.", 404, null);
@@ -794,6 +851,10 @@ async function mockAssignSupplier(orderId: string, supplierId: string): Promise<
     supplierName: supplier.name,
     status: "parsing",
     updatedAt: new Date().toISOString(),
+    // The backend stops returning candidates the moment the order leaves `unrouted`
+    // (LoadSupplierSuggestionsAsync filters on status + an undecided suggestion), so
+    // leaving them here would show the operator a choice they have already made.
+    supplierSuggestions: [],
   };
   // The re-enqueued parse settles the order the same way the upload path does.
   setTimeout(() => {
@@ -806,13 +867,20 @@ async function mockAssignSupplier(orderId: string, supplierId: string): Promise<
   return mockOrders[idx];
 }
 
-async function realAssignSupplier(orderId: string, supplierId: string): Promise<Order> {
+/**
+ * `suggestionId` is the id of the ranked candidate the operator accepted, when the
+ * supplier came from one. The backend uses it to record the routing decision as an
+ * ACCEPTED suggestion (and the others as rejected) instead of an unattributable
+ * manual pick — which is what makes the heuristic measurable over time. Omitted for
+ * a supplier chosen from the manual picker, which is a genuinely manual decision.
+ */
+async function realAssignSupplier(orderId: string, supplierId: string, suggestionId?: string): Promise<Order> {
   const res = await fetchWithTimeout(`${API_BASE_URL}/api/orders/${orderId}/assign-supplier`, {
     method: "POST",
     // [FromBody] binding needs the JSON content-type; without it the request is
     // rejected before the controller ever reads a supplier id.
     headers: { ...(await authHeader()), "Content-Type": "application/json" },
-    body: JSON.stringify({ supplierId }),
+    body: JSON.stringify(suggestionId ? { supplierId, suggestionId } : { supplierId }),
   }, 30000);
   if (!res.ok) {
     const body = await res.json().catch(() => null);
@@ -1008,9 +1076,37 @@ async function mockCreateSupplier(payload: CreateSupplierPayload): Promise<Suppl
   const trimmed = payload.name.trim();
   if (mockSupplierList.some(s => s.name.toLowerCase() === trimmed.toLowerCase()))
     throw new Error(`A supplier named '${trimmed}' already exists.`);
-  const s: Supplier = { id: crypto.randomUUID(), name: trimmed };
+  const s: Supplier = {
+    id: crypto.randomUUID(),
+    name: trimmed,
+    vatNumber: blankToNull(payload.vatNumber),
+    registrationNumber: blankToNull(payload.registrationNumber),
+    ediCode: blankToNull(payload.ediCode),
+    primaryDomain: normalizeDomain(payload.primaryDomain),
+  };
   mockSupplierList.push(s);
   return s;
+}
+
+/** Mirrors the API's `Trimmed()`: whitespace off, blank becomes null. */
+function blankToNull(v: string | null | undefined): string | null {
+  const t = v?.trim();
+  return t ? t : null;
+}
+
+/**
+ * Mirrors the API's `NormalizedDomain()` so mock mode shows the same STORED value the
+ * live form would show after a save — lowercase, no scheme, no "www.", no trailing slash.
+ */
+function normalizeDomain(v: string | null | undefined): string | null {
+  const t = blankToNull(v);
+  if (!t) return null;
+  return t
+    .toLowerCase()
+    .replace(/^https?:\/\//, "")
+    .replace(/^www\./, "")
+    .replace(/\/+$/, "")
+    .replace(/\.$/, "") || null;
 }
 
 async function realCreateSupplier(payload: CreateSupplierPayload): Promise<Supplier> {
@@ -1027,7 +1123,17 @@ async function mockRenameSupplier(id: string, payload: RenameSupplierPayload): P
   await delay(300);
   const i = mockSupplierList.findIndex(s => s.id === id);
   if (i === -1) throw new Error("Supplier not found");
-  mockSupplierList[i] = { ...mockSupplierList[i], name: payload.name.trim() };
+  const prev = mockSupplierList[i];
+  // Patch-style, same as the API: a field that was not supplied (undefined/null) keeps
+  // its value; an empty string is the explicit "clear it".
+  mockSupplierList[i] = {
+    ...prev,
+    name: payload.name.trim(),
+    vatNumber:          payload.vatNumber          == null ? prev.vatNumber          : blankToNull(payload.vatNumber),
+    registrationNumber: payload.registrationNumber == null ? prev.registrationNumber : blankToNull(payload.registrationNumber),
+    ediCode:            payload.ediCode            == null ? prev.ediCode            : blankToNull(payload.ediCode),
+    primaryDomain:      payload.primaryDomain      == null ? prev.primaryDomain      : normalizeDomain(payload.primaryDomain),
+  };
   return mockSupplierList[i];
 }
 

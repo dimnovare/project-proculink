@@ -4,12 +4,20 @@
 // ramps with confidence: high = green, mid = amber, low = red. Used on received-side
 // field rows and inside the inline AI-fix strip. Tokens per the design handoff.
 
-export function ConfidenceChip({ value, sm = false }: { value: number; sm?: boolean }) {
-  const pct = Math.round(value <= 1 ? value * 100 : value);
-  const tone =
-    pct >= 85 ? { fg: "#1E6D29", bg: "#E9F1EA", bd: "#CDE7D1" }
+/**
+ * The one place the confidence thresholds live. Exported because supplier auto-detect
+ * scores the same way visually (high = green, mid = amber, low = red) but is a
+ * HEURISTIC, not a model output — it reuses the ramp, never the "AI confidence" label.
+ */
+export function confidenceTone(pct: number): { fg: string; bg: string; bd: string } {
+  return pct >= 85 ? { fg: "#1E6D29", bg: "#E9F1EA", bd: "#CDE7D1" }
     : pct >= 65 ? { fg: "#8A5A0E", bg: "#FAF1DD", bd: "#EAD9AE" }
     : { fg: "#B43838", bg: "#FBE3E3", bd: "#F0C9C9" };
+}
+
+export function ConfidenceChip({ value, sm = false }: { value: number; sm?: boolean }) {
+  const pct = Math.round(value <= 1 ? value * 100 : value);
+  const tone = confidenceTone(pct);
   return (
     <span
       aria-label={`AI confidence ${pct}%`}
