@@ -1,8 +1,19 @@
 import type { NextConfig } from "next";
 import { withSentryConfig } from "@sentry/nextjs";
 import createMDX from "@next/mdx";
+import remarkGfm from "remark-gfm";
 
-const withMDX = createMDX({ extension: /\.mdx?$/ });
+// remark-gfm is what makes `| a | b |` a real <table>. Without it MDX parses
+// only CommonMark, and every pipe table in the help centre — the format-support
+// matrix on /help/output-templates, every field table in a guide — rendered as
+// a paragraph of literal `|---|---|` text. Tables are the main tool these pages
+// use to state what is and is not supported, so this is a correctness fix, not
+// a styling one. GFM also brings strikethrough, task lists, footnotes, and bare
+// URL autolinking; none of those change how existing copy reads.
+const withMDX = createMDX({
+  extension: /\.mdx?$/,
+  options: { remarkPlugins: [remarkGfm] },
+});
 
 const nextConfig: NextConfig = {
   pageExtensions: ["ts", "tsx", "mdx"],
