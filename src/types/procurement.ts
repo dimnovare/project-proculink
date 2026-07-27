@@ -20,9 +20,29 @@ export interface BuyerDto {
 export interface Supplier {
   id: string;
   name: string;
+  // ── Identity fields ───────────────────────────────────────────────────────
+  // The right-hand side of supplier auto-detect: what the numbers printed on an
+  // incoming document get compared against. Null until an org fills them in, and
+  // ALL optional so an org fetched from an older API degrades to "not set".
+  /** VAT / tax number, as registered. */
+  vatNumber?: string | null;
+  /** Company registration / registry code. */
+  registrationNumber?: string | null;
+  /** EDI routing id — GLN, ILN, Peppol participant id or scheme party code. */
+  ediCode?: string | null;
+  /** Email domain this supplier sends from, e.g. "acme.com". Normalised server-side. */
+  primaryDomain?: string | null;
 }
 
-export interface CreateSupplierPayload {
+/** Identity fields as the supplier create/update endpoints accept them. */
+export interface SupplierIdentityFields {
+  vatNumber?: string | null;
+  registrationNumber?: string | null;
+  ediCode?: string | null;
+  primaryDomain?: string | null;
+}
+
+export interface CreateSupplierPayload extends SupplierIdentityFields {
   name: string;
 }
 
@@ -45,7 +65,15 @@ export interface OrgSettings {
   slug?: string;
 }
 
-export interface RenameSupplierPayload {
+/**
+ * Body for PUT /api/suppliers/{id}. Despite the name it updates supplier DETAILS,
+ * not just the name.
+ *
+ * The identity fields are PATCH-STYLE server-side: an omitted/null field means
+ * "leave it as it is", and an EMPTY STRING is the explicit "clear it". A caller
+ * that means to clear one must send "" — sending null silently keeps the old value.
+ */
+export interface RenameSupplierPayload extends SupplierIdentityFields {
   name: string;
 }
 
@@ -166,6 +194,43 @@ export interface CalibrationBucket {
   isTrusted: boolean;
 }
 
+/**
+ * One signal's contribution to a supplier suggestion's score (backend SupplierSignalDto).
+ * `signal` is a stable slug: "identity" | "sender_domain" | "sender_domain_history" |
+ * "layout_fingerprint" | "catalog_overlap" | "supplier_name".
+ */
+export interface SupplierSignal {
+  signal: string;
+  /** How much this signal added to the score. Never negative. */
+  contribution: number;
+  /** The human-readable clause for this signal, already plain-language. */
+  detail: string;
+}
+
+/**
+ * One ranked supplier candidate for an order that arrived without a supplier
+ * (backend SupplierSuggestionDto, GET /api/orders/{id}).
+ *
+ * ADVISORY ONLY. The order is still `unrouted` and stays that way until a human
+ * posts assign-supplier — nothing here has changed any routing.
+ *
+ * This is a HEURISTIC, not a model output: it is not AI-generated content and must
+ * not be presented as such (no `ai` token, no "AI" tag).
+ */
+export interface SupplierSuggestion {
+  /** The suggestion row's id. Pass back as `suggestionId` on assign-supplier so the acceptance is attributable. */
+  id: string;
+  supplierId: string;
+  supplierName: string;
+  /** 1-based; 1 is the best candidate. */
+  rank: number;
+  /** 0–0.99. Never 1.0 — a heuristic does not get to claim certainty. */
+  score: number;
+  /** One plain-language sentence naming the supplier and the evidence. */
+  reason: string;
+  signals: SupplierSignal[];
+}
+
 export interface Artifact {
   id: string;
   format: string;
@@ -233,6 +298,13 @@ export interface Order {
   contactPhone?: string | null;
   /** Buyer tax / VAT registration id. */
   buyerTaxId?: string | null;
+  /**
+   * Ranked supplier candidates for an order that arrived with no supplier, best
+   * first, at most three. Absent/empty for every routed order and for any unrouted
+   * order nothing pointed at. Only GET /api/orders/{id} carries these — the inbox
+   * list DTO does not.
+   */
+  supplierSuggestions?: SupplierSuggestion[] | null;
 }
 
 export interface OrderSummary {

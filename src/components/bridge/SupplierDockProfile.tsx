@@ -23,6 +23,7 @@ import { useOrderDirection } from "@/hooks/useOrderDirection";
 import { useQueriesEnabled } from "@/hooks/useQueriesEnabled";
 import { invalidateOnboardingStatus } from "@/hooks/useOnboardingStatus";
 import { PageShell } from "./layout/PageShell";
+import { SupplierIdentityCard } from "./SupplierIdentityCard";
 import { useTabParamSync } from "@/lib/tab-param-sync";
 import { useConfirm } from "@/components/ui/confirm";
 import type { PoMappingConfig } from "@/lib/api/types";
@@ -1438,6 +1439,9 @@ export function SupplierDockProfile({ id }: { id: string }) {
                 </div>
               ))}
             </div>
+
+            {/* Identifiers — what an unrouted document gets matched against. */}
+            <SupplierIdentityCard supplierId={id} />
 
             {/* Summary + recent deliveries */}
             <div className="grid gap-4 lg:grid-cols-2">
