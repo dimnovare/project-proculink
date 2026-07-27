@@ -10,13 +10,15 @@ export const metadata = helpArticleMetadata({
 
 Your purchase orders use **your** item codes. Each supplier expects **their own** codes — the article numbers in their system. The review screen's "needs a supplier code" lines are exactly this gap, and closing it is the one piece of real work ProcuLink can't invent for you.
 
+> This article explains the idea. For the procedure at the review screen — accepting a suggestion, entering a code by hand, and what gets remembered — follow [resolve item codes in review](/help/guides/resolve-item-codes).
+
 ## What a supplier item code is
 
 A supplier item code is the identifier the supplier's order system recognises for a product — their SKU or article number. When an order line shows your code (say `A4-COPY-500`) but the supplier sells it as `PAP-0042`, someone has to say so once. That "saying so" is a mapping.
 
 ## Upload the supplier's catalog once
 
-The fastest way to close the gap is to import the supplier's product catalog under **Library → Suppliers → Catalog** (CSV or XLSX; columns like `code, name, unit, price, barcode` are auto-detected). With a catalog in place:
+The fastest way to close the gap is to import the supplier's product catalog under **Partners → Suppliers → Catalog** (CSV or XLSX; columns like `code, name, unit, price, barcode` are auto-detected). With a catalog in place:
 
 - new orders auto-match lines against the supplier's real codes,
 - manual entry gets a typeahead of codes that actually exist,
@@ -36,7 +38,7 @@ The import is deliberately forgiving — point it at the supplier's export and i
 
 ## ProcuLink remembers your resolutions
 
-When you type a supplier code on the review screen, that resolution is saved as an **item mapping** for that supplier. The next order with the same buyer code resolves automatically — you should only ever have to teach each product once. Saved mappings live under **Library → Mappings**.
+When you type a supplier code on the review screen, that resolution is saved as an **item mapping** for that supplier. The next order with the same buyer code resolves automatically — you should only ever have to teach each product once. Saved mappings live under **Rules & formats → Mappings**.
 
 ## No catalog handy?
 

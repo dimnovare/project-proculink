@@ -10,13 +10,15 @@ export const metadata = helpArticleMetadata({
 
 Some supplier APIs don't accept a static API key or bearer token — they require you to exchange a client id and secret for a short-lived access token first. ProcuLink's **OAuth2 fetch-token** auth method (on the HTTP delivery channel) does that exchange for you before each send, using the **client-credentials** grant.
 
+> This article is the OAuth2 reference. For the delivery set-up it belongs to, follow [set up delivery to a supplier and test-fire it](/help/guides/set-up-supplier-delivery).
+
 ## When to use this
 
 Choose OAuth2 fetch-token when the supplier's integration docs mention a "token endpoint", "client credentials", or "access token" — and when a plain bearer token would expire too quickly to hard-code. If the supplier just gives you one long-lived key, use the simpler `API key` or `bearer` method instead.
 
 ## The fields
 
-Configure these under **Library → Suppliers → Delivery**, after picking HTTP and the OAuth2 fetch-token method. Each is one line; a concrete example follows.
+Configure these under **Partners → Suppliers → Delivery**, after picking HTTP and the OAuth2 fetch-token method. Each is one line; a concrete example follows.
 
 - **tokenUrl** — the supplier's token endpoint that mints the access token.
 - **clientId** — the client identifier the supplier issued you.

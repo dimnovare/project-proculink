@@ -10,13 +10,13 @@ export const metadata = helpArticleMetadata({
 
 ProcuLink has three rule surfaces, and only one of them actually checks orders. Knowing which is which saves a lot of confusion.
 
-## 1. The rule catalog (Library → Rules)
+## 1. The rule catalog (Rules & formats → Rules)
 
 A catalog that **documents** the checks your organisation cares about — name, description, and a severity (error, warning, or info). It comes seeded with starter rules and you can add your own.
 
 Honesty first: **the catalog does not block or hold any order by itself.** Toggling a catalog rule changes the documentation, not enforcement. It's the shared vocabulary your team agrees on before setting up real checks per supplier.
 
-## 2. Rule definitions (Library → Rule definitions)
+## 2. Rule definitions (Rules & formats → Rules)
 
 A read-only library of the **reusable check shapes** that supplier rules bind to — each with its scope (order or line), field, operator, default severity, and, where applicable, references into the standards (UBL, EDIFACT, X12, cXML). Definitions are created automatically as you author supplier rules, so this page is a reference, not an editor.
 

@@ -10,7 +10,7 @@ export const metadata = helpArticleMetadata({
 
 If buyers already email purchase orders as attachments to a mailbox you own, ProcuLink can check that mailbox on a schedule and import the supported attachments. Configure it in **Settings → Email intake**.
 
-> This article is the per-provider reference. For the whole set-up in order — hosted address first, IMAP only if you need it — follow the guide [receive orders by email](/help/guides/receive-orders-by-email).
+> This article is the per-provider reference. For the set-up in order, follow [poll a mailbox you already own over IMAP](/help/guides/poll-a-mailbox-over-imap) — or start with [receive orders by email](/help/guides/receive-orders-by-email) if you have not yet ruled out the hosted address, which needs no credentials at all.
 
 ## When to use this
 
@@ -44,9 +44,35 @@ Gmail and Office 365 block plain IMAP sign-in with your normal password when two
 
 Proton mail is only reachable over IMAP through the local **Proton Bridge** app, which exposes `127.0.0.1:1143` on the machine running it — ProcuLink's hosted poller cannot reach a Proton Bridge instance running on your laptop, so use Proton with IMAP only where Proton Bridge runs on a reachable host.
 
+## Plan availability
+
+IMAP polling is included on **every paid plan** — Growth and up. On the free Pilot trial you can fill the
+form in and save it, but the polling toggle stays off until the plan changes; upload through the app
+instead.
+
 ## How polling works
 
-ProcuLink checks the folder on a schedule, imports supported attachments from messages it has not seen before, and records each message so it is not re-imported. It does not delete or move your mail. One purchase order per email keeps routing clean.
+ProcuLink checks the folder **every five minutes**. There is no faster or slower option in this release.
+
+Each run imports supported attachments from messages it has not seen before and records each message so it
+is not re-imported. It does not delete or move your mail. One purchase order per email keeps routing clean.
+
+## What gets ingested
+
+Over IMAP, attachments with the extensions `.csv`, `.xlsx`, and `.pdf` are picked up. **Each attachment
+becomes a separate order.** A message ProcuLink has taken is marked `Seen` in the mailbox so it is not
+ingested twice.
+
+The hosted `{slug}@orders.proculink.eu` address is more permissive than IMAP polling: it also accepts
+`.xml`, `.edi`, and `.txt` attachments, and can fall back to extracting a simple purchase order from the
+message body when AI extraction is enabled.
+
+## When things fail
+
+Bad credentials or an unreachable host raise an alert on **Settings → Email intake**, and polling pauses
+until the configuration is fixed rather than failing quietly. The **Last poll** timestamp on the same
+screen is the fastest way to notice: one that stops advancing means the poller is no longer getting in,
+usually because an app password was rotated or revoked.
 
 ## Common problems
 

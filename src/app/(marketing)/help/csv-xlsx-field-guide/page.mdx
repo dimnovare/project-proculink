@@ -10,6 +10,8 @@ export const metadata = helpArticleMetadata({
 
 CSV and XLSX are the two most common ways buyer teams hand over a purchase order, and both parse the same way in ProcuLink: row 1 is the header, every following row is a line item, and headers are matched by name rather than by position. This guide covers which columns you actually need, how ProcuLink reads your headers, and the encoding and number rules that keep totals from drifting.
 
+> This article is the column reference. To get a file into ProcuLink from the upload screen, follow [upload order files by hand](/help/guides/upload-orders-manually).
+
 ## When to use this
 
 Reach for CSV or XLSX when your source system exports a spreadsheet, when a buyer emails an order as an attachment, or when you are testing a new supplier mapping with a real file. If you can open it in a spreadsheet program, ProcuLink can read it — you do not need to match a fixed template.
@@ -84,4 +86,4 @@ Numeric cells are read from the cell's stored value, so a quantity or price form
 
 ---
 
-Need help with a specific file? Email [support@proculink.eu](mailto:support@proculink.eu) or start with [your first purchase order upload](/help/first-upload).
+Need help with a specific file? Email [support@proculink.eu](mailto:support@proculink.eu) or start with [upload order files by hand](/help/guides/upload-orders-manually).

@@ -10,6 +10,8 @@ export const metadata = helpArticleMetadata({
 
 "What does the supplier actually receive?" has three answers in ProcuLink: the **output format** set on each supplier's delivery config, an optional **per-order template** for exact custom shapes, and a **templates page** that — honestly — is a reference list, not a control.
 
+> This article is the reference for formats and the templates page. For choosing the format a supplier actually receives, follow [set up delivery to a supplier and test-fire it](/help/guides/set-up-supplier-delivery).
+
 ## Output formats that work today
 
 The format a supplier receives is chosen on that supplier's **delivery config**. Sending auto-transforms the reviewed order into it. Current support for output:
@@ -25,9 +27,9 @@ The format a supplier receives is chosen on that supplier's **delivery config**.
 | EDIFACT ORDERS | Not yet — parsing exists, no outbound transformer |
 | XLSX / PDF / SAP IDoc | Input only — ProcuLink reads them but does not emit them |
 
-The in-app **Library → Standards** page is the always-current version of this table, down to field-level references (how "PO number" maps to UBL `cbc:ID`, X12 `BEG03`, and so on).
+The in-app **Rules & formats → Standards** page is the always-current version of this table, down to field-level references (how "PO number" maps to UBL `cbc:ID`, X12 `BEG03`, and so on).
 
-## The templates page (Library → Templates)
+## The templates page (Rules & formats → Output templates)
 
 This page records the output formats you plan to use — a name, standard, and version per entry — and lets you preview and download an example envelope for each standard. It's useful for aligning with a supplier on what they'll receive.
 

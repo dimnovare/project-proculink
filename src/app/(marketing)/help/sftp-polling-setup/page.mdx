@@ -10,6 +10,8 @@ export const metadata = helpArticleMetadata({
 
 When a source system exports purchase orders to an SFTP server on a schedule, ProcuLink can log in, pick up the new files, and parse them for you. You configure this yourself in **Settings → SFTP pull** (available on every paid plan — Growth and up).
 
+> This article is the reference for the individual settings. For the set-up in order, follow [pull order files from an SFTP folder](/help/guides/receive-orders-by-sftp).
+
 ## When to use this
 
 Use SFTP polling when an ERP, warehouse system, or older back office drops PO files into a folder on a fixed server and you want them imported without anyone uploading by hand. If the sender can push to an API instead, prefer the inbound API — polling is best when the source can only write files.
@@ -19,9 +21,10 @@ Use SFTP polling when an ERP, warehouse system, or older back office drops PO fi
 - **Host** — the SFTP server hostname, e.g. `sftp.supplier.example`.
 - **Port** — `22` unless the server was moved to a non-standard port.
 - **Path / folder** — the absolute directory ProcuLink lists, e.g. `/exports/orders`. This is the single most common thing to get wrong (see below).
-- **Credentials** — either a **username and password**, or a **username and private key**. Paste the private key in OpenSSH format when the server uses key-based auth. Credentials are encrypted at rest with AES-256-GCM.
-- **Polling schedule** — how often ProcuLink checks the folder. Choose the slowest cadence that still meets your turnaround; there is no benefit to polling faster than files actually arrive.
+- **Credentials** — a **username and password**. Credentials are encrypted at rest with AES-256-GCM and are never shown again once saved; leaving the password blank on a later edit keeps the stored one. Key-based authentication is available for *delivery* over SFTP, not for pull ingestion — see [SFTP and FTPS delivery keys](/help/sftp-ftps-delivery-keys).
 - **Default supplier** — the supplier that imported files are attributed to, since a raw file drop carries no ProcuLink routing.
+
+The cadence is not configurable: ProcuLink checks the folder every few minutes while polling is switched on.
 
 ## How ProcuLink marks files processed
 

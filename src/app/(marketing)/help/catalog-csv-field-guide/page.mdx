@@ -10,6 +10,8 @@ export const metadata = helpArticleMetadata({
 
 A supplier catalog is the product list ProcuLink matches order lines against — so a buyer code or description can resolve to the supplier's real code, name, unit, and price. You import it per supplier from the app, or feed it automatically via API push, SFTP/FTP(S), or an HTTP pull. This guide covers the CSV shape; XLSX and JSON follow the same columns.
 
+> This article is the column reference. To load a catalog for the first time follow [import a supplier catalog from a file](/help/guides/import-a-supplier-catalog), or [keep a catalog in sync automatically](/help/guides/keep-a-catalog-in-sync) to stop doing it by hand.
+
 ## When to use this
 
 Import a catalog when you want ProcuLink to recognise a supplier's products and fill in missing details on order lines. It is optional — orders still parse and deliver without one — but it makes item matching far more reliable.
