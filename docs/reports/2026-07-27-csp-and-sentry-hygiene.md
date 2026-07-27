@@ -130,6 +130,20 @@ Both are addressed in this PR: `silent` is now `!process.env.SENTRY_AUTH_TOKEN`
 (quiet when there is nothing to upload, loud when there is), and
 `instrumentation.ts` exports `onRequestError`.
 
+Confirmed on this branch's **Vercel preview build** (`5f497fb`), which now says so
+in the deployment log:
+
+```
+> Adding source map references
+> Bundled 231 files for upload
+> Uploading completed in 1.928s
+> Uploaded files to Sentry
+> Upload type: artifact bundle
+```
+
+and the `onRequestError` warning is gone from that build. The only Sentry line
+left is the `sentry.client.config.ts` → `instrumentation-client.ts` deprecation.
+
 **Cleanup for the founder:** the verification run created a throwaway Sentry
 release `csp-sourcemap-verify-01` with 3 artifact bundles. Safe to delete; nothing
 references it. It was left in place rather than deleted from an automated session.
