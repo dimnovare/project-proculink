@@ -1,0 +1,165 @@
+import { guideMetadata } from "@/lib/seo";
+import { Step, Prereqs, IfThisFails, Outcome, GuideShot } from "@/components/help/guide";
+
+export const metadata = guideMetadata({
+  slug: "map-supplier-po-fields",
+  title: "Map a supplier's purchase-order fields — ProcuLink guide",
+  description:
+    "Shape the document a supplier receives from ProcuLink: field rules and manipulators, custom fields, whole-document template mode, the live preview, and saving the layout for every future order.",
+});
+
+<Prereqs>
+- One real order from this supplier in review. Mapping is done against a real document, never a blank form — you need something to preview.
+- The supplier's own specification of what they want: their field names, their date format, and a sample of a document they accept, if they will give you one.
+- Delivery already configured, so the output format is set — see [set up delivery to a supplier and test-fire it](/help/guides/set-up-supplier-delivery).
+</Prereqs>
+
+<Step n={1} title="Establish that you actually need this">
+
+Most suppliers never need a custom mapping. Choosing their output format on the Delivery tab — CSV, XML,
+cXML, UBL/Peppol, X12, or JSON — produces a standards-shaped document that their system reads.
+
+You need this guide when that is not enough:
+
+- They want a field that is not in the standard output, or want one renamed.
+- They want a value calculated — a line total, a code with a prefix stripped, a date in their format.
+- They insist on an exact structure that no standard format produces.
+
+Check the output preview on the review screen against their specification first. If it already matches,
+stop here — an override you did not need is one more thing to maintain.
+
+<Outcome>
+You can name the specific fields that are wrong, rather than "the format is wrong".
+</Outcome>
+
+</Step>
+
+<Step n={2} title="Open the editor on a real order">
+
+Open the order from the **Inbox** and choose **Edit output mapping** on the review screen.
+
+The most important property of this editor: **the default is to change nothing.** An order with no override
+produces byte-identical output to the supplier's existing mapping. The override only affects the fields you
+actually set, and for those fields it wins.
+
+That means you can open it, look, and close it again without consequence.
+
+</Step>
+
+<Step n={3} title="Set the field rules">
+
+Each output field is one rule, and each rule picks where its value comes from:
+
+- A **standard field** — from the order: PO number, order date, buyer, currency, supplier. From each line:
+  line number, buyer item code, supplier item code, description, quantity, unit, unit price, line total.
+- A **custom field** you have added yourself.
+- A **fixed value** — the same literal on every order or line. Useful for a constant account number or
+  document-type code the supplier requires.
+
+Then attach an optional **manipulator chain** to reshape it. There are eight, they run in order, and each
+transforms the previous result:
+
+| Manipulator | Typical use |
+|---|---|
+| `Trim` | Remove whitespace an Excel export left behind |
+| `Replace` | Strip a `SUP-` prefix from an item code |
+| `DateFormat` | `dd/MM/yyyy` → `yyyy-MM-dd` |
+| `Concat` | Build one field from two columns with a separator |
+| `Split` | Keep the part before a `/` |
+| `Fallback` | Use the first non-empty value among several columns |
+| `Multiply` / `Divide` | Convert a price-per-100 into a unit price |
+
+Manipulators are forgiving on purpose: one that cannot apply — a date that does not match the stated input
+format, a non-numeric value handed to `Multiply` — passes the value through unchanged rather than destroying
+it.
+
+<IfThisFails>
+If a manipulator seems to be doing nothing, that is usually it declining to apply rather than failing. Check
+the input format string against the real values in the source document.
+</IfThisFails>
+
+</Step>
+
+<Step n={4} title="Add custom fields, or reach for an expression">
+
+**Custom fields** hold values that do not exist in the parsed order at all. They can be header-scoped (one
+value per order) or line-scoped (one per line), and output rules can reference them. They live only on this
+order and never alter the parsed data.
+
+When a source-plus-manipulators recipe cannot express what you need, a rule can carry a free-form **custom
+expression** instead, which then takes precedence over its chosen source:
+
+```
+{{ order.PoNumber }}
+{{ line.Quantity * line.UnitPrice }}
+{{ order.Currency }}-{{ line.SupplierItemCode }}
+```
+
+Expressions run in a sandbox. A broken one never corrupts a send: it surfaces as a clear error and the order
+stays un-transformed.
+
+</Step>
+
+<Step n={5} title="If they need an exact document, use template mode">
+
+Some suppliers do not want a standard format bent into shape — they want one precise structure, usually a
+nested JSON their system parses directly.
+
+Switch to **template mode** and write the whole document as one template:
+
+```
+{"customerOrderNumber":"{{ OrderNr }}",
+ "lines":[{{ for Line in Lines }}{"qty":{{ Line.Qty }}}{{ if !for.last }},{{ end }}{{ end }}]}
+```
+
+Template mode takes precedence over the field-by-field rules, and you set the content type — JSON by
+default, or CSV, XML, or plain text if that is what the template produces.
+
+Two guarantees hold regardless of what you write: a template that fails to compile or render produces a
+clear error rather than bad output, and **a template can never deliver an order that still has unresolved
+lines.**
+
+<IfThisFails>
+Template mode replaces the field rules rather than adding to them — if you switch to it, the whole document
+is yours to produce. Fixing three fields is a job for rules, not a template.
+</IfThisFails>
+
+</Step>
+
+<Step n={6} title="Read the live preview before you save">
+
+The editor previews the generated document as you work. It is a dry run — nothing changes until you save.
+
+Compare it line by line against the supplier's specification. Field names, date formats, decimal separators,
+and whether item codes are theirs rather than yours: those four account for most rejections.
+
+<Outcome>
+The preview matches the supplier's specification, and saving stores the override on **this order only**.
+</Outcome>
+
+</Step>
+
+<Step n={7} title="Keep the layout for every future order">
+
+If the override is not a one-off — if this is simply how that supplier's documents have to look — use
+**Save mappings for this supplier** on the review screen.
+
+That promotes the order's rules into the supplier's reusable mapping **additively**: fields you did not
+touch are preserved, so it is safe to run after fixing two fields. Future orders from that supplier apply it
+automatically, and a per-order override still wins whenever one exists.
+
+Then prove it on the next order rather than assuming: open the following order from that supplier and read
+its output preview before sending.
+
+<Outcome>
+Orders from this supplier come out in their shape without anyone opening the editor again, and the first
+send that used it was checked by a person.
+</Outcome>
+
+<IfThisFails>
+For a supplier whose whole setup needs to change in a controlled, reviewable way — mapping, rules, and
+delivery together — promote it through a versioned revision instead of editing in place. See [supplier
+connections](/help/connections).
+</IfThisFails>
+
+</Step>

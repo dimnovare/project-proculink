@@ -1,0 +1,197 @@
+import { guideMetadata } from "@/lib/seo";
+import { Step, Prereqs, IfThisFails, Outcome } from "@/components/help/guide";
+
+export const metadata = guideMetadata({
+  slug: "set-up-supplier-delivery",
+  title: "Set up delivery to a supplier and test-fire it — ProcuLink guide",
+  description:
+    "Configure how a supplier receives orders from ProcuLink — HTTP, cXML, SFTP/FTPS, email, or an Erply/Directo adapter — choose the output format, and prove the path with a test-fire before the first real order.",
+});
+
+<Prereqs>
+- The supplier added — see [add a supplier](/help/guides/add-a-supplier).
+- From the supplier, in writing: **which channel** they accept, **which format** they want, and the credentials for it. Guessing any of the three costs a rejected order and a phone call.
+- For cXML: their network identities and the shared secret. For an ERP adapter: a named contact on their side who can confirm the order actually arrived.
+- One reviewed order to send at the end.
+</Prereqs>
+
+<Step n={1} title="Pick the channel the supplier actually uses">
+
+Open **Partners → Suppliers → the supplier → Delivery**. Six channels are on offer, and the right one is
+whichever the supplier already runs — this is not a preference:
+
+| Channel | Use it when |
+|---|---|
+| **HTTP** | They publish an endpoint and want orders posted to it. Also the channel cXML rides on. |
+| **SFTP** / **FTPS** | They take files. The order is written into a folder on their server. |
+| **Email** | They want an attachment in a mailbox. The least automated, and often the fastest to agree. |
+| **Erply ERP** / **Directo ERP** | You share an Erply or Directo tenant with them — read step 6 before choosing this. |
+
+Until something is configured here, sending an order stops honestly at *delivery not set up* rather than
+pretending it went somewhere.
+
+</Step>
+
+<Step n={2} title="Choose the output format — and know what is not offered">
+
+On the same tab, set the **output format** the supplier requires. Sending transforms the reviewed order into
+it automatically.
+
+| Format | Status |
+|---|---|
+| CSV | Supported |
+| JSON | Supported |
+| XML (generic) | Supported |
+| cXML | Supported |
+| UBL 2.1 / Peppol | UBL is supported. **Peppol BIS Order 3.0 rides the same pipeline and is still hardening** — treat full BIS conformance as partial, not finished. |
+| ANSI X12 850 | Supported |
+
+Two absences worth stating plainly, because they are easier to hear now than after a commitment to a
+supplier:
+
+- **EDIFACT is inbound only.** ProcuLink reads EDIFACT `ORDERS` messages at directories D96A and D01B, but
+  it does not generate them. There is no outbound EDIFACT transformer today.
+- **EDIFACT `INVOIC` and `DESADV` are not supported at all**, in either direction. They are on the roadmap;
+  they are not a feature you can plan around. See [EDIFACT ORDERS purchase
+  orders](/help/edifact-orders).
+
+Leaving the format unset defaults to XML. Set it explicitly anyway — the default is a fallback, not a
+choice.
+
+<IfThisFails>
+If the supplier needs a shape none of these produces exactly, that is a mapping job rather than a format
+choice: [map a supplier's purchase-order fields](/help/guides/map-supplier-po-fields) can produce an exact
+custom document.
+</IfThisFails>
+
+</Step>
+
+<Step n={3} title="Configure the channel">
+
+**HTTP.** Fill in the **Endpoint URL**, the **Method** (POST or PUT), and a **Timeout**. Then the
+authentication the supplier specified:
+
+| Auth type | Fields |
+|---|---|
+| None | — |
+| API key | **Header** name and **Value** |
+| Bearer token (static) | **Token** |
+| OAuth2 — fetch token first | **Token URL**, **Scope**, **Client ID**, **Client secret**, plus grant type, token response field, request format, and whether client credentials go in the body or an HTTP Basic header |
+| Basic auth | **Username** and **Password** |
+
+OAuth2 fetches a fresh access token from the supplier's token endpoint before each send, so a rotating token
+never needs touching by hand. Detail: [OAuth2 delivery setup](/help/oauth2-delivery-setup).
+
+**SFTP / FTPS.** **Host**, **Port**, **Timeout**, and the **Remote path** the file is written to. **Auth
+method** is **Password** or **Private key** — paste a private key in OpenSSH format when the server expects
+one. **Make directories** creates the path if it does not exist; turn it off when the supplier requires the
+directory to pre-exist. Key formats and the FTPS certificate caveat are in [SFTP and FTPS delivery
+keys](/help/sftp-ftps-delivery-keys).
+
+**Email.** **Recipients (comma-separated)**, then optionally a **Subject template** (`Purchase Order
+{poNumber}`), a **Body template**, and the **Attachment file name**. Delivery goes out over ProcuLink's own
+mail servers — you do not run or configure an SMTP server unless you deliberately choose to send through
+your own.
+
+Credentials on every channel are encrypted at rest and write-only: re-opening the configuration shows a
+*leave blank to keep* hint instead of the stored value.
+
+</Step>
+
+<Step n={4} title="If it is cXML, fill in the network credentials">
+
+cXML is not just a format — it carries an identity block the supplier's network checks before it looks at
+the order. Open **cXML network credentials** and fill in what they gave you:
+
+- **From domain** and **From identity (your sender ID)** — who the order is from.
+- **To domain** and **To identity (supplier network ID)** — who it is for.
+- **Sender domain**, **Sender identity**, and **Sender shared secret** — what authenticates the transmission.
+- **cXML DTD (SYSTEM id / URI)**, and a **Public id** if they specify one.
+
+Every one of these comes from the supplier or their network operator. None can be inferred, and a wrong
+identity is rejected before the order content is read at all — which is why a cXML test-fire failure so
+often has nothing to do with the order. More in [cXML setup](/help/cxml-setup).
+
+<Outcome>
+The panel shows **shared secret saved** once the secret is stored — it is never displayed back.
+</Outcome>
+
+</Step>
+
+<Step n={5} title="Save, then test-fire">
+
+Press **Save delivery**.
+
+**Test-fire** stays disabled until you do — *"Save the delivery setup first, then you can test it."* The test
+runs server-side against stored credentials, so there has to be something stored.
+
+Now press **Test-fire** (or **Send a test now** on the strip that appears after saving). ProcuLink sends a
+real test payload to the configured destination and reports back verbatim:
+
+- **Test-fire succeeded · response code *N*** — the endpoint answered.
+- **Test-fire failed · response code *N*** — with the error message underneath, as the supplier's system
+  gave it.
+
+This is the rehearsal that makes the first real send boring. It proves the credentials, the URL or host, and
+the network path against the supplier's *actual* endpoint rather than a mock.
+
+<IfThisFails>
+Read the response code before changing anything. **401/403** is credentials. **404** is the URL or path.
+**5xx** is their side, and retrying later is a legitimate response. A connection that times out is usually a
+firewall that has not been told about us — ask them to allow our traffic.
+</IfThisFails>
+
+</Step>
+
+<Step n={6} title="Read the result honestly — especially for an ERP adapter">
+
+The success message says the important part itself: *"A successful test means their endpoint answered — it
+doesn't mean an order was accepted."*
+
+An HTTP 200 proves the connection works. It says nothing about whether their system will take a given
+order's content — unknown item codes, missing fields, and their own business rules can all still cause a
+rejection after delivery. ProcuLink tracks the supplier's response as a separate stage for exactly this
+reason.
+
+For **Erply** and **Directo** this matters more, and the honest scope is worth reading twice:
+
+- The adapters deliver the **generated order artifact** into the ERP — the same supplier-ready output the
+  other channels send. They are **not** a native re-modelling of the order inside Erply or Directo, and not
+  a certified turnkey integration.
+- They are validated with unit and mock tests. **They are not validated against a live ERP sandbox**, because
+  there is not one to validate against.
+
+So two things are on you before relying on either in production: confirm the field mapping with whoever
+administers that ERP tenant, and have that person confirm the test order actually arrived and looks right on
+their side. A green test-fire is not a substitute for either. See [Erply and Directo ERP delivery
+adapters](/help/erp-erply-and-directo).
+
+</Step>
+
+<Step n={7} title="Send one real order">
+
+Open a reviewed order for this supplier and send it. Watch it move `ready_to_deliver` → `delivering` →
+`delivered`.
+
+Then check the two things a test cannot tell you:
+
+- The **delivery log** records the attempt and the supplier's response.
+- The **supplier** confirms — by whatever means you normally use — that the order arrived and is workable.
+  For a first send to a new supplier, ask. Once.
+
+Only after that is it reasonable to turn on **Auto-deliver**, which sends reviewed orders without a further
+click.
+
+<Outcome>
+An order for this supplier goes from review to delivered without anyone touching a file, and the first one
+that did it was confirmed by a human on the other end.
+</Outcome>
+
+<IfThisFails>
+A failure lands the order in `delivery_failed` with the attempt's error captured, and it can be retried once
+the cause is fixed. The exception is *delivery config is missing* — retrying will never help, because there
+is nothing to retry against. Statuses and what each one leads to are in [order statuses from upload to
+delivered](/help/dashboard-and-statuses).
+</IfThisFails>
+
+</Step>
