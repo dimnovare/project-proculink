@@ -130,7 +130,7 @@ export const GUIDES: Guide[] = [
     slug: "receive-orders-over-api",
     href: "/help/guides/receive-orders-over-api",
     title: "Push orders in over the API",
-    blurb: "Create an API key and post order files or structured orders from an ERP or automation tool.",
+    blurb: "Create an API key and post structured orders from an ERP or automation tool. JSON, not files.",
     section: "Receive orders",
     audience: "client",
     status: "live",
