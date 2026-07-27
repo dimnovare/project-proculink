@@ -2,6 +2,7 @@ import type { NextConfig } from "next";
 import { withSentryConfig } from "@sentry/nextjs";
 import createMDX from "@next/mdx";
 import remarkGfm from "remark-gfm";
+import { cspModeFromEnv, securityHeaders } from "./src/lib/security/csp";
 
 // remark-gfm is what makes `| a | b |` a real <table>. Without it MDX parses
 // only CommonMark, and every pipe table in the help centre — the format-support
@@ -23,30 +24,35 @@ const nextConfig: NextConfig = {
   experimental: {
     optimizePackageImports: ["lucide-react"],
   },
-  // API lives on a separate origin — no rewrites needed
-  // Baseline security headers on every response. HSTS is already applied by the
-  // Vercel edge, so we add the remaining hardening headers here. A full
-  // Content-Security-Policy (script/style allowlist compatible with Clerk +
-  // Next's inline runtime) is intentionally deferred — it needs careful testing
-  // against the Clerk SDK to avoid breaking auth, so it is tracked separately.
+  // API lives on a separate origin — no rewrites needed.
+  //
+  // Security headers on every response. HSTS is applied by the Vercel edge; the
+  // rest — including the full Content-Security-Policy — is built in
+  // src/lib/security/csp.ts from the same env vars the browser code reads, so
+  // the allowlist cannot drift from the hosts we actually talk to.
+  //
+  // CSP_MODE controls enforcement and defaults to report-only: the full policy
+  // ships as Content-Security-Policy-Report-Only (violations go to Sentry via
+  // the DSN's security endpoint) while a small enforced policy keeps the
+  // frame-ancestors / base-uri / object-src guarantees we already had. Flip
+  // CSP_MODE=enforce in the Vercel project once the reports are quiet.
   async headers() {
     return [
       {
         source: "/:path*",
-        headers: [
-          { key: "X-Content-Type-Options", value: "nosniff" },
-          { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
-          { key: "X-Frame-Options", value: "SAMEORIGIN" },
-          {
-            key: "Permissions-Policy",
-            value: "camera=(), microphone=(), geolocation=(), browsing-topics=()",
-          },
-          // Anti-clickjacking via CSP — the modern equivalent of the
-          // X-Frame-Options above, kept in sync with it (same-origin only).
-          // A full script/style/connect CSP stays deferred (needs careful
-          // testing against Clerk/Stripe/PostHog/Sentry).
-          { key: "Content-Security-Policy", value: "frame-ancestors 'self'" },
-        ],
+        headers: securityHeaders({
+          mode: cspModeFromEnv(process.env.CSP_MODE),
+          isDev: process.env.NODE_ENV !== "production",
+          apiBaseUrl: process.env.NEXT_PUBLIC_API_BASE_URL,
+          clerkPublishableKey: process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY,
+          posthogHost: process.env.NEXT_PUBLIC_POSTHOG_HOST,
+          sentryDsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
+          mediaUrls: [
+            process.env.NEXT_PUBLIC_WALKTHROUGH_VIDEO_URL,
+            process.env.NEXT_PUBLIC_WALKTHROUGH_VIDEO_POSTER,
+          ],
+          vercelEnv: process.env.VERCEL_ENV,
+        }),
       },
     ];
   },
@@ -92,8 +98,12 @@ const configWithMdx = withMDX(nextConfig);
 // (a production-only file), producing ENOENT 500s on every dev request.
 export default process.env.NODE_ENV === "production"
   ? withSentryConfig(configWithMdx, {
-      // Only upload source maps when SENTRY_AUTH_TOKEN is set (CI/prod)
-      silent: true,
+      // Stay quiet when there is no token (nothing to upload, nothing to say),
+      // but LOG when there is one: a silent plugin is how a broken source-map
+      // upload goes unnoticed — production JS frames were still minified
+      // (`app:///_next/static/chunks/*.js:1`) with no error anywhere in the
+      // Vercel build log.
+      silent: !process.env.SENTRY_AUTH_TOKEN,
       telemetry: false,
       // Strip dead Sentry code from the client bundle. Session Replay is NOT
       // registered in sentry.client.config.ts (no replayIntegration()), so the
