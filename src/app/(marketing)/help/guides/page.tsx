@@ -56,9 +56,8 @@ export default function GuidesIndexPage() {
         </h1>
         <p className="mt-2.5 text-[15px]" style={{ color: "var(--ink-muted)", lineHeight: 1.65 }}>
           One task per guide, in numbered steps, with what to do when a step does not work. The
-          help articles stay the reference — a guide is the procedure. We are converting the
-          library one task at a time; the sections below show what is written and what is still
-          to come.
+          help articles stay the reference — a guide is the procedure. Each section shows how many
+          of its guides are written; anything still to come says so rather than linking nowhere.
         </p>
         <div
           aria-hidden="true"

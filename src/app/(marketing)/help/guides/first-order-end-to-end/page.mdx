@@ -1,0 +1,158 @@
+import { guideMetadata } from "@/lib/seo";
+import { Step, Prereqs, IfThisFails, Outcome, GuideShot } from "@/components/help/guide";
+
+export const metadata = guideMetadata({
+  slug: "first-order-end-to-end",
+  title: "Take your first order from upload to delivered — ProcuLink guide",
+  description:
+    "The whole path in one sitting: add a supplier, upload a real purchase order, review it, resolve the item codes, configure delivery, and send — with links to the detailed guide for each stage.",
+});
+
+<Prereqs>
+- A ProcuLink workspace you can sign in to. Pilot is enough for everything here.
+- **One real purchase order** you have actually sent, or would send. Not a sample — a sample proves the plumbing and teaches you nothing about your own documents.
+- One supplier you send to often, and their contact details.
+- Around an hour, though most of it is waiting on the supplier to tell you how they want orders delivered.
+</Prereqs>
+
+<Step n={1} title="Add the supplier">
+
+Everything else hangs off this. ProcuLink checks item codes against **a** supplier, delivers to **a**
+supplier, and routes incoming orders to **a** supplier — so one has to exist before anything can happen.
+
+**Partners → Suppliers → New supplier**, name it, save. That is the required part, and it takes a minute.
+
+While you are there, fill in the **Identifiers** card on the supplier's Overview tab — their VAT number,
+registration number, EDI/GLN code, and email domain. It is optional, and it is what lets a future order
+that does not name them plainly still find its way. Full detail: [add a supplier and fill in their
+identifiers](/help/guides/add-a-supplier).
+
+<Outcome>
+The supplier appears in **Partners → Suppliers**.
+</Outcome>
+
+</Step>
+
+<Step n={2} title="Load their item codes">
+
+Ask the supplier for their current price list as a CSV or XLSX, and import it on the supplier's **Catalog**
+tab.
+
+This step is optional and skipping it is the single most common reason a first order feels like hard work.
+With a catalog, unknown codes are flagged and suggestions come from products the supplier really sells.
+Without one, every unfamiliar code on the order is something you resolve by hand with nothing to check
+against.
+
+Ten minutes here saves most of step 4. See [import a supplier catalog from a
+file](/help/guides/import-a-supplier-catalog).
+
+<IfThisFails>
+No price list to hand? Carry on. Every code you resolve manually is remembered, so the mapping table fills
+itself from real work — it is just slower to start.
+</IfThisFails>
+
+</Step>
+
+<Step n={3} title="Upload a real purchase order">
+
+Open **Upload**, set **Send to** to your supplier, drop the file, and press **↑ Upload & review**.
+
+CSV, XLSX, and text-based PDF are the everyday formats; structured XML, cXML, UBL, EDIFACT, X12, and SAP
+IDoc are read too. Each file becomes its own order — files are never merged.
+
+ProcuLink parses in the background and opens the review screen when it is ready. More on the upload screen
+itself: [upload order files by hand](/help/guides/upload-orders-manually).
+
+<Outcome>
+The order opens on its own review screen, with the right purchase-order number and its line items.
+</Outcome>
+
+<IfThisFails>
+An order that stops at **Failed** is a document problem rather than a ProcuLink one — most often a missing
+required column, a scanned PDF with no text layer, or an encoding that mangled the header row. See
+[troubleshooting common parse errors](/help/troubleshooting).
+</IfThisFails>
+
+</Step>
+
+<Step n={4} title="Clear the review list">
+
+The review screen shows **What we received** on the left, **What we'll send** in the middle, and a panel on
+the right with two tabs: **Issues** — the **Before you send** list — and **Preview**, the document your
+supplier would actually receive.
+
+Work the Issues list. Only entries marked **BLOCKER** stop a send; **WARNING** entries are worth a look but
+do not hold anything up. For each unresolved item code, either **Accept suggestion** — with its confidence
+shown — or **Enter manually** and type the supplier's own code.
+
+Everything you resolve here is remembered per supplier, so this list gets shorter with every order. Two
+guides go deeper: [review an order and send it](/help/guides/review-an-order) and [resolve item codes in
+review](/help/guides/resolve-item-codes).
+
+<Outcome>
+The panel reads **Ready to send · No open issues — every required field is filled and checked.**
+</Outcome>
+
+</Step>
+
+<Step n={5} title="Ask the supplier how they want it, then configure delivery">
+
+This is the step with a person in it, so start it early — often before step 3, since the answer can take a
+day.
+
+Ask them three questions and write the answers down:
+
+1. **How should we send orders?** An endpoint we post to, an SFTP folder, or an email address?
+2. **In what format?** CSV, JSON, XML, cXML, UBL/Peppol, or X12 850?
+3. **What credentials do we need,** and who do we tell when a test arrives?
+
+Then fill that into the supplier's **Delivery** tab, press **Save delivery**, and press **Test-fire**. A
+green result proves the credentials and the path against their real endpoint before any order depends on
+it. Full walkthrough, per channel: [set up delivery to a supplier and test-fire
+it](/help/guides/set-up-supplier-delivery).
+
+<IfThisFails>
+Until delivery is configured, sending stops at *delivery not set up*. That is deliberate — an order is never
+reported as sent when nothing has been sent. Everything up to that point still works, so you can review
+orders today and configure delivery when the supplier answers.
+</IfThisFails>
+
+</Step>
+
+<Step n={6} title="Send it, and check what the supplier saw">
+
+Send the order. It moves `ready_to_deliver` → `delivering` → `delivered`.
+
+Then do the thing that is easy to skip on a first order: **ask the supplier whether it arrived and looks
+right.** `delivered` means their system accepted the transmission — not that a person or an ERP on their
+side accepted the order. For a first send, that gap is exactly where surprises live.
+
+<Outcome>
+One real purchase order has gone the whole way through ProcuLink and been confirmed by the supplier — and
+the item codes, the mapping, and the delivery configuration you set up along the way are reused by every
+order after it.
+</Outcome>
+
+</Step>
+
+<Step n={7} title="Stop uploading by hand">
+
+You have now done the whole path manually once, which is the right way to learn it and the wrong way to run
+it.
+
+Pick the channel that matches how orders already reach you and set it up once:
+
+- Orders arrive **by email** → [receive orders by email](/help/guides/receive-orders-by-email)
+- A system can **push structured data** → [push orders in over the
+  API](/help/guides/receive-orders-over-api)
+- A system **exports files to a folder** → [pull order files from an SFTP
+  folder](/help/guides/receive-orders-by-sftp) or [from S3 or Cloudflare
+  R2](/help/guides/receive-orders-from-s3)
+
+They all land in the same Inbox and are reviewed exactly as you just did. Only the way in changes.
+
+<Outcome>
+Orders arrive on their own, and your job narrows to the ones that genuinely need a decision.
+</Outcome>
+
+</Step>

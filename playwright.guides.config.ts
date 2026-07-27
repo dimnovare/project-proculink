@@ -49,6 +49,11 @@ export default defineConfig({
     stderr: "pipe",
     env: {
       NEXT_PUBLIC_USE_MOCK: "true",
+      // Some screens render the API base URL as customer-facing copy (Settings →
+      // API keys shows the ingress endpoint). A capture must not ship
+      // "http://localhost:5223" into the help centre, so the rig pins the real
+      // production origin. Nothing is called — mock mode intercepts every request.
+      NEXT_PUBLIC_API_BASE_URL: "https://api.proculink.eu",
       PROCULINK_QA_BYPASS_AUTH: "true",
       NEXT_PUBLIC_QA_BYPASS_AUTH: "true",
       NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: "pk_test_ci_placeholder_not_real",

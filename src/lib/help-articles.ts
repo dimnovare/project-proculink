@@ -39,23 +39,19 @@ const TOOL_VIDEO_BASE = "https://assets.proculink.eu/marketing/tools";
  */
 export const HELP_ARTICLES: HelpArticle[] = [
   // ── Getting started ──────────────────────────────────────────────────────
-  {
-    slug: "first-upload",
-    title: "Your first purchase order upload",
-    blurb: "Walk through uploading a purchase order file and getting it parsed.",
-    category: "Getting started",
-    keywords: ["upload", "csv", "xlsx", "pdf", "parse", "sample order", "preview", "format detection", "auto-detect"],
-    readMin: 4,
-    videoUrl: `${TOOL_VIDEO_BASE}/upload.mp4`,
-    videoPosterUrl: `${TOOL_VIDEO_BASE}/upload-poster.jpg`,
-  },
+  // `first-upload` was retired when the step-by-step guides landed: it was a
+  // five-step procedure that /help/guides/first-order-end-to-end now carries in
+  // full. Its URL redirects there (next.config.ts) and its upload walkthrough
+  // video moved here, to the surviving article that describes manual upload.
   {
     slug: "order-intake-options",
     title: "Ways to send orders to ProcuLink",
     blurb: "Manual upload, email, API, SFTP, and storage-folder options for getting POs into ProcuLink.",
     category: "Getting started",
-    keywords: ["email", "imap", "api", "sftp", "s3", "intake", "ingestion", "channels", "idoc", "inbound email"],
+    keywords: ["email", "imap", "api", "sftp", "s3", "intake", "ingestion", "channels", "idoc", "inbound email", "upload", "first upload", "csv", "xlsx", "pdf"],
     readMin: 5,
+    videoUrl: `${TOOL_VIDEO_BASE}/upload.mp4`,
+    videoPosterUrl: `${TOOL_VIDEO_BASE}/upload-poster.jpg`,
   },
   {
     slug: "inbound-mode",
@@ -223,16 +219,11 @@ export const HELP_ARTICLES: HelpArticle[] = [
     readMin: 5,
   },
   // ── Integrations ─────────────────────────────────────────────────────────
-  {
-    slug: "email-polling",
-    title: "Email polling (IMAP) setup",
-    blurb: "Receive POs as email attachments — available on any paid plan.",
-    category: "Integrations",
-    keywords: ["imap", "email", "mailbox", "attachments", "polling", "app password", "growth"],
-    readMin: 5,
-    videoUrl: `${TOOL_VIDEO_BASE}/email-polling.mp4`,
-    videoPosterUrl: `${TOOL_VIDEO_BASE}/email-polling-poster.jpg`,
-  },
+  // `email-polling` was retired here: it described the same mailbox settings as
+  // `imap-provider-setup` at half the depth. Its unique content (five-minute
+  // cadence, which attachment types are ingested, failure alerting) was merged
+  // into that article, which also inherited its walkthrough video; the URL
+  // redirects there (next.config.ts).
   {
     slug: "api-and-integrations",
     title: "API keys, inbound API, webhooks, and connectors",
@@ -274,10 +265,12 @@ export const HELP_ARTICLES: HelpArticle[] = [
   {
     slug: "imap-provider-setup",
     title: "Polling an existing mailbox with IMAP",
-    blurb: "Connect ProcuLink to a mailbox you already own so it imports order attachments, with per-provider host/port settings and app-password guidance.",
+    blurb: "Connect ProcuLink to a mailbox you already own so it imports order attachments, with per-provider host/port settings, app-password guidance, and the polling cadence.",
     category: "Integrations",
-    keywords: ["imap", "email intake", "mailbox", "gmail", "office 365", "outlook", "proton bridge", "app password", "port 993", "tls"],
-    readMin: 3,
+    keywords: ["imap", "email intake", "email polling", "mailbox", "attachments", "gmail", "office 365", "outlook", "proton bridge", "app password", "port 993", "tls", "growth"],
+    readMin: 5,
+    videoUrl: `${TOOL_VIDEO_BASE}/email-polling.mp4`,
+    videoPosterUrl: `${TOOL_VIDEO_BASE}/email-polling-poster.jpg`,
   },
   {
     slug: "x12-850",
@@ -404,7 +397,7 @@ export const CATEGORY_ORDER: HelpCategory[] = [
  * `resolveArticles` silently skips those, so nothing dead ever renders.
  */
 export const POPULAR_ARTICLE_SLUGS: string[] = [
-  "first-upload",
+  "order-intake-options",
   "connections",
   "delivery-setup",
   "output-mapping-editor",

@@ -105,9 +105,13 @@ describe("guide registry", () => {
   });
 
   it("sorts live guides ahead of planned ones within a section", () => {
-    const receive = guidesInSection("Receive orders");
-    expect(receive[0].status).toBe("live");
-    const statuses = receive.map((g) => g.status);
+    // "Get started" is the section that still holds one of each, so it is the
+    // one that can prove the ordering. A section where everything is written
+    // would pass this vacuously.
+    const started = guidesInSection("Get started");
+    expect(started[0].status).toBe("live");
+    const statuses = started.map((g) => g.status);
+    expect(statuses).toContain("planned");
     expect(statuses.indexOf("planned")).toBeGreaterThan(statuses.lastIndexOf("live"));
   });
 
@@ -138,7 +142,7 @@ describe("guide metadata", () => {
       /No guide registered/,
     );
     expect(() =>
-      guideMetadata({ slug: "receive-orders-over-api", title: "t", description: "d" }),
+      guideMetadata({ slug: "set-up-your-workspace", title: "t", description: "d" }),
     ).toThrow(/planned/);
   });
 });
@@ -148,11 +152,13 @@ describe("sitemap", () => {
 
   it("lists the guide index and every live public guide", () => {
     expect(urls).toContain("https://proculink.eu/help/guides");
-    expect(urls).toContain("https://proculink.eu/help/guides/receive-orders-by-email");
+    for (const guide of publicGuides().filter((g) => g.status === "live")) {
+      expect(urls, guide.slug).toContain(`https://proculink.eu${guide.href}`);
+    }
   });
 
   it("never lists an admin guide or a planned one", () => {
     expect(urls.some((u) => u.includes("/admin"))).toBe(false);
-    expect(urls).not.toContain("https://proculink.eu/help/guides/receive-orders-over-api");
+    expect(urls).not.toContain("https://proculink.eu/help/guides/set-up-your-workspace");
   });
 });

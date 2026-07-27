@@ -10,6 +10,8 @@ export const metadata = helpArticleMetadata({
 
 cXML 1.2 is the XML dialect used by supplier-network platforms — Coupa, SAP Ariba, Jaggaer and similar. If a supplier says "send us a punchout order" or "post to our cXML endpoint," this is the format they mean. ProcuLink parses inbound cXML orders and emits cXML output.
 
+> This article is the cXML reference. For where these credentials go and what to test before the first real order, follow [set up delivery to a supplier and test-fire it](/help/guides/set-up-supplier-delivery).
+
 ## When to use this
 
 Use cXML when a supplier or procurement network asks you to deliver an `OrderRequest` to their cXML endpoint, or when your buyers send you orders as cXML. If the supplier only publishes a plain webhook or a file drop, you probably want HTTP, SFTP, or email instead — check what they actually require.

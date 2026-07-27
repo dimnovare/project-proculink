@@ -58,7 +58,119 @@ const MOCK_SUPPLIER = "11111111-1111-1111-1111-111111111111";
 /** The mock order that is parked with no supplier resolved. */
 const MOCK_UNROUTED_ORDER = "ord-004";
 
+/** The mock order sitting in review with unresolved lines. */
+const MOCK_REVIEW_ORDER = "ord-002";
+
 export const SHOTS: Shot[] = [
+  // ── upload-orders-manually ───────────────────────────────────────────────
+  {
+    guide: "upload-orders-manually",
+    name: "upload-screen",
+    path: "/upload",
+    anchor: "Add your order file",
+    offset: 170,
+    settle: 900,
+  },
+
+  // ── receive-orders-over-api ──────────────────────────────────────────────
+  {
+    guide: "receive-orders-over-api",
+    name: "api-keys",
+    path: "/settings?tab=api",
+    anchor: "Your ingress endpoint",
+    offset: 120,
+    settle: 800,
+  },
+
+  // ── receive-orders-by-sftp ───────────────────────────────────────────────
+  {
+    guide: "receive-orders-by-sftp",
+    name: "sftp-pull-form",
+    path: "/settings?tab=sftp",
+    anchor: "Poll this SFTP folder for orders",
+    offset: 130,
+    settle: 800,
+  },
+
+  // ── receive-orders-from-s3 ───────────────────────────────────────────────
+  {
+    guide: "receive-orders-from-s3",
+    name: "s3-pull-form",
+    path: "/settings?tab=s3",
+    anchor: "Watch this bucket for orders",
+    offset: 130,
+    settle: 800,
+  },
+
+  // ── poll-a-mailbox-over-imap ─────────────────────────────────────────────
+  {
+    guide: "poll-a-mailbox-over-imap",
+    name: "imap-mailbox-form",
+    path: "/settings?tab=email",
+    anchor: "IMAP mailbox",
+    offset: 110,
+    settle: 700,
+  },
+
+  // ── add-a-supplier ───────────────────────────────────────────────────────
+  // The "New supplier" panel is NOT in this list. Mock billing reports Pilot at
+  // its one-supplier limit (`canAddSupplier: false`, api/billing.ts), which is
+  // correct for exercising the limit banner but leaves the add button disabled
+  // and reading "Supplier limit reached" — so the panel cannot be opened in mock
+  // mode. Capturing it needs a live workspace with headroom.
+  {
+    guide: "add-a-supplier",
+    name: "supplier-identifiers",
+    path: `/library/suppliers/${MOCK_SUPPLIER}?tab=overview`,
+    anchor: "Identifiers",
+    // Deliberately tight. A larger offset pulls in the Overview KPI strip,
+    // whose numbers are mock furniture (SupplierDockProfile's DEMO_MOCK) —
+    // shipping "1,284 orders · 97% acceptance" into the help centre would be a
+    // fabricated statistic even though it is only sample data on screen.
+    offset: 30,
+    settle: 1200,
+    clipHeight: 700,
+  },
+
+  // ── import-a-supplier-catalog ────────────────────────────────────────────
+  {
+    guide: "import-a-supplier-catalog",
+    name: "catalog-tab",
+    path: `/library/suppliers/${MOCK_SUPPLIER}?tab=catalog`,
+    anchor: "Product catalog",
+    offset: 130,
+    settle: 1400,
+    clipHeight: 700,
+  },
+
+  // ── review-an-order ──────────────────────────────────────────────────────
+  {
+    guide: "review-an-order",
+    name: "needs-supplier",
+    path: `/inbox/${MOCK_UNROUTED_ORDER}`,
+    anchor: "needs a supplier",
+    offset: 80,
+    settle: 900,
+  },
+
+  // ── resolve-item-codes ───────────────────────────────────────────────────
+  {
+    guide: "resolve-item-codes",
+    name: "issues-panel",
+    path: `/inbox/${MOCK_REVIEW_ORDER}`,
+    anchor: "Before you send",
+    offset: 60,
+    settle: 1200,
+  },
+
+  // ── set-up-supplier-delivery ─────────────────────────────────────────────
+  // The Delivery tab is NOT in this list, for the same reason as the admin
+  // dashboard below: `getDeliveryConfig` (src/lib/api/delivery.ts) has no mock
+  // implementation, so in mock mode DeliveryConfigEditor takes its load-failure
+  // branch and renders "Couldn't load delivery config". A capture here would
+  // photograph an error state and teach the reader nothing. It needs a live API
+  // session.
+
   // ── receive-orders-by-email (client) ─────────────────────────────────────
   {
     guide: "receive-orders-by-email",

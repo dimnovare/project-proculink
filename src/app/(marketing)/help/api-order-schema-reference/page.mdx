@@ -10,6 +10,8 @@ export const metadata = helpArticleMetadata({
 
 When another system can send structured order data, push it straight into ProcuLink over HTTPS. The inbound order endpoint is authenticated with a workspace API key and scoped to your workspace slug.
 
+> This article is the field-level reference for the request and the response. For the whole set-up in order — key, test call, first order, duplicate protection — follow [push orders in over the API](/help/guides/receive-orders-over-api).
+
 ## The endpoint
 
 Send a `POST` to your workspace slug, with your API key in the `X-ProcuLink-Key` header:

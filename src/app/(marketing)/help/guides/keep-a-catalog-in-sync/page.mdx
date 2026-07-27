@@ -1,0 +1,214 @@
+import { guideMetadata } from "@/lib/seo";
+import { Step, Prereqs, IfThisFails, Outcome, GuideShot } from "@/components/help/guide";
+
+export const metadata = guideMetadata({
+  slug: "keep-a-catalog-in-sync",
+  title: "Keep a catalog in sync automatically — ProcuLink guide",
+  description:
+    "Point ProcuLink at a supplier's own catalog feed over HTTPS, SFTP, FTPS or FTP: save the source, run a read-only test fetch, map the columns it ignored, then enable the schedule.",
+});
+
+<Prereqs>
+- The supplier already added, and ideally one catalog imported by hand first so you know what good looks like — see [import a supplier catalog from a file](/help/guides/import-a-supplier-catalog).
+- From the supplier: the **URL or host and path** of their catalog file, and whatever **credentials** it needs. Have these to hand before you start; half of them are the whole job.
+- A paid plan **to enable the schedule**. Saving the source and running a test fetch work on Pilot; only turning the schedule on needs an upgrade.
+- Twenty-five minutes for the first supplier. The second one takes five.
+</Prereqs>
+
+<Step n={1} title="Find out what the feed actually is">
+
+Before touching ProcuLink, establish three things about the supplier's file, because they decide every
+setting that follows:
+
+- **How you reach it** — an HTTPS URL, or a host and path on SFTP/FTPS/FTP.
+- **What authenticates** — nothing at all, an API key header, a bearer token, basic auth, or OAuth2 client
+  credentials.
+- **What shape it is** — CSV, XLSX, JSON, XML, or an Ariba CIF file. And whether it arrives **inside a ZIP**,
+  which is common for large distributor price lists.
+
+You do not have to be right about the shape. ProcuLink's **Auto-detect** handles the common cases including
+ZIP extraction, and step 4 shows you what it actually found. But you do have to be right about the address
+and the credential.
+
+<Outcome>
+You can describe the feed in one sentence: where it is, what lets you in, and roughly what comes back.
+</Outcome>
+
+</Step>
+
+<Step n={2} title="Open the editor and point it at the file">
+
+Open **Partners → Suppliers → the supplier → Catalog**, then expand **Keep the catalog in sync
+automatically** — *"Pull on a schedule or let the supplier push — instead of uploading by hand."*
+
+The panel is headed **Pull from a file server or API**: *"ProcuLink fetches the supplier's catalog on a
+schedule and upserts products by code."*
+
+Choose the protocol first, because it changes the fields below it:
+
+| Protocol | What you then fill in |
+|---|---|
+| HTTPS API (encrypted) | **Catalog URL (full request URL)** — the complete request, query string included |
+| HTTP API (not encrypted) | The same, unencrypted. Only when the supplier offers nothing better |
+| SFTP · FTPS · FTP | **Host**, **Port**, and **Remote file path** — for example `/exports/catalog.csv` |
+| Logicom QuickConnect | The vendor's own fields: customer id, consumer key and secret, access-token key, currency |
+
+Then set **File format**. Leave it on **Auto-detect** unless a previous attempt got it wrong — the explicit
+choices are CSV, XLSX, JSON, XML (cXML Index or vendor XML), and CIF (Ariba 3.0).
+
+Under **Authentication**, pick the method the supplier told you about and fill in its fields. Secrets are
+write-only: once saved, the field shows a masked placeholder and leaving it blank keeps the stored value.
+
+<IfThisFails>
+If the supplier gave you a URL with credentials embedded in the query string, that still works — paste the
+whole thing into **Catalog URL** and leave the auth method on **None**. It is not the safest arrangement,
+but it is theirs to change, not yours.
+</IfThisFails>
+
+</Step>
+
+<Step n={3} title="Save the source before you try to test it">
+
+Press **Save source**.
+
+This ordering is not optional and it catches everybody: **Test connection & preview** stays disabled until a
+source has been saved, and the button says so on hover — *"Save the source first, then you can test the
+connection."* The test runs server-side against stored credentials, so there has to be something stored.
+
+Leave **Enabled** switched **off** for now. You do not want a schedule running against a configuration you
+have not proven.
+
+<Outcome>
+The source saves, and **Test connection & preview** becomes available.
+</Outcome>
+
+</Step>
+
+<Step n={4} title="Run the test fetch and read the report honestly">
+
+Press **Test connection & preview**. This is read-only — it connects, downloads, and parses, and it writes
+nothing. The panel says as much: *"This is a read-only preview — it connects, reads the file, and shows what
+would be imported. It does not save anything."*
+
+A success line reads **Connected.** followed by the file name, the detected format, the byte count, the row
+count, and how many of those rows have a code. Below it:
+
+- **Mapped columns** — their column name, and the ProcuLink field it became.
+- **Ignored columns** — everything the parser saw and is not reading. *"ProcuLink reads only the mapped
+  columns above."*
+- **Sample rows** — the first few rows as they would be imported.
+
+Now check three numbers, in this order:
+
+1. **Rows with a code.** If this is zero, nothing would import. Go to step 5.
+2. **Is `price` in Mapped columns?** A catalog with codes and names but no prices is a common and quiet
+   failure — the supplier's price column is often named something the aliases do not cover.
+3. **Do the sample rows look like products?** Read five. A price that is 100× out, or a name that is
+   obviously a category, means a column landed in the wrong field.
+
+<Outcome>
+The preview reports a realistic row count, `code` and `price` both appear under Mapped columns, and the
+sample rows look like things the supplier sells.
+</Outcome>
+
+<IfThisFails>
+**Could not fetch the file** shows the underlying error verbatim. Authentication failures and a wrong path
+look completely different in that message — read it rather than re-checking everything at once. Very large
+feeds are also worth timing: a fetch has a five-minute overall deadline, so a feed that takes two minutes
+just to start responding is close to the edge and worth raising with the supplier.
+</IfThisFails>
+
+</Step>
+
+<Step n={5} title="Map the columns the preview ignored">
+
+Most feeds need this once. Open **Map columns (advanced)** — *"Only needed when the supplier's column names
+aren't recognised."*
+
+If the last preview found columns it could not place, they appear as amber chips under **From the last
+preview — click to map**. Clicking one adds a mapping row for it, which is much faster than typing names
+that are usually in another language.
+
+Each row is **Their column (or index)** → **ProcuLink field**. Then **Save source** and test again.
+
+Two switches at the bottom of that section cover the awkward feeds:
+
+- **This file has no header row (map by column position, starting at 0).** Some distributor exports are raw
+  data with no header at all. Turn this on and map by index: `0` → code, `3` → price, and so on. The sample
+  rows from the preview tell you which index is which.
+- **File encoding.** Leave blank for UTF-8. A legacy export with mangled accented names usually wants
+  `windows-1252`.
+
+Feed shapes worth recognising, because each needs a different one of the above:
+
+| What you are looking at | What it needs |
+|---|---|
+| A ZIP holding one CSV | Nothing — auto-detect unpacks it |
+| Tab-separated, no header row, legacy encoding | The no-header switch, positional mapping, and an encoding hint |
+| XML where each product's fields are **attributes** | Usually nothing — the attribute names map like headers |
+| XML where each product's fields are **child elements** | Usually nothing; map by element name if any are missed |
+| Prices written `130,41` | Nothing — comma decimals are parsed correctly |
+| A paginated JSON API | The vendor connector, where one exists, rather than a plain HTTP source |
+
+<IfThisFails>
+If **rows with a code** stays at zero after mapping, the column you mapped to `code` is probably not the one
+the supplier means by "code" — many feeds carry both a manufacturer part number and the distributor's own
+number. The one you want is the one you would quote back to them on a purchase order.
+</IfThisFails>
+
+</Step>
+
+<Step n={6} title="Enable the schedule">
+
+Once the preview is right, switch on **Enabled**, set **Every (hours)**, and **Save source**.
+
+The helper text describes the behaviour exactly: *"ProcuLink checks this often and only re-imports when the
+file has changed."* So a daily catalog on a 6-hour schedule costs three cheap checks and one real import,
+not four imports. Anything from 1 hour to 336 (two weeks) is allowed; for a price list that moves monthly,
+daily is generous.
+
+Two limits to know rather than discover: a feed can be up to **256 MB** and **200,000 rows**. Every ordinary
+distributor price list is comfortably inside both.
+
+<Outcome>
+The **Enabled** toggle stays on after saving, and a sync is queued immediately rather than waiting for the
+first interval.
+</Outcome>
+
+<IfThisFails>
+If enabling is refused with *"Automatic catalog sync is included from any paid plan. Upgrade from Pilot to
+enable polling."*, that is the plan, not the configuration. Everything you have set — including a green test
+fetch — is saved and will start working the moment the plan changes. Meanwhile you can still import the same
+file by hand.
+</IfThisFails>
+
+</Step>
+
+<Step n={7} title="Confirm the first real sync">
+
+Come back after the first scheduled run. The Catalog tab shows the last sync's outcome, and the numbers are
+worth reading rather than glancing at.
+
+A healthy first sync on a fresh supplier reports almost everything **created** and nothing skipped. A healthy
+*second* sync reports almost everything **updated** — because matching is an upsert on the product code,
+scoped to this supplier, so re-running does not duplicate anything.
+
+That arithmetic is the check: if a supplier had 38 products imported by hand and the feed carries 14,713, a
+correct sync reports 14,675 created plus 38 updated, and the catalog total is 14,713 — not 14,751. A total
+that grew by more than the number of genuinely new products means codes are not matching, and the usual
+cause is a stray prefix or trailing space in the mapped code column.
+
+Then spot-check the catalog search for five products you know, exactly as you would after a manual import.
+
+<Outcome>
+The supplier's catalog refreshes itself on a schedule, item-code suggestions stay grounded in codes that
+currently exist, and nobody has to remember to ask for a new price list.
+</Outcome>
+
+<IfThisFails>
+A sync that starts failing after months of working is nearly always a rotated credential or a moved file.
+The last-sync status carries the error; fix it, run **Test connection & preview** again to confirm, and the
+schedule picks up where it left off.
+</IfThisFails>
+
+</Step>

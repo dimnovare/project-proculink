@@ -950,7 +950,12 @@ function IngressEndpointRow({ slug }: { slug: string | undefined }) {
     <div style={{ border: "1px solid var(--border)", borderRadius: 8, background: "var(--surface-2)", padding: "14px 16px", marginBottom: 16 }}>
       <p style={{ fontSize: 12.5, fontWeight: 600, color: "var(--ink)", margin: 0 }}>Your ingress endpoint</p>
       <p style={{ fontSize: 11.5, color: "var(--ink-muted)", margin: "3px 0 10px", lineHeight: 1.5 }}>
-        POST order files here to import them via the REST API, Zapier, or Make.com.
+        {/* The endpoint binds a JSON body (IngressController.CreateOrder takes
+            [FromBody] IngressOrderRequest) — it does not accept a file upload.
+            The previous "POST order files here" sent integrators to build the
+            wrong request; files belong on upload, email, or SFTP/S3 pull. */}
+        POST structured orders here as JSON, from your own system, Zapier, or Make.com. Order
+        <em> files</em> go through upload, email, or SFTP/S3 pull instead.
       </p>
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
         <code

@@ -10,6 +10,8 @@ export const metadata = helpArticleMetadata({
 
 Five issues account for most parse failures. Each one is fixable in your mapping or the source file.
 
+> This article is the reference for parse failures. If you are getting a first order through end to end, follow [take your first order from upload to delivered](/help/guides/first-order-end-to-end).
+
 ## Missing required column
 
 The file is missing one of the five required standard fields (`po_number`, `line_no`, `item_code`, `quantity`, `unit_price`). Fix by renaming the source column in your mapping, or by adding a `Concat` manipulator to build the standard field from two source columns.

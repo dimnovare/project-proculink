@@ -10,6 +10,8 @@ export const metadata = helpArticleMetadata({
 
 When purchase orders land in an Amazon S3 bucket (or an S3-compatible store such as Cloudflare R2), ProcuLink can list the bucket on a schedule and import new files. Configure it yourself in **Settings → S3 / R2 pull** (available on every paid plan — Growth and up).
 
+> This article is the reference for the individual settings. For the set-up in order, follow [pull order files from S3 or Cloudflare R2](/help/guides/receive-orders-from-s3).
+
 ## When to use this
 
 Use S3/R2 polling when a source system already writes PO files to object storage on a schedule and you want them imported without manual upload. If the sender can push to an API instead, prefer the inbound API — polling suits sources that can only write to a bucket.

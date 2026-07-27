@@ -119,8 +119,13 @@ test("help index renders the browse-by-topic categories and popular articles", a
   expect(await countLabels.count()).toBeGreaterThanOrEqual(8);
 
   // The "Popular articles" rail renders real article links (not dead controls).
-  const popularLinks = page.getByRole("link").filter({ hasText: /first purchase order upload/i });
-  await expect(popularLinks.first()).toBeVisible();
+  // Asserted on the href, not a title: POPULAR_ARTICLE_SLUGS is editorial and its
+  // entries get renamed/retired (this pinned "first-upload" until the phase-2 guide
+  // pass replaced it with "order-intake-options"). The slug is the contract the rail
+  // actually has to honour — a dead control would not carry one.
+  const popularLinks = page.locator('a[href^="/help/"]');
+  expect(await popularLinks.count()).toBeGreaterThan(0);
+  await expect(page.locator('a[href="/help/order-intake-options"]').first()).toBeVisible();
 });
 
 test("cookie consent banner appears on first marketing visit", async ({ context, page }) => {

@@ -1,9 +1,20 @@
 import type { NextConfig } from "next";
 import { withSentryConfig } from "@sentry/nextjs";
 import createMDX from "@next/mdx";
+import remarkGfm from "remark-gfm";
 import { cspModeFromEnv, securityHeaders } from "./src/lib/security/csp";
 
-const withMDX = createMDX({ extension: /\.mdx?$/ });
+// remark-gfm is what makes `| a | b |` a real <table>. Without it MDX parses
+// only CommonMark, and every pipe table in the help centre — the format-support
+// matrix on /help/output-templates, every field table in a guide — rendered as
+// a paragraph of literal `|---|---|` text. Tables are the main tool these pages
+// use to state what is and is not supported, so this is a correctness fix, not
+// a styling one. GFM also brings strikethrough, task lists, footnotes, and bare
+// URL autolinking; none of those change how existing copy reads.
+const withMDX = createMDX({
+  extension: /\.mdx?$/,
+  options: { remarkPlugins: [remarkGfm] },
+});
 
 const nextConfig: NextConfig = {
   pageExtensions: ["ts", "tsx", "mdx"],
@@ -68,6 +79,14 @@ const nextConfig: NextConfig = {
       // false claim about a test-fire gate); its true content was merged into
       // delivery-setup, which is now the single delivery article.
       { source: "/help/delivery-config", destination: "/help/delivery-setup", permanent: true },
+      // Retired when the step-by-step guides landed. Both articles were
+      // procedures that a guide now carries better, so the URLs point at the
+      // procedure rather than at a shorter duplicate of it:
+      //   first-upload  → the end-to-end guide it was a summary of.
+      //   email-polling → imap-provider-setup, which absorbed its unique
+      //                   content (cadence, ingested types, failure alerting).
+      { source: "/help/first-upload",  destination: "/help/guides/first-order-end-to-end", permanent: true },
+      { source: "/help/email-polling", destination: "/help/imap-provider-setup",           permanent: true },
     ];
   },
 };
