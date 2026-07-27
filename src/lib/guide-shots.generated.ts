@@ -21,8 +21,17 @@ export interface GuideShotMeta {
 
 /** Keyed `"<guide-slug>/<shot-name>"`. */
 export const GUIDE_SHOTS: Record<string, GuideShotMeta> = {
+  "add-a-supplier/supplier-identifiers": { w: 2360, h: 1400 },
+  "import-a-supplier-catalog/catalog-tab": { w: 2360, h: 1400 },
   "onboard-a-new-client/supplier-catalog-tab": { w: 2360, h: 1400 },
+  "poll-a-mailbox-over-imap/imap-mailbox-form": { w: 2360, h: 1640 },
   "receive-orders-by-email/imap-form": { w: 2360, h: 1640 },
   "receive-orders-by-email/needs-supplier-banner": { w: 2360, h: 1640 },
   "receive-orders-by-email/settings-email-intake": { w: 2360, h: 1640 },
+  "receive-orders-by-sftp/sftp-pull-form": { w: 2360, h: 1640 },
+  "receive-orders-from-s3/s3-pull-form": { w: 2360, h: 1640 },
+  "receive-orders-over-api/api-keys": { w: 2360, h: 1640 },
+  "resolve-item-codes/issues-panel": { w: 2360, h: 1640 },
+  "review-an-order/needs-supplier": { w: 2360, h: 1640 },
+  "upload-orders-manually/upload-screen": { w: 2360, h: 1640 },
 };
