@@ -54,7 +54,7 @@ export const SECTION_GUIDES: SectionGuideEntry[] = [
       { text: "Export the current view as CSV — it covers your most recent 100 orders" },
     ],
     firstStep: { text: "Complete the two-step setup wizard — choose your order direction and add your first {supplier} — then use \"Try a practice order\" in the checklist." },
-    articleSlugs: ["dashboard-and-statuses", "first-upload"],
+    articleSlugs: ["dashboard-and-statuses", "inbox-basics"],
   },
   {
     route: "/upload",
@@ -68,7 +68,7 @@ export const SECTION_GUIDES: SectionGuideEntry[] = [
       { text: "Check your plan's order and {supplier} usage in the side panel" },
     ],
     firstStep: { text: "Click \"Try with a sample order\" — it needs no setup and is free." },
-    articleSlugs: ["first-upload", "csv-xlsx-field-guide", "order-intake-options"],
+    articleSlugs: ["order-intake-options", "csv-xlsx-field-guide", "troubleshooting"],
   },
   {
     route: "/upload/preview/[orderId]",
@@ -81,7 +81,7 @@ export const SECTION_GUIDES: SectionGuideEntry[] = [
       { text: "If parsing fails, you land on the order with the exact error to fix" },
     ],
     firstStep: { text: "Let parsing finish, review the suggested mapping, then commit to continue." },
-    articleSlugs: ["first-upload", "troubleshooting"],
+    articleSlugs: ["troubleshooting", "item-codes"],
   },
   {
     route: "/inbox",
@@ -360,7 +360,7 @@ export const SECTION_GUIDES: SectionGuideEntry[] = [
       { text: "Add webhooks — failure counts show here too", href: "/settings?tab=connectors" },
     ],
     firstStep: { text: "Set your order direction on the Organization tab first — it relabels the whole app.", href: "/settings?tab=org" },
-    articleSlugs: ["email-polling", "sftp-polling-setup", "s3-polling-setup", "imap-provider-setup", "api-order-schema-reference", "billing-faq", "api-and-integrations", "inbound-mode"],
+    articleSlugs: ["imap-provider-setup", "sftp-polling-setup", "s3-polling-setup", "api-order-schema-reference", "billing-faq", "api-and-integrations", "inbound-mode"],
   },
 ];
 

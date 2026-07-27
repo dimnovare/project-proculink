@@ -10,18 +10,18 @@ describe("help search (shared Fuse index)", () => {
   });
 
   it("finds articles by curated keyword, not just title text", () => {
-    // "IMAP" appears in email-polling's keywords/title; "test-fire" only in
+    // "IMAP" appears in imap-provider-setup's keywords/title; "test-fire" only in
     // delivery-setup's keywords — the operator vocabulary the MDX titles miss.
     const imap = searchHelpArticles(fuse, "imap").map((a) => a.slug);
-    expect(imap).toContain("email-polling");
+    expect(imap).toContain("imap-provider-setup");
 
     const testFire = searchHelpArticles(fuse, "test-fire").map((a) => a.slug);
     expect(testFire).toContain("delivery-setup");
   });
 
   it("finds articles by title", () => {
-    const out = searchHelpArticles(fuse, "first purchase order upload").map((a) => a.slug);
-    expect(out[0]).toBe("first-upload");
+    const out = searchHelpArticles(fuse, "ways to send orders").map((a) => a.slug);
+    expect(out[0]).toBe("order-intake-options");
   });
 
   it("caps results at the given max", () => {

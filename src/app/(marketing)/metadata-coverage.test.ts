@@ -26,7 +26,7 @@ const PUBLIC_GROUPS = ["(home)", "(marketing)"];
 const SITE_URL = "https://proculink.eu";
 
 interface MarketingPage {
-  /** Route path, e.g. "/help/first-upload". */
+  /** Route path, e.g. "/help/order-intake-options". */
   route: string;
   /** File that is expected to export the metadata (page or sibling layout). */
   metadataFile: string;
@@ -88,7 +88,7 @@ describe("marketing SEO metadata", () => {
     // wrong directory would make every assertion below vacuously pass.
     expect(PAGES.length).toBeGreaterThan(40);
     expect(PAGES.map((p) => p.route)).toContain("/");
-    expect(PAGES.map((p) => p.route)).toContain("/help/first-upload");
+    expect(PAGES.map((p) => p.route)).toContain("/help/order-intake-options");
     expect(PAGES.map((p) => p.route)).toContain("/pricing");
   });
 

@@ -62,6 +62,14 @@ const nextConfig: NextConfig = {
       // false claim about a test-fire gate); its true content was merged into
       // delivery-setup, which is now the single delivery article.
       { source: "/help/delivery-config", destination: "/help/delivery-setup", permanent: true },
+      // Retired when the step-by-step guides landed. Both articles were
+      // procedures that a guide now carries better, so the URLs point at the
+      // procedure rather than at a shorter duplicate of it:
+      //   first-upload  → the end-to-end guide it was a summary of.
+      //   email-polling → imap-provider-setup, which absorbed its unique
+      //                   content (cadence, ingested types, failure alerting).
+      { source: "/help/first-upload",  destination: "/help/guides/first-order-end-to-end", permanent: true },
+      { source: "/help/email-polling", destination: "/help/imap-provider-setup",           permanent: true },
     ];
   },
 };

@@ -50,21 +50,21 @@ describe("HELP_ARTICLES registry shape", () => {
 
 describe("resolveArticles", () => {
   it("resolves known slugs in order", () => {
-    const out = resolveArticles(["first-upload", "billing-faq"]);
-    expect(out.map((a) => a.slug)).toEqual(["first-upload", "billing-faq"]);
+    const out = resolveArticles(["item-codes", "billing-faq"]);
+    expect(out.map((a) => a.slug)).toEqual(["item-codes", "billing-faq"]);
   });
 
   it("silently skips slugs without a published article", () => {
-    const out = resolveArticles(["not-written-yet", "first-upload", "another-future-article"]);
-    expect(out.map((a) => a.slug)).toEqual(["first-upload"]);
+    const out = resolveArticles(["not-written-yet", "item-codes", "another-future-article"]);
+    expect(out.map((a) => a.slug)).toEqual(["item-codes"]);
   });
 
   it("caps at max AFTER skipping unknowns (forward-compatible curation)", () => {
     const out = resolveArticles(
-      ["not-written-yet", "first-upload", "delivery-setup", "billing-faq", "troubleshooting"],
+      ["not-written-yet", "item-codes", "delivery-setup", "billing-faq", "troubleshooting"],
       3,
     );
-    expect(out.map((a) => a.slug)).toEqual(["first-upload", "delivery-setup", "billing-faq"]);
+    expect(out.map((a) => a.slug)).toEqual(["item-codes", "delivery-setup", "billing-faq"]);
   });
 
   it("returns [] for undefined or empty input", () => {

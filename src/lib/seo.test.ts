@@ -77,16 +77,16 @@ describe("pageMetadata", () => {
 
 describe("helpArticleMetadata", () => {
   const meta = helpArticleMetadata({
-    slug: "first-upload",
-    title: "Your first purchase order upload — ProcuLink Help",
-    description: "Walk through uploading a purchase order file and getting it parsed.",
+    slug: "order-intake-options",
+    title: "Ways to send orders to ProcuLink — ProcuLink Help",
+    description: "Manual upload, email, API, SFTP, and storage-folder options.",
   });
 
   // Prod regression this guards: every help article inherited the /help layout's
   // canonical, so all 33 declared themselves duplicates of the help index.
   it("canonicalises to the article, not the help index", () => {
-    expect(meta.alternates?.canonical).toBe("/help/first-upload");
-    expect(meta.openGraph?.url).toBe("/help/first-upload");
+    expect(meta.alternates?.canonical).toBe("/help/order-intake-options");
+    expect(meta.openGraph?.url).toBe("/help/order-intake-options");
   });
 
   it("is an Open Graph article", () => {
@@ -94,7 +94,7 @@ describe("helpArticleMetadata", () => {
   });
 
   it("keeps the article's own title in the share card", () => {
-    expect(meta.openGraph?.title).toBe("Your first purchase order upload — ProcuLink Help");
+    expect(meta.openGraph?.title).toBe("Ways to send orders to ProcuLink — ProcuLink Help");
   });
 
   it("rejects a slug that is not registered in the help article registry", () => {
