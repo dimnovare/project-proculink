@@ -22,6 +22,9 @@ export class FilmClock {
   }
 
   since(id: string) {
+    if (!Object.hasOwn(this.markers, id)) {
+      throw new Error(`Unknown film marker: ${id}.`);
+    }
     return Date.now() - (this.start + this.markers[id] * 1000);
   }
 
@@ -38,17 +41,49 @@ export class FilmClock {
 
 export function narrationBudgets(spec: FilmSpec, padMs = 300) {
   const manifestPath = resolve(here, "out", spec.id, "vo", "manifest.json");
-  const measured = JSON.parse(readFileSync(manifestPath, "utf8")) as Array<{
-    id: string;
-    durationSec: number;
-  }>;
-  const durationById = Object.fromEntries(
-    measured.map((item) => [item.id, item.durationSec * 1000]),
-  );
+  const measured: unknown = JSON.parse(readFileSync(manifestPath, "utf8"));
+  if (!Array.isArray(measured)) {
+    throw new Error("Narration manifest must be an array.");
+  }
+
+  const expectedIds = new Set(spec.beats.map((beat) => beat.id));
+  const durationById = new Map<string, number>();
+  for (const item of measured) {
+    if (typeof item !== "object" || item === null || Array.isArray(item)) {
+      throw new Error("Invalid narration manifest entry.");
+    }
+
+    const { id, durationSec } = item as Record<string, unknown>;
+    if (typeof id !== "string" || id.length === 0) {
+      throw new Error("Invalid manifest beat id.");
+    }
+    if (!expectedIds.has(id)) {
+      throw new Error(`Unknown manifest beat id: ${id}.`);
+    }
+    if (durationById.has(id)) {
+      throw new Error(`Duplicate manifest beat id: ${id}.`);
+    }
+    if (
+      typeof durationSec !== "number" ||
+      !Number.isFinite(durationSec) ||
+      durationSec <= 0
+    ) {
+      throw new Error(`Invalid narration duration for beat ${id}.`);
+    }
+
+    durationById.set(id, durationSec * 1000);
+  }
+
+  for (const beat of spec.beats) {
+    if (!durationById.has(beat.id)) {
+      throw new Error(`Missing manifest beat id: ${beat.id}.`);
+    }
+  }
+
   return Object.fromEntries(
     spec.beats.map((beat) => [
       beat.id,
-      Math.round(durationById[beat.id] + padMs + (beat.extraMs ?? 0)),
+      Math.round(durationById.get(beat.id)! + padMs + (beat.extraMs ?? 0)),
     ]),
   );
 }

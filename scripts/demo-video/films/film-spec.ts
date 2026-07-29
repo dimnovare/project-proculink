@@ -16,7 +16,7 @@ const beatSchema = z.object({
   extraMs: z.number().int().nonnegative().optional(),
   overIntro: z.boolean().optional(),
   overOutro: z.boolean().optional(),
-});
+}).strict();
 
 const filmSchema = z.object({
   id: z.string().min(1),
@@ -24,18 +24,18 @@ const filmSchema = z.object({
   targetSeconds: z.object({
     min: z.number().positive(),
     max: z.number().positive(),
-  }),
+  }).strict(),
   captions: z.boolean().optional(),
   intro: z.object({
     kicker: z.string().min(1),
     headline: z.string().min(1),
-  }),
+  }).strict(),
   outro: z.object({
     headline: z.string().min(1),
     cta: z.string().min(1),
-  }),
+  }).strict(),
   beats: z.array(beatSchema).min(1),
-});
+}).strict();
 
 export type FilmBeat = z.infer<typeof beatSchema>;
 export type FilmSpec = z.infer<typeof filmSchema>;
@@ -53,8 +53,11 @@ export function validateFilmSpec(input: unknown): FilmSpec {
     throw new Error("Duplicate beat id in film specification.");
   }
   for (const beat of spec.beats) {
-    if (beat.kind === "ui" && beat.source === "generated") {
-      throw new Error("UI beats must use real capture, never generated footage.");
+    if (beat.kind === "ui" && beat.source !== "capture") {
+      throw new Error('UI beats must use source "capture".');
+    }
+    if (beat.source === "generated" && beat.kind !== "abstract") {
+      throw new Error("Generated footage is allowed only for abstract beats.");
     }
   }
   return spec;
