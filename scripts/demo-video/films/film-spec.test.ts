@@ -160,4 +160,14 @@ describe("narrationBudgets", () => {
     writeRawManifest('[{"id":"open","durationSec":1e999}]');
     expect(() => narrationBudgets(spec)).toThrow(/invalid narration duration/i);
   });
+
+  it("requires a finite non-negative narration pad", () => {
+    writeManifest([{ id: "open", durationSec: 1 }]);
+
+    expect(() => narrationBudgets(spec, Number.NaN)).toThrow(
+      /invalid narration pad/i,
+    );
+    expect(() => narrationBudgets(spec, -1)).toThrow(/invalid narration pad/i);
+    expect(narrationBudgets(spec, 200)).toEqual({ open: 1200 });
+  });
 });

@@ -40,6 +40,10 @@ export class FilmClock {
 }
 
 export function narrationBudgets(spec: FilmSpec, padMs = 300) {
+  if (!Number.isFinite(padMs) || padMs < 0) {
+    throw new Error("Invalid narration pad.");
+  }
+
   const manifestPath = resolve(here, "out", spec.id, "vo", "manifest.json");
   const measured: unknown = JSON.parse(readFileSync(manifestPath, "utf8"));
   if (!Array.isArray(measured)) {
