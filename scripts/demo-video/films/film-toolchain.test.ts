@@ -1,0 +1,474 @@
+import {
+  copyFileSync,
+  existsSync,
+  mkdirSync,
+  readdirSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
+import { tmpdir } from "node:os";
+import { resolve } from "node:path";
+import { afterEach, describe, expect, it } from "vitest";
+import {
+  buildElevenLabsRequest,
+  buildSilenceTrimArgs,
+  formatVoiceoverScript,
+  generateFilmVoiceover,
+} from "./generate-film-vo.mjs";
+import {
+  buildCardRenderArgs,
+  buildCardSvg,
+  renderFilmCards,
+} from "./render-film-cards.mjs";
+import { buildAssemblyPlan } from "./assemble-film.mjs";
+import {
+  buildContactSheetArgs,
+  evaluateFilm,
+  findCaptionFiles,
+  parseVolumeDetect,
+} from "./verify-film.mjs";
+import {
+  buildProcessOptions,
+  resolveProcessTimeoutMs,
+  runFilmProcess,
+} from "./film-process.mjs";
+
+const temporaryDirectories: string[] = [];
+
+const spec = {
+  id: "toolchain-test",
+  title: "ProcuLink film toolchain test",
+  targetSeconds: { min: 15, max: 25 },
+  intro: {
+    kicker: "The bridge layer",
+    headline: "From buyer order to supplier-ready output",
+  },
+  outro: {
+    headline: "Every purchase order, ready for its supplier",
+    cta: "proculink.eu",
+  },
+  beats: [
+    {
+      id: "welcome",
+      kind: "brand",
+      source: "card",
+      vo: "Welcome narration must never become card text.",
+      shot: "Intro card.",
+      overIntro: true,
+    },
+    {
+      id: "upload",
+      kind: "ui",
+      source: "capture",
+      route: "/upload",
+      vo: "Upload a buyer purchase order.",
+      shot: "Upload screen.",
+    },
+    {
+      id: "bridge",
+      kind: "abstract",
+      source: "generated",
+      vo: "The document crosses the bridge.",
+      shot: "Abstract document motion.",
+    },
+    {
+      id: "review",
+      kind: "ui",
+      source: "capture",
+      route: "/inbox/order-1",
+      vo: "Review only the exception.",
+      shot: "Order review.",
+    },
+    {
+      id: "close",
+      kind: "brand",
+      source: "card",
+      vo: "Closing narration must never become card text.",
+      shot: "Outro card.",
+      overOutro: true,
+    },
+  ],
+} as const;
+
+const manifest = spec.beats.map((beat) => ({
+  id: beat.id,
+  file: `${beat.id}.mp3`,
+  durationSec: 2,
+}));
+
+function makeTemporaryDirectory() {
+  const directory = resolve(
+    tmpdir(),
+    `proculink-film-toolchain-${process.pid}-${temporaryDirectories.length}`,
+  );
+  rmSync(directory, { recursive: true, force: true });
+  mkdirSync(directory, { recursive: true });
+  temporaryDirectories.push(directory);
+  return directory;
+}
+
+afterEach(() => {
+  for (const directory of temporaryDirectories.splice(0)) {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+describe("bounded external process execution", () => {
+  it("constructs a finite process timeout and rejects invalid overrides", () => {
+    expect(resolveProcessTimeoutMs({})).toBe(1_200_000);
+    expect(
+      resolveProcessTimeoutMs({ FILM_PROCESS_TIMEOUT_MS: "2500" }),
+    ).toBe(2500);
+    expect(() =>
+      resolveProcessTimeoutMs({ FILM_PROCESS_TIMEOUT_MS: "0" }),
+    ).toThrow(/process timeout/i);
+    expect(buildProcessOptions({ timeoutMs: 2500 })).toMatchObject({
+      timeout: 2500,
+      windowsHide: true,
+      shell: false,
+    });
+  });
+
+  it("terminates a child process that does not exit", () => {
+    const startedAt = Date.now();
+
+    expect(() =>
+      runFilmProcess(
+        process.execPath,
+        ["-e", "setInterval(() => {}, 1000)"],
+        { timeoutMs: 150 },
+      ),
+    ).toThrow(/timed out after 150 ms/i);
+    expect(Date.now() - startedAt).toBeLessThan(2_000);
+  });
+});
+
+describe("film voiceover generation", () => {
+  it("formats a review script without caption artifacts", () => {
+    const script = formatVoiceoverScript(spec);
+
+    expect(script).toContain("# welcome");
+    expect(script).toContain(spec.beats[0].vo);
+    expect(script).not.toMatch(/\.(srt|vtt|ass)\b/i);
+    expect(script).not.toContain("-->");
+  });
+
+  it("constructs the approved ElevenLabs request defaults", () => {
+    const request = buildElevenLabsRequest(spec.beats[1], "test-key", {});
+    const body = JSON.parse(request.options.body);
+
+    expect(request.url).toContain("/onwK4e9ZLuTAKqWW03F9");
+    expect(request.options.headers["xi-api-key"]).toBe("test-key");
+    expect(body.model_id).toBe("eleven_multilingual_v2");
+    expect(body.voice_settings).toMatchObject({
+      stability: 0.62,
+      similarity_boost: 0.8,
+      style: 0,
+      speed: 1.06,
+      use_speaker_boost: true,
+    });
+  });
+
+  it("constructs fail-loud leading and trailing silence trimming", () => {
+    const args = buildSilenceTrimArgs("raw.mp3", "trimmed.mp3");
+
+    expect(args).toContain("raw.mp3");
+    expect(args).toContain("trimmed.mp3");
+    expect(args.join(" ")).toContain("silenceremove");
+    expect(args.join(" ")).toContain("areverse");
+  });
+
+  it("dry-run writes only the review script and calls no external service", async () => {
+    const outputRoot = makeTemporaryDirectory();
+    let fetchCalls = 0;
+    let processCalls = 0;
+
+    const result = await generateFilmVoiceover(spec.id, {
+      dryRun: true,
+      outputRoot,
+      spec,
+      fetchImpl: async () => {
+        fetchCalls += 1;
+        throw new Error("Dry-run called ElevenLabs.");
+      },
+      runProcess: () => {
+        processCalls += 1;
+        throw new Error("Dry-run launched a process.");
+      },
+    });
+
+    expect(result.dryRun).toBe(true);
+    expect(fetchCalls).toBe(0);
+    expect(processCalls).toBe(0);
+    expect(existsSync(resolve(outputRoot, spec.id, "voiceover-script.txt"))).toBe(true);
+    expect(existsSync(resolve(outputRoot, spec.id, "vo"))).toBe(false);
+    expect(readdirSync(resolve(outputRoot, spec.id))).toEqual([
+      "voiceover-script.txt",
+    ]);
+  });
+
+  it("can regenerate an existing narration clip through injected seams", async () => {
+    const outputRoot = makeTemporaryDirectory();
+    const oneBeatSpec = {
+      ...spec,
+      id: "voice-rerun-test",
+      beats: [spec.beats[1]],
+    };
+    const fetchImpl = async () => ({
+      ok: true,
+      status: 200,
+      text: async () => "",
+      arrayBuffer: async () => new Uint8Array([1, 2, 3]).buffer,
+    });
+    const runProcess = (command: string, args: string[]) => {
+      if (command === "fake-ffmpeg") {
+        copyFileSync(args[args.indexOf("-i") + 1], args.at(-1)!);
+        return { status: 0, stdout: "", stderr: "" };
+      }
+      return { status: 0, stdout: "1.25", stderr: "" };
+    };
+    const options = {
+      outputRoot,
+      spec: oneBeatSpec,
+      fetchImpl,
+      runProcess,
+      env: {
+        ELEVENLABS_API_KEY: "injected-test-key",
+        FFMPEG: "fake-ffmpeg",
+        FFPROBE: "fake-ffprobe",
+        FILM_PROCESS_TIMEOUT_MS: "1000",
+      },
+    };
+
+    await generateFilmVoiceover(oneBeatSpec.id, options);
+    await expect(
+      generateFilmVoiceover(oneBeatSpec.id, options),
+    ).resolves.toMatchObject({
+      dryRun: false,
+      manifest: [{ id: "upload", durationSec: 1.25 }],
+    });
+  });
+});
+
+describe("branded film cards", () => {
+  it("uses approved card copy without narration sentences", () => {
+    const intro = buildCardSvg(spec, "intro");
+    const outro = buildCardSvg(spec, "outro");
+
+    expect(intro).toContain('width="1920"');
+    expect(intro).toContain('height="1080"');
+    expect(intro).toContain("The bridge layer");
+    expect(intro).toContain("From buyer order");
+    expect(outro).toContain("Every purchase order");
+    expect(outro).toContain("proculink.eu");
+    for (const beat of spec.beats) {
+      expect(intro).not.toContain(beat.vo);
+      expect(outro).not.toContain(beat.vo);
+    }
+  });
+
+  it("constructs ImageMagick rendering from committed mark and lockup assets", () => {
+    const args = buildCardRenderArgs({
+      svgPath: "intro.svg",
+      outputPath: "intro.png",
+      markPath: "public/mark-primary.svg",
+      lockupPath: "public/lockup-mono.svg",
+    });
+    const command = args.join(" ");
+
+    expect(command).toContain("public/mark-primary.svg");
+    expect(command).toContain("public/lockup-mono.svg");
+    expect(command).toContain("1920x1080");
+    expect(command.match(/-background none/g) ?? []).toHaveLength(2);
+    expect(command.match(/-density 384/g) ?? []).toHaveLength(2);
+    expect(args.at(-1)).toBe("intro.png");
+  });
+
+  it("exports the stable card paths", () => {
+    const outputDirectory = makeTemporaryDirectory();
+    const calls: string[][] = [];
+    const result = renderFilmCards(spec, outputDirectory, {
+      runProcess: (_command: string, args: string[]) => {
+        calls.push(args);
+      },
+    });
+
+    expect(result).toEqual({
+      intro: resolve(outputDirectory, "cards", "intro.png"),
+      outro: resolve(outputDirectory, "cards", "outro.png"),
+    });
+    expect(calls).toHaveLength(2);
+  });
+});
+
+describe("no-caption film assembly", () => {
+  it("builds an ordered timeline and does not require card markers", () => {
+    const plan = buildAssemblyPlan({
+      spec,
+      outputRoot: "C:/film/out",
+      markers: { upload: 3, review: 8 },
+      manifest,
+      captureDuration: 12,
+      generatedDurations: { bridge: 3 },
+    });
+
+    expect(plan.trimStartSeconds).toBe(3);
+    expect(plan.timeline.map((beat) => beat.id)).toEqual([
+      "welcome",
+      "upload",
+      "bridge",
+      "review",
+      "close",
+    ]);
+    expect(plan.timeline[0]).toMatchObject({ source: "intro", startSeconds: 0 });
+    expect(plan.timeline.at(-1)).toMatchObject({ source: "outro" });
+  });
+
+  it("loops and trims a short music bed to a 110 second final duration", () => {
+    const plan = buildAssemblyPlan({
+      spec: {
+        ...spec,
+        targetSeconds: { min: 100, max: 120 },
+      },
+      outputRoot: "C:/film/out",
+      markers: { upload: 3, review: 101 },
+      manifest,
+      captureDuration: 105,
+      generatedDurations: { bridge: 3 },
+    });
+    const finalCommand = plan.commands.find(
+      (command) => command.label === "mix final film",
+    );
+    const command = finalCommand?.args.join(" ") ?? "";
+
+    expect(plan.totalDurationSeconds).toBe(110.4);
+    expect(command).toContain("-stream_loop -1");
+    expect(command).toContain("atrim=duration=110.400");
+    expect(command).toContain("-t 110.400");
+    expect(command).toContain("-c:v libx264 -preset medium -crf 20");
+    expect(command).toContain("-pix_fmt yuv420p -r 30");
+    expect(command).toContain(
+      "-c:a aac -b:a 192k -ar 48000 -ac 2 -movflags +faststart",
+    );
+    expect(command).not.toMatch(/subtitles?|captions?|\.srt|\.vtt|\.ass/i);
+  });
+
+  it("fails when a captured content beat has no marker", () => {
+    expect(() =>
+      buildAssemblyPlan({
+        spec,
+        outputRoot: "C:/film/out",
+        markers: { upload: 3 },
+        manifest,
+        captureDuration: 12,
+        generatedDurations: { bridge: 3 },
+      }),
+    ).toThrow(/missing capture marker.*review/i);
+  });
+
+  it("rejects narration manifest entries that are not in the strict spec", () => {
+    expect(() =>
+      buildAssemblyPlan({
+        spec,
+        outputRoot: "C:/film/out",
+        markers: { upload: 3, review: 8 },
+        manifest: [
+          ...manifest,
+          { id: "unknown", file: "unknown.mp3", durationSec: 1 },
+        ],
+        captureDuration: 12,
+        generatedDurations: { bridge: 3 },
+      }),
+    ).toThrow(/unknown narration manifest beat/i);
+  });
+});
+
+describe("film verification", () => {
+  const healthyProbe = {
+    format: { duration: "19.4" },
+    streams: [
+      {
+        codec_type: "video",
+        codec_name: "h264",
+        width: 1920,
+        height: 1080,
+        avg_frame_rate: "30/1",
+      },
+      { codec_type: "audio", codec_name: "aac", channels: 2 },
+    ],
+  };
+
+  it("parses FFmpeg volume detection output", () => {
+    expect(
+      parseVolumeDetect(
+        "[Parsed_volumedetect_0] mean_volume: -20.4 dB\n" +
+          "[Parsed_volumedetect_0] max_volume: -2.1 dB",
+      ),
+    ).toEqual({ meanDb: -20.4, peakDb: -2.1 });
+  });
+
+  it("passes only the required technical media shape", () => {
+    const result = evaluateFilm({
+      filmId: spec.id,
+      spec,
+      probe: healthyProbe,
+      volume: { meanDb: -20.4, peakDb: -2.1 },
+      decodeErrors: 0,
+      captionFiles: [],
+    });
+
+    expect(result.failures).toEqual([]);
+    expect(result.report).toMatchObject({
+      filmId: spec.id,
+      passed: true,
+      video: { codec: "h264", width: 1920, height: 1080, fps: 30 },
+      audio: { codec: "aac", channels: 2, meanDb: -20.4, peakDb: -2.1 },
+      subtitleStreams: 0,
+      decodeErrors: 0,
+    });
+  });
+
+  it("rejects subtitle streams, decode errors, hot peaks, and missing audio", () => {
+    const result = evaluateFilm({
+      filmId: spec.id,
+      spec,
+      probe: {
+        ...healthyProbe,
+        streams: [
+          healthyProbe.streams[0],
+          { codec_type: "subtitle", codec_name: "mov_text" },
+        ],
+      },
+      volume: { meanDb: -12, peakDb: -0.4 },
+      decodeErrors: 2,
+      captionFiles: ["out/toolchain-test/captions.srt"],
+    });
+
+    expect(result.report.passed).toBe(false);
+    expect(result.failures.join("\n")).toMatch(/audio stream/i);
+    expect(result.failures.join("\n")).toMatch(/subtitle stream/i);
+    expect(result.failures.join("\n")).toMatch(/decode error/i);
+    expect(result.failures.join("\n")).toMatch(/peak/i);
+    expect(result.failures.join("\n")).toMatch(/caption artifact/i);
+  });
+
+  it("finds forbidden caption artifacts recursively", () => {
+    const directory = makeTemporaryDirectory();
+    mkdirSync(resolve(directory, "nested"), { recursive: true });
+    writeFileSync(resolve(directory, "nested", "captions.vtt"), "WEBVTT");
+
+    expect(findCaptionFiles(directory)).toEqual([
+      resolve(directory, "nested", "captions.vtt"),
+    ]);
+  });
+
+  it("builds a four-column contact sheet", () => {
+    const args = buildContactSheetArgs(
+      ["one.jpg", "two.jpg", "three.jpg", "four.jpg", "five.jpg"],
+      "contact-sheet.jpg",
+    );
+
+    expect(args).toContain("4x");
+    expect(args.at(-1)).toBe("contact-sheet.jpg");
+  });
+});
