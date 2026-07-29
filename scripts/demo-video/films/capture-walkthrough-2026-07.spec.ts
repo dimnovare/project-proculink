@@ -30,7 +30,7 @@ test("film: walkthrough 2026-07", async ({ page }) => {
   await prepareFilmPage(page);
 
   // Compile and settle every filmed route before recording the first beat.
-  for (const route of ["/upload", "/inbox/ord-002", "/delivery-log"]) {
+  for (const route of ["/upload", "/inbox/ord-002", "/operations/log"]) {
     await page.goto(route, { waitUntil: "networkidle" });
   }
 
@@ -60,51 +60,57 @@ test("film: walkthrough 2026-07", async ({ page }) => {
   await hold("detect");
 
   await page.goto("/inbox/ord-002", { waitUntil: "networkidle" });
-  await required(page.getByText(/PO-2024-005678/i), "review PO");
+  await required(
+    page.getByTitle("PO-2024-005678", { exact: true }),
+    "review PO",
+  );
   const issues = page.getByTestId("issues-panel");
   await required(issues, "open issues panel");
   await expect(issues).toHaveAttribute("data-issues", "2");
   clock.mark("review");
   await hold("review");
 
+  const line2Issue = issues.getByTestId("issue-row").filter({
+    has: page.getByRole("button", { name: /go to line 2/i }),
+  });
   clock.mark("suggest");
   await cursor.click(
-    page.getByRole("button", {
-      name: /accept ai suggestion for line 2/i,
-    }),
+    line2Issue.getByRole("button", { name: /accept suggestion/i }),
   );
   await expect(issues).toHaveAttribute("data-issues", "1");
   await hold("suggest");
 
+  const line4Issue = issues.getByTestId("issue-row").filter({
+    has: page.getByRole("button", { name: /go to line 4/i }),
+  });
   clock.mark("manual-fix");
-  await cursor.click(
-    page.getByRole("button", {
-      name: /enter a supplier code manually for line 4/i,
-    }),
-  );
-  const supplierCode = page.getByLabel(/supplier code for line 4/i);
+  await cursor.click(line4Issue.getByRole("button", { name: /enter manually/i }));
+  const supplierCode = line4Issue.getByRole("textbox", {
+    name: /supplier code/i,
+  });
   await required(supplierCode, "manual supplier code input");
   await cursor.type(supplierCode, "ES-WIRE-22BK-100");
-  await cursor.click(page.getByRole("button", { name: /^save$/i }));
+  await cursor.click(line4Issue.getByRole("button", { name: /^save$/i }));
   await expect(issues).toHaveAttribute("data-issues", "0");
   await hold("manual-fix");
 
   clock.mark("validate");
-  await required(page.getByText(/ready to send/i), "supplier readiness");
+  await required(
+    issues.getByText("Ready to send", { exact: true }),
+    "supplier readiness",
+  );
   await hold("validate");
 
   clock.mark("preview-output");
-  await cursor.click(page.getByRole("button", { name: /full document/i }));
+  await cursor.click(page.getByRole("button", { name: "Output", exact: true }));
+  await cursor.click(page.getByRole("tab", { name: /preview/i }));
   await required(
-    page.getByText(/supplier output|what we.?ll send/i),
+    page.getByText(/what we.?ll send/i),
     "supplier output preview",
   );
   await hold("preview-output");
 
   clock.mark("deliver");
-  await cursor.click(
-    page.getByRole("button", { name: /^triage(?:\s*\(\d+\))?$/i }),
-  );
   await cursor.click(
     page.getByRole("button", { name: /^send to supplier$/i }),
   );
@@ -114,10 +120,13 @@ test("film: walkthrough 2026-07", async ({ page }) => {
   await cursor.click(
     page.getByRole("button", { name: /send to supplier/i }).last(),
   );
-  await required(page.getByText(/delivered/i), "delivered transmission state");
+  await required(
+    page.getByRole("status").filter({ hasText: /delivered to supplier/i }),
+    "delivered transmission state",
+  );
   await hold("deliver");
 
-  await page.goto("/delivery-log", { waitUntil: "networkidle" });
+  await page.goto("/operations/log", { waitUntil: "networkidle" });
   await required(
     page.getByRole("heading", { name: /delivery log/i }),
     "delivery log",

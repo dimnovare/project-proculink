@@ -352,8 +352,92 @@ export function buildAssemblyPlan({
     : 0;
   const introDuration = Math.max(
     Number(settings.introSeconds),
-    introVoiceDuration + 0.4,
+    introVoiceDuration,
   );
+  const outroBeat = outroBeats[0];
+  const outroVoiceDuration = outroBeat
+    ? Number(byId.get(outroBeat.id).durationSec)
+    : 0;
+  const outroDuration = Math.max(
+    Number(settings.outroSeconds),
+    outroVoiceDuration,
+  );
+
+  // Playwright records route transitions and dev-server waits between markers.
+  // They are useful while capturing, but they are dead air in the final film.
+  // When the raw timeline exceeds the approved maximum, keep every narration
+  // clip at full length and proportionally remove only the excess visual slack.
+  const rawCaptureDurations = new Map();
+  const captureVoiceDurations = new Map();
+  for (const [index, beat] of capturedBeats.entries()) {
+    const start = Number(markers[beat.id]);
+    const nextBeat = capturedBeats[index + 1];
+    const end = nextBeat
+      ? Number(markers[nextBeat.id])
+      : Number(captureDuration);
+    const rawDuration = finitePositive(
+      end - start,
+      `captured segment duration for ${beat.id}`,
+    );
+    const voiceDuration = Number(byId.get(beat.id).durationSec);
+    if (voiceDuration > rawDuration) {
+      throw new Error(
+        `Narration for ${beat.id} exceeds its captured segment duration.`,
+      );
+    }
+    rawCaptureDurations.set(beat.id, rawDuration);
+    captureVoiceDurations.set(beat.id, voiceDuration);
+  }
+
+  const generatedTimelineDuration = contentBeats
+    .filter((beat) => beat.source === "generated")
+    .reduce((total, beat) => {
+      const generatedDuration = finitePositive(
+        generatedDurations[beat.id],
+        `generated segment duration for ${beat.id}`,
+      );
+      return total + Math.max(
+        generatedDuration,
+        Number(byId.get(beat.id).durationSec) + 0.4,
+      );
+    }, 0);
+  const rawCaptureTotal = [...rawCaptureDurations.values()].reduce(
+    (total, duration) => total + duration,
+    0,
+  );
+  const captureVoiceTotal = [...captureVoiceDurations.values()].reduce(
+    (total, duration) => total + duration,
+    0,
+  );
+  const maximumTimelineDuration = Number(spec.targetSeconds.max) - 0.15;
+  const availableCaptureDuration =
+    maximumTimelineDuration -
+    introDuration -
+    outroDuration -
+    generatedTimelineDuration;
+  if (availableCaptureDuration < captureVoiceTotal) {
+    throw new Error(
+      "Narration is too long for the film's approved maximum duration.",
+    );
+  }
+  const rawCaptureSlack = rawCaptureTotal - captureVoiceTotal;
+  const availableCaptureSlack =
+    availableCaptureDuration - captureVoiceTotal;
+  const captureSlackScale =
+    rawCaptureSlack > 0
+      ? Math.min(1, availableCaptureSlack / rawCaptureSlack)
+      : 0;
+  const plannedCaptureDurations = new Map(
+    capturedBeats.map((beat) => {
+      const voiceDuration = captureVoiceDurations.get(beat.id);
+      const rawDuration = rawCaptureDurations.get(beat.id);
+      return [
+        beat.id,
+        voiceDuration + (rawDuration - voiceDuration) * captureSlackScale,
+      ];
+    }),
+  );
+
   commands.push({
     label: "render intro clip",
     executable: "ffmpeg",
@@ -376,9 +460,6 @@ export function buildAssemblyPlan({
   }
   cursor += introDuration;
 
-  const captureIndex = new Map(
-    capturedBeats.map((beat, index) => [beat.id, index]),
-  );
   for (const [index, beat] of contentBeats.entries()) {
     const voice = byId.get(beat.id);
     const voicePath = resolve(outputDirectory, "vo", voice.file);
@@ -391,19 +472,9 @@ export function buildAssemblyPlan({
     let sourceStart = null;
 
     if (beat.source === "capture") {
-      const markerIndex = captureIndex.get(beat.id);
       const start = Number(markers[beat.id]);
-      const nextBeat = capturedBeats[markerIndex + 1];
-      const end = nextBeat
-        ? Number(markers[nextBeat.id])
-        : Number(captureDuration);
-      duration = end - start;
-      finitePositive(duration, `captured segment duration for ${beat.id}`);
-      if (Number(voice.durationSec) > duration) {
-        throw new Error(
-          `Narration for ${beat.id} exceeds its captured segment duration.`,
-        );
-      }
+      duration = plannedCaptureDurations.get(beat.id);
+      finitePositive(duration, `planned captured duration for ${beat.id}`);
       sourcePath = capturePath;
       sourceStart = start;
     } else if (beat.source === "generated" && beat.kind === "abstract") {
@@ -441,14 +512,6 @@ export function buildAssemblyPlan({
     cursor += duration;
   }
 
-  const outroBeat = outroBeats[0];
-  const outroVoiceDuration = outroBeat
-    ? Number(byId.get(outroBeat.id).durationSec)
-    : 0;
-  const outroDuration = Math.max(
-    Number(settings.outroSeconds),
-    outroVoiceDuration + 0.4,
-  );
   commands.push({
     label: "render outro clip",
     executable: "ffmpeg",

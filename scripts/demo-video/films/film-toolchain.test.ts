@@ -476,6 +476,26 @@ describe("no-caption film assembly", () => {
     expect(command).not.toMatch(/subtitles?|captions?|\.srt|\.vtt|\.ass/i);
   });
 
+  it("removes capture dead air before exceeding the approved film duration", () => {
+    const plan = buildAssemblyPlan({
+      spec: {
+        ...spec,
+        targetSeconds: { min: 12, max: 17 },
+      },
+      outputRoot: "C:/film/out",
+      markers: { upload: 3, review: 101 },
+      manifest,
+      captureDuration: 105,
+      generatedDurations: { bridge: 3 },
+    });
+
+    expect(plan.totalDurationSeconds).toBeLessThan(17);
+    expect(plan.totalDurationSeconds).toBeGreaterThanOrEqual(12);
+    for (const beat of plan.timeline) {
+      expect(beat.durationSeconds).toBeGreaterThanOrEqual(2);
+    }
+  });
+
   it("fails when a captured content beat has no marker", () => {
     expect(() =>
       buildAssemblyPlan({
