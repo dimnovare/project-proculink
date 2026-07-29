@@ -150,6 +150,25 @@ describe("bounded external process execution", () => {
     expect(Date.now() - startedAt).toBeLessThan(2_000);
   });
 
+  it("terminates a chatty process when captured output exceeds its limit", () => {
+    const startedAt = Date.now();
+
+    expect(() =>
+      runFilmProcess(
+        process.execPath,
+        [
+          "-e",
+          'setInterval(() => process.stdout.write("x".repeat(1024)), 1)',
+        ],
+        {
+          maxOutputBytes: 2_048,
+          timeoutMs: 5_000,
+        },
+      ),
+    ).toThrow(/output exceeded 2 KiB/i);
+    expect(Date.now() - startedAt).toBeLessThan(2_000);
+  });
+
   it("dispatches a safe Windows process-tree kill without shell interpolation", () => {
     const calls: Array<{
       command: string;

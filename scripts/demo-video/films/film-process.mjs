@@ -71,12 +71,11 @@ export function terminateProcessTree(processId, options = {}) {
   }
 }
 
-function appendOutput(current, chunk) {
-  const next = current + chunk.toString();
-  if (Buffer.byteLength(next, "utf8") > MAX_OUTPUT_BYTES) {
-    throw new Error("Film process output exceeded 64 MiB.");
+function formatOutputLimit(bytes) {
+  if (bytes % 1024 === 0) {
+    return `${bytes / 1024} KiB`;
   }
-  return next;
+  return `${bytes} bytes`;
 }
 
 async function runWorker(encodedPayload) {
@@ -91,12 +90,31 @@ async function runWorker(encodedPayload) {
   let stdout = "";
   let stderr = "";
   let timedOut = false;
+  let outputBytes = 0;
+  let outputError = null;
+
+  const captureOutput = (target, chunk) => {
+    if (outputError) {
+      return target;
+    }
+    const chunkBytes = Buffer.byteLength(chunk);
+    if (outputBytes + chunkBytes > payload.maxOutputBytes) {
+      outputError =
+        `output exceeded ${formatOutputLimit(payload.maxOutputBytes)}.`;
+      terminateProcessTree(child.pid, {
+        killImpl: () => child.kill("SIGKILL"),
+      });
+      return target;
+    }
+    outputBytes += chunkBytes;
+    return target + chunk.toString();
+  };
 
   child.stdout.on("data", (chunk) => {
-    stdout = appendOutput(stdout, chunk);
+    stdout = captureOutput(stdout, chunk);
   });
   child.stderr.on("data", (chunk) => {
-    stderr = appendOutput(stderr, chunk);
+    stderr = captureOutput(stderr, chunk);
   });
 
   const timeout = setTimeout(() => {
@@ -111,6 +129,7 @@ async function runWorker(encodedPayload) {
     child.once("error", (error) => {
       resolveResult({
         error: error.message,
+        outputError,
         status: 1,
         stderr,
         stdout,
@@ -120,6 +139,7 @@ async function runWorker(encodedPayload) {
     child.once("close", (status, signal) => {
       resolveResult({
         signal,
+        outputError,
         status: status ?? 1,
         stderr,
         stdout,
@@ -134,8 +154,12 @@ async function runWorker(encodedPayload) {
 export function runFilmProcess(command, args, options = {}) {
   const timeoutMs =
     options.timeoutMs ?? resolveProcessTimeoutMs(options.env ?? process.env);
+  const maxOutputBytes = options.maxOutputBytes ?? MAX_OUTPUT_BYTES;
+  if (!Number.isInteger(maxOutputBytes) || maxOutputBytes <= 0) {
+    throw new Error(`Invalid film process output limit: ${maxOutputBytes}.`);
+  }
   const payload = Buffer.from(
-    JSON.stringify({ command, args, timeoutMs }),
+    JSON.stringify({ command, args, maxOutputBytes, timeoutMs }),
     "utf8",
   ).toString("base64");
   const workerResult = spawnSync(
@@ -173,6 +197,9 @@ export function runFilmProcess(command, args, options = {}) {
   }
   if (result.timedOut) {
     throw new Error(`${command} timed out after ${timeoutMs} ms.`);
+  }
+  if (result.outputError) {
+    throw new Error(`${command} ${result.outputError}`);
   }
   if (result.error) {
     throw new Error(`${command} failed to start: ${result.error}`);
