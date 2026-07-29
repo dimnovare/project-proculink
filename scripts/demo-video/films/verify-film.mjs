@@ -100,6 +100,8 @@ export function evaluateFilm({
   const fps = parseFrameRate(
     videoStream?.avg_frame_rate ?? videoStream?.r_frame_rate,
   );
+  const pixelFormat = videoStream?.pix_fmt ?? null;
+  const normalizedDecodeErrors = decodeErrors === 0 ? 0 : 1;
   const failures = [];
 
   if (!Number.isFinite(durationSeconds)) {
@@ -123,6 +125,9 @@ export function evaluateFilm({
         `${videoStream?.height ?? 0}.`,
     );
   }
+  if (pixelFormat !== "yuv420p") {
+    failures.push(`Expected yuv420p video, found ${pixelFormat ?? "none"}.`);
+  }
   if (!Number.isFinite(fps) || Math.abs(fps - 30) > 0.001) {
     failures.push(`Expected 30 fps video, found ${fps}.`);
   }
@@ -136,8 +141,10 @@ export function evaluateFilm({
   if (subtitleStreams !== 0) {
     failures.push(`Expected zero subtitle streams, found ${subtitleStreams}.`);
   }
-  if (!Number.isInteger(decodeErrors) || decodeErrors !== 0) {
-    failures.push(`Expected zero decode errors, found ${decodeErrors}.`);
+  if (!Number.isInteger(decodeErrors) || normalizedDecodeErrors !== 0) {
+    failures.push(
+      `Expected zero decode errors, found ${normalizedDecodeErrors}.`,
+    );
   }
   if (
     typeof volume?.peakDb !== "number" ||
@@ -167,6 +174,7 @@ export function evaluateFilm({
     durationSeconds,
     video: {
       codec: videoStream?.codec_name ?? null,
+      pixelFormat,
       width: videoStream?.width ?? 0,
       height: videoStream?.height ?? 0,
       fps,
@@ -178,17 +186,14 @@ export function evaluateFilm({
       peakDb: volume?.peakDb ?? null,
     },
     subtitleStreams,
-    decodeErrors,
+    decodeErrors: normalizedDecodeErrors,
   };
   return { report, failures };
 }
 
-function countDecodeErrors(result) {
-  const diagnostics = `${result.stderr}\n${result.stdout}`
-    .split(/\r?\n/)
-    .filter((line) => line.trim().length > 0);
-  if (diagnostics.length > 0) return diagnostics.length;
-  return result.status === 0 ? 0 : 1;
+export function decodeErrorStatus(result) {
+  const diagnostics = `${result.stderr ?? ""}${result.stdout ?? ""}`.trim();
+  return result.status === 0 && diagnostics.length === 0 ? 0 : 1;
 }
 
 function requirePath(path, hint) {
@@ -272,7 +277,7 @@ export function verifyFilm(filmId, options = {}) {
     ],
     { allowFailure: true, timeoutMs },
   );
-  const decodeErrors = countDecodeErrors(decodeResult);
+  const decodeErrors = decodeErrorStatus(decodeResult);
   const captionFiles = findCaptionFiles(outputRoot);
   const evaluation = evaluateFilm({
     filmId,

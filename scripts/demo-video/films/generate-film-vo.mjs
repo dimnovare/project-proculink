@@ -176,27 +176,28 @@ export async function generateFilmVoiceover(filmId, options = {}) {
     const request = buildElevenLabsRequest(beat, apiKey, env);
     const controller = new AbortController();
     const requestTimeout = setTimeout(() => controller.abort(), timeoutMs);
-    requestTimeout.unref?.();
     let response;
+    let audioBuffer;
     try {
       response = await fetchImpl(request.url, {
         ...request.options,
         signal: controller.signal,
       });
+      if (!response.ok) {
+        const detail = await response.text();
+        throw new Error(
+          `ElevenLabs failed for ${beat.id}: HTTP ${response.status}. ${detail}`,
+        );
+      }
+      audioBuffer = await response.arrayBuffer();
     } finally {
       clearTimeout(requestTimeout);
-    }
-    if (!response.ok) {
-      const detail = await response.text();
-      throw new Error(
-        `ElevenLabs failed for ${beat.id}: HTTP ${response.status}. ${detail}`,
-      );
     }
 
     const outputPath = resolve(voiceDirectory, `${beat.id}.mp3`);
     const rawPath = resolve(voiceDirectory, `${beat.id}.raw.mp3`);
     const trimmedPath = resolve(voiceDirectory, `${beat.id}.trimmed.mp3`);
-    writeFileSync(rawPath, Buffer.from(await response.arrayBuffer()));
+    writeFileSync(rawPath, Buffer.from(audioBuffer));
 
     runProcess(ffmpeg, buildSilenceTrimArgs(rawPath, trimmedPath), {
       timeoutMs,

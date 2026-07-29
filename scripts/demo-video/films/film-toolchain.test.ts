@@ -20,17 +20,25 @@ import {
   buildCardSvg,
   renderFilmCards,
 } from "./render-film-cards.mjs";
-import { buildAssemblyPlan } from "./assemble-film.mjs";
+import {
+  FINAL_VIDEO_ENCODING_ARGS,
+  assembleFilm,
+  buildAssemblyPlan,
+} from "./assemble-film.mjs";
 import {
   buildContactSheetArgs,
+  decodeErrorStatus,
   evaluateFilm,
   findCaptionFiles,
   parseVolumeDetect,
+  verifyFilm,
 } from "./verify-film.mjs";
 import {
+  buildWindowsTreeKillCommand,
   buildProcessOptions,
   resolveProcessTimeoutMs,
   runFilmProcess,
+  terminateProcessTree,
 } from "./film-process.mjs";
 
 const temporaryDirectories: string[] = [];
@@ -141,6 +149,41 @@ describe("bounded external process execution", () => {
     ).toThrow(/timed out after 150 ms/i);
     expect(Date.now() - startedAt).toBeLessThan(2_000);
   });
+
+  it("dispatches a safe Windows process-tree kill without shell interpolation", () => {
+    const calls: Array<{
+      command: string;
+      args: string[];
+      options: Record<string, unknown>;
+    }> = [];
+    const spawnSyncImpl = (
+      command: string,
+      args: string[],
+      options: Record<string, unknown>,
+    ) => {
+      calls.push({ command, args, options });
+      return { status: 0, stdout: "", stderr: "" };
+    };
+
+    expect(buildWindowsTreeKillCommand(4321)).toEqual({
+      command: "taskkill",
+      args: ["/PID", "4321", "/T", "/F"],
+    });
+    terminateProcessTree(4321, {
+      platform: "win32",
+      spawnSyncImpl,
+    });
+    expect(calls).toEqual([
+      {
+        command: "taskkill",
+        args: ["/PID", "4321", "/T", "/F"],
+        options: expect.objectContaining({
+          shell: false,
+          windowsHide: true,
+        }),
+      },
+    ]);
+  });
 });
 
 describe("film voiceover generation", () => {
@@ -248,6 +291,52 @@ describe("film voiceover generation", () => {
       manifest: [{ id: "upload", durationSec: 1.25 }],
     });
   });
+
+  it("keeps the request timeout active while an MP3 body is stalled", async () => {
+    const outputRoot = makeTemporaryDirectory();
+    const oneBeatSpec = {
+      ...spec,
+      id: "voice-stalled-body-test",
+      beats: [spec.beats[1]],
+    };
+    let processCalls = 0;
+    const startedAt = Date.now();
+
+    await expect(
+      generateFilmVoiceover(oneBeatSpec.id, {
+        outputRoot,
+        spec: oneBeatSpec,
+        env: {
+          ELEVENLABS_API_KEY: "injected-test-key",
+          FILM_PROCESS_TIMEOUT_MS: "80",
+        },
+        fetchImpl: async (_url, options) => ({
+          ok: true,
+          status: 200,
+          text: async () => "",
+          arrayBuffer: () =>
+            new Promise((_resolve, reject) => {
+              options.signal.addEventListener(
+                "abort",
+                () => reject(new Error("body aborted")),
+                { once: true },
+              );
+            }),
+        }),
+        runProcess: () => {
+          processCalls += 1;
+          throw new Error("Stalled body launched a process.");
+        },
+      }),
+    ).rejects.toThrow(/body aborted/i);
+    expect(Date.now() - startedAt).toBeLessThan(1_000);
+    expect(processCalls).toBe(0);
+    expect(
+      existsSync(
+        resolve(outputRoot, oneBeatSpec.id, "vo", "upload.raw.mp3"),
+      ),
+    ).toBe(false);
+  });
 });
 
 describe("branded film cards", () => {
@@ -302,6 +391,21 @@ describe("branded film cards", () => {
 });
 
 describe("no-caption film assembly", () => {
+  it("uses one canonical final video encoding flag list", () => {
+    expect(FINAL_VIDEO_ENCODING_ARGS).toEqual([
+      "-c:v",
+      "libx264",
+      "-preset",
+      "medium",
+      "-crf",
+      "20",
+      "-pix_fmt",
+      "yuv420p",
+      "-r",
+      "30",
+    ]);
+  });
+
   it("builds an ordered timeline and does not require card markers", () => {
     const plan = buildAssemblyPlan({
       spec,
@@ -381,6 +485,83 @@ describe("no-caption film assembly", () => {
       }),
     ).toThrow(/unknown narration manifest beat/i);
   });
+
+  it("orchestrates probes, cards, assembly, music, and a real-capture poster", () => {
+    const outputRoot = makeTemporaryDirectory();
+    const filmDirectory = resolve(outputRoot, spec.id);
+    mkdirSync(resolve(filmDirectory, "vo"), { recursive: true });
+    mkdirSync(resolve(filmDirectory, "abstract"), { recursive: true });
+    writeFileSync(resolve(filmDirectory, "capture.webm"), "capture");
+    writeFileSync(
+      resolve(filmDirectory, "markers.json"),
+      JSON.stringify({ upload: 3, review: 8 }),
+    );
+    writeFileSync(
+      resolve(filmDirectory, "vo", "manifest.json"),
+      JSON.stringify(manifest),
+    );
+    for (const item of manifest) {
+      writeFileSync(resolve(filmDirectory, "vo", item.file), "voice");
+    }
+    writeFileSync(
+      resolve(filmDirectory, "abstract", "bridge.mp4"),
+      "abstract",
+    );
+    const musicPath = resolve(outputRoot, "music.mp3");
+    writeFileSync(musicPath, "music");
+    const calls: Array<{ command: string; args: string[] }> = [];
+    let renderedCards = 0;
+
+    const result = assembleFilm(spec.id, {
+      outputRoot,
+      spec,
+      env: {
+        FFMPEG: "fake-ffmpeg",
+        FFPROBE: "fake-ffprobe",
+        FILM_MUSIC_FILE: musicPath,
+        FILM_PROCESS_TIMEOUT_MS: "1000",
+      },
+      renderCards: () => {
+        renderedCards += 1;
+        return {
+          intro: resolve(filmDirectory, "cards", "intro.png"),
+          outro: resolve(filmDirectory, "cards", "outro.png"),
+        };
+      },
+      runProcess: (command: string, args: string[]) => {
+        calls.push({ command, args });
+        if (command === "fake-ffprobe") {
+          return {
+            status: 0,
+            stdout: args.at(-1)?.endsWith("capture.webm") ? "12" : "3",
+            stderr: "",
+          };
+        }
+        return { status: 0, stdout: "", stderr: "" };
+      },
+    });
+
+    expect(renderedCards).toBe(1);
+    expect(calls.slice(0, 2).map((call) => call.command)).toEqual([
+      "fake-ffprobe",
+      "fake-ffprobe",
+    ]);
+    expect(
+      calls.filter((call) => call.command === "fake-ffmpeg"),
+    ).toHaveLength(result.commands.length);
+    const finalMix = calls.find((call) =>
+      call.args.includes(resolve(outputRoot, `${spec.id}.mp4`)),
+    );
+    expect(finalMix?.args).toContain("-stream_loop");
+    const poster = calls.at(-1);
+    expect(poster?.args).toContain(resolve(filmDirectory, "capture.webm"));
+    expect(poster?.args.at(-1)).toBe(
+      resolve(outputRoot, `${spec.id}-poster.jpg`),
+    );
+    expect(
+      existsSync(resolve(filmDirectory, "assembly-plan.json")),
+    ).toBe(true);
+  });
 });
 
 describe("film verification", () => {
@@ -390,6 +571,7 @@ describe("film verification", () => {
       {
         codec_type: "video",
         codec_name: "h264",
+        pix_fmt: "yuv420p",
         width: 1920,
         height: 1080,
         avg_frame_rate: "30/1",
@@ -421,7 +603,13 @@ describe("film verification", () => {
     expect(result.report).toMatchObject({
       filmId: spec.id,
       passed: true,
-      video: { codec: "h264", width: 1920, height: 1080, fps: 30 },
+      video: {
+        codec: "h264",
+        pixelFormat: "yuv420p",
+        width: 1920,
+        height: 1080,
+        fps: 30,
+      },
       audio: { codec: "aac", channels: 2, meanDb: -20.4, peakDb: -2.1 },
       subtitleStreams: 0,
       decodeErrors: 0,
@@ -452,6 +640,38 @@ describe("film verification", () => {
     expect(result.failures.join("\n")).toMatch(/caption artifact/i);
   });
 
+  it("rejects a video stream that is not yuv420p", () => {
+    const result = evaluateFilm({
+      filmId: spec.id,
+      spec,
+      probe: {
+        ...healthyProbe,
+        streams: [
+          { ...healthyProbe.streams[0], pix_fmt: "yuv444p" },
+          healthyProbe.streams[1],
+        ],
+      },
+      volume: { meanDb: -20.4, peakDb: -2.1 },
+      decodeErrors: 0,
+      captionFiles: [],
+    });
+
+    expect(result.report.video.pixelFormat).toBe("yuv444p");
+    expect(result.failures.join("\n")).toMatch(/yuv420p.*yuv444p/i);
+  });
+
+  it("reports decode status as a binary clean-or-error result", () => {
+    expect(decodeErrorStatus({ status: 0, stdout: "", stderr: "" })).toBe(0);
+    expect(
+      decodeErrorStatus({
+        status: 0,
+        stdout: "",
+        stderr: "first diagnostic\nsecond diagnostic",
+      }),
+    ).toBe(1);
+    expect(decodeErrorStatus({ status: 1, stdout: "", stderr: "" })).toBe(1);
+  });
+
   it("finds forbidden caption artifacts recursively", () => {
     const directory = makeTemporaryDirectory();
     mkdirSync(resolve(directory, "nested"), { recursive: true });
@@ -470,5 +690,74 @@ describe("film verification", () => {
 
     expect(args).toContain("4x");
     expect(args.at(-1)).toBe("contact-sheet.jpg");
+  });
+
+  it("orchestrates ffprobe, volume, decode, beat frames, and contact sheet", () => {
+    const outputRoot = makeTemporaryDirectory();
+    const filmDirectory = resolve(outputRoot, spec.id);
+    mkdirSync(filmDirectory, { recursive: true });
+    writeFileSync(resolve(outputRoot, `${spec.id}.mp4`), "film");
+    writeFileSync(
+      resolve(filmDirectory, "assembly-plan.json"),
+      JSON.stringify({
+        totalDurationSeconds: 19.4,
+        timeline: spec.beats.map((beat, index) => ({
+          id: beat.id,
+          source: beat.overIntro
+            ? "intro"
+            : beat.overOutro
+              ? "outro"
+              : beat.source,
+          startSeconds: index * 3,
+          durationSeconds: 2,
+        })),
+      }),
+    );
+    const calls: Array<{ command: string; args: string[] }> = [];
+    const result = verifyFilm(spec.id, {
+      outputRoot,
+      spec,
+      env: {
+        FFMPEG: "fake-ffmpeg",
+        FFPROBE: "fake-ffprobe",
+        MAGICK: "fake-magick",
+        FILM_PROCESS_TIMEOUT_MS: "1000",
+      },
+      runProcess: (command: string, args: string[]) => {
+        calls.push({ command, args });
+        if (command === "fake-ffprobe") {
+          return {
+            status: 0,
+            stdout: JSON.stringify(healthyProbe),
+            stderr: "",
+          };
+        }
+        if (args.includes("volumedetect")) {
+          return {
+            status: 0,
+            stdout: "",
+            stderr: "mean_volume: -20.4 dB\nmax_volume: -2.1 dB",
+          };
+        }
+        return { status: 0, stdout: "", stderr: "" };
+      },
+    });
+
+    expect(calls[0]).toMatchObject({ command: "fake-ffprobe" });
+    expect(calls[0].args).toContain("-of");
+    expect(calls[0].args).toContain("json");
+    expect(calls[1].args).toContain("volumedetect");
+    expect(calls[2].args).toContain("0:v:0");
+    expect(
+      calls.filter(
+        (call) =>
+          call.command === "fake-ffmpeg" &&
+          call.args.includes("-frames:v"),
+      ),
+    ).toHaveLength(spec.beats.length);
+    expect(calls.at(-1)).toMatchObject({ command: "fake-magick" });
+    expect(calls.at(-1)?.args).toContain("4x");
+    expect(result.report.video.pixelFormat).toBe("yuv420p");
+    expect(existsSync(result.reportPath)).toBe(true);
   });
 });

@@ -24,6 +24,19 @@ const DEFAULT_OPTIONS = Object.freeze({
   outroSeconds: 3,
 });
 
+export const FINAL_VIDEO_ENCODING_ARGS = Object.freeze([
+  "-c:v",
+  "libx264",
+  "-preset",
+  "medium",
+  "-crf",
+  "20",
+  "-pix_fmt",
+  "yuv420p",
+  "-r",
+  "30",
+]);
+
 function finitePositive(value, name) {
   const parsed = Number(value);
   if (!Number.isFinite(parsed) || parsed <= 0) {
@@ -133,16 +146,7 @@ function cardClipArgs(cardPath, voicePath, duration, outputPath) {
     "[a]",
     "-t",
     durationText(duration),
-    "-c:v",
-    "libx264",
-    "-preset",
-    "medium",
-    "-crf",
-    "20",
-    "-pix_fmt",
-    "yuv420p",
-    "-r",
-    "30",
+    ...FINAL_VIDEO_ENCODING_ARGS,
     "-c:a",
     "aac",
     "-b:a",
@@ -184,16 +188,7 @@ function contentClipArgs({
     "[a]",
     "-t",
     durationText(duration),
-    "-c:v",
-    "libx264",
-    "-preset",
-    "medium",
-    "-crf",
-    "20",
-    "-pix_fmt",
-    "yuv420p",
-    "-r",
-    "30",
+    ...FINAL_VIDEO_ENCODING_ARGS,
     "-c:a",
     "aac",
     "-b:a",
@@ -222,16 +217,7 @@ function concatArgs(segmentPaths, duration, outputPath) {
     "[a]",
     "-t",
     durationText(duration),
-    "-c:v",
-    "libx264",
-    "-preset",
-    "medium",
-    "-crf",
-    "20",
-    "-pix_fmt",
-    "yuv420p",
-    "-r",
-    "30",
+    ...FINAL_VIDEO_ENCODING_ARGS,
     "-c:a",
     "aac",
     "-b:a",
@@ -272,16 +258,7 @@ function finalMixArgs({
     "[aout]",
     "-t",
     exactDuration,
-    "-c:v",
-    "libx264",
-    "-preset",
-    "medium",
-    "-crf",
-    "20",
-    "-pix_fmt",
-    "yuv420p",
-    "-r",
-    "30",
+    ...FINAL_VIDEO_ENCODING_ARGS,
     "-c:a",
     "aac",
     "-b:a",
@@ -581,6 +558,7 @@ function requirePath(path, hint) {
 
 export function assembleFilm(filmId, options = {}) {
   const env = options.env ?? process.env;
+  const renderCards = options.renderCards ?? renderFilmCards;
   const spec = validateFilmSpec(options.spec ?? loadFilmSpec(filmId));
   if (spec.id !== filmId) {
     throw new Error(
@@ -659,7 +637,7 @@ export function assembleFilm(filmId, options = {}) {
   mkdirSync(assemblyDirectory, { recursive: true });
 
   if (!options.dryRun) {
-    renderFilmCards(spec, outputDirectory, {
+    renderCards(spec, outputDirectory, {
       magick: env.MAGICK,
       runProcess: options.cardRunProcess,
       timeoutMs,
