@@ -22,6 +22,10 @@
     "demo:tools:vo": "node scripts/demo-video/tools/generate-tool-vo.mjs",
     "demo:tools:capture": "playwright test --config=playwright.tools.config.ts",
     "demo:tools:assemble": "node scripts/demo-video/tools/assemble-tool.mjs",
+    "film:vo": "node scripts/demo-video/films/generate-film-vo.mjs",
+    "film:capture": "playwright test --config=playwright.films.config.ts",
+    "film:assemble": "node scripts/demo-video/films/assemble-film.mjs",
+    "film:verify": "node scripts/demo-video/films/verify-film.mjs",
     "check:pageshell": "node scripts/check-pageshell.mjs",
     "lint:vocab": "node scripts/check-vocabulary.mjs"
   },

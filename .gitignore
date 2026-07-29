@@ -51,3 +51,6 @@ playwright-report/
 # Playwright scratch output from the guide screenshot rig (bun run guides:capture).
 # The screenshots themselves are committed under public/guides/.
 scripts/guide-shots/.playwright/
+
+# Generated Task 1 film captures and production artifacts.
+scripts/demo-video/films/out/
