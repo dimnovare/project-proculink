@@ -1,0 +1,108 @@
+{
+  "id": "walkthrough-2026-07",
+  "title": "ProcuLink walkthrough",
+  "captions": false,
+  "targetSeconds": { "min": 90, "max": 110 },
+  "intro": {
+    "kicker": "How ProcuLink works",
+    "headline": "From buyer PO to supplier-ready order"
+  },
+  "outro": {
+    "headline": "Send every purchase order in the format each supplier needs.",
+    "cta": "proculink.eu"
+  },
+  "beats": [
+    {
+      "id": "open",
+      "kind": "brand",
+      "source": "card",
+      "vo": "ProcuLink turns purchase orders from the formats buyers use into the exact orders each supplier expects.",
+      "shot": "Short brand opener followed by the current upload workbench.",
+      "overIntro": true
+    },
+    {
+      "id": "import",
+      "kind": "ui",
+      "source": "capture",
+      "route": "/upload",
+      "vo": "Start with the file you already have. Upload a spreadsheet, CSV, PDF, XML, cXML, or EDI order. Email, API, and managed file intake can feed the same workflow.",
+      "shot": "Upload a fictional CSV and show the real intake affordances.",
+      "extraMs": 500
+    },
+    {
+      "id": "detect",
+      "kind": "ui",
+      "source": "capture",
+      "route": "/upload",
+      "vo": "ProcuLink detects the format, reads the order, keeps the source visible, and routes it to the selected supplier flow.",
+      "shot": "Detected format, PO number, line count, and selected supplier are visible."
+    },
+    {
+      "id": "review",
+      "kind": "ui",
+      "source": "capture",
+      "route": "/inbox/ord-002",
+      "vo": "The order opens in review. Source, normalized data, and supplier output stay connected, while the work queue focuses attention on the exceptions that can block delivery.",
+      "shot": "Current approved three-column order workshop; do not redesign it."
+    },
+    {
+      "id": "suggest",
+      "kind": "ui",
+      "source": "capture",
+      "route": "/inbox/ord-002",
+      "vo": "For an unresolved item, ProcuLink suggests the supplier code with confidence and evidence. Accept it when it is right.",
+      "shot": "Accept one real mock AI suggestion and show the issue count decrease.",
+      "extraMs": 250
+    },
+    {
+      "id": "manual-fix",
+      "kind": "ui",
+      "source": "capture",
+      "route": "/inbox/ord-002",
+      "vo": "When you know better, enter the value yourself. Saving the mapping makes the same buyer-to-supplier match reusable on the next order.",
+      "shot": "Enter a supplier item code, save, and show the line resolved.",
+      "extraMs": 500
+    },
+    {
+      "id": "validate",
+      "kind": "ui",
+      "source": "capture",
+      "route": "/inbox/ord-002",
+      "vo": "Before sending, supplier rules check required fields, totals, item mappings, and output readiness. Blocking issues stay visible until they are fixed.",
+      "shot": "Readiness and validation area with a truthful ready state."
+    },
+    {
+      "id": "preview-output",
+      "kind": "ui",
+      "source": "capture",
+      "route": "/inbox/ord-002",
+      "vo": "Preview exactly what the supplier will receive. The configured template controls the structure, field mappings, format, and delivery channel.",
+      "shot": "Switch to full document or supplier output preview with readable output."
+    },
+    {
+      "id": "deliver",
+      "kind": "ui",
+      "source": "capture",
+      "route": "/inbox/ord-002",
+      "vo": "Send when the order is ready. ProcuLink generates the artifact, transmits it on the configured channel, and reports delivery success or a recoverable failure.",
+      "shot": "Confirm send and show generating, sending, then delivered transmission state.",
+      "extraMs": 1000
+    },
+    {
+      "id": "audit",
+      "kind": "ui",
+      "source": "capture",
+      "route": "/delivery-log",
+      "vo": "The audit trail records what changed, who changed it, what was generated, where it was sent, and the result. Your source remains intact throughout.",
+      "shot": "Current delivery log and order audit proof, without implying business acceptance."
+    },
+    {
+      "id": "close",
+      "kind": "brand",
+      "source": "card",
+      "vo": "Review the exceptions. Control the output. Send every supplier the order they require. ProcuLink.",
+      "shot": "Branded closing card.",
+      "overOutro": true
+    }
+  ]
+}
