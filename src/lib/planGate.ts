@@ -61,3 +61,33 @@ export function planGateMessage(message: string | null | undefined): string {
     ? `This is included from the ${plan} plan up. Upgrade to turn it on.`
     : "Your current plan does not include this. Upgrade to turn it on.";
 }
+
+/** Where an upsell may send the customer: an in-app path, never an off-site URL. */
+const DEFAULT_UPGRADE_URL = "/settings";
+
+/** `/settings`, `/settings?tab=billing` — one leading slash, so `//host` and `javascript:` fall out. */
+const IN_APP_PATH = /^\/(?!\/)/;
+
+function sanitizeUpgradeUrl(value: unknown): string {
+  return typeof value === "string" && IN_APP_PATH.test(value) ? value : DEFAULT_UPGRADE_URL;
+}
+
+/**
+ * The `upgradeUrl` the backend returned alongside the gate code, so the upsell link points
+ * where the SERVER says this particular gate is lifted rather than at a hardcoded guess.
+ *
+ * Accepts either a parsed body (`ApiHttpError.body`) or the raw message — most of the api
+ * layer folds the response body into the Error message and keeps nothing else, so the string
+ * form is the common case. Anything that is not an in-app path is discarded: an error banner
+ * must never become a link off the app, whatever the response said.
+ */
+export function planGateUpgradeUrl(source: unknown): string {
+  if (source && typeof source === "object") {
+    return sanitizeUpgradeUrl((source as { upgradeUrl?: unknown }).upgradeUrl);
+  }
+  if (typeof source === "string") {
+    const match = source.match(/"upgradeUrl"\s*:\s*"([^"]*)"/);
+    return sanitizeUpgradeUrl(match?.[1]);
+  }
+  return DEFAULT_UPGRADE_URL;
+}

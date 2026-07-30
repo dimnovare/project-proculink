@@ -27,6 +27,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import { useRouter, useSearchParams } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "../DSPrimitives";
+import { isPlanGate, PlanGateNotice } from "../PlanGateNotice";
 import { IncomingPane } from "./IncomingPane";
 import { OutgoingPane, type AutoFilledFields } from "./OutgoingPane";
 import { MapperPreviewPane } from "./MapperPreviewPane";
@@ -842,7 +843,7 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
           {!model.saving && !model.error && justSaved && (
             <span role="status" style={{ fontSize: 10.5, color: "#1E6D29" }}>✓ Saved</span>
           )}
-          {model.error && <span style={{ fontSize: 10.5, color: "var(--danger,#C0392B)" }}>{model.error}</span>}
+          {model.error && !isPlanGate(model.error) && <span style={{ fontSize: 10.5, color: "var(--danger,#C0392B)" }}>{model.error}</span>}
           {model.aiUnavailable && (
             <span
               title="AI mapping suggestions are unavailable right now — map fields manually; everything still works."
@@ -965,6 +966,15 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
           )}
         </div>
       </div>
+      )}
+
+      {/* ── Plan-gate banner ────────────────────────────────────────────────
+          A connection save PUTs the whole draft bundle, so a revision on a gated protocol or
+          output format is refused on EVERY mapping save. That refusal needs its own
+          full-width banner: the toolbar's 10.5px error span can't carry a sentence, and hosts
+          that hide the toolbar would have swallowed it entirely. ────────────────────── */}
+      {isPlanGate(model.error) && (
+        <PlanGateNotice error={model.error} capability="This connection setup" className="mb-3" />
       )}
 
       {/* ── AI suggestions banner ───────────────────────────────────────── */}

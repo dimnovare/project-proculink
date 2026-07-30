@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { isPlanGateError, planGateMessage } from "./planGate";
+import { isPlanGateError, planGateMessage, planGateUpgradeUrl } from "./planGate";
 
 // WP-11 defect #1, frontend half.
 //
@@ -66,5 +66,36 @@ describe("planGateMessage", () => {
 
     expect(msg).not.toMatch(/undefined|_/);
     expect(msg.length).toBeGreaterThan(0);
+  });
+});
+
+// The 403 body is `{ error, upgradeUrl }`. The upsell link must use the URL the
+// BACKEND named (it owns where a given gate sends you), not a client guess — but the
+// client still refuses anything that isn't an in-app path, so a compromised or
+// mis-templated response cannot turn an error banner into an off-site link.
+describe("planGateUpgradeUrl", () => {
+  it("reads the url the backend returned in a parsed body", () => {
+    expect(planGateUpgradeUrl({ error: "cxml_output_requires_operations", upgradeUrl: "/settings" }))
+      .toBe("/settings");
+    expect(planGateUpgradeUrl({ error: "x_requires_growth", upgradeUrl: "/settings?tab=billing" }))
+      .toBe("/settings?tab=billing");
+  });
+
+  it("reads it out of a raw body string, because most clients only keep the message", () => {
+    expect(planGateUpgradeUrl('API error 403: {"error":"webhook_delivery_requires_growth","upgradeUrl":"/settings?tab=billing"}'))
+      .toBe("/settings?tab=billing");
+  });
+
+  it("falls back to /settings when the body names no url", () => {
+    expect(planGateUpgradeUrl("advanced_audit_requires_operations")).toBe("/settings");
+    expect(planGateUpgradeUrl(null)).toBe("/settings");
+    expect(planGateUpgradeUrl({ error: "x_requires_growth" })).toBe("/settings");
+  });
+
+  it("refuses anything that is not an in-app path", () => {
+    expect(planGateUpgradeUrl({ upgradeUrl: "https://evil.example/upgrade" })).toBe("/settings");
+    expect(planGateUpgradeUrl({ upgradeUrl: "//evil.example/upgrade" })).toBe("/settings");
+    expect(planGateUpgradeUrl({ upgradeUrl: "javascript:alert(1)" })).toBe("/settings");
+    expect(planGateUpgradeUrl({ upgradeUrl: "settings" })).toBe("/settings");
   });
 });

@@ -28,6 +28,7 @@ import { useTabParamSync } from "@/lib/tab-param-sync";
 import { useConfirm } from "@/components/ui/confirm";
 import type { PoMappingConfig } from "@/lib/api/types";
 import type { AcceptanceRule, AcceptanceProfile, SupplierMapping } from "@/types/procurement";
+import { isPlanGate, PlanGateNotice } from "@/components/bridge/PlanGateNotice";
 
 type Tab = "overview" | "mappings" | "catalog" | "po-mapping" | "delivery" | "acceptance" | "history";
 
@@ -379,7 +380,9 @@ function AcceptanceTab({ supplierId }: { supplierId: string }) {
   const [editRules, setEditRules] = useState<AcceptanceRule[] | null>(null);
   const [editProtocol, setEditProtocol] = useState("");
   const [editOutputFormat, setEditOutputFormat] = useState("");
-  const [saveNotice, setSaveNotice] = useState<string | null>(null);
+  // Typed, because this notice carries FAILURES too — it used to be a bare string painted in
+  // the success green, so "Save failed: …" read as a confirmation.
+  const [saveNotice, setSaveNotice] = useState<{ kind: "ok" | "err"; text: string } | null>(null);
 
   const { data: profile, isLoading, isError } = useQuery<AcceptanceProfile | null>({
     queryKey: ["acceptance-profile", supplierId],
@@ -393,20 +396,20 @@ function AcceptanceTab({ supplierId }: { supplierId: string }) {
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ["acceptance-profile", supplierId] });
       setEditRules(null);
-      setSaveNotice("Rules saved as draft — click “Activate rules” to make them live.");
+      setSaveNotice({ kind: "ok", text: "Rules saved as draft — click “Activate rules” to make them live." });
       setTimeout(() => setSaveNotice(null), 3000);
     },
-    onError: (err: Error) => setSaveNotice(`Save failed: ${err.message}`),
+    onError: (err: Error) => setSaveNotice({ kind: "err", text: `Save failed: ${err.message}` }),
   });
 
   const activateMutation = useMutation({
     mutationFn: (versionNo: number) => activateAcceptanceVersion(supplierId, versionNo),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ["acceptance-profile", supplierId] });
-      setSaveNotice("Version activated.");
+      setSaveNotice({ kind: "ok", text: "Version activated." });
       setTimeout(() => setSaveNotice(null), 3000);
     },
-    onError: (err: Error) => setSaveNotice(`Activate failed: ${err.message}`),
+    onError: (err: Error) => setSaveNotice({ kind: "err", text: `Activate failed: ${err.message}` }),
   });
 
   // Derive the edit rules — start from live profile when first opening the editor
@@ -475,13 +478,24 @@ function AcceptanceTab({ supplierId }: { supplierId: string }) {
 
   return (
     <div className="flex flex-col gap-4">
-      {/* Notice */}
-      {saveNotice && (
+      {/* Notice. Custom rules are plan-gated on BOTH save and activate
+          (`custom_supplier_rules_requires_enterprise`), so a refusal becomes the upsell;
+          every other failure is red, and only a real success is green. */}
+      {saveNotice && saveNotice.kind === "err" && isPlanGate(saveNotice.text) && (
+        <PlanGateNotice error={saveNotice.text} capability="Custom supplier validation rules" />
+      )}
+
+      {saveNotice && !(saveNotice.kind === "err" && isPlanGate(saveNotice.text)) && (
         <div
+          role="status"
           className="rounded-[7px] px-3 py-2 text-[12.5px]"
-          style={{ background: "#ECFDF3", border: "1px solid #A6E9BE", color: "#1E6D29" }}
+          style={
+            saveNotice.kind === "ok"
+              ? { background: "#ECFDF3", border: "1px solid #A6E9BE", color: "#1E6D29" }
+              : { background: "#FBE3E3", border: "1px solid #F5B8B8", color: "#B43838" }
+          }
         >
-          {saveNotice}
+          {saveNotice.text}
         </div>
       )}
 
