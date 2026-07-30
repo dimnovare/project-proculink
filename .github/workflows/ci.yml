@@ -46,6 +46,41 @@ jobs:
       - name: Build
         run: bun run build
 
+  test-unit:
+    name: Unit tests + lint + conformance gates
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      # Each gate runs as its own step so a failure names itself in the checks UI.
+      # `if: always()` keeps the later gates running after an earlier one fails, so one
+      # push reports every problem instead of only the first.
+      - name: Unit tests (vitest)
+        run: bun run test
+
+      - name: Lint (eslint)
+        if: always()
+        run: bun run lint
+
+      - name: PageShell conformance
+        if: always()
+        run: bun run check:pageshell --strict
+
+      - name: Vocabulary gate
+        if: always()
+        run: bun run lint:vocab
+
   test-e2e:
     name: Playwright e2e (mock mode)
     runs-on: ubuntu-latest
