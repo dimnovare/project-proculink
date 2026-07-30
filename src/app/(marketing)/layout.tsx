@@ -65,7 +65,7 @@ export default function MarketingLayout({
           >
             <span>{COPYRIGHT_NOTICE}</span>
             <span className="flex items-center gap-3">
-              <span>EU data residency</span><span>·</span><span>AES-GCM at rest</span>
+              <a href="/security" style={{ color: "inherit", textDecoration: "none" }}>EU-region order storage</a><span>·</span><span>AES-GCM at rest</span>
             </span>
           </div>
         </div>
