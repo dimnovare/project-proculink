@@ -46,6 +46,54 @@ jobs:
       - name: Build
         run: bun run build
 
+  test-unit:
+    name: Unit tests + lint + conformance gates
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      # The workflow-level NEXT_PUBLIC_USE_MOCK=true exists for `build` and the Playwright
+      # e2e job, which drive the app against the in-memory mock API. vitest must NOT inherit
+      # it: several suites (src/lib/admin-guard.test.ts, src/lib/assignSupplier.test.ts) stub
+      # fetch and assert the REAL api-client's HTTP behaviour — status codes, error bodies,
+      # request shape. Under mock mode those calls are answered by mockAssignSupplier and the
+      # mock admin guard instead, and 9 assertions fail for a reason that has nothing to do
+      # with the code under test.
+      #
+      # `false` is what the committed .env sets, so CI now runs vitest exactly as a developer
+      # does. Coverage of the MOCK path is WP-05's job (the mock/real parity harness), not an
+      # accident of which env block a job happens to inherit.
+      NEXT_PUBLIC_USE_MOCK: 'false'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      # Each gate runs as its own step so a failure names itself in the checks UI.
+      # `if: always()` keeps the later gates running after an earlier one fails, so one
+      # push reports every problem instead of only the first.
+      - name: Unit tests (vitest)
+        run: bun run test
+
+      - name: Lint (eslint)
+        if: always()
+        run: bun run lint
+
+      - name: PageShell conformance
+        if: always()
+        run: bun run check:pageshell --strict
+
+      - name: Vocabulary gate
+        if: always()
+        run: bun run lint:vocab
+
   test-e2e:
     name: Playwright e2e (mock mode)
     runs-on: ubuntu-latest

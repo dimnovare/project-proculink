@@ -196,11 +196,15 @@ const FEATURES: Array<{
 //   Inbound  = import formats available today (live + configurable)
 //   Outbound = output formats that are LIVE (EDIFACT onRequest is excluded)
 //   Channels = delivery methods available today (live + configurable)
-const STATS = [
+// "Data residency" is a claim, not a count, so it carries a link to the page
+// that qualifies it: order storage is EU-region, but named US subprocessors
+// handle sign-in, AI extraction, inbound email and payments under SCCs. The
+// stat may only stay on the page while that explanation is one click away.
+const STATS: Array<{ value: string; label: string; href?: string }> = [
   { value: String(INBOUND_FORMAT_COUNT),   label: "Inbound formats"    },
   { value: String(OUTBOUND_FORMAT_COUNT),  label: "Outbound formats"   },
   { value: String(DELIVERY_CHANNEL_COUNT), label: "Delivery channels"  },
-  { value: "EU",                           label: "Data residency"     },
+  { value: "EU", label: "Data residency", href: "/security" },
 ];
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
@@ -475,25 +479,40 @@ export default function RootPage() {
           className="grid w-full grid-cols-2 divide-x divide-y divide-[#E2E6EE] sm:grid-cols-4 sm:divide-y-0"
           style={{ maxWidth: 1180, textAlign: "center" }}
         >
-          {STATS.map((s, i) => (
-            <div key={i} style={{ padding: "26px 24px" }}>
-              <div
-                style={{
-                  fontFamily: "'Bricolage Grotesque', Inter, sans-serif",
-                  fontSize: 30,
-                  fontWeight: 600,
-                  letterSpacing: "-0.03em",
-                  color: INK,
-                  lineHeight: 1,
-                }}
+          {STATS.map((s, i) => {
+            const inner = (
+              <>
+                <div
+                  style={{
+                    fontFamily: "'Bricolage Grotesque', Inter, sans-serif",
+                    fontSize: 30,
+                    fontWeight: 600,
+                    letterSpacing: "-0.03em",
+                    color: INK,
+                    lineHeight: 1,
+                  }}
+                >
+                  {s.value}
+                </div>
+                <div style={{ fontSize: 12, color: INK_MUTED, marginTop: 4 }}>
+                  {s.label}
+                </div>
+              </>
+            );
+            return s.href ? (
+              <Link
+                key={i}
+                href={s.href}
+                style={{ display: "block", padding: "26px 24px", textDecoration: "none" }}
               >
-                {s.value}
+                {inner}
+              </Link>
+            ) : (
+              <div key={i} style={{ padding: "26px 24px" }}>
+                {inner}
               </div>
-              <div style={{ fontSize: 12, color: INK_MUTED, marginTop: 4 }}>
-                {s.label}
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </section>
 
@@ -937,7 +956,7 @@ export default function RootPage() {
           </div>
           <div className="flex flex-wrap items-center justify-between gap-3 mt-12" style={{ borderTop: "1px solid #1B2D49", padding: "18px 0 28px", fontSize: 12 }}>
             <span>{COPYRIGHT_NOTICE}</span>
-            <span className="flex items-center gap-3"><span>EU data residency</span><span>·</span><span>AES-GCM at rest</span></span>
+            <span className="flex items-center gap-3"><Link href="/security" style={{ color: "inherit", textDecoration: "none" }}>EU-region order storage</Link><span>·</span><span>AES-GCM at rest</span></span>
           </div>
         </div>
       </footer>
