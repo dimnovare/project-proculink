@@ -297,7 +297,7 @@ export function HistoryContent(props: HistoryContentProps) {
       </section>
 
       {/* ── Replay (impact preview) — reused verbatim ────────────── */}
-      <section aria-label="Replay">
+      <section aria-label="Test with recent orders">
         <ReplayPanel
           connectionId={connectionId}
           revisions={revisions}

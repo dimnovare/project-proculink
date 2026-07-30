@@ -82,10 +82,10 @@ describe("BridgeTopbar context row — no second navbar under the primary nav", 
     expect(hiddenAtDesktop(row!)).toBe(true);
   });
 
-  it("keeps the Dashboard label in the row for the < md band (no primary nav there)", () => {
+  it("keeps the Overview label in the row for the < md band (no primary nav there)", () => {
     render(<BridgeTopbar />);
     // Both the sm+ breadcrumb and the mobile page label still name the page.
-    expect(screen.getAllByText("Dashboard").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Overview").length).toBeGreaterThan(0);
   });
 
   it("hides the row at md+ on Inbox (same lone-crumb shape)", () => {

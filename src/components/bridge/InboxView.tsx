@@ -80,17 +80,17 @@ const INK        = NAVY;      // alias kept for existing references
 // src/components/bridge/UnifiedStatusBadge.tsx (STATUS_META), which keys on raw
 // backend OrderStatus rather than the collapsed CrossingStatus used here — keep
 // the label vocabulary in sync until then.
-//   - `ready`      → "Normalized": parsed/normalized but NOT yet transformed
-//                    (Parse→Normalize→Validate→[Transform]→Deliver, stage 3).
-//                    Deliberately NOT "Ready"/"Ready to send" so a row badge can't be
-//                    misread next to the "Ready to send" chip (which counts the
-//                    post-transform `ready_to_deliver` status only).
+//   - `ready`      → "Ready to send": every check passed, nothing queued yet
+//                    (Parse→Normalize→Validate→[Transform]→Deliver, stage 3). It is
+//                    the HUMAN's turn. (WP-25 / DESIGN-DB-1 §6.4 row 57.)
 //   - `delivering` → carries the post-transform backend `ready_to_deliver` status
-//                    (see mapStatus) and is labelled "Ready to send" — identical
-//                    vocabulary to the "Ready to send" chip, so badge and chip agree.
+//                    (see mapStatus): the output file is built and the send is
+//                    pending — OUR turn. Labelled "Queued to send", the same words
+//                    as the chip that filters `ready_to_deliver`, so badge and chip
+//                    can never disagree (the regression this comment guards).
 //   - `sending`    → carries the backend `delivering` status: claimed by the Worker
 //                    and in flight right now. Labelled "Sending" to match
-//                    STATUS_META.delivering, and NOT "Ready to send" (it is past
+//                    STATUS_META.delivering, and NOT "Queued to send" (it is past
 //                    that) nor "Delivered" (the supplier does not have it yet).
 // `stage: null` = "no single stage": the collapsed `failed` slot folds five raw
 // failure statuses that failed at DIFFERENT nodes, so its journey stage must be
@@ -104,12 +104,16 @@ export const STATUS_PRESENTATION: Record<
   extracting: { key: "extracting", label: "Extracting",     stage: 1 },
   unrouted:   { key: "unrouted",   label: "Needs supplier", stage: 1 },
   review:     { key: "review",     label: "Needs review",   stage: 2 },
-  ready:      { key: "ready",      label: "Normalized",     stage: 3 },
+  ready:      { key: "ready",      label: "Ready to send",  stage: 3 },
   sent:       { key: "sent",       label: "Delivered",      stage: 4 },
-  delivering: { key: "delivering", label: "Ready to send",  stage: 4 },
+  delivering: { key: "delivering", label: "Queued to send", stage: 4 },
   sending:    { key: "sending",    label: "Sending",        stage: 4 },
   held:       { key: "held",       label: "Delivery paused", stage: 4 },
   unconfirmed: { key: "unconfirmed", label: "Delivery unknown", stage: 4 },
+  // The collapsed failure slot folds five raw statuses that failed at different
+  // stages, so it cannot name any one of them ("Couldn't read file" would be a
+  // lie on a rejected order). It stays "Failed" — plain English, and the SAME
+  // word as the chip that filters it, so chip and row can never disagree.
   failed:     { key: "failed",     label: "Failed",         stage: null },
 };
 
@@ -413,11 +417,13 @@ function sumStatuses(
 // `api` is the backend OrderStatus passed to the live ?status= query param.
 // Each chip's `status` (mock client-side CrossingStatus filter) and `api`
 // (live ?status= OrderStatus) must resolve to the rows its label promises.
-// "Ready to send" filters the backend `ready_to_deliver` status — which mapStatus
-// now folds into the `delivering` CrossingStatus slot (labelled "Ready to send"),
-// NOT the `ready` slot (labelled "Normalized" — parsed/normalized, pre-transform).
-// Using "ready" here would make the chip filter rows that no longer match its
-// label. (summaryKeys / api are unchanged: counts still roll up ready_to_deliver.)
+// "Queued to send" filters the backend `ready_to_deliver` status — which mapStatus
+// folds into the `delivering` CrossingStatus slot (labelled "Queued to send"), NOT
+// the `ready` slot (labelled "Ready to send" — checks passed, pre-transform, the
+// human's turn). The chip is named after the status it actually filters, so its
+// count and the row badges always say the same thing; naming it "Ready to send"
+// while it filters `ready_to_deliver` is the exact regression the code warns about
+// twice. (summaryKeys / api unchanged: counts still roll up ready_to_deliver.)
 // Failure handling is bucketed client-side over all failure statuses (see
 // matchesChip) because the red "Failed" pill collapses five backend statuses;
 // the live `api: "failed"` value is the closest single server filter (the
@@ -435,7 +441,7 @@ const FILTER_CHIPS: Array<{
 }> = [
   { label: "All orders" },
   { label: "Needs review",  status: "review", api: "pending_review",   summaryKeys: ["pending_review"]   },
-  { label: "Ready to send", status: "delivering", api: "ready_to_deliver", summaryKeys: ["ready_to_deliver"] },
+  { label: "Queued to send", status: "delivering", api: "ready_to_deliver", summaryKeys: ["ready_to_deliver"] },
   { label: "Delivered",     status: "sent",   api: "delivered",        summaryKeys: ["delivered"]        },
   { label: "Failed",        status: "failed", api: "failed",           summaryKeys: FAILED_BUCKET        },
 ];
@@ -1123,7 +1129,7 @@ export function InboxView() {
           actions stay as a compact row. */}
       <PageHeader
           titleHidden
-          title="Inbox"
+          title="Orders"
           /* Header summary = the live "what needs me?" line. The total order count
              is shown ONCE, in the footer next to pagination — not duplicated here. */
           sub={

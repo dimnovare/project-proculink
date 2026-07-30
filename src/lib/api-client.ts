@@ -2368,7 +2368,7 @@ export async function getPoMappingTemplates(): Promise<StarterTemplate[]> {
         id: "erply",
         erp: "Erply",
         name: "Erply PO starter",
-        description: "Maps Erply getPurchaseDocuments CSV export columns to ProcuLink canonical fields. Verify column names against your actual export before saving.",
+        description: "Maps Erply getPurchaseDocuments CSV export columns to ProcuLink fields. Verify column names against your actual export before saving.",
         config: {
           hasHeaderRecord: true,
           separator: ",",
@@ -2391,7 +2391,7 @@ export async function getPoMappingTemplates(): Promise<StarterTemplate[]> {
         id: "directo",
         erp: "Directo",
         name: "Directo PO starter",
-        description: "Maps Directo REST API CSV export columns to ProcuLink canonical fields. Verify column names against your actual export before saving.",
+        description: "Maps Directo REST API CSV export columns to ProcuLink fields. Verify column names against your actual export before saving.",
         config: {
           hasHeaderRecord: true,
           separator: ",",

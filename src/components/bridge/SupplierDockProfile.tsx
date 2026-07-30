@@ -103,16 +103,25 @@ function deriveCode(name: string): string {
   return words.map(w => w[0]).join("").toUpperCase().slice(0, 4);
 }
 
+// WP-25 (DESIGN-DB-1 §6.2): the tab IDs are code and are UNCHANGED, so every
+// existing `?tab=` deep link (checklist CTAs, help slideover, onboarding) still
+// resolves to the same panel. Only the words moved:
+//   mappings   → "Item codes"    (a buyer-code → supplier-code lookup)
+//   po-mapping → "Order layout"  (which column holds which field)
+//   acceptance → "Rules"         ("validation" is ours, not theirs)
+//   history    → "Changes"       ("History" read as PAST ORDERS, which is what
+//                                 Overview's recent-orders list already is; this
+//                                 tab is the version history of the SETUP)
 const TABS: Array<{ id: Tab; label: string }> = [
-  { id: "overview",    label: "Overview"          },
-  { id: "mappings",    label: "Mappings"          },
-  { id: "catalog",     label: "Catalog"           },
-  { id: "po-mapping",  label: "PO Mapping"        },
-  { id: "delivery",    label: "Delivery"          },
-  { id: "acceptance",  label: "Validation rules"  },
+  { id: "overview",    label: "Overview"     },
+  { id: "mappings",    label: "Item codes"   },
+  { id: "catalog",     label: "Catalog"      },
+  { id: "po-mapping",  label: "Order layout" },
+  { id: "delivery",    label: "Delivery"     },
+  { id: "acceptance",  label: "Rules"        },
   // STRUCT-1: the versioned-connection history view (was the standalone
   // /connections page; that route still resolves) now lives as a supplier tab.
-  { id: "history",     label: "History"           },
+  { id: "history",     label: "Changes"      },
 ];
 
 // Module-scope so useTabParamSync's effect deps stay referentially stable.
@@ -228,7 +237,7 @@ function SupplierRuleBindingsPanel({ supplierId }: { supplierId: string }) {
       <div className="flex items-center justify-between gap-2 px-5 py-3" style={{ borderBottom: `1px solid ${LINE}` }}>
         <div className="flex items-center gap-2">
           <Link2 size={14} strokeWidth={2} color={MUTED} />
-          <span className="text-[13px] font-semibold" style={{ color: INK }}>Active rule bindings</span>
+          <span className="text-[13px] font-semibold" style={{ color: INK }}>Rules in use</span>
           {!showLoading && !isError && (
             <span className="text-[11.5px]" style={{ color: FAINT }}>{bindings.length}</span>
           )}
@@ -237,12 +246,12 @@ function SupplierRuleBindingsPanel({ supplierId }: { supplierId: string }) {
       </div>
 
       {showLoading && (
-        <div className="px-5 py-6 text-[12.5px]" style={{ color: FAINT }}>Loading rule bindings…</div>
+        <div className="px-5 py-6 text-[12.5px]" style={{ color: FAINT }}>Loading rules…</div>
       )}
 
       {!showLoading && isError && (
         <div className="flex items-center justify-between gap-3 px-5 py-5">
-          <span className="text-[12.5px]" style={{ color: DANGER }}>Couldn&apos;t load rule bindings.</span>
+          <span className="text-[12.5px]" style={{ color: DANGER }}>Couldn&apos;t load these rules.</span>
           <button
             type="button"
             onClick={() => refetch()}
@@ -257,7 +266,7 @@ function SupplierRuleBindingsPanel({ supplierId }: { supplierId: string }) {
       {/* count 0 is normal — clean empty state, not an error. */}
       {!showLoading && !isError && bindings.length === 0 && (
         <p className="px-5 py-6 text-[12.5px]" style={{ color: MUTED }}>
-          No active rule bindings for this supplier. Add and activate rules above to bind them here — each binding shows the standard it maps to.
+          No rules are in use for this supplier yet. Add and switch on a rule above and it appears here, with the standard it maps to.
         </p>
       )}
 
@@ -1098,7 +1107,7 @@ function CatalogPushCard({ supplierId }: { supplierId: string }) {
       <div style={{ padding: "11px 14px", borderBottom: "1px solid #E5E8EE", background: "#F6F7FA" }}>
         <div style={{ fontSize: 13, fontWeight: 600, color: INK }}>Push from your system</div>
         <div style={{ fontSize: 11.5, color: MUTED, marginTop: 2 }}>
-          POST a CSV or XLSX to this endpoint with your API key — products upsert by code.
+          POST a CSV or XLSX to this URL with your API key. Re-sending a product code updates that product instead of adding a duplicate.
         </div>
       </div>
       <div style={{ padding: 14, display: "grid", gap: 10 }}>
@@ -1427,13 +1436,13 @@ export function SupplierDockProfile({ id }: { id: string }) {
                 ? [
                     { label: "Total orders",    value: DEMO_MOCK.totalOrders.toLocaleString(), sub: "all time",        subAccent: false },
                     { label: "Avg cycle time",  value: DEMO_MOCK.avgCycle,                     sub: "−14% vs prev",     subAccent: true  },
-                    { label: "Exception rate",  value: DEMO_MOCK.exceptionRate,                sub: "within target",    subAccent: true  },
+                    { label: "Issue rate",  value: DEMO_MOCK.exceptionRate,                sub: "within target",    subAccent: true  },
                     { label: "Acceptance",      value: `${DEMO_MOCK.health}%`,                 sub: "last 30 days",     subAccent: true  },
                   ]
                 : [
                     { label: "Total orders",    value: "—", sub: "no data yet", subAccent: false },
                     { label: "Avg cycle time",  value: "—", sub: "no data yet", subAccent: false },
-                    { label: "Exception rate",  value: "—", sub: "no data yet", subAccent: false },
+                    { label: "Issue rate",  value: "—", sub: "no data yet", subAccent: false },
                     { label: "Acceptance",      value: "—", sub: "no data yet", subAccent: false },
                   ]
               ).map(({ label, value, sub, subAccent }) => (
@@ -1472,7 +1481,7 @@ export function SupplierDockProfile({ id }: { id: string }) {
                       ["Delivery channel",  DEMO_MOCK.summary.deliveryChannel,  true ],
                       ["Endpoint",          DEMO_MOCK.summary.endpoint,         true ],
                       ["Standards profile", DEMO_MOCK.summary.standardsProfile, true ],
-                      ["Saved SKU mappings", DEMO_MOCK.summary.savedMappings.toLocaleString(), false],
+                      ["Code translations",  DEMO_MOCK.summary.savedMappings.toLocaleString(), false],
                       ["Last delivery",     DEMO_MOCK.summary.lastDelivery,     false],
                     ] as Array<[string, string, boolean]>).map(([k, v, mono], i, arr) => (
                       <div
@@ -1546,7 +1555,7 @@ export function SupplierDockProfile({ id }: { id: string }) {
             <div className="flex flex-col items-start gap-3 px-4 py-4 sm:px-5 sm:flex-row sm:items-center" style={{ borderBottom: `1px solid ${LINE}` }}>
               <Link2 size={17} strokeWidth={2} color={MUTED} className="flex-shrink-0" />
               <div className="min-w-0">
-                <h3 className="text-[14px] font-semibold" style={{ color: INK }}>Saved SKU mappings</h3>
+                <h3 className="text-[14px] font-semibold" style={{ color: INK }}>Code translations</h3>
                 <p className="mt-0.5 text-[12px]" style={{ color: MUTED }}>
                   {isApiMockMode ? `${DEMO_MOCK.summary.savedMappings.toLocaleString()} buyer → supplier item codes` : "Buyer → supplier item codes"}
                 </p>
@@ -1641,16 +1650,17 @@ export function SupplierDockProfile({ id }: { id: string }) {
 
         {tab === "po-mapping" && (
           <>
-          {/* Sub-label: distinguishes "PO Mapping" (column → field layout of the
-              order file) from the "Mappings" tab (per-SKU code lookups). */}
+          {/* Sub-label for the "Order layout" tab (column → field layout of the
+              order file). It no longer has to point at the Item codes tab: the two
+              tabs are now named for the different things they do, so the apology
+              this copy used to carry (a pointer to the other tab) is gone. */}
           <div className="mb-3 flex items-start gap-2.5">
             <GitBranch size={16} strokeWidth={2} color={MUTED} className="mt-0.5 flex-shrink-0" />
             <div className="min-w-0">
-              <h3 className="text-[14px] font-semibold" style={{ color: INK }}>Order file layout</h3>
+              <h3 className="text-[14px] font-semibold" style={{ color: INK }}>Order layout</h3>
               <p className="mt-0.5 text-[12px]" style={{ color: MUTED }}>
                 Tell ProcuLink how to read this {partyNounLower}&apos;s order files — e.g. if column A is the PO number
                 and column C is quantity, connect each one. Set this up after uploading a sample order.
-                For per-item code translations, use the Mappings tab instead.
               </p>
             </div>
           </div>
@@ -1763,7 +1773,7 @@ function SrcChip({ type }: { type: string }) {
 /* -------- MiniStatusPill — compact status badge for the recent-deliveries list -------- */
 /* Uses the ported .pill / .pill-* classes so colours match the design StatusPill exactly.
    Labels come from the canonical statusLabel() map (UnifiedStatusBadge) so this pill
-   never drifts from the unified vocabulary (e.g. ready → "Normalized", sent → "Delivered"). */
+   never drifts from the unified vocabulary (e.g. ready → "Ready to send", sent → "Delivered"). */
 function MiniStatusPill({ status }: { status: "review" | "ready" | "sent" }) {
   const PILL_CLS: Record<string, string> = {
     review: "pill-review",

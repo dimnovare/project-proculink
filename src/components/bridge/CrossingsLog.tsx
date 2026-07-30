@@ -447,7 +447,7 @@ export function CrossingsLog() {
           Export action stays. */}
       <PageHeader
         titleHidden
-        title="Delivery log"
+        title="Deliveries"
         actions={
           /* Export log button — canonical: secondary */
           <button

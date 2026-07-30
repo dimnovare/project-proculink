@@ -115,18 +115,18 @@ export function ReplayPanel({
     errorKind === "validation" && replay.error instanceof ApiHttpError
       ? replay.error.message
       : errorKind === "network"
-        ? "Couldn't reach the server to run this replay. Check your connection and try again."
+        ? "Couldn't reach the server to run this test. Check your connection and try again."
         : null;
 
   const canRun = !!effectiveRevisionId && !replay.isPending;
 
   return (
-    <Card edge="blue" title="Replay & impact preview" sub="Test a version against recent orders before you make it live — nothing is delivered or saved">
+    <Card edge="blue" title="Test with recent orders" sub="Test a version against recent orders before you make it live — nothing is delivered or saved">
       {/* ── Controls ─────────────────────────────────────────────────── */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:flex-wrap">
         <div className="flex flex-col gap-1.5">
           <label htmlFor="replay-revision" className="text-[11.5px] font-medium" style={{ color: "var(--ink-muted)" }}>
-            Revision to test
+            Version to test
           </label>
           <select
             id="replay-revision"
@@ -151,7 +151,7 @@ export function ReplayPanel({
 
         <div className="flex flex-col gap-1.5">
           <label htmlFor="replay-limit" className="text-[11.5px] font-medium" style={{ color: "var(--ink-muted)" }}>
-            Recent orders to replay
+            How many recent orders
           </label>
           <input
             id="replay-limit"
@@ -224,7 +224,7 @@ export function ReplayPanel({
 
       {/* ── Loading ──────────────────────────────────────────────────── */}
       {replay.isPending && (
-        <div className="mt-4 flex flex-col gap-2" aria-busy="true" aria-label="Replaying orders">
+        <div className="mt-4 flex flex-col gap-2" aria-busy="true" aria-label="Testing recent orders">
           {[1, 2, 3].map((i) => (
             <div key={i} className="rounded-[8px] animate-pulse" style={{ height: 56, background: "var(--border)" }} />
           ))}
@@ -240,7 +240,7 @@ export function ReplayPanel({
               style={{ border: "1px dashed var(--border)", background: "var(--bg)" }}
             >
               <p className="text-[13px] font-semibold m-0" style={{ color: "var(--ink)" }}>
-                No recent orders to replay
+                No recent orders to test against
               </p>
               <p className="text-[12px] mt-1 m-0" style={{ color: "var(--ink-muted)" }}>
                 This supplier has no orders in history yet. Once orders flow through, you can vet a draft against them
@@ -267,7 +267,7 @@ export function ReplayPanel({
       {/* ── Idle hint (before first run) ─────────────────────────────── */}
       {!replay.isPending && !result && !errorMessage && (
         <p className="mt-4 text-[12.5px] leading-[1.55]" style={{ color: "var(--ink-muted)" }}>
-          Run a replay to preview exactly which past orders this revision would change — and, critically, which orders
+          Run a test to preview exactly which past orders this version would change — and, critically, which orders
           would <strong>start failing validation</strong> if you published it.
         </p>
       )}
@@ -451,7 +451,7 @@ function OutputDiff({ current, draft }: { current: string | null; draft: string 
   return (
     <div className="grid gap-2 sm:grid-cols-2">
       <DiffColumn label="Current (live)" lines={rows.map((r) => ({ text: r.c, changed: r.changed }))} side="current" empty={current == null} />
-      <DiffColumn label="This revision" lines={rows.map((r) => ({ text: r.d, changed: r.changed }))} side="draft" empty={draft == null} />
+      <DiffColumn label="This version" lines={rows.map((r) => ({ text: r.d, changed: r.changed }))} side="draft" empty={draft == null} />
     </div>
   );
 }

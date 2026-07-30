@@ -79,7 +79,7 @@ export const SUBPROCESSORS: Subprocessor[] = [
   },
   {
     name: "Cloudflare",
-    purpose: "R2 object storage (order files and generated artifacts) and DNS",
+    purpose: "R2 object storage (order files and the output files we generate) and DNS",
     location: "EU-region bucket",
     contract: "Cloudflare DPA",
   },

@@ -27,12 +27,14 @@ import {
    table, connections list) opt in with `icon`; everywhere else keeps the
    dot, pixel-unchanged.
 
-   IMPORTANT vocabulary fix:
-     ready             → "Normalized"        (parsed/validated, nothing to send yet)
-     ready_to_deliver  → "Ready to send"     (artifact generated, awaiting delivery)
-   These were previously both labeled "Ready", which made the
-   "Ready to send" filter chip read 0 while rows said "Ready".
-   Kept in sync with InboxView's status presentation map.
+   IMPORTANT vocabulary rule (WP-25, DESIGN-DB-1 §6.4 rows 57-58):
+     ready             → "Ready to send"     (checks passed; the HUMAN's turn)
+     ready_to_deliver  → "Queued to send"    (output file built; OUR turn)
+   The two labels must stay DISTINCT. They were once both "Ready", which made
+   the inbox filter chip read 0 while rows said "Ready"; and the chip's label
+   must always name the status it actually filters (`ready_to_deliver`), which
+   is why the chip reads "Queued to send" too. Kept in sync with InboxView's
+   STATUS_PRESENTATION and FILTER_CHIPS.
 
    Tones map to the canonical semantic tokens:
      success  → brand-green (soft bg)
@@ -72,12 +74,15 @@ const STATUS_META: Record<string, StatusMeta> = {
   // ── Intake / processing ──────────────────────────────────────────────
   new: { label: "New", tone: "neutral" },
   uploaded: { label: "Uploaded", tone: "neutral" },
-  pending_parse: { label: "Queued", tone: "neutral" },
+  pending_parse: { label: "Waiting", tone: "neutral" },
   // `parsing` is labelled "Extracting" to match the inbox stage vocabulary
   // (InboxView STATUS_PRESENTATION) — one word for the extract stage app-wide.
   parsing: { label: "Extracting", tone: "info", pulse: true },
   extracting: { label: "Extracting", tone: "info", pulse: true },
-  normalizing: { label: "Normalizing", tone: "info", pulse: true },
+  // `normalizing` is an internal sub-step of extraction the user cannot act on,
+  // so it shows the same word as `parsing` rather than teaching a second one
+  // (DESIGN-DB-1 §6.4 row 61). The KEY is untouched — only the label merges.
+  normalizing: { label: "Extracting", tone: "info", pulse: true },
 
   // ── Needs human attention ────────────────────────────────────────────
   // `unrouted` = extracted, but no supplier resolved, so it waits for one. Warning, not
@@ -90,15 +95,16 @@ const STATUS_META: Record<string, StatusMeta> = {
   pending_review: { label: "Needs review", tone: "warning" },
 
   // ── Stable / pre-delivery — the load-bearing distinction ─────────────
-  // `ready` = parsed & validated, nothing queued to send yet → "Normalized"
-  // (NOT "Ready", which collided with the "Ready to send" chip).
-  ready: { label: "Normalized", tone: "success" },
-  // `ready_to_deliver` = artifact generated, awaiting delivery → "Ready to send".
-  ready_to_deliver: { label: "Ready to send", tone: "success" },
+  // `ready` = every check passed, nothing queued to send yet → the HUMAN's turn.
+  ready: { label: "Ready to send", tone: "success" },
+  // `ready_to_deliver` = output file built, delivery pending → OUR turn.
+  ready_to_deliver: { label: "Queued to send", tone: "success" },
 
   // ── Transform ────────────────────────────────────────────────────────
-  transforming: { label: "Transforming", tone: "info", pulse: true },
-  transformed: { label: "Transformed", tone: "success" },
+  transforming: { label: "Preparing output", tone: "info", pulse: true },
+  // `transformed` is the same user-visible situation as `ready_to_deliver`:
+  // the output file exists and the send is pending (DESIGN-DB-1 §6.4 row 63).
+  transformed: { label: "Queued to send", tone: "success" },
 
   // ── Delivery ─────────────────────────────────────────────────────────
   delivering: { label: "Sending", tone: "info", pulse: true },
@@ -120,16 +126,18 @@ const STATUS_META: Record<string, StatusMeta> = {
   delivery_unconfirmed: { label: "Delivery unknown", tone: "warning" },
 
   // ── Failures ─────────────────────────────────────────────────────────
-  failed: { label: "Failed", tone: "danger" },
-  parse_failed: { label: "Parse failed", tone: "danger" },
-  transform_failed: { label: "Transform failed", tone: "danger" },
-  delivery_failed: { label: "Delivery failed", tone: "danger" },
-  // "Dead-lettered" is engine vocabulary AND a banned word — it shipped on every
-  // inbox row. "Out of retries" is what it means, and it matches the health tile
-  // that already said it correctly.
-  delivery_dead_letter: { label: "Out of retries", tone: "danger" },
-  rejected: { label: "Rejected", tone: "danger" },
-  rejected_by_supplier: { label: "Rejected", tone: "danger" },
+  // Each label names WHAT could not be done, in the user's words, instead of the
+  // engine stage that threw (DESIGN-DB-1 §6.4 rows 70-75). `failed` is the
+  // parse-terminal status, so it reads the same as `parse_failed`.
+  failed: { label: "Couldn't read file", tone: "danger" },
+  parse_failed: { label: "Couldn't read file", tone: "danger" },
+  transform_failed: { label: "Couldn't build output", tone: "danger" },
+  delivery_failed: { label: "Couldn't send", tone: "danger" },
+  // The three automatic retries are spent; a human has to resend. "Retry needed"
+  // names the action, which "Dead-lettered" never did.
+  delivery_dead_letter: { label: "Retry needed", tone: "danger" },
+  rejected: { label: "Supplier rejected", tone: "danger" },
+  rejected_by_supplier: { label: "Supplier rejected", tone: "danger" },
 
   // ── Terminal / inactive ──────────────────────────────────────────────
   cancelled: { label: "Cancelled", tone: "neutral" },

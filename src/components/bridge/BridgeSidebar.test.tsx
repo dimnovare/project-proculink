@@ -3,8 +3,8 @@ import { render, screen, cleanup } from "@testing-library/react";
 
 // STRUCT-1 — nav-guard for the consolidated Claude Design v2 hub shell.
 //
-// The sidebar no longer lists every deep route; hub items (Partners,
-// Rules & formats, Operations, Integrations, Inbound) each link to their FIRST
+// The sidebar no longer lists every deep route; hub items (Suppliers,
+// Rules & formats, Activity, Integrations, Inbound) each link to their FIRST
 // tab route and light up for ANY route in their hub (hubForPath). This suite
 // guards:
 //   • the launch nav still surfaces NO /connections link (original STRUCT-1);
@@ -90,7 +90,7 @@ describe("BridgeSidebar — launch nav (STRUCT-1)", () => {
     expect(LAUNCH_CORE_ONLY).toBe(true);
   });
 
-  it("renders NO nav link to /connections (covered by the Partners hub instead)", () => {
+  it("renders NO nav link to /connections (covered by the Suppliers hub instead)", () => {
     const { container } = render(<BridgeSidebar />);
     expect(container.querySelector('a[href="/connections"]')).toBeNull();
     // And there's no "Connections" nav label either.
@@ -99,10 +99,10 @@ describe("BridgeSidebar — launch nav (STRUCT-1)", () => {
 
   it("renders the consolidated core entries with their hub first-tab hrefs", () => {
     render(<BridgeSidebar />);
-    expect(screen.getByRole("link", { name: /Dashboard/i })).toHaveAttribute("href", "/bridge");
-    expect(screen.getByRole("link", { name: /^Inbox/i })).toHaveAttribute("href", "/inbox");
-    expect(screen.getByRole("link", { name: /Partners/i })).toHaveAttribute("href", "/library/suppliers");
-    expect(screen.getByRole("link", { name: /^Operations/i })).toHaveAttribute("href", "/operations/health");
+    expect(screen.getByRole("link", { name: /Overview/i })).toHaveAttribute("href", "/bridge");
+    expect(screen.getByRole("link", { name: /^Orders/i })).toHaveAttribute("href", "/inbox");
+    expect(screen.getByRole("link", { name: /^Suppliers/i })).toHaveAttribute("href", "/library/suppliers");
+    expect(screen.getByRole("link", { name: /^Activity/i })).toHaveAttribute("href", "/operations/health");
     expect(screen.getByRole("link", { name: /Help & support/i })).toHaveAttribute("href", "/help");
     expect(screen.getByRole("link", { name: /Settings/i })).toHaveAttribute("href", "/settings");
     // Pinned primary action.
@@ -112,9 +112,9 @@ describe("BridgeSidebar — launch nav (STRUCT-1)", () => {
   it("surfaces all five announced hubs in the launch nav (core-mode hub first-tabs)", () => {
     render(<BridgeSidebar />);
     // The five hub words the sidebar teaches all render in core mode now.
-    expect(screen.getByRole("link", { name: /Partners/i })).toBeTruthy();
+    expect(screen.getByRole("link", { name: /^Suppliers/i })).toBeTruthy();
     expect(screen.getByRole("link", { name: /Rules & formats/i })).toBeTruthy();
-    expect(screen.getByRole("link", { name: /^Operations/i })).toBeTruthy();
+    expect(screen.getByRole("link", { name: /^Activity/i })).toBeTruthy();
     expect(screen.getByRole("link", { name: /Integrations/i })).toBeTruthy();
   });
 
@@ -127,40 +127,41 @@ describe("BridgeSidebar — launch nav (STRUCT-1)", () => {
     expect(screen.queryByText("Admin")).toBeNull(); // non-admin probe (mocked undefined)
   });
 
-  it("lights the Operations hub item for a sibling tab route (/operations/exceptions)", () => {
+  it("lights the Activity hub item for a sibling tab route (/operations/exceptions)", () => {
     mockPath = "/operations/exceptions";
     render(<BridgeSidebar />);
-    expect(screen.getByRole("link", { name: /^Operations/i })).toHaveAttribute("aria-current", "page");
-    expect(screen.getByRole("link", { name: /Dashboard/i })).not.toHaveAttribute("aria-current");
+    expect(screen.getByRole("link", { name: /^Activity/i })).toHaveAttribute("aria-current", "page");
+    expect(screen.getByRole("link", { name: /Overview/i })).not.toHaveAttribute("aria-current");
   });
 
-  it("lights the Partners hub item for a supplier detail route", () => {
+  it("lights the Suppliers hub item for a supplier detail route", () => {
     mockPath = "/library/suppliers/1b2c3d4e";
     render(<BridgeSidebar />);
-    expect(screen.getByRole("link", { name: /Partners/i })).toHaveAttribute("aria-current", "page");
+    expect(screen.getByRole("link", { name: /^Suppliers/i })).toHaveAttribute("aria-current", "page");
   });
 });
 
 describe("buildVisibleNav — consolidated structure (full nav)", () => {
   it("produces the v2 grouped structure in order", () => {
     const nav = buildVisibleNav("Suppliers", true, FULL);
-    // The Operations GROUP header is displayed as "Monitor" (renamed so it no
-    // longer collides with the "Operations" ITEM below it); routes untouched.
+    // The GROUP header is displayed as "Monitor" (renamed back when the item
+    // below it was still called "Operations"); routes untouched. WP-25 renamed
+    // that ITEM to "Activity"; the group headers are retired by the IA packet.
     expect(nav.main.map((s) => s.group ?? null)).toEqual([null, "Workbench", "Library", "Monitor"]);
     expect(nav.main.map((s) => s.items.map((i) => i.label))).toEqual([
-      ["Dashboard"],
-      ["Inbox", "Inbound"],
-      ["Partners", "Rules & formats"],
-      ["Operations", "Integrations"],
+      ["Overview"],
+      ["Orders", "Inbound"],
+      ["Suppliers", "Rules & formats"],
+      ["Activity", "Integrations"],
     ]);
     expect(nav.tail.map((i) => i.label)).toEqual(["Admin", "Help & support", "Settings"]);
   });
 
   it("hub items link to their hub's FIRST tab route", () => {
     const byLabel = Object.fromEntries(allItems(buildVisibleNav("Suppliers", true, FULL)).map((i) => [i.label, i]));
-    expect(byLabel["Partners"].href).toBe("/library/suppliers");
+    expect(byLabel["Suppliers"].href).toBe("/library/suppliers");
     expect(byLabel["Rules & formats"].href).toBe("/library/mappings");
-    expect(byLabel["Operations"].href).toBe("/operations/health");
+    expect(byLabel["Activity"].href).toBe("/operations/health");
     expect(byLabel["Integrations"].href).toBe("/operations/connectors");
     expect(byLabel["Inbound"].href).toBe("/inbound/invoices");
     // …and each hub item's own href resolves back to its hub (no drift).
@@ -179,7 +180,7 @@ describe("buildVisibleNav — consolidated structure (full nav)", () => {
     }
   });
 
-  it("keeps the Inbox review badge wiring on the Inbox item", () => {
+  it("keeps the needs-review badge wiring on the Orders item", () => {
     const inbox = allItems(buildVisibleNav("Suppliers", true, FULL)).find((i) => i.href === "/inbox");
     expect(inbox?.badgeKey).toBe("review");
   });
@@ -205,14 +206,14 @@ describe("buildVisibleNav — consolidated structure (full nav)", () => {
 
   it("hub active-state covers every tab route of the hub (isItemActive)", () => {
     const items = allItems(buildVisibleNav("Suppliers", true, FULL));
-    const operations = items.find((i) => i.label === "Operations")!;
+    const operations = items.find((i) => i.label === "Activity")!;
     for (const p of ["/operations/health", "/operations/exceptions", "/operations/log"]) {
-      expect(isItemActive(p, operations), `${p} lights Operations`).toBe(true);
+      expect(isItemActive(p, operations), `${p} lights Activity`).toBe(true);
     }
     expect(isItemActive("/operations/connectors", operations)).toBe(false); // Integrations hub
-    const partners = items.find((i) => i.label === "Partners")!;
+    const partners = items.find((i) => i.label === "Suppliers")!;
     for (const p of ["/library/suppliers", "/library/buyers", "/connections", "/connections/abc"]) {
-      expect(isItemActive(p, partners), `${p} lights Partners`).toBe(true);
+      expect(isItemActive(p, partners), `${p} lights Suppliers`).toBe(true);
     }
     const rules = items.find((i) => i.label === "Rules & formats")!;
     for (const p of ["/library/mappings", "/library/standards"]) {
@@ -226,15 +227,16 @@ describe("hubTooltip — lists a hub's tabs (derived from HUB_TABS, can't drift)
     allItems(buildVisibleNav("Suppliers", true, FULL)).map((i) => [i.label, i]),
   );
   it("describes each hub with its tab labels", () => {
-    expect(hubTooltip(byLabel["Partners"])).toBe("Suppliers · Buyers · Connections");
-    expect(hubTooltip(byLabel["Rules & formats"])).toBe("Mappings · Standards");
-    expect(hubTooltip(byLabel["Operations"])).toBe("System health · Exceptions · Delivery log");
-    expect(hubTooltip(byLabel["Integrations"])).toBe("Connectors · Webhooks");
+    expect(hubTooltip(byLabel["Suppliers"])).toBe("Suppliers · Buyers · Connections");
+    // Two tabs, not four: FE #47 retired /library/rules and /library/templates.
+    expect(hubTooltip(byLabel["Rules & formats"])).toBe("Item codes · Format reference");
+    expect(hubTooltip(byLabel["Activity"])).toBe("System status · Issues · Deliveries");
+    expect(hubTooltip(byLabel["Integrations"])).toBe("Delivery channels · Webhooks");
     expect(hubTooltip(byLabel["Inbound"])).toBe("Invoices · Shipping notices");
   });
   it("returns undefined for non-hub items", () => {
-    expect(hubTooltip(byLabel["Dashboard"])).toBeUndefined();
-    expect(hubTooltip(byLabel["Inbox"])).toBeUndefined();
+    expect(hubTooltip(byLabel["Overview"])).toBeUndefined();
+    expect(hubTooltip(byLabel["Orders"])).toBeUndefined();
   });
 });
 
@@ -275,7 +277,7 @@ describe("buildVisibleNav — gates", () => {
     expect(items.some((i) => i.href.startsWith("/inbound"))).toBe(false);
   });
 
-  it("relabels the Partners entry to the counterparty word for inbound orgs (display only)", () => {
+  it("relabels the Suppliers entry to the counterparty word for inbound orgs (display only)", () => {
     const items = allItems(buildVisibleNav("Customers", true, FULL));
     const partners = items.find((i) => i.href === "/library/suppliers");
     expect(partners?.label).toBe("Customers");

@@ -68,9 +68,9 @@ describe("titleCaseSegment", () => {
 
 describe("formatCrumbLabel — static segments", () => {
   it("maps known segments to their vocabulary label", () => {
-    expect(formatCrumbLabel("inbox", 0, ["inbox"])).toBe("Inbox");
+    expect(formatCrumbLabel("inbox", 0, ["inbox"])).toBe("Orders");
     expect(formatCrumbLabel("connections", 0, ["connections"])).toBe("Connections");
-    expect(formatCrumbLabel("standards", 1, ["library", "standards"])).toBe("Standards");
+    expect(formatCrumbLabel("standards", 1, ["library", "standards"])).toBe("Format reference");
   });
 });
 
@@ -144,7 +144,7 @@ describe("buildCrumbTrail", () => {
   it("links every crumb except the last (current page has no href)", () => {
     const trail = buildCrumbTrail(`/inbox/${UUID}`, { orderPoNumber: "PO-2026-001" });
     expect(trail).toHaveLength(2);
-    expect(trail[0]).toEqual({ label: "Inbox", href: "/inbox" });
+    expect(trail[0]).toEqual({ label: "Orders", href: "/inbox" });
     expect(trail[1]).toEqual({ label: "PO-2026-001", href: null });
   });
 
@@ -177,8 +177,8 @@ describe("buildCrumbTrail — unlinked group-root heads (no index route → neve
 
   it("never links the /operations group-root crumb", () => {
     const trail = buildCrumbTrail("/operations/health", {});
-    expect(trail[0]).toEqual({ label: "Operations", href: null });
-    expect(trail[1].label).toBe("System health");
+    expect(trail[0]).toEqual({ label: "Activity", href: null });
+    expect(trail[1].label).toBe("System status");
   });
 
   it("never links the /inbound group-root crumb (Workbench head + unlinked Inbound)", () => {
@@ -207,13 +207,13 @@ describe("buildCrumbTrail — Workbench group head (v2 nav)", () => {
   });
 
   it("leaves /inbox bare — matches the design captures", () => {
-    expect(buildCrumbTrail("/inbox", {})).toEqual([{ label: "Inbox", href: null }]);
+    expect(buildCrumbTrail("/inbox", {})).toEqual([{ label: "Orders", href: null }]);
   });
 
   it("leaves Library/Operations trails untouched (already two-level)", () => {
     expect(buildCrumbTrail("/operations/exceptions", {}).map((c) => c.label)).toEqual([
-      "Operations",
-      "Exceptions",
+      "Activity",
+      "Issues",
     ]);
   });
 });

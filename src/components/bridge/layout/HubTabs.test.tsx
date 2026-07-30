@@ -7,7 +7,7 @@ import { HubTabs, HUB_TABS } from "./HubTabs";
 // org (relabeled "Customers" everywhere else) lost the only surface carrying
 // the correct word, most visibly on mobile where the hub strip is the sole page
 // label. HubTabs now accepts the direction-aware counterpartyPlural and applies
-// the SAME display-only relabel buildVisibleNav applies to the Partners item.
+// the SAME display-only relabel buildVisibleNav applies to the Suppliers item.
 
 vi.mock("next/navigation", () => ({
   usePathname: () => "/library/suppliers",
@@ -75,7 +75,7 @@ describe("HubTabs — a hub with nothing to switch to renders no strip", () => {
   test("still renders the strip at two tabs", () => {
     const { container } = render(<HubTabs hub="integrations" variant="topbar" />);
     expect(container.querySelector('nav[aria-label="Section"]')).not.toBeNull();
-    expect(screen.getByRole("link", { name: "Connectors" })).toBeTruthy();
+    expect(screen.getByRole("link", { name: "Delivery channels" })).toBeTruthy();
     expect(screen.getByRole("link", { name: "Webhooks" })).toBeTruthy();
   });
 });

@@ -81,7 +81,7 @@ const POSTURE: Array<{ title: string; body: React.ReactNode; icon: React.ReactNo
   },
   {
     title: "Responsible AI",
-    body: "Mapping suggestions never auto-apply without a confidence score and source. Your data is never used to train third-party models. Enterprise customers can opt into a self-hosted, no-egress mode where document extraction — including scanned-PDF OCR — runs entirely in your environment, with nothing sent to OpenAI.",
+    body: "Mapping suggestions never auto-apply without a confidence score and source. Your data is never used to train third-party models. Enterprise customers can opt into a self-hosted mode where document extraction — including scanned-PDF OCR — runs entirely in your environment: documents never leave your region, and nothing is sent to OpenAI.",
     icon: <ZapIcon />,
   },
 ];

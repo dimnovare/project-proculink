@@ -34,14 +34,21 @@ import { SftpPullSettings, S3PullSettings } from "@/components/settings/PullIngr
 
 type SettingsTab = "org" | "billing" | "email" | "sftp" | "s3" | "api" | "connectors";
 
+// WP-25 (DESIGN-DB-1 §6.3): the tab IDs are code and are UNCHANGED, so every
+// `?tab=` deep link (onboarding CTAs, help slideover, checklist) still opens the
+// same panel. Only the words moved:
+//   org        → "Workspace"                  (one of the nine nouns)
+//   billing    → "Plan & billing"             (the plan is what they came for)
+//   sftp/s3    → "… folder"                   ("pull" is our verb, not theirs)
+//   connectors → "Notifications"              (it sends events to other systems)
 const TABS: Array<{ id: SettingsTab; label: string; Icon: React.ElementType }> = [
-  { id: "org",        label: "Organization",    Icon: Building   },
-  { id: "billing",    label: "Billing & plan",  Icon: Euro       },
-  { id: "email",      label: "Email intake",    Icon: Mail       },
-  { id: "sftp",       label: "SFTP pull",       Icon: HardDrive  },
-  { id: "s3",         label: "S3 / R2 pull",    Icon: Database   },
-  { id: "api",        label: "API keys",        Icon: Key        },
-  { id: "connectors", label: "Connectors",      Icon: Plug       },
+  { id: "org",        label: "Workspace",                  Icon: Building   },
+  { id: "billing",    label: "Plan & billing",             Icon: Euro       },
+  { id: "email",      label: "Email intake",               Icon: Mail       },
+  { id: "sftp",       label: "SFTP folder",                Icon: HardDrive  },
+  { id: "s3",         label: "Cloud folder (S3 or R2)",    Icon: Database   },
+  { id: "api",        label: "API keys",                   Icon: Key        },
+  { id: "connectors", label: "Notifications",              Icon: Plug       },
 ];
 
 const PLAN_LABELS: Record<string, string> = {
@@ -948,7 +955,7 @@ function IngressEndpointRow({ slug }: { slug: string | undefined }) {
 
   return (
     <div style={{ border: "1px solid var(--border)", borderRadius: 8, background: "var(--surface-2)", padding: "14px 16px", marginBottom: 16 }}>
-      <p style={{ fontSize: 12.5, fontWeight: 600, color: "var(--ink)", margin: 0 }}>Your ingress endpoint</p>
+      <p style={{ fontSize: 12.5, fontWeight: 600, color: "var(--ink)", margin: 0 }}>Your order intake URL</p>
       <p style={{ fontSize: 11.5, color: "var(--ink-muted)", margin: "3px 0 10px", lineHeight: 1.5 }}>
         {/* The endpoint binds a JSON body (IngressController.CreateOrder takes
             [FromBody] IngressOrderRequest) — it does not accept a file upload.
@@ -1386,9 +1393,9 @@ function ConnectorsSection() {
               <Plug size={18} color="var(--ink-muted)" strokeWidth={1.75} />
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <p style={{ fontSize: 13.5, fontWeight: 600, color: "var(--ink)", margin: 0 }}>REST API &amp; webhooks</p>
+              <p style={{ fontSize: 13.5, fontWeight: 600, color: "var(--ink)", margin: 0 }}>API &amp; events</p>
               <p style={{ fontSize: 12, color: "var(--ink-muted)", lineHeight: 1.5, margin: "3px 0 0" }}>
-                Post orders to your ingress endpoint and receive real-time events at any URL — works with
+                Post orders to your order intake URL and receive real-time events at any URL — works with
                 Zapier, Make.com, n8n, or your own backend today. Create a key on the API keys tab, then add a
                 webhook below.
               </p>
@@ -1424,7 +1431,7 @@ function ConnectorsSection() {
           style={{ flexWrap: "wrap", marginBottom: 14, paddingTop: 4, borderTop: "1px solid var(--border)" }}
         >
           <div style={{ paddingTop: 14, minWidth: 0 }}>
-            <p style={{ fontSize: 14, fontWeight: 600, color: "var(--ink)", margin: 0 }}>Webhook subscriptions</p>
+            <p style={{ fontSize: 14, fontWeight: 600, color: "var(--ink)", margin: 0 }}>Where we send events</p>
             <p style={{ fontSize: 12.5, color: "var(--ink-muted)", marginTop: 3 }}>
               Receive ProcuLink events at any URL — Zapier, Make.com, or custom.
             </p>

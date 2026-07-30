@@ -92,7 +92,7 @@ export default function AsnsPage() {
           page ("Advance Shipping Notices" only re-announced it; sr-only h1 kept). */}
       <PageHeader
         titleHidden
-        title="Advance Shipping Notices"
+        title="Shipping notices"
         sub={isLoading && !isApiMockMode ? "Loading…" : `${asns.length} notice${asns.length !== 1 ? "s" : ""}`}
       />
 

@@ -13,29 +13,38 @@ import { getGuideBySlug } from "@/lib/guides";
 //     name) when available, and otherwise falls back to a sensible noun + short
 //     id — NEVER a bare full UUID (the founder-reported bug).
 
-/** Static segment → display label. Mirrors the nav vocabulary. */
+/**
+ * Static segment → display label. Mirrors the nav vocabulary, so the words a
+ * crumb prints are the words the sidebar and hub tabs print (HUB_TABS /
+ * HUB_LABELS / NAV_MAIN). The KEYS are route segments — code — and never change;
+ * only the labels do (WP-25 / DESIGN-DB-1 §6.1).
+ */
 export const CRUMB_LABELS: Record<string, string> = {
-  bridge: "Dashboard",
-  inbox: "Inbox",
+  bridge: "Overview",
+  inbox: "Orders",
   upload: "Upload",
   settings: "Settings",
   library: "Library",
   suppliers: "Suppliers",
   buyers: "Buyers",
-  mappings: "Mappings",
-  standards: "Standards",
-  operations: "Operations",
-  log: "Delivery log",
-  connectors: "Connectors",
+  mappings: "Item codes",
+  // NOTE: `rules` and `templates` are absent on purpose. FE #47 retired
+  // /library/rules and /library/templates behind permanent redirects, so no
+  // crumb is ever rendered for them (see src/lib/retired-routes.ts).
+  standards: "Format reference",
+  operations: "Activity",
+  log: "Deliveries",
+  connectors: "Delivery channels",
   connections: "Connections",
   webhooks: "Webhooks",
   admin: "Admin",
   help: "Help",
   inbound: "Inbound",
   invoices: "Invoices",
-  asns: "ASNs",
-  exceptions: "Exceptions",
-  health: "System health",
+  // "ASN" is trade jargon; the plain phrase is unambiguous (§6.1 #13).
+  asns: "Shipping notices",
+  exceptions: "Issues",
+  health: "System status",
 };
 
 /** Title-case an unmapped slug: "order-detail" → "Order Detail". */

@@ -1443,7 +1443,7 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
                   style={{ background: "#F0F7F1", border: "1px solid #CBE8CE" }}
                 >
                   <p className="m-0 min-w-0 flex-1 text-[12px] font-medium" style={{ color: "#1F6F2A" }}>
-                    Delivery config saved. Prove the connection with a test payload.
+                    Delivery settings saved. Prove the connection with a test send.
                   </p>
                   <button
                     type="button"

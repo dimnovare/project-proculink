@@ -86,8 +86,8 @@ describe("SupplierDockProfile — History tab (STRUCT-1)", () => {
     expect(screen.getByText("No versions yet")).toBeInTheDocument();
   });
 
-  it("registers a History tab in the tab strip", () => {
+  it("registers the setup-changes tab in the tab strip (labelled Changes)", () => {
     render(<SupplierDockProfile id="sup-1" />);
-    expect(screen.getByRole("button", { name: "History" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Changes" })).toBeInTheDocument();
   });
 });

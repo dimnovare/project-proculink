@@ -196,7 +196,7 @@ export function MappingEditor() {
           name (sr-only h1 kept); the live count/guidance line + actions stay. */}
       <PageHeader
         titleHidden
-        title="Mappings"
+        title="Item codes"
         sub={
           needsSupplierSelection ? (
             `Buyer item codes (like HX-4410) are auto-translated to each ${partyNounLower}'s codes (like ACM-PL-22) on every order — set them up once and skip manual lookups. Pick a ${partyNounLower} above to start.`

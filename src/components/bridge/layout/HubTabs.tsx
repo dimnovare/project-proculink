@@ -1,11 +1,16 @@
 "use client";
 
 // HubTabs — the Claude Design v2 hub-page tab bar ("pages on the upper bar").
-// Consolidation per FABLE5_BRIEF §3: Suppliers/Buyers/Connections → "Partners";
-// Mappings/Rules/Output templates/Standards → "Rules & formats";
-// System health/Exceptions/Delivery log → "Operations"; Connectors/Webhooks →
+// Consolidation per FABLE5_BRIEF §3: Suppliers/Buyers/Connections → "Suppliers";
+// Item codes/Rules/Output layouts/Format reference → "Rules & formats";
+// System status/Issues/Deliveries → "Activity"; Delivery channels/Webhooks →
 // "Integrations"; Invoices/Shipping notices → "Inbound". Deep routes stay valid —
 // each tab IS the existing route; this bar just links between siblings.
+//
+// The HubKey values and every `href` are CODE and are deliberately unchanged by
+// the WP-25 vocabulary pass: only the `label` a user reads moved. Renaming a key
+// or a route would break bookmarks, ?tab= aliases, help links and e2e paths for
+// zero user value (DESIGN-DB-1 §12.3).
 //
 // Visual: reference core.jsx underline tabs — 13px/600, active ink + 2px blue
 // underline, optional mono count badge ("Invoices · 4" reads as label + count).
@@ -30,9 +35,14 @@ interface HubTab {
  * HUB_TABS so labels and tabs can't drift.
  */
 export const HUB_LABELS: Record<HubKey, string> = {
-  partners: "Partners",
+  // WP-25 (DESIGN-DB-1 §6.1): "Partners" was a container word with no meaning of
+  // its own; this hub's href IS /library/suppliers and the direction relabel
+  // already rewrites it to the counterparty word, so it is named for what it is.
+  partners: "Suppliers",
   "rules-formats": "Rules & formats",
-  operations: "Operations",
+  // §6.1 #8: the three pages under it answer "what happened", not "how do I
+  // operate". Route keys are untouched.
+  operations: "Activity",
   integrations: "Integrations",
   inbound: "Inbound",
 };
@@ -44,20 +54,26 @@ export const HUB_TABS: Record<HubKey, HubTab[]> = {
     { label: "Connections", href: "/connections", match: ["/connections"] },
   ],
   "rules-formats": [
-    { label: "Mappings", href: "/library/mappings" },
-    // No "Rules" or "Output templates" tab: neither page could change what a
-    // supplier receives or whether an order passed. Both jobs are per-supplier
-    // (the Validation rules and Delivery tabs under Partners), so the hub no
-    // longer offers an org-wide version of them.
-    { label: "Standards", href: "/library/standards" },
+    // §6.1 #17: a buyer-code → supplier-code lookup table, so say so.
+    { label: "Item codes", href: "/library/mappings" },
+    // No "Rules" or "Output layouts" tab: FE #47 retired both pages because
+    // neither could change what a supplier receives or whether an order passed.
+    // Both jobs are per-supplier (the Rules and Delivery tabs under Suppliers),
+    // so the hub no longer offers an org-wide version of them.
+    // §6.1 #24: a read-only field↔standard matrix — a reference, not a concept.
+    { label: "Format reference", href: "/library/standards" },
   ],
   operations: [
-    { label: "System health", href: "/operations/health" },
-    { label: "Exceptions", href: "/operations/exceptions" },
-    { label: "Delivery log", href: "/operations/log" },
+    // §6.1 #25/#26/#27: status, not "health"; issues, not "exceptions"
+    // ("exception" is a programming word); deliveries, not a "log".
+    { label: "System status", href: "/operations/health" },
+    { label: "Issues", href: "/operations/exceptions" },
+    { label: "Deliveries", href: "/operations/log" },
   ],
   integrations: [
-    { label: "Connectors", href: "/operations/connectors" },
+    // §6.1 #28: a read-only grid of the channel TYPES derived from supplier
+    // delivery configs. Nothing is configured here, so it is not "Connectors".
+    { label: "Delivery channels", href: "/operations/connectors" },
     { label: "Webhooks", href: "/operations/webhooks" },
   ],
   inbound: [

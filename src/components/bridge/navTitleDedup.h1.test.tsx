@@ -9,8 +9,8 @@ import type { OrderSummary } from "@/types/procurement";
 // h1 (sr-only) so heading hierarchy and getByRole("heading") queries survive.
 //
 // This file renders a representative slice of the audited pages end-to-end:
-// Dashboard, Inbox, Suppliers, Connections, Delivery log, Operations health and
-// Standards. The remaining audited pages (buyers, mappings, exceptions,
+// Overview, Orders, Suppliers, Connections, Deliveries, System status and
+// Format reference. The remaining audited pages (buyers, mappings, exceptions,
 // connectors, webhooks, invoices, ASNs) run their h1 through the SAME
 // PageHeader `titleHidden` mechanism, whose contract — including the
 // kept-visible variant, which used to be demonstrated here by the now-retired
@@ -122,21 +122,21 @@ function expectSingleH1(text: string, opts: { visible?: boolean } = {}) {
 }
 
 describe("nav dedup — each audited page keeps exactly one h1", () => {
-  it("Dashboard: sr-only h1 + context line greeting", async () => {
+  it("Overview: sr-only h1 + context line greeting", async () => {
     renderPage(<BridgeDashboard />);
-    expectSingleH1("Dashboard");
+    expectSingleH1("Overview");
     // Context line greeting renders after mount (client-clock guard).
     expect(await screen.findByText(/^Good (morning|afternoon|evening), Dim$/)).toBeInTheDocument();
   });
 
-  it("Dashboard context line: 0 blockers reads All clear with no jump link", async () => {
+  it("Overview context line: 0 blockers reads All clear with no jump link", async () => {
     renderPage(<BridgeDashboard />);
     expect(await screen.findByText("All clear")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Jump to blockers/ })).not.toBeInTheDocument();
     expect(screen.queryByText(/0 blockers/)).not.toBeInTheDocument();
   });
 
-  it("Dashboard context line: a blocked order yields the count + jump link to #needs-you", async () => {
+  it("Overview context line: a blocked order yields the count + jump link to #needs-you", async () => {
     orders = [blockedOrder()];
     renderPage(<BridgeDashboard />);
     expect(await screen.findByText("1 blocker")).toBeInTheDocument();
@@ -146,9 +146,9 @@ describe("nav dedup — each audited page keeps exactly one h1", () => {
     });
   });
 
-  it("Inbox: sr-only h1", async () => {
+  it("Orders: sr-only h1", async () => {
     renderPage(<InboxView />);
-    await waitFor(() => expectSingleH1("Inbox"));
+    await waitFor(() => expectSingleH1("Orders"));
   });
 
   it("Suppliers: sr-only h1", async () => {
@@ -161,19 +161,19 @@ describe("nav dedup — each audited page keeps exactly one h1", () => {
     await waitFor(() => expectSingleH1("Connections"));
   });
 
-  it("Delivery log: sr-only h1", async () => {
+  it("Deliveries: sr-only h1", async () => {
     renderPage(<CrossingsLog />);
-    await waitFor(() => expectSingleH1("Delivery log"));
+    await waitFor(() => expectSingleH1("Deliveries"));
   });
 
-  it("Operations health: sr-only h1", () => {
+  it("System status: sr-only h1", () => {
     renderPage(<OperationsHealthPage />);
-    expectSingleH1("Operations health");
+    expectSingleH1("System status");
   });
 
-  it("Standards: sr-only h1", () => {
+  it("Format reference: sr-only h1", () => {
     renderPage(<StandardsPage />);
-    expectSingleH1("Standards reference");
+    expectSingleH1("Format reference");
   });
 
 });

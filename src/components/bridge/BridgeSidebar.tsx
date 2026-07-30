@@ -50,13 +50,17 @@ export type SidebarNavSection = { group?: string; items: SidebarNavItem[] };
 export const PINNED_ACTION_HREF = "/upload";
 
 const NAV_MAIN: SidebarNavSection[] = [
-  { items: [{ label: "Dashboard", href: "/bridge", icon: Layers }] },
+  // WP-25 (DESIGN-DB-1 §6.1 #1): "Overview" — it is the workspace's live picture.
+  { items: [{ label: "Overview", href: "/bridge", icon: Layers }] },
   {
     group: "Workbench",
     items: [
-      { label: "Inbox", href: "/inbox", icon: Inbox, badgeKey: "review" },
-      // No "Drafts": orders cannot be saved as drafts, so the list could never
-      // hold anything. Unsent orders are in the Inbox.
+      // §6.1 #2: "Inbox" is a mail metaphor; the thing in it is an order. The
+      // route stays /inbox.
+      { label: "Orders", href: "/inbox", icon: Inbox, badgeKey: "review" },
+      // No "Drafts": FE #47 retired /drafts because orders cannot be saved as
+      // drafts, so the list could never hold anything. Unsent orders are here.
+
       // Inbound (Invoices/ASNs) is a real but pre-launch surface — gated below
       // by INBOUND_ENABLED, never revealed by LAUNCH_FULL_NAV alone.
       { label: "Inbound", href: HUB_TABS.inbound[0].href, icon: Send, hub: "inbound" },
@@ -67,7 +71,10 @@ const NAV_MAIN: SidebarNavSection[] = [
     items: [
       // STRUCT-1: no standalone "Connections" entry — /connections routes are
       // covered by the Partners hub (tab) and stay fully routable.
-      { label: "Partners", href: HUB_TABS.partners[0].href, icon: Users, hub: "partners" },
+      // §6.1 #6: "Partners" was a container word. This entry's href IS
+      // /library/suppliers and buildVisibleNav already relabels it to the
+      // counterparty word for inbound orgs, so name it for what it opens.
+      { label: "Suppliers", href: HUB_TABS.partners[0].href, icon: Users, hub: "partners" },
       { label: "Rules & formats", href: HUB_TABS["rules-formats"][0].href, icon: CheckCircle2, hub: "rules-formats" },
     ],
   },
@@ -77,7 +84,8 @@ const NAV_MAIN: SidebarNavSection[] = [
     // to "Monitor"; the routes and the "Operations" item are untouched.
     group: "Monitor",
     items: [
-      { label: "Operations", href: HUB_TABS.operations[0].href, icon: Zap, hub: "operations" },
+      // §6.1 #8: its three pages answer "what happened", not "how do I operate".
+      { label: "Activity", href: HUB_TABS.operations[0].href, icon: Zap, hub: "operations" },
       { label: "Integrations", href: HUB_TABS.integrations[0].href, icon: Plug, hub: "integrations" },
     ],
   },
@@ -103,10 +111,10 @@ export interface VisibleNav {
 
 // First-launch shell: filter the nav down to the core hrefs and drop now-empty
 // group sections. The full nav is restored by setting NEXT_PUBLIC_LAUNCH_FULL_NAV=true.
-// `counterpartyPlural` relabels the "Partners" entry (href /library/suppliers)
+// `counterpartyPlural` relabels the "Suppliers" entry (href /library/suppliers)
 // for inbound orgs (DISPLAY ONLY — the route stays /library/suppliers): outbound
-// orgs see the neutral "Partners"; inbound orgs see their counterparty word
-// ("Customers"), preserving the pre-hub relabel behavior.
+// orgs see "Suppliers"; inbound orgs see their counterparty word ("Customers"),
+// preserving the pre-hub relabel behavior.
 // `opts` exists so the STRUCT-1 guard test can assert both launch modes; the
 // component always calls with the real flag defaults.
 export function buildVisibleNav(

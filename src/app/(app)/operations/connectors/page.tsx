@@ -345,7 +345,7 @@ export default function ConnectorsPage() {
             tab), not a title echo. */}
         <PageHeader
           titleHidden
-          title="Connectors"
+          title="Delivery channels"
           /* offer⇔works: the live suppliers list carries no delivery-config signal,
              so a real "N connected" count is not derivable — it was always 0. Drop
              the misleading suffix in live mode (same honesty reason the per-card
@@ -434,7 +434,7 @@ export default function ConnectorsPage() {
           </div>
         ) : connectors.length === 0 ? (
           <EmptyState
-            title="No connectors configured"
+            title="No delivery channels configured"
             sub="Add a connector to start routing purchase orders to suppliers via API, SFTP, email, or ERP."
             action={{ label: "Add connector", onClick: () => setSelected({ id: "new", type: "API (REST)", name: "", status: "available", desc: "", docks: 0, direction: "out" }) }}
           />

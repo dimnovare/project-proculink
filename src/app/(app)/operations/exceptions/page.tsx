@@ -84,7 +84,7 @@ const PAGE_SIZE = 25;
 // Why "Open order" is disabled when an exception has no owning order. Shown as a
 // tooltip on the disabled button so the dead control explains itself.
 const NO_ORDER_TITLE =
-  "This exception isn't tied to an order, so there's no order to open.";
+  "This issue isn't tied to an order, so there's no order to open.";
 
 // Whether a manual "Resolve" actually clears this exception. Every status-derived
 // code is re-opened by the backend Reconcile pass until the order's cause is
@@ -156,11 +156,11 @@ export default function ExceptionsPage() {
 
   return (
     <PageShell variant="wide">
-      {/* Page header — titleHidden: the topbar hub tab "Exceptions" is the page
+      {/* Page header — titleHidden: the topbar hub tab "Issues" is the page
           name (sr-only h1 kept); the explainer + live "N shown" line stays. */}
       <PageHeader
         titleHidden
-        title="Exceptions"
+        title="Issues"
         sub={
           [
             "Every order that needs a human decision before it can be sent.",
@@ -183,7 +183,7 @@ export default function ExceptionsPage() {
 
       {/* Instructional note */}
       <p className="text-[12px] mb-4 -mt-3" style={{ color: "var(--ink-faint)" }}>
-        Expand a row to see what&apos;s wrong, why, how to fix it, and its real delivery status. Fixing the cause clears the exception the next time the order is reprocessed.
+        Expand a row to see what&apos;s wrong, why, how to fix it, and its real delivery status. Fixing the cause clears the issue the next time the order is reprocessed.
       </p>
 
       {/* State filter tabs */}
@@ -247,10 +247,10 @@ export default function ExceptionsPage() {
               <AlertTriangle size={22} style={{ color: "var(--danger)" }} aria-hidden />
             </div>
             <div style={{ fontWeight: 600, fontSize: "16px", color: "var(--ink)" }}>
-              Couldn&apos;t load exceptions
+              Couldn&apos;t load issues
             </div>
             <div style={{ fontSize: "13px", maxWidth: 380, margin: "6px auto 14px", color: "var(--ink-muted)" }}>
-              The exception service didn&apos;t respond. Your orders are safe — this is usually transient.
+              The issues service didn&apos;t respond. Your orders are safe — this is usually transient.
             </div>
             <Button variant="secondary" size="sm" onClick={() => refetch()}>
               <RefreshCw size={13} aria-hidden />
@@ -267,10 +267,10 @@ export default function ExceptionsPage() {
               className="text-[20px] font-semibold"
               style={{ color: "var(--ink)", fontFamily: "'Bricolage Grotesque', Inter, sans-serif" }}
             >
-              No exceptions — all clear
+              No issues — all clear
             </p>
             <p className="text-[13px]" style={{ color: "var(--ink-muted)", maxWidth: 380 }}>
-              Nothing is blocked right now. Exceptions appear here when an order needs a
+              Nothing is blocked right now. Issues appear here when an order needs a
               decision before it can be sent to a supplier.
             </p>
           </div>
@@ -387,7 +387,7 @@ export default function ExceptionsPage() {
                                   size="sm"
                                   disabled={busy}
                                   onClick={() => resolveMut.mutate(exc.id)}
-                                  title="Mark this exception resolved. Only available when it isn't tied to an order — order-linked exceptions clear automatically once you fix the cause."
+                                  title="Mark this issue resolved. Only available when it isn't tied to an order — order-linked issues clear automatically once you fix the cause."
                                 >
                                   Resolve
                                 </Button>
@@ -536,7 +536,7 @@ function ExceptionCard({
               size="sm"
               disabled={busy}
               onClick={onResolve}
-              title="Mark this exception resolved. Only available when it isn't tied to an order — order-linked exceptions clear automatically once you fix the cause."
+              title="Mark this issue resolved. Only available when it isn't tied to an order — order-linked issues clear automatically once you fix the cause."
             >
               Resolve
             </Button>
