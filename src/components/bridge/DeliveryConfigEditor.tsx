@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useQueryClient } from "@tanstack/react-query";
 import { KeyRound, Save, Send, Trash2 } from "lucide-react";
 import { ConnectorRequirementsPanel } from "@/components/bridge/ConnectorRequirementsPanel";
+import { isPlanGate, PlanGateNotice } from "@/components/bridge/PlanGateNotice";
 import {
   deleteDeliveryConfig,
   getDeliveryConfig,
@@ -1288,7 +1289,14 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
                 </pre>
               </details>
 
-              {error && (
+              {/* A refusal on plan grounds (HTTP / ERP protocols, cXML output) is an upsell,
+                  not a fault — it gets the plain sentence + upgrade link instead of the raw
+                  `webhook_delivery_requires_growth` token the banner used to print. */}
+              {error && isPlanGate(error) && (
+                <PlanGateNotice error={error} capability="This delivery setup" />
+              )}
+
+              {error && !isPlanGate(error) && (
                 <div className="rounded-[6px] px-3 py-2 text-[12px]" style={{ background: "#FCEBEB", color: "#A52E2E", border: "1px solid #F5C5C5" }}>
                   {error}
                 </div>

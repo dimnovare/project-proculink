@@ -9,11 +9,18 @@
 // behavior identical.
 
 import { Button } from "@/components/bridge/DSPrimitives";
+import { isPlanGate, PlanGateNotice } from "@/components/bridge/PlanGateNotice";
 import type { ConfirmState, Notice } from "@/components/connections/useConnectionRevisions";
 
 /** Inline ok/err status banner driven by the hook's `notice` state. */
 export function ConnectionNotice({ notice }: { notice: Notice }) {
   if (!notice) return null;
+  // The lifecycle mutations (create draft / publish / rollback) are refused on plan grounds
+  // when the bundle selects a gated protocol or output format. onMutationError puts the
+  // server's raw body here, so recognise it and show the upsell rather than the token.
+  if (notice.kind === "err" && isPlanGate(notice.text)) {
+    return <PlanGateNotice className="mb-4" error={notice.text} capability="This connection setup" />;
+  }
   return (
     <div
       role="status"

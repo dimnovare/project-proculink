@@ -10,13 +10,19 @@
 // could not see `href={"/x"}`, `router.replace()` or `redirect()` even where it did look. A gate
 // that cannot fail on a planted 404 is documentation, not a gate.
 //
-// APPROACH. Lifted from the route-reachability guard on branch `wp04/route-reachability-fe`, which
+// APPROACH. Lifted from the route-reachability guard (`src/test/route-reachability.test.ts`), which
 // solves the INVERSE problem ("does anything navigate TO this page?") and had already paid for this
 // machinery: comment stripping (separate JS and MDX modes), string-literal masking so an
 // anchor-shaped substring inside a literal cannot open a region, and balanced value-region reading
-// so `href={cond ? "/a" : "/b"}` yields both. Reimplemented here rather than imported because that
-// branch is unmerged; when it lands, its extractor should be deleted in favour of this module
-// instead of the two drifting apart.
+// so `href={cond ? "/a" : "/b"}` yields both. It was written on `wp04/route-reachability-fe`, which
+// was unmerged when this module was written — hence a reimplementation rather than an import.
+//
+// FOLLOW-UP: wp04 has since landed (`e8fff8b`), so the two extractors now coexist on main and can
+// drift. They should converge on THIS module, but the merge is not free — that guard needs a
+// `«dyn»` sentinel for computed segments (this one skips computed paths, see link-crawl.test.ts for
+// why the outbound direction must) and keeps its LINK / REDIRECT / DESTINATION pattern groups
+// separate to attribute reachability by kind. Doing it as a drive-by inside a refutation fix would
+// put a just-merged guard at risk, so it is filed rather than done here.
 //
 // The three decisions that keep this from over-reporting, each with a test in link-crawl.test.ts:
 //   • comments are stripped — a link in a comment navigates nobody, so it must not be crawled

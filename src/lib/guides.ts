@@ -297,3 +297,26 @@ export function guidesInSection(section: GuideSection): Guide[] {
 export function publicGuides(): Guide[] {
   return GUIDES.filter((g) => g.audience === "client");
 }
+
+/**
+ * The guides this registry is actually rendered as a LINK for.
+ *
+ * GuideIndex renders a `status: "planned"` entry as a <span> plus a "Coming
+ * soon" badge and offers its `related` articles instead — deliberately, so the
+ * index can show the full taxonomy without a dead link. That makes the `href`
+ * on a planned entry a PLAN, not navigation: nothing in the product will ever
+ * take a user there.
+ *
+ * The general rule, which cost us a false-green route-reachability guard: a
+ * registry that carries an href for something it never renders as a link is a
+ * PHANTOM-TARGET SOURCE, not a dead link. Anything reasoning about which URLs
+ * the product links to must read this function, never the GUIDES array and
+ * never the file's text — otherwise a page created at a planned guide's path
+ * looks reachable while no user can click through to it.
+ *
+ * Consumers: src/test/route-reachability.test.ts. src/app/sitemap.ts applies
+ * the same `status === "live"` filter on top of publicGuides().
+ */
+export function linkedGuides(): Guide[] {
+  return GUIDES.filter((g) => g.status === "live");
+}

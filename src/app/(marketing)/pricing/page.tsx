@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import {
   ANNUAL_BILLING_ENABLED,
   OVERAGE_PER_ORDER_EUR,
@@ -131,6 +131,16 @@ const FAQ: Array<[string, string]> = [
   [
     "Can I change plans later?",
     "Yes — up or down, any time. We prorate the difference and your saved mappings and rules carry over untouched.",
+  ],
+  // Cancelling is the one plan change that stops orders arriving, and it used to be
+  // undisclosed: the answer above ("up or down, any time") reads as though cancelling
+  // is just another move along the ladder. It is not — every ingest path refuses once
+  // the subscription ends, and nothing is queued for later, so a supplier who keeps
+  // emailing purchase orders gets silence. Say so before the buyer pays, not after a
+  // PO goes missing. Pinned by cancelDisclosure.test.tsx.
+  [
+    "What happens if I cancel?",
+    "If you cancel, ProcuLink stops accepting new orders when your subscription ends. Everything you have already processed remains readable and exportable — past orders, suppliers, mappings and delivery records all stay — but nothing new comes in on any route: uploads, emailed orders, SFTP and S3 pickups, and the REST API all stop. Orders sent to you after that are not held and delivered later, so redirect your suppliers before you cancel. Resubscribing turns processing back on immediately, with your setup untouched.",
   ],
   [
     "Where is my data stored?",
@@ -334,6 +344,13 @@ export default function PricingPage() {
             </Link>{" "}
             is listed in full.
           </p>
+          {/* Cancelling is the one thing on this page a buyer can get wrong expensively, and
+              the FAQ answer is inside a collapsed panel — so the headline consequence also
+              sits here, in the open, next to the prices it applies to. */}
+          <p className="plk-fine" style={{ marginTop: 10 }}>
+            Cancel any time. New orders stop arriving on every channel once your subscription
+            ends — what you have already processed stays available to read and export.
+          </p>
         </div>
       </section>
 
@@ -459,6 +476,14 @@ function CheckIcon() {
 
 function FaqItem({ q, a }: { q: string; a: string }) {
   const [open, setOpen] = useState(false);
+  // The open height is MEASURED from the answer, not hardcoded. The previous
+  // `maxHeight: 240` silently clipped any answer taller than that -- at 390px the
+  // cancellation answer needs 246px, so its last line ("redirect your suppliers before
+  // you cancel") was cut off, which is the one sentence that answer exists to deliver.
+  // A pixel cap re-breaks on any copy, font, or viewport change and nothing would catch it.
+  // The inner element keeps its natural height even while the wrapper is collapsed, so
+  // scrollHeight is readable on the render that opens the panel.
+  const answerRef = useRef<HTMLDivElement>(null);
   return (
     <div className="plk-faq-item">
       <button type="button" className="plk-faq-q" onClick={() => setOpen((o) => !o)} aria-expanded={open}>
@@ -484,15 +509,27 @@ function FaqItem({ q, a }: { q: string; a: string }) {
           />
         </svg>
       </button>
+      {/* Sizes to its CONTENT, not to a magic number. The previous `maxHeight: 240` silently
+          clipped any answer taller than that — at 390px the cancellation answer needs 246px, so
+          the last line ("redirect your suppliers before you cancel") was cut off, which is the
+          single sentence that answer exists to deliver. A pixel cap also re-breaks on any font,
+          copy, or viewport change, and nothing would catch it.
+          `grid-template-rows: 0fr → 1fr` animates open exactly like a max-height transition but
+          resolves to the real height at every width. The inner element needs `min-height: 0` to
+          be allowed to collapse (grid items default to `auto`); its `overflow: hidden` comes
+          from `.plk-faq-a`. */}
       <div
-        className="plk-faq-a"
         style={{
-          maxHeight: open ? 240 : 0,
-          paddingBottom: open ? 18 : 0,
-          transition: "max-height 300ms var(--ease-out), padding 300ms var(--ease-out)",
+          overflow: "hidden",
+          maxHeight: open ? (answerRef.current?.scrollHeight ?? 0) : 0,
+          transition: "max-height 300ms var(--ease-out)",
         }}
       >
-        {a}
+        {/* Padding is CONSTANT so the measured scrollHeight already includes it — animating it
+            alongside max-height would leave the panel 18px short on the render that opens it. */}
+        <div ref={answerRef} className="plk-faq-a" style={{ paddingBottom: 18 }}>
+          {a}
+        </div>
       </div>
     </div>
   );

@@ -14,6 +14,7 @@ import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { getAuditLog, isApiMockMode, type AuditLogEntry } from "@/lib/api-client";
 import { EmptyState } from "./EmptyState";
+import { isPlanGate, PlanGateNotice } from "./PlanGateNotice";
 import { UnifiedStatusBadge } from "./UnifiedStatusBadge";
 import { PageHeader } from "./layout/PageHeader";
 import { PageShell } from "./layout/PageShell";
@@ -384,11 +385,16 @@ export function CrossingsLog() {
   const [filter, setFilter]     = useState<CanonicalEvent | "all">("all");
   const [search, setSearch]     = useState("");
 
-  const { data, isLoading, isError, refetch } = useQuery({
+  const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: ["audit"],
     queryFn:  () => getAuditLog(),
     enabled:  !isApiMockMode,
   });
+
+  // Below Operations the API refuses this page outright (403
+  // `advanced_audit_requires_operations`). That is not a network fault, so it must not read
+  // as one — and Retry could only 403 again.
+  const planGated = isError && isPlanGate(error);
 
   const LOG: LogEntry[] = isApiMockMode
     ? MOCK_LOG
@@ -520,8 +526,13 @@ export function CrossingsLog() {
         </div>
       )}
 
+      {/* Plan-gated state — an upgrade prompt, not a retry loop */}
+      {planGated && !isApiMockMode && (
+        <PlanGateNotice error={error} capability="The full delivery log" />
+      )}
+
       {/* Error state */}
-      {isError && !isApiMockMode && (
+      {isError && !planGated && !isApiMockMode && (
         <div className="card" style={{ padding: "48px 24px", textAlign: "center" }}>
           <div style={{ fontSize: 28, color: "var(--danger)", marginBottom: 10 }}>⚠</div>
           <p style={{ fontSize: 13, color: "var(--ink-muted)", marginBottom: 16 }}>

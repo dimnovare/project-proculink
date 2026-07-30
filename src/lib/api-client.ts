@@ -34,6 +34,7 @@ import {
   delay,
   ApiHttpError,
 } from "./api/core";
+import { isPlanGateError } from "./planGate";
 
 /**
  * Normalised public API base (no trailing slash). Exported so UI that needs to
@@ -45,6 +46,28 @@ export const apiBaseUrl = API_BASE_URL;
 // Re-export the shared primitives so every existing `@/lib/api-client` import
 // (incl. ApiHttpError, isApiMockMode) keeps working unchanged.
 export { ApiHttpError, isApiMockMode };
+
+/**
+ * A plan-gate 403 carries its whole meaning in the BODY — `{ error:
+ * "<capability>_requires_<plan>", upgradeUrl }` — while the status line says nothing. Calls
+ * that summarise a failure as `\`audit: ${res.status}\`` or `res.statusText` therefore threw
+ * the gate away before any UI could react to it.
+ *
+ * Returns the raw body VERBATIM (not just the code) when it is a plan gate, so both the code
+ * and the upgradeUrl survive on the Error message — several catch sites keep nothing but that
+ * string. Any other failure returns null and keeps its existing message.
+ *
+ * Consumes the response body, so call it at most once per response.
+ */
+async function planGateBodyText(res: Response): Promise<string | null> {
+  if (res.status !== 403) return null;
+  try {
+    const raw = (await res.text()).trim();
+    return isPlanGateError(raw) ? raw : null;
+  } catch {
+    return null;
+  }
+}
 
 // ─── Support contact ───
 // Placed near the top of api-client.ts so the support form chip doesn't
@@ -1986,7 +2009,7 @@ export async function getAuditLog(page = 1, pageSize = 50): Promise<AuditLogPage
   }
   const headers = await authHeader();
   const res = await fetchWithTimeout(`${API_BASE_URL}/api/audit?page=${page}&pageSize=${pageSize}`, { headers });
-  if (!res.ok) throw new Error(`audit: ${res.status}`);
+  if (!res.ok) throw new ApiHttpError((await planGateBodyText(res)) ?? `audit: ${res.status}`, res.status);
   return res.json();
 }
 
@@ -3091,7 +3114,12 @@ async function realCreateConnectionDraft(
     body: JSON.stringify(request ?? { cloneFromActive: true }),
   }, 30000);
   if (res.status === 404) return null;
-  if (!res.ok) throw new ApiHttpError(`Failed to create draft: ${res.statusText}`, res.status);
+  if (!res.ok) {
+    throw new ApiHttpError(
+      (await planGateBodyText(res)) ?? `Failed to create draft: ${res.statusText}`,
+      res.status,
+    );
+  }
   return res.json() as Promise<ConnectionRevision>;
 }
 
@@ -3119,7 +3147,10 @@ async function realUpdateConnectionDraft(
   );
   if (res.ok || res.status === 204) return;
   if (res.status === 409) throw new ApiHttpError("Published/archived revisions cannot be edited.", 409);
-  throw new ApiHttpError(`Failed to update draft: ${res.statusText}`, res.status);
+  throw new ApiHttpError(
+    (await planGateBodyText(res)) ?? `Failed to update draft: ${res.statusText}`,
+    res.status,
+  );
 }
 
 /**
@@ -3174,7 +3205,10 @@ async function realConnectionLifecycle(
     throw new ApiHttpError(serverMsg || fallback, 409);
   }
   if (res.status === 404) throw new ApiHttpError("Connection or revision not found.", 404);
-  throw new ApiHttpError(`Failed to ${action} revision: ${res.statusText}`, res.status);
+  throw new ApiHttpError(
+    (await planGateBodyText(res)) ?? `Failed to ${action} revision: ${res.statusText}`,
+    res.status,
+  );
 }
 
 function mockConnectionLifecycle(action: "publish" | "archive") {

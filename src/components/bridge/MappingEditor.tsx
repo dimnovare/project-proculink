@@ -10,6 +10,7 @@ import { useOrderDirection } from "@/hooks/useOrderDirection";
 import type { SupplierMapping } from "@/types/procurement";
 import { PageShell } from "./layout/PageShell";
 import { PageHeader } from "./layout/PageHeader";
+import { isPlanGate, PlanGateNotice } from "./PlanGateNotice";
 
 // ─── Palette (sampled pixel-exact from the design render 2026-05-30) ───────────
 // Topology semantics in this screen: the BUYER side is blue, the SUPPLIER side is
@@ -938,7 +939,14 @@ function MappingPanel({
           </div>
         )}
 
-        {error && (
+        {/* Bulk import is plan-gated (`bulk_mapping_import_requires_operations`). The client
+            rethrows the response body verbatim, so recognise the gate and answer with the
+            upsell rather than putting a snake_case token in a red box. */}
+        {error && isPlanGate(error) && (
+          <PlanGateNotice className="mx-5 mb-3" error={error} capability="Bulk mapping import" />
+        )}
+
+        {error && !isPlanGate(error) && (
           <div className="mx-5 mb-3 rounded-[7px] px-3 py-2 text-[12px]" style={{ border: "1px solid #F5B8B8", background: "#FBE3E3", color: "#B43838" }}>
             {error}
           </div>
