@@ -73,17 +73,33 @@
 //
 // ── MUTATION COVERAGE ────────────────────────────────────────────────────────
 // Every decision above is pinned by a test that fails when the decision is
-// removed. The set is exercised by an out-of-tree harness that reverts each one
-// in turn; the decisions are: page-extension enumeration, the page-suffix
+// removed. The decisions are: page-extension enumeration, the page-suffix
 // strip, href-only hub tabs, comment stripping, the self-link exclusion, the
 // registry-file exclusion, and two loosenings of the link-tuple pattern that
 // would credit src/app/sitemap.ts as navigation.
 //
+// HOW TO RE-CHECK THAT, because you cannot take this paragraph's word for it.
+// An earlier version of this comment credited "an out-of-tree harness that
+// reverts each one in turn". That harness is not in this repo and not in the
+// backend one — grep confirms the only occurrences of the phrase are this
+// comment and a STATUS.md entry quoting it. A claim of coverage that nobody can
+// re-run is not coverage, so the appeal to it is gone and the reproducible
+// procedure is written down instead:
+//
+//   1. Revert ONE decision in place (e.g. make stripComments return `text`
+//      unchanged for the "js" syntax).
+//   2. Run this file AND src/test/link-crawl.test.ts.
+//   3. Restore the file and confirm both are green again. Reverting the source
+//      is enough here — unlike the .NET side there is no build output to stale.
+//
+// Done for comment stripping on 2026-07-30: both guards went red (3 failures
+// here, 2 in the crawl), which is also what proves the shared module is really
+// shared rather than a copy left behind.
+//
 // Three of those decisions — comment stripping and both link-tuple loosenings —
-// now live in src/test/sourceScan.ts, shared with the OUTBOUND link crawl. The
-// mutation targets moved with them, and reverting one there now turns BOTH
-// guards red, which is a stronger signal than before; an out-of-tree harness
-// that patches this file by line needs repointing at that module.
+// now live in src/test/sourceScan.ts, shared with the OUTBOUND link crawl, so a
+// revert there reddens BOTH guards. That is a stronger signal than before, but
+// it does mean the target moved: mutate that module, not this file.
 
 import { describe, it, expect } from "vitest";
 import fs from "node:fs";
