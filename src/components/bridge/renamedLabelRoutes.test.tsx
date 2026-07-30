@@ -75,8 +75,6 @@ describe("renamed hub tab labels keep their routes", () => {
 
   const rows: Array<[string, string, string]> = [
     ["Item codes", "/library/mappings", "§6.1 #17 Mappings → Item codes"],
-    ["Rules", "/library/rules", "§6.1 #22 unchanged"],
-    ["Output layouts", "/library/templates", "§6.1 #20 Output templates → Output layouts"],
     ["Format reference", "/library/standards", "§6.1 #24 Standards → Format reference"],
     ["System status", "/operations/health", "§6.1 #25 System health → System status"],
     ["Issues", "/operations/exceptions", "§6.1 #26 Exceptions → Issues"],
@@ -89,6 +87,15 @@ describe("renamed hub tab labels keep their routes", () => {
   for (const [label, href, why] of rows) {
     it(`"${label}" → ${href}  (${why})`, () => expect(hrefFor(label)).toBe(href));
   }
+
+  // FE #47 retired /library/rules and /library/templates behind permanent
+  // redirects, so the tabs WP-25 would have renamed no longer exist. A rename
+  // must not resurrect a retired destination.
+  it("offers no tab for a route FE #47 retired", () => {
+    for (const href of ["/library/rules", "/library/templates"]) {
+      expect(tabs.map((t) => t.href)).not.toContain(href);
+    }
+  });
 
   it("every hub route still claims its hub (hubForPath is untouched)", () => {
     for (const key of Object.keys(HUB_TABS) as HubKey[]) {
@@ -108,8 +115,6 @@ describe("renamed breadcrumb labels keep their route segments", () => {
     ["bridge", "Overview"],
     ["inbox", "Orders"],
     ["mappings", "Item codes"],
-    ["rules", "Rules"],
-    ["templates", "Output layouts"],
     ["standards", "Format reference"],
     ["operations", "Activity"],
     ["log", "Deliveries"],
@@ -121,6 +126,14 @@ describe("renamed breadcrumb labels keep their route segments", () => {
   for (const [segment, label] of rows) {
     it(`/${segment} → "${label}"`, () => expect(CRUMB_LABELS[segment]).toBe(label));
   }
+
+  // A crumb for a retired route can never render — /library/rules and
+  // /library/templates permanently redirect (src/lib/retired-routes.ts).
+  it("carries no label for a segment FE #47 retired", () => {
+    for (const segment of ["rules", "templates", "drafts"]) {
+      expect(CRUMB_LABELS[segment]).toBeUndefined();
+    }
+  });
 });
 
 describe("renamed supplier tabs keep their ?tab= ids", () => {
