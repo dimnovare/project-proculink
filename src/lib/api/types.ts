@@ -327,9 +327,137 @@ export const MANIPULATOR_TYPES: ReadonlyArray<{ type: string; params: string[]; 
   { type: "Divide",     params: ["divisor"],        hint: "Divide a number" },
 ];
 
-/** Canonical fields selectable as a source in the mapping editor. */
+/**
+ * The DEFAULT outgoing-document spine: the columns a supplier with no configured output is shown.
+ *
+ * Deliberately NOT the same list as BINDABLE_*_FIELDS below. These two were one list until WP-14,
+ * which conflated "what the document shows by default" with "what an author may bind". Widening
+ * this one to all 53 names would have turned the outgoing-document lane into 53 columns as a side
+ * effect of a picker change. Pinned as a strict subset by `canonicalFields.test.ts`.
+ */
 export const CANONICAL_HEADER_FIELDS = ["PoNumber", "OrderDate", "BuyerName", "Currency", "SupplierName"] as const;
 export const CANONICAL_LINE_FIELDS = ["LineNumber", "BuyerItemCode", "SupplierItemCode", "Description", "Quantity", "Unit", "UnitPrice", "LineTotal"] as const;
+
+// ── WP-14: everything a custom output may bind ───────────────────────────────
+//
+// Mirror of `ProcuLink.Transform/Output/CanonicalRowFields.cs` (`Header` / `Line`) in the backend
+// repo — the keys `BuildHeaderRow` / `BuildLineRow` actually put in the row bag. Binding a name
+// that is not in that bag silently emits nothing, which is exactly how the old gap stayed
+// invisible: the picker offered 13 names, the backend exposed 21, and the entity carried 52.
+//
+// Two repos cannot share a compile-time constant, so the pair is guarded from both ends:
+// `canonicalFields.test.ts` here fails if this list drifts from the pinned expectation, and
+// `CanonicalRowFieldsCompletenessTests` there fails if an entity field is neither exposed nor
+// explicitly excluded with a written reason. Update both in the same change.
+
+/** Header-scope canonical fields an output rule may bind. */
+export const BINDABLE_HEADER_FIELDS = [
+  // identity + document basics
+  "PoNumber", "OrderDate", "BuyerName", "Currency", "SupplierName",
+  // money + terms
+  "SubTotal", "TaxTotal", "GrandTotal", "PaymentTerms", "RequestedDeliveryDate",
+  // buyer identity + references
+  "BuyerOrderRef", "BuyerTaxId",
+  // ordering contact
+  "ContactName", "ContactEmail", "ContactPhone",
+  // shipping terms
+  "Incoterms", "ShippingMethod",
+  // ship-to address block
+  "ShipToName", "ShipToDeliverTo", "ShipToStreet", "ShipToCity",
+  "ShipToPostalCode", "ShipToCountry", "ShipToEmail", "ShipToPhone",
+  // bill-to address block
+  "BillToName", "BillToDeliverTo", "BillToStreet", "BillToCity",
+  "BillToPostalCode", "BillToCountry", "BillToEmail", "BillToPhone",
+] as const;
+
+/** Line-scope canonical fields an output rule may bind. */
+export const BINDABLE_LINE_FIELDS = [
+  // identity + quantities
+  "LineNumber", "BuyerItemCode", "SupplierItemCode", "Description",
+  "Quantity", "Unit", "UnitPrice", "LineTotal",
+  // money
+  "LineAmount", "TaxRate", "DeliveryDate", "TaxAmount", "DiscountPercent", "NetAmount",
+  // product identity
+  "ManufacturerPartNumber", "ManufacturerName", "CustomerPartNumber", "Unspsc",
+  // line-level routing / contract references
+  "Recipient", "ContractNumber",
+] as const;
+
+/** One scope's worth of bindable fields, for a picker that groups its options. */
+export interface CanonicalFieldGroup {
+  scope: "header" | "line";
+  label: string;
+  fields: readonly string[];
+}
+
+/**
+ * The bindable set grouped by scope. 53 names in one flat list is a wall; grouped, an operator
+ * looking for a delivery address scans one section. The picker derives an option's group from
+ * these lists rather than taking it as a prop, so every caller groups identically.
+ */
+export const CANONICAL_FIELD_GROUPS: ReadonlyArray<CanonicalFieldGroup> = [
+  { scope: "header", label: "Order fields", fields: BINDABLE_HEADER_FIELDS },
+  { scope: "line", label: "Line item fields", fields: BINDABLE_LINE_FIELDS },
+];
+
+/** The scope a canonical field belongs to, or null when the name is not a built-in field. */
+export function canonicalFieldScope(field: string): "header" | "line" | null {
+  if ((BINDABLE_LINE_FIELDS as readonly string[]).includes(field)) return "line";
+  if ((BINDABLE_HEADER_FIELDS as readonly string[]).includes(field)) return "header";
+  return null;
+}
+
+// ── Which bindings a given output FORMAT can actually honour ─────────────────
+//
+// Offer ⇔ works. CSV and JSON are emitted by the override engine itself, so a rule may bind any
+// name in the row bag and the value lands in the column. The structured formats have a FIXED
+// document shape — a UBL `cbc:ID`, an X12 `BEG03` — so an arbitrary output path has nowhere to go.
+// What an override CAN do for them is change the CANONICAL VALUES that feed that fixed shape, and
+// the backend recognises only the small set below for that (`EffectiveEntityResolver.HeaderFields`
+// / `LineFields`); every other rule is silently `continue`d.
+//
+// Without this, the picker offered all 53 names to a cXML supplier, the pane showed the binding
+// wired WITH a value preview, and the delivered document ignored it — a confident lie in the UI
+// about what the system does. Pinned by `canonicalFields.test.ts`; the backend list is pinned by
+// `EffectiveEntityResolverCarriesWidenedFieldsTests`.
+
+/** Output formats whose document shape is fixed by a standard, not by the author's columns. */
+export const STRUCTURED_OUTPUT_FORMATS = ["xml", "cxml", "ubl", "x12"] as const;
+
+/**
+ * The header fields a structured format's transform will read back off the entity. Mirror of
+ * `EffectiveEntityResolver.HeaderFields` in `ProcuLink.Transform/Output/EffectiveEntityResolver.cs`.
+ * That set is deliberately NOT widened with the row bag: widening it would let an existing
+ * customer's output column that happens to be named "ShipToCity" start REWRITING the real column.
+ */
+export const STRUCTURED_WRITEBACK_HEADER_FIELDS = [
+  "PoNumber", "OrderDate", "Currency", "SupplierName", "BuyerName", "RequestedDeliveryDate",
+] as const;
+
+/** Mirror of `EffectiveEntityResolver.LineFields`. */
+export const STRUCTURED_WRITEBACK_LINE_FIELDS = [
+  "LineNumber", "BuyerItemCode", "SupplierItemCode", "Description", "Quantity", "Unit", "UnitPrice",
+] as const;
+
+/** True when the format's shape is fixed by a standard (cXML / UBL / X12 / XML). */
+export function isStructuredOutputFormat(format: string | null | undefined): boolean {
+  if (!format) return false;
+  return (STRUCTURED_OUTPUT_FORMATS as readonly string[]).includes(format.toLowerCase());
+}
+
+/**
+ * True when binding `field` in an output rule actually reaches the delivered document for
+ * `format`. Always true for the flat formats (CSV/JSON emit the author's own columns) and for a
+ * custom field key; for a structured format only the write-back sets above land.
+ */
+export function canonicalFieldReachesOutput(
+  field: string,
+  format: string | null | undefined,
+): boolean {
+  if (!isStructuredOutputFormat(format)) return true;
+  return (STRUCTURED_WRITEBACK_HEADER_FIELDS as readonly string[]).includes(field)
+      || (STRUCTURED_WRITEBACK_LINE_FIELDS as readonly string[]).includes(field);
+}
 
 // ── Whole-document Scriban template mode ─────────────────────────────────────
 // Mirrors docs/qa/2026-06-09-scriban-template-namespace.md (the backend source of

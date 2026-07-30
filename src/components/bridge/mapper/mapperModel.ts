@@ -17,9 +17,11 @@ import type {
   OutputFieldRule,
   SourceFieldRule,
 } from "@/lib/api/types";
-import { CANONICAL_LINE_FIELDS } from "@/lib/api/types";
+import { BINDABLE_LINE_FIELDS } from "@/lib/api/types";
 
-const LINE_KEYS = new Set<string>(CANONICAL_LINE_FIELDS);
+// The FULL bindable line set, not the narrow default spine: a rule binding ManufacturerPartNumber
+// or Unspsc must land in line scope, or it would be emitted once for the whole order.
+const LINE_KEYS = new Set<string>(BINDABLE_LINE_FIELDS);
 
 /** A blank but well-formed override (no overrides → byte-identical transform). */
 export function emptyOverride(): OrderMappingOverride {
@@ -96,8 +98,21 @@ export function withSourceDisconnect(
 
 // ── Canonical → target mutations ──────────────────────────────────────────────
 
-function scopeOf(outputPath: string, canonicalField: string): "header" | "lines" {
-  return LINE_KEYS.has(canonicalField) || LINE_KEYS.has(outputPath) ? "lines" : "header";
+/**
+ * A new rule's scope is decided by the CANONICAL SOURCE it binds, never by the supplier's own
+ * column name.
+ *
+ * This used to also test `LINE_KEYS.has(outputPath)` — reading the output column's name as if it
+ * were one of our canonical field names. Harmless while LINE_KEYS held 8 generic names; actively
+ * wrong once WP-14 added DeliveryDate, TaxRate, TaxAmount, ContractNumber and Recipient, because a
+ * supplier column literally called "DeliveryDate" (not an exotic name in procurement) would move
+ * from header scope to line scope. A header column is emitted once and a line column repeats per
+ * line, so that silently changes the document for a customer who changed nothing.
+ *
+ * Only the canonical field decides. Pinned by mapperModel.scope.test.ts.
+ */
+function scopeOf(canonicalField: string): "header" | "lines" {
+  return LINE_KEYS.has(canonicalField) ? "lines" : "header";
 }
 
 function cloneOutput(cfg: OutputMappingConfig | null | undefined): OutputMappingConfig {
@@ -124,7 +139,7 @@ export function withTargetConnect(
   // Remove any stale rule in the other scope so a path lives in exactly one scope.
   delete cfg.header[outputPath];
   delete cfg.lines[outputPath];
-  const scope = existing?.scope ?? scopeOf(outputPath, canonicalField);
+  const scope = existing?.scope ?? scopeOf(canonicalField);
   cfg[scope][outputPath] = { outputPath, canonicalField, fixedValue: null, fieldManipulators: manipulators };
   return { ...base, customFields: base.customFields ?? [], output: cfg };
 }
@@ -158,7 +173,10 @@ export function withFieldManipulators(
   const base = o ?? emptyOverride();
   const cfg = cloneOutput(base.output);
   const existing = findRule(cfg, outputPath);
-  const scope = existing?.scope ?? (scopeHint === "line" || LINE_KEYS.has(outputPath) ? "lines" : "header");
+  // Authored scope wins; otherwise the explicit hint, and ONLY the hint. Reading the output column
+  // NAME here is the same defect as in scopeOf and withAddOutputField — the `existing?.scope ??`
+  // fallback merely hid it for columns that already had a rule.
+  const scope = existing?.scope ?? (scopeHint === "line" ? "lines" : "header");
   delete cfg.header[outputPath];
   delete cfg.lines[outputPath];
   const prev = existing?.rule;
@@ -228,10 +246,22 @@ export function withAddOutputField(
   if (cfg.header[path] || cfg.lines[path]) {
     return { ...base, customFields: base.customFields ?? [], output: cfg };
   }
-  const scope = scopeHint === "line" || LINE_KEYS.has(path) ? "lines" : "header";
-  // A new unmapped field: pass-through rule (canonicalField === outputPath) so it renders as a
-  // declared target. The user then wires a source or sets a fixed value from the row.
-  cfg[scope][path] = { outputPath: path, canonicalField: path, fixedValue: null, fieldManipulators: [] };
+
+  // The hint is the ONLY signal here. This used to be `scopeHint === "line" || LINE_KEYS.has(path)`
+  // — reading the new column's NAME as if it were one of our canonical field names, which
+  // overrides an explicit "header" hint for any column literally called DeliveryDate, TaxAmount,
+  // Recipient, Unspsc, ContractNumber or ManufacturerPartNumber. Those are ordinary procurement
+  // column names, and a header column emitted once becoming a line column repeated per line is a
+  // different document. `withTargetConnect` was fixed for this and these two siblings were not;
+  // "add a column" is the FIRST thing an author does, so there is no existing rule to fall back on.
+  const scope = scopeHint === "line" ? "lines" : "header";
+
+  // A new column starts UNMAPPED. It used to be written as `canonicalField: path`, a pass-through
+  // that was inert while only 13 names resolved — post-WP-14 it resolves for 32 more, so "add a
+  // blank column called ShipToCity" silently declared one pre-filled with the buyer's ship-to city.
+  // Declaring a column and binding a source are two separate acts by the author; only the second is
+  // consent. The row's picker is how they bind it.
+  cfg[scope][path] = { outputPath: path, canonicalField: null, fixedValue: null, fieldManipulators: [] };
   return { ...base, customFields: base.customFields ?? [], output: cfg };
 }
 

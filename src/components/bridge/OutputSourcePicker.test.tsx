@@ -205,3 +205,84 @@ describe("OutputSourcePicker — F-1 Phase 4 relative line binding", () => {
     expect(screen.getByRole("button", { name: /Source for vatNumber — Warehouse · per line/i })).toBeInTheDocument();
   });
 });
+
+/**
+ * Offer ⇔ works — the picker must not offer a binding the delivered format cannot honour.
+ *
+ * The flat formats (CSV/JSON) are emitted by the override engine itself, so any name in the row
+ * bag lands in the author's column. A structured format's shape is fixed by its standard, so the
+ * backend can only write a rule BACK onto the canonical entity — and `EffectiveEntityResolver`
+ * recognises 6 header + 7 line names for that, silently `continue`-ing every other rule.
+ *
+ * WP-14 widened the offered list from 13 names to 53 without gating it, so an operator on a cXML
+ * connection could bind `ShipToCity`, see the row rendered as wired WITH a value preview, and
+ * receive a document that ignored it. Pre-existing for ~13 names; at 53 it is an offer-⇔-works
+ * violation, not an edge case.
+ */
+describe("OutputSourcePicker — the offered canonical set respects the delivered format", () => {
+  const WIDE = ["PoNumber", "Quantity", "ShipToCity", "Incoterms", "ManufacturerPartNumber"];
+
+  function renderWithFormat(outputFormat: string | null) {
+    const onPickCanonical = vi.fn();
+    render(
+      <OutputSourcePicker
+        outputPath="vatNumber"
+        binding={{}}
+        canonicalFields={WIDE}
+        sourceTokens={[]}
+        outputFormat={outputFormat}
+        onPickCanonical={onPickCanonical}
+        onPickSourceToken={vi.fn()}
+        onPickFixed={vi.fn()}
+        onClear={vi.fn()}
+      />,
+    );
+    return { onPickCanonical };
+  }
+
+  it("offers every canonical name for a flat format (CSV)", () => {
+    renderWithFormat("csv");
+    const panel = openPanel();
+    for (const name of WIDE) {
+      expect(within(panel).getByRole("option", { name: new RegExp(name) })).not.toBeDisabled();
+    }
+  });
+
+  it("disables the names cXML cannot carry, and explains why", () => {
+    renderWithFormat("cxml");
+    const panel = openPanel();
+
+    // The write-back set stays selectable — the operator CAN change these values.
+    expect(within(panel).getByRole("option", { name: /PoNumber/ })).not.toBeDisabled();
+    expect(within(panel).getByRole("option", { name: /Quantity/ })).not.toBeDisabled();
+
+    // …and the rest are shown as unavailable rather than silently dropped after the fact.
+    for (const name of ["ShipToCity", "Incoterms", "ManufacturerPartNumber"]) {
+      expect(within(panel).getByRole("option", { name: new RegExp(name) })).toBeDisabled();
+    }
+
+    expect(within(panel).getByText(/document structure is set by the standard/i)).toBeInTheDocument();
+  });
+
+  it("does not fire onPickCanonical for a field the format cannot carry", () => {
+    // The visual grey-out is not the guarantee; not writing the rule is.
+    const { onPickCanonical } = renderWithFormat("ubl");
+    const panel = openPanel();
+
+    fireEvent.click(within(panel).getByRole("option", { name: /ShipToCity/ }));
+    expect(onPickCanonical).not.toHaveBeenCalled();
+
+    fireEvent.click(within(panel).getByRole("option", { name: /PoNumber/ }));
+    expect(onPickCanonical).toHaveBeenCalledWith("PoNumber");
+  });
+
+  it("offers everything when the format is not yet known", () => {
+    // Before the first preview returns there is no server truth. Defaulting to "restrict" would
+    // hide working bindings on a CSV connection, which is the opposite failure.
+    renderWithFormat(null);
+    const panel = openPanel();
+    for (const name of WIDE) {
+      expect(within(panel).getByRole("option", { name: new RegExp(name) })).not.toBeDisabled();
+    }
+  });
+});

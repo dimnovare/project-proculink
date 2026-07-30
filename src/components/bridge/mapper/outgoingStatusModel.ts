@@ -28,7 +28,19 @@ const REQUIRED_CANONICAL = new Set<string>([
   "SupplierItemCode",
 ]);
 
-/** The full canonical spine (header + line) — used to decide whether a 1:1 default exists. */
+/**
+ * The DEFAULT outgoing spine (header + line) — used to decide whether a 1:1 default exists.
+ *
+ * <b>Deliberately the DEFAULT spine, not the BINDABLE set.</b> WP-14 briefly widened this to all 53
+ * bindable names on the reasoning that "ShipToCity resolves 1:1 from the backend row bag". It does
+ * — but only for a rule that NAMES it. The default transform emits these 13 and nothing else, so
+ * for a configured output column called `ShipToCity` with no rule the backend emits nothing while
+ * this pane reported `mapped: true, kind: "auto"` and rendered a value preview taken from the
+ * parsed order. Confidently wrong is worse than the amber it replaced.
+ *
+ * "Bindable" and "emitted by default" are two different sets and this is the one that answers
+ * "do I need a wire here?". Pinned by outgoingStatusModel.test.ts.
+ */
 const CANONICAL_SPINE = new Set<string>([...CANONICAL_HEADER_FIELDS, ...CANONICAL_LINE_FIELDS]);
 
 /** How an output field gets its value, for the small source tag. */

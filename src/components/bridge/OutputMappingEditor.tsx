@@ -29,7 +29,7 @@ import {
 import { OutputStructureDesigner } from "./OutputStructureDesigner";
 import { OutputSourcePicker } from "./OutputSourcePicker";
 import {
-  MANIPULATOR_TYPES, CANONICAL_HEADER_FIELDS, CANONICAL_LINE_FIELDS,
+  MANIPULATOR_TYPES, BINDABLE_HEADER_FIELDS, BINDABLE_LINE_FIELDS,
   SCRIBAN_TEMPLATE_GROUPS, TEMPLATE_CONTENT_TYPES, PREVIEW_FORMATS, SCRIBAN_STARTER_TEMPLATE,
   type OrderMappingOverride, type OutputFieldRule, type ManipulatorEntry, type CustomField,
   type OutputFormatId, type SourceFieldRule, type OutputNodeTemplate, type SourceToken,
@@ -56,8 +56,12 @@ function toCustomRows(fields: CustomField[] | undefined): CustomRow[] {
 function sanitizeKey(raw: string): string {
   return raw.replace(/[^A-Za-z0-9_]/g, "_").replace(/_+/g, "_").replace(/^_|_$/g, "");
 }
+// Warns when a user's custom-field key collides with a built-in canonical name. WP-14 widened the
+// built-in set, so a key like "ContractNumber" is now reserved and the warning is correct: the
+// backend keeps the USER's value for such a key (a newly reserved name never overwrites one a
+// customer already authored), but a collision is still worth telling them about.
 const CANONICAL_LOWER = new Set(
-  [...CANONICAL_HEADER_FIELDS, ...CANONICAL_LINE_FIELDS].map((f) => f.toLowerCase()),
+  [...BINDABLE_HEADER_FIELDS, ...BINDABLE_LINE_FIELDS].map((f) => f.toLowerCase()),
 );
 
 /**
@@ -146,10 +150,16 @@ function ManipChip({ entry, onChange, onRemove }: {
   );
 }
 
-function RuleRow({ row, sources, sourceTokens, onChange, onRemove }: {
+function RuleRow({ row, sources, sourceTokens, deliveredFormat, onChange, onRemove }: {
   row: Row;
   sources: string[];
   sourceTokens: ReadonlyArray<SourceToken>;
+  /**
+   * The format this connection actually DELIVERS (server truth when known). Passed down so the
+   * picker can grey out canonical names a structured format has no slot for, instead of offering
+   * all 53 and letting the backend silently drop the rule.
+   */
+  deliveredFormat: string | null;
   onChange: (patch: Partial<OutputFieldRule>) => void;
   onRemove: () => void;
 }) {
@@ -174,6 +184,7 @@ function RuleRow({ row, sources, sourceTokens, onChange, onRemove }: {
           binding={rule}
           canonicalFields={sources}
           sourceTokens={sourceTokens}
+          outputFormat={deliveredFormat}
           // Picking a canonical field clears the source-token + fixed-value bindings (they are
           // alternative bindings; precedence is SourceToken over CanonicalField on the backend).
           onPickCanonical={(f) => onChange({ canonicalField: f, sourceToken: null, fixedValue: null })}
@@ -217,12 +228,13 @@ function RuleRow({ row, sources, sourceTokens, onChange, onRemove }: {
   );
 }
 
-function RuleSection({ title, scope, rows, sources, sourceTokens, setRows }: {
+function RuleSection({ title, scope, rows, sources, sourceTokens, deliveredFormat, setRows }: {
   title: string;
   scope: Scope;
   rows: Row[];
   sources: string[];
   sourceTokens: ReadonlyArray<SourceToken>;
+  deliveredFormat: string | null;
   setRows: (r: Row[]) => void;
 }) {
   return (
@@ -233,7 +245,7 @@ function RuleSection({ title, scope, rows, sources, sourceTokens, setRows }: {
           <div style={{ fontSize: 12, color: "var(--ink-faint)", padding: "2px 0" }}>None — the default transform is used for {scope === "header" ? "header" : "line"} fields. Add one to override it.</div>
         )}
         {rows.map((r) => (
-          <RuleRow key={r.id} row={r} sources={sources} sourceTokens={sourceTokens}
+          <RuleRow key={r.id} row={r} sources={sources} sourceTokens={sourceTokens} deliveredFormat={deliveredFormat}
             onChange={(patch) => setRows(rows.map((x) => x.id === r.id ? { ...x, rule: { ...x.rule, ...patch } } : x))}
             onRemove={() => setRows(rows.filter((x) => x.id !== r.id))}
           />
@@ -609,8 +621,11 @@ export function OutputMappingEditor({
     [customRows],
   );
   const customKeys = useMemo(() => customFields.map((c) => c.key), [customFields]);
-  const headerSources = useMemo(() => [...CANONICAL_HEADER_FIELDS, ...customKeys], [customKeys]);
-  const lineSources   = useMemo(() => [...CANONICAL_LINE_FIELDS, ...CANONICAL_HEADER_FIELDS, ...customKeys], [customKeys]);
+  // WP-14: offer every name the backend row bag exposes, not the narrow default spine. A line rule
+  // may also bind header fields (the line bag carries them), which is why lineSources concatenates
+  // both — the picker groups them by scope so the mixed list stays readable.
+  const headerSources = useMemo(() => [...BINDABLE_HEADER_FIELDS, ...customKeys], [customKeys]);
+  const lineSources   = useMemo(() => [...BINDABLE_LINE_FIELDS, ...BINDABLE_HEADER_FIELDS, ...customKeys], [customKeys]);
 
   const trimmedTemplate = template.trim();
   const draft: OrderMappingOverride = useMemo(
@@ -669,6 +684,17 @@ export function OutputMappingEditor({
     }, 400);
     return () => { if (debRef.current) clearTimeout(debRef.current); };
   }, [orderId, draft, format, open, seeded, templateMode, blankTemplate]);
+
+  /**
+   * The format this connection will ACTUALLY deliver, used to decide which canonical names the
+   * source picker may honestly offer.
+   *
+   * Server truth first (`preview.format` — for a revision-pinned order the backend renders the
+   * connection's PUBLISHED format regardless of the local toggle, so the toggle is not the answer),
+   * falling back to the toggle before the first preview returns. Null in template mode, where the
+   * author writes the whole document and the fixed-shape argument does not apply.
+   */
+  const deliveredFormat = templateMode ? null : (preview?.format ?? format);
 
   const save = useMutation({
     mutationFn: () => upsertMappingOverride(orderId, draft),
@@ -849,8 +875,8 @@ export function OutputMappingEditor({
                 </div>
               )}
               <CustomFieldsSection rows={customRows} setRows={setCustomRows} />
-              <RuleSection title="Header fields" scope="header" rows={headerRows} sources={headerSources} sourceTokens={sourceTokens ?? []} setRows={setHeaderRows} />
-              <RuleSection title="Line fields" scope="lines" rows={lineRows} sources={lineSources} sourceTokens={sourceTokens ?? []} setRows={setLineRows} />
+              <RuleSection title="Header fields" scope="header" rows={headerRows} sources={headerSources} sourceTokens={sourceTokens ?? []} deliveredFormat={deliveredFormat} setRows={setHeaderRows} />
+              <RuleSection title="Line fields" scope="lines" rows={lineRows} sources={lineSources} sourceTokens={sourceTokens ?? []} deliveredFormat={deliveredFormat} setRows={setLineRows} />
             </>
           ))}
           <section>

@@ -20,7 +20,11 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import type { SourceToken } from "@/lib/api/types";
+import {
+  CANONICAL_FIELD_GROUPS, canonicalFieldScope,
+  canonicalFieldReachesOutput, isStructuredOutputFormat,
+  type SourceToken,
+} from "@/lib/api/types";
 
 const PANEL_W = 300;
 
@@ -41,6 +45,13 @@ export interface OutputSourcePickerProps {
   binding: OutputBinding;
   /** Canonical field names offered first (header or line scope, + custom keys). */
   canonicalFields: ReadonlyArray<string>;
+  /**
+   * The output format the connection actually delivers, when known. For a structured format
+   * (cXML / UBL / X12 / XML) most canonical names cannot reach the document — the shape is fixed
+   * by the standard — so they are shown DISABLED with a reason instead of being offered as if they
+   * worked. Omit (or pass null) for the flat formats, where every name lands.
+   */
+  outputFormat?: string | null;
   /** Every source field for this order (CSV cells / XML leaves+attrs / EDI / JSON / raw). */
   sourceTokens: ReadonlyArray<SourceToken>;
   /** Pick a canonical field: host sets canonicalField, clears sourceToken + fixedValue. */
@@ -96,7 +107,11 @@ function columnName(t: SourceToken): string {
 }
 
 type Option =
-  | { kind: "canonical"; id: string; label: string; value: string | null }
+  // `unavailable`: the name exists in the backend row bag but the CHOSEN OUTPUT FORMAT cannot
+  // carry it (a structured format's shape is fixed by its standard). Rendered greyed with a
+  // reason and not selectable — the alternative, offering it and silently dropping the rule, is
+  // what made this a defect.
+  | { kind: "canonical"; id: string; label: string; value: string | null; unavailable?: boolean }
   // A "per line" binding: one option per repeating column, writes the token's RELATIVE id so ONE
   // rule emits each line's own value. `cells` are the absolute per-row tokens behind "exact cell".
   | { kind: "perline"; id: string; relativeId: string; label: string; value: string; cells: SourceToken[] }
@@ -108,7 +123,7 @@ const GROUP_LABEL: Record<string, string> = {
 const GROUP_ORDER = ["header", "line", "parties", "raw"];
 
 export function OutputSourcePicker({
-  outputPath, binding, canonicalFields, sourceTokens,
+  outputPath, binding, canonicalFields, sourceTokens, outputFormat,
   onPickCanonical, onPickSourceToken, onPickFixed, onClear, compact,
 }: OutputSourcePickerProps) {
   const [open, setOpen] = useState(false);
@@ -127,11 +142,40 @@ export function OutputSourcePicker({
   const q = query.trim().toLowerCase();
   const tokensExpanded = showMore || q.length > 0;
 
+  // WP-14: the canonical list grew from 13 names to 53, so it is grouped BY SCOPE — an operator
+  // looking for a delivery address scans one section instead of a wall. Group order follows first
+  // appearance in `canonicalFields`, so a line-scope row still leads with line fields (the host
+  // passes line names first for a line rule, header names first for a header rule) and the
+  // author's own custom keys land in their own trailing group.
+  const structured = isStructuredOutputFormat(outputFormat);
+
+  const canonicalGroups = useMemo<Array<{ label: string; options: Option[] }>>(() => {
+    const byLabel = new Map<string, Option[]>();
+    for (const f of canonicalFields) {
+      if (q && !f.toLowerCase().includes(q)) continue;
+      const scope = canonicalFieldScope(f);
+      const label = scope === null
+        ? "Custom fields"
+        : (CANONICAL_FIELD_GROUPS.find((g) => g.scope === scope)?.label ?? "Standard fields");
+      if (!byLabel.has(label)) byLabel.set(label, []);
+      byLabel.get(label)!.push({
+        kind: "canonical" as const,
+        id: f,
+        label: f,
+        value: null,
+        // Offer ⇔ works: a name a structured format cannot carry is shown, and shown as
+        // unavailable, rather than offered as if binding it did something.
+        unavailable: !canonicalFieldReachesOutput(f, outputFormat),
+      });
+    }
+    return [...byLabel].map(([label, options]) => ({ label, options }));
+  }, [canonicalFields, q, outputFormat]);
+
+  // Flattened in the SAME order the groups render, so keyboard nav walks what the eye sees —
+  // MINUS the unavailable ones, which must not be reachable by arrow keys or Enter either.
   const canonicalOptions = useMemo<Option[]>(
-    () => canonicalFields
-      .filter((f) => !q || f.toLowerCase().includes(q))
-      .map((f) => ({ kind: "canonical" as const, id: f, label: f, value: null })),
-    [canonicalFields, q],
+    () => canonicalGroups.flatMap((g) => g.options).filter((o) => !(o.kind === "canonical" && o.unavailable)),
+    [canonicalGroups],
   );
 
   // F-1 Phase 4: a repeating LINE column collapses to ONE "per line" option (deduped by relativeId).
@@ -346,14 +390,26 @@ export function OutputSourcePicker({
 
           <div style={{ maxHeight: 260, overflowY: "auto", padding: 6 }}>
             {/* Canonical fields — shown first (progressive disclosure: the common case up top). */}
-            {canonicalOptions.length > 0 && (
-              <div style={{ marginBottom: 4 }}>
-                <div style={groupHeadStyle}>Standard fields</div>
-                {canonicalOptions.map((o) => (
+            {canonicalGroups.map((group) => (
+              <div key={group.label} style={{ marginBottom: 4 }}>
+                <div style={groupHeadStyle}>{group.label}</div>
+                {group.options.map((o) => (
                   <OptionRow key={`c:${o.id}`} option={o}
                     active={flat.indexOf(o) === active}
+                    unavailableNote={o.kind === "canonical" && o.unavailable
+                      ? `${(outputFormat ?? "").toUpperCase()} has no place for this field`
+                      : undefined}
                     onHover={() => setActive(flat.indexOf(o))} onPick={() => pick(o)} />
                 ))}
+              </div>
+            ))}
+
+            {/* Say it once, plainly, instead of leaving the operator to wonder why rows are grey. */}
+            {structured && (
+              <div style={{ padding: "6px 6px 8px", fontSize: 10, color: "var(--ink-faint)", lineHeight: 1.45 }}>
+                This connection delivers <strong>{(outputFormat ?? "").toUpperCase()}</strong>, whose document
+                structure is set by the standard. Only the fields above that are not greyed out can be
+                changed here; the rest have no slot in that format.
               </div>
             )}
 
@@ -481,23 +537,31 @@ const groupHeadStyle: React.CSSProperties = {
   color: "var(--ink-faint)", padding: "4px 6px 3px",
 };
 
-function OptionRow({ option, active, onHover, onPick, perLine }: {
+function OptionRow({ option, active, onHover, onPick, perLine, unavailableNote }: {
   option: Option; active: boolean; onHover: () => void; onPick: () => void;
   /** A "per line" (relative) binding — append a hint so the user knows it fills EVERY line. */
   perLine?: boolean;
+  /** Set when the CHOSEN OUTPUT FORMAT cannot carry this field: the row is disabled + explained. */
+  unavailableNote?: string;
 }) {
+  const disabled = !!unavailableNote;
   return (
     <button
       type="button"
       role="option"
       aria-selected={active}
-      onMouseEnter={onHover}
-      onClick={onPick}
+      aria-disabled={disabled || undefined}
+      disabled={disabled}
+      title={unavailableNote}
+      onMouseEnter={disabled ? undefined : onHover}
+      onClick={disabled ? undefined : onPick}
       style={{
         display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8,
-        width: "100%", textAlign: "left", border: "none", cursor: "pointer",
+        width: "100%", textAlign: "left", border: "none",
+        cursor: disabled ? "not-allowed" : "pointer",
         padding: "5px 6px", borderRadius: 6,
-        background: active ? "#F1F8F2" : "none",
+        opacity: disabled ? 0.55 : 1,
+        background: active && !disabled ? "#F1F8F2" : "none",
       }}
     >
       <span style={{ display: "flex", flexDirection: "column", gap: 1, minWidth: 0 }}>
@@ -509,7 +573,12 @@ function OptionRow({ option, active, onHover, onPick, perLine }: {
             </span>
           )}
         </span>
-        {option.value != null && (
+        {unavailableNote && (
+          <span style={{ fontSize: 9.5, color: "var(--ink-faint)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            {unavailableNote}
+          </span>
+        )}
+        {!unavailableNote && option.value != null && (
           <span style={{ fontFamily: "'JetBrains Mono',monospace", fontVariantNumeric: "tabular-nums", fontSize: 9.5, color: "var(--ink-faint)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
             {option.value || "(empty)"}
           </span>

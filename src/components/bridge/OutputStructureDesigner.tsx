@@ -17,7 +17,7 @@ import {
   type NamespaceRow,
 } from "./outputNamespaceModel";
 import {
-  CANONICAL_HEADER_FIELDS, CANONICAL_LINE_FIELDS,
+  BINDABLE_HEADER_FIELDS, BINDABLE_LINE_FIELDS,
   type OrderMappingOverride, type OutputNode, type OutputNodeTemplate,
   type OutputNodeType, type OutputFormat, type SourceToken,
 } from "@/lib/api/types";
@@ -503,7 +503,9 @@ function NodeEditor({
   const setNamespace = (namespace: string, prefix: string) =>
     onUpdate((n) => updateAt(n, path, (x) => setNodeNamespace(x, namespace, prefix)));
 
-  const canonicalOptions = childScope ? CANONICAL_LINE_FIELDS : CANONICAL_HEADER_FIELDS;
+  // WP-14: the full bindable set per scope, so the tree designer can reach ShipToCity,
+  // ManufacturerPartNumber and the rest — the emitter resolves them from the same row bag.
+  const canonicalOptions = childScope ? BINDABLE_LINE_FIELDS : BINDABLE_HEADER_FIELDS;
   const boundCanonical = node.rule?.canonicalField ?? "";
   const boundToken = node.rule?.sourceToken ?? "";
   const usingFixed = node.rule?.fixedValue != null && !boundCanonical && !boundToken;
