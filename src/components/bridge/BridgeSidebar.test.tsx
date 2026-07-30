@@ -184,25 +184,20 @@ describe("buildVisibleNav — consolidated structure (full nav)", () => {
     expect(inbox?.badgeKey).toBe("review");
   });
 
-  it("every legacy deep route keeps a reachable entry (hub item, direct item, or pinned action)", () => {
-    const items = allItems(buildVisibleNav("Suppliers", true, FULL));
-    const LEGACY_ROUTES = [
-      "/bridge", "/upload", "/inbox", "/drafts",
-      "/library/suppliers", "/library/buyers", "/connections",
-      "/library/mappings", "/library/rules", "/library/rule-definitions",
-      "/library/templates", "/library/standards",
-      "/operations/health", "/operations/exceptions", "/operations/log",
-      "/operations/connectors", "/operations/webhooks",
-      "/inbound/invoices", "/inbound/asns",
-      "/admin", "/settings", "/help",
-    ];
-    for (const route of LEGACY_ROUTES) {
-      const direct = items.some((i) => route === i.href || route.startsWith(i.href + "/"));
-      const viaHub = items.some((i) => i.hub && hubForPath(route) === i.hub);
-      const viaPinned = route === PINNED_ACTION_HREF;
-      expect(direct || viaHub || viaPinned, `route ${route} must stay reachable`).toBe(true);
-    }
-  });
+  // Route reachability now lives in src/test/route-reachability.test.ts.
+  //
+  // The test that stood here asserted the same thing and could not do the job.
+  // It iterated a literal LEGACY_ROUTES array, so a route that lost its last
+  // inbound link stayed "reachable" until a human remembered to update the
+  // array — the guard could only catch orphans someone had already noticed. And
+  // its `viaHub` check asked hubForPath(route), which honours HubTabs `match[]`;
+  // `match` only decides which tab HIGHLIGHTS once you are already on a page, so
+  // /library/rule-definitions passed green while nothing in the product linked
+  // to it. The replacement globs page.tsx off disk and accepts only real links.
+  //
+  // What is genuinely this file's job — that every nav item's href resolves back
+  // to its own hub — is covered by the "hub items link to their first tab" and
+  // "hub active-state covers every tab route" tests above and below.
 
   it("hub active-state covers every tab route of the hub (isItemActive)", () => {
     const items = allItems(buildVisibleNav("Suppliers", true, FULL));
