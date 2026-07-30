@@ -1,5 +1,7 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { render, screen, cleanup } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { ConfirmProvider } from "@/components/ui/confirm";
 
 // delivery_held (the A5 billing hold) — truthfulness guard.
 //
@@ -20,14 +22,45 @@ vi.mock("next/navigation", () => ({
   useSearchParams: () => new URLSearchParams(),
 }));
 
+vi.mock("@/lib/api-client", () => ({
+  isApiMockMode: false,
+  apiClient: {
+    getOrderById: vi.fn(),
+    getOrderPassport: vi.fn().mockResolvedValue(null),
+    redeliverOrder: vi.fn(),
+    markDelivered: vi.fn(),
+    retryDelivery: vi.fn(),
+    transformOrder: vi.fn(),
+  },
+  requeueDelivery: vi.fn(),
+  getOpsHealth: vi.fn().mockResolvedValue({ workerHealthy: true }),
+}));
+
+vi.mock("@/hooks/useQueriesEnabled", () => ({ useQueriesEnabled: () => true }));
+
 import { UnifiedStatusBadge, statusLabel, statusTone } from "./UnifiedStatusBadge";
 import { finalDeliveryMessage, BILLING_HELD_MESSAGE } from "./review/hooks/useOrderReview";
-import { BillingHeldPanel } from "./workshop/BillingHeldPanel";
+import { OrderProblemPanel } from "./problem/OrderProblemPanel";
 import { isRedeliverable } from "./inboxSend";
 import type { Order } from "@/types/procurement";
 import type { PartyLabels } from "@/hooks/useOrderDirection";
 
 afterEach(cleanup);
+
+/**
+ * The billing-pause panel. BillingHeldPanel was retired into the one
+ * OrderProblemPanel (WP-24) — same status, same three claims, one component.
+ */
+function renderHeldPanel(order: Order = HELD_ORDER) {
+  const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  return render(
+    <QueryClientProvider client={qc}>
+      <ConfirmProvider>
+        <OrderProblemPanel order={order} />
+      </ConfirmProvider>
+    </QueryClientProvider>,
+  );
+}
 
 const LABELS: PartyLabels = {
   counterpartyNoun: "Supplier",
@@ -89,9 +122,16 @@ describe("delivery_held — the review message tells the truth", () => {
 
 describe("delivery_held — the workshop panel", () => {
   it("explains the pause and points at billing", () => {
-    render(<BillingHeldPanel order={HELD_ORDER} />);
+    renderHeldPanel();
     expect(screen.getByText("Delivery paused")).toBeInTheDocument();
-    expect(screen.getByText(BILLING_HELD_MESSAGE)).toBeInTheDocument();
+    // The three load-bearing claims BILLING_HELD_MESSAGE makes — the cause is
+    // billing, nothing is lost, and the resume is automatic — asserted as claims
+    // rather than as one exact sentence, because the panel now answers the five
+    // problem questions in separate lines. `finalDeliveryMessage` below still pins
+    // the shared constant itself for the two surfaces that print it whole.
+    expect(screen.getByText(/about your plan, not the order/i)).toBeInTheDocument();
+    expect(screen.getByText(/nothing failed and nothing is lost/i)).toBeInTheDocument();
+    expect(screen.getByText(/starts again by itself/i)).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /go to billing/i })).toHaveAttribute(
       "href",
       "/settings?tab=billing",
@@ -99,15 +139,14 @@ describe("delivery_held — the workshop panel", () => {
   });
 
   it("offers no Send action — the backend answers 400 and the release is automatic", () => {
-    render(<BillingHeldPanel order={HELD_ORDER} />);
+    renderHeldPanel();
     expect(screen.queryByRole("button", { name: /send/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /send/i })).not.toBeInTheDocument();
     expect(isRedeliverable("delivery_held")).toBe(false);
   });
 
   it("reassures that the mapping and upload survive", () => {
-    render(<BillingHeldPanel order={HELD_ORDER} />);
-    expect(screen.getByText(/don't need to re-upload/i)).toBeInTheDocument();
-    expect(screen.getByText("PO-77120")).toBeInTheDocument();
+    renderHeldPanel();
+    expect(screen.getByText(/don.t need to upload PO-77120 again/i)).toBeInTheDocument();
   });
 });

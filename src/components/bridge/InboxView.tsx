@@ -4,7 +4,7 @@
 // Sort on every column header · filter chips by status · bulk-select rows
 // Click a row → /inbox/[orderId] (Canonical Spine Review)
 
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useState, useMemo, useCallback, useRef, useEffect } from "react";
 import { useQueriesEnabled } from "@/hooks/useQueriesEnabled";
 import { useSampleOrder } from "@/hooks/useSampleOrder";
@@ -35,10 +35,15 @@ import {
   bulkSendConfirmCopy,
   bulkSendNeedsDuplicateConfirm,
   formatBulkSendResult,
-  isRedeliverable,
+  isBulkSelectable,
   shouldShowBulkBar,
   type BulkSendResult,
 } from "./inboxSend";
+import {
+  inboxChipIndexFor,
+  inboxSortingFor,
+  resolveInboxStatusParam,
+} from "./inboxUrlFilter";
 import { useConfirm } from "@/components/ui/confirm";
 
 // Per-column metadata. `numeric` right-aligns value cells; `label` is the
@@ -446,25 +451,25 @@ const columnHelper = createColumnHelper<OrderRow>();
 function buildColumns(labels: PartyLabels) {
   return [
   // Checkbox select — selection feeds ONLY the "Send selected" bulk action
-  // (POST /redeliver), which the backend accepts from ready_to_deliver,
-  // delivery_failed and delivery_unconfirmed. Rows in any other status are NOT
-  // selectable (enableRowSelection gates on isRedeliverable in the table options),
-  // so "Send selected" can never fire a guaranteed-400 request. TanStack's
-  // select-all helpers respect getCanSelect(), so the header checkbox keeps
-  // working on filtered views and selects only the sendable rows.
+  // (POST /redeliver). The selectable set is isBulkSelectable =
+  // {ready_to_deliver, delivery_failed}, exactly the backend's
+  // ClaimableForRetryFrom, so "Send selected" can never fire a guaranteed-400
+  // request. TanStack's select-all helpers respect getCanSelect(), so the header
+  // checkbox keeps working on filtered views and selects only sendable rows.
   //
-  // Parked (delivery_unconfirmed) rows are sendable and therefore selectable, so
-  // these labels must NAME them: a select-all that silently includes orders the
-  // supplier may already hold is a decision the operator can't see they're making.
-  // The send itself is confirmed separately (see handleSendSelected).
+  // Parked (delivery_unconfirmed) rows are redeliverable but are NOT selectable
+  // here any more: the bulk bar routed N of them through ONE boolean confirm, on
+  // the very channels that de-duplicate nothing. That decision belongs to the
+  // per-order resolver on the order screen, which asks what the supplier actually
+  // said — a question a checkbox cannot answer.
   columnHelper.display({
     id: "select",
     enableHiding: false,
     header: ({ table }) => {
-      // Only Ready to send / Failed delivery / Delivery unknown rows are selectable
-      // (enableRowSelection gate). On a view with none (e.g. "All orders" showing only
-      // Normalized / Needs review), select-all would select nothing and look DEAD.
-      // Disable it + say why, so the click isn't a silent no-op.
+      // Only Ready to send / Failed delivery rows are selectable (enableRowSelection
+      // gate). On a view with none (e.g. "All orders" showing only Normalized /
+      // Needs review), select-all would select nothing and look DEAD. Disable it +
+      // say why, so the click isn't a silent no-op.
       const selectable = table.getRowModel().rows.filter((r) => r.getCanSelect()).length;
       const none = selectable === 0;
       return (
@@ -477,7 +482,7 @@ function buildColumns(labels: PartyLabels) {
           aria-label={none ? "No sendable orders on this view" : "Select all sendable orders"}
           title={none
             ? "No orders here can be sent. Switch to the “Ready to send” or “Failed” tab to select orders to deliver."
-            : "Selects orders that can be sent (Ready to send, Failed delivery, or Delivery unknown — which the supplier may already have)"}
+            : "Selects orders that are ready to send or had a delivery failure."}
         />
       );
     },
@@ -500,12 +505,16 @@ function buildColumns(labels: PartyLabels) {
           aria-label={
             canSelect
               ? "Select row"
-              : "Can't select — only orders that are Ready to send, have a failed delivery, or have an unknown delivery can be sent"
+              : row.original.rawStatus === "delivery_unconfirmed"
+                ? "Delivery unknown — open the order to resolve it safely"
+                : "Can't select — only orders that are ready to send or had a failed delivery can be sent from here"
           }
           title={
             canSelect
               ? undefined
-              : "Only orders that are Ready to send, have a failed delivery, or have an unknown delivery can be sent"
+              : row.original.rawStatus === "delivery_unconfirmed"
+                ? "Delivery unknown — open the order to resolve it safely"
+                : "Only orders that are ready to send or had a failed delivery can be sent from here. Open the others to see what they need."
           }
         />
       );
@@ -707,8 +716,43 @@ export function InboxView() {
   // Practice-order CTA for the GENUINE empty state (task 9) — shared hook so
   // analytics/invalidation/routing match every other sample entry point.
   const sample = useSampleOrder("/inbox");
-  const [sorting, setSorting]           = useState<SortingState>([{ id: "ageMin", desc: false }]);
-  const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
+  // The URL IS the filter (D3). statusFilter / activeChip / page are DERIVED from
+  // the query string, never mirrored into state: every ?status= link in the product
+  // used to land on an unfiltered inbox because this component read no params, and
+  // copying them into useState on mount would have re-created the same
+  // two-sources-of-truth bug the first time a link changed under a mounted view.
+  // Chip clicks write the URL back, so back/forward work and a filtered view is
+  // shareable — which is the whole promise a health tile makes.
+  const params = useSearchParams();
+  const pathname = usePathname();
+  const urlStatus = params.get("status");
+  const { status: statusFilter, known: statusKnown } = resolveInboxStatusParam(urlStatus);
+  const activeChip = statusKnown ? inboxChipIndexFor(urlStatus) : 0;
+  const urlSort = params.get("sort");
+  const page = Math.max(1, Number(params.get("page") ?? "1") || 1);
+
+  /** Write the next filter state into the URL (replace: no history spam per chip). */
+  const setParams = useCallback(
+    (next: Record<string, string | null>) => {
+      const sp = new URLSearchParams(params.toString());
+      for (const [k, v] of Object.entries(next)) {
+        if (v === null || v === "") sp.delete(k);
+        else sp.set(k, v);
+      }
+      const qs = sp.toString();
+      router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+    },
+    [params, pathname, router],
+  );
+
+  // Sort seeds from ?sort=oldest — the honest target for the "Overdue" health tile,
+  // which has no server-side age filter — and is owned by the table thereafter.
+  const [sorting, setSorting]           = useState<SortingState>(() => inboxSortingFor(urlSort));
+  const columnFilters: ColumnFiltersState = useMemo(() => {
+    if (!isApiMockMode) return [];
+    const chip = FILTER_CHIPS[activeChip];
+    return chip?.status ? [{ id: "status", value: chip.status }] : [];
+  }, [activeChip]);
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
   // Column visibility — session-only (no localStorage). Empty = all visible.
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
@@ -719,11 +763,8 @@ export function InboxView() {
   // reffed so the active row can be scrolled into view as it moves.
   const [activeRow, setActiveRow] = useState(-1);
   const tableBodyRef = useRef<HTMLTableSectionElement>(null);
-  const [activeChip, setActiveChip]     = useState(0); // index into FILTER_CHIPS
   const [searchInput, setSearchInput]   = useState(""); // controlled search-box value
   const [search, setSearch]             = useState(""); // committed (debounced) server search
-  const [statusFilter, setStatusFilter] = useState<OrderStatus | undefined>(undefined); // live ?status=
-  const [page, setPage]                 = useState(1);  // 1-based page index
   const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Bulk "Send selected" lifecycle: idle while no request is in flight, then a
   // visible pending → result feedback so the action is never a silent no-op.
@@ -776,30 +817,23 @@ export function InboxView() {
 
   // Status chip → mock filters the column client-side; live sets the server filter.
   const handleChip = useCallback((idx: number) => {
-    setActiveChip(idx);
-    setPage(1);
     setRowSelection({});
     const chip = FILTER_CHIPS[idx];
-    if (isApiMockMode) {
-      setColumnFilters(chip.status ? [{ id: "status", value: chip.status }] : []);
-    } else {
-      setStatusFilter(chip.api);
-    }
-  }, []);
+    // ONE code path for both modes: the URL decides which chip is active, and the
+    // mock-mode column filter is derived from that same index above.
+    setParams({ status: chip.api ?? null, page: null });
+  }, [setParams]);
 
   // Reset every active filter/search back to "All orders" with no query. Mirrors
   // handleChip(0) plus clearing both the controlled search input and the committed
   // (debounced) live search term. Used by the filter-aware empty state.
   const handleClearFilters = useCallback(() => {
     if (searchTimer.current) clearTimeout(searchTimer.current);
-    setActiveChip(0);
-    setColumnFilters([]);
-    setStatusFilter(undefined);
     setSearchInput("");
     setSearch("");
-    setPage(1);
     setRowSelection({});
-  }, []);
+    setParams({ status: null, page: null, sort: null });
+  }, [setParams]);
 
   // Search box: mock filters instantly client-side; live debounces into a server query.
   // Clear any row selection on every search change (mirrors handleChip): search hides
@@ -808,12 +842,12 @@ export function InboxView() {
   // sync with what's actually visible.
   const handleSearch = useCallback((value: string) => {
     setSearchInput(value);
-    setPage(1);
+    if (page !== 1) setParams({ page: null });
     setRowSelection({});
     if (isApiMockMode) return;
     if (searchTimer.current) clearTimeout(searchTimer.current);
     searchTimer.current = setTimeout(() => setSearch(value), 350);
-  }, []);
+  }, [page, setParams]);
 
   // Bulk "Send selected": selection keys are order ids (see getRowId), and
   // selection is gated to redeliverable statuses (see enableRowSelection), so
@@ -888,7 +922,6 @@ export function InboxView() {
     getRowId: (row) => row.id,
     state: { sorting, columnFilters, rowSelection, columnVisibility },
     onSortingChange: setSorting,
-    onColumnFiltersChange: setColumnFilters,
     onRowSelectionChange: setRowSelection,
     onColumnVisibilityChange: setColumnVisibility,
     getCoreRowModel: getCoreRowModel(),
@@ -899,7 +932,11 @@ export function InboxView() {
     // gate selection on the RAW backend status (the display pill is too
     // coarse: its "failed" bucket mixes redeliverable delivery_failed with
     // non-redeliverable parse/transform failures and dead-letters).
-    enableRowSelection: (row) => isRedeliverable(row.original.rawStatus),
+    // Narrower than /redeliver's guard set ON PURPOSE — see isBulkSelectable. A
+    // parked (delivery_unconfirmed) row IS redeliverable but is NOT selectable:
+    // that decision needs the per-order "what did the supplier say?" resolver on
+    // the order screen, and a checkbox cannot answer that question.
+    enableRowSelection: (row) => isBulkSelectable(row.original.rawStatus),
   });
 
   const { rows } = table.getRowModel();
@@ -1211,6 +1248,43 @@ export function InboxView() {
         className="flex flex-col gap-2 pb-3 sm:flex-row sm:flex-wrap sm:items-center flex-shrink-0"
         style={{ background: "var(--bg)" }}
       >
+        {/* An unrecognised ?status= must NOT quietly fall through to "All orders":
+            an inbox showing everything reads as "you have no problems", which is
+            the one lie this screen cannot afford. Say so, and offer the way out. */}
+        {!statusKnown && (
+          <div
+            role="status"
+            className="flex w-full flex-wrap items-center gap-2"
+            style={{
+              background: "var(--amber-soft)",
+              color: "var(--amber-text)",
+              border: "1px solid #F0D39A",
+              borderRadius: 8,
+              padding: "7px 10px",
+              fontSize: 12.5,
+              fontWeight: 600,
+            }}
+          >
+            We don&rsquo;t recognise that filter, so this is every order.
+            <button
+              type="button"
+              onClick={handleClearFilters}
+              style={{
+                minHeight: 32,
+                padding: "0 10px",
+                borderRadius: 6,
+                border: "1px solid #E4C489",
+                background: "var(--surface)",
+                color: "var(--amber-text)",
+                fontSize: 12,
+                fontWeight: 700,
+                cursor: "pointer",
+              }}
+            >
+              Clear
+            </button>
+          </div>
+        )}
         <div className="no-scrollbar flex items-center gap-1.5 overflow-x-auto flex-nowrap w-full sm:w-auto sm:flex-1 min-w-0">
           {FILTER_CHIPS.map(({ label }, i) => {
             const active = i === activeChip;
@@ -1804,7 +1878,7 @@ export function InboxView() {
         <div className="ml-auto flex items-center gap-2">
           <button
             type="button"
-            onClick={() => setPage(Math.max(1, currentPage - 1))}
+            onClick={() => setParams({ page: currentPage - 1 <= 1 ? null : String(currentPage - 1) })}
             disabled={currentPage <= 1}
             className="rounded-[6px] px-2.5 text-[12px] font-medium"
             style={{ height: 28, border: "1px solid #E5E8EE", background: "#FFFFFF", color: currentPage <= 1 ? "#CBD0DA" : "#0B1A2F", cursor: currentPage <= 1 ? "default" : "pointer" }}
@@ -1816,7 +1890,7 @@ export function InboxView() {
           </span>
           <button
             type="button"
-            onClick={() => setPage(currentPage + 1)}
+            onClick={() => setParams({ page: String(currentPage + 1) })}
             disabled={currentPage >= totalPages}
             className="rounded-[6px] px-2.5 text-[12px] font-medium"
             style={{ height: 28, border: "1px solid #E5E8EE", background: "#FFFFFF", color: currentPage >= totalPages ? "#CBD0DA" : "#0B1A2F", cursor: currentPage >= totalPages ? "default" : "pointer" }}

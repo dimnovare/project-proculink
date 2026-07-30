@@ -17,7 +17,8 @@ import {
   type DeadLetterOrder,
 } from "@/lib/api-client";
 import { useQueriesEnabled } from "@/hooks/useQueriesEnabled";
-import { isAllClear } from "./opsHealthState";
+import { isAllClear, isQueueClear } from "./opsHealthState";
+import { TILES } from "./healthTiles";
 import { DeliveryPausedCard } from "./DeliveryPausedCard";
 import { PageShell } from "@/components/bridge/layout/PageShell";
 import { PageHeader } from "@/components/bridge/layout/PageHeader";
@@ -34,22 +35,6 @@ import {
   tv2Num,
   tv2DotColor,
 } from "@/components/bridge/layout/listTableV2";
-
-// Each tile: which OpsHealth field, label, and which inbox filter it links to.
-const TILES: Array<{ key: keyof OpsHealth; label: string; href: string }> = [
-  { key: "parsingStuck",       label: "Stuck reading the file", href: "/inbox" },
-  { key: "deliveringStuck",    label: "Stuck delivering",  href: "/inbox?status=delivering" },
-  { key: "transformFailed",    label: "Transform failed",  href: "/inbox?status=failed" },
-  { key: "deliveryFailed",     label: "Delivery failed",   href: "/inbox?status=failed" },
-  // Plain tile, not a bespoke card: unlike deliveryHeld (one global Settings→Billing
-  // fix), a parked order's fix is per-order in the workshop — so it belongs in the
-  // grid the operator already scans, routed to the filtered inbox like every other tile.
-  { key: "deliveryUnconfirmed", label: "Delivery unknown", href: "/inbox?status=delivery_unconfirmed" },
-  { key: "deliveryDeadLetter", label: "Out of retries",    href: "/inbox?status=failed" },
-  { key: "rejectedBySupplier", label: "Rejected by supplier", href: "/inbox?status=failed" },
-  { key: "slaBreached",        label: "Overdue",           href: "/inbox" },
-  { key: "openExceptions",     label: "Open exceptions",   href: "/operations/exceptions" },
-];
 
 function tone(count: number, key: keyof OpsHealth): { bg: string; fg: string } {
   if (count === 0) return { bg: "var(--surface-2)", fg: "var(--ink-muted)" };
@@ -161,6 +146,9 @@ export default function OperationsHealthPage() {
   // reasoning there for why it reads the individual counts and not just the
   // backend's aggregate.
   const allClear = isAllClear(h);
+  // The same eleven counts WITHOUT the Worker check — so a dead Worker over an
+  // empty queue can render its own honest banner instead of a wall of zero tiles.
+  const queueClear = isQueueClear(h);
   const deliveryHeld = h.deliveryHeld ?? 0;
   const deadLetters = deadLetterQ.data ?? [];
 
@@ -222,14 +210,22 @@ export default function OperationsHealthPage() {
 
       {allClear ? (
         <div style={{ background: "var(--brand-green-soft)", border: "1px solid #BFE3BF", borderRadius: "var(--radius-md)", padding: "16px 18px", color: "var(--brand-green-deep)", fontSize: 14, fontWeight: 600 }}>
-          ✓ All clear — no orders in a problem state and no open exceptions.
+          ✓ All clear — no orders in a problem state and no open issues.
+        </div>
+      ) : queueClear && !h.workerHealthy ? (
+        /* D7 — the queue is empty but the pipeline is down. This used to render the
+           green "All clear" banner directly under the red "processing is paused"
+           band: two contradictory claims, one screen. Amber, and it names the
+           actual state. */
+        <div role="status" style={{ background: "var(--amber-soft)", border: "1px solid #F0D39A", borderRadius: "var(--radius-md)", padding: "16px 18px", color: "var(--amber-text)", fontSize: 14, fontWeight: 600 }}>
+          No orders are in a problem state — but order processing is paused, so new work is waiting.
         </div>
       ) : (
         <div
           className="grid gap-3"
           style={{ gridTemplateColumns: "repeat(auto-fill, minmax(168px, 1fr))" }}
         >
-          {TILES.map(({ key, label, href }) => {
+          {TILES.map(({ key, label, href, helper }) => {
             // `?? 0`: every TILES key is a required numeric field except
             // deliveryUnconfirmed, which ships separately (PR #27) and is optional for
             // forward/backward compat — an older API omitting it must read as 0, not
@@ -250,6 +246,9 @@ export default function OperationsHealthPage() {
                   <span style={{ width: 7, height: 7, borderRadius: "50%", background: t.fg, opacity: count === 0 ? 0.4 : 1 }} />
                   <span style={{ fontSize: 12, fontWeight: 500, color: "var(--ink-muted)" }}>{label}</span>
                 </div>
+                {helper && (
+                  <div style={{ marginTop: 4, fontSize: 11, color: "var(--ink-faint)", lineHeight: 1.4 }}>{helper}</div>
+                )}
               </Link>
             );
           })}
@@ -271,7 +270,7 @@ export default function OperationsHealthPage() {
               finger-tappable on a phone while the visual stays compact. */}
           <label className="py-2.5" style={{ display: "inline-flex", alignItems: "center", gap: 7, fontSize: 12.5, color: "var(--ink-muted)", cursor: "pointer", minHeight: 44 }}>
             <input type="checkbox" className="h-5 w-5" style={{ cursor: "pointer" }} checked={includeFailed} onChange={(e) => setIncludeFailed(e.target.checked)} />
-            Include delivery-failed
+            Also show orders we&rsquo;re still retrying
           </label>
         </div>
 
@@ -338,7 +337,7 @@ export default function OperationsHealthPage() {
                                disable + spin every row's button (shared isPending). */
                             disabled={requeue.isPending && requeue.variables?.orderId === o.orderId}
                           >
-                            {requeue.isPending && requeue.variables?.orderId === o.orderId ? "Sending…" : "Try sending again"}
+                            {requeue.isPending && requeue.variables?.orderId === o.orderId ? "Queued…" : "Start sending again"}
                           </Button>
                         ) : (
                           /* Supplier BUSINESS-rejected the order — a blind requeue would
@@ -390,7 +389,7 @@ export default function OperationsHealthPage() {
                         disabled={requeue.isPending && requeue.variables?.orderId === o.orderId}
                         style={{ width: "100%" }}
                       >
-                        {requeue.isPending && requeue.variables?.orderId === o.orderId ? "Sending…" : "Try sending again"}
+                        {requeue.isPending && requeue.variables?.orderId === o.orderId ? "Queued…" : "Start sending again"}
                       </Button>
                     ) : (
                       /* Supplier BUSINESS-rejected — see desktop table above. */

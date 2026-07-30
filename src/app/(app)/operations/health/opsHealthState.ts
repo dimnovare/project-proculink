@@ -14,6 +14,19 @@ import type { OpsHealth } from "@/lib/api-client";
  * break green — but it is never the only thing consulted.
  */
 export function isAllClear(h: OpsHealth): boolean {
+  // A dead Worker is not "all clear" even over an empty queue: nothing parses,
+  // transforms or delivers, so every order that arrives next is already waiting.
+  // Without this the page rendered the red "Order processing is paused" band
+  // directly above a green "✓ All clear" — two contradictory claims, one screen.
+  return h.workerHealthy && isQueueClear(h);
+}
+
+/**
+ * The same count checks WITHOUT the Worker heartbeat: "is the QUEUE clear?".
+ * Kept separate so the page can tell "nothing to do" apart from "nothing to do,
+ * but nothing is running either" and word each honestly.
+ */
+export function isQueueClear(h: OpsHealth): boolean {
   return (
     h.totalProblemOrders === 0 &&
     h.openExceptions === 0 &&
@@ -35,6 +48,10 @@ export function isAllClear(h: OpsHealth): boolean {
     // into totalProblemOrders, so the backstop above already catches it. Checked
     // directly anyway, for the same reason as deliveryHeld: once the frontend knows a
     // category by name, it verifies it itself rather than trusting the aggregate alone.
-    (h.deliveryUnconfirmed ?? 0) === 0
+    (h.deliveryUnconfirmed ?? 0) === 0 &&
+    // Orders with no supplier resolved yet. A backlog, not a fault — but it is
+    // work waiting on a person, and the tile that shows it (D6) would otherwise
+    // sit under a green "All clear".
+    (h.pendingRouting ?? 0) === 0
   );
 }

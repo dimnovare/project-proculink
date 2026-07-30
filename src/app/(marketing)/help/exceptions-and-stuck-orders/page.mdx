@@ -21,7 +21,7 @@ Exceptions are generated automatically from order state:
 - **Transform failed** — generating the supplier's output failed.
 - **Delivery failed** — sending to the supplier failed; the attempt's error is captured.
 - **Rejected by supplier** — the supplier's system returned the order after delivery.
-- **Dead-lettered** (critical) — automatic delivery retries are exhausted.
+- **Out of retries** (critical) — automatic delivery retries are exhausted.
 
 ## Resolve vs Ignore — what they really do
 
@@ -31,11 +31,11 @@ The exception list mirrors reality; it doesn't replace it:
 - **Resolve** marks the row done — but if the underlying problem still exists, a fresh exception reopens so the problem stays visible. You can't make a broken order look healthy by clicking Resolve.
 - **Ignore** is a deliberate dismissal: an ignored exception is never reopened and never nags again for the same cause. Use it for things you've decided not to act on.
 
-## Delivery failures, retries, and dead-letter
+## Delivery failures and retries
 
-A failed delivery is retried automatically — **3 attempts in total** — and then the order moves to **Dead-lettered**, with each attempt's error and response code kept in the audit trail.
+A failed delivery is retried automatically — **3 attempts in total** — and then the order moves to **Out of retries**, with each attempt's error and response code kept in the audit trail.
 
-Dead-lettered orders can't be retried from the order screen (that path is deliberately closed once retries are exhausted). Instead, go to **Operations → Health**, find the order in the dead-letter table, fix the cause (usually the delivery config or the supplier endpoint), and **Requeue**. Requeue re-sends the order's latest generated output.
+Once retries are exhausted, nothing more happens on its own. Open the order: the panel there explains what happened and carries **Start sending again**, which puts the order back in the sending queue. Check the supplier's delivery settings first — if nothing has changed at their end, it will fail the same way. The same action is available in bulk from **Operations → System health**, in the table of orders we couldn't deliver.
 
 One caveat to keep front of mind: a successful delivery means the supplier's endpoint answered — **HTTP 200 is not business acceptance**. A delivered order can still come back as Rejected by supplier; that creates its own exception.
 

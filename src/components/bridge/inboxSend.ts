@@ -37,6 +37,29 @@ export function isRedeliverable(rawStatus: string): boolean {
   return REDELIVERABLE_STATUSES.has(rawStatus);
 }
 
+/**
+ * Statuses the inbox may BULK-select. Deliberately NARROWER than
+ * REDELIVERABLE_STATUSES: it is exactly the backend's ClaimableForRetryFrom,
+ * whose own comment states the rule — "an automatic path never claims a park".
+ *
+ * `delivery_unconfirmed` is redeliverable (a human may choose to accept the
+ * duplicate risk) but is NOT selectable here, because the bulk bar is not that
+ * human. It routed N parked orders through ONE boolean confirm, on the very
+ * channels that de-duplicate nothing; the order screen's three-step resolver
+ * exists precisely so that decision is per-order and evidence-based ("what did
+ * the supplier say?"). A checkbox cannot answer that question, so it does not
+ * get to ask it.
+ */
+export const BULK_SELECTABLE_STATUSES: ReadonlySet<string> = new Set([
+  "ready_to_deliver",
+  "delivery_failed",
+]);
+
+/** True when a row may be swept into the inbox's bulk "Send selected". */
+export function isBulkSelectable(rawStatus: string): boolean {
+  return BULK_SELECTABLE_STATUSES.has(rawStatus);
+}
+
 /** The parked status — sent, but the outcome was lost, so a resend may duplicate. */
 const DELIVERY_UNCONFIRMED = "delivery_unconfirmed";
 
