@@ -33,7 +33,7 @@ describe("pageMetadata", () => {
     ]);
     expect(meta.twitter?.images).toEqual([OG_IMAGE_PATH]);
     expect(meta.openGraph?.siteName).toBe("ProcuLink");
-    expect(meta.twitter?.card).toBe("summary_large_image");
+    expect((meta.twitter as { card?: string } | undefined)?.card).toBe("summary_large_image");
   });
 
   it("sets og:url to the page path and defaults to type website", () => {

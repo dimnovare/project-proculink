@@ -58,7 +58,7 @@ describe("planGateMessage", () => {
     const msg = planGateMessage("sftp_ingestion_requires_growth");
 
     expect(msg).not.toMatch(/_/);
-    expect(msg).toMatch(/^[A-Z].*\.$/s);
+    expect(msg).toMatch(/^[A-Z][\s\S]*\.$/);
   });
 
   it("falls back to a plan-less sentence when the code has no recognisable plan", () => {
