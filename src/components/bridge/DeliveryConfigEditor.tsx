@@ -86,6 +86,10 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
   const [port, setPort] = useState<number | "">("");
   const [remotePath, setRemotePath] = useState("");
   const [makeDirectories, setMakeDirectories] = useState(true);
+  // WP-20. Default TRUE — what every SFTP/FTPS connection did before the setting existed, and what
+  // lets a delivery that was interrupted re-send and repair its own partial file. Two different
+  // orders can no longer overwrite each other regardless of this: each file name carries its order.
+  const [overwriteExisting, setOverwriteExisting] = useState(true);
   const [sftpAuthMode, setSftpAuthMode] = useState<SftpAuthMode>("password");
   // B8: the SFTP auth method the editor LOADED with for a saved config — the shape the
   // stored secret corresponds to. The backend never returns the saved auth shape (only a
@@ -243,6 +247,9 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
       setPort(typeof p.port === "number" ? p.port : defaultPortFor(nextProtocol));
       setRemotePath(typeof p.remotePath === "string" ? p.remotePath : "");
       setMakeDirectories(typeof p.makeDirectories === "boolean" ? p.makeDirectories : true);
+      // Absent ⇒ on, matching the backend's SftpDeliveryDispatcher.OverwriteExistingFromConfig.
+      // Only an explicit false is an operator saying "do not replace".
+      setOverwriteExisting(p.overwriteExisting !== false);
       setAllowInvalidCertificate(p.allowInvalidCertificate === true);
       // smtp
       setUseSsl(p.useSsl === true);
@@ -268,6 +275,7 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
       setPort(defaultPortFor(nextProtocol));
       setRemotePath("");
       setMakeDirectories(true);
+      setOverwriteExisting(true);
       setAllowInvalidCertificate(false);
       setUseSsl(false);
       setFromAddress("");
@@ -288,9 +296,22 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
   function buildConfigObject(): Record<string, unknown> {
     if (protocol === "erp_erply") return { url, clientCode: erplyClientCode, timeoutSeconds };
     if (protocol === "erp_directo") return { url, database: directoDatabase, timeoutSeconds };
-    if (protocol === "sftp") return { host, port: Number(port) || 22, remotePath, makeDirectories, timeoutSeconds };
+    // NOTE: this returns a FIXED set of keys and the save replaces the whole config object, so any
+    // key missing from the list below is destroyed the next time an operator saves. Adding a
+    // per-supplier delivery setting means adding it here too — see the round-trip test in
+    // DeliveryConfigEditor.overwriteExisting.test.tsx.
+    if (protocol === "sftp")
+      return { host, port: Number(port) || 22, remotePath, makeDirectories, overwriteExisting, timeoutSeconds };
     if (protocol === "ftps")
-      return { host, port: Number(port) || 21, remotePath, makeDirectories, timeoutSeconds, allowInvalidCertificate };
+      return {
+        host,
+        port: Number(port) || 21,
+        remotePath,
+        makeDirectories,
+        overwriteExisting,
+        timeoutSeconds,
+        allowInvalidCertificate,
+      };
     if (protocol === "email")
       return {
         toAddresses,
@@ -872,6 +893,22 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
                       }}
                     />
                     Create the remote directory if it does not exist
+                  </label>
+                  <label className="flex items-start gap-2 text-[12px]" style={{ color: "#0B1A2F" }}>
+                    <input
+                      type="checkbox"
+                      checked={overwriteExisting}
+                      onChange={(e) => {
+                        setOverwriteExisting(e.target.checked);
+                        markEdited();
+                      }}
+                    />
+                    <span>
+                      Replace a file already at that path. Leave this ON unless the supplier&apos;s
+                      folder must never be written over — it is what lets an interrupted send finish
+                      cleanly on the next try. Two orders can never overwrite each other either way:
+                      every file name carries its own order.
+                    </span>
                   </label>
                   {protocol === "ftps" && (
                     <label className="flex items-start gap-2 text-[12px]" style={{ color: "#8A4B00" }}>
