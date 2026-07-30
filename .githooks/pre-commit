@@ -1,0 +1,86 @@
+#!/bin/sh
+#
+# Pre-commit gates — the fast ones only.
+#
+# The full vitest suite (106 files, ~1157 tests) deliberately does NOT run here.
+# It runs in CI, in the `test-unit` job of .github/workflows/ci.yml, which since
+# PR #40 gates every pull request. A ~2-minute pre-commit hook trains people to
+# type --no-verify, and a bypassed gate enforces nothing.
+#
+# Every gate runs even after an earlier one fails, so one commit attempt reports
+# every problem instead of only the first — the same reason ci.yml marks its
+# later gate steps `if: always()`.
+#
+# ── WHAT BLOCKS, AND WHY ONLY THAT ───────────────────────────────────────────
+#
+# A pre-commit hook must judge THE COMMIT, not the working tree. Only the eslint
+# gate can: it is scoped to staged files. `check:pageshell` and `lint:vocab` are
+# whole-repo scripts that take no file arguments, so they necessarily report on
+# the tree — including edits that are not yours and not being committed.
+#
+# That distinction is not academic here. `core.hooksPath` is REPO-LEVEL config
+# shared by every worktree, and this hook installs via `prepare`, which runs on
+# `bun install`. So it arrives in every checkout without anyone opting in. If the
+# whole-repo gates blocked, a session mid-edit — renaming vocabulary, or part-way
+# through a page component — could not commit its own work in progress, and the
+# failure would read as "my commit is broken", not "a hook I never installed is
+# rejecting me".
+#
+# So they run and report, but they do not block. CI still enforces them on the
+# merged tree (ci.yml job `test-unit`), which is the tree that has to be clean.
+# Promote them to blocking only when the repo is no longer being edited by
+# several sessions at once.
+#
+# Bypass (rare, and say why in the commit message):  git commit --no-verify
+#
+set -u
+
+failures=0
+warnings=0
+
+note_failure() {
+  failures=$((failures + 1))
+  echo "  FAILED: $1"
+}
+
+note_warning() {
+  warnings=$((warnings + 1))
+  echo "  WARNING: $1 (not blocking — whole-repo gate, enforced in CI)"
+}
+
+# --- eslint, staged TypeScript only ---------------------------------------
+#
+# Scoped to staged files because a whole-repo `next lint` is far slower than the
+# rest of this hook combined, and a commit can only break what it touches.
+#
+# Known limitation: eslint reads the WORKING TREE copy of each file, not the
+# staged blob. After a partial `git add -p` those differ, so the gate lints
+# slightly more than what is being committed. CI lints the real tree, which is
+# what actually has to be clean.
+staged=$(git diff --cached --name-only --diff-filter=ACMR -- '*.ts' '*.tsx')
+
+if [ -n "$staged" ]; then
+  echo "$staged" | xargs bunx eslint || note_failure "eslint (staged .ts/.tsx)"
+else
+  echo "  skipped: eslint — no staged .ts/.tsx files"
+fi
+
+# --- whole-repo conformance gates (~1s together) --------------------------
+# Advisory only — see WHAT BLOCKS above. These judge the tree, not this commit.
+bun run check:pageshell --strict || note_warning "check:pageshell --strict"
+bun run lint:vocab || note_warning "lint:vocab"
+
+if [ "$warnings" -gt 0 ]; then
+  echo ""
+  echo "$warnings whole-repo gate(s) are failing. Not blocking this commit — they"
+  echo "may be reporting another session's in-flight edit. CI enforces them on merge."
+fi
+
+if [ "$failures" -gt 0 ]; then
+  echo ""
+  echo "$failures pre-commit gate(s) failed."
+  echo "Fix them, or bypass deliberately with: git commit --no-verify"
+  exit 1
+fi
+
+exit 0
