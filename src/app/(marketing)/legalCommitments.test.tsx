@@ -36,13 +36,28 @@ import { SETUP_FEE_NOTE } from "@/lib/plans";
 // come back", because that is the failure mode — copy drifting back toward a
 // guarantee nobody staffs.
 
-// Rendered text, as a visitor reads it. `<style>` contents land in
-// container.textContent too, and CSS tokens would otherwise satisfy — or
-// wrongly trip — an assertion about copy, so they are dropped first.
+// Rendered text, as a visitor reads it.
+//
+// NOT container.textContent. That concatenates adjacent nodes with nothing
+// between them — a card titled "Where your data lives" followed by a body
+// starting "All order data…" reads as "livesAll order data", and the auth
+// panel reads "fully auditedEU data residency". Every \b-anchored assertion
+// then silently stops matching at exactly the seam where copy changes, which
+// is the worst possible place for a copy test to go blind. Joining the text
+// nodes with a space restores the word boundaries.
+//
+// <style> contents are text nodes too; CSS tokens are not copy, so they go.
 function text(ui: React.ReactElement) {
   const { container } = render(ui);
-  container.querySelectorAll("style,script").forEach((el) => el.remove());
-  return container.textContent ?? "";
+  return visibleText(container);
+}
+
+function visibleText(root: HTMLElement) {
+  root.querySelectorAll("style,script").forEach((el) => el.remove());
+  const parts: string[] = [];
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+  for (let n = walker.nextNode(); n; n = walker.nextNode()) parts.push(n.textContent ?? "");
+  return parts.join(" ").replace(/\s+/g, " ").trim();
 }
 
 function html(ui: React.ReactElement) {
@@ -223,7 +238,7 @@ const NOTHING_LEAVES_PROMISE =
 function residencyCard(): HTMLElement {
   const { container } = render(<SecurityPage />);
   const card = Array.from(container.querySelectorAll("article")).find((el) =>
-    /US subprocessors/i.test(el.textContent ?? ""),
+    /US subprocessors/i.test(visibleText(el as HTMLElement)),
   );
   expect(card, "the /security card that makes the residency claim").toBeTruthy();
   return card as HTMLElement;
@@ -254,7 +269,7 @@ describe("EU residency claim", () => {
   });
 
   it("discloses that named US subprocessors process data under SCCs", () => {
-    const card = residencyCard().textContent ?? "";
+    const card = visibleText(residencyCard());
     expect(card).toMatch(/standard contractual clauses/i);
     expect(card).toMatch(/sign-in/i);
     expect(card).toMatch(/payments/i);
@@ -265,7 +280,7 @@ describe("EU residency claim", () => {
     // The card said only the first half, which reads as if mapping suggestions
     // were computed somewhere else. They are not: the same OpenAI call sites,
     // none of them overriding the base URL, reach api.openai.com.
-    expect(residencyCard().textContent ?? "").toMatch(
+    expect(visibleText(residencyCard())).toMatch(
       /AI document extraction and mapping suggestions/i,
     );
   });
@@ -274,7 +289,7 @@ describe("EU residency claim", () => {
     // "Inbound email" named half the exposure. The email delivery channel
     // attaches the generated purchase order and sends it to the supplier
     // through the same US provider, which has no EU option to enable.
-    const card = residencyCard().textContent ?? "";
+    const card = visibleText(residencyCard());
     expect(card).toMatch(/purchase orders we email/i);
     expect(card).toMatch(/passes through a US provider/i);
   });
@@ -284,7 +299,7 @@ describe("EU residency claim", () => {
     // measurement anyone ever took came back United States. Softening that to
     // "probably EU" would be the same defect in a friendlier direction, so the
     // card has to say it does not know.
-    const card = residencyCard().textContent ?? "";
+    const card = visibleText(residencyCard());
     expect(card).toMatch(/cannot tell you( today)? which country/i);
     expect(card).not.toMatch(
       /(route|path|traffic)[^.]{0,80}\b(stays|remains|is|leaves) (in|within|from) the EU\b/i,
@@ -322,11 +337,17 @@ describe("EU residency claim", () => {
   });
 });
 
-/** A footer may say where orders are STORED, and must link to the page that qualifies it. */
+/**
+ * A footer may say where orders are STORED, and must link to the page that
+ * qualifies it. Scoped to <footer>: the home hero legitimately carries an
+ * "EU / Data residency" stat, which is allowed precisely because it is a link.
+ */
 function expectQualifiedFooter(ui: React.ReactElement) {
   const { container } = render(ui);
-  expect(container.textContent ?? "").not.toMatch(/EU data residency/i);
-  const link = Array.from(container.querySelectorAll("a")).find(
+  const footer = container.querySelector("footer");
+  expect(footer, "a <footer> to check").toBeTruthy();
+  expect(visibleText(footer as HTMLElement)).not.toMatch(/EU data residency/i);
+  const link = Array.from((footer as HTMLElement).querySelectorAll("a")).find(
     (a) => (a.textContent ?? "").trim() === "EU-region order storage",
   );
   expect(link, 'the "EU-region order storage" link').toBeTruthy();
