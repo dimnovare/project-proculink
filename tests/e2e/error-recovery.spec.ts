@@ -26,10 +26,12 @@ test.describe("SpineReview error handling", () => {
   });
 
   test("network failure shows 'Failed to load order' with Back to inbox", async ({ page }) => {
-    if (!process.env.PLAYWRIGHT_LIVE) {
-      test.skip(true, "network-interception test requires PLAYWRIGHT_LIVE=1 (mock api-client bypasses fetch)");
-      return;
-    }
+    // Declared conditional skip, not an if-wrapped self-skip with a dead `return` after it:
+    // the condition is the annotation, so the reason is reported the same way every run.
+    test.skip(
+      process.env.PLAYWRIGHT_LIVE !== "1",
+      "network-interception test requires PLAYWRIGHT_LIVE=1 (the mock api-client bypasses fetch)",
+    );
 
     // Force /api/orders/:id to fail with a network-shaped error.
     await page.route(/\/api\/orders\/[^/]+$/i, async (route) => {
@@ -49,23 +51,33 @@ test.describe("SpineReview error handling", () => {
 
 test.describe("Onboarding wizard error handling", () => {
   test("network failure on Add supplier shows the humanised error", async ({ page }) => {
-    // The wizard auto-opens when the org has no supplier. In mock mode the
-    // onboarding status is read from mockBilling/mockSuppliers — we visit
-    // /bridge to trigger it.
+    // Live-only for the same structural reason as the sibling test above: this asserts a
+    // humanised NETWORK error, produced by intercepting the POST /api/suppliers fetch. In
+    // mock mode api-client routes createSupplier to an in-memory function that never calls
+    // fetch, so page.route() has nothing to abort and the assertion is unreachable.
+    //
+    // This previously ran in mock mode and self-skipped MID-BODY ("Wizard didn't auto-open")
+    // after navigating and clicking — so the default CI sweep reported it as exercised-then-
+    // skipped when in truth it could never have tested anything. Declaring the condition up
+    // front makes the coverage gap visible instead of discovering it at runtime.
+    test.skip(
+      process.env.PLAYWRIGHT_LIVE !== "1",
+      "network-interception test requires PLAYWRIGHT_LIVE=1 (the mock api-client bypasses fetch)",
+    );
+
+    // The wizard auto-opens when the org has no supplier; /bridge triggers it.
     await page.goto("/bridge");
 
-    // The wizard might be opt-in via the "Get started" button rather than
-    // auto-open in mock mode. Click it if visible.
+    // Some states surface it behind an explicit "Get started" instead of auto-opening.
     const getStarted = page.getByRole("button", { name: /get started/i });
     if (await getStarted.isVisible({ timeout: 2_000 }).catch(() => false)) {
       await getStarted.click();
     }
 
+    // No self-skip: reaching here means the environment supports the test, so a wizard that
+    // does not open is a real failure of the onboarding path.
     const supplierInput = page.getByLabel(/supplier name/i);
-    if (!(await supplierInput.isVisible({ timeout: 5_000 }).catch(() => false))) {
-      test.skip(true, "Wizard didn't auto-open in mock mode — backend-dependent path");
-      return;
-    }
+    await expect(supplierInput).toBeVisible({ timeout: 10_000 });
 
     // Force the supplier-create call to fail at the network layer.
     await page.route(/\/api\/suppliers(\?.*)?$/i, async (route) => {
