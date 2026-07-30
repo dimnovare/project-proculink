@@ -49,8 +49,9 @@
  *     correct in a changelog, in "Version history", in "v3". Only "revision" is.
  *   • "diff" / "node" / "sync" / "scope" are OFF the block list: "different",
  *     "Node.js", "asynchronous", "scoped" are all ordinary English.
- *   • .ts registries are matched on the VALUE side of label-ish keys only, so a
- *     status IDENTIFIER (`delivery_dead_letter:`) never fails the gate.
+ *   • .ts registries are matched on the VALUE side only (label-ish keys, plus
+ *     every value inside a `*_LABELS` Record), so a status or route-segment
+ *     IDENTIFIER (`delivery_dead_letter:`, `exceptions:`) never fails the gate.
  *   • MDX code fences are tracked with real fence state, so a line INSIDE a
  *     fence (`POST /api/ingress/{slug}/orders`) is not scanned as prose.
  *   • PROPER_NOUN_MASKS blanks third-party names that contain a policed word
@@ -340,6 +341,35 @@ const TS_VALUE_RE = new RegExp(
   "g",
 );
 
+/**
+ * A `*_LABELS` map is a Record<key, displayString>: CRUMB_LABELS keys on route
+ * SEGMENTS (`exceptions:`), HUB_LABELS on hub keys, PLAN_LABELS on plan ids. The
+ * key is code and the value is copy, but the key is not spelled `label:`, so the
+ * label-key matcher cannot see it. Track the block and scan its values.
+ *
+ * Found by a mutation check: reverting `exceptions: "Issues"` in CRUMB_LABELS
+ * left the gate GREEN — the crumb registry §7.1 explicitly names was blind.
+ */
+const LABEL_MAP_OPEN = /\bconst\s+[A-Z][A-Z0-9_]*LABELS\b/;
+const MAP_VALUE_RE = /:\s*"([^"]+)"/g;
+
+function labelMapTracker() {
+  let depth = 0;
+  return (line) => {
+    const opening = depth === 0 && LABEL_MAP_OPEN.test(line);
+    if (depth === 0 && !opening) return [];
+    for (const ch of line) {
+      if (ch === "{") depth += 1;
+      else if (ch === "}") depth = Math.max(0, depth - 1);
+    }
+    MAP_VALUE_RE.lastIndex = 0;
+    const out = [];
+    let m;
+    while ((m = MAP_VALUE_RE.exec(line)) !== null) out.push(m[1]);
+    return out;
+  };
+}
+
 /** All label-ish object VALUES on one line. Shared by the .ts and .tsx passes. */
 function tsLabelValues(s) {
   const out = [];
@@ -402,10 +432,11 @@ function scanTerms() {
     const kind = /\.mdx$/.test(file) ? "mdx" : /\.tsx$/.test(file) ? "tsx" : "ts";
     const scan =
       kind === "mdx" ? mdxScanner() : kind === "tsx" ? tsxScanner() : visibleSpansTs;
+    const labelMap = kind === "mdx" ? null : labelMapTracker();
     const lines = readFileSync(file, "utf8").split(/\r?\n/);
 
     lines.forEach((line, i) => {
-      const spans = scan(line);
+      const spans = labelMap ? [...scan(line), ...labelMap(line)] : scan(line);
       for (const span of spans) {
         if (PHRASE_ALLOWLIST.includes(span.trim())) continue;
         const masked = maskProperNouns(span);

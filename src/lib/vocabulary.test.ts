@@ -164,8 +164,31 @@ describe("check-vocabulary.mjs scan", () => {
     expect(out).toContain("[jargon: payload]");
   });
 
-  it("does NOT fire on a code identifier, a comment, or a status KEY", () => {
+  // Regression: found by a mutation check. A `*_LABELS` Record keys on route
+  // SEGMENTS (`exceptions:`), not on `label:`, so the label-key matcher was
+  // blind to CRUMB_LABELS — the registry §7.1 explicitly names.
+  it("FAILS on a *_LABELS map value, whose key is a route segment not `label:`", () => {
     rmSync(join(root, "src", "lib", "labels.ts"));
+    write(
+      "src/lib/crumbs.ts",
+      [
+        "export const CRUMB_LABELS: Record<string, string> = {",
+        '  inbox: "Orders",',
+        '  exceptions: "Exceptions",',
+        "};",
+        "",
+      ].join("\n"),
+    );
+    const { code, out } = runGate([], root);
+    expect(code).toBe(1);
+    expect(out).toContain("src/lib/crumbs.ts");
+    expect(out).toContain("[jargon: exceptions]");
+    // The route-segment KEY itself is code and must never be reported.
+    expect(out).not.toMatch(/"inbox"/);
+  });
+
+  it("does NOT fire on a code identifier, a comment, or a status KEY", () => {
+    rmSync(join(root, "src", "lib", "crumbs.ts"));
     write(
       "src/lib/keys.ts",
       [
