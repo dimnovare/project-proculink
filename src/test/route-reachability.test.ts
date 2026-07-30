@@ -34,14 +34,19 @@
 //
 //   • Registries are read through the code path that RENDERS them, never off
 //     their raw text — see THE REGISTRY RULE below. The sidebar goes through
-//     buildVisibleNav() (/drafts is in NAV_MAIN but filtered out of
-//     LAUNCH_CORE_HREFS, so it renders nowhere); guides.ts goes through
+//     buildVisibleNav() (an href present in NAV_MAIN but absent from
+//     LAUNCH_CORE_HREFS renders nowhere); guides.ts goes through
 //     linkedGuides() (a `status: "planned"` guide renders as a "Coming soon"
 //     <span>, never a <Link>); help-articles.ts is credited in full because
 //     /help renders every entry unconditionally.
 //   • HUB_TABS is read for `href` only, never `match`. `match` is active-state
 //     matching — it lights a tab up for a sub-route; it navigates nowhere.
-//     /library/rule-definitions is exactly this case.
+//
+//     Both of those had a live example until FE #47: /drafts for the first,
+//     /library/rule-definitions for the second. #47 deleted both pages and both
+//     registry entries, so the rules are now pinned by fixtures instead — which
+//     is the durable form. Do not re-derive them from whatever the registries
+//     happen to contain today.
 //   • Comments are stripped before extraction. A link that exists only in a
 //     comment navigates nobody, and writing one is the cheapest possible way to
 //     fake reachability past review.
@@ -94,14 +99,13 @@ import { GUIDES, linkedGuides } from "@/lib/guides";
 //
 // This list SHRINKS. Adding to it is a decision with a name on it.
 
-const RETIRED = "scheduled for deletion in WP-08 / WP-07 — retired by founder decision 2026-07-30";
-
 export const KNOWN_DEEP_LINK_ONLY: Record<string, string> = {
-  // ── Confirmed stranded, and going away. Recorded rather than deleted here so
-  //    the guard keeps naming them until the packet that owns them lands.
-  "/drafts": RETIRED,
-  "/upload/preview/[orderId]": RETIRED,
-  "/library/rule-definitions": RETIRED,
+  // ── /drafts, /upload/preview/[orderId] and /library/rule-definitions were
+  //    parked here as "confirmed stranded, going away when the packet that owns
+  //    them lands". FE #47 landed and deleted all three pages, so the entries
+  //    went with them — the allowlist is shrink-only, and
+  //    `the allowlist cannot rot` below is what forced the deletion rather than
+  //    leaving three names pointing at nothing.
 
   // ── Reachable, but the referrer is outside this repo. A frontend-only guard
   //    is structurally blind to these; the reason is the evidence.
@@ -791,31 +795,33 @@ describe("route reachability (plan rule R1 — no new surface without a consumer
     expect(findUnreachableRoutes(routes, [{ path: "/lonely", kind: "link", source: "<other>" }])).toEqual([]);
   });
 
-  it("a launch-filtered registry entry is not a link (the /drafts shape)", () => {
-    // BridgeSidebar's NAV_MAIN carries `{ label: "Drafts", href: "/drafts" }`,
-    // and LAUNCH_CORE_HREFS filters it out — so it renders nowhere and no user
-    // has ever seen it. This asserts on TARGETS rather than on the unreachable
-    // list ON PURPOSE: /drafts is in KNOWN_DEEP_LINK_ONLY, so a reachability
-    // assertion would pass either way and the exclusion could be deleted
-    // without any test noticing.
+  it("reads the sidebar through what it renders, not through NAV_MAIN's text", () => {
+    // What survives of the old "/drafts shape" test. It pinned two live
+    // examples of a registry href that is never rendered as a link: /drafts
+    // (in NAV_MAIN, filtered out by LAUNCH_CORE_HREFS) and
+    // /library/rule-definitions (a `match`-only HUB_TABS entry). FE #47 deleted
+    // both pages and both registry entries, so those assertions started
+    // asserting nothing — `expected [] to include '/library/rule-definitions'`.
+    //
+    // The mechanism they guarded is NOT lost: "a registry href for something
+    // never rendered as a link is a phantom target" covers it with a fixture,
+    // which is the form that does not decay when the app's registries change.
+    // Kept here only is the positive half, which still has teeth: the sidebar
+    // must actually BE read, or every route would look stranded and the guard
+    // would flip from useful to noise.
     const paths = new Set(TARGETS.map((t) => t.path));
-    expect(paths.has("/drafts")).toBe(false);
-    // The sidebar is still read — the exclusion sharpened the guard rather than
-    // blinding it.
     expect(paths.has("/inbox")).toBe(true);
     expect(paths.has(PINNED_ACTION_HREF)).toBe(true);
 
-    // The same shape one level down: a hub tab's `match` is active-state
-    // matching — it lights the tab up for a sub-route, it navigates nowhere.
-    // /library/rule-definitions is the `match`-only entry, and it too is in the
-    // allowlist, so this must also be asserted against TARGETS to have teeth.
-    const hubMatchOnly = Object.values(HUB_TABS)
-      .flat()
+    // HUB_TABS is credited for `href` and never for `match`. Asserted as an
+    // invariant over whatever the registry currently holds, so re-introducing a
+    // `match`-only entry cannot smuggle in a phantom target.
+    const tabs = Object.values(HUB_TABS).flat();
+    const hubMatchOnly = tabs
       .flatMap((t) => t.match ?? [])
-      .filter((m) => !Object.values(HUB_TABS).flat().some((t) => t.href === m));
-    expect(hubMatchOnly).toContain("/library/rule-definitions");
+      .filter((m) => !tabs.some((t) => t.href === m));
     for (const m of hubMatchOnly) expect(paths.has(m)).toBe(false);
-    expect(paths.has("/library/rules")).toBe(true); // the tab's real href
+    expect(paths.has("/library/suppliers")).toBe(true); // a real tab href
   });
 
   it("matches dynamic segments structurally, not by literal string", () => {
