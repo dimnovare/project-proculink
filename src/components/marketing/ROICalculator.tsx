@@ -592,7 +592,8 @@ export function ROICalculator() {
           supplier-specific formats.
           Plans are billed monthly and include light, self-serve setup at no extra cost; hands-on
           per-supplier onboarding applies only to Enterprise and other complex setups, is arranged
-          manually (never auto-charged), and is waived for early design partners. Paid plans include
+          manually (never auto-charged), and we will waive it for the first design partners we take
+          on. Paid plans include
           a monthly order allowance; orders above it bill at €0.50/order and are never blocked — the
           plan cost and payback maths above already include that overage. The Pilot tier is
           free for 14 days (20 orders) and does not require a card.

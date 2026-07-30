@@ -327,8 +327,12 @@ export default function PricingPage() {
 
           <p className="plk-fine">{SETUP_FEE_NOTE}</p>
           <p className="plk-fine" style={{ marginTop: 10 }}>
-            All plans include EU data residency, AES-GCM encryption, and a full audit trail per
-            order.
+            All plans include EU-region order storage, AES-GCM encryption, and a full audit
+            trail per order.{" "}
+            <Link href="/subprocessors" style={{ textDecoration: "underline" }}>
+              Where each subprocessor runs
+            </Link>{" "}
+            is listed in full.
           </p>
         </div>
       </section>

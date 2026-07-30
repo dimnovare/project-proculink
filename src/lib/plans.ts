@@ -330,11 +330,19 @@ export function yearlyMonthlyEquivalent(plan: Plan): number | null {
  * Setup / onboarding fee note. Self-serve plans include light setup at no extra
  * charge; the per-supplier onboarding fee applies only to Enterprise / complex
  * integrations and is arranged manually (never auto-charged through Stripe).
+ *
+ * The waiver is stated as a STANDING OFFER, not an existing arrangement: there
+ * are no design partners yet (2026-07-30 production census — one org has ever
+ * held an order, and it is the founder's own), so "waived for early design
+ * partners" implied customers we do not have. Pinned by
+ * src/app/(marketing)/legalCommitments.test.tsx; keep the same sentence in the
+ * ROI calculator fine print.
  */
 export const SETUP_FEE_NOTE =
   "Growth, Operations, Integration, and Distributor include light, self-serve setup at no extra cost. " +
   "Hands-on, per-supplier onboarding (€500 per supplier for the first 3, then €150 each) applies only to " +
-  "Enterprise and other complex setups — arranged manually, never auto-charged, and waived for early design partners.";
+  "Enterprise and other complex setups — arranged manually, never auto-charged, and we will waive it for " +
+  "the first design partners we take on.";
 
 /**
  * Per-order overage fee (EUR) on every order a paid self-serve plan processes
