@@ -940,11 +940,20 @@ async function mockGetDownloadUrl(orderId: string, artifactId: string): Promise<
   return { url: `https://example.com/mock-download/${orderId}/${artifactId}`, expiresAt };
 }
 
+/**
+ * Errors keep their status code (ApiHttpError) because this endpoint's failures are three
+ * DIFFERENT stories and the caller cannot tell them apart from a flattened message:
+ * 404 = no such artifact for this order · 410 Gone = the blob was purged under the org's
+ * data-retention policy (row, hash and audit trail survive) · 429 = signed-URL rate limit.
+ */
 async function realGetDownloadUrl(orderId: string, artifactId: string): Promise<DownloadUrl> {
   const res = await fetchWithTimeout(`${API_BASE_URL}/api/orders/${orderId}/artifacts/${artifactId}/download`, {
     headers: await authHeader(),
   });
-  if (!res.ok) { const t = await res.text(); throw new Error(`Download URL failed: ${t || res.statusText}`); }
+  if (!res.ok) {
+    const t = await res.text();
+    throw new ApiHttpError(`Download URL failed: ${t || res.statusText}`, res.status);
+  }
   return res.json() as Promise<DownloadUrl>;
 }
 
