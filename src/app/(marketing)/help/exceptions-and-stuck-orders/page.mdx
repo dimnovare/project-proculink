@@ -3,7 +3,7 @@ import { helpArticleMetadata } from "@/lib/seo";
 export const metadata = helpArticleMetadata({
   slug: "exceptions-and-stuck-orders",
   title: "Working the exceptions queue — ProcuLink Help",
-  description: "What lands in Exceptions, what Resolve and Ignore really do, how delivery retries and dead-letter work, and when to check system health.",
+  description: "What lands in Exceptions, what Resolve and Ignore really do, how delivery retries and out-of-retries orders work, and when to check system health.",
 });
 
 # Working the exceptions queue
@@ -45,10 +45,11 @@ On some delivery channels — email and the ERP integrations — there's no reli
 
 We could just retry, the way a failed delivery does. We don't, on purpose: on those channels a retry can land as a second, genuine purchase order, and a supplier who acts on a duplicate is worse than an order that waits an extra few minutes for a person to look at it. So instead of guessing, the order goes to **Delivery unknown** and stops there for you to decide.
 
-From the order page you get two ways to resolve it:
+The order page asks you one question first — *what did the supplier say?* — and only then offers the matching action. There is deliberately no one-click re-send here:
 
-- **Send again** — use this once you've confirmed with the supplier that they never received it (or you've decided the duplicate risk is acceptable). It delivers the order exactly as before.
-- **Mark as delivered** — use this once you've confirmed the supplier already has it. This closes the order out without sending anything further.
+- **They don't have it** → **Send it to them again**, which delivers the order exactly as before. Use this once you've confirmed nothing arrived (or you've decided the duplicate risk is acceptable).
+- **They have it already** → **Mark it as delivered**, which closes the order out without sending anything further.
+- **I haven't been able to reach them yet** → no send is offered at all. The order stays exactly where it is until you know.
 
 Checking with the supplier first is the fastest way to know which one is right — that's the whole reason we ask instead of picking for you.
 
@@ -59,7 +60,7 @@ SFTP, FTPS, and HTTP deliveries don't have this problem the same way: an SFTP/FT
 When an order sits in Parsing or Sending longer than feels right, check **Operations → Health** before re-uploading:
 
 - the **worker banner** shows whether the background worker is alive — an offline worker stalls every upload in the workspace, and no amount of re-uploading helps;
-- the count tiles show orders stuck past the threshold, failed transforms/deliveries, and dead-letters, and link to the affected orders;
+- the count tiles show orders stuck past the threshold, failed transforms/deliveries, and orders we've stopped retrying, and each tile links to exactly those orders;
 - counts refresh automatically every 45 seconds.
 
 ## Escalating to support

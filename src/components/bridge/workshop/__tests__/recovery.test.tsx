@@ -251,10 +251,15 @@ describe("transform_failed — the recovery the backend already supports is reac
     expect(hrefs()).not.toContain("/inbox/ord-1");
   });
 
-  test("points at the order layout — the thing that actually broke", () => {
+  test("points at the supplier's output settings — the thing that actually broke", () => {
     mockState.order = makeOrder({ status: "transform_failed" });
     renderWorkshop();
-    expect(hrefs()).toContain("/library/templates?supplierId=sup-1");
+    // NOT /library/templates: FE #47 deleted that page precisely because it could
+    // not change what a supplier receives. `outputFormat` (and the cXML credentials
+    // the transform reads) live on the supplier's delivery config, and this is the
+    // only screen that edits them.
+    expect(hrefs()).toContain("/library/suppliers/sup-1?tab=delivery");
+    expect(hrefs()).not.toContain("/library/templates?supplierId=sup-1");
   });
 
   test("'Try building it again' calls transformOrder — a real, guard-satisfying endpoint", async () => {

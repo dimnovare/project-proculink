@@ -1,6 +1,6 @@
 import { describe, test, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, cleanup, fireEvent } from "@testing-library/react";
-import type { Order, OrderValidationResult } from "@/types/procurement";
+import type { Order, OrderStatus, OrderValidationResult } from "@/types/procurement";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Gate context header (polish follow-up to the #24 chrome compression).
@@ -191,12 +191,17 @@ describe("every workshop gate state renders the shared context header", () => {
     expect(screen.queryByTestId("mock-mapper-workbench")).toBeNull();
   });
 
+  // `satisfies` rather than a bare literal: test.each widens tuple members to
+  // `string`, and makeOrder takes an OrderStatus. Without this the CI typecheck
+  // gate (#56) fails the PR — and the annotation also pins these four names as
+  // real statuses, so a rename in the union breaks here instead of silently
+  // testing a status that no longer exists.
   test.each([
     ["transform_failed", "Transform failed"],
     ["delivery_failed", "Delivery failed"],
     ["delivery_held", "Delivery paused"],
     ["delivery_unconfirmed", "Delivery unknown"],
-  ])("%s renders the panel as a BANNER over the live workshop", (status, badge) => {
+  ] satisfies Array<[OrderStatus, string]>)("%s renders the panel as a BANNER over the live workshop", (status, badge) => {
     mockState.order = makeOrder({ status });
     render(<OrderWorkshop orderId="ord-1" />);
     // The healthy header carries the same context the gate shell used to: the back

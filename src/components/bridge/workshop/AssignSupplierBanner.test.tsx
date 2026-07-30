@@ -114,6 +114,26 @@ async function pickSupplier(name: string) {
   fireEvent.click(await screen.findByText(name));
 }
 
+/* ── contrast ───────────────────────────────────────────────────────────────
+   WCAG 2.x relative luminance and contrast ratio, computed rather than asserted
+   against a remembered number. 13px/700 is NOT "large text" (large = ≥18.66px
+   bold), so the floor is 4.5:1, not 3:1. */
+function luminance(hex: string): number {
+  const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255);
+  const lin = (c: number) => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4);
+  return 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b);
+}
+function contrastRatio(a: string, b: string): number {
+  const [hi, lo] = [luminance(a), luminance(b)].sort((x, y) => y - x);
+  return (hi + 0.05) / (lo + 0.05);
+}
+/** "rgb(138, 83, 16)" (jsdom's normalised form) → "#8A5310". */
+function toHex(color: string): string {
+  const m = color.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/i);
+  if (!m) return color.toUpperCase();
+  return "#" + [1, 2, 3].map((i) => Number(m[i]).toString(16).padStart(2, "0")).join("").toUpperCase();
+}
+
 describe("assign supplier — the banner asks for the one missing thing", () => {
   it("says what is missing and what happens next", async () => {
     renderBanner();
@@ -122,6 +142,32 @@ describe("assign supplier — the banner asks for the one missing thing", () => 
     // The assign re-runs the parse against the chosen supplier — an operator who
     // isn't told that reads the order flipping back to "reading" as a regression.
     expect(screen.getByText(/read .*again|re-read/i)).toBeInTheDocument();
+  });
+
+  // WP-24 D5. The design spec's contrast failure lives HERE and only here: the
+  // recovery panel delegates `unrouted` to this banner instead of restyling it, so
+  // rewriting the panel's amber left this pair untouched. --amber (#B36D14) on
+  // --amber-soft (#FAF1DD) is 3.65:1 — below the 4.5:1 AA floor for 13px/700.
+  // --amber-text (#8A5310) on the same background is 5.62:1, and is already what
+  // the .pill-* CSS layer uses. The inline-styled banners were the only offenders.
+  it("renders its headline at AA contrast against the amber background", () => {
+    renderBanner();
+
+    const headline = screen.getByText(/needs a supplier/i);
+    const fg = toHex((headline as HTMLElement).style.color);
+    const bg = "#FAF1DD"; // the banner's --amber-soft surface
+
+    // Assert the pair we actually painted clears the floor for 13px/700 text…
+    expect(
+      contrastRatio(fg, bg),
+      `headline ${fg} on ${bg} = ${contrastRatio(fg, bg).toFixed(2)}:1, below the 4.5:1 AA floor`,
+    ).toBeGreaterThanOrEqual(4.5);
+
+    // …and that the maths is real, not a helper that returns a big number for
+    // anything. The exact failing pair this test was written for:
+    expect(contrastRatio("#B36D14", bg)).toBeLessThan(4.5);
+    expect(contrastRatio("#B36D14", bg)).toBeCloseTo(3.65, 1);
+    expect(contrastRatio("#8A5310", bg)).toBeCloseTo(5.62, 1);
   });
 
   it("will not fire an assign with no supplier chosen", async () => {

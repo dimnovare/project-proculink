@@ -207,14 +207,23 @@ export const PROBLEM_COPY: Record<ProblemStatus, ProblemCopy> = {
 
   // 3.3 — D1's fix. The backend treats transform_failed as recoverable (it is an
   // accepted entry status for `transforming`) and it holds NO output, so nothing
-  // stale can ship. The layout is the primary because the failure is terminal for
-  // the same inputs; building again is the honest secondary.
+  // stale can ship. The output setup is the primary because the failure is terminal
+  // for the same inputs; building again is the honest secondary.
+  //
+  // The primary points at the supplier's Delivery tab, NOT /library/templates. The
+  // spec named the templates page, but FE #47 retired it — and its stated reason is
+  // exactly why this CTA must not go there: "the output format lives on each
+  // supplier's delivery config, and the page's save posted a body the API never
+  // read. It described a control that did not exist." The templates URL still
+  // answers (a 308 to /library/suppliers, supplier id dropped), so a link crawl
+  // cannot see the problem: it resolves, it just resolves to a list instead of the
+  // one screen where `outputFormat` and the cXML credentials are actually editable.
   transform_failed: withAutomaticFor({
     tone: "danger",
     presentation: "banner",
     badge: "Output failed",
     headline: "We couldn't build the file this supplier needs",
-    attribution: (c) => `Your order is fine — the layout we build for ${c.supplier} isn't.`,
+    attribution: (c) => `Your order is fine — the output we build for ${c.supplier} isn't.`,
     automatic: null,
     nothingAutomatic: "We won't try to build it again on our own.",
     pausedNote: "Order processing is paused right now, so anything you start here waits until it restarts.",
@@ -224,8 +233,8 @@ export const PROBLEM_COPY: Record<ProblemStatus, ProblemCopy> = {
       {
         kind: "link",
         variant: "primary",
-        label: "Open the order layout",
-        href: c.supplierId ? `/library/templates?supplierId=${c.supplierId}` : "/library/templates",
+        label: "Open the output settings",
+        href: c.supplierId ? `/library/suppliers/${c.supplierId}?tab=delivery` : "/library/suppliers",
       },
       {
         kind: "post",
@@ -237,9 +246,9 @@ export const PROBLEM_COPY: Record<ProblemStatus, ProblemCopy> = {
       },
     ],
     helper: () =>
-      "If you haven't changed the layout, building it again won't help — send us the message above instead.",
+      "If nothing has changed in those settings, building it again won't help — send us the message above instead.",
     tier: () => "self",
-    rowAction: "Check the layout",
+    rowAction: "Check output settings",
   }),
 
   // 3.4 — the only `wait` state. NEVER renders "attempt N of M" or a countdown:

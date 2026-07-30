@@ -1,13 +1,19 @@
 import { describe, test, expect } from "vitest";
+import { readFileSync } from "fs";
+import { join, relative } from "path";
 import {
   PROBLEM_COPY,
   PROBLEM_STATUSES,
   problemFor,
   isDeliveryConfigMissing,
+  type ProblemAction,
   type ProblemCtx,
   type ProblemStatus,
 } from "../problemCopy";
 import { OP_ALLOWED_FROM, opIsAllowedFrom, type ProblemOp } from "../problemActions";
+import { ROOT, listAppRoutes, matchesAny, normalizePath, isInternalPageLink } from "@/test/appRoutes";
+import { extractLinks, syntaxFor } from "@/test/linkExtract";
+import { RETIRED_ROUTES } from "@/lib/retired-routes";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // The contract, tested structurally rather than by eyeballing eight panels.
@@ -56,9 +62,33 @@ describe("every problem status the backend can produce has copy", () => {
   });
 });
 
+/**
+ * Every context shape a panel can be rendered with. `actions()` branches on four of
+ * these fields, so walking only the default ctx checks roughly half the controls a
+ * real operator can be shown — the config-missing arm of `delivery_failed` and every
+ * `supplierId === null` fallback href are only reachable from a variant.
+ */
+const CTX_VARIANTS: Array<readonly [string, ProblemCtx]> = [
+  ["default", ctx()],
+  ["supplier not known yet", ctx({ supplierId: null, supplier: "this supplier" })],
+  ["delivery config missing", ctx({ serverMessage: "Supplier delivery config is missing." })],
+  ["read-only plan", ctx({ readOnly: true })],
+  ["at the plan's order limit", ctx({ atOrderLimit: true })],
+  ["order processing paused", ctx({ processingPaused: true })],
+];
+
+/** Every control the eight states can put on a screen, across every ctx variant. */
+function everyAction(): Array<{ status: ProblemStatus; variant: string; action: ProblemAction }> {
+  return PROBLEM_STATUSES.flatMap((status) =>
+    CTX_VARIANTS.flatMap(([variant, c]) =>
+      PROBLEM_COPY[status].actions(c).map((action) => ({ status, variant, action })),
+    ),
+  );
+}
+
 describe("no state offers a control the backend will reject", () => {
   test.each(PROBLEM_STATUSES)("%s: every post action is allowed from this status", (status) => {
-    for (const variant of [ctx(), ctx({ serverMessage: "Supplier delivery config is missing." })]) {
+    for (const [, variant] of CTX_VARIANTS) {
       for (const a of PROBLEM_COPY[status].actions(variant)) {
         if (a.kind !== "post") continue;
         expect(
@@ -81,6 +111,111 @@ describe("no state offers a control the backend will reject", () => {
     for (const op of Object.keys(OP_ALLOWED_FROM) as ProblemOp[]) {
       expect(OP_ALLOWED_FROM[op].has("rejected_by_supplier")).toBe(false);
     }
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// The OTHER half of the same rule. The walk above validated `kind: "post"` and
+// skipped everything else — but 10 of the 15 controls these eight states put on a
+// screen are LINKS, and a link can be just as doomed as a post: `transform_failed`
+// shipped a primary CTA to /library/templates, a page FE #47 deleted. It does not
+// 404 (a 308 catches it) so the outbound link crawl stays green, and it lands on
+// /library/suppliers — a list, with the supplierId dropped — which is the OPPOSITE
+// of what the button promised. "Resolves" is not the bar; "is the page that took
+// over the job" is.
+//
+// The crawl in src/test/link-crawl.test.ts cannot cover these two ways over:
+//   • it accepts a redirect SOURCE as a live destination (correct for a bookmark,
+//     wrong for a button we are shipping today);
+//   • it skips any href containing `${`, which is every supplier-scoped href here.
+// So the contract owns it, with the hrefs EVALUATED rather than read as text.
+// ─────────────────────────────────────────────────────────────────────────────
+
+const APP_ROUTES = listAppRoutes();
+const RETIRED_SOURCES = RETIRED_ROUTES.map((r) => r.source);
+
+/** True when `href` lands on a page that exists on this commit — redirects don't count. */
+function resolvesToLivePage(href: string): boolean {
+  return matchesAny(normalizePath(href), APP_ROUTES);
+}
+
+/** The retirement, if this href points at a page that was deleted behind a redirect. */
+function retirementFor(href: string) {
+  const path = normalizePath(href);
+  return RETIRED_ROUTES.find((r) => matchesAny(path, [r.source])) ?? null;
+}
+
+describe("no failure state points a control at a page that is gone", () => {
+  const links = everyAction().filter(
+    (e): e is { status: ProblemStatus; variant: string; action: Extract<ProblemAction, { kind: "link" }> } =>
+      e.action.kind === "link",
+  );
+
+  // Anti-vacuity floors. If `actions()` is ever refactored into a shape this walk
+  // cannot see, the walk goes empty and every assertion below passes trivially —
+  // which is exactly how the post-only version of this guard hid three dead links.
+  test("the walk actually sees the links it claims to check", () => {
+    expect(links.length).toBeGreaterThanOrEqual(30);
+    expect(new Set(links.map((l) => l.status)).size).toBeGreaterThanOrEqual(6);
+    expect(APP_ROUTES.length).toBeGreaterThan(40);
+  });
+
+  test.each(PROBLEM_STATUSES)("%s: every link lands on a page that exists", (status) => {
+    const dead = links
+      .filter((l) => l.status === status)
+      .filter((l) => isInternalPageLink(l.action.href))
+      .filter((l) => !resolvesToLivePage(l.action.href))
+      .map((l) => {
+        const retired = retirementFor(l.action.href);
+        return retired
+          ? `[${l.variant}] "${l.action.label}" → ${l.action.href} — RETIRED, now 308s to `
+            + `${retired.destination}. ${retired.why}`
+          : `[${l.variant}] "${l.action.label}" → ${l.action.href} — no such page`;
+      });
+    expect(dead, `${status} offers a control that goes nowhere useful:\n  ${dead.join("\n  ")}`).toEqual([]);
+  });
+
+  test("every link is an in-app page link, not an asset or an API path", () => {
+    for (const { status, action } of links) {
+      expect(isInternalPageLink(action.href), `${status}: "${action.label}" → ${action.href}`).toBe(true);
+    }
+  });
+
+  // The panel renders two links of its own — the `us`-tier support link and the
+  // outage link on the paused-processing note — which never pass through
+  // `actions()`. Read them out of the source so they are covered by the same rule.
+  test("the panel's own links resolve too", () => {
+    const files = [
+      "src/components/bridge/problem/OrderProblemPanel.tsx",
+      "src/components/bridge/problem/UnconfirmedResolver.tsx",
+    ];
+    const found: string[] = [];
+    const dead: string[] = [];
+    for (const rel of files) {
+      const full = join(ROOT, rel);
+      for (const href of extractLinks(readFileSync(full, "utf8"), syntaxFor(full))) {
+        if (!isInternalPageLink(href)) continue;
+        // A template literal is checkable when its PATH is static — "/support?order=${po}"
+        // resolves as "/support". Only an interpolated SEGMENT is unknowable here.
+        if (normalizePath(href).includes("${")) continue;
+        found.push(`${relative(ROOT, full).split("\\").join("/")} → ${href}`);
+        if (!resolvesToLivePage(href)) dead.push(`${rel} → ${href}`);
+      }
+    }
+    expect(found.length, "the extractor read no links out of the panel").toBeGreaterThanOrEqual(2);
+    expect(dead, `panel links that go nowhere:\n  ${dead.join("\n  ")}`).toEqual([]);
+  });
+
+  // Proof the predicate discriminates. Without this the two walks above are one
+  // over-permissive helper away from being green on anything at all.
+  test("the check rejects a dead target and a retired one — it is not vacuously green", () => {
+    expect(resolvesToLivePage("/library/suppliers/sup-1?tab=delivery")).toBe(true);
+    expect(resolvesToLivePage("/inbox/ord-1?details=response")).toBe(true);
+    expect(resolvesToLivePage("/totally-dead-route-xyz")).toBe(false);
+    // The exact link this test was written for: deleted by FE #47, still 308s.
+    expect(resolvesToLivePage("/library/templates?supplierId=sup-1")).toBe(false);
+    expect(retirementFor("/library/templates")?.destination).toBe("/library/suppliers");
+    expect(matchesAny("/library/templates", RETIRED_SOURCES)).toBe(true);
   });
 });
 
