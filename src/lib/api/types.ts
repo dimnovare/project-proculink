@@ -327,9 +327,81 @@ export const MANIPULATOR_TYPES: ReadonlyArray<{ type: string; params: string[]; 
   { type: "Divide",     params: ["divisor"],        hint: "Divide a number" },
 ];
 
-/** Canonical fields selectable as a source in the mapping editor. */
+/**
+ * The DEFAULT OUTPUT SHAPE — the columns a fresh order's outgoing document claims it will
+ * contain, and the built-in nodes of the canonical spine. Deliberately narrow.
+ *
+ * NOT the picker vocabulary: see CANONICAL_*_SOURCE_FIELDS below. Widening these would make
+ * every order suddenly claim to emit a bill-to phone number.
+ */
 export const CANONICAL_HEADER_FIELDS = ["PoNumber", "OrderDate", "BuyerName", "Currency", "SupplierName"] as const;
 export const CANONICAL_LINE_FIELDS = ["LineNumber", "BuyerItemCode", "SupplierItemCode", "Description", "Quantity", "Unit", "UnitPrice", "LineTotal"] as const;
+
+/** One labelled group of bindable canonical fields, for the picker's grouped list. */
+export interface CanonicalSourceGroup {
+  label: string;
+  scope: "header" | "line";
+  fields: readonly string[];
+}
+
+/**
+ * WP-14 — the BINDABLE canonical vocabulary: every name a mapping rule (or a designed output
+ * tree node) may name as its source, grouped by scope and then by subject.
+ *
+ * Backend source of truth: `ProcuLink.Transform/Output/MappedTransformService.cs`
+ * (`BuildHeaderRow` / `BuildLineRow`), which is itself kept complete against the entities by
+ * `CanonicalRowCompletenessTests`. A name offered here that the row bag does not carry resolves
+ * to an empty string at transform time — the user binds a field and silently gets a blank column
+ * — so the two lists are pinned equal by `canonicalSourceFields.test.ts`.
+ *
+ * The scope grouping matters beyond looks: `mapperModel.scopeOf` writes a rule into
+ * `output.header` or `output.lines` from it, and the backend resolves a header rule against the
+ * HEADER row bag, which carries no line keys.
+ *
+ * The spine (CANONICAL_*_FIELDS) leads each scope, so the common fields stay at the top of the
+ * picker exactly where they were.
+ */
+export const CANONICAL_SOURCE_GROUPS: readonly CanonicalSourceGroup[] = [
+  { label: "Order", scope: "header", fields: CANONICAL_HEADER_FIELDS },
+  {
+    label: "Totals & terms", scope: "header",
+    fields: ["SubTotal", "TaxTotal", "GrandTotal", "PaymentTerms", "RequestedDeliveryDate"],
+  },
+  {
+    label: "Order details", scope: "header",
+    fields: ["DocumentType", "BuyerOrderRef", "BuyerTaxId", "Incoterms", "ShippingMethod"],
+  },
+  { label: "Contact", scope: "header", fields: ["ContactName", "ContactEmail", "ContactPhone"] },
+  {
+    label: "Ship to", scope: "header",
+    fields: ["ShipToName", "ShipToDeliverTo", "ShipToStreet", "ShipToCity",
+      "ShipToPostalCode", "ShipToCountry", "ShipToEmail", "ShipToPhone"],
+  },
+  {
+    label: "Bill to", scope: "header",
+    fields: ["BillToName", "BillToDeliverTo", "BillToStreet", "BillToCity",
+      "BillToPostalCode", "BillToCountry", "BillToEmail", "BillToPhone"],
+  },
+
+  { label: "Item", scope: "line", fields: CANONICAL_LINE_FIELDS },
+  {
+    label: "Amounts", scope: "line",
+    fields: ["LineAmount", "NetAmount", "TaxRate", "TaxAmount", "DiscountPercent"],
+  },
+  {
+    label: "Identifiers", scope: "line",
+    fields: ["ManufacturerPartNumber", "ManufacturerName", "CustomerPartNumber", "Unspsc", "ContractNumber"],
+  },
+  { label: "Delivery", scope: "line", fields: ["DeliveryDate", "Recipient"] },
+];
+
+/** Every bindable HEADER-scope canonical name, spine first. */
+export const CANONICAL_HEADER_SOURCE_FIELDS: readonly string[] =
+  CANONICAL_SOURCE_GROUPS.filter((g) => g.scope === "header").flatMap((g) => [...g.fields]);
+
+/** Every bindable LINE-scope canonical name, spine first. */
+export const CANONICAL_LINE_SOURCE_FIELDS: readonly string[] =
+  CANONICAL_SOURCE_GROUPS.filter((g) => g.scope === "line").flatMap((g) => [...g.fields]);
 
 // ── Whole-document Scriban template mode ─────────────────────────────────────
 // Mirrors docs/qa/2026-06-09-scriban-template-namespace.md (the backend source of

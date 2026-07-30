@@ -20,6 +20,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { CANONICAL_SOURCE_GROUPS } from "@/lib/api/types";
 import type { SourceToken } from "@/lib/api/types";
 
 const PANEL_W = 300;
@@ -133,6 +134,25 @@ export function OutputSourcePicker({
       .map((f) => ({ kind: "canonical" as const, id: f, label: f, value: null })),
     [canonicalFields, q],
   );
+
+  // WP-14: the bindable vocabulary is ~45 names, so the flat "Standard fields" list is split into
+  // its subject groups ("Ship to", "Bill to", "Amounts", …). PURELY presentational — the order is
+  // preserved exactly, so `flat.indexOf(o)` (keyboard nav) still matches what is drawn. Anything
+  // the catalog does not classify (custom field keys, a supplier's declared schema) falls into a
+  // trailing "Other fields" group, so nothing can be dropped from the list.
+  const canonicalSections = useMemo<Array<{ label: string; options: Option[] }>>(() => {
+    const groupOf = new Map<string, string>();
+    for (const g of CANONICAL_SOURCE_GROUPS) for (const f of g.fields) groupOf.set(f, g.label);
+
+    const sections: Array<{ label: string; options: Option[] }> = [];
+    for (const o of canonicalOptions) {
+      const label = groupOf.get(o.id) ?? "Other fields";
+      const last = sections[sections.length - 1];
+      if (last && last.label === label) last.options.push(o);
+      else sections.push({ label, options: [o] });
+    }
+    return sections;
+  }, [canonicalOptions]);
 
   // F-1 Phase 4: a repeating LINE column collapses to ONE "per line" option (deduped by relativeId).
   // Binding it writes the relativeId so one rule emits each line's own value. The absolute per-row
@@ -345,17 +365,18 @@ export function OutputSourcePicker({
           </div>
 
           <div style={{ maxHeight: 260, overflowY: "auto", padding: 6 }}>
-            {/* Canonical fields — shown first (progressive disclosure: the common case up top). */}
-            {canonicalOptions.length > 0 && (
-              <div style={{ marginBottom: 4 }}>
-                <div style={groupHeadStyle}>Standard fields</div>
-                {canonicalOptions.map((o) => (
+            {/* Canonical fields — shown first (progressive disclosure: the common case up top),
+                split into their subject groups so the widened vocabulary stays scannable. */}
+            {canonicalSections.map((section, si) => (
+              <div key={`sec:${si}:${section.label}`} style={{ marginBottom: 4 }}>
+                <div style={groupHeadStyle}>{section.label}</div>
+                {section.options.map((o) => (
                   <OptionRow key={`c:${o.id}`} option={o}
                     active={flat.indexOf(o) === active}
                     onHover={() => setActive(flat.indexOf(o))} onPick={() => pick(o)} />
                 ))}
               </div>
-            )}
+            ))}
 
             {/* "More source fields…" disclosure — reveals the raw source-token universe. */}
             {sourceTokens.length > 0 && (

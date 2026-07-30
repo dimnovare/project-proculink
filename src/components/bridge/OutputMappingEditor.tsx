@@ -29,7 +29,7 @@ import {
 import { OutputStructureDesigner } from "./OutputStructureDesigner";
 import { OutputSourcePicker } from "./OutputSourcePicker";
 import {
-  MANIPULATOR_TYPES, CANONICAL_HEADER_FIELDS, CANONICAL_LINE_FIELDS,
+  MANIPULATOR_TYPES, CANONICAL_HEADER_SOURCE_FIELDS, CANONICAL_LINE_SOURCE_FIELDS,
   SCRIBAN_TEMPLATE_GROUPS, TEMPLATE_CONTENT_TYPES, PREVIEW_FORMATS, SCRIBAN_STARTER_TEMPLATE,
   type OrderMappingOverride, type OutputFieldRule, type ManipulatorEntry, type CustomField,
   type OutputFormatId, type SourceFieldRule, type OutputNodeTemplate, type SourceToken,
@@ -56,8 +56,11 @@ function toCustomRows(fields: CustomField[] | undefined): CustomRow[] {
 function sanitizeKey(raw: string): string {
   return raw.replace(/[^A-Za-z0-9_]/g, "_").replace(/_+/g, "_").replace(/^_|_$/g, "");
 }
+// Custom-field keys are written into the row bag AFTER the canonical keys, so a custom key that
+// collides with a canonical name OVERWRITES the parsed value. Guard against the WIDE vocabulary —
+// naming a custom field "ShipToCity" now really does shadow the parsed delivery city.
 const CANONICAL_LOWER = new Set(
-  [...CANONICAL_HEADER_FIELDS, ...CANONICAL_LINE_FIELDS].map((f) => f.toLowerCase()),
+  [...CANONICAL_HEADER_SOURCE_FIELDS, ...CANONICAL_LINE_SOURCE_FIELDS].map((f) => f.toLowerCase()),
 );
 
 /**
@@ -609,8 +612,13 @@ export function OutputMappingEditor({
     [customRows],
   );
   const customKeys = useMemo(() => customFields.map((c) => c.key), [customFields]);
-  const headerSources = useMemo(() => [...CANONICAL_HEADER_FIELDS, ...customKeys], [customKeys]);
-  const lineSources   = useMemo(() => [...CANONICAL_LINE_FIELDS, ...CANONICAL_HEADER_FIELDS, ...customKeys], [customKeys]);
+  // The picker offers the WIDE bindable vocabulary (WP-14) — every name the backend row bag can
+  // resolve, including the whole ship-to / bill-to address blocks and the line identifiers.
+  const headerSources = useMemo(() => [...CANONICAL_HEADER_SOURCE_FIELDS, ...customKeys], [customKeys]);
+  const lineSources   = useMemo(
+    () => [...CANONICAL_LINE_SOURCE_FIELDS, ...CANONICAL_HEADER_SOURCE_FIELDS, ...customKeys],
+    [customKeys],
+  );
 
   const trimmedTemplate = template.trim();
   const draft: OrderMappingOverride = useMemo(

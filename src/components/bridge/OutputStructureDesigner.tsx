@@ -17,7 +17,7 @@ import {
   type NamespaceRow,
 } from "./outputNamespaceModel";
 import {
-  CANONICAL_HEADER_FIELDS, CANONICAL_LINE_FIELDS,
+  CANONICAL_HEADER_SOURCE_FIELDS, CANONICAL_LINE_SOURCE_FIELDS,
   type OrderMappingOverride, type OutputNode, type OutputNodeTemplate,
   type OutputNodeType, type OutputFormat, type SourceToken,
 } from "@/lib/api/types";
@@ -503,7 +503,9 @@ function NodeEditor({
   const setNamespace = (namespace: string, prefix: string) =>
     onUpdate((n) => updateAt(n, path, (x) => setNodeNamespace(x, namespace, prefix)));
 
-  const canonicalOptions = childScope ? CANONICAL_LINE_FIELDS : CANONICAL_HEADER_FIELDS;
+  // WP-14: the WIDE bindable vocabulary, so a designed tree node can bind the delivery address
+  // and the line identifiers, not just the narrow default output shape.
+  const canonicalOptions = childScope ? CANONICAL_LINE_SOURCE_FIELDS : CANONICAL_HEADER_SOURCE_FIELDS;
   const boundCanonical = node.rule?.canonicalField ?? "";
   const boundToken = node.rule?.sourceToken ?? "";
   const usingFixed = node.rule?.fixedValue != null && !boundCanonical && !boundToken;

@@ -15,7 +15,7 @@
 // token values. Everything here is a pure function of those projections so it is testable
 // without mounting the wire engine.
 
-import { CANONICAL_HEADER_FIELDS, CANONICAL_LINE_FIELDS } from "@/lib/api/types";
+import { CANONICAL_HEADER_SOURCE_FIELDS, CANONICAL_LINE_SOURCE_FIELDS } from "@/lib/api/types";
 import type { TargetField } from "./types";
 
 /** Canonical fields the supplier dispatcher treats as required (a missing source is loud). */
@@ -28,8 +28,16 @@ const REQUIRED_CANONICAL = new Set<string>([
   "SupplierItemCode",
 ]);
 
-/** The full canonical spine (header + line) — used to decide whether a 1:1 default exists. */
-const CANONICAL_SPINE = new Set<string>([...CANONICAL_HEADER_FIELDS, ...CANONICAL_LINE_FIELDS]);
+/**
+ * Every canonical name the backend row bag resolves (header + line) — used to decide whether a
+ * 1:1 default exists. The WIDE vocabulary, not the narrow default output shape: an output path
+ * literally named e.g. `ShipToCity` DOES carry through with no wire, so reporting it "unmapped"
+ * would make the pane lie about what the supplier will receive.
+ */
+const CANONICAL_SPINE = new Set<string>([
+  ...CANONICAL_HEADER_SOURCE_FIELDS,
+  ...CANONICAL_LINE_SOURCE_FIELDS,
+]);
 
 /** How an output field gets its value, for the small source tag. */
 export type OutgoingSourceKind = "wired" | "fixed" | "auto" | "none";

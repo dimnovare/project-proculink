@@ -17,9 +17,13 @@ import type {
   OutputFieldRule,
   SourceFieldRule,
 } from "@/lib/api/types";
-import { CANONICAL_LINE_FIELDS } from "@/lib/api/types";
+import { CANONICAL_LINE_SOURCE_FIELDS } from "@/lib/api/types";
 
-const LINE_KEYS = new Set<string>(CANONICAL_LINE_FIELDS);
+// The WIDE line vocabulary, not the narrow default output shape. scopeOf() decides whether a rule
+// is written into output.header or output.lines, and the backend resolves a header rule against
+// the HEADER row bag — which carries no line keys. A rule bound to e.g. ManufacturerPartNumber
+// that lands in header scope emits an empty column, silently, forever.
+const LINE_KEYS = new Set<string>(CANONICAL_LINE_SOURCE_FIELDS);
 
 /** A blank but well-formed override (no overrides → byte-identical transform). */
 export function emptyOverride(): OrderMappingOverride {
