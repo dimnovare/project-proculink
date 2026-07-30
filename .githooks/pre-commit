@@ -1,0 +1,53 @@
+#!/bin/sh
+#
+# Pre-commit gates — the fast ones only.
+#
+# The full vitest suite (106 files, ~1157 tests) deliberately does NOT run here.
+# It runs in CI, in the `test-unit` job of .github/workflows/ci.yml, which since
+# PR #40 gates every pull request. A ~2-minute pre-commit hook trains people to
+# type --no-verify, and a bypassed gate enforces nothing.
+#
+# Every gate runs even after an earlier one fails, so one commit attempt reports
+# every problem instead of only the first — the same reason ci.yml marks its
+# later gate steps `if: always()`.
+#
+# Bypass (rare, and say why in the commit message):  git commit --no-verify
+#
+set -u
+
+failures=0
+
+note_failure() {
+  failures=$((failures + 1))
+  echo "  FAILED: $1"
+}
+
+# --- eslint, staged TypeScript only ---------------------------------------
+#
+# Scoped to staged files because a whole-repo `next lint` is far slower than the
+# rest of this hook combined, and a commit can only break what it touches.
+#
+# Known limitation: eslint reads the WORKING TREE copy of each file, not the
+# staged blob. After a partial `git add -p` those differ, so the gate lints
+# slightly more than what is being committed. CI lints the real tree, which is
+# what actually has to be clean.
+staged=$(git diff --cached --name-only --diff-filter=ACMR -- '*.ts' '*.tsx')
+
+if [ -n "$staged" ]; then
+  echo "$staged" | xargs bunx eslint || note_failure "eslint (staged .ts/.tsx)"
+else
+  echo "  skipped: eslint — no staged .ts/.tsx files"
+fi
+
+# --- whole-repo conformance gates (~1s together) --------------------------
+bun run check:pageshell --strict || note_failure "check:pageshell --strict"
+bun run lint:vocab || note_failure "lint:vocab"
+
+if [ "$failures" -gt 0 ]; then
+  echo ""
+  echo "$failures pre-commit gate(s) failed."
+  echo "Fix them, or bypass deliberately with: git commit --no-verify"
+  exit 1
+fi
+
+exit 0
