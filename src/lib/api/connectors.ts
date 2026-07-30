@@ -178,9 +178,12 @@ const MOCK_BY_KEY = new Map<string, ConnectorManifest>(
 // instead. There is no wire field for this yet, so it is attached client-side to
 // every manifest — mock AND live — rather than only ever appearing in mock mode.
 const RESEND_CAVEATS: Partial<Record<DeliveryProtocol, string>> = {
-  // Safe: a deterministic remote filename means a repeat overwrites, never duplicates.
-  sftp: "A repeat send overwrites the same file on the server — it can't create a duplicate.",
-  ftps: "A repeat send overwrites the same file on the server — it can't create a duplicate.",
+  // Safe: the remote file name is fixed per order, so a repeat can never become a second document.
+  // It does NOT always overwrite — with "replace existing files" off it refuses instead, and the
+  // order is held for the operator rather than reported as a failure. The wording has to cover both,
+  // because it renders on the LIVE manifests as well as the mock ones (see withResendCaveat).
+  sftp: "A repeat send always uses the same file name for that order, so the supplier can never end up with two copies. If you switch off \"replace existing files\", a repeat won't overwrite either — it stops, and we ask you what to do rather than guess.",
+  ftps: "A repeat send always uses the same file name for that order, so the supplier can never end up with two copies. If you switch off \"replace existing files\", a repeat won't overwrite either — it stops, and we ask you what to do rather than guess.",
   // BestEffort: a dedupe signal is sent (HTTP Idempotency-Key header), but honouring
   // it is the endpoint's choice — worded plainly here since this text renders in the UI.
   http: "We tag every request so an endpoint built to check for repeats can recognize and ignore one — but honouring that is the endpoint's choice, not something we control.",
