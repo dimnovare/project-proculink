@@ -20,7 +20,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import type { SourceToken } from "@/lib/api/types";
+import { CANONICAL_FIELD_GROUPS, canonicalFieldScope, type SourceToken } from "@/lib/api/types";
 
 const PANEL_W = 300;
 
@@ -127,11 +127,29 @@ export function OutputSourcePicker({
   const q = query.trim().toLowerCase();
   const tokensExpanded = showMore || q.length > 0;
 
+  // WP-14: the canonical list grew from 13 names to 53, so it is grouped BY SCOPE — an operator
+  // looking for a delivery address scans one section instead of a wall. Group order follows first
+  // appearance in `canonicalFields`, so a line-scope row still leads with line fields (the host
+  // passes line names first for a line rule, header names first for a header rule) and the
+  // author's own custom keys land in their own trailing group.
+  const canonicalGroups = useMemo<Array<{ label: string; options: Option[] }>>(() => {
+    const byLabel = new Map<string, Option[]>();
+    for (const f of canonicalFields) {
+      if (q && !f.toLowerCase().includes(q)) continue;
+      const scope = canonicalFieldScope(f);
+      const label = scope === null
+        ? "Custom fields"
+        : (CANONICAL_FIELD_GROUPS.find((g) => g.scope === scope)?.label ?? "Standard fields");
+      if (!byLabel.has(label)) byLabel.set(label, []);
+      byLabel.get(label)!.push({ kind: "canonical" as const, id: f, label: f, value: null });
+    }
+    return [...byLabel].map(([label, options]) => ({ label, options }));
+  }, [canonicalFields, q]);
+
+  // Flattened in the SAME order the groups render, so keyboard nav walks what the eye sees.
   const canonicalOptions = useMemo<Option[]>(
-    () => canonicalFields
-      .filter((f) => !q || f.toLowerCase().includes(q))
-      .map((f) => ({ kind: "canonical" as const, id: f, label: f, value: null })),
-    [canonicalFields, q],
+    () => canonicalGroups.flatMap((g) => g.options),
+    [canonicalGroups],
   );
 
   // F-1 Phase 4: a repeating LINE column collapses to ONE "per line" option (deduped by relativeId).
@@ -346,16 +364,16 @@ export function OutputSourcePicker({
 
           <div style={{ maxHeight: 260, overflowY: "auto", padding: 6 }}>
             {/* Canonical fields — shown first (progressive disclosure: the common case up top). */}
-            {canonicalOptions.length > 0 && (
-              <div style={{ marginBottom: 4 }}>
-                <div style={groupHeadStyle}>Standard fields</div>
-                {canonicalOptions.map((o) => (
+            {canonicalGroups.map((group) => (
+              <div key={group.label} style={{ marginBottom: 4 }}>
+                <div style={groupHeadStyle}>{group.label}</div>
+                {group.options.map((o) => (
                   <OptionRow key={`c:${o.id}`} option={o}
                     active={flat.indexOf(o) === active}
                     onHover={() => setActive(flat.indexOf(o))} onPick={() => pick(o)} />
                 ))}
               </div>
-            )}
+            ))}
 
             {/* "More source fields…" disclosure — reveals the raw source-token universe. */}
             {sourceTokens.length > 0 && (

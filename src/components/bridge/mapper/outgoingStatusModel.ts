@@ -15,7 +15,7 @@
 // token values. Everything here is a pure function of those projections so it is testable
 // without mounting the wire engine.
 
-import { CANONICAL_HEADER_FIELDS, CANONICAL_LINE_FIELDS } from "@/lib/api/types";
+import { BINDABLE_HEADER_FIELDS, BINDABLE_LINE_FIELDS } from "@/lib/api/types";
 import type { TargetField } from "./types";
 
 /** Canonical fields the supplier dispatcher treats as required (a missing source is loud). */
@@ -28,8 +28,15 @@ const REQUIRED_CANONICAL = new Set<string>([
   "SupplierItemCode",
 ]);
 
-/** The full canonical spine (header + line) — used to decide whether a 1:1 default exists. */
-const CANONICAL_SPINE = new Set<string>([...CANONICAL_HEADER_FIELDS, ...CANONICAL_LINE_FIELDS]);
+/**
+ * The full canonical spine (header + line) — used to decide whether a 1:1 default exists.
+ *
+ * WP-14: the BINDABLE set, not the narrow default spine. An output column named "ShipToCity" now
+ * genuinely does resolve 1:1 from the backend row bag, so reporting it as unmapped would be a lie
+ * in the honest direction that still misleads: the operator would go looking for a wire that is
+ * not needed.
+ */
+const CANONICAL_SPINE = new Set<string>([...BINDABLE_HEADER_FIELDS, ...BINDABLE_LINE_FIELDS]);
 
 /** How an output field gets its value, for the small source tag. */
 export type OutgoingSourceKind = "wired" | "fixed" | "auto" | "none";

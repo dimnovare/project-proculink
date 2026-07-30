@@ -29,7 +29,7 @@ import {
 import { OutputStructureDesigner } from "./OutputStructureDesigner";
 import { OutputSourcePicker } from "./OutputSourcePicker";
 import {
-  MANIPULATOR_TYPES, CANONICAL_HEADER_FIELDS, CANONICAL_LINE_FIELDS,
+  MANIPULATOR_TYPES, BINDABLE_HEADER_FIELDS, BINDABLE_LINE_FIELDS,
   SCRIBAN_TEMPLATE_GROUPS, TEMPLATE_CONTENT_TYPES, PREVIEW_FORMATS, SCRIBAN_STARTER_TEMPLATE,
   type OrderMappingOverride, type OutputFieldRule, type ManipulatorEntry, type CustomField,
   type OutputFormatId, type SourceFieldRule, type OutputNodeTemplate, type SourceToken,
@@ -56,8 +56,12 @@ function toCustomRows(fields: CustomField[] | undefined): CustomRow[] {
 function sanitizeKey(raw: string): string {
   return raw.replace(/[^A-Za-z0-9_]/g, "_").replace(/_+/g, "_").replace(/^_|_$/g, "");
 }
+// Warns when a user's custom-field key collides with a built-in canonical name. WP-14 widened the
+// built-in set, so a key like "ContractNumber" is now reserved and the warning is correct: the
+// backend keeps the USER's value for such a key (a newly reserved name never overwrites one a
+// customer already authored), but a collision is still worth telling them about.
 const CANONICAL_LOWER = new Set(
-  [...CANONICAL_HEADER_FIELDS, ...CANONICAL_LINE_FIELDS].map((f) => f.toLowerCase()),
+  [...BINDABLE_HEADER_FIELDS, ...BINDABLE_LINE_FIELDS].map((f) => f.toLowerCase()),
 );
 
 /**
@@ -609,8 +613,11 @@ export function OutputMappingEditor({
     [customRows],
   );
   const customKeys = useMemo(() => customFields.map((c) => c.key), [customFields]);
-  const headerSources = useMemo(() => [...CANONICAL_HEADER_FIELDS, ...customKeys], [customKeys]);
-  const lineSources   = useMemo(() => [...CANONICAL_LINE_FIELDS, ...CANONICAL_HEADER_FIELDS, ...customKeys], [customKeys]);
+  // WP-14: offer every name the backend row bag exposes, not the narrow default spine. A line rule
+  // may also bind header fields (the line bag carries them), which is why lineSources concatenates
+  // both — the picker groups them by scope so the mixed list stays readable.
+  const headerSources = useMemo(() => [...BINDABLE_HEADER_FIELDS, ...customKeys], [customKeys]);
+  const lineSources   = useMemo(() => [...BINDABLE_LINE_FIELDS, ...BINDABLE_HEADER_FIELDS, ...customKeys], [customKeys]);
 
   const trimmedTemplate = template.trim();
   const draft: OrderMappingOverride = useMemo(

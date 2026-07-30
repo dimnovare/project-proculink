@@ -17,9 +17,11 @@ import type {
   OutputFieldRule,
   SourceFieldRule,
 } from "@/lib/api/types";
-import { CANONICAL_LINE_FIELDS } from "@/lib/api/types";
+import { BINDABLE_LINE_FIELDS } from "@/lib/api/types";
 
-const LINE_KEYS = new Set<string>(CANONICAL_LINE_FIELDS);
+// The FULL bindable line set, not the narrow default spine: a rule binding ManufacturerPartNumber
+// or Unspsc must land in line scope, or it would be emitted once for the whole order.
+const LINE_KEYS = new Set<string>(BINDABLE_LINE_FIELDS);
 
 /** A blank but well-formed override (no overrides → byte-identical transform). */
 export function emptyOverride(): OrderMappingOverride {
@@ -96,8 +98,21 @@ export function withSourceDisconnect(
 
 // ── Canonical → target mutations ──────────────────────────────────────────────
 
-function scopeOf(outputPath: string, canonicalField: string): "header" | "lines" {
-  return LINE_KEYS.has(canonicalField) || LINE_KEYS.has(outputPath) ? "lines" : "header";
+/**
+ * A new rule's scope is decided by the CANONICAL SOURCE it binds, never by the supplier's own
+ * column name.
+ *
+ * This used to also test `LINE_KEYS.has(outputPath)` — reading the output column's name as if it
+ * were one of our canonical field names. Harmless while LINE_KEYS held 8 generic names; actively
+ * wrong once WP-14 added DeliveryDate, TaxRate, TaxAmount, ContractNumber and Recipient, because a
+ * supplier column literally called "DeliveryDate" (not an exotic name in procurement) would move
+ * from header scope to line scope. A header column is emitted once and a line column repeats per
+ * line, so that silently changes the document for a customer who changed nothing.
+ *
+ * Only the canonical field decides. Pinned by mapperModel.scope.test.ts.
+ */
+function scopeOf(canonicalField: string): "header" | "lines" {
+  return LINE_KEYS.has(canonicalField) ? "lines" : "header";
 }
 
 function cloneOutput(cfg: OutputMappingConfig | null | undefined): OutputMappingConfig {
@@ -124,7 +139,7 @@ export function withTargetConnect(
   // Remove any stale rule in the other scope so a path lives in exactly one scope.
   delete cfg.header[outputPath];
   delete cfg.lines[outputPath];
-  const scope = existing?.scope ?? scopeOf(outputPath, canonicalField);
+  const scope = existing?.scope ?? scopeOf(canonicalField);
   cfg[scope][outputPath] = { outputPath, canonicalField, fixedValue: null, fieldManipulators: manipulators };
   return { ...base, customFields: base.customFields ?? [], output: cfg };
 }

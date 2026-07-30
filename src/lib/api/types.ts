@@ -327,9 +327,85 @@ export const MANIPULATOR_TYPES: ReadonlyArray<{ type: string; params: string[]; 
   { type: "Divide",     params: ["divisor"],        hint: "Divide a number" },
 ];
 
-/** Canonical fields selectable as a source in the mapping editor. */
+/**
+ * The DEFAULT outgoing-document spine: the columns a supplier with no configured output is shown.
+ *
+ * Deliberately NOT the same list as BINDABLE_*_FIELDS below. These two were one list until WP-14,
+ * which conflated "what the document shows by default" with "what an author may bind". Widening
+ * this one to all 53 names would have turned the outgoing-document lane into 53 columns as a side
+ * effect of a picker change. Pinned as a strict subset by `canonicalFields.test.ts`.
+ */
 export const CANONICAL_HEADER_FIELDS = ["PoNumber", "OrderDate", "BuyerName", "Currency", "SupplierName"] as const;
 export const CANONICAL_LINE_FIELDS = ["LineNumber", "BuyerItemCode", "SupplierItemCode", "Description", "Quantity", "Unit", "UnitPrice", "LineTotal"] as const;
+
+// ── WP-14: everything a custom output may bind ───────────────────────────────
+//
+// Mirror of `ProcuLink.Transform/Output/CanonicalRowFields.cs` (`Header` / `Line`) in the backend
+// repo — the keys `BuildHeaderRow` / `BuildLineRow` actually put in the row bag. Binding a name
+// that is not in that bag silently emits nothing, which is exactly how the old gap stayed
+// invisible: the picker offered 13 names, the backend exposed 21, and the entity carried 52.
+//
+// Two repos cannot share a compile-time constant, so the pair is guarded from both ends:
+// `canonicalFields.test.ts` here fails if this list drifts from the pinned expectation, and
+// `CanonicalRowFieldsCompletenessTests` there fails if an entity field is neither exposed nor
+// explicitly excluded with a written reason. Update both in the same change.
+
+/** Header-scope canonical fields an output rule may bind. */
+export const BINDABLE_HEADER_FIELDS = [
+  // identity + document basics
+  "PoNumber", "OrderDate", "BuyerName", "Currency", "SupplierName",
+  // money + terms
+  "SubTotal", "TaxTotal", "GrandTotal", "PaymentTerms", "RequestedDeliveryDate",
+  // buyer identity + references
+  "BuyerOrderRef", "BuyerTaxId",
+  // ordering contact
+  "ContactName", "ContactEmail", "ContactPhone",
+  // shipping terms
+  "Incoterms", "ShippingMethod",
+  // ship-to address block
+  "ShipToName", "ShipToDeliverTo", "ShipToStreet", "ShipToCity",
+  "ShipToPostalCode", "ShipToCountry", "ShipToEmail", "ShipToPhone",
+  // bill-to address block
+  "BillToName", "BillToDeliverTo", "BillToStreet", "BillToCity",
+  "BillToPostalCode", "BillToCountry", "BillToEmail", "BillToPhone",
+] as const;
+
+/** Line-scope canonical fields an output rule may bind. */
+export const BINDABLE_LINE_FIELDS = [
+  // identity + quantities
+  "LineNumber", "BuyerItemCode", "SupplierItemCode", "Description",
+  "Quantity", "Unit", "UnitPrice", "LineTotal",
+  // money
+  "LineAmount", "TaxRate", "DeliveryDate", "TaxAmount", "DiscountPercent", "NetAmount",
+  // product identity
+  "ManufacturerPartNumber", "ManufacturerName", "CustomerPartNumber", "Unspsc",
+  // line-level routing / contract references
+  "Recipient", "ContractNumber",
+] as const;
+
+/** One scope's worth of bindable fields, for a picker that groups its options. */
+export interface CanonicalFieldGroup {
+  scope: "header" | "line";
+  label: string;
+  fields: readonly string[];
+}
+
+/**
+ * The bindable set grouped by scope. 53 names in one flat list is a wall; grouped, an operator
+ * looking for a delivery address scans one section. The picker derives an option's group from
+ * these lists rather than taking it as a prop, so every caller groups identically.
+ */
+export const CANONICAL_FIELD_GROUPS: ReadonlyArray<CanonicalFieldGroup> = [
+  { scope: "header", label: "Order fields", fields: BINDABLE_HEADER_FIELDS },
+  { scope: "line", label: "Line item fields", fields: BINDABLE_LINE_FIELDS },
+];
+
+/** The scope a canonical field belongs to, or null when the name is not a built-in field. */
+export function canonicalFieldScope(field: string): "header" | "line" | null {
+  if ((BINDABLE_LINE_FIELDS as readonly string[]).includes(field)) return "line";
+  if ((BINDABLE_HEADER_FIELDS as readonly string[]).includes(field)) return "header";
+  return null;
+}
 
 // ── Whole-document Scriban template mode ─────────────────────────────────────
 // Mirrors docs/qa/2026-06-09-scriban-template-namespace.md (the backend source of
