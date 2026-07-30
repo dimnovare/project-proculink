@@ -1,5 +1,4 @@
 import { expect, test } from "@playwright/test";
-import { Buffer } from "node:buffer";
 import {
   FilmClock,
   FilmCursor,
@@ -9,12 +8,6 @@ import {
   saveFilmVideo,
 } from "./capture-helpers";
 import { loadFilmSpec } from "./film-spec";
-
-const SAMPLE_CSV =
-  "po_number,buyer_name,line_no,item_code,description,quantity,unit_price,currency\n" +
-  "PO-2026-004417,Nordic Electronics,1,TB-CAP-100,Capacitor 100uF,200,0.35,EUR\n" +
-  "PO-2026-004417,Nordic Electronics,2,TB-RES-220,Resistor 220R,500,0.02,EUR\n" +
-  "PO-2026-004417,Nordic Electronics,3,TB-WIRE-22,Wire 22AWG Black 100m,5,12.50,EUR\n";
 
 test("film: walkthrough 2026-07", async ({ page }) => {
   const spec = loadFilmSpec("walkthrough-2026-07");
@@ -43,22 +36,30 @@ test("film: walkthrough 2026-07", async ({ page }) => {
   clock.mark("open");
   await hold("open");
 
-  clock.mark("import");
-  const chooserPromise = page.waitForEvent("filechooser");
-  await cursor.click(page.getByRole("button", { name: /browse files/i }));
-  const chooser = await chooserPromise;
-  await chooser.setFiles({
-    name: "PO-2026-004417.csv",
-    mimeType: "text/csv",
-    buffer: Buffer.from(SAMPLE_CSV),
+  clock.mark("intake-tools");
+  const intakeRail = page.getByRole("heading", {
+    name: /more ways to bring orders in/i,
   });
-  await required(page.getByText(/detected:/i), "detected format");
+  await required(intakeRail, "intake methods rail");
+  await intakeRail.scrollIntoViewIfNeeded();
+  await required(page.getByText(/email intake/i), "email intake method");
+  await required(page.getByText(/rest api & webhooks/i), "api intake method");
+  await required(page.getByText(/sftp pull/i), "sftp intake method");
+  await required(page.getByText(/s3 \/ r2 pull/i), "s3 r2 intake method");
+  await hold("intake-tools");
+
+  clock.mark("import");
+  const sampleButton = page.getByRole("button", {
+    name: /try with a sample order/i,
+  });
+  await required(sampleButton, "sample order CTA");
+  await sampleButton.scrollIntoViewIfNeeded();
+  await cursor.click(sampleButton);
+  await expect(page).toHaveURL(/\/inbox\/ord-sample-/);
   await hold("import");
 
-  clock.mark("detect");
-  await required(page.getByText(/detected:/i), "detected format state");
-  await hold("detect");
-
+  // Continue with the richer fictional order because the clean generated sample
+  // has no mapping exceptions to resolve on camera.
   await page.goto("/inbox/ord-002", { waitUntil: "networkidle" });
   await required(
     page.getByTitle("PO-2024-005678", { exact: true }),
