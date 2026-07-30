@@ -1,42 +1,78 @@
 // ROUTE REACHABILITY GUARD — the teeth of plan rule R1, "no new surface
 // without a consumer".
 //
-// A Next.js `page.tsx` is a live, navigable URL the moment the file exists.
-// Nothing in the framework asks whether anything LINKS to it, so a route can
-// ship, resolve, render, be crawled and bookmarked — and still be a surface no
-// user can ever arrive at by using the product. Three such routes existed when
-// this guard was written. This test makes that state impossible to reach again
-// silently: adding a page.tsx that no navigation reaches turns the suite red.
+// A Next.js page file is a live, navigable URL the moment it exists. Nothing in
+// the framework asks whether anything LINKS to it, so a route can ship,
+// resolve, render, be crawled and bookmarked — and still be a surface no user
+// can ever arrive at by using the product. This test makes that state
+// impossible to reach again silently: adding a page that no navigation reaches
+// turns the suite red.
+//
+// A ROUTE is any file Next.js treats as a page under the configured
+// `pageExtensions` — `page.tsx` AND `page.mdx` (94 routes today: 49 tsx, 45
+// mdx). Enumerating only `page.tsx` saw 52% of the app and left the entire help
+// centre free to rot unlinked.
 //
 // A route counts as REACHABLE when at least one of these is true:
 //
 //   1. nav registry  — it is an href in the sidebar nav that buildVisibleNav
 //                      actually RENDERS, or the pinned primary action.
 //   2. hub tab       — it is the `href` of a tab in HUB_TABS.
-//   3. redirect      — a next.config.ts `destination`, or a redirect call in a
+//   3. content registry — it is a help article (rendered by /help) or a LIVE
+//                      guide (rendered by GuideIndex), read through the export
+//                      that reproduces the render-time filter.
+//   4. redirect      — a next.config.ts `destination`, or a redirect call in a
 //                      route/middleware (`redirect()`, `NextResponse.redirect`,
 //                      `router.replace`, a Clerk `*RedirectUrl` prop).
-//   4. link          — some OTHER source file links to it (`next/link` href,
-//                      an `href:` entry in a link registry, a `[label, href]`
-//                      footer tuple, `router.push`, or an MDX markdown link).
-//   5. allowlist     — it is in KNOWN_DEEP_LINK_ONLY *with a written reason*.
+//   5. link          — some OTHER source file links to it (`next/link` href,
+//                      a `[label, href]` footer tuple, `router.push`, or an MDX
+//                      markdown link).
+//   6. allowlist     — it is in KNOWN_DEEP_LINK_ONLY *with a written reason*
+//                      that cites something checkable.
 //
-// Two deliberate asymmetries, both load-bearing:
+// Deliberate asymmetries, all load-bearing:
 //
-//   • The sidebar is read through buildVisibleNav(), not off the raw NAV_MAIN
-//     array, because a registry entry that the launch flags filter out is not a
-//     link — it renders nowhere. /drafts is exactly this case: it sits in
-//     NAV_MAIN but is absent from LAUNCH_CORE_HREFS, so no user has ever seen
-//     it. Reading the raw array would have declared it reachable and this guard
-//     would have been decorative.
+//   • Registries are read through the code path that RENDERS them, never off
+//     their raw text — see THE REGISTRY RULE below. The sidebar goes through
+//     buildVisibleNav() (/drafts is in NAV_MAIN but filtered out of
+//     LAUNCH_CORE_HREFS, so it renders nowhere); guides.ts goes through
+//     linkedGuides() (a `status: "planned"` guide renders as a "Coming soon"
+//     <span>, never a <Link>); help-articles.ts is credited in full because
+//     /help renders every entry unconditionally.
 //   • HUB_TABS is read for `href` only, never `match`. `match` is active-state
 //     matching — it lights a tab up for a sub-route; it navigates nowhere.
 //     /library/rule-definitions is exactly this case.
+//   • Comments are stripped before extraction. A link that exists only in a
+//     comment navigates nobody, and writing one is the cheapest possible way to
+//     fake reachability past review.
+//   • A page linking to ITSELF does not make itself reachable.
 //
 // Reachability here is FLAT, not transitive: a hub tab counts even if the hub
 // itself is currently hidden by a launch flag. Flipping one flag is a config
 // change; deleting the only link is a code change. This guard catches the
 // second, which is the failure mode that actually strands a page.
+//
+// ── CORRECTION TO AN EARLIER REPORT ──────────────────────────────────────────
+// /admin/guides/unfreeze-a-pilot-workspace was previously reported as a
+// shipping 404. It is NOT. It is `status: "planned"` in src/lib/guides.ts:263,
+// and GuideIndex.tsx:97 renders a non-live guide as a <span> plus a "Coming
+// soon" badge — never a <Link>. No user-facing link points at it, and
+// src/app/sitemap.ts filters on `status === "live"`, so no crawler is offered
+// it either. There is a second, identical case at src/lib/guides.ts:74,
+// /help/guides/set-up-your-workspace. NEITHER is a user-facing dead link.
+//
+// What they ARE is a phantom-target source: their hrefs sat in a file this
+// guard was scanning as raw text, so creating a page at either path would have
+// passed the guard on the strength of a link that is never rendered. That is
+// the defect, and it is fixed by reading guides.ts through linkedGuides().
+//
+// ── MUTATION COVERAGE ────────────────────────────────────────────────────────
+// Every decision above is pinned by a test that fails when the decision is
+// removed. The set is exercised by an out-of-tree harness that reverts each one
+// in turn; the decisions are: page-extension enumeration, the page-suffix
+// strip, href-only hub tabs, comment stripping, the self-link exclusion, the
+// registry-file exclusion, and two loosenings of the link-tuple pattern that
+// would credit src/app/sitemap.ts as navigation.
 
 import { describe, it, expect } from "vitest";
 import fs from "node:fs";
@@ -44,13 +80,19 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { buildVisibleNav, PINNED_ACTION_HREF } from "@/components/bridge/BridgeSidebar";
 import { HUB_TABS } from "@/components/bridge/layout/HubTabs";
+import { HELP_ARTICLES } from "@/lib/help-articles";
+import { GUIDES, linkedGuides } from "@/lib/guides";
 
 // ─── Allowlist ────────────────────────────────────────────────────────────────
 //
-// A route may live here ONLY with a written reason. The value is the reason —
-// the test rejects an empty or whitespace-only one, so "add the path to shut
-// the guard up" is not a move that works. A second test rejects entries that no
-// longer name a real route, so the list cannot rot after a page is deleted.
+// A route may live here ONLY with a written reason, and the reason must cite
+// something a reviewer can open — a file path, a URL, an ISO date, or a work
+// packet (see rejectReason). "Long enough" is not a reason: the previous bar
+// was `length > 15`, which "xxxxxxxxxxxxxxxxxx" clears. A second test rejects
+// entries that no longer name a real route, so the list cannot rot after a page
+// is deleted.
+//
+// This list SHRINKS. Adding to it is a decision with a name on it.
 
 const RETIRED = "scheduled for deletion in WP-08 / WP-07 — retired by founder decision 2026-07-30";
 
@@ -86,15 +128,36 @@ const SRC_DIR = path.join(ROOT, "src");
 const APP_DIR = path.join(SRC_DIR, "app");
 
 /**
- * The two nav registries are read through their EXPORTS (above), so their
- * source files must not also be swept by the generic text scan — a raw `href:`
- * in BridgeSidebar.tsx would smuggle a launch-flag-filtered entry back in as if
- * it were a link, which is precisely what this guard exists to catch.
+ * THE REGISTRY RULE — credit a registry through the code path the UI actually
+ * renders, never through its raw text. (Formerly NAV_REGISTRY_FILES, when the
+ * set held only the two nav files; the rule turned out to be general.)
+ *
+ * A text scan of a registry gets the answer wrong in BOTH directions:
+ *
+ *   • Too generous — a registry that carries an `href` for something it never
+ *     renders as a link is a PHANTOM-TARGET SOURCE, not a dead link. Its href
+ *     is a plan, not navigation. BridgeSidebar's NAV_MAIN holds /drafts, which
+ *     LAUNCH_CORE_HREFS filters out so it renders nowhere; guides.ts holds
+ *     hrefs for two `status: "planned"` guides that GuideIndex.tsx:97 renders
+ *     as a <span> + "Coming soon" badge, never a <Link>. Scanning either file
+ *     raw would credit a target no user can click, and a page created at that
+ *     path would sail through this guard on the strength of a phantom.
+ *   • Too stingy — a registry whose entries ARE all rendered as links, but
+ *     through a COMPUTED href, is invisible to a text scan. help-articles.ts
+ *     carries `slug` only; /help renders every entry as
+ *     `<Link href={`/help/${article.slug}`}>` (help/page.tsx:362). Nothing in
+ *     the repo writes `/help/inbox-basics` literally, yet a user reaches it in
+ *     one click from the help centre index.
+ *
+ * So each registry below is EXCLUDED from the generic text scan and read
+ * through an export that reproduces the render-time filter instead.
  */
-const NAV_REGISTRY_FILES = new Set(
+const REGISTRY_FILES = new Set(
   [
     path.join(SRC_DIR, "components", "bridge", "BridgeSidebar.tsx"),
     path.join(SRC_DIR, "components", "bridge", "layout", "HubTabs.tsx"),
+    path.join(SRC_DIR, "lib", "guides.ts"),
+    path.join(SRC_DIR, "lib", "help-articles.ts"),
   ].map((p) => path.normalize(p)),
 );
 
@@ -114,26 +177,88 @@ function walk(dir: string, out: string[] = []): string[] {
 const isTestFile = (f: string) => /\.(test|spec)\.(ts|tsx)$/.test(f);
 
 /**
+ * Every filename Next.js treats as a page, derived from the SAME list the
+ * framework is configured with: next.config.ts:20 sets
+ * `pageExtensions: ["ts", "tsx", "mdx"]`. Filtering on `page.tsx` alone saw 49
+ * of 94 routes — the entire help centre (45 `page.mdx` files: every article and
+ * every written guide) was invisible, so any of them could be unlinked forever
+ * and this guard would stay green.
+ *
+ * `page.ts` is listed because pageExtensions permits it, not because the repo
+ * uses it; enumerating it costs nothing and stops a future `page.ts` from being
+ * a blind spot.
+ */
+const PAGE_FILE_RE = /^page\.(tsx?|mdx)$/;
+/** Same set, as the trailing path chunk fileToRoute must strip. */
+const PAGE_SUFFIX_RE = /\/page\.(tsx?|mdx)$/;
+
+/** `[[...slug]]` — serves the parent URL AND any depth beneath it. */
+const isOptionalCatchAllSegment = (s: string) => /^\[\[\.\.\..+\]\]$/.test(s);
+/** Parallel-route slot `@modal` — a slot name, contributing no URL segment. */
+const isParallelSlotSegment = (s: string) => /^@./.test(s);
+/**
+ * Intercepting-route markers: `(.)photo`, `(..)photo`, `(..)(..)photo`,
+ * `(...)photo`. These deliberately do NOT match the route-group test
+ * `^\(.+\)$` — a route group is parens and nothing else, while an interceptor
+ * carries a name after the closing paren.
+ */
+export const isInterceptingSegment = (s: string) => /^(?:\(\.{1,3}\))+.+/.test(s);
+
+/**
  * `src/app/(app)/inbox/[orderId]/page.tsx` → `/inbox/[orderId]`.
- * Route groups `(app)`, private folders `_foo` and optional catch-alls
- * `[[...sign-in]]` contribute no URL segment.
+ * Route groups `(app)`, private folders `_foo`, parallel slots `@modal` and
+ * optional catch-alls `[[...sign-in]]` contribute no URL segment.
  */
 export function fileToRoute(pageFile: string): string {
   const rel = path.relative(APP_DIR, pageFile).split(path.sep).join("/");
   const segments = rel
-    .replace(/\/page\.tsx$/, "")
+    .replace(PAGE_SUFFIX_RE, "")
     .split("/")
     .filter(Boolean)
     .filter((s) => !/^\(.+\)$/.test(s)) // route group
     .filter((s) => !/^_/.test(s)) // private folder
-    .filter((s) => !/^\[\[\.\.\..+\]\]$/.test(s)); // optional catch-all
+    .filter((s) => !isParallelSlotSegment(s)) // parallel slot
+    .filter((s) => !isOptionalCatchAllSegment(s)); // optional catch-all
   return "/" + segments.join("/");
 }
 
-export function enumerateRoutes(): { route: string; file: string }[] {
+export interface EnumeratedRoute {
+  route: string;
+  file: string;
+  /**
+   * Set when the page sits behind an optional catch-all. `/docs/[[...slug]]`
+   * has the canonical URL `/docs`, but the same file also serves
+   * `/docs/getting-started`, so a link to the deeper path DOES reach it.
+   * Without this the guard demands a link to the bare parent and reports a
+   * genuinely-linked page as stranded — a permanent false RED.
+   */
+  acceptsDescendants?: boolean;
+}
+
+/**
+ * None of the three segment kinds handled here exists in this repo today. They
+ * are handled anyway because each one fails SILENTLY and in the dangerous
+ * direction the first time someone uses it — the guard would either strand a
+ * real page or demand a link to a string that is not a URL, and the natural fix
+ * under deadline is to allowlist it, which is how a guard becomes decorative.
+ *
+ * An intercepting route is skipped outright rather than enumerated: it is not
+ * an independent URL but an alternate rendering of a route that must ALSO exist
+ * as a real page elsewhere in the tree (Next.js needs it for hard navigation
+ * and reload). That real route is enumerated on its own and must be reachable
+ * on its own, so nothing is lost — whereas enumerating the interceptor would
+ * demand a link to `/feed/(..)photo`, which can never be written.
+ */
+export function enumerateRoutes(): EnumeratedRoute[] {
   return walk(APP_DIR)
-    .filter((f) => path.basename(f) === "page.tsx")
-    .map((file) => ({ route: fileToRoute(file), file: path.normalize(file) }))
+    .filter((f) => PAGE_FILE_RE.test(path.basename(f)))
+    .map((file) => ({ file, segments: path.relative(APP_DIR, file).split(path.sep) }))
+    .filter(({ segments }) => !segments.some(isInterceptingSegment))
+    .map(({ file, segments }) => ({
+      route: fileToRoute(file),
+      file: path.normalize(file),
+      ...(segments.some(isOptionalCatchAllSegment) ? { acceptsDescendants: true } : {}),
+    }))
     .sort((a, b) => a.route.localeCompare(b.route));
 }
 
@@ -193,14 +318,122 @@ export function targetSatisfiesRoute(route: string, target: string): boolean {
   return t.length === r.length;
 }
 
-// `href="/x"` · `href: "/x"` · `href={"/x"}` · href={`/inbox/${id}`}
-const HREF_RE = /\bhref\s*[:=]\s*\{?\s*(["'`])([^"'`]*)\1/g;
-// router.push("/x") · router.replace(`/x`) · redirect("/x") · new URL("/x", …)
-const NAV_CALL_RE = /\b(?:router\.(?:push|replace)|redirect|new URL)\s*\(\s*(["'`])([^"'`]*)\1/g;
-// Clerk / Next redirect props: fallbackRedirectUrl="/x", forceRedirectUrl={…}
-const REDIRECT_PROP_RE = /\b\w*[Rr]edirect(?:Url|_url)\s*[:=]\s*\{?\s*(["'`])([^"'`]*)\1/g;
-// next.config.ts redirects(): destination: "/x"
-const DESTINATION_RE = /\bdestination\s*:\s*(["'`])([^"'`]*)\1/g;
+// ─── Literal reading ──────────────────────────────────────────────────────────
+//
+// The link patterns used to require a quote IMMEDIATELY after `href=` /
+// `push(`, which made every non-trivial expression invisible. The shipped
+// counter-example is src/app/(app)/admin/page.tsx: its only internal link is
+//   href={accessError.status === 401 ? "/sign-in?redirect_url=%2Fadmin" : "/bridge"}
+// and its other two hrefs are external Stripe URLs, so the WHOLE FILE scored
+// zero targets. Same shape at LaneDrawer.tsx:583, connectors/page.tsx:921,
+// pricing/page.tsx:225.
+//
+// So an anchor (`href=`, `href:`, `router.push(`, …) now opens a VALUE REGION,
+// and every string literal inside that region is a candidate target. The region
+// is bounded — it is not "every literal after the anchor" — which is what keeps
+// a sibling object key or the next JSX attribute out.
+
+/** Read the string/template literal starting at `i`, or null if none starts there. */
+function readLiteral(text: string, i: number): { value: string; end: number } | null {
+  const q = text[i];
+  if (q !== '"' && q !== "'" && q !== "`") return null;
+  let value = "";
+  let j = i + 1;
+  while (j < text.length) {
+    const ch = text[j];
+    if (ch === "\\") {
+      value += text.slice(j, j + 2);
+      j += 2;
+      continue;
+    }
+    if (ch === q) return { value, end: j + 1 };
+    value += ch;
+    j++;
+  }
+  return null; // unterminated — not a literal
+}
+
+/**
+ * Blank out the CONTENTS of every string literal, preserving length and the
+ * quote characters. Anchors are then searched in this masked copy, so an
+ * anchor-shaped substring that is really DATA cannot open a region:
+ * `querySelector('a[href="/x"]')` is a selector, and the query string in
+ * `"/sign-in?redirect_url=%2Fadmin"` is a parameter, not a redirect prop.
+ * Offsets are identical in both copies, so a match found in the masked text
+ * indexes straight back into the real one.
+ */
+function maskLiterals(code: string): string {
+  let out = "";
+  let i = 0;
+  while (i < code.length) {
+    const lit = readLiteral(code, i);
+    if (lit) {
+      out += code[i] + " ".repeat(Math.max(0, lit.end - i - 2)) + code[lit.end - 1];
+      i = lit.end;
+      continue;
+    }
+    out += code[i];
+    i++;
+  }
+  return out;
+}
+
+const OPENERS = "([{";
+const CLOSERS = ")]}";
+
+/**
+ * Every string literal in the value region that begins at `at`.
+ *
+ *   • `call`  — the anchor consumed the `(`; the region is the argument list,
+ *               up to the matching `)`.
+ *   • `value` — an `href=` / `href:` value. If it opens with `{`, the region is
+ *               the balanced brace expression. If it opens with a quote, the
+ *               region is exactly ONE literal — otherwise `href="/x" title="y"`
+ *               would swallow the next JSX attribute. Anything else (a bare
+ *               ternary after `href:`) runs to the first `,` `;` or closer at
+ *               depth zero, which stops `{ href: "/a", other: "/b" }` at `/a`.
+ */
+function literalsInRegion(code: string, at: number, mode: "call" | "value"): string[] {
+  let i = at;
+  while (i < code.length && /\s/.test(code[i])) i++;
+
+  if (mode === "value") {
+    const lit = readLiteral(code, i);
+    if (lit) return [lit.value];
+  }
+
+  const values: string[] = [];
+  let depth = mode === "call" ? 1 : 0;
+  if (mode === "value" && code[i] === "{") {
+    depth = 1;
+    i++;
+  }
+  while (i < code.length) {
+    const lit = readLiteral(code, i);
+    if (lit) {
+      values.push(lit.value);
+      i = lit.end;
+      continue;
+    }
+    const ch = code[i];
+    if (OPENERS.includes(ch)) depth++;
+    else if (CLOSERS.includes(ch)) {
+      depth--;
+      if (depth <= 0) break;
+    } else if (depth === 0 && (ch === "," || ch === ";")) break;
+    i++;
+  }
+  return values;
+}
+
+/** `href="/x"` · `href: "/x"` · `href={…any expression…}` */
+const HREF_ANCHOR = /\bhref\s*[:=]/g;
+/** router.push(…) · router.replace(…) · redirect(…) · new URL(…) */
+const NAV_CALL_ANCHOR = /\b(?:router\.(?:push|replace)|redirect|new URL)\s*\(/g;
+/** Clerk / Next redirect props: fallbackRedirectUrl="/x", forceRedirectUrl={…} */
+const REDIRECT_PROP_ANCHOR = /\b\w*[Rr]edirect(?:Url|_url)\s*[:=]/g;
+/** next.config.ts redirects(): destination: "/x" */
+const DESTINATION_ANCHOR = /\bdestination\s*:/g;
 // The repo's footer link-registry idiom: a `[label, href]` 2-tuple destructured
 // into a link — `{ links: [["Customers", "/customers"], …] }` in both
 // (marketing)/layout.tsx and the home page, rendered as
@@ -221,15 +454,141 @@ const LINK_TUPLE_RE = /\[\s*(["'`])[^"'`]*\1\s*,\s*(["'`])(\/[^"'`]*)\2\s*\]/g;
 // MDX body link: [text](/help/x)
 const MD_LINK_RE = /\]\((\/[^)\s]*)\)/g;
 
-const LINK_PATTERNS = [
-  { re: HREF_RE, group: 2 },
+/**
+ * Two extractor shapes. `re`/`group` reads a whole literal out of one regex
+ * match (tuples, markdown links). `anchor`/`mode` opens a value region at the
+ * anchor and reads every literal inside it.
+ */
+export type Pattern =
+  | { re: RegExp; group: number }
+  | { anchor: RegExp; mode: "call" | "value" };
+
+const LINK_PATTERNS: Pattern[] = [
+  { anchor: HREF_ANCHOR, mode: "value" },
   { re: LINK_TUPLE_RE, group: 3 },
   { re: MD_LINK_RE, group: 1 },
 ];
-const REDIRECT_PATTERNS = [
-  { re: NAV_CALL_RE, group: 2 },
-  { re: REDIRECT_PROP_RE, group: 2 },
+const REDIRECT_PATTERNS: Pattern[] = [
+  { anchor: NAV_CALL_ANCHOR, mode: "call" },
+  { anchor: REDIRECT_PROP_ANCHOR, mode: "value" },
 ];
+const DESTINATION_PATTERNS: Pattern[] = [{ anchor: DESTINATION_ANCHOR, mode: "value" }];
+
+// ─── Comment stripping ────────────────────────────────────────────────────────
+
+export type SourceSyntax = "js" | "mdx";
+
+/**
+ * A `/` may begin a regex literal only where a VALUE may begin. This is the
+ * standard disambiguation heuristic; it exists so `const re = /\/\//g` is not
+ * mistaken for a line comment and used to swallow the rest of the line.
+ */
+const REGEX_MAY_START_AFTER = /^$|^[(,=:[!&|?{};+\-*%~^<>]$/;
+
+/**
+ * Remove comments so that COMMENTED-OUT CODE CANNOT CONFER REACHABILITY.
+ *
+ * Without this, the cheapest way to fake a link is to write one in a comment:
+ * it reads as harmless context in review, it navigates nobody, and it made a
+ * genuinely orphaned page pass this guard. The repo already does it by
+ * accident — UserChipMenu.tsx:10 is a `//` line describing
+ * `signOut({ redirectUrl: "/" })`, and the redirect-prop pattern was scoring it
+ * as a real link to `/`.
+ *
+ * Three things must survive stripping, all of which are data rather than
+ * comments: a `//` inside a string literal (`"https://…"` is everywhere), a
+ * `://` scheme in bare prose, and a regex literal containing an escaped slash
+ * pair (`/\/\//g`).
+ *
+ * MDX gets a narrower treatment: in MDX, `//` is prose — a URL, a fraction, a
+ * path in a table cell — and the ONLY comment forms are the JSX expression
+ * container (a braced `{/*` block) and the HTML comment. Running the JS
+ * stripper over MDX would silently delete the tail of any prose line that
+ * contains a slash pair — which is the help centre's own copy.
+ */
+export function stripComments(text: string, syntax: SourceSyntax = "js"): string {
+  if (syntax === "mdx") {
+    return text.replace(/\{\s*\/\*[\s\S]*?\*\/\s*\}/g, " ").replace(/<!--[\s\S]*?-->/g, " ");
+  }
+
+  let out = "";
+  let prev = ""; // last non-whitespace character emitted
+  let i = 0;
+  const n = text.length;
+
+  while (i < n) {
+    const c = text[i];
+    const next = text[i + 1];
+
+    // String / template literal — copied verbatim. A slash pair inside one is
+    // data, and the literal itself is what the link patterns need to read.
+    if (c === '"' || c === "'" || c === "`") {
+      out += c;
+      i++;
+      while (i < n) {
+        if (text[i] === "\\") {
+          out += text.slice(i, i + 2);
+          i += 2;
+          continue;
+        }
+        const ch = text[i];
+        out += ch;
+        i++;
+        if (ch === c) break;
+      }
+      prev = c;
+      continue;
+    }
+
+    // Line comment. `://` is a URL scheme, never a comment.
+    if (c === "/" && next === "/" && prev !== ":") {
+      while (i < n && text[i] !== "\n") i++;
+      continue;
+    }
+
+    // Block comment. Newlines are preserved so line-oriented patterns and any
+    // future line reporting stay aligned with the real file.
+    if (c === "/" && next === "*") {
+      i += 2;
+      while (i < n && !(text[i] === "*" && text[i + 1] === "/")) {
+        if (text[i] === "\n") out += "\n";
+        i++;
+      }
+      i += 2;
+      continue;
+    }
+
+    // Regex literal — consumed whole so its contents cannot be re-read as a
+    // comment opener.
+    if (c === "/" && REGEX_MAY_START_AFTER.test(prev)) {
+      out += c;
+      i++;
+      let inClass = false;
+      while (i < n) {
+        if (text[i] === "\\") {
+          out += text.slice(i, i + 2);
+          i += 2;
+          continue;
+        }
+        const ch = text[i];
+        if (ch === "\n") break; // regex literals do not span lines — bail out
+        out += ch;
+        i++;
+        if (ch === "[") inClass = true;
+        else if (ch === "]") inClass = false;
+        else if (ch === "/" && !inClass) break;
+      }
+      prev = "/";
+      continue;
+    }
+
+    out += c;
+    if (!/\s/.test(c)) prev = c;
+    i++;
+  }
+
+  return out;
+}
 
 /**
  * Extraction over TEXT rather than a path, so the patterns can be unit-tested
@@ -239,22 +598,38 @@ export function extractTargets(
   text: string,
   kind: LinkKind,
   source: string,
-  regexes: { re: RegExp; group: number }[],
+  patterns: Pattern[],
+  syntax: SourceSyntax = "js",
 ): LinkTarget[] {
+  const code = stripComments(text, syntax);
+  const masked = maskLiterals(code);
   const found: LinkTarget[] = [];
-  for (const { re, group } of regexes) {
-    re.lastIndex = 0;
+  const push = (raw: string) => {
+    const normalized = normalizeTarget(raw);
+    if (normalized) found.push({ path: normalized, kind, source });
+  };
+
+  for (const pattern of patterns) {
+    if ("re" in pattern) {
+      pattern.re.lastIndex = 0;
+      let m: RegExpExecArray | null;
+      while ((m = pattern.re.exec(code)) !== null) push(m[pattern.group]);
+      continue;
+    }
+    // Anchors are searched in the MASKED copy so an anchor inside a string is
+    // not mistaken for code; offsets index back into the real text.
+    pattern.anchor.lastIndex = 0;
     let m: RegExpExecArray | null;
-    while ((m = re.exec(text)) !== null) {
-      const normalized = normalizeTarget(m[group]);
-      if (normalized) found.push({ path: normalized, kind, source });
+    while ((m = pattern.anchor.exec(masked)) !== null) {
+      for (const raw of literalsInRegion(code, m.index + m[0].length, pattern.mode)) push(raw);
     }
   }
   return found;
 }
 
-function scanFile(file: string, kind: LinkKind, regexes: { re: RegExp; group: number }[]): LinkTarget[] {
-  return extractTargets(fs.readFileSync(file, "utf8"), kind, file, regexes);
+function scanFile(file: string, kind: LinkKind, patterns: Pattern[]): LinkTarget[] {
+  const syntax: SourceSyntax = file.endsWith(".mdx") ? "mdx" : "js";
+  return extractTargets(fs.readFileSync(file, "utf8"), kind, file, patterns, syntax);
 }
 
 export function collectLinkTargets(): LinkTarget[] {
@@ -274,9 +649,27 @@ export function collectLinkTargets(): LinkTarget[] {
     for (const tab of tabs) targets.push({ path: tab.href, kind: "hub-tab", source: "<HubTabs>" });
   }
 
+  // The help-centre index renders EVERY registry entry as a link, with a
+  // computed href — `<Link href={`/help/${article.slug}`}>` at
+  // src/app/(marketing)/help/page.tsx:362, inside ArticleRow, with no status or
+  // visibility filter in front of it. So the registry IS the link list, and it
+  // is credited in full. (See THE REGISTRY RULE above: unlike guides.ts, this
+  // registry has no unrendered entries, so there is no filter to reproduce —
+  // if one is ever added, mirror it here or the guard starts lying.)
+  for (const article of HELP_ARTICLES) {
+    targets.push({ path: `/help/${article.slug}`, kind: "link", source: "<HELP_ARTICLES via /help index>" });
+  }
+
+  // The guide registry, read through linkedGuides() — the SAME `status ===
+  // "live"` filter GuideIndex applies before it reaches for <Link>. A planned
+  // guide's href never becomes navigation, so it never becomes a target here.
+  for (const guide of linkedGuides()) {
+    targets.push({ path: guide.href, kind: "link", source: "<linkedGuides via GuideIndex>" });
+  }
+
   // 3 — next.config.ts redirect destinations.
   targets.push(
-    ...scanFile(path.join(ROOT, "next.config.ts"), "redirect", [{ re: DESTINATION_RE, group: 2 }]),
+    ...scanFile(path.join(ROOT, "next.config.ts"), "redirect", DESTINATION_PATTERNS),
   );
 
   // 4 — every other source file under src/. Tests are excluded: a route that
@@ -285,7 +678,7 @@ export function collectLinkTargets(): LinkTarget[] {
     if (!/\.(ts|tsx|mdx)$/.test(file)) continue;
     if (isTestFile(file)) continue;
     if (file.startsWith(path.join(SRC_DIR, "test") + path.sep)) continue;
-    if (NAV_REGISTRY_FILES.has(path.normalize(file))) continue;
+    if (REGISTRY_FILES.has(path.normalize(file))) continue;
     targets.push(
       ...scanFile(path.normalize(file), "link", LINK_PATTERNS),
       ...scanFile(path.normalize(file), "redirect", REDIRECT_PATTERNS),
@@ -297,9 +690,14 @@ export function collectLinkTargets(): LinkTarget[] {
 
 // ─── The detection function ───────────────────────────────────────────────────
 
-export interface UnreachableRoute {
-  route: string;
-  file: string;
+export type UnreachableRoute = EnumeratedRoute;
+
+/** `/docs` is satisfied by `/docs/getting-started` only for a catch-all page. */
+function targetIsUnder(route: string, target: string): boolean {
+  const r = segmentsOf(route);
+  const t = segmentsOf(target);
+  if (t.length < r.length) return false;
+  return r.every((seg, i) => (isDynamicRouteSegment(seg) ? t[i] !== undefined : seg === t[i]));
 }
 
 /**
@@ -309,15 +707,18 @@ export interface UnreachableRoute {
  * not a guard.
  */
 export function findUnreachableRoutes(
-  routes: { route: string; file: string }[],
+  routes: EnumeratedRoute[],
   targets: LinkTarget[],
   allowlist: Record<string, string> = {},
 ): UnreachableRoute[] {
-  return routes.filter(({ route, file }) => {
+  return routes.filter(({ route, file, acceptsDescendants }) => {
     if (Object.prototype.hasOwnProperty.call(allowlist, route)) return false;
     // A page linking to itself does not make itself reachable.
     const external = targets.filter((t) => t.source !== file);
-    return !external.some((t) => targetSatisfiesRoute(route, t.path));
+    return !external.some(
+      (t) =>
+        targetSatisfiesRoute(route, t.path) || (acceptsDescendants === true && targetIsUnder(route, t.path)),
+    );
   });
 }
 
@@ -329,7 +730,7 @@ const TARGETS = collectLinkTargets();
 describe("route reachability (plan rule R1 — no new surface without a consumer)", () => {
   it("finds the app's page routes at all", () => {
     // Sanity floor: if the walker breaks, every later assertion passes vacuously.
-    expect(ROUTES.length).toBeGreaterThan(20);
+    expect(ROUTES.length).toBeGreaterThan(80);
     expect(ROUTES.map((r) => r.route)).toContain("/inbox/[orderId]");
     expect(TARGETS.length).toBeGreaterThan(50);
   });
@@ -370,6 +771,51 @@ describe("route reachability (plan rule R1 — no new surface without a consumer
     // Positive control: the linked fixture is NOT reported — the guard
     // discriminates, rather than flagging everything it is handed.
     expect(flagged).not.toContain("/__fixture__/linked");
+  });
+
+  it("a page linking to itself does not make itself reachable", () => {
+    // The self-link exclusion is the difference between "something navigates
+    // here" and "this file mentions its own path". Stranded pages very often
+    // DO link to themselves — a canonical <link>, a tab strip, a "copy link"
+    // button, a breadcrumb head — so without this the guard would clear exactly
+    // the pages it exists to catch. Pinned with a fixture because the real app
+    // has no self-only route, which is why removing the exclusion used to be
+    // an invisible change.
+    const self = "<self>";
+    const routes = [{ route: "/lonely", file: self }];
+    expect(
+      findUnreachableRoutes(routes, [{ path: "/lonely", kind: "link", source: self }]).map((u) => u.route),
+    ).toEqual(["/lonely"]);
+    // A link from ANY other file does reach it — the exclusion is about the
+    // source, not about the path.
+    expect(findUnreachableRoutes(routes, [{ path: "/lonely", kind: "link", source: "<other>" }])).toEqual([]);
+  });
+
+  it("a launch-filtered registry entry is not a link (the /drafts shape)", () => {
+    // BridgeSidebar's NAV_MAIN carries `{ label: "Drafts", href: "/drafts" }`,
+    // and LAUNCH_CORE_HREFS filters it out — so it renders nowhere and no user
+    // has ever seen it. This asserts on TARGETS rather than on the unreachable
+    // list ON PURPOSE: /drafts is in KNOWN_DEEP_LINK_ONLY, so a reachability
+    // assertion would pass either way and the exclusion could be deleted
+    // without any test noticing.
+    const paths = new Set(TARGETS.map((t) => t.path));
+    expect(paths.has("/drafts")).toBe(false);
+    // The sidebar is still read — the exclusion sharpened the guard rather than
+    // blinding it.
+    expect(paths.has("/inbox")).toBe(true);
+    expect(paths.has(PINNED_ACTION_HREF)).toBe(true);
+
+    // The same shape one level down: a hub tab's `match` is active-state
+    // matching — it lights the tab up for a sub-route, it navigates nowhere.
+    // /library/rule-definitions is the `match`-only entry, and it too is in the
+    // allowlist, so this must also be asserted against TARGETS to have teeth.
+    const hubMatchOnly = Object.values(HUB_TABS)
+      .flat()
+      .flatMap((t) => t.match ?? [])
+      .filter((m) => !Object.values(HUB_TABS).flat().some((t) => t.href === m));
+    expect(hubMatchOnly).toContain("/library/rule-definitions");
+    for (const m of hubMatchOnly) expect(paths.has(m)).toBe(false);
+    expect(paths.has("/library/rules")).toBe(true); // the tab's real href
   });
 
   it("matches dynamic segments structurally, not by literal string", () => {
@@ -420,6 +866,158 @@ describe("route reachability (plan rule R1 — no new surface without a consumer
       .toEqual(["/bridge"]);
   });
 
+  it("reads every string literal inside an href={…} / router.push(…) expression", () => {
+    const ex = (text: string) => extractTargets(text, "link", "<fixture>", LINK_PATTERNS).map((t) => t.path);
+    const rx = (text: string) =>
+      extractTargets(text, "redirect", "<fixture>", REDIRECT_PATTERNS).map((t) => t.path);
+
+    // Shipped shapes. Requiring a quote IMMEDIATELY after `href=` / `push(`
+    // made a ternary invisible — and src/app/(app)/admin/page.tsx has exactly
+    // three hrefs, one ternary and two external, so the whole file scored zero.
+    expect(ex(`<Link href={accessError.status === 401 ? "/sign-in?redirect_url=%2Fadmin" : "/bridge"}>`)).toEqual([
+      "/sign-in",
+      "/bridge",
+    ]);
+    // operations/connectors/page.tsx:921 — literal and interpolated in one expr.
+    expect(
+      ex('<Link href={isNew ? "/library/suppliers" : `/library/suppliers/${connector.id}?tab=delivery`}>'),
+    ).toEqual(["/library/suppliers", `/library/suppliers/${DYN}`]);
+    // LaneDrawer.tsx:583 — the same shape inside router.push().
+    expect(rx('router.push(supplierId ? `/library/suppliers/${supplierId}` : "/library/suppliers")')).toEqual([
+      `/library/suppliers/${DYN}`,
+      "/library/suppliers",
+    ]);
+
+    // Real file, not a fixture: the admin page must now contribute targets.
+    const adminPage = path.normalize(path.join(APP_DIR, "(app)", "admin", "page.tsx"));
+    const fromAdmin = TARGETS.filter((t) => t.source === adminPage).map((t) => t.path);
+    expect(fromAdmin).toContain("/bridge");
+    expect(fromAdmin).toContain("/sign-in");
+
+    // Still TIGHT. An object literal's `href:` is ONE value, not the whole
+    // object — widening to "every literal after href" would credit siblings.
+    expect(ex(`{ href: "/a", other: "/b" }`)).toEqual(["/a"]);
+    // A wholly external target contributes nothing, however it is assembled.
+    expect(ex("<a href={`${STRIPE_CUSTOMER_BASE}${org.stripeCustomerId}`}>")).toEqual([]);
+  });
+
+  it("a registry href for something never rendered as a link is a phantom target", () => {
+    // guides.ts is the SECOND launch-filtered registry, and it was being swept
+    // raw. GuideIndex.tsx:97 renders a `status !== "live"` guide as a <span> +
+    // "Coming soon" badge — never a <Link> — so its `href` is a plan, not
+    // navigation. Creating a page at that path used to pass this guard on the
+    // strength of a target no user can click.
+    const paths = new Set(TARGETS.map((t) => t.path));
+
+    // Planned — phantom. Must NOT be credited.
+    expect(paths.has("/admin/guides/unfreeze-a-pilot-workspace")).toBe(false);
+    expect(paths.has("/help/guides/set-up-your-workspace")).toBe(false);
+    // Live — genuinely rendered as a <Link>. MUST still be credited, or the
+    // exclusion has simply blinded the guard instead of sharpening it.
+    expect(paths.has("/admin/guides/onboard-a-new-client")).toBe(true);
+    expect(paths.has("/help/guides/first-order-end-to-end")).toBe(true);
+
+    // The registry must agree with what is asserted above, so this test cannot
+    // rot into a tautology if a guide's status flips.
+    expect(GUIDES.find((g) => g.slug === "unfreeze-a-pilot-workspace")?.status).toBe("planned");
+    expect(GUIDES.find((g) => g.slug === "onboard-a-new-client")?.status).toBe("live");
+  });
+
+  it("a link that exists only inside a comment confers no reachability", () => {
+    const ex = (text: string) => extractTargets(text, "link", "<fixture>", LINK_PATTERNS).map((t) => t.path);
+    const rx = (text: string) =>
+      extractTargets(text, "redirect", "<fixture>", REDIRECT_PATTERNS).map((t) => t.path);
+
+    // Commented-out code is the single cheapest way to fake reachability: it
+    // survives review as "context", and it navigates nobody.
+    expect(ex(`// TODO(WP-09): we considered <Link href="/orphan-comment">Orphan</Link> here.`)).toEqual([]);
+    expect(ex(`/* <Link href="/orphan-block">Orphan</Link> */`)).toEqual([]);
+    expect(ex(`/**\n * an href="/orphan-jsdoc" in a doc block is prose, not navigation\n */`)).toEqual([]);
+    // MDX comments are the JSX container and the HTML comment; "//" is prose
+    // there, so the MDX path must strip those two forms and nothing else.
+    const exMdx = (t: string) => extractTargets(t, "link", "<fixture>", LINK_PATTERNS, "mdx").map((x) => x.path);
+    expect(exMdx(`{/* [old](/orphan-mdx-comment) */}`)).toEqual([]);
+    expect(exMdx(`<!-- [old](/orphan-html-comment) -->`)).toEqual([]);
+    // …and MUST NOT eat prose: a slash pair in help copy is not a comment.
+    expect(exMdx(`Use sftp://host/path. See the [inbox guide](/help/inbox-basics).`)).toEqual([
+      "/help/inbox-basics",
+    ]);
+    // This shape is live in the repo today: UserChipMenu.tsx:10 credits "/"
+    // from a `//` comment describing signOut({ redirectUrl: "/" }).
+    expect(rx(`// (signOut({ redirectUrl: "/" })). The design's item is`)).toEqual([]);
+
+    // Stripping must not eat real code. A "//" inside a string literal is not a
+    // comment — protocol-relative URLs and https:// literals are everywhere.
+    expect(ex(`const doc = "https://example.com/x"; <Link href="/real">R</Link>`)).toEqual(["/real"]);
+    expect(ex(`<Link href="/real-2">R</Link> // linked above`)).toEqual(["/real-2"]);
+    // …nor a regex literal that happens to contain a slash pair.
+    expect(ex(`const re = /\\/\\//g; <Link href="/real-3">R</Link>`)).toEqual(["/real-3"]);
+  });
+
+  it("enumerates page.mdx routes too — pageExtensions makes them live URLs", () => {
+    // next.config.ts:20 sets pageExtensions: ["ts", "tsx", "mdx"]. The help
+    // centre is written as MDX: 45 page.mdx files against 49 page.tsx. A guard
+    // that filters on `page.tsx` sees 52% of the app, and every help article is
+    // free to rot unlinked.
+    const routes = ROUTES.map((r) => r.route);
+    expect(routes).toContain("/help/troubleshooting"); // page.mdx
+    expect(routes).toContain("/help/guides/first-order-end-to-end"); // page.mdx
+    expect(ROUTES.length).toBeGreaterThan(80);
+    // Widening the filter without widening fileToRoute yields "/help/x/page.mdx".
+    expect(routes.filter((r) => /page\.(tsx|mdx)$/.test(r))).toEqual([]);
+  });
+
+  it("flags an orphaned .mdx route — an MDX page is a URL, not a document", () => {
+    const orphanFile = path.join(APP_DIR, "(marketing)", "orphan-mdx", "page.mdx");
+    expect(fileToRoute(orphanFile)).toBe("/orphan-mdx");
+    const flagged = findUnreachableRoutes(
+      [{ route: fileToRoute(orphanFile), file: orphanFile }],
+      TARGETS,
+      KNOWN_DEEP_LINK_ONLY,
+    ).map((u) => u.route);
+    expect(flagged).toEqual(["/orphan-mdx"]);
+  });
+
+  it("handles the segment kinds this repo does not use yet (no permanent false RED)", () => {
+    const j = (...p: string[]) => path.join(APP_DIR, ...p);
+
+    // OPTIONAL CATCH-ALL. `/docs/[[...slug]]` serves `/docs` AND every depth
+    // beneath it, so a link to `/docs/getting-started` reaches that file. The
+    // route string stays `/docs` (that is the canonical URL); the flag is what
+    // lets a deeper link satisfy it.
+    const docs = j("docs", "[[...slug]]", "page.tsx");
+    expect(fileToRoute(docs)).toBe("/docs");
+    expect(
+      findUnreachableRoutes(
+        [{ route: "/docs", file: docs, acceptsDescendants: true }],
+        [{ path: "/docs/getting-started", kind: "link", source: "<ref>" }],
+      ),
+    ).toEqual([]);
+    // …and the flag is not a blanket pass: an ordinary route is unmoved by a
+    // link to something beneath it.
+    expect(
+      findUnreachableRoutes(
+        [{ route: "/docs", file: docs }],
+        [{ path: "/docs/getting-started", kind: "link", source: "<ref>" }],
+      ).map((u) => u.route),
+    ).toEqual(["/docs"]);
+
+    // PARALLEL SLOT. `@modal` is a slot name, not a URL segment.
+    expect(fileToRoute(j("(app)", "inbox", "@modal", "preview", "page.tsx"))).toBe("/inbox/preview");
+
+    // INTERCEPTING ROUTE. `(.)photo` does NOT match the route-group test
+    // `^\(.+\)$` — it carries a name after the closing paren — so it used to
+    // survive into the route string as `/feed/(..)photo`, a path no link can
+    // ever be written to: a permanent false RED. It is skipped instead; see
+    // enumerateRoutes for why that loses nothing.
+    expect(isInterceptingSegment("(.)photo")).toBe(true);
+    expect(isInterceptingSegment("(..)photo")).toBe(true);
+    expect(isInterceptingSegment("(...)photo")).toBe(true);
+    expect(isInterceptingSegment("(..)(..)photo")).toBe(true);
+    expect(isInterceptingSegment("(app)")).toBe(false); // plain route group
+    expect(isInterceptingSegment("inbox")).toBe(false);
+  });
+
   it("strips route groups and optional catch-alls when deriving a route", () => {
     const j = (...p: string[]) => path.join(APP_DIR, ...p);
     expect(fileToRoute(j("(app)", "inbox", "[orderId]", "page.tsx"))).toBe("/inbox/[orderId]");
@@ -429,14 +1027,73 @@ describe("route reachability (plan rule R1 — no new surface without a consumer
   });
 });
 
+// ─── Allowlist reason quality ─────────────────────────────────────────────────
+//
+// The allowlist is this guard's only escape hatch, so the cost of using it has
+// to exceed the cost of silencing it. The original bar was `length > 15`, which
+// "xxxxxxxxxxxxxxxxxx" clears — i.e. the hatch was open to anyone willing to
+// hold down a key.
+//
+// No string test can establish that a reason is TRUE. What it can require is
+// that the reason be CHECKABLE: prose, plus a citation a reviewer can go and
+// open. All three shipped entries already work this way — they name
+// StripeBillingService.cs:335, src/app/sitemap.ts, a founder decision date, and
+// the packet that deletes the page. That is the bar, made explicit: name a
+// file, a URL, a date or a work packet, and the next person can verify or
+// refute you in one step instead of taking your word for it.
+
+/** A citation a reviewer can open: a repo file, a URL, an ISO date, a packet id. */
+const EVIDENCE_ANCHOR =
+  /[\w./-]+\.(?:tsx?|mdx?|cs|jsx?|json|ya?ml|mjs|cjs)\b|https?:\/\/|\b\d{4}-\d{2}-\d{2}\b|\bWP-\d+\b/;
+
+const WORD_RE = /[A-Za-z][A-Za-z'’-]*/g;
+
+/** Null when the reason is acceptable; otherwise what is wrong with it. */
+export function rejectReason(reason: string): string | null {
+  const trimmed = reason.trim();
+  if (trimmed.length < 40) return "a reason must be a sentence, not a label (min 40 characters)";
+  const words = trimmed.match(WORD_RE) ?? [];
+  if (words.length < 8) return `a reason must explain, not name (min 8 words, found ${words.length})`;
+  const distinct = new Set(words.map((w) => w.toLowerCase()));
+  if (distinct.size < 6) return `a reason must not be padding (min 6 distinct words, found ${distinct.size})`;
+  if (!EVIDENCE_ANCHOR.test(trimmed)) {
+    return (
+      "a reason must cite something checkable — a file path, a URL, an ISO date, or a WP-nn packet — " +
+      "so the next reader can verify it instead of trusting it"
+    );
+  }
+  return null;
+}
+
 describe("KNOWN_DEEP_LINK_ONLY allowlist hygiene", () => {
   it("every entry carries a written reason", () => {
     for (const [route, reason] of Object.entries(KNOWN_DEEP_LINK_ONLY)) {
       expect(typeof reason, `${route}: reason must be a string`).toBe("string");
-      expect(
-        reason.trim().length,
-        `${route}: allowlisting a route requires a written reason, not an empty string`,
-      ).toBeGreaterThan(15);
+      expect(rejectReason(reason), `${route}: ${rejectReason(reason)}`).toBeNull();
+    }
+  });
+
+  it("a reason must be an explanation, not merely long", () => {
+    // The bar used to be `length > 15`, which "xxxxxxxxxxxxxxxxxx" clears. The
+    // allowlist is the guard's only escape hatch, so the cost of using it has
+    // to be higher than the cost of writing eighteen characters.
+    expect(rejectReason("xxxxxxxxxxxxxxxxxx")).not.toBeNull();
+    expect(rejectReason("deep link only")).not.toBeNull();
+    expect(rejectReason("   ")).not.toBeNull();
+    // Prose alone is not enough either — it must cite something a reviewer can
+    // go and open.
+    expect(
+      rejectReason("This page is deliberately not linked from anywhere in the product right now."),
+    ).not.toBeNull();
+    // Citing a file, a date or a work packet is what makes it checkable.
+    expect(
+      rejectReason("Not linked in-app: the only referrer is src/app/sitemap.ts, which is a crawler hint."),
+    ).toBeNull();
+    expect(rejectReason("Retired by founder decision on 2026-07-30; the page is deleted in WP-08.")).toBeNull();
+
+    // Every shipped entry clears the bar for a real reason, not by accident.
+    for (const reason of Object.values(KNOWN_DEEP_LINK_ONLY)) {
+      expect(EVIDENCE_ANCHOR.test(reason)).toBe(true);
     }
   });
 
