@@ -578,8 +578,11 @@ export interface ConnectorManifest {
   /** Optional documentation URL, or null. */
   docsRef: string | null;
   /**
-   * At-least-once resend caveat, e.g. "a repeat send overwrites the same file; no
-   * duplicate" vs "we can't tell whether a repeat would arrive twice". Optional and
+   * At-least-once resend caveat, e.g. "a repeat send uses the same file name for that
+   * order, so there can never be two copies" vs "we can't tell whether a repeat would
+   * arrive twice". (It used to read "overwrites the same file", which stopped being
+   * true once SFTP/FTPS gained a per-supplier replace-existing setting — with it off a
+   * repeat refuses instead. See RESEND_CAVEATS in connectors.ts.) Optional and
    * NOT part of ConnectorManifestDto — the backend's per-dispatcher ResendSafety
    * classification (ProcuLink.Core.Services.Delivery.ResendSafety) has no wire
    * representation yet, so this is attached client-side (see connectors.ts) from a
