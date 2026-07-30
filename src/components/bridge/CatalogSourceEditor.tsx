@@ -31,6 +31,7 @@ import {
   type CatalogAuthFormState,
 } from "./catalogSourceHelpers";
 import { useConfirm } from "@/components/ui/confirm";
+import { isPlanGateError, planGateMessage } from "@/lib/planGate";
 
 const INPUT_STYLE = { border: "1px solid #D5DAEA", color: "#0B1A2F" } as const;
 
@@ -377,8 +378,12 @@ export function CatalogSourceEditor({ supplierId }: CatalogSourceEditorProps) {
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Could not save import source.";
       // Surface the backend's billing/SSRF/URL gates as plain language.
-      if (msg.includes("catalog_sync_requires_integration")) {
-        setError("Automatic catalog sync is included from any paid plan. Upgrade from Pilot to enable polling.");
+      // Matched by SHAPE, not by the full literal: the 403's plan segment is derived
+      // server-side from the gate table, so it changes if catalog sync is ever re-tiered.
+      // The old check hardcoded `catalog_sync_requires_integration` and would have stopped
+      // matching the moment the backend started naming the plan it really requires.
+      if (isPlanGateError(msg)) {
+        setError(`Automatic catalog sync is not available on your plan. ${planGateMessage(msg)}`);
       } else if (msg.includes("host_not_allowed")) {
         setError("That host is not allowed — private, loopback, and link-local addresses are blocked.");
       } else if (msg.includes("credentials_in_url_not_allowed")) {

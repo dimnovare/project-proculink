@@ -408,28 +408,49 @@ user-facing heading.
 
 ## 11.5 Billing model (locked)
 
-Source of truth:
-`C:\Users\Dmitri.MARKIT\source\repos\ProcuLink\docs\superpowers\specs\2026-05-24-stripe-billing-design.md`
+**Source of truth is CODE, not this section.** `src/lib/plans.ts` (frontend) mirrors
+`ProcuLink.Core/Constants/PlanConstants.cs` (backend) exactly. This section drifted from
+both — it was still showing Integration at 1,000 orders and had no Distributor tier at all —
+so treat it as a summary that must be re-derived from `plans.ts`, never as the authority.
+If they disagree, the code is right.
 
-Plan ladder:
+Plan ladder (verified against `plans.ts` + `PlanConstants.cs`, 2026-07-30):
 
 | Plan | Price | Orders | Suppliers |
 |---|---:|---:|---:|
 | Pilot | Free for 14 days | 20 total during trial | 1 |
 | Growth | €149/mo | 150/month | 5 |
 | Operations | €399/mo | 500/month | 10 |
-| Integration | €999/mo | 1,000/month | 20 |
+| Integration | €999/mo | 1,500/month | 20 |
+| Distributor | €1,499/mo | 2,500/month | 30 |
 | Enterprise | Custom, from €2,500/mo | Custom | Custom |
+
+Integration is **1,500** orders, not 1,000: the limit was raised so €/order stays monotonic
+down the ladder (Operations €0.80 → Integration €0.67 → Distributor €0.60).
+
+**Distributor is a real, self-serve tier** — it appears on `/pricing`, its Stripe monthly and
+yearly prices are live, and the backend checkout maps it like any other paid plan.
 
 Frontend must reflect:
 
-- Pilot is not free forever. It becomes read-only after 14 days or 20 orders.
-- Read-only Pilot users can view previous orders/mappings/outputs and billing,
+- Pilot is not free forever. It becomes view-only after 14 days or 20 orders.
+- A view-only Pilot can still read previous orders/mappings/outputs and billing,
   but cannot upload, transform, deliver, or add suppliers.
-- Stripe Checkout is only for Growth, Operations, and Integration.
+- **Cancelling a paid plan has the same effect, and `/pricing` must say so.** Every ingest
+  path refuses once the subscription ends — uploads, inbound email, IMAP, SFTP, S3, and the
+  REST ingress API — and nothing is queued for later, so orders simply stop arriving.
+- Stripe Checkout is self-serve for Growth, Operations, Integration, **and Distributor**.
+  Annual billing is live for all four.
 - Enterprise is contact sales/manual.
+- The order limit is a **soft cap on paid plans**: going over never blocks, it accrues
+  €0.50/order overage (`OVERAGE_PER_ORDER_EUR`), capped so a customer is never charged more
+  than the cheapest tier covering their volume. Only Pilot's cap is hard.
 - Pricing, settings billing UI, upload 429 banners, and supplier-limit errors
   must use this model and copy.
+
+Plan-gate 403s carry `{ error: "<capability>_requires_<plan>", upgradeUrl }`. The plan
+segment is derived server-side from the gate table, so **never match these codes by full
+literal** — use `isPlanGateError` / `planGateMessage` from `src/lib/planGate.ts`.
 
 Required billing copy:
 
@@ -439,13 +460,21 @@ Required billing copy:
 - Order limit banner: `You've reached your plan's order limit. Upgrade to continue processing new orders this month.`
 - Supplier limit banner: `Your plan includes 1 supplier. Upgrade to Growth to add more supplier flows.`
 
-Pricing cards:
+Pricing cards — **do not hand-maintain this list.** The card feature bullets and CTAs live in
+`PLANS` in `src/lib/plans.ts`; the summary below drifted (it still described Integration as
+1,000 orders and claimed delivery/ingestion channels start at Integration when the backend
+gates them at Growth). Read `plans.ts`:
 
-- Pilot: `Free for 14 days` — 20 orders, 1 supplier, CSV/XLSX/PDF/XML upload where supported, manual review, supplier-ready export. CTA: `Start Pilot`.
-- Growth: `€149/month` — 150 orders/month, 5 suppliers, mapping library, validation, output preview, basic audit log. CTA: `Upgrade to Growth`.
-- Operations: `€399/month` — 500 orders/month, 10 suppliers, bulk mapping import/export, cXML support, advanced audit trail, priority support. CTA: `Upgrade to Operations`.
-- Integration: `€999/month` — 1,000 orders/month, 20 suppliers, webhook/API delivery, email ingestion, custom output templates, assisted onboarding. CTA: `Upgrade to Integration`.
-- Enterprise: `Custom` — custom volume/suppliers, ERP connectors, dedicated onboarding, SLA, custom transformation rules. CTA: `Contact sales`.
+- Pilot: `Free for 14 days` — 20 orders, 1 supplier, CSV/XLSX/PDF/XML upload, manual review, supplier-ready export. CTA: `Start Pilot`.
+- Growth: `€149/month` — 150 orders/month, 5 suppliers, **webhook/API delivery and email · SFTP · S3 ingestion** (channels are decoupled from volume — every paid tier gets all of them), mapping + validation, audit log. CTA: `Upgrade to Growth`.
+- Operations: `€399/month` — 500 orders/month, 10 suppliers, bulk mapping import, cXML support, advanced audit trail, priority support. CTA: `Upgrade to Operations`.
+- Integration: `€999/month` — 1,500 orders/month, 20 suppliers, all channels, advanced audit trail, assisted onboarding. CTA: `Upgrade to Integration`.
+- Distributor: `€1,499/month` — 2,500 orders/month, 30 suppliers, all channels, bulk mapping, priority onboarding, founder-led supplier setup. CTA: `Upgrade to Distributor`.
+- Enterprise: `Custom` — custom volume/suppliers, ERP connectors, SSO, dedicated onboarding, SLA, custom transformation rules. CTA: `Contact sales`.
+
+**Offer ⇔ works applies to the ladder itself:** a capability may only be listed on a tier if
+the backend really gates it there (`BillingFeature` + `PlanConstants.MinimumPlan`, guarded by
+`BillingFeatureGateCoverageTests`). Do not add a bullet for a capability nothing enforces.
 
 ---
 

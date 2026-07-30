@@ -14,6 +14,7 @@ import {
 } from "@/lib/api-client";
 import { SettingsGroup } from "@/components/settings/SettingsPrimitives";
 import { Button } from "@/components/bridge/DSPrimitives";
+import { isPlanGateError, planGateMessage } from "@/lib/planGate";
 
 const INK = "var(--ink)";
 const MUTED = "var(--ink-muted)";
@@ -36,8 +37,11 @@ const inputStyle: React.CSSProperties = {
 // sentence so customers never see a raw `sftp_ingestion_requires_*` token.
 function humanizeError(message: string): string {
   const code = message.trim().toLowerCase();
-  if (code.includes("ingestion_requires")) {
-    return "Automated pull ingestion is included on every paid plan. Upgrade from Pilot to enable it.";
+  // Shape-matched, so the sentence names whichever plan the backend derived rather than
+  // asserting a tier of our own — the substring check this replaces would have kept
+  // matching but the copy would have been guessing.
+  if (isPlanGateError(code)) {
+    return `Automated pull ingestion is not available on your plan. ${planGateMessage(code)}`;
   }
   if (code.includes("default supplier")) {
     return "Choose a default supplier before enabling this source.";
