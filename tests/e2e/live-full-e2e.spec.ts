@@ -51,12 +51,15 @@ import { expect, test, type Page, type APIRequestContext, type ConsoleMessage } 
  *      remote env (set reuseExistingServer / a no-op server as needed, or run with
  *      `--config` pointing at a server-less config).
  *
- * Gated by BOTH PLAYWRIGHT_LIVE=1 AND PLAYWRIGHT_FULL=1 so it never runs in the
- * default mock CI sweep (it needs a backend + auth).
+ * Gated by PLAYWRIGHT_FULL=1 alone so it never runs in the default mock CI sweep
+ * (it needs a backend + auth). It used to require PLAYWRIGHT_LIVE=1 AND
+ * PLAYWRIGHT_FULL=1: two switches for one decision, so `PLAYWRIGHT_LIVE=1 bun run
+ * test:e2e` silently skipped all 26 tests here and read as a full live pass. One
+ * switch, one skip line, one reason.
  * ========================================================================== */
 
 const API_BASE_URL = process.env.PLAYWRIGHT_API_URL ?? "http://localhost:5223";
-const RUN = process.env.PLAYWRIGHT_LIVE === "1" && process.env.PLAYWRIGHT_FULL === "1";
+const RUN = process.env.PLAYWRIGHT_FULL === "1";
 
 // Use a saved authenticated storage state when provided (deployed-env mode).
 if (process.env.PLAYWRIGHT_STORAGE_STATE) {
@@ -228,7 +231,7 @@ async function createReviewableOrder(page: Page, request: APIRequestContext): Pr
 // ─── Suite ────────────────────────────────────────────────────────────────────
 
 test.describe("Live full E2E — every screen renders + heart-piece interactions", () => {
-  test.skip(!RUN, "Full live E2E requires PLAYWRIGHT_LIVE=1 AND PLAYWRIGHT_FULL=1 (see file header for run commands).");
+  test.skip(!RUN, "Full live E2E requires PLAYWRIGHT_FULL=1 and a running backend (see file header for run commands).");
   test.setTimeout(120_000);
 
   // ── 1. Core flow screens ────────────────────────────────────────────────────
@@ -446,22 +449,22 @@ test.describe("Live full E2E — every screen renders + heart-piece interactions
   test("Connection detail (+ ReplayPanel) renders cleanly when a connection exists", async ({ page, request }) => {
     const watch = watchConsole(page);
     try {
-      // Find a connection id via the API; skip gracefully if none exist yet.
+      // A broken /api/connections is a FAILURE, not a reason to go quiet. This used to
+      // self-skip mid-body on any non-OK status, so a 500 from the connections endpoint
+      // reported as "skipped" and the run still looked clean.
       const res = await request.get(`${API_BASE_URL}/api/connections`);
-      if (!res.ok()) {
-        test.skip(true, `GET /api/connections returned ${res.status()} — no connections to drill into.`);
-        return;
-      }
+      expect(res.ok(), `GET /api/connections returned ${res.status()} — the endpoint must work for a live full run`).toBe(true);
+
       const body = await res.json().catch(() => null);
       const list: Array<{ id?: string; Id?: string }> = Array.isArray(body)
         ? body
         : (body?.items ?? body?.connections ?? []);
       const first = list.find((c) => c.id || c.Id);
-      if (!first) {
-        test.skip(true, "No connections exist for this org — connection detail not exercised.");
-        return;
-      }
-      const id = (first.id ?? first.Id)!;
+      // Likewise an empty list: this suite runs against an environment that is supposed
+      // to have connections, so "none exist" is a seeding problem to surface, not skip.
+      expect(first, "no connections exist for this org — seed one before running the full live suite").toBeTruthy();
+
+      const id = (first!.id ?? first!.Id)!;
       await page.goto(`/connections/${id}`);
       await page.waitForLoadState("networkidle", { timeout: 30_000 }).catch(() => {});
       await assertNoErrorBoundary(page);
