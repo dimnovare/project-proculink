@@ -4,6 +4,8 @@ import { readFileSync } from "fs";
 import { join } from "path";
 import DpaPage from "./dpa/page";
 import SubprocessorsPage from "./subprocessors/page";
+import SecurityPage from "./security/page";
+import CustomersPage from "./customers/page";
 import { LEGAL_ENTITY } from "@/lib/legal-entity";
 import { SUBPROCESSORS_UPDATED } from "@/lib/subprocessors";
 import { SETUP_FEE_NOTE } from "@/lib/plans";
@@ -32,6 +34,17 @@ function text(ui: React.ReactElement) {
   const { container } = render(ui);
   return container.textContent ?? "";
 }
+
+function html(ui: React.ReactElement) {
+  const { container } = render(ui);
+  return container.innerHTML;
+}
+
+// Source-text reads for the two pages that are heavy client components
+// (the home page hero + footer, the pricing fine print). Same pattern as
+// src/test/plain-language-copy.test.ts — cheap, and no Clerk/query provider.
+const ROOT = join(__dirname, "..", "..", "..");
+const read = (rel: string) => readFileSync(join(ROOT, rel), "utf8");
 
 afterEach(cleanup);
 
@@ -112,9 +125,9 @@ describe("subprocessor change notice", () => {
 // Phrased as "the retracted claim must not come back", because that is the
 // failure mode: copy drifting back toward implied customers we do not have.
 
-const ROOT_FOR_COPY = join(__dirname, "..", "..", "..");
-const readCopy = (rel: string) => readFileSync(join(ROOT_FOR_COPY, rel), "utf8");
-// Prettier wraps JSX text, so compare whitespace-normalised source.
+// Prettier wraps JSX text, so compare whitespace-normalised source. The source
+// reader itself is `read`, declared with the other helpers at the top of this
+// file — this suite used to carry a second, identical copy of it.
 const flat = (s: string) => s.replace(/\s+/g, " ");
 
 describe("setup-fee design-partner waiver", () => {
@@ -134,13 +147,120 @@ describe("setup-fee design-partner waiver", () => {
   });
 
   it("keeps the note on the pricing page", () => {
-    expect(readCopy("src/app/(marketing)/pricing/page.tsx")).toContain("{SETUP_FEE_NOTE}");
+    expect(read("src/app/(marketing)/pricing/page.tsx")).toContain("{SETUP_FEE_NOTE}");
   });
 
   it("says the same thing in the ROI calculator fine print", () => {
-    const src = flat(readCopy("src/components/marketing/ROICalculator.tsx"));
+    const src = flat(read("src/components/marketing/ROICalculator.tsx"));
     expect(src).not.toMatch(/waived for early design partners/i);
     expect(src).not.toMatch(/early design partners/i);
     expect(src).toMatch(/we will waive it for the first design partners we take on/i);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Marketing truth audit (2026-07-30) — WP-10.
+//
+// /security claimed: "All order data is processed and stored in EU-region
+// infrastructure. No data leaves the region without an explicit, contracted
+// subprocessor agreement."
+//
+// Both sentences were false as written. src/lib/subprocessors.ts already lists
+// four US subprocessors (Clerk, OpenAI, Stripe, Postmark), and the backend's
+// appsettings.Production.json sets Ai:Provider=openai with no endpoint
+// override — the OpenAI ChatClient is constructed with (model, apiKey) only,
+// so purchase-order line text is sent to api.openai.com in the US on the
+// default AI path. Routine US processing is the norm, not a contracted
+// exception, and no data-residency claim may imply otherwise.
+//
+// Phrased as "the absolute promise must not come back", because that is the
+// failure mode: copy drifting back toward a guarantee the architecture breaks.
+
+describe("EU residency claim", () => {
+  it("does not claim all order data is processed in the EU", () => {
+    const body = text(<SecurityPage />);
+    expect(body).not.toMatch(/all order data is processed and stored/i);
+    expect(body).not.toMatch(/no data leaves the region/i);
+  });
+
+  it("names the EU-region infrastructure that can actually be checked", () => {
+    const body = text(<SecurityPage />);
+    expect(body).toMatch(/Cloudflare R2/);
+    expect(body).toMatch(/Neon/);
+    expect(body).toMatch(/europe-west4/);
+  });
+
+  it("discloses that named US subprocessors process data under SCCs", () => {
+    const body = text(<SecurityPage />);
+    expect(body).toMatch(/US subprocessors/i);
+    expect(body).toMatch(/standard contractual clauses/i);
+    // The four categories that actually leave the EU today.
+    expect(body).toMatch(/AI document extraction/i);
+    expect(body).toMatch(/inbound email/i);
+    expect(body).toMatch(/payments/i);
+  });
+
+  it("links the residency claim to the subprocessor list", () => {
+    expect(html(<SecurityPage />)).toContain('href="/subprocessors"');
+  });
+
+  it("keeps the home-page residency stat only if it links to the explanation", () => {
+    const src = read("src/app/(home)/page.tsx");
+    if (/label: "Data residency"/.test(src)) {
+      expect(src).toMatch(/label: "Data residency",\s*href: "\/security"/);
+    }
+  });
+
+  it("links the home-page footer residency line to the explanation", () => {
+    const src = read("src/app/(home)/page.tsx");
+    expect(src).not.toContain("<span>EU data residency</span>");
+    expect(src).toMatch(/EU-region order storage/);
+  });
+
+  it("links the shared marketing footer residency line to the explanation", () => {
+    const src = read("src/app/(marketing)/layout.tsx");
+    expect(src).not.toContain("<span>EU data residency</span>");
+    expect(src).toMatch(/EU-region order storage/);
+  });
+
+  it("drops the bare residency claim from the pricing fine print", () => {
+    const src = read("src/app/(marketing)/pricing/page.tsx");
+    expect(src).not.toMatch(/All plans include EU data residency/);
+    expect(src).toMatch(/EU-region order storage/);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// /customers shipped two fabricated pilot profiles ("Mid-market wholesaler ·
+// ~120 POs/month", "Industrial distributor · ~500 POs/month") behind a
+// "Coming soon — anonymised pilot" badge. Production has no engagement that
+// matches either, so the anonymisation was concealing invention rather than an
+// identity. An anonymised-but-fabricated profile is the same defect as a named
+// fake one, so the fix is an empty page that says so — not a softer fiction.
+
+describe("customer references", () => {
+  it("ships no invented pilot profiles", () => {
+    const body = text(<CustomersPage />);
+    expect(body).not.toMatch(/mid-market wholesaler/i);
+    expect(body).not.toMatch(/industrial distributor/i);
+    expect(body).not.toMatch(/POs\/month/i);
+    expect(body).not.toMatch(/anonymised pilot/i);
+  });
+
+  it("does not claim pilots or customers we cannot point at", () => {
+    const body = text(<CustomersPage />);
+    expect(body).not.toMatch(/we(?:'|&apos;|’)?re in early pilots/i);
+    expect(body).not.toMatch(/procurement teams using ProcuLink/i);
+  });
+
+  it("states plainly that there are no public references yet", () => {
+    const body = text(<CustomersPage />);
+    expect(body).toMatch(/no public (customer )?references/i);
+  });
+
+  it("offers checkable capability pages instead of social proof", () => {
+    const markup = html(<CustomersPage />);
+    expect(markup).toContain('href="/formats"');
+    expect(markup).toContain('href="/security"');
   });
 });
