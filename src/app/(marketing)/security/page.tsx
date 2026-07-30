@@ -6,9 +6,9 @@ export const metadata = pageMetadata({
   path: "/security",
   title: "Security & trust — ProcuLink",
   description:
-    "ProcuLink sits between your buyers and suppliers. How we protect that position — encryption, EU data residency, an append-only audit trail, and responsible AI.",
+    "ProcuLink sits between your buyers and suppliers. How we protect that position — encryption, EU-region storage, an append-only audit trail, and responsible AI.",
   ogDescription:
-    "Encryption, EU data residency, an append-only audit trail, access control, and responsible AI — how ProcuLink protects the orders passing through it.",
+    "Encryption, EU-region storage, an append-only audit trail, access control, and responsible AI — how ProcuLink protects the orders passing through it.",
 });
 
 // ─── Palette (exact design tokens, sampled from tokens.css / globals.css) ──────
@@ -30,15 +30,27 @@ const BLUE = "#1E66C9"; // buyer-blue — primary CTA
 
 // ─── Security posture (the six feature cards) ──────────────────────────────────
 
-const POSTURE: Array<{ title: string; body: string; icon: React.ReactNode }> = [
+const POSTURE: Array<{ title: string; body: React.ReactNode; icon: React.ReactNode }> = [
   {
     title: "Encryption everywhere",
     body: "AES-GCM at rest and TLS 1.2+ in transit (TLS 1.3 where supported). Supplier delivery credentials are encrypted with AES-256-GCM authenticated encryption and never written to application logs.",
     icon: <KeyIcon />,
   },
   {
-    title: "EU data residency",
-    body: "All order data is processed and stored in EU-region infrastructure. No data leaves the region without an explicit, contracted subprocessor agreement.",
+    title: "Where your data lives",
+    body: (
+      <>
+        Your order files, the database behind them, and the API all run in EU-region
+        infrastructure — Cloudflare R2, Neon, and Railway (europe-west4, Netherlands). Some
+        processing runs on named US subprocessors under standard contractual clauses: sign-in,
+        AI document extraction, inbound email, and payments. Each one is listed with its
+        location and contract on{" "}
+        <Link href="/subprocessors" style={{ color: GREEN_DEEP, textDecoration: "underline" }}>
+          /subprocessors
+        </Link>
+        .
+      </>
+    ),
     icon: <BuildingIcon />,
   },
   {

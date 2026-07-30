@@ -91,7 +91,7 @@ test.describe("Legal + trust pages", () => {
     ["/subprocessors", /^subprocessors$/i],
     ["/aup",           /acceptable use policy/i],
     ["/support",       /^support$/i],
-    ["/customers",     /procurement teams/i],
+    ["/customers",     /no public customer references/i],
     ["/one-pager",     /stop reformatting purchase orders/i],
     ["/help",          /help/i],
   ];
