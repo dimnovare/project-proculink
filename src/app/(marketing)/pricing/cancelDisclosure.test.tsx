@@ -1,5 +1,7 @@
 import { describe, it, expect, afterEach } from "vitest";
 import { render, cleanup } from "@testing-library/react";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import PricingPage from "./page";
 
 // WP-11 defect #4 — /pricing must say what cancelling does BEFORE you buy.
@@ -64,5 +66,25 @@ describe("/pricing cancellation disclosure", () => {
     expect(body).not.toMatch(/read_only/);
     expect(body).not.toMatch(/read-only/i);
     expect(body).not.toMatch(/frozen/i);
+  });
+});
+
+describe("FAQ answers are not clipped by a hardcoded height", () => {
+  // jsdom does not lay out, so this asserts the CAUSE rather than the symptom.
+  //
+  // The accordion used `maxHeight: open ? 240 : 0` with `overflow: hidden`. Measured in a
+  // real browser at 390px, the cancellation answer needs 264px — so its last line
+  // ("redirect your suppliers before you cancel. Resubscribing…") was invisible: the one
+  // sentence that answer exists to deliver. Every other answer fitted, which is exactly why
+  // nobody noticed, and a pixel cap re-breaks silently on any copy, font, or width change.
+  //
+  // The panel now sizes to the measured content height. Verified in-browser at 390px and
+  // 800px: every open panel's target max-height equals its content height exactly.
+
+  it("does not reintroduce a hardcoded pixel cap on the answer panel", () => {
+    const src = readFileSync(join(__dirname, "page.tsx"), "utf8");
+
+    expect(src).not.toMatch(/maxHeight:\s*open\s*\?\s*\d+/);
+    expect(src).toMatch(/answerRef\.current\?\.scrollHeight/);
   });
 });

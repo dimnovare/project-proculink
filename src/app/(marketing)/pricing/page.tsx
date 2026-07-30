@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import {
   ANNUAL_BILLING_ENABLED,
   OVERAGE_PER_ORDER_EUR,
@@ -472,6 +472,14 @@ function CheckIcon() {
 
 function FaqItem({ q, a }: { q: string; a: string }) {
   const [open, setOpen] = useState(false);
+  // The open height is MEASURED from the answer, not hardcoded. The previous
+  // `maxHeight: 240` silently clipped any answer taller than that -- at 390px the
+  // cancellation answer needs 246px, so its last line ("redirect your suppliers before
+  // you cancel") was cut off, which is the one sentence that answer exists to deliver.
+  // A pixel cap re-breaks on any copy, font, or viewport change and nothing would catch it.
+  // The inner element keeps its natural height even while the wrapper is collapsed, so
+  // scrollHeight is readable on the render that opens the panel.
+  const answerRef = useRef<HTMLDivElement>(null);
   return (
     <div className="plk-faq-item">
       <button type="button" className="plk-faq-q" onClick={() => setOpen((o) => !o)} aria-expanded={open}>
@@ -497,15 +505,27 @@ function FaqItem({ q, a }: { q: string; a: string }) {
           />
         </svg>
       </button>
+      {/* Sizes to its CONTENT, not to a magic number. The previous `maxHeight: 240` silently
+          clipped any answer taller than that — at 390px the cancellation answer needs 246px, so
+          the last line ("redirect your suppliers before you cancel") was cut off, which is the
+          single sentence that answer exists to deliver. A pixel cap also re-breaks on any font,
+          copy, or viewport change, and nothing would catch it.
+          `grid-template-rows: 0fr → 1fr` animates open exactly like a max-height transition but
+          resolves to the real height at every width. The inner element needs `min-height: 0` to
+          be allowed to collapse (grid items default to `auto`); its `overflow: hidden` comes
+          from `.plk-faq-a`. */}
       <div
-        className="plk-faq-a"
         style={{
-          maxHeight: open ? 240 : 0,
-          paddingBottom: open ? 18 : 0,
-          transition: "max-height 300ms var(--ease-out), padding 300ms var(--ease-out)",
+          overflow: "hidden",
+          maxHeight: open ? (answerRef.current?.scrollHeight ?? 0) : 0,
+          transition: "max-height 300ms var(--ease-out)",
         }}
       >
-        {a}
+        {/* Padding is CONSTANT so the measured scrollHeight already includes it — animating it
+            alongside max-height would leave the panel 18px short on the render that opens it. */}
+        <div ref={answerRef} className="plk-faq-a" style={{ paddingBottom: 18 }}>
+          {a}
+        </div>
       </div>
     </div>
   );
