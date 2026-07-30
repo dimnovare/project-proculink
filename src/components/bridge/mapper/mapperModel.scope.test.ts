@@ -125,7 +125,7 @@ describe("withFieldManipulators honours the explicit scope hint", () => {
   it.each(["DeliveryDate", "TaxAmount", "Recipient", "Unspsc"])(
     "keeps a fresh HEADER column named %s in header scope",
     (columnName) => {
-      const result = withFieldManipulators(null, columnName, [{ type: "Trim", params: {} }], "header");
+      const result = withFieldManipulators(null, columnName, [{ type: "Trim", params: [] }], "header");
 
       expect(Object.keys(result.output!.header)).toContain(columnName);
       expect(Object.keys(result.output!.lines)).not.toContain(columnName);
@@ -133,7 +133,7 @@ describe("withFieldManipulators honours the explicit scope hint", () => {
   );
 
   it("still routes a fresh LINE column to line scope", () => {
-    const result = withFieldManipulators(null, "TaxAmount", [{ type: "Trim", params: {} }], "line");
+    const result = withFieldManipulators(null, "TaxAmount", [{ type: "Trim", params: [] }], "line");
 
     expect(Object.keys(result.output!.lines)).toContain("TaxAmount");
     expect(Object.keys(result.output!.header)).not.toContain("TaxAmount");
