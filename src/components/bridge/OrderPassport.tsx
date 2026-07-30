@@ -8,12 +8,13 @@
 
 import { useState, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { apiClient } from "@/lib/api-client";
+import { ApiHttpError, apiClient } from "@/lib/api-client";
 import type {
   PassportDto,
   PassportEvent,
   PassportMappingDecision,
   PassportDeliveryAttempt,
+  PassportOutputArtifact,
 } from "@/types/procurement";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -238,12 +239,115 @@ function MappingRow({ d }: { d: PassportMappingDecision }) {
   );
 }
 
-function DeliveryRow({ a }: { a: PassportDeliveryAttempt }) {
-  const ok = lc(a.status).includes("deliver") || lc(a.status).includes("success") || lc(a.status).includes("acknowled") || lc(a.status) === "ok";
+/**
+ * The ONE attempt state in which the channel observed the supplier take the bytes. Everything
+ * else only proves we tried — including the two states the backend documents as unknowable:
+ * `dispatching` (the row is committed BEFORE the network write, purely as a crash backstop —
+ * DeliveryService's own note says the reachable outcomes are "sent and accepted", "sent and
+ * rejected" and "never sent", and it cannot tell them apart) and `unconfirmed` (the park,
+ * whose reason reads "The artifact may have been sent, but the outcome was never observed").
+ * Both reach the passport with a real artifact id and no dispatched-bytes fingerprint.
+ */
+function sendWasObserved(status: string): boolean {
+  const s = lc(status);
+  return s.includes("deliver") || s.includes("success") || s.includes("acknowled") || s === "ok";
+}
+
+/** The two states above, where "did anything go out?" has no answer yet — or ever. */
+function outcomeIsUnknown(status: string): boolean {
+  const s = lc(status);
+  return s === "dispatching" || s === "unconfirmed";
+}
+
+/**
+ * One honest sentence per failure. This used to be a single line telling the retention story
+ * ("the link may have expired, or the file may have been removed…") for EVERY failure — shown
+ * verbatim for 404 and 429, where it is simply untrue. The endpoint distinguishes them
+ * (404 no such artifact for this order · 410 Gone blob purged per retention · 429 signed-URL
+ * rate limit), so the copy does too.
+ */
+function downloadFailureMessage(err: unknown): string {
+  const status = err instanceof ApiHttpError ? err.status : 0;
+  if (status === 410) return "That copy is gone — it was removed under your data-retention setting.";
+  if (status === 404) return "We have no stored copy of that file for this order.";
+  if (status === 429) return "Too many download requests just now. Wait a moment, then try again.";
+  if (status === 401 || status === 403) return "You do not have access to that file.";
+  return "Couldn't get that file just now. Please try again.";
+}
+
+/**
+ * One delivery attempt, with the two things a disputed delivery actually needs: the exact
+ * file that went out, and the fingerprint recorded when it went out.
+ *
+ * The pairing is per attempt, never per order — an order can hold several artifacts and
+ * several attempts, and a retry after a re-transform sends DIFFERENT bytes. `a.artifactId`
+ * is the artifact this attempt dispatched; when the backend can't prove which one it was it
+ * sends null, and we offer no download rather than handing the operator bytes we can't vouch
+ * for. The generated-file comparison likewise only runs when this attempt sent the artifact
+ * we're holding the hash for.
+ *
+ * The second axis is WHETHER anything went out at all. Only a status the channel confirmed
+ * earns the words "what we sent"; every other state — a failure, a crashed in-flight row, a
+ * parked unknown outcome — gets "what we tried to send", which is true in all of them.
+ */
+function DeliveryRow({
+  a,
+  orderId,
+  generated,
+}: {
+  a: PassportDeliveryAttempt;
+  orderId: string;
+  generated: PassportOutputArtifact | null;
+}) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const ok = sendWasObserved(a.status);
+  const unknownOutcome = outcomeIsUnknown(a.status);
   const color = ok ? "#1E6D29" : lc(a.status).includes("fail") || lc(a.status).includes("reject") ? "#B43838" : "#B36D14";
+
+  // Only comparable when this attempt sent the very artifact whose hash we hold.
+  const comparable =
+    !!generated && !!a.artifactId && !!a.artifactSha256 && !!generated.artifactSha256 &&
+    generated.artifactId === a.artifactId;
+  const matches = comparable && generated!.artifactSha256 === a.artifactSha256;
+
+  async function handleDownload() {
+    if (!a.artifactId) return;
+    setError(null);
+
+    // Open the tab INSIDE the click, while the browser still counts this as a user gesture.
+    // Doing it after the await — as this used to — puts window.open outside the transient
+    // activation: Safari refuses it outright, Chrome and Firefox drop it once the activation
+    // window lapses, which a cold-start API round trip can outlive. The old code also never
+    // checked the return value and caught only the fetch, so a blocked pop-up produced no
+    // file, no error and no message at all.
+    //
+    // `noopener` is deliberately NOT passed: with it window.open returns null even when
+    // nothing was blocked, which would make "blocked" indistinguishable from "fine". The
+    // back-reference is severed by hand instead, before the tab is pointed anywhere.
+    const tab = window.open("", "_blank");
+    if (!tab) {
+      setError("Your browser blocked the download window. Allow pop-ups for this site, then try again.");
+      return;
+    }
+    try { tab.opener = null; } catch { /* hardened window — nothing to sever */ }
+
+    setBusy(true);
+    try {
+      const { url } = await apiClient.getDownloadUrl(orderId, a.artifactId);
+      tab.location.href = url;
+    } catch (err) {
+      try { tab.close(); } catch { /* already gone */ }
+      setError(downloadFailureMessage(err));
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return (
-    <div style={{ padding: "8px 0", borderTop: "1px solid #F0F2F6", display: "flex", flexDirection: "column", gap: 3 }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+    <div data-testid="delivery-attempt" style={{ padding: "8px 0", borderTop: "1px solid #F0F2F6", display: "flex", flexDirection: "column", gap: 3 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
         <span style={{ fontSize: 10.5, fontWeight: 700, color: "#5E6779", fontFamily: "'JetBrains Mono',monospace" }}>#{a.attemptNumber}</span>
         <span style={{ fontSize: 11, fontWeight: 700, color, textTransform: "capitalize" }}>{a.status || "—"}</span>
         {a.channel && <span style={{ fontSize: 10.5, color: "var(--ink-faint)" }}>· {a.channel}</span>}
@@ -254,6 +358,51 @@ function DeliveryRow({ a }: { a: PassportDeliveryAttempt }) {
       {(a.errorMessage || a.rejectionReason) && (
         <div style={{ fontSize: 11, color: "#B43838" }}>{a.errorMessage || a.rejectionReason}</div>
       )}
+
+      {/* Proof of what went out */}
+      <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginTop: 2 }}>
+        {a.artifactId ? (
+          <button
+            type="button"
+            onClick={handleDownload}
+            disabled={busy}
+            style={{
+              height: 24, padding: "0 9px", borderRadius: 5, border: "1px solid #CBD8EC",
+              background: "#F4F8FF", color: "#0F4FA8", fontSize: 10.5, fontWeight: 700,
+              cursor: busy ? "default" : "pointer", opacity: busy ? 0.6 : 1,
+            }}
+          >
+            {busy ? "Preparing…" : ok ? "↓ Download what we sent" : "↓ Download the file we tried to send"}
+          </button>
+        ) : (
+          <span style={{ fontSize: 10.5, color: "var(--ink-faint)" }}>
+            No stored copy of what this attempt sent.
+          </span>
+        )}
+        {unknownOutcome && (
+          <span style={{ fontSize: 10.5, color: "#B36D14" }}>
+            We do not know whether this file reached the supplier.
+          </span>
+        )}
+        {comparable && (
+          <span style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em", borderRadius: 3, padding: "2px 6px", background: matches ? "#E9F1EA" : "#FBE3E3", color: matches ? "#1E6D29" : "#B43838" }}>
+            {matches ? "Matches the file we generated" : "Does not match the file we generated"}
+          </span>
+        )}
+      </div>
+
+      {a.artifactSha256 && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
+          <span style={{ fontSize: 9.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--ink-faint)" }}>
+            {ok ? "Fingerprint of the file we sent (SHA-256)" : "Fingerprint of the file we tried to send (SHA-256)"}
+          </span>
+          <span style={{ fontSize: 10.5, fontFamily: "'JetBrains Mono',monospace", color: "#5E6779", wordBreak: "break-all" }}>
+            {a.artifactSha256}
+          </span>
+        </div>
+      )}
+
+      {error && <div style={{ fontSize: 11, color: "#B43838" }}>{error}</div>}
     </div>
   );
 }
@@ -391,6 +540,10 @@ export function OrderPassport({ orderId }: { orderId: string }) {
               <div className="flex flex-col gap-3">
                 <Ref label="Output artifact" value={passport.outputArtifact?.fileKey} />
                 <Ref label="Output format" value={passport.outputArtifact?.format?.toUpperCase()} />
+                {/* The fingerprint recorded when the file was generated — what a downloaded
+                    copy is checked against. Shown here rather than only per attempt because
+                    it belongs to the file, not to any one send. */}
+                <Ref label="Fingerprint of the file we generated (SHA-256)" value={passport.outputArtifact?.artifactSha256} />
               </div>
             </div>
             {passport.supplierProfile && (
@@ -429,7 +582,11 @@ export function OrderPassport({ orderId }: { orderId: string }) {
             {passport.deliveryAttempts.length === 0 ? (
               <p className="text-[12.5px]" style={{ color: "var(--ink-faint)", margin: 0 }}>No delivery attempts yet.</p>
             ) : (
-              <div>{passport.deliveryAttempts.map((a) => <DeliveryRow key={a.attemptNumber} a={a} />)}</div>
+              <div>
+                {passport.deliveryAttempts.map((a) => (
+                  <DeliveryRow key={a.attemptNumber} a={a} orderId={orderId} generated={passport.outputArtifact} />
+                ))}
+              </div>
             )}
           </Section>
 
