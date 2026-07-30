@@ -1,4 +1,4 @@
-import { describe, it, expect, afterEach } from "vitest";
+import { describe, it, expect, afterEach, beforeEach, vi } from "vitest";
 import { render, cleanup } from "@testing-library/react";
 import { readFileSync } from "fs";
 import { join } from "path";
@@ -365,9 +365,27 @@ describe("sign-in and sign-up trust line", () => {
     ["sign-up", () => <SignUpPage />],
   ];
 
+  // Both pages branch at render time on the Clerk env vars, and CI sets
+  // placeholder keys where a dev machine has none — so without pinning this,
+  // the suite renders Clerk's real <SignIn /> on CI and dies on "useSession can
+  // only be used within the <ClerkProvider />". Pin the unconfigured branch:
+  // AuthShell renders the same AuthBrandPanel in all three branches, so the
+  // trust line under test is identical either way.
+  beforeEach(() => {
+    vi.stubEnv("NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY", "");
+    vi.stubEnv("CLERK_SECRET_KEY", "");
+  });
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
   for (const [name, page] of AUTH_PAGES) {
     it(`does not carry the bare residency claim on /${name}`, () => {
-      expect(text(page())).not.toMatch(/EU data residency/i);
+      const body = text(page());
+      // Anchor: without this the negative below passes just as happily on a
+      // page that stopped rendering the brand panel at all.
+      expect(body).toMatch(/AES-GCM at rest/);
+      expect(body).not.toMatch(/EU data residency/i);
     });
 
     it(`qualifies the claim and links it on /${name}`, () => {
