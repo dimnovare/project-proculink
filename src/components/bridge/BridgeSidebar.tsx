@@ -6,34 +6,42 @@ import { useEffect, useMemo, useState } from "react";
 import { useOrganization } from "@clerk/nextjs";
 import { useQuery } from "@tanstack/react-query";
 import {
-  Layers, Upload, Inbox, Send, Users, CheckCircle2, Zap, Plug,
+  Upload, Inbox, Users, Zap,
   Lock, HelpCircle, Settings, ChevronsLeft, ChevronsRight, X,
   type LucideIcon,
 } from "lucide-react";
 import { apiClient, getBillingStatus, checkAdminAccess } from "@/lib/api-client";
 import { SIDEBAR_AUTO_COLLAPSE_EVENT } from "@/lib/sidebar-auto-collapse";
-import { LAUNCH_CORE_ONLY, LAUNCH_CORE_HREFS, INBOUND_ENABLED } from "@/lib/launch-flags";
 import { useOrderDirection } from "@/hooks/useOrderDirection";
 import { useQueriesEnabled } from "@/hooks/useQueriesEnabled";
 import { ProcuLinkMark } from "./DSPrimitives";
-import { HUB_TABS, hubForPath, type HubKey } from "./layout/HubTabs";
+import { hubForPath, visibleHubTabs, type HubKey } from "./layout/HubTabs";
 import { OrgSwitcher } from "./OrgSwitcher";
 import { UserChipMenu } from "./UserChipMenu";
 
-// ─── Nav structure (Claude Design v2 hub model — FABLE5 §3 consolidation) ─────
+// ─── Nav structure (WP-26 / DESIGN-DB-1: four destinations) ───────────────────
 //
-// The old flat list (Suppliers/Buyers/Mappings/Rules/…/Webhooks as separate
-// entries) is consolidated into HUB items. Each hub item links to its FIRST tab
-// route (derived from HUB_TABS so the two can never drift) and lights up for
-// ANY route inside the hub via hubForPath(). Sibling pages inside a hub are
-// reached through the HubTabs bar on the pages themselves — every old deep
-// route stays valid and reachable.
+// FOUR top-level items, one flat section, no group headers:
 //
-//   Partners        → /library/suppliers   (suppliers · buyers · connections)
-//   Rules & formats → /library/mappings    (mappings · standards)
-//   Operations      → /operations/health   (health · exceptions · log)
-//   Integrations    → /operations/connectors (connectors · webhooks)
-//   Inbound         → /inbound/invoices    (invoices · asns)
+//   Orders    → /inbox              hub "orders"     · the shift
+//   Suppliers → /library/suppliers  hub "suppliers"  · the setup
+//   Activity  → /bridge             hub "activity"   · the receipt
+//   Settings  → /settings                            · the workspace
+//
+// What this replaces: ten top-level words across four group headers (Dashboard ·
+// Inbox · Drafts · Inbound · Partners · Rules & formats · Operations ·
+// Integrations · Admin · Help · Settings). Three of them — Partners, Rules &
+// formats, Integrations — were containers with no meaning of their own, and the
+// "Monitor" group header existed only so it would stop colliding with the
+// "Operations" item beneath it. Only "Inbox" named something a user does.
+//
+// NO URL CHANGED. Each hub item links to its first VISIBLE tab route (derived
+// from HUB_TABS so the two can never drift) and lights up for ANY route in its
+// hub via hubForPath() — including the `hidden` entries that keep advanced
+// surfaces reachable without putting them on a strip. The Wire Topology
+// dashboard stays at /bridge as Activity ▸ Overview; the brand mark still links
+// there. Guarded by BridgeSidebar.test.tsx (reachability) and
+// navRoutesResolve.test.ts (nothing 404s).
 
 export type SidebarNavItem = {
   label: string;
@@ -49,49 +57,25 @@ export type SidebarNavSection = { group?: string; items: SidebarNavItem[] };
 /** The pinned primary action at the top of the rail (not a nav item). */
 export const PINNED_ACTION_HREF = "/upload";
 
-const NAV_MAIN: SidebarNavSection[] = [
-  // WP-25 (DESIGN-DB-1 §6.1 #1): "Overview" — it is the workspace's live picture.
-  { items: [{ label: "Overview", href: "/bridge", icon: Layers }] },
-  {
-    group: "Workbench",
-    items: [
-      // §6.1 #2: "Inbox" is a mail metaphor; the thing in it is an order. The
-      // route stays /inbox.
-      { label: "Orders", href: "/inbox", icon: Inbox, badgeKey: "review" },
-      // No "Drafts": FE #47 retired /drafts because orders cannot be saved as
-      // drafts, so the list could never hold anything. Unsent orders are here.
+/** A hub item's href: its first VISIBLE tab, never a hidden or pre-launch one. */
+const hubHome = (hub: HubKey) => visibleHubTabs(hub)[0].href;
 
-      // Inbound (Invoices/ASNs) is a real but pre-launch surface — gated below
-      // by INBOUND_ENABLED, never revealed by LAUNCH_FULL_NAV alone.
-      { label: "Inbound", href: HUB_TABS.inbound[0].href, icon: Send, hub: "inbound" },
-    ],
-  },
+const NAV_MAIN: SidebarNavSection[] = [
   {
-    group: "Library",
+    // Four items need no group headers.
     items: [
-      // STRUCT-1: no standalone "Connections" entry — /connections routes are
-      // covered by the Partners hub (tab) and stay fully routable.
-      // §6.1 #6: "Partners" was a container word. This entry's href IS
-      // /library/suppliers and buildVisibleNav already relabels it to the
-      // counterparty word for inbound orgs, so name it for what it opens.
-      { label: "Suppliers", href: HUB_TABS.partners[0].href, icon: Users, hub: "partners" },
-      { label: "Rules & formats", href: HUB_TABS["rules-formats"][0].href, icon: CheckCircle2, hub: "rules-formats" },
-    ],
-  },
-  {
-    // Group HEADER display string only — "Operations" here collided with the
-    // "Operations" ITEM directly below it (read like a rendering bug). Renamed
-    // to "Monitor"; the routes and the "Operations" item are untouched.
-    group: "Monitor",
-    items: [
-      // §6.1 #8: its three pages answer "what happened", not "how do I operate".
-      { label: "Activity", href: HUB_TABS.operations[0].href, icon: Zap, hub: "operations" },
-      { label: "Integrations", href: HUB_TABS.integrations[0].href, icon: Plug, hub: "integrations" },
+      { label: "Orders", href: hubHome("orders"), icon: Inbox, badgeKey: "review", hub: "orders" },
+      // STRUCT-1 still holds: no standalone "Connections" entry — /connections is
+      // a hidden entry of this hub and stays fully routable.
+      { label: "Suppliers", href: hubHome("suppliers"), icon: Users, hub: "suppliers" },
+      { label: "Activity", href: hubHome("activity"), icon: Zap, hub: "activity" },
+      { label: "Settings", href: "/settings", icon: Settings },
     ],
   },
 ];
 
-// Pinned above the footer user chip (below the flexible spacer).
+// Pinned above the footer user chip (below the flexible spacer). Settings was
+// promoted out of here to a primary item; the account menu still lists it.
 const NAV_TAIL: SidebarNavItem[] = [
   // Admin is shown only to allowlisted users (buildVisibleNav filters it via
   // the /api/admin/access probe). Even if shown, the page + every /api/admin
@@ -101,7 +85,6 @@ const NAV_TAIL: SidebarNavItem[] = [
   // Help lives in the marketing layout (no app shell). Open it in a new tab
   // so the user doesn't lose the app shell mid-task.
   { label: "Help & support", href: "/help", icon: HelpCircle, newTab: true },
-  { label: "Settings", href: "/settings", icon: Settings },
 ];
 
 export interface VisibleNav {
@@ -109,32 +92,21 @@ export interface VisibleNav {
   tail: SidebarNavItem[];
 }
 
-// First-launch shell: filter the nav down to the core hrefs and drop now-empty
-// group sections. The full nav is restored by setting NEXT_PUBLIC_LAUNCH_FULL_NAV=true.
+// The four primary items are never gated — a coordinator sees the same four
+// words on day one and on day four hundred. The only nav-level gate left is the
+// admin allowlist; INBOUND_ENABLED now gates two TABS inside the Orders hub
+// (visibleHubTabs), not a nav item, and the old LAUNCH_CORE_ONLY narrowing is
+// gone because there is nothing left to narrow.
+//
 // `counterpartyPlural` relabels the "Suppliers" entry (href /library/suppliers)
-// for inbound orgs (DISPLAY ONLY — the route stays /library/suppliers): outbound
-// orgs see "Suppliers"; inbound orgs see their counterparty word ("Customers"),
-// preserving the pre-hub relabel behavior.
-// `opts` exists so the STRUCT-1 guard test can assert both launch modes; the
-// component always calls with the real flag defaults.
-export function buildVisibleNav(
-  counterpartyPlural: string,
-  isAdmin: boolean,
-  opts: { coreOnly?: boolean; inboundEnabled?: boolean } = {},
-): VisibleNav {
-  const coreOnly = opts.coreOnly ?? LAUNCH_CORE_ONLY;
-  const inboundEnabled = opts.inboundEnabled ?? INBOUND_ENABLED;
-
+// for inbound orgs (DISPLAY ONLY — the route stays /library/suppliers): inbound
+// orgs see their counterparty word ("Customers").
+export function buildVisibleNav(counterpartyPlural: string, isAdmin: boolean): VisibleNav {
   const filterItems = (items: SidebarNavItem[]) =>
     items
-      // Inbound stays hidden unless its OWN flag is set — revealing the full
-      // nav must NOT surface it (not part of the outbound-PO product we sell
-      // today). Routes still resolve if navigated to directly.
-      .filter((item) => inboundEnabled || !item.href.startsWith("/inbound"))
       // Hide the Admin link unless the server confirmed this user is on the
       // admin allowlist (UX only — the page + API re-gate server-side).
       .filter((item) => item.href !== "/admin" || isAdmin)
-      .filter((item) => !coreOnly || LAUNCH_CORE_HREFS.has(item.href))
       .map((item) =>
         item.href === "/library/suppliers" && counterpartyPlural !== "Suppliers"
           ? { ...item, label: counterpartyPlural }
@@ -151,13 +123,13 @@ export function buildVisibleNav(
 
 /**
  * Descriptive tooltip for a hub item — lists the tabs INSIDE the hub so a
- * first-time user knows what a hub contains before clicking. Derived from
- * HUB_TABS (middot-joined tab labels) so it can never drift from the actual tabs.
- * Returns undefined for non-hub items.
+ * first-time user knows what a hub contains before clicking. Derived from the
+ * VISIBLE tabs (middot-joined) so it can never drift from the rendered strip and
+ * never advertises a hidden surface. Returns undefined for non-hub items.
  */
 export function hubTooltip(item: SidebarNavItem): string | undefined {
   if (!item.hub) return undefined;
-  return HUB_TABS[item.hub].map((t) => t.label).join(" · ");
+  return visibleHubTabs(item.hub).map((t) => t.label).join(" · ");
 }
 
 /** Active state: hub items light for ANY route in their hub; plain items by prefix. */
@@ -205,7 +177,7 @@ export function BridgeSidebar({
   const [autoCollapsed, setAutoCollapsed] = useState(false);
   const { organization } = useOrganization();
   const queryEnabled = useQueriesEnabled();
-  // Direction-aware nav: "Partners" → "Customers" in inbound mode (route unchanged).
+  // Direction-aware nav: "Suppliers" → "Customers" in inbound mode (route unchanged).
   const { labels } = useOrderDirection();
   // Admin-link visibility probe (UX hint only; the page + API re-gate server-side).
   const { data: adminAccess } = useQuery({

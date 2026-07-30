@@ -1,18 +1,29 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { render, screen, cleanup } from "@testing-library/react";
 
-// STRUCT-1 — nav-guard for the consolidated Claude Design v2 hub shell.
+// WP-26 — nav-guard for the four-destination information architecture (DB-1).
 //
-// The sidebar no longer lists every deep route; hub items (Suppliers,
-// Rules & formats, Activity, Integrations, Inbound) each link to their FIRST
-// tab route and light up for ANY route in their hub (hubForPath). This suite
-// guards:
-//   • the launch nav still surfaces NO /connections link (original STRUCT-1);
-//   • the consolidated structure + hub → first-tab-route invariant;
-//   • every legacy deep route keeps a reachable entry (hub item, direct item,
-//     or the pinned Upload action);
-//   • the gates: LAUNCH_CORE_ONLY, INBOUND_ENABLED, admin allowlist, and the
-//     inbound counterparty relabel.
+// The nav used to teach ten top-level words across four group headers
+// (Dashboard · Inbox · Drafts · Inbound · Partners · Rules & formats ·
+// Operations · Integrations · Admin · Help · Settings) for four jobs. Three of
+// those words — "Partners", "Rules & formats", "Integrations" — were containers
+// with no meaning of their own, and one group header ("Monitor") existed only so
+// it would stop colliding with the item directly beneath it.
+//
+// There are now FOUR destinations — Orders · Suppliers · Activity · Settings —
+// and everything else is a tab inside one of the three hubs. No URL changed.
+// This suite guards:
+//   • exactly four primary items, one flat section, no group headers;
+//   • the nav still surfaces NO /connections link (original STRUCT-1) —
+//     versioned supplier setup is the supplier "Changes" tab;
+//   • hub items link to their hub's first VISIBLE tab route;
+//   • EVERY route that exists keeps a reachable entry (hub item — visible or
+//     hidden tab — direct item, or the pinned Upload action). This is the
+//     invariant that makes "hide it from the nav" safe: nothing 404s and nothing
+//     becomes unreachable;
+//   • one data source never gets two visible nav surfaces;
+//   • the gates: INBOUND_ENABLED (now two TABS, not a nav item), the admin
+//     allowlist, and the inbound counterparty relabel.
 
 let mockPath = "/bridge";
 vi.mock("next/navigation", () => ({
@@ -69,61 +80,52 @@ import {
   PINNED_ACTION_HREF,
   type SidebarNavItem,
 } from "./BridgeSidebar";
-import { HUB_TABS, hubForPath, type HubKey } from "./layout/HubTabs";
-import { LAUNCH_CORE_ONLY } from "@/lib/launch-flags";
+import { HUB_TABS, hubForPath, visibleHubTabs, type HubKey } from "./layout/HubTabs";
 
 afterEach(() => {
   cleanup();
   mockPath = "/bridge";
 });
 
-const FULL = { coreOnly: false, inboundEnabled: true };
+const HUBS = Object.keys(HUB_TABS) as HubKey[];
 
 /** Flatten the visible nav (main sections + tail) into one item list. */
 function allItems(nav: ReturnType<typeof buildVisibleNav>): SidebarNavItem[] {
   return [...nav.main.flatMap((s) => s.items), ...nav.tail];
 }
 
-describe("BridgeSidebar — launch nav (STRUCT-1)", () => {
-  it("is in launch-core-only mode by default (no NEXT_PUBLIC_LAUNCH_FULL_NAV)", () => {
-    // Sanity: the rendered assertions below only mean something in the narrow launch nav.
-    expect(LAUNCH_CORE_ONLY).toBe(true);
-  });
-
-  it("renders NO nav link to /connections (covered by the Suppliers hub instead)", () => {
+describe("BridgeSidebar — the four destinations", () => {
+  it("renders NO nav link to /connections (it is the supplier Changes tab instead)", () => {
     const { container } = render(<BridgeSidebar />);
     expect(container.querySelector('a[href="/connections"]')).toBeNull();
     // And there's no "Connections" nav label either.
     expect(screen.queryByText("Connections")).toBeNull();
   });
 
-  it("renders the consolidated core entries with their hub first-tab hrefs", () => {
+  it("renders the four primary destinations with their hub first-tab hrefs", () => {
     render(<BridgeSidebar />);
-    expect(screen.getByRole("link", { name: /Overview/i })).toHaveAttribute("href", "/bridge");
     expect(screen.getByRole("link", { name: /^Orders/i })).toHaveAttribute("href", "/inbox");
     expect(screen.getByRole("link", { name: /^Suppliers/i })).toHaveAttribute("href", "/library/suppliers");
-    expect(screen.getByRole("link", { name: /^Activity/i })).toHaveAttribute("href", "/operations/health");
-    expect(screen.getByRole("link", { name: /Help & support/i })).toHaveAttribute("href", "/help");
+    expect(screen.getByRole("link", { name: /^Activity/i })).toHaveAttribute("href", "/bridge");
     expect(screen.getByRole("link", { name: /Settings/i })).toHaveAttribute("href", "/settings");
+    expect(screen.getByRole("link", { name: /Help & support/i })).toHaveAttribute("href", "/help");
     // Pinned primary action.
     expect(screen.getByRole("link", { name: /Upload order/i })).toHaveAttribute("href", PINNED_ACTION_HREF);
   });
 
-  it("surfaces all five announced hubs in the launch nav (core-mode hub first-tabs)", () => {
+  it("retires the container words the old nav taught", () => {
     render(<BridgeSidebar />);
-    // The five hub words the sidebar teaches all render in core mode now.
-    expect(screen.getByRole("link", { name: /^Suppliers/i })).toBeTruthy();
-    expect(screen.getByRole("link", { name: /Rules & formats/i })).toBeTruthy();
-    expect(screen.getByRole("link", { name: /^Activity/i })).toBeTruthy();
-    expect(screen.getByRole("link", { name: /Integrations/i })).toBeTruthy();
+    for (const word of [
+      "Dashboard", "Inbox", "Drafts", "Inbound",
+      "Partners", "Rules & formats", "Operations", "Integrations",
+      "Workbench", "Library", "Monitor",
+    ]) {
+      expect(screen.queryByText(word), `"${word}" must not be a nav label`).toBeNull();
+    }
   });
 
-  it("keeps Drafts, Inbound and Admin out of the launch nav", () => {
+  it("keeps Admin out of the nav for a non-admin probe", () => {
     render(<BridgeSidebar />);
-    expect(screen.queryByText("Drafts")).toBeNull();
-    // Inbound is separately gated by INBOUND_ENABLED (default off), so it stays
-    // hidden even though its first-tab href is now a core href.
-    expect(screen.queryByText("Inbound")).toBeNull();
     expect(screen.queryByText("Admin")).toBeNull(); // non-admin probe (mocked undefined)
   });
 
@@ -131,7 +133,7 @@ describe("BridgeSidebar — launch nav (STRUCT-1)", () => {
     mockPath = "/operations/exceptions";
     render(<BridgeSidebar />);
     expect(screen.getByRole("link", { name: /^Activity/i })).toHaveAttribute("aria-current", "page");
-    expect(screen.getByRole("link", { name: /Overview/i })).not.toHaveAttribute("aria-current");
+    expect(screen.getByRole("link", { name: /^Orders/i })).not.toHaveAttribute("aria-current");
   });
 
   it("lights the Suppliers hub item for a supplier detail route", () => {
@@ -139,54 +141,79 @@ describe("BridgeSidebar — launch nav (STRUCT-1)", () => {
     render(<BridgeSidebar />);
     expect(screen.getByRole("link", { name: /^Suppliers/i })).toHaveAttribute("aria-current", "page");
   });
+
+  // WP-26 asserted this on /drafts; FE #47 retired that route, so the invariant
+  // is asserted on /operations/health — a hidden entry of the Activity hub.
+  it("lights the owning hub item for a hidden owned route (/operations/health)", () => {
+    mockPath = "/operations/health";
+    render(<BridgeSidebar />);
+    expect(screen.getByRole("link", { name: /^Activity/i })).toHaveAttribute("aria-current", "page");
+  });
 });
 
-describe("buildVisibleNav — consolidated structure (full nav)", () => {
-  it("produces the v2 grouped structure in order", () => {
-    const nav = buildVisibleNav("Suppliers", true, FULL);
-    // The GROUP header is displayed as "Monitor" (renamed back when the item
-    // below it was still called "Operations"); routes untouched. WP-25 renamed
-    // that ITEM to "Activity"; the group headers are retired by the IA packet.
-    expect(nav.main.map((s) => s.group ?? null)).toEqual([null, "Workbench", "Library", "Monitor"]);
-    expect(nav.main.map((s) => s.items.map((i) => i.label))).toEqual([
-      ["Overview"],
-      ["Orders", "Inbound"],
-      ["Suppliers", "Rules & formats"],
-      ["Activity", "Integrations"],
-    ]);
-    expect(nav.tail.map((i) => i.label)).toEqual(["Admin", "Help & support", "Settings"]);
+describe("buildVisibleNav — four items, one flat section", () => {
+  it("renders exactly four primary nav items", () => {
+    const nav = buildVisibleNav("Suppliers", true);
+    expect(nav.main).toHaveLength(1);
+    expect(nav.main[0].items).toHaveLength(4);
   });
 
-  it("hub items link to their hub's FIRST tab route", () => {
-    const byLabel = Object.fromEntries(allItems(buildVisibleNav("Suppliers", true, FULL)).map((i) => [i.label, i]));
+  it("produces one ungrouped section: Orders · Suppliers · Activity · Settings", () => {
+    const nav = buildVisibleNav("Suppliers", true);
+    // Four items need no group headers — the old Workbench/Library/Monitor
+    // headers are gone, so every section label is null.
+    expect(nav.main.map((s) => s.group ?? null)).toEqual([null]);
+    expect(nav.main.map((s) => s.items.map((i) => i.label))).toEqual([
+      ["Orders", "Suppliers", "Activity", "Settings"],
+    ]);
+    // Settings is promoted to primary; the tail keeps only the icon-only items.
+    expect(nav.tail.map((i) => i.label)).toEqual(["Admin", "Help & support"]);
+  });
+
+  it("exposes exactly the six nav hrefs, in order (a standing guard against creep)", () => {
+    const items = allItems(buildVisibleNav("Suppliers", true));
+    expect(items.map((i) => i.href)).toEqual([
+      "/inbox",
+      "/library/suppliers",
+      "/bridge",
+      "/settings",
+      "/admin",
+      "/help",
+    ]);
+  });
+
+  it("hub items link to their hub's FIRST VISIBLE tab route", () => {
+    const byLabel = Object.fromEntries(allItems(buildVisibleNav("Suppliers", true)).map((i) => [i.label, i]));
+    expect(byLabel["Orders"].href).toBe("/inbox");
     expect(byLabel["Suppliers"].href).toBe("/library/suppliers");
-    expect(byLabel["Rules & formats"].href).toBe("/library/mappings");
-    expect(byLabel["Activity"].href).toBe("/operations/health");
-    expect(byLabel["Integrations"].href).toBe("/operations/connectors");
-    expect(byLabel["Inbound"].href).toBe("/inbound/invoices");
+    expect(byLabel["Activity"].href).toBe("/bridge");
+    for (const hub of HUBS) {
+      const item = Object.values(byLabel).find((i) => i.hub === hub);
+      expect(item?.href, `hub ${hub} item href`).toBe(visibleHubTabs(hub)[0].href);
+    }
     // …and each hub item's own href resolves back to its hub (no drift).
     for (const item of Object.values(byLabel)) {
       if (item.hub) expect(hubForPath(item.href)).toBe(item.hub);
     }
   });
 
-  // FE-2: a hub item promises siblings. If a hub ever shrank to one tab, its
-  // topbar strip would render a single tab directly under the nav item naming
-  // the same page — the founder-reported double navbar. HubTabs suppresses a
-  // lone-tab strip; this keeps the nav structure itself honest.
-  it("every hub exposes at least two tabs (a lone tab has nowhere to switch to)", () => {
-    for (const key of Object.keys(HUB_TABS) as HubKey[]) {
-      expect(HUB_TABS[key].length, `hub ${key}`).toBeGreaterThanOrEqual(2);
+  // FE-2: a hub item promises siblings. If a hub ever shrank to one VISIBLE tab,
+  // its topbar strip would render a single tab directly under the nav item
+  // naming the same page — the founder-reported double navbar. Hidden entries
+  // don't count: they are reachable, not switchable.
+  it("every hub exposes at least two VISIBLE tabs (a lone tab has nowhere to switch to)", () => {
+    for (const key of HUBS) {
+      expect(visibleHubTabs(key).length, `hub ${key}`).toBeGreaterThanOrEqual(2);
     }
   });
 
-  it("keeps the needs-review badge wiring on the Orders item", () => {
-    const inbox = allItems(buildVisibleNav("Suppliers", true, FULL)).find((i) => i.href === "/inbox");
-    expect(inbox?.badgeKey).toBe("review");
+  it("keeps the review badge wiring on the Orders item", () => {
+    const orders = allItems(buildVisibleNav("Suppliers", true)).find((i) => i.href === "/inbox");
+    expect(orders?.badgeKey).toBe("review");
   });
 
   it("every legacy deep route keeps a reachable entry (hub item, direct item, or pinned action)", () => {
-    const items = allItems(buildVisibleNav("Suppliers", true, FULL));
+    const items = allItems(buildVisibleNav("Suppliers", true));
     const LEGACY_ROUTES = [
       "/bridge", "/upload", "/inbox",
       "/library/suppliers", "/library/buyers", "/connections",
@@ -195,93 +222,122 @@ describe("buildVisibleNav — consolidated structure (full nav)", () => {
       "/operations/connectors", "/operations/webhooks",
       "/inbound/invoices", "/inbound/asns",
       "/admin", "/settings", "/help",
+      // Extended to the new tree's child routes — the four-item nav must keep
+      // reaching them too, not just the top-level pages.
+      "/inbox/008412", "/upload/preview/8f2c1a90", "/library/suppliers/1b2c3d4e",
+      "/connections/9c0f", "/admin/guides", "/admin/guides/onboard-a-new-client",
     ];
     for (const route of LEGACY_ROUTES) {
       const direct = items.some((i) => route === i.href || route.startsWith(i.href + "/"));
       const viaHub = items.some((i) => i.hub && hubForPath(route) === i.hub);
-      const viaPinned = route === PINNED_ACTION_HREF;
+      // The pinned action owns its whole subtree, exactly as a nav item does:
+      // /upload/preview/[id] is where an upload lands you, so the Upload button
+      // is its entry point. (Prefix form, matching `direct` above.)
+      const viaPinned =
+        route === PINNED_ACTION_HREF || route.startsWith(PINNED_ACTION_HREF + "/");
       expect(direct || viaHub || viaPinned, `route ${route} must stay reachable`).toBe(true);
     }
   });
 
-  it("hub active-state covers every tab route of the hub (isItemActive)", () => {
-    const items = allItems(buildVisibleNav("Suppliers", true, FULL));
-    const operations = items.find((i) => i.label === "Activity")!;
-    for (const p of ["/operations/health", "/operations/exceptions", "/operations/log"]) {
-      expect(isItemActive(p, operations), `${p} lights Activity`).toBe(true);
+  it("hub active-state covers every tab route of the hub, hidden entries included", () => {
+    const items = allItems(buildVisibleNav("Suppliers", true));
+    const activity = items.find((i) => i.label === "Activity")!;
+    for (const p of [
+      "/bridge", "/operations/log", "/operations/exceptions",
+      "/operations/health", "/operations/webhooks",
+    ]) {
+      expect(isItemActive(p, activity), `${p} lights Activity`).toBe(true);
     }
-    expect(isItemActive("/operations/connectors", operations)).toBe(false); // Integrations hub
-    const partners = items.find((i) => i.label === "Suppliers")!;
-    for (const p of ["/library/suppliers", "/library/buyers", "/connections", "/connections/abc"]) {
-      expect(isItemActive(p, partners), `${p} lights Suppliers`).toBe(true);
+    expect(isItemActive("/operations/connectors", activity)).toBe(false); // Suppliers hub
+    const suppliers = items.find((i) => i.label === "Suppliers")!;
+    // /library/rules, /library/rule-definitions and /library/templates are NOT
+    // here: FE #47 retired all three, and a permanent redirect has no nav state.
+    for (const p of [
+      "/library/suppliers", "/library/suppliers/abc", "/library/mappings",
+      "/library/standards", "/connections", "/connections/abc", "/operations/connectors",
+    ]) {
+      expect(isItemActive(p, suppliers), `${p} lights Suppliers`).toBe(true);
     }
-    const rules = items.find((i) => i.label === "Rules & formats")!;
-    for (const p of ["/library/mappings", "/library/standards"]) {
-      expect(isItemActive(p, rules), `${p} lights Rules & formats`).toBe(true);
+    const orders = items.find((i) => i.label === "Orders")!;
+    for (const p of [
+      "/inbox", "/inbox/008412", "/library/buyers",
+      "/inbound/invoices", "/inbound/asns",
+    ]) {
+      expect(isItemActive(p, orders), `${p} lights Orders`).toBe(true);
     }
+  });
+
+  // AC: no duplicate nav surface for one data source. Two pairs used to be the
+  // same data under two nouns: /operations/webhooks vs Settings ▸ Connectors
+  // (event subscriptions), and /connections vs the supplier "Changes" tab
+  // (versioned supplier setup). Each now has exactly ONE visible surface.
+  it("offers one data source exactly one visible nav surface", () => {
+    const claimed = new Map<string, HubKey>();
+    for (const hub of HUBS) {
+      for (const tab of HUB_TABS[hub]) {
+        expect(claimed.get(tab.href), `${tab.href} is claimed by two hubs`).toBeUndefined();
+        claimed.set(tab.href, hub);
+      }
+    }
+    // Event subscriptions belong to Settings; the ops page stays reachable, hidden.
+    expect(visibleHubTabs("activity").some((t) => t.href === "/operations/webhooks")).toBe(false);
+    expect(HUB_TABS.activity.some((t) => t.href === "/operations/webhooks")).toBe(true);
+    // Versioned supplier setup belongs to the supplier Changes tab.
+    expect(visibleHubTabs("suppliers").some((t) => t.href === "/connections")).toBe(false);
+    expect(HUB_TABS.suppliers.some((t) => t.href === "/connections")).toBe(true);
   });
 });
 
-describe("hubTooltip — lists a hub's tabs (derived from HUB_TABS, can't drift)", () => {
+describe("hubTooltip — lists a hub's VISIBLE tabs (derived from HUB_TABS, can't drift)", () => {
   const byLabel = Object.fromEntries(
-    allItems(buildVisibleNav("Suppliers", true, FULL)).map((i) => [i.label, i]),
+    allItems(buildVisibleNav("Suppliers", true)).map((i) => [i.label, i]),
   );
-  it("describes each hub with its tab labels", () => {
-    expect(hubTooltip(byLabel["Suppliers"])).toBe("Suppliers · Buyers · Connections");
-    // Two tabs, not four: FE #47 retired /library/rules and /library/templates.
-    expect(hubTooltip(byLabel["Rules & formats"])).toBe("Item codes · Format reference");
-    expect(hubTooltip(byLabel["Activity"])).toBe("System status · Issues · Deliveries");
-    expect(hubTooltip(byLabel["Integrations"])).toBe("Delivery channels · Webhooks");
-    expect(hubTooltip(byLabel["Inbound"])).toBe("Invoices · Shipping notices");
+  it("describes each hub with its visible tab labels", () => {
+    expect(hubTooltip(byLabel["Orders"])).toBe("Orders · Buyers");
+    // Two visible tabs, not four: FE #47 retired /library/rules (and its rule
+    // catalog) and /library/templates behind permanent redirects.
+    expect(hubTooltip(byLabel["Suppliers"])).toBe("Suppliers · Item codes");
+    expect(hubTooltip(byLabel["Activity"])).toBe("Overview · Deliveries · Issues");
+  });
+  it("never names a hidden entry (it is reachable, not switchable)", () => {
+    for (const hub of HUBS) {
+      const item = Object.values(byLabel).find((i) => i.hub === hub)!;
+      const tip = hubTooltip(item)!;
+      for (const tab of HUB_TABS[hub].filter((t) => t.hidden)) {
+        expect(tip, `${hub} tooltip must not name hidden "${tab.label}"`).not.toContain(tab.label);
+      }
+    }
   });
   it("returns undefined for non-hub items", () => {
-    expect(hubTooltip(byLabel["Overview"])).toBeUndefined();
-    expect(hubTooltip(byLabel["Orders"])).toBeUndefined();
+    expect(hubTooltip(byLabel["Settings"])).toBeUndefined();
+    expect(hubTooltip(byLabel["Admin"])).toBeUndefined();
   });
 });
 
 describe("buildVisibleNav — gates", () => {
-  it("LAUNCH_CORE_ONLY keeps only core-href items (all five hub first-tabs + core)", () => {
-    const items = allItems(buildVisibleNav("Suppliers", true, { coreOnly: true, inboundEnabled: false }));
-    // Inbound's first-tab is a core href too, but stays filtered here because
-    // inboundEnabled:false — so it is absent from this list.
-    expect(items.map((i) => i.href).sort()).toEqual(
-      [
-        "/admin",
-        "/bridge",
-        "/help",
-        "/inbox",
-        "/library/mappings",
-        "/library/suppliers",
-        "/operations/connectors",
-        "/operations/health",
-        "/settings",
-      ].sort(),
-    );
-  });
-
-  it("reveals Inbound in core mode only when INBOUND_ENABLED (first-tab is a core href)", () => {
-    const withInbound = allItems(buildVisibleNav("Suppliers", true, { coreOnly: true, inboundEnabled: true }));
-    expect(withInbound.some((i) => i.href === "/inbound/invoices")).toBe(true);
-    const withoutInbound = allItems(buildVisibleNav("Suppliers", true, { coreOnly: true, inboundEnabled: false }));
-    expect(withoutInbound.some((i) => i.href.startsWith("/inbound"))).toBe(false);
-  });
-
   it("hides Admin for non-admins", () => {
-    const items = allItems(buildVisibleNav("Suppliers", false, FULL));
+    const items = allItems(buildVisibleNav("Suppliers", false));
     expect(items.some((i) => i.href === "/admin")).toBe(false);
   });
 
-  it("hides Inbound unless INBOUND_ENABLED (full nav alone must not reveal it)", () => {
-    const items = allItems(buildVisibleNav("Suppliers", true, { coreOnly: false, inboundEnabled: false }));
+  it("never puts /inbound in the nav — INBOUND_ENABLED now gates two Orders TABS", () => {
+    const items = allItems(buildVisibleNav("Suppliers", true));
     expect(items.some((i) => i.href.startsWith("/inbound"))).toBe(false);
+    // Off: reachable through the Orders hub, absent from its strip.
+    expect(visibleHubTabs("orders", { inboundEnabled: false }).map((t) => t.href))
+      .toEqual(["/inbox", "/library/buyers"]);
+    expect(hubForPath("/inbound/invoices")).toBe("orders");
+    expect(hubForPath("/inbound/asns")).toBe("orders");
+    // On: two extra visible tabs, same hub, same hrefs.
+    expect(visibleHubTabs("orders", { inboundEnabled: true }).map((t) => t.href))
+      .toEqual(["/inbox", "/library/buyers", "/inbound/invoices", "/inbound/asns"]);
   });
 
   it("relabels the Suppliers entry to the counterparty word for inbound orgs (display only)", () => {
-    const items = allItems(buildVisibleNav("Customers", true, FULL));
-    const partners = items.find((i) => i.href === "/library/suppliers");
-    expect(partners?.label).toBe("Customers");
+    const items = allItems(buildVisibleNav("Customers", true));
+    const suppliers = items.find((i) => i.href === "/library/suppliers");
+    expect(suppliers?.label).toBe("Customers");
     // Route is unchanged — display-only relabel.
-    expect(partners?.hub).toBe("partners");
+    expect(suppliers?.hub).toBe("suppliers");
   });
 });

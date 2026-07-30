@@ -40,18 +40,19 @@ import { CRUMB_LABELS } from "./breadcrumb";
 const ROOT = join(__dirname, "..", "..", "..");
 const read = (rel: string) => readFileSync(join(ROOT, rel), "utf8");
 
-const FULL = { coreOnly: false, inboundEnabled: true };
-
 describe("renamed sidebar labels keep their routes", () => {
-  const nav = buildVisibleNav("Suppliers", true, FULL);
+  // WP-26 removed buildVisibleNav's launch-flag `opts`: with four items there is
+  // nothing left to narrow, so the nav is no longer gated.
+  const nav = buildVisibleNav("Suppliers", true);
   const items = [...nav.main.flatMap((s) => s.items), ...nav.tail];
   const hrefFor = (label: string) => items.find((i) => i.label === label)?.href;
 
+  // "Overview" is no longer a sidebar item — WP-26 made it the Activity hub's
+  // first tab, and the "Activity" nav item inherits its /bridge href.
   const rows: Array<[string, string, string]> = [
-    ["Overview", "/bridge", "§6.1 #1 Dashboard → Overview"],
     ["Orders", "/inbox", "§6.1 #2 Inbox → Orders"],
     ["Suppliers", "/library/suppliers", "§6.1 #6 Partners → Suppliers"],
-    ["Activity", "/operations/health", "§6.1 #8 Operations → Activity"],
+    ["Activity", "/bridge", "§6.1 #8 Operations → Activity"],
     ["Settings", "/settings", "§6.1 #32 unchanged"],
     ["Admin", "/admin", "§6.1 #30 unchanged"],
     ["Help & support", "/help", "§6.1 #31 unchanged"],
@@ -104,8 +105,8 @@ describe("renamed hub tab labels keep their routes", () => {
   });
 
   it("the hub display names match the sidebar words they mirror", () => {
-    expect(HUB_LABELS.partners).toBe("Suppliers");
-    expect(HUB_LABELS.operations).toBe("Activity");
+    expect(HUB_LABELS.suppliers).toBe("Suppliers");
+    expect(HUB_LABELS.activity).toBe("Activity");
   });
 });
 
