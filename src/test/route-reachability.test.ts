@@ -34,14 +34,17 @@
 //
 //   • Registries are read through the code path that RENDERS them, never off
 //     their raw text — see THE REGISTRY RULE below. The sidebar goes through
-//     buildVisibleNav() (/drafts is in NAV_MAIN but filtered out of
-//     LAUNCH_CORE_HREFS, so it renders nowhere); guides.ts goes through
+//     buildVisibleNav() (Inbound is in NAV_MAIN but filtered out while
+//     INBOUND_ENABLED is off, so it renders nowhere — /drafts was the original
+//     example until WP-07 deleted it); guides.ts goes through
 //     linkedGuides() (a `status: "planned"` guide renders as a "Coming soon"
 //     <span>, never a <Link>); help-articles.ts is credited in full because
 //     /help renders every entry unconditionally.
 //   • HUB_TABS is read for `href` only, never `match`. `match` is active-state
 //     matching — it lights a tab up for a sub-route; it navigates nowhere.
-//     /library/rule-definitions is exactly this case.
+//     /library/rule-definitions was exactly this case until WP-07 retired it;
+//     every `match` now mirrors its own href, so the rule currently has no live
+//     specimen and the test asserting that says so out loud.
 //   • Comments are stripped before extraction. A link that exists only in a
 //     comment navigates nobody, and writing one is the cheapest possible way to
 //     fake reachability past review.
@@ -82,6 +85,7 @@ import { buildVisibleNav, PINNED_ACTION_HREF } from "@/components/bridge/BridgeS
 import { HUB_TABS } from "@/components/bridge/layout/HubTabs";
 import { HELP_ARTICLES } from "@/lib/help-articles";
 import { GUIDES, linkedGuides } from "@/lib/guides";
+import { INBOUND_ENABLED } from "@/lib/launch-flags";
 
 // ─── Allowlist ────────────────────────────────────────────────────────────────
 //
@@ -94,14 +98,11 @@ import { GUIDES, linkedGuides } from "@/lib/guides";
 //
 // This list SHRINKS. Adding to it is a decision with a name on it.
 
-const RETIRED = "scheduled for deletion in WP-08 / WP-07 — retired by founder decision 2026-07-30";
-
 export const KNOWN_DEEP_LINK_ONLY: Record<string, string> = {
-  // ── Confirmed stranded, and going away. Recorded rather than deleted here so
-  //    the guard keeps naming them until the packet that owns them lands.
-  "/drafts": RETIRED,
-  "/upload/preview/[orderId]": RETIRED,
-  "/library/rule-definitions": RETIRED,
+  // ── /drafts, /upload/preview/[orderId] and /library/rule-definitions lived
+  //    here until WP-07 (#47) deleted the pages behind permanent redirects.
+  //    The anti-rot test below named them the moment they stopped existing,
+  //    which is the list shrinking exactly as designed. Do not re-add them.
 
   // ── Reachable, but the referrer is outside this repo. A frontend-only guard
   //    is structurally blind to these; the reason is the evidence.
@@ -792,30 +793,64 @@ describe("route reachability (plan rule R1 — no new surface without a consumer
   });
 
   it("a launch-filtered registry entry is not a link (the /drafts shape)", () => {
-    // BridgeSidebar's NAV_MAIN carries `{ label: "Drafts", href: "/drafts" }`,
-    // and LAUNCH_CORE_HREFS filters it out — so it renders nowhere and no user
-    // has ever seen it. This asserts on TARGETS rather than on the unreachable
-    // list ON PURPOSE: /drafts is in KNOWN_DEEP_LINK_ONLY, so a reachability
-    // assertion would pass either way and the exclusion could be deleted
-    // without any test noticing.
+    // THE SHAPE: an entry sits in the raw NAV_MAIN array, but a launch filter
+    // drops it before render — so it renders nowhere and no user has ever seen
+    // it. Reading the raw array would credit it as navigation and make this
+    // guard decorative, which is why the guard reads buildVisibleNav() instead.
+    //
+    // /drafts was the original specimen. WP-07 (#47) deleted that page and with
+    // it the ONLY entry exercising this exclusion, so the assertion quietly lost
+    // its teeth. It is re-pointed at a live specimen rather than deleted: the
+    // exclusion is load-bearing and must stay pinned by something real.
+    //
+    // Today's specimen is Inbound. NAV_MAIN carries
+    // `{ label: "Inbound", href: HUB_TABS.inbound[0].href }`, and the first
+    // filter in buildVisibleNav drops every /inbound href while INBOUND_ENABLED
+    // is off. Asserted against TARGETS, not the unreachable list, because the
+    // route is reachable via its hub tab either way — only the *nav* credit
+    // distinguishes "read through buildVisibleNav" from "read NAV_MAIN raw".
+    //
+    // If this precondition ever fails, inbound has launched: pick another
+    // launch-filtered entry as the specimen. Do not delete the assertion.
+    expect(INBOUND_ENABLED).toBe(false);
+
     const paths = new Set(TARGETS.map((t) => t.path));
-    expect(paths.has("/drafts")).toBe(false);
+    const navPaths = new Set(TARGETS.filter((t) => t.kind === "nav").map((t) => t.path));
+    expect(navPaths.has(HUB_TABS.inbound[0].href)).toBe(false);
+
     // The sidebar is still read — the exclusion sharpened the guard rather than
     // blinding it.
-    expect(paths.has("/inbox")).toBe(true);
-    expect(paths.has(PINNED_ACTION_HREF)).toBe(true);
+    expect(navPaths.has("/inbox")).toBe(true);
+    expect(navPaths.has(PINNED_ACTION_HREF)).toBe(true);
 
     // The same shape one level down: a hub tab's `match` is active-state
     // matching — it lights the tab up for a sub-route, it navigates nowhere.
-    // /library/rule-definitions is the `match`-only entry, and it too is in the
-    // allowlist, so this must also be asserted against TARGETS to have teeth.
+    // /library/rule-definitions was the only `match`-only entry and WP-07
+    // retired it, so every `match` now mirrors its own tab's href and no live
+    // specimen separates "credits href" from "credits href ∪ match".
+    //
+    // Assert that absence rather than dropping the check. An empty set here is
+    // the reason the loop beneath it currently proves nothing — stated out loud,
+    // so it reads as a known gap instead of a passing test. Reintroduce a
+    // match-only entry and this fails, and the loop gets its teeth back.
+    const allHubHrefs = new Set(Object.values(HUB_TABS).flat().map((t) => t.href));
     const hubMatchOnly = Object.values(HUB_TABS)
       .flat()
       .flatMap((t) => t.match ?? [])
-      .filter((m) => !Object.values(HUB_TABS).flat().some((t) => t.href === m));
-    expect(hubMatchOnly).toContain("/library/rule-definitions");
+      .filter((m) => !allHubHrefs.has(m));
+    expect(hubMatchOnly).toEqual([]);
     for (const m of hubMatchOnly) expect(paths.has(m)).toBe(false);
-    expect(paths.has("/library/rules")).toBe(true); // the tab's real href
+
+    // Independent of the above: every path credited as a hub tab is some tab's
+    // href. This holds whether or not a match-only entry exists.
+    for (const t of TARGETS.filter((t) => t.kind === "hub-tab")) {
+      expect(allHubHrefs.has(t.path)).toBe(true);
+    }
+    // Positive control: a real tab href IS credited. Derived from HUB_TABS
+    // rather than written literally — the previous literal here was
+    // "/library/rules", which WP-07 retired, and a hardcoded href rots the same
+    // way the allowlist does.
+    expect(paths.has(HUB_TABS["rules-formats"][0].href)).toBe(true);
   });
 
   it("matches dynamic segments structurally, not by literal string", () => {
