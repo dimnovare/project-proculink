@@ -153,13 +153,14 @@ export const HELP_ARTICLES: HelpArticle[] = [
   },
   {
     slug: "validation-rules",
-    title: "Validation rules and rule definitions",
-    blurb: "The rule catalog, reusable rule definitions, and the supplier acceptance rules that actually check orders.",
+    title: "Validation rules",
+    blurb: "Set the checks that run on a supplier's orders, and read the pass/fail results.",
     category: "Mapping",
-    keywords: ["validation", "rules", "rule definitions", "severity", "acceptance", "operators", "required", "blocking"],
-    readMin: 5,
-    videoUrl: `${TOOL_VIDEO_BASE}/validation-rules.mp4`,
-    videoPosterUrl: `${TOOL_VIDEO_BASE}/validation-rules-poster.jpg`,
+    keywords: ["validation", "rules", "severity", "acceptance", "operators", "required", "blocking"],
+    readMin: 4,
+    // No walkthrough video: the recorded one toured the org-wide rule catalog
+    // screen, which was retired because nothing ever read those rules. Linking
+    // a video of a page that no longer exists is the exact claim we removed.
   },
   // ── Delivery ─────────────────────────────────────────────────────────────
   {
@@ -174,8 +175,8 @@ export const HELP_ARTICLES: HelpArticle[] = [
   },
   {
     slug: "output-templates",
-    title: "Output templates and formats",
-    blurb: "Which output formats ProcuLink can actually send today, and what the templates page does (and doesn't do).",
+    title: "Output formats",
+    blurb: "Which output formats ProcuLink can actually send today, and how to get an exact custom shape.",
     category: "Delivery",
     keywords: ["templates", "output format", "csv", "xml", "cxml", "ubl", "x12", "json", "peppol", "edifact", "scriban"],
     readMin: 4,

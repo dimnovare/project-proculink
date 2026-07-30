@@ -519,7 +519,8 @@ export function UploadWorkbench() {
     // STRUCT-2: route straight to the Order Workshop (/inbox/{id}). The workshop is
     // now a strict superset of the old /upload/preview "Confirm item codes" step —
     // it carries the same issues list AND the same bulk-accept parity (Accept all /
-    // ≥85%). The /upload/preview route stays resolvable as a fallback (untouched).
+    // ≥85%). The old preview route was retired once nothing routed to it; it now
+    // 308s to this same path, keeping the order id.
     const reviewPath = `/inbox/${encodeURIComponent(uploadedOrderId)}`;
     const total = setTimeout(() => {
       router.push(reviewPath);
@@ -1707,7 +1708,7 @@ function UsageChip({ label, value, tone }: { label: string; value: string; tone?
  * intake surface listing the automated channels that exist alongside browser
  * upload. Each links to the real settings tab that configures it.
  *
- * Truthfulness (FABLE5 §6): email intake + the REST/webhook API are live and
+ * Truthfulness (FABLE5 §6): email intake + the REST ingress API are live and
  * self-serve, so they carry a plain "Set up →" affordance. SFTP and S3/R2 pull
  * still need a human setup step, so they are honestly badged "Assisted setup" —
  * we never imply a pure one-click self-serve toggle for them.
@@ -1735,7 +1736,10 @@ function MoreWaysToIngest() {
     },
     {
       key: "api",
-      title: "REST API & webhooks",
+      // "REST API", not "REST API & webhooks": this is a list of ways orders
+      // come IN, and there is no webhook you can point at us. Webhooks go the
+      // other way — we call your URL when something happens to an order.
+      title: "REST API",
       desc: "Push orders straight from your ERP, Zapier, or Make with an API key.",
       href: "/settings?tab=api",
       icon: (

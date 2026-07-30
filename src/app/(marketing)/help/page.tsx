@@ -24,7 +24,7 @@ const CATEGORY_BLURB: Record<HelpCategory, string> = {
   Connections: "Versioned supplier connections — draft, test, publish, roll back.",
   Mapping: "Connect buyer fields to supplier formats.",
   Delivery: "HTTP webhook, SFTP/FTPS, email, and ERP connectors (Erply, Directo).",
-  Integrations: "Email intake, API keys, webhooks, and connectors.",
+  Integrations: "Email intake, API keys, outbound webhooks, and connectors.",
   AI: "How mapping suggestions work and what confidence means.",
   Billing: "Plans, quotas, and what happens at the limit.",
   Troubleshooting: "Resolve failed deliveries and validation errors.",

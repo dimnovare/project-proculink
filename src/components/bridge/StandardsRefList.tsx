@@ -3,8 +3,8 @@
 // StandardsRefList — the canonical "this field maps to UBL / EDIFACT / X12 / cXML"
 // disclosure. Satisfies the project's standards-visibility rule (a field in a
 // mapping/validation context must be able to surface its standards mapping on
-// demand). Used by the rule-definitions catalog and the supplier rule-bindings
-// panel. Renders nothing when no refs are present (count 0 is a clean no-op).
+// demand). Used by the supplier rule-bindings panel. Renders nothing when no
+// refs are present (count 0 is a clean no-op).
 
 import * as React from "react";
 

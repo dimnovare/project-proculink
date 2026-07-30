@@ -12,7 +12,7 @@ export const metadata = pageMetadata({
   path: "/help",
   title: "Help center — ProcuLink",
   description:
-    "Guides for ProcuLink: first upload, per-supplier field and item-code mapping, output templates, delivery setup, exceptions, billing, and the REST API.",
+    "Guides for ProcuLink: first upload, per-supplier field and item-code mapping, output formats, delivery setup, exceptions, billing, and the REST API.",
   ogDescription:
     "Guides for uploading, mapping, transforming, and delivering purchase orders with ProcuLink.",
 });

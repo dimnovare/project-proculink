@@ -245,10 +245,6 @@ test.describe("Live full E2E — every screen renders + heart-piece interactions
     await visitAndAssertHealthy(page, "/inbox", { expectHeading: /inbox/i });
   });
 
-  test("Drafts (/drafts) renders cleanly", async ({ page }) => {
-    await visitAndAssertHealthy(page, "/drafts");
-  });
-
   // ── 2. The heart-piece: order review (/inbox/[orderId]) — HAMMER IT ──────────
 
   test("Order review heart-piece — full interaction sweep", async ({ page, request }) => {
@@ -480,18 +476,6 @@ test.describe("Live full E2E — every screen renders + heart-piece interactions
 
   test("Mappings (/library/mappings) renders cleanly", async ({ page }) => {
     await visitAndAssertHealthy(page, "/library/mappings");
-  });
-
-  test("Rules (/library/rules) renders cleanly", async ({ page }) => {
-    await visitAndAssertHealthy(page, "/library/rules");
-  });
-
-  test("Rule definitions (/library/rule-definitions) renders cleanly", async ({ page }) => {
-    await visitAndAssertHealthy(page, "/library/rule-definitions");
-  });
-
-  test("Output templates (/library/templates) renders cleanly", async ({ page }) => {
-    await visitAndAssertHealthy(page, "/library/templates");
   });
 
   test("Standards (/library/standards) renders cleanly", async ({ page }) => {

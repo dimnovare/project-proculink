@@ -288,7 +288,7 @@ export const SECTION_GUIDES: SectionGuideEntry[] = [
   {
     route: "/settings",
     title: "Settings",
-    purpose: "Workspace name and order direction, billing, intake channels, API keys, and webhooks.",
+    purpose: "Workspace name and order direction, billing, intake channels, API keys, and outbound webhooks.",
     bullets: [
       { text: "Set whether you send or receive purchase orders", href: "/settings?tab=org" },
       { text: "Check your plan, usage, and upgrade options", href: "/settings?tab=billing" },

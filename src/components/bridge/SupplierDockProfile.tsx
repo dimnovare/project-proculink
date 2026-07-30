@@ -1726,10 +1726,11 @@ export function SupplierDockProfile({ id }: { id: string }) {
           )
         )}
 
-        {/* Rules / Output templates / Connectors are managed globally (Library +
-            Operations); supplier-scoped versions aren't built yet, so we don't
-            surface empty placeholder tabs here. Re-add a tab once its
-            supplier-scoped feature ships. */}
+        {/* Connectors are managed globally (Operations); a supplier-scoped
+            version isn't built yet, so we don't surface an empty placeholder tab
+            here. Re-add a tab once its supplier-scoped feature ships. (Rules and
+            output format are already supplier-scoped — the Validation rules and
+            Delivery tabs above; their org-wide pages were retired 2026-07.) */}
       </div>
     </PageShell>
   );

@@ -2,33 +2,25 @@ import { helpArticleMetadata } from "@/lib/seo";
 
 export const metadata = helpArticleMetadata({
   slug: "validation-rules",
-  title: "Validation rules and rule definitions — ProcuLink Help",
-  description: "The org rule catalog, the reusable rule definitions, and the supplier acceptance rules that actually check orders.",
+  title: "Validation rules — ProcuLink Help",
+  description: "How to set the checks that run on a supplier's orders, and where the results show up.",
 });
 
-# Validation rules and rule definitions
+# Validation rules
 
-ProcuLink has three rule surfaces, and only one of them actually checks orders. Knowing which is which saves a lot of confusion.
+Validation rules are the checks an order has to pass for a supplier. They live on **each supplier's Validation rules tab** — open **Partners**, pick a supplier, then **Validation rules**. That is the only place a check is set, and the only place one runs.
 
-## 1. The rule catalog (Rules & formats → Rules)
+## Setting up checks for a supplier
 
-A catalog that **documents** the checks your organisation cares about — name, description, and a severity (error, warning, or info). It comes seeded with starter rules and you can add your own.
-
-Honesty first: **the catalog does not block or hold any order by itself.** Toggling a catalog rule changes the documentation, not enforcement. It's the shared vocabulary your team agrees on before setting up real checks per supplier.
-
-## 2. Rule definitions (Rules & formats → Rules)
-
-A read-only library of the **reusable check shapes** that supplier rules bind to — each with its scope (order or line), field, operator, default severity, and, where applicable, references into the standards (UBL, EDIFACT, X12, cXML). Definitions are created automatically as you author supplier rules, so this page is a reference, not an editor.
-
-## 3. Supplier acceptance rules — the ones that run
-
-Real enforcement lives on each supplier's **Validation rules** tab. Rules there are grouped into a versioned **acceptance profile** (new versions are drafted, then activated; activating archives the previous version), and each rule specifies:
+Rules are grouped into a versioned **acceptance profile**: you draft a new version, then activate it, which archives the previous one. Each rule specifies:
 
 - **scope** — the whole order, or every line,
 - **field** — e.g. currency or buyer name on the order; supplier/buyer item code, description, quantity, or unit price on lines,
 - **operator** — `required`, `equals`, `not_equals`, `in` (comma-separated list), `contains`, `min`, `max`, `greater_than`, `less_than`, `max_length`,
 - **severity** — error, warning, or info,
 - a **block-on-fail** flag carried with the rule and its results.
+
+Each rule shows the standards references for its field (UBL, EDIFACT, X12, cXML), so you can point at the exact element when a supplier asks which one you mean.
 
 ## Where results surface
 
