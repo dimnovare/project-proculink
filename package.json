@@ -24,7 +24,8 @@
     "demo:tools:assemble": "node scripts/demo-video/tools/assemble-tool.mjs",
     "check:pageshell": "node scripts/check-pageshell.mjs",
     "lint:vocab": "node scripts/check-vocabulary.mjs",
-    "prepare": "node scripts/install-hooks.mjs"
+    "prepare": "node scripts/install-hooks.mjs",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@clerk/nextjs": "^7.4.1",

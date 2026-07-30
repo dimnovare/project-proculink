@@ -94,6 +94,15 @@ jobs:
         if: always()
         run: bun run lint:vocab
 
+      # Types are the one gate WP-01 left out, and the gap was not theoretical: by the time
+      # this was added, main carried TWO type errors - one pre-existing in seo.test.ts and one
+      # merged the same day via #52. tsconfig has strict:false and strictNullChecks:false, so
+      # this catches only hard type errors, not nullability. It is still the difference between
+      # a type regression shipping and a type regression failing a PR.
+      - name: Typecheck (tsc --noEmit)
+        if: always()
+        run: bun run typecheck
+
   test-e2e:
     name: Playwright e2e (mock mode)
     runs-on: ubuntu-latest
