@@ -173,7 +173,10 @@ export function withFieldManipulators(
   const base = o ?? emptyOverride();
   const cfg = cloneOutput(base.output);
   const existing = findRule(cfg, outputPath);
-  const scope = existing?.scope ?? (scopeHint === "line" || LINE_KEYS.has(outputPath) ? "lines" : "header");
+  // Authored scope wins; otherwise the explicit hint, and ONLY the hint. Reading the output column
+  // NAME here is the same defect as in scopeOf and withAddOutputField — the `existing?.scope ??`
+  // fallback merely hid it for columns that already had a rule.
+  const scope = existing?.scope ?? (scopeHint === "line" ? "lines" : "header");
   delete cfg.header[outputPath];
   delete cfg.lines[outputPath];
   const prev = existing?.rule;
@@ -243,10 +246,22 @@ export function withAddOutputField(
   if (cfg.header[path] || cfg.lines[path]) {
     return { ...base, customFields: base.customFields ?? [], output: cfg };
   }
-  const scope = scopeHint === "line" || LINE_KEYS.has(path) ? "lines" : "header";
-  // A new unmapped field: pass-through rule (canonicalField === outputPath) so it renders as a
-  // declared target. The user then wires a source or sets a fixed value from the row.
-  cfg[scope][path] = { outputPath: path, canonicalField: path, fixedValue: null, fieldManipulators: [] };
+
+  // The hint is the ONLY signal here. This used to be `scopeHint === "line" || LINE_KEYS.has(path)`
+  // — reading the new column's NAME as if it were one of our canonical field names, which
+  // overrides an explicit "header" hint for any column literally called DeliveryDate, TaxAmount,
+  // Recipient, Unspsc, ContractNumber or ManufacturerPartNumber. Those are ordinary procurement
+  // column names, and a header column emitted once becoming a line column repeated per line is a
+  // different document. `withTargetConnect` was fixed for this and these two siblings were not;
+  // "add a column" is the FIRST thing an author does, so there is no existing rule to fall back on.
+  const scope = scopeHint === "line" ? "lines" : "header";
+
+  // A new column starts UNMAPPED. It used to be written as `canonicalField: path`, a pass-through
+  // that was inert while only 13 names resolved — post-WP-14 it resolves for 32 more, so "add a
+  // blank column called ShipToCity" silently declared one pre-filled with the buyer's ship-to city.
+  // Declaring a column and binding a source are two separate acts by the author; only the second is
+  // consent. The row's picker is how they bind it.
+  cfg[scope][path] = { outputPath: path, canonicalField: null, fixedValue: null, fieldManipulators: [] };
   return { ...base, customFields: base.customFields ?? [], output: cfg };
 }
 

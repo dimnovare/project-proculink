@@ -5,6 +5,10 @@ import {
   CANONICAL_FIELD_GROUPS,
   CANONICAL_HEADER_FIELDS,
   CANONICAL_LINE_FIELDS,
+  STRUCTURED_WRITEBACK_HEADER_FIELDS,
+  STRUCTURED_WRITEBACK_LINE_FIELDS,
+  isStructuredOutputFormat,
+  canonicalFieldReachesOutput,
 } from "@/lib/api/types";
 
 /**
@@ -145,5 +149,66 @@ describe("the default document spine stays narrow", () => {
 
     expect(CANONICAL_HEADER_FIELDS.length).toBeLessThan(BINDABLE_HEADER_FIELDS.length);
     expect(CANONICAL_LINE_FIELDS.length).toBeLessThan(BINDABLE_LINE_FIELDS.length);
+  });
+});
+
+/**
+ * The FORMAT-HONOURING half of the same offer-⇔-works contract.
+ *
+ * The lists below mirror `EffectiveEntityResolver.HeaderFields` / `LineFields` in
+ * `ProcuLink.Transform/Output/EffectiveEntityResolver.cs`. That set is deliberately NOT widened
+ * with the row bag: `ResolveTargetField` matches a rule by its OutputPath, so widening it would let
+ * an existing customer's cXML column that happens to be named "ShipToCity" start REWRITING the real
+ * canonical column — a change to a document they already receive. So the two lists diverge on
+ * purpose, and both directions need pinning:
+ *
+ *   • BINDABLE_* must stay WIDE   — or the picker under-offers on CSV/JSON, the WP-14 gap.
+ *   • the write-back set must stay NARROW — or a structured supplier's document changes silently.
+ *
+ * The backend half is pinned by `EffectiveEntityResolverCarriesWidenedFieldsTests`.
+ */
+const BACKEND_STRUCTURED_WRITEBACK_HEADER = [
+  "PoNumber", "OrderDate", "Currency", "SupplierName", "BuyerName", "RequestedDeliveryDate",
+];
+const BACKEND_STRUCTURED_WRITEBACK_LINE = [
+  "LineNumber", "BuyerItemCode", "SupplierItemCode", "Description", "Quantity", "Unit", "UnitPrice",
+];
+
+describe("structured-format write-back set", () => {
+  it("mirrors EffectiveEntityResolver exactly", () => {
+    expect([...STRUCTURED_WRITEBACK_HEADER_FIELDS]).toEqual(BACKEND_STRUCTURED_WRITEBACK_HEADER);
+    expect([...STRUCTURED_WRITEBACK_LINE_FIELDS]).toEqual(BACKEND_STRUCTURED_WRITEBACK_LINE);
+  });
+
+  it("is a STRICT subset of the bindable set — the two lists must not converge", () => {
+    const bindable = new Set<string>([...BINDABLE_HEADER_FIELDS, ...BINDABLE_LINE_FIELDS]);
+    for (const f of [...STRUCTURED_WRITEBACK_HEADER_FIELDS, ...STRUCTURED_WRITEBACK_LINE_FIELDS]) {
+      expect(bindable.has(f)).toBe(true);
+    }
+    expect(STRUCTURED_WRITEBACK_HEADER_FIELDS.length + STRUCTURED_WRITEBACK_LINE_FIELDS.length)
+      .toBeLessThan(bindable.size);
+  });
+
+  it("identifies the structured formats and only those", () => {
+    for (const f of ["xml", "cxml", "ubl", "x12", "CXML", "UBL"]) {
+      expect(isStructuredOutputFormat(f)).toBe(true);
+    }
+    for (const f of ["csv", "json", "CSV", null, undefined, ""]) {
+      expect(isStructuredOutputFormat(f)).toBe(false);
+    }
+  });
+
+  it("canonicalFieldReachesOutput is permissive for flat formats and narrow for structured ones", () => {
+    // Flat: everything lands, including a custom key the picker also offers.
+    for (const f of ["ShipToCity", "ManufacturerPartNumber", "PoNumber", "MyCustomKey"]) {
+      expect(canonicalFieldReachesOutput(f, "csv")).toBe(true);
+      expect(canonicalFieldReachesOutput(f, null)).toBe(true);
+    }
+    // Structured: only the write-back set.
+    expect(canonicalFieldReachesOutput("PoNumber", "cxml")).toBe(true);
+    expect(canonicalFieldReachesOutput("Quantity", "x12")).toBe(true);
+    for (const f of ["ShipToCity", "Incoterms", "ManufacturerPartNumber", "Unspsc", "MyCustomKey"]) {
+      expect(canonicalFieldReachesOutput(f, "ubl")).toBe(false);
+    }
   });
 });

@@ -15,7 +15,7 @@
 // token values. Everything here is a pure function of those projections so it is testable
 // without mounting the wire engine.
 
-import { BINDABLE_HEADER_FIELDS, BINDABLE_LINE_FIELDS } from "@/lib/api/types";
+import { CANONICAL_HEADER_FIELDS, CANONICAL_LINE_FIELDS } from "@/lib/api/types";
 import type { TargetField } from "./types";
 
 /** Canonical fields the supplier dispatcher treats as required (a missing source is loud). */
@@ -29,14 +29,19 @@ const REQUIRED_CANONICAL = new Set<string>([
 ]);
 
 /**
- * The full canonical spine (header + line) — used to decide whether a 1:1 default exists.
+ * The DEFAULT outgoing spine (header + line) — used to decide whether a 1:1 default exists.
  *
- * WP-14: the BINDABLE set, not the narrow default spine. An output column named "ShipToCity" now
- * genuinely does resolve 1:1 from the backend row bag, so reporting it as unmapped would be a lie
- * in the honest direction that still misleads: the operator would go looking for a wire that is
- * not needed.
+ * <b>Deliberately the DEFAULT spine, not the BINDABLE set.</b> WP-14 briefly widened this to all 53
+ * bindable names on the reasoning that "ShipToCity resolves 1:1 from the backend row bag". It does
+ * — but only for a rule that NAMES it. The default transform emits these 13 and nothing else, so
+ * for a configured output column called `ShipToCity` with no rule the backend emits nothing while
+ * this pane reported `mapped: true, kind: "auto"` and rendered a value preview taken from the
+ * parsed order. Confidently wrong is worse than the amber it replaced.
+ *
+ * "Bindable" and "emitted by default" are two different sets and this is the one that answers
+ * "do I need a wire here?". Pinned by outgoingStatusModel.test.ts.
  */
-const CANONICAL_SPINE = new Set<string>([...BINDABLE_HEADER_FIELDS, ...BINDABLE_LINE_FIELDS]);
+const CANONICAL_SPINE = new Set<string>([...CANONICAL_HEADER_FIELDS, ...CANONICAL_LINE_FIELDS]);
 
 /** How an output field gets its value, for the small source tag. */
 export type OutgoingSourceKind = "wired" | "fixed" | "auto" | "none";

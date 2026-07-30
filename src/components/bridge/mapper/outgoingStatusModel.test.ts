@@ -172,3 +172,68 @@ describe("computeOutgoingStatuses — summary", () => {
     expect(summary.requiredUnmapped).toBe(0);
   });
 });
+
+/**
+ * WP-14 — the "auto" branch must keep meaning what it says.
+ *
+ * `kind: "auto"` claims "the DEFAULT transform already carries this value 1:1, you do not need a
+ * wire". That is true for the 13 names the default outgoing document actually emits. It is NOT
+ * true for the 40 names WP-14 made BINDABLE: those resolve only when a rule names them, so for an
+ * output column called `ShipToCity` with no rule the backend emits nothing at all — while the pane
+ * showed it green, "auto", with a value preview taken from the parsed order.
+ *
+ * Bindable and emitted-by-default are two different sets. Conflating them turns the honest-status
+ * model into a confident lie, which is worse than the amber it replaced.
+ */
+describe("computeOutgoingStatus — auto means the DEFAULT transform emits it, not merely that it is bindable", () => {
+  it.each([
+    "ShipToCity",
+    "ShipToName",
+    "Incoterms",
+    "BuyerTaxId",
+    "ContractNumber",
+    "ManufacturerPartNumber",
+  ])("does not claim %s is auto-mapped when no rule names it", (columnName) => {
+    const s = computeOutgoingStatus(
+      tf(columnName),
+      // The parsed order HAS the value — that is exactly the trap: the preview would look right.
+      baseInput({ canonicalValueByKey: new Map([[columnName, "Tallinn"]]) }),
+    );
+
+    expect(s.kind).toBe("none");
+    expect(s.mapped).toBe(false);
+    expect(s.valuePreview).toBeNull();
+  });
+
+  it("still reports the DEFAULT spine as auto-mapped", () => {
+    // Non-vacuity: narrowing the spine must not make everything unmapped.
+    for (const [field, value] of [
+      ["PoNumber", "PO-1"],
+      ["Currency", "EUR"],
+      ["BuyerName", "Acme"],
+      ["Quantity", "3"],
+      ["UnitPrice", "9.50"],
+    ] as const) {
+      const s = computeOutgoingStatus(tf(field), baseInput({ canonicalValueByKey: new Map([[field, value]]) }));
+      expect(s.kind).toBe("auto");
+      expect(s.mapped).toBe(true);
+      expect(s.valuePreview).toBe(value);
+    }
+  });
+
+  it("reports a widened field as mapped once a rule actually binds it", () => {
+    // The other half: binding ShipToCity IS supported by the backend row bag, so an explicit wire
+    // must read as mapped. The defect is the claim without the rule, not the capability.
+    const s = computeOutgoingStatus(
+      tf("delivery_city"),
+      baseInput({
+        outputConnections: { delivery_city: "ShipToCity" },
+        canonicalValueByKey: new Map([["ShipToCity", "Tallinn"]]),
+      }),
+    );
+
+    expect(s.kind).toBe("wired");
+    expect(s.mapped).toBe(true);
+    expect(s.valuePreview).toBe("Tallinn");
+  });
+});

@@ -407,6 +407,58 @@ export function canonicalFieldScope(field: string): "header" | "line" | null {
   return null;
 }
 
+// ── Which bindings a given output FORMAT can actually honour ─────────────────
+//
+// Offer ⇔ works. CSV and JSON are emitted by the override engine itself, so a rule may bind any
+// name in the row bag and the value lands in the column. The structured formats have a FIXED
+// document shape — a UBL `cbc:ID`, an X12 `BEG03` — so an arbitrary output path has nowhere to go.
+// What an override CAN do for them is change the CANONICAL VALUES that feed that fixed shape, and
+// the backend recognises only the small set below for that (`EffectiveEntityResolver.HeaderFields`
+// / `LineFields`); every other rule is silently `continue`d.
+//
+// Without this, the picker offered all 53 names to a cXML supplier, the pane showed the binding
+// wired WITH a value preview, and the delivered document ignored it — a confident lie in the UI
+// about what the system does. Pinned by `canonicalFields.test.ts`; the backend list is pinned by
+// `EffectiveEntityResolverCarriesWidenedFieldsTests`.
+
+/** Output formats whose document shape is fixed by a standard, not by the author's columns. */
+export const STRUCTURED_OUTPUT_FORMATS = ["xml", "cxml", "ubl", "x12"] as const;
+
+/**
+ * The header fields a structured format's transform will read back off the entity. Mirror of
+ * `EffectiveEntityResolver.HeaderFields` in `ProcuLink.Transform/Output/EffectiveEntityResolver.cs`.
+ * That set is deliberately NOT widened with the row bag: widening it would let an existing
+ * customer's output column that happens to be named "ShipToCity" start REWRITING the real column.
+ */
+export const STRUCTURED_WRITEBACK_HEADER_FIELDS = [
+  "PoNumber", "OrderDate", "Currency", "SupplierName", "BuyerName", "RequestedDeliveryDate",
+] as const;
+
+/** Mirror of `EffectiveEntityResolver.LineFields`. */
+export const STRUCTURED_WRITEBACK_LINE_FIELDS = [
+  "LineNumber", "BuyerItemCode", "SupplierItemCode", "Description", "Quantity", "Unit", "UnitPrice",
+] as const;
+
+/** True when the format's shape is fixed by a standard (cXML / UBL / X12 / XML). */
+export function isStructuredOutputFormat(format: string | null | undefined): boolean {
+  if (!format) return false;
+  return (STRUCTURED_OUTPUT_FORMATS as readonly string[]).includes(format.toLowerCase());
+}
+
+/**
+ * True when binding `field` in an output rule actually reaches the delivered document for
+ * `format`. Always true for the flat formats (CSV/JSON emit the author's own columns) and for a
+ * custom field key; for a structured format only the write-back sets above land.
+ */
+export function canonicalFieldReachesOutput(
+  field: string,
+  format: string | null | undefined,
+): boolean {
+  if (!isStructuredOutputFormat(format)) return true;
+  return (STRUCTURED_WRITEBACK_HEADER_FIELDS as readonly string[]).includes(field)
+      || (STRUCTURED_WRITEBACK_LINE_FIELDS as readonly string[]).includes(field);
+}
+
 // ── Whole-document Scriban template mode ─────────────────────────────────────
 // Mirrors docs/qa/2026-06-09-scriban-template-namespace.md (the backend source of
 // truth). Used by the "proposed structure / available fields" reference panel.

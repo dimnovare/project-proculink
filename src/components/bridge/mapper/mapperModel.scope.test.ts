@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { withTargetConnect } from "./mapperModel";
+import { withTargetConnect, withAddOutputField, withFieldManipulators } from "./mapperModel";
 
 /**
  * WP-14 — widening the line-key set must not silently reclassify an existing output column.
@@ -67,5 +67,75 @@ describe("output-rule scope is decided by the canonical source, never the column
     const second = withTargetConnect(first, "GrandTotal", "Amount");
     expect(Object.keys(second.output!.lines)).toContain("Amount");
     expect(Object.keys(second.output!.header)).not.toContain("Amount");
+  });
+});
+
+/**
+ * The same defect at the OTHER TWO sites. Fixing `withTargetConnect` alone left
+ * `withAddOutputField` reading the output column NAME with no scope guard at all, and
+ * `withFieldManipulators` doing the same behind an `existing?.scope ??` fallback that only helps
+ * once a rule already exists.
+ *
+ * "Add a column" is the FIRST thing an author does with a new column, so this path has no existing
+ * rule to fall back on — the explicit hint is the only signal there is, and it was being
+ * overridden.
+ */
+describe("withAddOutputField honours the explicit scope hint", () => {
+  const noCurrentPaths: { outputPath: string; scope: "header" | "line" }[] = [];
+
+  it.each(["DeliveryDate", "TaxAmount", "Recipient", "Unspsc", "ContractNumber", "ManufacturerPartNumber"])(
+    "adds a HEADER column named %s in header scope, not line scope",
+    (columnName) => {
+      const result = withAddOutputField(null, columnName, "header", noCurrentPaths);
+
+      expect(Object.keys(result.output!.header)).toContain(columnName);
+      expect(Object.keys(result.output!.lines)).not.toContain(columnName);
+    },
+  );
+
+  it("still puts a column added with the line hint into line scope", () => {
+    // Non-vacuity: the hint must be obeyed in BOTH directions.
+    const result = withAddOutputField(null, "TaxAmount", "line", noCurrentPaths);
+
+    expect(Object.keys(result.output!.lines)).toContain("TaxAmount");
+    expect(Object.keys(result.output!.header)).not.toContain("TaxAmount");
+  });
+
+  it("adds a blank column UNMAPPED, even when its name matches a canonical field", () => {
+    // The compounding half of the defect. The rule is written as `canonicalField: path`, which
+    // post-WP-14 RESOLVES for 32 more names — so "add a blank column called ShipToCity" declared a
+    // column silently pre-filled with the buyer's ship-to city. Adding a column and binding a
+    // source are two different acts by the author, and only the second one is consent.
+    const result = withAddOutputField(null, "ShipToCity", "header", noCurrentPaths);
+
+    expect(result.output!.header.ShipToCity.canonicalField).toBeNull();
+    expect(result.output!.header.ShipToCity.fixedValue).toBeNull();
+  });
+
+  it("leaves an already-declared column exactly where it is", () => {
+    const first = withAddOutputField(null, "TaxAmount", "line", noCurrentPaths);
+    const again = withAddOutputField(first, "TaxAmount", "header", noCurrentPaths);
+
+    expect(Object.keys(again.output!.lines)).toContain("TaxAmount");
+    expect(Object.keys(again.output!.header)).not.toContain("TaxAmount");
+  });
+});
+
+describe("withFieldManipulators honours the explicit scope hint", () => {
+  it.each(["DeliveryDate", "TaxAmount", "Recipient", "Unspsc"])(
+    "keeps a fresh HEADER column named %s in header scope",
+    (columnName) => {
+      const result = withFieldManipulators(null, columnName, [{ type: "Trim", params: {} }], "header");
+
+      expect(Object.keys(result.output!.header)).toContain(columnName);
+      expect(Object.keys(result.output!.lines)).not.toContain(columnName);
+    },
+  );
+
+  it("still routes a fresh LINE column to line scope", () => {
+    const result = withFieldManipulators(null, "TaxAmount", [{ type: "Trim", params: {} }], "line");
+
+    expect(Object.keys(result.output!.lines)).toContain("TaxAmount");
+    expect(Object.keys(result.output!.header)).not.toContain("TaxAmount");
   });
 });

@@ -154,8 +154,14 @@ describe("withAddOutputField (order can add an output field — outgoing_empty f
       { outputPath: "SupplierItemCode", scope: "line" as const },
     ];
     const next = withAddOutputField(emptyOverride(), "Credentials", "header", current);
-    // The new field is added as a declared pass-through target…
-    expect(next.output?.header.Credentials).toEqual({ outputPath: "Credentials", canonicalField: "Credentials", fixedValue: null, fieldManipulators: [] });
+    // The new field is added as a declared, UNMAPPED target.
+    //
+    // This used to assert `canonicalField: "Credentials"` — a self-referencing pass-through that
+    // was inert only because "Credentials" resolves to nothing in the backend row bag. WP-14 made
+    // 32 more names resolve, so the same construction turned "add a blank column called ShipToCity"
+    // into a column silently pre-filled with the buyer's ship-to city. Declaring a column and
+    // binding a source are separate acts by the author; only the second is consent.
+    expect(next.output?.header.Credentials).toEqual({ outputPath: "Credentials", canonicalField: null, fixedValue: null, fieldManipulators: [] });
     // …and the canonical spine is NOT materialized into the override (deriveTargetFields(merge)
     // keeps it visible). Only the one added field lands; the rest stay AUTO/byte-identical.
     expect(next.output?.header.PoNumber).toBeUndefined();
@@ -172,10 +178,23 @@ describe("withAddOutputField (order can add an output field — outgoing_empty f
     expect(next.output?.header.Notes?.outputPath).toBe("Notes");
   });
 
-  it("routes a canonical line-named field into the line scope", () => {
-    const next = withAddOutputField(emptyOverride(), "UnitPrice", "header", []);
+  it("routes a canonical line-named field into the line scope — from the HINT, not the name", () => {
+    // This test used to pass "header" and expect LINE scope, i.e. it asserted that the column's
+    // NAME overrides the caller's explicit hint. That is the WP-14 scope defect: a supplier column
+    // called DeliveryDate / TaxAmount / Recipient would jump to line scope and repeat per line.
+    //
+    // Both real callers already pass the right scope — `addCanonical` takes it from
+    // systemCanonicalNodes() (UnitPrice is tagged "line" there) and `addCustom` takes it from the
+    // author's own choice — so the name heuristic was redundant where it was right and silent where
+    // it was wrong.
+    const next = withAddOutputField(emptyOverride(), "UnitPrice", "line", []);
     expect(next.output?.lines.UnitPrice?.outputPath).toBe("UnitPrice");
     expect(next.output?.header.UnitPrice).toBeUndefined();
+
+    // The counter-case: an author who deliberately adds a HEADER column named UnitPrice gets one.
+    const asHeader = withAddOutputField(emptyOverride(), "UnitPrice", "header", []);
+    expect(asHeader.output?.header.UnitPrice?.outputPath).toBe("UnitPrice");
+    expect(asHeader.output?.lines.UnitPrice).toBeUndefined();
   });
 
   it("is a no-op for a blank path and for a duplicate path", () => {
