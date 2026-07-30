@@ -78,11 +78,29 @@
 // strip, href-only hub tabs, comment stripping, the self-link exclusion, the
 // registry-file exclusion, and two loosenings of the link-tuple pattern that
 // would credit src/app/sitemap.ts as navigation.
+//
+// Three of those decisions — comment stripping and both link-tuple loosenings —
+// now live in src/test/sourceScan.ts, shared with the OUTBOUND link crawl. The
+// mutation targets moved with them, and reverting one there now turns BOTH
+// guards red, which is a stronger signal than before; an out-of-tree harness
+// that patches this file by line needs repointing at that module.
 
 import { describe, it, expect } from "vitest";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import {
+  DESTINATION_ANCHOR,
+  extractRaw,
+  HREF_ANCHOR,
+  LINK_TUPLE_RE,
+  MD_LINK_RE,
+  NAV_CALL_OR_NEW_URL_ANCHOR,
+  REDIRECT_PROP_ANCHOR,
+  syntaxFor,
+  type Pattern,
+  type SourceSyntax,
+} from "./sourceScan";
 import { buildVisibleNav, PINNED_ACTION_HREF } from "@/components/bridge/BridgeSidebar";
 import { HUB_TABS } from "@/components/bridge/layout/HubTabs";
 import { HELP_ARTICLES } from "@/lib/help-articles";
@@ -322,150 +340,27 @@ export function targetSatisfiesRoute(route: string, target: string): boolean {
   return t.length === r.length;
 }
 
-// ─── Literal reading ──────────────────────────────────────────────────────────
+// ─── Pattern groups ───────────────────────────────────────────────────────────
 //
-// The link patterns used to require a quote IMMEDIATELY after `href=` /
-// `push(`, which made every non-trivial expression invisible. The shipped
-// counter-example is src/app/(app)/admin/page.tsx: its only internal link is
-//   href={accessError.status === 401 ? "/sign-in?redirect_url=%2Fadmin" : "/bridge"}
-// and its other two hrefs are external Stripe URLs, so the WHOLE FILE scored
-// zero targets. Same shape at LaneDrawer.tsx:583, connectors/page.tsx:921,
-// pricing/page.tsx:225.
+// The reading machinery — comment stripping (js and mdx modes), string-literal
+// masking, and balanced value-region reading — lives in src/test/sourceScan.ts,
+// shared with the OUTBOUND link crawl (src/test/linkExtract.ts). That module's
+// header records what is shared, and what each guard keeps to itself and why.
+// The short version: the mechanics were identical, the two policies below are
+// not.
 //
-// So an anchor (`href=`, `href:`, `router.push(`, …) now opens a VALUE REGION,
-// and every string literal inside that region is a candidate target. The region
-// is bounded — it is not "every literal after the anchor" — which is what keeps
-// a sibling object key or the next JSX attribute out.
-
-/** Read the string/template literal starting at `i`, or null if none starts there. */
-function readLiteral(text: string, i: number): { value: string; end: number } | null {
-  const q = text[i];
-  if (q !== '"' && q !== "'" && q !== "`") return null;
-  let value = "";
-  let j = i + 1;
-  while (j < text.length) {
-    const ch = text[j];
-    if (ch === "\\") {
-      value += text.slice(j, j + 2);
-      j += 2;
-      continue;
-    }
-    if (ch === q) return { value, end: j + 1 };
-    value += ch;
-    j++;
-  }
-  return null; // unterminated — not a literal
-}
-
-/**
- * Blank out the CONTENTS of every string literal, preserving length and the
- * quote characters. Anchors are then searched in this masked copy, so an
- * anchor-shaped substring that is really DATA cannot open a region:
- * `querySelector('a[href="/x"]')` is a selector, and the query string in
- * `"/sign-in?redirect_url=%2Fadmin"` is a parameter, not a redirect prop.
- * Offsets are identical in both copies, so a match found in the masked text
- * indexes straight back into the real one.
- */
-function maskLiterals(code: string): string {
-  let out = "";
-  let i = 0;
-  while (i < code.length) {
-    const lit = readLiteral(code, i);
-    if (lit) {
-      out += code[i] + " ".repeat(Math.max(0, lit.end - i - 2)) + code[lit.end - 1];
-      i = lit.end;
-      continue;
-    }
-    out += code[i];
-    i++;
-  }
-  return out;
-}
-
-const OPENERS = "([{";
-const CLOSERS = ")]}";
-
-/**
- * Every string literal in the value region that begins at `at`.
- *
- *   • `call`  — the anchor consumed the `(`; the region is the argument list,
- *               up to the matching `)`.
- *   • `value` — an `href=` / `href:` value. If it opens with `{`, the region is
- *               the balanced brace expression. If it opens with a quote, the
- *               region is exactly ONE literal — otherwise `href="/x" title="y"`
- *               would swallow the next JSX attribute. Anything else (a bare
- *               ternary after `href:`) runs to the first `,` `;` or closer at
- *               depth zero, which stops `{ href: "/a", other: "/b" }` at `/a`.
- */
-function literalsInRegion(code: string, at: number, mode: "call" | "value"): string[] {
-  let i = at;
-  while (i < code.length && /\s/.test(code[i])) i++;
-
-  if (mode === "value") {
-    const lit = readLiteral(code, i);
-    if (lit) return [lit.value];
-  }
-
-  const values: string[] = [];
-  let depth = mode === "call" ? 1 : 0;
-  if (mode === "value" && code[i] === "{") {
-    depth = 1;
-    i++;
-  }
-  while (i < code.length) {
-    const lit = readLiteral(code, i);
-    if (lit) {
-      values.push(lit.value);
-      i = lit.end;
-      continue;
-    }
-    const ch = code[i];
-    if (OPENERS.includes(ch)) depth++;
-    else if (CLOSERS.includes(ch)) {
-      depth--;
-      if (depth <= 0) break;
-    } else if (depth === 0 && (ch === "," || ch === ";")) break;
-    i++;
-  }
-  return values;
-}
-
-/** `href="/x"` · `href: "/x"` · `href={…any expression…}` */
-const HREF_ANCHOR = /\bhref\s*[:=]/g;
-/** router.push(…) · router.replace(…) · redirect(…) · new URL(…) */
-const NAV_CALL_ANCHOR = /\b(?:router\.(?:push|replace)|redirect|new URL)\s*\(/g;
-/** Clerk / Next redirect props: fallbackRedirectUrl="/x", forceRedirectUrl={…} */
-const REDIRECT_PROP_ANCHOR = /\b\w*[Rr]edirect(?:Url|_url)\s*[:=]/g;
-/** next.config.ts redirects(): destination: "/x" */
-const DESTINATION_ANCHOR = /\bdestination\s*:/g;
-// The repo's footer link-registry idiom: a `[label, href]` 2-tuple destructured
-// into a link — `{ links: [["Customers", "/customers"], …] }` in both
-// (marketing)/layout.tsx and the home page, rendered as
-// `col.links.map(([label, href]) => <a href={href}>)`. There is no literal
-// `href="/customers"` anywhere, so without this pattern the guard reported
-// /customers, /changelog and /book-demo as stranded when all three sit in the
-// footer of every marketing page. The closing `]` is required so this matches a
-// 2-tuple only, not any longer data row that happens to contain a path.
+// WHAT THIS GUARD OWNS, 1 of 2 — the pattern groups stay SEPARATE, so a target
+// can be attributed by KIND. "Reached via a redirect" is a materially different
+// fact from "reached via a link": a redirect destination is reachable, but has
+// no clickable entry point anywhere. It is also what lets next.config.ts be
+// scanned for `destination:` and nothing else. The crawl combines its patterns
+// instead, because a dead link is dead however it was written.
 //
-// This pattern is deliberately NOT "any two adjacent string literals in an
-// array". That looser form credits src/app/sitemap.ts — a bare `["/", "/how-it-
-// works", "/pricing", …]` list — as navigation, which it is not: a sitemap
-// tells a crawler a URL exists, it does not give a user a way to arrive. Every
-// marketing route would then pass the guard for free. Both the `/` prefix on
-// the SECOND element and the immediately-following `]` are what keep a sitemap
-// out; `assertions below pin this.
-const LINK_TUPLE_RE = /\[\s*(["'`])[^"'`]*\1\s*,\s*(["'`])(\/[^"'`]*)\2\s*\]/g;
-// MDX body link: [text](/help/x)
-const MD_LINK_RE = /\]\((\/[^)\s]*)\)/g;
-
-/**
- * Two extractor shapes. `re`/`group` reads a whole literal out of one regex
- * match (tuples, markdown links). `anchor`/`mode` opens a value region at the
- * anchor and reads every literal inside it.
- */
-export type Pattern =
-  | { re: RegExp; group: number }
-  | { anchor: RegExp; mode: "call" | "value" };
+// `NAV_CALL_OR_NEW_URL_ANCHOR` is the WIDER of the two nav-call forms; the crawl
+// uses the narrower one. See ONE DELIBERATE DUPLICATE in ./sourceScan — the two
+// guards disagree about `new URL(…)`, and the convergence pinned that
+// disagreement rather than resolving it, because resolving it would have changed
+// one guard's behaviour.
 
 const LINK_PATTERNS: Pattern[] = [
   { anchor: HREF_ANCHOR, mode: "value" },
@@ -473,130 +368,23 @@ const LINK_PATTERNS: Pattern[] = [
   { re: MD_LINK_RE, group: 1 },
 ];
 const REDIRECT_PATTERNS: Pattern[] = [
-  { anchor: NAV_CALL_ANCHOR, mode: "call" },
+  { anchor: NAV_CALL_OR_NEW_URL_ANCHOR, mode: "call" },
   { anchor: REDIRECT_PROP_ANCHOR, mode: "value" },
 ];
 const DESTINATION_PATTERNS: Pattern[] = [{ anchor: DESTINATION_ANCHOR, mode: "value" }];
 
-// ─── Comment stripping ────────────────────────────────────────────────────────
-
-export type SourceSyntax = "js" | "mdx";
-
 /**
- * A `/` may begin a regex literal only where a VALUE may begin. This is the
- * standard disambiguation heuristic; it exists so `const re = /\/\//g` is not
- * mistaken for a line comment and used to swallow the rest of the line.
- */
-const REGEX_MAY_START_AFTER = /^$|^[(,=:[!&|?{};+\-*%~^<>]$/;
-
-/**
- * Remove comments so that COMMENTED-OUT CODE CANNOT CONFER REACHABILITY.
+ * WHAT THIS GUARD OWNS, 2 of 2 — normalisation. Every raw literal goes through
+ * `normalizeTarget`, which drops anything that is not an internal path and maps
+ * a computed segment to the `«dyn»` sentinel, so `targetSatisfiesRoute` can
+ * match `` href={`/inbox/${o.id}`} `` against `/inbox/[orderId]` structurally.
+ * The crawl SKIPS computed paths instead, and has to: requiring a dynamic route
+ * segment there would flag `/help/${article.slug}` as a 404 when every article
+ * is its own static page.
  *
- * Without this, the cheapest way to fake a link is to write one in a comment:
- * it reads as harmless context in review, it navigates nobody, and it made a
- * genuinely orphaned page pass this guard. The repo already does it by
- * accident — UserChipMenu.tsx:10 is a `//` line describing
- * `signOut({ redirectUrl: "/" })`, and the redirect-prop pattern was scoring it
- * as a real link to `/`.
- *
- * Three things must survive stripping, all of which are data rather than
- * comments: a `//` inside a string literal (`"https://…"` is everywhere), a
- * `://` scheme in bare prose, and a regex literal containing an escaped slash
- * pair (`/\/\//g`).
- *
- * MDX gets a narrower treatment: in MDX, `//` is prose — a URL, a fraction, a
- * path in a table cell — and the ONLY comment forms are the JSX expression
- * container (a braced `{/*` block) and the HTML comment. Running the JS
- * stripper over MDX would silently delete the tail of any prose line that
- * contains a slash pair — which is the help centre's own copy.
- */
-export function stripComments(text: string, syntax: SourceSyntax = "js"): string {
-  if (syntax === "mdx") {
-    return text.replace(/\{\s*\/\*[\s\S]*?\*\/\s*\}/g, " ").replace(/<!--[\s\S]*?-->/g, " ");
-  }
-
-  let out = "";
-  let prev = ""; // last non-whitespace character emitted
-  let i = 0;
-  const n = text.length;
-
-  while (i < n) {
-    const c = text[i];
-    const next = text[i + 1];
-
-    // String / template literal — copied verbatim. A slash pair inside one is
-    // data, and the literal itself is what the link patterns need to read.
-    if (c === '"' || c === "'" || c === "`") {
-      out += c;
-      i++;
-      while (i < n) {
-        if (text[i] === "\\") {
-          out += text.slice(i, i + 2);
-          i += 2;
-          continue;
-        }
-        const ch = text[i];
-        out += ch;
-        i++;
-        if (ch === c) break;
-      }
-      prev = c;
-      continue;
-    }
-
-    // Line comment. `://` is a URL scheme, never a comment.
-    if (c === "/" && next === "/" && prev !== ":") {
-      while (i < n && text[i] !== "\n") i++;
-      continue;
-    }
-
-    // Block comment. Newlines are preserved so line-oriented patterns and any
-    // future line reporting stay aligned with the real file.
-    if (c === "/" && next === "*") {
-      i += 2;
-      while (i < n && !(text[i] === "*" && text[i + 1] === "/")) {
-        if (text[i] === "\n") out += "\n";
-        i++;
-      }
-      i += 2;
-      continue;
-    }
-
-    // Regex literal — consumed whole so its contents cannot be re-read as a
-    // comment opener.
-    if (c === "/" && REGEX_MAY_START_AFTER.test(prev)) {
-      out += c;
-      i++;
-      let inClass = false;
-      while (i < n) {
-        if (text[i] === "\\") {
-          out += text.slice(i, i + 2);
-          i += 2;
-          continue;
-        }
-        const ch = text[i];
-        if (ch === "\n") break; // regex literals do not span lines — bail out
-        out += ch;
-        i++;
-        if (ch === "[") inClass = true;
-        else if (ch === "]") inClass = false;
-        else if (ch === "/" && !inClass) break;
-      }
-      prev = "/";
-      continue;
-    }
-
-    out += c;
-    if (!/\s/.test(c)) prev = c;
-    i++;
-  }
-
-  return out;
-}
-
-/**
- * Extraction over TEXT rather than a path, so the patterns can be unit-tested
- * against hand-written fixtures (see "only genuine link sources count").
+ * Extraction is over TEXT rather than a path, so the patterns can be
+ * unit-tested against hand-written fixtures (see "only genuine link sources
+ * count").
  */
 export function extractTargets(
   text: string,
@@ -605,35 +393,16 @@ export function extractTargets(
   patterns: Pattern[],
   syntax: SourceSyntax = "js",
 ): LinkTarget[] {
-  const code = stripComments(text, syntax);
-  const masked = maskLiterals(code);
   const found: LinkTarget[] = [];
-  const push = (raw: string) => {
+  for (const raw of extractRaw(text, patterns, syntax)) {
     const normalized = normalizeTarget(raw);
     if (normalized) found.push({ path: normalized, kind, source });
-  };
-
-  for (const pattern of patterns) {
-    if ("re" in pattern) {
-      pattern.re.lastIndex = 0;
-      let m: RegExpExecArray | null;
-      while ((m = pattern.re.exec(code)) !== null) push(m[pattern.group]);
-      continue;
-    }
-    // Anchors are searched in the MASKED copy so an anchor inside a string is
-    // not mistaken for code; offsets index back into the real text.
-    pattern.anchor.lastIndex = 0;
-    let m: RegExpExecArray | null;
-    while ((m = pattern.anchor.exec(masked)) !== null) {
-      for (const raw of literalsInRegion(code, m.index + m[0].length, pattern.mode)) push(raw);
-    }
   }
   return found;
 }
 
 function scanFile(file: string, kind: LinkKind, patterns: Pattern[]): LinkTarget[] {
-  const syntax: SourceSyntax = file.endsWith(".mdx") ? "mdx" : "js";
-  return extractTargets(fs.readFileSync(file, "utf8"), kind, file, patterns, syntax);
+  return extractTargets(fs.readFileSync(file, "utf8"), kind, file, patterns, syntaxFor(file));
 }
 
 export function collectLinkTargets(): LinkTarget[] {

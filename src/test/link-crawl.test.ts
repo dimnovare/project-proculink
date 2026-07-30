@@ -29,7 +29,7 @@ import { extractLinks, stripComments, syntaxFor } from "./linkExtract";
  *
  * So the crawl now walks EVERY `.ts` / `.tsx` / `.mdx` under `src/`, and extraction moved to
  * `./linkExtract` (comment stripping, string-literal masking, balanced value regions — see that
- * file for why each one is load-bearing). Both probes are caught; the proof is in PR #47.
+ * file for why each one is load-bearing). Both probes are caught; the proof is in the PR #47 thread.
  */
 
 const APP_ROUTES = listAppRoutes();

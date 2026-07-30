@@ -132,11 +132,19 @@ function AuthBrandPanel() {
           ))}
         </div>
 
+        {/* Same qualified line as the marketing footers, and linked for the
+            same reason: "EU data residency" on its own promises more than the
+            stack delivers (sign-in, AI extraction, payments and email all run
+            on named US subprocessors). Storage is the part that is true, and
+            /security carries the rest of the answer. */}
         <div
           className="relative"
           style={{ marginTop: 32, color: "var(--navy-muted)", fontSize: 12 }}
         >
-          EU data residency · AES-GCM at rest · Full audit trail
+          <a href="/security" style={{ color: "inherit", textDecoration: "none" }}>
+            EU-region order storage
+          </a>
+          {" · AES-GCM at rest · Full audit trail"}
         </div>
       </div>
     </aside>

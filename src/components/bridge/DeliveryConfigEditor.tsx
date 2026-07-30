@@ -47,6 +47,52 @@ function defaultPortFor(p: DeliveryProtocol): number | "" {
 
 const INPUT_STYLE = { border: "1px solid #D5DAEA", color: "#0B1A2F" } as const;
 
+/**
+ * Every config key this editor MANAGES, per protocol — exactly the set `buildManagedConfigObject()`
+ * can emit, including the ones it emits conditionally.
+ *
+ * The save replaces the whole config object (the backend assigns `request.ConfigJson` wholesale and
+ * only checks that it parses), so this list decides two things at once:
+ *
+ *  - a key that IS here can be genuinely cleared — blanking the reply-to address removes it;
+ *  - a key that is NOT here is a per-supplier setting this editor has no field for, and is carried
+ *    through the save untouched instead of being deleted by it.
+ *
+ * That second half is not theoretical. `headers` (custom HTTP request headers, injected into every
+ * outbound request) and `fromAddress` on the EMAIL protocol (the supplier's verified sender — the
+ * From input is inside the smtp-only branch, so email has no field for it at all) are both live on
+ * the wire and were both destroyed by any save on this screen.
+ *
+ * Adding a field to this editor means adding its key here.
+ */
+const MANAGED_CONFIG_KEYS: Record<DeliveryProtocol, readonly string[]> = {
+  http: ["url", "method", "timeoutSeconds"],
+  sftp: ["host", "port", "remotePath", "makeDirectories", "overwriteExisting", "timeoutSeconds"],
+  ftps: [
+    "host",
+    "port",
+    "remotePath",
+    "makeDirectories",
+    "overwriteExisting",
+    "timeoutSeconds",
+    "allowInvalidCertificate",
+  ],
+  email: ["toAddresses", "replyTo", "subjectTemplate", "bodyTemplate", "attachmentFileName"],
+  smtp: [
+    "host",
+    "port",
+    "useSsl",
+    "fromAddress",
+    "toAddresses",
+    "timeoutSeconds",
+    "subjectTemplate",
+    "bodyTemplate",
+    "attachmentFileName",
+  ],
+  erp_erply: ["url", "clientCode", "timeoutSeconds"],
+  erp_directo: ["url", "database", "timeoutSeconds"],
+};
+
 export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) {
   const queryClient = useQueryClient();
   const confirm = useConfirm();
@@ -58,6 +104,13 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
   // with the "Send a test now" shortcut to the EXISTING test-fire flow.
   const [justSaved, setJustSaved] = useState(false);
   const [savedConfig, setSavedConfig] = useState<DeliveryConfig | null>(null);
+  // The config object exactly as it came back from the server, together with the protocol it was
+  // written for. buildConfigObject() lays the editor's own keys ON TOP of this, so a per-supplier
+  // setting with no field on this screen survives the save. The protocol is recorded with it
+  // because a config re-pointed at a different connector must NOT carry the old one's keys.
+  // Re-based after every successful save; null when nothing is stored or the JSON did not parse.
+  const [loadedConfig, setLoadedConfig] =
+    useState<{ protocol: DeliveryProtocol; values: Record<string, unknown> } | null>(null);
   const [protocol, setProtocol] = useState<DeliveryProtocol>("http");
   const [autoDeliver, setAutoDeliver] = useState(false);
   const [outputFormat, setOutputFormat] = useState(""); // "" = not set (defaults to xml at transform time)
@@ -87,6 +140,10 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
   const [port, setPort] = useState<number | "">("");
   const [remotePath, setRemotePath] = useState("");
   const [makeDirectories, setMakeDirectories] = useState(true);
+  // WP-20. Default TRUE — what every SFTP/FTPS connection did before the setting existed, and what
+  // lets a delivery that was interrupted re-send and repair its own partial file. Two different
+  // orders can no longer overwrite each other regardless of this: each file name carries its order.
+  const [overwriteExisting, setOverwriteExisting] = useState(true);
   const [sftpAuthMode, setSftpAuthMode] = useState<SftpAuthMode>("password");
   // B8: the SFTP auth method the editor LOADED with for a saved config — the shape the
   // stored secret corresponds to. The backend never returns the saved auth shape (only a
@@ -233,6 +290,7 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
   function hydrateConfig(nextProtocol: DeliveryProtocol, configJson: string) {
     try {
       const p = JSON.parse(configJson) as Record<string, unknown>;
+      setLoadedConfig({ protocol: nextProtocol, values: p });
       setTimeoutSeconds(typeof p.timeoutSeconds === "number" ? p.timeoutSeconds : 30);
       // url-based
       setUrl(typeof p.url === "string" ? p.url : "");
@@ -244,6 +302,9 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
       setPort(typeof p.port === "number" ? p.port : defaultPortFor(nextProtocol));
       setRemotePath(typeof p.remotePath === "string" ? p.remotePath : "");
       setMakeDirectories(typeof p.makeDirectories === "boolean" ? p.makeDirectories : true);
+      // Absent ⇒ on, matching the backend's SftpDeliveryDispatcher.OverwriteExistingFromConfig.
+      // Only an explicit false is an operator saying "do not replace".
+      setOverwriteExisting(p.overwriteExisting !== false);
       setAllowInvalidCertificate(p.allowInvalidCertificate === true);
       // smtp
       setUseSsl(p.useSsl === true);
@@ -260,6 +321,8 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
       setBodyTemplate(typeof p.bodyTemplate === "string" ? p.bodyTemplate : "");
       setAttachmentFileName(typeof p.attachmentFileName === "string" ? p.attachmentFileName : "");
     } catch {
+      // Unparseable stored config: there is nothing trustworthy to carry through, so nothing is.
+      setLoadedConfig(null);
       setUrl("");
       setMethod("POST");
       setTimeoutSeconds(30);
@@ -269,6 +332,7 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
       setPort(defaultPortFor(nextProtocol));
       setRemotePath("");
       setMakeDirectories(true);
+      setOverwriteExisting(true);
       setAllowInvalidCertificate(false);
       setUseSsl(false);
       setFromAddress("");
@@ -286,12 +350,52 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
     setJustSaved(false);
   }
 
+  /**
+   * What the save sends: the settings this editor manages, laid on top of everything else the
+   * stored config already had.
+   *
+   * The spread is the point. The save replaces the whole config object, so rebuilding it from a
+   * fixed list of keys DELETED every per-supplier setting this screen has no field for — custom
+   * HTTP request headers, an email connector's verified From address — the first time anyone
+   * touched the remote path. See DeliveryConfigEditor.unknownKeys.test.tsx.
+   */
   function buildConfigObject(): Record<string, unknown> {
+    return { ...carriedOverConfigKeys(), ...buildManagedConfigObject() };
+  }
+
+  /**
+   * Keys the stored config has that this editor does not manage. Empty unless the editor is still
+   * on the protocol the config was loaded for — switching connector means the old keys describe a
+   * different transport and must not follow.
+   */
+  function carriedOverConfigKeys(): Record<string, unknown> {
+    if (!loadedConfig || loadedConfig.protocol !== protocol) return {};
+    const managed = MANAGED_CONFIG_KEYS[protocol] ?? [];
+    return Object.fromEntries(
+      Object.entries(loadedConfig.values).filter(([key]) => !managed.includes(key)),
+    );
+  }
+
+  /**
+   * The keys this editor owns. Every key emitted here — including the conditional ones — must be
+   * listed in MANAGED_CONFIG_KEYS, or clearing it in the UI would be silently undone by the
+   * carried-over spread above.
+   */
+  function buildManagedConfigObject(): Record<string, unknown> {
     if (protocol === "erp_erply") return { url, clientCode: erplyClientCode, timeoutSeconds };
     if (protocol === "erp_directo") return { url, database: directoDatabase, timeoutSeconds };
-    if (protocol === "sftp") return { host, port: Number(port) || 22, remotePath, makeDirectories, timeoutSeconds };
+    if (protocol === "sftp")
+      return { host, port: Number(port) || 22, remotePath, makeDirectories, overwriteExisting, timeoutSeconds };
     if (protocol === "ftps")
-      return { host, port: Number(port) || 21, remotePath, makeDirectories, timeoutSeconds, allowInvalidCertificate };
+      return {
+        host,
+        port: Number(port) || 21,
+        remotePath,
+        makeDirectories,
+        overwriteExisting,
+        timeoutSeconds,
+        allowInvalidCertificate,
+      };
     if (protocol === "email")
       return {
         toAddresses,
@@ -424,6 +528,17 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
         }),
       });
       setSavedConfig(saved);
+      // What is now stored becomes the new carry-through baseline. Without this, a save that
+      // CHANGED protocol would leave the previous connector's keys behind as "unknown keys" for
+      // the new one — the exact leak carriedOverConfigKeys() guards against on load.
+      try {
+        setLoadedConfig({
+          protocol: saved.protocol,
+          values: JSON.parse(saved.configJson) as Record<string, unknown>,
+        });
+      } catch {
+        setLoadedConfig(null);
+      }
       // B8: the just-saved SFTP shape becomes the new baseline so a later switch is detected
       // against what's now stored. Only meaningful when the saved config has a credential.
       setLoadedSftpAuthMode(saved.protocol === "sftp" && saved.hasCredentials ? sftpAuthMode : null);
@@ -873,6 +988,22 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
                       }}
                     />
                     Create the remote directory if it does not exist
+                  </label>
+                  <label className="flex items-start gap-2 text-[12px]" style={{ color: "#0B1A2F" }}>
+                    <input
+                      type="checkbox"
+                      checked={overwriteExisting}
+                      onChange={(e) => {
+                        setOverwriteExisting(e.target.checked);
+                        markEdited();
+                      }}
+                    />
+                    <span>
+                      Replace a file already at that path. Leave this ON unless the supplier&apos;s
+                      folder must never be written over — it is what lets an interrupted send finish
+                      cleanly on the next try. Two orders can never overwrite each other either way:
+                      every file name carries its own order.
+                    </span>
                   </label>
                   {protocol === "ftps" && (
                     <label className="flex items-start gap-2 text-[12px]" style={{ color: "#8A4B00" }}>
