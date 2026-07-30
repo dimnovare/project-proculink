@@ -44,6 +44,7 @@ import { useAcceptanceValidation } from "../review/hooks/useAcceptanceValidation
 import { useSendFlow } from "../review/hooks/useSendFlow";
 import { useWorkshopLayout, type WorkshopFocus } from "./useWorkshopLayout";
 import { InboxBackChip, WorkshopGateShell, poTitleFrom } from "./WorkshopGateChrome";
+import { ParsingGate } from "./ParsingGate";
 import { IssuesPanel, type WorkshopIssue, type IssuesResolveApi } from "./IssuesPanel";
 import { CatalogHintCard } from "../review/CatalogHintCard";
 import { WorkshopLinesView, WorkshopLinesToggle } from "./WorkshopLinesView";
@@ -52,7 +53,7 @@ import { bulkAcceptCount, type BulkSelectableLine } from "../magicBulkAcceptSele
 import { MobileTriage } from "./MobileTriage";
 import { WorkshopStepper } from "./WorkshopStepper";
 import { WorkshopStatusBar, type BlockerChip } from "./WorkshopStatusBar";
-import { BridgeLoader, BridgePageLoader } from "../BridgeLoader";
+import { BridgePageLoader } from "../BridgeLoader";
 import { OrderDetailsDrawer, type OrderDetailsTab } from "./OrderDetailsDrawer";
 
 /** The default trust threshold when no calibration history exists (mirrors mappingListModel). */
@@ -135,7 +136,7 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
   const { labels } = useOrderDirection();
 
   // ── Live order + the same hooks the classic screen uses (ONE send path) ─────
-  const { order, isLoading, isError, refetchOrder, exceptionCount } = useOrderReview(orderId);
+  const { order, isLoading, isError, refetchOrder, exceptionCount, isStuck } = useOrderReview(orderId);
 
   // ── Audit events — only fetched for a failed order, to seed the ParseFailedPanel
   //    error copy. Ported from the legacy SpineReview (same query key + gate). ──
@@ -557,28 +558,17 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
   //    issues here would show a half-populated, confusing screen. Show a calm,
   //    dedicated "we're reading your order" state instead. useOrderReview already
   //    polls every 3s while status === "parsing", so this auto-advances to the
-  //    real review the moment the parse completes — no manual refresh needed. ──
+  //    real review the moment the parse completes — no manual refresh needed.
+  //
+  //    `isStuck` is the stall escalation (parseStall.ts, 2 min). It was computed
+  //    by useOrderReview and rendered NOWHERE, so a parse that never completed —
+  //    the canonical symptom of a Worker outage — showed an unbounded spinner
+  //    under copy promising "a few seconds". No timer is needed to make it
+  //    appear: the 3s poll returns a fresh order object, which re-runs the memo. ──
   if (order.status === "parsing") {
     return (
       <WorkshopGateShell poNumber={order.poNumber} status={order.status}>
-        <div
-          className="flex flex-col items-center justify-center h-full gap-5 px-6 text-center"
-          style={{ background: "#F6F7FA" }}
-          data-testid="order-parsing"
-        >
-          <BridgeLoader size={92} fullScreen={false} />
-          <div style={{ maxWidth: 400 }}>
-            <p className="text-[16px] font-semibold" style={{ color: "#0B1A2F", letterSpacing: "-0.01em" }}>
-              We&rsquo;re reading your order…
-            </p>
-            <p className="text-[13px]" style={{ color: "#5E6779", marginTop: 7, lineHeight: 1.55 }}>
-              We&rsquo;re reading your file and preparing it for review.
-              This usually takes a few seconds — the page updates on its own.
-            </p>
-            {/* The PO number that used to sit here in small mono now lives in the
-                gate header above — one identity surface, not two. */}
-          </div>
-        </div>
+        <ParsingGate stalled={isStuck} />
       </WorkshopGateShell>
     );
   }
