@@ -46,6 +46,37 @@ jobs:
       - name: Build
         run: bun run build
 
+  test-unit:
+    name: Unit tests + lint gates
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Unit tests (vitest)
+        run: bun run test
+
+      - name: ESLint
+        run: bun run lint
+
+      # --strict is load-bearing. Without it, scripts/check-pageshell.mjs is
+      # report-only and always exits 0 — a green check that could never go red.
+      - name: PageShell conformance (strict)
+        run: bun run check:pageshell --strict
+
+      - name: Vocabulary gate
+        run: bun run lint:vocab
+
   test-e2e:
     name: Playwright e2e (mock mode)
     runs-on: ubuntu-latest
