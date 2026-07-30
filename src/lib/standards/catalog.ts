@@ -157,7 +157,10 @@ export const STANDARDS: StandardSupport[] = [
     family: "tabular",
     parse: "partial",
     transform: "supported",
-    transport: "HTTPS POST (webhook), API ingress/egress",
+    // Two different directions, named separately on purpose: orders come IN over
+    // the REST ingress endpoint, and go OUT as an HTTPS POST to the supplier's
+    // URL. There is no webhook a counterparty can post orders to.
+    transport: "REST ingress endpoint (in); HTTPS POST delivery (out)",
     conformance:
       "JsonTransformService emits the canonical JSON artifact. Inbound JSON is parsed inline in OrderService (no standalone parser class yet).",
     referenceUrl: "https://www.json.org/",

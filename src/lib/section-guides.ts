@@ -71,19 +71,6 @@ export const SECTION_GUIDES: SectionGuideEntry[] = [
     articleSlugs: ["order-intake-options", "csv-xlsx-field-guide", "troubleshooting"],
   },
   {
-    route: "/upload/preview/[orderId]",
-    title: "Mapping preview",
-    purpose: "Your file is being parsed — review how its lines were read and mapped before the order is committed.",
-    bullets: [
-      { text: "Wait for parsing to finish — large files and PDFs can take a few seconds" },
-      { text: "Check the detected lines and accept, edit, or clear suggested codes" },
-      { text: "Commit the mapping to create the order and continue in the Inbox" },
-      { text: "If parsing fails, you land on the order with the exact error to fix" },
-    ],
-    firstStep: { text: "Let parsing finish, review the suggested mapping, then commit to continue." },
-    articleSlugs: ["troubleshooting", "item-codes"],
-  },
-  {
     route: "/inbox",
     title: "Inbox",
     purpose: "Your work queue of every order, with status filters, search, and bulk send.",
@@ -110,17 +97,6 @@ export const SECTION_GUIDES: SectionGuideEntry[] = [
     ],
     firstStep: { text: "Resolve each flagged line — accept a suggestion or set a code — then use the send/confirm button (shortcut C)." },
     articleSlugs: ["output-mapping-editor", "item-codes", "delivery-setup"],
-  },
-  {
-    route: "/drafts",
-    title: "Drafts",
-    purpose: "A page reserved for orders saved mid-review — saving drafts isn't available yet.",
-    bullets: [
-      { text: "Start a new upload from the New button", href: "/upload" },
-      { text: "Return to your inbox to keep working on orders", href: "/inbox" },
-      { text: "This list stays empty for now — drafts can't be saved yet" },
-    ],
-    firstStep: { text: "Head to the Inbox — your active orders live there.", href: "/inbox" },
   },
   {
     route: "/inbound/invoices",
@@ -228,45 +204,6 @@ export const SECTION_GUIDES: SectionGuideEntry[] = [
     articleSlugs: ["mapping-basics", "output-mapping-editor", "item-codes"],
   },
   {
-    route: "/library/rules",
-    title: "Rule catalog",
-    purpose: "A catalog that documents the checks your org cares about — it does not block or hold any order by itself.",
-    bullets: [
-      { text: "Review the six starter rules added for you" },
-      { text: "Add your own rules with severity Critical, Warning, or Info" },
-      { text: "Toggle catalog status — this does not enforce anything" },
-      { text: "Set real enforcement on each {supplier}'s Validation rules tab", href: "/library/suppliers" },
-    ],
-    firstStep: { text: "Skim the starter rules, then open a {supplier} to set up the checks that actually hold orders.", href: "/library/suppliers" },
-    articleSlugs: ["validation-rules"],
-  },
-  {
-    route: "/library/rule-definitions",
-    title: "Rule definitions",
-    purpose: "A read-only list of the reusable validation checks that acceptance rules on each {supplier} can bind to.",
-    bullets: [
-      { text: "Browse definitions grouped by order, line, and header scope" },
-      { text: "Expand Standards to see UBL, EDIFACT, X12, and cXML references" },
-      { text: "Authoring happens on each {supplier}'s Validation rules tab" },
-    ],
-    firstStep: { text: "Use this page as a reference; bind and enforce checks on a {supplier}'s Validation rules tab.", href: "/library/suppliers" },
-    articleSlugs: ["validation-rules"],
-  },
-  {
-    route: "/library/templates",
-    title: "Output templates",
-    purpose: "A reference list of the output formats you plan to send — it does not change what {suppliers} actually receive.",
-    bullets: [
-      { text: "Record a format's name, standard, and version" },
-      { text: "Preview an example envelope for each standard" },
-      { text: "Download the previewed envelope as a file" },
-      { text: "Edit or delete your template records" },
-      { text: "Actual delivery formats are set in each {supplier}'s delivery config", href: "/library/suppliers" },
-    ],
-    firstStep: { text: "Nothing here is required — to change what a {supplier} actually receives, edit its delivery config.", href: "/library/suppliers" },
-    articleSlugs: ["output-templates", "delivery-setup", "cxml-setup", "ubl-and-peppol", "x12-850"],
-  },
-  {
     route: "/library/standards",
     title: "Standards reference",
     purpose: "A read-only table showing how each standard PO field maps to cXML, UBL, EDIFACT, X12, and Peppol BIS.",
@@ -351,7 +288,7 @@ export const SECTION_GUIDES: SectionGuideEntry[] = [
   {
     route: "/settings",
     title: "Settings",
-    purpose: "Workspace name and order direction, billing, intake channels, API keys, and webhooks.",
+    purpose: "Workspace name and order direction, billing, intake channels, API keys, and outbound webhooks.",
     bullets: [
       { text: "Set whether you send or receive purchase orders", href: "/settings?tab=org" },
       { text: "Check your plan, usage, and upgrade options", href: "/settings?tab=billing" },

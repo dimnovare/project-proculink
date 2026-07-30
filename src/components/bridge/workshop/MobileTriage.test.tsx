@@ -163,8 +163,8 @@ describe("MobileTriage — long real-data values wrap (no mobile overflow)", () 
 
 // The bulk-accept affordance must carry the SAME label as the desktop workshop
 // (IssuesPanel / SendReadinessStrip renamed to "Resolve all suggested" in f365aa0;
-// mobile was missed). The /upload/preview MagicMappingPreview keeps its own
-// "Accept all AI suggestions" — that surface has no issues framing.
+// mobile was missed). The workshop is the only review surface now — the preview
+// screen that carried its own "Accept all AI suggestions" wording was retired.
 describe("MobileTriage — bulk-accept label parity with the desktop workshop", () => {
   test("renders 'Resolve all suggested (N)' and calls bulkAcceptSuggestions(0)", () => {
     const bulkAcceptSuggestions = vi.fn();

@@ -70,7 +70,7 @@ describe("formatCrumbLabel — static segments", () => {
   it("maps known segments to their vocabulary label", () => {
     expect(formatCrumbLabel("inbox", 0, ["inbox"])).toBe("Inbox");
     expect(formatCrumbLabel("connections", 0, ["connections"])).toBe("Connections");
-    expect(formatCrumbLabel("rules", 1, ["library", "rules"])).toBe("Validation rules");
+    expect(formatCrumbLabel("standards", 1, ["library", "standards"])).toBe("Standards");
   });
 });
 
@@ -111,11 +111,6 @@ describe("formatCrumbLabel — order detail (the reported bug)", () => {
   });
   it("ignores an empty/whitespace PO and falls back", () => {
     expect(formatCrumbLabel(UUID, 1, segs, { orderPoNumber: "  " })).toBe("Order a8c18df7");
-  });
-  it("resolves under /upload/preview/[orderId] too", () => {
-    const previewSegs = ["upload", "preview", UUID];
-    expect(formatCrumbLabel(UUID, 2, previewSegs, { orderPoNumber: "PO-9" })).toBe("PO-9");
-    expect(formatCrumbLabel(UUID, 2, previewSegs, {})).toBe("Order a8c18df7");
   });
 });
 
@@ -204,16 +199,9 @@ describe("buildCrumbTrail — unlinked group-root heads (no index route → neve
 });
 
 describe("buildCrumbTrail — Workbench group head (v2 nav)", () => {
-  it("prefixes /drafts with an UNLINKED Workbench head crumb", () => {
-    const trail = buildCrumbTrail("/drafts", {});
-    expect(trail).toEqual([
-      { label: "Workbench", href: null }, // no /workbench route — context, not a link
-      { label: "Drafts", href: null },
-    ]);
-  });
-
-  it("prefixes /inbound/* with the Workbench head crumb", () => {
+  it("prefixes /inbound/* with an UNLINKED Workbench head crumb", () => {
     const trail = buildCrumbTrail("/inbound/invoices", {});
+    // no /workbench route — the head is context, not a link
     expect(trail.map((c) => c.label)).toEqual(["Workbench", "Inbound", "Invoices"]);
     expect(trail[0].href).toBeNull();
   });
@@ -242,8 +230,8 @@ describe("isLonePageCrumb", () => {
   });
 
   it("is false when the trail carries an ancestor crumb", () => {
-    // Workbench / Drafts — the head crumb is context the nav row does not show.
-    expect(isLonePageCrumb("/drafts")).toBe(false);
+    // Workbench / Inbound — the head crumb is context the nav row does not show.
+    expect(isLonePageCrumb("/inbound/invoices")).toBe(false);
     expect(isLonePageCrumb("/library/suppliers")).toBe(false);
     expect(isLonePageCrumb("/operations/exceptions")).toBe(false);
     expect(isLonePageCrumb("/inbox/a8c18df7-dec8-4a1b-9c2d-1f2e3a4b5c6d")).toBe(false);

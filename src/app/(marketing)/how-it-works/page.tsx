@@ -47,7 +47,7 @@ const STEPS: Array<{
     n: "01",
     title: "Receive in any format",
     desc:
-      "Buyers send POs however they like — a PDF email attachment, an XLSX export, cXML over webhook, EDI dropped on SFTP. ProcuLink ingests all of it through one inbox.",
+      "Buyers send POs however they like — a PDF email attachment, an XLSX export, cXML posted to your REST endpoint, EDI dropped on SFTP. ProcuLink ingests all of it through one inbox.",
     color: BLUE,
     bg: BLUE_SOFT,
     icon: <UploadIcon />,

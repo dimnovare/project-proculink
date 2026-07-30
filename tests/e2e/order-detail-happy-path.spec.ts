@@ -20,9 +20,8 @@ import { test, expect } from "@playwright/test";
  * valid order via the /orders/[id] path resolves to a rendered order, not the
  * not-found gate.
  *
- * The upload → /upload/preview/<id> → commit → /inbox/<id> half of the journey
- * is already covered by tests/e2e/magic-mapping-preview.spec.ts (lines 98, 138),
- * so it is intentionally not duplicated here.
+ * The upload → /inbox/<id> half of the journey is already covered by
+ * tests/e2e/upload-to-workshop.spec.ts, so it is not duplicated here.
  *
  * Runs in MOCK mode (default / CI): the in-memory api-client serves the seeded
  * order, so no backend is required. Auth uses PROCULINK_QA_BYPASS_AUTH=true

@@ -45,13 +45,9 @@ const ROUTES: Array<[string, string, string]> = [
   ["06", "supplier-detail", `/library/suppliers/${SUP}`],
   ["07", "connections-list", "/connections"],
   ["08", "connection-detail", `/connections/conn-${SUP}`],
-  ["09", "drafts", "/drafts"],
   ["10", "inbound-invoices", "/inbound/invoices"],
   ["11", "inbound-asns", "/inbound/asns"],
   ["12", "library-mappings", "/library/mappings"],
-  ["13", "library-rules", "/library/rules"],
-  ["14", "library-rule-definitions", "/library/rule-definitions"],
-  ["15", "library-templates", "/library/templates"],
   ["16", "library-buyers", "/library/buyers"],
   ["17", "library-standards", "/library/standards"],
   ["18", "operations-exceptions", "/operations/exceptions"],
@@ -61,7 +57,6 @@ const ROUTES: Array<[string, string, string]> = [
   ["22", "operations-webhooks", "/operations/webhooks"],
   ["23", "settings", "/settings"],
   ["24", "admin", "/admin"],
-  ["25", "upload-preview", "/upload/preview/ord-001"],
 ];
 
 interface Step { do: string; target?: string; value?: string }

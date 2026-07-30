@@ -45,11 +45,8 @@ function useCrumbContext(segments: string[]): CrumbContext {
   const qc = useQueryClient();
   const ctx: CrumbContext = {};
 
-  // /inbox/[orderId]  ·  /upload/preview/[orderId]
-  const orderId =
-    (segments[0] === "inbox" && segments[1]) ||
-    (segments[0] === "upload" && segments[1] === "preview" && segments[2]) ||
-    null;
+  // /inbox/[orderId]
+  const orderId = (segments[0] === "inbox" && segments[1]) || null;
   if (orderId) {
     const order = qc.getQueryData<Order>(["order", orderId]);
     ctx.orderPoNumber = order?.poNumber ?? null;

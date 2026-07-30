@@ -3,6 +3,7 @@ import { withSentryConfig } from "@sentry/nextjs";
 import createMDX from "@next/mdx";
 import remarkGfm from "remark-gfm";
 import { cspModeFromEnv, securityHeaders } from "./src/lib/security/csp";
+import { RETIRED_ROUTE_REDIRECTS } from "./src/lib/retired-routes";
 
 // remark-gfm is what makes `| a | b |` a real <table>. Without it MDX parses
 // only CommonMark, and every pipe table in the help centre — the format-support
@@ -87,6 +88,10 @@ const nextConfig: NextConfig = {
       //                   content (cadence, ingested types, failure alerting).
       { source: "/help/first-upload",  destination: "/help/guides/first-order-end-to-end", permanent: true },
       { source: "/help/email-polling", destination: "/help/imap-provider-setup",           permanent: true },
+      // Retired app screens. Each pairing (and the reason for it) lives in
+      // src/lib/retired-routes.ts, which is also what the retirement gate reads —
+      // so a deletion and its redirect cannot drift apart.
+      ...RETIRED_ROUTE_REDIRECTS,
     ];
   },
 };

@@ -94,13 +94,14 @@ describe("BridgeTopbar context row — no second navbar under the primary nav", 
     expect(hiddenAtDesktop(contextRow()!)).toBe(true);
   });
 
-  it("keeps the row at md+ when the trail has an ancestor crumb (Workbench / Drafts)", () => {
-    mockPath = "/drafts";
+  it("keeps the row at md+ when the trail has an ancestor crumb (Admin / Guides)", () => {
+    mockPath = "/admin/guides";
     render(<BridgeTopbar />);
     const row = contextRow();
     expect(row).not.toBeNull();
     expect(hiddenAtDesktop(row!)).toBe(false);
-    expect(screen.getByText("Workbench")).toBeTruthy();
+    // The ancestor crumb is real navigation the nav row does not offer.
+    expect(screen.getByText("Admin")).toBeTruthy();
   });
 
   it("keeps the row at md+ on a hub route — the tab strip is real navigation", () => {
@@ -114,7 +115,7 @@ describe("BridgeTopbar context row — no second navbar under the primary nav", 
   });
 
   it("keeps the row at md+ on a detail route (crumb trail is a real path)", () => {
-    mockPath = "/upload/preview/a8c18df7-dec8-4a1b-9c2d-1f2e3a4b5c6d";
+    mockPath = "/library/suppliers/a8c18df7-dec8-4a1b-9c2d-1f2e3a4b5c6d";
     render(<BridgeTopbar />);
     expect(hiddenAtDesktop(contextRow()!)).toBe(false);
   });

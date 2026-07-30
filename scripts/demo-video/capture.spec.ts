@@ -121,8 +121,8 @@ test("ProcuLink walkthrough capture", async ({ page }) => {
   // ── s2 — parse / review: parsed order, source→canonical→supplier ──────────
   //   This is the ONLY load after s1. From here everything is client-side.
   await soft("s2.preview", async () => {
-    await page.goto("/upload/preview/ord-002", { waitUntil: "networkidle" });
-    await page.getByText(/review your order mapping/i).waitFor({ timeout: 15_000 }).catch(() => {});
+    await page.goto("/inbox/ord-002", { waitUntil: "networkidle" });
+    await page.getByText(/PO-2024-005678/).first().waitFor({ timeout: 15_000 }).catch(() => {});
   });
   await beat("s2-parse");
 

@@ -48,13 +48,9 @@ const ROUTES = [
   ["06", "supplier-detail", `/library/suppliers/${REAL.supplier}`],
   ["07", "connections-list", "/connections"],
   ["08", "connection-detail", `/connections/${REAL.connection}`],
-  ["09", "drafts", "/drafts"],
   ["10", "inbound-invoices", "/inbound/invoices"],
   ["11", "inbound-asns", "/inbound/asns"],
   ["12", "library-mappings", "/library/mappings"],
-  ["13", "library-rules", "/library/rules"],
-  ["14", "library-rule-definitions", "/library/rule-definitions"],
-  ["15", "library-templates", "/library/templates"],
   ["16", "library-buyers", "/library/buyers"],
   ["17", "library-standards", "/library/standards"],
   ["18", "operations-exceptions", "/operations/exceptions"],
@@ -64,7 +60,6 @@ const ROUTES = [
   ["22", "operations-webhooks", "/operations/webhooks"],
   ["23", "settings", "/settings"],
   ["24", "admin", "/admin"],
-  ["25", "upload-preview", `/upload/preview/${REAL.order}`],
 ];
 
 const PLANS = existsSync(PLANS_FILE) ? JSON.parse(readFileSync(PLANS_FILE, "utf8")) : [];
@@ -75,7 +70,6 @@ function fixUrl(u) {
   r = r.replace(/\/library\/suppliers\/(s1|22222222-2222-2222-2222-222222222222)(?=[/?#]|$)/, `/library/suppliers/${REAL.supplier}`);
   r = r.replace(/\/connections\/conn-[^/?#]+/, `/connections/${REAL.connection}`);
   r = r.replace(/\/inbox\/ord-[^/?#]+/, `/inbox/${REAL.order}`);
-  r = r.replace(/\/upload\/preview\/ord-[^/?#]+/, `/upload/preview/${REAL.order}`);
   return r;
 }
 

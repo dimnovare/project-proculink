@@ -44,7 +44,6 @@ const ROUTES = [
   // ── (app) routes behind the QA bypass — the slowest first compiles ──
   "/bridge",              // no-hang.spec.ts
   "/upload",              // sample-order-happy-path.spec.ts
-  "/upload/preview/ord-002",
   "/inbox/ord-002",       // order-workshop; also covers /inbox/<not-found>
   "/orders/ord-002",      // order-detail-happy-path.spec.ts (/orders/[id])
   "/library/standards",   // standards.spec.ts

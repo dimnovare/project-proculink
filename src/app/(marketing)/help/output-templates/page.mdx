@@ -2,15 +2,15 @@ import { helpArticleMetadata } from "@/lib/seo";
 
 export const metadata = helpArticleMetadata({
   slug: "output-templates",
-  title: "Output templates and formats — ProcuLink Help",
-  description: "Which output formats ProcuLink can send to suppliers today, and what the templates page does — and doesn't do.",
+  title: "Output formats — ProcuLink Help",
+  description: "Which output formats ProcuLink can send to suppliers today, and how to get an exact custom shape.",
 });
 
-# Output templates and formats
+# Output formats
 
-"What does the supplier actually receive?" has three answers in ProcuLink: the **output format** set on each supplier's delivery config, an optional **per-order template** for exact custom shapes, and a **templates page** that — honestly — is a reference list, not a control.
+"What does the supplier actually receive?" has two answers in ProcuLink: the **output format** set on that supplier's delivery config, and — when a supplier needs a shape none of the standard formats produce — a **per-order custom template**.
 
-> This article is the reference for formats and the templates page. For choosing the format a supplier actually receives, follow [set up delivery to a supplier and test-fire it](/help/guides/set-up-supplier-delivery).
+> This article is the reference for formats. For choosing the format a supplier actually receives, follow [set up delivery to a supplier and test-fire it](/help/guides/set-up-supplier-delivery).
 
 ## Output formats that work today
 
@@ -28,12 +28,6 @@ The format a supplier receives is chosen on that supplier's **delivery config**.
 | XLSX / PDF / SAP IDoc | Input only — ProcuLink reads them but does not emit them |
 
 The in-app **Rules & formats → Standards** page is the always-current version of this table, down to field-level references (how "PO number" maps to UBL `cbc:ID`, X12 `BEG03`, and so on).
-
-## The templates page (Rules & formats → Output templates)
-
-This page records the output formats you plan to use — a name, standard, and version per entry — and lets you preview and download an example envelope for each standard. It's useful for aligning with a supplier on what they'll receive.
-
-What it does **not** do: change what any supplier actually receives. Delivery output is controlled by each supplier's delivery config, full stop. Nothing on the templates page is required for sending.
 
 ## Exact custom shapes: per-order custom templates
 

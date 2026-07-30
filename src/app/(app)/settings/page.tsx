@@ -1111,7 +1111,9 @@ function ApiKeysSection() {
 
   return (
     <div>
-      <SettingsGroup title="API keys" sub="Authenticate the ProcuLink REST + webhook API. Each key is shown once at creation.">
+      {/* "REST API", not "REST + webhook API": a key authenticates orders coming
+          IN. Outbound webhooks are signed by us and need no key from you. */}
+      <SettingsGroup title="API keys" sub="Authenticate the ProcuLink REST API. Each key is shown once at creation.">
 
         {/* Where to send orders — slug + endpoint + auth header */}
         <IngressEndpointRow slug={orgSettings?.slug} />
@@ -1168,7 +1170,7 @@ function ApiKeysSection() {
             <Key size={28} color="var(--border)" style={{ margin: "0 auto 10px" }} />
             <p style={{ fontSize: 13, fontWeight: 600, color: "var(--ink-muted)" }}>No API keys yet</p>
             <p style={{ fontSize: 12, color: "var(--ink-faint)", marginTop: 4 }}>
-              Create a key to post orders to the REST API or a custom webhook integration.
+              Create a key so your ERP, Zapier, or Make can post orders to the REST API.
             </p>
           </div>
         )}

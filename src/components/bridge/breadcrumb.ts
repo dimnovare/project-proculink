@@ -18,15 +18,11 @@ export const CRUMB_LABELS: Record<string, string> = {
   bridge: "Dashboard",
   inbox: "Inbox",
   upload: "Upload",
-  preview: "Preview",
-  drafts: "Drafts",
   settings: "Settings",
   library: "Library",
   suppliers: "Suppliers",
   buyers: "Buyers",
   mappings: "Mappings",
-  rules: "Validation rules",
-  templates: "Output templates",
   standards: "Standards",
   operations: "Operations",
   log: "Delivery log",
@@ -73,7 +69,7 @@ export function truncateLabel(label: string, max = 28): string {
 
 /** Resolved names available from the query cache, keyed by the dynamic segment. */
 export interface CrumbContext {
-  /** PO number for the active /inbox/[orderId] or /upload/preview/[orderId]. */
+  /** PO number for the active /inbox/[orderId]. */
   orderPoNumber?: string | null;
   /** Connection name for /connections/[connectionId]. */
   connectionName?: string | null;
@@ -110,8 +106,8 @@ export function formatCrumbLabel(
   if (looksLikeId(segment)) {
     const parent = index > 0 ? segments[index - 1] : undefined;
 
-    // /inbox/[orderId]  ·  /upload/preview/[orderId]
-    if (parent === "inbox" || parent === "preview") {
+    // /inbox/[orderId]
+    if (parent === "inbox") {
       if (ctx.orderPoNumber && ctx.orderPoNumber.trim().length > 0) return ctx.orderPoNumber;
       return `Order ${shortId(segment)}`;
     }
@@ -147,12 +143,12 @@ export interface Crumb {
 
 /**
  * Top-level route roots that belong to the WORKBENCH group in the v2 nav
- * (screenshots: "Workbench / Drafts", "Workbench / Inbound documents"). Their
- * trail gets an UNLINKED "Workbench" head crumb — there is no /workbench route,
- * so the head is context, not a link. /inbox intentionally stays bare ("Inbox"),
- * matching the design captures.
+ * (screenshots: "Workbench / Inbound documents"). Their trail gets an UNLINKED
+ * "Workbench" head crumb — there is no /workbench route, so the head is context,
+ * not a link. /inbox intentionally stays bare ("Inbox"), matching the design
+ * captures.
  */
-const WORKBENCH_GROUP_ROOTS: ReadonlySet<string> = new Set(["drafts", "inbound"]);
+const WORKBENCH_GROUP_ROOTS: ReadonlySet<string> = new Set(["inbound"]);
 
 /**
  * Top-level segments that name a NAV GROUP but have NO index route of their own —
