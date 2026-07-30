@@ -9,8 +9,16 @@
 //     (Resend was removed 2026-06-11 — zero references in code or env.
 //      AWS was removed — not in the stack; hosting is Railway, storage is
 //      Cloudflare R2, database is Neon.)
-//   • Locations must be checkable. Railway's region is europe-west4
-//     (Netherlands) — write the real region, never a guessed city.
+//   • Locations must be checkable, and a WRONG-but-specific location is worse
+//     than a vague one, because it is harder to defend. "europe-west4" sat
+//     here as Railway's region for months; it is not a Railway region
+//     identifier at all, and the only thing citing it was this comment — so
+//     the pages were quoting themselves. Removed 2026-07-30. Do not write a
+//     region id or a city back in until someone has read it off the vendor's
+//     own dashboard.
+//   • A vendor's purpose must name everything it actually receives, in every
+//     direction. Postmark was listed as inbound-only while the email delivery
+//     channel was sending complete purchase orders out through it.
 //   • Do not claim certifications or contract terms we do not have.
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -21,7 +29,13 @@ export interface Subprocessor {
   contract: string;
 }
 
-/** Human-readable date this list last changed. Bump on every edit. */
+/**
+ * Human-readable date the subprocessor SET last changed — a vendor added,
+ * removed or replaced. /subprocessors renders it as "list last changed", so it
+ * must not move for a wording correction: bumping it would signal a
+ * subprocessor change that did not happen, and the 30-day notice below is
+ * checked against it. Fixing a wrong purpose or location line leaves it alone.
+ */
 export const SUBPROCESSORS_UPDATED = "11 June 2026";
 
 /**
@@ -54,7 +68,7 @@ export const SUBPROCESSORS: Subprocessor[] = [
   {
     name: "Railway",
     purpose: "API and background-worker hosting",
-    location: "EU (europe-west4, Netherlands)",
+    location: "EU region",
     contract: "Railway DPA",
   },
   {
@@ -71,8 +85,13 @@ export const SUBPROCESSORS: Subprocessor[] = [
   },
   {
     name: "Vercel",
-    purpose: "Frontend hosting and CDN",
-    location: "Global CDN, source data EU",
+    // Vercel serves the website and the app shell only. There are no route
+    // handlers, no server actions and no src/app/api routes, so uploads and
+    // every order request go from the browser straight to our API. It holds no
+    // order data, which also means it is no evidence about where order data
+    // lives — the old "source data EU" implied otherwise.
+    purpose: "Website and app hosting (order files do not pass through it)",
+    location: "Global CDN",
     contract: "Vercel DPA + SCCs",
   },
   {
@@ -96,7 +115,12 @@ export const SUBPROCESSORS: Subprocessor[] = [
   },
   {
     name: "Postmark",
-    purpose: "Inbound email ingestion (orders emailed to your ProcuLink address)",
+    // Both directions, and the outbound one carries the purchase order itself
+    // as an email attachment. Railway blocks outbound SMTP, so the email
+    // delivery channel posts to Postmark's US API — there is no EU option to
+    // switch on; the vendor states it has no plans to add EU servers.
+    purpose:
+      "Email in and out: orders emailed to your ProcuLink address, and the purchase orders we email to your suppliers",
     location: "US",
     contract: "Postmark DPA + SCCs",
   },

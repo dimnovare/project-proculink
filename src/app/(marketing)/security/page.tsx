@@ -37,18 +37,29 @@ const POSTURE: Array<{ title: string; body: React.ReactNode; icon: React.ReactNo
     icon: <KeyIcon />,
   },
   {
+    // Two facts, kept apart on purpose. WHERE DATA IS STORED is one question;
+    // WHICH NETWORK PATH our traffic takes to reach your supplier is a
+    // different one, and we can only answer the first. Collapsing the two into
+    // a single "EU data residency" string is what made the previous version of
+    // this card untrue. See docs/qa/2026-07-30-residency-ground-truth.md in the
+    // backend repo for the sourced position behind every sentence here.
     title: "Where your data lives",
     body: (
       <>
         Your order files, the database behind them, and the API all run in EU-region
-        infrastructure — Cloudflare R2, Neon, and Railway (europe-west4, Netherlands). Some
-        processing runs on named US subprocessors under standard contractual clauses: sign-in,
-        AI document extraction, inbound email, and payments. Each one is listed with its
+        infrastructure — Cloudflare R2, Neon, and Railway. Some processing runs on named US
+        subprocessors under standard contractual clauses: sign-in, AI document extraction and
+        mapping suggestions, payments, and email in both directions — the orders your suppliers
+        email in, and the purchase orders we email out to them. If you deliver an order by
+        email, the order itself passes through a US provider. Each one is listed with its
         location and contract on{" "}
         <Link href="/subprocessors" style={{ color: GREEN_DEEP, textDecoration: "underline" }}>
           /subprocessors
         </Link>
-        .
+        . Where your data is stored and the route it travels are two different questions: the
+        network path out to your supplier is chosen by our hosting provider and is not pinned to
+        a region by us, so we cannot tell you today which country an outbound delivery leaves
+        from.
       </>
     ),
     icon: <BuildingIcon />,
