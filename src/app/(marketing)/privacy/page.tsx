@@ -60,10 +60,10 @@ export default function PrivacyPage() {
       <ul style={{ paddingLeft: 20, marginBottom: 14 }}>
         <li style={S.li}><strong>Authentication</strong>: Clerk (US-based, EU data residency available on request)</li>
         <li style={S.li}><strong>File storage</strong>: Cloudflare R2 (EU-region bucket)</li>
-        <li style={S.li}><strong>API hosting</strong>: Railway (EU region — europe-west4, Netherlands)</li>
+        <li style={S.li}><strong>API hosting</strong>: Railway (EU region)</li>
         <li style={S.li}><strong>Database</strong>: PostgreSQL hosted on Neon (EU region)</li>
         <li style={S.li}><strong>Error monitoring</strong>: Sentry (EU region instance)</li>
-        <li style={S.li}><strong>Frontend</strong>: Vercel (global CDN, source data stays in EU)</li>
+        <li style={S.li}><strong>Frontend</strong>: Vercel (global CDN — order files do not pass through it)</li>
       </ul>
 
       <h2 style={S.h2}>Data retention</h2>

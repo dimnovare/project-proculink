@@ -1,4 +1,4 @@
-import { describe, it, expect, afterEach } from "vitest";
+import { describe, it, expect, afterEach, beforeEach, vi } from "vitest";
 import { render, cleanup } from "@testing-library/react";
 import { readFileSync } from "fs";
 import { join } from "path";
@@ -6,6 +6,12 @@ import DpaPage from "./dpa/page";
 import SubprocessorsPage from "./subprocessors/page";
 import SecurityPage from "./security/page";
 import CustomersPage from "./customers/page";
+import PrivacyPage from "./privacy/page";
+import PricingPage from "./pricing/page";
+import MarketingLayout from "./layout";
+import HomePage from "@/app/(home)/page";
+import SignInPage from "@/app/sign-in/[[...sign-in]]/page";
+import SignUpPage from "@/app/sign-up/[[...sign-up]]/page";
 import { LEGAL_ENTITY } from "@/lib/legal-entity";
 import { SUBPROCESSORS_UPDATED } from "@/lib/subprocessors";
 import { SETUP_FEE_NOTE } from "@/lib/plans";
@@ -30,9 +36,28 @@ import { SETUP_FEE_NOTE } from "@/lib/plans";
 // come back", because that is the failure mode — copy drifting back toward a
 // guarantee nobody staffs.
 
+// Rendered text, as a visitor reads it.
+//
+// NOT container.textContent. That concatenates adjacent nodes with nothing
+// between them — a card titled "Where your data lives" followed by a body
+// starting "All order data…" reads as "livesAll order data", and the auth
+// panel reads "fully auditedEU data residency". Every \b-anchored assertion
+// then silently stops matching at exactly the seam where copy changes, which
+// is the worst possible place for a copy test to go blind. Joining the text
+// nodes with a space restores the word boundaries.
+//
+// <style> contents are text nodes too; CSS tokens are not copy, so they go.
 function text(ui: React.ReactElement) {
   const { container } = render(ui);
-  return container.textContent ?? "";
+  return visibleText(container);
+}
+
+function visibleText(root: HTMLElement) {
+  root.querySelectorAll("style,script").forEach((el) => el.remove());
+  const parts: string[] = [];
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+  for (let n = walker.nextNode(); n; n = walker.nextNode()) parts.push(n.textContent ?? "");
+  return parts.join(" ").replace(/\s+/g, " ").trim();
 }
 
 function html(ui: React.ReactElement) {
@@ -175,59 +200,203 @@ describe("setup-fee design-partner waiver", () => {
 //
 // Phrased as "the absolute promise must not come back", because that is the
 // failure mode: copy drifting back toward a guarantee the architecture breaks.
+//
+// ── Second pass, 2026-07-30 ──────────────────────────────────────────────────
+// The first correction shipped with assertions that pinned nothing. Five
+// separate rewrites put the false copy back while this file still reported
+// every test green:
+//
+//   1. quoting the retracted sentence ("all order data is processed and
+//      stored") let a word-order swap plus "Nothing" for "No data" through;
+//   2. quoting the two invented pilot profiles let a reworded pair through;
+//   3. the home-page stat guard sat inside `if (label exists)`, so deleting
+//      the label deleted the check;
+//   4. the footer pins read SOURCE TEXT, so `{/* … */}<span >…</span>` beat
+//      both a `not.toContain` and its positive twin;
+//   5. the `href="/subprocessors"` check passed against the original false
+//      copy — that link predates the correction entirely.
+//
+// So: assert RENDERED text everywhere (every page in this suite renders under
+// jsdom without a Clerk provider), pin the SHAPE of the promise rather than
+// its wording, and scope the link check to the card that actually makes the
+// claim.
+
+// An absolute quantifier governing our data, and a region, in one sentence.
+// This is the shape of the promise, so a rewrite cannot slip past it.
+const ABSOLUTE_RESIDENCY_PROMISE =
+  /\b(all|every|no|nothing)\b[^.]{0,60}\b(order )?data\b[^.]{0,60}\b(EU|EEA|region)\b/i;
+
+// The same promise in its other grammar: nothing ever leaves.
+const NOTHING_LEAVES_PROMISE =
+  /\b(no|none|nothing)\b[^.]{0,60}\bleaves?\b[^.]{0,60}\b(EU|EEA|region|country|Europe)\b/i;
+
+// The card on /security that actually makes the residency claim. Assertions
+// about that claim are scoped to it: the same page also renders the whole
+// subprocessor table, and a page-wide grep is satisfied by the table no matter
+// what the claim says. That is how "AI document extraction and mapping
+// suggestions" passed while the card said only the first half.
+function residencyCard(): HTMLElement {
+  const { container } = render(<SecurityPage />);
+  const card = Array.from(container.querySelectorAll("article")).find((el) =>
+    /US subprocessors/i.test(visibleText(el as HTMLElement)),
+  );
+  expect(card, "the /security card that makes the residency claim").toBeTruthy();
+  return card as HTMLElement;
+}
 
 describe("EU residency claim", () => {
-  it("does not claim all order data is processed in the EU", () => {
+  it("does not promise that all data stays in the region", () => {
     const body = text(<SecurityPage />);
-    expect(body).not.toMatch(/all order data is processed and stored/i);
-    expect(body).not.toMatch(/no data leaves the region/i);
+    expect(body).not.toMatch(ABSOLUTE_RESIDENCY_PROMISE);
+    expect(body).not.toMatch(NOTHING_LEAVES_PROMISE);
   });
 
   it("names the EU-region infrastructure that can actually be checked", () => {
     const body = text(<SecurityPage />);
     expect(body).toMatch(/Cloudflare R2/);
     expect(body).toMatch(/Neon/);
-    expect(body).toMatch(/europe-west4/);
+    expect(body).toMatch(/Railway/);
+  });
+
+  it("prints no Railway region identifier, because we do not have a real one", () => {
+    // "europe-west4" is not a Railway region id at all — the EU West id is
+    // "europe-west4-drams3a" — and the only thing that ever cited it was a
+    // comment in our own subprocessor file. A precise wrong location is
+    // harder to defend than an absent one, so it is absent.
+    expect(text(<SecurityPage />)).not.toMatch(/europe-west4/i);
+    expect(text(<SubprocessorsPage />)).not.toMatch(/europe-west4/i);
+    expect(text(<PrivacyPage />)).not.toMatch(/europe-west4/i);
   });
 
   it("discloses that named US subprocessors process data under SCCs", () => {
-    const body = text(<SecurityPage />);
-    expect(body).toMatch(/US subprocessors/i);
-    expect(body).toMatch(/standard contractual clauses/i);
-    // The four categories that actually leave the EU today.
-    expect(body).toMatch(/AI document extraction/i);
-    expect(body).toMatch(/inbound email/i);
-    expect(body).toMatch(/payments/i);
+    const card = visibleText(residencyCard());
+    expect(card).toMatch(/standard contractual clauses/i);
+    expect(card).toMatch(/sign-in/i);
+    expect(card).toMatch(/payments/i);
   });
 
-  it("links the residency claim to the subprocessor list", () => {
-    expect(html(<SecurityPage />)).toContain('href="/subprocessors"');
+  it("gives the AI subprocessor its whole purpose, not half of it", () => {
+    // /subprocessors says "AI document extraction and mapping suggestions".
+    // The card said only the first half, which reads as if mapping suggestions
+    // were computed somewhere else. They are not: the same OpenAI call sites,
+    // none of them overriding the base URL, reach api.openai.com.
+    expect(visibleText(residencyCard())).toMatch(
+      /AI document extraction and mapping suggestions/i,
+    );
   });
 
-  it("keeps the home-page residency stat only if it links to the explanation", () => {
-    const src = read("src/app/(home)/page.tsx");
-    if (/label: "Data residency"/.test(src)) {
-      expect(src).toMatch(/label: "Data residency",\s*href: "\/security"/);
-    }
+  it("says the purchase order itself is emailed through a US provider", () => {
+    // "Inbound email" named half the exposure. The email delivery channel
+    // attaches the generated purchase order and sends it to the supplier
+    // through the same US provider, which has no EU option to enable.
+    const card = visibleText(residencyCard());
+    expect(card).toMatch(/purchase orders we email/i);
+    expect(card).toMatch(/passes through a US provider/i);
+  });
+
+  it("names the outbound network route as unknown, not as EU", () => {
+    // Nothing in the product pins where our traffic leaves from, and the one
+    // measurement anyone ever took came back United States. Softening that to
+    // "probably EU" would be the same defect in a friendlier direction, so the
+    // card has to say it does not know.
+    const card = visibleText(residencyCard());
+    expect(card).toMatch(/cannot tell you( today)? which country/i);
+    expect(card).not.toMatch(
+      /(route|path|traffic)[^.]{0,80}\b(stays|remains|is|leaves) (in|within|from) the EU\b/i,
+    );
+  });
+
+  it("keeps the residency claim one click from the list that qualifies it", () => {
+    expect(residencyCard().querySelector('a[href="/subprocessors"]')).not.toBeNull();
+  });
+
+  it("keeps the home-page residency stat linked to the explanation", () => {
+    const { container } = render(<HomePage />);
+    const stat = Array.from(container.querySelectorAll("a")).find((a) =>
+      /residency/i.test(a.textContent ?? ""),
+    );
+    expect(stat, 'the hero "Data residency" stat').toBeTruthy();
+    expect(stat?.getAttribute("href")).toBe("/security");
   });
 
   it("links the home-page footer residency line to the explanation", () => {
-    const src = read("src/app/(home)/page.tsx");
-    expect(src).not.toContain("<span>EU data residency</span>");
-    expect(src).toMatch(/EU-region order storage/);
+    expectQualifiedFooter(<HomePage />);
   });
 
   it("links the shared marketing footer residency line to the explanation", () => {
-    const src = read("src/app/(marketing)/layout.tsx");
-    expect(src).not.toContain("<span>EU data residency</span>");
-    expect(src).toMatch(/EU-region order storage/);
+    expectQualifiedFooter(<MarketingLayout>{null}</MarketingLayout>);
   });
 
   it("drops the bare residency claim from the pricing fine print", () => {
-    const src = read("src/app/(marketing)/pricing/page.tsx");
-    expect(src).not.toMatch(/All plans include EU data residency/);
-    expect(src).toMatch(/EU-region order storage/);
+    const body = text(<PricingPage />);
+    // No \b anchors: textContent runs adjacent elements together, so
+    // "…fully auditedEU data residency" has no word boundary before "EU" —
+    // that is exactly how the sign-in page's copy of this line escaped.
+    expect(body).not.toMatch(/EU data residency/i);
+    expect(body).toMatch(/EU-region order storage/);
   });
+});
+
+/**
+ * A footer may say where orders are STORED, and must link to the page that
+ * qualifies it. Scoped to <footer>: the home hero legitimately carries an
+ * "EU / Data residency" stat, which is allowed precisely because it is a link.
+ */
+function expectQualifiedFooter(ui: React.ReactElement) {
+  const { container } = render(ui);
+  const footer = container.querySelector("footer");
+  expect(footer, "a <footer> to check").toBeTruthy();
+  expect(visibleText(footer as HTMLElement)).not.toMatch(/EU data residency/i);
+  const link = Array.from((footer as HTMLElement).querySelectorAll("a")).find(
+    (a) => (a.textContent ?? "").trim() === "EU-region order storage",
+  );
+  expect(link, 'the "EU-region order storage" link').toBeTruthy();
+  expect(link?.getAttribute("href")).toBe("/security");
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// The sign-in and sign-up brand panels kept the bare "EU data residency" line
+// that was removed from three footers for over-claiming — unlinked, on the two
+// highest-intent pages on the site. Same claim, same fix.
+
+describe("sign-in and sign-up trust line", () => {
+  const AUTH_PAGES: Array<[string, () => React.ReactElement]> = [
+    ["sign-in", () => <SignInPage />],
+    ["sign-up", () => <SignUpPage />],
+  ];
+
+  // Both pages branch at render time on the Clerk env vars, and CI sets
+  // placeholder keys where a dev machine has none — so without pinning this,
+  // the suite renders Clerk's real <SignIn /> on CI and dies on "useSession can
+  // only be used within the <ClerkProvider />". Pin the unconfigured branch:
+  // AuthShell renders the same AuthBrandPanel in all three branches, so the
+  // trust line under test is identical either way.
+  beforeEach(() => {
+    vi.stubEnv("NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY", "");
+    vi.stubEnv("CLERK_SECRET_KEY", "");
+  });
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  for (const [name, page] of AUTH_PAGES) {
+    it(`does not carry the bare residency claim on /${name}`, () => {
+      const body = text(page());
+      // Anchor: without this the negative below passes just as happily on a
+      // page that stopped rendering the brand panel at all.
+      expect(body).toMatch(/AES-GCM at rest/);
+      expect(body).not.toMatch(/EU data residency/i);
+    });
+
+    it(`qualifies the claim and links it on /${name}`, () => {
+      const { container } = render(page());
+      const link = Array.from(container.querySelectorAll("a")).find(
+        (a) => (a.textContent ?? "").trim() === "EU-region order storage",
+      );
+      expect(link, 'the "EU-region order storage" link').toBeTruthy();
+      expect(link?.getAttribute("href")).toBe("/security");
+    });
+  }
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -237,14 +406,38 @@ describe("EU residency claim", () => {
 // matches either, so the anonymisation was concealing invention rather than an
 // identity. An anonymised-but-fabricated profile is the same defect as a named
 // fake one, so the fix is an empty page that says so — not a softer fiction.
+//
+// Quoting the two retired profiles was useless as a guard: "a mid-sized
+// wholesaler, roughly 120 purchase orders a month" restores both of them word
+// for word past every literal pin. What actually distinguishes the honest page
+// from the dishonest one is VOICE — the page is allowed to quote one invented
+// profile as the specimen it refuses to publish, and it does exactly that in
+// the "Why it is empty" panel. Outside quotation marks the page is speaking in
+// its own voice, and there it may not describe a customer we do not have.
+//
+// Two independent guards, because one is always beatable:
+//   • voice   — no archetype, volume or pilot language outside quotation marks;
+//   • arity   — at most ONE archetype anywhere, quoted or not. Two profiles
+//               need two archetypes, so the restored pair dies even if someone
+//               puts both of them inside quotes.
+
+// Built fresh on each use: a /g regex carries lastIndex between calls.
+const ARCHETYPE = "\\b(wholesaler|distributor|retailer|manufacturer|reseller|merchant)s?\\b";
+
+/** Drop quoted spans — a quotation is a specimen, not a claim. */
+const unquoted = (s: string) => s.replace(/[“"][^“”"]*[”"]/g, " ");
 
 describe("customer references", () => {
-  it("ships no invented pilot profiles", () => {
+  it("describes no customer in the page's own voice", () => {
+    const body = unquoted(text(<CustomersPage />));
+    expect(body).not.toMatch(new RegExp(ARCHETYPE, "i"));
+    expect(body).not.toMatch(/\b\d[\d,.]*\s*\+?\s*(purchase orders|orders|POs)\b/i);
+    expect(body).not.toMatch(/\b(pilots?|design partners?|case stud(y|ies))\b/i);
+  });
+
+  it("ships no second profile, quoted or not", () => {
     const body = text(<CustomersPage />);
-    expect(body).not.toMatch(/mid-market wholesaler/i);
-    expect(body).not.toMatch(/industrial distributor/i);
-    expect(body).not.toMatch(/POs\/month/i);
-    expect(body).not.toMatch(/anonymised pilot/i);
+    expect((body.match(new RegExp(ARCHETYPE, "gi")) ?? []).length).toBeLessThanOrEqual(1);
   });
 
   it("does not claim pilots or customers we cannot point at", () => {
