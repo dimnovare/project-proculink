@@ -13,11 +13,12 @@ import { apiClient } from "@/lib/api-client";
 import { useQueriesEnabled } from "@/hooks/useQueriesEnabled";
 import type { Order } from "@/types/procurement";
 import type { PartyLabels } from "@/hooks/useOrderDirection";
+import { isParseStalled } from "@/components/bridge/parseStall";
 
-// ── Stuck-order threshold (mirrors the StuckOrderDetectionJob: 30 min for production,
-// but we surface a UI warning much earlier — at 2 min — so operators can investigate
-// before the backend job fires.)
-const STUCK_WARN_MS = 2 * 60 * 1000; // 2 minutes
+// ── Stuck-order threshold. Mirrors the StuckOrderDetectionJob (30 min in production) but fires
+// much earlier so a person is told something before the backend job would notice. The value and the
+// predicate live in parseStall.ts — ONE threshold, two consumers: this hook computes the flag, and
+// OrderWorkshop's parsing gate renders it. It was computed here and rendered NOWHERE until WP-08.
 
 /**
  * The one sentence explaining a `delivery_held` order, shared by the review screen
@@ -130,7 +131,8 @@ export function useOrderReview(orderId: string) {
   const isStuck = useMemo(() => {
     if (!order || order.status !== "parsing") return false;
     const updatedMs = new Date(order.updatedAt).getTime();
-    return Number.isFinite(updatedMs) && (Date.now() - updatedMs) > STUCK_WARN_MS;
+    if (!Number.isFinite(updatedMs)) return false;
+    return isParseStalled(Date.now() - updatedMs);
   }, [order]);
 
   // Count remaining unresolved exceptions from SERVER truth. Resolving a line
