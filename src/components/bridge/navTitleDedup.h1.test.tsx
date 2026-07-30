@@ -9,12 +9,12 @@ import type { OrderSummary } from "@/types/procurement";
 // h1 (sr-only) so heading hierarchy and getByRole("heading") queries survive.
 //
 // This file renders a representative slice of the audited pages end-to-end:
-// Dashboard, Inbox, Suppliers, Connections, Delivery log, Operations health,
-// Standards, plus Drafts as the kept-visible-title control. The remaining
-// audited pages (buyers, mappings, templates, rule catalog, exceptions,
+// Dashboard, Inbox, Suppliers, Connections, Delivery log, Operations health and
+// Standards. The remaining audited pages (buyers, mappings, exceptions,
 // connectors, webhooks, invoices, ASNs) run their h1 through the SAME
-// PageHeader `titleHidden` mechanism, whose contract is pinned in
-// layout/PageHeader.test.tsx.
+// PageHeader `titleHidden` mechanism, whose contract — including the
+// kept-visible variant, which used to be demonstrated here by the now-retired
+// Drafts page — is pinned directly in layout/PageHeader.test.tsx.
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn(), replace: vi.fn(), back: vi.fn() }),
@@ -77,7 +77,6 @@ import { CrossingsLog } from "./CrossingsLog";
 import { ConnectionsList } from "@/components/connections/ConnectionsList";
 import OperationsHealthPage from "@/app/(app)/operations/health/page";
 import StandardsPage from "@/app/(app)/library/standards/page";
-import DraftsPage from "@/app/(app)/drafts/page";
 
 afterEach(() => {
   cleanup();
@@ -177,8 +176,4 @@ describe("nav dedup — each audited page keeps exactly one h1", () => {
     expectSingleH1("Standards reference");
   });
 
-  it("Drafts (no always-present topbar tab): keeps its VISIBLE h1", () => {
-    renderPage(<DraftsPage />);
-    expectSingleH1("Drafts", { visible: true });
-  });
 });

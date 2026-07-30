@@ -1990,111 +1990,18 @@ export async function getAuditLog(page = 1, pageSize = 50): Promise<AuditLogPage
   return res.json();
 }
 
-// ── Validation rules ───────────────────────────────────────────────────────
-
-export interface RuleDto {
-  id: string;
-  name: string;
-  description: string;
-  severity: "error" | "warning" | "info";
-  entity: string;
-  enabled: boolean;
-  autoBlock: boolean;
-  triggerCount: number;
-  lastTriggered: string | null;
-  createdAt: string;
-}
-
-export async function getRules(): Promise<RuleDto[]> {
-  if (USE_MOCK) return []; // ValidationRules.tsx keeps its own RULES mock array
-  const headers = await authHeader();
-  const res = await fetchWithTimeout(`${API_BASE_URL}/api/rules`, { headers });
-  if (!res.ok) throw new Error(`rules: ${res.status}`);
-  return res.json();
-}
-
-export async function createRule(payload: Omit<RuleDto, "id"|"triggerCount"|"lastTriggered"|"createdAt"> & { enabled: boolean; autoBlock: boolean }): Promise<RuleDto> {
-  const headers = await authHeader();
-  const res = await fetchWithTimeout(`${API_BASE_URL}/api/rules`, {
-    method: "POST",
-    headers: { ...headers, "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  }, 30000);
-  if (!res.ok) throw new Error(`rules/create: ${res.status}`);
-  return res.json();
-}
-
-export async function updateRule(id: string, payload: Omit<RuleDto, "id"|"triggerCount"|"lastTriggered"|"createdAt">): Promise<RuleDto> {
-  const headers = await authHeader();
-  const res = await fetchWithTimeout(`${API_BASE_URL}/api/rules/${id}`, {
-    method: "PUT",
-    headers: { ...headers, "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  }, 30000);
-  if (!res.ok) throw new Error(`rules/update: ${res.status}`);
-  return res.json();
-}
-
-export async function toggleRule(id: string): Promise<RuleDto> {
-  const headers = await authHeader();
-  const res = await fetchWithTimeout(`${API_BASE_URL}/api/rules/${id}/toggle`, { method: "PATCH", headers }, 30000);
-  if (!res.ok) throw new Error(`rules/toggle: ${res.status}`);
-  return res.json();
-}
-
-export async function deleteRule(id: string): Promise<void> {
-  const headers = await authHeader();
-  const res = await fetchWithTimeout(`${API_BASE_URL}/api/rules/${id}`, { method: "DELETE", headers }, 30000);
-  if (!res.ok) throw new Error(`rules/delete: ${res.status}`);
-}
-
-// ── Output templates ───────────────────────────────────────────────────────
-
-export interface TemplateDto {
-  id: string;
-  name: string;
-  format: string;
-  version: string;
-  suppliersCount: number;
-  lastUsed: string;
-  config: unknown;
-}
-
-export async function getTemplates(): Promise<TemplateDto[]> {
-  if (USE_MOCK) return []; // templates page keeps its own mock array for demo mode
-  const headers = await authHeader();
-  const res = await fetchWithTimeout(`${API_BASE_URL}/api/templates`, { headers });
-  if (!res.ok) throw new Error(`templates: ${res.status}`);
-  return res.json();
-}
-
-export async function createTemplate(payload: Pick<TemplateDto, "name"|"format"|"version"> & { config?: unknown }): Promise<TemplateDto> {
-  const headers = await authHeader();
-  const res = await fetchWithTimeout(`${API_BASE_URL}/api/templates`, {
-    method: "POST",
-    headers: { ...headers, "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  }, 30000);
-  if (!res.ok) throw new Error(`templates/create: ${res.status}`);
-  return res.json();
-}
-
-export async function updateTemplate(id: string, payload: Pick<TemplateDto, "name"|"format"|"version"> & { config?: unknown }): Promise<TemplateDto> {
-  const headers = await authHeader();
-  const res = await fetchWithTimeout(`${API_BASE_URL}/api/templates/${id}`, {
-    method: "PUT",
-    headers: { ...headers, "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  }, 30000);
-  if (!res.ok) throw new Error(`templates/update: ${res.status}`);
-  return res.json();
-}
-
-export async function deleteTemplate(id: string): Promise<void> {
-  const headers = await authHeader();
-  const res = await fetchWithTimeout(`${API_BASE_URL}/api/templates/${id}`, { method: "DELETE", headers }, 30000);
-  if (!res.ok) throw new Error(`templates/delete: ${res.status}`);
-}
+// ── Validation rules + output templates: retired 2026-07-30 ────────────────
+//
+// The /api/rules and /api/templates clients are gone with the screens that were
+// their only callers (see src/lib/retired-routes.ts). Both endpoints described
+// work the product never did: no rule from /api/rules was ever consulted while
+// parsing, transforming or delivering an order, and the template writers posted
+// a `config` key the API binds as `ConfigJson`, so every save was accepted and
+// silently discarded.
+//
+// The checks that really run, and the output format a supplier really receives,
+// are per-supplier: getAcceptanceProfile / saveAcceptanceProfile and the
+// delivery config, both further down this file.
 
 // ── Billing + admin (moved to src/lib/api/billing.ts) ─────────────────────────
 export {
@@ -2935,12 +2842,13 @@ export function conformanceReportToMarkdown(report: ConformanceReport): string {
   return lines.join("\n");
 }
 
-// ── Group V4 — rule definitions catalog + supplier bindings ───────────────────
+// ── Group V4 — supplier rule bindings ─────────────────────────────────────────
 // Backend: ProcuLink.Api/Controllers/RuleDefinitionsController.cs.
-//   GET /api/rule-definitions                       → RuleDefinitionDto[]   (the org catalog)
-//   GET /api/rule-definitions/{definitionId}        → RuleDefinitionDto
 //   GET /api/suppliers/{supplierId}/rule-bindings   → SupplierRuleBindingDto[]
-// Read-only (authoring lives in the supplier Acceptance tab). Org-scoped server-side.
+// Read-only (authoring lives in the supplier Validation rules tab). Org-scoped
+// server-side. This endpoint is LIVE — it is what shows a supplier's checks with
+// their standards references. The org-wide /api/rule-definitions catalog is not
+// called from the frontend any more (its page was retired).
 
 /** A reusable rule definition (template) in the org's catalog. Mirrors RuleDefinitionDto. */
 export interface RuleDefinition {
@@ -2983,16 +2891,11 @@ const MOCK_RULE_DEFINITIONS: RuleDefinition[] = [
   { id: "rd-3", code: "LINE.QTY.POSITIVE", title: "Quantity greater than zero", description: "Reject any line whose ordered quantity is zero or negative.", scope: "line", fieldPath: "quantity", operator: "greater_than", defaultSeverity: "error", defaultExpectedValue: "0", paramHint: "numeric", ublRef: "cbc:Quantity", edifactRef: "QTY C186 6060", x12Ref: "PO102", cxmlRef: "ItemOut/@quantity", isSystem: true, createdAt: "2026-06-01T00:00:00Z" },
 ];
 
-async function mockListRuleDefinitions(): Promise<RuleDefinition[]> {
-  await delay(200);
-  return [...MOCK_RULE_DEFINITIONS];
-}
-
-async function realListRuleDefinitions(): Promise<RuleDefinition[]> {
-  const res = await fetchWithTimeout(`${API_BASE_URL}/api/rule-definitions`, { headers: await authHeader() });
-  if (!res.ok) throw new Error(`rule-definitions: ${res.status}`);
-  return res.json() as Promise<RuleDefinition[]>;
-}
+// No client for GET /api/rule-definitions: the org-wide catalog page it fed had
+// no link into it from anywhere in the product and was retired. The per-supplier
+// bindings below are the live surface — each one carries its definition inline,
+// which is where the standards references (UBL / EDIFACT / X12 / cXML) come from
+// on the supplier Validation rules tab.
 
 async function mockGetSupplierRuleBindings(supplierId: string): Promise<SupplierRuleBinding[]> {
   await delay(200);
@@ -3009,7 +2912,6 @@ async function realGetSupplierRuleBindings(supplierId: string): Promise<Supplier
   return res.json() as Promise<SupplierRuleBinding[]>;
 }
 
-export const listRuleDefinitions = USE_MOCK ? mockListRuleDefinitions : realListRuleDefinitions;
 export const getSupplierRuleBindings = USE_MOCK ? mockGetSupplierRuleBindings : realGetSupplierRuleBindings;
 
 // ── Group V1 — versioned Supplier Connection (GET/POST/PUT /api/connections) ──

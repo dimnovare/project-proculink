@@ -14,10 +14,10 @@ vi.mock("next/navigation", () => ({
 
 describe("PageHeader", () => {
   it("visible variant renders exactly one h1 with the title text", () => {
-    render(<PageHeader title="Drafts" sub="Saved for later" />);
+    render(<PageHeader title="Upload an order" sub="One file at a time" />);
     const headings = screen.getAllByRole("heading", { level: 1 });
     expect(headings).toHaveLength(1);
-    expect(headings[0]).toHaveTextContent("Drafts");
+    expect(headings[0]).toHaveTextContent("Upload an order");
     expect(headings[0]).not.toHaveClass("sr-only");
   });
 

@@ -149,7 +149,7 @@ describe("buildVisibleNav — consolidated structure (full nav)", () => {
     expect(nav.main.map((s) => s.group ?? null)).toEqual([null, "Workbench", "Library", "Monitor"]);
     expect(nav.main.map((s) => s.items.map((i) => i.label))).toEqual([
       ["Dashboard"],
-      ["Inbox", "Drafts", "Inbound"],
+      ["Inbox", "Inbound"],
       ["Partners", "Rules & formats"],
       ["Operations", "Integrations"],
     ]);
@@ -187,10 +187,9 @@ describe("buildVisibleNav — consolidated structure (full nav)", () => {
   it("every legacy deep route keeps a reachable entry (hub item, direct item, or pinned action)", () => {
     const items = allItems(buildVisibleNav("Suppliers", true, FULL));
     const LEGACY_ROUTES = [
-      "/bridge", "/upload", "/inbox", "/drafts",
+      "/bridge", "/upload", "/inbox",
       "/library/suppliers", "/library/buyers", "/connections",
-      "/library/mappings", "/library/rules", "/library/rule-definitions",
-      "/library/templates", "/library/standards",
+      "/library/mappings", "/library/standards",
       "/operations/health", "/operations/exceptions", "/operations/log",
       "/operations/connectors", "/operations/webhooks",
       "/inbound/invoices", "/inbound/asns",
@@ -216,7 +215,7 @@ describe("buildVisibleNav — consolidated structure (full nav)", () => {
       expect(isItemActive(p, partners), `${p} lights Partners`).toBe(true);
     }
     const rules = items.find((i) => i.label === "Rules & formats")!;
-    for (const p of ["/library/mappings", "/library/rules", "/library/rule-definitions", "/library/templates", "/library/standards"]) {
+    for (const p of ["/library/mappings", "/library/standards"]) {
       expect(isItemActive(p, rules), `${p} lights Rules & formats`).toBe(true);
     }
   });
@@ -228,7 +227,7 @@ describe("hubTooltip — lists a hub's tabs (derived from HUB_TABS, can't drift)
   );
   it("describes each hub with its tab labels", () => {
     expect(hubTooltip(byLabel["Partners"])).toBe("Suppliers · Buyers · Connections");
-    expect(hubTooltip(byLabel["Rules & formats"])).toBe("Mappings · Rules · Output templates · Standards");
+    expect(hubTooltip(byLabel["Rules & formats"])).toBe("Mappings · Standards");
     expect(hubTooltip(byLabel["Operations"])).toBe("System health · Exceptions · Delivery log");
     expect(hubTooltip(byLabel["Integrations"])).toBe("Connectors · Webhooks");
     expect(hubTooltip(byLabel["Inbound"])).toBe("Invoices · Shipping notices");

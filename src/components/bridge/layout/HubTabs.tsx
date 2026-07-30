@@ -45,8 +45,10 @@ export const HUB_TABS: Record<HubKey, HubTab[]> = {
   ],
   "rules-formats": [
     { label: "Mappings", href: "/library/mappings" },
-    { label: "Rules", href: "/library/rules", match: ["/library/rule-definitions"] },
-    { label: "Output templates", href: "/library/templates" },
+    // No "Rules" or "Output templates" tab: neither page could change what a
+    // supplier receives or whether an order passed. Both jobs are per-supplier
+    // (the Validation rules and Delivery tabs under Partners), so the hub no
+    // longer offers an org-wide version of them.
     { label: "Standards", href: "/library/standards" },
   ],
   operations: [

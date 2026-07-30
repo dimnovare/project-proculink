@@ -42,9 +42,6 @@ describe("matchGuide", () => {
     expect(matchGuide("/connections/abc-123")?.route).toBe(
       "/connections/[connectionId]",
     );
-    expect(matchGuide("/upload/preview/3f2b1a90-0c4d-4e5f-9a1b-2c3d4e5f6a7b")?.route).toBe(
-      "/upload/preview/[orderId]",
-    );
   });
 
   it("disambiguates /inbox from /inbox/[orderId]", () => {
@@ -62,7 +59,6 @@ describe("matchGuide", () => {
   it("returns null when no entry matches", () => {
     expect(matchGuide("/")).toBeNull();
     expect(matchGuide("/admin")).toBeNull();
-    expect(matchGuide("/upload/preview")).toBeNull();
     expect(matchGuide("/inbox/a/b")).toBeNull();
     expect(matchGuide("/nonexistent")).toBeNull();
     expect(matchGuide("/library")).toBeNull();
@@ -114,8 +110,8 @@ describe("guideSeenKey", () => {
 });
 
 describe("SECTION_GUIDES registry shape", () => {
-  it("has 24 entries with unique routes", () => {
-    expect(SECTION_GUIDES).toHaveLength(24);
+  it("has 19 entries with unique routes", () => {
+    expect(SECTION_GUIDES).toHaveLength(19);
     const routes = SECTION_GUIDES.map((g) => g.route);
     expect(new Set(routes).size).toBe(routes.length);
   });
@@ -170,9 +166,10 @@ describe("SECTION_GUIDES registry shape", () => {
   });
 
   it("honestly-unavailable screens carry no related articles", () => {
-    // /drafts and /inbound/asns document unavailable features — linking
-    // articles from them would violate offer⇔works.
-    for (const route of ["/drafts", "/inbound/asns"]) {
+    // /inbound/asns documents an unavailable feature — linking articles from it
+    // would violate offer⇔works. (/drafts used to be the other one; the screen
+    // itself was retired rather than kept as a permanently empty list.)
+    for (const route of ["/inbound/asns"]) {
       const g = SECTION_GUIDES.find((e) => e.route === route);
       expect(g, route).toBeDefined();
       expect(g?.articleSlugs, `articleSlugs of ${route}`).toBeUndefined();

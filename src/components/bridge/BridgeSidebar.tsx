@@ -6,7 +6,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useOrganization } from "@clerk/nextjs";
 import { useQuery } from "@tanstack/react-query";
 import {
-  Layers, Upload, Inbox, Files, Send, Users, CheckCircle2, Zap, Plug,
+  Layers, Upload, Inbox, Send, Users, CheckCircle2, Zap, Plug,
   Lock, HelpCircle, Settings, ChevronsLeft, ChevronsRight, X,
   type LucideIcon,
 } from "lucide-react";
@@ -30,7 +30,7 @@ import { UserChipMenu } from "./UserChipMenu";
 // route stays valid and reachable.
 //
 //   Partners        → /library/suppliers   (suppliers · buyers · connections)
-//   Rules & formats → /library/mappings    (mappings · rules · rule-definitions · templates · standards)
+//   Rules & formats → /library/mappings    (mappings · standards)
 //   Operations      → /operations/health   (health · exceptions · log)
 //   Integrations    → /operations/connectors (connectors · webhooks)
 //   Inbound         → /inbound/invoices    (invoices · asns)
@@ -55,7 +55,8 @@ const NAV_MAIN: SidebarNavSection[] = [
     group: "Workbench",
     items: [
       { label: "Inbox", href: "/inbox", icon: Inbox, badgeKey: "review" },
-      { label: "Drafts", href: "/drafts", icon: Files },
+      // No "Drafts": orders cannot be saved as drafts, so the list could never
+      // hold anything. Unsent orders are in the Inbox.
       // Inbound (Invoices/ASNs) is a real but pre-launch surface — gated below
       // by INBOUND_ENABLED, never revealed by LAUNCH_FULL_NAV alone.
       { label: "Inbound", href: HUB_TABS.inbound[0].href, icon: Send, hub: "inbound" },
