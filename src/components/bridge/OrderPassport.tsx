@@ -14,6 +14,7 @@ import type {
   PassportEvent,
   PassportMappingDecision,
   PassportDeliveryAttempt,
+  PassportOutputArtifact,
 } from "@/types/procurement";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -238,12 +239,55 @@ function MappingRow({ d }: { d: PassportMappingDecision }) {
   );
 }
 
-function DeliveryRow({ a }: { a: PassportDeliveryAttempt }) {
+/**
+ * One delivery attempt, with the two things a disputed delivery actually needs: the exact
+ * file that went out, and the fingerprint recorded when it went out.
+ *
+ * The pairing is per attempt, never per order — an order can hold several artifacts and
+ * several attempts, and a retry after a re-transform sends DIFFERENT bytes. `a.artifactId`
+ * is the artifact this attempt dispatched; when the backend can't prove which one it was it
+ * sends null, and we offer no download rather than handing the operator bytes we can't vouch
+ * for. The generated-file comparison likewise only runs when this attempt sent the artifact
+ * we're holding the hash for.
+ */
+function DeliveryRow({
+  a,
+  orderId,
+  generated,
+}: {
+  a: PassportDeliveryAttempt;
+  orderId: string;
+  generated: PassportOutputArtifact | null;
+}) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
   const ok = lc(a.status).includes("deliver") || lc(a.status).includes("success") || lc(a.status).includes("acknowled") || lc(a.status) === "ok";
   const color = ok ? "#1E6D29" : lc(a.status).includes("fail") || lc(a.status).includes("reject") ? "#B43838" : "#B36D14";
+
+  // Only comparable when this attempt sent the very artifact whose hash we hold.
+  const comparable =
+    !!generated && !!a.artifactId && !!a.artifactSha256 && !!generated.artifactSha256 &&
+    generated.artifactId === a.artifactId;
+  const matches = comparable && generated!.artifactSha256 === a.artifactSha256;
+
+  async function handleDownload() {
+    if (!a.artifactId) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const { url } = await apiClient.getDownloadUrl(orderId, a.artifactId);
+      window.open(url, "_blank", "noopener,noreferrer");
+    } catch {
+      setError("Couldn't get that file. The link may have expired, or the file may have been removed under your data-retention setting.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return (
-    <div style={{ padding: "8px 0", borderTop: "1px solid #F0F2F6", display: "flex", flexDirection: "column", gap: 3 }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+    <div data-testid="delivery-attempt" style={{ padding: "8px 0", borderTop: "1px solid #F0F2F6", display: "flex", flexDirection: "column", gap: 3 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
         <span style={{ fontSize: 10.5, fontWeight: 700, color: "#5E6779", fontFamily: "'JetBrains Mono',monospace" }}>#{a.attemptNumber}</span>
         <span style={{ fontSize: 11, fontWeight: 700, color, textTransform: "capitalize" }}>{a.status || "—"}</span>
         {a.channel && <span style={{ fontSize: 10.5, color: "var(--ink-faint)" }}>· {a.channel}</span>}
@@ -254,6 +298,46 @@ function DeliveryRow({ a }: { a: PassportDeliveryAttempt }) {
       {(a.errorMessage || a.rejectionReason) && (
         <div style={{ fontSize: 11, color: "#B43838" }}>{a.errorMessage || a.rejectionReason}</div>
       )}
+
+      {/* Proof of what went out */}
+      <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginTop: 2 }}>
+        {a.artifactId ? (
+          <button
+            type="button"
+            onClick={handleDownload}
+            disabled={busy}
+            style={{
+              height: 24, padding: "0 9px", borderRadius: 5, border: "1px solid #CBD8EC",
+              background: "#F4F8FF", color: "#0F4FA8", fontSize: 10.5, fontWeight: 700,
+              cursor: busy ? "default" : "pointer", opacity: busy ? 0.6 : 1,
+            }}
+          >
+            {busy ? "Preparing…" : "↓ Download what we sent"}
+          </button>
+        ) : (
+          <span style={{ fontSize: 10.5, color: "var(--ink-faint)" }}>
+            No stored copy of what this attempt sent.
+          </span>
+        )}
+        {comparable && (
+          <span style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em", borderRadius: 3, padding: "2px 6px", background: matches ? "#E9F1EA" : "#FBE3E3", color: matches ? "#1E6D29" : "#B43838" }}>
+            {matches ? "Matches the file we generated" : "Does not match the file we generated"}
+          </span>
+        )}
+      </div>
+
+      {a.artifactSha256 && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
+          <span style={{ fontSize: 9.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--ink-faint)" }}>
+            Fingerprint of the file we sent (SHA-256)
+          </span>
+          <span style={{ fontSize: 10.5, fontFamily: "'JetBrains Mono',monospace", color: "#5E6779", wordBreak: "break-all" }}>
+            {a.artifactSha256}
+          </span>
+        </div>
+      )}
+
+      {error && <div style={{ fontSize: 11, color: "#B43838" }}>{error}</div>}
     </div>
   );
 }
@@ -391,6 +475,10 @@ export function OrderPassport({ orderId }: { orderId: string }) {
               <div className="flex flex-col gap-3">
                 <Ref label="Output artifact" value={passport.outputArtifact?.fileKey} />
                 <Ref label="Output format" value={passport.outputArtifact?.format?.toUpperCase()} />
+                {/* The fingerprint recorded when the file was generated — what a downloaded
+                    copy is checked against. Shown here rather than only per attempt because
+                    it belongs to the file, not to any one send. */}
+                <Ref label="Fingerprint of the file we generated (SHA-256)" value={passport.outputArtifact?.artifactSha256} />
               </div>
             </div>
             {passport.supplierProfile && (
@@ -429,7 +517,11 @@ export function OrderPassport({ orderId }: { orderId: string }) {
             {passport.deliveryAttempts.length === 0 ? (
               <p className="text-[12.5px]" style={{ color: "var(--ink-faint)", margin: 0 }}>No delivery attempts yet.</p>
             ) : (
-              <div>{passport.deliveryAttempts.map((a) => <DeliveryRow key={a.attemptNumber} a={a} />)}</div>
+              <div>
+                {passport.deliveryAttempts.map((a) => (
+                  <DeliveryRow key={a.attemptNumber} a={a} orderId={orderId} generated={passport.outputArtifact} />
+                ))}
+              </div>
             )}
           </Section>
 

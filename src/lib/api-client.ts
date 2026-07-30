@@ -540,6 +540,22 @@ async function realGetOrderById(id: string): Promise<Order | null> {
 
 // ── PO Passport ─────────────────────────────────────────────────────────────
 
+/**
+ * A stable, artifact-shaped 64-hex string for the demo passport. It is NOT a real digest —
+ * mock mode has no bytes to hash — but it keeps the fingerprint row the same length and shape
+ * as production so the layout is exercised honestly.
+ */
+function mockSha256(seed: string): string {
+  let h = 0x811c9dc5;
+  const out: string[] = [];
+  for (let i = 0; i < 32; i++) {
+    h ^= seed.charCodeAt(i % seed.length) + i;
+    h = Math.imul(h, 0x01000193) >>> 0;
+    out.push(h.toString(16).padStart(8, "0").slice(0, 2));
+  }
+  return out.join("");
+}
+
 async function mockGetOrderPassport(orderId: string): Promise<PassportDto> {
   await delay(200);
   const o = mockOrders.find(x => x.id === orderId);
@@ -595,10 +611,10 @@ async function mockGetOrderPassport(orderId: string): Promise<PassportDto> {
         status: l.supplierItemCode ? "accepted" : "suggested",
       })),
     outputArtifact: artifact
-      ? { id: artifact.id, format: artifact.format, fileKey: artifact.fileKey, createdAt: artifact.createdAt }
+      ? { artifactId: artifact.id, format: artifact.format, fileKey: artifact.fileKey, createdAt: artifact.createdAt, artifactSha256: mockSha256(artifact.id) }
       : null,
     deliveryAttempts: isDelivered
-      ? [{ attemptNumber: 1, status: "delivered", channel: "https", destination: `https://${o.supplierName.toLowerCase().replace(/\s+/g, "")}.example.com/po`, attemptedAt: o.updatedAt, responseCode: 200, acknowledgedAt: o.updatedAt, rejectionReason: null, errorMessage: null }]
+      ? [{ attemptNumber: 1, status: "delivered", channel: "https", destination: `https://${o.supplierName.toLowerCase().replace(/\s+/g, "")}.example.com/po`, attemptedAt: o.updatedAt, responseCode: 200, acknowledgedAt: o.updatedAt, rejectionReason: null, errorMessage: null, artifactId: artifact?.id ?? null, artifactSha256: artifact ? mockSha256(artifact.id) : null }]
       : [],
     supplierResponse: isDelivered
       ? { outcome: "acknowledged", acknowledgedAt: o.updatedAt, rejectionReason: null, responseCode: 200, responseBody: null }
