@@ -125,6 +125,32 @@ export default function HelpArticleShell({
   );
 }
 
+/**
+ * Thumb up / down, drawn in the same 16-viewBox, 1.4px-stroke construction the
+ * rest of the system's glyphs use. `direction="down"` is the same path flipped,
+ * so the two read as one pair rather than two drawings.
+ */
+function ThumbGlyph({ direction }: { direction: "up" | "down" }) {
+  return (
+    <svg
+      width="13"
+      height="13"
+      viewBox="0 0 16 16"
+      fill="none"
+      aria-hidden
+      style={{ display: "inline-block", verticalAlign: "-2px", marginRight: 6, transform: direction === "down" ? "rotate(180deg)" : undefined }}
+    >
+      <path
+        d="M5 14V7.2l3-5.2c.9 0 1.5.7 1.4 1.6L9.1 6h3.3c.8 0 1.4.8 1.2 1.6l-1 4.9c-.1.9-.9 1.5-1.7 1.5H5Z"
+        stroke="currentColor"
+        strokeWidth="1.4"
+        strokeLinejoin="round"
+      />
+      <path d="M5 7.4H3.2c-.4 0-.7.3-.7.7v5.2c0 .4.3.7.7.7H5" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
 function FeedbackPrompt({ slug, title }: { slug: string; title?: string }) {
   const [answer, setAnswer] = useState<null | "yes" | "no">(null);
 
@@ -150,7 +176,11 @@ function FeedbackPrompt({ slug, title }: { slug: string; title?: string }) {
             className="rounded-[7px] px-3.5 py-1.5 text-[13px] font-medium transition-colors hover:bg-[#F6F7FA] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#28C55E] focus-visible:ring-offset-2"
             style={{ border: "1px solid #E2E6EE", color: "#0B1A2F", background: "#FFFFFF" }}
           >
-            👍 Yes
+            {/* SVG thumbs, not emoji: an emoji renders in the platform's font
+                and skin-tone default, at a size the button cannot control, and
+                CLAUDE.md §12 bans emoji as icons (WP-28). */}
+            <ThumbGlyph direction="up" />
+            Yes
           </button>
           <button
             type="button"
@@ -158,7 +188,8 @@ function FeedbackPrompt({ slug, title }: { slug: string; title?: string }) {
             className="rounded-[7px] px-3.5 py-1.5 text-[13px] font-medium transition-colors hover:bg-[#F6F7FA] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#28C55E] focus-visible:ring-offset-2"
             style={{ border: "1px solid #E2E6EE", color: "#0B1A2F", background: "#FFFFFF" }}
           >
-            👎 No
+            <ThumbGlyph direction="down" />
+            No
           </button>
         </div>
       ) : (

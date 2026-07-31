@@ -22,6 +22,7 @@
 
 import { useState, type KeyboardEvent, type ReactNode } from "react";
 import { UnifiedStatusBadge } from "../UnifiedStatusBadge";
+import { sendBarLabel } from "./sendBarLabel";
 import type { WorkshopIssue, IssuesResolveApi } from "./IssuesPanel";
 import type { OrderLine } from "@/types/procurement";
 
@@ -121,16 +122,28 @@ export function MobileTriage(props: MobileTriageProps) {
 
   const sendBlockCount = Math.max(blockingIssues, exceptionCount);
 
-  // The button label mirrors the desktop send button exactly.
-  const sendLabel = crossed
-    ? doneLabel
-    : sendState === "transforming"
-      ? "Preparing the file…"
-      : sendState === "delivering"
-        ? primaryCtaProgress
-        : sendBlockCount > 0
-          ? `Fix ${sendBlockCount} to send`
-          : primaryCta;
+  // The button copy mirrors the desktop send button exactly — because it is
+  // literally the same function now (WP-28). Two hand-written ladders is how the
+  // same state came to read "Send · 2 blockers" on desktop and "Fix 2 to send"
+  // here, and how neither surface had a word for the sendable-but-not-clean
+  // case. This view is presentational, so it reassembles the label set from the
+  // three direction-aware strings it is given rather than calling the hook.
+  const sendCopy = sendBarLabel({
+    labels: {
+      primaryCta,
+      primaryCtaProgress,
+      doneLabel,
+      // Not read by sendBarLabel; present so the shape type-checks.
+      counterpartyNoun: "", counterpartyPlural: "", railHeader: "",
+      deliveredLabel: doneLabel, unknownBuyer: "",
+    },
+    blockingIssues,
+    exceptionCount,
+    warningIssues: issues.filter((i) => i.severity === "warning").length,
+    crossed,
+    sendState,
+  });
+  const sendLabel = sendCopy.label;
 
   return (
     <div
@@ -379,7 +392,7 @@ export function MobileTriage(props: MobileTriageProps) {
           type="button"
           onClick={() => { if (canSend) onSend(); }}
           disabled={!canSend}
-          aria-label={crossed ? doneLabel : sendBlockCount > 0 ? `${sendBlockCount} issues remaining before you can send` : primaryCta}
+          aria-label={sendCopy.ariaLabel}
           className="plk-mobile-send"
           style={{
             width: "100%",

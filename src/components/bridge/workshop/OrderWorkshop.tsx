@@ -42,6 +42,7 @@ import { useResolveActions } from "../review/hooks/useResolveActions";
 import { useAcceptanceValidation } from "../review/hooks/useAcceptanceValidation";
 import { useSendFlow } from "../review/hooks/useSendFlow";
 import { useWorkshopLayout, type WorkshopFocus } from "./useWorkshopLayout";
+import { sendBarLabel } from "./sendBarLabel";
 import { InboxBackChip, WorkshopGateShell, poTitleFrom } from "./WorkshopGateChrome";
 import { ParsingGate } from "./ParsingGate";
 import { IssuesPanel, type WorkshopIssue, type IssuesResolveApi } from "./IssuesPanel";
@@ -108,6 +109,56 @@ export function fixQueueToIssues(queue: FixQueueCard[]): WorkshopIssue[] {
         suggestedCode: c.kind === "ai-suggestion" ? c.detail ?? null : undefined,
       } satisfies WorkshopIssue;
     });
+}
+
+/**
+ * WP-28 — the practice-order signal, split in two so it costs no vertical budget
+ * above the three columns.
+ *
+ * It used to be a full-width band between the identity header and the status bar
+ * (and it opened with an emoji). The at-a-glance half is now a chip on the
+ * identity row, next to the status badge; the sentence — which is per-order
+ * teaching — moves into the Issues column, where per-order teaching already
+ * lives (CatalogHintCard is rendered from the same slot). No copy is lost, and
+ * the mobile surface gets the same note through `hintSlot`.
+ */
+function PracticeChip() {
+  return (
+    <span
+      className="inline-flex items-center gap-1.5 rounded-full"
+      title="Practice order — free, and it doesn't count against your plan."
+      // #1E6D29 on #E9F1EA = 5.57:1 — AA at 12px/600.
+      style={{ fontSize: 12, fontWeight: 600, padding: "3px 11px", background: "#E9F1EA", color: "#1E6D29", whiteSpace: "nowrap" }}
+    >
+      {/* The same 6px CSS dot InvoiceBadge draws, not an emoji: an emoji renders
+          in the platform's font at the platform's colour and cannot participate
+          in the system's icon construction language. */}
+      <span aria-hidden style={{ width: 6, height: 6, borderRadius: "50%", background: "#2E8E3A", flexShrink: 0 }} />
+      Practice
+    </span>
+  );
+}
+
+/** The practice order's full explanation, rendered inside the Issues column. */
+function PracticeNote() {
+  return (
+    <div
+      role="note"
+      aria-label="Practice order"
+      style={{
+        display: "flex", alignItems: "flex-start", gap: 8, borderRadius: 10,
+        background: "#E9F1EA", border: "1px solid #BFE0C2", padding: "10px 12px",
+        fontSize: 12, lineHeight: 1.5, color: "#2E7D38",
+      }}
+    >
+      <span aria-hidden style={{ width: 6, height: 6, borderRadius: "50%", background: "#2E8E3A", flexShrink: 0, marginTop: 5 }} />
+      <span>
+        <strong style={{ color: "#1E6D29", fontWeight: 700 }}>Practice order</strong>
+        {" "}— free, and it doesn&rsquo;t count against your plan.
+        Sending stops at &ldquo;delivery not set up&rdquo; — that&rsquo;s expected for a practice run.
+      </span>
+    </div>
+  );
 }
 
 /**
@@ -436,6 +487,16 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
     />
   ) : null;
 
+  // Per-order teaching for the Issues column (desktop) and MobileTriage's
+  // hintSlot: the practice-order note joins the catalog hint here rather than
+  // taking a band of its own above the three columns (WP-28).
+  const columnNotes = (
+    <>
+      {isSampleOrder && <PracticeNote />}
+      {catalogHint}
+    </>
+  );
+
   // ── Bulk-accept scope counts — derived from order.lines, mapped to the SAME
   //    BulkSelectableLine shape MagicMappingPreview feeds bulkAcceptCount, so the
   //    workshop's "Accept all"/"Accept ≥85%" badges match the preview's semantics
@@ -498,6 +559,21 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
   const blockingIssues = issues.filter((i) => i.severity === "blocking").length;
   const canSend = !problem && !crossed && sendState === "idle" && blockingIssues === 0 && exceptionCount === 0;
   const sendReady = blockingIssues === 0 && exceptionCount === 0;
+  const warningIssues = issues.filter((i) => i.severity === "warning").length;
+
+  // The ONE send-copy ladder, shared with MobileTriage's sticky bar (WP-28).
+  // `canSend` above stays the authority on whether the click is wired; this only
+  // decides what the control SAYS, so the two can never disagree about a
+  // problem status (sendBarLabel returns enabled:false for every one of them).
+  const sendCopy = sendBarLabel({
+    labels,
+    blockingIssues,
+    exceptionCount,
+    warningIssues,
+    crossed,
+    sendState,
+    problemAction: problem?.rowAction ?? null,
+  });
 
   // ── v3 chrome derivations (pipeline stepper + send-readiness strip) ──────────
   // Parse + Normalize are always done (the order is parsed); the active stage walks
@@ -637,6 +713,8 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
           </span>
           <UnifiedStatusBadge size="md" status={crossed ? "delivered" : exceptionCount > 0 ? "pending_review" : order.status} />
           <InvoiceBadge documentType={order.documentType} />
+          {/* The at-a-glance half of the retired practice-order band. */}
+          {isSampleOrder && <PracticeChip />}
           {/* The dead-letter header chip used to live here, instructing the operator
               to "Open the order and click 'Send again' to retry" — a button that
               answers 400 from this status. The problem panel below now carries the
@@ -701,8 +779,9 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
                 disabled={!canSend}
                 /* While a problem is live the control is disabled AND renamed to
                    what the order actually needs, so a screen reader never reads
-                   "Send to supplier" on an order that cannot be sent. */
-                aria-label={problem ? problem.rowAction : labels.primaryCta}
+                   "Send to supplier" on an order that cannot be sent. That arm
+                   now lives in sendBarLabel, alongside the blocked/override arms. */
+                aria-label={sendCopy.ariaLabel}
                 style={{
                   height: 36, padding: "0 18px", borderRadius: 8, fontSize: 13, fontWeight: 700,
                   background: canSend ? "#297F34" : "#5A7660", color: "#FFFFFF",
@@ -716,15 +795,7 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
                 <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden>
                   <path d="M14.5 1.5 7.2 8.8M14.5 1.5 9.8 14.5 7.2 8.8 1.5 6.2 14.5 1.5Z" stroke="#FFFFFF" strokeWidth="1.3" strokeLinejoin="round" />
                 </svg>
-                {crossed
-                  ? labels.doneLabel
-                  : sendState === "transforming"
-                    ? "Preparing the file…"
-                    : sendState === "delivering"
-                      ? labels.primaryCtaProgress
-                      : !canSend && blockingIssues > 0
-                        ? `Send · ${blockingIssues} ${blockingIssues === 1 ? "blocker" : "blockers"}`
-                        : labels.primaryCta}
+                {sendCopy.label}
               </button>
               {sendTip && !canSend && !crossed && sendState === "idle" && (blockingIssues > 0 || exceptionCount > 0) && (
                 <div
@@ -759,43 +830,20 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
         </div>
       )}
 
-      {/* ── Practice-order banner — shown when ?sample=1 is in the URL. Mirrors the
-          copy in OnboardingChecklist so the wording is consistent across all entry
-          points (upload page, checklist, inbox empty state, Cmd+K). Pre-warns that
-          delivery stops at "delivery not set up" — expected for the sample order,
-          and honest rather than surprising. Never shown on real orders. ──────── */}
-      {isSampleOrder && (
-        <div
-          role="note"
-          aria-label="Practice order"
-          className="flex-shrink-0"
-          style={{
-            padding: "9px 16px",
-            background: "#E9F1EA",
-            borderBottom: "1px solid #BFE0C2",
-            display: "flex",
-            alignItems: "center",
-            gap: 8,
-            fontSize: 12.5,
-          }}
-        >
-          <span aria-hidden style={{ fontSize: 14 }}>🟢</span>
-          <span>
-            <strong style={{ color: "#1E6D29" }}>Practice order</strong>
-            <span style={{ color: "#2E7D38" }}>
-              {" "}— free, doesn&apos;t count against your plan.
-              Sending stops at &ldquo;delivery not set up&rdquo; (expected for a practice run).
-            </span>
-          </span>
-        </div>
-      )}
+      {/* ── The practice-order banner used to stack here (and opened with an
+          emoji). WP-28 split it: a `Practice` chip on the identity row above and
+          the full sentence in the Issues column / MobileTriage's hintSlot, where
+          per-order teaching already lives. No band, no copy lost. ──────────── */}
 
-      {/* ── Flow notice (send progress / errors) ─────────────────────────────── */}
+      {/* ── Flow notice (send progress / errors). Below lg only: the consolidated
+          status bar does not render at that width, so this keeps its own row
+          there. At lg+ it is passed INTO the status bar instead of stacking
+          above it — one status row, not two (WP-28). ────────────────────────── */}
       {flowNotice && (
         <div
           role="status"
           aria-live="polite"
-          className="flex-shrink-0 px-4 lg:px-6"
+          className="lg:hidden flex-shrink-0 px-4"
           style={{
             padding: "8px 16px",
             background: flowSeverity === "error" ? "#FBE3E3" : flowSeverity === "success" ? "#E9F1EA" : "#EFF4FB",
@@ -811,20 +859,28 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
       {/* ── Row 2 · ONE consolidated status bar (~42px). Replaces the old red
           SendReadinessStrip AND the mapper's "MAP THIS ORDER" toolbar row — the
           mapper is passed hideToolbar and publishes its handlers via
-          onToolbarState (see mapperToolbar). Blocker chips still scroll to the
-          actionable issue CARD (data-issue-ref); zero blockers → single white
-          row. Desktop only — below lg MobileTriage carries its own issue list. */}
+          onToolbarState (see mapperToolbar). WP-28 folds two more retired bands
+          in: the send-flow notice and the AI-suggestion count. Blocker chips
+          still scroll to the actionable issue CARD (data-issue-ref); zero
+          blockers → a calm "No issues" / "N optional" summary chip instead of an
+          empty row, so the issue COUNT is readable even when the third column is
+          railed. Desktop only — below lg MobileTriage carries its own list. */}
       <div className="hidden lg:block flex-shrink-0">
         <WorkshopStatusBar
           blockers={blockerChips}
           notes={noteCount}
           onJump={onJumpToIssueCard}
-          onReviewIssues={() => setShowIssuesSignal((s) => s + 1)}
+          /* The issue list is always on screen now, so this is no longer a
+             "switch to the Issues tab" — it re-opens a railed third column and
+             scrolls the list back to the top. */
+          onReviewIssues={() => { lay.setFocus("all"); setShowIssuesSignal((s) => s + 1); }}
           onResolveAll={issuesResolve.bulkAcceptSuggestions ? () => issuesResolve.bulkAcceptSuggestions!(0) : undefined}
           resolveAllCount={suggestableCount}
           resolving={issuesResolve.bulkAccepting}
           mapper={statusBarMapper}
           pipeline={<WorkshopStepper stage={stepperStage} failed={stepperFailed} />}
+          notice={flowNotice}
+          noticeSeverity={flowSeverity === "error" ? "error" : flowSeverity === "success" ? "success" : "info"}
         />
       </div>
 
@@ -856,6 +912,10 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
             onValidate={() => openDetails("conformance")}
             reviewSignal={order.lines.filter((l) => l.needsReview).length}
             hideToolbar
+            /* The three columns each carry this sentence in their own
+               sub-header already; the standalone band restated it a fourth
+               time and cost 66px above the columns (WP-28). */
+            hideOrientation
             onToolbarState={setMapperToolbar}
             outgoingHeaderExtra={
               showLinesToggle(order.lines.length) ? (
@@ -887,7 +947,7 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
             }
             issuesSlot={
               <>
-                {catalogHint}
+                {columnNotes}
                 <IssuesPanel
                   issues={issues}
                   onFocusField={onFocusField}
@@ -935,7 +995,7 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
           lines={order.lines}
           suggestableCount={suggestableCount}
           highConfCount={highConfCount}
-          hintSlot={catalogHint}
+          hintSlot={columnNotes}
         />
       </div>
 
