@@ -586,9 +586,21 @@ function LineRow({
                     whiteSpace: "nowrap",
                   }}
                 >
-                  {busy
-                    ? "Saving…"
-                    : `✨ AI suggestion: ${suggestion.supplierItemCode}${suggestionPct != null ? ` (${suggestionPct}%)` : ""}`}
+                  {busy ? (
+                    "Saving…"
+                  ) : (
+                    <>
+                      {/* The system's sparkle SVG (same path as IssuesPanel and
+                          WorkshopStatusBar), not a sparkle EMOJI: the emoji
+                          rendered in the platform's own colour, ignoring the
+                          button's, and CLAUDE.md §12 bans both emoji icons and
+                          decorative sparkles (WP-28). */}
+                      <svg width="11" height="11" viewBox="0 0 12 12" fill="none" aria-hidden style={{ flexShrink: 0 }}>
+                        <path d="M6 1.2l1.1 3.2 3.2 1.1-3.2 1.1L6 9.8 4.9 6.6 1.7 5.5l3.2-1.1z" fill="currentColor" />
+                      </svg>
+                      {`AI suggestion: ${suggestion.supplierItemCode}${suggestionPct != null ? ` (${suggestionPct}%)` : ""}`}
+                    </>
+                  )}
                 </button>
               )}
               {line.needsReview && (

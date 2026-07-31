@@ -233,6 +233,27 @@ export function MapperPreviewPane({ previewOrderId, override, lastTouched, suppl
     [content, highlightNeedle, onReassert],
   );
 
+  // ── WP-28 / DB-4 "make the three-column relationship obvious" ───────────────
+  // The cross-column link already worked: hovering a received field or an output
+  // row resolves to the output line the preview should light. What made it read
+  // as broken is that the preview is a SCROLLING <pre> — for any order longer
+  // than the visible code area, the highlight fired on a line the operator could
+  // not see, so hovering appeared to do nothing.
+  //
+  // `block: "nearest"` means an already-visible line does not move at all, so the
+  // common case is byte-identical to today; only an off-screen match scrolls.
+  const codeRef = useRef<HTMLPreElement | null>(null);
+  useEffect(() => {
+    if (!highlightNeedle) return;
+    const el = codeRef.current?.querySelector("[data-preview-hot]");
+    if (!el) return;
+    const reduce =
+      typeof window !== "undefined" &&
+      typeof window.matchMedia === "function" &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    el.scrollIntoView?.({ block: "nearest", behavior: reduce ? "auto" : "smooth" });
+  }, [highlightNeedle, content]);
+
   // The backend returns content: null + a "…lines still need review / cannot transform"
   // message while any line is unresolved (it will NOT emit a half-valid document — offer⇔works).
   // Detect that so the code body shows a calm, HONEST "preview available once resolved" state
@@ -348,6 +369,7 @@ export function MapperPreviewPane({ previewOrderId, override, lastTouched, suppl
         </div>
       ) : (
         <pre
+          ref={codeRef}
           aria-live="polite"
           className={flash ? "mapper-preview-flash" : undefined}
           style={{
@@ -369,7 +391,7 @@ export function MapperPreviewPane({ previewOrderId, override, lastTouched, suppl
                 : reviewBlocked
                   ? (
                     <span style={{ color: "#8FA0B8", fontStyle: "normal" }}>
-                      {`Preview available once all lines are resolved.\nResolve the remaining issues in the Issues tab to see\nexactly what ${supplierName ?? "the supplier"} receives.`}
+                      {`Preview available once all lines are resolved.\nResolve the remaining issues in the Issues panel above to\nsee exactly what ${supplierName ?? "the supplier"} receives.`}
                     </span>
                   )
                   : "(no preview)")
@@ -398,6 +420,7 @@ function renderWithHighlight(content: string | null, needle: string | null, onRe
     <>
       {before}
       <mark
+        data-preview-hot=""
         onMouseEnter={() => onReassert?.()}
         style={{
           background: "rgba(46,142,58,0.22)", color: "#EAF6EC",

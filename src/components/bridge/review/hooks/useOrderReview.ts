@@ -58,8 +58,8 @@ export function finalDeliveryMessage(status: Order["status"], errorMessage: stri
   }
   if (status === "delivery_failed") {
     return errorMessage && errorMessage.trim().length > 0
-      ? `Delivery failed: ${errorMessage}`
-      : "Output generated, but delivery failed. Check the supplier Delivery tab and retry when the endpoint is ready.";
+      ? `We couldn't send this order: ${errorMessage}`
+      : "The output file is built, but we couldn't send it. Check the supplier's Delivery tab and try again when the endpoint is ready.";
   }
   if (status === "rejected_by_supplier") {
     const noun = labels.counterpartyNoun;
@@ -68,7 +68,11 @@ export function finalDeliveryMessage(status: Order["status"], errorMessage: stri
       : `The ${noun.toLowerCase()} rejected the order. Open the ${noun} response tab for the rejection details.`;
   }
   if (status === "delivery_dead_letter") {
-    return "Delivery retries are exhausted. The order is in the dead-letter queue for operator review.";
+    // DESIGN-DB-1 §6.5 row 85: "dead-letter" is an engine word with no
+    // user-facing reading, and this sentence shipped it straight to the review
+    // screen. It also said "for operator review", which describes a queue
+    // somebody else works rather than the thing this person has to do.
+    return "The automatic attempts are spent, so nothing more happens on its own. Send this order again when the supplier's endpoint is ready.";
   }
   if (status === "delivery_held") {
     // Deliberately NOT `errorMessage ?? …` like the branches above: the backend

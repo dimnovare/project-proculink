@@ -50,9 +50,14 @@ export function parseStatus(catalogId: string): StatusKey {
 export const IMPORT_METHODS: FormatRow[] = [
   { name: "Manual upload (drag-and-drop / browse)", status: "live", note: "Drop a file straight into the app." },
   { name: "REST API", status: "live", note: "POST orders as JSON with an API key — Zapier, Make, or your own code." },
-  { name: "Email inbox polling (IMAP)", status: "live", note: "We poll your mailbox for order attachments. Integration plan." },
-  { name: "SFTP folder pull", status: "live", note: "Point us at an SFTP folder; we import new files. Integration plan." },
-  { name: "S3 / R2 bucket pull", status: "live", note: "Watch a bucket prefix for order files. Integration plan." },
+  // The plan named here must be the plan the backend actually gates on. These three said
+  // "Integration plan" (€999) while EmailIngestion / SftpIngestion / S3Ingestion have gated at
+  // Growth (€149) ever since the channels were decoupled from volume — the same defect WP-11 fixed
+  // in the 403 codes, surviving on the public page a buyer reads before they ever see a 403.
+  // Source of truth: PlanConstants.MinimumPlan (backend) mirrored by PLANS in src/lib/plans.ts.
+  { name: "Email inbox polling (IMAP)", status: "live", note: "We poll your mailbox for order attachments. Growth plan and up." },
+  { name: "SFTP folder pull", status: "live", note: "Point us at an SFTP folder; we import new files. Growth plan and up." },
+  { name: "S3 / R2 bucket pull", status: "live", note: "Watch a bucket prefix for order files. Growth plan and up." },
   { name: "Hosted inbound email address", status: "configurable", note: "Forward orders to your orders@… address; we set up the receiving domain." },
   { name: "AS2 / PEPPOL network receive", status: "onRequest", note: "Through a certified access-point partner." },
 ];

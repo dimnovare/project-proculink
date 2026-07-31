@@ -362,12 +362,15 @@ describe("invariant 2 — issues === send-gate; -3 qty is not green, Send disabl
     expect(within(redSegment).getByText(/2 blockers/)).toBeTruthy();
 
     // Send is gated: EVERY Send button (desktop header + mobile bar) is disabled, and
-    // clicking must NOT open the confirm dialog. While blocked the desktop button
-    // carries the blocker count in its own label (the old caption line is gone).
+    // clicking must NOT open the confirm dialog. While blocked the button carries the
+    // count in its own label (the old caption line is gone). WP-28 replaced
+    // "Send · 2 blockers" with "Send to supplier · 2 to fix": "blocker" is not one of
+    // the nine nouns, the old label dropped the direction-aware party noun, and both
+    // send surfaces now read from ONE ladder (sendBarLabel).
     const sendBtns = screen.getAllByRole("button", { name: /send to supplier|fix \d+ to send/i });
     expect(sendBtns.length).toBeGreaterThan(0);
     expect(sendBtns.every((b) => (b as HTMLButtonElement).disabled)).toBe(true);
-    expect(sendBtns.some((b) => /Send · 2 blockers/.test(b.textContent ?? ""))).toBe(true);
+    expect(sendBtns.some((b) => /Send to supplier · 2 to fix/.test(b.textContent ?? ""))).toBe(true);
     expect(mockState.setShowConfirm).not.toHaveBeenCalled();
   });
 

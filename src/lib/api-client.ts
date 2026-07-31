@@ -821,7 +821,11 @@ async function realTransformOrder(orderId: string, format?: TransformFormat): Pr
     body: JSON.stringify(format ? { format } : {}),
   }, 30000);
   if (res.status === 422) { const t = await res.text(); throw new Error(`Unresolved lines: ${t}`); }
-  if (!res.ok) { const t = await res.text(); throw new Error(`Transform failed: ${t || res.statusText}`); }
+  // This message is RENDERED — the review screen and the order workshop print
+  // `err.message` verbatim — so it is copy, and it said "Transform failed",
+  // the retired engine-stage name for the state whose badge reads
+  // "Couldn't build output".
+  if (!res.ok) { const t = await res.text(); throw new Error(`We couldn't build the output file: ${t || res.statusText}`); }
   // 202 Accepted — job enqueued; return a placeholder result
   const body = await res.json() as Record<string, unknown>;
   return { artifactId: "", format: format ?? "xml", createdAt: new Date().toISOString(), ...body } as TransformResult;
@@ -1988,8 +1992,15 @@ export async function promoteMapping(
   );
   if (res.status === 404) throw new Error("No saved mapping to promote yet for this order.");
   if (!res.ok) {
-    const b = await res.json().catch(() => null) as { error?: string } | null;
-    throw new Error(b?.error || `Couldn't save the supplier mapping: ${res.status}`);
+    // A plan-gate 403 carries its whole meaning in the BODY. Keep it VERBATIM so both
+    // the code and the upgradeUrl survive on the Error message — the caller turns it
+    // into a sentence. Read the body ONCE: `planGateBodyText` would consume it, and a
+    // non-gate 403 would then lose its own `error` string to the status fallback.
+    const raw = (await res.text().catch(() => "")).trim();
+    if (isPlanGateError(raw)) throw new Error(raw);
+    let body: { error?: string } | null = null;
+    try { body = JSON.parse(raw) as { error?: string }; } catch { /* not JSON — fall through */ }
+    throw new Error(body?.error || `Couldn't save the supplier mapping: ${res.status}`);
   }
   return res.json();
 }
