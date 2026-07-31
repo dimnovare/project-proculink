@@ -248,6 +248,19 @@ describe("OutputStructureDesigner — an authored Expression survives an edit", 
     expect(total.rule!.fieldManipulators).toEqual([{ type: "DateFormat", params: ["yyyy-MM-dd", "dd/MM/yyyy"] }]);
   });
 
+  it("REBINDING the node keeps the expression (the setBinding path)", () => {
+    renderDesigner(treeWithExpression());
+
+    // Clearing the source runs setBinding("canonicalField", null) — the writer whose
+    // inline five-key literal was the original data-loss bug.
+    fireEvent.click(screen.getByRole("button", { name: /Clear the source for Total/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Save structure/i }));
+
+    const total = savedTree().root.children!.find((c: OutputNode) => c.name === "Total")!;
+    expect(total.rule!.expression).toBe("line.Quantity * line.UnitPrice");
+    expect(total.rule!.canonicalField).toBeNull();
+  });
+
   it("clearing the value format keeps it too", () => {
     renderDesigner(treeWithExpression());
 
