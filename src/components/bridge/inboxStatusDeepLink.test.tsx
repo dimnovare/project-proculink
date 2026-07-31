@@ -68,6 +68,7 @@ import {
   inboxChipIndexFor,
   inboxSortingFor,
 } from "./inboxUrlFilter";
+import { INBOX_CHIP_LABELS } from "./orderCountContract";
 
 let seq = 0;
 function order(over: Partial<OrderSummary> = {}): OrderSummary {
@@ -188,9 +189,16 @@ describe("the filter table itself", () => {
   });
 
   test("a status with its own chip selects that chip; the rest fall back to All", () => {
-    expect(inboxChipIndexFor("pending_review")).toBe(1);
-    expect(inboxChipIndexFor("failed")).toBe(4);
-    expect(inboxChipIndexFor("delivery_dead_letter")).toBe(4); // inside the Problems bucket
+    // Asserted against the chip ORDER rather than against literal indices. The literals
+    // this used to carry (failed → 4) went stale the moment WP-29 inserted the "Ready to
+    // send" chip at position 2 — which is precisely the drift that made
+    // inboxChipIndexFor derive its answer instead of looking it up in a hand-written map.
+    const at = (label: string) => INBOX_CHIP_LABELS.indexOf(label);
+    expect(inboxChipIndexFor("pending_review")).toBe(at("Needs review"));
+    expect(inboxChipIndexFor("ready")).toBe(at("Ready to send"));
+    expect(inboxChipIndexFor("ready_to_deliver")).toBe(at("Queued to send"));
+    expect(inboxChipIndexFor("failed")).toBe(at("Failed"));
+    expect(inboxChipIndexFor("delivery_dead_letter")).toBe(at("Failed")); // inside the failure bucket
     expect(inboxChipIndexFor(null)).toBe(0);
     expect(inboxChipIndexFor("nonsense")).toBe(0);
   });

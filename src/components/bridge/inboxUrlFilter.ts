@@ -14,6 +14,7 @@
 
 import type { SortingState } from "@tanstack/react-table";
 import type { OrderStatus } from "@/types/procurement";
+import { chipIndexForStatus } from "./orderCountContract";
 
 /**
  * Every status the inbox accepts as a `?status=` filter. Anything here is passed
@@ -60,27 +61,24 @@ export function resolveInboxStatusParam(raw: string | null | undefined): Resolve
 
 /**
  * Which filter chip a `?status=` value lights up. The chips are coarser than the
- * statuses (one "Problems" chip covers the five failure statuses), so a deep link
- * to `delivery_dead_letter` selects the Problems chip while the SERVER filter
+ * statuses (one "Failed" chip covers the five failure statuses), so a deep link
+ * to `delivery_dead_letter` selects the Failed chip while the SERVER filter
  * stays exact — the chip is a label, not the filter.
  *
- * Index order mirrors InboxView's FILTER_CHIPS:
- *   0 All orders · 1 Needs review · 2 Ready to send · 3 Delivered · 4 Problems
+ * DERIVED, not hand-written. This was a `Record<string, number>` of literal indices,
+ * and it carried exactly the bug that shape invites: `?status=ready` passed
+ * INBOX_FILTERABLE_STATUSES, so the server filter ran and the view showed only `ready`
+ * orders — while the map had no `ready` entry, so the toolbar lit "All orders" and told
+ * the operator they were looking at everything. WP-29 then INSERTED a chip, which is
+ * precisely when hard-coded indices go wrong for every status after it.
+ *
+ * chipIndexForStatus walks the chip order in orderCountContract.ts and asks the
+ * contract which label owns the status. Adding or reordering a chip cannot mis-light
+ * another one, and orderCountParity.test.tsx pins InboxView's FILTER_CHIPS against the
+ * same list so the two can't drift.
  */
-const CHIP_FOR_STATUS: Record<string, number> = {
-  pending_review: 1,
-  ready_to_deliver: 2,
-  delivered: 3,
-  failed: 4,
-  transform_failed: 4,
-  delivery_failed: 4,
-  delivery_dead_letter: 4,
-  rejected_by_supplier: 4,
-};
-
 export function inboxChipIndexFor(raw: string | null | undefined): number {
-  if (!raw) return 0;
-  return CHIP_FOR_STATUS[raw] ?? 0;
+  return chipIndexForStatus(raw);
 }
 
 /**
