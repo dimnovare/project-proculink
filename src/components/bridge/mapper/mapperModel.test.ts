@@ -39,7 +39,7 @@ describe("projections", () => {
     const o: OrderMappingOverride = {
       customFields: [],
       output: {
-        header: { Region: { outputPath: "Region", canonicalField: null, fixedValue: "EU", fieldManipulators: [] } },
+        header: { Region: { outputPath: "Region", canonicalField: null, sourceToken: null, fixedValue: "EU", fieldManipulators: [] } },
         lines: {},
       },
     };
@@ -71,6 +71,10 @@ describe("source→canonical mutations (sourceMap preserved)", () => {
   });
 });
 
+// WP-15: every rule writer now goes through outputRuleModel, which seeds a rule with all three
+// binding keys present and null rather than absent. The old four-key literals disagreed about
+// that — one produced `canonicalField: undefined` where callers compared against null — and the
+// same literals were what deleted `expression` and `sourceToken` on every edit.
 describe("canonical→target mutations (do NOT clobber sourceMap)", () => {
   const withSrc: OrderMappingOverride = withSourceConnect(emptyOverride(), "PoNumber", "cell:r1c1");
 
@@ -78,7 +82,7 @@ describe("canonical→target mutations (do NOT clobber sourceMap)", () => {
     const next = withTargetConnect(withSrc, "SupplierItemCode", "ItemCode");
     expect(next.sourceMap).toEqual({ PoNumber: { sourceToken: "cell:r1c1", fixedValue: null, manipulators: [] } });
     // SupplierItemCode is a LINE canonical → the rule lands in the lines scope.
-    expect(next.output?.lines.ItemCode).toEqual({ outputPath: "ItemCode", canonicalField: "SupplierItemCode", fixedValue: null, fieldManipulators: [] });
+    expect(next.output?.lines.ItemCode).toEqual({ outputPath: "ItemCode", canonicalField: "SupplierItemCode", sourceToken: null, fixedValue: null, fieldManipulators: [] });
   });
 
   it("a LINE canonical lands a rule in the lines scope", () => {
@@ -108,7 +112,7 @@ describe("canonical→target mutations (do NOT clobber sourceMap)", () => {
 describe("fixed values", () => {
   it("withFixedValue sets a literal and clears canonicalField", () => {
     const next = withFixedValue(emptyOverride(), "Region", "EU");
-    expect(next.output?.header.Region).toEqual({ outputPath: "Region", canonicalField: null, fixedValue: "EU", fieldManipulators: [] });
+    expect(next.output?.header.Region).toEqual({ outputPath: "Region", canonicalField: null, sourceToken: null, fixedValue: "EU", fieldManipulators: [] });
   });
 
   it("clearing a plain fixed value drops the rule", () => {
@@ -143,7 +147,7 @@ describe("manipulator chain (Task 9 fx pills, sourceMap preserved)", () => {
 describe("catalog price action (Task 9)", () => {
   it("withCatalogPrice writes the price as a fixed value in the line scope", () => {
     const next = withCatalogPrice(emptyOverride(), "UnitPrice", 12.5);
-    expect(next.output?.lines.UnitPrice).toEqual({ outputPath: "UnitPrice", canonicalField: null, fixedValue: "12.5", fieldManipulators: [] });
+    expect(next.output?.lines.UnitPrice).toEqual({ outputPath: "UnitPrice", canonicalField: null, sourceToken: null, fixedValue: "12.5", fieldManipulators: [] });
   });
 });
 
@@ -202,5 +206,66 @@ describe("withAddOutputField (order can add an output field — outgoing_empty f
     const seeded = withAddOutputField(emptyOverride(), "Foo", "header", []);
     const again = withAddOutputField(seeded, "Foo", "header", []);
     expect(Object.keys(again.output?.header ?? {})).toEqual(["Foo"]);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// WP-15 · the second half of S1 — this module had the SAME data-loss bug, and it
+// is the worse of the two.
+//
+// `expression` is only authorable from the template editor. `sourceToken` is
+// authorable TODAY from the output mapping editor (`OutputMappingEditor.tsx:192`),
+// and both screens edit the same mapping-override document for one order. So:
+// bind a column to a source token in one screen, add a Trim from the workbench
+// transform popover in the other, and the four-key literal dropped the token. The
+// rule then survived the `inert` check — it carries a manipulator — and the column
+// was bound to nothing, delivering empty. Silent column blanking, for real.
+// ─────────────────────────────────────────────────────────────────────────────
+describe("rule writers preserve bindings they do not own", () => {
+  function seeded() {
+    return {
+      customFields: [],
+      output: {
+        header: {},
+        lines: {
+          ItemCode: {
+            outputPath: "ItemCode",
+            canonicalField: null,
+            sourceToken: "cell:r2c5",
+            fixedValue: null,
+            expression: "line.Quantity * line.UnitPrice",
+            fieldManipulators: [],
+          },
+        },
+      },
+    } as unknown as Parameters<typeof withFieldManipulators>[0];
+  }
+
+  it("adding a manipulator keeps the sourceToken binding", () => {
+    const next = withFieldManipulators(seeded(), "ItemCode", [{ type: "Trim", params: [] }], "line");
+    expect(next.output?.lines.ItemCode?.sourceToken).toBe("cell:r2c5");
+    expect(next.output?.lines.ItemCode?.expression).toBe("line.Quantity * line.UnitPrice");
+  });
+
+  it("a rule bound ONLY by source token is not treated as inert and dropped", () => {
+    // Removing the last manipulator leaves a rule with no canonicalField and no
+    // fixedValue. It is still bound — by its token — so it must survive.
+    const next = withFieldManipulators(seeded(), "ItemCode", [], "line");
+    expect(next.output?.lines.ItemCode?.sourceToken).toBe("cell:r2c5");
+  });
+
+  it("connecting a canonical field keeps the expression", () => {
+    const next = withTargetConnect(seeded(), "SupplierItemCode", "ItemCode");
+    const rule = next.output?.lines.ItemCode ?? next.output?.header.ItemCode;
+    expect(rule?.expression).toBe("line.Quantity * line.UnitPrice");
+    expect(rule?.canonicalField).toBe("SupplierItemCode");
+    expect(rule?.sourceToken).toBeNull();
+  });
+
+  it("setting a fixed value keeps the expression", () => {
+    const next = withFixedValue(seeded(), "ItemCode", "LITERAL", "line");
+    const rule = next.output?.lines.ItemCode ?? next.output?.header.ItemCode;
+    expect(rule?.expression).toBe("line.Quantity * line.UnitPrice");
+    expect(rule?.fixedValue).toBe("LITERAL");
   });
 });

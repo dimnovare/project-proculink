@@ -25,6 +25,22 @@ export type BindingKey = "canonicalField" | "sourceToken" | "fixedValue";
 const BINDING_KEYS: readonly BindingKey[] = ["canonicalField", "sourceToken", "fixedValue"];
 
 /**
+ * A rule for a node that had none. Every binding key is present and null rather than
+ * absent, so a rule's shape does not depend on which writer created it — an `undefined`
+ * where a caller expects `null` reads as "unset" in JS but fails a strict comparison, and
+ * the two writers used to disagree about it.
+ */
+function blankRule(nodeName: string): OutputFieldRule {
+  return {
+    outputPath: nodeName,
+    canonicalField: null,
+    sourceToken: null,
+    fixedValue: null,
+    fieldManipulators: [],
+  };
+}
+
+/**
  * Rebind a node's rule to exactly ONE source, clearing the other two.
  *
  * `outputPath` is re-synced to the node name on every write — the emitter reads it,
@@ -37,7 +53,7 @@ export function withBinding(
   value: string | null,
 ): OutputFieldRule {
   const next: OutputFieldRule = {
-    ...(prev ?? { outputPath: nodeName, fieldManipulators: [] }),
+    ...(prev ?? blankRule(nodeName)),
     outputPath: nodeName,
     fieldManipulators: prev?.fieldManipulators ?? [],
   };
@@ -61,7 +77,7 @@ export function withFormatManipulator(
 ): OutputFieldRule {
   const others = (prev?.fieldManipulators ?? []).filter((m) => !formatTypes.has(m.type));
   return {
-    ...(prev ?? { outputPath: nodeName, fieldManipulators: [] }),
+    ...(prev ?? blankRule(nodeName)),
     outputPath: nodeName,
     fieldManipulators: next ? [...others, next] : others,
   };
@@ -74,7 +90,7 @@ export function withManipulators(
   fieldManipulators: ManipulatorEntry[],
 ): OutputFieldRule {
   return {
-    ...(prev ?? { outputPath: nodeName, fieldManipulators: [] }),
+    ...(prev ?? blankRule(nodeName)),
     outputPath: nodeName,
     fieldManipulators,
   };
