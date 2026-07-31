@@ -399,7 +399,7 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
     } finally {
       setPromoting(false);
     }
-  }, [orderId, order?.supplierName, labels.counterpartyNoun]);
+  }, [orderId, order?.supplierName, partyNoun]);
 
   // ── Order details drawer (audit / standards / supplier response) ────────────
   //    Secondary, lower-frequency trust surfaces relocated from the old screen's
