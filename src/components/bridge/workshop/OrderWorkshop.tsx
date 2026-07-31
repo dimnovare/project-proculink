@@ -36,7 +36,7 @@ import type { CalibrationSummary } from "@/types/procurement";
 import { MapperWorkbench, type MapperWorkbenchLayout, type MapperToolbarState } from "../mapper/MapperWorkbench";
 import { UnifiedStatusBadge } from "../UnifiedStatusBadge";
 import { OrderProblemPanel } from "../problem/OrderProblemPanel";
-import { problemFor } from "../problem/problemCopy";
+import { problemFor, waitPhrase } from "../problem/problemCopy";
 import { ConfirmDialog } from "../review/ConfirmDialog";
 import { buildFixQueue, type FixQueueCard } from "../review/buildFixQueue";
 import { orderGrandTotalLabel, outputArtifactType, buyerLabel, orderDeliveryFormat } from "../review/orderDisplay";
@@ -59,9 +59,138 @@ import { WorkshopStepper } from "./WorkshopStepper";
 import { WorkshopStatusBar, type BlockerChip } from "./WorkshopStatusBar";
 import { BridgePageLoader } from "../BridgeLoader";
 import { OrderDetailsDrawer, type OrderDetailsTab } from "./OrderDetailsDrawer";
+import { useTabParamSync } from "@/lib/tab-param-sync";
+import { classifyApiFailure } from "@/lib/apiFailure";
 
 /** The default trust threshold when no calibration history exists (mirrors mappingListModel). */
 const DEFAULT_TRUSTED_THRESHOLD = 0.85;
+
+// Module-scope so useTabParamSync's effect deps stay referentially stable — the
+// same reason /settings and the supplier profile hoist theirs.
+const isOrderDetailsTab = (v: string | null | undefined): v is OrderDetailsTab =>
+  v === "passport" || v === "conformance" || v === "response";
+
+/**
+ * WP-19 — what the screen says when the order will not load.
+ *
+ * Every cause used to render one of two sentences, chosen by whether the value
+ * happened to be `null`: otherwise "Something went wrong loading this order. Try
+ * again in a moment." A 404 THROWS here (`getOrderById` raises `ApiHttpError`
+ * rather than returning null), so an order that simply no longer exists read as a
+ * malfunction — and an expired session read as one too, with no way back to
+ * sign-in and no control at all on the screen.
+ *
+ * Three questions, in the order the operator asks them: is it gone, is it me, or
+ * is it worth trying again.
+ */
+function orderLoadFailure(
+  error: unknown,
+  orderIsNull: boolean,
+): { headline: string; body: string; action: "none" | "sign-in" | "retry" } {
+  const { kind, retryAfterSeconds } = classifyApiFailure(error);
+
+  if (orderIsNull || kind === "not_found") {
+    return {
+      headline: "We can't find this order",
+      body: "It may have been archived, or the link may be out of date. Your other orders are unaffected.",
+      // No control of our own. WorkshopGateShell already renders the "Back to
+      // inbox" chip, and adding a second back button here put two controls that
+      // do the same thing on one screen — in two different vocabularies, "orders"
+      // and "inbox". The exit exists; it just is not this component's to add.
+      action: "none",
+    };
+  }
+  if (kind === "auth_expired") {
+    return {
+      headline: "You've been signed out",
+      body: "Your session ended while this page was open. Sign in again and we'll bring you straight back to this order.",
+      action: "sign-in",
+    };
+  }
+  if (kind === "forbidden" || kind === "plan_gate") {
+    return {
+      headline: "This order isn't yours to open",
+      body: "It belongs to a different workspace. Switch workspace, or ask whoever owns it to share what you need.",
+      action: "none",
+    };
+  }
+  if (kind === "rate_limited") {
+    const wait = retryAfterSeconds !== null ? waitPhrase(retryAfterSeconds) : null;
+    return {
+      headline: "Too many requests just now",
+      body: wait
+        ? `We've been asked to wait ${wait} before loading this again.`
+        : "We're loading this a little too often. It clears on its own in a moment.",
+      action: "retry",
+    };
+  }
+  return {
+    headline: "We couldn't load this order",
+    body: "Nothing is wrong with the order itself — we just couldn't reach it. Try again in a moment.",
+    action: "retry",
+  };
+}
+
+/**
+ * The order screen's "this did not load" state. Extracted so the gate can be
+ * evaluated BEFORE the loading gate without duplicating the markup.
+ */
+function OrderLoadFailureGate({
+  failure,
+  orderId,
+  onRetry,
+}: {
+  failure: { headline: string; body: string; action: "none" | "sign-in" | "retry" };
+  orderId: string;
+  onRetry: () => unknown;
+}) {
+  const loadFailure = failure;
+  const refetchOrder = onRetry;
+  return (
+      <WorkshopGateShell>
+      <div className="flex flex-col items-center justify-center h-full gap-3.5 px-6 text-center" style={{ background: "#F6F7FA" }}>
+        <span style={{ width: 56, height: 56, borderRadius: "50%", background: "#FFFFFF", border: "1px solid #E5E8EE", display: "inline-flex", alignItems: "center", justifyContent: "center" }}>
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" aria-hidden>
+            <circle cx="12" cy="12" r="9" stroke="#CBD0DA" strokeWidth="1.6" />
+            <path d="M6 6 18 18" stroke="#CBD0DA" strokeWidth="1.6" strokeLinecap="round" />
+          </svg>
+        </span>
+        <p className="text-[15px] font-semibold" style={{ color: "#0B1A2F" }}>
+          {loadFailure.headline}
+        </p>
+        <p className="text-[12.5px]" style={{ color: "#5E6779", maxWidth: 340, lineHeight: 1.5 }}>
+          {loadFailure.body}
+        </p>
+        {loadFailure.action === "sign-in" && (
+          <Link
+            href={`/sign-in?redirect_url=${encodeURIComponent(`/inbox/${orderId}`)}`}
+            className="plk-focus"
+            style={{
+              display: "inline-flex", alignItems: "center", minHeight: 40, padding: "0 16px",
+              borderRadius: 6, background: "var(--navy)", color: "#FFFFFF",
+              fontSize: 13, fontWeight: 600, textDecoration: "none",
+            }}
+          >
+            Sign in again
+          </Link>
+        )}
+        {loadFailure.action === "retry" && (
+          <button
+            type="button"
+            onClick={() => { void refetchOrder(); }}
+            className="plk-focus"
+            style={{
+              minHeight: 40, padding: "0 16px", borderRadius: 6,
+              background: "var(--navy)", color: "#FFFFFF", fontSize: 13, fontWeight: 600,
+            }}
+          >
+            Try again
+          </button>
+        )}
+      </div>
+      </WorkshopGateShell>
+  );
+}
 
 /**
  * The trust threshold for the attention-first split = the LOWEST trusted bucket's
@@ -202,7 +331,7 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
   const { labels } = useOrderDirection();
 
   // ── Live order + the same hooks the classic screen uses (ONE send path) ─────
-  const { order, isLoading, isError, refetchOrder, exceptionCount, isStuck } = useOrderReview(orderId);
+  const { order, isLoading, isError, error: orderError, refetchOrder, exceptionCount, isStuck } = useOrderReview(orderId);
 
   // ── Audit events — only fetched for a failed order, to seed the problem panel's
   //    server-detail block when the order row itself carries no errorMessage (the
@@ -526,10 +655,18 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
   // ?sample=1 is appended by useSampleOrder when navigating to a practice order.
   // Reading it once on mount is sufficient — the param never changes during the session.
   const isSampleOrder = searchParams?.get("sample") === "1";
-  const [detailsTab, setDetailsTab] = useState<OrderDetailsTab | null>(() => {
-    const t = searchParams?.get("tab");
-    return t === "passport" || t === "conformance" || t === "response" ? t : null;
-  });
+  const requestedTab = searchParams?.get("tab");
+  const [detailsTab, setDetailsTab] = useState<OrderDetailsTab | null>(() =>
+    isOrderDetailsTab(requestedTab) ? requestedTab : null,
+  );
+  // Seeding is not enough when the LINK ORIGINATES ON THIS ROUTE. The refused-order
+  // panel is a banner rendered at /inbox/{id}, and its "See their reply" points at
+  // /inbox/{id}?tab=response — a same-route navigation, which does not remount this
+  // component, so the initialiser above never re-runs and the drawer never opened.
+  // The button did nothing at all. Same fix, same hook, as /settings and the supplier
+  // profile: react to the param's VALUE changing. A manual tab click writes the URL
+  // back through openDetails, so the sync that follows is a no-op on the same value.
+  useTabParamSync<OrderDetailsTab>(requestedTab, isOrderDetailsTab, setDetailsTab);
   // Read the live query string at call time (not the searchParams snapshot) so these
   // stay referentially stable — otherwise every ?tab= write would re-identify them and
   // needlessly re-attach the drawer's Esc/focus-trap listeners while it is open.
@@ -751,6 +888,17 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
   //    suppresses its breadcrumb on this route, so the shell's compact header
   //    (← Inbox · PO number · status badge where known) is the ONLY navigation
   //    context these states have.
+  // The error gate is tested BEFORE the loading gate, and that ordering is the
+  // whole fix. A failed fetch leaves `data` undefined — TanStack only fills it on
+  // success — so `order === undefined` matched first and this screen showed
+  // "Preparing your order…" forever. The failure copy below was reachable only
+  // when the query RESOLVED to null, which the 404 path does not do (getOrderById
+  // throws an ApiHttpError). A missing order therefore did not read as a crash;
+  // it read as a hang, which is worse, because nothing on screen ever changed.
+  if (isError || order === null) {
+    const loadFailure = orderLoadFailure(orderError, order === null);
+    return <OrderLoadFailureGate failure={loadFailure} orderId={orderId} onRetry={refetchOrder} />;
+  }
   if (!queryEnabled || isLoading || order === undefined)
     return (
       <WorkshopGateShell>
@@ -760,28 +908,6 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
         />
       </WorkshopGateShell>
     );
-  if (isError || order === null) {
-    return (
-      <WorkshopGateShell>
-      <div className="flex flex-col items-center justify-center h-full gap-3.5 px-6 text-center" style={{ background: "#F6F7FA" }}>
-        <span style={{ width: 56, height: 56, borderRadius: "50%", background: "#FFFFFF", border: "1px solid #E5E8EE", display: "inline-flex", alignItems: "center", justifyContent: "center" }}>
-          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" aria-hidden>
-            <circle cx="12" cy="12" r="9" stroke="#CBD0DA" strokeWidth="1.6" />
-            <path d="M6 6 18 18" stroke="#CBD0DA" strokeWidth="1.6" strokeLinecap="round" />
-          </svg>
-        </span>
-        <p className="text-[15px] font-semibold" style={{ color: "#0B1A2F" }}>
-          {order === null ? "Order not found" : "Failed to load order"}
-        </p>
-        <p className="text-[12.5px]" style={{ color: "#5E6779", maxWidth: 340, lineHeight: 1.5 }}>
-          {order === null
-            ? "This order may have been delivered and archived, or the link is out of date."
-            : "Something went wrong loading this order. Try again in a moment."}
-        </p>
-      </div>
-      </WorkshopGateShell>
-    );
-  }
 
   // ── The ONE problem gate. Every problem state renders <OrderProblemPanel>; the
   //    panel's own PROBLEM_COPY decides whether that is a full-page gate or a

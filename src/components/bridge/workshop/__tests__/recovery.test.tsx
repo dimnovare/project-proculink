@@ -336,12 +336,25 @@ describe("rejected_by_supplier — a terminal status gets an explanation, not a 
     expect(send).toBeDisabled();
   });
 
+  // WP-19/WP-24 correction. This test asserted `?details=response` and
+  // `&from=ord-1` as the expected hrefs — and BOTH parameters were read by
+  // nothing, anywhere in the app. It was not a locator that drifted; it was an
+  // assertion that pinned the defect in place, the same way problemContract's
+  // "example of a live destination" did. Route gates all normalise the query
+  // away before matching, so nothing else could see it either.
+  //
+  // `details` → `tab`, the parameter OrderDetailsDrawer actually switches on.
+  // `from` is gone: it promised a link between a refused order and its
+  // replacement that nothing kept.
   test("routes to the supplier's own reply and to a corrected order", () => {
     mockState.order = makeOrder({ status: "rejected_by_supplier" });
     renderWorkshop();
     const links = hrefs();
-    expect(links).toContain("/inbox/ord-1?details=response");
-    expect(links).toContain("/upload?supplierId=sup-1&from=ord-1");
+    expect(links).toContain("/inbox/ord-1?tab=response");
+    expect(links).toContain("/upload?supplierId=sup-1");
+    // The old values must not come back.
+    expect(links).not.toContain("/inbox/ord-1?details=response");
+    expect(links.some((h) => h.includes("from=ord-1"))).toBe(false);
   });
 });
 

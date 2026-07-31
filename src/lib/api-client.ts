@@ -33,6 +33,7 @@ import {
   fetchWithTimeout,
   delay,
   ApiHttpError,
+  retryAfterFrom,
 } from "./api/core";
 import { isPlanGateError, planGateMessage } from "./planGate";
 
@@ -1546,8 +1547,23 @@ async function realRunSampleOrder(): Promise<{ orderId: string; isSample: true }
     headers: await authHeader(),
   }, 30000);
   if (!res.ok) {
+    // G6. This threw the RAW RESPONSE BODY as the user-facing message: a stack
+    // trace, an HTML error page or a JSON blob, whatever the server happened to
+    // send, straight onto the screen. Every other call in this file goes through
+    // parseApiErrorBody, which lifts the `{ error }` sentence when there is one
+    // and otherwise says nothing rather than saying gibberish.
+    //
+    // ApiHttpError, not Error, so the status survives: this endpoint 429s at the
+    // plan's order limit and 403s on a plan gate, and both need different copy
+    // from "something went wrong".
     const t = await res.text().catch(() => "");
-    throw new Error(t || `sample-order: ${res.status}`);
+    const { body, error } = parseApiErrorBody(t);
+    throw new ApiHttpError(
+      error ?? `We couldn't create the practice order (${res.status}).`,
+      res.status,
+      body,
+      retryAfterFrom(res, body),
+    );
   }
   const data = await res.json() as { orderId: string; isSample?: boolean };
   return { orderId: data.orderId, isSample: true };

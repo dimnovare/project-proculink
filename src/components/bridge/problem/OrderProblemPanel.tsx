@@ -31,6 +31,7 @@ import type { Order } from "@/types/procurement";
 import { UnifiedStatusBadge } from "../UnifiedStatusBadge";
 import { poTitleFrom } from "../workshop/WorkshopGateChrome";
 import { AssignSupplierBanner } from "../workshop/AssignSupplierBanner";
+import { shouldRetryApiFailure, apiRetryDelayMs } from "@/lib/apiFailure";
 import { PROBLEM_COPY, problemFor, type ProblemAction, type ProblemCtx, type ProblemStatus } from "./problemCopy";
 import { useProblemAction } from "./useProblemAction";
 import { UnconfirmedResolver } from "./UnconfirmedResolver";
@@ -80,7 +81,12 @@ export function OrderProblemPanel({
     queryFn: () => apiClient.getOrderPassport(order.id),
     enabled: queryEnabled && status === "rejected_by_supplier",
     staleTime: 60_000,
-    retry: 1,
+    // The supplier's reply is the whole point of this panel, so its fetch uses
+    // the shared failure policy rather than a flat `retry: 1`: a 404 (no passport
+    // recorded) stops immediately instead of buying a second identical answer,
+    // and a cold-auth 401 gets the three quick polls it needs.
+    retry: shouldRetryApiFailure,
+    retryDelay: apiRetryDelayMs,
   });
 
   if (!copy) return null;
@@ -106,6 +112,8 @@ export function OrderProblemPanel({
     supplierId: order.supplierId ?? null,
     orderId: order.id,
     serverMessage: order.errorMessage?.trim() ? order.errorMessage : null,
+    failureCause: order.failureCause?.trim() ? order.failureCause : null,
+    retryAfterSeconds: order.retryAfterSeconds ?? null,
     readOnly,
     atOrderLimit,
     processingPaused: paused,
