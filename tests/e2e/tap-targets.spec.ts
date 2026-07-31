@@ -189,7 +189,22 @@ test.describe("touch floors at a phone viewport", () => {
   }
 });
 
-test.describe("the landing hero toggle — WP-30 left this at 22px", () => {
+/**
+ * The landing hero's view toggle. WP-30 deferred it as "a layout decision, not a
+ * token one" and recorded it at 22px.
+ *
+ * THE 22px DOES NOT REPRODUCE. Measured in Chromium it was 24.5px: `text-[11px]`
+ * is a font-size-only utility, and the inherited line-height resolves to 16.5px
+ * rather than the ~13.3px a hand calculation from `line-height: normal` yields.
+ * So it already cleared WCAG 2.2 SC 2.5.8's 24px floor — by half a pixel.
+ *
+ * That half pixel is why the desktop assertion below is 28 and not 24. A 24px
+ * assertion passes on BOTH the old and the new padding, so it would be vacuous:
+ * reverting the fix leaves it green (verified — exit 0 with `py-1` restored).
+ * 28 sits between the measured 24.5 and the measured 30.5, so it pins the
+ * deliberate headroom rather than re-stating the standard.
+ */
+test.describe("the landing hero toggle", () => {
   test("is at least 44px tall on a phone", async ({ page }) => {
     await page.goto("/");
     const toggle = page.getByRole("button", { name: "Topology" });
@@ -199,14 +214,14 @@ test.describe("the landing hero toggle — WP-30 left this at 22px", () => {
     expect(box!.height).toBeGreaterThanOrEqual(TAP_MIN - EPSILON);
   });
 
-  test("clears WCAG 2.2 SC 2.5.8's 24px floor on a desktop viewport too", async ({ page }) => {
-    // SC 2.5.8 (AA) applies to ALL pointer types, so 22px failed on desktop as
-    // well — the touch floor alone would not have fixed it.
+  test("keeps real headroom over SC 2.5.8's 24px floor on desktop", async ({ page }) => {
+    // SC 2.5.8 (AA) applies to ALL pointer types, so the touch floor alone would
+    // not have covered a desktop mouse. Measured: 24.5px before, 30.5px after.
     await page.setViewportSize({ width: 1280, height: 900 });
     await page.goto("/");
     const toggle = page.getByRole("button", { name: "Topology" });
     await expect(toggle).toBeVisible();
     const box = await toggle.boundingBox();
-    expect(box!.height).toBeGreaterThanOrEqual(24);
+    expect(box!.height).toBeGreaterThanOrEqual(28);
   });
 });
