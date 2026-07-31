@@ -67,9 +67,11 @@ The editor previews the generated output as you work — a dry run that changes 
 
 ## Keeping the layout for future orders
 
-If the override fixes the layout for good, use **Save mappings** on the order screen — it sits on the status bar under the order header, next to the mapped count. That promotes the order's source and output rules into the counterparty's reusable mapping, additively — fields you didn't touch are preserved — so future orders apply it automatically. The per-order override still wins whenever one exists.
+If the override fixes the supplier's layout for good, use **Save mappings for this supplier** on the order screen — it sits on the status bar under the order header, next to the mapped count. That promotes the order's source and output rules into the supplier's reusable mapping, additively — fields you didn't touch are preserved — so future orders apply it automatically. The per-order override still wins whenever one exists.
 
-It tells you exactly what it saved, and says so plainly when there was nothing new to save. If the order has no counterparty assigned yet there is nowhere to save to, so the control is disabled until you assign one. The field mapper's own **✓ Saved** indicator, one step to the left on the same bar, is a different thing: that is the automatic save of your edits to *this* order.
+It tells you how many field mappings it saved, and says so plainly when there was nothing new to save. If the order has no supplier assigned yet there is nowhere to save to, so the control is disabled until you assign one.
+
+The field mapper's own **✓ Saved** indicator, a step to the left on the same bar, is a different thing: that is the automatic save of your edits to *this* order. Field mapping is a desktop screen, so both live above 1024px wide.
 
 For controlled, versioned changes to a supplier's whole setup, see [supplier connections](/help/connections).
 

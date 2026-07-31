@@ -68,6 +68,8 @@ export function WorkshopStatusBar({
   onSaveMappings,
   savingMappings = false,
   saveMappingsDisabledReason = null,
+  saveMappingsLabel = "Save mappings",
+  saveMappingsTitle,
 }: {
   blockers: BlockerChip[];
   /** Warning-level (non-blocking) issue count — shown as a quiet optional note. */
@@ -103,6 +105,16 @@ export function WorkshopStatusBar({
    * code: the operator must be able to read why it is off without guessing.
    */
   saveMappingsDisabledReason?: string | null;
+  /**
+   * The control's label. The host builds it from the direction labels, because the
+   * counterparty is a customer in the inbound direction — and because the mapper's
+   * own autosave indicator ("Saving… / ✓ Saved") sits a few pixels to the LEFT on
+   * this same bar. A bare "Save mappings" beside a "✓ Saved" reads as "save my edits
+   * to this order"; naming the party is what tells the two apart.
+   */
+  saveMappingsLabel?: string;
+  /** Tooltip for the enabled state. Also host-built, for the same noun reason. */
+  saveMappingsTitle?: string;
 }) {
   const chips = useMemo(() => dedupeBlockerChips(blockers), [blockers]);
   const allMapped = mapper != null && mapper.total > 0 && mapper.mapped >= mapper.total;
@@ -238,7 +250,8 @@ export function WorkshopStatusBar({
             disabled={savingMappings || saveMappingsDisabledReason != null}
             title={
               saveMappingsDisabledReason ??
-              "Save these field mappings onto this order's counterparty — their next order starts already mapped"
+              saveMappingsTitle ??
+              "Save these field mappings for next time — the next order starts already mapped"
             }
             style={{
               height: 27, padding: "0 11px", borderRadius: 8, fontSize: 11.5, fontWeight: 700,
@@ -248,7 +261,7 @@ export function WorkshopStatusBar({
               opacity: saveMappingsDisabledReason != null ? 0.55 : 1,
             }}
           >
-            {savingMappings ? "Saving…" : "Save mappings"}
+            {savingMappings ? "Saving…" : saveMappingsLabel}
           </button>
         )}
 

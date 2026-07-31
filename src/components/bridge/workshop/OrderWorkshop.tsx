@@ -22,12 +22,14 @@
 // one-click fixes + a sticky Send bar); field-by-field mapping stays on a wider screen.
 
 import { useCallback, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { apiClient, getMappingOverride, previewMappingOverride, promoteMapping } from "@/lib/api-client";
 import { useQueriesEnabled } from "@/hooks/useQueriesEnabled";
 import { useOrderDirection } from "@/hooks/useOrderDirection";
-import { isPlanGateError, planGateMessage } from "@/lib/planGate";
+import { isPlanGateError, planGateMessage, planGateUpgradeUrl } from "@/lib/planGate";
+import { hasAssignedSupplier } from "@/lib/catalogCodes";
 import type { OrderMappingOverride } from "@/lib/api/types";
 import type { CalibrationSummary } from "@/types/procurement";
 import { MapperWorkbench, type MapperWorkbenchLayout, type MapperToolbarState } from "../mapper/MapperWorkbench";
@@ -107,6 +109,18 @@ export function fixQueueToIssues(queue: FixQueueCard[]): WorkshopIssue[] {
         suggestedCode: c.kind === "ai-suggestion" ? c.detail ?? null : undefined,
       } satisfies WorkshopIssue;
     });
+}
+
+/**
+ * True for a failure that never reached the endpoint, or reached it and came back
+ * unreadable. Both produce diagnostics rather than operator copy: `fetchWithTimeout`
+ * throws `Request timed out after 30000ms`, a dropped connection throws the browser's
+ * own `Failed to fetch`/`NetworkError`, and a truncated 200 makes `res.json()` throw a
+ * raw `SyntaxError`. Everything else — including every message the API writes itself —
+ * is left alone.
+ */
+export function isTransportFailure(message: string): boolean {
+  return /timed out|failed to fetch|network(?:error)?\b|load failed|json/i.test(message);
 }
 
 /**
@@ -308,14 +322,25 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
   //    MappingEditor: this is a one-shot command with no cache entry of its own,
   //    and the workshop's other server reads stay on TanStack Query.
   const [promoting, setPromoting] = useState(false);
-  const [promoteNotice, setPromoteNotice] =
-    useState<{ tone: "success" | "info" | "error"; text: string } | null>(null);
+  const [promoteNotice, setPromoteNotice] = useState<
+    { tone: "success" | "info" | "error"; text: string; upgradeUrl?: string } | null
+  >(null);
+
+  // The direction noun, lowercased for mid-sentence use ("supplier" / "customer").
+  const partyNoun = labels.counterpartyNoun.toLowerCase();
 
   // Read-only for promotion: with no counterparty on the order there is nowhere to
   // save the mapping TO, so the request could only 404. Named as a sentence because
   // it is shown to the operator verbatim.
-  const promoteDisabledReason = !order?.supplierId
-    ? `Assign a ${labels.counterpartyNoun.toLowerCase()} first — there is nowhere to save this mapping yet.`
+  //
+  // `hasAssignedSupplier`, NOT `!supplierId`. An unassigned counterparty comes off
+  // the wire as Guid.Empty — a NON-EMPTY string — so a truthiness check reports
+  // "assigned" for exactly the order this control must refuse. `Order.supplierId` is
+  // typed non-optional for the same reason: `undefined` is a shape the API never
+  // sends. Two siblings in this screen already use the helper (WorkshopLinesView,
+  // CatalogHintCard).
+  const promoteDisabledReason = !hasAssignedSupplier(order?.supplierId)
+    ? `Assign a ${partyNoun} first — there is nowhere to save this mapping yet.`
     : null;
 
   // No second guard inside the handler. `saveMappingsDisabledReason` disabling the
@@ -328,7 +353,9 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
     setPromoteNotice(null);
     try {
       const res = await promoteMapping(orderId);
-      const party = order?.supplierName ?? labels.counterpartyNoun.toLowerCase();
+      // A blank name is a real shape (an unrouted order carries `supplierName: ""`),
+      // and a bare noun in a slot that expects a proper name reads as "for supplier".
+      const party = res.message ? null : (order?.supplierName || `this ${partyNoun}`);
       const total =
         res.totalFieldsPromoted ??
         (res.headerFieldsPromoted ?? 0) +
@@ -339,21 +366,35 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
       setPromoteNotice({
         tone: nothing ? "info" : "success",
         // The server's own sentence when it sent one — it knows exactly what it
-        // wrote. The fallback still names counts and the party rather than a bare
-        // "Saved", so the operator never has to guess what changed.
+        // wrote. The fallback counts the SAME four fields the `nothing` test does:
+        // WP-12 promotes the OUTPUT tree, so `outputHeaderFieldsPromoted` and
+        // `outputLineFieldsPromoted` are routinely the only non-zero pair. A sentence
+        // built from the inbound two alone reports "Saved 0 header and 0 line
+        // mappings" as a SUCCESS, and prints `undefined` outright on the
+        // aggregate-only shape the `?? 0` guards exist for.
         text:
           res.message ??
           (nothing
             ? `Nothing new to save for ${party} — their mapping already covers this order.`
-            : `Saved ${res.headerFieldsPromoted} header and ${res.lineFieldsPromoted} line ` +
-              `${res.lineFieldsPromoted === 1 ? "mapping" : "mappings"} for ${party}. ` +
+            : `Saved ${total} field ${total === 1 ? "mapping" : "mappings"} for ${party}. ` +
               `Their next order starts with these already applied.`),
       });
     } catch (e) {
       const raw = e instanceof Error ? e.message : String(e);
       setPromoteNotice({
         tone: "error",
-        text: isPlanGateError(raw) ? planGateMessage(raw) : raw,
+        // Three shapes reach here and only one is operator copy. A plan gate becomes
+        // a sentence (plus the server's own upgrade link, rendered below); a
+        // transport/parse failure becomes a sentence too — "Request timed out after
+        // 30000ms" and "Unexpected end of JSON input" are diagnostics, not something
+        // to paint into a red banner. Anything else is the API's own message, which
+        // is already written for a human.
+        text: isPlanGateError(raw)
+          ? planGateMessage(raw)
+          : isTransportFailure(raw)
+            ? "We couldn't reach the server to save this. Check your connection and try again."
+            : raw,
+        upgradeUrl: isPlanGateError(raw) ? planGateUpgradeUrl(raw) : undefined,
       });
     } finally {
       setPromoting(false);
@@ -825,32 +866,53 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
       {/* ── Save-mappings result (WP-13) ──────────────────────────────────────
           Its OWN row rather than the flow notice above: promoting a mapping and
           sending an order are different acts, and a promote result rendered in
-          the send bar would read as a send result. */}
+          the send bar would read as a send result.
+
+          `hidden lg:block` to match its trigger. The control lives on the status
+          bar, which is desktop-only — below lg the workshop renders MobileTriage,
+          a review-and-send surface with no field mapper, so there is nothing to
+          promote FROM there. Without this the notice row would exist at widths
+          where nothing can ever produce it. */}
       {promoteNotice && (
-        <div
-          data-testid="promote-notice"
-          data-tone={promoteNotice.tone}
-          role="status"
-          aria-live="polite"
-          className="flex-shrink-0 px-4 lg:px-6"
-          style={{
-            padding: "8px 16px",
-            background: promoteNotice.tone === "error" ? "#FBE3E3" : promoteNotice.tone === "success" ? "#E9F1EA" : "#EFF4FB",
-            color: promoteNotice.tone === "error" ? "#B43838" : promoteNotice.tone === "success" ? "#1E6D29" : "#0F4FAB",
-            fontSize: 12.5, fontWeight: 600,
-            borderBottom: "1px solid #EEF0F4",
-            display: "flex", alignItems: "center", gap: 10,
-          }}
-        >
-          <span style={{ flex: 1, minWidth: 0 }}>{promoteNotice.text}</span>
-          <button
-            type="button"
-            onClick={() => setPromoteNotice(null)}
-            aria-label="Dismiss"
-            style={{ border: 0, background: "transparent", color: "inherit", cursor: "pointer", fontSize: 14, lineHeight: 1, flexShrink: 0 }}
+        // The breakpoint class lives on the WRAPPER, not on the notice: the notice
+        // sets `display: flex` inline, and an inline display always beats `hidden`.
+        <div className="hidden lg:block flex-shrink-0">
+          <div
+            data-testid="promote-notice"
+            data-tone={promoteNotice.tone}
+            role="status"
+            aria-live="polite"
+            className="px-4 lg:px-6"
+            style={{
+              padding: "8px 16px",
+              background: promoteNotice.tone === "error" ? "#FBE3E3" : promoteNotice.tone === "success" ? "#E9F1EA" : "#EFF4FB",
+              color: promoteNotice.tone === "error" ? "#B43838" : promoteNotice.tone === "success" ? "#1E6D29" : "#0F4FAB",
+              fontSize: 12.5, fontWeight: 600,
+              borderBottom: "1px solid #EEF0F4",
+              display: "flex", alignItems: "center", gap: 10,
+            }}
           >
-            ×
-          </button>
+            <span style={{ flex: 1, minWidth: 0 }}>{promoteNotice.text}</span>
+            {/* The upgrade path the SERVER chose for this particular gate, already
+                sanitized to an in-app path. Telling someone to upgrade and giving
+                them nowhere to click is the half-fix WP-11 exists to stop. */}
+            {promoteNotice.upgradeUrl && (
+              <Link
+                href={promoteNotice.upgradeUrl}
+                style={{ color: "inherit", textDecoration: "underline", flexShrink: 0, whiteSpace: "nowrap" }}
+              >
+                See plans
+              </Link>
+            )}
+            <button
+              type="button"
+              onClick={() => setPromoteNotice(null)}
+              aria-label="Dismiss"
+              style={{ border: 0, background: "transparent", color: "inherit", cursor: "pointer", fontSize: 14, lineHeight: 1, flexShrink: 0 }}
+            >
+              ×
+            </button>
+          </div>
         </div>
       )}
 
@@ -874,6 +936,8 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
           onSaveMappings={onSaveMappings}
           savingMappings={promoting}
           saveMappingsDisabledReason={promoteDisabledReason}
+          saveMappingsLabel={`Save mappings for this ${partyNoun}`}
+          saveMappingsTitle={`Save these field mappings onto this order's ${partyNoun} — their next order starts already mapped`}
         />
       </div>
 
