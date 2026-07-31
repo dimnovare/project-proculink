@@ -178,6 +178,26 @@ export default function Page() {
     rmSync(join(ROOT, "src", "app", "color-fn"), { recursive: true, force: true });
   });
 
+  it("FAILS on a retired colour ANYWHERE under src/, not only under src/app/", () => {
+    // The banned emerald shipped as the focus ring on all 46 help articles from
+    // src/components/help/ — outside src/app/**, so the main scan was blind to
+    // it by construction. This rule sweeps all of src/, has no baseline and no
+    // allowlist. The fixture is deliberately in src/components, which the
+    // src/app-scoped rules never look at.
+    mkdirSync(join(ROOT, "src", "components"), { recursive: true });
+    const outside = join(ROOT, "src", "components", "Ring.tsx");
+    writeFileSync(outside, `export const ring = "focus-visible:ring-[#28C55E]";\n`, "utf8");
+    expect(run("--strict")).toBe(1);
+    const report = output("--strict");
+    expect(report).toContain("[retired-color]");
+    expect(report).toContain("src/components/Ring.tsx");
+
+    // Cleaned → green again, so the rule is two-sided.
+    writeFileSync(outside, `export const ring = "focus-visible:ring-brand-green-deep";\n`, "utf8");
+    expect(run("--strict")).toBe(0);
+    rmSync(outside, { force: true });
+  });
+
   it("catches a 3-digit hex", () => {
     fixture("short-hex/page.tsx", `export const a = "#fff";\n`);
     expect(run("--strict")).toBe(1);
