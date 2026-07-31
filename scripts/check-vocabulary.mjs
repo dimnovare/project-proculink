@@ -69,6 +69,12 @@ import { readFileSync, readdirSync, statSync, existsSync } from "fs";
 import { join, relative } from "path";
 import { fileURLToPath } from "url";
 
+// The comment stripper and the literal masker, shared with the two link guards through
+// src/test/sourceScan.ts. ONE copy — see scripts/lib/sourceScan.mjs for why it lives under
+// scripts/ (this gate runs under bare `node`, so it cannot import a .ts module) and why
+// blockBody() below needs BOTH of them rather than just the stripper.
+import { maskLiterals, stripComments } from "./lib/sourceScan.mjs";
+
 const __dirname = fileURLToPath(new URL(".", import.meta.url));
 
 // ─── CLI ──────────────────────────────────────────────────────────────────────
@@ -477,39 +483,84 @@ const NOUN_REGISTRIES = [
  * The scan starts AFTER the `=`, because a TYPE ANNOTATION legitimately contains
  * brackets (`const TABS: Array<{ id: Tab }> = [`) and starting from the
  * declaration would return the empty body of `SidebarNavSection[]`.
+ *
+ * COMMENTS AND STRING LITERALS ARE DATA, NEVER DECLARATIONS — and this function has
+ * now been fooled by both. `4c7350a` fixed a version with no stripping at all, where a
+ * comment reading `const FILTER_CHIPS` above the real declaration captured the anchor
+ * and `registry-moved` stopped firing. Adding stripping did not close the class:
+ * `stripComments` PRESERVES string and template literals by design, because the two link
+ * guards read their contents, so the identical token inside `"…const FILTER_CHIPS…"` or
+ * a template literal disarmed the guard exactly as the comment had — on all SEVEN policed
+ * blocks, not just the one where it was observed.
+ *
+ * So the search runs over `maskLiterals(stripComments(src))`, the same composition
+ * `extractRaw` uses two lines apart in scripts/lib/sourceScan.mjs. Masking preserves
+ * length, so an offset means the same thing in both copies.
+ *
+ * THE SLICE COMES FROM THE UNMASKED COPY. Both callers read string-literal CONTENTS out
+ * of the body — the `label:` literals here, and the approved word lists themselves in
+ * loadVocabulary — and masked literals are blank. Search masked, slice unmasked; return a
+ * body whose comments are gone but whose literals are intact.
+ *
+ * Balancing over the masked copy is a second fix in passing: a `}` or `]` inside a label
+ * used to decrement the depth counter and truncate the body early, silently dropping
+ * every label after it.
+ *
+ * Returns `{ body }` or `{ reason }`. The reason is reported as the offence, so "the
+ * registry moved" stays distinguishable from "the name is now ambiguous".
  */
-function blockBody(src, name) {
-  const decl = new RegExp(`\\bconst\\s+${name}\\b`).exec(src);
-  if (!decl) return null;
-  let eq = decl.index;
-  while (eq < src.length) {
-    if (src[eq] === "=" && src[eq + 1] !== "=" && src[eq + 1] !== ">") break;
+function blockBody(rawSrc, name) {
+  const src = stripComments(rawSrc);
+  const masked = maskLiterals(src);
+
+  const declRe = new RegExp(String.raw`\bconst\s+` + name + String.raw`\b`, "g");
+  const decls = [...masked.matchAll(declRe)];
+
+  // Masking cannot see a JSX TEXT node — `<p>const FILTER_CHIPS …</p>` is neither a comment
+  // nor a literal — so requiring the declaration to be UNIQUE is what closes that last
+  // vector. It is also a real ambiguity in its own right: with two declarations of the name
+  // in one file, "take the first match" is a coin flip about which one is policed.
+  if (decls.length === 0) return { reason: "registry-moved" };
+  if (decls.length > 1) return { reason: "ambiguous-declaration" };
+
+  let eq = decls[0].index;
+  while (eq < masked.length) {
+    if (masked[eq] === "=" && masked[eq + 1] !== "=" && masked[eq + 1] !== ">") break;
     eq += 1;
   }
-  if (eq >= src.length) return null;
+  if (eq >= masked.length) return { reason: "registry-moved" };
   let i = eq + 1;
-  while (i < src.length && src[i] !== "{" && src[i] !== "[") i += 1;
-  if (i >= src.length) return null;
-  const open = src[i];
+  while (i < masked.length && masked[i] !== "{" && masked[i] !== "[") i += 1;
+  if (i >= masked.length) return { reason: "registry-moved" };
+  const open = masked[i];
   const close = open === "{" ? "}" : "]";
   let depth = 0;
-  for (let j = i; j < src.length; j += 1) {
-    if (src[j] === open) depth += 1;
-    else if (src[j] === close) {
+  for (let j = i; j < masked.length; j += 1) {
+    if (masked[j] === open) depth += 1;
+    else if (masked[j] === close) {
       depth -= 1;
-      if (depth === 0) return src.slice(i + 1, j);
+      if (depth === 0) return { body: src.slice(i + 1, j) };
     }
   }
-  return null;
+  return { reason: "registry-moved" };
 }
 
 /** Parse the approved word lists + pending labels straight out of vocabulary.ts. */
 function loadVocabulary() {
   const src = readFileSync(join(ROOT, "src", "lib", "vocabulary.ts"), "utf8");
+  /** The block's body, or a hard failure — this gate cannot run on a partial vocabulary. */
+  const bodyOf = (name) => {
+    const found = blockBody(src, name);
+    if (found.reason) throw new Error(`vocabulary.ts: ${name} — ${found.reason}`);
+    return found.body;
+  };
   const listOf = (name) => {
-    const body = blockBody(src, name);
-    if (body == null) throw new Error(`vocabulary.ts: ${name} not found`);
-    return [...body.matchAll(/"([^"]+)"/g)].map((m) => m[1]);
+    const values = [...bodyOf(name).matchAll(/"([^"]+)"/g)].map((m) => m[1]);
+    // An approved list that parses to nothing would not fail quietly — it would make every
+    // word unapproved — but it would fail for the wrong reason and send the reader to the
+    // labels instead of to the parse. Say which it was.
+    if (values.length === 0) throw new Error(`vocabulary.ts: ${name} parsed to an empty list`);
+    return values;
   };
   const words = new Set();
   for (const name of ["APPROVED_NOUNS", "APPROVED_PLACES", "APPROVED_SUPPORT"]) {
@@ -517,13 +568,17 @@ function loadVocabulary() {
       for (const w of phrase.toLowerCase().split(/\s+/)) if (w) words.add(w);
     }
   }
-  const fillerBody = /const FILLER = new Set\(\[([^]*?)\]\)/.exec(src);
-  const filler = new Set(
-    fillerBody ? [...fillerBody[1].matchAll(/"([^"]+)"/g)].map((m) => m[1]) : [],
-  );
-  const pendingBody = blockBody(src, "PENDING_IA_LABELS") ?? "";
+  // FILLER used to be read by its own regex (`const FILLER = new Set\(\[([^]*?)\]\)`), which
+  // was the one path in this file that never went through blockBody — so it kept the exact
+  // literal-blindness the rest of the function just had fixed: a `])` inside a filler word
+  // would have truncated the list. `= new Set([` reaches its `[` under the same bracket scan
+  // every other block uses, so there is no reason for a second parser.
+  const filler = new Set(listOf("FILLER"));
+  // PENDING_IA_LABELS is a temporary allowlist and is ALLOWED to be empty — emptying it is how
+  // it retires. The block still has to exist, though; a silent `?? ""` here would have turned a
+  // renamed block into "nothing is pending" without a word.
   const pending = new Set(
-    [...pendingBody.matchAll(/label:\s*"([^"]+)"/g)].map((m) => m[1].toLowerCase()),
+    [...bodyOf("PENDING_IA_LABELS").matchAll(/label:\s*"([^"]+)"/g)].map((m) => m[1].toLowerCase()),
   );
   return { words, filler, pending };
 }
@@ -566,20 +621,40 @@ function scanNouns() {
     }
     const src = readFileSync(full, "utf8");
     for (const name of reg.blocks) {
-      const body = blockBody(src, name);
-      if (body == null) {
-        offences.push({ file: reg.file, label: `(block ${name} not found)`, bad: ["registry-moved"] });
+      const found = blockBody(src, name);
+      if (found.reason) {
+        offences.push({
+          file: reg.file,
+          label: `(block ${name}: ${found.reason})`,
+          bad: [found.reason],
+        });
         continue;
       }
-      const clean = body.replace(/\/\/.*$/gm, " ").replace(/\/\*[^]*?\*\//g, " ");
+      // `found.body` already has its comments stripped by blockBody. The second, cruder
+      // strip that used to run here (`/\/\/.*$/gm`) is gone — it was a third copy of a
+      // stripper this repo has already had to de-duplicate twice, and it was WRONG in a way
+      // the real one is not: it would have eaten the tail of any label containing `//`.
       const labels = reg.valueLabels
         ? // Record<Key, string>: take the VALUE side only, so a quoted KEY
           // ("rules-formats") is treated as code, not as taught copy.
-          [...clean.matchAll(/:\s*"([^"]+)"/g)].map((m) => m[1])
+          [...found.body.matchAll(/:\s*"([^"]+)"/g)].map((m) => m[1])
         : [
-            ...[...clean.matchAll(/\blabel:\s*"([^"]+)"/g)].map((m) => m[1]),
-            ...[...clean.matchAll(/\bgroup:\s*"([^"]+)"/g)].map((m) => m[1]),
+            ...[...found.body.matchAll(/\blabel:\s*"([^"]+)"/g)].map((m) => m[1]),
+            ...[...found.body.matchAll(/\bgroup:\s*"([^"]+)"/g)].map((m) => m[1]),
           ];
+      // PER-BLOCK FLOOR. A block that is FOUND but yields nothing is the silent failure this
+      // gate exists to prevent, and until now it raised no offence at all: zero labels means
+      // zero comparisons, so the run prints OK and the count quietly shrinks. Every policed
+      // registry is a rendered navigation surface — a real one always has at least one label,
+      // so an empty body means the parse broke, not that the nav is empty.
+      if (labels.length === 0) {
+        offences.push({
+          file: reg.file,
+          label: `(block ${name}: no labels parsed)`,
+          bad: ["empty-registry"],
+        });
+        continue;
+      }
       for (const label of labels) {
         labelCount += 1;
         const bad = unapprovedWords(label, vocab);
