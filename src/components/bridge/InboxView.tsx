@@ -8,6 +8,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useState, useMemo, useCallback, useRef, useEffect } from "react";
 import { useQueriesEnabled } from "@/hooks/useQueriesEnabled";
 import { useSampleOrder } from "@/hooks/useSampleOrder";
+import { PracticeOrderPrompt } from "./PracticeOrderPrompt";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiClient, isApiMockMode } from "@/lib/api-client";
 import type { OrderSummary, OrderStatus } from "@/types/procurement";
@@ -1752,24 +1753,7 @@ export function InboxView() {
                   </button>
                   {/* Practice-order path (task 9) — genuine-empty branch only,
                       never the filtered-zero branch. */}
-                  <button
-                    onClick={() => sample.runSample()}
-                    disabled={sample.isPending}
-                    style={{
-                      height: 32,
-                      padding: "0 16px",
-                      borderRadius: 6,
-                      background: "#FFFFFF",
-                      color: "#0B1A2F",
-                      border: "1px solid #E5E8EE",
-                      fontSize: "12.5px",
-                      fontWeight: 600,
-                      cursor: sample.isPending ? "default" : "pointer",
-                      opacity: sample.isPending ? 0.6 : 1,
-                    }}
-                  >
-                    {sample.isPending ? "Starting practice order…" : "Try a practice order"}
-                  </button>
+                      <PracticeOrderPrompt pending={sample.isPending} onRun={sample.runSample} nounLower={labels.counterpartyNoun.toLowerCase()} />
                   {sample.error && (
                     <p className="text-[12px]" style={{ color: "#B43838" }}>{sample.error.message}</p>
                   )}
@@ -2145,26 +2129,7 @@ export function InboxView() {
                       </button>
                       {/* Practice-order path (task 9) — genuine-empty branch only,
                           never the filtered-zero branch. */}
-                      <button
-                        onClick={() => sample.runSample()}
-                        disabled={sample.isPending}
-                        style={{
-                          marginTop: 8,
-                          marginLeft: 8,
-                          height: 32,
-                          padding: "0 16px",
-                          borderRadius: 6,
-                          background: "#FFFFFF",
-                          color: "#0B1A2F",
-                          border: "1px solid #E5E8EE",
-                          fontSize: "12.5px",
-                          fontWeight: 600,
-                          cursor: sample.isPending ? "default" : "pointer",
-                          opacity: sample.isPending ? 0.6 : 1,
-                        }}
-                      >
-                        {sample.isPending ? "Starting practice order…" : "Try a practice order"}
-                      </button>
+                      <PracticeOrderPrompt pending={sample.isPending} onRun={sample.runSample} nounLower={labels.counterpartyNoun.toLowerCase()} />
                       {sample.error && (
                         <p style={{ fontSize: 12, marginTop: 8, color: "#B43838" }}>{sample.error.message}</p>
                       )}

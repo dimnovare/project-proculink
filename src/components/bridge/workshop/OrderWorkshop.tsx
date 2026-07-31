@@ -21,13 +21,15 @@
 // — an honest reduced REVIEW-AND-SEND surface (order summaries + the full issue list +
 // one-click fixes + a sticky Send bar); field-by-field mapping stays on a wider screen.
 
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
+import { CircleCheck } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { apiClient, getMappingOverride, previewMappingOverride, promoteMapping } from "@/lib/api-client";
 import { getAcceptanceGate } from "@/lib/api/acceptance-gate";
 import { useQueriesEnabled } from "@/hooks/useQueriesEnabled";
+import { practiceDeliveryKnown } from "@/hooks/useSampleOrder";
 import { useOrderDirection } from "@/hooks/useOrderDirection";
 import { isPlanGateError, planGateMessage, planGateUpgradeUrl } from "@/lib/planGate";
 import { hasAssignedSupplier } from "@/lib/catalogCodes";
@@ -284,7 +286,17 @@ function PracticeChip() {
 }
 
 /** The practice order's full explanation, rendered inside the Issues column. */
-function PracticeNote() {
+function PracticeNote({
+  delivers,
+  nounLower,
+  delivered,
+}: {
+  /** Did this run actually get a delivery setup seeded? `null` = we do not know yet. */
+  delivers: boolean | null;
+  /** From partyLabels(direction) — "supplier" outbound, "customer" inbound. */
+  nounLower: string;
+  delivered: boolean;
+}) {
   return (
     <div
       role="note"
@@ -296,11 +308,31 @@ function PracticeNote() {
       }}
     >
       <span aria-hidden style={{ width: 6, height: 6, borderRadius: "50%", background: "#2E8E3A", flexShrink: 0, marginTop: 5 }} />
-      <span>
-        <strong style={{ color: "#1E6D29", fontWeight: 700 }}>Practice order</strong>
-        {" "}— free, and it doesn&rsquo;t count against your plan.
-        Sending stops at &ldquo;delivery not set up&rdquo; — that&rsquo;s expected for a practice run.
-      </span>
+      {delivered ? (
+        <span>
+          <strong style={{ color: "#1E6D29", fontWeight: 700 }}>Practice order delivered</strong>
+          {" "}— we emailed you the finished file. That is byte-for-byte what a real order
+          produces.{" "}
+          <Link href="/upload" style={{ color: "#1E6D29", fontWeight: 600, textDecoration: "underline", textUnderlineOffset: 2 }}>
+            Upload your own order →
+          </Link>
+        </span>
+      ) : (
+        <span>
+          <strong style={{ color: "#1E6D29", fontWeight: 700 }}>Practice order</strong>
+          {" "}— free, and it doesn&rsquo;t count against your plan. Match the one missing item
+          code, then send it.{" "}
+          {/* WP-27 seeds an email delivery setup, so the old "sending stops at
+              'delivery not set up'" line is no longer true — it described the dead
+              end this packet removes. What IS true depends on the run, so say only
+              that: `null` promises nothing and holds either way. */}
+          {delivers === true
+            ? `The finished file is emailed to you, never to a ${nounLower}.`
+            : delivers === false
+            ? "Email sending isn't configured on this ProcuLink deployment yet, so this run will stop at “no delivery is set up”."
+            : `Nothing reaches a real ${nounLower}.`}
+        </span>
+      )}
     </div>
   );
 }
@@ -652,20 +684,28 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
   //    (e.g. ExceptionDetail's "Check conformance" → ?tab=conformance) opens the
   //    matching drawer tab on first paint.
   const searchParams = useSearchParams();
-  // ?sample=1 is appended by useSampleOrder when navigating to a practice order.
-  // Reading it once on mount is sufficient — the param never changes during the session.
-  const isSampleOrder = searchParams?.get("sample") === "1";
+  // WP-27: the practice framing is SERVER-DRIVEN. It used to key off a `?sample=1`
+  // parameter that only useSampleOrder appended, so a practice order opened from a
+  // bookmark, the back button, or an inbox row rendered as a real one — and a real
+  // order opened with `?sample=1` pasted on rendered as practice. `order.isSample`
+  // comes from PurchaseOrderEntity.IsSample and is true wherever the order is.
+  const isSampleOrder = order?.isSample === true;
+  // Whether THIS practice run's delivery was actually set up (see practiceDeliveryKnown).
+  // null = we did not start it in this session, so the banner promises nothing. Read after
+  // mount: touching sessionStorage during render would diverge server pass from client.
+  const [practiceDelivers, setPracticeDelivers] = useState<boolean | null>(null);
+  useEffect(() => {
+    if (isSampleOrder) setPracticeDelivers(practiceDeliveryKnown(orderId));
+  }, [isSampleOrder, orderId]);
   const requestedTab = searchParams?.get("tab");
   const [detailsTab, setDetailsTab] = useState<OrderDetailsTab | null>(() =>
     isOrderDetailsTab(requestedTab) ? requestedTab : null,
   );
-  // Seeding is not enough when the LINK ORIGINATES ON THIS ROUTE. The refused-order
-  // panel is a banner rendered at /inbox/{id}, and its "See their reply" points at
+  // From WP-24, kept: seeding is not enough when the LINK ORIGINATES ON THIS ROUTE.
+  // The refused-order panel renders at /inbox/{id} and its "See their reply" points at
   // /inbox/{id}?tab=response — a same-route navigation, which does not remount this
-  // component, so the initialiser above never re-runs and the drawer never opened.
-  // The button did nothing at all. Same fix, same hook, as /settings and the supplier
-  // profile: react to the param's VALUE changing. A manual tab click writes the URL
-  // back through openDetails, so the sync that follows is a no-op on the same value.
+  // component, so the initialiser above never re-runs and the drawer never opened. The
+  // button did nothing at all. React to the param's VALUE changing instead.
   useTabParamSync<OrderDetailsTab>(requestedTab, isOrderDetailsTab, setDetailsTab);
   // Read the live query string at call time (not the searchParams snapshot) so these
   // stay referentially stable — otherwise every ?tab= write would re-identify them and
@@ -748,7 +788,13 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
   // taking a band of its own above the three columns (WP-28).
   const columnNotes = (
     <>
-      {isSampleOrder && <PracticeNote />}
+      {isSampleOrder && (
+        <PracticeNote
+          delivers={practiceDelivers}
+          nounLower={labels.counterpartyNoun.toLowerCase()}
+          delivered={order?.status === "delivered"}
+        />
+      )}
       {catalogHint}
     </>
   );

@@ -20,6 +20,7 @@ import { useOrderDirection } from "@/hooks/useOrderDirection";
 import { useQueriesEnabled } from "@/hooks/useQueriesEnabled";
 import { useOnboardingStatus } from "@/hooks/useOnboardingStatus";
 import { useSampleOrder } from "@/hooks/useSampleOrder";
+import { PracticeOrderPrompt } from "./PracticeOrderPrompt";
 import { ACCEPTED_UPLOAD_FORMATS, hasAcceptedUploadExtension, isClearlyUnsupportedDragType } from "@/lib/upload-formats";
 
 // Pipeline stages for the pre-redirect upload animation. "Transform" is NOT
@@ -723,7 +724,8 @@ export function UploadWorkbench() {
             New here? Start with a sample order
           </p>
           <p className="text-[12px] mt-1" style={{ color: "#5E6779" }}>
-            Try it free with a sample order. We give you an example purchase order to test the whole flow — no file of your own needed, and it won&apos;t use your quota.
+            We give you an example purchase order so you can run the whole flow — no file of
+            your own needed, and it won&apos;t use your quota.
           </p>
           {sample.error && (
             <p className="mt-2 text-[12px]" style={{ color: "var(--danger)" }}>
@@ -731,21 +733,15 @@ export function UploadWorkbench() {
             </p>
           )}
         </div>
-        <button
-          type="button"
-          onClick={() => { if (!uploading) sample.runSample(); }}
-          disabled={sample.isPending || uploading}
-          className="w-full rounded-[6px] px-4 py-2.5 text-[13px] font-semibold transition-all sm:w-auto sm:flex-shrink-0"
-          style={{
-            background: sample.isPending || uploading ? "#E5E8EE" : "#0B1A2F",
-            color: sample.isPending || uploading ? "var(--ink-faint)" : "#FFFFFF",
-            border: "none",
-            boxShadow: sample.isPending || uploading ? "none" : "0 2px 8px rgba(11,26,47,0.18)",
-            cursor: sample.isPending || uploading ? "not-allowed" : "pointer",
-          }}
-        >
-          {sample.isPending ? "Starting sample…" : "Try with a sample order →"}
-        </button>
+        <div className="sm:flex-shrink-0">
+          <PracticeOrderPrompt
+            ctaLabel="Try with a sample order →"
+            variant="button"
+            pending={sample.isPending || uploading}
+            onRun={(deliverTo) => { if (!uploading) sample.runSample(deliverTo); }}
+            nounLower={labels.counterpartyNoun.toLowerCase()}
+          />
+        </div>
       </div>
     </XCard>
   );

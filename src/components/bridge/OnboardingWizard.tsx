@@ -9,12 +9,15 @@
 // step a placeholder supplier with an empty id) were deleted with the shrink.
 
 import { useEffect, useRef, useState } from "react";
+import { usePathname } from "next/navigation";
+import { useUser } from "@clerk/nextjs";
 import { useQueryClient } from "@tanstack/react-query";
 import { apiClient, updateOrgSettings, isApiMockMode } from "@/lib/api-client";
 import { capture } from "@/lib/analytics";
 import { captureException } from "@/lib/sentry-context";
 import { useOrderDirection } from "@/hooks/useOrderDirection";
 import { invalidateOnboardingStatus } from "@/hooks/useOnboardingStatus";
+import { useSampleOrder } from "@/hooks/useSampleOrder";
 import type { Supplier, OrderDirection } from "@/types/procurement";
 
 // ─── Design tokens ────────────────────────────────────────────────────────────
@@ -357,14 +360,45 @@ function Step1AddSupplier({ onSuccess }: Step1Props) {
   );
 }
 
-// ─── Closing notice — points at the dashboard checklist ──────────────────────
+// ─── Step 2 — see it work now (the step that closes the loop) ────────────────
+//
+// This slot used to be a dead "Open my setup guide" notice: the wizard handed the
+// user back to a six-step checklist whose fifth step needed a supplier's endpoint
+// and credentials, so a brand-new account could not finish in one sitting and never
+// saw the product work. Now the wizard ENDS by running a whole order.
+//
+// The address is prefilled from the signed-in user, so the default interaction is
+// "read it, press the button". It is editable because a shared purchasing inbox is a
+// normal answer, and visible because sending mail on someone's behalf to an address
+// they never read is not a first-run experience.
 
-function StepDone({ supplier, onClose }: { supplier: Supplier; onClose: () => void }) {
-  const { labels } = useOrderDirection();
-  const partyNounLower = labels.counterpartyNoun.toLowerCase();
+function StepSeeItWork({
+  supplier,
+  defaultEmail,
+  running,
+  error,
+  onRun,
+  onSkip,
+}: {
+  supplier: Supplier;
+  defaultEmail: string;
+  running: boolean;
+  error: string | null;
+  onRun: (deliverTo: string) => void;
+  onSkip: () => void;
+}) {
+  const [email, setEmail] = useState(defaultEmail);
+  const trimmed = email.trim();
+  const ready = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed);
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+    <form
+      onSubmit={(e) => {
+        e.preventDefault();
+        if (ready && !running) onRun(trimmed);
+      }}
+      style={{ display: "flex", flexDirection: "column", gap: 16 }}
+    >
       <div>
         <h2
           style={{
@@ -376,32 +410,84 @@ function StepDone({ supplier, onClose }: { supplier: Supplier; onClose: () => vo
             fontFamily: "'Bricolage Grotesque', Inter, sans-serif",
           }}
         >
-          <strong>{supplier.name}</strong> is in
+          <strong>{supplier.name}</strong> is in. Now see it work.
         </h2>
         <p style={{ fontSize: 13, color: T.muted, margin: 0, lineHeight: 1.55 }}>
-          Your setup guide is on the dashboard — it walks you through the {partyNounLower}&apos;s
-          item codes, your first upload, and delivery, and ticks itself off as you go.
+          We&apos;ll run one practice order all the way through and email you the finished
+          file — the same file a real order produces. Nothing is sent to anyone else, and it
+          doesn&apos;t count against your plan.
         </p>
       </div>
 
+      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+        <label
+          htmlFor="wizard-deliver-to"
+          style={{ fontSize: 12.5, fontWeight: 600, color: T.text, letterSpacing: "0.01em" }}
+        >
+          Send the finished file to
+        </label>
+        <input
+          id="wizard-deliver-to"
+          type="email"
+          inputMode="email"
+          autoComplete="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          placeholder="you@your-company.example"
+          disabled={running}
+          style={{
+            height: 44,
+            padding: "0 12px",
+            // 16px is the iOS zoom floor — anything smaller zooms the viewport on focus.
+            fontSize: 16,
+            color: T.text,
+            background: T.surface,
+            border: `1px solid ${error ? T.red : T.border}`,
+            borderRadius: 6,
+            width: "100%",
+            boxSizing: "border-box",
+            fontFamily: "Inter, sans-serif",
+          }}
+        />
+        {error && <p style={{ fontSize: 12, color: T.red, margin: 0 }}>{error}</p>}
+      </div>
+
       <button
-        type="button"
-        onClick={onClose}
+        type="submit"
+        disabled={!ready || running}
         style={{
           height: 44,
-          background: T.greenBtn,
+          background: !ready || running ? "#CBD0DA" : T.greenBtn,
           color: "#fff",
           border: "none",
           borderRadius: 6,
           fontSize: 13.5,
           fontWeight: 600,
-          cursor: "pointer",
+          cursor: !ready || running ? "not-allowed" : "pointer",
           letterSpacing: "0.01em",
         }}
       >
-        Open my setup guide
+        {running ? "Starting your practice order…" : "Run a practice order →"}
       </button>
-    </div>
+
+      <button
+        type="button"
+        onClick={onSkip}
+        disabled={running}
+        style={{
+          minHeight: 44,
+          background: "none",
+          border: "none",
+          padding: 0,
+          fontSize: 12.5,
+          fontWeight: 600,
+          color: T.blue,
+          cursor: running ? "default" : "pointer",
+        }}
+      >
+        Skip — I&apos;ll upload my own order
+      </button>
+    </form>
   );
 }
 
@@ -411,13 +497,16 @@ interface OnboardingWizardProps {
   onDismiss: () => void;
 }
 
-// 0 = choose order direction · 1 = add first supplier · "done" = closing notice.
+// 0 = choose order direction · 1 = add first supplier · "done" = run a practice order.
 type WizardStep = 0 | 1 | "done";
 
 const TOTAL_STEPS = 2;
 
 export function OnboardingWizard({ onDismiss }: OnboardingWizardProps) {
   const queryClient = useQueryClient();
+  const pathname = usePathname();
+  const { user } = useUser();
+  const { runSample, isPending: samplePending, error: sampleError } = useSampleOrder(pathname ?? "/bridge");
   const [step, setStep] = useState<WizardStep>(0);
   const [firstSupplier, setFirstSupplier] = useState<Supplier | null>(null);
 
@@ -440,6 +529,13 @@ export function OnboardingWizard({ onDismiss }: OnboardingWizardProps) {
     void queryClient.invalidateQueries({ queryKey: ["org-settings"] });
     capture("wizard_step_completed", { step: 0, step_name: "order_direction", direction });
     setStep(1);
+  }
+
+  function handleRunPractice(deliverTo: string) {
+    capture("wizard_step_completed", { step: 2, step_name: "practice_order" });
+    // useSampleOrder owns the POST, the cache invalidation, and the route to the order.
+    // The wizard is unmounted by that navigation, so there is nothing to close here.
+    runSample(deliverTo);
   }
 
   function handleStep1Success(s: Supplier) {
@@ -524,7 +620,14 @@ export function OnboardingWizard({ onDismiss }: OnboardingWizardProps) {
         {step === 0 && <Step0Direction onSuccess={handleStep0Success} />}
         {step === 1 && <Step1AddSupplier onSuccess={handleStep1Success} />}
         {step === "done" && firstSupplier && (
-          <StepDone supplier={firstSupplier} onClose={onDismiss} />
+          <StepSeeItWork
+            supplier={firstSupplier}
+            defaultEmail={user?.primaryEmailAddress?.emailAddress ?? ""}
+            running={samplePending}
+            error={sampleError ? (sampleError.message || "Could not start the practice order.") : null}
+            onRun={handleRunPractice}
+            onSkip={onDismiss}
+          />
         )}
 
         <p
@@ -537,7 +640,7 @@ export function OnboardingWizard({ onDismiss }: OnboardingWizardProps) {
           }}
         >
           {step === "done"
-            ? "The rest of setup continues on the dashboard"
+            ? "Your setup guide is on the dashboard whenever you want it"
             : `Step ${step + 1} of ${TOTAL_STEPS} · You can dismiss this and come back any time`}
         </p>
       </div>

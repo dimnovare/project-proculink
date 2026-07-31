@@ -87,11 +87,16 @@ export const ROUTE_QUERY_PARAMS: Record<string, readonly ParamContract[]> = {
       purpose:
         "Opens the details drawer on a named tab. `response` is how a refused order shows the supplier's reply.",
     },
-    {
-      param: "sample",
-      readBy: "src/components/bridge/workshop/OrderWorkshop.tsx",
-      purpose: "Marks the practice order so the workshop can say it is not real work.",
-    },
+    // `sample` was here and is deliberately gone. WP-27 made the practice framing
+    // server-driven — `order.isSample`, from PurchaseOrderEntity.IsSample — because
+    // the param only ever got appended by useSampleOrder, so a practice order opened
+    // from a bookmark, the back button, or an inbox row rendered as real work, and a
+    // real order with `?sample=1` pasted on rendered as practice.
+    //
+    // This registry caught the removal on the merge and asked the right question:
+    // "either the reader was removed (every link carrying it is now inert) or the
+    // contract names the wrong file." It was the former, and nothing appends the
+    // param any more — so the entry goes rather than the reader coming back.
   ],
   "/upload": [
     {
