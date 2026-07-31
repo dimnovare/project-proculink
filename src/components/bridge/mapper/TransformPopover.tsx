@@ -21,6 +21,7 @@
 
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { useDialogA11y } from "@/hooks/useDialogA11y";
 import type { ManipulatorEntry } from "@/lib/api/types";
 import { MANIPULATOR_TYPES } from "@/lib/api/types";
 
@@ -138,11 +139,16 @@ export function TransformPopover({ outputPath, manipulators, onChange, onClose, 
       if (anchorEl && anchorEl.contains(e.target as Node)) return; // a click on the trigger toggles via the host
       onClose();
     }
-    function onKey(e: KeyboardEvent) { if (e.key === "Escape") onClose(); }
     document.addEventListener("mousedown", onDoc);
-    document.addEventListener("keydown", onKey);
-    return () => { document.removeEventListener("mousedown", onDoc); document.removeEventListener("keydown", onKey); };
+    return () => { document.removeEventListener("mousedown", onDoc); };
   }, [onClose, anchorEl]);
+
+  // NON-MODAL layer. It is anchored to a trigger, it does not block the page, and
+  // the page behind it stays operable — so it gets Escape and focus-restore but
+  // deliberately NOT a Tab trap. Trapping Tab in a popover is the keyboard trap
+  // WCAG 2.1.2 forbids, not a fix for one. `autoFocus: false` because the panel
+  // already focuses its own first control where it wants to.
+  useDialogA11y({ open: true, onClose, panelRef: ref, modal: false, autoFocus: false });
 
   // Portal mode is fixed-position (clip-proof); legacy mode keeps the in-flow absolute anchor so
   // callers that don't pass anchorEl (and the unit tests) keep working unchanged.
@@ -168,6 +174,7 @@ export function TransformPopover({ outputPath, manipulators, onChange, onClose, 
       ref={ref}
       role="dialog"
       aria-label={`Adjust this value for ${outputPath}`}
+      data-plk-nonmodal="popover"
       style={panelStyle}
       onClick={(e) => e.stopPropagation()}
     >

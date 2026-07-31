@@ -4,6 +4,7 @@
 // Translated from Bridge_Mappings in v2-prototype.jsx.
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useDialogA11y } from "@/hooks/useDialogA11y";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiClient, isApiMockMode } from "@/lib/api-client";
 import { useOrderDirection } from "@/hooks/useOrderDirection";
@@ -657,64 +658,18 @@ function MappingPanel({
   const queryClient = useQueryClient();
 
   const dialogRef = useRef<HTMLDivElement>(null);
-  const triggerRef = useRef<Element | null>(null);
-
-  // Capture the element that had focus when the modal opened, and restore it on close.
+  // Prefer a form control for the initial focus, falling back to whatever the
+  // shared hook would pick (the first focusable, e.g. Close).
+  const firstFieldRef = useRef<HTMLElement | null>(null);
   useEffect(() => {
-    triggerRef.current = document.activeElement;
-    return () => {
-      const el = triggerRef.current;
-      if (el instanceof HTMLElement) el.focus();
-    };
-  }, []);
+    firstFieldRef.current =
+      dialogRef.current?.querySelector<HTMLElement>("input:not([type='file']), select, textarea") ?? null;
+  });
 
-  // Autofocus the first field once the modal is mounted — prefer a form control,
-  // falling back to the first focusable element (e.g. Close) if there is none.
-  useEffect(() => {
-    const root = dialogRef.current;
-    if (!root) return;
-    const field = root.querySelector<HTMLElement>("input:not([type='file']), select, textarea");
-    const target =
-      field ??
-      root.querySelector<HTMLElement>(
-        'input, select, textarea, button, [href], [tabindex]:not([tabindex="-1"])',
-      );
-    target?.focus();
-  }, []);
-
-  // Escape to close + Tab focus trap within the dialog.
-  useEffect(() => {
-    function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") {
-        e.preventDefault();
-        onClose();
-        return;
-      }
-      if (e.key !== "Tab") return;
-      const root = dialogRef.current;
-      if (!root) return;
-      const nodes = Array.from(
-        root.querySelectorAll<HTMLElement>(
-          'input, select, textarea, button, [href], [tabindex]:not([tabindex="-1"])',
-        ),
-      ).filter((el) => !el.hasAttribute("disabled") && el.offsetParent !== null);
-      if (nodes.length === 0) return;
-      const first = nodes[0];
-      const last = nodes[nodes.length - 1];
-      const active = document.activeElement;
-      if (e.shiftKey) {
-        if (active === first || !root.contains(active)) {
-          e.preventDefault();
-          last.focus();
-        }
-      } else if (active === last || !root.contains(active)) {
-        e.preventDefault();
-        first.focus();
-      }
-    }
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
-  }, [onClose]);
+  // Escape + Tab trap + focus-in + focus-restore + scroll lock. Was three local
+  // effects reimplementing the same contract as five other dialogs; now one hook.
+  // The panel mounts only while open, so `open` is constant true.
+  useDialogA11y({ open: true, onClose, panelRef: dialogRef, initialFocusRef: firstFieldRef });
 
   const title =
     panel.kind === "import" ? "Import mappings" :

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
+import { useDialogA11y } from "@/hooks/useDialogA11y";
 import { useOrganization, useOrganizationList } from "@clerk/nextjs";
 import { QueryClient, QueryClientProvider, useQueryClient } from "@tanstack/react-query";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -74,71 +75,17 @@ export default function AppShellLayout({
 }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const drawerRef = useRef<HTMLDivElement>(null);
-  // Element that had focus when the drawer opened — focus returns here on close.
-  const triggerRef = useRef<HTMLElement | null>(null);
 
-  const openSidebar = useCallback(() => {
-    triggerRef.current = (document.activeElement as HTMLElement) ?? null;
-    setSidebarOpen(true);
-  }, []);
+  const openSidebar = useCallback(() => setSidebarOpen(true), []);
   const closeSidebar = useCallback(() => setSidebarOpen(false), []);
 
   // Mobile nav drawer: Escape to close, body-scroll lock, focus move-in + trap,
-  // and focus restore to the trigger on close. Mirrors CommandPalette/HelpSlideover.
-  useEffect(() => {
-    if (!sidebarOpen) return;
-
-    const prevOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-
-    // Move focus into the panel (first focusable, else the panel itself).
-    const panel = drawerRef.current;
-    const focusables = () =>
-      panel
-        ? Array.from(
-            panel.querySelectorAll<HTMLElement>(
-              'a[href], button:not([disabled]), input, select, textarea, [tabindex]:not([tabindex="-1"])',
-            ),
-          ).filter((el) => el.offsetParent !== null || el === document.activeElement)
-        : [];
-    const first = focusables()[0];
-    (first ?? panel)?.focus();
-
-    function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") {
-        e.preventDefault();
-        closeSidebar();
-        return;
-      }
-      if (e.key !== "Tab" || !panel) return;
-      const items = focusables();
-      if (items.length === 0) {
-        e.preventDefault();
-        panel.focus();
-        return;
-      }
-      const firstEl = items[0];
-      const lastEl = items[items.length - 1];
-      const active = document.activeElement as HTMLElement | null;
-      if (e.shiftKey) {
-        if (active === firstEl || active === panel || !panel.contains(active)) {
-          e.preventDefault();
-          lastEl.focus();
-        }
-      } else if (active === lastEl) {
-        e.preventDefault();
-        firstEl.focus();
-      }
-    }
-
-    document.addEventListener("keydown", onKey);
-    return () => {
-      document.removeEventListener("keydown", onKey);
-      document.body.style.overflow = prevOverflow;
-      // Restore focus to whatever opened the drawer.
-      triggerRef.current?.focus?.();
-    };
-  }, [sidebarOpen, closeSidebar]);
+  // and focus restore to the trigger on close. This was one of six near-identical
+  // hand-rolled copies; the behaviour now lives in useDialogA11y so a fix reaches
+  // every dialog instead of one. The local `triggerRef` is gone — the hook reads
+  // `document.activeElement` in the same commit `openSidebar` used to, so it
+  // captures the same element and the restore is identical.
+  useDialogA11y({ open: sidebarOpen, onClose: closeSidebar, panelRef: drawerRef });
 
   const [queryClient] = useState(
     () =>

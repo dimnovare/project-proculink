@@ -26,6 +26,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   getMappingOverride, upsertMappingOverride, previewMappingOverride, getSourceTokens,
 } from "@/lib/api-client";
+import { useDialogA11y } from "@/hooks/useDialogA11y";
 import { OutputStructureDesigner } from "./OutputStructureDesigner";
 import { OutputSourcePicker } from "./OutputSourcePicker";
 import {
@@ -534,6 +535,11 @@ export function OutputMappingEditor({
       or its outgoing column + live preview keep rendering the pre-save mapping. */
   onSaved?: () => void;
 }) {
+  // Modal a11y. This panel can host OutputStructureDesigner ON TOP of itself, so
+  // the shared hook's layer stack matters here: without it one Escape closed both.
+  const panelRef = useRef<HTMLDivElement>(null);
+  useDialogA11y({ open, onClose, panelRef });
+
   const qc = useQueryClient();
   const { data: existing, isSuccess: existingLoaded, isError: existingError } = useQuery({
     queryKey: ["mapping-override", orderId],
@@ -739,7 +745,7 @@ export function OutputMappingEditor({
   const treeGovernsOutput = existing?.outputTree != null;
 
   return createPortal(
-    <div role="dialog" aria-label="Edit output mapping" style={{ position: "fixed", inset: 0, zIndex: 60, display: "flex", justifyContent: "flex-end" }}>
+    <div ref={panelRef} role="dialog" aria-modal="true" aria-label="Edit output mapping" style={{ position: "fixed", inset: 0, zIndex: 60, display: "flex", justifyContent: "flex-end" }}>
       {showDesigner && (
         <OutputStructureDesigner
           orderId={orderId}

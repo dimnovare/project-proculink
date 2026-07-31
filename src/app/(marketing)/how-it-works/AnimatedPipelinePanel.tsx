@@ -13,12 +13,19 @@
  *     transition — matches the design reference exactly.
  *   • Active node: size/shadow/color change via inline style; the pulse ring
  *     uses a CSS @keyframes injected once into the document as a <style> tag.
- *   • prefers-reduced-motion: tokens.css globally sets animation-duration 1ms
- *     which effectively freezes both the transition and the keyframe ring,
- *     leaving the panel readable but motionless. No extra guard needed here.
+ *   • prefers-reduced-motion: globals.css sets animation-duration 1ms globally,
+ *     which freezes the CSS transition and the keyframe ring — but it does NOT
+ *     stop the 900ms setInterval, and that interval is what drives the visible
+ *     motion here (each tick rewrites node size / shadow / colour as INLINE
+ *     styles, and moves the progress bar). A CSS reset cannot reach a JS timer.
+ *     The header comment used to claim "no extra guard needed here"; it was
+ *     wrong about its own mechanism. The interval is now guarded, and under
+ *     reduce the panel renders its COMPLETED state (every stage done) so the
+ *     content it exists to show is still shown — just motionless.
  */
 
 import { useEffect, useState } from "react";
+import { useReducedMotion } from "@/hooks/useReducedMotion";
 
 // ── Design tokens (match tokens.css + page.tsx palette) ───────────────────────
 
@@ -79,18 +86,23 @@ interface AnimatedPipelinePanelProps {
 }
 
 export default function AnimatedPipelinePanel(_props: AnimatedPipelinePanelProps) {
+  const reducedMotion = useReducedMotion();
   const [active, setActive] = useState(0);
 
   useEffect(() => {
+    // No timer at all under reduce — the interval IS the motion.
+    if (reducedMotion) return;
     const id = setInterval(() => {
       setActive((a) => (a + 1) % (PIPELINE.length + 1));
     }, 900);
     return () => clearInterval(id);
-  }, []);
+  }, [reducedMotion]);
 
   // progress fraction: 0 → 1 across stages; when active === PIPELINE.length
-  // (one past the end) the bar briefly shows full before the reset resets to 0
-  const fraction = active / PIPELINE.length;
+  // (one past the end) the bar briefly shows full before the reset resets to 0.
+  // Under reduce the panel is pinned to the finished state.
+  const stage = reducedMotion ? PIPELINE.length : active;
+  const fraction = stage / PIPELINE.length;
 
   return (
     <>
@@ -134,8 +146,8 @@ export default function AnimatedPipelinePanel(_props: AnimatedPipelinePanelProps
         />
 
         {PIPELINE.map((label, i) => {
-          const done = i < active;
-          const cur = i === active;
+          const done = i < stage;
+          const cur = i === stage;
           const nodeColor = done || cur ? STAGE_NODE_COLORS[i] : NAVY;
           const nodeBorder = done || cur ? STAGE_NODE_COLORS[i] : RAIL_BORDER;
 
@@ -182,18 +194,18 @@ export default function AnimatedPipelinePanel(_props: AnimatedPipelinePanelProps
           label="PO Number"
           value="PO-2026-008412"
           valueColor="#5B9BE8"
-          visible={active > 1}
+          visible={stage > 1}
         />
         <DataCell
           label="Grand Total"
           value="€71,240.00"
-          visible={active > 2}
+          visible={stage > 2}
         />
         <DataCell
           label="Ship To"
           value="Dortmund, DE"
           valueColor="#43C06B"
-          visible={active > 3}
+          visible={stage > 3}
         />
       </div>
     </>

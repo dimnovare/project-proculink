@@ -13,7 +13,8 @@
 // while the drawer is open. A11y pattern matches HistoryDrawer (scrim + outside-click
 // + Esc + aria-modal + focus-trap + focus-restore + var(--tap-min)).
 
-import { useEffect, useRef } from "react";
+import { useRef } from "react";
+import { useDialogA11y } from "@/hooks/useDialogA11y";
 import { OrderPassport } from "../OrderPassport";
 import { ConformancePanel } from "../ConformancePanel";
 import { SupplierResponsePanel } from "../SupplierResponsePanel";
@@ -39,9 +40,6 @@ export interface OrderDetailsDrawerProps {
   defaultConformanceFormat?: "cxml" | "ubl" | "x12";
 }
 
-const FOCUSABLE =
-  'a[href],button:not([disabled]),textarea:not([disabled]),input:not([disabled]),select:not([disabled]),[tabindex]:not([tabindex="-1"])';
-
 const TABS: { id: OrderDetailsTab; label: (noun: string) => string }[] = [
   { id: "passport", label: () => "Audit trail" },
   { id: "conformance", label: () => "Standards check" },
@@ -53,52 +51,11 @@ export function OrderDetailsDrawer(props: OrderDetailsDrawerProps) {
 
   const panelRef = useRef<HTMLElement>(null);
   const closeBtnRef = useRef<HTMLButtonElement>(null);
-  const restoreFocusRef = useRef<HTMLElement | null>(null);
 
-  // Capture trigger, move focus in, restore on close.
-  useEffect(() => {
-    if (!open) return;
-    restoreFocusRef.current = (document.activeElement as HTMLElement) ?? null;
-    const id = window.requestAnimationFrame(() => closeBtnRef.current?.focus());
-    return () => {
-      window.cancelAnimationFrame(id);
-      restoreFocusRef.current?.focus?.();
-    };
-  }, [open]);
-
-  // Esc closes; Tab is trapped inside the panel while open.
-  useEffect(() => {
-    if (!open) return;
-    function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") {
-        e.stopPropagation();
-        onClose();
-        return;
-      }
-      if (e.key !== "Tab") return;
-      const panel = panelRef.current;
-      if (!panel) return;
-      const focusable = Array.from(panel.querySelectorAll<HTMLElement>(FOCUSABLE)).filter(
-        (el) => el.offsetParent !== null || el === document.activeElement,
-      );
-      if (focusable.length === 0) {
-        e.preventDefault();
-        return;
-      }
-      const first = focusable[0];
-      const last = focusable[focusable.length - 1];
-      const active = document.activeElement as HTMLElement | null;
-      if (e.shiftKey && (active === first || !panel.contains(active))) {
-        e.preventDefault();
-        last.focus();
-      } else if (!e.shiftKey && active === last) {
-        e.preventDefault();
-        first.focus();
-      }
-    }
-    document.addEventListener("keydown", onKey, true);
-    return () => document.removeEventListener("keydown", onKey, true);
-  }, [open, onClose]);
+  // Escape + Tab trap + focus-in + focus-restore + scroll lock. This file and
+  // HistoryDrawer were the two best of the six hand-rolled copies — the shared
+  // hook is that implementation, generalised and given a layer stack.
+  useDialogA11y({ open, onClose, panelRef, initialFocusRef: closeBtnRef });
 
   if (!open) return null;
 

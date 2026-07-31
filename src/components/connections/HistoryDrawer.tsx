@@ -14,7 +14,8 @@
 // HelpSlideover (scrim + outside-click + Esc + aria-modal + var(--tap-min)),
 // adds a focus-trap and focus-restore for the modal surface.
 
-import { useEffect, useRef } from "react";
+import { useRef } from "react";
+import { useDialogA11y } from "@/hooks/useDialogA11y";
 import { Button } from "@/components/bridge/DSPrimitives";
 import { RevisionStatusBadge } from "@/components/connections/RevisionStatusBadge";
 import { ReplayPanel } from "@/components/connections/ReplayPanel";
@@ -315,10 +316,6 @@ function evidenceNotes(summary: TestPackSummary | null): string[] {
   );
 }
 
-// Selectors that can receive keyboard focus — used to bound the focus-trap.
-const FOCUSABLE =
-  'a[href],button:not([disabled]),textarea:not([disabled]),input:not([disabled]),select:not([disabled]),[tabindex]:not([tabindex="-1"])';
-
 export function HistoryDrawer(props: HistoryDrawerProps) {
   const {
     open,
@@ -341,54 +338,12 @@ export function HistoryDrawer(props: HistoryDrawerProps) {
 
   const panelRef = useRef<HTMLElement>(null);
   const closeBtnRef = useRef<HTMLButtonElement>(null);
-  // Element focused before the drawer opened — focus returns here on close.
-  const restoreFocusRef = useRef<HTMLElement | null>(null);
 
-  // Capture the trigger, move focus into the drawer, restore it on close.
-  useEffect(() => {
-    if (!open) return;
-    restoreFocusRef.current = (document.activeElement as HTMLElement) ?? null;
-    // Focus the close affordance after paint.
-    const id = window.requestAnimationFrame(() => closeBtnRef.current?.focus());
-    return () => {
-      window.cancelAnimationFrame(id);
-      restoreFocusRef.current?.focus?.();
-    };
-  }, [open]);
-
-  // Esc closes + Tab is trapped within the panel while open.
-  useEffect(() => {
-    if (!open) return;
-    function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") {
-        e.stopPropagation();
-        onClose();
-        return;
-      }
-      if (e.key !== "Tab") return;
-      const panel = panelRef.current;
-      if (!panel) return;
-      const focusable = Array.from(
-        panel.querySelectorAll<HTMLElement>(FOCUSABLE),
-      ).filter((el) => el.offsetParent !== null || el === document.activeElement);
-      if (focusable.length === 0) {
-        e.preventDefault();
-        return;
-      }
-      const first = focusable[0];
-      const last = focusable[focusable.length - 1];
-      const active = document.activeElement as HTMLElement | null;
-      if (e.shiftKey && (active === first || !panel.contains(active))) {
-        e.preventDefault();
-        last.focus();
-      } else if (!e.shiftKey && active === last) {
-        e.preventDefault();
-        first.focus();
-      }
-    }
-    document.addEventListener("keydown", onKey, true);
-    return () => document.removeEventListener("keydown", onKey, true);
-  }, [open, onClose]);
+  // Escape + Tab trap + focus-in + focus-restore + scroll lock. This file and
+  // OrderDetailsDrawer were the two best of the six hand-rolled copies; the
+  // shared hook IS that implementation, generalised and given a layer stack so a
+  // dialog opened on top of this one owns Escape.
+  useDialogA11y({ open, onClose, panelRef, initialFocusRef: closeBtnRef });
 
   if (!open) return null;
 

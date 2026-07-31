@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useDialogA11y } from "@/hooks/useDialogA11y";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { EmptyState } from "@/components/bridge/EmptyState";
 import { getBuyers, createBuyer, deleteBuyer, isApiMockMode } from "@/lib/api-client";
@@ -173,13 +174,11 @@ export default function BuyersPage() {
   const showError    = isError && !isApiMockMode;
   const showRows     = (!isLoading || isApiMockMode) && !isError;
 
-  // Close the New-buyer modal on Escape while it is open.
-  useEffect(() => {
-    if (!addOpen) return;
-    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setAddOpen(false); };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [addOpen]);
+  // New-buyer modal a11y: Escape + focus-in + focus-trap + focus-restore +
+  // scroll lock. Was an Escape-only listener with no trap.
+  const addPanelRef = useRef<HTMLDivElement>(null);
+  const closeAddPanel = useCallback(() => setAddOpen(false), []);
+  useDialogA11y({ open: addOpen, onClose: closeAddPanel, panelRef: addPanelRef });
 
   return (
     <PageShell variant="wide">
@@ -214,6 +213,7 @@ export default function BuyersPage() {
           onClick={() => setAddOpen(false)}
         >
         <div
+          ref={addPanelRef}
           role="dialog"
           aria-modal="true"
           aria-labelledby="new-buyer-title"

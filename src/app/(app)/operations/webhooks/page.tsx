@@ -562,8 +562,12 @@ function WebhookPanel({
   const [eventType, setEventType] = useState(initial?.events[0] ?? WEBHOOK_EVENT_TYPES[0].value);
   const [secret, setSecret] = useState("");
 
+  // WP-31: `height: 32` + `fontSize: 12.5` was the worse of the two shared input
+  // styles the audit named (settings was 40/13). `minHeight` rather than `height`
+  // so the 44px touch floor in globals.css can clamp it up without fighting a
+  // fixed height, and so the 16px iOS-zoom floor can grow the box to fit.
   const inputStyle: React.CSSProperties = {
-    height: 32,
+    minHeight: 32,
     width: "100%",
     borderRadius: "var(--radius,6px)",
     border: "1px solid var(--border-strong,#C6CDDA)",

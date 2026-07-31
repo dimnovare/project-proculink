@@ -14,8 +14,9 @@
 // refresh the customers table. Styling mirrors CreateInvoiceModal (same Bridge
 // tokens, same a11y: Escape-to-close, body-scroll lock, focus-in, mobile-safe).
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { X, Check } from "lucide-react";
+import { useDialogA11y } from "@/hooks/useDialogA11y";
 import {
   setOrgLimits,
   type AdminOrganisation,
@@ -65,26 +66,10 @@ export function AdjustLimitsModal({
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<OrgLimitsResponse | null>(null);
 
-  // Escape-to-close + body-scroll lock + focus-in. Mirrors CreateInvoiceModal.
-  useEffect(() => {
-    const prevOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    const t = setTimeout(() => {
-      dialogRef.current?.querySelector<HTMLElement>("input, select, button")?.focus();
-    }, 0);
-    function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") {
-        e.preventDefault();
-        onClose();
-      }
-    }
-    document.addEventListener("keydown", onKey);
-    return () => {
-      clearTimeout(t);
-      document.removeEventListener("keydown", onKey);
-      document.body.style.overflow = prevOverflow;
-    };
-  }, [onClose]);
+  // Escape-to-close + body-scroll lock + focus-in + focus-trap + focus-restore.
+  // Was a local copy that did the first three and neither of the last two.
+  // Mounted only while open, so `open` is constant true.
+  useDialogA11y({ open: true, onClose, panelRef: dialogRef });
 
   const parsedOrder = useMemo(() => parseIntField(orderLimit), [orderLimit]);
   const parsedSupplier = useMemo(() => parseIntField(supplierLimit), [supplierLimit]);

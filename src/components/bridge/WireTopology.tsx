@@ -9,25 +9,11 @@
 // At lg and up: renders WireTopologyCanvas (full SVG).
 
 import { useEffect, useState } from "react";
-
-/**
- * Detects the OS-level `prefers-reduced-motion: reduce` setting and keeps it in
- * sync. SVG SMIL (`<animateMotion>`) cannot be stopped by CSS `animation: none`,
- * so the canvas must NOT render the SMIL element at all when reduce is set.
- * Reduced-motion is a canonical Bridge rule (accessibility + brand).
- */
-function useReducedMotion(): boolean {
-  const [reduced, setReduced] = useState(false);
-  useEffect(() => {
-    if (typeof window === "undefined" || !window.matchMedia) return;
-    const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
-    setReduced(mq.matches);
-    const onChange = (e: MediaQueryListEvent) => setReduced(e.matches);
-    mq.addEventListener("change", onChange);
-    return () => mq.removeEventListener("change", onChange);
-  }, []);
-  return reduced;
-}
+// The reduced-motion read used to live here as a file-private hook. It is the
+// app's SMIL answer (CSS cannot stop `<animateMotion>`), and the marketing hero
+// needed exactly the same answer — so it moved to src/hooks/useReducedMotion.ts.
+// Same implementation, one copy.
+import { useReducedMotion } from "@/hooks/useReducedMotion";
 
 export interface WireBuyer {
   id: string;

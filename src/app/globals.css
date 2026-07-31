@@ -950,3 +950,56 @@ details[open] > summary [data-disclosure-chevron] {
   .mapper-grip, .mapper-drag-hint { transition: none !important; transform: none !important; }
   .mapper-row:hover .mapper-grip { transform: none !important; }
 }
+
+/* ── Touch-target + iOS-zoom floors (WP-31) ──────────────────────────────────
+   Two floors, one place, so they cannot be missed by a new screen:
+
+     • 16px minimum font-size on text-entry controls. Below 16px, iOS Safari
+       ZOOMS THE PAGE on focus and never zooms back — the user is left on a
+       horizontally-scrolled layout mid-form. This is an iOS behaviour, so
+       `pointer: coarse` is the technically correct predicate; `max-width: 639px`
+       (Tailwind's `sm`) is ORed in so the rule is also reproducible in a
+       desktop browser at a phone viewport, which is how it is measured
+       (tests/e2e/tap-targets.spec.ts).
+     • 44px minimum hit area on interactive controls. WCAG 2.5.5 / Apple HIG.
+
+   WHY GLOBAL AND NOT PER-COMPONENT. At 478b809 four separate `inputStyle`
+   objects (settings 13px/40, webhooks 12.5px/32, PullIngressSettings 13px/36,
+   OutputMappingEditor 12.5px/36) each defined their own sizes, and exactly ONE
+   of them — settings — had a mobile font-size escape hatch, capped at 767px so
+   iPad portrait still zoomed. Fixing the four objects would leave the fifth copy
+   somebody adds next week. This rule reaches every control, including ones that
+   do not exist yet.
+
+   `min-height` (not `height`) is deliberate: it CLAMPS UP a smaller inline
+   `height: 32` without touching anything already ≥44, so no existing control
+   shrinks and desktop density is untouched.
+
+   DELIBERATELY EXCLUDED: checkbox and radio inputs. `min-width`/`min-height` on
+   those scales the rendered control itself, not just its hit box — a 44px
+   checkbox looks broken. Their tap area comes from the adjacent <label>. Ranges
+   and hidden inputs are excluded for the same "not a text field" reason. */
+@media (pointer: coarse), (max-width: 639px) {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]):not([type="range"]),
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+
+  button,
+  select,
+  textarea,
+  summary,
+  [role="button"],
+  input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]):not([type="range"]) {
+    min-height: var(--tap-min);
+  }
+
+  /* Icon-only controls. In this codebase an `aria-label` on a <button> means
+     "there is no visible text to name it" — i.e. it is an icon button, and a
+     32×32 ✕ is the single most common tap-target miss. A text button that also
+     carries an aria-label just gets a 44px floor it already clears. */
+  button[aria-label] {
+    min-width: var(--tap-min);
+  }
+}

@@ -8,8 +8,10 @@
 // pieces are extracted here and consumed by BOTH surfaces — keeping the copy and
 // behavior identical.
 
+import { useRef } from "react";
 import { Button } from "@/components/bridge/DSPrimitives";
 import { isPlanGate, PlanGateNotice } from "@/components/bridge/PlanGateNotice";
+import { useDialogA11y } from "@/hooks/useDialogA11y";
 import type { ConfirmState, Notice } from "@/components/connections/useConnectionRevisions";
 
 /** Inline ok/err status banner driven by the hook's `notice` state. */
@@ -49,6 +51,12 @@ export function ConnectionConfirmDialog({
   onCancel: () => void;
   onConfirm: () => void;
 }) {
+  // Mounted only while open, so `open` is constant true — the hook keys off
+  // mount/unmount. Publish / rollback / discard are irreversible-ish actions, so
+  // Escape maps to CANCEL (never to confirm).
+  const panelRef = useRef<HTMLDivElement>(null);
+  useDialogA11y({ open: true, onClose: onCancel, panelRef });
+
   const isPublish = state.kind === "publish";
   const isRollback = state.kind === "rollback";
   const title = isPublish
@@ -65,6 +73,7 @@ export function ConnectionConfirmDialog({
 
   return (
     <div
+      ref={panelRef}
       className="fixed inset-0 z-[80] flex items-end bg-[#0B1A2F66] p-0 sm:items-center sm:justify-center sm:p-6"
       role="dialog"
       aria-modal="true"
