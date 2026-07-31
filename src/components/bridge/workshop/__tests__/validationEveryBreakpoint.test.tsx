@@ -3,7 +3,7 @@ import { render, screen, cleanup, within, waitFor } from "@testing-library/react
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 import type { Order } from "@/types/procurement";
-import type { FieldValidationState } from "@/lib/api/types";
+import type { AcceptanceGateDecision } from "@/lib/api/types";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // WP-18 — "Validation at every breakpoint".
@@ -37,11 +37,13 @@ import type { FieldValidationState } from "@/lib/api/types";
 
 const mockState: {
   order: Order | null;
-  validation: FieldValidationState[];
+  gate: AcceptanceGateDecision;
+  gateError: boolean;
+  commitVersion: number;
   exceptionCount: number;
   validationCalls: string[];
   showConfirm: boolean;
-} = { order: null, validation: [], exceptionCount: 0, validationCalls: [], showConfirm: false };
+} = { order: null, gate: undefined as unknown as AcceptanceGateDecision, gateError: false, commitVersion: 0, exceptionCount: 0, validationCalls: [], showConfirm: false };
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
@@ -74,14 +76,13 @@ vi.mock("@/lib/api-client", () => ({
 
 // THE endpoint under test. Recording every call proves WHO owns the evaluation:
 // after the fix it must fire from OrderWorkshop itself, not from the mapper.
-vi.mock("@/lib/api/mapper-ai", () => ({
-  getFieldValidation: vi.fn((orderId: string) => {
+vi.mock("@/lib/api/acceptance-gate", () => ({
+  getAcceptanceGate: vi.fn((orderId: string) => {
     mockState.validationCalls.push(orderId);
-    return Promise.resolve(mockState.validation);
+    return mockState.gateError
+      ? Promise.reject(new Error("acceptance-gate: 500"))
+      : Promise.resolve(mockState.gate);
   }),
-  getMappingSuggestions: vi.fn().mockResolvedValue([]),
-  getCatalogHints: vi.fn().mockResolvedValue([]),
-  recordSuggestionDecision: vi.fn().mockResolvedValue(undefined),
 }));
 
 vi.mock("../../review/CatalogHintCard", () => ({
@@ -115,7 +116,7 @@ vi.mock("../../review/hooks/useSendFlow", () => ({
 vi.mock("../../review/hooks/useResolveActions", () => ({
   useResolveActions: () => ({
     acceptSuggestion: vi.fn(),
-    commitVersion: 0,
+    commitVersion: mockState.commitVersion,
     lineEditId: null,
     lineDraft: "",
     setLineDraft: vi.fn(),
@@ -180,29 +181,63 @@ function cleanOrder(over: Partial<Order> = {}): Order {
   };
 }
 
-/** The server's answer: one supplier acceptance rule refuses this order. */
-const BLOCKING_ROW: FieldValidationState = {
-  key: "lines[0].unitPrice",
-  state: "review",
-  reason: "Unit price above the agreed ceiling for this supplier",
-  blocking: true,
+/**
+ * The gate's answer when one supplier acceptance rule refuses the order. The code
+ * shape is the REAL one the server emits — `{fieldPath}.{operator}`
+ * (`SupplierAcceptanceService.cs:417`), not a canonical field key. Getting this
+ * wrong is how the "Where →" jump silently became a dead click.
+ */
+const BLOCKED: AcceptanceGateDecision = {
+  blocked: true,
+  reason: "Acme Components will refuse this order.",
+  overridden: false,
+  overriddenBy: null,
+  overrideReason: null,
+  blockers: [
+    { code: "unitPrice.atMost", lineNumber: 1, message: "Unit price above the agreed ceiling for this supplier" },
+  ],
 };
 
-/** An ADVISORY row — the server will still send. Must NOT gate. */
-const ADVISORY_ROW: FieldValidationState = {
-  key: "PoNumber",
-  state: "review",
-  reason: "PO number looks unusual",
-  blocking: false,
+/**
+ * The SAME failing rules, but an operator has recorded an override. The server
+ * transforms and delivers this order (`AcceptanceGate.cs:62-77` returns
+ * Blocked=false, Overridden=true, blockers still listed). The client must NOT
+ * refuse it — over-blocking is the same untruth pointing the other way.
+ */
+const OVERRIDDEN: AcceptanceGateDecision = {
+  ...BLOCKED,
+  blocked: false,
+  overridden: true,
+  overriddenBy: "ops@example.com",
+  overrideReason: "Agreed by phone with the supplier",
+};
+
+/** Nothing blocks. */
+const CLEAR: AcceptanceGateDecision = {
+  blocked: false,
+  reason: null,
+  overridden: false,
+  overriddenBy: null,
+  overrideReason: null,
+  blockers: [],
 };
 
 const VIEWPORTS = [390, 768, 1440] as const;
 
 /**
- * jsdom applies no Tailwind, so `hidden lg:flex` cannot be observed as CSS here.
- * Setting the width + a width-aware matchMedia is what makes the viewport axis
- * real for any breakpoint logic that consults the environment, and documents the
- * three widths the acceptance criteria name.
+ * jsdom applies NO Tailwind, so `hidden lg:flex` / `lg:hidden` are inert here and
+ * both the desktop chrome and MobileTriage mount at every width. This helper sets
+ * the width and a width-aware matchMedia so any breakpoint logic that consults the
+ * environment is exercised, and so the three widths the acceptance criteria name
+ * are executed rather than assumed.
+ *
+ * HONEST LIMITATION, stated rather than implied: nothing under `workshop/` reads
+ * `innerWidth` or `matchMedia` today, so the three viewport variants currently
+ * execute the same code path. That is exactly the point being pinned — the gate is
+ * breakpoint-INDEPENDENT by construction, and the assertions below check both the
+ * desktop control and the reduced-surface control on every run, so a fix that wires
+ * only one of them fails. What these tests do NOT prove is CSS visibility; that is
+ * not observable in jsdom and is not claimed.
  */
 function setViewport(width: number) {
   Object.defineProperty(window, "innerWidth", { value: width, writable: true, configurable: true });
@@ -227,15 +262,22 @@ function setViewport(width: number) {
   window.dispatchEvent(new Event("resize"));
 }
 
+let activeClient: QueryClient;
+
+/** The tree under test, reusable so rerender() keeps the SAME QueryClient. */
+function workshopTree() {
+  return (
+    <QueryClientProvider client={activeClient}>
+      <OrderWorkshop orderId="ord-1" />
+    </QueryClientProvider>
+  );
+}
+
 function renderWorkshop() {
-  const qc = new QueryClient({
+  activeClient = new QueryClient({
     defaultOptions: { queries: { retry: false, gcTime: 0, staleTime: 0 } },
   });
-  return render(
-    <QueryClientProvider client={qc}>
-      <OrderWorkshop orderId="ord-1" />
-    </QueryClientProvider>,
-  );
+  return render(workshopTree());
 }
 
 /**
@@ -259,9 +301,12 @@ function sendControls() {
   return { desktop, mobile };
 }
 
+
 beforeEach(() => {
   mockState.order = cleanOrder();
-  mockState.validation = [];
+  mockState.gate = CLEAR;
+  mockState.gateError = false;
+  mockState.commitVersion = 0;
   mockState.exceptionCount = 0;
   mockState.validationCalls = [];
   mockState.showConfirm = false;
@@ -273,8 +318,8 @@ afterEach(cleanup);
 // 1 — the gate itself, at all three viewports.
 // ─────────────────────────────────────────────────────────────────────────────
 describe.each(VIEWPORTS)("send gate honours the server's acceptance answer at %ipx", (width) => {
-  test("a blocking acceptance rule disables BOTH send controls", async () => {
-    mockState.validation = [BLOCKING_ROW];
+  test("a blocked gate disables BOTH send controls", async () => {
+    mockState.gate = BLOCKED;
     setViewport(width);
     renderWorkshop();
 
@@ -285,15 +330,50 @@ describe.each(VIEWPORTS)("send gate honours the server's acceptance answer at %i
     });
   });
 
-  test("an advisory-only rule leaves BOTH send controls enabled", async () => {
-    mockState.validation = [ADVISORY_ROW];
+  test("a clear gate leaves BOTH send controls enabled", async () => {
+    mockState.gate = CLEAR;
     setViewport(width);
     renderWorkshop();
 
+    await waitFor(() => {
+      const { desktop, mobile } = sendControls();
+      expect(desktop).toBeEnabled();
+      expect(mobile).toBeEnabled();
+    });
+  });
+
+  // The adversarial review's P1: the gate's decision already subtracts a recorded
+  // operator override. A client that counts BLOCKERS instead of reading BLOCKED
+  // refuses a send the server performs — over-blocking, with no override UI to
+  // escape it. The fixture keeps a non-empty blockers array on purpose.
+  test("an OVERRIDDEN gate leaves BOTH send controls enabled, despite live blockers", async () => {
+    mockState.gate = OVERRIDDEN;
+    setViewport(width);
+    renderWorkshop();
+
+    expect(OVERRIDDEN.blockers.length).toBeGreaterThan(0);
     await waitFor(() => expect(mockState.validationCalls).toContain("ord-1"));
-    const { desktop, mobile } = sendControls();
-    expect(desktop).toBeEnabled();
-    expect(mobile).toBeEnabled();
+    await waitFor(() => {
+      const { desktop, mobile } = sendControls();
+      expect(desktop).toBeEnabled();
+      expect(mobile).toBeEnabled();
+    });
+  });
+
+  // The other P1: the server refuses to transform when it cannot evaluate the gate
+  // (acceptance_gate_unavailable), so "we don't know" must never render a green Send.
+  test("an UNAVAILABLE gate disables BOTH send controls and says so", async () => {
+    mockState.gateError = true;
+    setViewport(width);
+    renderWorkshop();
+
+    await waitFor(() => {
+      const { desktop, mobile } = sendControls();
+      expect(desktop).toBeDisabled();
+      expect(mobile).toBeDisabled();
+    });
+    const list = await screen.findByTestId("mobile-issue-list");
+    expect(within(list).getByText(/couldn.t check this order/i)).toBeInTheDocument();
   });
 });
 
@@ -303,7 +383,7 @@ describe.each(VIEWPORTS)("send gate honours the server's acceptance answer at %i
 // ─────────────────────────────────────────────────────────────────────────────
 describe.each(VIEWPORTS)("the blocking rule is legible at %ipx", (width) => {
   test("the reduced (sub-lg) surface names the blocking rule", async () => {
-    mockState.validation = [BLOCKING_ROW];
+    mockState.gate = BLOCKED;
     setViewport(width);
     renderWorkshop();
 
@@ -318,19 +398,20 @@ describe.each(VIEWPORTS)("the blocking rule is legible at %ipx", (width) => {
 // changed alone — including a "fix" that only wires the desktop header.
 // ─────────────────────────────────────────────────────────────────────────────
 describe("desktop and reduced surfaces cannot drift", () => {
-  test.each(VIEWPORTS)("both surfaces agree at %ipx, blocked and clear", async (width) => {
-    for (const rows of [[BLOCKING_ROW], [ADVISORY_ROW], []] as FieldValidationState[][]) {
-      mockState.validation = rows;
+  test.each(VIEWPORTS)("both surfaces agree at %ipx across every gate answer", async (width) => {
+    for (const decision of [BLOCKED, OVERRIDDEN, CLEAR]) {
+      mockState.gate = decision;
       mockState.validationCalls = [];
       setViewport(width);
       renderWorkshop();
 
       await waitFor(() => expect(mockState.validationCalls).toContain("ord-1"));
+      await waitFor(() => {
+        const { desktop, mobile } = sendControls();
+        expect((desktop as HTMLButtonElement).disabled).toBe(decision.blocked);
+        expect((mobile as HTMLButtonElement).disabled).toBe(decision.blocked);
+      });
       const { desktop, mobile } = sendControls();
-      const expectedBlocked = rows.some((r) => r.state === "review" && r.blocking === true);
-
-      expect((desktop as HTMLButtonElement).disabled).toBe(expectedBlocked);
-      expect((mobile as HTMLButtonElement).disabled).toBe(expectedBlocked);
       expect((desktop as HTMLButtonElement).disabled).toBe((mobile as HTMLButtonElement).disabled);
       cleanup();
     }
@@ -342,14 +423,14 @@ describe("desktop and reduced surfaces cannot drift", () => {
 //
 // The hook was never dead code (OrderWorkshop mounts it), but its validate()
 // mutation has no caller anywhere in src/, so validationResult was permanently
-// null and failingRuleCount permanently 0 — the send-confirmation dialog's
-// acknowledgement could not appear even when rules had failed. The blocking rows
-// are NOT the useful signal here (they set canSend=false, so the dialog cannot
-// open); the ADVISORY failures are, and this pins that.
+// null and failingRuleCount permanently 0 — the acknowledgement could not appear.
+// A BLOCKED gate sets canSend=false so the dialog cannot open; the only orders
+// that ever read this count are OVERRIDDEN ones, which is exactly the case the
+// acknowledgement exists for.
 // ─────────────────────────────────────────────────────────────────────────────
 describe("the send-confirmation dialog reflects the live acceptance answer", () => {
-  test.each(VIEWPORTS)("an advisory failure is acknowledged before send at %ipx", async (width) => {
-    mockState.validation = [ADVISORY_ROW];
+  test.each(VIEWPORTS)("an overridden failure is acknowledged before send at %ipx", async (width) => {
+    mockState.gate = OVERRIDDEN;
     mockState.showConfirm = true;
     setViewport(width);
     renderWorkshop();
@@ -361,7 +442,7 @@ describe("the send-confirmation dialog reflects the live acceptance answer", () 
   });
 
   test("a clean order shows no acknowledgement", async () => {
-    mockState.validation = [];
+    mockState.gate = CLEAR;
     mockState.showConfirm = true;
     renderWorkshop();
 
@@ -374,14 +455,54 @@ describe("the send-confirmation dialog reflects the live acceptance answer", () 
 // ─────────────────────────────────────────────────────────────────────────────
 // 4 — ownership. The evaluation must belong to OrderWorkshop, not to the mapper.
 // MapperWorkbench is stubbed here (it never builds useMapperModel), so a call to
-// GET /api/orders/{id}/validation can only have come from the workshop itself.
+// the acceptance gate can only have come from the workshop itself.
 // ─────────────────────────────────────────────────────────────────────────────
 describe("the acceptance query is owned by the workshop, not the desktop mapper", () => {
   test.each(VIEWPORTS)("it fires at %ipx with no mapper model in the tree", async (width) => {
-    mockState.validation = [BLOCKING_ROW];
+    mockState.gate = BLOCKED;
     setViewport(width);
     renderWorkshop();
 
     await waitFor(() => expect(mockState.validationCalls).toContain("ord-1"));
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 5 — two properties the first round shipped UNTESTED (both survived a mutation
+// green under adversarial review, so they are pinned here):
+//   • commitVersion in the query key → a fix re-evaluates the gate;
+//   • placeholderData → the SPECIFIC blocker stays named across that refetch,
+//     instead of collapsing to the generic "we couldn't check" copy.
+// ─────────────────────────────────────────────────────────────────────────────
+describe("the gate re-evaluates after a fix", () => {
+  test("a commitVersion bump refetches the gate", async () => {
+    mockState.gate = BLOCKED;
+    const { rerender } = renderWorkshop();
+    await waitFor(() => expect(mockState.validationCalls.length).toBe(1));
+
+    // What a successful server commit does. The query key carries it, so the
+    // bump must produce a second evaluation.
+    mockState.commitVersion = 1;
+    rerender(workshopTree());
+
+    await waitFor(() => expect(mockState.validationCalls.length).toBe(2));
+  });
+
+  test("the specific blocker stays named across that refetch", async () => {
+    mockState.gate = BLOCKED;
+    const { rerender } = renderWorkshop();
+    const list = await screen.findByTestId("mobile-issue-list");
+    expect(within(list).getByText(/agreed ceiling/i)).toBeInTheDocument();
+
+    mockState.commitVersion = 1;
+    rerender(workshopTree());
+
+    // Through the whole refetch window the operator keeps the REAL reason. Without
+    // placeholderData the new cache entry starts undefined and the panel would
+    // swap to the generic unavailable copy.
+    for (let i = 0; i < 10; i++) {
+      expect(within(screen.getByTestId("mobile-issue-list")).getByText(/agreed ceiling/i)).toBeInTheDocument();
+      await new Promise((r) => setTimeout(r, 3));
+    }
   });
 });

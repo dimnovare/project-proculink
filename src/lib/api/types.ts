@@ -957,3 +957,37 @@ export interface ReplayResponse {
   orderCount: number;
   orders: ReplayOrderDiff[];
 }
+
+// ── Supplier acceptance gate (WP-17 server gate, WP-18 client) ────────────────
+// GET /api/orders/{id}/acceptance-gate — OrderAcceptanceGateController.
+//
+// This is THE decision the server acts on before OrderTransformService will
+// transform an order, and it is NOT the same as the per-field `blocking` flag on
+// GET /api/orders/{id}/validation. That flag is the raw blocking-failure set;
+// this endpoint subtracts a recorded operator override (AcceptanceGate.cs:62-77),
+// so an overridden order reports Blocked=false while still listing its blockers.
+// Reading the raw flag instead would make the UI refuse a send the server allows.
+
+/** One blocking supplier acceptance rule, as the server words it. */
+export interface AcceptanceBlocker {
+  /** Rule identity, `{fieldPath}.{operator}` (e.g. "currency.equals"). */
+  code: string;
+  /** Present when the rule is line-scoped. */
+  lineNumber?: number | null;
+  /** Plain-language explanation, authored server-side. */
+  message: string;
+}
+
+/** Will this order send, and if not, why not. */
+export interface AcceptanceGateDecision {
+  /** True → the server will REFUSE to transform. Already accounts for an override. */
+  blocked: boolean;
+  /** Composed human summary of the blockers; null when nothing blocks. */
+  reason?: string | null;
+  /** True when an operator has authorised sending despite the blockers. */
+  overridden: boolean;
+  overriddenBy?: string | null;
+  overrideReason?: string | null;
+  /** The blocking rules — still populated when `overridden` is true. */
+  blockers: AcceptanceBlocker[];
+}
