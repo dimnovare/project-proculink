@@ -1,5 +1,6 @@
 import { SignUp } from "@clerk/nextjs";
 import { ProcuLinkMark } from "@/components/bridge/DSPrimitives";
+import { ClerkAvailabilityGate } from "@/components/bridge/ClerkAvailabilityGate";
 
 /* ── Local helpers (auth pages only) ──────────────────────────────────────────
    Pixel-ported from the design source AuthScreen (mkt-components.jsx) — exact
@@ -259,36 +260,42 @@ export default function SignUpPage() {
   }
 
   return (
-    <AuthShell>
-      <div className="mb-6">
-        <h1
-          style={{
-            fontFamily: "var(--font-display)",
-            fontSize: 28,
-            fontWeight: 600,
-            letterSpacing: "-0.025em",
-            color: "var(--ink)",
-            margin: 0,
-          }}
-        >
-          Start for free
-        </h1>
-        <p
-          style={{
-            fontSize: 13.5,
-            marginTop: 6,
-            color: "var(--ink-muted)",
-          }}
-        >
-          No credit card. 20 orders free for 14 days.
-        </p>
-      </div>
+    // Same shape and same failure as /sign-in (WP-32 follow-up, F1): outside
+    // (app), so the layout gate never reached it, and <SignUp/> never mounts
+    // without the hosted script. Middleware does not route anyone here, but
+    // every marketing "Start for free" call to action does.
+    <ClerkAvailabilityGate surface="auth">
+      <AuthShell>
+        <div className="mb-6">
+          <h1
+            style={{
+              fontFamily: "var(--font-display)",
+              fontSize: 28,
+              fontWeight: 600,
+              letterSpacing: "-0.025em",
+              color: "var(--ink)",
+              margin: 0,
+            }}
+          >
+            Start for free
+          </h1>
+          <p
+            style={{
+              fontSize: 13.5,
+              marginTop: 6,
+              color: "var(--ink-muted)",
+            }}
+          >
+            No credit card. 20 orders free for 14 days.
+          </p>
+        </div>
 
-      <SignUp
-        appearance={clerkAppearance}
-        fallbackRedirectUrl="/onboarding/select-organization"
-        signInFallbackRedirectUrl="/onboarding/select-organization"
-      />
-    </AuthShell>
+        <SignUp
+          appearance={clerkAppearance}
+          fallbackRedirectUrl="/onboarding/select-organization"
+          signInFallbackRedirectUrl="/onboarding/select-organization"
+        />
+      </AuthShell>
+    </ClerkAvailabilityGate>
   );
 }
