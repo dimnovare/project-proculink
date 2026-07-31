@@ -64,9 +64,9 @@ export const HELP_ARTICLES: HelpArticle[] = [
   {
     slug: "dashboard-and-statuses",
     title: "Order statuses from upload to delivered",
-    blurb: "What Parsing, Needs review, Normalized, Ready to send, Sending, Delivered, and the failure states actually mean.",
+    blurb: "What Extracting, Needs review, Ready to send, Queued to send, Sending, Delivered, and the failure states actually mean.",
     category: "Getting started",
-    keywords: ["status", "normalized", "ready to send", "needs review", "sending", "delivered", "rejected", "dead-letter", "lifecycle"],
+    keywords: ["status", "queued to send", "ready to send", "needs review", "sending", "delivered", "rejected", "dead-letter", "lifecycle"],
     readMin: 4,
     videoUrl: `${TOOL_VIDEO_BASE}/dashboard.mp4`,
     videoPosterUrl: `${TOOL_VIDEO_BASE}/dashboard-poster.jpg`,
