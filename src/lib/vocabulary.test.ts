@@ -276,11 +276,12 @@ describe("check-vocabulary.mjs scan", () => {
 // ─── blockBody anchoring — what may and may not capture a registry declaration ────────
 //
 // The noun budget finds each policed registry with `\bconst\s+NAME\b` and takes the FIRST
-// match. Every defect in this file's history is that sentence: a COMMENT quoting the
-// declaration captured the anchor (`4c7350a`, and again in the gate `4c7350a` had already
-// fixed), and after comment stripping was added a STRING or TEMPLATE LITERAL carrying the
-// same token captured it identically — `stripComments` preserves literals by design,
-// because the two link guards read their contents.
+// match, and every defect here is that sentence. A COMMENT quoting the declaration captured
+// the anchor — the same class `4c7350a` fixed in the LINK GUARDS, which never touched the
+// gate. Stripping comments does not close it either: a STRING or TEMPLATE LITERAL carrying
+// the same token captures it identically, because `stripComments` preserves literals by
+// design (the two link guards read their contents). A JSX TEXT NODE is neither, and an
+// ALIAS or FACTORY assignment lets the bracket scan run past the declaration entirely.
 //
 // A disarmed anchor does not fail. It reads the wrong region, finds no `label:` literals,
 // scores zero, and the run prints OK — so every test here asserts a SPECIFIC exit code and
@@ -479,8 +480,12 @@ describe("check-vocabulary.mjs — blockBody anchoring", () => {
   });
 
   // ─── a JSX text node is neither comment nor literal, so masking cannot see it ───
+  //
+  // What handles it is the LINE-ANCHOR: a declaration must start its line (optionally after
+  // `export`), and a `const NAME` sitting inside markup does not. Both directions matter —
+  // the decoy must not steal the anchor, and it must not suppress the failure either.
 
-  it("a JSX TEXT NODE naming the declaration is reported as ambiguous, not silently obeyed", () => {
+  it("a JSX TEXT NODE naming the declaration does not become the anchor", () => {
     plant({
       "src/components/bridge/InboxView.tsx": [
         "export const Doc = () => <p>const FILTER_CHIPS lives in this file</p>;",
@@ -490,8 +495,155 @@ describe("check-vocabulary.mjs — blockBody anchoring", () => {
       ],
     });
     const { code, out } = runGate(["--nouns"], root);
+    expect(code).toBe(0);
+    expect(out).toContain("checked 8 navigation label(s)");
+  });
+
+  it("a JSX-TEXT decoy does not hide a registry that was renamed away", () => {
+    plant({
+      "src/components/bridge/InboxView.tsx": [
+        "export const Doc = () => <p>const FILTER_CHIPS lives in this file</p>;",
+        "const RENAMED_CHIPS: Array<{ label: string }> = [",
+        '  { label: "Issues" },',
+        "];",
+      ],
+    });
+    const { code, out } = runGate(["--nouns"], root);
     expect(code).toBe(1);
-    expect(out).toMatch(/InboxView\.tsx.*→.*ambiguous-declaration/);
+    expect(out).toMatch(/InboxView\.tsx.*→.*registry-moved/);
+  });
+
+  /**
+   * KNOWN GAP, pinned so it stays visible rather than being assumed closed.
+   *
+   * The line-anchor handles a `const NAME` sitting inside markup, which is every realistic
+   * JSX-text case. It does NOT handle one that starts its own line — a multi-line `<pre>`
+   * whose literal text happens to be a declaration. Then the decoy is the only match, so
+   * uniqueness sees nothing wrong, and its region yields a label, so the floor sees nothing
+   * wrong either: the gate reads the decoy and reports OK while the real registry is gone.
+   *
+   * Left open deliberately. Closing it needs real JSX awareness, and the shape — a code
+   * sample written as raw JSX text rather than in a template literal or an MDX fence — does
+   * not occur in this repo. If this test ever FAILS, the gap has been closed: delete it.
+   */
+  it("KNOWN GAP: a line-anchored declaration inside JSX <pre> text is still believed", () => {
+    plant({
+      "src/components/bridge/InboxView.tsx": [
+        "export const Doc = () => (",
+        "  <pre>",
+        'const FILTER_CHIPS = [ label: "Orders" ]',
+        "  </pre>",
+        ");",
+        "const RENAMED_CHIPS: Array<{ label: string }> = [",
+        '  { label: "Issues" },',
+        "];",
+      ],
+    });
+    const { code } = runGate(["--nouns"], root);
+    expect(code).toBe(0);
+  });
+
+  // ─── the body must START at the declaration ───
+  //
+  // Found by adversarial review, and it reproduced on the REAL InboxView.tsx. The bracket
+  // scan used to run forward from the `=` for the next `{` or `[` ANYWHERE, so a registry
+  // that is not a literal — aliased to a hoisted const, or built by a factory — let the scan
+  // sail past the assignment and police an unrelated block further down the file. Exit 0,
+  // "OK", no parse-failure token, and the real count slipped 42 → 38: well inside noise.
+  //
+  // Neither shape is exotic. Both are what "hoist the chips so the tests can import them"
+  // and "generate the chips from the status table" look like.
+
+  it("an ALIASED registry is reported, not silently re-pointed at the next block", () => {
+    plant({
+      "src/components/bridge/InboxView.tsx": [
+        "const REAL_CHIPS = [",
+        '  { label: "Partners" },',
+        "];",
+        "const FILTER_CHIPS = REAL_CHIPS;",
+        "const SOMETHING_ELSE = [",
+        '  { label: "Orders" },',
+        "];",
+      ],
+    });
+    const { code, out } = runGate(["--nouns"], root);
+    expect(code).toBe(1);
+    expect(out).toMatch(/InboxView\.tsx.*→.*not-a-literal/);
+  });
+
+  it("a FACTORY-built registry is reported, not silently re-pointed at the next block", () => {
+    plant({
+      "src/components/bridge/InboxView.tsx": [
+        "const FILTER_CHIPS = buildChips(STATUSES);",
+        "const SOMETHING_ELSE = [",
+        '  { label: "Orders" },',
+        "];",
+      ],
+    });
+    const { code, out } = runGate(["--nouns"], root);
+    expect(code).toBe(1);
+    expect(out).toMatch(/InboxView\.tsx.*→.*not-a-literal/);
+  });
+
+  // `new Set([…])` is the one indirection a policed block really uses — FILLER in
+  // vocabulary.ts — so it must keep working, or the gate cannot load its own vocabulary.
+  it("still reads a `new Set([…])` declaration", () => {
+    plant({
+      "src/components/bridge/InboxView.tsx": [
+        "const FILTER_CHIPS = new Set([",
+        '  { label: "Orders" },',
+        "]);",
+      ],
+    });
+    const { code, out } = runGate(["--nouns"], root);
+    expect(code).toBe(0);
+    expect(out).toContain("checked 8 navigation label(s)");
+  });
+
+  // ─── labels are not always double-quoted ───
+  //
+  // The extractor matched `"…"` only, so a single-quoted or template-literal label was
+  // skipped WITHOUT A WORD. The per-block floor cannot catch it: the double-quoted siblings
+  // still parse, so the block is not empty. There is no Prettier here to normalise the style.
+
+  for (const [style, written] of [
+    ["single-quoted", `{ label: 'Partners' },`],
+    ["template-literal", "{ label: `Partners` },"],
+  ] as const) {
+    it(`polices a ${style} label`, () => {
+      plant({
+        "src/components/bridge/InboxView.tsx": [
+          "const FILTER_CHIPS: Array<{ label: string }> = [",
+          `  ${written}`,
+          "];",
+        ],
+      });
+      const { code, out } = runGate(["--nouns"], root);
+      expect(code).toBe(1);
+      expect(out).toContain("partners");
+    });
+  }
+
+  // …and an apostrophe inside a double-quoted label must still PARSE. A naive widening to a
+  // backreferenced `[^"'`]` class would have silently stopped matching this — the label would
+  // vanish from the count rather than be judged.
+  //
+  // The assertion is that it was READ, not that it passed: `unapprovedWords` splits on `'`,
+  // so "Supplier's" becomes "supplier" + a bare "s" and the label is legitimately rejected.
+  // That rejection is the proof — an unparsed label produces no offence at all.
+  it("still reads a double-quoted label containing an apostrophe", () => {
+    plant({
+      "src/components/bridge/InboxView.tsx": [
+        "const FILTER_CHIPS: Array<{ label: string }> = [",
+        `  { label: "Supplier's orders" },`,
+        "];",
+      ],
+    });
+    const { code, out } = runGate(["--nouns"], root);
+    expect(out).toContain("checked 8 navigation label(s)");
+    expect(out).not.toContain("could not be read");
+    expect(code).toBe(1);
+    expect(out).toContain(`"Supplier's orders"`);
   });
 
   // ─── the per-block floor ───
@@ -523,15 +675,46 @@ describe("check-vocabulary.mjs — blockBody anchoring", () => {
     expect(out).toContain("checked 9 navigation label(s)");
   });
 
+  /**
+   * The two kinds of failure are reported apart, and the split must key on how the offence
+   * was RAISED, not on what its words happen to be. `unapprovedWords` does not split on `-`,
+   * so a nav label literally named "Registry-moved" produces `bad: ["registry-moved"]` — and
+   * a classifier that sniffed `bad` for a known code filed a real wording problem under
+   * "this registry could not be read", handing the reader the wrong remediation entirely.
+   */
+  it("reports a label that merely LOOKS like a parse code as a wording offence", () => {
+    plant({
+      "src/components/bridge/InboxView.tsx": [
+        "const FILTER_CHIPS: Array<{ label: string }> = [",
+        '  { label: "Registry-moved" },',
+        "];",
+      ],
+    });
+    const { code, out } = runGate(["--nouns"], root);
+    expect(code).toBe(1);
+    expect(out).toContain("teach a word outside the vocabulary");
+    expect(out).not.toContain("could not be read");
+    // …and the block really was read, which is why this is a wording problem.
+    expect(out).toContain("checked 8 navigation label(s)");
+  });
+
   // ─── the real tree ───
 
   it("reads every policed registry in the REAL repo, with no parse failure", () => {
     const { code, out } = runGate(["--nouns"], REPO_ROOT);
     expect(code).toBe(0);
-    expect(out).not.toMatch(/registry-moved|empty-registry|ambiguous-declaration|file-not-found/);
-    // A collapse backstop, deliberately loose: the per-block floor above is what catches a
-    // SINGLE disarmed registry, so this only has to catch the shape where the count quietly
-    // craters. 42 labels today.
+    expect(out).not.toMatch(
+      /registry-moved|empty-registry|ambiguous-declaration|not-a-literal|file-not-found/,
+    );
+
+    // The BLOCK COUNT is the assertion that matters, and it is exact. Deleting an entry from
+    // NOUN_REGISTRIES polices less while the label count stays entirely plausible — losing
+    // NAV_MAIN takes 42 to 36, HUB_LABELS to 39, FILTER_CHIPS to 37. A loose label floor
+    // cannot tell any of those from an ordinary IA change; measured, a `>= 35` floor let five
+    // of the six deletions through. Update this number deliberately, with the registry entry.
+    expect(out).toContain("across 7 registry block(s)");
+
+    // Labels stay a loose backstop on top of that, for a collapse the block count cannot see.
     const count = Number(/checked (\d+) navigation label/.exec(out)?.[1]);
     expect(count).toBeGreaterThanOrEqual(35);
   });

@@ -56,8 +56,8 @@
 // They moved because a THIRD consumer needs them and cannot import TypeScript: the vocabulary gate
 // (scripts/check-vocabulary.mjs) runs as `node scripts/check-vocabulary.mjs`, and ci.yml has no
 // `setup-node` step, so it executes under an unpinned bare node where `.ts` imports are not
-// dependable. The alternative was a second copy of the stripper, which is the defect `4c7350a` had
-// to fix once already. See that file's header for the full argument.
+// dependable. The alternative was a second copy of the stripper, and `9cea6e5` already converged
+// two copies of this reading machinery for exactly that reason. See that file's header.
 //
 // `SourceSyntax` is declared there too, as a JSDoc `@typedef` that tsc reads through `allowJs`, so
 // the union has ONE definition rather than a TS copy that can drift from the runtime one.

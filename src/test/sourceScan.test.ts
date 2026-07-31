@@ -96,15 +96,19 @@ describe("sourceScan — what the .mjs boundary must not cost", () => {
   });
 
   /**
-   * ONE COPY, THREE CONSUMERS — and the reason this is a test rather than a comment is that
-   * the repo has now had to de-duplicate a stripper twice. `4c7350a` fixed the
-   * comment-after-a-colon defect in one copy while another was still wrong, and the backend
-   * deleted a duplicated stripper (`504d9cc`) for the same reason. Two copies drift, and the
-   * one nobody fixed is the one still shipping the bug.
+   * ONE COPY, THREE CONSUMERS — a test rather than a comment because this repo has already
+   * paid for the alternative: `9cea6e5` converged two independently-written source-link
+   * extractors onto one shared module, because a fix to one had left the other blind.
    *
    * This also catches the merge hazard directly: any branch that carries its own
    * `scripts/lib/stripComments.mjs` turns CI red on the merged tree instead of quietly
    * leaving two strippers in place — the class TRAP 23 is about.
+   *
+   * SCOPE, stated because silence would overstate it. This walks src/ and scripts/ only, so
+   * a copy under tests/ or in a root-level config is not seen; and it matches `function NAME(`,
+   * so `const stripComments = (…) => …` would pass. It covers the named hazard, not every
+   * conceivable one. The terms tier of check-vocabulary.mjs also still carries its own inline
+   * comment-strippers (visibleSpansTsx, tsxScanner) — out of scope here, and not matched.
    */
   it("defines each reading primitive exactly once in the repo", () => {
     const repoRoot = path.resolve(__dirname, "..", "..");

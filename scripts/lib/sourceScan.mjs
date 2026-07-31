@@ -8,12 +8,14 @@
 // `--experimental-strip-types` in a runtime nobody pinned. Plain ESM is the only form all
 // three consumers can read.
 //
-// The alternative was a second copy of these functions, and a second copy is exactly what
-// `4c7350a` had to fix once already: the "a comment after a colon is still a comment"
-// defect lived in one copy while the other was correct. The backend deleted a duplicated
-// stripper (`504d9cc`) for the same reason. Two copies drift, and the one nobody fixed is
-// the one still shipping the bug. `src/lib/vocabulary.test.ts` asserts this file is the
-// only definition of `stripComments` in the repo, so a re-duplication turns CI red.
+// The alternative was a second copy of these functions, and this repo has already paid for
+// that once: `9cea6e5` converged two independently-written source-link extractors onto one
+// shared module precisely because a fix to one left the other blind. (`4c7350a` is the
+// related lesson from the other direction — one copy, one wrong `prev !== ":"` test.) Two
+// copies drift, and the one nobody fixes is the one still shipping the bug.
+//
+// `src/test/sourceScan.test.ts` asserts this file is the only definition of `stripComments`,
+// `maskLiterals` and `readLiteral` under src/ and scripts/, so a re-duplication turns CI red.
 //
 // THE THREE CONSUMERS, and what each needs:
 //

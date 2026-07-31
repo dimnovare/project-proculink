@@ -25,4 +25,25 @@ export default tseslint.config(
       "prefer-const": "warn",
     },
   },
+  // The .mjs gates and the module they share. Without this block nothing matches a .mjs, so
+  // scripts/lib/sourceScan.mjs would sit under ZERO rules — and that is a coverage
+  // REGRESSION, not just a new unlinted file: `stripComments`, `maskLiterals` and
+  // `readLiteral` were linted as TypeScript until they moved out of src/test/sourceScan.ts.
+  // They are hand-rolled character scanners full of regexes, so the rules that matter here
+  // are the ones they just lost — no-useless-escape, no-control-regex,
+  // no-empty-character-class, no-misleading-character-class.
+  //
+  // Node globals, not browser: these run under bare `node`.
+  {
+    extends: [js.configs.recommended],
+    files: ["**/*.mjs"],
+    languageOptions: {
+      ecmaVersion: 2022,
+      sourceType: "module",
+      globals: globals.node,
+    },
+    rules: {
+      "no-unused-vars": ["warn", { argsIgnorePattern: "^_" }],
+    },
+  },
 );
