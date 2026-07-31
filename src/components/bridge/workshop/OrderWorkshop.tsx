@@ -25,6 +25,7 @@ import { useCallback, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { apiClient, getMappingOverride, previewMappingOverride } from "@/lib/api-client";
+import { getFieldValidation } from "@/lib/api/mapper-ai";
 import { useQueriesEnabled } from "@/hooks/useQueriesEnabled";
 import { useOrderDirection } from "@/hooks/useOrderDirection";
 import type { OrderMappingOverride } from "@/lib/api/types";
@@ -49,6 +50,7 @@ import { WorkshopLinesView, WorkshopLinesToggle } from "./WorkshopLinesView";
 import { showLinesToggle } from "./workshopLinesModel";
 import { bulkAcceptCount, type BulkSelectableLine } from "../magicBulkAcceptSelection";
 import { MobileTriage } from "./MobileTriage";
+import { acceptanceIssues, failingAcceptanceRows } from "./acceptanceGateModel";
 import { WorkshopStepper } from "./WorkshopStepper";
 import { WorkshopStatusBar, type BlockerChip } from "./WorkshopStatusBar";
 import { BridgePageLoader } from "../BridgeLoader";
@@ -161,7 +163,46 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
   // only action the IssuesPanel one-click fix uses.
   const resolve = useResolveActions({ orderId, order, nodes: [], labels, setFlow, refetchOrder });
 
-  const validation = useAcceptanceValidation(orderId, { commitVersion: resolve.commitVersion });
+  // ── WP-18 — the supplier acceptance answer, at EVERY breakpoint ─────────────
+  //    This query used to live in useMapperModel, which only MapperWorkbench
+  //    builds — and the workshop mounts that inside `hidden lg:flex`. The count it
+  //    derived fed the mapper's own canDeliver and stopped there, so `canSend`
+  //    below never saw the supplier's rules and an operator on a tablet was
+  //    offered a Send that WP-17's server-side gate refuses. Owned here, above any
+  //    breakpoint-conditional subtree, it evaluates identically at 390/768/1440.
+  //
+  //    We DEFER to the server rather than mirror it: WP-17 derives each row's
+  //    `blocking` flag from the same GetBlockingFailuresAsync the acceptance gate
+  //    acts on, so this counts rows the server already decided. No rule is
+  //    re-implemented client-side and the two cannot drift.
+  //
+  //    commitVersion is IN THE KEY (not an invalidate) so a fix re-evaluates the
+  //    gate, and `placeholderData` keeps the previous blockers on screen while it
+  //    refetches — a momentary empty result must never flash a green Send.
+  const acceptanceQuery = useQuery({
+    queryKey: ["order-acceptance-validation", orderId, resolve.commitVersion],
+    queryFn: () => getFieldValidation(orderId),
+    enabled: queryEnabled,
+    placeholderData: (prev) => prev,
+    staleTime: 10_000,
+    retry: 1,
+  });
+  const acceptanceBlockers = useMemo(
+    () => acceptanceIssues(acceptanceQuery.data, labels.counterpartyNoun),
+    [acceptanceQuery.data, labels.counterpartyNoun],
+  );
+
+  const validation = useAcceptanceValidation(orderId, {
+    commitVersion: resolve.commitVersion,
+    // Wire (not delete): validate() has no caller anywhere in src/, so this hook's
+    // result was permanently null and the confirm dialog always claimed zero
+    // failing rules. Seeding it from the live server answer makes that dialog
+    // truthful without adding a POST on page load. Blocking rows already make
+    // canSend false (the dialog cannot open), so what actually reaches the
+    // acknowledgement is the ADVISORY failures — exactly its purpose.
+    serverFailingCount: failingAcceptanceRows(acceptanceQuery.data).length,
+    serverRevalidating: acceptanceQuery.isFetching,
+  });
   const { validationResult, failingRuleCount } = validation;
 
   // ── AI calibration → the trust threshold for the attention-first split ──────
@@ -190,7 +231,15 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
     prevQueueRef.current = next;
     return next;
   }, [order, validationResult]);
-  const issues = useMemo(() => fixQueueToIssues(fixQueue), [fixQueue]);
+  // The ONE issue list every surface reads. The server's blocking acceptance rows
+  // lead: they are the only entries that are certain to be refused on send, and
+  // folding them in here is what carries them to the desktop IssuesPanel, the
+  // status-bar blocker chips, the reduced sub-lg MobileTriage list, and
+  // `blockingIssues` → `canSend` — one merge, every breakpoint.
+  const issues = useMemo(
+    () => [...acceptanceBlockers, ...fixQueueToIssues(fixQueue)],
+    [acceptanceBlockers, fixQueue],
+  );
 
   // ── Mobile triage summary counts ("What we received") — distinct populated
   //    header fields + the per-line fields that carry a value, from the SAME order
