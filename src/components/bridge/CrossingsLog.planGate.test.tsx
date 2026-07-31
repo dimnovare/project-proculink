@@ -19,6 +19,11 @@ vi.mock("@/lib/api-client", () => ({
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn() }),
+  // The delivery log now derives an `?orderId=` filter from the URL (WP-24: the
+  // "See every attempt" control on a failed order used to land on the whole
+  // workspace's log). This mock has to answer useSearchParams or the component
+  // throws before any plan-gate copy renders.
+  useSearchParams: () => new URLSearchParams(),
 }));
 
 import { CrossingsLog } from "./CrossingsLog";

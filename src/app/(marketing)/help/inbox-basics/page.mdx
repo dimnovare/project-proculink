@@ -20,13 +20,14 @@ The chips above the table filter the queue by what an order needs:
 |---|---|
 | **All orders** | Everything, regardless of state. |
 | **Needs review** | Orders waiting on a human — usually lines without a supplier item code. |
-| **Ready to send** | The supplier's output file exists; delivery is the next step. |
+| **Ready to send** | Parsed and clean, with nothing generated yet — your turn to send it on. |
+| **Queued to send** | The supplier's output file exists; delivery is the next step. |
 | **Delivered** | The supplier's endpoint accepted the transmission. |
 | **Failed** | Anything that went wrong — parse, transform, or delivery failures, exhausted retries, and supplier rejections, all in one red bucket. |
 
 Each chip carries a count for the **whole workspace**, not just the page you're looking at — so "Needs review · 12" is always the real size of the pile. The header line above the table repeats the two numbers that matter most: how many need review and how many failed.
 
-Rows also carry a status pill of their own (New, Extracting, Needs review, Normalized, Ready to send, Delivered, Failed). One distinction worth knowing: **Normalized** means parsed and clean but nothing generated yet, while **Ready to send** means the output file for the supplier already exists. The full vocabulary is in [order statuses from upload to delivered](/help/dashboard-and-statuses).
+Rows also carry a status pill of their own (New, Extracting, Needs supplier, Needs review, Ready to send, Preparing output, Queued to send, Sending, Delivered, Failed). One distinction worth knowing: **Ready to send** means parsed and clean but nothing generated yet, while **Queued to send** means the output file for the supplier already exists. The full vocabulary is in [order statuses from upload to delivered](/help/dashboard-and-statuses).
 
 ## Finding an order
 
@@ -45,7 +46,7 @@ The keys stay out of your way while you're typing in the search box or any other
 
 Tick the checkboxes to select rows; a dark action bar appears with **Send selected**.
 
-Only rows the backend can actually send are selectable: orders that are **Ready to send**, or whose last **delivery attempt failed**. Everything else is greyed out — that's the server's rule, not a display quirk, so a bulk send can never fire a request that's guaranteed to be rejected. The header checkbox respects the same rule: it selects only the sendable rows in the current view. Note that a "Failed" pill alone doesn't make a row sendable — parse and transform failures need fixing on the order itself, and exhausted (dead-lettered) deliveries are requeued from [System health](/help/exceptions-and-stuck-orders), not from here.
+Only rows the backend can actually send are selectable: orders that are **Queued to send**, or whose last **delivery attempt failed**. Everything else is greyed out — that's the server's rule, not a display quirk, so a bulk send can never fire a request that's guaranteed to be rejected. The header checkbox respects the same rule: it selects only the sendable rows in the current view. Note that a "Failed" pill alone doesn't make a row sendable — parse and transform failures need fixing on the order itself, and exhausted (dead-lettered) deliveries are requeued from [System health](/help/exceptions-and-stuck-orders), not from here.
 
 After a send, the bar tells you exactly what happened:
 
@@ -60,8 +61,8 @@ One honesty note: a successful send means the supplier's endpoint **accepted the
 | You see | Do this |
 |---|---|
 | **Needs review** | Open the order, resolve the flagged lines (accept a suggestion or type the supplier's code). |
-| **Normalized** | Open the order and send it on — the supplier's output is generated at that point. |
-| **Ready to send** | Select and **Send selected**, or open the order and send from there. |
+| **Ready to send** | Open the order and send it on — the supplier's output is generated at that point. |
+| **Queued to send** | Select and **Send selected**, or open the order and send from there. |
 | **Delivered** | Nothing — unless the supplier reports a problem on their side. |
 | **Failed** | Open the order to see the exact error; every failure also lands in [the exceptions queue](/help/exceptions-and-stuck-orders). |
 

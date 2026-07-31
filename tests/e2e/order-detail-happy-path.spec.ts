@@ -10,7 +10,7 @@ import { test, expect } from "@playwright/test";
  *  1. Backend: the dev http→https redirect (ProcuLink.Api/Program.cs) was
  *     removed. A 307 from http://localhost:5223 → https://localhost:7230 broke
  *     the CORS preflight on the first cross-origin call, so getOrderById threw a
- *     network error the page rendered as "Order Not Found".
+ *     network error the page rendered as the not-found gate.
  *  2. Frontend: /orders and /orders/:id now permanently redirect to /inbox and
  *     /inbox/:id (next.config.ts), so the order-detail route is SpineReview at
  *     /inbox/[orderId] — the route that already worked in the original report.
@@ -41,7 +41,14 @@ test("navigating to /orders/[id] resolves to the order detail, not the not-found
   await expect(page).toHaveURL(/\/inbox\/ord-002/i, { timeout: 15_000 });
 
   // The order must render — not the not-found / load-error gate.
-  await expect(page.getByText(/order not found/i)).toHaveCount(0);
-  await expect(page.getByText(/failed to load order/i)).toHaveCount(0);
+  //
+  // These are NEGATIVE assertions, so they kept passing when WP-19 retired both
+  // phrases: they asserted the absence of copy that no longer existed anywhere,
+  // which is a guard that cannot fail. CI never flagged them. Matched against the
+  // gate's real headlines now, and against its structural marker, so the check
+  // survives a reword instead of quietly becoming vacuous.
+  await expect(page.getByText(/can't find this order/i)).toHaveCount(0);
+  await expect(page.getByText(/couldn't load this order/i)).toHaveCount(0);
+  await expect(page.getByRole("button", { name: /^try again$/i })).toHaveCount(0);
   await expect(page.getByText(/PO-2024-005678/).first()).toBeVisible({ timeout: 20_000 });
 });

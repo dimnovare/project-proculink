@@ -1,12 +1,39 @@
 "use client";
 
 import { useState } from "react";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { apiClient } from "@/lib/api-client";
 import { friendlySubmitError } from "@/lib/friendly-submit-error";
 import { captureException } from "@/lib/sentry-context";
+import { PROBLEM_COPY, isProblemStatus } from "@/components/bridge/problem/problemCopy";
 
 type Category = "general" | "bug" | "billing" | "security";
+
+/**
+ * A stuck order's "Get help with this order" links here carrying what the product
+ * already knows: /support?order=PO-4711&problem=delivery_failed. Both params used to
+ * be ignored, so the operator arrived at a blank form and retyped it.
+ *
+ * `problem` is a STATUS KEY and is never shown as one. PROBLEM_COPY is the same
+ * record the order screen's panel renders, so the words in this subject line and the
+ * words the operator just read are one source rather than two lists that drift.
+ * Anything it does not recognise prefills nothing — better a blank form than
+ * "Order undefined —" or a raw `delivery_dead_letter` in front of a customer.
+ */
+export function supportSubjectFor(
+  orderParam: string | null | undefined,
+  problemParam: string | null | undefined,
+): string {
+  const po = (orderParam ?? "").trim();
+  // poTitleFrom() renders an order whose PO number is blank as the bare word
+  // "Order", and the link carries that verbatim. Treat it as "no PO number known"
+  // rather than emitting "Order Order — …".
+  const named = po && po.toLowerCase() !== "order" ? `Order ${po}` : "";
+  const problem = isProblemStatus(problemParam) ? PROBLEM_COPY[problemParam].badge : "";
+
+  if (named && problem) return `${named} — ${problem}`;
+  return named || problem;
+}
 
 const CATEGORIES: { value: Category; label: string }[] = [
   { value: "general",  label: "General question" },
@@ -35,8 +62,15 @@ const S = {
 
 export function ContactForm() {
   const pathname = usePathname() ?? "(unknown)";
+  const params   = useSearchParams();
   const [category, setCategory] = useState<Category>("general");
-  const [subject, setSubject]   = useState("");
+  // Seeded from the URL, then owned by the field. This is a lazy useState initializer
+  // on purpose and is NOT the mirrored-filter mistake: a prefilled input the user can
+  // edit needs local state by definition, and re-deriving it per render would undo
+  // their typing. The URL is the opening value here, not the source of truth.
+  const [subject, setSubject]   = useState(() =>
+    supportSubjectFor(params.get("order"), params.get("problem")),
+  );
   const [message, setMessage]   = useState("");
   const [email, setEmail]       = useState("");
   const [state, setState]       = useState<{ status: "idle" | "submitting" | "success" | "error"; message?: string }>({ status: "idle" });

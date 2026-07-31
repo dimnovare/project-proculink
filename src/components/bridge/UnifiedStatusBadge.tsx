@@ -133,8 +133,13 @@ const STATUS_META: Record<string, StatusMeta> = {
   parse_failed: { label: "Couldn't read file", tone: "danger" },
   transform_failed: { label: "Couldn't build output", tone: "danger" },
   delivery_failed: { label: "Couldn't send", tone: "danger" },
-  // The three automatic retries are spent; a human has to resend. "Retry needed"
-  // names the action, which "Dead-lettered" never did.
+  // The three automatic retries are spent; a human has to resend. DESIGN-DB-1
+  // §6.4 row 74 proposed "Retry needed"; the product shipped "Out of retries"
+  // and every surface followed it (health tile, problem panel, both help
+  // articles, healthDeepLinks.test.tsx), so THIS is the name. It also matches
+  // rows 70-73: every failure badge states what happened and leaves the action
+  // to the line under it. This comment used to quote the unshipped name, which
+  // is how the doc row and the code came to disagree unnoticed.
   delivery_dead_letter: { label: "Out of retries", tone: "danger" },
   rejected: { label: "Supplier rejected", tone: "danger" },
   rejected_by_supplier: { label: "Supplier rejected", tone: "danger" },

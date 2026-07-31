@@ -29,7 +29,7 @@ import { FileChip } from "./FileChip";
 import { PageHeader } from "./layout/PageHeader";
 import { PageShell } from "./layout/PageShell";
 import { StatusJourney, failedStageFor, isFailureStatus, type CrossingStatus, type OrderStage } from "./StatusJourney";
-import { UnifiedStatusBadge } from "@/components/bridge/UnifiedStatusBadge";
+import { UnifiedStatusBadge, statusLabel } from "@/components/bridge/UnifiedStatusBadge";
 import { tv2DotColor } from "@/components/bridge/layout/listTableV2";
 import { useOrderDirection, type PartyLabels } from "@/hooks/useOrderDirection";
 import {
@@ -37,9 +37,26 @@ import {
   bulkSendNeedsDuplicateConfirm,
   formatBulkSendResult,
   isBulkSelectable,
+  isRowSendable,
+  ROW_SEND_CTA,
+  ROW_SEND_CTA_PROGRESS,
+  rowSendFailedCopy,
+  rowSendStartedCopy,
   shouldShowBulkBar,
   type BulkSendResult,
 } from "./inboxSend";
+import {
+  FAILED_BUCKET,
+  countFor,
+  statusesForLabel,
+  sumStatuses,
+} from "./orderCountContract";
+import {
+  PIPELINE_STAGE_NAMES,
+  pipelineAccessibleName,
+  pipelineCaption,
+  pipelineCardLine,
+} from "./pipelineIndicator";
 import {
   inboxChipIndexFor,
   inboxSortingFor,
@@ -102,10 +119,19 @@ export const STATUS_PRESENTATION: Record<
   { key: string; label: string; stage: OrderStage | null }
 > = {
   new:        { key: "new",        label: "New",            stage: 0 },
-  extracting: { key: "extracting", label: "Extracting",     stage: 1 },
+  // Stage 0, not 1. An order being read is AT Parse; stage 1 drew Parse as done for the
+  // one status that means Parse is still running — and it contradicted the dashboard,
+  // whose journeyStageFor("parsing") has been pinned to 0 all along
+  // (statusJourneyFailedStage.test.tsx:100). `new` shares the node on purpose: queued
+  // and parsing are both at Parse, told apart by the badge word, not by the track.
+  extracting: { key: "extracting", label: "Extracting",     stage: 0 },
   unrouted:   { key: "unrouted",   label: "Needs supplier", stage: 1 },
   review:     { key: "review",     label: "Needs review",   stage: 2 },
   ready:      { key: "ready",      label: "Ready to send",  stage: 3 },
+  // The output file is being built — the Transform node, three past where this used to
+  // draw it. Its own slot (rather than folding into `extracting`) is what stops the
+  // mobile card saying "Extracting" while the desktop badge says "Preparing output".
+  transforming: { key: "transforming", label: "Preparing output", stage: 3 },
   sent:       { key: "sent",       label: "Delivered",      stage: 4 },
   delivering: { key: "delivering", label: "Queued to send", stage: 4 },
   sending:    { key: "sending",    label: "Sending",        stage: 4 },
@@ -135,17 +161,10 @@ export function journeyStage(status: CrossingStatus, rawStatus: string): OrderSt
   return isFailureStatus(rawStatus) ? failedStageFor(rawStatus) : { failed: 4 };
 }
 
-// Soft rounded pill with leading colored dot — renders the ported .pill / .pill-*
-// design classes so colours/spacing track tokens.css exactly.
-function StatusDotPill({ status }: { status: CrossingStatus; compact?: boolean }) {
-  const p = STATUS_PRESENTATION[status];
-  return (
-    <span className={`pill pill-${p.key}`}>
-      <span className="dot" />
-      {p.label}
-    </span>
-  );
-}
+// (The mobile card's StatusDotPill is gone: it rendered off the COLLAPSED
+// CrossingStatus, so `transforming` printed "Extracting" there while the desktop badge
+// printed "Preparing output" for the same order. Both viewports now render
+// UnifiedStatusBadge on the raw status — one component, one vocabulary.)
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -203,6 +222,7 @@ function fmtAge(min: number) {
 const MOCK_RAW_STATUS: Record<CrossingStatus, string> = {
   new:        "pending_parse",
   extracting: "parsing",
+  transforming: "transforming",
   // Not redeliverable either — the action an unrouted order needs is assign-supplier.
   unrouted:   "unrouted",
   review:     "pending_review",
@@ -279,19 +299,25 @@ function generateOrders(count: number): OrderRow[] {
 
 // Backend `ready` and `ready_to_deliver` are DIFFERENT pipeline stages and must
 // NOT collapse to one display status, or the row badge contradicts the chips:
-//   - `ready`            = parsed/normalized, NOT yet transformed (pre-Transform).
-//                          Rendered as "Normalized" so it never reads as "Ready to send".
-//   - `ready_to_deliver` = post-transform, genuinely ready to send to the supplier.
-//                          Rendered as "Ready to send" — the SAME vocabulary as the
-//                          "Ready to send" filter chip (which counts ready_to_deliver).
+//   - `ready`            = every check passed, NO output built yet (pre-Transform).
+//                          Rendered "Ready to send" — the HUMAN's turn, and since WP-29
+//                          the chip that filters `ready` carries the same three words
+//                          and the row carries the button that acts on them.
+//   - `ready_to_deliver` = post-transform, output file built, send pending — OUR turn.
+//                          Rendered "Queued to send", the SAME vocabulary as the chip
+//                          that filters `ready_to_deliver`.
 // We reuse the `delivering` CrossingStatus slot (stage 4, distinct blue pill) for
 // `ready_to_deliver`. That slot's NAME is a historical accident, not a claim about the
 // backend: a persisted `delivering` status DOES exist upstream (OrderStatusConstants),
-// and it maps to the separate `sending` slot below. Counting logic / summaryKeys are
-// unchanged — labels only.
+// and it maps to the separate `sending` slot below.
 export function mapStatus(s: string): CrossingStatus {
   if (s === "pending_review") return "review";
-  if (s === "parsing" || s === "transforming") return "extracting";
+  if (s === "parsing") return "extracting";
+  // Its OWN slot, not folded into `extracting`. Folding it lit Normalize for an order
+  // at Transform, and made the mobile card (which reads this collapsed value) print
+  // "Extracting" while the desktop badge (which reads the raw status) printed
+  // "Preparing output" — one order, two words, two screen sizes.
+  if (s === "transforming") return "transforming";
   // Extracted, but no supplier resolved — parked awaiting one, which is the operator's
   // job (POST /orders/{id}/assign-supplier). Reachable on the LIVE parse path today
   // (OrderIngestionService: `if (entity.SupplierId is null) newStatus = Unrouted`) and via
@@ -384,33 +410,12 @@ function summaryToRow(o: OrderSummary): OrderRow {
 
 // ─── Status buckets for live action counts ──────────────────────────────────────
 // The red "Failed" pill collapses FIVE backend statuses into one (mapStatus above
-// folds them all to CrossingStatus "failed"). The live `GET /api/orders/summary`
-// returns raw per-OrderStatus counts in `byStatus`, so to surface the same count
-// the pill represents we must sum the whole failure bucket. "Needs review" maps to
-// the single backend `pending_review` status. Any status absent from byStatus is
-// treated as 0 (byStatus is Partial<Record<OrderStatus, number>>).
-// MIRRORS the backend's OrderStatusConstants.FailureBucket, and the mirror is
-// hand-maintained. `?status=failed` is expanded SERVER-side against the backend's set
-// (OrderQueryService), so a sixth failure status added there without a matching entry
-// here would be returned under the Failed chip and render as "New" — and
-// failureBucketPills.test.ts, which iterates THIS array, would stay green. That test is a
-// class guard within the FE only; it is not a cross-repo contract guard. Keep in sync by
-// hand when the backend bucket changes.
-export const FAILED_BUCKET: OrderStatus[] = [
-  "failed",
-  "transform_failed",
-  "delivery_failed",
-  "delivery_dead_letter",
-  "rejected_by_supplier",
-];
-
-function sumStatuses(
-  byStatus: Partial<Record<OrderStatus, number>> | undefined,
-  keys: OrderStatus[],
-): number {
-  if (!byStatus) return 0;
-  return keys.reduce((acc, k) => acc + (byStatus[k] ?? 0), 0);
-}
+// folds them all to CrossingStatus "failed"), so its badge sums the whole bucket.
+// FAILED_BUCKET now LIVES in orderCountContract.ts — the dashboard's "Failed" number
+// is the same number, which is that module's whole thesis — and is re-exported here so
+// its existing importers (failureBucketPills.test.ts, statusJourneyFailedStage.test.tsx,
+// StatusJourney's FAILURE_JOURNEY_STAGE comment) are unchanged.
+export { FAILED_BUCKET };
 
 // ─── Filter chips ─────────────────────────────────────────────────────────────
 
@@ -418,34 +423,57 @@ function sumStatuses(
 // `api` is the backend OrderStatus passed to the live ?status= query param.
 // Each chip's `status` (mock client-side CrossingStatus filter) and `api`
 // (live ?status= OrderStatus) must resolve to the rows its label promises.
-// "Queued to send" filters the backend `ready_to_deliver` status — which mapStatus
-// folds into the `delivering` CrossingStatus slot (labelled "Queued to send"), NOT
-// the `ready` slot (labelled "Ready to send" — checks passed, pre-transform, the
-// human's turn). The chip is named after the status it actually filters, so its
-// count and the row badges always say the same thing; naming it "Ready to send"
-// while it filters `ready_to_deliver` is the exact regression the code warns about
-// twice. (summaryKeys / api unchanged: counts still roll up ready_to_deliver.)
-// Failure handling is bucketed client-side over all failure statuses (see
-// matchesChip) because the red "Failed" pill collapses five backend statuses;
-// the live `api: "failed"` value is the closest single server filter (the
-// remaining failure statuses are folded in client-side).
-// `summaryKeys` lists the backend OrderStatus values whose `byStatus` counts roll
-// up into this chip's badge. It is intentionally DECOUPLED from `api` (the single
-// server `?status=` filter value): the "Failed" pill collapses five statuses, so
-// its badge sums the whole FAILED_BUCKET even though the live filter passes only
-// "failed". Chips with no `summaryKeys` (All orders) show the summary `total`.
-const FILTER_CHIPS: Array<{
+//
+// "Ready to send" (WP-29) filters `ready`: every check passed, no output built, nothing
+// sent — the human's turn, and the reason this screen exists. It had no chip at all
+// until now, which made the product's most valuable state its least visible one.
+// "Queued to send" filters `ready_to_deliver` — output built, send pending, our turn.
+// The two are named after the statuses they actually filter, so a chip's count and the
+// row badges under it can never disagree.
+//
+// Failure handling is bucketed client-side over all failure statuses because the red
+// "Failed" pill collapses five backend statuses; the live `api: "failed"` value is
+// expanded SERVER-side to the same bucket.
+//
+// THE LABELS AND summaryKeys ARE NOT HAND-WRITTEN. Both come from
+// ORDER_COUNT_CONTRACT, so this chip row and the dashboard's stat row are two renders
+// of one table — see orderCountContract.ts for why that matters. The array itself must
+// stay DECLARED IN THIS FILE: the vocabulary gate's noun budget is path-pinned to the
+// FILTER_CHIPS declaration in src/components/bridge/InboxView.tsx
+// (scripts/check-vocabulary.mjs NOUN_REGISTRIES), and it reads the `label:` literals
+// below. Keep them literal.
+//
+// This comment used to spell that token as a declaration, and doing so DISARMED the very
+// guard it was describing: blockBody() takes the first declaration-shaped match of the
+// name, so the comment became the anchor and `registry-moved` stopped firing. The gate now strips
+// comments before matching (and src/lib/vocabulary.test.ts proves it against these real
+// files), so this is belt and braces — but do not reintroduce the phrasing.
+export const FILTER_CHIPS: Array<{
   label: string;
   status?: CrossingStatus;
   api?: OrderStatus;
   summaryKeys?: OrderStatus[];
 }> = [
   { label: "All orders" },
-  { label: "Needs review",  status: "review", api: "pending_review",   summaryKeys: ["pending_review"]   },
-  { label: "Queued to send", status: "delivering", api: "ready_to_deliver", summaryKeys: ["ready_to_deliver"] },
-  { label: "Delivered",     status: "sent",   api: "delivered",        summaryKeys: ["delivered"]        },
-  { label: "Failed",        status: "failed", api: "failed",           summaryKeys: FAILED_BUCKET        },
+  { label: "Needs review",   status: "review",     api: "pending_review",    summaryKeys: contractStatuses("Needs review") },
+  { label: "Ready to send",  status: "ready",      api: "ready",             summaryKeys: contractStatuses("Ready to send") },
+  { label: "Queued to send", status: "delivering", api: "ready_to_deliver",  summaryKeys: contractStatuses("Queued to send") },
+  { label: "Delivered",      status: "sent",       api: "delivered",         summaryKeys: contractStatuses("Delivered") },
+  { label: "Failed",         status: "failed",     api: "failed",            summaryKeys: contractStatuses("Failed") },
 ];
+
+/** The contract's statuses for a chip label. Throws for a label the contract doesn't know. */
+function contractStatuses(label: string): OrderStatus[] {
+  const statuses = statusesForLabel(label);
+  if (!statuses) {
+    throw new Error(
+      `InboxView: chip "${label}" is not in ORDER_COUNT_CONTRACT. Add it there — a chip that ` +
+        `computes its own count is how the dashboard and the inbox came to print different ` +
+        `numbers under "Ready to send".`,
+    );
+  }
+  return statuses;
+}
 
 // ─── Column helper ────────────────────────────────────────────────────────────
 
@@ -455,7 +483,7 @@ const columnHelper = createColumnHelper<OrderRow>();
 // fallback), so they're built per-render via useMemo([labels]) inside the
 // component rather than living at module scope. getRowId still keys on order id,
 // so row stability / selection behaviour is unchanged.
-function buildColumns(labels: PartyLabels) {
+function buildColumns(labels: PartyLabels, rowSend: RowSendContext) {
   return [
   // Checkbox select — selection feeds ONLY the "Send selected" bulk action
   // (POST /redeliver). The selectable set is isBulkSelectable =
@@ -487,9 +515,13 @@ function buildColumns(labels: PartyLabels) {
           checked={!none && table.getIsAllPageRowsSelected()}
           onChange={table.getToggleAllPageRowsSelectedHandler()}
           aria-label={none ? "No sendable orders on this view" : "Select all sendable orders"}
+          // Names the chips that actually exist. It used to send the operator to a
+          // “Ready to send” tab that did not exist — and now that one does, it would
+          // send them to the WRONG one: `ready` rows carry their own row button and are
+          // deliberately not bulk-selectable (see isRowSendable / isBulkSelectable).
           title={none
-            ? "No orders here can be sent. Switch to the “Ready to send” or “Failed” tab to select orders to deliver."
-            : "Selects orders that are ready to send or had a delivery failure."}
+            ? "No orders here can be sent together. Switch to the “Queued to send” or “Failed” filter, or use the Send button on a “Ready to send” row."
+            : "Selects orders that are queued to send or had a delivery failure."}
         />
       );
     },
@@ -514,14 +546,18 @@ function buildColumns(labels: PartyLabels) {
               ? "Select row"
               : row.original.rawStatus === "delivery_unconfirmed"
                 ? "Delivery unknown — open the order to resolve it safely"
-                : "Can't select — only orders that are ready to send or had a failed delivery can be sent from here"
+                : isRowSendable(row.original.rawStatus)
+                  ? "Use this row's Send button — this order still needs its output built"
+                  : "Can't select — only orders that are queued to send or had a failed delivery can be sent together"
           }
           title={
             canSelect
               ? undefined
               : row.original.rawStatus === "delivery_unconfirmed"
                 ? "Delivery unknown — open the order to resolve it safely"
-                : "Only orders that are ready to send or had a failed delivery can be sent from here. Open the others to see what they need."
+                : isRowSendable(row.original.rawStatus)
+                  ? "This order still needs its output built, so it is sent one at a time — use the Send button on this row."
+                  : "Only orders that are queued to send or had a failed delivery can be sent together. Open the others to see what they need."
           }
         />
       );
@@ -605,14 +641,40 @@ function buildColumns(labels: PartyLabels) {
     meta: { numeric: true, label: "Value" },
     size: 110,
   }),
-  // Pipeline — standalone 5-node track (status pill lives in its own column)
+  // Pipeline — the 5-node track, plus the words that make it readable.
+  //
+  // It used to be five bare 11px dots in 184px: no role, no accessible name, no
+  // caption, and no legend anywhere on the page. A screen reader announced the empty
+  // string. Now the dots are aria-hidden decoration and the cell is one role="img"
+  // whose name says the step AND the status ("Step 3 of 5: Validate. Needs review."),
+  // with the same words printed under it for everyone else. The legend that turns
+  // "3 of 5" into a fact renders once above the table (see PipelineLegend).
   columnHelper.accessor("status", {
     header: "Pipeline",
-    cell: (info) => (
-      <div style={{ minWidth: 132, maxWidth: 176 }}>
-        <StatusJourney stage={journeyStage(info.getValue(), info.row.original.rawStatus)} compact />
-      </div>
-    ),
+    cell: (info) => {
+      const stage = journeyStage(info.getValue(), info.row.original.rawStatus);
+      return (
+        <div
+          data-pipeline
+          role="img"
+          aria-label={pipelineAccessibleName(stage, statusLabel(info.row.original.rawStatus))}
+          style={{ minWidth: 132, maxWidth: 176 }}
+        >
+          <span aria-hidden="true" style={{ display: "block" }}>
+            <StatusJourney stage={stage} compact />
+          </span>
+          <span
+            aria-hidden="true"
+            className="mt-1 block text-[10px] tabular-nums"
+            // --ink-muted #56627A on white = 6.13:1 (AA). --ink-faint #8A93A5 would be
+            // 3.09:1 — below AA for text, which is why the caption is not faint.
+            style={{ color: "var(--ink-muted)", whiteSpace: "nowrap" }}
+          >
+            {pipelineCaption(stage)}
+          </span>
+        </div>
+      );
+    },
     meta: { label: "Pipeline" },
     size: 184,
   }),
@@ -622,8 +684,8 @@ function buildColumns(labels: PartyLabels) {
     enableHiding: false,
     header: "Status",
     // Canonical status pill — one shape/size/padding, Lucide icon + word per tone.
-    // Keyed on the RAW backend OrderStatus so it can tell `ready` ("Normalized")
-    // apart from `ready_to_deliver` ("Ready to send") — the collapsed display
+    // Keyed on the RAW backend OrderStatus so it can tell `ready` ("Ready to send")
+    // apart from `ready_to_deliver` ("Queued to send") — the collapsed display
     // `status` can't (see UnifiedStatusBadge / STATUS_META).
     cell: ({ row }) => <UnifiedStatusBadge status={row.original.rawStatus} icon />,
     size: 124,
@@ -634,15 +696,117 @@ function buildColumns(labels: PartyLabels) {
     meta: { label: "Updated" },
     size: 72,
   }),
-  // Chevron
+  // Row action — the primary send on a "Ready to send" row, the chevron on every
+  // other. Reuses the chevron's slot rather than adding a column so the table's
+  // structure is unchanged; only its width grows (30 → 132).
   columnHelper.display({
     id: "chevron",
     enableHiding: false,
     header: "",
-    cell: () => <span style={{ color: "var(--ink-faint)", fontSize: "15px" }}>›</span>,
-    size: 30,
+    cell: ({ row }) =>
+      canRowSend(row.original) ? (
+        <RowSendButton row={row.original} ctx={rowSend} />
+      ) : (
+        <span style={{ color: "var(--ink-faint)", fontSize: "15px" }}>›</span>
+      ),
+    size: 132,
   }),
   ];
+}
+
+/** What a row needs to run (and report) the primary send. Threaded, not global. */
+type RowSendContext = {
+  /** Order id currently in flight, or null. One at a time — a click is a real POST. */
+  sendingId: string | null;
+  onSend: (row: OrderRow) => void;
+};
+
+/**
+ * Whether THIS row offers the action — status first, then the row's own issue count.
+ *
+ * The status set is the real guard (OrderStatusMachine.TransformableFrom contains `ready`
+ * and the endpoint 422s on unresolved lines regardless), so the second clause is defence in
+ * depth: it is what the spec promised, and it costs one field the row already carries. A
+ * `ready` row with open issues should not exist; if the backend ever produced one, the
+ * honest response is to leave it to the review screen rather than offer a button whose only
+ * possible outcome is a 422.
+ */
+function canRowSend(row: OrderRow): boolean {
+  return isRowSendable(row.rawStatus) && row.issues === 0;
+}
+
+/**
+ * The primary send on a `ready` row.
+ *
+ * IMMEDIATE, no confirm — and that is a decision, not an omission. `ready` means every
+ * check passed and NOTHING has been built or sent, so there is no duplicate risk. The
+ * confirm WP-24 added (bulkSendNeedsDuplicateConfirm) exists for `delivery_unconfirmed`,
+ * where the supplier may already hold the order; reusing it here would train the
+ * operator to click past the dialog that actually matters.
+ *
+ * It posts to /orders/{id}/transform, whose guard set (TransformableFrom) contains
+ * `ready`, so the click cannot 400 on status — the WP-24 D2 discipline.
+ *
+ * The label is ROW_SEND_CTA, not partyLabels().primaryCta — see inboxSend.ts for why
+ * reusing the order-detail CTA's words here would over-claim on the default configuration.
+ */
+function RowSendButton({ row, ctx }: { row: OrderRow; ctx: RowSendContext }) {
+  const inFlight = ctx.sendingId === row.id;
+  const busy = ctx.sendingId !== null;
+  return (
+    <button
+      type="button"
+      // Viewport hook. BOTH row variants mount in jsdom, so without it a role+name query is
+      // satisfied by the mobile card alone and the desktop cell goes untested — which is
+      // exactly how a mutation that broke only the desktop button stayed green.
+      data-row-send="desktop"
+      onClick={(e) => { e.stopPropagation(); ctx.onSend(row); }}
+      disabled={busy}
+      // The PO is in the accessible name because a table of identical "Prepare output"
+      // buttons tells a screen-reader user nothing about which order they are acting on.
+      aria-label={`${ROW_SEND_CTA} — ${row.po}`}
+      className="w-full rounded-[6px] px-2 text-[12px] font-semibold"
+      style={{
+        height: 28,
+        // white on --brand-blue #1E66C9 = 5.53:1 (AA).
+        background: BLUE,
+        color: "#FFFFFF",
+        border: 0,
+        cursor: busy ? "default" : "pointer",
+        opacity: busy && !inFlight ? 0.5 : 1,
+        whiteSpace: "nowrap",
+        overflow: "hidden",
+        textOverflow: "ellipsis",
+      }}
+    >
+      {inFlight ? ROW_SEND_CTA_PROGRESS : ROW_SEND_CTA}
+    </button>
+  );
+}
+
+/**
+ * The key for the Pipeline column's "3 of 5" captions.
+ *
+ * Rendered once, above the table, desktop-only — and only when the Pipeline column is
+ * actually visible, so the legend never explains something the Columns menu has hidden.
+ * --ink-muted #56627A on --bg #F6F7FA = 5.73:1 (AA).
+ */
+function PipelineLegend() {
+  return (
+    <div
+      data-pipeline-legend
+      className="hidden lg:flex flex-wrap items-center gap-x-3 gap-y-1 pb-2 text-[10.5px]"
+      style={{ color: "var(--ink-muted)" }}
+    >
+      <span className="font-semibold uppercase tracking-[0.06em]">Pipeline</span>
+      {PIPELINE_STAGE_NAMES.map((stage, i) => (
+        <span key={stage} className="inline-flex items-center gap-1">
+          <span className="font-mono tabular-nums" style={{ color: "var(--ink-faint)" }}>{i + 1}</span>
+          {stage}
+        </span>
+      ))}
+    </div>
+  );
 }
 
 /**
@@ -709,9 +873,20 @@ export function InboxView() {
   // duplicate guard on bulk sends that include a parked order.
   const confirm = useConfirm();
   const { direction, labels } = useOrderDirection();
-  // Columns depend only on direction labels — memoise so react-table receives a
-  // stable reference (rebuilt only when the org's direction changes).
-  const columns = useMemo(() => buildColumns(labels), [labels]);
+  // Row send ("Ready to send" rows) — one order in flight at a time, because each click
+  // is a real POST /transform. Declared before the columns memo, which closes over it.
+  const [rowSendingId, setRowSendingId] = useState<string | null>(null);
+  const [rowSendNotice, setRowSendNotice] = useState<BulkSendResult | null>(null);
+  const rowSendRef = useRef<(row: OrderRow) => void>(() => {});
+  const handleRowSend = useCallback((row: OrderRow) => rowSendRef.current(row), []);
+  // Columns depend on the direction labels and the in-flight row — memoise so
+  // react-table receives a stable reference between those changes. `handleRowSend` is a
+  // stable trampoline into a ref, so the real handler can close over query state
+  // without rebuilding every column on every render.
+  const columns = useMemo(
+    () => buildColumns(labels, { sendingId: rowSendingId, onSend: handleRowSend }),
+    [labels, rowSendingId, handleRowSend],
+  );
   // Empty-state copy: outbound orders arrive from buyers; inbound from customers.
   // Shown only in the genuinely-empty (no filter active) branch — the filtered
   // zero-result branch has its own "No matching orders" copy, so don't open
@@ -920,6 +1095,36 @@ export function InboxView() {
     }
   }, [rowSelection, bulkSending, queryClient, ALL_ORDERS, confirm]);
 
+  // The primary send on a "Ready to send" row.
+  //
+  // POST /orders/{id}/transform — NOT /redeliver, whose RedeliverableFrom does not
+  // contain `ready` (a bulk send of these rows could only ever 400, which is WP-24's D2
+  // defect). No confirm: nothing has been built or sent, so there is no duplicate risk;
+  // see RowSendButton for the full reasoning.
+  //
+  // The success line does not claim delivery. The transform job enqueues delivery
+  // "respecting the AutoDeliver flag", so an order whose supplier does not auto-send
+  // rests in `ready_to_deliver` ("Queued to send") until a person acts. Invalidating
+  // ["orders"] is what makes the row itself tell the rest of the story.
+  const handleRowSendImpl = useCallback(async (row: OrderRow) => {
+    if (rowSendingId) return;
+    setRowSendingId(row.id);
+    setRowSendNotice(null);
+    try {
+      await apiClient.transformOrder(row.id);
+      queryClient.invalidateQueries({ queryKey: ["orders"] });
+      setRowSendNotice({ ok: true, text: rowSendStartedCopy(row.po) });
+    } catch (err) {
+      setRowSendNotice({
+        ok: false,
+        text: rowSendFailedCopy(row.po, err instanceof Error ? err.message : "Unknown error"),
+      });
+    } finally {
+      setRowSendingId(null);
+    }
+  }, [rowSendingId, queryClient]);
+  rowSendRef.current = handleRowSendImpl;
+
   const table = useReactTable({
     data: ALL_ORDERS,
     columns,
@@ -1069,12 +1274,12 @@ export function InboxView() {
   const reviewCount = useMemo(() => sumStatuses(byStatus, ["pending_review"]), [byStatus]);
   const failedCount = useMemo(() => sumStatuses(byStatus, FAILED_BUCKET), [byStatus]);
 
-  // Per-chip badge counts, keyed off the chip's `summaryKeys` roll-up. "All orders"
-  // (no summaryKeys) shows the summary `total`. Absent statuses count as 0.
+  // Per-chip badge counts, resolved through ORDER_COUNT_CONTRACT by LABEL — the same
+  // call the dashboard makes for the same words. That is what stops "Ready to send"
+  // meaning `ready` here and `ready + ready_to_deliver` there;
+  // orderCountParity.test.tsx renders both screens against one fixture to keep it so.
   const chipCounts = useMemo(
-    () =>
-      FILTER_CHIPS.map(({ summaryKeys }) =>
-        summaryKeys ? sumStatuses(byStatus, summaryKeys) : summary?.total ?? 0),
+    () => FILTER_CHIPS.map(({ label }) => countFor(label, byStatus, summary?.total)),
     [byStatus, summary?.total],
   );
 
@@ -1248,6 +1453,35 @@ export function InboxView() {
         </div>
       )}
 
+      {/* Row-send feedback ("Ready to send" rows). Its own strip rather than the bulk
+          bar's: that bar is about a SELECTION, and this action has none — a result
+          appearing inside it would imply rows were selected. role="status" so the
+          outcome is announced, since the button that caused it is back to idle. */}
+      {rowSendNotice && (
+        <div
+          role="status"
+          aria-live="polite"
+          className="flex flex-wrap items-center justify-between gap-2 rounded-[8px] px-3 py-2 mb-3 flex-shrink-0"
+          style={{
+            // #1E6D29 on #E9F1EA = 5.47:1; #B43838 on #FBE3E3 = 5.13:1. Both AA.
+            background: rowSendNotice.ok ? "#E9F1EA" : "#FBE3E3",
+            color: rowSendNotice.ok ? GREEN_DEEP : "#B43838",
+            border: `1px solid ${rowSendNotice.ok ? "#BEDCC2" : "#F0C4C4"}`,
+            fontSize: 12.5,
+            fontWeight: 600,
+          }}
+        >
+          <span>{rowSendNotice.ok ? "✓ " : "⚠ "}{rowSendNotice.text}</span>
+          <button
+            type="button"
+            onClick={() => setRowSendNotice(null)}
+            style={{ background: "none", border: "none", color: "inherit", fontSize: 12, fontWeight: 600, cursor: "pointer", minHeight: 28 }}
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
+
       {/* Filter chips + search input — toolbar on the grey canvas, above the table card.
           Mobile: chips on a horizontal-scroll row, search full-width on its own row below.
           sm+: both sit side by side on one row. */}
@@ -1295,28 +1529,40 @@ export function InboxView() {
         <div className="no-scrollbar flex items-center gap-1.5 overflow-x-auto flex-nowrap w-full sm:w-auto sm:flex-1 min-w-0">
           {FILTER_CHIPS.map(({ label }, i) => {
             const active = i === activeChip;
+            // "Ready to send" is the one chip that is visually PRIMARY: it is the state
+            // the product exists to produce, and it is the only chip whose rows carry an
+            // action. When it is not the active chip it still reads green rather than
+            // grey, so the queue's most valuable bucket is findable at a glance.
+            const primary = label === "Ready to send";
             return (
               <button
                 key={label}
                 onClick={() => handleChip(i)}
+                // The chip row is a filter group, so selection is announced, not merely
+                // coloured — colour alone was the only "active" signal here.
+                aria-pressed={active}
                 className="flex items-center gap-1.5 rounded-[6px] pl-2.5 pr-2 text-[12px] font-medium transition-colors flex-shrink-0"
                 style={{
                   height: 28,
-                  border: `1px solid ${active ? INK : "#E5E8EE"}`,
-                  background: active ? INK : "#FFFFFF",
-                  color: active ? "#FFFFFF" : "#5E6779",
+                  border: `1px solid ${active ? INK : primary ? "#BEDCC2" : "#E5E8EE"}`,
+                  background: active ? INK : primary ? "#E9F1EA" : "#FFFFFF",
+                  // #1E6D29 on #E9F1EA = 5.47:1 (AA); #5E6779 on #FFFFFF = 5.69:1 (AA).
+                  color: active ? "#FFFFFF" : primary ? GREEN_DEEP : "#5E6779",
+                  fontWeight: primary ? 600 : 500,
                   cursor: "pointer",
                 }}
               >
                 {label}
                 <span
+                  data-count-label={label}
+                  data-count-value={chipCounts[i] ?? 0}
                   className="inline-flex items-center justify-center font-mono text-[10.5px] font-semibold rounded-[8px]"
                   style={{
                     minWidth: 18,
                     height: 17,
                     padding: "0 5px",
-                    background: active ? "rgba(255,255,255,0.16)" : "#F1F3F7",
-                    color: active ? "#FFFFFF" : "#5E6779",
+                    background: active ? "rgba(255,255,255,0.16)" : primary ? "#D6E8D8" : "#F1F3F7",
+                    color: active ? "#FFFFFF" : primary ? GREEN_DEEP : "#5E6779",
                   }}
                 >
                   {chipCounts[i]?.toLocaleString() ?? 0}
@@ -1427,6 +1673,10 @@ export function InboxView() {
         </div>
       </div>
 
+      {/* The Pipeline column's key. Rendered only while that column is visible, so the
+          legend never explains something the Columns menu has hidden. */}
+      {table.getColumn("status")?.getIsVisible() && <PipelineLegend />}
+
       {/* ── Queue table / mobile route cards — floating white card on grey canvas ── */}
       <div
         className="flex-1 min-h-0 overflow-auto mb-3"
@@ -1512,10 +1762,18 @@ export function InboxView() {
             </div>
           )}
           {pagedRows.map((row) => (
-            <button
+            // Card + action share ONE bordered wrapper. The card itself stays a
+            // <button> (tapping it opens the order), so the send action cannot live
+            // inside it — nesting buttons is invalid — and sits below the hairline
+            // instead. Only "Ready to send" rows grow the footer.
+            <div
               key={row.id}
-              className="block w-full rounded-[10px] px-4 py-3.5 text-left transition-colors active:bg-[#F6F7FA]"
-              style={{ background: "#FFFFFF", border: "1px solid #E5E8EE", boxShadow: "0 1px 2px rgba(11,26,47,0.05)", minHeight: 44 }}
+              className="rounded-[10px] overflow-hidden"
+              style={{ background: "#FFFFFF", border: "1px solid #E5E8EE", boxShadow: "0 1px 2px rgba(11,26,47,0.05)" }}
+            >
+            <button
+              className="block w-full px-4 py-3.5 text-left transition-colors active:bg-[#F6F7FA]"
+              style={{ background: "transparent", border: 0, minHeight: 44 }}
               onClick={() => router.push(`/inbox/${row.original.id}`)}
             >
               <div className="mb-2 flex items-start justify-between gap-3">
@@ -1529,10 +1787,20 @@ export function InboxView() {
                     {row.original.age} ago · {row.original.lines} lines · <span className="whitespace-nowrap">{row.original.valueLabel}</span>
                   </p>
                 </div>
+                {/* The SAME badge the desktop Status column renders, keyed on the same
+                    raw status. The card used to render StatusDotPill off the collapsed
+                    CrossingStatus, so one order read "Extracting" here and "Preparing
+                    output" on desktop. One component, one vocabulary, both viewports. */}
                 <span style={{ flexShrink: 0, marginLeft: 8 }}>
-                  <StatusDotPill status={row.original.status} compact />
+                  <UnifiedStatusBadge status={row.original.rawStatus} icon />
                 </span>
               </div>
+              {/* The pipeline, as words. The dot track is desktop-only; at 390px four
+                  words say more than five 11px dots, are legible at any width, and are
+                  announced without any ARIA at all. */}
+              <p className="mb-2 text-[12px] tabular-nums" style={{ color: "var(--ink-muted)" }}>
+                {pipelineCardLine(journeyStage(row.original.status, row.original.rawStatus))}
+              </p>
               <div className="mb-2 flex items-center gap-2">
                 <FileChip type={row.original.fmt} />
                 {row.original.issues > 0 && (
@@ -1584,6 +1852,31 @@ export function InboxView() {
                 );
               })()}
             </button>
+            {canRowSend(row.original) && (
+              <div style={{ borderTop: "1px solid #E5E8EE" }}>
+                <button
+                  type="button"
+                  // See RowSendButton — the desktop twin carries data-row-send="desktop".
+                  data-row-send="mobile"
+                  onClick={() => handleRowSend(row.original)}
+                  disabled={rowSendingId !== null}
+                  aria-label={`${ROW_SEND_CTA} — ${row.original.po}`}
+                  className="w-full text-[13px] font-semibold"
+                  style={{
+                    // 44px — the tap-target floor, which is why the desktop button is
+                    // 28px and this one is not.
+                    minHeight: 44,
+                    background: BLUE,
+                    color: "#FFFFFF",
+                    border: 0,
+                    opacity: rowSendingId !== null && rowSendingId !== row.original.id ? 0.5 : 1,
+                  }}
+                >
+                  {rowSendingId === row.original.id ? ROW_SEND_CTA_PROGRESS : ROW_SEND_CTA}
+                </button>
+              </div>
+            )}
+            </div>
           ))}
         </div>
 
@@ -1591,7 +1884,9 @@ export function InboxView() {
         <table
           style={{
             width: "100%",
-            minWidth: 1180,
+            // 1180 → 1280: the chevron slot grew to 132px to hold the "Ready to send"
+            // row's primary send button. The table already scrolls horizontally.
+            minWidth: 1280,
             borderCollapse: "collapse",
             fontSize: 12.5,
             tableLayout: "fixed",
@@ -1720,6 +2015,11 @@ export function InboxView() {
                       ? "#FAF1DD08"
                       : row.original.status === "failed"
                       ? "#FBE3E308"
+                      // Same tinted-row idiom as review/failed, applied to the state the
+                      // product exists to produce. Decorative only — the badge and the
+                      // Send button carry the meaning, so nothing depends on the wash.
+                      : row.original.status === "ready"
+                      ? "#E9F1EA0A"
                       : "#FFFFFF",
                     boxShadow: isActive ? "inset 2px 0 0 #1E66C9, inset 0 0 0 1px #1E66C9" : undefined,
                     transition: "background 80ms",
@@ -1731,7 +2031,7 @@ export function InboxView() {
                     if (!isSelected && !isActive) {
                       const s = row.original.status;
                       (e.currentTarget as HTMLElement).style.background =
-                        s === "review" ? "#FAF1DD08" : s === "failed" ? "#FBE3E308" : "#FFFFFF";
+                        s === "review" ? "#FAF1DD08" : s === "failed" ? "#FBE3E308" : s === "ready" ? "#E9F1EA0A" : "#FFFFFF";
                     }
                   }}
                 >

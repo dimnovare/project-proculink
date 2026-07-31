@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { pageMetadata } from "@/lib/seo";
 import Link from "next/link";
 import { ContactForm } from "@/components/marketing/ContactForm";
@@ -114,7 +115,15 @@ export default function SupportPage() {
         <a href="mailto:hello@proculink.eu" style={{ color: "#1E6D29", textDecoration: "underline" }}>hello@proculink.eu</a>.
       </p>
 
-      <ContactForm />
+      {/* ContactForm prefills its subject from ?order= / ?problem= (the "Get help
+          with this order" link on a stuck order), which means it reads
+          useSearchParams. This boundary is REQUIRED, not decorative: without it
+          `next build` fails outright with "useSearchParams() should be wrapped in a
+          suspense boundary at page /support". It also confines the client render to
+          the form — every answer above it stays in the prerendered HTML. */}
+      <Suspense fallback={null}>
+        <ContactForm />
+      </Suspense>
     </div>
   );
 }

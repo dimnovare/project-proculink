@@ -165,9 +165,16 @@ describe("bulk Send selected — a parked row can no longer be swept in at all",
     // The operator cannot judge a select-all whose contents they can't see. It used
     // to name only "Ready to send or Failed delivery" while quietly sweeping in
     // parked rows; now the sentence and the set are the same thing.
+    //
+    // WP-29 changed the WORDS, not the set: this checkbox selects
+    // {ready_to_deliver, delivery_failed}, and `ready_to_deliver` has been labelled
+    // "Queued to send" everywhere since WP-25 — this sentence was the one place still
+    // calling it "ready to send". That reading became actively wrong once a real
+    // "Ready to send" chip existed for the DIFFERENT status `ready`, whose rows are
+    // deliberately not bulk-selectable (they carry their own row button instead).
     expect(selectAllBox).toHaveAttribute(
       "title",
-      "Selects orders that are ready to send or had a delivery failure.",
+      "Selects orders that are queued to send or had a delivery failure.",
     );
   });
 });

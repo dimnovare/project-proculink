@@ -60,11 +60,14 @@ function formatHeartbeat(s: number | null): string {
   return `${Math.round(s / 3600)}h ago`;
 }
 
-// UnifiedStatusBadge does not include `rejected_by_supplier` in its STATUS_META,
-// so that key falls through to neutral tone. Map it to `rejected` (danger) to
-// preserve the HEAD behavior where supplier-rejected orders read as red.
+// STATUS_META now carries `rejected_by_supplier` itself (UnifiedStatusBadge.tsx),
+// with the same label and the same danger tone as `rejected` — so this mapping is
+// a no-op that survives only because its premise ("STATUS_META does not include
+// it") stopped being true and nothing re-read the comment. Kept as an identity
+// pass-through rather than deleted mid-packet: it is called from two render sites
+// and removing it is a separate, mechanical change. src/test/statusVocabulary.test.ts
+// asserts both keys resolve to the same label, so the two can no longer diverge.
 function normalizeDeadLetterStatus(status: string): string {
-  if (status === "rejected_by_supplier") return "rejected";
   return status;
 }
 

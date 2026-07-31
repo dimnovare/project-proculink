@@ -33,8 +33,9 @@ import {
   fetchWithTimeout,
   delay,
   ApiHttpError,
+  retryAfterFrom,
 } from "./api/core";
-import { isPlanGateError } from "./planGate";
+import { isPlanGateError, planGateMessage } from "./planGate";
 
 /**
  * Normalised public API base (no trailing slash). Exported so UI that needs to
@@ -826,8 +827,34 @@ async function realTransformOrder(orderId: string, format?: TransformFormat): Pr
     headers: { "Content-Type": "application/json", ...await authHeader() },
     body: JSON.stringify(format ? { format } : {}),
   }, 30000);
-  if (res.status === 422) { const t = await res.text(); throw new Error(`Unresolved lines: ${t}`); }
-  if (!res.ok) { const t = await res.text(); throw new Error(`Transform failed: ${t || res.statusText}`); }
+  // WP-23's discipline, applied to the surface WP-29 put a button on.
+  //
+  // Every refusal here answers with `{ "error": "<sentence>" }`: OrdersController.Transform
+  // conflicts a non-transformable status with 409 + that shape, the unresolved-lines guard
+  // 422s with it, and the plan gate 403s with `{ error: "<capability>_requires_<plan>",
+  // upgradeUrl }`. Throwing `res.text()` verbatim put the serialised body in front of the
+  // operator — the inbox row's failure line read `Couldn't start PO-… — Transform failed:
+  // {"error":"Order is not ready to transform (status 'delivering')…"}`. The sentence is
+  // written FOR them; the braces are ours.
+  //
+  // ApiHttpError, not Error, and the parsed body rides along: a 409 is a temporary hold
+  // ("wait for the send to finish"), a 400 is terminal, and a 403's body carries the
+  // upgradeUrl a banner needs. Flattening them all to Error throws that away.
+  if (!res.ok) {
+    const t = await res.text();
+    const { body, error } = parseApiErrorBody(t);
+    // A plan-gate code is a machine token, never a sentence — CLAUDE.md §11.5 forbids
+    // matching it by literal, so isPlanGateError/planGateMessage do the shape match and
+    // name the plan the SERVER asked for.
+    if (res.status === 403 && isPlanGateError(error ?? t)) {
+      throw new ApiHttpError(planGateMessage(error ?? t), 403, body);
+    }
+    // Rendered verbatim by the review screen and the order workshop, so it is copy:
+    // "Transform failed" is the retired engine-stage name for the state whose badge
+    // now reads "Couldn't build output" (G4). Structure from WP-29, wording from G4.
+    const fallback = res.status === 422 ? "Unresolved lines" : "We couldn't build the output file";
+    throw new ApiHttpError(error ?? `${fallback}: ${t || res.statusText}`, res.status, body);
+  }
   // 202 Accepted — job enqueued; return a placeholder result
   const body = await res.json() as Record<string, unknown>;
   return { artifactId: "", format: format ?? "xml", createdAt: new Date().toISOString(), ...body } as TransformResult;
@@ -1590,8 +1617,23 @@ async function realRunSampleOrder(
     body: JSON.stringify(deliverTo ? { deliverTo } : {}),
   }, 30000);
   if (!res.ok) {
+    // G6. This threw the RAW RESPONSE BODY as the user-facing message: a stack
+    // trace, an HTML error page or a JSON blob, whatever the server happened to
+    // send, straight onto the screen. Every other call in this file goes through
+    // parseApiErrorBody, which lifts the `{ error }` sentence when there is one
+    // and otherwise says nothing rather than saying gibberish.
+    //
+    // ApiHttpError, not Error, so the status survives: this endpoint 429s at the
+    // plan's order limit and 403s on a plan gate, and both need different copy
+    // from "something went wrong".
     const t = await res.text().catch(() => "");
-    throw new Error(t || `sample-order: ${res.status}`);
+    const { body, error } = parseApiErrorBody(t);
+    throw new ApiHttpError(
+      error ?? `We couldn't create the practice order (${res.status}).`,
+      res.status,
+      body,
+      retryAfterFrom(res, body),
+    );
   }
   const data = await res.json() as { orderId: string; isSample?: boolean; deliveryConfigured?: boolean };
   // A pre-WP-27 backend omits the field. `?? false` is the honest read: we do not know
@@ -2060,8 +2102,15 @@ export async function promoteMapping(
   );
   if (res.status === 404) throw new Error("No saved mapping to promote yet for this order.");
   if (!res.ok) {
-    const b = await res.json().catch(() => null) as { error?: string } | null;
-    throw new Error(b?.error || `Couldn't save the supplier mapping: ${res.status}`);
+    // A plan-gate 403 carries its whole meaning in the BODY. Keep it VERBATIM so both
+    // the code and the upgradeUrl survive on the Error message — the caller turns it
+    // into a sentence. Read the body ONCE: `planGateBodyText` would consume it, and a
+    // non-gate 403 would then lose its own `error` string to the status fallback.
+    const raw = (await res.text().catch(() => "")).trim();
+    if (isPlanGateError(raw)) throw new Error(raw);
+    let body: { error?: string } | null = null;
+    try { body = JSON.parse(raw) as { error?: string }; } catch { /* not JSON — fall through */ }
+    throw new Error(body?.error || `Couldn't save the supplier mapping: ${res.status}`);
   }
   return res.json();
 }
