@@ -12,6 +12,7 @@ import {
 } from "../problemCopy";
 import { OP_ALLOWED_FROM, opIsAllowedFrom, type ProblemOp } from "../problemActions";
 import { ROOT, listAppRoutes, matchesAny, normalizePath, isInternalPageLink } from "@/test/appRoutes";
+import { queryKeysOf, unconsumedParams } from "@/test/routeQueryParams";
 import { extractLinks, syntaxFor } from "@/test/linkExtract";
 import { RETIRED_ROUTES } from "@/lib/retired-routes";
 
@@ -30,6 +31,8 @@ function ctx(over: Partial<ProblemCtx> = {}): ProblemCtx {
     supplierId: "sup-1",
     orderId: "ord-1",
     serverMessage: null,
+    failureCause: null,
+    retryAfterSeconds: null,
     readOnly: false,
     atOrderLimit: false,
     processingPaused: false,
@@ -75,6 +78,19 @@ const CTX_VARIANTS: Array<readonly [string, ProblemCtx]> = [
   ["read-only plan", ctx({ readOnly: true })],
   ["at the plan's order limit", ctx({ atOrderLimit: true })],
   ["order processing paused", ctx({ processingPaused: true })],
+  // WP-19 — the named delivery causes. Each is its own arm of `delivery_failed`,
+  // and the three `settingsFirst` ones re-order the action row, so a walk that
+  // stopped at the default ctx would never see the controls an operator actually
+  // gets for an expired key or a moved address.
+  ["supplier refused our credentials", ctx({ failureCause: "supplier_auth_rejected" })],
+  ["supplier refused the account", ctx({ failureCause: "supplier_permission_denied" })],
+  ["supplier endpoint is gone", ctx({ failureCause: "supplier_endpoint_not_found" })],
+  ["supplier rate limited us", ctx({ failureCause: "supplier_rate_limited", retryAfterSeconds: 120 })],
+  ["supplier rate limited us, no wait named", ctx({ failureCause: "supplier_rate_limited" })],
+  ["supplier timed out", ctx({ failureCause: "supplier_timeout" })],
+  // An API that predates the field, and a cause this build has never heard of:
+  // both must fall back to the generic copy rather than render a blank.
+  ["a cause we do not recognise", ctx({ failureCause: "supplier_invented_by_the_future" })],
 ];
 
 /** Every control the eight states can put on a screen, across every ctx variant. */
@@ -104,14 +120,45 @@ describe("no state offers a control the backend will reject", () => {
     expect([...OP_ALLOWED_FROM.redeliverOrder].sort()).toEqual(
       ["delivery_failed", "delivery_unconfirmed", "ready_to_deliver"],
     );
+    // OrderStatusMachine.TransformableFrom = {ready, transform_failed, rejected_by_supplier}.
+    // `rejected_by_supplier` really is in it — OrdersController claims on that set and
+    // answers 202 — and `pending_review` really is not. The mirror asserted the
+    // opposite of both for the life of the file, and this assertion is what let it:
+    // it used to enforce the PRODUCT rule ("we never offer a refused order a button")
+    // by writing a false BACKEND fact, which made the mirror unable to catch drift in
+    // either direction. The product rule is now asserted below, over PROBLEM_COPY.
+    expect([...OP_ALLOWED_FROM.transformOrder].sort()).toEqual(
+      ["ready", "rejected_by_supplier", "transform_failed"].sort(),
+    );
+    // ClaimableForRetryFrom = {ready_to_deliver, delivery_failed}
+    expect([...OP_ALLOWED_FROM.retryDelivery].sort()).toEqual(
+      ["delivery_failed", "ready_to_deliver"],
+    );
     // Dead-letter's rescue is the ops requeue, NOT redeliver — this is D2.
     expect(OP_ALLOWED_FROM.redeliverOrder.has("delivery_dead_letter")).toBe(false);
     expect(OP_ALLOWED_FROM.requeueDelivery.has("delivery_dead_letter")).toBe(true);
-    // rejected_by_supplier and failed are terminal — nothing may be posted.
+    // delivery_held: the release is automatic and every send endpoint 400s while held.
     for (const op of Object.keys(OP_ALLOWED_FROM) as ProblemOp[]) {
-      expect(OP_ALLOWED_FROM[op].has("rejected_by_supplier")).toBe(false);
+      expect(OP_ALLOWED_FROM[op].has("delivery_held")).toBe(false);
     }
   });
+
+  // The product rule the mirror used to carry, stated where it is actually true:
+  // over the copy table. A refused order can be re-built by the backend; rebuilding
+  // it cannot un-refuse it, so this UI offers no button that tries. `failed` is the
+  // same — it holds no parsed order to act on. The old version of this claimed to
+  // check both and checked only one.
+  test.each(["rejected_by_supplier", "failed"] as const)(
+    "%s offers no post action — its way out is a new order, not a retry of this one",
+    (status) => {
+      const posts = CTX_VARIANTS.flatMap(([variant, c]) =>
+        PROBLEM_COPY[status].actions(c)
+          .filter((a) => a.kind === "post")
+          .map((a) => `[${variant}] ${(a as Extract<ProblemAction, { kind: "post" }>).label}`),
+      );
+      expect(posts, `${status} offers a post action: ${posts.join(", ")}`).toEqual([]);
+    },
+  );
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -210,12 +257,62 @@ describe("no failure state points a control at a page that is gone", () => {
   // over-permissive helper away from being green on anything at all.
   test("the check rejects a dead target and a retired one — it is not vacuously green", () => {
     expect(resolvesToLivePage("/library/suppliers/sup-1?tab=delivery")).toBe(true);
-    expect(resolvesToLivePage("/inbox/ord-1?details=response")).toBe(true);
+    // Deliberately NOT `?details=response` any more. That href was this test's
+    // positive control while it was the product's worst dead end — the page was
+    // live, the parameter was read by nothing, and citing it here taught the next
+    // reader that the pair had been checked. `resolvesToLivePage` answers a
+    // narrower question than its use here implied; the query half is below.
+    expect(resolvesToLivePage("/inbox/ord-1?tab=response")).toBe(true);
     expect(resolvesToLivePage("/totally-dead-route-xyz")).toBe(false);
     // The exact link this test was written for: deleted by FE #47, still 308s.
     expect(resolvesToLivePage("/library/templates?supplierId=sup-1")).toBe(false);
     expect(retirementFor("/library/templates")?.destination).toBe("/library/suppliers");
     expect(matchesAny("/library/templates", RETIRED_SOURCES)).toBe(true);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// A live PAGE is not a live LINK.
+//
+// Every route gate in this repo compares hrefs through `appRoutes.normalizePath`,
+// which strips `?` before matching. So a control can carry a parameter that
+// nothing in the app reads and score green on all of them. Four shipped that way,
+// and the worst of them sent a refused order's primary CTA to
+// `/inbox/{id}?details=response` — a banner already rendered at that very route,
+// so "See their reply" navigated the operator to the screen they were on and
+// changed nothing. `src/test/routeQueryParams.ts` carries the contracts and
+// verifies each one against the reader's source.
+// ─────────────────────────────────────────────────────────────────────────────
+describe("no failure state points a control at a parameter nothing reads", () => {
+  const links = everyAction().filter(
+    (e): e is { status: ProblemStatus; variant: string; action: Extract<ProblemAction, { kind: "link" }> } =>
+      e.action.kind === "link",
+  );
+
+  // Anti-vacuity. If every href lost its query — or `actions()` changed shape —
+  // the walk below has nothing to judge and passes on an empty set.
+  test("the walk actually sees query-bearing links", () => {
+    const withQuery = links.filter((l) => queryKeysOf(l.action.href).length > 0);
+    expect(withQuery.length).toBeGreaterThanOrEqual(10);
+    expect(new Set(withQuery.map((l) => l.status)).size).toBeGreaterThanOrEqual(4);
+  });
+
+  test.each(PROBLEM_STATUSES)("%s: every parameter it sends is read where it lands", (status) => {
+    const inert = links
+      .filter((l) => l.status === status)
+      .filter((l) => isInternalPageLink(l.action.href))
+      .map((l) => ({ l, unread: unconsumedParams(l.action.href) }))
+      .filter((e) => e.unread.length > 0)
+      .map(
+        ({ l, unread }) =>
+          `[${l.variant}] "${l.action.label}" → ${l.action.href} — `
+          + `${unread.map((p) => `?${p}=`).join(", ")} read by nothing at that route`,
+      );
+    expect(
+      inert,
+      `${status} sends a parameter its destination ignores, so the control lands `
+        + `somewhere that looks unchanged:\n  ${inert.join("\n  ")}`,
+    ).toEqual([]);
   });
 });
 

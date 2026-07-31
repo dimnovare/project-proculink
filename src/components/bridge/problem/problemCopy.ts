@@ -73,6 +73,14 @@ export interface ProblemCtx {
   orderId: string;
   /** order.errorMessage — rendered verbatim in its own block, never interpolated. */
   serverMessage: string | null;
+  /**
+   * order.failureCause — the backend's machine-readable reason a delivery failed.
+   * Present only for a delivery failure, and only from an API new enough to send
+   * it, so every branch on it must have a generic fallback.
+   */
+  failureCause: string | null;
+  /** order.retryAfterSeconds — the supplier's own requested wait, when they named one. */
+  retryAfterSeconds: number | null;
   /** Pilot ended / plan is read-only: every POST is refused server-side. */
   readOnly: boolean;
   atOrderLimit: boolean;
@@ -121,6 +129,97 @@ export interface ProblemCopy {
 export function isDeliveryConfigMissing(errorMessage: string | null | undefined): boolean {
   if (!errorMessage) return false;
   return /delivery\s+config(uration)?\s+is\s+missing|missing\s+(supplier\s+)?delivery\s+config/i.test(errorMessage);
+}
+
+/**
+ * WP-19 — the delivery failures we can name, and what each one changes.
+ *
+ * The backend has always classified these apart: 401, 403, 404, 408 and 429 each
+ * get their own operator sentence in `SupplierResponseClassification`. But only
+ * the sentence crossed the wire, so this panel showed one generic "We couldn't
+ * reach this supplier" with one generic "Try sending now" for all of them — and
+ * for three of the five, trying again unchanged is guaranteed to fail exactly
+ * the same way. `order.failureCause` is the machine-readable half of the same
+ * decision, so the screen can act on the cause instead of restating it.
+ *
+ * `settingsFirst` marks the causes a retry cannot fix: the panel leads with the
+ * delivery settings and demotes the retry, rather than offering an equal choice
+ * between the thing that works and the thing that cannot.
+ *
+ * The verbatim server message is still rendered in its own block below all of
+ * this, so nothing here paraphrases it — these lines say what to DO, not what
+ * happened.
+ */
+type DeliveryCauseCopy = {
+  attribution: (c: ProblemCtx) => string;
+  consequence: (c: ProblemCtx) => string;
+  helper: (c: ProblemCtx) => string | null;
+  /** Retrying unchanged fails identically, so the fix outranks the retry. */
+  settingsFirst: boolean;
+};
+
+/**
+ * "about 45 seconds" / "about 3 minutes" — only ever called with a number the
+ * SERVER sent. There is no default: an unnamed wait is not rendered at all,
+ * because inventing one is the same defect as "attempt 2 of 3".
+ */
+export function waitPhrase(seconds: number): string {
+  if (seconds < 90) {
+    const whole = Math.max(1, Math.round(seconds));
+    return `about ${whole} second${whole === 1 ? "" : "s"}`;
+  }
+  const minutes = Math.round(seconds / 60);
+  return `about ${minutes} minute${minutes === 1 ? "" : "s"}`;
+}
+
+const DELIVERY_CAUSE: Record<string, DeliveryCauseCopy> = {
+  supplier_auth_rejected: {
+    attribution: (c) =>
+      `${c.supplier}'s system refused the credentials we sent. Nothing is wrong with the order.`,
+    consequence: (c) =>
+      `Until the credentials are updated, this order and every other order for ${c.supplier} will keep failing here.`,
+    helper: () =>
+      "This is usually a key or password that expired or was rotated. Trying again won't help until it's updated.",
+    settingsFirst: true,
+  },
+  supplier_permission_denied: {
+    attribution: (c) =>
+      `${c.supplier}'s system accepted who we are but refused the request. Nothing is wrong with the order.`,
+    consequence: (c) =>
+      `Nothing will reach ${c.supplier} until they allow this account to send orders.`,
+    helper: () =>
+      "Ask the supplier to confirm the account is allowed to send orders, then check the delivery settings.",
+    settingsFirst: true,
+  },
+  supplier_endpoint_not_found: {
+    attribution: (c) => `The address we have for ${c.supplier} doesn't exist any more.`,
+    consequence: (c) =>
+      `Every order for ${c.supplier} will stop here until the address is corrected.`,
+    helper: () =>
+      "Usually a moved endpoint or a typo. Confirm the address with the supplier before trying again.",
+    settingsFirst: true,
+  },
+  supplier_rate_limited: {
+    attribution: (c) => `${c.supplier}'s system asked us to slow down. Nothing is wrong with the order.`,
+    consequence: () => "This normally clears on its own. If it never does, the order stops and waits for you.",
+    helper: (c) =>
+      c.retryAfterSeconds !== null
+        ? `They asked us to wait ${waitPhrase(c.retryAfterSeconds)}. Sending now will most likely be refused again.`
+        : "Too many deliveries in a short window — not a problem with this order.",
+    settingsFirst: false,
+  },
+  supplier_timeout: {
+    attribution: (c) => `${c.supplier}'s system didn't answer in time. Nothing is wrong with the order or its settings.`,
+    consequence: () => "If the automatic tries run out, this order stops and waits for you.",
+    helper: () =>
+      "Nothing to fix here. If it never clears, ask the supplier whether their system is up.",
+    settingsFirst: false,
+  },
+};
+
+/** The named cause for a delivery failure, or null when the API sent none we know. */
+export function deliveryCauseFor(c: ProblemCtx): DeliveryCauseCopy | null {
+  return (c.failureCause && DELIVERY_CAUSE[c.failureCause]) || null;
 }
 
 const HELP = (c: ProblemCtx, status: ProblemStatus): ProblemAction => ({
@@ -262,21 +361,32 @@ export const PROBLEM_COPY: Record<ProblemStatus, ProblemCopy> = {
     attribution: (c) =>
       isDeliveryConfigMissing(c.serverMessage)
         ? "We built the file. We just don't know where to send it."
-        : `${c.supplier}'s system didn't accept the connection. There's nothing wrong with the order itself.`,
+        : deliveryCauseFor(c)?.attribution(c)
+          ?? `${c.supplier}'s system didn't accept the connection. There's nothing wrong with the order itself.`,
+    // Still true for every cause: the backoff queue keeps trying whatever the
+    // refusal was. What differs is whether trying can WORK, which is why the
+    // cause speaks through attribution/consequence/helper rather than by
+    // contradicting this line.
     automatic: "We're trying again automatically. Each try waits a little longer than the last.",
     nothingAutomatic: null,
     pausedNote: "Order processing is paused right now, so the next try starts once it restarts.",
     consequence: (c) =>
       isDeliveryConfigMissing(c.serverMessage)
         ? `This order — and every other order for ${c.supplier} — stays here until delivery is set up. It takes about a minute.`
-        : "If the automatic tries run out, this order stops and waits for you.",
+        : deliveryCauseFor(c)?.consequence(c)
+          ?? "If the automatic tries run out, this order stops and waits for you.",
     actions: (c) => {
       const configMissing = isDeliveryConfigMissing(c.serverMessage);
+      // A cause the operator has to fix: expired credentials, a refused account,
+      // a moved address. The retry stays VISIBLE (the path must not disappear)
+      // but stops being the primary, because clicking it cannot succeed until
+      // the settings change.
+      const settingsFirst = !configMissing && (deliveryCauseFor(c)?.settingsFirst ?? false);
       const retry: ProblemAction = {
         kind: "post",
         // Retry is allowed at the plan's order limit: the meter counts at creation,
         // so retrying an existing order consumes nothing new.
-        variant: configMissing ? "secondary" : "primary",
+        variant: configMissing || settingsFirst ? "secondary" : "primary",
         label: "Try sending now",
         pendingLabel: "Queued…",
         op: "retryDelivery",
@@ -295,6 +405,23 @@ export const PROBLEM_COPY: Record<ProblemStatus, ProblemCopy> = {
           retry,
         ];
       }
+      if (settingsFirst) {
+        return [
+          {
+            kind: "link",
+            variant: "primary",
+            label: "Check the delivery settings",
+            href: c.supplierId ? `/library/suppliers/${c.supplierId}?tab=delivery` : "/library/suppliers",
+          },
+          retry,
+          {
+            kind: "link",
+            variant: "secondary",
+            label: "See every attempt",
+            href: `/operations/log?orderId=${c.orderId}`,
+          },
+        ];
+      }
       return [
         retry,
         {
@@ -308,8 +435,15 @@ export const PROBLEM_COPY: Record<ProblemStatus, ProblemCopy> = {
     helper: (c) =>
       isDeliveryConfigMissing(c.serverMessage)
         ? null
-        : "You don't have to do anything — this is only if you want it to go sooner.",
-    tier: (c) => (isDeliveryConfigMissing(c.serverMessage) ? "self" : "wait"),
+        : deliveryCauseFor(c)?.helper(c)
+          ?? "You don't have to do anything — this is only if you want it to go sooner.",
+    // A named cause the operator must fix is `self`, not `wait` — telling someone
+    // "we're on it" when the fix is theirs is how an order sits for a week. An
+    // unnamed failure, and a rate limit or timeout, are still genuinely ours.
+    tier: (c) =>
+      isDeliveryConfigMissing(c.serverMessage) || (deliveryCauseFor(c)?.settingsFirst ?? false)
+        ? "self"
+        : "wait",
     rowAction: "Retrying automatically",
   }),
 
@@ -369,15 +503,26 @@ export const PROBLEM_COPY: Record<ProblemStatus, ProblemCopy> = {
         kind: "link",
         variant: "primary",
         label: "See their reply",
-        href: `/inbox/${c.orderId}?details=response`,
+        // `?tab=response`, not `?details=response`. The drawer this opens reads
+        // `?tab=` and accepts passport | conformance | response; NOTHING has ever
+        // read `details`. Because this panel is a banner already rendered at
+        // /inbox/{id}, the old href navigated the operator to the screen they
+        // were on and opened nothing — the button did literally nothing. Reading
+        // the parameter is only half of it: OrderWorkshop seeds the tab in a
+        // useState initialiser, which never re-runs on a same-route navigation,
+        // so it also had to start syncing the param while mounted.
+        href: `/inbox/${c.orderId}?tab=response`,
       },
       {
         kind: "link",
         variant: "secondary",
         label: "Start a corrected order",
-        href: c.supplierId
-          ? `/upload?supplierId=${c.supplierId}&from=${c.orderId}`
-          : `/upload?from=${c.orderId}`,
+        // `supplierId` only. `from={orderId}` rode along here for provenance and
+        // no reader was ever written for it, so it promised a link between the
+        // refused order and its replacement that nothing keeps. Dropped rather
+        // than shipped inert — the record this panel promises is the refused
+        // order itself, which stays exactly where it is.
+        href: c.supplierId ? `/upload?supplierId=${c.supplierId}` : "/upload",
       },
     ],
     helper: () => "We'll keep this one as the record of what they refused.",

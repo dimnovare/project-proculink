@@ -106,6 +106,8 @@ export function OrderProblemPanel({
     supplierId: order.supplierId ?? null,
     orderId: order.id,
     serverMessage: order.errorMessage?.trim() ? order.errorMessage : null,
+    failureCause: order.failureCause?.trim() ? order.failureCause : null,
+    retryAfterSeconds: order.retryAfterSeconds ?? null,
     readOnly,
     atOrderLimit,
     processingPaused: paused,

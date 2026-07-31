@@ -24,21 +24,34 @@ export type ProblemOp =
 /**
  * Raw backend statuses each op is accepted FROM. Hand-maintained mirrors of
  * ProcuLink.Core:
- *   transformOrder   ← OrderStatusMachine: `transforming` accepts these entry statuses
- *                      (transform_failed included ON PURPOSE — it holds no output,
- *                      so a rebuild cannot ship anything stale)
+ *   transformOrder   ← TransformableFrom      {ready, transform_failed,
+ *                                              rejected_by_supplier}
  *   retryDelivery    ← ClaimableForRetryFrom  {ready_to_deliver, delivery_failed}
  *   redeliverOrder   ← RedeliverableFrom      {delivery_failed, ready_to_deliver,
  *                                              delivery_unconfirmed}
- *   requeueDelivery  ← the ops rescue path for exhausted retries
- *   markDelivered    ← only from the park
+ *   requeueDelivery  ← RequeueableFrom        {delivery_dead_letter, delivery_failed}
+ *   markDelivered    ← ManuallyDeliverableFrom {delivery_unconfirmed}
  *
  * `delivery_held` appears in NONE of them: the release is automatic when billing
- * settles, and every send endpoint 400s while held. `rejected_by_supplier` and
- * `failed` appear in none either — both are terminal.
+ * settles, and every send endpoint 400s while held.
+ *
+ * THIS TABLE SAYS WHAT THE BACKEND ACCEPTS — NOT WHAT WE CHOOSE TO OFFER.
+ * The two were conflated here and the mirror drifted in both directions at once:
+ * it admitted `pending_review`, which `TransformableFrom` excludes (the claim
+ * would miss and the endpoint answers 409), and it omitted `rejected_by_supplier`,
+ * which `TransformableFrom` contains and `OrdersController` answers 202 for.
+ * Neither error could be caught, because the only test asserting the mirror
+ * asserted the drift as if it were the contract.
+ *
+ * That a refused order can be re-built is deliberate backend design, and it is
+ * still not something this UI offers: rebuilding the same order cannot un-refuse
+ * it, so `PROBLEM_COPY.rejected_by_supplier` offers no post action at all and
+ * routes the operator to a corrected order instead. That product rule is asserted
+ * over PROBLEM_COPY, where it belongs — a mirror that lies to enforce a policy
+ * stops being able to enforce anything.
  */
 export const OP_ALLOWED_FROM: Record<ProblemOp, ReadonlySet<string>> = {
-  transformOrder: new Set(["ready", "pending_review", "transform_failed"]),
+  transformOrder: new Set(["ready", "transform_failed", "rejected_by_supplier"]),
   retryDelivery: new Set(["ready_to_deliver", "delivery_failed"]),
   requeueDelivery: new Set(["delivery_dead_letter", "delivery_failed"]),
   redeliverOrder: new Set(["ready_to_deliver", "delivery_failed", "delivery_unconfirmed"]),

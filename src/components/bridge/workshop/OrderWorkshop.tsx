@@ -59,9 +59,15 @@ import { WorkshopStepper } from "./WorkshopStepper";
 import { WorkshopStatusBar, type BlockerChip } from "./WorkshopStatusBar";
 import { BridgePageLoader } from "../BridgeLoader";
 import { OrderDetailsDrawer, type OrderDetailsTab } from "./OrderDetailsDrawer";
+import { useTabParamSync } from "@/lib/tab-param-sync";
 
 /** The default trust threshold when no calibration history exists (mirrors mappingListModel). */
 const DEFAULT_TRUSTED_THRESHOLD = 0.85;
+
+// Module-scope so useTabParamSync's effect deps stay referentially stable — the
+// same reason /settings and the supplier profile hoist theirs.
+const isOrderDetailsTab = (v: string | null | undefined): v is OrderDetailsTab =>
+  v === "passport" || v === "conformance" || v === "response";
 
 /**
  * The trust threshold for the attention-first split = the LOWEST trusted bucket's
@@ -526,10 +532,18 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
   // ?sample=1 is appended by useSampleOrder when navigating to a practice order.
   // Reading it once on mount is sufficient — the param never changes during the session.
   const isSampleOrder = searchParams?.get("sample") === "1";
-  const [detailsTab, setDetailsTab] = useState<OrderDetailsTab | null>(() => {
-    const t = searchParams?.get("tab");
-    return t === "passport" || t === "conformance" || t === "response" ? t : null;
-  });
+  const requestedTab = searchParams?.get("tab");
+  const [detailsTab, setDetailsTab] = useState<OrderDetailsTab | null>(() =>
+    isOrderDetailsTab(requestedTab) ? requestedTab : null,
+  );
+  // Seeding is not enough when the LINK ORIGINATES ON THIS ROUTE. The refused-order
+  // panel is a banner rendered at /inbox/{id}, and its "See their reply" points at
+  // /inbox/{id}?tab=response — a same-route navigation, which does not remount this
+  // component, so the initialiser above never re-runs and the drawer never opened.
+  // The button did nothing at all. Same fix, same hook, as /settings and the supplier
+  // profile: react to the param's VALUE changing. A manual tab click writes the URL
+  // back through openDetails, so the sync that follows is a no-op on the same value.
+  useTabParamSync<OrderDetailsTab>(requestedTab, isOrderDetailsTab, setDetailsTab);
   // Read the live query string at call time (not the searchParams snapshot) so these
   // stay referentially stable — otherwise every ?tab= write would re-identify them and
   // needlessly re-attach the drawer's Esc/focus-trap listeners while it is open.

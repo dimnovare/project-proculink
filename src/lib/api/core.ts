@@ -89,13 +89,53 @@ export const delay = (ms: number) => new Promise<void>(resolve => setTimeout(res
 export class ApiHttpError extends Error {
   status: number;
   body: unknown;
+  /**
+   * Seconds the server asked us to wait before trying again, when it said so.
+   *
+   * Only a 429 carries one. `null` means "the server did not say", NOT "retry
+   * immediately" — the difference matters, because a caller that reads a missing
+   * wait as zero produces exactly the tight loop the limiter exists to stop.
+   */
+  retryAfterSeconds: number | null;
 
-  constructor(message: string, status: number, body: unknown = null) {
+  constructor(
+    message: string,
+    status: number,
+    body: unknown = null,
+    retryAfterSeconds: number | null = null,
+  ) {
     super(message);
     this.name = "ApiHttpError";
     this.status = status;
     this.body = body;
+    this.retryAfterSeconds = retryAfterSeconds ?? retryAfterFrom(null, body);
   }
+}
+
+/**
+ * The wait a 429 asked for, from the response header or the body, in seconds.
+ *
+ * Both are read because neither alone is reliable here. The header is the
+ * standard and is what proxies honour, but it is not CORS-safelisted — the app
+ * and the API are different origins in every deployed environment, so script can
+ * only read it while the API explicitly exposes it. The body field always
+ * survives. Returns null when neither is present or parseable, which callers
+ * must treat as "unknown", never as zero.
+ */
+export function retryAfterFrom(res: Response | null, body: unknown): number | null {
+  const header = res?.headers?.get?.("Retry-After");
+  if (header) {
+    // RFC 9110 allows delay-seconds or an HTTP-date. Both appear in the wild.
+    const seconds = Number(header);
+    if (Number.isFinite(seconds) && seconds >= 0) return Math.ceil(seconds);
+    const at = Date.parse(header);
+    if (Number.isFinite(at)) return Math.max(0, Math.ceil((at - Date.now()) / 1000));
+  }
+  if (body && typeof body === "object" && "retryAfterSeconds" in body) {
+    const raw = Number((body as { retryAfterSeconds?: unknown }).retryAfterSeconds);
+    if (Number.isFinite(raw) && raw >= 0) return Math.ceil(raw);
+  }
+  return null;
 }
 
 export async function fetchWithTimeout(input: RequestInfo | URL, init?: RequestInit, timeoutMs = 8000) {

@@ -11,6 +11,7 @@ import { BridgeTopbar } from "@/components/bridge/BridgeTopbar";
 import { ErrorBoundary } from "@/components/bridge/ErrorBoundary";
 import { ClerkAvailabilityGate } from "@/components/bridge/ClerkAvailabilityGate";
 import { MSWProvider } from "@/mocks/MSWProvider";
+import { shouldRetryApiFailure, apiRetryDelayMs } from "@/lib/apiFailure";
 import { WorkspaceNameNudge } from "@/components/onboarding/WorkspaceNameNudge";
 import { SkipToContent } from "@/components/a11y/SkipToContent";
 
@@ -145,7 +146,17 @@ export default function AppShellLayout({
         defaultOptions: {
           queries: {
             staleTime: 60 * 1000,
-            retry: 1,
+            // `retry: 1` treated every failure as the same failure. A 404 and a
+            // 403 bought a pointless second round trip before showing the same
+            // answer; a 401 got ONE attempt to ride out the cold-auth race that
+            // needs three; and a 429 got an instant retry against a window that
+            // had not moved, so the one self-clearing condition here was the one
+            // that read as permanent. The policy now asks what the failure IS —
+            // see src/lib/apiFailure.ts.
+            retry: shouldRetryApiFailure,
+            // Honour a server-named wait when there is one; otherwise this is the
+            // exponential backoff TanStack Query would have applied anyway.
+            retryDelay: apiRetryDelayMs,
             // networkMode "always": run queryFns regardless of React Query's
             // onlineManager. Its navigator.onLine heuristic can latch "offline"
             // in production — observed live on /bridge: navigator.onLine === true,

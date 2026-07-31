@@ -33,6 +33,8 @@ function actionLabel(status: keyof typeof PROBLEM_COPY, op: string): string {
       supplierId: "sup-1",
       orderId: "ord-1",
       serverMessage: null,
+      failureCause: null,
+      retryAfterSeconds: null,
       readOnly: false,
       atOrderLimit: false,
       processingPaused: false,
