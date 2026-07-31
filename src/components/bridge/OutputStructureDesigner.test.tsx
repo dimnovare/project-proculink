@@ -548,3 +548,69 @@ describe("OutputStructureDesigner — CSV dialect", () => {
     expect(screen.getByLabelText("Write a header row")).toHaveProperty("checked", true);
   });
 });
+
+// ── S8 · the parity seam itself ──────────────────────────────────────────────
+// The three cases below exist because a mutation round found the byte-parity
+// claim UNTESTED: the case above never opens the panel, so nothing exercised the
+// key-writing at all. Deleting the "drop the key" branch, keeping an emptied
+// dialect as `{}`, and writing `true` instead of dropping the header-row key all
+// passed. Each is a way for a supplier's bytes to change because somebody opened
+// a panel and changed nothing.
+describe("OutputStructureDesigner — CSV dialect leaves no trace when nothing changed", () => {
+  function csvTree(csvDialect?: OutputNodeTemplate["csvDialect"]): OutputNodeTemplate {
+    return {
+      format: "csv",
+      csvDialect,
+      root: { name: "root", nodeType: "object", children: [
+        { name: "OrderRef", nodeType: "field", rule: { outputPath: "OrderRef", canonicalField: "PoNumber", fixedValue: null, fieldManipulators: [] } },
+      ] },
+    };
+  }
+  const savedDialect = () => savedTree().csvDialect ?? null;
+  const openPanel = () => fireEvent.click(screen.getByRole("button", { name: /CSV format/i }));
+
+  it("opening the panel and touching nothing writes NO dialect", () => {
+    renderDesigner(csvTree());
+    openPanel();
+    fireEvent.click(screen.getByRole("button", { name: /Save structure/i }));
+
+    expect(savedDialect()).toBeNull();
+  });
+
+  it("changing a control and changing it BACK leaves no dialect behind", () => {
+    renderDesigner(csvTree());
+    openPanel();
+
+    fireEvent.change(screen.getByLabelText("Column separator"), { target: { value: ";" } });
+    fireEvent.change(screen.getByLabelText("Column separator"), { target: { value: "," } });
+    fireEvent.click(screen.getByRole("button", { name: /Save structure/i }));
+
+    // NOT `{}` — an empty object is a dialect the backend will read, and "no
+    // dialect" is the only shape that is guaranteed byte-identical.
+    expect(savedDialect()).toBeNull();
+  });
+
+  it("un-ticking and re-ticking the header row leaves no key behind", () => {
+    renderDesigner(csvTree());
+    openPanel();
+
+    const box = screen.getByLabelText("Write a header row");
+    fireEvent.click(box);   // false — written
+    fireEvent.click(box);   // back to the default — must be REMOVED, not written as true
+    fireEvent.click(screen.getByRole("button", { name: /Save structure/i }));
+
+    expect(savedDialect()).toBeNull();
+  });
+
+  it("reverting ONE control of several keeps the others and drops only that key", () => {
+    renderDesigner(csvTree());
+    openPanel();
+
+    fireEvent.change(screen.getByLabelText("Column separator"), { target: { value: ";" } });
+    fireEvent.change(screen.getByLabelText("Quoting"), { target: { value: "always" } });
+    fireEvent.change(screen.getByLabelText("Quoting"), { target: { value: "minimal" } });
+    fireEvent.click(screen.getByRole("button", { name: /Save structure/i }));
+
+    expect(savedDialect()).toEqual({ delimiter: ";" });
+  });
+});
