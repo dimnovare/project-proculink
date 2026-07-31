@@ -470,7 +470,7 @@ export function OnboardingChecklist({ onResumeSetup }: OnboardingChecklistProps)
                     Open your practice order →
                   </Link>
                 ) : (
-                  <PracticeOrderPrompt pending={samplePending} onRun={runSample} />
+                  <PracticeOrderPrompt pending={samplePending} onRun={runSample} nounLower={labels.counterpartyNoun.toLowerCase()} />
                 )}
                 {sampleError && (
                   <p className="mt-1 text-[11.5px]" style={{ color: "#B43838" }}>

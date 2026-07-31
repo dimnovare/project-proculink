@@ -39,6 +39,17 @@ export interface PracticeOrderPromptProps {
   onRun: (deliverTo: string) => void;
   /** Renders the collapsed CTA as a filled button rather than a quiet text link. */
   variant?: "link" | "button";
+  /**
+   * The counterparty noun, already lower-cased, from `partyLabels(direction)` —
+   * "supplier" outbound, "customer" inbound. Never hardcode it: an inbound org has
+   * no suppliers, so "nothing goes to a real supplier" is a sentence about a party
+   * it does not have, and shipping it silently deletes the inbound mode.
+   *
+   * Defaulted rather than required because every current caller is inside the
+   * signed-in app and can supply it; the default keeps a future caller that has no
+   * direction in scope from silently rendering "undefined".
+   */
+  nounLower?: string;
 }
 
 export function PracticeOrderPrompt({
@@ -46,6 +57,7 @@ export function PracticeOrderPrompt({
   pending,
   onRun,
   variant = "link",
+  nounLower = "supplier",
 }: PracticeOrderPromptProps) {
   const defaultEmail = usePracticeOrderEmail();
   const [open, setOpen] = useState(false);
@@ -93,7 +105,7 @@ export function PracticeOrderPrompt({
         </button>
         <p className="mt-0.5 max-w-[340px] text-[11px] leading-snug" style={{ color: T.faint }}>
           One example order, start to finish. Tell us where to send the finished file —
-          it&apos;s free, doesn&apos;t count against your plan, and never reaches a real supplier.
+          it&apos;s free, doesn&apos;t count against your plan, and never reaches a real {nounLower}.
         </p>
       </div>
     );
@@ -145,7 +157,7 @@ export function PracticeOrderPrompt({
         </button>
       </div>
       <p className="mt-1 max-w-[340px] text-[11px] leading-snug" style={{ color: T.faint }}>
-        Free — it doesn&apos;t count against your plan, and nothing goes to a real supplier.
+        Free — it doesn&apos;t count against your plan, and nothing goes to a real {nounLower}.
       </p>
     </form>
   );

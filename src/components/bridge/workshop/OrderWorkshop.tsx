@@ -809,10 +809,10 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
                 {" "}— free, doesn&apos;t count against your plan. Match the one missing item
                 code, then send it.{" "}
                 {practiceDelivers === true
-                  ? "The finished file is emailed to you, never to a supplier."
+                  ? `The finished file is emailed to you, never to a ${labels.counterpartyNoun.toLowerCase()}.`
                   : practiceDelivers === false
-                  ? "Email sending isn't set up on this workspace yet, so this run will stop at “no delivery is set up”."
-                  : "Nothing reaches a real supplier."}
+                  ? "Email sending isn't configured on this ProcuLink deployment yet, so this run will stop at “no delivery is set up”."
+                  : `Nothing reaches a real ${labels.counterpartyNoun.toLowerCase()}.`}
               </span>
             </span>
           )}

@@ -74,7 +74,9 @@ describe("mock mode — a practice order with no delivery setup", () => {
     const order = (await apiClient.getOrderById(started.orderId)) as Order;
     const unresolved = order.lines.find((l) => l.needsReview)!;
     expect(unresolved).toBeDefined();
-    await apiClient.resolveLine(started.orderId, unresolved.id, "SMP-BRACKET-S");
+    await apiClient.commitMappings(started.orderId, [
+      { lineNumber: unresolved.lineNumber, supplierItemCode: "SMP-BRACKET-S" },
+    ]);
 
     await apiClient.transformOrder(started.orderId);
     await new Promise((r) => setTimeout(r, 3_600));

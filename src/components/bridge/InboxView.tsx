@@ -1497,7 +1497,7 @@ export function InboxView() {
                   </button>
                   {/* Practice-order path (task 9) — genuine-empty branch only,
                       never the filtered-zero branch. */}
-                      <PracticeOrderPrompt pending={sample.isPending} onRun={sample.runSample} />
+                      <PracticeOrderPrompt pending={sample.isPending} onRun={sample.runSample} nounLower={labels.counterpartyNoun.toLowerCase()} />
                   {sample.error && (
                     <p className="text-[12px]" style={{ color: "#B43838" }}>{sample.error.message}</p>
                   )}
@@ -1823,7 +1823,7 @@ export function InboxView() {
                       </button>
                       {/* Practice-order path (task 9) — genuine-empty branch only,
                           never the filtered-zero branch. */}
-                      <PracticeOrderPrompt pending={sample.isPending} onRun={sample.runSample} />
+                      <PracticeOrderPrompt pending={sample.isPending} onRun={sample.runSample} nounLower={labels.counterpartyNoun.toLowerCase()} />
                       {sample.error && (
                         <p style={{ fontSize: 12, marginTop: 8, color: "#B43838" }}>{sample.error.message}</p>
                       )}

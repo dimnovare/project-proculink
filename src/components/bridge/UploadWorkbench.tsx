@@ -706,6 +706,7 @@ export function UploadWorkbench() {
             variant="button"
             pending={sample.isPending || uploading}
             onRun={(deliverTo) => { if (!uploading) sample.runSample(deliverTo); }}
+            nounLower={labels.counterpartyNoun.toLowerCase()}
           />
         </div>
       </div>

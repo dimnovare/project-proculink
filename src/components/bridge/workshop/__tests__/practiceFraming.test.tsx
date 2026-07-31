@@ -220,7 +220,10 @@ describe("practice-order framing", () => {
     mockState.order = makeOrder({ isSample: true });
     render(<OrderWorkshop orderId="ord-1" />);
     await waitFor(() =>
-      expect(banner()!.textContent).toMatch(/email sending isn'?t set up/i),
+      // "deployment", not "workspace": the condition is !_email.IsConfigured, an
+      // env var on the ProcuLink deployment. No workspace setting can fix it, so
+      // the old copy sent the user hunting in Settings.
+      expect(banner()!.textContent).toMatch(/email sending isn'?t configured on this proculink deployment/i),
     );
     expect(banner()!.textContent).not.toMatch(/finished file is emailed to you/i);
   });

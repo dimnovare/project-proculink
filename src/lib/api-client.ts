@@ -1289,7 +1289,11 @@ async function mockRedeliverOrder(orderId: string): Promise<void> {
       ...mockOrders[idx],
       status: "delivery_failed",
       updatedAt: new Date().toISOString(),
-      errorMessage: "No delivery is set up for this supplier.",
+      // VERBATIM from DeliveryService.FailMissingConfigAsync — not a paraphrase.
+      // finalDeliveryMessage renders errorMessage straight into the panel, so any
+      // drift here means every mock-mode QA pass reads a failure sentence the
+      // product never emits. Pinned by api-client.practiceDelivery.test.ts.
+      errorMessage: "Supplier delivery config is missing. Add a delivery endpoint before sending this order.",
     };
     return;
   }
