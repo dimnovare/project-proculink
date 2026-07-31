@@ -26,7 +26,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { apiClient, getMappingOverride, previewMappingOverride, promoteMapping } from "@/lib/api-client";
-import { getFieldValidation } from "@/lib/api/mapper-ai";
+import { getAcceptanceGate } from "@/lib/api/acceptance-gate";
 import { useQueriesEnabled } from "@/hooks/useQueriesEnabled";
 import { useOrderDirection } from "@/hooks/useOrderDirection";
 import { isPlanGateError, planGateMessage, planGateUpgradeUrl } from "@/lib/planGate";
@@ -53,7 +53,7 @@ import { WorkshopLinesView, WorkshopLinesToggle } from "./WorkshopLinesView";
 import { showLinesToggle } from "./workshopLinesModel";
 import { bulkAcceptCount, type BulkSelectableLine } from "../magicBulkAcceptSelection";
 import { MobileTriage } from "./MobileTriage";
-import { acceptanceIssues, failingAcceptanceRows } from "./acceptanceGateModel";
+import { acceptanceIssues, failingAcceptanceCount } from "./acceptanceGateModel";
 import { WorkshopStepper } from "./WorkshopStepper";
 import { WorkshopStatusBar, type BlockerChip } from "./WorkshopStatusBar";
 import { BridgePageLoader } from "../BridgeLoader";
@@ -186,25 +186,39 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
   //    offered a Send that WP-17's server-side gate refuses. Owned here, above any
   //    breakpoint-conditional subtree, it evaluates identically at 390/768/1440.
   //
-  //    We DEFER to the server rather than mirror it: WP-17 derives each row's
-  //    `blocking` flag from the same GetBlockingFailuresAsync the acceptance gate
-  //    acts on, so this counts rows the server already decided. No rule is
-  //    re-implemented client-side and the two cannot drift.
+  //    We DEFER to the server rather than mirror it, and we read the GATE'S OWN
+  //    DECISION — not the per-field `blocking` flag on /validation. Those are not
+  //    equivalent: the gate subtracts a recorded operator override
+  //    (AcceptanceGate.cs:62-77), so an overridden order is blocked:false with a
+  //    non-empty blockers list. Reading the raw flag would refuse a send the server
+  //    allows, which is the same untruth in the opposite direction.
   //
   //    commitVersion is IN THE KEY (not an invalidate) so a fix re-evaluates the
-  //    gate, and `placeholderData` keeps the previous blockers on screen while it
+  //    gate, and `placeholderData` keeps the previous decision on screen while it
   //    refetches — a momentary empty result must never flash a green Send.
   const acceptanceQuery = useQuery({
-    queryKey: ["order-acceptance-validation", orderId, resolve.commitVersion],
-    queryFn: () => getFieldValidation(orderId),
+    queryKey: ["order-acceptance-gate", orderId, resolve.commitVersion],
+    queryFn: () => getAcceptanceGate(orderId),
     enabled: queryEnabled,
     placeholderData: (prev) => prev,
     staleTime: 10_000,
     retry: 1,
   });
+  // Not-yet-answered and could-not-answer both mean "we do not know whether this
+  // order can be sent", and the server REFUSES to transform when it cannot evaluate
+  // the gate (acceptance_gate_unavailable). So both must gate the send — a green
+  // Send here is a guaranteed 4xx.
+  //
+  // Read the query's STATUS, never `data === undefined`: with placeholderData a
+  // refetch keeps the previous decision and stays settled, which is exactly the
+  // state that must NOT read as unknown. `enabled:false` (signed-out) also parks
+  // status at pending, but the loading gate below owns that window and renders no
+  // send surface behind it.
+  const gateUnknown =
+    queryEnabled && (acceptanceQuery.isError || acceptanceQuery.isPending);
   const acceptanceBlockers = useMemo(
-    () => acceptanceIssues(acceptanceQuery.data, labels.counterpartyNoun),
-    [acceptanceQuery.data, labels.counterpartyNoun],
+    () => acceptanceIssues(acceptanceQuery.data, labels.counterpartyNoun, { unavailable: gateUnknown }),
+    [acceptanceQuery.data, labels.counterpartyNoun, gateUnknown],
   );
 
   const validation = useAcceptanceValidation(orderId, {
@@ -212,10 +226,11 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
     // Wire (not delete): validate() has no caller anywhere in src/, so this hook's
     // result was permanently null and the confirm dialog always claimed zero
     // failing rules. Seeding it from the live server answer makes that dialog
-    // truthful without adding a POST on page load. Blocking rows already make
-    // canSend false (the dialog cannot open), so what actually reaches the
-    // acknowledgement is the ADVISORY failures — exactly its purpose.
-    serverFailingCount: failingAcceptanceRows(acceptanceQuery.data).length,
+    // truthful without adding a POST on page load. A BLOCKED gate already makes
+    // canSend false (the dialog cannot open), so the only orders that ever read
+    // this are ones an operator has overridden — exactly the "the supplier may
+    // still refuse, but say so deliberately" case the acknowledgement exists for.
+    serverFailingCount: failingAcceptanceCount(acceptanceQuery.data),
     serverRevalidating: acceptanceQuery.isFetching,
   });
   const { validationResult, failingRuleCount } = validation;
