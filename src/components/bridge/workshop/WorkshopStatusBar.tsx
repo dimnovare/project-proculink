@@ -65,6 +65,9 @@ export function WorkshopStatusBar({
   resolving = false,
   mapper,
   pipeline,
+  onSaveMappings,
+  savingMappings = false,
+  saveMappingsDisabledReason = null,
 }: {
   blockers: BlockerChip[];
   /** Warning-level (non-blocking) issue count — shown as a quiet optional note. */
@@ -83,6 +86,23 @@ export function WorkshopStatusBar({
   mapper: MapperToolbarState | null;
   /** The pipeline stepper — rendered at the white segment's right end (xl+). */
   pipeline?: ReactNode;
+  /**
+   * WP-13 — save this order's field mapping onto the counterparty, so their next
+   * order starts already mapped. Absent → no control renders at all, which is what
+   * keeps every other host of this bar unchanged.
+   *
+   * The mapper has its own "Save mappings" button, but it lives inside the
+   * `!hideToolbar` block and the workshop passes `hideToolbar` — so in the
+   * workshop this bar is the only place the control can appear.
+   */
+  onSaveMappings?: () => void;
+  /** True while that request is in flight → the control shows progress and locks. */
+  savingMappings?: boolean;
+  /**
+   * Non-null disables the control and becomes its tooltip. A plain sentence, not a
+   * code: the operator must be able to read why it is off without guessing.
+   */
+  saveMappingsDisabledReason?: string | null;
 }) {
   const chips = useMemo(() => dedupeBlockerChips(blockers), [blockers]);
   const allMapped = mapper != null && mapper.total > 0 && mapper.mapped >= mapper.total;
@@ -205,6 +225,32 @@ export function WorkshopStatusBar({
 
         <span style={{ marginLeft: "auto" }} aria-hidden />
         {pipeline && <span className="hidden xl:inline-flex">{pipeline}</span>}
+
+        {/* ── Save mappings (WP-13) ─────────────────────────────────────────
+            Quiet secondary chip, deliberately NOT the violet the mapper's own
+            copy of this button uses: violet is reserved for AI-generated
+            content, and promoting a mapping is the operator's own decision. */}
+        {onSaveMappings && (
+          <button
+            type="button"
+            data-testid="save-mappings"
+            onClick={onSaveMappings}
+            disabled={savingMappings || saveMappingsDisabledReason != null}
+            title={
+              saveMappingsDisabledReason ??
+              "Save these field mappings onto this order's counterparty — their next order starts already mapped"
+            }
+            style={{
+              height: 27, padding: "0 11px", borderRadius: 8, fontSize: 11.5, fontWeight: 700,
+              border: "1px solid #E5E8EE", background: "#FFFFFF", color: "#0B1A2F",
+              display: "inline-flex", alignItems: "center", gap: 6, whiteSpace: "nowrap", flexShrink: 0,
+              cursor: savingMappings ? "wait" : saveMappingsDisabledReason != null ? "not-allowed" : "pointer",
+              opacity: saveMappingsDisabledReason != null ? 0.55 : 1,
+            }}
+          >
+            {savingMappings ? "Saving…" : "Save mappings"}
+          </button>
+        )}
 
         {/* ── ⋯ overflow — the four relocated mapper tools (+ Review issues). ── */}
         <DropdownMenu>

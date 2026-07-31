@@ -24,9 +24,10 @@
 import { useCallback, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
-import { apiClient, getMappingOverride, previewMappingOverride } from "@/lib/api-client";
+import { apiClient, getMappingOverride, previewMappingOverride, promoteMapping } from "@/lib/api-client";
 import { useQueriesEnabled } from "@/hooks/useQueriesEnabled";
 import { useOrderDirection } from "@/hooks/useOrderDirection";
+import { isPlanGateError, planGateMessage } from "@/lib/planGate";
 import type { OrderMappingOverride } from "@/lib/api/types";
 import type { CalibrationSummary } from "@/types/procurement";
 import { MapperWorkbench, type MapperWorkbenchLayout, type MapperToolbarState } from "../mapper/MapperWorkbench";
@@ -296,6 +297,64 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
       },
     };
   }, [mapperToolbar]);
+
+  // ── Save mappings → promote this order's mapping onto the counterparty ──────
+  //    WP-13. The engine has carried a designed output tree from an order to its
+  //    counterparty since WP-12, but `promoteMapping()` had ZERO call sites and no
+  //    mount passed `onSaveMappings`, so nothing could reach it — and
+  //    /help/output-mapping-editor documented a control that did not render.
+  //
+  //    Plain useState rather than useMutation, matching the shipped save in
+  //    MappingEditor: this is a one-shot command with no cache entry of its own,
+  //    and the workshop's other server reads stay on TanStack Query.
+  const [promoting, setPromoting] = useState(false);
+  const [promoteNotice, setPromoteNotice] =
+    useState<{ tone: "success" | "info" | "error"; text: string } | null>(null);
+
+  // Read-only for promotion: with no counterparty on the order there is nowhere to
+  // save the mapping TO, so the request could only 404. Named as a sentence because
+  // it is shown to the operator verbatim.
+  const promoteDisabledReason = !order?.supplierId
+    ? `Assign a ${labels.counterpartyNoun.toLowerCase()} first — there is nowhere to save this mapping yet.`
+    : null;
+
+  const onSaveMappings = useCallback(async () => {
+    if (promoteDisabledReason) return;
+    setPromoting(true);
+    setPromoteNotice(null);
+    try {
+      const res = await promoteMapping(orderId);
+      const party = order?.supplierName ?? labels.counterpartyNoun.toLowerCase();
+      const total =
+        res.totalFieldsPromoted ??
+        (res.headerFieldsPromoted ?? 0) +
+          (res.lineFieldsPromoted ?? 0) +
+          (res.outputHeaderFieldsPromoted ?? 0) +
+          (res.outputLineFieldsPromoted ?? 0);
+      const nothing = res.nothingToPromote === true || total === 0;
+      setPromoteNotice({
+        tone: nothing ? "info" : "success",
+        // The server's own sentence when it sent one — it knows exactly what it
+        // wrote. The fallback still names counts and the party rather than a bare
+        // "Saved", so the operator never has to guess what changed.
+        text:
+          res.message ??
+          (nothing
+            ? `Nothing new to save for ${party} — their mapping already covers this order.`
+            : `Saved ${res.headerFieldsPromoted} header and ${res.lineFieldsPromoted} line ` +
+              `${res.lineFieldsPromoted === 1 ? "mapping" : "mappings"} for ${party}. ` +
+              `Their next order starts with these already applied.`),
+      });
+    } catch (e) {
+      const raw = e instanceof Error ? e.message : String(e);
+      setPromoteNotice({
+        tone: "error",
+        text: isPlanGateError(raw) ? planGateMessage(raw) : raw,
+      });
+    } finally {
+      setPromoting(false);
+    }
+  }, [orderId, order?.supplierName, labels.counterpartyNoun, promoteDisabledReason]);
 
   // ── Order details drawer (audit / standards / supplier response) ────────────
   //    Secondary, lower-frequency trust surfaces relocated from the old screen's
@@ -759,6 +818,38 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
         </div>
       )}
 
+      {/* ── Save-mappings result (WP-13) ──────────────────────────────────────
+          Its OWN row rather than the flow notice above: promoting a mapping and
+          sending an order are different acts, and a promote result rendered in
+          the send bar would read as a send result. */}
+      {promoteNotice && (
+        <div
+          data-testid="promote-notice"
+          data-tone={promoteNotice.tone}
+          role="status"
+          aria-live="polite"
+          className="flex-shrink-0 px-4 lg:px-6"
+          style={{
+            padding: "8px 16px",
+            background: promoteNotice.tone === "error" ? "#FBE3E3" : promoteNotice.tone === "success" ? "#E9F1EA" : "#EFF4FB",
+            color: promoteNotice.tone === "error" ? "#B43838" : promoteNotice.tone === "success" ? "#1E6D29" : "#0F4FAB",
+            fontSize: 12.5, fontWeight: 600,
+            borderBottom: "1px solid #EEF0F4",
+            display: "flex", alignItems: "center", gap: 10,
+          }}
+        >
+          <span style={{ flex: 1, minWidth: 0 }}>{promoteNotice.text}</span>
+          <button
+            type="button"
+            onClick={() => setPromoteNotice(null)}
+            aria-label="Dismiss"
+            style={{ border: 0, background: "transparent", color: "inherit", cursor: "pointer", fontSize: 14, lineHeight: 1, flexShrink: 0 }}
+          >
+            ×
+          </button>
+        </div>
+      )}
+
       {/* ── Row 2 · ONE consolidated status bar (~42px). Replaces the old red
           SendReadinessStrip AND the mapper's "MAP THIS ORDER" toolbar row — the
           mapper is passed hideToolbar and publishes its handlers via
@@ -776,6 +867,9 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
           resolving={issuesResolve.bulkAccepting}
           mapper={statusBarMapper}
           pipeline={<WorkshopStepper stage={stepperStage} failed={stepperFailed} />}
+          onSaveMappings={onSaveMappings}
+          savingMappings={promoting}
+          saveMappingsDisabledReason={promoteDisabledReason}
         />
       </div>
 
