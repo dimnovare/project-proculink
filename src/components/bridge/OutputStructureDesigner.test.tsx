@@ -209,3 +209,53 @@ describe("OutputStructureDesigner — guarded close (unsaved-edit footgun)", () 
     expect(onClose).not.toHaveBeenCalled();
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// WP-15 · S1 — the designer must not destroy rule fields it does not name.
+//
+// The pure writers are pinned in outputRuleModel.test.ts. THIS file pins that the
+// designer actually CALLS them: a model with the right behaviour and no caller is
+// the exact shape of the defect WP-13 existed to fix, and a mutation that reverted
+// this component to its inline five-key literal left the model's own tests green.
+// ─────────────────────────────────────────────────────────────────────────────
+describe("OutputStructureDesigner — an authored Expression survives an edit", () => {
+  /** A node bound by canonical field, carrying BOTH an expression and a format preset. */
+  function treeWithExpression(): OutputNodeTemplate {
+    return {
+      format: "xml",
+      root: { name: "Order", nodeType: "object", children: [
+        { name: "Total", nodeType: "field", rule: {
+          outputPath: "Total",
+          canonicalField: "GrandTotal",
+          fixedValue: null,
+          expression: "line.Quantity * line.UnitPrice",
+          // Matches FORMAT_PRESETS "num-us", so the format pill renders and is clickable.
+          fieldManipulators: [{ type: "NumberFormat", params: ["N2"] }],
+        } },
+      ] },
+    };
+  }
+
+  it("changing the value format keeps the expression the template editor wrote", () => {
+    renderDesigner(treeWithExpression());
+
+    fireEvent.click(screen.getByTitle("Click to change formatting"));
+    fireEvent.change(screen.getByLabelText("Value format"), { target: { value: "date-eu" } });
+    fireEvent.click(screen.getByRole("button", { name: /Save structure/i }));
+
+    const total = savedTree().root.children!.find((c: OutputNode) => c.name === "Total")!;
+    expect(total.rule!.expression).toBe("line.Quantity * line.UnitPrice");
+    expect(total.rule!.fieldManipulators).toEqual([{ type: "DateFormat", params: ["yyyy-MM-dd", "dd/MM/yyyy"] }]);
+  });
+
+  it("clearing the value format keeps it too", () => {
+    renderDesigner(treeWithExpression());
+
+    fireEvent.click(screen.getByRole("button", { name: /Remove formatting/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Save structure/i }));
+
+    const total = savedTree().root.children!.find((c: OutputNode) => c.name === "Total")!;
+    expect(total.rule!.expression).toBe("line.Quantity * line.UnitPrice");
+    expect(total.rule!.fieldManipulators).toEqual([]);
+  });
+});
