@@ -32,6 +32,11 @@ import { confidenceTone } from "../mapper/ConfidenceChip";
 
 const T = {
   amber:     "#B36D14",
+  // --amber is a DOT/BORDER/STROKE colour. On --amber-soft it is 3.65:1, below the
+  // 4.5:1 AA floor for 13px/700 (large text = ≥18.66px bold, which this is not), so
+  // amber TEXT uses --amber-text: 5.62:1 on the same background. This is what the
+  // .pill-* CSS layer already does; the inline-styled banners were the offenders.
+  amberText: "#8A5310",
   amberSoft: "#FAF1DD",
   amberLine: "#EBD7AE",
   navy:      "#0B1A2F",
@@ -143,7 +148,7 @@ export function AssignSupplierBanner({ order }: { order: Order }) {
             <path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z" strokeLinejoin="round" />
           </svg>
           <div className="min-w-0">
-            <p className="text-[13px] font-bold" style={{ color: T.amber, margin: 0 }}>
+            <p className="text-[13px] font-bold" style={{ color: T.amberText, margin: 0 }}>
               This order needs a {counterparty}
             </p>
             <p className="text-[12.5px]" style={{ color: T.inkMuted, margin: "3px 0 0", lineHeight: 1.5 }}>

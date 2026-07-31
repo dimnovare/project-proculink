@@ -4,22 +4,28 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ConfirmProvider } from "@/components/ui/confirm";
 import type { OrderSummary } from "@/types/procurement";
 
-// Inbox bulk "Send selected" — the duplicate guard for parked rows.
+// Inbox bulk "Send selected" — the parked-row loophole, now closed at the source.
 //
-// `delivery_unconfirmed` IS redeliverable (the park exists so a HUMAN can accept the
-// duplicate risk), so parked rows are selectable and sweep into "Send selected" like
-// any other sendable row — including via the header select-all. On the channels the
-// park exists for (ERP connections, email) nothing de-duplicates, so one click on a
-// select-all could hand N suppliers a second copy of a PO they may already have.
+// HISTORY, because it explains why these tests inverted. `delivery_unconfirmed` IS
+// redeliverable (the park exists so a HUMAN can accept the duplicate risk), so parked
+// rows used to be selectable and swept into "Send selected" like any other sendable
+// row — including via the header select-all. On the channels the park exists for (ERP
+// connections, email) nothing de-duplicates, so one click could hand N suppliers a
+// second copy of a PO they may already have. The first fix was a confirm dialog in
+// front of the bulk send, which is what this file originally pinned.
 //
-// The workshop panel (DeliveryUnconfirmedPanel) already gates the IDENTICAL
-// redeliverOrder call on the IDENTICAL status behind a confirm. The bulk path must not
-// be a loophole around that single-order guard — these tests are what stop it becoming
-// one again.
+// WP-24 replaced that with the real fix: a parked row is NOT bulk-selectable at all
+// (isBulkSelectable = the backend's ClaimableForRetryFrom = {ready_to_deliver,
+// delivery_failed}). A boolean dialog cannot answer the question that decides this
+// case — "did the supplier actually receive it?" — so the decision moved to the
+// per-order resolver on the order screen, which asks exactly that.
 //
-// The real ConfirmProvider is wrapped here (as in deliveryUnconfirmed.test.tsx) rather
-// than mocking useConfirm: a mocked confirm would prove nothing about the shared dialog
-// actually appearing, and "the dialog appears before the request" is the whole claim.
+// What remains here: the unselectable-row contract, the honest tooltips, and the
+// duplicate confirm on its ONE still-reachable path — a selection that outlived the
+// page it was made on, whose statuses we can no longer prove.
+//
+// The real ConfirmProvider is wrapped here rather than mocking useConfirm: a mocked
+// confirm would prove nothing about the shared dialog actually appearing.
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
@@ -65,6 +71,7 @@ vi.mock("@/hooks/useOrderDirection", () => ({
 }));
 
 import { InboxView } from "./InboxView";
+import { bulkSendConfirmCopy, bulkSendNeedsDuplicateConfirm, isBulkSelectable } from "./inboxSend";
 
 afterEach(() => {
   cleanup();
@@ -124,59 +131,43 @@ function sendSelected() {
   fireEvent.click(screen.getByRole("button", { name: "Send selected" }));
 }
 
-describe("bulk Send selected — a parked row in the selection confirms first", () => {
-  it("select-all + Send selected shows the duplicate warning and sends NOTHING yet", async () => {
+describe("bulk Send selected — a parked row can no longer be swept in at all", () => {
+  it("leaves the parked row unselectable while its neighbours stay selectable", async () => {
     await renderInbox([PARKED(), READY(), FAILED()]);
+
+    // Two selectable rows (ready + failed), and the parked one disabled with a reason
+    // the operator can actually read — not a silent absence.
+    const parkedBoxes = screen.getAllByLabelText("Delivery unknown — open the order to resolve it safely");
+    expect(parkedBoxes.length).toBeGreaterThan(0);
+    for (const box of parkedBoxes) expect(box).toBeDisabled();
+
     selectAll();
     sendSelected();
 
-    // The dialog states the risk BEFORE any request goes out — this is the bug:
-    // previously all three were already dispatched by now, with no warning at all.
-    expect(await screen.findByText("Send 3 orders again?")).toBeInTheDocument();
-    expect(
-      screen.getByText("If the supplier already received them, sending again may give them duplicates."),
-    ).toBeInTheDocument();
-    expect(api.redeliverOrder).not.toHaveBeenCalled();
-  });
-
-  it("Cancel sends NOTHING — not even the non-parked rows in the same selection", async () => {
-    await renderInbox([PARKED(), READY(), FAILED()]);
-    selectAll();
-    sendSelected();
-    expect(await screen.findByText("Send 3 orders again?")).toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
-
-    await waitFor(() =>
-      expect(screen.queryByText("Send 3 orders again?")).not.toBeInTheDocument(),
-    );
-    expect(api.redeliverOrder).not.toHaveBeenCalled();
-  });
-
-  it("confirming sends every selected order, parked one included", async () => {
-    await renderInbox([PARKED(), READY(), FAILED()]);
-    selectAll();
-    sendSelected();
-    expect(await screen.findByText("Send 3 orders again?")).toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole("button", { name: "Send again" }));
-
-    await waitFor(() => expect(api.redeliverOrder).toHaveBeenCalledTimes(3));
-    expect(api.redeliverOrder).toHaveBeenCalledWith("ord-parked");
+    // No dialog: nothing in the selection carries duplicate risk any more.
+    await waitFor(() => expect(api.redeliverOrder).toHaveBeenCalledTimes(2));
     expect(api.redeliverOrder).toHaveBeenCalledWith("ord-ready");
     expect(api.redeliverOrder).toHaveBeenCalledWith("ord-failed");
+    expect(api.redeliverOrder).not.toHaveBeenCalledWith("ord-parked");
   });
 
-  it("a single parked order mirrors the workshop panel's pinned wording", async () => {
+  it("a view of only parked rows offers no select-all to mis-click", async () => {
     await renderInbox([PARKED()]);
-    selectAll();
-    sendSelected();
-
-    expect(await screen.findByText("Send this order again?")).toBeInTheDocument();
-    expect(
-      screen.getByText("If the supplier already received this order, sending again may give them a duplicate."),
-    ).toBeInTheDocument();
+    expect(screen.queryByLabelText("Select all sendable orders")).not.toBeInTheDocument();
+    expect(screen.getByLabelText("No sendable orders on this view")).toBeDisabled();
     expect(api.redeliverOrder).not.toHaveBeenCalled();
+  });
+
+  it("the select-all tooltip describes exactly the set it selects", async () => {
+    await renderInbox([PARKED(), READY(), FAILED()]);
+    const selectAllBox = screen.getByLabelText("Select all sendable orders");
+    // The operator cannot judge a select-all whose contents they can't see. It used
+    // to name only "Ready to send or Failed delivery" while quietly sweeping in
+    // parked rows; now the sentence and the set are the same thing.
+    expect(selectAllBox).toHaveAttribute(
+      "title",
+      "Selects orders that are ready to send or had a delivery failure.",
+    );
   });
 });
 
@@ -193,16 +184,28 @@ describe("bulk Send selected — a selection with no parked row is unchanged", (
   });
 });
 
-describe("bulk Send selected — parked rows are visible in the selection", () => {
-  it("the select-all tooltip names Delivery unknown alongside the other sendable statuses", async () => {
-    await renderInbox([PARKED(), READY(), FAILED()]);
-    const selectAllBox = screen.getByLabelText("Select all sendable orders");
-    // The operator cannot judge a select-all they can't see the contents of: the
-    // tooltip used to name only "Ready to send or Failed delivery" while quietly
-    // sweeping in parked rows too.
-    expect(selectAllBox).toHaveAttribute(
-      "title",
-      expect.stringContaining("Delivery unknown"),
+describe("bulk Send selected — the duplicate confirm still guards the one open path", () => {
+  it("an id whose status we can no longer prove still confirms first", () => {
+    // Paging does not clear the selection, so a row selected on page 1 stays selected
+    // while page 2 is loaded and its status is out of hand. We cannot prove such a row
+    // isn't parked — an unnecessary dialog costs a click, a missed one costs the
+    // supplier a duplicate order.
+    expect(bulkSendNeedsDuplicateConfirm(["ord-off-page"], new Map())).toBe(true);
+    expect(
+      bulkSendNeedsDuplicateConfirm(["ord-ready"], new Map([["ord-ready", "ready_to_deliver"]])),
+    ).toBe(false);
+  });
+
+  it("and its copy still mirrors the order screen's pinned wording", () => {
+    expect(bulkSendConfirmCopy(1).description).toBe(
+      "If the supplier already received this order, sending again may give them a duplicate.",
     );
+    expect(bulkSendConfirmCopy(3).title).toBe("Send 3 orders again?");
+  });
+
+  it("the selectable set is exactly the backend's retry-claimable set", () => {
+    expect(isBulkSelectable("ready_to_deliver")).toBe(true);
+    expect(isBulkSelectable("delivery_failed")).toBe(true);
+    expect(isBulkSelectable("delivery_unconfirmed")).toBe(false);
   });
 });

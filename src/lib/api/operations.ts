@@ -53,6 +53,15 @@ export interface OpsHealth {
    * (PR #27); treat undefined as 0.
    */
   deliveryUnconfirmed?: number;
+  /**
+   * Orders in `unrouted` — extracted, but no supplier resolved yet, so nothing can
+   * be mapped or sent. The backend has returned this as `PendingRouting` all along
+   * (OpsHealthDto); this interface simply omitted it, which is why the one problem
+   * state with a 100% self-serve fix had no tile on the operator's problem
+   * dashboard. Optional for the same forward/backward-compat reason as the two
+   * fields above — treat undefined as 0.
+   */
+  pendingRouting?: number;
   stuckThresholdMinutes: number;
   totalProblemOrders: number;
   workerHealthy: boolean;

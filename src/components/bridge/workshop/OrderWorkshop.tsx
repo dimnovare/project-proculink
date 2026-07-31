@@ -31,10 +31,8 @@ import type { OrderMappingOverride } from "@/lib/api/types";
 import type { CalibrationSummary } from "@/types/procurement";
 import { MapperWorkbench, type MapperWorkbenchLayout, type MapperToolbarState } from "../mapper/MapperWorkbench";
 import { UnifiedStatusBadge } from "../UnifiedStatusBadge";
-import { FailedPanel, ParseFailedPanel } from "../FailedPanels";
-import { AssignSupplierBanner } from "./AssignSupplierBanner";
-import { BillingHeldPanel } from "./BillingHeldPanel";
-import { DeliveryUnconfirmedPanel } from "./DeliveryUnconfirmedPanel";
+import { OrderProblemPanel } from "../problem/OrderProblemPanel";
+import { problemFor } from "../problem/problemCopy";
 import { ConfirmDialog } from "../review/ConfirmDialog";
 import { buildFixQueue, type FixQueueCard } from "../review/buildFixQueue";
 import { orderGrandTotalLabel, outputArtifactType, buyerLabel, orderDeliveryFormat } from "../review/orderDisplay";
@@ -138,8 +136,10 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
   // ── Live order + the same hooks the classic screen uses (ONE send path) ─────
   const { order, isLoading, isError, refetchOrder, exceptionCount, isStuck } = useOrderReview(orderId);
 
-  // ── Audit events — only fetched for a failed order, to seed the ParseFailedPanel
-  //    error copy. Ported from the legacy SpineReview (same query key + gate). ──
+  // ── Audit events — only fetched for a failed order, to seed the problem panel's
+  //    server-detail block when the order row itself carries no errorMessage (the
+  //    parser writes the reason into the ParseFailed audit payload). Ported from
+  //    the legacy SpineReview (same query key + gate). ──────────────────────────
   const { data: auditEvents = [] } = useQuery({
     queryKey: ["order-audit", orderId],
     queryFn: () => apiClient.getOrderAudit(orderId),
@@ -147,6 +147,8 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
     retry: 1,
     staleTime: 60_000,
   });
+  const parseErrorFromAudit =
+    (auditEvents.find((e) => e.action === "ParseFailed")?.payload?.["error"] as string | undefined) ?? null;
 
   const {
     flowNotice, flowSeverity, setFlow,
@@ -434,9 +436,18 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
     requestAnimationFrame(() => requestAnimationFrame(scroll));
   }, [issues, onFocusField]);
 
-  // ── Send gate: zero issues AND server-truth exceptionCount clear. ───────────
+  // ── Send gate: zero issues AND server-truth exceptionCount clear AND the order
+  //    is not in one of the eight problem states.
+  //
+  //    That last clause is ONE derived boolean instead of eight conditionals, and
+  //    it is the fix for two shipped defects at once: a dead-lettered order and a
+  //    supplier-rejected order both fell through every gate to this mapper and
+  //    rendered a live green Send whose handler calls POST /redeliver — an
+  //    endpoint whose guard set contains neither status, so the click could only
+  //    ever 400. While a problem is live the panel owns the only action on screen.
+  const problem = problemFor(order?.status);
   const blockingIssues = issues.filter((i) => i.severity === "blocking").length;
-  const canSend = !crossed && sendState === "idle" && blockingIssues === 0 && exceptionCount === 0;
+  const canSend = !problem && !crossed && sendState === "idle" && blockingIssues === 0 && exceptionCount === 0;
   const sendReady = blockingIssues === 0 && exceptionCount === 0;
 
   // ── v3 chrome derivations (pipeline stepper + send-readiness strip) ──────────
@@ -504,50 +515,27 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
     );
   }
 
-  // ── Failure gates — render before the main mapper so a failed order shows the
-  //    honest recovery panel (parse / transform / delivery) instead of falling
-  //    through to the normal mapper. Ported from the legacy SpineReview; reuses
-  //    the KEPT FailedPanels.tsx. All hooks above have already run. ────────────
-  if (order.status === "failed") {
+  // ── The ONE problem gate. Every problem state renders <OrderProblemPanel>; the
+  //    panel's own PROBLEM_COPY decides whether that is a full-page gate or a
+  //    banner over the live workshop, and only `failed` is a gate.
+  //
+  //    Why the other seven stopped gating: parsing produced nothing for `failed`,
+  //    so there is genuinely nothing underneath to read. For every other state the
+  //    extracted order, its item codes and (where it exists) the generated output
+  //    are real, and they are the evidence the operator needs to act. Hiding them
+  //    is what left transform_failed with a primary CTA that linked to
+  //    /inbox/{id} — the page it had already replaced — so the only way out of a
+  //    recoverable failure was the back chip. Rendering the workshop underneath is
+  //    safe because `canSend` above is false for all eight statuses.
+  //
+  //    The parse error can live in the ParseFailed audit payload when the order
+  //    row carries no errorMessage, so that fallback is passed through.
+  if (problem?.presentation === "gate") {
     return (
       <WorkshopGateShell poNumber={order.poNumber} status={order.status}>
-        <ParseFailedPanel order={order} auditEvents={auditEvents} />
-      </WorkshopGateShell>
-    );
-  }
-  if (order.status === "transform_failed") {
-    return (
-      <WorkshopGateShell poNumber={order.poNumber} status={order.status}>
-        <FailedPanel order={order} stage="transform" />
-      </WorkshopGateShell>
-    );
-  }
-  if (order.status === "delivery_failed") {
-    return (
-      <WorkshopGateShell poNumber={order.poNumber} status={order.status}>
-        <FailedPanel order={order} stage="delivery" />
-      </WorkshopGateShell>
-    );
-  }
-  // Not a failure gate — a PAUSE gate, kept in this chain because it has the same
-  // job: stop a status that the normal mapper would misrepresent. A held order
-  // would otherwise render a live Send button that answers 400 (delivery_held is
-  // not in the backend's RedeliverableFrom), with billing never mentioned.
-  if (order.status === "delivery_held") {
-    return (
-      <WorkshopGateShell poNumber={order.poNumber} status={order.status}>
-        <BillingHeldPanel order={order} />
-      </WorkshopGateShell>
-    );
-  }
-  // Also a PAUSE gate, same reasoning as delivery_held directly above — but the
-  // resolution differs: a crash lost the outcome (not billing), so there is no
-  // single global fix to link to. The panel offers the two per-order actions
-  // (send again / mark delivered) instead of one "go fix this" link.
-  if (order.status === "delivery_unconfirmed") {
-    return (
-      <WorkshopGateShell poNumber={order.poNumber} status={order.status}>
-        <DeliveryUnconfirmedPanel order={order} />
+        <div style={{ padding: "0 24px 32px" }}>
+          <OrderProblemPanel order={order} mode="gate" detailFallback={parseErrorFromAudit} />
+        </div>
       </WorkshopGateShell>
     );
   }
@@ -600,14 +588,10 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
           </span>
           <UnifiedStatusBadge size="md" status={crossed ? "delivered" : exceptionCount > 0 ? "pending_review" : order.status} />
           <InvoiceBadge documentType={order.documentType} />
-          {order.status === "delivery_dead_letter" && (
-            <span
-              title="We tried delivering this several times automatically and it didn't go through. Open the order to resend it."
-              style={{ display: "inline-flex", alignItems: "center", padding: "3px 11px", borderRadius: 999, fontSize: 12, fontWeight: 600, background: "var(--danger-soft)", color: "var(--danger)", whiteSpace: "nowrap" }}
-            >
-              ⚠ Delivery didn&rsquo;t reach the supplier. Open the order and click &ldquo;Send again&rdquo; to retry.
-            </span>
-          )}
+          {/* The dead-letter header chip used to live here, instructing the operator
+              to "Open the order and click 'Send again' to retry" — a button that
+              answers 400 from this status. The problem panel below now carries the
+              real recovery (the ops requeue), so the chip has nothing left to say. */}
           {/* Buyer → supplier · total — inline on the same row (the old second line). */}
           <span className="flex items-center" style={{ minWidth: 0, fontSize: 12.5, columnGap: 7, overflow: "hidden" }}>
             <span title={buyerLabel(order)} style={{ fontWeight: 600, color: "#1E66C9", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: 270 }}>{buyerLabel(order)}</span>
@@ -666,7 +650,10 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
                 type="button"
                 onClick={() => canSend && setShowConfirm(true)}
                 disabled={!canSend}
-                aria-label={labels.primaryCta}
+                /* While a problem is live the control is disabled AND renamed to
+                   what the order actually needs, so a screen reader never reads
+                   "Send to supplier" on an order that cannot be sent. */
+                aria-label={problem ? problem.rowAction : labels.primaryCta}
                 style={{
                   height: 36, padding: "0 18px", borderRadius: 8, fontSize: 13, fontWeight: 700,
                   background: canSend ? "#297F34" : "#5A7660", color: "#FFFFFF",
@@ -711,7 +698,17 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
           would hide this banner exactly when it is needed. Deliberately NOT a gate
           in the chain above — the extracted header and lines underneath are the
           evidence the operator uses to answer "whose order is this?". ────────── */}
-      {order.status === "unrouted" && <AssignSupplierBanner order={order} />}
+      {/* ── The problem banner. Sits directly under the identity header, above the
+          three columns and above MobileTriage, for all seven non-gate problem
+          states (`unrouted` included — the panel delegates that one to the shipped
+          AssignSupplierBanner, which owns the picker and its 409 race). The
+          workshop renders read-only-for-sending underneath, so there is no control
+          left to misfire while this is on screen. ─────────────────────────────── */}
+      {problem && (
+        <div className="flex-shrink-0 px-4 lg:px-6" style={{ paddingTop: 10, paddingBottom: 4 }}>
+          <OrderProblemPanel order={order} />
+        </div>
+      )}
 
       {/* ── Practice-order banner — shown when ?sample=1 is in the URL. Mirrors the
           copy in OnboardingChecklist so the wording is consistent across all entry

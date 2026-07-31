@@ -29,13 +29,23 @@ const retryDelivery = vi.fn();
 const getOrderById = vi.fn();
 
 vi.mock("@/lib/api-client", () => ({
+  isApiMockMode: false,
   apiClient: {
     retryDelivery: (...args: unknown[]) => retryDelivery(...args),
     getOrderById: (...args: unknown[]) => getOrderById(...args),
+    getOrderPassport: vi.fn().mockResolvedValue(null),
   },
+  requeueDelivery: vi.fn(),
+  getOpsHealth: vi.fn().mockResolvedValue({ workerHealthy: true }),
 }));
 
-import { FailedPanel } from "./FailedPanels";
+vi.mock("@/hooks/useQueriesEnabled", () => ({ useQueriesEnabled: () => true }));
+
+// The panel under test moved: FailedPanel(stage="delivery") was retired into the
+// one OrderProblemPanel (WP-24), which reads its copy from PROBLEM_COPY and its
+// pending/claim-window behaviour from useProblemAction — a port of the very hook
+// this file was written to pin. The contract is unchanged; only the labels are.
+import { OrderProblemPanel } from "./problem/OrderProblemPanel";
 import type { Order } from "@/types/procurement";
 
 const FAILED_ORDER = {
@@ -53,7 +63,7 @@ function renderPanel(order: Order = FAILED_ORDER) {
     qc,
     ...render(
       <QueryClientProvider client={qc}>
-        <FailedPanel order={order} stage="delivery" />
+        <OrderProblemPanel order={order} />
       </QueryClientProvider>,
     ),
   };
@@ -74,19 +84,19 @@ describe("retry delivery — the 202 window is visible and honest", () => {
     getOrderById.mockResolvedValue({ ...FAILED_ORDER });
 
     renderPanel();
-    fireEvent.click(screen.getByRole("button", { name: /retry delivery/i }));
+    fireEvent.click(screen.getByRole("button", { name: /try sending now/i }));
 
     await waitFor(() => expect(retryDelivery).toHaveBeenCalledWith("ord-1"));
     // The whole bug: this is the moment the panel used to look untouched.
-    expect(await screen.findByRole("status")).toHaveTextContent(/retry queued/i);
-    expect(screen.getByRole("button", { name: /retry queued/i })).toBeDisabled();
+    expect(await screen.findByRole("status")).toHaveTextContent(/queued/i);
+    expect(screen.getByRole("button", { name: /queued/i })).toBeDisabled();
   });
 
   it("never claims the order is sending before the row says so", async () => {
     getOrderById.mockResolvedValue({ ...FAILED_ORDER });
 
     renderPanel();
-    fireEvent.click(screen.getByRole("button", { name: /retry delivery/i }));
+    fireEvent.click(screen.getByRole("button", { name: /try sending now/i }));
     await screen.findByRole("status");
 
     // The queued strip reports OUR REQUEST, not a server status. If these ever pass,
@@ -95,7 +105,7 @@ describe("retry delivery — the 202 window is visible and honest", () => {
     expect(screen.queryByText(/\bsending\b/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/\bdelivering\b/i)).not.toBeInTheDocument();
     // The failure header stays: the row IS still delivery_failed.
-    expect(screen.getByText(/delivery to supplier failed/i)).toBeInTheDocument();
+    expect(screen.getByText(/we couldn't reach this supplier/i)).toBeInTheDocument();
   });
 
   it("polls past the 202 and publishes the claim once the Worker takes the row", async () => {
@@ -105,7 +115,7 @@ describe("retry delivery — the 202 window is visible and honest", () => {
       .mockResolvedValue({ ...FAILED_ORDER, status: "delivering", errorMessage: null });
 
     const { qc } = renderPanel();
-    fireEvent.click(screen.getByRole("button", { name: /retry delivery/i }));
+    fireEvent.click(screen.getByRole("button", { name: /try sending now/i }));
 
     // The cache is what the workshop's delivery_failed gate reads: once it holds
     // `delivering`, the gate stops matching and this panel gives way to the send
@@ -128,10 +138,10 @@ describe("retry delivery — the 202 window is visible and honest", () => {
     getOrderById.mockResolvedValue({ ...FAILED_ORDER });
 
     renderPanel();
-    fireEvent.click(screen.getByRole("button", { name: /retry delivery/i }));
+    fireEvent.click(screen.getByRole("button", { name: /try sending now/i }));
     await screen.findByRole("status");
 
-    const btn = screen.getByRole("button", { name: /retry queued/i });
+    const btn = screen.getByRole("button", { name: /queued/i });
     expect(btn).toBeDisabled();
     fireEvent.click(btn);
     fireEvent.click(btn);
@@ -142,13 +152,13 @@ describe("retry delivery — the 202 window is visible and honest", () => {
     retryDelivery.mockRejectedValue(new Error("retry-delivery failed: Order is in dead-letter state."));
 
     renderPanel();
-    fireEvent.click(screen.getByRole("button", { name: /retry delivery/i }));
+    fireEvent.click(screen.getByRole("button", { name: /try sending now/i }));
 
     // No job was enqueued, so "queued" would be a lie in the other direction.
     expect(await screen.findByText(/dead-letter state/i)).toBeInTheDocument();
-    expect(screen.queryByText(/retry queued/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/queued/i)).not.toBeInTheDocument();
     // ...and the operator gets the button back.
-    await waitFor(() => expect(screen.getByRole("button", { name: /retry delivery/i })).toBeEnabled());
+    await waitFor(() => expect(screen.getByRole("button", { name: /try sending now/i })).toBeEnabled());
   });
 
   it("keeps the button disabled after the claim window elapses — the job is still queued", async () => {
@@ -162,17 +172,17 @@ describe("retry delivery — the 202 window is visible and honest", () => {
     try {
       getOrderById.mockResolvedValue({ ...FAILED_ORDER });
       renderPanel();
-      fireEvent.click(screen.getByRole("button", { name: /retry delivery/i }));
+      fireEvent.click(screen.getByRole("button", { name: /try sending now/i }));
 
       // Drive past CLAIM_WINDOW_MS (30s) with the row never leaving delivery_failed.
       // Inside act(): the poll resolves and flips phase → "slow" on a timer, so the
       // re-render happens outside React's knowledge otherwise.
       await act(async () => { await vi.advanceTimersByTimeAsync(35_000); });
 
-      expect(screen.getByText(/queued but hasn't started yet/i)).toBeInTheDocument();
+      expect(screen.getByText(/waiting for it to start/i)).toBeInTheDocument();
       // Never reads as a failure, and never re-arms.
       expect(screen.queryByText(/retry again/i)).not.toBeInTheDocument();
-      const btn = screen.getByRole("button", { name: /retry queued/i });
+      const btn = screen.getByRole("button", { name: /queued/i });
       expect(btn).toBeDisabled();
       fireEvent.click(btn);
       expect(retryDelivery).toHaveBeenCalledTimes(1);
@@ -185,7 +195,7 @@ describe("retry delivery — the 202 window is visible and honest", () => {
     const configless = { ...FAILED_ORDER, errorMessage: "Supplier delivery config is missing. Add a delivery endpoint before sending this order." } as Order;
 
     renderPanel(configless);
-    const btn = screen.getByRole("button", { name: /retry delivery/i });
+    const btn = screen.getByRole("button", { name: /try sending now/i });
     expect(btn).toBeDisabled();
     fireEvent.click(btn);
     expect(retryDelivery).not.toHaveBeenCalled();

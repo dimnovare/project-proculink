@@ -27,15 +27,22 @@ const api = {
 };
 
 vi.mock("@/lib/api-client", () => ({
+  isApiMockMode: false,
   apiClient: {
     redeliverOrder: (...a: unknown[]) => api.redeliverOrder(...a),
     markDelivered: (...a: unknown[]) => api.markDelivered(...a),
+    getOrderById: vi.fn(),
+    getOrderPassport: vi.fn().mockResolvedValue(null),
   },
+  requeueDelivery: vi.fn(),
+  getOpsHealth: vi.fn().mockResolvedValue({ workerHealthy: true }),
 }));
+
+vi.mock("@/hooks/useQueriesEnabled", () => ({ useQueriesEnabled: () => true }));
 
 import { UnifiedStatusBadge, statusLabel, statusTone } from "./UnifiedStatusBadge";
 import { finalDeliveryMessage, DELIVERY_UNCONFIRMED_MESSAGE } from "./review/hooks/useOrderReview";
-import { DeliveryUnconfirmedPanel } from "./workshop/DeliveryUnconfirmedPanel";
+import { OrderProblemPanel } from "./problem/OrderProblemPanel";
 import { isRedeliverable } from "./inboxSend";
 import type { Order } from "@/types/procurement";
 import type { PartyLabels } from "@/hooks/useOrderDirection";
@@ -69,7 +76,7 @@ function renderPanel(order: Order = PARKED_ORDER) {
   render(
     <QueryClientProvider client={qc}>
       <ConfirmProvider>
-        <DeliveryUnconfirmedPanel order={order} />
+        <OrderProblemPanel order={order} />
       </ConfirmProvider>
     </QueryClientProvider>,
   );
@@ -115,76 +122,42 @@ describe("delivery_unconfirmed — it is redeliverable (unlike delivery_held)", 
   });
 });
 
-describe("delivery_unconfirmed — the workshop panel offers both actions", () => {
+describe("delivery_unconfirmed — the workshop panel explains the park", () => {
   it("explains the park using the shared message", () => {
     renderPanel();
     expect(screen.getByText("Delivery unknown")).toBeInTheDocument();
-    expect(screen.getByText(DELIVERY_UNCONFIRMED_MESSAGE)).toBeInTheDocument();
+    // The park sentence is the panel's BODY claim. The five-question layout says the
+    // rest (what happens automatically — deliberately nothing — and the cost of
+    // leaving it), so the assertion is the claim, not one exact sentence.
+    expect(screen.getByText(/may have sent this/i)).toBeInTheDocument();
+    expect(screen.getByText(/will not send this again by ourselves/i)).toBeInTheDocument();
   });
 
   it("prefers the backend's errorMessage over the shared fallback", () => {
     renderPanel({ ...PARKED_ORDER, errorMessage: "We sent this at 14:02 but lost the connection before Nordmark confirmed it." } as Order);
     expect(screen.getByText(/lost the connection before Nordmark confirmed/)).toBeInTheDocument();
-    expect(screen.queryByText(DELIVERY_UNCONFIRMED_MESSAGE)).not.toBeInTheDocument();
   });
 
-  it("shows BOTH actions — Send again and Mark as delivered", () => {
+  // ── The contract CHANGED here, on purpose (WP-24 §5) ───────────────────────
+  //
+  // This block used to assert "shows BOTH actions — Send again and Mark as
+  // delivered", i.e. two buttons that were each ONE click away from a POST behind a
+  // single confirm. That is precisely what the packet forbids: re-sending may hand
+  // the supplier a duplicate PO on a channel that de-duplicates nothing, and marking
+  // delivered may leave them without the order forever. The two resolutions are
+  // irreversible in OPPOSITE directions and only the supplier knows which is right.
+  //
+  // So the actions are now REVEALED by a stated fact ("what did the supplier say?"),
+  // one per answer, and the shipped confirm dialog remains the second gate. The full
+  // interaction — reveal, single action, confirm copy, answer switching, the recorded
+  // assertion — is pinned in problem/__tests__/unconfirmedFriction.test.tsx. What
+  // stays here is the negative that this file was written to guard.
+  it("offers NO one-click send or mark-delivered — the friction is a stated fact", () => {
     renderPanel();
-    expect(screen.getByRole("button", { name: "Send again" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Mark as delivered" })).toBeInTheDocument();
-  });
-
-  it("Send again requires confirmation with the spec-pinned duplicate-risk copy before calling redeliverOrder", async () => {
-    api.redeliverOrder.mockResolvedValue(undefined);
-    const { invalidateSpy } = renderPanel();
-
-    fireEvent.click(screen.getByRole("button", { name: "Send again" }));
-    // The confirm dialog states the risk BEFORE the call happens.
-    expect(screen.getByText("Send this order again?")).toBeInTheDocument();
-    expect(
-      screen.getByText("If the supplier already received this order, sending again may give them a duplicate."),
-    ).toBeInTheDocument();
-    expect(api.redeliverOrder).not.toHaveBeenCalled();
-
-    // Two "Send again" buttons now exist: the panel's original trigger (still
-    // mounted behind the dialog) and the dialog's own confirm button, rendered
-    // after it in document order — the confirm button is the LAST match.
-    const sendAgainButtons = screen.getAllByRole("button", { name: "Send again" });
-    fireEvent.click(sendAgainButtons[sendAgainButtons.length - 1]);
-
-    await waitFor(() => expect(api.redeliverOrder).toHaveBeenCalledWith("ord-parked-1"));
-    expect(api.markDelivered).not.toHaveBeenCalled();
-    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ["order", "ord-parked-1"] });
-    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ["orders"] });
-  });
-
-  it("Mark as delivered requires confirmation with the spec-pinned never-arrived copy before calling markDelivered", async () => {
-    api.markDelivered.mockResolvedValue(undefined);
-    const { invalidateSpy } = renderPanel();
-
-    fireEvent.click(screen.getByRole("button", { name: "Mark as delivered" }));
-    expect(screen.getByText("Mark this order as delivered?")).toBeInTheDocument();
-    expect(
-      screen.getByText("If the supplier never received this order, marking it delivered means it will not be sent."),
-    ).toBeInTheDocument();
-    expect(api.markDelivered).not.toHaveBeenCalled();
-
-    fireEvent.click(screen.getByRole("button", { name: "Mark delivered" }));
-
-    await waitFor(() => expect(api.markDelivered).toHaveBeenCalledWith("ord-parked-1"));
-    expect(api.redeliverOrder).not.toHaveBeenCalled();
-    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ["order", "ord-parked-1"] });
-    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ["orders"] });
-  });
-
-  it("Cancel dismisses the confirm dialog without calling either client method", () => {
-    renderPanel();
-    fireEvent.click(screen.getByRole("button", { name: "Send again" }));
-    expect(screen.getByText("Send this order again?")).toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
-
-    expect(screen.queryByText("Send this order again?")).not.toBeInTheDocument();
+    for (const b of screen.queryAllByRole("button")) {
+      expect(b.textContent ?? "").not.toMatch(/^\s*send again\s*$/i);
+      expect(b.textContent ?? "").not.toMatch(/^\s*mark as delivered\s*$/i);
+    }
     expect(api.redeliverOrder).not.toHaveBeenCalled();
     expect(api.markDelivered).not.toHaveBeenCalled();
   });

@@ -124,7 +124,10 @@ const STATUS_META: Record<string, StatusMeta> = {
   parse_failed: { label: "Parse failed", tone: "danger" },
   transform_failed: { label: "Transform failed", tone: "danger" },
   delivery_failed: { label: "Delivery failed", tone: "danger" },
-  delivery_dead_letter: { label: "Dead-lettered", tone: "danger" },
+  // "Dead-lettered" is engine vocabulary AND a banned word — it shipped on every
+  // inbox row. "Out of retries" is what it means, and it matches the health tile
+  // that already said it correctly.
+  delivery_dead_letter: { label: "Out of retries", tone: "danger" },
   rejected: { label: "Rejected", tone: "danger" },
   rejected_by_supplier: { label: "Rejected", tone: "danger" },
 

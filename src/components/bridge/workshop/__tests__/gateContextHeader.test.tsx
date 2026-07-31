@@ -1,9 +1,19 @@
 import { describe, test, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, cleanup, fireEvent } from "@testing-library/react";
-import type { Order, OrderValidationResult } from "@/types/procurement";
+import type { Order, OrderStatus, OrderValidationResult } from "@/types/procurement";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Gate context header (polish follow-up to the #24 chrome compression).
+//
+// WP-24 narrowed the gate set to ONE status. `failed` still replaces the page —
+// parsing produced no lines, no header and no output, so there is nothing
+// underneath to read. The other problem states (transform_failed,
+// delivery_failed, delivery_held, delivery_unconfirmed) now render a BANNER over
+// the live workshop, because the extracted order and its item codes are the
+// evidence the operator needs; hiding them is what left transform_failed with a
+// primary CTA pointing at the page it had already replaced. Their header contract
+// is therefore the healthy workshop's (back chip + PO title + badge), and the
+// cases below assert that instead of the gate shell.
 // BridgeTopbar suppresses its breadcrumb row on /inbox/[orderId] ROUTE-WIDE;
 // the compensating "← Inbox + PO number" header existed only in the healthy
 // workshop return. These tests pin that EVERY early-return gate state now
@@ -35,6 +45,7 @@ vi.mock("next/navigation", () => ({
 
 vi.mock("@tanstack/react-query", () => ({
   useQuery: () => ({ data: undefined }),
+  useQueryClient: () => ({ invalidateQueries: vi.fn(), setQueryData: vi.fn() }),
 }));
 
 vi.mock("@/hooks/useQueriesEnabled", () => ({ useQueriesEnabled: () => true }));
@@ -52,10 +63,19 @@ vi.mock("@/hooks/useOrderDirection", () => ({
 }));
 
 vi.mock("@/lib/api-client", () => ({
+  isApiMockMode: false,
   apiClient: {
     getAiCalibration: vi.fn().mockResolvedValue({ isActive: false, buckets: [] }),
     getOrderAudit: vi.fn().mockResolvedValue([]),
+    getOrderPassport: vi.fn().mockResolvedValue(null),
+    getOrderById: vi.fn(),
+    transformOrder: vi.fn(),
+    retryDelivery: vi.fn(),
+    redeliverOrder: vi.fn(),
+    markDelivered: vi.fn(),
   },
+  requeueDelivery: vi.fn(),
+  getOpsHealth: vi.fn(),
   getMappingOverride: vi.fn().mockResolvedValue(null),
   previewMappingOverride: vi.fn().mockResolvedValue(null),
 }));
@@ -112,17 +132,14 @@ vi.mock("../../mapper/MapperWorkbench", () => ({
   MapperWorkbench: () => <div data-testid="mock-mapper-workbench" />,
 }));
 
-// The gate panels themselves — stubbed; their own content has its own tests.
-vi.mock("../../FailedPanels", () => ({
-  ParseFailedPanel: () => <div data-testid="panel-parse-failed" />,
-  FailedPanel: ({ stage }: { stage: string }) => <div data-testid={`panel-${stage}-failed`} />,
+// The one problem panel — stubbed; its content has its own tests (problem/__tests__
+// and workshop/__tests__/recovery.test.tsx). The assertion here is the WRAPPING.
+vi.mock("../../problem/OrderProblemPanel", () => ({
+  OrderProblemPanel: ({ order, mode }: { order: { status: string }; mode?: string }) => (
+    <div data-testid={`panel-${order.status}`} data-mode={mode ?? "banner"} />
+  ),
 }));
-vi.mock("../BillingHeldPanel", () => ({
-  BillingHeldPanel: () => <div data-testid="panel-billing-held" />,
-}));
-vi.mock("../DeliveryUnconfirmedPanel", () => ({
-  DeliveryUnconfirmedPanel: () => <div data-testid="panel-delivery-unconfirmed" />,
-}));
+vi.mock("../MobileTriage", () => ({ MobileTriage: () => <div data-testid="mock-mobile-triage" /> }));
 
 import { OrderWorkshop } from "../OrderWorkshop";
 
@@ -163,46 +180,46 @@ function expectGateHeader(poTitle: string) {
 }
 
 describe("every workshop gate state renders the shared context header", () => {
-  test("parse-failed (status=failed): header + badge + panel", () => {
+  test("parse-failed (status=failed) is the ONE gate: header + badge + panel", () => {
     mockState.order = makeOrder({ status: "failed" });
     render(<OrderWorkshop orderId="ord-1" />);
     expectGateHeader("PO-1");
     expect(screen.getByText("Failed")).toBeTruthy();
-    expect(screen.getByTestId("panel-parse-failed")).toBeTruthy();
+    const panel = screen.getByTestId("panel-failed");
+    expect(panel.getAttribute("data-mode")).toBe("gate");
+    // Nothing parsed, so there is deliberately no mapper underneath.
+    expect(screen.queryByTestId("mock-mapper-workbench")).toBeNull();
   });
 
-  test("transform_failed: header + badge + panel", () => {
-    mockState.order = makeOrder({ status: "transform_failed" });
+  // `satisfies` rather than a bare literal: test.each widens tuple members to
+  // `string`, and makeOrder takes an OrderStatus. Without this the CI typecheck
+  // gate (#56) fails the PR — and the annotation also pins these four names as
+  // real statuses, so a rename in the union breaks here instead of silently
+  // testing a status that no longer exists.
+  test.each([
+    ["transform_failed", "Transform failed"],
+    ["delivery_failed", "Delivery failed"],
+    ["delivery_held", "Delivery paused"],
+    ["delivery_unconfirmed", "Delivery unknown"],
+  ] satisfies Array<[OrderStatus, string]>)("%s renders the panel as a BANNER over the live workshop", (status, badge) => {
+    mockState.order = makeOrder({ status });
     render(<OrderWorkshop orderId="ord-1" />);
-    expectGateHeader("PO-1");
-    expect(screen.getByText("Transform failed")).toBeTruthy();
-    expect(screen.getByTestId("panel-transform-failed")).toBeTruthy();
+    // The healthy header carries the same context the gate shell used to: the back
+    // chip, the PO number, and the status badge.
+    expect(screen.getByRole("button", { name: "Back to inbox" })).toBeTruthy();
+    expect(screen.getByText("PO-1")).toBeTruthy();
+    expect(screen.getByText(badge)).toBeTruthy();
+    const panel = screen.getByTestId(`panel-${status}`);
+    expect(panel.getAttribute("data-mode")).toBe("banner");
+    // The evidence stays on screen — that is the whole point of the banner.
+    expect(screen.getByTestId("mock-mapper-workbench")).toBeTruthy();
   });
 
-  test("delivery_failed: header + badge + panel", () => {
-    mockState.order = makeOrder({ status: "delivery_failed" });
-    render(<OrderWorkshop orderId="ord-1" />);
-    expectGateHeader("PO-1");
-    expect(screen.getByText("Delivery failed")).toBeTruthy();
-    expect(screen.getByTestId("panel-delivery-failed")).toBeTruthy();
-  });
-
-  test("delivery_held: header + badge + panel, and the chip navigates to /inbox", () => {
+  test("a banner state keeps the way back to the inbox", () => {
     mockState.order = makeOrder({ status: "delivery_held" });
     render(<OrderWorkshop orderId="ord-1" />);
-    expectGateHeader("PO-1");
-    expect(screen.getByText("Delivery paused")).toBeTruthy();
-    expect(screen.getByTestId("panel-billing-held")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Back to inbox" }));
     expect(mockState.routerPush).toHaveBeenCalledWith("/inbox");
-  });
-
-  test("delivery_unconfirmed: header + badge + panel", () => {
-    mockState.order = makeOrder({ status: "delivery_unconfirmed" });
-    render(<OrderWorkshop orderId="ord-1" />);
-    expectGateHeader("PO-1");
-    expect(screen.getByText("Delivery unknown")).toBeTruthy();
-    expect(screen.getByTestId("panel-delivery-unconfirmed")).toBeTruthy();
   });
 
   test("parsing: header + badge; the PO number appears ONCE (the old in-panel duplicate is gone)", () => {
