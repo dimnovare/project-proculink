@@ -718,15 +718,47 @@ if (WANT_NOUNS) {
     console.log("OK — every navigation label stays inside the approved vocabulary.\n");
   } else {
     failed = true;
-    console.error(`FAIL — ${offences.length} label(s) teach a word outside the vocabulary:\n`);
-    for (const o of offences) {
-      console.error(`  ${o.file}${o.block ? ` (${o.block})` : ""}  "${o.label}"  → ${o.bad.join(", ")}`);
+    // Two KINDS of offence, and they need different instructions. A parse failure means the
+    // gate could not READ a registry — renaming a label would not fix it, and telling the
+    // reader to do that sends them to the wrong file. Report them apart.
+    const PARSE_FAILURES = new Set([
+      "registry-moved",
+      "ambiguous-declaration",
+      "empty-registry",
+      "file-not-found",
+    ]);
+    const structural = offences.filter((o) => o.bad.some((b) => PARSE_FAILURES.has(b)));
+    const vocabulary = offences.filter((o) => !o.bad.some((b) => PARSE_FAILURES.has(b)));
+
+    const line = (o) =>
+      `  ${o.file}${o.block ? ` (${o.block})` : ""}  "${o.label}"  → ${o.bad.join(", ")}`;
+
+    if (structural.length) {
+      console.error(
+        `FAIL — ${structural.length} policed ${structural.length === 1 ? "registry" : "registries"} could not be read:\n`,
+      );
+      for (const o of structural) console.error(line(o));
+      console.error(
+        `\nThis is a PARSE failure, not a wording problem — the noun budget could not find\n` +
+          `the labels it is meant to police, so those labels went unchecked.\n` +
+          `  registry-moved        the declaration is gone or renamed. Update NOUN_REGISTRIES\n` +
+          `                        in this file, or restore the name.\n` +
+          `  ambiguous-declaration the name is declared more than once, so which one is policed\n` +
+          `                        is a coin flip. Rename one, or move the other out of the file.\n` +
+          `  empty-registry        the block parsed but yielded no labels. A rendered navigation\n` +
+          `                        surface always has at least one, so the parse is wrong.\n` +
+          `  file-not-found        the pinned path no longer exists.\n`,
+      );
     }
-    console.error(
-      `\nEither rename the label to the approved word (src/lib/vocabulary.ts), or —\n` +
-        `if the destination is being deleted/merged rather than renamed — add it to\n` +
-        `PENDING_IA_LABELS with the DESIGN-DB-1 row that retires it.\n`,
-    );
+    if (vocabulary.length) {
+      console.error(`FAIL — ${vocabulary.length} label(s) teach a word outside the vocabulary:\n`);
+      for (const o of vocabulary) console.error(line(o));
+      console.error(
+        `\nEither rename the label to the approved word (src/lib/vocabulary.ts), or —\n` +
+          `if the destination is being deleted/merged rather than renamed — add it to\n` +
+          `PENDING_IA_LABELS with the DESIGN-DB-1 row that retires it.\n`,
+      );
+    }
   }
 }
 

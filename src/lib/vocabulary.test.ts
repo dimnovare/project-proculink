@@ -446,7 +446,7 @@ describe("check-vocabulary.mjs — blockBody anchoring", () => {
     });
     const { code, out } = runGate(["--nouns"], root);
     expect(code).toBe(1);
-    expect(out).toContain("registry-moved");
+    expect(out).toMatch(/InboxView\.tsx.*→.*registry-moved/);
     expect(out).toContain("InboxView.tsx");
   });
 
@@ -461,7 +461,7 @@ describe("check-vocabulary.mjs — blockBody anchoring", () => {
     });
     const { code, out } = runGate(["--nouns"], root);
     expect(code).toBe(1);
-    expect(out).toContain("registry-moved");
+    expect(out).toMatch(/InboxView\.tsx.*→.*registry-moved/);
   });
 
   it("a COMMENT decoy does not hide a registry that was renamed away", () => {
@@ -475,7 +475,7 @@ describe("check-vocabulary.mjs — blockBody anchoring", () => {
     });
     const { code, out } = runGate(["--nouns"], root);
     expect(code).toBe(1);
-    expect(out).toContain("registry-moved");
+    expect(out).toMatch(/InboxView\.tsx.*→.*registry-moved/);
   });
 
   // ─── a JSX text node is neither comment nor literal, so masking cannot see it ───
@@ -491,7 +491,7 @@ describe("check-vocabulary.mjs — blockBody anchoring", () => {
     });
     const { code, out } = runGate(["--nouns"], root);
     expect(code).toBe(1);
-    expect(out).toContain("ambiguous-declaration");
+    expect(out).toMatch(/InboxView\.tsx.*→.*ambiguous-declaration/);
   });
 
   // ─── the per-block floor ───
@@ -502,8 +502,7 @@ describe("check-vocabulary.mjs — blockBody anchoring", () => {
     });
     const { code, out } = runGate(["--nouns"], root);
     expect(code).toBe(1);
-    expect(out).toContain("empty-registry");
-    expect(out).toContain("InboxView.tsx");
+    expect(out).toMatch(/InboxView\.tsx.*→.*empty-registry/);
   });
 
   // ─── balancing over the masked copy ───
