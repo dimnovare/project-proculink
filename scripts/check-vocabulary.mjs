@@ -68,6 +68,10 @@
 import { readFileSync, readdirSync, statSync, existsSync } from "fs";
 import { join, relative } from "path";
 import { fileURLToPath } from "url";
+// The ONE comment stripper (also used by both link guards via src/test/sourceScan.ts).
+// blockBody() below matches `const NAME` over raw source and takes the FIRST hit, so a
+// comment that merely MENTIONS the declaration captures the anchor — see its doc comment.
+import { stripComments } from "./lib/stripComments.mjs";
 
 const __dirname = fileURLToPath(new URL(".", import.meta.url));
 
@@ -477,8 +481,25 @@ const NOUN_REGISTRIES = [
  * The scan starts AFTER the `=`, because a TYPE ANNOTATION legitimately contains
  * brackets (`const TABS: Array<{ id: Tab }> = [`) and starting from the
  * declaration would return the empty body of `SidebarNavSection[]`.
+ *
+ * COMMENTS ARE STRIPPED FIRST, and that is load-bearing rather than tidy. `.exec` returns
+ * the FIRST match, so a comment that merely mentions `const FILTER_CHIPS` above the real
+ * declaration becomes the anchor: the scan then walks forward from the comment to whatever
+ * `=` and bracket it meets next, and — worse — `registry-moved` stops firing, because the
+ * name is still "found" after the declaration itself has been renamed or moved to another
+ * module. WP-29 shipped exactly that comment, on the one registry it was adding a label to,
+ * and the label count silently fell 43 → 37 with the gate still green.
+ *
+ * Fixing only that comment would leave the trap armed for the next person, so the guard is
+ * fixed here instead. The stripper is the same single copy both link guards use — this class
+ * of bug ("a comment after a colon is still a comment", 4c7350a) was already caused once by
+ * having two copies of a stripper.
+ *
+ * Offsets shift when comments are removed, but nothing here reports a line number: the return
+ * value is the body text, and every caller only matches literals inside it.
  */
-function blockBody(src, name) {
+function blockBody(rawSrc, name) {
+  const src = stripComments(rawSrc);
   const decl = new RegExp(`\\bconst\\s+${name}\\b`).exec(src);
   if (!decl) return null;
   let eq = decl.index;

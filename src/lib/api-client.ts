@@ -34,7 +34,7 @@ import {
   delay,
   ApiHttpError,
 } from "./api/core";
-import { isPlanGateError } from "./planGate";
+import { isPlanGateError, planGateMessage } from "./planGate";
 
 /**
  * Normalised public API base (no trailing slash). Exported so UI that needs to
@@ -820,8 +820,31 @@ async function realTransformOrder(orderId: string, format?: TransformFormat): Pr
     headers: { "Content-Type": "application/json", ...await authHeader() },
     body: JSON.stringify(format ? { format } : {}),
   }, 30000);
-  if (res.status === 422) { const t = await res.text(); throw new Error(`Unresolved lines: ${t}`); }
-  if (!res.ok) { const t = await res.text(); throw new Error(`Transform failed: ${t || res.statusText}`); }
+  // WP-23's discipline, applied to the surface WP-29 put a button on.
+  //
+  // Every refusal here answers with `{ "error": "<sentence>" }`: OrdersController.Transform
+  // conflicts a non-transformable status with 409 + that shape, the unresolved-lines guard
+  // 422s with it, and the plan gate 403s with `{ error: "<capability>_requires_<plan>",
+  // upgradeUrl }`. Throwing `res.text()` verbatim put the serialised body in front of the
+  // operator — the inbox row's failure line read `Couldn't start PO-… — Transform failed:
+  // {"error":"Order is not ready to transform (status 'delivering')…"}`. The sentence is
+  // written FOR them; the braces are ours.
+  //
+  // ApiHttpError, not Error, and the parsed body rides along: a 409 is a temporary hold
+  // ("wait for the send to finish"), a 400 is terminal, and a 403's body carries the
+  // upgradeUrl a banner needs. Flattening them all to Error throws that away.
+  if (!res.ok) {
+    const t = await res.text();
+    const { body, error } = parseApiErrorBody(t);
+    // A plan-gate code is a machine token, never a sentence — CLAUDE.md §11.5 forbids
+    // matching it by literal, so isPlanGateError/planGateMessage do the shape match and
+    // name the plan the SERVER asked for.
+    if (res.status === 403 && isPlanGateError(error ?? t)) {
+      throw new ApiHttpError(planGateMessage(error ?? t), 403, body);
+    }
+    const fallback = res.status === 422 ? "Unresolved lines" : "Transform failed";
+    throw new ApiHttpError(error ?? `${fallback}: ${t || res.statusText}`, res.status, body);
+  }
   // 202 Accepted — job enqueued; return a placeholder result
   const body = await res.json() as Record<string, unknown>;
   return { artifactId: "", format: format ?? "xml", createdAt: new Date().toISOString(), ...body } as TransformResult;

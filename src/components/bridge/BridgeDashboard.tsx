@@ -985,13 +985,21 @@ export function BridgeDashboard() {
     return (
       <div>
         {/* Stat row — 5 cells since "Ready to send" and "Queued to send" are two
-            numbers, not one ambiguous sum. */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5">
+            numbers, not one ambiguous sum.
+
+            The dividers are grid GAPS showing the container's colour through, not a
+            per-cell `border-l`. Five cells in a 2/3/5 grid wrap at two of the three
+            breakpoints, and a left border — with or without `first:border-l-0`, which only
+            ever exempts cell 1 — draws a stray hairline at the start of every wrapped row.
+            The previous `i % 4 !== 0` had the same defect one column count out. A gap has
+            no index to get wrong: it appears between cells and never at a track edge, in
+            both axes, at every breakpoint. */}
+        <div className="grid grid-cols-2 gap-px bg-[#EEF0F4] sm:grid-cols-3 lg:grid-cols-5">
           {statRow.map((s) => (
             <Link
               key={s.key}
               href={s.href}
-              className="flex flex-col gap-1.5 border-l border-l-[#EEF0F4] px-[18px] py-3.5 no-underline transition-colors first:border-l-0 hover:bg-[#F6F7FA]"
+              className="flex flex-col gap-1.5 bg-white px-[18px] py-3.5 no-underline transition-colors hover:bg-[#F6F7FA]"
             >
               <span className="inline-flex items-center gap-1.5 text-[11.5px] font-semibold" style={{ color: "#5E6779" }}>
                 <span aria-hidden style={{ width: 8, height: 8, borderRadius: "50%", background: s.color, display: "inline-block" }} />

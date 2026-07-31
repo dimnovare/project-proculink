@@ -10,7 +10,7 @@
 
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { execFileSync } from "child_process";
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync, copyFileSync } from "fs";
+import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync, copyFileSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
 import {
@@ -266,4 +266,123 @@ describe("check-vocabulary.mjs scan", () => {
     expect(code).toBe(1);
     expect(out).toMatch(/registry-moved|file-not-found/);
   });
+});
+
+// ─── registry-moved, against the REAL registry files ─────────────────────────
+//
+// WHY THIS EXISTS SEPARATELY. The test directly above runs against a fixture tree in which
+// the policed files DO NOT EXIST, so it only ever proves the `file-not-found` branch. The
+// `registry-moved` branch — the one that fires when a registry is renamed or lifted into
+// another module — was never exercised against a real file, and it silently stopped working:
+// `blockBody` takes the FIRST `const NAME` match, and a comment mentioning the declaration
+// captures the anchor, so the declaration could be renamed with the gate still exit 0 and the
+// label count quietly dropping. A meta-test that certifies a guard without running it against
+// the tree that matters is worse than none.
+//
+// So this copies the REAL registry files into a fixture, proves the copy is faithful (baseline
+// must be exit 0), and then mutates each one. The registry list is PARSED OUT OF THE GATE, so
+// a seventh registry is covered the day it is added.
+describe("--nouns registry-moved, exercised against the real registry files", () => {
+  const GATE_SRC = readFileSync(SCRIPT, "utf8");
+
+  /** `NOUN_REGISTRIES` as the gate itself declares it: [{ file, blocks: [...] }, …]. */
+  const REGISTRIES = (() => {
+    const body = /const NOUN_REGISTRIES = \[([\s\S]*?)\n\];/.exec(GATE_SRC);
+    if (!body) throw new Error("NOUN_REGISTRIES not found in the gate");
+    return [...body[1].matchAll(/\{\s*file:\s*"([^"]+)",\s*blocks:\s*\[([^\]]*)\]/g)].map((m) => ({
+      file: m[1],
+      blocks: [...m[2].matchAll(/"([^"]+)"/g)].map((b) => b[1]),
+    }));
+  })();
+
+  let real: string;
+
+  /** A fixture tree holding vocabulary.ts plus a verbatim copy of every policed file. */
+  function freshTree(): string {
+    const dir = mkdtempSync(join(tmpdir(), "vocab-real-"));
+    mkdirSync(join(dir, "src", "lib"), { recursive: true });
+    copyFileSync(join(REPO_ROOT, "src", "lib", "vocabulary.ts"), join(dir, "src", "lib", "vocabulary.ts"));
+    for (const { file } of REGISTRIES) {
+      const parts = file.split("/");
+      mkdirSync(join(dir, ...parts.slice(0, -1)), { recursive: true });
+      copyFileSync(join(REPO_ROOT, ...parts), join(dir, ...parts));
+    }
+    return dir;
+  }
+
+  const readIn = (dir: string, file: string) => readFileSync(join(dir, ...file.split("/")), "utf8");
+  const writeIn = (dir: string, file: string, body: string) =>
+    writeFileSync(join(dir, ...file.split("/")), body, "utf8");
+
+  /**
+   * Rename the DECLARATION only, never a mention of the same token in a comment — which is
+   * precisely the case the guard stopped catching.
+   */
+  const renameDecl = (src: string, name: string) =>
+    src.replace(new RegExp(`^(\\s*(?:export\\s+)?)const\\s+${name}\\b`, "m"), `$1const ${name}_MOVED`);
+
+  beforeAll(() => { real = freshTree(); });
+  afterAll(() => rmSync(real, { recursive: true, force: true }));
+
+  it("the six real registries are found, and the faithful copy passes", () => {
+    expect(REGISTRIES.length).toBeGreaterThanOrEqual(6);
+    const { code, out } = runGate(["--nouns"], real);
+    expect(out, `baseline must be a clean pass, got:\n${out}`).toContain("OK —");
+    expect(code).toBe(0);
+  });
+
+  for (const { file, blocks } of REGISTRIES) {
+    for (const name of blocks) {
+      it(`fires registry-moved when ${name} is renamed in ${file}`, () => {
+        const dir = freshTree();
+        try {
+          const src = readIn(dir, file);
+          const renamed = renameDecl(src, name);
+          expect(renamed, `no declaration of ${name} in ${file}`).not.toBe(src);
+          writeIn(dir, file, renamed);
+          const { code, out } = runGate(["--nouns"], dir);
+          expect(out).toContain("registry-moved");
+          expect(code).toBe(1);
+        } finally {
+          rmSync(dir, { recursive: true, force: true });
+        }
+      });
+
+      // THE ACTUAL DEFECT. A comment mentioning the declaration must not become the anchor —
+      // `blockBody` takes the first match, so before comments were stripped this exact shape
+      // turned a renamed registry into a silent pass.
+      it(`fires registry-moved for ${name} even when a comment names the declaration`, () => {
+        const dir = freshTree();
+        try {
+          const decoy = `// path-pinned to \`const ${name}\` in ${file}\n`;
+          writeIn(dir, file, decoy + renameDecl(readIn(dir, file), name));
+          const { code, out } = runGate(["--nouns"], dir);
+          expect(out).toContain("registry-moved");
+          expect(code).toBe(1);
+        } finally {
+          rmSync(dir, { recursive: true, force: true });
+        }
+      });
+
+      // The other half of the same hazard: the array is lifted into a shared module and
+      // imported back. The labels leave the scan entirely, so the gate MUST refuse to
+      // silently check fewer of them.
+      it(`fires registry-moved when ${name} is lifted out of ${file} into an import`, () => {
+        const dir = freshTree();
+        try {
+          const src = readIn(dir, file);
+          const gone = src.replace(
+            new RegExp(`^(\\s*(?:export\\s+)?)const\\s+${name}\\b`, "m"),
+            `$1const ${name}_ELSEWHERE_PLACEHOLDER`,
+          );
+          writeIn(dir, file, `import { ${name} } from "./registryTable";\n${gone}`);
+          const { code, out } = runGate(["--nouns"], dir);
+          expect(out).toContain("registry-moved");
+          expect(code).toBe(1);
+        } finally {
+          rmSync(dir, { recursive: true, force: true });
+        }
+      });
+    }
+  }
 });

@@ -37,6 +37,8 @@ import {
   formatBulkSendResult,
   isBulkSelectable,
   isRowSendable,
+  ROW_SEND_CTA,
+  ROW_SEND_CTA_PROGRESS,
   rowSendFailedCopy,
   rowSendStartedCopy,
   shouldShowBulkBar,
@@ -435,10 +437,16 @@ export { FAILED_BUCKET };
 // THE LABELS AND summaryKeys ARE NOT HAND-WRITTEN. Both come from
 // ORDER_COUNT_CONTRACT, so this chip row and the dashboard's stat row are two renders
 // of one table — see orderCountContract.ts for why that matters. The array itself must
-// stay DECLARED IN THIS FILE: the vocabulary gate's noun budget is path-pinned to
-// `const FILTER_CHIPS` in src/components/bridge/InboxView.tsx
+// stay DECLARED IN THIS FILE: the vocabulary gate's noun budget is path-pinned to the
+// FILTER_CHIPS declaration in src/components/bridge/InboxView.tsx
 // (scripts/check-vocabulary.mjs NOUN_REGISTRIES), and it reads the `label:` literals
 // below. Keep them literal.
+//
+// This comment used to spell that token as a declaration, and doing so DISARMED the very
+// guard it was describing: blockBody() takes the first declaration-shaped match of the
+// name, so the comment became the anchor and `registry-moved` stopped firing. The gate now strips
+// comments before matching (and src/lib/vocabulary.test.ts proves it against these real
+// files), so this is belt and braces — but do not reintroduce the phrasing.
 export const FILTER_CHIPS: Array<{
   label: string;
   status?: CrossingStatus;
@@ -695,7 +703,7 @@ function buildColumns(labels: PartyLabels, rowSend: RowSendContext) {
     enableHiding: false,
     header: "",
     cell: ({ row }) =>
-      isRowSendable(row.original.rawStatus) ? (
+      canRowSend(row.original) ? (
         <RowSendButton row={row.original} ctx={rowSend} />
       ) : (
         <span style={{ color: "var(--ink-faint)", fontSize: "15px" }}>›</span>
@@ -707,11 +715,24 @@ function buildColumns(labels: PartyLabels, rowSend: RowSendContext) {
 
 /** What a row needs to run (and report) the primary send. Threaded, not global. */
 type RowSendContext = {
-  labels: PartyLabels;
   /** Order id currently in flight, or null. One at a time — a click is a real POST. */
   sendingId: string | null;
   onSend: (row: OrderRow) => void;
 };
+
+/**
+ * Whether THIS row offers the action — status first, then the row's own issue count.
+ *
+ * The status set is the real guard (OrderStatusMachine.TransformableFrom contains `ready`
+ * and the endpoint 422s on unresolved lines regardless), so the second clause is defence in
+ * depth: it is what the spec promised, and it costs one field the row already carries. A
+ * `ready` row with open issues should not exist; if the backend ever produced one, the
+ * honest response is to leave it to the review screen rather than offer a button whose only
+ * possible outcome is a 422.
+ */
+function canRowSend(row: OrderRow): boolean {
+  return isRowSendable(row.rawStatus) && row.issues === 0;
+}
 
 /**
  * The primary send on a `ready` row.
@@ -724,6 +745,9 @@ type RowSendContext = {
  *
  * It posts to /orders/{id}/transform, whose guard set (TransformableFrom) contains
  * `ready`, so the click cannot 400 on status — the WP-24 D2 discipline.
+ *
+ * The label is ROW_SEND_CTA, not partyLabels().primaryCta — see inboxSend.ts for why
+ * reusing the order-detail CTA's words here would over-claim on the default configuration.
  */
 function RowSendButton({ row, ctx }: { row: OrderRow; ctx: RowSendContext }) {
   const inFlight = ctx.sendingId === row.id;
@@ -731,11 +755,15 @@ function RowSendButton({ row, ctx }: { row: OrderRow; ctx: RowSendContext }) {
   return (
     <button
       type="button"
+      // Viewport hook. BOTH row variants mount in jsdom, so without it a role+name query is
+      // satisfied by the mobile card alone and the desktop cell goes untested — which is
+      // exactly how a mutation that broke only the desktop button stayed green.
+      data-row-send="desktop"
       onClick={(e) => { e.stopPropagation(); ctx.onSend(row); }}
       disabled={busy}
-      // The PO is in the accessible name because a table of identical "Send to supplier"
-      // buttons tells a screen-reader user nothing about which order they are sending.
-      aria-label={`${ctx.labels.primaryCta} — ${row.po}`}
+      // The PO is in the accessible name because a table of identical "Prepare output"
+      // buttons tells a screen-reader user nothing about which order they are acting on.
+      aria-label={`${ROW_SEND_CTA} — ${row.po}`}
       className="w-full rounded-[6px] px-2 text-[12px] font-semibold"
       style={{
         height: 28,
@@ -750,7 +778,7 @@ function RowSendButton({ row, ctx }: { row: OrderRow; ctx: RowSendContext }) {
         textOverflow: "ellipsis",
       }}
     >
-      {inFlight ? ctx.labels.primaryCtaProgress : ctx.labels.primaryCta}
+      {inFlight ? ROW_SEND_CTA_PROGRESS : ROW_SEND_CTA}
     </button>
   );
 }
@@ -855,7 +883,7 @@ export function InboxView() {
   // stable trampoline into a ref, so the real handler can close over query state
   // without rebuilding every column on every render.
   const columns = useMemo(
-    () => buildColumns(labels, { labels, sendingId: rowSendingId, onSend: handleRowSend }),
+    () => buildColumns(labels, { sendingId: rowSendingId, onSend: handleRowSend }),
     [labels, rowSendingId, handleRowSend],
   );
   // Empty-state copy: outbound orders arrive from buyers; inbound from customers.
@@ -1834,13 +1862,15 @@ export function InboxView() {
                 );
               })()}
             </button>
-            {isRowSendable(row.original.rawStatus) && (
+            {canRowSend(row.original) && (
               <div style={{ borderTop: "1px solid #E5E8EE" }}>
                 <button
                   type="button"
+                  // See RowSendButton — the desktop twin carries data-row-send="desktop".
+                  data-row-send="mobile"
                   onClick={() => handleRowSend(row.original)}
                   disabled={rowSendingId !== null}
-                  aria-label={`${labels.primaryCta} — ${row.original.po}`}
+                  aria-label={`${ROW_SEND_CTA} — ${row.original.po}`}
                   className="w-full text-[13px] font-semibold"
                   style={{
                     // 44px — the tap-target floor, which is why the desktop button is
@@ -1852,7 +1882,7 @@ export function InboxView() {
                     opacity: rowSendingId !== null && rowSendingId !== row.original.id ? 0.5 : 1,
                   }}
                 >
-                  {rowSendingId === row.original.id ? labels.primaryCtaProgress : labels.primaryCta}
+                  {rowSendingId === row.original.id ? ROW_SEND_CTA_PROGRESS : ROW_SEND_CTA}
                 </button>
               </div>
             )}

@@ -62,8 +62,35 @@ vi.mock("@/hooks/useOrderDirection", async () => {
 });
 
 import { InboxView, FILTER_CHIPS } from "./InboxView";
-import { isBulkSelectable, isRedeliverable, isRowSendable } from "./inboxSend";
+import {
+  isBulkSelectable,
+  isRedeliverable,
+  isRowSendable,
+  rowSendStartedCopy,
+  ROW_SEND_CTA,
+  ROW_SEND_CTA_PROGRESS,
+} from "./inboxSend";
 import { partyLabels } from "@/hooks/useOrderDirection";
+
+/**
+ * The row-send button for ONE viewport.
+ *
+ * Both row variants mount in jsdom — the desktop table is `hidden lg:block` and the mobile
+ * list is `lg:hidden`, and neither media query is evaluated — so a bare
+ * `findAllByRole("button", { name })` is satisfied by the mobile card ALONE. A mutation
+ * that damaged only the desktop button therefore stayed green, and the four "a ready row
+ * carries a primary send action" tests were all really testing one button twice. Every
+ * assertion below names its viewport.
+ */
+function rowSendButton(viewport: "desktop" | "mobile", po: string): HTMLButtonElement {
+  const el = document.querySelector<HTMLButtonElement>(
+    `button[data-row-send="${viewport}"][aria-label$="${po}"]`,
+  );
+  if (!el) throw new Error(`no ${viewport} row-send button for ${po}`);
+  return el;
+}
+
+const VIEWPORTS = ["desktop", "mobile"] as const;
 
 let seq = 0;
 function order(over: Partial<OrderSummary> = {}): OrderSummary {
@@ -144,56 +171,109 @@ describe("`ready` is a first-class filter chip", () => {
 });
 
 describe("a `ready` row carries a primary send action", () => {
-  it("renders the send button, named through partyLabels — never a hardcoded noun", async () => {
+  it("renders the button on BOTH viewports, each naming its own order", async () => {
     await renderInbox([order({ status: "ready", poNumber: "PO-READY-1" })]);
-    const buttons = await screen.findAllByRole("button", {
-      name: new RegExp(`${partyLabels("outbound").primaryCta}.*PO-READY-1`, "i"),
-    });
-    expect(buttons.length).toBeGreaterThan(0);
+    await screen.findAllByText("PO-READY-1");
+    for (const viewport of VIEWPORTS) {
+      const btn = rowSendButton(viewport, "PO-READY-1");
+      // The PO must be in the ACCESSIBLE NAME of each button independently. Asserting it
+      // once across both let a mutation that dropped the PO from only the desktop button
+      // pass, because the mobile card's name still satisfied the query.
+      expect(btn.getAttribute("aria-label"), viewport).toBe(`${ROW_SEND_CTA} — PO-READY-1`);
+    }
   });
 
-  it("says 'Confirm order' for an inbound org — hardcoding 'supplier' deletes that mode", async () => {
+  // WHY textContent AND NOT the accessible name. The name comes from `aria-label`, a
+  // DIFFERENT expression from the visible child. Hardcoding a party noun in the visible
+  // text of both buttons, leaving the aria-labels alone, passed every test in the repo:
+  // an inbound org would SEE "Send to supplier" while a screen reader announced something
+  // else. Read what is on screen.
+  for (const dir of ["outbound", "inbound"] as const) {
+    it(`the visible text is the row action's own copy, not a party CTA (${dir})`, async () => {
+      direction = dir;
+      await renderInbox([order({ status: "ready", poNumber: "PO-READY-2" })]);
+      await screen.findAllByText("PO-READY-2");
+      for (const viewport of VIEWPORTS) {
+        const btn = rowSendButton(viewport, "PO-READY-2");
+        expect(btn.textContent, `${dir}/${viewport}`).toBe(ROW_SEND_CTA);
+        // The row action posts /transform and stops; partyLabels().primaryCta names the
+        // ORDER-DETAIL control, which transforms AND delivers. One label, one action.
+        expect(btn.textContent, `${dir}/${viewport}`).not.toBe(partyLabels(dir).primaryCta);
+        // No party noun at all — so it cannot silently delete the inbound mode the way a
+        // hardcoded "supplier" would.
+        expect(btn.textContent).not.toMatch(/supplier|buyer|customer/i);
+      }
+    });
+  }
+
+  it("reads the same in both directions — it names an action, not a party", async () => {
+    direction = "outbound";
+    await renderInbox([order({ status: "ready", poNumber: "PO-DIR" })]);
+    await screen.findAllByText("PO-DIR");
+    const outbound = rowSendButton("desktop", "PO-DIR").textContent;
+    cleanup();
     direction = "inbound";
-    await renderInbox([order({ status: "ready", poNumber: "PO-READY-2" })]);
-    const buttons = await screen.findAllByRole("button", {
-      name: new RegExp(`${partyLabels("inbound").primaryCta}.*PO-READY-2`, "i"),
-    });
-    expect(buttons.length).toBeGreaterThan(0);
-    expect(
-      screen.queryByRole("button", { name: /Send to supplier.*PO-READY-2/i }),
-      "inbound must not say 'supplier'",
-    ).toBeNull();
+    await renderInbox([order({ status: "ready", poNumber: "PO-DIR" })]);
+    await screen.findAllByText("PO-DIR");
+    expect(rowSendButton("desktop", "PO-DIR").textContent).toBe(outbound);
+    // …while partyLabels itself still distinguishes them, so this is not a regression in
+    // the direction support — it is a control that does not need it.
+    expect(partyLabels("inbound").primaryCta).not.toBe(partyLabels("outbound").primaryCta);
   });
 
-  it("clicking it posts to /transform immediately — no confirm dialog, and never /redeliver", async () => {
-    api.transformOrder.mockResolvedValue({});
-    await renderInbox([order({ id: "ord-ready", status: "ready", poNumber: "PO-READY-3" })]);
-    const button = (
-      await screen.findAllByRole("button", { name: /Send to supplier.*PO-READY-3/i })
-    )[0];
-    await act(async () => { fireEvent.click(button); });
+  for (const viewport of VIEWPORTS) {
+    it(`clicking the ${viewport} button posts /transform immediately — no dialog, never /redeliver`, async () => {
+      api.transformOrder.mockResolvedValue({});
+      await renderInbox([order({ id: "ord-ready", status: "ready", poNumber: "PO-READY-3" })]);
+      await screen.findAllByText("PO-READY-3");
+      await act(async () => { fireEvent.click(rowSendButton(viewport, "PO-READY-3")); });
 
-    await waitFor(() => expect(api.transformOrder).toHaveBeenCalledWith("ord-ready"));
-    // Nothing has been built or sent yet, so there is no duplicate risk and no dialog.
-    // The confirm WP-24 added is for delivery_unconfirmed; reusing it here would train
-    // the operator to click past the one that matters.
-    expect(screen.queryByRole("dialog")).toBeNull();
-    // /redeliver 400s on `ready` — offering it here is exactly WP-24's D2 defect.
-    expect(api.redeliverOrder).not.toHaveBeenCalled();
-    expect((await screen.findAllByText(/PO-READY-3/)).length).toBeGreaterThan(0);
+      await waitFor(() => expect(api.transformOrder).toHaveBeenCalledWith("ord-ready"));
+      // Nothing has been built or sent yet, so there is no duplicate risk and no dialog.
+      // The confirm WP-24 added is for delivery_unconfirmed; reusing it here would train
+      // the operator to click past the one that matters.
+      expect(screen.queryByRole("dialog")).toBeNull();
+      // /redeliver 400s on `ready` — offering it here is exactly WP-24's D2 defect.
+      expect(api.redeliverOrder).not.toHaveBeenCalled();
+      // The notice is the packet's most-argued sentence. Assert IT, not the PO number,
+      // which also appears in the row and made the old assertion pass for the wrong reason.
+      const notice = await screen.findByRole("status");
+      expect(notice.textContent).toContain(rowSendStartedCopy("PO-READY-3"));
+    });
+  }
+
+  it("shows the in-flight copy on the row being sent", async () => {
+    let release!: () => void;
+    api.transformOrder.mockImplementation(
+      () => new Promise((resolve) => { release = () => resolve({}); }),
+    );
+    await renderInbox([order({ id: "ord-slow", status: "ready", poNumber: "PO-SLOW" })]);
+    await screen.findAllByText("PO-SLOW");
+    await act(async () => { fireEvent.click(rowSendButton("desktop", "PO-SLOW")); });
+    await waitFor(() =>
+      expect(rowSendButton("desktop", "PO-SLOW").textContent).toBe(ROW_SEND_CTA_PROGRESS),
+    );
+    await act(async () => { release(); });
   });
 
   it("a failure names the order and the backend's reason, and leaves the button usable", async () => {
-    api.transformOrder.mockRejectedValue(new Error("Transform failed: no output layout"));
+    // The shape the endpoint really answers with: OrdersController conflicts a
+    // non-transformable status with 409 + `{ "error": "<sentence>" }`, and api-client
+    // unwraps it (see api-client.transformError.test.ts). A clean hand-written sentence
+    // here would prove the reason survives without ever exercising that shape.
+    api.transformOrder.mockRejectedValue(
+      new Error("Order is not ready to transform (status 'delivering'). Wait for the send to finish."),
+    );
     await renderInbox([order({ id: "ord-bad", status: "ready", poNumber: "PO-READY-4" })]);
-    const button = (
-      await screen.findAllByRole("button", { name: /Send to supplier.*PO-READY-4/i })
-    )[0];
+    await screen.findAllByText("PO-READY-4");
+    const button = rowSendButton("desktop", "PO-READY-4");
     await act(async () => { fireEvent.click(button); });
 
     const notice = await screen.findByText(/Couldn.t start PO-READY-4/i);
-    expect(notice.textContent).toMatch(/no output layout/i);
-    await waitFor(() => expect((button as HTMLButtonElement).disabled).toBe(false));
+    expect(notice.textContent).toMatch(/not ready to transform/i);
+    // No braces, no quoted key — the operator reads a sentence, not a response body.
+    expect(notice.textContent).not.toMatch(/[{}]|"error"/);
+    await waitFor(() => expect(button.disabled).toBe(false));
   });
 
   it("does not offer the action on a status the transform endpoint would refuse", async () => {
@@ -204,10 +284,61 @@ describe("a `ready` row carries a primary send action", () => {
     ]);
     await screen.findAllByText("PO-QUEUED");
     for (const po of ["PO-QUEUED", "PO-REVIEW", "PO-DONE"]) {
+      for (const viewport of VIEWPORTS) {
+        expect(
+          document.querySelector(`button[data-row-send="${viewport}"][aria-label$="${po}"]`),
+          `${po} must not offer the row send on ${viewport}`,
+        ).toBeNull();
+      }
+    }
+  });
+
+  // Spec §6.2's "defence in depth", which did not ship in the first pass. `ready` should
+  // imply zero unresolved lines and the endpoint 422s regardless — but a button whose only
+  // possible outcome is a 422 should not be offered, on either viewport.
+  it("suppresses the action on a `ready` row the backend still reports issues for", async () => {
+    await renderInbox([
+      order({ status: "ready", poNumber: "PO-CLEAN", unresolvedCount: 0 }),
+      order({ status: "ready", poNumber: "PO-DIRTY", unresolvedCount: 2 }),
+    ]);
+    await screen.findAllByText("PO-DIRTY");
+    for (const viewport of VIEWPORTS) {
+      expect(rowSendButton(viewport, "PO-CLEAN")).toBeTruthy();
       expect(
-        screen.queryByRole("button", { name: new RegExp(`Send to supplier.*${po}`, "i") }),
-        `${po} must not offer the row send`,
+        document.querySelector(`button[data-row-send="${viewport}"][aria-label$="PO-DIRTY"]`),
+        `an unresolved ready row must not offer the send on ${viewport}`,
       ).toBeNull();
+    }
+  });
+});
+
+describe("the row send's own copy", () => {
+  // The packet's most-argued sentence had no test at all: replacing it with
+  // `Sent ${po} to the supplier.` — the exact claim the design refuses to make — stayed
+  // green across the whole repo, because the nearest assertion matched the PO number in
+  // the ROW rather than in the notice.
+  it("names the order and refuses to claim it was sent", () => {
+    const line = rowSendStartedCopy("PO-2026-0341");
+    expect(line).toContain("PO-2026-0341");
+    // POST /transform enqueues TransformOrderJob, which enqueues DeliverOrderJob
+    // "respecting the AutoDeliver flag" — and Organisation.AutoDeliver defaults to FALSE.
+    // For the ordinary org the order rests in `ready_to_deliver` and waits for a person,
+    // so any past-tense claim of delivery is a lie for that org.
+    expect(line).not.toMatch(/\bsent\b/i);
+    expect(line).not.toMatch(/\bdelivered\b/i);
+    // It must still say what DID happen, or it is just vague.
+    expect(line).toMatch(/output/i);
+  });
+
+  it("the button, the in-flight copy and the notice describe the same action", () => {
+    // "Prepare output" → the `transforming` badge "Preparing output" → "building the
+    // output". Three surfaces, one verb. A rename that breaks the chain fails here.
+    expect(ROW_SEND_CTA).toMatch(/output/i);
+    expect(ROW_SEND_CTA_PROGRESS).toMatch(/^Prepar/i);
+    expect(rowSendStartedCopy("PO-1")).toMatch(/output/i);
+    // And it is nobody's party CTA — see inboxSend.ts ROW_SEND_CTA.
+    for (const dir of ["outbound", "inbound"] as const) {
+      expect(ROW_SEND_CTA).not.toBe(partyLabels(dir).primaryCta);
     }
   });
 });

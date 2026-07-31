@@ -88,6 +88,38 @@ export function isRowSendable(rawStatus: string): boolean {
 }
 
 /**
+ * The row action's copy — deliberately NOT `partyLabels(direction).primaryCta`.
+ *
+ * "Send to supplier" already names the ORDER-DETAIL control, and that control earns the
+ * words: useSendFlow.confirmSend transforms, polls to `ready_to_deliver`, calls
+ * /redeliver, and polls again to delivered — it genuinely sends. This button calls
+ * apiClient.transformOrder and stops.
+ *
+ * Those are the same words for two different actions, and for the ORDINARY org they are
+ * two different OUTCOMES: Organisation.AutoDeliver defaults to FALSE, so the transform's
+ * post-hoc DeliverOrderJob.Enqueue ("respects AutoDeliver flag") does nothing and the
+ * order rests in `ready_to_deliver` / "Queued to send" waiting for a second, differently
+ * shaped action. Naming that button "Send to supplier" would be false on the default
+ * configuration — in the packet whose whole point is that one label means one thing.
+ *
+ * "Prepare output" is what the endpoint does on every configuration. It is also the
+ * imperative of the badge the row is about to show: `transforming` renders "Preparing
+ * output" (UnifiedStatusBadge STATUS_META), so button → in-flight badge → resting badge
+ * reads "Prepare output" → "Preparing output" → "Queued to send". The success notice
+ * ("building the output") already said this; now the affordance agrees with it.
+ *
+ * It carries NO party noun, so unlike primaryCta it needs no direction to be correct —
+ * which is why inboxReadySend.test.tsx asserts the rendered text is IDENTICAL in both
+ * directions and is not either direction's primaryCta. That is a stricter guard than the
+ * one it replaces, not a way around the founder decision of 2026-07-30: entity nouns
+ * everywhere else still route through partyLabels, and the order-detail CTA is untouched.
+ */
+export const ROW_SEND_CTA = "Prepare output";
+
+/** In-flight copy for ROW_SEND_CTA. Matches the `transforming` badge, "Preparing output". */
+export const ROW_SEND_CTA_PROGRESS = "Preparing…";
+
+/**
  * The row send's success line.
  *
  * Deliberately does NOT claim the supplier has it. POST /transform answers 202 and

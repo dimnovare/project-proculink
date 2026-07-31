@@ -61,8 +61,24 @@ export interface OrderCountRow {
  *   ready_to_deliver — output file built, send pending           → OUR turn
  * Summing them under one label is what produced the divergence this file fixes; the
  * dashboard now prints both numbers instead of one ambiguous one.
+ *
+ * "All orders" and "Received" are TWO LABELS FOR ONE NUMBER (`statuses: null` = the
+ * account total), which is the mirror image of the defect above rather than an instance of
+ * it, and it is deliberate. The invariant this file enforces is ONE LABEL → ONE NUMBER: a
+ * reader who sees a label anywhere must be able to predict the figure next to it. Two
+ * labels over the same figure never mislead anyone — nobody compares "All orders · 32" with
+ * "Received · 32" and concludes that something is missing. They stay separate because they
+ * answer different questions in different places: "All orders" is the inbox chip that
+ * CLEARS the filter (its peers are filters, so "Received" would read as one), and
+ * "Received" is the dashboard funnel's head, where every other cell is a stage the order
+ * has reached. Collapsing them would force one surface to use the other's grammar.
+ *
+ * `printedCounts`'s shared-label intersection therefore never compares these two, and that
+ * is correct: they are not the same claim about the same set, they are the same set under
+ * two surfaces' vocabulary.
  */
 export const ORDER_COUNT_CONTRACT: readonly OrderCountRow[] = [
+  // Same number, two surfaces' grammar — see the note above; not a divergence.
   { label: "All orders", statuses: null },
   { label: "Received", statuses: null },
   { label: "Needs review", statuses: ["pending_review"] },
