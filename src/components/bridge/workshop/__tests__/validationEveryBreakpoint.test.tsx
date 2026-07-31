@@ -40,7 +40,8 @@ const mockState: {
   validation: FieldValidationState[];
   exceptionCount: number;
   validationCalls: string[];
-} = { order: null, validation: [], exceptionCount: 0, validationCalls: [] };
+  showConfirm: boolean;
+} = { order: null, validation: [], exceptionCount: 0, validationCalls: [], showConfirm: false };
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
@@ -106,7 +107,7 @@ vi.mock("../../review/hooks/useSendFlow", () => ({
     sendState: "idle",
     crossed: false,
     confirmSend: vi.fn(),
-    showConfirm: false,
+    showConfirm: mockState.showConfirm,
     setShowConfirm: vi.fn(),
   }),
 }));
@@ -258,6 +259,7 @@ beforeEach(() => {
   mockState.validation = [];
   mockState.exceptionCount = 0;
   mockState.validationCalls = [];
+  mockState.showConfirm = false;
   setViewport(1440);
 });
 afterEach(cleanup);
@@ -327,6 +329,40 @@ describe("desktop and reduced surfaces cannot drift", () => {
       expect((desktop as HTMLButtonElement).disabled).toBe((mobile as HTMLButtonElement).disabled);
       cleanup();
     }
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 3b — R1: the useAcceptanceValidation wire must have a real consumer.
+//
+// The hook was never dead code (OrderWorkshop mounts it), but its validate()
+// mutation has no caller anywhere in src/, so validationResult was permanently
+// null and failingRuleCount permanently 0 — the send-confirmation dialog's
+// acknowledgement could not appear even when rules had failed. The blocking rows
+// are NOT the useful signal here (they set canSend=false, so the dialog cannot
+// open); the ADVISORY failures are, and this pins that.
+// ─────────────────────────────────────────────────────────────────────────────
+describe("the send-confirmation dialog reflects the live acceptance answer", () => {
+  test.each(VIEWPORTS)("an advisory failure is acknowledged before send at %ipx", async (width) => {
+    mockState.validation = [ADVISORY_ROW];
+    mockState.showConfirm = true;
+    setViewport(width);
+    renderWorkshop();
+
+    const dialog = await screen.findByRole("dialog");
+    expect(
+      await within(dialog).findByText(/1 acceptance rule failed validation/i),
+    ).toBeInTheDocument();
+  });
+
+  test("a clean order shows no acknowledgement", async () => {
+    mockState.validation = [];
+    mockState.showConfirm = true;
+    renderWorkshop();
+
+    const dialog = await screen.findByRole("dialog");
+    await waitFor(() => expect(mockState.validationCalls).toContain("ord-1"));
+    expect(within(dialog).queryByText(/acceptance rule.* failed validation/i)).toBeNull();
   });
 });
 

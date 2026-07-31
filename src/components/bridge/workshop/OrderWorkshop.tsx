@@ -50,7 +50,7 @@ import { WorkshopLinesView, WorkshopLinesToggle } from "./WorkshopLinesView";
 import { showLinesToggle } from "./workshopLinesModel";
 import { bulkAcceptCount, type BulkSelectableLine } from "../magicBulkAcceptSelection";
 import { MobileTriage } from "./MobileTriage";
-import { acceptanceIssues } from "./acceptanceGateModel";
+import { acceptanceIssues, failingAcceptanceRows } from "./acceptanceGateModel";
 import { WorkshopStepper } from "./WorkshopStepper";
 import { WorkshopStatusBar, type BlockerChip } from "./WorkshopStatusBar";
 import { BridgePageLoader } from "../BridgeLoader";
@@ -197,8 +197,10 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
     // Wire (not delete): validate() has no caller anywhere in src/, so this hook's
     // result was permanently null and the confirm dialog always claimed zero
     // failing rules. Seeding it from the live server answer makes that dialog
-    // truthful without adding a POST on page load.
-    serverBlockingCount: acceptanceBlockers.length,
+    // truthful without adding a POST on page load. Blocking rows already make
+    // canSend false (the dialog cannot open), so what actually reaches the
+    // acknowledgement is the ADVISORY failures — exactly its purpose.
+    serverFailingCount: failingAcceptanceRows(acceptanceQuery.data).length,
     serverRevalidating: acceptanceQuery.isFetching,
   });
   const { validationResult, failingRuleCount } = validation;

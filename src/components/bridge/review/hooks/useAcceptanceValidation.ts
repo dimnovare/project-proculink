@@ -23,16 +23,16 @@ export function useAcceptanceValidation(orderId: string, opts?: {
   /** Bumps after every successful server commit — schedules the auto-revalidate. */
   commitVersion?: number;
   /**
-   * WP-18 — the live count of BLOCKING acceptance rows from
+   * WP-18 — the live count of acceptance rows that did NOT pass, from
    * GET /api/orders/{id}/validation, which OrderWorkshop now owns at every
    * breakpoint. `validate()` (the POST) has no caller anywhere in src/, so
    * `validationResult` was permanently null and `failingRuleCount` permanently
-   * 0 — the send-confirmation dialog told every operator that zero rules were
-   * failing even while the supplier's rules refused the order. This seeds the
-   * count from the server's own gate-aligned answer, so the dialog is truthful
-   * without firing a POST on page load. An explicit validate() still wins.
+   * 0 — the send-confirmation dialog's acknowledgement never once appeared.
+   * This seeds the count from the server's own gate-aligned answer, so the
+   * dialog is truthful without firing a POST on page load. An explicit
+   * validate() still wins.
    */
-  serverBlockingCount?: number;
+  serverFailingCount?: number;
   /** True while that server answer is being refetched — feeds the same isStale guard. */
   serverRevalidating?: boolean;
 }) {
@@ -79,7 +79,7 @@ export function useAcceptanceValidation(orderId: string, opts?: {
   // reflects what the gate will actually do.
   const failingRuleCount = validationResult
     ? (validationResult.passed ? 0 : validationResult.results.filter(r => !r.passed).length)
-    : (opts?.serverBlockingCount ?? 0);
+    : (opts?.serverFailingCount ?? 0);
 
   return {
     validationResult,

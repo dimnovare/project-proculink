@@ -38,6 +38,22 @@ export function blockingAcceptanceRows(
 }
 
 /**
+ * Every acceptance row that did NOT pass — blocking and advisory alike.
+ *
+ * This is what the send-confirmation dialog's acknowledgement counts. Note the
+ * asymmetry that makes it useful: a BLOCKING row sets canSend=false, so the
+ * dialog cannot open at all. By the time an operator sees the dialog, the rows
+ * left in here are exactly the ones that failed WITHOUT refusing the order —
+ * which is precisely the case the acknowledgement was built for ("the supplier
+ * may still accept, but say so deliberately").
+ */
+export function failingAcceptanceRows(
+  states: FieldValidationState[] | undefined | null,
+): FieldValidationState[] {
+  return (states ?? []).filter((s) => s.state === "review");
+}
+
+/**
  * Project the blocking rows onto the workshop's issue shape, so they flow through
  * the SAME `issues` array every surface already reads: the desktop IssuesPanel,
  * the status bar's blocker chips, the reduced sub-lg MobileTriage list, and
