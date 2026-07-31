@@ -70,13 +70,15 @@ export function WorkshopStatusBar({
   saveMappingsDisabledReason = null,
   saveMappingsLabel = "Save mappings",
   saveMappingsTitle,
+  notice,
+  noticeSeverity = "info",
 }: {
   blockers: BlockerChip[];
   /** Warning-level (non-blocking) issue count — shown as a quiet optional note. */
   notes?: number;
   /** Jump to + flash a blocker's issue card. */
   onJump: (id: string) => void;
-  /** Open the Issues tab of the preview column (lives in the ⋯ overflow). */
+  /** Bring the issue list back into view (lives in the ⋯ overflow). */
   onReviewIssues?: () => void;
   /** Bulk-accept every AI suggestion (the "Resolve suggested (n)" button). */
   onResolveAll?: () => void;
@@ -115,9 +117,19 @@ export function WorkshopStatusBar({
   saveMappingsLabel?: string;
   /** Tooltip for the enabled state. Also host-built, for the same noun reason. */
   saveMappingsTitle?: string;
+  /**
+   * The send-flow notice ("Preparing the file…" / "Sent to …" / an error). It
+   * used to be its OWN full-width band between the header and this bar; WP-28
+   * folds it in here, because this row is already "the ONE consolidated status
+   * row" and a transient status line does not deserve a band of its own above
+   * the three columns. Absent → nothing renders.
+   */
+  notice?: string | null;
+  noticeSeverity?: "info" | "success" | "error";
 }) {
   const chips = useMemo(() => dedupeBlockerChips(blockers), [blockers]);
   const allMapped = mapper != null && mapper.total > 0 && mapper.mapped >= mapper.total;
+  const suggestionCount = mapper?.suggestionCount ?? 0;
 
   const catalogTitle = mapper?.fillFromCatalog
     ? "Jump to the lines with catalog price/code hints — apply each per line"
@@ -187,15 +199,64 @@ export function WorkshopStatusBar({
         </div>
       )}
 
-      {/* ── White segment — mapped count · save state · stepper · overflow ── */}
+      {/* ── The send-flow notice, re-hosted from its own band (WP-28) ────────── */}
+      {notice && (
+        <div
+          data-testid="status-bar-notice"
+          role="status"
+          aria-live="polite"
+          style={{
+            display: "flex", alignItems: "center", padding: "4px 16px", minWidth: 0,
+            fontSize: 12.5, fontWeight: 600,
+            borderRight: "1px solid #E5E8EE",
+            background: noticeSeverity === "error" ? "#FBE3E3" : noticeSeverity === "success" ? "#E9F1EA" : "#EFF4FB",
+            color: noticeSeverity === "error" ? "#B43838" : noticeSeverity === "success" ? "#1E6D29" : "#0F4FAB",
+          }}
+        >
+          {notice}
+        </div>
+      )}
+
+      {/* ── White segment — issue summary · mapped count · save state · stepper · overflow ── */}
       {/* `flexWrap: wrap` is load-bearing, not cosmetic. Every child here is
           `whiteSpace: nowrap` (a chip or a button reads badly broken mid-word), so
           without wrapping the row can only grow past the viewport. WP-13's
           "Save mappings for this <party>" pushed it 90px over at 1280 — caught by
           the `zero overflow at 1280 wide viewport` e2e, which is exactly what that
-          test is for. Wrapping trades a taller bar for a page that never scrolls
-          sideways. */}
+          test is for. WP-28 then added an issue-summary chip to the same row, so
+          there is now MORE competing for the width, not less. Wrapping trades a
+          taller bar for a page that never scrolls sideways. */}
       <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 12, padding: "4px 16px", flex: 1, minWidth: 0 }}>
+        {/* The issue COUNT, always readable without a click. The issue LIST is an
+            always-rendered region of the third column now, but useWorkshopLayout
+            can rail that whole column (Focus = Mapping) and persists the choice —
+            so the count also lives here, where nothing can collapse it. At
+            blockers > 0 the red segment above already carries the count, so this
+            chip stands down rather than saying it twice. */}
+        {blockers.length === 0 && (
+          <span
+            data-testid="status-bar-issue-summary"
+            title={notes > 0
+              ? "Nothing is blocking this order. These are worth a look before you send."
+              : "Every required field is filled and every rule passed."}
+            style={{
+              display: "inline-flex", alignItems: "center", gap: 5, fontSize: 11, fontWeight: 700,
+              borderRadius: 999, padding: "3px 10px", whiteSpace: "nowrap", flexShrink: 0,
+              // #8A5310 on #FAF1DD = 5.62:1; #1E6D29 on #E9F1EA = 5.57:1. Both AA.
+              // NOT #B36D14, which is 3.65:1 on its own soft background.
+              color: notes > 0 ? "#8A5310" : "#1E6D29",
+              background: notes > 0 ? "#FAF1DD" : "#E9F1EA",
+              border: `1px solid ${notes > 0 ? "#F1E2BE" : "#CDE7D1"}`,
+            }}
+          >
+            {notes > 0 ? null : (
+              <svg width="11" height="11" viewBox="0 0 12 12" fill="none" aria-hidden style={{ flexShrink: 0 }}>
+                <path d="M2.5 6.2 5 8.6 9.5 3.6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            )}
+            {notes > 0 ? `${notes} optional` : "No issues"}
+          </span>
+        )}
         {mapper != null && mapper.total > 0 && (
           <span
             title="Output fields with a resolved value (mapped, fixed, or auto)"
@@ -236,9 +297,33 @@ export function WorkshopStatusBar({
             AI suggestions unavailable
           </span>
         )}
-        {notes > 0 && (
+        {/* Warnings alongside blockers. On their own they are the summary chip
+            above, so this only renders when the red segment owns the count. */}
+        {blockers.length > 0 && notes > 0 && (
           <span style={{ fontSize: 11, color: "#5E6779", whiteSpace: "nowrap" }}>
             {notes} optional {notes === 1 ? "note" : "notes"}
+          </span>
+        )}
+        {/* AI field-mapping suggestions, re-hosted from their own violet band
+            above the columns (WP-28). The band's guarantee — nothing is applied
+            without a visible accept step — moves into the chip's title, and the
+            per-wire ✓/✗ accept itself is untouched. Violet is reserved for
+            AI-generated content, which this is. */}
+        {suggestionCount > 0 && (
+          <span
+            data-testid="status-bar-ai-suggestions"
+            title="Suggested field mappings, drawn as dashed links between the columns. Accept or dismiss each one — nothing is applied automatically."
+            style={{
+              display: "inline-flex", alignItems: "center", gap: 5, fontSize: 11, fontWeight: 700,
+              borderRadius: 999, padding: "3px 10px", whiteSpace: "nowrap", flexShrink: 0,
+              // #5E3DB0 on #F4EFFC = 7.86:1 — the same pair the retired band used.
+              color: "#5E3DB0", background: "#F4EFFC", border: "1px solid #E2D6F6",
+            }}
+          >
+            <svg width="11" height="11" viewBox="0 0 12 12" fill="none" aria-hidden style={{ flexShrink: 0 }}>
+              <path d="M6 1.2l1.1 3.2 3.2 1.1-3.2 1.1L6 9.8 4.9 6.6 1.7 5.5l3.2-1.1z" fill="currentColor" />
+            </svg>
+            {suggestionCount} AI {suggestionCount === 1 ? "suggestion" : "suggestions"}
           </span>
         )}
 
@@ -337,6 +422,17 @@ export function WorkshopStatusBar({
             <DropdownMenuItem disabled={mapper == null} onSelect={() => mapper?.toggleConnections()}>
               {mapper?.showConnections ? "Hide connections" : "Show connections"}
             </DropdownMenuItem>
+            {suggestionCount > 0 && mapper?.dismissAllSuggestions && (
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  onSelect={() => mapper.dismissAllSuggestions?.()}
+                  title="Clear every AI-suggested field mapping. Nothing was applied — this only stops showing them."
+                >
+                  Dismiss all AI suggestions
+                </DropdownMenuItem>
+              </>
+            )}
           </DropdownMenuContent>
         </DropdownMenu>
       </div>

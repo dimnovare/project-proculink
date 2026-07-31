@@ -148,6 +148,103 @@ describe("WorkshopStatusBar", () => {
   });
 });
 
+/**
+ * WP-28 — the issue COUNT must be readable without a click, in EVERY layout
+ * state. The issue list itself is promoted to an always-rendered region in the
+ * third column, but `useWorkshopLayout` can rail that whole column
+ * (Focus = Mapping) and it persists that choice in sessionStorage — so the
+ * status bar carries the count too. Belt and braces, deliberately.
+ *
+ * The shipped contract is preserved exactly: at zero blockers the red segment is
+ * still absent and the word "blocker" still never appears.
+ */
+describe("WorkshopStatusBar — the issue summary is always present", () => {
+  test("no issues at all → a calm 'No issues' chip (never '0 blockers')", () => {
+    render(<WorkshopStatusBar blockers={[]} notes={0} onJump={vi.fn()} mapper={mapperState()} />);
+    expect(screen.getByTestId("status-bar-issue-summary").textContent).toBe("No issues");
+    expect(screen.queryByTestId("status-bar-blockers")).toBeNull();
+    expect(screen.queryByText(/blocker/)).toBeNull();
+  });
+
+  test("warnings only → the count is stated as optional, and the row stays non-red", () => {
+    render(<WorkshopStatusBar blockers={[]} notes={2} onJump={vi.fn()} mapper={mapperState()} />);
+    expect(screen.getByTestId("status-bar-issue-summary").textContent).toBe("2 optional");
+    expect(screen.queryByTestId("status-bar-blockers")).toBeNull();
+  });
+
+  test("one warning uses singular grammar", () => {
+    render(<WorkshopStatusBar blockers={[]} notes={1} onJump={vi.fn()} mapper={mapperState()} />);
+    expect(screen.getByTestId("status-bar-issue-summary").textContent).toBe("1 optional");
+  });
+
+  test("blockers present → the red segment owns the count; no duplicate summary chip", () => {
+    render(
+      <WorkshopStatusBar
+        blockers={[{ id: "a", name: "Needs a supplier code" }]}
+        notes={2}
+        onJump={vi.fn()}
+        mapper={mapperState()}
+      />,
+    );
+    expect(screen.getByTestId("status-bar-blockers")).toBeTruthy();
+    expect(screen.queryByTestId("status-bar-issue-summary")).toBeNull();
+  });
+});
+
+/**
+ * WP-28 — the two banners that used to stack ABOVE the three columns are
+ * re-hosted here, the same way the 2026-07 wave re-hosted the mapper toolbar.
+ */
+describe("WorkshopStatusBar — re-hosted bands", () => {
+  test("the send flow notice renders inside the one status row, not as its own band", () => {
+    render(
+      <WorkshopStatusBar
+        blockers={[]}
+        onJump={vi.fn()}
+        mapper={mapperState()}
+        notice="Sent to ElectroSupply Co."
+        noticeSeverity="success"
+      />,
+    );
+    const notice = screen.getByTestId("status-bar-notice");
+    expect(notice.textContent).toBe("Sent to ElectroSupply Co.");
+    // Inside the bar — not a sibling band above the columns.
+    expect(screen.getByTestId("workshop-status-bar").contains(notice)).toBe(true);
+  });
+
+  test("no notice → no notice element at all", () => {
+    render(<WorkshopStatusBar blockers={[]} onJump={vi.fn()} mapper={mapperState()} />);
+    expect(screen.queryByTestId("status-bar-notice")).toBeNull();
+  });
+
+  test("AI mapping suggestions become a chip here, and dismiss-all moves to the overflow", async () => {
+    const dismissAllSuggestions = vi.fn();
+    render(
+      <WorkshopStatusBar
+        blockers={[]}
+        onJump={vi.fn()}
+        mapper={mapperState({ suggestionCount: 2, dismissAllSuggestions })}
+      />,
+    );
+    const chip = screen.getByTestId("status-bar-ai-suggestions");
+    expect(chip.textContent).toContain("2 AI suggestions");
+    // The visible-accept-step guarantee survives the move.
+    expect(chip.getAttribute("title")).toMatch(/nothing is applied automatically/i);
+
+    fireEvent.keyDown(screen.getByRole("button", { name: "More order tools" }), { key: "Enter" });
+    fireEvent.click(await screen.findByRole("menuitem", { name: /dismiss all ai suggestions/i }));
+    expect(dismissAllSuggestions).toHaveBeenCalled();
+  });
+
+  test("no suggestions → no chip and no dismiss-all item", async () => {
+    render(<WorkshopStatusBar blockers={[]} onJump={vi.fn()} mapper={mapperState()} />);
+    expect(screen.queryByTestId("status-bar-ai-suggestions")).toBeNull();
+    fireEvent.keyDown(screen.getByRole("button", { name: "More order tools" }), { key: "Enter" });
+    const items = await screen.findAllByRole("menuitem");
+    expect(items.map((i) => i.textContent ?? "").some((t) => /dismiss all ai/i.test(t))).toBe(false);
+  });
+});
+
 // ── WP-13 · the promote control ──────────────────────────────────────────────
 // The bar is the ONLY place this control can live in the workshop: the mapper's
 // own "Save mappings" button sits inside the `!hideToolbar` block, and the
