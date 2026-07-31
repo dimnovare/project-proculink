@@ -30,6 +30,7 @@ vi.mock("next/navigation", () => ({
 }));
 
 import { ContactForm } from "./ContactForm";
+import { PROBLEM_COPY } from "@/components/bridge/problem/problemCopy";
 
 function subjectField() {
   return screen.getByRole("textbox", { name: /Subject/i }) as HTMLInputElement;
@@ -48,7 +49,12 @@ describe("ContactForm — prefilled from ?order= and ?problem=", () => {
 
     render(<ContactForm />);
 
-    expect(subjectField().value).toBe("Order PO-4711 — Couldn't read the file");
+    // The badge is READ from PROBLEM_COPY, not retyped. A parallel packet renamed
+    // it ("Couldn't read the file" → "Couldn't read file") and this test was the
+    // only thing that broke — the component had already followed the rename,
+    // because it reads the same source. Hard-coding the words here would make a
+    // future rename look like a product regression instead of a copy edit.
+    expect(subjectField().value).toBe(`Order PO-4711 — ${PROBLEM_COPY.failed.badge}`);
   });
 
   it("never puts the raw status key in front of the customer", () => {
@@ -107,7 +113,7 @@ describe("ContactForm — missing or unrecognised params fall back to a blank fo
 
     render(<ContactForm />);
 
-    expect(subjectField().value).toBe("Couldn't read the file");
+    expect(subjectField().value).toBe(PROBLEM_COPY.failed.badge);
     expect(subjectField().value).not.toMatch(/undefined|Order Order/i);
   });
 
@@ -118,6 +124,6 @@ describe("ContactForm — missing or unrecognised params fall back to a blank fo
 
     render(<ContactForm />);
 
-    expect(subjectField().value).toBe("Couldn't read the file");
+    expect(subjectField().value).toBe(PROBLEM_COPY.failed.badge);
   });
 });

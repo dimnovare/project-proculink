@@ -444,6 +444,11 @@ describe("a sentence only promises a re-send when the product can re-send", () =
       supplierId: "sup-1",
       orderId: "ord-1",
       serverMessage: null,
+      // WP-19 added these two to ProblemCtx. Null is the "no named cause" path,
+      // which is what a refused order carries — the cause slugs describe delivery
+      // failures, not a supplier's business rejection.
+      failureCause: null,
+      retryAfterSeconds: null,
       readOnly: false,
       atOrderLimit: false,
       processingPaused: false,
