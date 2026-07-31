@@ -31,9 +31,12 @@ if (!("ResizeObserver" in globalThis)) {
 const mockState: {
   order: Order | null;
   promote: ReturnType<typeof vi.fn>;
+  /** The per-org direction label. "Customer" is the inbound mode (founder decision 2026-07-30). */
+  counterparty: string;
 } = {
   order: null,
   promote: vi.fn(),
+  counterparty: "Supplier",
 };
 
 vi.mock("next/navigation", () => ({
@@ -52,8 +55,8 @@ vi.mock("@/hooks/useQueriesEnabled", () => ({ useQueriesEnabled: () => true }));
 vi.mock("@/hooks/useOrderDirection", () => ({
   useOrderDirection: () => ({
     labels: {
-      counterpartyNoun: "Supplier",
-      counterpartyPlural: "Suppliers",
+      counterpartyNoun: mockState.counterparty,
+      counterpartyPlural: `${mockState.counterparty}s`,
       railHeader: "Buyer → Supplier",
       primaryCta: "Send to supplier",
       primaryCtaProgress: "Sending…",
@@ -174,6 +177,7 @@ function result(over: Partial<PromoteMappingResult> = {}): PromoteMappingResult 
 beforeEach(() => {
   mockState.order = makeOrder();
   mockState.promote = vi.fn().mockResolvedValue(result());
+  mockState.counterparty = "Supplier";
 });
 afterEach(cleanup);
 
@@ -217,6 +221,19 @@ describe("WP-13 — the promote control is reachable on /inbox/[orderId]", () =>
     expect(notice.textContent).toMatch(/6/);
     expect(notice.textContent).toMatch(/4/);
     expect(notice.textContent).toContain("Acme");
+  });
+
+  test("the party noun comes from the direction labels, never a hardcoded 'supplier'", async () => {
+    // Inbound mode: the counterparty is a CUSTOMER. Hardcoding "supplier" anywhere in
+    // user-facing copy silently deletes that mode (founder decision, 2026-07-30).
+    mockState.counterparty = "Customer";
+    mockState.order = makeOrder({ supplierId: "sup-1", supplierName: undefined });
+    render(<OrderWorkshop orderId="ord-1" />);
+    fireEvent.click(saveButton());
+
+    const notice = await screen.findByTestId("promote-notice");
+    expect(notice.textContent).toContain("customer");
+    expect(notice.textContent).not.toContain("supplier");
   });
 
   test("nothing to promote reads as INFO, never as a success", async () => {

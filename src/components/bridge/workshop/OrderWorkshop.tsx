@@ -318,8 +318,12 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
     ? `Assign a ${labels.counterpartyNoun.toLowerCase()} first — there is nowhere to save this mapping yet.`
     : null;
 
+  // No second guard inside the handler. `saveMappingsDisabledReason` disabling the
+  // control IS the enforcement, and it is mutation-proven: forcing that reason to
+  // null turns two tests red. An in-handler early return looked like belt-and-braces
+  // but no test could reach it — a disabled button never fires — so it was an
+  // uncovered branch pretending to be a safeguard.
   const onSaveMappings = useCallback(async () => {
-    if (promoteDisabledReason) return;
     setPromoting(true);
     setPromoteNotice(null);
     try {
@@ -354,7 +358,7 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
     } finally {
       setPromoting(false);
     }
-  }, [orderId, order?.supplierName, labels.counterpartyNoun, promoteDisabledReason]);
+  }, [orderId, order?.supplierName, labels.counterpartyNoun]);
 
   // ── Order details drawer (audit / standards / supplier response) ────────────
   //    Secondary, lower-frequency trust surfaces relocated from the old screen's
