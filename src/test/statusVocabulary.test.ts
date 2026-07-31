@@ -206,7 +206,10 @@ function copyBearingFiles(): string[] {
  * the scan in the same commit.
  */
 const OWNED_BY_HELP_COPY_PACKET = [
-  "src/app/(marketing)/help/dashboard-and-statuses/page.mdx",
+  // dashboard-and-statuses/page.mdx was here and is now scanned normally: this IS
+  // the help-copy packet, so on this branch the file is already rewritten. The
+  // guard below caught its own exemption outliving its reason, exactly as its
+  // comment promised — which is why it is removed rather than silenced.
   "src/app/(marketing)/help/inbox-basics/page.mdx",
 ];
 
