@@ -188,7 +188,14 @@ export function WorkshopStatusBar({
       )}
 
       {/* ── White segment — mapped count · save state · stepper · overflow ── */}
-      <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "4px 16px", flex: 1, minWidth: 0 }}>
+      {/* `flexWrap: wrap` is load-bearing, not cosmetic. Every child here is
+          `whiteSpace: nowrap` (a chip or a button reads badly broken mid-word), so
+          without wrapping the row can only grow past the viewport. WP-13's
+          "Save mappings for this <party>" pushed it 90px over at 1280 — caught by
+          the `zero overflow at 1280 wide viewport` e2e, which is exactly what that
+          test is for. Wrapping trades a taller bar for a page that never scrolls
+          sideways. */}
+      <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 12, padding: "4px 16px", flex: 1, minWidth: 0 }}>
         {mapper != null && mapper.total > 0 && (
           <span
             title="Output fields with a resolved value (mapped, fixed, or auto)"
