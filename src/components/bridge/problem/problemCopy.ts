@@ -158,7 +158,7 @@ export const PROBLEM_COPY: Record<ProblemStatus, ProblemCopy> = {
   failed: withAutomaticFor({
     tone: "danger",
     presentation: "gate",
-    badge: "Couldn't read the file",
+    badge: "Couldn't read file",
     headline: "We couldn't read this file",
     attribution: () => "This is about the file, not your setup — nothing here is misconfigured.",
     automatic: null,
@@ -221,7 +221,7 @@ export const PROBLEM_COPY: Record<ProblemStatus, ProblemCopy> = {
   transform_failed: withAutomaticFor({
     tone: "danger",
     presentation: "banner",
-    badge: "Output failed",
+    badge: "Couldn't build output",
     headline: "We couldn't build the file this supplier needs",
     attribution: (c) => `Your order is fine — the output we build for ${c.supplier} isn't.`,
     automatic: null,
@@ -257,7 +257,7 @@ export const PROBLEM_COPY: Record<ProblemStatus, ProblemCopy> = {
   delivery_failed: withAutomaticFor({
     tone: "danger",
     presentation: "banner",
-    badge: "Delivery failed",
+    badge: "Couldn't send",
     headline: "We couldn't reach this supplier",
     attribution: (c) =>
       isDeliveryConfigMissing(c.serverMessage)
@@ -356,7 +356,7 @@ export const PROBLEM_COPY: Record<ProblemStatus, ProblemCopy> = {
   rejected_by_supplier: withAutomaticFor({
     tone: "danger",
     presentation: "banner",
-    badge: "Supplier refused it",
+    badge: "Supplier rejected",
     headline: "This supplier refused this order",
     attribution: () => "They received it and turned it down. Their reason is below.",
     automatic: null,

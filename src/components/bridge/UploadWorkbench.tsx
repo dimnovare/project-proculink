@@ -11,6 +11,7 @@ import { FileChip } from "./FileChip";
 import { PageHeader } from "./layout/PageHeader";
 import { PageShell } from "./layout/PageShell";
 import { SupplierPicker } from "./SupplierPicker";
+import { statusLabel } from "./UnifiedStatusBadge";
 import { ApiHttpError, apiClient, getBillingStatus, isApiMockMode, type DetectFormatResult } from "@/lib/api-client";
 import type { Supplier } from "@/types/procurement";
 import { capture } from "@/lib/analytics";
@@ -48,24 +49,36 @@ interface RecentRow {
   supplier: string;
   size: string;
   age: string;
+  /** Tone bucket only — the WORDS come from `rawStatus`. */
   status: RecentStatus;
+  /**
+   * The raw backend OrderStatus. Carried so the pill can print the canonical
+   * label instead of the tone bucket's name: the bucket folds many statuses
+   * into six tones, and `default: "draft"` meant an order the supplier had
+   * REFUSED — and one whose delivery was paused, and one parked with an unknown
+   * outcome — all read "Draft" on the upload page while the inbox and the order
+   * screen named them correctly.
+   */
+  rawStatus: string;
 }
 
 // Demo rows are dev-only (mock mode). Real users see their own orders from the
 // live API, or nothing when there are no recent uploads — never staged data.
 const DEMO_RECENT: RecentRow[] = [
-  { id: "ord-001", name: "PO-DEMO-001.pdf",   fmt: "PDF",   buyer: "Heinrich Industries",  supplier: "Acme Components",    size: "214 KB", age: "2m",  status: "processing" },
-  { id: "ord-002", name: "NRD_orders_may.xlsx",  fmt: "XLSX",  buyer: "Nordmark Logistics",   supplier: "VanDerBerg Metaal",  size: "88 KB",  age: "18m", status: "done"       },
-  { id: "ord-003", name: "westmark_q2.csv",      fmt: "CSV",   buyer: "Westmark Tools",       supplier: "Acme Components",    size: "44 KB",  age: "3h",  status: "done"       },
+  { id: "ord-001", name: "PO-DEMO-001.pdf",   fmt: "PDF",   buyer: "Heinrich Industries",  supplier: "Acme Components",    size: "214 KB", age: "2m",  status: "processing", rawStatus: "parsing"   },
+  { id: "ord-002", name: "NRD_orders_may.xlsx",  fmt: "XLSX",  buyer: "Nordmark Logistics",   supplier: "VanDerBerg Metaal",  size: "88 KB",  age: "18m", status: "done",       rawStatus: "delivered" },
+  { id: "ord-003", name: "westmark_q2.csv",      fmt: "CSV",   buyer: "Westmark Tools",       supplier: "Acme Components",    size: "44 KB",  age: "3h",  status: "done",       rawStatus: "delivered" },
 ];
 
-const STATUS_PILL: Record<RecentStatus, { bg: string; color: string; label: string }> = {
-  processing: { bg: "#F0EAFB", color: "#6F4FCE", label: "Processing" },
-  done:       { bg: "#E9F1EA", color: "#1E6D29", label: "Delivered"  },
-  failed:     { bg: "#FBE3E3", color: "#B43838", label: "Failed"     },
-  review:     { bg: "#FAF1DD", color: "#9A5F0A", label: "Needs review" },
-  ready:      { bg: "#E9F1EA", color: "#1E6D29", label: "Ready"      },
-  draft:      { bg: "#F1F3F7", color: "#5E6779", label: "Draft"      },
+// Colour only. The words are statusLabel(row.rawStatus) at the two render
+// sites, so this table cannot become a seventh place that names a status.
+const STATUS_PILL: Record<RecentStatus, { bg: string; color: string }> = {
+  processing: { bg: "#F0EAFB", color: "#6F4FCE" },
+  done:       { bg: "#E9F1EA", color: "#1E6D29" },
+  failed:     { bg: "#FBE3E3", color: "#B43838" },
+  review:     { bg: "#FAF1DD", color: "#9A5F0A" },
+  ready:      { bg: "#E9F1EA", color: "#1E6D29" },
+  draft:      { bg: "#F1F3F7", color: "#5E6779" },
 };
 
 /** Map source format string from the orders API → a FileChip format key. */
@@ -83,17 +96,36 @@ function formatKeyFromSource(src: string | null | undefined): FormatKey {
   }
 }
 
-/** Map an order status → a recent-upload status pill. */
-function recentStatusFromOrder(status: string): RecentStatus {
+/**
+ * Map an order status → the pill's TONE. Every status
+ * OrderStatusConstants can produce is listed, so `draft` is now genuinely the
+ * unknown-status fallback rather than the bucket five real states fell into.
+ *
+ * Exported for src/test/statusVocabulary.test.ts, which walks every backend
+ * status through it. `draft` reachable from a real status is the bug.
+ */
+export function recentStatusFromOrder(status: string): RecentStatus {
   switch (status) {
     case "delivered":                                  return "done";
+    // Red. The last two are the additions: an order whose retries are spent, and
+    // one the supplier read and refused, both used to fall through to the grey
+    // "Draft" bucket — on the upload page, while every other screen named them.
     case "failed":
     case "transform_failed":
-    case "delivery_failed":                            return "failed";
+    case "delivery_failed":
+    case "delivery_dead_letter":
+    case "rejected_by_supplier":                       return "failed";
+    case "pending_parse":
     case "parsing":
     case "transforming":
     case "delivering":                                 return "processing";
-    case "pending_review":                             return "review";
+    // Amber — waiting on a human, not broken. `delivery_held` waits on billing
+    // and `delivery_unconfirmed` waits on a call to the supplier, but from this
+    // list's point of view all three are "somebody has to act".
+    case "pending_review":
+    case "unrouted":
+    case "delivery_held":
+    case "delivery_unconfirmed":                       return "review";
     case "ready":
     case "ready_to_deliver":                           return "ready";
     default:                                           return "draft";
@@ -414,6 +446,7 @@ export function UploadWorkbench() {
           size: "—",
           age: relativeAge(o.createdAt),
           status: recentStatusFromOrder(o.status),
+          rawStatus: o.status,
         }));
 
   const openOrder = (id: string) =>
@@ -1527,7 +1560,7 @@ export function UploadWorkbench() {
                         className="inline-flex shrink-0 items-center gap-1 rounded px-2 py-0.5 text-[11px] font-medium"
                         style={{ background: pill.bg, color: pill.color }}
                       >
-                        {pill.label}
+                        {statusLabel(row.rawStatus)}
                       </span>
                     </div>
                     <div className="mb-2 flex items-center gap-2">
@@ -1636,7 +1669,7 @@ export function UploadWorkbench() {
                             className="inline-flex items-center gap-1 rounded px-2 py-0.5 text-[11px] font-medium"
                             style={{ background: pill.bg, color: pill.color }}
                           >
-                            {pill.label}
+                            {statusLabel(row.rawStatus)}
                           </span>
                         </td>
                       </tr>

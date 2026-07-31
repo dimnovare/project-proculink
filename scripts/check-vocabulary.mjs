@@ -610,7 +610,13 @@ if (WANT_TERMS) {
     console.error(
       `\nRelabel to the plain word (revision→version, canonical→ProcuLink fields,\n` +
         `replay→test with recent orders, bindings→in use, ingress→order intake,\n` +
-        `dead-letter→retry needed, artifact→output file, normalized→ready to send).\n` +
+        // Both entries used to name a label the product does not ship:
+        // "retry needed" (the badge reads "Out of retries") and a bare
+        // "ready to send" for `normalized`, which is the label of `ready` -
+        // the OTHER pre-delivery state. Status words come from STATUS_META.
+        `dead-letter→out of retries, artifact→output file,\n` +
+        `normalized→the STATUS_META label for the status you mean:\n` +
+        `"Ready to send" (ready) or "Queued to send" (ready_to_deliver)).\n` +
         `Code identifiers, classNames, CSS vars and comments are exempt — only\n` +
         `visible copy must change. See DESIGN-DB-1 §6.5 for the full table.\n`,
     );

@@ -336,10 +336,14 @@ export const HELP_ARTICLES: HelpArticle[] = [
   },
   {
     slug: "exceptions-and-stuck-orders",
-    title: "Working the exceptions queue",
-    blurb: "What lands in Exceptions, what Resolve and Ignore really do, and how to requeue a failed delivery.",
+    title: "Working the issues queue",
+    blurb: "What lands in Issues, what Resolve and Ignore really do, and how to send a failed delivery again.",
     category: "Troubleshooting",
-    keywords: ["exceptions", "stuck", "dead-letter", "requeue", "ignore", "resolve", "worker", "health", "delivery failed"],
+    // Search aliases, never rendered (help-search.ts weights them at 0.15). The
+    // RETIRED words stay on purpose: someone who learned the old vocabulary, or
+    // who is reading a backend log, has to be able to find the article that
+    // explains what replaced it.
+    keywords: ["issues", "exceptions", "stuck", "dead-letter", "out of retries", "requeue", "ignore", "resolve", "worker", "health", "couldn't send", "delivery failed"],
     readMin: 5,
     videoUrl: `${TOOL_VIDEO_BASE}/exceptions.mp4`,
     videoPosterUrl: `${TOOL_VIDEO_BASE}/exceptions-poster.jpg`,
