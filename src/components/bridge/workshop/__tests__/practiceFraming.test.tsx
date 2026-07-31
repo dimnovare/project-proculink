@@ -11,7 +11,7 @@
 // wherever the order is opened from and false everywhere else.
 
 import { describe, test, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, cleanup } from "@testing-library/react";
+import { render, screen, cleanup, waitFor } from "@testing-library/react";
 import type { Order, OrderValidationResult } from "@/types/procurement";
 
 const mockState: {
@@ -33,6 +33,15 @@ vi.mock("@tanstack/react-query", () => ({
 }));
 
 vi.mock("@/hooks/useQueriesEnabled", () => ({ useQueriesEnabled: () => true }));
+
+// The banner's pre-send promise is conditional on what THIS session actually started
+// (see practiceDeliveryKnown). The default here is "we don't know" — a bookmark — so the
+// framing tests below assert the framing, not the promise.
+vi.mock("@/hooks/useSampleOrder", () => ({
+  practiceDeliveryKnown: () => practiceDelivery,
+}));
+
+let practiceDelivery: boolean | null = null;
 
 vi.mock("@/hooks/useOrderDirection", () => ({
   useOrderDirection: () => ({
@@ -145,6 +154,7 @@ const banner = () => screen.queryByRole("note", { name: /practice order/i });
 beforeEach(() => {
   mockState.order = undefined;
   mockState.searchParams = new URLSearchParams();
+  practiceDelivery = null;
 });
 afterEach(cleanup);
 
@@ -186,6 +196,38 @@ describe("practice-order framing", () => {
     expect(note!.textContent).toMatch(/emailed you the finished file/i);
     // …and invites the real thing.
     expect(note!.querySelector('a[href="/upload"]')).not.toBeNull();
+  });
+
+  test("promises an email ONLY when this run really has a delivery set up", async () => {
+    // A deployment with no email provider seeds nothing, and the backend says so via
+    // deliveryConfigured=false. Promising "we'll email you the finished file" there
+    // would be a promise we cannot keep — the run stops at "no delivery is set up".
+    practiceDelivery = true;
+    mockState.order = makeOrder({ isSample: true });
+    const { unmount } = render(<OrderWorkshop orderId="ord-1" />);
+    await waitFor(() =>
+      expect(banner()!.textContent).toMatch(/finished file is emailed to you/i),
+    );
+    unmount();
+
+    practiceDelivery = false;
+    mockState.order = makeOrder({ isSample: true });
+    render(<OrderWorkshop orderId="ord-1" />);
+    await waitFor(() =>
+      expect(banner()!.textContent).toMatch(/email sending isn'?t set up/i),
+    );
+    expect(banner()!.textContent).not.toMatch(/finished file is emailed to you/i);
+  });
+
+  test("promises nothing about email when this session did not start the run", () => {
+    // A bookmark or a fresh session: we do not know whether delivery was set up, so the
+    // copy falls back to what is true either way.
+    practiceDelivery = null;
+    mockState.order = makeOrder({ isSample: true });
+    render(<OrderWorkshop orderId="ord-1" />);
+
+    expect(banner()!.textContent).toMatch(/nothing reaches a real supplier/i);
+    expect(banner()!.textContent).not.toMatch(/emailed to you/i);
   });
 
   test("uses a system icon, never an emoji", () => {

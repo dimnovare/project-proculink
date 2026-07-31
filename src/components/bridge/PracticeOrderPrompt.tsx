@@ -92,8 +92,8 @@ export function PracticeOrderPrompt({
           {pending ? "Starting practice order…" : ctaLabel}
         </button>
         <p className="mt-0.5 max-w-[340px] text-[11px] leading-snug" style={{ color: T.faint }}>
-          One example order, start to finish — we email you the finished file. Free: it
-          doesn&apos;t count against your plan, and nothing goes to a real supplier.
+          One example order, start to finish. Tell us where to send the finished file —
+          it&apos;s free, doesn&apos;t count against your plan, and never reaches a real supplier.
         </p>
       </div>
     );

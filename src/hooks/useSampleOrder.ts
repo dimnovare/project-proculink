@@ -27,6 +27,35 @@ import { captureException } from "@/lib/sentry-context";
 import { invalidateOnboardingStatus } from "@/hooks/useOnboardingStatus";
 
 /**
+ * Whether THIS practice order's delivery was actually set up, remembered per order id.
+ *
+ * The backend answers `deliveryConfigured: false` when it seeded nothing — no usable
+ * address, or a deployment with no email provider. Without this the review screen would
+ * promise "we'll email you the finished file" on a deployment that cannot send, and the
+ * user would meet a delivery_failed after being told otherwise. Session-scoped: it is a
+ * fact about one run, not durable state, and `null` (a bookmark opened later, or a fresh
+ * session) is read as "we don't know" — which downgrades the copy to what is always true
+ * rather than guessing.
+ */
+const PRACTICE_DELIVERY_PREFIX = "plk-practice-delivery:";
+
+function rememberPracticeDelivery(orderId: string, configured: boolean) {
+  try {
+    window.sessionStorage.setItem(PRACTICE_DELIVERY_PREFIX + orderId, configured ? "1" : "0");
+  } catch { /* storage unavailable — falls back to the "we don't know" copy */ }
+}
+
+/** `true` / `false` when this session started the run; `null` when we never saw it. */
+export function practiceDeliveryKnown(orderId: string): boolean | null {
+  try {
+    const raw = window.sessionStorage.getItem(PRACTICE_DELIVERY_PREFIX + orderId);
+    return raw === null ? null : raw === "1";
+  } catch {
+    return null;
+  }
+}
+
+/**
  * The address a practice order's finished file should be emailed to.
  *
  * The signed-in user's own inbox is the answer that needs nobody else's cooperation,
@@ -65,7 +94,8 @@ export function useSampleOrder(fromRoute: string): UseSampleOrderResult {
       capture("sample_order_started", { from_route: fromRoute, with_delivery: Boolean(deliverTo) });
       return apiClient.runSampleOrder(deliverTo);
     },
-    onSuccess: async ({ orderId }) => {
+    onSuccess: async ({ orderId, deliveryConfigured }) => {
+      rememberPracticeDelivery(orderId, deliveryConfigured);
       await Promise.all([
         invalidateOnboardingStatus(queryClient),
         queryClient.invalidateQueries({ queryKey: ["orders"] }),

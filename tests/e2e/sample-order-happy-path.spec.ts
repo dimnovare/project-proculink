@@ -35,13 +35,18 @@ test("clicking Try with sample order routes to a sample order page with banner",
 
   const sampleCta = page.getByRole("button", { name: /try with.*sample order/i });
   await expect(sampleCta).toBeVisible({ timeout: 10_000 });
-  await sampleCta.click();
 
   // WP-27: the CTA now asks where to email the finished file before it starts the
   // run, because a practice order with nowhere to deliver dead-ends at "no delivery
   // is set up" — the thing the packet exists to remove.
+  //
+  // The click can land before `next dev` finishes hydrating the route, silently
+  // dropping the React handler, so retry until the prompt actually opens.
   const addressField = page.getByLabel(/send the finished file to/i);
-  await expect(addressField).toBeVisible({ timeout: 10_000 });
+  await expect(async () => {
+    await sampleCta.click();
+    await expect(addressField).toBeVisible({ timeout: 4_000 });
+  }).toPass({ timeout: 45_000, intervals: [500, 1000, 2000] });
   await addressField.fill("coordinator@northgate.example");
 
   // Click + wait for navigation to /inbox/<id>. Generous timeout: in CI mock mode the

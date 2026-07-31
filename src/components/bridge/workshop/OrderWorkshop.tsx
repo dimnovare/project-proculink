@@ -21,7 +21,7 @@
 // — an honest reduced REVIEW-AND-SEND surface (order summaries + the full issue list +
 // one-click fixes + a sticky Send bar); field-by-field mapping stays on a wider screen.
 
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { CircleCheck } from "lucide-react";
@@ -29,6 +29,7 @@ import { useQuery } from "@tanstack/react-query";
 import { apiClient, getMappingOverride, previewMappingOverride } from "@/lib/api-client";
 import { getFieldValidation } from "@/lib/api/mapper-ai";
 import { useQueriesEnabled } from "@/hooks/useQueriesEnabled";
+import { practiceDeliveryKnown } from "@/hooks/useSampleOrder";
 import { useOrderDirection } from "@/hooks/useOrderDirection";
 import type { OrderMappingOverride } from "@/lib/api/types";
 import type { CalibrationSummary } from "@/types/procurement";
@@ -361,6 +362,13 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
   // order opened with `?sample=1` pasted on rendered as practice. `order.isSample`
   // comes from PurchaseOrderEntity.IsSample and is true wherever the order is.
   const isSampleOrder = order?.isSample === true;
+  // Whether THIS practice run's delivery was actually set up (see practiceDeliveryKnown).
+  // null = we did not start it in this session, so the banner promises nothing. Read after
+  // mount: touching sessionStorage during render would diverge server pass from client.
+  const [practiceDelivers, setPracticeDelivers] = useState<boolean | null>(null);
+  useEffect(() => {
+    if (isSampleOrder) setPracticeDelivers(practiceDeliveryKnown(orderId));
+  }, [isSampleOrder, orderId]);
   const [detailsTab, setDetailsTab] = useState<OrderDetailsTab | null>(() => {
     const t = searchParams?.get("tab");
     return t === "passport" || t === "conformance" || t === "response" ? t : null;
@@ -799,7 +807,12 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
               <strong style={{ color: "#1E6D29" }}>Practice order</strong>
               <span style={{ color: "#2E7D38" }}>
                 {" "}— free, doesn&apos;t count against your plan. Match the one missing item
-                code, then send it: the finished file is emailed to you, never to a supplier.
+                code, then send it.{" "}
+                {practiceDelivers === true
+                  ? "The finished file is emailed to you, never to a supplier."
+                  : practiceDelivers === false
+                  ? "Email sending isn't set up on this workspace yet, so this run will stop at “no delivery is set up”."
+                  : "Nothing reaches a real supplier."}
               </span>
             </span>
           )}

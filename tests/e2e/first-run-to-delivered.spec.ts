@@ -91,8 +91,11 @@ test("a brand-new account reaches a DELIVERED file without contacting a supplier
   const banner = page.getByRole("note", { name: /practice order/i });
   await expect(banner).toBeVisible({ timeout: 60_000 });
   await expect(banner).toContainText(/doesn'?t count against your plan/i);
-  // The outcome is named BEFORE the send, so nothing about it is a surprise.
-  await expect(banner).toContainText(/emailed to you, never to a supplier/i);
+  // The outcome is named BEFORE the send, so nothing about it is a surprise — and the
+  // promise is conditional on the run actually having a delivery setup, which this one
+  // does (an address was supplied). A deployment with no email provider gets the other
+  // branch instead of a promise it cannot keep.
+  await expect(banner).toContainText(/the finished file is emailed to you, never to a supplier/i);
 
   // ── The single manual rep the fixture exists to teach ─────────────────────
   // Exactly one line arrives unresolved (the fixture pre-maps the other two), so the
