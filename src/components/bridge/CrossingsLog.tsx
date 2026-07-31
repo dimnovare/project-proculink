@@ -842,7 +842,7 @@ export function CrossingsLog() {
                                     background: c.recoverable ? "var(--amber-soft)" : "var(--danger-soft)",
                                     borderRadius: "var(--radius)",
                                     fontSize: 11.5,
-                                    color: c.recoverable ? "var(--amber)" : "var(--danger)",
+                                    color: c.recoverable ? "var(--amber-text)" : "var(--danger)",
                                   }}
                                 >
                                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>

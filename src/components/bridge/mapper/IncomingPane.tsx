@@ -398,7 +398,7 @@ function IncomingRow({
             {field.value || <span style={{ color: "#CBD0DA" }}>(empty)</span>}
           </span>
           {!wired && (
-            <span style={{ flexShrink: 0, fontSize: 9.5, fontWeight: 700, color: "#B36D14", background: "#FAF1DD", borderRadius: 4, padding: "2px 6px" }}>
+            <span style={{ flexShrink: 0, fontSize: 9.5, fontWeight: 700, color: "#8A5310", background: "#FAF1DD", borderRadius: 4, padding: "2px 6px" }}>
               unmapped
             </span>
           )}

@@ -24,7 +24,8 @@ import {
 // inline styles driven by the design CSS variables — every colour resolves to a
 // token (var(--brand-blue) #1E66C9 buyer/primary, var(--brand-green) #2E8E3A
 // supplier, navy chrome, ink/border surfaces). No raw hexes are invented and the
-// old #28C55E green is never used.
+// retired emerald green is never used (banned repo-wide; see
+// src/test/token-contrast.test.ts).
 //
 // Differences from the static design that are intentional and required:
 //   • Real plan ladder + prices come from src/lib/plans.ts (6 tiers), not the

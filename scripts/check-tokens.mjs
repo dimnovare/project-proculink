@@ -17,16 +17,48 @@
  * A palette constant IS a hex literal, so rule 1 already catches it; it is
  * reported under its own rule id purely so the message can name the fix.
  *
- * THREE DELIBERATE DEVIATIONS FROM THE DOC, each measured:
- *   • The regex also accepts an 8-digit #RRGGBBAA. The doc's 6-digit regex
- *     matches the first six characters of one anyway; being explicit means the
- *     reported span is the whole literal.
+ * FIVE DELIBERATE DEVIATIONS FROM THE DOC, each measured:
+ *   • The regex also accepts a 3-digit #RGB and an 8-digit #RRGGBBAA. The doc's
+ *     6-digit regex matches the first six characters of an 8-digit literal
+ *     anyway; being explicit means the reported span is the whole literal.
+ *     3-digit was added after a refutation showed `#fff` walking straight past.
+ *   • rgb() / rgba() / hsl() / hsla() with NUMERIC arguments are caught too, as
+ *     rule `color-fn`. `rgba(30,102,201,0.22)` is `#1E66C9` restated in decimal:
+ *     a 6-digit-hex-only gate reported two marketing pages as "cleaned to zero"
+ *     while they still hardcoded the brand blue 14 times between them. A call
+ *     with `var(--token)` inside it is NOT flagged — that is a token being given
+ *     an alpha, which is the correct spelling, not drift.
+ *   • RETIRED COLOURS are swept across ALL of src/**, not just src/app/**. The
+ *     banned emerald shipped as the focus-visible ring on all 46 help articles
+ *     (2.2731:1 against a 3:1 non-text floor) from src/components/help/, which
+ *     an src/app-scoped gate is blind to by construction. This rule has no
+ *     baseline and no allowlist: a banned value is never debt, it is a bug.
  *   • COMMENTS ARE SCANNED. The doc says "anywhere", and not scanning them would
  *     have hidden a real defect: how-it-works/page.tsx documented the palette as
- *     "#28C55E family" — a colour the same doc explicitly BANS. Stale palette
- *     documentation is exactly how drift survives a cleanup.
+ *     the retired-emerald "family" — a colour the same doc explicitly BANS.
+ *     Stale palette documentation is exactly how drift survives a cleanup.
  *   • Default is report-only; `--strict` is what fails. That matches
  *     check-pageshell.mjs, and CI runs --strict.
+ *
+ * WHAT THIS GATE DOES NOT DO — read this before quoting a green run.
+ *   1. IT IS NOT A CONTRAST CHECK. It reads source TEXT. Two tokens can fail
+ *      WCAG against each other with no raw hex on the line at all:
+ *      `{ background: "var(--amber-soft)", color: "var(--amber)" }` is 3.6547:1
+ *      and this gate is green on it, permanently. A hex lint and AA conformance
+ *      are ORTHOGONAL; neither implies the other. Contrast is checked from
+ *      RESOLVED values in src/test/token-contrast.test.ts.
+ *   2. THE BASELINE IS A PER-FILE COUNT, so it cannot tell "same debt" from
+ *      "different debt". Neutralising one violation and adding a different one
+ *      in the same file (28 -> 28) passes SILENTLY. Growth (28 -> 29) is caught
+ *      and that is the load-bearing property, but a green `lint:tokens` does NOT
+ *      mean a baselined file is unchanged. Keying the ledger by violation
+ *      content would close this; it is a baseline-format change and is
+ *      deliberately not bundled into an accessibility fix round.
+ *   3. STILL NOT CAUGHT, by design or by limitation: `color-mix()` (its
+ *      arguments are usually tokens), CSS named colours (`red` is unresolvable
+ *      from `red` the identifier or the prose), and any hex assembled at
+ *      runtime — `"#" + "1E66C9"`, `` `#${x}` ``, `[..].join("")`. A source-text
+ *      scanner cannot see the last group without evaluating the program.
  *
  * ROUTE ENUMERATION. next.config.ts sets pageExtensions ["ts","tsx","mdx"] and
  * the tree carries 45 `page.mdx` against 44 `page.tsx`. A .tsx-only scan would
@@ -81,7 +113,7 @@ const SCAN_EXT = /\.(tsx|ts|mdx|css)$/;
 const ALLOWLIST = [
   {
     pattern: /^src\/app\/globals\.css$/,
-    rules: ["hex-literal", "palette-const"],
+    rules: ["hex-literal", "palette-const", "color-fn"],
     reason:
       "This file IS the token definitions — `:root { --brand-blue: #1E66C9 }`. " +
       "A hex here is the declaration every `var(--token)` elsewhere resolves to. " +
@@ -98,10 +130,21 @@ const ALLOWLIST = [
  * file reaches zero. Follow-up: sweep these onto tokens page by page (the doc's
  * own migration order is 11-unified-page-rules.md §Migration order).
  *
- * Cut with `--emit-baseline` at 478b809: 840 violations across 40 files. WP-30
- * cleans `(home)/page.tsx` (64) and `(marketing)/how-it-works/page.tsx` (47) to
- * zero — they are the packet's named page and the only two files under src/app
- * carrying a measured WCAG AA failure — leaving 729 across 38 files here.
+ * HISTORY, because the numbers moved for an honest reason.
+ * Cut at 478b809 with a 6-digit-hex-only regex: 840 across 40 files. WP-30 swept
+ * `(home)/page.tsx` (64) and `(marketing)/how-it-works/page.tsx` (47) and called
+ * them "cleaned to zero", leaving 729 across 38 files.
+ *
+ * Re-cut here after the regex was extended to rgb()/rgba()/hsl()/hsla() and
+ * 3-digit hex: 806 across 40 files. Both "cleaned" pages reappear — 9 and 7 —
+ * because "zero" had meant "zero BY THE OLD REGEX", and both still restate the
+ * brand blue in decimal (`rgba(30,102,201,0.22)` IS `#1E66C9`). They are back in
+ * the ledger, which is the point: the drift is now counted instead of invisible.
+ *
+ * These 16 are all TRANSLUCENT overlay/shadow values, and CLAUDE.md §3 itself
+ * writes card shadows as `rgba(11,26,47,0.04)`, so they are not obviously wrong
+ * — they simply have no alpha-bearing token yet. Giving them one is a follow-up;
+ * counting them is this change.
  */
 const BASELINE = {
   "src/app/(app)/admin/AdjustLimitsModal.tsx": 33,
@@ -112,60 +155,95 @@ const BASELINE = {
   "src/app/(app)/inbound/invoices/page.tsx": 1,
   "src/app/(app)/layout.tsx": 2,
   "src/app/(app)/library/buyers/page.tsx": 13,
-  "src/app/(app)/operations/connectors/page.tsx": 122,
+  "src/app/(app)/operations/connectors/page.tsx": 125,
   "src/app/(app)/operations/exceptions/page.tsx": 18,
   "src/app/(app)/operations/health/page.tsx": 6,
-  "src/app/(app)/operations/webhooks/page.tsx": 82,
-  "src/app/(app)/settings/page.tsx": 28,
+  "src/app/(app)/operations/webhooks/page.tsx": 83,
+  "src/app/(app)/settings/page.tsx": 33,
+  "src/app/(home)/page.tsx": 9,
   "src/app/(marketing)/aup/page.tsx": 11,
   "src/app/(marketing)/book-demo/page.tsx": 7,
-  "src/app/(marketing)/changelog/page.tsx": 24,
-  "src/app/(marketing)/customers/page.tsx": 15,
+  "src/app/(marketing)/changelog/page.tsx": 25,
+  "src/app/(marketing)/customers/page.tsx": 17,
   "src/app/(marketing)/dpa/page.tsx": 23,
   "src/app/(marketing)/formats/page.tsx": 23,
   "src/app/(marketing)/help/page.tsx": 8,
-  "src/app/(marketing)/how-it-works/AnimatedPipelinePanel.tsx": 29,
+  "src/app/(marketing)/how-it-works/AnimatedPipelinePanel.tsx": 35,
+  "src/app/(marketing)/how-it-works/page.tsx": 7,
   "src/app/(marketing)/layout.tsx": 8,
   "src/app/(marketing)/one-pager/page.tsx": 17,
   "src/app/(marketing)/one-pager/print.css": 1,
-  "src/app/(marketing)/pricing/page.tsx": 3,
+  "src/app/(marketing)/pricing/page.tsx": 15,
   "src/app/(marketing)/privacy/page.tsx": 17,
-  "src/app/(marketing)/security/page.tsx": 29,
+  "src/app/(marketing)/security/page.tsx": 35,
   "src/app/(marketing)/subprocessors/page.tsx": 21,
   "src/app/(marketing)/support/page.tsx": 19,
   "src/app/(marketing)/terms/page.tsx": 12,
-  "src/app/(marketing)/watch/page.tsx": 11,
-  "src/app/(marketing)/welcome/page.tsx": 13,
+  "src/app/(marketing)/watch/page.tsx": 13,
+  "src/app/(marketing)/welcome/page.tsx": 16,
   "src/app/global-error.tsx": 10,
   "src/app/layout.tsx": 2,
   "src/app/not-found.tsx": 6,
   "src/app/onboarding/select-organization/page.tsx": 1,
-  "src/app/sign-in/[[...sign-in]]/page.tsx": 28,
-  "src/app/sign-up/[[...sign-up]]/page.tsx": 28,
+  "src/app/sign-in/[[...sign-in]]/page.tsx": 34,
+  "src/app/sign-up/[[...sign-up]]/page.tsx": 34,
 };
 
 // ─── Rules ────────────────────────────────────────────────────────────────────
 
-/** #RRGGBB or #RRGGBBAA, not followed by a further hex digit. */
-const HEX_RE = /#[0-9A-Fa-f]{6}(?:[0-9A-Fa-f]{2})?(?![0-9A-Fa-f])/g;
+/**
+ * #RGB, #RRGGBB or #RRGGBBAA, not followed by a further hex digit. The 6/8-digit
+ * branch is tried first so `#1E66C9` is reported whole rather than as `#1E6`.
+ * Measured under src/app: the only 3-digit literals present are `#fff`/`#000`,
+ * so this branch adds no false positives (`#add`-shaped identifiers would be,
+ * and there are none).
+ */
+const HEX_RE =
+  /#[0-9A-Fa-f]{6}(?:[0-9A-Fa-f]{2})?(?![0-9A-Fa-f])|#[0-9A-Fa-f]{3}(?![0-9A-Fa-f])/g;
+
+/**
+ * rgb()/rgba()/hsl()/hsla() whose arguments contain no `var(`. With a token
+ * inside — `rgba(var(--x), .2)` — it is a token being given an alpha and is
+ * correct; with raw numbers it is a hardcoded colour wearing a different hat.
+ */
+const COLOR_FN_RE = /\b(?:rgba?|hsla?)\(([^)]*)\)/g;
 
 /** `const SCREAMING_SNAKE = "#hex"` — the per-page palette constant (doc rule 5). */
 const PALETTE_CONST_RE = /\bconst\s+([A-Z][A-Z0-9_]*)\s*(?::[^=]*)?=\s*["'`](#[0-9A-Fa-f]{3,8})["'`]/;
 
+/**
+ * Values the design system RETIRED and explicitly bans. Swept across all of
+ * src/** — see the header. Never baselined, never allowlisted.
+ * docs/design-system/11-unified-page-rules.md: "the retired emerald greens
+ * #28C55E, #1DAF50, #1AAF50 are banned".
+ */
+const RETIRED_COLORS = ["#28C55E", "#1DAF50", "#1AAF50"];
+const RETIRED_RE = new RegExp(RETIRED_COLORS.join("|"), "gi");
+
 const RULE_HINT = {
   "hex-literal":
     "replace with `var(--token)` or a Tailwind token class (bg-brand-green, text-ink-muted, border-border)",
+  "color-fn":
+    "rgb()/rgba()/hsl()/hsla() with raw numbers is a hardcoded colour — use `var(--token)`, or put the token inside the call to give it an alpha",
   "palette-const":
     "per-page palette constants are banned (11-unified-page-rules.md rule 5) — point the constant at `var(--token)` or delete it",
   "inline-button-bg":
     "use the Button primitive from @/components/bridge/DSPrimitives instead of an inline background",
+  "retired-color":
+    "this colour was retired by the design system and is banned — see 11-unified-page-rules.md; the emerald was shipping as a 2.27:1 focus ring",
 };
 
 /**
  * Every `<button …>` OPENING TAG in a source string, with its 1-based start line.
- * A regex cannot do this alone: `>` occurs inside JSX expressions (`a > b`,
- * `Array<{x}>`), so the tag end is found by tracking brace depth and only
- * accepting a `>` at depth 0.
+ *
+ * A regex cannot do this alone. `>` occurs inside JSX expressions (`count > 0`,
+ * `Array<{x}>`), so a naive `<button[^>]*>` ends at the wrong character and
+ * never reaches the `background`. Tracking BRACE DEPTH fixes that — and is not
+ * enough on its own: a `>` inside a QUOTED ATTRIBUTE sits at depth 0 and
+ * terminated the tag just as early. `aria-label="a > b"`, `title="Orders >
+ * Inbox"` are ordinary JSX, and the first version of this scanner let a real
+ * violation behind one straight through (exit 0). So quote state is tracked
+ * alongside brace depth, and both are pinned by tests.
  */
 function buttonOpeningTags(src) {
   const out = [];
@@ -173,10 +251,18 @@ function buttonOpeningTags(src) {
   let m;
   while ((m = re.exec(src)) !== null) {
     let depth = 0;
+    let quote = null; // the ' " or ` currently open, else null
     let end = -1;
     for (let i = m.index; i < src.length; i += 1) {
       const ch = src[i];
-      if (ch === "{") depth += 1;
+      if (quote !== null) {
+        // A backslash escapes the next character inside a quoted run.
+        if (ch === "\\") i += 1;
+        else if (ch === quote) quote = null;
+        continue;
+      }
+      if (ch === '"' || ch === "'" || ch === "`") quote = ch;
+      else if (ch === "{") depth += 1;
       else if (ch === "}") depth -= 1;
       else if (ch === ">" && depth === 0) {
         end = i;
@@ -197,6 +283,15 @@ function scanSource(src, ext) {
   const lines = src.split(/\r?\n/);
 
   lines.forEach((line, i) => {
+    // rgb()/rgba()/hsl()/hsla() is checked on EVERY line, including a
+    // palette-const line: `const SHADOW = "rgba(0,0,0,.4)"` is both.
+    COLOR_FN_RE.lastIndex = 0;
+    let fn;
+    while ((fn = COLOR_FN_RE.exec(line)) !== null) {
+      if (/var\(/.test(fn[1])) continue;
+      violations.push({ rule: "color-fn", line: i + 1, text: fn[0].slice(0, 60) });
+    }
+
     const paletteConst = PALETTE_CONST_RE.exec(line);
     if (paletteConst) {
       violations.push({
@@ -251,8 +346,42 @@ function allowedRules(rel) {
   return hit.rules === "*" ? "*" : new Set(hit.rules);
 }
 
+/**
+ * Retired colours, swept across ALL of src/**. Separate pass on purpose: the
+ * main scan's scope, allowlist and ledger are about src/app debt, and a banned
+ * value is not debt. Test files are skipped — the tests that PIN the ban have to
+ * be able to name the value they ban.
+ */
+function retiredColorViolations(srcRoot) {
+  const out = [];
+  if (!existsSync(srcRoot)) return out;
+  const stack = [srcRoot];
+  while (stack.length > 0) {
+    const dir = stack.pop();
+    for (const entry of readdirSync(dir)) {
+      const full = join(dir, entry);
+      if (statSync(full).isDirectory()) {
+        if (entry !== "node_modules" && entry !== ".next") stack.push(full);
+      } else if (SCAN_EXT.test(entry) && !/\.test\.tsx?$/.test(entry)) {
+        const rel = relative(ROOT, full).replace(/\\/g, "/");
+        readFileSync(full, "utf8")
+          .split(/\r?\n/)
+          .forEach((line, i) => {
+            RETIRED_RE.lastIndex = 0;
+            let m;
+            while ((m = RETIRED_RE.exec(line)) !== null) {
+              out.push({ rel, line: i + 1, text: m[0] });
+            }
+          });
+      }
+    }
+  }
+  return out;
+}
+
 // ─── Run ──────────────────────────────────────────────────────────────────────
 const files = collect(join(ROOT, ...SCAN_DIR));
+const retired = retiredColorViolations(join(ROOT, "src"));
 
 /** rel → { newOnes: [], allowed: number, baselineCount: number, count: number } */
 const perFile = new Map();
@@ -299,6 +428,14 @@ console.log(
   `\nDesign-token gate — scanned ${scannedCount} file(s) under src/app (.tsx/.ts/.mdx/.css)\n`,
 );
 
+if (retired.length > 0) {
+  console.error(
+    `FAIL — ${retired.length} use(s) of a RETIRED colour (${RETIRED_COLORS.join(", ")}) under src/**:\n`,
+  );
+  for (const r of retired) console.error(`  ${r.rel}:${r.line}  [retired-color]  "${r.text}"`);
+  console.error(`\n  retired-color: ${RULE_HINT["retired-color"]}\n`);
+}
+
 if (overBudget.length > 0) {
   const total = overBudget.reduce((n, [, v]) => n + (v.count - v.budget), 0);
   console.error(`FAIL — ${total} new token violation(s) across ${overBudget.length} file(s):\n`);
@@ -320,7 +457,7 @@ if (overBudget.length > 0) {
     `\nTokens live in src/app/globals.css (:root custom properties) and tailwind.config.ts.\n` +
       `See docs/design-system/11-unified-page-rules.md §Enforcement.\n`,
   );
-} else {
+} else if (retired.length === 0) {
   console.log("OK — no new raw hex, palette constants, or inline-styled buttons under src/app.");
 }
 
@@ -337,16 +474,31 @@ if (allowedTotal > 0) {
 }
 
 if (stale.length > 0) {
-  console.log(`\nBaseline rows now cheaper than recorded — please tighten:`);
+  // INFO, never a failure — deliberate: making a stale row red would punish the
+  // exact behaviour this gate exists to encourage (someone cleans a file, CI
+  // goes red, they learn to leave it alone). Re-cut with `--emit-baseline`.
+  console.log(`\nBaseline rows now cheaper than recorded — tighten with \`--emit-baseline\`:`);
   for (const [rel, budget, actual] of stale) console.log(`  [STALE] ${rel}  ${actual} < ${budget}`);
 }
 
-console.log("");
+// Stated on every run so a green result is never over-read. See the header.
+console.log(
+  `\nLimits: this gate reads source text. It does NOT check contrast — two tokens\n` +
+    `can fail WCAG against each other with no hex on the line (see\n` +
+    `src/test/token-contrast.test.ts). The baseline is a per-file COUNT, so\n` +
+    `swapping one violation for another in a baselined file passes silently;\n` +
+    `only GROWTH is caught.\n`,
+);
 
-if (STRICT && overBudget.length > 0) {
-  console.error(
-    `Strict mode: ${overBudget.length} file(s) exceed their token budget. Use var(--token) / a Tailwind token class.`,
-  );
+if (STRICT && (overBudget.length > 0 || retired.length > 0)) {
+  if (overBudget.length > 0) {
+    console.error(
+      `Strict mode: ${overBudget.length} file(s) exceed their token budget. Use var(--token) / a Tailwind token class.`,
+    );
+  }
+  if (retired.length > 0) {
+    console.error(`Strict mode: ${retired.length} retired-colour use(s) under src/**.`);
+  }
   process.exit(1);
 }
 

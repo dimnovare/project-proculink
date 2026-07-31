@@ -97,7 +97,7 @@ function buildIndex(
     // only place they actually run — so the palette opens the supplier list
     // rather than an org-wide catalog that decided nothing.
     { id: "a4",  group: "Actions", icon: "✓", label: "Validation rules",     sub: "Choose a supplier to set its checks", action: () => router.push("/library/suppliers"), color: "#0F4FA8" },
-    { id: "a5",  group: "Actions", icon: "⚠", label: "Issues",           sub: "Open the issues list", action: () => router.push("/operations/exceptions"), color: "#B36D14" },
+    { id: "a5",  group: "Actions", icon: "⚠", label: "Issues",           sub: "Open the issues list", action: () => router.push("/operations/exceptions"), color: "#8A5310" },
     { id: "a6",  group: "Actions", icon: "❤", label: "System health",        sub: "Open operator health view", action: () => router.push("/operations/health"),     color: "#0F4FA8" },
     { id: "a9",  group: "Actions", icon: "▤", label: "Delivery log",         sub: "Open delivery log",      action: () => router.push("/operations/log"),   color: "#0F4FA8" },
     { id: "a7",  group: "Actions", icon: "⚙", label: "Settings",             sub: "Workspace settings",     action: () => router.push("/settings"),         color: "#0F4FA8" },

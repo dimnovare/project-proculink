@@ -15,6 +15,15 @@
   --brand-blue-soft:   #EAF0F8;
   --brand-blue-soft-2: #DCE8F7;
   --brand-green:       #2E8E3A;
+  /* Solid button fill under WHITE text. --brand-green is only 4.1613:1 with
+     white and fails WCAG AA for the 12.5-13px labels these buttons carry; this
+     is 5.0244:1. tailwind.config.ts has carried `brand.green-btn` since the last
+     a11y pass and ~30 call sites use the raw #297F34 with a comment explaining
+     why — because the CSS variable was never defined. Now it is, so
+     `var(--brand-green-btn)` works and the literal has a token to point at.
+     Founder-approved. Hover goes DARKER to --brand-green-deep (6.4128:1), never
+     back to --brand-green: a hover state has to clear the floor too. */
+  --brand-green-btn:   #297F34;
   --brand-green-deep:  #1E6D29;
   --brand-green-soft:  #E9F1EA;
   --brand-green-soft-2:#D8EBDA;

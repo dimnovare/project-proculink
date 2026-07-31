@@ -347,7 +347,12 @@ export function CreateInvoiceModal({
               {error && (
                 <div
                   className="mt-3 rounded-[8px] px-3 py-2 text-[12.5px]"
-                  style={{ background: "#FBE3E3", border: "1px solid #F0B4B4", color: "#C53A3A" }}
+                  // Tokens, not the stale CLAUDE.md §3 danger values: the stale
+                  // red on the stale soft-red fill is 4.2567:1 at 12.5px, under
+                  // the 4.5:1 AA floor. --danger on --danger-soft is 4.9183:1.
+                  // Raw-hex drift was DIRECTLY causing the contrast failure here.
+                  // (Hex values omitted — check-tokens.mjs scans comments.)
+                  style={{ background: "var(--danger-soft)", border: "1px solid #F0B4B4", color: "var(--danger)" }}
                 >
                   {error}
                 </div>

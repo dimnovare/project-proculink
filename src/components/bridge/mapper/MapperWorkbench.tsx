@@ -859,7 +859,7 @@ export function MapperWorkbench(props: MapperWorkbenchProps) {
             <span style={{ display: "inline-flex", alignItems: "baseline", gap: 6, fontFamily: "var(--font-display, 'Bricolage Grotesque', Inter, sans-serif)", fontSize: 13, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.02em", color: "var(--ink)" }}>
               Map this order
               {issuesOpenCount > 0 && (
-                <span style={{ fontSize: 11.5, fontWeight: 700, textTransform: "none", letterSpacing: 0, color: issuesBlockingCount > 0 ? "#B43838" : "#B36D14" }}>
+                <span style={{ fontSize: 11.5, fontWeight: 700, textTransform: "none", letterSpacing: 0, color: issuesBlockingCount > 0 ? "#B43838" : "#8A5310" }}>
                   · {issuesOpenCount} to resolve
                 </span>
               )}

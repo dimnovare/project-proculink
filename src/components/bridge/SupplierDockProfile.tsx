@@ -522,7 +522,7 @@ function AcceptanceTab({ supplierId }: { supplierId: string }) {
                 className="rounded-full px-2.5 py-0.5 text-[11px] font-semibold"
                 style={{
                   background: profile.status === "active" ? "#E9F1EA" : "#FAF1DD",
-                  color: profile.status === "active" ? GREEN_DEEP : "#B36D14",
+                  color: profile.status === "active" ? GREEN_DEEP : "#8A5310",
                 }}
               >
                 v{profile.versionNo} · {profile.status === "active" ? "live" : profile.status === "draft" ? "draft — not live yet" : profile.status}
@@ -603,7 +603,7 @@ function AcceptanceTab({ supplierId }: { supplierId: string }) {
           <span className="font-semibold">How validation works.</span>{" "}
           Before an order is sent to this supplier, ProcuLink checks it against these rules.{" "}
           <strong style={{ color: DANGER }}>Error</strong> rules block delivery until they’re fixed;{" "}
-          <strong style={{ color: "#B36D14" }}>Warning</strong> rules only flag and never block.{" "}
+          <strong style={{ color: "#8A5310" }}>Warning</strong> rules only flag and never block.{" "}
           Validation never changes the order — it’s a gate.
           <span className="mt-1 block" style={{ color: MUTED }}>
             e.g. <em>Currency must be EUR</em> (error) · <em>Every line needs a supplier code</em> (error).

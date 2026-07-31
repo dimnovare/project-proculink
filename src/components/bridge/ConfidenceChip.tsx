@@ -21,10 +21,19 @@
 // one threshold function in the codebase. Pinned at the boundaries by
 // ConfidenceChip.test.tsx.
 //
-// NOT folded in: ghostWireModel.ghostConfidenceTier (0.85 / 0.60). That scores a
-// different thing — the risk of an unaccepted AI *suggestion*, not the
-// confidence of an extracted field — it runs on a 0..1 score, and it is the one
-// confidence helper that already has unit tests.
+// NOT folded in: ghostWireModel.ghostConfidenceTier (0.85 / 0.60). Be honest
+// about WHY, because the first stated reason was wrong: it is NOT "because it
+// runs on a 0..1 score". This chip normalises 0..1 itself two functions below
+// (`value <= 1 ? value * 100 : value`, pinned by its own test), so that
+// distinction collapses, and ghostWireModel.ts concedes it uses "the SAME
+// tiering language as ds-tokens.confidenceTier". It is, plainly, a FIFTH
+// threshold ladder with the same "ok"|"warn"|"danger" output.
+//
+// The real reasons to leave it alone: 0.85/0.60 is a deliberate plan
+// requirement for ghost-wire risk (a different question from field
+// confidence), it is the only confidence helper that already has unit tests,
+// and folding it in would change TESTED behaviour to satisfy no stated need.
+// Right call, corrected rationale.
 
 import { confidenceTier } from "@/lib/ds-tokens";
 

@@ -48,7 +48,7 @@ function invoiceDotColor(status: string): string {
 
 function StatusBadge({ status }: { status: string }) {
   const map: Record<string, { bg: string; color: string; label: string }> = {
-    pending:  { bg: "var(--amber-soft)",        color: "var(--amber)",       label: "Pending"  },
+    pending:  { bg: "var(--amber-soft)",        color: "var(--amber-text)",       label: "Pending"  },
     approved: { bg: "var(--brand-green-soft)",  color: "var(--brand-green-deep)", label: "Approved" },
     rejected: { bg: "var(--danger-soft)",       color: "var(--danger)",      label: "Rejected" },
   };
@@ -337,7 +337,7 @@ export default function InvoicesPage() {
           <div className="mb-4 grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))" }}>
             {([
               { label: "Approved", count: invoices.filter((x) => x.status === "approved").length, color: "var(--brand-green-deep)" },
-              { label: "Pending review", count: invoices.filter((x) => x.status === "pending").length, color: "var(--amber)" },
+              { label: "Pending review", count: invoices.filter((x) => x.status === "pending").length, color: "var(--amber-text)" },
               { label: "Rejected", count: invoices.filter((x) => x.status === "rejected").length, color: "var(--danger)" },
             ] as const).map((s) => (
               <div

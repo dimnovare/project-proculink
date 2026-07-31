@@ -13,7 +13,7 @@
 
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { execFileSync } from "child_process";
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from "fs";
+import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync } from "fs";
 import { tmpdir } from "os";
 import { join, resolve } from "path";
 
@@ -141,6 +141,50 @@ export default function Page() {
     expect(report).not.toContain("[hex-literal]");
   });
 
+  it("does not mistake a '>' inside a QUOTED ATTRIBUTE for the end of a button tag", () => {
+    rmSync(join(ROOT, "src", "app", "inline-button"), { recursive: true, force: true });
+    // Brace-depth tracking alone is not enough: a `>` inside a quoted attribute
+    // sits at depth 0 and terminated the tag before the scanner ever reached the
+    // background. This exact fixture exited 0 — a real violation walked past one
+    // of the two patterns §Enforcement names. `aria-label="Next >"` and
+    // `title="Orders > Inbox"` are ordinary JSX.
+    fixture(
+      "quoted-gt-button/page.tsx",
+      `export default function Page() {
+  return (
+    <button aria-label="a > b" style={{ background: "var(--brand-blue)" }}>
+      x
+    </button>
+  );
+}
+`,
+    );
+    expect(run("--strict")).toBe(1);
+    expect(output("--strict")).toContain("[inline-button-bg]");
+    rmSync(join(ROOT, "src", "app", "quoted-gt-button"), { recursive: true, force: true });
+  });
+
+  it("catches rgb()/rgba()/hsl() with raw numbers, but not a token given an alpha", () => {
+    // `rgba(30,102,201,0.22)` IS `#1E66C9` restated in decimal. 53 such literals
+    // lived under src/app and were invisible to the ledger, so two pages could be
+    // reported "cleaned to zero" while still hardcoding the brand blue.
+    fixture("color-fn/page.tsx", `export const a = "rgba(30,102,201,0.22)";\n`);
+    expect(run("--strict")).toBe(1);
+    expect(output("--strict")).toContain("[color-fn]");
+
+    // A token wearing an alpha is the CORRECT spelling and must not be flagged.
+    fixture("color-fn/page.tsx", `export const a = "rgba(var(--rgb-brand-blue), 0.22)";\n`);
+    expect(run("--strict")).toBe(0);
+    rmSync(join(ROOT, "src", "app", "color-fn"), { recursive: true, force: true });
+  });
+
+  it("catches a 3-digit hex", () => {
+    fixture("short-hex/page.tsx", `export const a = "#fff";\n`);
+    expect(run("--strict")).toBe(1);
+    expect(output("--strict")).toContain("[hex-literal]");
+    rmSync(join(ROOT, "src", "app", "short-hex"), { recursive: true, force: true });
+  });
+
   it("does not mistake a JSX comparison for the end of a button tag", () => {
     rmSync(join(ROOT, "src", "app", "inline-button"), { recursive: true, force: true });
     // `count > 0` inside the tag: a naive `<button[^>]*>` would stop at that `>`
@@ -191,18 +235,41 @@ export default function Page() {
 });
 
 describe("the repo itself", () => {
-  it("passes the design-token gate", () => {
-    // No --root: this is the real tree, with the real allowlist and baseline.
-    let status = 0;
+  const REPO = resolve(__dirname, "../..");
+
+  /** Run the gate against the REAL tree — real allowlist, real baseline. */
+  function runRepo(): number {
     try {
       execFileSync(process.execPath, [SCRIPT, "--strict"], {
-        cwd: resolve(__dirname, "../.."),
+        cwd: REPO,
         encoding: "utf8",
         stdio: "pipe",
       });
+      return 0;
     } catch (err) {
-      status = (err as { status?: number }).status ?? -1;
+      return (err as { status?: number }).status ?? -1;
     }
-    expect(status).toBe(0);
+  }
+
+  it("passes the design-token gate", () => {
+    expect(runRepo()).toBe(0);
+  });
+
+  it("FAILS when a baselined file grows past its budget — in the real tree", () => {
+    // The ledger's ONE load-bearing property: a file on the list may keep its
+    // recorded count and may never exceed it. Every other test here pins the
+    // ledger against a FIXTURE tree, where `--root` disables the baseline
+    // entirely (USING_FIXTURE) — so none of them could ever have caught this
+    // regressing. This one mutates a real baselined file and restores it.
+    const target = join(REPO, "src", "app", "(app)", "admin", "page.tsx");
+    const original = readFileSync(target);
+    try {
+      writeFileSync(target, Buffer.concat([original, Buffer.from('\nconst _probe = "#123456";\n')]));
+      expect(runRepo()).toBe(1);
+    } finally {
+      writeFileSync(target, original);
+    }
+    // Restored byte-for-byte, so the tree is green again.
+    expect(runRepo()).toBe(0);
   });
 });

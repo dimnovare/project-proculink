@@ -187,7 +187,7 @@ function Pct({ value }: { value: number }) {
   const pct = Math.round(value);
   const { bg, color } =
     pct >= 90 ? { bg: "#E9F1EA", color: "#1E6D29" } :
-    pct >= 75 ? { bg: "#FAF1DD", color: "#B36D14" } :
+    pct >= 75 ? { bg: "#FAF1DD", color: "#8A5310" } :
                 { bg: "#FBE3E3", color: "#B43838" };
   return (
     <span style={{ fontSize: 9.5, fontWeight: 700, fontFamily: "'JetBrains Mono',monospace", background: bg, color, borderRadius: 3, padding: "2px 5px" }}>
@@ -380,7 +380,7 @@ function DeliveryRow({
           </span>
         )}
         {unknownOutcome && (
-          <span style={{ fontSize: 10.5, color: "#B36D14" }}>
+          <span style={{ fontSize: 10.5, color: "#8A5310" }}>
             We do not know whether this file reached the supplier.
           </span>
         )}

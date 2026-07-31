@@ -672,7 +672,7 @@ function AssignSupplierCell({ orderId, noun }: { orderId: string; noun: string }
         borderRadius: 5,
         border: "1px solid #EBD7AE",
         background: "#FAF1DD",
-        color: "#B36D14",
+        color: "#8A5310",
         cursor: "pointer",
         whiteSpace: "nowrap",
         overflow: "hidden",
@@ -1567,7 +1567,7 @@ export function InboxView() {
                 const supplierSlot = row.original.rawStatus === "unrouted" ? (
                   <span
                     className="truncate font-semibold"
-                    style={{ color: "#B36D14", background: "#FAF1DD", border: "1px solid #EBD7AE", borderRadius: 5, padding: "1px 7px", fontSize: 12 }}
+                    style={{ color: "#8A5310", background: "#FAF1DD", border: "1px solid #EBD7AE", borderRadius: 5, padding: "1px 7px", fontSize: 12 }}
                   >
                     Assign {labels.counterpartyNoun.toLowerCase()} →
                   </span>

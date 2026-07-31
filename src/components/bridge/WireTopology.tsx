@@ -173,7 +173,7 @@ function WireTopologyLaneList({ buyers, suppliers, wires, onWireClick }: WireTop
               {wire.alert && wire.alert > 0 && (
                 <div
                   className="absolute top-[3px] left-1/2 -translate-x-1/2 w-4 h-4 rounded-full bg-white flex items-center justify-center text-[9px] font-bold"
-                  style={{ border: "1.5px solid #B36D14", color: "#B36D14" }}
+                  style={{ border: "1.5px solid #B36D14", color: "#8A5310" }}
                 >
                   {wire.alert}
                 </div>
@@ -184,7 +184,7 @@ function WireTopologyLaneList({ buyers, suppliers, wires, onWireClick }: WireTop
             <div className="flex-[1_1_38%] min-w-0 text-right">
               <div
                 className="text-[9px] font-bold tracking-[0.08em] font-mono"
-                style={{ color: isWarn ? "#B36D14" : "#1E6D29" }}
+                style={{ color: isWarn ? "#8A5310" : "#1E6D29" }}
               >
                 {supplier.code}
               </div>
@@ -358,7 +358,11 @@ function WireTopologyCanvas({
                   <text
                     textAnchor="middle"
                     y={3}
-                    fill="#B36D14"
+                    // An SVG <text> fill IS a text colour: #B36D14 on the white
+                    // badge is 4.1061:1, under the 4.5:1 floor for this 10px/700
+                    // numeral. #8A5310 is 6.3150:1. The circle's STROKE above is
+                    // non-text and stays --amber (4.1061:1 ≥ 3:1).
+                    fill="#8A5310"
                     fontSize={10}
                     fontWeight={700}
                     fontFamily="Inter, sans-serif"

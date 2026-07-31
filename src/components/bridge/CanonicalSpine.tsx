@@ -70,7 +70,7 @@ export function SpineNode(props: SpineNodeProps) {
 
   const conf =
     confidence >= 90 ? { bg: "#E9F1EA", fg: "#1E6D29" } :
-    confidence >= 75 ? { bg: "#FAF1DD", fg: "#B36D14" } :
+    confidence >= 75 ? { bg: "#FAF1DD", fg: "#8A5310" } :
                        { bg: "#FBE3E3", fg: "#B43838" };
 
   const bg =

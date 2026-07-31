@@ -32,7 +32,6 @@ const PANEL = "var(--bg)";
 
 const BLUE = "var(--brand-blue)"; // buyer-blue — CTA, early-stage chips, first pipeline node
 const BLUE_SOFT = "var(--brand-blue-soft)"; // pale blue chip / eyebrow background
-const BLUE_NODE = "var(--brand-blue)"; // Eyebrow dot — was a near-duplicate of blue
 const VIOLET = "var(--ai)";
 const AMBER = "var(--amber-text)";
 // Supplier/output green. --brand-green on --brand-green-soft is 3.55:1 and fails
@@ -462,7 +461,13 @@ function Eyebrow({ children, dark = false }: { children: React.ReactNode; dark?:
           width: 5,
           height: 5,
           borderRadius: "50%",
-          background: dark ? BLUE_NODE : BLUE,
+          // NOT --brand-blue on the dark pill. A brighter one-off blue lived
+          // here at 478b809 *because* --brand-blue is too dark on navy;
+          // aliasing it onto --brand-blue was a REGRESSION, 3.7794:1 ->
+          // 2.8880:1 over the composited pill background, under WCAG 1.4.11's
+          // 3:1 floor. --brand-blue-bright exists for exactly this: 6.2832:1.
+          // (Hex values omitted on purpose — this gate scans comments.)
+          background: dark ? "var(--brand-blue-bright)" : BLUE,
           display: "inline-block",
         }}
       />

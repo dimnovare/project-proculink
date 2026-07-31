@@ -1324,7 +1324,7 @@ export function UploadWorkbench() {
                         ) : r.status === "uploading" ? (
                           <span className="shrink-0 text-[11px]" style={{ color: "#6F4FCE" }}>Uploading…</span>
                         ) : r.status === "waiting" ? (
-                          <span className="shrink-0 text-[11px]" style={{ color: "#B36D14" }} title="Pacing uploads to stay within the per-minute limit — this file retries automatically.">
+                          <span className="shrink-0 text-[11px]" style={{ color: "#8A5310" }} title="Pacing uploads to stay within the per-minute limit — this file retries automatically.">
                             Pacing… retries shortly
                           </span>
                         ) : (
@@ -1387,7 +1387,7 @@ export function UploadWorkbench() {
                       <button
                         type="button"
                         onClick={() => setUploadError(null)}
-                        style={{ fontWeight: 600, color: "#B36D14", background: "none", border: "none", cursor: "pointer", whiteSpace: "nowrap", padding: 0 }}
+                        style={{ fontWeight: 600, color: "#8A5310", background: "none", border: "none", cursor: "pointer", whiteSpace: "nowrap", padding: 0 }}
                       >
                         {uploadError.cta}
                       </button>
@@ -1400,7 +1400,7 @@ export function UploadWorkbench() {
                   return (
                     <a
                       href={ctaHref}
-                      style={{ fontWeight: 600, color: "#B36D14", textDecoration: "none", whiteSpace: "nowrap" }}
+                      style={{ fontWeight: 600, color: "#8A5310", textDecoration: "none", whiteSpace: "nowrap" }}
                     >
                       {uploadError.cta} →
                     </a>

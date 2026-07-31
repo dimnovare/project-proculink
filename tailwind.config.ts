@@ -41,10 +41,14 @@ export default {
           "blue-soft":  "#EAF0F8",
           "blue-soft-2":"#DCE8F7",
           green:        "#2E8E3A",   // supplier / outgoing / completion
-          // Button-fill green: #2E8E3A is 4.16:1 with white (fails AA small
+          // Button-fill green: #2E8E3A is 4.1613:1 with white (fails AA small
           // text). Use green-btn for solid fills under white text; keep
           // `green` for text/icons/dots/borders on light surfaces.
-          "green-btn":  "#297F34",   // ≈4.6:1 with white — AA — founder-approved
+          // Recomputed 2026-07-31: this is 5.0244:1 with white, not the ≈4.6:1
+          // the call-site comments claim. The old figure understated it, so
+          // nothing shipped wrong — but it is now mirrored as
+          // --brand-green-btn in globals.css and the number is the measured one.
+          "green-btn":  "#297F34",   // 5.0244:1 with white — AA — founder-approved
           "green-deep": "#1E6D29",
           "green-soft": "#E9F1EA",
           "green-soft-2":"#D8EBDA",

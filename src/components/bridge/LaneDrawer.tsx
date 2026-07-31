@@ -341,7 +341,7 @@ export function LaneDrawer({ lane, onClose }: LaneDrawerProps) {
             {[
               { label: "Volume",  value: lane.volume },
               { label: "Health",  value: HEALTH_LABEL[lane.health], color: hc },
-              { label: "Alerts",  value: lane.alert ? `${lane.alert}` : "—", color: lane.alert ? "#B36D14" : undefined },
+              { label: "Alerts",  value: lane.alert ? `${lane.alert}` : "—", color: lane.alert ? "#8A5310" : undefined },
             ].map(({ label, value, color }, i) => (
               <div
                 key={i}

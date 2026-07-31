@@ -290,7 +290,7 @@ export function OutgoingPane({
       {/* B3 sub-header — plain-language framing of the output column: what it is, how to
           fill each field, and what the * marker means. Calm + muted, under the pane head. */}
       <div style={{ flexShrink: 0, padding: "10px 18px 0", fontSize: 11.5, color: "var(--ink-faint)", lineHeight: 1.5 }}>
-        The output the {supplierLabel} receives. Map an incoming field to each one (drag from the left), or set a fixed value. Fields marked <span style={{ color: "#B36D14", fontWeight: 700 }}>*</span> are required.
+        The output the {supplierLabel} receives. Map an incoming field to each one (drag from the left), or set a fixed value. Fields marked <span style={{ color: "#8A5310", fontWeight: 700 }}>*</span> are required.
       </div>
 
       {/* Structured-standard formats (cXML / X12 / UBL) are built by a fixed transformer that fills
@@ -943,7 +943,7 @@ function OutgoingStatusTag({
   // Unmapped: loud amber ONLY when required; otherwise neutral + quiet.
   if (status.required) {
     return (
-      <span title="This field must be set before going live — map an incoming field to it or enter a fixed value." style={{ display: "inline-flex", alignItems: "center", gap: 3, fontSize: 11, fontWeight: 700, color: "#B36D14", background: "#FAF1DD", border: "1px solid #F1E2BE", borderRadius: 4, padding: "1px 6px", flexShrink: 0 }}>
+      <span title="This field must be set before going live — map an incoming field to it or enter a fixed value." style={{ display: "inline-flex", alignItems: "center", gap: 3, fontSize: 11, fontWeight: 700, color: "#8A5310", background: "#FAF1DD", border: "1px solid #F1E2BE", borderRadius: 4, padding: "1px 6px", flexShrink: 0 }}>
         needs a value
       </span>
     );

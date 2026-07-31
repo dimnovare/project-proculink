@@ -5,6 +5,13 @@
 // per-file boilerplate. Provides: breadcrumb, category eyebrow, the ~720px
 // prose column, a "Was this helpful?" prompt, a contact-support card, and a
 // previous/next pager derived from the article order.
+//
+// FOCUS RINGS: `ring-brand-green-deep` (#1E6D29), which is 6.4128:1 on white
+// and 5.9863:1 on --bg, against WCAG 1.4.11's 3:1 non-text floor. This shell
+// used to ring in the RETIRED emerald (2.2731:1 on white, 2.1219:1 on --bg) —
+// a colour the design system explicitly bans — on all 46 help articles. The
+// hex gate never saw it: that gate is scoped to src/app/**, and this file is
+// not. `src/test/token-contrast.test.ts` now bans the value repo-wide.
 
 import { useState } from "react";
 import Link from "next/link";
@@ -57,7 +64,7 @@ export default function HelpArticleShell({
       >
         <Link
           href="/help"
-          className="rounded-[4px] font-medium transition-colors hover:text-[#0F4FA8] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#28C55E] focus-visible:ring-offset-2"
+          className="rounded-[4px] font-medium transition-colors hover:text-[#0F4FA8] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-green-deep focus-visible:ring-offset-2"
           style={{ color: "#56627A" }}
         >
           Help center
@@ -173,7 +180,7 @@ function FeedbackPrompt({ slug, title }: { slug: string; title?: string }) {
           <button
             type="button"
             onClick={() => vote("yes")}
-            className="rounded-[7px] px-3.5 py-1.5 text-[13px] font-medium transition-colors hover:bg-[#F6F7FA] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#28C55E] focus-visible:ring-offset-2"
+            className="rounded-[7px] px-3.5 py-1.5 text-[13px] font-medium transition-colors hover:bg-[#F6F7FA] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-green-deep focus-visible:ring-offset-2"
             style={{ border: "1px solid #E2E6EE", color: "#0B1A2F", background: "#FFFFFF" }}
           >
             {/* SVG thumbs, not emoji: an emoji renders in the platform's font
@@ -185,7 +192,7 @@ function FeedbackPrompt({ slug, title }: { slug: string; title?: string }) {
           <button
             type="button"
             onClick={() => vote("no")}
-            className="rounded-[7px] px-3.5 py-1.5 text-[13px] font-medium transition-colors hover:bg-[#F6F7FA] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#28C55E] focus-visible:ring-offset-2"
+            className="rounded-[7px] px-3.5 py-1.5 text-[13px] font-medium transition-colors hover:bg-[#F6F7FA] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-green-deep focus-visible:ring-offset-2"
             style={{ border: "1px solid #E2E6EE", color: "#0B1A2F", background: "#FFFFFF" }}
           >
             <ThumbGlyph direction="down" />
@@ -219,7 +226,7 @@ function ContactCard() {
       </div>
       <Link
         href="/support"
-        className="inline-flex shrink-0 items-center rounded-[7px] px-4 py-2 text-[13px] font-semibold text-white transition-all hover:brightness-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#28C55E] focus-visible:ring-offset-2"
+        className="inline-flex shrink-0 items-center rounded-[7px] px-4 py-2 text-[13px] font-semibold text-white transition-all hover:brightness-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-green-deep focus-visible:ring-offset-2"
         style={{ background: "#0B1A2F" }}
       >
         Contact support →
@@ -234,7 +241,7 @@ function Pager({ dir, article }: { dir: "prev" | "next"; article: HelpArticle })
   return (
     <Link
       href={`/help/${article.slug}`}
-      className="group flex flex-col gap-1 rounded-[10px] px-4 py-3 transition-all hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#28C55E] focus-visible:ring-offset-2 motion-reduce:transform-none"
+      className="group flex flex-col gap-1 rounded-[10px] px-4 py-3 transition-all hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-green-deep focus-visible:ring-offset-2 motion-reduce:transform-none"
       style={{ border: "1px solid #E2E6EE", background: "#FFFFFF" }}
     >
       <span

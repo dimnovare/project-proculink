@@ -113,7 +113,7 @@ export function ConfirmDialog({ exceptionCount, onConfirm, onCancel, supplierNam
             {[
               { label: "Grand total",    value: grandTotal },
               { label: "Lines",          value: `${lineCount} item${lineCount !== 1 ? "s" : ""}` },
-              { label: "Issues to review", value: `${exceptionCount}`, color: exceptionCount > 0 ? "#B36D14" : "#1E6D29" },
+              { label: "Issues to review", value: `${exceptionCount}`, color: exceptionCount > 0 ? "#8A5310" : "#1E6D29" },
               { label: "Format",         value: outputFormat.toUpperCase() },
             ].map(({ label, value, color }) => (
               <div key={label} style={{ flex: 1, minWidth: 0 }}>

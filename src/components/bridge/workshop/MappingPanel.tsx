@@ -253,7 +253,7 @@ function AttentionRow({
           style={{
             fontFamily: "'JetBrains Mono',monospace",
             fontSize: 10.5,
-            color: hasSuggestion ? "#345470" : "#B36D14",
+            color: hasSuggestion ? "#345470" : "#8A5310",
             minWidth: 0,
             overflow: "hidden",
             textOverflow: "ellipsis",

@@ -83,7 +83,7 @@ const PILL_TONE: Record<PillTone, { bg: string; fg: string }> = {
   neutral: { bg: "var(--surface-2)",        fg: "var(--ink-muted)" },
   blue:    { bg: "var(--brand-blue-soft)",  fg: "var(--brand-blue-deep)" },
   green:   { bg: "var(--brand-green-soft)", fg: "var(--brand-green-deep)" },
-  amber:   { bg: "var(--amber-soft)",       fg: "var(--amber)" },
+  amber:   { bg: "var(--amber-soft)",       fg: "var(--amber-text)" },
   danger:  { bg: "var(--danger-soft)",      fg: "var(--danger)" },
   ai:      { bg: "var(--ai-soft)",          fg: "var(--ai)" },
 };

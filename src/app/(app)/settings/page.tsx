@@ -239,7 +239,7 @@ function InlineConfirm({
       <button
         onClick={() => { setOpen(false); onConfirm(); }}
         className={fullWidth ? "flex-1" : undefined}
-        style={{ height: 32, padding: "0 12px", borderRadius: 6, border: "none", background: danger ? "var(--danger)" : "var(--brand-green)", color: "var(--surface)", fontSize: 12.5, fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap" }}
+        style={{ height: 32, padding: "0 12px", borderRadius: 6, border: "none", background: danger ? "var(--danger)" : "var(--brand-green-btn)", color: "var(--surface)", fontSize: 12.5, fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap" }}
       >
         {confirmLabel}
       </button>
@@ -672,7 +672,7 @@ function EmailSettingsSection() {
         {/* Name the EXACT unlock: Growth (€149/mo) is the cheapest paid tier that
             includes email ingestion, so a Pilot user upgrades to Growth. */}
         {!canEnable && (
-          <div style={{ marginBottom: 16, borderRadius: 8, padding: "12px 14px", fontSize: 12.5, lineHeight: 1.5, border: "1px solid var(--amber-soft)", background: "var(--amber-soft)", color: "var(--amber)" }}>
+          <div style={{ marginBottom: 16, borderRadius: 8, padding: "12px 14px", fontSize: 12.5, lineHeight: 1.5, border: "1px solid var(--amber-soft)", background: "var(--amber-soft)", color: "var(--amber-text)" }}>
             Email ingestion is included on every paid plan. You can set it up here, but turning on polling needs a paid plan — the Pilot plan doesn&rsquo;t include it.{" "}
             <Link
               href="/settings?tab=billing"
@@ -1134,7 +1134,7 @@ function ApiKeysSection() {
           <DialogContent className="sm:max-w-md">
             <DialogHeader>
               <DialogTitle style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <AlertTriangle size={16} style={{ color: "var(--amber)" }} aria-hidden />
+                <AlertTriangle size={16} style={{ color: "var(--amber-text)" }} aria-hidden />
                 Copy your new API key now
               </DialogTitle>
               <DialogDescription>
@@ -1147,7 +1147,7 @@ function ApiKeysSection() {
               </code>
               <button
                 onClick={() => newKey && handleCopy(newKey)}
-                style={{ display: "flex", alignItems: "center", gap: 5, height: 38, padding: "0 14px", border: "1px solid var(--brand-green)", borderRadius: 7, background: "var(--brand-green)", color: "#FFFFFF", fontSize: 12.5, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap" }}
+                style={{ display: "flex", alignItems: "center", gap: 5, height: 38, padding: "0 14px", border: "1px solid var(--brand-green-btn)", borderRadius: 7, background: "var(--brand-green-btn)", color: "#FFFFFF", fontSize: 12.5, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap" }}
               >
                 <Copy size={13} />
                 {copied ? "Copied!" : "Copy"}
@@ -1299,7 +1299,7 @@ function ApiKeysSection() {
                   onClick={() => create.mutate(newLabel.trim())}
                   disabled={!newLabel.trim() || create.isPending}
                   className="flex-1 sm:flex-none"
-                  style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6, height: 40, padding: "0 16px", border: "none", borderRadius: 8, background: !newLabel.trim() || create.isPending ? "#CBD5E1" : "var(--brand-green)", color: "var(--surface)", fontSize: 13, fontWeight: 600, cursor: !newLabel.trim() || create.isPending ? "not-allowed" : "pointer", whiteSpace: "nowrap" }}
+                  style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6, height: 40, padding: "0 16px", border: "none", borderRadius: 8, background: !newLabel.trim() || create.isPending ? "#CBD5E1" : "var(--brand-green-btn)", color: "var(--surface)", fontSize: 13, fontWeight: 600, cursor: !newLabel.trim() || create.isPending ? "not-allowed" : "pointer", whiteSpace: "nowrap" }}
                 >
                   <Plus size={14} />
                   {create.isPending ? "Creating…" : "Create key"}
@@ -1418,7 +1418,11 @@ function ConnectorsSection() {
             </div>
             <span
               className="connector-action"
-              style={{ fontSize: 11.5, fontWeight: 600, color: "var(--ink-faint)", padding: "6px 10px", borderRadius: 999, background: "var(--surface-2)", whiteSpace: "nowrap" }}
+              /* --ink-muted, not --ink-faint: #667085 on --surface-2 (#F1F3F7) is
+                 4.4781:1 at 11.5px/600 — a marginal AA fail. #5E6779 is 5.1199:1.
+                 --ink-faint stays fine on --bg (4.6439:1); it is the PAIRING with
+                 --surface-2 that fails, not the token. */
+              style={{ fontSize: 11.5, fontWeight: 600, color: "var(--ink-muted)", padding: "6px 10px", borderRadius: 999, background: "var(--surface-2)", whiteSpace: "nowrap" }}
             >
               Coming soon
             </span>
@@ -1494,7 +1498,7 @@ function ConnectorsSection() {
               <button
                 onClick={() => create.mutate()}
                 disabled={!targetUrl.startsWith("http") || create.isPending}
-                style={{ height: 38, padding: "0 16px", border: "none", borderRadius: 8, background: !targetUrl.startsWith("http") || create.isPending ? "#CBD5E1" : "var(--brand-green)", color: "var(--surface)", fontSize: 13, fontWeight: 600, cursor: !targetUrl.startsWith("http") || create.isPending ? "not-allowed" : "pointer" }}
+                style={{ height: 38, padding: "0 16px", border: "none", borderRadius: 8, background: !targetUrl.startsWith("http") || create.isPending ? "#CBD5E1" : "var(--brand-green-btn)", color: "var(--surface)", fontSize: 13, fontWeight: 600, cursor: !targetUrl.startsWith("http") || create.isPending ? "not-allowed" : "pointer" }}
               >
                 {create.isPending ? "Saving…" : "Save webhook"}
               </button>

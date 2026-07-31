@@ -496,7 +496,7 @@ function SummaryRow({
         <dd className="text-right m-0" title={valueTitle}>
           <span
             className="inline-flex items-center rounded-full text-[11px] font-semibold px-2 h-[20px] whitespace-nowrap"
-            style={{ background: "var(--amber-soft)", color: "var(--amber)" }}
+            style={{ background: "var(--amber-soft)", color: "var(--amber-text)" }}
           >
             {value}
           </span>
