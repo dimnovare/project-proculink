@@ -576,16 +576,25 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
   const sendReady = blockingIssues === 0 && exceptionCount === 0;
   // Non-blocking work the operator may deliberately send past. Two sources:
   //   • warning-severity rows from buildFixQueue, and
-  //   • WP-18's ADVISORY acceptance rows — rules that did not pass but that the
-  //     server's gate will not refuse. Those never enter `issues` (acceptanceIssues
-  //     projects blocking rows only, deliberately: gating on them would claim a
-  //     block the server does not honour), yet they are exactly what the send
+  //   • acceptance rules that did not pass but that the server's gate will not
+  //     refuse — i.e. an order whose blockers carry a recorded OVERRIDE. Those
+  //     never enter `issues`, because acceptanceIssues returns [] unless the
+  //     decision is `blocked` (gating on an overridden order would claim a block
+  //     the server does not honour). Yet they are exactly what the send
   //     confirmation asks the operator to acknowledge. Counting them here is what
   //     makes the "override available" state real instead of theoretical — the
   //     button now says an acknowledgement is coming, before the dialog opens.
+  //
+  //     The subtraction is what separates the two cases, and it works because the
+  //     two helpers read the decision differently (WP-18 follow-up, #74):
+  //     failingAcceptanceCount is `blockers.length` unconditionally, while
+  //     acceptanceBlockers is empty unless `blocked` is true. So a BLOCKED order
+  //     yields 0 (nothing is merely advisory — it is all blocking, and already in
+  //     `issues`), and an OVERRIDDEN order yields every blocker. That is the one
+  //     case failingAcceptanceCount's own docstring says it is ever read in.
   const advisoryAcceptanceCount = Math.max(
     0,
-    failingAcceptanceRows(acceptanceQuery.data).length - acceptanceBlockers.length,
+    failingAcceptanceCount(acceptanceQuery.data) - acceptanceBlockers.length,
   );
   const warningIssues = issues.filter((i) => i.severity === "warning").length + advisoryAcceptanceCount;
 
