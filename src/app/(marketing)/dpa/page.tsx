@@ -73,12 +73,55 @@ export default function DpaPage() {
         <li style={S.li}>Make available the information necessary to demonstrate compliance with GDPR Art. 28(3).</li>
       </ul>
 
+      {/*
+        This clause used to open "All Controller personal data is processed in EU-region or
+        EU-compliant infrastructure". Two defects, in a contract:
+
+          • "All ... processed in EU-region" is false. Sub-processors in the United States
+            receive Controller personal data as a matter of routine, not as an exception:
+            OpenAI receives purchase-order content (no base-URL override exists at any call
+            site, so traffic reaches api.openai.com), and Postmark carries the outbound
+            purchase order itself as an email attachment over api.postmarkapp.com.
+          • "EU-compliant infrastructure" is not a defined term in the GDPR or anywhere in
+            this document, so it carried the false half of the sentence past a careful
+            reader. A transfer outside the EEA is lawful under SCCs — which is what the
+            second sentence already said correctly, and still says.
+
+        The clause now states the transfers plainly and then applies the SCCs. An undisclosed
+        transfer is the compliance problem; a disclosed one under Art. 46 safeguards is not.
+
+        TWO THINGS THIS CLAUSE MUST KEEP, both found by refuting an earlier draft of it:
+
+          • The SCC sentence stays a UNIVERSAL conditional — "where ANY sub-processor
+            processes Controller personal data outside the EEA". A first attempt ended
+            "…apply to those transfers", whose antecedent is the four categories named just
+            above it. That silently dropped Art. 46 cover from Vercel, Sentry, PostHog,
+            Cloudflare and Railway, and from any sub-processor added later — while §3 of this
+            same document promises 30 days' notice of exactly such additions. Narrowing a
+            self-executing safeguard into a closed list is a real reduction in a customer's
+            protection, and it is invisible unless you read for it.
+
+          • It asserts NO storage region. That first attempt opened "Controller personal data
+            is stored in EU-region infrastructure", importing a frame from /security that
+            does not survive the move: /security is about ORDER data, this document is about
+            PERSONAL data, which is broader. Clerk holds account name, work email and
+            organisation (Annex I, below) and /subprocessors puts Clerk in the US with EU
+            residency "available" — not enabled. Stripe holds billing identity in the US;
+            Postmark holds message content in the US. And under GDPR Art. 4(2) storage IS
+            processing, so the sentence also contradicted the one after it. The clause now
+            does the job a transfers clause exists to do and leaves residency to the pages
+            that discuss it.
+      */}
       <h2 style={S.h2}>4. International transfers</h2>
       <p style={S.p}>
-        All Controller personal data is processed in EU-region or EU-compliant infrastructure
-        as described in the <Link href="/subprocessors" style={{ color: "#1E6D29", textDecoration: "underline" }}>Subprocessors</Link>{" "}
-        page. Where any sub-processor processes data outside the EEA, the relevant Standard
-        Contractual Clauses (Commission Implementing Decision 2021/914) apply.
+        Sub-processors are listed, with their locations, on the{" "}
+        <Link href="/subprocessors" style={{ color: "#1E6D29", textDecoration: "underline" }}>Subprocessors</Link>{" "}
+        page. Some of them process Controller personal data outside the EEA: authentication,
+        AI document extraction and mapping suggestions, payments, and email in both
+        directions — including the outbound purchase order itself — are handled from the
+        United States. Where any sub-processor processes Controller personal data outside
+        the EEA, the relevant Standard Contractual Clauses (Commission Implementing
+        Decision 2021/914) apply.
       </p>
 
       <h2 style={S.h2}>5. Audits</h2>

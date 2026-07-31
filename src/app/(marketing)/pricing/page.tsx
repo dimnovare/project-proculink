@@ -142,9 +142,21 @@ const FAQ: Array<[string, string]> = [
     "What happens if I cancel?",
     "If you cancel, ProcuLink stops accepting new orders when your subscription ends. Everything you have already processed remains readable and exportable — past orders, suppliers, mappings and delivery records all stay — but nothing new comes in on any route: uploads, emailed orders, SFTP and S3 pickups, and the REST API all stop. Orders sent to you after that are not held and delivered later, so redirect your suppliers before you cancel. Resubscribing turns processing back on immediately, with your setup untouched.",
   ],
+  // STORED and PROCESSED are two different questions, and this answer used to give
+  // one answer to both: "All order data is stored and processed in the EU". The
+  // storage half is our position; the processing half is false and was already
+  // retracted from /security on 2026-07-30 — OpenAI receives order content at
+  // api.openai.com, and Postmark carries the outbound purchase order itself as an
+  // email attachment. The retraction swept /security and missed this page, so the
+  // sentence the packet exists to kill stayed live here for a day. This answer now
+  // says "order storage is EU-region" — the same words the fine print at the bottom
+  // of this page and both site footers already use, and no more specific than that.
+  // A draft that named Cloudflare R2 and Neon here was rejected in review: those two
+  // regions are unsourced, and pinning an unsourced claim to named vendors makes it
+  // more precise without making it more true.
   [
     "Where is my data stored?",
-    "All order data is stored and processed in the EU and encrypted with AES-GCM at rest. See the Security page for the full posture.",
+    "Order storage is EU-region and encrypted with AES-GCM at rest. Some processing runs on named US subprocessors under standard contractual clauses — sign-in, AI extraction, payments, and email in both directions, including the purchase orders we email to your suppliers. See the Security page for the full posture.",
   ],
 ];
 
