@@ -15,6 +15,7 @@ import type {
   Supplier,
   BuyerDto,
 } from "@/types/procurement";
+import { statusLabel } from "./UnifiedStatusBadge";
 
 // ─── Index ────────────────────────────────────────────────────────────────────
 
@@ -29,18 +30,6 @@ type CmdItem = {
   color?: string;
 };
 
-function humanStatus(status: OrderStatus): string {
-  switch (status) {
-    case "pending_review":  return "Needs review";
-    case "delivered":       return "Delivered";
-    case "ready_to_deliver": return "Ready";
-    case "delivery_failed": return "Failed";
-    case "parsing":         return "Parsing";
-    case "transforming":    return "Transforming";
-    default:                return status;
-  }
-}
-
 function orderColor(status: OrderStatus): string {
   if (status === "pending_review" || status === "delivery_failed") return "#B36D14";
   if (status === "delivered") return "#2E8E3A";
@@ -53,12 +42,20 @@ function buildIndex(
   suppliers: Supplier[],
   buyers: BuyerDto[],
 ): CmdItem[] {
+  // The palette lists orders by name and state, so the state has to be the SAME
+  // word the row and the badge use. This used to be a local six-case switch:
+  // `ready_to_deliver` read "Ready" (the inbox says "Queued to send"),
+  // `delivery_failed` read "Failed", `parsing` read "Parsing" (the product says
+  // "Extracting") — and every status the switch had not heard of fell through
+  // `default: return status`, so a search could turn up an order labelled
+  // "delivery_dead_letter". statusLabel() covers all of them and humanizes an
+  // unknown key instead of printing it raw.
   const orderItems: CmdItem[] = orders.map((order) => ({
     id: `o-${order.id}`,
     group: "Orders",
     icon: "↗",
     label: order.poNumber,
-    sub: `${order.buyerName ?? "Unknown buyer"} → ${order.supplierName ?? "Unknown supplier"} · ${humanStatus(order.status)}`,
+    sub: `${order.buyerName ?? "Unknown buyer"} → ${order.supplierName ?? "Unknown supplier"} · ${statusLabel(order.status)}`,
     href: `/inbox/${order.id}`,
     color: orderColor(order.status),
   }));

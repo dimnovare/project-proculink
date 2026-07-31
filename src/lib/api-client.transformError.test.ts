@@ -120,7 +120,13 @@ describe("transformOrder surfaces the backend's sentence, never the raw body", (
 
   it("a non-JSON body still produces a readable line rather than an empty message", async () => {
     const err = await transformError(textResponse(502, "<html>Bad Gateway</html>"));
-    expect(err.message).toContain("Transform failed");
+    // The fallback is COPY — rendered verbatim by the review screen and the order
+    // workshop. It said "Transform failed", the retired engine-stage name for the
+    // state whose badge now reads "Couldn't build output" (G4). The assertion moved
+    // with the wording; what it pins is unchanged — a non-JSON body must still yield
+    // a readable sentence, not an empty message and not the raw body alone.
+    expect(err.message).toContain("couldn't build the output file");
+    expect(err.message).not.toContain("Transform failed");
     expect(err.message).toContain("Bad Gateway");
     expect(err.status).toBe(502);
   });

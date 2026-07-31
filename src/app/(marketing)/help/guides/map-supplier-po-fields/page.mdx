@@ -142,7 +142,10 @@ The preview matches the supplier's specification, and saving stores the override
 <Step n={7} title="Keep the layout for every future order">
 
 If the override is not a one-off — if this is simply how that supplier's documents have to look — use
-**Save mappings for this supplier** on the review screen.
+**Save mappings for this supplier** on the order screen. It sits on the status bar under the order
+header, next to the mapped count, and is disabled while no supplier is assigned (there would be
+nowhere to save to). Do not confuse it with the **✓ Saved** indicator beside it: that one is the
+automatic save of your edits to this order.
 
 That promotes the order's rules into the supplier's reusable mapping **additively**: fields you did not
 touch are preserved, so it is safe to run after fixing two fields. Future orders from that supplier apply it

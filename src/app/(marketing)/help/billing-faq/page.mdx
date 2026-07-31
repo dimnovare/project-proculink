@@ -31,6 +31,8 @@ After 14 days or 20 orders (whichever comes first), the `Pilot` workspace become
 
 Open `Settings → Billing → Manage subscription` to launch the Stripe Customer Portal. From there you can cancel your subscription, switch between `Growth`, `Operations`, `Integration`, and `Distributor`, update your card details, or download past invoices. `Enterprise` changes are handled directly through your account manager.
 
+**What cancelling does.** When the subscription ends, ProcuLink stops accepting new orders on every route — uploads, emailed orders, IMAP, SFTP and S3 pickups, and the REST API. Orders sent to you after that are not held and delivered later, so redirect your suppliers before you cancel. Everything already processed stays readable and exportable: past orders, suppliers, mappings, and delivery records all remain. Resubscribing turns processing back on immediately, with your setup untouched.
+
 ---
 
 Need help? Email [billing@proculink.eu](mailto:billing@proculink.eu) or see [pricing](/pricing).

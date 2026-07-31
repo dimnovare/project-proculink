@@ -18,6 +18,7 @@ import type {
   SourceFieldRule,
 } from "@/lib/api/types";
 import { BINDABLE_LINE_FIELDS } from "@/lib/api/types";
+import { withBinding, withManipulators } from "../outputRuleModel";
 
 // The FULL bindable line set, not the narrow default spine: a rule binding ManufacturerPartNumber
 // or Unspsc must land in line scope, or it would be emitted once for the whole order.
@@ -140,7 +141,13 @@ export function withTargetConnect(
   delete cfg.header[outputPath];
   delete cfg.lines[outputPath];
   const scope = existing?.scope ?? scopeOf(canonicalField);
-  cfg[scope][outputPath] = { outputPath, canonicalField, fixedValue: null, fieldManipulators: manipulators };
+  // withBinding, not a literal: it spreads the previous rule, so `expression` and any field the
+  // backend adds later survive a rebind. The four-key literal that used to be here destroyed both
+  // `expression` and `sourceToken` — and `sourceToken` IS authorable today, from the output mapping
+  // editor, so binding a column in one screen and adding a manipulator in the other blanked it.
+  cfg[scope][outputPath] = withBinding(
+    existing?.rule ?? { outputPath, fieldManipulators: manipulators },
+    outputPath, "canonicalField", canonicalField);
   return { ...base, customFields: base.customFields ?? [], output: cfg };
 }
 
@@ -180,14 +187,19 @@ export function withFieldManipulators(
   delete cfg.header[outputPath];
   delete cfg.lines[outputPath];
   const prev = existing?.rule;
-  const next: OutputFieldRule = {
-    outputPath,
-    canonicalField: prev?.canonicalField ?? null,
-    fixedValue: prev?.fixedValue ?? null,
-    fieldManipulators: manipulators ?? [],
-  };
+  const next = withManipulators(prev, outputPath, manipulators ?? []);
   // Drop a rule that now carries nothing actionable (no source, no fixed, no fx).
-  const inert = !next.canonicalField && (next.fixedValue == null || next.fixedValue === "") && (next.fieldManipulators?.length ?? 0) === 0;
+  //
+  // `sourceToken` and `expression` count as actionable. They did not used to, only because the
+  // literal above had already deleted them by the time this ran — so a rule bound ONLY by source
+  // token read as inert and was dropped. Now that they survive, the check has to see them, or the
+  // fix would turn one silent data loss into another.
+  const inert =
+    !next.canonicalField &&
+    !next.sourceToken &&
+    !next.expression &&
+    (next.fixedValue == null || next.fixedValue === "") &&
+    (next.fieldManipulators?.length ?? 0) === 0;
   if (!inert) cfg[scope][outputPath] = next;
   const empty = Object.keys(cfg.header).length === 0 && Object.keys(cfg.lines).length === 0;
   return { ...base, customFields: base.customFields ?? [], output: empty ? null : cfg };
@@ -287,7 +299,9 @@ export function withFixedValue(
     const scope = existing?.scope ?? (scopeHint === "line" ? "lines" : "header");
     delete cfg.header[outputPath];
     delete cfg.lines[outputPath];
-    cfg[scope][outputPath] = { outputPath, canonicalField: null, fixedValue: value, fieldManipulators: existing?.rule.fieldManipulators ?? [] };
+    cfg[scope][outputPath] = withBinding(
+      existing?.rule ?? { outputPath, fieldManipulators: [] },
+      outputPath, "fixedValue", value);
   }
   const empty = Object.keys(cfg.header).length === 0 && Object.keys(cfg.lines).length === 0;
   return { ...base, customFields: base.customFields ?? [], output: empty ? null : cfg };

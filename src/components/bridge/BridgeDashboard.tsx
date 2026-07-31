@@ -734,11 +734,26 @@ export function BridgeDashboard() {
         ? `${unresolved} item code${unresolved === 1 ? "" : "s"} to confirm`
         : "Review before sending";
     }
-    if (o.status === "rejected_by_supplier") return "Rejected — needs a fix";
-    if (o.status === "delivery_failed" || o.status === "delivery_dead_letter") return "Delivery failed — retry";
-    if (o.status === "transform_failed") return "Transform failed — check mapping";
-    if (o.status === "failed") return "Failed — needs attention";
-    return statusLabel(o.status);
+    // "<what happened> — <what to do>": the first half is ALWAYS the registry
+    // label, never a second name for the state. It used to be four hand-written
+    // ones ("Delivery failed — retry" for both delivery_failed AND
+    // delivery_dead_letter, "Transform failed — check mapping", "Failed — needs
+    // attention"), which put the retired engine-stage vocabulary on the
+    // dashboard while the badge one row over used the plain one.
+    const todo: Record<string, string> = {
+      // Matches the order screen's own secondary action. NOT "retry": nothing in
+      // the product re-sends a refused order (no delivery claim set admits the
+      // status) — the cure is a corrected document.
+      rejected_by_supplier: "start a corrected order",
+      delivery_failed: "try sending again",
+      // Distinct from delivery_failed on purpose: the automatic attempts are
+      // spent here, so "retry" would describe something that is not happening.
+      delivery_dead_letter: "send it again yourself",
+      transform_failed: "check output settings",
+      failed: "upload a corrected file",
+    };
+    const next = todo[o.status];
+    return next ? `${statusLabel(o.status)} — ${next}` : statusLabel(o.status);
   }
   const needsYouAll = allOrders
     .filter((o) => EXCEPTION_STATUSES.has(o.status) || (o.unresolvedCount ?? 0) > 0)

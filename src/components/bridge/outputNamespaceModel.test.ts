@@ -10,6 +10,8 @@ import { describe, it, expect } from "vitest";
 import {
   updateAt, removeAt, setNodeNamespace,
   treeHasPerNodeNamespaces, namespacesToRows, rowsToNamespaces, templateHasRootNamespaces,
+  moveAt,
+  canMoveAt,
 } from "./outputNamespaceModel";
 import type { OutputNode, OutputNodeTemplate } from "@/lib/api/types";
 
@@ -145,5 +147,179 @@ describe("root namespaces map ↔ rows", () => {
     expect(templateHasRootNamespaces(base)).toBe(false);
     expect(templateHasRootNamespaces({ ...base, namespaces: {} })).toBe(false);
     expect(templateHasRootNamespaces({ ...base, namespaces: { cbc: CBC } })).toBe(true);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// WP-15 · S4 — node reorder.
+//
+// Order is CSV column order and XML element order; a receiver reads both
+// positionally. Before this the only way to change it was delete-and-re-add,
+// which discards everything the node carried, so a saved layout's order was
+// effectively permanent.
+// ─────────────────────────────────────────────────────────────────────────────
+describe("moveAt", () => {
+  /** A tree whose nodes carry every optional field, so a rebuild shows up as a loss. */
+  function richTree(): OutputNode {
+    return {
+      name: "Order",
+      nodeType: "object",
+      children: [
+        {
+          name: "ID",
+          nodeType: "field",
+          namespace: "urn:cbc",
+          prefix: "cbc",
+          includeWhen: "order.PoNumber",
+          rule: {
+            outputPath: "ID",
+            canonicalField: "PoNumber",
+            sourceToken: null,
+            fixedValue: null,
+            expression: "order.PoNumber",
+            fieldManipulators: [{ type: "Trim", params: [] }],
+          },
+        },
+        { name: "Date", nodeType: "field", rule: { outputPath: "Date", canonicalField: "OrderDate", fieldManipulators: [] } },
+        { name: "Total", nodeType: "field", rule: { outputPath: "Total", canonicalField: "GrandTotal", fieldManipulators: [] } },
+      ],
+    };
+  }
+
+  const names = (n: OutputNode) => (n.children ?? []).map((c) => c.name);
+
+  it("moves a child down among its siblings", () => {
+    expect(names(moveAt(richTree(), [0], 1))).toEqual(["Date", "ID", "Total"]);
+  });
+
+  it("moves a child up among its siblings", () => {
+    expect(names(moveAt(richTree(), [2], -1))).toEqual(["ID", "Total", "Date"]);
+  });
+
+  it("carries EVERY field on the moved node — it is moved, not rebuilt", () => {
+    const moved = moveAt(richTree(), [0], 1);
+    const id = (moved.children ?? []).find((c) => c.name === "ID")!;
+
+    expect(id.namespace).toBe("urn:cbc");
+    expect(id.prefix).toBe("cbc");
+    expect(id.includeWhen).toBe("order.PoNumber");
+    expect(id.rule?.expression).toBe("order.PoNumber");
+    expect(id.rule?.fieldManipulators).toEqual([{ type: "Trim", params: [] }]);
+  });
+
+  it("carries a field this module has never heard of", () => {
+    // The general form of the case above, and the one that keeps working when the
+    // backend adds something. Asserted separately because listing known fields can
+    // only ever prove the fields it lists.
+    const before = richTree();
+    (before.children![0] as unknown as Record<string, unknown>).somethingAddedLater = "keep me";
+
+    const moved = moveAt(before, [0], 1);
+    const id = (moved.children ?? []).find((c) => c.name === "ID")!;
+    expect((id as unknown as Record<string, unknown>).somethingAddedLater).toBe("keep me");
+  });
+
+  it("the moved node is the same OBJECT as before the move", () => {
+    const before = richTree();
+    const original = before.children![0];
+    const after = moveAt(before, [0], 1);
+    expect(after.children![1]).toBe(original);
+  });
+
+  it("a boundary move is a no-op and returns the SAME root reference", () => {
+    const before = richTree();
+    // Object.is here is the point: a fresh-but-equal root at every boundary press
+    // would mark a pristine tree dirty and prompt a save the author never made.
+    expect(moveAt(before, [0], -1)).toBe(before);
+    expect(moveAt(before, [2], 1)).toBe(before);
+  });
+
+  it("an out-of-range index is a no-op, not a crash", () => {
+    const before = richTree();
+    expect(moveAt(before, [9], 1)).toBe(before);
+    expect(moveAt(before, [-1], 1)).toBe(before);
+  });
+
+  it("the root cannot move — it has no siblings", () => {
+    const before = richTree();
+    expect(moveAt(before, [], 1)).toBe(before);
+  });
+
+  it("never reparents: the first child of a nested group stays in that group", () => {
+    const nested: OutputNode = {
+      name: "Order", nodeType: "object",
+      children: [
+        { name: "Header", nodeType: "field" },
+        {
+          name: "Lines", nodeType: "array",
+          children: [
+            { name: "Sku", nodeType: "field" },
+            { name: "Qty", nodeType: "field" },
+          ],
+        },
+      ],
+    };
+
+    // Moving the FIRST child of Lines up must not promote it out to sit beside Header —
+    // that would move a per-line field into the header and change what the document means.
+    const after = moveAt(nested, [1, 0], -1);
+    expect(after).toBe(nested);
+    expect(names(after)).toEqual(["Header", "Lines"]);
+  });
+
+  it("moves a nested child within its own group", () => {
+    const nested: OutputNode = {
+      name: "Order", nodeType: "object",
+      children: [
+        { name: "Header", nodeType: "field" },
+        {
+          name: "Lines", nodeType: "array",
+          children: [
+            { name: "Sku", nodeType: "field" },
+            { name: "Qty", nodeType: "field" },
+          ],
+        },
+      ],
+    };
+
+    const after = moveAt(nested, [1, 0], 1);
+    expect(names(after.children![1])).toEqual(["Qty", "Sku"]);
+    // The untouched sibling is carried by reference, not re-created.
+    expect(after.children![0]).toBe(nested.children![0]);
+  });
+
+  it("a nested boundary no-op propagates the SAME root all the way up", () => {
+    const nested: OutputNode = {
+      name: "Order", nodeType: "object",
+      children: [
+        { name: "Header", nodeType: "field" },
+        { name: "Lines", nodeType: "array", children: [{ name: "Sku", nodeType: "field" }] },
+      ],
+    };
+    // The identity guarantee has to survive the recursion — a spread on the way back
+    // up would quietly turn every deep boundary press into a "change".
+    expect(moveAt(nested, [1, 0], -1)).toBe(nested);
+  });
+});
+
+describe("canMoveAt", () => {
+  const tree: OutputNode = {
+    name: "Order", nodeType: "object",
+    children: [
+      { name: "A", nodeType: "field" },
+      { name: "B", nodeType: "field" },
+    ],
+  };
+
+  it("is false exactly where moveAt would be a no-op", () => {
+    expect(canMoveAt(tree, [0], -1)).toBe(false);
+    expect(canMoveAt(tree, [1], 1)).toBe(false);
+    expect(canMoveAt(tree, [0], 1)).toBe(true);
+    expect(canMoveAt(tree, [1], -1)).toBe(true);
+  });
+
+  it("is false for the root and for an index that does not exist", () => {
+    expect(canMoveAt(tree, [], 1)).toBe(false);
+    expect(canMoveAt(tree, [7], 1)).toBe(false);
   });
 });
