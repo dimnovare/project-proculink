@@ -204,6 +204,20 @@ describe("the stage label matches the lit node", () => {
     expect(STATUS_PRESENTATION[mapStatus("transforming")].label).not.toBe("Extracting");
   });
 
+  it("the mobile card badges the RAW status, so it can't collapse a word away", async () => {
+    // The card rendered off the collapsed CrossingStatus, which folds five failure
+    // statuses into one slot. `delivery_dead_letter` is the sharpest case: WP-25 named
+    // it "Out of retries" — an instruction — while the collapsed slot resolves to the
+    // parse-terminal "Couldn't read file", a sentence that is simply false about a
+    // dead-lettered order. Both viewports now render UnifiedStatusBadge on the raw
+    // status, so the badge appears TWICE (desktop table + mobile card, both mounted in
+    // jsdom) with identical words.
+    await renderInbox([order({ status: "delivery_dead_letter", poNumber: "PO-66007" })]);
+    await screen.findAllByText("PO-66007");
+    expect(screen.getAllByText("Out of retries").length).toBeGreaterThanOrEqual(2);
+    expect(screen.queryByText("Couldn't read file")).toBeNull();
+  });
+
   it("the caption a row prints names the node the row lights", async () => {
     const { container } = await renderInbox([order({ status: "transforming", poNumber: "PO-66005" })]);
     await screen.findAllByText("PO-66005");
