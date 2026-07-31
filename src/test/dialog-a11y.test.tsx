@@ -154,10 +154,16 @@ describe("every modal dialog routes through the shared contract", () => {
     (_name, entry: DialogEntry) => {
       const src = readFileSync(join(ROOT, entry.file), "utf8");
       expect(src.includes("useDialogA11y("), `${entry.file} must still get Escape + focus restore`).toBe(true);
+      // Match the CALL, not the file. `src.includes("modal: false")` was satisfied by
+      // the string appearing anywhere — including in a comment — so setting
+      // `modal: true` and leaving `// was modal: false` behind passed while the real
+      // call trapped Tab. A refuter demonstrated exactly that. This anchors inside the
+      // useDialogA11y({...}) argument object, where a comment cannot reach.
       expect(
-        src.includes("modal: false"),
-        `${entry.file} is registered as a popover, so it must pass \`modal: false\`. Trapping Tab ` +
-          "inside a layer the user can click past is the keyboard trap WCAG 2.1.2 forbids.",
+        /useDialogA11y\(\{[^}]*\bmodal:\s*false\b/.test(src),
+        `${entry.file} is registered as a popover, so its useDialogA11y CALL must pass ` +
+          "`modal: false`. Trapping Tab inside a layer the user can click past is the " +
+          "keyboard trap WCAG 2.1.2 forbids.",
       ).toBe(true);
     },
   );

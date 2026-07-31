@@ -21,6 +21,21 @@ import { test, expect, type Page } from "@playwright/test";
  * `max-width` half exists so the rule is reproducible in Desktop Chrome — which
  * is what this project runs.
  *
+ * ⚠️ WHAT THIS DOES NOT TEST, stated because the packet's AC originally overclaimed
+ * it. The floors are SCOPED to that media query, and this spec measures only at
+ * 390×844 — so "zero controls below either floor" is true AT COARSE-POINTER AND
+ * <640px VIEWPORTS, and is NOT a claim about desktop. A refuter re-ran this file's
+ * own `measureControls` at 1280×900 and found it false there: `/settings` 17
+ * controls under 44px plus a 13px "Workspace name" input, `/operations/webhooks`
+ * 21 controls including a 32px/12.5px "Add endpoint", `/inbox` a 12.5px "Search
+ * orders" input, and `/pricing` a 20.3px "Sign in" link — under WCAG 2.2 SC
+ * 2.5.8's 24px AA floor, which this file itself invokes further down.
+ *
+ * That is a real gap and it is deliberately NOT closed here: raising ~50 desktop
+ * controls is a visual change across six surfaces, not an a11y wiring fix, and
+ * bundling it into this packet is how a density regression ships unreviewed. It
+ * needs its own packet. What is fixed here is that the claim now matches the test.
+ *
  * PORT HAZARD. `playwright.config.ts` sets `reuseExistingServer: !CI`, so a dev
  * server another workspace left on :8082 would be measured instead of this one.
  * `expects the touch floors to be in effect` below is the canary: it fails loudly
