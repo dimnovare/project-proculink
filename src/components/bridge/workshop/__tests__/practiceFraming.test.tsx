@@ -43,14 +43,19 @@ vi.mock("@/hooks/useSampleOrder", () => ({
 
 let practiceDelivery: boolean | null = null;
 
+// Party labels are per-ORG (outbound → "Supplier", inbound → "Customer"), so the mock
+// has to be switchable: a string that reads correctly in one direction and nonsense in
+// the other is exactly the regression the last test in this file exists to catch.
+let counterpartyNoun = "Supplier";
+
 vi.mock("@/hooks/useOrderDirection", () => ({
   useOrderDirection: () => ({
     labels: {
-      counterpartyNoun: "Supplier",
-      primaryCta: "Send to supplier",
+      counterpartyNoun,
+      primaryCta: `Send to ${counterpartyNoun.toLowerCase()}`,
       primaryCtaProgress: "Sending…",
       doneLabel: "Sent",
-      deliveredLabel: "Delivered to supplier",
+      deliveredLabel: `Delivered to ${counterpartyNoun.toLowerCase()}`,
     },
   }),
 }));
@@ -155,6 +160,7 @@ beforeEach(() => {
   mockState.order = undefined;
   mockState.searchParams = new URLSearchParams();
   practiceDelivery = null;
+  counterpartyNoun = "Supplier";
 });
 afterEach(cleanup);
 
@@ -228,6 +234,29 @@ describe("practice-order framing", () => {
 
     expect(banner()!.textContent).toMatch(/nothing reaches a real supplier/i);
     expect(banner()!.textContent).not.toMatch(/emailed to you/i);
+  });
+
+  test("never hardcodes a party noun — an inbound org reads 'customer', not 'supplier'", async () => {
+    // WAVE4 binding constraint: party nouns route through partyLabels(direction).
+    // An inbound org has CUSTOMERS, not suppliers, so a hardcoded "supplier" here is
+    // four sentences about a party that org does not have. lint:vocab cannot catch it —
+    // it checks nav labels against the nine-noun budget, not body copy.
+    counterpartyNoun = "Customer";
+
+    // All three pre-send branches, plus the delivered branch: every sentence the banner
+    // can render has to survive the relabel, not just the one that happens to be default.
+    for (const known of [null, true, false] as (boolean | null)[]) {
+      practiceDelivery = known;
+      mockState.order = makeOrder({ isSample: true });
+      const { unmount } = render(<OrderWorkshop orderId="ord-1" />);
+      await waitFor(() => expect(banner()).not.toBeNull());
+      expect(banner()!.textContent ?? "").not.toMatch(/supplier/i);
+      unmount();
+    }
+
+    mockState.order = makeOrder({ isSample: true, status: "delivered" });
+    render(<OrderWorkshop orderId="ord-1" />);
+    expect(banner()!.textContent ?? "").not.toMatch(/supplier/i);
   });
 
   test("uses a system icon, never an emoji", () => {
