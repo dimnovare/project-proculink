@@ -763,6 +763,22 @@ describe("route reachability (plan rule R1 — no new surface without a consumer
     // from a `//` comment describing signOut({ redirectUrl: "/" }).
     expect(rx(`// (signOut({ redirectUrl: "/" })). The design's item is`)).toEqual([]);
 
+    // A "//" written after a COLON is still a comment. The scheme exemption exists for
+    // "https://", but it used to be spelled `prev !== ":"` against the last NON-WHITESPACE
+    // character emitted — which exempted every colon in the language. An object key, a `case`
+    // label, a ternary and a type annotation all left their comment standing and readable as
+    // live code, and a commented-out <Link> after any of them cleared a genuinely orphaned page
+    // through BOTH guards. Reproduced end-to-end before the fix; these are the four shapes.
+    expect(ex(`const m = { ready: // <Link href="/orphan-obj-key">x</Link>`)).toEqual([]);
+    expect(ex(`case "ready": // <Link href="/orphan-case">x</Link>`)).toEqual([]);
+    expect(ex(`const v = cond ? a : // <Link href="/orphan-ternary">x</Link>`)).toEqual([]);
+    expect(ex(`type T = { a: // <Link href="/orphan-type">x</Link>`)).toEqual([]);
+    // …while an ADJACENT scheme colon still is one. This is the over-correction guard: drop the
+    // exemption entirely and the rest of this prose line is swallowed, taking the real link.
+    expect(ex(`<p>See https://example.com/docs</p><Link href="/real-scheme">R</Link>`)).toEqual([
+      "/real-scheme",
+    ]);
+
     // Stripping must not eat real code. A "//" inside a string literal is not a
     // comment — protocol-relative URLs and https:// literals are everywhere.
     expect(ex(`const doc = "https://example.com/x"; <Link href="/real">R</Link>`)).toEqual(["/real"]);
