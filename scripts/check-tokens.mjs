@@ -59,6 +59,25 @@
  *      from `red` the identifier or the prose), and any hex assembled at
  *      runtime — `"#" + "1E66C9"`, `` `#${x}` ``, `[..].join("")`. A source-text
  *      scanner cannot see the last group without evaluating the program.
+ *   4. THE LEDGER IS `src/app/**` ONLY, and it cannot stand in for the rest of
+ *      the tree. Every BASELINE row below is an src/app path, because that is
+ *      this gate's scope — so "the remaining debt is ledgered" is a true
+ *      statement about src/app and says NOTHING about src/components/**, where
+ *      the primitives live and where the app keeps most of its colour. That
+ *      distinction was got wrong once, in this packet's own acceptance
+ *      criteria: it deferred its un-audited remainder to "the 798 ledgered
+ *      violations" while 27 measured sub-4.5:1 TEXT pairs sat in
+ *      src/components/**, reachable from /bridge, /inbox/[orderId] and
+ *      /operations/*, in a region the ledger has never had a row for. A ledger
+ *      is only an alibi for the files it lists.
+ *   5. IT IS NOT AN EMISSION CHECK. It reads the files; it does not read the
+ *      stylesheet those files compile to, and the two scanners do not agree on
+ *      scope. This gate skips `*.test.ts(x)` on purpose — a test that pins a ban
+ *      has to be able to name the value it bans — and tailwind.config.ts did
+ *      not, so Tailwind's content scanner read a FIXTURE STRING out of
+ *      check-tokens.test.ts and emitted the banned emerald into production CSS
+ *      while this gate was green. scripts/check-emitted-css.mjs closes that by
+ *      asking the compiler.
  *
  * ROUTE ENUMERATION. next.config.ts sets pageExtensions ["ts","tsx","mdx"] and
  * the tree carries 45 `page.mdx` against 44 `page.tsx`. A .tsx-only scan would

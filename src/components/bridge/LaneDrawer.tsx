@@ -27,6 +27,20 @@ const HEALTH_COLOR: Record<string, string> = {
   down: "#B43838",
 };
 
+/**
+ * The text sibling of HEALTH_COLOR. Not a darkening of it: HEALTH_COLOR still
+ * paints the buyer→supplier gradient wire (non-text, 3:1), while these two land
+ * in `color:` on the health label and the Health stat. ok was 3.8846:1 on --bg
+ * and 4.0165:1 on the stat tile's #FAFBFC; risk was 3.8330 / 3.9633:1. The
+ * replacements are 5.9863 / 6.1897:1 and 5.8949 / 6.0952:1. down was already
+ * over the floor (5.5012 / 5.6881:1) and is the same value in both maps.
+ */
+const HEALTH_TEXT_COLOR: Record<string, string> = {
+  ok:   "#1E6D29",
+  risk: "#8A5310",
+  down: "#B43838",
+};
+
 const HEALTH_LABEL: Record<string, string> = {
   ok:   "Healthy",
   risk: "At risk",
@@ -78,7 +92,8 @@ interface LaneDrawerProps {
 }
 
 export function LaneDrawer({ lane, onClose }: LaneDrawerProps) {
-  const hc     = HEALTH_COLOR[lane.health];
+  const hc     = HEALTH_COLOR[lane.health];      // the gradient wire — non-text
+  const hcText = HEALTH_TEXT_COLOR[lane.health]; // the health label + stat — text
   const router = useRouter();
   // Direction-aware party labels (avoids a split-brain "Supplier" UI for inbound
   // orgs). railHeader is "Buyer → Supplier" (outbound) / "Customer → You"
@@ -279,7 +294,7 @@ export function LaneDrawer({ lane, onClose }: LaneDrawerProps) {
               <div
                 style={{
                   fontSize: 9,
-                  color: hc,
+                  color: hcText,
                   fontWeight: 700,
                   letterSpacing: "0.05em",
                 }}
@@ -296,7 +311,8 @@ export function LaneDrawer({ lane, onClose }: LaneDrawerProps) {
                   fontWeight: 700,
                   letterSpacing: "0.07em",
                   textTransform: "uppercase",
-                  color: "#2E8E3A",
+                  // 9px/700 on the row's #F6F7FA: #2E8E3A is 3.8846:1, #1E6D29 is 5.9863:1.
+                  color: "#1E6D29",
                   marginBottom: 2,
                 }}
               >
@@ -318,7 +334,8 @@ export function LaneDrawer({ lane, onClose }: LaneDrawerProps) {
                 style={{
                   fontFamily: "'JetBrains Mono', monospace",
                   fontSize: 10.5,
-                  color: "#2E8E3A",
+                  // Same pair as the eyebrow above: 3.8846:1 → 5.9863:1 on #F6F7FA.
+                  color: "#1E6D29",
                   fontWeight: 600,
                 }}
               >
@@ -340,7 +357,7 @@ export function LaneDrawer({ lane, onClose }: LaneDrawerProps) {
           >
             {[
               { label: "Volume",  value: lane.volume },
-              { label: "Health",  value: HEALTH_LABEL[lane.health], color: hc },
+              { label: "Health",  value: HEALTH_LABEL[lane.health], color: hcText },
               { label: "Alerts",  value: lane.alert ? `${lane.alert}` : "—", color: lane.alert ? "#8A5310" : undefined },
             ].map(({ label, value, color }, i) => (
               <div

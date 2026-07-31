@@ -47,6 +47,36 @@ function orderColor(status: OrderStatus): string {
   return "#2E8E3A";
 }
 
+// Each row paints item.color TWICE, at two different floors: as the chip's
+// 9.4%-alpha FILL (non-text, 3:1) and as the GLYPH inside it. The glyph (✓ ▶ ⊞)
+// carries meaning, so it is text and owes 4.5:1 — and #2E8E3A on its own tint is
+// only 3.7024:1 (#EBF4EC), or 3.3789:1 over the #F0F4FB active row (#DEEAE9).
+// So the glyph alone steps to green-deep: 5.7056:1 / 5.2071:1. item.color itself
+// is deliberately NOT changed — the fill keeps it, so the chip looks identical.
+//
+// ALL THREE FAMILIES ARE MAPPED, not just green. Green was the one the sweep was
+// scoped to, but the other two rows fail the same way for the same reason, and a
+// map covering one of three would read as "checked" while two thirds of the
+// palette still failed. Both replacements are existing tokens; neither is new.
+//   #B36D14 (needs-review / delivery-failed) → 3.6662:1 resting, 3.3358:1 active
+//     → --amber-text #8A5310: 5.6384:1 / 5.1302:1
+//   #1E66C9 (buyers) → 4.8592:1 resting but 4.4231:1 over the active row — the
+//     kind of near-miss that only shows up if you measure the state the user is
+//     actually looking at when they arrow onto the row
+//     → --brand-blue-deep #0F4FA8: 6.8270:1 / 6.2143:1
+// These reached the glyph through `orderColor()`, a FUNCTION RETURN, which is
+// exactly the indirection src/test/textColorScan.ts documents that it cannot
+// follow. Found by measuring, not by the scanner.
+const GLYPH_TEXT_COLOR: Record<string, string> = {
+  "#2E8E3A": "#1E6D29",
+  "#B36D14": "#8A5310",
+  "#1E66C9": "#0F4FA8",
+};
+
+function glyphColor(fill: string): string {
+  return GLYPH_TEXT_COLOR[fill] ?? fill;
+}
+
 function buildIndex(
   router: ReturnType<typeof useRouter>,
   orders: OrderSummary[],
@@ -427,7 +457,8 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
                         alignItems: "center",
                         justifyContent: "center",
                         fontSize: 13,
-                        color: item.color ?? "#2E8E3A",
+                        // Text floor, not the fill's — see GLYPH_TEXT_COLOR.
+                        color: glyphColor(item.color ?? "#2E8E3A"),
                         flexShrink: 0,
                       }}
                     >

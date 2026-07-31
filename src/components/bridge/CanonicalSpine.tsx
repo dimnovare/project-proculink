@@ -125,7 +125,9 @@ export function SpineNode(props: SpineNodeProps) {
           {value}
         </div>
 
-        {hint && <div className="text-[10.5px] text-amber mt-1">⚠ {hint}</div>}
+        {/* text-amber-text (#8A5310), not text-amber (#B36D14): 5.6206:1 vs 3.6547:1 on the
+            warn card's #FAF1DD (6.3150 / 5.2703 on the surface + danger-soft cards). */}
+        {hint && <div className="text-[10.5px] text-amber-text mt-1">⚠ {hint}</div>}
 
         {/* Subnodes — line rows; AI-suggested rows carry the violet accent */}
         {subnodes && subnodes.length > 0 && (

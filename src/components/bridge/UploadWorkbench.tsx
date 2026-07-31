@@ -1454,7 +1454,13 @@ export function UploadWorkbench() {
                           fontSize: 9.5,
                           fontWeight: 600,
                           letterSpacing: "0.04em",
-                          color: done ? "#1E6D29" : active ? "#2E8E3A" : "#CBD0DA",
+                          // #1E6D29 not #2E8E3A for `active`: this is a 9.5px
+                          // stage LABEL on the white footer — 4.1613:1 with
+                          // green, 6.4128:1 with green-deep. done/active now
+                          // share the label color; the "✓" prefix and the 3px
+                          // bar above (still green vs green-deep, non-text)
+                          // carry the distinction.
+                          color: done || active ? "#1E6D29" : "#CBD0DA",
                           transition: "color 0.2s",
                         }}>
                           {done ? "✓ " : ""}{stage}
@@ -1537,7 +1543,11 @@ export function UploadWorkbench() {
                       </span>
                     </div>
                     <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 text-[12px]">
-                      <span className="truncate" style={{ color: "#2E8E3A" }}>
+                      {/* #1E6D29 not #2E8E3A: buyer name is 12px TEXT on
+                          var(--surface) (#FFFFFF) — 4.1613:1 with green,
+                          6.4128:1 with green-deep. The hairline below keeps the
+                          green→green-deep gradient; it is non-text. */}
+                      <span className="truncate" style={{ color: "#1E6D29" }}>
                         {row.buyer}
                       </span>
                       <span className="h-px w-5" style={{ background: "linear-gradient(90deg, #2E8E3A, #1E6D29)" }} />
@@ -1600,9 +1610,13 @@ export function UploadWorkbench() {
                           <FileChip type={row.fmt} />
                         </td>
                         <td className="px-4 py-2.5 min-w-[250px]">
+                          {/* #1E6D29 not #2E8E3A: buyer name is 12px TEXT. Rows
+                              are transparent over the white XCard — 4.1613:1
+                              with green, 6.4128:1 with green-deep; on the
+                              #F6F7FA hover row, 3.8846:1 → 5.9863:1. */}
                           <span
                             className="text-[12px]"
-                            style={{ color: "#2E8E3A" }}
+                            style={{ color: "#1E6D29" }}
                           >
                             {row.buyer}
                           </span>

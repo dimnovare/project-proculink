@@ -678,7 +678,15 @@ export function CatalogSourceEditor({ supplierId }: CatalogSourceEditorProps) {
                     <KeyRound size={14} color="#2E8E3A" />
                     <span className="text-[12px] font-semibold" style={{ color: "#0B1A2F" }}>Logicom credentials</span>
                     {logicomHasSavedCreds && (
-                      <span className="ml-auto text-[11px]" style={{ color: "#2E8E3A" }}>saved · masked</span>
+                      <span
+                        className="ml-auto text-[11px]"
+                        // #1E6D29 not #2E8E3A: 11px TEXT on the white card is
+                        // 4.1613:1 with green, 6.4128:1 with green-deep. The
+                        // KeyRound icon beside it stays green — non-text, 3:1.
+                        style={{ color: "#1E6D29" }}
+                      >
+                        saved · masked
+                      </span>
                     )}
                   </div>
                   <div className="grid gap-3 p-3">
@@ -719,7 +727,15 @@ export function CatalogSourceEditor({ supplierId }: CatalogSourceEditorProps) {
                     <KeyRound size={14} color="#2E8E3A" />
                     <span className="text-[12px] font-semibold" style={{ color: "#0B1A2F" }}>Authentication</span>
                     {savedAuthSecretForMethod && (
-                      <span className="ml-auto text-[11px]" style={{ color: "#2E8E3A" }}>saved · masked</span>
+                      <span
+                        className="ml-auto text-[11px]"
+                        // #1E6D29 not #2E8E3A: 11px TEXT on the white card is
+                        // 4.1613:1 with green, 6.4128:1 with green-deep. The
+                        // KeyRound icon beside it stays green — non-text, 3:1.
+                        style={{ color: "#1E6D29" }}
+                      >
+                        saved · masked
+                      </span>
                     )}
                   </div>
                   <div className="grid gap-3 p-3">
@@ -833,7 +849,15 @@ export function CatalogSourceEditor({ supplierId }: CatalogSourceEditorProps) {
                     <KeyRound size={14} color="#2E8E3A" />
                     <span className="text-[12px] font-semibold" style={{ color: "#0B1A2F" }}>Credentials</span>
                     {hasPassword && (
-                      <span className="ml-auto text-[11px]" style={{ color: "#2E8E3A" }}>saved · masked</span>
+                      <span
+                        className="ml-auto text-[11px]"
+                        // #1E6D29 not #2E8E3A: 11px TEXT on the white card is
+                        // 4.1613:1 with green, 6.4128:1 with green-deep. The
+                        // KeyRound icon beside it stays green — non-text, 3:1.
+                        style={{ color: "#1E6D29" }}
+                      >
+                        saved · masked
+                      </span>
                     )}
                   </div>
                   <div className="grid gap-3 p-3 lg:grid-cols-2">
@@ -1128,7 +1152,12 @@ function ColumnMappingPanel({
       >
         <span className="text-[12px] font-semibold" style={{ color: "#0B1A2F" }}>Map columns (advanced)</span>
         {(hasUnmapped || configured) && (
-          <span className="ml-auto text-[11px]" style={{ color: hasUnmapped ? "#7A4D0B" : "#2E8E3A" }}>
+          <span
+            className="ml-auto text-[11px]"
+            // #1E6D29 not #2E8E3A: this count is 11px TEXT on the #F6F7FA
+            // header, where green is 3.8846:1 and green-deep is 5.9863:1.
+            style={{ color: hasUnmapped ? "#7A4D0B" : "#1E6D29" }}
+          >
             {configured ? `${rows.length} mapped` : `${unmappedColumns.length} unmapped column${unmappedColumns.length === 1 ? "" : "s"}`}
           </span>
         )}

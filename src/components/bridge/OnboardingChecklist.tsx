@@ -44,7 +44,9 @@ const T = {
   ink:       "#0B1A2F",
   muted:     "#5E6779",
   faint:     "var(--ink-faint)",
-  amber:     "#B36D14",
+  // Amber is only ever TEXT in this card, so the token carries the text-safe value:
+  // #8A5310 on #FAF1DD = 5.6206:1. NOT #B36D14, which is 3.6547:1 here.
+  amberText: "#8A5310",
   amberSoft: "#FFF8EA",
 };
 
@@ -448,7 +450,7 @@ export function OnboardingChecklist({ onResumeSetup }: OnboardingChecklistProps)
                     {intermediate && (
                       <span
                         className="rounded-[4px] px-1.5 py-0.5 text-[10px] font-bold uppercase"
-                        style={{ background: "#FAF1DD", color: T.amber, letterSpacing: "0.05em" }}
+                        style={{ background: "#FAF1DD", color: T.amberText, letterSpacing: "0.05em" }}
                       >
                         Almost there
                       </span>

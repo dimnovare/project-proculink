@@ -166,6 +166,44 @@ const PAIRS: Array<[string, string, string, number, string]> = [
     4.5,
     "settings 'Coming soon' chip — --ink-faint on --surface-2 is 4.48:1",
   ],
+  // ─── The green family, added in round 3 ────────────────────────────────────
+  //
+  // `--brand-green` is to green what `--amber` is to amber: the NON-TEXT member
+  // of the family. 4.1613:1 on white. globals.css had already learned this lesson
+  // once and shipped `--amber-text`; nothing had drawn the same conclusion for
+  // green, so ~20 sites in src/components/** were painting copy in it — a region
+  // the src/app-scoped ledger has never had a row for. `--brand-green-deep`
+  // already existed and is the right value; no new token was needed.
+  [
+    "green text on white",
+    "var(--brand-green-deep)",
+    "var(--surface)",
+    4.5,
+    "supplier names, saved-credential notes, add-field glyphs — --brand-green is 4.1613:1",
+  ],
+  [
+    "green text on the green chip fill",
+    "var(--brand-green-deep)",
+    "var(--brand-green-soft)",
+    4.5,
+    "the workshop ready-row — a stray #2E7D38 was 4.4403:1 on this fill",
+  ],
+  [
+    "green text on the work-area background",
+    "var(--brand-green-deep)",
+    "var(--bg)",
+    4.5,
+    "the supplier eyebrow + code in the flow drawer — --brand-green is 3.8846:1 there",
+  ],
+  [
+    "green text on the navy chrome",
+    "var(--brand-green-bright)",
+    "var(--navy)",
+    4.5,
+    "the marketing 'Open the dashboard' link — --brand-green is 4.1948:1 on navy, and " +
+      "going DEEPER makes it worse: --brand-green-deep is 1.99:1. Dark surfaces need the " +
+      "bright step, which is the opposite move from every other row here.",
+  ],
 ];
 
 describe("resolved token pairs clear their WCAG floor", () => {

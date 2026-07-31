@@ -235,12 +235,15 @@ describe("the real tree", () => {
     ).toEqual([]);
   });
 
-  it("the exemptions are exemptions — without them the scan is NOT green", () => {
-    // Pins that EXEMPT is load-bearing. If the scanner stopped finding these
-    // sites, the list above would be silently forgiving nothing and the next
-    // person would trust a rule that had quietly stopped working.
+  it("the exemptions are load-bearing — each one really is being forgiven", () => {
+    // If the scanner quietly stopped finding these sites, EXEMPT would be
+    // forgiving nothing, the assertion above would pass for the wrong reason,
+    // and the next person would trust a rule that had stopped working. Asserting
+    // that the unfiltered scan finds EXACTLY the exempted sites pins both halves:
+    // the scanner still fires on them, and nothing else is hiding behind them.
     const raw = scanTextColorUses(SOURCES, AMBER, allow);
-    expect(raw.length).toBe(EXEMPT.length + 0);
+    expect(raw.every((h) => exempted(h))).toBe(true);
+    expect(raw.length).toBe(EXEMPT.length);
   });
 
   it("scans a tree big enough for that to mean something", () => {

@@ -136,7 +136,8 @@ const C = {
   navy: "#0B1A2F",
   danger: "#B43838",
   dangerSoft: "#FAE6E6",
-  amber: "#B36D14",
+  amber: "#B36D14",      // icon box glyph + card border only (non-text, 3:1 floor)
+  amberText: "#8A5310",  // amber as TEXT — see SEVERITY below
   amberSoft: "#FAF1DD",
   green: "#2E8E3A",
   greenBtn: "#297F34", // solid fill under white text — ≈4.6:1 AA (green is 4.16:1)
@@ -145,9 +146,12 @@ const C = {
   mono: "'JetBrains Mono', ui-monospace, monospace",
 };
 
-const SEVERITY: Record<IssueSeverity, { accent: string; soft: string; label: string }> = {
-  blocking: { accent: C.danger, soft: C.dangerSoft, label: "Blocker" },
-  warning: { accent: C.amber, soft: C.amberSoft, label: "Warning" },
+// `accent` = the card border + warn glyph (non-text); `text` = the severity label.
+// #8A5310 on the card's #FFFFFF = 6.3150:1. NOT #B36D14, which is 4.1061:1 there.
+// Blocking keeps one value — #B43838 on #FFFFFF is 5.8932:1 and already passes.
+const SEVERITY: Record<IssueSeverity, { accent: string; soft: string; text: string; label: string }> = {
+  blocking: { accent: C.danger, soft: C.dangerSoft, text: C.danger, label: "Blocker" },
+  warning: { accent: C.amber, soft: C.amberSoft, text: C.amberText, label: "Warning" },
 };
 
 export function IssuesPanel({ issues, onFocusField, onFix, readyLabel, resolve, lines, suggestableCount = 0, highConfCount = 0, onJumpToLine }: IssuesPanelProps) {
@@ -176,7 +180,11 @@ export function IssuesPanel({ issues, onFocusField, onFix, readyLabel, resolve, 
           <CheckGlyph />
         </span>
         <span style={{ fontSize: 13, fontWeight: 700 }}>Ready to send</span>
-        <span style={{ fontSize: 11.5, color: "#2E7D38", fontWeight: 500 }}>
+        {/* C.greenDeep on C.greenSoft = 5.5685:1. The #2E7D38 that was here is a
+            fourth green existing in no token file, and it was 4.4403:1 on this
+            fill — the row's own `color` two elements up was already the right
+            value, and this span was overriding it with a worse one. */}
+        <span style={{ fontSize: 11.5, color: C.greenDeep, fontWeight: 500 }}>
           {readyLabel ?? "No open issues — every required field is filled and checked."}
         </span>
       </div>
@@ -260,7 +268,7 @@ export function IssuesPanel({ issues, onFocusField, onFix, readyLabel, resolve, 
                 </span>
                 <div style={{ minWidth: 0, flex: 1 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 2 }}>
-                    <span style={{ fontSize: 9.5, fontWeight: 800, letterSpacing: "0.05em", textTransform: "uppercase", color: tone.accent }}>
+                    <span style={{ fontSize: 9.5, fontWeight: 800, letterSpacing: "0.05em", textTransform: "uppercase", color: tone.text }}>
                       {tone.label}
                     </span>
                     {/* A line-scoped card locates by its LINE ("Line 2"), not the raw

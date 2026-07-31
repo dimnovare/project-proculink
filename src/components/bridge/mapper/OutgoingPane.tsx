@@ -1181,7 +1181,9 @@ function PickerItem({ node, onPick }: { node: CanonicalNode; onPick: () => void 
           {node.id}
         </span>
       </span>
-      <span aria-hidden style={{ fontSize: 13, fontWeight: 700, color: "#2E8E3A", flexShrink: 0 }}>+</span>
+      {/* A glyph, so 4.5:1: #2E8E3A was 3.9560:1 on the row's hover #F4FBF5 (and
+          4.1613:1 at rest on #FFFFFF); #1E6D29 is 6.0965:1 / 6.4128:1. */}
+      <span aria-hidden style={{ fontSize: 13, fontWeight: 700, color: "#1E6D29", flexShrink: 0 }}>+</span>
     </button>
   );
 }

@@ -43,7 +43,10 @@ export function StandardsFieldPopover({ canonicalField, label }: StandardsFieldP
             transition: "color 120ms",
           }}
           onMouseEnter={(e) => {
-            (e.currentTarget as HTMLButtonElement).style.color = "#2E8E3A";
+            // #1E6D29 not #2E8E3A: the "i" is a 10px/700 glyph — text. At rest
+            // --ink-faint is 4.9748:1 on white, so hovering to green's 4.1613:1
+            // dropped it under AA. green-deep is 6.4128:1, so hover goes darker.
+            (e.currentTarget as HTMLButtonElement).style.color = "#1E6D29";
           }}
           onMouseLeave={(e) => {
             (e.currentTarget as HTMLButtonElement).style.color = "var(--ink-faint)";
@@ -98,7 +101,9 @@ export function StandardsFieldPopover({ canonicalField, label }: StandardsFieldP
                 style={{
                   fontFamily: "'JetBrains Mono', monospace",
                   fontSize: 11.5,
-                  color: "#2E8E3A",
+                  // #1E6D29 not #2E8E3A: 11.5px reference-path TEXT on
+                  // --popover (#FFFFFF) is 4.1613:1 with green, 6.4128:1 here.
+                  color: "#1E6D29",
                   wordBreak: "break-all",
                 }}
               >

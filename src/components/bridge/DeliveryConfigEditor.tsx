@@ -764,7 +764,15 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
                     <KeyRound size={14} color="#2E8E3A" />
                     <span className="text-[12px] font-semibold" style={{ color: "#0B1A2F" }}>cXML network credentials</span>
                     {hasCxmlSharedSecret && (
-                      <span className="ml-auto text-[11px]" style={{ color: "#2E8E3A" }}>shared secret saved</span>
+                      <span
+                        className="ml-auto text-[11px]"
+                        // #1E6D29 not #2E8E3A: 11px TEXT on the white card is
+                        // 4.1613:1 with green, 6.4128:1 with green-deep. The
+                        // KeyRound icon beside it stays green — non-text, 3:1.
+                        style={{ color: "#1E6D29" }}
+                      >
+                        shared secret saved
+                      </span>
                     )}
                   </div>
                   <div className="grid gap-3 p-3">
@@ -1240,7 +1248,15 @@ export function DeliveryConfigEditor({ supplierId }: DeliveryConfigEditorProps) 
                   <KeyRound size={14} color="#2E8E3A" />
                   <span className="text-[12px] font-semibold" style={{ color: "#0B1A2F" }}>Authentication</span>
                   {hasSavedCredentials && (
-                    <span className="ml-auto text-[11px]" style={{ color: "#2E8E3A" }}>saved credential masked</span>
+                    <span
+                      className="ml-auto text-[11px]"
+                      // #1E6D29 not #2E8E3A: 11px TEXT on the white card is
+                      // 4.1613:1 with green, 6.4128:1 with green-deep. The
+                      // KeyRound icon beside it stays green — non-text, 3:1.
+                      style={{ color: "#1E6D29" }}
+                    >
+                      saved credential masked
+                    </span>
                   )}
                 </div>
 
