@@ -91,3 +91,59 @@ export function rowsToNamespaces(rows: NamespaceRow[]): Record<string, string> |
 export function templateHasRootNamespaces(t: OutputNodeTemplate): boolean {
   return !!t.namespaces && Object.keys(t.namespaces).length > 0;
 }
+
+// ── Node reorder (WP-15 · S4) ────────────────────────────────────────────────
+
+/**
+ * Immutably move the node at `path` one position among its SIBLINGS.
+ *
+ * Order is not cosmetic in this tree: it is CSV column order and XML element order, both of which a
+ * receiver reads positionally. Until now the only way to change it was delete-and-re-add, which
+ * discards everything the node carried — its namespace, its condition, its whole rule — so in
+ * practice a saved layout's order was fixed for good.
+ *
+ * Three properties the callers depend on:
+ *
+ * - **Sibling-bounded.** A node never changes parent. Moving the first child up, or the last down,
+ *   is a no-op rather than a reparent, because the alternative — silently promoting a field out of
+ *   its repeating line group — would change what the document means.
+ * - **Clamped, and IDENTITY-STABLE at the boundary.** A no-op returns the SAME root object, so
+ *   `Object.is(before, after)` is true. React state setters and dirty-tracking both read that: a
+ *   fresh-but-equal object at every boundary press would mark a pristine tree dirty and prompt the
+ *   author to save a change they did not make.
+ * - **Total.** The moved node is the SAME object, never rebuilt — so every field survives, including
+ *   ones this module has never heard of. That is the same property `outputRuleModel` exists to
+ *   guarantee for rules, and it fails the same way: a rebuild that names four keys drops the fifth.
+ */
+export function moveAt(node: OutputNode, path: number[], delta: -1 | 1): OutputNode {
+  if (path.length === 0) return node; // the root has no siblings
+
+  if (path.length === 1) {
+    const children = node.children ?? [];
+    const from = path[0];
+    const to = from + delta;
+    // Out of range on either end, or an index that does not exist: no-op, same reference.
+    if (from < 0 || from >= children.length || to < 0 || to >= children.length) return node;
+
+    const next = [...children];
+    // Swap by reference. The two nodes are moved, not reconstructed.
+    [next[from], next[to]] = [next[to], next[from]];
+    return { ...node, children: next };
+  }
+
+  const [i, ...rest] = path;
+  const children = node.children ?? [];
+  if (i < 0 || i >= children.length) return node;
+
+  const movedChild = moveAt(children[i], rest, delta);
+  // Nothing changed deeper down → propagate the SAME root, so the boundary no-op survives the
+  // whole recursion rather than being lost to a spread at every level on the way back up.
+  if (movedChild === children[i]) return node;
+
+  return { ...node, children: children.map((c, idx) => (idx === i ? movedChild : c)) };
+}
+
+/** Whether `moveAt` would actually move this node — drives a control's disabled state. */
+export function canMoveAt(node: OutputNode, path: number[], delta: -1 | 1): boolean {
+  return moveAt(node, path, delta) !== node;
+}
