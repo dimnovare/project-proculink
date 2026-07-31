@@ -244,3 +244,61 @@ describe("WorkshopStatusBar — re-hosted bands", () => {
     expect(items.map((i) => i.textContent ?? "").some((t) => /dismiss all ai/i.test(t))).toBe(false);
   });
 });
+
+// ── WP-13 · the promote control ──────────────────────────────────────────────
+// The bar is the ONLY place this control can live in the workshop: the mapper's
+// own "Save mappings" button sits inside the `!hideToolbar` block, and the
+// workshop passes `hideToolbar`. Hosts that do NOT pass a handler (the mapping
+// panel, the connection editor) must be unaffected — hence the absence test.
+describe("save mappings", () => {
+  test("no handler → no control at all (other hosts are untouched)", () => {
+    render(<WorkshopStatusBar blockers={[]} onJump={vi.fn()} mapper={mapperState()} />);
+    expect(screen.queryByRole("button", { name: /save mappings/i })).toBeNull();
+  });
+
+  test("a handler renders the control, and clicking it calls back", () => {
+    const onSaveMappings = vi.fn();
+    render(
+      <WorkshopStatusBar
+        blockers={[]}
+        onJump={vi.fn()}
+        mapper={mapperState()}
+        onSaveMappings={onSaveMappings}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: /save mappings/i }));
+    expect(onSaveMappings).toHaveBeenCalledTimes(1);
+  });
+
+  test("in flight: label changes and the control is disabled", () => {
+    const onSaveMappings = vi.fn();
+    render(
+      <WorkshopStatusBar
+        blockers={[]}
+        onJump={vi.fn()}
+        mapper={mapperState()}
+        onSaveMappings={onSaveMappings}
+        savingMappings
+      />,
+    );
+    const btn = screen.getByRole("button", { name: /saving/i });
+    expect(btn).toHaveProperty("disabled", true);
+    fireEvent.click(btn);
+    expect(onSaveMappings).not.toHaveBeenCalled();
+  });
+
+  test("a disabled reason disables the control AND is readable as its tooltip", () => {
+    render(
+      <WorkshopStatusBar
+        blockers={[]}
+        onJump={vi.fn()}
+        mapper={mapperState()}
+        onSaveMappings={vi.fn()}
+        saveMappingsDisabledReason="Assign a supplier first — there is nowhere to save this yet."
+      />,
+    );
+    const btn = screen.getByRole("button", { name: /save mappings/i });
+    expect(btn).toHaveProperty("disabled", true);
+    expect(btn.getAttribute("title")).toContain("Assign a supplier first");
+  });
+});

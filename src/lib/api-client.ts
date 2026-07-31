@@ -1988,8 +1988,15 @@ export async function promoteMapping(
   );
   if (res.status === 404) throw new Error("No saved mapping to promote yet for this order.");
   if (!res.ok) {
-    const b = await res.json().catch(() => null) as { error?: string } | null;
-    throw new Error(b?.error || `Couldn't save the supplier mapping: ${res.status}`);
+    // A plan-gate 403 carries its whole meaning in the BODY. Keep it VERBATIM so both
+    // the code and the upgradeUrl survive on the Error message — the caller turns it
+    // into a sentence. Read the body ONCE: `planGateBodyText` would consume it, and a
+    // non-gate 403 would then lose its own `error` string to the status fallback.
+    const raw = (await res.text().catch(() => "")).trim();
+    if (isPlanGateError(raw)) throw new Error(raw);
+    let body: { error?: string } | null = null;
+    try { body = JSON.parse(raw) as { error?: string }; } catch { /* not JSON — fall through */ }
+    throw new Error(body?.error || `Couldn't save the supplier mapping: ${res.status}`);
   }
   return res.json();
 }
