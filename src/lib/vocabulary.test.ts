@@ -359,6 +359,31 @@ describe("check-vocabulary.mjs — blockBody anchoring", () => {
     expect(out).toContain("checked 8 navigation label(s)");
   });
 
+  /**
+   * blockBody searches the MASKED copy but must SLICE from the unmasked one. Slicing from the
+   * masked copy leaves the gate green and utterly vacuous rather than broken: masking keeps the
+   * quotes and the length, so `"Partners"` becomes `"        "` and every `label:` regex still
+   * matches — but so does every entry in the approved word list, and comparing blanks to blanks
+   * offends nobody. Found by mutating this fix; a count assertion cannot see it, because the
+   * count does not change.
+   *
+   * So this asserts the body carries real TEXT: plant an unapproved label and require the gate
+   * to quote it back.
+   */
+  it("reads real label text out of the block, not masked whitespace", () => {
+    plant({
+      "src/components/bridge/InboxView.tsx": [
+        "const FILTER_CHIPS: Array<{ label: string }> = [",
+        '  { label: "Partners" },',
+        "];",
+      ],
+    });
+    const { code, out } = runGate(["--nouns"], root);
+    expect(code).toBe(1);
+    expect(out).toContain('"Partners"');
+    expect(out).toContain("partners");
+  });
+
   // ─── the anchor may not be captured by data ───
 
   it("a STRING LITERAL naming the declaration does not become the anchor", () => {

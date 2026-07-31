@@ -555,10 +555,13 @@ function loadVocabulary() {
     return found.body;
   };
   const listOf = (name) => {
-    const values = [...bodyOf(name).matchAll(/"([^"]+)"/g)].map((m) => m[1]);
-    // An approved list that parses to nothing would not fail quietly — it would make every
-    // word unapproved — but it would fail for the wrong reason and send the reader to the
-    // labels instead of to the parse. Say which it was.
+    // BLANK entries are dropped before the emptiness check, not after. A list of whitespace
+    // strings is not a list of approved words, and it is precisely what this function reads
+    // if blockBody is ever changed to slice from the MASKED copy — masking preserves the
+    // quotes and the length, so `"order"` becomes `"     "` and every `/"([^"]+)"/` still
+    // matches. That mistake would otherwise leave the gate GREEN and completely vacuous:
+    // every approved word blank, every label blank, nothing to compare, no offence.
+    const values = [...bodyOf(name).matchAll(/"([^"]+)"/g)].map((m) => m[1]).filter((v) => v.trim());
     if (values.length === 0) throw new Error(`vocabulary.ts: ${name} parsed to an empty list`);
     return values;
   };
