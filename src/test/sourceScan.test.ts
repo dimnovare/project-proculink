@@ -100,9 +100,15 @@ describe("sourceScan — what the .mjs boundary must not cost", () => {
    * paid for the alternative: `9cea6e5` converged two independently-written source-link
    * extractors onto one shared module, because a fix to one had left the other blind.
    *
-   * This also catches the merge hazard directly: any branch that carries its own
-   * `scripts/lib/stripComments.mjs` turns CI red on the merged tree instead of quietly
-   * leaving two strippers in place — the class TRAP 23 is about.
+   * This also catches the merge hazard directly: any branch that carries its own copy of
+   * the shared scanner turns CI red on the merged tree instead of quietly leaving two
+   * strippers in place — the class TRAP 23 is about.
+   *
+   * It earned itself immediately. This branch extracted the stripper as
+   * `scripts/lib/stripComments.mjs`; #81 independently extracted the same code, plus
+   * `maskLiterals`, as `scripts/lib/sourceScan.mjs`. #81 landed first and is the superset,
+   * so this branch's copy was deleted on the merge rather than carried. Named without a
+   * filename now, because naming one is what dated it.
    *
    * SCOPE, stated because silence would overstate it. This walks src/ and scripts/ only, so
    * a copy under tests/ or in a root-level config is not seen; and it matches `function NAME(`,
