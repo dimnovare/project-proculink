@@ -25,6 +25,7 @@ import { useCallback, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { apiClient, getMappingOverride, previewMappingOverride } from "@/lib/api-client";
+import { getAcceptanceGate } from "@/lib/api/acceptance-gate";
 import { useQueriesEnabled } from "@/hooks/useQueriesEnabled";
 import { useOrderDirection } from "@/hooks/useOrderDirection";
 import type { OrderMappingOverride } from "@/lib/api/types";
@@ -49,6 +50,7 @@ import { WorkshopLinesView, WorkshopLinesToggle } from "./WorkshopLinesView";
 import { showLinesToggle } from "./workshopLinesModel";
 import { bulkAcceptCount, type BulkSelectableLine } from "../magicBulkAcceptSelection";
 import { MobileTriage } from "./MobileTriage";
+import { acceptanceIssues, failingAcceptanceCount } from "./acceptanceGateModel";
 import { WorkshopStepper } from "./WorkshopStepper";
 import { WorkshopStatusBar, type BlockerChip } from "./WorkshopStatusBar";
 import { BridgePageLoader } from "../BridgeLoader";
@@ -161,7 +163,61 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
   // only action the IssuesPanel one-click fix uses.
   const resolve = useResolveActions({ orderId, order, nodes: [], labels, setFlow, refetchOrder });
 
-  const validation = useAcceptanceValidation(orderId, { commitVersion: resolve.commitVersion });
+  // ── WP-18 — the supplier acceptance answer, at EVERY breakpoint ─────────────
+  //    This query used to live in useMapperModel, which only MapperWorkbench
+  //    builds — and the workshop mounts that inside `hidden lg:flex`. The count it
+  //    derived fed the mapper's own canDeliver and stopped there, so `canSend`
+  //    below never saw the supplier's rules and an operator on a tablet was
+  //    offered a Send that WP-17's server-side gate refuses. Owned here, above any
+  //    breakpoint-conditional subtree, it evaluates identically at 390/768/1440.
+  //
+  //    We DEFER to the server rather than mirror it, and we read the GATE'S OWN
+  //    DECISION — not the per-field `blocking` flag on /validation. Those are not
+  //    equivalent: the gate subtracts a recorded operator override
+  //    (AcceptanceGate.cs:62-77), so an overridden order is blocked:false with a
+  //    non-empty blockers list. Reading the raw flag would refuse a send the server
+  //    allows, which is the same untruth in the opposite direction.
+  //
+  //    commitVersion is IN THE KEY (not an invalidate) so a fix re-evaluates the
+  //    gate, and `placeholderData` keeps the previous decision on screen while it
+  //    refetches — a momentary empty result must never flash a green Send.
+  const acceptanceQuery = useQuery({
+    queryKey: ["order-acceptance-gate", orderId, resolve.commitVersion],
+    queryFn: () => getAcceptanceGate(orderId),
+    enabled: queryEnabled,
+    placeholderData: (prev) => prev,
+    staleTime: 10_000,
+    retry: 1,
+  });
+  // Not-yet-answered and could-not-answer both mean "we do not know whether this
+  // order can be sent", and the server REFUSES to transform when it cannot evaluate
+  // the gate (acceptance_gate_unavailable). So both must gate the send — a green
+  // Send here is a guaranteed 4xx.
+  //
+  // Read the query's STATUS, never `data === undefined`: with placeholderData a
+  // refetch keeps the previous decision and stays settled, which is exactly the
+  // state that must NOT read as unknown. `enabled:false` (signed-out) also parks
+  // status at pending, but the loading gate below owns that window and renders no
+  // send surface behind it.
+  const gateUnknown =
+    queryEnabled && (acceptanceQuery.isError || acceptanceQuery.isPending);
+  const acceptanceBlockers = useMemo(
+    () => acceptanceIssues(acceptanceQuery.data, labels.counterpartyNoun, { unavailable: gateUnknown }),
+    [acceptanceQuery.data, labels.counterpartyNoun, gateUnknown],
+  );
+
+  const validation = useAcceptanceValidation(orderId, {
+    commitVersion: resolve.commitVersion,
+    // Wire (not delete): validate() has no caller anywhere in src/, so this hook's
+    // result was permanently null and the confirm dialog always claimed zero
+    // failing rules. Seeding it from the live server answer makes that dialog
+    // truthful without adding a POST on page load. A BLOCKED gate already makes
+    // canSend false (the dialog cannot open), so the only orders that ever read
+    // this are ones an operator has overridden — exactly the "the supplier may
+    // still refuse, but say so deliberately" case the acknowledgement exists for.
+    serverFailingCount: failingAcceptanceCount(acceptanceQuery.data),
+    serverRevalidating: acceptanceQuery.isFetching,
+  });
   const { validationResult, failingRuleCount } = validation;
 
   // ── AI calibration → the trust threshold for the attention-first split ──────
@@ -190,7 +246,15 @@ export function OrderWorkshop({ orderId }: { orderId: string }) {
     prevQueueRef.current = next;
     return next;
   }, [order, validationResult]);
-  const issues = useMemo(() => fixQueueToIssues(fixQueue), [fixQueue]);
+  // The ONE issue list every surface reads. The server's blocking acceptance rows
+  // lead: they are the only entries that are certain to be refused on send, and
+  // folding them in here is what carries them to the desktop IssuesPanel, the
+  // status-bar blocker chips, the reduced sub-lg MobileTriage list, and
+  // `blockingIssues` → `canSend` — one merge, every breakpoint.
+  const issues = useMemo(
+    () => [...acceptanceBlockers, ...fixQueueToIssues(fixQueue)],
+    [acceptanceBlockers, fixQueue],
+  );
 
   // ── Mobile triage summary counts ("What we received") — distinct populated
   //    header fields + the per-line fields that carry a value, from the SAME order

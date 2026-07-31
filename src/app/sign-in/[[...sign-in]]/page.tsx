@@ -1,5 +1,6 @@
 import { SignIn } from "@clerk/nextjs";
 import { ProcuLinkMark } from "@/components/bridge/DSPrimitives";
+import { ClerkAvailabilityGate } from "@/components/bridge/ClerkAvailabilityGate";
 
 /* ── Local helpers (auth pages only) ──────────────────────────────────────────
    Pixel-ported from the design source AuthScreen (mkt-components.jsx) — exact
@@ -262,36 +263,44 @@ export default function SignInPage() {
   }
 
   return (
-    <AuthShell>
-      <div className="mb-6">
-        <h1
-          style={{
-            fontFamily: "var(--font-display)",
-            fontSize: 28,
-            fontWeight: 600,
-            letterSpacing: "-0.025em",
-            color: "var(--ink)",
-            margin: 0,
-          }}
-        >
-          Welcome back
-        </h1>
-        <p
-          style={{
-            fontSize: 13.5,
-            marginTop: 6,
-            color: "var(--ink-muted)",
-          }}
-        >
-          Sign in to your ProcuLink workspace.
-        </p>
-      </div>
+    // WP-32 follow-up (F1). This page is NOT in (app), so the layout gate never
+    // reached it — and middleware sends every signed-out user here, which makes
+    // it the commonest place to meet a blocked sign-in script. <SignIn/> cannot
+    // mount without that script, so what shipped was a "Welcome back" heading
+    // above an empty box: no form, no spinner, no error, forever. The gate
+    // bounds the wait and replaces the page with an explanation instead.
+    <ClerkAvailabilityGate surface="auth">
+      <AuthShell>
+        <div className="mb-6">
+          <h1
+            style={{
+              fontFamily: "var(--font-display)",
+              fontSize: 28,
+              fontWeight: 600,
+              letterSpacing: "-0.025em",
+              color: "var(--ink)",
+              margin: 0,
+            }}
+          >
+            Welcome back
+          </h1>
+          <p
+            style={{
+              fontSize: 13.5,
+              marginTop: 6,
+              color: "var(--ink-muted)",
+            }}
+          >
+            Sign in to your ProcuLink workspace.
+          </p>
+        </div>
 
-      <SignIn
-        appearance={clerkAppearance}
-        fallbackRedirectUrl="/onboarding/select-organization"
-        signUpFallbackRedirectUrl="/onboarding/select-organization"
-      />
-    </AuthShell>
+        <SignIn
+          appearance={clerkAppearance}
+          fallbackRedirectUrl="/onboarding/select-organization"
+          signUpFallbackRedirectUrl="/onboarding/select-organization"
+        />
+      </AuthShell>
+    </ClerkAvailabilityGate>
   );
 }

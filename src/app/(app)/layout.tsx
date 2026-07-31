@@ -9,6 +9,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { BridgeSidebar } from "@/components/bridge/BridgeSidebar";
 import { BridgeTopbar } from "@/components/bridge/BridgeTopbar";
 import { ErrorBoundary } from "@/components/bridge/ErrorBoundary";
+import { ClerkAvailabilityGate } from "@/components/bridge/ClerkAvailabilityGate";
 import { MSWProvider } from "@/mocks/MSWProvider";
 import { WorkspaceNameNudge } from "@/components/onboarding/WorkspaceNameNudge";
 import { SkipToContent } from "@/components/a11y/SkipToContent";
@@ -172,6 +173,13 @@ export default function AppShellLayout({
       <StripOrgSetFlag />
       <TooltipProvider>
        <ConfirmProvider>
+        {/* WP-32 — sign-in is a hard dependency. If Clerk's hosted JS never
+            loads, useQueriesEnabled() is false for the lifetime of the tab and
+            every screen below renders its loading branch forever. This gate
+            bounds that wait and swaps in an explanatory card with a retry.
+            It wraps the shell (not just <main>) because a topbar full of
+            "Loading…" plan labels around a failure card is its own lie. */}
+        <ClerkAvailabilityGate>
         {/* Bridge shell — full viewport, no scroll on the wrapper.
             Desktop nav now lives in the top navbar (BridgeTopbar row 1); the
             left sidebar was removed on md+. The mobile drawer below still
@@ -210,6 +218,7 @@ export default function AppShellLayout({
             </main>
           </div>
         </div>
+        </ClerkAvailabilityGate>
 
         <Toaster />
        </ConfirmProvider>
