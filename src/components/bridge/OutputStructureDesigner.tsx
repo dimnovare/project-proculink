@@ -11,6 +11,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { previewMappingOverride, upsertMappingOverride, inferOutputStructure, getSourceTokens } from "@/lib/api-client";
 import { OutputSourcePicker } from "./OutputSourcePicker";
+import { withBinding, withFormatManipulator, type BindingKey } from "./outputRuleModel";
 import {
   updateAt, removeAt, setNodeNamespace,
   namespacesToRows, rowsToNamespaces, templateHasRootNamespaces, treeHasPerNodeNamespaces,
@@ -475,29 +476,18 @@ function NodeEditor({
   // Bind a node to ONE source: a canonical field, a SOURCE token (bare id), or a fixed value — the
   // three are mutually exclusive, so setting one nulls the other two. The format manipulators are
   // preserved across a rebind.
-  const setBinding = (key: "canonicalField" | "sourceToken" | "fixedValue", value: string | null) =>
-    onUpdate((n) => updateAt(n, path, (x) => ({
-      ...x,
-      rule: {
-        outputPath: x.name,
-        canonicalField: key === "canonicalField" ? value : null,
-        sourceToken: key === "sourceToken" ? value : null,
-        fixedValue: key === "fixedValue" ? value : null,
-        fieldManipulators: x.rule?.fieldManipulators ?? [],
-      },
-    })));
+  const setBinding = (key: BindingKey, value: string | null) =>
+    onUpdate((n) => updateAt(n, path, (x) => ({ ...x, rule: withBinding(x.rule, x.name, key, value) })));
 
   const updateIncludeWhen = (value: string) =>
     onUpdate((n) => updateAt(n, path, (x) => ({ ...x, includeWhen: value === "" ? null : value })));
 
   // Set/clear a value-format preset: keep any non-format manipulators, swap the single format one.
   const setFormatPreset = (key: string) =>
-    onUpdate((n) => updateAt(n, path, (x) => {
-      const others = (x.rule?.fieldManipulators ?? []).filter((m) => !FORMAT_TYPES.has(m.type));
-      const preset = FORMAT_PRESETS.find((p) => p.key === key);
-      const manis = preset?.mani ? [...others, preset.mani] : others;
-      return { ...x, rule: { outputPath: x.name, canonicalField: x.rule?.canonicalField ?? null, sourceToken: x.rule?.sourceToken ?? null, fixedValue: x.rule?.fixedValue ?? null, fieldManipulators: manis } };
-    }));
+    onUpdate((n) => updateAt(n, path, (x) => ({
+      ...x,
+      rule: withFormatManipulator(x.rule, x.name, FORMAT_TYPES, FORMAT_PRESETS.find((p) => p.key === key)?.mani ?? null),
+    })));
 
   // Set/clear this node's XML namespace + prefix (delegates the prefix-without-uri guard to the model).
   const setNamespace = (namespace: string, prefix: string) =>

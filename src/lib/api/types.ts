@@ -60,6 +60,18 @@ export interface OutputFieldRule {
   sourceToken?: string | null;
   /** A literal value instead of a source field. */
   fixedValue?: string | null;
+  /**
+   * A Scriban expression, evaluated instead of any binding above it. Mirrors
+   * `OrderMappingOverride.OutputFieldRule.Expression` and sits at the TOP of the
+   * backend's resolution precedence (`MappedTransformService.ResolveExpressionOrField`):
+   * when this is set, `canonicalField`, `sourceToken` and `fixedValue` are ignored.
+   *
+   * Declared here because the designer's rule writers SPREAD the previous rule. Before
+   * WP-15 they rebuilt it from a five-key literal, so an expression authored in the
+   * template editor was destroyed the next time anyone rebound that node or changed
+   * its date format — and the delivered document quietly changed with it.
+   */
+  expression?: string | null;
   /** Ordered manipulators applied to the resolved value (Trim/Replace/Concat/…). */
   fieldManipulators: ManipulatorEntry[];
 }
@@ -316,15 +328,42 @@ export interface MappingOverridePreview {
 }
 
 /** The 8 manipulators ManipulatorRegistry supports, with their param hints. */
+/**
+ * The manipulators an author may put on an output field, mirroring
+ * `ProcuLink.Transform/Mapping/ManipulatorRegistry.cs`.
+ *
+ * **These are contracts, not labels.** The registry resolves each entry to a real C#
+ * class whose constructor validates its own arity, so a wrong `params` list here does
+ * not produce a bad label — it produces a failed transform, or worse, a silently wrong
+ * document. Two entries were wrong before WP-15 and both were shipping hazards:
+ *
+ *   • `Concat` was declared `["suffix"]`. `ConcatManipulator` requires **≥ 2** params
+ *     (`[separator, col1, col2, …]`), reads NAMED ROW COLUMNS, and ignores the incoming
+ *     value entirely — it is the two-field JOIN, natively. One param throws
+ *     `ArgumentException("Concat requires at least 2 params")` at transform time.
+ *
+ *   • `Fallback` was declared `["default"]`, hinted "use a default when the value is
+ *     empty". `FallbackManipulator` treats every param as a COLUMN NAME and returns
+ *     **null** when none of them holds a value. Used as a literal default it silently
+ *     BLANKS the supplier's column.
+ *
+ * `LoadCatalogProduct` is in the registry and deliberately NOT here: it is the catalog
+ * enrichment step wired by the catalog pipeline, not a formatting choice.
+ *
+ * `outputRuleModel.test.ts` pins every arity and both corrected hints.
+ */
 export const MANIPULATOR_TYPES: ReadonlyArray<{ type: string; params: string[]; hint: string }> = [
-  { type: "Trim",       params: [],                 hint: "Remove leading/trailing whitespace" },
-  { type: "Replace",    params: ["find", "replace"],hint: "Replace text (exactly 2 params)" },
-  { type: "DateFormat", params: ["from", "to"],     hint: "Reformat a date (e.g. yyyy-MM-dd → dd/MM/yyyy)" },
-  { type: "Concat",     params: ["suffix"],         hint: "Append text / join" },
-  { type: "Fallback",   params: ["default"],        hint: "Use a default when the value is empty" },
-  { type: "Split",      params: ["sep", "index"],   hint: "Split on a separator, take the Nth part" },
-  { type: "Multiply",   params: ["factor"],         hint: "Multiply a number" },
-  { type: "Divide",     params: ["divisor"],        hint: "Divide a number" },
+  { type: "Trim",         params: [],                        hint: "Remove leading and trailing spaces" },
+  { type: "Replace",      params: ["find", "replace"],       hint: "Replace text (exactly 2 params)" },
+  { type: "DateFormat",   params: ["from", "to"],            hint: "Reformat a date (e.g. yyyy-MM-dd → dd/MM/yyyy)" },
+  { type: "NumberFormat", params: ["format"],                hint: "Reformat a number (e.g. 0.00)" },
+  { type: "Concat",       params: ["separator", "field", "field…"],
+    hint: "Join two or more FIELDS with a separator. Ignores this node's own value — the fields named here are the whole result." },
+  { type: "Fallback",     params: ["field", "field…"],
+    hint: "If this is empty, use another FIELD instead. Names fields, not literal text — and produces nothing when they are all empty." },
+  { type: "Split",        params: ["separator", "index"],    hint: "Split on a separator, take the Nth part (0-based)" },
+  { type: "Multiply",     params: ["factor"],                hint: "Multiply a number" },
+  { type: "Divide",       params: ["divisor"],               hint: "Divide a number" },
 ];
 
 /**
