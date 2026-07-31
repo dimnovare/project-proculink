@@ -128,7 +128,14 @@ function scan(css) {
 }
 
 // ─── Run ──────────────────────────────────────────────────────────────────────
-const sources = [{ label: "tailwind compile (real config)", css: compile() }];
+// The label names the config actually used — "real config" on a fixture run was
+// a small lie that made a failing test report harder to read than it needed to be.
+const CONFIG_LABEL =
+  CONFIG === join(REPO, "tailwind.config.ts")
+    ? "tailwind compile (real config)"
+    : `tailwind compile (${relative(REPO, CONFIG).replace(/\\/g, "/")})`;
+
+const sources = [{ label: CONFIG_LABEL, css: compile() }];
 
 if (ALSO_BUILT) {
   const built = cssFiles(join(REPO, ".next", "static", "css"));

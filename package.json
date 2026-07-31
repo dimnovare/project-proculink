@@ -25,6 +25,8 @@
     "check:pageshell": "node scripts/check-pageshell.mjs",
     "lint:tokens": "node scripts/check-tokens.mjs --strict",
     "lint:tokens:report": "node scripts/check-tokens.mjs",
+    "lint:emitted-css": "node scripts/check-emitted-css.mjs",
+    "lint:emitted-css:built": "node scripts/check-emitted-css.mjs --built",
     "lint:vocab": "node scripts/check-vocabulary.mjs --all",
     "lint:vocab:warn": "node scripts/check-vocabulary.mjs --warn",
     "prepare": "node scripts/install-hooks.mjs",

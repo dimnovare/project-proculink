@@ -131,6 +131,20 @@ jobs:
         if: always()
         run: bun run lint:tokens
 
+      # Emitted-CSS gate. The token gate above reads SOURCE TEXT, which is a
+      # DIFFERENT SCANNER from the one that builds the stylesheet — and the two
+      # disagreeing is not hypothetical, it shipped. tailwind.config.ts scanned
+      # `./src/**/*.{ts,tsx}` with no test exclusion while both token guards skip
+      # `*.test.ts(x)` on purpose, so Tailwind's content scanner (a regex over file
+      # text) read the fixture string `focus-visible:ring-[#28C55E]` out of the very
+      # test that pins the emerald ban and emitted the rule into production CSS.
+      # Re-running the guard could never have caught it. This step asks the real
+      # compiler what it actually emits, and matches decimal as well as hex —
+      # Tailwind compiles that class to `rgb(40 197 94 / …)`.
+      - name: Emitted-CSS gate
+        if: always()
+        run: bun run lint:emitted-css
+
       # Types are the one gate WP-01 left out, and the gap was not theoretical: by the time
       # this was added, main carried TWO type errors - one pre-existing in seo.test.ts and one
       # merged the same day via #52. tsconfig has strict:false and strictNullChecks:false, so
