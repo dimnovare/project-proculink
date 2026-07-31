@@ -86,14 +86,18 @@ const isOrderDetailsTab = (v: string | null | undefined): v is OrderDetailsTab =
 function orderLoadFailure(
   error: unknown,
   orderIsNull: boolean,
-): { headline: string; body: string; action: "back" | "sign-in" | "retry" } {
+): { headline: string; body: string; action: "none" | "sign-in" | "retry" } {
   const { kind, retryAfterSeconds } = classifyApiFailure(error);
 
   if (orderIsNull || kind === "not_found") {
     return {
       headline: "We can't find this order",
       body: "It may have been archived, or the link may be out of date. Your other orders are unaffected.",
-      action: "back",
+      // No control of our own. WorkshopGateShell already renders the "Back to
+      // inbox" chip, and adding a second back button here put two controls that
+      // do the same thing on one screen — in two different vocabularies, "orders"
+      // and "inbox". The exit exists; it just is not this component's to add.
+      action: "none",
     };
   }
   if (kind === "auth_expired") {
@@ -107,7 +111,7 @@ function orderLoadFailure(
     return {
       headline: "This order isn't yours to open",
       body: "It belongs to a different workspace. Switch workspace, or ask whoever owns it to share what you need.",
-      action: "back",
+      action: "none",
     };
   }
   if (kind === "rate_limited") {
@@ -136,7 +140,7 @@ function OrderLoadFailureGate({
   orderId,
   onRetry,
 }: {
-  failure: { headline: string; body: string; action: "back" | "sign-in" | "retry" };
+  failure: { headline: string; body: string; action: "none" | "sign-in" | "retry" };
   orderId: string;
   onRetry: () => unknown;
 }) {
@@ -182,19 +186,6 @@ function OrderLoadFailureGate({
           >
             Try again
           </button>
-        )}
-        {loadFailure.action === "back" && (
-          <Link
-            href="/inbox"
-            className="plk-focus"
-            style={{
-              display: "inline-flex", alignItems: "center", minHeight: 40, padding: "0 16px",
-              borderRadius: 6, border: "1px solid var(--border)", color: "var(--ink)",
-              fontSize: 13, fontWeight: 600, textDecoration: "none",
-            }}
-          >
-            Back to orders
-          </Link>
         )}
       </div>
       </WorkshopGateShell>

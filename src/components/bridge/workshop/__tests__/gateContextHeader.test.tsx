@@ -248,6 +248,6 @@ describe("every workshop gate state renders the shared context header", () => {
     // does not read as a header regression. The wording itself, and the fact that
     // the state is reachable at all, are asserted in orderLoadFailure.test.tsx.
     expect(screen.getByText(/can't find this order/i)).toBeTruthy();
-    expect(screen.getByRole("link", { name: /Back to orders/i })).toBeTruthy();
+    expect(screen.getByRole("button", { name: /Back to inbox/i })).toBeTruthy();
   });
 });

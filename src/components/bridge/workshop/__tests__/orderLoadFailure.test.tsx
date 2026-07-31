@@ -193,7 +193,10 @@ describe("an order that will not load says WHICH failure it is", () => {
     expect(screen.queryByText(/Something went wrong/i)).toBeNull();
     // No retry: the second answer is the first answer.
     expect(screen.queryByRole("button", { name: /Try again/i })).toBeNull();
-    expect(screen.getByRole("link", { name: /Back to orders/i })).toHaveAttribute("href", "/inbox");
+    // The exit is WorkshopGateShell's own chip. This panel deliberately adds no
+    // back control of its own — doing so put two controls that do the same thing
+    // on one screen, in two vocabularies ("orders" and "inbox").
+    expect(screen.getByRole("button", { name: /Back to inbox/i })).toBeTruthy();
   });
 
   test("401 — it routes to re-auth, and comes back here", async () => {
